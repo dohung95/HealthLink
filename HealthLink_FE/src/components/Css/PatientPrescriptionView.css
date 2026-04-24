@@ -1,0 +1,124 @@
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;900&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&display=swap');
+
+:root {
+    --primary: #137fec;
+    --background-light: #f6f7f8;
+    --border-color: #e2e8f0;
+    --text-main: #374151;
+    --text-secondary: #6c757d;
+}
+
+.material-symbols-outlined {
+    font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 24;
+    font-size: 1.25rem;
+}
+
+.bg-white-custom {
+    background-color: #fff;
+}
+
+.border-custom {
+    border-color: var(--border-color);
+}
+
+.search-input-group {
+    display: flex;
+    flex-wrap: nowrap;
+}
+
+.search-input-group .input-group-text {
+    background-color: var(--background-light);
+    border-color: var(--border-color);
+    color: var(--text-secondary);
+    border-right: none;
+    border-radius: 0.5rem 0 0 0.5rem !important;
+    flex-shrink: 0;
+}
+
+.search-input-group .form-control {
+    background-color: var(--background-light);
+    border-color: var(--border-color);
+    border-left: none;
+    border-radius: 0 0.5rem 0.5rem 0 !important;
+    height: 2.75rem;
+    flex: 1;
+    min-width: 0;
+    margin: 0;
+}
+
+.chip {
+    padding: 0.25rem 1rem;
+    border-radius: 50rem;
+    font-size: 0.875rem;
+    font-weight: 500;
+    cursor: pointer;
+    white-space: nowrap;
+    flex-shrink: 0;
+}
+
+.chip-active {
+    background-color: rgba(19, 127, 236, 0.1);
+    color: var(--primary);
+}
+
+.chip-inactive {
+    background-color: #f8f9fa;
+    color: var(--text-main);
+}
+
+.list-item-active {
+    border-left: 4px solid var(--primary);
+    background-color: rgba(19, 127, 236, 0.1);
+}
+
+.list-item-inactive:hover {
+    background-color: #f8f9fa;
+}
+
+.badge-new {
+    background-color: #ccf3ed;
+    color: #065f46;
+}
+
+.badge-used {
+    background-color: #e9ecef;
+    color: #495057;
+}
+
+.badge-expired {
+    background-color: #fef3c7;
+    color: #b45309;
+}
+
+.doctor-avatar {
+    width: 3rem; 
+    height: 3rem;
+    border-radius: 50%;
+    background-size: cover;
+    background-position: center;
+    flex-shrink: 0;
+}
+
+.table th {
+    background-color: var(--background-light);
+    color: #495057;
+    font-weight: 600;
+}
+
+.table-details td {
+    color: var(--text-main);
+    font-size: 0.875rem;
+}
+
+.notes-box {
+    background-color: var(--background-light);
+    border: 1px solid var(--border-color);
+    padding: 1rem;
+    border-radius: 0.5rem;
+}
+
+.prescription-list-item {
+    cursor: pointer;
+    transition: all 0.2s ease;
+}

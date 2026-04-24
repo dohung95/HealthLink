@@ -1,0 +1,429 @@
+.Background_Sign_Up {
+    background-image: url('/public/Hung/Register.jpg');
+    background-size: cover;
+    background-position: center center;
+    background-repeat: no-repeat;
+    background-attachment: fixed;
+    min-height: 100vh;
+    position: relative;
+    padding-bottom: 3%;
+    padding-top: 270px;
+}
+
+.Background_Sign_Up::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    z-index: 1;
+    background: rgba(255, 255, 255, 0.1);
+}
+
+.Background_Sign_Up>* {
+    position: relative;
+    z-index: 2;
+}
+
+/* ============================================
+   OHCP Registration Form Styles
+   ============================================ */
+
+/* Form Container */
+.signup-container {
+    max-width: 900px;
+    padding: 40px;
+    border-radius: 12px;
+    background-color: rgba(255, 255, 255, 0.95);
+    box-shadow: 0 8px 32px rgba(0, 0, 0, 0.12);
+    backdrop-filter: blur(10px);
+}
+
+.signup-container h2 {
+    color: #007a6a;
+    font-size: 32px;
+    font-weight: 600;
+    margin-bottom: 24px;
+    text-align: center;
+}
+
+/* Form Row (2 columns) */
+.form-row {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 24px;
+    margin-bottom: 16px;
+}
+
+/* Label Styling */
+.signup-container label {
+    display: block;
+    color: #2c3e50;
+    font-weight: 500;
+    font-size: 14px;
+    margin-bottom: 8px;
+}
+
+/* Input Fields */
+.signup-input {
+    width: 100%;
+    padding: 12px 16px;
+    margin: 8px 0 4px 0;
+    border: 2px solid #e0e6ed;
+    border-radius: 8px;
+    box-sizing: border-box;
+    font-size: 14px;
+    transition: all 0.3s ease;
+    background-color: #ffffff;
+}
+
+.signup-input:focus {
+    outline: none;
+    border-color: #00b09a;
+    box-shadow: 0 0 0 3px rgba(0, 176, 154, 0.1);
+}
+
+.signup-input:disabled {
+    background-color: #f5f7fa;
+    cursor: not-allowed;
+    opacity: 0.6;
+}
+
+/* Submit Button */
+.signup-button {
+    width: 100%;
+    padding: 14px 24px;
+    background: linear-gradient(135deg, #00b09a 0%, #007a6a 100%);
+    color: white;
+    border: none;
+    border-radius: 8px;
+    cursor: pointer;
+    margin-top: 24px;
+    font-size: 16px;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    transition: all 0.3s ease;
+    box-shadow: 0 4px 15px rgba(0, 176, 154, 0.3);
+}
+
+.signup-button:hover:not(:disabled) {
+    transform: translateY(-2px);
+    box-shadow: 0 6px 20px rgba(0, 176, 154, 0.4);
+}
+
+.signup-button:active:not(:disabled) {
+    transform: translateY(0);
+}
+
+.signup-button:disabled {
+    opacity: 0.6;
+    cursor: not-allowed;
+    transform: none;
+}
+
+/* Error Message */
+.error-message {
+    background: linear-gradient(135deg, #fff5f5 0%, #fed7d7 100%);
+    color: #c53030;
+    padding: 14px 18px;
+    margin: 0 0 20px 0;
+    border: 1px solid #fc8181;
+    border-left: 4px solid #e53e3e;
+    border-radius: 8px;
+    font-size: 14px;
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    animation: slideDown 0.3s ease-out;
+    box-shadow: 0 2px 8px rgba(197, 48, 48, 0.1);
+}
+
+/* Validation Messages */
+.signup-container>div>div>div[style*="color: #dc3545"],
+.signup-container>div>div>div[style*="color: #4caf50"] {
+    font-size: 13px;
+    font-weight: 500;
+    margin-top: 6px;
+    padding: 6px 10px;
+    border-radius: 6px;
+}
+
+/* Tooltip Container */
+.tooltip-container {
+    position: relative;
+    display: inline-block;
+    cursor: help;
+}
+
+.tooltip-container:hover .tooltip {
+    display: block;
+    opacity: 1;
+    transform: translateY(0);
+}
+
+/* Tooltip chính */
+.tooltip {
+    display: none;
+    position: absolute;
+    top: 100%;
+    left: -30px;  
+    margin-top: 10px;
+    z-index: 9999;
+    width: 380px;
+    max-width: 92vw;
+    
+    background: linear-gradient(135deg, #2d3748 0%, #1a202c 100%);
+    color: white;
+    padding: 16px 20px;
+    border-radius: 10px;
+    box-shadow: 0 10px 40px rgba(0, 0, 0, 0.3);
+    line-height: 1.6;
+    font-size: 13px;
+    
+    pointer-events: none;
+    
+    /* Animation trượt xuống */
+    opacity: 0;
+    transform: translateY(-12px);
+    transition: opacity 0.3s ease, transform 0.3s ease;
+}
+
+/* Khoảng nối vô hình (kẻo chuột bị rơi khi di chuyển từ * vào tooltip) */
+.tooltip::before {
+    content: '';
+    position: absolute;
+    top: -12px;
+    left: 0;
+    width: 100%;
+    height: 16px;
+    background: transparent;
+}
+
+/* Mũi tên */
+.tooltip-arrow {
+    position: absolute;
+    top: -6px;
+    left: 33px;
+    margin-left: -7px;
+    border-left: 7px solid transparent;
+    border-right: 7px solid transparent;
+    border-bottom: 7px solid #2d3748;
+}
+
+/* Khi hover */
+.tooltip-wrapper:hover .tooltip {
+    display: block;
+    opacity: 1;
+    transform: translateY(0);
+}
+
+@keyframes tooltipFadeIn {
+    from {
+        opacity: 0;
+        transform: translateY(-5px);
+    }
+
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+/* Requirement Item */
+.requirement-item {
+    display: flex;
+    align-items: center;
+    margin-bottom: 8px;
+    padding: 4px 0;
+    gap: 10px;
+    font-size: 13px;
+}
+
+.requirement-item i {
+    font-size: 14px;
+}
+
+/* Already have account link */
+.signup-container>p {
+    text-align: center;
+    margin-top: 20px;
+    color: #4a5568;
+    font-size: 14px;
+}
+
+.signup-container>p a {
+    color: #00b09a;
+    font-weight: 600;
+    text-decoration: none;
+    transition: color 0.3s ease;
+}
+
+.signup-container>p a:hover {
+    color: #007a6a;
+    text-decoration: underline;
+}
+
+/* Animation */
+@keyframes slideDown {
+    from {
+        opacity: 0;
+        transform: translateY(-10px);
+    }
+
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+/* Responsive */
+@media (max-width: 768px) {
+    .form-row {
+        grid-template-columns: 1fr !important;
+        gap: 16px;
+    }
+
+    .signup-container {
+        max-width: 100%;
+        padding: 24px 20px;
+    }
+
+    .signup-container h2 {
+        font-size: 26px;
+    }
+
+    .tooltip {
+        width: 320px;
+        font-size: 13px;
+        left: -40px;
+        transform: translateX(-50%) translateY(-12px);
+    }
+
+    .tooltip-arrow {
+        margin-left: 22px;
+    }
+    .tooltip-wrapper:hover .tooltip {
+        transform: translateX(-50%) translateY(0);
+    }
+
+    .signup-button {
+        padding: 12px 20px;
+        font-size: 15px;
+    }
+}
+
+@media (max-width: 480px) {
+    .signup-container {
+        padding: 20px 16px;
+    }
+
+    .tooltip {
+        width: 260px;
+        left: -60px;
+    }
+
+    .tooltip-arrow {
+        margin-left: 42px;
+    }
+
+    .form-row {
+        gap: 12px;
+    }
+}
+
+/* ============================================
+   Success Modal Styles
+   ============================================ */
+
+/* Modal Header */
+.modal-success-header {
+    background-color: #e6f9f6;
+    border-bottom: 2px solid #00a08b;
+    padding: 20px;
+}
+
+.modal-success-title {
+    color: #008f7d;
+    font-weight: 600;
+    font-size: 22px;
+    width: 100%;
+    text-align: center;
+}
+
+.modal-success-title i {
+    font-size: 35px;
+    margin-right: 12px;
+}
+
+.modal-title-text {
+    display: inline-block;
+    vertical-align: middle;
+}
+
+/* Modal Body */
+.modal-success-body {
+    padding: 40px;
+    text-align: center;
+    background-color: #fff;
+}
+
+.modal-success-content {
+    background-color: #f0fff4;
+    border: 2px solid #9ae6b4;
+    border-radius: 10px;
+    padding: 30px;
+    margin-bottom: 20px;
+}
+
+.modal-success-icon {
+    font-size: 55px;
+    color: #38a169;
+    margin-bottom: 20px;
+    display: block;
+}
+
+.modal-success-heading {
+    color: #2d3748;
+    font-weight: 600;
+    margin-bottom: 20px;
+    font-size: 18px;
+}
+
+.modal-success-message {
+    font-size: 16px;
+    color: #555;
+    line-height: 1.8;
+    margin: 0;
+}
+
+.modal-support-text {
+    font-size: 14px;
+    color: #6c757d;
+    margin-top: 15px;
+}
+
+/* Modal Footer */
+.modal-success-footer {
+    justify-content: center;
+    padding: 20px;
+    background-color: #f8f9fa;
+}
+
+.modal-success-button {
+    min-width: 150px;
+    font-weight: 600;
+    font-size: 16px;
+    background-color: #00a08b;
+    border: none;
+    color: white;
+}
+
+.modal-success-button:hover {
+    background-color: #008577;
+}
+
+.modal-success-button i {
+    margin-right: 8px;
+}

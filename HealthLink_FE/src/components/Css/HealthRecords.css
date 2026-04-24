@@ -1,0 +1,43 @@
+/* Medical History Enhancements */
+.timeline-container {
+    position: relative;
+    padding-left: 0;
+}
+.timeline-container .card {
+    transition: all 0.3s ease;
+}
+.hover-shadow:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15) !important;
+}
+.border-start.border-primary.border-3 {
+    border-width: 3px !important;
+}
+/* Modal styling */
+.modal.show {
+    display: block;
+}
+.modal-backdrop {
+    background-color: rgba(0, 0, 0, 0.5);
+}
+/* Badge enhancements */
+.badge {
+    padding: 0.35em 0.65em;
+    font-weight: 500;
+}
+/* Responsive adjustments */
+@media (max-width: 768px) {
+    .timeline-container .card .row > div {
+        text-align: left !important;
+    }
+    
+    .timeline-container .card .btn {
+        width: 100%;
+        margin-top: 0.5rem;
+    }
+}
+/* View toggle buttons */
+.btn-group .btn-sm {
+    padding: 0.25rem 0.75rem;
+    font-size: 0.875rem;
+}

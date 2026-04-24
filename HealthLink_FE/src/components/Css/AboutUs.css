@@ -1,0 +1,797 @@
+/* ================================================================== */
+/* ABOUT US PAGE CSS - SCOPED TO .aboutus-page ONLY */
+/* ================================================================== */
+
+/* ==================== HERO SECTION ==================== */
+.aboutus-page .aboutus-hero {
+    background-image: url('/public/Hung/Background_AboutUs.jpg');
+    background-size: cover;
+    background-position: center center;
+    background-repeat: no-repeat;
+    background-attachment: fixed;
+    min-height: 70vh;
+    position: relative;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding-top: 200px;
+}
+
+.aboutus-page .aboutus-hero::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    z-index: 1;
+    background: rgba(0, 0, 0, 0.4);
+}
+
+.aboutus-page .aboutus-hero-content {
+    position: relative;
+    z-index: 2;
+    text-align: center;
+    color: white;
+    padding: 0 10%;
+}
+
+.aboutus-page .aboutus-hero-subtitle {
+    color: #00b09a;
+    font-size: 1.2vw;
+    letter-spacing: 3px;
+    margin-bottom: 2vh;
+}
+
+.aboutus-page .aboutus-hero-title {
+    font-size: 3.5vw;
+    font-weight: bold;
+    margin-bottom: 2vh;
+    line-height: 1.2;
+}
+
+.aboutus-page .aboutus-hero-description {
+    font-size: 1.3vw;
+    max-width: 600px;
+    margin: 0 auto;
+}
+
+/* ==================== MISSION SECTION ==================== */
+.aboutus-page .aboutus-mission-section {
+    padding: 8vh 0;
+    background: white;
+}
+
+.aboutus-page .aboutus-section-badge {
+    display: inline-block;
+    background: #00b09a;
+    color: white;
+    padding: 0.5vw 1.5vw;
+    border-radius: 20px;
+    font-size: 0.9vw;
+    font-weight: bold;
+    letter-spacing: 1px;
+    margin-bottom: 2vh;
+}
+
+.aboutus-page .aboutus-section-title {
+    font-size: 2.5vw;
+    margin-bottom: 3vh;
+    line-height: 1.3;
+}
+
+.aboutus-page .aboutus-highlight {
+    color: #00b09a;
+}
+
+.aboutus-page .aboutus-section-text {
+    font-size: 1.1vw;
+    line-height: 1.8;
+    color: #666;
+    margin-bottom: 3vh;
+}
+
+.aboutus-page .aboutus-mission-image {
+    padding: 2vh;
+}
+
+.aboutus-page .aboutus-mission-image img {
+    width: 100%;
+    height: auto;
+    border-radius: 10px;
+    box-shadow: 0 10px 30px rgba(0, 0, 0, 0.1);
+}
+
+/* ==================== VALUES SECTION ==================== */
+.aboutus-page .aboutus-values-section {
+    padding: 8vh 0;
+    background: #f8f9fa;
+}
+
+.aboutus-page .aboutus-section-badge-center {
+    display: inline-block;
+    background: #00b09a;
+    color: white;
+    padding: 0.5vw 1.5vw;
+    border-radius: 20px;
+    font-size: 0.9vw;
+    font-weight: bold;
+    letter-spacing: 1px;
+    margin-bottom: 2vh;
+}
+
+.aboutus-page .aboutus-section-title-center {
+    font-size: 2.5vw;
+    margin-bottom: 5vh;
+    text-align: center;
+}
+
+.aboutus-page .aboutus-values-section .container {
+    text-align: center;
+}
+
+.aboutus-page .aboutus-values-row {
+    margin-top: 4vh;
+}
+
+.aboutus-page .aboutus-value-card {
+    background: white;
+    padding: 3vw;
+    border-radius: 10px;
+    box-shadow: 0 5px 15px rgba(0, 0, 0, 0.1);
+    transition: all 0.3s ease;
+    margin: 1vh;
+    height: 100%;
+}
+
+.aboutus-page .aboutus-value-card:hover {
+    transform: translateY(-10px);
+    box-shadow: 0 15px 30px rgba(0, 176, 154, 0.2);
+}
+
+.aboutus-page .aboutus-value-icon {
+    margin-bottom: 2vh;
+}
+
+.aboutus-page .aboutus-value-title {
+    font-size: 1.5vw;
+    margin-bottom: 2vh;
+    color: #333;
+}
+
+.aboutus-page .aboutus-value-text {
+    font-size: 1vw;
+    line-height: 1.6;
+    color: #666;
+}
+
+/* ==================== STATISTICS SECTION ==================== */
+.aboutus-page .aboutus-stats-section {
+    padding: 8vh 0;
+    background: linear-gradient(135deg, #00b09a 0%, #009a86 100%);
+    color: white;
+}
+
+.aboutus-page .aboutus-stat-card {
+    text-align: center;
+    padding: 3vh 0;
+}
+
+.aboutus-page .aboutus-stat-number {
+    font-size: 4vw;
+    font-weight: bold;
+    display: block;
+    margin-bottom: 1vh;
+}
+
+.aboutus-page .aboutus-stat-label {
+    font-size: 1.2vw;
+    opacity: 0.9;
+}
+
+/* ==================== SERVICES SECTION ==================== */
+.aboutus-page .aboutus-services-section {
+    padding: 8vh 0;
+    background: white;
+}
+
+.aboutus-page .aboutus-services-section .container {
+    text-align: center;
+}
+
+.aboutus-page .aboutus-service-card {
+    background: #f8f9fa;
+    padding: 3vw;
+    border-radius: 10px;
+    transition: all 0.3s ease;
+    margin: 1vh;
+    height: 100%;
+    border: 2px solid transparent;
+}
+
+.aboutus-page .aboutus-service-card:hover {
+    border-color: #00b09a;
+    background: white;
+    box-shadow: 0 10px 25px rgba(0, 176, 154, 0.15);
+    transform: translateY(-5px);
+}
+
+.aboutus-page .aboutus-service-icon {
+    margin-bottom: 2vh;
+}
+
+.aboutus-page .aboutus-service-title {
+    font-size: 1.5vw;
+    margin-bottom: 2vh;
+    color: #333;
+}
+
+.aboutus-page .aboutus-service-text {
+    font-size: 1vw;
+    line-height: 1.6;
+    color: #666;
+}
+
+/* ==================== CTA SECTION ==================== */
+.aboutus-page .aboutus-cta-section {
+    padding: 8vh 0;
+    background-image: url('/public/Hung/about_us_profes1.jpg');
+    background-size: cover;
+    background-position: center center;
+    background-repeat: no-repeat;
+    background-attachment: fixed;
+    position: relative;
+}
+
+.aboutus-page .aboutus-cta-section::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: rgba(46, 46, 46, 0.293);
+    z-index: 1;
+}
+
+.aboutus-page .aboutus-cta-content {
+    position: relative;
+    z-index: 2;
+    text-align: center;
+    color: white;
+}
+
+.aboutus-page .aboutus-cta-title {
+    font-size: 3vw;
+    font-weight: bold;
+    margin-bottom: 2vh;
+}
+
+.aboutus-page .aboutus-cta-text {
+    font-size: 1.3vw;
+    margin-bottom: 4vh;
+}
+
+.aboutus-page .aboutus-cta-buttons {
+    display: flex;
+    justify-content: center;
+    gap: 2vw;
+}
+
+.aboutus-page .aboutus-cta-btn {
+    padding: 1vw 3vw;
+    font-size: 1.1vw;
+    font-weight: bold;
+    border: none;
+    border-radius: 5px;
+    cursor: pointer;
+    transition: all 0.3s ease;
+}
+
+.aboutus-page .aboutus-cta-btn-primary {
+    background: #00b09a;
+    color: white;
+}
+
+.aboutus-page .aboutus-cta-btn-primary:hover {
+    background: #009a86;
+    transform: translateY(-3px);
+    box-shadow: 0 5px 15px rgba(0, 176, 154, 0.4);
+}
+
+.aboutus-page .aboutus-cta-btn-secondary {
+    background: white;
+    color: #00b09a;
+}
+
+.aboutus-page .aboutus-cta-btn-secondary:hover {
+    background: #f8f9fa;
+    transform: translateY(-3px);
+    box-shadow: 0 5px 15px rgba(255, 255, 255, 0.3);
+}
+
+/* ================================================================== */
+/* RESPONSIVE STYLES FOR ABOUT US PAGE */
+/* ================================================================== */
+
+/* Desktop Large (< 1400px) */
+@media (max-width: 1399.98px) {
+    .aboutus-page .aboutus-hero {
+        padding-top: 180px;
+    }
+
+    .aboutus-page .aboutus-hero-title {
+        font-size: 3.7vw;
+    }
+
+    .aboutus-page .aboutus-section-title,
+    .aboutus-page .aboutus-section-title-center {
+        font-size: 2.7vw;
+    }
+
+    .aboutus-page .aboutus-value-card,
+    .aboutus-page .aboutus-service-card {
+        padding: 2.8vw;
+    }
+}
+
+/* Desktop (< 1200px) */
+@media (max-width: 1199.98px) {
+    .aboutus-page .aboutus-hero {
+        padding-top: 170px;
+    }
+
+    .aboutus-page .aboutus-hero-title {
+        font-size: 4vw;
+    }
+
+    .aboutus-page .aboutus-hero-description {
+        font-size: 1.4vw;
+    }
+
+    .aboutus-page .aboutus-section-badge,
+    .aboutus-page .aboutus-section-badge-center {
+        padding: 0.6vw 1.7vw;
+        font-size: 1vw;
+    }
+
+    .aboutus-page .aboutus-section-title,
+    .aboutus-page .aboutus-section-title-center {
+        font-size: 2.8vw;
+    }
+
+    .aboutus-page .aboutus-section-text {
+        font-size: 1.15vw;
+    }
+
+    .aboutus-page .aboutus-value-card,
+    .aboutus-page .aboutus-service-card {
+        padding: 2.6vw;
+    }
+
+    .aboutus-page .aboutus-value-title,
+    .aboutus-page .aboutus-service-title {
+        font-size: 1.6vw;
+    }
+
+    .aboutus-page .aboutus-value-text,
+    .aboutus-page .aboutus-service-text {
+        font-size: 1.05vw;
+    }
+
+    .aboutus-page .aboutus-stat-number {
+        font-size: 4.2vw;
+    }
+
+    .aboutus-page .aboutus-stat-label {
+        font-size: 1.3vw;
+    }
+
+    .aboutus-page .aboutus-cta-title {
+        font-size: 3.2vw;
+    }
+
+    .aboutus-page .aboutus-cta-text {
+        font-size: 1.4vw;
+    }
+
+    .aboutus-page .aboutus-cta-btn {
+        padding: 1.1vw 3.2vw;
+        font-size: 1.15vw;
+    }
+}
+
+/* Tablet (< 992px) */
+@media (max-width: 991.98px) {
+    .aboutus-page .aboutus-hero {
+        padding-top: 160px;
+        min-height: 65vh;
+        background-attachment: scroll;
+    }
+
+    .aboutus-page .aboutus-hero-content {
+        padding: 0 8%;
+    }
+
+    .aboutus-page .aboutus-hero-title {
+        font-size: 4.5vw;
+    }
+
+    .aboutus-page .aboutus-hero-description {
+        font-size: 1.6vw;
+        max-width: 500px;
+    }
+
+    .aboutus-page .aboutus-mission-section,
+    .aboutus-page .aboutus-values-section,
+    .aboutus-page .aboutus-stats-section,
+    .aboutus-page .aboutus-services-section,
+    .aboutus-page .aboutus-cta-section {
+        padding: 6vh 0;
+    }
+
+    .aboutus-page .aboutus-section-badge,
+    .aboutus-page .aboutus-section-badge-center {
+        padding: 0.7vw 2vw;
+        font-size: 1.1vw;
+    }
+
+    .aboutus-page .aboutus-section-title,
+    .aboutus-page .aboutus-section-title-center {
+        font-size: 3.2vw;
+    }
+
+    .aboutus-page .aboutus-section-text {
+        font-size: 1.3vw;
+    }
+
+    .aboutus-page .aboutus-value-card,
+    .aboutus-page .aboutus-service-card {
+        padding: 2.4vw;
+        margin: 1.5vh;
+    }
+
+    .aboutus-page .aboutus-value-title,
+    .aboutus-page .aboutus-service-title {
+        font-size: 1.8vw;
+    }
+
+    .aboutus-page .aboutus-value-text,
+    .aboutus-page .aboutus-service-text {
+        font-size: 1.15vw;
+    }
+
+    .aboutus-page .aboutus-stat-number {
+        font-size: 5vw;
+    }
+
+    .aboutus-page .aboutus-stat-label {
+        font-size: 1.5vw;
+    }
+
+    .aboutus-page .aboutus-cta-section {
+        background-attachment: scroll;
+    }
+
+    .aboutus-page .aboutus-cta-title {
+        font-size: 3.8vw;
+    }
+
+    .aboutus-page .aboutus-cta-text {
+        font-size: 1.6vw;
+    }
+
+    .aboutus-page .aboutus-cta-buttons {
+        gap: 1.5vw;
+    }
+
+    .aboutus-page .aboutus-cta-btn {
+        padding: 1.2vw 3.5vw;
+        font-size: 1.3vw;
+    }
+}
+
+/* Tablet Small (< 768px) */
+@media (max-width: 767.98px) {
+    .aboutus-page .aboutus-hero {
+        padding-top: 140px;
+        min-height: 60vh;
+    }
+
+    .aboutus-page .aboutus-hero-content {
+        padding: 0 5%;
+    }
+
+    .aboutus-page .aboutus-hero-subtitle {
+        font-size: 14px;
+        letter-spacing: 2px;
+        margin-bottom: 1.5vh;
+    }
+
+    .aboutus-page .aboutus-hero-title {
+        font-size: 28px;
+        margin-bottom: 1.5vh;
+    }
+
+    .aboutus-page .aboutus-hero-description {
+        font-size: 14px;
+        max-width: 100%;
+    }
+
+    .aboutus-page .aboutus-mission-section,
+    .aboutus-page .aboutus-values-section,
+    .aboutus-page .aboutus-stats-section,
+    .aboutus-page .aboutus-services-section,
+    .aboutus-page .aboutus-cta-section {
+        padding: 5vh 0;
+    }
+
+    .aboutus-page .aboutus-section-badge,
+    .aboutus-page .aboutus-section-badge-center {
+        padding: 6px 16px;
+        font-size: 11px;
+        margin-bottom: 1.5vh;
+    }
+
+    .aboutus-page .aboutus-section-title,
+    .aboutus-page .aboutus-section-title-center {
+        font-size: 24px;
+        margin-bottom: 3vh;
+        text-align: center;
+    }
+
+    .aboutus-page .aboutus-section-text {
+        font-size: 13px;
+        line-height: 1.7;
+        text-align: center;
+        margin-bottom: 2.5vh;
+    }
+
+    .aboutus-page .aboutus-mission-image {
+        padding: 1vh;
+        margin-top: 3vh;
+    }
+
+    .aboutus-page .aboutus-values-row,
+    .aboutus-page .aboutus-services-section .row {
+        margin-top: 2vh;
+    }
+
+    .aboutus-page .aboutus-value-card,
+    .aboutus-page .aboutus-service-card {
+        padding: 25px;
+        margin: 1vh 0;
+    }
+
+    .aboutus-page .aboutus-value-icon,
+    .aboutus-page .aboutus-service-icon {
+        margin-bottom: 1.5vh;
+    }
+
+    .aboutus-page .aboutus-value-icon svg,
+    .aboutus-page .aboutus-service-icon svg {
+        width: 50px;
+        height: 50px;
+    }
+
+    .aboutus-page .aboutus-value-title,
+    .aboutus-page .aboutus-service-title {
+        font-size: 18px;
+        margin-bottom: 1.5vh;
+    }
+
+    .aboutus-page .aboutus-value-text,
+    .aboutus-page .aboutus-service-text {
+        font-size: 13px;
+        line-height: 1.6;
+    }
+
+    .aboutus-page .aboutus-stat-card {
+        padding: 2vh 0;
+    }
+
+    .aboutus-page .aboutus-stat-number {
+        font-size: 42px;
+        margin-bottom: 0.8vh;
+    }
+
+    .aboutus-page .aboutus-stat-label {
+        font-size: 14px;
+    }
+
+    .aboutus-page .aboutus-cta-title {
+        font-size: 26px;
+        margin-bottom: 1.5vh;
+    }
+
+    .aboutus-page .aboutus-cta-text {
+        font-size: 14px;
+        margin-bottom: 3vh;
+    }
+
+    .aboutus-page .aboutus-cta-buttons {
+        flex-direction: column;
+        gap: 12px;
+        align-items: stretch;
+    }
+
+    .aboutus-page .aboutus-cta-btn {
+        padding: 12px 30px;
+        font-size: 13px;
+        width: 100%;
+        max-width: 300px;
+        margin: 0 auto;
+    }
+}
+
+/* Mobile (< 576px) */
+@media (max-width: 575.98px) {
+    .aboutus-page .aboutus-hero {
+        padding-top: 120px;
+        min-height: 55vh;
+    }
+
+    .aboutus-page .aboutus-hero-subtitle {
+        font-size: 12px;
+        letter-spacing: 1.5px;
+    }
+
+    .aboutus-page .aboutus-hero-title {
+        font-size: 24px;
+        margin-bottom: 1.2vh;
+    }
+
+    .aboutus-page .aboutus-hero-description {
+        font-size: 12px;
+    }
+
+    .aboutus-page .aboutus-mission-section,
+    .aboutus-page .aboutus-values-section,
+    .aboutus-page .aboutus-stats-section,
+    .aboutus-page .aboutus-services-section,
+    .aboutus-page .aboutus-cta-section {
+        padding: 4vh 0;
+    }
+
+    .aboutus-page .aboutus-section-badge,
+    .aboutus-page .aboutus-section-badge-center {
+        padding: 5px 14px;
+        font-size: 10px;
+    }
+
+    .aboutus-page .aboutus-section-title,
+    .aboutus-page .aboutus-section-title-center {
+        font-size: 20px;
+        margin-bottom: 2.5vh;
+    }
+
+    .aboutus-page .aboutus-section-text {
+        font-size: 12px;
+        line-height: 1.6;
+    }
+
+    .aboutus-page .aboutus-value-card,
+    .aboutus-page .aboutus-service-card {
+        padding: 20px;
+    }
+
+    .aboutus-page .aboutus-value-icon svg,
+    .aboutus-page .aboutus-service-icon svg {
+        width: 45px;
+        height: 45px;
+    }
+
+    .aboutus-page .aboutus-value-title,
+    .aboutus-page .aboutus-service-title {
+        font-size: 17px;
+        margin-bottom: 1.2vh;
+    }
+
+    .aboutus-page .aboutus-value-text,
+    .aboutus-page .aboutus-service-text {
+        font-size: 12px;
+    }
+
+    .aboutus-page .aboutus-stat-number {
+        font-size: 38px;
+    }
+
+    .aboutus-page .aboutus-stat-label {
+        font-size: 13px;
+    }
+
+    .aboutus-page .aboutus-cta-title {
+        font-size: 22px;
+    }
+
+    .aboutus-page .aboutus-cta-text {
+        font-size: 13px;
+        margin-bottom: 2.5vh;
+    }
+
+    .aboutus-page .aboutus-cta-btn {
+        padding: 11px 26px;
+        font-size: 12px;
+    }
+}
+
+/* Mobile Small (< 400px) */
+@media (max-width: 399.98px) {
+    .aboutus-page .aboutus-hero {
+        padding-top: 100px;
+        min-height: 50vh;
+    }
+
+    .aboutus-page .aboutus-hero-subtitle {
+        font-size: 11px;
+    }
+
+    .aboutus-page .aboutus-hero-title {
+        font-size: 20px;
+        margin-bottom: 1vh;
+    }
+
+    .aboutus-page .aboutus-hero-description {
+        font-size: 11px;
+    }
+
+    .aboutus-page .aboutus-section-badge,
+    .aboutus-page .aboutus-section-badge-center {
+        padding: 4px 12px;
+        font-size: 9px;
+    }
+
+    .aboutus-page .aboutus-section-title,
+    .aboutus-page .aboutus-section-title-center {
+        font-size: 18px;
+        margin-bottom: 2vh;
+    }
+
+    .aboutus-page .aboutus-section-text {
+        font-size: 11px;
+    }
+
+    .aboutus-page .aboutus-value-card,
+    .aboutus-page .aboutus-service-card {
+        padding: 18px;
+    }
+
+    .aboutus-page .aboutus-value-icon svg,
+    .aboutus-page .aboutus-service-icon svg {
+        width: 40px;
+        height: 40px;
+    }
+
+    .aboutus-page .aboutus-value-title,
+    .aboutus-page .aboutus-service-title {
+        font-size: 16px;
+        margin-bottom: 1vh;
+    }
+
+    .aboutus-page .aboutus-value-text,
+    .aboutus-page .aboutus-service-text {
+        font-size: 11px;
+    }
+
+    .aboutus-page .aboutus-stat-number {
+        font-size: 34px;
+    }
+
+    .aboutus-page .aboutus-stat-label {
+        font-size: 12px;
+    }
+
+    .aboutus-page .aboutus-cta-title {
+        font-size: 20px;
+    }
+
+    .aboutus-page .aboutus-cta-text {
+        font-size: 12px;
+        margin-bottom: 2vh;
+    }
+
+    .aboutus-page .aboutus-cta-btn {
+        padding: 10px 24px;
+        font-size: 11px;
+    }
+}

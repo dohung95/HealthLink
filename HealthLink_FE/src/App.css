@@ -1,0 +1,76 @@
+/* ================================================================== */
+/* APP.CSS - SCOPED TO .App CONTAINER */
+/* ================================================================== */
+
+.App {
+  font-family: Arial, sans-serif;
+}
+
+/* Scoped navbar styles - only affects .navbar inside .App */
+.App .navbar {
+  margin-bottom: 20px;
+}
+
+/* Scoped section styles - only affects .section inside .App */
+.App .section {
+  padding: 20px;
+  border: 1px solid #ddd;
+  border-radius: 5px;
+  background-color: #f9f9f9;
+}
+
+/* Scoped form-group - only affects .form-group inside .App */
+.App .form-group {
+  margin-bottom: 15px;
+}
+
+/* Scoped form-control - only affects .form-control inside .App */
+.App .form-control {
+  width: 100%;
+  max-width: 300px;
+  margin-top: 5px;
+}
+
+/* Scoped btn - only affects .btn inside .App */
+.App .btn {
+  margin-right: 10px;
+}
+
+/* Scoped doctor-profile - only affects .doctor-profile inside .App */
+.App .doctor-profile {
+  margin-bottom: 20px;
+  padding: 10px;
+  border: 1px solid #ccc;
+  border-radius: 5px;
+}
+
+/* Scoped nav-link active state - only affects .nav-link.active inside .App */
+.App .nav-link.active {
+  font-weight: bold;
+  color: #00b09a !important;
+}
+
+/* Chat Box Responsive Styles */
+.chat-box-responsive {
+  position: fixed;
+  bottom: 100px;
+  right: 30px;
+  width: 350px;
+  height: 500px;
+  z-index: 999;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+  transition: all 0.3s ease;
+}
+
+@media (max-width: 768px) {
+  .chat-box-responsive {
+    position: fixed;
+  bottom: 100px;
+  right: 30px;
+  width: 70%;
+  height: 40%;
+  z-index: 999;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+  transition: all 0.3s ease;
+  }
+}

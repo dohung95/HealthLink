@@ -1,0 +1,316 @@
+.Background_Sign_In {
+    background-image: url('/public/Hung/Login.jpg');
+    background-size: cover;
+    background-position: center center;
+    background-repeat: no-repeat;
+    background-attachment: fixed;
+    min-height: 100vh;
+    position: relative;
+    padding-top: 270px;
+}
+
+.Background_Sign_In::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    z-index: 1;
+    background: rgba(255, 255, 255, 0.1);
+}
+
+.Background_Sign_In>* {
+    position: relative;
+    z-index: 2;
+}
+
+/* ============================================
+   OHCP Login Form Styles
+   ============================================ */
+
+/* Form Container */
+.signin-container {
+    max-width: 400px;
+    padding: 40px;
+    border: 1px solid #e0e6ed;
+    border-radius: 12px;
+    background-color: rgba(255, 255, 255, 0.95);
+    box-shadow: 0 8px 32px rgba(0, 0, 0, 0.12);
+    backdrop-filter: blur(10px);
+}
+
+.signin-container h2 {
+    color: #007a6a;
+    font-size: 32px;
+    font-weight: 600;
+    margin-bottom: 24px;
+    text-align: center;
+}
+
+/* Label Styling */
+.signin-container label {
+    display: block;
+    color: #2c3e50;
+    font-weight: 500;
+    font-size: 14px;
+    margin-bottom: 8px;
+}
+
+/* Input Fields */
+.signin-input {
+    width: 100%;
+    padding: 12px 16px;
+    margin: 8px 0 4px 0;
+    border: 2px solid #e0e6ed;
+    border-radius: 8px;
+    box-sizing: border-box;
+    font-size: 14px;
+    transition: all 0.3s ease;
+    background-color: #ffffff;
+}
+
+.signin-input:focus {
+    outline: none;
+    border-color: #00b09a;
+    box-shadow: 0 0 0 3px rgba(0, 176, 154, 0.1);
+}
+
+.signin-input:disabled {
+    background-color: #f5f7fa;
+    cursor: not-allowed;
+    opacity: 0.6;
+}
+
+/* Validation States */
+.signin-input.invalid {
+    border-color: #e53e3e;
+    background-color: #fff5f5;
+}
+
+.signin-input.valid {
+    border-color: #38a169;
+    background-color: #f0fff4;
+}
+
+/* Validation Message */
+.validation-message {
+    font-size: 13px;
+    margin-top: 6px;
+    padding: 6px 10px;
+    border-radius: 6px;
+    font-weight: 500;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.validation-message.error {
+    color: #c53030;
+    background: linear-gradient(135deg, #fff5f5 0%, #fed7d7 100%);
+    border-left: 4px solid #e53e3e;
+}
+
+.validation-message.success {
+    color: #2f855a;
+    background: linear-gradient(135deg, #f0fff4 0%, #c6f6d5 100%);
+    border-left: 4px solid #38a169;
+}
+
+/* Submit Button */
+.signin-button {
+    width: 100%;
+    padding: 14px 24px;
+    background: linear-gradient(135deg, #00b09a 0%, #007a6a 100%);
+    color: white;
+    border: none;
+    border-radius: 8px;
+    cursor: pointer;
+    margin-top: 24px;
+    font-size: 16px;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    transition: all 0.3s ease;
+    box-shadow: 0 4px 15px rgba(0, 176, 154, 0.3);
+}
+
+.signin-button:hover:not(:disabled) {
+    transform: translateY(-2px);
+    box-shadow: 0 6px 20px rgba(0, 176, 154, 0.4);
+}
+
+.signin-button:active:not(:disabled) {
+    transform: translateY(0);
+}
+
+.signin-button:disabled {
+    opacity: 0.6;
+    cursor: not-allowed;
+    transform: none;
+}
+
+/* Error Message (General) */
+.error-message {
+    background: linear-gradient(135deg, #fff5f5 0%, #fed7d7 100%);
+    color: #c53030;
+    padding: 14px 18px;
+    margin: 0 0 20px 0;
+    border: 1px solid #fc8181;
+    border-left: 4px solid #e53e3e;
+    border-radius: 8px;
+    font-size: 14px;
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    animation: slideDown 0.3s ease-out;
+    box-shadow: 0 2px 8px rgba(197, 48, 48, 0.1);
+}
+
+/* Register Link */
+.signin-container>p {
+    text-align: center;
+    margin-top: 20px;
+    color: #4a5568;
+    font-size: 14px;
+}
+
+.signin-container>p a {
+    color: #00b09a;
+    font-weight: 600;
+    text-decoration: none;
+    transition: color 0.3s ease;
+}
+
+.signin-container>p a:hover {
+    color: #007a6a;
+    text-decoration: underline;
+}
+
+/* ============================================
+   Error Modal Styles
+   ============================================ */
+
+.modal-error-header {
+    background-color: #e6f9f6;
+    border-bottom: 2px solid #00a08b;
+    padding: 20px;
+}
+
+.modal-error-title {
+    color: #008f7d;
+    font-weight: 600;
+    font-size: 22px;
+    width: 100%;
+    text-align: center;
+}
+
+.modal-error-title i {
+    font-size: 35px;
+    margin-right: 12px;
+}
+
+.modal-title-text {
+    display: inline-block;
+    vertical-align: middle;
+}
+
+.modal-error-body {
+    padding: 40px;
+    text-align: center;
+    background-color: #fff;
+}
+
+.modal-error-content {
+    background-color: #f0fdf9;
+    border: 2px solid #b2ece3;
+    border-radius: 10px;
+    padding: 30px;
+    margin-bottom: 20px;
+}
+
+.modal-error-icon {
+    font-size: 55px;
+    color: #00a08b;
+    margin-bottom: 20px;
+    display: block;
+}
+
+.modal-error-heading {
+    color: #008f7d;
+    font-weight: 600;
+    margin-bottom: 20px;
+    font-size: 18px;
+}
+
+.modal-error-message {
+    font-size: 16px;
+    color: #555;
+    line-height: 1.8;
+    margin: 0;
+}
+
+.modal-support-text {
+    font-size: 14px;
+    color: #6c757d;
+    margin-top: 15px;
+}
+
+.modal-error-footer {
+    justify-content: center;
+    padding: 20px;
+    background-color: #f8f9fa;
+}
+
+.modal-error-button {
+    min-width: 150px;
+    font-weight: 600;
+    font-size: 16px;
+    background-color: #00a08b;
+    border: none;
+    color: white;
+}
+
+.modal-error-button:hover {
+    background-color: #008577;
+}
+
+.modal-error-button i {
+    margin-right: 8px;
+}
+
+/* Animation */
+@keyframes slideDown {
+    from {
+        opacity: 0;
+        transform: translateY(-10px);
+    }
+
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+/* Responsive */
+@media (max-width: 768px) {
+    .signin-container {
+        max-width: 100%;
+        padding: 24px 20px;
+    }
+
+    .signin-container h2 {
+        font-size: 26px;
+    }
+
+    .signin-button {
+        padding: 12px 20px;
+        font-size: 15px;
+    }
+}
+
+@media (max-width: 480px) {
+    .signin-container {
+        padding: 20px 16px;
+    }
+}

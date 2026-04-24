@@ -1,0 +1,1485 @@
+/* ==================== NAVBAR WRAPPER (FIXED OVERLAY) ==================== */
+.navbar-wrapper {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  z-index: 9990;
+  transition: transform 0.3s ease-in-out;
+  padding-top: 2%;
+}
+
+.navbar-wrapper.navbar-visible {
+  transform: translateY(0);
+}
+
+.navbar-wrapper.navbar-hidden {
+  transform: translateY(-100%);
+}
+
+/* ==================== TOPBAR ==================== */
+.topbar {
+  background-color: #ffffff;
+  border-bottom: 1px solid #e0f5f1;
+  font-size: 14px;
+  position: relative;
+  z-index: 10;
+  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+  padding: 12px 0;
+  width: 90%;
+  margin-left: auto;
+  margin-right: auto;
+}
+
+.topbar .container {
+  gap: 15px;
+}
+
+.logo {
+  flex-shrink: 0;
+}
+
+.logo-img {
+  width: 360px;
+  height: auto;
+  max-width: 100%;
+  transition: width 0.3s ease;
+}
+
+.topbar-right {
+  flex: 1;
+  min-width: 0;
+  gap: 15px;
+}
+
+.logo-Call {
+  width: 100px;
+  height: auto;
+  flex-shrink: 0;
+  transition: width 0.3s ease;
+}
+
+.contact-info {
+  flex: 1;
+  min-width: 0;
+}
+
+.contact-info p {
+  margin: 6px 0;
+  color: #555;
+  font-size: 14px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.contact-info i {
+  color: #008f7d;
+  margin-right: 10px;
+  font-size: 15px;
+}
+
+.btn-appointment {
+  background-color: #00b09a;
+  color: white;
+  padding: 12px 30px;
+  font-weight: 600;
+  text-decoration: none;
+  transition: all 0.3s ease;
+  border-radius: 4px;
+  white-space: nowrap;
+  flex-shrink: 0;
+  font-size: 14px;
+  border: none;
+}
+
+.btn-appointment:hover {
+  background-color: #009a86;
+  transform: translateY(-3px);
+  box-shadow: 0 10px 25px rgba(0, 176, 154, 0.3);
+}
+
+/* ==================== MAIN NAVBAR ==================== */
+.main-navbar {
+  background-color: #008f7d;
+  padding: 0;
+  box-shadow: 0 8px 20px rgba(0,0,0,0.2);
+  position: relative;
+  z-index: 100;
+  margin-top: -30px;
+  width: 85%;
+  margin-left: auto;
+  margin-right: auto;
+}
+
+/* Desktop Menu */
+.main-navbar .nav-menu {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-wrap: wrap;
+}
+
+/* Nav Links */
+.main-navbar .nav-link {
+  position: relative;
+  color: white !important;
+  padding: 16px 18px !important;
+  font-weight: 500;
+  text-decoration: none;
+  transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+  overflow: hidden;
+}
+
+/* Hover Effect - Background & Underline */
+.main-navbar .nav-link::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 50%;
+  width: 0;
+  height: 100%;
+  background: linear-gradient(90deg, transparent, rgba(255,255,255,0.15), transparent);
+  transition: all 0.6s ease;
+  transform: translateX(-50%);
+}
+
+.main-navbar .nav-link::after {
+  content: '';
+  position: absolute;
+  bottom: 0;
+  left: 50%;
+  width: 0;
+  height: 3px;
+  background: #00d4b8;
+  border-radius: 3px;
+  transition: all 0.4s ease;
+  transform: translateX(-50%);
+}
+
+.main-navbar .nav-link:hover {
+  color: #ffffff !important;
+  background: rgba(255,255,255,0.12);
+  backdrop-filter: blur(10px);
+  transform: translateY(-2px);
+  box-shadow: 0 8px 20px rgba(0,0,0,0.2);
+}
+
+.main-navbar .nav-link:hover::before {
+  width: 200%;
+}
+
+.main-navbar .nav-link:hover::after {
+  width: 70%;
+}
+
+/* Active State */
+.main-navbar .nav-link.active,
+.main-navbar .nav-link.active:hover {
+  color: #ffffff !important;
+  background: rgba(255,255,255,0.18) !important;
+  font-weight: 600;
+  transform: translateY(-2px);
+}
+
+.main-navbar .nav-link.active::after {
+  width: 90% !important;
+  background: #ffffff !important;
+  box-shadow: 0 0 20px rgba(255,255,255,0.8) !important;
+}
+
+.main-navbar .nav-link:active {
+  transform: translateY(0);
+  transition: transform 0.1s;
+}
+
+/* ==================== AUTH BUTTONS WITH SPLIT PILL EFFECT ==================== */
+.main-navbar .btn-login {
+  color: white;
+  background: #00b09a;
+  padding: 10px 28px;
+  border-radius: 50px;
+  text-decoration: none;
+  font-weight: 600;
+  font-size: 14px;
+  transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+  position: relative;
+  overflow: hidden;
+  box-shadow: 0 4px 15px rgba(0, 176, 154, 0.3);
+  border: none;
+  z-index: 1;
+  white-space: nowrap;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+
+/* Split Effect - White Half (từ trái sang) */
+.main-navbar .btn-login::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: -100%;
+  width: 50%;
+  height: 100%;
+  background: #ffffff;
+  transition: left 0.5s cubic-bezier(0.4, 0, 0.2, 1);
+  z-index: -1;
+  border-radius: 50px 0 0 50px;
+}
+
+/* Split Effect - Blue Half (từ phải sang) */
+.main-navbar .btn-login::after {
+  content: '';
+  position: absolute;
+  top: 0;
+  right: -100%;
+  width: 50%;
+  height: 100%;
+  background: #00b09a;
+  transition: right 0.5s cubic-bezier(0.4, 0, 0.2, 1);
+  z-index: -1;
+  border-radius: 0 50px 50px 0;
+}
+
+/* Hover State - Split Animation */
+.main-navbar .btn-login:hover {
+  transform: translateY(-3px) scale(1.05);
+  box-shadow: 0 8px 25px rgba(0, 176, 154, 0.5);
+  color: #ffffff;
+  text-shadow: #000000 0px 0px 3px;
+}
+
+.main-navbar .btn-login:hover::before {
+  left: 0;
+}
+
+.main-navbar .btn-login:hover::after {
+  right: 0;
+}
+
+/* Active State */
+.main-navbar .btn-login:active {
+  transform: translateY(-1px) scale(1.02);
+  box-shadow: 0 4px 15px rgba(0, 176, 154, 0.4);
+}
+
+/* Logout Button with Split Pill Effect */
+.main-navbar .btn-logout {
+  color: white;
+  background: #ff6b6b;
+  padding: 10px 20px;
+  border-radius: 50px;
+  text-decoration: none;
+  font-weight: 600;
+  font-size: 14px;
+  transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+  position: relative;
+  overflow: hidden;
+  box-shadow: 0 4px 15px rgba(255, 107, 107, 0.3);
+  border: none;
+  cursor: pointer;
+  z-index: 1;
+  white-space: nowrap;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+
+/* Split Effect - White Half (từ trái sang) */
+.main-navbar .btn-logout::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: -100%;
+  width: 50%;
+  height: 100%;
+  background: #ffffff;
+  transition: left 0.5s cubic-bezier(0.4, 0, 0.2, 1);
+  z-index: -1;
+  border-radius: 50px 0 0 50px;
+}
+
+/* Split Effect - Red Half (từ phải sang) */
+.main-navbar .btn-logout::after {
+  content: '';
+  position: absolute;
+  top: 0;
+  right: -100%;
+  width: 50%;
+  height: 100%;
+  background: #ff6b6b;
+  transition: right 0.5s cubic-bezier(0.4, 0, 0.2, 1);
+  z-index: -1;
+  border-radius: 0 50px 50px 0;
+}
+
+/* Hover State - Split Animation */
+.main-navbar .btn-logout:hover {
+  transform: translateY(-3px) scale(1.05);
+  box-shadow: 0 8px 25px rgba(255, 107, 107, 0.5);
+  color: #ffffff;
+  text-shadow: #000000 0px 0px 3px;
+}
+
+.main-navbar .btn-logout:hover::before {
+  left: 0;
+}
+
+.main-navbar .btn-logout:hover::after {
+  right: 0;
+}
+
+/* Active State */
+.main-navbar .btn-logout:active {
+  transform: translateY(-1px) scale(1.02);
+  box-shadow: 0 4px 15px rgba(255, 107, 107, 0.4);
+}
+
+/* User Role Badge */
+.main-navbar .user-role {
+  background: rgba(255, 255, 255, 0.2);
+  padding: 6px 14px;
+  border-radius: 20px;
+  font-size: 13px;
+  white-space: nowrap;
+}
+
+/* ==================== MOBILE STYLES ==================== */
+/* Medical-themed Hamburger Icon with SVG */
+.main-navbar .mobile-toggle {
+  background: linear-gradient(135deg, rgba(255, 255, 255, 0.95) 0%, rgba(255, 255, 255, 0.85) 100%);
+  border: none;
+  border-radius: 50%;
+  cursor: pointer;
+  transition: all 0.35s cubic-bezier(0.4, 0, 0.2, 1);
+  padding: 8px;
+  margin-right: 15px;
+  z-index: 100;
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-shadow: 0 2px 8px rgba(0, 160, 139, 0.25);
+  backdrop-filter: blur(8px);
+  width: 44px;
+  height: 44px;
+}
+
+.main-navbar .mobile-toggle i {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  line-height: 0;
+}
+
+.main-navbar .mobile-toggle svg {
+  width: 28px;
+  height: 28px;
+  fill: #00a08b;
+  transition: all 0.35s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.main-navbar .mobile-toggle:hover {
+  transform: translateY(-2px) scale(1.05);
+  background: linear-gradient(135deg, #00a08b 0%, #00c4ac 100%);
+  border-color: #00c4ac;
+  box-shadow: 0 6px 20px rgba(0, 160, 139, 0.45);
+}
+
+.main-navbar .mobile-toggle:hover svg {
+  fill: white;
+  transform: rotate(90deg) scale(1.1);
+}
+
+.main-navbar .mobile-toggle:active {
+  transform: translateY(0) scale(1);
+  box-shadow: 0 2px 6px rgba(0, 160, 139, 0.3);
+}
+
+/* Mobile Menu Overlay Backdrop */
+.mobile-menu-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(0, 0, 0, 0.6);
+  z-index: 10000;
+  animation: fadeIn 0.3s ease;
+  backdrop-filter: blur(3px);
+}
+
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+/* Mobile Menu Sidebar Container - Medical Theme */
+.mobile-menu-container {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 75vw;
+  max-width: 320px;
+  height: 100vh;
+  background: linear-gradient(180deg, #f0fdf9 0%, #d5f5ef 50%, #b2ece3 100%);
+  box-shadow: 4px 0 30px rgba(0, 0, 0, 0.5);
+  z-index: 10001;
+  animation: slideInFromLeft 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  overflow-y: auto;
+  overflow-x: hidden;
+}
+
+@keyframes slideInFromLeft {
+  from {
+    transform: translateX(-100%);
+    opacity: 0;
+  }
+  to {
+    transform: translateX(0);
+    opacity: 1;
+  }
+}
+
+/* Close Button - Medical Theme */
+.mobile-menu-close {
+  position: absolute;
+  top: 20px;
+  right: 20px;
+  background: #ffffff;
+  border: 2px solid #00a08b;
+  border-radius: 50%;
+  width: 42px;
+  height: 42px;
+  color: #00a08b;
+  font-size: 20px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  z-index: 10;
+  box-shadow: 0 2px 8px rgba(0, 160, 139, 0.2);
+}
+
+.mobile-menu-close:hover {
+  background: #00a08b;
+  border-color: #00a08b;
+  color: white;
+  transform: rotate(90deg) scale(1.1);
+  box-shadow: 0 4px 16px rgba(0, 160, 139, 0.4);
+}
+
+.mobile-menu {
+  list-style: none;
+  padding: 70px 25px 25px 25px;
+  margin: 0;
+}
+
+/* Mobile Menu Section Title - Medical Theme */
+.mobile-menu-section-title {
+  color: #00a08b;
+  font-size: 12px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 1.2px;
+  padding: 8px 18px;
+  margin: 10px 0 5px 0;
+  display: flex;
+  align-items: center;
+  background: rgba(0, 160, 139, 0.08);
+  border-left: 4px solid #00a08b;
+}
+
+/* Mobile Nav Links - Medical Theme */
+.mobile-nav-link {
+  display: flex;
+  align-items: center;
+  color: #008f7d !important;
+  padding: 12px 18px;
+  margin: 4px 0;
+  text-decoration: none;
+  font-size: 15px;
+  font-weight: 500;
+  border-radius: 10px;
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  position: relative;
+  background: rgba(255, 255, 255, 0.7);
+  border: 1px solid rgba(0, 160, 139, 0.1);
+}
+
+.mobile-nav-link i {
+  font-size: 18px;
+  width: 30px;
+  color: #00a08b;
+  transition: all 0.3s ease;
+}
+
+/* Hover Effect for Mobile Links */
+.mobile-nav-link:hover {
+  background: linear-gradient(135deg, #00a08b 0%, #00c4ac 100%);
+  color: white !important;
+  transform: translateX(5px);
+  box-shadow: 0 4px 12px rgba(0, 160, 139, 0.3);
+  border-color: transparent;
+}
+
+.mobile-nav-link:hover i {
+  color: white;
+  transform: scale(1.15);
+}
+
+/* Active State for Mobile Links */
+.mobile-nav-link.active {
+  background: linear-gradient(135deg, #00a08b 0%, #007a6a 100%);
+  color: white !important;
+  font-weight: 600;
+  box-shadow: 0 4px 15px rgba(0, 160, 139, 0.4);
+  border-color: transparent;
+}
+
+.mobile-nav-link.active i {
+  color: white;
+}
+
+/* Admin Link Special Style */
+.admin-link {
+  background: rgba(255, 215, 0, 0.15);
+  border-left: 4px solid #ffd700;
+}
+
+.admin-link:hover {
+  background: rgba(255, 215, 0, 0.25);
+  color: #ffd700 !important;
+}
+
+/* Mobile Divider - Medical Theme */
+.mobile-divider {
+  border: none;
+  height: 2px;
+  background: linear-gradient(90deg, transparent, rgba(0, 160, 139, 0.2), transparent);
+  margin: 16px 0;
+}
+
+/* Mobile Auth Section - Medical Theme */
+.mobile-auth-section {
+  margin-top: 15px;
+  padding-top: 10px;
+}
+
+.mobile-user-info {
+  display: flex;
+  align-items: center;
+  padding: 12px 18px;
+  margin-bottom: 10px;
+  background: white;
+  border-radius: 12px;
+  color: #008f7d;
+  font-size: 14px;
+  border: 1px solid rgba(0, 160, 139, 0.2);
+  box-shadow: 0 2px 8px rgba(0, 160, 139, 0.1);
+}
+
+.mobile-user-info i {
+  font-size: 24px;
+  margin-right: 10px;
+  color: #00a08b;
+}
+
+.mobile-role-badge {
+  background: linear-gradient(135deg, #00a08b, #00c4ac);
+  padding: 6px 15px;
+  border-radius: 20px;
+  font-weight: 600;
+  font-size: 13px;
+  color: white;
+  box-shadow: 0 2px 8px rgba(0, 160, 139, 0.3);
+}
+
+/* Mobile Login Button - Match Desktop Style */
+.btn-mobile-login {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: white !important;
+  background: #00b09a;
+  padding: 12px 30px;
+  margin: 10px 0;
+  border-radius: 50px;
+  text-decoration: none;
+  font-weight: 600;
+  font-size: 15px;
+  transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+  box-shadow: 0 4px 15px rgba(0, 176, 154, 0.3);
+  border: none;
+  position: relative;
+  overflow: hidden;
+  z-index: 1;
+}
+
+/* Split Effect - White Half (from left) */
+.btn-mobile-login::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: -100%;
+  width: 50%;
+  height: 100%;
+  background: #ffffff;
+  transition: left 0.5s cubic-bezier(0.4, 0, 0.2, 1);
+  z-index: -1;
+  border-radius: 50px 0 0 50px;
+}
+
+/* Split Effect - Blue Half (from right) */
+.btn-mobile-login::after {
+  content: '';
+  position: absolute;
+  top: 0;
+  right: -100%;
+  width: 50%;
+  height: 100%;
+  background: #00b09a;
+  transition: right 0.5s cubic-bezier(0.4, 0, 0.2, 1);
+  z-index: -1;
+  border-radius: 0 50px 50px 0;
+}
+
+/* Hover State - Split Animation */
+.btn-mobile-login:hover {
+  transform: translateY(-3px) scale(1.05);
+  box-shadow: 0 8px 25px rgba(0, 176, 154, 0.5);
+  color: #ffffff !important;
+  text-shadow: #000000 0px 0px 3px;
+}
+
+.btn-mobile-login:hover::before {
+  left: 0;
+}
+
+.btn-mobile-login:hover::after {
+  right: 0;
+}
+
+/* Active State */
+.btn-mobile-login:active {
+  transform: translateY(-1px) scale(1.02);
+  box-shadow: 0 4px 15px rgba(0, 176, 154, 0.4);
+}
+
+/* Mobile Logout Button - Split Pill Effect (giống navbar) */
+.btn-mobile-logout {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 100%;
+  background: #ff6b6b;
+  border: none;
+  border-radius: 50px;
+  color: white;
+  padding: 12px 20px;
+  font-weight: 600;
+  font-size: 15px;
+  cursor: pointer;
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  margin-top: 10px;
+  box-shadow: 0 4px 12px rgba(255, 107, 107, 0.3);
+  position: relative;
+  overflow: hidden;
+  z-index: 1;
+}
+
+/* Split Effect - White Half (từ trái sang) */
+.btn-mobile-logout::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: -100%;
+  width: 50%;
+  height: 100%;
+  background: white;
+  transition: left 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+  z-index: -1;
+  border-radius: 50px 0 0 50px;
+}
+
+/* Split Effect - Red Half (từ phải sang) */
+.btn-mobile-logout::after {
+  content: '';
+  position: absolute;
+  top: 0;
+  right: -100%;
+  width: 50%;
+  height: 100%;
+  background: #ff6b6b;
+  transition: right 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+  z-index: -1;
+  border-radius: 0 50px 50px 0;
+}
+
+/* Hover State - Split Animation */
+.btn-mobile-logout:hover {
+  transform: translateY(-3px) scale(1.05);
+  box-shadow: 0 8px 25px rgba(255, 107, 107, 0.5);
+  color: #ffffff;
+  text-shadow: #000000 0px 0px 3px;
+}
+
+.btn-mobile-logout:hover::before {
+  left: 0;
+}
+
+.btn-mobile-logout:hover::after {
+  right: 0;
+}
+
+/* Active State */
+.btn-mobile-logout:active {
+  transform: translateY(-1px) scale(1.02);
+  box-shadow: 0 4px 15px rgba(255, 107, 107, 0.4);
+}
+
+/* Mobile Social Icons - Medical Theme */
+.mobile-social-icons {
+  display: flex;
+  justify-content: center;
+  gap: 15px;
+  margin-top: 25px;
+  padding-top: 20px;
+  border-top: 2px solid rgba(0, 160, 139, 0.15);
+}
+
+.mobile-social-link {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 44px;
+  height: 44px;
+  background: white;
+  border: 2px solid #00a08b;
+  border-radius: 50%;
+  color: #00a08b;
+  font-size: 18px;
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  box-shadow: 0 2px 8px rgba(0, 160, 139, 0.15);
+}
+
+.mobile-social-link:hover {
+  background: linear-gradient(135deg, #00a08b 0%, #00c4ac 100%);
+  color: white;
+  border-color: #00c4ac;
+  transform: translateY(-3px) scale(1.08);
+  box-shadow: 0 6px 16px rgba(0, 160, 139, 0.35);
+}
+
+/* Patient Dropdown Styles */
+.dropdown-menu {
+    background-color: white;
+    border: 1px solid #ddd;
+    border-radius: 8px;
+    box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+    padding: 0.5rem 0;
+    z-index: 1000;
+    animation: fadeInDropdown 0.2s ease;
+}
+
+@keyframes fadeInDropdown {
+    from {
+        opacity: 0;
+        transform: translateY(-10px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+.dropdown-item {
+    display: block;
+    padding: 0.5rem 1rem;
+    color: #333;
+    text-decoration: none;
+    transition: background-color 0.2s, color 0.2s;
+    font-size: 0.9rem;
+}
+
+.dropdown-item:hover {
+    background-color: #f8f9fa;
+    color: #00b09a;
+}
+
+.dropdown-item i {
+    color: #00b09a;
+    font-size: 0.9rem;
+}
+
+/* ==================== RESPONSIVE STYLES ==================== */
+/* For tablets and smaller (< 1200px) */
+@media (max-width: 1199.98px) {
+  .topbar {
+    width: 95%;
+    padding: 15px 0;
+    min-height: 90px;
+  }
+
+  .topbar .container {
+    gap: 12px;
+    align-items: center;
+    min-height: 70px;
+  }
+
+  .main-navbar {
+    width: 90%;
+  }
+
+  .logo-img {
+    width: 300px;
+  }
+
+  .logo-Call {
+    width: 85px;
+  }
+
+  .btn-appointment {
+    padding: 10px 24px;
+    font-size: 13px;
+  }
+
+  .contact-info p {
+    font-size: 13px;
+  }
+
+  .contact-info i {
+    font-size: 14px;
+  }
+
+  /* Auth buttons for tablets */
+  .main-navbar .btn-login,
+  .main-navbar .btn-logout {
+    padding: 9px 24px;
+    font-size: 13px;
+  }
+
+  .main-navbar .user-role {
+    padding: 5px 12px;
+    font-size: 12px;
+  }
+
+  /* Dropdown menu for tablets */
+  .dropdown-menu {
+    min-width: 190px;
+    border-radius: 7px;
+    padding: 0.45rem 0;
+  }
+
+  .dropdown-item {
+    padding: 0.48rem 0.95rem;
+    font-size: 0.875rem;
+  }
+
+  .dropdown-item i {
+    font-size: 0.875rem;
+  }
+
+  /* Toggle button for tablets */
+  .main-navbar .mobile-toggle {
+    width: 42px;
+    height: 42px;
+    padding: 7px;
+    border-radius: 50%;
+  }
+
+  .main-navbar .mobile-toggle svg {
+    width: 26px;
+    height: 26px;
+  }
+}
+
+/* For medium tablets (900px - 1199px) */
+@media (max-width: 1099.98px) {
+  .topbar {
+    min-height: 95px;
+    padding: 16px 0;
+  }
+
+  .topbar .container {
+    min-height: 75px;
+  }
+
+  .logo-img {
+    width: 260px;
+  }
+
+  .logo-Call {
+    width: 75px;
+  }
+
+  .contact-info p {
+    font-size: 12px;
+  }
+
+  .btn-appointment {
+    padding: 9px 20px;
+    font-size: 12px;
+  }
+
+  /* Auth buttons for medium tablets */
+  .main-navbar .btn-login,
+  .main-navbar .btn-logout {
+    padding: 8px 20px;
+    font-size: 12px;
+  }
+
+  .main-navbar .user-role {
+    padding: 5px 11px;
+    font-size: 11px;
+  }
+
+  /* Dropdown menu for medium tablets */
+  .dropdown-menu {
+    min-width: 185px;
+    border-radius: 6px;
+    padding: 0.4rem 0;
+  }
+
+  .dropdown-item {
+    padding: 0.45rem 0.9rem;
+    font-size: 0.85rem;
+  }
+
+  .dropdown-item i {
+    font-size: 0.85rem;
+  }
+}
+
+/* For small tablets (768px - 899px) */
+@media (max-width: 899.98px) {
+  .topbar {
+    min-height: 100px;
+    padding: 18px 0;
+  }
+
+  .topbar .container {
+    min-height: 80px;
+  }
+
+  .logo-img {
+    width: 220px;
+  }
+
+  .logo-Call {
+    width: 65px;
+  }
+
+  .contact-info p {
+    font-size: 11px;
+  }
+
+  .contact-info i {
+    font-size: 12px;
+    margin-right: 6px;
+  }
+
+  .btn-appointment {
+    padding: 8px 16px;
+    font-size: 11px;
+  }
+
+  /* Auth buttons for small tablets */
+  .main-navbar .btn-login,
+  .main-navbar .btn-logout {
+    padding: 8px 18px;
+    font-size: 12px;
+  }
+
+  .main-navbar .user-role {
+    padding: 4px 10px;
+    font-size: 11px;
+  }
+
+  /* Dropdown menu for small tablets */
+  .dropdown-menu {
+    min-width: 180px;
+    border-radius: 6px;
+    padding: 0.4rem 0;
+  }
+
+  .dropdown-item {
+    padding: 0.42rem 0.85rem;
+    font-size: 0.825rem;
+  }
+
+  .dropdown-item i {
+    font-size: 0.825rem;
+  }
+}
+
+/* For mobile devices (< 768px) */
+@media (max-width: 767.98px) {
+  .navbar-wrapper {
+    padding-top: 1%;
+  }
+
+  .topbar {
+    width: 98%;
+    padding: 15px 0;
+    min-height: 110px;
+  }
+
+  .topbar .container {
+    gap: 10px;
+    flex-wrap: wrap;
+    align-items: center;
+    min-height: 90px;
+  }
+
+  .main-navbar {
+    width: 95%;
+  }
+
+  .logo {
+    order: 1;
+  }
+
+  .logo-img {
+    width: 180px;
+  }
+
+  .topbar-right {
+    order: 2;
+    flex: 1;
+    justify-content: flex-end;
+  }
+
+  .logo-Call {
+    width: 60px;
+  }
+
+  .contact-info {
+    display: none !important;
+  }
+
+  .btn-appointment {
+    padding: 8px 14px;
+    font-size: 11px;
+  }
+
+  /* Auth buttons for mobile */
+  .main-navbar .btn-login,
+  .main-navbar .btn-logout {
+    padding: 7px 16px;
+    font-size: 11px;
+  }
+
+  .main-navbar .user-role {
+    padding: 4px 9px;
+    font-size: 10px;
+  }
+
+  /* Dropdown menu for mobile */
+  .dropdown-menu {
+    min-width: 170px;
+    max-width: 85vw;
+    border-radius: 6px;
+    padding: 0.35rem 0;
+    right: 0 !important;
+  }
+
+  .dropdown-item {
+    padding: 0.4rem 0.8rem;
+    font-size: 0.8rem;
+  }
+
+  .dropdown-item i {
+    font-size: 0.8rem;
+    margin-right: 8px !important;
+  }
+
+  /* Toggle button for mobile */
+  .main-navbar .mobile-toggle {
+    width: 38px;
+    height: 38px;
+    padding: 6px;
+    margin-right: 10px;
+    border-radius: 50%;
+  }
+
+  .main-navbar .mobile-toggle svg {
+    width: 24px;
+    height: 24px;
+  }
+}
+
+/* For very small devices (< 576px) */
+@media (max-width: 575.98px) {
+  .topbar {
+    width: 100%;
+    padding: 10px 0;
+    min-height: 85px;
+  }
+
+  .topbar .container {
+    gap: 8px;
+    align-items: center;
+  }
+
+  .main-navbar {
+    width: 98%;
+  }
+
+  .logo-img {
+    width: 150px;
+  }
+
+  .logo-Call {
+    width: 50px;
+  }
+
+  .btn-appointment {
+    font-size: 10px;
+    padding: 6px 10px;
+  }
+
+  /* Auth buttons for small mobile */
+  .main-navbar .btn-login,
+  .main-navbar .btn-logout {
+    padding: 6px 14px;
+    font-size: 10px;
+  }
+
+  .main-navbar .user-role {
+    padding: 4px 8px;
+    font-size: 9px;
+  }
+
+  /* Dropdown menu for small mobile */
+  .dropdown-menu {
+    min-width: 160px;
+    max-width: 90vw;
+    border-radius: 5px;
+    padding: 0.3rem 0;
+  }
+
+  .dropdown-item {
+    padding: 0.38rem 0.75rem;
+    font-size: 0.775rem;
+  }
+
+  .dropdown-item i {
+    font-size: 0.775rem;
+    margin-right: 7px !important;
+  }
+
+  /* Toggle button for small mobile */
+  .main-navbar .mobile-toggle {
+    width: 36px;
+    height: 36px;
+    padding: 5px;
+    margin-right: 8px;
+    border-radius: 50%;
+  }
+
+  .main-navbar .mobile-toggle svg {
+    width: 22px;
+    height: 22px;
+  }
+
+  /* Mobile Menu Responsive */
+  .mobile-menu-container {
+    width: 85vw;
+    max-width: 280px;
+  }
+
+  .mobile-menu {
+    padding: 60px 18px 20px 18px;
+  }
+
+  .mobile-menu-close {
+    top: 15px;
+    right: 15px;
+    width: 36px;
+    height: 36px;
+    font-size: 16px;
+  }
+
+  .mobile-menu-section-title {
+    font-size: 11px;
+    padding: 6px 14px;
+    margin: 8px 0 4px 0;
+  }
+
+  .mobile-nav-link {
+    padding: 10px 14px;
+    font-size: 14px;
+    margin: 3px 0;
+  }
+
+  .mobile-nav-link i {
+    font-size: 16px;
+    width: 26px;
+  }
+
+  .mobile-divider {
+    margin: 12px 0;
+  }
+
+  .mobile-user-info {
+    padding: 10px 14px;
+    font-size: 13px;
+  }
+
+  .mobile-user-info i {
+    font-size: 20px;
+    margin-right: 8px;
+  }
+
+  .mobile-role-badge {
+    padding: 5px 12px;
+    font-size: 12px;
+  }
+
+  .btn-mobile-login {
+    padding: 10px 24px;
+    font-size: 14px;
+    margin: 8px 0;
+  }
+
+  .btn-mobile-logout {
+    padding: 10px 16px;
+    font-size: 14px;
+    margin-top: 8px;
+  }
+
+  .mobile-social-icons {
+    gap: 12px;
+    margin-top: 20px;
+    padding-top: 16px;
+  }
+
+  .mobile-social-link {
+    width: 38px;
+    height: 38px;
+    font-size: 16px;
+  }
+}
+
+/* For extra small devices (< 400px) */
+@media (max-width: 399.98px) {
+  .topbar {
+    padding: 8px 0;
+    min-height: 80px;
+  }
+
+  .topbar .container {
+    align-items: center;
+  }
+
+  .logo-img {
+    width: 130px;
+  }
+
+  .logo-Call {
+    width: 45px;
+  }
+
+  .btn-appointment {
+    font-size: 9px;
+    padding: 5px 8px;
+  }
+
+  /* Auth buttons for extra small */
+  .main-navbar .btn-login,
+  .main-navbar .btn-logout {
+    padding: 6px 12px;
+    font-size: 9px;
+  }
+
+  .main-navbar .user-role {
+    padding: 3px 7px;
+    font-size: 8px;
+  }
+
+  /* Dropdown menu for extra small mobile */
+  .dropdown-menu {
+    min-width: 150px;
+    max-width: 95vw;
+    border-radius: 5px;
+    padding: 0.25rem 0;
+  }
+
+  .dropdown-item {
+    padding: 0.35rem 0.7rem;
+    font-size: 0.75rem;
+  }
+
+  .dropdown-item i {
+    font-size: 0.75rem;
+    margin-right: 6px !important;
+  }
+
+  /* Toggle button for extra small */
+  .main-navbar .mobile-toggle {
+    width: 34px;
+    height: 34px;
+    padding: 4px;
+    margin-right: 6px;
+    border-radius: 50%;
+  }
+
+  .main-navbar .mobile-toggle svg {
+    width: 20px;
+    height: 20px;
+  }
+
+  .mobile-menu-container {
+    width: 90vw;
+    max-width: 260px;
+  }
+
+  .mobile-menu {
+    padding: 55px 14px 18px 14px;
+  }
+
+  .mobile-menu-close {
+    top: 12px;
+    right: 12px;
+    width: 34px;
+    height: 34px;
+    font-size: 15px;
+  }
+
+  .mobile-menu-section-title {
+    font-size: 10px;
+    padding: 5px 12px;
+    margin: 6px 0 3px 0;
+    letter-spacing: 0.8px;
+  }
+
+  .mobile-nav-link {
+    padding: 9px 12px;
+    font-size: 13px;
+    margin: 2px 0;
+    border-radius: 8px;
+  }
+
+  .mobile-nav-link i {
+    font-size: 15px;
+    width: 24px;
+  }
+
+  .mobile-divider {
+    margin: 10px 0;
+    height: 1.5px;
+  }
+
+  .mobile-user-info {
+    padding: 9px 12px;
+    font-size: 12px;
+    margin-bottom: 8px;
+  }
+
+  .mobile-user-info i {
+    font-size: 18px;
+    margin-right: 7px;
+  }
+
+  .mobile-role-badge {
+    padding: 4px 10px;
+    font-size: 11px;
+  }
+
+  .btn-mobile-login {
+    padding: 9px 20px;
+    font-size: 13px;
+    margin: 7px 0;
+  }
+
+  .btn-mobile-logout {
+    padding: 9px 14px;
+    font-size: 13px;
+    margin-top: 7px;
+  }
+
+  .mobile-social-icons {
+    gap: 10px;
+    margin-top: 18px;
+    padding-top: 14px;
+  }
+
+  .mobile-social-link {
+    width: 36px;
+    height: 36px;
+    font-size: 15px;
+  }
+}
+
+/* For tablets (768px - 1199px) */
+@media (min-width: 768px) and (max-width: 1199.98px) {
+  .mobile-menu-container {
+    width: 50vw;
+    max-width: 380px;
+  }
+
+  .mobile-menu {
+    padding: 75px 28px 28px 28px;
+  }
+
+  .mobile-menu-close {
+    top: 22px;
+    right: 22px;
+    width: 44px;
+    height: 44px;
+    font-size: 21px;
+  }
+
+  .mobile-menu-section-title {
+    font-size: 13px;
+    padding: 9px 20px;
+  }
+
+  .mobile-nav-link {
+    padding: 13px 20px;
+    font-size: 16px;
+  }
+
+  .mobile-nav-link i {
+    font-size: 19px;
+    width: 32px;
+  }
+
+  .mobile-user-info {
+    padding: 13px 20px;
+    font-size: 15px;
+  }
+
+  .mobile-user-info i {
+    font-size: 26px;
+  }
+
+  .mobile-role-badge {
+    padding: 7px 16px;
+    font-size: 14px;
+  }
+
+  .btn-mobile-login {
+    padding: 13px 32px;
+    font-size: 16px;
+  }
+
+  .btn-mobile-logout {
+    padding: 13px 22px;
+    font-size: 16px;
+  }
+
+  .mobile-social-link {
+    width: 46px;
+    height: 46px;
+    font-size: 19px;
+  }
+}

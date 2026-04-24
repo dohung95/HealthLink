@@ -1,0 +1,35 @@
+# Lờ các file cài đặt/debug cá nhân
+*.suo
+*.user
+*.user.*
+*.log
+
+# === Node.js (Cho React) ===
+# Lờ thư mục thư viện
+/HealthLink_FE/node_modules/
+/HealthLink_FE/obj/
+/HealthLink_FE/src/config.js
+/HealthLink_BE/src/main/resources/application.properties
+
+# Lờ các file build output
+/dist/
+/dist-ssr/
+
+# Lờ các file log của Node
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+lerna-debug.log*
+
+# === Hệ điều hành & Editor ===
+# macOS
+.DS_Store
+
+# Visual Studio Code
+.vscode/*
+!.vscode/extensions.json
+!.vscode/settings.json
+
+# Rider / IntelliJ
+.idea/

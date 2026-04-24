@@ -1,0 +1,1363 @@
+/* ================================================================== */
+/* HOME PAGE CSS - SCOPED TO .home-page ONLY */
+/* ================================================================== */
+
+/* ==================== BACKGROUND ==================== */
+.home-page .Background_Home {
+    background-image: url('/public/Hung/Home01.jpg');
+    background-size: cover;
+    background-position: center center;
+    background-repeat: no-repeat;
+    background-attachment: fixed;
+    min-height: 100vh;
+    position: relative;
+    padding-top: 270px;
+}
+
+.home-page .Background_Home::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    z-index: 1;
+    background: rgba(255, 255, 255, 0.1);
+}
+
+.home-page .Background_Home>* {
+    position: relative;
+    z-index: 2;
+}
+
+.home-page .Background_Home3 {
+    background-image: url('/public/Hung/Home05.jpg');
+    background-size: cover;
+    background-position: center center;
+    background-repeat: no-repeat;
+    background-attachment: fixed;
+    min-height: 70vh;
+    position: relative;
+}
+
+.home-page .Background_Home3::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    z-index: 1;
+    background: rgba(52, 52, 52, 0.351);
+}
+
+.home-page .Background_Home3>* {
+    position: relative;
+    z-index: 2;
+}
+
+
+.home-page .Background_Home2 {
+    background-image: url('/public/Hung/Home02.png');
+    background-size: cover;
+    background-position: center center;
+    background-repeat: no-repeat;
+    background-attachment: fixed;
+    min-height: 68vh;
+    position: relative;
+}
+
+.home-page .Background_Home2::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    z-index: 1;
+    background: rgba(255, 255, 255, 0.1);
+}
+
+.home-page .Background_Home2>* {
+    position: relative;
+    z-index: 2;
+}
+
+/* ==================== HERO SECTION ==================== */
+.home-page .Background_Home .container {
+    text-align: center;
+}
+
+.home-page .hero-subtitle {
+    color: #008f7d;
+    padding: 5vh 0 2vh 0;
+    text-shadow: 0px 0px 8px #ffffff;
+}
+
+.home-page .hero-title {
+    font-size: 3vw;
+    font-weight: bolder;
+    padding: 0 0 2vh 0;
+}
+
+.home-page .hero-description {
+    font-weight: bold;
+    width: 60%;
+    padding: 0 0 4vh 0;
+    margin: 0 auto;
+}
+
+.home-page .btn-about-us {
+    background-color: #008f7d;
+    color: white;
+    border: none;
+    width: 200px;
+    height: 50px;
+    font-size: 1vw;
+    cursor: pointer;
+    transition: all 0.3s ease;
+}
+
+.home-page .btn-about-us:hover {
+    background-color: #006d5f;
+    transform: translateY(-2px);
+    box-shadow: 0 4px 15px rgba(0, 143, 125, 0.3);
+}
+
+/* ==================== SERVICES SECTION ==================== */
+.home-page .services-row {
+    padding: 0 30vh;
+    color: white;
+    text-align: center;
+}
+
+.home-page .service-card {
+    padding-bottom: 20px;
+}
+
+.home-page .service-card-blue {
+    background-color: #00b09a;
+}
+
+.home-page .service-card-dark {
+    background-color: #008f7d;
+}
+
+.home-page .service-icon {
+    padding-top: 2vw;
+    text-align: center;
+}
+
+.home-page .service-icon-large {
+    padding-top: 3vw;
+    text-align: center;
+}
+
+.home-page .service-helper-text {
+    padding: 3% 0;
+}
+
+.home-page .service-title {
+    padding: 3% 0;
+    font-size: 1.5vw;
+}
+
+.home-page .service-description {
+    padding: 3% 0 5% 0;
+}
+
+.home-page .svg-doctor {
+    width: 4.5vw;
+}
+
+/* ==================== SERVICE BUTTONS WITH EFFECTS ==================== */
+.home-page .service-btn {
+    display: inline-block;
+    padding: 12px 30px;
+    border: 2px solid white;
+    border-radius: 50px;
+    background: transparent;
+    color: white;
+    font-size: 14px;
+    font-weight: 600;
+    cursor: pointer;
+    text-decoration: none;
+    transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+    position: relative;
+    overflow: hidden;
+    z-index: 1;
+}
+
+/* Hiệu ứng nền trượt từ trái sang */
+.home-page .service-btn::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: -100%;
+    width: 100%;
+    height: 100%;
+    background: white;
+    transition: left 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+    z-index: -1;
+}
+
+.home-page .service-btn:hover {
+    color: #008f7d;
+    transform: translateY(-3px);
+    box-shadow: 0 8px 25px rgba(255, 255, 255, 0.3);
+}
+
+.home-page .service-btn:hover::before {
+    left: 0;
+}
+
+.home-page .service-btn:active {
+    transform: translateY(-1px);
+    box-shadow: 0 4px 15px rgba(255, 255, 255, 0.2);
+}
+
+/* ==================== BUTTON VARIANTS ==================== */
+/* Chat with AI Button - Màu xanh cyan */
+.home-page .service-btn-chat {
+    border-color: #00d4b8;
+}
+
+.home-page .service-btn-chat::before {
+    background: linear-gradient(135deg, #00d4b8 0%, #ffffff 100%);
+}
+
+.home-page .service-btn-chat:hover {
+    color: #008f7d;
+    box-shadow: 0 8px 25px rgba(0, 212, 184, 0.4);
+}
+
+/* View Doctor Button - Màu trắng */
+.home-page .service-btn-doctor {
+    border-color: #ffffff;
+}
+
+.home-page .service-btn-doctor::before {
+    background: linear-gradient(135deg, #ffffff 0%, #e6f9f6 100%);
+}
+
+.home-page .service-btn-doctor:hover {
+    color: #008f7d;
+    box-shadow: 0 8px 25px rgba(255, 255, 255, 0.4);
+}
+
+/* Appointment Button - Màu vàng nhạt */
+.home-page .service-btn-appointment {
+    border-color: #ffd700;
+}
+
+.home-page .service-btn-appointment::before {
+    background: linear-gradient(135deg, #ffd700 0%, #ffffff 100%);
+}
+
+.home-page .service-btn-appointment:hover {
+    color: #008f7d;
+    box-shadow: 0 8px 25px rgba(255, 215, 0, 0.4);
+}
+
+/* ==================== RIPPLE EFFECT ON CLICK ==================== */
+.home-page .service-btn::after {
+    content: '';
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    width: 0;
+    height: 0;
+    border-radius: 50%;
+    background: rgba(255, 255, 255, 0.3);
+    transform: translate(-50%, -50%);
+    transition: width 0.6s ease, height 0.6s ease;
+}
+
+.home-page .service-btn:active::after {
+    width: 200px;
+    height: 200px;
+}
+
+/* ==================== SECTION 2: WELCOME TO OHCP ==================== */
+.home-page .welcome-section {
+    padding: 5% 10%;
+}
+
+.home-page .welcome-title {
+    font-size: 2vw;
+}
+
+.home-page .welcome-highlight {
+    color: #00b09a;
+}
+
+.home-page .welcome-description {
+    color: #A5A5A5;
+}
+
+.home-page .signature {
+    font-family: "Segoe Script";
+    font-size: 2vw;
+    margin-top: 2vh;
+}
+
+.home-page .welcome-image {
+    background-image: url('/public/Hung/Home03.jpg');
+    background-size: cover;
+    background-position: center;
+    min-height: 250px;
+    max-height: 400px;
+}
+
+.home-page .open-hours-card {
+    background-color: #222;
+    color: white;
+    max-height: 400px;
+}
+
+.home-page .open-hours-title {
+    color: #00b09a;
+    font-size: clamp(16px, 1.8vw, 24px);
+    padding: 3vw 2vw 1.2vw 2vw;
+    font-weight: bold;
+}
+
+.home-page .open-hours-list {
+    padding: 0 2vw 2vw 2vw;
+}
+
+.home-page .hours-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding-bottom: 0.8vw;
+    margin: 0;
+}
+
+.home-page .hours-row .col-md-6 {
+    padding: 0;
+    width: auto;
+}
+
+.home-page .hours-row .col-md-6:first-child {
+    font-weight: 600;
+    color: #00b09a;
+    font-size: clamp(12px, 1.1vw, 16px);
+}
+
+.home-page .hours-row .col-md-6:last-child {
+    color: #fff;
+    text-align: right;
+    font-size: clamp(12px, 1.05vw, 15px);
+}
+
+/* ==================== SECTION 3: WHY CHOOSE US ==================== */
+.home-page .why-choose-section {
+    padding: 5% 10%;
+}
+
+.home-page .section-subtitle {
+    color: #008f7d;
+    font-size: 1.5vw;
+}
+
+.home-page .section-main-title {
+    font-size: 3vw;
+    margin-top: 1vh;
+    margin-bottom: 2vh;
+}
+
+.home-page .section-text {
+    color: #A5A5A5;
+}
+
+.home-page .stats-row {
+    padding-top: 2%;
+}
+
+.home-page .stat-number {
+    color: #008f7d;
+    font-size: 2vw;
+}
+
+.home-page .why-choose-image {
+    background-image: url('/public/Hung/Home04.jpg');
+    background-size: cover;
+    background-position: center;
+    min-height: 400px;
+}
+
+.home-page .doctor-cta-card {
+    position: absolute;
+    bottom: -20px;
+    right: 20px;
+    background-color: #33c4b0e6;
+    color: white;
+    padding: 20px 30px;
+    box-shadow: 0 4px 15px rgba(0, 0, 0, 0.2);
+    text-align: left;
+    max-width: 320px;
+    z-index: 10;
+}
+
+.home-page .cta-title {
+    font-size: 1.2vw;
+    font-weight: bold;
+    margin-bottom: 8px;
+}
+
+.home-page .cta-description {
+    font-size: 1vw;
+    margin-bottom: 15px;
+    opacity: 0.9;
+}
+
+.home-page .cta-button {
+    border: none;
+    background-color: #FFF;
+    color: #00b09a;
+    padding: 10px 20px;
+    font-weight: bold;
+    cursor: pointer;
+    transition: all 0.3s;
+    font-size: 1.5vh;
+}
+
+.home-page .cta-button:hover {
+    background-color: #f0f0f0;
+    transform: translateY(-2px);
+}
+
+/* ==================== SECTION 4: TESTIMONIALS ==================== */
+.home-page .testimonials-section {
+    padding: 0 30%;
+    text-align: center;
+    color: white;
+}
+
+.home-page .testimonials-subtitle {
+    padding: 10% 0 2% 0;
+}
+
+.home-page .testimonials-title {
+    font-size: 2.5vw;
+    padding: 2% 0;
+}
+
+.home-page .testimonials-divider {
+    padding: 2% 0;
+}
+
+.home-page .testimonials-divider svg {
+    width: 30px;
+    height: auto;
+    fill: white;
+}
+
+/* ================================================================== */
+/* RESPONSIVE STYLES FOR HOME PAGE */
+/* ================================================================== */
+
+/* Desktop Large (< 1400px) */
+@media (max-width: 1399.98px) {
+    .home-page .Background_Home {
+        padding-top: 240px;
+    }
+
+    .home-page .hero-title {
+        font-size: 3.2vw;
+    }
+
+    .home-page .hero-description {
+        width: 65%;
+        font-size: 15px;
+    }
+
+    .home-page .btn-about-us {
+        width: 190px;
+        height: 48px;
+        font-size: 1.1vw;
+    }
+
+    .home-page .services-row {
+        padding: 0 25vh;
+    }
+
+    .home-page .service-title {
+        font-size: 1.6vw;
+    }
+
+    .home-page .svg-doctor {
+        width: 4.8vw;
+    }
+
+    .home-page .welcome-title {
+        font-size: 2.1vw;
+    }
+
+    .home-page .signature {
+        font-size: 2.1vw;
+    }
+
+    .home-page .section-subtitle {
+        font-size: 1.6vw;
+    }
+
+    .home-page .section-main-title {
+        font-size: 3.2vw;
+    }
+
+    .home-page .stat-number {
+        font-size: 2.2vw;
+    }
+
+    .home-page .testimonials-title {
+        font-size: 2.7vw;
+    }
+}
+
+/* Desktop (< 1200px) */
+@media (max-width: 1199.98px) {
+    .home-page .Background_Home {
+        padding-top: 220px;
+    }
+
+    .home-page .hero-title {
+        font-size: 3.5vw;
+    }
+
+    .home-page .hero-description {
+        width: 70%;
+        font-size: 14px;
+    }
+
+    .home-page .btn-about-us {
+        width: 180px;
+        height: 46px;
+        font-size: 1.2vw;
+    }
+
+    .home-page .services-row {
+        padding: 0 20vh;
+    }
+
+    .home-page .service-title {
+        font-size: 1.7vw;
+    }
+
+    .home-page .service-description {
+        font-size: 14px;
+    }
+
+    .home-page .svg-doctor {
+        width: 5vw;
+    }
+
+    .home-page .welcome-section {
+        padding: 5% 8%;
+    }
+
+    .home-page .welcome-title {
+        font-size: 2.3vw;
+    }
+
+    .home-page .welcome-description {
+        font-size: 14px;
+    }
+
+    .home-page .signature {
+        font-size: 2.3vw;
+    }
+
+    .home-page .open-hours-title {
+        font-size: 18px;
+        padding: 20px 15px 10px 15px;
+    }
+
+    .home-page .open-hours-list {
+        padding: 0 15px 15px 15px;
+    }
+
+    .home-page .hours-row {
+        padding-bottom: 8px;
+    }
+
+    .home-page .hours-row .col-md-6:first-child {
+        font-size: 13px;
+    }
+
+    .home-page .hours-row .col-md-6:last-child {
+        font-size: 13px;
+    }
+
+    .home-page .why-choose-section {
+        padding: 5% 8%;
+    }
+
+    .home-page .section-subtitle {
+        font-size: 1.7vw;
+    }
+
+    .home-page .section-main-title {
+        font-size: 3.5vw;
+    }
+
+    .home-page .section-text {
+        font-size: 14px;
+    }
+
+    .home-page .stat-number {
+        font-size: 2.4vw;
+    }
+
+    .home-page .cta-title {
+        font-size: 1.3vw;
+    }
+
+    .home-page .cta-description {
+        font-size: 1.1vw;
+    }
+
+    .home-page .testimonials-section {
+        padding: 0 25%;
+    }
+
+    .home-page .testimonials-title {
+        font-size: 3vw;
+    }
+}
+
+/* Tablet (< 992px) */
+@media (max-width: 991.98px) {
+    .home-page .Background_Home {
+        padding-top: 200px;
+        background-attachment: scroll;
+    }
+
+    .home-page .Background_Home2,
+    .home-page .Background_Home3 {
+        background-attachment: scroll;
+    }
+
+    .home-page .hero-title {
+        font-size: 4vw;
+    }
+
+    .home-page .hero-description {
+        width: 75%;
+        font-size: 13px;
+    }
+
+    .home-page .btn-about-us {
+        width: 170px;
+        height: 44px;
+        font-size: 13px;
+    }
+
+    .home-page .services-row {
+        padding: 0 15vh;
+    }
+
+    .home-page .service-card {
+        padding-bottom: 25px;
+    }
+
+    .home-page .service-title {
+        font-size: 2vw;
+    }
+
+    .home-page .service-description {
+        font-size: 13px;
+        padding: 3% 5% 5% 5%;
+    }
+
+    .home-page .service-btn {
+        padding: 11px 26px;
+        font-size: 13px;
+    }
+
+    .home-page .svg-doctor {
+        width: 5.5vw;
+    }
+
+    .home-page .welcome-section {
+        padding: 5% 6%;
+    }
+
+    .home-page .welcome-title {
+        font-size: 2.6vw;
+    }
+
+    .home-page .welcome-description {
+        font-size: 13px;
+        margin-top: 10px;
+    }
+
+    .home-page .signature {
+        font-size: 2.6vw;
+        margin-top: 15px;
+    }
+
+    .home-page .welcome-image {
+        min-height: 220px;
+        max-height: 350px;
+    }
+
+    .home-page .open-hours-card {
+        max-height: 350px;
+    }
+
+    .home-page .open-hours-title {
+        font-size: 18px;
+        padding: 25px 20px 12px 15px;
+    }
+
+    .home-page .open-hours-list {
+        padding-left: 15px;
+        padding-right: 12px;
+    }
+
+    .home-page .hours-row {
+        padding-bottom: 9px;
+    }
+
+    .home-page .hours-row .col-md-6:first-child {
+        font-size: 13px;
+    }
+
+    .home-page .hours-row .col-md-6:last-child {
+        font-size: 12px;
+    }
+
+    .home-page .why-choose-section {
+        padding: 5% 6%;
+    }
+
+    .home-page .section-subtitle {
+        font-size: 2vw;
+    }
+
+    .home-page .section-main-title {
+        font-size: 4vw;
+    }
+
+    .home-page .section-text {
+        font-size: 13px;
+    }
+
+    .home-page .stat-number {
+        font-size: 2.8vw;
+    }
+
+    .home-page .why-choose-image {
+        min-height: 350px;
+    }
+
+    .home-page .doctor-cta-card {
+        bottom: -15px;
+        right: 15px;
+        padding: 18px 25px;
+        max-width: 280px;
+    }
+
+    .home-page .cta-title {
+        font-size: 1.5vw;
+    }
+
+    .home-page .cta-description {
+        font-size: 1.2vw;
+    }
+
+    .home-page .cta-button {
+        padding: 9px 18px;
+        font-size: 13px;
+    }
+
+    .home-page .testimonials-section {
+        padding: 0 20%;
+    }
+
+    .home-page .testimonials-title {
+        font-size: 3.5vw;
+    }
+
+    .home-page .testimonials-divider svg {
+        width: 28px;
+    }
+}
+
+/* Tablet Small (< 768px) */
+@media (max-width: 767.98px) {
+    .home-page .Background_Home {
+        padding-top: 150px;
+        min-height: 85vh;
+    }
+
+    .home-page .hero-subtitle {
+        font-size: 14px;
+        padding: 3vh 0 1.5vh 0;
+    }
+
+    .home-page .hero-title {
+        font-size: 5vw;
+    }
+
+    .home-page .hero-description {
+        width: 85%;
+        font-size: 12px;
+        padding: 0 0 3vh 0;
+    }
+
+    .home-page .btn-about-us {
+        width: 160px;
+        height: 42px;
+        font-size: 12px;
+    }
+
+    /* Services section - Stack vertically on mobile */
+    .home-page .services-row {
+        padding: 0;
+    }
+
+    .home-page .service-card {
+        padding: 30px 20px;
+    }
+
+    .home-page .service-icon,
+    .home-page .service-icon-large {
+        padding-top: 0;
+    }
+
+    .home-page .service-helper-text {
+        padding: 4% 0 2% 0;
+        font-size: 13px;
+    }
+
+    .home-page .service-title {
+        font-size: 20px;
+        padding: 2% 0;
+    }
+
+    .home-page .service-description {
+        font-size: 12px;
+        padding: 2% 5% 4% 5%;
+    }
+
+    .home-page .service-btn {
+        padding: 10px 24px;
+        font-size: 12px;
+    }
+
+    .home-page .svg-doctor {
+        width: 50px;
+    }
+
+    /* Welcome section */
+    .home-page .welcome-section {
+        padding: 5% 5%;
+    }
+
+    .home-page .welcome-title {
+        font-size: 22px;
+        margin-bottom: 15px;
+        text-align: center;
+    }
+
+    .home-page .welcome-description {
+        font-size: 12px;
+        text-align: center;
+        margin-top: 15px;
+    }
+
+    .home-page .signature {
+        font-size: 20px;
+        text-align: center;
+        margin-top: 20px;
+    }
+
+    .home-page .welcome-image {
+        min-height: 250px;
+        max-height: 300px;
+        margin: 20px 0;
+    }
+
+    .home-page .open-hours-card {
+        max-height: none;
+        padding: 20px 15px;
+    }
+
+    .home-page .open-hours-title {
+        font-size: 22px;
+        padding: 0 0 15px 0;
+        text-align: center;
+        margin-bottom: 0;
+    }
+
+    .home-page .open-hours-list {
+        padding: 0;
+    }
+
+    .home-page .hours-row {
+        padding-bottom: 10px;
+        margin: 0;
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+    }
+
+    .home-page .hours-row .col-md-6 {
+        padding: 0;
+        width: auto;
+    }
+
+    .home-page .hours-row .col-md-6:first-child {
+        font-weight: 600;
+        color: #00b09a;
+        font-size: 14px;
+    }
+
+    .home-page .hours-row .col-md-6:last-child {
+        color: #fff;
+        text-align: right;
+        font-size: 14px;
+    }
+
+    /* Why choose section */
+    .home-page .why-choose-section {
+        padding: 5% 5%;
+    }
+
+    .home-page .section-subtitle {
+        font-size: 16px;
+        text-align: center;
+    }
+
+    .home-page .section-main-title {
+        font-size: 24px;
+        text-align: center;
+    }
+
+    .home-page .section-text {
+        font-size: 12px;
+        text-align: center;
+        margin-top: 15px;
+    }
+
+    .home-page .stats-row {
+        padding-top: 5%;
+        text-align: center;
+    }
+
+    .home-page .stats-row .col-md-4 {
+        margin-bottom: 20px;
+    }
+
+    .home-page .stat-number {
+        font-size: 28px;
+    }
+
+    .home-page .why-choose-image {
+        min-height: 300px;
+        margin-top: 30px;
+    }
+
+    .home-page .doctor-cta-card {
+        position: static;
+        margin: -30px auto 0 auto;
+        max-width: 90%;
+        text-align: center;
+    }
+
+    .home-page .cta-title {
+        font-size: 16px;
+    }
+
+    .home-page .cta-description {
+        font-size: 13px;
+    }
+
+    .home-page .cta-button {
+        padding: 8px 16px;
+        font-size: 12px;
+    }
+
+    /* Testimonials section */
+    .home-page .testimonials-section {
+        padding: 0 10%;
+    }
+
+    .home-page .testimonials-subtitle {
+        font-size: 13px;
+        padding: 12% 0 3% 0;
+    }
+
+    .home-page .testimonials-title {
+        font-size: 22px;
+    }
+
+    .home-page .testimonials-divider {
+        padding: 3% 0;
+    }
+
+    .home-page .testimonials-divider svg {
+        width: 25px;
+    }
+}
+
+/* Mobile (< 576px) */
+@media (max-width: 575.98px) {
+    .home-page .Background_Home {
+        padding-top: 120px;
+        min-height: 80vh;
+    }
+
+    .home-page .hero-subtitle {
+        font-size: 13px;
+        padding: 2vh 0 1vh 0;
+    }
+
+    .home-page .hero-title {
+        font-size: 6vw;
+    }
+
+    .home-page .hero-description {
+        width: 90%;
+        font-size: 11px;
+        padding: 0 0 2.5vh 0;
+    }
+
+    .home-page .btn-about-us {
+        width: 150px;
+        height: 40px;
+        font-size: 11px;
+    }
+
+    .home-page .service-card {
+        padding: 25px 15px;
+    }
+
+    .home-page .service-helper-text {
+        font-size: 12px;
+    }
+
+    .home-page .service-title {
+        font-size: 18px;
+    }
+
+    .home-page .service-description {
+        font-size: 11px;
+        padding: 2% 3% 4% 3%;
+    }
+
+    .home-page .service-btn {
+        padding: 9px 20px;
+        font-size: 11px;
+    }
+
+    .home-page .svg-doctor {
+        width: 45px;
+    }
+
+    .home-page .welcome-section {
+        padding: 8% 5%;
+    }
+
+    .home-page .welcome-title {
+        font-size: 20px;
+        margin-bottom: 12px;
+    }
+
+    .home-page .welcome-description {
+        font-size: 11px;
+        margin-top: 12px;
+        line-height: 1.6;
+    }
+
+    .home-page .signature {
+        font-size: 18px;
+        margin-top: 15px;
+    }
+
+    .home-page .welcome-image {
+        min-height: 220px;
+        max-height: 260px;
+        margin: 15px 0;
+    }
+
+    .home-page .open-hours-card {
+        padding: 18px 12px;
+    }
+
+    .home-page .open-hours-title {
+        font-size: 20px;
+        padding: 0 0 12px 0;
+        text-align: center;
+    }
+
+    .home-page .open-hours-list {
+        padding: 0;
+    }
+
+    .home-page .hours-row {
+        padding-bottom: 8px;
+        margin: 0;
+        display: flex;
+        justify-content: space-between;
+    }
+
+    .home-page .hours-row .col-md-6 {
+        padding: 0;
+        width: auto;
+    }
+
+    .home-page .hours-row .col-md-6:first-child {
+        font-weight: 600;
+        color: #00b09a;
+        font-size: 13px;
+    }
+
+    .home-page .hours-row .col-md-6:last-child {
+        color: #fff;
+        text-align: right;
+        font-size: 13px;
+    }
+
+    .home-page .section-subtitle {
+        font-size: 15px;
+    }
+
+    .home-page .section-main-title {
+        font-size: 22px;
+    }
+
+    .home-page .section-text {
+        font-size: 11px;
+        line-height: 1.6;
+    }
+
+    .home-page .stats-row .col-md-4 {
+        margin-bottom: 18px;
+    }
+
+    .home-page .stat-number {
+        font-size: 26px;
+    }
+
+    .home-page .why-choose-image {
+        min-height: 250px;
+        margin-top: 25px;
+    }
+
+    .home-page .doctor-cta-card {
+        padding: 16px 20px;
+        max-width: 95%;
+    }
+
+    .home-page .cta-title {
+        font-size: 15px;
+        margin-bottom: 6px;
+    }
+
+    .home-page .cta-description {
+        font-size: 12px;
+        margin-bottom: 12px;
+    }
+
+    .home-page .cta-button {
+        padding: 7px 14px;
+        font-size: 11px;
+    }
+
+    .home-page .testimonials-section {
+        padding: 0 8%;
+    }
+
+    .home-page .testimonials-subtitle {
+        font-size: 12px;
+        padding: 15% 0 4% 0;
+    }
+
+    .home-page .testimonials-title {
+        font-size: 20px;
+    }
+
+    .home-page .testimonials-divider svg {
+        width: 22px;
+    }
+}
+
+/* Mobile Small (< 400px) */
+@media (max-width: 399.98px) {
+    .home-page .Background_Home {
+        padding-top: 100px;
+        min-height: 75vh;
+    }
+
+    .home-page .hero-subtitle {
+        font-size: 12px;
+    }
+
+    .home-page .hero-title {
+        font-size: 7vw;
+    }
+
+    .home-page .hero-description {
+        width: 95%;
+        font-size: 10px;
+    }
+
+    .home-page .btn-about-us {
+        width: 140px;
+        height: 38px;
+        font-size: 10px;
+    }
+
+    .home-page .service-card {
+        padding: 20px 12px;
+    }
+
+    .home-page .service-helper-text {
+        font-size: 11px;
+    }
+
+    .home-page .service-title {
+        font-size: 17px;
+    }
+
+    .home-page .service-description {
+        font-size: 10px;
+    }
+
+    .home-page .service-btn {
+        padding: 8px 18px;
+        font-size: 10px;
+    }
+
+    .home-page .svg-doctor {
+        width: 40px;
+    }
+
+    .home-page .welcome-title {
+        font-size: 18px;
+        margin-bottom: 10px;
+    }
+
+    .home-page .welcome-description {
+        font-size: 10px;
+        margin-top: 10px;
+    }
+
+    .home-page .signature {
+        font-size: 16px;
+        margin-top: 12px;
+    }
+
+    .home-page .welcome-image {
+        min-height: 200px;
+        max-height: 240px;
+    }
+
+    .home-page .open-hours-card {
+        padding: 16px 10px;
+    }
+
+    .home-page .open-hours-title {
+        font-size: 18px;
+        padding: 0 0 10px 0;
+        text-align: center;
+    }
+
+    .home-page .open-hours-list {
+        padding: 0;
+    }
+
+    .home-page .hours-row {
+        padding-bottom: 7px;
+        margin: 0;
+        display: flex;
+        justify-content: space-between;
+    }
+
+    .home-page .hours-row .col-md-6 {
+        padding: 0;
+        width: auto;
+    }
+
+    .home-page .hours-row .col-md-6:first-child {
+        font-weight: 600;
+        color: #00b09a;
+        font-size: 12px;
+    }
+
+    .home-page .hours-row .col-md-6:last-child {
+        color: #fff;
+        text-align: right;
+        font-size: 12px;
+    }
+
+    .home-page .section-subtitle {
+        font-size: 14px;
+    }
+
+    .home-page .section-main-title {
+        font-size: 20px;
+    }
+
+    .home-page .section-text {
+        font-size: 10px;
+    }
+
+    .home-page .stats-row .col-md-4 {
+        margin-bottom: 15px;
+    }
+
+    .home-page .stat-number {
+        font-size: 24px;
+    }
+
+    .home-page .why-choose-image {
+        min-height: 220px;
+        margin-top: 20px;
+    }
+
+    .home-page .doctor-cta-card {
+        padding: 14px 18px;
+        max-width: 98%;
+    }
+
+    .home-page .cta-title {
+        font-size: 14px;
+        margin-bottom: 5px;
+    }
+
+    .home-page .cta-description {
+        font-size: 11px;
+        margin-bottom: 10px;
+    }
+
+    .home-page .cta-button {
+        padding: 6px 12px;
+        font-size: 10px;
+    }
+
+    .home-page .testimonials-section {
+        padding: 0 5%;
+    }
+
+    .home-page .testimonials-subtitle {
+        font-size: 11px;
+        padding: 18% 0 5% 0;
+    }
+
+    .home-page .testimonials-title {
+        font-size: 18px;
+    }
+
+    .home-page .testimonials-divider {
+        padding: 4% 0;
+    }
+
+    .home-page .testimonials-divider svg {
+        width: 20px;
+    }
+}

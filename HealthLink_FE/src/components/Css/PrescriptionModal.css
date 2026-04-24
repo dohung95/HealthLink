@@ -1,0 +1,85 @@
+/* Prescription Modal Styles */
+.modal-overlay {
+    background-color: rgba(108, 117, 125, 0.3);
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 1050;
+}
+
+.modal-content-custom {
+    max-width: 896px;
+    width: 100%;
+    border-radius: 0.75rem;
+    background-color: var(--background-light);
+    box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.25);
+    max-height: 90vh;
+    overflow-y: auto;
+}
+
+.prescription-form-control {
+    height: 3rem;
+}
+
+.prescription-form-control:focus {
+    border-color: var(--primary);
+    box-shadow: 0 0 0 0.25rem rgba(19, 127, 236, 0.25);
+}
+
+.btn-add-medicine {
+    background-color: var(--primary);
+    color: white;
+    font-weight: 600;
+    height: 3rem;
+}
+
+.btn-add-medicine:hover {
+    background-color: rgba(19, 127, 236, 0.9);
+    color: white;
+}
+
+.prescription-table-header {
+    background-color: #f8f9fa;
+}
+
+.prescription-table th {
+    font-size: 0.75rem;
+    font-weight: 500;
+    color: #6c757d;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+}
+
+.prescription-table td {
+    color: var(--text-light-primary);
+    font-size: 0.875rem;
+}
+
+.prescription-table-body-row-medium {
+    font-weight: 500;
+}
+
+.btn-delete-medicine {
+    color: #dc3545;
+    background: transparent;
+    border: none;
+    padding: 0;
+    cursor: pointer;
+}
+
+.btn-delete-medicine:hover {
+    color: #bb2d3b;
+}
+
+.prescription-modal-header {
+    background-color: white;
+}
+
+.prescription-modal-footer {
+    background-color: #f8f9fa;
+}
