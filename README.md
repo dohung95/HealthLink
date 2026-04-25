@@ -3,7 +3,7 @@
 ## 1. Yêu Cầu Dành cho Bệnh Nhân (Patient)
 
 ### REQ-1: Quản Lý Tài Khoản và Hồ Sơ Sức Khỏe
-- Cho phép đăng ký, đăng nhập và cập nhật thông tin cá nhân (FullName, DateOfBirth, bảo hiểm)
+- Cho phép đăng ký, đăng nhập và cập nhật thông tin cá nhân (FullName, DateOfBirth,...)
 - Bệnh nhân có thể quản lý lịch sử y tế (MedicalHistorySummary) và tải lên các tài liệu như kết quả xét nghiệm, X-quang
 
 ### REQ-2: Đặt Lịch Tư Vấn Đa Hình Thức
