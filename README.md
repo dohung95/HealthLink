@@ -4,7 +4,7 @@
 
 **HealthLink** là nền tảng tư vấn sức khỏe trực tuyến giúp kết nối bệnh nhân với bác sĩ một cách nhanh chóng, an toàn và tiện lợi. 
 
-Hệ thống cho phép bệnh nhân đặt lịch tư vấn trực tuyến (video/audio/chat), quản lý hồ sơ sức khỏe cá nhân, nhận chẩn đoán sơ bộ từ AI, nhận đơn thuốc điện tử và theo dõi lịch sử khám chữa bệnh. 
+Hệ thống cho phép bệnh nhân đặt lịch tư vấn trực tuyến (video/audio/chat), quản lý hồ sơ sức khỏe cá nhân, nhận chẩn đoán sơ bộ từ AI trước khi nhận được sự thăm khám của bác sĩ, nhận đơn thuốc điện tử và theo dõi lịch sử khám chữa bệnh. 
 
 Mục tiêu chính của dự án là xây dựng một ứng dụng web hỗ trợ chăm sóc sức khỏe từ xa, đặc biệt hữu ích cho người dân ở khu vực xa xôi hoặc có khó khăn trong việc di chuyển.
 
