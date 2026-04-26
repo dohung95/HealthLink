@@ -9,7 +9,9 @@
 /HealthLink_FE/node_modules/
 /HealthLink_FE/obj/
 /HealthLink_FE/src/config.js
+# === Spring Boot ===
 /HealthLink_BE/src/main/resources/application.properties
+/HealthLink_BE/src/resources/application.properties
 
 # Lờ các file build output
 /dist/
