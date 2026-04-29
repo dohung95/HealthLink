@@ -7,11 +7,10 @@
 - Bệnh nhân có thể quản lý lịch sử y tế (MedicalHistorySummary) và tải lên các tài liệu như kết quả xét nghiệm, X-quang
 
 ### REQ-2: Đặt Lịch Tư Vấn Đa Hình Thức
-- Bệnh nhân chọn bác sĩ và hình thức tư vấn: Video call, Audio call, Chat hoặc Khám tại nhà (Offline at home)
-- Khi đặt lịch khám tại nhà, bệnh nhân phải cung cấp tọa độ vị trí chính xác trên bản đồ
+- Bệnh nhân chọn bác sĩ và hình thức tư vấn: Video call, Audio call, Chat hoặc khám offline (tại phòng khám)
 
 ### REQ-3: Tìm Kiếm Đối Tác Gần Nhất
-- Hệ thống tích hợp bản đồ để bệnh nhân tìm kiếm bác sĩ gia đình hoặc nhà thuốc đối tác trong phạm vi gần nhất
+- Hệ thống tích hợp bản đồ để bệnh nhân tìm kiếm bác sĩ gia đình hoặc nhà thuốc đối tác trong phạm vi gần nhất hoặc theo yêu cầu cụ thể.
 
 ### REQ-4: Tương Tác và Thanh Toán
 - Xem đơn thuốc điện tử sau khi bác sĩ kê đơn
@@ -27,7 +26,7 @@
 - Bác sĩ thiết lập khung thời gian rảnh hàng tuần để hệ thống mở lịch đặt
 
 ### REQ-6: Quy Trình Khám Offline và Dẫn Đường
-- Đối với lịch khám tại nhà, hệ thống tích hợp bản đồ (Google Maps) để dẫn đường bác sĩ từ vị trí hiện tại đến nhà bệnh nhân
+- Hệ thống sẽ cung cấp tính năng hỗ trợ bệnh nhân dẫn đường từ vị trí hiện tại của họ đến phòng khám của bác sĩ thông qua Google Maps.
 - Bác sĩ có quyền truy cập hồ sơ sức khỏe của bệnh nhân trong quá trình thăm khám để đưa ra chẩn đoán chính xác
 
 ### REQ-7: Kê Đơn và Chuyển Giao Đơn Thuốc
@@ -75,4 +74,4 @@
 - Thông báo cho bệnh nhân khi có kết quả hoặc nhắc nhở
 
 ### Bản Đồ và Định Vị
-- Tích hợp API bản đồ để tính toán khoảng cách và dẫn đường cho các dịch vụ tại gia (Khám tại nhà, Giao thuốc)
+- Tích hợp API bản đồ để tính toán khoảng cách và dẫn đường cho các dịch vụ Giao thuốc, Tìm phòng khám theo yêu cầu
