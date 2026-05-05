@@ -1,0 +1,68 @@
+import jakarta.persistence.*;
+import lombok.*;
+import java.math.BigDecimal;
+import java.time.LocalDateTime;
+
+@Entity
+@Table(name = "PharmacyOrders")
+@Data
+@NoArgsConstructor @AllArgsConstructor
+@Builder
+public class PharmacyOrder {
+    @Id
+    @GeneratedValue(strategy = GenerationType.IDENTITY)
+    @Column(name = "OrderID")
+    private Integer orderId;
+
+    @Column(unique = true, length = 50)
+    private String orderNumber;
+
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "PrescriptionHeaderId", nullable = false)
+    @ToString.Exclude
+    private PrescriptionHeader prescriptionHeader;
+
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "PharmacyId", nullable = false)
+    @ToString.Exclude
+    private Pharmacy pharmacy;
+
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "PatientId", nullable = false)
+    @ToString.Exclude
+    private Patient patient;
+
+    @Column(nullable = false, length = 50)
+    private String status;
+
+    @Column(length = 50)
+    private String deliveryType;
+    private String deliveryAddress;
+    private Double deliveryLatitude;
+    private Double deliveryLongitude;
+    private BigDecimal deliveryFee;
+    private BigDecimal medicineAmount;
+    private BigDecimal totalAmount;
+
+    @Column(length = 50)
+    private String paymentStatus;
+    @Column(length = 50)
+    private String paymentMethod;
+
+    @Column(length = 500)
+    private String notes;
+    @Column(length = 500)
+    private String pharmacistNotes;
+
+    private LocalDateTime estimatedDeliveryTime;
+    private LocalDateTime actualDeliveryTime;
+    private LocalDateTime confirmedAt;
+    private LocalDateTime preparingAt;
+    private LocalDateTime shippedAt;
+    private LocalDateTime deliveredAt;
+    private LocalDateTime cancelledAt;
+    private String cancelReason;
+    private String cancelledBy;
+
+    private LocalDateTime createdAt = LocalDateTime.now();
+}
