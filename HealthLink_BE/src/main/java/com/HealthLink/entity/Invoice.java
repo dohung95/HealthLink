@@ -1,0 +1,54 @@
+import jakarta.persistence.*;
+import lombok.*;
+import java.math.BigDecimal;
+import java.time.LocalDateTime;
+import java.util.List;
+
+@Entity
+@Table(name = "Invoices")
+@Data
+@NoArgsConstructor @AllArgsConstructor
+@Builder
+public class Invoice {
+    @Id
+    @GeneratedValue(strategy = GenerationType.IDENTITY)
+    @Column(name = "InvoiceID")
+    private Integer invoiceId;
+
+    @OneToOne
+    @JoinColumn(name = "AppointmentId", nullable = false)
+    @ToString.Exclude
+    private Appointment appointment;
+
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "PatientID", nullable = false)
+    @ToString.Exclude
+    private Patient patient;
+
+    @Column(nullable = false)
+    private BigDecimal amount;
+
+    @Column(nullable = false)
+    private LocalDateTime issueDate;
+
+    @Column(nullable = false)
+    private String status;
+
+    @Column(unique = true, length = 50)
+    private String invoiceNumber;
+
+    private BigDecimal consultationFee;
+    private BigDecimal medicineFee;
+    private BigDecimal deliveryFee;
+    private BigDecimal discount;
+    private BigDecimal tax;
+    private LocalDateTime dueDate;
+    private LocalDateTime paidAt;
+
+    @Column(length = 500)
+    private String notes;
+
+    @OneToMany(mappedBy = "invoice")
+    @ToString.Exclude
+    private List<Payment> payments;
+}
