@@ -6,7 +6,7 @@ import java.util.List;
 
 @Entity
 @Table(name = "Doctors")
-@Getter @Setter
+@Data
 @NoArgsConstructor @AllArgsConstructor
 @Builder
 public class Doctor {
