@@ -38,12 +38,21 @@ public class Review {
     @ToString.Exclude
     private Appointment appointment;
 
+    @Column(name = "IsAnonymous")
+    @Builder.Default
     private boolean isAnonymous = false;
 
-    @Column(length = 1000)
+    @Column(name = "DoctorReply", length = 1000)
     private String doctorReply;
 
+    @Column(name = "DoctorReplyDate")
     private LocalDateTime doctorReplyDate;
+    
+    @Column(name = "IsVisible")
+    @Builder.Default
     private boolean isVisible = true;
+
+    @Column(name = "HelpfulCount")
+    @Builder.Default
     private Integer helpfulCount = 0;
 }

@@ -69,7 +69,7 @@ public class Medicine {
 
     private boolean prescriptionRequired = true;
     private BigDecimal referencePrice;
-    private boolean isActive = true;
+    private boolean active = true;
 
     @Column(length = 500)
     private String imageUrl;

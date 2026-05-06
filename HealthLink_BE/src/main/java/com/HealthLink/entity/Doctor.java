@@ -48,11 +48,11 @@ public class Doctor {
     private String clinicAddress;
     private Double averageRating;
     private Integer totalReviews;
-    private boolean isVerified;
-    private boolean isAvailableForVideo;
-    private boolean isAvailableForAudio;
-    private boolean isAvailableForChat;
-    private boolean isAvailableForOffline;
+    private boolean verified;
+    private boolean availableForVideo;
+    private boolean availableForAudio;
+    private boolean availableForChat;
+    private boolean availableForOffline;
 
     // --- Relationships ---
     @ManyToOne(fetch = FetchType.LAZY)
@@ -65,7 +65,7 @@ public class Doctor {
     @OneToMany(mappedBy = "doctor")
     private List<Review> reviews;
 
-    @OneToMany(mappedBy = "doctor")
+    @OneToMany(mappedBy = "sharedWithDoctor")
     private List<HealthRecordShare> sharedRecords;
 
     @OneToMany(mappedBy = "doctor")
