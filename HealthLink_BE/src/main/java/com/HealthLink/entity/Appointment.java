@@ -7,7 +7,7 @@ import java.util.List;
 
 @Entity
 @Table(name = "Appointments")
-@Getter @Setter
+@Data
 @NoArgsConstructor
 @AllArgsConstructor
 @Builder
