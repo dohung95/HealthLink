@@ -1,3 +1,4 @@
+package com.HealthLink.entity;
 import jakarta.persistence.*;
 import lombok.*;
 import java.math.BigDecimal;
@@ -7,7 +8,8 @@ import java.util.List;
 @Entity
 @Table(name = "Appointments")
 @Getter @Setter
-@NoArgsConstructor @AllArgsConstructor
+@NoArgsConstructor
+@AllArgsConstructor
 @Builder
 public class Appointment {
     @Id
@@ -22,6 +24,7 @@ public class Appointment {
     private String consultationType;
 
     @Column(name = "Status")
+    @Builder.Default
     private String status = "Scheduled";
 
     @Column(length = 2000)
