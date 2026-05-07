@@ -31,6 +31,9 @@ public class DoctorScheduleException {
 
     @Column(length = 500)
     private String reason;
-    private boolean isRecurring = false;
+
+    @Builder.Default
+    private boolean recurring = false;
+    
     private LocalDate recurringUntil;
 }

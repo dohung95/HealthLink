@@ -39,7 +39,10 @@ public class Appointment {
     private String cancelledBy;
     private LocalDateTime cancelledAt;
     private Integer rescheduledFrom;
+
+    @Builder.Default
     private boolean reminderSent = false;
+    
     private LocalDateTime confirmedAt;
 
     // --- Relationships ---

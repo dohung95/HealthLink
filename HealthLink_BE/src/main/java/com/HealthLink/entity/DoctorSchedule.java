@@ -29,10 +29,13 @@ public class DoctorSchedule {
 
     private Integer slotDuration = 30;
     private Integer maxPatients = 1;
-    private boolean isAvailable = true;
+
+    @Builder.Default
+    private boolean available = true;
 
     @Column(length = 50)
     private String consultationType;
+    
     private String location;
     
     @Column(length = 500)

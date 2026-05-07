@@ -26,7 +26,8 @@ public class Specialty {
     @Column(length = 500)
     private String iconUrl;
 
-    private boolean isActive = true;
+    @Builder.Default
+    private boolean Active = true;
     private Integer displayOrder;
 
     @OneToMany(mappedBy = "specialtyEntity")

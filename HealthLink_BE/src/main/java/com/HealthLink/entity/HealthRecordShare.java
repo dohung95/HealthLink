@@ -38,7 +38,10 @@ public class HealthRecordShare {
     private LocalDateTime consentGivenAt;
     
     private LocalDateTime expiryDate;
-    private boolean isRevoked = false;
+    
+    @Builder.Default
+    private boolean revoked = false;
+    
     private LocalDateTime revokedAt;
     private String revokeReason;
 }

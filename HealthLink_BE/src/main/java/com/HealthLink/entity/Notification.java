@@ -26,7 +26,9 @@ public class Notification {
     private String message;
 
     private Integer relatedId;
-    private Boolean isRead = false;
+    
+    @Builder.Default
+    private Boolean read = false;
 
     @Column(nullable = false)
     private LocalDateTime createdAt = LocalDateTime.now();

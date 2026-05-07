@@ -51,16 +51,22 @@ public class Pharmacy {
 
     private LocalTime openTime;
     private LocalTime closeTime;
-    private boolean isOpen24Hours = false;
+
+    @Builder.Default
+    private boolean Open24Hours = false;
 
     @Column(length = 50)
     private String workingDays;
 
-    private boolean isVerified = false;
-    private boolean isActive = true;
+    @Builder.Default
+    private boolean Verified = false;
+
+    @Builder.Default
+    private boolean Active = true;
     private Double averageRating;
     private Integer totalReviews;
 
+    @Builder.Default
     private boolean deliveryAvailable = true;
     private Double deliveryRadius;
     private BigDecimal deliveryFee;

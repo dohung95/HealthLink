@@ -38,12 +38,15 @@ public class Review {
     @ToString.Exclude
     private Appointment appointment;
 
-    private boolean isAnonymous = false;
+    @Builder.Default
+    private boolean Anonymous = false;
 
     @Column(length = 1000)
     private String doctorReply;
 
     private LocalDateTime doctorReplyDate;
-    private boolean isVisible = true;
+
+    @Builder.Default
+    private boolean Visible = true;
     private Integer helpfulCount = 0;
 }
