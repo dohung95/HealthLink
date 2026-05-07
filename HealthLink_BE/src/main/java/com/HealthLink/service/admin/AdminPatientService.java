@@ -2,6 +2,7 @@ package com.HealthLink.service.admin;
 
 import com.HealthLink.dto.admin.AdminPatientDto;
 import com.HealthLink.dto.admin.AdminPatientPageResponse;
+import com.HealthLink.dto.admin.AdminPatientUpdateDto;
 import com.HealthLink.entity.Appointment;
 import com.HealthLink.entity.Patient;
 import com.HealthLink.entity.User;
@@ -138,5 +139,83 @@ public class AdminPatientService {
             .insurancePolicyNumber(patient.getInsurancePolicyNumber())
             .lastVisit(lastVisit)
             .build();
+    }
+
+    public AdminPatientDto updatePatient(String patientId, AdminPatientUpdateDto updateDto) {
+        Patient patient = patientRepository.findById(patientId)
+            .orElseThrow(() -> new RuntimeException("Patient not found with ID: " + patientId));
+
+        // Update patient fields
+        if (updateDto.getFullName() != null) {
+            patient.setFullName(updateDto.getFullName());
+        }
+        if (updateDto.getDateOfBirth() != null) {
+            patient.setDateOfBirth(updateDto.getDateOfBirth().atStartOfDay());
+        }
+        if (updateDto.getGender() != null) {
+            patient.setGender(updateDto.getGender());
+        }
+        if (updateDto.getAddress() != null) {
+            patient.setAddress(updateDto.getAddress());
+        }
+        if (updateDto.getCity() != null) {
+            patient.setCity(updateDto.getCity());
+        }
+        if (updateDto.getCountry() != null) {
+            patient.setCountry(updateDto.getCountry());
+        }
+        if (updateDto.getBloodType() != null) {
+            patient.setBloodType(updateDto.getBloodType());
+        }
+        if (updateDto.getOccupation() != null) {
+            patient.setOccupation(updateDto.getOccupation());
+        }
+        if (updateDto.getPreferredLanguage() != null) {
+            patient.setPreferredLanguage(updateDto.getPreferredLanguage());
+        }
+        if (updateDto.getPreferredContactMethod() != null) {
+            patient.setPreferredContactMethod(updateDto.getPreferredContactMethod());
+        }
+        if (updateDto.getEmergencyContactName() != null) {
+            patient.setEmergencyContactName(updateDto.getEmergencyContactName());
+        }
+        if (updateDto.getEmergencyContactPhone() != null) {
+            patient.setEmergencyContactPhone(updateDto.getEmergencyContactPhone());
+        }
+        if (updateDto.getEmergencyContactRelationship() != null) {
+            patient.setEmergencyContactRelationship(updateDto.getEmergencyContactRelationship());
+        }
+        if (updateDto.getMedicalHistorySummary() != null) {
+            patient.setMedicalHistorySummary(updateDto.getMedicalHistorySummary());
+        }
+        if (updateDto.getInsuranceProvider() != null) {
+            patient.setInsuranceProvider(updateDto.getInsuranceProvider());
+        }
+        if (updateDto.getInsurancePolicyNumber() != null) {
+            patient.setInsurancePolicyNumber(updateDto.getInsurancePolicyNumber());
+        }
+
+        // Update user status if provided
+        if (updateDto.getStatus() != null && patient.getUser() != null) {
+            patient.getUser().setStatus(updateDto.getStatus());
+        }
+
+        // Save the updated patient
+        Patient savedPatient = patientRepository.save(patient);
+
+        return mapToDto(savedPatient);
+    }
+
+    public AdminPatientDto updatePatientStatus(String patientId, String status) {
+        Patient patient = patientRepository.findById(patientId)
+            .orElseThrow(() -> new RuntimeException("Patient not found with ID: " + patientId));
+
+        if (patient.getUser() != null) {
+            patient.getUser().setStatus(status);
+            Patient savedPatient = patientRepository.save(patient);
+            return mapToDto(savedPatient);
+        } else {
+            throw new RuntimeException("Patient has no associated user");
+        }
     }
 }

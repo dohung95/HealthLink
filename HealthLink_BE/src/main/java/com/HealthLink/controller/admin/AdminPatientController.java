@@ -1,10 +1,16 @@
 package com.HealthLink.controller.admin;
 
+import com.HealthLink.dto.admin.AdminPatientDto;
 import com.HealthLink.dto.admin.AdminPatientPageResponse;
+import com.HealthLink.dto.admin.AdminPatientUpdateDto;
+import com.HealthLink.dto.admin.StatusUpdateRequest;
 import com.HealthLink.service.admin.AdminPatientService;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.CrossOrigin;
 import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PathVariable;
+import org.springframework.web.bind.annotation.PutMapping;
+import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
@@ -30,5 +36,23 @@ public class AdminPatientController {
     ) {
         AdminPatientPageResponse response = adminPatientService.getPatients(pageNumber, pageSize, searchTerm, status, sortBy);
         return ResponseEntity.ok(response);
+    }
+
+    @PutMapping("/{patientId}")
+    public ResponseEntity<AdminPatientDto> updatePatient(
+            @PathVariable String patientId,
+            @RequestBody AdminPatientUpdateDto updateDto
+    ) {
+        AdminPatientDto updatedPatient = adminPatientService.updatePatient(patientId, updateDto);
+        return ResponseEntity.ok(updatedPatient);
+    }
+
+    @PutMapping("/{patientId}/status")
+    public ResponseEntity<AdminPatientDto> updatePatientStatus(
+            @PathVariable String patientId,
+            @RequestBody StatusUpdateRequest statusRequest
+    ) {
+        AdminPatientDto updatedPatient = adminPatientService.updatePatientStatus(patientId, statusRequest.getStatus());
+        return ResponseEntity.ok(updatedPatient);
     }
 }
