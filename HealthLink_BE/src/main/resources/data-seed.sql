@@ -12,7 +12,7 @@ INSERT INTO Roles (Id, Name) VALUES
 
 -- 2. SPECIALTIES (10 specialties)
 SET IDENTITY_INSERT Specialties ON;
-INSERT INTO Specialties (SpecialtyID, name, nameEn, description, iconUrl, isActive, displayOrder) VALUES
+INSERT INTO Specialties (SpecialtyID, name, nameEn, description, iconUrl, Active, DisplayOrder) VALUES
 (1, 'Internal Medicine', 'Internal Medicine', 'Diagnosis and treatment of internal diseases', '/icons/internal.png', 1, 1),
 (2, 'Surgery', 'Surgery', 'Surgical procedures and treatments', '/icons/surgery.png', 1, 2),
 (3, 'Pediatrics', 'Pediatrics', 'Child healthcare and treatment', '/icons/pediatrics.png', 1, 3),
@@ -77,7 +77,7 @@ INSERT INTO UserRoles (UserId, RoleId) VALUES
 ('user-ph10', 'role-pharmacy');
 
 -- 5. DOCTORS (10 doctors)
-INSERT INTO Doctors (DoctorID, FullName, qualifications, specialty, yearsOfExperience, languageSpoken, location, avatarUrl, bio, consultationFee, latitude, longitude, clinicName, clinicAddress, averageRating, totalReviews, isVerified, isAvailableForVideo, isAvailableForAudio, isAvailableForChat, isAvailableForOffline, specialtyId) VALUES
+INSERT INTO Doctors (DoctorID, FullName, qualifications, specialty, yearsOfExperience, languageSpoken, location, avatarUrl, bio, consultationFee, latitude, longitude, clinicName, clinicAddress, averageRating, totalReviews, verified, availableForVideo, availableForAudio, availableForChat, availableForOffline, specialtyId) VALUES
 ('user-d01', 'Dr. John Smith', 'MD, PhD - Harvard Medical School', 'Internal Medicine', 15, 'English, Spanish', 'New York', '/avatars/doctor01.jpg', 'Internal medicine specialist with 15 years of experience', 150.00, 40.7128, -74.0060, 'Manhattan Health Clinic', '123 5th Avenue, New York, NY 10001', 4.8, 156, 1, 1, 1, 1, 1, 1),
 ('user-d02', 'Dr. Sarah Johnson', 'MD - Johns Hopkins University', 'Pediatrics', 12, 'English', 'Los Angeles', '/avatars/doctor02.jpg', 'Dedicated pediatrician caring for children', 120.00, 34.0522, -118.2437, 'LA Children Hospital', '456 Sunset Blvd, Los Angeles, CA 90028', 4.9, 203, 1, 1, 1, 1, 1, 3),
 ('user-d03', 'Dr. Michael Chen', 'MD, FACC - Stanford University', 'Cardiology', 20, 'English, Mandarin, French', 'San Francisco', '/avatars/doctor03.jpg', 'Leading cardiologist and heart specialist', 250.00, 37.7749, -122.4194, 'Bay Area Heart Center', '789 Market Street, San Francisco, CA 94103', 4.95, 89, 1, 1, 0, 1, 1, 6),
@@ -103,7 +103,7 @@ INSERT INTO Patients (PatientID, FullName, dateOfBirth, medicalHistorySummary, i
 ('user-p10', 'Charlotte Taylor', '1975-06-12', 'Spinal degeneration', 'BCBS', 'BCBS-2024-010', 'Female', '90 Aspen Way', 'Philadelphia', 'USA', 'AB-', 'George Taylor', '0901234567', 'Husband', 'English', 'Phone', 'Homemaker', '/avatars/patient10.jpg', 39.9526, -75.1652, NULL, 'Spinal degeneration', 'Glucosamine', 158, 62);
 
 -- 7. PHARMACIES (10 pharmacies)
-INSERT INTO Pharmacies (PharmacyID, name, licenseNumber, address, city, district, ward, latitude, longitude, phoneNumber, email, description, avatarUrl, openTime, closeTime, isOpen24Hours, workingDays, isVerified, isActive, averageRating, totalReviews, deliveryAvailable, deliveryRadius, deliveryFee, createdAt, updatedAt) VALUES
+INSERT INTO Pharmacies (PharmacyID, name, licenseNumber, address, city, district, ward, latitude, longitude, phoneNumber, email, description, avatarUrl, openTime, closeTime, Open24Hours, workingDays, Verified, Active, AverageRating, TotalReviews, DeliveryAvailable, DeliveryRadius, DeliveryFee, CreatedAt, updatedAt) VALUES
 ('user-ph01', 'CVS Pharmacy - Manhattan', 'PH-NY-001', '15 Broadway Ave', 'New York', 'Manhattan', 'Midtown', 40.7580, -73.9855, '2123001001', 'cvs.manhattan@pharmacy.com', 'Trusted pharmacy with great service', '/pharmacy/cvs1.jpg', '07:00', '22:00', 0, 'Mon-Sun', 1, 1, 4.8, 523, 1, 5.0, 5.99, '2024-01-01', '2024-05-01'),
 ('user-ph02', 'Walgreens - LA Downtown', 'PH-CA-002', '120 Sunset Blvd', 'Los Angeles', 'Downtown', 'Central', 34.0407, -118.2468, '2133002002', 'walgreens.la@pharmacy.com', 'Large pharmacy chain', '/pharmacy/walgreens1.jpg', '07:30', '22:30', 0, 'Mon-Sun', 1, 1, 4.7, 412, 1, 7.0, 6.99, '2024-01-15', '2024-05-02'),
 ('user-ph03', 'Rite Aid - Chicago', 'PH-IL-003', '56 Michigan Ave', 'Chicago', 'Loop', 'Central', 41.8827, -87.6233, '3123003003', 'riteaid.chi@pharmacy.com', 'Your neighborhood pharmacy', '/pharmacy/riteaid.jpg', '06:30', '21:30', 0, 'Mon-Sat', 1, 1, 4.6, 187, 1, 4.0, 4.99, '2024-02-01', '2024-05-03'),
@@ -117,7 +117,7 @@ INSERT INTO Pharmacies (PharmacyID, name, licenseNumber, address, city, district
 
 -- 8. MEDICINES (10 medicines)
 SET IDENTITY_INSERT Medicines ON;
-INSERT INTO Medicines (MedicineID, name, genericName, brandName, category, dosageForm, strength, unit, manufacturer, countryOfOrigin, description, activeIngredients, indications, contraindications, sideEffects, precautions, interactions, storageConditions, prescriptionRequired, referencePrice, isActive, imageUrl, createdAt, updatedAt) VALUES
+INSERT INTO Medicines (MedicineID, name, genericName, brandName, category, dosageForm, strength, unit, manufacturer, countryOfOrigin, description, activeIngredients, indications, contraindications, sideEffects, precautions, interactions, storageConditions, prescriptionRequired, referencePrice, active, imageUrl, createdAt, updatedAt) VALUES
 (1, 'Paracetamol 500mg', 'Paracetamol', 'Tylenol', 'Pain Relief - Fever', 'Tablet', '500mg', 'Tablet', 'Johnson & Johnson', 'USA', 'Common pain reliever and fever reducer', 'Paracetamol 500mg', 'Headache, fever, muscle pain', 'Allergy to paracetamol, severe liver disease', 'Nausea, rash (rare)', 'Do not exceed 4g per day', 'Increased toxicity with alcohol', 'Store below 30C', 0, 5.99, 1, '/medicines/paracetamol.jpg', '2024-01-01', NULL),
 (2, 'Amoxicillin 500mg', 'Amoxicillin', 'Amoxil', 'Antibiotic', 'Capsule', '500mg', 'Capsule', 'Pfizer', 'USA', 'Broad spectrum antibiotic', 'Amoxicillin trihydrate', 'Respiratory infections, UTI', 'Penicillin allergy', 'Diarrhea, rash, nausea', 'Adjust dose for kidney disease', 'May reduce contraceptive efficacy', 'Store at 15-25C', 1, 12.99, 1, '/medicines/amoxicillin.jpg', '2024-01-01', NULL),
 (3, 'Omeprazole 20mg', 'Omeprazole', 'Prilosec', 'Gastrointestinal', 'Capsule', '20mg', 'Capsule', 'AstraZeneca', 'Sweden', 'Proton pump inhibitor', 'Omeprazole', 'Gastric ulcer, GERD', 'Allergy to omeprazole', 'Headache, diarrhea, nausea', 'Not for long-term use', 'Reduces B12 absorption', 'Store below 25C, protect from moisture', 1, 15.99, 1, '/medicines/omeprazole.jpg', '2024-01-01', NULL),
@@ -132,7 +132,7 @@ SET IDENTITY_INSERT Medicines OFF;
 
 -- 9. DOCTOR_SCHEDULES (10 schedules)
 SET IDENTITY_INSERT DoctorSchedules ON;
-INSERT INTO DoctorSchedules (ScheduleID, DoctorId, dayOfWeek, startTime, endTime, slotDuration, maxPatients, isAvailable, consultationType, location, notes) VALUES
+INSERT INTO DoctorSchedules (ScheduleID, DoctorId, dayOfWeek, startTime, endTime, SlotDuration, MaxPatients, Available, consultationType, location, notes) VALUES
 (1, 'user-d01', 1, '08:00', '12:00', 30, 1, 1, 'Video', NULL, 'Monday morning video consultations'),
 (2, 'user-d01', 1, '14:00', '17:00', 30, 1, 1, 'Offline', 'Manhattan Health Clinic', 'Monday afternoon in-person'),
 (3, 'user-d02', 2, '08:00', '11:30', 20, 2, 1, 'Video', NULL, 'Pediatric online consultations'),
@@ -147,7 +147,7 @@ SET IDENTITY_INSERT DoctorSchedules OFF;
 
 -- 10. DOCTOR_SCHEDULE_EXCEPTIONS (10 exceptions)
 SET IDENTITY_INSERT DoctorScheduleExceptions ON;
-INSERT INTO DoctorScheduleExceptions (ExceptionID, DoctorId, exceptionDate, exceptionType, startTime, endTime, reason, isRecurring, recurringUntil) VALUES
+INSERT INTO DoctorScheduleExceptions (ExceptionID, DoctorId, exceptionDate, exceptionType, startTime, endTime, reason, Recurring, recurringUntil) VALUES
 (1, 'user-d01', '2024-06-01', 'DayOff', NULL, NULL, 'Holiday - Memorial Day', 0, NULL),
 (2, 'user-d02', '2024-05-20', 'Modified', '09:00', '11:00', 'Staff meeting in morning', 0, NULL),
 (3, 'user-d03', '2024-06-10', 'DayOff', NULL, NULL, 'International Cardiology Conference', 0, NULL),
@@ -207,7 +207,7 @@ SET IDENTITY_INSERT HealthRecords OFF;
 
 -- 14. MEDICAL_DOCUMENTS (10 documents)
 SET IDENTITY_INSERT MedicalDocuments ON;
-INSERT INTO MedicalDocuments (DocumentID, HealthRecordID, documentName, documentType, fileLocation, category, description, testResults, referenceRange, testStatus, documentDate, performedBy, uploadedAt, fileSize, mimeType, thumbnailUrl) VALUES
+INSERT INTO MedicalDocuments (DocumentID, HealthRecordID, documentName, documentType, fileLocation, category, description, testResults, referenceRange, testStatus, documentDate, performedBy, UploadedAt, FileSize, mimeType, thumbnailUrl) VALUES
 (1, 1, 'Complete Blood Count', 'LabReport', '/documents/1/blood-test.pdf', 'Blood', 'CBC test results', 'WBC: 7.5, RBC: 4.8, Hb: 14.2', 'WBC: 4-10, RBC: 4.5-5.5, Hb: 12-16', 'Normal', '2024-01-15', 'Dr. Lab Tech', '2024-01-15 10:00:00', 245000, 'application/pdf', '/thumbnails/1/blood-test.jpg'),
 (2, 2, 'Upper GI Endoscopy', 'Endoscopy', '/documents/2/gastroscopy.pdf', 'Gastro', 'Gastroscopy findings', 'Mild antral gastritis, H. pylori negative', NULL, 'Abnormal', '2024-03-20', 'Dr. GI Specialist', '2024-03-20 14:30:00', 1250000, 'application/pdf', '/thumbnails/2/gastroscopy.jpg'),
 (3, 3, 'HbA1c Test', 'LabReport', '/documents/3/hba1c.pdf', 'Blood', 'Diabetes monitoring', 'HbA1c: 7.2%, FBS: 145mg/dL', 'HbA1c: <6.5%, FBS: 70-100', 'Abnormal', '2024-04-01', 'Dr. Endocrinologist', '2024-04-01 09:00:00', 180000, 'application/pdf', '/thumbnails/3/hba1c.jpg'),
@@ -222,7 +222,7 @@ SET IDENTITY_INSERT MedicalDocuments OFF;
 
 -- 15. VITAL_SIGNS (10 vital signs)
 SET IDENTITY_INSERT VitalSigns ON;
-INSERT INTO VitalSigns (VitalSignID, PatientID, heartRate, bloodPressureSystolic, bloodPressureDiastolic, temperature, oxygenSaturation, respiratoryRate, bloodGlucose, weight, height, bmi, notes, measuredAt, source, deviceName, createdAt) VALUES
+INSERT INTO VitalSigns (VitalSignID, PatientID, heartRate, bloodPressureSystolic, bloodPressureDiastolic, temperature, oxygenSaturation, respiratoryRate, bloodGlucose, weight, height, bmi, notes, measuredAt, source, deviceName, CreatedAt) VALUES
 (1, 'user-p01', 72, 120, 80, 98.6, 98, 16, NULL, 70.0, 175.0, 22.9, 'Normal readings', '2024-05-10 08:30:00', 'Manual', NULL, '2024-05-10 08:30:00'),
 (2, 'user-p02', 80, 118, 75, 99.1, 99, 18, NULL, 58.0, 165.0, 21.3, 'Slightly elevated HR due to anxiety', '2024-05-11 09:45:00', 'Device', 'Omron BP Monitor', '2024-05-11 09:45:00'),
 (3, 'user-p03', 78, 135, 88, 98.8, 97, 17, 145.0, 85.0, 178.0, 26.8, 'Elevated BP and blood glucose', '2024-05-12 09:00:00', 'Device', 'Accu-Chek', '2024-05-12 09:00:00'),
@@ -252,7 +252,7 @@ SET IDENTITY_INSERT Invoices OFF;
 
 -- 17. PAYMENTS (10 payments)
 SET IDENTITY_INSERT Payments ON;
-INSERT INTO Payments (PaymentID, InvoiceID, amount, paymentMethod, paymentGateway, transactionId, status, paidAt, failureReason, refundedAmount, refundedAt, refundReason, metadata, createdAt) VALUES
+INSERT INTO Payments (PaymentID, InvoiceID, amount, paymentMethod, paymentGateway, transactionId, status, paidAt, failureReason, refundedAmount, refundedAt, refundReason, metadata, CreatedAt) VALUES
 (1, 1, 175.00, 'Card', 'Stripe', 'STR20240510001', 'Completed', '2024-05-10 09:35:00', NULL, NULL, NULL, NULL, '{"cardLast4":"4242","cardBrand":"Visa"}', '2024-05-10 09:35:00'),
 (2, 2, 155.00, 'EWallet', 'PayPal', 'PP20240511001', 'Completed', '2024-05-11 10:25:00', NULL, NULL, NULL, NULL, '{"payerId":"PAYPAL123"}', '2024-05-11 10:25:00'),
 (3, 3, 320.00, 'Card', 'Stripe', 'STR20240512001', 'Completed', '2024-05-12 10:20:00', NULL, NULL, NULL, NULL, '{"cardLast4":"1234","cardBrand":"Mastercard"}', '2024-05-12 10:20:00'),
@@ -325,7 +325,7 @@ INSERT INTO ChatRooms (ChatRoomId, user1Id, user2Id, user1DisplayName, user1Phot
 
 -- 22. MESSAGES (10 messages)
 SET IDENTITY_INSERT Messages ON;
-INSERT INTO Messages (MessageID, ChatRoomId, SenderId, ReceiverId, content, photoURL, imageUrl, isRead, timestamp) VALUES
+INSERT INTO Messages (MessageID, ChatRoomId, SenderId, ReceiverId, content, photoURL, imageUrl, read, timestamp) VALUES
 (1, 'chat-001', 'user-d01', 'user-p01', 'Hi Michael, can you describe your headache symptoms?', '/avatars/doctor01.jpg', NULL, 1, '2024-05-10 09:02:00'),
 (2, 'chat-001', 'user-p01', 'user-d01', 'I have been having a dull pain on the right side of my head for 3 days', '/avatars/patient01.jpg', NULL, 1, '2024-05-10 09:05:00'),
 (3, 'chat-001', 'user-d01', 'user-p01', 'Are you getting enough sleep? Any work-related stress?', '/avatars/doctor01.jpg', NULL, 1, '2024-05-10 09:08:00'),
@@ -340,7 +340,7 @@ SET IDENTITY_INSERT Messages OFF;
 
 -- 23. NOTIFICATIONS (10 notifications)
 SET IDENTITY_INSERT Notifications ON;
-INSERT INTO Notifications (NotificationID, UserId, type, message, relatedId, isRead, createdAt, appointmentId, title, imageUrl, actionUrl, priority, expiresAt, sentVia) VALUES
+INSERT INTO Notifications (NotificationID, UserId, type, message, relatedId, read, createdAt, appointmentId, title, imageUrl, actionUrl, priority, expiresAt, sentVia) VALUES
 (1, 'user-p01', 'AppointmentReminder', 'You have an appointment with Dr. John Smith tomorrow at 9:00 AM', 1, 1, '2024-05-09 18:00:00', 1, 'Appointment Reminder', '/icons/calendar.png', '/appointments/1', 'High', '2024-05-10 09:00:00', 'Push'),
 (2, 'user-d01', 'NewAppointment', 'New appointment booked by Michael Anderson', 1, 1, '2024-05-09 15:00:00', 1, 'New Appointment', '/icons/appointment.png', '/doctor/appointments/1', 'Normal', NULL, 'Push'),
 (3, 'user-p02', 'PrescriptionReady', 'Your prescription is ready for pickup or delivery', 2, 1, '2024-05-11 10:25:00', 2, 'Prescription Ready', '/icons/prescription.png', '/prescriptions/2', 'Normal', NULL, 'Email'),
@@ -355,7 +355,7 @@ SET IDENTITY_INSERT Notifications OFF;
 
 -- 24. REVIEWS (10 reviews)
 SET IDENTITY_INSERT Reviews ON;
-INSERT INTO Reviews (ReviewID, PatientID, DoctorID, rating, comment, reviewDate, AppointmentId, isAnonymous, doctorReply, doctorReplyDate, isVisible, helpfulCount) VALUES
+INSERT INTO Reviews (ReviewID, PatientID, DoctorID, rating, comment, reviewDate, AppointmentId, Anonymous, doctorReply, doctorReplyDate, Visible, HelpfulCount) VALUES
 (1, 'user-p01', 'user-d01', 5, 'Dr. Smith was very attentive and thorough. He explained my condition clearly.', '2024-05-10 10:00:00', 1, 0, 'Thank you for your trust. Wishing you good health!', '2024-05-10 12:00:00', 1, 12),
 (2, 'user-p02', 'user-d02', 5, 'Dr. Johnson is excellent with children. My daughter felt comfortable. Highly recommend!', '2024-05-12 08:30:00', 2, 0, 'Thank you! Wishing your daughter a speedy recovery!', '2024-05-12 10:00:00', 1, 25),
 (3, 'user-p03', 'user-d03', 5, 'Dr. Chen is very knowledgeable and analyzed my condition thoroughly. Very reassuring.', '2024-05-12 11:00:00', 3, 0, NULL, NULL, 1, 8),
@@ -370,7 +370,7 @@ SET IDENTITY_INSERT Reviews OFF;
 
 -- 25. HEALTH_RECORD_SHARES (10 shares)
 SET IDENTITY_INSERT HealthRecordShares ON;
-INSERT INTO HealthRecordShares (ShareID, HealthRecordID, sharedDocumentIds, SharedWithDoctorId, SharedByPatientId, permissionLevel, consentGivenAt, expiryDate, isRevoked, revokedAt, revokeReason) VALUES
+INSERT INTO HealthRecordShares (ShareID, HealthRecordID, sharedDocumentIds, SharedWithDoctorId, SharedByPatientId, PermissionLevel, ConsentGivenAt, ExpiryDate, Revoked, RevokedAt, RevokeReason) VALUES
 (1, 1, '1', 'user-d01', 'user-p01', 'View', '2024-05-10 08:30:00', '2024-06-10', 0, NULL, NULL),
 (2, 2, '2', 'user-d02', 'user-p02', 'View', '2024-05-11 09:30:00', '2024-06-11', 0, NULL, NULL),
 (3, 3, '3', 'user-d03', 'user-p03', 'ViewDownload', '2024-05-12 09:00:00', '2024-07-12', 0, NULL, NULL),
@@ -385,7 +385,7 @@ SET IDENTITY_INSERT HealthRecordShares OFF;
 
 -- 26. REFRESH_TOKENS (10 tokens)
 SET IDENTITY_INSERT RefreshTokens ON;
-INSERT INTO RefreshTokens (id, UserId, token, expiryDate, isRevoked, createdDate, deviceInfo, ipAddress, userAgent) VALUES
+INSERT INTO RefreshTokens (id, UserId, token, expiryDate, Revoked, CreatedDate, deviceInfo, ipAddress, userAgent) VALUES
 (1, 'user-p01', 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.token1', '2024-06-10 08:00:00', 0, '2024-05-10 08:00:00', 'iPhone 15 Pro', '192.168.1.100', 'Mozilla/5.0 (iPhone; iOS 17)'),
 (2, 'user-p02', 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.token2', '2024-06-11 09:00:00', 0, '2024-05-11 09:00:00', 'Samsung Galaxy S24', '192.168.1.101', 'Mozilla/5.0 (Android 14)'),
 (3, 'user-d01', 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.token3', '2024-06-10 07:30:00', 0, '2024-05-10 07:30:00', 'MacBook Pro M3', '192.168.1.50', 'Mozilla/5.0 (Macintosh; Intel Mac OS X)'),
