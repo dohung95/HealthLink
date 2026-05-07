@@ -37,7 +37,8 @@ public class Message {
     @Column(columnDefinition = "TEXT")
     private String imageUrl;
 
-    private boolean isRead = false;
+    @Builder.Default
+    private boolean read = false;
 
     @Column(nullable = false)
     private LocalDateTime timestamp;

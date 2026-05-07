@@ -26,9 +26,9 @@ public class Specialty {
     @Column(length = 500)
     private String iconUrl;
 
-    @Column(name = "IsActive")
+    @Column(name = "Active")
     @Builder.Default
-    private boolean isActive = true;
+    private boolean active = true;
     
     @Column(name = "DisplayOrder")
     private Integer displayOrder;

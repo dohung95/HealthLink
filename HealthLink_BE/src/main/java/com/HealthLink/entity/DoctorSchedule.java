@@ -35,12 +35,13 @@ public class DoctorSchedule {
     @Builder.Default
     private Integer maxPatients = 1;
     
-    @Column(name = "IsAvailable")
+    @Column(name = "Available")
     @Builder.Default
-    private boolean isAvailable = true;
+    private boolean available = true;
 
     @Column(length = 50)
     private String consultationType;
+    
     private String location;
     
     @Column(length = 500)
