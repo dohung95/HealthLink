@@ -65,7 +65,7 @@ public class Doctor {
     @OneToMany(mappedBy = "doctor")
     private List<Review> reviews;
 
-    @OneToMany(mappedBy = "doctor")
+    @OneToMany(mappedBy = "sharedWithDoctor")
     private List<HealthRecordShare> sharedRecords;
 
     @OneToMany(mappedBy = "doctor")
