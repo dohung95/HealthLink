@@ -49,5 +49,7 @@ public class Payment {
     @Column(length = 2000)
     private String metadata; // JSON data from gateway
 
+    @Column(name = "CreatedAt")
+    @Builder.Default
     private LocalDateTime createdAt = LocalDateTime.now();
 }

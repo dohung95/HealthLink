@@ -1,6 +1,7 @@
 import axios from 'axios';
 
-const API_BASE_URL = 'https://localhost:7267/api/admin';
+// Backend Spring Boot hiện chạy trên http://localhost:8096
+const API_BASE_URL = 'http://localhost:8096/api/admin';
 
 // Create axios instance
 const adminApi = axios.create({

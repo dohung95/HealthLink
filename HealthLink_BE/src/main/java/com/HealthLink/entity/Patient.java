@@ -17,6 +17,8 @@ public class Patient {
     @OneToOne
     @MapsId
     @JoinColumn(name = "PatientID")
+    @ToString.Exclude
+    @EqualsAndHashCode.Exclude
     private User user;
 
     @Column(name = "FullName", nullable = false)
@@ -64,20 +66,32 @@ public class Patient {
 
     // --- Relationships ---
     @OneToMany(mappedBy = "patient")
+    @ToString.Exclude
+    @EqualsAndHashCode.Exclude
     private List<Appointment> appointments;
 
     @OneToMany(mappedBy = "patient")
+    @ToString.Exclude
+    @EqualsAndHashCode.Exclude
     private List<Review> reviews;
 
     @OneToMany(mappedBy = "patient")
+    @ToString.Exclude
+    @EqualsAndHashCode.Exclude
     private List<HealthRecord> healthRecords;
 
     @OneToMany(mappedBy = "patient")
+    @ToString.Exclude
+    @EqualsAndHashCode.Exclude
     private List<Invoice> invoices;
 
     @OneToMany(mappedBy = "patient")
+    @ToString.Exclude
+    @EqualsAndHashCode.Exclude
     private List<PrescriptionHeader> prescriptionHeaders;
 
     @OneToMany(mappedBy = "patient")
+    @ToString.Exclude
+    @EqualsAndHashCode.Exclude
     private List<VitalSign> vitalSigns;
 }

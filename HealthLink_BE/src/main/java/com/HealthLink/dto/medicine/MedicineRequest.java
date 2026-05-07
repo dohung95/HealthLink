@@ -1,0 +1,37 @@
+package com.HealthLink.dto.medicine;
+
+import lombok.AllArgsConstructor;
+import lombok.Builder;
+import lombok.Data;
+import lombok.NoArgsConstructor;
+
+import java.math.BigDecimal;
+
+@Data
+@Builder
+@AllArgsConstructor
+@NoArgsConstructor
+public class MedicineRequest {
+    private Integer medicineId;
+    private String name;
+    private String genericName;
+    private String brandName;
+    private String category;
+    private String dosageForm;
+    private String strength;
+    private String unit;
+    private String manufacturer;
+    private String countryOfOrigin;
+    private String description;
+    private String activeIngredients;
+    private String indications;
+    private String contraindications;
+    private String sideEffects;
+    private String precautions;
+    private String interactions;
+    private String storageConditions;
+    private boolean prescriptionRequired;
+    private BigDecimal referencePrice;
+    private boolean active;
+    private String imageUrl;
+}

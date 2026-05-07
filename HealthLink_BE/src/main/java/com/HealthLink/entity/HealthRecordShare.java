@@ -32,16 +32,23 @@ public class HealthRecordShare {
     @ToString.Exclude
     private Patient sharedByPatient;
 
+    @Column(name = "PermissionLevel", length = 50)
+    @Builder.Default
     private String permissionLevel = "View";
     
-    @Column(nullable = false)
+    @Column(name = "ConsentGivenAt", nullable = false)
     private LocalDateTime consentGivenAt;
     
+    @Column(name = "ExpiryDate")
     private LocalDateTime expiryDate;
-    
+
+    @Column(name = "Revoked")
     @Builder.Default
     private boolean revoked = false;
     
+    @Column(name = "RevokedAt")
     private LocalDateTime revokedAt;
+    
+    @Column(name = "RevokeReason")
     private String revokeReason;
 }

@@ -48,7 +48,7 @@ public class Doctor {
     private String clinicAddress;
     private Double averageRating;
     private Integer totalReviews;
-    
+  
     @Builder.Default
     private boolean verified = false;
     
@@ -75,7 +75,7 @@ public class Doctor {
     @OneToMany(mappedBy = "doctor")
     private List<Review> reviews;
 
-    @OneToMany(mappedBy = "doctor")
+    @OneToMany(mappedBy = "sharedWithDoctor")
     private List<HealthRecordShare> sharedRecords;
 
     @OneToMany(mappedBy = "doctor")
