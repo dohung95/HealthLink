@@ -24,9 +24,12 @@ public class RefreshToken {
     @Column(nullable = false)
     private LocalDateTime expiryDate;
 
+    @Column(name = "IsRevoked")
+    @Builder.Default
     private boolean isRevoked = false;
 
-    @Column(nullable = false)
+    @Column(name = "CreatedDate", nullable = false)
+    @Builder.Default
     private LocalDateTime createdDate = LocalDateTime.now();
 
     @Column(length = 500)
