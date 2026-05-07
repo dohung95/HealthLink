@@ -5,10 +5,10 @@
 
 -- 1. ROLES (4 basic roles)
 INSERT INTO Roles (Id, Name) VALUES
-('role-admin', 'Admin'),
-('role-doctor', 'Doctor'),
-('role-patient', 'Patient'),
-('role-pharmacy', 'Pharmacy');
+('admin', 'Admin'),
+('doctor', 'Doctor'),
+('patient', 'Patient'),
+('pharmacy', 'Pharmacy');
 
 -- 2. SPECIALTIES (10 specialties)
 SET IDENTITY_INSERT Specialties ON;
@@ -63,18 +63,18 @@ INSERT INTO Users (Id, UserName, Email, EmailConfirmed, PasswordHash, PhoneNumbe
 
 -- 4. USER_ROLES
 INSERT INTO UserRoles (UserId, RoleId) VALUES
-('user-d01', 'role-doctor'), ('user-d02', 'role-doctor'), ('user-d03', 'role-doctor'),
-('user-d04', 'role-doctor'), ('user-d05', 'role-doctor'), ('user-d06', 'role-doctor'),
-('user-d07', 'role-doctor'), ('user-d08', 'role-doctor'), ('user-d09', 'role-doctor'),
-('user-d10', 'role-doctor'),
-('user-p01', 'role-patient'), ('user-p02', 'role-patient'), ('user-p03', 'role-patient'),
-('user-p04', 'role-patient'), ('user-p05', 'role-patient'), ('user-p06', 'role-patient'),
-('user-p07', 'role-patient'), ('user-p08', 'role-patient'), ('user-p09', 'role-patient'),
-('user-p10', 'role-patient'),
-('user-ph01', 'role-pharmacy'), ('user-ph02', 'role-pharmacy'), ('user-ph03', 'role-pharmacy'),
-('user-ph04', 'role-pharmacy'), ('user-ph05', 'role-pharmacy'), ('user-ph06', 'role-pharmacy'),
-('user-ph07', 'role-pharmacy'), ('user-ph08', 'role-pharmacy'), ('user-ph09', 'role-pharmacy'),
-('user-ph10', 'role-pharmacy');
+('user-d01', 'doctor'), ('user-d02', 'doctor'), ('user-d03', 'doctor'),
+('user-d04', 'doctor'), ('user-d05', 'doctor'), ('user-d06', 'doctor'),
+('user-d07', 'doctor'), ('user-d08', 'doctor'), ('user-d09', 'doctor'),
+('user-d10', 'doctor'),
+('user-p01', 'patient'), ('user-p02', 'patient'), ('user-p03', 'patient'),
+('user-p04', 'patient'), ('user-p05', 'patient'), ('user-p06', 'patient'),
+('user-p07', 'patient'), ('user-p08', 'patient'), ('user-p09', 'patient'),
+('user-p10', 'patient'),
+('user-ph01', 'pharmacy'), ('user-ph02', 'pharmacy'), ('user-ph03', 'pharmacy'),
+('user-ph04', 'pharmacy'), ('user-ph05', 'pharmacy'), ('user-ph06', 'pharmacy'),
+('user-ph07', 'pharmacy'), ('user-ph08', 'pharmacy'), ('user-ph09', 'pharmacy'),
+('user-ph10', 'pharmacy');
 
 -- 5. DOCTORS (10 doctors)
 INSERT INTO Doctors (DoctorID, FullName, qualifications, specialty, yearsOfExperience, languageSpoken, location, avatarUrl, bio, consultationFee, latitude, longitude, clinicName, clinicAddress, averageRating, totalReviews, verified, availableForVideo, availableForAudio, availableForChat, availableForOffline, specialtyId) VALUES
@@ -324,8 +324,8 @@ INSERT INTO ChatRooms (ChatRoomId, user1Id, user2Id, user1DisplayName, user1Phot
 ('chat-010', 'user-p10', 'user-d10', 'Charlotte Taylor', '/avatars/patient10.jpg', 'Dr. Jennifer Martinez', '/avatars/doctor10.jpg', NULL, NULL, 10);
 
 -- 22. MESSAGES (10 messages)
-SET IDENTITY_INSERT Messages ON;
-INSERT INTO Messages (MessageID, ChatRoomId, SenderId, ReceiverId, content, photoURL, imageUrl, read, timestamp) VALUES
+SET IDENTITY_INSERT ChatMessages ON;
+INSERT INTO ChatMessages (MessageID, ChatRoomId, SenderId, ReceiverId, content, photoURL, imageUrl, IsRead, SentAt) VALUES
 (1, 'chat-001', 'user-d01', 'user-p01', 'Hi Michael, can you describe your headache symptoms?', '/avatars/doctor01.jpg', NULL, 1, '2024-05-10 09:02:00'),
 (2, 'chat-001', 'user-p01', 'user-d01', 'I have been having a dull pain on the right side of my head for 3 days', '/avatars/patient01.jpg', NULL, 1, '2024-05-10 09:05:00'),
 (3, 'chat-001', 'user-d01', 'user-p01', 'Are you getting enough sleep? Any work-related stress?', '/avatars/doctor01.jpg', NULL, 1, '2024-05-10 09:08:00'),
@@ -336,11 +336,11 @@ INSERT INTO Messages (MessageID, ChatRoomId, SenderId, ReceiverId, content, phot
 (8, 'chat-002', 'user-p02', 'user-d02', 'The fever has gone down', '/avatars/patient02.jpg', NULL, 1, '2024-05-12 08:00:00'),
 (9, 'chat-003', 'user-d03', 'user-p03', 'You need to get an ECG and cardiac enzyme test as soon as possible', '/avatars/doctor03.jpg', NULL, 1, '2024-05-12 10:15:00'),
 (10, 'chat-003', 'user-p03', 'user-d03', 'I will get the tests done right away', '/avatars/patient03.jpg', NULL, 1, '2024-05-12 10:20:00');
-SET IDENTITY_INSERT Messages OFF;
+SET IDENTITY_INSERT ChatMessages OFF;
 
 -- 23. NOTIFICATIONS (10 notifications)
 SET IDENTITY_INSERT Notifications ON;
-INSERT INTO Notifications (NotificationID, UserId, type, message, relatedId, read, createdAt, appointmentId, title, imageUrl, actionUrl, priority, expiresAt, sentVia) VALUES
+INSERT INTO Notifications (NotificationID, UserId, type, message, relatedId, IsRead, CreatedAt, appointmentId, title, imageUrl, actionUrl, priority, expiresAt, sentVia) VALUES
 (1, 'user-p01', 'AppointmentReminder', 'You have an appointment with Dr. John Smith tomorrow at 9:00 AM', 1, 1, '2024-05-09 18:00:00', 1, 'Appointment Reminder', '/icons/calendar.png', '/appointments/1', 'High', '2024-05-10 09:00:00', 'Push'),
 (2, 'user-d01', 'NewAppointment', 'New appointment booked by Michael Anderson', 1, 1, '2024-05-09 15:00:00', 1, 'New Appointment', '/icons/appointment.png', '/doctor/appointments/1', 'Normal', NULL, 'Push'),
 (3, 'user-p02', 'PrescriptionReady', 'Your prescription is ready for pickup or delivery', 2, 1, '2024-05-11 10:25:00', 2, 'Prescription Ready', '/icons/prescription.png', '/prescriptions/2', 'Normal', NULL, 'Email'),
