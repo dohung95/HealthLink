@@ -27,10 +27,11 @@ public class Notification {
 
     private Integer relatedId;
     
+    @Column(name = "IsRead")
     @Builder.Default
     private Boolean read = false;
 
-    @Column(nullable = false)
+    @Column(name = "CreatedAt", nullable = false)
     private LocalDateTime createdAt = LocalDateTime.now();
 
     private Integer appointmentId;
