@@ -1,0 +1,11 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(python3 -c \" import sys, json try: d = json.load\\(sys.stdin\\) print\\(''name:'', d.get\\(''name'',''?''\\)\\) print\\(''workspaces:'', d.get\\(''workspaces'',''none''\\)\\) except Exception: pass \")",
+      "Bash(ls:*)",
+      "Bash(dir:*)",
+      "Bash(sqlcmd:*)",
+      "Bash(curl:*)"
+    ]
+  }
+}

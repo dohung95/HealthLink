@@ -208,4 +208,30 @@ export const analyticsApi = {
   }
 };
 
+// ==================== REGISTRATIONS API ====================
+
+export const registrationsApi = {
+  getAll: async (params = {}) => {
+    const { pageNumber = 1, pageSize = 10, type = '', status = '', sortBy = 'newest' } = params;
+    const response = await adminApi.get('/registrations', {
+      params: { pageNumber, pageSize, type, status, sortBy }
+    });
+    return response.data;
+  },
+
+  getById: async (id) => {
+    const response = await adminApi.get(`/registrations/${id}`);
+    return response.data;
+  },
+
+  review: async (id, action, rejectionReason = '') => {
+    // Use POST instead of PUT for better compatibility
+    const response = await adminApi.post(`/registrations/${id}/review`, {
+      action,
+      rejectionReason
+    });
+    return response.data;
+  }
+};
+
 export default adminApi;

@@ -157,11 +157,18 @@ function Navbar() {
                                         </li>
                                     </>
                                 ) : (
-                                    <li>
-                                        <NavLink to="/login" onClick={() => setMobileMenuOpen(false)} className="btn-mobile-login">
-                                            <i className="fas fa-sign-in-alt me-2"></i> Login
-                                        </NavLink>
-                                    </li>
+                                    <>
+                                        <li>
+                                            <NavLink to="/register-as" onClick={() => setMobileMenuOpen(false)} className="btn-mobile-join">
+                                                <i className="fas fa-user-plus me-2"></i> Join as Doctor/Pharmacy
+                                            </NavLink>
+                                        </li>
+                                        <li>
+                                            <NavLink to="/login" onClick={() => setMobileMenuOpen(false)} className="btn-mobile-login">
+                                                <i className="fas fa-sign-in-alt me-2"></i> Login
+                                            </NavLink>
+                                        </li>
+                                    </>
                                 )}
                             </div>
                         </ul>
@@ -288,6 +295,9 @@ function Navbar() {
                                 </>
                             ) : (
                                 <>
+                                    <NavLink to="/register-as" className="btn-join-provider">
+                                        <i className="fas fa-user-plus me-1"></i> Join as Provider
+                                    </NavLink>
                                     <NavLink to="/login" className="btn-login">Login</NavLink>
                                 </>
                             )}
