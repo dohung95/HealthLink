@@ -1,4 +1,5 @@
 package com.HealthLink.entity;
+import com.fasterxml.jackson.annotation.JsonIgnore;
 import jakarta.persistence.*;
 import lombok.*;
 import java.util.List;
@@ -28,12 +29,13 @@ public class Specialty {
 
     @Column(name = "Active")
     @Builder.Default
-    private boolean active = true;
-    
+    private Boolean active = true;
+
     @Column(name = "DisplayOrder")
     private Integer displayOrder;
 
     @OneToMany(mappedBy = "specialtyEntity")
     @ToString.Exclude
+    @JsonIgnore
     private List<Doctor> doctors;
 }

@@ -138,6 +138,15 @@ public class AdminPatientService {
             .insuranceProvider(patient.getInsuranceProvider())
             .insurancePolicyNumber(patient.getInsurancePolicyNumber())
             .lastVisit(lastVisit)
+            // New fields
+            .avatarUrl(patient.getAvatarUrl())
+            .latitude(patient.getLatitude())
+            .longitude(patient.getLongitude())
+            .allergies(patient.getAllergies())
+            .chronicConditions(patient.getChronicConditions())
+            .currentMedications(patient.getCurrentMedications())
+            .heightCm(patient.getHeightCm())
+            .weightKg(patient.getWeightKg())
             .build();
     }
 
@@ -193,6 +202,32 @@ public class AdminPatientService {
         }
         if (updateDto.getInsurancePolicyNumber() != null) {
             patient.setInsurancePolicyNumber(updateDto.getInsurancePolicyNumber());
+        }
+
+        // New fields
+        if (updateDto.getAvatarUrl() != null) {
+            patient.setAvatarUrl(updateDto.getAvatarUrl());
+        }
+        if (updateDto.getLatitude() != null) {
+            patient.setLatitude(updateDto.getLatitude());
+        }
+        if (updateDto.getLongitude() != null) {
+            patient.setLongitude(updateDto.getLongitude());
+        }
+        if (updateDto.getAllergies() != null) {
+            patient.setAllergies(updateDto.getAllergies());
+        }
+        if (updateDto.getChronicConditions() != null) {
+            patient.setChronicConditions(updateDto.getChronicConditions());
+        }
+        if (updateDto.getCurrentMedications() != null) {
+            patient.setCurrentMedications(updateDto.getCurrentMedications());
+        }
+        if (updateDto.getHeightCm() != null) {
+            patient.setHeightCm(updateDto.getHeightCm());
+        }
+        if (updateDto.getWeightKg() != null) {
+            patient.setWeightKg(updateDto.getWeightKg());
         }
 
         // Update user status if provided

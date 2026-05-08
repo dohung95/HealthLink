@@ -34,4 +34,14 @@ public class AdminPatientDto {
     private String insuranceProvider;
     private String insurancePolicyNumber;
     private String lastVisit;
+
+    // New fields from Patient entity
+    private String avatarUrl;
+    private Double latitude;
+    private Double longitude;
+    private String allergies;
+    private String chronicConditions;
+    private String currentMedications;
+    private Double heightCm;
+    private Double weightKg;
 }
