@@ -70,4 +70,7 @@ public class Doctor {
 
     @OneToMany(mappedBy = "doctor")
     private List<DoctorSchedule> schedules;
+    
+    @OneToMany(mappedBy = "doctor")
+    private List<DoctorScheduleException> scheduleExceptions;
 }
