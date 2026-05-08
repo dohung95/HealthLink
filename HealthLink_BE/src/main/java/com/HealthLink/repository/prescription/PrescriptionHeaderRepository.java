@@ -1,4 +1,4 @@
-package com.HealthLink.repository;
+package com.HealthLink.repository.prescription;
 
 import com.HealthLink.entity.PrescriptionHeader;
 import org.springframework.data.jpa.repository.JpaRepository;

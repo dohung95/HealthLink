@@ -1,11 +1,11 @@
-package com.HealthLink.service.impl;
+package com.HealthLink.service.impl.consultation;
 
 import com.HealthLink.dto.consultation.FollowUpRequest;
 import com.HealthLink.dto.consultation.FollowUpResponse;
 import com.HealthLink.entity.Consultation;
 import com.HealthLink.exception.ResourceNotFoundException;
-import com.HealthLink.repository.ConsultationRepository;
-import com.HealthLink.service.ConsultationService;
+import com.HealthLink.repository.consultation.ConsultationRepository;
+import com.HealthLink.service.consultation.ConsultationService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;

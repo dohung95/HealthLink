@@ -1,8 +1,8 @@
-package com.HealthLink.controller;
+package com.HealthLink.controller.prescription;
 
 import com.HealthLink.dto.prescription.PrescriptionRequest;
 import com.HealthLink.dto.prescription.PrescriptionResponse;
-import com.HealthLink.service.PrescriptionService;
+import com.HealthLink.service.prescription.PrescriptionService;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;

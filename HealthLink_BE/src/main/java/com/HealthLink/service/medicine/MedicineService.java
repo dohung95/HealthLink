@@ -1,4 +1,4 @@
-package com.HealthLink.service;
+package com.HealthLink.service.medicine;
 
 import com.HealthLink.dto.medicine.MedicineRequest;
 import com.HealthLink.dto.medicine.MedicineResponse;
