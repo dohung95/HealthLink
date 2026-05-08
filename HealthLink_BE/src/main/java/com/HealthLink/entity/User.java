@@ -44,12 +44,18 @@ public class User {
 
     // --- Relationships ---
     @OneToOne(mappedBy = "user", cascade = CascadeType.ALL)
+    @ToString.Exclude
+    @EqualsAndHashCode.Exclude
     private Patient patient;
 
     @OneToOne(mappedBy = "user", cascade = CascadeType.ALL)
+    @ToString.Exclude
+    @EqualsAndHashCode.Exclude
     private Doctor doctor;
 
     @OneToOne(mappedBy = "user", cascade = CascadeType.ALL)
+    @ToString.Exclude
+    @EqualsAndHashCode.Exclude
     private Pharmacy pharmacy;
 
     @ManyToMany(fetch = FetchType.EAGER)
@@ -58,17 +64,27 @@ public class User {
         joinColumns = @JoinColumn(name = "UserId"),
         inverseJoinColumns = @JoinColumn(name = "RoleId")
     )
+    @ToString.Exclude
+    @EqualsAndHashCode.Exclude
     private Set<Role> roles;
 
     @OneToMany(mappedBy = "user")
+    @ToString.Exclude
+    @EqualsAndHashCode.Exclude
     private List<RefreshToken> refreshTokens;
 
     @OneToMany(mappedBy = "user")
+    @ToString.Exclude
+    @EqualsAndHashCode.Exclude
     private List<Notification> notifications;
 
     @OneToMany(mappedBy = "sender")
+    @ToString.Exclude
+    @EqualsAndHashCode.Exclude
     private List<Message> messagesSent;
 
     @OneToMany(mappedBy = "receiver")
+    @ToString.Exclude
+    @EqualsAndHashCode.Exclude
     private List<Message> messagesReceived;
 }

@@ -42,9 +42,9 @@ public class HealthRecordShare {
     @Column(name = "ExpiryDate")
     private LocalDateTime expiryDate;
 
-    @Column(name = "IsRevoked")
+    @Column(name = "Revoked")
     @Builder.Default
-    private boolean isRevoked = false;
+    private boolean revoked = false;
     
     @Column(name = "RevokedAt")
     private LocalDateTime revokedAt;

@@ -160,25 +160,24 @@ export default function Patients() {
     e.preventDefault();
 
     try {
-      // Prepare data according to UpdatePatientAdminDto (using PascalCase to match backend)
+      // Prepare data according to AdminPatientUpdateDto (using camelCase to match backend)
       const updateData = {
-        FullName: editForm.fullName,
-        PhoneNumber: editForm.phoneNumber,
-        DateOfBirth: editForm.dateOfBirth,
-        Gender: editForm.gender,
-        Address: editForm.address,
-        City: editForm.city,
-        Country: editForm.country,
-        BloodType: editForm.bloodType,
-        Occupation: editForm.occupation,
-        PreferredLanguage: editForm.preferredLanguage,
-        PreferredContactMethod: editForm.preferredContactMethod,
-        EmergencyContactName: editForm.emergencyContactName,
-        EmergencyContactPhone: editForm.emergencyContactPhone,
-        EmergencyContactRelationship: editForm.emergencyContactRelationship,
-        MedicalHistorySummary: editForm.medicalHistorySummary,
-        InsuranceProvider: editForm.insuranceProvider,
-        InsurancePolicyNumber: editForm.insurancePolicyNumber
+        fullName: editForm.fullName,
+        dateOfBirth: editForm.dateOfBirth,
+        gender: editForm.gender,
+        address: editForm.address,
+        city: editForm.city,
+        country: editForm.country,
+        bloodType: editForm.bloodType,
+        occupation: editForm.occupation,
+        preferredLanguage: editForm.preferredLanguage,
+        preferredContactMethod: editForm.preferredContactMethod,
+        emergencyContactName: editForm.emergencyContactName,
+        emergencyContactPhone: editForm.emergencyContactPhone,
+        emergencyContactRelationship: editForm.emergencyContactRelationship,
+        medicalHistorySummary: editForm.medicalHistorySummary,
+        insuranceProvider: editForm.insuranceProvider,
+        insurancePolicyNumber: editForm.insurancePolicyNumber
       };
 
       console.log('Sending update data:', updateData);

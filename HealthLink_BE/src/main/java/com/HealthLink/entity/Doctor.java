@@ -48,11 +48,21 @@ public class Doctor {
     private String clinicAddress;
     private Double averageRating;
     private Integer totalReviews;
-    private boolean verified;
-    private boolean availableForVideo;
-    private boolean availableForAudio;
-    private boolean availableForChat;
-    private boolean availableForOffline;
+  
+    @Builder.Default
+    private boolean verified = false;
+    
+    @Builder.Default
+    private boolean availableForVideo = true;
+    
+    @Builder.Default
+    private boolean availableForAudio = true;
+    
+    @Builder.Default
+    private boolean availableForChat = true;
+    
+    @Builder.Default
+    private boolean availableForOffline = true;
 
     // --- Relationships ---
     @ManyToOne(fetch = FetchType.LAZY)

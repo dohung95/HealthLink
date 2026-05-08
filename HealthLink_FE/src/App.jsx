@@ -151,11 +151,11 @@ function AppContent() {
               </ProtectedRoute>
             } />
 
-            <Route path="/admin" element={<AdminRoute> <Admin /> </AdminRoute>} />
-            <Route path="/admin/patients" element={<AdminRoute> <Patients /> </AdminRoute>} />
-            <Route path="/admin/doctors" element={<AdminRoute> <AdminDoctors /> </AdminRoute>} />
-            <Route path="/admin/appointments" element={<AdminRoute> <Appointments /> </AdminRoute>} />
-            <Route path="/admin/medical-records" element={<AdminRoute> <MedicalRecords /> </AdminRoute>} />
+            <Route path="/admin" element={<Admin /> } />
+            <Route path="/admin/patients" element={<Patients /> } />
+            <Route path="/admin/doctors" element={<AdminDoctors /> } />
+            <Route path="/admin/appointments" element={<Appointments /> } />
+            <Route path="/admin/medical-records" element={<MedicalRecords /> } />
 
           </Routes>
         </div>

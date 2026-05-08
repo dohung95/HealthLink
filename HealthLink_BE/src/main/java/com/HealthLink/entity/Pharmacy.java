@@ -52,20 +52,20 @@ public class Pharmacy {
     private LocalTime openTime;
     private LocalTime closeTime;
     
-    @Column(name = "IsOpen24Hours")
+    @Column(name = "Open24Hours")
     @Builder.Default
-    private boolean isOpen24Hours = false;
+    private boolean open24Hours = false;
 
     @Column(length = 50)
     private String workingDays;
 
-    @Column(name = "IsVerified")
+    @Column(name = "Verified")
     @Builder.Default
-    private boolean Verified = false;
+    private boolean verified = false;
     
-    @Column(name = "IsActive")
+    @Column(name = "Active")
     @Builder.Default
-    private boolean Active = true;
+    private boolean active = true;
     
     @Column(name = "AverageRating")
     private Double averageRating;

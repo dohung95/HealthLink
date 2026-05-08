@@ -38,9 +38,9 @@ public class Review {
     @ToString.Exclude
     private Appointment appointment;
 
-    @Column(name = "IsAnonymous")
+    @Column(name = "Anonymous")
     @Builder.Default
-    private boolean isAnonymous = false;
+    private boolean anonymous = false;
 
     @Column(name = "DoctorReply", length = 1000)
     private String doctorReply;
@@ -48,9 +48,9 @@ public class Review {
     @Column(name = "DoctorReplyDate")
     private LocalDateTime doctorReplyDate;
     
-    @Column(name = "IsVisible")
+    @Column(name = "Visible")
     @Builder.Default
-    private boolean isVisible = true;
+    private boolean visible = true;
 
     @Column(name = "HelpfulCount")
     @Builder.Default
