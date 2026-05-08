@@ -61,11 +61,11 @@ public class Pharmacy {
 
     @Column(name = "IsVerified")
     @Builder.Default
-    private boolean isVerified = false;
+    private boolean Verified = false;
     
     @Column(name = "IsActive")
     @Builder.Default
-    private boolean isActive = true;
+    private boolean Active = true;
     
     @Column(name = "AverageRating")
     private Double averageRating;
