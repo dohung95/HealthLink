@@ -6,10 +6,7 @@ import org.springframework.stereotype.Repository;
 
 import java.util.List;
 
-/**
- * Repository cho DoctorSchedule entity.
- * Dùng để kiểm tra ca làm việc của bác sĩ khi đặt lịch.
- */
+// Dùng để kiểm tra ca làm việc của bác sĩ khi đặt lịch
 @Repository
 public interface DoctorScheduleRepository extends JpaRepository<DoctorSchedule, Integer> {
 
@@ -19,7 +16,7 @@ public interface DoctorScheduleRepository extends JpaRepository<DoctorSchedule, 
      * @param doctorId  ID bác sĩ
      * @param dayOfWeek ngày trong tuần (0=CN, 1=T2 ... 6=T7)
      */
-    List<DoctorSchedule> findByDoctor_DoctorIdAndDayOfWeekAndIsAvailableTrue(
+    List<DoctorSchedule> findByDoctor_DoctorIdAndDayOfWeekAndAvailableTrue(
             String doctorId, Integer dayOfWeek);
 
     /**

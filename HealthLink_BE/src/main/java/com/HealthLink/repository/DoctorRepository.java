@@ -8,10 +8,7 @@ import org.springframework.stereotype.Repository;
 
 import java.util.List;
 
-/**
- * Repository cho Doctor entity.
- * Hỗ trợ tìm kiếm bác sĩ theo chuyên khoa và tên.
- */
+// Hỗ trợ tìm kiếm bác sĩ theo chuyên khoa và tên
 @Repository
 public interface DoctorRepository extends JpaRepository<Doctor, String> {
 

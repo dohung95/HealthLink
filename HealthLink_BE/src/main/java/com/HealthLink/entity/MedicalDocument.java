@@ -39,9 +39,11 @@ public class MedicalDocument {
     private LocalDateTime documentDate;
     private String performedBy;
     
-    @Column(nullable = false)
+    @Column(name = "UploadedAt", nullable = false)
+    @Builder.Default
     private LocalDateTime uploadedAt = LocalDateTime.now();
     
+    @Column(name = "FileSize")
     private Long fileSize;
     
     @Column(length = 100)

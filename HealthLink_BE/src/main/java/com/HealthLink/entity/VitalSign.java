@@ -42,5 +42,7 @@ public class VitalSign {
     @Column(length = 100)
     private String deviceName;
 
+    @Column(name = "CreatedAt")
+    @Builder.Default
     private LocalDateTime createdAt = LocalDateTime.now();
 }

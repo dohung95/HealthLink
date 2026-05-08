@@ -7,7 +7,7 @@ import java.util.List;
 
 @Entity
 @Table(name = "Appointments")
-@Getter @Setter
+@Data
 @NoArgsConstructor
 @AllArgsConstructor
 @Builder
@@ -39,7 +39,10 @@ public class Appointment {
     private String cancelledBy;
     private LocalDateTime cancelledAt;
     private Integer rescheduledFrom;
+
+    @Builder.Default
     private boolean reminderSent = false;
+    
     private LocalDateTime confirmedAt;
 
     // --- Relationships ---

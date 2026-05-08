@@ -27,12 +27,21 @@ public class DoctorSchedule {
     @Column(nullable = false)
     private LocalTime endTime;
 
+    @Column(name = "SlotDuration")
+    @Builder.Default
     private Integer slotDuration = 30;
+    
+    @Column(name = "MaxPatients")
+    @Builder.Default
     private Integer maxPatients = 1;
-    private boolean isAvailable = true;
+    
+    @Column(name = "Available")
+    @Builder.Default
+    private boolean available = true;
 
     @Column(length = 50)
     private String consultationType;
+    
     private String location;
     
     @Column(length = 500)

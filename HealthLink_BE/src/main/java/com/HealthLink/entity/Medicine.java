@@ -67,9 +67,13 @@ public class Medicine {
     @Column(length = 500)
     private String storageConditions;
 
+    @Builder.Default
     private boolean prescriptionRequired = true;
+
     private BigDecimal referencePrice;
-    private boolean isActive = true;
+
+    @Builder.Default
+    private boolean active = true;
 
     @Column(length = 500)
     private String imageUrl;

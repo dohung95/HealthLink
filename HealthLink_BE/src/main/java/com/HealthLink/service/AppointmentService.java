@@ -2,6 +2,7 @@ package com.HealthLink.service;
 
 import com.HealthLink.dto.request.AppointmentRequest;
 import com.HealthLink.dto.request.CancelAppointmentRequest;
+import com.HealthLink.dto.request.RescheduleAppointmentRequest;
 import com.HealthLink.dto.response.AppointmentResponse;
 import com.HealthLink.entity.Appointment;
 import com.HealthLink.entity.Doctor;
@@ -39,11 +40,11 @@ public class AppointmentService {
 
         Patient patient = patientRepository.findById(request.getPatientId())
                 .orElseThrow(() -> new ResourceNotFoundException(
-                        "Not found patient ID: " + request.getPatientId()));
+                "Not found patient ID: " + request.getPatientId()));
 
         Doctor doctor = doctorRepository.findById(request.getDoctorId())
                 .orElseThrow(() -> new ResourceNotFoundException(
-                        "Bot found doctor ID: " + request.getDoctorId()));
+                "Bot found doctor ID: " + request.getDoctorId()));
 
         // check doctor can support type consultation
         checkConsultationTypeSupported(doctor, request.getConsultationType());
@@ -55,36 +56,35 @@ public class AppointmentService {
         LocalTime requestedTime = appointmentTime.toLocalTime();
 
         List<DoctorSchedule> schedulesOfDay = scheduleRepository
-                .findByDoctor_DoctorIdAndDayOfWeekAndIsAvailableTrue(doctor.getDoctorId(), dayOfWeek);
+                .findByDoctor_DoctorIdAndDayOfWeekAndAvailableTrue(doctor.getDoctorId(), dayOfWeek);
 
         if (schedulesOfDay.isEmpty()) {
-            throw new BusinessException("Doctor busy at " +
-                    getDayName(dayOfWeek));
+            throw new BusinessException("Doctor busy at "
+                    + getDayName(dayOfWeek));
         }
 
         // Find a matching shift: correct consultation type and time within shift.
         DoctorSchedule matchedSchedule = schedulesOfDay.stream()
                 .filter(s -> isConsultationTypeMatch(s, request.getConsultationType()))
                 .filter(s -> !requestedTime.isBefore(s.getStartTime())
-                        && requestedTime.isBefore(s.getEndTime()))
+                && requestedTime.isBefore(s.getEndTime()))
                 .findFirst()
                 .orElseThrow(() -> new BusinessException(
-                        "Doctor does not have a suitable working shift at " +
-                        requestedTime + " for consultation type " + request.getConsultationType()));
+                "Doctor does not have a suitable working shift at "
+                + requestedTime + " for consultation type " + request.getConsultationType()));
 
         // Check for schedule conflicts
         int slotMinutes = matchedSchedule.getSlotDuration() != null
                 ? matchedSchedule.getSlotDuration() : 30;
 
-        // Time period occupied by this appointment: [appointmentTime, appointmentTime + slot)
-        // CConflict occurs when another appointment falls within this range.
-        LocalDateTime conflictWindowStart = appointmentTime.minusMinutes(slotMinutes - 1);
-        LocalDateTime conflictWindowEnd = appointmentTime.plusMinutes(slotMinutes - 1);
+        // Appointment mới bị conflict nếu có appointment khác bắt đầu trong khoảng đó
+        LocalDateTime slotStart = appointmentTime;
+        LocalDateTime slotEnd = appointmentTime.plusMinutes(slotMinutes);
 
         boolean hasConflict = appointmentRepository
                 .existsByDoctor_DoctorIdAndStatusNotAndAppointmentTimeBetween(
                         doctor.getDoctorId(), "Cancelled",
-                        conflictWindowStart, conflictWindowEnd);
+                        slotStart, slotEnd.minusSeconds(1));
 
         if (hasConflict) {
             throw new BusinessException(
@@ -92,10 +92,13 @@ public class AppointmentService {
         }
 
         // create and save appointment
+        LocalDateTime endTime = appointmentTime.plusMinutes(slotMinutes);
+
         Appointment appointment = Appointment.builder()
                 .patient(patient)
                 .doctor(doctor)
                 .appointmentTime(appointmentTime)
+                .endTime(endTime)
                 .consultationType(request.getConsultationType())
                 .status("Scheduled")
                 .symptoms(request.getSymptoms())
@@ -110,7 +113,7 @@ public class AppointmentService {
     public List<AppointmentResponse> getPatientAppointments(String patientId) {
         patientRepository.findById(patientId)
                 .orElseThrow(() -> new ResourceNotFoundException(
-                        "not found patient with ID: " + patientId));
+                "not found patient with ID: " + patientId));
 
         return appointmentRepository
                 .findByPatient_PatientIdOrderByAppointmentTimeDesc(patientId)
@@ -124,7 +127,7 @@ public class AppointmentService {
         return toResponse(
                 appointmentRepository.findById(id)
                         .orElseThrow(() -> new ResourceNotFoundException(
-                                "Không tìm thấy lịch hẹn với ID: " + id)));
+                        "Không tìm thấy lịch hẹn với ID: " + id)));
     }
 
     // Cancels appointment
@@ -132,13 +135,34 @@ public class AppointmentService {
     public AppointmentResponse cancelAppointment(Integer id, CancelAppointmentRequest request) {
         Appointment appointment = appointmentRepository.findById(id)
                 .orElseThrow(() -> new ResourceNotFoundException(
-                        "mot found appointment with ID: " + id));
+                "mot found appointment with ID: " + id));
+
+        // Kiểm tra cancelledBy hợp lệ
+        String cancelledBy = request.getCancelledBy();
+        if (cancelledBy == null || cancelledBy.isBlank()) {
+            throw new BusinessException("cancelledBy is required");
+        }
+        if (!cancelledBy.equals("Patient") && !cancelledBy.equals("Doctor")) {
+            throw new BusinessException(
+                    "cancelledBy must be 'Patient' or 'Doctor', but got: '" + cancelledBy + "'");
+        }
+
+        // Lý do hủy là bắt buộc
+        if (request.getCancelReason() == null || request.getCancelReason().isBlank()) {
+            throw new BusinessException("Cancel reason is required");
+        }
 
         if ("Cancelled".equals(appointment.getStatus())) {
             throw new BusinessException("This appointment has already been canceled");
         }
         if ("Completed".equals(appointment.getStatus())) {
             throw new BusinessException("Completed appointments cannot be canceled");
+        }
+
+        // Không cho hủy nếu còn dưới 2 giờ trước giờ khám
+        if (appointment.getAppointmentTime().isBefore(LocalDateTime.now().plusHours(2))) {
+            throw new BusinessException(
+                    "Cannot cancel an appointment less than 2 hours before the scheduled time");
         }
 
         appointment.setStatus("Cancelled");
@@ -149,10 +173,87 @@ public class AppointmentService {
         return toResponse(appointmentRepository.save(appointment));
     }
 
+    // Dời lịch hẹn sang thời gian mới
+    @Transactional
+    public AppointmentResponse rescheduleAppointment(Integer id, RescheduleAppointmentRequest request) {
+
+        // Tìm appointment
+        Appointment appointment = appointmentRepository.findById(id)
+                .orElseThrow(() -> new ResourceNotFoundException(
+                "Not found appointment with ID: " + id));
+
+        // Chỉ cho phép reschedule khi đang ở trạng thái Scheduled
+        if ("Cancelled".equals(appointment.getStatus())) {
+            throw new BusinessException("Cannot reschedule a cancelled appointment");
+        }
+        if ("Completed".equals(appointment.getStatus())) {
+            throw new BusinessException("Cannot reschedule a completed appointment");
+        }
+
+        // Không cho reschedule nếu còn dưới 2 giờ trước giờ khám cũ
+        if (appointment.getAppointmentTime().isBefore(LocalDateTime.now().plusHours(2))) {
+            throw new BusinessException(
+                    "Cannot reschedule an appointment less than 2 hours before the scheduled time");
+        }
+
+        // Thời gian mới phải hợp lệ
+        LocalDateTime newTime = request.getNewAppointmentTime();
+        if (newTime == null) {
+            throw new BusinessException("New appointment time is required");
+        }
+        if (!newTime.isAfter(LocalDateTime.now())) {
+            throw new BusinessException("New appointment time must be in the future");
+        }
+
+        // Kiểm tra bác sĩ có ca làm việc ở ngày/giờ mới không
+        Doctor doctor = appointment.getDoctor();
+        int newDayOfWeek = newTime.getDayOfWeek().getValue() % 7;
+        LocalTime newRequestedTime = newTime.toLocalTime();
+
+        List<DoctorSchedule> schedulesOfDay = scheduleRepository
+                .findByDoctor_DoctorIdAndDayOfWeekAndAvailableTrue(doctor.getDoctorId(), newDayOfWeek);
+
+        if (schedulesOfDay.isEmpty()) {
+            throw new BusinessException("Doctor is not available on " + getDayName(newDayOfWeek));
+        }
+
+        DoctorSchedule matchedSchedule = schedulesOfDay.stream()
+                .filter(s -> isConsultationTypeMatch(s, appointment.getConsultationType()))
+                .filter(s -> !newRequestedTime.isBefore(s.getStartTime())
+                && newRequestedTime.isBefore(s.getEndTime()))
+                .findFirst()
+                .orElseThrow(() -> new BusinessException(
+                "Doctor does not have a suitable working shift at "
+                + newRequestedTime + " for consultation type " + appointment.getConsultationType()));
+
+        // Kiểm tra conflict tại slot mới (bỏ qua chính appointment này)
+        int slotMinutes = matchedSchedule.getSlotDuration() != null
+                ? matchedSchedule.getSlotDuration() : 30;
+        LocalDateTime slotStart = newTime;
+        LocalDateTime slotEnd = newTime.plusMinutes(slotMinutes);
+
+        boolean hasConflict = appointmentRepository
+                .existsByDoctor_DoctorIdAndStatusNotAndAppointmentTimeBetweenAndAppointmentIdNot(
+                        doctor.getDoctorId(), "Cancelled",
+                        slotStart, slotEnd.minusSeconds(1),
+                        id); // loại trừ chính appointment này
+
+        if (hasConflict) {
+            throw new BusinessException(
+                    "Doctor already has another appointment in this time slot (" + slotMinutes + " mins/slot)");
+        }
+
+        // Cập nhật lịch hẹn
+        appointment.setRescheduledFrom(appointment.getAppointmentId());
+        appointment.setAppointmentTime(newTime);
+        appointment.setEndTime(newTime.plusMinutes(slotMinutes));
+
+        return toResponse(appointmentRepository.save(appointment));
+    }
+
     // -------------------------------------------------------------------------
     // Private helpers
     // -------------------------------------------------------------------------
-
     // Validate input data for the booking request.
     private void validateRequest(AppointmentRequest request) {
         if (request.getPatientId() == null || request.getPatientId().isBlank()) {
@@ -175,26 +276,28 @@ public class AppointmentService {
     // Check if the doctor supports the requested consultation type.
     private void checkConsultationTypeSupported(Doctor doctor, String consultationType) {
         boolean supported = switch (consultationType.toLowerCase()) {
-            case "video"   -> doctor.isAvailableForVideo();
-            case "audio"   -> doctor.isAvailableForAudio();
-            case "chat"    -> doctor.isAvailableForChat();
-            case "offline" -> doctor.isAvailableForOffline();
-            default -> throw new BusinessException(
-                    "Invalid consultation type: '" + consultationType +
-                    "'. Must be: Video, Audio, Chat, Offline");
+            case "video" ->
+                doctor.isAvailableForVideo();
+            case "audio" ->
+                doctor.isAvailableForAudio();
+            case "chat" ->
+                doctor.isAvailableForChat();
+            case "offline" ->
+                doctor.isAvailableForOffline();
+            default ->
+                throw new BusinessException(
+                        "Invalid consultation type: '" + consultationType
+                        + "'. Must be: Video, Audio, Chat, Offline");
         };
 
         if (!supported) {
             throw new BusinessException(
-                    "Doctor " + doctor.getFullName() +
-                    " does not support consultation type: " + consultationType);
+                    "Doctor " + doctor.getFullName()
+                    + " does not support consultation type: " + consultationType);
         }
     }
 
-    /**
-     * Checks if the schedule supports the requested consultation type.
-     * Null means all types are supported.
-     */
+    // Checks if the schedule supports the requested consultation type. Null means all types are supported.
     private boolean isConsultationTypeMatch(DoctorSchedule schedule, String consultationType) {
         if (schedule.getConsultationType() == null || schedule.getConsultationType().isBlank()) {
             return true;

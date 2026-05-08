@@ -22,4 +22,13 @@ public interface AppointmentRepository extends JpaRepository<Appointment, Intege
             LocalDateTime start,
             LocalDateTime end
     );
+
+    // Kiểm tra conflict tại slot mới, bỏ qua chính appointment đang reschedule
+    boolean existsByDoctor_DoctorIdAndStatusNotAndAppointmentTimeBetweenAndAppointmentIdNot(
+            String doctorId,
+            String status,
+            LocalDateTime start,
+            LocalDateTime end,
+            Integer excludeAppointmentId
+    );
 }

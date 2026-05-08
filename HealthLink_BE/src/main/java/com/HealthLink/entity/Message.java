@@ -4,7 +4,7 @@ import lombok.*;
 import java.time.LocalDateTime;
 
 @Entity
-@Table(name = "Messages")
+@Table(name = "ChatMessages")
 @Data
 @NoArgsConstructor @AllArgsConstructor
 @Builder
@@ -37,9 +37,11 @@ public class Message {
     @Column(columnDefinition = "TEXT")
     private String imageUrl;
 
-    private boolean isRead = false;
+    @Column(name = "IsRead")
+    @Builder.Default
+    private boolean read = false;
 
-    @Column(nullable = false)
+    @Column(name = "SentAt", nullable = false)
     private LocalDateTime timestamp;
 
     @PrePersist
