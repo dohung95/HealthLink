@@ -1,4 +1,4 @@
-package com.HealthLink.service;
+package com.HealthLink.service.consultation;
 
 import com.HealthLink.dto.consultation.FollowUpRequest;
 import com.HealthLink.dto.consultation.FollowUpResponse;

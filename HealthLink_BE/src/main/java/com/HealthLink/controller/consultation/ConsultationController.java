@@ -1,8 +1,8 @@
-package com.HealthLink.controller;
+package com.HealthLink.controller.consultation;
 
 import com.HealthLink.dto.consultation.FollowUpRequest;
 import com.HealthLink.dto.consultation.FollowUpResponse;
-import com.HealthLink.service.ConsultationService;
+import com.HealthLink.service.consultation.ConsultationService;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;

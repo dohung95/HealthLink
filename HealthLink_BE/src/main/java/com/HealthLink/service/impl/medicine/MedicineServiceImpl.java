@@ -1,11 +1,11 @@
-package com.HealthLink.service.impl;
+package com.HealthLink.service.impl.medicine;
 
 import com.HealthLink.dto.medicine.MedicineRequest;
 import com.HealthLink.dto.medicine.MedicineResponse;
 import com.HealthLink.entity.Medicine;
 import com.HealthLink.exception.ResourceNotFoundException;
-import com.HealthLink.repository.MedicineRepository;
-import com.HealthLink.service.MedicineService;
+import com.HealthLink.repository.medicine.MedicineRepository;
+import com.HealthLink.service.medicine.MedicineService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;

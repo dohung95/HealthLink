@@ -1,4 +1,4 @@
-package com.HealthLink.service.impl;
+package com.HealthLink.service.impl.prescription;
 
 import com.HealthLink.dto.prescription.PrescriptionItemRequest;
 import com.HealthLink.dto.prescription.PrescriptionItemResponse;
@@ -7,9 +7,10 @@ import com.HealthLink.dto.prescription.PrescriptionResponse;
 import com.HealthLink.entity.*;
 import com.HealthLink.exception.BadRequestException;
 import com.HealthLink.exception.ResourceNotFoundException;
-import com.HealthLink.repository.MedicineRepository;
-import com.HealthLink.repository.PrescriptionHeaderRepository;
-import com.HealthLink.service.PrescriptionService;
+import com.HealthLink.repository.appointment.AppointmentRepository;
+import com.HealthLink.repository.medicine.MedicineRepository;
+import com.HealthLink.repository.prescription.PrescriptionHeaderRepository;
+import com.HealthLink.service.prescription.PrescriptionService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -27,9 +28,7 @@ public class PrescriptionServiceImpl implements PrescriptionService {
     private final PrescriptionHeaderRepository headerRepository;
     private final MedicineRepository medicineRepository;
 
-    // Cần AppointmentRepository — tạo inline lookup qua header
-    // (AppointmentRepository được tạo riêng nếu chưa có)
-    private final com.HealthLink.repository.AppointmentRepository appointmentRepository;
+    private final AppointmentRepository appointmentRepository;
 
     // -------------------------------------------------------------------------
     // REQ-7: Tạo đơn thuốc mới

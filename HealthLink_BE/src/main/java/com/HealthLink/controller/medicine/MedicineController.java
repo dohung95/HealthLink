@@ -1,8 +1,8 @@
-package com.HealthLink.controller;
+package com.HealthLink.controller.medicine;
 
 import com.HealthLink.dto.medicine.MedicineRequest;
 import com.HealthLink.dto.medicine.MedicineResponse;
-import com.HealthLink.service.MedicineService;
+import com.HealthLink.service.medicine.MedicineService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
@@ -18,7 +18,8 @@ public class MedicineController {
 
     /**
      * GET /api/medicines?keyword=...
-     * Tìm kiếm thuốc theo tên. Nếu không truyền keyword, trả về tất cả thuốc đang hoạt động.
+     * Tìm kiếm thuốc theo tên. Nếu không truyền keyword, trả về tất cả thuốc đang
+     * hoạt động.
      */
     @GetMapping
     public ResponseEntity<List<MedicineResponse>> searchMedicines(
@@ -49,7 +50,8 @@ public class MedicineController {
      * Cập nhật thông tin một loại thuốc.
      */
     @PutMapping("/{id}")
-    public ResponseEntity<MedicineResponse> updateMedicine(@PathVariable Integer id, @RequestBody MedicineRequest medicine) {
+    public ResponseEntity<MedicineResponse> updateMedicine(@PathVariable Integer id,
+            @RequestBody MedicineRequest medicine) {
         return ResponseEntity.ok(medicineService.updateMedicine(id, medicine));
     }
 
