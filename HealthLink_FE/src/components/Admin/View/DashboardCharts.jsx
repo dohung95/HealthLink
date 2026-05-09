@@ -13,9 +13,9 @@ const DashboardCharts = () => {
     const [monthlyAppointments, setMonthlyAppointments] = useState([]);
     const [selectedYear, setSelectedYear] = useState(currentYear);
 
-    // Generate year options from current year to 2030
+    // Generate year options from 2024 to 2030
     const yearOptions = [];
-    for (let year = currentYear; year <= 2030; year++) {
+    for (let year = 2024; year <= 2030; year++) {
         yearOptions.push(year);
     }
 

@@ -1,4 +1,5 @@
 package com.HealthLink.entity;
+import com.fasterxml.jackson.annotation.JsonIgnore;
 import jakarta.persistence.*;
 import lombok.*;
 import java.util.List;
@@ -35,5 +36,6 @@ public class Specialty {
 
     @OneToMany(mappedBy = "specialtyEntity")
     @ToString.Exclude
+    @JsonIgnore
     private List<Doctor> doctors;
 }

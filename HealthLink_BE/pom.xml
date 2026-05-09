@@ -47,6 +47,8 @@
         <dependency>
             <groupId>org.projectlombok</groupId>
             <artifactId>lombok</artifactId>
+            <version>1.18.42</version>
+            <scope>provided</scope>
             <optional>true</optional>
         </dependency>
         <dependency>
@@ -86,6 +88,30 @@
             <artifactId>jjwt-jackson</artifactId>
             <version>0.13.0</version>
             <scope>runtime</scope>
+        <!-- PayPal Checkout SDK (v2 Orders / REST) -->
+        <dependency>
+            <groupId>com.paypal.sdk</groupId>
+            <artifactId>checkout-sdk</artifactId>
+            <version>1.0.5</version>
+        </dependency>
+
+        <!-- Jackson for JSON serialisation of PayPal responses (version managed by Spring Boot BOM) -->
+        <dependency>
+            <groupId>com.fasterxml.jackson.core</groupId>
+            <artifactId>jackson-databind</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>com.fasterxml.jackson.datatype</groupId>
+            <artifactId>jackson-datatype-jsr310</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>org.springframework.security</groupId>
+            <artifactId>spring-security-crypto</artifactId>
+        </dependency>
+        <!-- Email -->
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-mail</artifactId>
         </dependency>
     </dependencies>
 
@@ -94,15 +120,8 @@
             <plugin>
                 <groupId>org.springframework.boot</groupId>
                 <artifactId>spring-boot-maven-plugin</artifactId>
-                <configuration>
-                    <excludes>
-                        <exclude>
-                            <groupId>org.projectlombok</groupId>
-                            <artifactId>lombok</artifactId>
-                        </exclude>
-                    </excludes>
-                </configuration>
             </plugin>
+
             <plugin>
                 <groupId>org.apache.maven.plugins</groupId>
                 <artifactId>maven-compiler-plugin</artifactId>
@@ -118,6 +137,7 @@
                                 <path>
                                     <groupId>org.projectlombok</groupId>
                                     <artifactId>lombok</artifactId>
+                                    <version>1.18.42</version>
                                 </path>
                             </annotationProcessorPaths>
                         </configuration>

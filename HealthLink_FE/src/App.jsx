@@ -20,10 +20,14 @@ import Patients from './components/Admin/View/Patients';
 import AdminDoctors from './components/Admin/View/Doctors';
 import Appointments from './components/Admin/View/Appointments';
 import MedicalRecords from './components/Admin/View/MedicalRecords';
+import Registrations from './components/Admin/View/Registrations';
 
 import Sign_in from './components/Auth/Sign_in';
 import Sign_up from './components/Auth/Sign_up';
 import EmailConfirmation from './components/Auth/EmailConfirmation';
+import RegistrationChoice from './components/Auth/RegistrationChoice';
+import DoctorRegistration from './components/Auth/DoctorRegistration';
+import PharmacyRegistration from './components/Auth/PharmacyRegistration';
 
 import Footer from './components/Footer';
 
@@ -90,7 +94,11 @@ function AppContent() {
             <Route path="/about_us" element={<AboutUs />} />
             <Route path="/login" element={<Sign_in />} />
             <Route path="/register" element={<Sign_up />} />
+            <Route path="/signup" element={<Sign_up />} />
             <Route path="/confirm-email" element={<EmailConfirmation />} />
+            <Route path="/register-as" element={<RegistrationChoice />} />
+            <Route path="/register/doctor" element={<DoctorRegistration />} />
+            <Route path="/register/pharmacy" element={<PharmacyRegistration />} />
             <Route path="/video-calling" element={<VideocallPage />} />
             <Route path="/health-records" element={<HealthRecords />} />
             <Route path="/share-records" element={<ShareHealthRecords />} />
@@ -156,6 +164,7 @@ function AppContent() {
             <Route path="/admin/doctors" element={<AdminDoctors /> } />
             <Route path="/admin/appointments" element={<Appointments /> } />
             <Route path="/admin/medical-records" element={<MedicalRecords /> } />
+            <Route path="/admin/registrations" element={<Registrations /> } />
 
           </Routes>
         </div>

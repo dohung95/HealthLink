@@ -13,12 +13,16 @@ import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
 
 import java.time.LocalDateTime;
-import java.util.HashMap;
+
+import java.util.LinkedHashMap;
 import java.util.Map;
+import java.util.HashMap;
 
 /**
- * Xử lý tập trung tất cả các ngoại lệ từ controller layer.
- * Trả về response JSON nhất quán với cấu trúc: timestamp, status, error, message.
+
+ * Xử lý tập trung tất cả exception từ các Controller.
+ * Trả về JSON thống nhất thay vì trang lỗi HTML mặc định.
+
  */
 @RestControllerAdvice
 @Slf4j
@@ -40,6 +44,12 @@ public class GlobalExceptionHandler {
     public ResponseEntity<Map<String, Object>> handleBadRequest(BadRequestException ex) {
         log.warn("Bad request: {}", ex.getMessage());
         return buildResponse(HttpStatus.BAD_REQUEST, ex.getMessage());
+    }
+    
+    // Các Exception chuyên biệt cho Payment/Invoices
+    @ExceptionHandler(InvoiceNotFoundException.class)
+    public ResponseEntity<Map<String, Object>> handleInvoiceNotFound(InvoiceNotFoundException ex) {
+        return buildResponse(HttpStatus.NOT_FOUND, ex.getMessage());
     }
 
     // -------------------------------------------------------------------------
@@ -109,6 +119,17 @@ public class GlobalExceptionHandler {
     // -------------------------------------------------------------------------
     // 400 – Validation thất bại (@Valid)
     // -------------------------------------------------------------------------
+    @ExceptionHandler(PayPalIntegrationException.class)
+    public ResponseEntity<Map<String, Object>> handlePayPalIntegration(PayPalIntegrationException ex) {
+        return buildResponse(HttpStatus.BAD_GATEWAY, ex.getMessage());
+    }
+  
+    @ExceptionHandler(InvalidStatusException.class)
+    public ResponseEntity<Map<String, Object>> handleInvalidStatus(InvalidStatusException ex) {
+        return buildResponse(HttpStatus.UNPROCESSABLE_ENTITY, ex.getMessage());
+    }
+    
+    // Xử lý lỗi Validate dữ liệu đầu vào (@Valid)
     @ExceptionHandler(MethodArgumentNotValidException.class)
     public ResponseEntity<Map<String, Object>> handleValidation(MethodArgumentNotValidException ex) {
         /* Thu thập tất cả lỗi validation theo từng field */
@@ -139,6 +160,7 @@ public class GlobalExceptionHandler {
     // =========================================================================
     // Helper: tạo body response chuẩn
     // =========================================================================
+
     private ResponseEntity<Map<String, Object>> buildResponse(HttpStatus status, String message) {
         Map<String, Object> body = new HashMap<>();
         body.put("timestamp", LocalDateTime.now());
@@ -147,4 +169,5 @@ public class GlobalExceptionHandler {
         body.put("message", message);
         return ResponseEntity.status(status).body(body);
     }
+
 }

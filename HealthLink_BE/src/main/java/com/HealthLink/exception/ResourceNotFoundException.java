@@ -8,6 +8,7 @@ import org.springframework.web.bind.annotation.ResponseStatus;
  * Tương ứng HTTP 404 Not Found.
  */
 @ResponseStatus(HttpStatus.NOT_FOUND)
+
 public class ResourceNotFoundException extends RuntimeException {
 
     /**

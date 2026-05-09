@@ -56,7 +56,16 @@ export default function Patients() {
     emergencyContactRelationship: '',
     medicalHistorySummary: '',
     insuranceProvider: '',
-    insurancePolicyNumber: ''
+    insurancePolicyNumber: '',
+    // New fields
+    avatarUrl: '',
+    latitude: '',
+    longitude: '',
+    allergies: '',
+    chronicConditions: '',
+    currentMedications: '',
+    heightCm: '',
+    weightKg: ''
   });
 
   // Fetch patients from API
@@ -150,7 +159,16 @@ export default function Patients() {
       emergencyContactRelationship: patient.emergencyContactRelationship || '',
       medicalHistorySummary: patient.medicalHistorySummary || '',
       insuranceProvider: patient.insuranceProvider || '',
-      insurancePolicyNumber: patient.insurancePolicyNumber || ''
+      insurancePolicyNumber: patient.insurancePolicyNumber || '',
+      // New fields
+      avatarUrl: patient.avatarUrl || '',
+      latitude: patient.latitude || '',
+      longitude: patient.longitude || '',
+      allergies: patient.allergies || '',
+      chronicConditions: patient.chronicConditions || '',
+      currentMedications: patient.currentMedications || '',
+      heightCm: patient.heightCm || '',
+      weightKg: patient.weightKg || ''
     });
     setShowEditModal(true);
   };
@@ -177,7 +195,16 @@ export default function Patients() {
         emergencyContactRelationship: editForm.emergencyContactRelationship,
         medicalHistorySummary: editForm.medicalHistorySummary,
         insuranceProvider: editForm.insuranceProvider,
-        insurancePolicyNumber: editForm.insurancePolicyNumber
+        insurancePolicyNumber: editForm.insurancePolicyNumber,
+        // New fields
+        avatarUrl: editForm.avatarUrl,
+        latitude: editForm.latitude ? parseFloat(editForm.latitude) : null,
+        longitude: editForm.longitude ? parseFloat(editForm.longitude) : null,
+        allergies: editForm.allergies,
+        chronicConditions: editForm.chronicConditions,
+        currentMedications: editForm.currentMedications,
+        heightCm: editForm.heightCm ? parseFloat(editForm.heightCm) : null,
+        weightKg: editForm.weightKg ? parseFloat(editForm.weightKg) : null
       };
 
       console.log('Sending update data:', updateData);
@@ -837,6 +864,20 @@ export default function Patients() {
                             <strong>Occupation:</strong>
                             <span>{selectedPatient.occupation || 'N/A'}</span>
                           </div>
+                          <div className="row">
+                            <div className="col-md-6">
+                              <div className="admin-info-row">
+                                <strong>Height:</strong>
+                                <span>{selectedPatient.heightCm ? `${selectedPatient.heightCm} cm` : 'N/A'}</span>
+                              </div>
+                            </div>
+                            <div className="col-md-6">
+                              <div className="admin-info-row">
+                                <strong>Weight:</strong>
+                                <span>{selectedPatient.weightKg ? `${selectedPatient.weightKg} kg` : 'N/A'}</span>
+                              </div>
+                            </div>
+                          </div>
                         </div>
 
                         {/* Address Information */}
@@ -910,6 +951,24 @@ export default function Patients() {
                             <i className="bi bi-heart-pulse"></i>
                             Medical Information
                           </h6>
+                          <div className="admin-info-row">
+                            <strong>Allergies:</strong>
+                            <span style={{display: 'block', marginTop: 'var(--spacing-sm)'}}>
+                              {selectedPatient.allergies || 'No known allergies'}
+                            </span>
+                          </div>
+                          <div className="admin-info-row">
+                            <strong>Chronic Conditions:</strong>
+                            <span style={{display: 'block', marginTop: 'var(--spacing-sm)'}}>
+                              {selectedPatient.chronicConditions || 'None recorded'}
+                            </span>
+                          </div>
+                          <div className="admin-info-row">
+                            <strong>Current Medications:</strong>
+                            <span style={{display: 'block', marginTop: 'var(--spacing-sm)'}}>
+                              {selectedPatient.currentMedications || 'None recorded'}
+                            </span>
+                          </div>
                           <div className="admin-info-row">
                             <strong>Medical History:</strong>
                             <span style={{display: 'block', marginTop: 'var(--spacing-sm)'}}>
@@ -1122,6 +1181,40 @@ export default function Patients() {
                                 />
                               </div>
                             </div>
+                            <div className="row">
+                              <div className="col-md-6 mb-3">
+                                <label className="admin-form-label">Height (cm)</label>
+                                <input
+                                  type="number"
+                                  step="0.1"
+                                  className="form-control admin-form-control"
+                                  value={editForm.heightCm}
+                                  onChange={(e) => setEditForm({ ...editForm, heightCm: e.target.value })}
+                                  placeholder="e.g., 170"
+                                />
+                              </div>
+                              <div className="col-md-6 mb-3">
+                                <label className="admin-form-label">Weight (kg)</label>
+                                <input
+                                  type="number"
+                                  step="0.1"
+                                  className="form-control admin-form-control"
+                                  value={editForm.weightKg}
+                                  onChange={(e) => setEditForm({ ...editForm, weightKg: e.target.value })}
+                                  placeholder="e.g., 65"
+                                />
+                              </div>
+                            </div>
+                            <div className="mb-3">
+                              <label className="admin-form-label">Avatar URL</label>
+                              <input
+                                type="url"
+                                className="form-control admin-form-control"
+                                value={editForm.avatarUrl}
+                                onChange={(e) => setEditForm({ ...editForm, avatarUrl: e.target.value })}
+                                placeholder="Enter avatar image URL"
+                              />
+                            </div>
                             <div className="mb-3">
                               <label className="admin-form-label">Address</label>
                               <input
@@ -1239,14 +1332,76 @@ export default function Patients() {
                               Medical Information
                             </h6>
                             <div className="mb-3">
+                              <label className="admin-form-label">Allergies</label>
+                              <textarea
+                                className="form-control admin-form-control"
+                                rows="2"
+                                value={editForm.allergies}
+                                onChange={(e) => setEditForm({ ...editForm, allergies: e.target.value })}
+                                placeholder="Enter known allergies (e.g., Penicillin, Peanuts)"
+                              ></textarea>
+                            </div>
+                            <div className="mb-3">
+                              <label className="admin-form-label">Chronic Conditions</label>
+                              <textarea
+                                className="form-control admin-form-control"
+                                rows="2"
+                                value={editForm.chronicConditions}
+                                onChange={(e) => setEditForm({ ...editForm, chronicConditions: e.target.value })}
+                                placeholder="Enter chronic conditions (e.g., Diabetes, Hypertension)"
+                              ></textarea>
+                            </div>
+                            <div className="mb-3">
+                              <label className="admin-form-label">Current Medications</label>
+                              <textarea
+                                className="form-control admin-form-control"
+                                rows="2"
+                                value={editForm.currentMedications}
+                                onChange={(e) => setEditForm({ ...editForm, currentMedications: e.target.value })}
+                                placeholder="Enter current medications"
+                              ></textarea>
+                            </div>
+                            <div className="mb-3">
                               <label className="admin-form-label">Medical History Summary</label>
                               <textarea
                                 className="form-control admin-form-control"
-                                rows="12"
+                                rows="4"
                                 value={editForm.medicalHistorySummary}
                                 onChange={(e) => setEditForm({ ...editForm, medicalHistorySummary: e.target.value })}
-                                placeholder="Enter medical history, allergies, chronic conditions..."
+                                placeholder="Enter medical history summary..."
                               ></textarea>
+                            </div>
+                          </div>
+
+                          {/* Location Section */}
+                          <div className="admin-modal-section">
+                            <h6 className="admin-modal-section-title info">
+                              <i className="bi bi-geo"></i>
+                              Location (Optional)
+                            </h6>
+                            <div className="row">
+                              <div className="col-md-6 mb-3">
+                                <label className="admin-form-label">Latitude</label>
+                                <input
+                                  type="number"
+                                  step="any"
+                                  className="form-control admin-form-control"
+                                  value={editForm.latitude}
+                                  onChange={(e) => setEditForm({ ...editForm, latitude: e.target.value })}
+                                  placeholder="e.g., 10.7769"
+                                />
+                              </div>
+                              <div className="col-md-6 mb-3">
+                                <label className="admin-form-label">Longitude</label>
+                                <input
+                                  type="number"
+                                  step="any"
+                                  className="form-control admin-form-control"
+                                  value={editForm.longitude}
+                                  onChange={(e) => setEditForm({ ...editForm, longitude: e.target.value })}
+                                  placeholder="e.g., 106.7009"
+                                />
+                              </div>
                             </div>
                           </div>
 

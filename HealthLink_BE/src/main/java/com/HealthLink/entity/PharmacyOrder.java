@@ -65,5 +65,6 @@ public class PharmacyOrder {
     private String cancelReason;
     private String cancelledBy;
 
+    @Builder.Default
     private LocalDateTime createdAt = LocalDateTime.now();
 }

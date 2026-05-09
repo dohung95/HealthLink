@@ -1,0 +1,186 @@
+.registration-choice-bg {
+    background: linear-gradient(135deg, #f5f7fa 0%, #e4e9f2 100%);
+    min-height: 100vh;
+    padding: 80px 20px 40px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.registration-choice-container {
+    max-width: 900px;
+    width: 100%;
+    text-align: center;
+}
+
+.registration-choice-container h2 {
+    color: #007a6a;
+    font-size: 36px;
+    font-weight: 700;
+    margin-bottom: 10px;
+}
+
+.registration-choice-container .subtitle {
+    color: #64748b;
+    font-size: 16px;
+    margin-bottom: 40px;
+}
+
+.choice-cards {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 30px;
+    margin-bottom: 40px;
+}
+
+.choice-card {
+    background: white;
+    border-radius: 16px;
+    padding: 35px 30px;
+    box-shadow: 0 4px 20px rgba(0, 0, 0, 0.08);
+    cursor: pointer;
+    transition: all 0.3s ease;
+    border: 2px solid transparent;
+    text-align: left;
+}
+
+.choice-card:hover {
+    transform: translateY(-8px);
+    box-shadow: 0 12px 40px rgba(0, 0, 0, 0.15);
+}
+
+.doctor-card:hover {
+    border-color: #00b09a;
+}
+
+.pharmacy-card:hover {
+    border-color: #6366f1;
+}
+
+.card-icon {
+    width: 70px;
+    height: 70px;
+    border-radius: 16px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    margin-bottom: 20px;
+}
+
+.doctor-card .card-icon {
+    background: linear-gradient(135deg, #00b09a 0%, #007a6a 100%);
+}
+
+.pharmacy-card .card-icon {
+    background: linear-gradient(135deg, #6366f1 0%, #4f46e5 100%);
+}
+
+.card-icon i {
+    font-size: 32px;
+    color: white;
+}
+
+.choice-card h3 {
+    font-size: 24px;
+    font-weight: 600;
+    color: #1e293b;
+    margin-bottom: 12px;
+}
+
+.choice-card > p {
+    color: #64748b;
+    font-size: 14px;
+    line-height: 1.6;
+    margin-bottom: 20px;
+}
+
+.benefits-list {
+    list-style: none;
+    padding: 0;
+    margin: 0 0 25px 0;
+}
+
+.benefits-list li {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    color: #475569;
+    font-size: 14px;
+    margin-bottom: 10px;
+}
+
+.doctor-card .benefits-list li i {
+    color: #00b09a;
+}
+
+.pharmacy-card .benefits-list li i {
+    color: #6366f1;
+}
+
+.choice-btn {
+    width: 100%;
+    padding: 14px 24px;
+    border: none;
+    border-radius: 10px;
+    font-size: 15px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.3s ease;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    background: linear-gradient(135deg, #00b09a 0%, #007a6a 100%);
+    color: white;
+}
+
+.choice-btn:hover {
+    transform: scale(1.02);
+    box-shadow: 0 4px 15px rgba(0, 176, 154, 0.4);
+}
+
+.pharmacy-btn {
+    background: linear-gradient(135deg, #6366f1 0%, #4f46e5 100%);
+}
+
+.pharmacy-btn:hover {
+    box-shadow: 0 4px 15px rgba(99, 102, 241, 0.4);
+}
+
+.alternative-links {
+    padding-top: 20px;
+    border-top: 1px solid #e2e8f0;
+}
+
+.alternative-links p {
+    color: #64748b;
+    font-size: 14px;
+    margin-bottom: 8px;
+}
+
+.alternative-links a {
+    color: #00b09a;
+    font-weight: 600;
+    text-decoration: none;
+    transition: color 0.3s ease;
+}
+
+.alternative-links a:hover {
+    color: #007a6a;
+    text-decoration: underline;
+}
+
+@media (max-width: 768px) {
+    .choice-cards {
+        grid-template-columns: 1fr;
+        gap: 20px;
+    }
+
+    .registration-choice-container h2 {
+        font-size: 28px;
+    }
+
+    .choice-card {
+        padding: 25px 20px;
+    }
+}
