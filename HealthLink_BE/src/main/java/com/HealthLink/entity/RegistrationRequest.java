@@ -5,6 +5,7 @@ import lombok.*;
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
 import java.time.LocalTime;
+import java.util.List;
 
 @Entity
 @Table(name = "RegistrationRequests")
@@ -138,4 +139,10 @@ public class RegistrationRequest {
 
     @Column(name = "Description", length = 1000)
     private String description;
+
+    // ============ Documents Relationship ============
+    @OneToMany(mappedBy = "registrationRequest", cascade = CascadeType.ALL, orphanRemoval = true)
+    @ToString.Exclude
+    @EqualsAndHashCode.Exclude
+    private List<RegistrationDocument> documents;
 }

@@ -5,6 +5,9 @@ import com.HealthLink.entity.*;
 import com.HealthLink.exception.BadRequestException;
 import com.HealthLink.exception.ResourceNotFoundException;
 import com.HealthLink.repository.*;
+import com.HealthLink.repository.pharmacy.PharmacyRepository;
+import java.util.List;
+import com.HealthLink.service.EmailService;
 import com.HealthLink.service.RegistrationService;
 import jakarta.persistence.criteria.Predicate;
 import lombok.RequiredArgsConstructor;
@@ -26,11 +29,13 @@ import java.util.stream.Collectors;
 public class RegistrationServiceImpl implements RegistrationService {
 
     private final RegistrationRequestRepository registrationRequestRepository;
+    private final RegistrationDocumentRepository documentRepository;
     private final UserRepository userRepository;
     private final RoleRepository roleRepository;
     private final DoctorRepository doctorRepository;
     private final PharmacyRepository pharmacyRepository;
     private final SpecialtyRepository specialtyRepository;
+    private final EmailService emailService;
 
     private static final String DEFAULT_PASSWORD = "HealthLink@123";
     private static final String TYPE_DOCTOR = "DOCTOR";
@@ -215,6 +220,23 @@ public class RegistrationServiceImpl implements RegistrationService {
         request.setReviewedAt(LocalDateTime.now());
         request.setReviewedBy(adminUserId);
         registrationRequestRepository.save(request);
+
+        // Send approval email with login credentials (don't let email errors rollback the transaction)
+        try {
+            String recipientName = TYPE_DOCTOR.equals(request.getRegistrationType())
+                    ? request.getFullName()
+                    : request.getPharmacyName();
+            emailService.sendApprovalEmail(
+                    request.getEmail(),
+                    recipientName,
+                    request.getRegistrationType(),
+                    DEFAULT_PASSWORD
+            );
+        } catch (Exception e) {
+            // Log but don't fail the approval
+            System.err.println("Failed to send approval email: " + e.getMessage());
+            e.printStackTrace();
+        }
     }
 
     private void createDoctor(User user, RegistrationRequest request) {
@@ -224,7 +246,6 @@ public class RegistrationServiceImpl implements RegistrationService {
         }
 
         Doctor doctor = Doctor.builder()
-                .doctorId(user.getId())
                 .user(user)
                 .fullName(request.getFullName())
                 .qualifications(request.getQualifications())
@@ -300,6 +321,23 @@ public class RegistrationServiceImpl implements RegistrationService {
         request.setReviewedBy(adminUserId);
         request.setRejectionReason(reason);
         registrationRequestRepository.save(request);
+
+        // Send rejection email with reason (don't let email errors rollback the transaction)
+        try {
+            String recipientName = TYPE_DOCTOR.equals(request.getRegistrationType())
+                    ? request.getFullName()
+                    : request.getPharmacyName();
+            emailService.sendRejectionEmail(
+                    request.getEmail(),
+                    recipientName,
+                    request.getRegistrationType(),
+                    reason
+            );
+        } catch (Exception e) {
+            // Log but don't fail the rejection
+            System.err.println("Failed to send rejection email: " + e.getMessage());
+            e.printStackTrace();
+        }
     }
 
     private Sort resolveSort(String sortBy) {
@@ -328,6 +366,22 @@ public class RegistrationServiceImpl implements RegistrationService {
     }
 
     private RegistrationRequestResponse mapToResponse(RegistrationRequest entity) {
+        // Get documents for this registration request
+        List<RegistrationDocumentDto> documentDtos = documentRepository
+            .findByRegistrationRequest_RequestId(entity.getRequestId())
+            .stream()
+            .map(doc -> RegistrationDocumentDto.builder()
+                .documentId(doc.getDocumentId())
+                .documentType(doc.getDocumentType())
+                .fileName(doc.getFileName())
+                .originalFileName(doc.getOriginalFileName())
+                .fileSize(doc.getFileSize())
+                .mimeType(doc.getMimeType())
+                .uploadedAt(doc.getUploadedAt())
+                .downloadUrl("/api/registration/documents/" + doc.getDocumentId() + "/download")
+                .build())
+            .collect(Collectors.toList());
+
         return RegistrationRequestResponse.builder()
                 .requestId(entity.getRequestId())
                 .registrationType(entity.getRegistrationType())
@@ -367,6 +421,7 @@ public class RegistrationServiceImpl implements RegistrationService {
                 .deliveryRadius(entity.getDeliveryRadius())
                 .deliveryFee(entity.getDeliveryFee())
                 .description(entity.getDescription())
+                .documents(documentDtos)
                 .build();
     }
 }

@@ -5,7 +5,18 @@
       "Bash(ls:*)",
       "Bash(dir:*)",
       "Bash(sqlcmd:*)",
-      "Bash(curl:*)"
+      "Bash(curl:*)",
+      "Bash(mvn compile:*)",
+      "Bash(timeout 20 mvn spring-boot:run:*)",
+      "Bash(timeout 25 mvn spring-boot:run:*)",
+      "Bash(ping:*)",
+      "Bash(taskkill:*)",
+      "Bash(npm run build:*)",
+      "Bash(git ls-tree:*)",
+      "Bash(./mvnw compile:*)",
+      "Bash(cmd /c \"mvnw.cmd compile -q\")",
+      "Bash(cmd /c \"start /b mvnw.cmd spring-boot:run\")",
+      "Bash(cmd /c \"mvnw.cmd compile 2>&1\")"
     ]
   }
 }

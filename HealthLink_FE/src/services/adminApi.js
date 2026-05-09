@@ -86,11 +86,6 @@ export const doctorsApi = {
     return response.data;
   },
 
-  create: async (data) => {
-    const response = await adminApi.post('/admindoctors', data);
-    return response.data;
-  },
-
   updateStatus: async (id, status) => {
     const response = await adminApi.put(`/admindoctors/${id}/status`, { status });
     return response.data;

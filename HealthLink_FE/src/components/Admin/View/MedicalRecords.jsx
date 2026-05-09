@@ -8,7 +8,7 @@ import "bootstrap/dist/css/bootstrap.min.css";
 import "bootstrap-icons/font/bootstrap-icons.css";
 import "../Css/Admin.css";
 
-const API_BASE_URL = 'https://localhost:7267';
+const API_BASE_URL = 'http://localhost:8096';
 
 export default function MedicalRecords() {
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);

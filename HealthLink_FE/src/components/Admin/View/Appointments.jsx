@@ -139,8 +139,8 @@ export default function Appointments() {
   const handleEditAppointment = (appointment) => {
     setSelectedAppointment(appointment);
     setEditForm({
-      appointmentDate: appointment.date || '',
-      appointmentTime: appointment.time || '',
+      appointmentDate: appointment.rawDate || '',
+      appointmentTime: appointment.rawTime || '',
       consultationType: appointment.consultationType || '',
       status: appointment.status || '',
       reason: appointment.followUpDate
