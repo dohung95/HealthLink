@@ -7,6 +7,8 @@ import com.HealthLink.entity.Appointment;
 import com.HealthLink.entity.Patient;
 import com.HealthLink.entity.User;
 import com.HealthLink.repository.admin.AdminPatientRepository;
+import com.HealthLink.exception.BadRequestException;
+import com.HealthLink.exception.ResourceNotFoundException;
 import jakarta.transaction.Transactional;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
@@ -143,7 +145,8 @@ public class AdminPatientService {
 
     public AdminPatientDto updatePatient(String patientId, AdminPatientUpdateDto updateDto) {
         Patient patient = patientRepository.findById(patientId)
-            .orElseThrow(() -> new RuntimeException("Patient not found with ID: " + patientId));
+            /* Không tìm thấy bệnh nhân với ID này */
+            .orElseThrow(() -> new ResourceNotFoundException("Patient", "id", patientId));
 
         // Update patient fields
         if (updateDto.getFullName() != null) {
@@ -208,14 +211,16 @@ public class AdminPatientService {
 
     public AdminPatientDto updatePatientStatus(String patientId, String status) {
         Patient patient = patientRepository.findById(patientId)
-            .orElseThrow(() -> new RuntimeException("Patient not found with ID: " + patientId));
+            /* Không tìm thấy bệnh nhân với ID này khi cập nhật trạng thái */
+            .orElseThrow(() -> new ResourceNotFoundException("Patient", "id", patientId));
 
         if (patient.getUser() != null) {
             patient.getUser().setStatus(status);
             Patient savedPatient = patientRepository.save(patient);
             return mapToDto(savedPatient);
         } else {
-            throw new RuntimeException("Patient has no associated user");
+            /* Bệnh nhân không có tài khoản người dùng liên kết */
+            throw new BadRequestException("Patient has no associated user account");
         }
     }
 }

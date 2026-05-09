@@ -26,55 +26,40 @@ INSERT INTO Specialties (SpecialtyID, name, nameEn, description, iconUrl, Active
 SET IDENTITY_INSERT Specialties OFF;
 
 -- 3. USERS (30 users: 10 doctors, 10 patients, 10 pharmacies)
-INSERT INTO Users (Id, UserName, Email, EmailConfirmed, PasswordHash, PhoneNumber, AccessFailedCount, CreatedDate, Status, LastLoginAt) VALUES
+INSERT INTO Users (Id, UserName, Email, EmailConfirmed, PasswordHash, PhoneNumber, AccessFailedCount, CreatedDate, Status, LastLoginAt, RoleId) VALUES
 -- Doctors (user-d01 to user-d10)
-('user-d01', 'doctor01', 'doctor01@healthlink.com', 1, '$2a$10$hashedpassword1', '0901000001', 0, '2024-01-01', 'Active', '2024-05-01'),
-('user-d02', 'doctor02', 'doctor02@healthlink.com', 1, '$2a$10$hashedpassword2', '0901000002', 0, '2024-01-02', 'Active', '2024-05-02'),
-('user-d03', 'doctor03', 'doctor03@healthlink.com', 1, '$2a$10$hashedpassword3', '0901000003', 0, '2024-01-03', 'Active', '2024-05-03'),
-('user-d04', 'doctor04', 'doctor04@healthlink.com', 1, '$2a$10$hashedpassword4', '0901000004', 0, '2024-01-04', 'Active', '2024-05-04'),
-('user-d05', 'doctor05', 'doctor05@healthlink.com', 1, '$2a$10$hashedpassword5', '0901000005', 0, '2024-01-05', 'Active', '2024-05-05'),
-('user-d06', 'doctor06', 'doctor06@healthlink.com', 1, '$2a$10$hashedpassword6', '0901000006', 0, '2024-01-06', 'Active', '2024-05-06'),
-('user-d07', 'doctor07', 'doctor07@healthlink.com', 1, '$2a$10$hashedpassword7', '0901000007', 0, '2024-01-07', 'Active', '2024-05-07'),
-('user-d08', 'doctor08', 'doctor08@healthlink.com', 1, '$2a$10$hashedpassword8', '0901000008', 0, '2024-01-08', 'Active', '2024-05-08'),
-('user-d09', 'doctor09', 'doctor09@healthlink.com', 1, '$2a$10$hashedpassword9', '0901000009', 0, '2024-01-09', 'Active', '2024-05-09'),
-('user-d10', 'doctor10', 'doctor10@healthlink.com', 1, '$2a$10$hashedpassword10', '0901000010', 0, '2024-01-10', 'Active', '2024-05-10'),
+('user-d01', 'doctor01', 'doctor01@healthlink.com', 1, '$2a$10$hashedpassword1', '0901000001', 0, '2024-01-01', 'Active', '2024-05-01', 'doctor'),
+('user-d02', 'doctor02', 'doctor02@healthlink.com', 1, '$2a$10$hashedpassword2', '0901000002', 0, '2024-01-02', 'Active', '2024-05-02', 'doctor'),
+('user-d03', 'doctor03', 'doctor03@healthlink.com', 1, '$2a$10$hashedpassword3', '0901000003', 0, '2024-01-03', 'Active', '2024-05-03', 'doctor'),
+('user-d04', 'doctor04', 'doctor04@healthlink.com', 1, '$2a$10$hashedpassword4', '0901000004', 0, '2024-01-04', 'Active', '2024-05-04', 'doctor'),
+('user-d05', 'doctor05', 'doctor05@healthlink.com', 1, '$2a$10$hashedpassword5', '0901000005', 0, '2024-01-05', 'Active', '2024-05-05', 'doctor'),
+('user-d06', 'doctor06', 'doctor06@healthlink.com', 1, '$2a$10$hashedpassword6', '0901000006', 0, '2024-01-06', 'Active', '2024-05-06', 'doctor'),
+('user-d07', 'doctor07', 'doctor07@healthlink.com', 1, '$2a$10$hashedpassword7', '0901000007', 0, '2024-01-07', 'Active', '2024-05-07', 'doctor'),
+('user-d08', 'doctor08', 'doctor08@healthlink.com', 1, '$2a$10$hashedpassword8', '0901000008', 0, '2024-01-08', 'Active', '2024-05-08', 'doctor'),
+('user-d09', 'doctor09', 'doctor09@healthlink.com', 1, '$2a$10$hashedpassword9', '0901000009', 0, '2024-01-09', 'Active', '2024-05-09', 'doctor'),
+('user-d10', 'doctor10', 'doctor10@healthlink.com', 1, '$2a$10$hashedpassword10', '0901000010', 0, '2024-01-10', 'Active', '2024-05-10', 'doctor'),
 -- Patients (user-p01 to user-p10)
-('user-p01', 'patient01', 'patient01@gmail.com', 1, '$2a$10$hashedpassword11', '0912000001', 0, '2024-02-01', 'Active', '2024-05-01'),
-('user-p02', 'patient02', 'patient02@gmail.com', 1, '$2a$10$hashedpassword12', '0912000002', 0, '2024-02-02', 'Active', '2024-05-02'),
-('user-p03', 'patient03', 'patient03@gmail.com', 1, '$2a$10$hashedpassword13', '0912000003', 0, '2024-02-03', 'Active', '2024-05-03'),
-('user-p04', 'patient04', 'patient04@gmail.com', 1, '$2a$10$hashedpassword14', '0912000004', 0, '2024-02-04', 'Active', '2024-05-04'),
-('user-p05', 'patient05', 'patient05@gmail.com', 1, '$2a$10$hashedpassword15', '0912000005', 0, '2024-02-05', 'Active', '2024-05-05'),
-('user-p06', 'patient06', 'patient06@gmail.com', 1, '$2a$10$hashedpassword16', '0912000006', 0, '2024-02-06', 'Active', '2024-05-06'),
-('user-p07', 'patient07', 'patient07@gmail.com', 1, '$2a$10$hashedpassword17', '0912000007', 0, '2024-02-07', 'Active', '2024-05-07'),
-('user-p08', 'patient08', 'patient08@gmail.com', 1, '$2a$10$hashedpassword18', '0912000008', 0, '2024-02-08', 'Active', '2024-05-08'),
-('user-p09', 'patient09', 'patient09@gmail.com', 1, '$2a$10$hashedpassword19', '0912000009', 0, '2024-02-09', 'Active', '2024-05-09'),
-('user-p10', 'patient10', 'patient10@gmail.com', 1, '$2a$10$hashedpassword20', '0912000010', 0, '2024-02-10', 'Active', '2024-05-10'),
+('user-p01', 'patient01', 'patient01@gmail.com', 1, '$2a$10$hashedpassword11', '0912000001', 0, '2024-02-01', 'Active', '2024-05-01', 'patient'),
+('user-p02', 'patient02', 'patient02@gmail.com', 1, '$2a$10$hashedpassword12', '0912000002', 0, '2024-02-02', 'Active', '2024-05-02', 'patient'),
+('user-p03', 'patient03', 'patient03@gmail.com', 1, '$2a$10$hashedpassword13', '0912000003', 0, '2024-02-03', 'Active', '2024-05-03', 'patient'),
+('user-p04', 'patient04', 'patient04@gmail.com', 1, '$2a$10$hashedpassword14', '0912000004', 0, '2024-02-04', 'Active', '2024-05-04', 'patient'),
+('user-p05', 'patient05', 'patient05@gmail.com', 1, '$2a$10$hashedpassword15', '0912000005', 0, '2024-02-05', 'Active', '2024-05-05', 'patient'),
+('user-p06', 'patient06', 'patient06@gmail.com', 1, '$2a$10$hashedpassword16', '0912000006', 0, '2024-02-06', 'Active', '2024-05-06', 'patient'),
+('user-p07', 'patient07', 'patient07@gmail.com', 1, '$2a$10$hashedpassword17', '0912000007', 0, '2024-02-07', 'Active', '2024-05-07', 'patient'),
+('user-p08', 'patient08', 'patient08@gmail.com', 1, '$2a$10$hashedpassword18', '0912000008', 0, '2024-02-08', 'Active', '2024-05-08', 'patient'),
+('user-p09', 'patient09', 'patient09@gmail.com', 1, '$2a$10$hashedpassword19', '0912000009', 0, '2024-02-09', 'Active', '2024-05-09', 'patient'),
+('user-p10', 'patient10', 'patient10@gmail.com', 1, '$2a$10$hashedpassword20', '0912000010', 0, '2024-02-10', 'Active', '2024-05-10', 'patient'),
 -- Pharmacies (user-ph01 to user-ph10)
-('user-ph01', 'pharmacy01', 'pharmacy01@healthlink.com', 1, '$2a$10$hashedpassword21', '0923000001', 0, '2024-03-01', 'Active', '2024-05-01'),
-('user-ph02', 'pharmacy02', 'pharmacy02@healthlink.com', 1, '$2a$10$hashedpassword22', '0923000002', 0, '2024-03-02', 'Active', '2024-05-02'),
-('user-ph03', 'pharmacy03', 'pharmacy03@healthlink.com', 1, '$2a$10$hashedpassword23', '0923000003', 0, '2024-03-03', 'Active', '2024-05-03'),
-('user-ph04', 'pharmacy04', 'pharmacy04@healthlink.com', 1, '$2a$10$hashedpassword24', '0923000004', 0, '2024-03-04', 'Active', '2024-05-04'),
-('user-ph05', 'pharmacy05', 'pharmacy05@healthlink.com', 1, '$2a$10$hashedpassword25', '0923000005', 0, '2024-03-05', 'Active', '2024-05-05'),
-('user-ph06', 'pharmacy06', 'pharmacy06@healthlink.com', 1, '$2a$10$hashedpassword26', '0923000006', 0, '2024-03-06', 'Active', '2024-05-06'),
-('user-ph07', 'pharmacy07', 'pharmacy07@healthlink.com', 1, '$2a$10$hashedpassword27', '0923000007', 0, '2024-03-07', 'Active', '2024-05-07'),
-('user-ph08', 'pharmacy08', 'pharmacy08@healthlink.com', 1, '$2a$10$hashedpassword28', '0923000008', 0, '2024-03-08', 'Active', '2024-05-08'),
-('user-ph09', 'pharmacy09', 'pharmacy09@healthlink.com', 1, '$2a$10$hashedpassword29', '0923000009', 0, '2024-03-09', 'Active', '2024-05-09'),
-('user-ph10', 'pharmacy10', 'pharmacy10@healthlink.com', 1, '$2a$10$hashedpassword30', '0923000010', 0, '2024-03-10', 'Active', '2024-05-10');
-
--- 4. USER_ROLES
-INSERT INTO UserRoles (UserId, RoleId) VALUES
-('user-d01', 'doctor'), ('user-d02', 'doctor'), ('user-d03', 'doctor'),
-('user-d04', 'doctor'), ('user-d05', 'doctor'), ('user-d06', 'doctor'),
-('user-d07', 'doctor'), ('user-d08', 'doctor'), ('user-d09', 'doctor'),
-('user-d10', 'doctor'),
-('user-p01', 'patient'), ('user-p02', 'patient'), ('user-p03', 'patient'),
-('user-p04', 'patient'), ('user-p05', 'patient'), ('user-p06', 'patient'),
-('user-p07', 'patient'), ('user-p08', 'patient'), ('user-p09', 'patient'),
-('user-p10', 'patient'),
-('user-ph01', 'pharmacy'), ('user-ph02', 'pharmacy'), ('user-ph03', 'pharmacy'),
-('user-ph04', 'pharmacy'), ('user-ph05', 'pharmacy'), ('user-ph06', 'pharmacy'),
-('user-ph07', 'pharmacy'), ('user-ph08', 'pharmacy'), ('user-ph09', 'pharmacy'),
-('user-ph10', 'pharmacy');
+('user-ph01', 'pharmacy01', 'pharmacy01@healthlink.com', 1, '$2a$10$hashedpassword21', '0923000001', 0, '2024-03-01', 'Active', '2024-05-01', 'pharmacy'),
+('user-ph02', 'pharmacy02', 'pharmacy02@healthlink.com', 1, '$2a$10$hashedpassword22', '0923000002', 0, '2024-03-02', 'Active', '2024-05-02', 'pharmacy'),
+('user-ph03', 'pharmacy03', 'pharmacy03@healthlink.com', 1, '$2a$10$hashedpassword23', '0923000003', 0, '2024-03-03', 'Active', '2024-05-03', 'pharmacy'),
+('user-ph04', 'pharmacy04', 'pharmacy04@healthlink.com', 1, '$2a$10$hashedpassword24', '0923000004', 0, '2024-03-04', 'Active', '2024-05-04', 'pharmacy'),
+('user-ph05', 'pharmacy05', 'pharmacy05@healthlink.com', 1, '$2a$10$hashedpassword25', '0923000005', 0, '2024-03-05', 'Active', '2024-05-05', 'pharmacy'),
+('user-ph06', 'pharmacy06', 'pharmacy06@healthlink.com', 1, '$2a$10$hashedpassword26', '0923000006', 0, '2024-03-06', 'Active', '2024-05-06', 'pharmacy'),
+('user-ph07', 'pharmacy07', 'pharmacy07@healthlink.com', 1, '$2a$10$hashedpassword27', '0923000007', 0, '2024-03-07', 'Active', '2024-05-07', 'pharmacy'),
+('user-ph08', 'pharmacy08', 'pharmacy08@healthlink.com', 1, '$2a$10$hashedpassword28', '0923000008', 0, '2024-03-08', 'Active', '2024-05-08', 'pharmacy'),
+('user-ph09', 'pharmacy09', 'pharmacy09@healthlink.com', 1, '$2a$10$hashedpassword29', '0923000009', 0, '2024-03-09', 'Active', '2024-05-09', 'pharmacy'),
+('user-ph10', 'pharmacy10', 'pharmacy10@healthlink.com', 1, '$2a$10$hashedpassword30', '0923000010', 0, '2024-03-10', 'Active', '2024-05-10', 'pharmacy');
 
 -- 5. DOCTORS (10 doctors)
 INSERT INTO Doctors (DoctorID, FullName, qualifications, specialty, yearsOfExperience, languageSpoken, location, avatarUrl, bio, consultationFee, latitude, longitude, clinicName, clinicAddress, averageRating, totalReviews, verified, availableForVideo, availableForAudio, availableForChat, availableForOffline, specialtyId) VALUES

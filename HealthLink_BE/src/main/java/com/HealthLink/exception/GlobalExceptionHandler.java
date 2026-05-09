@@ -1,7 +1,12 @@
 package com.HealthLink.exception;
 
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.authentication.BadCredentialsException;
+import org.springframework.security.authentication.DisabledException;
+import org.springframework.security.authentication.LockedException;
+import org.springframework.security.core.userdetails.UsernameNotFoundException;
 import org.springframework.validation.FieldError;
 import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
@@ -11,39 +16,129 @@ import java.time.LocalDateTime;
 import java.util.HashMap;
 import java.util.Map;
 
+/**
+ * Xử lý tập trung tất cả các ngoại lệ từ controller layer.
+ * Trả về response JSON nhất quán với cấu trúc: timestamp, status, error, message.
+ */
 @RestControllerAdvice
+@Slf4j
 public class GlobalExceptionHandler {
 
+    // -------------------------------------------------------------------------
+    // 404 – Không tìm thấy tài nguyên
+    // -------------------------------------------------------------------------
     @ExceptionHandler(ResourceNotFoundException.class)
     public ResponseEntity<Map<String, Object>> handleResourceNotFound(ResourceNotFoundException ex) {
+        log.warn("Resource not found: {}", ex.getMessage());
         return buildResponse(HttpStatus.NOT_FOUND, ex.getMessage());
     }
 
+    // -------------------------------------------------------------------------
+    // 400 – Yêu cầu không hợp lệ
+    // -------------------------------------------------------------------------
     @ExceptionHandler(BadRequestException.class)
     public ResponseEntity<Map<String, Object>> handleBadRequest(BadRequestException ex) {
+        log.warn("Bad request: {}", ex.getMessage());
         return buildResponse(HttpStatus.BAD_REQUEST, ex.getMessage());
     }
 
+    // -------------------------------------------------------------------------
+    // 409 – Tài nguyên đã tồn tại
+    // -------------------------------------------------------------------------
+    @ExceptionHandler(DuplicateResourceException.class)
+    public ResponseEntity<Map<String, Object>> handleDuplicate(DuplicateResourceException ex) {
+        log.warn("Duplicate resource: {}", ex.getMessage());
+        return buildResponse(HttpStatus.CONFLICT, ex.getMessage());
+    }
+
+    // -------------------------------------------------------------------------
+    // 401 – Token không hợp lệ hoặc đã hết hạn
+    // -------------------------------------------------------------------------
+    @ExceptionHandler(InvalidTokenException.class)
+    public ResponseEntity<Map<String, Object>> handleInvalidToken(InvalidTokenException ex) {
+        log.warn("Invalid token: {}", ex.getMessage());
+        return buildResponse(HttpStatus.UNAUTHORIZED, ex.getMessage());
+    }
+
+    // -------------------------------------------------------------------------
+    // 403 – Không có quyền truy cập
+    // -------------------------------------------------------------------------
+    @ExceptionHandler(ForbiddenException.class)
+    public ResponseEntity<Map<String, Object>> handleForbidden(ForbiddenException ex) {
+        log.warn("Access forbidden: {}", ex.getMessage());
+        return buildResponse(HttpStatus.FORBIDDEN, ex.getMessage());
+    }
+
+    // -------------------------------------------------------------------------
+    // 401 – Sai thông tin đăng nhập (Spring Security)
+    // -------------------------------------------------------------------------
+    @ExceptionHandler(BadCredentialsException.class)
+    public ResponseEntity<Map<String, Object>> handleBadCredentials(BadCredentialsException ex) {
+        log.warn("Bad credentials attempt: {}", ex.getMessage());
+        return buildResponse(HttpStatus.UNAUTHORIZED, "Invalid email or password");
+    }
+
+    // -------------------------------------------------------------------------
+    // 401 – Tài khoản bị vô hiệu hóa
+    // -------------------------------------------------------------------------
+    @ExceptionHandler(DisabledException.class)
+    public ResponseEntity<Map<String, Object>> handleDisabled(DisabledException ex) {
+        log.warn("Disabled account login attempt: {}", ex.getMessage());
+        return buildResponse(HttpStatus.UNAUTHORIZED, "Account is disabled. Please contact support");
+    }
+
+    // -------------------------------------------------------------------------
+    // 401 – Tài khoản bị khóa
+    // -------------------------------------------------------------------------
+    @ExceptionHandler(LockedException.class)
+    public ResponseEntity<Map<String, Object>> handleLocked(LockedException ex) {
+        log.warn("Locked account login attempt: {}", ex.getMessage());
+        return buildResponse(HttpStatus.UNAUTHORIZED, "Account is locked. Please contact support");
+    }
+
+    // -------------------------------------------------------------------------
+    // 401 – Không tìm thấy user (Spring Security)
+    // -------------------------------------------------------------------------
+    @ExceptionHandler(UsernameNotFoundException.class)
+    public ResponseEntity<Map<String, Object>> handleUsernameNotFound(UsernameNotFoundException ex) {
+        log.warn("User not found during auth: {}", ex.getMessage());
+        // Trả về thông báo chung để tránh lộ thông tin
+        return buildResponse(HttpStatus.UNAUTHORIZED, "Invalid email or password");
+    }
+
+    // -------------------------------------------------------------------------
+    // 400 – Validation thất bại (@Valid)
+    // -------------------------------------------------------------------------
     @ExceptionHandler(MethodArgumentNotValidException.class)
     public ResponseEntity<Map<String, Object>> handleValidation(MethodArgumentNotValidException ex) {
-        Map<String, String> errors = new HashMap<>();
+        /* Thu thập tất cả lỗi validation theo từng field */
+        Map<String, String> fieldErrors = new HashMap<>();
         ex.getBindingResult().getAllErrors().forEach(err -> {
             String field = ((FieldError) err).getField();
-            errors.put(field, err.getDefaultMessage());
+            fieldErrors.put(field, err.getDefaultMessage());
         });
+
         Map<String, Object> body = new HashMap<>();
         body.put("timestamp", LocalDateTime.now());
         body.put("status", HttpStatus.BAD_REQUEST.value());
         body.put("error", "Validation Failed");
-        body.put("details", errors);
+        body.put("details", fieldErrors);
         return ResponseEntity.badRequest().body(body);
     }
 
+    // -------------------------------------------------------------------------
+    // 500 – Lỗi không xác định (fallback)
+    // -------------------------------------------------------------------------
     @ExceptionHandler(Exception.class)
     public ResponseEntity<Map<String, Object>> handleGeneral(Exception ex) {
-        return buildResponse(HttpStatus.INTERNAL_SERVER_ERROR, "Lỗi hệ thống: " + ex.getMessage());
+        log.error("Unexpected server error: {}", ex.getMessage(), ex);
+        return buildResponse(HttpStatus.INTERNAL_SERVER_ERROR,
+                "An unexpected error occurred. Please try again later");
     }
 
+    // =========================================================================
+    // Helper: tạo body response chuẩn
+    // =========================================================================
     private ResponseEntity<Map<String, Object>> buildResponse(HttpStatus status, String message) {
         Map<String, Object> body = new HashMap<>();
         body.put("timestamp", LocalDateTime.now());

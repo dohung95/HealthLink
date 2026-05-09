@@ -3,7 +3,6 @@ import jakarta.persistence.*;
 import lombok.*;
 import java.time.LocalDateTime;
 import java.util.List;
-import java.util.Set;
 
 @Entity
 @Table(name = "Users")
@@ -21,26 +20,29 @@ public class User {
     @Column(name = "Email", length = 256, nullable = false)
     private String email;
 
-    @Column(name = "EmailConfirmed")
-    private boolean emailConfirmed;
+    @Column(name = "EmailConfirmed", nullable = false)
+    private boolean emailConfirmed = false;
 
-    @Column(name = "PasswordHash")
+    @Column(name = "PasswordHash", nullable = false)
     private String password;
 
-    @Column(name = "PhoneNumber")
+    @Column(name = "PhoneNumber", nullable = false)
     private String phoneNumber;
 
-    @Column(name = "AccessFailedCount")
+    @Column(name = "AccessFailedCount", nullable = false)
     private int accessFailedCount = 0;
     
-    @Column(name = "CreatedDate")
+    @Builder.Default
+    @Column(name = "CreatedDate", nullable = false)
     private LocalDateTime createdDate = LocalDateTime.now();
 
-    @Column(name = "Status", length = 20)
-    private String status = "Inactive";
+    @Builder.Default
+    @Column(name = "Status", length = 20, nullable = false)
+    private String status = "Active";
 
-    @Column(name = "LastLoginAt")
-    private LocalDateTime lastLoginAt;
+    @Builder.Default
+    @Column(name = "LastLoginAt", nullable = true)
+    private LocalDateTime lastLoginAt = LocalDateTime.now();
 
     // --- Relationships ---
     @OneToOne(mappedBy = "user", cascade = CascadeType.ALL)
@@ -58,15 +60,11 @@ public class User {
     @EqualsAndHashCode.Exclude
     private Pharmacy pharmacy;
 
-    @ManyToMany(fetch = FetchType.EAGER)
-    @JoinTable(
-        name = "UserRoles",
-        joinColumns = @JoinColumn(name = "UserId"),
-        inverseJoinColumns = @JoinColumn(name = "RoleId")
-    )
+    @ManyToOne(fetch = FetchType.EAGER)
+    @JoinColumn(name = "RoleId", nullable = false)
     @ToString.Exclude
     @EqualsAndHashCode.Exclude
-    private Set<Role> roles;
+    private Role role;
 
     @OneToMany(mappedBy = "user")
     @ToString.Exclude
