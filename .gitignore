@@ -37,3 +37,10 @@ lerna-debug.log*
 .idea/
 
 /doc
+
+# === Custom ignores cho file XML do IDE sinh ra ===
+HealthLink/HealthLink_BE/HealthLink_BEynbactions.xml
+**/HealthLink_BEynbactions.xml
+
+# Ignore tất cả file ynbactions.xml (an toàn)
+*ynbactions.xml
