@@ -29,7 +29,9 @@ export default function Registrations() {
   // Modal states
   const [showViewModal, setShowViewModal] = useState(false);
   const [showRejectModal, setShowRejectModal] = useState(false);
+  const [showPreviewModal, setShowPreviewModal] = useState(false);
   const [selectedRequest, setSelectedRequest] = useState(null);
+  const [selectedDocument, setSelectedDocument] = useState(null);
   const [rejectionReason, setRejectionReason] = useState('');
   const [processing, setProcessing] = useState(false);
 
@@ -210,6 +212,40 @@ export default function Registrations() {
       );
     }
     return pages;
+  };
+
+  // Get document icon based on mime type
+  const getDocumentIcon = (mimeType) => {
+    if (!mimeType) return 'bi-file-earmark';
+    if (mimeType.includes('pdf')) return 'bi-file-earmark-pdf';
+    if (mimeType.includes('image')) return 'bi-file-earmark-image';
+    if (mimeType.includes('word') || mimeType.includes('document')) return 'bi-file-earmark-word';
+    return 'bi-file-earmark';
+  };
+
+  // Format file size
+  const formatFileSize = (bytes) => {
+    if (!bytes) return 'N/A';
+    if (bytes < 1024) return bytes + ' B';
+    if (bytes < 1024 * 1024) return (bytes / 1024).toFixed(1) + ' KB';
+    return (bytes / (1024 * 1024)).toFixed(1) + ' MB';
+  };
+
+  // Check if file is previewable
+  const isPreviewable = (mimeType) => {
+    if (!mimeType) return false;
+    return mimeType.includes('image') || mimeType.includes('pdf');
+  };
+
+  // Handle document preview
+  const handlePreviewDocument = (doc) => {
+    setSelectedDocument(doc);
+    setShowPreviewModal(true);
+  };
+
+  // Get preview URL
+  const getPreviewUrl = (documentId) => {
+    return `http://localhost:8096/api/registration/documents/${documentId}/preview`;
   };
 
   return (
@@ -579,6 +615,55 @@ export default function Registrations() {
                     )}
                   </>
                 )}
+
+                {/* Uploaded Documents */}
+                {selectedRequest.documents && selectedRequest.documents.length > 0 && (
+                  <div className="detail-section full-width">
+                    <h4><i className="bi bi-file-earmark-medical"></i> Uploaded Documents ({selectedRequest.documents.length})</h4>
+                    <div className="documents-grid">
+                      {selectedRequest.documents.map((doc) => (
+                        <div
+                          key={doc.documentId}
+                          className={`document-card ${isPreviewable(doc.mimeType) ? 'previewable' : ''}`}
+                          onClick={() => isPreviewable(doc.mimeType) && handlePreviewDocument(doc)}
+                        >
+                          <div className="document-icon">
+                            <i className={`bi ${getDocumentIcon(doc.mimeType)}`}></i>
+                          </div>
+                          <div className="document-info">
+                            <span className="document-type">{doc.documentType}</span>
+                            <span className="document-name">{doc.originalFileName}</span>
+                            <span className="document-size">{formatFileSize(doc.fileSize)}</span>
+                          </div>
+                          <div className="document-actions">
+                            {isPreviewable(doc.mimeType) && (
+                              <button
+                                className="document-btn preview"
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  handlePreviewDocument(doc);
+                                }}
+                                title="Preview"
+                              >
+                                <i className="bi bi-eye"></i>
+                              </button>
+                            )}
+                            <a
+                              href={`http://localhost:8096/api/registration/documents/${doc.documentId}/download`}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              className="document-btn download"
+                              title="Download"
+                              onClick={(e) => e.stopPropagation()}
+                            >
+                              <i className="bi bi-download"></i>
+                            </a>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
               </div>
             </div>
             <div className="modal-footer">
@@ -648,6 +733,68 @@ export default function Registrations() {
               <button className="btn btn-secondary" onClick={() => setShowRejectModal(false)}>
                 Cancel
               </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Document Preview Modal */}
+      {showPreviewModal && selectedDocument && (
+        <div className="modal-overlay preview-overlay" onClick={() => setShowPreviewModal(false)}>
+          <div className="modal-content preview-modal" onClick={(e) => e.stopPropagation()}>
+            <div className="modal-header">
+              <h3>
+                <i className={`bi ${getDocumentIcon(selectedDocument.mimeType)}`}></i>
+                {selectedDocument.documentType}
+              </h3>
+              <div className="preview-header-actions">
+                <a
+                  href={`http://localhost:8096/api/registration/documents/${selectedDocument.documentId}/download`}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="btn-download-header"
+                  title="Download"
+                >
+                  <i className="bi bi-download"></i> Download
+                </a>
+                <button className="close-btn" onClick={() => setShowPreviewModal(false)}>
+                  <i className="bi bi-x-lg"></i>
+                </button>
+              </div>
+            </div>
+            <div className="modal-body preview-body">
+              <div className="preview-info">
+                <span><i className="bi bi-file-earmark"></i> {selectedDocument.originalFileName}</span>
+                <span><i className="bi bi-hdd"></i> {formatFileSize(selectedDocument.fileSize)}</span>
+              </div>
+              <div className="preview-container">
+                {selectedDocument.mimeType?.includes('image') ? (
+                  <img
+                    src={getPreviewUrl(selectedDocument.documentId)}
+                    alt={selectedDocument.originalFileName}
+                    className="preview-image"
+                  />
+                ) : selectedDocument.mimeType?.includes('pdf') ? (
+                  <iframe
+                    src={getPreviewUrl(selectedDocument.documentId)}
+                    title={selectedDocument.originalFileName}
+                    className="preview-pdf"
+                  />
+                ) : (
+                  <div className="preview-unsupported">
+                    <i className="bi bi-file-earmark-x"></i>
+                    <p>Preview not available for this file type</p>
+                    <a
+                      href={`http://localhost:8096/api/registration/documents/${selectedDocument.documentId}/download`}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="btn btn-primary"
+                    >
+                      <i className="bi bi-download"></i> Download to view
+                    </a>
+                  </div>
+                )}
+              </div>
             </div>
           </div>
         </div>

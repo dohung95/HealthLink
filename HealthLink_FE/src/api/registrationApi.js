@@ -28,6 +28,26 @@ export const registrationService = {
   getSpecialties: async () => {
     const response = await registrationApi.get('/specialties');
     return response.data;
+  },
+
+  // Upload document for a registration request
+  uploadDocument: async (requestId, formData) => {
+    const response = await axios.post(
+      `${API_BASE_URL}/${requestId}/documents`,
+      formData,
+      {
+        headers: {
+          'Content-Type': 'multipart/form-data'
+        }
+      }
+    );
+    return response.data;
+  },
+
+  // Get documents for a registration request
+  getDocuments: async (requestId) => {
+    const response = await registrationApi.get(`/${requestId}/documents`);
+    return response.data;
   }
 };
 

@@ -4,6 +4,7 @@ import lombok.*;
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
 import java.time.LocalTime;
+import java.util.List;
 
 @Data
 @NoArgsConstructor
@@ -52,4 +53,7 @@ public class RegistrationRequestResponse {
     private Double deliveryRadius;
     private BigDecimal deliveryFee;
     private String description;
+
+    // Documents
+    private List<RegistrationDocumentDto> documents;
 }
