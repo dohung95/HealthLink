@@ -1,4 +1,4 @@
-package com.HealthLink.service;
+package com.HealthLink.service.email;
 
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;

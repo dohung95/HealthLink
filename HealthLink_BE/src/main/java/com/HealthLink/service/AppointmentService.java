@@ -13,7 +13,7 @@ import com.HealthLink.exception.ResourceNotFoundException;
 import com.HealthLink.repository.AppointmentRepository;
 import com.HealthLink.repository.DoctorRepository;
 import com.HealthLink.repository.DoctorScheduleRepository;
-import com.HealthLink.repository.PatientRepository;
+import com.HealthLink.repository.patient.PatientRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;

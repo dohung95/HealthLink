@@ -4,11 +4,19 @@ import com.HealthLink.dto.registration.*;
 import com.HealthLink.entity.*;
 import com.HealthLink.exception.BadRequestException;
 import com.HealthLink.exception.ResourceNotFoundException;
-import com.HealthLink.repository.*;
+import com.HealthLink.repository.DoctorRepository;
+import com.HealthLink.repository.doctor.SpecialtyRepository;
+import com.HealthLink.repository.user.RoleRepository;
+import com.HealthLink.repository.user.UserRepository;
 import com.HealthLink.repository.pharmacy.PharmacyRepository;
+import com.HealthLink.repository.registration.RegistrationDocumentRepository;
+import com.HealthLink.repository.registration.RegistrationRequestRepository;
+
 import java.util.List;
-import com.HealthLink.service.EmailService;
-import com.HealthLink.service.RegistrationService;
+
+import com.HealthLink.service.email.EmailService;
+import com.HealthLink.service.registration.RegistrationService;
+
 import jakarta.persistence.criteria.Predicate;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;

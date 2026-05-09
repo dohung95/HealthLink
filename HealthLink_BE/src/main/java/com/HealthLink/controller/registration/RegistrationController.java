@@ -1,4 +1,4 @@
-package com.HealthLink.controller;
+package com.HealthLink.controller.registration;
 
 import com.HealthLink.dto.registration.DoctorRegistrationRequest;
 import com.HealthLink.dto.registration.PharmacyRegistrationRequest;
@@ -6,8 +6,9 @@ import com.HealthLink.dto.registration.RegistrationDocumentDto;
 import com.HealthLink.dto.registration.RegistrationRequestResponse;
 import com.HealthLink.entity.RegistrationDocument;
 import com.HealthLink.entity.Specialty;
-import com.HealthLink.service.RegistrationDocumentService;
-import com.HealthLink.service.RegistrationService;
+import com.HealthLink.service.registration.RegistrationDocumentService;
+import com.HealthLink.service.registration.RegistrationService;
+
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.core.io.Resource;

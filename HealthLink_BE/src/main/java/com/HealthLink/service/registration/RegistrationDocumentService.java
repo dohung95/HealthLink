@@ -1,12 +1,13 @@
-package com.HealthLink.service;
+package com.HealthLink.service.registration;
 
 import com.HealthLink.dto.registration.RegistrationDocumentDto;
 import com.HealthLink.entity.RegistrationDocument;
 import com.HealthLink.entity.RegistrationRequest;
 import com.HealthLink.exception.BadRequestException;
 import com.HealthLink.exception.ResourceNotFoundException;
-import com.HealthLink.repository.RegistrationDocumentRepository;
-import com.HealthLink.repository.RegistrationRequestRepository;
+import com.HealthLink.repository.registration.RegistrationDocumentRepository;
+import com.HealthLink.repository.registration.RegistrationRequestRepository;
+
 import lombok.RequiredArgsConstructor;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.core.io.Resource;

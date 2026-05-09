@@ -1,4 +1,4 @@
-package com.HealthLink.repository;
+package com.HealthLink.repository.registration;
 
 import com.HealthLink.entity.RegistrationDocument;
 import org.springframework.data.jpa.repository.JpaRepository;

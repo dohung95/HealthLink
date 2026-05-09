@@ -1,4 +1,4 @@
-package com.HealthLink.service;
+package com.HealthLink.service.registration;
 
 import com.HealthLink.dto.registration.*;
 import com.HealthLink.entity.Specialty;

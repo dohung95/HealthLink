@@ -3,7 +3,8 @@ package com.HealthLink.controller.admin;
 import com.HealthLink.dto.registration.ApproveRejectRequest;
 import com.HealthLink.dto.registration.RegistrationPageResponse;
 import com.HealthLink.dto.registration.RegistrationRequestResponse;
-import com.HealthLink.service.RegistrationService;
+import com.HealthLink.service.registration.RegistrationService;
+
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
