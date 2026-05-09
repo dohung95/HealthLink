@@ -29,7 +29,8 @@ public class ChatRoom {
     private String user2DisplayName;
     private String user2PhotoURL;
 
-    @Column(length = 500)
+    @Convert(converter = com.HealthLink.security.AesEncryptor.class)
+    @Column(columnDefinition = "NVARCHAR(MAX)")
     private String lastMessage;
     private LocalDateTime lastMessageAt;
 

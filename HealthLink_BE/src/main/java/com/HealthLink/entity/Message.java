@@ -29,7 +29,8 @@ public class Message {
     @ToString.Exclude
     private User receiver;
 
-    @Column(columnDefinition = "TEXT")
+    @Convert(converter = com.HealthLink.security.AesEncryptor.class)
+    @Column(columnDefinition = "NVARCHAR(MAX)")
     private String content;
 
     private String photoURL;
