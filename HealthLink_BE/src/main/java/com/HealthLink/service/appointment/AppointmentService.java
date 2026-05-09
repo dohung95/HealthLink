@@ -1,4 +1,4 @@
-package com.HealthLink.service;
+package com.HealthLink.service.appointment;
 
 import com.HealthLink.dto.request.AppointmentRequest;
 import com.HealthLink.dto.request.CancelAppointmentRequest;
@@ -10,9 +10,9 @@ import com.HealthLink.entity.DoctorSchedule;
 import com.HealthLink.entity.Patient;
 import com.HealthLink.exception.BusinessException;
 import com.HealthLink.exception.ResourceNotFoundException;
-import com.HealthLink.repository.AppointmentRepository;
-import com.HealthLink.repository.DoctorRepository;
-import com.HealthLink.repository.DoctorScheduleRepository;
+import com.HealthLink.repository.appointment.AppointmentRepository;
+import com.HealthLink.repository.doctor.DoctorRepository;
+import com.HealthLink.repository.doctor.DoctorScheduleRepository;
 import com.HealthLink.repository.patient.PatientRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;

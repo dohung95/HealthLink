@@ -1,10 +1,10 @@
-package com.HealthLink.controller;
+package com.HealthLink.controller.appointment;
 
 import com.HealthLink.dto.request.AppointmentRequest;
 import com.HealthLink.dto.request.CancelAppointmentRequest;
 import com.HealthLink.dto.request.RescheduleAppointmentRequest;
 import com.HealthLink.dto.response.AppointmentResponse;
-import com.HealthLink.service.AppointmentService;
+import com.HealthLink.service.appointment.AppointmentService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;

@@ -1,12 +1,12 @@
-package com.HealthLink.service;
+package com.HealthLink.service.doctor;
 
 import com.HealthLink.dto.response.DoctorResponse;
 import com.HealthLink.dto.response.DoctorScheduleResponse;
 import com.HealthLink.entity.Doctor;
 import com.HealthLink.entity.DoctorSchedule;
 import com.HealthLink.exception.ResourceNotFoundException;
-import com.HealthLink.repository.DoctorRepository;
-import com.HealthLink.repository.DoctorScheduleRepository;
+import com.HealthLink.repository.doctor.DoctorRepository;
+import com.HealthLink.repository.doctor.DoctorScheduleRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 

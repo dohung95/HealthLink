@@ -1,4 +1,4 @@
-package com.HealthLink.repository;
+package com.HealthLink.repository.doctor;
 
 import com.HealthLink.entity.DoctorSchedule;
 import org.springframework.data.jpa.repository.JpaRepository;

@@ -1,8 +1,8 @@
-package com.HealthLink.controller;
+package com.HealthLink.controller.doctor;
 
 import com.HealthLink.dto.response.DoctorResponse;
 import com.HealthLink.dto.response.DoctorScheduleResponse;
-import com.HealthLink.service.DoctorService;
+import com.HealthLink.service.doctor.DoctorService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;

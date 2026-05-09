@@ -4,7 +4,7 @@ import com.HealthLink.dto.registration.*;
 import com.HealthLink.entity.*;
 import com.HealthLink.exception.BadRequestException;
 import com.HealthLink.exception.ResourceNotFoundException;
-import com.HealthLink.repository.DoctorRepository;
+import com.HealthLink.repository.doctor.DoctorRepository;
 import com.HealthLink.repository.doctor.SpecialtyRepository;
 import com.HealthLink.repository.user.RoleRepository;
 import com.HealthLink.repository.user.UserRepository;
