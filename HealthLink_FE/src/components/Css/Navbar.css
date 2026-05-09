@@ -40,7 +40,7 @@
 }
 
 .logo-img {
-  width: 360px;
+  width: 250px;
   height: auto;
   max-width: 100%;
   transition: width 0.3s ease;
@@ -53,7 +53,7 @@
 }
 
 .logo-Call {
-  width: 100px;
+  width: 80px;
   height: auto;
   flex-shrink: 0;
   transition: width 0.3s ease;
@@ -335,6 +335,36 @@
 .main-navbar .btn-logout:active {
   transform: translateY(-1px) scale(1.02);
   box-shadow: 0 4px 15px rgba(255, 107, 107, 0.4);
+}
+
+/* Join as Provider Button */
+.main-navbar .btn-join-provider {
+  color: white;
+  background: linear-gradient(135deg, #6366f1 0%, #4f46e5 100%);
+  padding: 10px 20px;
+  border-radius: 50px;
+  text-decoration: none;
+  font-weight: 600;
+  font-size: 14px;
+  transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+  box-shadow: 0 4px 15px rgba(99, 102, 241, 0.3);
+  border: none;
+  cursor: pointer;
+  white-space: nowrap;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.main-navbar .btn-join-provider:hover {
+  transform: translateY(-3px) scale(1.05);
+  box-shadow: 0 8px 25px rgba(99, 102, 241, 0.5);
+  color: white;
+  background: linear-gradient(135deg, #4f46e5 0%, #3730a3 100%);
+}
+
+.main-navbar .btn-join-provider:active {
+  transform: translateY(-1px) scale(1.02);
 }
 
 /* User Role Badge */
@@ -743,6 +773,37 @@
 .btn-mobile-logout:active {
   transform: translateY(-1px) scale(1.02);
   box-shadow: 0 4px 15px rgba(255, 107, 107, 0.4);
+}
+
+/* Mobile Join Button */
+.btn-mobile-join {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 100%;
+  background: linear-gradient(135deg, #6366f1 0%, #4f46e5 100%);
+  border: none;
+  border-radius: 50px;
+  color: white;
+  padding: 12px 20px;
+  font-weight: 600;
+  font-size: 15px;
+  cursor: pointer;
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  margin-bottom: 10px;
+  box-shadow: 0 4px 12px rgba(99, 102, 241, 0.3);
+  text-decoration: none;
+}
+
+.btn-mobile-join:hover {
+  transform: translateY(-3px) scale(1.02);
+  box-shadow: 0 8px 25px rgba(99, 102, 241, 0.5);
+  background: linear-gradient(135deg, #4f46e5 0%, #3730a3 100%);
+  color: white;
+}
+
+.btn-mobile-join:active {
+  transform: translateY(-1px) scale(1.01);
 }
 
 /* Mobile Social Icons - Medical Theme */

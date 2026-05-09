@@ -1,6 +1,7 @@
 import axios from 'axios';
 
-const API_BASE_URL = 'https://localhost:7267/api/admin';
+// Backend Spring Boot hiện chạy trên http://localhost:8096
+const API_BASE_URL = 'http://localhost:8096/api/admin';
 
 // Create axios instance
 const adminApi = axios.create({
@@ -82,11 +83,6 @@ export const doctorsApi = {
 
   update: async (id, data) => {
     const response = await adminApi.put(`/admindoctors/${id}`, data);
-    return response.data;
-  },
-
-  create: async (data) => {
-    const response = await adminApi.post('/admindoctors', data);
     return response.data;
   },
 
@@ -202,6 +198,32 @@ export const analyticsApi = {
   getRevenueByMonth: async (year = 0) => {
     const response = await adminApi.get('/analytics/revenue-by-month', {
       params: { year }
+    });
+    return response.data;
+  }
+};
+
+// ==================== REGISTRATIONS API ====================
+
+export const registrationsApi = {
+  getAll: async (params = {}) => {
+    const { pageNumber = 1, pageSize = 10, type = '', status = '', sortBy = 'newest' } = params;
+    const response = await adminApi.get('/registrations', {
+      params: { pageNumber, pageSize, type, status, sortBy }
+    });
+    return response.data;
+  },
+
+  getById: async (id) => {
+    const response = await adminApi.get(`/registrations/${id}`);
+    return response.data;
+  },
+
+  review: async (id, action, rejectionReason = '') => {
+    // Use POST instead of PUT for better compatibility
+    const response = await adminApi.post(`/registrations/${id}/review`, {
+      action,
+      rejectionReason
     });
     return response.data;
   }
