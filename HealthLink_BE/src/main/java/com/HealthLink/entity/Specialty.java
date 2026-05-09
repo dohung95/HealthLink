@@ -29,8 +29,8 @@ public class Specialty {
 
     @Column(name = "Active")
     @Builder.Default
-    private Boolean active = true;
-
+    private boolean active = true;
+    
     @Column(name = "DisplayOrder")
     private Integer displayOrder;
 

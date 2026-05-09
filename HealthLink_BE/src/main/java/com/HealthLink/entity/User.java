@@ -53,7 +53,7 @@ public class User {
     @EqualsAndHashCode.Exclude
     private Doctor doctor;
 
-    @OneToOne(mappedBy = "user")
+    @OneToOne(mappedBy = "user", cascade = CascadeType.ALL)
     @ToString.Exclude
     @EqualsAndHashCode.Exclude
     private Pharmacy pharmacy;
