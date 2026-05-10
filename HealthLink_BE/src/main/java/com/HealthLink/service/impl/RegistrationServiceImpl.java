@@ -213,9 +213,7 @@ public class RegistrationServiceImpl implements RegistrationService {
         Role role = roleRepository.findByName(roleName)
                 .orElseThrow(() -> new ResourceNotFoundException("Role", "name", roleName));
 
-        Set<Role> roles = new HashSet<>();
-        roles.add(role);
-        user.setRoles(roles);
+        user.setRole(role);
         userRepository.save(user);
 
         if (TYPE_DOCTOR.equals(request.getRegistrationType())) {

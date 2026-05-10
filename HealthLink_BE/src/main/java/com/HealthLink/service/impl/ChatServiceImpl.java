@@ -9,7 +9,7 @@ import com.HealthLink.entity.ChatRoom;
 import com.HealthLink.entity.Message;
 import com.HealthLink.entity.User;
 import com.HealthLink.exception.ResourceNotFoundException;
-import com.HealthLink.repository.AppointmentRepository;
+import com.HealthLink.repository.appointment.AppointmentRepository;
 import com.HealthLink.repository.UserRepository;
 import com.HealthLink.repository.chat.ChatRoomRepository;
 import com.HealthLink.repository.chat.MessageRepository;
