@@ -30,6 +30,7 @@ import com.HealthLink.service.auth.AuthService;
 import com.HealthLink.service.email.EmailService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.security.authentication.AuthenticationManager;
+import org.springframework.security.authentication.LockedException;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.userdetails.UserDetails;
@@ -61,18 +62,40 @@ public class AuthServiceImpl implements AuthService {
     // Đăng nhập
     // =========================================================================
     @Override
-    @Transactional
+    @Transactional(noRollbackFor = org.springframework.security.core.AuthenticationException.class)
     public LoginResponse login(LoginRequest request) {
+        // Lấy user trước để có thể tăng count khi đăng nhập sai
+        User user = userRepository.findByEmail(request.getEmail()).orElse(null);
+
         // Xác thực email + password
-        Authentication auth = authenticationManager.authenticate(
-                new UsernamePasswordAuthenticationToken(request.getEmail(), request.getPassword()));
+        Authentication auth;
+        try {
+            auth = authenticationManager.authenticate(
+                    new UsernamePasswordAuthenticationToken(request.getEmail(), request.getPassword()));
+        } catch (org.springframework.security.authentication.BadCredentialsException ex) {
+            // Tăng số lần đăng nhập sai nếu user tồn tại
+            if (user != null) {
+                user.setAccessFailedCount(user.getAccessFailedCount() + 1);
+                if (user.getAccessFailedCount() >= 5) {
+                    user.setStatus("Locked");
+                    userRepository.save(user);
+                    throw new LockedException("Account has been locked due to too many failed attempts");
+                }
+                userRepository.save(user);
+            }
+            throw ex; // Ném lại để GlobalExceptionHandler xử lý và trả về 401
+        }
 
         UserDetails userDetails = (UserDetails) auth.getPrincipal();
 
-        // Lấy thông tin User từ DB sau khi xác thực thành công
-        User user = userRepository.findByEmail(request.getEmail())
-                .orElseThrow(() -> new ResourceNotFoundException("User", "email", request.getEmail()));
+        // Lấy lại user từ DB (trường hợp user == null do email không tồn tại sẽ được xử lý ở đây)
+        if (user == null) {
+            user = userRepository.findByEmail(request.getEmail())
+                    .orElseThrow(() -> new ResourceNotFoundException("User", "email", request.getEmail()));
+        }
 
+        // Reset số lần đăng nhập sai sau khi đăng nhập thành công
+        user.setAccessFailedCount(0);
         // Cập nhật LastLoginAt
         user.setLastLoginAt(LocalDateTime.now());
         userRepository.save(user);
@@ -252,9 +275,11 @@ public class AuthServiceImpl implements AuthService {
             throw new BadRequestException("Reset link has expired. Please request a new one");
         }
 
-        // Cập nhật mật khẩu mới
+        // Cập nhật mật khẩu mới và mở khóa tài khoản
         User user = resetToken.getUser();
         user.setPassword(passwordEncoder.encode(request.getNewPassword()));
+        user.setStatus("Active"); // Mở khóa tài khoản (nếu bị khóa)
+        user.setAccessFailedCount(0); // Reset số lần đăng nhập sai
         userRepository.save(user);
 
         // Đánh dấu token đã sử dụng
