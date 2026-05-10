@@ -1,9 +1,12 @@
 package com.HealthLink.service.impl.auth;
 
+import com.HealthLink.dto.auth.ForgotPasswordRequest;
 import com.HealthLink.dto.auth.LoginRequest;
 import com.HealthLink.dto.auth.LoginResponse;
 import com.HealthLink.dto.auth.RefreshTokenRequest;
 import com.HealthLink.dto.auth.RegisterRequest;
+import com.HealthLink.dto.auth.ResetPasswordRequest;
+import com.HealthLink.entity.PasswordResetToken;
 import com.HealthLink.entity.RefreshToken;
 import com.HealthLink.entity.Role;
 import com.HealthLink.entity.User;
@@ -14,6 +17,7 @@ import com.HealthLink.exception.ResourceNotFoundException;
 import com.HealthLink.entity.Patient;
 import com.HealthLink.entity.Doctor;
 import com.HealthLink.entity.Pharmacy;
+import com.HealthLink.repository.auth.PasswordResetTokenRepository;
 import com.HealthLink.repository.auth.RefreshTokenRepository;
 import com.HealthLink.repository.auth.RoleRepository;
 import com.HealthLink.repository.auth.UserRepository;
@@ -23,6 +27,7 @@ import com.HealthLink.repository.pharmacy.PharmacyRepository;
 import com.HealthLink.security.JwtTokenProvider;
 import com.HealthLink.service.impl.auth.UserDetailsServiceImpl;
 import com.HealthLink.service.auth.AuthService;
+import com.HealthLink.service.email.EmailService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.security.authentication.AuthenticationManager;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
@@ -39,16 +44,18 @@ import java.util.UUID;
 @RequiredArgsConstructor
 public class AuthServiceImpl implements AuthService {
 
-    private final AuthenticationManager   authenticationManager;
-    private final JwtTokenProvider        jwtTokenProvider;
-    private final UserDetailsServiceImpl  userDetailsService;
-    private final UserRepository          userRepository;
-    private final RoleRepository          roleRepository;
-    private final PatientRepository       patientRepository;
-    private final DoctorRepository        doctorRepository;
-    private final PharmacyRepository      pharmacyRepository;
-    private final RefreshTokenRepository  refreshTokenRepository;
-    private final PasswordEncoder         passwordEncoder;
+    private final AuthenticationManager        authenticationManager;
+    private final JwtTokenProvider             jwtTokenProvider;
+    private final UserDetailsServiceImpl       userDetailsService;
+    private final UserRepository               userRepository;
+    private final RoleRepository               roleRepository;
+    private final PatientRepository            patientRepository;
+    private final DoctorRepository             doctorRepository;
+    private final PharmacyRepository           pharmacyRepository;
+    private final RefreshTokenRepository       refreshTokenRepository;
+    private final PasswordResetTokenRepository passwordResetTokenRepository;
+    private final PasswordEncoder              passwordEncoder;
+    private final EmailService                 emailService;
 
     // =========================================================================
     // Đăng nhập
@@ -196,6 +203,63 @@ public class AuthServiceImpl implements AuthService {
         saveRefreshToken(user, newRefreshTokenStr);
 
         return buildLoginResponse(user, newAccessToken, newRefreshTokenStr);
+    }
+
+    // =========================================================================
+    // Quên mật khẩu
+    // =========================================================================
+    @Override
+    @Transactional
+    public void forgotPassword(ForgotPasswordRequest request) {
+        // Tìm user theo email — không throw lỗi để tránh lộ thông tin email có tồn tại không
+        User user = userRepository.findByEmail(request.getEmail()).orElse(null);
+        if (user == null) {
+            // Trả về thành công giả để không tiết lộ email có tồn tại hay không
+            return;
+        }
+
+        // Xóa tất cả token cũ của user trước khi tạo mới
+        passwordResetTokenRepository.deleteAllByUserId(user.getId());
+
+        // Tạo token ngẫu nhiên (UUID), hết hạn sau 15 phút
+        String tokenStr = UUID.randomUUID().toString();
+        PasswordResetToken resetToken = PasswordResetToken.builder()
+                .token(tokenStr)
+                .user(user)
+                .expiryDate(LocalDateTime.now().plusMinutes(15))
+                .used(false)
+                .build();
+        passwordResetTokenRepository.save(resetToken);
+
+        // Gửi email chứa link reset
+        emailService.sendPasswordResetEmail(user.getEmail(), user.getUsername(), tokenStr);
+    }
+
+    // =========================================================================
+    // Đặt lại mật khẩu
+    // =========================================================================
+    @Override
+    @Transactional
+    public void resetPassword(ResetPasswordRequest request) {
+        PasswordResetToken resetToken = passwordResetTokenRepository
+                .findByToken(request.getToken())
+                .orElseThrow(() -> new BadRequestException("Invalid or expired password reset token"));
+
+        if (resetToken.isUsed()) {
+            throw new BadRequestException("This reset link has already been used");
+        }
+        if (resetToken.isExpired()) {
+            throw new BadRequestException("Reset link has expired. Please request a new one");
+        }
+
+        // Cập nhật mật khẩu mới
+        User user = resetToken.getUser();
+        user.setPassword(passwordEncoder.encode(request.getNewPassword()));
+        userRepository.save(user);
+
+        // Đánh dấu token đã sử dụng
+        resetToken.setUsed(true);
+        passwordResetTokenRepository.save(resetToken);
     }
 
     // =========================================================================
