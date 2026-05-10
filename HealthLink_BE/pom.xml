@@ -88,6 +88,7 @@
             <artifactId>jjwt-jackson</artifactId>
             <version>0.13.0</version>
             <scope>runtime</scope>
+        </dependency>
         <!-- PayPal Checkout SDK (v2 Orders / REST) -->
         <dependency>
             <groupId>com.paypal.sdk</groupId>
