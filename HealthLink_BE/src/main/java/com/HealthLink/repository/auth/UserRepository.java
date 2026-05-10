@@ -1,4 +1,4 @@
-package com.HealthLink.repository.user;
+package com.HealthLink.repository.auth;
 
 import com.HealthLink.entity.User;
 import org.springframework.data.jpa.repository.JpaRepository;
@@ -14,6 +14,4 @@ public interface UserRepository extends JpaRepository<User, String> {
     Optional<User> findByUsername(String username);
 
     boolean existsByEmail(String email);
-
-    boolean existsByUsername(String username);
 }

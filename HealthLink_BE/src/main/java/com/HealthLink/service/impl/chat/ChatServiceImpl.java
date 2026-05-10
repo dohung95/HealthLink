@@ -1,4 +1,4 @@
-package com.HealthLink.service.impl;
+package com.HealthLink.service.impl.chat;
 
 import com.HealthLink.dto.chat.ChatRoomDTO;
 import com.HealthLink.dto.chat.CreateRoomRequest;
@@ -10,10 +10,10 @@ import com.HealthLink.entity.Message;
 import com.HealthLink.entity.User;
 import com.HealthLink.exception.ResourceNotFoundException;
 import com.HealthLink.repository.appointment.AppointmentRepository;
-import com.HealthLink.repository.UserRepository;
+import com.HealthLink.repository.auth.UserRepository;
 import com.HealthLink.repository.chat.ChatRoomRepository;
 import com.HealthLink.repository.chat.MessageRepository;
-import com.HealthLink.service.ChatService;
+import com.HealthLink.service.chat.ChatService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
