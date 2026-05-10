@@ -1,4 +1,4 @@
-package com.HealthLink.service;
+package com.HealthLink.service.auth;
 
 import com.HealthLink.dto.auth.LoginRequest;
 import com.HealthLink.dto.auth.LoginResponse;

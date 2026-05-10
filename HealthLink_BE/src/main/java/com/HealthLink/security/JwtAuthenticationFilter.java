@@ -1,6 +1,6 @@
 package com.HealthLink.security;
 
-import com.HealthLink.service.impl.UserDetailsServiceImpl;
+import com.HealthLink.service.impl.auth.UserDetailsServiceImpl;
 import jakarta.servlet.FilterChain;
 import jakarta.servlet.ServletException;
 import jakarta.servlet.http.HttpServletRequest;

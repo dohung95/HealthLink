@@ -1,12 +1,12 @@
-package com.HealthLink.controller;
+package com.HealthLink.controller.chat;
 
 import com.HealthLink.dto.chat.ChatRoomDTO;
 import com.HealthLink.dto.chat.CreateRoomRequest;
 import com.HealthLink.dto.chat.MessageDTO;
 import com.HealthLink.dto.chat.SendMessageRequest;
 import com.HealthLink.exception.ResourceNotFoundException;
-import com.HealthLink.repository.UserRepository;
-import com.HealthLink.service.ChatService;
+import com.HealthLink.repository.auth.UserRepository;
+import com.HealthLink.service.chat.ChatService;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;

@@ -1,10 +1,10 @@
-package com.HealthLink.controller;
+package com.HealthLink.controller.auth;
 
 import com.HealthLink.dto.auth.LoginRequest;
 import com.HealthLink.dto.auth.LoginResponse;
 import com.HealthLink.dto.auth.RefreshTokenRequest;
 import com.HealthLink.dto.auth.RegisterRequest;
-import com.HealthLink.service.AuthService;
+import com.HealthLink.service.auth.AuthService;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;

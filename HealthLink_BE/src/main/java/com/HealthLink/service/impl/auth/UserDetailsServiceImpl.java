@@ -1,7 +1,7 @@
-package com.HealthLink.service.impl;
+package com.HealthLink.service.impl.auth;
 
 import com.HealthLink.entity.User;
-import com.HealthLink.repository.UserRepository;
+import com.HealthLink.repository.auth.UserRepository;
 import java.util.Collection;
 import lombok.RequiredArgsConstructor;
 import org.springframework.security.core.authority.SimpleGrantedAuthority;
