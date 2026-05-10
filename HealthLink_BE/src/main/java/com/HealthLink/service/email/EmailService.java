@@ -50,6 +50,14 @@ public class EmailService {
         sendHtmlEmail(toEmail, subject, content);
     }
 
+    public void sendPasswordResetEmail(String toEmail, String recipientName, String token) {
+        log.info("sendPasswordResetEmail called - to: {}", toEmail);
+        String subject = appName + " - Password Reset Request";
+        String resetLink = frontendUrl + "/reset-password?token=" + token;
+        String content = buildPasswordResetEmailContent(recipientName, resetLink);
+        sendHtmlEmail(toEmail, subject, content);
+    }
+
     private void sendHtmlEmail(String to, String subject, String htmlContent) {
         log.info("=== START SENDING EMAIL ===");
         log.info("To: {}", to);
@@ -222,5 +230,63 @@ public class EmailService {
             </body>
             </html>
             """.formatted(appName, recipientName, appName, roleDisplay, rejectionReason, frontendUrl, appName, appName);
+    }
+
+    private String buildPasswordResetEmailContent(String recipientName, String resetLink) {
+        return """
+            <!DOCTYPE html>
+            <html>
+            <head>
+                <meta charset="UTF-8">
+                <style>
+                    body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; line-height: 1.6; color: #333; margin: 0; padding: 0; background-color: #f4f7fa; }
+                    .container { max-width: 600px; margin: 0 auto; background: white; border-radius: 12px; overflow: hidden; box-shadow: 0 4px 20px rgba(0,0,0,0.1); }
+                    .header { background: linear-gradient(135deg, #00b09a 0%%, #007a6a 100%%); color: white; padding: 30px; text-align: center; }
+                    .header h1 { margin: 0; font-size: 28px; }
+                    .header p { margin: 10px 0 0; opacity: 0.9; }
+                    .content { padding: 30px; }
+                    .icon { text-align: center; margin-bottom: 20px; }
+                    .icon span { display: inline-block; width: 80px; height: 80px; background: #dbeafe; border-radius: 50%%; line-height: 80px; font-size: 40px; }
+                    .greeting { font-size: 18px; margin-bottom: 20px; }
+                    .message { margin-bottom: 25px; color: #475569; }
+                    .cta-button { display: block; width: fit-content; margin: 25px auto; padding: 14px 40px; background: linear-gradient(135deg, #00b09a 0%%, #007a6a 100%%); color: white !important; text-decoration: none; border-radius: 8px; font-weight: 600; font-size: 16px; text-align: center; }
+                    .warning-box { background: #fef3c7; border: 1px solid #fcd34d; border-radius: 8px; padding: 15px; margin: 20px 0; }
+                    .warning-box span { color: #92400e; font-size: 14px; }
+                    .token-box { background: #f1f5f9; border-radius: 8px; padding: 15px; margin: 20px 0; font-family: monospace; font-size: 13px; color: #475569; word-break: break-all; }
+                    .footer { background: #f8fafc; padding: 20px; text-align: center; color: #64748b; font-size: 13px; border-top: 1px solid #e2e8f0; }
+                    .footer a { color: #00b09a; text-decoration: none; }
+                </style>
+            </head>
+            <body>
+                <div class="container">
+                    <div class="header">
+                        <h1>%s</h1>
+                        <p>Healthcare Management Platform</p>
+                    </div>
+                    <div class="content">
+                        <div class="icon">
+                            <span>&#128274;</span>
+                        </div>
+                        <p class="greeting">Dear <strong>%s</strong>,</p>
+                        <div class="message">
+                            <p>We received a request to reset the password for your account. Click the button below to set a new password.</p>
+                            <p>This link will expire in <strong>15 minutes</strong>.</p>
+                        </div>
+                        <a href="%s" class="cta-button">Reset My Password</a>
+                        <div class="warning-box">
+                            <span>&#9888; <strong>Security Notice:</strong> If you did not request a password reset, please ignore this email. Your account is safe and your password has not been changed.</span>
+                        </div>
+                        <p style="color: #94a3b8; font-size: 13px;">Or copy and paste this link into your browser:</p>
+                        <div class="token-box">%s</div>
+                    </div>
+                    <div class="footer">
+                        <p>This is an automated message from %s.</p>
+                        <p>If you have any questions, please contact our <a href="mailto:support@healthlink.com">support team</a>.</p>
+                        <p>&copy; 2024 %s. All rights reserved.</p>
+                    </div>
+                </div>
+            </body>
+            </html>
+            """.formatted(appName, recipientName, resetLink, resetLink, appName, appName);
     }
 }
