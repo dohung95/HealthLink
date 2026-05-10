@@ -18,6 +18,7 @@ public interface DoctorRepository extends JpaRepository<Doctor, String> {
      *
      * @param specialty tên chuyên khoa (tìm kiếm gần đúng)
      * @param name      tên bác sĩ (tìm kiếm gần đúng)
+     * @return 
      */
     @Query("SELECT d FROM Doctor d LEFT JOIN d.specialtyEntity se WHERE " +
            "(:specialty IS NULL OR se.name LIKE %:specialty%) AND " +
