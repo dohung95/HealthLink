@@ -13,7 +13,7 @@ import java.time.LocalDateTime;
 @Builder
 public class MessageDTO {
 
-    private Integer messageId;
+    private String messageId;
 
     private String chatRoomId;
 

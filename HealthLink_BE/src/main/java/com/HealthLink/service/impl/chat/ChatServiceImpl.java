@@ -206,7 +206,7 @@ public class ChatServiceImpl implements ChatService {
         }
 
         return MessageDTO.builder()
-                .messageId(msg.getMessageId())
+                .messageId(msg.getMessageId() != null ? msg.getMessageId().toString() : null)
                 .chatRoomId(msg.getChatRoom() != null ? msg.getChatRoom().getChatRoomId() : null)
                 .senderId(msg.getSender()   != null ? msg.getSender().getId()   : null)
                 .senderDisplayName(senderDisplayName)

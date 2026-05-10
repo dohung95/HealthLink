@@ -49,6 +49,16 @@ public class Invoice {
     @Column(length = 500)
     private String notes;
 
+    // Commission fields
+    @Column(precision = 18, scale = 2)
+    private BigDecimal platformFee;
+
+    @Column(precision = 18, scale = 2)
+    private BigDecimal doctorEarning;
+
+    @Column(precision = 5, scale = 4)
+    private BigDecimal commissionRate;
+
     @OneToMany(mappedBy = "invoice")
     @ToString.Exclude
     private List<Payment> payments;

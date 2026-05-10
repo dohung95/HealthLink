@@ -1,18 +1,22 @@
 package com.HealthLink.entity;
+
 import jakarta.persistence.*;
 import lombok.*;
 import java.time.LocalDateTime;
+import java.util.UUID;
 
 @Entity
 @Table(name = "ChatMessages")
 @Data
-@NoArgsConstructor @AllArgsConstructor
+@NoArgsConstructor
+@AllArgsConstructor
 @Builder
 public class Message {
+
     @Id
-    @GeneratedValue(strategy = GenerationType.IDENTITY)
-    @Column(name = "MessageID")
-    private Integer messageId;
+    @GeneratedValue(strategy = GenerationType.UUID)
+    @Column(name = "MessageID", columnDefinition = "VARCHAR(36)")
+    private UUID messageId;
 
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "ChatRoomId", nullable = false)
