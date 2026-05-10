@@ -1,7 +1,7 @@
 package com.HealthLink.config;
 
 import com.HealthLink.security.JwtAuthenticationFilter;
-import com.HealthLink.service.impl.UserDetailsServiceImpl;
+import com.HealthLink.service.impl.auth.UserDetailsServiceImpl;
 import lombok.RequiredArgsConstructor;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;

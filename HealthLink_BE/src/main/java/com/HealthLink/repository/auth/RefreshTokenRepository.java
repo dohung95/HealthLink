@@ -1,4 +1,4 @@
-package com.HealthLink.repository;
+package com.HealthLink.repository.auth;
 
 import com.HealthLink.entity.RefreshToken;
 import org.springframework.data.jpa.repository.JpaRepository;

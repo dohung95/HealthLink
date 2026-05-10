@@ -1,4 +1,4 @@
-package com.HealthLink.service;
+package com.HealthLink.service.chat;
 
 import com.HealthLink.dto.chat.ChatRoomDTO;
 import com.HealthLink.dto.chat.CreateRoomRequest;
