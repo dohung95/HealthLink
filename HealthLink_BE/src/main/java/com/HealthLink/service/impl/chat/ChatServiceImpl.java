@@ -28,7 +28,7 @@ import java.util.stream.Collectors;
 public class ChatServiceImpl implements ChatService {
 
     private final ChatRoomRepository chatRoomRepository;
-    private final MessageRepository   messageRepository;
+    private final MessageRepository messageRepository;
     private final AppointmentRepository appointmentRepository;
     private final UserRepository userRepository;
 

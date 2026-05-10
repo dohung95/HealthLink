@@ -1,6 +1,6 @@
 -- =====================================================
 -- HEALTHLINK DATABASE SEED DATA
--- 10 records per table (following FK dependencies order)
+-- Sample records per table (following FK dependencies order)
 -- =====================================================
 
 -- 1. ROLES (4 basic roles)
@@ -309,19 +309,17 @@ INSERT INTO ChatRooms (ChatRoomId, user1Id, user2Id, user1DisplayName, user1Phot
 ('chat-010', 'user-p10', 'user-d10', 'Charlotte Taylor', '/avatars/patient10.jpg', 'Dr. Jennifer Martinez', '/avatars/doctor10.jpg', NULL, NULL, 10);
 
 -- 22. MESSAGES (10 messages)
-SET IDENTITY_INSERT ChatMessages ON;
 INSERT INTO ChatMessages (MessageID, ChatRoomId, SenderId, ReceiverId, content, photoURL, imageUrl, IsRead, SentAt) VALUES
-(1, 'chat-001', 'user-d01', 'user-p01', 'Hi Michael, can you describe your headache symptoms?', '/avatars/doctor01.jpg', NULL, 1, '2024-05-10 09:02:00'),
-(2, 'chat-001', 'user-p01', 'user-d01', 'I have been having a dull pain on the right side of my head for 3 days', '/avatars/patient01.jpg', NULL, 1, '2024-05-10 09:05:00'),
-(3, 'chat-001', 'user-d01', 'user-p01', 'Are you getting enough sleep? Any work-related stress?', '/avatars/doctor01.jpg', NULL, 1, '2024-05-10 09:08:00'),
-(4, 'chat-001', 'user-p01', 'user-d01', 'Actually, I have been working a lot lately and not sleeping well', '/avatars/patient01.jpg', NULL, 1, '2024-05-10 09:10:00'),
-(5, 'chat-001', 'user-p01', 'user-d01', 'Thank you, doctor!', '/avatars/patient01.jpg', NULL, 1, '2024-05-10 09:35:00'),
-(6, 'chat-002', 'user-d02', 'user-p02', 'How high is the fever and when did it start?', '/avatars/doctor02.jpg', NULL, 1, '2024-05-11 10:02:00'),
-(7, 'chat-002', 'user-p02', 'user-d02', 'The fever was 101.3F since last night, with dry cough', '/avatars/patient02.jpg', NULL, 1, '2024-05-11 10:05:00'),
-(8, 'chat-002', 'user-p02', 'user-d02', 'The fever has gone down', '/avatars/patient02.jpg', NULL, 1, '2024-05-12 08:00:00'),
-(9, 'chat-003', 'user-d03', 'user-p03', 'You need to get an ECG and cardiac enzyme test as soon as possible', '/avatars/doctor03.jpg', NULL, 1, '2024-05-12 10:15:00'),
-(10, 'chat-003', 'user-p03', 'user-d03', 'I will get the tests done right away', '/avatars/patient03.jpg', NULL, 1, '2024-05-12 10:20:00');
-SET IDENTITY_INSERT ChatMessages OFF;
+('11111111-1111-1111-1111-111111111111', 'chat-001', 'user-d01', 'user-p01', 'Hi Michael, can you describe your headache symptoms?', '/avatars/doctor01.jpg', NULL, 1, '2024-05-10 09:02:00'),
+('11111111-1111-1111-1111-111111111112', 'chat-001', 'user-p01', 'user-d01', 'I have been having a dull pain on the right side of my head for 3 days', '/avatars/patient01.jpg', NULL, 1, '2024-05-10 09:05:00'),
+('11111111-1111-1111-1111-111111111113', 'chat-001', 'user-d01', 'user-p01', 'Are you getting enough sleep? Any work-related stress?', '/avatars/doctor01.jpg', NULL, 1, '2024-05-10 09:08:00'),
+('11111111-1111-1111-1111-111111111114', 'chat-001', 'user-p01', 'user-d01', 'Actually, I have been working a lot lately and not sleeping well', '/avatars/patient01.jpg', NULL, 1, '2024-05-10 09:10:00'),
+('11111111-1111-1111-1111-111111111115', 'chat-001', 'user-p01', 'user-d01', 'Thank you, doctor!', '/avatars/patient01.jpg', NULL, 1, '2024-05-10 09:35:00'),
+('11111111-1111-1111-1111-111111111116', 'chat-002', 'user-d02', 'user-p02', 'How high is the fever and when did it start?', '/avatars/doctor02.jpg', NULL, 1, '2024-05-11 10:02:00'),
+('11111111-1111-1111-1111-111111111117', 'chat-002', 'user-p02', 'user-d02', 'The fever was 101.3F since last night, with dry cough', '/avatars/patient02.jpg', NULL, 1, '2024-05-11 10:05:00'),
+('11111111-1111-1111-1111-111111111118', 'chat-002', 'user-p02', 'user-d02', 'The fever has gone down', '/avatars/patient02.jpg', NULL, 1, '2024-05-12 08:00:00'),
+('11111111-1111-1111-1111-111111111119', 'chat-003', 'user-d03', 'user-p03', 'You need to get an ECG and cardiac enzyme test as soon as possible', '/avatars/doctor03.jpg', NULL, 1, '2024-05-12 10:15:00'),
+('11111111-1111-1111-1111-11111111111a', 'chat-003', 'user-p03', 'user-d03', 'I will get the tests done right away', '/avatars/patient03.jpg', NULL, 1, '2024-05-12 10:20:00');
 
 -- 23. NOTIFICATIONS (10 notifications)
 SET IDENTITY_INSERT Notifications ON;
@@ -383,8 +381,84 @@ INSERT INTO RefreshTokens (id, UserId, token, expiryDate, Revoked, CreatedDate, 
 (10, 'user-d05', 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.token10', '2024-06-16 08:00:00', 0, '2024-05-16 08:00:00', 'MacBook Air', '192.168.1.53', 'Mozilla/5.0 (Macintosh)');
 SET IDENTITY_INSERT RefreshTokens OFF;
 
+-- 27. PASSWORD_RESET_TOKENS (10 tokens)
+SET IDENTITY_INSERT PasswordResetTokens ON;
+INSERT INTO PasswordResetTokens (Id, Token, UserId, ExpiryDate, Used) VALUES
+(1, 'prt-user-p01-20240510', 'user-p01', '2024-05-10 23:59:00', 0),
+(2, 'prt-user-p02-20240510', 'user-p02', '2024-05-10 23:59:00', 0),
+(3, 'prt-user-p03-20240510', 'user-p03', '2024-05-10 23:59:00', 0),
+(4, 'prt-user-p04-20240510', 'user-p04', '2024-05-10 23:59:00', 0),
+(5, 'prt-user-p05-20240510', 'user-p05', '2024-05-10 23:59:00', 0),
+(6, 'prt-user-d01-20240510', 'user-d01', '2024-05-10 23:59:00', 0),
+(7, 'prt-user-d02-20240510', 'user-d02', '2024-05-10 23:59:00', 0),
+(8, 'prt-user-ph01-20240510', 'user-ph01', '2024-05-10 23:59:00', 0),
+(9, 'prt-user-ph02-20240510', 'user-ph02', '2024-05-10 23:59:00', 0),
+(10, 'prt-user-d05-20240510', 'user-d05', '2024-05-10 23:59:00', 0);
+SET IDENTITY_INSERT PasswordResetTokens OFF;
+
+-- 28. REGISTRATION_REQUESTS (10 requests)
+SET IDENTITY_INSERT RegistrationRequests ON;
+INSERT INTO RegistrationRequests (RequestID, RegistrationType, Email, PhoneNumber, Status, CreatedAt, ReviewedAt, ReviewedBy, RejectionReason, FullName, Qualifications, SpecialtyId, Specialty, YearsOfExperience, LanguageSpoken, Location, Bio, ConsultationFee, ClinicName, ClinicAddress, AvailableForVideo, AvailableForAudio, AvailableForChat, AvailableForOffline, PharmacyName, LicenseNumber, Address, City, District, Ward, OpenTime, CloseTime, Open24Hours, WorkingDays, DeliveryAvailable, DeliveryRadius, DeliveryFee, Description) VALUES
+(1, 'DOCTOR', 'applicant1@healthlink.com', '0905000001', 'Pending', '2024-05-01 10:00:00', NULL, NULL, NULL, 'Dr. Applicant One', 'MD', 1, 'Internal Medicine', 8, 'English', 'New York', 'Doctor registration request', 100.00, 'Applicant Clinic 1', '1 Health St', 1, 1, 1, 1, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL),
+(2, 'DOCTOR', 'applicant2@healthlink.com', '0905000002', 'Approved', '2024-05-02 10:00:00', '2024-05-05 09:00:00', 'admin', NULL, 'Dr. Applicant Two', 'MD, PhD', 6, 'Cardiology', 12, 'English', 'Los Angeles', 'Approved doctor request', 180.00, 'Applicant Clinic 2', '2 Health St', 1, 1, 1, 0, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL),
+(3, 'DOCTOR', 'applicant3@healthlink.com', '0905000003', 'Rejected', '2024-05-03 10:00:00', '2024-05-06 09:00:00', 'admin', 'Missing valid license', 'Dr. Applicant Three', 'MD', 5, 'Neurology', 6, 'English', 'Chicago', 'Rejected doctor request', 150.00, 'Applicant Clinic 3', '3 Health St', 1, 1, 1, 1, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL),
+(4, 'PHARMACY', 'pharmacyapp1@healthlink.com', '0915000001', 'Pending', '2024-05-04 11:00:00', NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, 'Pharmacy Applicant 1', 'LIC-001', '10 Main St', 'Houston', 'Downtown', 'Central', '07:00', '21:00', 0, 'Mon-Sun', 1, 5.0, 5.99, 'Pharmacy registration request'),
+(5, 'PHARMACY', 'pharmacyapp2@healthlink.com', '0915000002', 'Approved', '2024-05-05 11:00:00', '2024-05-08 09:00:00', 'admin', NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, 'Pharmacy Applicant 2', 'LIC-002', '20 Main St', 'Seattle', 'Center', 'Ward 1', '08:00', '20:00', 0, 'Mon-Sat', 1, 6.0, 6.99, 'Approved pharmacy request'),
+(6, 'PHARMACY', 'pharmacyapp3@healthlink.com', '0915000003', 'Rejected', '2024-05-06 11:00:00', '2024-05-09 09:00:00', 'admin', 'Incomplete documents', NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, 'Pharmacy Applicant 3', 'LIC-003', '30 Main St', 'Miami', 'Beach', 'South', '06:00', '22:00', 0, 'Mon-Sun', 1, 4.0, 4.99, 'Rejected pharmacy request'),
+(7, 'DOCTOR', 'applicant4@healthlink.com', '0905000004', 'Pending', '2024-05-07 10:00:00', NULL, NULL, NULL, 'Dr. Applicant Four', 'DDS', 10, 'Dentistry', 4, 'English', 'Phoenix', 'Dentistry applicant', 90.00, 'Applicant Clinic 4', '4 Health St', 1, 1, 1, 1, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL),
+(8, 'PHARMACY', 'pharmacyapp4@healthlink.com', '0915000004', 'Pending', '2024-05-08 11:00:00', NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, 'Pharmacy Applicant 4', 'LIC-004', '40 Main St', 'Boston', 'Bay', 'North', '08:00', '22:00', 0, 'Mon-Sun', 0, 5.0, 5.49, 'Pharmacy applicant details'),
+(9, 'DOCTOR', 'applicant5@healthlink.com', '0905000005', 'Approved', '2024-05-09 10:00:00', '2024-05-10 09:00:00', 'admin', NULL, 'Dr. Applicant Five', 'MD', 3, 'Pediatrics', 9, 'English', 'Philadelphia', 'Pediatrics applicant', 130.00, 'Applicant Clinic 5', '5 Health St', 1, 1, 1, 0, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL),
+(10, 'PHARMACY', 'pharmacyapp5@healthlink.com', '0915000005', 'Pending', '2024-05-10 11:00:00', NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, 'Pharmacy Applicant 5', 'LIC-005', '50 Main St', 'San Francisco', 'Market', 'West', '07:30', '21:30', 0, 'Mon-Sat', 1, 8.0, 7.99, 'Pending pharmacy application');
+SET IDENTITY_INSERT RegistrationRequests OFF;
+
+-- 29. REGISTRATION_DOCUMENTS (10 documents)
+SET IDENTITY_INSERT RegistrationDocuments ON;
+INSERT INTO RegistrationDocuments (DocumentID, RequestID, DocumentType, FileName, OriginalFileName, FilePath, FileSize, MimeType, UploadedAt) VALUES
+(1, 1, 'Medical Degree', 'req1-degree.pdf', 'degree.pdf', '/registrations/1/degree.pdf', 245000, 'application/pdf', '2024-05-01 10:10:00'),
+(2, 2, 'Practice License', 'req2-license.pdf', 'license.pdf', '/registrations/2/license.pdf', 245000, 'application/pdf', '2024-05-02 10:10:00'),
+(3, 3, 'ID Card', 'req3-id.pdf', 'id.pdf', '/registrations/3/id.pdf', 145000, 'application/pdf', '2024-05-03 10:10:00'),
+(4, 4, 'Business License', 'req4-business.pdf', 'business.pdf', '/registrations/4/business.pdf', 305000, 'application/pdf', '2024-05-04 11:10:00'),
+(5, 5, 'Business License', 'req5-business.pdf', 'business.pdf', '/registrations/5/business.pdf', 305000, 'application/pdf', '2024-05-05 11:10:00'),
+(6, 6, 'Business License', 'req6-business.pdf', 'business.pdf', '/registrations/6/business.pdf', 305000, 'application/pdf', '2024-05-06 11:10:00'),
+(7, 7, 'Dentistry Degree', 'req7-degree.pdf', 'degree.pdf', '/registrations/7/degree.pdf', 240000, 'application/pdf', '2024-05-07 10:10:00'),
+(8, 8, 'Business License', 'req8-business.pdf', 'business.pdf', '/registrations/8/business.pdf', 305000, 'application/pdf', '2024-05-08 11:10:00'),
+(9, 9, 'Medical Degree', 'req9-degree.pdf', 'degree.pdf', '/registrations/9/degree.pdf', 245000, 'application/pdf', '2024-05-09 10:10:00'),
+(10, 10, 'Business License', 'req10-business.pdf', 'business.pdf', '/registrations/10/business.pdf', 305000, 'application/pdf', '2024-05-10 11:10:00');
+SET IDENTITY_INSERT RegistrationDocuments OFF;
+
+-- 30. COMMISSION_CONFIGS (3 configs)
+SET IDENTITY_INSERT CommissionConfigs ON;
+INSERT INTO CommissionConfigs (ConfigId, serviceType, commissionRate, minCommission, maxCommission, description, active, effectiveFrom, effectiveTo, CreatedAt, UpdatedAt) VALUES
+(1, 'CONSULTATION_ONLINE', 0.1500, 0.50, 100.00, 'Online consultation commission rate', 1, '2024-01-01 00:00:00', NULL, '2024-01-01 00:00:00', NULL),
+(2, 'CONSULTATION_OFFLINE', 0.1200, 0.50, 150.00, 'Offline consultation commission rate', 1, '2024-01-01 00:00:00', NULL, '2024-01-01 00:00:00', NULL),
+(3, 'PHARMACY_ORDER', 0.0800, 0.50, 80.00, 'Pharmacy order commission rate', 1, '2024-01-01 00:00:00', NULL, '2024-01-01 00:00:00', NULL);
+SET IDENTITY_INSERT CommissionConfigs OFF;
+
+-- 31. SETTLEMENTS (3 settlements)
+SET IDENTITY_INSERT Settlements ON;
+INSERT INTO Settlements (SettlementId, settlementNumber, recipientType, recipientId, recipientName, grossAmount, commissionAmount, netAmount, transactionCount, status, paymentMethod, bankAccount, bankName, paypalEmail, periodStart, periodEnd, processedAt, processedBy, completedAt, notes, CreatedAt) VALUES
+(1, 'STL-202405-00001', 'DOCTOR', 'user-d01', 'Dr. John Smith', 500.00, 75.00, 425.00, 2, 'COMPLETED', 'BANK_TRANSFER', '1234567890', 'Bank of America', NULL, '2024-05-01 00:00:00', '2024-05-15 23:59:00', '2024-05-16 10:00:00', 'admin', '2024-05-16 10:30:00', 'First doctor settlement', '2024-05-16 10:00:00'),
+(2, 'STL-202405-00002', 'PHARMACY', 'user-ph01', 'CVS Pharmacy - Manhattan', 700.00, 56.00, 644.00, 2, 'COMPLETED', 'BANK_TRANSFER', '9876543210', 'Chase', NULL, '2024-05-01 00:00:00', '2024-05-15 23:59:00', '2024-05-16 10:15:00', 'admin', '2024-05-16 10:45:00', 'Pharmacy settlement batch', '2024-05-16 10:15:00'),
+(3, 'STL-202405-00003', 'DOCTOR', 'user-d05', 'Dr. Jessica Williams', 450.00, 54.00, 396.00, 2, 'PROCESSING', 'PAYPAL', NULL, NULL, 'drjess@example.com', '2024-05-01 00:00:00', '2024-05-15 23:59:00', '2024-05-16 11:00:00', 'admin', NULL, 'Queued for payout', '2024-05-16 11:00:00');
+SET IDENTITY_INSERT Settlements OFF;
+
+-- 32. COMMISSION_TRANSACTIONS (10 transactions)
+SET IDENTITY_INSERT CommissionTransactions ON;
+INSERT INTO CommissionTransactions (TransactionId, transactionNumber, sourceType, appointmentId, pharmacyOrderId, recipientType, recipientId, recipientName, serviceType, grossAmount, commissionRate, commissionAmount, netAmount, status, SettlementId, CreatedAt) VALUES
+(1, 'CTX-202405-00001', 'APPOINTMENT', 1, NULL, 'DOCTOR', 'user-d01', 'Dr. John Smith', 'CONSULTATION_ONLINE', 150.00, 0.1500, 22.50, 127.50, 'SETTLED', 1, '2024-05-10 10:00:00'),
+(2, 'CTX-202405-00002', 'PHARMACY_ORDER', NULL, 1, 'PHARMACY', 'user-ph01', 'CVS Pharmacy - Manhattan', 'PHARMACY_ORDER', 50.99, 0.0800, 4.08, 46.91, 'SETTLED', 2, '2024-05-10 13:45:00'),
+(3, 'CTX-202405-00003', 'APPOINTMENT', 2, NULL, 'DOCTOR', 'user-d02', 'Dr. Sarah Johnson', 'CONSULTATION_ONLINE', 120.00, 0.1500, 18.00, 102.00, 'SETTLED', 1, '2024-05-11 10:20:00'),
+(4, 'CTX-202405-00004', 'PHARMACY_ORDER', NULL, 2, 'PHARMACY', 'user-ph02', 'Walgreens - LA Downtown', 'PHARMACY_ORDER', 41.99, 0.0800, 3.36, 38.63, 'SETTLED', 2, '2024-05-11 14:30:00'),
+(5, 'CTX-202405-00005', 'APPOINTMENT', 3, NULL, 'DOCTOR', 'user-d03', 'Dr. Michael Chen', 'CONSULTATION_ONLINE', 250.00, 0.1500, 37.50, 212.50, 'SETTLED', 1, '2024-05-12 10:15:00'),
+(6, 'CTX-202405-00006', 'PHARMACY_ORDER', NULL, 3, 'PHARMACY', 'user-ph04', 'CVS Pharmacy - SF', 'PHARMACY_ORDER', 82.99, 0.0800, 6.64, 76.35, 'PENDING', 2, '2024-05-12 14:00:00'),
+(7, 'CTX-202405-00007', 'APPOINTMENT', 5, NULL, 'DOCTOR', 'user-d05', 'Dr. Jessica Williams', 'CONSULTATION_ONLINE', 140.00, 0.1500, 21.00, 119.00, 'SETTLED', 3, '2024-05-16 14:30:00'),
+(8, 'CTX-202405-00008', 'PHARMACY_ORDER', NULL, 5, 'PHARMACY', 'user-ph02', 'Walgreens - LA Downtown', 'PHARMACY_ORDER', 61.99, 0.0800, 4.96, 57.03, 'SETTLED', 2, '2024-05-16 18:00:00'),
+(9, 'CTX-202405-00009', 'APPOINTMENT', 7, NULL, 'DOCTOR', 'user-d07', 'Dr. David Wilson', 'CONSULTATION_OFFLINE', 220.00, 0.1200, 26.40, 193.60, 'PENDING', 3, '2024-05-20 15:00:00'),
+(10, 'CTX-202405-00010', 'PHARMACY_ORDER', NULL, 10, 'PHARMACY', 'user-ph07', 'MedExpress Pharmacy', 'PHARMACY_ORDER', 53.99, 0.0800, 4.32, 49.67, 'PENDING', 2, '2024-05-20 15:30:00');
+SET IDENTITY_INSERT CommissionTransactions OFF;
+
 -- =====================================================
 -- END SEED DATA
--- Total: 26 tables, ~10 records each
+-- Total: 31 tables, mixed sample sizes
 -- =====================================================
 PRINT 'Seed data completed successfully!';
