@@ -64,6 +64,31 @@ public class Doctor {
     @Builder.Default
     private boolean availableForOffline = true;
 
+    // Commission fields
+    @Column(precision = 5, scale = 4)
+    private BigDecimal customCommissionRate;
+
+    @Column(length = 20)
+    @Builder.Default
+    private String commissionTier = "STANDARD";  // STANDARD, PREMIUM, VIP
+
+    @Column(precision = 18, scale = 2)
+    @Builder.Default
+    private BigDecimal totalEarnings = java.math.BigDecimal.ZERO;
+
+    @Column(precision = 18, scale = 2)
+    @Builder.Default
+    private BigDecimal pendingSettlement = java.math.BigDecimal.ZERO;
+
+    @Column(length = 50)
+    private String bankAccount;
+
+    @Column(length = 100)
+    private String bankName;
+
+    @Column(length = 255)
+    private String paypalEmail;
+
     // --- Relationships ---
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "specialtyId")

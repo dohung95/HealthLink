@@ -67,4 +67,14 @@ public class PharmacyOrder {
 
     @Builder.Default
     private LocalDateTime createdAt = LocalDateTime.now();
+
+    // Commission fields
+    @Column(precision = 18, scale = 2)
+    private BigDecimal platformFee;
+
+    @Column(precision = 18, scale = 2)
+    private BigDecimal pharmacyEarning;
+
+    @Column(precision = 5, scale = 4)
+    private BigDecimal commissionRate;
 }
