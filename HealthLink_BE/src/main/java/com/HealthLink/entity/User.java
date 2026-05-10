@@ -21,6 +21,7 @@ public class User {
     private String email;
 
     @Column(name = "EmailConfirmed", nullable = false)
+    @Builder.Default
     private boolean emailConfirmed = false;
 
     @Column(name = "PasswordHash", nullable = false)
@@ -30,6 +31,7 @@ public class User {
     private String phoneNumber;
 
     @Column(name = "AccessFailedCount", nullable = false)
+    @Builder.Default
     private int accessFailedCount = 0;
     
     @Builder.Default

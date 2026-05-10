@@ -10,9 +10,9 @@ import java.time.LocalDateTime;
 @Builder
 public class Message {
     @Id
-    @GeneratedValue(strategy = GenerationType.IDENTITY)
-    @Column(name = "MessageID")
-    private Integer messageId;
+    @GeneratedValue(strategy = GenerationType.UUID)
+    @Column(name = "MessageID", length = 36)
+    private String messageId;
 
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "ChatRoomId", nullable = false)
