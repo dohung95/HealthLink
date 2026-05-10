@@ -61,11 +61,7 @@ public class User {
     private Pharmacy pharmacy;
 
     @ManyToOne(fetch = FetchType.EAGER)
-    @JoinTable(
-        name = "UserRoles",
-        joinColumns = @JoinColumn(name = "UserId"),
-        inverseJoinColumns = @JoinColumn(name = "RoleId")
-    )
+    @JoinColumn(name = "RoleId", nullable = false)
     @ToString.Exclude
     @EqualsAndHashCode.Exclude
     private Role role;
