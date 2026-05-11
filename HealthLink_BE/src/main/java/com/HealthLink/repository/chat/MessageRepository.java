@@ -9,8 +9,10 @@ import org.springframework.stereotype.Repository;
 
 import java.util.List;
 
+import java.util.UUID;
+
 @Repository
-public interface MessageRepository extends JpaRepository<Message, Integer> {
+public interface MessageRepository extends JpaRepository<Message, UUID> {
 
     /**
      * Lấy tất cả tin nhắn trong một phòng chat, sắp xếp theo thời gian tăng dần.
