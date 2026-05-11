@@ -12,7 +12,7 @@ import java.util.List;
 import java.util.UUID;
 
 @Repository
-public interface MessageRepository extends JpaRepository<Message, UUID> {
+public interface MessageRepository extends JpaRepository<Message, String> {
 
     /**
      * Lấy tất cả tin nhắn trong một phòng chat, sắp xếp theo thời gian tăng dần.
