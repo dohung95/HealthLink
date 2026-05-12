@@ -1,4 +1,4 @@
-package com.HealthLink.service.commission.impl;
+package com.HealthLink.service.impl.admin;
 
 import com.HealthLink.dto.commission.*;
 import com.HealthLink.entity.*;
@@ -25,7 +25,7 @@ import java.util.Locale;
 @Service
 @RequiredArgsConstructor
 @Transactional
-public class CommissionServiceImpl implements CommissionService {
+public class AdminCommissionServiceImpl implements CommissionService {
 
     private final CommissionConfigRepository configRepo;
     private final CommissionTransactionRepository transactionRepo;
