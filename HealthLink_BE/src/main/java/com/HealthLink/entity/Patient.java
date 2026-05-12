@@ -21,7 +21,7 @@ public class Patient {
     @EqualsAndHashCode.Exclude
     private User user;
 
-    @Column(name = "FullName", nullable = false)
+    @Column(name = "FullName", nullable = false, columnDefinition = "NVARCHAR(MAX)")
     private String fullName;
 
     private LocalDateTime dateOfBirth;

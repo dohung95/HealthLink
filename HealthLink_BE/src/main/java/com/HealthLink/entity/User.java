@@ -14,7 +14,7 @@ public class User {
     @Column(name = "Id", length = 450)
     private String id;
 
-    @Column(name = "UserName", length = 256, nullable = false)
+    @Column(name = "UserName", length = 256, nullable = false, columnDefinition = "NVARCHAR(MAX)")
     private String username;
 
     @Column(name = "Email", length = 256, nullable = false)

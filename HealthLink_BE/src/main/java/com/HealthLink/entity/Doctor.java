@@ -19,7 +19,7 @@ public class Doctor {
     @JoinColumn(name = "DoctorID")
     private User user;
 
-    @Column(name = "FullName", nullable = false)
+    @Column(name = "FullName", nullable = false, columnDefinition = "NVARCHAR(MAX)")
     private String fullName;
 
     @Column(nullable = false)
