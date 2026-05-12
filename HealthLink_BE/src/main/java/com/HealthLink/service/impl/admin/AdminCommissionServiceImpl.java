@@ -2,9 +2,7 @@ package com.HealthLink.service.impl.admin;
 
 import com.HealthLink.dto.commission.*;
 import com.HealthLink.entity.*;
-import com.HealthLink.repository.commission.CommissionConfigRepository;
-import com.HealthLink.repository.commission.CommissionTransactionRepository;
-import com.HealthLink.repository.commission.SettlementRepository;
+import com.HealthLink.repository.admin.commission.AdminSettlementRepository;
 import com.HealthLink.repository.doctor.DoctorRepository;
 import com.HealthLink.repository.pharmacy.PharmacyRepository;
 import com.HealthLink.service.commission.CommissionService;
@@ -21,15 +19,17 @@ import java.time.format.DateTimeFormatter;
 import java.time.format.DateTimeParseException;
 import java.util.List;
 import java.util.Locale;
+import com.HealthLink.repository.admin.commission.AdminCommissionConfigRepository;
+import com.HealthLink.repository.admin.commission.AdminCommissionTransactionRepository;
 
 @Service
 @RequiredArgsConstructor
 @Transactional
 public class AdminCommissionServiceImpl implements CommissionService {
 
-    private final CommissionConfigRepository configRepo;
-    private final CommissionTransactionRepository transactionRepo;
-    private final SettlementRepository settlementRepo;
+    private final AdminCommissionConfigRepository configRepo;
+    private final AdminCommissionTransactionRepository transactionRepo;
+    private final AdminSettlementRepository settlementRepo;
     private final DoctorRepository doctorRepo;
     private final PharmacyRepository pharmacyRepo;
 
