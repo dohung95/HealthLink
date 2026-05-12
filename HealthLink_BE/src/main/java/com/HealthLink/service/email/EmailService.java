@@ -28,6 +28,7 @@ public class EmailService {
     private String frontendUrl;
 
     // @Async - Temporarily disabled for debugging
+    // gửi email khi được duyệt
     public void sendApprovalEmail(String toEmail, String recipientName, String registrationType, String password) {
         log.info("sendApprovalEmail called - to: {}, name: {}, type: {}", toEmail, recipientName, registrationType);
 
@@ -43,6 +44,7 @@ public class EmailService {
     }
 
     // @Async - Temporarily disabled for debugging
+    // gửi email khi bị từ chối
     public void sendRejectionEmail(String toEmail, String recipientName, String registrationType, String rejectionReason) {
         log.info("sendRejectionEmail called - to: {}, name: {}, type: {}", toEmail, recipientName, registrationType);
         String subject = appName + " - Registration Update";
@@ -50,6 +52,7 @@ public class EmailService {
         sendHtmlEmail(toEmail, subject, content);
     }
 
+    // gửi email khi reset mật khẩu
     public void sendPasswordResetEmail(String toEmail, String recipientName, String token) {
         log.info("sendPasswordResetEmail called - to: {}", toEmail);
         String subject = appName + " - Password Reset Request";
@@ -58,6 +61,15 @@ public class EmailService {
         sendHtmlEmail(toEmail, subject, content);
     }
 
+    // gửi email xác nhận thay đổi email
+    public void sendVerificationEmail(String toEmail, String recipientName, String verificationCode) {
+        log.info("sendVerificationEmail called - to: {}, name: {}, code: {}", toEmail, recipientName, verificationCode);
+        String subject = appName + " - Email Verification";
+        String content = buildEmailVerificationContent(recipientName, verificationCode, toEmail);
+        sendHtmlEmail(toEmail, subject, content);
+    }
+
+    // gửi email thông qua JavaMailSender
     private void sendHtmlEmail(String to, String subject, String htmlContent) {
         log.info("=== START SENDING EMAIL ===");
         log.info("To: {}", to);
@@ -88,6 +100,10 @@ public class EmailService {
         }
     }
 
+
+    // ============================== BUILD EMAIL CONTENT ==============================
+    
+    // build email khi được duyệt
     private String buildApprovalEmailContent(String recipientName, String registrationType, String email, String password) {
         String roleDisplay = "DOCTOR".equals(registrationType) ? "Doctor" : "Pharmacy Partner";
 
@@ -164,6 +180,7 @@ public class EmailService {
             """.formatted(appName, recipientName, roleDisplay, email, password, frontendUrl, appName, appName);
     }
 
+    // build email khi bị từ chối
     private String buildRejectionEmailContent(String recipientName, String registrationType, String rejectionReason) {
         String roleDisplay = "DOCTOR".equals(registrationType) ? "Doctor" : "Pharmacy Partner";
 
@@ -232,6 +249,7 @@ public class EmailService {
             """.formatted(appName, recipientName, appName, roleDisplay, rejectionReason, frontendUrl, appName, appName);
     }
 
+    // build email khi reset mật khẩu
     private String buildPasswordResetEmailContent(String recipientName, String resetLink) {
         return """
             <!DOCTYPE html>
@@ -289,4 +307,57 @@ public class EmailService {
             </html>
             """.formatted(appName, recipientName, resetLink, resetLink, appName, appName);
     }
+
+    // build email khi xác nhận thay đổi email
+    private String buildEmailVerificationContent(String recipientName, String verificationCode, String newEmail) {
+        return String.format("""
+            <!DOCTYPE html>
+            <html>
+            <head>
+                <meta charset="UTF-8">
+                <style>
+                    body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; line-height: 1.6; color: #333; }
+                    .container { max-width: 600px; margin: 0 auto; background: white; border-radius: 12px; box-shadow: 0 4px 20px rgba(0,0,0,0.1); overflow: hidden; }
+                    .header { background: linear-gradient(135deg, #00b09a 0%%, #007a6a 100%%); color: white; padding: 30px; text-align: center; }
+                    .header h1 { margin: 0; font-size: 28px; }
+                    .content { padding: 30px; }
+                    .code-box { background: #f0f9f8; border: 2px solid #00b09a; border-radius: 8px; padding: 20px; text-align: center; margin: 20px 0; }
+                    .code { font-size: 32px; font-weight: bold; color: #00b09a; letter-spacing: 3px; font-family: monospace; }
+                    .note { background: #fef3c7; border: 1px solid #fcd34d; border-radius: 8px; padding: 15px; margin: 20px 0; font-size: 14px; color: #92400e; }
+                    .footer { background: #f8fafc; padding: 20px; text-align: center; color: #64748b; font-size: 13px; border-top: 1px solid #e2e8f0; }
+                </style>
+            </head>
+            <body>
+                <div class="container">
+                    <div class="header">
+                        <h1>Email Verification</h1>
+                    </div>
+                    <div class="content">
+                        <p>Dear <strong>%s</strong>,</p>
+                        <p>You have requested to change your email address to:<br><strong>%s</strong></p>
+                        <p>To confirm this change, please use the verification code below:</p>
+                        
+                        <div class="code-box">
+                            <div class="code">%s</div>
+                        </div>
+                        
+                        <p>This code will expire in 24 hours.</p>
+                        
+                        <div class="note">
+                            <strong>⚠️ Security Note:</strong> If you did not request this email change, please ignore this email or contact our support team immediately.
+                        </div>
+                        
+                        <p>Best regards,<br><strong>HealthLink Team</strong></p>
+                    </div>
+                    <div class="footer">
+                        <p>&copy; 2026 HealthLink. All rights reserved.</p>
+                    </div>
+                </div>
+            </body>
+            </html>
+            """, recipientName, newEmail, verificationCode);
+    }
+
+    // ==================================== END BUILD EMAIL CONTENT ===================================
+
 }

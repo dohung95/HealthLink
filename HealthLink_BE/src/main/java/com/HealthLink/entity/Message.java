@@ -16,7 +16,7 @@ public class Message {
     @Id
     @GeneratedValue(strategy = GenerationType.UUID)
     @Column(name = "MessageID", columnDefinition = "VARCHAR(36)")
-    private UUID messageId;
+    private String messageId;
 
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "ChatRoomId", nullable = false)
