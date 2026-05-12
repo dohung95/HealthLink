@@ -34,6 +34,5 @@ public interface DoctorRepository extends JpaRepository<Doctor, String> {
      */
     @Query("SELECT d FROM Doctor d JOIN FETCH d.user WHERE d.doctorId = :doctorId")
     Optional<Doctor> findByIdWithUser(@Param("doctorId") String doctorId);
-            @Param("name") String name);
 }
 
