@@ -308,6 +308,11 @@ public class PharmacyOrderServiceImpl implements PharmacyOrderService {
                 .cancelledAt(o.getCancelledAt())
                 .cancelReason(o.getCancelReason())
                 .createdAt(o.getCreatedAt())
+                // Commission fields – ánh xạ từ PharmacyOrder entity
+                // ⚠️ Controller phải lọc bỏ các trường này khi trả về cho Patient
+                .platformFee(o.getPlatformFee())
+                .pharmacyEarning(o.getPharmacyEarning())
+                .commissionRate(o.getCommissionRate())
                 .build();
     }
 }

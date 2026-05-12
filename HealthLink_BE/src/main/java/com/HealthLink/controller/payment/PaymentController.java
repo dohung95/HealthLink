@@ -7,7 +7,9 @@ import com.HealthLink.service.payment.FinanceService;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
+
 
 import java.util.List;
 import java.util.Map;
@@ -52,10 +54,18 @@ public class PaymentController {
 
     /**
      * Lấy chi tiết hóa đơn và trạng thái thanh toán theo ID hóa đơn.
+     * Trường {@code platformFee}, {@code doctorEarning} và {@code commissionRate}
+     * chỉ hiển thị cho Admin và đối tác liên quan (DOCTOR / PHARMACY);
+     * bệnh nhân chỉ nhận thông tin chi phí cơ bản.
      *
      * GET /api/payment/invoices/{id}
+     *
+     * @param id ID hóa đơn
+     * @return {@link InvoiceResponse} chứa thông tin đầy đủ (Admin/Doctor/Pharmacy)
+     *         hoặc thông tin rút gọn (Patient – commission fields = null)
      */
     @GetMapping("/invoices/{id}")
+    @PreAuthorize("hasAnyRole('ADMIN', 'DOCTOR', 'PHARMACY', 'PATIENT')")
     public ResponseEntity<InvoiceResponse> getInvoice(@PathVariable Integer id) {
         return ResponseEntity.ok(financeService.getInvoice(id));
     }

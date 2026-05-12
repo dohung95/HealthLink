@@ -5,10 +5,13 @@
 
 -- 1. ROLES (4 basic roles)
 INSERT INTO Roles (Id, Name) VALUES
-('admin', 'Admin'),
-('doctor', 'Doctor'),
-('patient', 'Patient'),
-('pharmacy', 'Pharmacy');
+('admin', 'ADMIN'),
+('doctor', 'DOCTOR'),
+('patient', 'PATIENT'),
+('pharmacy', 'PHARMACY');
+
+
+
 
 -- 2. SPECIALTIES (10 specialties)
 SET IDENTITY_INSERT Specialties ON;
@@ -25,10 +28,15 @@ INSERT INTO Specialties (SpecialtyID, name, nameEn, description, iconUrl, Active
 (10, 'Dentistry', 'Dentistry', 'Dental care and treatment', '/icons/dental.png', 1, 10);
 SET IDENTITY_INSERT Specialties OFF;
 
+
+
+
 -- 3. USERS (30 users: 10 doctors, 10 patients, 10 pharmacies)
 INSERT INTO Users (Id, UserName, Email, EmailConfirmed, PasswordHash, PhoneNumber, AccessFailedCount, CreatedDate, Status, LastLoginAt, RoleId) VALUES
+-- Admin account
+('user-a01', 'admin01', 'admin01@healthlink.com', 1, '$2a$12$9fhvTHtCwHXZJukaszjZxeZDewPWYg.pA8Qz2N2uM7vsiRnjR.8jW', '0902000001', 0, '2024-01-01', 'Active', '2024-05-01', 'admin'),
 -- Doctors (user-d01 to user-d10)
-('user-d01', 'doctor01', 'doctor01@healthlink.com', 1, '$2a$10$hashedpassword1', '0901000001', 0, '2024-01-01', 'Active', '2024-05-01', 'doctor'),
+('user-d01', 'doctor01', 'doctor01@healthlink.com', 1, '$2a$12$5Ob6OVCa9uc1a407XSVTLeHCcOjwpn6Qyjx98.sGDHkQzLGL1Elae', '0901000001', 0, '2024-01-01', 'Active', '2024-05-01', 'doctor'),
 ('user-d02', 'doctor02', 'doctor02@healthlink.com', 1, '$2a$10$hashedpassword2', '0901000002', 0, '2024-01-02', 'Active', '2024-05-02', 'doctor'),
 ('user-d03', 'doctor03', 'doctor03@healthlink.com', 1, '$2a$10$hashedpassword3', '0901000003', 0, '2024-01-03', 'Active', '2024-05-03', 'doctor'),
 ('user-d04', 'doctor04', 'doctor04@healthlink.com', 1, '$2a$10$hashedpassword4', '0901000004', 0, '2024-01-04', 'Active', '2024-05-04', 'doctor'),
@@ -50,7 +58,7 @@ INSERT INTO Users (Id, UserName, Email, EmailConfirmed, PasswordHash, PhoneNumbe
 ('user-p09', 'patient09', 'patient09@gmail.com', 1, '$2a$10$hashedpassword19', '0912000009', 0, '2024-02-09', 'Active', '2024-05-09', 'patient'),
 ('user-p10', 'patient10', 'patient10@gmail.com', 1, '$2a$10$hashedpassword20', '0912000010', 0, '2024-02-10', 'Active', '2024-05-10', 'patient'),
 -- Pharmacies (user-ph01 to user-ph10)
-('user-ph01', 'pharmacy01', 'pharmacy01@healthlink.com', 1, '$2a$10$hashedpassword21', '0923000001', 0, '2024-03-01', 'Active', '2024-05-01', 'pharmacy'),
+('user-ph01', 'pharmacy01', 'pharmacy01@healthlink.com', 1, '$2a$12$TjB5jD7tXAoIKQdPvLc9ZO./LwqdogkUoK31A0K4KcP..940QJSN6', '0923000001', 0, '2024-03-01', 'Active', '2024-05-01', 'pharmacy'),
 ('user-ph02', 'pharmacy02', 'pharmacy02@healthlink.com', 1, '$2a$10$hashedpassword22', '0923000002', 0, '2024-03-02', 'Active', '2024-05-02', 'pharmacy'),
 ('user-ph03', 'pharmacy03', 'pharmacy03@healthlink.com', 1, '$2a$10$hashedpassword23', '0923000003', 0, '2024-03-03', 'Active', '2024-05-03', 'pharmacy'),
 ('user-ph04', 'pharmacy04', 'pharmacy04@healthlink.com', 1, '$2a$10$hashedpassword24', '0923000004', 0, '2024-03-04', 'Active', '2024-05-04', 'pharmacy'),
@@ -462,3 +470,5 @@ SET IDENTITY_INSERT CommissionTransactions OFF;
 -- Total: 31 tables, mixed sample sizes
 -- =====================================================
 PRINT 'Seed data completed successfully!';
+
+

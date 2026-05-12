@@ -1,29 +1,30 @@
-/*
- * Click nbfs://nbhost/SystemFileSystem/Templates/Licenses/license-default.txt to change this license
- * Click nbfs://nbhost/SystemFileSystem/Templates/Classes/Interface.java to edit this template
- */
 package com.HealthLink.service.doctor;
 
+import com.HealthLink.dto.response.DoctorProfileResponse;
 import com.HealthLink.dto.response.DoctorResponse;
 import com.HealthLink.dto.response.DoctorScheduleResponse;
 import java.util.List;
 
 /**
- *
- * @author ASUS
+ * Service interface cho các tính năng liên quan đến Bác sĩ.
  */
 public interface DoctorService {
     /**
-     * Get all doctors, optionally filtered by specialty and/or name.
-     * @param specialty
-     * @param name
-     * @return 
+     * Lấy danh sách bác sĩ, có thể lọc theo chuyên khoa và/hoặc tên.
      */
     List<DoctorResponse> getAllDoctors(String specialty, String name);
+
     /**
-     * Get work schedules for a specific doctor.
-     * @param doctorId
-     * @return 
+     * Lấy lịch làm việc của một bác sĩ cụ thể.
      */
     List<DoctorScheduleResponse> getDoctorSchedules(String doctorId);
+
+    /**
+     * Lấy hồ sơ đầy đủ của bác sĩ bao gồm thông tin thu nhập và chiết khấu.
+     * Chỉ dành cho chính bác sĩ đó hoặc Admin.
+     *
+     * @param doctorId ID bác sĩ
+     * @return DoctorProfileResponse với đầy đủ thông tin tài chính
+     */
+    DoctorProfileResponse getDoctorProfile(String doctorId);
 }
