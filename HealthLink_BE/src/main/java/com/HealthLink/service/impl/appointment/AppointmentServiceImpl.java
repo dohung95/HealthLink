@@ -22,6 +22,7 @@ import org.springframework.transaction.annotation.Transactional;
 import java.time.LocalDateTime;
 import java.time.LocalTime;
 import java.util.List;
+import java.util.Objects;
 import java.util.stream.Collectors;
 
 @Service
@@ -76,8 +77,7 @@ public class AppointmentServiceImpl implements AppointmentService{
                 + requestedTime + " for consultation type " + request.getConsultationType()));
 
         // Check for schedule conflicts
-        int slotMinutes = matchedSchedule.getSlotDuration() != null
-                ? matchedSchedule.getSlotDuration() : 30;
+        int slotMinutes = Objects.requireNonNullElse(matchedSchedule.getSlotDuration(), 30);
 
         // Appointment mới bị conflict nếu có appointment khác bắt đầu trong khoảng đó
         LocalDateTime slotStart = appointmentTime;
@@ -233,8 +233,7 @@ public class AppointmentServiceImpl implements AppointmentService{
                 + newRequestedTime + " for consultation type " + appointment.getConsultationType()));
 
         // Kiểm tra conflict tại slot mới (bỏ qua chính appointment này)
-        int slotMinutes = matchedSchedule.getSlotDuration() != null
-                ? matchedSchedule.getSlotDuration() : 30;
+        int slotMinutes = Objects.requireNonNullElse(matchedSchedule.getSlotDuration(), 30);
         LocalDateTime slotStart = newTime;
         LocalDateTime slotEnd = newTime.plusMinutes(slotMinutes);
 
