@@ -30,7 +30,8 @@ public class UserDetailsServiceImpl implements UserDetailsService {
         // Chuyển Role thành GrantedAuthority
         Collection<GrantedAuthority> authorities = (user.getRole() == null)
                 ? new java.util.ArrayList<>()
-                : java.util.List.of(new SimpleGrantedAuthority("ROLE_" + user.getRole().getName()));
+                : java.util.List.of(new SimpleGrantedAuthority(
+                        "ROLE_" + user.getRole().getName().toUpperCase()));
 
         return org.springframework.security.core.userdetails.User
                 .withUsername(user.getEmail())

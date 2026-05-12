@@ -3,6 +3,7 @@ package com.HealthLink.exception;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.access.AccessDeniedException;
 import org.springframework.security.authentication.BadCredentialsException;
 import org.springframework.security.authentication.DisabledException;
 import org.springframework.security.authentication.LockedException;
@@ -56,6 +57,33 @@ public class GlobalExceptionHandler {
     @ExceptionHandler(InvoiceNotFoundException.class)
     public ResponseEntity<Map<String, Object>> handleInvoiceNotFound(InvoiceNotFoundException ex) {
         return buildResponse(HttpStatus.NOT_FOUND, ex.getMessage());
+    }
+
+    // -------------------------------------------------------------------------
+    // 400 – Số dư không đủ điều kiện rút tiền
+    // -------------------------------------------------------------------------
+    @ExceptionHandler(InsufficientBalanceException.class)
+    public ResponseEntity<Map<String, Object>> handleInsufficientBalance(InsufficientBalanceException ex) {
+        log.warn("Insufficient balance for withdrawal: {}", ex.getMessage());
+        return buildResponse(HttpStatus.BAD_REQUEST, ex.getMessage());
+    }
+
+    // -------------------------------------------------------------------------
+    // 403 – Đối tác truy cập tài nguyên không thuộc quyền
+    // -------------------------------------------------------------------------
+    @ExceptionHandler(UnauthorizedAccessException.class)
+    public ResponseEntity<Map<String, Object>> handleUnauthorizedAccess(UnauthorizedAccessException ex) {
+        log.warn("Unauthorized partner access: {}", ex.getMessage());
+        return buildResponse(HttpStatus.FORBIDDEN, ex.getMessage());
+    }
+
+    // -------------------------------------------------------------------------
+    // 403 – Spring Security access denied
+    // -------------------------------------------------------------------------
+    @ExceptionHandler(AccessDeniedException.class)
+    public ResponseEntity<Map<String, Object>> handleAccessDenied(AccessDeniedException ex) {
+        log.warn("Access denied: {}", ex.getMessage());
+        return buildResponse(HttpStatus.FORBIDDEN, ex.getMessage());
     }
 
     // -------------------------------------------------------------------------
