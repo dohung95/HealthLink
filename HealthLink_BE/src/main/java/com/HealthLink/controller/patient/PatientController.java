@@ -1,5 +1,7 @@
 package com.HealthLink.controller.patient;
 
+import com.HealthLink.dto.auth.ChangeEmailRequest;
+import com.HealthLink.dto.auth.VerifyEmailChangeRequest;
 import com.HealthLink.dto.patient.*;
 import com.HealthLink.exception.ResourceNotFoundException;
 import com.HealthLink.repository.auth.UserRepository;
@@ -77,7 +79,7 @@ public class PatientController {
      * Yêu cầu thay đổi email - gửi verification code qua email
      * Yêu cầu: JWT token hợp lệ + password hiện tại để xác nhận
      */
-    @PostMapping("/email/request-change")
+    @PostMapping("auth/email/request-change")
     public ResponseEntity<String> requestEmailChange(
             @Valid @RequestBody ChangeEmailRequest request,
             @AuthenticationPrincipal UserDetails userDetails) {
@@ -91,7 +93,7 @@ public class PatientController {
      * Xác nhận thay đổi email với verification code
      * Yêu cầu: JWT token hợp lệ + verification code
      */
-    @PostMapping("/email/verify-change")
+    @PostMapping("auth/email/verify-change")
     public ResponseEntity<PatientProfileDTO> verifyEmailChange(
             @Valid @RequestBody VerifyEmailChangeRequest request,
             @AuthenticationPrincipal UserDetails userDetails) {

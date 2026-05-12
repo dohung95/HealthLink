@@ -27,4 +27,24 @@ public interface DoctorService {
      * @return DoctorProfileResponse với đầy đủ thông tin tài chính
      */
     DoctorProfileResponse getDoctorProfile(String doctorId);
+
+    /**
+     * Cập nhật thông tin do bác sĩ được phép thay đổi.
+     * Chỉ cho phép bác sĩ cập nhật các trường hạn chế.
+     *
+     * @param doctorId ID bác sĩ
+     * @param updateRequest dữ liệu cần cập nhật
+     * @return DoctorProfileResponse sau khi cập nhật
+     */
+    DoctorProfileResponse updateDoctorProfile(String doctorId, com.HealthLink.dto.doctor.DoctorUpdateRequest updateRequest);
+
+    /**
+     * Yêu cầu đổi email - gửi mã xác nhận về email mới.
+     */
+    String requestEmailChange(String doctorId, com.HealthLink.dto.auth.ChangeEmailRequest request);
+
+    /**
+     * Xác nhận đổi email với mã code.
+     */
+    DoctorProfileResponse verifyEmailChange(String doctorId, com.HealthLink.dto.auth.VerifyEmailChangeRequest request);
 }
