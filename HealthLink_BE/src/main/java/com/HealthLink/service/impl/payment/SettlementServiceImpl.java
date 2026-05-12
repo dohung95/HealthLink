@@ -9,7 +9,7 @@ import com.HealthLink.entity.Settlement;
 import com.HealthLink.exception.BadRequestException;
 import com.HealthLink.exception.PayPalIntegrationException;
 import com.HealthLink.repository.doctor.DoctorRepository;
-import com.HealthLink.repository.payment.SettlementRepository;
+import com.HealthLink.repository.payment.PaymentSettlementRepository;
 import com.HealthLink.repository.pharmacy.PharmacyRepository;
 import com.HealthLink.service.payment.SettlementService;
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -74,7 +74,7 @@ public class SettlementServiceImpl implements SettlementService {
     private final RestTemplate       restTemplate;
 
     private final ObjectMapper       objectMapper;
-    private final SettlementRepository  settlementRepository;
+    private final PaymentSettlementRepository  settlementRepository;
     private final DoctorRepository      doctorRepository;
     private final PharmacyRepository    pharmacyRepository;
 

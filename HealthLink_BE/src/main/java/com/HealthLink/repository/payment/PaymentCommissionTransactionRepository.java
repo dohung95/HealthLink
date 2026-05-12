@@ -15,7 +15,7 @@ import java.util.List;
  * Cung cấp các truy vấn để truy xuất lịch sử giao dịch và báo cáo doanh thu.
  */
 @Repository
-public interface CommissionTransactionRepository extends JpaRepository<CommissionTransaction, Integer> {
+public interface PaymentCommissionTransactionRepository extends JpaRepository<CommissionTransaction, Integer> {
 
     /**
      * Lấy danh sách giao dịch của một đối tác (Doctor/Pharmacy) theo recipientId.

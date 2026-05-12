@@ -3,7 +3,7 @@ package com.HealthLink.service.impl.payment;
 import com.HealthLink.dto.payment.AdminRevenueReportResponse;
 import com.HealthLink.dto.payment.CommissionTransactionResponse;
 import com.HealthLink.entity.CommissionTransaction;
-import com.HealthLink.repository.payment.CommissionTransactionRepository;
+import com.HealthLink.repository.payment.PaymentCommissionTransactionRepository;
 import com.HealthLink.service.payment.AdminReportService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -31,7 +31,7 @@ public class AdminReportServiceImpl implements AdminReportService {
     private static final String SOURCE_APPOINTMENT = "APPOINTMENT";
     private static final String SOURCE_ORDER       = "PHARMACY_ORDER";
 
-    private final CommissionTransactionRepository commissionTransactionRepository;
+    private final PaymentCommissionTransactionRepository commissionTransactionRepository;
 
     // ========================================================================
     // Báo cáo theo Ngày

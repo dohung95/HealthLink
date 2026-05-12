@@ -9,7 +9,7 @@ import com.HealthLink.entity.Pharmacy;
 import com.HealthLink.entity.PharmacyOrder;
 import com.HealthLink.exception.BadRequestException;
 import com.HealthLink.repository.doctor.DoctorRepository;
-import com.HealthLink.repository.payment.CommissionTransactionRepository;
+import com.HealthLink.repository.payment.PaymentCommissionTransactionRepository;
 import com.HealthLink.repository.payment.InvoiceRepository;
 import com.HealthLink.repository.payment.PaymentRepository;
 import com.HealthLink.repository.pharmacy.PharmacyOrderRepository;
@@ -53,7 +53,7 @@ public class CommissionServiceImpl implements CommissionService {
 
     // ── Phụ thuộc ─────────────────────────────────────────────────────────────
     private final FeeCalculatorService              feeCalculatorService;
-    private final CommissionTransactionRepository   commissionTransactionRepository;
+    private final PaymentCommissionTransactionRepository   commissionTransactionRepository;
     private final InvoiceRepository                 invoiceRepository;
     private final PharmacyOrderRepository           pharmacyOrderRepository;
     private final DoctorRepository                  doctorRepository;

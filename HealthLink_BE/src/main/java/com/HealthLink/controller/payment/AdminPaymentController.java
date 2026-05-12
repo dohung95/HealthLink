@@ -5,8 +5,8 @@ import com.HealthLink.dto.payment.CommissionConfigDTO;
 import com.HealthLink.dto.payment.SettlementResponse;
 import com.HealthLink.entity.CommissionConfig;
 import com.HealthLink.exception.BadRequestException;
-import com.HealthLink.repository.payment.CommissionConfigRepository;
-import com.HealthLink.repository.payment.SettlementRepository;
+import com.HealthLink.repository.payment.PaymentCommissionConfigRepository;
+import com.HealthLink.repository.payment.PaymentSettlementRepository;
 import com.HealthLink.service.payment.AdminReportService;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
@@ -41,8 +41,8 @@ import java.util.stream.Collectors;
 public class AdminPaymentController {
 
     private final AdminReportService           adminReportService;
-    private final SettlementRepository         settlementRepository;
-    private final CommissionConfigRepository   commissionConfigRepository;
+    private final PaymentSettlementRepository         settlementRepository;
+    private final PaymentCommissionConfigRepository   commissionConfigRepository;
 
     // ═══════════════════════════════════════════════════════════════════════
     // GET /api/payment/admin/reports/revenue
