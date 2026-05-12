@@ -17,6 +17,7 @@ import com.HealthLink.repository.payment.InvoiceRepository;
 import com.HealthLink.repository.payment.PaymentRepository;
 import com.HealthLink.repository.pharmacy.PharmacyOrderRepository;
 import com.HealthLink.repository.prescription.PrescriptionHeaderRepository;
+import com.HealthLink.service.payment.CommissionService;
 import com.HealthLink.service.payment.FinanceService;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import lombok.RequiredArgsConstructor;
@@ -84,6 +85,9 @@ public class FinanceServiceImpl implements FinanceService {
     private final PaymentRepository              paymentRepository;
     private final PrescriptionHeaderRepository   prescriptionHeaderRepository;
     private final PharmacyOrderRepository        pharmacyOrderRepository;
+
+    /** Service xử lý logic chiết khấu sau khi thanh toán thành công */
+    private final CommissionService              commissionService;
 
     // ========================================================================
     // Tác vụ 3.1 – Tạo hóa đơn
@@ -342,6 +346,16 @@ public class FinanceServiceImpl implements FinanceService {
                 invoice.setPaidAt(LocalDateTime.now());
                 invoiceRepository.save(invoice);
 
+                // Tự động xử lý commission sau khi thanh toán thành công
+                // Tạo CommissionTransaction, cập nhật thu nhập Doctor và snapshot vào Invoice
+                try {
+                    commissionService.processConsultationCommission(invoice);
+                } catch (Exception ex) {
+                    // Ghi log lỗi nhưng không rollback giao dịch thanh toán đã thành công
+                    log.error("Commission processing failed for invoice {}: {}",
+                            invoice.getInvoiceId(), ex.getMessage(), ex);
+                }
+
                 log.info("Payment SUCCESS – invoice {} paid via PayPal order {}",
                         invoice.getInvoiceId(), request.getOrderId());
 
@@ -490,6 +504,11 @@ public class FinanceServiceImpl implements FinanceService {
                 .dueDate(invoice.getDueDate())
                 .paidAt(invoice.getPaidAt())
                 .notes(invoice.getNotes())
+                // Commission fields – ánh xạ từ Invoice entity
+                // ⚠️ Controller phải lọc bỏ các trường này khi trả về cho Patient
+                .platformFee(invoice.getPlatformFee())
+                .doctorEarning(invoice.getDoctorEarning())
+                .commissionRate(invoice.getCommissionRate())
                 .payments(paymentSummaries)
                 .build();
     }

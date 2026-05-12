@@ -41,6 +41,16 @@ public class InvoiceResponse {
 
     private String notes;
 
+    // --- Thông tin chiết khấu (CHỈ hiển thị cho Doctor/Admin, KHÔNG trả về cho Patient) ---
+    /** Phí nền tảng đã khấu trừ (USD) */
+    private BigDecimal platformFee;
+
+    /** Số tiền Bác sĩ thực nhận sau chiết khấu (USD) */
+    private BigDecimal doctorEarning;
+
+    /** Tỷ lệ chiết khấu đã áp dụng cho hóa đơn này (ví dụ: 0.1500 = 15%) */
+    private BigDecimal commissionRate;
+
     /** Tổng hợp các khoản thanh toán riêng lẻ liên kết với hóa đơn này */
     private List<PaymentSummary> payments;
 

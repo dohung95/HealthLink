@@ -7,6 +7,7 @@ import org.springframework.data.repository.query.Param;
 import org.springframework.stereotype.Repository;
 
 import java.util.List;
+import java.util.Optional;
 
 // Hỗ trợ tìm kiếm bác sĩ theo chuyên khoa và tên
 @Repository
@@ -25,5 +26,14 @@ public interface DoctorRepository extends JpaRepository<Doctor, String> {
             + "    OR (se IS NULL AND d.specialty LIKE %:specialty%)) AND "
             + "(:name IS NULL OR d.fullName LIKE %:name%)")
     List<Doctor> findByFilters(@Param("specialty") String specialty,
+                               @Param("name") String name);
+
+    /**
+     * Tìm Doctor kèm User (JOIN FETCH) để tránh LazyInitializationException
+     * với @OneToOne @MapsId khi dùng ngoài transaction.
+     */
+    @Query("SELECT d FROM Doctor d JOIN FETCH d.user WHERE d.doctorId = :doctorId")
+    Optional<Doctor> findByIdWithUser(@Param("doctorId") String doctorId);
             @Param("name") String name);
 }
+

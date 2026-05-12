@@ -1,12 +1,16 @@
 package com.HealthLink.dto.pharmacy;
 
+import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
+import lombok.NoArgsConstructor;
 
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
 
 @Data
+@NoArgsConstructor
+@AllArgsConstructor
 @Builder
 public class PharmacyOrderResponse {
 
@@ -58,4 +62,14 @@ public class PharmacyOrderResponse {
     private LocalDateTime cancelledAt;
     private String cancelReason;
     private LocalDateTime createdAt;
+
+    // --- Thông tin chiết khấu (CHỈ hiển thị cho Pharmacy/Admin, KHÔNG trả về cho Patient) ---
+    /** Phí nền tảng đã khấu trừ (USD) */
+    private BigDecimal platformFee;
+
+    /** Số tiền Nhà thuốc thực nhận sau chiết khấu (USD) */
+    private BigDecimal pharmacyEarning;
+
+    /** Snapshot tỷ lệ chiết khấu đã áp dụng (ví dụ: 0.1000 = 10%) */
+    private BigDecimal commissionRate;
 }

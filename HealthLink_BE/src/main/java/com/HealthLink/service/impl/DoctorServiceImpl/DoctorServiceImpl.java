@@ -1,5 +1,6 @@
 package com.HealthLink.service.impl.DoctorServiceImpl;
 
+import com.HealthLink.dto.response.DoctorProfileResponse;
 import com.HealthLink.dto.response.DoctorResponse;
 import com.HealthLink.dto.response.DoctorScheduleResponse;
 import com.HealthLink.entity.Doctor;
@@ -19,7 +20,7 @@ import java.util.stream.Collectors;
 @Service
 @RequiredArgsConstructor
 @Transactional(readOnly = true)
-public class DoctorServiceImpl implements DoctorService{
+public class DoctorServiceImpl implements DoctorService {
 
     private final DoctorRepository doctorRepository;
     private final DoctorScheduleRepository scheduleRepository;
@@ -27,10 +28,9 @@ public class DoctorServiceImpl implements DoctorService{
     private static final String[] DAY_NAMES =
             {"Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"};
 
-    // get list doctor, filter by name or specialty (param can null to foward filter)
+    // Lấy danh sách bác sĩ, lọc theo tên hoặc chuyên khoa (param có thể null để bỏ qua lọc)
     @Override
     public List<DoctorResponse> getAllDoctors(String specialty, String name) {
-        // Convert empty string to null so JPQL ignores the condition
         String specialtyFilter = (specialty != null && specialty.isBlank()) ? null : specialty;
         String nameFilter = (name != null && name.isBlank()) ? null : name;
 
@@ -40,7 +40,7 @@ public class DoctorServiceImpl implements DoctorService{
                 .collect(Collectors.toList());
     }
 
-    // get list work schedule of doctor
+    // Lấy danh sách lịch làm việc của bác sĩ
     @Override
     public List<DoctorScheduleResponse> getDoctorSchedules(String doctorId) {
         doctorRepository.findById(doctorId)
@@ -53,12 +53,57 @@ public class DoctorServiceImpl implements DoctorService{
                 .collect(Collectors.toList());
     }
 
+    /**
+     * Lấy hồ sơ đầy đủ của bác sĩ bao gồm thông tin thu nhập/chiết khấu.
+     * Chỉ dành cho chính bác sĩ đó hoặc Admin.
+     */
+    @Override
+    public DoctorProfileResponse getDoctorProfile(String doctorId) {
+        Doctor d = doctorRepository.findById(doctorId)
+                .orElseThrow(() -> new ResourceNotFoundException(
+                        "Not found doctor with ID: " + doctorId));
+
+        List<String> availableTypes = new ArrayList<>();
+        if (d.isAvailableForVideo())   availableTypes.add("Video");
+        if (d.isAvailableForAudio())   availableTypes.add("Audio");
+        if (d.isAvailableForChat())    availableTypes.add("Chat");
+        if (d.isAvailableForOffline()) availableTypes.add("Offline");
+
+        String specialtyName = (d.getSpecialtyEntity() != null)
+                ? d.getSpecialtyEntity().getName()
+                : d.getSpecialty();
+
+        return DoctorProfileResponse.builder()
+                .doctorId(d.getDoctorId())
+                .fullName(d.getFullName())
+                .specialty(specialtyName)
+                .qualifications(d.getQualifications())
+                .yearsOfExperience(d.getYearsOfExperience())
+                .languageSpoken(d.getLanguageSpoken())
+                .location(d.getLocation())
+                .avatarUrl(d.getAvatarUrl())
+                .bio(d.getBio())
+                .clinicName(d.getClinicName())
+                .clinicAddress(d.getClinicAddress())
+                .consultationFee(d.getConsultationFee())
+                .averageRating(d.getAverageRating())
+                .totalReviews(d.getTotalReviews())
+                .verified(d.isVerified())
+                .availableTypes(availableTypes)
+                // --- Trường tài chính chiết khấu ---
+                .totalEarnings(d.getTotalEarnings())
+                .pendingSettlement(d.getPendingSettlement())
+                .paypalEmail(d.getPaypalEmail())
+                .commissionTier(d.getCommissionTier())
+                .build();
+    }
+
     // -------------------------------------------------------------------------
     // Private helpers
     // -------------------------------------------------------------------------
 
     /**
-     * Convert Doctor entity to DoctorResponse DTO.
+     * Chuyển đổi Doctor entity thành DoctorResponse DTO (công khai, dùng cho bệnh nhân tìm kiếm).
      */
     private DoctorResponse toResponse(Doctor d) {
         List<String> availableTypes = new ArrayList<>();
@@ -67,7 +112,6 @@ public class DoctorServiceImpl implements DoctorService{
         if (d.isAvailableForChat())    availableTypes.add("Chat");
         if (d.isAvailableForOffline()) availableTypes.add("Offline");
 
-        // Prioritize getting the name from specialtyEntity, fallback to specialty field (String)
         String specialtyName = (d.getSpecialtyEntity() != null)
                 ? d.getSpecialtyEntity().getName()
                 : d.getSpecialty();
@@ -90,7 +134,7 @@ public class DoctorServiceImpl implements DoctorService{
     }
 
     /**
-     * Convert DoctorSchedule entity to DoctorScheduleResponse DTO.
+     * Chuyển đổi DoctorSchedule entity thành DoctorScheduleResponse DTO.
      */
     private DoctorScheduleResponse toScheduleResponse(DoctorSchedule s) {
         int day = s.getDayOfWeek() != null ? s.getDayOfWeek() : 0;
