@@ -13,16 +13,17 @@ import java.util.List;
 public interface DoctorRepository extends JpaRepository<Doctor, String> {
 
     /**
-     * Tìm bác sĩ theo filter chuyên khoa và/hoặc tên.
-     * Nếu tham số null thì bỏ qua điều kiện đó.
+     * Tìm bác sĩ theo filter chuyên khoa và/hoặc tên. Nếu tham số null thì bỏ
+     * qua điều kiện đó.
      *
      * @param specialty tên chuyên khoa (tìm kiếm gần đúng)
-     * @param name      tên bác sĩ (tìm kiếm gần đúng)
-     * @return 
+     * @param name tên bác sĩ (tìm kiếm gần đúng)
+     * @return
      */
-    @Query("SELECT d FROM Doctor d LEFT JOIN d.specialtyEntity se WHERE " +
-           "(:specialty IS NULL OR se.name LIKE %:specialty%) AND " +
-           "(:name IS NULL OR d.fullName LIKE %:name%)")
+    @Query("SELECT d FROM Doctor d LEFT JOIN d.specialtyEntity se WHERE "
+            + "(:specialty IS NULL OR se.name LIKE %:specialty% "
+            + "    OR (se IS NULL AND d.specialty LIKE %:specialty%)) AND "
+            + "(:name IS NULL OR d.fullName LIKE %:name%)")
     List<Doctor> findByFilters(@Param("specialty") String specialty,
-                               @Param("name") String name);
+            @Param("name") String name);
 }
