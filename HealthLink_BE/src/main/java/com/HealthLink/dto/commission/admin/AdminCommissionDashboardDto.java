@@ -1,4 +1,4 @@
-package com.HealthLink.dto.commission;
+package com.HealthLink.dto.commission.admin;
 
 import lombok.*;
 
@@ -9,7 +9,7 @@ import java.util.List;
 @NoArgsConstructor
 @AllArgsConstructor
 @Builder
-public class CommissionDashboardDto {
+public class AdminCommissionDashboardDto {
     private BigDecimal totalGrossRevenue;
     private BigDecimal totalCommission;
     private BigDecimal totalPaidOut;
@@ -21,7 +21,7 @@ public class CommissionDashboardDto {
     private Integer totalTransactions;
     private Integer pendingTransactions;
     private Integer pendingSettlements;
-    private List<RecipientSummaryDto> topDoctorsPending;
-    private List<RecipientSummaryDto> topPharmaciesPending;
-    private List<MonthlyCommissionDto> monthlyData;
+    private List<AdminRecipientSummaryDto> topDoctorsPending;
+    private List<AdminRecipientSummaryDto> topPharmaciesPending;
+    private List<AdminMonthlyCommissionDto> monthlyData;
 }

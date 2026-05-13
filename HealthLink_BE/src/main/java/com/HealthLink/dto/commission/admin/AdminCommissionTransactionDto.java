@@ -1,4 +1,4 @@
-package com.HealthLink.dto.commission;
+package com.HealthLink.dto.commission.admin;
 
 import lombok.*;
 
@@ -9,7 +9,7 @@ import java.time.LocalDateTime;
 @NoArgsConstructor
 @AllArgsConstructor
 @Builder
-public class CommissionTransactionDto {
+public class AdminCommissionTransactionDto {
     private Integer transactionId;
     private String transactionNumber;
     private String sourceType;

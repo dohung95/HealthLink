@@ -97,6 +97,43 @@ export const doctorsApi = {
   }
 };
 
+// ==================== PHARMACIES API ====================
+
+export const pharmaciesApi = {
+  getAll: async (params = {}) => {
+    const { pageNumber = 1, pageSize = 10, searchTerm = '', status = '', city = '', verified = '', sortBy = 'newest' } = params;
+    const response = await adminApi.get('/adminpharmacies', {
+      params: { pageNumber, pageSize, searchTerm, status, city, verified, sortBy }
+    });
+    return response.data;
+  },
+
+  getById: async (id) => {
+    const response = await adminApi.get(`/adminpharmacies/${id}`);
+    return response.data;
+  },
+
+  update: async (id, data) => {
+    const response = await adminApi.put(`/adminpharmacies/${id}`, data);
+    return response.data;
+  },
+
+  updateStatus: async (id, status) => {
+    const response = await adminApi.put(`/adminpharmacies/${id}/status`, { status });
+    return response.data;
+  },
+
+  updateVerification: async (id, verified) => {
+    const response = await adminApi.put(`/adminpharmacies/${id}/verification`, { verified });
+    return response.data;
+  },
+
+  delete: async (id) => {
+    const response = await adminApi.delete(`/adminpharmacies/${id}`);
+    return response.data;
+  }
+};
+
 // ==================== APPOINTMENTS API ====================
 
 export const appointmentsApi = {
@@ -198,6 +235,64 @@ export const analyticsApi = {
   getRevenueByMonth: async (year = 0) => {
     const response = await adminApi.get('/analytics/revenue-by-month', {
       params: { year }
+    });
+    return response.data;
+  }
+};
+
+// ==================== COMMISSION API ====================
+
+export const commissionApi = {
+  getDashboard: async () => {
+    const response = await adminApi.get('/commission/dashboard');
+    return response.data;
+  },
+
+  getConfigs: async () => {
+    const response = await adminApi.get('/commission/configs');
+    return response.data;
+  },
+
+  getConfigById: async (id) => {
+    const response = await adminApi.get(`/commission/configs/${id}`);
+    return response.data;
+  },
+
+  updateConfig: async (id, data) => {
+    const response = await adminApi.put(`/commission/configs/${id}`, data);
+    return response.data;
+  },
+
+  getTransactions: async (params = {}) => {
+    const {
+      pageNumber = 1,
+      pageSize = 10,
+      searchTerm = '',
+      recipientType = '',
+      status = '',
+      serviceType = '',
+      fromDate = null,
+      toDate = null
+    } = params;
+    const response = await adminApi.get('/commission/transactions', {
+      params: {
+        page: pageNumber - 1,
+        size: pageSize,
+        recipientId: searchTerm,
+        recipientType,
+        status,
+        serviceType,
+        fromDate,
+        toDate
+      }
+    });
+    return response.data;
+  },
+
+  getSettlements: async (params = {}) => {
+    const { pageNumber = 1, pageSize = 10, status = '' } = params;
+    const response = await adminApi.get('/commission/settlements', {
+      params: { page: pageNumber - 1, size: pageSize, status }
     });
     return response.data;
   }
