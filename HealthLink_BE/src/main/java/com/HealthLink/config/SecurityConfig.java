@@ -44,8 +44,8 @@ public class SecurityConfig {
     // -------------------------------------------------------------------------
     @Bean
     public DaoAuthenticationProvider authenticationProvider() {
-        // Truyền thẳng userDetailsService vào constructor thay vì dùng setter
-        DaoAuthenticationProvider provider = new DaoAuthenticationProvider(userDetailsService);
+        DaoAuthenticationProvider provider = new DaoAuthenticationProvider();
+        provider.setUserDetailsService(userDetailsService); // đúng cách
         provider.setPasswordEncoder(passwordEncoder());
         return provider;
     }
@@ -71,15 +71,14 @@ public class SecurityConfig {
                 // Session stateless — không dùng HttpSession
                 .sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
 
-            // Phân quyền các endpoint
-            .authorizeHttpRequests(auth -> auth
-                // Public: đăng ký / đăng nhập / refresh token / 
-                .requestMatchers("/api/auth/**").permitAll()
-                // Public: xem danh sách bác sĩ (cho bệnh nhân)
-                .requestMatchers(HttpMethod.GET, "/api/doctors").permitAll()
-                // Tất cả còn lại yêu cầu xác thực
-                .anyRequest().authenticated()
-            )
+                // Phân quyền các endpoint
+                .authorizeHttpRequests(auth -> auth
+                        // Public: đăng ký / đăng nhập / refresh token /
+                        .requestMatchers("/api/auth/**").permitAll()
+                        // Public: xem danh sách bác sĩ (cho bệnh nhân)
+                        .requestMatchers(HttpMethod.GET, "/api/doctors").permitAll()
+                        // Tất cả còn lại yêu cầu xác thực
+                        .anyRequest().authenticated())
 
                 // Dùng DaoAuthenticationProvider vừa tạo
                 .authenticationProvider(authenticationProvider())
