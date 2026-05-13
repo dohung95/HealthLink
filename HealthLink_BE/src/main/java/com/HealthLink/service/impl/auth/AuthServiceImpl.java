@@ -25,6 +25,7 @@ import com.HealthLink.repository.doctor.DoctorRepository;
 import com.HealthLink.repository.patient.PatientRepository;
 import com.HealthLink.repository.pharmacy.PharmacyRepository;
 import com.HealthLink.security.JwtTokenProvider;
+import com.HealthLink.security.TokenBlacklistService;
 import com.HealthLink.service.impl.auth.UserDetailsServiceImpl;
 import com.HealthLink.service.auth.AuthService;
 import com.HealthLink.service.email.EmailService;
@@ -57,6 +58,7 @@ public class AuthServiceImpl implements AuthService {
     private final PasswordResetTokenRepository passwordResetTokenRepository;
     private final PasswordEncoder              passwordEncoder;
     private final EmailService                 emailService;
+    private final TokenBlacklistService        tokenBlacklistService;
 
     // =========================================================================
     // Đăng nhập
@@ -285,6 +287,35 @@ public class AuthServiceImpl implements AuthService {
         // Đánh dấu token đã sử dụng
         resetToken.setUsed(true);
         passwordResetTokenRepository.save(resetToken);
+    }
+
+    // =========================================================================
+    // Logout
+    // =========================================================================
+    @Override
+    @Transactional
+    public void logout(String accessToken) {
+        // 1. Đưa access token vào blacklist đến khi nó tự hết hạn
+        try {
+            java.time.Instant expiry = jwtTokenProvider.getExpirationFromToken(accessToken);
+            tokenBlacklistService.blacklist(accessToken, expiry);
+        } catch (Exception e) {
+            // Token đã hết hạn hoặc không hợp lệ — vẫn tiếp tục revoke refresh token
+            log.warn("Could not parse access token during logout: {}", e.getMessage());
+        }
+
+        // 2. Revoke toàn bộ refresh token của user trong DB
+        try {
+            String email = jwtTokenProvider.getEmailFromToken(accessToken);
+            User user = userRepository.findByEmail(email)
+                    .orElse(null);
+            if (user != null) {
+                refreshTokenRepository.deleteAllByUserId(user.getId());
+                log.info("All refresh tokens revoked for userId: {}", user.getId());
+            }
+        } catch (Exception e) {
+            log.warn("Could not revoke refresh tokens during logout: {}", e.getMessage());
+        }
     }
 
     // =========================================================================
