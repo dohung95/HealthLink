@@ -29,7 +29,7 @@ import org.springframework.security.web.authentication.UsernamePasswordAuthentic
 public class SecurityConfig {
 
     private final JwtAuthenticationFilter jwtAuthenticationFilter;
-    private final UserDetailsServiceImpl  userDetailsService;
+    private final UserDetailsServiceImpl userDetailsService;
 
     // -------------------------------------------------------------------------
     // PasswordEncoder (BCrypt)
@@ -65,28 +65,26 @@ public class SecurityConfig {
     @Bean
     public SecurityFilterChain securityFilterChain(HttpSecurity http) throws Exception {
         http
-            // Tắt CSRF (không cần với stateless JWT)
-            .csrf(AbstractHttpConfigurer::disable)
+                // Tắt CSRF (không cần với stateless JWT)
+                .csrf(AbstractHttpConfigurer::disable)
 
-            // Session stateless — không dùng HttpSession
-            .sessionManagement(session ->
-                    session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
+                // Session stateless — không dùng HttpSession
+                .sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
 
-            // Phân quyền các endpoint
-            .authorizeHttpRequests(auth -> auth
-                // Public: đăng ký / đăng nhập / refresh token
-                .requestMatchers("/api/auth/**").permitAll()
-                .requestMatchers(HttpMethod.GET, "/api/doctors").permitAll()
-                // Tất cả còn lại yêu cầu xác thực
-                .anyRequest().authenticated()
-            )
+                // Phân quyền các endpoint
+                .authorizeHttpRequests(auth -> auth
+                        // Public: đăng ký / đăng nhập / refresh token
+                        .requestMatchers("/api/auth/**").permitAll()
+                        .requestMatchers(HttpMethod.GET, "/api/doctors").permitAll()
+                        // Tất cả còn lại yêu cầu xác thực
+                        .anyRequest().authenticated())
 
-            // Dùng DaoAuthenticationProvider vừa tạo
-            .authenticationProvider(authenticationProvider())
+                // Dùng DaoAuthenticationProvider vừa tạo
+                .authenticationProvider(authenticationProvider())
 
-            // Thêm JWT filter trước UsernamePasswordAuthenticationFilter
-            .addFilterBefore(jwtAuthenticationFilter,
-                    UsernamePasswordAuthenticationFilter.class);
+                // Thêm JWT filter trước UsernamePasswordAuthenticationFilter
+                .addFilterBefore(jwtAuthenticationFilter,
+                        UsernamePasswordAuthenticationFilter.class);
 
         return http.build();
     }
