@@ -1,5 +1,7 @@
 package com.HealthLink.service.patient;
 
+import com.HealthLink.dto.auth.ChangeEmailRequest;
+import com.HealthLink.dto.auth.VerifyEmailChangeRequest;
 import com.HealthLink.dto.patient.*;
 
 /**

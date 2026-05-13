@@ -17,8 +17,6 @@ public class Patient {
     @OneToOne
     @MapsId
     @JoinColumn(name = "PatientID")
-    @ToString.Exclude
-    @EqualsAndHashCode.Exclude
     private User user;
 
     @Column(name = "FullName", nullable = false, columnDefinition = "NVARCHAR(MAX)")

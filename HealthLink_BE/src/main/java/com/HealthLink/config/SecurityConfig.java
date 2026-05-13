@@ -74,8 +74,9 @@ public class SecurityConfig {
 
             // Phân quyền các endpoint
             .authorizeHttpRequests(auth -> auth
-                // Public: đăng ký / đăng nhập / refresh token
+                // Public: đăng ký / đăng nhập / refresh token / 
                 .requestMatchers("/api/auth/**").permitAll()
+                // Public: xem danh sách bác sĩ (cho bệnh nhân)
                 .requestMatchers(HttpMethod.GET, "/api/doctors").permitAll()
                 // Tất cả còn lại yêu cầu xác thực
                 .anyRequest().authenticated()
