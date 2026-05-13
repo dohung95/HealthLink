@@ -17,8 +17,8 @@ public class Pharmacy {
     private String pharmacyId;
 
     @OneToOne
-    @JoinColumn(name = "PharmacyID", referencedColumnName = "Id", insertable = false, updatable = false)
-    @ToString.Exclude
+    @MapsId
+    @JoinColumn(name = "PharmacyID")
     private User user;
 
     @Column(nullable = false, length = 200)
