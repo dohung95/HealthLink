@@ -3,7 +3,7 @@ package com.HealthLink.controller.payment;
 import com.HealthLink.dto.payment.CommissionConfigDTO;
 import com.HealthLink.entity.CommissionConfig;
 import com.HealthLink.exception.BadRequestException;
-import com.HealthLink.repository.payment.CommissionConfigRepository;
+import com.HealthLink.repository.payment.PaymentCommissionConfigRepository;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -35,7 +35,7 @@ import java.util.stream.Collectors;
 @RequiredArgsConstructor
 public class CommissionConfigController {
 
-    private final CommissionConfigRepository commissionConfigRepository;
+    private final PaymentCommissionConfigRepository commissionConfigRepository;
 
     // ──────────────────────────────────────────────────────────────────────
     // Lấy danh sách cấu hình

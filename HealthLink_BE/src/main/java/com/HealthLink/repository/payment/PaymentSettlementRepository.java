@@ -12,7 +12,7 @@ import java.util.Optional;
  * Cung cấp các truy vấn để tra cứu lịch sử rút tiền của đối tác.
  */
 @Repository
-public interface SettlementRepository extends JpaRepository<Settlement, Integer> {
+public interface PaymentSettlementRepository extends JpaRepository<Settlement, Integer> {
 
     /**
      * Tìm settlement theo số mã duy nhất (STL-YYYYMM-XXXXX).

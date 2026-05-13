@@ -11,7 +11,7 @@ import java.util.Optional;
  * Cung cấp các truy vấn để lấy cấu hình chiết khấu theo loại dịch vụ.
  */
 @Repository
-public interface CommissionConfigRepository extends JpaRepository<CommissionConfig, Integer> {
+public interface PaymentCommissionConfigRepository extends JpaRepository<CommissionConfig, Integer> {
 
     /**
      * Lấy cấu hình chiết khấu đang hoạt động theo loại dịch vụ.

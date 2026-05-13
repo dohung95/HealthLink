@@ -5,7 +5,7 @@ import com.HealthLink.entity.CommissionConfig;
 import com.HealthLink.entity.Doctor;
 import com.HealthLink.entity.PharmacyOrder;
 import com.HealthLink.exception.BadRequestException;
-import com.HealthLink.repository.payment.CommissionConfigRepository;
+import com.HealthLink.repository.payment.PaymentCommissionConfigRepository;
 import com.HealthLink.service.payment.FeeCalculatorService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -52,7 +52,7 @@ public class FeeCalculatorServiceImpl implements FeeCalculatorService {
     private static final BigDecimal DEFAULT_OFFLINE_RATE  = new BigDecimal("0.1000");
     private static final BigDecimal DEFAULT_PHARMACY_RATE = new BigDecimal("0.1000");
 
-    private final CommissionConfigRepository commissionConfigRepository;
+    private final PaymentCommissionConfigRepository commissionConfigRepository;
 
     // ========================================================================
     // Tính phí cho Bác sĩ (Consultation)
