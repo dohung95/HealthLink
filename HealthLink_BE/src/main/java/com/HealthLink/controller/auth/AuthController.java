@@ -78,4 +78,21 @@ public class AuthController {
         authService.resetPassword(request);
         return ResponseEntity.ok(Map.of("message", "Password has been reset successfully."));
     }
+
+    /**
+     * POST /api/auth/logout
+     * Logout bảo mật: blacklist access token + revoke toàn bộ refresh token.
+     * Yêu cầu: JWT token hợp lệ trong header Authorization.
+     */
+    @PostMapping("/logout")
+    public ResponseEntity<Map<String, String>> logout(
+            @RequestHeader("Authorization") String authorizationHeader) {
+        if (authorizationHeader == null || !authorizationHeader.startsWith("Bearer ")) {
+            return ResponseEntity.badRequest()
+                    .body(Map.of("error", "Authorization header is missing or invalid"));
+        }
+        String accessToken = authorizationHeader.substring(7);
+        authService.logout(accessToken);
+        return ResponseEntity.ok(Map.of("message", "Logged out successfully."));
+    }
 }
