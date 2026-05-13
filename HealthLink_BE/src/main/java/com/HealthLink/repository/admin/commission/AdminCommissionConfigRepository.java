@@ -1,4 +1,4 @@
-package com.HealthLink.repository.commission;
+package com.HealthLink.repository.admin.commission;
 
 import com.HealthLink.entity.CommissionConfig;
 import org.springframework.data.jpa.repository.JpaRepository;
@@ -10,7 +10,7 @@ import java.util.List;
 import java.util.Optional;
 
 @Repository
-public interface CommissionConfigRepository extends JpaRepository<CommissionConfig, Integer> {
+public interface AdminCommissionConfigRepository extends JpaRepository<CommissionConfig, Integer> {
 
     Optional<CommissionConfig> findByServiceType(String serviceType);
 

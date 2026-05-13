@@ -53,6 +53,13 @@ public class JwtTokenProvider {
     }
 
     // -------------------------------------------------------------------------
+    // Lấy thời điểm hết hạn của token (dùng cho blacklist khi logout)
+    // -------------------------------------------------------------------------
+    public java.time.Instant getExpirationFromToken(String token) {
+        return parseClaims(token).getExpiration().toInstant();
+    }
+
+    // -------------------------------------------------------------------------
     // Validate token
     // -------------------------------------------------------------------------
     public boolean validateToken(String token) {

@@ -26,8 +26,9 @@ import java.io.IOException;
 @Slf4j
 public class JwtAuthenticationFilter extends OncePerRequestFilter {
 
-    private final JwtTokenProvider       jwtTokenProvider;
-    private final UserDetailsServiceImpl userDetailsService;
+    private final JwtTokenProvider        jwtTokenProvider;
+    private final UserDetailsServiceImpl  userDetailsService;
+    private final TokenBlacklistService   tokenBlacklistService;
 
     @Override
     protected void doFilterInternal(HttpServletRequest  request,
@@ -37,7 +38,10 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
 
         String token = extractToken(request);
 
-        if (StringUtils.hasText(token) && jwtTokenProvider.validateToken(token)) {
+        if (StringUtils.hasText(token)
+                && jwtTokenProvider.validateToken(token)
+                && !tokenBlacklistService.isBlacklisted(token)) {
+
             String email = jwtTokenProvider.getEmailFromToken(token);
 
             UserDetails userDetails = userDetailsService.loadUserByUsername(email);

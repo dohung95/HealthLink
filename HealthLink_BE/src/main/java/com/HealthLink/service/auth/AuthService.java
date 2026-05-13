@@ -33,4 +33,13 @@ public interface AuthService {
      * Xác thực token và cập nhật mật khẩu mới.
      */
     void resetPassword(ResetPasswordRequest request);
+
+    /**
+     * Logout bảo mật:
+     *  - Đưa access token vào blacklist.
+     *  - Revoke toàn bộ refresh token của user trong DB.
+     *
+     * @param accessToken chuỗi JWT đầy đủ (không bao gồm "Bearer ")
+     */
+    void logout(String accessToken);
 }

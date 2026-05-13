@@ -23,6 +23,8 @@ public class DoctorProfileResponse {
 
     // --- Thông tin cá nhân & chuyên môn ---
     private String doctorId;
+    private String email;
+    private String phoneNumber;
     private String fullName;
     private String specialty;
     private String qualifications;

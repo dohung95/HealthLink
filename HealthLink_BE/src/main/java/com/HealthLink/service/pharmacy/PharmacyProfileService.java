@@ -1,0 +1,24 @@
+package com.HealthLink.service.pharmacy;
+
+import com.HealthLink.dto.auth.ChangeEmailRequest;
+import com.HealthLink.dto.auth.VerifyEmailChangeRequest;
+import com.HealthLink.dto.pharmacy.PharmacyProfileResponse;
+import com.HealthLink.dto.pharmacy.PharmacyUpdateRequest;
+
+/**
+ * Service interface cho Pharmacy profile management.
+ */
+public interface PharmacyProfileService {
+
+    /** Lấy thông tin profile của pharmacy theo ID. */
+    PharmacyProfileResponse getPharmacyProfile(String pharmacyId);
+
+    /** Cập nhật các trường được phép sửa. */
+    PharmacyProfileResponse updatePharmacyProfile(String pharmacyId, PharmacyUpdateRequest request);
+
+    /** Yêu cầu đổi email – gửi mã OTP về email mới. */
+    String requestEmailChange(String pharmacyId, ChangeEmailRequest request);
+
+    /** Xác nhận đổi email bằng mã OTP. */
+    PharmacyProfileResponse verifyEmailChange(String pharmacyId, VerifyEmailChangeRequest request);
+}

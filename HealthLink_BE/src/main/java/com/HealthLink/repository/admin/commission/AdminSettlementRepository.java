@@ -1,4 +1,4 @@
-package com.HealthLink.repository.commission;
+package com.HealthLink.repository.admin.commission;
 
 import com.HealthLink.entity.Settlement;
 import org.springframework.data.domain.Page;
@@ -13,7 +13,7 @@ import java.util.List;
 import java.util.Optional;
 
 @Repository
-public interface SettlementRepository extends JpaRepository<Settlement, Integer> {
+public interface AdminSettlementRepository extends JpaRepository<Settlement, Integer> {
 
     Optional<Settlement> findBySettlementNumber(String settlementNumber);
 

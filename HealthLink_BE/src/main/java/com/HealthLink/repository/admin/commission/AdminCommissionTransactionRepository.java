@@ -1,4 +1,4 @@
-package com.HealthLink.repository.commission;
+package com.HealthLink.repository.admin.commission;
 
 import com.HealthLink.entity.CommissionTransaction;
 import com.HealthLink.dto.commission.MonthlyCommissionDto;
@@ -15,7 +15,7 @@ import java.util.List;
 import java.util.Optional;
 
 @Repository
-public interface CommissionTransactionRepository extends JpaRepository<CommissionTransaction, Integer> {
+public interface AdminCommissionTransactionRepository extends JpaRepository<CommissionTransaction, Integer> {
 
     Optional<CommissionTransaction> findByTransactionNumber(String transactionNumber);
 
