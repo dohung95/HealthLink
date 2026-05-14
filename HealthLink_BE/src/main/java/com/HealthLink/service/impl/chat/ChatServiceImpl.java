@@ -15,6 +15,7 @@ import com.HealthLink.repository.chat.ChatRoomRepository;
 import com.HealthLink.repository.chat.MessageRepository;
 import com.HealthLink.service.chat.ChatService;
 import lombok.RequiredArgsConstructor;
+import org.springframework.messaging.simp.SimpMessagingTemplate;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -27,10 +28,11 @@ import java.util.stream.Collectors;
 @RequiredArgsConstructor
 public class ChatServiceImpl implements ChatService {
 
-    private final ChatRoomRepository chatRoomRepository;
-    private final MessageRepository messageRepository;
+    private final ChatRoomRepository    chatRoomRepository;
+    private final MessageRepository     messageRepository;
     private final AppointmentRepository appointmentRepository;
-    private final UserRepository userRepository;
+    private final UserRepository        userRepository;
+    private final SimpMessagingTemplate messagingTemplate;
 
     // -------------------------------------------------------------------------
     // Tạo hoặc lấy phòng chat
@@ -140,7 +142,17 @@ public class ChatServiceImpl implements ChatService {
         room.setLastMessageAt(saved.getTimestamp());
         chatRoomRepository.save(room);
 
-        return toMessageDTO(saved);
+        MessageDTO dto = toMessageDTO(saved);
+
+        // Đẩy tin nhắn realtime đến người nhận qua WebSocket
+        // Destination: /user/{receiverId}/queue/chat
+        messagingTemplate.convertAndSendToUser(
+                request.getReceiverId(),
+                "/queue/chat",
+                dto
+        );
+
+        return dto;
     }
 
     // -------------------------------------------------------------------------

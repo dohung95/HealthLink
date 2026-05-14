@@ -25,7 +25,7 @@ import org.springframework.web.bind.annotation.*;
  * POST   /api/pharmacy/email/verify-change  → Xác nhận đổi email
  */
 @RestController
-@RequestMapping("/api/pharmacy")
+@RequestMapping("/api/account/pharmacy")
 @RequiredArgsConstructor
 public class PharmacyController {
 

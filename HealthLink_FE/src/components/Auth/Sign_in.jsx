@@ -222,6 +222,11 @@ export function Sign_in() {
                                     {passwordError}
                                 </div>
                             )}
+                            <div style={{ textAlign: 'right', marginTop: '6px' }}>
+                                <Link to="/forgot-password" style={{ fontSize: '0.85rem', color: '#00b09a', textDecoration: 'none' }}>
+                                    Forgot password?
+                                </Link>
+                            </div>
                         </div>
                         <button type="submit" disabled={submitting} className='signin-button'>
                             {submitting ? 'Loading...' : 'Login'}

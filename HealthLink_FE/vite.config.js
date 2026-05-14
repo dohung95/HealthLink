@@ -7,4 +7,7 @@ export default defineConfig({
         port: 63527, // Cổng frontend
         open: false,
     },
+    define: {
+    global: 'window',
+  },
 });

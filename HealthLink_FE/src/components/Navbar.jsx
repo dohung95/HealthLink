@@ -12,9 +12,12 @@ function Navbar() {
     const { isAuthenticated, roles, logout } = useAuth();
     const navigate = useNavigate();
     const [patientDropdownOpen, setPatientDropdownOpen] = useState(false);
-    const isAdmin = roles.some(role => role.toLowerCase() === 'admin');
-    const isDoctor = roles.some(role => role.toLowerCase() === 'doctor');
-    const isUser = roles.some(role => role.toLowerCase() === 'patient');
+    const [doctorDropdownOpen, setDoctorDropdownOpen] = useState(false);
+    const [pharmacyDropdownOpen, setPharmacyDropdownOpen] = useState(false);
+    const isAdmin = roles.some(role => String(role).toLowerCase().includes('admin'));
+    const isDoctor = roles.some(role => String(role).toLowerCase().includes('doctor'));
+    const isPatient = roles.some(role => String(role).toLowerCase().includes('patient'));
+    const isPharmacy = roles.some(role => String(role).toLowerCase().includes('pharmacy'));
 
     // Handle scroll to show/hide navbar
     useEffect(() => {
@@ -55,7 +58,9 @@ function Navbar() {
     const handleMouseLeave = () => {
         closeTimer.current = setTimeout(() => {
             setPatientDropdownOpen(false);
-        }, 200); // 200ms delay
+            setDoctorDropdownOpen(false);
+            setPharmacyDropdownOpen(false);
+        }, 200);
     };
 
     return (
@@ -109,7 +114,7 @@ function Navbar() {
                             </li>
 
                             {/* Patient Menu Items - Only show for authenticated patients */}
-                            {isAuthenticated && isUser && (
+                            {isAuthenticated && isPatient && (
                                 <>
                                     <hr className="mobile-divider" />
                                     <li className="mobile-menu-section-title">
@@ -247,13 +252,13 @@ function Navbar() {
                             {isAuthenticated ? (
                                 <>
                                     {/* Notification Bell - Only for authenticated users */}
-                                    {isUser && <NotificationBell />}
+                                    {isPatient && <NotificationBell />}
 
                                     {/* Patient Dropdown */}
-                                    {isUser && (
+                                    {isPatient && (
                                         <div
                                             className="position-relative d-none d-xl-block"
-                                            onMouseEnter={handleMouseEnter}
+                                            onMouseEnter={() => { if (closeTimer.current) clearTimeout(closeTimer.current); setPatientDropdownOpen(true); }}
                                             onMouseLeave={handleMouseLeave}
                                         >
                                             <span className="user-role text-white fw-medium" style={{ cursor: 'pointer' }}>
@@ -262,31 +267,68 @@ function Navbar() {
                                             {patientDropdownOpen && (
                                                 <div className="dropdown-menu show position-absolute" style={{ top: '100%', right: 0, minWidth: '200px' }}>
                                                     <NavLink to="/profile-patient" className="dropdown-item">
-                                                        <i className="fas fa-user me-2"></i>
-                                                        My Profile
+                                                        <i className="fas fa-user me-2"></i>My Profile
                                                     </NavLink>
                                                     <NavLink to="/my-appointments" className="dropdown-item">
-                                                        <i className="fas fa-calendar-check me-2"></i>
-                                                        My Appointments
+                                                        <i className="fas fa-calendar-check me-2"></i>My Appointments
                                                     </NavLink>
                                                     <NavLink to="/health-records" className="dropdown-item">
-                                                        <i className="fas fa-file-medical me-2"></i>
-                                                        Health Records
+                                                        <i className="fas fa-file-medical me-2"></i>Health Records
                                                     </NavLink>
                                                     <NavLink to="/share-records" className="dropdown-item">
-                                                        <i className="fas fa-share-alt me-2"></i>
-                                                        Share Health Records
+                                                        <i className="fas fa-share-alt me-2"></i>Share Health Records
                                                     </NavLink>
                                                 </div>
                                             )}
                                         </div>
                                     )}
 
-                                    {/* Admin/Doctor - No Dropdown */}
-                                    {(isAdmin || isDoctor) && (
-                                        <span className="user-role text-white fw-medium">
-                                            {isAdmin ? 'Admin' : 'Doctor'}
-                                        </span>
+                                    {/* Doctor Dropdown */}
+                                    {isDoctor && (
+                                        <div
+                                            className="position-relative d-none d-xl-block"
+                                            onMouseEnter={() => { if (closeTimer.current) clearTimeout(closeTimer.current); setDoctorDropdownOpen(true); }}
+                                            onMouseLeave={handleMouseLeave}
+                                        >
+                                            <span className="user-role text-white fw-medium" style={{ cursor: 'pointer' }}>
+                                                Doctor <i className="fas fa-caret-down ms-1"></i>
+                                            </span>
+                                            {doctorDropdownOpen && (
+                                                <div className="dropdown-menu show position-absolute" style={{ top: '100%', right: 0, minWidth: '200px' }}>
+                                                    <NavLink to="/profile-doctor" className="dropdown-item">
+                                                        <i className="fas fa-user-md me-2"></i>My Profile
+                                                    </NavLink>
+                                                    <NavLink to="/doctor-page" className="dropdown-item">
+                                                        <i className="fas fa-calendar-alt me-2"></i>My Dashboard
+                                                    </NavLink>
+                                                </div>
+                                            )}
+                                        </div>
+                                    )}
+
+                                    {/* Pharmacy Dropdown */}
+                                    {isPharmacy && (
+                                        <div
+                                            className="position-relative d-none d-xl-block"
+                                            onMouseEnter={() => { if (closeTimer.current) clearTimeout(closeTimer.current); setPharmacyDropdownOpen(true); }}
+                                            onMouseLeave={handleMouseLeave}
+                                        >
+                                            <span className="user-role text-white fw-medium" style={{ cursor: 'pointer' }}>
+                                                Pharmacy <i className="fas fa-caret-down ms-1"></i>
+                                            </span>
+                                            {pharmacyDropdownOpen && (
+                                                <div className="dropdown-menu show position-absolute" style={{ top: '100%', right: 0, minWidth: '200px' }}>
+                                                    <NavLink to="/profile-pharmacy" className="dropdown-item">
+                                                        <i className="fas fa-store me-2"></i>My Profile
+                                                    </NavLink>
+                                                </div>
+                                            )}
+                                        </div>
+                                    )}
+
+                                    {/* Admin - No Dropdown */}
+                                    {isAdmin && (
+                                        <span className="user-role text-white fw-medium">Admin</span>
                                     )}
 
                                     <button onClick={logout} className="btn-logout">

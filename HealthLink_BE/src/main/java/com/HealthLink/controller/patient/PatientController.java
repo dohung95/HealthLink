@@ -18,7 +18,7 @@ import org.springframework.web.bind.annotation.*;
  * Base URL: /api/patient
  */
 @RestController
-@RequestMapping("/api/patient")
+@RequestMapping("/api/account/patient")
 @RequiredArgsConstructor
 public class PatientController {
 
