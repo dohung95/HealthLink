@@ -1,4 +1,4 @@
-const API_UPDATE_URL = 'https://localhost:7267/api/account';
+const API_UPDATE_URL = 'https://localhost:8096/api/account';
 import axios from 'axios';
 
 // --- Lấy thông tin hồ sơ hiện tại ---
@@ -11,7 +11,6 @@ export const getProfile = async (token) => {
 };
 
 // --- Cập nhật thông tin chung (Fullname, SĐT, etc.) ---
-// ✅ ĐÚNG
 export const updateProfile = async (token, data) => {
     const response = await axios.put(
         `${API_UPDATE_URL}/update-profile`,
