@@ -1,10 +1,6 @@
 import React, { createContext, useContext, useState, useEffect } from "react";
-import { login as loginAPI, register as registerAPI, logout as logoutAPI, setupAxiosInterceptors, getFirebaseTokenAPI } from '../api/auth';
+import { login as loginAPI, register as registerAPI, logout as logoutAPI, setupAxiosInterceptors } from '../api/auth';
 import { decodeToken, getTokenExpiresIn } from '../utils/tokenUtils';
-
-import { signInWithCustomToken, signOut } from "firebase/auth";
-import { auth, db } from "../firebase";
-import { doc, setDoc } from "firebase/firestore";
 import * as signalR from "@microsoft/signalr";
 import { toast } from 'sonner';
 
@@ -113,75 +109,22 @@ export function AuthProvider({ children }) {
         // }
     }, [token]);
 
-    ///=>> use for identity and firebase
+    ///=>> Spring Boot login
     const login = async (email, password) => {
         try {
-            // 1. ĐĂNG NHẬP C# (Như cũ)
-            const csharpResponse = await loginAPI(email, password);
-            if (!csharpResponse || !csharpResponse.accessToken) {
-                throw new Error("C# login failed");
+            const response = await loginAPI(email, password);
+            if (!response || !response.accessToken) {
+                throw new Error('Login failed');
             }
 
-            const csharpToken = csharpResponse.accessToken;
-            localStorage.setItem('token', csharpToken);
-            setToken(csharpToken); // Cập nhật state C#
-
-            // 2. ĐĂNG NHẬP FIREBASE (Bước mới)
-            const firebaseResponse = await getFirebaseTokenAPI(csharpToken);
-            const firebaseToken = firebaseResponse.firebaseToken;
-
-            const userCredential = await signInWithCustomToken(auth, firebaseToken);
-            const user = userCredential.user; // ← Lấy user Firebase
-
-            // === THÊM ĐOẠN NÀY: Tạo/update user document trong Firestore ===
-            const userRef = doc(db, "users", user.uid);
-
-            // Decode token để lấy thông tin
-            const decoded = decodeToken(csharpToken);
-            const username = decoded?.preferred_username || decoded?.email || user.email || "User";
-
-            // Lấy role từ token
-            const roleClaimType = 'http://schemas.microsoft.com/ws/2008/06/identity/claims/role';
-            let userRole = decoded?.[roleClaimType] || decoded?.role || "patient";
-            if (Array.isArray(userRole)) userRole = userRole[0]; // Nếu là mảng, lấy role đầu tiên
-
-            await setDoc(userRef, {
-                uid: user.uid,
-                displayName: username,
-                email: decoded?.email || user.email || email,
-                photoURL: user.photoURL || "",
-                role: userRole
-            }, { merge: true }); // merge: true = update nếu đã tồn tại, create nếu chưa
-
-            console.log(`✓ User ${username} (${userRole}) saved to Firebase`);
-            // ================================================================
+            localStorage.setItem('token', response.accessToken);
+            localStorage.setItem('refreshToken', response.refreshToken);
+            setToken(response.accessToken);
+            setRefreshToken(response.refreshToken);
 
             return true;
         } catch (error) {
-            console.error("Double login error:", error);
-
-            // Check if error is related to account status
-            const errorMessage = error.message || '';
-            const statusErrors = [
-                'inactive',
-                'suspended',
-                'banned',
-                'not active',
-                'admin approval',
-                'contact support'
-            ];
-
-            const isStatusError = statusErrors.some(keyword =>
-                errorMessage.toLowerCase().includes(keyword)
-            );
-
-            // REMOVED: Don't call logout() on login failure - it causes page reload
-            // Just throw the error to let Sign_in component handle it
-            // if (!isStatusError) {
-            //     logout();
-            // }
-
-
+            console.error('Login error:', error);
             throw error;
         }
     };
@@ -190,27 +133,6 @@ export function AuthProvider({ children }) {
     const register = async (username, phonenumber, email, password, confirmPassword, role, DateOfBirth) => {
         try {
             await registerAPI(username, phonenumber, email, password, confirmPassword, DateOfBirth);
-            // const csharpResponse = await loginAPI(email, password);
-            // const csharpToken = csharpResponse.accessToken;
-            // localStorage.setItem('token', csharpToken);
-            // setToken(csharpToken);
-
-            // // 3. ĐĂNG NHẬP FIREBASE (Bước mới)
-            // const firebaseResponse = await getFirebaseTokenAPI(csharpToken);
-            // const firebaseToken = firebaseResponse.firebaseToken;
-            // const userCredential = await signInWithCustomToken(auth, firebaseToken);
-            // const user = userCredential.user; // Lấy user Firebase
-
-            // // 4. TẠO "DANH BẠ" (Lưu user vào Firestore)
-            // const userRef = doc(db, "users", user.uid);
-            // await setDoc(userRef, {
-            //     uid: user.uid,
-            //     displayName: username,
-            //     email: email,
-            //     photoURL: "", // (Ảnh mặc định)
-            //     role: role // <-- LƯU ROLE VÀO DATABASE
-            // }, { merge: true });
-
             console.log("dmmm role lon:      ", role)
             return true;
         } catch (error) {
@@ -228,14 +150,9 @@ export function AuthProvider({ children }) {
 
     };
 
-    ///=>> use for identity and firebase
+    ///=>> Spring Boot logout
     const logout = async () => {
-        // (Hàm 'logoutAPI' của C# là không bắt buộc, vì token C# sẽ tự hết hạn)
-        if (refreshToken) {
-            await logoutAPI(refreshToken);
-        }
-        // Logout from Firebase
-        await signOut(auth); // <-- Add this line
+        await logoutAPI();
         setToken(null);
         setRefreshToken(null);
         setUser(null);
@@ -246,87 +163,88 @@ export function AuthProvider({ children }) {
         window.location.href = '/';
     };
 
-    useEffect(() => {
-        // Nếu có token (đã login) VÀ chưa có kết nối
-        if (token && !connection) {
+    // kết nối signalR với JWT Token
+    // useEffect(() => {
+    //     // Nếu có token (đã login) VÀ chưa có kết nối
+    //     if (token && !connection) {
 
-            // 1. Xây dựng kết nối đến Hub
-            const newConnection = new signalR.HubConnectionBuilder()
-                .withUrl("https://localhost:7267/notificationcalling", { // (Đảm bảo URL này đúng)
-                    // 2. GỬI KÈM JWT TOKEN ĐỂ XÁC THỰC
-                    accessTokenFactory: () => token
-                })
-                .withAutomaticReconnect()
-                .build();
+    //         // 1. Xây dựng kết nối đến Hub
+    //         const newConnection = new signalR.HubConnectionBuilder()
+    //             .withUrl("https://localhost:8096/notificationcalling", { // (Đảm bảo URL này đúng)
+    //                 // 2. GỬI KÈM JWT TOKEN ĐỂ XÁC THỰC
+    //                 accessTokenFactory: () => token
+    //             })
+    //             .withAutomaticReconnect()
+    //             .build();
 
-            // 3. Khởi động kết nối
-            newConnection.start()
-                .then(() => {
-                    // console.log("SignalR Connected!");
-                    setConnection(newConnection);
+    //         // 3. Khởi động kết nối
+    //         newConnection.start()
+    //             .then(() => {
+    //                 // console.log("SignalR Connected!");
+    //                 setConnection(newConnection);
 
-                    // 4. LẮNG NGHE CÁC SỰ KIỆN TỪ SERVER
+    //                 // 4. LẮNG NGHE CÁC SỰ KIỆN TỪ SERVER
 
-                    // A. Khi AI ĐÓ GỌI BẠN (Reng reng!)
-                    newConnection.on("IncomingCall", (callerId, callerName, roomId) => {
-                        // console.log(`Incoming call from ${callerName}`);
-                        // Lưu thông tin cuộc gọi để hiển thị Pop-up
-                        setIncomingCall({ callerId, callerName, roomId });
-                    });
+    //                 // A. Khi AI ĐÓ GỌI BẠN (Reng reng!)
+    //                 newConnection.on("IncomingCall", (callerId, callerName, roomId) => {
+    //                     // console.log(`Incoming call from ${callerName}`);
+    //                     // Lưu thông tin cuộc gọi để hiển thị Pop-up
+    //                     setIncomingCall({ callerId, callerName, roomId });
+    //                 });
 
-                    // B. Khi NGƯỜI BẠN GỌI đã "Bắt máy" (Bác sĩ nhận được tin này)
-                    // (Phiên bản ĐÃ SỬA LỖI - chỉ có 1 listener)
-                    newConnection.on("CallAccepted", (receiverId, roomId) => {
-                        // console.log("Call accepted, Doctor opening Zego...");
+    //                 // B. Khi NGƯỜI BẠN GỌI đã "Bắt máy" (Bác sĩ nhận được tin này)
+    //                 // (Phiên bản ĐÃ SỬA LỖI - chỉ có 1 listener)
+    //                 newConnection.on("CallAccepted", (receiverId, roomId) => {
+    //                     // console.log("Call accepted, Doctor opening Zego...");
 
-                        // Đọc token mới nhất từ localStorage để tránh lỗi "stale state"
-                        const currentToken = localStorage.getItem('token');
-                        if (!currentToken) {
-                            console.error("Error: Caller token (Doctor) not found");
-                            return;
-                        }
+    //                     // Đọc token mới nhất từ localStorage để tránh lỗi "stale state"
+    //                     const currentToken = localStorage.getItem('token');
+    //                     if (!currentToken) {
+    //                         console.error("Error: Caller token (Doctor) not found");
+    //                         return;
+    //                     }
 
-                        // Tự giải mã token (dùng hàm decodeToken của bạn)
-                        const decodedUser = decodeToken(currentToken);
-                        if (!decodedUser) {
-                            console.error("Error: Unable to decode caller token (Doctor)");
-                            return;
-                        }
+    //                     // Tự giải mã token (dùng hàm decodeToken của bạn)
+    //                     const decodedUser = decodeToken(currentToken);
+    //                     if (!decodedUser) {
+    //                         console.error("Error: Unable to decode caller token (Doctor)");
+    //                         return;
+    //                     }
 
-                        // Lấy thông tin user TƯƠI MỚI (fresh)
-                        const userId = decodedUser.sub;
-                        const userName = decodedUser.preferred_username || decodedUser.email;
+    //                     // Lấy thông tin user TƯƠI MỚI (fresh)
+    //                     const userId = decodedUser.sub;
+    //                     const userName = decodedUser.preferred_username || decodedUser.email;
 
-                        // Mở cửa sổ Zego (vì BẠN là người gọi)
-                        const callUrl = `/video-calling?roomID=${roomId}&userID=${encodeURIComponent(userId)}&userName=${encodeURIComponent(userName)}`;
-                        const windowSpecs = 'width=1000,height=700,noopener,noreferrer';
-                        window.open(callUrl, '_blank', windowSpecs);
-                    });
+    //                     // Mở cửa sổ Zego (vì BẠN là người gọi)
+    //                     const callUrl = `/video-calling?roomID=${roomId}&userID=${encodeURIComponent(userId)}&userName=${encodeURIComponent(userName)}`;
+    //                     const windowSpecs = 'width=1000,height=700,noopener,noreferrer';
+    //                     window.open(callUrl, '_blank', windowSpecs);
+    //                 });
 
-                    // C. Khi NGƯỜI BẠN GỌI đã "Từ chối"
-                    newConnection.on("CallDeclined", () => {
-                        // console.log("Call declined.");
-                        toast.info("User declined the call.");
-                    });
+    //                 // C. Khi NGƯỜI BẠN GỌI đã "Từ chối"
+    //                 newConnection.on("CallDeclined", () => {
+    //                     // console.log("Call declined.");
+    //                     toast.info("User declined the call.");
+    //                 });
 
-                })
-                .catch(e => console.error("SignalR Connection Error: ", e));
-        }
-        // Nếu không có token (logout) VÀ đang có kết nối
-        else if (!token && connection) {
-            connection.stop();
-            setConnection(null);
-        }
+    //             })
+    //             .catch(e => console.error("SignalR Connection Error: ", e));
+    //     }
+    //     // Nếu không có token (logout) VÀ đang có kết nối
+    //     else if (!token && connection) {
+    //         connection.stop();
+    //         setConnection(null);
+    //     }
 
-        // Cleanup (chạy khi component bị hủy)
-        return () => {
-            if (connection) {
-                connection.stop();
-            }
-        }
-        // Chạy lại logic này mỗi khi 'token' hoặc 'connection' thay đổi
-        // (Không cần 'user' trong dependency array nữa vì 'CallAccepted' đã đọc từ localStorage)
-    }, [token, connection]);
+    //     // Cleanup (chạy khi component bị hủy)
+    //     return () => {
+    //         if (connection) {
+    //             connection.stop();
+    //         }
+    //     }
+    //     // Chạy lại logic này mỗi khi 'token' hoặc 'connection' thay đổi
+    //     // (Không cần 'user' trong dependency array nữa vì 'CallAccepted' đã đọc từ localStorage)
+    // }, [token, connection]);
 
     // 1. Khi BẠN bấm nút "Gọi"
     const initiateCall = async (targetUserId, roomId, targetUserName = "User") => {

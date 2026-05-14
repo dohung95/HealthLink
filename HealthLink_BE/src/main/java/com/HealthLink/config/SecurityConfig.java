@@ -77,6 +77,8 @@ public class SecurityConfig {
                         .requestMatchers("/api/auth/**").permitAll()
                         // Public: xem danh sách bác sĩ (cho bệnh nhân)
                         .requestMatchers(HttpMethod.GET, "/api/doctors").permitAll()
+                        // Public: tạo kết nối websocket với backend
+                        .requestMatchers("/ws/**").permitAll()
                         // Tất cả còn lại yêu cầu xác thực
                         .anyRequest().authenticated())
 

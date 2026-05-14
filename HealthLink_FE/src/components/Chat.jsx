@@ -575,16 +575,16 @@ export default function Chat() {
                     )}
 
                     {/* Model chọn nhà thuốc (Patient) */}
-                    {isPatient && showPharmacyListModal && (
+                    {/* {isPatient && showPharmacyListModal && (
                         <div style={{ position: 'absolute', bottom: '80px', left: 0, right: 0, zIndex: 10, padding: '0 10px' }}>
                             <div className="card shadow-lg">
                                 <div className="card-header d-flex justify-content-between align-items-center">
                                     <h5 className="mb-0 fs-6">Choice Pharmacy</h5>
                                     <button className="btn-close" onClick={() => setShowPharmacyListModal(false)}></button>
                                 </div>
-                                <ul className="list-group list-group-flush" style={{ maxHeight: '300px', overflowY: 'auto' }}>
+                                <ul className="list-group list-group-flush" style={{ maxHeight: '300px', overflowY: 'auto' }}> */}
                                     {/* Các phòng chat đã có */}
-                                    {roomList.map(room => {
+                                    {/* {roomList.map(room => {
                                         const partnerId = room.user1Id === currentUserId ? room.user2Id : room.user1Id;
                                         const name = room.user1Id === currentUserId ? room.user2DisplayName : room.user1DisplayName;
                                         const photo = room.user1Id === currentUserId ? room.user2PhotoURL : room.user1PhotoURL;
@@ -599,11 +599,11 @@ export default function Chat() {
                                                 </div>
                                             </li>
                                         );
-                                    })}
+                                    })} 
                                 </ul>
                             </div>
                         </div>
-                    )}
+                    )}*/}
                 </div>
             )}
         </>

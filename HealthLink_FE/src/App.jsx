@@ -1,4 +1,4 @@
-﻿// src/App.js
+// src/App.js
 import React from 'react';
 import { BrowserRouter as Router, Routes, Route, useLocation } from 'react-router-dom';
 import { ToastContainer } from 'react-toastify';
@@ -14,6 +14,8 @@ import Chat from './components/Chat';
 import Payment from './components/Payment';
 
 import ProfilePatient from './pages/profilePatient';
+import ProfileDoctor from './pages/profileDoctor';
+import ProfilePharmacy from './pages/profilePharmacy';
 
 import Admin from './components/Admin/View/Admin';
 import Patients from './components/Admin/View/Patients';
@@ -28,6 +30,8 @@ import EmailConfirmation from './components/Auth/EmailConfirmation';
 import RegistrationChoice from './components/Auth/RegistrationChoice';
 import DoctorRegistration from './components/Auth/DoctorRegistration';
 import PharmacyRegistration from './components/Auth/PharmacyRegistration';
+import ForgotPassword from './components/Auth/ForgotPassword';
+import ResetPassword from './components/Auth/ResetPassword';
 
 import Footer from './components/Footer';
 
@@ -96,6 +100,8 @@ function AppContent() {
             <Route path="/register" element={<Sign_up />} />
             <Route path="/signup" element={<Sign_up />} />
             <Route path="/confirm-email" element={<EmailConfirmation />} />
+            <Route path="/forgot-password" element={<ForgotPassword />} />
+            <Route path="/reset-password" element={<ResetPassword />} />
             <Route path="/register-as" element={<RegistrationChoice />} />
             <Route path="/register/doctor" element={<DoctorRegistration />} />
             <Route path="/register/pharmacy" element={<PharmacyRegistration />} />
@@ -103,6 +109,8 @@ function AppContent() {
             <Route path="/health-records" element={<HealthRecords />} />
             <Route path="/share-records" element={<ShareHealthRecords />} />
             <Route path="/profile-patient" element={<ProfilePatient />} />
+            <Route path="/profile-doctor" element={<ProfileDoctor />} />
+            <Route path="/profile-pharmacy" element={<ProfilePharmacy />} />
 
             {/* <Route path="/schedule" element={<Schedule />} /> */}
             {/* <Route path="/book/:doctorId" element={<Schedule />} /> */}

@@ -10,6 +10,7 @@ import org.springframework.stereotype.Component;
 import javax.crypto.SecretKey;
 import java.util.Base64;
 import java.util.Date;
+import java.util.List;
 
 /**
  * Cung cấp các tiện ích tạo, parse và validate JWT token.
@@ -35,14 +36,22 @@ public class JwtTokenProvider {
     // Tạo Access Token
     // -------------------------------------------------------------------------
     public String generateAccessToken(UserDetails userDetails) {
-        return buildToken(userDetails.getUsername(), expirationMs);
+        List<String> roles = userDetails.getAuthorities().stream()
+                .map(org.springframework.security.core.GrantedAuthority::getAuthority)
+                .map(role -> role.replace("ROLE_", ""))
+                .collect(java.util.stream.Collectors.toList());
+
+        java.util.Map<String, Object> extraClaims = new java.util.HashMap<>();
+        extraClaims.put("role", roles);
+
+        return buildToken(userDetails.getUsername(), extraClaims, expirationMs);
     }
 
     // -------------------------------------------------------------------------
     // Tạo Refresh Token
     // -------------------------------------------------------------------------
     public String generateRefreshToken(UserDetails userDetails) {
-        return buildToken(userDetails.getUsername(), refreshExpirationMs);
+        return buildToken(userDetails.getUsername(), new java.util.HashMap<>(), refreshExpirationMs);
     }
 
     // -------------------------------------------------------------------------
@@ -94,10 +103,11 @@ public class JwtTokenProvider {
     // =========================================================================
     // Private helpers
     // =========================================================================
-    private String buildToken(String subject, long ttlMs) {
+    private String buildToken(String subject, java.util.Map<String, Object> extraClaims, long ttlMs) {
         Date now    = new Date();
         Date expiry = new Date(now.getTime() + ttlMs);
         return Jwts.builder()
+                .claims(extraClaims)
                 .subject(subject)
                 .issuedAt(now)
                 .expiration(expiry)
