@@ -13,7 +13,7 @@ export function PharmacyRegistration() {
     const [showSuccessModal, setShowSuccessModal] = useState(false);
 
     const [formData, setFormData] = useState({
-        pharmacyName: '',
+        name: '',  // Pharmacy name - consistent with Pharmacy entity
         email: '',
         phoneNumber: '',
         licenseNumber: '',
@@ -41,6 +41,10 @@ export function PharmacyRegistration() {
         otherDocuments: []
     });
 
+    // Avatar state
+    const [avatar, setAvatar] = useState(null);
+    const [avatarPreview, setAvatarPreview] = useState(null);
+
     const [uploadingFiles, setUploadingFiles] = useState(false);
 
     useEffect(() => {
@@ -56,6 +60,34 @@ export function PharmacyRegistration() {
             ...prev,
             [name]: type === 'checkbox' ? checked : value
         }));
+    };
+
+    const handleAvatarChange = (e) => {
+        const file = e.target.files[0];
+        if (file) {
+            // Validate file size (max 5MB for avatar)
+            if (file.size > 5 * 1024 * 1024) {
+                setError('Avatar size must be less than 5MB');
+                return;
+            }
+            // Validate file type (images only)
+            const allowedTypes = ['image/jpeg', 'image/png', 'image/jpg', 'image/webp'];
+            if (!allowedTypes.includes(file.type)) {
+                setError('Please upload an image file (JPG, PNG, or WebP)');
+                return;
+            }
+            setAvatar(file);
+            setAvatarPreview(URL.createObjectURL(file));
+            setError('');
+        }
+    };
+
+    const removeAvatar = () => {
+        setAvatar(null);
+        if (avatarPreview) {
+            URL.revokeObjectURL(avatarPreview);
+        }
+        setAvatarPreview(null);
     };
 
     const handleFileChange = (e, documentType) => {
@@ -121,6 +153,11 @@ export function PharmacyRegistration() {
     const uploadDocuments = async (requestId) => {
         const uploads = [];
 
+        // Upload avatar first (as Profile Photo)
+        if (avatar) {
+            uploads.push({ file: avatar, type: 'Profile Photo' });
+        }
+
         if (documents.businessLicense) {
             uploads.push({ file: documents.businessLicense, type: 'Business License' });
         }
@@ -148,7 +185,7 @@ export function PharmacyRegistration() {
         setError('');
 
         // Validation
-        if (!formData.pharmacyName || !formData.email || !formData.phoneNumber) {
+        if (!formData.name || !formData.email || !formData.phoneNumber) {
             setError('Please fill in all required fields');
             return;
         }
@@ -173,15 +210,17 @@ export function PharmacyRegistration() {
         try {
             const submitData = {
                 ...formData,
+                pharmacyName: formData.name,  // Map to backend DTO field name
                 deliveryRadius: parseFloat(formData.deliveryRadius) || null,
                 deliveryFee: parseFloat(formData.deliveryFee) || null
             };
+            delete submitData.name;  // Remove duplicate field
 
             const response = await registrationService.submitPharmacyRegistration(submitData);
 
-            // Upload documents if any
+            // Upload documents and avatar if any
             const hasDocuments = documents.businessLicense || documents.pharmacyLicense ||
-                                documents.ownerIdCard || documents.otherDocuments.length > 0;
+                                documents.ownerIdCard || documents.otherDocuments.length > 0 || avatar;
 
             if (hasDocuments && response.requestId) {
                 setUploadingFiles(true);
@@ -232,6 +271,42 @@ export function PharmacyRegistration() {
                     )}
 
                     <form onSubmit={handleSubmit} noValidate>
+                        {/* Profile Photo */}
+                        <div className="form-section">
+                            <h3><i className="bi bi-image"></i> Profile Photo</h3>
+                            <p className="section-description">Upload your pharmacy's logo or storefront photo (Optional - JPG, PNG, WebP - Max 5MB)</p>
+                            <div className="avatar-upload-wrapper">
+                                <div className="avatar-preview">
+                                    {avatarPreview ? (
+                                        <img src={avatarPreview} alt="Avatar preview" />
+                                    ) : (
+                                        <div className="avatar-placeholder">
+                                            <i className="bi bi-shop"></i>
+                                        </div>
+                                    )}
+                                </div>
+                                <div className="avatar-controls">
+                                    <input
+                                        type="file"
+                                        id="avatarUpload"
+                                        accept="image/jpeg,image/png,image/jpg,image/webp"
+                                        onChange={handleAvatarChange}
+                                        disabled={submitting}
+                                        className="file-input"
+                                    />
+                                    <label htmlFor="avatarUpload" className="avatar-upload-btn">
+                                        <i className="bi bi-cloud-upload"></i>
+                                        {avatar ? 'Change Photo' : 'Upload Photo'}
+                                    </label>
+                                    {avatar && (
+                                        <button type="button" className="avatar-remove-btn" onClick={removeAvatar}>
+                                            <i className="bi bi-trash"></i> Remove
+                                        </button>
+                                    )}
+                                </div>
+                            </div>
+                        </div>
+
                         {/* Basic Information */}
                         <div className="form-section">
                             <h3><i className="bi bi-shop"></i> Basic Information</h3>
@@ -240,8 +315,8 @@ export function PharmacyRegistration() {
                                     <label>Pharmacy Name <span className="required">*</span></label>
                                     <input
                                         type="text"
-                                        name="pharmacyName"
-                                        value={formData.pharmacyName}
+                                        name="name"
+                                        value={formData.name}
                                         onChange={handleChange}
                                         placeholder="HealthLink Pharmacy"
                                         disabled={submitting}

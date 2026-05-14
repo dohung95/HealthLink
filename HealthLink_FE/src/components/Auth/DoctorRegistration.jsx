@@ -43,6 +43,10 @@ export function DoctorRegistration() {
         otherCertificates: []
     });
 
+    // Avatar state
+    const [avatar, setAvatar] = useState(null);
+    const [avatarPreview, setAvatarPreview] = useState(null);
+
     const [uploadingFiles, setUploadingFiles] = useState(false);
 
     useEffect(() => {
@@ -86,6 +90,34 @@ export function DoctorRegistration() {
                 [name]: type === 'checkbox' ? checked : value
             }));
         }
+    };
+
+    const handleAvatarChange = (e) => {
+        const file = e.target.files[0];
+        if (file) {
+            // Validate file size (max 5MB for avatar)
+            if (file.size > 5 * 1024 * 1024) {
+                setError('Avatar size must be less than 5MB');
+                return;
+            }
+            // Validate file type (images only)
+            const allowedTypes = ['image/jpeg', 'image/png', 'image/jpg', 'image/webp'];
+            if (!allowedTypes.includes(file.type)) {
+                setError('Please upload an image file (JPG, PNG, or WebP)');
+                return;
+            }
+            setAvatar(file);
+            setAvatarPreview(URL.createObjectURL(file));
+            setError('');
+        }
+    };
+
+    const removeAvatar = () => {
+        setAvatar(null);
+        if (avatarPreview) {
+            URL.revokeObjectURL(avatarPreview);
+        }
+        setAvatarPreview(null);
     };
 
     const handleFileChange = (e, documentType) => {
@@ -153,6 +185,11 @@ export function DoctorRegistration() {
     const uploadDocuments = async (requestId) => {
         const uploads = [];
 
+        // Upload avatar first (as Profile Photo)
+        if (avatar) {
+            uploads.push({ file: avatar, type: 'Profile Photo' });
+        }
+
         if (documents.medicalDegree) {
             uploads.push({ file: documents.medicalDegree, type: 'Medical Degree Certificate' });
         }
@@ -212,9 +249,9 @@ export function DoctorRegistration() {
 
             const response = await registrationService.submitDoctorRegistration(submitData);
 
-            // Upload documents if any
+            // Upload documents and avatar if any
             const hasDocuments = documents.medicalDegree || documents.practiceLicense ||
-                                documents.idCard || documents.otherCertificates.length > 0;
+                                documents.idCard || documents.otherCertificates.length > 0 || avatar;
 
             if (hasDocuments && response.requestId) {
                 setUploadingFiles(true);
@@ -266,6 +303,42 @@ export function DoctorRegistration() {
                     )}
 
                     <form onSubmit={handleSubmit} noValidate>
+                        {/* Profile Photo */}
+                        <div className="form-section">
+                            <h3><i className="bi bi-person-circle"></i> Profile Photo</h3>
+                            <p className="section-description">Upload your professional photo (Optional - JPG, PNG, WebP - Max 5MB)</p>
+                            <div className="avatar-upload-wrapper">
+                                <div className="avatar-preview">
+                                    {avatarPreview ? (
+                                        <img src={avatarPreview} alt="Avatar preview" />
+                                    ) : (
+                                        <div className="avatar-placeholder">
+                                            <i className="bi bi-person"></i>
+                                        </div>
+                                    )}
+                                </div>
+                                <div className="avatar-controls">
+                                    <input
+                                        type="file"
+                                        id="avatarUpload"
+                                        accept="image/jpeg,image/png,image/jpg,image/webp"
+                                        onChange={handleAvatarChange}
+                                        disabled={submitting}
+                                        className="file-input"
+                                    />
+                                    <label htmlFor="avatarUpload" className="avatar-upload-btn">
+                                        <i className="bi bi-cloud-upload"></i>
+                                        {avatar ? 'Change Photo' : 'Upload Photo'}
+                                    </label>
+                                    {avatar && (
+                                        <button type="button" className="avatar-remove-btn" onClick={removeAvatar}>
+                                            <i className="bi bi-trash"></i> Remove
+                                        </button>
+                                    )}
+                                </div>
+                            </div>
+                        </div>
+
                         {/* Personal Information */}
                         <div className="form-section">
                             <h3><i className="bi bi-person"></i> Personal Information</h3>
