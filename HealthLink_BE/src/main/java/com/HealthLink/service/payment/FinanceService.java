@@ -73,4 +73,19 @@ public interface FinanceService {
      * @return hóa đơn đã cập nhật dưới dạng phản hồi
      */
     InvoiceResponse capturePayPalPayment(PayPalCaptureRequest request);
+
+    /**
+     * Xử lý hoàn tiền cho bệnh nhân.
+     * Khi một Payment được yêu cầu hoàn tiền:
+     * <ul>
+     *   <li>Chuyển trạng thái Payment → REFUNDED</li>
+     *   <li>Chuyển trạng thái Invoice → REFUNDED</li>
+     *   <li>Gọi CommissionService.processRefund() để truy vết và trừ pendingSettlement đối tác</li>
+     * </ul>
+     *
+     * @param paymentId    ID của Payment cần hoàn tiền
+     * @param refundReason lý do hoàn tiền (tùy chọn)
+     * @return hóa đơn đã cập nhật
+     */
+    InvoiceResponse processRefund(Integer paymentId, String refundReason);
 }

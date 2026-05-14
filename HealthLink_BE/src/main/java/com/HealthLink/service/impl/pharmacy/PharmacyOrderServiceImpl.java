@@ -4,25 +4,34 @@ import com.HealthLink.dto.pharmacy.PharmacyOrderRequest;
 import com.HealthLink.dto.pharmacy.PharmacyOrderResponse;
 import com.HealthLink.dto.pharmacy.PharmacyOrderStatusRequest;
 import com.HealthLink.entity.*;
+import com.HealthLink.entity.enums.NotificationPriority;
+import com.HealthLink.entity.enums.NotificationType;
 import com.HealthLink.exception.InvalidStatusException;
 import com.HealthLink.exception.ResourceNotFoundException;
+import com.HealthLink.repository.notification.DeviceTokenRepository;
 import com.HealthLink.repository.pharmacy.PharmacyOrderRepository;
 import com.HealthLink.repository.pharmacy.PharmacyRepository;
 import com.HealthLink.repository.prescription.PrescriptionHeaderRepository;
 import com.HealthLink.service.pharmacy.PharmacyOrderService;
+import com.HealthLink.service.notification.NotificationService;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.transaction.support.TransactionSynchronization;
+import org.springframework.transaction.support.TransactionSynchronizationManager;
 
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
 import java.util.List;
+import java.util.Objects;
 import java.util.Set;
 import java.util.stream.Collectors;
 
 @Service
 @RequiredArgsConstructor
+@Slf4j
 public class PharmacyOrderServiceImpl implements PharmacyOrderService {
 
     // ── Status constants ──────────────────────────────────────────────────────
@@ -63,6 +72,8 @@ public class PharmacyOrderServiceImpl implements PharmacyOrderService {
     private final PharmacyOrderRepository orderRepository;
     private final PharmacyRepository pharmacyRepository;
     private final PrescriptionHeaderRepository prescriptionHeaderRepository;
+    private final NotificationService notificationService;
+    private final DeviceTokenRepository deviceTokenRepository;
 
     // =========================================================================
     // Task 2.1 & 2.3 – Chuyển đơn, tạo PharmacyOrder
@@ -139,6 +150,8 @@ public class PharmacyOrderServiceImpl implements PharmacyOrderService {
         prescription.setStatus(PRESCRIPTION_STATUS_SENT);
         prescriptionHeaderRepository.save(prescription);
 
+        notifyPharmacyAboutNewOrderAfterCommit(saved);
+
         return toResponse(saved);
     }
 
@@ -154,6 +167,12 @@ public class PharmacyOrderServiceImpl implements PharmacyOrderService {
 
         String currentStatus = order.getStatus();
         String targetStatus  = request.getStatus();
+
+        if (Objects.equals(currentStatus, targetStatus)) {
+            log.info("Skipping order status update notification because status is unchanged: orderId={}, status={}",
+                    orderId, currentStatus);
+            return toResponse(order);
+        }
 
         // Kiểm tra luồng trạng thái hợp lệ
         Set<String> allowed = ALLOWED_TRANSITIONS.getOrDefault(currentStatus, Set.of());
@@ -191,6 +210,8 @@ public class PharmacyOrderServiceImpl implements PharmacyOrderService {
 
         order.setStatus(targetStatus);
         PharmacyOrder updated = orderRepository.save(order);
+
+        notifyPatientAboutOrderStatusAfterCommit(updated, currentStatus, targetStatus);
 
         return toResponse(updated);
     }
@@ -259,6 +280,146 @@ public class PharmacyOrderServiceImpl implements PharmacyOrderService {
         } while (orderRepository.existsByOrderNumber(orderNumber));
 
         return orderNumber;
+    }
+
+    private void notifyPharmacyAboutNewOrderAfterCommit(PharmacyOrder order) {
+        User pharmacyUser = resolvePharmacyUser(order, NotificationType.NEW_ORDER);
+        if (pharmacyUser == null) {
+            return;
+        }
+
+        String orderNumber = safeValue(order.getOrderNumber(), "unknown order");
+        String patientName = order.getPatient() != null
+                ? safeValue(order.getPatient().getFullName(), "Unknown patient")
+                : "Unknown patient";
+        Integer orderId = order.getOrderId();
+        Integer prescriptionHeaderId = order.getPrescriptionHeader() != null
+                ? order.getPrescriptionHeader().getPrescriptionHeaderId()
+                : null;
+        String actionUrl = "/pharmacy-orders/" + orderId;
+        String title = "New pharmacy order";
+        String message = String.format(
+                "Order %s for %s was transferred from prescription %s.",
+                orderNumber,
+                patientName,
+                prescriptionHeaderId != null ? prescriptionHeaderId : "unknown"
+        );
+
+        runAfterCommit("new pharmacy order notification orderId=" + orderId, () -> {
+            notificationService.sendWebSocketNotification(
+                    pharmacyUser,
+                    NotificationType.NEW_ORDER,
+                    title,
+                    message,
+                    orderId,
+                    actionUrl
+            );
+            log.info("New order notification queued for pharmacyUserId={}, orderId={}",
+                    pharmacyUser.getId(), orderId);
+        });
+    }
+
+    private void notifyPatientAboutOrderStatusAfterCommit(PharmacyOrder order, String oldStatus, String newStatus) {
+        User patientUser = resolvePatientUser(order, NotificationType.ORDER_STATUS);
+        if (patientUser == null) {
+            return;
+        }
+
+        String orderNumber = safeValue(order.getOrderNumber(), "unknown order");
+        Integer orderId = order.getOrderId();
+        String actionUrl = "/pharmacy-orders/" + orderId;
+        String title = "Order status updated";
+        String message = String.format(
+                "Order %s changed from %s to %s.",
+                orderNumber,
+                safeValue(oldStatus, "unknown"),
+                safeValue(newStatus, "unknown")
+        );
+        boolean hasActiveMobileToken = !deviceTokenRepository
+                .findByUser_IdAndActiveTrue(patientUser.getId())
+                .isEmpty();
+
+        runAfterCommit("order status notification orderId=" + orderId, () -> {
+            notificationService.sendWebSocketNotification(
+                    patientUser,
+                    NotificationType.ORDER_STATUS,
+                    title,
+                    message,
+                    orderId,
+                    actionUrl
+            );
+
+            if (hasActiveMobileToken) {
+                notificationService.sendMobilePushNotification(
+                        patientUser,
+                        NotificationType.ORDER_STATUS,
+                        title,
+                        message,
+                        NotificationPriority.NORMAL,
+                        orderId,
+                        actionUrl
+                );
+            }
+
+            log.info("Order status notification queued for patientUserId={}, orderId={}, oldStatus={}, newStatus={}, mobilePush={}",
+                    patientUser.getId(), orderId, oldStatus, newStatus, hasActiveMobileToken);
+        });
+    }
+
+    private User resolvePharmacyUser(PharmacyOrder order, NotificationType type) {
+        if (order == null || order.getPharmacy() == null) {
+            log.warn("Cannot send {} notification: order or pharmacy is missing", type);
+            return null;
+        }
+
+        User user = order.getPharmacy().getUser();
+        if (user == null || user.getId() == null || user.getId().isBlank()) {
+            log.warn("Cannot send {} notification: pharmacyId={} is not mapped to a user",
+                    type, order.getPharmacy().getPharmacyId());
+            return null;
+        }
+        return user;
+    }
+
+    private User resolvePatientUser(PharmacyOrder order, NotificationType type) {
+        if (order == null || order.getPatient() == null) {
+            log.warn("Cannot send {} notification: order or patient is missing", type);
+            return null;
+        }
+
+        User user = order.getPatient().getUser();
+        if (user == null || user.getId() == null || user.getId().isBlank()) {
+            log.warn("Cannot send {} notification: patientId={} is not mapped to a user",
+                    type, order.getPatient().getPatientId());
+            return null;
+        }
+        return user;
+    }
+
+    private void runAfterCommit(String context, Runnable task) {
+        Runnable safeTask = () -> {
+            try {
+                task.run();
+            } catch (Exception ex) {
+                log.error("Failed to send {} after commit: {}", context, ex.getMessage(), ex);
+            }
+        };
+
+        if (TransactionSynchronizationManager.isSynchronizationActive()) {
+            TransactionSynchronizationManager.registerSynchronization(new TransactionSynchronization() {
+                @Override
+                public void afterCommit() {
+                    safeTask.run();
+                }
+            });
+            return;
+        }
+
+        safeTask.run();
+    }
+
+    private String safeValue(String value, String fallback) {
+        return value == null || value.isBlank() ? fallback : value;
     }
 
     /**

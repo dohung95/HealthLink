@@ -8,6 +8,8 @@ import com.HealthLink.entity.Appointment;
 import com.HealthLink.entity.Doctor;
 import com.HealthLink.entity.DoctorSchedule;
 import com.HealthLink.entity.Patient;
+import com.HealthLink.entity.User;
+import com.HealthLink.entity.enums.NotificationType;
 import com.HealthLink.exception.BusinessException;
 import com.HealthLink.exception.ResourceNotFoundException;
 import com.HealthLink.repository.appointment.AppointmentRepository;
@@ -15,24 +17,34 @@ import com.HealthLink.repository.doctor.DoctorRepository;
 import com.HealthLink.repository.doctor.DoctorScheduleRepository;
 import com.HealthLink.repository.patient.PatientRepository;
 import com.HealthLink.service.appointment.AppointmentService;
+import com.HealthLink.service.notification.NotificationService;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.transaction.support.TransactionSynchronization;
+import org.springframework.transaction.support.TransactionSynchronizationManager;
 
 import java.time.LocalDateTime;
 import java.time.LocalTime;
+import java.time.format.DateTimeFormatter;
 import java.util.List;
 import java.util.Objects;
 import java.util.stream.Collectors;
 
 @Service
 @RequiredArgsConstructor
+@Slf4j
 public class AppointmentServiceImpl implements AppointmentService{
+
+    private static final DateTimeFormatter NOTIFICATION_TIME_FORMATTER =
+            DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm");
 
     private final AppointmentRepository appointmentRepository;
     private final PatientRepository patientRepository;
     private final DoctorRepository doctorRepository;
     private final DoctorScheduleRepository scheduleRepository;
+    private final NotificationService notificationService;
 
     // createAppointment
     @Override
@@ -108,7 +120,10 @@ public class AppointmentServiceImpl implements AppointmentService{
                 .fee(doctor.getConsultationFee())
                 .build();
 
-        return toResponse(appointmentRepository.save(appointment));
+        Appointment saved = appointmentRepository.save(appointment);
+        notifyDoctorAboutNewAppointmentAfterCommit(saved);
+
+        return toResponse(saved);
     }
 
     // get list of all appointment for a specific patient and return list of appointments sorted by the latest first
@@ -175,7 +190,10 @@ public class AppointmentServiceImpl implements AppointmentService{
         appointment.setCancelledBy(request.getCancelledBy());
         appointment.setCancelledAt(LocalDateTime.now());
 
-        return toResponse(appointmentRepository.save(appointment));
+        Appointment saved = appointmentRepository.save(appointment);
+        notifyDoctorAboutCancelledAppointmentAfterCommit(saved);
+
+        return toResponse(saved);
     }
 
     // Dời lịch hẹn sang thời gian mới
@@ -308,6 +326,121 @@ public class AppointmentServiceImpl implements AppointmentService{
             return true;
         }
         return schedule.getConsultationType().equalsIgnoreCase(consultationType);
+    }
+
+    private void notifyDoctorAboutNewAppointmentAfterCommit(Appointment appointment) {
+        User doctorUser = resolveDoctorUser(appointment, NotificationType.NEW_APPOINTMENT);
+        if (doctorUser == null) {
+            return;
+        }
+
+        String patientName = safeValue(appointment.getPatient().getFullName(), "Unknown patient");
+        String appointmentTime = formatAppointmentTime(appointment.getAppointmentTime());
+        String consultationType = safeValue(appointment.getConsultationType(), "consultation");
+        Integer appointmentId = appointment.getAppointmentId();
+        String actionUrl = "/appointments/" + appointmentId;
+        String title = "New appointment booked";
+        String message = String.format(
+                "%s booked a %s appointment at %s.",
+                patientName,
+                consultationType,
+                appointmentTime
+        );
+
+        runAfterCommit("new appointment notification appointmentId=" + appointmentId, () -> {
+            notificationService.sendWebSocketNotification(
+                    doctorUser,
+                    NotificationType.NEW_APPOINTMENT,
+                    title,
+                    message,
+                    appointmentId,
+                    actionUrl
+            );
+            log.info("New appointment notification queued for doctorUserId={}, appointmentId={}",
+                    doctorUser.getId(), appointmentId);
+        });
+    }
+
+    private void notifyDoctorAboutCancelledAppointmentAfterCommit(Appointment appointment) {
+        User doctorUser = resolveDoctorUser(appointment, NotificationType.CANCEL_APPOINTMENT);
+        if (doctorUser == null) {
+            return;
+        }
+
+        String patientName = safeValue(appointment.getPatient().getFullName(), "Unknown patient");
+        String appointmentTime = formatAppointmentTime(appointment.getAppointmentTime());
+        String cancelledBy = safeValue(appointment.getCancelledBy(), "Unknown");
+        String cancelReason = safeValue(appointment.getCancelReason(), "No reason provided");
+        Integer appointmentId = appointment.getAppointmentId();
+        String actionUrl = "/appointments/" + appointmentId;
+        String title = "Appointment cancelled";
+        String message = String.format(
+                "%s's appointment at %s was cancelled by %s. Reason: %s",
+                patientName,
+                appointmentTime,
+                cancelledBy,
+                cancelReason
+        );
+
+        runAfterCommit("cancel appointment notification appointmentId=" + appointmentId, () -> {
+            notificationService.sendWebSocketNotification(
+                    doctorUser,
+                    NotificationType.CANCEL_APPOINTMENT,
+                    title,
+                    message,
+                    appointmentId,
+                    actionUrl
+            );
+            log.info("Cancel appointment notification queued for doctorUserId={}, appointmentId={}",
+                    doctorUser.getId(), appointmentId);
+        });
+    }
+
+    private User resolveDoctorUser(Appointment appointment, NotificationType type) {
+        if (appointment == null || appointment.getDoctor() == null) {
+            log.warn("Cannot send {} notification: appointment or doctor is missing", type);
+            return null;
+        }
+
+        User user = appointment.getDoctor().getUser();
+        if (user == null || user.getId() == null || user.getId().isBlank()) {
+            log.warn("Cannot send {} notification: doctorId={} is not mapped to a user",
+                    type, appointment.getDoctor().getDoctorId());
+            return null;
+        }
+        return user;
+    }
+
+    private void runAfterCommit(String context, Runnable task) {
+        Runnable safeTask = () -> {
+            try {
+                task.run();
+            } catch (Exception ex) {
+                log.error("Failed to send {} after commit: {}", context, ex.getMessage(), ex);
+            }
+        };
+
+        if (TransactionSynchronizationManager.isSynchronizationActive()) {
+            TransactionSynchronizationManager.registerSynchronization(new TransactionSynchronization() {
+                @Override
+                public void afterCommit() {
+                    safeTask.run();
+                }
+            });
+            return;
+        }
+
+        safeTask.run();
+    }
+
+    private String formatAppointmentTime(LocalDateTime appointmentTime) {
+        return appointmentTime != null
+                ? appointmentTime.format(NOTIFICATION_TIME_FORMATTER)
+                : "unknown time";
+    }
+
+    private String safeValue(String value, String fallback) {
+        return value == null || value.isBlank() ? fallback : value;
     }
 
     /**

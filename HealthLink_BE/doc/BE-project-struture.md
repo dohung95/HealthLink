@@ -1,0 +1,71 @@
+project HealthLink_BE
+
+Folders in com/HealthLink
+
+```
+config/
+controller/
+	admin/
+	appointment/
+	auth/
+	chat/
+	consultation/
+	doctor/
+	medicine/
+	payment/
+	pharmacy/
+	prescription/
+	registration/
+dto/
+	admin/
+	auth/
+	chat/
+	consultation/
+	medicine/
+	payment/
+	pharmacy/
+	prescription/
+	registration/
+	request/
+	response/
+entity/
+exception/
+repository/
+	admin/
+	appointment/
+	auth/
+	chat/
+	consultation/
+	doctor/
+	medicine/
+	patient/
+	payment/
+	pharmacy/
+	prescription/
+	registration/
+scheduler/
+security/
+service/
+	admin/
+	appointment/
+	auth/
+	chat/
+	consultation/
+	doctor/
+	email/
+	impl/
+		appointment/
+		auth/
+		chat/
+		consultation/
+		DoctorServiceImpl/
+		medicine/
+		payment/
+		pharmacy/
+		prescription/
+	medicine/
+	payment/
+	pharmacy/
+	prescription/
+	registration/
+```
