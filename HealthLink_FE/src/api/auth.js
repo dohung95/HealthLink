@@ -139,7 +139,8 @@ export function setupAxiosInterceptors() {
         async (error) => {
             const originalRequest = error.config;
 
-            if (error.response?.status === 401 && !originalRequest._retry) {
+            // Nếu là lỗi 401 và KHÔNG PHẢI là request thuộc /auth/ (login, register, refresh...)
+            if (error.response?.status === 401 && !originalRequest.url.includes('/auth/') && !originalRequest._retry) {
                 originalRequest._retry = true;
                 const storedRefreshToken = localStorage.getItem('refreshToken');
 

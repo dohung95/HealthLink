@@ -16,6 +16,7 @@ export default function ConfirmEmail() {
 
     const [status, setStatus] = useState('loading'); // 'loading' | 'success' | 'error'
     const [message, setMessage] = useState('');
+    const hasCalledAPI = React.useRef(false);
 
     useEffect(() => {
         if (!token) {
@@ -23,6 +24,9 @@ export default function ConfirmEmail() {
             setMessage('Invalid confirmation link. No token provided.');
             return;
         }
+
+        if (hasCalledAPI.current) return;
+        hasCalledAPI.current = true;
 
         // Gọi API xác nhận email
         axios.get(`${API_URL}/confirm-email`, { params: { token } })

@@ -125,7 +125,7 @@ export function AuthProvider({ children }) {
             return true;
         } catch (error) {
             console.error('Login error:', error);
-            throw error;
+            return { success: false, message: 'Login failed. Please try again later.' };
         }
     };
 
