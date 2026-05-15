@@ -91,7 +91,7 @@ export default function ProfilePharmacy() {
                             {activeTab === 'info' ? (
                                 <PharmacyInfoForm profile={profile} token={token} onUpdate={loadProfile} />
                             ) : (
-                                <PharmacySecurityForm token={token} logout={logout} />
+                                <PharmacySecurityForm token={token} logout={logout} profile={profile} />
                             )}
                         </div>
                     </div>
@@ -316,8 +316,9 @@ function PharmacyInfoForm({ profile, token, onUpdate }) {
 }
 
 // ─── Form Security ─────────────────────────────────────────────────────────────
-function PharmacySecurityForm({ token, logout }) {
+function PharmacySecurityForm({ token, logout, profile }) {
     const [passwords, setPasswords] = useState({ currentPassword: '', newPassword: '', confirmNewPassword: '' });
+    const [passwordErrors, setPasswordErrors] = useState({ currentPassword: '', newPassword: '', confirmNewPassword: '' });
     const [changing, setChanging] = useState(false);
 
     const [step, setStep] = useState('form'); // 'form' | 'otp'
@@ -325,18 +326,61 @@ function PharmacySecurityForm({ token, logout }) {
     const [otp, setOtp] = useState('');
     const [changingEmail, setChangingEmail] = useState(false);
 
+    // Hàm kiểm tra độ mạnh mật khẩu
+    const validatePasswordStrength = (pwd) => {
+        if (pwd.length < 6) return "Password must be at least 6 characters long.";
+        if (!/[A-Z]/.test(pwd)) return "Password must contain at least one uppercase letter.";
+        if (!/[a-z]/.test(pwd)) return "Password must contain at least one lowercase letter.";
+        if (!/[0-9]/.test(pwd)) return "Password must contain at least one number.";
+        if (!/[^a-zA-Z0-9\s]/.test(pwd)) return "Password must contain at least one special character.";
+
+        const emailPart = profile?.email?.split('@')[0].toLowerCase();
+        const fullNameLower = profile?.fullName?.toLowerCase();
+        const pwdLower = pwd.toLowerCase();
+
+        if (pwdLower.includes(emailPart)) return "Password should not contain your email prefix.";
+        if (fullNameLower && pwdLower.includes(fullNameLower.split(' ')[0])) return "Password should not contain your name.";
+
+        return null;
+    };
+
     const handlePasswordSubmit = async (e) => {
         e.preventDefault();
-        if (passwords.newPassword !== passwords.confirmNewPassword) {
-            toast.error('New passwords do not match!'); return;
+        // Reset errors
+        const newErrors = { currentPassword: '', newPassword: '', confirmNewPassword: '' };
+        let hasError = false;
+
+        if (passwords.newPassword === passwords.currentPassword) {
+            newErrors.newPassword = "New password must be different from current password!";
+            hasError = true;
+        } else {
+            const strengthError = validatePasswordStrength(passwords.newPassword);
+            if (strengthError) {
+                newErrors.newPassword = strengthError;
+                hasError = true;
+            }
         }
+
+        if (passwords.newPassword !== passwords.confirmNewPassword) {
+            newErrors.confirmNewPassword = "New passwords do not match!";
+            hasError = true;
+        }
+
+        if (hasError) {
+            setPasswordErrors(newErrors);
+            return;
+        }
+
+        setPasswordErrors({ currentPassword: '', newPassword: '', confirmNewPassword: '' });
         setChanging(true);
         try {
             await changePassword(token, passwords);
             toast.success('Password changed! Please log in again.');
             logout();
         } catch (err) {
-            toast.error('Error: ' + (err.response?.data?.message || 'Current password is incorrect.'));
+            const errorMsg = err.response?.data?.message || 'Current password is incorrect.';
+            setPasswordErrors({ ...newErrors, currentPassword: errorMsg });
+            toast.error('Change password failed!');
         } finally {
             setChanging(false);
         }
@@ -436,16 +480,50 @@ function PharmacySecurityForm({ token, logout }) {
                             <div className="alert alert-warning mb-3">
                                 <i className="bi bi-exclamation-triangle me-2"></i>You will need to log in again after changing.
                             </div>
-                            {['currentPassword', 'newPassword', 'confirmNewPassword'].map((field) => (
-                                <div className="mb-3" key={field}>
-                                    <label className="form-label">
-                                        {field === 'currentPassword' ? 'Current Password' : field === 'newPassword' ? 'New Password' : 'Confirm New Password'}
-                                    </label>
-                                    <input type="password" className="form-control"
-                                        value={passwords[field]}
-                                        onChange={(e) => setPasswords({ ...passwords, [field]: e.target.value })} required />
-                                </div>
-                            ))}
+                            {/* Current Password */}
+                            <div className="mb-3">
+                                <label className="form-label">Current Password</label>
+                                <input
+                                    type="password"
+                                    className={`form-control ${passwordErrors.currentPassword ? 'is-invalid' : ''}`}
+                                    value={passwords.currentPassword}
+                                    onChange={(e) => setPasswords({ ...passwords, currentPassword: e.target.value })}
+                                    required
+                                />
+                                {passwordErrors.currentPassword && (
+                                    <div className="invalid-feedback">{passwordErrors.currentPassword}</div>
+                                )}
+                            </div>
+
+                            {/* New Password */}
+                            <div className="mb-3">
+                                <label className="form-label">New Password</label>
+                                <input
+                                    type="password"
+                                    className={`form-control ${passwordErrors.newPassword ? 'is-invalid' : ''}`}
+                                    value={passwords.newPassword}
+                                    onChange={(e) => setPasswords({ ...passwords, newPassword: e.target.value })}
+                                    required
+                                />
+                                {passwordErrors.newPassword && (
+                                    <div className="invalid-feedback">{passwordErrors.newPassword}</div>
+                                )}
+                            </div>
+
+                            {/* Confirm New Password */}
+                            <div className="mb-3">
+                                <label className="form-label">Confirm New Password</label>
+                                <input
+                                    type="password"
+                                    className={`form-control ${passwordErrors.confirmNewPassword ? 'is-invalid' : ''}`}
+                                    value={passwords.confirmNewPassword}
+                                    onChange={(e) => setPasswords({ ...passwords, confirmNewPassword: e.target.value })}
+                                    required
+                                />
+                                {passwordErrors.confirmNewPassword && (
+                                    <div className="invalid-feedback">{passwordErrors.confirmNewPassword}</div>
+                                )}
+                            </div>
                             <button type="submit" className="btn btn-danger w-100" disabled={changing}>
                                 {changing ? <><span className="spinner-border spinner-border-sm me-2"></span>Processing...</> : <><i className="bi bi-shield-check me-2"></i>Change Password</>}
                             </button>

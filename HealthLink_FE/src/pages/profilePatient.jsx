@@ -109,7 +109,7 @@ export default function PatientProfile() {
                             {activeTab === 'info' ? (
                                 <GeneralInfoForm profile={profile} token={token} onUpdate={loadProfile} />
                             ) : (
-                                <SecurityForm token={token} logout={logout} />
+                                <SecurityForm token={token} logout={logout} profile={profile} />
                             )}
                         </div>
                     </div>
@@ -414,8 +414,9 @@ function GeneralInfoForm({ profile, token, onUpdate }) {
 }
 
 // --- COMPONENT CON: FORM ĐỔI MẬT KHẨU VÀ EMAIL---
-function SecurityForm({ token, logout }) {
+function SecurityForm({ token, logout, profile }) {
     const [passwords, setPasswords] = useState({ currentPassword: '', newPassword: '', confirmNewPassword: '' });
+    const [passwordErrors, setPasswordErrors] = useState({ currentPassword: '', newPassword: '', confirmNewPassword: '' });
     const [changing, setChanging] = useState(false);
     const [emailChange, setEmailChange] = useState({ newEmail: '', password: '' });
     const [changingEmail, setChangingEmail] = useState(false);
@@ -423,13 +424,56 @@ function SecurityForm({ token, logout }) {
     const [emailOtpStep, setEmailOtpStep] = useState(false);
     const [otpCode, setOtpCode] = useState('');
 
+    // Hàm kiểm tra độ mạnh mật khẩu (giống Sign_up.jsx)
+    const validatePasswordStrength = (pwd) => {
+        if (pwd.length < 6) return "Password must be at least 6 characters long.";
+        if (!/[A-Z]/.test(pwd)) return "Password must contain at least one uppercase letter.";
+        if (!/[a-z]/.test(pwd)) return "Password must contain at least one lowercase letter.";
+        if (!/[0-9]/.test(pwd)) return "Password must contain at least one number.";
+        if (!/[^a-zA-Z0-9\s]/.test(pwd)) return "Password must contain at least one special character.";
+        
+        // Không trùng email hoặc tên
+        const emailPart = profile?.email?.split('@')[0].toLowerCase();
+        const fullNameLower = profile?.fullName?.toLowerCase();
+        const pwdLower = pwd.toLowerCase();
+        
+        if (pwdLower.includes(emailPart)) return "Password should not contain your email prefix.";
+        if (fullNameLower && pwdLower.includes(fullNameLower.split(' ')[0])) return "Password should not contain your name.";
+        
+        return null;
+    };
+
     // đổi password
     const handleSubmit = async (e) => {
         e.preventDefault();
+        // Reset errors
+        const newErrors = { currentPassword: '', newPassword: '', confirmNewPassword: '' };
+        let hasError = false;
+
+        if (passwords.newPassword === passwords.currentPassword) {
+            newErrors.newPassword = "New password must be different from current password!";
+            hasError = true;
+        } else {
+            // Kiểm tra độ mạnh mật khẩu mới
+            const strengthError = validatePasswordStrength(passwords.newPassword);
+            if (strengthError) {
+                newErrors.newPassword = strengthError;
+                hasError = true;
+            }
+        }
+
         if (passwords.newPassword !== passwords.confirmNewPassword) {
-            toast.error("New password confirmation does not match!");
+            newErrors.confirmNewPassword = "New password confirmation does not match!";
+            hasError = true;
+        }
+
+        if (hasError) {
+            setPasswordErrors(newErrors);
             return;
         }
+
+        // Clear errors before calling API
+        setPasswordErrors({ currentPassword: '', newPassword: '', confirmNewPassword: '' });
 
         setChanging(true);
         try {
@@ -437,7 +481,9 @@ function SecurityForm({ token, logout }) {
             toast.success("Password changed successfully! Please log in again.");
             logout();
         } catch (error) {
-            toast.error("Error: " + (error.response?.data?.message || "Current password is incorrect."));
+            const errorMsg = error.response?.data?.message || "Current password is incorrect.";
+            setPasswordErrors({ ...newErrors, currentPassword: errorMsg });
+            toast.error("Change password failed!");
         } finally {
             setChanging(false);
         }
@@ -589,31 +635,40 @@ function SecurityForm({ token, logout }) {
                                 <label className="form-label">Current Password</label>
                                 <input
                                     type="password"
-                                    className="form-control"
+                                    className={`form-control ${passwordErrors.currentPassword ? 'is-invalid' : ''}`}
                                     value={passwords.currentPassword}
                                     onChange={(e) => setPasswords({ ...passwords, currentPassword: e.target.value })}
                                     required
                                 />
+                                {passwordErrors.currentPassword && (
+                                    <div className="invalid-feedback">{passwordErrors.currentPassword}</div>
+                                )}
                             </div>
                             <div className="mb-3">
                                 <label className="form-label">New Password</label>
                                 <input
                                     type="password"
-                                    className="form-control"
+                                    className={`form-control ${passwordErrors.newPassword ? 'is-invalid' : ''}`}
                                     value={passwords.newPassword}
                                     onChange={(e) => setPasswords({ ...passwords, newPassword: e.target.value })}
                                     required
                                 />
+                                {passwordErrors.newPassword && (
+                                    <div className="invalid-feedback">{passwordErrors.newPassword}</div>
+                                )}
                             </div>
                             <div className="mb-3">
                                 <label className="form-label">Confirm New Password</label>
                                 <input
                                     type="password"
-                                    className="form-control"
+                                    className={`form-control ${passwordErrors.confirmNewPassword ? 'is-invalid' : ''}`}
                                     value={passwords.confirmNewPassword}
                                     onChange={(e) => setPasswords({ ...passwords, confirmNewPassword: e.target.value })}
                                     required
                                 />
+                                {passwordErrors.confirmNewPassword && (
+                                    <div className="invalid-feedback">{passwordErrors.confirmNewPassword}</div>
+                                )}
                             </div>
 
                             <button type="submit" className="btn btn-danger w-100" disabled={changing}>
