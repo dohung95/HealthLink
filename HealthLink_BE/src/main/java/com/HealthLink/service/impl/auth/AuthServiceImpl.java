@@ -6,6 +6,7 @@ import com.HealthLink.dto.auth.LoginResponse;
 import com.HealthLink.dto.auth.RefreshTokenRequest;
 import com.HealthLink.dto.auth.RegisterRequest;
 import com.HealthLink.dto.auth.ResetPasswordRequest;
+import com.HealthLink.entity.EmailVerificationToken;
 import com.HealthLink.entity.PasswordResetToken;
 import com.HealthLink.entity.RefreshToken;
 import com.HealthLink.entity.Role;
@@ -17,6 +18,7 @@ import com.HealthLink.exception.ResourceNotFoundException;
 import com.HealthLink.entity.Patient;
 import com.HealthLink.entity.Doctor;
 import com.HealthLink.entity.Pharmacy;
+import com.HealthLink.repository.auth.EmailVerificationTokenRepository;
 import com.HealthLink.repository.auth.PasswordResetTokenRepository;
 import com.HealthLink.repository.auth.RefreshTokenRepository;
 import com.HealthLink.repository.auth.RoleRepository;
@@ -58,6 +60,7 @@ public class AuthServiceImpl implements AuthService {
     private final PharmacyRepository           pharmacyRepository;
     private final RefreshTokenRepository       refreshTokenRepository;
     private final PasswordResetTokenRepository passwordResetTokenRepository;
+    private final EmailVerificationTokenRepository emailVerificationTokenRepository;
     private final PasswordEncoder              passwordEncoder;
     private final EmailService                 emailService;
     private final TokenBlacklistService        tokenBlacklistService;
@@ -140,7 +143,7 @@ public class AuthServiceImpl implements AuthService {
                 .password(passwordEncoder.encode(request.getPassword()))
                 .phoneNumber(request.getPhoneNumber())
                 .emailConfirmed(false)
-                .status("Active")
+                .status("Inactive")
                 .createdDate(LocalDateTime.now())
                 .lastLoginAt(LocalDateTime.now())
                 .accessFailedCount(0)
@@ -186,6 +189,19 @@ public class AuthServiceImpl implements AuthService {
                     .build();
             pharmacyRepository.save(pharmacy);
         }
+
+        // Tạo token xác nhận email và gửi email kích hoạt tài khoản
+        String confirmToken = UUID.randomUUID().toString();
+        EmailVerificationToken emailToken = EmailVerificationToken.builder()
+                .token(confirmToken)
+                .user(user)
+                .newEmail(user.getEmail()) // dùng newEmail để lưu email đăng ký
+                .expiryDate(LocalDateTime.now().plusHours(24))
+                .used(false)
+                .build();
+        emailVerificationTokenRepository.save(emailToken);
+        emailService.sendRegistrationConfirmEmail(user.getEmail(), user.getUsername(), confirmToken);
+        log.info("Registration confirm email sent to: {}", user.getEmail());
 
         // Load lại để có roles (có thể rỗng nếu chưa assign)
         UserDetails userDetails = userDetailsService.loadUserByUsername(user.getEmail());
@@ -353,5 +369,35 @@ public class AuthServiceImpl implements AuthService {
                 .username(user.getUsername())
                 .role(roleName)
                 .build();
+    }
+
+    // =========================================================================
+    // Xác nhận email sau đăng ký
+    // =========================================================================
+    @Override
+    @Transactional
+    public void confirmEmail(String token) {
+        EmailVerificationToken emailToken = emailVerificationTokenRepository.findByToken(token)
+                .orElseThrow(() -> new InvalidTokenException("Invalid or expired confirmation link"));
+
+        if (emailToken.isUsed()) {
+            throw new BadRequestException("This confirmation link has already been used");
+        }
+
+        if (emailToken.isExpired()) {
+            throw new InvalidTokenException("Confirmation link has expired. Please register again.");
+        }
+
+        // Đánh dấu email đã được xác nhận và kích hoạt tài khoản
+        User user = emailToken.getUser();
+        user.setEmailConfirmed(true);
+        user.setStatus("Active");
+        userRepository.save(user);
+
+        // Vô hiệu hóa token
+        emailToken.setUsed(true);
+        emailVerificationTokenRepository.save(emailToken);
+
+        log.info("Email confirmed for userId: {}", user.getId());
     }
 }

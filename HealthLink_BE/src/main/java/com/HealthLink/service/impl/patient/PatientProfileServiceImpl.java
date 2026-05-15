@@ -1,6 +1,7 @@
 package com.HealthLink.service.impl.patient;
 
 import com.HealthLink.dto.auth.ChangeEmailRequest;
+import com.HealthLink.dto.auth.ChangePasswordRequest;
 import com.HealthLink.dto.auth.VerifyEmailChangeRequest;
 import com.HealthLink.dto.patient.*;
 import com.HealthLink.entity.EmailVerificationToken;
@@ -225,6 +226,32 @@ public class PatientProfileServiceImpl implements PatientProfileService {
      */
     private String generateVerificationCode() {
         return String.format("%06d", (int) (Math.random() * 1000000));
+    }
+
+    /**
+     * Đổi mật khẩu sau khi xác nhận bằng mật khẩu hiện tại.
+     */
+    @Override
+    @Transactional
+    public void changePassword(String userId, ChangePasswordRequest request) {
+        User user = userRepository.findById(userId)
+                .orElseThrow(() -> new ResourceNotFoundException("User", "id", userId));
+
+        // Xác nhận mật khẩu hiện tại
+        if (!passwordEncoder.matches(request.getCurrentPassword(), user.getPassword())) {
+            throw new BadRequestException("Current password is incorrect");
+        }
+
+        // Kiểm tra xác nhận mật khẩu mới
+        if (!request.getNewPassword().equals(request.getConfirmNewPassword())) {
+            throw new BadRequestException("New password and confirmation do not match");
+        }
+
+        // Cập nhật mật khẩu
+        user.setPassword(passwordEncoder.encode(request.getNewPassword()));
+        userRepository.save(user);
+
+        log.info("Password changed for userId: {}", userId);
     }
 
 }

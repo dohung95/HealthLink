@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useAuth } from '../context/AuthContext';
-import { getProfile, updateProfile, changePassword, changeEmail } from '../api/account';
+import { getProfile, updateProfile, changePassword, requestEmailChange, verifyEmailChange } from '../api/account';
 import { toast } from 'sonner';
 import Loading from '../components/Loading';
 
@@ -419,7 +419,11 @@ function SecurityForm({ token, logout }) {
     const [changing, setChanging] = useState(false);
     const [emailChange, setEmailChange] = useState({ newEmail: '', password: '' });
     const [changingEmail, setChangingEmail] = useState(false);
+    // Trạng thái bước 2: nhập OTP xác nhận đổi email
+    const [emailOtpStep, setEmailOtpStep] = useState(false);
+    const [otpCode, setOtpCode] = useState('');
 
+    // đổi password
     const handleSubmit = async (e) => {
         e.preventDefault();
         if (passwords.newPassword !== passwords.confirmNewPassword) {
@@ -439,21 +443,43 @@ function SecurityForm({ token, logout }) {
         }
     };
 
+    // đổi email — 2 bước: (1) request OTP, (2) verify OTP
     const handleEmailChange = async (e) => {
         e.preventDefault();
 
         if (!emailChange.newEmail || !emailChange.password) {
-            toast.error("Please fill in all fields!");
+            toast.error('Please fill in all fields!');
             return;
         }
 
         setChangingEmail(true);
         try {
-            await changeEmail(token, emailChange);
-            toast.success("Email changed successfully! Please log in again.");
+            // Bước 1: gửi yêu cầu và nhận OTP qua email
+            await requestEmailChange(token, { newEmail: emailChange.newEmail, password: emailChange.password });
+            toast.success('Verification code sent to your new email. Please check your inbox.');
+            setEmailOtpStep(true); // chuyển sang bước nhập OTP
+        } catch (error) {
+            toast.error('Error: ' + (error.response?.data?.message || 'Failed to send verification code.'));
+        } finally {
+            setChangingEmail(false);
+        }
+    };
+
+    // Bước 2: xác nhận OTP để hoàn tất đổi email
+    const handleVerifyEmailOtp = async (e) => {
+        e.preventDefault();
+        if (!otpCode.trim()) {
+            toast.error('Please enter the verification code.');
+            return;
+        }
+
+        setChangingEmail(true);
+        try {
+            await verifyEmailChange(token, { newEmail: emailChange.newEmail, verificationCode: otpCode });
+            toast.success('Email changed successfully! Please log in again.');
             logout();
         } catch (error) {
-            toast.error("Error: " + (error.response?.data?.message || "Failed to change email."));
+            toast.error('Error: ' + (error.response?.data?.message || 'Invalid or expired verification code.'));
         } finally {
             setChangingEmail(false);
         }
@@ -463,59 +489,84 @@ function SecurityForm({ token, logout }) {
         <div className="row g-4">
             {/* === Cột trái: Form Change Email === */}
             <div className="col-md-6">
-                <form onSubmit={handleEmailChange} className="h-100">
-                    <div className="card h-100 border-info">
-                        <div className="card-header bg-info text-white">
-                            <h5 className="mb-0">
-                                <i className="bi bi-envelope-at me-2"></i>
-                                Change Email
-                            </h5>
-                        </div>
-                        <div className="card-body">
-                            <div className="alert alert-info mb-3">
-                                <i className="bi bi-info-circle me-2"></i>
-                                After changing email, you will need to log in again with the new email.
-                            </div>
-
-                            <div className="mb-3">
-                                <label className="form-label">New Email</label>
-                                <input
-                                    type="email"
-                                    className="form-control"
-                                    value={emailChange.newEmail}
-                                    onChange={(e) => setEmailChange({ ...emailChange, newEmail: e.target.value })}
-                                    placeholder="Enter new email"
-                                    required
-                                />
-                            </div>
-                            <div className="mb-3">
-                                <label className="form-label">Current Password</label>
-                                <input
-                                    type="password"
-                                    className="form-control"
-                                    value={emailChange.password}
-                                    onChange={(e) => setEmailChange({ ...emailChange, password: e.target.value })}
-                                    placeholder="For verification"
-                                    required
-                                />
-                            </div>
-
-                            <button type="submit" className="btn btn-info w-100" disabled={changingEmail}>
-                                {changingEmail ? (
-                                    <>
-                                        <span className="spinner-border spinner-border-sm me-2"></span>
-                                        Processing...
-                                    </>
-                                ) : (
-                                    <>
-                                        <i className="bi bi-check-circle me-2"></i>
-                                        Change Email
-                                    </>
-                                )}
-                            </button>
-                        </div>
+                <div className="card h-100 border-info">
+                    <div className="card-header bg-info text-white">
+                        <h5 className="mb-0">
+                            <i className="bi bi-envelope-at me-2"></i>
+                            Change Email
+                        </h5>
                     </div>
-                </form>
+                    <div className="card-body">
+                        {!emailOtpStep ? (
+                            <form onSubmit={handleEmailChange}>
+                                <div className="alert alert-info mb-3">
+                                    <i className="bi bi-info-circle me-2"></i>
+                                    A verification code will be sent to your new email address.
+                                </div>
+                                <div className="mb-3">
+                                    <label className="form-label">New Email</label>
+                                    <input
+                                        type="email"
+                                        className="form-control"
+                                        value={emailChange.newEmail}
+                                        onChange={(e) => setEmailChange({ ...emailChange, newEmail: e.target.value })}
+                                        placeholder="Enter new email"
+                                        required
+                                    />
+                                </div>
+                                <div className="mb-3">
+                                    <label className="form-label">Current Password</label>
+                                    <input
+                                        type="password"
+                                        className="form-control"
+                                        value={emailChange.password}
+                                        onChange={(e) => setEmailChange({ ...emailChange, password: e.target.value })}
+                                        placeholder="For verification"
+                                        required
+                                    />
+                                </div>
+                                <button type="submit" className="btn btn-info w-100" disabled={changingEmail}>
+                                    {changingEmail
+                                        ? <><span className="spinner-border spinner-border-sm me-2"></span>Sending...</>
+                                        : <><i className="bi bi-send me-2"></i>Send Verification Code</>}
+                                </button>
+                            </form>
+                        ) : (
+                            <form onSubmit={handleVerifyEmailOtp}>
+                                <div className="alert alert-success mb-3">
+                                    <i className="bi bi-envelope-check me-2"></i>
+                                    A 6-digit code has been sent to <strong>{emailChange.newEmail}</strong>. Please check your inbox.
+                                </div>
+                                <div className="mb-3">
+                                    <label className="form-label">Verification Code</label>
+                                    <input
+                                        type="text"
+                                        className="form-control text-center"
+                                        value={otpCode}
+                                        onChange={(e) => setOtpCode(e.target.value)}
+                                        placeholder="Enter 6-digit code"
+                                        maxLength={6}
+                                        required
+                                    />
+                                </div>
+                                <div className="d-flex gap-2">
+                                    <button
+                                        type="button"
+                                        className="btn btn-outline-secondary flex-grow-1"
+                                        onClick={() => { setEmailOtpStep(false); setOtpCode(''); }}
+                                    >
+                                        <i className="bi bi-arrow-left me-1"></i>Back
+                                    </button>
+                                    <button type="submit" className="btn btn-info flex-grow-1" disabled={changingEmail}>
+                                        {changingEmail
+                                            ? <><span className="spinner-border spinner-border-sm me-2"></span>Verifying...</>
+                                            : <><i className="bi bi-check-circle me-2"></i>Confirm Change</>}
+                                    </button>
+                                </div>
+                            </form>
+                        )}
+                    </div>
+                </div>
             </div>
 
             {/* === Cột phải: Form Change Password === */}

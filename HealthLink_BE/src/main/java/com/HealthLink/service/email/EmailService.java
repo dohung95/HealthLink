@@ -69,6 +69,18 @@ public class EmailService {
         sendHtmlEmail(toEmail, subject, content);
     }
 
+    /**
+     * Gửi email xác nhận tài khoản sau khi đăng ký.
+     * User click vào link trong email để kích hoạt tài khoản.
+     */
+    public void sendRegistrationConfirmEmail(String toEmail, String recipientName, String confirmToken) {
+        log.info("sendRegistrationConfirmEmail called - to: {}", toEmail);
+        String subject = appName + " - Confirm Your Account";
+        String confirmLink = frontendUrl + "/confirm-email?token=" + confirmToken;
+        String content = buildRegistrationConfirmEmailContent(recipientName, confirmLink);
+        sendHtmlEmail(toEmail, subject, content);
+    }
+
     // gửi email thông qua JavaMailSender
     private void sendHtmlEmail(String to, String subject, String htmlContent) {
         log.info("=== START SENDING EMAIL ===");
@@ -359,5 +371,59 @@ public class EmailService {
     }
 
     // ==================================== END BUILD EMAIL CONTENT ===================================
+
+    /** Tạo nội dung HTML email xác nhận tài khoản sau đăng ký */
+    private String buildRegistrationConfirmEmailContent(String recipientName, String confirmLink) {
+        return String.format("""
+            <!DOCTYPE html>
+            <html>
+            <head>
+                <meta charset="UTF-8">
+                <style>
+                    body { font-family: 'Segoe UI', Arial, sans-serif; background: #f4f7fb; margin: 0; padding: 0; }
+                    .wrapper { max-width: 600px; margin: 40px auto; background: #fff;
+                               border-radius: 12px; box-shadow: 0 4px 20px rgba(0,0,0,0.08); overflow: hidden; }
+                    .header { background: linear-gradient(135deg, #00b09a, #00d4b4); padding: 32px 24px; text-align: center; }
+                    .header h1 { color: #fff; margin: 0; font-size: 24px; }
+                    .body { padding: 32px 24px; color: #333; line-height: 1.7; }
+                    .body h2 { color: #1a1a2e; font-size: 20px; margin-top: 0; }
+                    .btn { display: inline-block; margin: 24px 0; padding: 14px 32px;
+                           background: linear-gradient(135deg, #00b09a, #00d4b4);
+                           color: #fff !important; text-decoration: none; border-radius: 8px;
+                           font-size: 16px; font-weight: 600; }
+                    .note { background: #fff8e1; border-left: 4px solid #ffc107;
+                            padding: 12px 16px; border-radius: 4px; font-size: 13px; color: #666; margin-top: 20px; }
+                    .footer { background: #f4f7fb; text-align: center; padding: 16px;
+                              font-size: 12px; color: #999; }
+                </style>
+            </head>
+            <body>
+                <div class="wrapper">
+                    <div class="header">
+                        <h1>🏥 HealthLink</h1>
+                    </div>
+                    <div class="body">
+                        <h2>Hello, %s! 👋</h2>
+                        <p>Thank you for registering with <strong>HealthLink</strong>.</p>
+                        <p>Please click the button below to confirm your email address and activate your account:</p>
+                        <div style="text-align: center;">
+                            <a href="%s" class="btn">✅ Confirm My Account</a>
+                        </div>
+                        <p>Or copy and paste this link into your browser:</p>
+                        <p style="word-break: break-all; font-size: 13px; color: #555;">%s</p>
+                        <div class="note">
+                            ⚠️ This link will expire in <strong>24 hours</strong>.
+                            If you did not create an account, please ignore this email.
+                        </div>
+                        <p>Best regards,<br><strong>HealthLink Team</strong></p>
+                    </div>
+                    <div class="footer">
+                        <p>&copy; 2026 HealthLink. All rights reserved.</p>
+                    </div>
+                </div>
+            </body>
+            </html>
+            """, recipientName, confirmLink, confirmLink);
+    }
 
 }
