@@ -32,4 +32,23 @@ public class RegisterRequest {
      * Các giá trị hợp lệ: "Patient", "Doctor", "Pharmacy".
      */
     private String role;
+
+    // -------------------------------------------------------------------------
+    // Các trường tùy chọn dành cho Patient (có thể null nếu không nhập)
+    // -------------------------------------------------------------------------
+
+    /** Ngày sinh, ví dụ: "1999-05-15" (ISO 8601) */
+    private String dateOfBirth;
+
+    /** Giới tính: "Male", "Female", "Other" */
+    private String gender;
+
+    /** Chiều cao (cm) */
+    private Double heightCm;
+
+    /** Cân nặng (kg) */
+    private Double weightKg;
+
+    /** Ngôn ngữ ưu tiên: "Vietnamese", "English" */
+    private String preferredLanguage;
 }

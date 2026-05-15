@@ -153,8 +153,16 @@ public class AuthServiceImpl implements AuthService {
         if ("patient".equalsIgnoreCase(requestedRole)) {
             Patient patient = Patient.builder()
                     // .patientId(user.getId())
-                    .user(user)  
+                    .user(user)
                     .fullName(request.getUsername())
+                    // Map các trường tùy chọn nếu người dùng có nhập
+                    .gender(request.getGender())
+                    .heightCm(request.getHeightCm())
+                    .weightKg(request.getWeightKg())
+                    .preferredLanguage(request.getPreferredLanguage())
+                    .dateOfBirth(request.getDateOfBirth() != null && !request.getDateOfBirth().isBlank()
+                            ? java.time.LocalDate.parse(request.getDateOfBirth()).atStartOfDay()
+                            : null)
                     .build();
             patientRepository.save(patient);
         } else if ("doctor".equalsIgnoreCase(requestedRole)) {
