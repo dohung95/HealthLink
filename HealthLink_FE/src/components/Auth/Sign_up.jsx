@@ -121,7 +121,7 @@ export function Sign_up() {
 
         try {
             await register(
-                username, phonenumber, email, password, confirmPassword,
+                username, phonenumber, email, password,
                 role,
                 DateOfBirth || null,
                 gender || null,

@@ -1,5 +1,5 @@
 import React, { createContext, useContext, useState, useEffect } from "react";
-import { login as loginAPI, register as registerAPI, logout as logoutAPI, setupAxiosInterceptors } from '../api/auth';
+import { login as loginAPI, register as registerAPI, logout as logoutAPI, forgotPassword as forgotPasswordAPI, resetPassword as resetPasswordAPI, setupAxiosInterceptors } from '../api/auth';
 import { decodeToken, getTokenExpiresIn } from '../utils/tokenUtils';
 import * as signalR from "@microsoft/signalr";
 import { toast } from 'sonner';
@@ -130,7 +130,7 @@ export function AuthProvider({ children }) {
     };
 
     ///=>> use for identity and firebase
-    const register = async (username, phonenumber, email, password, confirmPassword, role, dateOfBirth, gender, heightCm, weightKg, preferredLanguage) => {
+    const register = async (username, phonenumber, email, password, role, dateOfBirth, gender, heightCm, weightKg, preferredLanguage) => {
         try {
             await registerAPI(username, phonenumber, email, password, dateOfBirth, gender, heightCm, weightKg, preferredLanguage, role);
             return true;
@@ -162,88 +162,110 @@ export function AuthProvider({ children }) {
         window.location.href = '/';
     };
 
+    //forgot password
+    const forgotPassword = async (email) => {
+        try {
+            await forgotPasswordAPI(email);
+            return true;
+        } catch (error) {
+            console.error('Forgot password error:', error);
+            throw error;
+        }
+    };
+    
+    // reset password
+    const resetPassword = async (token, password) => {
+        try {
+            await resetPasswordAPI(token, password);
+            return true;
+        } catch (error) {
+            console.error('Reset password error:', error);
+            throw error;
+        }
+    };
+
     // kết nối signalR với JWT Token
-    // useEffect(() => {
-    //     // Nếu có token (đã login) VÀ chưa có kết nối
-    //     if (token && !connection) {
+    useEffect(() => {
+        // Nếu có token (đã login) VÀ chưa có kết nối
+        if (token && !connection) {
 
-    //         // 1. Xây dựng kết nối đến Hub
-    //         const newConnection = new signalR.HubConnectionBuilder()
-    //             .withUrl("https://localhost:8096/notificationcalling", { // (Đảm bảo URL này đúng)
-    //                 // 2. GỬI KÈM JWT TOKEN ĐỂ XÁC THỰC
-    //                 accessTokenFactory: () => token
-    //             })
-    //             .withAutomaticReconnect()
-    //             .build();
+            // 1. Xây dựng kết nối đến Hub
+            const newConnection = new signalR.HubConnectionBuilder()
+                .withUrl("https://localhost:8096/notificationcalling", { // (Đảm bảo URL này đúng)
+                    // 2. GỬI KÈM JWT TOKEN ĐỂ XÁC THỰC
+                    accessTokenFactory: () => token
+                })
+                .withAutomaticReconnect()
+                .build();
 
-    //         // 3. Khởi động kết nối
-    //         newConnection.start()
-    //             .then(() => {
-    //                 // console.log("SignalR Connected!");
-    //                 setConnection(newConnection);
+            // 3. Khởi động kết nối
+            newConnection.start()
+                .then(() => {
+                    // console.log("SignalR Connected!");
+                    setConnection(newConnection);
 
-    //                 // 4. LẮNG NGHE CÁC SỰ KIỆN TỪ SERVER
+                    // 4. LẮNG NGHE CÁC SỰ KIỆN TỪ SERVER
 
-    //                 // A. Khi AI ĐÓ GỌI BẠN (Reng reng!)
-    //                 newConnection.on("IncomingCall", (callerId, callerName, roomId) => {
-    //                     // console.log(`Incoming call from ${callerName}`);
-    //                     // Lưu thông tin cuộc gọi để hiển thị Pop-up
-    //                     setIncomingCall({ callerId, callerName, roomId });
-    //                 });
+                    // A. Khi AI ĐÓ GỌI BẠN (Reng reng!)
+                    newConnection.on("IncomingCall", (callerId, callerName, roomId) => {
+                        // console.log(`Incoming call from ${callerName}`);
+                        // Lưu thông tin cuộc gọi để hiển thị Pop-up
+                        setIncomingCall({ callerId, callerName, roomId });
+                    });
 
-    //                 // B. Khi NGƯỜI BẠN GỌI đã "Bắt máy" (Bác sĩ nhận được tin này)
-    //                 // (Phiên bản ĐÃ SỬA LỖI - chỉ có 1 listener)
-    //                 newConnection.on("CallAccepted", (receiverId, roomId) => {
-    //                     // console.log("Call accepted, Doctor opening Zego...");
+                    // B. Khi NGƯỜI BẠN GỌI đã "Bắt máy" (Bác sĩ nhận được tin này)
+                    // (Phiên bản ĐÃ SỬA LỖI - chỉ có 1 listener)
+                    newConnection.on("CallAccepted", (receiverId, roomId) => {
+                        // console.log("Call accepted, Doctor opening Zego...");
 
-    //                     // Đọc token mới nhất từ localStorage để tránh lỗi "stale state"
-    //                     const currentToken = localStorage.getItem('token');
-    //                     if (!currentToken) {
-    //                         console.error("Error: Caller token (Doctor) not found");
-    //                         return;
-    //                     }
+                        // Đọc token mới nhất từ localStorage để tránh lỗi "stale state"
+                        const currentToken = localStorage.getItem('token');
+                        if (!currentToken) {
+                            console.error("Error: Caller token (Doctor) not found");
+                            return;
+                        }
 
-    //                     // Tự giải mã token (dùng hàm decodeToken của bạn)
-    //                     const decodedUser = decodeToken(currentToken);
-    //                     if (!decodedUser) {
-    //                         console.error("Error: Unable to decode caller token (Doctor)");
-    //                         return;
-    //                     }
+                        // Tự giải mã token (dùng hàm decodeToken của bạn)
+                        const decodedUser = decodeToken(currentToken);
+                        if (!decodedUser) {
+                            console.error("Error: Unable to decode caller token (Doctor)");
+                            return;
+                        }
 
-    //                     // Lấy thông tin user TƯƠI MỚI (fresh)
-    //                     const userId = decodedUser.sub;
-    //                     const userName = decodedUser.preferred_username || decodedUser.email;
+                        // Lấy thông tin user TƯƠI MỚI (fresh)
+                        const userId = decodedUser.sub;
+                        const userName = decodedUser.preferred_username || decodedUser.email;
 
-    //                     // Mở cửa sổ Zego (vì BẠN là người gọi)
-    //                     const callUrl = `/video-calling?roomID=${roomId}&userID=${encodeURIComponent(userId)}&userName=${encodeURIComponent(userName)}`;
-    //                     const windowSpecs = 'width=1000,height=700,noopener,noreferrer';
-    //                     window.open(callUrl, '_blank', windowSpecs);
-    //                 });
+                        // Mở cửa sổ Zego (vì BẠN là người gọi)
+                        const callUrl = `/video-calling?roomID=${roomId}&userID=${encodeURIComponent(userId)}&userName=${encodeURIComponent(userName)}`;
+                        const windowSpecs = 'width=1000,height=700,noopener,noreferrer';
+                        window.open(callUrl, '_blank', windowSpecs);
+                    });
 
-    //                 // C. Khi NGƯỜI BẠN GỌI đã "Từ chối"
-    //                 newConnection.on("CallDeclined", () => {
-    //                     // console.log("Call declined.");
-    //                     toast.info("User declined the call.");
-    //                 });
+                    // C. Khi NGƯỜI BẠN GỌI đã "Từ chối"
+                    newConnection.on("CallDeclined", () => {
+                        // console.log("Call declined.");
+                        toast.info("User declined the call.");
+                    });
 
-    //             })
-    //             .catch(e => console.error("SignalR Connection Error: ", e));
-    //     }
-    //     // Nếu không có token (logout) VÀ đang có kết nối
-    //     else if (!token && connection) {
-    //         connection.stop();
-    //         setConnection(null);
-    //     }
+                })
+                .catch(e => console.error("SignalR Connection Error: ", e));
+        }
+        // Nếu không có token (logout) VÀ đang có kết nối
+        else if (!token && connection) {
+            connection.stop();
+            setConnection(null);
+        }
 
-    //     // Cleanup (chạy khi component bị hủy)
-    //     return () => {
-    //         if (connection) {
-    //             connection.stop();
-    //         }
-    //     }
-    //     // Chạy lại logic này mỗi khi 'token' hoặc 'connection' thay đổi
-    //     // (Không cần 'user' trong dependency array nữa vì 'CallAccepted' đã đọc từ localStorage)
-    // }, [token, connection]);
+        // Cleanup (chạy khi component bị hủy)
+        return () => {
+            if (connection) {
+                connection.stop();
+            }
+        }
+        // Chạy lại logic này mỗi khi 'token' hoặc 'connection' thay đổi
+        // (Không cần 'user' trong dependency array nữa vì 'CallAccepted' đã đọc từ localStorage)
+    }, [token, connection]);
 
     // 1. Khi BẠN bấm nút "Gọi"
     const initiateCall = async (targetUserId, roomId, targetUserName = "User") => {
@@ -392,6 +414,8 @@ export function AuthProvider({ children }) {
         login,
         logout,
         register,
+        forgotPassword,
+        resetPassword,
         isAuthenticated: !!token,
         hasRole: (role) => roles.includes(role),
 
