@@ -12,13 +12,17 @@ export function Sign_up() {
     const [email, setEmail] = useState('');
     const [phonenumber, setPhonenumber] = useState('');
     const [DateOfBirth, setDateOfBirth] = useState('');
+    const [gender, setGender] = useState('');
+    const [heightCm, setHeightCm] = useState('');
+    const [weightKg, setWeightKg] = useState('');
+    const [preferredLanguage, setPreferredLanguage] = useState('');
     const [password, setPassword] = useState('');
     const [confirmPassword, setConfirmPassword] = useState('');
     const [error, setError] = useState('');
-    const [loading, setLoading] = useState(true); // Initial page loading
-    const [submitting, setSubmitting] = useState(false); // Form submission loading
+    const [loading, setLoading] = useState(true);
+    const [submitting, setSubmitting] = useState(false);
     const [showSuccessModal, setShowSuccessModal] = useState(false);
-    const role = "patient";
+    const role = "Patient";
 
     // Initial loading effect (giống Home.jsx)
     useEffect(() => {
@@ -62,6 +66,10 @@ export function Sign_up() {
         setEmail('');
         setPhonenumber('');
         setDateOfBirth('');
+        setGender('');
+        setHeightCm('');
+        setWeightKg('');
+        setPreferredLanguage('');
         setPassword('');
         setConfirmPassword('');
     };
@@ -100,13 +108,30 @@ export function Sign_up() {
             return;
         }
 
+        if (DateOfBirth) {
+            const selectedDate = new Date(DateOfBirth);
+            const today = new Date();
+            if (selectedDate > today) {
+                setError('Date of Birth cannot be in the future');
+                return;
+            }
+        }
+
         setSubmitting(true);
 
         try {
-            await register(username, phonenumber, email, password, confirmPassword, role, DateOfBirth || null);
+            await register(
+                username, phonenumber, email, password, confirmPassword,
+                role,
+                DateOfBirth || null,
+                gender || null,
+                heightCm ? parseFloat(heightCm) : null,
+                weightKg ? parseFloat(weightKg) : null,
+                preferredLanguage || null
+            );
             setShowSuccessModal(true);
         } catch (err) {
-            setError('Registration failed');
+            setError(err.message || 'Registration failed');
             console.log(err);
         } finally {
             setSubmitting(false);
@@ -264,8 +289,9 @@ export function Sign_up() {
                             </div>
                         </div>
 
-                        {/* Row 2: Phone + Date of Birth*/}
+                        {/* Row 2: Phone + Date of Birth */}
                         <div className='form-row'>
+                            {/* Phone Number */}
                             <div>
                                 <label>
                                     Phone Number:
@@ -313,12 +339,8 @@ export function Sign_up() {
                                 />
                                 {phonenumber.length > 0 && (phonenumber.length < 8 || phonenumber.length > 15) && (
                                     <div style={{
-                                        color: '#dc3545',
-                                        fontSize: '12px',
-                                        marginTop: '4px',
-                                        display: 'flex',
-                                        alignItems: 'center',
-                                        gap: '4px'
+                                        color: '#dc3545', fontSize: '12px', marginTop: '4px',
+                                        display: 'flex', alignItems: 'center', gap: '4px'
                                     }}>
                                         <i className="bi bi-exclamation-circle"></i>
                                         <span>Phone number must be 8-15 digits (Current: {phonenumber.length})</span>
@@ -326,29 +348,84 @@ export function Sign_up() {
                                 )}
                                 {phonenumber.length >= 8 && phonenumber.length <= 15 && (
                                     <div style={{
-                                        color: '#4caf50',
-                                        fontSize: '12px',
-                                        marginTop: '4px',
-                                        display: 'flex',
-                                        alignItems: 'center',
-                                        gap: '4px'
+                                        color: '#4caf50', fontSize: '12px', marginTop: '4px',
+                                        display: 'flex', alignItems: 'center', gap: '4px'
                                     }}>
                                         <i className="bi bi-check-circle-fill"></i>
                                         <span>Valid phone number ({phonenumber.length} digits)</span>
                                     </div>
                                 )}
                             </div>
+
+                            {/* Date of Birth */}
                             <div>
-                                <label>
-                                    Date of Birth:
-                                </label>
+                                <label>Date of Birth: <small className="text-muted">(Optional)</small></label>
                                 <input
                                     type="date"
-                                    required
                                     value={DateOfBirth}
+                                    max={new Date().toISOString().split("T")[0]}
                                     onChange={(e) => setDateOfBirth(e.target.value)}
                                     disabled={submitting}
                                     className='signup-input'
+                                />
+                            </div>
+                        </div>
+
+                        {/* Row 3: Optional Health Info */}
+                        <div className='form-row'>
+                            <div>
+                                <label>Gender: <small className="text-muted">(Optional)</small></label>
+                                <select
+                                    value={gender}
+                                    onChange={(e) => setGender(e.target.value)}
+                                    disabled={submitting}
+                                    className='signup-input'
+                                >
+                                    <option value="">Select Gender</option>
+                                    <option value="Male">Male</option>
+                                    <option value="Female">Female</option>
+                                    <option value="Other">Other</option>
+                                </select>
+                            </div>
+                            <div>
+                                <label>Preferred Language: <small className="text-muted">(Optional)</small></label>
+                                <select
+                                    value={preferredLanguage}
+                                    onChange={(e) => setPreferredLanguage(e.target.value)}
+                                    disabled={submitting}
+                                    className='signup-input'
+                                >
+                                    <option value="">Select Language</option>
+                                    <option value="Vietnamese">Vietnamese</option>
+                                    <option value="English">English</option>
+                                </select>
+                            </div>
+                        </div>
+
+                        {/* Row 4: Height + Weight */}
+                        <div className='form-row'>
+                            <div>
+                                <label>Height (cm): <small className="text-muted">(Optional)</small></label>
+                                <input
+                                    type="number"
+                                    min="50" max="250"
+                                    value={heightCm}
+                                    onChange={(e) => setHeightCm(e.target.value)}
+                                    disabled={submitting}
+                                    className='signup-input'
+                                    placeholder="e.g. 170"
+                                />
+                            </div>
+                            <div>
+                                <label>Weight (kg): <small className="text-muted">(Optional)</small></label>
+                                <input
+                                    type="number"
+                                    min="10" max="300"
+                                    value={weightKg}
+                                    onChange={(e) => setWeightKg(e.target.value)}
+                                    disabled={submitting}
+                                    className='signup-input'
+                                    placeholder="e.g. 65"
                                 />
                             </div>
                         </div>

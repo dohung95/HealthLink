@@ -130,10 +130,9 @@ export function AuthProvider({ children }) {
     };
 
     ///=>> use for identity and firebase
-    const register = async (username, phonenumber, email, password, confirmPassword, role, DateOfBirth) => {
+    const register = async (username, phonenumber, email, password, confirmPassword, role, dateOfBirth, gender, heightCm, weightKg, preferredLanguage) => {
         try {
-            await registerAPI(username, phonenumber, email, password, confirmPassword, DateOfBirth);
-            console.log("dmmm role lon:      ", role)
+            await registerAPI(username, phonenumber, email, password, dateOfBirth, gender, heightCm, weightKg, preferredLanguage, role);
             return true;
         } catch (error) {
             console.error("Double register error:", error);

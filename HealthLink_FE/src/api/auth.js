@@ -23,7 +23,7 @@ export async function login(email, password) {
  * Đăng ký tài khoản mới (Patient mặc định).
  * Body: { username, email, password, phoneNumber, role }
  */
-export async function register(username, phoneNumber, email, password, dateOfBirth, gender, heightCm, weightKg, preferredLanguage) {
+export async function register(username, phoneNumber, email, password, dateOfBirth, gender, heightCm, weightKg, preferredLanguage, role) {
     try {
         const res = await axios.post(`${API_URL}/register`, {
             username,
@@ -35,7 +35,7 @@ export async function register(username, phoneNumber, email, password, dateOfBir
             heightCm,
             weightKg,
             preferredLanguage,
-            role: 'Patient',
+            role,
         });
         return res.data;
     } catch (error) {
