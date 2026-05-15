@@ -23,15 +23,21 @@ export const updateProfile = async (token, data) => {
     return res.data;
 };
 
-/** PUT /api/account/patient/auth/email/request-change */
+/** PUT /api/account/patient/auth/password/change — Đổi mật khẩu khi đã đăng nhập */
 export const changePassword = async (token, passwordData) => {
-    const res = await axios.put(`${BASE}/patient/auth/email/request-change`, passwordData, authConfig(token));
+    const res = await axios.put(`${BASE}/patient/auth/password/change`, passwordData, authConfig(token));
     return res.data;
 };
 
-/** POST /api/account/patient/auth/email/verify-change */
-export const changeEmail = async (token, emailData) => {
-    const res = await axios.post(`${BASE}/patient/auth/email/verify-change`, emailData, authConfig(token));
+/** POST /api/account/patient/auth/email/request-change — Bước 1: Yêu cầu đổi email (gửi OTP) */
+export const requestEmailChange = async (token, emailData) => {
+    const res = await axios.post(`${BASE}/patient/auth/email/request-change`, emailData, authConfig(token));
+    return res.data;
+};
+
+/** POST /api/account/patient/auth/email/verify-change — Bước 2: Xác nhận OTP để hoàn tất đổi email */
+export const verifyEmailChange = async (token, verifyData) => {
+    const res = await axios.post(`${BASE}/patient/auth/email/verify-change`, verifyData, authConfig(token));
     return res.data;
 };
 

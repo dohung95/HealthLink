@@ -1,6 +1,7 @@
 package com.HealthLink.controller.patient;
 
 import com.HealthLink.dto.auth.ChangeEmailRequest;
+import com.HealthLink.dto.auth.ChangePasswordRequest;
 import com.HealthLink.dto.auth.VerifyEmailChangeRequest;
 import com.HealthLink.dto.patient.*;
 import com.HealthLink.exception.ResourceNotFoundException;
@@ -100,5 +101,19 @@ public class PatientController {
         String userId = resolveUserId(userDetails);
         PatientProfileDTO updated = patientProfileService.verifyEmailChange(userId, request);
         return ResponseEntity.ok(updated);
+    }
+
+    /**
+     * PUT /api/account/patient/auth/password/change
+     * Đổi mật khẩu khi đã đăng nhập.
+     * Yêu cầu: JWT token hợp lệ + currentPassword đúnh
+     */
+    @PutMapping("auth/password/change")
+    public ResponseEntity<Void> changePassword(
+            @Valid @RequestBody ChangePasswordRequest request,
+            @AuthenticationPrincipal UserDetails userDetails) {
+        String userId = resolveUserId(userDetails);
+        patientProfileService.changePassword(userId, request);
+        return ResponseEntity.ok().build();
     }
 }

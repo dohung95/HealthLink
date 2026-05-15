@@ -106,8 +106,9 @@ export function Sign_in() {
         setSubmitting(true);
 
         try {
-            const success = await login(email, password);
-            if (success) {
+            const result = await login(email, password);
+            
+            if (result === true) {
                 // Get token and decode to extract roles
                 const token = localStorage.getItem('token');
                 const decoded = decodeToken(token);

@@ -1,6 +1,7 @@
 package com.HealthLink.service.patient;
 
 import com.HealthLink.dto.auth.ChangeEmailRequest;
+import com.HealthLink.dto.auth.ChangePasswordRequest;
 import com.HealthLink.dto.auth.VerifyEmailChangeRequest;
 import com.HealthLink.dto.patient.*;
 
@@ -34,4 +35,10 @@ public interface PatientProfileService {
      * Xác nhận thay đổi email bằng OTP
      */
     PatientProfileDTO verifyEmailChange(String userId, VerifyEmailChangeRequest request);
+
+    /**
+     * Đổi mật khẩu khi đã đăng nhập.
+     * Xác nhận bằng currentPassword trước khi đổi.
+     */
+    void changePassword(String userId, com.HealthLink.dto.auth.ChangePasswordRequest request);
 }
