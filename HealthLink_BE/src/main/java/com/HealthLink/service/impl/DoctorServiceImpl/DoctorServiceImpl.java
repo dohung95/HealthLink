@@ -288,7 +288,8 @@ public class DoctorServiceImpl implements DoctorService {
         int day = s.getDayOfWeek() != null ? s.getDayOfWeek() : 0;
         return DoctorScheduleResponse.builder()
                 .scheduleId(s.getScheduleId())
-                .dayOfWeek(DAY_NAMES[s.getDayOfWeek()])
+                .dayOfWeek(day)
+                .dayName(DAY_NAMES[day])
                 .startTime(s.getStartTime())
                 .endTime(s.getEndTime())
                 .slotDuration(s.getSlotDuration())

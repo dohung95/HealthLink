@@ -15,6 +15,7 @@ export function AuthProvider({ children }) {
     const [roles, setRoles] = useState([]);
     const [token, setToken] = useState(() => localStorage.getItem('token') || null)
     const [refreshToken, setRefreshToken] = useState(() => localStorage.getItem('refreshToken') || null)
+    const [currentUserId, setCurrentUserId] = useState(() => localStorage.getItem('userId') || null)
     const [tokenExpiry, setTokenExpiry] = useState(null);
     const [loading, setLoading] = useState(true); // Thêm loading state
 
@@ -119,8 +120,11 @@ export function AuthProvider({ children }) {
 
             localStorage.setItem('token', response.accessToken);
             localStorage.setItem('refreshToken', response.refreshToken);
+            // Lưu userId thật (UUID) để chat và so sánh room không bị lệch email/UUID
+            if (response.userId) localStorage.setItem('userId', response.userId);
             setToken(response.accessToken);
             setRefreshToken(response.refreshToken);
+            if (response.userId) setCurrentUserId(response.userId);
 
             return true;
         } catch (error) {
@@ -144,6 +148,8 @@ export function AuthProvider({ children }) {
             setTokenExpiry(null);
             localStorage.removeItem('token');
             localStorage.removeItem('refreshToken');
+            localStorage.removeItem('userId');
+            setCurrentUserId(null);
             throw error;
         }
 
@@ -159,6 +165,8 @@ export function AuthProvider({ children }) {
         setTokenExpiry(null);
         localStorage.removeItem('token');
         localStorage.removeItem('refreshToken');
+        localStorage.removeItem('userId');
+        setCurrentUserId(null);
         window.location.href = '/';
     };
 
@@ -411,6 +419,7 @@ export function AuthProvider({ children }) {
         roles,
         tokenExpiry,
         loading,
+        currentUserId,   // UUID thật (lưu lúc login), dùng cho chat room matching
         login,
         logout,
         register,

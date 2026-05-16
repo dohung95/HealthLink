@@ -9,17 +9,16 @@ import axiosInstance from './axiosConfig';
 const BASE = 'http://localhost:8096/api/chat';
 
 /**
- * Tạo mới hoặc lấy phòng chat 1-1 giữa 2 user.
- * Nếu phòng đã tồn tại, trả về phòng đó.
+ * Tạo mới hoặc lấy phòng chat 1-1 giữa người dùng hiện tại và đối phương.
+ * user1Id được lấy tự động từ JWT ở backend – không cần truyền từ FE.
  *
- * @param {string} user1Id      - userId của người dùng 1
- * @param {string} user2Id      - userId của người dùng 2
+ * @param {string} partnerId       - userId (UUID) của đối phương
  * @param {string} [appointmentId] - ID của cuộc hẹn (tuỳ chọn)
  * @returns {Promise<ChatRoomDTO>}
  */
-export async function getOrCreateRoom(user1Id, user2Id, appointmentId = null) {
+export async function getOrCreateRoom(partnerId, appointmentId = null) {
     const token = localStorage.getItem('token');
-    const body = { user1Id, user2Id };
+    const body = { user2Id: partnerId };
     if (appointmentId) body.appointmentId = appointmentId;
 
     const res = await fetch(`${BASE}/rooms`, {
