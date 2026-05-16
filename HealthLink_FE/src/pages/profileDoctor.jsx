@@ -219,7 +219,6 @@ function DoctorInfoForm({ profile, token, onUpdate }) {
                                         )}
                                     </div>
                                 </div>
-                                </div>
                                 <div className="col-12">
                                     <label className="form-label">Description / Bio</label>
                                     <textarea className="form-control" name="description"
