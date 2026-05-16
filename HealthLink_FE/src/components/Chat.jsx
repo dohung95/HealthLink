@@ -35,6 +35,7 @@ function formatTime(isoString) {
     return d.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
 }
 
+// format relative time for chat
 function formatRelative(isoString) {
     if (!isoString) return '';
     const d = new Date(isoString);
@@ -83,9 +84,45 @@ function ChatMessage({ message, currentUserId }) {
     );
 }
 
+// ─── Component hiển thị phòng chat (Danh sách bên trái/Modal) ───────────────
+function RoomListItem({ room, currentUserId, onSelect }) {
+    const name = room.user1Id === currentUserId ? room.user2DisplayName : room.user1DisplayName;
+    const photo = room.user1Id === currentUserId ? room.user2PhotoURL : room.user1PhotoURL;
+    const isUnread = room.unreadCount > 0;
+
+    return (
+        <li onClick={() => onSelect(room)}
+            className={`list-group-item list-group-item-action d-flex align-items-center ${isUnread ? 'bg-light' : ''}`} 
+            style={{ cursor: 'pointer' }}>
+            <img src={photo || `https://api.dicebear.com/8.x/initials/svg?seed=${name}`} alt="ava"
+                className="rounded-circle me-2" style={{ width: 40, height: 40, flexShrink: 0 }} />
+            <div className="flex-grow-1" style={{ minWidth: 0 }}>
+                <div className={`fw-bold ${isUnread ? 'text-dark' : ''}`}>{name}</div>
+                {room.lastMessage && (
+                    <small className={`text-truncate d-block ${isUnread ? 'fw-bold text-dark' : 'text-muted'}`}>
+                        {room.lastMessage}
+                    </small>
+                )}
+            </div>
+            <div className="d-flex flex-column align-items-end ms-2">
+                {room.lastMessageAt && (
+                    <small className="text-muted mb-1" style={{ fontSize: '0.75rem', whiteSpace: 'nowrap' }}>
+                        {formatRelative(room.lastMessageAt)}
+                    </small>
+                )}
+                {isUnread && (
+                    <span className="badge rounded-pill bg-danger" style={{ fontSize: '0.7rem' }}>
+                        {room.unreadCount > 99 ? '99+' : room.unreadCount}
+                    </span>
+                )}
+            </div>
+        </li>
+    );
+}
+
 // ─── Main Component ──────────────────────────────────────────────────────────
 export default function Chat() {
-    const { user: authUser, roles } = useAuth();
+    const { user: authUser, roles, currentUserId } = useAuth();
     const {
         isChatOpen: isChatBoxOpen,
         setIsChatOpen: setIsChatBoxOpen,
@@ -107,13 +144,17 @@ export default function Chat() {
     const fileInputRef = useRef(null);
     const unsubscribeChat = useRef(null);
 
+    // Dùng ref để trong hàm subscribeToChat (callback) lấy được giá trị mới nhất mà không cần tạo lại sub
+    const currentRoomRef = useRef(currentRoom);
+    useEffect(() => { currentRoomRef.current = currentRoom; }, [currentRoom]);
+
+    const isChatBoxOpenRef = useRef(isChatBoxOpen);
+    useEffect(() => { isChatBoxOpenRef.current = isChatBoxOpen; }, [isChatBoxOpen]);
+
     const isPatient = roles?.some(r => r.toLowerCase() === 'patient');
     const isDoctor  = roles?.some(r => r.toLowerCase() === 'doctor');
     const isPharmacy = roles?.some(r => r.toLowerCase() === 'pharmacy');
     const isGuest   = !authUser;
-
-    // userId thực từ JWT (field "sub")
-    const currentUserId = authUser?.sub || authUser?.userId || null;
 
     // ── Kết nối WebSocket STOMP khi đã login ────────────────────────────────
     useEffect(() => {
@@ -125,11 +166,58 @@ export default function Chat() {
             setStompConnected(true);
             // Đăng ký nhận tin nhắn realtime
             const unsub = stompChatService.subscribeToChat((newMsg) => {
-                // Chỉ thêm nếu đang mở đúng phòng chat
-                setMessages(prev => {
-                    // Tránh duplicate nếu cùng messageId
-                    if (prev.some(m => m.messageId === newMsg.messageId)) return prev;
-                    return [...prev, newMsg];
+                // Sự kiện phòng mới được tạo (chưa có tin nhắn)
+                if (newMsg.messageId === "ROOM_CREATED") {
+                    setRoomList(prevRooms => {
+                        if (!prevRooms.some(r => r.chatRoomId === newMsg.chatRoomId)) {
+                            getMyRooms().then(rooms => setRoomList(rooms)).catch(err => console.error(err));
+                        }
+                        return prevRooms;
+                    });
+                    return; // KHÔNG thêm vào màn hình hiển thị tin nhắn
+                }
+
+                const activeRoomId = currentRoomRef.current?.chatRoomId;
+                const isRoomActive = activeRoomId === newMsg.chatRoomId && isChatBoxOpenRef.current;
+
+                // 1. Chỉ thêm tin nhắn vào màn hình chat nếu đang mở đúng phòng đó
+                if (activeRoomId === newMsg.chatRoomId) {
+                    setMessages(prev => {
+                        // Tránh duplicate nếu cùng messageId
+                        if (prev.some(m => m.messageId === newMsg.messageId)) return prev;
+                        return [...prev, newMsg];
+                    });
+                    
+                    // Nếu chat box đang mở, đánh dấu đã đọc luôn
+                    if (isChatBoxOpenRef.current) {
+                        markAsRead(newMsg.chatRoomId).catch(err => console.error(err));
+                    }
+                }
+
+                // 2. Cập nhật danh sách phòng (bên trái/modal)
+                setRoomList(prevRooms => {
+                    const isNewRoom = !prevRooms.some(r => r.chatRoomId === newMsg.chatRoomId);
+                    if (isNewRoom) {
+                        // Nếu là phòng mới tinh (chưa từng chat), gọi API lấy lại danh sách
+                        getMyRooms().then(rooms => setRoomList(rooms)).catch(err => console.error(err));
+                        return prevRooms;
+                    }
+                    
+                    const updated = prevRooms.map(room => {
+                        if (room.chatRoomId === newMsg.chatRoomId) {
+                            return {
+                                ...room,
+                                lastMessage: newMsg.content || "[Ảnh]",
+                                lastMessageAt: newMsg.timestamp,
+                                unreadCount: isRoomActive ? 0 : (room.unreadCount || 0) + 1
+                            };
+                        }
+                        return room;
+                    });
+                    
+                    // Sắp xếp đưa phòng có tin mới nhất lên đầu
+                    updated.sort((a, b) => new Date(b.lastMessageAt || 0).getTime() - new Date(a.lastMessageAt || 0).getTime());
+                    return updated;
                 });
             });
             unsubscribeChat.current = unsub;
@@ -195,8 +283,16 @@ export default function Chat() {
 
         const openRoom = async () => {
             try {
-                const room = await getOrCreateRoom(currentUserId, partnerId);
+                const room = await getOrCreateRoom(partnerId);
                 setCurrentRoom(room);
+                // Thêm phòng vào danh sách nếu chưa có
+                setRoomList(prev => {
+                    if (!prev.some(r => r.chatRoomId === room.chatRoomId)) {
+                        // Thêm phòng mới lên đầu danh sách
+                        return [room, ...prev];
+                    }
+                    return prev;
+                });
             } catch (err) {
                 console.error('Error opening room:', err);
                 toast.error('Cannot open room!');
@@ -222,10 +318,17 @@ export default function Chat() {
         return () => window.removeEventListener('openChatWithMessage', handler);
     }, []);
 
-    // ── Guest: mặc định chat với Bot ────────────────────────────────────────
+    // ── Default view logic ──────────────────────────────────────────────────
     useEffect(() => {
-        if (isGuest) setChatPartner(BOT_USER);
-    }, [isGuest]);
+        if (isGuest) {
+            setChatPartner(BOT_USER);
+        } else if (isDoctor || isPharmacy) {
+            setChatPartner(null);
+            setCurrentRoom(null);
+        } else if (isPatient && !chatPartner) {
+            setChatPartner(BOT_USER);
+        }
+    }, [isGuest, isDoctor, isPharmacy, isPatient]);
 
     // ── Gửi tin nhắn ────────────────────────────────────────────────────────
     const sendMsg = async (e) => {
@@ -278,6 +381,15 @@ export default function Chat() {
             });
             // Thay optimistic bằng tin nhắn thật
             setMessages(prev => prev.map(m => m.messageId === optimistic.messageId ? saved : m));
+            
+            // Cập nhật roomList
+            setRoomList(prevRooms => {
+                const updated = prevRooms.map(r => r.chatRoomId === currentRoom.chatRoomId 
+                    ? { ...r, lastMessage: text, lastMessageAt: saved.timestamp } 
+                    : r);
+                updated.sort((a, b) => new Date(b.lastMessageAt || 0).getTime() - new Date(a.lastMessageAt || 0).getTime());
+                return updated;
+            });
         } catch (err) {
             console.error('Error sending message:', err);
             toast.error('Failed to send message!');
@@ -307,6 +419,16 @@ export default function Chat() {
                     imageUrl: base64,
                 });
                 setMessages(prev => [...prev, saved]);
+                
+                // Cập nhật roomList
+                setRoomList(prevRooms => {
+                    const updated = prevRooms.map(r => r.chatRoomId === currentRoom.chatRoomId 
+                        ? { ...r, lastMessage: "[Ảnh]", lastMessageAt: saved.timestamp } 
+                        : r);
+                    updated.sort((a, b) => new Date(b.lastMessageAt || 0).getTime() - new Date(a.lastMessageAt || 0).getTime());
+                    return updated;
+                });
+                
                 setSelectedFile(null);
                 if (fileInputRef.current) fileInputRef.current.value = '';
             } catch (err) {
@@ -319,6 +441,7 @@ export default function Chat() {
         reader.readAsDataURL(selectedFile);
     };
 
+    // ── Xử lý chọn file để gửi ─────────────────────────────────────────────────────────────
     const handleFileSelect = (e) => {
         const file = e.target.files[0];
         if (!file || !file.type.startsWith('image/')) { toast.info('Only accept image files!'); return; }
@@ -351,10 +474,13 @@ export default function Chat() {
         setChatPartner({ userId: partnerId, displayName: partnerName, photoURL: partnerPhoto });
         setCurrentRoom(room);
         setShowDoctorListModal(false);
+
+        // Optimistic clear unreadCount
+        setRoomList(prev => prev.map(r => r.chatRoomId === room.chatRoomId ? { ...r, unreadCount: 0 } : r));
     };
 
     // ── Render ───────────────────────────────────────────────────────────────
-    const showInput = (isGuest && chatPartner) || (chatPartner && (isPatient || isDoctor));
+    const showInput = (isGuest && chatPartner) || (chatPartner && (isPatient || isDoctor || isPharmacy));
 
     return (
         <>
@@ -375,9 +501,9 @@ export default function Chat() {
                 <div className="chat-box chat-box-responsive container d-flex flex-column border rounded shadow-lg bg-white">
                     {/* Header */}
                     <div className="p-3 border-bottom bg-light d-flex justify-content-between align-items-center">
-                        {isDoctor && chatPartner && (
+                        {(isDoctor || isPharmacy) && chatPartner && (
                             <button className="btn btn-sm btn-link text-decoration-none" onClick={() => { setChatPartner(null); setCurrentRoom(null); }}>
-                                &lt; Go Back
+                                <i className="bi bi-arrow-left" style={{ fontSize: '1.3rem', color: 'black' }}></i>
                             </button>
                         )}
                         <h5 className="mb-0 fs-6">
@@ -389,14 +515,13 @@ export default function Chat() {
                             {!isGuest && isPharmacy && !chatPartner && 'List of patients'}
                             {!isGuest && isPharmacy && chatPartner && `Chat with ${chatPartner.displayName}`}
                             {/* patient */}
-                            {!isGuest && isPatient && chatPartner && isDoctor && `Chat with Doctor ${chatPartner.displayName}`}
-                            {!isGuest && isPatient && chatPartner && isPharmacy && `Chat with Pharmacy ${chatPartner.displayName}`}
+                            {!isGuest && isPatient && chatPartner && `Chat with ${chatPartner.displayName}`}
                         </h5>
                         <button className="btn-close" onClick={() => setIsChatBoxOpen(false)} aria-label="Close"></button>
                     </div>
 
                     {/* Nội dung */}
-                    <div className="flex-grow-1 p-3 overflow-y-auto" style={{ backgroundColor: '#f8f9fa' }}>
+                    <div className="flex-grow-1 p-3 overflow-y-auto hide-scrollbar" style={{ backgroundColor: '#f8f9fa' }}>
                         {/* Guest chỉ thấy Bot */}
                         {isGuest && chatPartner && (
                             <>
@@ -412,26 +537,9 @@ export default function Chat() {
                                 {!chatPartner ? (
                                     <ul className="list-group list-group-flush">
                                         {roomList.length === 0 && <li className="list-group-item">No message here.</li>}
-                                        {roomList.map(room => {
-                                            const name = room.user1Id === currentUserId ? room.user2DisplayName : room.user1DisplayName;
-                                            const photo = room.user1Id === currentUserId ? room.user2PhotoURL : room.user1PhotoURL;
-                                            return (
-                                                <li key={room.chatRoomId} onClick={() => selectRoom(room)}
-                                                    className="list-group-item list-group-item-action d-flex align-items-center" style={{ cursor: 'pointer' }}>
-                                                    <img src={photo || `https://api.dicebear.com/8.x/initials/svg?seed=${name}`} alt="ava"
-                                                        className="rounded-circle me-2" style={{ width: 40, height: 40, flexShrink: 0 }} />
-                                                    <div className="flex-grow-1" style={{ minWidth: 0 }}>
-                                                        <div className="fw-bold">{name}</div>
-                                                        {room.lastMessage && <small className="text-muted text-truncate d-block">{room.lastMessage}</small>}
-                                                    </div>
-                                                    {room.lastMessageAt && (
-                                                        <small className="text-muted ms-2" style={{ fontSize: '0.75rem', whiteSpace: 'nowrap' }}>
-                                                            {formatRelative(room.lastMessageAt)}
-                                                        </small>
-                                                    )}
-                                                </li>
-                                            );
-                                        })}
+                                        {roomList.map(room => (
+                                            <RoomListItem key={room.chatRoomId} room={room} currentUserId={currentUserId} onSelect={selectRoom} />
+                                        ))}
                                     </ul>
                                 ) : (
                                     <>
@@ -449,26 +557,9 @@ export default function Chat() {
                                 {!chatPartner ? (
                                     <ul className="list-group list-group-flush">
                                         {roomList.length === 0 && <li className="list-group-item">No message here.</li>}
-                                        {roomList.map(room => {
-                                            const name = room.user1Id === currentUserId ? room.user2DisplayName : room.user1DisplayName;
-                                            const photo = room.user1Id === currentUserId ? room.user2PhotoURL : room.user1PhotoURL;
-                                            return (
-                                                <li key={room.chatRoomId} onClick={() => selectRoom(room)}
-                                                    className="list-group-item list-group-item-action d-flex align-items-center" style={{ cursor: 'pointer' }}>
-                                                    <img src={photo || `https://api.dicebear.com/8.x/initials/svg?seed=${name}`}
-                                                        className="rounded-circle me-2" style={{ width: 40, height: 40, flexShrink: 0 }} />
-                                                    <div className="flex-grow-1" style={{ minWidth: 0 }}>
-                                                        <div className="fw-bold">{name}</div>
-                                                        {room.lastMessage && <small className="text-muted text-truncate d-block">{room.lastMessage}</small>}
-                                                    </div>
-                                                    {room.lastMessageAt && (
-                                                        <small className="text-muted ms-2" style={{ fontSize: '0.75rem', whiteSpace: 'nowrap' }}>
-                                                            {formatRelative(room.lastMessageAt)}
-                                                        </small>
-                                                    )}
-                                                </li>
-                                            );
-                                        })}
+                                        {roomList.map(room => (
+                                            <RoomListItem key={room.chatRoomId} room={room} currentUserId={currentUserId} onSelect={selectRoom} />
+                                        ))}
                                     </ul>
                                 ) : (
                                     <>
@@ -542,7 +633,7 @@ export default function Chat() {
                                     <h5 className="mb-0 fs-6">Choice Doctors</h5>
                                     <button className="btn-close" onClick={() => setShowDoctorListModal(false)}></button>
                                 </div>
-                                <ul className="list-group list-group-flush" style={{ maxHeight: '300px', overflowY: 'auto' }}>
+                                <ul className="list-group list-group-flush hide-scrollbar" style={{ maxHeight: '300px', overflowY: 'auto' }}>
                                     {/* Bot */}
                                     <li onClick={() => { setChatPartner(BOT_USER); setCurrentRoom(null); setShowDoctorListModal(false); }}
                                         className="list-group-item list-group-item-action d-flex align-items-center" style={{ cursor: 'pointer' }}>
@@ -553,22 +644,9 @@ export default function Chat() {
                                         </div>
                                     </li>
                                     {/* Các phòng chat đã có */}
-                                    {roomList.map(room => {
-                                        const partnerId = room.user1Id === currentUserId ? room.user2Id : room.user1Id;
-                                        const name = room.user1Id === currentUserId ? room.user2DisplayName : room.user1DisplayName;
-                                        const photo = room.user1Id === currentUserId ? room.user2PhotoURL : room.user1PhotoURL;
-                                        return (
-                                            <li key={room.chatRoomId} onClick={() => selectRoom(room)}
-                                                className="list-group-item list-group-item-action d-flex align-items-center" style={{ cursor: 'pointer' }}>
-                                                <img src={photo || `https://api.dicebear.com/8.x/initials/svg?seed=${name}`}
-                                                    alt="ava" className="rounded-circle me-2" style={{ width: 40, height: 40 }} />
-                                                <div className="flex-grow-1" style={{ minWidth: 0 }}>
-                                                    <div className="fw-bold">Dr. {name}</div>
-                                                    {room.lastMessage && <small className="text-muted text-truncate d-block">{room.lastMessage}</small>}
-                                                </div>
-                                            </li>
-                                        );
-                                    })}
+                                    {roomList.map(room => (
+                                        <RoomListItem key={room.chatRoomId} room={room} currentUserId={currentUserId} onSelect={selectRoom} />
+                                    ))}
                                 </ul>
                             </div>
                         </div>

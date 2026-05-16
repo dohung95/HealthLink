@@ -158,7 +158,7 @@ function Navbar() {
                                         <div className="mobile-user-info">
                                             <i className="fas fa-user-circle me-2"></i>
                                             <span className="mobile-role-badge">
-                                                {isAdmin ? 'Admin' : isDoctor ? 'Doctor' : 'Patient'}
+                                                {isAdmin ? 'Admin' : isDoctor ? 'Doctor' : isPharmacy ? 'Pharmacy' : 'Patient'}
                                             </span>
                                         </div>
                                         <li>

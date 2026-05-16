@@ -53,7 +53,10 @@ public class ChatController {
      */
     @PostMapping("/rooms")
     public ResponseEntity<ChatRoomDTO> getOrCreateRoom(
-            @Valid @RequestBody CreateRoomRequest request) {
+            @Valid @RequestBody CreateRoomRequest request,
+            @AuthenticationPrincipal UserDetails userDetails) {
+        // user1Id luôn lấy từ JWT (tránh FE gửi email thay vì UUID)
+        request.setUser1Id(resolveUserId(userDetails));
         return ResponseEntity.ok(chatService.getOrCreateRoom(request));
     }
 
