@@ -21,4 +21,12 @@ public interface PharmacyProfileService {
 
     /** Xác nhận đổi email bằng mã OTP. */
     PharmacyProfileResponse verifyEmailChange(String pharmacyId, VerifyEmailChangeRequest request);
+
+    /**
+     * Upload ảnh đại diện cho nhà thuốc.
+     * Lưu file vào uploads/avatars/pharmacies/ và cập nhật DB.
+     * Trả về URL công khai của ảnh vừa upload.
+     */
+    String uploadAvatar(String pharmacyId, org.springframework.web.multipart.MultipartFile file)
+            throws java.io.IOException;
 }
