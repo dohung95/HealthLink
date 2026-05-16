@@ -47,4 +47,12 @@ public interface DoctorService {
      * Xác nhận đổi email với mã code.
      */
     DoctorProfileResponse verifyEmailChange(String doctorId, com.HealthLink.dto.auth.VerifyEmailChangeRequest request);
+
+    /**
+     * Upload ảnh đại diện cho bác sĩ.
+     * Lưu file vào uploads/avatars/doctors/ và cập nhật DB.
+     * Trả về URL công khai của ảnh vừa upload.
+     */
+    String uploadAvatar(String doctorId, org.springframework.web.multipart.MultipartFile file)
+            throws java.io.IOException;
 }

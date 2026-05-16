@@ -20,12 +20,23 @@ import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.io.IOException;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.nio.file.Paths;
 import java.time.LocalDateTime;
+import java.util.UUID;
 
 @Service
 @Slf4j
 @RequiredArgsConstructor
 public class PatientProfileServiceImpl implements PatientProfileService {
+
+    @org.springframework.beans.factory.annotation.Value("${app.upload.dir:uploads}")
+    private String uploadDir;
+
+    @org.springframework.beans.factory.annotation.Value("${app.base-url:http://localhost:8096}")
+    private String baseUrl;
 
     private final PatientRepository patientRepository;
     private final UserRepository userRepository;
@@ -68,7 +79,9 @@ public class PatientProfileServiceImpl implements PatientProfileService {
 
         // Update patient fields
         patient.setFullName(request.getFullName());
-        patient.setDateOfBirth(request.getDateOfBirth());
+        if (request.getDateOfBirth() != null) {
+            patient.setDateOfBirth(request.getDateOfBirth().atStartOfDay());
+        }
         patient.setMedicalHistorySummary(request.getMedicalHistorySummary());
         patient.setInsuranceProvider(request.getInsuranceProvider());
         patient.setInsurancePolicyNumber(request.getInsurancePolicyNumber());
@@ -252,6 +265,48 @@ public class PatientProfileServiceImpl implements PatientProfileService {
         userRepository.save(user);
 
         log.info("Password changed for userId: {}", userId);
+    }
+
+    @Override
+    @Transactional
+    public String uploadAvatar(String userId, org.springframework.web.multipart.MultipartFile file)
+            throws IOException {
+        // Validate
+        if (file.isEmpty()) {
+            throw new BadRequestException("File is empty");
+        }
+        String contentType = file.getContentType();
+        if (contentType == null || !contentType.startsWith("image/")) {
+            throw new BadRequestException("Only image files are allowed");
+        }
+        if (file.getSize() > 5 * 1024 * 1024) {
+            throw new BadRequestException("File size must be less than 5MB");
+        }
+
+        // Tạo thư mục nếu chưa tồn tại
+        Path avatarDir = Paths.get(uploadDir, "avatars", "patients");
+        Files.createDirectories(avatarDir);
+
+        // Tên file độc nhất để tránh trùng lặp
+        String original = file.getOriginalFilename();
+        String ext = (original != null && original.contains("."))
+                ? original.substring(original.lastIndexOf(".")) : ".jpg";
+        String filename = UUID.randomUUID() + ext;
+
+        // Ghi file xuống đĩa
+        Files.write(avatarDir.resolve(filename), file.getBytes());
+
+        // Tạo URL công khai
+        String avatarUrl = baseUrl + "/uploads/avatars/patients/" + filename;
+
+        // Cập nhật DB
+        Patient patient = patientRepository.findById(userId)
+                .orElseThrow(() -> new ResourceNotFoundException("Patient", "userId", userId));
+        patient.setAvatarUrl(avatarUrl);
+        patientRepository.save(patient);
+
+        log.info("Avatar uploaded for patient {}: {}", userId, avatarUrl);
+        return avatarUrl;
     }
 
 }

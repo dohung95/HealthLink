@@ -38,6 +38,7 @@ public class Doctor {
     @Column(length = 2000)
     private String bio; // Tiểu sử, đoạn giới thiệu chi tiết về kinh nghiệm của bác sĩ (Tối đa 2000 ký tự)
 
+    @Column(columnDefinition = "NVARCHAR(MAX)")
     private String avatarUrl; // Đường dẫn tới ảnh đại diện/chân dung của bác sĩ
 
     // --- 2. THÔNG TIN PHÒNG KHÁM & ĐỊA ĐIỂM (Location & Clinic) ---

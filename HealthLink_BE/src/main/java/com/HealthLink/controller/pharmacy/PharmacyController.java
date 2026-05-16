@@ -9,11 +9,16 @@ import com.HealthLink.repository.auth.UserRepository;
 import com.HealthLink.service.pharmacy.PharmacyProfileService;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.web.bind.annotation.*;
+import org.springframework.web.multipart.MultipartFile;
+
+import java.io.IOException;
+import java.util.Map;
 
 /**
  * REST controller cho Pharmacy profile management.
@@ -27,6 +32,7 @@ import org.springframework.web.bind.annotation.*;
 @RestController
 @RequestMapping("/api/account/pharmacy")
 @RequiredArgsConstructor
+@Slf4j
 public class PharmacyController {
 
     private final PharmacyProfileService pharmacyProfileService;
@@ -87,5 +93,22 @@ public class PharmacyController {
         String pharmacyId = resolveUserId(userDetails);
         PharmacyProfileResponse updated = pharmacyProfileService.verifyEmailChange(pharmacyId, request);
         return ResponseEntity.ok(updated);
+    }
+
+    // ── Upload ảnh đại diện cho nhà thuốc ───────────────────────────────
+    @PostMapping("/avatar")
+    @PreAuthorize("hasRole('PHARMACY')")
+    public ResponseEntity<?> uploadAvatar(
+            @RequestParam("file") MultipartFile file,
+            @AuthenticationPrincipal UserDetails userDetails) {
+        String pharmacyId = resolveUserId(userDetails);
+        try {
+            String avatarUrl = pharmacyProfileService.uploadAvatar(pharmacyId, file);
+            return ResponseEntity.ok(Map.of("avatarUrl", avatarUrl));
+        } catch (IOException e) {
+            log.error("Avatar upload failed for pharmacy {}: {}", pharmacyId, e.getMessage());
+            return ResponseEntity.internalServerError()
+                    .body(Map.of("message", "Failed to upload: " + e.getMessage()));
+        }
     }
 }
