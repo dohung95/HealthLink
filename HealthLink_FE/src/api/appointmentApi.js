@@ -1,59 +1,97 @@
 import axios from 'axios';
 
-const API_URL = 'https://localhost:7267/api';
+const API_URL = 'http://localhost:8096/api';
 
 const getAuthConfig = () => {
     const token = localStorage.getItem('token');
+
     return {
         headers: {
-            Authorization: `Bearer ${token}`,
-            'Content-Type': 'application/json'
-        }
+            Authorization: token ? `Bearer ${token}` : '',
+            'Content-Type': 'application/json',
+        },
     };
 };
 
 export const appointmentService = {
-    getAvailableSlots: async (doctorId, date) => {
-        const config = getAuthConfig();
-        // Thêm params vào config
-        config.params = { doctorId, date };
-        // Gọi axios với đúng 2 tham số
-        const response = await axios.get(`${API_URL}/Appointment/available-slots`, config);
+    getAvailableSlots: async (doctorId, date, consultationType) => {
+        const response = await axios.get(
+            `${API_URL}/appointments/available-slots`,
+            {
+                ...getAuthConfig(),
+                params: {
+                    doctorId,
+                    date,
+                    consultationType,
+                },
+            }
+        );
+
         return response.data;
+    },
+
+    holdSlot: async (data) => {
+        const response = await axios.post(
+            `${API_URL}/appointments/hold-slot`,
+            data,
+            getAuthConfig()
+        );
+
+        return response.data;
+    },
+
+    releaseHold: async (holdId) => {
+        await axios.delete(
+            `${API_URL}/appointments/hold-slot/${holdId}`,
+            getAuthConfig()
+        );
     },
 
     createAppointment: async (data) => {
-        const response = await axios.post(`${API_URL}/Appointment`, data, getAuthConfig());
+        const response = await axios.post(
+            `${API_URL}/appointments`,
+            data,
+            getAuthConfig()
+        );
+
         return response.data;
     },
 
-    getMyAppointments: async () => {
-        const response = await axios.get(`${API_URL}/Appointment`, getAuthConfig());
+    getAppointmentById: async (id) => {
+        const response = await axios.get(
+            `${API_URL}/appointments/${id}`,
+            getAuthConfig()
+        );
+
         return response.data;
     },
 
-    cancelAppointment: async (id, reason) => {
-        const response = await axios.put(`${API_URL}/Appointment/${id}/cancel`, { reason }, getAuthConfig());
+    getPatientAppointments: async (patientId) => {
+        const response = await axios.get(
+            `${API_URL}/appointments/patient/${patientId}`,
+            getAuthConfig()
+        );
+
         return response.data;
     },
 
-    completeAppointment: async (id) => {
-        const response = await axios.put(`${API_URL}/Appointment/${id}/complete`, {}, getAuthConfig());
+    cancelAppointment: async (id, data) => {
+        const response = await axios.put(
+            `${API_URL}/appointments/${id}/cancel`,
+            data,
+            getAuthConfig()
+        );
+
         return response.data;
     },
 
-    getMedicalHistory: async () => {
-        const response = await axios.get(`${API_URL}/Appointment/medical-history`, getAuthConfig());
+    rescheduleAppointment: async (id, data) => {
+        const response = await axios.put(
+            `${API_URL}/appointments/${id}/reschedule`,
+            data,
+            getAuthConfig()
+        );
+
         return response.data;
     },
-
-    getPatientMedicalHistory: async (patientId) => {
-        const response = await axios.get(`${API_URL}/Appointment/patient/${patientId}/medical-history`, getAuthConfig());
-        return response.data;
-    },
-
-    getAppointmentDetail: async (appointmentId) => {
-        const response = await axios.get(`${API_URL}/Appointment/medical-history/${appointmentId}`, getAuthConfig());
-        return response.data;
-    }
 };

@@ -26,6 +26,13 @@ public interface AppointmentRepository extends JpaRepository<Appointment, Intege
             LocalDateTime end
     );
 
+    List<Appointment> findByDoctor_DoctorIdAndStatusNotAndAppointmentTimeBetween(
+            String doctorId,
+            String status,
+            LocalDateTime start,
+            LocalDateTime end
+    );
+
     // Kiểm tra conflict tại slot mới, bỏ qua chính appointment đang reschedule
     boolean existsByDoctor_DoctorIdAndStatusNotAndAppointmentTimeBetweenAndAppointmentIdNot(
             String doctorId,
@@ -40,18 +47,18 @@ public interface AppointmentRepository extends JpaRepository<Appointment, Intege
     List<Appointment> findByDoctor_DoctorId(String doctorId);
 
     /**
-     * Tìm các lịch hẹn sắp diễn ra trong khoảng thời gian cho trước và chưa gửi reminder.
-     * Dùng cho @Scheduled job nhắc nhở trước 30 phút.
+     * Tìm các lịch hẹn sắp diễn ra trong khoảng thời gian cho trước và chưa gửi
+     * reminder. Dùng cho @Scheduled job nhắc nhở trước 30 phút.
      *
-     * @param from  Thời điểm bắt đầu cửa sổ tìm kiếm
-     * @param to    Thời điểm kết thúc cửa sổ tìm kiếm
+     * @param from Thời điểm bắt đầu cửa sổ tìm kiếm
+     * @param to Thời điểm kết thúc cửa sổ tìm kiếm
      * @return Danh sách Appointment chưa gửi reminder
      */
-    @Query("SELECT a FROM Appointment a WHERE a.appointmentTime BETWEEN :from AND :to " +
-           "AND a.reminderSent = false AND a.status = 'Scheduled'")
+    @Query("SELECT a FROM Appointment a WHERE a.appointmentTime BETWEEN :from AND :to "
+            + "AND a.reminderSent = false AND a.status = 'Scheduled'")
     List<Appointment> findUpcomingAndReminderNotSent(
             @Param("from") LocalDateTime from,
-            @Param("to")   LocalDateTime to);
+            @Param("to") LocalDateTime to);
 
     /**
      * Đánh dấu đã gửi reminder cho một appointment.

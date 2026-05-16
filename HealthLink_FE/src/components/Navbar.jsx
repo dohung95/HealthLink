@@ -140,6 +140,12 @@ function Navbar() {
                                             <i className="fas fa-share-alt me-2"></i> Share Records
                                         </NavLink>
                                     </li>
+                                    <li>
+                                        <NavLink to="/patient-dashboard" className="dropdown-item">
+                                            <i className="fas fa-table-columns me-2"></i>My Dashboard
+                                        </NavLink>
+
+                                    </li>
                                 </>
                             )}
 
@@ -278,6 +284,10 @@ function Navbar() {
                                                     <NavLink to="/share-records" className="dropdown-item">
                                                         <i className="fas fa-share-alt me-2"></i>Share Health Records
                                                     </NavLink>
+                                                    <NavLink to="/patient-dashboard" className="dropdown-item">
+                                                        <i className="fas fa-table-columns me-2"></i>My Dashboard
+                                                    </NavLink>
+
                                                 </div>
                                             )}
                                         </div>

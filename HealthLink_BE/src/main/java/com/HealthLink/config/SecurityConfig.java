@@ -78,7 +78,7 @@ public class SecurityConfig {
                         // Public: xem ảnh upload (avatar, v.v.) — không cần xác thực
                         .requestMatchers(HttpMethod.GET, "/uploads/**").permitAll()
                         // Public: xem danh sách bác sĩ (cho bệnh nhân)
-                        .requestMatchers(HttpMethod.GET, "/api/doctors").permitAll()
+                        .requestMatchers(HttpMethod.GET, "/api/account/doctors").permitAll()
                         // Public: tạo kết nối websocket với backend
                         .requestMatchers("/ws/**").permitAll()
                         // Tất cả còn lại yêu cầu xác thực
