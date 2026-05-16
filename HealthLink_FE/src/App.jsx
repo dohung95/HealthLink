@@ -1,6 +1,9 @@
 // src/App.js
-import React from 'react';
-import { BrowserRouter as Router, Routes, Route, useLocation } from 'react-router-dom';
+import {useEffect} from 'react';
+import { BrowserRouter as Router, Routes, Route, useLocation, useNavigate } from 'react-router-dom';
+
+// ---------------------------------------------import file----------------------------------------------------------
+import { useAuth } from './context/AuthContext';
 import { ToastContainer } from 'react-toastify';
 import 'react-toastify/dist/ReactToastify.css';
 import Home from './components/Home';
@@ -60,6 +63,9 @@ import '../node_modules/bootstrap/dist/css/bootstrap.min.css';
 import { Toaster } from 'sonner';
 import PatientDashboard from './pages/PatientDashboard';
 import PatientDashboardHome from './components/patient-dashboard/PatientDashboardHome';
+import NotFound from './pages/NotFound';
+
+//-----------------------------------------------------------------------------------------------
 
 function App() {
   return (
@@ -75,6 +81,8 @@ function App() {
 
 // Tạo component mới để có thể dùng useLocation
 function AppContent() {
+  const navigate = useNavigate();
+  const { isAuthenticated, roles } = useAuth();
   const location = useLocation();
   const isVideoCallPage = location.pathname === '/video-calling';
   const isDoctorPage = location.pathname === '/doctor-page';
@@ -86,13 +94,71 @@ function AppContent() {
   // Don't show navbar/footer on video call, doctor page, admin page, or login page
   const hideLayout = isVideoCallPage || isDoctorPage || isAdminPage || isPatientDashboard || isSchedulePage;
 
+  // list trang bị chặn sau khi login
+  const publicPaths = [
+    '/',
+    '/contact_us',
+    '/about_us',
+    '/login',
+    '/register',
+    '/register-as',
+    '/register/doctor',
+    '/register/pharmacy',
+    '/doctors',
+    '/schedule'
+  ];
+
+  // Danh sách tất cả các path hợp lệ để xác định trang 404
+  const allValidPaths = [
+    ...publicPaths,
+    '/confirm-email',
+    '/forgot-password',
+    '/reset-password',
+    '/video-calling',
+    '/health-records',
+    '/share-records',
+    '/profile-patient',
+    '/profile-doctor',
+    '/profile-pharmacy',
+    '/doctor-page',
+    '/patient-dashboard',
+    '/admin',
+    '/my-appointments',
+    '/records',
+    '/video',
+    '/payment'
+  ];
+
+  const isKnownPath = allValidPaths.some(path => 
+    location.pathname === path || location.pathname.startsWith(path + '/')
+  ) || location.pathname.startsWith('/doctor/') || location.pathname.startsWith('/book/');
+
+  const is404Page = !isKnownPath;
+
+  useEffect(() => {
+    // Nếu đã đăng nhập mà cố tình truy cập vào các trang công khai
+    if (isAuthenticated && publicPaths.includes(location.pathname)) {
+      const userRoles = roles.map(r => r.toLowerCase());
+
+      if (userRoles.includes('admin')) {
+        navigate('/admin', { replace: true });
+      } else if (userRoles.includes('doctor')) {
+        navigate('/doctor-page', { replace: true });
+      } else if (userRoles.includes('pharmacy')) {
+        navigate('/pharmacy-page', { replace: true });
+      } else if (userRoles.includes('patient')) {
+        navigate('/patient-dashboard', { replace: true });
+      }
+    }
+  }, [isAuthenticated, roles, location.pathname, navigate]);
+
   return (
     <>
       <Toaster position="top-right" richColors />
       {!isVideoCallPage && !isAdminPage && <IncomingCallModal />}
       {!isVideoCallPage && !isAdminPage && <PrescriptionNotificationModal />}
       <div className="App">
-        {!isVideoCallPage && !isAdminPage && <Chat />}
+        {!isVideoCallPage && !isAdminPage && !is404Page && <Chat />}
         <ScrollToTop />
         {!hideLayout && <Navbar />}
 
@@ -103,7 +169,6 @@ function AppContent() {
             <Route path="/about_us" element={<AboutUs />} />
             <Route path="/login" element={<Sign_in />} />
             <Route path="/register" element={<Sign_up />} />
-            <Route path="/signup" element={<Sign_up />} />
             <Route path="/confirm-email" element={<ConfirmEmail />} />
             <Route path="/forgot-password" element={<ForgotPassword />} />
             <Route path="/reset-password" element={<ResetPassword />} />
@@ -185,6 +250,8 @@ function AppContent() {
               <Route path="profile" element={<ProfilePatient />} />
             </Route>
 
+            {/* Catch-all 404 Route */}
+            <Route path="*" element={<NotFound />} />
           </Routes>
         </div>
         {!hideLayout && <Footer />}

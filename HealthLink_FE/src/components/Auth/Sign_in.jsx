@@ -168,19 +168,19 @@ export function Sign_in() {
     };
 
     // Redirect if already logged in with valid token
-    useEffect(() => {
-        if (token && roles && roles.length > 0) {
-            if (roles.some(r => String(r).trim().toLowerCase() === 'admin')) {
-                navigate('/admin', { replace: true });
-            } else if (roles.some(r => String(r).trim().toLowerCase() === 'doctor')) {
-                navigate('/doctor-page', { replace: true });
-            } else if (roles.some(r => String(r).trim().toLowerCase() === 'patient')) {
-                navigate('/patient-dashboard', { replace: true });
-            } else {
-                navigate('/', { replace: true });
-            }
-        }
-    }, [token, roles, navigate]);
+    // useEffect(() => {
+    //     if (token && roles && roles.length > 0) {
+    //         if (roles.some(r => String(r).trim().toLowerCase() === 'admin')) {
+    //             navigate('/admin', { replace: true });
+    //         } else if (roles.some(r => String(r).trim().toLowerCase() === 'doctor')) {
+    //             navigate('/doctor-page', { replace: true });
+    //         } else if (roles.some(r => String(r).trim().toLowerCase() === 'patient')) {
+    //             navigate('/patient-dashboard', { replace: true });
+    //         } else {
+    //             navigate('/', { replace: true });
+    //         }
+    //     }
+    // }, [token, roles, navigate]);
 
     // Hiển thị Loading component khi initial load
     if (loading) {

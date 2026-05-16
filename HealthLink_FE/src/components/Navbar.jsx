@@ -113,8 +113,9 @@ function Navbar() {
                                 </NavLink>
                             </li>
 
+                            {/* ------------------------------------OLD--------------------------------------------------------------------- */}
                             {/* Patient Menu Items - Only show for authenticated patients */}
-                            {isAuthenticated && isPatient && (
+                            {/* {isAuthenticated && isPatient && (
                                 <>
                                     <hr className="mobile-divider" />
                                     <li className="mobile-menu-section-title">
@@ -147,12 +148,12 @@ function Navbar() {
 
                                     </li>
                                 </>
-                            )}
+                            )} */}
 
-                            <hr className="mobile-divider" />
+                            {/* <hr className="mobile-divider" /> */}
 
                             {/* Auth Section */}
-                            <div className="mobile-auth-section">
+                            {/* <div className="mobile-auth-section">
                                 {isAuthenticated ? (
                                     <>
                                         <div className="mobile-user-info">
@@ -181,7 +182,8 @@ function Navbar() {
                                         </li>
                                     </>
                                 )}
-                            </div>
+                            </div> */}
+                            {/* ------------------------------------------------------------------------------------------------------------ */}
                         </ul>
                     </div>
                 </>
@@ -255,13 +257,14 @@ function Navbar() {
 
                         {/* Right Side: Auth Buttons */}
                         <div className="nav-right d-flex align-items-center gap-3">
-                            {isAuthenticated ? (
-                                <>
-                                    {/* Notification Bell - Only for authenticated users */}
-                                    {isPatient && <NotificationBell />}
+                            {/* ------------------------------------OLD--------------------------------------------------------------------- */}
+                            {/* {isAuthenticated ? (
+                                <> */}
+                            {/* Notification Bell - Only for authenticated users */}
+                            {/* {isPatient && <NotificationBell />} OLD */}
 
-                                    {/* Patient Dropdown */}
-                                    {isPatient && (
+                            {/* Patient Dropdown */}
+                            {/* {isPatient && (
                                         <div
                                             className="position-relative d-none d-xl-block"
                                             onMouseEnter={() => { if (closeTimer.current) clearTimeout(closeTimer.current); setPatientDropdownOpen(true); }}
@@ -291,10 +294,10 @@ function Navbar() {
                                                 </div>
                                             )}
                                         </div>
-                                    )}
+                                    )} */}
 
-                                    {/* Doctor Dropdown */}
-                                    {isDoctor && (
+                            {/* Doctor Dropdown */}
+                            {/* {isDoctor && (
                                         <div
                                             className="position-relative d-none d-xl-block"
                                             onMouseEnter={() => { if (closeTimer.current) clearTimeout(closeTimer.current); setDoctorDropdownOpen(true); }}
@@ -314,10 +317,10 @@ function Navbar() {
                                                 </div>
                                             )}
                                         </div>
-                                    )}
+                                    )} */}
 
-                                    {/* Pharmacy Dropdown */}
-                                    {isPharmacy && (
+                            {/* Pharmacy Dropdown */}
+                            {/* {isPharmacy && (
                                         <div
                                             className="position-relative d-none d-xl-block"
                                             onMouseEnter={() => { if (closeTimer.current) clearTimeout(closeTimer.current); setPharmacyDropdownOpen(true); }}
@@ -334,18 +337,29 @@ function Navbar() {
                                                 </div>
                                             )}
                                         </div>
-                                    )}
+                                    )} */}
 
-                                    {/* Admin - No Dropdown */}
-                                    {isAdmin && (
+                            {/* Admin - No Dropdown */}
+                            {/* {isAdmin && (
                                         <span className="user-role text-white fw-medium">Admin</span>
-                                    )}
+                                    )} */}
 
-                                    <button onClick={logout} className="btn-logout">
+                            {/* Logout Button */}
+                            {/* <button onClick={logout} className="btn-logout">
                                         <i className="fas fa-sign-out-alt me-1"></i> Logout
-                                    </button>
-                                </>
+                                    </button> */}
+                            {/* </>
                             ) : (
+                                <>
+                                    <NavLink to="/register-as" className="btn-join-provider">
+                                        <i className="fas fa-user-plus me-1"></i> Join as Provider
+                                    </NavLink>
+                                    <NavLink to="/login" className="btn-login">Login</NavLink>
+                                </>
+                            )} */}
+                            {/* ------------------------------------------------------------------------------------------------------------ */}
+
+                            {!isAuthenticated && (
                                 <>
                                     <NavLink to="/register-as" className="btn-join-provider">
                                         <i className="fas fa-user-plus me-1"></i> Join as Provider
