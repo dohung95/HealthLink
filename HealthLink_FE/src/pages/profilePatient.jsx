@@ -44,30 +44,36 @@ export default function PatientProfile() {
             console.error("Error loading profile:", error);
             toast.error("Unable to load profile information.");
         } finally {
-            // Delay để hiển thị loading animation
-            setTimeout(() => {
-                setLoading(false);
-            }, 800);
+            setLoading(false);
         }
     };
 
-    if (loading) return <Loading />;
-
     return (
-        <div className="section py-5 Background_Schedule">
-            <div className="row justify-content-center" style={{ paddingTop: '200px' }}>
-                <div className="col-lg-10">
+        <div className="patient-profile-page">
+            <div className="row justify-content-center">
+                <div className="col-12">
                     {/* Header */}
                     <div className="card shadow-sm mb-4 border-0 bg-primary text-white">
                         <div className="card-body p-4 d-flex align-items-center">
                             <img
-                                src={profile.photoURL || `https://api.dicebear.com/9.x/initials/svg?seed=${profile.fullName}`}
+                                src={
+                                    profile.photoURL ||
+                                    `https://api.dicebear.com/9.x/initials/svg?seed=${profile.fullName || 'Patient'}`
+                                }
                                 className="rounded-circle border border-3 border-white me-3"
-                                width="80" height="80" alt="Avatar"
+                                width="80"
+                                height="80"
+                                alt="Avatar"
                             />
+
                             <div>
-                                <h2 className="h4 mb-0">{profile.fullName || "Name not updated"}</h2>
-                                <p className="mb-0 opacity-75">{profile.email}</p>
+                                <h2 className="h4 mb-0">
+                                    {loading ? 'Loading profile...' : profile.fullName || 'Name not updated'}
+                                </h2>
+
+                                <p className="mb-0 opacity-75">
+                                    {loading ? 'Please wait a moment' : profile.email}
+                                </p>
                             </div>
                         </div>
                     </div>
@@ -95,13 +101,23 @@ export default function PatientProfile() {
                     {/* Content */}
                     <div className="card shadow-sm border-0">
                         <div className="card-body p-4">
-                            {activeTab === 'info' ? (
-                                <GeneralInfoForm profile={profile} token={token} onUpdate={loadProfile} />
+                            {loading ? (
+                                <div className="text-center text-muted py-5">
+                                    <div className="spinner-border spinner-border-sm me-2" role="status"></div>
+                                    Loading profile information...
+                                </div>
+                            ) : activeTab === 'info' ? (
+                                <GeneralInfoForm
+                                    profile={profile}
+                                    token={token}
+                                    onUpdate={loadProfile}
+                                />
                             ) : (
                                 <SecurityForm token={token} logout={logout} />
                             )}
                         </div>
                     </div>
+
                 </div>
             </div>
         </div>

@@ -8,57 +8,72 @@ import { collection, query, where, getDocs } from 'firebase/firestore';
 import { toast } from 'sonner';
 import ConfirmModal from './ConfirmModal';
 import Loading from './Loading';
+import { getProfile } from '../api/account';
 
 const MyAppointments = () => {
     const [appointments, setAppointments] = useState([]);
     const [loading, setLoading] = useState(true);
     const [actionLoading, setActionLoading] = useState(false);
     const navigate = useNavigate();
-    const { roles, initiateCall } = useAuth();
+    const { roles, initiateCall, token } = useAuth();
     const { openChatWith } = useChat();
     const [showCancelModal, setShowCancelModal] = useState(false);
     const [pendingAppointmentId, setPendingAppointmentId] = useState(null);
+    const [patientId, setPatientId] = useState('');
 
     useEffect(() => {
-        loadAppointments();
-    }, []);
+        if (!token) return;
 
-    const loadAppointments = async () => {
+        const initializeAppointments = async () => {
+            try {
+                setLoading(true);
+
+                const profile = await getProfile(token);
+                setPatientId(profile.userId);
+
+                await loadAppointments(profile.userId);
+            } catch (error) {
+                console.error('Failed to initialize appointments', error);
+                navigate('/login');
+            } finally {
+                setLoading(false);
+            }
+        };
+
+        initializeAppointments();
+    }, [token]);
+
+    const loadAppointments = async (currentPatientId = patientId) => {
+        if (!currentPatientId) return;
+
         try {
-            setLoading(true);
-            const data = await appointmentService.getMyAppointments();
-            // Sắp xếp: Cuộc hẹn sắp tới (gần nhất) lên đầu
-            const sortedData = data.sort((a, b) => {
+            const data = await appointmentService.getPatientAppointments(currentPatientId);
+
+            const sortedData = [...data].sort((a, b) => {
                 const now = new Date();
                 const dateA = new Date(a.appointmentTime);
                 const dateB = new Date(b.appointmentTime);
 
-                // Phân loại: sắp tới vs đã qua
                 const aIsFuture = dateA >= now;
                 const bIsFuture = dateB >= now;
 
-                // Cuộc hẹn sắp tới ưu tiên lên trước
                 if (aIsFuture && !bIsFuture) return -1;
                 if (!aIsFuture && bIsFuture) return 1;
 
-                // Cùng loại thì sắp theo thời gian
                 if (aIsFuture && bIsFuture) {
-                    return dateA - dateB;  // Gần nhất lên đầu
-                } else {
-                    return dateB - dateA;  // Mới nhất lên đầu (cho các cuộc hẹn đã qua)
+                    return dateA - dateB;
                 }
+
+                return dateB - dateA;
             });
 
             setAppointments(sortedData);
         } catch (error) {
-            navigate('/login');
-        } finally {
-            // Delay để hiển thị loading animation
-            setTimeout(() => {
-                setLoading(false);
-            }, 800);
+            console.error('Failed to load appointments', error);
+            toast.error('Unable to load appointments.');
         }
     };
+
 
     // Hàm mở modal xác nhận
     const handleCancelClick = (id) => {
@@ -73,9 +88,14 @@ const MyAppointments = () => {
         if (!pendingAppointmentId) return;
 
         try {
-            await appointmentService.cancelAppointment(pendingAppointmentId, "Patient request");
-            toast.success("Appointment cancelled successfully.");
+            await appointmentService.cancelAppointment(pendingAppointmentId, {
+                cancelReason: 'Patient request',
+                cancelledBy: 'Patient',
+            });
+
+            toast.success('Appointment cancelled successfully.');
             loadAppointments();
+
         } catch (error) {
             const msg = error.response?.data?.message || error.response?.data || "Failed to cancel.";
             toast.error(msg);
@@ -92,10 +112,10 @@ const MyAppointments = () => {
 
     const handleChat = async (appointment) => {
         const isDoctor = roles && roles.some(r => String(r).trim().toLowerCase() === 'doctor');
-        const partnerData = isDoctor ? appointment.patient : appointment.doctor;
-        const partnerID = isDoctor ? appointment.patientID : appointment.doctorID;
+        const partnerID = isDoctor ? appointment.patientId : appointment.doctorId;
+        const partnerName = isDoctor ? appointment.patientName : appointment.doctorName;
 
-        if (!partnerData || !partnerID) {
+        if (!partnerID) {
             toast.error("Chat partner information is missing.");
             return;
         }
@@ -174,8 +194,7 @@ const MyAppointments = () => {
         }
     };
 
-    // Hiển thị Loading component khi đang load hoặc đang cancel
-    if (loading || actionLoading) {
+    if (actionLoading) {
         return <Loading />;
     }
 
@@ -184,12 +203,22 @@ const MyAppointments = () => {
             <div className="container mt-5">
                 <div className="d-flex justify-content-between align-items-center mb-4">
                     <h2>My Appointments</h2>
-                    <button className="btn btn-primary" onClick={() => navigate('/schedule')}>
+                    <button
+                        className="btn btn-primary"
+                        onClick={() => navigate('/patient-dashboard/booking')}
+                    >
                         + Book New Appointment
                     </button>
                 </div>
 
-                {appointments.length === 0 ? (
+                {loading ? (
+                    <div className="card border-0 shadow-sm">
+                        <div className="card-body py-5 text-center text-muted">
+                            <div className="spinner-border spinner-border-sm me-2" role="status"></div>
+                            Loading appointments...
+                        </div>
+                    </div>
+                ) : appointments.length === 0 ? (
                     <div className="alert alert-info">You have no appointments yet.</div>
                 ) : (
                     <div className="table-responsive">
@@ -206,25 +235,30 @@ const MyAppointments = () => {
                             </thead>
                             <tbody>
                                 {appointments.map((item) => (
-                                    <tr key={item.appointmentID}>
+                                    <tr key={item.appointmentId}>
                                         <td>
                                             {new Date(item.appointmentTime).toLocaleDateString()} <br />
                                             <small className="text-muted">
-                                                {new Date(item.appointmentTime).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                                                {new Date(item.appointmentTime).toLocaleTimeString([], {
+                                                    hour: '2-digit',
+                                                    minute: '2-digit',
+                                                })}
                                             </small>
                                         </td>
 
                                         <td>
-                                            <strong>{item.doctor?.fullName || "Unknown Doctor"}</strong>
+                                            <strong>{item.doctorName || "Unknown Doctor"}</strong>
                                             <br />
-                                            <small className="text-muted">{item.doctor?.specialty}</small>
+                                            <small className="text-muted">{item.specialtyName || ''}</small>
                                         </td>
 
                                         <td>
-                                            <span className="text-capitalize">{item.patient?.fullName || "Unknown Patient"}</span>
+                                            <span className="text-capitalize">
+                                                {item.patientName || 'Unknown Patient'}
+                                            </span>
                                             <br />
                                             <small className="text-muted">
-                                                {item.patient?.dateOfBirth ? new Date(item.patient.dateOfBirth).toLocaleDateString() : 'N/A'}
+                                                Patient ID: {item.patientId}
                                             </small>
                                         </td>
 
@@ -244,7 +278,11 @@ const MyAppointments = () => {
                                                     <button
                                                         className="btn btn-sm btn-primary"
                                                         onClick={() => handleChat(item)}
-                                                        title={new Date(item.appointmentTime) < new Date() ? "Appointment time has passed" : "Start chat"}
+                                                        title={
+                                                            new Date(item.appointmentTime) < new Date()
+                                                                ? "Appointment time has passed"
+                                                                : "Start chat"
+                                                        }
                                                         disabled={new Date(item.appointmentTime) < new Date()}
                                                     >
                                                         <i className="bi bi-chat-dots me-1"></i>
@@ -252,11 +290,15 @@ const MyAppointments = () => {
                                                     </button>
                                                 )}
 
-                                                {item.consultationType === 'Video Call' && item.status === 'Scheduled' && (
+                                                {item.consultationType === 'Video' && item.status === 'Scheduled' && (
                                                     <button
                                                         className="btn btn-sm btn-success"
                                                         onClick={() => handleVideoCall(item)}
-                                                        title={new Date(item.appointmentTime) < new Date() ? "Appointment time has passed" : "Start video call"}
+                                                        title={
+                                                            new Date(item.appointmentTime) < new Date()
+                                                                ? "Appointment time has passed"
+                                                                : "Start video call"
+                                                        }
                                                         disabled={new Date(item.appointmentTime) < new Date()}
                                                     >
                                                         <i className="bi bi-camera-video me-1"></i>
@@ -267,8 +309,14 @@ const MyAppointments = () => {
                                                 {item.status === 'Scheduled' && (
                                                     <button
                                                         className="btn btn-sm btn-outline-danger"
-                                                        onClick={() => handleCancelClick(item.appointmentID)}  // ← ĐỔI TÊN HÀM
-                                                        title={new Date(item.appointmentTime) < new Date() ? "Appointment time has passed" : "Cancel appointment"}
+                                                        onClick={() =>
+                                                            handleCancelClick(item.appointmentId)
+                                                        }
+                                                        title={
+                                                            new Date(item.appointmentTime) < new Date()
+                                                                ? "Appointment time has passed"
+                                                                : "Cancel appointment"
+                                                        }
                                                         disabled={new Date(item.appointmentTime) < new Date()}
                                                     >
                                                         Cancel

@@ -1,6 +1,6 @@
 import axios from 'axios';
 
-const API_URL = 'https://localhost:8096/api';
+const API_URL = 'http://localhost:8096/api';
 
 // Helper to get auth header
 const getAuthHeader = () => {
@@ -11,7 +11,7 @@ const getAuthHeader = () => {
 export const doctorService = {
     // 1. Search (pagination for Doctors)
     searchDoctors: async (params) => {
-        const response = await axios.get(`${API_URL}/Doctor/search`, { params });
+        const response = await axios.get(`${API_URL}/account/doctors/search`, { params });
         return response.data;
     },
 
@@ -22,7 +22,7 @@ export const doctorService = {
 
     // 2. Search (no pagination for Dropdown Schedule)
     getAllDoctors: async () => {
-        const response = await axios.get(`${API_URL}/Doctor/all`);
+        const response = await axios.get(`${API_URL}/account/doctors`);
         return response.data; // return array []
     },
 

@@ -128,6 +128,8 @@ export function Sign_in() {
                     navigate('/admin');
                 } else if (userRoles.some(r => r.toLowerCase() === 'doctor')) {
                     navigate('/doctor-page');
+                } else if (userRoles.some(r => r.toLowerCase() === 'patient')) {
+                    navigate('/patient-dashboard');
                 } else {
                     navigate('/');
                 }
@@ -171,6 +173,8 @@ export function Sign_in() {
                 navigate('/admin', { replace: true });
             } else if (roles.some(r => String(r).trim().toLowerCase() === 'doctor')) {
                 navigate('/doctor-page', { replace: true });
+            } else if (roles.some(r => String(r).trim().toLowerCase() === 'patient')) {
+                navigate('/patient-dashboard', { replace: true });
             } else {
                 navigate('/', { replace: true });
             }
@@ -246,7 +250,7 @@ export function Sign_in() {
                 keyboard={false}
                 centered
                 size="lg"
-                style={{padding:"230px"}}
+                style={{ padding: "230px" }}
             >
                 <Modal.Header closeButton className='modal-error-header'>
                     <Modal.Title className='modal-error-title'>
