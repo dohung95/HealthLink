@@ -3,6 +3,7 @@ import { useAuth } from '../context/AuthContext';
 import {
     getPharmacyProfile,
     updatePharmacyProfile,
+    uploadPharmacyAvatar,
     changePassword,
     requestPharmacyEmailChange,
     verifyPharmacyEmailChange,
@@ -118,6 +119,7 @@ function PharmacyInfoForm({ profile, token, onUpdate }) {
     });
     const [saving, setSaving] = useState(false);
     const [isEditing, setIsEditing] = useState(false);
+    const [uploading, setUploading] = useState(false);
 
     useEffect(() => {
         if (profile) {
@@ -138,6 +140,27 @@ function PharmacyInfoForm({ profile, token, onUpdate }) {
     const handleChange = (e) => {
         const { name, value, type, checked } = e.target;
         setFormData({ ...formData, [name]: type === 'checkbox' ? checked : value });
+    };
+
+    /** Upload avatar: gọi API riêng, cập nhật preview ngay */
+    const handleAvatarUpload = async (e) => {
+        const file = e.target.files[0];
+        if (!file) return;
+        const previewUrl = URL.createObjectURL(file);
+        setFormData(prev => ({ ...prev, avatarUrl: previewUrl }));
+        setUploading(true);
+        try {
+            const result = await uploadPharmacyAvatar(token, file);
+            setFormData(prev => ({ ...prev, avatarUrl: result.avatarUrl }));
+            toast.success('Avatar uploaded successfully!');
+        } catch (err) {
+            console.error(err);
+            toast.error('Upload failed: ' + (err.response?.data?.message || err.message));
+            setFormData(prev => ({ ...prev, avatarUrl: formData.avatarUrl }));
+        } finally {
+            setUploading(false);
+            URL.revokeObjectURL(previewUrl);
+        }
     };
 
     const toggleDay = (day) => {
@@ -191,10 +214,29 @@ function PharmacyInfoForm({ profile, token, onUpdate }) {
                                     value={formData.phoneNumber} onChange={handleChange} disabled={!isEditing} />
                             </div>
                             <div className="mb-3">
-                                <label className="form-label">Avatar URL</label>
-                                <input type="url" className="form-control" name="avatarUrl"
-                                    value={formData.avatarUrl} onChange={handleChange} disabled={!isEditing}
-                                    placeholder="https://..." />
+                                <label className="form-label">Avatar</label>
+                                <div className="d-flex align-items-center gap-3">
+                                    <img
+                                        src={formData.avatarUrl || `https://api.dicebear.com/9.x/initials/svg?seed=${profile?.name}`}
+                                        alt="Avatar"
+                                        style={{ width: 72, height: 72, borderRadius: '50%', objectFit: 'cover', border: '2px solid #dee2e6' }}
+                                        onError={(e) => { e.target.src = `https://api.dicebear.com/9.x/initials/svg?seed=${profile?.name}`; }}
+                                    />
+                                    {isEditing && (
+                                        <div>
+                                            <label htmlFor="pharmacy-avatar-upload"
+                                                className="btn btn-sm btn-outline-secondary"
+                                                style={{ cursor: 'pointer', borderColor: '#6a1b9a', color: '#6a1b9a' }}>
+                                                {uploading
+                                                    ? <><span className="spinner-border spinner-border-sm me-1"></span>Uploading...</>
+                                                    : <><i className="bi bi-cloud-upload me-1"></i>Upload Photo</>}
+                                            </label>
+                                            <input id="pharmacy-avatar-upload" type="file" accept="image/*"
+                                                style={{ display: 'none' }} onChange={handleAvatarUpload} disabled={uploading} />
+                                            <div className="text-muted mt-1" style={{ fontSize: '0.75rem' }}>JPG, PNG, WEBP — Max 5MB</div>
+                                        </div>
+                                    )}
+                                </div>
                             </div>
                             <div className="mb-0">
                                 <label className="form-label">Description</label>
