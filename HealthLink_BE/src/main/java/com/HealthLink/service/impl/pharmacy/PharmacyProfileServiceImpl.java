@@ -20,13 +20,24 @@ import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.io.IOException;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.nio.file.Paths;
 import java.time.LocalDateTime;
+import java.util.UUID;
 
 @Service
 @Slf4j
 @RequiredArgsConstructor
 @Transactional(readOnly = true)
 public class PharmacyProfileServiceImpl implements PharmacyProfileService {
+
+    @org.springframework.beans.factory.annotation.Value("${app.upload.dir:uploads}")
+    private String uploadDir;
+
+    @org.springframework.beans.factory.annotation.Value("${app.base-url:http://localhost:8096}")
+    private String baseUrl;
 
     private final PharmacyRepository pharmacyRepository;
     private final UserRepository userRepository;
@@ -231,5 +242,46 @@ public class PharmacyProfileServiceImpl implements PharmacyProfileService {
     /** Tạo mã OTP ngẫu nhiên 6 chữ số */
     private String generateVerificationCode() {
         return String.format("%06d", (int) (Math.random() * 1000000));
+    }
+
+    @Override
+    @Transactional
+    public String uploadAvatar(String pharmacyId, org.springframework.web.multipart.MultipartFile file)
+            throws IOException {
+        if (file.isEmpty()) {
+            throw new BadRequestException("File is empty");
+        }
+        String contentType = file.getContentType();
+        if (contentType == null || !contentType.startsWith("image/")) {
+            throw new BadRequestException("Only image files are allowed");
+        }
+        if (file.getSize() > 5 * 1024 * 1024) {
+            throw new BadRequestException("File size must be less than 5MB");
+        }
+
+        // Tạo thư mục nếu chưa tồn tại
+        Path avatarDir = Paths.get(uploadDir, "avatars", "pharmacies");
+        Files.createDirectories(avatarDir);
+
+        // Tên file độc nhất
+        String original = file.getOriginalFilename();
+        String ext = (original != null && original.contains("."))
+                ? original.substring(original.lastIndexOf(".")) : ".jpg";
+        String filename = UUID.randomUUID() + ext;
+
+        // Ghi file
+        Files.write(avatarDir.resolve(filename), file.getBytes());
+
+        // URL công khai
+        String avatarUrl = baseUrl + "/uploads/avatars/pharmacies/" + filename;
+
+        // Cập nhật DB
+        Pharmacy pharmacy = pharmacyRepository.findById(pharmacyId)
+                .orElseThrow(() -> new ResourceNotFoundException("Pharmacy", "id", pharmacyId));
+        pharmacy.setAvatarUrl(avatarUrl);
+        pharmacyRepository.save(pharmacy);
+
+        log.info("Avatar uploaded for pharmacy {}: {}", pharmacyId, avatarUrl);
+        return avatarUrl;
     }
 }

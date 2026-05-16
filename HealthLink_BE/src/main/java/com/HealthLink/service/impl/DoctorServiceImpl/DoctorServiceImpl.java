@@ -19,21 +19,34 @@ import com.HealthLink.service.email.EmailService;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import com.HealthLink.entity.EmailVerificationToken;
 import com.HealthLink.exception.BadRequestException;
+import java.io.IOException;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.nio.file.Paths;
 import java.time.LocalDateTime;
-import lombok.RequiredArgsConstructor;
-import lombok.extern.slf4j.Slf4j;
-import org.springframework.stereotype.Service;
-import org.springframework.transaction.annotation.Transactional;
-
 import java.util.ArrayList;
 import java.util.List;
+import java.util.UUID;
 import java.util.stream.Collectors;
+
+import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
+import org.springframework.beans.factory.annotation.Value;
+import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
+import org.springframework.web.multipart.MultipartFile;
 
 @Service
 @RequiredArgsConstructor
 @Slf4j
 @Transactional(readOnly = true)
 public class DoctorServiceImpl implements DoctorService {
+
+    @Value("${app.upload.dir:uploads}")
+    private String uploadDir;
+
+    @Value("${app.base-url:http://localhost:8096}")
+    private String baseUrl;
 
     private final DoctorRepository doctorRepository;
     private final DoctorScheduleRepository scheduleRepository;
@@ -275,13 +288,52 @@ public class DoctorServiceImpl implements DoctorService {
         int day = s.getDayOfWeek() != null ? s.getDayOfWeek() : 0;
         return DoctorScheduleResponse.builder()
                 .scheduleId(s.getScheduleId())
-                .dayOfWeek(day)
-                .dayName(DAY_NAMES[Math.min(day, 6)])
+                .dayOfWeek(DAY_NAMES[s.getDayOfWeek()])
                 .startTime(s.getStartTime())
                 .endTime(s.getEndTime())
                 .slotDuration(s.getSlotDuration())
                 .consultationType(s.getConsultationType())
                 .available(s.isAvailable())
                 .build();
+    }
+
+    @Override
+    @Transactional
+    public String uploadAvatar(String doctorId, MultipartFile file) throws IOException {
+        if (file.isEmpty()) {
+            throw new BadRequestException("File is empty");
+        }
+        String contentType = file.getContentType();
+        if (contentType == null || !contentType.startsWith("image/")) {
+            throw new BadRequestException("Only image files are allowed");
+        }
+        if (file.getSize() > 5 * 1024 * 1024) {
+            throw new BadRequestException("File size must be less than 5MB");
+        }
+
+        // Tạo thư mục nếu chưa tồn tại
+        Path avatarDir = Paths.get(uploadDir, "avatars", "doctors");
+        Files.createDirectories(avatarDir);
+
+        // Tên file độc nhất
+        String original = file.getOriginalFilename();
+        String ext = (original != null && original.contains("."))
+                ? original.substring(original.lastIndexOf(".")) : ".jpg";
+        String filename = UUID.randomUUID() + ext;
+
+        // Ghi file
+        Files.write(avatarDir.resolve(filename), file.getBytes());
+
+        // URL công khai
+        String avatarUrl = baseUrl + "/uploads/avatars/doctors/" + filename;
+
+        // Cập nhật DB
+        Doctor doctor = doctorRepository.findById(doctorId)
+                .orElseThrow(() -> new ResourceNotFoundException("Doctor", "doctorId", doctorId));
+        doctor.setAvatarUrl(avatarUrl);
+        doctorRepository.save(doctor);
+
+        log.info("Avatar uploaded for doctor {}: {}", doctorId, avatarUrl);
+        return avatarUrl;
     }
 }

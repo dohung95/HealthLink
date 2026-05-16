@@ -23,15 +23,34 @@ export const updateProfile = async (token, data) => {
     return res.data;
 };
 
-/** PUT /api/account/patient/auth/email/request-change */
+/** POST /api/account/patient/avatar — Upload ảnh đại diện (multipart/form-data) */
+export const uploadPatientAvatar = async (token, file) => {
+    const formData = new FormData();
+    formData.append('file', file);
+    const res = await axios.post(`${BASE}/patient/avatar`, formData, {
+        headers: {
+            Authorization: `Bearer ${token}`,
+            'Content-Type': 'multipart/form-data',
+        },
+    });
+    return res.data; // { avatarUrl: "http://..." }
+};
+
+/** PUT /api/account/patient/auth/password/change — Đổi mật khẩu khi đã đăng nhập */
 export const changePassword = async (token, passwordData) => {
-    const res = await axios.put(`${BASE}/patient/auth/email/request-change`, passwordData, authConfig(token));
+    const res = await axios.put(`${BASE}/patient/auth/password/change`, passwordData, authConfig(token));
     return res.data;
 };
 
-/** POST /api/account/patient/auth/email/verify-change */
-export const changeEmail = async (token, emailData) => {
-    const res = await axios.post(`${BASE}/patient/auth/email/verify-change`, emailData, authConfig(token));
+/** POST /api/account/patient/auth/email/request-change — Bước 1: Yêu cầu đổi email (gửi OTP) */
+export const requestEmailChange = async (token, emailData) => {
+    const res = await axios.post(`${BASE}/patient/auth/email/request-change`, emailData, authConfig(token));
+    return res.data;
+};
+
+/** POST /api/account/patient/auth/email/verify-change — Bước 2: Xác nhận OTP để hoàn tất đổi email */
+export const verifyEmailChange = async (token, verifyData) => {
+    const res = await axios.post(`${BASE}/patient/auth/email/verify-change`, verifyData, authConfig(token));
     return res.data;
 };
 
@@ -49,6 +68,16 @@ export const getDoctorProfile = async (token) => {
 export const updateDoctorProfile = async (token, data) => {
     const res = await axios.put(`${BASE}/doctors/profile`, data, authConfig(token));
     return res.data;
+};
+
+/** POST /api/account/doctors/avatar — Upload ảnh đại diện bác sĩ */
+export const uploadDoctorAvatar = async (token, file) => {
+    const formData = new FormData();
+    formData.append('file', file);
+    const res = await axios.post(`${BASE}/doctors/avatar`, formData, {
+        headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'multipart/form-data' },
+    });
+    return res.data; // { avatarUrl: "http://..." }
 };
 
 /** POST /api/account/doctors/auth/email/request-change */
@@ -77,6 +106,16 @@ export const getPharmacyProfile = async (token) => {
 export const updatePharmacyProfile = async (token, data) => {
     const res = await axios.put(`${BASE}/pharmacy/profile`, data, authConfig(token));
     return res.data;
+};
+
+/** POST /api/account/pharmacy/avatar — Upload ảnh đại diện nhà thuốc */
+export const uploadPharmacyAvatar = async (token, file) => {
+    const formData = new FormData();
+    formData.append('file', file);
+    const res = await axios.post(`${BASE}/pharmacy/avatar`, formData, {
+        headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'multipart/form-data' },
+    });
+    return res.data; // { avatarUrl: "http://..." }
 };
 
 /** POST /api/account/pharmacy/auth/email/request-change */

@@ -26,7 +26,7 @@ import Registrations from './components/Admin/View/Registrations';
 
 import Sign_in from './components/Auth/Sign_in';
 import Sign_up from './components/Auth/Sign_up';
-import EmailConfirmation from './components/Auth/EmailConfirmation';
+import ConfirmEmail from './components/Auth/ConfirmEmail';
 import RegistrationChoice from './components/Auth/RegistrationChoice';
 import DoctorRegistration from './components/Auth/DoctorRegistration';
 import PharmacyRegistration from './components/Auth/PharmacyRegistration';
@@ -104,7 +104,7 @@ function AppContent() {
             <Route path="/login" element={<Sign_in />} />
             <Route path="/register" element={<Sign_up />} />
             <Route path="/signup" element={<Sign_up />} />
-            <Route path="/confirm-email" element={<EmailConfirmation />} />
+            <Route path="/confirm-email" element={<ConfirmEmail />} />
             <Route path="/forgot-password" element={<ForgotPassword />} />
             <Route path="/reset-password" element={<ResetPassword />} />
             <Route path="/register-as" element={<RegistrationChoice />} />

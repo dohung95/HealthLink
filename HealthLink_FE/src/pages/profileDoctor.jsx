@@ -3,6 +3,7 @@ import { useAuth } from '../context/AuthContext';
 import {
     getDoctorProfile,
     updateDoctorProfile,
+    uploadDoctorAvatar,
     changePassword,
     requestDoctorEmailChange,
     verifyDoctorEmailChange,
@@ -88,7 +89,7 @@ export default function ProfileDoctor() {
                             {activeTab === 'info' ? (
                                 <DoctorInfoForm profile={profile} token={token} onUpdate={loadProfile} />
                             ) : (
-                                <DoctorSecurityForm token={token} logout={logout} />
+                                <DoctorSecurityForm token={token} logout={logout} profile={profile} />
                             )}
                         </div>
                     </div>
@@ -113,6 +114,7 @@ function DoctorInfoForm({ profile, token, onUpdate }) {
     });
     const [saving, setSaving] = useState(false);
     const [isEditing, setIsEditing] = useState(false);
+    const [uploading, setUploading] = useState(false);
 
     useEffect(() => {
         if (profile) {
@@ -131,6 +133,27 @@ function DoctorInfoForm({ profile, token, onUpdate }) {
     }, [profile]);
 
     const handleChange = (e) => setFormData({ ...formData, [e.target.name]: e.target.value });
+
+    /** Upload avatar: gọi API riêng, cập nhật preview ngay */
+    const handleAvatarUpload = async (e) => {
+        const file = e.target.files[0];
+        if (!file) return;
+        const previewUrl = URL.createObjectURL(file);
+        setFormData(prev => ({ ...prev, avatarUrl: previewUrl }));
+        setUploading(true);
+        try {
+            const result = await uploadDoctorAvatar(token, file);
+            setFormData(prev => ({ ...prev, avatarUrl: result.avatarUrl }));
+            toast.success('Avatar uploaded successfully!');
+        } catch (err) {
+            console.error(err);
+            toast.error('Upload failed: ' + (err.response?.data?.message || err.message));
+            setFormData(prev => ({ ...prev, avatarUrl: formData.avatarUrl }));
+        } finally {
+            setUploading(false);
+            URL.revokeObjectURL(previewUrl);
+        }
+    };
 
     const handleSubmit = async (e) => {
         e.preventDefault();
@@ -174,10 +197,27 @@ function DoctorInfoForm({ profile, token, onUpdate }) {
                                         value={formData.phoneNumber} onChange={handleChange} disabled={!isEditing} />
                                 </div>
                                 <div className="col-12">
-                                    <label className="form-label">Avatar URL</label>
-                                    <input type="url" className="form-control" name="avatarUrl"
-                                        value={formData.avatarUrl} onChange={handleChange} disabled={!isEditing}
-                                        placeholder="https://example.com/avatar.jpg" />
+                                    <label className="form-label">Avatar</label>
+                                    <div className="d-flex align-items-center gap-3">
+                                        <img
+                                            src={formData.avatarUrl || `https://api.dicebear.com/9.x/initials/svg?seed=${profile?.fullName}`}
+                                            alt="Avatar"
+                                            style={{ width: 72, height: 72, borderRadius: '50%', objectFit: 'cover', border: '2px solid #dee2e6' }}
+                                            onError={(e) => { e.target.src = `https://api.dicebear.com/9.x/initials/svg?seed=${profile?.fullName}`; }}
+                                        />
+                                        {isEditing && (
+                                            <div>
+                                                <label htmlFor="doctor-avatar-upload" className="btn btn-sm btn-outline-success" style={{ cursor: 'pointer' }}>
+                                                    {uploading
+                                                        ? <><span className="spinner-border spinner-border-sm me-1"></span>Uploading...</>
+                                                        : <><i className="bi bi-cloud-upload me-1"></i>Upload Photo</>}
+                                                </label>
+                                                <input id="doctor-avatar-upload" type="file" accept="image/*"
+                                                    style={{ display: 'none' }} onChange={handleAvatarUpload} disabled={uploading} />
+                                                <div className="text-muted mt-1" style={{ fontSize: '0.75rem' }}>JPG, PNG, WEBP — Max 5MB</div>
+                                            </div>
+                                        )}
+                                    </div>
                                 </div>
                                 <div className="col-12">
                                     <label className="form-label">Description / Bio</label>
@@ -260,8 +300,9 @@ function DoctorInfoForm({ profile, token, onUpdate }) {
 }
 
 // ─── Form Security (Change Password + Change Email với OTP) ───────────────────
-function DoctorSecurityForm({ token, logout }) {
+function DoctorSecurityForm({ token, logout, profile }) {
     const [passwords, setPasswords] = useState({ currentPassword: '', newPassword: '', confirmNewPassword: '' });
+    const [passwordErrors, setPasswordErrors] = useState({ currentPassword: '', newPassword: '', confirmNewPassword: '' });
     const [changing, setChanging] = useState(false);
 
     // Email change states
@@ -270,19 +311,61 @@ function DoctorSecurityForm({ token, logout }) {
     const [otp, setOtp] = useState('');
     const [changingEmail, setChangingEmail] = useState(false);
 
+    // Hàm kiểm tra độ mạnh mật khẩu
+    const validatePasswordStrength = (pwd) => {
+        if (pwd.length < 6) return "Password must be at least 6 characters long.";
+        if (!/[A-Z]/.test(pwd)) return "Password must contain at least one uppercase letter.";
+        if (!/[a-z]/.test(pwd)) return "Password must contain at least one lowercase letter.";
+        if (!/[0-9]/.test(pwd)) return "Password must contain at least one number.";
+        if (!/[^a-zA-Z0-9\s]/.test(pwd)) return "Password must contain at least one special character.";
+        
+        const emailPart = profile?.email?.split('@')[0].toLowerCase();
+        const fullNameLower = profile?.fullName?.toLowerCase();
+        const pwdLower = pwd.toLowerCase();
+        
+        if (pwdLower.includes(emailPart)) return "Password should not contain your email prefix.";
+        if (fullNameLower && pwdLower.includes(fullNameLower.split(' ')[0])) return "Password should not contain your name.";
+        
+        return null;
+    };
+
     const handlePasswordSubmit = async (e) => {
         e.preventDefault();
+        // Reset errors
+        const newErrors = { currentPassword: '', newPassword: '', confirmNewPassword: '' };
+        let hasError = false;
+
+        if (passwords.newPassword === passwords.currentPassword) {
+            newErrors.newPassword = "New password must be different from current password!";
+            hasError = true;
+        } else {
+            const strengthError = validatePasswordStrength(passwords.newPassword);
+            if (strengthError) {
+                newErrors.newPassword = strengthError;
+                hasError = true;
+            }
+        }
+
         if (passwords.newPassword !== passwords.confirmNewPassword) {
-            toast.error('New passwords do not match!');
+            newErrors.confirmNewPassword = "New passwords do not match!";
+            hasError = true;
+        }
+
+        if (hasError) {
+            setPasswordErrors(newErrors);
             return;
         }
+
+        setPasswordErrors({ currentPassword: '', newPassword: '', confirmNewPassword: '' });
         setChanging(true);
         try {
             await changePassword(token, passwords);
             toast.success('Password changed! Please log in again.');
             logout();
         } catch (err) {
-            toast.error('Error: ' + (err.response?.data?.message || 'Current password is incorrect.'));
+            const errorMsg = err.response?.data?.message || 'Current password is incorrect.';
+            setPasswordErrors({ ...newErrors, currentPassword: errorMsg });
+            toast.error('Change password failed!');
         } finally {
             setChanging(false);
         }
@@ -386,21 +469,24 @@ function DoctorSecurityForm({ token, logout }) {
                             </div>
                             <div className="mb-3">
                                 <label className="form-label">Current Password</label>
-                                <input type="password" className="form-control"
+                                <input type="password" className={`form-control ${passwordErrors.currentPassword ? 'is-invalid' : ''}`}
                                     value={passwords.currentPassword}
                                     onChange={(e) => setPasswords({ ...passwords, currentPassword: e.target.value })} required />
+                                {passwordErrors.currentPassword && <div className="invalid-feedback">{passwordErrors.currentPassword}</div>}
                             </div>
                             <div className="mb-3">
                                 <label className="form-label">New Password</label>
-                                <input type="password" className="form-control"
+                                <input type="password" className={`form-control ${passwordErrors.newPassword ? 'is-invalid' : ''}`}
                                     value={passwords.newPassword}
                                     onChange={(e) => setPasswords({ ...passwords, newPassword: e.target.value })} required />
+                                {passwordErrors.newPassword && <div className="invalid-feedback">{passwordErrors.newPassword}</div>}
                             </div>
                             <div className="mb-3">
                                 <label className="form-label">Confirm New Password</label>
-                                <input type="password" className="form-control"
+                                <input type="password" className={`form-control ${passwordErrors.confirmNewPassword ? 'is-invalid' : ''}`}
                                     value={passwords.confirmNewPassword}
                                     onChange={(e) => setPasswords({ ...passwords, confirmNewPassword: e.target.value })} required />
+                                {passwordErrors.confirmNewPassword && <div className="invalid-feedback">{passwordErrors.confirmNewPassword}</div>}
                             </div>
                             <button type="submit" className="btn btn-danger w-100" disabled={changing}>
                                 {changing ? <><span className="spinner-border spinner-border-sm me-2"></span>Processing...</> : <><i className="bi bi-shield-check me-2"></i>Change Password</>}
