@@ -23,6 +23,19 @@ export const updateProfile = async (token, data) => {
     return res.data;
 };
 
+/** POST /api/account/patient/avatar — Upload ảnh đại diện (multipart/form-data) */
+export const uploadPatientAvatar = async (token, file) => {
+    const formData = new FormData();
+    formData.append('file', file);
+    const res = await axios.post(`${BASE}/patient/avatar`, formData, {
+        headers: {
+            Authorization: `Bearer ${token}`,
+            'Content-Type': 'multipart/form-data',
+        },
+    });
+    return res.data; // { avatarUrl: "http://..." }
+};
+
 /** PUT /api/account/patient/auth/password/change — Đổi mật khẩu khi đã đăng nhập */
 export const changePassword = async (token, passwordData) => {
     const res = await axios.put(`${BASE}/patient/auth/password/change`, passwordData, authConfig(token));

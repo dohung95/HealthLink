@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useAuth } from '../context/AuthContext';
-import { getProfile, updateProfile, changePassword, requestEmailChange, verifyEmailChange } from '../api/account';
+import { getProfile, updateProfile, uploadPatientAvatar, changePassword, requestEmailChange, verifyEmailChange } from '../api/account';
 import { toast } from 'sonner';
 import Loading from '../components/Loading';
 
@@ -124,6 +124,7 @@ function GeneralInfoForm({ profile, token, onUpdate }) {
     const [formData, setFormData] = useState(profile);
     const [saving, setSaving] = useState(false);
     const [isEditing, setIsEditing] = useState(false);
+    const [uploading, setUploading] = useState(false);
 
     useEffect(() => {
         setFormData(profile);
@@ -133,11 +134,46 @@ function GeneralInfoForm({ profile, token, onUpdate }) {
         setFormData({ ...formData, [e.target.name]: e.target.value });
     };
 
+    /** Upload avatar: gọi API riêng, cập nhật formData và preview ngay */
+    const handleAvatarUpload = async (e) => {
+        const file = e.target.files[0];
+        if (!file) return;
+
+        // Preview tạm thời bằng ObjectURL trước khi upload xong
+        const previewUrl = URL.createObjectURL(file);
+        setFormData(prev => ({ ...prev, avatarUrl: previewUrl }));
+
+        setUploading(true);
+        try {
+            const result = await uploadPatientAvatar(token, file);
+            // Cập nhật với URL thật từ server
+            setFormData(prev => ({ ...prev, avatarUrl: result.avatarUrl }));
+            toast.success('Avatar uploaded successfully!');
+        } catch (err) {
+            console.error(err);
+            toast.error('Upload failed: ' + (err.response?.data?.message || err.message));
+            // Hoàn nguyên nếu lỗi
+            setFormData(prev => ({ ...prev, avatarUrl: formData.avatarUrl }));
+        } finally {
+            setUploading(false);
+            URL.revokeObjectURL(previewUrl);
+        }
+    };
+
     const handleSubmit = async (e) => {
         e.preventDefault();
         setSaving(true);
+
+        // Chuẩn hóa dữ liệu: Chuyển các chuỗi rỗng thành null cho các trường số
+        const cleanedData = { ...formData };
+        ['heightCm', 'weightKg', 'latitude', 'longitude'].forEach(field => {
+            if (cleanedData[field] === '') {
+                cleanedData[field] = null;
+            }
+        });
+
         try {
-            await updateProfile(token, formData);
+            await updateProfile(token, cleanedData);
             setIsEditing(false);
             if (onUpdate) onUpdate();
             toast.success("Updated successfully!");
@@ -212,8 +248,41 @@ function GeneralInfoForm({ profile, token, onUpdate }) {
                                     </select>
                                 </div>
                                 <div className="col-md-12">
-                                    <label className="form-label">Avatar URL</label>
-                                    <input type="text" className="form-control" name="avatarUrl" value={formData.avatarUrl} onChange={handleChange} disabled={!isEditing} placeholder="https://example.com/photo.jpg" />
+                                    <label className="form-label">Avatar</label>
+                                    <div className="d-flex align-items-center gap-3">
+                                        {/* Ảnh preview */}
+                                        <img
+                                            src={formData.avatarUrl || `https://api.dicebear.com/9.x/initials/svg?seed=${formData.fullName}`}
+                                            alt="Avatar"
+                                            style={{ width: 72, height: 72, borderRadius: '50%', objectFit: 'cover', border: '2px solid #dee2e6' }}
+                                            onError={(e) => { e.target.src = `https://api.dicebear.com/9.x/initials/svg?seed=${formData.fullName}`; }}
+                                        />
+                                        {/* Nút upload — chỉ hiện khi đang edit */}
+                                        {isEditing && (
+                                            <div>
+                                                <label
+                                                    htmlFor="avatar-upload-input"
+                                                    className="btn btn-sm btn-outline-primary"
+                                                    style={{ cursor: 'pointer' }}
+                                                >
+                                                    {uploading
+                                                        ? <><span className="spinner-border spinner-border-sm me-1"></span>Uploading...</>
+                                                        : <><i className="bi bi-cloud-upload me-1"></i>Upload Photo</>}
+                                                </label>
+                                                <input
+                                                    id="avatar-upload-input"
+                                                    type="file"
+                                                    accept="image/*"
+                                                    style={{ display: 'none' }}
+                                                    onChange={handleAvatarUpload}
+                                                    disabled={uploading}
+                                                />
+                                                <div className="text-muted mt-1" style={{ fontSize: '0.75rem' }}>
+                                                    JPG, PNG, WEBP — Max 5MB
+                                                </div>
+                                            </div>
+                                        )}
+                                    </div>
                                 </div>
                                 <div className="col-md-12">
                                     <label className="form-label">Address</label>
@@ -431,15 +500,15 @@ function SecurityForm({ token, logout, profile }) {
         if (!/[a-z]/.test(pwd)) return "Password must contain at least one lowercase letter.";
         if (!/[0-9]/.test(pwd)) return "Password must contain at least one number.";
         if (!/[^a-zA-Z0-9\s]/.test(pwd)) return "Password must contain at least one special character.";
-        
+
         // Không trùng email hoặc tên
         const emailPart = profile?.email?.split('@')[0].toLowerCase();
         const fullNameLower = profile?.fullName?.toLowerCase();
         const pwdLower = pwd.toLowerCase();
-        
+
         if (pwdLower.includes(emailPart)) return "Password should not contain your email prefix.";
         if (fullNameLower && pwdLower.includes(fullNameLower.split(' ')[0])) return "Password should not contain your name.";
-        
+
         return null;
     };
 

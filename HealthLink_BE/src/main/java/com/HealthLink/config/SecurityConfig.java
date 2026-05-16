@@ -73,8 +73,10 @@ public class SecurityConfig {
 
                 // Phân quyền các endpoint
                 .authorizeHttpRequests(auth -> auth
-                        // Public: đăng ký / đăng nhập / refresh token /
+                        // Public: đăng ký / đăng nhập / refresh token
                         .requestMatchers("/api/auth/**").permitAll()
+                        // Public: xem ảnh upload (avatar, v.v.) — không cần xác thực
+                        .requestMatchers(HttpMethod.GET, "/uploads/**").permitAll()
                         // Public: xem danh sách bác sĩ (cho bệnh nhân)
                         .requestMatchers(HttpMethod.GET, "/api/doctors").permitAll()
                         // Public: tạo kết nối websocket với backend

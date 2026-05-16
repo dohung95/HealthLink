@@ -46,6 +46,7 @@ public class Patient {
     private String preferredLanguage;
     private String preferredContactMethod;
     private String occupation;
+    @Column(columnDefinition = "NVARCHAR(MAX)")
     private String avatarUrl;
     private Double latitude;
     private Double longitude;

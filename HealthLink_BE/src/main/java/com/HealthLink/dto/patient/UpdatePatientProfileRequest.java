@@ -1,7 +1,9 @@
 package com.HealthLink.dto.patient;
 
+import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import jakarta.validation.constraints.NotBlank;
 import lombok.*;
+import java.time.LocalDate;
 import java.time.LocalDateTime;
 
 /**
@@ -12,12 +14,13 @@ import java.time.LocalDateTime;
 @NoArgsConstructor
 @AllArgsConstructor
 @Builder
+@JsonIgnoreProperties(ignoreUnknown = true)
 public class UpdatePatientProfileRequest {
     
     @NotBlank(message = "Full name is required")
     private String fullName;
     
-    private LocalDateTime dateOfBirth;
+    private LocalDate dateOfBirth;
     private String medicalHistorySummary;
     private String insuranceProvider;
     private String insurancePolicyNumber;
