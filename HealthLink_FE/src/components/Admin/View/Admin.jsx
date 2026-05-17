@@ -2,7 +2,7 @@ import React, { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import NavbarAdmin from "./NavbarAdmin";
 import DashboardCharts from "./DashboardCharts";
-import { patientsApi, appointmentsApi, medicalRecordsApi } from "../../../services/adminApi";
+import { patientsApi, appointmentsApi, medicalRecordsApi } from "../../../api/adminApi";
 import "bootstrap/dist/css/bootstrap.min.css";
 import "bootstrap-icons/font/bootstrap-icons.css";
 import "../Css/Admin.css";

@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from "react";
 import NavbarAdmin from "./NavbarAdmin";
-import { doctorsApi } from "../../../services/adminApi";
+import { doctorsApi } from "../../../api/adminApi";
 import Toast from "./Toast";
 import useToast from "../useToast";
 import "bootstrap/dist/css/bootstrap.min.css";
