@@ -114,8 +114,6 @@ Kết luận cho Pharmacy:
 Các API hiện có:
 - `POST /api/payment/partner/{partnerId}/settle?type=DOCTOR`
 - `POST /api/payment/partner/{partnerId}/settle?type=PHARMACY`
-- `POST /api/settlement/doctor/{doctorId}/withdraw`
-- `POST /api/settlement/pharmacy/{pharmacyId}/withdraw`
 
 4.2. Cách xử lý
 

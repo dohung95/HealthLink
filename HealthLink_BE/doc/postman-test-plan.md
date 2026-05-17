@@ -468,21 +468,19 @@ Happy path
 - Kỳ vọng HTTP 200.
 - Response là danh sách settlement mới nhất trước.
 
-3.11. Settlement controller endpoints
+3.11. Partner settlement endpoints
 
 Endpoint
-- POST /api/settlement/doctor/{doctorId}/withdraw
-- POST /api/settlement/pharmacy/{pharmacyId}/withdraw
-- GET /api/settlement/history/{recipientId}
-- POST /api/settlement/withdraw?partnerId={id}&type=DOCTOR|PHARMACY
+- POST /api/payment/partner/{partnerId}/settle?type=DOCTOR
+- POST /api/payment/partner/{partnerId}/settle?type=PHARMACY
+- GET /api/payment/partner/{partnerId}/settlements
 
 Mục tiêu
-- Kiểm tra cả nhóm endpoint settlement riêng và endpoint thống nhất.
+- Kiểm tra endpoint rút tiền và lịch sử settlement cho partner.
 
 Happy path
-- Doctor/Pharmacy withdraw trả về HTTP 200.
+- Doctor/Pharmacy withdraw trả về HTTP 201.
 - History trả về danh sách settlement.
-- On-demand withdraw trả về HTTP 201.
 
 Negative cases
 - partner không tồn tại -> not found.
