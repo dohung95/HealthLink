@@ -1,7 +1,8 @@
 import React, { createContext, useContext, useState, useEffect } from "react";
 import { login as loginAPI, register as registerAPI, logout as logoutAPI, forgotPassword as forgotPasswordAPI, resetPassword as resetPasswordAPI, setupAxiosInterceptors } from '../api/auth';
 import { decodeToken, getTokenExpiresIn } from '../utils/tokenUtils';
-import * as signalR from "@microsoft/signalr";
+import stompChatService from '../services/stompChatService';
+import videoCallService from '../services/videoCallService';
 import { toast } from 'sonner';
 
 const AuthContext = createContext();
@@ -192,91 +193,78 @@ export function AuthProvider({ children }) {
         }
     };
 
-    // kết nối signalR với JWT Token
+    // kết nối STOMP WebSocket cho Chat và WebRTC
     useEffect(() => {
-        // Nếu có token (đã login) VÀ chưa có kết nối
         if (token && !connection) {
+            // 1. Kết nối STOMP Server (Spring Boot) thay vì SignalR
+            stompChatService.connect(token, () => {
+                setConnection(true); // Đánh dấu đã kết nối
+                
+                // 2. Đăng ký lắng nghe tín hiệu WebRTC (Incoming Call)
+                videoCallService.subscribeToWebRTC((signal) => {
+                    const { type, senderId, senderName, data } = signal;
 
-            // 1. Xây dựng kết nối đến Hub
-            const newConnection = new signalR.HubConnectionBuilder()
-                .withUrl("https://localhost:8096/notificationcalling", { // (Đảm bảo URL này đúng)
-                    // 2. GỬI KÈM JWT TOKEN ĐỂ XÁC THỰC
-                    accessTokenFactory: () => token
-                })
-                .withAutomaticReconnect()
-                .build();
+                    if (type === "CALL_REQUEST") {
+                        // Nhận được cuộc gọi mới
+                        setIncomingCall({ callerId: senderId, callerName: senderName, roomId: data });
+                    }
+                    // else if (type === "CALL_ACCEPTED") {
+                    //     // Bác sĩ (người gọi) nhận được tín hiệu bắt máy từ bệnh nhân
+                    //     // Lấy thông tin user hiện tại (Doctor)
+                    //     const currentToken = localStorage.getItem('token');
+                    //     const decodedUser = decodeToken(currentToken);
+                    //     const userId = decodedUser.sub;
+                    //     const userName = decodedUser.preferred_username || decodedUser.email;
 
-            // 3. Khởi động kết nối
-            newConnection.start()
-                .then(() => {
-                    // console.log("SignalR Connected!");
-                    setConnection(newConnection);
+                    //     // Mở cửa sổ Zego (vì BẠN là người gọi) - truyền targetUserId là người đã accept (senderId)
+                    //     // senderName chính là người đã bắt máy (người nhận ban đầu)
+                    //     const callUrl = `/video-calling?roomID=${data}&targetUserId=${encodeURIComponent(senderId)}&userName=${encodeURIComponent(senderName)}&isCaller=true`;
+                    //     const windowSpecs = 'width=1000,height=700,noopener,noreferrer';
+                    //     window.open(callUrl, '_blank', windowSpecs);
+                    // }
+                    else if (type === "CALL_ACCEPTED") {
+                        // Bắn event qua localStorage để báo cho tab video-call biết (chống race condition)
+                        localStorage.setItem('webrtc_signal', JSON.stringify({
+                            type,
+                            senderId,
+                            roomId: data,
+                            timestamp: Date.now()
+                        }));
+                    }
+                    else if (type === "CALL_DECLINED" || type === "HANGUP") {
+                        // Nếu người gọi hủy cuộc gọi, đóng popup lại
+                        setIncomingCall(prev => {
+                            if (prev && prev.callerId === senderId) {
+                                toast.info("The call has ended or was canceled.");
+                                return null;
+                            }
+                            return prev;
+                        });
 
-                    // 4. LẮNG NGHE CÁC SỰ KIỆN TỪ SERVER
-
-                    // A. Khi AI ĐÓ GỌI BẠN (Reng reng!)
-                    newConnection.on("IncomingCall", (callerId, callerName, roomId) => {
-                        // console.log(`Incoming call from ${callerName}`);
-                        // Lưu thông tin cuộc gọi để hiển thị Pop-up
-                        setIncomingCall({ callerId, callerName, roomId });
-                    });
-
-                    // B. Khi NGƯỜI BẠN GỌI đã "Bắt máy" (Bác sĩ nhận được tin này)
-                    // (Phiên bản ĐÃ SỬA LỖI - chỉ có 1 listener)
-                    newConnection.on("CallAccepted", (receiverId, roomId) => {
-                        // console.log("Call accepted, Doctor opening Zego...");
-
-                        // Đọc token mới nhất từ localStorage để tránh lỗi "stale state"
-                        const currentToken = localStorage.getItem('token');
-                        if (!currentToken) {
-                            console.error("Error: Caller token (Doctor) not found");
-                            return;
-                        }
-
-                        // Tự giải mã token (dùng hàm decodeToken của bạn)
-                        const decodedUser = decodeToken(currentToken);
-                        if (!decodedUser) {
-                            console.error("Error: Unable to decode caller token (Doctor)");
-                            return;
-                        }
-
-                        // Lấy thông tin user TƯƠI MỚI (fresh)
-                        const userId = decodedUser.sub;
-                        const userName = decodedUser.preferred_username || decodedUser.email;
-
-                        // Mở cửa sổ Zego (vì BẠN là người gọi)
-                        const callUrl = `/video-calling?roomID=${roomId}&userID=${encodeURIComponent(userId)}&userName=${encodeURIComponent(userName)}`;
-                        const windowSpecs = 'width=1000,height=700,noopener,noreferrer';
-                        window.open(callUrl, '_blank', windowSpecs);
-                    });
-
-                    // C. Khi NGƯỜI BẠN GỌI đã "Từ chối"
-                    newConnection.on("CallDeclined", () => {
-                        // console.log("Call declined.");
-                        toast.info("User declined the call.");
-                    });
-
-                })
-                .catch(e => console.error("SignalR Connection Error: ", e));
+                        // Bắn event qua localStorage để xử lý cross-tab race conditions
+                        localStorage.setItem('webrtc_signal', JSON.stringify({
+                            type,
+                            senderId,
+                            roomId: incomingCall ? incomingCall.roomId : data,
+                            timestamp: Date.now()
+                        }));
+                    }
+                    // Các tín hiệu OFFER, ANSWER, CANDIDATE sẽ được useWebRTC lắng nghe thêm
+                });
+            });
         }
-        // Nếu không có token (logout) VÀ đang có kết nối
         else if (!token && connection) {
-            connection.stop();
-            setConnection(null);
+            stompChatService.disconnect();
+            setConnection(false);
         }
 
-        // Cleanup (chạy khi component bị hủy)
         return () => {
-            if (connection) {
-                connection.stop();
-            }
+            // Cleanup khi app tắt (nhưng thường STOMP quản lý tự động)
         }
-        // Chạy lại logic này mỗi khi 'token' hoặc 'connection' thay đổi
-        // (Không cần 'user' trong dependency array nữa vì 'CallAccepted' đã đọc từ localStorage)
     }, [token, connection]);
 
     // 1. Khi BẠN bấm nút "Gọi"
-    const initiateCall = async (targetUserId, roomId, targetUserName = "User") => {
+    const initiateCall = async (targetUserId, roomId, targetUserName = "User", callerName = "") => {
         try {
             // Lấy token và decode để lấy thông tin người gọi
             const currentToken = localStorage.getItem('token');
@@ -291,48 +279,33 @@ export function AuthProvider({ children }) {
                 return;
             }
 
-            const currentUserId = decodedUser.sub;
-            const currentUserName = decodedUser.preferred_username || decodedUser.email || "User";
-
-            // console.log('Initiating call:', {
-            //     currentUserId,
-            //     currentUserName,
-            //     targetUserId,
-            //     targetUserName,
-            //     roomId
-            // });
+            const currentUserName = callerName || decodedUser.preferred_username || decodedUser.email || decodedUser.sub || "User";
 
             // ===== KIỂM TRA VÀ GỬI THÔNG BÁO CHO NGƯỜI NHẬN =====
-            if (!connection) {
-                console.error("Error: No SignalR connection");
+            if (!connection || !stompChatService.isConnected) {
+                console.error("Error: No STOMP connection");
                 toast.error("Error: Unable to send call notification. Please try again.");
                 return;
             }
 
-            // Kiểm tra connection state
-            if (connection.state !== signalR.HubConnectionState.Connected) {
-                console.error(`Error: SignalR connection is not in Connected state. Current state: ${connection.state}`);
-                toast.error("Error: Connection not ready. Please wait a moment and try again.");
-                return;
-            }
-
             try {
-                // Gửi thông báo qua SignalR cho bệnh nhân
-                await connection.invoke("InitiateCall", targetUserId, roomId);
-                // console.log(`✓ Đã gửi thông báo cuộc gọi đến ${targetUserName}`);
+                // Gửi thông báo qua STOMP cho người nhận
+                videoCallService.sendWebRTCSignal({
+                    type: "CALL_REQUEST",
+                    senderId: currentUserId,
+                    senderName: currentUserName,
+                    receiverId: targetUserId,
+                    data: roomId
+                });
             } catch (invokeError) {
-                console.error("Error invoking InitiateCall:", invokeError);
+                console.error("Error sending CALL_REQUEST:", invokeError);
                 toast.error("Error: Unable to send call notification. " + invokeError.message);
                 return;
             }
             // =========================================================
 
             // Điều hướng người gọi đến trang video call
-            // Thêm "Dr." nếu user là bác sĩ
-            const isDoctor = roles && roles.some(r => String(r).trim().toLowerCase() === 'doctor');
-            const displayName = isDoctor ? `Dr. ${currentUserName}` : currentUserName;
-
-            const callUrl = `/video-calling?roomID=${roomId}&userID=${encodeURIComponent(currentUserId)}&userName=${encodeURIComponent(displayName)}`;
+            const callUrl = `/video-calling?roomID=${roomId}&targetUserId=${encodeURIComponent(targetUserId)}&userName=${encodeURIComponent(targetUserName)}&isCaller=true`;
 
             // Mở trong tab mới hoặc điều hướng trực tiếp
             const windowSpecs = 'width=1000,height=700,noopener,noreferrer';
@@ -347,8 +320,8 @@ export function AuthProvider({ children }) {
     // 2. Khi BẠN bấm "Bắt máy"
     const acceptCall = async () => {
         // 1. Kiểm tra connection và cuộc gọi đến
-        if (!connection) {
-            console.error("Error: No SignalR connection");
+        if (!connection || !stompChatService.isConnected) {
+            console.error("Error: No STOMP connection");
             toast.error("Error: Connection not established. Please try again.");
             return;
         }
@@ -356,13 +329,6 @@ export function AuthProvider({ children }) {
         if (!incomingCall) {
             console.error("Error: No incoming call");
             toast.error("Error: No incoming call");
-            return;
-        }
-
-        // 2. Kiểm tra connection state
-        if (connection.state !== signalR.HubConnectionState.Connected) {
-            console.error(`Error: SignalR connection is not in Connected state. Current state: ${connection.state}`);
-            toast.error("Error: Connection not ready. Please wait and try again.");
             return;
         }
 
@@ -384,15 +350,20 @@ export function AuthProvider({ children }) {
             }
 
             // 5. Lấy thông tin user TƯƠI MỚI (fresh)
-            const userId = decodedUser.sub;
-            const userName = decodedUser.preferred_username || decodedUser.email;
+            const userName = decodedUser.preferred_username || decodedUser.email || decodedUser.sub || "User";
 
             // 6. Báo cho server là bạn đã bắt máy
-            await connection.invoke("AcceptCall", incomingCall.callerId, incomingCall.roomId);
+            videoCallService.sendWebRTCSignal({
+                type: "CALL_ACCEPTED",
+                senderId: currentUserId, // Dùng state currentUserId (UUID) thay vì decodedUser.sub (Email)
+                senderName: userName,
+                receiverId: incomingCall.callerId,
+                data: incomingCall.roomId
+            });
             // console.log(`✓ Đã chấp nhận cuộc gọi từ ${incomingCall.callerName}`);
 
-            // 7. Mở cửa sổ Zego (vì BẠN là người nhận)
-            const callUrl = `/video-calling?roomID=${incomingCall.roomId}&userID=${encodeURIComponent(userId)}&userName=${encodeURIComponent(userName)}`;
+            // 7. Mở cửa sổ video call (vì BẠN là người nhận)
+            const callUrl = `/video-calling?roomID=${incomingCall.roomId}&targetUserId=${encodeURIComponent(incomingCall.callerId)}&userName=${encodeURIComponent(incomingCall.callerName)}&isCaller=false`;
             const windowSpecs = 'width=1000,height=700,noopener,noreferrer';
             window.open(callUrl, '_blank', windowSpecs);
 
@@ -407,7 +378,12 @@ export function AuthProvider({ children }) {
     const declineCall = async () => {
         if (connection && incomingCall) {
             // Báo cho server là bạn đã từ chối
-            await connection.invoke("DeclineCall", incomingCall.callerId);
+            videoCallService.sendWebRTCSignal({
+                type: "CALL_DECLINED",
+                senderId: currentUserId,
+                receiverId: incomingCall.callerId,
+                data: incomingCall.roomId
+            });
             setIncomingCall(null); // Đóng pop-up
         }
     };

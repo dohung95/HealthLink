@@ -156,76 +156,75 @@ export default function Chat() {
     const isPharmacy = roles?.some(r => r.toLowerCase() === 'pharmacy');
     const isGuest   = !authUser;
 
-    // ── Kết nối WebSocket STOMP khi đã login ────────────────────────────────
+    // ── Đăng ký sự kiện Chat khi Component được render ────────────────────────────────
     useEffect(() => {
         if (!authUser) return;
         const token = localStorage.getItem('token');
         if (!token) return;
 
-        stompChatService.connect(token, () => {
-            setStompConnected(true);
+        setStompConnected(stompChatService.isConnected);
+
             // Đăng ký nhận tin nhắn realtime
-            const unsub = stompChatService.subscribeToChat((newMsg) => {
-                // Sự kiện phòng mới được tạo (chưa có tin nhắn)
-                if (newMsg.messageId === "ROOM_CREATED") {
-                    setRoomList(prevRooms => {
-                        if (!prevRooms.some(r => r.chatRoomId === newMsg.chatRoomId)) {
-                            getMyRooms().then(rooms => setRoomList(rooms)).catch(err => console.error(err));
-                        }
-                        return prevRooms;
-                    });
-                    return; // KHÔNG thêm vào màn hình hiển thị tin nhắn
-                }
-
-                const activeRoomId = currentRoomRef.current?.chatRoomId;
-                const isRoomActive = activeRoomId === newMsg.chatRoomId && isChatBoxOpenRef.current;
-
-                // 1. Chỉ thêm tin nhắn vào màn hình chat nếu đang mở đúng phòng đó
-                if (activeRoomId === newMsg.chatRoomId) {
-                    setMessages(prev => {
-                        // Tránh duplicate nếu cùng messageId
-                        if (prev.some(m => m.messageId === newMsg.messageId)) return prev;
-                        return [...prev, newMsg];
-                    });
-                    
-                    // Nếu chat box đang mở, đánh dấu đã đọc luôn
-                    if (isChatBoxOpenRef.current) {
-                        markAsRead(newMsg.chatRoomId).catch(err => console.error(err));
-                    }
-                }
-
-                // 2. Cập nhật danh sách phòng (bên trái/modal)
+        const unsub = stompChatService.subscribeToChat((newMsg) => {
+            // Sự kiện phòng mới được tạo (chưa có tin nhắn)
+            if (newMsg.messageId === "ROOM_CREATED") {
                 setRoomList(prevRooms => {
-                    const isNewRoom = !prevRooms.some(r => r.chatRoomId === newMsg.chatRoomId);
-                    if (isNewRoom) {
-                        // Nếu là phòng mới tinh (chưa từng chat), gọi API lấy lại danh sách
+                    if (!prevRooms.some(r => r.chatRoomId === newMsg.chatRoomId)) {
                         getMyRooms().then(rooms => setRoomList(rooms)).catch(err => console.error(err));
-                        return prevRooms;
                     }
-                    
-                    const updated = prevRooms.map(room => {
-                        if (room.chatRoomId === newMsg.chatRoomId) {
-                            return {
-                                ...room,
-                                lastMessage: newMsg.content || "[Ảnh]",
-                                lastMessageAt: newMsg.timestamp,
-                                unreadCount: isRoomActive ? 0 : (room.unreadCount || 0) + 1
-                            };
-                        }
-                        return room;
-                    });
-                    
-                    // Sắp xếp đưa phòng có tin mới nhất lên đầu
-                    updated.sort((a, b) => new Date(b.lastMessageAt || 0).getTime() - new Date(a.lastMessageAt || 0).getTime());
-                    return updated;
+                    return prevRooms;
                 });
+                return; // KHÔNG thêm vào màn hình hiển thị tin nhắn
+            }
+
+            const activeRoomId = currentRoomRef.current?.chatRoomId;
+            const isRoomActive = activeRoomId === newMsg.chatRoomId && isChatBoxOpenRef.current;
+
+            // 1. Chỉ thêm tin nhắn vào màn hình chat nếu đang mở đúng phòng đó
+            if (activeRoomId === newMsg.chatRoomId) {
+                setMessages(prev => {
+                    // Tránh duplicate nếu cùng messageId
+                    if (prev.some(m => m.messageId === newMsg.messageId)) return prev;
+                    return [...prev, newMsg];
+                });
+                
+                // Nếu chat box đang mở, đánh dấu đã đọc luôn
+                if (isChatBoxOpenRef.current) {
+                    markAsRead(newMsg.chatRoomId).catch(err => console.error(err));
+                }
+            }
+
+            // 2. Cập nhật danh sách phòng (bên trái/modal)
+            setRoomList(prevRooms => {
+                const isNewRoom = !prevRooms.some(r => r.chatRoomId === newMsg.chatRoomId);
+                if (isNewRoom) {
+                    // Nếu là phòng mới tinh (chưa từng chat), gọi API lấy lại danh sách
+                    getMyRooms().then(rooms => setRoomList(rooms)).catch(err => console.error(err));
+                    return prevRooms;
+                }
+                
+                const updated = prevRooms.map(room => {
+                    if (room.chatRoomId === newMsg.chatRoomId) {
+                        return {
+                            ...room,
+                            lastMessage: newMsg.content || "[Ảnh]",
+                            lastMessageAt: newMsg.timestamp,
+                            unreadCount: isRoomActive ? 0 : (room.unreadCount || 0) + 1
+                        };
+                    }
+                    return room;
+                });
+                
+                // Sắp xếp đưa phòng có tin mới nhất lên đầu
+                updated.sort((a, b) => new Date(b.lastMessageAt || 0).getTime() - new Date(a.lastMessageAt || 0).getTime());
+                return updated;
             });
-            unsubscribeChat.current = unsub;
         });
+        unsubscribeChat.current = unsub;
 
         return () => {
             if (unsubscribeChat.current) unsubscribeChat.current();
-            stompChatService.disconnect();
+            // KHÔNG gọi disconnect ở đây nữa vì AuthContext sẽ quản lý vòng đời connection
         };
     }, [authUser]);
 

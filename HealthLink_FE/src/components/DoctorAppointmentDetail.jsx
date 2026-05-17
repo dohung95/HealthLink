@@ -136,30 +136,23 @@ const DoctorAppointmentDetail = ({ appointment, patient, onBack }) => {
   }
 
   const handleChat = async (appointment) => {
-    const isDoctor = roles && roles.some(r => String(r).trim().toLowerCase() === 'doctor');
-    const partnerData = isDoctor ? appointment.patient : appointment.doctor;
-    const partnerID = isDoctor ? appointment.patient?.patientID : appointment.doctorID;  // ← SỬA ĐÂY
+    const partnerData = appointment.patient;
+    const partnerId = appointment.patient?.patientId || appointment.patientId;
 
-    if (!partnerData || !partnerID) {
+    if (!partnerData || !partnerId) {
       alert("Chat partner information is missing.");
       return;
     }
 
     let firebaseID;
-    if (partnerID.includes('-')) {
-      // Has dashes: CHỈ remove last 4 chars, GIỮ NGUYÊN dấu gạch ngang
-      firebaseID = partnerID.substring(0, partnerID.length - 4);  // ← SỬA ĐÂY
+    if (partnerId.includes('-')) {
+      firebaseID = partnerId.substring(0, partnerId.length - 4);
     } else {
-      // No dashes: remove last 5 chars directly
-      firebaseID = partnerID.substring(0, partnerID.length - 5);
+      firebaseID = partnerId.substring(0, partnerId.length - 5);
     }
-
-    console.log(`[Chat] Opening chat with ${isDoctor ? 'Patient' : 'Doctor'}`);
 
     try {
       const usersRef = collection(db, "users");
-
-      // Try as document ID first
       let q = query(usersRef, where("__name__", "==", firebaseID));
       let querySnapshot = await getDocs(q);
 
@@ -169,19 +162,16 @@ const DoctorAppointmentDetail = ({ appointment, patient, onBack }) => {
         return;
       }
 
-      // Try as uid field
       q = query(usersRef, where("uid", "==", firebaseID));
       querySnapshot = await getDocs(q);
 
       if (!querySnapshot.empty) {
         const partnerUser = { ...querySnapshot.docs[0].data(), uid: querySnapshot.docs[0].id };
-        console.log(`[Chat] ✓ Found by uid field:`, partnerUser);
         openChatWith(partnerUser);
         return;
       }
 
-      console.warn(`[Chat] ✗ Could not find user with Firebase ID: ${firebaseID}`);
-      alert(`Could not find chat user. They may not have registered in the chat system yet.`);
+      alert(`Could not find chat user.`);
     } catch (error) {
       console.error("[Chat] Error:", error);
       alert("Error initiating chat.");
@@ -190,22 +180,13 @@ const DoctorAppointmentDetail = ({ appointment, patient, onBack }) => {
 
   const handleVideoCall = async (appointment) => {
     try {
-      // Lấy thông tin từ appointment (patientID và doctorID nằm trong nested objects)
-      const patientID = appointment.patient?.patientID || appointment.patientID;
-      const doctorID = appointment.doctorID;
+      const patientId = appointment.patient?.patientId || appointment.patientId;
+      const doctorId = appointment.doctorId;
       const patientName = appointment.patient?.fullName || "Patient";
       const doctorName = appointment.doctor?.fullName || "Doctor";
-
-      // Kiểm tra xem user hiện tại là ai
       const isDoctor = roles && roles.some(r => String(r).trim().toLowerCase() === 'doctor');
-
-      // Xác định target user (người được gọi)
-      const targetUserId = isDoctor ? patientID : doctorID;
+      const targetUserId = isDoctor ? patientId : doctorId;
       const targetUserName = isDoctor ? patientName : doctorName;
-
-      // Tạo Room ID bằng cách trộn DoctorID + PatientID và lấy 40 ký tự
-      // const combinedId = doctorID + patientID;
-      // const roomId = combinedId.substring(0, 40);
 
       // Tạo Room ID ngẫu nhiên 45 ký tự
       const characters = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789';
