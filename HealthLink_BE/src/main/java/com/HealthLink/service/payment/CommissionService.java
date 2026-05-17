@@ -41,4 +41,17 @@ public interface CommissionService {
      * @return danh sách CommissionTransactionResponse
      */
     List<CommissionTransactionResponse> getTransactionsByRecipient(String recipientId);
+
+    /**
+     * Xử lý hoàn tiền (Refund) cho hóa đơn.
+     * Khi một Payment được chuyển sang REFUNDED:
+     * <ul>
+     *   <li>Truy vết CommissionTransaction liên quan đến Invoice (theo appointmentId)</li>
+     *   <li>Cập nhật CommissionTransaction.status → REFUNDED</li>
+     *   <li>Trừ lại netAmount khỏi pendingSettlement của đối tác</li>
+     * </ul>
+     *
+     * @param invoiceId ID hóa đơn cần hoàn tiền
+     */
+    void processRefund(Integer invoiceId);
 }

@@ -28,4 +28,5 @@ public class AppointmentResponse {
     private String cancelReason;
     private String cancelledBy;
     private LocalDateTime confirmedAt;
+    private String specialtyName;
 }

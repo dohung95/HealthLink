@@ -347,13 +347,39 @@ public class FinanceServiceImpl implements FinanceService {
                 invoiceRepository.save(invoice);
 
                 // Tự động xử lý commission sau khi thanh toán thành công
-                // Tạo CommissionTransaction, cập nhật thu nhập Doctor và snapshot vào Invoice
+                // 1. Tạo CommissionTransaction, cập nhật thu nhập Doctor và snapshot vào Invoice
                 try {
                     commissionService.processConsultationCommission(invoice);
                 } catch (Exception ex) {
                     // Ghi log lỗi nhưng không rollback giao dịch thanh toán đã thành công
                     log.error("Commission processing failed for invoice {}: {}",
                             invoice.getInvoiceId(), ex.getMessage(), ex);
+                }
+
+                // 2. Kết nối luồng Chiết khấu Nhà thuốc:
+                // Tìm PharmacyOrder liên kết với lịch hẹn của hóa đơn này và xử lý commission
+                if (invoice.getAppointment() != null && invoice.getAppointment().getPatient() != null) {
+                    try {
+                        List<PrescriptionHeader> prescriptionHeaders = prescriptionHeaderRepository
+                                .findByAppointment_AppointmentId(invoice.getAppointment().getAppointmentId());
+                        for (PrescriptionHeader ph : prescriptionHeaders) {
+                            List<PharmacyOrder> pharmacyOrders = pharmacyOrderRepository
+                                    .findByPatient_PatientId(invoice.getAppointment().getPatient().getPatientId())
+                                    .stream()
+                                    .filter(o -> o.getPrescriptionHeader() != null
+                                            && o.getPrescriptionHeader().getPrescriptionHeaderId()
+                                            .equals(ph.getPrescriptionHeaderId()))
+                                    .collect(Collectors.toList());
+                            for (PharmacyOrder pharmacyOrder : pharmacyOrders) {
+                                commissionService.processPharmacyOrderCommission(pharmacyOrder);
+                                log.info("Pharmacy commission processed for order {} (invoice {})",
+                                        pharmacyOrder.getOrderId(), invoice.getInvoiceId());
+                            }
+                        }
+                    } catch (Exception ex) {
+                        log.error("Pharmacy commission processing failed for invoice {}: {}",
+                                invoice.getInvoiceId(), ex.getMessage(), ex);
+                    }
                 }
 
                 log.info("Payment SUCCESS – invoice {} paid via PayPal order {}",
@@ -385,6 +411,56 @@ public class FinanceServiceImpl implements FinanceService {
         } catch (Exception ex) {
             throw new PayPalIntegrationException("Error occurred while capturing PayPal payment: " + ex.getMessage(), ex);
         }
+    }
+
+    // ========================================================================
+    // Tác vụ 3.3 – Xử lý hoàn tiền (Refund Logic)
+    // ========================================================================
+
+    @Override
+    @Transactional
+    public InvoiceResponse processRefund(Integer paymentId, String refundReason) {
+
+        // 1. Tìm bản ghi Payment
+        Payment payment = paymentRepository.findById(paymentId)
+                .orElseThrow(() -> new BadRequestException("Payment not found with ID: " + paymentId));
+
+        // 2. Chỉ hoàn tiền Payment đang ở trạng thái SUCCESS
+        if (!PAYMENT_SUCCESS.equals(payment.getStatus())) {
+            throw new BadRequestException(
+                    "Only successful payments can be refunded. Current status: " + payment.getStatus());
+        }
+
+        // 3. Lấy Invoice liên kết
+        Invoice invoice = payment.getInvoice();
+        if (invoice == null) {
+            throw new BadRequestException("Payment " + paymentId + " has no associated invoice.");
+        }
+
+        // 4. Cập nhật Payment → REFUNDED
+        payment.setStatus("REFUNDED");
+        payment.setRefundedAmount(payment.getAmount());
+        payment.setRefundedAt(LocalDateTime.now());
+        payment.setRefundReason(refundReason != null ? refundReason : "Refund requested");
+        paymentRepository.save(payment);
+
+        // 5. Cập nhật Invoice → REFUNDED
+        invoice.setStatus("Refunded");
+        invoiceRepository.save(invoice);
+
+        // 6. Truy vết và hoàn lại commission của đối tác (Doctor + Pharmacy)
+        try {
+            commissionService.processRefund(invoice.getInvoiceId());
+        } catch (Exception ex) {
+            log.error("Commission refund processing failed for invoice {}: {}",
+                    invoice.getInvoiceId(), ex.getMessage(), ex);
+        }
+
+        log.info("Refund processed: paymentId={}, invoiceId={}, amount={}",
+                paymentId, invoice.getInvoiceId(), payment.getAmount());
+
+        return toResponse(invoiceRepository.findById(invoice.getInvoiceId())
+                .orElseThrow(() -> new InvoiceNotFoundException(invoice.getInvoiceId())));
     }
 
     // ========================================================================

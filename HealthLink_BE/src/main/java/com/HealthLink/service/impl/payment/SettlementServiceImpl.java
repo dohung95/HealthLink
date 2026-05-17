@@ -65,7 +65,7 @@ public class SettlementServiceImpl implements SettlementService {
     private static final String METHOD_PAYPAL      = "PAYPAL";
 
     /** Số dư tối thiểu để rút ($10.00 theo yêu cầu task) */
-    private static final BigDecimal MIN_WITHDRAWAL = new BigDecimal("10.00");
+    private static final BigDecimal MIN_REMAINING_BALANCE = new BigDecimal("10.00");
 
     // ── Phụ thuộc ─────────────────────────────────────────────────────────────
     private final PayPalConfig       payPalConfig;
@@ -165,16 +165,18 @@ public class SettlementServiceImpl implements SettlementService {
      */
     private void validateWithdrawal(BigDecimal pendingBalance, BigDecimal requestAmount,
                                     String requestedEmail, String registeredEmail) {
-        if (pendingBalance.compareTo(MIN_WITHDRAWAL) < 0) {
-            throw new BadRequestException(
-                    String.format("Insufficient balance. Minimum withdrawal is $%.2f. " +
-                            "Current balance: $%.2f", MIN_WITHDRAWAL, pendingBalance));
-        }
-
         if (requestAmount.compareTo(pendingBalance) > 0) {
             throw new BadRequestException(
                     String.format("Requested amount $%.2f exceeds available balance $%.2f.",
                             requestAmount, pendingBalance));
+        }
+
+        BigDecimal remainingBalance = pendingBalance.subtract(requestAmount);
+        if (remainingBalance.compareTo(MIN_REMAINING_BALANCE) <= 0) {
+            throw new BadRequestException(
+                    String.format("Remaining balance after withdrawal must be greater than $%.2f. " +
+                                    "Current balance: $%.2f, requested: $%.2f, remaining: $%.2f.",
+                            MIN_REMAINING_BALANCE, pendingBalance, requestAmount, remainingBalance));
         }
 
         if (registeredEmail == null || !registeredEmail.equalsIgnoreCase(requestedEmail)) {

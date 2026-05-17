@@ -47,6 +47,10 @@ public class PrescriptionHeader {
 
     private BigDecimal totalAmount;
 
+    private LocalDateTime lastReminderSentAt;
+
+    private LocalDateTime openedAt;
+
     @OneToMany(mappedBy = "prescriptionHeader", cascade = CascadeType.ALL, orphanRemoval = true)
     @ToString.Exclude
     private List<PrescriptionItem> prescriptionItems;

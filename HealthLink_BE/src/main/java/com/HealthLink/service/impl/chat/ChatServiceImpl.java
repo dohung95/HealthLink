@@ -15,6 +15,7 @@ import com.HealthLink.repository.chat.ChatRoomRepository;
 import com.HealthLink.repository.chat.MessageRepository;
 import com.HealthLink.service.chat.ChatService;
 import lombok.RequiredArgsConstructor;
+import org.springframework.messaging.simp.SimpMessagingTemplate;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -27,10 +28,11 @@ import java.util.stream.Collectors;
 @RequiredArgsConstructor
 public class ChatServiceImpl implements ChatService {
 
-    private final ChatRoomRepository chatRoomRepository;
-    private final MessageRepository messageRepository;
+    private final ChatRoomRepository    chatRoomRepository;
+    private final MessageRepository     messageRepository;
     private final AppointmentRepository appointmentRepository;
-    private final UserRepository userRepository;
+    private final UserRepository        userRepository;
+    private final SimpMessagingTemplate messagingTemplate;
 
     // -------------------------------------------------------------------------
     // Tạo hoặc lấy phòng chat
@@ -72,7 +74,26 @@ public class ChatServiceImpl implements ChatService {
                     }
 
                     ChatRoom saved = chatRoomRepository.save(builder.build());
-                    return toRoomDTO(saved);
+                    ChatRoomDTO dto = toRoomDTO(saved);
+                    
+                    // Báo qua WebSocket để người nhận biết có phòng mới (dù chưa có tin nhắn)
+                    MessageDTO roomCreatedMsg = MessageDTO.builder()
+                            .messageId("ROOM_CREATED")
+                            .chatRoomId(saved.getChatRoomId())
+                            .build();
+
+                    messagingTemplate.convertAndSendToUser(
+                            user1.getEmail(),
+                            "/queue/chat",
+                            roomCreatedMsg
+                    );
+                    messagingTemplate.convertAndSendToUser(
+                            user2.getEmail(),
+                            "/queue/chat",
+                            roomCreatedMsg
+                    );
+
+                    return dto;
                 });
     }
 
@@ -114,9 +135,12 @@ public class ChatServiceImpl implements ChatService {
                 .orElseThrow(() -> new ResourceNotFoundException(
                         "ChatRoom", "id", request.getChatRoomId()));
 
-        // Tạo entity User tạm (chỉ cần ID để JPA set foreign key)
-        User sender   = User.builder().id(senderId).build();
-        User receiver = User.builder().id(request.getReceiverId()).build();
+        // Tạo entity User tạm cho sender (chỉ cần ID để JPA set foreign key)
+        User sender = User.builder().id(senderId).build();
+
+        // Lấy receiver thật từ DB để lấy email (vì WebSocket đăng ký session theo email)
+        User receiver = userRepository.findById(request.getReceiverId())
+                .orElseThrow(() -> new ResourceNotFoundException("User", "id", request.getReceiverId()));
 
         Message message = Message.builder()
                 .chatRoom(room)
@@ -140,7 +164,17 @@ public class ChatServiceImpl implements ChatService {
         room.setLastMessageAt(saved.getTimestamp());
         chatRoomRepository.save(room);
 
-        return toMessageDTO(saved);
+        MessageDTO dto = toMessageDTO(saved);
+
+        // Đẩy tin nhắn realtime đến người nhận qua WebSocket
+        // Spring STOMP đang nhận diện user bằng email (từ JWT Token)
+        messagingTemplate.convertAndSendToUser(
+                receiver.getEmail(),
+                "/queue/chat",
+                dto
+        );
+
+        return dto;
     }
 
     // -------------------------------------------------------------------------

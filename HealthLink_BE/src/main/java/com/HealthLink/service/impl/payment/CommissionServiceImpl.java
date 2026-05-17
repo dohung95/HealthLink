@@ -7,6 +7,7 @@ import com.HealthLink.entity.Doctor;
 import com.HealthLink.entity.Invoice;
 import com.HealthLink.entity.Pharmacy;
 import com.HealthLink.entity.PharmacyOrder;
+import com.HealthLink.entity.PrescriptionHeader;
 import com.HealthLink.exception.BadRequestException;
 import com.HealthLink.repository.doctor.DoctorRepository;
 import com.HealthLink.repository.payment.PaymentCommissionTransactionRepository;
@@ -14,6 +15,7 @@ import com.HealthLink.repository.payment.InvoiceRepository;
 import com.HealthLink.repository.payment.PaymentRepository;
 import com.HealthLink.repository.pharmacy.PharmacyOrderRepository;
 import com.HealthLink.repository.pharmacy.PharmacyRepository;
+import com.HealthLink.repository.prescription.PrescriptionHeaderRepository;
 import com.HealthLink.service.payment.CommissionService;
 import com.HealthLink.service.payment.FeeCalculatorService;
 import com.HealthLink.service.payment.FeeCalculatorService.FeeResult;
@@ -58,6 +60,7 @@ public class CommissionServiceImpl implements CommissionService {
     private final PharmacyOrderRepository           pharmacyOrderRepository;
     private final DoctorRepository                  doctorRepository;
     private final PharmacyRepository                pharmacyRepository;
+    private final PrescriptionHeaderRepository      prescriptionHeaderRepository;
 
     // ========================================================================
     // Xử lý commission cho Bác sĩ
@@ -210,6 +213,98 @@ public class CommissionServiceImpl implements CommissionService {
                 .stream()
                 .map(this::toResponse)
                 .collect(Collectors.toList());
+    }
+
+    // ========================================================================
+    // Xử lý Hoàn tiền (Refund)
+    // ========================================================================
+
+    /**
+     * Khi Payment → REFUNDED:
+     * 1. Tìm Invoice theo invoiceId.
+     * 2. Lấy tất cả CommissionTransaction liên quan (theo appointmentId + pharmacyOrderId).
+     * 3. Với mỗi giao dịch chưa bị REFUNDED:
+     *    a. Cập nhật status → REFUNDED.
+     *    b. Trừ netAmount khỏi pendingSettlement của đối tác (Doctor hoặc Pharmacy).
+     */
+    @Override
+    @Transactional
+    public void processRefund(Integer invoiceId) {
+        Invoice invoice = invoiceRepository.findById(invoiceId)
+                .orElseThrow(() -> new BadRequestException("Invoice not found: " + invoiceId));
+
+        Appointment appointment = invoice.getAppointment();
+        if (appointment == null) {
+            log.warn("Invoice {} has no appointment – skipping commission refund", invoiceId);
+            return;
+        }
+
+        // --- 1. Hoàn tiền commission cho Bác sĩ ---
+        List<CommissionTransaction> doctorTxs = commissionTransactionRepository
+                .findByAppointmentId(appointment.getAppointmentId());
+        for (CommissionTransaction tx : doctorTxs) {
+            if ("REFUNDED".equals(tx.getStatus())) continue;  // idempotency
+
+            String previousStatus = tx.getStatus();
+            tx.setStatus("REFUNDED");
+            commissionTransactionRepository.save(tx);
+
+            // Trừ lại netAmount khỏi pendingSettlement của Doctor
+            Doctor doctor = doctorRepository.findById(tx.getRecipientId()).orElse(null);
+            if (doctor != null) {
+                BigDecimal currentPending = doctor.getPendingSettlement() != null
+                        ? doctor.getPendingSettlement() : BigDecimal.ZERO;
+                BigDecimal reversed = currentPending.subtract(tx.getNetAmount())
+                        .max(BigDecimal.ZERO);   // không để âm
+                doctor.setPendingSettlement(reversed);
+                doctorRepository.save(doctor);
+                log.info("Refund: doctor {} pendingSettlement reduced by {} (tx={}, prev={})",
+                        doctor.getDoctorId(), tx.getNetAmount(), tx.getTransactionNumber(), previousStatus);
+            }
+        }
+
+        // --- 2. Hoàn tiền commission cho Nhà thuốc ---
+        // Tìm prescription headers của appointment, sau đó tìm pharmacy orders liên kết
+        List<PrescriptionHeader> headers = prescriptionHeaderRepository
+                .findByAppointment_AppointmentId(appointment.getAppointmentId());
+        List<Integer> headerIds = headers.stream()
+                .map(PrescriptionHeader::getPrescriptionHeaderId)
+                .collect(Collectors.toList());
+
+        List<PharmacyOrder> linkedOrders = pharmacyOrderRepository
+                .findByPatient_PatientId(appointment.getPatient().getPatientId())
+                .stream()
+                .filter(o -> o.getPrescriptionHeader() != null
+                        && headerIds.contains(o.getPrescriptionHeader().getPrescriptionHeaderId()))
+                .collect(Collectors.toList());
+
+        // Trực tiếp tìm commission transactions theo pharmacyOrderId
+        for (PharmacyOrder order : linkedOrders) {
+            List<CommissionTransaction> pharmacyTxs = commissionTransactionRepository
+                    .findByPharmacyOrderId(order.getOrderId());
+            for (CommissionTransaction tx : pharmacyTxs) {
+                if ("REFUNDED".equals(tx.getStatus())) continue;  // idempotency
+
+                String previousStatus = tx.getStatus();
+                tx.setStatus("REFUNDED");
+                commissionTransactionRepository.save(tx);
+
+                // Trừ lại netAmount khỏi pendingSettlement của Pharmacy
+                Pharmacy pharmacy = pharmacyRepository.findById(tx.getRecipientId()).orElse(null);
+                if (pharmacy != null) {
+                    BigDecimal currentPending = pharmacy.getPendingSettlement() != null
+                            ? pharmacy.getPendingSettlement() : BigDecimal.ZERO;
+                    BigDecimal reversed = currentPending.subtract(tx.getNetAmount())
+                            .max(BigDecimal.ZERO);
+                    pharmacy.setPendingSettlement(reversed);
+                    pharmacyRepository.save(pharmacy);
+                    log.info("Refund: pharmacy {} pendingSettlement reduced by {} (tx={}, prev={})",
+                            pharmacy.getPharmacyId(), tx.getNetAmount(), tx.getTransactionNumber(), previousStatus);
+                }
+            }
+        }
+
+        log.info("Refund processing complete for invoice {}", invoiceId);
     }
 
     // ========================================================================

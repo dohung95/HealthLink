@@ -16,11 +16,14 @@ import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.web.bind.annotation.*;
 
+import java.io.IOException;
 import java.util.List;
+import java.util.Map;
 
 @RestController
-@RequestMapping("/api/doctors")
+@RequestMapping("/api/account/doctors")
 @RequiredArgsConstructor
+@lombok.extern.slf4j.Slf4j
 public class DoctorController {
 
     private final DoctorService doctorService;
@@ -93,5 +96,22 @@ public class DoctorController {
         String doctorId = resolveUserId(userDetails);
         DoctorProfileResponse updated = doctorService.verifyEmailChange(doctorId, request);
         return ResponseEntity.ok(updated);
+    }
+
+    // Upload ảnh đại diện cho bác sĩ
+    @PostMapping("/avatar")
+    @PreAuthorize("hasRole('DOCTOR')")
+    public ResponseEntity<?> uploadAvatar(
+            @RequestParam("file") org.springframework.web.multipart.MultipartFile file,
+            @AuthenticationPrincipal UserDetails userDetails) {
+        String doctorId = resolveUserId(userDetails);
+        try {
+            String avatarUrl = doctorService.uploadAvatar(doctorId, file);
+            return ResponseEntity.ok(Map.of("avatarUrl", avatarUrl));
+        } catch (IOException e) {
+            log.error("Avatar upload failed for doctor {}: {}", doctorId, e.getMessage());
+            return ResponseEntity.internalServerError()
+                    .body(Map.of("message", "Failed to upload: " + e.getMessage()));
+        }
     }
 }

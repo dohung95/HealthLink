@@ -32,7 +32,7 @@ public class SettlementRequest {
      * Phải lớn hơn 0 và tối thiểu $10.00.
      */
     @NotNull(message = "Amount is required")
-    @DecimalMin(value = "10.00", message = "Minimum withdrawal amount is $10.00")
+    @DecimalMin(value = "0.01", message = "Withdrawal amount must be greater than $0.00")
     private BigDecimal amount;
 
     /**

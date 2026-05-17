@@ -1,10 +1,13 @@
-﻿// src/App.js
-import React from 'react';
-import { BrowserRouter as Router, Routes, Route, useLocation } from 'react-router-dom';
+// src/App.js
+import {useEffect} from 'react';
+import { BrowserRouter as Router, Routes, Route, useLocation, useNavigate } from 'react-router-dom';
+
+// ---------------------------------------------import file----------------------------------------------------------
+import { useAuth } from './context/AuthContext';
 import { ToastContainer } from 'react-toastify';
 import 'react-toastify/dist/ReactToastify.css';
 import Home from './components/Home';
-import Schedule from './components/Schedule';
+import Schedule from './components/patient-dashboard/Schedule';
 import MyAppointments from './components/MyAppointment';
 import Doctors from './components/Doctors';
 import Records from './components/Records';
@@ -14,6 +17,8 @@ import Chat from './components/Chat';
 import Payment from './components/Payment';
 
 import ProfilePatient from './pages/profilePatient';
+import ProfileDoctor from './pages/profileDoctor';
+import ProfilePharmacy from './pages/profilePharmacy';
 
 import Admin from './components/Admin/View/Admin';
 import Patients from './components/Admin/View/Patients';
@@ -26,10 +31,12 @@ import Registrations from './components/Admin/View/Registrations';
 
 import Sign_in from './components/Auth/Sign_in';
 import Sign_up from './components/Auth/Sign_up';
-import EmailConfirmation from './components/Auth/EmailConfirmation';
+import ConfirmEmail from './components/Auth/ConfirmEmail';
 import RegistrationChoice from './components/Auth/RegistrationChoice';
 import DoctorRegistration from './components/Auth/DoctorRegistration';
 import PharmacyRegistration from './components/Auth/PharmacyRegistration';
+import ForgotPassword from './components/Auth/ForgotPassword';
+import ResetPassword from './components/Auth/ResetPassword';
 
 import Footer from './components/Footer';
 
@@ -56,6 +63,11 @@ import HealthRecords from './components/HealthRecords';
 import ShareHealthRecords from './components/ShareHealthRecords';
 import '../node_modules/bootstrap/dist/css/bootstrap.min.css';
 import { Toaster } from 'sonner';
+import PatientDashboard from './pages/PatientDashboard';
+import PatientDashboardHome from './components/patient-dashboard/PatientDashboardHome';
+import NotFound from './pages/NotFound';
+
+//-----------------------------------------------------------------------------------------------
 
 function App() {
   return (
@@ -71,13 +83,76 @@ function App() {
 
 // Tạo component mới để có thể dùng useLocation
 function AppContent() {
+  const navigate = useNavigate();
+  const { isAuthenticated, roles } = useAuth();
   const location = useLocation();
   const isVideoCallPage = location.pathname === '/video-calling';
   const isDoctorPage = location.pathname === '/doctor-page';
   const isLoginPage = location.pathname === '/login';
   const isAdminPage = location.pathname.startsWith('/admin');
+  const isPatientDashboard = location.pathname.startsWith('/patient-dashboard');
+  const isSchedulePage = location.pathname === '/schedule' || location.pathname.startsWith('/book/');
+
   // Don't show navbar/footer on video call, doctor page, admin page, or login page
-  const hideLayout = isVideoCallPage || isDoctorPage || isAdminPage;
+  const hideLayout = isVideoCallPage || isDoctorPage || isAdminPage || isPatientDashboard || isSchedulePage;
+
+  // list trang bị chặn sau khi login
+  const publicPaths = [
+    '/',
+    '/contact_us',
+    '/about_us',
+    '/login',
+    '/register',
+    '/register-as',
+    '/register/doctor',
+    '/register/pharmacy',
+    '/doctors',
+    '/schedule'
+  ];
+
+  // Danh sách tất cả các path hợp lệ để xác định trang 404
+  const allValidPaths = [
+    ...publicPaths,
+    '/confirm-email',
+    '/forgot-password',
+    '/reset-password',
+    '/video-calling',
+    '/health-records',
+    '/share-records',
+    '/profile-patient',
+    '/profile-doctor',
+    '/profile-pharmacy',
+    '/doctor-page',
+    '/patient-dashboard',
+    '/admin',
+    '/my-appointments',
+    '/records',
+    '/video',
+    '/payment'
+  ];
+
+  const isKnownPath = allValidPaths.some(path => 
+    location.pathname === path || location.pathname.startsWith(path + '/')
+  ) || location.pathname.startsWith('/doctor/') || location.pathname.startsWith('/book/');
+
+  const is404Page = !isKnownPath;
+
+  useEffect(() => {
+    // Nếu đã đăng nhập mà cố tình truy cập vào các trang công khai
+    if (isAuthenticated && publicPaths.includes(location.pathname)) {
+      const userRoles = roles.map(r => r.toLowerCase());
+
+      if (userRoles.includes('admin')) {
+        navigate('/admin', { replace: true });
+      } else if (userRoles.includes('doctor')) {
+        navigate('/doctor-page', { replace: true });
+      } else if (userRoles.includes('pharmacy')) {
+        navigate('/pharmacy-page', { replace: true });
+      } else if (userRoles.includes('patient')) {
+        navigate('/patient-dashboard', { replace: true });
+      }
+    }
+  }, [isAuthenticated, roles, location.pathname, navigate]);
 
   return (
     <>
@@ -85,7 +160,7 @@ function AppContent() {
       {!isVideoCallPage && !isAdminPage && <IncomingCallModal />}
       {!isVideoCallPage && !isAdminPage && <PrescriptionNotificationModal />}
       <div className="App">
-        {!isVideoCallPage && !isAdminPage && <Chat />}
+        {!isVideoCallPage && !isAdminPage && !is404Page && <Chat />}
         <ScrollToTop />
         {!hideLayout && <Navbar />}
 
@@ -96,8 +171,9 @@ function AppContent() {
             <Route path="/about_us" element={<AboutUs />} />
             <Route path="/login" element={<Sign_in />} />
             <Route path="/register" element={<Sign_up />} />
-            <Route path="/signup" element={<Sign_up />} />
-            <Route path="/confirm-email" element={<EmailConfirmation />} />
+            <Route path="/confirm-email" element={<ConfirmEmail />} />
+            <Route path="/forgot-password" element={<ForgotPassword />} />
+            <Route path="/reset-password" element={<ResetPassword />} />
             <Route path="/register-as" element={<RegistrationChoice />} />
             <Route path="/register/doctor" element={<DoctorRegistration />} />
             <Route path="/register/pharmacy" element={<PharmacyRegistration />} />
@@ -105,6 +181,8 @@ function AppContent() {
             <Route path="/health-records" element={<HealthRecords />} />
             <Route path="/share-records" element={<ShareHealthRecords />} />
             <Route path="/profile-patient" element={<ProfilePatient />} />
+            <Route path="/profile-doctor" element={<ProfileDoctor />} />
+            <Route path="/profile-pharmacy" element={<ProfilePharmacy />} />
 
             {/* <Route path="/schedule" element={<Schedule />} /> */}
             {/* <Route path="/book/:doctorId" element={<Schedule />} /> */}
@@ -133,17 +211,6 @@ function AppContent() {
                 <MyAppointments />
               </ProtectedRoute>
             } />
-            {/* <Route path="/doctors" element={
-              <ProtectedRoute allowedRoles={['Patient']}>
-                <Doctors />
-              </ProtectedRoute>
-            } /> */}
-            {/* <Route path="/doctor/:id" element={
-              <ProtectedRoute allowedRoles={['Patient']}>
-                <DoctorProfile />
-              </ProtectedRoute>
-            } /> */}
-
 
             <Route path="/records" element={
               <ProtectedRoute allowedRoles={['Patient']}>
@@ -170,6 +237,25 @@ function AppContent() {
             <Route path="/admin/medical-records" element={<MedicalRecords /> } />
             <Route path="/admin/registrations" element={<Registrations /> } />
 
+            <Route
+              path="/patient-dashboard"
+              element={
+                <ProtectedRoute allowedRoles={['Patient']}>
+                  <PatientDashboard />
+                </ProtectedRoute>
+              }
+            >
+              <Route index element={<PatientDashboardHome />} />
+              <Route path="booking" element={<Schedule />} />
+              <Route path="book/:doctorId" element={<Schedule />} />
+              <Route path="appointments" element={<MyAppointments />} />
+              <Route path="health-records" element={<HealthRecords />} />
+              <Route path="share-records" element={<ShareHealthRecords />} />
+              <Route path="profile" element={<ProfilePatient />} />
+            </Route>
+
+            {/* Catch-all 404 Route */}
+            <Route path="*" element={<NotFound />} />
           </Routes>
         </div>
         {!hideLayout && <Footer />}

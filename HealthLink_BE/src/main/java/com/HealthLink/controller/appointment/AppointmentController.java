@@ -2,8 +2,11 @@ package com.HealthLink.controller.appointment;
 
 import com.HealthLink.dto.request.AppointmentRequest;
 import com.HealthLink.dto.request.CancelAppointmentRequest;
+import com.HealthLink.dto.request.HoldSlotRequest;
 import com.HealthLink.dto.request.RescheduleAppointmentRequest;
 import com.HealthLink.dto.response.AppointmentResponse;
+import com.HealthLink.dto.response.AvailableSlotsResponse;
+import com.HealthLink.dto.response.HoldSlotResponse;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
@@ -11,6 +14,7 @@ import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
 import com.HealthLink.service.appointment.AppointmentService;
+import java.time.LocalDate;
 
 // Xử lý lịch hẹn
 @RestController
@@ -55,6 +59,32 @@ public class AppointmentController {
             @PathVariable Integer id,
             @RequestBody RescheduleAppointmentRequest request) {
         return ResponseEntity.ok(appointmentService.rescheduleAppointment(id, request));
+    }
+
+    // Lấy toàn bộ slot trong ngày của bác sĩ
+    @GetMapping("/available-slots")
+    public ResponseEntity<AvailableSlotsResponse> getAvailableSlots(
+            @RequestParam String doctorId,
+            @RequestParam LocalDate date,
+            @RequestParam(required = false) String consultationType
+    ) {
+        return ResponseEntity.ok(
+                appointmentService.getAvailableSlots(doctorId, date, consultationType)
+        );
+    }
+
+    // Giữ tạm một slot khi patient vừa chọn giờ
+    @PostMapping("/hold-slot")
+    public ResponseEntity<HoldSlotResponse> holdSlot(
+            @RequestBody HoldSlotRequest request
+    ) {
+        return ResponseEntity.ok(appointmentService.holdSlot(request));
+    }
+
+    @DeleteMapping("/hold-slot/{holdId}")
+    public ResponseEntity<Void> releaseHold(@PathVariable Integer holdId) {
+        appointmentService.releaseHold(holdId);
+        return ResponseEntity.noContent().build();
     }
 
 }
