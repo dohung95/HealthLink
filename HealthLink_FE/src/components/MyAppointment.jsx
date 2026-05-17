@@ -161,15 +161,16 @@ const MyAppointments = () => {
 
     const handleVideoCall = async (appointment) => {
         try {
-            const patientID = appointment.patientID;
-            const doctorID = appointment.doctorID;
-            const patientName = appointment.patient?.fullName || "Patient";
-            const doctorName = appointment.doctor?.fullName || "Doctor";
+            const patientId = appointment.patientId;
+            const doctorId = appointment.doctorId;
+            const patientName = appointment.patientName || "Patient";
+            const doctorName = appointment.doctorName || "Doctor";
 
             const isDoctor = roles && roles.some(r => String(r).trim().toLowerCase() === 'doctor');
 
-            const targetUserId = isDoctor ? patientID : doctorID;
+            const targetUserId = isDoctor ? patientId : doctorId;
             const targetUserName = isDoctor ? patientName : doctorName;
+            const callerName = isDoctor ? doctorName : patientName;
 
             const characters = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789';
             let roomId = '';
@@ -177,7 +178,7 @@ const MyAppointments = () => {
                 roomId += characters.charAt(Math.floor(Math.random() * characters.length));
             }
 
-            initiateCall(targetUserId, roomId, targetUserName);
+            initiateCall(targetUserId, roomId, targetUserName, callerName);
 
         } catch (error) {
             console.error("Error initiating video call:", error);

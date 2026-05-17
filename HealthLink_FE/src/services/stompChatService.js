@@ -18,6 +18,7 @@ class StompChatService {
         this.chatSubscription = null;
         this.isConnected = false;
         this.pendingSubscriptions = [];
+        this.stompClientPromise = null;
     }
 
     /**
@@ -80,21 +81,40 @@ class StompChatService {
      */
     subscribeToChat(onMessageCallback) {
         const destination = '/user/queue/chat';
+        return this.subscribeToDestination(destination, onMessageCallback);
+    }
 
+    /**
+     * Đăng ký nhận message từ một destination bất kỳ
+     */
+    subscribeToDestination(destination, onMessageCallback) {
         if (this.isConnected && this.client) {
             return this._subscribe(destination, onMessageCallback);
         } else {
-            // Lưu lại để đăng ký khi kết nối xong
             this.pendingSubscriptions.push({ destination, callback: onMessageCallback });
-            console.log('[STOMP Chat] Not connected yet, subscription will be registered later.');
             return () => {
-                // Xoá khỏi danh sách chờ nếu huỷ trước khi kết nối
                 this.pendingSubscriptions = this.pendingSubscriptions.filter(
                     s => s.callback !== onMessageCallback
                 );
             };
         }
     }
+
+    /**
+     * Gửi message đến một destination bất kỳ
+     */
+    publishToDestination(destination, body) {
+        if (this.isConnected && this.client) {
+            this.client.publish({
+                destination: destination,
+                body: JSON.stringify(body)
+            });
+        } else {
+            console.error(`[STOMP] Cannot publish to ${destination}, not connected.`);
+        }
+    }
+
+
 
     /**
      * Ngắt kết nối WebSocket.
