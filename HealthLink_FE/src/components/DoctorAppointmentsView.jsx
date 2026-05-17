@@ -283,7 +283,7 @@ export default function DoctorAppointmentsView({ doctorId, onViewAppointment, vi
   const handleChat = async (appointment) => {
     const isDoctor = roles && roles.some(r => String(r).trim().toLowerCase() === 'doctor');
     const partnerData = isDoctor ? appointment.patient : appointment.doctor;
-    const partnerID = isDoctor ? appointment.patient?.patientID : appointment.doctorID;  // ← SỬA ĐÂY
+    const partnerID = isDoctor ? appointment.patient?.patientId || appointment.patientId : appointment.doctorId;
 
     if (!partnerData || !partnerID) {
       alert("Chat partner information is missing.");
@@ -335,9 +335,9 @@ export default function DoctorAppointmentsView({ doctorId, onViewAppointment, vi
 
   const handleVideoCall = async (appointment) => {
     try {
-      // Lấy thông tin từ appointment (patientID và doctorID nằm trong nested objects)
-      const patientID = appointment.patient?.patientID || appointment.patientID;
-      const doctorID = appointment.doctorID;
+      // Lấy thông tin từ appointment
+      const patientId = appointment.patient?.patientId || appointment.patientId;
+      const doctorId = appointment.doctorId;
       const patientName = appointment.patient?.fullName || "Patient";
       const doctorName = appointment.doctor?.fullName || "Doctor";
 
@@ -345,7 +345,7 @@ export default function DoctorAppointmentsView({ doctorId, onViewAppointment, vi
       const isDoctor = roles && roles.some(r => String(r).trim().toLowerCase() === 'doctor');
 
       // Xác định target user (người được gọi)
-      const targetUserId = isDoctor ? patientID : doctorID;
+      const targetUserId = isDoctor ? patientId : doctorId;
       const targetUserName = isDoctor ? patientName : doctorName;
 
       // Tạo Room ID bằng cách trộn DoctorID + PatientID và lấy 40 ký tự

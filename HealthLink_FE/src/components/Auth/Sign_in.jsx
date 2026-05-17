@@ -106,8 +106,9 @@ export function Sign_in() {
         setSubmitting(true);
 
         try {
-            const success = await login(email, password);
-            if (success) {
+            const result = await login(email, password);
+            
+            if (result === true) {
                 // Get token and decode to extract roles
                 const token = localStorage.getItem('token');
                 const decoded = decodeToken(token);
@@ -128,6 +129,8 @@ export function Sign_in() {
                     navigate('/admin');
                 } else if (userRoles.some(r => r.toLowerCase() === 'doctor')) {
                     navigate('/doctor-page');
+                } else if (userRoles.some(r => r.toLowerCase() === 'patient')) {
+                    navigate('/patient-dashboard');
                 } else {
                     navigate('/');
                 }
@@ -165,17 +168,19 @@ export function Sign_in() {
     };
 
     // Redirect if already logged in with valid token
-    useEffect(() => {
-        if (token && roles && roles.length > 0) {
-            if (roles.some(r => String(r).trim().toLowerCase() === 'admin')) {
-                navigate('/admin', { replace: true });
-            } else if (roles.some(r => String(r).trim().toLowerCase() === 'doctor')) {
-                navigate('/doctor-page', { replace: true });
-            } else {
-                navigate('/', { replace: true });
-            }
-        }
-    }, [token, roles, navigate]);
+    // useEffect(() => {
+    //     if (token && roles && roles.length > 0) {
+    //         if (roles.some(r => String(r).trim().toLowerCase() === 'admin')) {
+    //             navigate('/admin', { replace: true });
+    //         } else if (roles.some(r => String(r).trim().toLowerCase() === 'doctor')) {
+    //             navigate('/doctor-page', { replace: true });
+    //         } else if (roles.some(r => String(r).trim().toLowerCase() === 'patient')) {
+    //             navigate('/patient-dashboard', { replace: true });
+    //         } else {
+    //             navigate('/', { replace: true });
+    //         }
+    //     }
+    // }, [token, roles, navigate]);
 
     // Hiển thị Loading component khi initial load
     if (loading) {
@@ -222,6 +227,11 @@ export function Sign_in() {
                                     {passwordError}
                                 </div>
                             )}
+                            <div style={{ textAlign: 'right', marginTop: '6px' }}>
+                                <Link to="/forgot-password" style={{ fontSize: '0.85rem', color: '#00b09a', textDecoration: 'none' }}>
+                                    Forgot password?
+                                </Link>
+                            </div>
                         </div>
                         <button type="submit" disabled={submitting} className='signin-button'>
                             {submitting ? 'Loading...' : 'Login'}
@@ -241,7 +251,7 @@ export function Sign_in() {
                 keyboard={false}
                 centered
                 size="lg"
-                style={{padding:"230px"}}
+                style={{ padding: "230px" }}
             >
                 <Modal.Header closeButton className='modal-error-header'>
                     <Modal.Title className='modal-error-title'>

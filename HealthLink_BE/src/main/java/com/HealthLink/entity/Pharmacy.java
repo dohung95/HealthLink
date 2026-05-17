@@ -54,6 +54,7 @@ public class Pharmacy {
     @Column(length = 1000)
     private String description; // Đoạn mô tả giới thiệu về quy mô, uy tín của nhà thuốc
     
+    @Column(columnDefinition = "NVARCHAR(MAX)")
     private String avatarUrl; // Đường dẫn (link) tới logo hoặc ảnh mặt tiền của nhà thuốc
 
     // --- 3. THỜI GIAN HOẠT ĐỘNG (Operating Hours) ---

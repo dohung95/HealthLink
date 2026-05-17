@@ -1,11 +1,8 @@
 import React, { createContext, useContext, useState, useEffect } from "react";
-import { login as loginAPI, register as registerAPI, logout as logoutAPI, setupAxiosInterceptors, getFirebaseTokenAPI } from '../api/auth';
+import { login as loginAPI, register as registerAPI, logout as logoutAPI, forgotPassword as forgotPasswordAPI, resetPassword as resetPasswordAPI, setupAxiosInterceptors } from '../api/auth';
 import { decodeToken, getTokenExpiresIn } from '../utils/tokenUtils';
-
-import { signInWithCustomToken, signOut } from "firebase/auth";
-import { auth, db } from "../firebase";
-import { doc, setDoc } from "firebase/firestore";
-import * as signalR from "@microsoft/signalr";
+import stompChatService from '../services/stompChatService';
+import videoCallService from '../services/videoCallService';
 import { toast } from 'sonner';
 
 const AuthContext = createContext();
@@ -19,6 +16,7 @@ export function AuthProvider({ children }) {
     const [roles, setRoles] = useState([]);
     const [token, setToken] = useState(() => localStorage.getItem('token') || null)
     const [refreshToken, setRefreshToken] = useState(() => localStorage.getItem('refreshToken') || null)
+    const [currentUserId, setCurrentUserId] = useState(() => localStorage.getItem('userId') || null)
     const [tokenExpiry, setTokenExpiry] = useState(null);
     const [loading, setLoading] = useState(true); // Thêm loading state
 
@@ -113,105 +111,33 @@ export function AuthProvider({ children }) {
         // }
     }, [token]);
 
-    ///=>> use for identity and firebase
+    ///=>> Spring Boot login
     const login = async (email, password) => {
         try {
-            // 1. ĐĂNG NHẬP C# (Như cũ)
-            const csharpResponse = await loginAPI(email, password);
-            if (!csharpResponse || !csharpResponse.accessToken) {
-                throw new Error("C# login failed");
+            const response = await loginAPI(email, password);
+            if (!response || !response.accessToken) {
+                throw new Error('Login failed');
             }
 
-            const csharpToken = csharpResponse.accessToken;
-            localStorage.setItem('token', csharpToken);
-            setToken(csharpToken); // Cập nhật state C#
-
-            // 2. ĐĂNG NHẬP FIREBASE (Bước mới)
-            const firebaseResponse = await getFirebaseTokenAPI(csharpToken);
-            const firebaseToken = firebaseResponse.firebaseToken;
-
-            const userCredential = await signInWithCustomToken(auth, firebaseToken);
-            const user = userCredential.user; // ← Lấy user Firebase
-
-            // === THÊM ĐOẠN NÀY: Tạo/update user document trong Firestore ===
-            const userRef = doc(db, "users", user.uid);
-
-            // Decode token để lấy thông tin
-            const decoded = decodeToken(csharpToken);
-            const username = decoded?.preferred_username || decoded?.email || user.email || "User";
-
-            // Lấy role từ token
-            const roleClaimType = 'http://schemas.microsoft.com/ws/2008/06/identity/claims/role';
-            let userRole = decoded?.[roleClaimType] || decoded?.role || "patient";
-            if (Array.isArray(userRole)) userRole = userRole[0]; // Nếu là mảng, lấy role đầu tiên
-
-            await setDoc(userRef, {
-                uid: user.uid,
-                displayName: username,
-                email: decoded?.email || user.email || email,
-                photoURL: user.photoURL || "",
-                role: userRole
-            }, { merge: true }); // merge: true = update nếu đã tồn tại, create nếu chưa
-
-            console.log(`✓ User ${username} (${userRole}) saved to Firebase`);
-            // ================================================================
+            localStorage.setItem('token', response.accessToken);
+            localStorage.setItem('refreshToken', response.refreshToken);
+            // Lưu userId thật (UUID) để chat và so sánh room không bị lệch email/UUID
+            if (response.userId) localStorage.setItem('userId', response.userId);
+            setToken(response.accessToken);
+            setRefreshToken(response.refreshToken);
+            if (response.userId) setCurrentUserId(response.userId);
 
             return true;
         } catch (error) {
-            console.error("Double login error:", error);
-
-            // Check if error is related to account status
-            const errorMessage = error.message || '';
-            const statusErrors = [
-                'inactive',
-                'suspended',
-                'banned',
-                'not active',
-                'admin approval',
-                'contact support'
-            ];
-
-            const isStatusError = statusErrors.some(keyword =>
-                errorMessage.toLowerCase().includes(keyword)
-            );
-
-            // REMOVED: Don't call logout() on login failure - it causes page reload
-            // Just throw the error to let Sign_in component handle it
-            // if (!isStatusError) {
-            //     logout();
-            // }
-
-
-            throw error;
+            console.error('Login error:', error);
+            return { success: false, message: 'Login failed. Please try again later.' };
         }
     };
 
     ///=>> use for identity and firebase
-    const register = async (username, phonenumber, email, password, confirmPassword, role, DateOfBirth) => {
+    const register = async (username, phonenumber, email, password, role, dateOfBirth, gender, heightCm, weightKg, preferredLanguage) => {
         try {
-            await registerAPI(username, phonenumber, email, password, confirmPassword, DateOfBirth);
-            // const csharpResponse = await loginAPI(email, password);
-            // const csharpToken = csharpResponse.accessToken;
-            // localStorage.setItem('token', csharpToken);
-            // setToken(csharpToken);
-
-            // // 3. ĐĂNG NHẬP FIREBASE (Bước mới)
-            // const firebaseResponse = await getFirebaseTokenAPI(csharpToken);
-            // const firebaseToken = firebaseResponse.firebaseToken;
-            // const userCredential = await signInWithCustomToken(auth, firebaseToken);
-            // const user = userCredential.user; // Lấy user Firebase
-
-            // // 4. TẠO "DANH BẠ" (Lưu user vào Firestore)
-            // const userRef = doc(db, "users", user.uid);
-            // await setDoc(userRef, {
-            //     uid: user.uid,
-            //     displayName: username,
-            //     email: email,
-            //     photoURL: "", // (Ảnh mặc định)
-            //     role: role // <-- LƯU ROLE VÀO DATABASE
-            // }, { merge: true });
-
-            console.log("dmmm role lon:      ", role)
+            await registerAPI(username, phonenumber, email, password, dateOfBirth, gender, heightCm, weightKg, preferredLanguage, role);
             return true;
         } catch (error) {
             console.error("Double register error:", error);
@@ -223,19 +149,16 @@ export function AuthProvider({ children }) {
             setTokenExpiry(null);
             localStorage.removeItem('token');
             localStorage.removeItem('refreshToken');
+            localStorage.removeItem('userId');
+            setCurrentUserId(null);
             throw error;
         }
 
     };
 
-    ///=>> use for identity and firebase
+    ///=>> Spring Boot logout
     const logout = async () => {
-        // (Hàm 'logoutAPI' của C# là không bắt buộc, vì token C# sẽ tự hết hạn)
-        if (refreshToken) {
-            await logoutAPI(refreshToken);
-        }
-        // Logout from Firebase
-        await signOut(auth); // <-- Add this line
+        await logoutAPI();
         setToken(null);
         setRefreshToken(null);
         setUser(null);
@@ -243,93 +166,105 @@ export function AuthProvider({ children }) {
         setTokenExpiry(null);
         localStorage.removeItem('token');
         localStorage.removeItem('refreshToken');
+        localStorage.removeItem('userId');
+        setCurrentUserId(null);
         window.location.href = '/';
     };
 
+    //forgot password
+    const forgotPassword = async (email) => {
+        try {
+            await forgotPasswordAPI(email);
+            return true;
+        } catch (error) {
+            console.error('Forgot password error:', error);
+            throw error;
+        }
+    };
+    
+    // reset password
+    const resetPassword = async (token, password) => {
+        try {
+            await resetPasswordAPI(token, password);
+            return true;
+        } catch (error) {
+            console.error('Reset password error:', error);
+            throw error;
+        }
+    };
+
+    // kết nối STOMP WebSocket cho Chat và WebRTC
     useEffect(() => {
-        // Nếu có token (đã login) VÀ chưa có kết nối
         if (token && !connection) {
+            // 1. Kết nối STOMP Server (Spring Boot) thay vì SignalR
+            stompChatService.connect(token, () => {
+                setConnection(true); // Đánh dấu đã kết nối
+                
+                // 2. Đăng ký lắng nghe tín hiệu WebRTC (Incoming Call)
+                videoCallService.subscribeToWebRTC((signal) => {
+                    const { type, senderId, senderName, data } = signal;
 
-            // 1. Xây dựng kết nối đến Hub
-            const newConnection = new signalR.HubConnectionBuilder()
-                .withUrl("https://localhost:7267/notificationcalling", { // (Đảm bảo URL này đúng)
-                    // 2. GỬI KÈM JWT TOKEN ĐỂ XÁC THỰC
-                    accessTokenFactory: () => token
-                })
-                .withAutomaticReconnect()
-                .build();
+                    if (type === "CALL_REQUEST") {
+                        // Nhận được cuộc gọi mới
+                        setIncomingCall({ callerId: senderId, callerName: senderName, roomId: data });
+                    }
+                    // else if (type === "CALL_ACCEPTED") {
+                    //     // Bác sĩ (người gọi) nhận được tín hiệu bắt máy từ bệnh nhân
+                    //     // Lấy thông tin user hiện tại (Doctor)
+                    //     const currentToken = localStorage.getItem('token');
+                    //     const decodedUser = decodeToken(currentToken);
+                    //     const userId = decodedUser.sub;
+                    //     const userName = decodedUser.preferred_username || decodedUser.email;
 
-            // 3. Khởi động kết nối
-            newConnection.start()
-                .then(() => {
-                    // console.log("SignalR Connected!");
-                    setConnection(newConnection);
+                    //     // Mở cửa sổ Zego (vì BẠN là người gọi) - truyền targetUserId là người đã accept (senderId)
+                    //     // senderName chính là người đã bắt máy (người nhận ban đầu)
+                    //     const callUrl = `/video-calling?roomID=${data}&targetUserId=${encodeURIComponent(senderId)}&userName=${encodeURIComponent(senderName)}&isCaller=true`;
+                    //     const windowSpecs = 'width=1000,height=700,noopener,noreferrer';
+                    //     window.open(callUrl, '_blank', windowSpecs);
+                    // }
+                    else if (type === "CALL_ACCEPTED") {
+                        // Bắn event qua localStorage để báo cho tab video-call biết (chống race condition)
+                        localStorage.setItem('webrtc_signal', JSON.stringify({
+                            type,
+                            senderId,
+                            roomId: data,
+                            timestamp: Date.now()
+                        }));
+                    }
+                    else if (type === "CALL_DECLINED" || type === "HANGUP") {
+                        // Nếu người gọi hủy cuộc gọi, đóng popup lại
+                        setIncomingCall(prev => {
+                            if (prev && prev.callerId === senderId) {
+                                toast.info("The call has ended or was canceled.");
+                                return null;
+                            }
+                            return prev;
+                        });
 
-                    // 4. LẮNG NGHE CÁC SỰ KIỆN TỪ SERVER
-
-                    // A. Khi AI ĐÓ GỌI BẠN (Reng reng!)
-                    newConnection.on("IncomingCall", (callerId, callerName, roomId) => {
-                        // console.log(`Incoming call from ${callerName}`);
-                        // Lưu thông tin cuộc gọi để hiển thị Pop-up
-                        setIncomingCall({ callerId, callerName, roomId });
-                    });
-
-                    // B. Khi NGƯỜI BẠN GỌI đã "Bắt máy" (Bác sĩ nhận được tin này)
-                    // (Phiên bản ĐÃ SỬA LỖI - chỉ có 1 listener)
-                    newConnection.on("CallAccepted", (receiverId, roomId) => {
-                        // console.log("Call accepted, Doctor opening Zego...");
-
-                        // Đọc token mới nhất từ localStorage để tránh lỗi "stale state"
-                        const currentToken = localStorage.getItem('token');
-                        if (!currentToken) {
-                            console.error("Error: Caller token (Doctor) not found");
-                            return;
-                        }
-
-                        // Tự giải mã token (dùng hàm decodeToken của bạn)
-                        const decodedUser = decodeToken(currentToken);
-                        if (!decodedUser) {
-                            console.error("Error: Unable to decode caller token (Doctor)");
-                            return;
-                        }
-
-                        // Lấy thông tin user TƯƠI MỚI (fresh)
-                        const userId = decodedUser.sub;
-                        const userName = decodedUser.preferred_username || decodedUser.email;
-
-                        // Mở cửa sổ Zego (vì BẠN là người gọi)
-                        const callUrl = `/video-calling?roomID=${roomId}&userID=${encodeURIComponent(userId)}&userName=${encodeURIComponent(userName)}`;
-                        const windowSpecs = 'width=1000,height=700,noopener,noreferrer';
-                        window.open(callUrl, '_blank', windowSpecs);
-                    });
-
-                    // C. Khi NGƯỜI BẠN GỌI đã "Từ chối"
-                    newConnection.on("CallDeclined", () => {
-                        // console.log("Call declined.");
-                        toast.info("User declined the call.");
-                    });
-
-                })
-                .catch(e => console.error("SignalR Connection Error: ", e));
+                        // Bắn event qua localStorage để xử lý cross-tab race conditions
+                        localStorage.setItem('webrtc_signal', JSON.stringify({
+                            type,
+                            senderId,
+                            roomId: incomingCall ? incomingCall.roomId : data,
+                            timestamp: Date.now()
+                        }));
+                    }
+                    // Các tín hiệu OFFER, ANSWER, CANDIDATE sẽ được useWebRTC lắng nghe thêm
+                });
+            });
         }
-        // Nếu không có token (logout) VÀ đang có kết nối
         else if (!token && connection) {
-            connection.stop();
-            setConnection(null);
+            stompChatService.disconnect();
+            setConnection(false);
         }
 
-        // Cleanup (chạy khi component bị hủy)
         return () => {
-            if (connection) {
-                connection.stop();
-            }
+            // Cleanup khi app tắt (nhưng thường STOMP quản lý tự động)
         }
-        // Chạy lại logic này mỗi khi 'token' hoặc 'connection' thay đổi
-        // (Không cần 'user' trong dependency array nữa vì 'CallAccepted' đã đọc từ localStorage)
     }, [token, connection]);
 
     // 1. Khi BẠN bấm nút "Gọi"
-    const initiateCall = async (targetUserId, roomId, targetUserName = "User") => {
+    const initiateCall = async (targetUserId, roomId, targetUserName = "User", callerName = "") => {
         try {
             // Lấy token và decode để lấy thông tin người gọi
             const currentToken = localStorage.getItem('token');
@@ -344,48 +279,33 @@ export function AuthProvider({ children }) {
                 return;
             }
 
-            const currentUserId = decodedUser.sub;
-            const currentUserName = decodedUser.preferred_username || decodedUser.email || "User";
-
-            // console.log('Initiating call:', {
-            //     currentUserId,
-            //     currentUserName,
-            //     targetUserId,
-            //     targetUserName,
-            //     roomId
-            // });
+            const currentUserName = callerName || decodedUser.preferred_username || decodedUser.email || decodedUser.sub || "User";
 
             // ===== KIỂM TRA VÀ GỬI THÔNG BÁO CHO NGƯỜI NHẬN =====
-            if (!connection) {
-                console.error("Error: No SignalR connection");
+            if (!connection || !stompChatService.isConnected) {
+                console.error("Error: No STOMP connection");
                 toast.error("Error: Unable to send call notification. Please try again.");
                 return;
             }
 
-            // Kiểm tra connection state
-            if (connection.state !== signalR.HubConnectionState.Connected) {
-                console.error(`Error: SignalR connection is not in Connected state. Current state: ${connection.state}`);
-                toast.error("Error: Connection not ready. Please wait a moment and try again.");
-                return;
-            }
-
             try {
-                // Gửi thông báo qua SignalR cho bệnh nhân
-                await connection.invoke("InitiateCall", targetUserId, roomId);
-                // console.log(`✓ Đã gửi thông báo cuộc gọi đến ${targetUserName}`);
+                // Gửi thông báo qua STOMP cho người nhận
+                videoCallService.sendWebRTCSignal({
+                    type: "CALL_REQUEST",
+                    senderId: currentUserId,
+                    senderName: currentUserName,
+                    receiverId: targetUserId,
+                    data: roomId
+                });
             } catch (invokeError) {
-                console.error("Error invoking InitiateCall:", invokeError);
+                console.error("Error sending CALL_REQUEST:", invokeError);
                 toast.error("Error: Unable to send call notification. " + invokeError.message);
                 return;
             }
             // =========================================================
 
             // Điều hướng người gọi đến trang video call
-            // Thêm "Dr." nếu user là bác sĩ
-            const isDoctor = roles && roles.some(r => String(r).trim().toLowerCase() === 'doctor');
-            const displayName = isDoctor ? `Dr. ${currentUserName}` : currentUserName;
-
-            const callUrl = `/video-calling?roomID=${roomId}&userID=${encodeURIComponent(currentUserId)}&userName=${encodeURIComponent(displayName)}`;
+            const callUrl = `/video-calling?roomID=${roomId}&targetUserId=${encodeURIComponent(targetUserId)}&userName=${encodeURIComponent(targetUserName)}&isCaller=true`;
 
             // Mở trong tab mới hoặc điều hướng trực tiếp
             const windowSpecs = 'width=1000,height=700,noopener,noreferrer';
@@ -400,8 +320,8 @@ export function AuthProvider({ children }) {
     // 2. Khi BẠN bấm "Bắt máy"
     const acceptCall = async () => {
         // 1. Kiểm tra connection và cuộc gọi đến
-        if (!connection) {
-            console.error("Error: No SignalR connection");
+        if (!connection || !stompChatService.isConnected) {
+            console.error("Error: No STOMP connection");
             toast.error("Error: Connection not established. Please try again.");
             return;
         }
@@ -409,13 +329,6 @@ export function AuthProvider({ children }) {
         if (!incomingCall) {
             console.error("Error: No incoming call");
             toast.error("Error: No incoming call");
-            return;
-        }
-
-        // 2. Kiểm tra connection state
-        if (connection.state !== signalR.HubConnectionState.Connected) {
-            console.error(`Error: SignalR connection is not in Connected state. Current state: ${connection.state}`);
-            toast.error("Error: Connection not ready. Please wait and try again.");
             return;
         }
 
@@ -437,15 +350,20 @@ export function AuthProvider({ children }) {
             }
 
             // 5. Lấy thông tin user TƯƠI MỚI (fresh)
-            const userId = decodedUser.sub;
-            const userName = decodedUser.preferred_username || decodedUser.email;
+            const userName = decodedUser.preferred_username || decodedUser.email || decodedUser.sub || "User";
 
             // 6. Báo cho server là bạn đã bắt máy
-            await connection.invoke("AcceptCall", incomingCall.callerId, incomingCall.roomId);
+            videoCallService.sendWebRTCSignal({
+                type: "CALL_ACCEPTED",
+                senderId: currentUserId, // Dùng state currentUserId (UUID) thay vì decodedUser.sub (Email)
+                senderName: userName,
+                receiverId: incomingCall.callerId,
+                data: incomingCall.roomId
+            });
             // console.log(`✓ Đã chấp nhận cuộc gọi từ ${incomingCall.callerName}`);
 
-            // 7. Mở cửa sổ Zego (vì BẠN là người nhận)
-            const callUrl = `/video-calling?roomID=${incomingCall.roomId}&userID=${encodeURIComponent(userId)}&userName=${encodeURIComponent(userName)}`;
+            // 7. Mở cửa sổ video call (vì BẠN là người nhận)
+            const callUrl = `/video-calling?roomID=${incomingCall.roomId}&targetUserId=${encodeURIComponent(incomingCall.callerId)}&userName=${encodeURIComponent(incomingCall.callerName)}&isCaller=false`;
             const windowSpecs = 'width=1000,height=700,noopener,noreferrer';
             window.open(callUrl, '_blank', windowSpecs);
 
@@ -460,7 +378,12 @@ export function AuthProvider({ children }) {
     const declineCall = async () => {
         if (connection && incomingCall) {
             // Báo cho server là bạn đã từ chối
-            await connection.invoke("DeclineCall", incomingCall.callerId);
+            videoCallService.sendWebRTCSignal({
+                type: "CALL_DECLINED",
+                senderId: currentUserId,
+                receiverId: incomingCall.callerId,
+                data: incomingCall.roomId
+            });
             setIncomingCall(null); // Đóng pop-up
         }
     };
@@ -472,9 +395,12 @@ export function AuthProvider({ children }) {
         roles,
         tokenExpiry,
         loading,
+        currentUserId,   // UUID thật (lưu lúc login), dùng cho chat room matching
         login,
         logout,
         register,
+        forgotPassword,
+        resetPassword,
         isAuthenticated: !!token,
         hasRole: (role) => roles.includes(role),
 

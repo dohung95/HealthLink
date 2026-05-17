@@ -12,7 +12,7 @@ import lombok.*;
 @Builder
 public class CreateRoomRequest {
 
-    @NotBlank(message = "user1Id is required")
+    /** Tự động lấy từ JWT ở controller – không cần gửi từ client. */
     private String user1Id;
 
     @NotBlank(message = "user2Id is required")

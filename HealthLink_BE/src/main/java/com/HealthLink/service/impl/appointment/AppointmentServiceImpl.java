@@ -2,9 +2,14 @@ package com.HealthLink.service.impl.appointment;
 
 import com.HealthLink.dto.request.AppointmentRequest;
 import com.HealthLink.dto.request.CancelAppointmentRequest;
+import com.HealthLink.dto.request.HoldSlotRequest;
 import com.HealthLink.dto.request.RescheduleAppointmentRequest;
 import com.HealthLink.dto.response.AppointmentResponse;
+import com.HealthLink.dto.response.AvailableSlotResponse;
+import com.HealthLink.dto.response.AvailableSlotsResponse;
+import com.HealthLink.dto.response.HoldSlotResponse;
 import com.HealthLink.entity.Appointment;
+import com.HealthLink.entity.AppointmentSlotHold;
 import com.HealthLink.entity.Doctor;
 import com.HealthLink.entity.DoctorSchedule;
 import com.HealthLink.entity.Patient;
@@ -13,6 +18,7 @@ import com.HealthLink.entity.enums.NotificationType;
 import com.HealthLink.exception.BusinessException;
 import com.HealthLink.exception.ResourceNotFoundException;
 import com.HealthLink.repository.appointment.AppointmentRepository;
+import com.HealthLink.repository.appointment.AppointmentSlotHoldRepository;
 import com.HealthLink.repository.doctor.DoctorRepository;
 import com.HealthLink.repository.doctor.DoctorScheduleRepository;
 import com.HealthLink.repository.patient.PatientRepository;
@@ -20,14 +26,17 @@ import com.HealthLink.service.appointment.AppointmentService;
 import com.HealthLink.service.notification.NotificationService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.transaction.support.TransactionSynchronization;
 import org.springframework.transaction.support.TransactionSynchronizationManager;
 
+import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.LocalTime;
 import java.time.format.DateTimeFormatter;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Objects;
 import java.util.stream.Collectors;
@@ -35,7 +44,7 @@ import java.util.stream.Collectors;
 @Service
 @RequiredArgsConstructor
 @Slf4j
-public class AppointmentServiceImpl implements AppointmentService{
+public class AppointmentServiceImpl implements AppointmentService {
 
     private static final DateTimeFormatter NOTIFICATION_TIME_FORMATTER =
             DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm");
@@ -44,28 +53,30 @@ public class AppointmentServiceImpl implements AppointmentService{
     private final PatientRepository patientRepository;
     private final DoctorRepository doctorRepository;
     private final DoctorScheduleRepository scheduleRepository;
+    private final AppointmentSlotHoldRepository appointmentSlotHoldRepository;
     private final NotificationService notificationService;
 
-    // createAppointment
+    @Value("${booking.max-days-ahead}")
+    private Integer maxDaysAhead;
+
+    @Value("${booking.slot-hold-minutes}")
+    private Integer slotHoldMinutes;
+
     @Override
     @Transactional
     public AppointmentResponse createAppointment(AppointmentRequest request) {
-
         validateRequest(request);
 
         Patient patient = patientRepository.findById(request.getPatientId())
                 .orElseThrow(() -> new ResourceNotFoundException(
-                "Not found patient ID: " + request.getPatientId()));
+                        "Not found patient ID: " + request.getPatientId()));
 
         Doctor doctor = doctorRepository.findById(request.getDoctorId())
                 .orElseThrow(() -> new ResourceNotFoundException(
-                "Bot found doctor ID: " + request.getDoctorId()));
+                        "Bot found doctor ID: " + request.getDoctorId()));
 
-        // check doctor can support type consultation
         checkConsultationTypeSupported(doctor, request.getConsultationType());
 
-        // check the work schedule doctor
-        // DayOfWeek Java: Monday=1...Sunday=7 → convert 0=CN, 1=T2...6=T7
         LocalDateTime appointmentTime = request.getAppointmentTime();
         int dayOfWeek = appointmentTime.getDayOfWeek().getValue() % 7;
         LocalTime requestedTime = appointmentTime.toLocalTime();
@@ -74,45 +85,55 @@ public class AppointmentServiceImpl implements AppointmentService{
                 .findByDoctor_DoctorIdAndDayOfWeekAndAvailableTrue(doctor.getDoctorId(), dayOfWeek);
 
         if (schedulesOfDay.isEmpty()) {
-            throw new BusinessException("Doctor busy at "
-                    + getDayName(dayOfWeek));
+            throw new BusinessException("Doctor busy at " + getDayName(dayOfWeek));
         }
 
-        // Find a matching shift: correct consultation type and time within shift.
         DoctorSchedule matchedSchedule = schedulesOfDay.stream()
                 .filter(s -> isConsultationTypeMatch(s, request.getConsultationType()))
                 .filter(s -> !requestedTime.isBefore(s.getStartTime())
-                && requestedTime.isBefore(s.getEndTime()))
+                        && requestedTime.isBefore(s.getEndTime()))
+                .filter(s -> isAlignedWithSlot(s, requestedTime))
                 .findFirst()
                 .orElseThrow(() -> new BusinessException(
-                "Doctor does not have a suitable working shift at "
-                + requestedTime + " for consultation type " + request.getConsultationType()));
+                        "Doctor does not have a suitable working shift at "
+                                + requestedTime + " for consultation type " + request.getConsultationType()));
 
-        // Check for schedule conflicts
         int slotMinutes = Objects.requireNonNullElse(matchedSchedule.getSlotDuration(), 30);
-
-        // Appointment mới bị conflict nếu có appointment khác bắt đầu trong khoảng đó
         LocalDateTime slotStart = appointmentTime;
         LocalDateTime slotEnd = appointmentTime.plusMinutes(slotMinutes);
 
         boolean hasConflict = appointmentRepository
                 .existsByDoctor_DoctorIdAndStatusNotAndAppointmentTimeBetween(
-                        doctor.getDoctorId(), "Cancelled",
-                        slotStart, slotEnd.minusSeconds(1));
+                        doctor.getDoctorId(),
+                        "Cancelled",
+                        slotStart,
+                        slotEnd.minusSeconds(1)
+                );
 
         if (hasConflict) {
             throw new BusinessException(
                     "The doctor already has another appointment during this time slot (" + slotMinutes + " mins/slot)");
         }
 
-        // create and save appointment
-        LocalDateTime endTime = appointmentTime.plusMinutes(slotMinutes);
+        LocalDateTime now = LocalDateTime.now();
+
+        appointmentSlotHoldRepository
+                .findByDoctor_DoctorIdAndAppointmentTimeAndExpiresAtAfter(
+                        doctor.getDoctorId(),
+                        appointmentTime,
+                        now
+                )
+                .ifPresent(hold -> {
+                    if (!hold.getPatient().getPatientId().equals(patient.getPatientId())) {
+                        throw new BusinessException("This slot is currently being held by another patient");
+                    }
+                });
 
         Appointment appointment = Appointment.builder()
                 .patient(patient)
                 .doctor(doctor)
                 .appointmentTime(appointmentTime)
-                .endTime(endTime)
+                .endTime(appointmentTime.plusMinutes(slotMinutes))
                 .consultationType(request.getConsultationType())
                 .status("Scheduled")
                 .symptoms(request.getSymptoms())
@@ -121,17 +142,207 @@ public class AppointmentServiceImpl implements AppointmentService{
                 .build();
 
         Appointment saved = appointmentRepository.save(appointment);
-        notifyDoctorAboutNewAppointmentAfterCommit(saved);
 
+        appointmentSlotHoldRepository
+                .findByDoctor_DoctorIdAndAppointmentTimeAndExpiresAtAfter(
+                        doctor.getDoctorId(),
+                        appointmentTime,
+                        now
+                )
+                .ifPresent(appointmentSlotHoldRepository::delete);
+
+        notifyDoctorAboutNewAppointmentAfterCommit(saved);
         return toResponse(saved);
     }
 
-    // get list of all appointment for a specific patient and return list of appointments sorted by the latest first
+    @Override
+    public AvailableSlotsResponse getAvailableSlots(String doctorId, LocalDate date, String consultationType) {
+        validateBookingDate(date);
+
+        int dayOfWeek = date.getDayOfWeek().getValue() % 7;
+
+        List<DoctorSchedule> schedules = scheduleRepository
+                .findByDoctor_DoctorIdAndDayOfWeekAndAvailableTrue(doctorId, dayOfWeek);
+
+        LocalDateTime dayStart = date.atStartOfDay();
+        LocalDateTime dayEnd = date.plusDays(1).atStartOfDay().minusSeconds(1);
+
+        List<Appointment> bookedAppointments = appointmentRepository
+                .findByDoctor_DoctorIdAndStatusNotAndAppointmentTimeBetween(
+                        doctorId,
+                        "Cancelled",
+                        dayStart,
+                        dayEnd
+                );
+
+        LocalDateTime now = LocalDateTime.now();
+
+        List<AppointmentSlotHold> activeHolds = appointmentSlotHoldRepository
+                .findByDoctor_DoctorIdAndAppointmentTimeBetweenAndExpiresAtAfter(
+                        doctorId,
+                        dayStart,
+                        dayEnd,
+                        now
+                );
+
+        List<AvailableSlotResponse> slots = new ArrayList<>();
+
+        for (DoctorSchedule schedule : schedules) {
+            if (!isConsultationTypeMatch(schedule, consultationType)) {
+                continue;
+            }
+
+            int slotMinutes = schedule.getSlotDuration() == null
+                    ? 30
+                    : schedule.getSlotDuration();
+
+            LocalDateTime slotStart = LocalDateTime.of(date, schedule.getStartTime());
+            LocalDateTime scheduleEnd = LocalDateTime.of(date, schedule.getEndTime());
+
+            while (!slotStart.plusMinutes(slotMinutes).isAfter(scheduleEnd)) {
+                LocalDateTime currentSlotStart = slotStart;
+                LocalDateTime currentSlotEnd = slotStart.plusMinutes(slotMinutes);
+
+                boolean isBooked = bookedAppointments.stream()
+                        .anyMatch(appointment -> appointment.getAppointmentTime().equals(currentSlotStart));
+
+                boolean isHeld = activeHolds.stream()
+                        .anyMatch(hold -> hold.getAppointmentTime().equals(currentSlotStart));
+
+                String status;
+                boolean selectable;
+
+                if (isBooked) {
+                    status = "BOOKED";
+                    selectable = false;
+                } else if (isHeld) {
+                    status = "HELD";
+                    selectable = false;
+                } else {
+                    status = "AVAILABLE";
+                    selectable = true;
+                }
+
+                slots.add(AvailableSlotResponse.builder()
+                        .startTime(currentSlotStart.toLocalTime().toString())
+                        .endTime(currentSlotEnd.toLocalTime().toString())
+                        .status(status)
+                        .selectable(selectable)
+                        .build());
+
+                slotStart = currentSlotEnd;
+            }
+        }
+
+        return AvailableSlotsResponse.builder()
+                .doctorId(doctorId)
+                .date(date)
+                .bookingWindowDays(maxDaysAhead)
+                .slots(slots)
+                .build();
+    }
+
+    @Override
+    public HoldSlotResponse holdSlot(HoldSlotRequest request) {
+        if (request.getDoctorId() == null || request.getDoctorId().isBlank()) {
+            throw new BusinessException("Doctor ID is required");
+        }
+        if (request.getPatientId() == null || request.getPatientId().isBlank()) {
+            throw new BusinessException("Patient ID is required");
+        }
+        if (request.getAppointmentTime() == null) {
+            throw new BusinessException("Appointment time is required");
+        }
+
+        validateBookingDate(request.getAppointmentTime().toLocalDate());
+
+        Doctor doctor = doctorRepository.findById(request.getDoctorId())
+                .orElseThrow(() -> new ResourceNotFoundException(
+                        "Doctor not found with ID: " + request.getDoctorId()));
+
+        Patient patient = patientRepository.findById(request.getPatientId())
+                .orElseThrow(() -> new ResourceNotFoundException(
+                        "Patient not found with ID: " + request.getPatientId()));
+
+        LocalDateTime appointmentTime = request.getAppointmentTime();
+        int dayOfWeek = appointmentTime.getDayOfWeek().getValue() % 7;
+        LocalTime requestedTime = appointmentTime.toLocalTime();
+
+        List<DoctorSchedule> schedulesOfDay = scheduleRepository
+                .findByDoctor_DoctorIdAndDayOfWeekAndAvailableTrue(
+                        doctor.getDoctorId(),
+                        dayOfWeek
+                );
+
+        DoctorSchedule matchedSchedule = schedulesOfDay.stream()
+                .filter(s -> isConsultationTypeMatch(s, request.getConsultationType()))
+                .filter(s -> !requestedTime.isBefore(s.getStartTime())
+                        && requestedTime.isBefore(s.getEndTime()))
+                .filter(s -> isAlignedWithSlot(s, requestedTime))
+                .findFirst()
+                .orElseThrow(() -> new BusinessException(
+                        "Doctor does not have a suitable working shift at this time"));
+
+        int slotMinutes = Objects.requireNonNullElse(matchedSchedule.getSlotDuration(), 30);
+        LocalDateTime slotEnd = appointmentTime.plusMinutes(slotMinutes);
+
+        boolean hasBookedConflict = appointmentRepository
+                .existsByDoctor_DoctorIdAndStatusNotAndAppointmentTimeBetween(
+                        doctor.getDoctorId(),
+                        "Cancelled",
+                        appointmentTime,
+                        slotEnd.minusSeconds(1)
+                );
+
+        if (hasBookedConflict) {
+            throw new BusinessException("This slot has already been booked");
+        }
+
+        LocalDateTime now = LocalDateTime.now();
+
+        boolean hasActiveHold = appointmentSlotHoldRepository
+                .existsByDoctor_DoctorIdAndAppointmentTimeAndExpiresAtAfter(
+                        doctor.getDoctorId(),
+                        appointmentTime,
+                        now
+                );
+
+        if (hasActiveHold) {
+            throw new BusinessException("This slot is currently being held by another patient");
+        }
+
+        AppointmentSlotHold hold = AppointmentSlotHold.builder()
+                .doctor(doctor)
+                .patient(patient)
+                .appointmentTime(appointmentTime)
+                .consultationType(request.getConsultationType())
+                .expiresAt(now.plusMinutes(slotHoldMinutes))
+                .build();
+
+        AppointmentSlotHold savedHold = appointmentSlotHoldRepository.save(hold);
+
+        return HoldSlotResponse.builder()
+                .holdId(savedHold.getHoldId())
+                .expiresAt(savedHold.getExpiresAt())
+                .status("HELD")
+                .build();
+    }
+
+    @Override
+    @Transactional
+    public void releaseHold(Integer holdId) {
+        AppointmentSlotHold hold = appointmentSlotHoldRepository.findById(holdId)
+                .orElseThrow(() -> new ResourceNotFoundException(
+                        "Hold not found with ID: " + holdId));
+
+        appointmentSlotHoldRepository.delete(hold);
+    }
+
     @Override
     public List<AppointmentResponse> getPatientAppointments(String patientId) {
         patientRepository.findById(patientId)
                 .orElseThrow(() -> new ResourceNotFoundException(
-                "not found patient with ID: " + patientId));
+                        "not found patient with ID: " + patientId));
 
         return appointmentRepository
                 .findByPatient_PatientIdOrderByAppointmentTimeDesc(patientId)
@@ -140,24 +351,21 @@ public class AppointmentServiceImpl implements AppointmentService{
                 .collect(Collectors.toList());
     }
 
-    // View details of an appointment by ID and return Appointment information
     @Override
     public AppointmentResponse getAppointmentById(Integer id) {
         return toResponse(
                 appointmentRepository.findById(id)
                         .orElseThrow(() -> new ResourceNotFoundException(
-                        "Không tìm thấy lịch hẹn với ID: " + id)));
+                                "Khong tim thay lich hen voi ID: " + id)));
     }
 
-    // Cancels appointment
     @Override
     @Transactional
     public AppointmentResponse cancelAppointment(Integer id, CancelAppointmentRequest request) {
         Appointment appointment = appointmentRepository.findById(id)
                 .orElseThrow(() -> new ResourceNotFoundException(
-                "mot found appointment with ID: " + id));
+                        "mot found appointment with ID: " + id));
 
-        // Kiểm tra cancelledBy hợp lệ
         String cancelledBy = request.getCancelledBy();
         if (cancelledBy == null || cancelledBy.isBlank()) {
             throw new BusinessException("cancelledBy is required");
@@ -166,20 +374,15 @@ public class AppointmentServiceImpl implements AppointmentService{
             throw new BusinessException(
                     "cancelledBy must be 'Patient' or 'Doctor', but got: '" + cancelledBy + "'");
         }
-
-        // Lý do hủy là bắt buộc
         if (request.getCancelReason() == null || request.getCancelReason().isBlank()) {
             throw new BusinessException("Cancel reason is required");
         }
-
         if ("Cancelled".equals(appointment.getStatus())) {
             throw new BusinessException("This appointment has already been canceled");
         }
         if ("Completed".equals(appointment.getStatus())) {
             throw new BusinessException("Completed appointments cannot be canceled");
         }
-
-        // Không cho hủy nếu còn dưới 2 giờ trước giờ khám
         if (appointment.getAppointmentTime().isBefore(LocalDateTime.now().plusHours(2))) {
             throw new BusinessException(
                     "Cannot cancel an appointment less than 2 hours before the scheduled time");
@@ -192,35 +395,27 @@ public class AppointmentServiceImpl implements AppointmentService{
 
         Appointment saved = appointmentRepository.save(appointment);
         notifyDoctorAboutCancelledAppointmentAfterCommit(saved);
-
         return toResponse(saved);
     }
 
-    // Dời lịch hẹn sang thời gian mới
     @Override
     @Transactional
     public AppointmentResponse rescheduleAppointment(Integer id, RescheduleAppointmentRequest request) {
-
-        // Tìm appointment
         Appointment appointment = appointmentRepository.findById(id)
                 .orElseThrow(() -> new ResourceNotFoundException(
-                "Not found appointment with ID: " + id));
+                        "Not found appointment with ID: " + id));
 
-        // Chỉ cho phép reschedule khi đang ở trạng thái Scheduled
         if ("Cancelled".equals(appointment.getStatus())) {
             throw new BusinessException("Cannot reschedule a cancelled appointment");
         }
         if ("Completed".equals(appointment.getStatus())) {
             throw new BusinessException("Cannot reschedule a completed appointment");
         }
-
-        // Không cho reschedule nếu còn dưới 2 giờ trước giờ khám cũ
         if (appointment.getAppointmentTime().isBefore(LocalDateTime.now().plusHours(2))) {
             throw new BusinessException(
                     "Cannot reschedule an appointment less than 2 hours before the scheduled time");
         }
 
-        // Thời gian mới phải hợp lệ
         LocalDateTime newTime = request.getNewAppointmentTime();
         if (newTime == null) {
             throw new BusinessException("New appointment time is required");
@@ -229,7 +424,6 @@ public class AppointmentServiceImpl implements AppointmentService{
             throw new BusinessException("New appointment time must be in the future");
         }
 
-        // Kiểm tra bác sĩ có ca làm việc ở ngày/giờ mới không
         Doctor doctor = appointment.getDoctor();
         int newDayOfWeek = newTime.getDayOfWeek().getValue() % 7;
         LocalTime newRequestedTime = newTime.toLocalTime();
@@ -244,29 +438,31 @@ public class AppointmentServiceImpl implements AppointmentService{
         DoctorSchedule matchedSchedule = schedulesOfDay.stream()
                 .filter(s -> isConsultationTypeMatch(s, appointment.getConsultationType()))
                 .filter(s -> !newRequestedTime.isBefore(s.getStartTime())
-                && newRequestedTime.isBefore(s.getEndTime()))
+                        && newRequestedTime.isBefore(s.getEndTime()))
+                .filter(s -> isAlignedWithSlot(s, newRequestedTime))
                 .findFirst()
                 .orElseThrow(() -> new BusinessException(
-                "Doctor does not have a suitable working shift at "
-                + newRequestedTime + " for consultation type " + appointment.getConsultationType()));
+                        "Doctor does not have a suitable working shift at "
+                                + newRequestedTime + " for consultation type " + appointment.getConsultationType()));
 
-        // Kiểm tra conflict tại slot mới (bỏ qua chính appointment này)
         int slotMinutes = Objects.requireNonNullElse(matchedSchedule.getSlotDuration(), 30);
         LocalDateTime slotStart = newTime;
         LocalDateTime slotEnd = newTime.plusMinutes(slotMinutes);
 
         boolean hasConflict = appointmentRepository
                 .existsByDoctor_DoctorIdAndStatusNotAndAppointmentTimeBetweenAndAppointmentIdNot(
-                        doctor.getDoctorId(), "Cancelled",
-                        slotStart, slotEnd.minusSeconds(1),
-                        id); // loại trừ chính appointment này
+                        doctor.getDoctorId(),
+                        "Cancelled",
+                        slotStart,
+                        slotEnd.minusSeconds(1),
+                        id
+                );
 
         if (hasConflict) {
             throw new BusinessException(
                     "Doctor already has another appointment in this time slot (" + slotMinutes + " mins/slot)");
         }
 
-        // Cập nhật lịch hẹn
         appointment.setRescheduledFrom(appointment.getAppointmentId());
         appointment.setAppointmentTime(newTime);
         appointment.setEndTime(newTime.plusMinutes(slotMinutes));
@@ -274,10 +470,6 @@ public class AppointmentServiceImpl implements AppointmentService{
         return toResponse(appointmentRepository.save(appointment));
     }
 
-    // -------------------------------------------------------------------------
-    // Private helpers
-    // -------------------------------------------------------------------------
-    // Validate input data for the booking request.
     private void validateRequest(AppointmentRequest request) {
         if (request.getPatientId() == null || request.getPatientId().isBlank()) {
             throw new BusinessException("Patient ID not null");
@@ -291,41 +483,44 @@ public class AppointmentServiceImpl implements AppointmentService{
         if (request.getAppointmentTime().isBefore(LocalDateTime.now())) {
             throw new BusinessException("Consultation time must be in the future");
         }
+        validateBookingDate(request.getAppointmentTime().toLocalDate());
         if (request.getConsultationType() == null || request.getConsultationType().isBlank()) {
             throw new BusinessException("Consultation type cannot be empty");
         }
     }
 
-    // Check if the doctor supports the requested consultation type.
     private void checkConsultationTypeSupported(Doctor doctor, String consultationType) {
         boolean supported = switch (consultationType.toLowerCase()) {
-            case "video" ->
-                doctor.isAvailableForVideo();
-            case "audio" ->
-                doctor.isAvailableForAudio();
-            case "chat" ->
-                doctor.isAvailableForChat();
-            case "offline" ->
-                doctor.isAvailableForOffline();
-            default ->
-                throw new BusinessException(
-                        "Invalid consultation type: '" + consultationType
-                        + "'. Must be: Video, Audio, Chat, Offline");
+            case "video" -> doctor.isAvailableForVideo();
+            case "audio" -> doctor.isAvailableForAudio();
+            case "chat" -> doctor.isAvailableForChat();
+            case "offline" -> doctor.isAvailableForOffline();
+            default -> throw new BusinessException(
+                    "Invalid consultation type: '" + consultationType
+                            + "'. Must be: Video, Audio, Chat, Offline");
         };
 
         if (!supported) {
             throw new BusinessException(
                     "Doctor " + doctor.getFullName()
-                    + " does not support consultation type: " + consultationType);
+                            + " does not support consultation type: " + consultationType);
         }
     }
 
-    // Checks if the schedule supports the requested consultation type. Null means all types are supported.
     private boolean isConsultationTypeMatch(DoctorSchedule schedule, String consultationType) {
         if (schedule.getConsultationType() == null || schedule.getConsultationType().isBlank()) {
             return true;
         }
         return schedule.getConsultationType().equalsIgnoreCase(consultationType);
+    }
+
+    private boolean isAlignedWithSlot(DoctorSchedule schedule, LocalTime requestedTime) {
+        int minutesFromStart = (int) java.time.Duration
+                .between(schedule.getStartTime(), requestedTime)
+                .toMinutes();
+
+        int slotMinutes = Objects.requireNonNullElse(schedule.getSlotDuration(), 30);
+        return minutesFromStart >= 0 && minutesFromStart % slotMinutes == 0;
     }
 
     private void notifyDoctorAboutNewAppointmentAfterCommit(Appointment appointment) {
@@ -339,20 +534,18 @@ public class AppointmentServiceImpl implements AppointmentService{
         String consultationType = safeValue(appointment.getConsultationType(), "consultation");
         Integer appointmentId = appointment.getAppointmentId();
         String actionUrl = "/appointments/" + appointmentId;
-        String title = "New appointment booked";
-        String message = String.format(
-                "%s booked a %s appointment at %s.",
-                patientName,
-                consultationType,
-                appointmentTime
-        );
 
         runAfterCommit("new appointment notification appointmentId=" + appointmentId, () -> {
             notificationService.sendWebSocketNotification(
                     doctorUser,
                     NotificationType.NEW_APPOINTMENT,
-                    title,
-                    message,
+                    "New appointment booked",
+                    String.format(
+                            "%s booked a %s appointment at %s.",
+                            patientName,
+                            consultationType,
+                            appointmentTime
+                    ),
                     appointmentId,
                     actionUrl
             );
@@ -373,21 +566,19 @@ public class AppointmentServiceImpl implements AppointmentService{
         String cancelReason = safeValue(appointment.getCancelReason(), "No reason provided");
         Integer appointmentId = appointment.getAppointmentId();
         String actionUrl = "/appointments/" + appointmentId;
-        String title = "Appointment cancelled";
-        String message = String.format(
-                "%s's appointment at %s was cancelled by %s. Reason: %s",
-                patientName,
-                appointmentTime,
-                cancelledBy,
-                cancelReason
-        );
 
         runAfterCommit("cancel appointment notification appointmentId=" + appointmentId, () -> {
             notificationService.sendWebSocketNotification(
                     doctorUser,
                     NotificationType.CANCEL_APPOINTMENT,
-                    title,
-                    message,
+                    "Appointment cancelled",
+                    String.format(
+                            "%s's appointment at %s was cancelled by %s. Reason: %s",
+                            patientName,
+                            appointmentTime,
+                            cancelledBy,
+                            cancelReason
+                    ),
                     appointmentId,
                     actionUrl
             );
@@ -443,32 +634,39 @@ public class AppointmentServiceImpl implements AppointmentService{
         return value == null || value.isBlank() ? fallback : value;
     }
 
-    /**
-     * Converts an Appointment entity to a DTO response.
-     */
-    private AppointmentResponse toResponse(Appointment a) {
+    private AppointmentResponse toResponse(Appointment appointment) {
         return AppointmentResponse.builder()
-                .appointmentId(a.getAppointmentId())
-                .patientId(a.getPatient().getPatientId())
-                .patientName(a.getPatient().getFullName())
-                .doctorId(a.getDoctor().getDoctorId())
-                .doctorName(a.getDoctor().getFullName())
-                .appointmentTime(a.getAppointmentTime())
-                .consultationType(a.getConsultationType())
-                .status(a.getStatus())
-                .fee(a.getFee())
-                .symptoms(a.getSymptoms())
-                .notes(a.getNotes())
-                .cancelledAt(a.getCancelledAt())
-                .cancelReason(a.getCancelReason())
-                .cancelledBy(a.getCancelledBy())
-                .confirmedAt(a.getConfirmedAt())
+                .appointmentId(appointment.getAppointmentId())
+                .patientId(appointment.getPatient().getPatientId())
+                .patientName(appointment.getPatient().getFullName())
+                .doctorId(appointment.getDoctor().getDoctorId())
+                .doctorName(appointment.getDoctor().getFullName())
+                .appointmentTime(appointment.getAppointmentTime())
+                .consultationType(appointment.getConsultationType())
+                .status(appointment.getStatus())
+                .fee(appointment.getFee())
+                .symptoms(appointment.getSymptoms())
+                .notes(appointment.getNotes())
+                .cancelledAt(appointment.getCancelledAt())
+                .cancelReason(appointment.getCancelReason())
+                .cancelledBy(appointment.getCancelledBy())
+                .confirmedAt(appointment.getConfirmedAt())
                 .build();
     }
 
-    /**
-     * Returns the day name in English.
-     */
+    private void validateBookingDate(LocalDate date) {
+        LocalDate today = LocalDate.now();
+        LocalDate latestAllowedDate = today.plusDays(maxDaysAhead);
+
+        if (date.isBefore(today)) {
+            throw new BusinessException("Cannot book appointments in the past");
+        }
+        if (date.isAfter(latestAllowedDate)) {
+            throw new BusinessException(
+                    "Appointments can only be booked within the next " + maxDaysAhead + " days");
+        }
+    }
+
     private String getDayName(int dayOfWeek) {
         String[] names = {"Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"};
         return (dayOfWeek >= 0 && dayOfWeek < names.length) ? names[dayOfWeek] : "unknown";

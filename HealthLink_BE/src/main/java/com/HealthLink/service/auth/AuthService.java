@@ -42,4 +42,9 @@ public interface AuthService {
      * @param accessToken chuỗi JWT đầy đủ (không bao gồm "Bearer ")
      */
     void logout(String accessToken);
+
+    /**
+     * Xác nhận email sau đăng ký thông qua token trong link email.
+     */
+    void confirmEmail(String token);
 }

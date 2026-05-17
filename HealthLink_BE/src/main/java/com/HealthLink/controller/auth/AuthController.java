@@ -95,4 +95,15 @@ public class AuthController {
         authService.logout(accessToken);
         return ResponseEntity.ok(Map.of("message", "Logged out successfully."));
     }
+
+    /**
+     * GET /api/auth/confirm-email?token=xxx
+     * Xác nhận email sau khi đăng ký — người dùng click vào link trong email.
+     * Endpoint PUBLIC, không cần JWT.
+     */
+    @GetMapping("/confirm-email")
+    public ResponseEntity<Map<String, String>> confirmEmail(@RequestParam String token) {
+        authService.confirmEmail(token);
+        return ResponseEntity.ok(Map.of("message", "Email confirmed successfully! You can now log in."));
+    }
 }
