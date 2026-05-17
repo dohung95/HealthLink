@@ -1,8 +1,8 @@
 package com.HealthLink.repository.admin.commission;
 
 import com.HealthLink.entity.CommissionTransaction;
-import com.HealthLink.dto.commission.MonthlyCommissionDto;
-import com.HealthLink.dto.commission.RecipientSummaryDto;
+import com.HealthLink.dto.commission.admin.AdminMonthlyCommissionDto;
+import com.HealthLink.dto.commission.admin.AdminRecipientSummaryDto;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
@@ -58,7 +58,7 @@ public interface AdminCommissionTransactionRepository extends JpaRepository<Comm
     @Query("SELECT COALESCE(SUM(t.commissionAmount), 0) FROM CommissionTransaction t WHERE t.recipientType = :type")
     BigDecimal getCommissionByRecipientType(String type);
 
-    @Query("SELECT new com.HealthLink.dto.commission.RecipientSummaryDto(" +
+    @Query("SELECT new com.HealthLink.dto.commission.admin.AdminRecipientSummaryDto(" +
            "t.recipientId, t.recipientName, t.recipientType, " +
            "SUM(t.grossAmount), SUM(t.commissionAmount), SUM(t.netAmount), " +
            "SUM(CASE WHEN t.status = 'PENDING' THEN t.netAmount ELSE 0 END), COUNT(t)) " +
@@ -66,16 +66,16 @@ public interface AdminCommissionTransactionRepository extends JpaRepository<Comm
            "WHERE t.recipientType = :type " +
            "GROUP BY t.recipientId, t.recipientName, t.recipientType " +
            "ORDER BY SUM(CASE WHEN t.status = 'PENDING' THEN t.netAmount ELSE 0 END) DESC")
-    List<RecipientSummaryDto> getTopPendingByType(String type, Pageable pageable);
+    List<AdminRecipientSummaryDto> getTopPendingByType(String type, Pageable pageable);
 
-    @Query("SELECT new com.HealthLink.dto.commission.MonthlyCommissionDto(" +
+    @Query("SELECT new com.HealthLink.dto.commission.admin.AdminMonthlyCommissionDto(" +
            "YEAR(t.createdAt), MONTH(t.createdAt), '', " +
            "SUM(t.grossAmount), SUM(t.commissionAmount), COUNT(t)) " +
            "FROM CommissionTransaction t " +
            "WHERE t.createdAt >= :fromDate " +
            "GROUP BY YEAR(t.createdAt), MONTH(t.createdAt) " +
            "ORDER BY YEAR(t.createdAt), MONTH(t.createdAt)")
-    List<MonthlyCommissionDto> getMonthlyCommission(LocalDateTime fromDate);
+    List<AdminMonthlyCommissionDto> getMonthlyCommission(LocalDateTime fromDate);
 
     @Query("SELECT MAX(t.transactionNumber) FROM CommissionTransaction t WHERE t.transactionNumber LIKE :prefix%")
     String findMaxTransactionNumber(String prefix);

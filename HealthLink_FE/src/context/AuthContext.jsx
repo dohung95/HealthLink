@@ -20,7 +20,7 @@ export function AuthProvider({ children }) {
     const [tokenExpiry, setTokenExpiry] = useState(null);
     const [loading, setLoading] = useState(true); // Thêm loading state
 
-    const [connection, setConnection] = useState(null); // Lưu trữ kết nối
+    const [connection, setConnection] = useState(null); // DISABLED - using STOMP instead
     const [incomingCall, setIncomingCall] = useState(null);
 
     // Setup axios interceptors on mount
@@ -317,7 +317,7 @@ export function AuthProvider({ children }) {
         }
     };
 
-    // 2. Khi BẠN bấm "Bắt máy"
+    // 2. Khi BẠN bấm "Bắt máy" - TEMPORARILY DISABLED
     const acceptCall = async () => {
         // 1. Kiểm tra connection và cuộc gọi đến
         if (!connection || !stompChatService.isConnected) {
@@ -374,7 +374,7 @@ export function AuthProvider({ children }) {
         }
     };
 
-    // 3. Khi BẠN bấm "Từ chối"
+    // 3. Khi BẠN bấm "Từ chối" - TEMPORARILY DISABLED
     const declineCall = async () => {
         if (connection && incomingCall) {
             // Báo cho server là bạn đã từ chối

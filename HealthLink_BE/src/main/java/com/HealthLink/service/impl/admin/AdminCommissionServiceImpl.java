@@ -1,11 +1,10 @@
 package com.HealthLink.service.impl.admin;
 
-import com.HealthLink.dto.commission.*;
+import com.HealthLink.dto.commission.admin.*;
 import com.HealthLink.entity.*;
 import com.HealthLink.repository.admin.commission.AdminSettlementRepository;
 import com.HealthLink.repository.doctor.DoctorRepository;
 import com.HealthLink.repository.pharmacy.PharmacyRepository;
-import com.HealthLink.service.commission.CommissionService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.*;
 import org.springframework.stereotype.Service;
@@ -21,11 +20,12 @@ import java.util.List;
 import java.util.Locale;
 import com.HealthLink.repository.admin.commission.AdminCommissionConfigRepository;
 import com.HealthLink.repository.admin.commission.AdminCommissionTransactionRepository;
+import com.HealthLink.service.admin.AdminCommissionService;
 
 @Service
 @RequiredArgsConstructor
 @Transactional
-public class AdminCommissionServiceImpl implements CommissionService {
+public class AdminCommissionServiceImpl implements AdminCommissionService {
 
     private final AdminCommissionConfigRepository configRepo;
     private final AdminCommissionTransactionRepository transactionRepo;
@@ -34,28 +34,28 @@ public class AdminCommissionServiceImpl implements CommissionService {
     private final PharmacyRepository pharmacyRepo;
 
     @Override
-    public List<CommissionConfigDto> getAllConfigs() {
+    public List<AdminCommissionConfigDto> getAllConfigs() {
         return configRepo.findAllByOrderByServiceTypeAsc().stream()
             .map(this::toConfigDto)
             .toList();
     }
 
     @Override
-    public CommissionConfigDto getConfigById(Integer id) {
+    public AdminCommissionConfigDto getConfigById(Integer id) {
         return configRepo.findById(id)
             .map(this::toConfigDto)
             .orElseThrow(() -> new RuntimeException("Commission config not found"));
     }
 
     @Override
-    public CommissionConfigDto getActiveConfig(String serviceType) {
+    public AdminCommissionConfigDto getActiveConfig(String serviceType) {
         return configRepo.findActiveConfigByServiceType(serviceType, LocalDateTime.now())
             .map(this::toConfigDto)
             .orElseThrow(() -> new RuntimeException("Active commission config not found"));
     }
 
     @Override
-    public CommissionConfigDto updateConfig(Integer id, CommissionConfigUpdateDto dto) {
+    public AdminCommissionConfigDto updateConfig(Integer id, AdminCommissionConfigUpdateDto dto) {
         CommissionConfig config = configRepo.findById(id)
             .orElseThrow(() -> new RuntimeException("Commission config not found"));
 
@@ -78,7 +78,7 @@ public class AdminCommissionServiceImpl implements CommissionService {
     }
 
     @Override
-    public CommissionTransactionDto calculateAndRecordAppointment(Appointment appointment) {
+    public AdminCommissionTransactionDto calculateAndRecordAppointment(Appointment appointment) {
         String consultationType = appointment.getConsultationType();
         String serviceType = isOnlineConsultation(consultationType)
             ? "CONSULTATION_ONLINE" : "CONSULTATION_OFFLINE";
@@ -114,7 +114,7 @@ public class AdminCommissionServiceImpl implements CommissionService {
     }
 
     @Override
-    public CommissionTransactionDto calculateAndRecordPharmacyOrder(PharmacyOrder order) {
+    public AdminCommissionTransactionDto calculateAndRecordPharmacyOrder(PharmacyOrder order) {
         String serviceType = "PHARMACY_ORDER";
         Pharmacy pharmacy = order.getPharmacy();
         BigDecimal medicineAmount = order.getMedicineAmount() == null ? BigDecimal.ZERO : order.getMedicineAmount();
@@ -148,7 +148,7 @@ public class AdminCommissionServiceImpl implements CommissionService {
     }
 
     @Override
-    public Page<CommissionTransactionDto> getTransactions(CommissionFilterDto filter) {
+    public Page<AdminCommissionTransactionDto> getTransactions(AdminCommissionFilterDto filter) {
         Pageable pageable = buildPageable(filter);
         Page<CommissionTransaction> page = transactionRepo.findWithFilters(
             filter.getRecipientType(), filter.getRecipientId(), filter.getServiceType(), filter.getStatus(),
@@ -157,14 +157,14 @@ public class AdminCommissionServiceImpl implements CommissionService {
     }
 
     @Override
-    public CommissionTransactionDto getTransactionById(Integer id) {
+    public AdminCommissionTransactionDto getTransactionById(Integer id) {
         return transactionRepo.findById(id)
             .map(this::toTransactionDto)
             .orElseThrow(() -> new RuntimeException("Commission transaction not found"));
     }
 
     @Override
-    public List<CommissionTransactionDto> getPendingTransactionsByRecipient(String type, String id) {
+    public List<AdminCommissionTransactionDto> getPendingTransactionsByRecipient(String type, String id) {
         return transactionRepo.findByRecipientTypeAndRecipientIdAndStatus(type, id, "PENDING")
             .stream()
             .map(this::toTransactionDto)
@@ -172,7 +172,7 @@ public class AdminCommissionServiceImpl implements CommissionService {
     }
 
     @Override
-    public Page<SettlementDto> getSettlements(CommissionFilterDto filter) {
+    public Page<AdminSettlementDto> getSettlements(AdminCommissionFilterDto filter) {
         Pageable pageable = buildPageable(filter);
         Page<Settlement> page = settlementRepo.findWithFilters(
             filter.getRecipientType(), filter.getStatus(), filter.getDateFrom(), filter.getDateTo(), pageable);
@@ -180,14 +180,14 @@ public class AdminCommissionServiceImpl implements CommissionService {
     }
 
     @Override
-    public SettlementDto getSettlementById(Integer id) {
+    public AdminSettlementDto getSettlementById(Integer id) {
         return settlementRepo.findById(id)
             .map(this::toSettlementDto)
             .orElseThrow(() -> new RuntimeException("Settlement not found"));
     }
 
     @Override
-    public SettlementDto createSettlement(SettlementCreateDto dto) {
+    public AdminSettlementDto createSettlement(AdminSettlementCreateDto dto) {
         List<CommissionTransaction> transactions;
         if (dto.getTransactionIds() != null && !dto.getTransactionIds().isEmpty()) {
             transactions = transactionRepo.findAllById(dto.getTransactionIds());
@@ -262,7 +262,7 @@ public class AdminCommissionServiceImpl implements CommissionService {
     }
 
     @Override
-    public SettlementDto processSettlement(SettlementProcessDto dto) {
+    public AdminSettlementDto processSettlement(AdminSettlementProcessDto dto) {
         Settlement settlement = settlementRepo.findById(dto.getSettlementId())
             .orElseThrow(() -> new RuntimeException("Settlement not found"));
 
@@ -295,19 +295,19 @@ public class AdminCommissionServiceImpl implements CommissionService {
     }
 
     @Override
-    public List<SettlementDto> getSettlementsByRecipient(String type, String id) {
+    public List<AdminSettlementDto> getSettlementsByRecipient(String type, String id) {
         return settlementRepo.findByRecipientTypeAndRecipientId(type, id).stream()
             .map(this::toSettlementDto)
             .toList();
     }
 
     @Override
-    public CommissionDashboardDto getDashboard() {
+    public AdminCommissionDashboardDto getDashboard() {
         LocalDateTime oneYearAgo = LocalDateTime.now().minusYears(1);
-        List<RecipientSummaryDto> topDoctors = transactionRepo.getTopPendingByType("DOCTOR", PageRequest.of(0, 5));
-        List<RecipientSummaryDto> topPharmacies = transactionRepo.getTopPendingByType("PHARMACY", PageRequest.of(0, 5));
+        List<AdminRecipientSummaryDto> topDoctors = transactionRepo.getTopPendingByType("DOCTOR", PageRequest.of(0, 5));
+        List<AdminRecipientSummaryDto> topPharmacies = transactionRepo.getTopPendingByType("PHARMACY", PageRequest.of(0, 5));
 
-        return CommissionDashboardDto.builder()
+        return AdminCommissionDashboardDto.builder()
             .totalGrossRevenue(transactionRepo.getTotalGrossRevenue())
             .totalCommission(transactionRepo.getTotalCommission())
             .totalPaidOut(settlementRepo.getTotalPaidOut())
@@ -326,7 +326,7 @@ public class AdminCommissionServiceImpl implements CommissionService {
     }
 
     @Override
-    public List<RecipientSummaryDto> getRecipientSummaries(String type, int limit) {
+    public List<AdminRecipientSummaryDto> getRecipientSummaries(String type, int limit) {
         if (limit <= 0) {
             limit = 10;
         }
@@ -443,8 +443,8 @@ public class AdminCommissionServiceImpl implements CommissionService {
         }
     }
 
-    private CommissionConfigDto toConfigDto(CommissionConfig config) {
-        return CommissionConfigDto.builder()
+    private AdminCommissionConfigDto toConfigDto(CommissionConfig config) {
+        return AdminCommissionConfigDto.builder()
             .configId(config.getConfigId())
             .serviceType(config.getServiceType())
             .commissionRate(config.getCommissionRate())
@@ -459,8 +459,8 @@ public class AdminCommissionServiceImpl implements CommissionService {
             .build();
     }
 
-    private CommissionTransactionDto toTransactionDto(CommissionTransaction tx) {
-        return CommissionTransactionDto.builder()
+    private AdminCommissionTransactionDto toTransactionDto(CommissionTransaction tx) {
+        return AdminCommissionTransactionDto.builder()
             .transactionId(tx.getTransactionId())
             .transactionNumber(tx.getTransactionNumber())
             .sourceType(tx.getSourceType())
@@ -480,8 +480,8 @@ public class AdminCommissionServiceImpl implements CommissionService {
             .build();
     }
 
-    private SettlementDto toSettlementDto(Settlement settlement) {
-        return SettlementDto.builder()
+    private AdminSettlementDto toSettlementDto(Settlement settlement) {
+        return AdminSettlementDto.builder()
             .settlementId(settlement.getSettlementId())
             .settlementNumber(settlement.getSettlementNumber())
             .recipientType(settlement.getRecipientType())
@@ -508,7 +508,7 @@ public class AdminCommissionServiceImpl implements CommissionService {
             .build();
     }
 
-    private Pageable buildPageable(CommissionFilterDto filter) {
+    private Pageable buildPageable(AdminCommissionFilterDto filter) {
         int page = filter.getPage() == null ? 0 : filter.getPage();
         int size = filter.getSize() == null ? 20 : filter.getSize();
         String sortBy = filter.getSortBy() == null || filter.getSortBy().isBlank() ? "createdAt" : filter.getSortBy();
@@ -516,8 +516,8 @@ public class AdminCommissionServiceImpl implements CommissionService {
         return PageRequest.of(page, size, Sort.by(direction, sortBy));
     }
 
-    private List<MonthlyCommissionDto> fillMonthNames(List<MonthlyCommissionDto> rows) {
-        for (MonthlyCommissionDto item : rows) {
+    private List<AdminMonthlyCommissionDto> fillMonthNames(List<AdminMonthlyCommissionDto> rows) {
+        for (AdminMonthlyCommissionDto item : rows) {
             item.setMonthName(item.getMonth() == null ? "" : LocalDate.of(item.getYear(), item.getMonth(), 1)
                 .getMonth().name().substring(0, 3));
         }

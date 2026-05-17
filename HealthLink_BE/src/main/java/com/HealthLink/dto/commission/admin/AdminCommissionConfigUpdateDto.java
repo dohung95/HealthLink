@@ -1,4 +1,4 @@
-package com.HealthLink.dto.commission;
+package com.HealthLink.dto.commission.admin;
 
 import lombok.*;
 
@@ -9,7 +9,7 @@ import java.time.LocalDateTime;
 @NoArgsConstructor
 @AllArgsConstructor
 @Builder
-public class CommissionConfigUpdateDto {
+public class AdminCommissionConfigUpdateDto {
     private BigDecimal commissionRate;
     private BigDecimal minCommission;
     private BigDecimal maxCommission;

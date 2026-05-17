@@ -1,4 +1,4 @@
-package com.HealthLink.dto.commission;
+package com.HealthLink.dto.commission.admin;
 
 import lombok.*;
 
@@ -10,7 +10,7 @@ import java.util.List;
 @NoArgsConstructor
 @AllArgsConstructor
 @Builder
-public class SettlementDto {
+public class AdminSettlementDto {
     private Integer settlementId;
     private String settlementNumber;
     private String recipientType;
@@ -32,5 +32,5 @@ public class SettlementDto {
     private LocalDateTime completedAt;
     private String notes;
     private LocalDateTime createdAt;
-    private List<CommissionTransactionDto> transactions;
+    private List<AdminCommissionTransactionDto> transactions;
 }

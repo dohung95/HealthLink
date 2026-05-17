@@ -1,4 +1,4 @@
-package com.HealthLink.dto.commission;
+package com.HealthLink.dto.commission.admin;
 
 import lombok.*;
 
@@ -8,7 +8,7 @@ import java.time.LocalDateTime;
 @NoArgsConstructor
 @AllArgsConstructor
 @Builder
-public class CommissionFilterDto {
+public class AdminCommissionFilterDto {
     private String recipientType;
     private String recipientId;
     private String serviceType;

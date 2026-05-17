@@ -23,6 +23,8 @@ import ProfilePharmacy from './pages/profilePharmacy';
 import Admin from './components/Admin/View/Admin';
 import Patients from './components/Admin/View/Patients';
 import AdminDoctors from './components/Admin/View/Doctors';
+import PharmacyManagement from './components/Admin/View/PharmacyManagement';
+import CommissionManagement from './components/Admin/View/CommissionManagement';
 import Appointments from './components/Admin/View/Appointments';
 import MedicalRecords from './components/Admin/View/MedicalRecords';
 import Registrations from './components/Admin/View/Registrations';
@@ -226,12 +228,14 @@ function AppContent() {
               </ProtectedRoute>
             } />
 
-            <Route path="/admin" element={<Admin />} />
-            <Route path="/admin/patients" element={<Patients />} />
-            <Route path="/admin/doctors" element={<AdminDoctors />} />
-            <Route path="/admin/appointments" element={<Appointments />} />
-            <Route path="/admin/medical-records" element={<MedicalRecords />} />
-            <Route path="/admin/registrations" element={<Registrations />} />
+            <Route path="/admin" element={<Admin /> } />
+            <Route path="/admin/patients" element={<Patients /> } />
+            <Route path="/admin/doctors" element={<AdminDoctors /> } />
+            <Route path="/admin/pharmacies" element={<PharmacyManagement /> } />
+            <Route path="/admin/commission" element={<CommissionManagement /> } />
+            <Route path="/admin/appointments" element={<Appointments /> } />
+            <Route path="/admin/medical-records" element={<MedicalRecords /> } />
+            <Route path="/admin/registrations" element={<Registrations /> } />
 
             <Route
               path="/patient-dashboard"

@@ -1,7 +1,6 @@
 package com.HealthLink.controller.admin;
 
-import com.HealthLink.dto.commission.*;
-import com.HealthLink.service.commission.CommissionService;
+import com.HealthLink.dto.commission.admin.*;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
 import org.springframework.http.ResponseEntity;
@@ -12,6 +11,7 @@ import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
 import java.time.format.DateTimeParseException;
 import java.util.List;
+import com.HealthLink.service.admin.AdminCommissionService;
 
 @CrossOrigin(origins = "http://localhost:63527")
 @RestController
@@ -19,32 +19,32 @@ import java.util.List;
 @RequiredArgsConstructor
 public class AdminCommissionController {
 
-    private final CommissionService commissionService;
+    private final AdminCommissionService commissionService;
 
     @GetMapping("/dashboard")
-    public ResponseEntity<CommissionDashboardDto> getDashboard() {
+    public ResponseEntity<AdminCommissionDashboardDto> getDashboard() {
         return ResponseEntity.ok(commissionService.getDashboard());
     }
 
     @GetMapping("/configs")
-    public ResponseEntity<List<CommissionConfigDto>> getAllConfigs() {
+    public ResponseEntity<List<AdminCommissionConfigDto>> getAllConfigs() {
         return ResponseEntity.ok(commissionService.getAllConfigs());
     }
 
     @GetMapping("/configs/{id}")
-    public ResponseEntity<CommissionConfigDto> getConfigById(@PathVariable Integer id) {
+    public ResponseEntity<AdminCommissionConfigDto> getConfigById(@PathVariable Integer id) {
         return ResponseEntity.ok(commissionService.getConfigById(id));
     }
 
     @PutMapping("/configs/{id}")
-    public ResponseEntity<CommissionConfigDto> updateConfig(
+    public ResponseEntity<AdminCommissionConfigDto> updateConfig(
             @PathVariable Integer id,
-            @RequestBody CommissionConfigUpdateDto dto) {
+            @RequestBody AdminCommissionConfigUpdateDto dto) {
         return ResponseEntity.ok(commissionService.updateConfig(id, dto));
     }
 
     @GetMapping("/transactions")
-    public ResponseEntity<Page<CommissionTransactionDto>> getTransactions(
+    public ResponseEntity<Page<AdminCommissionTransactionDto>> getTransactions(
             @RequestParam(required = false) String recipientType,
             @RequestParam(required = false) String recipientId,
             @RequestParam(required = false) String serviceType,
@@ -56,7 +56,7 @@ public class AdminCommissionController {
             @RequestParam(defaultValue = "createdAt") String sortBy,
             @RequestParam(defaultValue = "desc") String sortDir) {
 
-        CommissionFilterDto filter = CommissionFilterDto.builder()
+        AdminCommissionFilterDto filter = AdminCommissionFilterDto.builder()
             .recipientType(recipientType)
             .recipientId(recipientId)
             .serviceType(serviceType)
@@ -73,12 +73,12 @@ public class AdminCommissionController {
     }
 
     @GetMapping("/transactions/{id}")
-    public ResponseEntity<CommissionTransactionDto> getTransactionById(@PathVariable Integer id) {
+    public ResponseEntity<AdminCommissionTransactionDto> getTransactionById(@PathVariable Integer id) {
         return ResponseEntity.ok(commissionService.getTransactionById(id));
     }
 
     @GetMapping("/settlements")
-    public ResponseEntity<Page<SettlementDto>> getSettlements(
+    public ResponseEntity<Page<AdminSettlementDto>> getSettlements(
             @RequestParam(required = false) String recipientType,
             @RequestParam(required = false) String status,
             @RequestParam(required = false) String dateFrom,
@@ -88,7 +88,7 @@ public class AdminCommissionController {
             @RequestParam(defaultValue = "createdAt") String sortBy,
             @RequestParam(defaultValue = "desc") String sortDir) {
 
-        CommissionFilterDto filter = CommissionFilterDto.builder()
+        AdminCommissionFilterDto filter = AdminCommissionFilterDto.builder()
             .recipientType(recipientType)
             .status(status)
             .dateFrom(parseDateTime(dateFrom))
@@ -103,34 +103,34 @@ public class AdminCommissionController {
     }
 
     @GetMapping("/settlements/{id}")
-    public ResponseEntity<SettlementDto> getSettlementById(@PathVariable Integer id) {
+    public ResponseEntity<AdminSettlementDto> getSettlementById(@PathVariable Integer id) {
         return ResponseEntity.ok(commissionService.getSettlementById(id));
     }
 
     @PostMapping("/settlements")
-    public ResponseEntity<SettlementDto> createSettlement(@RequestBody SettlementCreateDto dto) {
+    public ResponseEntity<AdminSettlementDto> createSettlement(@RequestBody AdminSettlementCreateDto dto) {
         return ResponseEntity.ok(commissionService.createSettlement(dto));
     }
 
     @PostMapping("/settlements/process")
-    public ResponseEntity<SettlementDto> processSettlement(@RequestBody SettlementProcessDto dto) {
+    public ResponseEntity<AdminSettlementDto> processSettlement(@RequestBody AdminSettlementProcessDto dto) {
         return ResponseEntity.ok(commissionService.processSettlement(dto));
     }
 
     @GetMapping("/recipients/doctors")
-    public ResponseEntity<List<RecipientSummaryDto>> getDoctorSummaries(
+    public ResponseEntity<List<AdminRecipientSummaryDto>> getDoctorSummaries(
             @RequestParam(defaultValue = "10") int limit) {
         return ResponseEntity.ok(commissionService.getRecipientSummaries("DOCTOR", limit));
     }
 
     @GetMapping("/recipients/pharmacies")
-    public ResponseEntity<List<RecipientSummaryDto>> getPharmacySummaries(
+    public ResponseEntity<List<AdminRecipientSummaryDto>> getPharmacySummaries(
             @RequestParam(defaultValue = "10") int limit) {
         return ResponseEntity.ok(commissionService.getRecipientSummaries("PHARMACY", limit));
     }
 
     @GetMapping("/recipients/{type}/{id}/transactions")
-    public ResponseEntity<List<CommissionTransactionDto>> getRecipientTransactions(
+    public ResponseEntity<List<AdminCommissionTransactionDto>> getRecipientTransactions(
             @PathVariable String type,
             @PathVariable String id,
             @RequestParam(defaultValue = "PENDING") String status) {

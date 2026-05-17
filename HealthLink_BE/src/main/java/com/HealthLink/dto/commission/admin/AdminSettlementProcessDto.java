@@ -1,4 +1,4 @@
-package com.HealthLink.dto.commission;
+package com.HealthLink.dto.commission.admin;
 
 import lombok.*;
 
@@ -6,7 +6,7 @@ import lombok.*;
 @NoArgsConstructor
 @AllArgsConstructor
 @Builder
-public class SettlementProcessDto {
+public class AdminSettlementProcessDto {
     private Integer settlementId;
     private String action;
     private String notes;

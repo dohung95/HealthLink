@@ -1,4 +1,4 @@
-package com.HealthLink.dto.commission;
+package com.HealthLink.dto.commission.admin;
 
 import lombok.*;
 
@@ -8,7 +8,7 @@ import java.math.BigDecimal;
 @NoArgsConstructor
 @AllArgsConstructor
 @Builder
-public class RecipientSummaryDto {
+public class AdminRecipientSummaryDto {
     private String recipientId;
     private String recipientName;
     private String recipientType;
