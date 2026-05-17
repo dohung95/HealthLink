@@ -54,6 +54,57 @@ Không nằm trong phạm vi chính của plan này
 - Các field quan trọng phải tồn tại và có kiểu dữ liệu đúng.
 - Với flow tạo mới, lưu ID từ response sang biến môi trường để dùng cho bước sau.
 
+1.5. Pre-request script dùng chung
+```javascript
+const token = pm.environment.get('accessToken');
+if (token) {
+	pm.request.headers.upsert({
+		key: 'Authorization',
+		value: `Bearer ${token}`
+	});
+}
+
+const nowIso = new Date().toISOString();
+pm.environment.set('requestTimestamp', nowIso);
+```
+
+1.6. Test script dùng chung
+```javascript
+const expectedStatus = Number(pm.environment.get('expectedStatus') || 200);
+
+pm.test(`Status code is ${expectedStatus}`, function () {
+	pm.response.to.have.status(expectedStatus);
+});
+
+pm.test('Response time is acceptable', function () {
+	pm.expect(pm.response.responseTime).to.be.below(2000);
+});
+
+pm.test('Response body is not empty', function () {
+	const json = pm.response.json();
+	pm.expect(json).to.not.be.null;
+});
+
+try {
+	const json = pm.response.json();
+
+	if (json.invoiceId) {
+		pm.environment.set('invoiceId', json.invoiceId);
+	}
+	if (json.orderId) {
+		pm.environment.set('paypalOrderId', json.orderId);
+	}
+	if (json.paymentId) {
+		pm.environment.set('paymentId', json.paymentId);
+	}
+	if (json.notificationId) {
+		pm.environment.set('notificationId', json.notificationId);
+	}
+} catch (error) {
+	console.log('Response is not JSON:', error);
+}
+```
+
 2. CHUẨN BỊ DỮ LIỆU TRƯỚC KHI TEST
 
 2.1. Dữ liệu payment tối thiểu
@@ -74,6 +125,117 @@ Không nằm trong phạm vi chính của plan này
 - Doctor token cho các API bác sĩ nếu cần xác nhận truy cập.
 - Pharmacy token cho các API nhà thuốc nếu cần xác nhận truy cập.
 - Patient token cho notification APIs và các flow thanh toán của patient.
+
+2.4. Bộ dữ liệu seed dùng trong plan
+- Appointment hoàn tất để generate invoice: `appointmentId = 11`, `patientId = user-p01`, `doctorId = user-d01`.
+- Invoice pending để test PayPal trực tiếp: `invoiceId = 6` hoặc `invoiceId = 8`.
+- Payment đã tồn tại để test refund: `paymentId = 1`.
+- Partner để test balance và settlement: `doctorId = user-d01`, `pharmacyId = user-ph01`.
+- Notification để test mark-as-read: `notificationId = 1`.
+- FCM token để test register/remove: `fcmToken = fcm-patient01-ios-001`.
+- FCM token phụ: `fcmToken2 = fcm-patient02-android-001`.
+
+2.5. JSON body và URL mẫu theo dữ liệu seed
+Generate invoice:
+```http
+POST /api/payment/invoices/generate/11
+```
+
+Create PayPal order:
+```json
+{
+	"invoiceId": 6,
+	"currency": "USD"
+}
+```
+
+Capture PayPal payment:
+```json
+{
+	"orderId": "{{paypalOrderId}}",
+	"invoiceId": 6,
+	"paymentMethod": "Card"
+}
+```
+
+Refund payment:
+```http
+POST /api/payment/refund/1?refundReason=Refund%20for%20duplicate%20payment
+```
+
+Partner balance doctor:
+```http
+GET /api/payment/partner/user-d01/balance?type=DOCTOR
+```
+
+Partner balance pharmacy:
+```http
+GET /api/payment/partner/user-ph01/balance?type=PHARMACY
+```
+
+Partner settlement doctor:
+```json
+{
+	"amount": 50.00,
+	"paypalEmail": "dr.john.smith@healthlink.com",
+	"notes": "Withdraw May earnings"
+}
+```
+
+Partner settlement pharmacy:
+```json
+{
+	"amount": 40.00,
+	"paypalEmail": "cvs.manhattan@pharmacy.com",
+	"notes": "Withdraw pharmacy earnings"
+}
+```
+
+Admin revenue report:
+```http
+GET /api/payment/admin/reports/revenue?from=2024-05-01T00:00:00&to=2024-05-31T23:59:59&includeDetails=true
+```
+
+Admin settlements list:
+```http
+GET /api/payment/admin/settlements/all?status=PENDING
+```
+
+Admin commission config:
+```json
+{
+	"serviceType": "CONSULTATION_ONLINE",
+	"commissionRate": 0.1500,
+	"minCommission": 1.00,
+	"description": "Online consultation fee"
+}
+```
+
+Get notifications:
+```http
+GET /api/notifications?page=0&size=20
+```
+
+Mark notification as read:
+```http
+PATCH /api/notifications/1/read
+```
+
+Register FCM token:
+```json
+{
+	"token": "fcm-patient01-ios-001",
+	"deviceName": "iPhone 15 Pro",
+	"platform": "IOS"
+}
+```
+
+Remove FCM token:
+```json
+{
+	"token": "fcm-patient01-ios-001"
+}
+```
 
 3. PAYMENT API TEST PLAN
 
@@ -501,7 +663,7 @@ Negative cases
 5.1. Thứ tự khuyến nghị để chạy trên Postman
 1. Login lấy token cho admin, doctor, pharmacy, patient.
 2. Tạo FCM token cho patient.
-3. Tạo appointment và hoàn tất appointment nếu cần dữ liệu.
+3. Dùng appointment `11` để generate invoice mới nếu cần flow end-to-end.
 4. Generate invoice.
 5. Create PayPal order.
 6. Capture PayPal payment.

@@ -1,117 +1,210 @@
-Bạn là senior backend engineer đang làm việc trên dự án HealthLink_BE (Spring Boot). Hãy triển khai các phần realtime notification còn thiếu ở backend, giữ nguyên kiến trúc hiện tại và chỉ sửa trong phạm vi cần thiết.
+## Plan: Prescription Reminder Until Opened
 
-Mục tiêu nghiệp vụ
+Build a backend flow that sends a prescription reminder every day while the prescription is still active and the patient has not opened it yet. When the patient taps the notification, the mobile app opens prescription detail and filters items by `MORNING`, `AFTERNOON`, `EVENING`. Reuse the existing notification pipeline and prescription read APIs, but add reminder state, reminder scheduling, daily deduplication, and timing-based filtering.
 
-1. Khi patient đặt appointment mới, doctor phải nhận notification realtime qua WebSocket/STOMP.
-2. Khi doctor chuyển prescription sang pharmacy, pharmacy phải nhận notification realtime qua WebSocket/STOMP.
-3. Khi pharmacy cập nhật status của đơn hàng, patient phải nhận notification về trạng thái mới. Có thể dùng WebSocket cho web client và/hoặc lưu notification theo kiến trúc hiện có, nhưng phải đảm bảo patient nhận được thông tin ngay khi backend xử lý xong.
-4. Khi appointment bị hủy, doctor phải nhận notification realtime qua WebSocket/STOMP.
+## Goal
 
-Bối cảnh hiện tại trong backend
+Implement a deterministic reminder flow with these rules:
 
-- Đã có WebSocket config ở:
-  [WebSocketConfig.java](e:/FAI/Projects/HealthLink/HealthLink_BE/src/main/java/com/HealthLink/config/WebSocketConfig.java)
-- Đã có service gửi websocket notification ở:
-  [WebSocketNotificationService.java](e:/FAI/Projects/HealthLink/HealthLink_BE/src/main/java/com/HealthLink/service/notification/WebSocketNotificationService.java)
-- Đã có service điều phối notification ở:
-  [NotificationService.java](e:/FAI/Projects/HealthLink/HealthLink_BE/src/main/java/com/HealthLink/service/notification/NotificationService.java)
-- Đã có enum loại notification ở:
-  [NotificationType.java](e:/FAI/Projects/HealthLink/HealthLink_BE/src/main/java/com/HealthLink/entity/enums/NotificationType.java)
-- Đã có enum kênh notification ở:
-  [NotificationChannel.java](e:/FAI/Projects/HealthLink/HealthLink_BE/src/main/java/com/HealthLink/entity/enums/NotificationChannel.java)
-- Các luồng nghiệp vụ cần gắn notification nằm ở:
-  [AppointmentServiceImpl.java](e:/FAI/Projects/HealthLink/HealthLink_BE/src/main/java/com/HealthLink/service/impl/appointment/AppointmentServiceImpl.java)
-  [PharmacyOrderServiceImpl.java](e:/FAI/Projects/HealthLink/HealthLink_BE/src/main/java/com/HealthLink/service/impl/pharmacy/PharmacyOrderServiceImpl.java)
+- A prescription is reminder-eligible while `validUntil` has not passed.
+- The system sends at most one reminder per prescription per day.
+- Reminders stop after the patient opens the prescription detail for the first time.
+- Prescription items are filtered by a normalized `timing` value with exactly three allowed values: `MORNING`, `AFTERNOON`, `EVENING`.
 
-Lưu ý về nghiệp vụ thực tế
+## API Contract
 
-- Backend đã có flow “doctor chuyển prescription sang pharmacy” thông qua endpoint:
-  `POST /api/pharmacy-orders/transfer`
-- Flow này nằm ở:
-  [PharmacyOrderController.java](e:/FAI/Projects/HealthLink/HealthLink_BE/src/main/java/com/HealthLink/controller/pharmacy/PharmacyOrderController.java)
-- Logic tạo PharmacyOrder nằm ở:
-  [PharmacyOrderServiceImpl.java](e:/FAI/Projects/HealthLink/HealthLink_BE/src/main/java/com/HealthLink/service/impl/pharmacy/PharmacyOrderServiceImpl.java)
-- Không dùng mô tả mơ hồ kiểu “pharmacy tạo đơn mới” nếu nghiệp vụ thực tế là doctor chuyển prescription sang pharmacy.
+### 1) Mark Prescription As Opened
 
-Yêu cầu triển khai
+`PATCH /api/prescriptions/{id}/opened`
 
-1. Appointment mới
-- Tìm đúng điểm sau khi appointment được tạo thành công trong `createAppointment(...)`.
-- Sau khi save appointment, gửi notification cho doctor của appointment.
-- Notification phải được persist vào DB qua `NotificationService`.
-- Dùng `NotificationType.NEW_APPOINTMENT`.
-- Kênh gửi cho doctor là `WEB_SOCKET`.
-- Nội dung nên có patient name, thời gian hẹn, loại tư vấn, link điều hướng nếu có.
-- Nếu doctor không tồn tại hoặc không map được user, xử lý an toàn và log rõ ràng.
+Purpose:
+- Mark the prescription as opened when the patient lands on the detail screen.
+- Store the first open timestamp only once.
 
-2. Doctor chuyển prescription sang pharmacy
-- Tìm đúng điểm sau khi `transferPrescription(...)` tạo `PharmacyOrder` thành công.
-- Sau khi save order, gửi notification realtime cho pharmacy.
-- Notification phải được persist vào DB qua `NotificationService`.
-- Dùng `NotificationType.NEW_ORDER`.
-- Kênh gửi cho pharmacy là `WEB_SOCKET`.
-- Nội dung nên có order number, patient name, prescription/order context, link điều hướng nếu có.
-- Nếu pharmacy không map được user, xử lý an toàn và log rõ ràng.
+Request:
+- No body required.
+- Authentication required.
+- Only the prescription owner should be able to call this endpoint.
 
-3. Order status update
-- Tìm đúng điểm sau khi `updateOrderStatus(...)` lưu trạng thái mới thành công.
-- Gửi notification cho patient của order.
-- Notification phải được persist vào DB qua `NotificationService`.
-- Dùng `NotificationType.ORDER_STATUS`.
-- Nếu hệ thống hiện tại đang ưu tiên patient mobile push, có thể cân nhắc:
-  - gửi `MOBILE_PUSH` nếu patient có token active
-  - hoặc gửi `WEB_SOCKET` nếu patient đang dùng web client
-  - hoặc hỗ trợ cả hai nếu kiến trúc hiện tại cho phép
-- Nội dung phải nêu rõ status cũ, status mới, order number, và action URL hợp lý.
-- Phải đảm bảo không gửi notification nếu update status thất bại hoặc transaction bị rollback.
-- Không tạo duplicate notification nếu status không đổi hoặc request bị retry.
+Response:
+```json
+{
+   "message": "Prescription marked as opened",
+   "prescriptionHeaderId": 123,
+   "openedAt": "2026-05-15T08:30:00"
+}
+```
 
-4. Appointment bị hủy
-- Tìm đúng điểm sau khi `cancelAppointment(...)` cập nhật trạng thái hủy thành công.
-- Sau khi save appointment, gửi notification realtime cho doctor của appointment qua WebSocket/STOMP.
-- Notification phải được persist vào DB qua `NotificationService`.
-- Dùng `NotificationType.CANCEL_APPOINTMENT`.
-- Kênh gửi cho doctor là `WEB_SOCKET`.
-- Nội dung nên có patient name, thời gian appointment, lý do hủy, người hủy (patient/doctor), và action URL nếu có.
-- Nếu doctor không map được user, xử lý an toàn và log rõ ràng.
+Rules:
+- If `openedAt` is already set, the endpoint must be idempotent and return the existing value.
+- Do not change pharmacy order state or prescription status here.
 
-Ràng buộc kỹ thuật
+### 2) Get Prescription Detail Filtered By Timing
 
-- Giữ nguyên logic business hiện tại, không làm hỏng luồng tạo appointment và order.
-- Ưu tiên gọi notification sau khi entity đã được save thành công.
-- Reuse `NotificationService.sendWebSocketNotification(...)` và `NotificationService.sendMobilePushNotification(...)` thay vì viết logic gửi mới.
-- Nếu cần, bổ sung helper method nhỏ để map `User` từ Doctor/Pharmacy/Patient.
-- Nếu cần, bổ sung field hoặc mapping tối thiểu cho payload notification response, nhưng không phá contract hiện có.
-- Không chỉnh frontend.
-- Không thay đổi behavior ngoài 4 luồng nêu trên.
-- Không tạo duplicate notification khi retry hoặc khi trạng thái không thay đổi.
-- Nếu gửi notification cần phụ thuộc vào transaction, hãy đảm bảo chỉ phát sau khi dữ liệu đã được commit thành công hoặc xử lý theo cách không gây mismatch giữa DB và realtime push.
+`GET /api/prescriptions/{id}?timing=MORNING`
 
-Những thứ cần kiểm tra trước khi code
+Purpose:
+- Return prescription detail and only the items that match the requested timing.
 
-- Doctor entity có liên kết tới `User` chưa, lấy user để gửi notification.
-- Pharmacy entity có liên kết tới `User` chưa, lấy user để gửi notification.
-- Patient entity có liên kết tới `User` chưa, lấy user để gửi notification.
-- `NotificationService.sendWebSocketNotification(...)` đang lưu DB trước rồi mới push websocket, giữ nguyên pattern này.
-- `NotificationRepository` và entity `Notification` có đủ field cho `actionUrl`, `relatedId`, `appointmentId` chưa.
-- Nếu `NotificationType` hoặc `NotificationChannel` thiếu giá trị nào cần dùng, hãy bổ sung cẩn thận và đồng bộ comment/doc.
-- Kiểm tra xem endpoint/service hiện tại có đang dùng `@Transactional` theo cách có thể làm notification bị phát trước rollback hay không.
+Query parameters:
+- `timing` is optional.
+- Allowed values: `MORNING`, `AFTERNOON`, `EVENING`.
+- If omitted, return all items.
 
-Deliverables mong muốn
+Response shape:
+```json
+{
+   "prescriptionHeaderId": 123,
+   "appointmentId": 456,
+   "patientId": "P001",
+   "doctorId": "D001",
+   "issueDate": "2026-05-15T08:00:00",
+   "validUntil": "2026-05-30T23:59:59",
+   "status": "Issued",
+   "items": [
+      {
+         "prescriptionItemId": 1,
+         "timing": "MORNING",
+         "medicationName": "Amlodipine 5mg"
+      }
+   ]
+}
+```
 
-1. Code cập nhật trong các service backend cần thiết.
-2. Nếu cần, cập nhật enum hoặc helper liên quan.
-3. Không phá compile.
-4. Có log rõ ràng cho các nhánh gửi notification thành công/thất bại.
-5. Nếu có test hiện hữu, bổ sung hoặc cập nhật test cho 4 luồng này.
+Rules:
+- The backend must validate the `timing` query value.
+- If `timing` is invalid, return a clear validation error.
+- Prefer filtering in backend, not in client.
 
-Tiêu chí hoàn thành
+### 3) Daily Reminder Candidate Query
 
-- Appointment mới tạo xong thì doctor nhận được notification realtime.
-- Doctor chuyển prescription sang pharmacy xong thì pharmacy nhận được notification realtime.
-- Pharmacy update order status xong thì patient nhận được notification tương ứng.
-- Appointment bị hủy xong thì doctor nhận được notification realtime.
-- Notification đều được lưu vào DB và đi qua service notification hiện tại.
-- Không còn call-site nghiệp vụ nào bị bỏ sót cho 4 luồng trên.
+Backend repository contract for scheduler:
 
-Hãy bắt đầu bằng việc xác định chính xác entity nào là recipient cho từng luồng và chèn notification vào đúng điểm sau commit/save của từng nghiệp vụ.
+- Find prescriptions where:
+   - `validUntil` is not null,
+   - `validUntil >= now`,
+   - `openedAt` is null,
+   - `lastReminderSentAt` is null for today, or earlier than the start of today.
+- Stamp `lastReminderSentAt` after a notification is sent successfully.
+
+Atomicity requirement:
+- The repository update must be safe against duplicate sends when two scheduler instances run at the same time.
+- Prefer a claim/update pattern that updates only if the row is still eligible.
+
+## Implementation Steps
+
+1. Define reminder state and repeat rule.
+    - Keep `PrescriptionHeader.validUntil` as the source of truth for activeness.
+    - Standardize `PrescriptionItem.timing` to exactly one uppercase value from `MORNING`, `AFTERNOON`, `EVENING`.
+    - Use a daily repeat cycle: send once per day while the prescription is active and not opened, then stop when the patient opens the prescription or the prescription expires.
+    - Keep notification content separate from item timing; the notification only deep-links into prescription detail.
+
+2. Extend the prescription persistence model.
+    - Add `lastReminderSentAt` to `PrescriptionHeader`.
+    - Add `openedAt` to `PrescriptionHeader` as the explicit stop condition.
+    - Keep reminder state on the header, not on each item.
+    - Make `openedAt` immutable after first write.
+
+3. Add repository queries and atomic update operations.
+    - Add a query that finds active prescriptions that have not been opened and have not been reminded today.
+    - Add a modifying update that stamps `lastReminderSentAt` only after send succeeds.
+    - Use a date-aware predicate so a prescription can be reminded again on the next day if it is still unopened and still active.
+    - Reuse the same query style already used by appointment reminders.
+
+4. Add a scheduled job for prescription notifications.
+    - Add a new scheduler method in the existing `NotificationScheduler`.
+    - Run it once per morning.
+    - For each candidate prescription, resolve the patient user, build the notification payload, send it through `NotificationService.sendMobilePushNotification`, then stamp `lastReminderSentAt`.
+    - Use `NotificationType.NEW_PRESCRIPTION` unless a dedicated reminder type is introduced later.
+    - Set `actionUrl` to the prescription detail page so the mobile app can navigate directly.
+    - Make the job idempotent for the day by filtering on `lastReminderSentAt` with the current date.
+
+5. Add timing-based prescription detail support.
+    - Keep the existing `GET /api/prescriptions/{id}` endpoint as the base detail endpoint.
+    - Add backend filtering that returns only items matching the requested timing value.
+    - Prefer a query parameter on the existing detail endpoint rather than inventing a separate client-side filtering step.
+    - Return the full prescription metadata plus the filtered item subset.
+
+6. Add an explicit opened signal.
+    - Define `PATCH /api/prescriptions/{id}/opened`.
+    - Set `openedAt` only once.
+    - Treat this as the gate that disables future daily notifications for that prescription while it remains active.
+    - Keep this behavior separate from pharmacy order transfer or prescription status changes.
+
+7. Tighten validation for prescription item input.
+    - Validate `timing` at create time so only the allowed uppercase values are accepted.
+    - Normalize legacy or incoming mixed-case values before persistence if backward compatibility is needed.
+    - Reject unknown values with a clear validation error instead of silently storing free text.
+    - Keep `frequency` and `instructions` as descriptive text fields; they are not the reminder key.
+
+8. Update response models only if needed.
+    - Keep `PrescriptionResponse` as the base model because it already includes `validUntil` and the full item list.
+    - Add lightweight fields such as `isExpired`, `isOpened`, or `lastReminderSentAt` only if they reduce client logic.
+    - Avoid expanding notification payloads unless the mobile app requires extra context for routing.
+
+## Recommended Data Model Changes
+
+- `PrescriptionHeader`
+   - add `LocalDateTime lastReminderSentAt`
+   - add `LocalDateTime openedAt`
+- `PrescriptionItem`
+   - keep `String timing`
+   - enforce normalization and validation
+
+## Recommended Backend Files
+
+- `HealthLink_BE/src/main/java/com/HealthLink/entity/PrescriptionHeader.java`
+   - add repeat-reminder state such as `lastReminderSentAt` and `openedAt`
+- `HealthLink_BE/src/main/java/com/HealthLink/entity/PrescriptionItem.java`
+   - keep `timing` as the timing discriminator and enforce normalized values
+- `HealthLink_BE/src/main/java/com/HealthLink/dto/prescription/PrescriptionItemRequest.java`
+   - validate and normalize `timing` on input
+- `HealthLink_BE/src/main/java/com/HealthLink/dto/prescription/PrescriptionItemResponse.java`
+   - expose normalized timing back to the client
+- `HealthLink_BE/src/main/java/com/HealthLink/dto/prescription/PrescriptionResponse.java`
+   - reuse for full detail and filtered output
+- `HealthLink_BE/src/main/java/com/HealthLink/repository/prescription/PrescriptionHeaderRepository.java`
+   - add daily reminder candidate query and atomic stamp/update operations
+- `HealthLink_BE/src/main/java/com/HealthLink/service/impl/prescription/PrescriptionServiceImpl.java`
+   - add filtered detail mapping and opened-state handling
+- `HealthLink_BE/src/main/java/com/HealthLink/controller/prescription/PrescriptionController.java`
+   - add timing-filter and opened-state endpoints
+- `HealthLink_BE/src/main/java/com/HealthLink/scheduler/NotificationScheduler.java`
+   - add the prescription reminder scheduled job
+- `HealthLink_BE/src/main/java/com/HealthLink/service/notification/NotificationService.java`
+   - reuse existing push dispatch and notification persistence
+- `HealthLink_BE/src/main/java/com/HealthLink/entity/enums/NotificationType.java`
+   - reuse `NEW_PRESCRIPTION` unless a dedicated reminder type is needed
+- `HealthLink_BE/doc/data-seed.md`
+   - update seed examples so timing uses only normalized values
+
+## Validation And Test Plan
+
+1. Add or update a narrow backend test around daily reminder candidate selection, especially for nullable `validUntil`, already-opened rows, and same-day deduplication.
+2. Validate that prescription creation rejects invalid timing values and stores uppercase normalized values for valid ones.
+3. Confirm the scheduled job sends at most one notification per prescription per day and only while the prescription is active and unopened.
+4. Verify the detail endpoint returns the correct subset when `MORNING`, `AFTERNOON`, or `EVENING` is requested.
+5. Run a focused backend build or test slice for the prescription and notification packages after implementation.
+
+## Implementation Order
+
+1. Add or update the `PrescriptionHeader` fields.
+2. Add repository queries and atomic update methods.
+3. Add prescription opened endpoint and timing filter endpoint.
+4. Add scheduler job and notification payload.
+5. Add validation for `timing` normalization.
+6. Update seed data and run focused tests.
+
+## Decisions
+
+- Scope includes backend only; frontend navigation and UI grouping are out of scope for this plan, except for the API contract they will consume.
+- The reminder policy is daily repeat until the patient opens the prescription or it expires.
+- Daily deduplication must be enforced in backend state, not only by scheduler timing, to survive retries and multiple instances.
+- `timing` stays a string at the persistence boundary only if validation is strict; if the team wants stronger type safety, an enum is the cleaner long-term option.
+- Use existing notification infrastructure instead of adding a new delivery mechanism.
+
+## Further Considerations
+
+1. Should the reminder be sent every morning only, or at a configurable hour? Recommended default: one fixed morning cron for the first release.
+2. Should the first open of prescription detail mark the prescription as opened automatically, or should the app call a dedicated `mark opened` endpoint? Recommended default: dedicated endpoint so the behavior is explicit.
+3. Should the prescription remain reminder-eligible after opened if the patient closes and reopens it later? Recommended default: no, stop reminders once opened.

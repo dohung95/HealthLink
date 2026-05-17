@@ -283,16 +283,16 @@ SET IDENTITY_INSERT PrescriptionHeaders OFF;
 -- 19. PRESCRIPTION_ITEMS (10 items)
 SET IDENTITY_INSERT PrescriptionItems ON;
 INSERT INTO PrescriptionItems (PrescriptionItemID, PrescriptionHeaderID, medicationName, dosage, instructions, totalSupplyDays, MedicineID, quantity, unit, frequency, timing, route, unitPrice, totalPrice, notes) VALUES
-(1, 1, 'Paracetamol 500mg', '500mg', 'Take when headache occurs, max 3 tablets per day', 7, 1, 21, 'Tablet', '3 times daily', 'As needed', 'Oral', 0.30, 6.30, NULL),
-(2, 1, 'Vitamin C 1000mg', '1000mg', 'Take 1 tablet in morning after breakfast', 14, 7, 14, 'Tablet', 'Once daily', 'Morning', 'Oral', 0.93, 13.02, 'Immune support'),
-(3, 2, 'Paracetamol 500mg', '250mg', 'Take when fever exceeds 100.4F', 5, 1, 10, 'Tablet', 'As needed', 'When fever', 'Oral', 0.30, 3.00, 'Half tablet for child'),
-(4, 2, 'Cetirizine 10mg', '5mg', 'Take once before bedtime', 7, 6, 7, 'Tablet', 'Once daily', 'Night', 'Oral', 0.71, 4.97, 'Half tablet'),
-(5, 3, 'Amlodipine 5mg', '5mg', 'Take 1 tablet every morning', 30, 5, 30, 'Tablet', 'Once daily', 'Morning', 'Oral', 0.63, 18.90, 'Maintain blood pressure'),
-(6, 4, 'Ibuprofen 400mg', '400mg', 'Take after meals when in pain', 5, 8, 15, 'Tablet', '3 times daily', 'After meals', 'Oral', 0.53, 7.95, 'Do not take on empty stomach'),
-(7, 5, 'Prenatal Multivitamin', '1 tablet', 'Take 1 tablet daily after breakfast', 30, NULL, 30, 'Tablet', 'Once daily', 'Morning', 'Oral', 1.83, 54.90, 'Prenatal vitamin'),
-(8, 8, 'Metformin 500mg', '500mg', 'Take after breakfast and dinner', 30, 4, 60, 'Tablet', 'Twice daily', 'Morning, evening', 'Oral', 0.30, 18.00, NULL),
-(9, 9, 'Amlodipine 5mg', '5mg', 'Take every morning', 30, 5, 30, 'Tablet', 'Once daily', 'Morning', 'Oral', 0.63, 18.90, NULL),
-(10, 10, 'Allopurinol 300mg', '300mg', 'Take after breakfast', 30, 10, 30, 'Tablet', 'Once daily', 'Morning', 'Oral', 0.50, 15.00, 'Drink plenty of water');
+(1, 1, 'Paracetamol 500mg', '500mg', 'Take when headache occurs, max 3 tablets per day', 7, 1, 21, 'Tablet', '3 times daily', 'AFTERNOON', 'Oral', 0.30, 6.30, NULL),
+(2, 1, 'Vitamin C 1000mg', '1000mg', 'Take 1 tablet in morning after breakfast', 14, 7, 14, 'Tablet', 'Once daily', 'MORNING', 'Oral', 0.93, 13.02, 'Immune support'),
+(3, 2, 'Paracetamol 500mg', '250mg', 'Take when fever exceeds 100.4F', 5, 1, 10, 'Tablet', 'As needed', 'AFTERNOON', 'Oral', 0.30, 3.00, 'Half tablet for child'),
+(4, 2, 'Cetirizine 10mg', '5mg', 'Take once before bedtime', 7, 6, 7, 'Tablet', 'Once daily', 'EVENING', 'Oral', 0.71, 4.97, 'Half tablet'),
+(5, 3, 'Amlodipine 5mg', '5mg', 'Take 1 tablet every morning', 30, 5, 30, 'Tablet', 'Once daily', 'MORNING', 'Oral', 0.63, 18.90, 'Maintain blood pressure'),
+(6, 4, 'Ibuprofen 400mg', '400mg', 'Take after meals when in pain', 5, 8, 15, 'Tablet', '3 times daily', 'AFTERNOON', 'Oral', 0.53, 7.95, 'Do not take on empty stomach'),
+(7, 5, 'Prenatal Multivitamin', '1 tablet', 'Take 1 tablet daily after breakfast', 30, NULL, 30, 'Tablet', 'Once daily', 'MORNING', 'Oral', 1.83, 54.90, 'Prenatal vitamin'),
+(8, 8, 'Metformin 500mg', '500mg', 'Take after breakfast and dinner', 30, 4, 60, 'Tablet', 'Twice daily', 'MORNING', 'Oral', 0.30, 18.00, NULL),
+(9, 9, 'Amlodipine 5mg', '5mg', 'Take every morning', 30, 5, 30, 'Tablet', 'Once daily', 'MORNING', 'Oral', 0.63, 18.90, NULL),
+(10, 10, 'Allopurinol 300mg', '300mg', 'Take after breakfast', 30, 10, 30, 'Tablet', 'Once daily', 'MORNING', 'Oral', 0.50, 15.00, 'Drink plenty of water');
 SET IDENTITY_INSERT PrescriptionItems OFF;
 
 -- 20. PHARMACY_ORDERS (10 orders)

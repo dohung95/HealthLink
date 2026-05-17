@@ -2,10 +2,16 @@ package com.HealthLink.service.impl.prescription;
 
 import com.HealthLink.dto.prescription.PrescriptionItemRequest;
 import com.HealthLink.dto.prescription.PrescriptionItemResponse;
+import com.HealthLink.dto.prescription.PrescriptionOpenedResponse;
 import com.HealthLink.dto.prescription.PrescriptionRequest;
 import com.HealthLink.dto.prescription.PrescriptionResponse;
-import com.HealthLink.entity.*;
+import com.HealthLink.entity.Appointment;
+import com.HealthLink.entity.Medicine;
+import com.HealthLink.entity.PrescriptionHeader;
+import com.HealthLink.entity.PrescriptionItem;
+import com.HealthLink.entity.enums.PrescriptionTiming;
 import com.HealthLink.exception.BadRequestException;
+import com.HealthLink.exception.ForbiddenException;
 import com.HealthLink.exception.ResourceNotFoundException;
 import com.HealthLink.repository.appointment.AppointmentRepository;
 import com.HealthLink.repository.medicine.MedicineRepository;
@@ -27,26 +33,19 @@ public class PrescriptionServiceImpl implements PrescriptionService {
 
     private final PrescriptionHeaderRepository headerRepository;
     private final MedicineRepository medicineRepository;
-
     private final AppointmentRepository appointmentRepository;
 
-    // -------------------------------------------------------------------------
-    // REQ-7: Tạo đơn thuốc mới
-    // -------------------------------------------------------------------------
     @Override
     @Transactional
     public PrescriptionResponse createPrescription(PrescriptionRequest request) {
-        // 1. Tìm appointment
         Appointment appointment = appointmentRepository.findById(request.getAppointmentId())
                 .orElseThrow(() -> new ResourceNotFoundException(
                         "Appointment", "id", request.getAppointmentId()));
 
-        // 2. Kiểm tra trạng thái appointment hợp lệ
         if ("Cancelled".equals(appointment.getStatus())) {
             throw new BadRequestException("Cannot create prescription for a cancelled appointment");
         }
 
-        // 3. Xây dựng PrescriptionHeader
         PrescriptionHeader header = PrescriptionHeader.builder()
                 .appointment(appointment)
                 .patient(appointment.getPatient())
@@ -59,7 +58,6 @@ public class PrescriptionServiceImpl implements PrescriptionService {
                 .prescriptionItems(new ArrayList<>())
                 .build();
 
-        // 4. Xây dựng các PrescriptionItem + tính giá
         BigDecimal totalAmount = BigDecimal.ZERO;
         List<PrescriptionItem> items = new ArrayList<>();
 
@@ -69,18 +67,10 @@ public class PrescriptionServiceImpl implements PrescriptionService {
                             "Medicine", "id", itemReq.getMedicineId()));
 
             BigDecimal unitPrice = itemReq.getUnitPrice();
-
-            // Lấy đơn giá từ thư viện thuốc nếu request không truyền
             if (unitPrice == null) {
                 unitPrice = medicine.getReferencePrice();
             }
 
-            String medicationName = medicine.getName();
-            String dosage = buildDosage(medicine);
-            String instructions = buildInstructions(medicine);
-            String unit = itemReq.getUnit() != null ? itemReq.getUnit() : medicine.getUnit();
-
-            // Tính totalPrice của item
             BigDecimal totalPrice = BigDecimal.ZERO;
             if (unitPrice != null && itemReq.getQuantity() != null) {
                 totalPrice = unitPrice.multiply(BigDecimal.valueOf(itemReq.getQuantity()));
@@ -89,14 +79,14 @@ public class PrescriptionServiceImpl implements PrescriptionService {
             PrescriptionItem item = PrescriptionItem.builder()
                     .prescriptionHeader(header)
                     .medicine(medicine)
-                    .medicationName(medicationName)
-                    .dosage(dosage)
-                    .instructions(instructions)
+                    .medicationName(medicine.getName())
+                    .dosage(buildDosage(medicine))
+                    .instructions(buildInstructions(medicine))
                     .totalSupplyDays(itemReq.getTotalSupplyDays())
                     .quantity(itemReq.getQuantity())
-                    .unit(unit)
+                    .unit(itemReq.getUnit() != null ? itemReq.getUnit() : medicine.getUnit())
                     .frequency(itemReq.getFrequency())
-                    .timing(itemReq.getTiming())
+                    .timing(normalizeTimingRequired(itemReq.getTiming()))
                     .route(itemReq.getRoute())
                     .unitPrice(unitPrice)
                     .totalPrice(totalPrice)
@@ -110,82 +100,147 @@ public class PrescriptionServiceImpl implements PrescriptionService {
         header.getPrescriptionItems().addAll(items);
         header.setTotalAmount(totalAmount);
 
-        // 5. Lưu (cascade ALL sẽ lưu cả items)
         PrescriptionHeader saved = headerRepository.save(header);
-
-        return toResponse(saved);
+        return toResponse(saved, null);
     }
 
-    // -------------------------------------------------------------------------
-    // Queries
-    // -------------------------------------------------------------------------
     @Override
     @Transactional(readOnly = true)
-    public PrescriptionResponse getPrescriptionById(Integer prescriptionHeaderId) {
-        PrescriptionHeader header = headerRepository.findById(prescriptionHeaderId)
-                .orElseThrow(() -> new ResourceNotFoundException(
-                        "PrescriptionHeader", "id", prescriptionHeaderId));
-        return toResponse(header);
+    public PrescriptionResponse getPrescriptionById(Integer prescriptionHeaderId, String timing) {
+        PrescriptionHeader header = getPrescriptionOrThrow(prescriptionHeaderId);
+        String normalizedTiming = normalizeTimingOptional(timing);
+        return toResponse(header, normalizedTiming);
     }
 
     @Override
     @Transactional(readOnly = true)
     public List<PrescriptionResponse> getPrescriptionsByPatient(String patientId) {
         return headerRepository.findByPatient_PatientId(patientId)
-                .stream().map(this::toResponse).collect(Collectors.toList());
+                .stream()
+                .map(header -> toResponse(header, null))
+                .collect(Collectors.toList());
     }
 
     @Override
     @Transactional(readOnly = true)
     public List<PrescriptionResponse> getPrescriptionsByDoctor(String doctorId) {
         return headerRepository.findByDoctor_DoctorId(doctorId)
-                .stream().map(this::toResponse).collect(Collectors.toList());
+                .stream()
+                .map(header -> toResponse(header, null))
+                .collect(Collectors.toList());
     }
 
-    // -------------------------------------------------------------------------
-    // Mappers
-    // -------------------------------------------------------------------------
-    private PrescriptionResponse toResponse(PrescriptionHeader h) {
-        List<PrescriptionItemResponse> itemResponses = h.getPrescriptionItems() == null
+    @Override
+    @Transactional
+    public PrescriptionOpenedResponse markPrescriptionAsOpened(Integer prescriptionHeaderId, String patientId) {
+        PrescriptionHeader header = getPrescriptionOrThrow(prescriptionHeaderId);
+
+        if (header.getPatient() == null || !patientId.equals(header.getPatient().getPatientId())) {
+            throw new ForbiddenException("You are not allowed to mark this prescription as opened");
+        }
+
+        if (header.getOpenedAt() != null) {
+            return buildOpenedResponse(header);
+        }
+
+        LocalDateTime openedAt = LocalDateTime.now().withNano(0);
+        headerRepository.markOpenedIfNeeded(prescriptionHeaderId, patientId, openedAt);
+
+        PrescriptionHeader refreshed = headerRepository
+                .findByPrescriptionHeaderIdAndPatient_PatientId(prescriptionHeaderId, patientId)
+                .orElseThrow(() -> new ResourceNotFoundException(
+                        "PrescriptionHeader", "id", prescriptionHeaderId));
+
+        return buildOpenedResponse(refreshed);
+    }
+
+    private PrescriptionOpenedResponse buildOpenedResponse(PrescriptionHeader header) {
+        return PrescriptionOpenedResponse.builder()
+                .message("Prescription marked as opened")
+                .prescriptionHeaderId(header.getPrescriptionHeaderId())
+                .openedAt(header.getOpenedAt())
+                .build();
+    }
+
+    private PrescriptionHeader getPrescriptionOrThrow(Integer prescriptionHeaderId) {
+        return headerRepository.findById(prescriptionHeaderId)
+                .orElseThrow(() -> new ResourceNotFoundException(
+                        "PrescriptionHeader", "id", prescriptionHeaderId));
+    }
+
+    private PrescriptionResponse toResponse(PrescriptionHeader header, String timingFilter) {
+        List<PrescriptionItemResponse> itemResponses = header.getPrescriptionItems() == null
                 ? List.of()
-                : h.getPrescriptionItems().stream()
-                        .map(this::toItemResponse)
-                        .collect(Collectors.toList());
+                : header.getPrescriptionItems().stream()
+                .filter(item -> matchesTiming(item, timingFilter))
+                .map(this::toItemResponse)
+                .collect(Collectors.toList());
 
         return PrescriptionResponse.builder()
-                .prescriptionHeaderId(h.getPrescriptionHeaderId())
-                .appointmentId(h.getAppointment() != null ? h.getAppointment().getAppointmentId() : null)
-                .patientId(h.getPatient() != null ? h.getPatient().getPatientId() : null)
-                .patientName(h.getPatient() != null ? h.getPatient().getFullName() : null)
-                .doctorId(h.getDoctor() != null ? h.getDoctor().getDoctorId() : null)
-                .doctorName(h.getDoctor() != null ? h.getDoctor().getFullName() : null)
-                .issueDate(h.getIssueDate())
-                .diagnosis(h.getDiagnosis())
-                .notes(h.getNotes())
-                .validUntil(h.getValidUntil())
-                .status(h.getStatus())
-                .totalAmount(h.getTotalAmount())
+                .prescriptionHeaderId(header.getPrescriptionHeaderId())
+                .appointmentId(header.getAppointment() != null ? header.getAppointment().getAppointmentId() : null)
+                .patientId(header.getPatient() != null ? header.getPatient().getPatientId() : null)
+                .patientName(header.getPatient() != null ? header.getPatient().getFullName() : null)
+                .doctorId(header.getDoctor() != null ? header.getDoctor().getDoctorId() : null)
+                .doctorName(header.getDoctor() != null ? header.getDoctor().getFullName() : null)
+                .issueDate(header.getIssueDate())
+                .diagnosis(header.getDiagnosis())
+                .notes(header.getNotes())
+                .validUntil(header.getValidUntil())
+                .status(header.getStatus())
+                .totalAmount(header.getTotalAmount())
                 .items(itemResponses)
                 .build();
     }
 
-    private PrescriptionItemResponse toItemResponse(PrescriptionItem i) {
+    private boolean matchesTiming(PrescriptionItem item, String timingFilter) {
+        if (timingFilter == null) {
+            return true;
+        }
+
+        return timingFilter.equals(normalizeTimingForResponse(item.getTiming()));
+    }
+
+    private PrescriptionItemResponse toItemResponse(PrescriptionItem item) {
         return PrescriptionItemResponse.builder()
-                .prescriptionItemId(i.getPrescriptionItemId())
-                .medicineId(i.getMedicine() != null ? i.getMedicine().getMedicineId() : null)
-                .medicationName(i.getMedicationName())
-                .dosage(i.getDosage())
-                .instructions(i.getInstructions())
-                .totalSupplyDays(i.getTotalSupplyDays())
-                .quantity(i.getQuantity())
-                .unit(i.getUnit())
-                .frequency(i.getFrequency())
-                .timing(i.getTiming())
-                .route(i.getRoute())
-                .unitPrice(i.getUnitPrice())
-                .totalPrice(i.getTotalPrice())
-                .notes(i.getNotes())
+                .prescriptionItemId(item.getPrescriptionItemId())
+                .medicineId(item.getMedicine() != null ? item.getMedicine().getMedicineId() : null)
+                .medicationName(item.getMedicationName())
+                .dosage(item.getDosage())
+                .instructions(item.getInstructions())
+                .totalSupplyDays(item.getTotalSupplyDays())
+                .quantity(item.getQuantity())
+                .unit(item.getUnit())
+                .frequency(item.getFrequency())
+                .timing(normalizeTimingForResponse(item.getTiming()))
+                .route(item.getRoute())
+                .unitPrice(item.getUnitPrice())
+                .totalPrice(item.getTotalPrice())
+                .notes(item.getNotes())
                 .build();
+    }
+
+    private String normalizeTimingRequired(String timing) {
+        try {
+            return PrescriptionTiming.normalize(timing);
+        } catch (IllegalArgumentException ex) {
+            throw new BadRequestException(ex.getMessage());
+        }
+    }
+
+    private String normalizeTimingOptional(String timing) {
+        if (timing == null || timing.isBlank()) {
+            return null;
+        }
+
+        return normalizeTimingRequired(timing);
+    }
+
+    private String normalizeTimingForResponse(String timing) {
+        if (PrescriptionTiming.isSupported(timing)) {
+            return PrescriptionTiming.normalize(timing);
+        }
+        return timing;
     }
 
     private String buildDosage(Medicine medicine) {
