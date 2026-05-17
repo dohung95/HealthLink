@@ -1,17 +1,14 @@
 -- =====================================================
 -- HEALTHLINK DATABASE SEED DATA
--- Sample records per table (following FK dependencies order)
+-- 10 records per table (following FK dependencies order)
 -- =====================================================
 
 -- 1. ROLES (4 basic roles)
 INSERT INTO Roles (Id, Name) VALUES
-('admin', 'ADMIN'),
-('doctor', 'DOCTOR'),
-('patient', 'PATIENT'),
-('pharmacy', 'PHARMACY');
-
-
-
+('admin', 'Admin'),
+('doctor', 'Doctor'),
+('patient', 'Patient'),
+('pharmacy', 'Pharmacy');
 
 -- 2. SPECIALTIES (10 specialties)
 SET IDENTITY_INSERT Specialties ON;
@@ -28,66 +25,69 @@ INSERT INTO Specialties (SpecialtyID, name, nameEn, description, iconUrl, Active
 (10, 'Dentistry', 'Dentistry', 'Dental care and treatment', '/icons/dental.png', 1, 10);
 SET IDENTITY_INSERT Specialties OFF;
 
-
-
-
 -- 3. USERS (30 users: 10 doctors, 10 patients, 10 pharmacies)
-INSERT INTO Users (Id, UserName, Email, EmailConfirmed, PasswordHash, PhoneNumber, AccessFailedCount, CreatedDate, Status, LastLoginAt, RoleId) VALUES
--- Admin account
-('user-a01', 'admin01', 'admin01@healthlink.com', 1, '$2a$12$9fhvTHtCwHXZJukaszjZxeZDewPWYg.pA8Qz2N2uM7vsiRnjR.8jW', '0902000001', 0, '2024-01-01', 'Active', '2024-05-01', 'admin'),
+INSERT INTO Users (Id, UserName, Email, EmailConfirmed, PasswordHash, PhoneNumber, AccessFailedCount, CreatedDate, Status, LastLoginAt) VALUES
 -- Doctors (user-d01 to user-d10)
-('user-d01', 'doctor01', 'doctor01@healthlink.com', 1, '$2a$12$5Ob6OVCa9uc1a407XSVTLeHCcOjwpn6Qyjx98.sGDHkQzLGL1Elae', '0901000001', 0, '2024-01-01', 'Active', '2024-05-01', 'doctor'),
-('user-d02', 'doctor02', 'doctor02@healthlink.com', 1, '$2a$10$hashedpassword2', '0901000002', 0, '2024-01-02', 'Active', '2024-05-02', 'doctor'),
-('user-d03', 'doctor03', 'doctor03@healthlink.com', 1, '$2a$10$hashedpassword3', '0901000003', 0, '2024-01-03', 'Active', '2024-05-03', 'doctor'),
-('user-d04', 'doctor04', 'doctor04@healthlink.com', 1, '$2a$10$hashedpassword4', '0901000004', 0, '2024-01-04', 'Active', '2024-05-04', 'doctor'),
-('user-d05', 'doctor05', 'doctor05@healthlink.com', 1, '$2a$10$hashedpassword5', '0901000005', 0, '2024-01-05', 'Active', '2024-05-05', 'doctor'),
-('user-d06', 'doctor06', 'doctor06@healthlink.com', 1, '$2a$10$hashedpassword6', '0901000006', 0, '2024-01-06', 'Active', '2024-05-06', 'doctor'),
-('user-d07', 'doctor07', 'doctor07@healthlink.com', 1, '$2a$10$hashedpassword7', '0901000007', 0, '2024-01-07', 'Active', '2024-05-07', 'doctor'),
-('user-d08', 'doctor08', 'doctor08@healthlink.com', 1, '$2a$10$hashedpassword8', '0901000008', 0, '2024-01-08', 'Active', '2024-05-08', 'doctor'),
-('user-d09', 'doctor09', 'doctor09@healthlink.com', 1, '$2a$10$hashedpassword9', '0901000009', 0, '2024-01-09', 'Active', '2024-05-09', 'doctor'),
-('user-d10', 'doctor10', 'doctor10@healthlink.com', 1, '$2a$10$hashedpassword10', '0901000010', 0, '2024-01-10', 'Active', '2024-05-10', 'doctor'),
+('user-d01', 'doctor01', 'doctor01@healthlink.com', 1, '$2a$10$hashedpassword1', '0901000001', 0, '2024-01-01', 'Active', '2024-05-01'),
+('user-d02', 'doctor02', 'doctor02@healthlink.com', 1, '$2a$10$hashedpassword2', '0901000002', 0, '2024-01-02', 'Active', '2024-05-02'),
+('user-d03', 'doctor03', 'doctor03@healthlink.com', 1, '$2a$10$hashedpassword3', '0901000003', 0, '2024-01-03', 'Active', '2024-05-03'),
+('user-d04', 'doctor04', 'doctor04@healthlink.com', 1, '$2a$10$hashedpassword4', '0901000004', 0, '2024-01-04', 'Active', '2024-05-04'),
+('user-d05', 'doctor05', 'doctor05@healthlink.com', 1, '$2a$10$hashedpassword5', '0901000005', 0, '2024-01-05', 'Active', '2024-05-05'),
+('user-d06', 'doctor06', 'doctor06@healthlink.com', 1, '$2a$10$hashedpassword6', '0901000006', 0, '2024-01-06', 'Active', '2024-05-06'),
+('user-d07', 'doctor07', 'doctor07@healthlink.com', 1, '$2a$10$hashedpassword7', '0901000007', 0, '2024-01-07', 'Active', '2024-05-07'),
+('user-d08', 'doctor08', 'doctor08@healthlink.com', 1, '$2a$10$hashedpassword8', '0901000008', 0, '2024-01-08', 'Active', '2024-05-08'),
+('user-d09', 'doctor09', 'doctor09@healthlink.com', 1, '$2a$10$hashedpassword9', '0901000009', 0, '2024-01-09', 'Active', '2024-05-09'),
+('user-d10', 'doctor10', 'doctor10@healthlink.com', 1, '$2a$10$hashedpassword10', '0901000010', 0, '2024-01-10', 'Active', '2024-05-10'),
 -- Patients (user-p01 to user-p10)
-('user-p01', 'patient01', 'patient01@gmail.com', 1, '$2a$12$Z4g4vC48/e5nWhfPnztsU.6EaY2kO5hr63sWI/oYcfQOWKjtJHH4C', '0912000001', 0, '2024-02-01', 'Active', '2024-05-01', 'patient'),
-('user-p02', 'patient02', 'patient02@gmail.com', 1, '$2a$10$hashedpassword12', '0912000002', 0, '2024-02-02', 'Active', '2024-05-02', 'patient'),
-('user-p03', 'patient03', 'patient03@gmail.com', 1, '$2a$10$hashedpassword13', '0912000003', 0, '2024-02-03', 'Active', '2024-05-03', 'patient'),
-('user-p04', 'patient04', 'patient04@gmail.com', 1, '$2a$10$hashedpassword14', '0912000004', 0, '2024-02-04', 'Active', '2024-05-04', 'patient'),
-('user-p05', 'patient05', 'patient05@gmail.com', 1, '$2a$10$hashedpassword15', '0912000005', 0, '2024-02-05', 'Active', '2024-05-05', 'patient'),
-('user-p06', 'patient06', 'patient06@gmail.com', 1, '$2a$10$hashedpassword16', '0912000006', 0, '2024-02-06', 'Active', '2024-05-06', 'patient'),
-('user-p07', 'patient07', 'patient07@gmail.com', 1, '$2a$10$hashedpassword17', '0912000007', 0, '2024-02-07', 'Active', '2024-05-07', 'patient'),
-('user-p08', 'patient08', 'patient08@gmail.com', 1, '$2a$10$hashedpassword18', '0912000008', 0, '2024-02-08', 'Active', '2024-05-08', 'patient'),
-('user-p09', 'patient09', 'patient09@gmail.com', 1, '$2a$10$hashedpassword19', '0912000009', 0, '2024-02-09', 'Active', '2024-05-09', 'patient'),
-('user-p10', 'patient10', 'patient10@gmail.com', 1, '$2a$10$hashedpassword20', '0912000010', 0, '2024-02-10', 'Active', '2024-05-10', 'patient'),
+('user-p01', 'patient01', 'patient01@gmail.com', 1, '$2a$10$hashedpassword11', '0912000001', 0, '2024-02-01', 'Active', '2024-05-01'),
+('user-p02', 'patient02', 'patient02@gmail.com', 1, '$2a$10$hashedpassword12', '0912000002', 0, '2024-02-02', 'Active', '2024-05-02'),
+('user-p03', 'patient03', 'patient03@gmail.com', 1, '$2a$10$hashedpassword13', '0912000003', 0, '2024-02-03', 'Active', '2024-05-03'),
+('user-p04', 'patient04', 'patient04@gmail.com', 1, '$2a$10$hashedpassword14', '0912000004', 0, '2024-02-04', 'Active', '2024-05-04'),
+('user-p05', 'patient05', 'patient05@gmail.com', 1, '$2a$10$hashedpassword15', '0912000005', 0, '2024-02-05', 'Active', '2024-05-05'),
+('user-p06', 'patient06', 'patient06@gmail.com', 1, '$2a$10$hashedpassword16', '0912000006', 0, '2024-02-06', 'Active', '2024-05-06'),
+('user-p07', 'patient07', 'patient07@gmail.com', 1, '$2a$10$hashedpassword17', '0912000007', 0, '2024-02-07', 'Active', '2024-05-07'),
+('user-p08', 'patient08', 'patient08@gmail.com', 1, '$2a$10$hashedpassword18', '0912000008', 0, '2024-02-08', 'Active', '2024-05-08'),
+('user-p09', 'patient09', 'patient09@gmail.com', 1, '$2a$10$hashedpassword19', '0912000009', 0, '2024-02-09', 'Active', '2024-05-09'),
+('user-p10', 'patient10', 'patient10@gmail.com', 1, '$2a$10$hashedpassword20', '0912000010', 0, '2024-02-10', 'Active', '2024-05-10'),
 -- Pharmacies (user-ph01 to user-ph10)
-('user-ph01', 'pharmacy01', 'sb-mzkxc42229383@personal.example.com', 1, '$2a$12$TjB5jD7tXAoIKQdPvLc9ZO./LwqdogkUoK31A0K4KcP..940QJSN6', '0923000001', 0, '2024-03-01', 'Active', '2024-05-01', 'pharmacy'),
-('user-ph02', 'pharmacy02', 'pharmacy02@healthlink.com', 1, '$2a$10$hashedpassword22', '0923000002', 0, '2024-03-02', 'Active', '2024-05-02', 'pharmacy'),
-('user-ph03', 'pharmacy03', 'pharmacy03@healthlink.com', 1, '$2a$10$hashedpassword23', '0923000003', 0, '2024-03-03', 'Active', '2024-05-03', 'pharmacy'),
-('user-ph04', 'pharmacy04', 'pharmacy04@healthlink.com', 1, '$2a$10$hashedpassword24', '0923000004', 0, '2024-03-04', 'Active', '2024-05-04', 'pharmacy'),
-('user-ph05', 'pharmacy05', 'pharmacy05@healthlink.com', 1, '$2a$10$hashedpassword25', '0923000005', 0, '2024-03-05', 'Active', '2024-05-05', 'pharmacy'),
-('user-ph06', 'pharmacy06', 'pharmacy06@healthlink.com', 1, '$2a$10$hashedpassword26', '0923000006', 0, '2024-03-06', 'Active', '2024-05-06', 'pharmacy'),
-('user-ph07', 'pharmacy07', 'pharmacy07@healthlink.com', 1, '$2a$10$hashedpassword27', '0923000007', 0, '2024-03-07', 'Active', '2024-05-07', 'pharmacy'),
-('user-ph08', 'pharmacy08', 'pharmacy08@healthlink.com', 1, '$2a$10$hashedpassword28', '0923000008', 0, '2024-03-08', 'Active', '2024-05-08', 'pharmacy'),
-('user-ph09', 'pharmacy09', 'pharmacy09@healthlink.com', 1, '$2a$10$hashedpassword29', '0923000009', 0, '2024-03-09', 'Active', '2024-05-09', 'pharmacy'),
-('user-ph10', 'pharmacy10', 'pharmacy10@healthlink.com', 1, '$2a$10$hashedpassword30', '0923000010', 0, '2024-03-10', 'Active', '2024-05-10', 'pharmacy');
+('user-ph01', 'pharmacy01', 'pharmacy01@healthlink.com', 1, '$2a$10$hashedpassword21', '0923000001', 0, '2024-03-01', 'Active', '2024-05-01'),
+('user-ph02', 'pharmacy02', 'pharmacy02@healthlink.com', 1, '$2a$10$hashedpassword22', '0923000002', 0, '2024-03-02', 'Active', '2024-05-02'),
+('user-ph03', 'pharmacy03', 'pharmacy03@healthlink.com', 1, '$2a$10$hashedpassword23', '0923000003', 0, '2024-03-03', 'Active', '2024-05-03'),
+('user-ph04', 'pharmacy04', 'pharmacy04@healthlink.com', 1, '$2a$10$hashedpassword24', '0923000004', 0, '2024-03-04', 'Active', '2024-05-04'),
+('user-ph05', 'pharmacy05', 'pharmacy05@healthlink.com', 1, '$2a$10$hashedpassword25', '0923000005', 0, '2024-03-05', 'Active', '2024-05-05'),
+('user-ph06', 'pharmacy06', 'pharmacy06@healthlink.com', 1, '$2a$10$hashedpassword26', '0923000006', 0, '2024-03-06', 'Active', '2024-05-06'),
+('user-ph07', 'pharmacy07', 'pharmacy07@healthlink.com', 1, '$2a$10$hashedpassword27', '0923000007', 0, '2024-03-07', 'Active', '2024-05-07'),
+('user-ph08', 'pharmacy08', 'pharmacy08@healthlink.com', 1, '$2a$10$hashedpassword28', '0923000008', 0, '2024-03-08', 'Active', '2024-05-08'),
+('user-ph09', 'pharmacy09', 'pharmacy09@healthlink.com', 1, '$2a$10$hashedpassword29', '0923000009', 0, '2024-03-09', 'Active', '2024-05-09'),
+('user-ph10', 'pharmacy10', 'pharmacy10@healthlink.com', 1, '$2a$10$hashedpassword30', '0923000010', 0, '2024-03-10', 'Active', '2024-05-10');
 
--- 4. DEVICE_TOKENS (2 mobile tokens)
-SET IDENTITY_INSERT DeviceTokens ON;
-INSERT INTO DeviceTokens (DeviceTokenID, UserId, Token, DeviceName, Platform, Active, CreatedAt, UpdatedAt) VALUES
-(1, 'user-p01', 'fcm-patient01-ios-001', 'iPhone 15 Pro', 'IOS', 1, '2024-05-10 08:00:00', '2024-05-10 08:00:00'),
-(2, 'user-p02', 'fcm-patient02-android-001', 'Samsung Galaxy S24', 'ANDROID', 1, '2024-05-11 09:00:00', '2024-05-11 09:00:00');
-SET IDENTITY_INSERT DeviceTokens OFF;
+-- 4. USER_ROLES
+INSERT INTO UserRoles (UserId, RoleId) VALUES
+('user-d01', 'doctor'), ('user-d02', 'doctor'), ('user-d03', 'doctor'),
+('user-d04', 'doctor'), ('user-d05', 'doctor'), ('user-d06', 'doctor'),
+('user-d07', 'doctor'), ('user-d08', 'doctor'), ('user-d09', 'doctor'),
+('user-d10', 'doctor'),
+('user-p01', 'patient'), ('user-p02', 'patient'), ('user-p03', 'patient'),
+('user-p04', 'patient'), ('user-p05', 'patient'), ('user-p06', 'patient'),
+('user-p07', 'patient'), ('user-p08', 'patient'), ('user-p09', 'patient'),
+('user-p10', 'patient'),
+('user-ph01', 'pharmacy'), ('user-ph02', 'pharmacy'), ('user-ph03', 'pharmacy'),
+('user-ph04', 'pharmacy'), ('user-ph05', 'pharmacy'), ('user-ph06', 'pharmacy'),
+('user-ph07', 'pharmacy'), ('user-ph08', 'pharmacy'), ('user-ph09', 'pharmacy'),
+('user-ph10', 'pharmacy');
 
 -- 5. DOCTORS (10 doctors)
-INSERT INTO Doctors (DoctorID, FullName, qualifications, specialty, yearsOfExperience, languageSpoken, location, avatarUrl, bio, consultationFee, latitude, longitude, clinicName, clinicAddress, averageRating, totalReviews, verified, availableForVideo, availableForAudio, availableForChat, availableForOffline, specialtyId, totalEarnings, pendingSettlement, paypalEmail) VALUES
-('user-d01', 'Dr. John Smith', 'MD, PhD - Harvard Medical School', 'Internal Medicine', 15, 'English, Spanish', 'New York', '/avatars/doctor01.jpg', 'Internal medicine specialist with 15 years of experience', 150.00, 40.7128, -74.0060, 'Manhattan Health Clinic', '123 5th Avenue, New York, NY 10001', 4.8, 156, 1, 1, 1, 1, 1, 1, 500.00, 120.00, 'dr.john.smith@healthlink.com'),
-('user-d02', 'Dr. Sarah Johnson', 'MD - Johns Hopkins University', 'Pediatrics', 12, 'English', 'Los Angeles', '/avatars/doctor02.jpg', 'Dedicated pediatrician caring for children', 120.00, 34.0522, -118.2437, 'LA Children Hospital', '456 Sunset Blvd, Los Angeles, CA 90028', 4.9, 203, 1, 1, 1, 1, 1, 3, 320.00, 75.00, 'dr.sarah.johnson@healthlink.com'),
-('user-d03', 'Dr. Michael Chen', 'MD, FACC - Stanford University', 'Cardiology', 20, 'English, Mandarin, French', 'San Francisco', '/avatars/doctor03.jpg', 'Leading cardiologist and heart specialist', 250.00, 37.7749, -122.4194, 'Bay Area Heart Center', '789 Market Street, San Francisco, CA 94103', 4.95, 89, 1, 1, 0, 1, 1, 6, 640.00, 150.00, 'dr.michael.chen@healthlink.com'),
-('user-d04', 'Dr. Emily Davis', 'MD, FACS - Mayo Clinic', 'Surgery', 10, 'English', 'Chicago', '/avatars/doctor04.jpg', 'Experienced general surgeon', 180.00, 41.8781, -87.6298, 'Chicago Medical Center', '321 Michigan Ave, Chicago, IL 60601', 4.7, 67, 1, 0, 0, 1, 1, 2, 280.00, 50.00, 'dr.emily.davis@healthlink.com'),
-('user-d05', 'Dr. Jessica Williams', 'MD, FACOG - UCLA', 'Obstetrics & Gynecology', 8, 'English, Korean', 'Seattle', '/avatars/doctor05.jpg', 'Women health and pregnancy specialist', 140.00, 47.6062, -122.3321, 'Seattle Women Clinic', '555 Pine Street, Seattle, WA 98101', 4.85, 178, 1, 1, 1, 1, 1, 4, 410.00, 140.00, 'dr.jessica.williams@healthlink.com'),
-('user-d06', 'Dr. Robert Brown', 'MD - NYU School of Medicine', 'Dermatology', 7, 'English, Italian', 'Miami', '/avatars/doctor06.jpg', 'Skin disease and cosmetic dermatology expert', 110.00, 25.7617, -80.1918, 'Miami Skin Center', '888 Ocean Drive, Miami, FL 33139', 4.6, 234, 1, 1, 1, 1, 0, 5, 220.00, 45.00, 'dr.robert.brown@healthlink.com'),
-('user-d07', 'Dr. David Wilson', 'MD, PhD - Columbia University', 'Neurology', 18, 'English, German', 'Boston', '/avatars/doctor07.jpg', 'Neurologist specializing in brain disorders', 220.00, 42.3601, -71.0589, 'Boston Neuro Institute', '100 Cambridge St, Boston, MA 02114', 4.75, 112, 1, 1, 1, 1, 1, 7, 520.00, 170.00, 'dr.david.wilson@healthlink.com'),
-('user-d08', 'Dr. Amanda Lee', 'MD - Wills Eye Hospital', 'Ophthalmology', 14, 'English, Japanese', 'Philadelphia', '/avatars/doctor08.jpg', 'Eye surgery and treatment specialist', 160.00, 39.9526, -75.1652, 'Philadelphia Eye Center', '200 Chestnut St, Philadelphia, PA 19106', 4.88, 145, 1, 1, 0, 1, 1, 8, 305.00, 80.00, 'dr.amanda.lee@healthlink.com'),
-('user-d09', 'Dr. James Taylor', 'MD - Baylor College of Medicine', 'ENT', 11, 'English, Spanish', 'Houston', '/avatars/doctor09.jpg', 'Ear, nose, and throat specialist', 100.00, 29.7604, -95.3698, 'Houston ENT Clinic', '400 Main Street, Houston, TX 77002', 4.5, 89, 1, 1, 1, 1, 1, 9, 190.00, 30.00, 'dr.james.taylor@healthlink.com'),
-('user-d10', 'Dr. Jennifer Martinez', 'DDS - USC School of Dentistry', 'Dentistry', 9, 'English, Spanish', 'Phoenix', '/avatars/doctor10.jpg', 'Cosmetic and general dentistry', 90.00, 33.4484, -112.0740, 'Smile Dental Care', '600 Central Ave, Phoenix, AZ 85004', 4.92, 267, 1, 0, 0, 1, 1, 10, 150.00, 25.00, 'dr.jennifer.martinez@healthlink.com');
+INSERT INTO Doctors (DoctorID, FullName, qualifications, specialty, yearsOfExperience, languageSpoken, location, avatarUrl, bio, consultationFee, latitude, longitude, clinicName, clinicAddress, averageRating, totalReviews, verified, availableForVideo, availableForAudio, availableForChat, availableForOffline, specialtyId) VALUES
+('user-d01', 'Dr. John Smith', 'MD, PhD - Harvard Medical School', 'Internal Medicine', 15, 'English, Spanish', 'New York', '/avatars/doctor01.jpg', 'Internal medicine specialist with 15 years of experience', 150.00, 40.7128, -74.0060, 'Manhattan Health Clinic', '123 5th Avenue, New York, NY 10001', 4.8, 156, 1, 1, 1, 1, 1, 1),
+('user-d02', 'Dr. Sarah Johnson', 'MD - Johns Hopkins University', 'Pediatrics', 12, 'English', 'Los Angeles', '/avatars/doctor02.jpg', 'Dedicated pediatrician caring for children', 120.00, 34.0522, -118.2437, 'LA Children Hospital', '456 Sunset Blvd, Los Angeles, CA 90028', 4.9, 203, 1, 1, 1, 1, 1, 3),
+('user-d03', 'Dr. Michael Chen', 'MD, FACC - Stanford University', 'Cardiology', 20, 'English, Mandarin, French', 'San Francisco', '/avatars/doctor03.jpg', 'Leading cardiologist and heart specialist', 250.00, 37.7749, -122.4194, 'Bay Area Heart Center', '789 Market Street, San Francisco, CA 94103', 4.95, 89, 1, 1, 0, 1, 1, 6),
+('user-d04', 'Dr. Emily Davis', 'MD, FACS - Mayo Clinic', 'Surgery', 10, 'English', 'Chicago', '/avatars/doctor04.jpg', 'Experienced general surgeon', 180.00, 41.8781, -87.6298, 'Chicago Medical Center', '321 Michigan Ave, Chicago, IL 60601', 4.7, 67, 1, 0, 0, 1, 1, 2),
+('user-d05', 'Dr. Jessica Williams', 'MD, FACOG - UCLA', 'Obstetrics & Gynecology', 8, 'English, Korean', 'Seattle', '/avatars/doctor05.jpg', 'Women health and pregnancy specialist', 140.00, 47.6062, -122.3321, 'Seattle Women Clinic', '555 Pine Street, Seattle, WA 98101', 4.85, 178, 1, 1, 1, 1, 1, 4),
+('user-d06', 'Dr. Robert Brown', 'MD - NYU School of Medicine', 'Dermatology', 7, 'English, Italian', 'Miami', '/avatars/doctor06.jpg', 'Skin disease and cosmetic dermatology expert', 110.00, 25.7617, -80.1918, 'Miami Skin Center', '888 Ocean Drive, Miami, FL 33139', 4.6, 234, 1, 1, 1, 1, 0, 5),
+('user-d07', 'Dr. David Wilson', 'MD, PhD - Columbia University', 'Neurology', 18, 'English, German', 'Boston', '/avatars/doctor07.jpg', 'Neurologist specializing in brain disorders', 220.00, 42.3601, -71.0589, 'Boston Neuro Institute', '100 Cambridge St, Boston, MA 02114', 4.75, 112, 1, 1, 1, 1, 1, 7),
+('user-d08', 'Dr. Amanda Lee', 'MD - Wills Eye Hospital', 'Ophthalmology', 14, 'English, Japanese', 'Philadelphia', '/avatars/doctor08.jpg', 'Eye surgery and treatment specialist', 160.00, 39.9526, -75.1652, 'Philadelphia Eye Center', '200 Chestnut St, Philadelphia, PA 19106', 4.88, 145, 1, 1, 0, 1, 1, 8),
+('user-d09', 'Dr. James Taylor', 'MD - Baylor College of Medicine', 'ENT', 11, 'English, Spanish', 'Houston', '/avatars/doctor09.jpg', 'Ear, nose, and throat specialist', 100.00, 29.7604, -95.3698, 'Houston ENT Clinic', '400 Main Street, Houston, TX 77002', 4.5, 89, 1, 1, 1, 1, 1, 9),
+('user-d10', 'Dr. Jennifer Martinez', 'DDS - USC School of Dentistry', 'Dentistry', 9, 'English, Spanish', 'Phoenix', '/avatars/doctor10.jpg', 'Cosmetic and general dentistry', 90.00, 33.4484, -112.0740, 'Smile Dental Care', '600 Central Ave, Phoenix, AZ 85004', 4.92, 267, 1, 0, 0, 1, 1, 10);
 
 -- 6. PATIENTS (10 patients)
 INSERT INTO Patients (PatientID, FullName, dateOfBirth, medicalHistorySummary, insuranceProvider, insurancePolicyNumber, gender, address, city, country, bloodType, emergencyContactName, emergencyContactPhone, emergencyContactRelationship, preferredLanguage, preferredContactMethod, occupation, avatarUrl, latitude, longitude, allergies, chronicConditions, currentMedications, heightCm, weightKg) VALUES
@@ -103,17 +103,17 @@ INSERT INTO Patients (PatientID, FullName, dateOfBirth, medicalHistorySummary, i
 ('user-p10', 'Charlotte Taylor', '1975-06-12', 'Spinal degeneration', 'BCBS', 'BCBS-2024-010', 'Female', '90 Aspen Way', 'Philadelphia', 'USA', 'AB-', 'George Taylor', '0901234567', 'Husband', 'English', 'Phone', 'Homemaker', '/avatars/patient10.jpg', 39.9526, -75.1652, NULL, 'Spinal degeneration', 'Glucosamine', 158, 62);
 
 -- 7. PHARMACIES (10 pharmacies)
-INSERT INTO Pharmacies (PharmacyID, name, licenseNumber, address, city, district, ward, latitude, longitude, phoneNumber, email, description, avatarUrl, openTime, closeTime, Open24Hours, workingDays, Verified, Active, AverageRating, TotalReviews, DeliveryAvailable, DeliveryRadius, DeliveryFee, CreatedAt, updatedAt, totalEarnings, pendingSettlement, paypalEmail) VALUES
-('user-ph01', 'CVS Pharmacy - Manhattan', 'PH-NY-001', '15 Broadway Ave', 'New York', 'Manhattan', 'Midtown', 40.7580, -73.9855, '2123001001', 'cvs.manhattan@pharmacy.com', 'Trusted pharmacy with great service', '/pharmacy/cvs1.jpg', '07:00', '22:00', 0, 'Mon-Sun', 1, 1, 4.8, 523, 1, 5.0, 5.99, '2024-01-01', '2024-05-01', 700.00, 90.00, 'sb-mzkxc42229383@personal.example.com'),
-('user-ph02', 'Walgreens - LA Downtown', 'PH-CA-002', '120 Sunset Blvd', 'Los Angeles', 'Downtown', 'Central', 34.0407, -118.2468, '2133002002', 'walgreens.la@pharmacy.com', 'Large pharmacy chain', '/pharmacy/walgreens1.jpg', '07:30', '22:30', 0, 'Mon-Sun', 1, 1, 4.7, 412, 1, 7.0, 6.99, '2024-01-15', '2024-05-02', 650.00, 75.00, 'walgreens.la@healthlink.com'),
-('user-ph03', 'Rite Aid - Chicago', 'PH-IL-003', '56 Michigan Ave', 'Chicago', 'Loop', 'Central', 41.8827, -87.6233, '3123003003', 'riteaid.chi@pharmacy.com', 'Your neighborhood pharmacy', '/pharmacy/riteaid.jpg', '06:30', '21:30', 0, 'Mon-Sat', 1, 1, 4.6, 187, 1, 4.0, 4.99, '2024-02-01', '2024-05-03', 420.00, 30.00, 'riteaid.chi@healthlink.com'),
-('user-ph04', 'CVS Pharmacy - SF', 'PH-CA-004', '789 Market Street', 'San Francisco', 'Financial', 'Downtown', 37.7879, -122.4074, '4153004004', 'cvs.sf@pharmacy.com', 'Tech-friendly pharmacy', '/pharmacy/cvs2.jpg', '07:00', '23:00', 0, 'Mon-Sun', 1, 1, 4.9, 678, 1, 6.0, 7.99, '2024-02-15', '2024-05-04', 840.00, 110.00, 'cvs.sf@healthlink.com'),
-('user-ph05', 'Walgreens - Boston', 'PH-MA-005', '23 Newbury Street', 'Boston', 'Back Bay', 'Central', 42.3505, -71.0762, '6173005005', 'walgreens.bos@pharmacy.com', 'Premium pharmacy services', '/pharmacy/walgreens2.jpg', '08:00', '20:00', 0, 'Mon-Sat', 1, 1, 4.5, 234, 1, 3.0, 5.49, '2024-03-01', '2024-05-05', 390.00, 20.00, 'walgreens.bos@healthlink.com'),
-('user-ph06', 'Hospital Pharmacy - NYC', 'PH-NY-006', '78 Hospital Drive', 'New York', 'Queens', 'Jamaica', 40.7282, -73.7949, '7183006006', 'hospital.nyc@pharmacy.com', 'Open 24/7', '/pharmacy/hospital.jpg', NULL, NULL, 1, 'Mon-Sun', 1, 1, 4.4, 892, 0, NULL, NULL, '2024-03-15', '2024-05-06', 510.00, 60.00, 'hospital.nyc@healthlink.com'),
-('user-ph07', 'MedExpress Pharmacy', 'PH-TX-007', '34 Main Plaza', 'Houston', 'Downtown', 'Central', 29.7589, -95.3677, '7133007007', 'medexpress@pharmacy.com', 'Fast and reliable service', '/pharmacy/medexpress.jpg', '07:00', '21:00', 0, 'Mon-Sun', 1, 1, 4.7, 156, 1, 8.0, 5.99, '2024-04-01', '2024-05-07', 280.00, 15.00, 'medexpress@healthlink.com'),
-('user-ph08', 'Community Pharmacy', 'PH-FL-008', '456 Ocean Drive', 'Miami', 'Beach', 'South Beach', 25.7825, -80.1340, '3053008008', 'community.miami@pharmacy.com', 'Family owned pharmacy', '/pharmacy/community.jpg', '06:00', '22:00', 0, 'Mon-Sun', 1, 1, 4.3, 345, 1, 5.0, 4.99, '2024-04-15', '2024-05-08', 330.00, 25.00, 'community.miami@healthlink.com'),
-('user-ph09', 'HealthMart Pharmacy', 'PH-WA-009', 'Pike Place Market', 'Seattle', 'Downtown', 'Pike Place', 47.6097, -122.3422, '2063009009', 'healthmart.sea@pharmacy.com', 'Natural and organic options', '/pharmacy/healthmart.jpg', '09:00', '22:00', 0, 'Mon-Sun', 1, 1, 4.6, 267, 1, 4.0, 6.99, '2024-05-01', '2024-05-09', 260.00, 18.00, 'healthmart.sea@healthlink.com'),
-('user-ph10', 'Express Scripts Pharmacy', 'PH-AZ-010', '90 Central Avenue', 'Phoenix', 'Downtown', 'Central', 33.4502, -112.0733, '6023010010', 'express.phx@pharmacy.com', 'Quick prescription service', '/pharmacy/express.jpg', '07:30', '21:00', 0, 'Mon-Sat', 1, 1, 4.8, 198, 1, 6.0, 5.49, '2024-05-05', '2024-05-10', 300.00, 22.00, 'express.phx@healthlink.com');
+INSERT INTO Pharmacies (PharmacyID, name, licenseNumber, address, city, district, ward, latitude, longitude, phoneNumber, email, description, avatarUrl, openTime, closeTime, Open24Hours, workingDays, Verified, Active, AverageRating, TotalReviews, DeliveryAvailable, DeliveryRadius, DeliveryFee, CreatedAt, updatedAt) VALUES
+('user-ph01', 'CVS Pharmacy - Manhattan', 'PH-NY-001', '15 Broadway Ave', 'New York', 'Manhattan', 'Midtown', 40.7580, -73.9855, '2123001001', 'cvs.manhattan@pharmacy.com', 'Trusted pharmacy with great service', '/pharmacy/cvs1.jpg', '07:00', '22:00', 0, 'Mon-Sun', 1, 1, 4.8, 523, 1, 5.0, 5.99, '2024-01-01', '2024-05-01'),
+('user-ph02', 'Walgreens - LA Downtown', 'PH-CA-002', '120 Sunset Blvd', 'Los Angeles', 'Downtown', 'Central', 34.0407, -118.2468, '2133002002', 'walgreens.la@pharmacy.com', 'Large pharmacy chain', '/pharmacy/walgreens1.jpg', '07:30', '22:30', 0, 'Mon-Sun', 1, 1, 4.7, 412, 1, 7.0, 6.99, '2024-01-15', '2024-05-02'),
+('user-ph03', 'Rite Aid - Chicago', 'PH-IL-003', '56 Michigan Ave', 'Chicago', 'Loop', 'Central', 41.8827, -87.6233, '3123003003', 'riteaid.chi@pharmacy.com', 'Your neighborhood pharmacy', '/pharmacy/riteaid.jpg', '06:30', '21:30', 0, 'Mon-Sat', 1, 1, 4.6, 187, 1, 4.0, 4.99, '2024-02-01', '2024-05-03'),
+('user-ph04', 'CVS Pharmacy - SF', 'PH-CA-004', '789 Market Street', 'San Francisco', 'Financial', 'Downtown', 37.7879, -122.4074, '4153004004', 'cvs.sf@pharmacy.com', 'Tech-friendly pharmacy', '/pharmacy/cvs2.jpg', '07:00', '23:00', 0, 'Mon-Sun', 1, 1, 4.9, 678, 1, 6.0, 7.99, '2024-02-15', '2024-05-04'),
+('user-ph05', 'Walgreens - Boston', 'PH-MA-005', '23 Newbury Street', 'Boston', 'Back Bay', 'Central', 42.3505, -71.0762, '6173005005', 'walgreens.bos@pharmacy.com', 'Premium pharmacy services', '/pharmacy/walgreens2.jpg', '08:00', '20:00', 0, 'Mon-Sat', 1, 1, 4.5, 234, 1, 3.0, 5.49, '2024-03-01', '2024-05-05'),
+('user-ph06', 'Hospital Pharmacy - NYC', 'PH-NY-006', '78 Hospital Drive', 'New York', 'Queens', 'Jamaica', 40.7282, -73.7949, '7183006006', 'hospital.nyc@pharmacy.com', 'Open 24/7', '/pharmacy/hospital.jpg', NULL, NULL, 1, 'Mon-Sun', 1, 1, 4.4, 892, 0, NULL, NULL, '2024-03-15', '2024-05-06'),
+('user-ph07', 'MedExpress Pharmacy', 'PH-TX-007', '34 Main Plaza', 'Houston', 'Downtown', 'Central', 29.7589, -95.3677, '7133007007', 'medexpress@pharmacy.com', 'Fast and reliable service', '/pharmacy/medexpress.jpg', '07:00', '21:00', 0, 'Mon-Sun', 1, 1, 4.7, 156, 1, 8.0, 5.99, '2024-04-01', '2024-05-07'),
+('user-ph08', 'Community Pharmacy', 'PH-FL-008', '456 Ocean Drive', 'Miami', 'Beach', 'South Beach', 25.7825, -80.1340, '3053008008', 'community.miami@pharmacy.com', 'Family owned pharmacy', '/pharmacy/community.jpg', '06:00', '22:00', 0, 'Mon-Sun', 1, 1, 4.3, 345, 1, 5.0, 4.99, '2024-04-15', '2024-05-08'),
+('user-ph09', 'HealthMart Pharmacy', 'PH-WA-009', 'Pike Place Market', 'Seattle', 'Downtown', 'Pike Place', 47.6097, -122.3422, '2063009009', 'healthmart.sea@pharmacy.com', 'Natural and organic options', '/pharmacy/healthmart.jpg', '09:00', '22:00', 0, 'Mon-Sun', 1, 1, 4.6, 267, 1, 4.0, 6.99, '2024-05-01', '2024-05-09'),
+('user-ph10', 'Express Scripts Pharmacy', 'PH-AZ-010', '90 Central Avenue', 'Phoenix', 'Downtown', 'Central', 33.4502, -112.0733, '6023010010', 'express.phx@pharmacy.com', 'Quick prescription service', '/pharmacy/express.jpg', '07:30', '21:00', 0, 'Mon-Sat', 1, 1, 4.8, 198, 1, 6.0, 5.49, '2024-05-05', '2024-05-10');
 
 -- 8. MEDICINES (10 medicines)
 SET IDENTITY_INSERT Medicines ON;
@@ -160,7 +160,7 @@ INSERT INTO DoctorScheduleExceptions (ExceptionID, DoctorId, exceptionDate, exce
 (10, 'user-d10', '2024-05-27', 'DayOff', NULL, NULL, 'Annual leave', 0, NULL);
 SET IDENTITY_INSERT DoctorScheduleExceptions OFF;
 
--- 11. APPOINTMENTS (11 appointments)
+-- 11. APPOINTMENTS (10 appointments)
 SET IDENTITY_INSERT Appointments ON;
 INSERT INTO Appointments (AppointmentID, AppointmentTime, ConsultationType, Status, symptoms, notes, fee, endTime, cancelReason, cancelledBy, cancelledAt, rescheduledFrom, reminderSent, confirmedAt, PatientID, DoctorID) VALUES
 (1, '2024-05-10 09:00:00', 'Video', 'Completed', 'Headache and fatigue for 3 days', 'Patient needs follow-up', 150.00, '2024-05-10 09:30:00', NULL, NULL, NULL, NULL, 1, '2024-05-09 15:00:00', 'user-p01', 'user-d01'),
@@ -172,11 +172,10 @@ INSERT INTO Appointments (AppointmentID, AppointmentTime, ConsultationType, Stat
 (7, '2024-05-20 15:00:00', 'Offline', 'Confirmed', 'Severe headache and dizziness', NULL, 220.00, NULL, NULL, NULL, NULL, NULL, 1, '2024-05-19 11:00:00', 'user-p07', 'user-d07'),
 (8, '2024-05-22 08:30:00', 'Offline', 'Scheduled', 'Blurry vision and eye pain', NULL, 160.00, NULL, NULL, NULL, NULL, NULL, 0, NULL, 'user-p08', 'user-d08'),
 (9, '2024-05-13 14:00:00', 'Video', 'Cancelled', 'Sore throat, difficulty swallowing', 'Patient cancelled', NULL, NULL, 'Unexpected work commitment', 'Patient', '2024-05-13 08:00:00', NULL, 1, '2024-05-12 20:00:00', 'user-p09', 'user-d09'),
-(10, '2024-05-25 10:00:00', 'Offline', 'Scheduled', 'Toothache and swollen gums', NULL, 90.00, NULL, NULL, NULL, NULL, NULL, 0, NULL, 'user-p10', 'user-d10'),
-(11, '2024-05-24 16:00:00', 'Video', 'Completed', 'Follow-up after seasonal flu', 'Completed telehealth session for invoice generation test', 150.00, '2024-05-24 16:30:00', NULL, NULL, NULL, NULL, 1, '2024-05-24 15:50:00', 'user-p01', 'user-d01');
+(10, '2024-05-25 10:00:00', 'Offline', 'Scheduled', 'Toothache and swollen gums', NULL, 90.00, NULL, NULL, NULL, NULL, NULL, 0, NULL, 'user-p10', 'user-d10');
 SET IDENTITY_INSERT Appointments OFF;
 
--- 12. CONSULTATIONS (11 consultations)
+-- 12. CONSULTATIONS (10 consultations)
 SET IDENTITY_INSERT Consultations ON;
 INSERT INTO Consultations (ConsultationID, AppointmentId, startTime, endTime, doctorNotes, diagnosis, followUpDate, consultationType, roomId, roomUrl, recordingUrl, duration, symptoms, treatmentPlan, followUpNotes) VALUES
 (1, 1, '2024-05-10 09:00:00', '2024-05-10 09:28:00', 'Patient shows signs of stress and sleep deprivation', 'Mild anxiety disorder, work-related stress', '2024-05-24', 'Video', 'room-001', 'https://meet.healthlink.com/room-001', NULL, 28, 'Headache, fatigue', 'Rest, stress management, medication as prescribed', 'Follow up in 2 weeks'),
@@ -188,8 +187,7 @@ INSERT INTO Consultations (ConsultationID, AppointmentId, startTime, endTime, do
 (7, 7, '2024-05-20 15:00:00', NULL, NULL, NULL, NULL, 'Offline', NULL, NULL, NULL, NULL, 'Headache, dizziness', NULL, NULL),
 (8, 8, NULL, NULL, NULL, NULL, NULL, 'Offline', NULL, NULL, NULL, NULL, 'Blurry vision, eye pain', NULL, NULL),
 (9, 9, NULL, NULL, 'Patient cancelled appointment', NULL, NULL, 'Video', 'room-009', NULL, NULL, NULL, 'Sore throat', NULL, NULL),
-(10, 10, NULL, NULL, NULL, NULL, NULL, 'Offline', NULL, NULL, NULL, NULL, 'Toothache', NULL, NULL),
-(11, 11, '2024-05-24 16:00:00', '2024-05-24 16:25:00', 'Stable condition, no new complaints', 'Recovered from seasonal flu, recommend rest and hydration', '2024-06-07', 'Video', 'room-011', 'https://meet.healthlink.com/room-011', NULL, 25, 'Follow-up visit after flu', 'Rest, hydration, vitamin C', 'Return if fever recurs');
+(10, 10, NULL, NULL, NULL, NULL, NULL, 'Offline', NULL, NULL, NULL, NULL, 'Toothache', NULL, NULL);
 SET IDENTITY_INSERT Consultations OFF;
 
 -- 13. HEALTH_RECORDS (10 health records)
@@ -285,16 +283,16 @@ SET IDENTITY_INSERT PrescriptionHeaders OFF;
 -- 19. PRESCRIPTION_ITEMS (10 items)
 SET IDENTITY_INSERT PrescriptionItems ON;
 INSERT INTO PrescriptionItems (PrescriptionItemID, PrescriptionHeaderID, medicationName, dosage, instructions, totalSupplyDays, MedicineID, quantity, unit, frequency, timing, route, unitPrice, totalPrice, notes) VALUES
-(1, 1, 'Paracetamol 500mg', '500mg', 'Take when headache occurs, max 3 tablets per day', 7, 1, 21, 'Tablet', '3 times daily', 'As needed', 'Oral', 0.30, 6.30, NULL),
-(2, 1, 'Vitamin C 1000mg', '1000mg', 'Take 1 tablet in morning after breakfast', 14, 7, 14, 'Tablet', 'Once daily', 'Morning', 'Oral', 0.93, 13.02, 'Immune support'),
-(3, 2, 'Paracetamol 500mg', '250mg', 'Take when fever exceeds 100.4F', 5, 1, 10, 'Tablet', 'As needed', 'When fever', 'Oral', 0.30, 3.00, 'Half tablet for child'),
-(4, 2, 'Cetirizine 10mg', '5mg', 'Take once before bedtime', 7, 6, 7, 'Tablet', 'Once daily', 'Night', 'Oral', 0.71, 4.97, 'Half tablet'),
-(5, 3, 'Amlodipine 5mg', '5mg', 'Take 1 tablet every morning', 30, 5, 30, 'Tablet', 'Once daily', 'Morning', 'Oral', 0.63, 18.90, 'Maintain blood pressure'),
-(6, 4, 'Ibuprofen 400mg', '400mg', 'Take after meals when in pain', 5, 8, 15, 'Tablet', '3 times daily', 'After meals', 'Oral', 0.53, 7.95, 'Do not take on empty stomach'),
-(7, 5, 'Prenatal Multivitamin', '1 tablet', 'Take 1 tablet daily after breakfast', 30, NULL, 30, 'Tablet', 'Once daily', 'Morning', 'Oral', 1.83, 54.90, 'Prenatal vitamin'),
-(8, 8, 'Metformin 500mg', '500mg', 'Take after breakfast and dinner', 30, 4, 60, 'Tablet', 'Twice daily', 'Morning, evening', 'Oral', 0.30, 18.00, NULL),
-(9, 9, 'Amlodipine 5mg', '5mg', 'Take every morning', 30, 5, 30, 'Tablet', 'Once daily', 'Morning', 'Oral', 0.63, 18.90, NULL),
-(10, 10, 'Allopurinol 300mg', '300mg', 'Take after breakfast', 30, 10, 30, 'Tablet', 'Once daily', 'Morning', 'Oral', 0.50, 15.00, 'Drink plenty of water');
+(1, 1, 'Paracetamol 500mg', '500mg', 'Take when headache occurs, max 3 tablets per day', 7, 1, 21, 'Tablet', '3 times daily', 'AFTERNOON', 'Oral', 0.30, 6.30, NULL),
+(2, 1, 'Vitamin C 1000mg', '1000mg', 'Take 1 tablet in morning after breakfast', 14, 7, 14, 'Tablet', 'Once daily', 'MORNING', 'Oral', 0.93, 13.02, 'Immune support'),
+(3, 2, 'Paracetamol 500mg', '250mg', 'Take when fever exceeds 100.4F', 5, 1, 10, 'Tablet', 'As needed', 'AFTERNOON', 'Oral', 0.30, 3.00, 'Half tablet for child'),
+(4, 2, 'Cetirizine 10mg', '5mg', 'Take once before bedtime', 7, 6, 7, 'Tablet', 'Once daily', 'EVENING', 'Oral', 0.71, 4.97, 'Half tablet'),
+(5, 3, 'Amlodipine 5mg', '5mg', 'Take 1 tablet every morning', 30, 5, 30, 'Tablet', 'Once daily', 'MORNING', 'Oral', 0.63, 18.90, 'Maintain blood pressure'),
+(6, 4, 'Ibuprofen 400mg', '400mg', 'Take after meals when in pain', 5, 8, 15, 'Tablet', '3 times daily', 'AFTERNOON', 'Oral', 0.53, 7.95, 'Do not take on empty stomach'),
+(7, 5, 'Prenatal Multivitamin', '1 tablet', 'Take 1 tablet daily after breakfast', 30, NULL, 30, 'Tablet', 'Once daily', 'MORNING', 'Oral', 1.83, 54.90, 'Prenatal vitamin'),
+(8, 8, 'Metformin 500mg', '500mg', 'Take after breakfast and dinner', 30, 4, 60, 'Tablet', 'Twice daily', 'MORNING', 'Oral', 0.30, 18.00, NULL),
+(9, 9, 'Amlodipine 5mg', '5mg', 'Take every morning', 30, 5, 30, 'Tablet', 'Once daily', 'MORNING', 'Oral', 0.63, 18.90, NULL),
+(10, 10, 'Allopurinol 300mg', '300mg', 'Take after breakfast', 30, 10, 30, 'Tablet', 'Once daily', 'MORNING', 'Oral', 0.50, 15.00, 'Drink plenty of water');
 SET IDENTITY_INSERT PrescriptionItems OFF;
 
 -- 20. PHARMACY_ORDERS (10 orders)
@@ -326,31 +324,33 @@ INSERT INTO ChatRooms (ChatRoomId, user1Id, user2Id, user1DisplayName, user1Phot
 ('chat-010', 'user-p10', 'user-d10', 'Charlotte Taylor', '/avatars/patient10.jpg', 'Dr. Jennifer Martinez', '/avatars/doctor10.jpg', NULL, NULL, 10);
 
 -- 22. MESSAGES (10 messages)
+SET IDENTITY_INSERT ChatMessages ON;
 INSERT INTO ChatMessages (MessageID, ChatRoomId, SenderId, ReceiverId, content, photoURL, imageUrl, IsRead, SentAt) VALUES
-('11111111-1111-1111-1111-111111111111', 'chat-001', 'user-d01', 'user-p01', 'Hi Michael, can you describe your headache symptoms?', '/avatars/doctor01.jpg', NULL, 1, '2024-05-10 09:02:00'),
-('11111111-1111-1111-1111-111111111112', 'chat-001', 'user-p01', 'user-d01', 'I have been having a dull pain on the right side of my head for 3 days', '/avatars/patient01.jpg', NULL, 1, '2024-05-10 09:05:00'),
-('11111111-1111-1111-1111-111111111113', 'chat-001', 'user-d01', 'user-p01', 'Are you getting enough sleep? Any work-related stress?', '/avatars/doctor01.jpg', NULL, 1, '2024-05-10 09:08:00'),
-('11111111-1111-1111-1111-111111111114', 'chat-001', 'user-p01', 'user-d01', 'Actually, I have been working a lot lately and not sleeping well', '/avatars/patient01.jpg', NULL, 1, '2024-05-10 09:10:00'),
-('11111111-1111-1111-1111-111111111115', 'chat-001', 'user-p01', 'user-d01', 'Thank you, doctor!', '/avatars/patient01.jpg', NULL, 1, '2024-05-10 09:35:00'),
-('11111111-1111-1111-1111-111111111116', 'chat-002', 'user-d02', 'user-p02', 'How high is the fever and when did it start?', '/avatars/doctor02.jpg', NULL, 1, '2024-05-11 10:02:00'),
-('11111111-1111-1111-1111-111111111117', 'chat-002', 'user-p02', 'user-d02', 'The fever was 101.3F since last night, with dry cough', '/avatars/patient02.jpg', NULL, 1, '2024-05-11 10:05:00'),
-('11111111-1111-1111-1111-111111111118', 'chat-002', 'user-p02', 'user-d02', 'The fever has gone down', '/avatars/patient02.jpg', NULL, 1, '2024-05-12 08:00:00'),
-('11111111-1111-1111-1111-111111111119', 'chat-003', 'user-d03', 'user-p03', 'You need to get an ECG and cardiac enzyme test as soon as possible', '/avatars/doctor03.jpg', NULL, 1, '2024-05-12 10:15:00'),
-('11111111-1111-1111-1111-11111111111a', 'chat-003', 'user-p03', 'user-d03', 'I will get the tests done right away', '/avatars/patient03.jpg', NULL, 1, '2024-05-12 10:20:00');
+(1, 'chat-001', 'user-d01', 'user-p01', 'Hi Michael, can you describe your headache symptoms?', '/avatars/doctor01.jpg', NULL, 1, '2024-05-10 09:02:00'),
+(2, 'chat-001', 'user-p01', 'user-d01', 'I have been having a dull pain on the right side of my head for 3 days', '/avatars/patient01.jpg', NULL, 1, '2024-05-10 09:05:00'),
+(3, 'chat-001', 'user-d01', 'user-p01', 'Are you getting enough sleep? Any work-related stress?', '/avatars/doctor01.jpg', NULL, 1, '2024-05-10 09:08:00'),
+(4, 'chat-001', 'user-p01', 'user-d01', 'Actually, I have been working a lot lately and not sleeping well', '/avatars/patient01.jpg', NULL, 1, '2024-05-10 09:10:00'),
+(5, 'chat-001', 'user-p01', 'user-d01', 'Thank you, doctor!', '/avatars/patient01.jpg', NULL, 1, '2024-05-10 09:35:00'),
+(6, 'chat-002', 'user-d02', 'user-p02', 'How high is the fever and when did it start?', '/avatars/doctor02.jpg', NULL, 1, '2024-05-11 10:02:00'),
+(7, 'chat-002', 'user-p02', 'user-d02', 'The fever was 101.3F since last night, with dry cough', '/avatars/patient02.jpg', NULL, 1, '2024-05-11 10:05:00'),
+(8, 'chat-002', 'user-p02', 'user-d02', 'The fever has gone down', '/avatars/patient02.jpg', NULL, 1, '2024-05-12 08:00:00'),
+(9, 'chat-003', 'user-d03', 'user-p03', 'You need to get an ECG and cardiac enzyme test as soon as possible', '/avatars/doctor03.jpg', NULL, 1, '2024-05-12 10:15:00'),
+(10, 'chat-003', 'user-p03', 'user-d03', 'I will get the tests done right away', '/avatars/patient03.jpg', NULL, 1, '2024-05-12 10:20:00');
+SET IDENTITY_INSERT ChatMessages OFF;
 
 -- 23. NOTIFICATIONS (10 notifications)
 SET IDENTITY_INSERT Notifications ON;
 INSERT INTO Notifications (NotificationID, UserId, type, message, relatedId, IsRead, CreatedAt, appointmentId, title, imageUrl, actionUrl, priority, expiresAt, sentVia) VALUES
-(1, 'user-p01', 'APPOINTMENT_REMINDER', 'You have an appointment with Dr. John Smith tomorrow at 9:00 AM', 1, 1, '2024-05-09 18:00:00', 1, 'Appointment Reminder', '/icons/calendar.png', '/appointments/1', 'HIGH', '2024-05-10 09:00:00', 'MOBILE_PUSH'),
-(2, 'user-d01', 'NEW_APPOINTMENT', 'New appointment booked by Michael Anderson', 1, 1, '2024-05-09 15:00:00', 1, 'New Appointment', '/icons/appointment.png', '/doctor/appointments/1', 'NORMAL', NULL, 'WEB_SOCKET'),
-(3, 'user-p02', 'NEW_PRESCRIPTION', 'Your prescription is ready for pickup or delivery', 2, 1, '2024-05-11 10:25:00', 2, 'Prescription Ready', '/icons/prescription.png', '/prescriptions/2', 'NORMAL', NULL, 'EMAIL'),
-(4, 'user-p03', 'APPOINTMENT_REMINDER', 'Your appointment has been confirmed', 3, 1, '2024-05-11 14:05:00', 3, 'Appointment Confirmed', '/icons/check.png', '/appointments/3', 'NORMAL', NULL, 'MOBILE_PUSH'),
-(5, 'user-ph01', 'NEW_ORDER', 'New order received from Michael Anderson', 1, 1, '2024-05-10 09:40:00', NULL, 'New Order', '/icons/order.png', '/pharmacy/orders/1', 'HIGH', NULL, 'WEB_SOCKET'),
-(6, 'user-p01', 'ORDER_STATUS', 'Your medication order has been delivered successfully', 1, 1, '2024-05-10 13:50:00', NULL, 'Order Delivered', '/icons/delivered.png', '/orders/1', 'NORMAL', NULL, 'MOBILE_PUSH'),
-(7, 'user-d02', 'INVOICE_PAID', 'You received a 5-star review from a patient', 1, 0, '2024-05-12 09:00:00', 2, 'New Review', '/icons/star.png', '/doctor/reviews', 'LOW', NULL, 'EMAIL'),
-(8, 'user-p06', 'APPOINTMENT_REMINDER', 'Your appointment is scheduled for 9:00 AM on May 18th', 6, 0, '2024-05-17 18:00:00', 6, 'Appointment Reminder', '/icons/calendar.png', '/appointments/6', 'HIGH', '2024-05-18 09:00:00', 'MOBILE_PUSH'),
-(9, 'user-p09', 'CANCEL_APPOINTMENT', 'Your appointment has been cancelled', 9, 1, '2024-05-13 08:05:00', 9, 'Appointment Cancelled', '/icons/cancel.png', '/appointments/9', 'NORMAL', NULL, 'MOBILE_PUSH'),
-(10, 'user-p07', 'APPOINTMENT_REMINDER', 'Your appointment on May 20th has been confirmed', 7, 1, '2024-05-19 11:00:00', 7, 'Appointment Confirmed', '/icons/check.png', '/appointments/7', 'NORMAL', NULL, 'MOBILE_PUSH');
+(1, 'user-p01', 'AppointmentReminder', 'You have an appointment with Dr. John Smith tomorrow at 9:00 AM', 1, 1, '2024-05-09 18:00:00', 1, 'Appointment Reminder', '/icons/calendar.png', '/appointments/1', 'High', '2024-05-10 09:00:00', 'Push'),
+(2, 'user-d01', 'NewAppointment', 'New appointment booked by Michael Anderson', 1, 1, '2024-05-09 15:00:00', 1, 'New Appointment', '/icons/appointment.png', '/doctor/appointments/1', 'Normal', NULL, 'Push'),
+(3, 'user-p02', 'PrescriptionReady', 'Your prescription is ready for pickup or delivery', 2, 1, '2024-05-11 10:25:00', 2, 'Prescription Ready', '/icons/prescription.png', '/prescriptions/2', 'Normal', NULL, 'Email'),
+(4, 'user-p03', 'AppointmentConfirmed', 'Your appointment has been confirmed', 3, 1, '2024-05-11 14:05:00', 3, 'Appointment Confirmed', '/icons/check.png', '/appointments/3', 'Normal', NULL, 'Push'),
+(5, 'user-ph01', 'NewOrder', 'New order received from Michael Anderson', 1, 1, '2024-05-10 09:40:00', NULL, 'New Order', '/icons/order.png', '/pharmacy/orders/1', 'High', NULL, 'Push'),
+(6, 'user-p01', 'OrderDelivered', 'Your medication order has been delivered successfully', 1, 1, '2024-05-10 13:50:00', NULL, 'Order Delivered', '/icons/delivered.png', '/orders/1', 'Normal', NULL, 'Push'),
+(7, 'user-d02', 'ReviewReceived', 'You received a 5-star review from a patient', 1, 0, '2024-05-12 09:00:00', 2, 'New Review', '/icons/star.png', '/doctor/reviews', 'Low', NULL, 'Email'),
+(8, 'user-p06', 'AppointmentReminder', 'Your appointment is scheduled for 9:00 AM on May 18th', 6, 0, '2024-05-17 18:00:00', 6, 'Appointment Reminder', '/icons/calendar.png', '/appointments/6', 'High', '2024-05-18 09:00:00', 'Push'),
+(9, 'user-p09', 'AppointmentCancelled', 'Your appointment has been cancelled', 9, 1, '2024-05-13 08:05:00', 9, 'Appointment Cancelled', '/icons/cancel.png', '/appointments/9', 'Normal', NULL, 'Push'),
+(10, 'user-p07', 'AppointmentConfirmed', 'Your appointment on May 20th has been confirmed', 7, 1, '2024-05-19 11:00:00', 7, 'Appointment Confirmed', '/icons/check.png', '/appointments/7', 'Normal', NULL, 'Push');
 SET IDENTITY_INSERT Notifications OFF;
 
 -- 24. REVIEWS (10 reviews)
@@ -398,89 +398,8 @@ INSERT INTO RefreshTokens (id, UserId, token, expiryDate, Revoked, CreatedDate, 
 (10, 'user-d05', 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.token10', '2024-06-16 08:00:00', 0, '2024-05-16 08:00:00', 'MacBook Air', '192.168.1.53', 'Mozilla/5.0 (Macintosh)');
 SET IDENTITY_INSERT RefreshTokens OFF;
 
--- 27. PASSWORD_RESET_TOKENS (10 tokens)
-SET IDENTITY_INSERT PasswordResetTokens ON;
-INSERT INTO PasswordResetTokens (Id, Token, UserId, ExpiryDate, Used) VALUES
-(1, 'prt-user-p01-20240510', 'user-p01', '2024-05-10 23:59:00', 0),
-(2, 'prt-user-p02-20240510', 'user-p02', '2024-05-10 23:59:00', 0),
-(3, 'prt-user-p03-20240510', 'user-p03', '2024-05-10 23:59:00', 0),
-(4, 'prt-user-p04-20240510', 'user-p04', '2024-05-10 23:59:00', 0),
-(5, 'prt-user-p05-20240510', 'user-p05', '2024-05-10 23:59:00', 0),
-(6, 'prt-user-d01-20240510', 'user-d01', '2024-05-10 23:59:00', 0),
-(7, 'prt-user-d02-20240510', 'user-d02', '2024-05-10 23:59:00', 0),
-(8, 'prt-user-ph01-20240510', 'user-ph01', '2024-05-10 23:59:00', 0),
-(9, 'prt-user-ph02-20240510', 'user-ph02', '2024-05-10 23:59:00', 0),
-(10, 'prt-user-d05-20240510', 'user-d05', '2024-05-10 23:59:00', 0);
-SET IDENTITY_INSERT PasswordResetTokens OFF;
-
--- 28. REGISTRATION_REQUESTS (10 requests)
-SET IDENTITY_INSERT RegistrationRequests ON;
-INSERT INTO RegistrationRequests (RequestID, RegistrationType, Email, PhoneNumber, Status, CreatedAt, ReviewedAt, ReviewedBy, RejectionReason, FullName, Qualifications, SpecialtyId, Specialty, YearsOfExperience, LanguageSpoken, Location, Bio, ConsultationFee, ClinicName, ClinicAddress, AvailableForVideo, AvailableForAudio, AvailableForChat, AvailableForOffline, PharmacyName, LicenseNumber, Address, City, District, Ward, OpenTime, CloseTime, Open24Hours, WorkingDays, DeliveryAvailable, DeliveryRadius, DeliveryFee, Description) VALUES
-(1, 'DOCTOR', 'applicant1@healthlink.com', '0905000001', 'Pending', '2024-05-01 10:00:00', NULL, NULL, NULL, 'Dr. Applicant One', 'MD', 1, 'Internal Medicine', 8, 'English', 'New York', 'Doctor registration request', 100.00, 'Applicant Clinic 1', '1 Health St', 1, 1, 1, 1, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL),
-(2, 'DOCTOR', 'applicant2@healthlink.com', '0905000002', 'Approved', '2024-05-02 10:00:00', '2024-05-05 09:00:00', 'admin', NULL, 'Dr. Applicant Two', 'MD, PhD', 6, 'Cardiology', 12, 'English', 'Los Angeles', 'Approved doctor request', 180.00, 'Applicant Clinic 2', '2 Health St', 1, 1, 1, 0, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL),
-(3, 'DOCTOR', 'applicant3@healthlink.com', '0905000003', 'Rejected', '2024-05-03 10:00:00', '2024-05-06 09:00:00', 'admin', 'Missing valid license', 'Dr. Applicant Three', 'MD', 5, 'Neurology', 6, 'English', 'Chicago', 'Rejected doctor request', 150.00, 'Applicant Clinic 3', '3 Health St', 1, 1, 1, 1, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL),
-(4, 'PHARMACY', 'pharmacyapp1@healthlink.com', '0915000001', 'Pending', '2024-05-04 11:00:00', NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, 'Pharmacy Applicant 1', 'LIC-001', '10 Main St', 'Houston', 'Downtown', 'Central', '07:00', '21:00', 0, 'Mon-Sun', 1, 5.0, 5.99, 'Pharmacy registration request'),
-(5, 'PHARMACY', 'pharmacyapp2@healthlink.com', '0915000002', 'Approved', '2024-05-05 11:00:00', '2024-05-08 09:00:00', 'admin', NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, 'Pharmacy Applicant 2', 'LIC-002', '20 Main St', 'Seattle', 'Center', 'Ward 1', '08:00', '20:00', 0, 'Mon-Sat', 1, 6.0, 6.99, 'Approved pharmacy request'),
-(6, 'PHARMACY', 'pharmacyapp3@healthlink.com', '0915000003', 'Rejected', '2024-05-06 11:00:00', '2024-05-09 09:00:00', 'admin', 'Incomplete documents', NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, 'Pharmacy Applicant 3', 'LIC-003', '30 Main St', 'Miami', 'Beach', 'South', '06:00', '22:00', 0, 'Mon-Sun', 1, 4.0, 4.99, 'Rejected pharmacy request'),
-(7, 'DOCTOR', 'applicant4@healthlink.com', '0905000004', 'Pending', '2024-05-07 10:00:00', NULL, NULL, NULL, 'Dr. Applicant Four', 'DDS', 10, 'Dentistry', 4, 'English', 'Phoenix', 'Dentistry applicant', 90.00, 'Applicant Clinic 4', '4 Health St', 1, 1, 1, 1, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL),
-(8, 'PHARMACY', 'pharmacyapp4@healthlink.com', '0915000004', 'Pending', '2024-05-08 11:00:00', NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, 'Pharmacy Applicant 4', 'LIC-004', '40 Main St', 'Boston', 'Bay', 'North', '08:00', '22:00', 0, 'Mon-Sun', 0, 5.0, 5.49, 'Pharmacy applicant details'),
-(9, 'DOCTOR', 'applicant5@healthlink.com', '0905000005', 'Approved', '2024-05-09 10:00:00', '2024-05-10 09:00:00', 'admin', NULL, 'Dr. Applicant Five', 'MD', 3, 'Pediatrics', 9, 'English', 'Philadelphia', 'Pediatrics applicant', 130.00, 'Applicant Clinic 5', '5 Health St', 1, 1, 1, 0, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL),
-(10, 'PHARMACY', 'pharmacyapp5@healthlink.com', '0915000005', 'Pending', '2024-05-10 11:00:00', NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, 'Pharmacy Applicant 5', 'LIC-005', '50 Main St', 'San Francisco', 'Market', 'West', '07:30', '21:30', 0, 'Mon-Sat', 1, 8.0, 7.99, 'Pending pharmacy application');
-SET IDENTITY_INSERT RegistrationRequests OFF;
-
--- 29. REGISTRATION_DOCUMENTS (10 documents)
-SET IDENTITY_INSERT RegistrationDocuments ON;
-INSERT INTO RegistrationDocuments (DocumentID, RequestID, DocumentType, FileName, OriginalFileName, FilePath, FileSize, MimeType, UploadedAt) VALUES
-(1, 1, 'Medical Degree', 'req1-degree.pdf', 'degree.pdf', '/registrations/1/degree.pdf', 245000, 'application/pdf', '2024-05-01 10:10:00'),
-(2, 2, 'Practice License', 'req2-license.pdf', 'license.pdf', '/registrations/2/license.pdf', 245000, 'application/pdf', '2024-05-02 10:10:00'),
-(3, 3, 'ID Card', 'req3-id.pdf', 'id.pdf', '/registrations/3/id.pdf', 145000, 'application/pdf', '2024-05-03 10:10:00'),
-(4, 4, 'Business License', 'req4-business.pdf', 'business.pdf', '/registrations/4/business.pdf', 305000, 'application/pdf', '2024-05-04 11:10:00'),
-(5, 5, 'Business License', 'req5-business.pdf', 'business.pdf', '/registrations/5/business.pdf', 305000, 'application/pdf', '2024-05-05 11:10:00'),
-(6, 6, 'Business License', 'req6-business.pdf', 'business.pdf', '/registrations/6/business.pdf', 305000, 'application/pdf', '2024-05-06 11:10:00'),
-(7, 7, 'Dentistry Degree', 'req7-degree.pdf', 'degree.pdf', '/registrations/7/degree.pdf', 240000, 'application/pdf', '2024-05-07 10:10:00'),
-(8, 8, 'Business License', 'req8-business.pdf', 'business.pdf', '/registrations/8/business.pdf', 305000, 'application/pdf', '2024-05-08 11:10:00'),
-(9, 9, 'Medical Degree', 'req9-degree.pdf', 'degree.pdf', '/registrations/9/degree.pdf', 245000, 'application/pdf', '2024-05-09 10:10:00'),
-(10, 10, 'Business License', 'req10-business.pdf', 'business.pdf', '/registrations/10/business.pdf', 305000, 'application/pdf', '2024-05-10 11:10:00');
-SET IDENTITY_INSERT RegistrationDocuments OFF;
-
--- 30. COMMISSION_CONFIGS (3 configs)
-SET IDENTITY_INSERT CommissionConfigs ON;
-INSERT INTO CommissionConfigs (ConfigId, serviceType, commissionRate, minCommission, maxCommission, description, active, effectiveFrom, effectiveTo, CreatedAt, UpdatedAt) VALUES
-(1, 'CONSULTATION_ONLINE', 0.1500, 0.50, 100.00, 'Online consultation commission rate', 1, '2024-01-01 00:00:00', NULL, '2024-01-01 00:00:00', NULL),
-(2, 'CONSULTATION_OFFLINE', 0.1200, 0.50, 150.00, 'Offline consultation commission rate', 1, '2024-01-01 00:00:00', NULL, '2024-01-01 00:00:00', NULL),
-(3, 'PHARMACY_ORDER', 0.0800, 0.50, 80.00, 'Pharmacy order commission rate', 1, '2024-01-01 00:00:00', NULL, '2024-01-01 00:00:00', NULL);
-SET IDENTITY_INSERT CommissionConfigs OFF;
-
--- 31. SETTLEMENTS (3 settlements)
-SET IDENTITY_INSERT Settlements ON;
-INSERT INTO Settlements (SettlementId, settlementNumber, recipientType, recipientId, recipientName, grossAmount, commissionAmount, netAmount, transactionCount, status, paymentMethod, bankAccount, bankName, paypalEmail, periodStart, periodEnd, processedAt, processedBy, completedAt, notes, CreatedAt) VALUES
-(1, 'STL-202405-00001', 'DOCTOR', 'user-d01', 'Dr. John Smith', 500.00, 75.00, 425.00, 2, 'COMPLETED', 'BANK_TRANSFER', '1234567890', 'Bank of America', NULL, '2024-05-01 00:00:00', '2024-05-15 23:59:00', '2024-05-16 10:00:00', 'admin', '2024-05-16 10:30:00', 'First doctor settlement', '2024-05-16 10:00:00'),
-(2, 'STL-202405-00002', 'PHARMACY', 'user-ph01', 'CVS Pharmacy - Manhattan', 700.00, 56.00, 644.00, 2, 'COMPLETED', 'BANK_TRANSFER', '9876543210', 'Chase', NULL, '2024-05-01 00:00:00', '2024-05-15 23:59:00', '2024-05-16 10:15:00', 'admin', '2024-05-16 10:45:00', 'Pharmacy settlement batch', '2024-05-16 10:15:00'),
-(3, 'STL-202405-00003', 'DOCTOR', 'user-d05', 'Dr. Jessica Williams', 450.00, 54.00, 396.00, 2, 'PROCESSING', 'PAYPAL', NULL, NULL, 'drjess@example.com', '2024-05-01 00:00:00', '2024-05-15 23:59:00', '2024-05-16 11:00:00', 'admin', NULL, 'Queued for payout', '2024-05-16 11:00:00');
-SET IDENTITY_INSERT Settlements OFF;
-
--- 32. COMMISSION_TRANSACTIONS (10 transactions)
-SET IDENTITY_INSERT CommissionTransactions ON;
-INSERT INTO CommissionTransactions (TransactionId, transactionNumber, sourceType, appointmentId, pharmacyOrderId, recipientType, recipientId, recipientName, serviceType, grossAmount, commissionRate, commissionAmount, netAmount, status, SettlementId, CreatedAt) VALUES
-(1, 'CTX-202405-00001', 'APPOINTMENT', 1, NULL, 'DOCTOR', 'user-d01', 'Dr. John Smith', 'CONSULTATION_ONLINE', 150.00, 0.1500, 22.50, 127.50, 'SETTLED', 1, '2024-05-10 10:00:00'),
-(2, 'CTX-202405-00002', 'PHARMACY_ORDER', NULL, 1, 'PHARMACY', 'user-ph01', 'CVS Pharmacy - Manhattan', 'PHARMACY_ORDER', 50.99, 0.0800, 4.08, 46.91, 'SETTLED', 2, '2024-05-10 13:45:00'),
-(3, 'CTX-202405-00003', 'APPOINTMENT', 2, NULL, 'DOCTOR', 'user-d02', 'Dr. Sarah Johnson', 'CONSULTATION_ONLINE', 120.00, 0.1500, 18.00, 102.00, 'SETTLED', 1, '2024-05-11 10:20:00'),
-(4, 'CTX-202405-00004', 'PHARMACY_ORDER', NULL, 2, 'PHARMACY', 'user-ph02', 'Walgreens - LA Downtown', 'PHARMACY_ORDER', 41.99, 0.0800, 3.36, 38.63, 'SETTLED', 2, '2024-05-11 14:30:00'),
-(5, 'CTX-202405-00005', 'APPOINTMENT', 3, NULL, 'DOCTOR', 'user-d03', 'Dr. Michael Chen', 'CONSULTATION_ONLINE', 250.00, 0.1500, 37.50, 212.50, 'SETTLED', 1, '2024-05-12 10:15:00'),
-(6, 'CTX-202405-00006', 'PHARMACY_ORDER', NULL, 3, 'PHARMACY', 'user-ph04', 'CVS Pharmacy - SF', 'PHARMACY_ORDER', 82.99, 0.0800, 6.64, 76.35, 'PENDING', 2, '2024-05-12 14:00:00'),
-(7, 'CTX-202405-00007', 'APPOINTMENT', 5, NULL, 'DOCTOR', 'user-d05', 'Dr. Jessica Williams', 'CONSULTATION_ONLINE', 140.00, 0.1500, 21.00, 119.00, 'SETTLED', 3, '2024-05-16 14:30:00'),
-(8, 'CTX-202405-00008', 'PHARMACY_ORDER', NULL, 5, 'PHARMACY', 'user-ph02', 'Walgreens - LA Downtown', 'PHARMACY_ORDER', 61.99, 0.0800, 4.96, 57.03, 'SETTLED', 2, '2024-05-16 18:00:00'),
-(9, 'CTX-202405-00009', 'APPOINTMENT', 7, NULL, 'DOCTOR', 'user-d07', 'Dr. David Wilson', 'CONSULTATION_OFFLINE', 220.00, 0.1200, 26.40, 193.60, 'PENDING', 3, '2024-05-20 15:00:00'),
-(10, 'CTX-202405-00010', 'PHARMACY_ORDER', NULL, 10, 'PHARMACY', 'user-ph07', 'MedExpress Pharmacy', 'PHARMACY_ORDER', 53.99, 0.0800, 4.32, 49.67, 'PENDING', 2, '2024-05-20 15:30:00');
-SET IDENTITY_INSERT CommissionTransactions OFF;
-
 -- =====================================================
 -- END SEED DATA
--- Total: 32 tables, mixed sample sizes
+-- Total: 26 tables, ~10 records each
 -- =====================================================
 PRINT 'Seed data completed successfully!';
-
-
-
-
-

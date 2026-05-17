@@ -1,6 +1,7 @@
 package com.HealthLink.dto.prescription;
 
 import jakarta.validation.constraints.Min;
+import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
 import lombok.Data;
 
@@ -20,11 +21,13 @@ public class PrescriptionItemRequest {
     @Min(value = 1, message = "Quantity must be >= 1")
     private Integer quantity;
 
-    private String unit;        // viên, gói, chai...
-    private String frequency;   // 1 lần/ngày, 2 lần/ngày...
-    private String timing;      // trước ăn, sau ăn...
-    private String route;       // uống, tiêm, bôi...
+    private String unit;
+    private String frequency;
 
-    private BigDecimal unitPrice;  // đơn giá (override giá thuốc nếu cần)
+    @NotBlank(message = "Timing is required")
+    private String timing;
+
+    private String route;
+    private BigDecimal unitPrice;
     private String notes;
 }

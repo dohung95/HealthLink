@@ -80,4 +80,41 @@ public class SettlementController {
             @PathVariable String recipientId) {
         return ResponseEntity.ok(settlementService.getSettlementHistory(recipientId));
     }
+
+    // ──────────────────────────────────────────────────────────────────────
+    // Endpoint thống nhất – Rút tiền chủ động (On-demand Settlement)
+    // ──────────────────────────────────────────────────────────────────────
+
+    /**
+     * Endpoint thống nhất cho phép Bác sĩ hoặc Nhà thuốc gửi yêu cầu rút tiền.
+     * Điều kiện rút tiền:
+     * <ul>
+     *   <li>pendingSettlement ≥ $10 USD</li>
+     *   <li>paypalEmail khớp với email đã đăng ký trong hồ sơ đối tác</li>
+     * </ul>
+     *
+     * POST /api/settlement/withdraw?partnerId={id}&type=DOCTOR|PHARMACY
+     *
+     * @param partnerId ID của đối tác
+     * @param type      loại đối tác: DOCTOR hoặc PHARMACY
+     * @param request   thông tin yêu cầu rút tiền
+     * @return kết quả settlement
+     */
+    @PostMapping("/withdraw")
+    public ResponseEntity<SettlementResponse> withdraw(
+            @RequestParam String partnerId,
+            @RequestParam String type,
+            @Valid @RequestBody SettlementRequest request) {
+
+        SettlementResponse response;
+        if ("DOCTOR".equalsIgnoreCase(type)) {
+            response = settlementService.withdrawDoctorEarnings(partnerId, request);
+        } else if ("PHARMACY".equalsIgnoreCase(type)) {
+            response = settlementService.withdrawPharmacyEarnings(partnerId, request);
+        } else {
+            throw new com.HealthLink.exception.BadRequestException(
+                    "Invalid partner type: '" + type + "'. Accepted values: DOCTOR, PHARMACY");
+        }
+        return ResponseEntity.status(org.springframework.http.HttpStatus.CREATED).body(response);
+    }
 }

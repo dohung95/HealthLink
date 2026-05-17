@@ -110,4 +110,30 @@ public class PaymentController {
         InvoiceResponse response = financeService.capturePayPalPayment(request);
         return ResponseEntity.ok(response);
     }
+
+    // ──────────────────────────────────────────────────────────────────────
+    // Hoàn tiền (Refund)
+    // ──────────────────────────────────────────────────────────────────────
+
+    /**
+     * Xử lý hoàn tiền cho bệnh nhân.
+     * <ul>
+     *   <li>Cập nhật Payment → REFUNDED</li>
+     *   <li>Cập nhật Invoice → Refunded</li>
+     *   <li>Truy vết và trừ lại pendingSettlement của đối tác liên quan</li>
+     * </ul>
+     *
+     * POST /api/payment/refund/{paymentId}
+     *
+     * @param paymentId    ID của bản ghi thanh toán cần hoàn tiền
+     * @param refundReason lý do hoàn tiền (tùy chọn, qua query param)
+     */
+    @PostMapping("/refund/{paymentId}")
+    @PreAuthorize("hasRole('ADMIN')")
+    public ResponseEntity<InvoiceResponse> processRefund(
+            @PathVariable Integer paymentId,
+            @RequestParam(required = false) String refundReason) {
+        InvoiceResponse response = financeService.processRefund(paymentId, refundReason);
+        return ResponseEntity.ok(response);
+    }
 }

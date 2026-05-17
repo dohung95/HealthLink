@@ -58,4 +58,16 @@ public interface PaymentCommissionTransactionRepository extends JpaRepository<Co
      * Kiểm tra xem đã có giao dịch commission cho một pharmacy order chưa.
      */
     boolean existsByPharmacyOrderIdAndRecipientType(Integer pharmacyOrderId, String recipientType);
+
+    /**
+     * Lấy danh sách giao dịch commission theo appointmentId.
+     * Dùng để truy vết khi xử lý hoàn tiền (Refund).
+     */
+    List<CommissionTransaction> findByAppointmentId(Integer appointmentId);
+
+    /**
+     * Lấy danh sách giao dịch commission theo pharmacyOrderId.
+     * Dùng để truy vết khi xử lý hoàn tiền đơn thuốc (Refund).
+     */
+    List<CommissionTransaction> findByPharmacyOrderId(Integer pharmacyOrderId);
 }
