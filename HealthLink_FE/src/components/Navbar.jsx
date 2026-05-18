@@ -200,9 +200,6 @@ function Navbar() {
                         </div>
 
                         <div className="topbar-right d-flex align-items-center flex-wrap justify-content-center">
-                            <div >
-                                <img src="/Call.png" alt="" className="logo-Call" />
-                            </div>
                             <div className="contact-info text-center text-md-end" style={{ paddingRight: "20px" }}>
                                 <p>
                                     <i className="fas fa-phone-alt"></i>{' '}
