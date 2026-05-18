@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { Navigate, useLocation } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
+import { AdminNotificationProvider } from './Context/AdminNotificationContext';
 import { toast } from 'sonner';
 
 const AdminRoute = ({ children }) => {
@@ -94,8 +95,12 @@ const AdminRoute = ({ children }) => {
     return null;
   }
 
-  // User is authenticated and is admin - render children
-  return children;
+  // User is authenticated and is admin - render children with NotificationProvider
+  return (
+    <AdminNotificationProvider>
+      {children}
+    </AdminNotificationProvider>
+  );
 };
 
 export default AdminRoute;

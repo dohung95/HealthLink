@@ -209,6 +209,39 @@ public class NotificationService {
         log.debug("Notification {} marked as read by userId={}", notificationId, userId);
     }
 
+    /**
+     * Đánh dấu tất cả thông báo của user là đã đọc.
+     *
+     * @param userId ID của user
+     * @return Số lượng thông báo được đánh dấu
+     */
+    public int markAllAsRead(String userId) {
+        int count = notificationRepository.markAllAsReadByUserId(userId);
+        log.info("Marked {} notifications as read for userId={}", count, userId);
+        return count;
+    }
+
+    /**
+     * Xóa một thông báo.
+     * Kiểm tra quyền: chỉ owner của thông báo mới được xóa.
+     *
+     * @param notificationId ID thông báo
+     * @param userId         ID của user đang đăng nhập
+     * @return true nếu xóa thành công
+     */
+    public boolean deleteNotification(Integer notificationId, String userId) {
+        int deleted = notificationRepository.deleteByNotificationIdAndUserId(notificationId, userId);
+
+        if (deleted == 0) {
+            log.warn("Delete failed: notification {} not found or not owned by userId={}",
+                    notificationId, userId);
+            return false;
+        }
+
+        log.info("Notification {} deleted by userId={}", notificationId, userId);
+        return true;
+    }
+
     // =========================================================================
     // 4. HELPER METHODS (nội bộ)
     // =========================================================================

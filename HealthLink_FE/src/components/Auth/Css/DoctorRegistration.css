@@ -1,7 +1,7 @@
 .doctor-registration-bg {
     background: linear-gradient(135deg, #f0fdf4 0%, #dcfce7 100%);
     min-height: 100vh;
-    padding: 100px 20px 40px;
+    padding: 200px 20px 40px;
 }
 
 .doctor-registration-container {
@@ -359,7 +359,17 @@
     background: linear-gradient(135deg, #007a6a 0%, #005a4f 100%);
 }
 
+@media (max-width: 991.98px) {
+    .doctor-registration-bg {
+        padding-top: 180px;
+    }
+}
+
 @media (max-width: 768px) {
+    .doctor-registration-bg {
+        padding-top: 160px;
+    }
+
     .doctor-registration-container {
         padding: 25px 20px;
     }
@@ -380,6 +390,12 @@
         position: static;
         margin-bottom: 15px;
         justify-content: flex-start;
+    }
+}
+
+@media (max-width: 575.98px) {
+    .doctor-registration-bg {
+        padding-top: 140px;
     }
 }
 
@@ -742,6 +758,20 @@
     display: flex;
     flex-direction: column;
     gap: 10px;
+    position: relative;
+}
+
+/* Hide avatar file input properly - don't use position absolute */
+.avatar-controls .file-input {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    padding: 0;
+    margin: -1px;
+    overflow: hidden;
+    clip: rect(0, 0, 0, 0);
+    white-space: nowrap;
+    border: 0;
 }
 
 .avatar-upload-btn {
