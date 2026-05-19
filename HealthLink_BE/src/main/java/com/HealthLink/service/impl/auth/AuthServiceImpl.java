@@ -70,7 +70,7 @@ public class AuthServiceImpl implements AuthService {
     // =========================================================================
     @Override
     @Transactional(noRollbackFor = org.springframework.security.core.AuthenticationException.class)
-    public LoginResponse login(LoginRequest request) {
+    public LoginResponse login(LoginRequest request, String userAgent, String ipAddress) {
         // Lấy user trước để có thể tăng count khi đăng nhập sai
         User user = userRepository.findByEmail(request.getEmail()).orElse(null);
 
@@ -108,11 +108,16 @@ public class AuthServiceImpl implements AuthService {
         userRepository.save(user);
 
         // Tạo tokens
-        String accessToken  = jwtTokenProvider.generateAccessToken(userDetails);
+        String accessToken     = jwtTokenProvider.generateAccessToken(userDetails);
         String refreshTokenStr = jwtTokenProvider.generateRefreshToken(userDetails);
 
-        // Lưu refresh token vào DB
-        saveRefreshToken(user, refreshTokenStr);
+        // Parse User-Agent thành tên thiết bị thân thiện
+        String deviceInfo = parseDeviceName(userAgent);
+
+        // Lưu refresh token kèm thông tin thiết bị vào DB
+        saveRefreshToken(user, refreshTokenStr, deviceInfo, ipAddress, userAgent);
+
+        log.info("User {} logged in from device: {} ({})", user.getEmail(), deviceInfo, ipAddress);
 
         return buildLoginResponse(user, accessToken, refreshTokenStr);
     }
@@ -209,7 +214,7 @@ public class AuthServiceImpl implements AuthService {
         String accessToken    = jwtTokenProvider.generateAccessToken(userDetails);
         String refreshTokenStr = jwtTokenProvider.generateRefreshToken(userDetails);
 
-        saveRefreshToken(user, refreshTokenStr);
+        saveRefreshToken(user, refreshTokenStr, null, null, null);
 
         return buildLoginResponse(user, accessToken, refreshTokenStr);
     }
@@ -250,8 +255,11 @@ public class AuthServiceImpl implements AuthService {
         storedToken.setRevoked(true);
         refreshTokenRepository.save(storedToken);
 
-        // Lưu token mới
-        saveRefreshToken(user, newRefreshTokenStr);
+        // Lưu token mới (giữ lại thông tin thiết bị từ token cũ)
+        saveRefreshToken(user, newRefreshTokenStr,
+                storedToken.getDeviceInfo(),
+                storedToken.getIpAddress(),
+                storedToken.getUserAgent());
 
         return buildLoginResponse(user, newAccessToken, newRefreshTokenStr);
     }
@@ -348,14 +356,90 @@ public class AuthServiceImpl implements AuthService {
     // Helpers
     // =========================================================================
 
-    private void saveRefreshToken(User user, String tokenStr) {
+    /**
+     * Lưu refresh token vào DB kèm thông tin thiết bị.
+     *
+     * @param user      user sở hữu token
+     * @param tokenStr  chuỗi refresh token
+     * @param deviceInfo tên thiết bị đã parse (e.g. "Chrome on Windows")
+     * @param ipAddress địa chỉ IP
+     * @param userAgent chuỗi User-Agent gốc
+     */
+    private void saveRefreshToken(User user, String tokenStr,
+                                  String deviceInfo, String ipAddress, String userAgent) {
         RefreshToken rt = RefreshToken.builder()
                 .user(user)
                 .token(tokenStr)
                 .expiryDate(LocalDateTime.now().plusDays(7))
                 .revoked(false)
+                .deviceInfo(deviceInfo)
+                .ipAddress(ipAddress != null && ipAddress.length() > 50
+                        ? ipAddress.substring(0, 50) : ipAddress)
+                .userAgent(userAgent != null && userAgent.length() > 500
+                        ? userAgent.substring(0, 500) : userAgent)
                 .build();
         refreshTokenRepository.save(rt);
+    }
+
+    /**
+     * Parse chuỗi User-Agent thành tên thiết bị thân thiện.
+     * Ví dụ: "Chrome 124 on Windows 10", "Safari on iPhone", "Firefox on macOS"
+     *
+     * @param userAgent chuỗi User-Agent từ HTTP header
+     * @return tên thiết bị (tối đa 500 ký tự)
+     */
+    private String parseDeviceName(String userAgent) {
+        if (userAgent == null || userAgent.isBlank()) {
+            return "Unknown Device";
+        }
+
+        // Xác định hệ điều hành (OS)
+        String os;
+        if (userAgent.contains("Windows NT 10") || userAgent.contains("Windows NT 6.4")) {
+            os = "Windows 10/11";
+        } else if (userAgent.contains("Windows NT 6.3")) {
+            os = "Windows 8.1";
+        } else if (userAgent.contains("Windows NT 6.2")) {
+            os = "Windows 8";
+        } else if (userAgent.contains("Windows NT 6.1")) {
+            os = "Windows 7";
+        } else if (userAgent.contains("Windows")) {
+            os = "Windows";
+        } else if (userAgent.contains("iPhone")) {
+            os = "iPhone";
+        } else if (userAgent.contains("iPad")) {
+            os = "iPad";
+        } else if (userAgent.contains("Android")) {
+            os = "Android";
+        } else if (userAgent.contains("Mac OS X")) {
+            os = "macOS";
+        } else if (userAgent.contains("Linux")) {
+            os = "Linux";
+        } else {
+            os = "Unknown OS";
+        }
+
+        // Xác định trình duyệt (kiểm tra thứ tự quan trọng: Edge trước Chrome)
+        String browser;
+        if (userAgent.contains("Edg/") || userAgent.contains("Edge/")) {
+            browser = "Edge";
+        } else if (userAgent.contains("OPR/") || userAgent.contains("Opera/")) {
+            browser = "Opera";
+        } else if (userAgent.contains("Firefox/")) {
+            browser = "Firefox";
+        } else if (userAgent.contains("Chrome/")) {
+            browser = "Chrome";
+        } else if (userAgent.contains("Safari/") && !userAgent.contains("Chrome")) {
+            browser = "Safari";
+        } else if (userAgent.contains("MSIE") || userAgent.contains("Trident/")) {
+            browser = "Internet Explorer";
+        } else {
+            browser = "Unknown Browser";
+        }
+
+        String deviceName = browser + " on " + os;
+        // Giới hạn độ dài trước khi lưu
+        return deviceName.length() > 500 ? deviceName.substring(0, 500) : deviceName;
     }
 
     private LoginResponse buildLoginResponse(User user, String accessToken, String refreshToken) {
