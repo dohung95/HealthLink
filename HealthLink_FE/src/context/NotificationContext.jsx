@@ -1,5 +1,5 @@
 import React, { createContext, useContext, useState, useEffect } from 'react';
-import { notificationService } from '../services/notificationService';
+import websocketService from '../services/websocketService';
 import { useAuth } from './AuthContext';
 import { audioService } from '../utils/audioService';
 
@@ -22,16 +22,11 @@ export const NotificationProvider = ({ children }) => {
 
     useEffect(() => {
         if (user?.id) {
-            // Start SignalR connection
-            notificationService.startConnection(user.id);
+            websocketService.connect();
+            const unsubscribe = websocketService.subscribeToNotifications(handleNewNotification);
 
-            // Register notification handler
-            notificationService.onNotification('main', handleNewNotification);
-
-            // Cleanup on unmount
             return () => {
-                notificationService.offNotification('main');
-                notificationService.stopConnection();
+                unsubscribe();
             };
         }
     }, [user]);
@@ -102,7 +97,7 @@ export const NotificationProvider = ({ children }) => {
         markAsRead,
         clearAll,
         closePrescriptionModal,
-        isConnected: notificationService.isConnected()
+        isConnected: websocketService.isConnected()
     };
 
     return (

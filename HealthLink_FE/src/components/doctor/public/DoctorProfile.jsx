@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { doctorService } from '../api/doctorApi';
-import './Css/Doctors.css';
+import { doctorService } from '../../../api/doctorApi';
+import '../styles/Doctors.css';
 import { useAuth } from '../context/AuthContext';
 import ConfirmModal from './ConfirmModal';
 import Loading from './Loading';

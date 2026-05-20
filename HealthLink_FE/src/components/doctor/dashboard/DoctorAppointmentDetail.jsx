@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import 'bootstrap/dist/css/bootstrap.min.css';
-import '../components/Css/DoctorPage.css';
+import '../styles/DoctorPage.css';
 import CreatePrescriptionModal from './CreatePrescriptionModal';
 import { useAuth } from '../context/AuthContext';
 import { useChat } from '../context/ChatContext';

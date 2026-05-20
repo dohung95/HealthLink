@@ -1,8 +1,8 @@
 import React, { useState, useEffect } from 'react';
-import { prescriptionService } from '../api/prescriptionApi';
-import consultationApi from '../api/consultationApi';
+import { prescriptionService } from '../../../api/prescriptionApi';
+import consultationApi from '../../../api/consultationApi';
 import { toast } from 'react-toastify';
-import './Css/PrescriptionModal.css';
+import '../styles/PrescriptionModal.css';
 
 const CreatePrescriptionModal = ({ isOpen, onClose, appointment, patient }) => {
   const [currentMedicine, setCurrentMedicine] = useState({
@@ -28,7 +28,10 @@ const CreatePrescriptionModal = ({ isOpen, onClose, appointment, patient }) => {
     const loadExistingPrescription = async () => {
       if (isOpen && appointment?.appointmentID) {
         try {
-          const existing = await prescriptionService.getByAppointment(appointment.appointmentID);
+          const existing = await prescriptionService.getByAppointment(appointment.appointmentID, {
+            doctorId: appointment?.doctorId || appointment?.doctorID,
+            patientId: patient?.patientID || appointment?.patientID,
+          });
           if (existing) {
             setExistingPrescription(existing);
             setIsEditMode(true);
