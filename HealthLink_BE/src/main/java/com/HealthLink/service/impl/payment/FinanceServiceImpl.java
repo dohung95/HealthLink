@@ -82,6 +82,7 @@ public class FinanceServiceImpl implements FinanceService {
     private static final String METHOD_CARD      = "Card";
 
     private static final String APPT_COMPLETED = "Completed";
+    private static final String PHARMACY_ORDER_COMPLETED = "Completed";
 
     // ── Các phụ thuộc ───────────────────────────────────────────────────────
     private final PayPalConfig payPalConfig;
@@ -571,6 +572,10 @@ public class FinanceServiceImpl implements FinanceService {
                 if (pharmacyOrder.getPaymentMethod() == null || pharmacyOrder.getPaymentMethod().isBlank()) {
                     pharmacyOrder.setPaymentMethod(paymentMethod);
                 }
+                boolean notifyDoctorAboutCompletedPaidOrder = shouldNotifyDoctorAboutCompletedPaidOrder(pharmacyOrder);
+                if (notifyDoctorAboutCompletedPaidOrder) {
+                    pharmacyOrder.setDoctorCompletionPaidNotified(true);
+                }
                 pharmacyOrderRepository.save(pharmacyOrder);
 
                 try {
@@ -581,6 +586,9 @@ public class FinanceServiceImpl implements FinanceService {
                 }
 
                 notifyAboutPaidPharmacyOrderAfterCommit(pharmacyOrder);
+                if (notifyDoctorAboutCompletedPaidOrder) {
+                    notifyDoctorAboutCompletedAndPaidOrderAfterCommit(pharmacyOrder);
+                }
                 log.info("Payment SUCCESS – pharmacy order {} paid via PayPal order {}",
                         pharmacyOrder.getOrderId(), request.getOrderId());
             } else {
@@ -807,6 +815,67 @@ public class FinanceServiceImpl implements FinanceService {
                 );
             }
         });
+    }
+
+    private void notifyDoctorAboutCompletedAndPaidOrderAfterCommit(PharmacyOrder pharmacyOrder) {
+        User doctorUser = resolveDoctorUser(pharmacyOrder, NotificationType.INVOICE_PAID);
+        if (doctorUser == null) {
+            return;
+        }
+
+        String actionUrl = "/pharmacy-orders/" + pharmacyOrder.getOrderId();
+        String orderNumber = pharmacyOrder.getOrderNumber() != null
+                ? pharmacyOrder.getOrderNumber()
+                : String.valueOf(pharmacyOrder.getOrderId());
+        String patientName = pharmacyOrder.getPatient() != null
+                ? safeValue(pharmacyOrder.getPatient().getFullName(), "Unknown patient")
+                : "Unknown patient";
+        String pharmacyName = pharmacyOrder.getPharmacy() != null
+                ? safeValue(pharmacyOrder.getPharmacy().getName(), "the pharmacy")
+                : "the pharmacy";
+
+        runAfterCommit("doctor completed and paid pharmacy order notification", () ->
+                notificationService.sendWebSocketNotification(
+                        doctorUser,
+                        NotificationType.INVOICE_PAID,
+                        "Pharmacy order completed and paid",
+                        String.format(
+                                "Order %s for %s was completed by %s and the patient payment has been confirmed.",
+                                orderNumber,
+                                patientName,
+                                pharmacyName
+                        ),
+                        pharmacyOrder.getOrderId(),
+                        actionUrl
+                )
+        );
+    }
+
+    private boolean shouldNotifyDoctorAboutCompletedPaidOrder(PharmacyOrder pharmacyOrder) {
+        return PHARMACY_ORDER_COMPLETED.equalsIgnoreCase(safeValue(pharmacyOrder.getStatus(), ""))
+                && INVOICE_PAID.equalsIgnoreCase(safeValue(pharmacyOrder.getPaymentStatus(), ""))
+                && !Boolean.TRUE.equals(pharmacyOrder.getDoctorCompletionPaidNotified());
+    }
+
+    private User resolveDoctorUser(PharmacyOrder pharmacyOrder, NotificationType type) {
+        if (pharmacyOrder == null
+                || pharmacyOrder.getPrescriptionHeader() == null
+                || pharmacyOrder.getPrescriptionHeader().getDoctor() == null) {
+            log.warn("Cannot send {} notification: pharmacy order or prescribing doctor is missing", type);
+            return null;
+        }
+
+        User user = pharmacyOrder.getPrescriptionHeader().getDoctor().getUser();
+        if (user == null || user.getId() == null || user.getId().isBlank()) {
+            log.warn("Cannot send {} notification: prescribing doctor is not mapped to a user", type);
+            return null;
+        }
+
+        return user;
+    }
+
+    private String safeValue(String value, String fallback) {
+        return value == null || value.isBlank() ? fallback : value;
     }
 
     private void runAfterCommit(String context, Runnable task) {

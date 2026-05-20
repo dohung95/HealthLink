@@ -352,6 +352,19 @@ public class AppointmentServiceImpl implements AppointmentService {
     }
 
     @Override
+    public List<AppointmentResponse> getDoctorAppointments(String doctorId) {
+        doctorRepository.findById(doctorId)
+                .orElseThrow(() -> new ResourceNotFoundException(
+                        "not found doctor with ID: " + doctorId));
+
+        return appointmentRepository
+                .findByDoctor_DoctorIdOrderByAppointmentTimeDesc(doctorId)
+                .stream()
+                .map(this::toResponse)
+                .collect(Collectors.toList());
+    }
+
+    @Override
     public AppointmentResponse getAppointmentById(Integer id) {
         return toResponse(
                 appointmentRepository.findById(id)
@@ -651,7 +664,17 @@ public class AppointmentServiceImpl implements AppointmentService {
                 .cancelReason(appointment.getCancelReason())
                 .cancelledBy(appointment.getCancelledBy())
                 .confirmedAt(appointment.getConfirmedAt())
+                .specialtyName(resolveSpecialtyName(appointment.getDoctor()))
                 .build();
+    }
+
+    private String resolveSpecialtyName(Doctor doctor) {
+        if (doctor == null) {
+            return null;
+        }
+        return doctor.getSpecialtyEntity() != null
+                ? doctor.getSpecialtyEntity().getName()
+                : doctor.getSpecialty();
     }
 
     private void validateBookingDate(LocalDate date) {

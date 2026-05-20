@@ -42,6 +42,9 @@ public class Appointment {
 
     @Builder.Default
     private boolean reminderSent = false;
+
+    @Builder.Default
+    private Boolean doctorReminderSent = false;
     
     private LocalDateTime confirmedAt;
 

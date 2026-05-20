@@ -42,6 +42,8 @@ public interface AppointmentService {
      */
     List<AppointmentResponse> getPatientAppointments(String patientId);
 
+    List<AppointmentResponse> getDoctorAppointments(String doctorId);
+
     /**
      * Get appointment details by ID.
      *

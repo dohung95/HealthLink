@@ -66,6 +66,14 @@ public class PharmacyOrderController {
         return ResponseEntity.ok(orders);
     }
 
+    @GetMapping("/doctor/{doctorId}")
+    public ResponseEntity<List<PharmacyOrderResponse>> getOrdersByDoctor(
+            @PathVariable String doctorId) {
+
+        List<PharmacyOrderResponse> orders = pharmacyOrderService.getOrdersByDoctor(doctorId);
+        return ResponseEntity.ok(orders);
+    }
+
     // ── Chi tiết một đơn hàng ────────────────────────────────────────────────
     @GetMapping("/{orderId}")
     public ResponseEntity<PharmacyOrderResponse> getOrderById(

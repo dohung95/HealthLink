@@ -20,7 +20,13 @@ public final class PharmacyOrderMapper {
                 .orderId(order.getOrderId())
                 .orderNumber(order.getOrderNumber())
                 .prescriptionHeaderId(prescription != null ? prescription.getPrescriptionHeaderId() : null)
+                .appointmentId(prescription != null && prescription.getAppointment() != null
+                        ? prescription.getAppointment().getAppointmentId() : null)
                 .diagnosis(prescription != null ? prescription.getDiagnosis() : null)
+                .doctorId(prescription != null && prescription.getDoctor() != null
+                        ? prescription.getDoctor().getDoctorId() : null)
+                .doctorName(prescription != null && prescription.getDoctor() != null
+                        ? prescription.getDoctor().getFullName() : null)
                 .pharmacyId(pharmacy != null ? pharmacy.getPharmacyId() : null)
                 .pharmacyName(pharmacy != null ? pharmacy.getName() : null)
                 .pharmacyPhone(pharmacy != null ? pharmacy.getPhoneNumber() : null)
@@ -46,6 +52,7 @@ public final class PharmacyOrderMapper {
                 .deliveredAt(order.getDeliveredAt())
                 .cancelledAt(order.getCancelledAt())
                 .cancelReason(order.getCancelReason())
+                .cancelledBy(order.getCancelledBy())
                 .createdAt(order.getCreatedAt())
                 .platformFee(order.getPlatformFee())
                 .pharmacyEarning(order.getPharmacyEarning())

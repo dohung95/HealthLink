@@ -18,6 +18,8 @@ public interface PharmacyOrderRepository extends JpaRepository<PharmacyOrder, In
     // Tìm đơn hàng theo patientId
     List<PharmacyOrder> findByPatient_PatientId(String patientId);
 
+    List<PharmacyOrder> findByPrescriptionHeader_Doctor_DoctorIdOrderByCreatedAtDesc(String doctorId);
+
     // Tìm đơn hàng theo prescriptionHeaderId
     List<PharmacyOrder> findByPrescriptionHeader_PrescriptionHeaderId(Integer prescriptionHeaderId);
 

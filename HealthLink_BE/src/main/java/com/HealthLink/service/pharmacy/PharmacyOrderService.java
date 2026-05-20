@@ -37,6 +37,8 @@ public interface PharmacyOrderService {
      */
     List<PharmacyOrderResponse> getOrdersByPatient(String patientId);
 
+    List<PharmacyOrderResponse> getOrdersByDoctor(String doctorId);
+
     /**
      * Lấy chi tiết một đơn hàng.
      */
