@@ -1,67 +1,221 @@
-import React, { useState, useEffect } from 'react';
-import { useNavigate, useParams } from 'react-router-dom';
+import React, { useCallback, useEffect, useState } from 'react';
 import 'bootstrap/dist/css/bootstrap.min.css';
 import '../styles/DoctorPage.css';
-import CreatePrescriptionModal from './CreatePrescriptionModal';
+import { toast } from 'react-toastify';
+import { collection, getDocs, query, where } from 'firebase/firestore';
+import DoctorPrescriptionWorkspace from './DoctorPrescriptionWorkspace';
+import SharedRecordsView from './SharedRecordsView';
+import { appointmentService } from '../api/appointmentApi';
+import { prescriptionService } from '../../../api/prescriptionApi';
 import { useAuth } from '../context/AuthContext';
 import { useChat } from '../context/ChatContext';
 import { db } from '../firebase';
-import { collection, query, where, getDocs } from 'firebase/firestore';
-import { appointmentService } from '../api/appointmentApi';
-import { toast } from 'react-toastify';
-import SharedRecordsView from './SharedRecordsView';
+
+const TABS = [
+  { id: 'notes', label: 'Consultation Notes', icon: 'bi-journal-text' },
+  { id: 'history', label: 'Medical History', icon: 'bi-clock-history' },
+  { id: 'shared', label: 'Shared Records', icon: 'bi-folder2-open' },
+  { id: 'prescription', label: 'Prescription', icon: 'bi-capsule-pill' },
+  { id: 'followup', label: 'Follow-up', icon: 'bi-calendar-check' },
+];
 
 const DoctorAppointmentDetail = ({ appointment, patient, onBack }) => {
-  const navigate = useNavigate();
-  const { id } = useParams();
-  const [isPrescriptionModalOpen, setIsPrescriptionModalOpen] = useState(false);
   const [medicalHistory, setMedicalHistory] = useState(null);
   const [loadingHistory, setLoadingHistory] = useState(false);
-  const [expandedCards, setExpandedCards] = useState({});
+  const [appointmentDetail, setAppointmentDetail] = useState(null);
+  const [loadingAppointment, setLoadingAppointment] = useState(false);
+  const [prescription, setPrescription] = useState(null);
+  const [loadingPrescription, setLoadingPrescription] = useState(false);
   const [selectedHistoryAppointment, setSelectedHistoryAppointment] = useState(null);
   const [showDetailModal, setShowDetailModal] = useState(false);
   const [completingAppointment, setCompletingAppointment] = useState(false);
   const [showCompleteConfirmModal, setShowCompleteConfirmModal] = useState(false);
+  const [activeTab, setActiveTab] = useState('notes');
   const { roles, initiateCall } = useAuth();
   const { openChatWith } = useChat();
-  const [filteredSharedRecords, setFilteredSharedRecords] = useState([]);
-  const [activeTab, setActiveTab] = useState('timeline');
 
-  // Helper function to format date
+  const patientId =
+    patient?.patientID ||
+    patient?.patientId ||
+    appointment?.patientID ||
+    appointment?.patientId ||
+    appointment?.patient?.patientID ||
+    appointment?.patient?.patientId ||
+    null;
+  const doctorId =
+    appointment?.doctorID ||
+    appointment?.doctorId ||
+    appointment?.doctor?.doctorID ||
+    appointment?.doctor?.doctorId ||
+    null;
+  const appointmentId = appointment?.appointmentID || appointment?.appointmentId || null;
+
   const formatDate = (dateString) => {
     if (!dateString) return 'N/A';
     const date = new Date(dateString);
-    return date.toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' });
+    return date.toLocaleDateString('en-US', {
+      year: 'numeric',
+      month: 'long',
+      day: 'numeric',
+    });
   };
 
-  // Helper function to format time
   const formatTime = (dateString) => {
     if (!dateString) return 'N/A';
     const date = new Date(dateString);
-    return date.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' });
+    return date.toLocaleTimeString('en-US', {
+      hour: '2-digit',
+      minute: '2-digit',
+    });
   };
 
-  // Helper function to calculate age
+  const formatDateTime = (dateString) => {
+    if (!dateString) return 'N/A';
+    const date = new Date(dateString);
+    return date.toLocaleString('en-US', {
+      year: 'numeric',
+      month: 'short',
+      day: 'numeric',
+      hour: '2-digit',
+      minute: '2-digit',
+    });
+  };
+
   const calculateAge = (dateOfBirth) => {
     if (!dateOfBirth) return 'N/A';
     const today = new Date();
     const birthDate = new Date(dateOfBirth);
     let age = today.getFullYear() - birthDate.getFullYear();
     const monthDiff = today.getMonth() - birthDate.getMonth();
+
     if (monthDiff < 0 || (monthDiff === 0 && today.getDate() < birthDate.getDate())) {
-      age--;
+      age -= 1;
     }
+
     return age;
   };
 
-  // Fetch patient medical history
+  const getPatientInitials = (name) => {
+    if (!name) return 'PT';
+    return name
+      .split(' ')
+      .filter(Boolean)
+      .slice(0, 2)
+      .map((part) => part[0]?.toUpperCase())
+      .join('');
+  };
+
+  const getStatusClassName = (status) => {
+    switch ((status || '').toLowerCase()) {
+      case 'completed':
+        return 'doctor-detail-status doctor-detail-status--completed';
+      case 'scheduled':
+        return 'doctor-detail-status doctor-detail-status--scheduled';
+      case 'cancelled':
+        return 'doctor-detail-status doctor-detail-status--cancelled';
+      default:
+        return 'doctor-detail-status';
+    }
+  };
+
+  const getTypeClassName = (type) => {
+    switch ((type || '').toLowerCase()) {
+      case 'video call':
+        return 'doctor-detail-chip doctor-detail-chip--video';
+      case 'audio call':
+        return 'doctor-detail-chip doctor-detail-chip--audio';
+      case 'chat':
+        return 'doctor-detail-chip doctor-detail-chip--chat';
+      default:
+        return 'doctor-detail-chip';
+    }
+  };
+
+  const getTypeIcon = (type) => {
+    switch ((type || '').toLowerCase()) {
+      case 'video call':
+        return 'bi-camera-video';
+      case 'audio call':
+        return 'bi-telephone';
+      case 'chat':
+        return 'bi-chat-dots';
+      default:
+        return 'bi-calendar-event';
+    }
+  };
+
+  const buildConsultation = (source) => {
+    const consultation = source?.consultation || {};
+
+    return {
+      diagnosis: consultation.diagnosis ?? source?.diagnosis ?? null,
+      doctorNotes: consultation.doctorNotes ?? source?.doctorNotes ?? null,
+      treatmentPlan: consultation.treatmentPlan ?? source?.treatmentPlan ?? null,
+      followUpDate: consultation.followUpDate ?? source?.followUpDate ?? null,
+      followUpNotes: consultation.followUpNotes ?? source?.followUpNotes ?? null,
+    };
+  };
+
+  const fetchAppointmentBundle = useCallback(async (targetAppointmentId, options = {}) => {
+    const detail = await appointmentService.getAppointmentDetail(targetAppointmentId);
+    const resolvedDoctorId = detail?.doctorId || detail?.doctorID || doctorId;
+    const relatedPrescription = await prescriptionService
+      .getByAppointment(targetAppointmentId, {
+        doctorId: resolvedDoctorId,
+        patientId,
+      })
+      .catch((error) => {
+        if (options.showErrors) {
+          console.error('Error loading prescription:', error);
+        }
+        return null;
+      });
+
+    return {
+      ...detail,
+      appointmentId: detail?.appointmentId ?? detail?.appointmentID ?? targetAppointmentId,
+      appointmentID: detail?.appointmentID ?? detail?.appointmentId ?? targetAppointmentId,
+      consultation: buildConsultation(detail),
+      prescription: relatedPrescription,
+    };
+  }, [doctorId, patientId]);
+
+  const refreshAppointmentData = useCallback(async (options = {}) => {
+    if (!appointmentId) return;
+
+    setLoadingAppointment(true);
+    setLoadingPrescription(true);
+
+    try {
+      const bundle = await fetchAppointmentBundle(appointmentId, options);
+      setAppointmentDetail(bundle);
+      setPrescription(bundle.prescription);
+    } catch (error) {
+      console.error('Error refreshing appointment detail:', error);
+      if (options.showToast !== false) {
+        toast.error('Failed to refresh appointment details');
+      }
+    } finally {
+      setLoadingAppointment(false);
+      setLoadingPrescription(false);
+    }
+  }, [appointmentId, fetchAppointmentBundle]);
+
+  useEffect(() => {
+    const loadAppointmentData = async () => {
+      await refreshAppointmentData();
+    };
+
+    loadAppointmentData();
+  }, [refreshAppointmentData]);
+
   useEffect(() => {
     const fetchMedicalHistory = async () => {
-      if (!patient?.patientID) return;
+      if (!patientId) return;
 
       setLoadingHistory(true);
       try {
-        const data = await appointmentService.getPatientMedicalHistory(patient.patientID);
+        const data = await appointmentService.getPatientMedicalHistory(patientId);
         setMedicalHistory(data);
       } catch (error) {
         console.error('Error fetching patient medical history:', error);
@@ -72,31 +226,12 @@ const DoctorAppointmentDetail = ({ appointment, patient, onBack }) => {
     };
 
     fetchMedicalHistory();
-  }, [patient?.patientID]);
+  }, [patientId]);
 
-  // Toggle card expansion
-  const toggleCardExpand = (appointmentId) => {
-    setExpandedCards(prev => ({
-      ...prev,
-      [appointmentId]: !prev[appointmentId]
-    }));
-  };
-
-  // Format status badge color
-  const getStatusBadge = (status) => {
-    switch (status) {
-      case 'Completed': return 'bg-success';
-      case 'Scheduled': return 'bg-warning';
-      case 'Cancelled': return 'bg-danger';
-      default: return 'bg-secondary';
-    }
-  };
-
-  // Handle view appointment detail from medical history
-  const handleViewAppointmentDetail = async (appointmentId) => {
+  const handleViewAppointmentDetail = async (targetAppointmentId) => {
     try {
-      const appointmentDetail = await appointmentService.getAppointmentDetail(appointmentId);
-      setSelectedHistoryAppointment(appointmentDetail);
+      const bundle = await fetchAppointmentBundle(targetAppointmentId, { showErrors: true });
+      setSelectedHistoryAppointment(bundle);
       setShowDetailModal(true);
     } catch (error) {
       console.error('Error loading appointment detail:', error);
@@ -104,14 +239,15 @@ const DoctorAppointmentDetail = ({ appointment, patient, onBack }) => {
     }
   };
 
-  // Handle complete appointment
   const handleCompleteAppointment = async () => {
+    if (!appointmentId) return;
+
     setCompletingAppointment(true);
     setShowCompleteConfirmModal(false);
+
     try {
-      await appointmentService.completeAppointment(appointment.appointmentID);
+      await appointmentService.completeAppointment(appointmentId);
       toast.success('Appointment marked as completed successfully');
-      // Reload appointment data
       if (onBack) {
         setTimeout(() => onBack(), 1000);
       } else {
@@ -125,6 +261,69 @@ const DoctorAppointmentDetail = ({ appointment, patient, onBack }) => {
     }
   };
 
+  const handleChat = async () => {
+    const partnerData = appointment?.patient;
+    const partnerId = appointment?.patient?.patientId || appointment?.patientId || patientId;
+
+    if (!partnerData || !partnerId) {
+      alert('Chat partner information is missing.');
+      return;
+    }
+
+    const firebaseID = partnerId.includes('-')
+      ? partnerId.substring(0, partnerId.length - 4)
+      : partnerId.substring(0, partnerId.length - 5);
+
+    try {
+      const usersRef = collection(db, 'users');
+      let currentQuery = query(usersRef, where('__name__', '==', firebaseID));
+      let querySnapshot = await getDocs(currentQuery);
+
+      if (!querySnapshot.empty) {
+        const partnerUser = { ...querySnapshot.docs[0].data(), uid: querySnapshot.docs[0].id };
+        openChatWith(partnerUser);
+        return;
+      }
+
+      currentQuery = query(usersRef, where('uid', '==', firebaseID));
+      querySnapshot = await getDocs(currentQuery);
+
+      if (!querySnapshot.empty) {
+        const partnerUser = { ...querySnapshot.docs[0].data(), uid: querySnapshot.docs[0].id };
+        openChatWith(partnerUser);
+        return;
+      }
+
+      alert('Could not find chat user.');
+    } catch (error) {
+      console.error('[Chat] Error:', error);
+      alert('Error initiating chat.');
+    }
+  };
+
+  const handleVideoCall = async () => {
+    try {
+      const resolvedPatientId = appointment?.patient?.patientId || appointment?.patientId || patientId;
+      const resolvedDoctorId = doctorId;
+      const patientName = appointment?.patient?.fullName || patient?.fullName || 'Patient';
+      const doctorName = appointment?.doctor?.fullName || appointmentDetail?.doctorName || 'Doctor';
+      const isDoctor = roles && roles.some((role) => String(role).trim().toLowerCase() === 'doctor');
+      const targetUserId = isDoctor ? resolvedPatientId : resolvedDoctorId;
+      const targetUserName = isDoctor ? patientName : doctorName;
+
+      const characters = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789';
+      let roomId = '';
+      for (let index = 0; index < 45; index += 1) {
+        roomId += characters.charAt(Math.floor(Math.random() * characters.length));
+      }
+
+      initiateCall(targetUserId, roomId, targetUserName, doctorName);
+    } catch (error) {
+      console.error('Error initiating video call:', error);
+      alert('Unable to start video call.');
+    }
+  };
+
   if (!appointment || !patient) {
     return (
       <div className="text-center py-5">
@@ -135,604 +334,481 @@ const DoctorAppointmentDetail = ({ appointment, patient, onBack }) => {
     );
   }
 
-  const handleChat = async (appointment) => {
-    const partnerData = appointment.patient;
-    const partnerId = appointment.patient?.patientId || appointment.patientId;
-
-    if (!partnerData || !partnerId) {
-      alert("Chat partner information is missing.");
-      return;
-    }
-
-    let firebaseID;
-    if (partnerId.includes('-')) {
-      firebaseID = partnerId.substring(0, partnerId.length - 4);
-    } else {
-      firebaseID = partnerId.substring(0, partnerId.length - 5);
-    }
-
-    try {
-      const usersRef = collection(db, "users");
-      let q = query(usersRef, where("__name__", "==", firebaseID));
-      let querySnapshot = await getDocs(q);
-
-      if (!querySnapshot.empty) {
-        const partnerUser = { ...querySnapshot.docs[0].data(), uid: querySnapshot.docs[0].id };
-        openChatWith(partnerUser);
-        return;
-      }
-
-      q = query(usersRef, where("uid", "==", firebaseID));
-      querySnapshot = await getDocs(q);
-
-      if (!querySnapshot.empty) {
-        const partnerUser = { ...querySnapshot.docs[0].data(), uid: querySnapshot.docs[0].id };
-        openChatWith(partnerUser);
-        return;
-      }
-
-      alert(`Could not find chat user.`);
-    } catch (error) {
-      console.error("[Chat] Error:", error);
-      alert("Error initiating chat.");
-    }
+  const currentAppointment = {
+    ...appointment,
+    ...appointmentDetail,
+    appointmentID: appointmentDetail?.appointmentID ?? appointment?.appointmentID ?? appointment?.appointmentId,
+    appointmentId: appointmentDetail?.appointmentId ?? appointment?.appointmentId ?? appointment?.appointmentID,
   };
+  const consultation = buildConsultation(currentAppointment);
+  const patientName = patient?.fullName || currentAppointment?.patientName || 'Unknown patient';
+  const patientEmail = patient?.email || patient?.user?.email || appointmentDetail?.patientEmail || 'N/A';
+  const reasonForVisit =
+    currentAppointment?.reason ||
+    currentAppointment?.symptoms ||
+    currentAppointment?.notes ||
+    'No reason provided';
+  const completedHistory =
+    medicalHistory?.appointments?.filter((historyItem) => historyItem.status === 'Completed') || [];
+  const sharedRecordCount =
+    medicalHistory?.documentsByCategory?.reduce(
+      (total, category) => total + (category.documentCount || 0),
+      0,
+    ) || 0;
+  const appointmentPassed = new Date(currentAppointment?.appointmentTime) < new Date();
+  const joinDisabled = currentAppointment?.status !== 'Scheduled' || appointmentPassed;
+  const actionLabel =
+    currentAppointment?.consultationType === 'Chat'
+      ? 'Open Chat'
+      : `Join ${currentAppointment?.consultationType || 'Consultation'}`;
+  const alertItems = [
+    { label: 'Allergies', value: patient?.allergies },
+    { label: 'Chronic conditions', value: patient?.chronicConditions },
+    { label: 'Current medications', value: patient?.currentMedications },
+  ].filter((item) => item.value);
 
-  const handleVideoCall = async (appointment) => {
-    try {
-      const patientId = appointment.patient?.patientId || appointment.patientId;
-      const doctorId = appointment.doctorId;
-      const patientName = appointment.patient?.fullName || "Patient";
-      const doctorName = appointment.doctor?.fullName || "Doctor";
-      const isDoctor = roles && roles.some(r => String(r).trim().toLowerCase() === 'doctor');
-      const targetUserId = isDoctor ? patientId : doctorId;
-      const targetUserName = isDoctor ? patientName : doctorName;
-
-      // Tạo Room ID ngẫu nhiên 45 ký tự
-      const characters = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789';
-      let roomId = '';
-      for (let i = 0; i < 45; i++) {
-        roomId += characters.charAt(Math.floor(Math.random() * characters.length));
-      }
-
-      console.log('Video Call Info:', {
-        patientID,
-        doctorID,
-        patientName,
-        doctorName,
-        roomId,
-        targetUserId,
-        targetUserName
-      });
-
-      // Lấy tên bác sĩ hiện tại
-      const currentDoctorName = doctorName || "Doctor";
-
-      // Gọi hàm initiateCall với thông tin đầy đủ (bao gồm tên bác sĩ)
-      initiateCall(targetUserId, roomId, targetUserName, currentDoctorName);
-
-    } catch (error) {
-      console.error("Error initiating video call:", error);
-      alert("Unable to start video call.");
-    }
-  };
+  const renderEmptyState = (title, description) => (
+    <div className="doctor-detail-empty">
+      <div className="doctor-detail-empty__icon">
+        <i className="bi bi-inbox"></i>
+      </div>
+      <h3 className="doctor-detail-empty__title">{title}</h3>
+      <p className="doctor-detail-empty__description">{description}</p>
+    </div>
+  );
 
   return (
-    <div className="d-flex flex-column min-vh-100">
-      {/* Header (Toolbar & Breadcrumbs) */}
-      <header className="d-flex align-items-center justify-content-center border-bottom border-border-light bg-content-light" style={{ height: '4rem' }}>
-        <div className="d-flex w-100" style={{ maxWidth: '1280px', paddingLeft: '1rem', paddingRight: '1rem' }}>
-          {/* Breadcrumbs */}
-          <div className="d-flex flex-wrap align-items-center gap-2">
-            <button
-              className="p-2 text-text-light-secondary border-0 bg-transparent"
-              onClick={() => onBack ? onBack() : navigate('/doctor-page')}
-              style={{ cursor: 'pointer' }}
-            >
-              <span className="material-symbols-outlined">arrow_back</span>
-            </button>
-            <a className="text-text-light-secondary small fw-medium text-decoration-none" href="#" onClick={(e) => { e.preventDefault(); onBack ? onBack() : navigate('/doctor-page'); }}>
-              Appointments List
-            </a>
-            <span className="text-text-light-secondary small fw-medium">/</span>
-            <span className="text-text-light-primary small fw-medium">Appointment Details</span>
+    <div className="doctor-detail-layout">
+      <div className="doctor-detail-back">
+        <button className="btn btn-link p-0 text-decoration-none" onClick={() => onBack?.()}>
+          <i className="bi bi-arrow-left me-2"></i>
+          Back to appointments
+        </button>
+      </div>
+
+      <div className="row g-4 align-items-start">
+        <div className="col-12 col-xl-4">
+          <div className="doctor-detail-stack">
+            <section className="doctor-detail-card doctor-detail-card--hero">
+              <div className="doctor-detail-card__hero-top">
+                <span className={getTypeClassName(currentAppointment?.consultationType)}>
+                  <i className={`bi ${getTypeIcon(currentAppointment?.consultationType)}`}></i>
+                  {currentAppointment?.consultationType || 'Consultation'}
+                </span>
+                <span className={getStatusClassName(currentAppointment?.status)}>
+                  {currentAppointment?.status || 'Unknown'}
+                </span>
+              </div>
+
+              <div className="doctor-detail-patient">
+                {patient?.avatarUrl ? (
+                  <img
+                    className="doctor-detail-avatar"
+                    src={patient.avatarUrl}
+                    alt={patientName}
+                  />
+                ) : (
+                  <div className="doctor-detail-avatar doctor-detail-avatar--fallback">
+                    {getPatientInitials(patientName)}
+                  </div>
+                )}
+
+                <div>
+                  <h2 className="doctor-detail-patient__name">{patientName}</h2>
+                  <p className="doctor-detail-patient__meta">
+                    {calculateAge(patient?.dateOfBirth)} yrs
+                    <span className="doctor-detail-dot"></span>
+                    {patient?.gender || 'Gender N/A'}
+                  </p>
+                  <p className="doctor-detail-patient__email">{patientEmail}</p>
+                </div>
+              </div>
+
+              <div className="doctor-detail-overview-grid">
+                <div className="doctor-detail-overview-item">
+                  <span className="doctor-detail-overview-item__label">Appointment</span>
+                  <span className="doctor-detail-overview-item__value">
+                    {formatDate(currentAppointment?.appointmentTime)}
+                  </span>
+                </div>
+                <div className="doctor-detail-overview-item">
+                  <span className="doctor-detail-overview-item__label">Time</span>
+                  <span className="doctor-detail-overview-item__value">
+                    {formatTime(currentAppointment?.appointmentTime)}
+                  </span>
+                </div>
+                <div className="doctor-detail-overview-item">
+                  <span className="doctor-detail-overview-item__label">Blood type</span>
+                  <span className="doctor-detail-overview-item__value">{patient?.bloodType || 'N/A'}</span>
+                </div>
+                <div className="doctor-detail-overview-item">
+                  <span className="doctor-detail-overview-item__label">Phone</span>
+                  <span className="doctor-detail-overview-item__value">
+                    {patient?.phoneNumber || appointmentDetail?.patientPhone || 'N/A'}
+                  </span>
+                </div>
+              </div>
+            </section>
+
+            <section className="doctor-detail-card">
+              <div className="doctor-detail-card__section-heading">
+                <div>
+                  <p className="doctor-detail-eyebrow">Medical Alerts</p>
+                  <h3 className="doctor-detail-section-title">Known risk factors</h3>
+                </div>
+              </div>
+
+              {alertItems.length > 0 ? (
+                <div className="doctor-detail-alert-list">
+                  {alertItems.map((item) => (
+                    <div className="doctor-detail-alert-item" key={item.label}>
+                      <div className="doctor-detail-alert-item__label">
+                        <i className="bi bi-exclamation-triangle me-2"></i>
+                        {item.label}
+                      </div>
+                      <div className="doctor-detail-alert-item__value">{item.value}</div>
+                    </div>
+                  ))}
+                </div>
+              ) : (
+                renderEmptyState(
+                  'No alerts on file',
+                  'This patient does not have allergies, chronic conditions, or current medications recorded yet.',
+                )
+              )}
+            </section>
+
+            <section className="doctor-detail-card">
+              <div className="doctor-detail-card__section-heading">
+                <div>
+                  <p className="doctor-detail-eyebrow">Reason For Visit</p>
+                  <h3 className="doctor-detail-section-title">Current concern</h3>
+                </div>
+              </div>
+              <div className="doctor-detail-reason">{reasonForVisit}</div>
+            </section>
           </div>
         </div>
-      </header>
 
-      {/* Main Content */}
-      <main className="flex-grow-1 d-flex justify-content-center p-4 p-md-5">
-        <div className="w-100" style={{ maxWidth: '1280px' }}>
-          <div className="row g-4">
+        <div className="col-12 col-xl-8">
+          <section className="doctor-detail-card doctor-detail-workspace">
+            <div className="doctor-detail-workspace__header">
+              <div className="doctor-detail-workspace__meta">
+                <span>
+                  <i className="bi bi-calendar3 me-2"></i>
+                  {formatDateTime(currentAppointment?.appointmentTime)}
+                </span>
+              </div>
+            </div>
 
-            {/* Main Column */}
-            <div className="col-12 d-flex flex-column gap-4">
+            <div className="doctor-detail-tabs" role="tablist" aria-label="Appointment detail tabs">
+              {TABS.map((tab) => (
+                <button
+                  key={tab.id}
+                  className={`doctor-detail-tab ${activeTab === tab.id ? 'doctor-detail-tab--active' : ''}`}
+                  onClick={() => setActiveTab(tab.id)}
+                  type="button"
+                >
+                  <i className={`bi ${tab.icon}`}></i>
+                  {tab.label}
+                  {tab.id === 'shared' && sharedRecordCount > 0 ? (
+                    <span className="doctor-detail-tab__count">{sharedRecordCount}</span>
+                  ) : null}
+                </button>
+              ))}
+            </div>
 
-              {/* ProfileHeader */}
-              <div className="rounded-3 border border-border-light bg-content-light shadow-sm">
-                <div className="p-4 p-md-4">
-                  <div className="d-flex flex-column flex-md-row align-items-md-center justify-content-md-between gap-4">
-                    <div className="d-flex align-items-center gap-4">
-                      <div className="profile-avatar"></div>
-                      <div className="d-flex flex-column justify-content-center">
-                        <p className="text-text-light-primary fs-5 fw-bold mb-0">{patient.fullName || 'N/A'}</p>
-                        <p className="text-text-light-secondary small mb-1">
-                          {calculateAge(patient.dateOfBirth)} years old
-                        </p>
-                        <p className="text-text-light-secondary small mb-0">
-                          {patient.user?.email || 'N/A'}
-                        </p>
+            <div className="doctor-detail-tab-panel">
+              {activeTab === 'notes' && (
+                <>
+                  {loadingAppointment ? (
+                    <div className="text-center py-5">
+                      <div className="spinner-border text-primary" role="status">
+                        <span className="visually-hidden">Loading...</span>
                       </div>
                     </div>
-                  </div>
-                </div>
-              </div>
+                  ) : consultation.diagnosis || consultation.doctorNotes || consultation.treatmentPlan ? (
+                    <div className="doctor-detail-note-grid">
+                      {consultation.diagnosis ? (
+                        <div className="doctor-detail-note-card">
+                          <p className="doctor-detail-note-card__label">Diagnosis</p>
+                          <p className="doctor-detail-note-card__value">{consultation.diagnosis}</p>
+                        </div>
+                      ) : null}
+                      {consultation.doctorNotes ? (
+                        <div className="doctor-detail-note-card">
+                          <p className="doctor-detail-note-card__label">Doctor Notes</p>
+                          <p className="doctor-detail-note-card__value">{consultation.doctorNotes}</p>
+                        </div>
+                      ) : null}
+                      {consultation.treatmentPlan ? (
+                        <div className="doctor-detail-note-card">
+                          <p className="doctor-detail-note-card__label">Treatment Plan</p>
+                          <p className="doctor-detail-note-card__value">{consultation.treatmentPlan}</p>
+                        </div>
+                      ) : null}
+                    </div>
+                  ) : (
+                    renderEmptyState(
+                      'No consultation notes yet',
+                      'Diagnosis, doctor notes, and treatment plan will appear here when consultation data is available.',
+                    )
+                  )}
+                </>
+              )}
 
-              {/* Appointment Details & Actions */}
-              <div className="rounded-3 border border-border-light bg-content-light shadow-sm">
-                <div className="border-bottom border-border-light p-4 p-md-4">
-                  <h2 className="fs-5 fw-bold text-text-light-primary mb-0">Appointment Details</h2>
-                </div>
-                {/* DescriptionList */}
-                <div className="p-4 p-md-4 row g-0 text-sm">
-                  <div className="col-5 col-md-3 mb-3 text-text-light-secondary">Date and Time</div>
-                  <div className="col-7 col-md-9 mb-3 text-text-light-primary fw-medium">
-                    {formatTime(appointment.appointmentTime)} - {formatDate(appointment.appointmentTime)}
-                  </div>
-                  <div className="col-5 col-md-3 mb-3 text-text-light-secondary">Type</div>
-                  <div className="col-7 col-md-9 mb-3 text-text-light-primary fw-medium">
-                    {appointment.consultationType || 'N/A'}
-                  </div>
-
-                  <div className="col-5 col-md-3 mb-3 text-text-light-secondary">Status</div>
-                  <div className="col-7 col-md-9 mb-3 d-flex align-items-center gap-2">
-                    <div className={`rounded-circle ${appointment.status === 'Scheduled' ? 'bg-warning' :
-                      appointment.status === 'Completed' ? 'bg-success' :
-                        appointment.status === 'Cancelled' ? 'bg-danger' :
-                          'bg-secondary'
-                      }`} style={{ height: '0.625rem', width: '0.625rem' }}></div>
-                    <p className="text-text-light-primary fw-medium mb-0">{appointment.status || 'N/A'}</p>
-                  </div>
-
-                  <div className="col-5 col-md-3 text-text-light-secondary">Reason for Visit</div>
-                  <div className="col-7 col-md-9 text-text-light-primary fw-medium">
-                    {appointment.reason || 'No reason provided'}
-                  </div>
-                </div>
-                {/* ButtonGroup */}
-                <div className="d-flex flex-column flex-md-row gap-3 p-4 pt-0 p-md-4 pt-md-2">
-                  <button
-                    className="btn btn-primary h-auto py-3 fw-bold flex-fill"
-                    onClick={() => {
-                      if (appointment.consultationType === 'Video Call') {
-                        handleVideoCall(appointment);
-                      } else if (appointment.consultationType === 'Audio Call') {
-                        handleVideoCall(appointment); // Audio cũng dùng Zego
-                      } else if (appointment.consultationType === 'Chat') {
-                        handleChat(appointment);
-                      } else {
-                        alert('Unknown consultation type');
-                      }
-                    }}
-                    title={new Date(appointment.appointmentTime) < new Date() ? "Appointment time has passed" : `Join ${appointment.consultationType}`}
-                    disabled={appointment.status !== 'Scheduled' || new Date(appointment.appointmentTime) < new Date()}
-                  >
-                    <i className={`bi ${appointment.consultationType === 'Video Call' ? 'bi-camera-video' :
-                      appointment.consultationType === 'Audio Call' ? 'bi-telephone' :
-                        appointment.consultationType === 'Chat' ? 'bi-chat-dots' :
-                          'bi-door-open'
-                      } me-2`}></i>
-                    Join {appointment.consultationType || 'Appointment'}
-                  </button>
-                  <button
-                    className="btn btn-secondary-custom h-auto py-3 fw-bold flex-fill"
-                    onClick={() => setIsPrescriptionModalOpen(true)}
-                  >
-                    Prescribe Medication
-                  </button>
-                  <button
-                    className="btn btn-success h-auto py-3 fw-bold flex-fill"
-                    onClick={() => setShowCompleteConfirmModal(true)}
-                    disabled={appointment.status !== 'Scheduled' || completingAppointment}
-                    title={appointment.status !== 'Scheduled' ? "Can only complete scheduled appointments" : "Mark appointment as completed"}
-                  >
-                    <i className="bi bi-check-circle me-2"></i>
-                    {completingAppointment ? 'Completing...' : 'Complete'}
-                  </button>
-                </div>
-              </div>
-            </div>
-
-            {/* Combined Medical Records Section with Tabs */}
-<div className="col-12">
-  <div className="rounded-3 border border-border-light bg-content-light shadow-sm">
-    {/* Header with Tabs */}
-    <div className="border-bottom border-border-light p-4">
-      <h2 className="fs-5 fw-bold text-text-light-primary mb-3">
-        <i className="bi bi-folder2-open me-2"></i>Patient Medical Information
-      </h2>
-      
-      {/* Tab Navigation */}
-      <ul className="nav nav-tabs border-0">
-        <li className="nav-item">
-          <button
-            className={`nav-link ${activeTab === 'timeline' ? 'active' : ''}`}
-            onClick={() => setActiveTab('timeline')}
-            style={{
-              border: 'none',
-              borderBottom: activeTab === 'timeline' ? '2px solid #0d6efd' : '2px solid transparent',
-              background: 'transparent',
-              color: activeTab === 'timeline' ? '#0d6efd' : '#6c757d',
-              fontWeight: activeTab === 'timeline' ? 'bold' : 'normal'
-            }}
-          >
-            <i className="bi bi-clipboard2-pulse me-2"></i>
-            Medical Record Timeline
-          </button>
-        </li>
-        <li className="nav-item">
-          <button
-            className={`nav-link ${activeTab === 'shared' ? 'active' : ''}`}
-            onClick={() => setActiveTab('shared')}
-            style={{
-              border: 'none',
-              borderBottom: activeTab === 'shared' ? '2px solid #0d6efd' : '2px solid transparent',
-              background: 'transparent',
-              color: activeTab === 'shared' ? '#0d6efd' : '#6c757d',
-              fontWeight: activeTab === 'shared' ? 'bold' : 'normal'
-            }}
-          >
-            <i className="bi bi-folder-open me-2"></i>
-            Shared Health Records
-          </button>
-        </li>
-      </ul>
-    </div>
-
-    {/* Tab Content */}
-    <div className="p-4">
-      {/* Timeline Tab Content */}
-      {activeTab === 'timeline' && (
-        <div>
-          {loadingHistory ? (
-            <div className="text-center py-5">
-              <div className="spinner-border text-primary" role="status">
-                <span className="visually-hidden">Loading...</span>
-              </div>
-              <p className="text-text-light-secondary mt-3 mb-0">Loading medical history...</p>
-            </div>
-          ) : medicalHistory?.appointments && medicalHistory.appointments.length > 0 ? (
-            <div className="d-flex flex-column gap-3">
-
-              <div className="rounded-3 border border-border-light bg-content-light shadow-sm">
-                <div className="border-bottom border-border-light p-4">
-                  <h2 className="fs-5 fw-bold text-text-light-primary mb-0">
-                    <i className="bi bi-clipboard2-pulse me-2"></i>Medical Record Timeline
-                  </h2>
-                </div>
-                <div className="p-4">
+              {activeTab === 'history' && (
+                <>
                   {loadingHistory ? (
                     <div className="text-center py-5">
                       <div className="spinner-border text-primary" role="status">
                         <span className="visually-hidden">Loading...</span>
                       </div>
-                      <p className="text-text-light-secondary mt-3 mb-0">Loading medical history...</p>
-                    </div>
-                  ) : medicalHistory?.appointments && medicalHistory.appointments.length > 0 ? (
-                    <div className="d-flex flex-column gap-3">
-                      {medicalHistory.appointments
-                        .filter(apt => apt.status === 'Completed')
-                        .map((apt) => (
-                          <div key={apt.appointmentID} className="card border hover-shadow transition-all rounded-3">
-                            <div className="card-body">
-                              {/* Header row: Date + Status & Type + Action Button */}
-                              <div className="row align-items-start g-3 mb-3">
-                                {/* Date, Status, Type, Doctor */}
-                                <div className="col">
-                                  <h5 className="fw-bold text-dark mb-2">
-                                    {formatDate(apt.appointmentTime)}
-                                  </h5>
-                                  <div className="d-flex gap-2 align-items-center mb-2">
-                                    <span className={`badge rounded-pill ${getStatusBadge(apt.status)}`}>
-                                      {apt.status}
-                                    </span>
-                                    <span className="badge bg-light text-dark border">
-                                      {apt.consultationType}
-                                    </span>
-                                  </div>
-                                  {/* Doctor Info */}
-                                  <h6 className="fw-bold text-primary mb-0">
-                                    Dr. {apt.doctorName} - <span className="text-muted fw-normal">{apt.doctorSpecialty}</span>
-                                  </h6>
-                                </div>
-
-                                {/* Action Button */}
-                                <div className="col-auto">
-                                  <button
-                                    className="btn btn-outline-primary btn-sm rounded-pill px-3"
-                                    onClick={() => handleViewAppointmentDetail(apt.appointmentID)}
-                                  >
-                                    More Info <i className="bi bi-chevron-right ms-1 small"></i>
-                                  </button>
-                                </div>
-                              </div>
-
-                              {/* Diagnosis */}
-                              {apt.consultation && apt.consultation.diagnosis && (
-                                <div className="mb-3 p-3 bg-info-subtle rounded-3 border-start border-info border-4">
-                                  <div className="d-flex align-items-center mb-2">
-                                    <i className="bi bi-clipboard2-pulse fs-5 text-info me-2"></i>
-                                    <strong className="text-info text-uppercase small">Diagnosis</strong>
-                                  </div>
-                                  <p className="mb-0 fs-6 fw-semibold text-dark">
-                                    {apt.consultation.diagnosis.length > 100 && !expandedCards[apt.appointmentID]
-                                      ? apt.consultation.diagnosis.substring(0, 100) + '...'
-                                      : apt.consultation.diagnosis
-                                    }
-                                  </p>
-                                  {apt.consultation.diagnosis.length > 100 && (
-                                    <button
-                                      className="btn btn-link btn-sm p-0 mt-1 text-info text-decoration-none"
-                                      onClick={() => toggleCardExpand(apt.appointmentID)}
-                                    >
-                                      {expandedCards[apt.appointmentID] ? (
-                                        <><i className="bi bi-chevron-up me-1"></i>Show less</>
-                                      ) : (
-                                        <><i className="bi bi-chevron-down me-1"></i>Show more</>
-                                      )}
-                                    </button>
-                                  )}
-                                </div>
-                              )}
-
-                              {/* Prescription */}
-                              {apt.prescription && apt.prescription.medications && apt.prescription.medications.length > 0 && (
-                                <div className="p-3 bg-success-subtle rounded-3 border-start border-success border-4">
-                                  <div className="d-flex align-items-center mb-2">
-                                    <i className="bi bi-capsule fs-5 text-success me-2"></i>
-                                    <strong className="text-success text-uppercase small">
-                                      Prescription ({apt.prescription.medicationCount} medications)
-                                    </strong>
-                                  </div>
-                                  <ul className="list-unstyled mb-0">
-                                    {(expandedCards[apt.appointmentID]
-                                      ? apt.prescription.medications
-                                      : apt.prescription.medications.slice(0, 3)
-                                    ).map((med, i) => (
-                                      <li key={i} className="text-dark mb-2 pb-2 border-bottom border-success border-opacity-25">
-                                        <div className="d-flex align-items-start">
-                                          <i className="bi bi-capsule-pill text-success me-2 mt-1"></i>
-                                          <div className="flex-grow-1">
-                                            <div className="fw-semibold text-dark">{med.medicationName}</div>
-                                            <div className="small text-muted mt-1">
-                                              <span className="badge bg-success-subtle text-success me-2">
-                                                {med.dosage}
-                                              </span>
-                                              <span>{med.instructions}</span>
-                                            </div>
-                                            <div className="small text-muted mt-1">
-                                              <i className="bi bi-calendar-check me-1"></i>
-                                              {med.totalSupplyDays} days supply
-                                            </div>
-                                          </div>
-                                        </div>
-                                      </li>
-                                    ))}
-                                  </ul>
-                                  {apt.prescription.medications.length > 3 && (
-                                    <button
-                                      className="btn btn-link btn-sm p-0 mt-2 text-success text-decoration-none"
-                                      onClick={() => toggleCardExpand(apt.appointmentID)}
-                                    >
-                                      {expandedCards[apt.appointmentID] ? (
-                                        <><i className="bi bi-chevron-up me-1"></i>Show less</>
-                                      ) : (
-                                        <><i className="bi bi-chevron-down me-1"></i>Show all {apt.prescription.medicationCount} medications</>
-                                      )}
-                                    </button>
-                                  )}
-                                </div>
-                              )}
-                            </div>
-                          </div>
-                        ))}
                     </div>
                   ) : (
-                    <div className="text-center py-5">
-                      <i className="bi bi-inbox fs-1 text-muted d-block mb-3"></i>
-                      <p className="text-text-light-secondary mb-0">No completed appointments found for this patient</p>
+                    <div className="doctor-detail-history">
+                      {medicalHistory?.medicalHistorySummary ? (
+                        <div className="doctor-detail-note-card">
+                          <p className="doctor-detail-note-card__label">Medical History Summary</p>
+                          <p className="doctor-detail-note-card__value">{medicalHistory.medicalHistorySummary}</p>
+                        </div>
+                      ) : null}
+
+                      {completedHistory.length > 0 ? (
+                        <div className="doctor-detail-history-list">
+                          {completedHistory.map((historyItem) => (
+                            <article className="doctor-detail-history-card" key={historyItem.appointmentID}>
+                              <div className="doctor-detail-history-card__header">
+                                <div>
+                                  <h4>{formatDate(historyItem.appointmentTime)}</h4>
+                                  <p>
+                                    <span className={getStatusClassName(historyItem.status)}>
+                                      {historyItem.status}
+                                    </span>
+                                    <span className={getTypeClassName(historyItem.consultationType)}>
+                                      {historyItem.consultationType}
+                                    </span>
+                                  </p>
+                                </div>
+                                <button
+                                  className="btn btn-outline-primary btn-sm"
+                                  onClick={() => handleViewAppointmentDetail(historyItem.appointmentID)}
+                                  type="button"
+                                >
+                                  View detail
+                                </button>
+                              </div>
+
+                              <div className="doctor-detail-history-card__body">
+                                <p>
+                                  <strong>Doctor:</strong> {historyItem.doctorName || 'N/A'}
+                                  {historyItem.doctorSpecialty ? ` • ${historyItem.doctorSpecialty}` : ''}
+                                </p>
+                                {historyItem.symptoms ? (
+                                  <p>
+                                    <strong>Visit reason:</strong> {historyItem.symptoms}
+                                  </p>
+                                ) : null}
+                                {historyItem.diagnosis ? (
+                                  <p>
+                                    <strong>Diagnosis:</strong> {historyItem.diagnosis}
+                                  </p>
+                                ) : null}
+                              </div>
+                            </article>
+                          ))}
+                        </div>
+                      ) : (
+                        renderEmptyState(
+                          'No completed appointments found',
+                          'Completed visits for this patient will appear here once they become available.',
+                        )
+                      )}
                     </div>
                   )}
+                </>
+              )}
+
+              {activeTab === 'shared' && (
+                <div className="doctor-detail-shared">
+                  <p className="doctor-detail-shared__intro">
+                    Shared records available for {patientName}
+                  </p>
+                  <SharedRecordsView patientFilter={patientId} />
                 </div>
+              )}
+
+              {activeTab === 'prescription' && (
+                <DoctorPrescriptionWorkspace
+                  appointment={currentAppointment}
+                  patient={patient}
+                  consultation={consultation}
+                  prescription={prescription}
+                  loadingPrescription={loadingPrescription}
+                  onPrescriptionCreated={() => refreshAppointmentData({ showToast: false })}
+                />
+              )}
+
+              {activeTab === 'followup' && (
+                <>
+                  {consultation.followUpDate || consultation.followUpNotes ? (
+                    <div className="doctor-detail-followup">
+                      <div className="doctor-detail-note-card">
+                        <p className="doctor-detail-note-card__label">Follow-up Date</p>
+                        <p className="doctor-detail-note-card__value">
+                          {consultation.followUpDate ? formatDateTime(consultation.followUpDate) : 'Not scheduled'}
+                        </p>
+                      </div>
+                      <div className="doctor-detail-note-card">
+                        <p className="doctor-detail-note-card__label">Follow-up Notes</p>
+                        <p className="doctor-detail-note-card__value">
+                          {consultation.followUpNotes || 'No follow-up notes recorded.'}
+                        </p>
+                      </div>
+                    </div>
+                  ) : (
+                    renderEmptyState(
+                      'No follow-up scheduled',
+                      'Follow-up date and notes will appear here after they are added to the consultation.',
+                    )
+                  )}
+                </>
+              )}
+            </div>
+
+            <div className="doctor-detail-actionbar doctor-detail-actionbar--workspace">
+              <div className="doctor-detail-actionbar__group">
+                <button className="btn btn-outline-primary" onClick={handleChat} type="button">
+                  <i className="bi bi-chat-dots me-2"></i>
+                  Send Message
+                </button>
+              </div>
+              <div className="doctor-detail-actionbar__group doctor-detail-actionbar__group--primary">
+                <button
+                  className="btn btn-primary"
+                  onClick={() => {
+                    if (currentAppointment?.consultationType === 'Chat') {
+                      handleChat();
+                      return;
+                    }
+                    handleVideoCall();
+                  }}
+                  type="button"
+                  title={
+                    appointmentPassed
+                      ? 'Appointment time has passed'
+                      : actionLabel
+                  }
+                  disabled={joinDisabled}
+                >
+                  <i className={`bi ${getTypeIcon(currentAppointment?.consultationType)} me-2`}></i>
+                  {actionLabel}
+                </button>
+                <button
+                  className="btn btn-success"
+                  onClick={() => setShowCompleteConfirmModal(true)}
+                  type="button"
+                  disabled={currentAppointment?.status !== 'Scheduled' || completingAppointment}
+                >
+                  <i className="bi bi-check-circle me-2"></i>
+                  {completingAppointment ? 'Completing...' : 'Complete Consultation'}
+                </button>
               </div>
             </div>
-          ) : (
-            <div className="text-center py-5">
-              <i className="bi bi-inbox fs-1 text-muted d-block mb-3"></i>
-              <p className="text-text-light-secondary mb-0">No completed appointments found for this patient</p>
-            </div>
-          )}
+          </section>
         </div>
-      )}
+      </div>
 
-      {/* Shared Records Tab Content */}
-      {activeTab === 'shared' && (
-        <div>
-          <p className="text-text-light-secondary small mb-3">
-            Medical documents shared by {patient.fullName}
-          </p>
-          <SharedRecordsView patientFilter={patient.patientID} />
-        </div>
-      )}
-    </div>
-  </div>
-</div>
-          </div>
-        </div>
-      </main>
-
-      {/* Prescription Modal */}
-      <CreatePrescriptionModal
-        isOpen={isPrescriptionModalOpen}
-        onClose={() => setIsPrescriptionModalOpen(false)}
-        appointment={appointment}
-        patient={patient}
-      />
-
-      {/* Appointment Detail Modal */}
-      {showDetailModal && selectedHistoryAppointment && (
-        <div className="modal show d-block" tabIndex="-1" style={{ backgroundColor: 'rgba(0,0,0,0.5)' }}>
+      {showDetailModal && selectedHistoryAppointment ? (
+        <div className="modal show d-block" tabIndex="-1" style={{ backgroundColor: 'rgba(15, 23, 42, 0.45)' }}>
           <div className="modal-dialog modal-lg modal-dialog-scrollable">
-            <div className="modal-content">
-              <div className="modal-header bg-primary text-white">
-                <h5 className="modal-title fw-bold">
-                  <i className="bi bi-info-circle-fill me-2"></i>Appointment Details
-                </h5>
+            <div className="modal-content border-0 shadow-lg">
+              <div className="modal-header">
+                <h5 className="modal-title fw-bold">Appointment Snapshot</h5>
                 <button
                   type="button"
-                  className="btn-close btn-close-white"
+                  className="btn-close"
                   onClick={() => setShowDetailModal(false)}
                 ></button>
               </div>
               <div className="modal-body">
-                {/* Basic Info */}
-                <div className="mb-4">
-                  <h6 className="fw-bold text-primary mb-3">
-                    <i className="bi bi-calendar-event me-2"></i>Basic Information
-                  </h6>
-                  <div className="row g-3">
-                    <div className="col-md-6">
-                      <p className="mb-1 text-muted small">Date & Time</p>
-                      <p className="fw-semibold">{formatDate(selectedHistoryAppointment.appointmentTime)}</p>
-                    </div>
-                    <div className="col-md-6">
-                      <p className="mb-1 text-muted small">Consultation Type</p>
-                      <p className="fw-semibold">{selectedHistoryAppointment.consultationType}</p>
-                    </div>
-                    <div className="col-md-6">
-                      <p className="mb-1 text-muted small">Status</p>
-                      <span className={`badge ${getStatusBadge(selectedHistoryAppointment.status)}`}>
-                        {selectedHistoryAppointment.status}
-                      </span>
-                    </div>
-                    <div className="col-md-6">
-                      <p className="mb-1 text-muted small">Doctor</p>
-                      <p className="fw-semibold">{selectedHistoryAppointment.doctorName}</p>
-                      <p className="text-muted small">{selectedHistoryAppointment.doctorSpecialty}</p>
-                    </div>
+                <div className="doctor-detail-modal-grid">
+                  <div className="doctor-detail-note-card">
+                    <p className="doctor-detail-note-card__label">Date & Time</p>
+                    <p className="doctor-detail-note-card__value">
+                      {formatDateTime(selectedHistoryAppointment.appointmentTime)}
+                    </p>
+                  </div>
+                  <div className="doctor-detail-note-card">
+                    <p className="doctor-detail-note-card__label">Consultation Type</p>
+                    <p className="doctor-detail-note-card__value">
+                      {selectedHistoryAppointment.consultationType || 'N/A'}
+                    </p>
+                  </div>
+                  <div className="doctor-detail-note-card">
+                    <p className="doctor-detail-note-card__label">Doctor</p>
+                    <p className="doctor-detail-note-card__value">
+                      {selectedHistoryAppointment.doctorName || 'N/A'}
+                    </p>
+                  </div>
+                  <div className="doctor-detail-note-card">
+                    <p className="doctor-detail-note-card__label">Status</p>
+                    <p className="doctor-detail-note-card__value">
+                      {selectedHistoryAppointment.status || 'N/A'}
+                    </p>
                   </div>
                 </div>
 
-                {/* Consultation Details */}
-                {selectedHistoryAppointment.consultation && (
-                  <div className="mb-4">
-                    <h6 className="fw-bold text-primary mb-3">
-                      <i className="bi bi-clipboard2-pulse me-2"></i>Consultation Details
-                    </h6>
-                    <div className="bg-light p-3 rounded-3">
-                      {selectedHistoryAppointment.consultation.diagnosis && (
-                        <div className="mb-3">
-                          <p className="mb-1 text-muted small">Diagnosis</p>
-                          <p className="mb-0">{selectedHistoryAppointment.consultation.diagnosis}</p>
-                        </div>
-                      )}
-                      {selectedHistoryAppointment.consultation.doctorNotes && (
-                        <div className="mb-3">
-                          <p className="mb-1 text-muted small">Doctor's Notes</p>
-                          <p className="mb-0">{selectedHistoryAppointment.consultation.doctorNotes}</p>
-                        </div>
-                      )}
-                      {selectedHistoryAppointment.consultation.followUpDate && (
-                        <div>
-                          <p className="mb-1 text-muted small">Follow-up Date</p>
-                          <p className="mb-0">{formatDate(selectedHistoryAppointment.consultation.followUpDate)}</p>
-                        </div>
-                      )}
-                    </div>
+                {buildConsultation(selectedHistoryAppointment).diagnosis ? (
+                  <div className="doctor-detail-note-card mt-3">
+                    <p className="doctor-detail-note-card__label">Diagnosis</p>
+                    <p className="doctor-detail-note-card__value">
+                      {buildConsultation(selectedHistoryAppointment).diagnosis}
+                    </p>
                   </div>
-                )}
+                ) : null}
 
-                {/* Prescription */}
-                {selectedHistoryAppointment.prescription && selectedHistoryAppointment.prescription.medications && (
-                  <div className="mb-4">
-                    <h6 className="fw-bold text-primary mb-3">
-                      <i className="bi bi-capsule me-2"></i>Prescription
-                    </h6>
-                    <div className="bg-success-subtle p-3 rounded-3">
-                      <p className="mb-2 text-success fw-semibold">
-                        {selectedHistoryAppointment.prescription.medicationCount} Medication(s)
-                      </p>
-                      <ul className="list-unstyled mb-0">
-                        {selectedHistoryAppointment.prescription.medications.map((med, i) => (
-                          <li key={i} className="mb-3 pb-3 border-bottom">
-                            <div className="fw-semibold text-dark mb-1">{med.medicationName}</div>
-                            <div className="small text-muted">
-                              <span className="badge bg-success me-2">{med.dosage}</span>
-                              <span>{med.instructions}</span>
-                            </div>
-                            <div className="small text-muted mt-1">
-                              <i className="bi bi-calendar-check me-1"></i>
-                              {med.totalSupplyDays} days supply
-                            </div>
-                          </li>
-                        ))}
-                      </ul>
-                    </div>
+                {buildConsultation(selectedHistoryAppointment).doctorNotes ? (
+                  <div className="doctor-detail-note-card mt-3">
+                    <p className="doctor-detail-note-card__label">Doctor Notes</p>
+                    <p className="doctor-detail-note-card__value">
+                      {buildConsultation(selectedHistoryAppointment).doctorNotes}
+                    </p>
                   </div>
-                )}
+                ) : null}
 
-                {/* Invoice */}
-                {selectedHistoryAppointment.invoice && (
-                  <div>
-                    <h6 className="fw-bold text-primary mb-3">
-                      <i className="bi bi-receipt me-2"></i>Invoice
-                    </h6>
-                    <div className="bg-light p-3 rounded-3">
-                      <div className="row">
-                        <div className="col-md-4">
-                          <p className="mb-1 text-muted small">Amount</p>
-                          <p className="fw-semibold text-success">${selectedHistoryAppointment.invoice.totalAmount}</p>
+                {selectedHistoryAppointment?.prescription?.medications?.length ? (
+                  <div className="doctor-detail-note-card mt-3">
+                    <p className="doctor-detail-note-card__label">Prescription</p>
+                    <div className="doctor-detail-prescription__list mt-2">
+                      {selectedHistoryAppointment.prescription.medications.map((medication, index) => (
+                        <div className="doctor-detail-prescription__item" key={`${medication.medicationName}-${index}`}>
+                          <div className="doctor-detail-prescription__item-top">
+                            <h4>{medication.medicationName}</h4>
+                            <span>{medication.dosage}</span>
+                          </div>
+                          <p>{medication.instructions}</p>
+                          <small>{medication.totalSupplyDays} days supply</small>
                         </div>
-                        <div className="col-md-4">
-                          <p className="mb-1 text-muted small">Status</p>
-                          <span className={`badge ${selectedHistoryAppointment.invoice.paymentStatus === 'Paid' ? 'bg-success' : 'bg-warning'}`}>
-                            {selectedHistoryAppointment.invoice.paymentStatus}
-                          </span>
-                        </div>
-                        <div className="col-md-4">
-                          <p className="mb-1 text-muted small">Payment Date</p>
-                          <p className="mb-0">{formatDate(selectedHistoryAppointment.invoice.paymentDate)}</p>
-                        </div>
-                      </div>
+                      ))}
                     </div>
                   </div>
-                )}
-              </div>
-              <div className="modal-footer">
-                <button
-                  type="button"
-                  className="btn btn-secondary"
-                  onClick={() => setShowDetailModal(false)}
-                >
-                  Close
-                </button>
+                ) : null}
               </div>
             </div>
           </div>
         </div>
-      )}
+      ) : null}
 
-      {/* Complete Confirmation Modal */}
-      {showCompleteConfirmModal && (
-        <div className="modal show d-block" tabIndex="-1" style={{ backgroundColor: 'rgba(0,0,0,0.5)' }}>
+      {showCompleteConfirmModal ? (
+        <div className="modal show d-block" tabIndex="-1" style={{ backgroundColor: 'rgba(15, 23, 42, 0.45)' }}>
           <div className="modal-dialog modal-dialog-centered">
-            <div className="modal-content">
+            <div className="modal-content border-0 shadow-lg">
               <div className="modal-header border-0 pb-0">
-                <h5 className="modal-title">
+                <h5 className="modal-title fw-bold">
                   <i className="bi bi-check-circle-fill text-success me-2"></i>
-                  Confirm Complete Appointment
+                  Confirm completion
                 </h5>
-                
               </div>
               <div className="modal-body">
                 <p className="mb-0">Are you sure you want to mark this appointment as completed?</p>
@@ -752,14 +828,13 @@ const DoctorAppointmentDetail = ({ appointment, patient, onBack }) => {
                   onClick={handleCompleteAppointment}
                   disabled={completingAppointment}
                 >
-                  <i className="bi bi-check-circle me-2"></i>
                   {completingAppointment ? 'Completing...' : 'Confirm'}
                 </button>
               </div>
             </div>
           </div>
         </div>
-      )}
+      ) : null}
     </div>
   );
 };

@@ -173,7 +173,8 @@ INSERT INTO Appointments (AppointmentID, AppointmentTime, ConsultationType, Stat
 (8, '2024-05-22 08:30:00', 'Offline', 'Scheduled', 'Blurry vision and eye pain', NULL, 160.00, NULL, NULL, NULL, NULL, NULL, 0, NULL, 'user-p08', 'user-d08'),
 (9, '2024-05-13 14:00:00', 'Video', 'Cancelled', 'Sore throat, difficulty swallowing', 'Patient cancelled', NULL, NULL, 'Unexpected work commitment', 'Patient', '2024-05-13 08:00:00', NULL, 1, '2024-05-12 20:00:00', 'user-p09', 'user-d09'),
 (10, '2024-05-25 10:00:00', 'Offline', 'Scheduled', 'Toothache and swollen gums', NULL, 90.00, NULL, NULL, NULL, NULL, NULL, 0, NULL, 'user-p10', 'user-d10'),
-(11, '2024-05-24 16:00:00', 'Video', 'Completed', 'Follow-up after seasonal flu', 'Completed telehealth session for invoice generation test', 150.00, '2024-05-24 16:30:00', NULL, NULL, NULL, NULL, 1, '2024-05-24 15:50:00', 'user-p01', 'user-d01');
+(11, '2024-05-24 16:00:00', 'Video', 'Completed', 'Follow-up after seasonal flu', 'Completed telehealth session for invoice generation test', 150.00, '2024-05-24 16:30:00', NULL, NULL, NULL, NULL, 1, '2024-05-24 15:50:00', 'user-p01', 'user-d01'),
+(12, '2024-05-26 09:00:00', 'Video', 'Scheduled', 'Follow-up consultation', NULL, 150.00, NULL, NULL, NULL, NULL, NULL, 0, NULL, 'user-p01', 'user-d01');
 SET IDENTITY_INSERT Appointments OFF;
 
 -- 12. CONSULTATIONS (11 consultations)
