@@ -1,13 +1,13 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Card, Button, Form } from 'react-bootstrap';
-import { doctorService } from '../api/doctorApi';
-import { useAuth } from '../context/AuthContext';
-import { useChat } from '../context/ChatContext';
-import { db } from '../firebase';
+import { doctorService } from '../../../api/doctorApi';
+import { useAuth } from '../../../context/AuthContext';
+import { useChat } from '../../../context/ChatContext';
+import { db } from '../../../firebase';
 import { collection, query, where, getDocs } from 'firebase/firestore';
-import signalRService from '../services/signalrService';
-import './Css/DoctorPage.css';
+import signalRService from '../../../services/signalrService';
+import '../styles/DoctorPage.css';
 
 export default function DoctorAppointmentsView({ doctorId, onViewAppointment, viewedAppointments = [] }) {
   const navigate = useNavigate();

@@ -1,4 +1,5 @@
 import axios from 'axios';
+import { normalizeDoctorProfile } from './normalizers';
 
 const BASE = 'http://localhost:8096/api/account';
 
@@ -61,13 +62,18 @@ export const verifyEmailChange = async (token, verifyData) => {
 /** GET /api/account/doctors/profile */
 export const getDoctorProfile = async (token) => {
     const res = await axios.get(`${BASE}/doctors/profile`, authConfig(token));
-    return res.data;
+    return normalizeDoctorProfile(res.data);
 };
 
 /** PUT /api/account/doctors/profile */
 export const updateDoctorProfile = async (token, data) => {
-    const res = await axios.put(`${BASE}/doctors/profile`, data, authConfig(token));
-    return res.data;
+    const payload = {
+        phoneNumber: data.phoneNumber,
+        avatarUrl: data.avatarUrl,
+        bio: data.bio ?? data.description ?? '',
+    };
+    const res = await axios.put(`${BASE}/doctors/profile`, payload, authConfig(token));
+    return normalizeDoctorProfile(res.data);
 };
 
 /** POST /api/account/doctors/avatar — Upload ảnh đại diện bác sĩ */
@@ -89,7 +95,7 @@ export const requestDoctorEmailChange = async (token, data) => {
 /** POST /api/account/doctors/auth/email/verify-change */
 export const verifyDoctorEmailChange = async (token, data) => {
     const res = await axios.post(`${BASE}/doctors/auth/email/verify-change`, data, authConfig(token));
-    return res.data;
+    return normalizeDoctorProfile(res.data);
 };
 
 // =============================================================================

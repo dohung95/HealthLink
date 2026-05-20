@@ -1,8 +1,8 @@
 import React, { useState, useEffect } from 'react';
 import { Container, Row, Col, Card, Table, Button, Form } from 'react-bootstrap';
-import { doctorService } from '../api/doctorApi';
+import { doctorService } from '../../../api/doctorApi';
 import ReviewModal from './ReviewModal';
-import './Css/DoctorReviewView.css';
+import '../styles/DoctorReviewView.css';
 
 const RatingStars = ({ rating }) => {
   const stars = [];

@@ -1,7 +1,9 @@
 import axios from 'axios';
 
+const DEFAULT_API_HOST = 'http://localhost:8096';
+
 const axiosInstance = axios.create({
-  baseURL: import.meta.env.VITE_API_BASE_URL || 'https://localhost:7267',
+  baseURL: import.meta.env.VITE_API_BASE_URL || import.meta.env.VITE_SPRING_API_BASE_URL || DEFAULT_API_HOST,
   headers: {
     'Content-Type': 'application/json',
   },

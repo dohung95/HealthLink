@@ -45,6 +45,12 @@ public class AppointmentController {
         return ResponseEntity.ok(appointmentService.getPatientAppointments(patientId));
     }
 
+    @GetMapping("/doctor/{doctorId}")
+    public ResponseEntity<List<AppointmentResponse>> getByDoctor(
+            @PathVariable String doctorId) {
+        return ResponseEntity.ok(appointmentService.getDoctorAppointments(doctorId));
+    }
+
     // Hủy một lịch hẹn
     @PutMapping("/{id}/cancel")
     public ResponseEntity<AppointmentResponse> cancel(

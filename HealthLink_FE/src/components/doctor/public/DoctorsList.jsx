@@ -1,12 +1,12 @@
 import React, { useState, useEffect } from 'react';
-import { doctorService } from '../api/doctorApi';
+import { doctorService } from '../../../api/doctorApi';
 import { useNavigate } from 'react-router-dom';
-import './Css/Doctors.css';
+import '../styles/Doctors.css';
 import { useAuth } from '../context/AuthContext';
 import ConfirmModal from './ConfirmModal';
 import Loading from './Loading'; // Import Loading component
 
-const Doctors = () => {
+const DoctorsList = () => {
   const [doctors, setDoctors] = useState([]);
   // 2. State pagination
   const [pagination, setPagination] = useState({
@@ -354,4 +354,4 @@ const Doctors = () => {
   );
 };
 
-export default Doctors;
+export default DoctorsList;

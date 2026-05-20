@@ -21,7 +21,10 @@ public class PharmacyOrderResponse {
 
     // --- Prescription info ---
     private Integer prescriptionHeaderId;
+    private Integer appointmentId;
     private String diagnosis;
+    private String doctorId;
+    private String doctorName;
 
     // --- Pharmacy info ---
     private String pharmacyId;
@@ -61,6 +64,7 @@ public class PharmacyOrderResponse {
     private LocalDateTime deliveredAt;
     private LocalDateTime cancelledAt;
     private String cancelReason;
+    private String cancelledBy;
     private LocalDateTime createdAt;
 
     // --- Thông tin chiết khấu (CHỈ hiển thị cho Pharmacy/Admin, KHÔNG trả về cho Patient) ---
