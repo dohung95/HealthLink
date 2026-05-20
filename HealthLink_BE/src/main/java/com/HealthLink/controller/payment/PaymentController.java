@@ -3,6 +3,9 @@ package com.HealthLink.controller.payment;
 import com.HealthLink.dto.payment.InvoiceResponse;
 import com.HealthLink.dto.payment.PayPalCaptureRequest;
 import com.HealthLink.dto.payment.PayPalOrderRequest;
+import com.HealthLink.dto.payment.PharmacyOrderPayPalCaptureRequest;
+import com.HealthLink.dto.payment.PharmacyOrderPayPalOrderRequest;
+import com.HealthLink.dto.pharmacy.PharmacyOrderResponse;
 import com.HealthLink.service.payment.FinanceService;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
@@ -98,6 +101,12 @@ public class PaymentController {
         return ResponseEntity.ok(result);
     }
 
+    @PostMapping("/pharmacy-orders/paypal/create")
+    public ResponseEntity<Map<String, Object>> createPharmacyOrderPayPalOrder(
+            @Valid @RequestBody PharmacyOrderPayPalOrderRequest request) {
+        return ResponseEntity.ok(financeService.createPharmacyOrderPayPalOrder(request));
+    }
+
     /**
      * Xác nhận thanh toán sau khi người dùng duyệt trên PayPal.
      * Cập nhật hóa đơn sang PAID và lưu bản ghi Payment.
@@ -109,6 +118,12 @@ public class PaymentController {
             @Valid @RequestBody PayPalCaptureRequest request) {
         InvoiceResponse response = financeService.capturePayPalPayment(request);
         return ResponseEntity.ok(response);
+    }
+
+    @PostMapping("/pharmacy-orders/paypal/capture")
+    public ResponseEntity<PharmacyOrderResponse> capturePharmacyOrderPayPalPayment(
+            @Valid @RequestBody PharmacyOrderPayPalCaptureRequest request) {
+        return ResponseEntity.ok(financeService.capturePharmacyOrderPayPalPayment(request));
     }
 
     // ──────────────────────────────────────────────────────────────────────

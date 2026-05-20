@@ -14,6 +14,7 @@ package com.HealthLink.entity.enums;
 public enum NotificationType {
     APPOINTMENT_REMINDER,
     NEW_PRESCRIPTION,
+    NEW_PHARMACY_REQUEST,
     ORDER_STATUS,
     INVOICE_PAID,
     NEW_APPOINTMENT,

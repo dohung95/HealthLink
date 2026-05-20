@@ -92,5 +92,10 @@ public class Patient {
     @OneToMany(mappedBy = "patient")
     @ToString.Exclude
     @EqualsAndHashCode.Exclude
+    private List<PharmacyConsultationRequest> pharmacyConsultationRequests;
+
+    @OneToMany(mappedBy = "patient")
+    @ToString.Exclude
+    @EqualsAndHashCode.Exclude
     private List<VitalSign> vitalSigns;
 }

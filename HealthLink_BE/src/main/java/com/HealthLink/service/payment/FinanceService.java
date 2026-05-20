@@ -3,6 +3,9 @@ package com.HealthLink.service.payment;
 import com.HealthLink.dto.payment.InvoiceResponse;
 import com.HealthLink.dto.payment.PayPalCaptureRequest;
 import com.HealthLink.dto.payment.PayPalOrderRequest;
+import com.HealthLink.dto.payment.PharmacyOrderPayPalCaptureRequest;
+import com.HealthLink.dto.payment.PharmacyOrderPayPalOrderRequest;
+import com.HealthLink.dto.pharmacy.PharmacyOrderResponse;
 
 import java.util.List;
 import java.util.Map;
@@ -61,6 +64,8 @@ public interface FinanceService {
      */
     Map<String, Object> createPayPalOrder(PayPalOrderRequest request);
 
+    Map<String, Object> createPharmacyOrderPayPalOrder(PharmacyOrderPayPalOrderRequest request);
+
     /**
      * Xác nhận thanh toán sau khi người dùng đã duyệt đơn hàng PayPal.
      * Khi thành công:
@@ -73,6 +78,8 @@ public interface FinanceService {
      * @return hóa đơn đã cập nhật dưới dạng phản hồi
      */
     InvoiceResponse capturePayPalPayment(PayPalCaptureRequest request);
+
+    PharmacyOrderResponse capturePharmacyOrderPayPalPayment(PharmacyOrderPayPalCaptureRequest request);
 
     /**
      * Xử lý hoàn tiền cho bệnh nhân.

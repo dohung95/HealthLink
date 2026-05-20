@@ -25,6 +25,8 @@ public interface PaymentRepository extends JpaRepository<Payment, Integer> {
      */
     List<Payment> findByInvoice_InvoiceId(Integer invoiceId);
 
+    List<Payment> findByPharmacyOrder_OrderId(Integer orderId);
+
     /**
      * Tất cả bản ghi thanh toán thuộc về một bệnh nhân (qua invoice → appointment → patient).
      * Hữu ích cho endpoint lịch sử thanh toán của bệnh nhân.
