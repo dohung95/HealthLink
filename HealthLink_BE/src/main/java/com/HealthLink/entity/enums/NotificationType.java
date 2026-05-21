@@ -9,6 +9,5 @@ public enum NotificationType {
     NEW_APPOINTMENT,
     CANCEL_APPOINTMENT,
     CANCEL_ORDER,
-    NEW_ORDER,
-    PRESCRIPTION_SENT_TO_PHARMACY
+    NEW_ORDER
 }

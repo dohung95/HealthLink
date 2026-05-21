@@ -28,13 +28,8 @@ public interface FinanceService {
     /**
      * Tự động tạo một hóa đơn cho lịch hẹn đã hoàn tất.
      *
-     * <p>Tổng hợp chi phí:
-     * <ul>
-     *   <li>consultationFee  – lấy từ Doctor.consultationFee</li>
-     *   <li>medicineFee      – lấy từ PrescriptionHeader.totalAmount</li>
-     *   <li>deliveryFee      – lấy từ PharmacyOrder.deliveryFee</li>
-     * </ul>
-     * amount = consultationFee + medicineFee + deliveryFee − discount + tax
+     * <p>Hóa đơn lịch hẹn chỉ thu phí tư vấn của bác sĩ.
+     * Tiền thuốc và giao hàng được thanh toán riêng trên PharmacyOrder.
      *
      * @param appointmentId mã lịch hẹn vừa hoàn tất
      * @return hóa đơn đã tạo dưới dạng DTO phản hồi
