@@ -1,9 +1,9 @@
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { useAuth } from '../context/AuthContext';
-import ConfirmModal from './ConfirmModal';
-import DoctorDirectoryContent from './DoctorDirectoryContent';
-import './Css/Doctors.css';
+import { useAuth } from '../../../context/AuthContext';
+import ConfirmModal from '../../ConfirmModal';
+import DoctorDirectoryContent from '../../DoctorDirectoryContent';
+import '../components/Css/DoctorPage.css';
 
 const DoctorsList = () => {
     const navigate = useNavigate();
