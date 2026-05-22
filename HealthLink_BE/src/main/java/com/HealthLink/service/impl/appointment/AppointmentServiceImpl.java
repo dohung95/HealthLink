@@ -378,6 +378,9 @@ public class AppointmentServiceImpl implements AppointmentService {
                 .totalItems(appointmentPage.getTotalElements())
                 .totalPages(appointmentPage.getTotalPages())
                 .build();
+    }
+
+    @Override
     public List<AppointmentResponse> getDoctorAppointments(String doctorId) {
         doctorRepository.findById(doctorId)
                 .orElseThrow(() -> new ResourceNotFoundException(
