@@ -4,6 +4,7 @@ import { useChat } from '../context/ChatContext';
 import { getOrCreateRoom, getMyRooms, getRoomMessages, sendMessage as apiSendMessage, markAsRead } from '../api/chatApi';
 import stompChatService from '../services/stompChatService';
 import { getGeminiResponse } from '../services/geminiService';
+import { checkKeywordAndGetBotReply } from '../AI_BOT/BotBrain';
 import { toast } from 'sonner';
 
 // ─── Bot cố định (chỉ dùng Gemini AI ở frontend, không lưu DB) ──────────────
@@ -51,16 +52,84 @@ function formatRelative(isoString) {
     return d.toLocaleDateString('en-US', { day: '2-digit', month: '2-digit' });
 }
 
+
+// ─── Component hiển thị 3 chấm “Bot đang gõ” ────────────────────────────────
+function TypingIndicator() {
+    return (
+        <div className="d-flex justify-content-start mb-3">
+            <div style={{
+                background: '#e9ecef',
+                borderRadius: '20px',
+                padding: '10px 16px',
+                display: 'inline-flex',
+                alignItems: 'center',
+                gap: '5px',
+            }}>
+                {[0, 1, 2].map(i => (
+                    <span key={i} style={{
+                        width: 8, height: 8,
+                        borderRadius: '50%',
+                        background: '#6c757d',
+                        display: 'inline-block',
+                        animation: 'botTypingBounce 1.2s infinite ease-in-out',
+                        animationDelay: `${i * 0.2}s`,
+                    }} />
+                ))}
+            </div>
+            <style>{`
+                @keyframes botTypingBounce {
+                    0%, 80%, 100% { transform: translateY(0); opacity: 0.4; }
+                    40% { transform: translateY(-6px); opacity: 1; }
+                }
+            `}</style>
+        </div>
+    );
+}
+
 // ─── Component tin nhắn ──────────────────────────────────────────────────────
-function ChatMessage({ message, currentUserId }) {
+/**
+ * @param {{ message: object, currentUserId: string, isNew?: boolean }} props
+ * isNew=true kích hoạt typewriter effect cho tin nhắn bot mới nhất
+ */
+function ChatMessage({ message, currentUserId, isNew = false }) {
     const isOwn = message.senderId === currentUserId || message.uid === currentUserId;
+    const fullText = message.content || message.text || '';
+
+    // Typewriter effect: chỉ chạy cho tin nhắn bot mới (isNew=true), chỉ chạy 1 lần
+    const [displayText, setDisplayText] = useState(isNew ? '' : fullText);
+    const [typewriterDone, setTypewriterDone] = useState(!isNew);
+
+    useEffect(() => {
+        if (!isNew || !fullText) return;
+        let i = 0;
+        // Tốc độ gõ phụ thuộc độ dài câu (câu dài gõ nhanh hơn, tối đa 15ms/ký tự)
+        const speed = Math.max(15, Math.min(35, Math.round(1500 / fullText.length)));
+        const interval = setInterval(() => {
+            i++;
+            setDisplayText(fullText.slice(0, i));
+            if (i >= fullText.length) {
+                clearInterval(interval);
+                setTypewriterDone(true);
+            }
+        }, speed);
+        return () => clearInterval(interval);
+    // chỉ chạy khi mount (isNew là prop tĩnh)
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, []);
 
     const timeStr = message.timestamp
         ? new Date(message.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', day: '2-digit', month: '2-digit', year: 'numeric' })
         : (message.createdAt ? formatTime(message.createdAt) : '...');
 
     return (
-        <div className={`message d-flex mb-3 ${isOwn ? 'justify-content-end' : 'justify-content-start'}`}>
+        <div className={`message d-flex mb-3 ${isOwn ? 'justify-content-end' : 'justify-content-start'}`}
+            style={{ animation: 'msgFadeSlideIn 0.25s ease-out' }}>
+            <style>{`
+                @keyframes msgFadeSlideIn {
+                    from { opacity: 0; transform: translateY(8px); }
+                    to   { opacity: 1; transform: translateY(0); }
+                }
+            `}</style>
             <div style={{ maxWidth: '70%' }}>
                 <div
                     className={`p-2 rounded ${isOwn ? 'bg-primary text-white' : 'bg-light text-dark border'}`}
@@ -74,8 +143,39 @@ function ChatMessage({ message, currentUserId }) {
                             onClick={() => window.open(message.imageUrl, '_blank')}
                         />
                     )}
-                    {(message.content || message.text) && (
-                        <div style={{ marginTop: message.imageUrl ? '8px' : '0' }}>{message.content || message.text}</div>
+                    {fullText && (
+                        <div style={{ marginTop: message.imageUrl ? '8px' : '0', whiteSpace: 'pre-wrap' }}>
+                            {displayText}
+                            {/* Con trỏ nhấp nháy trong khi chưa gõ xong */}
+                            {isNew && !typewriterDone && (
+                                <span style={{
+                                    display: 'inline-block',
+                                    width: 2, height: '1em',
+                                    background: 'currentColor',
+                                    marginLeft: 2,
+                                    verticalAlign: 'text-bottom',
+                                    animation: 'cursorBlink 0.7s steps(1) infinite',
+                                }} />
+                            )}
+                            <style>{`
+                                @keyframes cursorBlink {
+                                    0%, 100% { opacity: 1; }
+                                    50% { opacity: 0; }
+                                }
+                            `}</style>
+                        </div>
+                    )}
+                    {/* Nút hành động (chỉ hiện sau khi typewriter hoàn tất) */}
+                    {typewriterDone && message.actionUrl && message.actionLabel && (
+                        <div style={{ marginTop: '8px', animation: 'msgFadeSlideIn 0.3s ease-out' }}>
+                            <button
+                                className="btn btn-sm btn-success"
+                                onClick={() => window.location.href = message.actionUrl}
+                                style={{ borderRadius: '20px', fontSize: '0.85rem' }}
+                            >
+                                {message.actionLabel}
+                            </button>
+                        </div>
                     )}
                 </div>
                 <div className={`small text-muted mt-1 ${isOwn ? 'text-end' : 'text-start'}`}>{timeStr}</div>
@@ -139,6 +239,8 @@ export default function Chat() {
     const [uploading, setUploading] = useState(false);
     const [showDoctorListModal, setShowDoctorListModal] = useState(false);
     const [stompConnected, setStompConnected] = useState(false);
+    const [isBotTyping, setIsBotTyping] = useState(false);       // hiển thị typing indicator
+    const [latestBotMsgId, setLatestBotMsgId] = useState(null); // đánh dấu tin nhắn bot mới nhất để kích hoạt typewriter
 
     const scrollTo = useRef(null);
     const fileInputRef = useRef(null);
@@ -348,14 +450,40 @@ export default function Chat() {
 
         // ── Nếu là Bot ──
         if (chatPartner.isBot || chatPartner.userId === BOT_USER.userId) {
-            const botReply = await getGeminiResponse(text, []);
-            await new Promise(r => setTimeout(r, 800));
-            setMessages(prev => [...prev, {
-                messageId: `bot_${Date.now()}`,
-                senderId: BOT_USER.userId,
-                content: botReply,
-                timestamp: new Date().toISOString(),
-            }]);
+            const keywordMatch = checkKeywordAndGetBotReply(text);
+            setIsBotTyping(true); // bật typing indicator
+
+            if (keywordMatch) {
+                // Bot nội bộ: delay giả 600ms → tắt typing → hiện message ngay
+                await new Promise(r => setTimeout(r, 600));
+                setIsBotTyping(false);
+                const newMsgId = `bot_kw_${Date.now()}`;
+                setLatestBotMsgId(newMsgId);
+                setMessages(prev => [...prev, {
+                    messageId: newMsgId,
+                    senderId: BOT_USER.userId,
+                    content: keywordMatch.reply,
+                    actionUrl: keywordMatch.actionUrl,
+                    actionLabel: keywordMatch.actionLabel,
+                    timestamp: new Date().toISOString(),
+                }]);
+            } else {
+                // Gemini AI: giữ typing indicator BẬT trong suốt thời gian chờ API
+                // → tắt ngay khi response về → hiện message ngay lập tức (không có khoảng trống)
+                const { text: aiText, actionUrl, actionLabel } = await getGeminiResponse(text, []);
+                setIsBotTyping(false);
+                const newMsgId = `bot_ai_${Date.now()}`;
+                setLatestBotMsgId(newMsgId);
+                setMessages(prev => [...prev, {
+                    messageId: newMsgId,
+                    senderId: BOT_USER.userId,
+                    content: aiText,
+                    actionUrl: actionUrl ?? null,
+                    actionLabel: actionLabel ?? null,
+                    timestamp: new Date().toISOString(),
+
+                }]);
+            }
             return;
         }
 
@@ -525,7 +653,11 @@ export default function Chat() {
                         {isGuest && chatPartner && (
                             <>
                                 {messages.length === 0 && <p className="text-center text-muted">Say Hello to Bot!</p>}
-                                {messages.map(msg => <ChatMessage key={msg.messageId} message={msg} currentUserId="guest_temp" />)}
+                                {messages.map(msg => (
+                                    <ChatMessage key={msg.messageId} message={msg} currentUserId="guest_temp"
+                                        isNew={msg.messageId === latestBotMsgId} />
+                                ))}
+                                {isBotTyping && <TypingIndicator />}
                                 <div ref={scrollTo}></div>
                             </>
                         )}
@@ -543,7 +675,11 @@ export default function Chat() {
                                 ) : (
                                     <>
                                         {loading && <p className="text-center text-muted">Loading messages...</p>}
-                                        {messages.map(msg => <ChatMessage key={msg.messageId} message={msg} currentUserId={currentUserId} />)}
+                                        {messages.map(msg => (
+                                            <ChatMessage key={msg.messageId} message={msg} currentUserId={currentUserId}
+                                                isNew={msg.messageId === latestBotMsgId} />
+                                        ))}
+                                        {isBotTyping && <TypingIndicator />}
                                         <div ref={scrollTo}></div>
                                     </>
                                 )}
@@ -563,7 +699,11 @@ export default function Chat() {
                                 ) : (
                                     <>
                                         {loading && <p className="text-center text-muted">Loading messages...</p>}
-                                        {messages.map(msg => <ChatMessage key={msg.messageId} message={msg} currentUserId={currentUserId} />)}
+                                        {messages.map(msg => (
+                                            <ChatMessage key={msg.messageId} message={msg} currentUserId={currentUserId}
+                                                isNew={msg.messageId === latestBotMsgId} />
+                                        ))}
+                                        {isBotTyping && <TypingIndicator />}
                                         <div ref={scrollTo}></div>
                                     </>
                                 )}
@@ -575,7 +715,11 @@ export default function Chat() {
                             <>
                                 {loading && <p className="text-center text-muted">Loading messages...</p>}
                                 {messages.length === 0 && !loading && <p className="text-center text-muted">Send messages!</p>}
-                                {messages.map(msg => <ChatMessage key={msg.messageId} message={msg} currentUserId={currentUserId} />)}
+                                {messages.map(msg => (
+                                    <ChatMessage key={msg.messageId} message={msg} currentUserId={currentUserId}
+                                        isNew={msg.messageId === latestBotMsgId} />
+                                ))}
+                                {isBotTyping && <TypingIndicator />}
                                 <div ref={scrollTo}></div>
                             </>
                         )}
