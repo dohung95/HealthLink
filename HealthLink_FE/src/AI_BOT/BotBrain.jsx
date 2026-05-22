@@ -1,3 +1,155 @@
+// ─── Keyword map: từ khóa → bot reply cố định (không gọi Gemini API) ─────────
+// reply và actionLabel hỗ trợ 3 ngôn ngữ: en / vi / id
+export const KEYWORD_REPLIES = [
+    {
+        keywords: ['đặt lịch khám', 'dat lich kham', 'book appointment', 'book', 'dat lich', 'appointment', 'schedule', 'lịch khám', 'lich kham'],
+        reply: {
+            en: '📅 Want to book an appointment? Click the button below to schedule right away!',
+            vi: '📅 Bạn muốn đặt lịch khám? Nhấn nút bên dưới để đặt lịch ngay nhé!',
+            id: '📅 Mau buat janji dokter? Klik tombol di bawah untuk jadwalkan sekarang!',
+        },
+        actionLabel: {
+            en: '📅 Book Appointment',
+            vi: '📅 Đặt lịch khám',
+            id: '📅 Buat Janji',
+        },
+        actionUrl: '/schedule',
+    },
+    {
+        keywords: ['doctor', 'bác sĩ', 'bac si', 'bs', 'find doctor', 'find a doctor', 'tim bac si', 'tìm bác sĩ', 'danh sách bác sĩ', 'danh sach bac si', 'dokter', 'cari dokter'],
+        reply: {
+            en: '🩺 Looking for a doctor? Click the button below to browse our doctor list!',
+            vi: '🩺 Bạn muốn tìm bác sĩ? Nhấn nút bên dưới để xem danh sách bác sĩ!',
+            id: '🩺 Mau cari dokter? Klik tombol di bawah untuk lihat daftar dokter!',
+        },
+        actionLabel: {
+            en: '🩺 View Doctor List',
+            vi: '🩺 Xem danh sách bác sĩ',
+            id: '🩺 Lihat Daftar Dokter',
+        },
+        actionUrl: '/doctors',
+    },
+    {
+        keywords: ['thuốc', 'thuc', 'pharmacy', 'nhà thuốc', 'nha thuoc', 'medicine', 'medication', 'mua thuốc', 'mua thuoc', 'apotek', 'obat'],
+        reply: {
+            en: '💊 Need a pharmacy or medicine info? Click the button below!',
+            vi: '💊 Bạn cần tìm nhà thuốc hoặc thông tin thuốc? Nhấn nút bên dưới!',
+            id: '💊 Butuh apotek atau info obat? Klik tombol di bawah!',
+        },
+        actionLabel: {
+            en: '💊 View Pharmacies',
+            vi: '💊 Xem nhà thuốc',
+            id: '💊 Lihat Apotek',
+        },
+        actionUrl: '/pharmacy',
+    },
+    {
+        keywords: ['khẩn cấp', 'khan cap', 'cấp cứu', 'cap cuu', 'emergency', 'urgent', 'darurat', 'gawat'],
+        reply: {
+            en: '🚨 In an emergency, call 115 immediately or go to the nearest hospital! You can also book the earliest available appointment.',
+            vi: '🚨 Trường hợp khẩn cấp, hãy gọi ngay 115 hoặc đến cơ sở y tế gần nhất! Bạn cũng có thể đặt lịch khám sớm nhất có thể.',
+            id: '🚨 Darurat? Langsung telepon 119 atau pergi ke IGD terdekat! Kamu juga bisa booking jadwal dokter paling cepat.',
+        },
+        actionLabel: {
+            en: '📅 Book Urgent Appointment',
+            vi: '📅 Đặt lịch khám khẩn',
+            id: '📅 Buat Janji Darurat',
+        },
+        actionUrl: '/schedule',
+    },
+];
+
+/**
+ * Kiểm tra text có chứa từ khóa nội bộ không.
+ * Nếu match → trả về bot reply cố định đúng ngôn ngữ (KHÔNG gọi Gemini API để tiết kiệm token).
+ * Logic detect ngôn ngữ tương tự getBotResponse: VI → ID → EN (fallback).
+ * @param {string} text - Tin nhắn của user.
+ * @returns {{ reply: string, actionLabel: string, actionUrl: string } | null}
+ */
+// ─── Cấu hình từ chỉ câu hỏi/tư vấn chuyên sâu (sẽ chuyển cho Gemini AI trả lời) ───
+const QUESTION_INDICATORS = {
+    vi: ['gì', 'sao', 'thế nào', 'tại sao', 'được không', 'tư vấn', 'hỏi', 'chữa', 'điều trị', 'triệu chứng', 'bệnh', 'giúp', 'như thế nào'],
+    en: ['what', 'how', 'why', 'who', 'where', 'query', 'question', 'consult', 'advice', 'symptom', 'disease', 'treat', 'cure', 'should i', 'help me with'],
+    id: ['apa', 'bagaimana', 'kenapa', 'mengapa', 'siapa', 'tanya', 'konsultasi', 'gejala', 'penyakit', 'bisa tidak', 'tolong', 'cara']
+};
+
+// ─── Cấu hình từ phủ định/hủy bỏ (nếu đứng trước từ khóa sẽ bỏ qua bot nội bộ) ───
+const NEGATION_INDICATORS = {
+    vi: ['không', 'đừng', 'hủy', 'chả', 'chưa', 'từ chối', 'không muốn'],
+    en: ['no', 'not', 'dont', "don't", 'cancel', 'never', 'without', 'deny', 'refuse', 'cannot'],
+    id: ['tidak', 'jangan', 'batal', 'belum', 'ga', 'gak', 'bukan', 'tanpa']
+};
+
+/**
+ * Kiểm tra text có chứa từ khóa nội bộ không.
+ * Nếu match → trả về bot reply cố định đúng ngôn ngữ (KHÔNG gọi Gemini API để tiết kiệm token).
+ * Logic detect ngôn ngữ tương tự getBotResponse: VI → ID → EN (fallback).
+ * @param {string} text - Tin nhắn của user.
+ * @returns {{ reply: string, actionLabel: string, actionUrl: string } | null}
+ */
+export function checkKeywordAndGetBotReply(text) {
+    const lowerText = text.toLowerCase().trim();
+
+    // Detect ngôn ngữ (tái sử dụng logic từ getBotResponse)
+    const hasVietnamese = /[àáảãạăằắẳẵặâầấẩẫậèéẻẽẹêềếểễệìíỉĩịòóỏõọôồốổỗộơờớởỡợùúủũụưừứửữựỳýỷỹỵđ]/i.test(text);
+    const hasIndonesian = /saya|aku|sakit|demam|batuk|pusing|dokter|obat|rumah sakit|mau|tolong|terima kasih|halo|hai|selamat|ya|tidak|berapa|biaya|asuransi|booking|janji/i.test(lowerText);
+    const lang = hasVietnamese ? 'vi' : hasIndonesian ? 'id' : 'en';
+
+    // 1. [BỘ LỌC CÂU HỎI]: Nếu là câu hỏi chuyên sâu hoặc chứa dấu hỏi (?) -> Chuyển cho Gemini AI trả lời
+    if (lowerText.includes('?')) {
+        return null;
+    }
+    const isQuestion = QUESTION_INDICATORS[lang].some(indicator => {
+        // Đảm bảo khớp nguyên từ để tránh match nhầm (vd: "gì" khác "gìn giữ")
+        const regex = new RegExp(`\\b${indicator}\\b`, 'i');
+        return regex.test(lowerText);
+    });
+    if (isQuestion) {
+        return null; 
+    }
+
+    let earliestMatch = null;
+    let earliestIndex = Infinity;
+    let matchedKeyword = '';
+
+    // 2. Tìm từ khóa xuất hiện sớm nhất trong câu
+    for (const item of KEYWORD_REPLIES) {
+        for (const kw of item.keywords) {
+            const index = lowerText.indexOf(kw);
+            if (index !== -1 && index < earliestIndex) {
+                earliestIndex = index;
+                earliestMatch = item;
+                matchedKeyword = kw;
+            }
+        }
+    }
+
+    // 3. [BỘ LỌC PHỦ ĐỊNH]: Kiểm tra xem trước từ khóa đó có từ phủ định không
+    if (earliestMatch && matchedKeyword) {
+        const textBefore = lowerText.substring(0, earliestIndex).trim();
+        if (textBefore) {
+            const wordsBefore = textBefore.split(/\s+/);
+            const lastThreeWords = wordsBefore.slice(-3); // Lấy tối đa 3 từ ngay trước từ khóa
+
+            const isNegated = lastThreeWords.some(word => 
+                NEGATION_INDICATORS[lang].includes(word.replace(/[.,\/#!$%\^&\*;:{}=\-_`~()]/g, ""))
+            );
+
+            if (isNegated) {
+                return null; // Bỏ qua bot nội bộ, nhường cho Gemini AI
+            }
+        }
+
+        return {
+            reply: earliestMatch.reply[lang],
+            actionLabel: earliestMatch.actionLabel[lang],
+            actionUrl: earliestMatch.actionUrl,
+        };
+    }
+
+    return null;
+}
+
 export default function getBotResponse(messageText) {
     const text = messageText.trim();
     if (!text) return "Có gì cần mình giúp không ạ? 😊 / Ada yang bisa dibantu? / How can I help?";
