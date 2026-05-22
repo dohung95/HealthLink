@@ -4,7 +4,7 @@ const DocumentViewerModal = ({
     show,
     onHide,
     document,
-    apiBaseUrl = import.meta.env.VITE_API_BASE_URL || 'https://localhost:7267'
+    apiBaseUrl = import.meta.env.VITE_API_BASE_URL || 'http://localhost:8096'
 }) => {
     if (!document) return null;
     // Determine file type
@@ -19,6 +19,7 @@ const DocumentViewerModal = ({
         if (['xls', 'xlsx'].includes(ext)) return 'excel';
         return 'unknown';
     };
+
     const getFileTypeIcon = () => {
         const type = getFileType();
         switch (type) {
@@ -29,13 +30,20 @@ const DocumentViewerModal = ({
             default: return 'bi-file-earmark text-secondary';
         }
     };
+
     const getViewUrl = () => {
-        const token = localStorage.getItem('token');
-        return `${apiBaseUrl}/api/HealthRecord/document/${document.documentID}?token=${encodeURIComponent(token)}`;
+        if (!document?.fileLocation) return '';
+
+        if (document.fileLocation.startsWith('http')) {
+            return document.fileLocation;
+        }
+
+        return `${apiBaseUrl}${document.fileLocation}`;
     };
-    const onDownload = (documentID, fileName) => {
+
+    const onDownload = (documentId, fileName) => {
         const token = localStorage.getItem('token');
-        const downloadUrl = `${apiBaseUrl}/api/HealthRecord/document/${documentID}?token=${encodeURIComponent(token)}`;
+        const downloadUrl = `${apiBaseUrl}/api/HealthRecord/document/${documentId}?token=${encodeURIComponent(token)}`;
 
         // Create temporary link and trigger download
         const link = window.document.createElement('a');
@@ -130,7 +138,7 @@ const DocumentViewerModal = ({
                             <button
                                 className="btn btn-primary btn-lg"
                                 onClick={() => {
-                                    onDownload(document.documentID, document.documentName);
+                                    onDownload(document.documentId, document.documentName);
                                     onHide();
                                 }}
                             >
@@ -196,7 +204,7 @@ const DocumentViewerModal = ({
                             {fileType !== 'unknown' && (
                                 <button
                                     className="btn btn-primary"
-                                    onClick={() => onDownload(document.documentID, document.fileName)}
+                                    onClick={() => onDownload(document.documentId, document.fileName)}
                                 >
                                     <i className="bi bi-download me-2"></i>
                                     Download

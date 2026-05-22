@@ -1,44 +1,89 @@
 import axios from 'axios';
-const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'https://localhost:7267/api';
+
+const API_URL = 'http://localhost:8096/api';
+
+const getAuthConfig = () => {
+    const token = localStorage.getItem('token');
+
+    return {
+        headers: {
+            Authorization: token ? `Bearer ${token}` : '',
+            'Content-Type': 'application/json',
+        },
+    };
+};
 
 export const shareApi = {
-    // Share health record with doctor
-    shareWithDoctor: async (data) => {
+    // Patient share 1 health record cho doctor
+    shareWithDoctor: async (recordId, patientId, data) => {
         const response = await axios.post(
-            `${API_BASE_URL}/HealthRecordShare`,
+            `${API_URL}/health-records/${recordId}/share`,
             data,
-        );
-        return response.data;
-    },
-    // Get all shares for current patient
-    getMyShares: async () => {
-        const response = await axios.get(
-            `${API_BASE_URL}/HealthRecordShare/my-shares`,
-        );
-        return response.data;
-    },
-    // Get records shared with current doctor
-    getSharedWithMe: async () => {
-        const response = await axios.get(
-            `${API_BASE_URL}/HealthRecordShare/shared-with-me`,
-        );
-        return response.data;
-    },
-    // Revoke share
-    revokeShare: async (shareId, reason = null) => {
-        const response = await axios.delete(
-            `${API_BASE_URL}/HealthRecordShare/${shareId}`,
             {
-                data: { reason }
+                ...getAuthConfig(),
+                params: { patientId },
             }
         );
+
         return response.data;
     },
-    // Check if doctor can access health record
-    canAccessHealthRecord: async (healthRecordId) => {
+
+    // Patient xem các share mình đã tạo
+    getMyShares: async (patientId, page = 1, size = 5) => {
         const response = await axios.get(
-            `${API_BASE_URL}/HealthRecordShare/can-access/${healthRecordId}`,
+            `${API_URL}/health-records/shares/my`,
+            {
+                ...getAuthConfig(),
+                params: {
+                    patientId,
+                    page,
+                    size,
+                },
+            }
         );
+
+        return response.data;
+    },
+
+    // Patient thu hồi quyền chia sẻ
+    revokeShare: async (shareId, patientId, revokeReason = 'Patient revoked access') => {
+        const response = await axios.put(
+            `${API_URL}/health-records/shares/${shareId}/revoke`,
+            {
+                revokeReason,
+            },
+            {
+                ...getAuthConfig(),
+                params: { patientId },
+            }
+        );
+
+        return response.data;
+    },
+
+    // Doctor xem danh sách record được share cho mình
+    getSharedWithMe: async (doctorId) => {
+        const response = await axios.get(
+            `${API_URL}/doctor/health-records/shared-with-me`,
+            {
+                ...getAuthConfig(),
+                params: { doctorId },
+            }
+        );
+
+        return response.data;
+    },
+
+    // Doctor xem chi tiết 1 share
+    getShareDetail: async (shareId, doctorId) => {
+        const response = await axios.get(
+            `${API_URL}/doctor/health-records/shares/${shareId}`,
+            {
+                ...getAuthConfig(),
+                params: { doctorId },
+            }
+        );
+
         return response.data;
     },
 };

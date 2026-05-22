@@ -16,7 +16,7 @@ export const doctorService = {
     },
 
     getSpecialties: async () => {
-        const response = await axios.get(`${API_URL}/Doctor/specialties`);
+        const response = await axios.get(`${API_URL}/account/doctors/specialties`);
         return response.data;
     },
 
@@ -28,7 +28,7 @@ export const doctorService = {
 
     // 3. Get by ID
     getDoctorById: async (id) => {
-        const response = await axios.get(`${API_URL}/Doctor/${id}`);
+        const response = await axios.get(`${API_URL}/account/doctors/${id}`);
         return response.data;
     },
 

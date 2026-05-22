@@ -28,7 +28,10 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.UUID;
 import java.util.stream.Collectors;
-
+import com.HealthLink.dto.response.PagedResponse;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Pageable;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
@@ -55,8 +58,8 @@ public class DoctorServiceImpl implements DoctorService {
     private final EmailService emailService;
     private final PasswordEncoder passwordEncoder;
 
-    private static final String[] DAY_NAMES =
-            {"Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"};
+    private static final String[] DAY_NAMES
+            = {"Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"};
 
     // Lấy danh sách bác sĩ, lọc theo tên hoặc chuyên khoa (param có thể null để bỏ qua lọc)
     @Override
@@ -75,7 +78,7 @@ public class DoctorServiceImpl implements DoctorService {
     public List<DoctorScheduleResponse> getDoctorSchedules(String doctorId) {
         doctorRepository.findById(doctorId)
                 .orElseThrow(() -> new ResourceNotFoundException(
-                        "Not found doctor with ID: " + doctorId));
+                "Not found doctor with ID: " + doctorId));
 
         return scheduleRepository.findByDoctor_DoctorId(doctorId)
                 .stream()
@@ -84,14 +87,14 @@ public class DoctorServiceImpl implements DoctorService {
     }
 
     /**
-     * Lấy hồ sơ đầy đủ của bác sĩ bao gồm thông tin thu nhập/chiết khấu.
-     * Chỉ dành cho chính bác sĩ đó hoặc Admin.
+     * Lấy hồ sơ đầy đủ của bác sĩ bao gồm thông tin thu nhập/chiết khấu. Chỉ
+     * dành cho chính bác sĩ đó hoặc Admin.
      */
     @Override
     public DoctorProfileResponse getDoctorProfile(String doctorId) {
         Doctor d = doctorRepository.findById(doctorId)
                 .orElseThrow(() -> new ResourceNotFoundException(
-                        "Not found doctor with ID: " + doctorId));
+                "Not found doctor with ID: " + doctorId));
 
         return buildDoctorProfileResponse(d);
     }
@@ -101,7 +104,7 @@ public class DoctorServiceImpl implements DoctorService {
     public DoctorProfileResponse updateDoctorProfile(String doctorId, DoctorUpdateRequest updateRequest) {
         Doctor doctor = doctorRepository.findById(doctorId)
                 .orElseThrow(() -> new ResourceNotFoundException(
-                        "Not found doctor with ID: " + doctorId));
+                "Not found doctor with ID: " + doctorId));
 
         User user = doctor.getUser();
         if (user == null) {
@@ -125,10 +128,18 @@ public class DoctorServiceImpl implements DoctorService {
 
     private DoctorProfileResponse buildDoctorProfileResponse(Doctor d) {
         List<String> availableTypes = new ArrayList<>();
-        if (d.isAvailableForVideo())   availableTypes.add("Video");
-        if (d.isAvailableForAudio())   availableTypes.add("Audio");
-        if (d.isAvailableForChat())    availableTypes.add("Chat");
-        if (d.isAvailableForOffline()) availableTypes.add("Offline");
+        if (d.isAvailableForVideo()) {
+            availableTypes.add("Video");
+        }
+        if (d.isAvailableForAudio()) {
+            availableTypes.add("Audio");
+        }
+        if (d.isAvailableForChat()) {
+            availableTypes.add("Chat");
+        }
+        if (d.isAvailableForOffline()) {
+            availableTypes.add("Offline");
+        }
 
         String specialtyName = (d.getSpecialtyEntity() != null)
                 ? d.getSpecialtyEntity().getName()
@@ -248,17 +259,24 @@ public class DoctorServiceImpl implements DoctorService {
     // -------------------------------------------------------------------------
     // Private helpers
     // -------------------------------------------------------------------------
-
     private String generateVerificationCode() {
         return String.format("%06d", (int) (Math.random() * 1000000));
     }
 
-        private DoctorResponse toResponse(Doctor d) {
+    private DoctorResponse toResponse(Doctor d) {
         List<String> availableTypes = new ArrayList<>();
-        if (d.isAvailableForVideo())   availableTypes.add("Video");
-        if (d.isAvailableForAudio())   availableTypes.add("Audio");
-        if (d.isAvailableForChat())    availableTypes.add("Chat");
-        if (d.isAvailableForOffline()) availableTypes.add("Offline");
+        if (d.isAvailableForVideo()) {
+            availableTypes.add("Video");
+        }
+        if (d.isAvailableForAudio()) {
+            availableTypes.add("Audio");
+        }
+        if (d.isAvailableForChat()) {
+            availableTypes.add("Chat");
+        }
+        if (d.isAvailableForOffline()) {
+            availableTypes.add("Offline");
+        }
 
         String specialtyName = (d.getSpecialtyEntity() != null)
                 ? d.getSpecialtyEntity().getName()
@@ -336,5 +354,48 @@ public class DoctorServiceImpl implements DoctorService {
 
         log.info("Avatar uploaded for doctor {}: {}", doctorId, avatarUrl);
         return avatarUrl;
+    }
+
+    @Override
+    public PagedResponse<DoctorResponse> searchDoctors(
+            String specialty,
+            String name,
+            String location,
+            int page,
+            int pageSize
+    ) {
+        String specialtyFilter = (specialty != null && specialty.isBlank()) ? null : specialty;
+        String nameFilter = (name != null && name.isBlank()) ? null : name;
+        String locationFilter = (location != null && location.isBlank()) ? null : location;
+
+        int safePage = Math.max(page, 1);
+        int safePageSize = Math.max(pageSize, 1);
+
+        Pageable pageable = PageRequest.of(safePage - 1, safePageSize);
+
+        Page<Doctor> doctorPage = doctorRepository.findByFiltersPaged(
+                specialtyFilter,
+                nameFilter,
+                locationFilter,
+                pageable
+        );
+
+        List<DoctorResponse> items = doctorPage.getContent()
+                .stream()
+                .map(this::toResponse)
+                .collect(Collectors.toList());
+
+        return PagedResponse.<DoctorResponse>builder()
+                .items(items)
+                .page(safePage)
+                .pageSize(safePageSize)
+                .totalItems(doctorPage.getTotalElements())
+                .totalPages(doctorPage.getTotalPages())
+                .build();
+    }
+
+    @Override
+    public List<String> getSpecialties() {
+        return doctorRepository.findAllSpecialtyNames();
     }
 }

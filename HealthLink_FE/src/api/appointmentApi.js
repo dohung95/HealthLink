@@ -75,6 +75,18 @@ export const appointmentService = {
         return response.data;
     },
 
+    getPatientAppointmentsPage: async (patientId, page = 1, size = 5) => {
+        const response = await axios.get(
+            `${API_URL}/appointments/patient/${patientId}/page`,
+            {
+                ...getAuthConfig(),
+                params: { page, size },
+            }
+        );
+
+        return response.data;
+    },
+
     cancelAppointment: async (id, data) => {
         const response = await axios.put(
             `${API_URL}/appointments/${id}/cancel`,

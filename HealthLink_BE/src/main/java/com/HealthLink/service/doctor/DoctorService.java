@@ -4,11 +4,13 @@ import com.HealthLink.dto.response.DoctorProfileResponse;
 import com.HealthLink.dto.response.DoctorResponse;
 import com.HealthLink.dto.response.DoctorScheduleResponse;
 import java.util.List;
+import com.HealthLink.dto.response.PagedResponse;
 
 /**
  * Service interface cho các tính năng liên quan đến Bác sĩ.
  */
 public interface DoctorService {
+
     /**
      * Lấy danh sách bác sĩ, có thể lọc theo chuyên khoa và/hoặc tên.
      */
@@ -20,8 +22,8 @@ public interface DoctorService {
     List<DoctorScheduleResponse> getDoctorSchedules(String doctorId);
 
     /**
-     * Lấy hồ sơ đầy đủ của bác sĩ bao gồm thông tin thu nhập và chiết khấu.
-     * Chỉ dành cho chính bác sĩ đó hoặc Admin.
+     * Lấy hồ sơ đầy đủ của bác sĩ bao gồm thông tin thu nhập và chiết khấu. Chỉ
+     * dành cho chính bác sĩ đó hoặc Admin.
      *
      * @param doctorId ID bác sĩ
      * @return DoctorProfileResponse với đầy đủ thông tin tài chính
@@ -29,8 +31,8 @@ public interface DoctorService {
     DoctorProfileResponse getDoctorProfile(String doctorId);
 
     /**
-     * Cập nhật thông tin do bác sĩ được phép thay đổi.
-     * Chỉ cho phép bác sĩ cập nhật các trường hạn chế.
+     * Cập nhật thông tin do bác sĩ được phép thay đổi. Chỉ cho phép bác sĩ cập
+     * nhật các trường hạn chế.
      *
      * @param doctorId ID bác sĩ
      * @param updateRequest dữ liệu cần cập nhật
@@ -49,10 +51,19 @@ public interface DoctorService {
     DoctorProfileResponse verifyEmailChange(String doctorId, com.HealthLink.dto.auth.VerifyEmailChangeRequest request);
 
     /**
-     * Upload ảnh đại diện cho bác sĩ.
-     * Lưu file vào uploads/avatars/doctors/ và cập nhật DB.
-     * Trả về URL công khai của ảnh vừa upload.
+     * Upload ảnh đại diện cho bác sĩ. Lưu file vào uploads/avatars/doctors/ và
+     * cập nhật DB. Trả về URL công khai của ảnh vừa upload.
      */
     String uploadAvatar(String doctorId, org.springframework.web.multipart.MultipartFile file)
             throws java.io.IOException;
+
+    PagedResponse<DoctorResponse> searchDoctors(
+            String specialty,
+            String name,
+            String location,
+            int page,
+            int pageSize
+    );
+
+    List<String> getSpecialties();
 }

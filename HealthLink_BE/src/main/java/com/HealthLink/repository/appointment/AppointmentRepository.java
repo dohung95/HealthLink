@@ -1,6 +1,8 @@
 package com.HealthLink.repository.appointment;
 
 import com.HealthLink.entity.Appointment;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Modifying;
 import org.springframework.data.jpa.repository.Query;
@@ -17,6 +19,21 @@ public interface AppointmentRepository extends JpaRepository<Appointment, Intege
      * Get all appointments of a patient, sorted by the latest first.
      */
     List<Appointment> findByPatient_PatientIdOrderByAppointmentTimeDesc(String patientId);
+
+    @Query("""
+            SELECT a FROM Appointment a
+            WHERE a.patient.patientId = :patientId
+            ORDER BY
+                CASE WHEN a.status = 'Cancelled' THEN 1 ELSE 0 END ASC,
+                CASE WHEN a.appointmentTime >= :now THEN 0 ELSE 1 END ASC,
+                CASE WHEN a.appointmentTime >= :now THEN a.appointmentTime ELSE null END ASC,
+                CASE WHEN a.appointmentTime < :now THEN a.appointmentTime ELSE null END DESC
+            """)
+    Page<Appointment> findPatientAppointmentsOrdered(
+            @Param("patientId") String patientId,
+            @Param("now") LocalDateTime now,
+            Pageable pageable
+    );
 
     // Checks for doctor schedule conflicts within a time range.
     boolean existsByDoctor_DoctorIdAndStatusNotAndAppointmentTimeBetween(

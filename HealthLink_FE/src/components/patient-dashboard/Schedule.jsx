@@ -6,9 +6,7 @@ import { appointmentService } from '../../api/appointmentApi';
 import { doctorService } from '../../api/doctorApi';
 import { useAuth } from '../../context/AuthContext';
 import { getProfile } from '../../api/account';
-
-import Loading from '../Loading';
-
+import { healthRecordApi } from '../../api/healthRecordApi';
 import ScheduleStepper from '../schedule/ScheduleStepper';
 import SpecialtyStep from '../schedule/SpecialtyStep';
 import DoctorStep from '../schedule/DoctorStep';
@@ -321,19 +319,28 @@ const Schedule = () => {
 
       await appointmentService.createAppointment(bookingData);
 
+      if (files.length > 0) {
+        for (const item of files) {
+          if (!item.file) continue;
+
+          await healthRecordApi.uploadDocumentAutoRecord(
+            patientId,
+            item.file,
+            'Consultation-Notes',
+            symptoms || 'Uploaded during appointment booking',
+            new Date().toISOString().split('T')[0]
+          );
+        }
+      }
+
       toast.success('Booking successful!');
-      navigate('/my-appointments');
+      navigate('/patient-dashboard/appointments');
     } catch (error) {
       toast.error(
         error.response?.data?.message || 'Can not create appointment.'
       );
     }
   };
-
-
-  if (loading) {
-    return <Loading />;
-  }
 
   if (!isAuthenticated) {
     return (
@@ -350,101 +357,108 @@ const Schedule = () => {
 
   return (
     <div className="schedule-wizard-page">
-      <div className="schedule-wizard-shell">
-        <div className="schedule-wizard-header">
-          <div>
-            <h1>Book an appointment</h1>
-            <p>
-              {hasPreselectedDoctor
-                ? 'Complete the information to book an appointment with the selected doctor.'
-                : 'Select a specialty, doctor and time that suits you.'}
-            </p>
+      {loading ? (
+        <div className="schedule-inline-loading">
+          <div className="spinner-border text-primary" role="status"></div>
+          <p>Loading booking form...</p>
+        </div>
+      ) : (
+        <div className="schedule-wizard-shell">
+          <div className="schedule-wizard-header">
+            <div>
+              <h1>Book an appointment</h1>
+              <p>
+                {hasPreselectedDoctor
+                  ? 'Complete the information to book an appointment with the selected doctor.'
+                  : 'Select a specialty, doctor and time that suits you.'}
+              </p>
+            </div>
+          </div>
+
+          <ScheduleStepper steps={stepConfig} currentStep={step} />
+
+          <div className="schedule-wizard-layout">
+            <section className="schedule-wizard-main">
+              {currentStepKey === 'specialty' && (
+                <SpecialtyStep
+                  specialties={specialties}
+                  selectedSpecialty={selectedSpecialty}
+                  onSelectSpecialty={(specialty) => {
+                    setSelectedSpecialty(specialty);
+                    setSelectedDoctorId('');
+                  }}
+                  onNext={handleNext}
+                />
+              )}
+
+              {currentStepKey === 'doctor' && (
+                <DoctorStep
+                  doctors={filteredDoctors}
+                  selectedDoctorId={selectedDoctorId}
+                  onSelectDoctor={setSelectedDoctorId}
+                  onBack={handleBack}
+                  onNext={handleNext}
+                />
+              )}
+
+              {currentStepKey === 'consultation' && (
+                <ConsultationStep
+                  consultationType={consultationType}
+                  onSelectConsultation={setConsultationType}
+                  onBack={handleBack}
+                  onNext={handleNext}
+                  canGoBack={!hasPreselectedDoctor || step > 1}
+                  availableTypes={selectedDoctor?.availableTypes ?? []}
+                />
+              )}
+
+              {currentStepKey === 'datetime' && (
+                <DateTimeStep
+                  date={date}
+                  setDate={setDate}
+                  slots={slots}
+                  selectedSlot={selectedSlot}
+                  onSelectSlot={handleSelectSlot}
+                  onClearSlot={handleClearSlot}
+                  loadingSlots={loadingSlots}
+                  onBack={handleBack}
+                  onNext={handleNext}
+                />
+
+
+              )}
+
+              {currentStepKey === 'documents' && (
+                <DocumentsStep
+                  symptoms={symptoms}
+                  setSymptoms={setSymptoms}
+                  files={files}
+                  setFiles={setFiles}
+                  onBack={handleBack}
+                  onNext={handleNext}
+                />
+              )}
+
+              {currentStepKey === 'confirm' && (
+                <ConfirmStep
+                  selectedDoctor={selectedDoctor}
+                  selectedSpecialty={selectedSpecialty}
+                  consultationType={consultationType}
+                  selectedSlot={selectedSlot}
+                  symptoms={symptoms}
+                  files={files}
+                  onBack={handleBack}
+                  onConfirm={handleSchedule}
+                />
+              )}
+            </section>
+
+            <aside className="schedule-wizard-aside">
+              <DoctorSummaryCard doctor={selectedDoctor} />
+            </aside>
           </div>
         </div>
-
-        <ScheduleStepper steps={stepConfig} currentStep={step} />
-
-        <div className="schedule-wizard-layout">
-          <section className="schedule-wizard-main">
-            {currentStepKey === 'specialty' && (
-              <SpecialtyStep
-                specialties={specialties}
-                selectedSpecialty={selectedSpecialty}
-                onSelectSpecialty={(specialty) => {
-                  setSelectedSpecialty(specialty);
-                  setSelectedDoctorId('');
-                }}
-                onNext={handleNext}
-              />
-            )}
-
-            {currentStepKey === 'doctor' && (
-              <DoctorStep
-                doctors={filteredDoctors}
-                selectedDoctorId={selectedDoctorId}
-                onSelectDoctor={setSelectedDoctorId}
-                onBack={handleBack}
-                onNext={handleNext}
-              />
-            )}
-
-            {currentStepKey === 'consultation' && (
-              <ConsultationStep
-                consultationType={consultationType}
-                onSelectConsultation={setConsultationType}
-                onBack={handleBack}
-                onNext={handleNext}
-                canGoBack={!hasPreselectedDoctor || step > 1}
-                availableTypes={selectedDoctor?.availableTypes ?? []}
-              />
-            )}
-
-            {currentStepKey === 'datetime' && (
-              <DateTimeStep
-                date={date}
-                setDate={setDate}
-                slots={slots}
-                selectedSlot={selectedSlot}
-                onSelectSlot={handleSelectSlot}
-                onClearSlot={handleClearSlot}
-                loadingSlots={loadingSlots}
-                onBack={handleBack}
-                onNext={handleNext}
-              />
-
-
-            )}
-
-            {currentStepKey === 'documents' && (
-              <DocumentsStep
-                symptoms={symptoms}
-                setSymptoms={setSymptoms}
-                files={files}
-                setFiles={setFiles}
-                onBack={handleBack}
-                onNext={handleNext}
-              />
-            )}
-
-            {currentStepKey === 'confirm' && (
-              <ConfirmStep
-                selectedDoctor={selectedDoctor}
-                selectedSpecialty={selectedSpecialty}
-                consultationType={consultationType}
-                selectedSlot={selectedSlot}
-                symptoms={symptoms}
-                files={files}
-                onBack={handleBack}
-                onConfirm={handleSchedule}
-              />
-            )}
-          </section>
-
-          <aside className="schedule-wizard-aside">
-            <DoctorSummaryCard doctor={selectedDoctor} />
-          </aside>
-        </div>
-      </div>
+      )}
     </div>
   );
 }
