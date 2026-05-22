@@ -9,7 +9,7 @@ import 'react-toastify/dist/ReactToastify.css';
 import Home from './components/Home';
 import Schedule from './components/patient-dashboard/Schedule';
 import MyAppointments from './components/MyAppointment';
-import Doctors from './components/schedule/DoctorsList';
+import Doctors from './components/DoctorsList';
 import Records from './components/Records';
 import Video from './components/Video';
 
