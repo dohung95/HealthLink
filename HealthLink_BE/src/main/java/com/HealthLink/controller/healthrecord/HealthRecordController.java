@@ -12,8 +12,9 @@ import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.multipart.MultipartFile;
-
-import java.util.List;
+import java.time.LocalDate;
+import org.springframework.format.annotation.DateTimeFormat;
+import com.HealthLink.dto.response.PagedResponse;
 
 @RestController
 @RequestMapping("/api/health-records")
@@ -30,8 +31,14 @@ public class HealthRecordController {
     }
 
     @GetMapping("/my")
-    public ResponseEntity<List<HealthRecordResponse>> getMyRecords(@RequestParam String patientId) {
-        return ResponseEntity.ok(healthRecordService.getMyRecords(patientId));
+    public ResponseEntity<PagedResponse<HealthRecordResponse>> getMyRecords(
+            @RequestParam String patientId,
+            @RequestParam(defaultValue = "1") int page,
+            @RequestParam(defaultValue = "5") int size
+    ) {
+        return ResponseEntity.ok(
+                healthRecordService.getMyRecords(patientId, page, size)
+        );
     }
 
     @GetMapping("/{recordId}")
@@ -49,6 +56,26 @@ public class HealthRecordController {
             @RequestParam(required = false) String category,
             @RequestParam(required = false) String description) {
         return ResponseEntity.ok(healthRecordService.uploadDocument(recordId, patientId, file, category, description));
+    }
+
+    @PostMapping("/documents/auto")
+    public ResponseEntity<MedicalDocumentResponse> uploadDocumentAutoRecord(
+            @RequestParam String patientId,
+            @RequestParam("file") MultipartFile file,
+            @RequestParam(required = false) String category,
+            @RequestParam(required = false) String description,
+            @RequestParam(required = false)
+            @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate documentDate
+    ) {
+        return ResponseEntity.ok(
+                healthRecordService.uploadDocumentAutoRecord(
+                        patientId,
+                        file,
+                        category,
+                        description,
+                        documentDate
+                )
+        );
     }
 
     @DeleteMapping("/{recordId}/documents/{docId}")
@@ -69,8 +96,14 @@ public class HealthRecordController {
     }
 
     @GetMapping("/shares/my")
-    public ResponseEntity<List<HealthRecordShareResponse>> getMyShares(@RequestParam String patientId) {
-        return ResponseEntity.ok(healthRecordService.getMyShares(patientId));
+    public ResponseEntity<PagedResponse<HealthRecordShareResponse>> getMyShares(
+            @RequestParam String patientId,
+            @RequestParam(defaultValue = "1") int page,
+            @RequestParam(defaultValue = "5") int size
+    ) {
+        return ResponseEntity.ok(
+                healthRecordService.getMyShares(patientId, page, size)
+        );
     }
 
     @PutMapping("/shares/{shareId}/revoke")

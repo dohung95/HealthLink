@@ -3,8 +3,8 @@ const DoctorSummaryCard = ({ doctor }) => {
         return (
             <div className="doctor-summary-card empty">
                 <i className="bi bi-person-badge"></i>
-                <h3>Chưa chọn bác sĩ</h3>
-                <p>Thông tin bác sĩ sẽ hiển thị tại đây sau khi bạn chọn.</p>
+                <h3>No doctor selected</h3>
+                <p>Doctor's information will be displayed here after you select.</p>
             </div>
         );
     }
