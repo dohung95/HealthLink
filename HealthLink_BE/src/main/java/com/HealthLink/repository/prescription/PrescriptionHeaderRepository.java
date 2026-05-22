@@ -20,6 +20,10 @@ public interface PrescriptionHeaderRepository extends JpaRepository<Prescription
 
     List<PrescriptionHeader> findByAppointment_AppointmentId(Integer appointmentId);
 
+    List<PrescriptionHeader> findByAppointment_AppointmentIdOrderByIssueDateDescPrescriptionHeaderIdDesc(
+            Integer appointmentId
+    );
+
     Optional<PrescriptionHeader> findByPrescriptionHeaderIdAndPatient_PatientId(
             Integer prescriptionHeaderId,
             String patientId

@@ -1,36 +1,73 @@
-import React, { useCallback, useEffect, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import 'bootstrap/dist/css/bootstrap.min.css';
+import 'react-calendar/dist/Calendar.css';
 import '../styles/DoctorPage.css';
 import { toast } from 'react-toastify';
 import { collection, getDocs, query, where } from 'firebase/firestore';
+import Calendar from 'react-calendar';
 import DoctorPrescriptionWorkspace from './DoctorPrescriptionWorkspace';
 import SharedRecordsView from './SharedRecordsView';
 import { appointmentService } from '../api/appointmentApi';
+import { consultationApi } from '../../../api/consultationApi';
 import { prescriptionService } from '../../../api/prescriptionApi';
 import { useAuth } from '../context/AuthContext';
 import { useChat } from '../context/ChatContext';
 import { db } from '../firebase';
 
 const TABS = [
-  { id: 'notes', label: 'Consultation Notes', icon: 'bi-journal-text' },
-  { id: 'history', label: 'Medical History', icon: 'bi-clock-history' },
-  { id: 'shared', label: 'Shared Records', icon: 'bi-folder2-open' },
-  { id: 'prescription', label: 'Prescription', icon: 'bi-capsule-pill' },
-  { id: 'followup', label: 'Follow-up', icon: 'bi-calendar-check' },
+  { id: 'notes', label: 'Consultation Notes', shortLabel: 'Notes', icon: 'bi-journal-text' },
+  { id: 'history', label: 'Medical History', shortLabel: 'History', icon: 'bi-clock-history' },
+  { id: 'shared', label: 'Shared Records', shortLabel: 'Shared', icon: 'bi-folder2-open' },
+  { id: 'prescription', label: 'Prescription', shortLabel: 'Prescription', icon: 'bi-capsule-pill' },
+  { id: 'followup', label: 'Follow-up', shortLabel: 'Follow-up', icon: 'bi-calendar-check' },
 ];
 
-const DoctorAppointmentDetail = ({ appointment, patient, onBack }) => {
+const toLocalDateValue = (date) => {
+  if (!date) return '';
+  const value = date instanceof Date ? date : new Date(date);
+  if (Number.isNaN(value.getTime())) return '';
+
+  const year = value.getFullYear();
+  const month = String(value.getMonth() + 1).padStart(2, '0');
+  const day = String(value.getDate()).padStart(2, '0');
+  return `${year}-${month}-${day}`;
+};
+
+const toMonthValue = (date) => {
+  if (!date) return '';
+  const value = date instanceof Date ? date : new Date(date);
+  if (Number.isNaN(value.getTime())) return '';
+  return `${value.getFullYear()}-${String(value.getMonth() + 1).padStart(2, '0')}`;
+};
+
+const buildFollowUpDateTime = (date, startTime) => {
+  const dateValue = toLocalDateValue(date);
+  if (!dateValue || !startTime) return null;
+  return `${dateValue}T${startTime}:00`;
+};
+
+const DoctorAppointmentDetail = ({ appointment, patient, onBack, onOpenAppointmentById }) => {
   const [medicalHistory, setMedicalHistory] = useState(null);
   const [loadingHistory, setLoadingHistory] = useState(false);
   const [appointmentDetail, setAppointmentDetail] = useState(null);
   const [loadingAppointment, setLoadingAppointment] = useState(false);
   const [prescription, setPrescription] = useState(null);
+  const [prescriptionDraft, setPrescriptionDraft] = useState(null);
   const [loadingPrescription, setLoadingPrescription] = useState(false);
   const [selectedHistoryAppointment, setSelectedHistoryAppointment] = useState(null);
   const [showDetailModal, setShowDetailModal] = useState(false);
   const [completingAppointment, setCompletingAppointment] = useState(false);
   const [showCompleteConfirmModal, setShowCompleteConfirmModal] = useState(false);
   const [activeTab, setActiveTab] = useState('notes');
+  const [followUpSelectedDate, setFollowUpSelectedDate] = useState(new Date());
+  const [followUpCalendarMonth, setFollowUpCalendarMonth] = useState(toMonthValue(new Date()));
+  const [followUpSlots, setFollowUpSlots] = useState([]);
+  const [followUpCalendarDays, setFollowUpCalendarDays] = useState([]);
+  const [selectedFollowUpDateTime, setSelectedFollowUpDateTime] = useState(null);
+  const [followUpNotes, setFollowUpNotes] = useState('');
+  const [loadingFollowUpSlots, setLoadingFollowUpSlots] = useState(false);
+  const [loadingFollowUpCalendar, setLoadingFollowUpCalendar] = useState(false);
+  const [savingFollowUp, setSavingFollowUp] = useState(false);
   const { roles, initiateCall } = useAuth();
   const { openChatWith } = useChat();
 
@@ -49,6 +86,8 @@ const DoctorAppointmentDetail = ({ appointment, patient, onBack }) => {
     appointment?.doctor?.doctorId ||
     null;
   const appointmentId = appointment?.appointmentID || appointment?.appointmentId || null;
+  const effectiveDoctorId = appointmentDetail?.doctorId || appointmentDetail?.doctorID || doctorId;
+  const followUpSelectedDateValue = toLocalDateValue(followUpSelectedDate);
 
   const formatDate = (dateString) => {
     if (!dateString) return 'N/A';
@@ -148,10 +187,12 @@ const DoctorAppointmentDetail = ({ appointment, patient, onBack }) => {
     const consultation = source?.consultation || {};
 
     return {
+      consultationId: consultation.consultationId ?? source?.consultationId ?? null,
       diagnosis: consultation.diagnosis ?? source?.diagnosis ?? null,
       doctorNotes: consultation.doctorNotes ?? source?.doctorNotes ?? null,
       treatmentPlan: consultation.treatmentPlan ?? source?.treatmentPlan ?? null,
       followUpDate: consultation.followUpDate ?? source?.followUpDate ?? null,
+      followUpAppointmentId: consultation.followUpAppointmentId ?? source?.followUpAppointmentId ?? null,
       followUpNotes: consultation.followUpNotes ?? source?.followUpNotes ?? null,
     };
   };
@@ -190,6 +231,7 @@ const DoctorAppointmentDetail = ({ appointment, patient, onBack }) => {
       const bundle = await fetchAppointmentBundle(appointmentId, options);
       setAppointmentDetail(bundle);
       setPrescription(bundle.prescription);
+      setPrescriptionDraft(null);
     } catch (error) {
       console.error('Error refreshing appointment detail:', error);
       if (options.showToast !== false) {
@@ -228,6 +270,99 @@ const DoctorAppointmentDetail = ({ appointment, patient, onBack }) => {
     fetchMedicalHistory();
   }, [patientId]);
 
+  useEffect(() => {
+    const source = appointmentDetail || appointment;
+    const followUp = buildConsultation(source);
+
+    setFollowUpNotes(followUp.followUpNotes || '');
+
+    if (followUp.followUpDate) {
+      const nextFollowUpDate = new Date(followUp.followUpDate);
+      if (!Number.isNaN(nextFollowUpDate.getTime())) {
+        const hours = String(nextFollowUpDate.getHours()).padStart(2, '0');
+        const minutes = String(nextFollowUpDate.getMinutes()).padStart(2, '0');
+
+        setFollowUpSelectedDate(nextFollowUpDate);
+        setFollowUpCalendarMonth(toMonthValue(nextFollowUpDate));
+        setSelectedFollowUpDateTime(
+          buildFollowUpDateTime(nextFollowUpDate, `${hours}:${minutes}`),
+        );
+        return;
+      }
+    }
+
+    const today = new Date();
+    setFollowUpSelectedDate(today);
+    setFollowUpCalendarMonth(toMonthValue(today));
+    setSelectedFollowUpDateTime(null);
+  }, [
+    appointment,
+    appointmentDetail,
+    appointmentDetail?.appointmentId,
+    appointmentDetail?.appointmentID,
+    appointmentDetail?.consultation?.followUpDate,
+    appointmentDetail?.consultation?.followUpNotes,
+    appointmentDetail?.followUpDate,
+    appointmentDetail?.followUpNotes,
+  ]);
+
+  const followUpCalendarDayMap = useMemo(() => {
+    const entries = Array.isArray(followUpCalendarDays)
+      ? followUpCalendarDays.map((day) => [day.date, day])
+      : [];
+
+    return new Map(entries);
+  }, [followUpCalendarDays]);
+
+  const loadFollowUpSlots = useCallback(async () => {
+    if (activeTab !== 'followup' || !effectiveDoctorId || !followUpSelectedDateValue) {
+      return;
+    }
+
+    setLoadingFollowUpSlots(true);
+    try {
+      const data = await appointmentService.getFollowUpSlots(
+        effectiveDoctorId,
+        followUpSelectedDateValue,
+      );
+      setFollowUpSlots(Array.isArray(data?.slots) ? data.slots : []);
+    } catch (error) {
+      console.error('Error loading follow-up slots:', error);
+      toast.error('Failed to load follow-up slots');
+      setFollowUpSlots([]);
+    } finally {
+      setLoadingFollowUpSlots(false);
+    }
+  }, [activeTab, effectiveDoctorId, followUpSelectedDateValue]);
+
+  useEffect(() => {
+    loadFollowUpSlots();
+  }, [loadFollowUpSlots]);
+
+  const loadFollowUpCalendar = useCallback(async () => {
+    if (activeTab !== 'followup' || !effectiveDoctorId || !followUpCalendarMonth) {
+      return;
+    }
+
+    setLoadingFollowUpCalendar(true);
+    try {
+      const data = await appointmentService.getFollowUpCalendar(
+        effectiveDoctorId,
+        followUpCalendarMonth,
+      );
+      setFollowUpCalendarDays(Array.isArray(data?.days) ? data.days : []);
+    } catch (error) {
+      console.error('Error loading follow-up calendar:', error);
+      setFollowUpCalendarDays([]);
+    } finally {
+      setLoadingFollowUpCalendar(false);
+    }
+  }, [activeTab, effectiveDoctorId, followUpCalendarMonth]);
+
+  useEffect(() => {
+    loadFollowUpCalendar();
+  }, [loadFollowUpCalendar]);
+
   const handleViewAppointmentDetail = async (targetAppointmentId) => {
     try {
       const bundle = await fetchAppointmentBundle(targetAppointmentId, { showErrors: true });
@@ -239,15 +374,131 @@ const DoctorAppointmentDetail = ({ appointment, patient, onBack }) => {
     }
   };
 
+  const handleFollowUpDateChange = (date) => {
+    setFollowUpSelectedDate(date);
+    setSelectedFollowUpDateTime(null);
+  };
+
+  const handleFollowUpMonthChange = ({ activeStartDate }) => {
+    const monthValue = toMonthValue(activeStartDate);
+    if (monthValue) {
+      setFollowUpCalendarMonth(monthValue);
+    }
+  };
+
+  const handleSelectFollowUpSlot = (slot) => {
+    if (!slot?.selectable) {
+      return;
+    }
+
+    setSelectedFollowUpDateTime(buildFollowUpDateTime(followUpSelectedDate, slot.startTime));
+  };
+
+  const handleSaveFollowUp = async () => {
+    const consultation = buildConsultation(appointmentDetail || appointment);
+
+    if (!consultation.consultationId) {
+      toast.error('Consultation data is not ready yet');
+      return;
+    }
+    if (!selectedFollowUpDateTime) {
+      toast.error('Please select an available follow-up slot');
+      return;
+    }
+
+    setSavingFollowUp(true);
+    try {
+      await consultationApi.updateFollowUp(consultation.consultationId, {
+        followUpDate: selectedFollowUpDateTime,
+        followUpNotes: followUpNotes.trim() || null,
+      });
+      toast.success('Follow-up schedule saved');
+      await refreshAppointmentData({ showToast: false });
+      await loadFollowUpSlots();
+      await loadFollowUpCalendar();
+    } catch (error) {
+      console.error('Error saving follow-up:', error);
+      toast.error(error.response?.data?.message || 'Failed to save follow-up');
+    } finally {
+      setSavingFollowUp(false);
+    }
+  };
+
   const handleCompleteAppointment = async () => {
     if (!appointmentId) return;
+
+    const draftRows = Array.isArray(prescriptionDraft?.medicationRows)
+      ? prescriptionDraft.medicationRows.filter((row) => row?.medicineId)
+      : [];
+    const incompleteRow = draftRows.find((row) => {
+      const quantity = Number(row?.quantity);
+      const totalSupplyDays = Number(row?.totalSupplyDays);
+
+      return (
+        !Number.isFinite(quantity) ||
+        quantity < 1 ||
+        !Number.isFinite(totalSupplyDays) ||
+        totalSupplyDays < 1 ||
+        !String(row?.timing || '').trim()
+      );
+    });
+
+    if (!prescription && incompleteRow) {
+      toast.error('Please complete quantity, supply days, and timing for all prescribed medications.');
+      return;
+    }
+
+    const prescriptionPayload =
+      !prescription && draftRows.length > 0
+        ? {
+            appointmentId,
+            diagnosis:
+              prescriptionDraft?.diagnosis?.trim() ||
+              appointmentDetail?.consultation?.diagnosis ||
+              appointmentDetail?.diagnosis ||
+              null,
+            notes:
+              appointmentDetail?.consultation?.doctorNotes ||
+              appointmentDetail?.doctorNotes ||
+              null,
+            items: draftRows.map((row) => ({
+              medicineId: row.medicineId,
+              totalSupplyDays: Number(row.totalSupplyDays),
+              quantity: Number(row.quantity),
+              unit: row.unit || null,
+              frequency: row.frequency || null,
+              timing: row.timing,
+              route: row.route || null,
+              notes: row.notes?.trim() || null,
+            })),
+          }
+        : null;
 
     setCompletingAppointment(true);
     setShowCompleteConfirmModal(false);
 
     try {
-      await appointmentService.completeAppointment(appointmentId);
-      toast.success('Appointment marked as completed successfully');
+      if (prescriptionPayload) {
+        const createdPrescription = await prescriptionService.createPrescription(prescriptionPayload);
+        setPrescription(createdPrescription);
+      }
+
+      const completionResult = await appointmentService.completeAppointment(appointmentId);
+      const followUpAppointmentId =
+        completionResult?.followUpAppointment?.appointmentId ||
+        completionResult?.followUpAppointment?.appointmentID ||
+        null;
+
+      if (completionResult?.createdFollowUp && followUpAppointmentId) {
+        toast.success('Appointment completed and follow-up scheduled');
+        if (typeof onOpenAppointmentById === 'function') {
+          await onOpenAppointmentById(followUpAppointmentId);
+          return;
+        }
+      } else {
+        toast.success('Appointment marked as completed successfully');
+      }
+
       if (onBack) {
         setTimeout(() => onBack(), 1000);
       } else {
@@ -343,11 +594,6 @@ const DoctorAppointmentDetail = ({ appointment, patient, onBack }) => {
   const consultation = buildConsultation(currentAppointment);
   const patientName = patient?.fullName || currentAppointment?.patientName || 'Unknown patient';
   const patientEmail = patient?.email || patient?.user?.email || appointmentDetail?.patientEmail || 'N/A';
-  const reasonForVisit =
-    currentAppointment?.reason ||
-    currentAppointment?.symptoms ||
-    currentAppointment?.notes ||
-    'No reason provided';
   const completedHistory =
     medicalHistory?.appointments?.filter((historyItem) => historyItem.status === 'Completed') || [];
   const sharedRecordCount =
@@ -357,15 +603,17 @@ const DoctorAppointmentDetail = ({ appointment, patient, onBack }) => {
     ) || 0;
   const appointmentPassed = new Date(currentAppointment?.appointmentTime) < new Date();
   const joinDisabled = currentAppointment?.status !== 'Scheduled' || appointmentPassed;
+  const isReadOnlyAppointment = currentAppointment?.status === 'Completed';
   const actionLabel =
     currentAppointment?.consultationType === 'Chat'
       ? 'Open Chat'
       : `Join ${currentAppointment?.consultationType || 'Consultation'}`;
-  const alertItems = [
-    { label: 'Allergies', value: patient?.allergies },
-    { label: 'Chronic conditions', value: patient?.chronicConditions },
-    { label: 'Current medications', value: patient?.currentMedications },
-  ].filter((item) => item.value);
+  const visitReason = [
+    currentAppointment?.reason,
+    currentAppointment?.symptoms,
+    appointmentDetail?.reason,
+    appointmentDetail?.symptoms,
+  ].find((value) => typeof value === 'string' && value.trim()) || '';
 
   const renderEmptyState = (title, description) => (
     <div className="doctor-detail-empty">
@@ -386,7 +634,7 @@ const DoctorAppointmentDetail = ({ appointment, patient, onBack }) => {
         </button>
       </div>
 
-      <div className="row g-4 align-items-start">
+      <div className="row g-4 align-items-stretch">
         <div className="col-12 col-xl-4">
           <div className="doctor-detail-stack">
             <section className="doctor-detail-card doctor-detail-card--hero">
@@ -420,87 +668,58 @@ const DoctorAppointmentDetail = ({ appointment, patient, onBack }) => {
                     <span className="doctor-detail-dot"></span>
                     {patient?.gender || 'Gender N/A'}
                   </p>
-                  <p className="doctor-detail-patient__email">{patientEmail}</p>
                 </div>
               </div>
 
               <div className="doctor-detail-overview-grid">
                 <div className="doctor-detail-overview-item">
-                  <span className="doctor-detail-overview-item__label">Appointment</span>
+                  <span className="doctor-detail-overview-item__label" aria-label="Appointment" title="Appointment">
+                    <span className="material-symbols-outlined" aria-hidden="true">calendar_month</span>
+                  </span>
                   <span className="doctor-detail-overview-item__value">
                     {formatDate(currentAppointment?.appointmentTime)}
                   </span>
                 </div>
                 <div className="doctor-detail-overview-item">
-                  <span className="doctor-detail-overview-item__label">Time</span>
+                  <span className="doctor-detail-overview-item__label" aria-label="Time" title="Time">
+                    <span className="material-symbols-outlined" aria-hidden="true">schedule</span>
+                  </span>
                   <span className="doctor-detail-overview-item__value">
                     {formatTime(currentAppointment?.appointmentTime)}
                   </span>
                 </div>
                 <div className="doctor-detail-overview-item">
-                  <span className="doctor-detail-overview-item__label">Blood type</span>
-                  <span className="doctor-detail-overview-item__value">{patient?.bloodType || 'N/A'}</span>
+                  <span className="doctor-detail-overview-item__label" aria-label="Email" title="Email">
+                    <span className="material-symbols-outlined" aria-hidden="true">mail</span>
+                  </span>
+                  <span className="doctor-detail-overview-item__value">{patientEmail}</span>
                 </div>
                 <div className="doctor-detail-overview-item">
-                  <span className="doctor-detail-overview-item__label">Phone</span>
+                  <span className="doctor-detail-overview-item__label" aria-label="Phone" title="Phone">
+                    <span className="material-symbols-outlined" aria-hidden="true">call</span>
+                  </span>
                   <span className="doctor-detail-overview-item__value">
                     {patient?.phoneNumber || appointmentDetail?.patientPhone || 'N/A'}
                   </span>
                 </div>
               </div>
-            </section>
-
-            <section className="doctor-detail-card">
-              <div className="doctor-detail-card__section-heading">
-                <div>
-                  <p className="doctor-detail-eyebrow">Medical Alerts</p>
-                  <h3 className="doctor-detail-section-title">Known risk factors</h3>
-                </div>
+              <div className="doctor-detail-visit">
+                <div className="doctor-detail-visit__divider"></div>
+                <h3 className="doctor-detail-visit__label">Reason for visit</h3>
+                <p
+                  className={`doctor-detail-visit__content ${
+                    visitReason ? '' : 'doctor-detail-visit__content--empty'
+                  }`}
+                >
+                  {visitReason || 'The patient has not shared symptoms or a reason for this appointment yet.'}
+                </p>
               </div>
-
-              {alertItems.length > 0 ? (
-                <div className="doctor-detail-alert-list">
-                  {alertItems.map((item) => (
-                    <div className="doctor-detail-alert-item" key={item.label}>
-                      <div className="doctor-detail-alert-item__label">
-                        <i className="bi bi-exclamation-triangle me-2"></i>
-                        {item.label}
-                      </div>
-                      <div className="doctor-detail-alert-item__value">{item.value}</div>
-                    </div>
-                  ))}
-                </div>
-              ) : (
-                renderEmptyState(
-                  'No alerts on file',
-                  'This patient does not have allergies, chronic conditions, or current medications recorded yet.',
-                )
-              )}
-            </section>
-
-            <section className="doctor-detail-card">
-              <div className="doctor-detail-card__section-heading">
-                <div>
-                  <p className="doctor-detail-eyebrow">Reason For Visit</p>
-                  <h3 className="doctor-detail-section-title">Current concern</h3>
-                </div>
-              </div>
-              <div className="doctor-detail-reason">{reasonForVisit}</div>
             </section>
           </div>
         </div>
 
         <div className="col-12 col-xl-8">
           <section className="doctor-detail-card doctor-detail-workspace">
-            <div className="doctor-detail-workspace__header">
-              <div className="doctor-detail-workspace__meta">
-                <span>
-                  <i className="bi bi-calendar3 me-2"></i>
-                  {formatDateTime(currentAppointment?.appointmentTime)}
-                </span>
-              </div>
-            </div>
-
             <div className="doctor-detail-tabs" role="tablist" aria-label="Appointment detail tabs">
               {TABS.map((tab) => (
                 <button
@@ -508,9 +727,11 @@ const DoctorAppointmentDetail = ({ appointment, patient, onBack }) => {
                   className={`doctor-detail-tab ${activeTab === tab.id ? 'doctor-detail-tab--active' : ''}`}
                   onClick={() => setActiveTab(tab.id)}
                   type="button"
+                  title={tab.label}
+                  aria-label={tab.label}
                 >
                   <i className={`bi ${tab.icon}`}></i>
-                  {tab.label}
+                  <span className="doctor-detail-tab__label">{tab.shortLabel || tab.label}</span>
                   {tab.id === 'shared' && sharedRecordCount > 0 ? (
                     <span className="doctor-detail-tab__count">{sharedRecordCount}</span>
                   ) : null}
@@ -567,21 +788,23 @@ const DoctorAppointmentDetail = ({ appointment, patient, onBack }) => {
                     </div>
                   ) : (
                     <div className="doctor-detail-history">
-                      {medicalHistory?.medicalHistorySummary ? (
-                        <div className="doctor-detail-note-card">
-                          <p className="doctor-detail-note-card__label">Medical History Summary</p>
-                          <p className="doctor-detail-note-card__value">{medicalHistory.medicalHistorySummary}</p>
-                        </div>
-                      ) : null}
-
                       {completedHistory.length > 0 ? (
                         <div className="doctor-detail-history-list">
                           {completedHistory.map((historyItem) => (
-                            <article className="doctor-detail-history-card" key={historyItem.appointmentID}>
+                            <article className="doctor-detail-history-card" key={historyItem.appointmentID || historyItem.appointmentId}>
                               <div className="doctor-detail-history-card__header">
-                                <div>
-                                  <h4>{formatDate(historyItem.appointmentTime)}</h4>
-                                  <p>
+                                <div className="doctor-detail-history-card__header-main">
+                                  <div>
+                                    <p className="doctor-detail-history-card__eyebrow">Completed visit</p>
+                                    <h4>{formatDate(historyItem.appointmentTime)}</h4>
+                                  </div>
+                                  <p className="doctor-detail-history-card__time">
+                                    <i className="bi bi-clock me-2"></i>
+                                    {formatTime(historyItem.appointmentTime)}
+                                  </p>
+                                </div>
+                                <div className="doctor-detail-history-card__header-row">
+                                  <p className="doctor-detail-history-card__chips">
                                     <span className={getStatusClassName(historyItem.status)}>
                                       {historyItem.status}
                                     </span>
@@ -589,30 +812,35 @@ const DoctorAppointmentDetail = ({ appointment, patient, onBack }) => {
                                       {historyItem.consultationType}
                                     </span>
                                   </p>
+                                  <button
+                                    className="btn btn-outline-primary btn-sm doctor-detail-history-card__action"
+                                    onClick={() => handleViewAppointmentDetail(historyItem.appointmentID)}
+                                    type="button"
+                                  >
+                                    Open snapshot
+                                  </button>
                                 </div>
-                                <button
-                                  className="btn btn-outline-primary btn-sm"
-                                  onClick={() => handleViewAppointmentDetail(historyItem.appointmentID)}
-                                  type="button"
-                                >
-                                  View detail
-                                </button>
                               </div>
 
                               <div className="doctor-detail-history-card__body">
-                                <p>
-                                  <strong>Doctor:</strong> {historyItem.doctorName || 'N/A'}
-                                  {historyItem.doctorSpecialty ? ` • ${historyItem.doctorSpecialty}` : ''}
-                                </p>
-                                {historyItem.symptoms ? (
-                                  <p>
-                                    <strong>Visit reason:</strong> {historyItem.symptoms}
+                                <div className="doctor-detail-history-card__fact">
+                                  <span className="doctor-detail-history-card__fact-label">Provider</span>
+                                  <p className="doctor-detail-history-card__fact-value">
+                                    {historyItem.doctorName || 'N/A'}
+                                    {historyItem.doctorSpecialty ? ` - ${historyItem.doctorSpecialty}` : ''}
                                   </p>
+                                </div>
+                                {historyItem.symptoms ? (
+                                  <div className="doctor-detail-history-card__fact">
+                                    <span className="doctor-detail-history-card__fact-label">Visit reason</span>
+                                    <p className="doctor-detail-history-card__fact-value">{historyItem.symptoms}</p>
+                                  </div>
                                 ) : null}
                                 {historyItem.diagnosis ? (
-                                  <p>
-                                    <strong>Diagnosis:</strong> {historyItem.diagnosis}
-                                  </p>
+                                  <div className="doctor-detail-history-card__fact">
+                                    <span className="doctor-detail-history-card__fact-label">Diagnosis</span>
+                                    <p className="doctor-detail-history-card__fact-value">{historyItem.diagnosis}</p>
+                                  </div>
                                 ) : null}
                               </div>
                             </article>
@@ -638,41 +866,161 @@ const DoctorAppointmentDetail = ({ appointment, patient, onBack }) => {
                 </div>
               )}
 
-              {activeTab === 'prescription' && (
+              <div hidden={activeTab !== 'prescription'}>
                 <DoctorPrescriptionWorkspace
                   appointment={currentAppointment}
                   patient={patient}
                   consultation={consultation}
                   prescription={prescription}
                   loadingPrescription={loadingPrescription}
-                  onPrescriptionCreated={() => refreshAppointmentData({ showToast: false })}
+                  onDraftChange={setPrescriptionDraft}
+                  readOnly={isReadOnlyAppointment}
                 />
-              )}
+              </div>
 
               {activeTab === 'followup' && (
-                <>
+                <div className="doctor-detail-followup">
                   {consultation.followUpDate || consultation.followUpNotes ? (
-                    <div className="doctor-detail-followup">
+                    <div className="doctor-detail-followup__summary">
                       <div className="doctor-detail-note-card">
-                        <p className="doctor-detail-note-card__label">Follow-up Date</p>
+                        <p className="doctor-detail-note-card__label">Saved Date</p>
                         <p className="doctor-detail-note-card__value">
                           {consultation.followUpDate ? formatDateTime(consultation.followUpDate) : 'Not scheduled'}
                         </p>
                       </div>
                       <div className="doctor-detail-note-card">
-                        <p className="doctor-detail-note-card__label">Follow-up Notes</p>
+                        <p className="doctor-detail-note-card__label">Saved Notes</p>
                         <p className="doctor-detail-note-card__value">
                           {consultation.followUpNotes || 'No follow-up notes recorded.'}
                         </p>
                       </div>
                     </div>
-                  ) : (
-                    renderEmptyState(
-                      'No follow-up scheduled',
-                      'Follow-up date and notes will appear here after they are added to the consultation.',
-                    )
-                  )}
-                </>
+                  ) : null}
+
+                  <div className="doctor-detail-followup__planner">
+                    <div className="doctor-detail-followup__calendar">
+                      <div className="doctor-detail-followup__header">
+                        <div>
+                          <p className="doctor-detail-eyebrow mb-1">Follow-up</p>
+                          <h3 className="doctor-detail-section-title doctor-detail-section-title--compact">
+                            Select a date
+                          </h3>
+                        </div>
+                        {loadingFollowUpCalendar ? (
+                          <span className="doctor-detail-followup__loading">Refreshing</span>
+                        ) : null}
+                      </div>
+
+                      <Calendar
+                        minDate={new Date()}
+                        onActiveStartDateChange={handleFollowUpMonthChange}
+                        onChange={handleFollowUpDateChange}
+                        tileClassName={({ date, view }) => {
+                          if (view !== 'month') return null;
+                          const day = followUpCalendarDayMap.get(toLocalDateValue(date));
+                          if (!day) return null;
+                          return [
+                            day.hasAppointments ? 'doctor-followup-calendar__tile--busy' : '',
+                            day.availableSlots === 0 ? 'doctor-followup-calendar__tile--full' : '',
+                          ].filter(Boolean).join(' ');
+                        }}
+                        tileContent={({ date, view }) => {
+                          if (view !== 'month') return null;
+                          const day = followUpCalendarDayMap.get(toLocalDateValue(date));
+                          if (!day?.hasAppointments) return null;
+                          return <span className="doctor-followup-calendar__dot"></span>;
+                        }}
+                        value={followUpSelectedDate}
+                      />
+                    </div>
+
+                    <div className="doctor-detail-followup__slots">
+                      <div className="doctor-detail-followup__header">
+                        <div>
+                          <p className="doctor-detail-eyebrow mb-1">
+                            {followUpSelectedDateValue || 'Selected day'}
+                          </p>
+                          <h3 className="doctor-detail-section-title doctor-detail-section-title--compact">
+                            Available slots
+                          </h3>
+                        </div>
+                      </div>
+
+                      {loadingFollowUpSlots ? (
+                        <div className="doctor-detail-followup__slot-skeleton">
+                          <span className="spinner-border spinner-border-sm me-2" aria-hidden="true"></span>
+                          Loading slots...
+                        </div>
+                      ) : followUpSlots.length > 0 ? (
+                        <div className="doctor-detail-followup__slot-grid">
+                          {followUpSlots.map((slot) => {
+                            const slotDateTime = buildFollowUpDateTime(followUpSelectedDate, slot.startTime);
+                            const isSelected = selectedFollowUpDateTime === slotDateTime;
+
+                            return (
+                              <button
+                                className={[
+                                  'doctor-followup-slot',
+                                  slot.selectable ? 'doctor-followup-slot--available' : 'doctor-followup-slot--disabled',
+                                  isSelected ? 'doctor-followup-slot--selected' : '',
+                                ].filter(Boolean).join(' ')}
+                                disabled={!slot.selectable || isReadOnlyAppointment}
+                                key={slot.startTime}
+                                onClick={() => handleSelectFollowUpSlot(slot)}
+                                title={slot.disabledReason || slot.label}
+                                type="button"
+                              >
+                                <span className="doctor-followup-slot__time">{slot.label}</span>
+                                <span className="doctor-followup-slot__status">
+                                  {slot.status === 'BOOKED'
+                                    ? 'Booked'
+                                    : slot.status === 'DISABLED'
+                                      ? slot.disabledReason || 'Disabled'
+                                      : isSelected
+                                        ? 'Selected'
+                                        : 'Available'}
+                                </span>
+                              </button>
+                            );
+                          })}
+                        </div>
+                      ) : (
+                        renderEmptyState(
+                          'No slots available',
+                          'Choose another date to view follow-up availability.',
+                        )
+                      )}
+
+                      <label className="doctor-detail-followup__notes">
+                        <span>Follow-up notes</span>
+                        <textarea
+                          className="form-control doctor-prescription-input doctor-prescription-input--textarea"
+                          disabled={isReadOnlyAppointment}
+                          onChange={(event) => setFollowUpNotes(event.target.value)}
+                          placeholder="Add concise notes for the next appointment..."
+                          rows="4"
+                          value={followUpNotes}
+                        />
+                      </label>
+
+                      <div className="doctor-detail-followup__actions">
+                        <button
+                          className="btn btn-primary"
+                          disabled={
+                            isReadOnlyAppointment ||
+                            savingFollowUp ||
+                            !selectedFollowUpDateTime ||
+                            !consultation.consultationId
+                          }
+                          onClick={handleSaveFollowUp}
+                          type="button"
+                        >
+                          {savingFollowUp ? 'Saving...' : 'Save follow-up'}
+                        </button>
+                      </div>
+                    </div>
+                  </div>
+                </div>
               )}
             </div>
 

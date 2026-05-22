@@ -1,10 +1,10 @@
 import React, { useState, useEffect } from 'react';
-import { doctorService } from '../../../api/doctorApi';
+import { doctorService } from '../doctor/api/doctorApi';
 import { useNavigate } from 'react-router-dom';
-import '../styles/Doctors.css';
-import { useAuth } from '../context/AuthContext';
-import ConfirmModal from './ConfirmModal';
-import Loading from './Loading'; // Import Loading component
+import '../doctor/styles/Doctors.css';
+import { useAuth } from '../doctor/context/AuthContext';
+import ConfirmModal from '../ConfirmModal';
+import Loading from '../Loading';
 
 const DoctorsList = () => {
   const [doctors, setDoctors] = useState([]);

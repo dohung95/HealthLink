@@ -49,6 +49,10 @@ public class PrescriptionHeader {
     @Column(length = 50)
     private String status;
 
+    private Integer sourceAppointmentId;
+
+    private Integer sourcePrescriptionHeaderId;
+
     private BigDecimal totalAmount;
 
     private LocalDateTime lastReminderSentAt;

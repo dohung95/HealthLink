@@ -1,7 +1,6 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { toast } from 'react-toastify';
 import { medicineApi } from '../../../api/medicineApi';
-import { prescriptionService } from '../../../api/prescriptionApi';
 
 const FREQUENCY_OPTIONS = [
   { value: '', label: 'Optional' },
@@ -96,38 +95,6 @@ const createMedicationRowFromMedicine = (medicine) => ({
   unit: medicine.unit || '',
 });
 
-const normalizeDraftRows = (rows) => {
-  if (!Array.isArray(rows)) {
-    return [];
-  }
-
-  return rows
-    .map((row) => ({
-      id: row.id || createRowId(),
-      medicineId: row.medicineId ?? null,
-      medicineQuery: row.medicineQuery || '',
-      displayName: row.displayName || row.medicineQuery || '',
-      brandName: row.brandName || '',
-      genericName: row.genericName || '',
-      dosageForm: row.dosageForm || '',
-      strength: row.strength || '',
-      quantity: row.quantity ?? '',
-      totalSupplyDays: row.totalSupplyDays ?? '',
-      frequency: row.frequency ?? '',
-      route: row.route ?? '',
-      timing: row.timing || 'MORNING',
-      notes: row.notes ?? '',
-      unit: row.unit || '',
-    }))
-    .filter((row) =>
-      row.medicineId ||
-      row.medicineQuery ||
-      row.quantity ||
-      row.totalSupplyDays ||
-      row.notes,
-    );
-};
-
 const hydrateMedicationRow = (row, medicine) => {
   if (!medicine) {
     return row;
@@ -148,12 +115,26 @@ const hydrateMedicationRow = (row, medicine) => {
   return hasChanged ? hydratedRow : row;
 };
 
+const getPrescriptionStrengthLabel = (item = {}) => {
+  const dosage = item.strength || item.dosage || '';
+  const unit = item.unit || '';
+
+  if (!dosage || !unit) {
+    return dosage;
+  }
+
+  return dosage.toLowerCase().endsWith(unit.toLowerCase())
+    ? dosage.slice(0, dosage.length - unit.length).trim()
+    : dosage;
+};
+
 const PrescriptionReadonlyItem = ({ item, index }) => {
   const medicationName =
     item.medicationName ||
     item.brandName ||
     item.genericName ||
     `Medication ${index + 1}`;
+  const strengthLabel = getPrescriptionStrengthLabel(item);
   const scheduleBadges = [
     item.frequency ? `Frequency: ${item.frequency}` : null,
     item.route ? `Route: ${item.route}` : null,
@@ -164,13 +145,18 @@ const PrescriptionReadonlyItem = ({ item, index }) => {
   return (
     <article className="doctor-prescription-item-card doctor-prescription-item-card--readonly">
       <div className="doctor-prescription-item-card__summary">
-        <div className="doctor-prescription-item-card__content">
+        {item.quantity ? (
+          <span className="doctor-prescription-chip doctor-prescription-chip--success doctor-prescription-item-card__quantity">
+            Quantity: {item.quantity}
+          </span>
+        ) : null}
+
+        <div
+          className={`doctor-prescription-item-card__content ${item.quantity ? 'doctor-prescription-item-card__content--with-quantity' : ''}`}
+        >
           <div className="doctor-prescription-item-card__title-row">
             <h4>{medicationName}</h4>
-            {item.dosage ? <span className="doctor-prescription-chip">{item.dosage}</span> : null}
-            {item.unit ? (
-              <span className="doctor-prescription-chip doctor-prescription-chip--muted">{item.unit}</span>
-            ) : null}
+            {strengthLabel ? <span className="doctor-prescription-chip">{strengthLabel}</span> : null}
           </div>
 
           {scheduleBadges.length > 0 ? (
@@ -182,11 +168,6 @@ const PrescriptionReadonlyItem = ({ item, index }) => {
               ))}
             </div>
           ) : null}
-
-          <p className="doctor-prescription-item-card__meta">
-            Quantity: {item.quantity || 'N/A'}
-            {item.unit ? ` ${item.unit}` : ''}
-          </p>
 
           {item.notes || item.instructions ? (
             <p className="doctor-prescription-item-card__notes">
@@ -418,17 +399,16 @@ const DoctorPrescriptionWorkspace = ({
   consultation,
   prescription,
   loadingPrescription,
-  onPrescriptionCreated,
+  onDraftChange,
+  readOnly = false,
 }) => {
-  const appointmentId = appointment?.appointmentID || appointment?.appointmentId || null;
-  const draftStorageKey = `doctor-prescription-draft-${appointmentId}`;
+  const workspaceAppointmentId = appointment?.appointmentID ?? appointment?.appointmentId ?? 'new';
   const rowRefs = useRef({});
+  const initializedAppointmentIdRef = useRef(null);
   const [diagnosis, setDiagnosis] = useState('');
   const [medicationRows, setMedicationRows] = useState([]);
   const [medicines, setMedicines] = useState([]);
   const [loadingMedicines, setLoadingMedicines] = useState(false);
-  const [savingDraft, setSavingDraft] = useState(false);
-  const [submitting, setSubmitting] = useState(false);
   const [isLibraryOpen, setIsLibraryOpen] = useState(false);
   const [libraryQuery, setLibraryQuery] = useState('');
   const [showLibraryFilters, setShowLibraryFilters] = useState(false);
@@ -469,24 +449,22 @@ const DoctorPrescriptionWorkspace = ({
       return;
     }
 
-    const savedDraft = localStorage.getItem(draftStorageKey);
-    if (savedDraft) {
-      try {
-        const parsedDraft = JSON.parse(savedDraft);
-        const restoredRows = normalizeDraftRows(parsedDraft.medicationRows);
-        setDiagnosis(parsedDraft.diagnosis ?? consultation?.diagnosis ?? '');
-        setMedicationRows(restoredRows);
-        setExpandedRowId(restoredRows[0]?.id ?? null);
-        return;
-      } catch (error) {
-        console.error('Error parsing prescription draft:', error);
-      }
+    if (initializedAppointmentIdRef.current !== workspaceAppointmentId) {
+      initializedAppointmentIdRef.current = workspaceAppointmentId;
+      setDiagnosis(consultation?.diagnosis ?? '');
+      setMedicationRows([]);
+      setExpandedRowId(null);
+      setHighlightedRowId(null);
+      setRecentMedicineIds([]);
+      setIsLibraryOpen(false);
+      setLibraryQuery('');
+      setShowLibraryFilters(false);
+      setLibraryFilters(createEmptyFilterState());
+      return;
     }
 
-    setDiagnosis(consultation?.diagnosis ?? '');
-    setMedicationRows([]);
-    setExpandedRowId(null);
-  }, [consultation?.diagnosis, draftStorageKey, prescription]);
+    setDiagnosis((currentDiagnosis) => currentDiagnosis || consultation?.diagnosis || '');
+  }, [consultation?.diagnosis, prescription, workspaceAppointmentId]);
 
   useEffect(() => {
     if (!medicineMap.size) {
@@ -511,6 +489,23 @@ const DoctorPrescriptionWorkspace = ({
       return hasChanges ? nextRows : currentRows;
     });
   }, [medicineMap]);
+
+  useEffect(() => {
+    if (typeof onDraftChange !== 'function') {
+      return;
+    }
+
+    if (prescription) {
+      onDraftChange(null);
+      return;
+    }
+
+    onDraftChange({
+      appointmentId: workspaceAppointmentId,
+      diagnosis,
+      medicationRows,
+    });
+  }, [diagnosis, medicationRows, onDraftChange, prescription, workspaceAppointmentId]);
 
   useEffect(() => {
     if (!isLibraryOpen) {
@@ -578,6 +573,16 @@ const DoctorPrescriptionWorkspace = ({
     }),
     [medicationRows, patient?.fullName],
   );
+
+  const issuedAtLabel = prescription?.issueDate
+    ? new Date(prescription.issueDate).toLocaleString('en-US', {
+        year: 'numeric',
+        month: 'short',
+        day: 'numeric',
+        hour: '2-digit',
+        minute: '2-digit',
+      })
+    : 'N/A';
 
   const focusRow = (rowId) => {
     if (!rowId) {
@@ -670,105 +675,6 @@ const DoctorPrescriptionWorkspace = ({
     );
   };
 
-  const validateRows = () => {
-    const touchedRows = medicationRows.filter((row) =>
-      row.medicineId ||
-      row.medicineQuery ||
-      row.quantity ||
-      row.totalSupplyDays ||
-      row.notes,
-    );
-
-    if (!diagnosis.trim()) {
-      toast.error('Diagnosis summary is required');
-      return null;
-    }
-
-    if (touchedRows.length === 0) {
-      toast.error('Please add at least one medication');
-      return null;
-    }
-
-    for (const row of touchedRows) {
-      if (!row.medicineId) {
-        toast.error('Please select a valid medication from the medicine library');
-        return null;
-      }
-
-      if (!row.quantity || Number(row.quantity) < 1) {
-        toast.error('Quantity must be at least 1');
-        return null;
-      }
-
-      if (!row.totalSupplyDays || Number(row.totalSupplyDays) < 1) {
-        toast.error('Supply days must be at least 1');
-        return null;
-      }
-
-      if (!row.timing) {
-        toast.error('Timing is required for every medication');
-        return null;
-      }
-    }
-
-    return touchedRows;
-  };
-
-  const handleSaveDraft = () => {
-    setSavingDraft(true);
-
-    try {
-      localStorage.setItem(
-        draftStorageKey,
-        JSON.stringify({
-          diagnosis,
-          medicationRows,
-        }),
-      );
-      toast.success('Prescription draft saved locally');
-    } catch (error) {
-      console.error('Error saving prescription draft:', error);
-      toast.error('Failed to save prescription draft');
-    } finally {
-      setSavingDraft(false);
-    }
-  };
-
-  const handleAuthorizeAndSend = async () => {
-    const validRows = validateRows();
-    if (!validRows || !appointmentId) {
-      return;
-    }
-
-    setSubmitting(true);
-
-    try {
-      await prescriptionService.createPrescription({
-        appointmentId,
-        diagnosis: diagnosis.trim(),
-        items: validRows.map((row) => ({
-          medicineId: row.medicineId,
-          quantity: Number(row.quantity),
-          totalSupplyDays: Number(row.totalSupplyDays),
-          unit: row.unit || null,
-          frequency: row.frequency || null,
-          timing: row.timing,
-          route: row.route || null,
-          notes: row.notes?.trim() || null,
-        })),
-      });
-
-      localStorage.removeItem(draftStorageKey);
-      toast.success('Prescription authorized and sent successfully');
-      await onPrescriptionCreated?.();
-    } catch (error) {
-      console.error('Error creating prescription:', error);
-      toast.error(error.response?.data?.message || 'Failed to create prescription');
-    } finally {
-      setSubmitting(false);
-    }
-  };
-
   if (loadingPrescription && !prescription) {
     return (
       <div className="text-center py-5">
@@ -782,50 +688,33 @@ const DoctorPrescriptionWorkspace = ({
   if (prescription) {
     return (
       <div className="doctor-prescription-workspace doctor-prescription-workspace--readonly">
-        <div className="doctor-prescription-header">
-          <div>
-            <p className="doctor-detail-eyebrow">Prescription</p>
-            <h3 className="doctor-detail-section-title">Issued prescription</h3>
-          </div>
+        <div className="doctor-prescription-header doctor-prescription-header--readonly">
+          <p className="doctor-detail-eyebrow mb-0">Prescription</p>
           <span className="doctor-detail-status doctor-detail-status--completed">
             {prescription.status || 'Issued'}
           </span>
         </div>
 
-        <div className="doctor-prescription-meta">
-          <div className="doctor-detail-note-card">
-            <p className="doctor-detail-note-card__label">Patient</p>
-            <p className="doctor-detail-note-card__value">{summaryStats.patientName}</p>
+        <div className="doctor-detail-note-card doctor-prescription-summary-card">
+          <div className="doctor-prescription-summary-card__item">
+            <p className="doctor-prescription-summary-card__label">Patient</p>
+            <p className="doctor-prescription-summary-card__value">{summaryStats.patientName}</p>
           </div>
-          <div className="doctor-detail-note-card">
-            <p className="doctor-detail-note-card__label">Issued</p>
-            <p className="doctor-detail-note-card__value">
-              {prescription.issueDate
-                ? new Date(prescription.issueDate).toLocaleString('en-US', {
-                    year: 'numeric',
-                    month: 'short',
-                    day: 'numeric',
-                    hour: '2-digit',
-                    minute: '2-digit',
-                  })
-                : 'N/A'}
+          <div className="doctor-prescription-summary-card__item">
+            <p className="doctor-prescription-summary-card__label">Issued</p>
+            <p className="doctor-prescription-summary-card__value">{issuedAtLabel}</p>
+          </div>
+          <div className="doctor-prescription-summary-card__item doctor-prescription-summary-card__item--diagnosis">
+            <p className="doctor-prescription-summary-card__label">Diagnosis</p>
+            <p className="doctor-prescription-summary-card__value">
+              {prescription.diagnosis?.trim() || 'Not provided'}
             </p>
           </div>
         </div>
 
-        {prescription.diagnosis ? (
-          <div className="doctor-detail-note-card">
-            <p className="doctor-detail-note-card__label">Diagnosis Summary</p>
-            <p className="doctor-detail-note-card__value">{prescription.diagnosis}</p>
-          </div>
-        ) : null}
-
         <div className="doctor-prescription-table-card">
           <div className="doctor-prescription-table-card__header">
-            <div>
-              <p className="doctor-detail-eyebrow mb-1">Medications</p>
-              <h4 className="doctor-prescription-table-card__title">Issued medication list</h4>
-            </div>
+            <p className="doctor-detail-eyebrow mb-0">Medications</p>
             <div className="doctor-prescription-header__badge">
               {prescription.medications?.length || 0} item
               {prescription.medications?.length === 1 ? '' : 's'}
@@ -849,24 +738,11 @@ const DoctorPrescriptionWorkspace = ({
   return (
     <>
       <div className="doctor-prescription-workspace">
-        <div className="doctor-prescription-header">
-          <div>
-            <h3 className="doctor-detail-section-title">
-              Prescription for {summaryStats.patientName}
-            </h3>
-            <p className="doctor-prescription-header__subtext">
-              Select a medicine from the library first, then complete the prescribing details.
-            </p>
-          </div>
-          <div className="doctor-prescription-header__badge">
-            {summaryStats.itemCount} item{summaryStats.itemCount === 1 ? '' : 's'}
-          </div>
-        </div>
-
         <div className="doctor-detail-note-card doctor-prescription-diagnosis-card">
           <p className="doctor-detail-note-card__label">Diagnosis Summary</p>
           <textarea
             className="form-control doctor-prescription-textarea"
+            readOnly={readOnly}
             rows="4"
             placeholder="Enter primary diagnosis and relevant context for this prescription..."
             value={diagnosis}
@@ -878,15 +754,13 @@ const DoctorPrescriptionWorkspace = ({
           <div className="doctor-prescription-table-card__header">
             <div>
               <p className="doctor-detail-eyebrow mb-1">Medications</p>
-              <h4 className="doctor-prescription-table-card__title">Prescription workspace</h4>
-              <p className="doctor-prescription-table-card__subtext">
-                Keep the list focused on the core prescribing fields while each item holds its own detail editor.
-              </p>
             </div>
-            <button className="btn btn-outline-primary" onClick={openMedicineLibrary} type="button">
-              <i className="bi bi-plus-lg me-2"></i>
-              Add Item
-            </button>
+            {!readOnly ? (
+              <button className="btn btn-outline-primary" onClick={openMedicineLibrary} type="button">
+                <i className="bi bi-plus-lg me-2"></i>
+                Add Item
+              </button>
+            ) : null}
           </div>
 
           {medicationRows.length > 0 ? (
@@ -902,7 +776,6 @@ const DoctorPrescriptionWorkspace = ({
                   row.timing
                     ? `Timing: ${getOptionLabel(TIMING_OPTIONS, row.timing, row.timing)}`
                     : null,
-                  row.quantity ? `Qty: ${row.quantity}${row.unit ? ` ${row.unit}` : ''}` : null,
                   row.totalSupplyDays ? `${row.totalSupplyDays} day supply` : null,
                 ].filter(Boolean);
 
@@ -919,17 +792,20 @@ const DoctorPrescriptionWorkspace = ({
                     }}
                   >
                     <div className="doctor-prescription-item-card__summary">
-                      <div className="doctor-prescription-item-card__content">
+                      {row.quantity ? (
+                        <span className="doctor-prescription-chip doctor-prescription-chip--success doctor-prescription-item-card__quantity">
+                          Quantity: {row.quantity}
+                        </span>
+                      ) : null}
+
+                      <div
+                        className={`doctor-prescription-item-card__content ${row.quantity ? 'doctor-prescription-item-card__content--with-quantity' : ''}`}
+                      >
                         <div className="doctor-prescription-item-card__title-row">
                           <span className="doctor-prescription-item-card__index">{index + 1}</span>
                           <h4>{row.displayName || row.medicineQuery || 'Selected medication'}</h4>
                           {row.strength ? (
                             <span className="doctor-prescription-chip">{row.strength}</span>
-                          ) : null}
-                          {row.dosageForm ? (
-                            <span className="doctor-prescription-chip doctor-prescription-chip--muted">
-                              {row.dosageForm}
-                            </span>
                           ) : null}
                         </div>
 
@@ -953,23 +829,27 @@ const DoctorPrescriptionWorkspace = ({
                         )}
                       </div>
 
-                      <div className="doctor-prescription-item-card__actions">
+                      <div
+                        className={`doctor-prescription-item-card__actions ${row.quantity ? 'doctor-prescription-item-card__actions--with-quantity' : ''}`}
+                      >
                         <button
                           className="btn btn-sm btn-outline-primary"
                           onClick={() => setExpandedRowId(isExpanded ? null : row.id)}
                           type="button"
                         >
                           <i className={`bi ${isExpanded ? 'bi-chevron-up' : 'bi-chevron-down'} me-2`}></i>
-                          {isExpanded ? 'Hide Details' : 'Edit Details'}
+                          {isExpanded ? 'Hide Details' : readOnly ? 'View Details' : 'Edit Details'}
                         </button>
-                        <button
-                          className="btn btn-sm btn-link text-danger"
-                          onClick={() => handleRemoveRow(row.id)}
-                          type="button"
-                        >
-                          <i className="bi bi-trash3 me-1"></i>
-                          Remove
-                        </button>
+                        {!readOnly ? (
+                          <button
+                            className="btn btn-sm btn-link text-danger"
+                            onClick={() => handleRemoveRow(row.id)}
+                            type="button"
+                          >
+                            <i className="bi bi-trash3 me-1"></i>
+                            Remove
+                          </button>
+                        ) : null}
                       </div>
                     </div>
 
@@ -982,6 +862,7 @@ const DoctorPrescriptionWorkspace = ({
                               className="form-control doctor-prescription-input"
                               min="1"
                               placeholder="Qty"
+                              readOnly={readOnly}
                               type="number"
                               value={row.quantity}
                               onChange={(event) => handleRowChange(row.id, 'quantity', event.target.value)}
@@ -994,6 +875,7 @@ const DoctorPrescriptionWorkspace = ({
                               className="form-control doctor-prescription-input"
                               min="1"
                               placeholder="Days"
+                              readOnly={readOnly}
                               type="number"
                               value={row.totalSupplyDays}
                               onChange={(event) => handleRowChange(row.id, 'totalSupplyDays', event.target.value)}
@@ -1004,6 +886,7 @@ const DoctorPrescriptionWorkspace = ({
                             <span>Frequency</span>
                             <select
                               className="form-select doctor-prescription-input"
+                              disabled={readOnly}
                               value={row.frequency}
                               onChange={(event) => handleRowChange(row.id, 'frequency', event.target.value)}
                             >
@@ -1019,6 +902,7 @@ const DoctorPrescriptionWorkspace = ({
                             <span>Route</span>
                             <select
                               className="form-select doctor-prescription-input"
+                              disabled={readOnly}
                               value={row.route}
                               onChange={(event) => handleRowChange(row.id, 'route', event.target.value)}
                             >
@@ -1034,6 +918,7 @@ const DoctorPrescriptionWorkspace = ({
                             <span>Timing</span>
                             <select
                               className="form-select doctor-prescription-input"
+                              disabled={readOnly}
                               value={row.timing}
                               onChange={(event) => handleRowChange(row.id, 'timing', event.target.value)}
                             >
@@ -1059,6 +944,7 @@ const DoctorPrescriptionWorkspace = ({
                             <textarea
                               className="form-control doctor-prescription-input doctor-prescription-input--textarea"
                               placeholder="Add short instructions for the patient..."
+                              readOnly={readOnly}
                               rows="3"
                               value={row.notes}
                               onChange={(event) => handleRowChange(row.id, 'notes', event.target.value)}
@@ -1078,46 +964,16 @@ const DoctorPrescriptionWorkspace = ({
               </div>
               <h4>No medication selected yet</h4>
               <p>Open the medicine library to choose a medication before filling in dosage details.</p>
-              <button className="btn btn-primary" onClick={openMedicineLibrary} type="button">
-                <i className="bi bi-search me-2"></i>
-                Open Medicine Library
-              </button>
+              {!readOnly ? (
+                <button className="btn btn-primary" onClick={openMedicineLibrary} type="button">
+                  <i className="bi bi-search me-2"></i>
+                  Open Medicine Library
+                </button>
+              ) : null}
             </div>
           )}
         </div>
 
-        <div className="doctor-prescription-footer">
-          <button
-            className="btn btn-outline-primary"
-            disabled={savingDraft || submitting}
-            onClick={handleSaveDraft}
-            type="button"
-          >
-            {savingDraft ? 'Saving...' : 'Save Draft'}
-          </button>
-          <button
-            className="btn btn-primary"
-            disabled={submitting || loadingMedicines}
-            onClick={handleAuthorizeAndSend}
-            type="button"
-          >
-            {submitting ? (
-              <>
-                <span
-                  aria-hidden="true"
-                  className="spinner-border spinner-border-sm me-2"
-                  role="status"
-                ></span>
-                Sending...
-              </>
-            ) : (
-              <>
-                <i className="bi bi-send me-2"></i>
-                Authorize & Send
-              </>
-            )}
-          </button>
-        </div>
       </div>
 
       {isLibraryOpen ? (

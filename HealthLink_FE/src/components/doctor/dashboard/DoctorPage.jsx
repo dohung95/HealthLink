@@ -2,6 +2,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import { doctorService } from '../api/doctorApi';
+import { appointmentService } from '../api/appointmentApi';
 import { notificationApi } from '../api/notificationApi';
 import signalRService from '../services/signalrService';
 import 'bootstrap/dist/css/bootstrap.min.css';
@@ -239,6 +240,38 @@ const DoctorProfile = () => {
     setView('appointments');
     setSelectedAppointment(null);
     setSelectedPatient(null);
+  };
+
+  const handleOpenAppointmentById = async (appointmentId) => {
+    try {
+      setLoading(true);
+      const detail = await appointmentService.getAppointmentDetail(appointmentId);
+      const normalizedAppointment = {
+        ...detail,
+        appointmentID: detail?.appointmentID ?? detail?.appointmentId ?? appointmentId,
+        appointmentId: detail?.appointmentId ?? detail?.appointmentID ?? appointmentId,
+        doctorID: detail?.doctorID ?? detail?.doctorId,
+        doctorId: detail?.doctorId ?? detail?.doctorID,
+        patient: {
+          patientID: detail?.patientId,
+          patientId: detail?.patientId,
+          fullName: detail?.patientName,
+        },
+      };
+
+      const patientData = detail?.patientId
+        ? await doctorService.getPatientById(detail.patientId)
+        : null;
+
+      setSelectedAppointment(normalizedAppointment);
+      setSelectedPatient(patientData);
+      setView('appointmentDetail');
+    } catch (err) {
+      console.error('Error opening appointment:', err);
+      setError('Failed to load appointment information');
+    } finally {
+      setLoading(false);
+    }
   };
 
   if (loading) {
@@ -594,6 +627,7 @@ const DoctorProfile = () => {
                   appointment={selectedAppointment}
                   patient={selectedPatient}
                   onBack={handleBackToAppointments}
+                  onOpenAppointmentById={handleOpenAppointmentById}
                 />
               )}
             </div>

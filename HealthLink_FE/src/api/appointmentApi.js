@@ -67,6 +67,28 @@ export const appointmentService = {
         return response.data;
     },
 
+    getFollowUpSlots: async (doctorId, date) => {
+        const response = await axiosInstance.get('/api/doctor/appointments/follow-up/slots', {
+            params: {
+                doctorId,
+                date,
+            },
+        });
+
+        return response.data;
+    },
+
+    getFollowUpCalendar: async (doctorId, month) => {
+        const response = await axiosInstance.get('/api/doctor/appointments/follow-up/calendar', {
+            params: {
+                doctorId,
+                month,
+            },
+        });
+
+        return response.data;
+    },
+
     getAppointmentDetail: async (id) => {
         const response = await axiosInstance.get(`/api/admin/adminappointments/${id}`);
         return response.data;
@@ -87,9 +109,7 @@ export const appointmentService = {
     },
 
     completeAppointment: async (id) => {
-        const response = await axiosInstance.put(`/api/admin/adminappointments/${id}`, {
-            status: 'Completed',
-        });
+        const response = await axiosInstance.put(`/api/appointments/${id}/complete`);
         return response.data;
     },
 
