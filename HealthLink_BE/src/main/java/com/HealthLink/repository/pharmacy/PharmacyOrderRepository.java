@@ -18,9 +18,16 @@ public interface PharmacyOrderRepository extends JpaRepository<PharmacyOrder, In
     // Tìm đơn hàng theo patientId
     List<PharmacyOrder> findByPatient_PatientId(String patientId);
 
+    List<PharmacyOrder> findByPrescriptionHeader_Doctor_DoctorIdOrderByCreatedAtDesc(String doctorId);
+
+    // Tìm đơn hàng theo prescriptionHeaderId
+    List<PharmacyOrder> findByPrescriptionHeader_PrescriptionHeaderId(Integer prescriptionHeaderId);
+
     // Tìm đơn hàng theo status
     List<PharmacyOrder> findByStatus(String status);
 
     // Kiểm tra orderNumber đã tồn tại chưa (để sinh mã unique)
     boolean existsByOrderNumber(String orderNumber);
+
+    boolean existsByPrescriptionHeader_PrescriptionHeaderId(Integer prescriptionHeaderId);
 }

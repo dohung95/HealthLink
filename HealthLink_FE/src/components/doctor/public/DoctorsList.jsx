@@ -5,7 +5,7 @@ import ConfirmModal from './ConfirmModal';
 import DoctorDirectoryContent from './DoctorDirectoryContent';
 import './Css/Doctors.css';
 
-const Doctors = () => {
+const DoctorsList = () => {
     const navigate = useNavigate();
     const { isAuthenticated } = useAuth();
 
@@ -64,4 +64,4 @@ const Doctors = () => {
     );
 };
 
-export default Doctors;
+export default DoctorsList;

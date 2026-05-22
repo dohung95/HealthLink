@@ -1,6 +1,6 @@
-package com.HealthLink.controller.chat;
+package com.HealthLink.controller.videoCall;
 
-import com.HealthLink.dto.chat.WebRTCSignal;
+import com.HealthLink.dto.videoCall.WebRTCSignal;
 import com.HealthLink.entity.User;
 import com.HealthLink.repository.auth.UserRepository;
 import lombok.RequiredArgsConstructor;

@@ -68,6 +68,9 @@ public class PharmacyOrder {
     @Builder.Default
     private LocalDateTime createdAt = LocalDateTime.now();
 
+    @Builder.Default
+    private Boolean doctorCompletionPaidNotified = false;
+
     // Commission fields
     @Column(precision = 18, scale = 2)
     private BigDecimal platformFee;

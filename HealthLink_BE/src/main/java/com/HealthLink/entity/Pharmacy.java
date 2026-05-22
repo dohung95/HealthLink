@@ -135,4 +135,8 @@ public class Pharmacy {
     @OneToMany(mappedBy = "pharmacy")
     @ToString.Exclude
     private List<PharmacyOrder> pharmacyOrders;
+
+    @OneToMany(mappedBy = "pharmacy")
+    @ToString.Exclude
+    private List<PharmacyConsultationRequest> consultationRequests;
 }

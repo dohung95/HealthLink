@@ -63,6 +63,8 @@ public interface AppointmentRepository extends JpaRepository<Appointment, Intege
 
     List<Appointment> findByDoctor_DoctorId(String doctorId);
 
+    List<Appointment> findByDoctor_DoctorIdOrderByAppointmentTimeDesc(String doctorId);
+
     /**
      * Tìm các lịch hẹn sắp diễn ra trong khoảng thời gian cho trước và chưa gửi
      * reminder. Dùng cho @Scheduled job nhắc nhở trước 30 phút.
@@ -77,6 +79,13 @@ public interface AppointmentRepository extends JpaRepository<Appointment, Intege
             @Param("from") LocalDateTime from,
             @Param("to") LocalDateTime to);
 
+    @Query("SELECT a FROM Appointment a WHERE a.appointmentTime BETWEEN :from AND :to "
+            + "AND (a.doctorReminderSent IS NULL OR a.doctorReminderSent = false) "
+            + "AND a.status = 'Scheduled'")
+    List<Appointment> findUpcomingDoctorReminderCandidates(
+            @Param("from") LocalDateTime from,
+            @Param("to") LocalDateTime to);
+
     /**
      * Đánh dấu đã gửi reminder cho một appointment.
      *
@@ -85,4 +94,8 @@ public interface AppointmentRepository extends JpaRepository<Appointment, Intege
     @Modifying
     @Query("UPDATE Appointment a SET a.reminderSent = true WHERE a.appointmentId = :id")
     void markReminderSent(@Param("id") Integer appointmentId);
+
+    @Modifying
+    @Query("UPDATE Appointment a SET a.doctorReminderSent = true WHERE a.appointmentId = :id")
+    void markDoctorReminderSent(@Param("id") Integer appointmentId);
 }

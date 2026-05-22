@@ -1,4 +1,4 @@
-package com.HealthLink.dto.chat;
+package com.HealthLink.dto.videoCall;
 
 import lombok.AllArgsConstructor;
 import lombok.Data;

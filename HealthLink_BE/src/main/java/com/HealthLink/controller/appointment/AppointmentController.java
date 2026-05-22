@@ -53,6 +53,11 @@ public class AppointmentController {
             @RequestParam(defaultValue = "5") int size) {
         return ResponseEntity.ok(appointmentService.getPatientAppointmentsPaged(patientId, page, size));
     }
+    @GetMapping("/doctor/{doctorId}")
+    public ResponseEntity<List<AppointmentResponse>> getByDoctor(
+            @PathVariable String doctorId) {
+        return ResponseEntity.ok(appointmentService.getDoctorAppointments(doctorId));
+    }
 
     // Hủy một lịch hẹn
     @PutMapping("/{id}/cancel")

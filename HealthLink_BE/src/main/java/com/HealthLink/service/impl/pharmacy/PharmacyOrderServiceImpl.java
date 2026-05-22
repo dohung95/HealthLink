@@ -6,6 +6,7 @@ import com.HealthLink.dto.pharmacy.PharmacyOrderStatusRequest;
 import com.HealthLink.entity.*;
 import com.HealthLink.entity.enums.NotificationPriority;
 import com.HealthLink.entity.enums.NotificationType;
+import com.HealthLink.exception.BadRequestException;
 import com.HealthLink.exception.InvalidStatusException;
 import com.HealthLink.exception.ResourceNotFoundException;
 import com.HealthLink.repository.notification.DeviceTokenRepository;
@@ -14,6 +15,7 @@ import com.HealthLink.repository.pharmacy.PharmacyRepository;
 import com.HealthLink.repository.prescription.PrescriptionHeaderRepository;
 import com.HealthLink.service.pharmacy.PharmacyOrderService;
 import com.HealthLink.service.notification.NotificationService;
+import com.HealthLink.utility.mapper.PharmacyOrderMapper;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
@@ -44,6 +46,7 @@ public class PharmacyOrderServiceImpl implements PharmacyOrderService {
     private static final String STATUS_COMPLETED = "Completed";
     private static final String STATUS_CANCELLED = "Cancelled";
     private static final String STATUS_REFUNDED  = "Refunded";
+    private static final String PAYMENT_STATUS_PAID = "Paid";
 
     // PrescriptionHeader status
     private static final String PRESCRIPTION_STATUS_SENT = "Sent";
@@ -81,6 +84,11 @@ public class PharmacyOrderServiceImpl implements PharmacyOrderService {
     @Override
     @Transactional
     public PharmacyOrderResponse transferPrescription(PharmacyOrderRequest request) {
+        if (orderRepository.existsByPrescriptionHeader_PrescriptionHeaderId(request.getPrescriptionHeaderId())) {
+            throw new BadRequestException(
+                    "A pharmacy order already exists for prescription " + request.getPrescriptionHeaderId()
+            );
+        }
 
         // 1. Tìm PrescriptionHeader
         PrescriptionHeader prescription = prescriptionHeaderRepository
@@ -151,8 +159,9 @@ public class PharmacyOrderServiceImpl implements PharmacyOrderService {
         prescriptionHeaderRepository.save(prescription);
 
         notifyPharmacyAboutNewOrderAfterCommit(saved);
+        notifyDoctorAboutPrescriptionTransferAfterCommit(saved);
 
-        return toResponse(saved);
+        return PharmacyOrderMapper.toResponse(saved);
     }
 
     // =========================================================================
@@ -171,7 +180,7 @@ public class PharmacyOrderServiceImpl implements PharmacyOrderService {
         if (Objects.equals(currentStatus, targetStatus)) {
             log.info("Skipping order status update notification because status is unchanged: orderId={}, status={}",
                     orderId, currentStatus);
-            return toResponse(order);
+            return PharmacyOrderMapper.toResponse(order);
         }
 
         // Kiểm tra luồng trạng thái hợp lệ
@@ -209,11 +218,18 @@ public class PharmacyOrderServiceImpl implements PharmacyOrderService {
         }
 
         order.setStatus(targetStatus);
+        boolean notifyDoctorAboutCompletedPaidOrder = shouldNotifyDoctorAboutCompletedPaidOrder(order);
+        if (notifyDoctorAboutCompletedPaidOrder) {
+            order.setDoctorCompletionPaidNotified(true);
+        }
         PharmacyOrder updated = orderRepository.save(order);
 
         notifyPatientAboutOrderStatusAfterCommit(updated, currentStatus, targetStatus);
+        if (notifyDoctorAboutCompletedPaidOrder) {
+            notifyDoctorAboutCompletedAndPaidOrderAfterCommit(updated);
+        }
 
-        return toResponse(updated);
+        return PharmacyOrderMapper.toResponse(updated);
     }
 
     // =========================================================================
@@ -238,10 +254,17 @@ public class PharmacyOrderServiceImpl implements PharmacyOrderService {
 
     @Override
     @Transactional(readOnly = true)
+    public List<PharmacyOrderResponse> getOrdersByDoctor(String doctorId) {
+        return orderRepository.findByPrescriptionHeader_Doctor_DoctorIdOrderByCreatedAtDesc(doctorId)
+                .stream().map(this::toResponse).collect(Collectors.toList());
+    }
+
+    @Override
+    @Transactional(readOnly = true)
     public PharmacyOrderResponse getOrderById(Integer orderId) {
         PharmacyOrder order = orderRepository.findById(orderId)
                 .orElseThrow(() -> new ResourceNotFoundException("PharmacyOrder", "id", orderId));
-        return toResponse(order);
+        return PharmacyOrderMapper.toResponse(order);
     }
 
     // =========================================================================
@@ -319,6 +342,40 @@ public class PharmacyOrderServiceImpl implements PharmacyOrderService {
         });
     }
 
+    private void notifyDoctorAboutPrescriptionTransferAfterCommit(PharmacyOrder order) {
+        User doctorUser = resolveDoctorUser(order, NotificationType.PRESCRIPTION_SENT_TO_PHARMACY);
+        if (doctorUser == null) {
+            return;
+        }
+
+        String orderNumber = safeValue(order.getOrderNumber(), "unknown order");
+        String pharmacyName = order.getPharmacy() != null
+                ? safeValue(order.getPharmacy().getName(), "the selected pharmacy")
+                : "the selected pharmacy";
+        Integer orderId = order.getOrderId();
+        Integer prescriptionHeaderId = order.getPrescriptionHeader() != null
+                ? order.getPrescriptionHeader().getPrescriptionHeaderId()
+                : null;
+
+        runAfterCommit("doctor prescription transfer notification orderId=" + orderId, () -> {
+            notificationService.sendWebSocketNotification(
+                    doctorUser,
+                    NotificationType.PRESCRIPTION_SENT_TO_PHARMACY,
+                    "Prescription sent to pharmacy",
+                    String.format(
+                            "Prescription %s was transferred to %s as order %s.",
+                            prescriptionHeaderId != null ? prescriptionHeaderId : "unknown",
+                            pharmacyName,
+                            orderNumber
+                    ),
+                    orderId,
+                    "/pharmacy-orders/" + orderId
+            );
+            log.info("Prescription transfer notification queued for doctorUserId={}, orderId={}",
+                    doctorUser.getId(), orderId);
+        });
+    }
+
     private void notifyPatientAboutOrderStatusAfterCommit(PharmacyOrder order, String oldStatus, String newStatus) {
         User patientUser = resolvePatientUser(order, NotificationType.ORDER_STATUS);
         if (patientUser == null) {
@@ -366,6 +423,47 @@ public class PharmacyOrderServiceImpl implements PharmacyOrderService {
         });
     }
 
+    private void notifyDoctorAboutCompletedAndPaidOrderAfterCommit(PharmacyOrder order) {
+        User doctorUser = resolveDoctorUser(order, NotificationType.INVOICE_PAID);
+        if (doctorUser == null) {
+            return;
+        }
+
+        String orderNumber = safeValue(order.getOrderNumber(), "unknown order");
+        String patientName = order.getPatient() != null
+                ? safeValue(order.getPatient().getFullName(), "Unknown patient")
+                : "Unknown patient";
+        String pharmacyName = order.getPharmacy() != null
+                ? safeValue(order.getPharmacy().getName(), "the pharmacy")
+                : "the pharmacy";
+        Integer orderId = order.getOrderId();
+
+        runAfterCommit("doctor completed and paid order notification orderId=" + orderId, () -> {
+            notificationService.sendWebSocketNotification(
+                    doctorUser,
+                    NotificationType.INVOICE_PAID,
+                    "Pharmacy order completed and paid",
+                    String.format(
+                            "Order %s for %s was completed by %s and the patient payment has been confirmed.",
+                            orderNumber,
+                            patientName,
+                            pharmacyName
+                    ),
+                    orderId,
+                    "/pharmacy-orders/" + orderId
+            );
+
+            log.info("Completed-and-paid order notification queued for doctorUserId={}, orderId={}",
+                    doctorUser.getId(), orderId);
+        });
+    }
+
+    private boolean shouldNotifyDoctorAboutCompletedPaidOrder(PharmacyOrder order) {
+        return STATUS_COMPLETED.equalsIgnoreCase(order.getStatus())
+                && PAYMENT_STATUS_PAID.equalsIgnoreCase(safeValue(order.getPaymentStatus(), ""))
+                && !Boolean.TRUE.equals(order.getDoctorCompletionPaidNotified());
+    }
+
     private User resolvePharmacyUser(PharmacyOrder order, NotificationType type) {
         if (order == null || order.getPharmacy() == null) {
             log.warn("Cannot send {} notification: order or pharmacy is missing", type);
@@ -391,6 +489,20 @@ public class PharmacyOrderServiceImpl implements PharmacyOrderService {
         if (user == null || user.getId() == null || user.getId().isBlank()) {
             log.warn("Cannot send {} notification: patientId={} is not mapped to a user",
                     type, order.getPatient().getPatientId());
+            return null;
+        }
+        return user;
+    }
+
+    private User resolveDoctorUser(PharmacyOrder order, NotificationType type) {
+        if (order == null || order.getPrescriptionHeader() == null || order.getPrescriptionHeader().getDoctor() == null) {
+            log.warn("Cannot send {} notification: order or prescribing doctor is missing", type);
+            return null;
+        }
+
+        User user = order.getPrescriptionHeader().getDoctor().getUser();
+        if (user == null || user.getId() == null || user.getId().isBlank()) {
+            log.warn("Cannot send {} notification: prescribing doctor is not mapped to a user", type);
             return null;
         }
         return user;
@@ -426,54 +538,6 @@ public class PharmacyOrderServiceImpl implements PharmacyOrderService {
      * Map PharmacyOrder entity → PharmacyOrderResponse DTO.
      */
     private PharmacyOrderResponse toResponse(PharmacyOrder o) {
-        PrescriptionHeader ph = o.getPrescriptionHeader();
-        Pharmacy           pha = o.getPharmacy();
-        Patient            pat = o.getPatient();
-
-        return PharmacyOrderResponse.builder()
-                .orderId(o.getOrderId())
-                .orderNumber(o.getOrderNumber())
-                // Prescription
-                .prescriptionHeaderId(ph != null ? ph.getPrescriptionHeaderId() : null)
-                .diagnosis(ph != null ? ph.getDiagnosis() : null)
-                // Pharmacy
-                .pharmacyId(pha != null ? pha.getPharmacyId() : null)
-                .pharmacyName(pha != null ? pha.getName() : null)
-                .pharmacyPhone(pha != null ? pha.getPhoneNumber() : null)
-                // Patient
-                .patientId(pat != null ? pat.getPatientId() : null)
-                .patientName(pat != null ? pat.getFullName() : null)
-                // Order details
-                .status(o.getStatus())
-                .deliveryType(o.getDeliveryType())
-                .deliveryAddress(o.getDeliveryAddress())
-                .deliveryLatitude(o.getDeliveryLatitude())
-                .deliveryLongitude(o.getDeliveryLongitude())
-                // Amounts
-                .medicineAmount(o.getMedicineAmount())
-                .deliveryFee(o.getDeliveryFee())
-                .totalAmount(o.getTotalAmount())
-                // Payment
-                .paymentStatus(o.getPaymentStatus())
-                .paymentMethod(o.getPaymentMethod())
-                // Notes
-                .notes(o.getNotes())
-                .pharmacistNotes(o.getPharmacistNotes())
-                // Timestamps
-                .estimatedDeliveryTime(o.getEstimatedDeliveryTime())
-                .actualDeliveryTime(o.getActualDeliveryTime())
-                .confirmedAt(o.getConfirmedAt())
-                .preparingAt(o.getPreparingAt())
-                .shippedAt(o.getShippedAt())
-                .deliveredAt(o.getDeliveredAt())
-                .cancelledAt(o.getCancelledAt())
-                .cancelReason(o.getCancelReason())
-                .createdAt(o.getCreatedAt())
-                // Commission fields – ánh xạ từ PharmacyOrder entity
-                // ⚠️ Controller phải lọc bỏ các trường này khi trả về cho Patient
-                .platformFee(o.getPlatformFee())
-                .pharmacyEarning(o.getPharmacyEarning())
-                .commissionRate(o.getCommissionRate())
-                .build();
+        return PharmacyOrderMapper.toResponse(o);
     }
 }

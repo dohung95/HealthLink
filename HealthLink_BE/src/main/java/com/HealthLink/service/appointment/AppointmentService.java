@@ -44,6 +44,7 @@ public interface AppointmentService {
     List<AppointmentResponse> getPatientAppointments(String patientId);
 
     PagedResponse<AppointmentResponse> getPatientAppointmentsPaged(String patientId, int page, int size);
+    List<AppointmentResponse> getDoctorAppointments(String doctorId);
 
     /**
      * Get appointment details by ID.

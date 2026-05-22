@@ -1,58 +1,82 @@
-import axios from 'axios';
+import axiosInstance from './axiosConfig';
+import {
+  normalizeAppointment,
+  normalizeDoctorProfile,
+  normalizeDoctorSummary,
+  normalizeReview,
+} from './normalizers';
 
-const API_URL = 'http://localhost:8096/api';
+const paginate = (items, page = 1, pageSize = 5) => {
+  const currentPage = Number(page) || 1;
+  const size = Number(pageSize) || 5;
+  const start = (currentPage - 1) * size;
+  const pagedItems = items.slice(start, start + size);
 
-// Helper to get auth header
-const getAuthHeader = () => {
-    const token = localStorage.getItem('token');
-    return token ? { headers: { Authorization: `Bearer ${token}` } } : {};
+  return {
+    items: pagedItems,
+    page: currentPage,
+    pageSize: size,
+    totalItems: items.length,
+    totalPages: Math.max(1, Math.ceil(items.length / size)),
+  };
 };
 
 export const doctorService = {
-    // 1. Search (pagination for Doctors)
-    searchDoctors: async (params) => {
-        const response = await axios.get(`${API_URL}/account/doctors/search`, { params });
-        return response.data;
-    },
+  searchDoctors: async (params = {}) => {
+    const response = await axiosInstance.get('/api/account/doctors', {
+      params: {
+        specialty: params.specialty || undefined,
+        name: params.name || undefined,
+      },
+    });
 
-    getSpecialties: async () => {
-        const response = await axios.get(`${API_URL}/account/doctors/specialties`);
-        return response.data;
-    },
+    const doctors = (response.data || []).map(normalizeDoctorSummary);
+    const filtered = params.location
+      ? doctors.filter((doctor) =>
+          doctor.location?.toLowerCase().includes(params.location.toLowerCase()),
+        )
+      : doctors;
 
-    // 2. Search (no pagination for Dropdown Schedule)
-    getAllDoctors: async () => {
-        const response = await axios.get(`${API_URL}/account/doctors`);
-        return response.data; // return array []
-    },
+    return paginate(filtered, params.page, params.pageSize);
+  },
 
-    // 3. Get by ID
-    getDoctorById: async (id) => {
-        const response = await axios.get(`${API_URL}/account/doctors/${id}`);
-        return response.data;
-    },
+  getSpecialties: async () => {
+    const response = await axiosInstance.get('/api/registration/specialties');
+    return (response.data || []).map((item) => item.name ?? item.specialtyName ?? item);
+  },
 
-    // 4. Lấy thông tin doctor hiện tại (từ token)
-    getCurrentDoctor: async () => {
-        const response = await axios.get(`${API_URL}/Doctor/current`, getAuthHeader());
-        return response.data;
-    },
+  getAllDoctors: async () => {
+    const response = await axiosInstance.get('/api/account/doctors');
+    return (response.data || []).map(normalizeDoctorSummary);
+  },
 
-    // 5. Lấy danh sách appointments của doctor
-    getDoctorAppointments: async (doctorId) => {
-        const response = await axios.get(`${API_URL}/Appointment/doctor/${doctorId}`, getAuthHeader());
-        return response.data;
-    },
+  getDoctorById: async (id) => {
+    const response = await axiosInstance.get(`/api/account/doctors/${id}`);
+    return normalizeDoctorProfile(response.data);
+  },
 
-    // 6. Lấy danh sách reviews của doctor
-    getDoctorReviews: async (doctorId) => {
-        const response = await axios.get(`${API_URL}/Review/doctor/${doctorId}`, getAuthHeader());
-        return response.data;
-    },
+  getDoctorSchedules: async (doctorId) => {
+    const response = await axiosInstance.get(`/api/account/doctors/${doctorId}/schedules`);
+    return response.data || [];
+  },
 
-    // 7. Lấy thông tin patient theo ID
-    getPatientById: async (patientId) => {
-        const response = await axios.get(`${API_URL}/Patient/${patientId}`, getAuthHeader());
-        return response.data;
-    },
+  getCurrentDoctor: async () => {
+    const response = await axiosInstance.get('/api/account/doctors/profile');
+    return normalizeDoctorProfile(response.data);
+  },
+
+  getDoctorAppointments: async (doctorId) => {
+    const response = await axiosInstance.get(`/api/appointments/doctor/${doctorId}`);
+    return (response.data || []).map(normalizeAppointment);
+  },
+
+  getDoctorReviews: async (doctorId) => {
+    const profile = await doctorService.getDoctorById(doctorId);
+    return Array.isArray(profile.reviews) ? profile.reviews.map(normalizeReview) : [];
+  },
+
+  getPatientById: async (patientId) => {
+    const response = await axiosInstance.get(`/api/account/patient/profile/${patientId}`);
+    return response.data;
+  },
 };

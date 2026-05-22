@@ -9,7 +9,7 @@ import 'react-toastify/dist/ReactToastify.css';
 import Home from './components/Home';
 import Schedule from './components/patient-dashboard/Schedule';
 import MyAppointments from './components/MyAppointment';
-import Doctors from './components/Doctors';
+import Doctors from './components/doctor/public/DoctorsList';
 import Records from './components/Records';
 import Video from './components/Video';
 
@@ -51,10 +51,10 @@ import VideocallPage from './pages/video-calling';
 import IncomingCallModal from './components/IncomingCallModal';
 import PrescriptionNotificationModal from './components/PrescriptionNotificationModal';
 import Navbar from './components/Navbar';
-import DoctorProfile from './components/DoctorProfile';
+import DoctorProfile from './components/doctor/public/DoctorProfile';
 import PatientPrescriptionView from './components/PatientPrescriptionView';
 
-import DoctorPage from './components/DoctorPage';
+import DoctorPage from './components/doctor/dashboard/DoctorPage';
 import ProtectedRoute from './components/ProtectedRoute';
 import ExcludeRolesRoute from './components/ExcludeRolesRoute';
 

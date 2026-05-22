@@ -1,60 +1,60 @@
-import axios from 'axios';
+import axiosInstance from './axiosConfig';
+import { normalizePrescription } from './normalizers';
 
-
-const API_URL = 'https://localhost:7267/api';
-
-// Helper to get auth header
-const getAuthHeader = () => {
-  const token = localStorage.getItem('token');
-  return token ? { headers: { Authorization: `Bearer ${token}` } } : {};
-};
+const getCurrentUserId = () => localStorage.getItem('userId');
 
 export const prescriptionService = {
-  // Create new prescription (Doctor only)
   createPrescription: async (prescriptionData) => {
-    const response = await axios.post(`${API_URL}/Prescription/create`, prescriptionData, getAuthHeader());
-    return response.data;
+    const response = await axiosInstance.post('/api/prescriptions', prescriptionData);
+    return normalizePrescription(response.data);
   },
 
-  // Get prescription header with items
-  getPrescriptionHeader: async (headerId) => {
-    const response = await axios.get(`${API_URL}/Prescription/header/${headerId}`, getAuthHeader());
-    return response.data;
+  getPrescriptionHeader: async (prescriptionId) => {
+    const response = await axiosInstance.get(`/api/prescriptions/${prescriptionId}`);
+    return normalizePrescription(response.data);
   },
 
- 
-  
-
-  // Get my prescriptions (current patient only)
   getMyPrescriptions: async () => {
-    const response = await axios.get(`${API_URL}/Prescription/mine`, getAuthHeader());
-    return response.data;
+    const userId = getCurrentUserId();
+    if (!userId) {
+      return [];
+    }
+
+    const response = await axiosInstance.get(`/api/prescriptions/patient/${userId}`);
+    return (response.data || []).map(normalizePrescription);
   },
 
-  // Get prescription by id (if needed)
   getPrescriptionById: async (id) => {
-    const response = await axios.get(`${API_URL}/Prescription/${id}`, getAuthHeader());
-    return response.data;
+    const response = await axiosInstance.get(`/api/prescriptions/${id}`);
+    return normalizePrescription(response.data);
   },
 
-  // Get prescription by appointment ID
-  getByAppointment: async (appointmentId) => {
-    const response = await axios.get(`${API_URL}/Prescription`, getAuthHeader());
-    const prescriptions = response.data;
-    return prescriptions.find(p => p.appointmentID === appointmentId);
+  getByAppointment: async (appointmentId, options = {}) => {
+    const doctorId = options.doctorId;
+    const patientId = options.patientId;
+
+    if (doctorId) {
+      const response = await axiosInstance.get(`/api/prescriptions/doctor/${doctorId}`);
+      const prescriptions = (response.data || []).map(normalizePrescription);
+      return prescriptions.find((item) => item.appointmentId === appointmentId) ?? null;
+    }
+
+    if (patientId) {
+      const response = await axiosInstance.get(`/api/prescriptions/patient/${patientId}`);
+      const prescriptions = (response.data || []).map(normalizePrescription);
+      return prescriptions.find((item) => item.appointmentId === appointmentId) ?? null;
+    }
+
+    return null;
   },
 
-  // Update prescription
   updatePrescription: async (id, prescriptionData) => {
-    const response = await axios.put(`${API_URL}/Prescription/header/${id}`, prescriptionData, getAuthHeader());
-    return response.data;
+    throw new Error(`Updating prescription ${id} is not supported by the current backend API.`);
   },
 
-  // Delete prescription item (not the whole prescription)
   deletePrescription: async (id) => {
-    const response = await axios.delete(`${API_URL}/Prescription/header/${id}`, getAuthHeader());
-    return response.data;
-  }
+    throw new Error(`Deleting prescription ${id} is not supported by the current backend API.`);
+  },
 };
 
 export default prescriptionService;
