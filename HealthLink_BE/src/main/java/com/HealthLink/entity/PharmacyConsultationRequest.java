@@ -36,6 +36,11 @@ public class PharmacyConsultationRequest {
     @EqualsAndHashCode.Exclude
     private PrescriptionHeader prescriptionHeader;
 
+    @OneToOne(mappedBy = "consultationRequest", fetch = FetchType.LAZY)
+    @ToString.Exclude
+    @EqualsAndHashCode.Exclude
+    private PharmacyOrder order;
+
     @Column(length = 2000)
     private String symptoms;
 

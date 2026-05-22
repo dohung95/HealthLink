@@ -47,6 +47,10 @@ public class PrescriptionServiceImpl implements PrescriptionService {
             throw new BadRequestException("Cannot create prescription for a cancelled appointment");
         }
 
+        if (!headerRepository.findByAppointment_AppointmentId(request.getAppointmentId()).isEmpty()) {
+            throw new BadRequestException("A prescription already exists for this appointment");
+        }
+
         PrescriptionHeader header = PrescriptionHeader.builder()
                 .appointment(appointment)
                 .patient(appointment.getPatient())
@@ -196,6 +200,8 @@ public class PrescriptionServiceImpl implements PrescriptionService {
                 .notes(header.getNotes())
                 .validUntil(header.getValidUntil())
                 .status(header.getStatus())
+                .sourceAppointmentId(header.getSourceAppointmentId())
+                .sourcePrescriptionHeaderId(header.getSourcePrescriptionHeaderId())
                 .totalAmount(header.getTotalAmount())
                 .items(itemResponses)
                 .build();

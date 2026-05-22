@@ -3,7 +3,9 @@ package com.HealthLink.service.impl.payment;
 import com.HealthLink.config.PayPalConfig;
 import com.HealthLink.dto.payment.PharmacyOrderPayPalCaptureRequest;
 import com.HealthLink.dto.pharmacy.PharmacyOrderResponse;
+import com.HealthLink.entity.Appointment;
 import com.HealthLink.entity.Doctor;
+import com.HealthLink.entity.Invoice;
 import com.HealthLink.entity.Patient;
 import com.HealthLink.entity.Payment;
 import com.HealthLink.entity.Pharmacy;
@@ -42,6 +44,7 @@ import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.ArgumentMatchers.contains;
 import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.verifyNoInteractions;
 import static org.mockito.Mockito.when;
 
 @ExtendWith(MockitoExtension.class)
@@ -82,6 +85,38 @@ class FinanceServiceImplTest {
 
     @InjectMocks
     private FinanceServiceImpl financeService;
+
+    @Test
+    void generateInvoice_shouldOnlyChargeConsultationFee() {
+        Appointment appointment = Appointment.builder()
+                .appointmentId(22)
+                .status("Completed")
+                .patient(Patient.builder()
+                        .patientId("patient-1")
+                        .build())
+                .doctor(Doctor.builder()
+                        .doctorId("doctor-1")
+                        .consultationFee(new BigDecimal("80.00"))
+                        .build())
+                .build();
+
+        when(appointmentRepository.findById(22)).thenReturn(Optional.of(appointment));
+        when(invoiceRepository.existsByAppointment_AppointmentId(22)).thenReturn(false);
+        when(invoiceRepository.count()).thenReturn(0L);
+        when(invoiceRepository.save(any(Invoice.class))).thenAnswer(invocation -> {
+            Invoice invoice = invocation.getArgument(0);
+            invoice.setInvoiceId(1);
+            return invoice;
+        });
+
+        var response = financeService.generateInvoice(22);
+
+        assertThat(response.getConsultationFee()).isEqualByComparingTo("80.00");
+        assertThat(response.getMedicineFee()).isEqualByComparingTo(BigDecimal.ZERO);
+        assertThat(response.getDeliveryFee()).isEqualByComparingTo(BigDecimal.ZERO);
+        assertThat(response.getAmount()).isEqualByComparingTo("80.00");
+        verifyNoInteractions(prescriptionHeaderRepository);
+    }
 
     @Test
     void capturePharmacyOrderPayPalPayment_shouldNotifyDoctorWhenOrderAlreadyCompleted() throws Exception {

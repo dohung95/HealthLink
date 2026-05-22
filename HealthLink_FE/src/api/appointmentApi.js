@@ -1,4 +1,5 @@
 import axios from 'axios';
+import axiosInstance from './axiosConfig';
 
 const API_URL = 'http://localhost:8096/api';
 
@@ -66,12 +67,49 @@ export const appointmentService = {
         return response.data;
     },
 
+    getFollowUpSlots: async (doctorId, date) => {
+        const response = await axiosInstance.get('/api/doctor/appointments/follow-up/slots', {
+            params: {
+                doctorId,
+                date,
+            },
+        });
+
+        return response.data;
+    },
+
+    getFollowUpCalendar: async (doctorId, month) => {
+        const response = await axiosInstance.get('/api/doctor/appointments/follow-up/calendar', {
+            params: {
+                doctorId,
+                month,
+            },
+        });
+
+        return response.data;
+    },
+
+    getAppointmentDetail: async (id) => {
+        const response = await axiosInstance.get(`/api/admin/adminappointments/${id}`);
+        return response.data;
+    },
+
     getPatientAppointments: async (patientId) => {
         const response = await axios.get(
             `${API_URL}/appointments/patient/${patientId}`,
             getAuthConfig()
         );
 
+        return response.data;
+    },
+
+    getPatientMedicalHistory: async (patientId) => {
+        const response = await axiosInstance.get(`/api/admin/adminmedicalrecords/patient/${patientId}/details`);
+        return response.data;
+    },
+
+    completeAppointment: async (id) => {
+        const response = await axiosInstance.put(`/api/appointments/${id}/complete`);
         return response.data;
     },
 
@@ -83,7 +121,6 @@ export const appointmentService = {
                 params: { page, size },
             }
         );
-
         return response.data;
     },
 

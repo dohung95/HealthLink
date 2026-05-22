@@ -6,8 +6,10 @@ import com.HealthLink.dto.request.HoldSlotRequest;
 import com.HealthLink.dto.request.RescheduleAppointmentRequest;
 import com.HealthLink.dto.response.AppointmentResponse;
 import com.HealthLink.dto.response.AvailableSlotsResponse;
+import com.HealthLink.dto.response.CompleteAppointmentResponse;
 import com.HealthLink.dto.response.HoldSlotResponse;
 import com.HealthLink.dto.response.PagedResponse;
+import com.HealthLink.service.followup.FollowUpAppointmentService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
@@ -24,6 +26,7 @@ import java.time.LocalDate;
 public class AppointmentController {
 
     private final AppointmentService appointmentService;
+    private final FollowUpAppointmentService followUpAppointmentService;
 
     // Đặt lịch khám mới
     @PostMapping
@@ -76,6 +79,11 @@ public class AppointmentController {
     }
 
     // Lấy toàn bộ slot trong ngày của bác sĩ
+    @PutMapping("/{id}/complete")
+    public ResponseEntity<CompleteAppointmentResponse> complete(@PathVariable Integer id) {
+        return ResponseEntity.ok(followUpAppointmentService.completeAppointment(id));
+    }
+
     @GetMapping("/available-slots")
     public ResponseEntity<AvailableSlotsResponse> getAvailableSlots(
             @RequestParam String doctorId,

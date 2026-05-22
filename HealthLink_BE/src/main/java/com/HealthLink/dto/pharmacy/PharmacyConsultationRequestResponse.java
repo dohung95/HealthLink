@@ -24,6 +24,7 @@ public class PharmacyConsultationRequestResponse {
     private String pharmacyNotes;
     private String patientFollowUpNotes;
     private Integer prescriptionHeaderId;
+    private Integer pharmacyOrderId;
     private LocalDateTime createdAt;
     private LocalDateTime updatedAt;
 }

@@ -24,6 +24,8 @@ public class PrescriptionResponse {
     private String notes;
     private LocalDateTime validUntil;
     private String status;
+    private Integer sourceAppointmentId;
+    private Integer sourcePrescriptionHeaderId;
     private BigDecimal totalAmount;
     private List<PrescriptionItemResponse> items;
 }

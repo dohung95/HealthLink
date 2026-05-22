@@ -21,6 +21,7 @@ public class PharmacyOrderResponse {
 
     // --- Prescription info ---
     private Integer prescriptionHeaderId;
+    private Integer pharmacyRequestId;
     private Integer appointmentId;
     private String diagnosis;
     private String doctorId;

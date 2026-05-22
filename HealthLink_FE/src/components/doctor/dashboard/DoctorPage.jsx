@@ -2,6 +2,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import { doctorService } from '../api/doctorApi';
+import { appointmentService } from '../api/appointmentApi';
 import { notificationApi } from '../api/notificationApi';
 import signalRService from '../services/signalrService';
 import 'bootstrap/dist/css/bootstrap.min.css';
@@ -239,6 +240,38 @@ const DoctorProfile = () => {
     setView('appointments');
     setSelectedAppointment(null);
     setSelectedPatient(null);
+  };
+
+  const handleOpenAppointmentById = async (appointmentId) => {
+    try {
+      setLoading(true);
+      const detail = await appointmentService.getAppointmentDetail(appointmentId);
+      const normalizedAppointment = {
+        ...detail,
+        appointmentID: detail?.appointmentID ?? detail?.appointmentId ?? appointmentId,
+        appointmentId: detail?.appointmentId ?? detail?.appointmentID ?? appointmentId,
+        doctorID: detail?.doctorID ?? detail?.doctorId,
+        doctorId: detail?.doctorId ?? detail?.doctorID,
+        patient: {
+          patientID: detail?.patientId,
+          patientId: detail?.patientId,
+          fullName: detail?.patientName,
+        },
+      };
+
+      const patientData = detail?.patientId
+        ? await doctorService.getPatientById(detail.patientId)
+        : null;
+
+      setSelectedAppointment(normalizedAppointment);
+      setSelectedPatient(patientData);
+      setView('appointmentDetail');
+    } catch (err) {
+      console.error('Error opening appointment:', err);
+      setError('Failed to load appointment information');
+    } finally {
+      setLoading(false);
+    }
   };
 
   if (loading) {
@@ -561,22 +594,25 @@ const DoctorProfile = () => {
         <div className="container-fluid p-0">
           <div className="mx-auto" style={{ maxWidth: (view === 'appointments' || view === 'appointmentDetail') ? '1280px' : '960px' }}> {/* max-w-7xl for appointments, max-w-4xl for others */}
             {/* Page Heading */}
-            <div className="mb-4">
-              <div>
-                <h2 className="fs-3 fw-bold mb-1 text-dark">
-                  {view === 'profile' ? 'Doctor Profile' : view === 'appointments' ? 'Appointments' : view === 'appointmentDetail' ? 'Appointment Details' : 'Reviews'}
-                </h2>
-                <p className="text-secondary mb-0">
-                  {view === 'profile' ? 'Manage your personal information.' : 
-                   view === 'appointments' ? 'List of your appointments with patients.' :
-                   view === 'appointmentDetail' ? 'Detailed information about the selected appointment.' : 
-                   'Patient reviews and ratings.'}
-                </p>
+            {view !== 'appointmentDetail' && (
+              <div className="mb-4">
+                <div>
+                  <h2 className="fs-3 fw-bold mb-1 text-dark">
+                    {view === 'profile' ? 'Doctor Profile' : view === 'appointments' ? 'Appointments' : 'Reviews'}
+                  </h2>
+                  <p className="text-secondary mb-0">
+                    {view === 'profile'
+                      ? 'Manage your personal information.'
+                      : view === 'appointments'
+                        ? 'List of your appointments with patients.'
+                        : 'Patient reviews and ratings.'}
+                  </p>
+                </div>
               </div>
-            </div>
+            )}
 
             {/* Main Card/Content Area */}
-            <div className="bg-custom-white info-card">
+            <div className={view === 'appointmentDetail' ? '' : 'bg-custom-white info-card'}>
               {view === 'profile' && <DoctorProfileView doctorData={doctorData} />}
               {view === 'appointments' && (
                 <DoctorAppointmentsView 
@@ -591,6 +627,7 @@ const DoctorProfile = () => {
                   appointment={selectedAppointment}
                   patient={selectedPatient}
                   onBack={handleBackToAppointments}
+                  onOpenAppointmentById={handleOpenAppointmentById}
                 />
               )}
             </div>

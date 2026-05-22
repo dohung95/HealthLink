@@ -19,9 +19,14 @@ public class PharmacyOrder {
     private String orderNumber;
 
     @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "PrescriptionHeaderId", nullable = false)
+    @JoinColumn(name = "PrescriptionHeaderId")
     @ToString.Exclude
     private PrescriptionHeader prescriptionHeader;
+
+    @OneToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "RequestID", unique = true)
+    @ToString.Exclude
+    private PharmacyConsultationRequest consultationRequest;
 
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "PharmacyId", nullable = false)

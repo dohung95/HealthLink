@@ -29,6 +29,7 @@ public class Consultation {
     private String diagnosis;
 
     private LocalDateTime followUpDate;
+    private Integer followUpAppointmentId;
 
     @Column(length = 50)
     private String consultationType;

@@ -1,6 +1,7 @@
 import axiosInstance from './axiosConfig';
 
 const BASE_URL = '/api/Consultation';
+const CONSULTATIONS_URL = '/api/consultations';
 
 export const consultationApi = {
   // Get all consultations
@@ -24,6 +25,16 @@ export const consultationApi = {
   // Update consultation
   updateConsultation: async (id, consultationData) => {
     const response = await axiosInstance.put(`${BASE_URL}/${id}`, consultationData);
+    return response.data;
+  },
+
+  updateFollowUp: async (id, followUpData) => {
+    const response = await axiosInstance.put(`${CONSULTATIONS_URL}/${id}/follow-up`, followUpData);
+    return response.data;
+  },
+
+  getFollowUp: async (id) => {
+    const response = await axiosInstance.get(`${CONSULTATIONS_URL}/${id}/follow-up`);
     return response.data;
   },
 

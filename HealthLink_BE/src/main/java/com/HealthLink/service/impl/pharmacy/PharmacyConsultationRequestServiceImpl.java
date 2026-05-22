@@ -17,7 +17,6 @@ import com.HealthLink.repository.pharmacy.PharmacyRepository;
 import com.HealthLink.repository.prescription.PrescriptionHeaderRepository;
 import com.HealthLink.service.notification.NotificationService;
 import com.HealthLink.service.pharmacy.PharmacyConsultationRequestService;
-import com.HealthLink.service.pharmacy.PharmacyOrderService;
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import lombok.RequiredArgsConstructor;
@@ -41,6 +40,7 @@ public class PharmacyConsultationRequestServiceImpl implements PharmacyConsultat
     private static final String STATUS_IN_REVIEW = "IN_REVIEW";
     private static final String STATUS_NEED_MORE_INFO = "NEED_MORE_INFO";
     private static final String STATUS_PRESCRIPTION_CREATED = "PRESCRIPTION_CREATED";
+    private static final String STATUS_ORDER_CREATED = "ORDER_CREATED";
     private static final String STATUS_CANCELLED = "CANCELLED";
 
     private static final String PRESCRIPTION_STATUS_ISSUED = "Issued";
@@ -50,7 +50,6 @@ public class PharmacyConsultationRequestServiceImpl implements PharmacyConsultat
     private final PharmacyRepository pharmacyRepository;
     private final MedicineRepository medicineRepository;
     private final PrescriptionHeaderRepository prescriptionHeaderRepository;
-    private final PharmacyOrderService pharmacyOrderService;
     private final NotificationService notificationService;
     private final DeviceTokenRepository deviceTokenRepository;
     private final ObjectMapper objectMapper;
@@ -205,20 +204,12 @@ public class PharmacyConsultationRequestServiceImpl implements PharmacyConsultat
         consultationRequest.setPrescriptionHeader(savedHeader);
         consultationRequest.setStatus(STATUS_PRESCRIPTION_CREATED);
         PharmacyConsultationRequest savedRequest = consultationRequestRepository.save(consultationRequest);
-
-        PharmacyOrderRequest orderRequest = new PharmacyOrderRequest();
-        orderRequest.setPrescriptionHeaderId(savedHeader.getPrescriptionHeaderId());
-        orderRequest.setPharmacyId(savedRequest.getPharmacy().getPharmacyId());
-        orderRequest.setDeliveryType(normalizeDeliveryType(savedRequest.getPreferredDeliveryType()));
-        orderRequest.setNotes(savedRequest.getAdditionalNotes());
-
-        PharmacyOrderResponse orderResponse = pharmacyOrderService.transferPrescription(orderRequest);
+        savedHeader.setConsultationRequest(savedRequest);
         notifyPatientAboutPrescriptionAfterCommit(savedRequest, savedHeader);
 
         return PharmacyPrescriptionCreationResponse.builder()
                 .request(toResponse(savedRequest))
                 .prescription(toPrescriptionResponse(savedHeader))
-                .order(orderResponse)
                 .build();
     }
 
@@ -250,6 +241,7 @@ public class PharmacyConsultationRequestServiceImpl implements PharmacyConsultat
                 .prescriptionHeaderId(request.getPrescriptionHeader() != null
                         ? request.getPrescriptionHeader().getPrescriptionHeaderId()
                         : null)
+                .pharmacyOrderId(request.getOrder() != null ? request.getOrder().getOrderId() : null)
                 .createdAt(request.getCreatedAt())
                 .updatedAt(request.getUpdatedAt())
                 .build();
@@ -309,12 +301,14 @@ public class PharmacyConsultationRequestServiceImpl implements PharmacyConsultat
     }
 
     private void validateManualStatusUpdate(String currentStatus, String targetStatus) {
-        if (STATUS_PRESCRIPTION_CREATED.equals(currentStatus) || STATUS_CANCELLED.equals(currentStatus)) {
+        if (STATUS_PRESCRIPTION_CREATED.equals(currentStatus)
+                || STATUS_ORDER_CREATED.equals(currentStatus)
+                || STATUS_CANCELLED.equals(currentStatus)) {
             throw new BadRequestException("Request can no longer be updated from status " + currentStatus);
         }
 
-        if (STATUS_PRESCRIPTION_CREATED.equals(targetStatus)) {
-            throw new BadRequestException("PRESCRIPTION_CREATED can only be set by the system");
+        if (STATUS_PRESCRIPTION_CREATED.equals(targetStatus) || STATUS_ORDER_CREATED.equals(targetStatus)) {
+            throw new BadRequestException(targetStatus + " can only be set by the system");
         }
 
         if (!List.of(STATUS_PENDING, STATUS_IN_REVIEW, STATUS_NEED_MORE_INFO, STATUS_CANCELLED)
@@ -326,6 +320,10 @@ public class PharmacyConsultationRequestServiceImpl implements PharmacyConsultat
     private void validatePrescriptionCreation(PharmacyConsultationRequest request) {
         if (STATUS_CANCELLED.equals(request.getStatus())) {
             throw new BadRequestException("Cannot create prescription for a cancelled request");
+        }
+
+        if (STATUS_ORDER_CREATED.equals(request.getStatus()) || request.getOrder() != null) {
+            throw new BadRequestException("This request already follows the direct order flow");
         }
 
         if (STATUS_PRESCRIPTION_CREATED.equals(request.getStatus()) || request.getPrescriptionHeader() != null) {
