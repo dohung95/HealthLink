@@ -7,6 +7,7 @@ import com.HealthLink.dto.request.RescheduleAppointmentRequest;
 import com.HealthLink.dto.response.AppointmentResponse;
 import com.HealthLink.dto.response.AvailableSlotsResponse;
 import com.HealthLink.dto.response.HoldSlotResponse;
+import com.HealthLink.dto.response.PagedResponse;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
@@ -45,6 +46,13 @@ public class AppointmentController {
         return ResponseEntity.ok(appointmentService.getPatientAppointments(patientId));
     }
 
+    @GetMapping("/patient/{patientId}/page")
+    public ResponseEntity<PagedResponse<AppointmentResponse>> getByPatientPaged(
+            @PathVariable String patientId,
+            @RequestParam(defaultValue = "1") int page,
+            @RequestParam(defaultValue = "5") int size) {
+        return ResponseEntity.ok(appointmentService.getPatientAppointmentsPaged(patientId, page, size));
+    }
     @GetMapping("/doctor/{doctorId}")
     public ResponseEntity<List<AppointmentResponse>> getByDoctor(
             @PathVariable String doctorId) {
