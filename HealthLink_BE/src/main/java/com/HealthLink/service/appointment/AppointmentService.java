@@ -7,6 +7,7 @@ import com.HealthLink.dto.request.RescheduleAppointmentRequest;
 import com.HealthLink.dto.response.AppointmentResponse;
 import com.HealthLink.dto.response.AvailableSlotsResponse;
 import com.HealthLink.dto.response.HoldSlotResponse;
+import com.HealthLink.dto.response.PagedResponse;
 import java.time.LocalDate;
 
 import java.util.List;
@@ -42,6 +43,7 @@ public interface AppointmentService {
      */
     List<AppointmentResponse> getPatientAppointments(String patientId);
 
+    PagedResponse<AppointmentResponse> getPatientAppointmentsPaged(String patientId, int page, int size);
     List<AppointmentResponse> getDoctorAppointments(String doctorId);
 
     /**

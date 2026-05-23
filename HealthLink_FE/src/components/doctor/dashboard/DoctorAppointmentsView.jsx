@@ -417,8 +417,6 @@ export default function DoctorAppointmentsView({ doctorId, onViewAppointment, vi
   return (
     <>
       <div className="d-flex justify-content-between align-items-center p-3 pb-0 flex-wrap gap-2">
-        <h6 className="mb-0 fw-semibold text-dark d-none d-md-block">Appointments List</h6>
-        
         <div className="d-flex gap-2 ms-auto flex-wrap">
           {/* Status Filter Dropdown */}
           <div className="position-relative">
@@ -524,7 +522,7 @@ export default function DoctorAppointmentsView({ doctorId, onViewAppointment, vi
         </div>
       </div>
 
-      <div className="table-responsive">
+      <div className="table-responsive doctor-appointments-table-wrap">
         <table className="table table-borderless align-middle mb-0">
           <thead className="table-header">
             <tr>
@@ -605,7 +603,7 @@ export default function DoctorAppointmentsView({ doctorId, onViewAppointment, vi
                       </button>
                     )}
 
-                    {a.status !== 'Completed' && a.status !== 'Cancelled' && (
+                    {a.status !== 'Cancelled' && (
                       <button
                         className="btn btn-view d-flex align-items-center justify-content-center"
                         onClick={() => onViewAppointment ? onViewAppointment(a) : navigate(`/appointment/${a.appointmentID}`)}

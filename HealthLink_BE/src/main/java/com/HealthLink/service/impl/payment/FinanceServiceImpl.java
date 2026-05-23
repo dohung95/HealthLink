@@ -11,7 +11,6 @@ import com.HealthLink.entity.Appointment;
 import com.HealthLink.entity.Invoice;
 import com.HealthLink.entity.Payment;
 import com.HealthLink.entity.PharmacyOrder;
-import com.HealthLink.entity.PrescriptionHeader;
 import com.HealthLink.exception.BadRequestException;
 import com.HealthLink.exception.InvoiceNotFoundException;
 import com.HealthLink.exception.PayPalIntegrationException;
@@ -20,7 +19,6 @@ import com.HealthLink.repository.appointment.AppointmentRepository;
 import com.HealthLink.repository.payment.InvoiceRepository;
 import com.HealthLink.repository.payment.PaymentRepository;
 import com.HealthLink.repository.pharmacy.PharmacyOrderRepository;
-import com.HealthLink.repository.prescription.PrescriptionHeaderRepository;
 import com.HealthLink.service.notification.NotificationService;
 import com.HealthLink.service.payment.CommissionService;
 import com.HealthLink.service.payment.FinanceService;
@@ -95,7 +93,6 @@ public class FinanceServiceImpl implements FinanceService {
     private final AppointmentRepository          appointmentRepository;
     private final InvoiceRepository              invoiceRepository;
     private final PaymentRepository              paymentRepository;
-    private final PrescriptionHeaderRepository   prescriptionHeaderRepository;
     private final PharmacyOrderRepository        pharmacyOrderRepository;
     private final NotificationService            notificationService;
     private final DeviceTokenRepository          deviceTokenRepository;
@@ -125,47 +122,19 @@ public class FinanceServiceImpl implements FinanceService {
             throw new BadRequestException("An invoice already exists for this appointment.");
         }
 
-        // 4. Thu thập các khoản phí
-        // 4a. Phí tư vấn lấy từ Doctor
+        // 4. Doctor invoice only covers the consultation fee.
         BigDecimal consultationFee = appointment.getDoctor() != null
                 && appointment.getDoctor().getConsultationFee() != null
                 ? appointment.getDoctor().getConsultationFee()
                 : BigDecimal.ZERO;
 
-        // 4b. Phí thuốc – tổng tất cả PrescriptionHeader.totalAmount của lịch hẹn này
-        BigDecimal medicineFee = prescriptionHeaderRepository
-                .findByAppointment_AppointmentId(appointmentId)
-                .stream()
-                .map(ph -> ph.getTotalAmount() != null ? ph.getTotalAmount() : BigDecimal.ZERO)
-                .reduce(BigDecimal.ZERO, BigDecimal::add);
-
-        // 4c. Phí giao hàng – tổng PharmacyOrder.deliveryFee của các đơn thuốc thuộc lịch hẹn này
-        List<PrescriptionHeader> headers =
-                prescriptionHeaderRepository.findByAppointment_AppointmentId(appointmentId);
-
         BigDecimal deliveryFee = BigDecimal.ZERO;
-        for (PrescriptionHeader ph : headers) {
-            List<PharmacyOrder> orders = pharmacyOrderRepository
-                    .findByPatient_PatientId(appointment.getPatient().getPatientId())
-                    .stream()
-                    .filter(o -> o.getPrescriptionHeader() != null
-                            && o.getPrescriptionHeader().getPrescriptionHeaderId()
-                            .equals(ph.getPrescriptionHeaderId()))
-                    .collect(Collectors.toList());
-
-            for (PharmacyOrder order : orders) {
-                if (order.getDeliveryFee() != null) {
-                    deliveryFee = deliveryFee.add(order.getDeliveryFee());
-                }
-            }
-        }
+        BigDecimal medicineFee = BigDecimal.ZERO;
 
         // 5. Tính tổng – mặc định không có giảm giá/thuế (có thể mở rộng sau)
         BigDecimal discount = BigDecimal.ZERO;
         BigDecimal tax      = BigDecimal.ZERO;
         BigDecimal amount   = consultationFee
-                .add(medicineFee)
-                .add(deliveryFee)
                 .subtract(discount)
                 .add(tax)
                 .setScale(2, RoundingMode.HALF_UP);
@@ -442,32 +411,6 @@ public class FinanceServiceImpl implements FinanceService {
                     // Ghi log lỗi nhưng không rollback giao dịch thanh toán đã thành công
                     log.error("Commission processing failed for invoice {}: {}",
                             invoice.getInvoiceId(), ex.getMessage(), ex);
-                }
-
-                // 2. Kết nối luồng Chiết khấu Nhà thuốc:
-                // Tìm PharmacyOrder liên kết với lịch hẹn của hóa đơn này và xử lý commission
-                if (invoice.getAppointment() != null && invoice.getAppointment().getPatient() != null) {
-                    try {
-                        List<PrescriptionHeader> prescriptionHeaders = prescriptionHeaderRepository
-                                .findByAppointment_AppointmentId(invoice.getAppointment().getAppointmentId());
-                        for (PrescriptionHeader ph : prescriptionHeaders) {
-                            List<PharmacyOrder> pharmacyOrders = pharmacyOrderRepository
-                                    .findByPatient_PatientId(invoice.getAppointment().getPatient().getPatientId())
-                                    .stream()
-                                    .filter(o -> o.getPrescriptionHeader() != null
-                                            && o.getPrescriptionHeader().getPrescriptionHeaderId()
-                                            .equals(ph.getPrescriptionHeaderId()))
-                                    .collect(Collectors.toList());
-                            for (PharmacyOrder pharmacyOrder : pharmacyOrders) {
-                                commissionService.processPharmacyOrderCommission(pharmacyOrder);
-                                log.info("Pharmacy commission processed for order {} (invoice {})",
-                                        pharmacyOrder.getOrderId(), invoice.getInvoiceId());
-                            }
-                        }
-                    } catch (Exception ex) {
-                        log.error("Pharmacy commission processing failed for invoice {}: {}",
-                                invoice.getInvoiceId(), ex.getMessage(), ex);
-                    }
                 }
 
                 log.info("Payment SUCCESS – invoice {} paid via PayPal order {}",
@@ -854,6 +797,8 @@ public class FinanceServiceImpl implements FinanceService {
     private boolean shouldNotifyDoctorAboutCompletedPaidOrder(PharmacyOrder pharmacyOrder) {
         return PHARMACY_ORDER_COMPLETED.equalsIgnoreCase(safeValue(pharmacyOrder.getStatus(), ""))
                 && INVOICE_PAID.equalsIgnoreCase(safeValue(pharmacyOrder.getPaymentStatus(), ""))
+                && pharmacyOrder.getPrescriptionHeader() != null
+                && pharmacyOrder.getPrescriptionHeader().getDoctor() != null
                 && !Boolean.TRUE.equals(pharmacyOrder.getDoctorCompletionPaidNotified());
     }
 

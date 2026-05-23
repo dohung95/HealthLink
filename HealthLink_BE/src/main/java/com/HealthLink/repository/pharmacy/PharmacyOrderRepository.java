@@ -30,4 +30,6 @@ public interface PharmacyOrderRepository extends JpaRepository<PharmacyOrder, In
     boolean existsByOrderNumber(String orderNumber);
 
     boolean existsByPrescriptionHeader_PrescriptionHeaderId(Integer prescriptionHeaderId);
+
+    boolean existsByConsultationRequest_RequestId(Integer requestId);
 }

@@ -123,6 +123,36 @@ class PrescriptionServiceImplTest {
     }
 
     @Test
+    void createPrescription_shouldRejectDuplicateAppointmentPrescription() {
+        PrescriptionRequest request = new PrescriptionRequest();
+        request.setAppointmentId(11);
+
+        PrescriptionItemRequest itemRequest = new PrescriptionItemRequest();
+        itemRequest.setMedicineId(5);
+        itemRequest.setTotalSupplyDays(7);
+        itemRequest.setQuantity(1);
+        itemRequest.setTiming("MORNING");
+        request.setItems(List.of(itemRequest));
+
+        Appointment appointment = Appointment.builder()
+                .appointmentId(11)
+                .status("Scheduled")
+                .patient(patient("patient-1", "Patient One"))
+                .doctor(doctor("doctor-1", "Doctor One"))
+                .build();
+
+        when(appointmentRepository.findById(11)).thenReturn(Optional.of(appointment));
+        when(headerRepository.findByAppointment_AppointmentId(11))
+                .thenReturn(List.of(PrescriptionHeader.builder().prescriptionHeaderId(99).build()));
+
+        assertThatThrownBy(() -> prescriptionService.createPrescription(request))
+                .isInstanceOf(BadRequestException.class)
+                .hasMessage("A prescription already exists for this appointment");
+
+        verify(headerRepository, never()).save(any(PrescriptionHeader.class));
+    }
+
+    @Test
     void markPrescriptionAsOpened_shouldBeIdempotentWhenAlreadyOpened() {
         LocalDateTime openedAt = LocalDateTime.of(2026, 5, 15, 8, 30);
         PrescriptionHeader header = PrescriptionHeader.builder()

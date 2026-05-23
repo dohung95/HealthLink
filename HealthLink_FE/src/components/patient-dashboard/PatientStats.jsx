@@ -31,7 +31,7 @@ const PatientStats = () => {
 
                 const [appointments, records, prescriptions, unreadCount] = await Promise.allSettled([
                     appointmentService.getPatientAppointments(profile.userId),
-                    healthRecordApi.getMyRecords(),
+                    healthRecordApi.getMyRecords(profile.userId, 1, 1),
                     prescriptionService.getMyPrescriptions(),
                     notificationApi.getUnreadCount(),
                 ]);
@@ -44,7 +44,7 @@ const PatientStats = () => {
                     : 0;
 
                 const recordsCount = records.status === 'fulfilled'
-                    ? (Array.isArray(records.value) ? records.value.length : 0)
+                    ? records.value?.totalItems ?? 0
                     : 0;
 
                 const prescriptionsCount = prescriptions.status === 'fulfilled'

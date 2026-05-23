@@ -48,13 +48,6 @@ export const prescriptionService = {
     return null;
   },
 
-  updatePrescription: async (id, prescriptionData) => {
-    throw new Error(`Updating prescription ${id} is not supported by the current backend API.`);
-  },
-
-  deletePrescription: async (id) => {
-    throw new Error(`Deleting prescription ${id} is not supported by the current backend API.`);
-  },
 };
 
 export default prescriptionService;

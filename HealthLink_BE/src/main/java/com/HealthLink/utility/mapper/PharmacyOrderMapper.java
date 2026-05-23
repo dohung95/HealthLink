@@ -3,6 +3,7 @@ package com.HealthLink.utility.mapper;
 import com.HealthLink.dto.pharmacy.PharmacyOrderResponse;
 import com.HealthLink.entity.Patient;
 import com.HealthLink.entity.Pharmacy;
+import com.HealthLink.entity.PharmacyConsultationRequest;
 import com.HealthLink.entity.PharmacyOrder;
 import com.HealthLink.entity.PrescriptionHeader;
 
@@ -13,6 +14,9 @@ public final class PharmacyOrderMapper {
 
     public static PharmacyOrderResponse toResponse(PharmacyOrder order) {
         PrescriptionHeader prescription = order.getPrescriptionHeader();
+        PharmacyConsultationRequest consultationRequest = order.getConsultationRequest() != null
+                ? order.getConsultationRequest()
+                : prescription != null ? prescription.getConsultationRequest() : null;
         Pharmacy pharmacy = order.getPharmacy();
         Patient patient = order.getPatient();
 
@@ -20,6 +24,7 @@ public final class PharmacyOrderMapper {
                 .orderId(order.getOrderId())
                 .orderNumber(order.getOrderNumber())
                 .prescriptionHeaderId(prescription != null ? prescription.getPrescriptionHeaderId() : null)
+                .pharmacyRequestId(consultationRequest != null ? consultationRequest.getRequestId() : null)
                 .appointmentId(prescription != null && prescription.getAppointment() != null
                         ? prescription.getAppointment().getAppointmentId() : null)
                 .diagnosis(prescription != null ? prescription.getDiagnosis() : null)

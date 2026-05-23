@@ -39,6 +39,7 @@ public class Appointment {
     private String cancelledBy;
     private LocalDateTime cancelledAt;
     private Integer rescheduledFrom;
+    private Integer followUpSourceAppointmentId;
 
     @Builder.Default
     private boolean reminderSent = false;

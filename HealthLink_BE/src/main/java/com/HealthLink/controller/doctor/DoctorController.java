@@ -15,7 +15,7 @@ import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.web.bind.annotation.*;
-
+import com.HealthLink.dto.response.PagedResponse;
 import java.io.IOException;
 import java.util.List;
 import java.util.Map;
@@ -113,5 +113,29 @@ public class DoctorController {
             return ResponseEntity.internalServerError()
                     .body(Map.of("message", "Failed to upload: " + e.getMessage()));
         }
+    }
+
+    @GetMapping("/search")
+    public ResponseEntity<PagedResponse<DoctorResponse>> searchDoctors(
+            @RequestParam(required = false) String specialty,
+            @RequestParam(required = false) String name,
+            @RequestParam(required = false) String location,
+            @RequestParam(defaultValue = "1") int page,
+            @RequestParam(defaultValue = "5") int pageSize
+    ) {
+        return ResponseEntity.ok(
+                doctorService.searchDoctors(
+                        specialty,
+                        name,
+                        location,
+                        page,
+                        pageSize
+                )
+        );
+    }
+
+    @GetMapping("/specialties")
+    public ResponseEntity<List<String>> getSpecialties() {
+        return ResponseEntity.ok(doctorService.getSpecialties());
     }
 }

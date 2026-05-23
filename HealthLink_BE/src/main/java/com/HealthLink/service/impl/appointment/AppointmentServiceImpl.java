@@ -8,6 +8,7 @@ import com.HealthLink.dto.response.AppointmentResponse;
 import com.HealthLink.dto.response.AvailableSlotResponse;
 import com.HealthLink.dto.response.AvailableSlotsResponse;
 import com.HealthLink.dto.response.HoldSlotResponse;
+import com.HealthLink.dto.response.PagedResponse;
 import com.HealthLink.entity.Appointment;
 import com.HealthLink.entity.AppointmentSlotHold;
 import com.HealthLink.entity.Doctor;
@@ -27,6 +28,8 @@ import com.HealthLink.service.notification.NotificationService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageRequest;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.transaction.support.TransactionSynchronization;
@@ -349,6 +352,32 @@ public class AppointmentServiceImpl implements AppointmentService {
                 .stream()
                 .map(this::toResponse)
                 .collect(Collectors.toList());
+    }
+
+    @Override
+    public PagedResponse<AppointmentResponse> getPatientAppointmentsPaged(String patientId, int page, int size) {
+        patientRepository.findById(patientId)
+                .orElseThrow(() -> new ResourceNotFoundException(
+                        "not found patient with ID: " + patientId));
+
+        int safePage = Math.max(page, 1);
+        int safeSize = Math.min(Math.max(size, 1), 50);
+
+        Page<Appointment> appointmentPage = appointmentRepository.findPatientAppointmentsOrdered(
+                patientId,
+                LocalDateTime.now(),
+                PageRequest.of(safePage - 1, safeSize)
+        );
+
+        return PagedResponse.<AppointmentResponse>builder()
+                .items(appointmentPage.getContent().stream()
+                        .map(this::toResponse)
+                        .collect(Collectors.toList()))
+                .page(safePage)
+                .pageSize(safeSize)
+                .totalItems(appointmentPage.getTotalElements())
+                .totalPages(appointmentPage.getTotalPages())
+                .build();
     }
 
     @Override

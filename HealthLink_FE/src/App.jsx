@@ -1,5 +1,5 @@
 // src/App.js
-import {useEffect} from 'react';
+import { useEffect } from 'react';
 import { BrowserRouter as Router, Routes, Route, useLocation, useNavigate } from 'react-router-dom';
 
 // ---------------------------------------------import file----------------------------------------------------------
@@ -9,7 +9,7 @@ import 'react-toastify/dist/ReactToastify.css';
 import Home from './components/Home';
 import Schedule from './components/patient-dashboard/Schedule';
 import MyAppointments from './components/MyAppointment';
-import Doctors from './components/doctor/public/DoctorsList';
+import Doctors from './components/DoctorsList';
 import Records from './components/Records';
 import Video from './components/Video';
 
@@ -131,7 +131,7 @@ function AppContent() {
     '/payment'
   ];
 
-  const isKnownPath = allValidPaths.some(path => 
+  const isKnownPath = allValidPaths.some(path =>
     location.pathname === path || location.pathname.startsWith(path + '/')
   ) || location.pathname.startsWith('/doctor/') || location.pathname.startsWith('/book/');
 
@@ -228,14 +228,14 @@ function AppContent() {
               </ProtectedRoute>
             } />
 
-            <Route path="/admin" element={<Admin /> } />
-            <Route path="/admin/patients" element={<Patients /> } />
-            <Route path="/admin/doctors" element={<AdminDoctors /> } />
-            <Route path="/admin/pharmacies" element={<PharmacyManagement /> } />
-            <Route path="/admin/commission" element={<CommissionManagement /> } />
-            <Route path="/admin/appointments" element={<Appointments /> } />
-            <Route path="/admin/medical-records" element={<MedicalRecords /> } />
-            <Route path="/admin/registrations" element={<Registrations /> } />
+            <Route path="/admin" element={<Admin />} />
+            <Route path="/admin/patients" element={<Patients />} />
+            <Route path="/admin/doctors" element={<AdminDoctors />} />
+            <Route path="/admin/pharmacies" element={<PharmacyManagement />} />
+            <Route path="/admin/commission" element={<CommissionManagement />} />
+            <Route path="/admin/appointments" element={<Appointments />} />
+            <Route path="/admin/medical-records" element={<MedicalRecords />} />
+            <Route path="/admin/registrations" element={<Registrations />} />
 
             <Route
               path="/patient-dashboard"
@@ -249,8 +249,8 @@ function AppContent() {
               <Route path="booking" element={<Schedule />} />
               <Route path="book/:doctorId" element={<Schedule />} />
               <Route path="appointments" element={<MyAppointments />} />
-              <Route path="health-records" element={<HealthRecords />} />
-              <Route path="share-records" element={<ShareHealthRecords />} />
+              <Route path="health-records" element={<HealthRecords embedded />} />
+              <Route path="share-records" element={<ShareHealthRecords embedded />} />
               <Route path="prescriptions" element={<PatientPrescriptionView />} />
               <Route path="profile" element={<ProfilePatient />} />
             </Route>
