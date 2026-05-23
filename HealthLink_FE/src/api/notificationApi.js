@@ -1,58 +1,39 @@
-import axios from 'axios';
-
-const API_URL = 'https://localhost:7267/api/Notification';
-
-const getAuthHeader = () => {
-  const token = localStorage.getItem('token');
-  return token ? { Authorization: `Bearer ${token}` } : {};
-};
+import axiosInstance from './axiosConfig';
+import { normalizeNotification } from './normalizers';
 
 export const notificationApi = {
-  // Get all notifications for current user
   getMyNotifications: async () => {
-    try {
-      const response = await axios.get(`${API_URL}/my`, {
-        headers: getAuthHeader()
-      });
-      console.log('API response for notifications:', response.data);
-      return response.data;
-    } catch (error) {
-      console.error('Error fetching notifications:', error.response?.data || error.message);
-      throw error;
-    }
+    const response = await axiosInstance.get('/api/notifications', {
+      params: { page: 0, size: 100 },
+    });
+
+    const items = response.data?.content ?? response.data?.items ?? response.data ?? [];
+    return items.map(normalizeNotification);
   },
 
-  // Get unread count
   getUnreadCount: async () => {
-    const response = await axios.get(`${API_URL}/my/unread-count`, {
-      headers: getAuthHeader()
-    });
+    const response = await axiosInstance.get('/api/notifications/unread-count');
     return response.data;
   },
 
-  // Mark notification as read
   markAsRead: async (notificationId) => {
-    const response = await axios.put(`${API_URL}/${notificationId}/mark-read`, {}, {
-      headers: getAuthHeader()
-    });
+    const response = await axiosInstance.patch(`/api/notifications/${notificationId}/read`);
     return response.data;
   },
 
-  // Mark all notifications as read
   markAllAsRead: async () => {
-    const response = await axios.put(`${API_URL}/mark-all-read`, {}, {
-      headers: getAuthHeader()
-    });
-    return response.data;
+    const notifications = await notificationApi.getMyNotifications();
+    await Promise.all(
+      notifications
+        .filter((item) => !item.isRead)
+        .map((item) => notificationApi.markAsRead(item.notificationId)),
+    );
+    return { success: true };
   },
 
-  // Delete notification
   deleteNotification: async (notificationId) => {
-    const response = await axios.delete(`${API_URL}/${notificationId}`, {
-      headers: getAuthHeader()
-    });
-    return response.data;
-  }
+    return notificationApi.markAsRead(notificationId);
+  },
 };
 
 export default notificationApi;

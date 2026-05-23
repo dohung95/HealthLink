@@ -38,9 +38,11 @@ public class AdminAppointmentDto {
     private String department;
 
     // Consultation info (from related Consultation entity)
+    private Integer consultationId;
     private String diagnosis;
     private String doctorNotes;
     private LocalDateTime followUpDate;
+    private Integer followUpAppointmentId;
     private String treatmentPlan;
 
     // Additional info

@@ -1,19 +1,24 @@
 package com.HealthLink.service.impl.pharmacy;
 
+import com.HealthLink.dto.pharmacy.PharmacyConsultationOrderCreateRequest;
 import com.HealthLink.dto.pharmacy.PharmacyOrderRequest;
 import com.HealthLink.dto.pharmacy.PharmacyOrderResponse;
 import com.HealthLink.dto.pharmacy.PharmacyOrderStatusRequest;
 import com.HealthLink.entity.*;
 import com.HealthLink.entity.enums.NotificationPriority;
 import com.HealthLink.entity.enums.NotificationType;
+import com.HealthLink.exception.BadRequestException;
+import com.HealthLink.exception.ForbiddenException;
 import com.HealthLink.exception.InvalidStatusException;
 import com.HealthLink.exception.ResourceNotFoundException;
 import com.HealthLink.repository.notification.DeviceTokenRepository;
+import com.HealthLink.repository.pharmacy.PharmacyConsultationRequestRepository;
 import com.HealthLink.repository.pharmacy.PharmacyOrderRepository;
 import com.HealthLink.repository.pharmacy.PharmacyRepository;
 import com.HealthLink.repository.prescription.PrescriptionHeaderRepository;
 import com.HealthLink.service.pharmacy.PharmacyOrderService;
 import com.HealthLink.service.notification.NotificationService;
+import com.HealthLink.utility.mapper.PharmacyOrderMapper;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
@@ -44,9 +49,14 @@ public class PharmacyOrderServiceImpl implements PharmacyOrderService {
     private static final String STATUS_COMPLETED = "Completed";
     private static final String STATUS_CANCELLED = "Cancelled";
     private static final String STATUS_REFUNDED  = "Refunded";
-
-    // PrescriptionHeader status
-    private static final String PRESCRIPTION_STATUS_SENT = "Sent";
+    private static final String REQUEST_STATUS_PRESCRIPTION_CREATED = "PRESCRIPTION_CREATED";
+    private static final String REQUEST_STATUS_ORDER_CREATED = "ORDER_CREATED";
+    private static final String REQUEST_STATUS_CANCELLED = "CANCELLED";
+    private static final String PAYMENT_STATUS_PENDING = "Pending";
+    private static final String PAYMENT_STATUS_PAID = "Paid";
+    private static final String DELIVERY_TYPE_DELIVERY = "Delivery";
+    private static final String DELIVERY_TYPE_PICKUP = "Pickup";
+    private static final double EARTH_RADIUS_KM = 6371.0;
 
     // ── Allowed next-status map (luồng hợp lệ) ───────────────────────────────
     // Pending → Confirmed / Cancelled
@@ -70,75 +80,93 @@ public class PharmacyOrderServiceImpl implements PharmacyOrderService {
         );
 
     private final PharmacyOrderRepository orderRepository;
+    private final PharmacyConsultationRequestRepository consultationRequestRepository;
     private final PharmacyRepository pharmacyRepository;
     private final PrescriptionHeaderRepository prescriptionHeaderRepository;
     private final NotificationService notificationService;
     private final DeviceTokenRepository deviceTokenRepository;
 
     // =========================================================================
-    // Task 2.1 & 2.3 – Chuyển đơn, tạo PharmacyOrder
+    // Patient creates a pharmacy order from an existing prescription
     // =========================================================================
     @Override
     @Transactional
-    public PharmacyOrderResponse transferPrescription(PharmacyOrderRequest request) {
-
-        // 1. Tìm PrescriptionHeader
+    public PharmacyOrderResponse createOrderFromPrescription(PharmacyOrderRequest request, String patientId) {
         PrescriptionHeader prescription = prescriptionHeaderRepository
                 .findById(request.getPrescriptionHeaderId())
                 .orElseThrow(() -> new ResourceNotFoundException(
                         "PrescriptionHeader", "id", request.getPrescriptionHeaderId()));
 
-        // 2. Tìm Pharmacy
+        Patient patient = prescription.getPatient();
+        validatePatientOwnsPrescription(patient, patientId);
+        validatePrescriptionCanBeOrdered(prescription);
+        if (orderRepository.existsByPrescriptionHeader_PrescriptionHeaderId(request.getPrescriptionHeaderId())) {
+            throw new BadRequestException(
+                    "A pharmacy order already exists for prescription " + request.getPrescriptionHeaderId()
+            );
+        }
+
         Pharmacy pharmacy = pharmacyRepository
                 .findById(request.getPharmacyId())
                 .orElseThrow(() -> new ResourceNotFoundException(
                         "Pharmacy", "id", request.getPharmacyId()));
+        validatePharmacyCanReceiveOrders(pharmacy);
 
-        // 3. Lấy Patient từ PrescriptionHeader
-        Patient patient = prescription.getPatient();
-
-        // 4. Lấy medicineAmount từ PrescriptionHeader.totalAmount
         BigDecimal medicineAmount = prescription.getTotalAmount() != null
                 ? prescription.getTotalAmount()
                 : BigDecimal.ZERO;
 
-        // 5. Lấy deliveryFee từ Pharmacy
-        BigDecimal deliveryFee = pharmacy.getDeliveryFee() != null
-                ? pharmacy.getDeliveryFee()
-                : BigDecimal.ZERO;
+        String deliveryType = normalizeDeliveryType(request.getDeliveryType());
+        BigDecimal deliveryFee = BigDecimal.ZERO;
 
-        // 6. Tính totalAmount
-        BigDecimal totalAmount = medicineAmount.add(deliveryFee);
-
-        // 7. Tự động điền deliveryAddress từ Patient nếu request không truyền
         String deliveryAddress = request.getDeliveryAddress();
         Double deliveryLat    = request.getDeliveryLatitude();
         Double deliveryLon    = request.getDeliveryLongitude();
 
-        if (deliveryAddress == null || deliveryAddress.isBlank()) {
+        if (DELIVERY_TYPE_DELIVERY.equals(deliveryType)) {
+            if (!pharmacy.isDeliveryAvailable()) {
+                throw new BadRequestException("Pharmacy does not support delivery");
+            }
+
+            if (deliveryAddress == null || deliveryAddress.isBlank()) {
+                deliveryAddress = buildPatientAddress(patient);
+                deliveryLat     = patient.getLatitude();
+                deliveryLon     = patient.getLongitude();
+            }
+
+            if (deliveryAddress == null || deliveryAddress.isBlank()) {
+                throw new BadRequestException("Delivery address is required for delivery orders");
+            }
+
+            validateDeliveryRadius(pharmacy, deliveryLat, deliveryLon);
+
+            deliveryFee = pharmacy.getDeliveryFee() != null
+                    ? pharmacy.getDeliveryFee()
+                    : BigDecimal.ZERO;
+        } else if (deliveryAddress == null || deliveryAddress.isBlank()) {
             deliveryAddress = buildPatientAddress(patient);
             deliveryLat     = patient.getLatitude();
             deliveryLon     = patient.getLongitude();
         }
 
-        // 8. Sinh orderNumber unique: ORD-YYYYMMDD-XXXX
+        BigDecimal totalAmount = medicineAmount.add(deliveryFee);
+
         String orderNumber = generateOrderNumber();
 
-        // 9. Xây dựng PharmacyOrder
         PharmacyOrder order = PharmacyOrder.builder()
                 .orderNumber(orderNumber)
                 .prescriptionHeader(prescription)
                 .pharmacy(pharmacy)
                 .patient(patient)
                 .status(STATUS_PENDING)
-                .deliveryType(request.getDeliveryType() != null ? request.getDeliveryType() : "Delivery")
+                .deliveryType(deliveryType)
                 .deliveryAddress(deliveryAddress)
                 .deliveryLatitude(deliveryLat)
                 .deliveryLongitude(deliveryLon)
                 .deliveryFee(deliveryFee)
                 .medicineAmount(medicineAmount)
                 .totalAmount(totalAmount)
-                .paymentStatus("Pending")
+                .paymentStatus(PAYMENT_STATUS_PENDING)
                 .paymentMethod(request.getPaymentMethod())
                 .notes(request.getNotes())
                 .createdAt(LocalDateTime.now())
@@ -146,13 +174,95 @@ public class PharmacyOrderServiceImpl implements PharmacyOrderService {
 
         PharmacyOrder saved = orderRepository.save(order);
 
-        // 10. Cập nhật trạng thái PrescriptionHeader → Sent
-        prescription.setStatus(PRESCRIPTION_STATUS_SENT);
-        prescriptionHeaderRepository.save(prescription);
-
         notifyPharmacyAboutNewOrderAfterCommit(saved);
 
-        return toResponse(saved);
+        return PharmacyOrderMapper.toResponse(saved);
+    }
+
+    @Override
+    @Transactional
+    public PharmacyOrderResponse createOrderFromConsultationRequest(
+            Integer requestId,
+            PharmacyConsultationOrderCreateRequest request,
+            String pharmacyId
+    ) {
+        PharmacyConsultationRequest consultationRequest = consultationRequestRepository.findById(requestId)
+                .orElseThrow(() -> new ResourceNotFoundException(
+                        "PharmacyConsultationRequest", "id", requestId));
+
+        validatePharmacyOwnsRequest(consultationRequest, pharmacyId);
+        validateConsultationRequestCanCreateOrder(consultationRequest);
+
+        Pharmacy pharmacy = consultationRequest.getPharmacy();
+        validatePharmacyCanReceiveOrders(pharmacy);
+
+        Patient patient = consultationRequest.getPatient();
+        BigDecimal medicineAmount = normalizeMedicineAmount(request.getMedicineAmount());
+        String deliveryType = normalizeDeliveryType(
+                firstNonBlank(request.getDeliveryType(), consultationRequest.getPreferredDeliveryType())
+        );
+        BigDecimal deliveryFee = BigDecimal.ZERO;
+
+        String deliveryAddress = trimToNull(request.getDeliveryAddress());
+        Double deliveryLat = request.getDeliveryLatitude();
+        Double deliveryLon = request.getDeliveryLongitude();
+
+        if (DELIVERY_TYPE_DELIVERY.equals(deliveryType)) {
+            if (!pharmacy.isDeliveryAvailable()) {
+                throw new BadRequestException("Pharmacy does not support delivery");
+            }
+
+            if (deliveryAddress == null) {
+                deliveryAddress = buildPatientAddress(patient);
+                deliveryLat = patient != null ? patient.getLatitude() : null;
+                deliveryLon = patient != null ? patient.getLongitude() : null;
+            }
+
+            if (deliveryAddress == null || deliveryAddress.isBlank()) {
+                throw new BadRequestException("Delivery address is required for delivery orders");
+            }
+
+            validateDeliveryRadius(pharmacy, deliveryLat, deliveryLon);
+
+            deliveryFee = pharmacy.getDeliveryFee() != null
+                    ? pharmacy.getDeliveryFee()
+                    : BigDecimal.ZERO;
+        } else if (deliveryAddress == null) {
+            deliveryAddress = buildPatientAddress(patient);
+            deliveryLat = patient != null ? patient.getLatitude() : null;
+            deliveryLon = patient != null ? patient.getLongitude() : null;
+        }
+
+        BigDecimal totalAmount = medicineAmount.add(deliveryFee);
+
+        PharmacyOrder order = PharmacyOrder.builder()
+                .orderNumber(generateOrderNumber())
+                .consultationRequest(consultationRequest)
+                .pharmacy(pharmacy)
+                .patient(patient)
+                .status(STATUS_PENDING)
+                .deliveryType(deliveryType)
+                .deliveryAddress(deliveryAddress)
+                .deliveryLatitude(deliveryLat)
+                .deliveryLongitude(deliveryLon)
+                .deliveryFee(deliveryFee)
+                .medicineAmount(medicineAmount)
+                .totalAmount(totalAmount)
+                .paymentStatus(PAYMENT_STATUS_PENDING)
+                .paymentMethod(trimToNull(request.getPaymentMethod()))
+                .notes(firstNonBlank(request.getNotes(), consultationRequest.getAdditionalNotes()))
+                .pharmacistNotes(trimToNull(request.getPharmacistNotes()))
+                .createdAt(LocalDateTime.now())
+                .build();
+
+        PharmacyOrder savedOrder = orderRepository.save(order);
+        consultationRequest.setOrder(savedOrder);
+        consultationRequest.setStatus(REQUEST_STATUS_ORDER_CREATED);
+        consultationRequestRepository.save(consultationRequest);
+
+        notifyPatientAboutNewOrderFromRequestAfterCommit(savedOrder);
+
+        return PharmacyOrderMapper.toResponse(savedOrder);
     }
 
     // =========================================================================
@@ -171,7 +281,7 @@ public class PharmacyOrderServiceImpl implements PharmacyOrderService {
         if (Objects.equals(currentStatus, targetStatus)) {
             log.info("Skipping order status update notification because status is unchanged: orderId={}, status={}",
                     orderId, currentStatus);
-            return toResponse(order);
+            return PharmacyOrderMapper.toResponse(order);
         }
 
         // Kiểm tra luồng trạng thái hợp lệ
@@ -209,11 +319,18 @@ public class PharmacyOrderServiceImpl implements PharmacyOrderService {
         }
 
         order.setStatus(targetStatus);
+        boolean notifyDoctorAboutCompletedPaidOrder = shouldNotifyDoctorAboutCompletedPaidOrder(order);
+        if (notifyDoctorAboutCompletedPaidOrder) {
+            order.setDoctorCompletionPaidNotified(true);
+        }
         PharmacyOrder updated = orderRepository.save(order);
 
         notifyPatientAboutOrderStatusAfterCommit(updated, currentStatus, targetStatus);
+        if (notifyDoctorAboutCompletedPaidOrder) {
+            notifyDoctorAboutCompletedAndPaidOrderAfterCommit(updated);
+        }
 
-        return toResponse(updated);
+        return PharmacyOrderMapper.toResponse(updated);
     }
 
     // =========================================================================
@@ -238,21 +355,156 @@ public class PharmacyOrderServiceImpl implements PharmacyOrderService {
 
     @Override
     @Transactional(readOnly = true)
+    public List<PharmacyOrderResponse> getOrdersByDoctor(String doctorId) {
+        return orderRepository.findByPrescriptionHeader_Doctor_DoctorIdOrderByCreatedAtDesc(doctorId)
+                .stream().map(this::toResponse).collect(Collectors.toList());
+    }
+
+    @Override
+    @Transactional(readOnly = true)
     public PharmacyOrderResponse getOrderById(Integer orderId) {
         PharmacyOrder order = orderRepository.findById(orderId)
                 .orElseThrow(() -> new ResourceNotFoundException("PharmacyOrder", "id", orderId));
-        return toResponse(order);
+        return PharmacyOrderMapper.toResponse(order);
     }
 
     // =========================================================================
     // Private helpers
     // =========================================================================
 
+    private void validatePatientOwnsPrescription(Patient patient, String patientId) {
+        if (patient == null || patient.getPatientId() == null || !patient.getPatientId().equals(patientId)) {
+            throw new ForbiddenException("You are not allowed to create an order for this prescription");
+        }
+    }
+
+    private void validatePharmacyOwnsRequest(PharmacyConsultationRequest request, String pharmacyId) {
+        if (request == null
+                || request.getPharmacy() == null
+                || request.getPharmacy().getPharmacyId() == null
+                || !request.getPharmacy().getPharmacyId().equals(pharmacyId)) {
+            throw new ForbiddenException("You are not allowed to create an order for this request");
+        }
+    }
+
+    private void validatePrescriptionCanBeOrdered(PrescriptionHeader prescription) {
+        LocalDateTime now = LocalDateTime.now();
+        if (prescription.getValidUntil() != null && prescription.getValidUntil().isBefore(now)) {
+            throw new BadRequestException("Prescription is expired");
+        }
+
+        String status = prescription.getStatus();
+        if (status != null
+                && (STATUS_CANCELLED.equalsIgnoreCase(status)
+                || "Canceled".equalsIgnoreCase(status)
+                || "Expired".equalsIgnoreCase(status))) {
+            throw new BadRequestException("Prescription cannot be ordered from status " + status);
+        }
+    }
+
+    private void validateConsultationRequestCanCreateOrder(PharmacyConsultationRequest consultationRequest) {
+        if (consultationRequest.getRequestId() != null
+                && orderRepository.existsByConsultationRequest_RequestId(consultationRequest.getRequestId())) {
+            throw new BadRequestException("An order has already been created for this request");
+        }
+
+        if (REQUEST_STATUS_CANCELLED.equalsIgnoreCase(safeValue(consultationRequest.getStatus(), ""))) {
+            throw new BadRequestException("Cannot create order for a cancelled request");
+        }
+
+        if (REQUEST_STATUS_ORDER_CREATED.equalsIgnoreCase(safeValue(consultationRequest.getStatus(), ""))
+                || consultationRequest.getOrder() != null) {
+            throw new BadRequestException("An order has already been created for this request");
+        }
+
+        if (REQUEST_STATUS_PRESCRIPTION_CREATED.equalsIgnoreCase(safeValue(consultationRequest.getStatus(), ""))
+                || consultationRequest.getPrescriptionHeader() != null) {
+            throw new BadRequestException("This request already follows the prescription flow");
+        }
+    }
+
+    private void validatePharmacyCanReceiveOrders(Pharmacy pharmacy) {
+        if (!pharmacy.isActive()) {
+            throw new BadRequestException("Pharmacy is not active");
+        }
+
+        if (!pharmacy.isVerified()) {
+            throw new BadRequestException("Pharmacy is not verified");
+        }
+    }
+
+    private BigDecimal normalizeMedicineAmount(BigDecimal medicineAmount) {
+        if (medicineAmount == null) {
+            throw new BadRequestException("Medicine amount is required");
+        }
+
+        if (medicineAmount.compareTo(BigDecimal.ZERO) < 0) {
+            throw new BadRequestException("Medicine amount must be greater than or equal to 0");
+        }
+
+        return medicineAmount;
+    }
+
+    private String normalizeDeliveryType(String deliveryType) {
+        if (deliveryType == null || deliveryType.isBlank()) {
+            return DELIVERY_TYPE_DELIVERY;
+        }
+
+        if (DELIVERY_TYPE_DELIVERY.equalsIgnoreCase(deliveryType)) {
+            return DELIVERY_TYPE_DELIVERY;
+        }
+
+        if (DELIVERY_TYPE_PICKUP.equalsIgnoreCase(deliveryType)) {
+            return DELIVERY_TYPE_PICKUP;
+        }
+
+        throw new BadRequestException("Delivery type must be Delivery or Pickup");
+    }
+
+    private void validateDeliveryRadius(Pharmacy pharmacy, Double deliveryLat, Double deliveryLon) {
+        if (pharmacy.getDeliveryRadius() == null
+                || pharmacy.getLatitude() == null
+                || pharmacy.getLongitude() == null
+                || deliveryLat == null
+                || deliveryLon == null) {
+            return;
+        }
+
+        double distanceKm = calculateDistanceKm(
+                pharmacy.getLatitude(),
+                pharmacy.getLongitude(),
+                deliveryLat,
+                deliveryLon
+        );
+        if (distanceKm > pharmacy.getDeliveryRadius()) {
+            throw new BadRequestException("Delivery address is outside pharmacy delivery radius");
+        }
+    }
+
+    private double calculateDistanceKm(
+            double startLat,
+            double startLon,
+            double endLat,
+            double endLon
+    ) {
+        double latDistance = Math.toRadians(endLat - startLat);
+        double lonDistance = Math.toRadians(endLon - startLon);
+        double a = Math.sin(latDistance / 2) * Math.sin(latDistance / 2)
+                + Math.cos(Math.toRadians(startLat))
+                * Math.cos(Math.toRadians(endLat))
+                * Math.sin(lonDistance / 2)
+                * Math.sin(lonDistance / 2);
+        return EARTH_RADIUS_KM * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+    }
+
     /**
      * Ghép địa chỉ đầy đủ từ Patient (address + city + country).
      */
     private String buildPatientAddress(Patient patient) {
         StringBuilder sb = new StringBuilder();
+        if (patient == null) {
+            return "";
+        }
         if (patient.getAddress() != null) sb.append(patient.getAddress());
         if (patient.getCity()    != null) { if (!sb.isEmpty()) sb.append(", "); sb.append(patient.getCity()); }
         if (patient.getCountry() != null) { if (!sb.isEmpty()) sb.append(", "); sb.append(patient.getCountry()); }
@@ -296,10 +548,20 @@ public class PharmacyOrderServiceImpl implements PharmacyOrderService {
         Integer prescriptionHeaderId = order.getPrescriptionHeader() != null
                 ? order.getPrescriptionHeader().getPrescriptionHeaderId()
                 : null;
+        Integer consultationRequestId = order.getConsultationRequest() != null
+                ? order.getConsultationRequest().getRequestId()
+                : null;
         String actionUrl = "/pharmacy-orders/" + orderId;
         String title = "New pharmacy order";
-        String message = String.format(
-                "Order %s for %s was transferred from prescription %s.",
+        String message = consultationRequestId != null && prescriptionHeaderId == null
+                ? String.format(
+                "Order %s for %s was created from consultation request %s.",
+                orderNumber,
+                patientName,
+                consultationRequestId
+        )
+                : String.format(
+                "Order %s for %s was created from prescription %s.",
                 orderNumber,
                 patientName,
                 prescriptionHeaderId != null ? prescriptionHeaderId : "unknown"
@@ -316,6 +578,50 @@ public class PharmacyOrderServiceImpl implements PharmacyOrderService {
             );
             log.info("New order notification queued for pharmacyUserId={}, orderId={}",
                     pharmacyUser.getId(), orderId);
+        });
+    }
+
+    private void notifyPatientAboutNewOrderFromRequestAfterCommit(PharmacyOrder order) {
+        User patientUser = resolvePatientUser(order, NotificationType.NEW_ORDER);
+        if (patientUser == null || order.getConsultationRequest() == null) {
+            return;
+        }
+
+        Integer orderId = order.getOrderId();
+        Integer requestId = order.getConsultationRequest().getRequestId();
+        String orderNumber = safeValue(order.getOrderNumber(), "unknown order");
+        String actionUrl = "/pharmacy-orders/" + orderId;
+        String title = "Pharmacy order created";
+        String message = String.format(
+                "Your request %s has been converted into order %s.",
+                requestId,
+                orderNumber
+        );
+        boolean hasActiveMobileToken = !deviceTokenRepository
+                .findByUser_IdAndActiveTrue(patientUser.getId())
+                .isEmpty();
+
+        runAfterCommit("new order from request notification orderId=" + orderId, () -> {
+            notificationService.sendWebSocketNotification(
+                    patientUser,
+                    NotificationType.NEW_ORDER,
+                    title,
+                    message,
+                    orderId,
+                    actionUrl
+            );
+
+            if (hasActiveMobileToken) {
+                notificationService.sendMobilePushNotification(
+                        patientUser,
+                        NotificationType.NEW_ORDER,
+                        title,
+                        message,
+                        NotificationPriority.NORMAL,
+                        orderId,
+                        actionUrl
+                );
+            }
         });
     }
 
@@ -366,6 +672,49 @@ public class PharmacyOrderServiceImpl implements PharmacyOrderService {
         });
     }
 
+    private void notifyDoctorAboutCompletedAndPaidOrderAfterCommit(PharmacyOrder order) {
+        User doctorUser = resolveDoctorUser(order, NotificationType.INVOICE_PAID);
+        if (doctorUser == null) {
+            return;
+        }
+
+        String orderNumber = safeValue(order.getOrderNumber(), "unknown order");
+        String patientName = order.getPatient() != null
+                ? safeValue(order.getPatient().getFullName(), "Unknown patient")
+                : "Unknown patient";
+        String pharmacyName = order.getPharmacy() != null
+                ? safeValue(order.getPharmacy().getName(), "the pharmacy")
+                : "the pharmacy";
+        Integer orderId = order.getOrderId();
+
+        runAfterCommit("doctor completed and paid order notification orderId=" + orderId, () -> {
+            notificationService.sendWebSocketNotification(
+                    doctorUser,
+                    NotificationType.INVOICE_PAID,
+                    "Pharmacy order completed and paid",
+                    String.format(
+                            "Order %s for %s was completed by %s and the patient payment has been confirmed.",
+                            orderNumber,
+                            patientName,
+                            pharmacyName
+                    ),
+                    orderId,
+                    "/pharmacy-orders/" + orderId
+            );
+
+            log.info("Completed-and-paid order notification queued for doctorUserId={}, orderId={}",
+                    doctorUser.getId(), orderId);
+        });
+    }
+
+    private boolean shouldNotifyDoctorAboutCompletedPaidOrder(PharmacyOrder order) {
+        return STATUS_COMPLETED.equalsIgnoreCase(order.getStatus())
+                && PAYMENT_STATUS_PAID.equalsIgnoreCase(safeValue(order.getPaymentStatus(), ""))
+                && order.getPrescriptionHeader() != null
+                && order.getPrescriptionHeader().getDoctor() != null
+                && !Boolean.TRUE.equals(order.getDoctorCompletionPaidNotified());
+    }
+
     private User resolvePharmacyUser(PharmacyOrder order, NotificationType type) {
         if (order == null || order.getPharmacy() == null) {
             log.warn("Cannot send {} notification: order or pharmacy is missing", type);
@@ -391,6 +740,20 @@ public class PharmacyOrderServiceImpl implements PharmacyOrderService {
         if (user == null || user.getId() == null || user.getId().isBlank()) {
             log.warn("Cannot send {} notification: patientId={} is not mapped to a user",
                     type, order.getPatient().getPatientId());
+            return null;
+        }
+        return user;
+    }
+
+    private User resolveDoctorUser(PharmacyOrder order, NotificationType type) {
+        if (order == null || order.getPrescriptionHeader() == null || order.getPrescriptionHeader().getDoctor() == null) {
+            log.warn("Cannot send {} notification: order or prescribing doctor is missing", type);
+            return null;
+        }
+
+        User user = order.getPrescriptionHeader().getDoctor().getUser();
+        if (user == null || user.getId() == null || user.getId().isBlank()) {
+            log.warn("Cannot send {} notification: prescribing doctor is not mapped to a user", type);
             return null;
         }
         return user;
@@ -422,58 +785,24 @@ public class PharmacyOrderServiceImpl implements PharmacyOrderService {
         return value == null || value.isBlank() ? fallback : value;
     }
 
+    private String trimToNull(String value) {
+        if (value == null) {
+            return null;
+        }
+
+        String trimmed = value.trim();
+        return trimmed.isEmpty() ? null : trimmed;
+    }
+
+    private String firstNonBlank(String primary, String fallback) {
+        String trimmedPrimary = trimToNull(primary);
+        return trimmedPrimary != null ? trimmedPrimary : trimToNull(fallback);
+    }
+
     /**
      * Map PharmacyOrder entity → PharmacyOrderResponse DTO.
      */
     private PharmacyOrderResponse toResponse(PharmacyOrder o) {
-        PrescriptionHeader ph = o.getPrescriptionHeader();
-        Pharmacy           pha = o.getPharmacy();
-        Patient            pat = o.getPatient();
-
-        return PharmacyOrderResponse.builder()
-                .orderId(o.getOrderId())
-                .orderNumber(o.getOrderNumber())
-                // Prescription
-                .prescriptionHeaderId(ph != null ? ph.getPrescriptionHeaderId() : null)
-                .diagnosis(ph != null ? ph.getDiagnosis() : null)
-                // Pharmacy
-                .pharmacyId(pha != null ? pha.getPharmacyId() : null)
-                .pharmacyName(pha != null ? pha.getName() : null)
-                .pharmacyPhone(pha != null ? pha.getPhoneNumber() : null)
-                // Patient
-                .patientId(pat != null ? pat.getPatientId() : null)
-                .patientName(pat != null ? pat.getFullName() : null)
-                // Order details
-                .status(o.getStatus())
-                .deliveryType(o.getDeliveryType())
-                .deliveryAddress(o.getDeliveryAddress())
-                .deliveryLatitude(o.getDeliveryLatitude())
-                .deliveryLongitude(o.getDeliveryLongitude())
-                // Amounts
-                .medicineAmount(o.getMedicineAmount())
-                .deliveryFee(o.getDeliveryFee())
-                .totalAmount(o.getTotalAmount())
-                // Payment
-                .paymentStatus(o.getPaymentStatus())
-                .paymentMethod(o.getPaymentMethod())
-                // Notes
-                .notes(o.getNotes())
-                .pharmacistNotes(o.getPharmacistNotes())
-                // Timestamps
-                .estimatedDeliveryTime(o.getEstimatedDeliveryTime())
-                .actualDeliveryTime(o.getActualDeliveryTime())
-                .confirmedAt(o.getConfirmedAt())
-                .preparingAt(o.getPreparingAt())
-                .shippedAt(o.getShippedAt())
-                .deliveredAt(o.getDeliveredAt())
-                .cancelledAt(o.getCancelledAt())
-                .cancelReason(o.getCancelReason())
-                .createdAt(o.getCreatedAt())
-                // Commission fields – ánh xạ từ PharmacyOrder entity
-                // ⚠️ Controller phải lọc bỏ các trường này khi trả về cho Patient
-                .platformFee(o.getPlatformFee())
-                .pharmacyEarning(o.getPharmacyEarning())
-                .commissionRate(o.getCommissionRate())
-                .build();
+        return PharmacyOrderMapper.toResponse(o);
     }
 }

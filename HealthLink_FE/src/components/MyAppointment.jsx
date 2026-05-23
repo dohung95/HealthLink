@@ -9,8 +9,10 @@ import { toast } from 'sonner';
 import ConfirmModal from './ConfirmModal';
 import Loading from './Loading';
 import { getProfile } from '../api/account';
+import RescheduleAppointmentModal from './RescheduleAppointmentModal';
 
 const MyAppointments = () => {
+    const APPOINTMENTS_PAGE_SIZE = 5;
     const [appointments, setAppointments] = useState([]);
     const [loading, setLoading] = useState(true);
     const [actionLoading, setActionLoading] = useState(false);
@@ -18,8 +20,17 @@ const MyAppointments = () => {
     const { roles, initiateCall, token } = useAuth();
     const { openChatWith } = useChat();
     const [showCancelModal, setShowCancelModal] = useState(false);
+    const [showRescheduleModal, setShowRescheduleModal] = useState(false);
+    const [selectedRescheduleAppointment, setSelectedRescheduleAppointment] = useState(null);
     const [pendingAppointmentId, setPendingAppointmentId] = useState(null);
     const [patientId, setPatientId] = useState('');
+    const [currentPage, setCurrentPage] = useState(1);
+    const [pagination, setPagination] = useState({
+        page: 1,
+        pageSize: APPOINTMENTS_PAGE_SIZE,
+        totalItems: 0,
+        totalPages: 0,
+    });
 
     useEffect(() => {
         if (!token) return;
@@ -31,7 +42,7 @@ const MyAppointments = () => {
                 const profile = await getProfile(token);
                 setPatientId(profile.userId);
 
-                await loadAppointments(profile.userId);
+                await loadAppointments(profile.userId, 1);
             } catch (error) {
                 console.error('Failed to initialize appointments', error);
                 navigate('/login');
@@ -43,37 +54,56 @@ const MyAppointments = () => {
         initializeAppointments();
     }, [token]);
 
-    const loadAppointments = async (currentPatientId = patientId) => {
+    const loadAppointments = async (currentPatientId = patientId, page = currentPage) => {
         if (!currentPatientId) return;
 
         try {
-            const data = await appointmentService.getPatientAppointments(currentPatientId);
+            setLoading(true);
 
-            const sortedData = [...data].sort((a, b) => {
-                const now = new Date();
-                const dateA = new Date(a.appointmentTime);
-                const dateB = new Date(b.appointmentTime);
+            const data = await appointmentService.getPatientAppointmentsPage(
+                currentPatientId,
+                page,
+                APPOINTMENTS_PAGE_SIZE
+            );
 
-                const aIsFuture = dateA >= now;
-                const bIsFuture = dateB >= now;
-
-                if (aIsFuture && !bIsFuture) return -1;
-                if (!aIsFuture && bIsFuture) return 1;
-
-                if (aIsFuture && bIsFuture) {
-                    return dateA - dateB;
-                }
-
-                return dateB - dateA;
+            setAppointments(data.items || []);
+            setPagination({
+                page: data.page || page,
+                pageSize: data.pageSize || APPOINTMENTS_PAGE_SIZE,
+                totalItems: data.totalItems || 0,
+                totalPages: data.totalPages || 0,
             });
-
-            setAppointments(sortedData);
+            setCurrentPage(data.page || page);
         } catch (error) {
             console.error('Failed to load appointments', error);
             toast.error('Unable to load appointments.');
+        } finally {
+            setLoading(false);
         }
     };
 
+    const handlePageChange = async (page) => {
+        if (page < 1 || page > pagination.totalPages || page === currentPage) return;
+        await loadAppointments(patientId, page);
+    };
+
+    const getPageNumbers = () => {
+        const total = pagination.totalPages;
+        if (total <= 7) {
+            return Array.from({ length: total }, (_, index) => index + 1);
+        }
+
+        const pages = [1];
+        const start = Math.max(2, currentPage - 1);
+        const end = Math.min(total - 1, currentPage + 1);
+
+        if (start > 2) pages.push('left-ellipsis');
+        for (let page = start; page <= end; page++) pages.push(page);
+        if (end < total - 1) pages.push('right-ellipsis');
+        pages.push(total);
+
+        return pages;
+    };
 
     // Hàm mở modal xác nhận
     const handleCancelClick = (id) => {
@@ -94,7 +124,7 @@ const MyAppointments = () => {
             });
 
             toast.success('Appointment cancelled successfully.');
-            loadAppointments();
+            loadAppointments(patientId, currentPage);
 
         } catch (error) {
             const msg = error.response?.data?.message || error.response?.data || "Failed to cancel.";
@@ -195,6 +225,30 @@ const MyAppointments = () => {
         }
     };
 
+    const canReschedule = (appointment) => {
+        const appointmentTime = new Date(appointment.appointmentTime);
+        const twoHoursFromNow = new Date(Date.now() + 2 * 60 * 60 * 1000);
+
+        return (
+            appointment.status === 'Scheduled' &&
+            appointmentTime > twoHoursFromNow
+        );
+    };
+
+    const handleRescheduleClick = (appointment) => {
+        setSelectedRescheduleAppointment(appointment);
+        setShowRescheduleModal(true);
+    };
+
+    const handleCloseRescheduleModal = () => {
+        setShowRescheduleModal(false);
+        setSelectedRescheduleAppointment(null);
+    };
+
+    const handleRescheduled = async () => {
+        await loadAppointments(patientId, currentPage);
+    };
+
     if (actionLoading) {
         return <Loading />;
     }
@@ -222,114 +276,175 @@ const MyAppointments = () => {
                 ) : appointments.length === 0 ? (
                     <div className="alert alert-info">You have no appointments yet.</div>
                 ) : (
-                    <div className="table-responsive">
-                        <table className="table table-hover table-bordered shadow-sm">
-                            <thead className="table-light">
-                                <tr>
-                                    <th>Date & Time</th>
-                                    <th>Doctor</th>
-                                    <th>Patient</th>
-                                    <th>Type</th>
-                                    <th>Status</th>
-                                    <th>Actions</th>
-                                </tr>
-                            </thead>
-                            <tbody>
-                                {appointments.map((item) => (
-                                    <tr key={item.appointmentId}>
-                                        <td>
-                                            {new Date(item.appointmentTime).toLocaleDateString()} <br />
-                                            <small className="text-muted">
-                                                {new Date(item.appointmentTime).toLocaleTimeString([], {
-                                                    hour: '2-digit',
-                                                    minute: '2-digit',
-                                                })}
-                                            </small>
-                                        </td>
-
-                                        <td>
-                                            <strong>{item.doctorName || "Unknown Doctor"}</strong>
-                                            <br />
-                                            <small className="text-muted">{item.specialtyName || ''}</small>
-                                        </td>
-
-                                        <td>
-                                            <span className="text-capitalize">
-                                                {item.patientName || 'Unknown Patient'}
-                                            </span>
-                                            <br />
-                                            <small className="text-muted">
-                                                Patient ID: {item.patientId}
-                                            </small>
-                                        </td>
-
-                                        <td>
-                                            <span className="text-capitalize">{item.consultationType}</span>
-                                        </td>
-
-                                        <td>
-                                            <span className={`badge ${getStatusBadge(item.status)}`}>
-                                                {item.status}
-                                            </span>
-                                        </td>
-
-                                        <td>
-                                            <div className="d-flex gap-2 flex-wrap">
-                                                {item.consultationType === 'Chat' && item.status === 'Scheduled' && (
-                                                    <button
-                                                        className="btn btn-sm btn-primary"
-                                                        onClick={() => handleChat(item)}
-                                                        title={
-                                                            new Date(item.appointmentTime) < new Date()
-                                                                ? "Appointment time has passed"
-                                                                : "Start chat"
-                                                        }
-                                                        disabled={new Date(item.appointmentTime) < new Date()}
-                                                    >
-                                                        <i className="bi bi-chat-dots me-1"></i>
-                                                        Chat
-                                                    </button>
-                                                )}
-
-                                                {item.consultationType === 'Video' && item.status === 'Scheduled' && (
-                                                    <button
-                                                        className="btn btn-sm btn-success"
-                                                        onClick={() => handleVideoCall(item)}
-                                                        title={
-                                                            new Date(item.appointmentTime) < new Date()
-                                                                ? "Appointment time has passed"
-                                                                : "Start video call"
-                                                        }
-                                                        disabled={new Date(item.appointmentTime) < new Date()}
-                                                    >
-                                                        <i className="bi bi-camera-video me-1"></i>
-                                                        Call Now
-                                                    </button>
-                                                )}
-
-                                                {item.status === 'Scheduled' && (
-                                                    <button
-                                                        className="btn btn-sm btn-outline-danger"
-                                                        onClick={() =>
-                                                            handleCancelClick(item.appointmentId)
-                                                        }
-                                                        title={
-                                                            new Date(item.appointmentTime) < new Date()
-                                                                ? "Appointment time has passed"
-                                                                : "Cancel appointment"
-                                                        }
-                                                        disabled={new Date(item.appointmentTime) < new Date()}
-                                                    >
-                                                        Cancel
-                                                    </button>
-                                                )}
-                                            </div>
-                                        </td>
+                    <>
+                        <div className="table-responsive">
+                            <table className="table table-hover table-bordered shadow-sm">
+                                <thead className="table-light">
+                                    <tr>
+                                        <th>Date & Time</th>
+                                        <th>Doctor</th>
+                                        <th>Patient</th>
+                                        <th>Type</th>
+                                        <th>Status</th>
+                                        <th>Actions</th>
                                     </tr>
-                                ))}
-                            </tbody>
-                        </table>
-                    </div>
+                                </thead>
+                                <tbody>
+                                    {appointments.map((item) => (
+                                        <tr key={item.appointmentId}>
+                                            <td>
+                                                {new Date(item.appointmentTime).toLocaleDateString()} <br />
+                                                <small className="text-muted">
+                                                    {new Date(item.appointmentTime).toLocaleTimeString([], {
+                                                        hour: '2-digit',
+                                                        minute: '2-digit',
+                                                    })}
+                                                </small>
+                                            </td>
+
+                                            <td>
+                                                <strong>{item.doctorName || "Unknown Doctor"}</strong>
+                                                <br />
+                                                <small className="text-muted">{item.specialtyName || ''}</small>
+                                            </td>
+
+                                            <td>
+                                                <span className="text-capitalize">
+                                                    {item.patientName || 'Unknown Patient'}
+                                                </span>
+                                                <br />
+                                                <small className="text-muted">
+                                                    Patient ID: {item.patientId}
+                                                </small>
+                                            </td>
+
+                                            <td>
+                                                <span className="text-capitalize">{item.consultationType}</span>
+                                            </td>
+
+                                            <td>
+                                                <span className={`badge ${getStatusBadge(item.status)}`}>
+                                                    {item.status}
+                                                </span>
+                                            </td>
+
+                                            <td>
+                                                <div className="d-flex gap-2 flex-wrap">
+                                                    {item.consultationType === 'Chat' && item.status === 'Scheduled' && (
+                                                        <button
+                                                            className="btn btn-sm btn-primary"
+                                                            onClick={() => handleChat(item)}
+                                                            title={
+                                                                new Date(item.appointmentTime) < new Date()
+                                                                    ? "Appointment time has passed"
+                                                                    : "Start chat"
+                                                            }
+                                                            disabled={new Date(item.appointmentTime) < new Date()}
+                                                        >
+                                                            <i className="bi bi-chat-dots me-1"></i>
+                                                            Chat
+                                                        </button>
+                                                    )}
+
+                                                    {item.consultationType === 'Video' && item.status === 'Scheduled' && (
+                                                        <button
+                                                            className="btn btn-sm btn-success"
+                                                            onClick={() => handleVideoCall(item)}
+                                                            title={
+                                                                new Date(item.appointmentTime) < new Date()
+                                                                    ? "Appointment time has passed"
+                                                                    : "Start video call"
+                                                            }
+                                                            disabled={new Date(item.appointmentTime) < new Date()}
+                                                        >
+                                                            <i className="bi bi-camera-video me-1"></i>
+                                                            Call Now
+                                                        </button>
+                                                    )}
+
+                                                    {canReschedule(item) && (
+                                                        <button
+                                                            className="btn btn-sm btn-outline-primary"
+                                                            onClick={() => handleRescheduleClick(item)}
+                                                        >
+                                                            Reschedule
+                                                        </button>
+                                                    )}
+
+                                                    {item.status === 'Scheduled' && (
+                                                        <button
+                                                            className="btn btn-sm btn-outline-danger"
+                                                            onClick={() =>
+                                                                handleCancelClick(item.appointmentId)
+                                                            }
+                                                            title={
+                                                                new Date(item.appointmentTime) < new Date()
+                                                                    ? "Appointment time has passed"
+                                                                    : "Cancel appointment"
+                                                            }
+                                                            disabled={new Date(item.appointmentTime) < new Date()}
+                                                        >
+                                                            Cancel
+                                                        </button>
+                                                    )}
+                                                </div>
+                                            </td>
+                                        </tr>
+                                    ))}
+                                </tbody>
+                            </table>
+                        </div>
+
+                        {pagination.totalPages > 1 && (
+                            <div className="d-flex justify-content-between align-items-center mt-3 flex-wrap gap-2">
+                                <small className="text-muted">
+                                    Showing page {pagination.page} of {pagination.totalPages}
+                                    {' '}({pagination.totalItems} appointments)
+                                </small>
+
+                                <nav aria-label="Appointments pagination">
+                                    <ul className="pagination pagination-sm mb-0">
+                                        <li className={`page-item ${currentPage === 1 ? 'disabled' : ''}`}>
+                                            <button
+                                                className="page-link"
+                                                onClick={() => handlePageChange(currentPage - 1)}
+                                                disabled={currentPage === 1}
+                                            >
+                                                Previous
+                                            </button>
+                                        </li>
+
+                                        {getPageNumbers().map((page) => (
+                                            typeof page === 'string' ? (
+                                                <li key={page} className="page-item disabled">
+                                                    <span className="page-link">...</span>
+                                                </li>
+                                            ) : (
+                                                <li key={page} className={`page-item ${page === currentPage ? 'active' : ''}`}>
+                                                    <button
+                                                        className="page-link"
+                                                        onClick={() => handlePageChange(page)}
+                                                    >
+                                                        {page}
+                                                    </button>
+                                                </li>
+                                            )
+                                        ))}
+
+                                        <li className={`page-item ${currentPage === pagination.totalPages ? 'disabled' : ''}`}>
+                                            <button
+                                                className="page-link"
+                                                onClick={() => handlePageChange(currentPage + 1)}
+                                                disabled={currentPage === pagination.totalPages}
+                                            >
+                                                Next
+                                            </button>
+                                        </li>
+                                    </ul>
+                                </nav>
+                            </div>
+                        )}
+                    </>
                 )}
             </div>
 
@@ -344,6 +459,14 @@ const MyAppointments = () => {
                 cancelText="No, Keep It"
                 iconClass="bi-exclamation-triangle-fill"
                 variant="warning"
+            />
+
+            {/* Modal đổi lịch hẹn */}
+            <RescheduleAppointmentModal
+                isOpen={showRescheduleModal}
+                appointment={selectedRescheduleAppointment}
+                onClose={handleCloseRescheduleModal}
+                onRescheduled={handleRescheduled}
             />
         </div>
     );

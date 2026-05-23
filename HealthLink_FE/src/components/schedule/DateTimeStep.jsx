@@ -119,14 +119,18 @@ const DateTimeStep = ({
 
               const statusClass = slot.status?.toLowerCase();
 
+              const slotDateTime = new Date(`${date}T${slot.startTime}`);
+              const isPastSlot = slotDateTime < new Date();
+
               return (
                 <button
                   key={`${date}-${slot.startTime}`}
                   type="button"
-                  className={`slot-button ${statusClass} ${isSelected ? 'selected' : ''
-                    }`}
-                  disabled={!slot.selectable && !isSelected}
+                  className={`slot-button ${statusClass} ${isPastSlot ? 'past' : ''} ${isSelected ? 'selected' : ''}`}
+                  disabled={isPastSlot || (!slot.selectable && !isSelected)}
                   onClick={() => {
+                    if (isPastSlot) return;
+
                     if (isSelected) {
                       onClearSlot();
                     } else {
@@ -134,13 +138,15 @@ const DateTimeStep = ({
                     }
                   }}
                   title={
-                    isSelected
-                      ? 'Click again to unselect'
-                      : slot.status === 'BOOKED'
-                        ? 'Booked'
-                        : slot.status === 'HELD'
-                          ? 'Held'
-                          : 'Available'
+                    isPastSlot
+                      ? 'Past time'
+                      : isSelected
+                        ? 'Click again to unselect'
+                        : slot.status === 'BOOKED'
+                          ? 'Booked'
+                          : slot.status === 'HELD'
+                            ? 'Held'
+                            : 'Available'
                   }
                 >
                   {slot.startTime}

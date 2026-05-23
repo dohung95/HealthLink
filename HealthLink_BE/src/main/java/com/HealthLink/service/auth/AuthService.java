@@ -11,8 +11,12 @@ public interface AuthService {
 
     /**
      * Đăng nhập bằng email + password, trả về access token và refresh token.
+     *
+     * @param request   thông tin đăng nhập (email + password)
+     * @param userAgent chuỗi User-Agent từ HTTP header (để ghi nhận tên thiết bị)
+     * @param ipAddress địa chỉ IP của client
      */
-    LoginResponse login(LoginRequest request);
+    LoginResponse login(LoginRequest request, String userAgent, String ipAddress);
 
     /**
      * Đăng ký tài khoản mới.

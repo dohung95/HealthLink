@@ -10,6 +10,7 @@ import java.time.LocalDateTime;
 public class FollowUpResponse {
     private Integer consultationId;
     private Integer appointmentId;
+    private Integer followUpAppointmentId;
     private LocalDateTime followUpDate;
     private String followUpNotes;
     private String diagnosis;

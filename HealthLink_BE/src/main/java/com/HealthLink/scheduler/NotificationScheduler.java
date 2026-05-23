@@ -81,6 +81,62 @@ public class NotificationScheduler {
         }
     }
 
+    @Scheduled(cron = "0 0/5 * * * *")
+    @Transactional
+    public void sendDoctorAppointmentReminders() {
+        LocalDateTime now = LocalDateTime.now();
+        LocalDateTime from = now.plusMinutes(30);
+        LocalDateTime to = now.plusMinutes(35);
+
+        List<Appointment> upcomingAppointments =
+                appointmentRepository.findUpcomingDoctorReminderCandidates(from, to);
+
+        if (upcomingAppointments.isEmpty()) {
+            log.debug("Doctor appointment reminder job: no upcoming appointments in window [{} - {}]", from, to);
+            return;
+        }
+
+        log.info("Doctor appointment reminder job: found {} appointments to remind", upcomingAppointments.size());
+
+        for (Appointment appointment : upcomingAppointments) {
+            try {
+                User doctorUser = appointment.getDoctor() != null ? appointment.getDoctor().getUser() : null;
+                if (doctorUser == null || doctorUser.getId() == null || doctorUser.getId().isBlank()) {
+                    log.warn("Skipping doctor reminder for appointmentId={} because doctor user mapping is missing",
+                            appointment.getAppointmentId());
+                    continue;
+                }
+
+                String patientName = appointment.getPatient() != null
+                        ? appointment.getPatient().getFullName()
+                        : "your patient";
+                String title = "Upcoming Appointment Reminder";
+                String message = String.format(
+                        "You have an appointment with %s at %s. Please be ready to start the consultation.",
+                        patientName,
+                        appointment.getAppointmentTime().toLocalTime()
+                );
+
+                notificationService.sendWebSocketNotification(
+                        doctorUser,
+                        NotificationType.APPOINTMENT_REMINDER,
+                        title,
+                        message,
+                        appointment.getAppointmentId(),
+                        "/appointments/" + appointment.getAppointmentId()
+                );
+
+                appointmentRepository.markDoctorReminderSent(appointment.getAppointmentId());
+
+                log.info("Doctor reminder sent for appointmentId={}, doctorId={}",
+                        appointment.getAppointmentId(), doctorUser.getId());
+            } catch (Exception ex) {
+                log.error("Failed to send doctor reminder for appointmentId={}: {}",
+                        appointment.getAppointmentId(), ex.getMessage());
+            }
+        }
+    }
+
     @Scheduled(cron = "0 0 8 * * *")
     @Transactional
     public void sendFollowUpReminders() {

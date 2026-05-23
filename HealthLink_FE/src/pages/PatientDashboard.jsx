@@ -7,7 +7,7 @@ const PatientDashboard = () => {
         <div className="patient-dashboard-layout">
             <PatientSidebar />
 
-            <main className="patient-dashboard-content">
+            <main className="patient-dashboard-main">
                 <Outlet />
             </main>
         </div>

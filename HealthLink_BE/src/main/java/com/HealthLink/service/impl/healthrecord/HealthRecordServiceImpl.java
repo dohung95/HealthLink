@@ -20,10 +20,13 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.multipart.MultipartFile;
-
+import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.List;
 import java.util.stream.Collectors;
+import com.HealthLink.dto.response.PagedResponse;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageRequest;
 
 @Service
 @RequiredArgsConstructor
@@ -57,11 +60,28 @@ public class HealthRecordServiceImpl implements HealthRecordService {
 
     @Override
     @Transactional(readOnly = true)
-    public List<HealthRecordResponse> getMyRecords(String patientId) {
-        return healthRecordRepository.findByPatient_PatientIdOrderByCreatedAtDesc(patientId)
-                .stream()
-                .map(this::toRecordResponse)
-                .collect(Collectors.toList());
+    public PagedResponse<HealthRecordResponse> getMyRecords(String patientId, int page, int size) {
+        int safePage = Math.max(page, 1);
+        int safeSize = Math.min(Math.max(size, 1), 30);
+
+        Page<HealthRecord> recordPage
+                = healthRecordRepository.findByPatient_PatientIdOrderByCreatedAtDesc(
+                        patientId,
+                        PageRequest.of(safePage - 1, safeSize)
+                );
+
+        return PagedResponse.<HealthRecordResponse>builder()
+                .items(
+                        recordPage.getContent()
+                                .stream()
+                                .map(this::toRecordResponse)
+                                .collect(Collectors.toList())
+                )
+                .page(safePage)
+                .pageSize(safeSize)
+                .totalItems(recordPage.getTotalElements())
+                .totalPages(recordPage.getTotalPages())
+                .build();
     }
 
     @Override
@@ -102,7 +122,79 @@ public class HealthRecordServiceImpl implements HealthRecordService {
                 .build();
 
         document = medicalDocumentRepository.save(document);
-        
+
+        record.setLastUpdated(LocalDateTime.now());
+        healthRecordRepository.save(record);
+
+        return toDocumentResponse(document);
+    }
+
+    @Override
+    @Transactional
+    public MedicalDocumentResponse uploadDocumentAutoRecord(
+            String patientId,
+            MultipartFile file,
+            String category,
+            String description,
+            LocalDate documentDate
+    ) {
+        Patient patient = patientRepository.findById(patientId)
+                .orElseThrow(() -> new ResourceNotFoundException("Patient not found: " + patientId));
+
+        if (documentDate != null && documentDate.isAfter(LocalDate.now())) {
+            throw new BusinessException("Date performed cannot be in the future");
+        }
+
+        LocalDate uploadDate = LocalDate.now();
+        LocalDate performedDate = documentDate != null ? documentDate : uploadDate;
+
+        LocalDateTime uploadDayStart = uploadDate.atStartOfDay();
+        LocalDateTime uploadDayEnd = uploadDate.plusDays(1).atStartOfDay().minusSeconds(1);
+
+        LocalDateTime performedDayStart = performedDate.atStartOfDay();
+
+        List<HealthRecord> recordsOfUploadDay
+                = healthRecordRepository.findByPatient_PatientIdAndRecordDateBetweenOrderByCreatedAtDesc(
+                        patientId,
+                        uploadDayStart,
+                        uploadDayEnd
+                );
+
+        HealthRecord record;
+
+        if (recordsOfUploadDay.isEmpty()) {
+            record = HealthRecord.builder()
+                    .patient(patient)
+                    .title("Health Record - " + uploadDate)
+                    .description("Auto-created record for documents uploaded on " + uploadDate)
+                    .recordType(category != null && !category.isBlank() ? category : "General")
+                    .recordDate(uploadDayStart)
+                    .createdAt(LocalDateTime.now())
+                    .lastUpdated(LocalDateTime.now())
+                    .build();
+
+            record = healthRecordRepository.save(record);
+        } else {
+            record = recordsOfUploadDay.get(0);
+        }
+
+        String fileLocation = fileStorageService.storeFile(file);
+
+        MedicalDocument document = MedicalDocument.builder()
+                .healthRecord(record)
+                .documentName(file.getOriginalFilename())
+                .documentType(file.getContentType() != null ? file.getContentType() : "application/octet-stream")
+                .fileLocation(fileLocation)
+                .category(category)
+                .description(description)
+                .documentDate(performedDayStart)
+                .uploadedAt(LocalDateTime.now())
+                .fileSize(file.getSize())
+                .mimeType(file.getContentType())
+                .build();
+
+        document = medicalDocumentRepository.save(document);
+
         record.setLastUpdated(LocalDateTime.now());
         healthRecordRepository.save(record);
 
@@ -122,7 +214,7 @@ public class HealthRecordServiceImpl implements HealthRecordService {
 
         fileStorageService.deleteFile(document.getFileLocation());
         medicalDocumentRepository.delete(document);
-        
+
         record.setLastUpdated(LocalDateTime.now());
         healthRecordRepository.save(record);
     }
@@ -166,11 +258,34 @@ public class HealthRecordServiceImpl implements HealthRecordService {
 
     @Override
     @Transactional(readOnly = true)
-    public List<HealthRecordShareResponse> getMyShares(String patientId) {
-        return healthRecordShareRepository.findBySharedByPatient_PatientIdOrderByConsentGivenAtDesc(patientId)
-                .stream()
-                .map(this::toShareResponse)
-                .collect(Collectors.toList());
+    public PagedResponse<HealthRecordShareResponse> getMyShares(
+            String patientId,
+            int page,
+            int size
+    ) {
+        int safePage = Math.max(page, 1);
+        int safeSize = Math.min(Math.max(size, 1), 30);
+
+        Page<HealthRecordShare> sharePage
+                = healthRecordShareRepository
+                        .findActiveSharesByPatientId(
+                                patientId,
+                                LocalDateTime.now(),
+                                PageRequest.of(safePage - 1, safeSize)
+                        );
+
+        return PagedResponse.<HealthRecordShareResponse>builder()
+                .items(
+                        sharePage.getContent()
+                                .stream()
+                                .map(this::toShareResponse)
+                                .collect(Collectors.toList())
+                )
+                .page(safePage)
+                .pageSize(safeSize)
+                .totalItems(sharePage.getTotalElements())
+                .totalPages(sharePage.getTotalPages())
+                .build();
     }
 
     @Override

@@ -67,28 +67,26 @@ public class SecurityConfig {
         http
                 // Tắt CSRF (không cần với stateless JWT)
                 .csrf(AbstractHttpConfigurer::disable)
-
                 // Session stateless — không dùng HttpSession
                 .sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
-
                 // Phân quyền các endpoint
                 .authorizeHttpRequests(auth -> auth
-                        // Public: đăng ký / đăng nhập / refresh token
-                        .requestMatchers("/api/auth/**").permitAll()
-                        // Public: đăng ký Doctor/Pharmacy (chưa có tài khoản)
-                        .requestMatchers("/api/registration/**").permitAll()
-                        // Public: xem ảnh upload (avatar, v.v.) — không cần xác thực
-                        .requestMatchers(HttpMethod.GET, "/uploads/**").permitAll()
-                        // Public: xem danh sách bác sĩ (cho bệnh nhân)
-                        .requestMatchers(HttpMethod.GET, "/api/account/doctors").permitAll()
-                        // Public: tạo kết nối websocket với backend
-                        .requestMatchers("/ws/**").permitAll()
-                        // Tất cả còn lại yêu cầu xác thực
-                        .anyRequest().authenticated())
-
+                // Public: đăng ký / đăng nhập / refresh token
+                .requestMatchers("/api/auth/**").permitAll()
+                // Public: đăng ký Doctor/Pharmacy (chưa có tài khoản)
+                .requestMatchers("/api/registration/**").permitAll()
+                // Public: xem ảnh upload (avatar, v.v.) — không cần xác thực
+                .requestMatchers(HttpMethod.GET, "/uploads/**").permitAll()
+                // Public: xem danh sách bác sĩ (cho bệnh nhân)
+                .requestMatchers(HttpMethod.GET, "/api/account/doctors").permitAll()
+                .requestMatchers(HttpMethod.GET, "/api/account/doctors/search").permitAll()
+                .requestMatchers(HttpMethod.GET, "/api/account/doctors/specialties").permitAll()
+                // Public: tạo kết nối websocket với backend
+                .requestMatchers("/ws/**").permitAll()
+                // Tất cả còn lại yêu cầu xác thực
+                .anyRequest().authenticated())
                 // Dùng DaoAuthenticationProvider vừa tạo
                 .authenticationProvider(authenticationProvider())
-
                 // Thêm JWT filter trước UsernamePasswordAuthenticationFilter
                 .addFilterBefore(jwtAuthenticationFilter,
                         UsernamePasswordAuthenticationFilter.class);

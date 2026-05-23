@@ -3,6 +3,9 @@ package com.HealthLink.service.payment;
 import com.HealthLink.dto.payment.InvoiceResponse;
 import com.HealthLink.dto.payment.PayPalCaptureRequest;
 import com.HealthLink.dto.payment.PayPalOrderRequest;
+import com.HealthLink.dto.payment.PharmacyOrderPayPalCaptureRequest;
+import com.HealthLink.dto.payment.PharmacyOrderPayPalOrderRequest;
+import com.HealthLink.dto.pharmacy.PharmacyOrderResponse;
 
 import java.util.List;
 import java.util.Map;
@@ -25,13 +28,8 @@ public interface FinanceService {
     /**
      * Tự động tạo một hóa đơn cho lịch hẹn đã hoàn tất.
      *
-     * <p>Tổng hợp chi phí:
-     * <ul>
-     *   <li>consultationFee  – lấy từ Doctor.consultationFee</li>
-     *   <li>medicineFee      – lấy từ PrescriptionHeader.totalAmount</li>
-     *   <li>deliveryFee      – lấy từ PharmacyOrder.deliveryFee</li>
-     * </ul>
-     * amount = consultationFee + medicineFee + deliveryFee − discount + tax
+     * <p>Hóa đơn lịch hẹn chỉ thu phí tư vấn của bác sĩ.
+     * Tiền thuốc và giao hàng được thanh toán riêng trên PharmacyOrder.
      *
      * @param appointmentId mã lịch hẹn vừa hoàn tất
      * @return hóa đơn đã tạo dưới dạng DTO phản hồi
@@ -61,6 +59,8 @@ public interface FinanceService {
      */
     Map<String, Object> createPayPalOrder(PayPalOrderRequest request);
 
+    Map<String, Object> createPharmacyOrderPayPalOrder(PharmacyOrderPayPalOrderRequest request);
+
     /**
      * Xác nhận thanh toán sau khi người dùng đã duyệt đơn hàng PayPal.
      * Khi thành công:
@@ -73,6 +73,8 @@ public interface FinanceService {
      * @return hóa đơn đã cập nhật dưới dạng phản hồi
      */
     InvoiceResponse capturePayPalPayment(PayPalCaptureRequest request);
+
+    PharmacyOrderResponse capturePharmacyOrderPayPalPayment(PharmacyOrderPayPalCaptureRequest request);
 
     /**
      * Xử lý hoàn tiền cho bệnh nhân.

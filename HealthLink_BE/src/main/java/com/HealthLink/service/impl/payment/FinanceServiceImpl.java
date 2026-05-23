@@ -4,21 +4,28 @@ import com.HealthLink.config.PayPalConfig;
 import com.HealthLink.dto.payment.InvoiceResponse;
 import com.HealthLink.dto.payment.PayPalCaptureRequest;
 import com.HealthLink.dto.payment.PayPalOrderRequest;
+import com.HealthLink.dto.payment.PharmacyOrderPayPalCaptureRequest;
+import com.HealthLink.dto.payment.PharmacyOrderPayPalOrderRequest;
+import com.HealthLink.dto.pharmacy.PharmacyOrderResponse;
 import com.HealthLink.entity.Appointment;
 import com.HealthLink.entity.Invoice;
 import com.HealthLink.entity.Payment;
 import com.HealthLink.entity.PharmacyOrder;
-import com.HealthLink.entity.PrescriptionHeader;
 import com.HealthLink.exception.BadRequestException;
 import com.HealthLink.exception.InvoiceNotFoundException;
 import com.HealthLink.exception.PayPalIntegrationException;
+import com.HealthLink.repository.notification.DeviceTokenRepository;
 import com.HealthLink.repository.appointment.AppointmentRepository;
 import com.HealthLink.repository.payment.InvoiceRepository;
 import com.HealthLink.repository.payment.PaymentRepository;
 import com.HealthLink.repository.pharmacy.PharmacyOrderRepository;
-import com.HealthLink.repository.prescription.PrescriptionHeaderRepository;
+import com.HealthLink.service.notification.NotificationService;
 import com.HealthLink.service.payment.CommissionService;
 import com.HealthLink.service.payment.FinanceService;
+import com.HealthLink.entity.enums.NotificationPriority;
+import com.HealthLink.entity.enums.NotificationType;
+import com.HealthLink.entity.User;
+import com.HealthLink.utility.mapper.PharmacyOrderMapper;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -30,6 +37,8 @@ import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.transaction.support.TransactionSynchronization;
+import org.springframework.transaction.support.TransactionSynchronizationManager;
 import org.springframework.util.LinkedMultiValueMap;
 import org.springframework.util.MultiValueMap;
 import org.springframework.web.client.RestTemplate;
@@ -71,6 +80,7 @@ public class FinanceServiceImpl implements FinanceService {
     private static final String METHOD_CARD      = "Card";
 
     private static final String APPT_COMPLETED = "Completed";
+    private static final String PHARMACY_ORDER_COMPLETED = "Completed";
 
     // ── Các phụ thuộc ───────────────────────────────────────────────────────
     private final PayPalConfig payPalConfig;
@@ -83,8 +93,9 @@ public class FinanceServiceImpl implements FinanceService {
     private final AppointmentRepository          appointmentRepository;
     private final InvoiceRepository              invoiceRepository;
     private final PaymentRepository              paymentRepository;
-    private final PrescriptionHeaderRepository   prescriptionHeaderRepository;
     private final PharmacyOrderRepository        pharmacyOrderRepository;
+    private final NotificationService            notificationService;
+    private final DeviceTokenRepository          deviceTokenRepository;
 
     /** Service xử lý logic chiết khấu sau khi thanh toán thành công */
     private final CommissionService              commissionService;
@@ -111,47 +122,19 @@ public class FinanceServiceImpl implements FinanceService {
             throw new BadRequestException("An invoice already exists for this appointment.");
         }
 
-        // 4. Thu thập các khoản phí
-        // 4a. Phí tư vấn lấy từ Doctor
+        // 4. Doctor invoice only covers the consultation fee.
         BigDecimal consultationFee = appointment.getDoctor() != null
                 && appointment.getDoctor().getConsultationFee() != null
                 ? appointment.getDoctor().getConsultationFee()
                 : BigDecimal.ZERO;
 
-        // 4b. Phí thuốc – tổng tất cả PrescriptionHeader.totalAmount của lịch hẹn này
-        BigDecimal medicineFee = prescriptionHeaderRepository
-                .findByAppointment_AppointmentId(appointmentId)
-                .stream()
-                .map(ph -> ph.getTotalAmount() != null ? ph.getTotalAmount() : BigDecimal.ZERO)
-                .reduce(BigDecimal.ZERO, BigDecimal::add);
-
-        // 4c. Phí giao hàng – tổng PharmacyOrder.deliveryFee của các đơn thuốc thuộc lịch hẹn này
-        List<PrescriptionHeader> headers =
-                prescriptionHeaderRepository.findByAppointment_AppointmentId(appointmentId);
-
         BigDecimal deliveryFee = BigDecimal.ZERO;
-        for (PrescriptionHeader ph : headers) {
-            List<PharmacyOrder> orders = pharmacyOrderRepository
-                    .findByPatient_PatientId(appointment.getPatient().getPatientId())
-                    .stream()
-                    .filter(o -> o.getPrescriptionHeader() != null
-                            && o.getPrescriptionHeader().getPrescriptionHeaderId()
-                            .equals(ph.getPrescriptionHeaderId()))
-                    .collect(Collectors.toList());
-
-            for (PharmacyOrder order : orders) {
-                if (order.getDeliveryFee() != null) {
-                    deliveryFee = deliveryFee.add(order.getDeliveryFee());
-                }
-            }
-        }
+        BigDecimal medicineFee = BigDecimal.ZERO;
 
         // 5. Tính tổng – mặc định không có giảm giá/thuế (có thể mở rộng sau)
         BigDecimal discount = BigDecimal.ZERO;
         BigDecimal tax      = BigDecimal.ZERO;
         BigDecimal amount   = consultationFee
-                .add(medicineFee)
-                .add(deliveryFee)
                 .subtract(discount)
                 .add(tax)
                 .setScale(2, RoundingMode.HALF_UP);
@@ -275,6 +258,80 @@ public class FinanceServiceImpl implements FinanceService {
 
     @Override
     @Transactional
+    public Map<String, Object> createPharmacyOrderPayPalOrder(PharmacyOrderPayPalOrderRequest request) {
+        PharmacyOrder pharmacyOrder = pharmacyOrderRepository.findById(request.getPharmacyOrderId())
+                .orElseThrow(() -> new BadRequestException(
+                        "Pharmacy order not found with ID: " + request.getPharmacyOrderId()
+                ));
+
+        if (INVOICE_PAID.equalsIgnoreCase(pharmacyOrder.getPaymentStatus())) {
+            throw new BadRequestException("This pharmacy order has already been paid.");
+        }
+
+        String accessToken = getPayPalAccessToken();
+        String currency = request.getCurrency() != null ? request.getCurrency() : "USD";
+        String amountStr = (pharmacyOrder.getTotalAmount() != null ? pharmacyOrder.getTotalAmount() : BigDecimal.ZERO)
+                .setScale(2, RoundingMode.HALF_UP)
+                .toPlainString();
+
+        Map<String, Object> amountMap = Map.of(
+                "currency_code", currency,
+                "value", amountStr
+        );
+        Map<String, Object> purchaseUnit = Map.of(
+                "reference_id", "pharmacy-order-" + pharmacyOrder.getOrderId(),
+                "description", "HealthLink Pharmacy Order " + pharmacyOrder.getOrderNumber(),
+                "amount", amountMap
+        );
+        Map<String, Object> payload = Map.of(
+                "intent", "CAPTURE",
+                "purchase_units", List.of(purchaseUnit)
+        );
+
+        HttpHeaders headers = new HttpHeaders();
+        headers.setBearerAuth(accessToken);
+        headers.setContentType(MediaType.APPLICATION_JSON);
+
+        try {
+            String body = objectMapper.writeValueAsString(payload);
+            HttpEntity<String> entity = new HttpEntity<>(body, headers);
+
+            ResponseEntity<Map> response = restTemplate.exchange(
+                    payPalConfig.getBaseUrl() + "/v2/checkout/orders",
+                    HttpMethod.POST,
+                    entity,
+                    Map.class
+            );
+
+            Map<String, Object> responseBody = response.getBody();
+            if (responseBody == null) {
+                throw new PayPalIntegrationException("PayPal returned an empty response when creating the order.");
+            }
+
+            String orderId = (String) responseBody.get("id");
+            log.info("PayPal order created: {} for pharmacy order {}", orderId, pharmacyOrder.getOrderId());
+
+            Map<String, Object> result = new HashMap<>();
+            result.put("orderId", orderId);
+            result.put("pharmacyOrderId", pharmacyOrder.getOrderId());
+            result.put("amount", amountStr);
+            result.put("currency", currency);
+            result.put("status", responseBody.get("status"));
+            result.put("links", responseBody.get("links"));
+            return result;
+
+        } catch (PayPalIntegrationException ex) {
+            throw ex;
+        } catch (Exception ex) {
+            throw new PayPalIntegrationException(
+                    "Error occurred while creating PayPal order for pharmacy order: " + ex.getMessage(),
+                    ex
+            );
+        }
+    }
+
+    @Override
+    @Transactional
     public InvoiceResponse capturePayPalPayment(PayPalCaptureRequest request) {
 
         Invoice invoice = invoiceRepository.findById(request.getInvoiceId())
@@ -356,32 +413,6 @@ public class FinanceServiceImpl implements FinanceService {
                             invoice.getInvoiceId(), ex.getMessage(), ex);
                 }
 
-                // 2. Kết nối luồng Chiết khấu Nhà thuốc:
-                // Tìm PharmacyOrder liên kết với lịch hẹn của hóa đơn này và xử lý commission
-                if (invoice.getAppointment() != null && invoice.getAppointment().getPatient() != null) {
-                    try {
-                        List<PrescriptionHeader> prescriptionHeaders = prescriptionHeaderRepository
-                                .findByAppointment_AppointmentId(invoice.getAppointment().getAppointmentId());
-                        for (PrescriptionHeader ph : prescriptionHeaders) {
-                            List<PharmacyOrder> pharmacyOrders = pharmacyOrderRepository
-                                    .findByPatient_PatientId(invoice.getAppointment().getPatient().getPatientId())
-                                    .stream()
-                                    .filter(o -> o.getPrescriptionHeader() != null
-                                            && o.getPrescriptionHeader().getPrescriptionHeaderId()
-                                            .equals(ph.getPrescriptionHeaderId()))
-                                    .collect(Collectors.toList());
-                            for (PharmacyOrder pharmacyOrder : pharmacyOrders) {
-                                commissionService.processPharmacyOrderCommission(pharmacyOrder);
-                                log.info("Pharmacy commission processed for order {} (invoice {})",
-                                        pharmacyOrder.getOrderId(), invoice.getInvoiceId());
-                            }
-                        }
-                    } catch (Exception ex) {
-                        log.error("Pharmacy commission processing failed for invoice {}: {}",
-                                invoice.getInvoiceId(), ex.getMessage(), ex);
-                    }
-                }
-
                 log.info("Payment SUCCESS – invoice {} paid via PayPal order {}",
                         invoice.getInvoiceId(), request.getOrderId());
 
@@ -410,6 +441,128 @@ public class FinanceServiceImpl implements FinanceService {
             throw ex;
         } catch (Exception ex) {
             throw new PayPalIntegrationException("Error occurred while capturing PayPal payment: " + ex.getMessage(), ex);
+        }
+    }
+
+    @Override
+    @Transactional
+    public PharmacyOrderResponse capturePharmacyOrderPayPalPayment(PharmacyOrderPayPalCaptureRequest request) {
+        PharmacyOrder pharmacyOrder = pharmacyOrderRepository.findById(request.getPharmacyOrderId())
+                .orElseThrow(() -> new BadRequestException(
+                        "Pharmacy order not found with ID: " + request.getPharmacyOrderId()
+                ));
+
+        if (INVOICE_PAID.equalsIgnoreCase(pharmacyOrder.getPaymentStatus())) {
+            throw new BadRequestException("This pharmacy order has already been paid.");
+        }
+
+        if (paymentRepository.findByTransactionId(request.getOrderId()).isPresent()) {
+            throw new BadRequestException(
+                    "This PayPal transaction has already been processed: " + request.getOrderId()
+            );
+        }
+
+        String accessToken = getPayPalAccessToken();
+
+        HttpHeaders headers = new HttpHeaders();
+        headers.setBearerAuth(accessToken);
+        headers.setContentType(MediaType.APPLICATION_JSON);
+        HttpEntity<String> entity = new HttpEntity<>("{}", headers);
+
+        try {
+            ResponseEntity<Map> response = restTemplate.exchange(
+                    payPalConfig.getBaseUrl() + "/v2/checkout/orders/" + request.getOrderId() + "/capture",
+                    HttpMethod.POST,
+                    entity,
+                    Map.class
+            );
+
+            Map<String, Object> responseBody = response.getBody();
+            if (responseBody == null) {
+                throw new PayPalIntegrationException("PayPal returned an empty response when capturing the payment.");
+            }
+
+            String paypalStatus = (String) responseBody.get("status");
+            String metadata;
+            try {
+                metadata = objectMapper.writeValueAsString(responseBody);
+            } catch (Exception e) {
+                metadata = responseBody.toString();
+            }
+
+            BigDecimal fallbackAmount = pharmacyOrder.getTotalAmount() != null
+                    ? pharmacyOrder.getTotalAmount()
+                    : BigDecimal.ZERO;
+            BigDecimal capturedAmount = extractCapturedAmount(responseBody, fallbackAmount);
+            String paymentMethod = METHOD_CARD.equalsIgnoreCase(request.getPaymentMethod())
+                    ? METHOD_CARD : METHOD_EWALLET;
+
+            if ("COMPLETED".equals(paypalStatus)) {
+                Payment payment = Payment.builder()
+                        .invoice(null)
+                        .pharmacyOrder(pharmacyOrder)
+                        .amount(capturedAmount)
+                        .paymentMethod(paymentMethod)
+                        .paymentGateway(GATEWAY_PAYPAL)
+                        .transactionId(request.getOrderId())
+                        .status(PAYMENT_SUCCESS)
+                        .paidAt(LocalDateTime.now())
+                        .metadata(metadata)
+                        .build();
+                paymentRepository.save(payment);
+
+                pharmacyOrder.setPaymentStatus(INVOICE_PAID);
+                if (pharmacyOrder.getPaymentMethod() == null || pharmacyOrder.getPaymentMethod().isBlank()) {
+                    pharmacyOrder.setPaymentMethod(paymentMethod);
+                }
+                boolean notifyDoctorAboutCompletedPaidOrder = shouldNotifyDoctorAboutCompletedPaidOrder(pharmacyOrder);
+                if (notifyDoctorAboutCompletedPaidOrder) {
+                    pharmacyOrder.setDoctorCompletionPaidNotified(true);
+                }
+                pharmacyOrderRepository.save(pharmacyOrder);
+
+                try {
+                    commissionService.processPharmacyOrderCommission(pharmacyOrder);
+                } catch (Exception ex) {
+                    log.error("Pharmacy commission processing failed for order {}: {}",
+                            pharmacyOrder.getOrderId(), ex.getMessage(), ex);
+                }
+
+                notifyAboutPaidPharmacyOrderAfterCommit(pharmacyOrder);
+                if (notifyDoctorAboutCompletedPaidOrder) {
+                    notifyDoctorAboutCompletedAndPaidOrderAfterCommit(pharmacyOrder);
+                }
+                log.info("Payment SUCCESS – pharmacy order {} paid via PayPal order {}",
+                        pharmacyOrder.getOrderId(), request.getOrderId());
+            } else {
+                Payment payment = Payment.builder()
+                        .invoice(null)
+                        .pharmacyOrder(pharmacyOrder)
+                        .amount(capturedAmount)
+                        .paymentMethod(paymentMethod)
+                        .paymentGateway(GATEWAY_PAYPAL)
+                        .transactionId(request.getOrderId())
+                        .status(PAYMENT_FAILED)
+                        .failureReason("PayPal status: " + paypalStatus)
+                        .metadata(metadata)
+                        .build();
+                paymentRepository.save(payment);
+                throw new PayPalIntegrationException("PayPal transaction failed, status: " + paypalStatus);
+            }
+
+            PharmacyOrder refreshedOrder = pharmacyOrderRepository.findById(pharmacyOrder.getOrderId())
+                    .orElseThrow(() -> new BadRequestException(
+                            "Pharmacy order not found with ID: " + pharmacyOrder.getOrderId()
+                    ));
+            return PharmacyOrderMapper.toResponse(refreshedOrder);
+
+        } catch (PayPalIntegrationException | BadRequestException ex) {
+            throw ex;
+        } catch (Exception ex) {
+            throw new PayPalIntegrationException(
+                    "Error occurred while capturing PayPal payment for pharmacy order: " + ex.getMessage(),
+                    ex
+            );
         }
     }
 
@@ -545,6 +698,152 @@ public class FinanceServiceImpl implements FinanceService {
     }
 
     // ─── Ánh xạ DTO ────────────────────────────────────────────────────────
+
+    private void notifyAboutPaidPharmacyOrderAfterCommit(PharmacyOrder pharmacyOrder) {
+        User patientUser = pharmacyOrder.getPatient() != null ? pharmacyOrder.getPatient().getUser() : null;
+        User pharmacyUser = pharmacyOrder.getPharmacy() != null ? pharmacyOrder.getPharmacy().getUser() : null;
+        String actionUrl = "/pharmacy-orders/" + pharmacyOrder.getOrderId();
+        String orderNumber = pharmacyOrder.getOrderNumber() != null
+                ? pharmacyOrder.getOrderNumber()
+                : String.valueOf(pharmacyOrder.getOrderId());
+
+        runAfterCommit("pharmacy order payment notification", () -> {
+            if (patientUser != null) {
+                String patientTitle = "Payment successful";
+                String patientMessage = String.format(
+                        "Payment for pharmacy order %s was captured successfully.",
+                        orderNumber
+                );
+
+                notificationService.sendWebSocketNotification(
+                        patientUser,
+                        NotificationType.INVOICE_PAID,
+                        patientTitle,
+                        patientMessage,
+                        pharmacyOrder.getOrderId(),
+                        actionUrl
+                );
+
+                boolean hasActiveMobileToken = !deviceTokenRepository
+                        .findByUser_IdAndActiveTrue(patientUser.getId())
+                        .isEmpty();
+
+                if (hasActiveMobileToken) {
+                    notificationService.sendMobilePushNotification(
+                            patientUser,
+                            NotificationType.INVOICE_PAID,
+                            patientTitle,
+                            patientMessage,
+                            NotificationPriority.NORMAL,
+                            pharmacyOrder.getOrderId(),
+                            actionUrl
+                    );
+                }
+            }
+
+            if (pharmacyUser != null) {
+                String pharmacyTitle = "Order paid";
+                String pharmacyMessage = String.format(
+                        "Patient payment for order %s has been confirmed.",
+                        orderNumber
+                );
+
+                notificationService.sendWebSocketNotification(
+                        pharmacyUser,
+                        NotificationType.INVOICE_PAID,
+                        pharmacyTitle,
+                        pharmacyMessage,
+                        pharmacyOrder.getOrderId(),
+                        actionUrl
+                );
+            }
+        });
+    }
+
+    private void notifyDoctorAboutCompletedAndPaidOrderAfterCommit(PharmacyOrder pharmacyOrder) {
+        User doctorUser = resolveDoctorUser(pharmacyOrder, NotificationType.INVOICE_PAID);
+        if (doctorUser == null) {
+            return;
+        }
+
+        String actionUrl = "/pharmacy-orders/" + pharmacyOrder.getOrderId();
+        String orderNumber = pharmacyOrder.getOrderNumber() != null
+                ? pharmacyOrder.getOrderNumber()
+                : String.valueOf(pharmacyOrder.getOrderId());
+        String patientName = pharmacyOrder.getPatient() != null
+                ? safeValue(pharmacyOrder.getPatient().getFullName(), "Unknown patient")
+                : "Unknown patient";
+        String pharmacyName = pharmacyOrder.getPharmacy() != null
+                ? safeValue(pharmacyOrder.getPharmacy().getName(), "the pharmacy")
+                : "the pharmacy";
+
+        runAfterCommit("doctor completed and paid pharmacy order notification", () ->
+                notificationService.sendWebSocketNotification(
+                        doctorUser,
+                        NotificationType.INVOICE_PAID,
+                        "Pharmacy order completed and paid",
+                        String.format(
+                                "Order %s for %s was completed by %s and the patient payment has been confirmed.",
+                                orderNumber,
+                                patientName,
+                                pharmacyName
+                        ),
+                        pharmacyOrder.getOrderId(),
+                        actionUrl
+                )
+        );
+    }
+
+    private boolean shouldNotifyDoctorAboutCompletedPaidOrder(PharmacyOrder pharmacyOrder) {
+        return PHARMACY_ORDER_COMPLETED.equalsIgnoreCase(safeValue(pharmacyOrder.getStatus(), ""))
+                && INVOICE_PAID.equalsIgnoreCase(safeValue(pharmacyOrder.getPaymentStatus(), ""))
+                && pharmacyOrder.getPrescriptionHeader() != null
+                && pharmacyOrder.getPrescriptionHeader().getDoctor() != null
+                && !Boolean.TRUE.equals(pharmacyOrder.getDoctorCompletionPaidNotified());
+    }
+
+    private User resolveDoctorUser(PharmacyOrder pharmacyOrder, NotificationType type) {
+        if (pharmacyOrder == null
+                || pharmacyOrder.getPrescriptionHeader() == null
+                || pharmacyOrder.getPrescriptionHeader().getDoctor() == null) {
+            log.warn("Cannot send {} notification: pharmacy order or prescribing doctor is missing", type);
+            return null;
+        }
+
+        User user = pharmacyOrder.getPrescriptionHeader().getDoctor().getUser();
+        if (user == null || user.getId() == null || user.getId().isBlank()) {
+            log.warn("Cannot send {} notification: prescribing doctor is not mapped to a user", type);
+            return null;
+        }
+
+        return user;
+    }
+
+    private String safeValue(String value, String fallback) {
+        return value == null || value.isBlank() ? fallback : value;
+    }
+
+    private void runAfterCommit(String context, Runnable task) {
+        Runnable safeTask = () -> {
+            try {
+                task.run();
+            } catch (Exception ex) {
+                log.error("Failed to send {} after commit: {}", context, ex.getMessage(), ex);
+            }
+        };
+
+        if (TransactionSynchronizationManager.isSynchronizationActive()) {
+            TransactionSynchronizationManager.registerSynchronization(new TransactionSynchronization() {
+                @Override
+                public void afterCommit() {
+                    safeTask.run();
+                }
+            });
+            return;
+        }
+
+        safeTask.run();
+    }
 
     private InvoiceResponse toResponse(Invoice invoice) {
         List<InvoiceResponse.PaymentSummary> paymentSummaries = Collections.emptyList();

@@ -7,6 +7,7 @@ import com.HealthLink.dto.auth.RefreshTokenRequest;
 import com.HealthLink.dto.auth.RegisterRequest;
 import com.HealthLink.dto.auth.ResetPasswordRequest;
 import com.HealthLink.service.auth.AuthService;
+import jakarta.servlet.http.HttpServletRequest;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
@@ -31,8 +32,16 @@ public class AuthController {
      */
     @PostMapping("/login")
     public ResponseEntity<LoginResponse> login(
-            @Valid @RequestBody LoginRequest request) {
-        return ResponseEntity.ok(authService.login(request));
+            @Valid @RequestBody LoginRequest request,
+            HttpServletRequest httpRequest) {
+        // Lấy User-Agent từ header để ghi nhận tên thiết bị/trình duyệt
+        String userAgent = httpRequest.getHeader("User-Agent");
+        // Lấy IP thực của client (hỗ trợ reverse proxy qua X-Forwarded-For)
+        String ipAddress = httpRequest.getHeader("X-Forwarded-For");
+        if (ipAddress == null || ipAddress.isBlank()) {
+            ipAddress = httpRequest.getRemoteAddr();
+        }
+        return ResponseEntity.ok(authService.login(request, userAgent, ipAddress));
     }
 
     /**

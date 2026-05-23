@@ -194,9 +194,11 @@ public class AdminAppointmentService {
             .doctorEmail(doctor != null && doctor.getUser() != null ? doctor.getUser().getEmail() : null)
             .department(doctor != null ? doctor.getSpecialty() : null)
             // Consultation info
+            .consultationId(consultation != null ? consultation.getConsultationId() : null)
             .diagnosis(consultation != null ? consultation.getDiagnosis() : null)
             .doctorNotes(consultation != null ? consultation.getDoctorNotes() : null)
             .followUpDate(consultation != null ? consultation.getFollowUpDate() : null)
+            .followUpAppointmentId(consultation != null ? consultation.getFollowUpAppointmentId() : null)
             .treatmentPlan(consultation != null ? consultation.getTreatmentPlan() : null)
             // Additional info
             .cancelReason(appointment.getCancelReason())

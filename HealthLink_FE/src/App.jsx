@@ -1,5 +1,5 @@
 // src/App.js
-import {useEffect} from 'react';
+import { useEffect } from 'react';
 import { BrowserRouter as Router, Routes, Route, useLocation, useNavigate } from 'react-router-dom';
 
 // ---------------------------------------------import file----------------------------------------------------------
@@ -9,7 +9,7 @@ import 'react-toastify/dist/ReactToastify.css';
 import Home from './components/Home';
 import Schedule from './components/patient-dashboard/Schedule';
 import MyAppointments from './components/MyAppointment';
-import Doctors from './components/Doctors';
+import Doctors from './components/DoctorsList';
 import Records from './components/Records';
 import Video from './components/Video';
 
@@ -51,10 +51,10 @@ import VideocallPage from './pages/video-calling';
 import IncomingCallModal from './components/IncomingCallModal';
 import PrescriptionNotificationModal from './components/PrescriptionNotificationModal';
 import Navbar from './components/Navbar';
-import DoctorProfile from './components/DoctorProfile';
+import DoctorProfile from './components/doctor/public/DoctorProfile';
 import PatientPrescriptionView from './components/PatientPrescriptionView';
 
-import DoctorPage from './components/DoctorPage';
+import DoctorPage from './components/doctor/dashboard/DoctorPage';
 import ProtectedRoute from './components/ProtectedRoute';
 import ExcludeRolesRoute from './components/ExcludeRolesRoute';
 
@@ -131,7 +131,7 @@ function AppContent() {
     '/payment'
   ];
 
-  const isKnownPath = allValidPaths.some(path => 
+  const isKnownPath = allValidPaths.some(path =>
     location.pathname === path || location.pathname.startsWith(path + '/')
   ) || location.pathname.startsWith('/doctor/') || location.pathname.startsWith('/book/');
 
@@ -282,8 +282,9 @@ function AppContent() {
               <Route path="booking" element={<Schedule />} />
               <Route path="book/:doctorId" element={<Schedule />} />
               <Route path="appointments" element={<MyAppointments />} />
-              <Route path="health-records" element={<HealthRecords />} />
-              <Route path="share-records" element={<ShareHealthRecords />} />
+              <Route path="health-records" element={<HealthRecords embedded />} />
+              <Route path="share-records" element={<ShareHealthRecords embedded />} />
+              <Route path="prescriptions" element={<PatientPrescriptionView />} />
               <Route path="profile" element={<ProfilePatient />} />
             </Route>
 

@@ -16,9 +16,14 @@ public class Payment {
     private Integer paymentId;
 
     @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "InvoiceID", nullable = false)
+    @JoinColumn(name = "InvoiceID")
     @ToString.Exclude
     private Invoice invoice;
+
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "OrderID")
+    @ToString.Exclude
+    private PharmacyOrder pharmacyOrder;
 
     @Column(nullable = false)
     private BigDecimal amount;

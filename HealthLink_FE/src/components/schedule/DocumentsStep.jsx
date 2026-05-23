@@ -11,6 +11,7 @@ const DocumentsStep = ({
 
     const handleFileChange = (event) => {
         const selectedFiles = Array.from(event.target.files || []).map((file) => ({
+            file,
             name: file.name,
             size: `${(file.size / 1024 / 1024).toFixed(1)} MB`,
             type: file.type.includes('pdf') ? 'pdf' : 'image',

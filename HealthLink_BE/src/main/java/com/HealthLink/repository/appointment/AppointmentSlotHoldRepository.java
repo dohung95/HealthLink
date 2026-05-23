@@ -27,5 +27,5 @@ public interface AppointmentSlotHoldRepository extends JpaRepository<Appointment
             LocalDateTime now
     );
 
-    void deleteByExpiresAtBefore(LocalDateTime now);
+    long deleteByExpiresAtBefore(LocalDateTime now);
 }

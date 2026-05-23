@@ -17,7 +17,7 @@ public class PrescriptionHeader {
     private Integer prescriptionHeaderId;
 
     @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "AppointmentId", nullable = false)
+    @JoinColumn(name = "AppointmentId")
     @ToString.Exclude
     private Appointment appointment;
 
@@ -27,9 +27,13 @@ public class PrescriptionHeader {
     private Patient patient;
 
     @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "DoctorID", nullable = false)
+    @JoinColumn(name = "DoctorID")
     @ToString.Exclude
     private Doctor doctor;
+
+    @OneToOne(mappedBy = "prescriptionHeader")
+    @ToString.Exclude
+    private PharmacyConsultationRequest consultationRequest;
 
     @Column(nullable = false)
     private LocalDateTime issueDate;
@@ -44,6 +48,10 @@ public class PrescriptionHeader {
 
     @Column(length = 50)
     private String status;
+
+    private Integer sourceAppointmentId;
+
+    private Integer sourcePrescriptionHeaderId;
 
     private BigDecimal totalAmount;
 
