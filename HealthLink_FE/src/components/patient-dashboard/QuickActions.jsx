@@ -6,6 +6,12 @@ import { doctorService } from '../../api/doctorApi';
 import { getProfile } from '../../api/account';
 import DoctorDirectoryModal from '../DoctorDirectoryModal';
 
+/**
+ * QuickActions - Hiển thị các hành động nhanh và các thông tin liên quan
+ *  - Lịch hẹn sắp tới
+ *  - Bác sĩ đề xuất
+ */
+
 const QuickActions = () => {
     const { token } = useAuth();
     const navigate = useNavigate();
