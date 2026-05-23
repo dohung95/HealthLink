@@ -253,7 +253,7 @@ export function PharmacyRegistration() {
 
     return (
         <>
-            <div className="pharmacy-registration-bg" style={{paddingTop:"15%"}}>
+            <div className="pharmacy-registration-bg">
                 <div className="pharmacy-registration-container">
                     <div className="form-header">
                         <Link to="/register-as" className="back-link">

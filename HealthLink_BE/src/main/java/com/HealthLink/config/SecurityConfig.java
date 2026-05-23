@@ -73,6 +73,8 @@ public class SecurityConfig {
                 .authorizeHttpRequests(auth -> auth
                 // Public: đăng ký / đăng nhập / refresh token
                 .requestMatchers("/api/auth/**").permitAll()
+                // Public: đăng ký Doctor/Pharmacy (chưa có tài khoản)
+                .requestMatchers("/api/registration/**").permitAll()
                 // Public: xem ảnh upload (avatar, v.v.) — không cần xác thực
                 .requestMatchers(HttpMethod.GET, "/uploads/**").permitAll()
                 // Public: xem danh sách bác sĩ (cho bệnh nhân)

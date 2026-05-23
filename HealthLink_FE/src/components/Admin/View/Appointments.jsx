@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useMemo } from "react";
 import NavbarAdmin from "./NavbarAdmin";
 import { appointmentsApi } from "../../../api/adminApi";
 import Toast from "./Toast";
@@ -32,6 +32,14 @@ export default function Appointments() {
     department: ''
   });
 
+  // View mode state: 'list' or 'calendar'
+  const [viewMode, setViewMode] = useState('list');
+
+  // Calendar state
+  const [calendarDate, setCalendarDate] = useState(new Date());
+  const [calendarAppointments, setCalendarAppointments] = useState([]);
+  const [calendarLoading, setCalendarLoading] = useState(false);
+
   const departments = [
     "General Internal Medicine",
     "Gastroenterology",
@@ -44,6 +52,111 @@ export default function Appointments() {
     "Orthopedics",
     "Psychiatry"
   ];
+
+  // Calendar helper functions
+  const getCalendarDays = useMemo(() => {
+    const year = calendarDate.getFullYear();
+    const month = calendarDate.getMonth();
+
+    const firstDay = new Date(year, month, 1);
+    const lastDay = new Date(year, month + 1, 0);
+
+    const startDay = firstDay.getDay(); // 0 = Sunday
+    const daysInMonth = lastDay.getDate();
+
+    const days = [];
+
+    // Previous month days
+    const prevMonth = new Date(year, month, 0);
+    const prevMonthDays = prevMonth.getDate();
+    for (let i = startDay - 1; i >= 0; i--) {
+      days.push({
+        date: new Date(year, month - 1, prevMonthDays - i),
+        isCurrentMonth: false
+      });
+    }
+
+    // Current month days
+    for (let i = 1; i <= daysInMonth; i++) {
+      days.push({
+        date: new Date(year, month, i),
+        isCurrentMonth: true
+      });
+    }
+
+    // Next month days to fill the grid (6 rows x 7 days = 42)
+    const remaining = 42 - days.length;
+    for (let i = 1; i <= remaining; i++) {
+      days.push({
+        date: new Date(year, month + 1, i),
+        isCurrentMonth: false
+      });
+    }
+
+    return days;
+  }, [calendarDate]);
+
+  const isToday = (date) => {
+    const today = new Date();
+    return date.getDate() === today.getDate() &&
+           date.getMonth() === today.getMonth() &&
+           date.getFullYear() === today.getFullYear();
+  };
+
+  const isWeekend = (date) => {
+    const day = date.getDay();
+    return day === 0 || day === 6;
+  };
+
+  const formatMonthYear = (date) => {
+    return date.toLocaleDateString('en-US', { month: 'long', year: 'numeric' });
+  };
+
+  const getAppointmentsForDate = (date) => {
+    const dateStr = date.toISOString().split('T')[0];
+    return calendarAppointments.filter(appt => {
+      const apptDate = appt.rawDate || (appt.appointmentTime ? appt.appointmentTime.split('T')[0] : '');
+      return apptDate === dateStr;
+    });
+  };
+
+  const navigateCalendar = (direction) => {
+    setCalendarDate(prev => {
+      const newDate = new Date(prev);
+      newDate.setMonth(newDate.getMonth() + direction);
+      return newDate;
+    });
+  };
+
+  const goToToday = () => {
+    setCalendarDate(new Date());
+  };
+
+  // Fetch calendar appointments for the current month
+  const fetchCalendarAppointments = async () => {
+    try {
+      setCalendarLoading(true);
+      const year = calendarDate.getFullYear();
+      const month = calendarDate.getMonth();
+
+      // Get first and last day of the month for filtering
+      const startDate = new Date(year, month, 1).toISOString().split('T')[0];
+      const endDate = new Date(year, month + 1, 0).toISOString().split('T')[0];
+
+      const response = await appointmentsApi.getAll({
+        pageNumber: 1,
+        pageSize: 500, // Get all appointments for the month
+        startDate,
+        endDate
+      });
+
+      setCalendarAppointments(response.appointments || []);
+    } catch (err) {
+      console.error('Error fetching calendar appointments:', err);
+    } finally {
+      setCalendarLoading(false);
+    }
+  };
 
   // Modal states
   const [showViewModal, setShowViewModal] = useState(false);
@@ -104,6 +217,13 @@ export default function Appointments() {
   useEffect(() => {
     fetchAppointments();
   }, [pagination.pageNumber, filters]);
+
+  // Fetch calendar appointments when switching to calendar view or changing month
+  useEffect(() => {
+    if (viewMode === 'calendar') {
+      fetchCalendarAppointments();
+    }
+  }, [viewMode, calendarDate]);
 
   const handleSearch = (e) => {
     setFilters({ ...filters, searchTerm: e.target.value });
@@ -227,7 +347,7 @@ export default function Appointments() {
       <main className="admin-content p-4">
         {/* Appointments Page Header with Visual Distinction */}
         <div className="admin-page-header-appointments-v2 mb-4">
-          <div className="d-flex justify-content-between align-items-start">
+          <div className="d-flex justify-content-between align-items-start flex-wrap gap-3">
             <div className="admin-page-title-section">
               <div className="d-flex align-items-center gap-3 mb-2">
                 <div className="admin-page-icon-appointments-v2">
@@ -251,6 +371,24 @@ export default function Appointments() {
               <p className="admin-page-subtitle-appointments-v2 mb-0">
                 Manage appointment schedules, track bookings, and monitor consultation status
               </p>
+            </div>
+
+            {/* View Toggle */}
+            <div className="appointments-view-toggle">
+              <button
+                className={`appointments-view-btn ${viewMode === 'calendar' ? 'active' : ''}`}
+                onClick={() => setViewMode('calendar')}
+              >
+                <i className="bi bi-calendar3"></i>
+                Calendar
+              </button>
+              <button
+                className={`appointments-view-btn ${viewMode === 'list' ? 'active' : ''}`}
+                onClick={() => setViewMode('list')}
+              >
+                <i className="bi bi-grid-3x3-gap-fill"></i>
+                Cards
+              </button>
             </div>
           </div>
         </div>
@@ -377,7 +515,148 @@ export default function Appointments() {
           </div>
         </div>
 
-        {/* Appointments Card Grid */}
+        {/* Calendar View */}
+        {viewMode === 'calendar' && (
+          <div className="appointments-calendar mb-4">
+            {/* Calendar Header */}
+            <div className="calendar-header">
+              <div className="calendar-nav">
+                <button className="calendar-nav-btn" onClick={() => navigateCalendar(-1)}>
+                  <i className="bi bi-chevron-left"></i>
+                </button>
+                <h5 className="calendar-title mb-0">{formatMonthYear(calendarDate)}</h5>
+                <button className="calendar-nav-btn" onClick={() => navigateCalendar(1)}>
+                  <i className="bi bi-chevron-right"></i>
+                </button>
+              </div>
+              <button className="calendar-today-btn" onClick={goToToday}>
+                <i className="bi bi-calendar-event me-1"></i>
+                Today
+              </button>
+            </div>
+
+            {/* Calendar Grid */}
+            <div className="calendar-grid">
+              {/* Day Names */}
+              {['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'].map((day, index) => (
+                <div
+                  key={day}
+                  className={`calendar-day-name ${index === 0 || index === 6 ? 'weekend' : ''}`}
+                >
+                  {day}
+                </div>
+              ))}
+
+              {/* Calendar Cells */}
+              {calendarLoading ? (
+                <div className="calendar-cell" style={{ gridColumn: 'span 7', minHeight: '300px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                  <div className="spinner-border text-primary" role="status">
+                    <span className="visually-hidden">Loading...</span>
+                  </div>
+                </div>
+              ) : (
+                getCalendarDays.map((day, index) => {
+                  const dayAppointments = getAppointmentsForDate(day.date);
+                  const displayCount = 3;
+                  const moreCount = dayAppointments.length - displayCount;
+
+                  return (
+                    <div
+                      key={index}
+                      className={`calendar-cell ${!day.isCurrentMonth ? 'other-month' : ''} ${isToday(day.date) ? 'today' : ''} ${isWeekend(day.date) ? 'weekend' : ''}`}
+                    >
+                      <div className="calendar-date">{day.date.getDate()}</div>
+                      <div className="calendar-appointments">
+                        {dayAppointments.slice(0, displayCount).map((appt, apptIndex) => (
+                          <div
+                            key={apptIndex}
+                            className={`calendar-appt-item ${appt.status.toLowerCase().replace(' ', '-')}`}
+                            onClick={() => handleViewAppointment(appt)}
+                            title={`${appt.time} - ${appt.patientName}`}
+                          >
+                            <span className="calendar-appt-time">{appt.time}</span>
+                            <span>{appt.patientName?.split(' ')[0]}</span>
+                          </div>
+                        ))}
+                        {moreCount > 0 && (
+                          <div className="calendar-more-link">
+                            +{moreCount} more
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                  );
+                })
+              )}
+            </div>
+          </div>
+        )}
+
+        {/* Today's Appointments (shown below calendar) */}
+        {viewMode === 'calendar' && !calendarLoading && (
+          <div className="todays-appointments mb-4">
+            <div className="todays-appointments-header">
+              <h6>
+                <i className="bi bi-calendar-check-fill"></i>
+                Today's Appointments
+              </h6>
+              <span className="admin-badge admin-badge-primary">
+                {calendarAppointments.filter(appt => {
+                  const today = new Date().toISOString().split('T')[0];
+                  const apptDate = appt.rawDate || (appt.appointmentTime ? appt.appointmentTime.split('T')[0] : '');
+                  return apptDate === today;
+                }).length} appointments
+              </span>
+            </div>
+            <div className="todays-appointments-list">
+              {calendarAppointments
+                .filter(appt => {
+                  const today = new Date().toISOString().split('T')[0];
+                  const apptDate = appt.rawDate || (appt.appointmentTime ? appt.appointmentTime.split('T')[0] : '');
+                  return apptDate === today;
+                })
+                .slice(0, 5)
+                .map((appt, index) => (
+                  <div key={index} className="todays-appt-item" onClick={() => handleViewAppointment(appt)}>
+                    <div className="todays-appt-time">
+                      <i className="bi bi-clock"></i>
+                      {appt.time}
+                    </div>
+                    <div className="todays-appt-patient">
+                      <i className="bi bi-person"></i>
+                      {appt.patientName}
+                    </div>
+                    <div className="todays-appt-doctor">
+                      <i className="bi bi-person-badge"></i>
+                      {appt.doctorName}
+                    </div>
+                    <div className="todays-appt-type">
+                      <i className={appt.consultationType === 'Video' ? 'bi bi-camera-video' : 'bi bi-chat-dots'}></i>
+                      {appt.consultationType}
+                    </div>
+                    <div className="todays-appt-status">
+                      <span className={`admin-badge ${getStatusBadgeClass(appt.status)}`}>
+                        {appt.status}
+                      </span>
+                    </div>
+                  </div>
+                ))}
+              {calendarAppointments.filter(appt => {
+                const today = new Date().toISOString().split('T')[0];
+                const apptDate = appt.rawDate || (appt.appointmentTime ? appt.appointmentTime.split('T')[0] : '');
+                return apptDate === today;
+              }).length === 0 && (
+                <div className="text-center text-muted py-4">
+                  <i className="bi bi-calendar-x d-block mb-2" style={{ fontSize: '32px' }}></i>
+                  No appointments scheduled for today
+                </div>
+              )}
+            </div>
+          </div>
+        )}
+
+        {/* Appointments Card Grid (List View) */}
+        {viewMode === 'list' && (
         <div className="appointments-container">
           {loading ? (
             <div className="appointments-loading">
@@ -482,8 +761,10 @@ export default function Appointments() {
             </div>
           )}
         </div>
+        )}
 
-        {/* Pagination */}
+        {/* Pagination (only show in list view) */}
+        {viewMode === 'list' && (
         <div className="appointments-pagination-wrapper">
           {!loading && appointments.length > 0 && (
             <div className="card-footer bg-white">
@@ -578,6 +859,7 @@ export default function Appointments() {
             </div>
           )}
         </div>
+        )}
 
         {/* View Appointment Details Modal */}
         {showViewModal && selectedAppointment && (
