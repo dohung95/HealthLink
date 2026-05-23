@@ -57,6 +57,11 @@ const PatientSidebar = () => {
             path: '/patient-dashboard/share-records',
         },
         {
+            label: 'Prescriptions',
+            icon: 'bi bi-capsule',
+            path: '/patient-dashboard/prescriptions',
+        },
+        {
             label: 'Profile',
             icon: 'bi bi-person-circle',
             path: '/patient-dashboard/profile',
