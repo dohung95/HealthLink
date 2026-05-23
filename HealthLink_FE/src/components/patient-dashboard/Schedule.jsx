@@ -4,6 +4,7 @@ import { toast } from 'sonner';
 
 import { appointmentService } from '../../api/appointmentApi';
 import { doctorService } from '../../api/doctorApi';
+import { paymentApi } from '../../api/paymentApi';
 import { useAuth } from '../../context/AuthContext';
 import { getProfile } from '../../api/account';
 import { healthRecordApi } from '../../api/healthRecordApi';
@@ -14,6 +15,7 @@ import ConsultationStep from '../schedule/ConsultationStep';
 import DateTimeStep from '../schedule/DateTimeStep';
 import DocumentsStep from '../schedule/DocumentsStep';
 import ConfirmStep from '../schedule/ConfirmStep';
+import PaymentStep from '../schedule/PaymentStep';
 import DoctorSummaryCard from '../schedule/DoctorSummaryCard';
 
 import '../Css/ScheduleWizard.css';
@@ -42,6 +44,9 @@ const Schedule = () => {
   const [symptoms, setSymptoms] = useState('');
   const [files, setFiles] = useState([]);
   const [patientId, setPatientId] = useState('');
+  const [bookingSubmitting, setBookingSubmitting] = useState(false);
+  const [createdAppointment, setCreatedAppointment] = useState(null);
+  const [invoice, setInvoice] = useState(null);
 
 
   const [maxDate] = useState(() => {
@@ -56,6 +61,7 @@ const Schedule = () => {
       { key: 'datetime', label: 'Date & Time' },
       { key: 'documents', label: 'Medical information' },
       { key: 'confirm', label: 'Confirm' },
+      { key: 'payment', label: 'Payment' },
     ]
     : [
       { key: 'specialty', label: 'Specialty' },
@@ -64,6 +70,7 @@ const Schedule = () => {
       { key: 'datetime', label: 'Date & Time' },
       { key: 'documents', label: 'Medical information' },
       { key: 'confirm', label: 'Confirm' },
+      { key: 'payment', label: 'Payment' },
     ];
 
   const currentStepKey = stepConfig[step - 1]?.key;
@@ -307,6 +314,8 @@ const Schedule = () => {
     }
 
 
+    setBookingSubmitting(true);
+
     try {
       const bookingData = {
         patientId,
@@ -317,8 +326,25 @@ const Schedule = () => {
         notes: '',
       };
 
-      await appointmentService.createAppointment(bookingData);
+      const appointment = await appointmentService.createAppointment(bookingData);
+      const appointmentId = appointment.appointmentId || appointment.appointmentID;
+      const generatedInvoice = await paymentApi.generateAppointmentInvoice(appointmentId);
 
+      setCreatedAppointment(appointment);
+      setInvoice(generatedInvoice);
+      setStep(stepConfig.length);
+      toast.success('Appointment created. Please complete payment.');
+    } catch (error) {
+      toast.error(
+        error.response?.data?.message || 'Can not create appointment.'
+      );
+    } finally {
+      setBookingSubmitting(false);
+    }
+  };
+
+  const finalizeBookingAfterPayment = async () => {
+    try {
       if (files.length > 0) {
         for (const item of files) {
           if (!item.file) continue;
@@ -336,9 +362,11 @@ const Schedule = () => {
       toast.success('Booking successful!');
       navigate('/patient-dashboard/appointments');
     } catch (error) {
+      console.error('Failed to upload booking documents after payment', error);
       toast.error(
-        error.response?.data?.message || 'Can not create appointment.'
+        error.response?.data?.message || 'Payment completed, but documents could not be uploaded.'
       );
+      navigate('/patient-dashboard/appointments');
     }
   };
 
@@ -449,6 +477,16 @@ const Schedule = () => {
                   files={files}
                   onBack={handleBack}
                   onConfirm={handleSchedule}
+                  confirming={bookingSubmitting}
+                />
+              )}
+
+              {currentStepKey === 'payment' && (
+                <PaymentStep
+                  invoice={invoice}
+                  appointment={createdAppointment}
+                  selectedDoctor={selectedDoctor}
+                  onPaymentComplete={finalizeBookingAfterPayment}
                 />
               )}
             </section>

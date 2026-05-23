@@ -5,6 +5,7 @@ import com.HealthLink.dto.response.FollowUpSlotsResponse;
 import com.HealthLink.entity.Appointment;
 import com.HealthLink.entity.Consultation;
 import com.HealthLink.entity.Doctor;
+import com.HealthLink.entity.Invoice;
 import com.HealthLink.entity.Medicine;
 import com.HealthLink.entity.Patient;
 import com.HealthLink.entity.PrescriptionHeader;
@@ -13,7 +14,9 @@ import com.HealthLink.exception.BadRequestException;
 import com.HealthLink.repository.appointment.AppointmentRepository;
 import com.HealthLink.repository.consultation.ConsultationRepository;
 import com.HealthLink.repository.doctor.DoctorRepository;
+import com.HealthLink.repository.payment.InvoiceRepository;
 import com.HealthLink.repository.prescription.PrescriptionHeaderRepository;
+import com.HealthLink.service.payment.CommissionService;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.ArgumentCaptor;
@@ -50,7 +53,13 @@ class FollowUpAppointmentServiceImplTest {
     private DoctorRepository doctorRepository;
 
     @Mock
+    private InvoiceRepository invoiceRepository;
+
+    @Mock
     private PrescriptionHeaderRepository prescriptionHeaderRepository;
+
+    @Mock
+    private CommissionService commissionService;
 
     @InjectMocks
     private FollowUpAppointmentServiceImpl followUpAppointmentService;
@@ -110,6 +119,7 @@ class FollowUpAppointmentServiceImplTest {
     void completeAppointment_shouldCreateFollowUpAndCopyPrescription() {
         LocalDate date = LocalDate.now().plusDays(3);
         Appointment sourceAppointment = appointment(10, LocalDateTime.now().minusHours(1), "Scheduled");
+        sourceAppointment.setInvoice(paidInvoice(sourceAppointment));
         Consultation consultation = Consultation.builder()
                 .consultationId(20)
                 .appointment(sourceAppointment)
@@ -150,6 +160,7 @@ class FollowUpAppointmentServiceImplTest {
 
         ArgumentCaptor<PrescriptionHeader> prescriptionCaptor = ArgumentCaptor.forClass(PrescriptionHeader.class);
         verify(prescriptionHeaderRepository).save(prescriptionCaptor.capture());
+        verify(commissionService).processConsultationCommission(sourceAppointment.getInvoice());
         PrescriptionHeader copiedPrescription = prescriptionCaptor.getValue();
 
         assertThat(copiedPrescription.getSourceAppointmentId()).isEqualTo(10);
@@ -159,6 +170,31 @@ class FollowUpAppointmentServiceImplTest {
         assertThat(copiedPrescription.getPrescriptionItems().getFirst().getMedicationName())
                 .isEqualTo("Amlodipine 5mg");
         verify(appointmentRepository, times(2)).save(any(Appointment.class));
+    }
+
+    @Test
+    void completeAppointment_shouldNotCreateFollowUpWithoutPendingFollowUpDate() {
+        Appointment sourceAppointment = appointment(10, LocalDateTime.now().minusHours(1), "Scheduled");
+        sourceAppointment.setInvoice(paidInvoice(sourceAppointment));
+        Consultation consultation = Consultation.builder()
+                .consultationId(20)
+                .appointment(sourceAppointment)
+                .build();
+        sourceAppointment.setConsultation(consultation);
+
+        when(appointmentRepository.findById(10)).thenReturn(Optional.of(sourceAppointment));
+        when(appointmentRepository.save(any(Appointment.class))).thenAnswer(invocation -> invocation.getArgument(0));
+
+        CompleteAppointmentResponse response = followUpAppointmentService.completeAppointment(10);
+
+        assertThat(response.isCreatedFollowUp()).isFalse();
+        assertThat(response.getFollowUpAppointment()).isNull();
+        assertThat(sourceAppointment.getStatus()).isEqualTo("Completed");
+        verify(appointmentRepository).save(sourceAppointment);
+        verify(commissionService).processConsultationCommission(sourceAppointment.getInvoice());
+        verify(consultationRepository, never()).save(any(Consultation.class));
+        verify(prescriptionHeaderRepository, never())
+                .findByAppointment_AppointmentIdOrderByIssueDateDescPrescriptionHeaderIdDesc(any());
     }
 
     @Test
@@ -181,6 +217,27 @@ class FollowUpAppointmentServiceImplTest {
         assertThat(response.isCreatedFollowUp()).isFalse();
         assertThat(response.getFollowUpAppointment().getAppointmentId()).isEqualTo(99);
         verify(appointmentRepository, never()).save(any(Appointment.class));
+    }
+
+    @Test
+    void completeAppointment_shouldRejectUnpaidAppointment() {
+        Appointment sourceAppointment = appointment(10, LocalDateTime.now().minusHours(1), "Scheduled");
+        sourceAppointment.setInvoice(Invoice.builder()
+                .invoiceId(1)
+                .appointment(sourceAppointment)
+                .patient(sourceAppointment.getPatient())
+                .amount(new BigDecimal("100.00"))
+                .status("Pending")
+                .build());
+
+        when(appointmentRepository.findById(10)).thenReturn(Optional.of(sourceAppointment));
+
+        assertThatThrownBy(() -> followUpAppointmentService.completeAppointment(10))
+                .isInstanceOf(BadRequestException.class)
+                .hasMessage("Appointment must be paid before it can be completed");
+
+        verify(appointmentRepository, never()).save(any(Appointment.class));
+        verify(commissionService, never()).processConsultationCommission(any(Invoice.class));
     }
 
     private Appointment appointment(Integer id, LocalDateTime appointmentTime, String status) {
@@ -248,5 +305,16 @@ class FollowUpAppointmentServiceImplTest {
                 .build());
 
         return header;
+    }
+
+    private Invoice paidInvoice(Appointment appointment) {
+        return Invoice.builder()
+                .invoiceId(1)
+                .appointment(appointment)
+                .patient(appointment.getPatient())
+                .consultationFee(new BigDecimal("100.00"))
+                .amount(new BigDecimal("100.00"))
+                .status("Paid")
+                .build();
     }
 }

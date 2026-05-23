@@ -4,6 +4,8 @@ import com.HealthLink.dto.request.AppointmentRequest;
 import com.HealthLink.dto.request.CancelAppointmentRequest;
 import com.HealthLink.dto.request.HoldSlotRequest;
 import com.HealthLink.dto.request.RescheduleAppointmentRequest;
+import com.HealthLink.dto.consultation.FollowUpRequest;
+import com.HealthLink.dto.consultation.FollowUpResponse;
 import com.HealthLink.dto.response.AppointmentResponse;
 import com.HealthLink.dto.response.AvailableSlotsResponse;
 import com.HealthLink.dto.response.CompleteAppointmentResponse;
@@ -17,6 +19,7 @@ import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
 import com.HealthLink.service.appointment.AppointmentService;
+import com.HealthLink.service.consultation.ConsultationService;
 import java.time.LocalDate;
 
 // Xử lý lịch hẹn
@@ -26,6 +29,7 @@ import java.time.LocalDate;
 public class AppointmentController {
 
     private final AppointmentService appointmentService;
+    private final ConsultationService consultationService;
     private final FollowUpAppointmentService followUpAppointmentService;
 
     // Đặt lịch khám mới
@@ -82,6 +86,13 @@ public class AppointmentController {
     @PutMapping("/{id}/complete")
     public ResponseEntity<CompleteAppointmentResponse> complete(@PathVariable Integer id) {
         return ResponseEntity.ok(followUpAppointmentService.completeAppointment(id));
+    }
+
+    @PutMapping("/{id}/follow-up")
+    public ResponseEntity<FollowUpResponse> updateFollowUp(
+            @PathVariable Integer id,
+            @RequestBody FollowUpRequest request) {
+        return ResponseEntity.ok(consultationService.updateFollowUpByAppointment(id, request));
     }
 
     @GetMapping("/available-slots")

@@ -9,6 +9,7 @@ import com.HealthLink.dto.response.FollowUpSlotsResponse;
 import com.HealthLink.entity.Appointment;
 import com.HealthLink.entity.Consultation;
 import com.HealthLink.entity.Doctor;
+import com.HealthLink.entity.Invoice;
 import com.HealthLink.entity.PrescriptionHeader;
 import com.HealthLink.entity.PrescriptionItem;
 import com.HealthLink.exception.BadRequestException;
@@ -16,8 +17,10 @@ import com.HealthLink.exception.ResourceNotFoundException;
 import com.HealthLink.repository.appointment.AppointmentRepository;
 import com.HealthLink.repository.consultation.ConsultationRepository;
 import com.HealthLink.repository.doctor.DoctorRepository;
+import com.HealthLink.repository.payment.InvoiceRepository;
 import com.HealthLink.repository.prescription.PrescriptionHeaderRepository;
 import com.HealthLink.service.followup.FollowUpAppointmentService;
+import com.HealthLink.service.payment.CommissionService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -44,7 +47,9 @@ public class FollowUpAppointmentServiceImpl implements FollowUpAppointmentServic
     private final AppointmentRepository appointmentRepository;
     private final ConsultationRepository consultationRepository;
     private final DoctorRepository doctorRepository;
+    private final InvoiceRepository invoiceRepository;
     private final PrescriptionHeaderRepository prescriptionHeaderRepository;
+    private final CommissionService commissionService;
 
     @Override
     @Transactional(readOnly = true)
@@ -163,8 +168,19 @@ public class FollowUpAppointmentServiceImpl implements FollowUpAppointmentServic
             throw new BadRequestException("Cancelled appointments cannot be completed");
         }
 
+        Invoice invoice = appointment.getInvoice();
+        if (invoice == null) {
+            invoice = invoiceRepository.findByAppointment_AppointmentId(appointmentId)
+                    .orElseThrow(() -> new BadRequestException(
+                            "Appointment must be paid before it can be completed"));
+        }
+        if (!"Paid".equalsIgnoreCase(invoice.getStatus())) {
+            throw new BadRequestException("Appointment must be paid before it can be completed");
+        }
+
         appointment.setStatus("Completed");
         Appointment completedAppointment = appointmentRepository.save(appointment);
+        commissionService.processConsultationCommission(invoice);
 
         Appointment followUpAppointment = null;
         Integer followUpPrescriptionHeaderId = null;

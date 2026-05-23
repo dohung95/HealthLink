@@ -65,6 +65,15 @@ public interface AppointmentRepository extends JpaRepository<Appointment, Intege
 
     List<Appointment> findByDoctor_DoctorIdOrderByAppointmentTimeDesc(String doctorId);
 
+    @Query("""
+            SELECT a FROM Appointment a
+            JOIN a.invoice i
+            WHERE a.status = 'PendingPayment'
+            AND i.status = 'Pending'
+            AND i.issueDate < :cutoff
+            """)
+    List<Appointment> findExpiredPendingPaymentAppointments(@Param("cutoff") LocalDateTime cutoff);
+
     /**
      * Tìm các lịch hẹn sắp diễn ra trong khoảng thời gian cho trước và chưa gửi
      * reminder. Dùng cho @Scheduled job nhắc nhở trước 30 phút.

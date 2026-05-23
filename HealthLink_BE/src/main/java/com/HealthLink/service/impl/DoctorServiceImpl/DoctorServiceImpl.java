@@ -120,6 +120,10 @@ public class DoctorServiceImpl implements DoctorService {
         if (updateRequest.getPhoneNumber() != null && !updateRequest.getPhoneNumber().trim().isEmpty()) {
             user.setPhoneNumber(updateRequest.getPhoneNumber());
         }
+        if (updateRequest.getPaypalEmail() != null) {
+            String paypalEmail = updateRequest.getPaypalEmail().trim();
+            doctor.setPaypalEmail(paypalEmail.isEmpty() ? null : paypalEmail);
+        }
 
         userRepository.save(user);
         Doctor updated = doctorRepository.save(doctor);
