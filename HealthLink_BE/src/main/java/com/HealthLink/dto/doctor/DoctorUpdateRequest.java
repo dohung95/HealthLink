@@ -15,4 +15,5 @@ public class DoctorUpdateRequest {
     private String avatarUrl;
     private String bio;
     private String phoneNumber;
+    private String paypalEmail;
 }

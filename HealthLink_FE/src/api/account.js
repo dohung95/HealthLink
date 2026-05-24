@@ -71,6 +71,7 @@ export const updateDoctorProfile = async (token, data) => {
         phoneNumber: data.phoneNumber,
         avatarUrl: data.avatarUrl,
         bio: data.bio ?? data.description ?? '',
+        paypalEmail: data.paypalEmail ?? '',
     };
     const res = await axios.put(`${BASE}/doctors/profile`, payload, authConfig(token));
     return normalizeDoctorProfile(res.data);

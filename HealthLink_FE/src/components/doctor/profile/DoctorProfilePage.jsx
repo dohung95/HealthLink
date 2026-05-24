@@ -9,11 +9,13 @@ import {
 import { useAuth } from '../../../context/AuthContext';
 import Loading from '../../Loading';
 import { toast } from 'sonner';
+import DoctorWalletTab from './DoctorWalletTab';
 
 const initialForm = {
   phoneNumber: '',
   description: '',
   avatarUrl: '',
+  paypalEmail: '',
 };
 
 export default function DoctorProfilePage() {
@@ -41,6 +43,7 @@ export default function DoctorProfilePage() {
           phoneNumber: data.phoneNumber || '',
           description: data.description || '',
           avatarUrl: data.avatarUrl || '',
+          paypalEmail: data.paypalEmail || '',
         });
       } catch (error) {
         console.error('Error loading doctor profile:', error);
@@ -75,6 +78,7 @@ export default function DoctorProfilePage() {
         phoneNumber: updated.phoneNumber || '',
         description: updated.description || '',
         avatarUrl: updated.avatarUrl || '',
+        paypalEmail: updated.paypalEmail || '',
       });
       toast.success('Doctor profile updated.');
     } catch (error) {
@@ -175,6 +179,13 @@ export default function DoctorProfilePage() {
               >
                 Security
               </button>
+              <button
+                type="button"
+                className={`btn ${activeTab === 'wallet' ? 'btn-success' : 'btn-outline-secondary'}`}
+                onClick={() => setActiveTab('wallet')}
+              >
+                Wallet
+              </button>
             </div>
           </div>
 
@@ -188,6 +199,16 @@ export default function DoctorProfilePage() {
                       name="phoneNumber"
                       className="form-control"
                       value={formData.phoneNumber}
+                      onChange={handleProfileChange}
+                    />
+                  </div>
+                  <div className="col-md-6">
+                    <label className="form-label">PayPal Email</label>
+                    <input
+                      type="email"
+                      name="paypalEmail"
+                      className="form-control"
+                      value={formData.paypalEmail}
                       onChange={handleProfileChange}
                     />
                   </div>
@@ -219,6 +240,8 @@ export default function DoctorProfilePage() {
                   </div>
                 </div>
               </form>
+            ) : activeTab === 'wallet' ? (
+              <DoctorWalletTab profile={profile} />
             ) : (
               <div className="row g-4">
                 <div className="col-lg-6">

@@ -49,6 +49,9 @@ import java.util.stream.Collectors;
 @Slf4j
 public class AppointmentServiceImpl implements AppointmentService {
 
+    private static final String STATUS_CANCELLED = "Cancelled";
+    private static final String STATUS_PENDING_PAYMENT = "PendingPayment";
+
     private static final DateTimeFormatter NOTIFICATION_TIME_FORMATTER =
             DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm");
 
@@ -138,7 +141,7 @@ public class AppointmentServiceImpl implements AppointmentService {
                 .appointmentTime(appointmentTime)
                 .endTime(appointmentTime.plusMinutes(slotMinutes))
                 .consultationType(request.getConsultationType())
-                .status("Scheduled")
+                .status(STATUS_PENDING_PAYMENT)
                 .symptoms(request.getSymptoms())
                 .notes(request.getNotes())
                 .fee(doctor.getConsultationFee())
@@ -154,7 +157,6 @@ public class AppointmentServiceImpl implements AppointmentService {
                 )
                 .ifPresent(appointmentSlotHoldRepository::delete);
 
-        notifyDoctorAboutNewAppointmentAfterCommit(saved);
         return toResponse(saved);
     }
 
@@ -389,6 +391,7 @@ public class AppointmentServiceImpl implements AppointmentService {
         return appointmentRepository
                 .findByDoctor_DoctorIdOrderByAppointmentTimeDesc(doctorId)
                 .stream()
+                .filter(appointment -> !STATUS_PENDING_PAYMENT.equalsIgnoreCase(appointment.getStatus()))
                 .map(this::toResponse)
                 .collect(Collectors.toList());
     }

@@ -7,6 +7,7 @@ const ConfirmStep = ({
     files,
     onBack,
     onConfirm,
+    confirming = false,
 }) => {
     const formattedDateTime = selectedSlot?.appointmentTime
         ? new Date(selectedSlot.appointmentTime).toLocaleString('en-US')
@@ -42,8 +43,8 @@ const ConfirmStep = ({
                     ← Back
                 </button>
 
-                <button type="button" className="btn-primary-soft" onClick={onConfirm}>
-                    Confirm
+                <button type="button" className="btn-primary-soft" onClick={onConfirm} disabled={confirming}>
+                    {confirming ? 'Preparing payment...' : 'Confirm'}
                 </button>
             </div>
         </div>

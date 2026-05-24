@@ -33,6 +33,27 @@ export const consultationApi = {
     return response.data;
   },
 
+  cancelFollowUp: async (id) => {
+    const response = await axiosInstance.put(`${CONSULTATIONS_URL}/${id}/follow-up`, {
+      followUpDate: null,
+      followUpNotes: null,
+    });
+    return response.data;
+  },
+
+  updateAppointmentFollowUp: async (appointmentId, followUpData) => {
+    const response = await axiosInstance.put(`/api/appointments/${appointmentId}/follow-up`, followUpData);
+    return response.data;
+  },
+
+  cancelAppointmentFollowUp: async (appointmentId) => {
+    const response = await axiosInstance.put(`/api/appointments/${appointmentId}/follow-up`, {
+      followUpDate: null,
+      followUpNotes: null,
+    });
+    return response.data;
+  },
+
   getFollowUp: async (id) => {
     const response = await axiosInstance.get(`${CONSULTATIONS_URL}/${id}/follow-up`);
     return response.data;

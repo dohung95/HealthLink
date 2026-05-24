@@ -1,6 +1,8 @@
 package com.HealthLink.controller.payment;
 
 import com.HealthLink.dto.payment.InvoiceResponse;
+import com.HealthLink.dto.payment.AppointmentPayPalCaptureRequest;
+import com.HealthLink.dto.payment.AppointmentPayPalOrderRequest;
 import com.HealthLink.dto.payment.PayPalCaptureRequest;
 import com.HealthLink.dto.payment.PayPalOrderRequest;
 import com.HealthLink.dto.payment.PharmacyOrderPayPalCaptureRequest;
@@ -101,6 +103,12 @@ public class PaymentController {
         return ResponseEntity.ok(result);
     }
 
+    @PostMapping("/appointments/paypal/create")
+    public ResponseEntity<Map<String, Object>> createAppointmentPayPalOrder(
+            @Valid @RequestBody AppointmentPayPalOrderRequest request) {
+        return ResponseEntity.ok(financeService.createAppointmentPayPalOrder(request));
+    }
+
     @PostMapping("/pharmacy-orders/paypal/create")
     public ResponseEntity<Map<String, Object>> createPharmacyOrderPayPalOrder(
             @Valid @RequestBody PharmacyOrderPayPalOrderRequest request) {
@@ -118,6 +126,12 @@ public class PaymentController {
             @Valid @RequestBody PayPalCaptureRequest request) {
         InvoiceResponse response = financeService.capturePayPalPayment(request);
         return ResponseEntity.ok(response);
+    }
+
+    @PostMapping("/appointments/paypal/capture")
+    public ResponseEntity<InvoiceResponse> captureAppointmentPayPalPayment(
+            @Valid @RequestBody AppointmentPayPalCaptureRequest request) {
+        return ResponseEntity.ok(financeService.captureAppointmentPayPalPayment(request));
     }
 
     @PostMapping("/pharmacy-orders/paypal/capture")

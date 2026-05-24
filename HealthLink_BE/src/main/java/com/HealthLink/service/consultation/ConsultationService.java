@@ -10,6 +10,8 @@ public interface ConsultationService {
      */
     FollowUpResponse updateFollowUp(Integer consultationId, FollowUpRequest request);
 
+    FollowUpResponse updateFollowUpByAppointment(Integer appointmentId, FollowUpRequest request);
+
     /**
      * Lấy thông tin tái khám theo consultationId.
      */

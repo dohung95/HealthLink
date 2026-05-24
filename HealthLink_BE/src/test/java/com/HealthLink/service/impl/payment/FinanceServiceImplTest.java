@@ -1,6 +1,9 @@
 package com.HealthLink.service.impl.payment;
 
 import com.HealthLink.config.PayPalConfig;
+import com.HealthLink.dto.payment.AppointmentPayPalCaptureRequest;
+import com.HealthLink.dto.payment.PayPalCaptureRequest;
+import com.HealthLink.dto.response.AppointmentResponse;
 import com.HealthLink.dto.payment.PharmacyOrderPayPalCaptureRequest;
 import com.HealthLink.dto.pharmacy.PharmacyOrderResponse;
 import com.HealthLink.entity.Appointment;
@@ -13,12 +16,16 @@ import com.HealthLink.entity.PharmacyOrder;
 import com.HealthLink.entity.PrescriptionHeader;
 import com.HealthLink.entity.User;
 import com.HealthLink.entity.enums.NotificationType;
+import com.HealthLink.repository.auth.UserRepository;
 import com.HealthLink.repository.appointment.AppointmentRepository;
+import com.HealthLink.repository.doctor.DoctorRepository;
 import com.HealthLink.repository.notification.DeviceTokenRepository;
+import com.HealthLink.repository.patient.PatientRepository;
 import com.HealthLink.repository.payment.InvoiceRepository;
 import com.HealthLink.repository.payment.PaymentRepository;
 import com.HealthLink.repository.pharmacy.PharmacyOrderRepository;
 import com.HealthLink.repository.prescription.PrescriptionHeaderRepository;
+import com.HealthLink.service.appointment.AppointmentService;
 import com.HealthLink.service.notification.NotificationService;
 import com.HealthLink.service.payment.CommissionService;
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -45,6 +52,7 @@ import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.ArgumentMatchers.contains;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.verifyNoInteractions;
+import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.when;
 
 @ExtendWith(MockitoExtension.class)
@@ -63,6 +71,15 @@ class FinanceServiceImplTest {
     private AppointmentRepository appointmentRepository;
 
     @Mock
+    private AppointmentService appointmentService;
+
+    @Mock
+    private DoctorRepository doctorRepository;
+
+    @Mock
+    private PatientRepository patientRepository;
+
+    @Mock
     private InvoiceRepository invoiceRepository;
 
     @Mock
@@ -73,6 +90,9 @@ class FinanceServiceImplTest {
 
     @Mock
     private PharmacyOrderRepository pharmacyOrderRepository;
+
+    @Mock
+    private UserRepository userRepository;
 
     @Mock
     private NotificationService notificationService;
@@ -87,10 +107,10 @@ class FinanceServiceImplTest {
     private FinanceServiceImpl financeService;
 
     @Test
-    void generateInvoice_shouldOnlyChargeConsultationFee() {
+    void generateInvoice_shouldOnlyChargeConsultationFeeForPendingPaymentAppointment() {
         Appointment appointment = Appointment.builder()
                 .appointmentId(22)
-                .status("Completed")
+                .status("PendingPayment")
                 .patient(Patient.builder()
                         .patientId("patient-1")
                         .build())
@@ -101,7 +121,6 @@ class FinanceServiceImplTest {
                 .build();
 
         when(appointmentRepository.findById(22)).thenReturn(Optional.of(appointment));
-        when(invoiceRepository.existsByAppointment_AppointmentId(22)).thenReturn(false);
         when(invoiceRepository.count()).thenReturn(0L);
         when(invoiceRepository.save(any(Invoice.class))).thenAnswer(invocation -> {
             Invoice invoice = invocation.getArgument(0);
@@ -116,6 +135,188 @@ class FinanceServiceImplTest {
         assertThat(response.getDeliveryFee()).isEqualByComparingTo(BigDecimal.ZERO);
         assertThat(response.getAmount()).isEqualByComparingTo("80.00");
         verifyNoInteractions(prescriptionHeaderRepository);
+    }
+
+    @Test
+    void capturePayPalPayment_shouldConfirmAppointmentWithoutProcessingCommission() throws Exception {
+        User doctorUser = User.builder().id("doctor-user-1").build();
+        Appointment appointment = Appointment.builder()
+                .appointmentId(22)
+                .status("PendingPayment")
+                .patient(Patient.builder()
+                        .patientId("patient-1")
+                        .fullName("Patient One")
+                        .build())
+                .doctor(Doctor.builder()
+                        .doctorId("doctor-1")
+                        .fullName("Doctor One")
+                        .user(doctorUser)
+                        .consultationFee(new BigDecimal("100.00"))
+                        .build())
+                .build();
+        Invoice invoice = Invoice.builder()
+                .invoiceId(1)
+                .invoiceNumber("INV-20260523-0001")
+                .appointment(appointment)
+                .patient(appointment.getPatient())
+                .consultationFee(new BigDecimal("100.00"))
+                .amount(new BigDecimal("100.00"))
+                .status("Pending")
+                .build();
+        appointment.setInvoice(invoice);
+
+        PayPalCaptureRequest request = new PayPalCaptureRequest();
+        request.setInvoiceId(1);
+        request.setOrderId("paypal-order-1");
+        request.setPaymentMethod("EWallet");
+
+        Map<String, Object> captureBody = Map.of(
+                "status", "COMPLETED",
+                "purchase_units", List.of(Map.of(
+                        "reference_id", "invoice-1",
+                        "payments", Map.of(
+                                "captures", List.of(Map.of(
+                                        "amount", Map.of(
+                                                "currency_code", "USD",
+                                                "value", "100.00"
+                                        )
+                                ))
+                        )
+                ))
+        );
+
+        when(invoiceRepository.findById(1)).thenReturn(Optional.of(invoice), Optional.of(invoice));
+        when(paymentRepository.findByTransactionId("paypal-order-1")).thenReturn(Optional.empty());
+        when(payPalConfig.getClientId()).thenReturn("client-id");
+        when(payPalConfig.getClientSecret()).thenReturn("client-secret");
+        when(payPalConfig.getBaseUrl()).thenReturn("https://paypal.example");
+        when(restTemplate.exchange(
+                eq("https://paypal.example/v1/oauth2/token"),
+                eq(HttpMethod.POST),
+                any(HttpEntity.class),
+                eq(Map.class)
+        )).thenReturn(new ResponseEntity<>(Map.of("access_token", "token-1"), HttpStatus.OK));
+        when(restTemplate.exchange(
+                eq("https://paypal.example/v2/checkout/orders/paypal-order-1/capture"),
+                eq(HttpMethod.POST),
+                any(HttpEntity.class),
+                eq(Map.class)
+        )).thenReturn(new ResponseEntity<>(captureBody, HttpStatus.OK));
+        when(objectMapper.writeValueAsString(any())).thenReturn("{}");
+        when(paymentRepository.save(any(Payment.class))).thenAnswer(invocation -> invocation.getArgument(0));
+        when(invoiceRepository.save(any(Invoice.class))).thenAnswer(invocation -> invocation.getArgument(0));
+        when(appointmentRepository.save(any(Appointment.class))).thenAnswer(invocation -> invocation.getArgument(0));
+
+        var response = financeService.capturePayPalPayment(request);
+
+        assertThat(response.getStatus()).isEqualTo("Paid");
+        assertThat(appointment.getStatus()).isEqualTo("Scheduled");
+        assertThat(appointment.getConfirmedAt()).isNotNull();
+        verify(commissionService, never()).processConsultationCommission(any(Invoice.class));
+        verify(notificationService).sendWebSocketNotification(
+                eq(doctorUser),
+                eq(NotificationType.NEW_APPOINTMENT),
+                eq("New paid appointment booked"),
+                contains("paid for a"),
+                eq(22),
+                eq("/appointments/22")
+        );
+    }
+
+    @Test
+    void captureAppointmentPayPalPayment_shouldCreateAppointmentAndPaidInvoiceAfterCapture() throws Exception {
+        User doctorUser = User.builder().id("doctor-user-1").build();
+        Patient patient = Patient.builder()
+                .patientId("patient-1")
+                .fullName("Patient One")
+                .build();
+        Doctor doctor = Doctor.builder()
+                .doctorId("doctor-1")
+                .fullName("Doctor One")
+                .user(doctorUser)
+                .consultationFee(new BigDecimal("100.00"))
+                .build();
+        Appointment appointment = Appointment.builder()
+                .appointmentId(33)
+                .status("PendingPayment")
+                .patient(patient)
+                .doctor(doctor)
+                .appointmentTime(java.time.LocalDateTime.now().plusDays(2))
+                .consultationType("Video")
+                .fee(new BigDecimal("100.00"))
+                .build();
+
+        AppointmentPayPalCaptureRequest request = new AppointmentPayPalCaptureRequest();
+        request.setOrderId("paypal-order-2");
+        request.setPatientId("patient-1");
+        request.setDoctorId("doctor-1");
+        request.setAppointmentTime(appointment.getAppointmentTime());
+        request.setConsultationType("Video");
+        request.setPaymentMethod("EWallet");
+
+        Map<String, Object> captureBody = Map.of(
+                "status", "COMPLETED",
+                "purchase_units", List.of(Map.of(
+                        "reference_id", "appointment-checkout",
+                        "payments", Map.of(
+                                "captures", List.of(Map.of(
+                                        "amount", Map.of(
+                                                "currency_code", "USD",
+                                                "value", "100.00"
+                                        )
+                                ))
+                        )
+                ))
+        );
+
+        when(doctorRepository.findById("doctor-1")).thenReturn(Optional.of(doctor));
+        when(paymentRepository.findByTransactionId("paypal-order-2")).thenReturn(Optional.empty());
+        when(payPalConfig.getClientId()).thenReturn("client-id");
+        when(payPalConfig.getClientSecret()).thenReturn("client-secret");
+        when(payPalConfig.getBaseUrl()).thenReturn("https://paypal.example");
+        when(restTemplate.exchange(
+                eq("https://paypal.example/v1/oauth2/token"),
+                eq(HttpMethod.POST),
+                any(HttpEntity.class),
+                eq(Map.class)
+        )).thenReturn(new ResponseEntity<>(Map.of("access_token", "token-1"), HttpStatus.OK));
+        when(restTemplate.exchange(
+                eq("https://paypal.example/v2/checkout/orders/paypal-order-2/capture"),
+                eq(HttpMethod.POST),
+                any(HttpEntity.class),
+                eq(Map.class)
+        )).thenReturn(new ResponseEntity<>(captureBody, HttpStatus.OK));
+        when(objectMapper.writeValueAsString(any())).thenReturn("{}");
+        when(appointmentService.createAppointment(any())).thenReturn(AppointmentResponse.builder()
+                .appointmentId(33)
+                .build());
+        when(appointmentRepository.findById(33)).thenReturn(Optional.of(appointment));
+        when(appointmentRepository.save(any(Appointment.class))).thenAnswer(invocation -> invocation.getArgument(0));
+        when(invoiceRepository.count()).thenReturn(0L);
+        when(invoiceRepository.save(any(Invoice.class))).thenAnswer(invocation -> {
+            Invoice invoice = invocation.getArgument(0);
+            invoice.setInvoiceId(2);
+            return invoice;
+        });
+        when(paymentRepository.save(any(Payment.class))).thenAnswer(invocation -> invocation.getArgument(0));
+        when(invoiceRepository.findById(2)).thenAnswer(invocation -> Optional.of(appointment.getInvoice()));
+
+        var response = financeService.captureAppointmentPayPalPayment(request);
+
+        assertThat(response.getStatus()).isEqualTo("Paid");
+        assertThat(response.getAppointmentId()).isEqualTo(33);
+        assertThat(appointment.getStatus()).isEqualTo("Scheduled");
+        assertThat(appointment.getConfirmedAt()).isNotNull();
+        verify(appointmentService).createAppointment(any());
+        verify(commissionService, never()).processConsultationCommission(any(Invoice.class));
+        verify(notificationService).sendWebSocketNotification(
+                eq(doctorUser),
+                eq(NotificationType.NEW_APPOINTMENT),
+                eq("New paid appointment booked"),
+                contains("paid for a"),
+                eq(33),
+                eq("/appointments/33")
+        );
     }
 
     @Test

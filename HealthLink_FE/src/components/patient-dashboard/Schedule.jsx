@@ -14,9 +14,19 @@ import ConsultationStep from '../schedule/ConsultationStep';
 import DateTimeStep from '../schedule/DateTimeStep';
 import DocumentsStep from '../schedule/DocumentsStep';
 import ConfirmStep from '../schedule/ConfirmStep';
+import PaymentStep from '../schedule/PaymentStep';
 import DoctorSummaryCard from '../schedule/DoctorSummaryCard';
 
 import '../Css/ScheduleWizard.css';
+
+const buildAppointmentDateTime = (dateValue, timeValue) => {
+  const [hour = '00', minute = '00', rawSecond = '00'] = String(timeValue || '')
+    .trim()
+    .split(':');
+  const second = rawSecond.split('.')[0] || '00';
+
+  return `${dateValue}T${hour.padStart(2, '0')}:${minute.padStart(2, '0')}:${second.padStart(2, '0')}`;
+};
 
 const Schedule = () => {
   const navigate = useNavigate();
@@ -42,6 +52,8 @@ const Schedule = () => {
   const [symptoms, setSymptoms] = useState('');
   const [files, setFiles] = useState([]);
   const [patientId, setPatientId] = useState('');
+  const [bookingSubmitting, setBookingSubmitting] = useState(false);
+  const [paymentDraft, setPaymentDraft] = useState(null);
 
 
   const [maxDate] = useState(() => {
@@ -56,6 +68,7 @@ const Schedule = () => {
       { key: 'datetime', label: 'Date & Time' },
       { key: 'documents', label: 'Medical information' },
       { key: 'confirm', label: 'Confirm' },
+      { key: 'payment', label: 'Payment' },
     ]
     : [
       { key: 'specialty', label: 'Specialty' },
@@ -64,6 +77,7 @@ const Schedule = () => {
       { key: 'datetime', label: 'Date & Time' },
       { key: 'documents', label: 'Medical information' },
       { key: 'confirm', label: 'Confirm' },
+      { key: 'payment', label: 'Payment' },
     ];
 
   const currentStepKey = stepConfig[step - 1]?.key;
@@ -167,7 +181,7 @@ const Schedule = () => {
     }
 
     const previousSelectedSlot = selectedSlot;
-    const appointmentTime = `${date}T${slot.startTime}:00`;
+    const appointmentTime = buildAppointmentDateTime(date, slot.startTime);
 
     try {
       // Nếu trước đó đã chọn slot khác, giải phóng hold cũ trước
@@ -307,6 +321,8 @@ const Schedule = () => {
     }
 
 
+    setBookingSubmitting(true);
+
     try {
       const bookingData = {
         patientId,
@@ -317,8 +333,24 @@ const Schedule = () => {
         notes: '',
       };
 
-      await appointmentService.createAppointment(bookingData);
+      setPaymentDraft({
+        ...bookingData,
+        currency: 'USD',
+        amount: selectedDoctor?.consultationFee ?? selectedDoctor?.fee ?? 0,
+      });
+      setStep(stepConfig.length);
+      toast.success('Please complete payment to create your appointment.');
+    } catch (error) {
+      toast.error(
+        error.response?.data?.message || 'Can not prepare payment.'
+      );
+    } finally {
+      setBookingSubmitting(false);
+    }
+  };
 
+  const finalizeBookingAfterPayment = async () => {
+    try {
       if (files.length > 0) {
         for (const item of files) {
           if (!item.file) continue;
@@ -336,9 +368,11 @@ const Schedule = () => {
       toast.success('Booking successful!');
       navigate('/patient-dashboard/appointments');
     } catch (error) {
+      console.error('Failed to upload booking documents after payment', error);
       toast.error(
-        error.response?.data?.message || 'Can not create appointment.'
+        error.response?.data?.message || 'Payment completed, but documents could not be uploaded.'
       );
+      navigate('/patient-dashboard/appointments');
     }
   };
 
@@ -449,6 +483,15 @@ const Schedule = () => {
                   files={files}
                   onBack={handleBack}
                   onConfirm={handleSchedule}
+                  confirming={bookingSubmitting}
+                />
+              )}
+
+              {currentStepKey === 'payment' && (
+                <PaymentStep
+                  bookingDraft={paymentDraft}
+                  selectedDoctor={selectedDoctor}
+                  onPaymentComplete={finalizeBookingAfterPayment}
                 />
               )}
             </section>

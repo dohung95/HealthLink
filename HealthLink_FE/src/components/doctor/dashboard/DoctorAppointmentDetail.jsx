@@ -68,6 +68,7 @@ const DoctorAppointmentDetail = ({ appointment, patient, onBack, onOpenAppointme
   const [loadingFollowUpSlots, setLoadingFollowUpSlots] = useState(false);
   const [loadingFollowUpCalendar, setLoadingFollowUpCalendar] = useState(false);
   const [savingFollowUp, setSavingFollowUp] = useState(false);
+  const [followUpAction, setFollowUpAction] = useState(null);
   const { roles, initiateCall } = useAuth();
   const { openChatWith } = useChat();
 
@@ -376,7 +377,6 @@ const DoctorAppointmentDetail = ({ appointment, patient, onBack, onOpenAppointme
 
   const handleFollowUpDateChange = (date) => {
     setFollowUpSelectedDate(date);
-    setSelectedFollowUpDateTime(null);
   };
 
   const handleFollowUpMonthChange = ({ activeStartDate }) => {
@@ -386,41 +386,136 @@ const DoctorAppointmentDetail = ({ appointment, patient, onBack, onOpenAppointme
     }
   };
 
-  const handleSelectFollowUpSlot = (slot) => {
-    if (!slot?.selectable) {
-      return;
-    }
-
-    setSelectedFollowUpDateTime(buildFollowUpDateTime(followUpSelectedDate, slot.startTime));
-  };
-
-  const handleSaveFollowUp = async () => {
+  const savePendingFollowUp = async (followUpDate, notes, successMessage = null) => {
+    const targetAppointmentId =
+      appointmentDetail?.appointmentId ||
+      appointmentDetail?.appointmentID ||
+      appointmentId;
     const consultation = buildConsultation(appointmentDetail || appointment);
 
-    if (!consultation.consultationId) {
-      toast.error('Consultation data is not ready yet');
-      return;
+    if (!targetAppointmentId) {
+      toast.error('Appointment data is not ready yet');
+      return false;
     }
-    if (!selectedFollowUpDateTime) {
+    if (!followUpDate) {
       toast.error('Please select an available follow-up slot');
-      return;
+      return false;
+    }
+    if (consultation.followUpAppointmentId) {
+      toast.error('Follow-up appointment has already been created');
+      return false;
     }
 
     setSavingFollowUp(true);
+    setFollowUpAction('save');
     try {
-      await consultationApi.updateFollowUp(consultation.consultationId, {
-        followUpDate: selectedFollowUpDateTime,
-        followUpNotes: followUpNotes.trim() || null,
+      await consultationApi.updateAppointmentFollowUp(targetAppointmentId, {
+        followUpDate,
+        followUpNotes: notes?.trim() || null,
       });
-      toast.success('Follow-up schedule saved');
+      if (successMessage) {
+        toast.success(successMessage);
+      }
+      await refreshAppointmentData({ showToast: false });
+      await loadFollowUpSlots();
+      await loadFollowUpCalendar();
+      return true;
+    } catch (error) {
+      console.error('Error saving follow-up:', error);
+      toast.error(error.response?.data?.message || 'Failed to save follow-up');
+      return false;
+    } finally {
+      setSavingFollowUp(false);
+      setFollowUpAction(null);
+    }
+  };
+
+  const handleSelectFollowUpSlot = async (slot) => {
+    if (!slot?.selectable || savingFollowUp) {
+      return;
+    }
+
+    const nextFollowUpDateTime = buildFollowUpDateTime(followUpSelectedDate, slot.startTime);
+    const previousFollowUpDateTime = selectedFollowUpDateTime;
+
+    setSelectedFollowUpDateTime(nextFollowUpDateTime);
+
+    const saved = await savePendingFollowUp(
+      nextFollowUpDateTime,
+      followUpNotes,
+      'Follow-up slot selected',
+    );
+    if (!saved) {
+      setSelectedFollowUpDateTime(previousFollowUpDateTime);
+    }
+  };
+
+  const handleFollowUpNotesBlur = async (event) => {
+    if (event?.relatedTarget?.dataset?.followupAction) {
+      return;
+    }
+
+    const consultation = buildConsultation(appointmentDetail || appointment);
+    const targetAppointmentId =
+      appointmentDetail?.appointmentId ||
+      appointmentDetail?.appointmentID ||
+      appointmentId;
+
+    if (
+      savingFollowUp ||
+      consultation.followUpAppointmentId ||
+      !targetAppointmentId ||
+      !selectedFollowUpDateTime
+    ) {
+      return;
+    }
+
+    const savedNotes = consultation.followUpNotes || '';
+    const nextNotes = followUpNotes.trim();
+    if (consultation.followUpDate === selectedFollowUpDateTime && savedNotes === nextNotes) {
+      return;
+    }
+
+    await savePendingFollowUp(selectedFollowUpDateTime, followUpNotes);
+  };
+
+  const handleCancelFollowUp = async () => {
+    const targetAppointmentId =
+      appointmentDetail?.appointmentId ||
+      appointmentDetail?.appointmentID ||
+      appointmentId;
+    const consultation = buildConsultation(appointmentDetail || appointment);
+
+    if (!targetAppointmentId) {
+      toast.error('Appointment data is not ready yet');
+      return;
+    }
+    if (consultation.followUpAppointmentId) {
+      toast.error('Follow-up appointment has already been created');
+      return;
+    }
+
+    const previousFollowUpDateTime = selectedFollowUpDateTime;
+    const previousFollowUpNotes = followUpNotes;
+
+    setSelectedFollowUpDateTime(null);
+    setFollowUpNotes('');
+    setSavingFollowUp(true);
+    setFollowUpAction('cancel');
+    try {
+      await consultationApi.cancelAppointmentFollowUp(targetAppointmentId);
+      toast.success('Follow-up selection cancelled');
       await refreshAppointmentData({ showToast: false });
       await loadFollowUpSlots();
       await loadFollowUpCalendar();
     } catch (error) {
-      console.error('Error saving follow-up:', error);
-      toast.error(error.response?.data?.message || 'Failed to save follow-up');
+      console.error('Error cancelling follow-up:', error);
+      setSelectedFollowUpDateTime(previousFollowUpDateTime);
+      setFollowUpNotes(previousFollowUpNotes);
+      toast.error(error.response?.data?.message || 'Failed to cancel follow-up');
     } finally {
       setSavingFollowUp(false);
+      setFollowUpAction(null);
     }
   };
 
@@ -604,6 +699,13 @@ const DoctorAppointmentDetail = ({ appointment, patient, onBack, onOpenAppointme
   const appointmentPassed = new Date(currentAppointment?.appointmentTime) < new Date();
   const joinDisabled = currentAppointment?.status !== 'Scheduled' || appointmentPassed;
   const isReadOnlyAppointment = currentAppointment?.status === 'Completed';
+  const hasPendingFollowUp = Boolean(consultation.followUpDate || selectedFollowUpDateTime);
+  const canCancelFollowUp = Boolean(
+    currentAppointment?.appointmentId &&
+    hasPendingFollowUp &&
+    !consultation.followUpAppointmentId &&
+    !isReadOnlyAppointment,
+  );
   const actionLabel =
     currentAppointment?.consultationType === 'Chat'
       ? 'Open Chat'
@@ -964,10 +1066,11 @@ const DoctorAppointmentDetail = ({ appointment, patient, onBack, onOpenAppointme
                                   slot.selectable ? 'doctor-followup-slot--available' : 'doctor-followup-slot--disabled',
                                   isSelected ? 'doctor-followup-slot--selected' : '',
                                 ].filter(Boolean).join(' ')}
-                                disabled={!slot.selectable || isReadOnlyAppointment}
+                                disabled={!slot.selectable || isReadOnlyAppointment || savingFollowUp}
                                 key={slot.startTime}
                                 onClick={() => handleSelectFollowUpSlot(slot)}
                                 title={slot.disabledReason || slot.label}
+                                data-followup-action="select-slot"
                                 type="button"
                               >
                                 <span className="doctor-followup-slot__time">{slot.label}</span>
@@ -977,7 +1080,9 @@ const DoctorAppointmentDetail = ({ appointment, patient, onBack, onOpenAppointme
                                     : slot.status === 'DISABLED'
                                       ? slot.disabledReason || 'Disabled'
                                       : isSelected
-                                        ? 'Selected'
+                                        ? followUpAction === 'save'
+                                          ? 'Saving'
+                                          : 'Selected'
                                         : 'Available'}
                                 </span>
                               </button>
@@ -995,7 +1100,8 @@ const DoctorAppointmentDetail = ({ appointment, patient, onBack, onOpenAppointme
                         <span>Follow-up notes</span>
                         <textarea
                           className="form-control doctor-prescription-input doctor-prescription-input--textarea"
-                          disabled={isReadOnlyAppointment}
+                          disabled={isReadOnlyAppointment || savingFollowUp}
+                          onBlur={handleFollowUpNotesBlur}
                           onChange={(event) => setFollowUpNotes(event.target.value)}
                           placeholder="Add concise notes for the next appointment..."
                           rows="4"
@@ -1004,19 +1110,17 @@ const DoctorAppointmentDetail = ({ appointment, patient, onBack, onOpenAppointme
                       </label>
 
                       <div className="doctor-detail-followup__actions">
-                        <button
-                          className="btn btn-primary"
-                          disabled={
-                            isReadOnlyAppointment ||
-                            savingFollowUp ||
-                            !selectedFollowUpDateTime ||
-                            !consultation.consultationId
-                          }
-                          onClick={handleSaveFollowUp}
-                          type="button"
-                        >
-                          {savingFollowUp ? 'Saving...' : 'Save follow-up'}
-                        </button>
+                        {canCancelFollowUp ? (
+                          <button
+                            className="btn btn-outline-danger"
+                            disabled={savingFollowUp}
+                            onClick={handleCancelFollowUp}
+                            data-followup-action="cancel"
+                            type="button"
+                          >
+                            {followUpAction === 'cancel' ? 'Cancelling...' : 'Cancel follow-up'}
+                          </button>
+                        ) : null}
                       </div>
                     </div>
                   </div>
