@@ -1,14 +1,20 @@
 package com.HealthLink.service.impl.payment;
 
 import com.HealthLink.config.PayPalConfig;
+import com.HealthLink.dto.payment.AppointmentPayPalCaptureRequest;
+import com.HealthLink.dto.payment.AppointmentPayPalOrderRequest;
 import com.HealthLink.dto.payment.InvoiceResponse;
 import com.HealthLink.dto.payment.PayPalCaptureRequest;
 import com.HealthLink.dto.payment.PayPalOrderRequest;
 import com.HealthLink.dto.payment.PharmacyOrderPayPalCaptureRequest;
 import com.HealthLink.dto.payment.PharmacyOrderPayPalOrderRequest;
 import com.HealthLink.dto.pharmacy.PharmacyOrderResponse;
+import com.HealthLink.dto.request.AppointmentRequest;
+import com.HealthLink.dto.response.AppointmentResponse;
 import com.HealthLink.entity.Appointment;
+import com.HealthLink.entity.Doctor;
 import com.HealthLink.entity.Invoice;
+import com.HealthLink.entity.Patient;
 import com.HealthLink.entity.Payment;
 import com.HealthLink.entity.PharmacyOrder;
 import com.HealthLink.exception.BadRequestException;
@@ -17,9 +23,12 @@ import com.HealthLink.exception.PayPalIntegrationException;
 import com.HealthLink.repository.auth.UserRepository;
 import com.HealthLink.repository.notification.DeviceTokenRepository;
 import com.HealthLink.repository.appointment.AppointmentRepository;
+import com.HealthLink.repository.doctor.DoctorRepository;
+import com.HealthLink.repository.patient.PatientRepository;
 import com.HealthLink.repository.payment.InvoiceRepository;
 import com.HealthLink.repository.payment.PaymentRepository;
 import com.HealthLink.repository.pharmacy.PharmacyOrderRepository;
+import com.HealthLink.service.appointment.AppointmentService;
 import com.HealthLink.service.notification.NotificationService;
 import com.HealthLink.service.payment.CommissionService;
 import com.HealthLink.service.payment.FinanceService;
@@ -45,6 +54,7 @@ import org.springframework.transaction.support.TransactionSynchronization;
 import org.springframework.transaction.support.TransactionSynchronizationManager;
 import org.springframework.util.LinkedMultiValueMap;
 import org.springframework.util.MultiValueMap;
+import org.springframework.web.client.HttpStatusCodeException;
 import org.springframework.web.client.RestTemplate;
 
 import java.math.BigDecimal;
@@ -85,6 +95,7 @@ public class FinanceServiceImpl implements FinanceService {
 
     private static final String APPT_PENDING_PAYMENT = "PendingPayment";
     private static final String APPT_SCHEDULED = "Scheduled";
+    private static final String APPOINTMENT_CHECKOUT_REFERENCE_ID = "appointment-checkout";
     private static final String ROLE_ADMIN = "ADMIN";
     private static final String ROLE_PATIENT = "PATIENT";
     private static final String ROLE_DOCTOR = "DOCTOR";
@@ -101,6 +112,9 @@ public class FinanceServiceImpl implements FinanceService {
     private final ObjectMapper objectMapper;
 
     private final AppointmentRepository          appointmentRepository;
+    private final AppointmentService             appointmentService;
+    private final DoctorRepository               doctorRepository;
+    private final PatientRepository              patientRepository;
     private final InvoiceRepository              invoiceRepository;
     private final PaymentRepository              paymentRepository;
     private final PharmacyOrderRepository        pharmacyOrderRepository;
@@ -272,6 +286,89 @@ public class FinanceServiceImpl implements FinanceService {
             throw ex;
         } catch (Exception ex) {
             throw new PayPalIntegrationException("Error occurred while creating PayPal order: " + ex.getMessage(), ex);
+        }
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public Map<String, Object> createAppointmentPayPalOrder(AppointmentPayPalOrderRequest request) {
+        assertAppointmentCheckoutAccess(request.getPatientId());
+
+        Patient patient = patientRepository.findById(request.getPatientId())
+                .orElseThrow(() -> new BadRequestException("Patient not found with ID: " + request.getPatientId()));
+        Doctor doctor = doctorRepository.findById(request.getDoctorId())
+                .orElseThrow(() -> new BadRequestException("Doctor not found with ID: " + request.getDoctorId()));
+
+        checkDoctorSupportsConsultationType(doctor, request.getConsultationType());
+
+        BigDecimal amount = resolveDoctorConsultationFee(doctor);
+        String currency = request.getCurrency() != null ? request.getCurrency() : "USD";
+        String amountStr = amount.setScale(2, RoundingMode.HALF_UP).toPlainString();
+        String description = String.format(
+                "HealthLink Appointment %s with %s",
+                request.getConsultationType(),
+                safeValue(doctor.getFullName(), "Doctor")
+        );
+
+        Map<String, Object> amountMap = Map.of(
+                "currency_code", currency,
+                "value", amountStr
+        );
+        Map<String, Object> purchaseUnit = Map.of(
+                "reference_id", APPOINTMENT_CHECKOUT_REFERENCE_ID,
+                "description", description,
+                "custom_id", String.format("%s:%s", patient.getPatientId(), doctor.getDoctorId()),
+                "amount", amountMap
+        );
+        Map<String, Object> payload = Map.of(
+                "intent", "CAPTURE",
+                "purchase_units", List.of(purchaseUnit)
+        );
+
+        try {
+            String accessToken = getPayPalAccessToken();
+
+            HttpHeaders headers = new HttpHeaders();
+            headers.setBearerAuth(accessToken);
+            headers.setContentType(MediaType.APPLICATION_JSON);
+            HttpEntity<Map<String, Object>> entity = new HttpEntity<>(payload, headers);
+
+            ResponseEntity<Map> response = restTemplate.exchange(
+                    payPalConfig.getBaseUrl() + "/v2/checkout/orders",
+                    HttpMethod.POST,
+                    entity,
+                    Map.class
+            );
+
+            Map<String, Object> responseBody = response.getBody();
+            if (responseBody == null) {
+                throw new PayPalIntegrationException("PayPal returned an empty response when creating the order.");
+            }
+
+            Object idObj = responseBody.get("id");
+            if (idObj == null) {
+                throw new PayPalIntegrationException("PayPal response does not contain order ID.");
+            }
+
+            String orderId = idObj.toString();
+            log.info("PayPal appointment checkout order created: {} for patient {} doctor {}",
+                    orderId, patient.getPatientId(), doctor.getDoctorId());
+
+            Map<String, Object> result = new HashMap<>();
+            result.put("orderId", orderId);
+            result.put("amount", amount);
+            result.put("currency", currency);
+            return result;
+
+        } catch (PayPalIntegrationException ex) {
+            throw ex;
+        } catch (HttpStatusCodeException ex) {
+            throw payPalApiException("PayPal appointment order creation", ex);
+        } catch (Exception ex) {
+            throw new PayPalIntegrationException(
+                    "Error occurred while creating PayPal order for appointment checkout: " + ex.getMessage(),
+                    ex
+            );
         }
     }
 
@@ -473,13 +570,147 @@ public class FinanceServiceImpl implements FinanceService {
                         "PayPal transaction failed, status: " + paypalStatus);
             }
 
-            return toAuthorizedResponse(invoiceRepository.findById(invoice.getInvoiceId())
-                    .orElseThrow(() -> new InvoiceNotFoundException(invoice.getInvoiceId())));
+            Integer invoiceId = invoice.getInvoiceId();
+            return toAuthorizedResponse(invoiceRepository.findById(invoiceId)
+                    .orElseThrow(() -> new InvoiceNotFoundException(invoiceId)));
 
         } catch (PayPalIntegrationException | BadRequestException ex) {
             throw ex;
         } catch (Exception ex) {
             throw new PayPalIntegrationException("Error occurred while capturing PayPal payment: " + ex.getMessage(), ex);
+        }
+    }
+
+    @Override
+    @Transactional
+    public InvoiceResponse captureAppointmentPayPalPayment(AppointmentPayPalCaptureRequest request) {
+        assertAppointmentCheckoutAccess(request.getPatientId());
+
+        Doctor doctor = doctorRepository.findById(request.getDoctorId())
+                .orElseThrow(() -> new BadRequestException("Doctor not found with ID: " + request.getDoctorId()));
+        BigDecimal expectedAmount = resolveDoctorConsultationFee(doctor);
+
+        if (paymentRepository.findByTransactionId(request.getOrderId()).isPresent()) {
+            throw new BadRequestException("This PayPal transaction has already been processed: " + request.getOrderId());
+        }
+
+        String accessToken = getPayPalAccessToken();
+
+        HttpHeaders headers = new HttpHeaders();
+        headers.setBearerAuth(accessToken);
+        headers.setContentType(MediaType.APPLICATION_JSON);
+        HttpEntity<String> entity = new HttpEntity<>("{}", headers);
+
+        try {
+            ResponseEntity<Map> response = restTemplate.exchange(
+                    payPalConfig.getBaseUrl() + "/v2/checkout/orders/" + request.getOrderId() + "/capture",
+                    HttpMethod.POST,
+                    entity,
+                    Map.class
+            );
+
+            Map<String, Object> responseBody = response.getBody();
+            if (responseBody == null) {
+                throw new PayPalIntegrationException("PayPal returned an empty response when capturing the payment.");
+            }
+
+            String paypalStatus = (String) responseBody.get("status");
+            log.info("PayPal appointment checkout capture status: {} for order {}",
+                    paypalStatus, request.getOrderId());
+
+            String metadata;
+            try {
+                metadata = objectMapper.writeValueAsString(responseBody);
+            } catch (Exception e) {
+                metadata = responseBody.toString();
+            }
+
+            BigDecimal capturedAmount = extractCapturedAmount(responseBody, expectedAmount);
+            validatePayPalCaptureMatchesAppointmentCheckout(responseBody, expectedAmount);
+
+            String paymentMethod = METHOD_CARD.equalsIgnoreCase(request.getPaymentMethod())
+                    ? METHOD_CARD : METHOD_EWALLET;
+
+            if (!"COMPLETED".equals(paypalStatus)) {
+                Payment failedPayment = Payment.builder()
+                        .amount(capturedAmount)
+                        .paymentMethod(paymentMethod)
+                        .paymentGateway(GATEWAY_PAYPAL)
+                        .transactionId(request.getOrderId())
+                        .status(PAYMENT_FAILED)
+                        .failureReason("PayPal status: " + paypalStatus)
+                        .metadata(metadata)
+                        .build();
+                paymentRepository.save(failedPayment);
+
+                throw new PayPalIntegrationException(
+                        "PayPal transaction failed, status: " + paypalStatus);
+            }
+
+            AppointmentRequest appointmentRequest = toAppointmentRequest(request);
+            AppointmentResponse createdAppointment = appointmentService.createAppointment(appointmentRequest);
+            Integer appointmentId = createdAppointment.getAppointmentId();
+
+            Appointment appointment = appointmentRepository.findById(appointmentId)
+                    .orElseThrow(() -> new BadRequestException(
+                            "Appointment not found after payment capture: " + appointmentId));
+
+            LocalDateTime paidAt = LocalDateTime.now();
+            appointment.setStatus(APPT_SCHEDULED);
+            appointment.setConfirmedAt(paidAt);
+            appointment = appointmentRepository.save(appointment);
+
+            BigDecimal consultationFee = appointment.getFee() != null
+                    ? appointment.getFee()
+                    : expectedAmount;
+            consultationFee = consultationFee.setScale(2, RoundingMode.HALF_UP);
+
+            Invoice invoice = Invoice.builder()
+                    .appointment(appointment)
+                    .patient(appointment.getPatient())
+                    .invoiceNumber(generateInvoiceNumber())
+                    .consultationFee(consultationFee)
+                    .medicineFee(BigDecimal.ZERO)
+                    .deliveryFee(BigDecimal.ZERO)
+                    .discount(BigDecimal.ZERO)
+                    .tax(BigDecimal.ZERO)
+                    .amount(consultationFee)
+                    .status(INVOICE_PAID)
+                    .issueDate(paidAt)
+                    .dueDate(paidAt)
+                    .paidAt(paidAt)
+                    .build();
+            invoice = invoiceRepository.save(invoice);
+            appointment.setInvoice(invoice);
+
+            Payment payment = Payment.builder()
+                    .invoice(invoice)
+                    .amount(capturedAmount)
+                    .paymentMethod(paymentMethod)
+                    .paymentGateway(GATEWAY_PAYPAL)
+                    .transactionId(request.getOrderId())
+                    .status(PAYMENT_SUCCESS)
+                    .paidAt(paidAt)
+                    .metadata(metadata)
+                    .build();
+            paymentRepository.save(payment);
+
+            notifyDoctorAboutNewAppointmentAfterCommit(appointment);
+
+            log.info("Appointment {} created after PayPal payment order {}",
+                    appointment.getAppointmentId(), request.getOrderId());
+
+            Integer capturedInvoiceId = invoice.getInvoiceId();
+            return toAuthorizedResponse(invoiceRepository.findById(capturedInvoiceId)
+                    .orElseThrow(() -> new InvoiceNotFoundException(capturedInvoiceId)));
+
+        } catch (PayPalIntegrationException | BadRequestException ex) {
+            throw ex;
+        } catch (Exception ex) {
+            throw new PayPalIntegrationException(
+                    "Error occurred while capturing PayPal appointment payment: " + ex.getMessage(),
+                    ex
+            );
         }
     }
 
@@ -689,9 +920,23 @@ public class FinanceServiceImpl implements FinanceService {
             return (String) body.get("access_token");
         } catch (PayPalIntegrationException ex) {
             throw ex;
+        } catch (HttpStatusCodeException ex) {
+            throw payPalApiException("PayPal authentication", ex);
         } catch (Exception ex) {
             throw new PayPalIntegrationException("Error occurred while authenticating with PayPal: " + ex.getMessage(), ex);
         }
+    }
+
+    private PayPalIntegrationException payPalApiException(String action, HttpStatusCodeException ex) {
+        String responseBody = ex.getResponseBodyAsString();
+        String details = responseBody == null || responseBody.isBlank()
+                ? ex.getMessage()
+                : responseBody;
+        log.error("{} failed: status={}, body={}", action, ex.getStatusCode(), details, ex);
+        return new PayPalIntegrationException(
+                action + " failed: " + ex.getStatusCode() + " " + details,
+                ex
+        );
     }
 
     /**
@@ -759,6 +1004,73 @@ public class FinanceServiceImpl implements FinanceService {
                 || actualAmount.compareTo(invoice.getAmount().setScale(2, RoundingMode.HALF_UP)) != 0) {
             throw new PayPalIntegrationException(
                     "PayPal captured amount does not match invoice amount for invoice " + invoice.getInvoiceId());
+        }
+    }
+
+    private void validatePayPalCaptureMatchesAppointmentCheckout(
+            Map<String, Object> responseBody,
+            BigDecimal expectedAmount
+    ) {
+        String actualReferenceId = extractReferenceId(responseBody);
+        if (!APPOINTMENT_CHECKOUT_REFERENCE_ID.equals(actualReferenceId)) {
+            throw new PayPalIntegrationException(
+                    "PayPal capture reference does not match appointment checkout.");
+        }
+
+        BigDecimal actualAmount = extractCapturedAmount(responseBody, null);
+        if (actualAmount == null
+                || actualAmount.compareTo(expectedAmount.setScale(2, RoundingMode.HALF_UP)) != 0) {
+            throw new PayPalIntegrationException(
+                    "PayPal captured amount does not match appointment checkout amount.");
+        }
+    }
+
+    private AppointmentRequest toAppointmentRequest(AppointmentPayPalOrderRequest request) {
+        AppointmentRequest appointmentRequest = new AppointmentRequest();
+        appointmentRequest.setPatientId(request.getPatientId());
+        appointmentRequest.setDoctorId(request.getDoctorId());
+        appointmentRequest.setAppointmentTime(request.getAppointmentTime());
+        appointmentRequest.setConsultationType(request.getConsultationType());
+        appointmentRequest.setSymptoms(request.getSymptoms());
+        appointmentRequest.setNotes(request.getNotes());
+        return appointmentRequest;
+    }
+
+    private AppointmentRequest toAppointmentRequest(AppointmentPayPalCaptureRequest request) {
+        AppointmentRequest appointmentRequest = new AppointmentRequest();
+        appointmentRequest.setPatientId(request.getPatientId());
+        appointmentRequest.setDoctorId(request.getDoctorId());
+        appointmentRequest.setAppointmentTime(request.getAppointmentTime());
+        appointmentRequest.setConsultationType(request.getConsultationType());
+        appointmentRequest.setSymptoms(request.getSymptoms());
+        appointmentRequest.setNotes(request.getNotes());
+        return appointmentRequest;
+    }
+
+    private BigDecimal resolveDoctorConsultationFee(Doctor doctor) {
+        BigDecimal consultationFee = doctor.getConsultationFee();
+        if (consultationFee == null || consultationFee.compareTo(BigDecimal.ZERO) <= 0) {
+            throw new BadRequestException("Doctor consultation fee must be greater than zero.");
+        }
+        return consultationFee.setScale(2, RoundingMode.HALF_UP);
+    }
+
+    private void checkDoctorSupportsConsultationType(Doctor doctor, String consultationType) {
+        if (consultationType == null || consultationType.isBlank()) {
+            throw new BadRequestException("Consultation type is required.");
+        }
+
+        boolean supported = switch (consultationType.trim().toLowerCase()) {
+            case "video" -> doctor.isAvailableForVideo();
+            case "audio" -> doctor.isAvailableForAudio();
+            case "chat" -> doctor.isAvailableForChat();
+            case "offline" -> doctor.isAvailableForOffline();
+            default -> false;
+        };
+
+        if (!supported) {
+            throw new BadRequestException(
+                    "Doctor does not support consultation type: " + consultationType);
         }
     }
 
@@ -965,6 +1277,18 @@ public class FinanceServiceImpl implements FinanceService {
             return;
         }
         throw new AccessDeniedException("Access denied: cannot view this patient payment history.");
+    }
+
+    private void assertAppointmentCheckoutAccess(String patientId) {
+        User currentUser = getCurrentAuthenticatedUserOrNull();
+        if (currentUser == null || hasRole(currentUser, ROLE_ADMIN)) {
+            return;
+        }
+        if (hasRole(currentUser, ROLE_PATIENT) && patientId != null
+                && patientId.equalsIgnoreCase(currentUser.getId())) {
+            return;
+        }
+        throw new AccessDeniedException("Access denied: cannot pay for this appointment.");
     }
 
     private void assertInvoiceAccess(Invoice invoice) {

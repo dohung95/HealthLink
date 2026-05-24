@@ -1,6 +1,8 @@
 package com.HealthLink.service.payment;
 
 import com.HealthLink.dto.payment.InvoiceResponse;
+import com.HealthLink.dto.payment.AppointmentPayPalCaptureRequest;
+import com.HealthLink.dto.payment.AppointmentPayPalOrderRequest;
 import com.HealthLink.dto.payment.PayPalCaptureRequest;
 import com.HealthLink.dto.payment.PayPalOrderRequest;
 import com.HealthLink.dto.payment.PharmacyOrderPayPalCaptureRequest;
@@ -59,6 +61,8 @@ public interface FinanceService {
      */
     Map<String, Object> createPayPalOrder(PayPalOrderRequest request);
 
+    Map<String, Object> createAppointmentPayPalOrder(AppointmentPayPalOrderRequest request);
+
     Map<String, Object> createPharmacyOrderPayPalOrder(PharmacyOrderPayPalOrderRequest request);
 
     /**
@@ -73,6 +77,8 @@ public interface FinanceService {
      * @return hóa đơn đã cập nhật dưới dạng phản hồi
      */
     InvoiceResponse capturePayPalPayment(PayPalCaptureRequest request);
+
+    InvoiceResponse captureAppointmentPayPalPayment(AppointmentPayPalCaptureRequest request);
 
     PharmacyOrderResponse capturePharmacyOrderPayPalPayment(PharmacyOrderPayPalCaptureRequest request);
 

@@ -34,14 +34,15 @@ const loadPayPalSdk = (clientId) => {
   });
 };
 
-const PaymentStep = ({ invoice, appointment, selectedDoctor, onPaymentComplete }) => {
+const PaymentStep = ({ bookingDraft, selectedDoctor, onPaymentComplete }) => {
   const buttonRef = useRef(null);
+  const orderCreationErrorRef = useRef(false);
   const [loadingSdk, setLoadingSdk] = useState(false);
   const [processing, setProcessing] = useState(false);
   const [paidInvoice, setPaidInvoice] = useState(null);
 
   useEffect(() => {
-    if (!invoice?.invoiceId || !buttonRef.current || paidInvoice) {
+    if (!bookingDraft || !buttonRef.current || paidInvoice) {
       return;
     }
 
@@ -67,20 +68,24 @@ const PaymentStep = ({ invoice, appointment, selectedDoctor, onPaymentComplete }
             label: 'paypal',
           },
           createOrder: async () => {
-            const order = await paymentApi.createPayPalOrder({
-              invoiceId: invoice.invoiceId,
-              currency: 'USD',
-            });
-            return order.orderId;
+            try {
+              const order = await paymentApi.createAppointmentPayPalOrder(bookingDraft);
+              return order.orderId;
+            } catch (error) {
+              console.error('Payment order creation failed', error);
+              orderCreationErrorRef.current = true;
+              toast.error(error.response?.data?.message || 'Can not create PayPal payment order.');
+              throw error;
+            }
           },
           onApprove: async (data) => {
             setProcessing(true);
             try {
-              const capturedInvoice = await paymentApi.capturePayPalPayment({
-                invoiceId: invoice.invoiceId,
-                orderId: data.orderID,
-                paymentMethod: 'EWallet',
-              });
+              const capturedInvoice = await paymentApi.captureAppointmentPayPalPayment(
+                bookingDraft,
+                data.orderID,
+                'EWallet'
+              );
               setPaidInvoice(capturedInvoice);
               toast.success('Payment successful.');
             } catch (error) {
@@ -95,6 +100,10 @@ const PaymentStep = ({ invoice, appointment, selectedDoctor, onPaymentComplete }
           },
           onError: (error) => {
             console.error('PayPal error', error);
+            if (orderCreationErrorRef.current) {
+              orderCreationErrorRef.current = false;
+              return;
+            }
             toast.error('PayPal could not process this payment.');
           },
         }).render(buttonRef.current);
@@ -115,9 +124,14 @@ const PaymentStep = ({ invoice, appointment, selectedDoctor, onPaymentComplete }
         buttonRef.current.innerHTML = '';
       }
     };
-  }, [invoice, paidInvoice]);
+  }, [bookingDraft, paidInvoice]);
 
-  const displayInvoice = paidInvoice || invoice;
+  const displayInvoice = paidInvoice || {
+    invoiceNumber: 'Pending checkout',
+    amount: bookingDraft?.amount ?? selectedDoctor?.consultationFee ?? 0,
+    consultationFee: bookingDraft?.amount ?? selectedDoctor?.consultationFee ?? 0,
+    status: 'Pending',
+  };
 
   return (
     <div className="schedule-card payment-step-card">
@@ -133,7 +147,7 @@ const PaymentStep = ({ invoice, appointment, selectedDoctor, onPaymentComplete }
         </div>
         <div>
           <span>Appointment</span>
-          <strong>#{appointment?.appointmentId || appointment?.appointmentID}</strong>
+          <strong>{paidInvoice?.appointmentId ? `#${paidInvoice.appointmentId}` : 'Created after payment'}</strong>
         </div>
         <div>
           <span>Doctor</span>

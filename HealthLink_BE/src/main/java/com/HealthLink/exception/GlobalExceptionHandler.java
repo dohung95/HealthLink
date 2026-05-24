@@ -9,6 +9,7 @@ import org.springframework.security.authentication.DisabledException;
 import org.springframework.security.authentication.LockedException;
 import org.springframework.security.core.userdetails.UsernameNotFoundException;
 import org.springframework.validation.FieldError;
+import org.springframework.http.converter.HttpMessageNotReadableException;
 import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
@@ -155,6 +156,7 @@ public class GlobalExceptionHandler {
     // -------------------------------------------------------------------------
     @ExceptionHandler(PayPalIntegrationException.class)
     public ResponseEntity<Map<String, Object>> handlePayPalIntegration(PayPalIntegrationException ex) {
+        log.error("PayPal integration error: {}", ex.getMessage(), ex);
         return buildResponse(HttpStatus.BAD_GATEWAY, ex.getMessage());
     }
   
@@ -179,6 +181,15 @@ public class GlobalExceptionHandler {
         body.put("error", "Validation Failed");
         body.put("details", fieldErrors);
         return ResponseEntity.badRequest().body(body);
+    }
+
+    @ExceptionHandler(HttpMessageNotReadableException.class)
+    public ResponseEntity<Map<String, Object>> handleUnreadableRequestBody(HttpMessageNotReadableException ex) {
+        log.warn("Invalid request body: {}", ex.getMessage());
+        return buildResponse(
+                HttpStatus.BAD_REQUEST,
+                "Invalid request body. Please check date/time and field formats."
+        );
     }
 
     // -------------------------------------------------------------------------

@@ -4,7 +4,6 @@ import { toast } from 'sonner';
 
 import { appointmentService } from '../../api/appointmentApi';
 import { doctorService } from '../../api/doctorApi';
-import { paymentApi } from '../../api/paymentApi';
 import { useAuth } from '../../context/AuthContext';
 import { getProfile } from '../../api/account';
 import { healthRecordApi } from '../../api/healthRecordApi';
@@ -19,6 +18,15 @@ import PaymentStep from '../schedule/PaymentStep';
 import DoctorSummaryCard from '../schedule/DoctorSummaryCard';
 
 import '../Css/ScheduleWizard.css';
+
+const buildAppointmentDateTime = (dateValue, timeValue) => {
+  const [hour = '00', minute = '00', rawSecond = '00'] = String(timeValue || '')
+    .trim()
+    .split(':');
+  const second = rawSecond.split('.')[0] || '00';
+
+  return `${dateValue}T${hour.padStart(2, '0')}:${minute.padStart(2, '0')}:${second.padStart(2, '0')}`;
+};
 
 const Schedule = () => {
   const navigate = useNavigate();
@@ -45,8 +53,7 @@ const Schedule = () => {
   const [files, setFiles] = useState([]);
   const [patientId, setPatientId] = useState('');
   const [bookingSubmitting, setBookingSubmitting] = useState(false);
-  const [createdAppointment, setCreatedAppointment] = useState(null);
-  const [invoice, setInvoice] = useState(null);
+  const [paymentDraft, setPaymentDraft] = useState(null);
 
 
   const [maxDate] = useState(() => {
@@ -174,7 +181,7 @@ const Schedule = () => {
     }
 
     const previousSelectedSlot = selectedSlot;
-    const appointmentTime = `${date}T${slot.startTime}:00`;
+    const appointmentTime = buildAppointmentDateTime(date, slot.startTime);
 
     try {
       // Nếu trước đó đã chọn slot khác, giải phóng hold cũ trước
@@ -326,17 +333,16 @@ const Schedule = () => {
         notes: '',
       };
 
-      const appointment = await appointmentService.createAppointment(bookingData);
-      const appointmentId = appointment.appointmentId || appointment.appointmentID;
-      const generatedInvoice = await paymentApi.generateAppointmentInvoice(appointmentId);
-
-      setCreatedAppointment(appointment);
-      setInvoice(generatedInvoice);
+      setPaymentDraft({
+        ...bookingData,
+        currency: 'USD',
+        amount: selectedDoctor?.consultationFee ?? selectedDoctor?.fee ?? 0,
+      });
       setStep(stepConfig.length);
-      toast.success('Appointment created. Please complete payment.');
+      toast.success('Please complete payment to create your appointment.');
     } catch (error) {
       toast.error(
-        error.response?.data?.message || 'Can not create appointment.'
+        error.response?.data?.message || 'Can not prepare payment.'
       );
     } finally {
       setBookingSubmitting(false);
@@ -483,8 +489,7 @@ const Schedule = () => {
 
               {currentStepKey === 'payment' && (
                 <PaymentStep
-                  invoice={invoice}
-                  appointment={createdAppointment}
+                  bookingDraft={paymentDraft}
                   selectedDoctor={selectedDoctor}
                   onPaymentComplete={finalizeBookingAfterPayment}
                 />

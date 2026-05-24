@@ -25,6 +25,24 @@ public class PayPalConfig {
     /** URL gốc của PayPal, ví dụ https://api-m.sandbox.paypal.com */
     private String baseUrl;
 
+    private MerchantCredentials healthlink = new MerchantCredentials();
+
+    public String getClientId() {
+        return hasText(healthlink.getClientId()) ? healthlink.getClientId() : clientId;
+    }
+
+    public String getClientSecret() {
+        return hasText(healthlink.getClientSecret()) ? healthlink.getClientSecret() : clientSecret;
+    }
+
+    public String getBaseUrl() {
+        return hasText(healthlink.getBaseUrl()) ? healthlink.getBaseUrl() : baseUrl;
+    }
+
+    private boolean hasText(String value) {
+        return value != null && !value.isBlank();
+    }
+
     /**
      * Bean RestTemplate được dùng để gọi PayPal REST API.
      * Tách riêng bean này để tránh xung đột với các RestTemplate tùy biến trong tương lai.
@@ -45,5 +63,12 @@ public class PayPalConfig {
         mapper.registerModule(new JavaTimeModule());
         mapper.disable(SerializationFeature.WRITE_DATES_AS_TIMESTAMPS);
         return mapper;
+    }
+    @Getter
+    @Setter
+    public static class MerchantCredentials {
+        private String clientId;
+        private String clientSecret;
+        private String baseUrl;
     }
 }

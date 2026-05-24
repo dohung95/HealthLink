@@ -1,5 +1,28 @@
 import axiosInstance from './axiosConfig';
 
+const toAppointmentPaymentPayload = (bookingDraft, extra = {}) => {
+  const {
+    patientId,
+    doctorId,
+    appointmentTime,
+    consultationType,
+    symptoms,
+    notes,
+    currency,
+  } = bookingDraft || {};
+
+  return {
+    patientId,
+    doctorId,
+    appointmentTime,
+    consultationType,
+    symptoms,
+    notes,
+    currency: currency || 'USD',
+    ...extra,
+  };
+};
+
 export const paymentApi = {
   generateAppointmentInvoice: async (appointmentId) => {
     const response = await axiosInstance.post(`/api/payment/invoices/generate/${appointmentId}`);
@@ -19,12 +42,28 @@ export const paymentApi = {
     return response.data;
   },
 
+  createAppointmentPayPalOrder: async (bookingDraft) => {
+    const response = await axiosInstance.post(
+      '/api/payment/appointments/paypal/create',
+      toAppointmentPaymentPayload(bookingDraft)
+    );
+    return response.data;
+  },
+
   capturePayPalPayment: async ({ invoiceId, orderId, paymentMethod = 'EWallet' }) => {
     const response = await axiosInstance.post('/api/payment/paypal/capture', {
       invoiceId,
       orderId,
       paymentMethod,
     });
+    return response.data;
+  },
+
+  captureAppointmentPayPalPayment: async (bookingDraft, orderId, paymentMethod = 'EWallet') => {
+    const response = await axiosInstance.post(
+      '/api/payment/appointments/paypal/capture',
+      toAppointmentPaymentPayload(bookingDraft, { orderId, paymentMethod })
+    );
     return response.data;
   },
 
