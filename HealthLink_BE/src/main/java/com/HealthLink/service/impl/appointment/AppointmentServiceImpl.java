@@ -13,6 +13,7 @@ import com.HealthLink.entity.Appointment;
 import com.HealthLink.entity.AppointmentSlotHold;
 import com.HealthLink.entity.Doctor;
 import com.HealthLink.entity.DoctorSchedule;
+import com.HealthLink.entity.DoctorScheduleException;
 import com.HealthLink.entity.Patient;
 import com.HealthLink.entity.User;
 import com.HealthLink.entity.enums.NotificationType;
@@ -20,6 +21,7 @@ import com.HealthLink.exception.BusinessException;
 import com.HealthLink.exception.ResourceNotFoundException;
 import com.HealthLink.repository.appointment.AppointmentRepository;
 import com.HealthLink.repository.appointment.AppointmentSlotHoldRepository;
+import com.HealthLink.repository.admin.DoctorScheduleExceptionRepository;
 import com.HealthLink.repository.doctor.DoctorRepository;
 import com.HealthLink.repository.doctor.DoctorScheduleRepository;
 import com.HealthLink.repository.patient.PatientRepository;
@@ -59,6 +61,7 @@ public class AppointmentServiceImpl implements AppointmentService {
     private final PatientRepository patientRepository;
     private final DoctorRepository doctorRepository;
     private final DoctorScheduleRepository scheduleRepository;
+    private final DoctorScheduleExceptionRepository exceptionRepository;
     private final AppointmentSlotHoldRepository appointmentSlotHoldRepository;
     private final NotificationService notificationService;
 
@@ -164,6 +167,21 @@ public class AppointmentServiceImpl implements AppointmentService {
     public AvailableSlotsResponse getAvailableSlots(String doctorId, LocalDate date, String consultationType) {
         validateBookingDate(date);
 
+        // Check for schedule exceptions on this date
+        java.util.Optional<DoctorScheduleException> exceptionOpt = exceptionRepository
+                .findByDoctor_DoctorIdAndExceptionDate(doctorId, date);
+
+        // If DayOff exception exists, return empty slots
+        if (exceptionOpt.isPresent() && "DayOff".equals(exceptionOpt.get().getExceptionType())) {
+            log.info("Doctor {} has DayOff exception on {}, returning empty slots", doctorId, date);
+            return AvailableSlotsResponse.builder()
+                    .doctorId(doctorId)
+                    .date(date)
+                    .bookingWindowDays(maxDaysAhead)
+                    .slots(List.of())
+                    .build();
+        }
+
         int dayOfWeek = date.getDayOfWeek().getValue() % 7;
 
         List<DoctorSchedule> schedules = scheduleRepository
@@ -192,52 +210,60 @@ public class AppointmentServiceImpl implements AppointmentService {
 
         List<AvailableSlotResponse> slots = new ArrayList<>();
 
-        for (DoctorSchedule schedule : schedules) {
-            if (!isConsultationTypeMatch(schedule, consultationType)) {
-                continue;
+        // Check if Modified exception - use exception hours instead of schedule
+        if (exceptionOpt.isPresent() && "Modified".equals(exceptionOpt.get().getExceptionType())) {
+            DoctorScheduleException modifiedException = exceptionOpt.get();
+            log.info("Doctor {} has Modified exception on {}, using exception hours: {} - {}",
+                    doctorId, date, modifiedException.getStartTime(), modifiedException.getEndTime());
+
+            // Generate slots from exception's time range with default 30 min duration
+            int slotMinutes = 30;
+            // Try to get slot duration from first schedule if available
+            if (!schedules.isEmpty() && schedules.get(0).getSlotDuration() != null) {
+                slotMinutes = schedules.get(0).getSlotDuration();
             }
 
-            int slotMinutes = schedule.getSlotDuration() == null
-                    ? 30
-                    : schedule.getSlotDuration();
-
-            LocalDateTime slotStart = LocalDateTime.of(date, schedule.getStartTime());
-            LocalDateTime scheduleEnd = LocalDateTime.of(date, schedule.getEndTime());
-
-            while (!slotStart.plusMinutes(slotMinutes).isAfter(scheduleEnd)) {
-                LocalDateTime currentSlotStart = slotStart;
-                LocalDateTime currentSlotEnd = slotStart.plusMinutes(slotMinutes);
-
-                boolean isBooked = bookedAppointments.stream()
-                        .anyMatch(appointment -> appointment.getAppointmentTime().equals(currentSlotStart));
-
-                boolean isHeld = activeHolds.stream()
-                        .anyMatch(hold -> hold.getAppointmentTime().equals(currentSlotStart));
-
-                String status;
-                boolean selectable;
-
-                if (isBooked) {
-                    status = "BOOKED";
-                    selectable = false;
-                } else if (isHeld) {
-                    status = "HELD";
-                    selectable = false;
-                } else {
-                    status = "AVAILABLE";
-                    selectable = true;
+            generateSlotsForTimeRange(
+                    slots, date, modifiedException.getStartTime(), modifiedException.getEndTime(),
+                    slotMinutes, bookedAppointments, activeHolds, now
+            );
+        } else {
+            // Normal flow: generate slots from schedules
+            for (DoctorSchedule schedule : schedules) {
+                if (!isConsultationTypeMatch(schedule, consultationType)) {
+                    continue;
                 }
 
-                slots.add(AvailableSlotResponse.builder()
-                        .startTime(currentSlotStart.toLocalTime().toString())
-                        .endTime(currentSlotEnd.toLocalTime().toString())
-                        .status(status)
-                        .selectable(selectable)
-                        .build());
+                int slotMinutes = schedule.getSlotDuration() == null
+                        ? 30
+                        : schedule.getSlotDuration();
 
-                slotStart = currentSlotEnd;
+                generateSlotsForTimeRange(
+                        slots, date, schedule.getStartTime(), schedule.getEndTime(),
+                        slotMinutes, bookedAppointments, activeHolds, now
+                );
             }
         }
+
+        // Check for AddSlot exception - add extra slots
+        if (exceptionOpt.isPresent() && "AddSlot".equals(exceptionOpt.get().getExceptionType())) {
+            DoctorScheduleException addSlotException = exceptionOpt.get();
+            log.info("Doctor {} has AddSlot exception on {}, adding extra slots: {} - {}",
+                    doctorId, date, addSlotException.getStartTime(), addSlotException.getEndTime());
+
+            int slotMinutes = 30;
+            if (!schedules.isEmpty() && schedules.get(0).getSlotDuration() != null) {
+                slotMinutes = schedules.get(0).getSlotDuration();
+            }
+
+            generateSlotsForTimeRange(
+                    slots, date, addSlotException.getStartTime(), addSlotException.getEndTime(),
+                    slotMinutes, bookedAppointments, activeHolds, now
+            );
+        }
+
+        // Sort slots by start time
+        slots.sort((a, b) -> a.getStartTime().compareTo(b.getStartTime()));
 
         return AvailableSlotsResponse.builder()
                 .doctorId(doctorId)
@@ -245,6 +271,63 @@ public class AppointmentServiceImpl implements AppointmentService {
                 .bookingWindowDays(maxDaysAhead)
                 .slots(slots)
                 .build();
+    }
+
+    /**
+     * Helper method to generate slots for a given time range
+     */
+    private void generateSlotsForTimeRange(
+            List<AvailableSlotResponse> slots,
+            LocalDate date,
+            LocalTime startTime,
+            LocalTime endTime,
+            int slotMinutes,
+            List<Appointment> bookedAppointments,
+            List<AppointmentSlotHold> activeHolds,
+            LocalDateTime now
+    ) {
+        LocalDateTime slotStart = LocalDateTime.of(date, startTime);
+        LocalDateTime scheduleEnd = LocalDateTime.of(date, endTime);
+
+        while (!slotStart.plusMinutes(slotMinutes).isAfter(scheduleEnd)) {
+            LocalDateTime currentSlotStart = slotStart;
+            LocalDateTime currentSlotEnd = slotStart.plusMinutes(slotMinutes);
+
+            // Skip past slots
+            if (currentSlotStart.isBefore(now)) {
+                slotStart = currentSlotEnd;
+                continue;
+            }
+
+            boolean isBooked = bookedAppointments.stream()
+                    .anyMatch(appointment -> appointment.getAppointmentTime().equals(currentSlotStart));
+
+            boolean isHeld = activeHolds.stream()
+                    .anyMatch(hold -> hold.getAppointmentTime().equals(currentSlotStart));
+
+            String status;
+            boolean selectable;
+
+            if (isBooked) {
+                status = "BOOKED";
+                selectable = false;
+            } else if (isHeld) {
+                status = "HELD";
+                selectable = false;
+            } else {
+                status = "AVAILABLE";
+                selectable = true;
+            }
+
+            slots.add(AvailableSlotResponse.builder()
+                    .startTime(currentSlotStart.toLocalTime().toString())
+                    .endTime(currentSlotEnd.toLocalTime().toString())
+                    .status(status)
+                    .selectable(selectable)
+                    .build());
+
+            slotStart = currentSlotEnd;
+        }
     }
 
     @Override

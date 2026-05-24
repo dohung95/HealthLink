@@ -3274,3 +3274,120 @@ body {
         font-size: 0.9rem;
     }
 }
+
+/* ========== Doctor Schedule View ========== */
+
+/* Calendar Day Status Colors */
+.calendar-day-working {
+    background-color: #d1e7dd !important;
+    color: #0f5132 !important;
+}
+
+.calendar-day-working:hover {
+    background-color: #badbcc !important;
+}
+
+.calendar-day-off {
+    background-color: #f8d7da !important;
+    color: #842029 !important;
+}
+
+.calendar-day-off:hover {
+    background-color: #f1aeb5 !important;
+}
+
+.calendar-day-modified {
+    background-color: #fff3cd !important;
+    color: #664d03 !important;
+}
+
+.calendar-day-modified:hover {
+    background-color: #ffe69c !important;
+}
+
+.calendar-day-no-schedule {
+    background-color: #e9ecef !important;
+    color: #6c757d !important;
+}
+
+/* Legend Dot */
+.legend-dot {
+    width: 12px;
+    height: 12px;
+    border-radius: 50%;
+    display: inline-block;
+    flex-shrink: 0;
+}
+
+/* Schedule Calendar View */
+.schedule-calendar-view .react-calendar {
+    width: 100%;
+    border: none;
+    font-family: inherit;
+}
+
+.schedule-calendar-view .react-calendar__navigation button {
+    font-weight: 600;
+    font-size: 1rem;
+}
+
+.schedule-calendar-view .react-calendar__tile {
+    padding: 1rem 0.5rem;
+    position: relative;
+}
+
+.schedule-calendar-view .react-calendar__month-view__weekdays {
+    text-transform: uppercase;
+    font-weight: 700;
+    font-size: 0.75rem;
+    color: #6c757d;
+}
+
+/* Calendar Tile Info (appointment count) */
+.calendar-tile-info {
+    position: absolute;
+    bottom: 2px;
+    right: 2px;
+}
+
+/* Exception Item */
+.exception-item {
+    transition: all 0.2s ease;
+}
+
+.exception-item:hover {
+    background-color: #f8f9fa;
+}
+
+/* Schedule Block in Weekly Builder */
+.schedule-block {
+    transition: all 0.2s ease;
+}
+
+.schedule-block:hover {
+    transform: translateY(-1px);
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+}
+
+/* Responsive adjustments for schedule view */
+@media (max-width: 768px) {
+    .schedule-calendar-view .react-calendar__tile {
+        padding: 0.75rem 0.25rem;
+        font-size: 0.85rem;
+    }
+    
+    .weekly-schedule-builder .card {
+        margin-bottom: 1rem;
+    }
+}
+
+@media (max-width: 576px) {
+    .doctor-schedule-container {
+        padding: 1rem !important;
+    }
+    
+    .doctor-schedule-container .nav-tabs .nav-link {
+        padding: 0.5rem 0.75rem;
+        font-size: 0.875rem;
+    }
+}

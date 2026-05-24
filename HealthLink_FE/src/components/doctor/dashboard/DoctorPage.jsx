@@ -11,6 +11,7 @@ import DoctorProfileView from './DoctorProfileView';
 import DoctorAppointmentsView from './DoctorAppointmentsView';
 import DoctorReviewView from './DoctorReviewView';
 import DoctorAppointmentDetail from './DoctorAppointmentDetail';
+import DoctorScheduleView from './DoctorScheduleView';
 
 const DoctorProfile = () => {
   const navigate = useNavigate();
@@ -19,7 +20,7 @@ const DoctorProfile = () => {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
 
-  // View state: 'profile' | 'appointments' | 'reviews' | 'appointmentDetail'
+  // View state: 'profile' | 'appointments' | 'schedule' | 'reviews' | 'appointmentDetail'
   const [view, setView] = useState('profile');
   const [selectedAppointment, setSelectedAppointment] = useState(null);
   const [selectedPatient, setSelectedPatient] = useState(null);
@@ -489,9 +490,17 @@ const DoctorProfile = () => {
                 <span className="badge bg-danger rounded-pill ms-auto">{newAppointmentCount}</span>
               )}
             </a>
-            <a 
-              className={`nav-link-custom ${view === 'reviews' ? 'nav-link-active' : ''}`} 
-              href="#" 
+            <a
+              className={`nav-link-custom ${view === 'schedule' ? 'nav-link-active' : ''}`}
+              href="#"
+              onClick={(e) => { e.preventDefault(); setView('schedule'); }}
+            >
+              <span className="material-symbols-outlined">event_note</span>
+              <p className="mb-0 small fw-bold">My Schedule</p>
+            </a>
+            <a
+              className={`nav-link-custom ${view === 'reviews' ? 'nav-link-active' : ''}`}
+              href="#"
               onClick={(e) => { e.preventDefault(); setView('reviews'); }}
             >
               <span className="material-symbols-outlined">star</span>
@@ -582,9 +591,17 @@ const DoctorProfile = () => {
                 <span className="badge bg-danger rounded-pill ms-auto">{newAppointmentCount}</span>
               )}
             </a>
-            <a 
-              className={`nav-link-custom ${view === 'reviews' ? 'nav-link-active' : ''}`} 
-              href="#" 
+            <a
+              className={`nav-link-custom ${view === 'schedule' ? 'nav-link-active' : ''}`}
+              href="#"
+              onClick={(e) => { e.preventDefault(); setView('schedule'); setIsMobileMenuOpen(false); }}
+            >
+              <span className="material-symbols-outlined">event_note</span>
+              <p className="mb-0 small fw-bold">My Schedule</p>
+            </a>
+            <a
+              className={`nav-link-custom ${view === 'reviews' ? 'nav-link-active' : ''}`}
+              href="#"
               onClick={(e) => { e.preventDefault(); setView('reviews'); setIsMobileMenuOpen(false); }}
             >
               <span className="material-symbols-outlined">star</span>
@@ -630,12 +647,13 @@ const DoctorProfile = () => {
             <div className={view === 'appointmentDetail' ? '' : 'bg-custom-white info-card'}>
               {view === 'profile' && <DoctorProfileView doctorData={doctorData} />}
               {view === 'appointments' && (
-                <DoctorAppointmentsView 
-                  doctorId={doctorData?.doctorID} 
+                <DoctorAppointmentsView
+                  doctorId={doctorData?.doctorID}
                   onViewAppointment={handleViewAppointment}
                   viewedAppointments={viewedAppointments}
                 />
               )}
+              {view === 'schedule' && <DoctorScheduleView />}
               {view === 'reviews' && <DoctorReviewView doctorId={doctorData?.doctorID} />}
               {view === 'appointmentDetail' && (
                 <DoctorAppointmentDetail 
