@@ -32,8 +32,10 @@ export default function NavbarAdmin({ sidebarCollapsed, onToggleSidebar, childre
     { icon: "bi-box-seam", label: "Pharmacies", path: "/admin/pharmacies" },
     { icon: "bi-currency-exchange", label: "Commission", path: "/admin/commission" },
     { icon: "bi-calendar-check", label: "Appointments", path: "/admin/appointments" },
+    { icon: "bi-calendar3", label: "Doctor Schedules", path: "/admin/doctor-schedules" },
     { icon: "bi-file-medical", label: "Medical Records", path: "/admin/medical-records" },
     { icon: "bi-person-plus", label: "Registrations", path: "/admin/registrations" },
+    { icon: "bi-journal-text", label: "Audit Log", path: "/admin/audit-log" },
   ];
 
   return (

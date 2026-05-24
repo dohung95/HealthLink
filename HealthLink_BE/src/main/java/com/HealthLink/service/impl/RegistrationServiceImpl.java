@@ -15,7 +15,7 @@ import com.HealthLink.repository.registration.RegistrationRequestRepository;
 import java.util.List;
 
 import com.HealthLink.service.email.EmailService;
-import com.HealthLink.service.notification.AdminNotificationHelper;
+import com.HealthLink.service.admin.AdminNotificationHelper;
 import com.HealthLink.service.registration.RegistrationService;
 
 import jakarta.persistence.criteria.Predicate;
@@ -224,6 +224,11 @@ public class RegistrationServiceImpl implements RegistrationService {
         String userId = UUID.randomUUID().toString();
         String encodedPassword = passwordEncoder.encode(DEFAULT_PASSWORD);
 
+        // Get role FIRST before creating User (RoleId is NOT NULL)
+        String roleName = TYPE_DOCTOR.equals(request.getRegistrationType()) ? "Doctor" : "Pharmacy";
+        Role role = roleRepository.findByName(roleName)
+                .orElseThrow(() -> new ResourceNotFoundException("Role", "name", roleName));
+
         User user = User.builder()
                 .id(userId)
                 .username(request.getEmail())
@@ -233,16 +238,10 @@ public class RegistrationServiceImpl implements RegistrationService {
                 .phoneNumber(request.getPhoneNumber())
                 .status("Active")
                 .createdDate(LocalDateTime.now())
+                .role(role)  // Set role before save
                 .build();
 
         user = userRepository.save(user);
-
-        String roleName = TYPE_DOCTOR.equals(request.getRegistrationType()) ? "Doctor" : "Pharmacy";
-        Role role = roleRepository.findByName(roleName)
-                .orElseThrow(() -> new ResourceNotFoundException("Role", "name", roleName));
-
-        user.setRole(role);
-        userRepository.save(user);
 
         if (TYPE_DOCTOR.equals(request.getRegistrationType())) {
             createDoctor(user, request);
@@ -324,6 +323,7 @@ public class RegistrationServiceImpl implements RegistrationService {
 
         Pharmacy pharmacy = new Pharmacy();
         pharmacy.setPharmacyId(user.getId());
+        pharmacy.setUser(user);  // Required for @MapsId relationship
         pharmacy.setName(pharmacyName);
         pharmacy.setLicenseNumber(licenseNumber);
         pharmacy.setAddress(address);

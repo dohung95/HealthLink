@@ -105,19 +105,34 @@ const DoctorProfile = () => {
         fetchNotifications();
       };
       
-      // Register listener BEFORE starting connection
-      console.log('📢 Registering listener for ReceiveAppointmentNotification...');
+      // Handler for schedule changes from Admin
+      const handleScheduleChange = (notification) => {
+        console.log('📋 Schedule change notification received:', notification);
+        // Refresh notifications to show the schedule change
+        fetchNotifications();
+
+        // Show alert for important schedule changes
+        if (notification.type === 'ADMIN_SCHEDULE_CHANGE') {
+          // Could show a toast/alert here
+          console.log('⚠️ Admin changed your schedule:', notification.message);
+        }
+      };
+
+      // Register listeners BEFORE starting connection
+      console.log('📢 Registering listeners for notifications...');
       signalRService.on('ReceiveAppointmentNotification', handleNewAppointment);
-      
-      // Now start the connection - it will auto-register the listener
+      signalRService.on('ReceiveScheduleNotification', handleScheduleChange);
+
+      // Now start the connection - it will auto-register the listeners
       await signalRService.startConnection();
       console.log('✅ SignalR initialization complete');
     };
-    
+
     initSignalR();
-    
+
     return () => {
       signalRService.off('ReceiveAppointmentNotification');
+      signalRService.off('ReceiveScheduleNotification');
     };
   }, []);
   

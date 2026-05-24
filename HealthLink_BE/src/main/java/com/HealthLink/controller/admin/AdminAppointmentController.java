@@ -1,22 +1,27 @@
 package com.HealthLink.controller.admin;
 
-import com.HealthLink.dto.admin.AdminAppointmentDto;
-import com.HealthLink.dto.admin.AdminAppointmentPageResponse;
-import com.HealthLink.dto.admin.AdminAppointmentStatsDto;
-import com.HealthLink.dto.admin.AdminAppointmentUpdateDto;
+import com.HealthLink.dto.admin.*;
+import com.HealthLink.entity.User;
+import com.HealthLink.repository.auth.UserRepository;
 import com.HealthLink.service.admin.AdminAppointmentService;
+import jakarta.servlet.http.HttpServletRequest;
+import jakarta.validation.Valid;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.core.annotation.AuthenticationPrincipal;
+import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.web.bind.annotation.*;
 
 @RestController
 @RequestMapping("/api/admin/adminappointments")
-@CrossOrigin(origins = "http://localhost:5173")
+@CrossOrigin(origins = "http://localhost:63527")
 public class AdminAppointmentController {
 
     private final AdminAppointmentService appointmentService;
+    private final UserRepository userRepository;
 
-    public AdminAppointmentController(AdminAppointmentService appointmentService) {
+    public AdminAppointmentController(AdminAppointmentService appointmentService, UserRepository userRepository) {
         this.appointmentService = appointmentService;
+        this.userRepository = userRepository;
     }
 
     @GetMapping("/stats")
@@ -45,5 +50,52 @@ public class AdminAppointmentController {
             @PathVariable Integer id,
             @RequestBody AdminAppointmentUpdateDto updateDto) {
         return ResponseEntity.ok(appointmentService.updateAppointment(id, updateDto));
+    }
+
+    /**
+     * PUT /api/admin/adminappointments/{id}/reassign
+     * Admin chuyển appointment sang bác sĩ khác.
+     */
+    @PutMapping("/{id}/reassign")
+    public ResponseEntity<AdminAppointmentDto> reassignAppointment(
+            @PathVariable Integer id,
+            @Valid @RequestBody AdminAppointmentReassignRequest request,
+            @AuthenticationPrincipal UserDetails userDetails,
+            HttpServletRequest httpRequest) {
+
+        // Ensure request appointmentId matches path variable
+        request.setAppointmentId(id);
+
+        String adminUserId = resolveUserId(userDetails);
+        AdminAppointmentDto result = appointmentService.reassignAppointment(request, adminUserId, httpRequest);
+        return ResponseEntity.ok(result);
+    }
+
+    /**
+     * PUT /api/admin/adminappointments/{id}/cancel
+     * Admin hủy appointment.
+     */
+    @PutMapping("/{id}/cancel")
+    public ResponseEntity<AdminAppointmentDto> cancelAppointment(
+            @PathVariable Integer id,
+            @Valid @RequestBody AdminAppointmentCancelRequest request,
+            @AuthenticationPrincipal UserDetails userDetails,
+            HttpServletRequest httpRequest) {
+
+        // Ensure request appointmentId matches path variable
+        request.setAppointmentId(id);
+
+        String adminUserId = resolveUserId(userDetails);
+        AdminAppointmentDto result = appointmentService.cancelAppointment(request, adminUserId, httpRequest);
+        return ResponseEntity.ok(result);
+    }
+
+    // ==================== Private Helper ====================
+
+    private String resolveUserId(UserDetails userDetails) {
+        String email = userDetails.getUsername();
+        User user = userRepository.findByEmail(email)
+                .orElseThrow(() -> new IllegalStateException("Authenticated user not found in DB: " + email));
+        return user.getId();
     }
 }

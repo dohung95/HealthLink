@@ -16,5 +16,10 @@ public enum NotificationType {
 
     // Admin notifications
     NEW_REGISTRATION,
-    NEW_COMMISSION
+    NEW_COMMISSION,
+
+    // Admin schedule management notifications
+    ADMIN_SCHEDULE_CHANGE,      // Admin block/mở slot của bác sĩ
+    ADMIN_APPOINTMENT_CANCEL,   // Admin hủy lịch hẹn
+    ADMIN_APPOINTMENT_REASSIGN  // Admin chuyển bác sĩ
 }

@@ -164,6 +164,26 @@ export const appointmentsApi = {
   update: async (id, data) => {
     const response = await adminApi.put(`/adminappointments/${id}`, data);
     return response.data;
+  },
+
+  /**
+   * Admin chuyển appointment sang bác sĩ khác.
+   * @param {number} id - Appointment ID
+   * @param {object} data - { newDoctorId, reason, newAppointmentTime?, notifyPatient?, notifyOldDoctor?, notifyNewDoctor? }
+   */
+  reassign: async (id, data) => {
+    const response = await adminApi.put(`/adminappointments/${id}/reassign`, data);
+    return response.data;
+  },
+
+  /**
+   * Admin hủy appointment.
+   * @param {number} id - Appointment ID
+   * @param {object} data - { reason, notifyPatient?, notifyDoctor?, processRefund? }
+   */
+  cancel: async (id, data) => {
+    const response = await adminApi.put(`/adminappointments/${id}/cancel`, data);
+    return response.data;
   }
 };
 
@@ -320,6 +340,62 @@ export const registrationsApi = {
     const response = await adminApi.post(`/registrations/${id}/review`, {
       action,
       rejectionReason
+    });
+    return response.data;
+  }
+};
+
+// ==================== SCHEDULE API ====================
+
+export const scheduleApi = {
+  /**
+   * Lấy lịch làm việc của bác sĩ (bao gồm exceptions).
+   * @param {string} doctorId - Doctor ID
+   */
+  getDoctorSchedule: async (doctorId) => {
+    const response = await adminApi.get(`/schedule/doctors/${doctorId}`);
+    return response.data;
+  },
+
+  /**
+   * Lấy lịch làm việc của bác sĩ trong khoảng thời gian.
+   * @param {string} doctorId - Doctor ID
+   * @param {string} startDate - Start date (YYYY-MM-DD)
+   * @param {string} endDate - End date (YYYY-MM-DD)
+   */
+  getDoctorScheduleInRange: async (doctorId, startDate, endDate) => {
+    const response = await adminApi.get(`/schedule/doctors/${doctorId}/range`, {
+      params: { startDate, endDate }
+    });
+    return response.data;
+  },
+
+  /**
+   * Admin tạo exception (block/mở slot) cho bác sĩ.
+   * @param {object} data - { doctorId, exceptionDate, exceptionType, startTime?, endTime?, reason, recurring?, recurringUntil? }
+   */
+  createException: async (data) => {
+    const response = await adminApi.post('/schedule/exceptions', data);
+    return response.data;
+  },
+
+  /**
+   * Admin xóa exception.
+   * @param {number} exceptionId - Exception ID
+   */
+  deleteException: async (exceptionId) => {
+    const response = await adminApi.delete(`/schedule/exceptions/${exceptionId}`);
+    return response.data;
+  },
+
+  /**
+   * Lấy lịch sử hành động của Admin (audit log).
+   * @param {object} params - { pageNumber, pageSize, adminUserId?, doctorId?, actionType?, startTime?, endTime? }
+   */
+  getAuditLogs: async (params = {}) => {
+    const { pageNumber = 1, pageSize = 20, adminUserId, doctorId, actionType, startTime, endTime } = params;
+    const response = await adminApi.get('/schedule/audit-log', {
+      params: { pageNumber, pageSize, adminUserId, doctorId, actionType, startTime, endTime }
     });
     return response.data;
   }
