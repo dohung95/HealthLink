@@ -64,9 +64,21 @@ public class NotificationService {
                                           Integer relatedId, String actionUrl) {
         // Lưu vào DB trước
         Notification notification = saveNotification(user, type, title, message,
-                NotificationChannel.WEB_SOCKET, NotificationPriority.NORMAL, relatedId, actionUrl);
+                NotificationChannel.WEB_SOCKET, NotificationPriority.NORMAL, relatedId, actionUrl, null);
 
         // Đẩy realtime qua WebSocket (bất đồng bộ)
+        webSocketService.sendToUser(user.getId(), notification);
+
+        log.info("WebSocket notification dispatched: type={}, userId={}", type, user.getId());
+    }
+
+    public void sendWebSocketNotification(User user, NotificationType type,
+                                          String title, String message,
+                                          Integer relatedId, String actionUrl,
+                                          String metadata) {
+        Notification notification = saveNotification(user, type, title, message,
+                NotificationChannel.WEB_SOCKET, NotificationPriority.NORMAL, relatedId, actionUrl, metadata);
+
         webSocketService.sendToUser(user.getId(), notification);
 
         log.info("WebSocket notification dispatched: type={}, userId={}", type, user.getId());
@@ -89,10 +101,23 @@ public class NotificationService {
                                            Integer relatedId, String actionUrl) {
         // Lưu vào DB
         saveNotification(user, type, title, message,
-                NotificationChannel.MOBILE_PUSH, priority, relatedId, actionUrl);
+                NotificationChannel.MOBILE_PUSH, priority, relatedId, actionUrl, null);
 
         // Gửi FCM đến tất cả thiết bị active của user (bất đồng bộ)
-        firebaseService.sendToUser(user.getId(), title, message);
+        firebaseService.sendToUser(user.getId(), title, message, type, relatedId, actionUrl, null);
+
+        log.info("Mobile push notification dispatched: type={}, userId={}", type, user.getId());
+    }
+
+    public void sendMobilePushNotification(User user, NotificationType type,
+                                           String title, String message,
+                                           NotificationPriority priority,
+                                           Integer relatedId, String actionUrl,
+                                           String metadata) {
+        saveNotification(user, type, title, message,
+                NotificationChannel.MOBILE_PUSH, priority, relatedId, actionUrl, metadata);
+
+        firebaseService.sendToUser(user.getId(), title, message, type, relatedId, actionUrl, metadata);
 
         log.info("Mobile push notification dispatched: type={}, userId={}", type, user.getId());
     }
@@ -119,7 +144,7 @@ public class NotificationService {
                 .user(user)
                 .token(request.getToken())
                 .deviceName(request.getDeviceName())
-                .platform(request.getPlatform())
+                .platform(normalizeUpper(request.getPlatform()))
                 .active(true)
                 .createdAt(LocalDateTime.now())
                 .updatedAt(LocalDateTime.now())
@@ -221,6 +246,15 @@ public class NotificationService {
                                           NotificationChannel channel,
                                           NotificationPriority priority,
                                           Integer relatedId, String actionUrl) {
+        return saveNotification(user, type, title, message, channel, priority, relatedId, actionUrl, null);
+    }
+
+    private Notification saveNotification(User user, NotificationType type,
+                                          String title, String message,
+                                          NotificationChannel channel,
+                                          NotificationPriority priority,
+                                          Integer relatedId, String actionUrl,
+                                          String metadata) {
         Notification notification = Notification.builder()
                 .user(user)
                 .type(type)
@@ -231,6 +265,7 @@ public class NotificationService {
                 .read(false)
                 .relatedId(relatedId)
                 .actionUrl(actionUrl)
+                .metadata(metadata)
                 .createdAt(LocalDateTime.now())
                 .build();
 
@@ -251,9 +286,17 @@ public class NotificationService {
                 .read(n.getRead())
                 .actionUrl(n.getActionUrl())
                 .imageUrl(n.getImageUrl())
+                .metadata(n.getMetadata())
                 .createdAt(n.getCreatedAt())
                 .expiresAt(n.getExpiresAt())
                 .relatedId(n.getRelatedId())
                 .build();
+    }
+
+    private String normalizeUpper(String value) {
+        if (value == null || value.isBlank()) {
+            return value;
+        }
+        return value.trim().toUpperCase();
     }
 }

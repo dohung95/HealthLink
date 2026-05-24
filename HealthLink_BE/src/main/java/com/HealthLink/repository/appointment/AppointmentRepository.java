@@ -24,7 +24,7 @@ public interface AppointmentRepository extends JpaRepository<Appointment, Intege
             SELECT a FROM Appointment a
             WHERE a.patient.patientId = :patientId
             ORDER BY
-                CASE WHEN a.status = 'Cancelled' THEN 1 ELSE 0 END ASC,
+                CASE WHEN UPPER(a.status) = 'CANCELLED' THEN 1 ELSE 0 END ASC,
                 CASE WHEN a.appointmentTime >= :now THEN 0 ELSE 1 END ASC,
                 CASE WHEN a.appointmentTime >= :now THEN a.appointmentTime ELSE null END ASC,
                 CASE WHEN a.appointmentTime < :now THEN a.appointmentTime ELSE null END DESC
@@ -36,27 +36,46 @@ public interface AppointmentRepository extends JpaRepository<Appointment, Intege
     );
 
     // Checks for doctor schedule conflicts within a time range.
+    @Query("""
+            SELECT COUNT(a) > 0 FROM Appointment a
+            WHERE a.doctor.doctorId = :doctorId
+              AND UPPER(a.status) <> UPPER(:status)
+              AND a.appointmentTime BETWEEN :start AND :end
+            """)
     boolean existsByDoctor_DoctorIdAndStatusNotAndAppointmentTimeBetween(
-            String doctorId,
-            String status,
-            LocalDateTime start,
-            LocalDateTime end
+            @Param("doctorId") String doctorId,
+            @Param("status") String status,
+            @Param("start") LocalDateTime start,
+            @Param("end") LocalDateTime end
     );
 
+    @Query("""
+            SELECT a FROM Appointment a
+            WHERE a.doctor.doctorId = :doctorId
+              AND UPPER(a.status) <> UPPER(:status)
+              AND a.appointmentTime BETWEEN :start AND :end
+            """)
     List<Appointment> findByDoctor_DoctorIdAndStatusNotAndAppointmentTimeBetween(
-            String doctorId,
-            String status,
-            LocalDateTime start,
-            LocalDateTime end
+            @Param("doctorId") String doctorId,
+            @Param("status") String status,
+            @Param("start") LocalDateTime start,
+            @Param("end") LocalDateTime end
     );
 
     // Kiểm tra conflict tại slot mới, bỏ qua chính appointment đang reschedule
+    @Query("""
+            SELECT COUNT(a) > 0 FROM Appointment a
+            WHERE a.doctor.doctorId = :doctorId
+              AND UPPER(a.status) <> UPPER(:status)
+              AND a.appointmentTime BETWEEN :start AND :end
+              AND a.appointmentId <> :excludeAppointmentId
+            """)
     boolean existsByDoctor_DoctorIdAndStatusNotAndAppointmentTimeBetweenAndAppointmentIdNot(
-            String doctorId,
-            String status,
-            LocalDateTime start,
-            LocalDateTime end,
-            Integer excludeAppointmentId
+            @Param("doctorId") String doctorId,
+            @Param("status") String status,
+            @Param("start") LocalDateTime start,
+            @Param("end") LocalDateTime end,
+            @Param("excludeAppointmentId") Integer excludeAppointmentId
     );
 
     List<Appointment> findByPatient_PatientId(String patientId);
@@ -68,8 +87,8 @@ public interface AppointmentRepository extends JpaRepository<Appointment, Intege
     @Query("""
             SELECT a FROM Appointment a
             JOIN a.invoice i
-            WHERE a.status = 'PendingPayment'
-            AND i.status = 'Pending'
+            WHERE UPPER(a.status) = 'PENDINGPAYMENT'
+            AND UPPER(i.status) = 'PENDING'
             AND i.issueDate < :cutoff
             """)
     List<Appointment> findExpiredPendingPaymentAppointments(@Param("cutoff") LocalDateTime cutoff);
@@ -83,14 +102,14 @@ public interface AppointmentRepository extends JpaRepository<Appointment, Intege
      * @return Danh sách Appointment chưa gửi reminder
      */
     @Query("SELECT a FROM Appointment a WHERE a.appointmentTime BETWEEN :from AND :to "
-            + "AND a.reminderSent = false AND a.status = 'Scheduled'")
+            + "AND a.reminderSent = false AND UPPER(a.status) = 'SCHEDULED'")
     List<Appointment> findUpcomingAndReminderNotSent(
             @Param("from") LocalDateTime from,
             @Param("to") LocalDateTime to);
 
     @Query("SELECT a FROM Appointment a WHERE a.appointmentTime BETWEEN :from AND :to "
             + "AND (a.doctorReminderSent IS NULL OR a.doctorReminderSent = false) "
-            + "AND a.status = 'Scheduled'")
+            + "AND UPPER(a.status) = 'SCHEDULED'")
     List<Appointment> findUpcomingDoctorReminderCandidates(
             @Param("from") LocalDateTime from,
             @Param("to") LocalDateTime to);

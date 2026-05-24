@@ -49,8 +49,8 @@ import java.util.stream.Collectors;
 @Slf4j
 public class AppointmentServiceImpl implements AppointmentService {
 
-    private static final String STATUS_CANCELLED = "Cancelled";
-    private static final String STATUS_PENDING_PAYMENT = "PendingPayment";
+    private static final String STATUS_CANCELLED = "CANCELLED";
+    private static final String STATUS_PENDING_PAYMENT = "PENDINGPAYMENT";
 
     private static final DateTimeFormatter NOTIFICATION_TIME_FORMATTER =
             DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm");
@@ -111,7 +111,7 @@ public class AppointmentServiceImpl implements AppointmentService {
         boolean hasConflict = appointmentRepository
                 .existsByDoctor_DoctorIdAndStatusNotAndAppointmentTimeBetween(
                         doctor.getDoctorId(),
-                        "Cancelled",
+                        STATUS_CANCELLED,
                         slotStart,
                         slotEnd.minusSeconds(1)
                 );
@@ -175,7 +175,7 @@ public class AppointmentServiceImpl implements AppointmentService {
         List<Appointment> bookedAppointments = appointmentRepository
                 .findByDoctor_DoctorIdAndStatusNotAndAppointmentTimeBetween(
                         doctorId,
-                        "Cancelled",
+                        STATUS_CANCELLED,
                         dayStart,
                         dayEnd
                 );
@@ -294,7 +294,7 @@ public class AppointmentServiceImpl implements AppointmentService {
         boolean hasBookedConflict = appointmentRepository
                 .existsByDoctor_DoctorIdAndStatusNotAndAppointmentTimeBetween(
                         doctor.getDoctorId(),
-                        "Cancelled",
+                        STATUS_CANCELLED,
                         appointmentTime,
                         slotEnd.minusSeconds(1)
                 );
@@ -422,10 +422,10 @@ public class AppointmentServiceImpl implements AppointmentService {
         if (request.getCancelReason() == null || request.getCancelReason().isBlank()) {
             throw new BusinessException("Cancel reason is required");
         }
-        if ("Cancelled".equals(appointment.getStatus())) {
+        if (STATUS_CANCELLED.equalsIgnoreCase(appointment.getStatus())) {
             throw new BusinessException("This appointment has already been canceled");
         }
-        if ("Completed".equals(appointment.getStatus())) {
+        if ("COMPLETED".equalsIgnoreCase(appointment.getStatus())) {
             throw new BusinessException("Completed appointments cannot be canceled");
         }
         if (appointment.getAppointmentTime().isBefore(LocalDateTime.now().plusHours(2))) {
@@ -433,7 +433,7 @@ public class AppointmentServiceImpl implements AppointmentService {
                     "Cannot cancel an appointment less than 2 hours before the scheduled time");
         }
 
-        appointment.setStatus("Cancelled");
+        appointment.setStatus(STATUS_CANCELLED);
         appointment.setCancelReason(request.getCancelReason());
         appointment.setCancelledBy(request.getCancelledBy());
         appointment.setCancelledAt(LocalDateTime.now());
@@ -450,10 +450,10 @@ public class AppointmentServiceImpl implements AppointmentService {
                 .orElseThrow(() -> new ResourceNotFoundException(
                         "Not found appointment with ID: " + id));
 
-        if ("Cancelled".equals(appointment.getStatus())) {
+        if (STATUS_CANCELLED.equalsIgnoreCase(appointment.getStatus())) {
             throw new BusinessException("Cannot reschedule a cancelled appointment");
         }
-        if ("Completed".equals(appointment.getStatus())) {
+        if ("COMPLETED".equalsIgnoreCase(appointment.getStatus())) {
             throw new BusinessException("Cannot reschedule a completed appointment");
         }
         if (appointment.getAppointmentTime().isBefore(LocalDateTime.now().plusHours(2))) {
@@ -497,7 +497,7 @@ public class AppointmentServiceImpl implements AppointmentService {
         boolean hasConflict = appointmentRepository
                 .existsByDoctor_DoctorIdAndStatusNotAndAppointmentTimeBetweenAndAppointmentIdNot(
                         doctor.getDoctorId(),
-                        "Cancelled",
+                        STATUS_CANCELLED,
                         slotStart,
                         slotEnd.minusSeconds(1),
                         id

@@ -1800,6 +1800,11 @@ body {
     padding: 0.42rem 0.68rem;
 }
 
+.doctor-prescription-pill--timing {
+    background: #e8f4ff;
+    color: #0b5ed7;
+}
+
 .doctor-prescription-item-card__editor {
     border-top: 1px solid #edf2f7;
     padding: 1rem 1.1rem 1.1rem;
@@ -1827,6 +1832,16 @@ body {
 
 .doctor-prescription-field--full {
     grid-column: 1 / -1;
+}
+
+.doctor-prescription-timing-toggle {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.5rem;
+}
+
+.doctor-prescription-timing-toggle .btn {
+    min-width: 96px;
 }
 
 .doctor-prescription-input--textarea {

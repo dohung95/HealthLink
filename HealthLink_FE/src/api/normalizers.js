@@ -4,10 +4,37 @@ const DOCTOR_NOTIFICATION_TYPES = new Set([
   'APPOINTMENT_REMINDER',
   'PRESCRIPTION_SENT_TO_PHARMACY',
   'INVOICE_PAID',
+  'WALLET_BALANCE_CHANGED',
   'NEW_PHARMACY_REQUEST',
   'ORDER_STATUS',
   'NEW_ORDER',
 ]);
+
+const toUpperValue = (value) => (value == null ? value : String(value).toUpperCase());
+
+const parseJsonObject = (value) => {
+  if (!value) return {};
+  if (typeof value === 'object') return value;
+  if (typeof value !== 'string') return {};
+
+  try {
+    const parsed = JSON.parse(value);
+    return parsed && typeof parsed === 'object' && !Array.isArray(parsed) ? parsed : {};
+  } catch {
+    return {};
+  }
+};
+
+const normalizeTimingList = (item = {}) => {
+  const source = Array.isArray(item.timings) && item.timings.length > 0
+    ? item.timings
+    : String(item.timing || '')
+        .split(',')
+        .map((value) => value.trim())
+        .filter(Boolean);
+
+  return [...new Set(source.map(toUpperValue).filter(Boolean))];
+};
 
 export function normalizeReview(review = {}) {
   return {
@@ -86,6 +113,15 @@ export function normalizePrescription(prescription = {}) {
     : Array.isArray(prescription.medications)
       ? prescription.medications
       : [];
+  const normalizedItems = items.map((item) => {
+    const timings = normalizeTimingList(item);
+    return {
+      ...item,
+      timing: timings.length > 0 ? timings.join(',') : toUpperValue(item.timing ?? ''),
+      timings,
+      status: toUpperValue(item.status ?? item.Status ?? undefined) ?? item.status,
+    };
+  });
 
   return {
     ...prescription,
@@ -97,14 +133,22 @@ export function normalizePrescription(prescription = {}) {
     patientID: prescription.patientID ?? prescription.patientId ?? null,
     doctorId: prescription.doctorId ?? prescription.doctorID ?? null,
     doctorID: prescription.doctorID ?? prescription.doctorId ?? null,
-    medications: items,
-    items,
+    status: toUpperValue(prescription.status ?? prescription.Status ?? undefined) ?? prescription.status,
+    medications: normalizedItems,
+    items: normalizedItems,
   };
 }
 
 export function normalizeNotification(notification = {}) {
-  const type = notification.type ?? notification.eventType ?? '';
-  const relatedId = notification.relatedId ?? notification.appointmentId ?? notification.prescriptionHeaderId ?? null;
+  const type = toUpperValue(notification.type ?? notification.eventType ?? '');
+  const metadata = parseJsonObject(notification.metadata ?? notification.data);
+  const relatedId =
+    notification.relatedId ??
+    notification.appointmentId ??
+    notification.prescriptionHeaderId ??
+    metadata.appointmentId ??
+    metadata.prescriptionHeaderId ??
+    null;
   const isPrescription = type === 'NEW_PRESCRIPTION';
   const isDoctorNotification = DOCTOR_NOTIFICATION_TYPES.has(type);
 
@@ -116,9 +160,11 @@ export function normalizeNotification(notification = {}) {
     read: notification.read ?? notification.isRead ?? false,
     eventType: notification.eventType ?? type,
     type,
-    appointmentId: notification.appointmentId ?? (!isPrescription ? relatedId : null),
-    prescriptionHeaderId: notification.prescriptionHeaderId ?? (isPrescription ? relatedId : null),
+    metadata,
+    appointmentId: notification.appointmentId ?? metadata.appointmentId ?? (!isPrescription ? relatedId : null),
+    prescriptionHeaderId: notification.prescriptionHeaderId ?? metadata.prescriptionHeaderId ?? (isPrescription ? relatedId : null),
     relatedId,
+    actionUrl: notification.actionUrl ?? metadata.actionUrl ?? null,
     isDoctorNotification,
   };
 }

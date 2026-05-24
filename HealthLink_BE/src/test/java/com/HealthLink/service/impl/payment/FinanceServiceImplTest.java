@@ -209,8 +209,8 @@ class FinanceServiceImplTest {
 
         var response = financeService.capturePayPalPayment(request);
 
-        assertThat(response.getStatus()).isEqualTo("Paid");
-        assertThat(appointment.getStatus()).isEqualTo("Scheduled");
+        assertThat(response.getStatus()).isEqualTo("PAID");
+        assertThat(appointment.getStatus()).isEqualTo("SCHEDULED");
         assertThat(appointment.getConfirmedAt()).isNotNull();
         verify(commissionService, never()).processConsultationCommission(any(Invoice.class));
         verify(notificationService).sendWebSocketNotification(
@@ -303,9 +303,9 @@ class FinanceServiceImplTest {
 
         var response = financeService.captureAppointmentPayPalPayment(request);
 
-        assertThat(response.getStatus()).isEqualTo("Paid");
+        assertThat(response.getStatus()).isEqualTo("PAID");
         assertThat(response.getAppointmentId()).isEqualTo(33);
-        assertThat(appointment.getStatus()).isEqualTo("Scheduled");
+        assertThat(appointment.getStatus()).isEqualTo("SCHEDULED");
         assertThat(appointment.getConfirmedAt()).isNotNull();
         verify(appointmentService).createAppointment(any());
         verify(commissionService, never()).processConsultationCommission(any(Invoice.class));
@@ -381,7 +381,7 @@ class FinanceServiceImplTest {
 
         ArgumentCaptor<PharmacyOrder> orderCaptor = ArgumentCaptor.forClass(PharmacyOrder.class);
         verify(pharmacyOrderRepository).save(orderCaptor.capture());
-        assertThat(orderCaptor.getValue().getPaymentStatus()).isEqualTo("Paid");
+        assertThat(orderCaptor.getValue().getPaymentStatus()).isEqualTo("PAID");
         assertThat(orderCaptor.getValue().getDoctorCompletionPaidNotified()).isTrue();
 
         verify(notificationService).sendWebSocketNotification(
@@ -394,6 +394,6 @@ class FinanceServiceImplTest {
         );
 
         assertThat(response.getOrderId()).isEqualTo(77);
-        assertThat(response.getPaymentStatus()).isEqualTo("Paid");
+        assertThat(response.getPaymentStatus()).isEqualTo("PAID");
     }
 }

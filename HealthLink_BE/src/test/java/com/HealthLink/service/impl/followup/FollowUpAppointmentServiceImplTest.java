@@ -69,7 +69,7 @@ class FollowUpAppointmentServiceImplTest {
         LocalDate date = LocalDate.now().plusDays(2);
         when(doctorRepository.findById("doctor-1")).thenReturn(Optional.of(doctor()));
         when(appointmentRepository.findByDoctor_DoctorIdAndStatusNotAndAppointmentTimeBetween(
-                eq("doctor-1"), eq("Cancelled"), any(), any()))
+                eq("doctor-1"), eq("CANCELLED"), any(), any()))
                 .thenReturn(List.of());
 
         FollowUpSlotsResponse response = followUpAppointmentService.getSlots("doctor-1", date);
@@ -89,7 +89,7 @@ class FollowUpAppointmentServiceImplTest {
 
         when(doctorRepository.findById("doctor-1")).thenReturn(Optional.of(doctor()));
         when(appointmentRepository.findByDoctor_DoctorIdAndStatusNotAndAppointmentTimeBetween(
-                eq("doctor-1"), eq("Cancelled"), any(), any()))
+                eq("doctor-1"), eq("CANCELLED"), any(), any()))
                 .thenReturn(List.of(booked));
 
         FollowUpSlotsResponse response = followUpAppointmentService.getSlots("doctor-1", date);
@@ -105,7 +105,7 @@ class FollowUpAppointmentServiceImplTest {
         Appointment appointment = appointment(1, LocalDateTime.now().minusHours(1), "Scheduled");
 
         when(appointmentRepository.findByDoctor_DoctorIdAndStatusNotAndAppointmentTimeBetween(
-                eq("doctor-1"), eq("Cancelled"), any(), any()))
+                eq("doctor-1"), eq("CANCELLED"), any(), any()))
                 .thenReturn(List.of());
 
         assertThatCode(() -> followUpAppointmentService.validateFollowUpSlot(appointment, date.atTime(20, 0)))
@@ -133,7 +133,7 @@ class FollowUpAppointmentServiceImplTest {
 
         when(appointmentRepository.findById(10)).thenReturn(Optional.of(sourceAppointment));
         when(appointmentRepository.findByDoctor_DoctorIdAndStatusNotAndAppointmentTimeBetween(
-                eq("doctor-1"), eq("Cancelled"), any(), any()))
+                eq("doctor-1"), eq("CANCELLED"), any(), any()))
                 .thenReturn(List.of());
         when(appointmentRepository.save(any(Appointment.class))).thenAnswer(invocation -> {
             Appointment saved = invocation.getArgument(0);
@@ -189,7 +189,7 @@ class FollowUpAppointmentServiceImplTest {
 
         assertThat(response.isCreatedFollowUp()).isFalse();
         assertThat(response.getFollowUpAppointment()).isNull();
-        assertThat(sourceAppointment.getStatus()).isEqualTo("Completed");
+        assertThat(sourceAppointment.getStatus()).isEqualTo("COMPLETED");
         verify(appointmentRepository).save(sourceAppointment);
         verify(commissionService).processConsultationCommission(sourceAppointment.getInvoice());
         verify(consultationRepository, never()).save(any(Consultation.class));

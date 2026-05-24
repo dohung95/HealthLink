@@ -4,10 +4,13 @@ import com.HealthLink.config.PayPalConfig;
 import com.HealthLink.dto.payment.SettlementRequest;
 import com.HealthLink.entity.Doctor;
 import com.HealthLink.entity.Settlement;
+import com.HealthLink.entity.User;
+import com.HealthLink.entity.enums.NotificationType;
 import com.HealthLink.exception.BadRequestException;
 import com.HealthLink.repository.doctor.DoctorRepository;
 import com.HealthLink.repository.payment.PaymentSettlementRepository;
 import com.HealthLink.repository.pharmacy.PharmacyRepository;
+import com.HealthLink.service.notification.NotificationService;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -27,7 +30,9 @@ import java.util.Optional;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.contains;
 import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.ArgumentMatchers.isNull;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
@@ -51,6 +56,9 @@ class SettlementServiceImplTest {
 
     @Mock
     private PharmacyRepository pharmacyRepository;
+
+    @Mock
+    private NotificationService notificationService;
 
     @InjectMocks
     private SettlementServiceImpl settlementService;
@@ -128,12 +136,22 @@ class SettlementServiceImplTest {
         assertThat(response.getStatus()).isEqualTo("COMPLETED");
         assertThat(doctor.getPendingSettlement()).isEqualByComparingTo("15.00");
         verify(doctorRepository).save(doctor);
+        verify(notificationService).sendWebSocketNotification(
+                eq(doctor.getUser()),
+                eq(NotificationType.WALLET_BALANCE_CHANGED),
+                eq("Wallet balance updated"),
+                contains("withdrawal"),
+                isNull(),
+                eq("/profile-doctor?tab=wallet"),
+                contains("\"delta\":\"-10.00\"")
+        );
     }
 
     private Doctor doctor(BigDecimal pendingSettlement) {
         return Doctor.builder()
                 .doctorId("doctor-1")
                 .fullName("Doctor One")
+                .user(User.builder().id("doctor-user-1").build())
                 .paypalEmail("doctor@example.com")
                 .pendingSettlement(pendingSettlement)
                 .totalEarnings(new BigDecimal("100.00"))

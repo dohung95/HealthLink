@@ -43,7 +43,7 @@ public class PrescriptionServiceImpl implements PrescriptionService {
                 .orElseThrow(() -> new ResourceNotFoundException(
                         "Appointment", "id", request.getAppointmentId()));
 
-        if ("Cancelled".equals(appointment.getStatus())) {
+        if ("CANCELLED".equalsIgnoreCase(appointment.getStatus())) {
             throw new BadRequestException("Cannot create prescription for a cancelled appointment");
         }
 
@@ -59,7 +59,7 @@ public class PrescriptionServiceImpl implements PrescriptionService {
                 .diagnosis(request.getDiagnosis())
                 .notes(request.getNotes())
                 .validUntil(request.getValidUntil())
-                .status("Issued")
+                .status("ISSUED")
                 .prescriptionItems(new ArrayList<>())
                 .build();
 
@@ -91,7 +91,7 @@ public class PrescriptionServiceImpl implements PrescriptionService {
                     .quantity(itemReq.getQuantity())
                     .unit(itemReq.getUnit() != null ? itemReq.getUnit() : medicine.getUnit())
                     .frequency(itemReq.getFrequency())
-                    .timing(normalizeTimingRequired(itemReq.getTiming()))
+                    .timing(normalizeTimingRequired(itemReq.getTimings(), itemReq.getTiming()))
                     .route(itemReq.getRoute())
                     .unitPrice(unitPrice)
                     .totalPrice(totalPrice)
@@ -212,7 +212,7 @@ public class PrescriptionServiceImpl implements PrescriptionService {
             return true;
         }
 
-        return timingFilter.equals(normalizeTimingForResponse(item.getTiming()));
+        return PrescriptionTiming.containsTiming(item.getTiming(), timingFilter);
     }
 
     private PrescriptionItemResponse toItemResponse(PrescriptionItem item) {
@@ -227,6 +227,7 @@ public class PrescriptionServiceImpl implements PrescriptionService {
                 .unit(item.getUnit())
                 .frequency(item.getFrequency())
                 .timing(normalizeTimingForResponse(item.getTiming()))
+                .timings(timingsForResponse(item.getTiming()))
                 .route(item.getRoute())
                 .unitPrice(item.getUnitPrice())
                 .totalPrice(item.getTotalPrice())
@@ -234,12 +235,19 @@ public class PrescriptionServiceImpl implements PrescriptionService {
                 .build();
     }
 
-    private String normalizeTimingRequired(String timing) {
+    private String normalizeTimingRequired(List<String> timings, String timing) {
         try {
-            return PrescriptionTiming.normalize(timing);
+            if (timings != null && !timings.isEmpty()) {
+                return PrescriptionTiming.normalizeJoined(timings);
+            }
+            return PrescriptionTiming.normalizeJoined(timing);
         } catch (IllegalArgumentException ex) {
             throw new BadRequestException(ex.getMessage());
         }
+    }
+
+    private String normalizeTimingRequired(String timing) {
+        return normalizeTimingRequired(null, timing);
     }
 
     private String normalizeTimingOptional(String timing) {
@@ -247,14 +255,26 @@ public class PrescriptionServiceImpl implements PrescriptionService {
             return null;
         }
 
-        return normalizeTimingRequired(timing);
+        try {
+            return PrescriptionTiming.normalize(timing);
+        } catch (IllegalArgumentException ex) {
+            throw new BadRequestException(ex.getMessage());
+        }
     }
 
     private String normalizeTimingForResponse(String timing) {
         if (PrescriptionTiming.isSupported(timing)) {
-            return PrescriptionTiming.normalize(timing);
+            return PrescriptionTiming.normalizeJoined(timing);
         }
         return timing;
+    }
+
+    private List<String> timingsForResponse(String timing) {
+        try {
+            return PrescriptionTiming.splitNormalized(timing);
+        } catch (IllegalArgumentException ex) {
+            return List.of();
+        }
     }
 
     private String buildDosage(Medicine medicine) {

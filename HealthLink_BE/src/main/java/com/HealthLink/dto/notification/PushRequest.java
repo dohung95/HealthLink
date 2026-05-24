@@ -30,5 +30,8 @@ public class PushRequest {
     private String data;
 
     /** URL hình ảnh đính kèm — tuỳ chọn */
+    private String type;
+    private String relatedId;
+    private String actionUrl;
     private String imageUrl;
 }

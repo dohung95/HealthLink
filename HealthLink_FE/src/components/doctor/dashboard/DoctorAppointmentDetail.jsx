@@ -525,16 +525,27 @@ const DoctorAppointmentDetail = ({ appointment, patient, onBack, onOpenAppointme
     const draftRows = Array.isArray(prescriptionDraft?.medicationRows)
       ? prescriptionDraft.medicationRows.filter((row) => row?.medicineId)
       : [];
+    const getRowTimings = (row) => {
+      const source = Array.isArray(row?.timings) && row.timings.length > 0
+        ? row.timings
+        : String(row?.timing || '')
+            .split(',')
+            .map((value) => value.trim())
+            .filter(Boolean);
+
+      return [...new Set(source.map((value) => String(value).toUpperCase()).filter(Boolean))];
+    };
     const incompleteRow = draftRows.find((row) => {
       const quantity = Number(row?.quantity);
       const totalSupplyDays = Number(row?.totalSupplyDays);
+      const timings = getRowTimings(row);
 
       return (
         !Number.isFinite(quantity) ||
         quantity < 1 ||
         !Number.isFinite(totalSupplyDays) ||
         totalSupplyDays < 1 ||
-        !String(row?.timing || '').trim()
+        timings.length === 0
       );
     });
 
@@ -556,16 +567,20 @@ const DoctorAppointmentDetail = ({ appointment, patient, onBack, onOpenAppointme
               appointmentDetail?.consultation?.doctorNotes ||
               appointmentDetail?.doctorNotes ||
               null,
-            items: draftRows.map((row) => ({
-              medicineId: row.medicineId,
-              totalSupplyDays: Number(row.totalSupplyDays),
-              quantity: Number(row.quantity),
-              unit: row.unit || null,
-              frequency: row.frequency || null,
-              timing: row.timing,
-              route: row.route || null,
-              notes: row.notes?.trim() || null,
-            })),
+            items: draftRows.map((row) => {
+              const timings = getRowTimings(row);
+              return {
+                medicineId: row.medicineId,
+                totalSupplyDays: Number(row.totalSupplyDays),
+                quantity: Number(row.quantity),
+                unit: row.unit || null,
+                frequency: row.frequency || null,
+                timing: timings.join(','),
+                timings,
+                route: row.route || null,
+                notes: row.notes?.trim() || null,
+              };
+            }),
           }
         : null;
 

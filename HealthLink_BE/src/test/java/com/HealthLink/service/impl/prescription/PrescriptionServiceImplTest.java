@@ -56,10 +56,10 @@ class PrescriptionServiceImplTest {
                 .patient(patient("patient-1", "Patient One"))
                 .doctor(doctor("doctor-1", "Doctor One"))
                 .issueDate(LocalDateTime.of(2026, 5, 15, 8, 0))
-                .status("Issued")
+                .status("ISSUED")
                 .totalAmount(new BigDecimal("30.00"))
                 .prescriptionItems(List.of(
-                        prescriptionItem(1, "morning", "Amlodipine 5mg"),
+                        prescriptionItem(1, "morning, evening", "Amlodipine 5mg"),
                         prescriptionItem(2, "EVENING", "Cetirizine 10mg")
                 ))
                 .build();
@@ -70,7 +70,8 @@ class PrescriptionServiceImplTest {
 
         assertThat(response.getItems()).hasSize(1);
         assertThat(response.getItems().getFirst().getPrescriptionItemId()).isEqualTo(1);
-        assertThat(response.getItems().getFirst().getTiming()).isEqualTo("MORNING");
+        assertThat(response.getItems().getFirst().getTiming()).isEqualTo("MORNING,EVENING");
+        assertThat(response.getItems().getFirst().getTimings()).containsExactly("MORNING", "EVENING");
     }
 
     @Test
@@ -120,6 +121,55 @@ class PrescriptionServiceImplTest {
         assertThat(savedItem.getTiming()).isEqualTo("EVENING");
         assertThat(response.getItems().getFirst().getTiming()).isEqualTo("EVENING");
         assertThat(response.getTotalAmount()).isEqualByComparingTo("25.00");
+    }
+
+    @Test
+    void createPrescription_shouldNormalizeMultipleTimingsBeforeSaving() {
+        PrescriptionRequest request = new PrescriptionRequest();
+        request.setAppointmentId(11);
+        request.setDiagnosis("Hypertension");
+        request.setValidUntil(LocalDateTime.of(2026, 5, 30, 23, 59, 59));
+
+        PrescriptionItemRequest itemRequest = new PrescriptionItemRequest();
+        itemRequest.setMedicineId(5);
+        itemRequest.setTotalSupplyDays(30);
+        itemRequest.setQuantity(1);
+        itemRequest.setTimings(List.of("morning", "evening", "morning"));
+        request.setItems(List.of(itemRequest));
+
+        Appointment appointment = Appointment.builder()
+                .appointmentId(11)
+                .status("Scheduled")
+                .patient(patient("patient-1", "Patient One"))
+                .doctor(doctor("doctor-1", "Doctor One"))
+                .build();
+
+        Medicine medicine = Medicine.builder()
+                .medicineId(5)
+                .name("Amlodipine 5mg")
+                .strength("5mg")
+                .unit("tablet")
+                .referencePrice(new BigDecimal("12.50"))
+                .build();
+
+        when(appointmentRepository.findById(11)).thenReturn(Optional.of(appointment));
+        when(medicineRepository.findById(5)).thenReturn(Optional.of(medicine));
+        when(headerRepository.save(any(PrescriptionHeader.class))).thenAnswer(invocation -> {
+            PrescriptionHeader saved = invocation.getArgument(0);
+            saved.setPrescriptionHeaderId(100);
+            return saved;
+        });
+
+        PrescriptionResponse response = prescriptionService.createPrescription(request);
+
+        ArgumentCaptor<PrescriptionHeader> headerCaptor = ArgumentCaptor.forClass(PrescriptionHeader.class);
+        verify(headerRepository).save(headerCaptor.capture());
+
+        PrescriptionItem savedItem = headerCaptor.getValue().getPrescriptionItems().getFirst();
+        assertThat(savedItem.getTiming()).isEqualTo("MORNING,EVENING");
+        assertThat(response.getItems().getFirst().getTiming()).isEqualTo("MORNING,EVENING");
+        assertThat(response.getItems().getFirst().getTimings()).containsExactly("MORNING", "EVENING");
+        assertThat(response.getStatus()).isEqualTo("ISSUED");
     }
 
     @Test

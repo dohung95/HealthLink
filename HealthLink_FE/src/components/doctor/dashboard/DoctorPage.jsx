@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useLocation, useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import { doctorService } from '../api/doctorApi';
 import { appointmentService } from '../api/appointmentApi';
@@ -14,6 +14,7 @@ import DoctorAppointmentDetail from './DoctorAppointmentDetail';
 
 const DoctorProfile = () => {
   const navigate = useNavigate();
+  const location = useLocation();
   const { logout } = useAuth();
   const [doctorData, setDoctorData] = useState(null);
   const [loading, setLoading] = useState(true);
@@ -21,6 +22,7 @@ const DoctorProfile = () => {
 
   // View state: 'profile' | 'appointments' | 'reviews' | 'appointmentDetail'
   const [view, setView] = useState('profile');
+  const [profileTab, setProfileTab] = useState('personal');
   const [selectedAppointment, setSelectedAppointment] = useState(null);
   const [selectedPatient, setSelectedPatient] = useState(null);
   
@@ -74,12 +76,33 @@ const DoctorProfile = () => {
   }, []);
 
   useEffect(() => {
+    const queryTab = new URLSearchParams(location.search).get('tab');
+    if (queryTab === 'wallet') {
+      setView('profile');
+      setProfileTab('wallet');
+    }
+  }, [location.search]);
+
+  const handleProfileTabChange = (tab) => {
+    setProfileTab(tab);
+    navigate(tab === 'wallet' ? '/doctor-page?tab=wallet' : '/doctor-page', { replace: true });
+  };
+
+  useEffect(() => {
     // Connect to SignalR
     const initSignalR = async () => {
       console.log('🔄 Initializing SignalR connection...');
       
       // Define the handler for new appointments
       const handleNewAppointment = (appointment) => {
+        fetchNotifications();
+        if (appointment.type !== 'NEW_APPOINTMENT') {
+          return;
+        }
+        const appointmentId = appointment.appointmentID || appointment.appointmentId;
+        if (!appointmentId) {
+          return;
+        }
         console.log('📅 New appointment received in DoctorPage:', appointment);
         
         // Get current new appointments from localStorage
@@ -87,11 +110,11 @@ const DoctorProfile = () => {
         let newAppointments = savedNew ? JSON.parse(savedNew) : [];
         
         // Check if this appointment is already marked as new
-        const exists = newAppointments.some(item => item.id === appointment.appointmentID);
+        const exists = newAppointments.some(item => item.id === appointmentId);
         if (!exists) {
           // Add new appointment with timestamp
           const newItem = {
-            id: appointment.appointmentID,
+            id: appointmentId,
             timestamp: Date.now()
           };
           newAppointments = [newItem, ...newAppointments];
@@ -100,9 +123,6 @@ const DoctorProfile = () => {
           // Update count
           setNewAppointmentCount(newAppointments.length);
         }
-        
-        // Refresh notifications
-        fetchNotifications();
       };
       
       // Register listener BEFORE starting connection
@@ -401,6 +421,11 @@ const DoctorProfile = () => {
                                 
                                 // Close dropdown first
                                 setShowNotificationDropdown(false);
+
+                                if (notif.type === 'WALLET_BALANCE_CHANGED' || notif.actionUrl === '/profile-doctor?tab=wallet') {
+                                  navigate('/doctor-page?tab=wallet');
+                                  return;
+                                }
                                 
                                 // Navigate to appointment detail if appointmentId exists
                                 if (notif.appointmentId && doctorData) {
@@ -458,7 +483,12 @@ const DoctorProfile = () => {
             <a 
               className={`nav-link-custom ${view === 'profile' ? 'nav-link-active' : ''}`} 
               href="#" 
-              onClick={(e) => { e.preventDefault(); setView('profile'); }}
+              onClick={(e) => {
+                e.preventDefault();
+                setView('profile');
+                setProfileTab('personal');
+                navigate('/doctor-page', { replace: true });
+              }}
             >
               <span className="material-symbols-outlined">person</span>
               <p className="mb-0 small fw-bold">Profile</p>
@@ -551,7 +581,13 @@ const DoctorProfile = () => {
             <a 
               className={`nav-link-custom ${view === 'profile' ? 'nav-link-active' : ''}`} 
               href="#" 
-              onClick={(e) => { e.preventDefault(); setView('profile'); setIsMobileMenuOpen(false); }}
+              onClick={(e) => {
+                e.preventDefault();
+                setView('profile');
+                setProfileTab('personal');
+                setIsMobileMenuOpen(false);
+                navigate('/doctor-page', { replace: true });
+              }}
             >
               <span className="material-symbols-outlined">person</span>
               <p className="mb-0 small fw-bold">Profile</p>
@@ -613,7 +649,13 @@ const DoctorProfile = () => {
 
             {/* Main Card/Content Area */}
             <div className={view === 'appointmentDetail' ? '' : 'bg-custom-white info-card'}>
-              {view === 'profile' && <DoctorProfileView doctorData={doctorData} />}
+              {view === 'profile' && (
+                <DoctorProfileView
+                  doctorData={doctorData}
+                  activeTab={profileTab}
+                  onTabChange={handleProfileTabChange}
+                />
+              )}
               {view === 'appointments' && (
                 <DoctorAppointmentsView 
                   doctorId={doctorData?.doctorID} 
@@ -696,6 +738,11 @@ const DoctorProfile = () => {
                         console.log('🚪 Closing dropdowns...');
                         setShowNotificationDropdown(false);
                         setIsMobileMenuOpen(false);
+
+                        if (notif.type === 'WALLET_BALANCE_CHANGED' || notif.actionUrl === '/profile-doctor?tab=wallet') {
+                          navigate('/doctor-page?tab=wallet');
+                          return;
+                        }
                         
                         // Navigate to appointment detail if appointmentId exists
                         if (notif.appointmentId && doctorData) {

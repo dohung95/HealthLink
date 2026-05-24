@@ -81,25 +81,25 @@ import java.util.stream.Collectors;
 public class FinanceServiceImpl implements FinanceService {
 
     // ── Các hằng trạng thái ─────────────────────────────────────────────────
-    private static final String INVOICE_PENDING   = "Pending";
-    private static final String INVOICE_PAID      = "Paid";
-    private static final String INVOICE_CANCELLED = "Cancelled";
+    private static final String INVOICE_PENDING   = "PENDING";
+    private static final String INVOICE_PAID      = "PAID";
+    private static final String INVOICE_CANCELLED = "CANCELLED";
 
-    private static final String PAYMENT_PENDING = "Pending";
-    private static final String PAYMENT_SUCCESS = "Success";
-    private static final String PAYMENT_FAILED  = "Failed";
+    private static final String PAYMENT_PENDING = "PENDING";
+    private static final String PAYMENT_SUCCESS = "SUCCESS";
+    private static final String PAYMENT_FAILED  = "FAILED";
 
     private static final String GATEWAY_PAYPAL   = "PayPal";
     private static final String METHOD_EWALLET   = "EWallet";
     private static final String METHOD_CARD      = "Card";
 
-    private static final String APPT_PENDING_PAYMENT = "PendingPayment";
-    private static final String APPT_SCHEDULED = "Scheduled";
+    private static final String APPT_PENDING_PAYMENT = "PENDINGPAYMENT";
+    private static final String APPT_SCHEDULED = "SCHEDULED";
     private static final String APPOINTMENT_CHECKOUT_REFERENCE_ID = "appointment-checkout";
     private static final String ROLE_ADMIN = "ADMIN";
     private static final String ROLE_PATIENT = "PATIENT";
     private static final String ROLE_DOCTOR = "DOCTOR";
-    private static final String PHARMACY_ORDER_COMPLETED = "Completed";
+    private static final String PHARMACY_ORDER_COMPLETED = "COMPLETED";
     private static final DateTimeFormatter NOTIFICATION_TIME_FORMATTER =
             DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm");
 
@@ -225,7 +225,7 @@ public class FinanceServiceImpl implements FinanceService {
 
         assertInvoiceAccess(invoice);
 
-        if (INVOICE_PAID.equals(invoice.getStatus())) {
+        if (INVOICE_PAID.equalsIgnoreCase(invoice.getStatus())) {
             throw new BadRequestException("This invoice has already been paid.");
         }
 
@@ -455,7 +455,7 @@ public class FinanceServiceImpl implements FinanceService {
 
         assertInvoiceAccess(invoice);
 
-        if (INVOICE_PAID.equals(invoice.getStatus())) {
+        if (INVOICE_PAID.equalsIgnoreCase(invoice.getStatus())) {
             throw new BadRequestException("This invoice has already been paid.");
         }
 
@@ -849,7 +849,7 @@ public class FinanceServiceImpl implements FinanceService {
                 .orElseThrow(() -> new BadRequestException("Payment not found with ID: " + paymentId));
 
         // 2. Chỉ hoàn tiền Payment đang ở trạng thái SUCCESS
-        if (!PAYMENT_SUCCESS.equals(payment.getStatus())) {
+        if (!PAYMENT_SUCCESS.equalsIgnoreCase(payment.getStatus())) {
             throw new BadRequestException(
                     "Only successful payments can be refunded. Current status: " + payment.getStatus());
         }
@@ -868,7 +868,7 @@ public class FinanceServiceImpl implements FinanceService {
         paymentRepository.save(payment);
 
         // 5. Cập nhật Invoice → REFUNDED
-        invoice.setStatus("Refunded");
+        invoice.setStatus("REFUNDED");
         invoiceRepository.save(invoice);
 
         // 6. Truy vết và hoàn lại commission của đối tác (Doctor + Pharmacy)
