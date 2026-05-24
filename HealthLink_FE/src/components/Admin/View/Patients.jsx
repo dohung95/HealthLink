@@ -520,11 +520,19 @@ export default function Patients() {
                     <div className="card-details">
                       <div className="card-detail-item">
                         <i className="bi bi-telephone"></i>
-                        <span>{patient.phone}</span>
+                        <span>{patient.phone || 'N/A'}</span>
                       </div>
                       <div className="card-detail-item">
                         <i className="bi bi-envelope"></i>
-                        <span>{patient.email}</span>
+                        <span>{patient.email || 'N/A'}</span>
+                      </div>
+                      <div className="card-detail-item">
+                        <i className="bi bi-chat-dots"></i>
+                        <span>{patient.preferredContactMethod || 'No contact method'}</span>
+                      </div>
+                      <div className="card-detail-item">
+                        <i className="bi bi-translate"></i>
+                        <span>{patient.preferredLanguage || 'No language set'}</span>
                       </div>
                       <div className="card-detail-item">
                         <i className="bi bi-calendar-event"></i>
@@ -597,6 +605,7 @@ export default function Patients() {
                         <th>Gender</th>
                         <th>Phone</th>
                         <th>Email</th>
+                        <th>Language</th>
                         <th>Status</th>
                         <th>Last Visit</th>
                         <th className="text-center">Actions</th>
@@ -618,6 +627,7 @@ export default function Patients() {
                           <td>{patient.gender}</td>
                           <td>{patient.phone}</td>
                           <td>{patient.email}</td>
+                          <td>{patient.preferredLanguage || 'N/A'}</td>
                           <td>
                             <span className={`badge ${getStatusBadgeClass(patient.status)}`}>
                               {patient.status}
@@ -778,7 +788,8 @@ export default function Patients() {
                             width: '80px',
                             height: '80px',
                             borderRadius: 'var(--radius-full)',
-                            background: 'rgba(255, 255, 255, 0.2)',
+                            overflow: 'hidden',
+                            background: selectedPatient.avatarUrl ? 'transparent' : 'rgba(255, 255, 255, 0.2)',
                             display: 'flex',
                             alignItems: 'center',
                             justifyContent: 'center',
@@ -786,7 +797,15 @@ export default function Patients() {
                             fontWeight: '700',
                             border: '3px solid rgba(255, 255, 255, 0.3)'
                           }}>
-                            {selectedPatient.fullName.charAt(0)}
+                            {selectedPatient.avatarUrl ? (
+                              <img
+                                src={selectedPatient.avatarUrl}
+                                alt={selectedPatient.fullName}
+                                style={{width: '100%', height: '100%', objectFit: 'cover'}}
+                              />
+                            ) : (
+                              selectedPatient.fullName.charAt(0)
+                            )}
                           </div>
                         </div>
                         <div className="col">
@@ -860,6 +879,20 @@ export default function Patients() {
                               </div>
                             </div>
                           </div>
+                          <div className="row">
+                            <div className="col-md-6">
+                              <div className="admin-info-row">
+                                <strong>Preferred Language:</strong>
+                                <span>{selectedPatient.preferredLanguage || 'N/A'}</span>
+                              </div>
+                            </div>
+                            <div className="col-md-6">
+                              <div className="admin-info-row">
+                                <strong>Contact Method:</strong>
+                                <span>{selectedPatient.preferredContactMethod || 'N/A'}</span>
+                              </div>
+                            </div>
+                          </div>
                           <div className="admin-info-row">
                             <strong>Occupation:</strong>
                             <span>{selectedPatient.occupation || 'N/A'}</span>
@@ -901,6 +934,20 @@ export default function Patients() {
                               <div className="admin-info-row">
                                 <strong>Country:</strong>
                                 <span>{selectedPatient.country || 'N/A'}</span>
+                              </div>
+                            </div>
+                          </div>
+                          <div className="row">
+                            <div className="col-md-6">
+                              <div className="admin-info-row">
+                                <strong>Latitude:</strong>
+                                <span>{selectedPatient.latitude != null ? selectedPatient.latitude : 'N/A'}</span>
+                              </div>
+                            </div>
+                            <div className="col-md-6">
+                              <div className="admin-info-row">
+                                <strong>Longitude:</strong>
+                                <span>{selectedPatient.longitude != null ? selectedPatient.longitude : 'N/A'}</span>
                               </div>
                             </div>
                           </div>
@@ -1104,24 +1151,21 @@ export default function Patients() {
                             </div>
                             <div className="row">
                               <div className="col-md-6 mb-3">
-                                <label className="admin-form-label">Email <span className="text-danger">*</span></label>
+                                <label className="admin-form-label">Email</label>
                                 <input
                                   type="email"
                                   className="form-control admin-form-control"
                                   value={editForm.email}
-                                  onChange={(e) => setEditForm({ ...editForm, email: e.target.value })}
-                                  required
                                   readOnly
                                 />
                               </div>
                               <div className="col-md-6 mb-3">
-                                <label className="admin-form-label">Phone Number <span className="text-danger">*</span></label>
+                                <label className="admin-form-label">Phone Number</label>
                                 <input
                                   type="tel"
                                   className="form-control admin-form-control"
                                   value={editForm.phoneNumber}
-                                  onChange={(e) => setEditForm({ ...editForm, phoneNumber: e.target.value })}
-                                  required
+                                  readOnly
                                 />
                               </div>
                             </div>
