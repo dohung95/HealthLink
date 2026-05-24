@@ -12,7 +12,6 @@ import com.HealthLink.repository.admin.DoctorScheduleExceptionRepository;
 import com.HealthLink.repository.doctor.DoctorScheduleRepository;
 import com.HealthLink.repository.admin.AdminDoctorRepository;
 import com.HealthLink.repository.auth.UserRepository;
-import com.HealthLink.service.admin.AdminNotificationService;
 import com.HealthLink.entity.enums.NotificationType;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.transaction.Transactional;
@@ -176,7 +175,7 @@ public class AdminScheduleService {
                 exception.getDoctor(),
                 "UNBLOCK",
                 exception.getExceptionDate(),
-                "Admin đã gỡ bỏ ngoại lệ lịch của bạn vào ngày " + exception.getExceptionDate()
+                "Admin removed your schedule exception on " + exception.getExceptionDate()
         );
     }
 
@@ -251,9 +250,9 @@ public class AdminScheduleService {
 
     private void notifyDoctorScheduleChange(Doctor doctor, String changeType, LocalDate date, String reason) {
         if (doctor.getUser() != null) {
-            String title = "Thay đổi lịch làm việc";
+            String title = "Work schedule updated";
             String message = String.format(
-                    "Admin đã %s lịch của bạn vào ngày %s. Lý do: %s",
+                    "Admin has %s on your schedule for %s. Reason: %s",
                     getChangeTypeDisplay(changeType),
                     date.toString(),
                     reason
@@ -272,11 +271,11 @@ public class AdminScheduleService {
 
     private String getChangeTypeDisplay(String type) {
         switch (type) {
-            case "DayOff": return "đánh dấu nghỉ";
-            case "Modified": return "thay đổi giờ làm việc";
-            case "AddSlot": return "thêm ca làm việc";
-            case "UNBLOCK": return "gỡ bỏ ngoại lệ";
-            default: return "thay đổi";
+            case "DayOff": return "marked your schedule as a day off";
+            case "Modified": return "modified your working hours";
+            case "AddSlot": return "added an extra working slot";
+            case "UNBLOCK": return "removed a schedule exception";
+            default: return "changed";
         }
     }
 
@@ -368,9 +367,9 @@ public class AdminScheduleService {
         switch (actionType) {
             case "BLOCK_SLOT": return "Block slot";
             case "UNBLOCK_SLOT": return "Unblock slot";
-            case "MODIFY_SCHEDULE": return "Sửa lịch";
-            case "CANCEL_APPOINTMENT": return "Hủy lịch hẹn";
-            case "REASSIGN_APPOINTMENT": return "Chuyển bác sĩ";
+            case "MODIFY_SCHEDULE": return "Modify schedule";
+            case "CANCEL_APPOINTMENT": return "Cancel appointment";
+            case "REASSIGN_APPOINTMENT": return "Reassign appointment";
             default: return actionType;
         }
     }
@@ -385,13 +384,13 @@ public class AdminScheduleService {
     private String getDayOfWeekName(Integer dayOfWeek) {
         if (dayOfWeek == null) return "";
         switch (dayOfWeek) {
-            case 0: return "Chủ nhật";
-            case 1: return "Thứ 2";
-            case 2: return "Thứ 3";
-            case 3: return "Thứ 4";
-            case 4: return "Thứ 5";
-            case 5: return "Thứ 6";
-            case 6: return "Thứ 7";
+            case 0: return "Sunday";
+            case 1: return "Monday";
+            case 2: return "Tuesday";
+            case 3: return "Wednesday";
+            case 4: return "Thursday";
+            case 5: return "Friday";
+            case 6: return "Saturday";
             default: return "";
         }
     }

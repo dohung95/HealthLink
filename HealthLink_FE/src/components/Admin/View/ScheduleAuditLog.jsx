@@ -490,43 +490,6 @@ export default function ScheduleAuditLog() {
                       <div className="fw-semibold">{selectedLog.reason || 'No reason provided'}</div>
                     </div>
                   </div>
-
-                  {/* Additional Fields - if any */}
-                  {selectedLog.oldValue && (
-                    <div className="col-md-6">
-                      <div className="p-3 bg-danger bg-opacity-10 border border-danger rounded">
-                        <label className="form-label text-muted small mb-1">
-                          <i className="bi bi-arrow-left me-1"></i>
-                          Previous Value
-                        </label>
-                        <div className="fw-semibold text-danger">{selectedLog.oldValue}</div>
-                      </div>
-                    </div>
-                  )}
-                  {selectedLog.newValue && (
-                    <div className="col-md-6">
-                      <div className="p-3 bg-success bg-opacity-10 border border-success rounded">
-                        <label className="form-label text-muted small mb-1">
-                          <i className="bi bi-arrow-right me-1"></i>
-                          New Value
-                        </label>
-                        <div className="fw-semibold text-success">{selectedLog.newValue}</div>
-                      </div>
-                    </div>
-                  )}
-
-                  {/* IP Address if available */}
-                  {selectedLog.ipAddress && (
-                    <div className="col-md-6">
-                      <div className="p-3 bg-light rounded">
-                        <label className="form-label text-muted small mb-1">
-                          <i className="bi bi-globe me-1"></i>
-                          IP Address
-                        </label>
-                        <div className="fw-semibold font-monospace">{selectedLog.ipAddress}</div>
-                      </div>
-                    </div>
-                  )}
                 </div>
               </div>
               <div className="modal-footer">
