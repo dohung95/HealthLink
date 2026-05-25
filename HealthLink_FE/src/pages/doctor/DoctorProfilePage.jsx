@@ -5,9 +5,9 @@ import {
   updateDoctorProfile,
   uploadDoctorAvatar,
   verifyDoctorEmailChange,
-} from '../../../api/account';
-import { useAuth } from '../../../context/AuthContext';
-import Loading from '../../Loading';
+} from '../../api/account';
+import { useAuth } from '../../context/AuthContext';
+import Loading from '../../components/Loading';
 import { toast } from 'sonner';
 
 const initialForm = {

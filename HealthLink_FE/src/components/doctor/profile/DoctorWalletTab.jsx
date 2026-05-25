@@ -1,7 +1,7 @@
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { toast } from 'sonner';
 
-import { paymentApi } from '../api/paymentApi';
+import { paymentApi } from '../../../api/paymentApi';
 
 const formatCurrency = (value) => {
   const amount = Number(value ?? 0);

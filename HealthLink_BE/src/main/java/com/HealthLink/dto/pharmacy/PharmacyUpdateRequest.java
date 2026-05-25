@@ -26,4 +26,5 @@ public class PharmacyUpdateRequest {
     private BigDecimal deliveryFee;
     private Double deliveryRadius;
     private Boolean deliveryAvailable;
+    private String paypalEmail;
 }

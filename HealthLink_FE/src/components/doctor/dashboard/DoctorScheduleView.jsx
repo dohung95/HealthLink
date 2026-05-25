@@ -1,5 +1,5 @@
 import React, { useEffect, useMemo, useState } from 'react';
-import { doctorService } from '../api/doctorApi';
+import { doctorService } from '../../../api/doctorApi';
 
 const DAY_ORDER = [1, 2, 3, 4, 5, 6, 0];
 const DAY_LABELS = {

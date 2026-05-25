@@ -1,6 +1,7 @@
 package com.HealthLink.service.pharmacy;
 
 import com.HealthLink.dto.auth.ChangeEmailRequest;
+import com.HealthLink.dto.auth.ChangePasswordRequest;
 import com.HealthLink.dto.auth.VerifyEmailChangeRequest;
 import com.HealthLink.dto.pharmacy.PharmacyProfileResponse;
 import com.HealthLink.dto.pharmacy.PharmacyUpdateRequest;
@@ -21,6 +22,8 @@ public interface PharmacyProfileService {
 
     /** Xác nhận đổi email bằng mã OTP. */
     PharmacyProfileResponse verifyEmailChange(String pharmacyId, VerifyEmailChangeRequest request);
+
+    void changePassword(String pharmacyId, ChangePasswordRequest request);
 
     /**
      * Upload ảnh đại diện cho nhà thuốc.

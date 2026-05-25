@@ -2,7 +2,7 @@ import React, { useEffect, useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Button, Form } from 'react-bootstrap';
 import { doctorService } from '../../../api/doctorApi';
-import '../styles/DoctorPage.css';
+import '../Css/DoctorDashboard.css';
 
 const STATUS_FILTERS = [
   { key: 'All', label: 'All', countKey: 'all' },

@@ -1,6 +1,6 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { Button, Form } from 'react-bootstrap';
-import { doctorService } from '../api/doctorApi';
+import { doctorService } from '../../../api/doctorApi';
 
 const STATUS_FILTERS = [
   { key: 'all', label: 'All' },

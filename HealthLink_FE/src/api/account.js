@@ -115,6 +115,12 @@ export const updatePharmacyProfile = async (token, data) => {
     return res.data;
 };
 
+/** PUT /api/account/pharmacy/auth/password/change */
+export const changePharmacyPassword = async (token, passwordData) => {
+    const res = await axios.put(`${BASE}/pharmacy/auth/password/change`, passwordData, authConfig(token));
+    return res.data;
+};
+
 /** POST /api/account/pharmacy/avatar — Upload ảnh đại diện nhà thuốc */
 export const uploadPharmacyAvatar = async (token, file) => {
     const formData = new FormData();
@@ -133,6 +139,10 @@ export const requestPharmacyEmailChange = async (token, data) => {
 
 /** POST /api/account/pharmacy/auth/email/verify-change */
 export const verifyPharmacyEmailChange = async (token, data) => {
-    const res = await axios.post(`${BASE}/pharmacy/auth/email/verify-change`, data, authConfig(token));
+    const payload = {
+        ...data,
+        verificationCode: data.verificationCode || data.otp,
+    };
+    const res = await axios.post(`${BASE}/pharmacy/auth/email/verify-change`, payload, authConfig(token));
     return res.data;
 };
