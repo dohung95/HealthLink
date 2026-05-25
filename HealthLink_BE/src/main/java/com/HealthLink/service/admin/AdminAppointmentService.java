@@ -1,12 +1,16 @@
 package com.HealthLink.service.admin;
 
 import com.HealthLink.dto.admin.*;
-import com.HealthLink.entity.Appointment;
-import com.HealthLink.entity.Consultation;
-import com.HealthLink.entity.Doctor;
-import com.HealthLink.entity.Patient;
+import com.HealthLink.entity.*;
+import com.HealthLink.entity.enums.NotificationType;
+import com.HealthLink.exception.BadRequestException;
 import com.HealthLink.exception.ResourceNotFoundException;
 import com.HealthLink.repository.admin.AdminAppointmentRepository;
+import com.HealthLink.repository.admin.AdminDoctorRepository;
+import com.HealthLink.repository.admin.AdminScheduleAuditLogRepository;
+import com.HealthLink.repository.auth.UserRepository;
+import com.HealthLink.service.admin.AdminNotificationService;
+import jakarta.servlet.http.HttpServletRequest;
 import jakarta.transaction.Transactional;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
@@ -29,9 +33,22 @@ import java.util.stream.Collectors;
 public class AdminAppointmentService {
 
     private final AdminAppointmentRepository appointmentRepository;
+    private final AdminDoctorRepository doctorRepository;
+    private final AdminScheduleAuditLogRepository auditLogRepository;
+    private final UserRepository userRepository;
+    private final AdminNotificationService adminNotificationService;
 
-    public AdminAppointmentService(AdminAppointmentRepository appointmentRepository) {
+    public AdminAppointmentService(
+            AdminAppointmentRepository appointmentRepository,
+            AdminDoctorRepository doctorRepository,
+            AdminScheduleAuditLogRepository auditLogRepository,
+            UserRepository userRepository,
+            AdminNotificationService adminNotificationService) {
         this.appointmentRepository = appointmentRepository;
+        this.doctorRepository = doctorRepository;
+        this.auditLogRepository = auditLogRepository;
+        this.userRepository = userRepository;
+        this.adminNotificationService = adminNotificationService;
     }
 
     public AdminAppointmentStatsDto getStats() {
@@ -209,5 +226,226 @@ public class AdminAppointmentService {
             .confirmedAt(appointment.getConfirmedAt())
             .createdAt(appointment.getAppointmentTime()) // Using appointmentTime as createdAt
             .build();
+    }
+
+    // ==================== Admin Reassign/Cancel Methods ====================
+
+    /**
+     * Admin chuyển appointment sang bác sĩ khác.
+     */
+    public AdminAppointmentDto reassignAppointment(
+            AdminAppointmentReassignRequest request,
+            String adminUserId,
+            HttpServletRequest httpRequest) {
+
+        Appointment appointment = appointmentRepository.findById(request.getAppointmentId())
+                .orElseThrow(() -> new ResourceNotFoundException("Appointment", "id", request.getAppointmentId()));
+
+        // Validate appointment status
+        if ("Cancelled".equalsIgnoreCase(appointment.getStatus()) ||
+            "Completed".equalsIgnoreCase(appointment.getStatus())) {
+            throw new BadRequestException("Cannot reassign a cancelled or completed appointment");
+        }
+
+        Doctor oldDoctor = appointment.getDoctor();
+        Doctor newDoctor = doctorRepository.findById(request.getNewDoctorId())
+                .orElseThrow(() -> new ResourceNotFoundException("New Doctor", "id", request.getNewDoctorId()));
+
+        User adminUser = userRepository.findById(adminUserId)
+                .orElseThrow(() -> new ResourceNotFoundException("Admin User", "id", adminUserId));
+
+        // Store old state for audit
+        String oldState = appointmentToJson(appointment);
+
+        // Update appointment
+        appointment.setDoctor(newDoctor);
+        if (request.getNewAppointmentTime() != null) {
+            appointment.setAppointmentTime(request.getNewAppointmentTime());
+        }
+
+        Appointment savedAppointment = appointmentRepository.save(appointment);
+
+        // Log audit
+        logAdminAction(
+                adminUser,
+                "REASSIGN_APPOINTMENT",
+                newDoctor.getDoctorId(),
+                appointment.getAppointmentId(),
+                appointment.getPatient() != null ? appointment.getPatient().getPatientId() : null,
+                String.format("Reassigned appointment #%d from Dr. %s to Dr. %s",
+                        appointment.getAppointmentId(),
+                        oldDoctor != null ? oldDoctor.getFullName() : "Unknown",
+                        newDoctor.getFullName()),
+                oldState,
+                appointmentToJson(savedAppointment),
+                request.getReason(),
+                getClientIp(httpRequest)
+        );
+
+        // Send notifications (using Admin notification system)
+        if (request.isNotifyPatient() && appointment.getPatient() != null && appointment.getPatient().getUser() != null) {
+            adminNotificationService.sendMobilePushNotification(
+                    appointment.getPatient().getUser().getId(),
+                    NotificationType.ADMIN_APPOINTMENT_REASSIGN,
+                    "Thay đổi bác sĩ khám",
+                    String.format("Lịch hẹn của bạn đã được chuyển sang bác sĩ %s. Lý do: %s",
+                            newDoctor.getFullName(), request.getReason()),
+                    appointment.getAppointmentId()
+            );
+        }
+
+        if (request.isNotifyOldDoctor() && oldDoctor != null && oldDoctor.getUser() != null) {
+            adminNotificationService.sendWebSocketNotification(
+                    oldDoctor.getUser().getId(),
+                    NotificationType.ADMIN_APPOINTMENT_REASSIGN,
+                    "Lịch hẹn được chuyển",
+                    String.format("Lịch hẹn #%d đã được Admin chuyển sang bác sĩ khác. Lý do: %s",
+                            appointment.getAppointmentId(), request.getReason()),
+                    appointment.getAppointmentId()
+            );
+        }
+
+        if (request.isNotifyNewDoctor() && newDoctor.getUser() != null) {
+            adminNotificationService.sendWebSocketNotification(
+                    newDoctor.getUser().getId(),
+                    NotificationType.ADMIN_APPOINTMENT_REASSIGN,
+                    "Lịch hẹn mới được chuyển đến",
+                    String.format("Bạn nhận được lịch hẹn #%d từ Admin. Bệnh nhân: %s",
+                            appointment.getAppointmentId(),
+                            appointment.getPatient() != null ? appointment.getPatient().getFullName() : "Unknown"),
+                    appointment.getAppointmentId()
+            );
+        }
+
+        return mapToDto(savedAppointment);
+    }
+
+    /**
+     * Admin hủy appointment.
+     */
+    public AdminAppointmentDto cancelAppointment(
+            AdminAppointmentCancelRequest request,
+            String adminUserId,
+            HttpServletRequest httpRequest) {
+
+        Appointment appointment = appointmentRepository.findById(request.getAppointmentId())
+                .orElseThrow(() -> new ResourceNotFoundException("Appointment", "id", request.getAppointmentId()));
+
+        // Validate appointment status
+        if ("Cancelled".equalsIgnoreCase(appointment.getStatus())) {
+            throw new BadRequestException("Appointment is already cancelled");
+        }
+        if ("Completed".equalsIgnoreCase(appointment.getStatus())) {
+            throw new BadRequestException("Cannot cancel a completed appointment");
+        }
+
+        User adminUser = userRepository.findById(adminUserId)
+                .orElseThrow(() -> new ResourceNotFoundException("Admin User", "id", adminUserId));
+
+        // Store old state for audit
+        String oldState = appointmentToJson(appointment);
+
+        // Update appointment
+        appointment.setStatus("Cancelled");
+        appointment.setCancelReason("[Admin] " + request.getReason());
+        appointment.setCancelledBy("Admin");
+        appointment.setCancelledAt(LocalDateTime.now());
+
+        Appointment savedAppointment = appointmentRepository.save(appointment);
+
+        // Log audit
+        logAdminAction(
+                adminUser,
+                "CANCEL_APPOINTMENT",
+                appointment.getDoctor() != null ? appointment.getDoctor().getDoctorId() : null,
+                appointment.getAppointmentId(),
+                appointment.getPatient() != null ? appointment.getPatient().getPatientId() : null,
+                String.format("Cancelled appointment #%d", appointment.getAppointmentId()),
+                oldState,
+                appointmentToJson(savedAppointment),
+                request.getReason(),
+                getClientIp(httpRequest)
+        );
+
+        // Send notifications (using Admin notification system)
+        if (request.isNotifyPatient() && appointment.getPatient() != null && appointment.getPatient().getUser() != null) {
+            adminNotificationService.sendMobilePushNotification(
+                    appointment.getPatient().getUser().getId(),
+                    NotificationType.ADMIN_APPOINTMENT_CANCEL,
+                    "Lịch hẹn bị hủy",
+                    String.format("Lịch hẹn của bạn vào %s đã bị Admin hủy. Lý do: %s",
+                            appointment.getAppointmentTime() != null ?
+                                    appointment.getAppointmentTime().format(DateTimeFormatter.ofPattern("dd/MM/yyyy HH:mm")) : "",
+                            request.getReason()),
+                    appointment.getAppointmentId()
+            );
+        }
+
+        if (request.isNotifyDoctor() && appointment.getDoctor() != null && appointment.getDoctor().getUser() != null) {
+            adminNotificationService.sendWebSocketNotification(
+                    appointment.getDoctor().getUser().getId(),
+                    NotificationType.ADMIN_APPOINTMENT_CANCEL,
+                    "Lịch hẹn bị hủy bởi Admin",
+                    String.format("Lịch hẹn #%d với bệnh nhân %s đã bị Admin hủy. Lý do: %s",
+                            appointment.getAppointmentId(),
+                            appointment.getPatient() != null ? appointment.getPatient().getFullName() : "Unknown",
+                            request.getReason()),
+                    appointment.getAppointmentId()
+            );
+        }
+
+        // TODO: Process refund if needed (request.isProcessRefund())
+
+        return mapToDto(savedAppointment);
+    }
+
+    // ==================== Private Helper Methods ====================
+
+    private void logAdminAction(
+            User adminUser,
+            String actionType,
+            String targetDoctorId,
+            Integer targetAppointmentId,
+            String targetPatientId,
+            String description,
+            String oldValue,
+            String newValue,
+            String reason,
+            String ipAddress) {
+
+        AdminScheduleAuditLog log = AdminScheduleAuditLog.builder()
+                .adminUser(adminUser)
+                .actionType(actionType)
+                .targetDoctorId(targetDoctorId)
+                .targetAppointmentId(targetAppointmentId)
+                .targetPatientId(targetPatientId)
+                .description(description)
+                .oldValue(oldValue)
+                .newValue(newValue)
+                .reason(reason)
+                .ipAddress(ipAddress)
+                .createdAt(LocalDateTime.now())
+                .build();
+
+        auditLogRepository.save(log);
+    }
+
+    private String getClientIp(HttpServletRequest request) {
+        String xForwardedFor = request.getHeader("X-Forwarded-For");
+        if (xForwardedFor != null && !xForwardedFor.isEmpty()) {
+            return xForwardedFor.split(",")[0].trim();
+        }
+        return request.getRemoteAddr();
+    }
+
+    private String appointmentToJson(Appointment a) {
+        return String.format(
+                "{\"appointmentId\":%d,\"doctorId\":\"%s\",\"patientId\":\"%s\",\"status\":\"%s\",\"appointmentTime\":\"%s\"}",
+                a.getAppointmentId(),
+                a.getDoctor() != null ? a.getDoctor().getDoctorId() : "",
+                a.getPatient() != null ? a.getPatient().getPatientId() : "",
+                a.getStatus(),
+                a.getAppointmentTime()
+        );
     }
 }

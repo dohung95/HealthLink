@@ -20,6 +20,10 @@ export const NotificationProvider = ({ children }) => {
     const [showPrescriptionModal, setShowPrescriptionModal] = useState(false);
     const [latestPrescription, setLatestPrescription] = useState(null);
 
+    // Admin action notification state (for Patient)
+    const [showAdminActionModal, setShowAdminActionModal] = useState(false);
+    const [adminActionNotification, setAdminActionNotification] = useState(null);
+
     useEffect(() => {
         if (user?.id) {
             websocketService.connect();
@@ -39,11 +43,11 @@ export const NotificationProvider = ({ children }) => {
         setUnreadCount(prev => prev + 1);
 
         // Handle specific notification types
-        if (notification.eventType === 'PRESCRIPTION_CREATED') {
+        if (notification.eventType === 'PRESCRIPTION_CREATED' || notification.type === 'NEW_PRESCRIPTION') {
             setLatestPrescription({
-                id: notification.prescriptionHeaderId,
+                id: notification.prescriptionHeaderId || notification.relatedId,
                 message: notification.message,
-                timestamp: notification.timestamp
+                timestamp: notification.timestamp || notification.createdAt
             });
             setShowPrescriptionModal(true);
 
@@ -52,7 +56,28 @@ export const NotificationProvider = ({ children }) => {
                 new Notification('New Prescription', {
                     body: notification.message,
                     icon: '/logo.png',
-                    tag: 'prescription-' + notification.prescriptionHeaderId
+                    tag: 'prescription-' + (notification.prescriptionHeaderId || notification.relatedId)
+                });
+            }
+        }
+
+        // Handle Admin action notifications (cancel/reassign appointment)
+        if (['ADMIN_APPOINTMENT_CANCEL', 'ADMIN_APPOINTMENT_REASSIGN'].includes(notification.type)) {
+            setAdminActionNotification({
+                type: notification.type,
+                title: notification.title,
+                message: notification.message,
+                appointmentId: notification.relatedId,
+                timestamp: notification.createdAt
+            });
+            setShowAdminActionModal(true);
+
+            // Show browser notification
+            if ('Notification' in window && Notification.permission === 'granted') {
+                new Notification(notification.title || 'Appointment Update', {
+                    body: notification.message,
+                    icon: '/logo.png',
+                    tag: 'admin-action-' + notification.relatedId
                 });
             }
         }
@@ -82,6 +107,11 @@ export const NotificationProvider = ({ children }) => {
         setLatestPrescription(null);
     };
 
+    const closeAdminActionModal = () => {
+        setShowAdminActionModal(false);
+        setAdminActionNotification(null);
+    };
+
     // Request notification permission on mount
     useEffect(() => {
         if ('Notification' in window && Notification.permission === 'default') {
@@ -94,9 +124,12 @@ export const NotificationProvider = ({ children }) => {
         unreadCount,
         showPrescriptionModal,
         latestPrescription,
+        showAdminActionModal,
+        adminActionNotification,
         markAsRead,
         clearAll,
         closePrescriptionModal,
+        closeAdminActionModal,
         isConnected: websocketService.isConnected()
     };
 
