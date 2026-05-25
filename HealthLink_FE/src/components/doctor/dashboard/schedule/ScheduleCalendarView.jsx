@@ -142,6 +142,7 @@ const ScheduleCalendarView = ({ exceptions, onCreateException, onRefresh }) => {
                 onActiveStartDateChange={handleActiveStartDateChange}
                 minDate={new Date()}
                 className="w-100 border-0"
+                locale="en-US"
               />
             </div>
           </div>
