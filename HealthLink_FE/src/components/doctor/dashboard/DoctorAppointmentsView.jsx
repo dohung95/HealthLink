@@ -1,654 +1,275 @@
-import React, { useState, useEffect } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Card, Button, Form } from 'react-bootstrap';
+import { Button, Form } from 'react-bootstrap';
 import { doctorService } from '../../../api/doctorApi';
-import { useAuth } from '../../../context/AuthContext';
-import { useChat } from '../../../context/ChatContext';
-import { db } from '../../../firebase';
-import { collection, query, where, getDocs } from 'firebase/firestore';
-import signalRService from '../../../services/signalrService';
-import '../styles/DoctorPage.css';
+import '../Css/DoctorDashboard.css';
 
-export default function DoctorAppointmentsView({ doctorId, onViewAppointment, viewedAppointments = [] }) {
+const STATUS_FILTERS = [
+  { key: 'All', label: 'All', countKey: 'all' },
+  { key: 'Scheduled', label: 'Scheduled', countKey: 'scheduled' },
+  { key: 'Completed', label: 'Completed', countKey: 'completed' },
+  { key: 'Cancelled', label: 'Cancelled', countKey: 'cancelled' },
+];
+
+const toDateInputValue = (date) => {
+  const value = date instanceof Date ? date : new Date(date);
+  if (Number.isNaN(value.getTime())) return '';
+
+  const year = value.getFullYear();
+  const month = String(value.getMonth() + 1).padStart(2, '0');
+  const day = String(value.getDate()).padStart(2, '0');
+  return `${year}-${month}-${day}`;
+};
+
+const shiftDate = (dateValue, days) => {
+  const date = new Date(`${dateValue}T00:00:00`);
+  date.setDate(date.getDate() + days);
+  return toDateInputValue(date);
+};
+
+const getStatusClass = (status) => {
+  switch ((status || '').toLowerCase()) {
+    case 'scheduled':
+      return 'bg-primary';
+    case 'completed':
+      return 'bg-success';
+    case 'cancelled':
+      return 'bg-danger';
+    default:
+      return 'bg-secondary';
+  }
+};
+
+const getTypeIcon = (type) => {
+  switch ((type || '').toLowerCase()) {
+    case 'video call':
+    case 'video':
+      return 'videocam';
+    case 'audio call':
+    case 'audio':
+      return 'call';
+    case 'chat':
+      return 'chat';
+    case 'offline':
+      return 'local_hospital';
+    default:
+      return 'event';
+  }
+};
+
+export default function DoctorAppointmentsView({ doctorId, onViewAppointment }) {
   const navigate = useNavigate();
   const [appointments, setAppointments] = useState([]);
-  const [filteredAppointments, setFilteredAppointments] = useState([]);
+  const [counts, setCounts] = useState({
+    all: 0,
+    scheduled: 0,
+    completed: 0,
+    cancelled: 0,
+  });
+  const [selectedDate, setSelectedDate] = useState(() => toDateInputValue(new Date()));
+  const [selectedStatus, setSelectedStatus] = useState('All');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
-  const { roles, initiateCall } = useAuth();
-  const { openChatWith } = useChat();
-  
-  // Track new appointments with timestamp (last 5 minutes)
-  const [newAppointmentIds, setNewAppointmentIds] = useState(() => {
-    const saved = localStorage.getItem('newAppointments');
-    if (saved) {
-      const parsed = JSON.parse(saved);
-      // Filter out appointments older than 5 minutes
-      const fiveMinutesAgo = Date.now() - 5 * 60 * 1000;
-      const filtered = parsed.filter(item => item.timestamp > fiveMinutesAgo);
-      localStorage.setItem('newAppointments', JSON.stringify(filtered));
-      return filtered;
-    }
-    return [];
-  });
-  
-  // Sync with localStorage changes (when parent removes from newAppointments)
-  useEffect(() => {
-    const handleStorageChange = () => {
-      const saved = localStorage.getItem('newAppointments');
-      if (saved) {
-        const parsed = JSON.parse(saved);
-        setNewAppointmentIds(parsed);
-      } else {
-        setNewAppointmentIds([]);
-      }
-    };
-    
-    window.addEventListener('storage', handleStorageChange);
-    
-    // Also listen for custom event from same tab
-    const intervalId = setInterval(() => {
-      const saved = localStorage.getItem('newAppointments');
-      if (saved) {
-        const parsed = JSON.parse(saved);
-        const currentIds = JSON.stringify(newAppointmentIds);
-        const newIds = JSON.stringify(parsed);
-        if (currentIds !== newIds) {
-          setNewAppointmentIds(parsed);
-        }
-      }
-    }, 500); // Check every 500ms
-    
-    return () => {
-      window.removeEventListener('storage', handleStorageChange);
-      clearInterval(intervalId);
-    };
-  }, [newAppointmentIds]);
-  
-  // Filter state
-  const [showDatePicker, setShowDatePicker] = useState(false);
-  const [selectedDate, setSelectedDate] = useState('');
-  const [filterActive, setFilterActive] = useState(false);
-  const [selectedStatus, setSelectedStatus] = useState('All');
-  const [showStatusDropdown, setShowStatusDropdown] = useState(false);
-  
-  // Pagination state
-  const [currentPage, setCurrentPage] = useState(1);
-  const appointmentsPerPage = 8;
 
-  // Fetch appointments data
   useEffect(() => {
-    if (!doctorId) return;
+    if (!doctorId || !selectedDate) return;
 
     let mounted = true;
-    const fetchData = async () => {
+    const fetchAppointments = async () => {
       setLoading(true);
       setError(null);
       try {
-        const data = await doctorService.getDoctorAppointments(doctorId);
+        const data = await doctorService.getDoctorDailyAppointments(
+          doctorId,
+          selectedDate,
+          selectedStatus,
+        );
         if (mounted) {
-          // Sort appointments: new ones first, then by date
-          const sorted = sortAppointments(data || []);
-          setAppointments(sorted);
-          setFilteredAppointments(sorted);
+          setAppointments(data.appointments || []);
+          setCounts(data.counts || {});
         }
       } catch (err) {
-        console.error('Error fetching appointments:', err);
-        if (mounted) setError('Failed to load appointments');
+        console.error('Error fetching daily appointments:', err);
+        if (mounted) {
+          setError('Failed to load appointments');
+          setAppointments([]);
+          setCounts({
+            all: 0,
+            scheduled: 0,
+            completed: 0,
+            cancelled: 0,
+          });
+        }
       } finally {
         if (mounted) setLoading(false);
       }
     };
 
-    fetchData();
-    return () => { mounted = false; };
-  }, [doctorId]);
-  
-  // Listen for new appointments via SignalR
-  useEffect(() => {
-    const handleNewAppointment = async (notification) => {
-      console.log('📅 New appointment notification received:', notification);
-      
-      // Get appointment ID (could be appointmentId or appointmentID)
-      const apptId = notification.appointmentId || notification.appointmentID;
-      
-      if (!apptId) {
-        console.error('No appointment ID in notification:', notification);
-        return;
-      }
-      
-      console.log('✅ Adding appointment ID to new list:', apptId);
-      
-      // Add to new appointments list with timestamp
-      setNewAppointmentIds(prev => {
-        const newItem = {
-          id: apptId,
-          timestamp: Date.now()
-        };
-        const updated = [newItem, ...prev];
-        localStorage.setItem('newAppointments', JSON.stringify(updated));
-        console.log('💾 Saved to localStorage:', updated);
-        return updated;
-      });
-      
-      // Refetch appointments to get full data
-      try {
-        const data = await doctorService.getDoctorAppointments(doctorId);
-        if (data) {
-          setAppointments(data);
-        }
-      } catch (error) {
-        console.error('Error refetching appointments:', error);
-      }
-    };
-    
-    // Register SignalR listener
-    signalRService.on('ReceiveAppointmentNotification', handleNewAppointment);
-    
+    fetchAppointments();
     return () => {
-      signalRService.off('ReceiveAppointmentNotification', handleNewAppointment);
+      mounted = false;
     };
-  }, [doctorId]);
-  
-  // Clean up old "new" appointments every minute
-  useEffect(() => {
-    const interval = setInterval(() => {
-      const fiveMinutesAgo = Date.now() - 5 * 60 * 1000;
-      setNewAppointmentIds(prev => {
-        const filtered = prev.filter(item => item.timestamp > fiveMinutesAgo);
-        if (filtered.length !== prev.length) {
-          localStorage.setItem('newAppointments', JSON.stringify(filtered));
-        }
-        return filtered;
-      });
-    }, 60000); // Check every minute
-    
-    return () => clearInterval(interval);
-  }, []);
-  
-  // Helper function to sort appointments (new ones first, then by date)
-  const sortAppointments = (appointmentsList) => {
-    const newIds = newAppointmentIds.map(item => item.id);
-    
-    const sorted = [...appointmentsList].sort((a, b) => {
-      const aIsNew = newIds.includes(a.appointmentID);
-      const bIsNew = newIds.includes(b.appointmentID);
-      
-      // New appointments first
-      if (aIsNew && !bIsNew) return -1;
-      if (!aIsNew && bIsNew) return 1;
-      
-      // Then sort by date (newest first)
-      return new Date(b.appointmentTime) - new Date(a.appointmentTime);
+  }, [doctorId, selectedDate, selectedStatus]);
+
+  const selectedDateLabel = useMemo(() => {
+    const date = new Date(`${selectedDate}T00:00:00`);
+    if (Number.isNaN(date.getTime())) return 'Selected day';
+    return date.toLocaleDateString('en-US', {
+      weekday: 'long',
+      month: 'short',
+      day: 'numeric',
+      year: 'numeric',
     });
-    
-    console.log('🔄 Sorted appointments. New IDs:', newIds, 'First 3:', sorted.slice(0, 3).map(a => ({ id: a.appointmentID, isNew: newIds.includes(a.appointmentID) })));
-    return sorted;
-  };
-  
-  // Helper function to check if appointment is new
-  const isNewAppointment = (appointmentId) => {
-    const isNew = newAppointmentIds.some(item => item.id === appointmentId);
-    return isNew;
-  };
+  }, [selectedDate]);
 
-  // Close dropdowns when clicking outside
-  useEffect(() => {
-    const handleClickOutside = (event) => {
-      if (showStatusDropdown && !event.target.closest('.position-relative')) {
-        setShowStatusDropdown(false);
-      }
-      if (showDatePicker && !event.target.closest('.position-relative')) {
-        setShowDatePicker(false);
-      }
-    };
-
-    document.addEventListener('mousedown', handleClickOutside);
-    return () => document.removeEventListener('mousedown', handleClickOutside);
-  }, [showStatusDropdown, showDatePicker]);
-
-  // Apply filters based on status and date
-  const applyFilters = () => {
-    let filtered = [...appointments];
-
-    // Filter by status
-    if (selectedStatus !== 'All') {
-      filtered = filtered.filter(apt => apt.status === selectedStatus);
-    }
-
-    // Filter by date
-    if (selectedDate) {
-      const filterDate = new Date(selectedDate);
-      filtered = filtered.filter(appointment => {
-        const appointmentDate = new Date(appointment.appointmentDate);
-        return appointmentDate.toDateString() === filterDate.toDateString();
-      });
-    }
-    
-    // Keep sort order (new appointments first)
-    const sorted = sortAppointments(filtered);
-
-    setFilteredAppointments(sorted);
-    setFilterActive(selectedStatus !== 'All' || selectedDate !== '');
-    setCurrentPage(1);
-  };
-
-  // Apply filters when selectedStatus or appointments changes
-  useEffect(() => {
-    if (appointments.length > 0) {
-      applyFilters();
-    }
-  }, [selectedStatus, appointments, newAppointmentIds]);
-
-  // Pagination logic
-  const indexOfLastAppointment = currentPage * appointmentsPerPage;
-  const indexOfFirstAppointment = indexOfLastAppointment - appointmentsPerPage;
-  const currentAppointments = filteredAppointments.slice(indexOfFirstAppointment, indexOfLastAppointment);
-  const totalPages = Math.ceil(filteredAppointments.length / appointmentsPerPage);
-
-  const handleNextPage = () => {
-    if (currentPage < totalPages) {
-      setCurrentPage(currentPage + 1);
-    }
-  };
-
-  const handlePrevPage = () => {
-    if (currentPage > 1) {
-      setCurrentPage(currentPage - 1);
-    }
-  };
-
-  if (loading) {
-    return (
-      <div className="text-center py-5">
-        <div className="spinner-border text-primary" role="status">
-          <span className="visually-hidden">Loading...</span>
-        </div>
-      </div>
-    );
-  }
-
-  if (error) {
-    return <div className="alert alert-danger m-4">{error}</div>;
-  }
-
-  if (appointments.length === 0) {
-    return (
-      <div className="text-center py-5 text-muted">
-        <p>No appointments found.</p>
-      </div>
-    );
-  }
-
-  const handleChat = async (appointment) => {
-    const isDoctor = roles && roles.some(r => String(r).trim().toLowerCase() === 'doctor');
-    const partnerData = isDoctor ? appointment.patient : appointment.doctor;
-    const partnerID = isDoctor ? appointment.patient?.patientId || appointment.patientId : appointment.doctorId;
-
-    if (!partnerData || !partnerID) {
-      alert("Chat partner information is missing.");
+  const handleView = (appointment) => {
+    if (onViewAppointment) {
+      onViewAppointment(appointment);
       return;
     }
-
-    let firebaseID;
-    if (partnerID.includes('-')) {
-      // Has dashes: CHỈ remove last 4 chars, GIỮ NGUYÊN dấu gạch ngang
-      firebaseID = partnerID.substring(0, partnerID.length - 4);  // ← SỬA ĐÂY
-    } else {
-      // No dashes: remove last 5 chars directly
-      firebaseID = partnerID.substring(0, partnerID.length - 5);
-    }
-
-    console.log(`[Chat] Opening chat with ${isDoctor ? 'Patient' : 'Doctor'}`);
-
-    try {
-      const usersRef = collection(db, "users");
-
-      // Try as document ID first
-      let q = query(usersRef, where("__name__", "==", firebaseID));
-      let querySnapshot = await getDocs(q);
-
-      if (!querySnapshot.empty) {
-        const partnerUser = { ...querySnapshot.docs[0].data(), uid: querySnapshot.docs[0].id };
-        openChatWith(partnerUser);
-        return;
-      }
-
-      // Try as uid field
-      q = query(usersRef, where("uid", "==", firebaseID));
-      querySnapshot = await getDocs(q);
-
-      if (!querySnapshot.empty) {
-        const partnerUser = { ...querySnapshot.docs[0].data(), uid: querySnapshot.docs[0].id };
-        console.log(`[Chat] ✓ Found by uid field:`, partnerUser);
-        openChatWith(partnerUser);
-        return;
-      }
-
-      console.warn(`[Chat] ✗ Could not find user with Firebase ID: ${firebaseID}`);
-      alert(`Could not find chat user. They may not have registered in the chat system yet.`);
-    } catch (error) {
-      console.error("[Chat] Error:", error);
-      alert("Error initiating chat.");
-    }
-  };
-
-  const handleVideoCall = async (appointment) => {
-    try {
-      // Lấy thông tin từ appointment
-      const patientId = appointment.patient?.patientId || appointment.patientId;
-      const doctorId = appointment.doctorId;
-      const patientName = appointment.patient?.fullName || "Patient";
-      const doctorName = appointment.doctor?.fullName || "Doctor";
-
-      // Kiểm tra xem user hiện tại là ai
-      const isDoctor = roles && roles.some(r => String(r).trim().toLowerCase() === 'doctor');
-
-      // Xác định target user (người được gọi)
-      const targetUserId = isDoctor ? patientId : doctorId;
-      const targetUserName = isDoctor ? patientName : doctorName;
-
-      // Tạo Room ID bằng cách trộn DoctorID + PatientID và lấy 40 ký tự
-      // const combinedId = doctorID + patientID;
-      // const roomId = combinedId.substring(0, 40);
-
-      // Tạo Room ID ngẫu nhiên 45 ký tự
-      const characters = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789';
-      let roomId = '';
-      for (let i = 0; i < 45; i++) {
-        roomId += characters.charAt(Math.floor(Math.random() * characters.length));
-      }
-
-      // console.log('Video Call Info:', {
-      //   patientID,
-      //   doctorID,
-      //   patientName,
-      //   doctorName,
-      //   roomId,
-      //   targetUserId,
-      //   targetUserName
-      // });
-
-      // Lấy tên bác sĩ hiện tại
-      const currentDoctorName = doctorName || "Doctor";
-
-      // Gọi hàm initiateCall với thông tin đầy đủ (bao gồm tên bác sĩ)
-      initiateCall(targetUserId, roomId, targetUserName, currentDoctorName);
-
-    } catch (error) {
-      console.error("Error initiating video call:", error);
-      alert("Unable to start video call.");
-    }
-  };
-
-  // Filter by date
-  const handleDateFilter = () => {
-    if (!selectedDate) {
-      applyFilters();
-      setFilterActive(false);
-      return;
-    }
-
-    const filterDate = new Date(selectedDate);
-    const filtered = appointments.filter(appointment => {
-      const appointmentDate = new Date(appointment.appointmentDate);
-      return appointmentDate.toDateString() === filterDate.toDateString();
-    });
-
-    setFilteredAppointments(filtered);
-    setFilterActive(true);
-    setShowDatePicker(false);
-    setCurrentPage(1);
-  };
-
-  const clearFilter = () => {
-    setSelectedDate('');
-    setSelectedStatus('All');
-    setFilteredAppointments(appointments);
-    setFilterActive(false);
-    setCurrentPage(1);
-  };
-
-  // Handle status filter change
-  const handleStatusChange = (status) => {
-    setSelectedStatus(status);
+    navigate(`/appointment/${appointment.appointmentID}`);
   };
 
   return (
     <>
-      <div className="d-flex justify-content-between align-items-center p-3 pb-0 flex-wrap gap-2">
-        <div className="d-flex gap-2 ms-auto flex-wrap">
-          {/* Status Filter Dropdown */}
-          <div className="position-relative">
+      <div className="doctor-daily-toolbar">
+        <div className="doctor-daily-toolbar__main">
+          <p className="doctor-detail-eyebrow mb-1">Daily schedule</p>
+          <h3 className="doctor-daily-toolbar__title">{selectedDateLabel}</h3>
+        </div>
+
+        <div className="doctor-daily-toolbar__controls">
+          <div className="btn-group" role="group" aria-label="Change date">
             <Button
-              variant={selectedStatus !== 'All' ? 'primary' : 'outline-secondary'}
+              variant="outline-primary"
               size="sm"
-              className={`filter-btn ${selectedStatus !== 'All' ? 'filter-active' : ''}`}
-              onClick={() => setShowStatusDropdown(!showStatusDropdown)}
+              onClick={() => setSelectedDate((current) => shiftDate(current, -1))}
+              title="Previous day"
             >
-              <i className="bi bi-funnel me-2"></i>
-              <span className="d-none d-sm-inline">{selectedStatus}</span>
-              <span className="d-inline d-sm-none">{selectedStatus}</span>
-              <i className={`bi bi-chevron-${showStatusDropdown ? 'up' : 'down'} ms-2`}></i>
+              <i className="bi bi-chevron-left"></i>
             </Button>
-            {showStatusDropdown && (
-              <>
-                <div className="filter-backdrop d-md-none" onClick={() => setShowStatusDropdown(false)} />
-                <ul className="dropdown-menu show position-absolute" style={{ zIndex: 1000 }}>
-                  <li>
-                    <a className={`dropdown-item ${selectedStatus === 'All' ? 'active' : ''}`} href="#" onClick={(e) => { e.preventDefault(); handleStatusChange('All'); setShowStatusDropdown(false); }}>
-                      All
-                    </a>
-                  </li>
-                  <li>
-                    <a className={`dropdown-item ${selectedStatus === 'Scheduled' ? 'active' : ''}`} href="#" onClick={(e) => { e.preventDefault(); handleStatusChange('Scheduled'); setShowStatusDropdown(false); }}>
-                      Scheduled
-                    </a>
-                  </li>
-                  <li>
-                    <a className={`dropdown-item ${selectedStatus === 'Completed' ? 'active' : ''}`} href="#" onClick={(e) => { e.preventDefault(); handleStatusChange('Completed'); setShowStatusDropdown(false); }}>
-                      Completed
-                    </a>
-                  </li>
-                  <li>
-                    <a className={`dropdown-item ${selectedStatus === 'Cancelled' ? 'active' : ''}`} href="#" onClick={(e) => { e.preventDefault(); handleStatusChange('Cancelled'); setShowStatusDropdown(false); }}>
-                      Cancelled
-                    </a>
-                  </li>
-                </ul>
-              </>
-            )}
+            <Button
+              variant="outline-primary"
+              size="sm"
+              onClick={() => setSelectedDate(toDateInputValue(new Date()))}
+            >
+              Today
+            </Button>
+            <Button
+              variant="outline-primary"
+              size="sm"
+              onClick={() => setSelectedDate((current) => shiftDate(current, 1))}
+              title="Next day"
+            >
+              <i className="bi bi-chevron-right"></i>
+            </Button>
           </div>
 
-          {/* Date Filter */}
-          <div className="position-relative">
-            <Button 
-              variant={selectedDate ? 'primary' : 'outline-primary'}
-              onClick={() => setShowDatePicker(!showDatePicker)}
-              size="sm"
-              className={`filter-btn ${selectedDate ? 'filter-active' : ''}`}
-              title="Filter by Date"
-            >
-              <i className="bi bi-calendar-check"></i>
-              {selectedDate && (
-                <span className="ms-2 d-none d-sm-inline">
-                  {new Date(selectedDate).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}
-                </span>
-              )}
-            </Button>
-          
-            {showDatePicker && (
-              <>
-                <div className="filter-backdrop d-md-none" onClick={() => setShowDatePicker(false)} />
-                <div className="date-filter-dropdown position-absolute end-0 mt-2 shadow-lg" style={{ zIndex: 1000 }}>
-                  <div className="date-filter-header">
-                    <i className="bi bi-calendar-event me-2"></i>
-                    <span>Select Date</span>
-                  </div>
-                  <div className="date-filter-body">
-                    <Form.Control
-                      type="date"
-                      value={selectedDate}
-                      onChange={(e) => setSelectedDate(e.target.value)}
-                      className="date-input"
-                    />
-                  </div>
-                  <div className="date-filter-footer">
-                    <Button 
-                      variant="primary" 
-                      size="sm" 
-                      className="flex-grow-1"
-                      onClick={handleDateFilter}
-                    >
-                      <i className="bi bi-check2 me-1"></i>
-                      Apply
-                    </Button>
-                    <Button 
-                      variant="outline-secondary" 
-                      size="sm"
-                      onClick={() => {
-                        clearFilter();
-                        setShowDatePicker(false);
-                      }}
-                    >
-                      <i className="bi bi-x-lg me-1"></i>
-                      Clear
-                    </Button>
-                  </div>
-                </div>
-              </>
-            )}
-          </div>
+          <Form.Control
+            aria-label="Select appointment date"
+            className="doctor-daily-toolbar__date"
+            onChange={(event) => setSelectedDate(event.target.value)}
+            type="date"
+            value={selectedDate}
+          />
         </div>
       </div>
 
-      <div className="table-responsive doctor-appointments-table-wrap">
-        <table className="table table-borderless align-middle mb-0">
-          <thead className="table-header">
-            <tr>
-              <th scope="col" className="px-4 py-3">ID</th>
-              <th scope="col" className="px-4 py-3">Patient</th>
-              <th scope="col" className="px-4 py-3">Date</th>
-              <th scope="col" className="px-4 py-3">Time</th>
-              <th scope="col" className="px-4 py-3">Type</th>
-              <th scope="col" className="px-4 py-3">Status</th>
-              <th scope="col" className="px-4 py-3 text-center">Actions</th>
-            </tr>
-          </thead>
-          <tbody>
-            {currentAppointments.map((a) => {
-              const isNew = isNewAppointment(a.appointmentID);
-              return (
-              <tr key={a.appointmentID} className={`border-bottom hover-table-row ${isNew ? 'new-appointment-row' : ''}`}>
-                <td className="px-4 py-4 fw-medium text-dark fw-bold" data-label="ID">
-                  #{a.appointmentID}
-                  {isNew && (
-                    <span className="badge bg-success ms-2 small new-badge-pulse">NEW</span>
-                  )}
-                </td>
-                <td className="px-4 py-4 text-dark" data-label="Patient">{a.patient?.fullName || 'Unknown Patient'}</td>
-                <td className="px-4 py-4 text-dark" data-label="Date">
-                  {new Date(a.appointmentTime).toLocaleDateString('en-US', { year: 'numeric', month: 'short', day: 'numeric' })}
-                </td>
-                <td className="px-4 py-4 text-dark" data-label="Time">
-                  {new Date(a.appointmentTime).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
-                </td>
-                <td className="px-4 py-4" data-label="Type">
-                  <span className={`type-badge ${a.consultationType === 'Video Call' ? 'type-video' :
-                    a.consultationType === 'Audio Call' ? 'type-audio' :
-                      a.consultationType === 'Chat' ? 'type-chat' :
-                        'type-video'
-                    }`}>
-                    <span className="material-symbols-outlined me-1" style={{ fontSize: '1rem' }}>
-                      {a.consultationType === 'Video Call' ? 'videocam' :
-                        a.consultationType === 'Audio Call' ? 'call' :
-                          a.consultationType === 'Chat' ? 'chat' :
-                            'videocam'}
+      <div className="doctor-daily-status-tabs">
+        {STATUS_FILTERS.map((filter) => (
+          <button
+            className={`doctor-daily-status-tab ${selectedStatus === filter.key ? 'doctor-daily-status-tab--active' : ''}`}
+            key={filter.key}
+            onClick={() => setSelectedStatus(filter.key)}
+            type="button"
+          >
+            <span>{filter.label}</span>
+            <strong>{counts?.[filter.countKey] ?? 0}</strong>
+          </button>
+        ))}
+      </div>
+
+      {loading ? (
+        <div className="text-center py-5">
+          <div className="spinner-border text-primary" role="status">
+            <span className="visually-hidden">Loading...</span>
+          </div>
+        </div>
+      ) : error ? (
+        <div className="alert alert-danger m-4">{error}</div>
+      ) : appointments.length === 0 ? (
+        <div className="doctor-detail-empty">
+          <div className="doctor-detail-empty__icon">
+            <i className="bi bi-calendar2-check"></i>
+          </div>
+          <h3 className="doctor-detail-empty__title">No appointments for this day</h3>
+          <p className="doctor-detail-empty__description">
+            Choose another date or status to review the schedule.
+          </p>
+        </div>
+      ) : (
+        <div className="table-responsive doctor-appointments-table-wrap">
+          <table className="table table-borderless align-middle mb-0">
+            <thead className="table-header">
+              <tr>
+                <th scope="col" className="px-4 py-3">Time</th>
+                <th scope="col" className="px-4 py-3">Patient</th>
+                <th scope="col" className="px-4 py-3">Type</th>
+                <th scope="col" className="px-4 py-3">Status</th>
+                <th scope="col" className="px-4 py-3">Started</th>
+                <th scope="col" className="px-4 py-3 text-center">Actions</th>
+              </tr>
+            </thead>
+            <tbody>
+              {appointments.map((appointment) => (
+                <tr key={appointment.appointmentID} className="border-bottom hover-table-row">
+                  <td className="px-4 py-4 fw-semibold text-dark" data-label="Time">
+                    {new Date(appointment.appointmentTime).toLocaleTimeString([], {
+                      hour: '2-digit',
+                      minute: '2-digit',
+                    })}
+                  </td>
+                  <td className="px-4 py-4 text-dark" data-label="Patient">
+                    {appointment.patient?.fullName || appointment.patientName || 'Unknown Patient'}
+                  </td>
+                  <td className="px-4 py-4" data-label="Type">
+                    <span className={`type-badge ${appointment.consultationType === 'Audio Call' ? 'type-audio' : appointment.consultationType === 'Chat' ? 'type-chat' : 'type-video'}`}>
+                      <span className="material-symbols-outlined me-1" style={{ fontSize: '1rem' }}>
+                        {getTypeIcon(appointment.consultationType)}
+                      </span>
+                      {appointment.consultationType || 'N/A'}
                     </span>
-                    {a.consultationType || 'N/A'}
-                  </span>
-                </td>
-                <td className="px-4 py-4" data-label="Status">
-                  <span className={`badge ${a.status === 'Scheduled' ? 'bg-primary' :
-                    a.status === 'Completed' ? 'bg-success' :
-                      a.status === 'Cancelled' ? 'bg-danger' :
-                        'bg-secondary'
-                    }`}>
-                    {a.status}
-                  </span>
-                </td>
-                <td className="px-4 py-4 text-end" data-label="Actions">
-                  <div className="d-flex gap-2 align-items-center justify-content-end flex-nowrap">
-                    {a.consultationType === 'Chat' && a.status === 'Scheduled' && (
-                      <button
-                        className="btn btn-sm btn-primary"
-                        onClick={() => handleChat(a)}
-                        title={new Date(a.appointmentTime) < new Date() ? "Appointment time has passed" : "Start chat"}
-                        disabled={new Date(a.appointmentTime) < new Date()}
-                      >
-                        <i className="bi bi-chat-dots me-1"></i>
-                        Chat
-                      </button>
+                  </td>
+                  <td className="px-4 py-4" data-label="Status">
+                    <span className={`badge ${getStatusClass(appointment.status)}`}>
+                      {appointment.status}
+                    </span>
+                  </td>
+                  <td className="px-4 py-4 text-dark" data-label="Started">
+                    {appointment.consultationStartTime ? (
+                      new Date(appointment.consultationStartTime).toLocaleTimeString([], {
+                        hour: '2-digit',
+                        minute: '2-digit',
+                      })
+                    ) : (
+                      <span className="text-muted">Not yet</span>
                     )}
-
-                    {a.consultationType === 'Video Call' && a.status === 'Scheduled' && (
+                  </td>
+                  <td className="px-4 py-4 text-end" data-label="Actions">
+                    {appointment.status !== 'Cancelled' ? (
                       <button
-                        className="btn btn-sm btn-success"
-                        onClick={() => handleVideoCall(a)}  // ← Truyền cả object "item"
-                        title={new Date(a.appointmentTime) < new Date() ? "Appointment time has passed" : "Start video call"}
-                        disabled={new Date(a.appointmentTime) < new Date()}
-                      >
-                        <i className="bi bi-camera-video me-1"></i>
-                        Call Now
-                      </button>
-                    )}
-
-                    {a.status !== 'Cancelled' && (
-                      <button
-                        className="btn btn-view d-flex align-items-center justify-content-center"
-                        onClick={() => onViewAppointment ? onViewAppointment(a) : navigate(`/appointment/${a.appointmentID}`)}
+                        className="btn btn-view d-inline-flex align-items-center justify-content-center"
+                        onClick={() => handleView(appointment)}
+                        type="button"
                       >
                         View
                       </button>
-                    )}
-                  </div>
-                </td>
-              </tr>
-            );
-            })}
-          </tbody>
-        </table>
-      </div>
-
-      {/* Pagination Controls */}
-      {filteredAppointments.length > appointmentsPerPage && (
-        <div className="d-flex justify-content-between align-items-center p-3 border-top">
-          <div className="text-muted small">
-            Showing {indexOfFirstAppointment + 1} to {Math.min(indexOfLastAppointment, filteredAppointments.length)} of {filteredAppointments.length} appointments
-          </div>
-          <div className="d-flex gap-2">
-            <Button
-              variant="outline-primary"
-              size="sm"
-              onClick={handlePrevPage}
-              disabled={currentPage === 1}
-            >
-              <i className="bi bi-chevron-left me-1"></i>
-              Previous
-            </Button>
-            <div className="d-flex align-items-center px-3">
-              <span className="fw-semibold">Page {currentPage} of {totalPages}</span>
-            </div>
-            <Button
-              variant="outline-primary"
-              size="sm"
-              onClick={handleNextPage}
-              disabled={currentPage === totalPages}
-            >
-              Next
-              <i className="bi bi-chevron-right ms-1"></i>
-            </Button>
-          </div>
+                    ) : null}
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
         </div>
       )}
     </>

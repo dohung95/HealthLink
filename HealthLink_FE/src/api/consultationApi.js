@@ -46,6 +46,16 @@ export const consultationApi = {
     return response.data;
   },
 
+  startAppointmentConsultation: async (appointmentId) => {
+    const response = await axiosInstance.put(`/api/appointments/${appointmentId}/start`);
+    return response.data;
+  },
+
+  updateAppointmentNotes: async (appointmentId, notesData) => {
+    const response = await axiosInstance.put(`/api/appointments/${appointmentId}/notes`, notesData);
+    return response.data;
+  },
+
   cancelAppointmentFollowUp: async (appointmentId) => {
     const response = await axiosInstance.put(`/api/appointments/${appointmentId}/follow-up`, {
       followUpDate: null,

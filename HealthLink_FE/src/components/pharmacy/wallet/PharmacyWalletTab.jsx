@@ -1,0 +1,138 @@
+import React, { useEffect, useState } from 'react';
+import { toast } from 'sonner';
+
+import { paymentApi } from '../../../api/paymentApi';
+import {
+  Detail,
+  MetricCard,
+  Modal,
+  PageHeader,
+  dateTime,
+  money,
+  statusClass,
+} from '../common/pharmacyDashboardShared';
+
+export default function PharmacyWalletTab({ profile, balance, transactions, settlements, pharmacyId, reload }) {
+  const [activeHistory, setActiveHistory] = useState('settlements');
+  const [query, setQuery] = useState('');
+  const [withdrawOpen, setWithdrawOpen] = useState(false);
+  const [withdrawAmount, setWithdrawAmount] = useState('');
+  const [paypalEmail, setPaypalEmail] = useState(profile?.paypalEmail || '');
+  const [submitting, setSubmitting] = useState(false);
+
+  useEffect(() => setPaypalEmail(profile?.paypalEmail || ''), [profile?.paypalEmail]);
+
+  const pendingBalance = Number(balance?.pendingBalance ?? profile?.pendingSettlement ?? 0);
+  const requestedAmount = Number(withdrawAmount || 0);
+  const canWithdraw = requestedAmount > 0 && pendingBalance - requestedAmount > 10 && paypalEmail.trim() && !submitting;
+
+  const rows = activeHistory === 'settlements'
+    ? settlements.map((item) => ({
+      id: item.settlementId,
+      number: item.settlementNumber,
+      type: 'Withdrawal',
+      amount: Number(item.netAmount || 0) * -1,
+      status: item.status,
+      date: item.createdAt,
+      raw: item,
+    }))
+    : transactions.map((item) => ({
+      id: item.transactionId,
+      number: item.transactionNumber,
+      type: item.serviceType || 'Commission',
+      amount: item.netAmount,
+      status: item.status,
+      date: item.createdAt,
+      raw: item,
+    }));
+
+  const filtered = rows.filter((item) => [item.number, item.type, item.status].join(' ').toLowerCase().includes(query.toLowerCase()));
+
+  const submitWithdraw = async (event) => {
+    event.preventDefault();
+    if (!canWithdraw) return;
+    setSubmitting(true);
+    try {
+      await paymentApi.requestPartnerSettlement(pharmacyId, {
+        amount: requestedAmount,
+        paypalEmail: paypalEmail.trim(),
+        notes: 'Pharmacy wallet withdrawal request',
+      }, 'PHARMACY');
+      toast.success('Withdrawal request submitted.');
+      setWithdrawOpen(false);
+      setWithdrawAmount('');
+      await reload();
+    } catch (error) {
+      toast.error(error.response?.data?.message || 'Unable to submit withdrawal.');
+    } finally {
+      setSubmitting(false);
+    }
+  };
+
+  return (
+    <>
+      <PageHeader
+        title="Wallet & Settlement"
+        description="Manage your earnings, view history, and request withdrawals."
+        action={(
+          <div className="pharmacy-wallet-actions">
+            <span className={balance?.eligibleForWithdrawal ? 'eligible' : 'blocked'}>
+              {balance?.eligibleForWithdrawal ? 'Eligible for withdrawal' : 'Not eligible yet'}
+            </span>
+            <button onClick={() => setWithdrawOpen(true)} type="button">Request Withdrawal</button>
+          </div>
+        )}
+      />
+
+      <div className="pharmacy-metrics-grid is-three">
+        <MetricCard label="Current Available Balance" value={money(pendingBalance)} hint={balance?.withdrawalStatus} icon="account_balance" />
+        <MetricCard label="Pending Balance" value={money(pendingBalance)} hint="Available for approved withdrawals" icon="schedule" tone="warning" />
+        <MetricCard label="Total Revenue" value={money(balance?.totalEarnings ?? profile?.totalEarnings)} hint="Lifetime earnings" icon="monitoring" tone="success" />
+      </div>
+
+      <section className="pharmacy-card">
+        <div className="pharmacy-tabs">
+          <button className={activeHistory === 'settlements' ? 'active' : ''} onClick={() => setActiveHistory('settlements')} type="button">Settlement History</button>
+          <button className={activeHistory === 'commission' ? 'active' : ''} onClick={() => setActiveHistory('commission')} type="button">Commission History</button>
+        </div>
+        <div className="pharmacy-filter-bar">
+          <input onChange={(event) => setQuery(event.target.value)} placeholder="Search transactions..." value={query} />
+        </div>
+        <div className="pharmacy-table-wrap">
+          <table className="pharmacy-table">
+            <thead>
+              <tr><th>Date</th><th>Transaction ID</th><th>Type</th><th>Amount</th><th>Status</th></tr>
+            </thead>
+            <tbody>
+              {filtered.length ? filtered.map((item) => (
+                <tr key={`${activeHistory}-${item.id}`}>
+                  <td>{dateTime(item.date)}</td>
+                  <td><strong>{item.number || `#${item.id}`}</strong></td>
+                  <td>{item.type}</td>
+                  <td className={Number(item.amount) >= 0 ? 'positive' : 'negative'}>{Number(item.amount) >= 0 ? '+' : ''}{money(item.amount)}</td>
+                  <td><span className={`pharmacy-status ${statusClass(item.status)}`}>{item.status || '-'}</span></td>
+                </tr>
+              )) : (
+                <tr><td colSpan="5"><div className="pharmacy-empty"><h3>No wallet entries yet</h3></div></td></tr>
+              )}
+            </tbody>
+          </table>
+        </div>
+      </section>
+
+      {withdrawOpen && (
+        <Modal title="Withdraw to PayPal" onClose={() => setWithdrawOpen(false)}>
+          <form className="pharmacy-form" onSubmit={submitWithdraw}>
+            <Detail label="Available balance" value={money(pendingBalance)} />
+            <label>PayPal Email<input onChange={(event) => setPaypalEmail(event.target.value)} type="email" value={paypalEmail} /></label>
+            <label>Amount<input min="0" onChange={(event) => setWithdrawAmount(event.target.value)} step="0.01" type="number" value={withdrawAmount} /></label>
+            <p className={pendingBalance - requestedAmount > 10 ? 'pharmacy-success-text' : 'pharmacy-danger-text'}>
+              Remaining balance after withdrawal must be greater than $10.00.
+            </p>
+            <button disabled={!canWithdraw} type="submit">{submitting ? 'Submitting...' : 'Withdraw'}</button>
+          </form>
+        </Modal>
+      )}
+    </>
+  );
+}

@@ -1,6 +1,8 @@
 import axiosInstance from './axiosConfig';
 import {
   normalizeAppointment,
+  normalizeDoctorPatientHistory,
+  normalizeDoctorPatientSummary,
   normalizeDoctorProfile,
   normalizeDoctorSummary,
   normalizeReview,
@@ -68,6 +70,51 @@ export const doctorService = {
   getDoctorAppointments: async (doctorId) => {
     const response = await axiosInstance.get(`/api/appointments/doctor/${doctorId}`);
     return (response.data || []).map(normalizeAppointment);
+  },
+
+  getDoctorDailyAppointments: async (doctorId, date, status = 'All') => {
+    const response = await axiosInstance.get(`/api/appointments/doctor/${doctorId}/daily`, {
+      params: {
+        date,
+        status,
+      },
+    });
+
+    return {
+      ...response.data,
+      appointments: (response.data?.appointments || []).map(normalizeAppointment),
+      counts: response.data?.counts || {
+        all: 0,
+        scheduled: 0,
+        completed: 0,
+        cancelled: 0,
+      },
+    };
+  },
+
+  getMyDoctorPatients: async (params = {}) => {
+    const response = await axiosInstance.get('/api/account/doctors/me/patients', {
+      params: {
+        search: params.search || undefined,
+        status: params.status || 'all',
+        page: params.page || 1,
+        pageSize: params.pageSize || 12,
+      },
+    });
+
+    return {
+      ...response.data,
+      patients: (response.data?.patients || []).map(normalizeDoctorPatientSummary),
+      pageNumber: response.data?.pageNumber || 1,
+      pageSize: response.data?.pageSize || 12,
+      totalCount: response.data?.totalCount || 0,
+      totalPages: response.data?.totalPages || 1,
+    };
+  },
+
+  getMyDoctorPatientHistory: async (patientId) => {
+    const response = await axiosInstance.get(`/api/account/doctors/me/patients/${patientId}/history`);
+    return normalizeDoctorPatientHistory(response.data);
   },
 
   getDoctorReviews: async (doctorId) => {

@@ -77,6 +77,7 @@ public class WebSocketNotificationService {
                 .read(n.getRead())
                 .actionUrl(n.getActionUrl())
                 .imageUrl(n.getImageUrl())
+                .metadata(n.getMetadata())
                 .createdAt(n.getCreatedAt())
                 .expiresAt(n.getExpiresAt())
                 .relatedId(n.getRelatedId())

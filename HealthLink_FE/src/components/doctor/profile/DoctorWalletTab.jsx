@@ -1,7 +1,7 @@
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { toast } from 'sonner';
 
-import { paymentApi } from '../api/paymentApi';
+import { paymentApi } from '../../../api/paymentApi';
 
 const formatCurrency = (value) => {
   const amount = Number(value ?? 0);
@@ -22,7 +22,8 @@ export default function DoctorWalletTab({ profile, onRefreshProfile }) {
   const [transactions, setTransactions] = useState([]);
   const [settlements, setSettlements] = useState([]);
   const [loading, setLoading] = useState(false);
-  const [selectedEntry, setSelectedEntry] = useState(null);
+  const [expandedEntryId, setExpandedEntryId] = useState(null);
+  const [isWithdrawModalOpen, setIsWithdrawModalOpen] = useState(false);
   const [withdrawAmount, setWithdrawAmount] = useState('');
   const [paypalEmail, setPaypalEmail] = useState(profile?.paypalEmail || '');
   const [withdrawing, setWithdrawing] = useState(false);
@@ -108,6 +109,7 @@ export default function DoctorWalletTab({ profile, onRefreshProfile }) {
       );
       toast.success('Withdrawal request submitted.');
       setWithdrawAmount('');
+      setIsWithdrawModalOpen(false);
       await loadWallet();
       await onRefreshProfile?.();
     } catch (error) {
@@ -123,7 +125,16 @@ export default function DoctorWalletTab({ profile, onRefreshProfile }) {
       <div className="row g-4 mb-4">
         <div className="col-md-4">
           <div className="border rounded-4 p-4 h-100 bg-light-subtle">
-            <p className="text-muted mb-1">Current balance</p>
+            <div className="d-flex justify-content-between align-items-start gap-3">
+              <p className="text-muted mb-1">Current balance</p>
+              <button
+                type="button"
+                className="btn btn-success btn-sm"
+                onClick={() => setIsWithdrawModalOpen(true)}
+              >
+                Withdraw
+              </button>
+            </div>
             <h2 className="h3 mb-0 text-success">{formatCurrency(pendingBalance)}</h2>
           </div>
         </div>
@@ -142,42 +153,7 @@ export default function DoctorWalletTab({ profile, onRefreshProfile }) {
       </div>
 
       <div className="row g-4">
-        <div className="col-lg-5">
-          <form className="border rounded-4 p-4 h-100" onSubmit={handleWithdraw}>
-            <h2 className="h5 mb-3">Withdraw to PayPal</h2>
-            <div className="mb-3">
-              <label className="form-label">PayPal Email</label>
-              <input
-                type="email"
-                className="form-control"
-                value={paypalEmail}
-                onChange={(event) => setPaypalEmail(event.target.value)}
-                placeholder="doctor@example.com"
-              />
-              <div className="form-text">Must match the PayPal email saved in your profile.</div>
-            </div>
-            <div className="mb-3">
-              <label className="form-label">Amount</label>
-              <input
-                type="number"
-                min="0"
-                step="0.01"
-                className="form-control"
-                value={withdrawAmount}
-                onChange={(event) => setWithdrawAmount(event.target.value)}
-                placeholder="0.00"
-              />
-              <div className={remainingAfterWithdrawal > 10 ? 'form-text text-success' : 'form-text text-danger'}>
-                Remaining balance after withdrawal must be greater than $10.00.
-              </div>
-            </div>
-            <button type="submit" className="btn btn-success w-100" disabled={!canWithdraw}>
-              {withdrawing ? 'Submitting...' : 'Request Withdrawal'}
-            </button>
-          </form>
-        </div>
-
-        <div className="col-lg-7">
+        <div className="col-12">
           <div className="border rounded-4 p-4 h-100">
             <div className="d-flex justify-content-between align-items-center mb-3">
               <h2 className="h5 mb-0">Balance History</h2>
@@ -192,69 +168,122 @@ export default function DoctorWalletTab({ profile, onRefreshProfile }) {
               <p className="text-muted mb-0">No wallet transactions yet.</p>
             ) : (
               <div className="list-group list-group-flush">
-                {history.map((entry) => (
-                  <button
-                    type="button"
-                    key={entry.id}
-                    className="list-group-item list-group-item-action d-flex justify-content-between align-items-center px-0"
-                    onClick={() => setSelectedEntry(entry)}
-                  >
-                    <span>
-                      <strong>{entry.title}</strong>
-                      <small className="d-block text-muted">{formatDateTime(entry.createdAt)} - {entry.status}</small>
-                    </span>
-                    <strong className={Number(entry.amount) >= 0 ? 'text-success' : 'text-danger'}>
-                      {Number(entry.amount) >= 0 ? '+' : ''}
-                      {formatCurrency(entry.amount)}
-                    </strong>
-                  </button>
-                ))}
+                {history.map((entry) => {
+                  const isExpanded = expandedEntryId === entry.id;
+                  return (
+                    <div className="list-group-item px-0" key={entry.id}>
+                      <button
+                        type="button"
+                        className="btn btn-link text-decoration-none text-reset w-100 d-flex justify-content-between align-items-center p-0"
+                        onClick={() => setExpandedEntryId(isExpanded ? null : entry.id)}
+                        aria-expanded={isExpanded}
+                      >
+                        <span className="text-start">
+                          <strong>{entry.title}</strong>
+                          <small className="d-block text-muted">{entry.status || '-'}</small>
+                        </span>
+                        <span className="d-flex align-items-center gap-3">
+                          <strong className={Number(entry.amount) >= 0 ? 'text-success' : 'text-danger'}>
+                            {Number(entry.amount) >= 0 ? '+' : ''}
+                            {formatCurrency(entry.amount)}
+                          </strong>
+                          <i className={`bi ${isExpanded ? 'bi-chevron-up' : 'bi-chevron-down'}`}></i>
+                        </span>
+                      </button>
+
+                      {isExpanded ? (
+                        <div className="mt-3 rounded-3 bg-light-subtle p-3">
+                          {entry.kind === 'earning' ? (
+                            <>
+                              <DetailRow label="Time" value={formatDateTime(entry.raw.createdAt)} />
+                              <DetailRow label="Appointment ID" value={`#${entry.raw.appointmentId || '-'}`} />
+                              <DetailRow
+                                label="Appointment amount"
+                                value={formatCurrency(entry.raw.grossAmount)}
+                                valueClassName="text-success"
+                              />
+                              <DetailRow
+                                label="Commission"
+                                value={`-${formatCurrency(entry.raw.commissionAmount).replace('-', '')}`}
+                                valueClassName="text-danger"
+                              />
+                              <DetailRow
+                                label="Net received"
+                                value={formatCurrency(entry.raw.netAmount)}
+                                valueClassName="text-success"
+                              />
+                            </>
+                          ) : (
+                            <>
+                              <DetailRow label="Time" value={formatDateTime(entry.raw.createdAt)} />
+                              <DetailRow label="Settlement" value={entry.raw.settlementNumber || entry.raw.settlementId} />
+                              <DetailRow label="PayPal" value={entry.raw.paypalEmail || '-'} />
+                              <DetailRow
+                                label="Amount"
+                                value={`-${formatCurrency(entry.raw.netAmount).replace('-', '')}`}
+                                valueClassName="text-danger"
+                              />
+                              <DetailRow label="Status" value={entry.raw.status} />
+                            </>
+                          )}
+                        </div>
+                      ) : null}
+                    </div>
+                  );
+                })}
               </div>
             )}
           </div>
         </div>
       </div>
 
-      {selectedEntry && (
+      {isWithdrawModalOpen && (
         <div className="modal d-block" tabIndex="-1" role="dialog" style={{ background: 'rgba(0,0,0,0.45)' }}>
           <div className="modal-dialog modal-dialog-centered">
             <div className="modal-content border-0 shadow">
               <div className="modal-header">
-                <h5 className="modal-title">Transaction Details</h5>
-                <button type="button" className="btn-close" onClick={() => setSelectedEntry(null)}></button>
+                <h5 className="modal-title">Withdraw to PayPal</h5>
+                <button type="button" className="btn-close" onClick={() => setIsWithdrawModalOpen(false)}></button>
               </div>
-              <div className="modal-body">
-                {selectedEntry.kind === 'earning' ? (
-                  <>
-                    <DetailRow label="Time" value={formatDateTime(selectedEntry.raw.createdAt)} />
-                    <DetailRow label="Appointment ID" value={`#${selectedEntry.raw.appointmentId || '-'}`} />
-                    <DetailRow label="Patient paid" value={formatCurrency(selectedEntry.raw.grossAmount)} />
-                    <DetailRow
-                      label="Commission"
-                      value={`-${formatCurrency(selectedEntry.raw.commissionAmount).replace('-', '')}`}
-                      valueClassName="text-danger"
+              <form onSubmit={handleWithdraw}>
+                <div className="modal-body">
+                  <DetailRow label="Total balance" value={formatCurrency(pendingBalance)} valueClassName="text-success" />
+                  <div className="mb-3 mt-3">
+                    <label className="form-label">PayPal Email</label>
+                    <input
+                      type="email"
+                      className="form-control"
+                      value={paypalEmail}
+                      onChange={(event) => setPaypalEmail(event.target.value)}
+                      placeholder="doctor@example.com"
                     />
-                    <DetailRow
-                      label="Net received"
-                      value={formatCurrency(selectedEntry.raw.netAmount)}
-                      valueClassName="text-success"
+                    <div className="form-text">Must match the PayPal email saved in your profile.</div>
+                  </div>
+                  <div className="mb-0">
+                    <label className="form-label">Amount</label>
+                    <input
+                      type="number"
+                      min="0"
+                      step="0.01"
+                      className="form-control"
+                      value={withdrawAmount}
+                      onChange={(event) => setWithdrawAmount(event.target.value)}
+                      placeholder="0.00"
                     />
-                  </>
-                ) : (
-                  <>
-                    <DetailRow label="Time" value={formatDateTime(selectedEntry.raw.createdAt)} />
-                    <DetailRow label="Settlement" value={selectedEntry.raw.settlementNumber || selectedEntry.raw.settlementId} />
-                    <DetailRow label="PayPal" value={selectedEntry.raw.paypalEmail || '-'} />
-                    <DetailRow label="Amount" value={formatCurrency(selectedEntry.raw.netAmount)} valueClassName="text-danger" />
-                    <DetailRow label="Status" value={selectedEntry.raw.status} />
-                  </>
-                )}
-              </div>
-              <div className="modal-footer">
-                <button type="button" className="btn btn-secondary" onClick={() => setSelectedEntry(null)}>
-                  Close
-                </button>
-              </div>
+                    <div className={remainingAfterWithdrawal > 10 ? 'form-text text-success' : 'form-text text-danger'}>
+                      Remaining balance after withdrawal must be greater than $10.00.
+                    </div>
+                  </div>
+                </div>
+                <div className="modal-footer">
+                  <button type="button" className="btn btn-secondary" onClick={() => setIsWithdrawModalOpen(false)}>
+                    Cancel
+                  </button>
+                  <button type="submit" className="btn btn-success" disabled={!canWithdraw}>
+                    {withdrawing ? 'Submitting...' : 'Withdraw'}
+                  </button>
+                </div>
+              </form>
             </div>
           </div>
         </div>

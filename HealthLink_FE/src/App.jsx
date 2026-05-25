@@ -1,6 +1,6 @@
 // src/App.js
 import { useEffect } from 'react';
-import { BrowserRouter as Router, Routes, Route, useLocation, useNavigate } from 'react-router-dom';
+import { BrowserRouter as Router, Routes, Route, Navigate, useLocation, useNavigate } from 'react-router-dom';
 
 // ---------------------------------------------import file----------------------------------------------------------
 import { useAuth } from './context/AuthContext';
@@ -17,8 +17,7 @@ import Chat from './components/Chat';
 import Payment from './components/Payment';
 
 import ProfilePatient from './pages/profilePatient';
-import ProfileDoctor from './pages/profileDoctor';
-import ProfilePharmacy from './pages/profilePharmacy';
+import DoctorProfilePage from './pages/doctor/DoctorProfilePage';
 
 import Admin from './components/Admin/View/Admin';
 import Patients from './components/Admin/View/Patients';
@@ -55,10 +54,10 @@ import IncomingCallModal from './components/IncomingCallModal';
 import PrescriptionNotificationModal from './components/PrescriptionNotificationModal';
 import AdminActionNotificationModal from './components/AdminActionNotificationModal';
 import Navbar from './components/Navbar';
-import DoctorProfile from './components/doctor/public/DoctorProfile';
+import DoctorPublicProfilePage from './pages/doctor/DoctorPublicProfilePage';
 import PatientPrescriptionView from './components/PatientPrescriptionView';
 
-import DoctorPage from './components/doctor/dashboard/DoctorPage';
+import DoctorDashboardPage from './pages/doctor/DoctorDashboardPage';
 import ProtectedRoute from './components/ProtectedRoute';
 import ExcludeRolesRoute from './components/ExcludeRolesRoute';
 
@@ -70,6 +69,7 @@ import { Toaster } from 'sonner';
 import PatientDashboard from './pages/PatientDashboard';
 import PatientDashboardHome from './components/patient-dashboard/PatientDashboardHome';
 import NotFound from './pages/NotFound';
+import PharmacyDashboardPage from './pages/pharmacy/PharmacyDashboardPage';
 
 //-----------------------------------------------------------------------------------------------
 
@@ -95,10 +95,11 @@ function AppContent() {
   const isLoginPage = location.pathname === '/login';
   const isAdminPage = location.pathname.startsWith('/admin');
   const isPatientDashboard = location.pathname.startsWith('/patient-dashboard');
+  const isPharmacyDashboard = location.pathname.startsWith('/pharmacy-page');
   const isSchedulePage = location.pathname === '/schedule' || location.pathname.startsWith('/book/');
 
   // Don't show navbar/footer on video call, doctor page, admin page, or login page
-  const hideLayout = isVideoCallPage || isDoctorPage || isAdminPage || isPatientDashboard || isSchedulePage;
+  const hideLayout = isVideoCallPage || isDoctorPage || isAdminPage || isPatientDashboard || isPharmacyDashboard || isSchedulePage;
 
   // list trang bị chặn sau khi login
   const publicPaths = [
@@ -128,6 +129,7 @@ function AppContent() {
     '/profile-pharmacy',
     '/doctor-page',
     '/patient-dashboard',
+    '/pharmacy-page',
     '/admin',
     '/my-appointments',
     '/records',
@@ -165,7 +167,7 @@ function AppContent() {
       {!isVideoCallPage && !isAdminPage && <PrescriptionNotificationModal />}
       {!isVideoCallPage && !isAdminPage && <AdminActionNotificationModal />}
       <div className="App">
-        {!isVideoCallPage && !isAdminPage && !is404Page && <Chat />}
+        {!isVideoCallPage && !isAdminPage && !isPharmacyDashboard && !is404Page && <Chat />}
         <ScrollToTop />
         {!hideLayout && <Navbar />}
 
@@ -186,18 +188,18 @@ function AppContent() {
             <Route path="/health-records" element={<HealthRecords />} />
             <Route path="/share-records" element={<ShareHealthRecords />} />
             <Route path="/profile-patient" element={<ProfilePatient />} />
-            <Route path="/profile-doctor" element={<ProfileDoctor />} />
-            <Route path="/profile-pharmacy" element={<ProfilePharmacy />} />
+            <Route path="/profile-doctor" element={<DoctorProfilePage />} />
+            <Route path="/profile-pharmacy" element={<Navigate to="/pharmacy-page/profile" replace />} />
 
             {/* <Route path="/schedule" element={<Schedule />} /> */}
             {/* <Route path="/book/:doctorId" element={<Schedule />} /> */}
             {/* <Route path="/my-appointments" element={<MyAppointments />} /> */}
             <Route path="/doctors" element={<Doctors />} />
-            <Route path="/doctor/:id" element={<DoctorProfile />} />
+            <Route path="/doctor/:id" element={<DoctorPublicProfilePage />} />
             {/* Doctor only */}
             <Route path="/doctor-page" element={
               <ProtectedRoute allowedRoles={['Doctor']}>
-                <DoctorPage />
+                <DoctorDashboardPage />
               </ProtectedRoute>
             } />
 
@@ -307,6 +309,15 @@ function AppContent() {
               <Route path="prescriptions" element={<PatientPrescriptionView />} />
               <Route path="profile" element={<ProfilePatient />} />
             </Route>
+
+            <Route
+              path="/pharmacy-page/*"
+              element={
+                <ProtectedRoute allowedRoles={['Pharmacy']}>
+                  <PharmacyDashboardPage />
+                </ProtectedRoute>
+              }
+            />
 
             {/* Catch-all 404 Route */}
             <Route path="*" element={<NotFound />} />

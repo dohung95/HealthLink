@@ -35,7 +35,7 @@ public class PendingPaymentAppointmentCleanupScheduler {
 
         LocalDateTime cancelledAt = LocalDateTime.now();
         for (Appointment appointment : expiredAppointments) {
-            appointment.setStatus("Cancelled");
+            appointment.setStatus("CANCELLED");
             appointment.setCancelledBy("System");
             appointment.setCancelledAt(cancelledAt);
             appointment.setCancelReason("Payment timeout");

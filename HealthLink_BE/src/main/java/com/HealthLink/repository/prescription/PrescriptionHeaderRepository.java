@@ -18,6 +18,11 @@ public interface PrescriptionHeaderRepository extends JpaRepository<Prescription
 
     List<PrescriptionHeader> findByDoctor_DoctorId(String doctorId);
 
+    List<PrescriptionHeader> findByDoctor_DoctorIdAndPatient_PatientIdOrderByIssueDateDesc(
+            String doctorId,
+            String patientId
+    );
+
     List<PrescriptionHeader> findByAppointment_AppointmentId(Integer appointmentId);
 
     List<PrescriptionHeader> findByAppointment_AppointmentIdOrderByIssueDateDescPrescriptionHeaderIdDesc(
@@ -41,6 +46,15 @@ public interface PrescriptionHeaderRepository extends JpaRepository<Prescription
             @Param("now") LocalDateTime now,
             @Param("startOfDay") LocalDateTime startOfDay
     );
+
+    @Query("""
+            SELECT DISTINCT h
+            FROM PrescriptionHeader h
+            LEFT JOIN FETCH h.prescriptionItems i
+            WHERE h.validUntil IS NOT NULL
+              AND h.validUntil >= :now
+            """)
+    List<PrescriptionHeader> findActiveReminderCandidates(@Param("now") LocalDateTime now);
 
     @Modifying(clearAutomatically = true, flushAutomatically = true)
     @Query("""

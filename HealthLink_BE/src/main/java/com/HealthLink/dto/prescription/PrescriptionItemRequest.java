@@ -1,11 +1,11 @@
 package com.HealthLink.dto.prescription;
 
 import jakarta.validation.constraints.Min;
-import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
 import lombok.Data;
 
 import java.math.BigDecimal;
+import java.util.List;
 
 @Data
 public class PrescriptionItemRequest {
@@ -24,8 +24,9 @@ public class PrescriptionItemRequest {
     private String unit;
     private String frequency;
 
-    @NotBlank(message = "Timing is required")
     private String timing;
+
+    private List<String> timings;
 
     private String route;
     private BigDecimal unitPrice;

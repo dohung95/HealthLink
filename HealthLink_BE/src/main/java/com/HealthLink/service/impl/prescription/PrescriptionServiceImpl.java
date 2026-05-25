@@ -6,6 +6,7 @@ import com.HealthLink.dto.prescription.PrescriptionOpenedResponse;
 import com.HealthLink.dto.prescription.PrescriptionRequest;
 import com.HealthLink.dto.prescription.PrescriptionResponse;
 import com.HealthLink.entity.Appointment;
+import com.HealthLink.entity.Consultation;
 import com.HealthLink.entity.Medicine;
 import com.HealthLink.entity.PharmacyConsultationRequest;
 import com.HealthLink.entity.PrescriptionHeader;
@@ -15,6 +16,7 @@ import com.HealthLink.exception.BadRequestException;
 import com.HealthLink.exception.ForbiddenException;
 import com.HealthLink.exception.ResourceNotFoundException;
 import com.HealthLink.repository.appointment.AppointmentRepository;
+import com.HealthLink.repository.consultation.ConsultationRepository;
 import com.HealthLink.repository.medicine.MedicineRepository;
 import com.HealthLink.repository.prescription.PrescriptionHeaderRepository;
 import com.HealthLink.service.prescription.PrescriptionService;
@@ -35,6 +37,7 @@ public class PrescriptionServiceImpl implements PrescriptionService {
     private final PrescriptionHeaderRepository headerRepository;
     private final MedicineRepository medicineRepository;
     private final AppointmentRepository appointmentRepository;
+    private final ConsultationRepository consultationRepository;
 
     @Override
     @Transactional
@@ -43,8 +46,19 @@ public class PrescriptionServiceImpl implements PrescriptionService {
                 .orElseThrow(() -> new ResourceNotFoundException(
                         "Appointment", "id", request.getAppointmentId()));
 
-        if ("Cancelled".equals(appointment.getStatus())) {
+        if ("CANCELLED".equalsIgnoreCase(appointment.getStatus())) {
             throw new BadRequestException("Cannot create prescription for a cancelled appointment");
+        }
+        if ("COMPLETED".equalsIgnoreCase(appointment.getStatus())) {
+            throw new BadRequestException("Cannot create prescription for a completed appointment");
+        }
+        Consultation consultation = appointment.getConsultation();
+        if (consultation == null) {
+            consultation = consultationRepository.findByAppointment_AppointmentId(request.getAppointmentId())
+                    .orElse(null);
+        }
+        if (consultation == null || consultation.getStartTime() == null) {
+            throw new BadRequestException("Consultation must be started before a prescription can be created");
         }
 
         if (!headerRepository.findByAppointment_AppointmentId(request.getAppointmentId()).isEmpty()) {
@@ -59,7 +73,7 @@ public class PrescriptionServiceImpl implements PrescriptionService {
                 .diagnosis(request.getDiagnosis())
                 .notes(request.getNotes())
                 .validUntil(request.getValidUntil())
-                .status("Issued")
+                .status("ISSUED")
                 .prescriptionItems(new ArrayList<>())
                 .build();
 
@@ -91,7 +105,7 @@ public class PrescriptionServiceImpl implements PrescriptionService {
                     .quantity(itemReq.getQuantity())
                     .unit(itemReq.getUnit() != null ? itemReq.getUnit() : medicine.getUnit())
                     .frequency(itemReq.getFrequency())
-                    .timing(normalizeTimingRequired(itemReq.getTiming()))
+                    .timing(normalizeTimingRequired(itemReq.getTimings(), itemReq.getTiming()))
                     .route(itemReq.getRoute())
                     .unitPrice(unitPrice)
                     .totalPrice(totalPrice)
@@ -212,7 +226,7 @@ public class PrescriptionServiceImpl implements PrescriptionService {
             return true;
         }
 
-        return timingFilter.equals(normalizeTimingForResponse(item.getTiming()));
+        return PrescriptionTiming.containsTiming(item.getTiming(), timingFilter);
     }
 
     private PrescriptionItemResponse toItemResponse(PrescriptionItem item) {
@@ -227,6 +241,7 @@ public class PrescriptionServiceImpl implements PrescriptionService {
                 .unit(item.getUnit())
                 .frequency(item.getFrequency())
                 .timing(normalizeTimingForResponse(item.getTiming()))
+                .timings(timingsForResponse(item.getTiming()))
                 .route(item.getRoute())
                 .unitPrice(item.getUnitPrice())
                 .totalPrice(item.getTotalPrice())
@@ -234,12 +249,19 @@ public class PrescriptionServiceImpl implements PrescriptionService {
                 .build();
     }
 
-    private String normalizeTimingRequired(String timing) {
+    private String normalizeTimingRequired(List<String> timings, String timing) {
         try {
-            return PrescriptionTiming.normalize(timing);
+            if (timings != null && !timings.isEmpty()) {
+                return PrescriptionTiming.normalizeJoined(timings);
+            }
+            return PrescriptionTiming.normalizeJoined(timing);
         } catch (IllegalArgumentException ex) {
             throw new BadRequestException(ex.getMessage());
         }
+    }
+
+    private String normalizeTimingRequired(String timing) {
+        return normalizeTimingRequired(null, timing);
     }
 
     private String normalizeTimingOptional(String timing) {
@@ -247,14 +269,26 @@ public class PrescriptionServiceImpl implements PrescriptionService {
             return null;
         }
 
-        return normalizeTimingRequired(timing);
+        try {
+            return PrescriptionTiming.normalize(timing);
+        } catch (IllegalArgumentException ex) {
+            throw new BadRequestException(ex.getMessage());
+        }
     }
 
     private String normalizeTimingForResponse(String timing) {
         if (PrescriptionTiming.isSupported(timing)) {
-            return PrescriptionTiming.normalize(timing);
+            return PrescriptionTiming.normalizeJoined(timing);
         }
         return timing;
+    }
+
+    private List<String> timingsForResponse(String timing) {
+        try {
+            return PrescriptionTiming.splitNormalized(timing);
+        } catch (IllegalArgumentException ex) {
+            return List.of();
+        }
     }
 
     private String buildDosage(Medicine medicine) {

@@ -1,5 +1,7 @@
 package com.HealthLink.service.consultation;
 
+import com.HealthLink.dto.consultation.ConsultationNotesRequest;
+import com.HealthLink.dto.consultation.ConsultationResponse;
 import com.HealthLink.dto.consultation.FollowUpRequest;
 import com.HealthLink.dto.consultation.FollowUpResponse;
 
@@ -11,6 +13,10 @@ public interface ConsultationService {
     FollowUpResponse updateFollowUp(Integer consultationId, FollowUpRequest request);
 
     FollowUpResponse updateFollowUpByAppointment(Integer appointmentId, FollowUpRequest request);
+
+    ConsultationResponse startByAppointment(Integer appointmentId);
+
+    ConsultationResponse updateNotesByAppointment(Integer appointmentId, ConsultationNotesRequest request);
 
     /**
      * Lấy thông tin tái khám theo consultationId.

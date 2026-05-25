@@ -6,11 +6,13 @@ import com.HealthLink.dto.payment.SettlementResponse;
 import com.HealthLink.entity.Doctor;
 import com.HealthLink.entity.Pharmacy;
 import com.HealthLink.entity.Settlement;
+import com.HealthLink.entity.enums.NotificationType;
 import com.HealthLink.exception.BadRequestException;
 import com.HealthLink.exception.PayPalIntegrationException;
 import com.HealthLink.repository.doctor.DoctorRepository;
 import com.HealthLink.repository.payment.PaymentSettlementRepository;
 import com.HealthLink.repository.pharmacy.PharmacyRepository;
+import com.HealthLink.service.notification.NotificationService;
 import com.HealthLink.service.payment.SettlementService;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import lombok.RequiredArgsConstructor;
@@ -77,6 +79,7 @@ public class SettlementServiceImpl implements SettlementService {
     private final PaymentSettlementRepository  settlementRepository;
     private final DoctorRepository      doctorRepository;
     private final PharmacyRepository    pharmacyRepository;
+    private final NotificationService   notificationService;
 
     // ========================================================================
     // Rút tiền – Bác sĩ
@@ -104,8 +107,10 @@ public class SettlementServiceImpl implements SettlementService {
         return executePayPalPayout(settlement, request.getAmount(), request.getPaypalEmail(),
                 doctor.getFullName(), () -> {
                     // Callback thành công: trừ pendingSettlement
-                    doctor.setPendingSettlement(pending.subtract(request.getAmount()));
+                    BigDecimal updatedBalance = pending.subtract(request.getAmount());
+                    doctor.setPendingSettlement(updatedBalance);
                     doctorRepository.save(doctor);
+                    notifyDoctorWalletWithdrawal(doctor, request.getAmount(), updatedBalance);
                 });
     }
 
@@ -364,6 +369,34 @@ public class SettlementServiceImpl implements SettlementService {
     }
 
     /** Ánh xạ Settlement → SettlementResponse. */
+    private void notifyDoctorWalletWithdrawal(Doctor doctor, BigDecimal amount, BigDecimal balance) {
+        if (doctor == null || doctor.getUser() == null) {
+            return;
+        }
+
+        try {
+            BigDecimal delta = amount != null ? amount.negate() : BigDecimal.ZERO;
+            String metadata = String.format(
+                    "{\"delta\":\"%s\",\"balance\":\"%s\"}",
+                    delta.toPlainString(),
+                    balance != null ? balance.toPlainString() : "0"
+            );
+
+            notificationService.sendWebSocketNotification(
+                    doctor.getUser(),
+                    NotificationType.WALLET_BALANCE_CHANGED,
+                    "Wallet balance updated",
+                    String.format("Your withdrawal of $%.2f has been completed.", amount),
+                    null,
+                    "/profile-doctor?tab=wallet",
+                    metadata
+            );
+        } catch (Exception ex) {
+            log.warn("Failed to send wallet withdrawal notification for doctor {}: {}",
+                    doctor.getDoctorId(), ex.getMessage());
+        }
+    }
+
     private SettlementResponse toResponse(Settlement s) {
         return SettlementResponse.builder()
                 .settlementId(s.getSettlementId())

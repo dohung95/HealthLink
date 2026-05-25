@@ -5,6 +5,17 @@ import notificationApi from '../api/notificationApi';
 import PrescriptionDetailModal from './PrescriptionDetailModal';
 import './Css/NotificationBell.css';
 
+const getReminderMetadata = (notification = {}) => notification.metadata || {};
+
+const isMedicationReminder = (notification = {}) => {
+  const metadata = getReminderMetadata(notification);
+  const message = String(notification.message || '').toLowerCase();
+  return (
+    notification.type === 'NEW_PRESCRIPTION' &&
+    (metadata.timing || message.includes('medication(s)') || message.includes('prescription #'))
+  );
+};
+
 function NotificationBell() {
   const navigate = useNavigate();
   const [dropdownOpen, setDropdownOpen] = useState(false);
@@ -42,9 +53,11 @@ function NotificationBell() {
         message: reminder.message,
         createdAt: new Date().toISOString(),
         isRead: false,
-        prescriptionId: reminder.prescriptionId,
-        medicationCount: reminder.medicationCount,
-        remainingDays: reminder.remainingDays
+        prescriptionId: reminder.prescriptionId || reminder.prescriptionHeaderId,
+        prescriptionHeaderId: reminder.prescriptionHeaderId,
+        medicationCount: reminder.medicationCount || reminder.metadata?.medicationCount,
+        remainingDays: reminder.remainingDays || reminder.metadata?.remainingDays,
+        metadata: reminder.metadata || {},
       };
       
       setReminders(prev => [newReminder, ...prev]);
@@ -115,18 +128,14 @@ function NotificationBell() {
       const data = await notificationApi.getMyNotifications();
       
       // Medication reminders - updated pattern to match new format
-      const medicationReminders = data.filter(n => {
-        const msg = n.message.toLowerCase();
-        return msg.includes('prescription #') && (msg.includes('day(s) remaining') || msg.includes('medication(s)'));
-      });
+      const medicationReminders = data.filter(isMedicationReminder);
       const unreadReminders = medicationReminders.filter(n => !n.isRead).length;
       setReminderCount(unreadReminders);
       
       // Appointment notifications
       const appointmentNotifs = data.filter(n => {
         const msg = n.message.toLowerCase();
-        const isMedication = msg.includes('prescription #') && (msg.includes('day(s) remaining') || msg.includes('medication(s)'));
-        return !isMedication && (
+        return !isMedicationReminder(n) && (
           msg.includes('appointment') || 
           msg.includes('dr.') ||
           msg.includes('doctor')
@@ -152,10 +161,7 @@ function NotificationBell() {
       console.log('All notifications:', data);
       
       // Filter for medication reminders - updated pattern
-      const medicationReminders = data.filter(n => {
-        const msg = n.message.toLowerCase();
-        return msg.includes('prescription #') && (msg.includes('day(s) remaining') || msg.includes('medication(s)'));
-      });
+      const medicationReminders = data.filter(isMedicationReminder);
       
       console.log('Filtered medication reminders:', medicationReminders);
       setReminders(medicationReminders);
@@ -178,9 +184,8 @@ function NotificationBell() {
       // Filter for appointment notifications - exclude medication reminders
       const appointmentNotifs = data.filter(n => {
         const msg = n.message.toLowerCase();
-        const isMedication = msg.includes('prescription #') && (msg.includes('day(s) remaining') || msg.includes('medication(s)'));
         
-        return !isMedication && (
+        return !isMedicationReminder(n) && (
           msg.includes('appointment') || 
           msg.includes('dr.') ||
           msg.includes('doctor')
@@ -257,11 +262,15 @@ function NotificationBell() {
 
   const handleReminderClick = (reminder) => {
     // Extract prescription ID from message
-    let prescriptionId = null;
+    let prescriptionId =
+      reminder.prescriptionHeaderId ||
+      reminder.prescriptionId ||
+      reminder.metadata?.prescriptionHeaderId ||
+      null;
     
     // Try to extract from message like "You have a prescription #123"
-    const match = reminder.message.match(/prescription #(\d+)/i);
-    if (match) {
+    const match = reminder.message?.match(/prescription #(\d+)/i);
+    if (!prescriptionId && match) {
       prescriptionId = parseInt(match[1]);
     }
     
@@ -291,14 +300,14 @@ function NotificationBell() {
 
   // Format medication reminder message to extract prescription info
   const formatReminderMessage = (message) => {
-    if (!message) return { prescriptionId: null, medicationCount: 0, remainingDays: 0, displayText: message };
+    if (!message) return { prescriptionId: null, medicationCount: 0, remainingDays: 0, timing: null, medications: [], displayText: message };
     
     // Extract prescription ID: "You have a prescription #123"
     const prescriptionMatch = message.match(/prescription #(\d+)/i);
     const prescriptionId = prescriptionMatch ? parseInt(prescriptionMatch[1]) : null;
     
     // Extract medication count: "with 3 medication(s)"
-    const medicationMatch = message.match(/with (\d+) medication\(s\)/i);
+    const medicationMatch = message.match(/(\d+) medication\(s\)/i);
     const medicationCount = medicationMatch ? parseInt(medicationMatch[1]) : 0;
     
     // Extract remaining days: "5 day(s) remaining"
@@ -309,7 +318,34 @@ function NotificationBell() {
       prescriptionId,
       medicationCount,
       remainingDays,
+      timing: null,
+      medications: [],
       displayText: message
+    };
+  };
+
+  const getReminderDisplay = (reminder) => {
+    const parsed = formatReminderMessage(reminder.message || '');
+    const metadata = getReminderMetadata(reminder);
+    const medications = Array.isArray(metadata.medications) ? metadata.medications : [];
+
+    return {
+      ...parsed,
+      prescriptionId:
+        metadata.prescriptionHeaderId ||
+        reminder.prescriptionHeaderId ||
+        reminder.prescriptionId ||
+        parsed.prescriptionId,
+      medicationCount:
+        metadata.medicationCount ??
+        reminder.medicationCount ??
+        parsed.medicationCount,
+      remainingDays:
+        metadata.remainingDays ??
+        reminder.remainingDays ??
+        parsed.remainingDays,
+      timing: metadata.timing || parsed.timing,
+      medications,
     };
   };
 
@@ -355,7 +391,7 @@ function NotificationBell() {
                   </div>
                 ) : reminders.length > 0 ? (
                   reminders.map(reminder => {
-                    const { prescriptionId, medicationCount, remainingDays, displayText } = formatReminderMessage(reminder.message);
+                    const { prescriptionId, medicationCount, remainingDays, timing, medications } = getReminderDisplay(reminder);
                     return (
                       <div 
                         key={reminder.notificationID} 
@@ -386,11 +422,25 @@ function NotificationBell() {
                               <span className="material-symbols-outlined">medication</span>
                               <span>{medicationCount} medication(s)</span>
                             </div>
+                            {timing && (
+                              <div className="info-item">
+                                <span className="material-symbols-outlined">wb_sunny</span>
+                                <span>{timing}</span>
+                              </div>
+                            )}
                             <div className="info-item time-info">
                               <span className="material-symbols-outlined">schedule</span>
                               <span>{formatDate(reminder.createdAt)}</span>
                             </div>
                           </div>
+                          {medications.length > 0 && (
+                            <p className="notification-message mb-2">
+                              {medications
+                                .map((medication) => medication.medicationName)
+                                .filter(Boolean)
+                                .join(', ')}
+                            </p>
+                          )}
                           <div className="notification-footer">
                             <span className="click-hint">
                               <span className="material-symbols-outlined">visibility</span>

@@ -16,10 +16,16 @@ class SignalRCompatibilityService {
 
   on(eventName, callback) {
     const unsubscribe = websocketService.subscribeToNotifications((notification) => {
-      // Appointment-related notifications (including Admin actions)
-      if (eventName === 'ReceiveAppointmentNotification' &&
-          ['NEW_APPOINTMENT', 'CANCEL_APPOINTMENT', 'APPOINTMENT_REMINDER',
-           'ADMIN_APPOINTMENT_CANCEL', 'ADMIN_APPOINTMENT_REASSIGN'].includes(notification.type)) {
+const doctorNotificationTypes = [
+  'NEW_APPOINTMENT',
+  'CANCEL_APPOINTMENT',
+  'APPOINTMENT_REMINDER',
+  'WALLET_BALANCE_CHANGED',
+  'ADMIN_APPOINTMENT_CANCEL',
+  'ADMIN_APPOINTMENT_REASSIGN',
+];
+if (eventName === 'ReceiveAppointmentNotification' &&
+    doctorNotificationTypes.includes(notification.type)) {
         callback({
           ...notification,
           appointmentID: notification.appointmentId || notification.relatedId,

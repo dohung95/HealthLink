@@ -3,6 +3,8 @@ package com.HealthLink.controller.doctor;
 import com.HealthLink.dto.doctor.DoctorUpdateRequest;
 import com.HealthLink.dto.auth.ChangeEmailRequest;
 import com.HealthLink.dto.auth.VerifyEmailChangeRequest;
+import com.HealthLink.dto.response.DoctorPatientHistoryResponse;
+import com.HealthLink.dto.response.DoctorPatientPageResponse;
 import com.HealthLink.dto.response.DoctorProfileResponse;
 import com.HealthLink.dto.response.DoctorResponse;
 import com.HealthLink.dto.response.DoctorScheduleResponse;
@@ -54,6 +56,27 @@ public class DoctorController {
     @GetMapping("/{doctorId}")
     public ResponseEntity<DoctorProfileResponse> getDoctorProfile(@PathVariable String doctorId) {
         return ResponseEntity.ok(doctorService.getDoctorProfile(doctorId));
+    }
+
+    @GetMapping("/me/patients")
+    @PreAuthorize("hasRole('DOCTOR')")
+    public ResponseEntity<DoctorPatientPageResponse> getMyPatients(
+            @RequestParam(required = false) String search,
+            @RequestParam(required = false, defaultValue = "all") String status,
+            @RequestParam(defaultValue = "1") int page,
+            @RequestParam(defaultValue = "12") int pageSize,
+            @AuthenticationPrincipal UserDetails userDetails) {
+        String doctorId = resolveUserId(userDetails);
+        return ResponseEntity.ok(doctorService.getMyPatients(doctorId, search, status, page, pageSize));
+    }
+
+    @GetMapping("/me/patients/{patientId}/history")
+    @PreAuthorize("hasRole('DOCTOR')")
+    public ResponseEntity<DoctorPatientHistoryResponse> getMyPatientHistory(
+            @PathVariable String patientId,
+            @AuthenticationPrincipal UserDetails userDetails) {
+        String doctorId = resolveUserId(userDetails);
+        return ResponseEntity.ok(doctorService.getMyPatientHistory(doctorId, patientId));
     }
 
     // Hiển thị hồ sơ của chính bác sĩ đang đăng nhập.

@@ -1,13 +1,16 @@
 package com.HealthLink.service.impl.consultation;
 
+import com.HealthLink.dto.consultation.ConsultationNotesRequest;
 import com.HealthLink.dto.consultation.FollowUpRequest;
 import com.HealthLink.dto.consultation.FollowUpResponse;
 import com.HealthLink.entity.Appointment;
 import com.HealthLink.entity.Consultation;
 import com.HealthLink.entity.Doctor;
+import com.HealthLink.entity.Invoice;
 import com.HealthLink.exception.BadRequestException;
 import com.HealthLink.repository.appointment.AppointmentRepository;
 import com.HealthLink.repository.consultation.ConsultationRepository;
+import com.HealthLink.repository.payment.InvoiceRepository;
 import com.HealthLink.service.followup.FollowUpAppointmentService;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -36,10 +39,106 @@ class ConsultationServiceImplTest {
     private AppointmentRepository appointmentRepository;
 
     @Mock
+    private InvoiceRepository invoiceRepository;
+
+    @Mock
     private FollowUpAppointmentService followUpAppointmentService;
 
     @InjectMocks
     private ConsultationServiceImpl consultationService;
+
+    @Test
+    void startByAppointment_shouldCreateConsultationWhenAppointmentTimeArrived() {
+        Appointment appointment = appointment(10, "Scheduled");
+        appointment.setAppointmentTime(LocalDateTime.now().minusMinutes(5));
+
+        when(appointmentRepository.findById(10)).thenReturn(Optional.of(appointment));
+        when(invoiceRepository.findByAppointment_AppointmentId(10)).thenReturn(Optional.of(paidInvoice(appointment)));
+        when(consultationRepository.findByAppointment_AppointmentId(10)).thenReturn(Optional.empty());
+        when(consultationRepository.save(any(Consultation.class))).thenAnswer(invocation -> {
+            Consultation saved = invocation.getArgument(0);
+            saved.setConsultationId(20);
+            return saved;
+        });
+
+        var response = consultationService.startByAppointment(10);
+
+        assertThat(response.getConsultationId()).isEqualTo(20);
+        assertThat(response.getAppointmentId()).isEqualTo(10);
+        assertThat(response.getStartTime()).isNotNull();
+        assertThat(appointment.getConsultation()).isNotNull();
+    }
+
+    @Test
+    void startByAppointment_shouldRejectBeforeAppointmentTime() {
+        Appointment appointment = appointment(10, "Scheduled");
+        appointment.setAppointmentTime(LocalDateTime.now().plusMinutes(5));
+
+        when(appointmentRepository.findById(10)).thenReturn(Optional.of(appointment));
+
+        assertThatThrownBy(() -> consultationService.startByAppointment(10))
+                .isInstanceOf(BadRequestException.class)
+                .hasMessage("Consultation can only be started when the appointment time has arrived");
+        verify(consultationRepository, never()).save(any(Consultation.class));
+    }
+
+    @Test
+    void startByAppointment_shouldReturnExistingStartedConsultation() {
+        Appointment appointment = appointment(10, "Scheduled");
+        appointment.setAppointmentTime(LocalDateTime.now().minusMinutes(5));
+        Consultation consultation = Consultation.builder()
+                .consultationId(20)
+                .appointment(appointment)
+                .startTime(LocalDateTime.now().minusMinutes(3))
+                .build();
+        appointment.setConsultation(consultation);
+
+        when(appointmentRepository.findById(10)).thenReturn(Optional.of(appointment));
+        when(invoiceRepository.findByAppointment_AppointmentId(10)).thenReturn(Optional.of(paidInvoice(appointment)));
+        when(consultationRepository.save(any(Consultation.class))).thenAnswer(invocation -> invocation.getArgument(0));
+
+        var response = consultationService.startByAppointment(10);
+
+        assertThat(response.getConsultationId()).isEqualTo(20);
+        assertThat(response.getStartTime()).isEqualTo(consultation.getStartTime());
+    }
+
+    @Test
+    void updateNotesByAppointment_shouldRejectBeforeStart() {
+        Appointment appointment = appointment(10, "Scheduled");
+        ConsultationNotesRequest request = new ConsultationNotesRequest();
+
+        when(appointmentRepository.findById(10)).thenReturn(Optional.of(appointment));
+        when(consultationRepository.findByAppointment_AppointmentId(10)).thenReturn(Optional.empty());
+
+        assertThatThrownBy(() -> consultationService.updateNotesByAppointment(10, request))
+                .isInstanceOf(BadRequestException.class)
+                .hasMessage("Consultation must be started before notes can be updated");
+    }
+
+    @Test
+    void updateNotesByAppointment_shouldSaveStartedConsultationNotes() {
+        Appointment appointment = appointment(10, "Scheduled");
+        Consultation consultation = Consultation.builder()
+                .consultationId(20)
+                .appointment(appointment)
+                .startTime(LocalDateTime.now().minusMinutes(10))
+                .build();
+        appointment.setConsultation(consultation);
+        ConsultationNotesRequest request = new ConsultationNotesRequest();
+        request.setDiagnosis("Flu");
+        request.setDoctorNotes("Rest and hydration");
+        request.setTreatmentPlan("Follow up if fever persists");
+
+        when(appointmentRepository.findById(10)).thenReturn(Optional.of(appointment));
+        when(consultationRepository.save(any(Consultation.class))).thenAnswer(invocation -> invocation.getArgument(0));
+
+        var response = consultationService.updateNotesByAppointment(10, request);
+
+        assertThat(response.getDiagnosis()).isEqualTo("Flu");
+        assertThat(response.getDoctorNotes()).isEqualTo("Rest and hydration");
+        assertThat(response.getTreatmentPlan()).isEqualTo("Follow up if fever persists");
+    }
 
     @Test
     void updateFollowUpByAppointment_shouldCreateConsultationWhenMissing() {
@@ -226,9 +325,17 @@ class ConsultationServiceImplTest {
     private Appointment appointment(Integer appointmentId, String status) {
         return Appointment.builder()
                 .appointmentId(appointmentId)
+                .appointmentTime(LocalDateTime.now().plusDays(1))
                 .consultationType("Video")
                 .status(status)
                 .doctor(Doctor.builder().doctorId("doctor-1").build())
+                .build();
+    }
+
+    private Invoice paidInvoice(Appointment appointment) {
+        return Invoice.builder()
+                .appointment(appointment)
+                .status("PAID")
                 .build();
     }
 }

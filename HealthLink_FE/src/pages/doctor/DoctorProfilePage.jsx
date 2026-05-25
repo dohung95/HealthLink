@@ -1,15 +1,14 @@
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import {
   getDoctorProfile,
   requestDoctorEmailChange,
   updateDoctorProfile,
   uploadDoctorAvatar,
   verifyDoctorEmailChange,
-} from '../../../api/account';
-import { useAuth } from '../../../context/AuthContext';
-import Loading from '../../Loading';
+} from '../../api/account';
+import { useAuth } from '../../context/AuthContext';
+import Loading from '../../components/Loading';
 import { toast } from 'sonner';
-import DoctorWalletTab from './DoctorWalletTab';
 
 const initialForm = {
   phoneNumber: '',
@@ -30,31 +29,32 @@ export default function DoctorProfilePage() {
   const [emailData, setEmailData] = useState({ newEmail: '', password: '' });
   const [otp, setOtp] = useState('');
 
-  useEffect(() => {
+  const loadProfile = useCallback(async () => {
     if (!token) {
       return;
     }
 
-    const loadProfile = async () => {
-      try {
-        const data = await getDoctorProfile(token);
-        setProfile(data);
-        setFormData({
-          phoneNumber: data.phoneNumber || '',
-          description: data.description || '',
-          avatarUrl: data.avatarUrl || '',
-          paypalEmail: data.paypalEmail || '',
-        });
-      } catch (error) {
-        console.error('Error loading doctor profile:', error);
-        toast.error('Unable to load doctor profile.');
-      } finally {
-        setLoading(false);
-      }
-    };
-
-    loadProfile();
+    setLoading(true);
+    try {
+      const data = await getDoctorProfile(token);
+      setProfile(data);
+      setFormData({
+        phoneNumber: data.phoneNumber || '',
+        description: data.description || '',
+        avatarUrl: data.avatarUrl || '',
+        paypalEmail: data.paypalEmail || '',
+      });
+    } catch (error) {
+      console.error('Error loading doctor profile:', error);
+      toast.error('Unable to load doctor profile.');
+    } finally {
+      setLoading(false);
+    }
   }, [token]);
+
+  useEffect(() => {
+    loadProfile();
+  }, [loadProfile]);
 
   const summary = useMemo(() => ({
     specialty: profile?.specialty || 'Not set',
@@ -179,13 +179,6 @@ export default function DoctorProfilePage() {
               >
                 Security
               </button>
-              <button
-                type="button"
-                className={`btn ${activeTab === 'wallet' ? 'btn-success' : 'btn-outline-secondary'}`}
-                onClick={() => setActiveTab('wallet')}
-              >
-                Wallet
-              </button>
             </div>
           </div>
 
@@ -240,8 +233,6 @@ export default function DoctorProfilePage() {
                   </div>
                 </div>
               </form>
-            ) : activeTab === 'wallet' ? (
-              <DoctorWalletTab profile={profile} />
             ) : (
               <div className="row g-4">
                 <div className="col-lg-6">

@@ -16,6 +16,8 @@ import com.HealthLink.repository.payment.PaymentRepository;
 import com.HealthLink.repository.pharmacy.PharmacyOrderRepository;
 import com.HealthLink.repository.pharmacy.PharmacyRepository;
 import com.HealthLink.repository.prescription.PrescriptionHeaderRepository;
+import com.HealthLink.entity.enums.NotificationType;
+import com.HealthLink.service.notification.NotificationService;
 import com.HealthLink.service.payment.CommissionService;
 import com.HealthLink.service.payment.FeeCalculatorService;
 import com.HealthLink.service.payment.FeeCalculatorService.FeeResult;
@@ -61,6 +63,7 @@ public class CommissionServiceImpl implements CommissionService {
     private final DoctorRepository                  doctorRepository;
     private final PharmacyRepository                pharmacyRepository;
     private final PrescriptionHeaderRepository      prescriptionHeaderRepository;
+    private final NotificationService               notificationService;
 
     // ========================================================================
     // Xử lý commission cho Bác sĩ
@@ -122,6 +125,13 @@ public class CommissionServiceImpl implements CommissionService {
         doctor.setTotalEarnings(currentEarnings.add(result.partnerEarning()));
         doctor.setPendingSettlement(currentPending.add(result.partnerEarning()));
         doctorRepository.save(doctor);
+        notifyDoctorWalletChange(
+                doctor,
+                result.partnerEarning(),
+                doctor.getPendingSettlement(),
+                "Appointment #" + appointment.getAppointmentId() + " earnings were added to your wallet.",
+                appointment.getAppointmentId()
+        );
 
         // 4. Ghi snapshot vào Invoice
         invoice.setPlatformFee(result.platformFee());
@@ -258,6 +268,13 @@ public class CommissionServiceImpl implements CommissionService {
                         .max(BigDecimal.ZERO);   // không để âm
                 doctor.setPendingSettlement(reversed);
                 doctorRepository.save(doctor);
+                notifyDoctorWalletChange(
+                        doctor,
+                        tx.getNetAmount().negate(),
+                        reversed,
+                        "Appointment #" + appointment.getAppointmentId() + " earnings were reversed after refund.",
+                        appointment.getAppointmentId()
+                );
                 log.info("Refund: doctor {} pendingSettlement reduced by {} (tx={}, prev={})",
                         doctor.getDoctorId(), tx.getNetAmount(), tx.getTransactionNumber(), previousStatus);
             }
@@ -320,6 +337,40 @@ public class CommissionServiceImpl implements CommissionService {
                 .format(DateTimeFormatter.ofPattern("yyyyMM"));
         long count = commissionTransactionRepository.count() + 1;
         return String.format("CTX-%s-%05d", datePart, count);
+    }
+
+    private void notifyDoctorWalletChange(
+            Doctor doctor,
+            BigDecimal delta,
+            BigDecimal balance,
+            String message,
+            Integer appointmentId
+    ) {
+        if (doctor == null || doctor.getUser() == null) {
+            return;
+        }
+
+        try {
+            String metadata = String.format(
+                    "{\"delta\":\"%s\",\"balance\":\"%s\",\"appointmentId\":%s}",
+                    delta != null ? delta.toPlainString() : "0",
+                    balance != null ? balance.toPlainString() : "0",
+                    appointmentId != null ? appointmentId.toString() : "null"
+            );
+
+            notificationService.sendWebSocketNotification(
+                    doctor.getUser(),
+                    NotificationType.WALLET_BALANCE_CHANGED,
+                    "Wallet balance updated",
+                    message,
+                    appointmentId,
+                    "/profile-doctor?tab=wallet",
+                    metadata
+            );
+        } catch (Exception ex) {
+            log.warn("Failed to send wallet change notification for doctor {}: {}",
+                    doctor.getDoctorId(), ex.getMessage());
+        }
     }
 
     /** Ánh xạ CommissionTransaction → CommissionTransactionResponse. */
