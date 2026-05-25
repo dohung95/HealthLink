@@ -19,9 +19,11 @@ import com.HealthLink.repository.appointment.AppointmentRepository;
 import com.HealthLink.repository.appointment.AppointmentSlotHoldRepository;
 import com.HealthLink.repository.doctor.DoctorRepository;
 import com.HealthLink.repository.doctor.DoctorScheduleRepository;
+import com.HealthLink.service.compliance.ScheduleComplianceService;
 import com.HealthLink.service.doctor.DoctorScheduleService;
 import com.HealthLink.service.notification.NotificationService;
 import lombok.RequiredArgsConstructor;
+import org.springframework.context.annotation.Lazy;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -48,6 +50,7 @@ public class DoctorScheduleServiceImpl implements DoctorScheduleService {
     private final AppointmentRepository appointmentRepository;
     private final AppointmentSlotHoldRepository appointmentSlotHoldRepository;
     private final NotificationService notificationService;
+    private final @Lazy ScheduleComplianceService complianceService;
 
     private static final String[] DAY_NAMES = {"Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"};
 
@@ -88,6 +91,9 @@ public class DoctorScheduleServiceImpl implements DoctorScheduleService {
         log.info("Doctor {} created schedule for day {} from {} to {}",
                 doctorId, DAY_NAMES[request.getDayOfWeek()], request.getStartTime(), request.getEndTime());
 
+        // Update compliance after schedule change
+        updateComplianceAsync(doctorId);
+
         return mapToScheduleResponse(saved);
     }
 
@@ -108,6 +114,9 @@ public class DoctorScheduleServiceImpl implements DoctorScheduleService {
         DoctorSchedule saved = scheduleRepository.save(schedule);
         log.info("Doctor {} updated schedule {}", doctorId, scheduleId);
 
+        // Update compliance after schedule change
+        updateComplianceAsync(doctorId);
+
         return mapToScheduleResponse(saved);
     }
 
@@ -116,6 +125,9 @@ public class DoctorScheduleServiceImpl implements DoctorScheduleService {
         DoctorSchedule schedule = findScheduleAndVerifyOwnership(doctorId, scheduleId);
         scheduleRepository.delete(schedule);
         log.info("Doctor {} deleted schedule {}", doctorId, scheduleId);
+
+        // Update compliance after schedule change
+        updateComplianceAsync(doctorId);
     }
 
     @Override
@@ -123,6 +135,9 @@ public class DoctorScheduleServiceImpl implements DoctorScheduleService {
         DoctorSchedule schedule = findScheduleAndVerifyOwnership(doctorId, scheduleId);
         schedule.setAvailable(available);
         scheduleRepository.save(schedule);
+
+        // Update compliance after availability change
+        updateComplianceAsync(doctorId);
         log.info("Doctor {} set schedule {} availability to {}", doctorId, scheduleId, available);
     }
 
@@ -461,5 +476,18 @@ public class DoctorScheduleServiceImpl implements DoctorScheduleService {
                 .consultationType(schedule.getConsultationType())
                 .available(schedule.isAvailable())
                 .build();
+    }
+
+    /**
+     * Update compliance status asynchronously after schedule changes.
+     * Wrapped in try-catch to prevent compliance errors from affecting schedule operations.
+     */
+    private void updateComplianceAsync(String doctorId) {
+        try {
+            complianceService.updateComplianceAfterScheduleChange(doctorId);
+        } catch (Exception e) {
+            log.error("Error updating compliance for doctor {}: {}", doctorId, e.getMessage());
+            // Don't throw - compliance update failure shouldn't affect schedule operations
+        }
     }
 }

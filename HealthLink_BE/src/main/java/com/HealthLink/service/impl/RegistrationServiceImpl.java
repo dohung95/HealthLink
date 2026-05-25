@@ -322,8 +322,7 @@ public class RegistrationServiceImpl implements RegistrationService {
         }
 
         Pharmacy pharmacy = new Pharmacy();
-        pharmacy.setPharmacyId(user.getId());
-        pharmacy.setUser(user);  // Required for @MapsId relationship
+        pharmacy.setUser(user);  // @MapsId sẽ tự động lấy ID từ user
         pharmacy.setName(pharmacyName);
         pharmacy.setLicenseNumber(licenseNumber);
         pharmacy.setAddress(address);

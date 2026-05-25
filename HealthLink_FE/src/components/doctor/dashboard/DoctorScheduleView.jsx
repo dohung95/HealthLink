@@ -1,8 +1,11 @@
 import React, { useState, useEffect } from 'react';
 import { doctorScheduleService } from '../../../api/doctorApi';
+import { doctorComplianceService } from '../../../api/complianceApi';
 import WeeklyScheduleBuilder from './schedule/WeeklyScheduleBuilder';
 import ScheduleCalendarView from './schedule/ScheduleCalendarView';
 import ScheduleExceptionModal from './schedule/ScheduleExceptionModal';
+import ComplianceStatusBanner from './compliance/ComplianceStatusBanner';
+import ComplianceWarningModal from './compliance/ComplianceWarningModal';
 import { toast } from 'sonner';
 
 const DoctorScheduleView = () => {
@@ -12,6 +15,11 @@ const DoctorScheduleView = () => {
   const [error, setError] = useState(null);
   const [showExceptionModal, setShowExceptionModal] = useState(false);
   const [selectedDate, setSelectedDate] = useState(null);
+
+  // Compliance state
+  const [showComplianceModal, setShowComplianceModal] = useState(false);
+  const [complianceResult, setComplianceResult] = useState(null);
+  const [complianceKey, setComplianceKey] = useState(0); // For refreshing banner
 
   useEffect(() => {
     fetchSchedule();
@@ -41,7 +49,25 @@ const DoctorScheduleView = () => {
     setShowExceptionModal(false);
     setSelectedDate(null);
     fetchSchedule();
+    setComplianceKey(prev => prev + 1); // Refresh compliance banner
     toast.success('Exception created successfully');
+  };
+
+  // Compliance handlers
+  const handleValidateCompliance = async () => {
+    try {
+      const result = await doctorComplianceService.validateSchedule();
+      setComplianceResult(result);
+      setShowComplianceModal(true);
+    } catch (err) {
+      console.error('Error validating compliance:', err);
+      toast.error('Failed to validate schedule compliance');
+    }
+  };
+
+  const handleScheduleRefresh = () => {
+    fetchSchedule();
+    setComplianceKey(prev => prev + 1); // Refresh compliance banner
   };
 
   if (loading) {
@@ -85,6 +111,12 @@ const DoctorScheduleView = () => {
         </button>
       </div>
 
+      {/* Compliance Status Banner */}
+      <ComplianceStatusBanner
+        key={complianceKey}
+        onValidateClick={handleValidateCompliance}
+      />
+
       {/* Tab Navigation */}
       <ul className="nav nav-tabs mb-4">
         <li className="nav-item">
@@ -115,7 +147,7 @@ const DoctorScheduleView = () => {
       {activeTab === 'weekly' && (
         <WeeklyScheduleBuilder
           schedules={scheduleData?.schedules || []}
-          onRefresh={fetchSchedule}
+          onRefresh={handleScheduleRefresh}
         />
       )}
 
@@ -123,7 +155,7 @@ const DoctorScheduleView = () => {
         <ScheduleCalendarView
           exceptions={scheduleData?.exceptions || []}
           onCreateException={handleCreateException}
-          onRefresh={fetchSchedule}
+          onRefresh={handleScheduleRefresh}
         />
       )}
 
@@ -136,6 +168,25 @@ const DoctorScheduleView = () => {
         }}
         selectedDate={selectedDate}
         onSuccess={handleExceptionSuccess}
+      />
+
+      {/* Compliance Warning Modal */}
+      <ComplianceWarningModal
+        isOpen={showComplianceModal}
+        onClose={() => {
+          setShowComplianceModal(false);
+          setComplianceResult(null);
+        }}
+        validationResult={complianceResult}
+        onAddMoreHours={() => {
+          setShowComplianceModal(false);
+          setActiveTab('weekly'); // Switch to weekly view to add hours
+        }}
+        onSaveAnyway={() => {
+          setShowComplianceModal(false);
+          setComplianceResult(null);
+          toast.info('Schedule saved but remains inactive until compliance is met');
+        }}
       />
     </div>
   );
