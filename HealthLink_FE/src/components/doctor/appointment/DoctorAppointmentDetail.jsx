@@ -1,18 +1,18 @@
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import 'bootstrap/dist/css/bootstrap.min.css';
 import 'react-calendar/dist/Calendar.css';
-import '../styles/DoctorPage.css';
+import '../Css/DoctorDashboard.css';
 import { toast } from 'react-toastify';
 import { collection, getDocs, query, where } from 'firebase/firestore';
 import Calendar from 'react-calendar';
-import DoctorPrescriptionWorkspace from './DoctorPrescriptionWorkspace';
-import SharedRecordsView from './SharedRecordsView';
-import { appointmentService } from '../api/appointmentApi';
+import DoctorPrescriptionWorkspace from '../prescription/DoctorPrescriptionWorkspace';
+import SharedRecordsView from '../../SharedRecordsView';
+import { appointmentService } from '../../../api/appointmentApi';
 import { consultationApi } from '../../../api/consultationApi';
 import { prescriptionService } from '../../../api/prescriptionApi';
-import { useAuth } from '../context/AuthContext';
-import { useChat } from '../context/ChatContext';
-import { db } from '../firebase';
+import { useAuth } from '../../../context/AuthContext';
+import { useChat } from '../../../context/ChatContext';
+import { db } from '../../../firebase';
 
 const TABS = [
   { id: 'notes', label: 'Consultation Notes', shortLabel: 'Notes', icon: 'bi-journal-text' },

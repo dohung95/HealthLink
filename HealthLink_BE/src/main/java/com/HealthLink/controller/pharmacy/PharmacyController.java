@@ -1,6 +1,7 @@
 package com.HealthLink.controller.pharmacy;
 
 import com.HealthLink.dto.auth.ChangeEmailRequest;
+import com.HealthLink.dto.auth.ChangePasswordRequest;
 import com.HealthLink.dto.auth.VerifyEmailChangeRequest;
 import com.HealthLink.dto.pharmacy.PharmacyProfileResponse;
 import com.HealthLink.dto.pharmacy.PharmacyUpdateRequest;
@@ -96,6 +97,16 @@ public class PharmacyController {
     }
 
     // ── Upload ảnh đại diện cho nhà thuốc ───────────────────────────────
+    @PutMapping("auth/password/change")
+    @PreAuthorize("hasRole('PHARMACY')")
+    public ResponseEntity<Void> changePassword(
+            @Valid @RequestBody ChangePasswordRequest request,
+            @AuthenticationPrincipal UserDetails userDetails) {
+        String pharmacyId = resolveUserId(userDetails);
+        pharmacyProfileService.changePassword(pharmacyId, request);
+        return ResponseEntity.noContent().build();
+    }
+
     @PostMapping("/avatar")
     @PreAuthorize("hasRole('PHARMACY')")
     public ResponseEntity<?> uploadAvatar(

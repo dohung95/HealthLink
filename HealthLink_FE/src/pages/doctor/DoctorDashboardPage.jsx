@@ -1,19 +1,19 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
-import { useAuth } from '../context/AuthContext';
-import { doctorService } from '../api/doctorApi';
-import { appointmentService } from '../api/appointmentApi';
-import { notificationApi } from '../api/notificationApi';
-import signalRService from '../services/signalrService';
+import { useAuth } from '../../context/AuthContext';
+import { doctorService } from '../../api/doctorApi';
+import { appointmentService } from '../../api/appointmentApi';
+import { notificationApi } from '../../api/notificationApi';
+import signalRService from '../../services/signalrService';
 import 'bootstrap/dist/css/bootstrap.min.css';
-import '../components/Css/DoctorPage.css';
-import DoctorAppointmentDetail from './DoctorAppointmentDetail';
-import DoctorAppointmentsView from './DoctorAppointmentsView';
-import DoctorPatientDetailView from './DoctorPatientDetailView';
-import DoctorPatientsView from './DoctorPatientsView';
-import DoctorPrescriptionsView from './DoctorPrescriptionsView';
-import DoctorProfileView from './DoctorProfileView';
-import DoctorScheduleView from './DoctorScheduleView';
+import '../../components/doctor/Css/DoctorDashboard.css';
+import DoctorAppointmentDetail from '../../components/doctor/appointment/DoctorAppointmentDetail';
+import DoctorAppointmentsView from '../../components/doctor/dashboard/DoctorAppointmentsView';
+import DoctorPatientDetailView from '../../components/doctor/patient/DoctorPatientDetailView';
+import DoctorPatientsView from '../../components/doctor/dashboard/DoctorPatientsView';
+import DoctorPrescriptionsView from '../../components/doctor/dashboard/DoctorPrescriptionsView';
+import DoctorProfileView from '../../components/doctor/dashboard/DoctorProfileView';
+import DoctorScheduleView from '../../components/doctor/dashboard/DoctorScheduleView';
 
 const NAV_ITEMS = [
   {
@@ -74,7 +74,7 @@ const normalizeAppointmentDetail = (detail, appointmentId) => ({
   },
 });
 
-const DoctorProfile = () => {
+const DoctorDashboardPage = () => {
   const navigate = useNavigate();
   const location = useLocation();
   const { logout } = useAuth();
@@ -601,4 +601,4 @@ const DoctorProfile = () => {
   );
 };
 
-export default DoctorProfile;
+export default DoctorDashboardPage;

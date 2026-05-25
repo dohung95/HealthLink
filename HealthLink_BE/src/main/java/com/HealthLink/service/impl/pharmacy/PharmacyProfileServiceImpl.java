@@ -1,6 +1,7 @@
 package com.HealthLink.service.impl.pharmacy;
 
 import com.HealthLink.dto.auth.ChangeEmailRequest;
+import com.HealthLink.dto.auth.ChangePasswordRequest;
 import com.HealthLink.dto.auth.VerifyEmailChangeRequest;
 import com.HealthLink.dto.pharmacy.PharmacyProfileResponse;
 import com.HealthLink.dto.pharmacy.PharmacyUpdateRequest;
@@ -98,6 +99,9 @@ public class PharmacyProfileServiceImpl implements PharmacyProfileService {
         }
         if (request.getDeliveryAvailable() != null) {
             pharmacy.setDeliveryAvailable(request.getDeliveryAvailable());
+        }
+        if (request.getPaypalEmail() != null) {
+            pharmacy.setPaypalEmail(request.getPaypalEmail().trim());
         }
 
         pharmacy.setUpdatedAt(LocalDateTime.now());
@@ -201,6 +205,27 @@ public class PharmacyProfileServiceImpl implements PharmacyProfileService {
         return toResponse(pharmacy);
     }
 
+    @Override
+    @Transactional
+    public void changePassword(String pharmacyId, ChangePasswordRequest request) {
+        User user = userRepository.findById(pharmacyId)
+                .orElseThrow(() -> new ResourceNotFoundException("User", "id", pharmacyId));
+
+        if (!passwordEncoder.matches(request.getCurrentPassword(), user.getPassword())) {
+            throw new BadRequestException("Current password is incorrect");
+        }
+        if (!request.getNewPassword().equals(request.getConfirmNewPassword())) {
+            throw new BadRequestException("New password and confirmation do not match");
+        }
+        if (passwordEncoder.matches(request.getNewPassword(), user.getPassword())) {
+            throw new BadRequestException("New password must be different from current password");
+        }
+
+        user.setPassword(passwordEncoder.encode(request.getNewPassword()));
+        userRepository.save(user);
+        log.info("Password changed for pharmacyId: {}", pharmacyId);
+    }
+
     // =========================================================================
     // Helper Methods
     // =========================================================================
@@ -234,6 +259,7 @@ public class PharmacyProfileServiceImpl implements PharmacyProfileService {
                 .totalEarnings(p.getTotalEarnings())
                 .pendingSettlement(p.getPendingSettlement())
                 .commissionTier(p.getCommissionTier())
+                .paypalEmail(p.getPaypalEmail())
                 .createdAt(p.getCreatedAt())
                 .updatedAt(p.getUpdatedAt())
                 .build();

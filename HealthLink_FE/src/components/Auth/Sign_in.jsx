@@ -124,11 +124,13 @@ export function Sign_in() {
                     userRoles = Array.isArray(roleValue) ? roleValue : [roleValue];
                 }
 
-                // Navigate based on role (priority: Admin > Doctor > Patient)
+                // Navigate based on role (priority: Admin > Doctor > Pharmacy > Patient)
                 if (userRoles.some(r => r.toLowerCase() === 'admin')) {
                     navigate('/admin');
                 } else if (userRoles.some(r => r.toLowerCase() === 'doctor')) {
                     navigate('/doctor-page');
+                } else if (userRoles.some(r => r.toLowerCase() === 'pharmacy')) {
+                    navigate('/pharmacy-page');
                 } else if (userRoles.some(r => r.toLowerCase() === 'patient')) {
                     navigate('/patient-dashboard');
                 } else {

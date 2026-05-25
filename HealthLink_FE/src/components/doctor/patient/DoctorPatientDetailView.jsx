@@ -1,6 +1,6 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { Button } from 'react-bootstrap';
-import { doctorService } from '../api/doctorApi';
+import { doctorService } from '../../../api/doctorApi';
 
 const formatDateTime = (value) => {
   if (!value) return 'N/A';

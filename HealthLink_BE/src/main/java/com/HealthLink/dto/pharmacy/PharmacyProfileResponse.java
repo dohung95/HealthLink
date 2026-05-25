@@ -51,6 +51,7 @@ public class PharmacyProfileResponse {
     private BigDecimal totalEarnings;
     private BigDecimal pendingSettlement;
     private String commissionTier;
+    private String paypalEmail;
 
     private LocalDateTime createdAt;
     private LocalDateTime updatedAt;
