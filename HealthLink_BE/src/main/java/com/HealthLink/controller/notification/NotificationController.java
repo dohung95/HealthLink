@@ -106,6 +106,58 @@ public class NotificationController {
     }
 
     // =========================================================================
+    // PATCH /api/notifications/mark-all-read
+    // Đánh dấu tất cả thông báo của user là đã đọc
+    // =========================================================================
+
+    /**
+     * Đánh dấu tất cả thông báo của user hiện tại là đã đọc.
+     *
+     * @param userDetails Spring Security principal
+     * @return {"message": "All notifications marked as read", "count": N}
+     */
+    @PatchMapping("/mark-all-read")
+    public ResponseEntity<Map<String, Object>> markAllAsRead(
+            @AuthenticationPrincipal UserDetails userDetails) {
+
+        String userId = resolveUserId(userDetails);
+        int count = notificationService.markAllAsRead(userId);
+        return ResponseEntity.ok(Map.of(
+                "message", "All notifications marked as read",
+                "count", count
+        ));
+    }
+
+    // =========================================================================
+    // DELETE /api/notifications/{id}
+    // Xóa một thông báo
+    // =========================================================================
+
+    /**
+     * Xóa thông báo có ID cho trước.
+     * Chỉ owner của thông báo mới được xóa.
+     *
+     * @param id          ID của thông báo
+     * @param userDetails Spring Security principal
+     * @return {"message": "Notification deleted"}
+     */
+    @DeleteMapping("/{id}")
+    public ResponseEntity<Map<String, String>> deleteNotification(
+            @PathVariable Integer id,
+            @AuthenticationPrincipal UserDetails userDetails) {
+
+        String userId = resolveUserId(userDetails);
+        boolean deleted = notificationService.deleteNotification(id, userId);
+
+        if (!deleted) {
+            return ResponseEntity.status(404)
+                    .body(Map.of("error", "Notification not found or access denied"));
+        }
+
+        return ResponseEntity.ok(Map.of("message", "Notification deleted"));
+    }
+
+    // =========================================================================
     // POST /api/notifications/fcm-token
     // Đăng ký FCM token từ thiết bị di động của bệnh nhân
     // =========================================================================

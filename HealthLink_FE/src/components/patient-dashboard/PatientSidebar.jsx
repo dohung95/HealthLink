@@ -9,7 +9,7 @@ import { getProfile } from '../../api/account';
  */
 const PatientSidebar = () => {
     const { logout, token } = useAuth();
-    const [patientInfo, setPatientInfo] = useState({ name: 'Bệnh nhân', email: '' });
+    const [patientInfo, setPatientInfo] = useState({ name: 'Bệnh nhân', email: '', avatarUrl: '' });
 
     useEffect(() => {
         if (!token) return;
@@ -18,8 +18,9 @@ const PatientSidebar = () => {
             try {
                 const data = await getProfile(token);
                 setPatientInfo({
-                    name: data?.username || data?.fullName || data?.name || 'Bệnh nhân',
+                    name: data?.fullName || data?.username || data?.name || 'Bệnh nhân',
                     email: data?.email || '',
+                    avatarUrl: data?.avatarUrl || '',
                 });
             } catch (error) {
                 console.error('PatientSidebar: Failed to fetch profile', error);
@@ -57,19 +58,23 @@ const PatientSidebar = () => {
             path: '/patient-dashboard/share-records',
         },
         {
+            label: 'Prescriptions',
+            icon: 'bi bi-capsule',
+            path: '/patient-dashboard/prescriptions',
+        },
+        {
             label: 'Profile',
             icon: 'bi bi-person-circle',
             path: '/patient-dashboard/profile',
         },
     ];
 
-
     // Lấy 2 chữ cái đầu của tên làm avatar
-    const avatarInitials = patientInfo.name
-        .split(' ')
-        .slice(-2)
-        .map((w) => w[0]?.toUpperCase() ?? '')
-        .join('');
+    // const avatarInitials = patientInfo.name
+    //     .split(' ')
+    //     .slice(-2)
+    //     .map((w) => w[0]?.toUpperCase() ?? '')
+    //     .join('');
 
     return (
         <aside className="patient-sidebar">
@@ -100,7 +105,13 @@ const PatientSidebar = () => {
 
             <div className="patient-sidebar-footer">
                 <div className="patient-sidebar-user">
-                    <div className="patient-sidebar-avatar">{avatarInitials || 'BN'}</div>
+                    <div className="patient-sidebar-avatar">
+                        <img
+                            src={patientInfo.avatarUrl || `https://api.dicebear.com/9.x/initials/svg?seed=${patientInfo.name}`}
+                            alt="avatar"
+                            style={{ width: '100%', height: '100%', borderRadius: '50%', objectFit: 'cover' }}
+                        />
+                    </div>
                     <div>
                         <strong>{patientInfo.name}</strong>
                         <span>{patientInfo.email}</span>

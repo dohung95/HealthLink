@@ -285,7 +285,7 @@ export function DoctorRegistration() {
 
     return (
         <>
-            <div className="doctor-registration-bg" style={{paddingTop:"15%"}}>
+            <div className="doctor-registration-bg">
                 <div className="doctor-registration-container">
                     <div className="form-header">
                         <Link to="/register-as" className="back-link">

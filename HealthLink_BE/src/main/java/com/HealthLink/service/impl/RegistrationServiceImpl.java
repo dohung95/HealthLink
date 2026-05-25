@@ -15,6 +15,7 @@ import com.HealthLink.repository.registration.RegistrationRequestRepository;
 import java.util.List;
 
 import com.HealthLink.service.email.EmailService;
+import com.HealthLink.service.notification.AdminNotificationHelper;
 import com.HealthLink.service.registration.RegistrationService;
 
 import jakarta.persistence.criteria.Predicate;
@@ -44,6 +45,7 @@ public class RegistrationServiceImpl implements RegistrationService {
     private final PharmacyRepository pharmacyRepository;
     private final SpecialtyRepository specialtyRepository;
     private final EmailService emailService;
+    private final AdminNotificationHelper adminNotificationHelper;
 
     private static final String DEFAULT_PASSWORD = "HealthLink@123";
     private static final String TYPE_DOCTOR = "DOCTOR";
@@ -81,6 +83,19 @@ public class RegistrationServiceImpl implements RegistrationService {
                 .build();
 
         entity = registrationRequestRepository.save(entity);
+
+        // Gửi notification cho tất cả Admin
+        try {
+            adminNotificationHelper.notifyNewRegistration(
+                    "Doctor",
+                    request.getFullName(),
+                    entity.getRequestId().intValue()
+            );
+        } catch (Exception e) {
+            // Log but don't fail the registration
+            System.err.println("Failed to send admin notification: " + e.getMessage());
+        }
+
         return mapToResponse(entity);
     }
 
@@ -110,6 +125,19 @@ public class RegistrationServiceImpl implements RegistrationService {
                 .build();
 
         entity = registrationRequestRepository.save(entity);
+
+        // Gửi notification cho tất cả Admin
+        try {
+            adminNotificationHelper.notifyNewRegistration(
+                    "Pharmacy",
+                    request.getPharmacyName(),
+                    entity.getRequestId().intValue()
+            );
+        } catch (Exception e) {
+            // Log but don't fail the registration
+            System.err.println("Failed to send admin notification: " + e.getMessage());
+        }
+
         return mapToResponse(entity);
     }
 

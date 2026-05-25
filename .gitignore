@@ -12,6 +12,8 @@
 # === Spring Boot ===
 /HealthLink_BE/src/main/resources/application.properties
 /HealthLink_BE/src/resources/application.properties
+/HealthLink_BE/uploads/*
+!/HealthLink_BE/uploads/.gitkeep
 
 # Lờ các file build output
 /dist/

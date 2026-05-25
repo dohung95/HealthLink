@@ -227,14 +227,47 @@ function AppContent() {
               </ProtectedRoute>
             } />
 
-            <Route path="/admin" element={<Admin />} />
-            <Route path="/admin/patients" element={<Patients />} />
-            <Route path="/admin/doctors" element={<AdminDoctors />} />
-            <Route path="/admin/pharmacies" element={<PharmacyManagement />} />
-            <Route path="/admin/commission" element={<CommissionManagement />} />
-            <Route path="/admin/appointments" element={<Appointments />} />
-            <Route path="/admin/medical-records" element={<MedicalRecords />} />
-            <Route path="/admin/registrations" element={<Registrations />} />
+            {/* Admin routes - Protected by AdminRoute */}
+            <Route path="/admin" element={
+              <AdminRoute>
+                <Admin />
+              </AdminRoute>
+            } />
+            <Route path="/admin/patients" element={
+              <AdminRoute>
+                <Patients />
+              </AdminRoute>
+            } />
+            <Route path="/admin/doctors" element={
+              <AdminRoute>
+                <AdminDoctors />
+              </AdminRoute>
+            } />
+            <Route path="/admin/pharmacies" element={
+              <AdminRoute>
+                <PharmacyManagement />
+              </AdminRoute>
+            } />
+            <Route path="/admin/commission" element={
+              <AdminRoute>
+                <CommissionManagement />
+              </AdminRoute>
+            } />
+            <Route path="/admin/appointments" element={
+              <AdminRoute>
+                <Appointments />
+              </AdminRoute>
+            } />
+            <Route path="/admin/medical-records" element={
+              <AdminRoute>
+                <MedicalRecords />
+              </AdminRoute>
+            } />
+            <Route path="/admin/registrations" element={
+              <AdminRoute>
+                <Registrations />
+              </AdminRoute>
+            } />
 
             <Route
               path="/patient-dashboard"
@@ -250,6 +283,7 @@ function AppContent() {
               <Route path="appointments" element={<MyAppointments />} />
               <Route path="health-records" element={<HealthRecords embedded />} />
               <Route path="share-records" element={<ShareHealthRecords embedded />} />
+              <Route path="prescriptions" element={<PatientPrescriptionView />} />
               <Route path="profile" element={<ProfilePatient />} />
             </Route>
 
