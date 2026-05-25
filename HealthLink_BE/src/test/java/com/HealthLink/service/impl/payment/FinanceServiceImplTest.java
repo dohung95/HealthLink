@@ -213,13 +213,13 @@ class FinanceServiceImplTest {
         assertThat(appointment.getStatus()).isEqualTo("SCHEDULED");
         assertThat(appointment.getConfirmedAt()).isNotNull();
         verify(commissionService, never()).processConsultationCommission(any(Invoice.class));
-        verify(notificationService).sendWebSocketNotification(
+        verify(notificationService, never()).sendWebSocketNotification(
                 eq(doctorUser),
                 eq(NotificationType.NEW_APPOINTMENT),
-                eq("New paid appointment booked"),
-                contains("paid for a"),
-                eq(22),
-                eq("/appointments/22")
+                any(),
+                any(),
+                any(),
+                any()
         );
     }
 
@@ -309,13 +309,13 @@ class FinanceServiceImplTest {
         assertThat(appointment.getConfirmedAt()).isNotNull();
         verify(appointmentService).createAppointment(any());
         verify(commissionService, never()).processConsultationCommission(any(Invoice.class));
-        verify(notificationService).sendWebSocketNotification(
+        verify(notificationService, never()).sendWebSocketNotification(
                 eq(doctorUser),
                 eq(NotificationType.NEW_APPOINTMENT),
-                eq("New paid appointment booked"),
-                contains("paid for a"),
-                eq(33),
-                eq("/appointments/33")
+                any(),
+                any(),
+                any(),
+                any()
         );
     }
 

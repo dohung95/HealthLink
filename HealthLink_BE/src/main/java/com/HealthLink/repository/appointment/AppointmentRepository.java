@@ -1,6 +1,7 @@
 package com.HealthLink.repository.appointment;
 
 import com.HealthLink.entity.Appointment;
+import com.HealthLink.entity.Patient;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
@@ -83,6 +84,63 @@ public interface AppointmentRepository extends JpaRepository<Appointment, Intege
     List<Appointment> findByDoctor_DoctorId(String doctorId);
 
     List<Appointment> findByDoctor_DoctorIdOrderByAppointmentTimeDesc(String doctorId);
+
+    @Query("""
+            SELECT DISTINCT p FROM Appointment a
+            JOIN a.patient p
+            LEFT JOIN p.user u
+            WHERE a.doctor.doctorId = :doctorId
+              AND UPPER(a.status) <> 'PENDINGPAYMENT'
+              AND (
+                :searchTerm IS NULL
+                OR LOWER(p.fullName) LIKE LOWER(CONCAT('%', :searchTerm, '%'))
+                OR LOWER(u.email) LIKE LOWER(CONCAT('%', :searchTerm, '%'))
+                OR LOWER(u.phoneNumber) LIKE LOWER(CONCAT('%', :searchTerm, '%'))
+              )
+            ORDER BY p.fullName ASC
+            """)
+    Page<Patient> findDoctorPatients(
+            @Param("doctorId") String doctorId,
+            @Param("searchTerm") String searchTerm,
+            Pageable pageable
+    );
+
+    @Query("""
+            SELECT COUNT(a) > 0 FROM Appointment a
+            WHERE a.doctor.doctorId = :doctorId
+              AND a.patient.patientId = :patientId
+              AND UPPER(a.status) <> 'PENDINGPAYMENT'
+            """)
+    boolean existsDoctorPatientRelation(
+            @Param("doctorId") String doctorId,
+            @Param("patientId") String patientId
+    );
+
+    @Query("""
+            SELECT a FROM Appointment a
+            WHERE a.doctor.doctorId = :doctorId
+              AND a.patient.patientId = :patientId
+              AND UPPER(a.status) <> 'PENDINGPAYMENT'
+            ORDER BY a.appointmentTime DESC
+            """)
+    List<Appointment> findDoctorPatientAppointments(
+            @Param("doctorId") String doctorId,
+            @Param("patientId") String patientId
+    );
+
+    @Query("""
+            SELECT a FROM Appointment a
+            WHERE a.doctor.doctorId = :doctorId
+              AND UPPER(a.status) <> 'PENDINGPAYMENT'
+              AND a.appointmentTime >= :start
+              AND a.appointmentTime < :end
+            ORDER BY a.appointmentTime ASC
+            """)
+    List<Appointment> findDoctorDailyAppointments(
+            @Param("doctorId") String doctorId,
+            @Param("start") LocalDateTime start,
+            @Param("end") LocalDateTime end
+    );
 
     @Query("""
             SELECT a FROM Appointment a

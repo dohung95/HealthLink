@@ -1,6 +1,8 @@
 package com.HealthLink.service.doctor;
 
 import com.HealthLink.dto.response.DoctorProfileResponse;
+import com.HealthLink.dto.response.DoctorPatientHistoryResponse;
+import com.HealthLink.dto.response.DoctorPatientPageResponse;
 import com.HealthLink.dto.response.DoctorResponse;
 import com.HealthLink.dto.response.DoctorScheduleResponse;
 import java.util.List;
@@ -20,6 +22,10 @@ public interface DoctorService {
      * Lấy lịch làm việc của một bác sĩ cụ thể.
      */
     List<DoctorScheduleResponse> getDoctorSchedules(String doctorId);
+
+    DoctorPatientPageResponse getMyPatients(String doctorId, String searchTerm, String status, int page, int pageSize);
+
+    DoctorPatientHistoryResponse getMyPatientHistory(String doctorId, String patientId);
 
     /**
      * Lấy hồ sơ đầy đủ của bác sĩ bao gồm thông tin thu nhập và chiết khấu. Chỉ

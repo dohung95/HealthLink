@@ -167,6 +167,9 @@ public class FollowUpAppointmentServiceImpl implements FollowUpAppointmentServic
         if ("Cancelled".equalsIgnoreCase(appointment.getStatus())) {
             throw new BadRequestException("Cancelled appointments cannot be completed");
         }
+        if (consultation == null || consultation.getStartTime() == null) {
+            throw new BadRequestException("Consultation must be started before appointment can be completed");
+        }
 
         Invoice invoice = appointment.getInvoice();
         if (invoice == null) {
@@ -179,6 +182,10 @@ public class FollowUpAppointmentServiceImpl implements FollowUpAppointmentServic
         }
 
         appointment.setStatus("COMPLETED");
+        if (consultation.getEndTime() == null) {
+            consultation.setEndTime(LocalDateTime.now());
+            consultationRepository.save(consultation);
+        }
         Appointment completedAppointment = appointmentRepository.save(appointment);
         commissionService.processConsultationCommission(invoice);
 

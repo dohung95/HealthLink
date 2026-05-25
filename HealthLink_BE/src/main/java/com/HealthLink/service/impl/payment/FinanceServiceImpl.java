@@ -100,9 +100,6 @@ public class FinanceServiceImpl implements FinanceService {
     private static final String ROLE_PATIENT = "PATIENT";
     private static final String ROLE_DOCTOR = "DOCTOR";
     private static final String PHARMACY_ORDER_COMPLETED = "COMPLETED";
-    private static final DateTimeFormatter NOTIFICATION_TIME_FORMATTER =
-            DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm");
-
     // ── Các phụ thuộc ───────────────────────────────────────────────────────
     private final PayPalConfig payPalConfig;
 
@@ -540,7 +537,6 @@ public class FinanceServiceImpl implements FinanceService {
                     appointment.setStatus(APPT_SCHEDULED);
                     appointment.setConfirmedAt(paidAt);
                     appointmentRepository.save(appointment);
-                    notifyDoctorAboutNewAppointmentAfterCommit(appointment);
                 } catch (Exception ex) {
                     // Ghi log lỗi nhưng không rollback giao dịch thanh toán đã thành công
                     log.error("Payment confirmation failed for invoice {}: {}",
@@ -694,8 +690,6 @@ public class FinanceServiceImpl implements FinanceService {
                     .metadata(metadata)
                     .build();
             paymentRepository.save(payment);
-
-            notifyDoctorAboutNewAppointmentAfterCommit(appointment);
 
             log.info("Appointment {} created after PayPal payment order {}",
                     appointment.getAppointmentId(), request.getOrderId());
@@ -1075,39 +1069,6 @@ public class FinanceServiceImpl implements FinanceService {
     }
 
     // ─── Ánh xạ DTO ────────────────────────────────────────────────────────
-
-    private void notifyDoctorAboutNewAppointmentAfterCommit(Appointment appointment) {
-        User doctorUser = appointment.getDoctor() != null ? appointment.getDoctor().getUser() : null;
-        if (doctorUser == null) {
-            return;
-        }
-
-        String patientName = appointment.getPatient() != null
-                ? safeValue(appointment.getPatient().getFullName(), "Unknown patient")
-                : "Unknown patient";
-        String appointmentTime = appointment.getAppointmentTime() != null
-                ? appointment.getAppointmentTime().format(NOTIFICATION_TIME_FORMATTER)
-                : "unknown time";
-        String consultationType = safeValue(appointment.getConsultationType(), "consultation");
-        Integer appointmentId = appointment.getAppointmentId();
-        String actionUrl = "/appointments/" + appointmentId;
-
-        runAfterCommit("new paid appointment notification appointmentId=" + appointmentId, () ->
-                notificationService.sendWebSocketNotification(
-                        doctorUser,
-                        NotificationType.NEW_APPOINTMENT,
-                        "New paid appointment booked",
-                        String.format(
-                                "%s paid for a %s appointment at %s.",
-                                patientName,
-                                consultationType,
-                                appointmentTime
-                        ),
-                        appointmentId,
-                        actionUrl
-                )
-        );
-    }
 
     private void notifyAboutPaidPharmacyOrderAfterCommit(PharmacyOrder pharmacyOrder) {
         User patientUser = pharmacyOrder.getPatient() != null ? pharmacyOrder.getPatient().getUser() : null;

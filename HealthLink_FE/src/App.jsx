@@ -181,7 +181,6 @@ function AppContent() {
             <Route path="/health-records" element={<HealthRecords />} />
             <Route path="/share-records" element={<ShareHealthRecords />} />
             <Route path="/profile-patient" element={<ProfilePatient />} />
-            <Route path="/profile-doctor" element={<ProfileDoctor />} />
             <Route path="/profile-pharmacy" element={<ProfilePharmacy />} />
 
             {/* <Route path="/schedule" element={<Schedule />} /> */}

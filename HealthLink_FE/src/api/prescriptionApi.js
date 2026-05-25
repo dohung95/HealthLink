@@ -24,6 +24,15 @@ export const prescriptionService = {
     return (response.data || []).map(normalizePrescription);
   },
 
+  getDoctorPrescriptions: async (doctorId) => {
+    if (!doctorId) {
+      return [];
+    }
+
+    const response = await axiosInstance.get(`/api/prescriptions/doctor/${doctorId}`);
+    return (response.data || []).map(normalizePrescription);
+  },
+
   getPrescriptionById: async (id) => {
     const response = await axiosInstance.get(`/api/prescriptions/${id}`);
     return normalizePrescription(response.data);

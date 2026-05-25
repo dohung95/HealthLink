@@ -123,6 +123,7 @@ class FollowUpAppointmentServiceImplTest {
         Consultation consultation = Consultation.builder()
                 .consultationId(20)
                 .appointment(sourceAppointment)
+                .startTime(LocalDateTime.now().minusMinutes(30))
                 .followUpDate(date.atTime(20, 0))
                 .followUpNotes("Return for review")
                 .symptoms("Cough")
@@ -179,6 +180,7 @@ class FollowUpAppointmentServiceImplTest {
         Consultation consultation = Consultation.builder()
                 .consultationId(20)
                 .appointment(sourceAppointment)
+                .startTime(LocalDateTime.now().minusMinutes(30))
                 .build();
         sourceAppointment.setConsultation(consultation);
 
@@ -192,7 +194,7 @@ class FollowUpAppointmentServiceImplTest {
         assertThat(sourceAppointment.getStatus()).isEqualTo("COMPLETED");
         verify(appointmentRepository).save(sourceAppointment);
         verify(commissionService).processConsultationCommission(sourceAppointment.getInvoice());
-        verify(consultationRepository, never()).save(any(Consultation.class));
+        verify(consultationRepository).save(consultation);
         verify(prescriptionHeaderRepository, never())
                 .findByAppointment_AppointmentIdOrderByIssueDateDescPrescriptionHeaderIdDesc(any());
     }
@@ -229,6 +231,11 @@ class FollowUpAppointmentServiceImplTest {
                 .amount(new BigDecimal("100.00"))
                 .status("Pending")
                 .build());
+        sourceAppointment.setConsultation(Consultation.builder()
+                .consultationId(20)
+                .appointment(sourceAppointment)
+                .startTime(LocalDateTime.now().minusMinutes(30))
+                .build());
 
         when(appointmentRepository.findById(10)).thenReturn(Optional.of(sourceAppointment));
 
@@ -236,6 +243,20 @@ class FollowUpAppointmentServiceImplTest {
                 .isInstanceOf(BadRequestException.class)
                 .hasMessage("Appointment must be paid before it can be completed");
 
+        verify(appointmentRepository, never()).save(any(Appointment.class));
+        verify(commissionService, never()).processConsultationCommission(any(Invoice.class));
+    }
+
+    @Test
+    void completeAppointment_shouldRejectBeforeConsultationStarts() {
+        Appointment sourceAppointment = appointment(10, LocalDateTime.now().minusHours(1), "Scheduled");
+        sourceAppointment.setInvoice(paidInvoice(sourceAppointment));
+
+        when(appointmentRepository.findById(10)).thenReturn(Optional.of(sourceAppointment));
+
+        assertThatThrownBy(() -> followUpAppointmentService.completeAppointment(10))
+                .isInstanceOf(BadRequestException.class)
+                .hasMessage("Consultation must be started before appointment can be completed");
         verify(appointmentRepository, never()).save(any(Appointment.class));
         verify(commissionService, never()).processConsultationCommission(any(Invoice.class));
     }

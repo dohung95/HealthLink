@@ -71,12 +71,46 @@ class AppointmentServiceImplTest {
         assertThat(responses.getFirst().getSpecialtyName()).isEqualTo("Cardiology");
     }
 
+    @Test
+    void getDoctorDailyAppointments_shouldFilterByDayStatusAndReturnCountsInTimeOrder() {
+        Doctor doctor = Doctor.builder()
+                .doctorId("doctor-1")
+                .fullName("Doctor One")
+                .specialty("Cardiology")
+                .build();
+        LocalDateTime day = LocalDateTime.of(2026, 5, 24, 0, 0);
+
+        when(doctorRepository.findById("doctor-1")).thenReturn(Optional.of(doctor));
+        when(appointmentRepository.findDoctorDailyAppointments(
+                "doctor-1",
+                day.toLocalDate().atStartOfDay(),
+                day.toLocalDate().plusDays(1).atStartOfDay()
+        )).thenReturn(List.of(
+                appointment(1, day.withHour(9), doctor),
+                appointment(2, day.withHour(10), doctor, "Completed"),
+                appointment(3, day.withHour(11), doctor, "Cancelled")
+        ));
+
+        var response = appointmentService.getDoctorDailyAppointments("doctor-1", day.toLocalDate(), "Scheduled");
+
+        assertThat(response.getAppointments()).hasSize(1);
+        assertThat(response.getAppointments().getFirst().getAppointmentId()).isEqualTo(1);
+        assertThat(response.getCounts().getAll()).isEqualTo(3);
+        assertThat(response.getCounts().getScheduled()).isEqualTo(1);
+        assertThat(response.getCounts().getCompleted()).isEqualTo(1);
+        assertThat(response.getCounts().getCancelled()).isEqualTo(1);
+    }
+
     private Appointment appointment(Integer id, LocalDateTime time, Doctor doctor) {
+        return appointment(id, time, doctor, "Scheduled");
+    }
+
+    private Appointment appointment(Integer id, LocalDateTime time, Doctor doctor, String status) {
         return Appointment.builder()
                 .appointmentId(id)
                 .appointmentTime(time)
                 .consultationType("Video")
-                .status("Scheduled")
+                .status(status)
                 .fee(new BigDecimal("100.00"))
                 .patient(Patient.builder()
                         .patientId("patient-" + id)

@@ -1,5 +1,6 @@
 const DOCTOR_NOTIFICATION_TYPES = new Set([
   'NEW_APPOINTMENT',
+  'RESCHEDULE_APPOINTMENT',
   'CANCEL_APPOINTMENT',
   'APPOINTMENT_REMINDER',
   'PRESCRIPTION_SENT_TO_PHARMACY',
@@ -76,6 +77,16 @@ export function normalizeAppointment(appointment = {}) {
   const patientId = appointment.patientId ?? appointment.patientID ?? appointment.patient?.patientId ?? appointment.patient?.patientID ?? null;
   const doctorId = appointment.doctorId ?? appointment.doctorID ?? appointment.doctor?.doctorId ?? appointment.doctor?.doctorID ?? null;
   const consultationType = appointment.consultationType ?? '';
+  const consultationStartTime =
+    appointment.consultationStartTime ??
+    appointment.startTime ??
+    appointment.consultation?.startTime ??
+    null;
+  const consultationEndTime =
+    appointment.consultationEndTime ??
+    appointment.endTime ??
+    appointment.consultation?.endTime ??
+    null;
 
   return {
     ...appointment,
@@ -89,6 +100,9 @@ export function normalizeAppointment(appointment = {}) {
     doctorName: appointment.doctorName ?? appointment.doctor?.fullName ?? 'Unknown Doctor',
     specialtyName: appointment.specialtyName ?? appointment.specialty ?? '',
     specialty: appointment.specialty ?? appointment.specialtyName ?? '',
+    consultationStartTime,
+    consultationEndTime,
+    hasStarted: Boolean(consultationStartTime),
     reason: appointment.reason ?? appointment.symptoms ?? '',
     patient: appointment.patient ?? {
       patientId,
@@ -136,6 +150,36 @@ export function normalizePrescription(prescription = {}) {
     status: toUpperValue(prescription.status ?? prescription.Status ?? undefined) ?? prescription.status,
     medications: normalizedItems,
     items: normalizedItems,
+  };
+}
+
+export function normalizeDoctorPatientSummary(patient = {}) {
+  const patientId = patient.patientId ?? patient.patientID ?? null;
+  return {
+    ...patient,
+    patientId,
+    patientID: patient.patientID ?? patientId,
+    fullName: patient.fullName ?? patient.patientName ?? 'Unknown Patient',
+    email: patient.email ?? '',
+    phoneNumber: patient.phoneNumber ?? '',
+    lastAppointmentTime: patient.lastAppointmentTime ?? null,
+    nextAppointmentTime: patient.nextAppointmentTime ?? null,
+    totalAppointments: patient.totalAppointments ?? 0,
+    completedAppointments: patient.completedAppointments ?? 0,
+    latestStatus: patient.latestStatus ?? null,
+  };
+}
+
+export function normalizeDoctorPatientHistory(history = {}) {
+  const patientId = history.patientId ?? history.patientID ?? null;
+  return {
+    ...history,
+    patientId,
+    patientID: history.patientID ?? patientId,
+    fullName: history.fullName ?? 'Unknown Patient',
+    appointments: (history.appointments || []).map(normalizeAppointment),
+    prescriptions: (history.prescriptions || []).map(normalizePrescription),
+    documentsByCategory: history.documentsByCategory || [],
   };
 }
 

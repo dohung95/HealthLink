@@ -6,9 +6,12 @@ import com.HealthLink.dto.request.HoldSlotRequest;
 import com.HealthLink.dto.request.RescheduleAppointmentRequest;
 import com.HealthLink.dto.consultation.FollowUpRequest;
 import com.HealthLink.dto.consultation.FollowUpResponse;
+import com.HealthLink.dto.consultation.ConsultationNotesRequest;
+import com.HealthLink.dto.consultation.ConsultationResponse;
 import com.HealthLink.dto.response.AppointmentResponse;
 import com.HealthLink.dto.response.AvailableSlotsResponse;
 import com.HealthLink.dto.response.CompleteAppointmentResponse;
+import com.HealthLink.dto.response.DoctorDailyAppointmentsResponse;
 import com.HealthLink.dto.response.HoldSlotResponse;
 import com.HealthLink.dto.response.PagedResponse;
 import com.HealthLink.service.followup.FollowUpAppointmentService;
@@ -66,6 +69,14 @@ public class AppointmentController {
         return ResponseEntity.ok(appointmentService.getDoctorAppointments(doctorId));
     }
 
+    @GetMapping("/doctor/{doctorId}/daily")
+    public ResponseEntity<DoctorDailyAppointmentsResponse> getDoctorDaily(
+            @PathVariable String doctorId,
+            @RequestParam LocalDate date,
+            @RequestParam(required = false, defaultValue = "All") String status) {
+        return ResponseEntity.ok(appointmentService.getDoctorDailyAppointments(doctorId, date, status));
+    }
+
     // Hủy một lịch hẹn
     @PutMapping("/{id}/cancel")
     public ResponseEntity<AppointmentResponse> cancel(
@@ -86,6 +97,18 @@ public class AppointmentController {
     @PutMapping("/{id}/complete")
     public ResponseEntity<CompleteAppointmentResponse> complete(@PathVariable Integer id) {
         return ResponseEntity.ok(followUpAppointmentService.completeAppointment(id));
+    }
+
+    @PutMapping("/{id}/start")
+    public ResponseEntity<ConsultationResponse> start(@PathVariable Integer id) {
+        return ResponseEntity.ok(consultationService.startByAppointment(id));
+    }
+
+    @PutMapping("/{id}/notes")
+    public ResponseEntity<ConsultationResponse> updateNotes(
+            @PathVariable Integer id,
+            @RequestBody ConsultationNotesRequest request) {
+        return ResponseEntity.ok(consultationService.updateNotesByAppointment(id, request));
     }
 
     @PutMapping("/{id}/follow-up")

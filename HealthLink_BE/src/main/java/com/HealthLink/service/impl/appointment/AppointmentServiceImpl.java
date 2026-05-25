@@ -7,10 +7,12 @@ import com.HealthLink.dto.request.RescheduleAppointmentRequest;
 import com.HealthLink.dto.response.AppointmentResponse;
 import com.HealthLink.dto.response.AvailableSlotResponse;
 import com.HealthLink.dto.response.AvailableSlotsResponse;
+import com.HealthLink.dto.response.DoctorDailyAppointmentsResponse;
 import com.HealthLink.dto.response.HoldSlotResponse;
 import com.HealthLink.dto.response.PagedResponse;
 import com.HealthLink.entity.Appointment;
 import com.HealthLink.entity.AppointmentSlotHold;
+import com.HealthLink.entity.Consultation;
 import com.HealthLink.entity.Doctor;
 import com.HealthLink.entity.DoctorSchedule;
 import com.HealthLink.entity.Patient;
@@ -397,6 +399,47 @@ public class AppointmentServiceImpl implements AppointmentService {
     }
 
     @Override
+    public DoctorDailyAppointmentsResponse getDoctorDailyAppointments(String doctorId, LocalDate date, String status) {
+        doctorRepository.findById(doctorId)
+                .orElseThrow(() -> new ResourceNotFoundException(
+                        "not found doctor with ID: " + doctorId));
+
+        if (date == null) {
+            throw new BusinessException("Date is required");
+        }
+
+        LocalDateTime start = date.atStartOfDay();
+        LocalDateTime end = date.plusDays(1).atStartOfDay();
+        List<Appointment> dailyAppointments = appointmentRepository.findDoctorDailyAppointments(
+                doctorId,
+                start,
+                end
+        );
+
+        String normalizedStatus = status == null || status.isBlank() || "All".equalsIgnoreCase(status)
+                ? null
+                : status.trim();
+
+        List<AppointmentResponse> appointments = dailyAppointments.stream()
+                .filter(appointment -> normalizedStatus == null
+                        || normalizedStatus.equalsIgnoreCase(appointment.getStatus()))
+                .map(this::toResponse)
+                .collect(Collectors.toList());
+
+        return DoctorDailyAppointmentsResponse.builder()
+                .doctorId(doctorId)
+                .date(date)
+                .appointments(appointments)
+                .counts(DoctorDailyAppointmentsResponse.Counts.builder()
+                        .all(dailyAppointments.size())
+                        .scheduled(countByStatus(dailyAppointments, "SCHEDULED"))
+                        .completed(countByStatus(dailyAppointments, "COMPLETED"))
+                        .cancelled(countByStatus(dailyAppointments, "CANCELLED"))
+                        .build())
+                .build();
+    }
+
+    @Override
     public AppointmentResponse getAppointmentById(Integer id) {
         return toResponse(
                 appointmentRepository.findById(id)
@@ -512,7 +555,15 @@ public class AppointmentServiceImpl implements AppointmentService {
         appointment.setAppointmentTime(newTime);
         appointment.setEndTime(newTime.plusMinutes(slotMinutes));
 
-        return toResponse(appointmentRepository.save(appointment));
+        Appointment saved = appointmentRepository.save(appointment);
+        notifyDoctorAboutRescheduledAppointmentAfterCommit(saved);
+        return toResponse(saved);
+    }
+
+    private long countByStatus(List<Appointment> appointments, String status) {
+        return appointments.stream()
+                .filter(appointment -> status.equalsIgnoreCase(appointment.getStatus()))
+                .count();
     }
 
     private void validateRequest(AppointmentRequest request) {
@@ -632,6 +683,35 @@ public class AppointmentServiceImpl implements AppointmentService {
         });
     }
 
+    private void notifyDoctorAboutRescheduledAppointmentAfterCommit(Appointment appointment) {
+        User doctorUser = resolveDoctorUser(appointment, NotificationType.RESCHEDULE_APPOINTMENT);
+        if (doctorUser == null) {
+            return;
+        }
+
+        String patientName = safeValue(appointment.getPatient().getFullName(), "Unknown patient");
+        String appointmentTime = formatAppointmentTime(appointment.getAppointmentTime());
+        Integer appointmentId = appointment.getAppointmentId();
+        String actionUrl = "/appointments/" + appointmentId;
+
+        runAfterCommit("reschedule appointment notification appointmentId=" + appointmentId, () -> {
+            notificationService.sendWebSocketNotification(
+                    doctorUser,
+                    NotificationType.RESCHEDULE_APPOINTMENT,
+                    "Appointment rescheduled",
+                    String.format(
+                            "%s's appointment was rescheduled to %s.",
+                            patientName,
+                            appointmentTime
+                    ),
+                    appointmentId,
+                    actionUrl
+            );
+            log.info("Reschedule appointment notification queued for doctorUserId={}, appointmentId={}",
+                    doctorUser.getId(), appointmentId);
+        });
+    }
+
     private User resolveDoctorUser(Appointment appointment, NotificationType type) {
         if (appointment == null || appointment.getDoctor() == null) {
             log.warn("Cannot send {} notification: appointment or doctor is missing", type);
@@ -680,6 +760,7 @@ public class AppointmentServiceImpl implements AppointmentService {
     }
 
     private AppointmentResponse toResponse(Appointment appointment) {
+        Consultation consultation = appointment.getConsultation();
         return AppointmentResponse.builder()
                 .appointmentId(appointment.getAppointmentId())
                 .patientId(appointment.getPatient().getPatientId())
@@ -692,6 +773,8 @@ public class AppointmentServiceImpl implements AppointmentService {
                 .fee(appointment.getFee())
                 .symptoms(appointment.getSymptoms())
                 .notes(appointment.getNotes())
+                .consultationStartTime(consultation != null ? consultation.getStartTime() : null)
+                .consultationEndTime(consultation != null ? consultation.getEndTime() : null)
                 .cancelledAt(appointment.getCancelledAt())
                 .cancelReason(appointment.getCancelReason())
                 .cancelledBy(appointment.getCancelledBy())
