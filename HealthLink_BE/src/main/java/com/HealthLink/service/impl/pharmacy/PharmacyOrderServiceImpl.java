@@ -40,20 +40,20 @@ import java.util.stream.Collectors;
 public class PharmacyOrderServiceImpl implements PharmacyOrderService {
 
     // ── Status constants ──────────────────────────────────────────────────────
-    private static final String STATUS_PENDING   = "Pending";
-    private static final String STATUS_CONFIRMED = "Confirmed";
-    private static final String STATUS_PREPARING = "Preparing";
-    private static final String STATUS_READY     = "Ready";
-    private static final String STATUS_SHIPPING  = "Shipping";
-    private static final String STATUS_DELIVERED = "Delivered";
-    private static final String STATUS_COMPLETED = "Completed";
-    private static final String STATUS_CANCELLED = "Cancelled";
-    private static final String STATUS_REFUNDED  = "Refunded";
+    private static final String STATUS_PENDING   = "PENDING";
+    private static final String STATUS_CONFIRMED = "CONFIRMED";
+    private static final String STATUS_PREPARING = "PREPARING";
+    private static final String STATUS_READY     = "READY";
+    private static final String STATUS_SHIPPING  = "SHIPPING";
+    private static final String STATUS_DELIVERED = "DELIVERED";
+    private static final String STATUS_COMPLETED = "COMPLETED";
+    private static final String STATUS_CANCELLED = "CANCELLED";
+    private static final String STATUS_REFUNDED  = "REFUNDED";
     private static final String REQUEST_STATUS_PRESCRIPTION_CREATED = "PRESCRIPTION_CREATED";
     private static final String REQUEST_STATUS_ORDER_CREATED = "ORDER_CREATED";
     private static final String REQUEST_STATUS_CANCELLED = "CANCELLED";
-    private static final String PAYMENT_STATUS_PENDING = "Pending";
-    private static final String PAYMENT_STATUS_PAID = "Paid";
+    private static final String PAYMENT_STATUS_PENDING = "PENDING";
+    private static final String PAYMENT_STATUS_PAID = "PAID";
     private static final String DELIVERY_TYPE_DELIVERY = "Delivery";
     private static final String DELIVERY_TYPE_PICKUP = "Pickup";
     private static final double EARTH_RADIUS_KM = 6371.0;
@@ -275,8 +275,8 @@ public class PharmacyOrderServiceImpl implements PharmacyOrderService {
         PharmacyOrder order = orderRepository.findById(orderId)
                 .orElseThrow(() -> new ResourceNotFoundException("PharmacyOrder", "id", orderId));
 
-        String currentStatus = order.getStatus();
-        String targetStatus  = request.getStatus();
+        String currentStatus = normalizeStatus(order.getStatus());
+        String targetStatus  = normalizeStatus(request.getStatus());
 
         if (Objects.equals(currentStatus, targetStatus)) {
             log.info("Skipping order status update notification because status is unchanged: orderId={}, status={}",
@@ -459,6 +459,13 @@ public class PharmacyOrderServiceImpl implements PharmacyOrderService {
         }
 
         throw new BadRequestException("Delivery type must be Delivery or Pickup");
+    }
+
+    private String normalizeStatus(String status) {
+        if (status == null || status.isBlank()) {
+            throw new BadRequestException("Status is required");
+        }
+        return status.trim().toUpperCase();
     }
 
     private void validateDeliveryRadius(Pharmacy pharmacy, Double deliveryLat, Double deliveryLon) {

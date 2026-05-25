@@ -2,6 +2,8 @@ package com.HealthLink.repository.pharmacy;
 
 import com.HealthLink.entity.PharmacyOrder;
 import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.Query;
+import org.springframework.data.repository.query.Param;
 import org.springframework.stereotype.Repository;
 
 import java.util.List;
@@ -13,7 +15,15 @@ public interface PharmacyOrderRepository extends JpaRepository<PharmacyOrder, In
     List<PharmacyOrder> findByPharmacy_PharmacyId(String pharmacyId);
 
     // Tìm đơn hàng theo pharmacyId và status
-    List<PharmacyOrder> findByPharmacy_PharmacyIdAndStatus(String pharmacyId, String status);
+    @Query("""
+            SELECT o FROM PharmacyOrder o
+            WHERE o.pharmacy.pharmacyId = :pharmacyId
+              AND UPPER(o.status) = UPPER(:status)
+            """)
+    List<PharmacyOrder> findByPharmacy_PharmacyIdAndStatus(
+            @Param("pharmacyId") String pharmacyId,
+            @Param("status") String status
+    );
 
     // Tìm đơn hàng theo patientId
     List<PharmacyOrder> findByPatient_PatientId(String patientId);
@@ -24,7 +34,8 @@ public interface PharmacyOrderRepository extends JpaRepository<PharmacyOrder, In
     List<PharmacyOrder> findByPrescriptionHeader_PrescriptionHeaderId(Integer prescriptionHeaderId);
 
     // Tìm đơn hàng theo status
-    List<PharmacyOrder> findByStatus(String status);
+    @Query("SELECT o FROM PharmacyOrder o WHERE UPPER(o.status) = UPPER(:status)")
+    List<PharmacyOrder> findByStatus(@Param("status") String status);
 
     // Kiểm tra orderNumber đã tồn tại chưa (để sinh mã unique)
     boolean existsByOrderNumber(String orderNumber);

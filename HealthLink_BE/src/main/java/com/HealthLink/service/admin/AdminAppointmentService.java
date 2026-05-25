@@ -195,6 +195,8 @@ public class AdminAppointmentService {
             .department(doctor != null ? doctor.getSpecialty() : null)
             // Consultation info
             .consultationId(consultation != null ? consultation.getConsultationId() : null)
+            .consultationStartTime(consultation != null ? consultation.getStartTime() : null)
+            .consultationEndTime(consultation != null ? consultation.getEndTime() : null)
             .diagnosis(consultation != null ? consultation.getDiagnosis() : null)
             .doctorNotes(consultation != null ? consultation.getDoctorNotes() : null)
             .followUpDate(consultation != null ? consultation.getFollowUpDate() : null)

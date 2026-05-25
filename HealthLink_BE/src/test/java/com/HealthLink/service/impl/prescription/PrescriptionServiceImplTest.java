@@ -5,6 +5,7 @@ import com.HealthLink.dto.prescription.PrescriptionOpenedResponse;
 import com.HealthLink.dto.prescription.PrescriptionRequest;
 import com.HealthLink.dto.prescription.PrescriptionResponse;
 import com.HealthLink.entity.Appointment;
+import com.HealthLink.entity.Consultation;
 import com.HealthLink.entity.Doctor;
 import com.HealthLink.entity.Medicine;
 import com.HealthLink.entity.Patient;
@@ -12,6 +13,7 @@ import com.HealthLink.entity.PrescriptionHeader;
 import com.HealthLink.entity.PrescriptionItem;
 import com.HealthLink.exception.BadRequestException;
 import com.HealthLink.repository.appointment.AppointmentRepository;
+import com.HealthLink.repository.consultation.ConsultationRepository;
 import com.HealthLink.repository.medicine.MedicineRepository;
 import com.HealthLink.repository.prescription.PrescriptionHeaderRepository;
 import org.junit.jupiter.api.Test;
@@ -45,6 +47,9 @@ class PrescriptionServiceImplTest {
     @Mock
     private AppointmentRepository appointmentRepository;
 
+    @Mock
+    private ConsultationRepository consultationRepository;
+
     @InjectMocks
     private PrescriptionServiceImpl prescriptionService;
 
@@ -56,10 +61,10 @@ class PrescriptionServiceImplTest {
                 .patient(patient("patient-1", "Patient One"))
                 .doctor(doctor("doctor-1", "Doctor One"))
                 .issueDate(LocalDateTime.of(2026, 5, 15, 8, 0))
-                .status("Issued")
+                .status("ISSUED")
                 .totalAmount(new BigDecimal("30.00"))
                 .prescriptionItems(List.of(
-                        prescriptionItem(1, "morning", "Amlodipine 5mg"),
+                        prescriptionItem(1, "morning, evening", "Amlodipine 5mg"),
                         prescriptionItem(2, "EVENING", "Cetirizine 10mg")
                 ))
                 .build();
@@ -70,7 +75,8 @@ class PrescriptionServiceImplTest {
 
         assertThat(response.getItems()).hasSize(1);
         assertThat(response.getItems().getFirst().getPrescriptionItemId()).isEqualTo(1);
-        assertThat(response.getItems().getFirst().getTiming()).isEqualTo("MORNING");
+        assertThat(response.getItems().getFirst().getTiming()).isEqualTo("MORNING,EVENING");
+        assertThat(response.getItems().getFirst().getTimings()).containsExactly("MORNING", "EVENING");
     }
 
     @Test
@@ -93,6 +99,7 @@ class PrescriptionServiceImplTest {
                 .patient(patient("patient-1", "Patient One"))
                 .doctor(doctor("doctor-1", "Doctor One"))
                 .build();
+        appointment.setConsultation(startedConsultation(appointment));
 
         Medicine medicine = Medicine.builder()
                 .medicineId(5)
@@ -123,7 +130,88 @@ class PrescriptionServiceImplTest {
     }
 
     @Test
+    void createPrescription_shouldNormalizeMultipleTimingsBeforeSaving() {
+        PrescriptionRequest request = new PrescriptionRequest();
+        request.setAppointmentId(11);
+        request.setDiagnosis("Hypertension");
+        request.setValidUntil(LocalDateTime.of(2026, 5, 30, 23, 59, 59));
+
+        PrescriptionItemRequest itemRequest = new PrescriptionItemRequest();
+        itemRequest.setMedicineId(5);
+        itemRequest.setTotalSupplyDays(30);
+        itemRequest.setQuantity(1);
+        itemRequest.setTimings(List.of("morning", "evening", "morning"));
+        request.setItems(List.of(itemRequest));
+
+        Appointment appointment = Appointment.builder()
+                .appointmentId(11)
+                .status("Scheduled")
+                .patient(patient("patient-1", "Patient One"))
+                .doctor(doctor("doctor-1", "Doctor One"))
+                .build();
+        appointment.setConsultation(startedConsultation(appointment));
+
+        Medicine medicine = Medicine.builder()
+                .medicineId(5)
+                .name("Amlodipine 5mg")
+                .strength("5mg")
+                .unit("tablet")
+                .referencePrice(new BigDecimal("12.50"))
+                .build();
+
+        when(appointmentRepository.findById(11)).thenReturn(Optional.of(appointment));
+        when(medicineRepository.findById(5)).thenReturn(Optional.of(medicine));
+        when(headerRepository.save(any(PrescriptionHeader.class))).thenAnswer(invocation -> {
+            PrescriptionHeader saved = invocation.getArgument(0);
+            saved.setPrescriptionHeaderId(100);
+            return saved;
+        });
+
+        PrescriptionResponse response = prescriptionService.createPrescription(request);
+
+        ArgumentCaptor<PrescriptionHeader> headerCaptor = ArgumentCaptor.forClass(PrescriptionHeader.class);
+        verify(headerRepository).save(headerCaptor.capture());
+
+        PrescriptionItem savedItem = headerCaptor.getValue().getPrescriptionItems().getFirst();
+        assertThat(savedItem.getTiming()).isEqualTo("MORNING,EVENING");
+        assertThat(response.getItems().getFirst().getTiming()).isEqualTo("MORNING,EVENING");
+        assertThat(response.getItems().getFirst().getTimings()).containsExactly("MORNING", "EVENING");
+        assertThat(response.getStatus()).isEqualTo("ISSUED");
+    }
+
+    @Test
     void createPrescription_shouldRejectDuplicateAppointmentPrescription() {
+        PrescriptionRequest request = new PrescriptionRequest();
+        request.setAppointmentId(11);
+
+        PrescriptionItemRequest itemRequest = new PrescriptionItemRequest();
+        itemRequest.setMedicineId(5);
+        itemRequest.setTotalSupplyDays(7);
+        itemRequest.setQuantity(1);
+        itemRequest.setTiming("MORNING");
+        request.setItems(List.of(itemRequest));
+
+        Appointment appointment = Appointment.builder()
+                .appointmentId(11)
+                .status("Scheduled")
+                .patient(patient("patient-1", "Patient One"))
+                .doctor(doctor("doctor-1", "Doctor One"))
+                .build();
+        appointment.setConsultation(startedConsultation(appointment));
+
+        when(appointmentRepository.findById(11)).thenReturn(Optional.of(appointment));
+        when(headerRepository.findByAppointment_AppointmentId(11))
+                .thenReturn(List.of(PrescriptionHeader.builder().prescriptionHeaderId(99).build()));
+
+        assertThatThrownBy(() -> prescriptionService.createPrescription(request))
+                .isInstanceOf(BadRequestException.class)
+                .hasMessage("A prescription already exists for this appointment");
+
+        verify(headerRepository, never()).save(any(PrescriptionHeader.class));
+    }
+
+    @Test
+    void createPrescription_shouldRejectBeforeConsultationStarts() {
         PrescriptionRequest request = new PrescriptionRequest();
         request.setAppointmentId(11);
 
@@ -142,13 +230,11 @@ class PrescriptionServiceImplTest {
                 .build();
 
         when(appointmentRepository.findById(11)).thenReturn(Optional.of(appointment));
-        when(headerRepository.findByAppointment_AppointmentId(11))
-                .thenReturn(List.of(PrescriptionHeader.builder().prescriptionHeaderId(99).build()));
+        when(consultationRepository.findByAppointment_AppointmentId(11)).thenReturn(Optional.empty());
 
         assertThatThrownBy(() -> prescriptionService.createPrescription(request))
                 .isInstanceOf(BadRequestException.class)
-                .hasMessage("A prescription already exists for this appointment");
-
+                .hasMessage("Consultation must be started before a prescription can be created");
         verify(headerRepository, never()).save(any(PrescriptionHeader.class));
     }
 
@@ -207,6 +293,13 @@ class PrescriptionServiceImplTest {
                 .totalSupplyDays(7)
                 .quantity(1)
                 .unit("tablet")
+                .build();
+    }
+
+    private Consultation startedConsultation(Appointment appointment) {
+        return Consultation.builder()
+                .appointment(appointment)
+                .startTime(LocalDateTime.now().minusMinutes(10))
                 .build();
     }
 }

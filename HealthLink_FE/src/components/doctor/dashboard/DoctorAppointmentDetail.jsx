@@ -46,7 +46,7 @@ const buildFollowUpDateTime = (date, startTime) => {
   return `${dateValue}T${startTime}:00`;
 };
 
-const DoctorAppointmentDetail = ({ appointment, patient, onBack, onOpenAppointmentById }) => {
+const DoctorAppointmentDetail = ({ appointment, patient, doctorId: currentDoctorId, onBack, onOpenAppointmentById }) => {
   const [medicalHistory, setMedicalHistory] = useState(null);
   const [loadingHistory, setLoadingHistory] = useState(false);
   const [appointmentDetail, setAppointmentDetail] = useState(null);
@@ -69,6 +69,13 @@ const DoctorAppointmentDetail = ({ appointment, patient, onBack, onOpenAppointme
   const [loadingFollowUpCalendar, setLoadingFollowUpCalendar] = useState(false);
   const [savingFollowUp, setSavingFollowUp] = useState(false);
   const [followUpAction, setFollowUpAction] = useState(null);
+  const [startingConsultation, setStartingConsultation] = useState(false);
+  const [savingNotes, setSavingNotes] = useState(false);
+  const [notesDraft, setNotesDraft] = useState({
+    diagnosis: '',
+    doctorNotes: '',
+    treatmentPlan: '',
+  });
   const { roles, initiateCall } = useAuth();
   const { openChatWith } = useChat();
 
@@ -81,13 +88,19 @@ const DoctorAppointmentDetail = ({ appointment, patient, onBack, onOpenAppointme
     appointment?.patient?.patientId ||
     null;
   const doctorId =
+    currentDoctorId ||
     appointment?.doctorID ||
     appointment?.doctorId ||
     appointment?.doctor?.doctorID ||
     appointment?.doctor?.doctorId ||
     null;
   const appointmentId = appointment?.appointmentID || appointment?.appointmentId || null;
-  const effectiveDoctorId = appointmentDetail?.doctorId || appointmentDetail?.doctorID || doctorId;
+  const effectiveDoctorId =
+    appointmentDetail?.doctorId ||
+    appointmentDetail?.doctorID ||
+    appointmentDetail?.doctor?.doctorId ||
+    appointmentDetail?.doctor?.doctorID ||
+    doctorId;
   const followUpSelectedDateValue = toLocalDateValue(followUpSelectedDate);
 
   const formatDate = (dateString) => {
@@ -189,6 +202,8 @@ const DoctorAppointmentDetail = ({ appointment, patient, onBack, onOpenAppointme
 
     return {
       consultationId: consultation.consultationId ?? source?.consultationId ?? null,
+      startTime: consultation.startTime ?? source?.consultationStartTime ?? source?.startTime ?? null,
+      endTime: consultation.endTime ?? source?.consultationEndTime ?? source?.endTime ?? null,
       diagnosis: consultation.diagnosis ?? source?.diagnosis ?? null,
       doctorNotes: consultation.doctorNotes ?? source?.doctorNotes ?? null,
       treatmentPlan: consultation.treatmentPlan ?? source?.treatmentPlan ?? null,
@@ -307,6 +322,24 @@ const DoctorAppointmentDetail = ({ appointment, patient, onBack, onOpenAppointme
     appointmentDetail?.followUpNotes,
   ]);
 
+  useEffect(() => {
+    const consultation = buildConsultation(appointmentDetail || appointment);
+    setNotesDraft({
+      diagnosis: consultation.diagnosis || '',
+      doctorNotes: consultation.doctorNotes || '',
+      treatmentPlan: consultation.treatmentPlan || '',
+    });
+  }, [
+    appointment,
+    appointmentDetail,
+    appointmentDetail?.consultation?.diagnosis,
+    appointmentDetail?.consultation?.doctorNotes,
+    appointmentDetail?.consultation?.treatmentPlan,
+    appointmentDetail?.diagnosis,
+    appointmentDetail?.doctorNotes,
+    appointmentDetail?.treatmentPlan,
+  ]);
+
   const followUpCalendarDayMap = useMemo(() => {
     const entries = Array.isArray(followUpCalendarDays)
       ? followUpCalendarDays.map((day) => [day.date, day])
@@ -329,7 +362,7 @@ const DoctorAppointmentDetail = ({ appointment, patient, onBack, onOpenAppointme
       setFollowUpSlots(Array.isArray(data?.slots) ? data.slots : []);
     } catch (error) {
       console.error('Error loading follow-up slots:', error);
-      toast.error('Failed to load follow-up slots');
+      toast.error(error.response?.data?.message || 'Failed to load follow-up slots');
       setFollowUpSlots([]);
     } finally {
       setLoadingFollowUpSlots(false);
@@ -519,22 +552,81 @@ const DoctorAppointmentDetail = ({ appointment, patient, onBack, onOpenAppointme
     }
   };
 
+  const handleStartConsultation = async () => {
+    if (!appointmentId || startingConsultation) return;
+
+    setStartingConsultation(true);
+    try {
+      await consultationApi.startAppointmentConsultation(appointmentId);
+      toast.success('Consultation started');
+      await refreshAppointmentData({ showToast: false });
+    } catch (error) {
+      console.error('Error starting consultation:', error);
+      toast.error(error.response?.data?.message || 'Failed to start consultation');
+    } finally {
+      setStartingConsultation(false);
+    }
+  };
+
+  const handleNotesDraftChange = (field, value) => {
+    setNotesDraft((currentDraft) => ({
+      ...currentDraft,
+      [field]: value,
+    }));
+  };
+
+  const handleSaveNotes = async () => {
+    if (!appointmentId || savingNotes) return;
+
+    setSavingNotes(true);
+    try {
+      await consultationApi.updateAppointmentNotes(appointmentId, {
+        diagnosis: notesDraft.diagnosis,
+        doctorNotes: notesDraft.doctorNotes,
+        treatmentPlan: notesDraft.treatmentPlan,
+      });
+      toast.success('Consultation notes saved');
+      await refreshAppointmentData({ showToast: false });
+    } catch (error) {
+      console.error('Error saving consultation notes:', error);
+      toast.error(error.response?.data?.message || 'Failed to save consultation notes');
+    } finally {
+      setSavingNotes(false);
+    }
+  };
+
   const handleCompleteAppointment = async () => {
     if (!appointmentId) return;
+    const currentConsultation = buildConsultation(appointmentDetail || appointment);
+    if (!currentConsultation.startTime) {
+      toast.error('Start the consultation before completing it.');
+      return;
+    }
 
     const draftRows = Array.isArray(prescriptionDraft?.medicationRows)
       ? prescriptionDraft.medicationRows.filter((row) => row?.medicineId)
       : [];
+    const getRowTimings = (row) => {
+      const source = Array.isArray(row?.timings) && row.timings.length > 0
+        ? row.timings
+        : String(row?.timing || '')
+            .split(',')
+            .map((value) => value.trim())
+            .filter(Boolean);
+
+      return [...new Set(source.map((value) => String(value).toUpperCase()).filter(Boolean))];
+    };
     const incompleteRow = draftRows.find((row) => {
       const quantity = Number(row?.quantity);
       const totalSupplyDays = Number(row?.totalSupplyDays);
+      const timings = getRowTimings(row);
 
       return (
         !Number.isFinite(quantity) ||
         quantity < 1 ||
         !Number.isFinite(totalSupplyDays) ||
         totalSupplyDays < 1 ||
-        !String(row?.timing || '').trim()
+        timings.length === 0
       );
     });
 
@@ -556,16 +648,20 @@ const DoctorAppointmentDetail = ({ appointment, patient, onBack, onOpenAppointme
               appointmentDetail?.consultation?.doctorNotes ||
               appointmentDetail?.doctorNotes ||
               null,
-            items: draftRows.map((row) => ({
-              medicineId: row.medicineId,
-              totalSupplyDays: Number(row.totalSupplyDays),
-              quantity: Number(row.quantity),
-              unit: row.unit || null,
-              frequency: row.frequency || null,
-              timing: row.timing,
-              route: row.route || null,
-              notes: row.notes?.trim() || null,
-            })),
+            items: draftRows.map((row) => {
+              const timings = getRowTimings(row);
+              return {
+                medicineId: row.medicineId,
+                totalSupplyDays: Number(row.totalSupplyDays),
+                quantity: Number(row.quantity),
+                unit: row.unit || null,
+                frequency: row.frequency || null,
+                timing: timings.join(','),
+                timings,
+                route: row.route || null,
+                notes: row.notes?.trim() || null,
+              };
+            }),
           }
         : null;
 
@@ -696,9 +792,22 @@ const DoctorAppointmentDetail = ({ appointment, patient, onBack, onOpenAppointme
       (total, category) => total + (category.documentCount || 0),
       0,
     ) || 0;
-  const appointmentPassed = new Date(currentAppointment?.appointmentTime) < new Date();
-  const joinDisabled = currentAppointment?.status !== 'Scheduled' || appointmentPassed;
+  const appointmentTime = currentAppointment?.appointmentTime
+    ? new Date(currentAppointment.appointmentTime)
+    : null;
+  const hasAppointmentTimeArrived = appointmentTime
+    ? appointmentTime <= new Date()
+    : false;
+  const hasStarted = Boolean(consultation.startTime || currentAppointment?.consultationStartTime);
   const isReadOnlyAppointment = currentAppointment?.status === 'Completed';
+  const isCancelledAppointment = currentAppointment?.status === 'Cancelled';
+  const canStartConsultation =
+    currentAppointment?.status === 'Scheduled' &&
+    hasAppointmentTimeArrived &&
+    !hasStarted &&
+    !startingConsultation;
+  const canEditClinical = currentAppointment?.status === 'Scheduled' && hasStarted;
+  const joinDisabled = !canEditClinical;
   const hasPendingFollowUp = Boolean(consultation.followUpDate || selectedFollowUpDateTime);
   const canCancelFollowUp = Boolean(
     currentAppointment?.appointmentId &&
@@ -850,32 +959,65 @@ const DoctorAppointmentDetail = ({ appointment, patient, onBack, onOpenAppointme
                         <span className="visually-hidden">Loading...</span>
                       </div>
                     </div>
-                  ) : consultation.diagnosis || consultation.doctorNotes || consultation.treatmentPlan ? (
-                    <div className="doctor-detail-note-grid">
-                      {consultation.diagnosis ? (
-                        <div className="doctor-detail-note-card">
-                          <p className="doctor-detail-note-card__label">Diagnosis</p>
-                          <p className="doctor-detail-note-card__value">{consultation.diagnosis}</p>
-                        </div>
-                      ) : null}
-                      {consultation.doctorNotes ? (
-                        <div className="doctor-detail-note-card">
-                          <p className="doctor-detail-note-card__label">Doctor Notes</p>
-                          <p className="doctor-detail-note-card__value">{consultation.doctorNotes}</p>
-                        </div>
-                      ) : null}
-                      {consultation.treatmentPlan ? (
-                        <div className="doctor-detail-note-card">
-                          <p className="doctor-detail-note-card__label">Treatment Plan</p>
-                          <p className="doctor-detail-note-card__value">{consultation.treatmentPlan}</p>
-                        </div>
-                      ) : null}
-                    </div>
                   ) : (
-                    renderEmptyState(
-                      'No consultation notes yet',
-                      'Diagnosis, doctor notes, and treatment plan will appear here when consultation data is available.',
-                    )
+                    <div className="doctor-notes-workspace">
+                      {!canEditClinical && !isReadOnlyAppointment ? (
+                        <div className="doctor-detail-note-card doctor-notes-lock">
+                          <p className="doctor-detail-note-card__label">Locked</p>
+                          <p className="doctor-detail-note-card__value">
+                            Start the consultation when the appointment time arrives to record diagnosis, notes, and treatment plan.
+                          </p>
+                        </div>
+                      ) : null}
+
+                      <label className="doctor-notes-field">
+                        <span>Diagnosis</span>
+                        <textarea
+                          className="form-control doctor-prescription-input doctor-prescription-input--textarea"
+                          disabled={!canEditClinical || savingNotes}
+                          onChange={(event) => handleNotesDraftChange('diagnosis', event.target.value)}
+                          placeholder="Enter the primary diagnosis..."
+                          rows="3"
+                          value={notesDraft.diagnosis}
+                        />
+                      </label>
+
+                      <label className="doctor-notes-field">
+                        <span>Doctor Notes</span>
+                        <textarea
+                          className="form-control doctor-prescription-input doctor-prescription-input--textarea"
+                          disabled={!canEditClinical || savingNotes}
+                          onChange={(event) => handleNotesDraftChange('doctorNotes', event.target.value)}
+                          placeholder="Record observations, assessment, and consultation notes..."
+                          rows="5"
+                          value={notesDraft.doctorNotes}
+                        />
+                      </label>
+
+                      <label className="doctor-notes-field">
+                        <span>Treatment Plan</span>
+                        <textarea
+                          className="form-control doctor-prescription-input doctor-prescription-input--textarea"
+                          disabled={!canEditClinical || savingNotes}
+                          onChange={(event) => handleNotesDraftChange('treatmentPlan', event.target.value)}
+                          placeholder="Outline treatment plan, lifestyle guidance, and next steps..."
+                          rows="4"
+                          value={notesDraft.treatmentPlan}
+                        />
+                      </label>
+
+                      <div className="doctor-notes-actions">
+                        <button
+                          className="btn btn-primary"
+                          disabled={!canEditClinical || savingNotes}
+                          onClick={handleSaveNotes}
+                          type="button"
+                        >
+                          <i className="bi bi-save me-2"></i>
+                          {savingNotes ? 'Saving...' : 'Save Notes'}
+                        </button>
+                      </div>
+                    </div>
                   )}
                 </>
               )}
@@ -976,7 +1118,7 @@ const DoctorAppointmentDetail = ({ appointment, patient, onBack, onOpenAppointme
                   prescription={prescription}
                   loadingPrescription={loadingPrescription}
                   onDraftChange={setPrescriptionDraft}
-                  readOnly={isReadOnlyAppointment}
+                  readOnly={!canEditClinical || isReadOnlyAppointment}
                 />
               </div>
 
@@ -1137,6 +1279,24 @@ const DoctorAppointmentDetail = ({ appointment, patient, onBack, onOpenAppointme
               </div>
               <div className="doctor-detail-actionbar__group doctor-detail-actionbar__group--primary">
                 <button
+                  className="btn btn-outline-success"
+                  disabled={!canStartConsultation}
+                  onClick={handleStartConsultation}
+                  title={
+                    hasStarted
+                      ? 'Consultation already started'
+                      : !hasAppointmentTimeArrived
+                        ? 'Consultation can only be started when the appointment time arrives'
+                        : isCancelledAppointment || isReadOnlyAppointment
+                          ? 'This appointment cannot be started'
+                          : 'Start consultation'
+                  }
+                  type="button"
+                >
+                  <i className="bi bi-play-circle me-2"></i>
+                  {startingConsultation ? 'Starting...' : hasStarted ? 'Started' : 'Start Consultation'}
+                </button>
+                <button
                   className="btn btn-primary"
                   onClick={() => {
                     if (currentAppointment?.consultationType === 'Chat') {
@@ -1147,8 +1307,8 @@ const DoctorAppointmentDetail = ({ appointment, patient, onBack, onOpenAppointme
                   }}
                   type="button"
                   title={
-                    appointmentPassed
-                      ? 'Appointment time has passed'
+                    !hasStarted
+                      ? 'Start the consultation first'
                       : actionLabel
                   }
                   disabled={joinDisabled}
@@ -1160,7 +1320,7 @@ const DoctorAppointmentDetail = ({ appointment, patient, onBack, onOpenAppointme
                   className="btn btn-success"
                   onClick={() => setShowCompleteConfirmModal(true)}
                   type="button"
-                  disabled={currentAppointment?.status !== 'Scheduled' || completingAppointment}
+                  disabled={!canEditClinical || completingAppointment}
                 >
                   <i className="bi bi-check-circle me-2"></i>
                   {completingAppointment ? 'Completing...' : 'Complete Consultation'}

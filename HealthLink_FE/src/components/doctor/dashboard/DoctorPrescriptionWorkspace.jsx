@@ -43,6 +43,19 @@ const createEmptyFilterState = () => ({
 const getOptionLabel = (options, value, fallback) =>
   options.find((option) => option.value === value)?.label || fallback;
 
+const normalizeTimingValues = (timings, timing) => {
+  const source = Array.isArray(timings) && timings.length > 0
+    ? timings
+    : String(timing || '')
+        .split(',')
+        .map((value) => value.trim())
+        .filter(Boolean);
+
+  return [...new Set(source.map((value) => String(value).toUpperCase()).filter(Boolean))];
+};
+
+const getTimingLabel = (value) => getOptionLabel(TIMING_OPTIONS, value, value);
+
 const getMedicineDisplayName = (medicine) => {
   const brandName = medicine.brandName || '';
   const genericName = medicine.genericName || medicine.name || '';
@@ -91,6 +104,7 @@ const createMedicationRowFromMedicine = (medicine) => ({
   frequency: '',
   route: '',
   timing: 'MORNING',
+  timings: ['MORNING'],
   notes: '',
   unit: medicine.unit || '',
 });
@@ -135,10 +149,10 @@ const PrescriptionReadonlyItem = ({ item, index }) => {
     item.genericName ||
     `Medication ${index + 1}`;
   const strengthLabel = getPrescriptionStrengthLabel(item);
+  const timingValues = normalizeTimingValues(item.timings, item.timing);
   const scheduleBadges = [
     item.frequency ? `Frequency: ${item.frequency}` : null,
     item.route ? `Route: ${item.route}` : null,
-    item.timing ? `Timing: ${getOptionLabel(TIMING_OPTIONS, item.timing, item.timing)}` : null,
     item.totalSupplyDays ? `${item.totalSupplyDays} day supply` : null,
   ].filter(Boolean);
 
@@ -164,6 +178,16 @@ const PrescriptionReadonlyItem = ({ item, index }) => {
               {scheduleBadges.map((badge) => (
                 <span className="doctor-prescription-pill" key={badge}>
                   {badge}
+                </span>
+              ))}
+            </div>
+          ) : null}
+
+          {timingValues.length > 0 ? (
+            <div className="doctor-prescription-pill-list">
+              {timingValues.map((timingValue) => (
+                <span className="doctor-prescription-pill doctor-prescription-pill--timing" key={timingValue}>
+                  {getTimingLabel(timingValue)}
                 </span>
               ))}
             </div>
@@ -675,6 +699,27 @@ const DoctorPrescriptionWorkspace = ({
     );
   };
 
+  const handleRowTimingToggle = (rowId, timingValue) => {
+    setMedicationRows((currentRows) =>
+      currentRows.map((row) => {
+        if (row.id !== rowId) {
+          return row;
+        }
+
+        const currentTimings = normalizeTimingValues(row.timings, row.timing);
+        const nextTimings = currentTimings.includes(timingValue)
+          ? currentTimings.filter((value) => value !== timingValue)
+          : [...currentTimings, timingValue];
+
+        return {
+          ...row,
+          timings: nextTimings,
+          timing: nextTimings.join(','),
+        };
+      }),
+    );
+  };
+
   if (loadingPrescription && !prescription) {
     return (
       <div className="text-center py-5">
@@ -768,13 +813,14 @@ const DoctorPrescriptionWorkspace = ({
               {medicationRows.map((row, index) => {
                 const isExpanded = expandedRowId === row.id;
                 const isHighlighted = highlightedRowId === row.id;
+                const timingValues = normalizeTimingValues(row.timings, row.timing);
                 const scheduleBadges = [
                   row.frequency
                     ? `Frequency: ${getOptionLabel(FREQUENCY_OPTIONS, row.frequency, row.frequency)}`
                     : null,
                   row.route ? `Route: ${row.route}` : null,
-                  row.timing
-                    ? `Timing: ${getOptionLabel(TIMING_OPTIONS, row.timing, row.timing)}`
+                  timingValues.length > 0
+                    ? `Timing: ${timingValues.map(getTimingLabel).join(', ')}`
                     : null,
                   row.totalSupplyDays ? `${row.totalSupplyDays} day supply` : null,
                 ].filter(Boolean);
@@ -914,21 +960,22 @@ const DoctorPrescriptionWorkspace = ({
                             </select>
                           </label>
 
-                          <label className="doctor-prescription-field">
+                          <div className="doctor-prescription-field">
                             <span>Timing</span>
-                            <select
-                              className="form-select doctor-prescription-input"
-                              disabled={readOnly}
-                              value={row.timing}
-                              onChange={(event) => handleRowChange(row.id, 'timing', event.target.value)}
-                            >
+                            <div className="doctor-prescription-timing-toggle">
                               {TIMING_OPTIONS.map((option) => (
-                                <option key={option.value} value={option.value}>
+                                <button
+                                  type="button"
+                                  key={option.value}
+                                  className={`btn btn-sm ${timingValues.includes(option.value) ? 'btn-primary' : 'btn-outline-primary'}`}
+                                  disabled={readOnly}
+                                  onClick={() => handleRowTimingToggle(row.id, option.value)}
+                                >
                                   {option.label}
-                                </option>
+                                </button>
                               ))}
-                            </select>
-                          </label>
+                            </div>
+                          </div>
 
                           <label className="doctor-prescription-field">
                             <span>Strength</span>

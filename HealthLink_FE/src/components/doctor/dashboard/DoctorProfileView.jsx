@@ -1,16 +1,50 @@
-import React from 'react';
+import React, { useEffect, useState } from 'react';
+import DoctorWalletTab from '../profile/DoctorWalletTab';
 
-export default function DoctorProfileView({ doctorData }) {
+export default function DoctorProfileView({ doctorData, activeTab = 'personal', onTabChange }) {
+  const [localActiveTab, setLocalActiveTab] = useState(activeTab);
+
+  useEffect(() => {
+    setLocalActiveTab(activeTab);
+  }, [activeTab]);
+
+  const currentTab = activeTab || localActiveTab;
+
+  const selectTab = (tab) => {
+    setLocalActiveTab(tab);
+    onTabChange?.(tab);
+  };
+
   return (
     <>
       {/* Tabs */}
       <ul className="nav nav-tabs px-4 border-bottom-0">
         <li className="nav-item">
-          <a className="nav-link active" aria-current="page" href="#">Personal Information</a>
+          <button
+            className={`nav-link ${currentTab === 'personal' ? 'active' : ''}`}
+            onClick={() => selectTab('personal')}
+            type="button"
+          >
+            Personal Information
+          </button>
+        </li>
+        <li className="nav-item">
+          <button
+            className={`nav-link ${currentTab === 'wallet' ? 'active' : ''}`}
+            onClick={() => selectTab('wallet')}
+            type="button"
+          >
+            Wallet
+          </button>
         </li>
       </ul>
 
       {/* Content */}
+      {currentTab === 'wallet' ? (
+        <div className="p-4">
+          <DoctorWalletTab profile={doctorData} />
+        </div>
+      ) : (
       <div>
         {/* Description List (Doctor Info) */}
         <div className="p-4 row g-0">
@@ -78,6 +112,7 @@ export default function DoctorProfileView({ doctorData }) {
           </div>
         </div>
       </div>
+      )}
     </>
   );
 }

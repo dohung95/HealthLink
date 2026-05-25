@@ -90,6 +90,9 @@ public class Notification {
     @Column(length = 500)
     private String actionUrl;
 
+    @Column(columnDefinition = "TEXT")
+    private String metadata;
+
     private LocalDateTime expiresAt;
 
     @Column(name = "CreatedAt", nullable = false)

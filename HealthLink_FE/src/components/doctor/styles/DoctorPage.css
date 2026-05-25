@@ -379,6 +379,356 @@ body {
     padding: 0 1.25rem 1.25rem;
 }
 
+.doctor-daily-toolbar {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 1rem;
+    padding: 1rem 1.25rem 0;
+    flex-wrap: wrap;
+}
+
+.doctor-daily-toolbar__title {
+    font-size: 1.15rem;
+    font-weight: 700;
+    margin: 0;
+    color: #111827;
+}
+
+.doctor-daily-toolbar__controls {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    flex-wrap: wrap;
+}
+
+.doctor-daily-toolbar__date {
+    width: 170px;
+}
+
+.doctor-daily-status-tabs {
+    display: flex;
+    gap: 0.5rem;
+    padding: 1rem 1.25rem;
+    flex-wrap: wrap;
+}
+
+.doctor-daily-status-tab {
+    border: 1px solid #d7e3f7;
+    background: #fff;
+    color: #334155;
+    min-height: 40px;
+    border-radius: 8px;
+    padding: 0.45rem 0.75rem;
+    display: inline-flex;
+    align-items: center;
+    gap: 0.5rem;
+    font-weight: 600;
+}
+
+.doctor-daily-status-tab strong {
+    min-width: 1.5rem;
+    border-radius: 999px;
+    padding: 0.1rem 0.45rem;
+    background: #eef4ff;
+    color: #2563eb;
+    font-size: 0.8rem;
+}
+
+.doctor-daily-status-tab--active {
+    background: #2563eb;
+    border-color: #2563eb;
+    color: #fff;
+}
+
+.doctor-daily-status-tab--active strong {
+    background: rgba(255, 255, 255, 0.2);
+    color: #fff;
+}
+
+.doctor-management-view {
+    display: grid;
+    gap: 1rem;
+    padding-bottom: 1.25rem;
+}
+
+.doctor-management-toolbar {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 1rem;
+    padding: 1rem 1.25rem 0;
+    flex-wrap: wrap;
+}
+
+.doctor-management-title {
+    color: #111827;
+    font-size: 1.15rem;
+    font-weight: 700;
+    margin: 0;
+}
+
+.doctor-management-controls {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    flex-wrap: wrap;
+}
+
+.doctor-management-controls .form-select {
+    width: auto;
+    min-width: 160px;
+}
+
+.doctor-management-search {
+    align-items: center;
+    display: flex;
+    gap: 0.55rem;
+    min-width: 280px;
+    position: relative;
+}
+
+.doctor-management-search i {
+    color: #64748b;
+    left: 0.85rem;
+    position: absolute;
+}
+
+.doctor-management-search .form-control {
+    padding-left: 2.4rem;
+}
+
+.doctor-patient-grid {
+    display: grid;
+    gap: 1rem;
+    grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+    padding: 0 1.25rem;
+}
+
+.doctor-patient-card {
+    background: #fff;
+    border: 1px solid #dbe6f3;
+    border-radius: 0.75rem;
+    display: grid;
+    gap: 0.85rem;
+    padding: 1rem;
+}
+
+.doctor-patient-card__top,
+.doctor-patient-detail-hero,
+.doctor-prescription-detail-panel__header,
+.doctor-schedule-day__header {
+    align-items: center;
+    display: flex;
+    gap: 1rem;
+    justify-content: space-between;
+}
+
+.doctor-patient-avatar {
+    align-items: center;
+    background: #e8f2ff;
+    border-radius: 0.85rem;
+    color: var(--primary);
+    display: flex;
+    font-weight: 800;
+    height: 3rem;
+    justify-content: center;
+    overflow: hidden;
+    width: 3rem;
+}
+
+.doctor-patient-avatar img {
+    height: 100%;
+    object-fit: cover;
+    width: 100%;
+}
+
+.doctor-patient-avatar--large {
+    border-radius: 1.1rem;
+    font-size: 1.35rem;
+    height: 4.5rem;
+    width: 4.5rem;
+}
+
+.doctor-patient-status,
+.doctor-schedule-note,
+.doctor-schedule-availability {
+    background: #eef4ff;
+    border-radius: 999px;
+    color: #2563eb;
+    font-size: 0.78rem;
+    font-weight: 700;
+    padding: 0.28rem 0.7rem;
+}
+
+.doctor-patient-card h4,
+.doctor-patient-detail-name,
+.doctor-prescription-detail-panel h4,
+.doctor-schedule-day h4 {
+    color: #0f172a;
+    font-size: 1.05rem;
+    font-weight: 800;
+    margin: 0;
+}
+
+.doctor-patient-card__meta,
+.doctor-patient-card__timeline p,
+.doctor-management-list-item p,
+.doctor-schedule-empty {
+    color: #64748b;
+    margin: 0;
+}
+
+.doctor-patient-stats,
+.doctor-patient-detail-grid {
+    display: grid;
+    gap: 0.75rem;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+.doctor-patient-stats div,
+.doctor-patient-detail-field {
+    background: #f8fbff;
+    border: 1px solid #e4edf7;
+    border-radius: 0.7rem;
+    padding: 0.75rem;
+}
+
+.doctor-patient-stats span,
+.doctor-patient-detail-field span,
+.doctor-patient-card__timeline span {
+    color: #64748b;
+    display: block;
+    font-size: 0.78rem;
+    font-weight: 700;
+    margin-bottom: 0.2rem;
+    text-transform: uppercase;
+}
+
+.doctor-patient-stats strong,
+.doctor-patient-detail-field strong {
+    color: #0f172a;
+    font-size: 0.95rem;
+    font-weight: 700;
+    white-space: pre-line;
+}
+
+.doctor-patient-card__timeline {
+    display: grid;
+    gap: 0.35rem;
+}
+
+.doctor-management-pagination {
+    align-items: center;
+    color: #64748b;
+    display: flex;
+    gap: 0.75rem;
+    justify-content: flex-end;
+    padding: 0 1.25rem;
+}
+
+.doctor-patient-detail {
+    display: grid;
+    gap: 1rem;
+}
+
+.doctor-management-list {
+    display: grid;
+    gap: 0.75rem;
+}
+
+.doctor-management-list-item {
+    align-items: center;
+    background: #fff;
+    border: 1px solid #e4edf7;
+    border-radius: 0.75rem;
+    display: flex;
+    gap: 1rem;
+    justify-content: space-between;
+    padding: 0.9rem 1rem;
+}
+
+.doctor-management-list-item--active {
+    border-color: #2563eb;
+    box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.12);
+}
+
+.doctor-management-list-item strong {
+    color: #0f172a;
+}
+
+.doctor-prescription-dashboard {
+    display: grid;
+    gap: 1rem;
+    grid-template-columns: minmax(0, 0.9fr) minmax(320px, 1.1fr);
+    padding: 0 1.25rem;
+}
+
+.doctor-prescription-detail-panel {
+    background: #fff;
+    border: 1px solid #dbe6f3;
+    border-radius: 0.75rem;
+    min-height: 420px;
+    padding: 1rem;
+}
+
+.doctor-schedule-week {
+    display: grid;
+    gap: 1rem;
+    grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+    padding: 0 1.25rem;
+}
+
+.doctor-schedule-day {
+    background: #fff;
+    border: 1px solid #dbe6f3;
+    border-radius: 0.75rem;
+    display: grid;
+    gap: 0.9rem;
+    padding: 1rem;
+}
+
+.doctor-schedule-day__header span {
+    color: #64748b;
+    font-size: 0.85rem;
+}
+
+.doctor-schedule-availability {
+    background: #f1f5f9;
+    color: #64748b;
+    flex-shrink: 0;
+}
+
+.doctor-schedule-availability--on {
+    background: #dcfce7;
+    color: #15803d;
+}
+
+.doctor-notes-workspace {
+    display: grid;
+    gap: 1rem;
+}
+
+.doctor-notes-field {
+    display: grid;
+    gap: 0.4rem;
+}
+
+.doctor-notes-field span {
+    color: #334155;
+    font-weight: 700;
+    font-size: 0.9rem;
+}
+
+.doctor-notes-actions {
+    display: flex;
+    justify-content: flex-end;
+}
+
+.doctor-notes-lock {
+    border-left: 4px solid #f59e0b;
+}
+
 .hover-table-row:hover {
     background-color: var(--background-light);
 }
@@ -1800,6 +2150,11 @@ body {
     padding: 0.42rem 0.68rem;
 }
 
+.doctor-prescription-pill--timing {
+    background: #e8f4ff;
+    color: #0b5ed7;
+}
+
 .doctor-prescription-item-card__editor {
     border-top: 1px solid #edf2f7;
     padding: 1rem 1.1rem 1.1rem;
@@ -1827,6 +2182,16 @@ body {
 
 .doctor-prescription-field--full {
     grid-column: 1 / -1;
+}
+
+.doctor-prescription-timing-toggle {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.5rem;
+}
+
+.doctor-prescription-timing-toggle .btn {
+    min-width: 96px;
 }
 
 .doctor-prescription-input--textarea {

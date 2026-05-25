@@ -90,7 +90,7 @@ public class FollowUpAppointmentServiceImpl implements FollowUpAppointmentServic
         List<Appointment> monthAppointments = appointmentRepository
                 .findByDoctor_DoctorIdAndStatusNotAndAppointmentTimeBetween(
                         doctorId,
-                        "Cancelled",
+                        "CANCELLED",
                         monthStart,
                         monthEnd
                 );
@@ -167,6 +167,9 @@ public class FollowUpAppointmentServiceImpl implements FollowUpAppointmentServic
         if ("Cancelled".equalsIgnoreCase(appointment.getStatus())) {
             throw new BadRequestException("Cancelled appointments cannot be completed");
         }
+        if (consultation == null || consultation.getStartTime() == null) {
+            throw new BadRequestException("Consultation must be started before appointment can be completed");
+        }
 
         Invoice invoice = appointment.getInvoice();
         if (invoice == null) {
@@ -178,7 +181,11 @@ public class FollowUpAppointmentServiceImpl implements FollowUpAppointmentServic
             throw new BadRequestException("Appointment must be paid before it can be completed");
         }
 
-        appointment.setStatus("Completed");
+        appointment.setStatus("COMPLETED");
+        if (consultation.getEndTime() == null) {
+            consultation.setEndTime(LocalDateTime.now());
+            consultationRepository.save(consultation);
+        }
         Appointment completedAppointment = appointmentRepository.save(appointment);
         commissionService.processConsultationCommission(invoice);
 
@@ -221,7 +228,7 @@ public class FollowUpAppointmentServiceImpl implements FollowUpAppointmentServic
     private List<Appointment> findActiveAppointmentsForDay(String doctorId, LocalDate date) {
         return appointmentRepository.findByDoctor_DoctorIdAndStatusNotAndAppointmentTimeBetween(
                 doctorId,
-                "Cancelled",
+                "CANCELLED",
                 date.atStartOfDay(),
                 date.plusDays(1).atStartOfDay().minusNanos(1)
         );
@@ -324,7 +331,7 @@ public class FollowUpAppointmentServiceImpl implements FollowUpAppointmentServic
                 .appointmentTime(followUpDate)
                 .endTime(followUpDate.plusMinutes(SLOT_MINUTES))
                 .consultationType(sourceAppointment.getConsultationType())
-                .status("Scheduled")
+                .status("SCHEDULED")
                 .symptoms(firstNonBlank(consultation.getSymptoms(), sourceAppointment.getSymptoms()))
                 .notes(firstNonBlank(consultation.getFollowUpNotes(), sourceAppointment.getNotes()))
                 .fee(sourceAppointment.getDoctor() != null ? sourceAppointment.getDoctor().getConsultationFee() : sourceAppointment.getFee())
@@ -359,7 +366,7 @@ public class FollowUpAppointmentServiceImpl implements FollowUpAppointmentServic
                 .diagnosis(source.getDiagnosis())
                 .notes(source.getNotes())
                 .validUntil(source.getValidUntil())
-                .status(firstNonBlank(source.getStatus(), "Issued"))
+                .status(firstNonBlank(source.getStatus(), "ISSUED").toUpperCase())
                 .sourceAppointmentId(sourceAppointment.getAppointmentId())
                 .sourcePrescriptionHeaderId(source.getPrescriptionHeaderId())
                 .totalAmount(source.getTotalAmount())

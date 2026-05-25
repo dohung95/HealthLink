@@ -45,6 +45,8 @@ public class NotificationResponse {
     private String imageUrl;
 
     /** Thời gian tạo thông báo */
+    private String metadata;
+
     private LocalDateTime createdAt;
 
     /** Thời gian hết hạn của thông báo (nếu có) */

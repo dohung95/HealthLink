@@ -101,7 +101,7 @@ class PharmacyOrderServiceImplTest {
                 pharmacyOrderService.createOrderFromPrescription(request, "patient-1");
 
         verify(prescriptionHeaderRepository, never()).save(any(PrescriptionHeader.class));
-        assertThat(prescription.getStatus()).isEqualTo("Issued");
+        assertThat(prescription.getStatus()).isEqualTo("ISSUED");
 
         verify(notificationService).sendWebSocketNotification(
                 eq(pharmacyUser),
@@ -254,7 +254,7 @@ class PharmacyOrderServiceImplTest {
                 eq(patientUser),
                 eq(NotificationType.ORDER_STATUS),
                 eq("Order status updated"),
-                contains("Confirmed"),
+                contains("CONFIRMED"),
                 eq(77),
                 eq("/pharmacy-orders/77")
         );
@@ -267,7 +267,7 @@ class PharmacyOrderServiceImplTest {
                 eq("/pharmacy-orders/77")
         );
 
-        assertThat(response.getStatus()).isEqualTo("Confirmed");
+        assertThat(response.getStatus()).isEqualTo("CONFIRMED");
         assertThat(response.getConfirmedAt()).isNotNull();
     }
 
@@ -312,7 +312,7 @@ class PharmacyOrderServiceImplTest {
                 eq("/pharmacy-orders/77")
         );
 
-        assertThat(response.getStatus()).isEqualTo("Completed");
+        assertThat(response.getStatus()).isEqualTo("COMPLETED");
     }
 
     private PrescriptionHeader prescription(User doctorUser) {
@@ -334,7 +334,7 @@ class PharmacyOrderServiceImplTest {
                         .build())
                 .doctor(doctor)
                 .totalAmount(new BigDecimal("30.00"))
-                .status("Issued")
+                .status("ISSUED")
                 .build();
     }
 }

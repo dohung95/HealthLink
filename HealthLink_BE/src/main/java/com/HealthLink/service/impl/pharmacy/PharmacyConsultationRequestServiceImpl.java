@@ -43,7 +43,7 @@ public class PharmacyConsultationRequestServiceImpl implements PharmacyConsultat
     private static final String STATUS_ORDER_CREATED = "ORDER_CREATED";
     private static final String STATUS_CANCELLED = "CANCELLED";
 
-    private static final String PRESCRIPTION_STATUS_ISSUED = "Issued";
+    private static final String PRESCRIPTION_STATUS_ISSUED = "ISSUED";
 
     private final PharmacyConsultationRequestRepository consultationRequestRepository;
     private final PatientRepository patientRepository;
@@ -118,8 +118,9 @@ public class PharmacyConsultationRequestServiceImpl implements PharmacyConsultat
     ) {
         PharmacyConsultationRequest consultationRequest = getRequestOrThrow(requestId);
         String targetStatus = normalizeStatus(request.getStatus());
+        String currentStatus = normalizeStatus(consultationRequest.getStatus());
 
-        validateManualStatusUpdate(consultationRequest.getStatus(), targetStatus);
+        validateManualStatusUpdate(currentStatus, targetStatus);
 
         consultationRequest.setStatus(targetStatus);
         if (request.getPharmacyNotes() != null) {
@@ -185,7 +186,7 @@ public class PharmacyConsultationRequestServiceImpl implements PharmacyConsultat
                     .quantity(itemRequest.getQuantity())
                     .unit(itemRequest.getUnit() != null ? itemRequest.getUnit() : medicine.getUnit())
                     .frequency(itemRequest.getFrequency())
-                    .timing(normalizeTiming(itemRequest.getTiming()))
+                    .timing(normalizeTiming(itemRequest.getTimings(), itemRequest.getTiming()))
                     .route(itemRequest.getRoute())
                     .unitPrice(unitPrice)
                     .totalPrice(totalPrice)
@@ -286,7 +287,8 @@ public class PharmacyConsultationRequestServiceImpl implements PharmacyConsultat
                 .quantity(item.getQuantity())
                 .unit(item.getUnit())
                 .frequency(item.getFrequency())
-                .timing(item.getTiming())
+                .timing(normalizeTimingForResponse(item.getTiming()))
+                .timings(timingsForResponse(item.getTiming()))
                 .route(item.getRoute())
                 .unitPrice(item.getUnitPrice())
                 .totalPrice(item.getTotalPrice())
@@ -318,15 +320,16 @@ public class PharmacyConsultationRequestServiceImpl implements PharmacyConsultat
     }
 
     private void validatePrescriptionCreation(PharmacyConsultationRequest request) {
-        if (STATUS_CANCELLED.equals(request.getStatus())) {
+        String status = normalizeStatus(request.getStatus());
+        if (STATUS_CANCELLED.equals(status)) {
             throw new BadRequestException("Cannot create prescription for a cancelled request");
         }
 
-        if (STATUS_ORDER_CREATED.equals(request.getStatus()) || request.getOrder() != null) {
+        if (STATUS_ORDER_CREATED.equals(status) || request.getOrder() != null) {
             throw new BadRequestException("This request already follows the direct order flow");
         }
 
-        if (STATUS_PRESCRIPTION_CREATED.equals(request.getStatus()) || request.getPrescriptionHeader() != null) {
+        if (STATUS_PRESCRIPTION_CREATED.equals(status) || request.getPrescriptionHeader() != null) {
             throw new BadRequestException("Prescription has already been created for this request");
         }
     }
@@ -345,11 +348,29 @@ public class PharmacyConsultationRequestServiceImpl implements PharmacyConsultat
         return normalized != null ? normalized : "Delivery";
     }
 
-    private String normalizeTiming(String timing) {
+    private String normalizeTiming(List<String> timings, String timing) {
         try {
-            return PrescriptionTiming.normalize(timing);
+            if (timings != null && !timings.isEmpty()) {
+                return PrescriptionTiming.normalizeJoined(timings);
+            }
+            return PrescriptionTiming.normalizeJoined(timing);
         } catch (IllegalArgumentException ex) {
             throw new BadRequestException(ex.getMessage());
+        }
+    }
+
+    private String normalizeTimingForResponse(String timing) {
+        if (PrescriptionTiming.isSupported(timing)) {
+            return PrescriptionTiming.normalizeJoined(timing);
+        }
+        return timing;
+    }
+
+    private List<String> timingsForResponse(String timing) {
+        try {
+            return PrescriptionTiming.splitNormalized(timing);
+        } catch (IllegalArgumentException ex) {
+            return List.of();
         }
     }
 
