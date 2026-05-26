@@ -98,64 +98,72 @@ const ScheduleFormModal = ({ isOpen, onClose, schedule, onSuccess }) => {
   if (!isOpen) return null;
 
   return (
-    <div className="fixed inset-0 z-[70] flex items-center justify-center bg-black/45 p-4" onClick={onClose}>
-      <section className="max-h-[92vh] w-full max-w-xl overflow-y-auto rounded-xl bg-white shadow-xl" onClick={(event) => event.stopPropagation()}>
-        <div className="flex items-center justify-between border-b border-surface-border px-5 py-4">
-          <div className="flex items-center gap-2">
-            <span className="material-symbols-outlined text-primary">{schedule?.isNew ? 'add_circle' : 'edit_calendar'}</span>
-            <h2 className="mb-0 text-lg font-bold text-text-main">{schedule?.isNew ? 'Add Schedule' : 'Edit Schedule'}</h2>
+    <div className="fixed inset-0 z-50 d-flex align-items-center justify-content-center bg-black/50 p-4" onClick={onClose}>
+      <section className="max-h-92vh w-100 max-w-xl overflow-y-auto rounded-xl bg-white shadow-xl" onClick={(event) => event.stopPropagation()}>
+        <div className="d-flex align-items-center justify-content-between border-bottom border-surface-border px-5 py-4">
+          <div className="d-flex align-items-center gap-2">
+            <span className="material-symbols-outlined text-primary-container">{schedule?.isNew ? 'add_circle' : 'edit_calendar'}</span>
+            <h2 className="mb-0 text-lg fw-bold text-text-main">{schedule?.isNew ? 'Add Schedule' : 'Edit Schedule'}</h2>
           </div>
-          <button className="rounded p-2 text-text-muted hover:bg-surface-container" disabled={loading} onClick={onClose} type="button">
+          <button className="btn border-0 rounded p-2 text-text-muted hover:bg-surface-container" disabled={loading} onClick={onClose} type="button">
             <span className="material-symbols-outlined">close</span>
           </button>
         </div>
 
         <form onSubmit={handleSubmit}>
-          <div className="grid gap-4 px-5 py-4">
+          <div className="d-grid gap-4 px-5 py-4">
             {error ? (
               <div className="rounded border border-error-container bg-error-container/40 px-3 py-2 text-sm text-error" role="alert">
                 {error}
               </div>
             ) : null}
 
-            <label className="grid gap-1">
-              <span className="text-xs font-bold uppercase tracking-wide text-text-muted">Day of Week</span>
-              <select className="h-10 rounded border border-surface-border bg-white px-3 text-sm focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary-fixed" disabled={loading} name="dayOfWeek" onChange={handleChange} value={formData.dayOfWeek}>
+            <label className="d-grid gap-1">
+              <span className="text-xs fw-bold text-uppercase tracking-wide text-text-muted">Day of Week</span>
+              <select className="form-select h-10 rounded border border-surface-border bg-white px-3 text-sm focus-ring-primary" disabled={loading} name="dayOfWeek" onChange={handleChange} value={formData.dayOfWeek}>
                 {DAYS.map((day, index) => (
                   <option key={day} value={index}>{day}</option>
                 ))}
               </select>
             </label>
 
-            <div className="grid gap-4 sm:grid-cols-2">
-              <label className="grid gap-1">
-                <span className="text-xs font-bold uppercase tracking-wide text-text-muted">Start Time</span>
-                <input className="h-10 rounded border border-surface-border px-3 text-sm focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary-fixed" disabled={loading} name="startTime" onChange={handleChange} required type="time" value={formData.startTime} />
-              </label>
-              <label className="grid gap-1">
-                <span className="text-xs font-bold uppercase tracking-wide text-text-muted">End Time</span>
-                <input className="h-10 rounded border border-surface-border px-3 text-sm focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary-fixed" disabled={loading} name="endTime" onChange={handleChange} required type="time" value={formData.endTime} />
-              </label>
+            <div className="row g-4">
+              <div className="col-12 col-sm-6">
+                <label className="d-grid gap-1">
+                  <span className="text-xs fw-bold text-uppercase tracking-wide text-text-muted">Start Time</span>
+                  <input className="form-control h-10 rounded border border-surface-border px-3 text-sm focus-ring-primary" disabled={loading} name="startTime" onChange={handleChange} required type="time" value={formData.startTime} />
+                </label>
+              </div>
+              <div className="col-12 col-sm-6">
+                <label className="d-grid gap-1">
+                  <span className="text-xs fw-bold text-uppercase tracking-wide text-text-muted">End Time</span>
+                  <input className="form-control h-10 rounded border border-surface-border px-3 text-sm focus-ring-primary" disabled={loading} name="endTime" onChange={handleChange} required type="time" value={formData.endTime} />
+                </label>
+              </div>
             </div>
 
-            <div className="grid gap-4 sm:grid-cols-2">
-              <label className="grid gap-1">
-                <span className="text-xs font-bold uppercase tracking-wide text-text-muted">Slot Duration</span>
-                <select className="h-10 rounded border border-surface-border bg-white px-3 text-sm focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary-fixed" disabled={loading} name="slotDuration" onChange={handleChange} value={formData.slotDuration}>
-                  {SLOT_DURATIONS.map((duration) => (
-                    <option key={duration} value={duration}>{duration} mins</option>
-                  ))}
-                </select>
-              </label>
-              <label className="grid gap-1">
-                <span className="text-xs font-bold uppercase tracking-wide text-text-muted">Max Patients per Slot</span>
-                <input className="h-10 rounded border border-surface-border px-3 text-sm focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary-fixed" disabled={loading} max="10" min="1" name="maxPatients" onChange={handleChange} type="number" value={formData.maxPatients} />
-              </label>
+            <div className="row g-4">
+              <div className="col-12 col-sm-6">
+                <label className="d-grid gap-1">
+                  <span className="text-xs fw-bold text-uppercase tracking-wide text-text-muted">Slot Duration</span>
+                  <select className="form-select h-10 rounded border border-surface-border bg-white px-3 text-sm focus-ring-primary" disabled={loading} name="slotDuration" onChange={handleChange} value={formData.slotDuration}>
+                    {SLOT_DURATIONS.map((duration) => (
+                      <option key={duration} value={duration}>{duration} mins</option>
+                    ))}
+                  </select>
+                </label>
+              </div>
+              <div className="col-12 col-sm-6">
+                <label className="d-grid gap-1">
+                  <span className="text-xs fw-bold text-uppercase tracking-wide text-text-muted">Max Patients per Slot</span>
+                  <input className="form-control h-10 rounded border border-surface-border px-3 text-sm focus-ring-primary" disabled={loading} max="10" min="1" name="maxPatients" onChange={handleChange} type="number" value={formData.maxPatients} />
+                </label>
+              </div>
             </div>
 
-            <label className="grid gap-1">
-              <span className="text-xs font-bold uppercase tracking-wide text-text-muted">Consultation Type</span>
-              <select className="h-10 rounded border border-surface-border bg-white px-3 text-sm focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary-fixed" disabled={loading} name="consultationType" onChange={handleChange} value={formData.consultationType}>
+            <label className="d-grid gap-1">
+              <span className="text-xs fw-bold text-uppercase tracking-wide text-text-muted">Consultation Type</span>
+              <select className="form-select h-10 rounded border border-surface-border bg-white px-3 text-sm focus-ring-primary" disabled={loading} name="consultationType" onChange={handleChange} value={formData.consultationType}>
                 <option value="">All Types</option>
                 {CONSULTATION_TYPES.map((type) => (
                   <option key={type} value={type}>{type}</option>
@@ -163,23 +171,23 @@ const ScheduleFormModal = ({ isOpen, onClose, schedule, onSuccess }) => {
               </select>
             </label>
 
-            <label className="grid gap-1">
-              <span className="text-xs font-bold uppercase tracking-wide text-text-muted">Location</span>
-              <input className="h-10 rounded border border-surface-border px-3 text-sm focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary-fixed" disabled={loading} name="location" onChange={handleChange} placeholder="Room number, clinic address..." type="text" value={formData.location} />
+            <label className="d-grid gap-1">
+              <span className="text-xs fw-bold text-uppercase tracking-wide text-text-muted">Location</span>
+              <input className="form-control h-10 rounded border border-surface-border px-3 text-sm focus-ring-primary" disabled={loading} name="location" onChange={handleChange} placeholder="Room number, clinic address..." type="text" value={formData.location} />
             </label>
 
-            <label className="grid gap-1">
-              <span className="text-xs font-bold uppercase tracking-wide text-text-muted">Notes</span>
-              <textarea className="min-h-20 rounded border border-surface-border px-3 py-2 text-sm focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary-fixed" disabled={loading} name="notes" onChange={handleChange} placeholder="Any additional notes..." value={formData.notes} />
+            <label className="d-grid gap-1">
+              <span className="text-xs fw-bold text-uppercase tracking-wide text-text-muted">Notes</span>
+              <textarea className="form-control min-h-20 rounded border border-surface-border px-3 py-2 text-sm focus-ring-primary" disabled={loading} name="notes" onChange={handleChange} placeholder="Any additional notes..." value={formData.notes} />
             </label>
           </div>
 
-          <div className="flex justify-end gap-3 border-t border-surface-border px-5 py-4">
-            <button className="rounded border border-surface-border px-4 py-2 text-sm font-semibold text-text-main hover:bg-surface-container" disabled={loading} onClick={onClose} type="button">
+          <div className="d-flex justify-content-end gap-3 border-top border-surface-border px-5 py-4">
+            <button className="btn rounded border border-surface-border px-4 py-2 text-sm fw-semibold text-text-main hover:bg-surface-container" disabled={loading} onClick={onClose} type="button">
               Cancel
             </button>
-            <button className="flex items-center gap-2 rounded bg-primary-container px-4 py-2 text-sm font-semibold text-white hover:bg-primary disabled:opacity-60" disabled={loading} type="submit">
-              <span className="material-symbols-outlined text-[18px]">{loading ? 'progress_activity' : 'save'}</span>
+            <button className="btn d-inline-flex align-items-center gap-2 rounded bg-primary-container px-4 py-2 text-sm fw-semibold text-white hover:bg-primary disabled:opacity-60" disabled={loading} type="submit">
+              <span className="material-symbols-outlined text-18px">{loading ? 'progress_activity' : 'save'}</span>
               {loading ? 'Saving...' : schedule?.isNew ? 'Create Schedule' : 'Save Changes'}
             </button>
           </div>

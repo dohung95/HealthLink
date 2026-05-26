@@ -36,15 +36,15 @@ const formatStatus = (status) => {
 const getStatusClassName = (status) => {
   const normalized = String(status || '').toUpperCase();
   if (['PAID', 'COMPLETED', 'SETTLED'].includes(normalized)) {
-    return 'bg-success/10 text-success';
+    return 'doctor-wallet-item__status-badge--paid';
   }
   if (['FAILED', 'REFUNDED', 'CANCELLED'].includes(normalized)) {
-    return 'bg-critical/10 text-critical';
+    return 'doctor-wallet-item__status-badge--failed';
   }
   if (['PROCESSING', 'PENDING'].includes(normalized)) {
-    return 'bg-warning/10 text-warning';
+    return 'doctor-wallet-item__status-badge--pending';
   }
-  return 'bg-surface-container text-text-muted';
+  return 'doctor-wallet-item__status-badge--default';
 };
 
 export default function DoctorWalletTab({ profile, onRefreshProfile }) {
@@ -165,45 +165,45 @@ export default function DoctorWalletTab({ profile, onRefreshProfile }) {
   };
 
   return (
-    <div className="doctor-wallet-tab flex flex-col gap-4">
-      <section className="overflow-hidden rounded-lg bg-primary p-4 text-on-primary shadow-sm md:p-5">
-        <div className="flex flex-col gap-4 md:flex-row md:items-end md:justify-between">
+    <div className="doctor-wallet-tab">
+      <section className="doctor-wallet-hero">
+        <div className="d-flex flex-column gap-3 flex-md-row align-items-md-end justify-content-md-between">
           <div>
-            <p className="mb-1 text-sm text-on-primary-container">Available Balance</p>
-            <h2 className="mb-0 text-2xl font-bold tracking-tight md:text-[28px]">{formatCurrency(availableBalance)}</h2>
+            <p className="doctor-wallet-hero__balance-label">Available Balance</p>
+            <h2 className="doctor-wallet-hero__balance-value">{formatCurrency(availableBalance)}</h2>
 
-            <div className="mt-4 flex flex-wrap items-center gap-3">
+            <div className="doctor-wallet-hero__metrics">
               <WalletHeroMetric label="Total Earnings" value={formatCurrency(totalEarnings)} />
-              <div className="hidden h-9 w-px bg-on-primary/25 sm:block" />
+              <div className="d-none d-sm-block" style={{width:'1px',height:'2.25rem',background:'rgba(255,255,255,0.25)'}} />
               <WalletHeroMetric label="Withdrawal Status" value={eligibleForWithdrawal ? 'Ready' : 'On Hold'} />
             </div>
           </div>
 
           <button
-            className="inline-flex w-full items-center justify-center gap-2 rounded-lg bg-on-primary px-5 py-3 text-sm font-semibold text-primary shadow-sm transition hover:bg-surface-container-lowest disabled:cursor-not-allowed disabled:opacity-60 md:w-auto"
+            className="doctor-wallet-hero__withdraw-btn"
             disabled={!doctorId || !eligibleForWithdrawal}
             onClick={() => setIsWithdrawModalOpen(true)}
             type="button"
           >
-            <span className="material-symbols-outlined text-[20px]">payments</span>
+            <span className="material-symbols-outlined" style={{fontSize:'1.125rem'}}>payments</span>
             Withdraw via PayPal
           </button>
         </div>
       </section>
 
-      <section className="overflow-hidden rounded-xl border border-surface-border bg-surface-container-lowest shadow-sm">
-        <div className="flex flex-col gap-3 border-b border-surface-border bg-surface-bright p-4 sm:flex-row sm:items-center sm:justify-between">
+      <section className="doctor-wallet-transactions">
+        <div className="doctor-wallet-transactions__header">
           <div>
-            <h3 className="mb-1 text-lg font-semibold text-text-main">Recent Transactions</h3>
-            <p className="mb-0 text-sm text-text-muted">{withdrawalStatus}</p>
+            <h3 className="doctor-wallet-transactions__title">Recent Transactions</h3>
+            <p className="doctor-wallet-transactions__status">{withdrawalStatus}</p>
           </div>
           <button
-            className="inline-flex items-center justify-center gap-2 rounded-lg border border-surface-border bg-surface px-3 py-2 text-sm font-semibold text-on-surface transition hover:bg-surface-container disabled:cursor-not-allowed disabled:opacity-60"
+            className="doctor-wallet-transactions__refresh-btn"
             disabled={loading}
             onClick={loadWallet}
             type="button"
           >
-            <span className={`material-symbols-outlined text-[18px] ${loading ? 'animate-spin' : ''}`}>refresh</span>
+            <span className={`material-symbols-outlined doctor-wallet-transactions__refresh-icon ${loading ? 'doctor-wallet-transactions__refresh-icon--spinning' : ''}`}>refresh</span>
             Refresh
           </button>
         </div>
@@ -213,64 +213,64 @@ export default function DoctorWalletTab({ profile, onRefreshProfile }) {
         ) : history.length === 0 ? (
           <EmptyWalletState icon="receipt_long" title="No wallet transactions yet." />
         ) : (
-          <ul className="mb-0 divide-y divide-surface-border p-0">
+          <ul className="mb-0 p-0">
             {history.map((entry) => {
               const isExpanded = expandedEntryId === entry.id;
               const isCredit = Number(entry.amount) >= 0;
 
               return (
-                <li className="list-none" key={entry.id}>
+                <li className="doctor-wallet-item" key={entry.id}>
                   <button
                     aria-expanded={isExpanded}
-                    className="flex w-full items-center justify-between gap-4 p-4 text-left transition hover:bg-surface-container-low"
+                    className="doctor-wallet-item__btn"
                     onClick={() => setExpandedEntryId(isExpanded ? null : entry.id)}
                     type="button"
                   >
-                    <span className="flex min-w-0 items-center gap-4">
-                      <span className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-full ${entry.kind === 'earning' ? 'bg-primary-fixed/60 text-primary' : 'bg-surface-container-high text-text-main'}`}>
-                        <span className="material-symbols-outlined text-[20px]">
+                    <span className="doctor-wallet-item__left">
+                      <span className={`doctor-wallet-item__icon-wrap ${entry.kind === 'earning' ? 'doctor-wallet-item__icon-wrap--earning' : 'doctor-wallet-item__icon-wrap--withdrawal'}`}>
+                        <span className="material-symbols-outlined">
                           {entry.kind === 'earning' ? 'video_camera_front' : 'account_balance'}
                         </span>
                       </span>
-                      <span className="min-w-0">
-                        <span className="block truncate text-sm font-semibold text-text-main">{entry.title}</span>
-                        <span className="mt-0.5 block text-xs font-medium text-text-muted">{formatDateTime(entry.createdAt)}</span>
+                      <span className="doctor-wallet-item__info">
+                        <span className="doctor-wallet-item__title">{entry.title}</span>
+                        <span className="doctor-wallet-item__date">{formatDateTime(entry.createdAt)}</span>
                       </span>
                     </span>
 
-                    <span className="flex shrink-0 items-center gap-3">
-                      <span className="text-right">
-                        <span className={`block text-sm font-semibold ${isCredit ? 'text-success' : 'text-text-main'}`}>
+                    <span className="doctor-wallet-item__right">
+                      <span className="text-end">
+                        <span className={`doctor-wallet-item__amount ${isCredit ? 'doctor-wallet-item__amount--credit' : 'doctor-wallet-item__amount--debit'}`}>
                           {isCredit ? '+' : ''}
                           {formatCurrency(entry.amount)}
                         </span>
-                        <span className={`mt-1 inline-flex rounded px-2 py-0.5 text-xs font-semibold ${getStatusClassName(entry.status)}`}>
+                        <span className={`doctor-wallet-item__status-badge ${getStatusClassName(entry.status)}`}>
                           {formatStatus(entry.status)}
                         </span>
                       </span>
-                      <span className="material-symbols-outlined text-[20px] text-text-muted">
-                        {isExpanded ? 'expand_less' : 'expand_more'}
+                      <span className={`material-symbols-outlined doctor-wallet-item__chevron ${isExpanded ? 'doctor-wallet-item__chevron--expanded' : ''}`}>
+                        expand_more
                       </span>
                     </span>
                   </button>
 
                   {isExpanded ? (
-                    <div className="px-4 pb-4">
-                      <div className="rounded-lg bg-surface-container-low p-4">
+                    <div className="doctor-wallet-item__expand">
+                      <div className="doctor-wallet-item__detail">
                         {entry.kind === 'earning' ? (
                           <>
                             <DetailRow label="Time" value={formatDateTime(entry.raw.createdAt)} />
                             <DetailRow label="Appointment ID" value={`#${entry.raw.appointmentId || '-'}`} />
-                            <DetailRow label="Appointment amount" value={formatCurrency(entry.raw.grossAmount)} valueClassName="text-success" />
-                            <DetailRow label="Commission" value={`-${formatCurrency(entry.raw.commissionAmount).replace('-', '')}`} valueClassName="text-critical" />
-                            <DetailRow label="Net received" value={formatCurrency(entry.raw.netAmount)} valueClassName="text-success" />
+                            <DetailRow label="Appointment amount" value={formatCurrency(entry.raw.grossAmount)} valueClassName="success" />
+                            <DetailRow label="Commission" value={`-${formatCurrency(entry.raw.commissionAmount).replace('-', '')}`} valueClassName="error" />
+                            <DetailRow label="Net received" value={formatCurrency(entry.raw.netAmount)} valueClassName="success" />
                           </>
                         ) : (
                           <>
                             <DetailRow label="Time" value={formatDateTime(entry.raw.createdAt)} />
                             <DetailRow label="Settlement" value={entry.raw.settlementNumber || entry.raw.settlementId || '-'} />
                             <DetailRow label="PayPal" value={entry.raw.paypalEmail || '-'} />
-                            <DetailRow label="Amount" value={`-${formatCurrency(entry.raw.netAmount).replace('-', '')}`} valueClassName="text-critical" />
+                            <DetailRow label="Amount" value={`-${formatCurrency(entry.raw.netAmount).replace('-', '')}`} valueClassName="error" />
                             <DetailRow label="Status" value={formatStatus(entry.raw.status)} />
                           </>
                         )}
@@ -287,18 +287,18 @@ export default function DoctorWalletTab({ profile, onRefreshProfile }) {
       {isWithdrawModalOpen ? (
         <div
           aria-modal="true"
-          className="fixed inset-0 z-[70] flex items-center justify-center bg-black/40 p-4 backdrop-blur-sm"
+          className="doctor-wallet-modal-overlay"
           onClick={() => setIsWithdrawModalOpen(false)}
           role="dialog"
         >
           <section
-            className="w-full max-w-md overflow-hidden rounded-xl border border-surface-border bg-surface-container-lowest shadow-xl"
+            className="doctor-wallet-modal"
             onClick={(event) => event.stopPropagation()}
           >
-            <div className="flex items-center justify-between border-b border-surface-border bg-surface-bright px-6 py-4">
-              <h3 className="mb-0 text-lg font-semibold text-text-main">Withdraw Funds</h3>
+            <div className="doctor-wallet-modal__header">
+              <h3 className="doctor-wallet-modal__title">Withdraw Funds</h3>
               <button
-                className="rounded-full p-1 text-on-surface-variant transition hover:bg-surface-container hover:text-text-main"
+                className="doctor-wallet-modal__close"
                 onClick={() => setIsWithdrawModalOpen(false)}
                 type="button"
               >
@@ -306,33 +306,33 @@ export default function DoctorWalletTab({ profile, onRefreshProfile }) {
               </button>
             </div>
 
-            <form className="p-5" onSubmit={handleWithdraw}>
-              <div className="mb-5">
-                <p className="mb-2 text-xs font-semibold uppercase tracking-wide text-text-muted">Transfer to</p>
-                <label className="flex items-center gap-3 rounded-lg border border-primary-fixed-dim bg-surface p-3">
-                  <span className="material-symbols-outlined text-primary">account_balance_wallet</span>
+            <form className="doctor-wallet-modal__body" onSubmit={handleWithdraw}>
+              <div className="mb-3">
+                <p className="doctor-wallet-modal__label">Transfer to</p>
+                <div className="doctor-wallet-modal__input-group">
+                  <span className="material-symbols-outlined">account_balance_wallet</span>
                   <input
-                    className="min-w-0 flex-1 border-0 bg-transparent p-0 text-sm text-text-main outline-none focus:ring-0"
+                    className="doctor-wallet-modal__email-input"
                     onChange={(event) => setPaypalEmail(event.target.value)}
                     placeholder="doctor@example.com"
                     type="email"
                     value={paypalEmail}
                   />
-                </label>
-                <p className="mb-0 mt-2 text-xs text-text-muted">Must match the PayPal email saved in your profile.</p>
+                </div>
+                <p className="doctor-wallet-modal__hint">Must match the PayPal email saved in your profile.</p>
               </div>
 
-              <div className="mb-5">
-                <div className="mb-2 flex items-end justify-between gap-3">
-                  <label className="text-xs font-semibold uppercase tracking-wide text-text-muted" htmlFor="doctor-withdraw-amount">
+              <div className="mb-3">
+                <div className="doctor-wallet-modal__amount-row">
+                  <label className="doctor-wallet-modal__amount-label" htmlFor="doctor-withdraw-amount">
                     Amount
                   </label>
-                  <span className="text-xs font-semibold text-text-muted">Available: {formatCurrency(availableBalance)}</span>
+                  <span className="doctor-wallet-modal__available">Available: {formatCurrency(availableBalance)}</span>
                 </div>
-                <div className="relative">
-                  <span className="absolute left-4 top-1/2 -translate-y-1/2 text-lg font-semibold text-text-main">$</span>
+                <div className="doctor-wallet-modal__amount-input-wrap">
+                  <span className="doctor-wallet-modal__dollar-sign">$</span>
                   <input
-                    className="w-full rounded-lg border border-surface-border bg-surface py-2.5 pl-8 pr-4 text-lg font-semibold text-text-main outline-none transition focus:border-primary focus:ring-1 focus:ring-primary"
+                    className="doctor-wallet-modal__amount-input"
                     id="doctor-withdraw-amount"
                     min="0"
                     onChange={(event) => setWithdrawAmount(event.target.value)}
@@ -342,25 +342,25 @@ export default function DoctorWalletTab({ profile, onRefreshProfile }) {
                     value={withdrawAmount}
                   />
                 </div>
-                <p className={`mb-0 mt-2 text-xs ${requestedAmount <= 0 ? 'text-text-muted' : remainingAfterWithdrawal > 10 ? 'text-success' : 'text-critical'}`}>
+                <p className={`doctor-wallet-modal__threshold-hint ${requestedAmount <= 0 ? 'doctor-wallet-modal__threshold-hint--muted' : remainingAfterWithdrawal > 10 ? 'doctor-wallet-modal__threshold-hint--success' : 'doctor-wallet-modal__threshold-hint--error'}`}>
                   Remaining balance after withdrawal must be greater than $10.00.
                 </p>
               </div>
 
-              <div className="mb-6 rounded-lg bg-surface-container-low p-4">
+              <div className="doctor-wallet-modal__summary">
                 <DetailRow label="Withdrawal Amount" value={formatCurrency(requestedAmount)} />
                 <DetailRow label="Fee (0%)" value={formatCurrency(0)} />
-                <DetailRow label="Total to Receive" value={formatCurrency(requestedAmount)} valueClassName="text-text-main" strong />
+                <DetailRow label="Total to Receive" value={formatCurrency(requestedAmount)} strong />
               </div>
 
               <button
-                className="inline-flex w-full items-center justify-center gap-2 rounded-lg bg-primary px-5 py-3 text-sm font-semibold text-on-primary shadow-sm transition hover:bg-primary-container disabled:cursor-not-allowed disabled:opacity-60"
+                className="doctor-wallet-modal__submit-btn"
                 disabled={!canWithdraw}
                 type="submit"
               >
                 {withdrawing ? (
                   <>
-                    <span className="material-symbols-outlined animate-spin text-[20px]">progress_activity</span>
+                    <span className="material-symbols-outlined doctor-wallet-modal__spinner">progress_activity</span>
                     Submitting...
                   </>
                 ) : (
@@ -377,29 +377,32 @@ export default function DoctorWalletTab({ profile, onRefreshProfile }) {
 
 function WalletHeroMetric({ label, value }) {
   return (
-    <div className="flex flex-col">
-      <span className="text-xs font-semibold uppercase tracking-wide text-on-primary-container">{label}</span>
-      <span className="text-base font-semibold text-on-primary">{value}</span>
+    <div className="d-flex flex-column">
+      <span className="text-xs fw-semibold text-uppercase tracking-wide text-on-primary-container">{label}</span>
+      <span className="text-base fw-semibold text-on-primary">{value}</span>
     </div>
   );
 }
 
 function EmptyWalletState({ icon, title }) {
   return (
-    <div className="flex flex-col items-center justify-center px-5 py-10 text-center text-text-muted">
-      <span className="material-symbols-outlined mb-2 text-3xl">{icon}</span>
-      <p className="mb-0 text-sm font-semibold">{title}</p>
+    <div className="doctor-wallet-empty">
+      <span className="material-symbols-outlined doctor-wallet-empty__icon">{icon}</span>
+      <p className="doctor-wallet-empty__title">{title}</p>
     </div>
   );
 }
 
-function DetailRow({ label, value, valueClassName = 'text-text-main', strong = false }) {
+function DetailRow({ label, value, valueClassName, strong = false }) {
   const ValueTag = strong ? 'strong' : 'span';
+  const valueClass = valueClassName
+    ? `doctor-wallet-item__detail-value doctor-wallet-item__detail-value--${valueClassName}`
+    : 'doctor-wallet-item__detail-value';
 
   return (
-    <div className="flex justify-between gap-4 border-b border-surface-border py-2 last:border-b-0">
-      <span className="text-sm text-text-muted">{label}</span>
-      <ValueTag className={`text-right text-sm font-semibold ${valueClassName}`}>{value}</ValueTag>
+    <div className="doctor-wallet-item__detail-row">
+      <span className="doctor-wallet-item__detail-label">{label}</span>
+      <ValueTag className={valueClass}>{value}</ValueTag>
     </div>
   );
 }

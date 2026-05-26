@@ -18,17 +18,11 @@ const formatTime = (time) => {
   return `${parts[0]}:${parts[1]}`;
 };
 
-const statusClasses = {
-  WORKING: 'bg-success/10 text-success border-success/30',
-  DAY_OFF: 'bg-critical/10 text-critical border-critical/30',
-  MODIFIED: 'bg-warning/10 text-warning border-warning/30',
-  NO_SCHEDULE: 'bg-surface-container text-text-muted border-surface-border',
-};
-
-const slotClasses = {
-  AVAILABLE: 'bg-success/10 border-success/30 text-success',
-  BOOKED: 'bg-primary-fixed border-primary-fixed-dim text-primary',
-  HELD: 'bg-warning/10 border-warning/30 text-warning',
+const STATUS_CLASSES = {
+  WORKING: 'doctor-schedule-item__tag bg-success/10 text-success',
+  DAY_OFF: 'doctor-schedule-item__tag bg-critical/10 text-critical',
+  MODIFIED: 'doctor-schedule-item__tag bg-warning/10 text-warning',
+  NO_SCHEDULE: 'doctor-schedule-item__tag bg-surface-container text-text-muted',
 };
 
 const ScheduleCalendarView = ({ exceptions, onCreateException, onRefresh }) => {
@@ -90,7 +84,7 @@ const ScheduleCalendarView = ({ exceptions, onCreateException, onRefresh }) => {
 
     return (
       <div className="calendar-tile-info">
-        <span className="rounded-full bg-primary-container px-1.5 text-[10px] font-bold text-white">{bookedCount}</span>
+        <span className="calendar-tile-info__count">{bookedCount}</span>
       </div>
     );
   };
@@ -129,118 +123,146 @@ const ScheduleCalendarView = ({ exceptions, onCreateException, onRefresh }) => {
     .slice(0, 5);
 
   return (
-    <div className="grid gap-4 lg:grid-cols-[minmax(0,1fr)_300px] xl:grid-cols-[minmax(0,1fr)_340px]">
-      <div className="grid gap-4">
-        <section className="relative rounded-lg border border-surface-border bg-white p-4">
+    <div className="row g-3">
+      <div className="col-lg-8 col-xl-9 d-flex flex-column gap-3">          <section className="doctor-calendar-section">
           {loading ? (
-            <div className="absolute inset-0 z-10 flex items-center justify-center rounded-lg bg-white/70">
+            <div className="calendar-loading-overlay">
               <div className="spinner-border text-primary" role="status">
                 <span className="visually-hidden">Loading...</span>
               </div>
             </div>
           ) : null}
-          <Calendar
-            className="doctor-schedule-calendar w-full border-0"
-            minDate={new Date()}
-            onActiveStartDateChange={handleActiveStartDateChange}
-            onChange={handleDateClick}
-            tileClassName={tileClassName}
-            tileContent={tileContent}
-            value={selectedDate}
-          />
+          <div className="doctor-calendar-section__body">
+            <Calendar
+              className="doctor-schedule-calendar w-100 border-0"
+              minDate={new Date()}
+              onActiveStartDateChange={handleActiveStartDateChange}
+              onChange={handleDateClick}
+              tileClassName={tileClassName}
+              tileContent={tileContent}
+              value={selectedDate}
+            />
+          </div>
         </section>
 
-        <section className="rounded-lg border border-surface-border bg-white">
-          <div className="border-b border-surface-border bg-surface-container-low px-4 py-3">
-            <div className="flex flex-wrap items-center gap-2">
-              <h3 className="mb-0 text-sm font-bold text-text-main">
-                {selectedDate.toLocaleDateString('en-US', {
-                  weekday: 'long',
-                  year: 'numeric',
-                  month: 'long',
-                  day: 'numeric',
-                })}
-              </h3>
-              <span className={`rounded border px-2 py-0.5 text-[11px] font-bold ${statusClasses[selectedDaySlots?.status] || statusClasses.NO_SCHEDULE}`}>
-                {(selectedDaySlots?.status || 'NO_SCHEDULE').replace('_', ' ')}
-              </span>
-            </div>
+        <section className="doctor-calendar-slots">
+          <div className="doctor-calendar-slots__header">
+            <h3 className="doctor-calendar-slots__date">
+              {selectedDate.toLocaleDateString('en-US', {
+                weekday: 'long',
+                year: 'numeric',
+                month: 'long',
+                day: 'numeric',
+              })}
+            </h3>
+            <span className={`doctor-calendar-slots__status ${STATUS_CLASSES[selectedDaySlots?.status] || STATUS_CLASSES.NO_SCHEDULE}`}>
+              {(selectedDaySlots?.status || 'NO_SCHEDULE').replace(/_/g, ' ')}
+            </span>
           </div>
 
-          <div className="p-4">
+          <div className="doctor-calendar-slots__body">
             {selectedDaySlots?.slots?.length ? (
-              <div className="grid gap-2 sm:grid-cols-2 xl:grid-cols-4">
-                {selectedDaySlots.slots.map((slot, index) => (
-                  <article className={`rounded border p-3 text-center ${slotClasses[slot.status] || slotClasses.AVAILABLE}`} key={`${slot.startTime}-${index}`}>
-                    <p className="mb-1 text-sm font-bold text-text-main">{formatTime(slot.startTime)} - {formatTime(slot.endTime)}</p>
-                    <p className="mb-0 text-xs font-semibold">
-                      {slot.status === 'BOOKED' && slot.patientName ? slot.patientName : slot.status}
-                    </p>
-                    {slot.appointmentId ? <p className="mb-0 mt-1 text-[11px] text-text-muted">Appointment #{slot.appointmentId}</p> : null}
-                  </article>
-                ))}
+              <div className="row g-2">
+                {selectedDaySlots.slots.map((slot, index) => {
+                  const slotStatus = slot.status || 'AVAILABLE';
+                  const slotClass = 
+                    slotStatus === 'BOOKED' ? 'doctor-slot-card--booked' :
+                    slotStatus === 'HELD' ? 'doctor-slot-card--held' :
+                    'doctor-slot-card--available';
+                  
+                  return (
+                    <article className="col-sm-6 col-xl-3" key={`${slot.startTime}-${index}`}>
+                      <div className={`doctor-slot-card ${slotClass}`}>
+                        <p className="doctor-slot-card__time">{formatTime(slot.startTime)} - {formatTime(slot.endTime)}</p>
+                        <p className="doctor-slot-card__status">
+                          {slotStatus === 'BOOKED' && slot.patientName ? slot.patientName : slotStatus}
+                        </p>
+                        {slot.appointmentId ? <p className="doctor-slot-card__appointment">Appointment #{slot.appointmentId}</p> : null}
+                      </div>
+                    </article>
+                  );
+                })}
               </div>
             ) : (
               <p className="mb-0 text-sm text-text-muted">No slots for this day.</p>
             )}
 
-            <button className="mt-4 flex items-center gap-1 rounded border border-primary-container px-3 py-2 text-sm font-semibold text-primary-container hover:bg-primary-fixed" onClick={() => onCreateException(selectedDate)} type="button">
-              <span className="material-symbols-outlined text-[16px]">add</span>
+            <button className="btn btn-outline-primary btn-sm d-inline-flex align-items-center gap-1 mt-3" onClick={() => onCreateException(selectedDate)} type="button">
+              <span className="material-symbols-outlined" style={{fontSize:'1rem'}}>add</span>
               Add Exception for this day
             </button>
           </div>
         </section>
       </div>
 
-      <aside className="grid content-start gap-4">
-        <section className="rounded-lg border border-surface-border bg-white">
-          <div className="border-b border-surface-border bg-surface-container-low px-4 py-3">
-            <h3 className="mb-0 text-sm font-bold text-text-main">Legend</h3>
+      <aside className="col-lg-4 col-xl-3 d-flex flex-column gap-3">
+        <section className="doctor-calendar-panel">
+          <div className="doctor-calendar-panel__header">
+            <h3 className="doctor-calendar-panel__title">Legend</h3>
           </div>
-          <div className="grid gap-3 p-4 text-sm text-text-main">
-            <LegendItem color="bg-success" label="Working (Available)" />
-            <LegendItem color="bg-critical" label="Day Off" />
-            <LegendItem color="bg-warning" label="Modified Hours" />
-            <LegendItem color="bg-text-muted" label="No Schedule" />
+          <div className="doctor-calendar-panel__body">
+            <div className="doctor-legend">
+              <div className="doctor-legend__item">
+                <span className="doctor-legend__dot doctor-legend__dot--working" />
+                Working (Available)
+              </div>
+              <div className="doctor-legend__item">
+                <span className="doctor-legend__dot doctor-legend__dot--dayoff" />
+                Day Off
+              </div>
+              <div className="doctor-legend__item">
+                <span className="doctor-legend__dot doctor-legend__dot--modified" />
+                Modified Hours
+              </div>
+              <div className="doctor-legend__item">
+                <span className="doctor-legend__dot doctor-legend__dot--noschedule" />
+                No Schedule
+              </div>
+            </div>
           </div>
         </section>
 
-        <section className="rounded-lg border border-surface-border bg-white">
-          <div className="flex items-center justify-between border-b border-surface-border bg-surface-container-low px-4 py-3">
-            <h3 className="mb-0 text-sm font-bold text-text-main">Upcoming Exceptions</h3>
-            <span className="rounded bg-surface-container px-2 py-0.5 text-xs font-bold text-text-muted">{upcomingExceptions.length}</span>
+        <section className="doctor-calendar-panel">
+          <div className="doctor-calendar-panel__header">
+            <h3 className="doctor-calendar-panel__title">Upcoming Exceptions</h3>
+            <span className="doctor-calendar-panel__badge">{upcomingExceptions.length}</span>
           </div>
-          <div className="grid gap-3 p-4">
+          <div className="doctor-calendar-panel__body d-flex flex-column gap-2">
             {upcomingExceptions.length === 0 ? (
               <p className="mb-0 text-sm text-text-muted">No upcoming exceptions.</p>
             ) : (
-              upcomingExceptions.map((exception) => (
-                <article className="rounded border border-surface-border p-3" key={exception.exceptionId}>
-                  <div className="flex items-start justify-between gap-3">
-                    <div>
-                      <p className="mb-1 text-sm font-bold text-text-main">{new Date(exception.exceptionDate).toLocaleDateString()}</p>
-                      <span className={`rounded px-2 py-0.5 text-[11px] font-bold ${exception.exceptionType === 'DayOff' ? 'bg-critical/10 text-critical' : exception.exceptionType === 'Modified' ? 'bg-warning/10 text-warning' : 'bg-primary-fixed text-primary'}`}>
-                        {exception.exceptionType}
-                      </span>
+              upcomingExceptions.map((exception) => {
+                const typeClass = 
+                  exception.exceptionType === 'DayOff' ? 'doctor-exception-card__type--dayoff' :
+                  exception.exceptionType === 'Modified' ? 'doctor-exception-card__type--modified' :
+                  'doctor-exception-card__type--addslot';
+
+                return (
+                  <article className="doctor-exception-card" key={exception.exceptionId}>
+                    <div className="doctor-exception-card__top">
+                      <div>
+                        <p className="doctor-exception-card__date">{new Date(exception.exceptionDate).toLocaleDateString()}</p>
+                        <span className={`doctor-exception-card__type ${typeClass}`}>{exception.exceptionType}</span>
+                      </div>
+                      {!exception.isAdminCreated ? (
+                        <button className="doctor-exception-card__delete" disabled={deletingId === exception.exceptionId} onClick={() => handleDeleteException(exception.exceptionId)} title="Delete exception" type="button">
+                          <span className="material-symbols-outlined">{deletingId === exception.exceptionId ? 'progress_activity' : 'delete'}</span>
+                        </button>
+                      ) : null}
                     </div>
-                    {!exception.isAdminCreated ? (
-                      <button className="rounded p-1 text-text-muted hover:bg-error-container/30 hover:text-critical" disabled={deletingId === exception.exceptionId} onClick={() => handleDeleteException(exception.exceptionId)} title="Delete exception" type="button">
-                        <span className="material-symbols-outlined text-[16px]">{deletingId === exception.exceptionId ? 'progress_activity' : 'delete'}</span>
-                      </button>
-                    ) : null}
-                  </div>
-                  <p className="mb-0 mt-2 text-xs text-text-muted">
-                    {exception.reason}
-                    {exception.isAdminCreated ? <span className="ml-2 rounded bg-surface-container px-1.5 py-0.5 text-[10px] font-bold">Admin Created</span> : null}
-                  </p>
-                  {exception.startTime && exception.endTime ? (
-                    <p className="mb-0 mt-2 flex items-center gap-1 text-xs text-text-main">
-                      <span className="material-symbols-outlined text-[14px]">schedule</span>
-                      {formatTime(exception.startTime)} - {formatTime(exception.endTime)}
+                    <p className="doctor-exception-card__reason">
+                      {exception.reason}
+                      {exception.isAdminCreated ? <span className="doctor-exception-card__admin-badge">Admin Created</span> : null}
                     </p>
-                  ) : null}
-                </article>
-              ))
+                    {exception.startTime && exception.endTime ? (
+                      <p className="doctor-exception-card__time">
+                        <span className="material-symbols-outlined">schedule</span>
+                        {formatTime(exception.startTime)} - {formatTime(exception.endTime)}
+                      </p>
+                    ) : null}
+                  </article>
+                );
+              })
             )}
           </div>
         </section>
@@ -248,12 +270,5 @@ const ScheduleCalendarView = ({ exceptions, onCreateException, onRefresh }) => {
     </div>
   );
 };
-
-const LegendItem = ({ color, label }) => (
-  <div className="flex items-center gap-2">
-    <span className={`h-3 w-3 rounded-full ${color}`} />
-    <span>{label}</span>
-  </div>
-);
 
 export default ScheduleCalendarView;

@@ -51,54 +51,87 @@ export default function DoctorProfileView({ doctorData, activeTab = 'personal' }
   const bio = doctorData?.bio || doctorData?.description || 'No professional bio added yet.';
 
   return (
-    <div className="grid grid-cols-1 gap-4 p-3 lg:grid-cols-12 lg:p-4">
-      <section className="flex flex-col gap-4 lg:col-span-5">
-        <article className="rounded-lg border border-surface-border bg-surface-container-lowest p-4 shadow-sm md:p-5">
-          <div className="flex items-start gap-4">
-            <div className="flex h-20 w-20 shrink-0 items-center justify-center overflow-hidden rounded-xl border border-surface-border bg-primary-fixed text-lg font-bold text-primary">
-              {avatarUrl ? (
-                <img alt={doctorName} className="h-full w-full object-cover" src={avatarUrl} />
-              ) : (
-                <span>{getInitials(doctorData?.fullName)}</span>
-              )}
-            </div>
+    <div className="doctor-content-section row g-3">
+      {/* Page Header */}
+      <div className="col-12">
+        <div className="doctor-page-header mb-1">
+          <h1 className="doctor-page-header__title">Profile</h1>
+          <p className="doctor-page-header__subtitle">Professional information and wallet</p>
+        </div>
+      </div>
 
-            <div className="min-w-0 flex-1">
-              <h3 className="mb-1 truncate text-lg font-semibold text-text-main">{doctorName}</h3>
-              <p className="mb-0 text-sm font-medium text-primary">{specialty}</p>
-              <div className="mt-2 flex flex-wrap items-center gap-1.5 text-sm">
-                <span className="material-symbols-outlined text-[18px] text-warning" style={{ fontVariationSettings: "'FILL' 1" }}>
-                  star
-                </span>
-                <span className="font-semibold text-text-main">{rating}</span>
-                <span className="text-xs font-semibold uppercase tracking-wide text-text-muted">
-                  {totalReviews > 0 ? `(${totalReviews} Reviews)` : '(No reviews yet)'}
-                </span>
+      <section className="col-lg-5 d-flex flex-column gap-3">
+        {/* Identity Card */}
+        <div className="doctor-profile-card">
+          <div className="doctor-profile-card__body">
+            <div className="d-flex align-items-start gap-4">
+              <div className="doctor-profile-avatar">
+                {avatarUrl ? (
+                  <img alt={doctorName} src={avatarUrl} />
+                ) : (
+                  <span>{getInitials(doctorData?.fullName)}</span>
+                )}
+              </div>
+
+              <div className="doctor-profile-identity">
+                <h3 className="doctor-profile-identity__name">{doctorName}</h3>
+                <p className="doctor-profile-identity__specialty">{specialty}</p>
+                <div className="doctor-profile-identity__rating">
+                  <span className="material-symbols-outlined doctor-profile-identity__star">
+                    star
+                  </span>
+                  <span className="doctor-profile-identity__score">{rating}</span>
+                  <span className="doctor-profile-identity__reviews">
+                    {totalReviews > 0 ? `(${totalReviews} Reviews)` : '(No reviews yet)'}
+                  </span>
+                </div>
               </div>
             </div>
-          </div>
 
-          <div className="mt-6 grid grid-cols-2 gap-4 border-t border-surface-border pt-4">
-            <ProfileMetric label="Experience" value={formatYears(doctorData?.yearsOfExperience)} />
-            <ProfileMetric label="Doctor ID" value={doctorId} />
+            <div className="doctor-profile-metrics">
+              <ProfileMetric label="Experience" value={formatYears(doctorData?.yearsOfExperience)} />
+              <ProfileMetric label="Doctor ID" value={doctorId} />
+            </div>
           </div>
-        </article>
-
-        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-          <InfoTile icon="school" title="Education" value={qualifications} detail="Professional credentials" />
-          <InfoTile icon="local_hospital" title="Affiliations" value={clinicName} detail={clinicAddress} />
         </div>
 
-        <article className="rounded-lg border border-surface-border bg-surface-container-lowest p-4 shadow-sm md:p-5">
-          <h4 className="mb-2 flex items-center gap-2 text-sm font-semibold text-text-main">
-            <span className="material-symbols-outlined text-[20px] text-text-muted">description</span>
-            Bio
-          </h4>
-          <p className="mb-0 text-sm leading-6 text-text-muted">{bio}</p>
-        </article>
+        {/* Info Tiles */}
+        <div className="row g-3">
+          <div className="col-12 col-sm-6">
+            <div className="doctor-info-tile">
+              <div className="doctor-info-tile__icon">
+                <span className="material-symbols-outlined">school</span>
+              </div>
+              <h4 className="doctor-info-tile__title">Education</h4>
+              <p className="doctor-info-tile__value">{qualifications}</p>
+              <p className="doctor-info-tile__detail">Professional credentials</p>
+            </div>
+          </div>
+          <div className="col-12 col-sm-6">
+            <div className="doctor-info-tile">
+              <div className="doctor-info-tile__icon">
+                <span className="material-symbols-outlined">local_hospital</span>
+              </div>
+              <h4 className="doctor-info-tile__title">Affiliations</h4>
+              <p className="doctor-info-tile__value">{clinicName}</p>
+              <p className="doctor-info-tile__detail">{clinicAddress}</p>
+            </div>
+          </div>
+        </div>
+
+        {/* Bio Card */}
+        <div className="doctor-profile-bio">
+          <div className="doctor-profile-bio__body">
+            <div className="doctor-profile-bio__header">
+              <span className="material-symbols-outlined doctor-profile-bio__icon">description</span>
+              <h4 className="doctor-profile-bio__title">Bio</h4>
+            </div>
+            <p className="doctor-profile-bio__text">{bio}</p>
+          </div>
+        </div>
       </section>
 
-      <section className="scroll-mt-24 lg:col-span-7" id="doctor-wallet-section" ref={walletSectionRef}>
+      <section className="col-lg-7" id="doctor-wallet-section" ref={walletSectionRef} style={{scrollMarginTop:'6rem'}}>
         <DoctorWalletTab profile={doctorData} />
       </section>
     </div>
@@ -108,21 +141,8 @@ export default function DoctorProfileView({ doctorData, activeTab = 'personal' }
 function ProfileMetric({ label, value }) {
   return (
     <div className="min-w-0">
-      <p className="mb-1 text-xs font-semibold uppercase tracking-wide text-text-muted">{label}</p>
-      <p className="mb-0 truncate text-base font-medium text-text-main">{value}</p>
+      <p className="doctor-profile-metric__label">{label}</p>
+      <p className="doctor-profile-metric__value">{value}</p>
     </div>
-  );
-}
-
-function InfoTile({ icon, title, value, detail }) {
-  return (
-    <article className="rounded-lg border border-surface-border bg-surface-container-lowest p-4 shadow-sm">
-      <div className="mb-3 flex items-center gap-2">
-        <span className="material-symbols-outlined rounded bg-primary-fixed p-1 text-[20px] text-primary">{icon}</span>
-        <h4 className="mb-0 text-sm font-semibold text-text-main">{title}</h4>
-      </div>
-      <p className="mb-1 text-sm font-medium text-text-main">{value}</p>
-      <p className="mb-0 text-xs font-semibold uppercase tracking-wide text-text-muted">{detail}</p>
-    </article>
   );
 }

@@ -12,43 +12,38 @@ const STATUS_FILTERS = [
 
 const STATUS_TONES = {
   scheduled: {
-    badge: 'bg-surface-container-highest text-text-muted',
-    rail: 'bg-surface-container-highest',
-    dot: 'bg-surface-container-highest',
-    card: '',
+    badge: 'badge bg-surface-container-highest text-text-muted',
+    railClass: 'doctor-appointment-card__rail--scheduled',
+    dot: 'bg-surface-variant',
   },
   completed: {
-    badge: 'bg-success/10 text-success',
-    rail: 'bg-success',
+    badge: 'badge bg-success text-white',
+    railClass: 'doctor-appointment-card__rail--completed',
     dot: 'bg-success',
-    card: 'opacity-75 hover:opacity-100',
   },
   cancelled: {
-    badge: 'bg-critical/10 text-critical',
-    rail: 'bg-critical',
+    badge: 'badge bg-critical text-white',
+    railClass: 'doctor-appointment-card__rail--cancelled',
     dot: 'bg-critical',
-    card: 'opacity-60',
   },
   inprogress: {
-    badge: 'bg-warning/10 text-warning',
-    rail: 'bg-primary-container',
+    badge: 'badge bg-warning text-white',
+    railClass: 'doctor-appointment-card__rail--inprogress',
     dot: 'bg-warning',
-    card: '',
   },
   default: {
-    badge: 'bg-surface-container text-text-main',
-    rail: 'bg-primary',
+    badge: 'badge bg-surface-container text-text-main',
+    railClass: '',
     dot: 'bg-primary-container',
-    card: '',
   },
 };
 
 const TYPE_TONES = {
-  video: 'bg-primary/10 text-primary',
-  audio: 'bg-surface-container text-text-main',
-  chat: 'bg-primary-fixed text-primary',
-  offline: 'bg-surface-container text-text-main',
-  default: 'bg-surface-container text-text-main',
+  video: 'badge bg-primary text-white',
+  audio: 'badge bg-surface-container text-text-main',
+  chat: 'badge bg-surface-container-highest text-text-main',
+  offline: 'badge bg-surface-container text-text-main',
+  default: 'badge bg-surface-container text-text-main',
 };
 
 const toDateInputValue = (date) => {
@@ -59,12 +54,6 @@ const toDateInputValue = (date) => {
   const month = String(value.getMonth() + 1).padStart(2, '0');
   const day = String(value.getDate()).padStart(2, '0');
   return `${year}-${month}-${day}`;
-};
-
-const shiftDate = (dateValue, days) => {
-  const date = new Date(`${dateValue}T00:00:00`);
-  date.setDate(date.getDate() + days);
-  return toDateInputValue(date);
 };
 
 const parseAppointmentDate = (appointment) => {
@@ -170,7 +159,7 @@ const getPatientMeta = (appointment) => {
   }
   if (patient.gender) parts.push(patient.gender);
   if (patient.age) parts.push(`${patient.age}y`);
-  return parts.join(' - ');
+  return parts.join(' • ');
 };
 
 const isSameLocalDay = (left, right) =>
@@ -297,105 +286,117 @@ export default function DoctorAppointmentsView({ doctorId, onViewAppointment }) 
   };
 
   return (
-    <div className="grid grid-cols-1 gap-4 lg:grid-cols-12">
-      <div className="flex flex-col gap-4 lg:col-span-8">
-        <section className="rounded-lg border border-surface-border bg-white">
-          <div className="flex flex-col gap-3 border-b border-surface-border bg-surface-bright px-4 py-3 md:flex-row md:items-center md:justify-between md:px-5">
-            <div>
-              <p className="mb-1 text-xs font-semibold uppercase text-text-muted">Daily schedule</p>
-              <h2 className="mb-0 text-base font-bold text-text-main md:text-lg">{selectedDateLabel}</h2>
-            </div>
-            <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
-              <div className="inline-flex rounded-lg border border-surface-border bg-surface-container-low p-1" role="group" aria-label="Change date">
-                <button className="flex h-9 w-9 items-center justify-center rounded-md text-text-muted hover:bg-white hover:text-primary" onClick={() => setSelectedDate((current) => shiftDate(current, -1))} title="Previous day" type="button">
-                  <span className="material-symbols-outlined text-[18px]">chevron_left</span>
-                </button>
-                <button className="h-9 rounded-md px-3 text-sm font-semibold text-primary hover:bg-white" onClick={() => setSelectedDate(toDateInputValue(new Date()))} type="button">
-                  Today
-                </button>
-                <button className="flex h-9 w-9 items-center justify-center rounded-md text-text-muted hover:bg-white hover:text-primary" onClick={() => setSelectedDate((current) => shiftDate(current, 1))} title="Next day" type="button">
-                  <span className="material-symbols-outlined text-[18px]">chevron_right</span>
-                </button>
-              </div>
-              <input
-                aria-label="Select appointment date"
-                className="h-10 rounded-lg border border-surface-border bg-surface-container-low px-3 text-sm text-text-main focus:border-transparent focus:outline-none focus:ring-2 focus:ring-primary-container"
-                onChange={(event) => setSelectedDate(event.target.value)}
-                type="date"
-                value={selectedDate}
-              />
-            </div>
-          </div>
-
-          <NextAppointmentCard appointment={nextAppointment} onView={handleView} selectedDate={selectedDate} />
-        </section>
-
-        <section className="space-y-4">
-          <div className="flex flex-col gap-3 rounded-lg border border-surface-border bg-white p-2 md:flex-row md:items-center md:justify-between">
-            <div className="flex gap-1 overflow-x-auto pb-1 md:pb-0">
-              {STATUS_FILTERS.map((filter) => {
-                const isActive = selectedStatus === filter.key;
-                return (
-                  <button
-                    className={`whitespace-nowrap rounded-lg px-4 py-2 text-xs font-bold transition ${isActive ? 'bg-primary-container text-white' : 'text-on-surface-variant hover:bg-surface-container hover:text-primary'}`}
-                    key={filter.key}
-                    onClick={() => setSelectedStatus(filter.key)}
-                    type="button"
-                  >
-                    {filter.label}
-                    <span className={`ml-2 rounded px-1.5 py-0.5 ${isActive ? 'bg-white/20 text-white' : 'bg-surface-container text-text-muted'}`}>
-                      {counts?.[filter.countKey] ?? 0}
-                    </span>
-                  </button>
-                );
-              })}
-            </div>
-
-            <label className="relative w-full md:w-72">
-              <span className="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-[18px] text-text-muted">search</span>
-              <input
-                className="h-10 w-full rounded-lg border border-surface-border bg-surface-container-low pl-9 pr-3 text-sm text-text-main placeholder:text-text-muted focus:border-transparent focus:outline-none focus:ring-2 focus:ring-primary-container"
-                onChange={(event) => setSearchTerm(event.target.value)}
-                placeholder="Search patient..."
-                type="search"
-                value={searchTerm}
-              />
-            </label>
-          </div>
-
-          {loading ? (
-            <LoadingState />
-          ) : error ? (
-            <div className="rounded-lg border border-error-container bg-white p-5 text-error" role="alert">{error}</div>
-          ) : appointments.length === 0 ? (
-            <EmptyState description="Choose another date or status to review the schedule." title="No appointments for this day" />
-          ) : filteredAppointments.length === 0 ? (
-            <EmptyState description="Adjust the search term or clear it to return to the daily list." title="No appointments match your search" />
-          ) : (
-            <div className="space-y-4">
-              {filteredAppointments.map((appointment) => (
-                <AppointmentCard appointment={appointment} key={appointment.appointmentID || appointment.appointmentId} onView={handleView} />
-              ))}
-            </div>
-          )}
-        </section>
+    <div className="doctor-content-section">
+      {/* Page Header */}
+      <div className="doctor-page-header mb-3">
+        <h1 className="doctor-page-header__title">Appointments</h1>
+        <p className="doctor-page-header__subtitle">{selectedDateLabel} &middot; {counts.all} appointment{counts.all !== 1 ? 's' : ''}</p>
       </div>
 
-      <aside className="lg:col-span-4">
-        <TodayTimeline appointments={sortedAppointments} loading={loading} selectedDate={selectedDate} onView={handleView} />
-      </aside>
+      {/* Quick Stats Row */}
+      <div className="doctor-stat-row mb-3">
+        <div className="doctor-stat-card doctor-stat-card--primary">
+          <span className="doctor-stat-card__value">{counts.scheduled || 0}</span>
+          <span className="doctor-stat-card__label">Scheduled</span>
+        </div>
+        <div className="doctor-stat-card doctor-stat-card--success">
+          <span className="doctor-stat-card__value">{counts.completed || 0}</span>
+          <span className="doctor-stat-card__label">Completed</span>
+        </div>
+        <div className="doctor-stat-card doctor-stat-card--warning">
+          <span className="doctor-stat-card__value">{counts.cancelled || 0}</span>
+          <span className="doctor-stat-card__label">Cancelled</span>
+        </div>
+        <div className="doctor-stat-card">
+          <span className="doctor-stat-card__value">{selectedDateLabel.split(',')[0]}</span>
+          <span className="doctor-stat-card__label">Selected Date</span>
+        </div>
+      </div>
+
+      <div className="row g-4 align-items-start">
+        {/* Main Left Column */}
+        <div className="col-lg-8 d-flex flex-column gap-4">
+          {/* Next Appointment Highlight */}
+          <NextAppointmentCard appointment={nextAppointment} onView={handleView} selectedDate={selectedDate} />
+
+          {/* Appointments Section */}
+          <div className="d-flex flex-column gap-3">
+            {/* Filters & Search */}
+            <div className="d-flex flex-column flex-md-row justify-content-between align-items-start align-items-md-center gap-3 bg-surface-container-lowest border border-surface-border rounded-4 p-2">
+              <div className="doctor-filter-chips">
+                {STATUS_FILTERS.map((filter) => {
+                  const isActive = selectedStatus === filter.key;
+                  return (
+                    <button
+                      className={`doctor-filter-chip ${isActive ? 'doctor-filter-chip--active' : ''}`}
+                      key={filter.key}
+                      onClick={() => setSelectedStatus(filter.key)}
+                      type="button"
+                    >
+                      {filter.label}
+                      {counts[filter.countKey] > 0 && (
+                        <span className="doctor-filter-chip__count">{counts[filter.countKey]}</span>
+                      )}
+                    </button>
+                  );
+                })}
+              </div>
+
+              <div className="position-relative w-100" style={{maxWidth:'13rem'}}>
+                <span className="material-symbols-outlined position-absolute top-50 start-0 translate-middle-y text-text-muted" style={{left:'0.625rem',fontSize:'0.875rem'}}>search</span>
+                <input
+                  className="form-control form-control-sm ps-4"
+                  onChange={(event) => setSearchTerm(event.target.value)}
+                  placeholder="Search patient..."
+                  type="text"
+                  value={searchTerm}
+                  style={{height:'2rem',borderRadius:'0.5rem',fontSize:'0.8125rem',borderColor:'var(--border)'}}
+                />
+              </div>
+            </div>
+
+            {/* Appointments List */}
+            {loading ? (
+              <LoadingState />
+            ) : error ? (
+              <div className="alert alert-danger py-2 mb-0" role="alert" style={{fontSize:'0.8125rem'}}>{error}</div>
+            ) : filteredAppointments.length === 0 ? (
+              <div className="doctor-empty-state">
+                <div className="doctor-empty-state__icon">
+                  <span className="material-symbols-outlined">calendar_today</span>
+                </div>
+                <h3 className="doctor-empty-state__title">No appointments for this day</h3>
+                <p className="doctor-empty-state__desc">Choose another date or status to review the schedule.</p>
+              </div>
+            ) : (
+              <div className="d-flex flex-column" style={{gap:'0.625rem'}}>
+                {filteredAppointments.map((appointment) => (
+                  <AppointmentCard appointment={appointment} key={appointment.appointmentID || appointment.appointmentId} onView={handleView} />
+                ))}
+              </div>
+            )}
+          </div>
+        </div>
+
+        {/* Right Sidebar - Today's Schedule */}
+        <aside className="col-lg-4">
+          <TodayTimeline appointments={sortedAppointments} loading={loading} selectedDate={selectedDate} onView={handleView} onDateChange={setSelectedDate} />
+        </aside>
+      </div>
     </div>
   );
 }
 
+/* ==================== NEXT APPOINTMENT CARD ==================== */
+
 const NextAppointmentCard = ({ appointment, onView, selectedDate }) => {
   if (!appointment) {
     return (
-      <div className="p-4">
-        <div className="rounded-lg border border-dashed border-surface-border bg-surface-container-low p-5 text-center">
-          <span className="material-symbols-outlined text-2xl text-text-muted">event_available</span>
-          <h3 className="mb-1 mt-2 text-base font-bold text-text-main">No upcoming appointment</h3>
-          <p className="mb-0 text-sm text-text-muted">There are no scheduled appointments to highlight for {formatShortDate(selectedDate)}.</p>
+      <div className="doctor-card">
+        <div className="doctor-card-body text-center">
+          <span className="material-symbols-outlined fs-2 text-text-muted">event_available</span>
+          <h3 className="mb-1 mt-2 fs-6 fw-semibold text-text-main">No upcoming appointment</h3>
+          <p className="mb-0 small text-text-muted">{formatShortDate(selectedDate)}</p>
         </div>
       </div>
     );
@@ -404,70 +405,73 @@ const NextAppointmentCard = ({ appointment, onView, selectedDate }) => {
   const patientName = getPatientName(appointment);
   const reason = getVisitReason(appointment);
   const patientMeta = getPatientMeta(appointment);
-  const typeKey = getTypeKey(appointment.consultationType);
   const appointmentDate = parseAppointmentDate(appointment);
   const diffMinutes = appointmentDate ? Math.round((appointmentDate.getTime() - Date.now()) / 60000) : null;
   const statusKey = getStatusKey(appointment);
-  const statusTone = STATUS_TONES[statusKey] || STATUS_TONES.default;
 
   return (
-    <div className="relative overflow-hidden p-4 md:p-5">
-      <div className="pointer-events-none absolute inset-0 shadow-[inset_0_0_40px_rgba(0,82,204,0.03)]" />
-      <div className="mb-5 flex flex-wrap items-center justify-between gap-3">
-        <h3 className="mb-0 flex items-center gap-2 text-base font-semibold text-text-main">
-          <span className="h-2 w-2 rounded-full bg-primary-container" />
+    <div className="doctor-next-card">
+      <div className="doctor-next-card__header">
+        <h2 className="d-flex align-items-center gap-2 mb-0 small fw-bold text-text-main">
+          <span className="d-inline-block rounded-circle bg-primary" style={{width:'0.5rem',height:'0.5rem',opacity:0.8}} />
           Next Appointment
-        </h3>
+        </h2>
         {diffMinutes != null && diffMinutes >= 0 ? (
-          <span className="rounded-full bg-primary-fixed-dim/30 px-3 py-1 text-xs font-bold text-primary-container">
+          <span className="badge bg-primary text-white" style={{fontSize:'0.625rem',letterSpacing:'0.05em'}}>
             In {diffMinutes < 60 ? `${diffMinutes} mins` : `${Math.round(diffMinutes / 60)} hrs`}
           </span>
         ) : (
-          <span className={`rounded-full px-3 py-1 text-xs font-bold ${statusTone.badge}`}>{getDisplayStatus(appointment)}</span>
+          <span className={STATUS_TONES[statusKey]?.badge || 'badge bg-surface-container text-text-main'} style={{fontSize:'0.625rem',letterSpacing:'0.05em'}}>{getDisplayStatus(appointment)}</span>
         )}
       </div>
 
-      <div className="grid gap-4 md:grid-cols-[minmax(0,1fr)_220px] md:items-center">
-        <div className="md:border-r md:border-surface-border md:pr-5">
-          <div className="mb-5 flex items-center gap-4">
+      <div className="doctor-next-card__body">
+        <div className="flex-1 border-md-end border-surface-border pe-md-4">
+          <div className="d-flex align-items-center gap-3 mb-3">
             <PatientAvatar appointment={appointment} name={patientName} size="large" />
             <div className="min-w-0">
-              <h3 className="mb-1 truncate text-lg font-bold text-text-main">{patientName}</h3>
-              {patientMeta ? <p className="mb-0 text-sm text-text-muted">{patientMeta}</p> : null}
+              <h3 className="fw-semibold text-text-main text-truncate mb-0" style={{fontSize:'1rem',lineHeight:'1.25'}}>{patientName}</h3>
+              {patientMeta ? <p className="text-text-muted text-truncate mb-0" style={{fontSize:'0.8125rem',marginTop:'0.125rem'}}>{patientMeta}</p> : null}
             </div>
           </div>
 
-          <div className="grid gap-3 sm:grid-cols-2">
-            <InfoBlock label="Reason for visit" value={reason || 'Reason not provided'} />
-            <InfoBlock
-              icon={getTypeIcon(appointment.consultationType)}
-              label="Type"
-              value={appointment.consultationType || 'Consultation'}
-            />
-            <InfoBlock label="Time" value={formatTimeFromDate(appointmentDate)} />
+          <div className="d-flex flex-column" style={{gap:'0.5rem'}}>
+            <div className="d-flex flex-wrap align-items-center" style={{gap:'1.25rem 0.25rem'}}>
+              <div>
+                <span className="small text-uppercase text-text-muted" style={{fontSize:'0.6875rem',fontWeight:'600',letterSpacing:'0.06em'}}>Time</span>
+                <span className="ms-1 small fw-medium text-text-main">{formatTimeFromDate(appointmentDate)}</span>
+              </div>
+              <div>
+                <span className="small text-uppercase text-text-muted" style={{fontSize:'0.6875rem',fontWeight:'600',letterSpacing:'0.06em'}}>Type</span>
+                <span className="ms-1 small fw-medium text-text-main">
+                  <span className="material-symbols-outlined align-middle me-1" style={{fontSize:'14px',color:'var(--text-muted)'}}>{getTypeIcon(appointment.consultationType)}</span>
+                  {appointment.consultationType || 'Consultation'}
+                </span>
+              </div>
+            </div>
             <div>
-              <p className="mb-1 text-xs font-semibold uppercase text-text-muted">Status</p>
-              <span className={`inline-flex rounded-md px-2 py-1 text-xs font-bold ${statusTone.badge}`}>
-                {getDisplayStatus(appointment)}
-              </span>
+              <span className="small text-uppercase text-text-muted" style={{fontSize:'0.6875rem',fontWeight:'600',letterSpacing:'0.06em'}}>Reason</span>
+              <p className="small fw-medium text-text-main mb-0" style={{marginTop:'0.125rem',lineHeight:'1.5'}}>{reason || 'Not provided'}</p>
             </div>
           </div>
         </div>
 
-        <div className="flex flex-col gap-3">
-          <button className="flex w-full items-center justify-center gap-2 rounded-lg bg-primary-container px-4 py-3 text-sm font-semibold text-white hover:brightness-110" onClick={() => onView(appointment)} type="button">
-            <span className="material-symbols-outlined text-[18px]">open_in_new</span>
-            Open detail
+        <div className="d-flex flex-column justify-content-center gap-2" style={{minWidth:'160px'}}>
+          <button className="btn btn-primary btn-sm w-100 d-flex align-items-center justify-content-center gap-1" onClick={() => onView(appointment)} type="button">
+            <span className="material-symbols-outlined" style={{fontSize:'0.875rem'}}>open_in_new</span>
+            Open Detail
           </button>
-          <div className={`inline-flex items-center justify-center gap-1 rounded-lg px-4 py-3 text-sm font-semibold ${TYPE_TONES[typeKey] || TYPE_TONES.default}`}>
-            <span className="material-symbols-outlined text-[18px]">{getTypeIcon(appointment.consultationType)}</span>
-            {appointment.consultationType || 'Consultation'}
-          </div>
+          <button className="btn btn-outline-primary btn-sm w-100 d-flex align-items-center justify-content-center gap-1" onClick={() => onView(appointment)} type="button">
+            <span className="material-symbols-outlined" style={{fontSize:'0.875rem'}}>description</span>
+            Medical History
+          </button>
         </div>
       </div>
     </div>
   );
 };
+
+/* ==================== APPOINTMENT CARD ==================== */
 
 const AppointmentCard = ({ appointment, onView }) => {
   const patientName = getPatientName(appointment);
@@ -476,148 +480,255 @@ const AppointmentCard = ({ appointment, onView }) => {
   const typeKey = getTypeKey(appointment.consultationType);
   const statusKey = getStatusKey(appointment);
   const statusTone = STATUS_TONES[statusKey] || STATUS_TONES.default;
-  const actionLabel = statusKey === 'completed' ? 'View notes' : 'View details';
+
+  const actionConfig = {
+    inprogress: { label: 'Join Call', active: true },
+    scheduled: { label: 'View Details', active: true },
+    completed: { label: 'Notes', active: true },
+    cancelled: { label: '', active: false },
+  };
+
+  const action = actionConfig[statusKey] || actionConfig.scheduled;
 
   return (
-    <article className={`group relative overflow-hidden rounded-lg border border-surface-border bg-white p-4 transition hover:shadow-sm md:p-5 ${statusTone.card}`}>
-      <div className={`absolute bottom-0 left-0 top-0 w-1 transition-all group-hover:w-1.5 ${statusTone.rail}`} />
-      <div className="grid gap-3 md:grid-cols-[120px_minmax(0,1fr)] xl:grid-cols-[120px_minmax(0,1fr)_220px_100px] md:items-center">
-        <div className="flex items-center gap-4">
-          <div className="flex flex-col">
-            <span className="text-sm font-bold text-text-main">{formatTimeFromDate(appointmentDate)}</span>
-            <span className="text-xs font-semibold text-text-muted">{getDurationLabel(appointment)}</span>
-          </div>
-          <div className="hidden h-10 w-px bg-surface-border md:block" />
-        </div>
+    <article className="doctor-appointment-card" style={{opacity: statusKey === 'completed' || statusKey === 'cancelled' ? '0.65' : '1'}}>
+      <div className={`doctor-appointment-card__rail ${statusTone.railClass}`} />
+      
+      {/* Time */}
+      <div className="doctor-appointment-card__time">
+        <div className="doctor-appointment-card__time-value">{formatTimeFromDate(appointmentDate)}</div>
+        <div className="doctor-appointment-card__time-duration">{getDurationLabel(appointment)}</div>
+      </div>
 
-        <div className="flex min-w-0 items-center gap-3">
-          <PatientAvatar appointment={appointment} name={patientName} />
-          <div className="min-w-0">
-            <h3 className="mb-1 truncate text-sm font-semibold text-text-main">{patientName}</h3>
-            <p className="mb-0 truncate text-xs font-semibold text-text-muted">{reason || 'Reason not provided'}</p>
-          </div>
-        </div>
+      <div className="doctor-appointment-card__divider d-none d-md-block" />
 
-        <div className="flex flex-wrap items-center gap-2">
-          <span className={`inline-flex items-center gap-1 rounded-md px-2.5 py-1 text-xs font-bold ${TYPE_TONES[typeKey] || TYPE_TONES.default}`}>
-            <span className="material-symbols-outlined text-[14px]">{getTypeIcon(appointment.consultationType)}</span>
-            {appointment.consultationType || 'Consultation'}
-          </span>
-          <span className={`inline-flex items-center gap-1 rounded-md px-2.5 py-1 text-xs font-bold ${statusTone.badge}`}>
-            {statusKey === 'inprogress' ? <span className="h-1.5 w-1.5 rounded-full bg-warning" /> : null}
-            {getDisplayStatus(appointment)}
-          </span>
+      {/* Patient Info */}
+      <div className="doctor-appointment-card__patient">
+        <PatientAvatar appointment={appointment} name={patientName} size="compact" />
+        <div className="doctor-appointment-card__patient-info">
+          <p className="doctor-appointment-card__patient-name">{patientName}</p>
+          <p className="doctor-appointment-card__patient-reason">{reason || 'Appointment'}</p>
         </div>
+      </div>
 
-        <div className="flex justify-end">
-          {statusKey !== 'cancelled' ? (
-            <button className="rounded-lg border border-primary-container px-4 py-2 text-xs font-bold text-primary hover:bg-surface-container" onClick={() => onView(appointment)} type="button">
-              {actionLabel}
-            </button>
-          ) : (
-            <span className="text-xs font-semibold text-text-muted">No action</span>
-          )}
-        </div>
+      {/* Type & Status */}
+      <div className="d-flex align-items-center gap-2">
+        <span className={`d-inline-flex align-items-center gap-1 ${TYPE_TONES[typeKey] || TYPE_TONES.default}`}>
+          <span className="material-symbols-outlined" style={{fontSize:'12px'}}>{getTypeIcon(appointment.consultationType)}</span>
+          {appointment.consultationType || 'Consultation'}
+        </span>
+        <span className={`d-inline-flex align-items-center gap-1 ${statusTone.badge}`}>
+          {statusKey === 'inprogress' ? <span className="d-inline-block rounded-circle bg-white" style={{width:'0.375rem',height:'0.375rem',opacity:0.9}} /> : null}
+          {getDisplayStatus(appointment)}
+        </span>
+      </div>
+
+      {/* Action */}
+      <div className="flex-shrink-0">
+        {action.active ? (
+          <button className={`btn btn-sm ${statusKey === 'inprogress' ? 'btn-primary' : statusKey === 'scheduled' ? 'btn-outline-primary' : 'btn-link text-decoration-none'} d-flex align-items-center gap-1`} onClick={() => onView(appointment)} type="button">
+            {action.label}
+          </button>
+        ) : (
+          <span className="small text-text-muted fst-italic">No action</span>
+        )}
       </div>
     </article>
   );
 };
 
-const TodayTimeline = ({ appointments, loading, selectedDate, onView }) => (
-  <section className="sticky top-16 rounded-lg border border-surface-border bg-white">
-    <div className="flex items-center justify-between border-b border-surface-border bg-surface-bright px-4 py-3">
-      <div>
-        <h2 className="mb-0 text-base font-semibold text-text-main">Today's Schedule</h2>
-        <p className="mb-0 text-xs text-text-muted">{formatShortDate(selectedDate)}</p>
-      </div>
-      <span className="rounded bg-surface-container px-2 py-0.5 text-xs font-bold text-text-muted">{appointments.length}</span>
-    </div>
+/* ==================== TODAY'S SCHEDULE / TIMELINE ==================== */
 
-    <div className="relative max-h-[650px] overflow-y-auto p-4">
-      <div className="absolute bottom-4 left-[62px] top-4 w-px bg-surface-border" />
-      {loading ? (
-        <div className="py-8 text-center">
-          <div className="spinner-border spinner-border-sm text-primary" role="status">
-            <span className="visually-hidden">Loading...</span>
-          </div>
+const WEEKDAYS = ['M', 'T', 'W', 'T', 'F', 'S', 'S'];
+
+const getCalendarDays = (dateStr) => {
+  const date = new Date(`${dateStr}T00:00:00`);
+  const year = date.getFullYear();
+  const month = date.getMonth();
+  const firstDay = new Date(year, month, 1);
+  const startOffset = firstDay.getDay() === 0 ? 6 : firstDay.getDay() - 1; // Monday = 0
+  const daysInMonth = new Date(year, month + 1, 0).getDate();
+  const today = new Date();
+  const selectedDay = date.getDate();
+
+  const days = [];
+  // Previous month fillers
+  for (let i = 0; i < startOffset; i++) {
+    days.push({ day: 0, label: '', muted: true });
+  }
+  // Current month days
+  for (let d = 1; d <= daysInMonth; d++) {
+    const isToday =
+      today.getFullYear() === year &&
+      today.getMonth() === month &&
+      today.getDate() === d;
+    const isSelected = d === selectedDay;
+    days.push({ day: d, label: String(d), isToday, isSelected });
+  }
+  return days;
+};
+
+const TodayTimeline = ({ appointments, loading, selectedDate, onView, onDateChange }) => {
+  const calendarDays = useMemo(() => getCalendarDays(selectedDate), [selectedDate]);
+
+  return (
+    <section className="doctor-timeline">
+      {/* Header */}
+      <div className="doctor-timeline__header">
+        <h2 className="doctor-timeline__title">
+          <span className="doctor-timeline__title-dot" />
+          Today's Schedule
+        </h2>
+        <div className="d-flex gap-1">
+          <button
+            className="doctor-timeline__nav-btn"
+            onClick={() => {
+              const d = new Date(selectedDate + 'T00:00:00');
+              d.setDate(d.getDate() - 1);
+              onDateChange(toDateInputValue(d));
+            }}
+            type="button"
+            aria-label="Previous day"
+          >
+            <span className="material-symbols-outlined" style={{fontSize:'1rem'}}>chevron_left</span>
+          </button>
+          <button
+            className="doctor-timeline__nav-btn"
+            onClick={() => {
+              const d = new Date(selectedDate + 'T00:00:00');
+              d.setDate(d.getDate() + 1);
+              onDateChange(toDateInputValue(d));
+            }}
+            type="button"
+            aria-label="Next day"
+          >
+            <span className="material-symbols-outlined" style={{fontSize:'1rem'}}>chevron_right</span>
+          </button>
         </div>
-      ) : appointments.length === 0 ? (
-        <div className="rounded-lg border border-dashed border-surface-border bg-surface-container-low p-4 text-sm text-text-muted">
-          No timeline items for this day.
+      </div>
+
+      {/* Mini Calendar */}
+      <div className="doctor-timeline__calendar">
+        <div className="doctor-timeline__calendar-weekdays">
+          {WEEKDAYS.map((day, idx) => (
+            <div className="doctor-timeline__calendar-weekday" key={`wd-${idx}`}>{day}</div>
+          ))}
         </div>
-      ) : (
-        <div className="space-y-3">
-          {appointments.map((appointment) => {
-            const statusKey = getStatusKey(appointment);
-            const statusTone = STATUS_TONES[statusKey] || STATUS_TONES.default;
-            const appointmentDate = parseAppointmentDate(appointment);
-            return (
+        <div className="doctor-timeline__calendar-days">
+          {calendarDays.map((day, idx) => (
+            day.day === 0 ? (
+              <div key={`empty-${idx}`} />
+            ) : (
               <button
-                className={`relative z-10 flex w-full gap-4 text-left ${statusKey === 'completed' || statusKey === 'cancelled' ? 'opacity-70' : ''}`}
-                key={`timeline-${appointment.appointmentID || appointment.appointmentId}`}
-                onClick={() => statusKey !== 'cancelled' && onView(appointment)}
+                className={`doctor-timeline__calendar-day ${
+                  day.isSelected
+                    ? 'doctor-timeline__calendar-day--selected'
+                    : day.isToday
+                      ? 'doctor-timeline__calendar-day--today'
+                      : ''
+                }`}
+                key={`day-${day.day}`}
+                onClick={() => {
+                  const d = new Date(selectedDate + 'T00:00:00');
+                  d.setDate(d.getDate() + (day.day - d.getDate()));
+                  onDateChange(toDateInputValue(d));
+                }}
                 type="button"
               >
-                <span className={`w-12 shrink-0 pt-1 text-right text-xs font-bold ${statusKey === 'inprogress' ? 'text-primary-container' : 'text-text-muted'}`}>
+                {day.label}
+              </button>
+            )
+          ))}
+        </div>
+      </div>
+
+      {/* Schedule List */}
+      <div className="doctor-timeline__list">
+        {loading ? (
+          <div className="py-4 text-center">
+            <div className="spinner-border spinner-border-sm text-primary" role="status">
+              <span className="visually-hidden">Loading...</span>
+            </div>
+          </div>
+        ) : appointments.length === 0 ? (
+          <div className="doctor-empty-state" style={{minHeight:'100px',padding:'1.25rem'}}>
+            <p className="doctor-empty-state__desc mb-0">No appointments for this day.</p>
+          </div>
+        ) : (
+          appointments.map((appointment) => {
+            const statusKey = getStatusKey(appointment);
+            const appointmentDate = parseAppointmentDate(appointment);
+            const isCompleted = statusKey === 'completed' || statusKey === 'cancelled';
+            const isCurrent = statusKey === 'inprogress';
+
+            const dotClass =
+              statusKey === 'inprogress' ? 'doctor-timeline__item-dot-inner--inprogress' :
+              statusKey === 'completed' ? 'doctor-timeline__item-dot-inner--completed' :
+              statusKey === 'cancelled' ? 'doctor-timeline__item-dot-inner--cancelled' :
+              'doctor-timeline__item-dot-inner--scheduled';
+
+            return (
+              <button
+                className={`doctor-timeline__item ${isCompleted ? 'doctor-timeline__item--completed' : ''}`}
+                key={`timeline-${appointment.appointmentID || appointment.appointmentId}`}
+                onClick={() => !isCompleted && onView(appointment)}
+                type="button"
+              >
+                <div className="doctor-timeline__item-time">
                   {formatTimeFromDate(appointmentDate)}
-                </span>
-                <span className={`absolute left-[42px] top-1.5 h-3 w-3 rounded-full border-2 border-white ${statusTone.dot}`} />
-                <span className={`flex-1 rounded-lg border p-3 transition ${statusKey === 'inprogress' ? 'border-primary-fixed-dim bg-primary-fixed-dim/10' : 'border-surface-border bg-surface-container-low hover:border-primary-fixed-dim'}`}>
-                  <span className={`block text-sm font-semibold ${statusKey === 'completed' ? 'text-text-muted line-through' : 'text-text-main'}`}>
+                </div>
+                <div className="doctor-timeline__item-dot">
+                  <div className={`doctor-timeline__item-dot-inner ${dotClass}`} />
+                </div>
+                <div className={`doctor-timeline__item-card ${isCurrent ? 'doctor-timeline__item-card--inprogress' : ''}`}>
+                  <p className="doctor-timeline__item-card-name">
                     {getPatientName(appointment)}
-                  </span>
-                  <span className="mt-1 block text-xs text-text-muted">
-                    {(getVisitReason(appointment) || 'Appointment')} - {appointment.consultationType || 'Consultation'}
-                  </span>
-                </span>
+                  </p>
+                  <p className="doctor-timeline__item-card-reason">
+                    {getVisitReason(appointment) || 'Appointment'}
+                  </p>
+                </div>
               </button>
             );
-          })}
-        </div>
-      )}
-    </div>
-  </section>
-);
+          })
+        )}
+      </div>
+    </section>
+  );
+};
 
-const PatientAvatar = ({ appointment, name, size = 'default' }) => {
+/* ==================== PATIENT AVATAR ==================== */
+
+const PatientAvatar = ({ appointment, name, size = 'card' }) => {
   const avatar = getPatientAvatar(appointment);
-  const sizeClass = size === 'large' ? 'h-16 w-16 text-lg' : 'h-10 w-10 text-sm';
+  const sizeMap = {
+    xlarge: { width: '3.5rem', height: '3.5rem', fontSize: '0.875rem' },
+    card: { width: '2rem', height: '2rem', fontSize: '0.75rem' },
+    large: { width: '2.5rem', height: '2.5rem', fontSize: '0.75rem' },
+    medium: { width: '2rem', height: '2rem', fontSize: '10px' },
+    compact: { width: '1.5rem', height: '1.5rem', fontSize: '9px' },
+    default: { width: '1.75rem', height: '1.75rem', fontSize: '10px' },
+  };
+  const sizeStyle = sizeMap[size] || sizeMap.default;
 
   if (avatar) {
-    return <img alt={name} className={`${sizeClass} shrink-0 rounded-full border border-surface-border object-cover`} src={avatar} />;
+    return <img alt={name} className="shrink-0 rounded-circle object-fit-cover border border-surface-border" src={avatar} style={sizeStyle} />;
   }
 
   return (
-    <div className={`${sizeClass} flex shrink-0 items-center justify-center rounded-full border border-surface-border bg-surface-container-highest font-bold text-text-muted`}>
+    <div className="shrink-0 rounded-circle border border-surface-border bg-surface-container-highest d-flex align-items-center justify-content-center fw-bold text-text-muted" style={sizeStyle}>
       {getPatientInitials(name)}
     </div>
   );
 };
 
-const InfoBlock = ({ icon, label, value }) => (
-  <div>
-    <p className="mb-1 text-xs font-semibold uppercase text-text-muted">{label}</p>
-    <p className="mb-0 flex items-center gap-1 text-sm font-semibold text-text-main">
-      {icon ? <span className="material-symbols-outlined text-[16px] text-text-muted">{icon}</span> : null}
-      {value}
-    </p>
-  </div>
-);
+/* ==================== STATES ==================== */
 
 const LoadingState = () => (
-  <div className="rounded-lg border border-surface-border bg-white py-12 text-center">
+  <div className="doctor-empty-state">
     <div className="spinner-border text-primary" role="status">
       <span className="visually-hidden">Loading...</span>
     </div>
   </div>
 );
 
-const EmptyState = ({ title, description }) => (
-  <div className="rounded-lg border border-dashed border-surface-border bg-white p-8 text-center">
-    <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-full bg-surface-container text-text-muted">
-      <span className="material-symbols-outlined">calendar_today</span>
-    </div>
-    <h3 className="mb-1 mt-3 text-base font-bold text-text-main">{title}</h3>
-    <p className="mb-0 text-sm text-text-muted">{description}</p>
-  </div>
-);

@@ -316,10 +316,10 @@ const DoctorDashboardPage = () => {
     fetchNotifications();
   };
 
-  const renderAvatar = (sizeClass = 'h-10 w-10') => (
-    <div className={`${sizeClass} shrink-0 overflow-hidden rounded-full border border-surface-border bg-primary-fixed text-primary flex items-center justify-center font-bold`}>
+  const renderAvatar = (sizeStyle = {width:'2.5rem',height:'2.5rem'}) => (
+    <div className="shrink-0 overflow-hidden rounded-circle border border-surface-border bg-primary-fixed text-primary d-flex align-items-center justify-content-center fw-bold" style={{width:sizeStyle.width || '2.5rem',height:sizeStyle.height || '2.5rem'}}>
       {doctorAvatar ? (
-        <img alt={doctorName} className="h-full w-full object-cover" src={doctorAvatar} />
+        <img alt={doctorName} className="object-fit-cover w-100 h-100" src={doctorAvatar} />
       ) : (
         <span>{getInitials(doctorName)}</span>
       )}
@@ -327,7 +327,7 @@ const DoctorDashboardPage = () => {
   );
 
   const renderNavigationLinks = (mobile = false) => (
-    <div className={mobile ? 'grid grid-cols-5 gap-1' : 'flex flex-col gap-1'}>
+    <div className={mobile ? 'd-flex gap-1 justify-content-around' : 'd-flex flex-column gap-1'}>
       {NAV_ITEMS.map((item) => {
         const isActive =
           view === item.key ||
@@ -338,15 +338,15 @@ const DoctorDashboardPage = () => {
           <button
             className={
               mobile
-                ? `flex min-h-14 flex-col items-center justify-center rounded-lg px-1 py-2 text-[11px] font-semibold transition ${isActive ? 'bg-primary-container text-white shadow-sm' : 'text-on-surface-variant'}`
-                : `flex items-center gap-3 rounded px-3 py-2.5 text-left text-sm font-medium transition active:scale-[0.99] ${isActive ? 'border-l-4 border-primary bg-surface-container-low text-primary font-bold' : 'border-l-4 border-transparent text-on-surface-variant hover:bg-surface-container hover:text-primary'}`
+                ? `nav-item-mobile ${isActive ? 'nav-item-mobile--active' : ''}`
+                : `nav-item-custom ${isActive ? 'nav-item-custom--active' : ''}`
             }
             key={item.key}
             onClick={() => selectView(item.key)}
             type="button"
           >
-            <span className="material-symbols-outlined text-[20px]">{item.icon}</span>
-            <span className={mobile ? 'leading-tight' : ''}>{item.label}</span>
+            <span className="material-symbols-outlined">{item.icon}</span>
+            <span>{item.label}</span>
           </button>
         );
       })}
@@ -354,11 +354,11 @@ const DoctorDashboardPage = () => {
   );
 
   const renderNotificationList = (expanded = false) => (
-    <div className={`${expanded ? 'max-h-[70vh]' : 'max-h-[400px]'} overflow-y-auto divide-y divide-surface-border`}>
+    <div className={`overflow-y-auto divide-y-surface-border ${expanded ? '' : ''}`} style={{maxHeight:expanded ? '70vh' : '400px'}}>
       {notifications.length === 0 ? (
-        <div className="flex flex-col items-center justify-center px-4 py-10 text-center text-text-muted">
-          <span className="material-symbols-outlined mb-2 text-4xl">notifications_off</span>
-          <p className="mb-0 text-sm font-semibold">No notifications</p>
+        <div className="d-flex flex-column align-items-center justify-content-center px-3 py-5 text-center text-text-muted">
+          <span className="material-symbols-outlined mb-2 fs-1">notifications_off</span>
+          <p className="mb-0 small fw-semibold">No notifications</p>
           <p className="mb-0 text-xs">Updates about appointments and wallet activity will appear here.</p>
         </div>
       ) : (
@@ -367,25 +367,25 @@ const DoctorDashboardPage = () => {
 
           return (
             <article
-              className={`flex gap-3 p-4 transition hover:bg-surface-container-low ${!notification.isRead ? 'bg-primary-fixed/20' : 'bg-white'}`}
+              className={`d-flex gap-3 p-3 transition-base hover:bg-surface-container-low ${!notification.isRead ? 'bg-primary-fixed' : 'bg-white'}`}
               key={notification.notificationId}
             >
-              <div className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-full ${tone.bg}`}>
+              <div className={`d-flex align-items-center justify-content-center rounded-circle shrink-0 ${tone.bg}`} style={{width:'2.5rem',height:'2.5rem'}}>
                 <span className={`material-symbols-outlined ${tone.accent}`}>{tone.icon}</span>
               </div>
               <div className="min-w-0 flex-1 space-y-1">
-                <div className="flex items-start justify-between gap-3">
-                  <p className={`mb-0 text-sm font-semibold ${tone.accent === 'text-critical' ? 'text-critical' : 'text-on-surface'}`}>
+                <div className="d-flex align-items-start justify-content-between gap-3">
+                  <p className={`mb-0 small fw-semibold ${tone.accent === 'text-critical' ? 'text-critical' : 'text-on-surface'}`}>
                     {notification.title || tone.title}
                   </p>
-                  {!notification.isRead ? <span className="mt-1.5 h-2 w-2 rounded-full bg-primary-container" /> : null}
+                  {!notification.isRead ? <span className="d-inline-block bg-primary-container rounded-circle" style={{width:'0.5rem',height:'0.5rem',marginTop:'0.375rem'}} /> : null}
                 </div>
                 <p className="mb-0 whitespace-pre-line text-xs leading-5 text-text-muted">{notification.message}</p>
-                <div className="flex items-center justify-between gap-3 pt-1">
+                <div className="d-flex align-items-center justify-content-between gap-3 pt-1">
                   <span className="text-[11px] text-text-muted">{formatNotificationTime(notification.createdAt)}</span>
                   {(notification.appointmentId || notification.actionUrl) ? (
                     <button
-                      className="text-xs font-semibold text-primary-container hover:underline"
+                      className="text-xs fw-semibold text-primary-container hover:underline border-0 bg-transparent p-0"
                       onClick={() => handleNotificationClick(notification)}
                       type="button"
                     >
@@ -393,7 +393,7 @@ const DoctorDashboardPage = () => {
                     </button>
                   ) : (
                     <button
-                      className="text-xs font-semibold text-primary-container hover:underline"
+                      className="text-xs fw-semibold text-primary-container hover:underline border-0 bg-transparent p-0"
                       onClick={() => handleNotificationClick(notification)}
                       type="button"
                     >
@@ -410,33 +410,33 @@ const DoctorDashboardPage = () => {
   );
 
   const renderNotificationBell = () => (
-    <div className="relative" ref={notificationRef}>
+    <div className="position-relative" ref={notificationRef}>
       <button
         aria-label="Open notifications"
-        className="relative flex h-10 w-10 items-center justify-center rounded-full text-on-surface-variant transition hover:bg-surface-container hover:text-primary"
+        className="notification-bell-btn"
         onClick={() => setShowNotificationDropdown((current) => !current)}
         type="button"
       >
         <span className="material-symbols-outlined">notifications</span>
         {unreadCount > 0 ? (
-          <span className="absolute right-2 top-2 h-2.5 w-2.5 rounded-full border-2 border-surface bg-critical" />
+          <span className="notification-bell-dot" />
         ) : null}
       </button>
 
       {showNotificationDropdown ? (
-        <div className="absolute right-0 z-50 mt-2 hidden w-[360px] overflow-hidden rounded-xl border border-surface-border bg-surface-container-lowest shadow-xl md:block">
-          <div className="absolute -top-1.5 right-4 h-3 w-3 rotate-45 border-l border-t border-surface-border bg-surface-container-lowest" />
-          <div className="flex items-center justify-between border-b border-surface-border bg-surface-bright px-4 py-3">
-            <h3 className="mb-0 text-sm font-semibold text-on-surface">Notifications</h3>
+        <div className="notification-dropdown-desktop d-none d-md-block">
+          <div className="notification-dropdown-arrow" />
+          <div className="d-flex align-items-center justify-content-between border-bottom px-3 py-3" style={{borderColor:'var(--border-light)'}}>
+            <h3 className="mb-0 small fw-semibold">Notifications</h3>
             {unreadCount > 0 ? (
-              <button className="text-xs font-semibold text-primary-container hover:underline" onClick={handleMarkAllRead} type="button">
+              <button className="text-xs fw-semibold border-0 bg-transparent" style={{color:'var(--primary)'}} onClick={handleMarkAllRead} type="button">
                 Mark all as read
               </button>
             ) : null}
           </div>
           {renderNotificationList()}
-          <div className="border-t border-surface-border bg-surface-bright p-3 text-center">
-            <button className="text-xs font-semibold text-primary-container hover:underline" onClick={() => setShowAllNotifications(true)} type="button">
+          <div className="border-top p-3 text-center" style={{borderColor:'var(--border-light)'}}>
+            <button className="text-xs fw-semibold border-0 bg-transparent" style={{color:'var(--primary)'}} onClick={() => setShowAllNotifications(true)} type="button">
               View all notifications
             </button>
           </div>
@@ -480,7 +480,7 @@ const DoctorDashboardPage = () => {
 
   if (loading) {
     return (
-      <div className="flex min-h-screen items-center justify-center bg-background">
+      <div className="d-flex min-vh-100 align-items-center justify-content-center bg-background">
         <div className="spinner-border text-primary" role="status">
           <span className="visually-hidden">Loading...</span>
         </div>
@@ -490,8 +490,8 @@ const DoctorDashboardPage = () => {
 
   if (error) {
     return (
-      <div className="flex min-h-screen items-center justify-center bg-background p-6">
-        <div className="rounded-lg border border-error-container bg-white p-6 text-error" role="alert">
+      <div className="d-flex min-vh-100 align-items-center justify-content-center bg-background p-4">
+        <div className="rounded-3 border border-error-container bg-white p-4 text-error" role="alert">
           {error}
         </div>
       </div>
@@ -499,96 +499,82 @@ const DoctorDashboardPage = () => {
   }
 
   return (
-    <div className="min-h-screen bg-background font-[Inter] text-text-main">
-      <aside className="fixed left-0 top-0 z-40 hidden h-screen w-[240px] flex-col border-r border-surface-border bg-surface-container-lowest py-5 lg:flex">
-        <div className="mb-6 flex flex-col items-center px-5 text-center">
-          {renderAvatar('h-14 w-14')}
-          <h2 className="mb-1 mt-3 text-base font-bold text-text-main">{doctorName}</h2>
-          <p className="mb-0 text-sm text-text-muted">{doctorSpecialty}</p>
-        </div>
-
-        <div className="mb-5 px-5">
-          <div className="flex w-full items-center justify-center gap-2 rounded bg-primary-container px-4 py-2 text-sm font-semibold text-white shadow-sm">
-            <span className="h-2 w-2 rounded-full bg-success" />
-            Working Status
+    <div className="min-vh-100 bg-background text-text-main">
+      <aside className="doctor-sidebar position-fixed top-0 start-0 z-40 d-none d-lg-flex flex-column border-end border-surface-border bg-surface-container-lowest py-4 min-vh-100" style={{width:'240px'}}>
+        <div className="doctor-sidebar-header text-center px-4">
+          <div className="d-flex flex-column align-items-center">
+            {renderAvatar({width:'3.5rem',height:'3.5rem'})}
+            <h2 className="mb-1 mt-3 fs-6 fw-bold text-text-main">{doctorName}</h2>
+            <p className="mb-0 small text-text-muted">{doctorSpecialty}</p>
+          </div>
+          <div className="mt-3">
+            <div className="d-inline-flex align-items-center gap-2 rounded-5 px-3 py-1 small fw-semibold text-white shadow-sm" style={{background:'linear-gradient(135deg, #0052cc 0%, #137fec 100%)'}}>
+              <span className="d-inline-block rounded-circle bg-success" style={{width:'8px',height:'8px',boxShadow:'0 0 0 2px rgba(16,185,129,0.3)'}} />
+              <span>Available</span>
+            </div>
           </div>
         </div>
 
-        <nav className="flex-1 overflow-y-auto px-3">{renderNavigationLinks()}</nav>
-
-        <div className="mt-auto border-t border-surface-border px-3 pt-5">
-          <button
-            className="flex w-full items-center gap-3 rounded px-4 py-3 text-sm font-medium text-on-surface-variant transition hover:bg-surface-container hover:text-error"
-            onClick={handleLogout}
-            type="button"
-          >
-            <span className="material-symbols-outlined text-[20px]">logout</span>
-            <span>Logout</span>
-          </button>
-        </div>
+        <nav className="flex-1 overflow-y-auto px-3 mt-4">{renderNavigationLinks()}</nav>
       </aside>
 
       {isMobileMenuOpen ? (
-        <div className="fixed inset-0 z-50 bg-black/40 lg:hidden" onClick={() => setIsMobileMenuOpen(false)}>
-          <aside className="ml-auto h-full w-[300px] max-w-[86vw] bg-white p-5 shadow-xl" onClick={(event) => event.stopPropagation()}>
-            <div className="mb-6 flex items-center justify-between">
-              <div className="flex items-center gap-3">
-                {renderAvatar('h-11 w-11')}
+        <div className="position-fixed inset-0 z-50 bg-black/40 d-lg-none" onClick={() => setIsMobileMenuOpen(false)}>
+          <aside className="doctor-mobile-sidebar ms-auto h-100 shadow-lg bg-white p-4" style={{width:'300px',maxWidth:'86vw'}} onClick={(event) => event.stopPropagation()}>
+            <div className="mb-4 d-flex align-items-center justify-content-between">
+              <div className="d-flex align-items-center gap-3">
+                {renderAvatar()}
                 <div>
-                  <p className="mb-0 text-sm font-bold text-text-main">{doctorName}</p>
+                  <p className="mb-0 small fw-bold text-text-main">{doctorName}</p>
                   <p className="mb-0 text-xs text-text-muted">{doctorSpecialty}</p>
                 </div>
               </div>
-              <button className="rounded p-2 text-on-surface-variant hover:bg-surface-container" onClick={() => setIsMobileMenuOpen(false)} type="button">
+              <button className="doctor-mobile-close rounded-3 p-2 text-on-surface-variant hover:bg-surface-container border-0 bg-transparent" onClick={() => setIsMobileMenuOpen(false)} type="button">
                 <span className="material-symbols-outlined">close</span>
               </button>
             </div>
             {renderNavigationLinks()}
-            <button className="mt-8 flex w-full items-center gap-3 rounded px-4 py-3 text-sm font-medium text-error hover:bg-error-container/30" onClick={handleLogout} type="button">
-              <span className="material-symbols-outlined text-[20px]">logout</span>
-              <span>Logout</span>
-            </button>
           </aside>
         </div>
       ) : null}
 
-      <div className="min-h-screen lg:ml-[240px]">
-        <header className="sticky top-0 z-30 flex h-14 items-center justify-between border-b border-surface-border bg-surface-container-lowest px-4 md:px-5">
-          <div className="flex items-center gap-3">
-            <button className="rounded p-2 text-on-surface-variant hover:bg-surface-container lg:hidden" onClick={() => setIsMobileMenuOpen(true)} type="button">
+      <div className="doctor-main-area min-vh-100" style={{paddingLeft:'240px'}}>
+        <header className="doctor-header sticky-top z-30 d-flex align-items-center justify-content-between px-3 px-md-4">
+          <div className="d-flex align-items-center gap-3">
+            <button className="rounded-3 p-2 text-on-surface-variant hover:bg-surface-container d-lg-none border-0 bg-transparent" onClick={() => setIsMobileMenuOpen(true)} type="button">
               <span className="material-symbols-outlined">menu</span>
             </button>
-            <span className="material-symbols-outlined hidden text-primary md:inline-flex">medical_services</span>
-            <span className="text-lg font-black text-primary">HealthLink</span>
+            <span className="material-symbols-outlined d-none d-md-inline-flex" style={{color:'var(--color-primary,#0052cc)'}}>medical_services</span>
+            <span className="fs-5 fw-bold" style={{color:'var(--color-primary,#0052cc)'}}>HealthLink</span>
           </div>
 
-          <div className="flex min-w-0 items-center gap-3">
-            <label className="relative hidden lg:block">
-              <span className="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-[20px] text-text-muted">search</span>
+          <div className="d-flex min-w-0 align-items-center gap-2">
+            <label className="position-relative d-none d-lg-block">
+              <span className="material-symbols-outlined position-absolute start-0 top-50 -translate-y-1\/2 text-[20px]" style={{left:'0.75rem',color:'var(--color-text-muted,#94a3b8)'}}>search</span>
               <input
-                className="h-9 w-64 rounded border border-surface-border bg-surface-container-low py-0 pl-9 pr-4 text-sm text-text-main placeholder:text-text-muted focus:border-transparent focus:outline-none focus:ring-2 focus:ring-primary-container"
+                className="doctor-header-search"
                 placeholder="Search patients, appointments..."
                 type="search"
               />
             </label>
             {renderNotificationBell()}
-            {renderAvatar('h-9 w-9')}
-            <button className="hidden h-10 w-10 items-center justify-center rounded-full text-on-surface-variant hover:bg-surface-container hover:text-error md:flex" onClick={handleLogout} type="button">
+            {renderAvatar({width:'2.25rem',height:'2.25rem'})}
+            <button className="doctor-header-logout d-none d-md-flex align-items-center justify-content-center rounded-3 text-on-surface-variant border-0 bg-transparent" onClick={handleLogout} type="button" title="Logout">
               <span className="material-symbols-outlined">logout</span>
             </button>
           </div>
         </header>
 
-        <main className="p-3 pb-20 md:p-5">
-          <div className={`mx-auto ${currentNavItem.wide || isDetailView ? 'max-w-[1400px]' : 'max-w-[1120px]'}`}>
+        <main className="doctor-main-content p-3 pb-5 p-md-4">
+          <div className={`mx-auto ${currentNavItem.wide || isDetailView ? '' : ''}`} style={{maxWidth:currentNavItem.wide || isDetailView ? '1400px' : '1120px'}}>
             {detailLoading ? (
-              <div className="py-16 text-center">
+              <div className="py-5 text-center">
                 <div className="spinner-border text-primary" role="status">
                   <span className="visually-hidden">Loading...</span>
                 </div>
               </div>
             ) : (
-              <section className={isDetailView || view === 'schedule' || view === 'appointments' ? '' : 'overflow-hidden rounded-lg border border-surface-border bg-white'}>
+              <section className={`doctor-content-section ${isDetailView || view === 'schedule' || view === 'appointments' ? '' : 'card-section'}`}>
                 {renderContent()}
               </section>
             )}
@@ -596,22 +582,22 @@ const DoctorDashboardPage = () => {
         </main>
       </div>
 
-      <nav className="fixed bottom-0 left-0 right-0 z-40 border-t border-surface-border bg-white/95 p-2 shadow-[0_-8px_24px_rgba(15,23,42,0.08)] backdrop-blur lg:hidden">
+      <nav className="doctor-bottom-nav position-fixed bottom-0 start-0 end-0 z-40 d-lg-none">
         {renderNavigationLinks(true)}
       </nav>
 
       {showNotificationDropdown ? (
-        <div className="fixed inset-0 z-50 flex items-end bg-black/40 md:hidden">
-          <div className="w-full overflow-hidden rounded-t-xl bg-white shadow-xl">
-            <div className="flex items-center justify-between border-b border-surface-border px-4 py-3">
-              <h3 className="mb-0 text-sm font-semibold">Notifications</h3>
-              <div className="flex items-center gap-3">
+        <div className="position-fixed inset-0 z-50 d-flex align-items-end bg-black/40 d-md-none" onClick={() => setShowNotificationDropdown(false)}>
+          <div className="w-100 overflow-hidden bg-white shadow-lg" style={{borderRadius:'1rem 1rem 0 0',animation:'slideUp 0.25s ease'}} onClick={(e) => e.stopPropagation()}>
+            <div className="d-flex align-items-center justify-content-between px-3 py-3 border-bottom">
+              <h3 className="mb-0 small fw-semibold">Notifications</h3>
+              <div className="d-flex align-items-center gap-3">
                 {unreadCount > 0 ? (
-                  <button className="text-xs font-semibold text-primary-container" onClick={handleMarkAllRead} type="button">
+                  <button className="text-xs fw-semibold border-0 bg-transparent" style={{color:'var(--primary)'}} onClick={handleMarkAllRead} type="button">
                     Mark all read
                   </button>
                 ) : null}
-                <button className="rounded p-1 text-on-surface-variant" onClick={() => setShowNotificationDropdown(false)} type="button">
+                <button className="rounded-3 p-1 border-0 bg-transparent" style={{color:'var(--text-muted)'}} onClick={() => setShowNotificationDropdown(false)} type="button">
                   <span className="material-symbols-outlined">close</span>
                 </button>
               </div>
@@ -622,14 +608,14 @@ const DoctorDashboardPage = () => {
       ) : null}
 
       {showAllNotifications ? (
-        <div className="fixed inset-0 z-[60] flex items-center justify-center bg-black/40 p-4">
-          <section className="flex max-h-[88vh] w-full max-w-2xl flex-col overflow-hidden rounded-xl bg-white shadow-xl">
-            <div className="flex items-center justify-between border-b border-surface-border px-5 py-4">
+        <div className="position-fixed inset-0 z-\[60\] d-flex align-items-center justify-content-center bg-black/40 p-3">
+          <section className="d-flex flex-column overflow-hidden rounded-4 bg-white shadow-lg" style={{maxHeight:'88vh',maxWidth:'42rem',width:'100%'}}>
+            <div className="d-flex align-items-center justify-content-between border-bottom border-surface-border px-4 py-3">
               <div>
-                <h2 className="mb-0 text-lg font-bold text-text-main">Notifications</h2>
+                <h2 className="mb-0 fs-5 fw-bold text-text-main">Notifications</h2>
                 <p className="mb-0 text-xs text-text-muted">{unreadCount} unread update{unreadCount === 1 ? '' : 's'}</p>
               </div>
-              <button className="rounded p-2 text-on-surface-variant hover:bg-surface-container" onClick={() => setShowAllNotifications(false)} type="button">
+              <button className="rounded-3 p-2 text-on-surface-variant hover:bg-surface-container border-0 bg-transparent" onClick={() => setShowAllNotifications(false)} type="button">
                 <span className="material-symbols-outlined">close</span>
               </button>
             </div>

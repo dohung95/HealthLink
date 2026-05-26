@@ -1,0 +1,624 @@
+/* ============================================
+   PROFILE CARDS
+   ============================================ */
+.doctor-profile-card {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-xl);
+  overflow: hidden;
+  transition: all 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+  position: relative;
+}
+
+.doctor-profile-card::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  background: linear-gradient(135deg, rgba(19, 127, 236, 0.02), transparent 50%);
+  pointer-events: none;
+}
+
+.doctor-profile-card:hover {
+  box-shadow: var(--shadow-lg);
+  border-color: rgba(19, 127, 236, 0.2);
+}
+
+.doctor-profile-card__body {
+  padding: 1.75rem;
+}
+
+/* ============================================
+   WALLET HERO (cleaned up)
+   ============================================ */
+.doctor-wallet-hero {
+  background: linear-gradient(135deg, var(--primary) 0%, #0a5ecf 100%);
+  border-radius: var(--radius-xl);
+  padding: 1.5rem;
+  color: #fff;
+}
+
+.doctor-wallet-hero__balance-label {
+  font-size: 0.8125rem;
+  opacity: 0.75;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  margin: 0 0 0.25rem;
+}
+
+.doctor-wallet-hero__balance-value {
+  font-size: 2.25rem;
+  font-weight: 800;
+  letter-spacing: -0.03em;
+  margin: 0;
+  line-height: 1.1;
+}
+
+.doctor-wallet-hero__metrics {
+  display: flex;
+  align-items: center;
+  gap: 1.5rem;
+  margin-top: 1rem;
+}
+
+.doctor-wallet-hero__metric-label {
+  font-size: 0.75rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  opacity: 0.7;
+  margin: 0;
+}
+
+.doctor-wallet-hero__metric-value {
+  font-size: 1rem;
+  font-weight: 700;
+  margin: 0;
+}
+
+/* ============================================
+   INFO TILE (Profile)
+   ============================================ */
+.doctor-info-tile {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  padding: 1.5rem;
+  transition: all 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+  position: relative;
+  overflow: hidden;
+}
+
+.doctor-info-tile::after {
+  content: '';
+  position: absolute;
+  right: -1rem;
+  top: -1rem;
+  width: 5rem;
+  height: 5rem;
+  border-radius: 50%;
+  background: var(--primary-light);
+  opacity: 0;
+  transition: opacity 0.3s ease, transform 0.3s ease;
+  transform: scale(0.5);
+  pointer-events: none;
+}
+
+.doctor-info-tile:hover {
+  box-shadow: var(--shadow-md);
+  border-color: rgba(19, 127, 236, 0.15);
+  transform: translateY(-2px);
+}
+
+.doctor-info-tile:hover::after {
+  opacity: 1;
+  transform: scale(1);
+}
+
+.doctor-info-tile__icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 2.5rem;
+  height: 2.5rem;
+  border-radius: var(--radius-md);
+  background: linear-gradient(135deg, var(--primary-light), #d4e6ff);
+  color: var(--primary);
+  margin-bottom: 0.875rem;
+  transition: all 0.3s ease;
+}
+
+.doctor-info-tile:hover .doctor-info-tile__icon {
+  transform: scale(1.05);
+  box-shadow: 0 4px 12px rgba(19, 127, 236, 0.15);
+}
+
+.doctor-info-tile__title {
+  font-size: 0.875rem;
+  font-weight: 600;
+  color: var(--text-primary);
+  margin: 0 0 0.5rem;
+}
+
+.doctor-info-tile__value {
+  font-size: 1rem;
+  font-weight: 600;
+  color: var(--text-primary);
+  margin: 0;
+  line-height: 1.4;
+}
+
+.doctor-info-tile__detail {
+  font-size: 0.75rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--text-muted);
+  margin: 0.5rem 0 0;
+}
+
+/* ============================================
+   PROFILE AVATAR & IDENTITY
+   ============================================ */
+.doctor-profile-avatar {
+  width: 5rem;
+  height: 5rem;
+  border-radius: 1rem;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  overflow: hidden;
+  flex-shrink: 0;
+  border: 2px solid var(--border);
+  background: linear-gradient(135deg, var(--primary-light) 0%, #d4e6ff 100%);
+  font-weight: 800;
+  color: var(--primary);
+  font-size: 1.375rem;
+  box-shadow: 0 4px 12px rgba(19, 127, 236, 0.12);
+  transition: all 0.3s ease;
+  position: relative;
+}
+
+.doctor-profile-avatar::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.4);
+  pointer-events: none;
+}
+
+.doctor-profile-card:hover .doctor-profile-avatar {
+  box-shadow: 0 6px 20px rgba(19, 127, 236, 0.2);
+  transform: scale(1.02);
+}
+
+.doctor-profile-avatar img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  transition: transform 0.4s ease;
+}
+
+.doctor-profile-card:hover .doctor-profile-avatar img {
+  transform: scale(1.05);
+}
+
+.doctor-profile-identity {
+  flex: 1;
+  min-width: 0;
+}
+
+.doctor-profile-identity__name {
+  font-size: 1.25rem;
+  font-weight: 800;
+  color: var(--text-primary);
+  margin: 0 0 0.125rem;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  letter-spacing: -0.02em;
+}
+
+.doctor-profile-identity__specialty {
+  font-size: 0.8125rem;
+  font-weight: 600;
+  color: var(--primary);
+  margin: 0;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.375rem;
+  background: var(--primary-light);
+  padding: 0.2rem 0.625rem;
+  border-radius: 999px;
+}
+
+.doctor-profile-identity__rating {
+  display: flex;
+  align-items: center;
+  gap: 0.375rem;
+  margin-top: 0.625rem;
+}
+
+.doctor-profile-identity__star {
+  font-size: 1rem;
+  color: var(--warning);
+  font-variation-settings: "FILL" 1, "wght" 500, "GRAD" 0, "opsz" 20;
+}
+
+.doctor-profile-identity__score {
+  font-size: 0.875rem;
+  font-weight: 700;
+  color: var(--text-primary);
+}
+
+.doctor-profile-identity__reviews {
+  font-size: 0.6875rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--text-muted);
+}
+
+/* Profile metrics */
+.doctor-profile-metrics {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 0.75rem;
+  margin-top: 1.25rem;
+  padding-top: 1.25rem;
+  border-top: 1px solid var(--border-light);
+}
+
+.doctor-profile-metric__label {
+  font-size: 0.6875rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--text-muted);
+  margin: 0 0 0.25rem;
+}
+
+.doctor-profile-metric__value {
+  font-size: 1rem;
+  font-weight: 700;
+  color: var(--text-primary);
+  margin: 0;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+/* Profile bio */
+.doctor-profile-bio {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-xl);
+  overflow: hidden;
+  transition: all 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+  position: relative;
+}
+
+.doctor-profile-bio::before {
+  content: '';
+  position: absolute;
+  left: 0;
+  top: 0;
+  bottom: 0;
+  width: 3px;
+  background: linear-gradient(180deg, var(--primary), var(--primary-light));
+  opacity: 0;
+  transition: opacity 0.3s ease;
+}
+
+.doctor-profile-bio:hover {
+  box-shadow: var(--shadow-md);
+  border-color: rgba(19, 127, 236, 0.2);
+}
+
+.doctor-profile-bio:hover::before {
+  opacity: 1;
+}
+
+.doctor-profile-bio__body {
+  padding: 1.5rem;
+}
+
+.doctor-profile-bio__header {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  margin-bottom: 0.75rem;
+}
+
+.doctor-profile-bio__icon {
+  font-size: 1.125rem;
+  color: var(--primary);
+  transition: transform 0.3s ease;
+}
+
+.doctor-profile-bio:hover .doctor-profile-bio__icon {
+  transform: scale(1.1);
+}
+
+.doctor-profile-bio__title {
+  font-size: 0.8125rem;
+  font-weight: 700;
+  color: var(--text-primary);
+  margin: 0;
+}
+
+.doctor-profile-bio__text {
+  font-size: 0.875rem;
+  color: var(--text-secondary);
+  margin: 0;
+  line-height: 1.7;
+}
+
+/* ============================================
+   WALLET ITEMS & TRANSACTIONS
+   ============================================ */
+.doctor-wallet-item {
+  list-style: none;
+}
+
+.doctor-wallet-item__btn {
+  display: flex;
+  width: 100%;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+  padding: 0.75rem 1rem;
+  text-align: left;
+  border: none;
+  background: transparent;
+  transition: background-color 0.12s ease;
+  cursor: pointer;
+}
+
+.doctor-wallet-item__btn:hover {
+  background: var(--surface-muted);
+}
+
+.doctor-wallet-item__left {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  min-width: 0;
+}
+
+.doctor-wallet-item__icon-wrap {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 2.5rem;
+  height: 2.5rem;
+  border-radius: 50%;
+  flex-shrink: 0;
+}
+
+.doctor-wallet-item__icon-wrap--earning {
+  background: rgba(19, 127, 236, 0.1);
+  color: var(--primary);
+}
+
+.doctor-wallet-item__icon-wrap--withdrawal {
+  background: var(--surface-container-high);
+  color: var(--text-primary);
+}
+
+.doctor-wallet-item__icon-wrap .material-symbols-outlined {
+  font-size: 1.125rem;
+}
+
+.doctor-wallet-item__info {
+  min-width: 0;
+}
+
+.doctor-wallet-item__title {
+  display: block;
+  font-size: 0.8125rem;
+  font-weight: 600;
+  color: var(--text-primary);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.doctor-wallet-item__date {
+  display: block;
+  font-size: 0.6875rem;
+  font-weight: 500;
+  color: var(--text-muted);
+  margin-top: 0.125rem;
+}
+
+.doctor-wallet-item__right {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  flex-shrink: 0;
+}
+
+.doctor-wallet-item__amount {
+  display: block;
+  font-size: 0.8125rem;
+  font-weight: 700;
+  text-align: right;
+}
+
+.doctor-wallet-item__amount--credit {
+  color: var(--success);
+}
+
+.doctor-wallet-item__amount--debit {
+  color: var(--text-primary);
+}
+
+.doctor-wallet-item__status-badge {
+  display: inline-flex;
+  padding: 0.1rem 0.5rem;
+  border-radius: 999px;
+  font-size: 0.625rem;
+  font-weight: 700;
+  line-height: 1.4;
+}
+
+.doctor-wallet-item__status-badge--paid {
+  background: rgba(16, 185, 129, 0.08);
+  color: var(--success);
+}
+
+.doctor-wallet-item__status-badge--failed {
+  background: rgba(239, 68, 68, 0.08);
+  color: var(--error);
+}
+
+.doctor-wallet-item__status-badge--pending {
+  background: rgba(245, 158, 11, 0.1);
+  color: var(--warning);
+}
+
+.doctor-wallet-item__status-badge--default {
+  background: var(--surface-muted);
+  color: var(--text-muted);
+}
+
+.doctor-wallet-item__chevron {
+  font-size: 1.125rem;
+  color: var(--text-muted);
+  transition: transform 0.12s ease;
+}
+
+.doctor-wallet-item__chevron--expanded {
+  transform: rotate(180deg);
+}
+
+.doctor-wallet-item__expand {
+  padding: 0 1rem 0.75rem;
+}
+
+.doctor-wallet-item__detail {
+  border-radius: var(--radius-md);
+  background: var(--surface-muted);
+  padding: 0.75rem 1rem;
+}
+
+.doctor-wallet-item__detail-row {
+  display: flex;
+  justify-content: space-between;
+  gap: 1rem;
+  padding: 0.375rem 0;
+  border-bottom: 1px solid var(--border-light);
+}
+
+.doctor-wallet-item__detail-row:last-child {
+  border-bottom: none;
+}
+
+.doctor-wallet-item__detail-label {
+  font-size: 0.8125rem;
+  color: var(--text-muted);
+}
+
+.doctor-wallet-item__detail-value {
+  font-size: 0.8125rem;
+  font-weight: 600;
+  color: var(--text-primary);
+  text-align: right;
+}
+
+.doctor-wallet-item__detail-value--success {
+  color: var(--success);
+}
+
+.doctor-wallet-item__detail-value--error {
+  color: var(--error);
+}
+
+/* ============================================
+   WALLET WITHDRAWAL MODAL
+   ============================================ */
+.doctor-wallet-modal-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 1050;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(15, 23, 42, 0.4);
+  backdrop-filter: blur(2px);
+  padding: 1rem;
+}
+
+.doctor-wallet-modal {
+  width: 100%;
+  max-width: 28rem;
+  overflow: hidden;
+  border-radius: var(--radius-xl);
+  border: 1px solid var(--border);
+  background: var(--surface);
+  box-shadow: 0 16px 48px rgba(11, 24, 43, 0.2);
+}
+
+.doctor-wallet-modal__header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 1rem 1.25rem;
+  border-bottom: 1px solid var(--border-light);
+  background: var(--surface-muted);
+}
+
+.doctor-wallet-modal__title {
+  font-size: 1.125rem;
+  font-weight: 700;
+  color: var(--text-primary);
+  margin: 0;
+}
+
+.doctor-wallet-modal__close {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 2rem;
+  height: 2rem;
+  padding: 0;
+  border: none;
+  background: transparent;
+  color: var(--text-muted);
+  border-radius: 50%;
+  cursor: pointer;
+  transition: all 0.12s ease;
+}
+
+.doctor-wallet-modal__close:hover {
+  background: var(--surface-hover);
+  color: var(--text-primary);
+}
+
+.doctor-wallet-modal__close .material-symbols-outlined {
+  font-size: 1.25rem;
+}
+
+.doctor-wallet-modal__body {
+  padding: 1.25rem;
+}
+
+.doctor-wallet-modal__label {
+  font-size: 0.75rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--text-muted);
+  margin: 0 0 0.5rem;
+}
+
+.doctor-wallet-modal__input-group {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  padding: 0.75rem 1rem;
+  border-radius: var(--radius-md);
+}

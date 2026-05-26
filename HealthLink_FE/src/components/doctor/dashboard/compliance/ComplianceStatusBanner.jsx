@@ -2,11 +2,11 @@ import React, { useEffect, useState } from 'react';
 import { doctorComplianceService } from '../../../../api/complianceApi';
 
 const STATUS_META = {
-  COMPLIANT: { icon: 'check_circle', label: 'Compliant', text: 'text-success', bg: 'bg-success', soft: 'bg-success/10' },
-  IN_PROGRESS: { icon: 'info', label: 'In Progress', text: 'text-warning', bg: 'bg-warning', soft: 'bg-warning/10' },
-  PENDING: { icon: 'schedule', label: 'Pending', text: 'text-primary', bg: 'bg-primary', soft: 'bg-primary/10' },
-  NON_COMPLIANT: { icon: 'error', label: 'Non-compliant', text: 'text-critical', bg: 'bg-critical', soft: 'bg-critical/10' },
-  EXEMPTED: { icon: 'verified_user', label: 'Exempted', text: 'text-text-muted', bg: 'bg-text-muted', soft: 'bg-surface-container' },
+  COMPLIANT: { icon: 'check_circle', label: 'Compliant', badgeClass: 'doctor-status-badge--compliant', progressClass: 'doctor-compliance-banner__progress-fill--compliant', accentClass: 'doctor-compliance-banner__accent--compliant', iconClass: 'doctor-compliance-banner__icon--compliant', progressPctClass: 'doctor-compliance-banner__progress-pct--compliant' },
+  IN_PROGRESS: { icon: 'info', label: 'In Progress', badgeClass: 'doctor-status-badge--in-progress', progressClass: 'doctor-compliance-banner__progress-fill--warning', accentClass: 'doctor-compliance-banner__accent--warning', iconClass: 'doctor-compliance-banner__icon--warning', progressPctClass: 'doctor-compliance-banner__progress-pct--warning' },
+  PENDING: { icon: 'schedule', label: 'Pending', badgeClass: 'doctor-status-badge--pending', progressClass: 'doctor-compliance-banner__progress-fill--pending', accentClass: 'doctor-compliance-banner__accent--pending', iconClass: 'doctor-compliance-banner__icon--pending', progressPctClass: 'doctor-compliance-banner__progress-pct--compliant' },
+  NON_COMPLIANT: { icon: 'error', label: 'Non-compliant', badgeClass: 'doctor-status-badge--non-compliant', progressClass: 'doctor-compliance-banner__progress-fill--error', accentClass: 'doctor-compliance-banner__accent--error', iconClass: 'doctor-compliance-banner__icon--error', progressPctClass: 'doctor-compliance-banner__progress-pct--warning' },
+  EXEMPTED: { icon: 'verified_user', label: 'Exempted', badgeClass: 'doctor-status-badge--exempted', progressClass: 'doctor-compliance-banner__progress-fill--compliant', accentClass: 'doctor-compliance-banner__accent--compliant', iconClass: 'doctor-compliance-banner__icon--compliant', progressPctClass: 'doctor-compliance-banner__progress-pct--compliant' },
 };
 
 const formatMonth = (monthStr) => {
@@ -44,20 +44,22 @@ const ComplianceStatusBanner = ({ onValidateClick }) => {
 
   if (loading) {
     return (
-      <section className="rounded-lg border border-surface-border bg-white p-5 text-sm text-text-muted">
-        Loading compliance status...
+      <section className="doctor-compliance-banner">
+        <div className="doctor-compliance-banner__body" style={{justifyContent:'center'}}>
+          <span className="text-sm text-text-muted">Loading compliance status...</span>
+        </div>
       </section>
     );
   }
 
   if (error) {
     return (
-      <section className="flex items-center gap-3 rounded-lg border border-warning/30 bg-warning/10 p-4 text-sm text-text-main">
-        <span className="material-symbols-outlined text-warning">warning</span>
-        <span>{error}</span>
-        <button className="ml-auto rounded border border-warning px-3 py-1 text-xs font-semibold text-warning" onClick={fetchComplianceStatus} type="button">
-          Retry
-        </button>
+      <section className="doctor-compliance-banner">
+        <div className="doctor-compliance-banner__body" style={{flexDirection:'row',alignItems:'center',gap:'0.75rem'}}>
+          <span className="material-symbols-outlined text-warning">warning</span>
+          <span className="text-sm text-text-main flex-1">{error}</span>
+          <button className="btn btn-outline-warning btn-sm flex-shrink-0" onClick={fetchComplianceStatus} type="button">Retry</button>
+        </div>
       </section>
     );
   }
@@ -73,61 +75,62 @@ const ComplianceStatusBanner = ({ onValidateClick }) => {
   const isWarning = currentMonth.status !== 'COMPLIANT' && currentMonth.status !== 'EXEMPTED';
 
   return (
-    <section className="relative overflow-hidden rounded-lg border border-surface-border bg-surface-container-lowest p-5">
-      <div className={`absolute left-0 top-0 h-full w-1 ${meta.bg}`} />
-      <div className="flex flex-col items-start justify-between gap-4 lg:flex-row lg:items-center">
-        <div className="flex flex-1 items-start gap-4">
-          <span className={`material-symbols-outlined mt-0.5 text-[24px] ${meta.text}`}>{meta.icon}</span>
+    <section className="doctor-compliance-banner">
+      <div className={`doctor-compliance-banner__accent ${meta.accentClass}`} />
+      <div className="doctor-compliance-banner__body">
+        <div className="doctor-compliance-banner__content">
+          <span className={`material-symbols-outlined doctor-compliance-banner__icon ${meta.iconClass}`}>{meta.icon}</span>
           <div>
-            <div className="mb-1 flex flex-wrap items-center gap-3">
-              <h3 className="mb-0 text-base font-semibold text-text-main">Schedule Compliance - {formatMonth(currentMonth.complianceMonth)}</h3>
-              <span className={`inline-flex rounded px-2 py-0.5 text-[10px] font-bold uppercase tracking-wider ${meta.soft} ${meta.text}`}>
-                {meta.label}
-              </span>
+            <div className="d-flex flex-wrap align-items-center gap-2 mb-1">
+              <h3 className="doctor-compliance-banner__info-title">Schedule Compliance - {formatMonth(currentMonth.complianceMonth)}</h3>
+              <span className={`doctor-status-badge ${meta.badgeClass}`}>{meta.label}</span>
             </div>
-            <p className="mb-3 max-w-2xl text-sm text-text-muted">
+            <p className="doctor-compliance-banner__info-desc">
               {currentMonth.scheduleActive
                 ? currentMonth.statusMessage || 'Patients can book appointments with you.'
                 : 'Patients cannot book appointments until minimum schedule hours are met.'}
             </p>
-            <button className="flex items-center gap-1 text-xs font-semibold text-primary-container lg:hidden" onClick={() => setExpanded((current) => !current)} type="button">
+            <button className="doctor-compliance-banner__expand-mobile" onClick={() => setExpanded((current) => !current)} type="button">
               {expanded ? 'Hide details' : 'Show details'}
-              <span className="material-symbols-outlined text-[16px]">{expanded ? 'expand_less' : 'expand_more'}</span>
+              <span className="material-symbols-outlined" style={{fontSize:'1rem'}}>{expanded ? 'expand_less' : 'expand_more'}</span>
             </button>
           </div>
         </div>
 
-        <div className="flex w-full flex-col gap-3 lg:w-auto lg:flex-row lg:items-center lg:gap-6">
-          <div className="w-full lg:w-48">
-            <div className="mb-1 flex justify-between text-xs font-semibold">
-              <span className="text-text-main">{scheduledHours}/{requiredHours} hours</span>
-              <span className={meta.text}>{percentage.toFixed(0)}%</span>
+        <div className="doctor-compliance-banner__right">
+          <div>
+            <div className="doctor-compliance-banner__progress-header">
+              <span className="doctor-compliance-banner__progress-hours">{scheduledHours}/{requiredHours} hours</span>
+              <span className={`doctor-compliance-banner__progress-pct ${meta.progressPctClass}`}>{percentage.toFixed(0)}%</span>
             </div>
-            <div className="h-1.5 w-full overflow-hidden rounded-full bg-surface-container">
-              <div className={`h-full rounded-full ${meta.bg}`} style={{ width: `${percentage}%` }} />
+            <div className="doctor-compliance-banner__progress-bar">
+              <div className={`doctor-compliance-banner__progress-fill ${meta.progressClass}`} style={{ width: `${percentage}%` }} />
             </div>
           </div>
-          {isWarning ? (
-            <button className="rounded border border-surface-border bg-white px-4 py-2 text-sm font-semibold text-text-main transition hover:bg-surface-container" onClick={onValidateClick} type="button">
-              Validate
-            </button>
-          ) : null}
-          {nextMonth ? (
-            <button className="hidden rounded p-2 text-text-muted hover:bg-surface-container lg:flex" onClick={() => setExpanded((current) => !current)} type="button">
-              <span className="material-symbols-outlined">{expanded ? 'expand_less' : 'expand_more'}</span>
-            </button>
-          ) : null}
+          <div className="doctor-compliance-banner__actions">
+            {isWarning ? (
+              <button className="btn btn-outline-primary btn-sm" onClick={onValidateClick} type="button">Validate</button>
+            ) : null}
+            {nextMonth ? (
+              <button className="doctor-compliance-banner__expand" onClick={() => setExpanded((current) => !current)} type="button">
+                <span className="material-symbols-outlined">{expanded ? 'expand_less' : 'expand_more'}</span>
+              </button>
+            ) : null}
+          </div>
         </div>
       </div>
 
       {expanded && nextMonth ? (
-        <div className="mt-4 rounded border border-surface-border bg-surface-bright p-4">
-          <div className="mb-2 flex items-center justify-between text-sm">
-            <span className="font-semibold text-text-main">Next Month: {formatMonth(nextMonth.complianceMonth)}</span>
-            <span className="text-text-muted">{(nextMonth.compliancePercentage || 0).toFixed(0)}%</span>
+        <div className="doctor-compliance-banner__next-month">
+          <div className="d-flex align-items-center justify-content-between mb-2">
+            <span className="fw-semibold text-sm text-text-main">Next Month: {formatMonth(nextMonth.complianceMonth)}</span>
+            <span className="text-xs text-text-muted">{(nextMonth.compliancePercentage || 0).toFixed(0)}%</span>
           </div>
-          <div className="h-1.5 overflow-hidden rounded-full bg-surface-container">
-            <div className="h-full rounded-full bg-primary-container" style={{ width: `${Math.min(nextMonth.compliancePercentage || 0, 100)}%` }} />
+          <div className="doctor-compliance-banner__progress-bar">
+            <div
+              className="doctor-compliance-banner__progress-fill doctor-compliance-banner__progress-fill--pending"
+              style={{ width: `${Math.min(nextMonth.compliancePercentage || 0, 100)}%` }}
+            />
           </div>
         </div>
       ) : null}

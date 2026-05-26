@@ -107,34 +107,34 @@ const ScheduleExceptionModal = ({ isOpen, onClose, selectedDate, onSuccess }) =>
   const today = new Date().toISOString().split('T')[0];
 
   return (
-    <div className="fixed inset-0 z-[70] flex items-center justify-center bg-black/45 p-4" onClick={onClose}>
-      <section className="max-h-[92vh] w-full max-w-xl overflow-y-auto rounded-xl bg-white shadow-xl" onClick={(event) => event.stopPropagation()}>
-        <div className="flex items-center justify-between border-b border-surface-border px-5 py-4">
-          <div className="flex items-center gap-2">
-            <span className="material-symbols-outlined text-primary">event_busy</span>
-            <h2 className="mb-0 text-lg font-bold text-text-main">Add Schedule Exception</h2>
+    <div className="fixed inset-0 z-50 d-flex align-items-center justify-content-center bg-black/50 p-4" onClick={onClose}>
+      <section className="max-h-92vh w-100 max-w-xl overflow-y-auto rounded-xl bg-white shadow-xl" onClick={(event) => event.stopPropagation()}>
+        <div className="d-flex align-items-center justify-content-between border-bottom border-surface-border px-5 py-4">
+          <div className="d-flex align-items-center gap-2">
+            <span className="material-symbols-outlined text-primary-container">event_busy</span>
+            <h2 className="mb-0 text-lg fw-bold text-text-main">Add Schedule Exception</h2>
           </div>
-          <button className="rounded p-2 text-text-muted hover:bg-surface-container" disabled={loading} onClick={onClose} type="button">
+          <button className="btn border-0 rounded p-2 text-text-muted hover:bg-surface-container" disabled={loading} onClick={onClose} type="button">
             <span className="material-symbols-outlined">close</span>
           </button>
         </div>
 
         <form onSubmit={handleSubmit}>
-          <div className="grid gap-4 px-5 py-4">
+          <div className="d-grid gap-4 px-5 py-4">
             {error ? (
               <div className="rounded border border-error-container bg-error-container/40 px-3 py-2 text-sm text-error" role="alert">
                 {error}
               </div>
             ) : null}
 
-            <label className="grid gap-1">
-              <span className="text-xs font-bold uppercase tracking-wide text-text-muted">Date</span>
-              <input className="h-10 rounded border border-surface-border px-3 text-sm focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary-fixed" disabled={loading} min={today} name="exceptionDate" onChange={handleChange} required type="date" value={formData.exceptionDate} />
+            <label className="d-grid gap-1">
+              <span className="text-xs fw-bold text-uppercase tracking-wide text-text-muted">Date</span>
+              <input className="form-control h-10 rounded border border-surface-border px-3 text-sm focus-ring-primary" disabled={loading} min={today} name="exceptionDate" onChange={handleChange} required type="date" value={formData.exceptionDate} />
             </label>
 
-            <label className="grid gap-1">
-              <span className="text-xs font-bold uppercase tracking-wide text-text-muted">Exception Type</span>
-              <select className="h-10 rounded border border-surface-border bg-white px-3 text-sm focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary-fixed" disabled={loading} name="exceptionType" onChange={handleChange} value={formData.exceptionType}>
+            <label className="d-grid gap-1">
+              <span className="text-xs fw-bold text-uppercase tracking-wide text-text-muted">Exception Type</span>
+              <select className="form-select h-10 rounded border border-surface-border bg-white px-3 text-sm focus-ring-primary" disabled={loading} name="exceptionType" onChange={handleChange} value={formData.exceptionType}>
                 {EXCEPTION_TYPES.map((type) => (
                   <option key={type.value} value={type.value}>{type.label}</option>
                 ))}
@@ -143,49 +143,53 @@ const ScheduleExceptionModal = ({ isOpen, onClose, selectedDate, onSuccess }) =>
             </label>
 
             {showTimeFields ? (
-              <div className="grid gap-4 sm:grid-cols-2">
-                <label className="grid gap-1">
-                  <span className="text-xs font-bold uppercase tracking-wide text-text-muted">Start Time</span>
-                  <input className="h-10 rounded border border-surface-border px-3 text-sm focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary-fixed" disabled={loading} name="startTime" onChange={handleChange} required type="time" value={formData.startTime} />
-                </label>
-                <label className="grid gap-1">
-                  <span className="text-xs font-bold uppercase tracking-wide text-text-muted">End Time</span>
-                  <input className="h-10 rounded border border-surface-border px-3 text-sm focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary-fixed" disabled={loading} name="endTime" onChange={handleChange} required type="time" value={formData.endTime} />
-                </label>
+              <div className="row g-4">
+                <div className="col-12 col-sm-6">
+                  <label className="d-grid gap-1">
+                    <span className="text-xs fw-bold text-uppercase tracking-wide text-text-muted">Start Time</span>
+                    <input className="form-control h-10 rounded border border-surface-border px-3 text-sm focus-ring-primary" disabled={loading} name="startTime" onChange={handleChange} required type="time" value={formData.startTime} />
+                  </label>
+                </div>
+                <div className="col-12 col-sm-6">
+                  <label className="d-grid gap-1">
+                    <span className="text-xs fw-bold text-uppercase tracking-wide text-text-muted">End Time</span>
+                    <input className="form-control h-10 rounded border border-surface-border px-3 text-sm focus-ring-primary" disabled={loading} name="endTime" onChange={handleChange} required type="time" value={formData.endTime} />
+                  </label>
+                </div>
               </div>
             ) : null}
 
-            <label className="grid gap-1">
-              <span className="text-xs font-bold uppercase tracking-wide text-text-muted">Reason</span>
-              <textarea className="min-h-20 rounded border border-surface-border px-3 py-2 text-sm focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary-fixed" disabled={loading} name="reason" onChange={handleChange} placeholder="e.g., Personal leave, conference attendance, emergency..." required value={formData.reason} />
+            <label className="d-grid gap-1">
+              <span className="text-xs fw-bold text-uppercase tracking-wide text-text-muted">Reason</span>
+              <textarea className="form-control min-h-20 rounded border border-surface-border px-3 py-2 text-sm focus-ring-primary" disabled={loading} name="reason" onChange={handleChange} placeholder="e.g., Personal leave, conference attendance, emergency..." required value={formData.reason} />
             </label>
 
-            <label className="flex items-center gap-2 text-sm font-semibold text-text-main">
-              <input checked={formData.recurring} className="h-4 w-4 rounded border-surface-border text-primary" disabled={loading} name="recurring" onChange={handleChange} type="checkbox" />
+            <label className="d-flex align-items-center gap-2 text-sm fw-semibold text-text-main">
+              <input checked={formData.recurring} className="h-4 w-4 rounded border-surface-border text-primary-container" disabled={loading} name="recurring" onChange={handleChange} type="checkbox" />
               Repeat weekly
             </label>
 
             {formData.recurring ? (
-              <label className="grid gap-1">
-                <span className="text-xs font-bold uppercase tracking-wide text-text-muted">Repeat Until</span>
-                <input className="h-10 rounded border border-surface-border px-3 text-sm focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary-fixed" disabled={loading} min={formData.exceptionDate || today} name="recurringUntil" onChange={handleChange} required type="date" value={formData.recurringUntil} />
+              <label className="d-grid gap-1">
+                <span className="text-xs fw-bold text-uppercase tracking-wide text-text-muted">Repeat Until</span>
+                <input className="form-control h-10 rounded border border-surface-border px-3 text-sm focus-ring-primary" disabled={loading} min={formData.exceptionDate || today} name="recurringUntil" onChange={handleChange} required type="date" value={formData.recurringUntil} />
               </label>
             ) : null}
 
             {formData.exceptionType === 'DayOff' ? (
-              <div className="flex gap-2 rounded border border-warning/30 bg-warning/10 p-3 text-sm text-text-main">
-                <span className="material-symbols-outlined text-[18px] text-warning">warning</span>
+              <div className="d-flex gap-2 rounded border border-warning/30 bg-warning/10 p-3 text-sm text-text-main">
+                <span className="material-symbols-outlined text-18px text-warning">warning</span>
                 <span>If you have appointments on this day, patients will be notified about the schedule change.</span>
               </div>
             ) : null}
           </div>
 
-          <div className="flex justify-end gap-3 border-t border-surface-border px-5 py-4">
-            <button className="rounded border border-surface-border px-4 py-2 text-sm font-semibold text-text-main hover:bg-surface-container" disabled={loading} onClick={onClose} type="button">
+          <div className="d-flex justify-content-end gap-3 border-top border-surface-border px-5 py-4">
+            <button className="btn rounded border border-surface-border px-4 py-2 text-sm fw-semibold text-text-main hover:bg-surface-container" disabled={loading} onClick={onClose} type="button">
               Cancel
             </button>
-            <button className="flex items-center gap-2 rounded bg-primary-container px-4 py-2 text-sm font-semibold text-white hover:bg-primary disabled:opacity-60" disabled={loading} type="submit">
-              <span className="material-symbols-outlined text-[18px]">{loading ? 'progress_activity' : 'save'}</span>
+            <button className="btn d-inline-flex align-items-center gap-2 rounded bg-primary-container px-4 py-2 text-sm fw-semibold text-white hover:bg-primary disabled:opacity-60" disabled={loading} type="submit">
+              <span className="material-symbols-outlined text-18px">{loading ? 'progress_activity' : 'save'}</span>
               {loading ? 'Creating...' : 'Create Exception'}
             </button>
           </div>

@@ -68,8 +68,8 @@ const DoctorScheduleView = () => {
 
   if (loading) {
     return (
-      <div className="flex min-h-[420px] items-center justify-center rounded-lg border border-surface-border bg-white">
-        <div className="spinner-border text-primary" role="status">
+      <div className="doctor-schedule-state">
+        <div className="spinner-border text-primary" role="status" style={{width:'2rem',height:'2rem'}}>
           <span className="visually-hidden">Loading...</span>
         </div>
       </div>
@@ -78,10 +78,12 @@ const DoctorScheduleView = () => {
 
   if (error) {
     return (
-      <div className="rounded-lg border border-error-container bg-white p-5 text-error" role="alert">
-        <h3 className="mb-2 text-lg font-bold">Error Loading Schedule</h3>
-        <p className="mb-4 text-sm">{error}</p>
-        <button className="rounded border border-error px-4 py-2 text-sm font-semibold text-error hover:bg-error-container/30" onClick={fetchSchedule} type="button">
+      <div className="doctor-schedule-state doctor-schedule-state--error">
+        <span className="material-symbols-outlined text-error" style={{fontSize:'2rem'}}>error_outline</span>
+        <h3 className="doctor-schedule-state__error-title">Error Loading Schedule</h3>
+        <p className="doctor-schedule-state__error-desc">{error}</p>
+        <button className="btn btn-outline-primary btn-sm d-flex align-items-center gap-1" onClick={fetchSchedule} type="button">
+          <span className="material-symbols-outlined" style={{fontSize:'0.875rem'}}>refresh</span>
           Try Again
         </button>
       </div>
@@ -89,48 +91,53 @@ const DoctorScheduleView = () => {
   }
 
   return (
-    <div className="flex flex-col gap-4">
-      <header className="flex flex-col justify-between gap-4 md:flex-row md:items-end">
-        <button
-          className="flex h-10 w-max items-center justify-center gap-2 rounded bg-primary-container px-4 py-2 text-sm font-semibold text-white shadow-sm transition hover:bg-primary"
-          onClick={() => handleCreateException(new Date())}
-          type="button"
-        >
-          <span className="material-symbols-outlined text-[18px]">add_circle</span>
-          Add Exception
-        </button>
-      </header>
+    <div className="doctor-schedule-container">
+      {/* Page Header */}
+      <div className="doctor-schedule-header">
+        <h1 className="doctor-page-header__title">Schedule</h1>
+        <p className="doctor-page-header__subtitle">Manage your weekly availability and calendar exceptions</p>
+      </div>
 
-      <ComplianceStatusBanner key={complianceKey} onValidateClick={handleValidateCompliance} />
-
-      <section className="flex flex-col gap-4">
-        <div className="flex gap-5 border-b border-surface-border">
+      <div className="doctor-schedule-action-bar">
+        <div className="doctor-schedule-tabs">
           <button
-            className={`border-b-2 pb-3 text-xs font-bold tracking-wide transition ${activeTab === 'weekly' ? 'border-primary text-primary' : 'border-transparent text-text-muted hover:text-text-main'}`}
+            className={`doctor-schedule-tab ${activeTab === 'weekly' ? 'doctor-schedule-tab--active' : ''}`}
             onClick={() => setActiveTab('weekly')}
             type="button"
           >
-            WEEKLY SCHEDULE
+            <span className="material-symbols-outlined" style={{fontSize:'1rem'}}>calendar_view_week</span>
+            Weekly Schedule
           </button>
           <button
-            className={`border-b-2 pb-3 text-xs font-bold tracking-wide transition ${activeTab === 'calendar' ? 'border-primary text-primary' : 'border-transparent text-text-muted hover:text-text-main'}`}
+            className={`doctor-schedule-tab ${activeTab === 'calendar' ? 'doctor-schedule-tab--active' : ''}`}
             onClick={() => setActiveTab('calendar')}
             type="button"
           >
-            CALENDAR VIEW
+            <span className="material-symbols-outlined" style={{fontSize:'1rem'}}>calendar_month</span>
+            Calendar View
           </button>
         </div>
+        <button
+          className="btn btn-primary btn-sm d-flex align-items-center gap-1 shadow-sm"
+          onClick={() => handleCreateException(new Date())}
+          type="button"
+        >
+          <span className="material-symbols-outlined" style={{fontSize:'1rem'}}>add_circle</span>
+          Add Exception
+        </button>
+      </div>
 
-        {activeTab === 'weekly' ? (
-          <WeeklyScheduleBuilder schedules={scheduleData?.schedules || []} onRefresh={refreshSchedule} />
-        ) : (
-          <ScheduleCalendarView
-            exceptions={scheduleData?.exceptions || []}
-            onCreateException={handleCreateException}
-            onRefresh={refreshSchedule}
-          />
-        )}
-      </section>
+      <ComplianceStatusBanner key={complianceKey} onValidateClick={handleValidateCompliance} />
+
+      {activeTab === 'weekly' ? (
+        <WeeklyScheduleBuilder schedules={scheduleData?.schedules || []} onRefresh={refreshSchedule} />
+      ) : (
+        <ScheduleCalendarView
+          exceptions={scheduleData?.exceptions || []}
+          onCreateException={handleCreateException}
+          onRefresh={refreshSchedule}
+        />
+      )}
 
       <ScheduleExceptionModal
         isOpen={showExceptionModal}

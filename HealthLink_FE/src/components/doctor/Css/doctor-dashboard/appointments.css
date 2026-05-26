@@ -1,0 +1,420 @@
+/* ============================================
+   APPOINTMENT CARDS
+   ============================================ */
+.doctor-appointment-card {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  padding: 1rem 1.25rem;
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  transition: box-shadow 0.2s ease, border-color 0.2s ease;
+  position: relative;
+  overflow: hidden;
+}
+
+.doctor-appointment-card:hover {
+  box-shadow: var(--shadow-md);
+  border-color: var(--primary);
+}
+
+.doctor-appointment-card__rail {
+  position: absolute;
+  left: 0;
+  top: 0;
+  bottom: 0;
+  width: 4px;
+  border-radius: 0 2px 2px 0;
+}
+
+.doctor-appointment-card__rail--scheduled { background: var(--border); }
+.doctor-appointment-card__rail--completed { background: var(--success); }
+.doctor-appointment-card__rail--cancelled { background: var(--critical); }
+.doctor-appointment-card__rail--inprogress { background: var(--primary); }
+
+.doctor-appointment-card__time {
+  min-width: 4.5rem;
+  text-align: center;
+}
+
+.doctor-appointment-card__time-value {
+  font-size: 1rem;
+  font-weight: 700;
+  color: var(--text-primary);
+  line-height: 1.2;
+}
+
+.doctor-appointment-card__time-duration {
+  font-size: 0.75rem;
+  color: var(--text-muted);
+}
+
+.doctor-appointment-card__divider {
+  width: 1px;
+  height: 2.5rem;
+  background: var(--border);
+  flex-shrink: 0;
+}
+
+.doctor-appointment-card__patient {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+}
+
+.doctor-appointment-card__patient-info {
+  min-width: 0;
+}
+
+.doctor-appointment-card__patient-name {
+  font-size: 0.9375rem;
+  font-weight: 600;
+  color: var(--text-primary);
+  margin: 0;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.doctor-appointment-card__patient-reason {
+  font-size: 0.8125rem;
+  color: var(--text-muted);
+  margin: 0;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+/* ============================================
+   TODAY'S SCHEDULE TIMELINE
+   ============================================ */
+.doctor-timeline {
+  max-height: min(750px, calc(100vh - 220px));
+  border-radius: var(--radius-lg);
+  border: 1px solid var(--border);
+  background: var(--surface);
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  transition: max-height 0.2s ease;
+}
+
+.doctor-timeline__header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0.75rem 1rem;
+  border-bottom: 1px solid var(--border-light);
+  background: var(--surface-muted);
+  flex-shrink: 0;
+}
+
+.doctor-timeline__title {
+  font-size: 0.8125rem;
+  font-weight: 700;
+  color: var(--text-primary);
+  margin: 0;
+  display: flex;
+  align-items: center;
+  gap: 0.375rem;
+  letter-spacing: -0.01em;
+}
+
+.doctor-timeline__title-dot {
+  width: 0.5rem;
+  height: 0.5rem;
+  border-radius: 50%;
+  background: var(--success);
+  display: inline-block;
+  animation: timelinePulse 2s ease-in-out infinite;
+}
+
+@keyframes timelinePulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.5; }
+}
+
+.doctor-timeline__nav-btn {
+  width: 1.75rem;
+  height: 1.75rem;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border: none;
+  background: transparent;
+  color: var(--text-muted);
+  border-radius: var(--radius-sm);
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.doctor-timeline__nav-btn:hover {
+  background: var(--surface-hover);
+  color: var(--primary);
+}
+
+.doctor-timeline__nav-btn:active {
+  transform: scale(0.92);
+}
+
+.doctor-timeline__calendar {
+  padding: 0.75rem 1rem 0.625rem;
+  border-bottom: 1px solid var(--border-light);
+  flex-shrink: 0;
+}
+
+.doctor-timeline__calendar-weekdays {
+  display: grid;
+  grid-template-columns: repeat(7, 1fr);
+  gap: 1px;
+  text-align: center;
+  margin-bottom: 0.375rem;
+}
+
+.doctor-timeline__calendar-weekday {
+  font-size: 0.625rem;
+  font-weight: 700;
+  color: var(--text-muted);
+  letter-spacing: 0.06em;
+  line-height: 1.6;
+}
+
+.doctor-timeline__calendar-days {
+  display: grid;
+  grid-template-columns: repeat(7, 1fr);
+  gap: 1px;
+}
+
+.doctor-timeline__calendar-day {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  height: 1.75rem;
+  font-size: 0.75rem;
+  font-weight: 600;
+  border: none;
+  background: transparent;
+  color: var(--text-primary);
+  border-radius: 999px;
+  cursor: pointer;
+  transition: all 0.15s ease;
+  padding: 0;
+  min-width: 0;
+}
+
+.doctor-timeline__calendar-day:hover {
+  background: var(--surface-hover);
+}
+
+.doctor-timeline__calendar-day--today {
+  color: var(--primary);
+  font-weight: 700;
+}
+
+.doctor-timeline__calendar-day--selected {
+  background: var(--primary) !important;
+  color: #fff !important;
+  font-weight: 700;
+  box-shadow: 0 2px 6px rgba(19, 127, 236, 0.3);
+}
+
+.doctor-timeline__calendar-day--selected:hover {
+  background: var(--primary-dark) !important;
+}
+
+.doctor-timeline__list {
+  flex: 1;
+  overflow-y: auto;
+  padding: 0.75rem 1rem;
+  position: relative;
+  scrollbar-width: thin;
+  scrollbar-color: var(--border) transparent;
+}
+
+.doctor-timeline__list::-webkit-scrollbar {
+  width: 4px;
+}
+
+.doctor-timeline__list::-webkit-scrollbar-thumb {
+  background: var(--border);
+  border-radius: 4px;
+}
+
+.doctor-timeline__list::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+/* Vertical connecting line */
+.doctor-timeline__list::before {
+  content: '';
+  position: absolute;
+  left: 52px;
+  top: 0.75rem;
+  bottom: 0.75rem;
+  width: 1.5px;
+  background: var(--border-light);
+  z-index: 0;
+}
+
+.doctor-timeline__item {
+  display: flex;
+  gap: 0;
+  position: relative;
+  z-index: 1;
+  margin-bottom: 0.5rem;
+  cursor: pointer;
+}
+
+.doctor-timeline__item:last-child {
+  margin-bottom: 0;
+}
+
+.doctor-timeline__item--completed {
+  opacity: 0.55;
+}
+
+.doctor-timeline__item-time {
+  width: 44px;
+  flex-shrink: 0;
+  text-align: right;
+  padding-right: 0.5rem;
+  padding-top: 0.3125rem;
+  font-size: 0.625rem;
+  font-weight: 700;
+  color: var(--text-muted);
+  line-height: 1.2;
+  letter-spacing: -0.01em;
+}
+
+.doctor-timeline__item-dot {
+  width: 14px;
+  flex-shrink: 0;
+  display: flex;
+  align-items: flex-start;
+  justify-content: center;
+  padding-top: 0.3125rem;
+  position: relative;
+  z-index: 2;
+}
+
+.doctor-timeline__item-dot-inner {
+  width: 0.5rem;
+  height: 0.5rem;
+  border-radius: 50%;
+  background: var(--border);
+  border: 2px solid var(--surface);
+  flex-shrink: 0;
+  transition: all 0.2s ease;
+  margin-top: 0.0625rem;
+}
+
+.doctor-timeline__item-dot-inner--scheduled {
+  background: var(--border);
+}
+
+.doctor-timeline__item-dot-inner--completed {
+  background: var(--success);
+}
+
+.doctor-timeline__item-dot-inner--cancelled {
+  background: var(--critical);
+}
+
+.doctor-timeline__item-dot-inner--inprogress {
+  background: var(--primary);
+  box-shadow: 0 0 0 3px rgba(19, 127, 236, 0.2);
+  animation: dotPulse 1.5s ease-in-out infinite;
+}
+
+@keyframes dotPulse {
+  0%, 100% { box-shadow: 0 0 0 3px rgba(19, 127, 236, 0.2); }
+  50% { box-shadow: 0 0 0 5px rgba(19, 127, 236, 0.1); }
+}
+
+.doctor-timeline__item-card {
+  flex: 1;
+  min-width: 0;
+  padding: 0.5rem 0.625rem;
+  border-radius: var(--radius-md);
+  border: 1px solid var(--border-light);
+  background: var(--surface-muted);
+  transition: all 0.15s ease;
+  margin-left: 0.375rem;
+}
+
+.doctor-timeline__item:hover .doctor-timeline__item-card {
+  border-color: var(--primary);
+  background: var(--primary-light);
+  box-shadow: 0 1px 4px rgba(19, 127, 236, 0.1);
+}
+
+.doctor-timeline__item-card--inprogress {
+  border-color: var(--primary);
+  background: rgba(19, 127, 236, 0.06);
+}
+
+.doctor-timeline__item-card-name {
+  font-size: 0.75rem;
+  font-weight: 600;
+  color: var(--text-primary);
+  margin: 0;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  line-height: 1.3;
+}
+
+.doctor-timeline__item-card-reason {
+  font-size: 0.625rem;
+  color: var(--text-muted);
+  margin: 0.0625rem 0 0;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  line-height: 1.3;
+}
+
+/* ============================================
+   NEXT APPOINTMENT HERO
+   ============================================ */
+.doctor-next-card {
+  background: linear-gradient(135deg, var(--surface) 0%, var(--surface-muted) 100%);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-xl);
+  overflow: hidden;
+  position: relative;
+}
+
+.doctor-next-card::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  box-shadow: inset 0 0 60px rgba(19, 127, 236, 0.04);
+  pointer-events: none;
+}
+
+.doctor-next-card__header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0.625rem 1.25rem;
+  border-bottom: 1px solid var(--border-light);
+  background: var(--surface-muted);
+}
+
+.doctor-next-card__body {
+  padding: 1.25rem;
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+}
+
+@media (min-width: 768px) {
+  .doctor-next-card__body {
+    flex-direction: row;
+  }
+}
+

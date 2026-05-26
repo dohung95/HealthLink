@@ -1,6 +1,4 @@
-@import "tailwindcss";
-
-@theme {
+:root {
   --color-background: #f7f9fb;
   --color-surface: #f7f9fb;
   --color-surface-bright: #f7f9fb;

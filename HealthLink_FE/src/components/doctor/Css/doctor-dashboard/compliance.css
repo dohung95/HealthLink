@@ -1,0 +1,217 @@
+/* ============================================
+   COMPLIANCE BANNER
+   ============================================ */
+.doctor-compliance-banner {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-xl);
+  overflow: hidden;
+  position: relative;
+  transition: box-shadow 0.2s ease;
+}
+
+.doctor-compliance-banner:hover {
+  box-shadow: var(--shadow-sm);
+}
+
+.doctor-compliance-banner__accent {
+  position: absolute;
+  left: 0;
+  top: 0;
+  bottom: 0;
+  width: 3px;
+  border-radius: 0 2px 2px 0;
+}
+
+.doctor-compliance-banner__accent--compliant {
+  background: var(--success);
+}
+
+.doctor-compliance-banner__accent--warning {
+  background: var(--warning);
+}
+
+.doctor-compliance-banner__accent--pending {
+  background: var(--primary);
+}
+
+.doctor-compliance-banner__accent--error {
+  background: var(--error);
+}
+
+.doctor-compliance-banner__body {
+  padding: 1.25rem;
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+}
+
+@media (min-width: 992px) {
+  .doctor-compliance-banner__body {
+    flex-direction: row;
+    align-items: center;
+  }
+}
+
+.doctor-compliance-banner__content {
+  flex: 1;
+  display: flex;
+  align-items: flex-start;
+  gap: 0.75rem;
+}
+
+.doctor-compliance-banner__icon {
+  font-size: 1.5rem;
+  margin-top: 0.125rem;
+}
+
+.doctor-compliance-banner__icon--compliant {
+  color: var(--success);
+}
+
+.doctor-compliance-banner__icon--warning {
+  color: var(--warning);
+}
+
+.doctor-compliance-banner__icon--pending {
+  color: var(--primary);
+}
+
+.doctor-compliance-banner__icon--error {
+  color: var(--error);
+}
+
+.doctor-compliance-banner__info-title {
+  font-size: 0.9375rem;
+  font-weight: 700;
+  color: var(--text-primary);
+  margin: 0;
+}
+
+.doctor-compliance-banner__info-desc {
+  font-size: 0.8125rem;
+  color: var(--text-muted);
+  margin: 0.25rem 0 0;
+  max-width: 480px;
+  line-height: 1.5;
+}
+
+.doctor-compliance-banner__right {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+  min-width: 0;
+}
+
+@media (min-width: 992px) {
+  .doctor-compliance-banner__right {
+    flex-shrink: 0;
+    width: 220px;
+  }
+}
+
+.doctor-compliance-banner__progress-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  font-size: 0.75rem;
+  font-weight: 600;
+}
+
+.doctor-compliance-banner__progress-hours {
+  color: var(--text-primary);
+}
+
+.doctor-compliance-banner__progress-pct {
+  font-weight: 700;
+}
+
+.doctor-compliance-banner__progress-pct--compliant {
+  color: var(--success);
+}
+
+.doctor-compliance-banner__progress-pct--warning {
+  color: var(--warning);
+}
+
+.doctor-compliance-banner__progress-bar {
+  height: 0.5rem;
+  background: var(--surface-muted);
+  border-radius: 999px;
+  overflow: hidden;
+}
+
+.doctor-compliance-banner__progress-fill {
+  height: 100%;
+  border-radius: 999px;
+  transition: width 0.6s ease;
+}
+
+.doctor-compliance-banner__progress-fill--compliant {
+  background: var(--success);
+}
+
+.doctor-compliance-banner__progress-fill--warning {
+  background: var(--warning);
+}
+
+.doctor-compliance-banner__progress-fill--pending {
+  background: var(--primary);
+}
+
+.doctor-compliance-banner__progress-fill--error {
+  background: var(--error);
+}
+
+.doctor-compliance-banner__actions {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.doctor-compliance-banner__expand {
+  width: 1.75rem;
+  height: 1.75rem;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border: none;
+  background: transparent;
+  color: var(--text-muted);
+  border-radius: var(--radius-sm);
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.doctor-compliance-banner__expand:hover {
+  background: var(--surface-hover);
+  color: var(--text-primary);
+}
+
+.doctor-compliance-banner__expand-mobile {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.25rem;
+  font-size: 0.75rem;
+  font-weight: 600;
+  color: var(--primary);
+  border: none;
+  background: transparent;
+  padding: 0;
+  cursor: pointer;
+}
+
+@media (min-width: 992px) {
+  .doctor-compliance-banner__expand-mobile {
+    display: none;
+  }
+}
+
+.doctor-compliance-banner__next-month {
+  margin-top: 0.75rem;
+  padding: 1rem;
+  border: 1px solid var(--border-light);
+  border-radius: var(--radius-md);
+  background: var(--surface-muted);
+}
+
