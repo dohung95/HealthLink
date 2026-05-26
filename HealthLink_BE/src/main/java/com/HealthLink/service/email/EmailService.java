@@ -61,6 +61,17 @@ public class EmailService {
         sendHtmlEmail(toEmail, subject, content);
     }
 
+    // gửi email thông báo đổi mật khẩu thành công
+    public void sendPasswordResetSuccessEmail(String toEmail, String recipientName) {
+        log.info("sendPasswordResetSuccessEmail called - to: {}", toEmail);
+        String subject = appName + " - Password Changed Successfully";
+        String loginLink = frontendUrl + "/login";
+        String forgotPasswordLink = frontendUrl + "/forgot-password";
+        String content = buildPasswordResetSuccessEmailContent(recipientName, loginLink, forgotPasswordLink);
+        sendHtmlEmail(toEmail, subject, content);
+    }
+
+
     // gửi email xác nhận thay đổi email
     public void sendVerificationEmail(String toEmail, String recipientName, String verificationCode) {
         log.info("sendVerificationEmail called - to: {}, name: {}, code: {}", toEmail, recipientName, verificationCode);
@@ -319,6 +330,72 @@ public class EmailService {
             </html>
             """.formatted(appName, recipientName, resetLink, resetLink, appName, appName);
     }
+
+    // build email thông báo đổi mật khẩu thành công
+    private String buildPasswordResetSuccessEmailContent(String recipientName, String loginLink, String forgotPasswordLink) {
+        return """
+            <!DOCTYPE html>
+            <html>
+            <head>
+                <meta charset="UTF-8">
+                <style>
+                    body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; line-height: 1.6; color: #333; margin: 0; padding: 0; background-color: #f4f7fa; }
+                    .container { max-width: 600px; margin: 0 auto; background: white; border-radius: 12px; overflow: hidden; box-shadow: 0 4px 20px rgba(0,0,0,0.1); }
+                    .header { background: linear-gradient(135deg, #00b09a 0%%, #007a6a 100%%); color: white; padding: 30px; text-align: center; }
+                    .header h1 { margin: 0; font-size: 28px; }
+                    .header p { margin: 10px 0 0; opacity: 0.9; }
+                    .content { padding: 30px; }
+                    .icon { text-align: center; margin-bottom: 20px; }
+                    .icon span { display: inline-block; width: 80px; height: 80px; background: #dcfce7; border-radius: 50%%; line-height: 80px; font-size: 40px; color: #22c55e; }
+                    .greeting { font-size: 18px; margin-bottom: 20px; }
+                    .message { margin-bottom: 10px; color: #475569; }
+                    .cta-button { display: block; width: fit-content; margin: 20px auto; padding: 14px 40px; background: linear-gradient(135deg, #00b09a 0%%, #007a6a 100%%); color: white !important; text-decoration: none; border-radius: 8px; font-weight: 600; font-size: 16px; text-align: center; }
+                    .divider { border: none; border-top: 1px solid #e2e8f0; margin: 24px 0; }
+                    .warning-box { background: #fff7ed; border: 1px solid #fed7aa; border-radius: 12px; padding: 20px; margin: 8px 0 4px; }
+                    .warning-box .warning-title { color: #92400e; font-size: 15px; font-weight: 700; margin-bottom: 8px; display: flex; align-items: center; gap: 8px; }
+                    .warning-box .warning-body { color: #78350f; font-size: 14px; margin-bottom: 16px; line-height: 1.7; }
+                    .danger-button { display: block; width: fit-content; margin: 0 auto; padding: 12px 32px; background: linear-gradient(135deg, #ef4444 0%%, #dc2626 100%%); color: white !important; text-decoration: none; border-radius: 8px; font-weight: 700; font-size: 15px; text-align: center; letter-spacing: 0.3px; }
+                    .footer { background: #f8fafc; padding: 20px; text-align: center; color: #64748b; font-size: 13px; border-top: 1px solid #e2e8f0; }
+                    .footer a { color: #00b09a; text-decoration: none; }
+                </style>
+            </head>
+            <body>
+                <div class="container">
+                    <div class="header">
+                        <h1>%s</h1>
+                        <p>Healthcare Management Platform</p>
+                    </div>
+                    <div class="content">
+                        <div class="icon">
+                            <span>&#10003;</span>
+                        </div>
+                        <p class="greeting">Dear <strong>%s</strong>,</p>
+                        <div class="message">
+                            <p>This is a confirmation that the password for your account has been <strong>successfully changed</strong>.</p>
+                            <p>You can now log in using your new password by clicking the button below.</p>
+                        </div>
+                        <a href="%s" class="cta-button">&#128274; Go to Login</a>
+                        <hr class="divider">
+                        <div class="warning-box">
+                            <div class="warning-title">&#9888;&#65039; Didn't change your password?</div>
+                            <div class="warning-body">
+                                If you did NOT make this change, your account may have been compromised by an unauthorized person.
+                                Act immediately by clicking the button below to reset your password and regain access to your account.
+                            </div>
+                            <a href="%s" class="danger-button">&#128680; Reset My Password Now</a>
+                        </div>
+                    </div>
+                    <div class="footer">
+                        <p>This is an automated message from %s.</p>
+                        <p>If you need further help, please contact our <a href="mailto:support@healthlink.com">support team</a> immediately.</p>
+                        <p>&copy; 2026 %s. All rights reserved.</p>
+                    </div>
+                </div>
+            </body>
+            </html>
+            """.formatted(appName, recipientName, loginLink, forgotPasswordLink, appName, appName);
+    }
+
 
     // build email khi xác nhận thay đổi email
     private String buildEmailVerificationContent(String recipientName, String verificationCode, String newEmail) {

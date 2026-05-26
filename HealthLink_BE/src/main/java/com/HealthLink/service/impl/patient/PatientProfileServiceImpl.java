@@ -264,6 +264,16 @@ public class PatientProfileServiceImpl implements PatientProfileService {
         user.setPassword(passwordEncoder.encode(request.getNewPassword()));
         userRepository.save(user);
 
+        // Gửi email thông báo đổi mật khẩu thành công (bảo mật)
+        try {
+            String displayName = patientRepository.findById(userId)
+                    .map(Patient::getFullName)
+                    .orElse(user.getUsername());
+            emailService.sendPasswordResetSuccessEmail(user.getEmail(), displayName);
+        } catch (Exception e) {
+            log.error("Failed to send password change success email to {}: {}", user.getEmail(), e.getMessage());
+        }
+
         log.info("Password changed for userId: {}", userId);
     }
 
