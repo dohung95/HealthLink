@@ -15,8 +15,7 @@ public enum NotificationType {
     CANCEL_APPOINTMENT,
     CANCEL_ORDER,
     NEW_ORDER,
-
-
+  
     // Admin notifications
     NEW_REGISTRATION,
     NEW_COMMISSION,

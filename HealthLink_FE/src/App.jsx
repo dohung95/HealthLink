@@ -97,9 +97,7 @@ function AppContent() {
   const isPatientDashboard = location.pathname.startsWith('/patient-dashboard');
   const isPharmacyDashboard = location.pathname.startsWith('/pharmacy-page');
   const isSchedulePage = location.pathname === '/schedule' || location.pathname.startsWith('/book/');
-
-  // Don't show navbar/footer on video call, doctor page, admin page, or login page
-  const hideLayout = isVideoCallPage || isDoctorPage || isAdminPage || isPatientDashboard || isPharmacyDashboard || isSchedulePage;
+  const isResetPasswordPage = location.pathname === '/reset-password';
 
   // list trang bị chặn sau khi login
   const publicPaths = [
@@ -143,6 +141,9 @@ function AppContent() {
 
   const is404Page = !isKnownPath;
 
+  // Don't show navbar/footer on video call, doctor page, admin page, login page, or 404 page
+  const hideLayout = isVideoCallPage || isDoctorPage || isAdminPage || isPatientDashboard || isPharmacyDashboard || isSchedulePage || isResetPasswordPage || is404Page;
+
   useEffect(() => {
     // Nếu đã đăng nhập mà cố tình truy cập vào các trang công khai
     if (isAuthenticated && publicPaths.includes(location.pathname)) {
@@ -167,7 +168,7 @@ function AppContent() {
       {!isVideoCallPage && !isAdminPage && <PrescriptionNotificationModal />}
       {!isVideoCallPage && !isAdminPage && <AdminActionNotificationModal />}
       <div className="App">
-        {!isVideoCallPage && !isAdminPage && !isPharmacyDashboard && !is404Page && <Chat />}
+        {!isVideoCallPage && !isAdminPage && !isPharmacyDashboard && !is404Page && !isResetPasswordPage && <Chat />}
         <ScrollToTop />
         {!hideLayout && <Navbar />}
 
