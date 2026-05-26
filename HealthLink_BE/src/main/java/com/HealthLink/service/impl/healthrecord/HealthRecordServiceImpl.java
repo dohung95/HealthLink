@@ -25,8 +25,11 @@ import java.time.LocalDateTime;
 import java.util.List;
 import java.util.stream.Collectors;
 import com.HealthLink.dto.response.PagedResponse;
+import java.util.Arrays;
+import java.util.LinkedHashSet;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Sort;
 
 @Service
 @RequiredArgsConstructor
@@ -60,14 +63,46 @@ public class HealthRecordServiceImpl implements HealthRecordService {
 
     @Override
     @Transactional(readOnly = true)
-    public PagedResponse<HealthRecordResponse> getMyRecords(String patientId, int page, int size) {
+    public PagedResponse<HealthRecordResponse> getMyRecords(
+            String patientId,
+            int page,
+            int size,
+            LocalDate fromDate,
+            LocalDate toDate,
+            String sort
+    ) {
         int safePage = Math.max(page, 1);
         int safeSize = Math.min(Math.max(size, 1), 30);
 
+        if (fromDate != null && toDate != null && fromDate.isAfter(toDate)) {
+            throw new BusinessException("From date cannot be after to date");
+        }
+
+        LocalDateTime fromDateTime = fromDate != null
+                ? fromDate.atStartOfDay()
+                : null;
+
+        LocalDateTime toDateTime = toDate != null
+                ? toDate.plusDays(1).atStartOfDay().minusSeconds(1)
+                : null;
+
+        Sort.Direction direction
+                = "oldest".equalsIgnoreCase(sort)
+                ? Sort.Direction.ASC
+                : Sort.Direction.DESC;
+
+        PageRequest pageRequest = PageRequest.of(
+                safePage - 1,
+                safeSize,
+                Sort.by(direction, "recordDate")
+        );
+
         Page<HealthRecord> recordPage
-                = healthRecordRepository.findByPatient_PatientIdOrderByCreatedAtDesc(
+                = healthRecordRepository.findMyRecordsByDateRange(
                         patientId,
-                        PageRequest.of(safePage - 1, safeSize)
+                        fromDateTime,
+                        toDateTime,
+                        pageRequest
                 );
 
         return PagedResponse.<HealthRecordResponse>builder()
@@ -232,10 +267,46 @@ public class HealthRecordServiceImpl implements HealthRecordService {
         Doctor doctor = doctorRepository.findById(request.getDoctorId())
                 .orElseThrow(() -> new ResourceNotFoundException("Doctor not found: " + request.getDoctorId()));
 
-        healthRecordShareRepository.findBySharedByPatient_PatientIdAndHealthRecord_HealthRecordIdAndSharedWithDoctor_DoctorIdAndRevokedFalse(
-                patientId, recordId, request.getDoctorId()).ifPresent(share -> {
-            throw new BusinessException("This record is already shared with this doctor");
-        });
+        var existingShareOpt
+                = healthRecordShareRepository.findBySharedByPatient_PatientIdAndHealthRecord_HealthRecordIdAndSharedWithDoctor_DoctorIdAndRevokedFalse(
+                        patientId,
+                        recordId,
+                        request.getDoctorId()
+                );
+
+        if (existingShareOpt.isPresent()) {
+            HealthRecordShare existingShare = existingShareOpt.get();
+
+            boolean allowMerge = Boolean.TRUE.equals(request.getAllowMerge());
+
+            if (!allowMerge) {
+                throw new BusinessException(
+                        "This record is already shared with this doctor. Please revoke the existing share before sharing again."
+                );
+            }
+
+            String mergedDocumentIds = mergeDocumentIds(
+                    existingShare.getSharedDocumentIds(),
+                    request.getSharedDocumentIds()
+            );
+
+            if (existingShare.getSharedDocumentIds() != null
+                    && existingShare.getSharedDocumentIds().equals(mergedDocumentIds)) {
+                throw new BusinessException("These documents are already shared with this doctor.");
+            }
+
+            existingShare.setSharedDocumentIds(mergedDocumentIds);
+
+            if (request.getPermissionLevel() != null && !request.getPermissionLevel().isBlank()) {
+                existingShare.setPermissionLevel(request.getPermissionLevel());
+            }
+
+            if (request.getExpiryDate() != null) {
+                existingShare.setExpiryDate(request.getExpiryDate());
+            }
+
+            return toShareResponse(healthRecordShareRepository.save(existingShare));
+        }
 
         String docIds = null;
         if (request.getSharedDocumentIds() != null && !request.getSharedDocumentIds().isEmpty()) {
@@ -356,6 +427,7 @@ public class HealthRecordServiceImpl implements HealthRecordService {
     private MedicalDocumentResponse toDocumentResponse(MedicalDocument doc) {
         return MedicalDocumentResponse.builder()
                 .documentId(doc.getDocumentId())
+                .healthRecordId(doc.getHealthRecord().getHealthRecordId())
                 .documentName(doc.getDocumentName())
                 .documentType(doc.getDocumentType())
                 .fileLocation(doc.getFileLocation())
@@ -406,5 +478,26 @@ public class HealthRecordServiceImpl implements HealthRecordService {
                 .sharedDocumentIds(share.getSharedDocumentIds())
                 .documents(docs)
                 .build();
+    }
+
+    //Helper
+    private String mergeDocumentIds(String currentIds, List<Integer> newIds) {
+        LinkedHashSet<String> mergedIds = new LinkedHashSet<>();
+
+        if (currentIds != null && !currentIds.isBlank()) {
+            Arrays.stream(currentIds.split(","))
+                    .map(String::trim)
+                    .filter(id -> !id.isBlank())
+                    .forEach(mergedIds::add);
+        }
+
+        if (newIds != null) {
+            newIds.stream()
+                    .filter(id -> id != null)
+                    .map(String::valueOf)
+                    .forEach(mergedIds::add);
+        }
+
+        return mergedIds.isEmpty() ? null : String.join(",", mergedIds);
     }
 }

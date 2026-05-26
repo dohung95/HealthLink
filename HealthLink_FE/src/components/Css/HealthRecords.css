@@ -5,6 +5,10 @@
     position: relative;
 }
 
+.dashboard-embedded-page .card {
+    backdrop-filter: blur(4px);
+}
+
 .dashboard-embedded-page .container,
 .dashboard-embedded-page .container-fluid {
     max-width: 100%;

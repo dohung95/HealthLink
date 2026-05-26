@@ -103,11 +103,6 @@ function Navbar() {
                                 </NavLink>
                             </li>
                             <li>
-                                <NavLink to="/schedule" onClick={() => setMobileMenuOpen(false)} className="mobile-nav-link">
-                                    <i className="fas fa-calendar-alt me-2"></i> Schedule
-                                </NavLink>
-                            </li>
-                            <li>
                                 <NavLink to="/contact_us" onClick={() => setMobileMenuOpen(false)} className="mobile-nav-link">
                                     <i className="fas fa-envelope me-2"></i> Contact Us
                                 </NavLink>
@@ -248,7 +243,6 @@ function Navbar() {
                             <li><NavLink to="/" className="nav-link" end>Home</NavLink></li>
                             <li><NavLink to="/about_us" className="nav-link" end>About Us</NavLink></li>
                             <li><NavLink to="/doctors" className="nav-link">Doctors</NavLink></li>
-                            <li><NavLink to="/schedule" className="nav-link">Schedule</NavLink></li>
                             <li><NavLink to="/contact_us" className="nav-link" end>Contact Us</NavLink></li>
                         </ul>
 

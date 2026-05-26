@@ -1,7 +1,7 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { toast } from 'sonner';
-
+import { shareApi } from '../../api/shareRecordApi';
 import { appointmentService } from '../../api/appointmentApi';
 import { doctorService } from '../../api/doctorApi';
 import { useAuth } from '../../context/AuthContext';
@@ -309,6 +309,11 @@ const Schedule = () => {
     setStep((prev) => Math.max(prev - 1, 1));
   };
 
+  const handleBackFromPayment = () => {
+    setPaymentDraft(null);
+    handleBack();
+  };
+
   const handleSchedule = async () => {
     if (!selectedDoctorId || !selectedSlot || !consultationType) {
       toast.warning('Booking information is not complete');
@@ -339,7 +344,7 @@ const Schedule = () => {
         amount: selectedDoctor?.consultationFee ?? selectedDoctor?.fee ?? 0,
       });
       setStep(stepConfig.length);
-      toast.success('Please complete payment to create your appointment.');
+      toast.info('Review completed. Please finish payment to confirm your appointment.');
     } catch (error) {
       toast.error(
         error.response?.data?.message || 'Can not prepare payment.'
@@ -349,29 +354,67 @@ const Schedule = () => {
     }
   };
 
-  const finalizeBookingAfterPayment = async () => {
+  const finalizeBookingAfterPayment = async (paidInvoice) => {
     try {
+      const uploadedDocumentsByRecord = new Map();
+
       if (files.length > 0) {
         for (const item of files) {
           if (!item.file) continue;
 
-          await healthRecordApi.uploadDocumentAutoRecord(
+          if (!item.documentDate) {
+            throw new Error('Please select Date Performed for all uploaded documents.');
+          }
+
+          const uploadedDocument = await healthRecordApi.uploadDocumentAutoRecord(
             patientId,
             item.file,
             'Consultation-Notes',
-            symptoms || 'Uploaded during appointment booking',
-            new Date().toISOString().split('T')[0]
+            symptoms || `Uploaded during appointment booking #${paidInvoice?.appointmentId || ''}`,
+            item.documentDate
           );
+
+          const recordId = uploadedDocument.healthRecordId;
+          const documentId = uploadedDocument.documentId;
+
+          if (!recordId || !documentId) {
+            console.warn('Uploaded document missing recordId or documentId', uploadedDocument);
+            continue;
+          }
+
+          if (!uploadedDocumentsByRecord.has(recordId)) {
+            uploadedDocumentsByRecord.set(recordId, []);
+          }
+
+          uploadedDocumentsByRecord.get(recordId).push(documentId);
         }
       }
 
-      toast.success('Booking successful!');
+      for (const [recordId, documentIds] of uploadedDocumentsByRecord.entries()) {
+        await shareApi.shareWithDoctor(recordId, patientId, {
+          doctorId: selectedDoctorId,
+          permissionLevel: 'View',
+          expiryDate: null,
+          sharedDocumentIds: documentIds,
+          allowMerge: true,
+        });
+      }
+
+      toast.success(
+        files.length > 0
+          ? 'Booking successful! Documents were shared with your doctor.'
+          : 'Booking successful!'
+      );
+
       navigate('/patient-dashboard/appointments');
     } catch (error) {
-      console.error('Failed to upload booking documents after payment', error);
+      console.error('Failed to upload/share booking documents after payment', error);
+
       toast.error(
-        error.response?.data?.message || 'Payment completed, but documents could not be uploaded.'
+        error.response?.data?.message ||
+        'Payment completed, but documents could not be uploaded or shared.'
       );
+
       navigate('/patient-dashboard/appointments');
     }
   };
@@ -491,6 +534,7 @@ const Schedule = () => {
                 <PaymentStep
                   bookingDraft={paymentDraft}
                   selectedDoctor={selectedDoctor}
+                  onBack={handleBackFromPayment}
                   onPaymentComplete={finalizeBookingAfterPayment}
                 />
               )}
