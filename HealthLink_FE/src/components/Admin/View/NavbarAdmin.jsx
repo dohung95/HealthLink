@@ -32,8 +32,11 @@ export default function NavbarAdmin({ sidebarCollapsed, onToggleSidebar, childre
     { icon: "bi-box-seam", label: "Pharmacies", path: "/admin/pharmacies" },
     { icon: "bi-currency-exchange", label: "Commission", path: "/admin/commission" },
     { icon: "bi-calendar-check", label: "Appointments", path: "/admin/appointments" },
+    { icon: "bi-calendar3", label: "Doctor Schedules", path: "/admin/doctor-schedules" },
+    { icon: "bi-clipboard-check", label: "Compliance", path: "/admin/compliance" },
     { icon: "bi-file-medical", label: "Medical Records", path: "/admin/medical-records" },
     { icon: "bi-person-plus", label: "Registrations", path: "/admin/registrations" },
+    { icon: "bi-journal-text", label: "Audit Log", path: "/admin/audit-log" },
   ];
 
   return (
@@ -52,37 +55,37 @@ export default function NavbarAdmin({ sidebarCollapsed, onToggleSidebar, childre
           }`}
       >
         {/* Logo */}
-        <div className={`admin-logo ${sidebarCollapsed ? 'p-2' : 'p-4'} transition-all`}>
+        <div className={`admin-logo ${sidebarCollapsed ? 'p-2' : 'px-3 py-3'} transition-all`}>
           <div className="d-flex align-items-center justify-content-center">
-            <div className="admin-logo-icon">
+            <div className="admin-logo-icon" style={{ width: '38px', height: '38px', fontSize: '18px' }}>
               <i className="bi bi-heart-pulse-fill"></i>
             </div>
             {!sidebarCollapsed && (
-              <div className="admin-logo-text ms-3" style={{ whiteSpace: 'nowrap', overflow: 'hidden' }}>
-                <h5 className="mb-0" style={{ fontWeight: '700', letterSpacing: '-0.5px' }}>
+              <div className="admin-logo-text ms-2" style={{ whiteSpace: 'nowrap', overflow: 'hidden' }}>
+                <h6 className="mb-0" style={{ fontWeight: '700', letterSpacing: '-0.5px', fontSize: '15px' }}>
                   HealthLink
-                </h5>
-                <small style={{ fontSize: '11px', opacity: 0.8 }}>Admin Dashboard</small>
+                </h6>
+                <small style={{ fontSize: '10px', opacity: 0.8 }}>Admin Dashboard</small>
               </div>
             )}
           </div>
         </div>
 
         {/* Navigation */}
-        <nav className="flex-grow-1 mt-2 px-3">
+        <nav className="flex-grow-1 mt-1 px-2">
           <ul className="nav flex-column">
             {menuItems.map((item) => (
-              <li key={item.label} className="nav-item mb-1">
+              <li key={item.label} className="nav-item">
                 <a
                   href="#"
                   onClick={(e) => { e.preventDefault(); navigate(item.path); }}
-                  className={`admin-nav-link d-flex align-items-center py-3 px-3 rounded-3 ${location.pathname === item.path ? "admin-active" : "admin-nav-hover"
+                  className={`admin-nav-link d-flex align-items-center rounded-3 ${location.pathname === item.path ? "admin-active" : "admin-nav-hover"
                     }`}
                 >
-                  <i className={`bi ${item.icon} ${sidebarCollapsed ? "" : "me-3"}`} style={{ fontSize: '18px' }}></i>
-                  <span className="admin-menu-label" style={{ fontSize: '14px', fontWeight: '500' }}>{item.label}</span>
+                  <i className={`bi ${item.icon} ${sidebarCollapsed ? "" : "me-2"}`} style={{ fontSize: '16px' }}></i>
+                  <span className="admin-menu-label" style={{ fontSize: '13px', fontWeight: '500' }}>{item.label}</span>
                   {location.pathname === item.path && !sidebarCollapsed && (
-                    <i className="bi bi-chevron-right ms-auto" style={{ fontSize: '12px' }}></i>
+                    <i className="bi bi-chevron-right ms-auto" style={{ fontSize: '10px' }}></i>
                   )}
                 </a>
               </li>
@@ -91,14 +94,14 @@ export default function NavbarAdmin({ sidebarCollapsed, onToggleSidebar, childre
         </nav>
 
         {/* Logout */}
-        <div className="px-3 pb-3 pt-2">
+        <div className="px-2 py-2">
           <button
             className="admin-logout-btn w-100 d-flex align-items-center justify-content-center gap-2"
             onClick={handleLogout}
           >
-            <i className="bi bi-box-arrow-right" style={{ fontSize: '14px' }}></i>
+            <i className="bi bi-box-arrow-right" style={{ fontSize: '13px' }}></i>
             {!sidebarCollapsed && (
-              <span className="admin-menu-label">Logout</span>
+              <span className="admin-menu-label" style={{ fontSize: '12px' }}>Logout</span>
             )}
           </button>
         </div>

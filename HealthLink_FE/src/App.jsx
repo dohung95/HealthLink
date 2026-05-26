@@ -27,6 +27,9 @@ import CommissionManagement from './components/Admin/View/CommissionManagement';
 import Appointments from './components/Admin/View/Appointments';
 import MedicalRecords from './components/Admin/View/MedicalRecords';
 import Registrations from './components/Admin/View/Registrations';
+import DoctorScheduleManagement from './components/Admin/View/DoctorScheduleManagement';
+import ScheduleAuditLog from './components/Admin/View/ScheduleAuditLog';
+import ScheduleComplianceDashboard from './components/Admin/View/ScheduleComplianceDashboard';
 
 import Sign_in from './components/Auth/Sign_in';
 import Sign_up from './components/Auth/Sign_up';
@@ -49,6 +52,7 @@ import { NotificationProvider } from './context/NotificationContext';
 import VideocallPage from './pages/video-calling';
 import IncomingCallModal from './components/IncomingCallModal';
 import PrescriptionNotificationModal from './components/PrescriptionNotificationModal';
+import AdminActionNotificationModal from './components/AdminActionNotificationModal';
 import Navbar from './components/Navbar';
 import DoctorPublicProfilePage from './pages/doctor/DoctorPublicProfilePage';
 import PatientPrescriptionView from './components/PatientPrescriptionView';
@@ -160,8 +164,9 @@ function AppContent() {
   return (
     <>
       <Toaster position="top-right" richColors />
-      {!isVideoCallPage && !isAdminPage && !isPharmacyDashboard && <IncomingCallModal />}
-      {!isVideoCallPage && !isAdminPage && !isPharmacyDashboard && <PrescriptionNotificationModal />}
+      {!isVideoCallPage && !isAdminPage && <IncomingCallModal />}
+      {!isVideoCallPage && !isAdminPage && <PrescriptionNotificationModal />}
+      {!isVideoCallPage && !isAdminPage && <AdminActionNotificationModal />}
       <div className="App">
         {!isVideoCallPage && !isAdminPage && !isPharmacyDashboard && !is404Page && !isResetPasswordPage && <Chat />}
         <ScrollToTop />
@@ -270,6 +275,21 @@ function AppContent() {
             <Route path="/admin/registrations" element={
               <AdminRoute>
                 <Registrations />
+              </AdminRoute>
+            } />
+            <Route path="/admin/doctor-schedules" element={
+              <AdminRoute>
+                <DoctorScheduleManagement />
+              </AdminRoute>
+            } />
+            <Route path="/admin/audit-log" element={
+              <AdminRoute>
+                <ScheduleAuditLog />
+              </AdminRoute>
+            } />
+            <Route path="/admin/compliance" element={
+              <AdminRoute>
+                <ScheduleComplianceDashboard />
               </AdminRoute>
             } />
 

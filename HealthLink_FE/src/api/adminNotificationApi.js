@@ -1,18 +1,23 @@
 import axios from 'axios';
 
 /**
- * API module cho Admin Notifications
+ * API module cho Admin Notifications (Hệ thống độc lập cho Admin)
+ *
+ * Base URL: /api/admin/notifications
  *
  * Endpoints:
- *  - GET    /api/notifications           - Lấy danh sách thông báo (phân trang)
- *  - GET    /api/notifications/unread-count - Đếm số thông báo chưa đọc
- *  - PATCH  /api/notifications/{id}/read - Đánh dấu một thông báo đã đọc
- *  - PATCH  /api/notifications/mark-all-read - Đánh dấu tất cả đã đọc
- *  - DELETE /api/notifications/{id}      - Xóa một thông báo
+ *  - GET    /                      - Lấy danh sách thông báo (phân trang, filter by type)
+ *  - GET    /unread-count          - Đếm số thông báo chưa đọc
+ *  - GET    /unread-count-by-type  - Đếm số chưa đọc theo từng loại
+ *  - PATCH  /{id}/read             - Đánh dấu một thông báo đã đọc
+ *  - PATCH  /mark-all-read         - Đánh dấu tất cả đã đọc (có thể filter by type)
+ *  - DELETE /{id}                  - Xóa một thông báo
+ *  - DELETE /cleanup               - Xóa các thông báo cũ
+ *  - GET    /statistics            - Thống kê thông báo
  */
 
 const API_BASE_URL = import.meta.env.VITE_SPRING_API_BASE_URL || 'http://localhost:8096';
-const API_URL = `${API_BASE_URL}/api/notifications`;
+const API_URL = `${API_BASE_URL}/api/admin/notifications`;
 
 // Helper: Lấy auth header
 const getAuthHeader = () => {
@@ -38,17 +43,23 @@ const adminNotificationApi = {
      * Lấy danh sách thông báo (phân trang)
      * @param {number} page - Trang hiện tại (0-indexed)
      * @param {number} size - Số item mỗi trang
+     * @param {string} type - Loại notification (optional): NEW_REGISTRATION, NEW_APPOINTMENT, etc.
      * @returns {Promise<Object>} { content: [], totalElements, totalPages, ... }
      */
-    getNotifications: async (page = 0, size = 20) => {
+    getNotifications: async (page = 0, size = 20, type = null) => {
         try {
+            const params = { page, size };
+            if (type) {
+                params.type = type;
+            }
+
             const response = await axios.get(API_URL, {
-                params: { page, size },
+                params,
                 headers: getAuthHeader()
             });
             return response.data;
         } catch (error) {
-            handleApiError(error, 'Error fetching notifications:');
+            handleApiError(error, 'Error fetching admin notifications:');
         }
     },
 
@@ -64,6 +75,21 @@ const adminNotificationApi = {
             return response.data.unreadCount || 0;
         } catch (error) {
             handleApiError(error, 'Error fetching unread count:');
+        }
+    },
+
+    /**
+     * Đếm số thông báo chưa đọc theo từng loại
+     * @returns {Promise<Object>} { NEW_REGISTRATION: 3, NEW_APPOINTMENT: 5, ... }
+     */
+    getUnreadCountByType: async () => {
+        try {
+            const response = await axios.get(`${API_URL}/unread-count-by-type`, {
+                headers: getAuthHeader()
+            });
+            return response.data;
+        } catch (error) {
+            handleApiError(error, 'Error fetching unread count by type:');
         }
     },
 
@@ -86,15 +112,21 @@ const adminNotificationApi = {
 
     /**
      * Đánh dấu tất cả thông báo đã đọc
-     * @returns {Promise<void>}
+     * @param {string} type - Loại notification (optional) - nếu có chỉ đánh dấu loại đó
+     * @returns {Promise<Object>} { message, count }
      */
-    markAllAsRead: async () => {
+    markAllAsRead: async (type = null) => {
         try {
-            await axios.patch(
+            const params = type ? { type } : {};
+            const response = await axios.patch(
                 `${API_URL}/mark-all-read`,
                 {},
-                { headers: getAuthHeader() }
+                {
+                    params,
+                    headers: getAuthHeader()
+                }
             );
+            return response.data;
         } catch (error) {
             handleApiError(error, 'Error marking all notifications as read:');
         }
@@ -112,6 +144,40 @@ const adminNotificationApi = {
             });
         } catch (error) {
             handleApiError(error, `Error deleting notification ${notificationId}:`);
+        }
+    },
+
+    /**
+     * Xóa các thông báo cũ (cleanup)
+     * @param {number} daysOld - Số ngày tuổi tối thiểu để xóa (mặc định: 30)
+     * @returns {Promise<Object>} { message, deletedCount }
+     */
+    cleanupOldNotifications: async (daysOld = 30) => {
+        try {
+            const response = await axios.delete(`${API_URL}/cleanup`, {
+                params: { daysOld },
+                headers: getAuthHeader()
+            });
+            return response.data;
+        } catch (error) {
+            handleApiError(error, 'Error cleaning up old notifications:');
+        }
+    },
+
+    /**
+     * Lấy thống kê thông báo trong khoảng thời gian
+     * @param {number} days - Số ngày gần đây (mặc định: 7)
+     * @returns {Promise<Object>} { NEW_REGISTRATION: 10, NEW_APPOINTMENT: 25, ... }
+     */
+    getStatistics: async (days = 7) => {
+        try {
+            const response = await axios.get(`${API_URL}/statistics`, {
+                params: { days },
+                headers: getAuthHeader()
+            });
+            return response.data;
+        } catch (error) {
+            handleApiError(error, 'Error fetching notification statistics:');
         }
     }
 };

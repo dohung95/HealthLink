@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useMemo } from "react";
 import NavbarAdmin from "./NavbarAdmin";
-import { appointmentsApi } from "../../../api/adminApi";
+import { appointmentsApi, doctorsApi } from "../../../api/adminApi";
 import Toast from "./Toast";
 import useToast from "../useToast";
 import "bootstrap/dist/css/bootstrap.min.css";
@@ -174,6 +174,28 @@ export default function Appointments() {
     diagnosis: ''
   });
 
+  // Reassign modal state
+  const [showReassignModal, setShowReassignModal] = useState(false);
+  const [reassignForm, setReassignForm] = useState({
+    newDoctorId: '',
+    reason: '',
+    notifyPatient: true,
+    notifyOldDoctor: true,
+    notifyNewDoctor: true
+  });
+  const [availableDoctors, setAvailableDoctors] = useState([]);
+  const [loadingDoctors, setLoadingDoctors] = useState(false);
+  const [reassignSubmitting, setReassignSubmitting] = useState(false);
+
+  // Cancel modal state
+  const [showCancelModal, setShowCancelModal] = useState(false);
+  const [cancelForm, setCancelForm] = useState({
+    reason: '',
+    notifyPatient: true,
+    notifyDoctor: true
+  });
+  const [cancelSubmitting, setCancelSubmitting] = useState(false);
+
   // Fetch stats
   const fetchStats = async () => {
     try {
@@ -313,6 +335,102 @@ export default function Appointments() {
         duration: 5000
       });
       console.error('Error updating appointment:', err);
+    }
+  };
+
+  // Open Reassign Modal
+  const handleOpenReassignModal = async (appointment) => {
+    setSelectedAppointment(appointment);
+    setReassignForm({
+      newDoctorId: '',
+      reason: '',
+      notifyPatient: true,
+      notifyOldDoctor: true,
+      notifyNewDoctor: true
+    });
+    setShowReassignModal(true);
+
+    // Fetch doctors with same specialty
+    try {
+      setLoadingDoctors(true);
+      const response = await doctorsApi.getAll({
+        pageSize: 100,
+        status: 'Active',
+        specialty: appointment.department
+      });
+      // Filter out current doctor
+      const filtered = (response.doctors || []).filter(d => d.doctorID !== appointment.doctorId);
+      setAvailableDoctors(filtered);
+    } catch (err) {
+      console.error('Error fetching doctors:', err);
+      showToast({ title: 'Error', message: 'Could not load doctors list', type: 'error' });
+    } finally {
+      setLoadingDoctors(false);
+    }
+  };
+
+  // Handle Reassign Submit
+  const handleReassignAppointment = async (e) => {
+    e.preventDefault();
+    if (!reassignForm.newDoctorId || !reassignForm.reason) {
+      showToast({ title: 'Validation Error', message: 'Please select a doctor and provide a reason', type: 'error' });
+      return;
+    }
+
+    try {
+      setReassignSubmitting(true);
+      await appointmentsApi.reassign(selectedAppointment.appointmentID, reassignForm);
+      setShowReassignModal(false);
+      await fetchAppointments();
+      await fetchStats();
+      showToast({ title: 'Success!', message: 'Appointment reassigned successfully', type: 'success' });
+    } catch (err) {
+      showToast({
+        title: 'Reassign Failed',
+        message: err.response?.data?.message || 'Failed to reassign appointment',
+        type: 'error'
+      });
+      console.error('Error reassigning appointment:', err);
+    } finally {
+      setReassignSubmitting(false);
+    }
+  };
+
+  // Open Cancel Modal
+  const handleOpenCancelModal = (appointment) => {
+    setSelectedAppointment(appointment);
+    setCancelForm({
+      reason: '',
+      notifyPatient: true,
+      notifyDoctor: true
+    });
+    setShowCancelModal(true);
+  };
+
+  // Handle Cancel Submit
+  const handleCancelAppointment = async (e) => {
+    e.preventDefault();
+    if (!cancelForm.reason) {
+      showToast({ title: 'Validation Error', message: 'Please provide a cancel reason', type: 'error' });
+      return;
+    }
+
+    try {
+      setCancelSubmitting(true);
+      await appointmentsApi.cancel(selectedAppointment.appointmentID, cancelForm);
+      setShowCancelModal(false);
+      await fetchAppointments();
+      await fetchStats();
+      showToast({ title: 'Success!', message: 'Appointment cancelled successfully', type: 'success' });
+    } catch (err) {
+      showToast({
+        title: 'Cancel Failed',
+        message: err.response?.data?.message || 'Failed to cancel appointment',
+        type: 'error'
+      });
+      console.error('Error cancelling appointment:', err);
+    } finally {
+      setCancelSubmitting(false);
     }
   };
 
@@ -755,6 +873,28 @@ export default function Appointments() {
                       <i className="bi bi-pencil"></i>
                       <span>Edit</span>
                     </button>
+                    {appointment.status !== 'Cancelled' && appointment.status !== 'Completed' && (
+                      <>
+                        <button
+                          className="action-btn"
+                          title="Reassign to another doctor"
+                          onClick={() => handleOpenReassignModal(appointment)}
+                          style={{ backgroundColor: '#6366f1', color: 'white' }}
+                        >
+                          <i className="bi bi-arrow-left-right"></i>
+                          <span>Reassign</span>
+                        </button>
+                        <button
+                          className="action-btn"
+                          title="Cancel Appointment"
+                          onClick={() => handleOpenCancelModal(appointment)}
+                          style={{ backgroundColor: '#ef4444', color: 'white' }}
+                        >
+                          <i className="bi bi-x-circle"></i>
+                          <span>Cancel</span>
+                        </button>
+                      </>
+                    )}
                   </div>
                 </div>
               ))}
@@ -1126,6 +1266,239 @@ export default function Appointments() {
                     <button type="submit" className="admin-btn-modal success">
                       <i className="bi bi-check-circle"></i>
                       Save Changes
+                    </button>
+                  </div>
+                </form>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* Reassign Appointment Modal */}
+        {showReassignModal && selectedAppointment && (
+          <div className="modal show d-block admin-modal-backdrop" tabIndex="-1">
+            <div className="modal-dialog modal-dialog-centered">
+              <div className="modal-content" style={{ border: 'none', boxShadow: 'var(--shadow-lg)' }}>
+                <div className="modal-header" style={{ backgroundColor: '#6366f1', color: 'white' }}>
+                  <h5 className="modal-title">
+                    <i className="bi bi-arrow-left-right me-2"></i>
+                    Reassign Appointment
+                  </h5>
+                  <button
+                    type="button"
+                    className="btn-close btn-close-white"
+                    onClick={() => setShowReassignModal(false)}
+                  ></button>
+                </div>
+                <form onSubmit={handleReassignAppointment}>
+                  <div className="modal-body">
+                    <div className="alert alert-info mb-3">
+                      <strong>Current:</strong> {selectedAppointment.patientName} with Dr. {selectedAppointment.doctorName}
+                      <br />
+                      <small>Department: {selectedAppointment.department}</small>
+                    </div>
+
+                    <div className="mb-3">
+                      <label className="form-label fw-semibold">
+                        Select New Doctor <span className="text-danger">*</span>
+                      </label>
+                      {loadingDoctors ? (
+                        <div className="text-center py-3">
+                          <div className="spinner-border spinner-border-sm text-primary"></div>
+                          <span className="ms-2">Loading doctors...</span>
+                        </div>
+                      ) : (
+                        <select
+                          className="form-select"
+                          value={reassignForm.newDoctorId}
+                          onChange={(e) => setReassignForm({ ...reassignForm, newDoctorId: e.target.value })}
+                          required
+                        >
+                          <option value="">-- Select Doctor --</option>
+                          {availableDoctors.map(doc => (
+                            <option key={doc.doctorID} value={doc.doctorID}>
+                              {doc.fullName} - {doc.specialty}
+                            </option>
+                          ))}
+                        </select>
+                      )}
+                      {availableDoctors.length === 0 && !loadingDoctors && (
+                        <small className="text-muted">No other doctors available in this specialty</small>
+                      )}
+                    </div>
+
+                    <div className="mb-3">
+                      <label className="form-label fw-semibold">
+                        Reason <span className="text-danger">*</span>
+                      </label>
+                      <textarea
+                        className="form-control"
+                        rows="3"
+                        value={reassignForm.reason}
+                        onChange={(e) => setReassignForm({ ...reassignForm, reason: e.target.value })}
+                        placeholder="Enter reason for reassignment..."
+                        required
+                      ></textarea>
+                    </div>
+
+                    <div className="border rounded p-3 bg-light">
+                      <label className="form-label fw-semibold mb-2">Notification Settings</label>
+                      <div className="form-check">
+                        <input
+                          type="checkbox"
+                          className="form-check-input"
+                          id="notifyPatient"
+                          checked={reassignForm.notifyPatient}
+                          onChange={(e) => setReassignForm({ ...reassignForm, notifyPatient: e.target.checked })}
+                        />
+                        <label className="form-check-label" htmlFor="notifyPatient">Notify Patient</label>
+                      </div>
+                      <div className="form-check">
+                        <input
+                          type="checkbox"
+                          className="form-check-input"
+                          id="notifyOldDoctor"
+                          checked={reassignForm.notifyOldDoctor}
+                          onChange={(e) => setReassignForm({ ...reassignForm, notifyOldDoctor: e.target.checked })}
+                        />
+                        <label className="form-check-label" htmlFor="notifyOldDoctor">Notify Original Doctor</label>
+                      </div>
+                      <div className="form-check">
+                        <input
+                          type="checkbox"
+                          className="form-check-input"
+                          id="notifyNewDoctor"
+                          checked={reassignForm.notifyNewDoctor}
+                          onChange={(e) => setReassignForm({ ...reassignForm, notifyNewDoctor: e.target.checked })}
+                        />
+                        <label className="form-check-label" htmlFor="notifyNewDoctor">Notify New Doctor</label>
+                      </div>
+                    </div>
+                  </div>
+                  <div className="modal-footer">
+                    <button
+                      type="button"
+                      className="btn btn-secondary"
+                      onClick={() => setShowReassignModal(false)}
+                    >
+                      Cancel
+                    </button>
+                    <button
+                      type="submit"
+                      className="btn"
+                      style={{ backgroundColor: '#6366f1', color: 'white' }}
+                      disabled={reassignSubmitting || !reassignForm.newDoctorId}
+                    >
+                      {reassignSubmitting ? (
+                        <>
+                          <span className="spinner-border spinner-border-sm me-2"></span>
+                          Reassigning...
+                        </>
+                      ) : (
+                        <>
+                          <i className="bi bi-check-lg me-2"></i>
+                          Confirm Reassign
+                        </>
+                      )}
+                    </button>
+                  </div>
+                </form>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* Cancel Appointment Modal */}
+        {showCancelModal && selectedAppointment && (
+          <div className="modal show d-block admin-modal-backdrop" tabIndex="-1">
+            <div className="modal-dialog modal-dialog-centered">
+              <div className="modal-content" style={{ border: 'none', boxShadow: 'var(--shadow-lg)' }}>
+                <div className="modal-header bg-danger text-white">
+                  <h5 className="modal-title">
+                    <i className="bi bi-x-circle me-2"></i>
+                    Cancel Appointment
+                  </h5>
+                  <button
+                    type="button"
+                    className="btn-close btn-close-white"
+                    onClick={() => setShowCancelModal(false)}
+                  ></button>
+                </div>
+                <form onSubmit={handleCancelAppointment}>
+                  <div className="modal-body">
+                    <div className="alert alert-warning mb-3">
+                      <i className="bi bi-exclamation-triangle me-2"></i>
+                      You are about to cancel appointment #{selectedAppointment.appointmentID}
+                    </div>
+
+                    <div className="mb-3">
+                      <strong>Patient:</strong> {selectedAppointment.patientName}<br />
+                      <strong>Doctor:</strong> {selectedAppointment.doctorName}<br />
+                      <strong>Date:</strong> {selectedAppointment.date} {selectedAppointment.time}
+                    </div>
+
+                    <div className="mb-3">
+                      <label className="form-label fw-semibold">
+                        Cancel Reason <span className="text-danger">*</span>
+                      </label>
+                      <textarea
+                        className="form-control"
+                        rows="3"
+                        value={cancelForm.reason}
+                        onChange={(e) => setCancelForm({ ...cancelForm, reason: e.target.value })}
+                        placeholder="Enter reason for cancellation..."
+                        required
+                      ></textarea>
+                    </div>
+
+                    <div className="border rounded p-3 bg-light">
+                      <label className="form-label fw-semibold mb-2">Notification Settings</label>
+                      <div className="form-check">
+                        <input
+                          type="checkbox"
+                          className="form-check-input"
+                          id="cancelNotifyPatient"
+                          checked={cancelForm.notifyPatient}
+                          onChange={(e) => setCancelForm({ ...cancelForm, notifyPatient: e.target.checked })}
+                        />
+                        <label className="form-check-label" htmlFor="cancelNotifyPatient">Notify Patient</label>
+                      </div>
+                      <div className="form-check">
+                        <input
+                          type="checkbox"
+                          className="form-check-input"
+                          id="cancelNotifyDoctor"
+                          checked={cancelForm.notifyDoctor}
+                          onChange={(e) => setCancelForm({ ...cancelForm, notifyDoctor: e.target.checked })}
+                        />
+                        <label className="form-check-label" htmlFor="cancelNotifyDoctor">Notify Doctor</label>
+                      </div>
+                    </div>
+                  </div>
+                  <div className="modal-footer">
+                    <button
+                      type="button"
+                      className="btn btn-secondary"
+                      onClick={() => setShowCancelModal(false)}
+                    >
+                      Close
+                    </button>
+                    <button
+                      type="submit"
+                      className="btn btn-danger"
+                      disabled={cancelSubmitting || !cancelForm.reason}
+                    >
+                      {cancelSubmitting ? (
+                        <>
+                          <span className="spinner-border spinner-border-sm me-2"></span>
+                          Cancelling...
+                        </>
+                      ) : (
+                        <>
+                          <i className="bi bi-x-circle me-2"></i>
+                          Confirm Cancel
+                        </>
+                      )}
                     </button>
                   </div>
                 </form>

@@ -1,118 +1,195 @@
-import React, { useEffect, useMemo, useState } from 'react';
-import { doctorService } from '../../../api/doctorApi';
+import React, { useState, useEffect } from 'react';
+import { doctorScheduleService } from '../../../api/doctorApi';
+import { doctorComplianceService } from '../../../api/complianceApi';
+import WeeklyScheduleBuilder from './schedule/WeeklyScheduleBuilder';
+import ScheduleCalendarView from './schedule/ScheduleCalendarView';
+import ScheduleExceptionModal from './schedule/ScheduleExceptionModal';
+import ComplianceStatusBanner from './compliance/ComplianceStatusBanner';
+import ComplianceWarningModal from './compliance/ComplianceWarningModal';
+import { toast } from 'sonner';
 
-const DAY_ORDER = [1, 2, 3, 4, 5, 6, 0];
-const DAY_LABELS = {
-  0: 'Sunday',
-  1: 'Monday',
-  2: 'Tuesday',
-  3: 'Wednesday',
-  4: 'Thursday',
-  5: 'Friday',
-  6: 'Saturday',
-};
-
-const formatTime = (value) => {
-  if (!value) return 'N/A';
-  return String(value).slice(0, 5);
-};
-
-export default function DoctorScheduleView({ doctorId }) {
-  const [schedules, setSchedules] = useState([]);
-  const [loading, setLoading] = useState(false);
+const DoctorScheduleView = () => {
+  const [activeTab, setActiveTab] = useState('weekly'); // 'weekly' | 'calendar'
+  const [scheduleData, setScheduleData] = useState(null);
+  const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
+  const [showExceptionModal, setShowExceptionModal] = useState(false);
+  const [selectedDate, setSelectedDate] = useState(null);
+
+  // Compliance state
+  const [showComplianceModal, setShowComplianceModal] = useState(false);
+  const [complianceResult, setComplianceResult] = useState(null);
+  const [complianceKey, setComplianceKey] = useState(0); // For refreshing banner
 
   useEffect(() => {
-    if (!doctorId) return;
-    let mounted = true;
+    fetchSchedule();
+  }, []);
 
-    const loadSchedules = async () => {
+  const fetchSchedule = async () => {
+    try {
       setLoading(true);
       setError(null);
-      try {
-        const data = await doctorService.getDoctorSchedules(doctorId);
-        if (mounted) setSchedules(Array.isArray(data) ? data : []);
-      } catch (err) {
-        console.error('Error loading doctor schedule:', err);
-        if (mounted) {
-          setError('Failed to load schedule');
-          setSchedules([]);
-        }
-      } finally {
-        if (mounted) setLoading(false);
-      }
-    };
+      const data = await doctorScheduleService.getMySchedule();
+      setScheduleData(data);
+    } catch (err) {
+      console.error('Error fetching schedule:', err);
+      setError(err.response?.data?.message || 'Failed to load schedule');
+      toast.error('Failed to load schedule');
+    } finally {
+      setLoading(false);
+    }
+  };
 
-    loadSchedules();
-    return () => {
-      mounted = false;
-    };
-  }, [doctorId]);
+  const handleCreateException = (date) => {
+    setSelectedDate(date);
+    setShowExceptionModal(true);
+  };
 
-  const schedulesByDay = useMemo(() => {
-    const grouped = new Map(DAY_ORDER.map((day) => [day, []]));
-    schedules.forEach((schedule) => {
-      const day = schedule.dayOfWeek ?? 0;
-      grouped.set(day, [...(grouped.get(day) || []), schedule]);
-    });
-    grouped.forEach((items, day) => {
-      grouped.set(day, [...items].sort((left, right) => String(left.startTime).localeCompare(String(right.startTime))));
-    });
-    return grouped;
-  }, [schedules]);
+  const handleExceptionSuccess = () => {
+    setShowExceptionModal(false);
+    setSelectedDate(null);
+    fetchSchedule();
+    setComplianceKey(prev => prev + 1); // Refresh compliance banner
+    toast.success('Exception created successfully');
+  };
+
+  // Compliance handlers
+  const handleValidateCompliance = async () => {
+    try {
+      const result = await doctorComplianceService.validateSchedule();
+      setComplianceResult(result);
+      setShowComplianceModal(true);
+    } catch (err) {
+      console.error('Error validating compliance:', err);
+      toast.error('Failed to validate schedule compliance');
+    }
+  };
+
+  const handleScheduleRefresh = () => {
+    fetchSchedule();
+    setComplianceKey(prev => prev + 1); // Refresh compliance banner
+  };
+
+  if (loading) {
+    return (
+      <div className="d-flex justify-content-center align-items-center" style={{ minHeight: '400px' }}>
+        <div className="spinner-border text-primary" role="status">
+          <span className="visually-hidden">Loading...</span>
+        </div>
+      </div>
+    );
+  }
+
+  if (error) {
+    return (
+      <div className="alert alert-danger m-4" role="alert">
+        <h5 className="alert-heading">Error Loading Schedule</h5>
+        <p>{error}</p>
+        <button className="btn btn-outline-danger" onClick={fetchSchedule}>
+          Try Again
+        </button>
+      </div>
+    );
+  }
 
   return (
-    <div className="doctor-management-view">
-      <div className="doctor-management-toolbar">
+    <div className="doctor-schedule-container p-4">
+      {/* Header */}
+      <div className="d-flex justify-content-between align-items-center mb-4">
         <div>
-          <p className="doctor-detail-eyebrow mb-1">Availability</p>
-          <h3 className="doctor-management-title">Working Schedule</h3>
+          <h4 className="mb-1">My Schedule</h4>
+          <p className="text-muted mb-0">Manage your working hours and time off</p>
         </div>
-        <span className="doctor-schedule-note">Read-only in this version</span>
+        <button
+          className="btn btn-primary"
+          onClick={() => handleCreateException(new Date())}
+        >
+          <span className="material-symbols-outlined me-2" style={{ fontSize: '18px', verticalAlign: 'middle' }}>
+            add_circle
+          </span>
+          Add Exception
+        </button>
       </div>
 
-      {loading ? (
-        <div className="text-center py-5">
-          <div className="spinner-border text-primary" role="status">
-            <span className="visually-hidden">Loading...</span>
-          </div>
-        </div>
-      ) : error ? (
-        <div className="alert alert-danger m-4">{error}</div>
-      ) : (
-        <div className="doctor-schedule-week">
-          {DAY_ORDER.map((day) => {
-            const items = schedulesByDay.get(day) || [];
-            return (
-              <section className="doctor-schedule-day" key={day}>
-                <div className="doctor-schedule-day__header">
-                  <h4>{DAY_LABELS[day]}</h4>
-                  <span>{items.length} shift{items.length === 1 ? '' : 's'}</span>
-                </div>
+      {/* Compliance Status Banner */}
+      <ComplianceStatusBanner
+        key={complianceKey}
+        onValidateClick={handleValidateCompliance}
+      />
 
-                {items.length ? (
-                  <div className="doctor-management-list">
-                    {items.map((schedule) => (
-                      <article className="doctor-management-list-item" key={schedule.scheduleId}>
-                        <div>
-                          <strong>{formatTime(schedule.startTime)} - {formatTime(schedule.endTime)}</strong>
-                          <p>{schedule.consultationType || 'All consultation types'}</p>
-                          <p>{schedule.slotDuration || 30} minute slots</p>
-                        </div>
-                        <span className={`doctor-schedule-availability ${schedule.available ? 'doctor-schedule-availability--on' : ''}`}>
-                          {schedule.available ? 'Available' : 'Off'}
-                        </span>
-                      </article>
-                    ))}
-                  </div>
-                ) : (
-                  <p className="doctor-schedule-empty">No working shift.</p>
-                )}
-              </section>
-            );
-          })}
-        </div>
+      {/* Tab Navigation */}
+      <ul className="nav nav-tabs mb-4">
+        <li className="nav-item">
+          <button
+            className={`nav-link ${activeTab === 'weekly' ? 'active' : ''}`}
+            onClick={() => setActiveTab('weekly')}
+          >
+            <span className="material-symbols-outlined me-2" style={{ fontSize: '18px', verticalAlign: 'middle' }}>
+              calendar_view_week
+            </span>
+            Weekly Schedule
+          </button>
+        </li>
+        <li className="nav-item">
+          <button
+            className={`nav-link ${activeTab === 'calendar' ? 'active' : ''}`}
+            onClick={() => setActiveTab('calendar')}
+          >
+            <span className="material-symbols-outlined me-2" style={{ fontSize: '18px', verticalAlign: 'middle' }}>
+              calendar_month
+            </span>
+            Calendar View
+          </button>
+        </li>
+      </ul>
+
+      {/* Content */}
+      {activeTab === 'weekly' && (
+        <WeeklyScheduleBuilder
+          schedules={scheduleData?.schedules || []}
+          onRefresh={handleScheduleRefresh}
+        />
       )}
+
+      {activeTab === 'calendar' && (
+        <ScheduleCalendarView
+          exceptions={scheduleData?.exceptions || []}
+          onCreateException={handleCreateException}
+          onRefresh={handleScheduleRefresh}
+        />
+      )}
+
+      {/* Exception Modal */}
+      <ScheduleExceptionModal
+        isOpen={showExceptionModal}
+        onClose={() => {
+          setShowExceptionModal(false);
+          setSelectedDate(null);
+        }}
+        selectedDate={selectedDate}
+        onSuccess={handleExceptionSuccess}
+      />
+
+      {/* Compliance Warning Modal */}
+      <ComplianceWarningModal
+        isOpen={showComplianceModal}
+        onClose={() => {
+          setShowComplianceModal(false);
+          setComplianceResult(null);
+        }}
+        validationResult={complianceResult}
+        onAddMoreHours={() => {
+          setShowComplianceModal(false);
+          setActiveTab('weekly'); // Switch to weekly view to add hours
+        }}
+        onSaveAnyway={() => {
+          setShowComplianceModal(false);
+          setComplianceResult(null);
+          toast.info('Schedule saved but remains inactive until compliance is met');
+        }}
+      />
     </div>
   );
-}
+};
+
+export default DoctorScheduleView;

@@ -63,4 +63,15 @@ public interface DoctorRepository extends JpaRepository<Doctor, String> {
        ORDER BY COALESCE(se.name, d.specialty)
        """)
     List<String> findAllSpecialtyNames();
+
+    /**
+     * Find Doctor by User ID.
+     */
+    Optional<Doctor> findByUser_Id(String userId);
+
+    /**
+     * Find all doctors with active user accounts.
+     * Used for compliance checking.
+     */
+    List<Doctor> findByUser_Status(String status);
 }
