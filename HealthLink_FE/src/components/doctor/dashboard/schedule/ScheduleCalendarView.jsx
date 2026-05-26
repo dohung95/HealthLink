@@ -1,8 +1,35 @@
-import React, { useState, useEffect } from 'react';
+import React, { useCallback, useEffect, useState } from 'react';
 import Calendar from 'react-calendar';
-import { doctorScheduleService } from '../../../../api/doctorApi';
 import { toast } from 'sonner';
+import { doctorScheduleService } from '../../../../api/doctorApi';
 import 'react-calendar/dist/Calendar.css';
+
+const getMonthRange = (date) => {
+  const start = new Date(date.getFullYear(), date.getMonth(), 1);
+  const end = new Date(date.getFullYear(), date.getMonth() + 1, 0);
+  return { start, end };
+};
+
+const toDateValue = (date) => date.toISOString().split('T')[0];
+
+const formatTime = (time) => {
+  if (!time) return '';
+  const parts = String(time).split(':');
+  return `${parts[0]}:${parts[1]}`;
+};
+
+const statusClasses = {
+  WORKING: 'bg-success/10 text-success border-success/30',
+  DAY_OFF: 'bg-critical/10 text-critical border-critical/30',
+  MODIFIED: 'bg-warning/10 text-warning border-warning/30',
+  NO_SCHEDULE: 'bg-surface-container text-text-muted border-surface-border',
+};
+
+const slotClasses = {
+  AVAILABLE: 'bg-success/10 border-success/30 text-success',
+  BOOKED: 'bg-primary-fixed border-primary-fixed-dim text-primary',
+  HELD: 'bg-warning/10 border-warning/30 text-warning',
+};
 
 const ScheduleCalendarView = ({ exceptions, onCreateException, onRefresh }) => {
   const [selectedDate, setSelectedDate] = useState(new Date());
@@ -10,44 +37,30 @@ const ScheduleCalendarView = ({ exceptions, onCreateException, onRefresh }) => {
   const [loading, setLoading] = useState(false);
   const [selectedDaySlots, setSelectedDaySlots] = useState(null);
   const [deletingId, setDeletingId] = useState(null);
-
-  // Calculate current month range
-  const getMonthRange = (date) => {
-    const start = new Date(date.getFullYear(), date.getMonth(), 1);
-    const end = new Date(date.getFullYear(), date.getMonth() + 1, 0);
-    return { start, end };
-  };
-
   const [viewRange, setViewRange] = useState(() => getMonthRange(new Date()));
 
-  useEffect(() => {
-    fetchCalendarData();
-  }, [viewRange]);
-
-  const fetchCalendarData = async () => {
+  const fetchCalendarData = useCallback(async () => {
     try {
       setLoading(true);
-      const startDate = viewRange.start.toISOString().split('T')[0];
-      const endDate = viewRange.end.toISOString().split('T')[0];
-      const data = await doctorScheduleService.getCalendarView(startDate, endDate);
+      const data = await doctorScheduleService.getCalendarView(toDateValue(viewRange.start), toDateValue(viewRange.end));
       setCalendarData(data);
+      const selectedDay = data.find((day) => day.date === toDateValue(selectedDate));
+      setSelectedDaySlots(selectedDay || null);
     } catch (err) {
       console.error('Error fetching calendar data:', err);
       toast.error('Failed to load calendar data');
     } finally {
       setLoading(false);
     }
-  };
+  }, [selectedDate, viewRange]);
 
-  const handleActiveStartDateChange = ({ activeStartDate, view }) => {
-    if (view === 'month') {
-      setViewRange(getMonthRange(activeStartDate));
-    }
-  };
+  useEffect(() => {
+    fetchCalendarData();
+  }, [fetchCalendarData]);
 
   const getDayData = (date) => {
-    const dateStr = date.toISOString().split('T')[0];
-    return calendarData.find(d => d.date === dateStr);
+    const dateStr = toDateValue(date);
+    return calendarData.find((day) => day.date === dateStr);
   };
 
   const tileClassName = ({ date, view }) => {
@@ -56,39 +69,41 @@ const ScheduleCalendarView = ({ exceptions, onCreateException, onRefresh }) => {
     if (!dayData) return 'calendar-day-no-schedule';
 
     switch (dayData.status) {
-      case 'WORKING': return 'calendar-day-working';
-      case 'DAY_OFF': return 'calendar-day-off';
-      case 'MODIFIED': return 'calendar-day-modified';
-      default: return 'calendar-day-no-schedule';
+      case 'WORKING':
+        return 'calendar-day-working';
+      case 'DAY_OFF':
+        return 'calendar-day-off';
+      case 'MODIFIED':
+        return 'calendar-day-modified';
+      default:
+        return 'calendar-day-no-schedule';
     }
   };
 
   const tileContent = ({ date, view }) => {
     if (view !== 'month') return null;
     const dayData = getDayData(date);
-    if (!dayData || !dayData.slots) return null;
+    if (!dayData?.slots?.length) return null;
 
-    const bookedCount = dayData.slots.filter(s => s.status === 'BOOKED').length;
-    const availableCount = dayData.slots.filter(s => s.status === 'AVAILABLE').length;
+    const bookedCount = dayData.slots.filter((slot) => slot.status === 'BOOKED').length;
+    if (!bookedCount) return null;
 
-    if (bookedCount > 0 || availableCount > 0) {
-      return (
-        <div className="calendar-tile-info">
-          {bookedCount > 0 && (
-            <span className="badge bg-primary rounded-pill" style={{ fontSize: '10px' }}>
-              {bookedCount}
-            </span>
-          )}
-        </div>
-      );
+    return (
+      <div className="calendar-tile-info">
+        <span className="rounded-full bg-primary-container px-1.5 text-[10px] font-bold text-white">{bookedCount}</span>
+      </div>
+    );
+  };
+
+  const handleActiveStartDateChange = ({ activeStartDate, view }) => {
+    if (view === 'month') {
+      setViewRange(getMonthRange(activeStartDate));
     }
-    return null;
   };
 
   const handleDateClick = (date) => {
     setSelectedDate(date);
-    const dayData = getDayData(date);
-    setSelectedDaySlots(dayData);
+    setSelectedDaySlots(getDayData(date) || null);
   };
 
   const handleDeleteException = async (exceptionId) => {
@@ -108,197 +123,137 @@ const ScheduleCalendarView = ({ exceptions, onCreateException, onRefresh }) => {
     }
   };
 
-  const formatTime = (time) => {
-    if (!time) return '';
-    const parts = time.split(':');
-    return `${parts[0]}:${parts[1]}`;
-  };
-
-  // Filter upcoming exceptions (next 30 days)
   const upcomingExceptions = exceptions
-    .filter(e => new Date(e.exceptionDate) >= new Date())
-    .sort((a, b) => new Date(a.exceptionDate) - new Date(b.exceptionDate))
+    .filter((exception) => new Date(exception.exceptionDate) >= new Date())
+    .sort((left, right) => new Date(left.exceptionDate) - new Date(right.exceptionDate))
     .slice(0, 5);
 
   return (
-    <div className="schedule-calendar-view">
-      <div className="row g-4">
-        {/* Calendar */}
-        <div className="col-lg-8">
-          <div className="card shadow-sm">
-            <div className="card-body">
-              {loading && (
-                <div className="position-absolute top-50 start-50 translate-middle">
-                  <div className="spinner-border text-primary" role="status">
-                    <span className="visually-hidden">Loading...</span>
-                  </div>
-                </div>
-              )}
-              <Calendar
-                value={selectedDate}
-                onChange={handleDateClick}
-                tileClassName={tileClassName}
-                tileContent={tileContent}
-                onActiveStartDateChange={handleActiveStartDateChange}
-                minDate={new Date()}
-                className="w-100 border-0"
-              />
+    <div className="grid gap-4 lg:grid-cols-[minmax(0,1fr)_300px] xl:grid-cols-[minmax(0,1fr)_340px]">
+      <div className="grid gap-4">
+        <section className="relative rounded-lg border border-surface-border bg-white p-4">
+          {loading ? (
+            <div className="absolute inset-0 z-10 flex items-center justify-center rounded-lg bg-white/70">
+              <div className="spinner-border text-primary" role="status">
+                <span className="visually-hidden">Loading...</span>
+              </div>
+            </div>
+          ) : null}
+          <Calendar
+            className="doctor-schedule-calendar w-full border-0"
+            minDate={new Date()}
+            onActiveStartDateChange={handleActiveStartDateChange}
+            onChange={handleDateClick}
+            tileClassName={tileClassName}
+            tileContent={tileContent}
+            value={selectedDate}
+          />
+        </section>
+
+        <section className="rounded-lg border border-surface-border bg-white">
+          <div className="border-b border-surface-border bg-surface-container-low px-4 py-3">
+            <div className="flex flex-wrap items-center gap-2">
+              <h3 className="mb-0 text-sm font-bold text-text-main">
+                {selectedDate.toLocaleDateString('en-US', {
+                  weekday: 'long',
+                  year: 'numeric',
+                  month: 'long',
+                  day: 'numeric',
+                })}
+              </h3>
+              <span className={`rounded border px-2 py-0.5 text-[11px] font-bold ${statusClasses[selectedDaySlots?.status] || statusClasses.NO_SCHEDULE}`}>
+                {(selectedDaySlots?.status || 'NO_SCHEDULE').replace('_', ' ')}
+              </span>
             </div>
           </div>
 
-          {/* Selected Day Details */}
-          {selectedDaySlots && (
-            <div className="card shadow-sm mt-4">
-              <div className="card-header bg-light">
-                <h6 className="mb-0">
-                  {selectedDate.toLocaleDateString('en-US', {
-                    weekday: 'long',
-                    year: 'numeric',
-                    month: 'long',
-                    day: 'numeric'
-                  })}
-                  <span className={`badge ms-2 ${
-                    selectedDaySlots.status === 'WORKING' ? 'bg-success' :
-                    selectedDaySlots.status === 'DAY_OFF' ? 'bg-danger' :
-                    selectedDaySlots.status === 'MODIFIED' ? 'bg-warning' :
-                    'bg-secondary'
-                  }`}>
-                    {selectedDaySlots.status?.replace('_', ' ')}
-                  </span>
-                </h6>
+          <div className="p-4">
+            {selectedDaySlots?.slots?.length ? (
+              <div className="grid gap-2 sm:grid-cols-2 xl:grid-cols-4">
+                {selectedDaySlots.slots.map((slot, index) => (
+                  <article className={`rounded border p-3 text-center ${slotClasses[slot.status] || slotClasses.AVAILABLE}`} key={`${slot.startTime}-${index}`}>
+                    <p className="mb-1 text-sm font-bold text-text-main">{formatTime(slot.startTime)} - {formatTime(slot.endTime)}</p>
+                    <p className="mb-0 text-xs font-semibold">
+                      {slot.status === 'BOOKED' && slot.patientName ? slot.patientName : slot.status}
+                    </p>
+                    {slot.appointmentId ? <p className="mb-0 mt-1 text-[11px] text-text-muted">Appointment #{slot.appointmentId}</p> : null}
+                  </article>
+                ))}
               </div>
-              <div className="card-body">
-                {selectedDaySlots.slots && selectedDaySlots.slots.length > 0 ? (
-                  <div className="row g-2">
-                    {selectedDaySlots.slots.map((slot, idx) => (
-                      <div key={idx} className="col-6 col-md-4 col-lg-3">
-                        <div className={`p-2 rounded text-center border ${
-                          slot.status === 'BOOKED' ? 'bg-primary bg-opacity-10 border-primary' :
-                          slot.status === 'HELD' ? 'bg-warning bg-opacity-10 border-warning' :
-                          'bg-success bg-opacity-10 border-success'
-                        }`}>
-                          <div className="fw-bold small">
-                            {formatTime(slot.startTime)} - {formatTime(slot.endTime)}
-                          </div>
-                          <div className="small text-muted">
-                            {slot.status === 'BOOKED' && slot.patientName ? (
-                              <span className="text-primary">{slot.patientName}</span>
-                            ) : (
-                              slot.status
-                            )}
-                          </div>
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                ) : (
-                  <p className="text-muted mb-0">No slots for this day</p>
-                )}
+            ) : (
+              <p className="mb-0 text-sm text-text-muted">No slots for this day.</p>
+            )}
 
-                <div className="mt-3">
-                  <button
-                    className="btn btn-outline-primary btn-sm"
-                    onClick={() => onCreateException(selectedDate)}
-                  >
-                    <span className="material-symbols-outlined me-1" style={{ fontSize: '16px', verticalAlign: 'middle' }}>
-                      add
-                    </span>
-                    Add Exception for this day
-                  </button>
-                </div>
-              </div>
-            </div>
-          )}
-        </div>
-
-        {/* Sidebar */}
-        <div className="col-lg-4">
-          {/* Legend */}
-          <div className="card shadow-sm mb-4">
-            <div className="card-header bg-light">
-              <h6 className="mb-0">Legend</h6>
-            </div>
-            <div className="card-body">
-              <div className="d-flex align-items-center mb-2">
-                <span className="legend-dot bg-success me-2"></span>
-                Working (Available)
-              </div>
-              <div className="d-flex align-items-center mb-2">
-                <span className="legend-dot bg-danger me-2"></span>
-                Day Off
-              </div>
-              <div className="d-flex align-items-center mb-2">
-                <span className="legend-dot bg-warning me-2"></span>
-                Modified Hours
-              </div>
-              <div className="d-flex align-items-center">
-                <span className="legend-dot bg-secondary me-2"></span>
-                No Schedule
-              </div>
-            </div>
+            <button className="mt-4 flex items-center gap-1 rounded border border-primary-container px-3 py-2 text-sm font-semibold text-primary-container hover:bg-primary-fixed" onClick={() => onCreateException(selectedDate)} type="button">
+              <span className="material-symbols-outlined text-[16px]">add</span>
+              Add Exception for this day
+            </button>
           </div>
-
-          {/* Upcoming Exceptions */}
-          <div className="card shadow-sm">
-            <div className="card-header bg-light d-flex justify-content-between align-items-center">
-              <h6 className="mb-0">Upcoming Exceptions</h6>
-              <span className="badge bg-secondary">{upcomingExceptions.length}</span>
-            </div>
-            <div className="card-body">
-              {upcomingExceptions.length === 0 ? (
-                <p className="text-muted mb-0">No upcoming exceptions</p>
-              ) : (
-                upcomingExceptions.map(ex => (
-                  <div key={ex.exceptionId} className="exception-item mb-3 p-3 border rounded">
-                    <div className="d-flex justify-content-between align-items-start">
-                      <div>
-                        <strong>{new Date(ex.exceptionDate).toLocaleDateString()}</strong>
-                        <span className={`badge ms-2 ${
-                          ex.exceptionType === 'DayOff' ? 'bg-danger' :
-                          ex.exceptionType === 'Modified' ? 'bg-warning' :
-                          'bg-info'
-                        }`}>
-                          {ex.exceptionType}
-                        </span>
-                      </div>
-                      {!ex.isAdminCreated && (
-                        <button
-                          className="btn btn-sm btn-outline-danger"
-                          onClick={() => handleDeleteException(ex.exceptionId)}
-                          disabled={deletingId === ex.exceptionId}
-                          title="Delete exception"
-                        >
-                          {deletingId === ex.exceptionId ? (
-                            <span className="spinner-border spinner-border-sm" />
-                          ) : (
-                            <span className="material-symbols-outlined" style={{ fontSize: '16px' }}>delete</span>
-                          )}
-                        </button>
-                      )}
-                    </div>
-                    <div className="small text-muted mt-1">
-                      {ex.reason}
-                      {ex.isAdminCreated && (
-                        <span className="badge bg-secondary ms-2">Admin Created</span>
-                      )}
-                    </div>
-                    {ex.startTime && ex.endTime && (
-                      <div className="small mt-1">
-                        <span className="material-symbols-outlined" style={{ fontSize: '14px', verticalAlign: 'middle' }}>
-                          schedule
-                        </span>
-                        {' '}{formatTime(ex.startTime)} - {formatTime(ex.endTime)}
-                      </div>
-                    )}
-                  </div>
-                ))
-              )}
-            </div>
-          </div>
-        </div>
+        </section>
       </div>
+
+      <aside className="grid content-start gap-4">
+        <section className="rounded-lg border border-surface-border bg-white">
+          <div className="border-b border-surface-border bg-surface-container-low px-4 py-3">
+            <h3 className="mb-0 text-sm font-bold text-text-main">Legend</h3>
+          </div>
+          <div className="grid gap-3 p-4 text-sm text-text-main">
+            <LegendItem color="bg-success" label="Working (Available)" />
+            <LegendItem color="bg-critical" label="Day Off" />
+            <LegendItem color="bg-warning" label="Modified Hours" />
+            <LegendItem color="bg-text-muted" label="No Schedule" />
+          </div>
+        </section>
+
+        <section className="rounded-lg border border-surface-border bg-white">
+          <div className="flex items-center justify-between border-b border-surface-border bg-surface-container-low px-4 py-3">
+            <h3 className="mb-0 text-sm font-bold text-text-main">Upcoming Exceptions</h3>
+            <span className="rounded bg-surface-container px-2 py-0.5 text-xs font-bold text-text-muted">{upcomingExceptions.length}</span>
+          </div>
+          <div className="grid gap-3 p-4">
+            {upcomingExceptions.length === 0 ? (
+              <p className="mb-0 text-sm text-text-muted">No upcoming exceptions.</p>
+            ) : (
+              upcomingExceptions.map((exception) => (
+                <article className="rounded border border-surface-border p-3" key={exception.exceptionId}>
+                  <div className="flex items-start justify-between gap-3">
+                    <div>
+                      <p className="mb-1 text-sm font-bold text-text-main">{new Date(exception.exceptionDate).toLocaleDateString()}</p>
+                      <span className={`rounded px-2 py-0.5 text-[11px] font-bold ${exception.exceptionType === 'DayOff' ? 'bg-critical/10 text-critical' : exception.exceptionType === 'Modified' ? 'bg-warning/10 text-warning' : 'bg-primary-fixed text-primary'}`}>
+                        {exception.exceptionType}
+                      </span>
+                    </div>
+                    {!exception.isAdminCreated ? (
+                      <button className="rounded p-1 text-text-muted hover:bg-error-container/30 hover:text-critical" disabled={deletingId === exception.exceptionId} onClick={() => handleDeleteException(exception.exceptionId)} title="Delete exception" type="button">
+                        <span className="material-symbols-outlined text-[16px]">{deletingId === exception.exceptionId ? 'progress_activity' : 'delete'}</span>
+                      </button>
+                    ) : null}
+                  </div>
+                  <p className="mb-0 mt-2 text-xs text-text-muted">
+                    {exception.reason}
+                    {exception.isAdminCreated ? <span className="ml-2 rounded bg-surface-container px-1.5 py-0.5 text-[10px] font-bold">Admin Created</span> : null}
+                  </p>
+                  {exception.startTime && exception.endTime ? (
+                    <p className="mb-0 mt-2 flex items-center gap-1 text-xs text-text-main">
+                      <span className="material-symbols-outlined text-[14px]">schedule</span>
+                      {formatTime(exception.startTime)} - {formatTime(exception.endTime)}
+                    </p>
+                  ) : null}
+                </article>
+              ))
+            )}
+          </div>
+        </section>
+      </aside>
     </div>
   );
 };
+
+const LegendItem = ({ color, label }) => (
+  <div className="flex items-center gap-2">
+    <span className={`h-3 w-3 rounded-full ${color}`} />
+    <span>{label}</span>
+  </div>
+);
 
 export default ScheduleCalendarView;

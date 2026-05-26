@@ -2515,11 +2515,394 @@ body {
     color: #991b1b;
 }
 
+.doctor-detail-status--progress {
+    background: #dbeafe;
+    color: #1d4ed8;
+}
+
+.doctor-detail-shell {
+    gap: 1rem;
+}
+
+.doctor-detail-summary-card {
+    align-items: stretch;
+    background: #ffffff;
+    border: 1px solid #d9e4ef;
+    border-radius: 1rem;
+    box-shadow: 0 16px 38px rgba(15, 23, 42, 0.05);
+    display: grid;
+    gap: 1.25rem;
+    grid-template-columns: minmax(0, 1.15fr) minmax(320px, 0.85fr);
+    padding: 1.25rem;
+}
+
+.doctor-detail-summary-card__main {
+    align-items: flex-start;
+    display: flex;
+    gap: 1rem;
+    min-width: 0;
+}
+
+.doctor-detail-avatar--round {
+    border-radius: 999px;
+    height: 4.25rem;
+    width: 4.25rem;
+}
+
+.doctor-detail-summary-card__identity {
+    display: flex;
+    flex: 1 1 auto;
+    flex-direction: column;
+    gap: 0.7rem;
+    min-width: 0;
+}
+
+.doctor-detail-summary-card__title-row {
+    align-items: center;
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.75rem;
+}
+
+.doctor-detail-summary-card__title-row h2 {
+    color: var(--slate-900);
+    font-size: 1.45rem;
+    font-weight: 800;
+    line-height: 1.2;
+    margin: 0;
+}
+
+.doctor-detail-summary-card__meta,
+.doctor-detail-summary-card__chips,
+.doctor-detail-followup__visit-grid,
+.doctor-history-snapshot__meta {
+    align-items: center;
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.65rem 1rem;
+}
+
+.doctor-detail-summary-card__meta span,
+.doctor-history-snapshot__meta span,
+.doctor-detail-followup__visit-grid span {
+    align-items: center;
+    color: var(--slate-500);
+    display: inline-flex;
+    font-size: 0.9rem;
+    font-weight: 600;
+    gap: 0.45rem;
+    min-width: 0;
+}
+
+.doctor-detail-summary-card__meta i,
+.doctor-history-snapshot__meta i,
+.doctor-detail-followup__visit-grid i {
+    color: var(--primary);
+}
+
+.doctor-detail-summary-card__visit {
+    border-left: 1px solid #e4edf7;
+    display: flex;
+    flex-direction: column;
+    gap: 0.75rem;
+    min-width: 0;
+    padding-left: 1.25rem;
+}
+
+.doctor-detail-summary-card__reason {
+    color: var(--slate-900);
+    font-size: 0.95rem;
+    font-weight: 650;
+    line-height: 1.5;
+    margin: 0;
+}
+
+.doctor-detail-summary-card__reason--empty,
+.doctor-notes-chief-card__text--empty {
+    color: var(--slate-500);
+    font-style: italic;
+    font-weight: 500;
+}
+
+.doctor-detail-workspace--full {
+    min-height: 680px;
+}
+
+.doctor-detail-tab-panel--workspace {
+    background: #ffffff;
+    min-height: 500px;
+}
+
+.doctor-notes-workspace--consultation {
+    gap: 1rem;
+}
+
+.doctor-notes-chief-card {
+    align-items: flex-start;
+    background: #f8fbff;
+    border: 1px solid #e4edf7;
+    border-radius: 0.75rem;
+    display: flex;
+    gap: 0.85rem;
+    padding: 1rem;
+}
+
+.doctor-notes-chief-card__icon {
+    align-items: center;
+    background: #e8f2ff;
+    border-radius: 0.65rem;
+    color: var(--primary);
+    display: inline-flex;
+    flex: 0 0 auto;
+    height: 2.4rem;
+    justify-content: center;
+    width: 2.4rem;
+}
+
+.doctor-notes-chief-card__text {
+    color: var(--slate-800);
+    line-height: 1.55;
+    margin: 0;
+}
+
+.doctor-notes-grid {
+    display: grid;
+    gap: 1rem;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+.doctor-notes-field--full {
+    grid-column: 1 / -1;
+}
+
+.doctor-history-workspace,
+.doctor-detail-prescription-panel {
+    display: flex;
+    flex: 1 1 auto;
+    flex-direction: column;
+    min-height: 100%;
+}
+
+.doctor-history-workspace__grid {
+    display: grid;
+    gap: 1rem;
+    grid-template-columns: minmax(260px, 0.36fr) minmax(0, 0.64fr);
+    min-height: 500px;
+}
+
+.doctor-history-list-panel,
+.doctor-history-snapshot,
+.doctor-detail-followup__visit {
+    background: #fbfdff;
+    border: 1px solid #dce7f3;
+    border-radius: 0.9rem;
+    overflow: hidden;
+}
+
+.doctor-history-list-panel {
+    display: flex;
+    flex-direction: column;
+}
+
+.doctor-history-list-panel__header {
+    border-bottom: 1px solid #e4edf7;
+    padding: 1rem;
+}
+
+.doctor-history-list-panel__header h3,
+.doctor-history-snapshot__header h3 {
+    color: var(--slate-900);
+    font-size: 1rem;
+    font-weight: 800;
+    margin: 0;
+}
+
+.doctor-history-encounter-list {
+    display: flex;
+    flex: 1 1 auto;
+    flex-direction: column;
+    overflow-y: auto;
+}
+
+.doctor-history-encounter {
+    background: transparent;
+    border: 0;
+    border-left: 4px solid transparent;
+    border-bottom: 1px solid #edf2f7;
+    color: inherit;
+    display: flex;
+    flex-direction: column;
+    gap: 0.35rem;
+    padding: 0.95rem 1rem;
+    text-align: left;
+    transition: background-color 0.2s ease, border-color 0.2s ease;
+}
+
+.doctor-history-encounter:hover,
+.doctor-history-encounter--active {
+    background: #f4f8ff;
+    border-left-color: var(--primary);
+}
+
+.doctor-history-encounter__date {
+    color: var(--primary);
+    font-size: 0.78rem;
+    font-weight: 800;
+}
+
+.doctor-history-encounter__title {
+    color: var(--slate-900);
+    font-weight: 800;
+    line-height: 1.35;
+}
+
+.doctor-history-encounter__meta,
+.doctor-history-encounter__diagnosis {
+    align-items: center;
+    color: var(--slate-500);
+    display: inline-flex;
+    font-size: 0.82rem;
+    font-weight: 600;
+    gap: 0.4rem;
+}
+
+.doctor-history-snapshot {
+    display: flex;
+    flex-direction: column;
+    padding: 1rem;
+}
+
+.doctor-history-snapshot__header {
+    align-items: flex-start;
+    border-bottom: 1px solid #e4edf7;
+    display: flex;
+    gap: 1rem;
+    justify-content: space-between;
+    margin: -1rem -1rem 1rem;
+    padding: 1rem;
+}
+
+.doctor-history-snapshot__meta {
+    margin-bottom: 1rem;
+}
+
+.doctor-history-snapshot__sections {
+    display: grid;
+    gap: 0.9rem;
+}
+
+.doctor-history-snapshot__sections section,
+.doctor-history-medications {
+    background: #ffffff;
+    border: 1px solid #e4edf7;
+    border-radius: 0.85rem;
+    padding: 1rem;
+}
+
+.doctor-history-snapshot__text {
+    color: var(--slate-800);
+    line-height: 1.6;
+    margin: 0.7rem 0 0;
+    white-space: pre-line;
+}
+
+.doctor-history-medications {
+    margin-top: 0.9rem;
+}
+
+.doctor-history-medications__list {
+    display: grid;
+    gap: 0.65rem;
+    margin-top: 0.85rem;
+}
+
+.doctor-history-medications__item {
+    align-items: center;
+    background: #f8fbff;
+    border: 1px solid #e4edf7;
+    border-radius: 0.75rem;
+    display: flex;
+    gap: 0.75rem;
+    justify-content: space-between;
+    padding: 0.8rem 0.9rem;
+}
+
+.doctor-history-medications__item strong {
+    color: var(--slate-900);
+}
+
+.doctor-history-medications__item span {
+    color: var(--primary);
+    font-weight: 800;
+}
+
+.doctor-detail-shared--blank {
+    background: #ffffff;
+    min-height: 420px;
+}
+
+.doctor-detail-followup__planner--workspace {
+    align-items: stretch;
+    grid-template-columns: minmax(300px, 0.42fr) minmax(0, 0.58fr);
+}
+
+.doctor-detail-followup__left {
+    display: flex;
+    flex-direction: column;
+    gap: 1rem;
+    min-width: 0;
+}
+
+.doctor-detail-followup__visit {
+    padding: 1rem;
+}
+
+.doctor-detail-followup__visit-grid {
+    border-bottom: 1px solid #e4edf7;
+    padding-bottom: 0.9rem;
+}
+
+.doctor-detail-followup__footer {
+    align-items: center;
+    background: #f8fbff;
+    border: 1px solid #e4edf7;
+    border-radius: 0.9rem;
+    display: flex;
+    gap: 1rem;
+    justify-content: space-between;
+    padding: 1rem;
+}
+
+.doctor-detail-followup__footer strong {
+    color: var(--primary);
+    font-size: 0.95rem;
+}
+
+.doctor-detail-actionbar--consultation {
+    background: #f8fbff;
+    bottom: 0;
+    margin: 0;
+    padding: 1rem 1.2rem;
+}
+
 .doctor-detail-modal-grid .doctor-detail-note-card {
     height: 100%;
 }
 
 @media (max-width: 992px) {
+    .doctor-detail-summary-card,
+    .doctor-history-workspace__grid,
+    .doctor-detail-followup__planner--workspace {
+        grid-template-columns: 1fr;
+    }
+
+    .doctor-detail-summary-card__visit {
+        border-left: none;
+        border-top: 1px solid #e4edf7;
+        padding-left: 0;
+        padding-top: 1rem;
+    }
+
     .doctor-detail-workspace {
         min-height: 700px;
     }
@@ -2599,6 +2982,21 @@ body {
     .doctor-detail-tab-panel,
     .doctor-detail-actionbar--workspace {
         padding: 0.95rem 1rem;
+    }
+
+    .doctor-detail-summary-card,
+    .doctor-detail-followup__footer {
+        padding: 1rem;
+    }
+
+    .doctor-detail-summary-card__main,
+    .doctor-detail-followup__footer {
+        align-items: flex-start;
+        flex-direction: column;
+    }
+
+    .doctor-notes-grid {
+        grid-template-columns: 1fr;
     }
 
     .doctor-detail-tab-panel {
@@ -3637,5 +4035,258 @@ body {
     
     .rating-stars {
         font-size: 0.9rem;
+    }
+}
+
+/* Doctor schedule Tailwind refresh helpers */
+.doctor-schedule-calendar.react-calendar {
+    width: 100%;
+    border: 0;
+    font-family: Inter, sans-serif;
+}
+
+.doctor-schedule-calendar .react-calendar__navigation {
+    align-items: center;
+    display: flex;
+    gap: 0.5rem;
+    margin-bottom: 1rem;
+}
+
+.doctor-schedule-calendar .react-calendar__navigation button {
+    background: #f2f4f6;
+    border: 1px solid #e2e8f0;
+    border-radius: 0.375rem;
+    color: #1e293b;
+    min-height: 40px;
+}
+
+.doctor-schedule-calendar .react-calendar__navigation button:enabled:hover,
+.doctor-schedule-calendar .react-calendar__navigation button:enabled:focus {
+    background: #eceef0;
+}
+
+.doctor-schedule-calendar .react-calendar__month-view__weekdays {
+    color: #64748b;
+    font-size: 0.75rem;
+    font-weight: 700;
+    letter-spacing: 0.05em;
+    text-transform: uppercase;
+}
+
+.doctor-schedule-calendar .react-calendar__month-view__weekdays abbr {
+    text-decoration: none;
+}
+
+.doctor-schedule-calendar .react-calendar__tile {
+    border-radius: 0.375rem;
+    min-height: 76px;
+    padding: 0.55rem 0.35rem;
+    position: relative;
+}
+
+.doctor-schedule-calendar .react-calendar__tile:enabled:hover,
+.doctor-schedule-calendar .react-calendar__tile:enabled:focus {
+    background: #dae2ff;
+}
+
+.doctor-schedule-calendar .react-calendar__tile--active {
+    background: #0052cc !important;
+    color: #fff;
+}
+
+.doctor-schedule-calendar .calendar-day-working:not(.react-calendar__tile--active) {
+    background: rgba(16, 185, 129, 0.1);
+    color: #047857;
+}
+
+.doctor-schedule-calendar .calendar-day-off:not(.react-calendar__tile--active) {
+    background: rgba(239, 68, 68, 0.1);
+    color: #b91c1c;
+}
+
+.doctor-schedule-calendar .calendar-day-modified:not(.react-calendar__tile--active) {
+    background: rgba(245, 158, 11, 0.14);
+    color: #b45309;
+}
+
+.doctor-schedule-calendar .calendar-day-no-schedule:not(.react-calendar__tile--active) {
+    background: #f8fafc;
+    color: #64748b;
+}
+
+.calendar-tile-info {
+    bottom: 0.25rem;
+    left: 0;
+    position: absolute;
+    right: 0;
+    text-align: center;
+}
+
+/* Desktop density pass for doctor dashboard surfaces. */
+@media (min-width: 1024px) {
+    .doctor-management-toolbar {
+        padding: 0.85rem 1rem 0;
+    }
+
+    .doctor-management-title,
+    .doctor-daily-toolbar__title {
+        font-size: 1rem;
+    }
+
+    .doctor-management-controls {
+        gap: 0.6rem;
+    }
+
+    .doctor-management-search {
+        min-width: 240px;
+    }
+
+    .doctor-patient-grid {
+        gap: 0.85rem;
+        grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+        padding: 0 1rem;
+    }
+
+    .doctor-patient-card,
+    .doctor-schedule-day,
+    .doctor-prescription-detail-panel {
+        border-radius: 0.65rem;
+        padding: 0.85rem;
+    }
+
+    .doctor-patient-avatar--large {
+        font-size: 1.15rem;
+        height: 4rem;
+        width: 4rem;
+    }
+
+    .doctor-patient-card h4,
+    .doctor-patient-detail-name,
+    .doctor-prescription-detail-panel h4,
+    .doctor-schedule-day h4 {
+        font-size: 1rem;
+    }
+
+    .doctor-prescription-dashboard {
+        gap: 0.85rem;
+        grid-template-columns: minmax(0, 1fr) minmax(280px, 0.9fr);
+        padding: 0 1rem;
+    }
+
+    .doctor-management-list-item {
+        border-radius: 0.65rem;
+        padding: 0.75rem 0.85rem;
+    }
+
+    .doctor-prescription-detail-panel {
+        min-height: 360px;
+    }
+
+    .doctor-schedule-week {
+        gap: 0.85rem;
+        grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+        padding: 0 1rem;
+    }
+
+    .doctor-schedule-calendar .react-calendar__navigation {
+        margin-bottom: 0.75rem;
+    }
+
+    .doctor-schedule-calendar .react-calendar__navigation button {
+        min-height: 36px;
+    }
+
+    .doctor-schedule-calendar .react-calendar__tile {
+        min-height: 64px;
+        padding: 0.45rem 0.3rem;
+    }
+
+    .doctor-detail-shell {
+        gap: 0.85rem;
+    }
+
+    .doctor-detail-summary-card,
+    .doctor-detail-workspace,
+    .doctor-history-list-panel,
+    .doctor-history-snapshot,
+    .doctor-detail-followup__calendar,
+    .doctor-detail-followup__slots,
+    .doctor-detail-followup__visit {
+        border-radius: 0.75rem;
+    }
+
+    .doctor-detail-summary-card {
+        padding: 1rem;
+    }
+
+    .doctor-detail-summary-card__title-row h2 {
+        font-size: 1.25rem;
+    }
+
+    .doctor-detail-summary-card__meta,
+    .doctor-detail-summary-card__chips {
+        gap: 0.45rem;
+    }
+
+    .doctor-detail-workspace--full {
+        min-height: 560px;
+    }
+
+    .doctor-detail-tab-panel--workspace {
+        min-height: 420px;
+    }
+
+    .doctor-detail-tab-panel,
+    .doctor-detail-actionbar--workspace {
+        padding: 0.85rem;
+    }
+
+    .doctor-detail-followup__planner--workspace,
+    .doctor-history-workspace__grid {
+        gap: 0.85rem;
+    }
+
+    .doctor-detail-followup__footer {
+        padding: 0.85rem 1rem;
+    }
+}
+
+@media (min-width: 1024px) and (max-width: 1279px) {
+    .doctor-management-toolbar {
+        align-items: stretch;
+        flex-direction: column;
+    }
+
+    .doctor-management-controls {
+        width: 100%;
+    }
+
+    .doctor-management-search {
+        flex: 1;
+        min-width: 0;
+    }
+
+    .doctor-prescription-dashboard,
+    .doctor-detail-followup__planner--workspace,
+    .doctor-history-workspace__grid {
+        grid-template-columns: 1fr;
+    }
+
+    .doctor-detail-followup__left {
+        grid-template-columns: 1fr;
+    }
+
+    .doctor-detail-followup__calendar .react-calendar__tile {
+        min-height: 56px;
+    }
+
+    .doctor-detail-actionbar--consultation,
+    .doctor-detail-actionbar__group--primary {
+        align-items: stretch;
+        flex-wrap: wrap;
+    }
+
+    .doctor-detail-actionbar--consultation .btn {
+        min-width: 0;
     }
 }

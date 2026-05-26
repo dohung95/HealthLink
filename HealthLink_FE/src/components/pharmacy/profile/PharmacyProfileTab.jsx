@@ -8,7 +8,7 @@ import {
   uploadPharmacyAvatar,
   verifyPharmacyEmailChange,
 } from '../../../api/account';
-import { Avatar, PageHeader, getProfileName } from '../common/pharmacyDashboardShared';
+import { Avatar, getProfileName } from '../common/pharmacyDashboardShared';
 
 export default function PharmacyProfileTab({ token, profile, reload, logout }) {
   const [form, setForm] = useState({});
@@ -101,11 +101,6 @@ export default function PharmacyProfileTab({ token, profile, reload, logout }) {
 
   return (
     <>
-      <PageHeader
-        title="Profile & Security"
-        description="Manage your pharmacy identity, contact details, and account security."
-      />
-
       <div className="pharmacy-profile-grid">
         <section className="pharmacy-card pharmacy-card-large">
           <h2>Pharmacy Profile</h2>

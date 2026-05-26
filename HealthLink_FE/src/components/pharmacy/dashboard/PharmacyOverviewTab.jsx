@@ -4,7 +4,6 @@ import {
   Avatar,
   InfoLine,
   MetricCard,
-  PageHeader,
   getOrderTime,
   getProfileName,
   money,
@@ -21,11 +20,6 @@ export default function PharmacyOverviewTab({ profile, orders, requests, balance
 
   return (
     <>
-      <PageHeader
-        title="Overview Dashboard"
-        description="Monitor operational metrics and recent pharmacy activity."
-      />
-
       <div className="pharmacy-metrics-grid">
         <MetricCard label="Total Earnings" value={money(balance?.totalEarnings ?? profile?.totalEarnings)} hint="Lifetime pharmacy earnings" icon="payments" />
         <MetricCard label="Pending Settlement" value={money(balance?.pendingBalance ?? profile?.pendingSettlement)} hint={balance?.withdrawalStatus || 'Awaiting withdrawal'} icon="hourglass_empty" tone="warning" />

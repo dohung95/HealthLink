@@ -19,41 +19,31 @@ const NAV_ITEMS = [
   {
     key: 'appointments',
     label: 'Appointments',
-    icon: 'calendar_month',
-    title: 'Appointments',
-    description: 'Review and manage your daily consultation schedule.',
+    icon: 'calendar_today',
     wide: true,
   },
   {
     key: 'patients',
     label: 'Patients',
-    icon: 'group',
-    title: 'Patients',
-    description: 'Review patients connected to your appointments.',
+    icon: 'groups',
     wide: true,
   },
   {
     key: 'prescriptions',
     label: 'Prescriptions',
     icon: 'medication',
-    title: 'Prescriptions',
-    description: 'Browse issued prescriptions and related appointments.',
     wide: true,
   },
   {
     key: 'schedule',
     label: 'Schedule',
-    icon: 'event_available',
-    title: 'Working Schedule',
-    description: 'Review your configured consultation shifts.',
+    icon: 'event_note',
     wide: true,
   },
   {
     key: 'profile',
     label: 'Profile',
-    icon: 'person',
-    title: 'Doctor Profile',
-    description: 'Manage your personal information and wallet.',
+    icon: 'person_outline',
     wide: false,
   },
 ];
@@ -74,6 +64,46 @@ const normalizeAppointmentDetail = (detail, appointmentId) => ({
   },
 });
 
+const getInitials = (name) => {
+  if (!name) return 'DR';
+  return name
+    .split(' ')
+    .filter(Boolean)
+    .slice(0, 2)
+    .map((part) => part[0]?.toUpperCase())
+    .join('');
+};
+
+const formatNotificationTime = (value) => {
+  if (!value) return '';
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return '';
+
+  const diffMs = Date.now() - date.getTime();
+  const diffMinutes = Math.max(0, Math.round(diffMs / 60000));
+  if (diffMinutes < 1) return 'Just now';
+  if (diffMinutes < 60) return `${diffMinutes} min${diffMinutes === 1 ? '' : 's'} ago`;
+
+  const diffHours = Math.round(diffMinutes / 60);
+  if (diffHours < 24) return `${diffHours} hour${diffHours === 1 ? '' : 's'} ago`;
+
+  return date.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+};
+
+const getNotificationTone = (notification) => {
+  const value = `${notification?.type || ''} ${notification?.message || ''}`.toLowerCase();
+  if (value.includes('wallet') || value.includes('balance')) {
+    return { icon: 'account_balance_wallet', title: 'Wallet Update', accent: 'text-success', bg: 'bg-success/10' };
+  }
+  if (value.includes('emergency') || value.includes('urgent')) {
+    return { icon: 'emergency', title: 'Emergency Update', accent: 'text-critical', bg: 'bg-critical/10' };
+  }
+  if (value.includes('lab') || value.includes('record')) {
+    return { icon: 'lab_research', title: 'Medical Record', accent: 'text-success', bg: 'bg-success/10' };
+  }
+  return { icon: 'event', title: 'Appointment Update', accent: 'text-primary-container', bg: 'bg-primary-container/10' };
+};
+
 const DoctorDashboardPage = () => {
   const navigate = useNavigate();
   const location = useLocation();
@@ -91,15 +121,21 @@ const DoctorDashboardPage = () => {
   const [selectedPatient, setSelectedPatient] = useState(null);
   const [selectedPatientSummary, setSelectedPatientSummary] = useState(null);
   const [showNotificationDropdown, setShowNotificationDropdown] = useState(false);
+  const [showAllNotifications, setShowAllNotifications] = useState(false);
   const [notifications, setNotifications] = useState([]);
   const [unreadCount, setUnreadCount] = useState(0);
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
 
   const doctorId = doctorData?.doctorID || doctorData?.doctorId;
-  const currentNavItem = useMemo(
-    () => NAV_ITEMS.find((item) => item.key === view) || NAV_ITEMS[0],
-    [view],
-  );
+  const doctorName = doctorData?.fullName || 'Doctor';
+  const doctorSpecialty = doctorData?.specialty || 'HealthLink Professional';
+  const doctorAvatar = doctorData?.avatarUrl || doctorData?.profileImage || doctorData?.imageUrl;
+  const isDetailView = view === APPOINTMENT_DETAIL_VIEW || view === PATIENT_DETAIL_VIEW;
+  const currentNavItem = useMemo(() => {
+    if (view === APPOINTMENT_DETAIL_VIEW) return NAV_ITEMS[0];
+    if (view === PATIENT_DETAIL_VIEW) return NAV_ITEMS[1];
+    return NAV_ITEMS.find((item) => item.key === view) || NAV_ITEMS[0];
+  }, [view]);
 
   const fetchNotifications = async () => {
     try {
@@ -166,24 +202,17 @@ const DoctorDashboardPage = () => {
   }, []);
 
   useEffect(() => {
-    document.body.style.overflow = isMobileMenuOpen ? 'hidden' : 'unset';
+    document.body.style.overflow = isMobileMenuOpen || showAllNotifications ? 'hidden' : 'unset';
     return () => {
       document.body.style.overflow = 'unset';
     };
-  }, [isMobileMenuOpen]);
-
-  const handleProfileTabChange = (tab) => {
-    setProfileTab(tab);
-    navigate(tab === 'wallet' ? '/doctor-page?tab=wallet' : '/doctor-page', { replace: true });
-  };
+  }, [isMobileMenuOpen, showAllNotifications]);
 
   const selectView = (nextView) => {
     setView(nextView);
     setIsMobileMenuOpen(false);
-    if (nextView !== 'profile') {
-      setProfileTab('personal');
-      navigate('/doctor-page', { replace: true });
-    }
+    setProfileTab('personal');
+    navigate('/doctor-page', { replace: true });
   };
 
   const handleLogout = async () => {
@@ -221,10 +250,6 @@ const DoctorDashboardPage = () => {
     }
   };
 
-  const handleViewAppointment = (appointment) => {
-    openAppointmentDetail(appointment, 'appointments');
-  };
-
   const handleOpenAppointmentById = async (appointmentId, returnView = view) => {
     try {
       setDetailLoading(true);
@@ -235,9 +260,7 @@ const DoctorDashboardPage = () => {
 
       setSelectedAppointment(normalizedAppointment);
       setSelectedPatient(patientData);
-      setDetailReturnView(
-        returnView === APPOINTMENT_DETAIL_VIEW ? 'appointments' : returnView,
-      );
+      setDetailReturnView(returnView === APPOINTMENT_DETAIL_VIEW ? 'appointments' : returnView);
       setView(APPOINTMENT_DETAIL_VIEW);
     } catch (err) {
       console.error('Error opening appointment:', err);
@@ -271,6 +294,7 @@ const DoctorDashboardPage = () => {
       }
 
       setShowNotificationDropdown(false);
+      setShowAllNotifications(false);
       setIsMobileMenuOpen(false);
 
       if (notification.type === 'WALLET_BALANCE_CHANGED' || notification.actionUrl === '/profile-doctor?tab=wallet') {
@@ -287,8 +311,23 @@ const DoctorDashboardPage = () => {
     }
   };
 
-  const renderNavigationLinks = () => (
-    <div className="d-flex flex-column gap-2 pt-4">
+  const handleMarkAllRead = async () => {
+    await notificationApi.markAllAsRead();
+    fetchNotifications();
+  };
+
+  const renderAvatar = (sizeClass = 'h-10 w-10') => (
+    <div className={`${sizeClass} shrink-0 overflow-hidden rounded-full border border-surface-border bg-primary-fixed text-primary flex items-center justify-center font-bold`}>
+      {doctorAvatar ? (
+        <img alt={doctorName} className="h-full w-full object-cover" src={doctorAvatar} />
+      ) : (
+        <span>{getInitials(doctorName)}</span>
+      )}
+    </div>
+  );
+
+  const renderNavigationLinks = (mobile = false) => (
+    <div className={mobile ? 'grid grid-cols-5 gap-1' : 'flex flex-col gap-1'}>
       {NAV_ITEMS.map((item) => {
         const isActive =
           view === item.key ||
@@ -296,129 +335,152 @@ const DoctorDashboardPage = () => {
           (item.key === 'patients' && view === PATIENT_DETAIL_VIEW);
 
         return (
-          <a
-            className={`nav-link-custom ${isActive ? 'nav-link-active' : ''}`}
-            href="#"
+          <button
+            className={
+              mobile
+                ? `flex min-h-14 flex-col items-center justify-center rounded-lg px-1 py-2 text-[11px] font-semibold transition ${isActive ? 'bg-primary-container text-white shadow-sm' : 'text-on-surface-variant'}`
+                : `flex items-center gap-3 rounded px-3 py-2.5 text-left text-sm font-medium transition active:scale-[0.99] ${isActive ? 'border-l-4 border-primary bg-surface-container-low text-primary font-bold' : 'border-l-4 border-transparent text-on-surface-variant hover:bg-surface-container hover:text-primary'}`
+            }
             key={item.key}
-            onClick={(event) => {
-              event.preventDefault();
-              selectView(item.key);
-            }}
+            onClick={() => selectView(item.key)}
+            type="button"
           >
-            <span className="material-symbols-outlined">{item.icon}</span>
-            <p className="mb-0 small fw-bold">{item.label}</p>
-          </a>
+            <span className="material-symbols-outlined text-[20px]">{item.icon}</span>
+            <span className={mobile ? 'leading-tight' : ''}>{item.label}</span>
+          </button>
         );
       })}
     </div>
   );
 
-  const renderNotificationList = () => (
-    <div className="notification-list" style={{ maxHeight: '400px', overflowY: 'auto' }}>
+  const renderNotificationList = (expanded = false) => (
+    <div className={`${expanded ? 'max-h-[70vh]' : 'max-h-[400px]'} overflow-y-auto divide-y divide-surface-border`}>
       {notifications.length === 0 ? (
-        <div className="text-center py-4 text-muted">
-          <span className="material-symbols-outlined fs-1">notifications_off</span>
-          <p className="mb-0 mt-2">No notifications</p>
+        <div className="flex flex-col items-center justify-center px-4 py-10 text-center text-text-muted">
+          <span className="material-symbols-outlined mb-2 text-4xl">notifications_off</span>
+          <p className="mb-0 text-sm font-semibold">No notifications</p>
+          <p className="mb-0 text-xs">Updates about appointments and wallet activity will appear here.</p>
         </div>
       ) : (
-        notifications.map((notification) => (
-          <div
-            className={`notification-item p-3 border-bottom ${!notification.isRead ? 'bg-light notification-new-pulse' : ''}`}
-            key={notification.notificationId}
-            onClick={() => handleNotificationClick(notification)}
-            style={{ cursor: 'pointer' }}
-          >
-            <div className="d-flex gap-2">
-              <span className="material-symbols-outlined text-primary">calendar_month</span>
-              <div className="flex-grow-1">
-                <p className="mb-1 small" style={{ whiteSpace: 'pre-line' }}>
-                  {notification.message}
-                </p>
-                <small className="text-muted">
-                  {new Date(notification.createdAt).toLocaleString('en-US', {
-                    month: 'short',
-                    day: 'numeric',
-                    hour: '2-digit',
-                    minute: '2-digit',
-                  })}
-                </small>
+        notifications.map((notification) => {
+          const tone = getNotificationTone(notification);
+
+          return (
+            <article
+              className={`flex gap-3 p-4 transition hover:bg-surface-container-low ${!notification.isRead ? 'bg-primary-fixed/20' : 'bg-white'}`}
+              key={notification.notificationId}
+            >
+              <div className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-full ${tone.bg}`}>
+                <span className={`material-symbols-outlined ${tone.accent}`}>{tone.icon}</span>
               </div>
-              {!notification.isRead ? (
-                <span className="badge bg-primary rounded-circle" style={{ width: '8px', height: '8px' }}></span>
-              ) : null}
-            </div>
-          </div>
-        ))
+              <div className="min-w-0 flex-1 space-y-1">
+                <div className="flex items-start justify-between gap-3">
+                  <p className={`mb-0 text-sm font-semibold ${tone.accent === 'text-critical' ? 'text-critical' : 'text-on-surface'}`}>
+                    {notification.title || tone.title}
+                  </p>
+                  {!notification.isRead ? <span className="mt-1.5 h-2 w-2 rounded-full bg-primary-container" /> : null}
+                </div>
+                <p className="mb-0 whitespace-pre-line text-xs leading-5 text-text-muted">{notification.message}</p>
+                <div className="flex items-center justify-between gap-3 pt-1">
+                  <span className="text-[11px] text-text-muted">{formatNotificationTime(notification.createdAt)}</span>
+                  {(notification.appointmentId || notification.actionUrl) ? (
+                    <button
+                      className="text-xs font-semibold text-primary-container hover:underline"
+                      onClick={() => handleNotificationClick(notification)}
+                      type="button"
+                    >
+                      View Detail
+                    </button>
+                  ) : (
+                    <button
+                      className="text-xs font-semibold text-primary-container hover:underline"
+                      onClick={() => handleNotificationClick(notification)}
+                      type="button"
+                    >
+                      Mark Read
+                    </button>
+                  )}
+                </div>
+              </div>
+            </article>
+          );
+        })
       )}
     </div>
   );
 
-  const renderNotificationBell = (withRef = false) => (
-    <div className="position-relative" ref={withRef ? notificationRef : null}>
+  const renderNotificationBell = () => (
+    <div className="relative" ref={notificationRef}>
       <button
-        className="btn btn-link p-0 position-relative"
+        aria-label="Open notifications"
+        className="relative flex h-10 w-10 items-center justify-center rounded-full text-on-surface-variant transition hover:bg-surface-container hover:text-primary"
         onClick={() => setShowNotificationDropdown((current) => !current)}
         type="button"
       >
-        <span className={`material-symbols-outlined fs-4 text-dark ${unreadCount > 0 ? 'notification-bell-pulse' : ''}`}>
-          notifications
-        </span>
+        <span className="material-symbols-outlined">notifications</span>
         {unreadCount > 0 ? (
-          <span className="position-absolute top-0 start-100 translate-middle badge rounded-pill bg-danger" style={{ fontSize: '0.65rem' }}>
-            {unreadCount}
-          </span>
+          <span className="absolute right-2 top-2 h-2.5 w-2.5 rounded-full border-2 border-surface bg-critical" />
         ) : null}
       </button>
 
-      {withRef && showNotificationDropdown ? (
-        <div className="notification-dropdown position-absolute mt-2 shadow-lg" style={{ zIndex: 1050, width: '340px', right: 0, left: 'auto' }}>
-          <div className="bg-white rounded-3 overflow-hidden">
-            <div className="d-flex justify-content-between align-items-center p-3 border-bottom">
-              <h6 className="mb-0 fw-bold">Notifications</h6>
-              {unreadCount > 0 ? (
-                <button
-                  className="btn btn-link btn-sm p-0 text-primary"
-                  onClick={async () => {
-                    await notificationApi.markAllAsRead();
-                    fetchNotifications();
-                  }}
-                  type="button"
-                >
-                  Mark all read
-                </button>
-              ) : null}
-            </div>
-            {renderNotificationList()}
+      {showNotificationDropdown ? (
+        <div className="absolute right-0 z-50 mt-2 hidden w-[360px] overflow-hidden rounded-xl border border-surface-border bg-surface-container-lowest shadow-xl md:block">
+          <div className="absolute -top-1.5 right-4 h-3 w-3 rotate-45 border-l border-t border-surface-border bg-surface-container-lowest" />
+          <div className="flex items-center justify-between border-b border-surface-border bg-surface-bright px-4 py-3">
+            <h3 className="mb-0 text-sm font-semibold text-on-surface">Notifications</h3>
+            {unreadCount > 0 ? (
+              <button className="text-xs font-semibold text-primary-container hover:underline" onClick={handleMarkAllRead} type="button">
+                Mark all as read
+              </button>
+            ) : null}
+          </div>
+          {renderNotificationList()}
+          <div className="border-t border-surface-border bg-surface-bright p-3 text-center">
+            <button className="text-xs font-semibold text-primary-container hover:underline" onClick={() => setShowAllNotifications(true)} type="button">
+              View all notifications
+            </button>
           </div>
         </div>
       ) : null}
     </div>
   );
 
-  const renderSidebarHeader = (withDesktopDropdown = false) => (
-    <>
-      <div className="d-flex gap-3 align-items-center">
-        <div className="doctor-profile-img"></div>
-        <div className="d-flex flex-column">
-          <h1 className="fs-6 fw-bold mb-0 text-dark">
-            {doctorData?.fullName || 'Loading...'}
-          </h1>
-          <p className="text-secondary small mb-0">{doctorData?.specialty || 'Specialty'}</p>
-        </div>
-      </div>
-      <div className="d-flex align-items-center justify-content-between">
-        <span className="status-badge">
-          <span className="status-dot"></span>
-          Working
-        </span>
-        {renderNotificationBell(withDesktopDropdown)}
-      </div>
-    </>
-  );
+  const renderContent = () => {
+    if (view === 'appointments') {
+      return <DoctorAppointmentsView doctorId={doctorId} onViewAppointment={(appointment) => openAppointmentDetail(appointment, 'appointments')} />;
+    }
+    if (view === 'patients') {
+      return <DoctorPatientsView onViewPatient={handleViewPatient} />;
+    }
+    if (view === 'prescriptions') {
+      return <DoctorPrescriptionsView doctorId={doctorId} onOpenAppointmentById={(appointmentId) => handleOpenAppointmentById(appointmentId, 'prescriptions')} />;
+    }
+    if (view === 'schedule') {
+      return <DoctorScheduleView doctorId={doctorId} />;
+    }
+    if (view === 'profile') {
+      return <DoctorProfileView activeTab={profileTab} doctorData={doctorData} />;
+    }
+    if (view === PATIENT_DETAIL_VIEW) {
+      return <DoctorPatientDetailView onBack={handleBackFromPatient} onOpenAppointmentById={(appointmentId) => handleOpenAppointmentById(appointmentId, PATIENT_DETAIL_VIEW)} patient={selectedPatientSummary} />;
+    }
+    if (view === APPOINTMENT_DETAIL_VIEW) {
+      return (
+        <DoctorAppointmentDetail
+          appointment={selectedAppointment}
+          doctorId={doctorId}
+          onBack={handleBackFromAppointment}
+          onOpenAppointmentById={(appointmentId) => handleOpenAppointmentById(appointmentId, APPOINTMENT_DETAIL_VIEW)}
+          patient={selectedPatient}
+        />
+      );
+    }
+    return null;
+  };
 
   if (loading) {
     return (
-      <div className="d-flex justify-content-center align-items-center min-vh-100">
+      <div className="flex min-h-screen items-center justify-center bg-background">
         <div className="spinner-border text-primary" role="status">
           <span className="visually-hidden">Loading...</span>
         </div>
@@ -428,173 +490,151 @@ const DoctorDashboardPage = () => {
 
   if (error) {
     return (
-      <div className="d-flex justify-content-center align-items-center min-vh-100">
-        <div className="alert alert-danger" role="alert">
+      <div className="flex min-h-screen items-center justify-center bg-background p-6">
+        <div className="rounded-lg border border-error-container bg-white p-6 text-error" role="alert">
           {error}
         </div>
       </div>
     );
   }
 
-  const isDetailView = view === APPOINTMENT_DETAIL_VIEW || view === PATIENT_DETAIL_VIEW;
-  const isWideView = isDetailView || currentNavItem.wide;
-
   return (
-    <div className="d-flex min-vh-100">
-      <button
-        aria-label="Toggle menu"
-        className="burger-menu-btn d-lg-none"
-        onClick={() => setIsMobileMenuOpen((current) => !current)}
-        type="button"
-      >
-        <span className="material-symbols-outlined">menu</span>
-      </button>
+    <div className="min-h-screen bg-background font-[Inter] text-text-main">
+      <aside className="fixed left-0 top-0 z-40 hidden h-screen w-[240px] flex-col border-r border-surface-border bg-surface-container-lowest py-5 lg:flex">
+        <div className="mb-6 flex flex-col items-center px-5 text-center">
+          {renderAvatar('h-14 w-14')}
+          <h2 className="mb-1 mt-3 text-base font-bold text-text-main">{doctorName}</h2>
+          <p className="mb-0 text-sm text-text-muted">{doctorSpecialty}</p>
+        </div>
+
+        <div className="mb-5 px-5">
+          <div className="flex w-full items-center justify-center gap-2 rounded bg-primary-container px-4 py-2 text-sm font-semibold text-white shadow-sm">
+            <span className="h-2 w-2 rounded-full bg-success" />
+            Working Status
+          </div>
+        </div>
+
+        <nav className="flex-1 overflow-y-auto px-3">{renderNavigationLinks()}</nav>
+
+        <div className="mt-auto border-t border-surface-border px-3 pt-5">
+          <button
+            className="flex w-full items-center gap-3 rounded px-4 py-3 text-sm font-medium text-on-surface-variant transition hover:bg-surface-container hover:text-error"
+            onClick={handleLogout}
+            type="button"
+          >
+            <span className="material-symbols-outlined text-[20px]">logout</span>
+            <span>Logout</span>
+          </button>
+        </div>
+      </aside>
 
       {isMobileMenuOpen ? (
-        <div
-          className="mobile-sidebar-overlay d-lg-none"
-          onClick={() => setIsMobileMenuOpen(false)}
-        />
+        <div className="fixed inset-0 z-50 bg-black/40 lg:hidden" onClick={() => setIsMobileMenuOpen(false)}>
+          <aside className="ml-auto h-full w-[300px] max-w-[86vw] bg-white p-5 shadow-xl" onClick={(event) => event.stopPropagation()}>
+            <div className="mb-6 flex items-center justify-between">
+              <div className="flex items-center gap-3">
+                {renderAvatar('h-11 w-11')}
+                <div>
+                  <p className="mb-0 text-sm font-bold text-text-main">{doctorName}</p>
+                  <p className="mb-0 text-xs text-text-muted">{doctorSpecialty}</p>
+                </div>
+              </div>
+              <button className="rounded p-2 text-on-surface-variant hover:bg-surface-container" onClick={() => setIsMobileMenuOpen(false)} type="button">
+                <span className="material-symbols-outlined">close</span>
+              </button>
+            </div>
+            {renderNavigationLinks()}
+            <button className="mt-8 flex w-full items-center gap-3 rounded px-4 py-3 text-sm font-medium text-error hover:bg-error-container/30" onClick={handleLogout} type="button">
+              <span className="material-symbols-outlined text-[20px]">logout</span>
+              <span>Logout</span>
+            </button>
+          </aside>
+        </div>
       ) : null}
 
-      <aside className="sidebar sidebar-desktop d-none d-lg-flex flex-column">
-        <div className="d-flex flex-column gap-4">
-          {renderSidebarHeader(true)}
-          {renderNavigationLinks()}
-        </div>
-        <div className="d-flex flex-column gap-4 mt-auto">
-          <a className="nav-link-custom logout-link" href="#" onClick={(event) => { event.preventDefault(); handleLogout(); }}>
-            <span className="material-symbols-outlined">logout</span>
-            <p className="mb-0 small">Logout</p>
-          </a>
-        </div>
-      </aside>
+      <div className="min-h-screen lg:ml-[240px]">
+        <header className="sticky top-0 z-30 flex h-14 items-center justify-between border-b border-surface-border bg-surface-container-lowest px-4 md:px-5">
+          <div className="flex items-center gap-3">
+            <button className="rounded p-2 text-on-surface-variant hover:bg-surface-container lg:hidden" onClick={() => setIsMobileMenuOpen(true)} type="button">
+              <span className="material-symbols-outlined">menu</span>
+            </button>
+            <span className="material-symbols-outlined hidden text-primary md:inline-flex">medical_services</span>
+            <span className="text-lg font-black text-primary">HealthLink</span>
+          </div>
 
-      <aside className={`sidebar sidebar-mobile d-lg-none ${isMobileMenuOpen ? 'sidebar-mobile-open' : ''}`}>
-        <div className="d-flex flex-column gap-4 h-100">
-          <div className="d-flex justify-content-between align-items-center">
-            <h5 className="mb-0 fw-bold">Menu</h5>
-            <button
-              aria-label="Close menu"
-              className="btn btn-link p-0 text-dark"
-              onClick={() => setIsMobileMenuOpen(false)}
-              type="button"
-            >
-              <span className="material-symbols-outlined fs-4">close</span>
+          <div className="flex min-w-0 items-center gap-3">
+            <label className="relative hidden lg:block">
+              <span className="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-[20px] text-text-muted">search</span>
+              <input
+                className="h-9 w-64 rounded border border-surface-border bg-surface-container-low py-0 pl-9 pr-4 text-sm text-text-main placeholder:text-text-muted focus:border-transparent focus:outline-none focus:ring-2 focus:ring-primary-container"
+                placeholder="Search patients, appointments..."
+                type="search"
+              />
+            </label>
+            {renderNotificationBell()}
+            {renderAvatar('h-9 w-9')}
+            <button className="hidden h-10 w-10 items-center justify-center rounded-full text-on-surface-variant hover:bg-surface-container hover:text-error md:flex" onClick={handleLogout} type="button">
+              <span className="material-symbols-outlined">logout</span>
             </button>
           </div>
+        </header>
 
-          {renderSidebarHeader(false)}
-          {renderNavigationLinks()}
-
-          <div className="d-flex flex-column gap-4 mt-auto">
-            <a className="nav-link-custom logout-link" href="#" onClick={(event) => { event.preventDefault(); handleLogout(); }}>
-              <span className="material-symbols-outlined">logout</span>
-              <p className="mb-0 small">Logout</p>
-            </a>
-          </div>
-        </div>
-      </aside>
-
-      <main className="flex-grow-1 p-5">
-        <div className="container-fluid p-0">
-          <div className="mx-auto" style={{ maxWidth: isWideView ? '1280px' : '960px' }}>
-            {!isDetailView ? (
-              <div className="mb-4">
-                <h2 className="fs-3 fw-bold mb-1 text-dark">{currentNavItem.title}</h2>
-                <p className="text-secondary mb-0">{currentNavItem.description}</p>
-              </div>
-            ) : null}
-
+        <main className="p-3 pb-20 md:p-5">
+          <div className={`mx-auto ${currentNavItem.wide || isDetailView ? 'max-w-[1400px]' : 'max-w-[1120px]'}`}>
             {detailLoading ? (
-              <div className="text-center py-5">
+              <div className="py-16 text-center">
                 <div className="spinner-border text-primary" role="status">
                   <span className="visually-hidden">Loading...</span>
                 </div>
               </div>
             ) : (
-              <div className={isDetailView ? '' : 'bg-custom-white info-card'}>
-                {view === 'appointments' ? (
-                  <DoctorAppointmentsView
-                    doctorId={doctorId}
-                    onViewAppointment={handleViewAppointment}
-                  />
-                ) : null}
-                {view === 'patients' ? (
-                  <DoctorPatientsView onViewPatient={handleViewPatient} />
-                ) : null}
-                {view === 'prescriptions' ? (
-                  <DoctorPrescriptionsView
-                    doctorId={doctorId}
-                    onOpenAppointmentById={(appointmentId) => handleOpenAppointmentById(appointmentId, 'prescriptions')}
-                  />
-                ) : null}
-                {view === 'schedule' ? (
-                  <DoctorScheduleView doctorId={doctorId} />
-                ) : null}
-                {view === 'profile' ? (
-                  <DoctorProfileView
-                    activeTab={profileTab}
-                    doctorData={doctorData}
-                    onTabChange={handleProfileTabChange}
-                  />
-                ) : null}
-                {view === PATIENT_DETAIL_VIEW ? (
-                  <DoctorPatientDetailView
-                    onBack={handleBackFromPatient}
-                    onOpenAppointmentById={(appointmentId) => handleOpenAppointmentById(appointmentId, PATIENT_DETAIL_VIEW)}
-                    patient={selectedPatientSummary}
-                  />
-                ) : null}
-                {view === APPOINTMENT_DETAIL_VIEW ? (
-                  <DoctorAppointmentDetail
-                    appointment={selectedAppointment}
-                    doctorId={doctorId}
-                    onBack={handleBackFromAppointment}
-                    onOpenAppointmentById={(appointmentId) => handleOpenAppointmentById(appointmentId, APPOINTMENT_DETAIL_VIEW)}
-                    patient={selectedPatient}
-                  />
-                ) : null}
-              </div>
+              <section className={isDetailView || view === 'schedule' || view === 'appointments' ? '' : 'overflow-hidden rounded-lg border border-surface-border bg-white'}>
+                {renderContent()}
+              </section>
             )}
           </div>
-        </div>
-      </main>
+        </main>
+      </div>
+
+      <nav className="fixed bottom-0 left-0 right-0 z-40 border-t border-surface-border bg-white/95 p-2 shadow-[0_-8px_24px_rgba(15,23,42,0.08)] backdrop-blur lg:hidden">
+        {renderNavigationLinks(true)}
+      </nav>
 
       {showNotificationDropdown ? (
-        <div className="mobile-notification-modal d-lg-none">
-          <div
-            className="mobile-notification-backdrop"
-            onClick={() => setShowNotificationDropdown(false)}
-          />
-          <div className="mobile-notification-content bg-white">
-            <div className="d-flex justify-content-between align-items-center p-3 border-bottom">
-              <h6 className="mb-0 fw-bold">Notifications</h6>
-              <div className="d-flex align-items-center gap-2">
+        <div className="fixed inset-0 z-50 flex items-end bg-black/40 md:hidden">
+          <div className="w-full overflow-hidden rounded-t-xl bg-white shadow-xl">
+            <div className="flex items-center justify-between border-b border-surface-border px-4 py-3">
+              <h3 className="mb-0 text-sm font-semibold">Notifications</h3>
+              <div className="flex items-center gap-3">
                 {unreadCount > 0 ? (
-                  <button
-                    className="btn btn-link btn-sm p-0 text-primary"
-                    onClick={async () => {
-                      await notificationApi.markAllAsRead();
-                      fetchNotifications();
-                    }}
-                    type="button"
-                  >
+                  <button className="text-xs font-semibold text-primary-container" onClick={handleMarkAllRead} type="button">
                     Mark all read
                   </button>
                 ) : null}
-                <button
-                  aria-label="Close notifications"
-                  className="btn btn-link btn-sm p-0 text-dark"
-                  onClick={() => setShowNotificationDropdown(false)}
-                  type="button"
-                >
+                <button className="rounded p-1 text-on-surface-variant" onClick={() => setShowNotificationDropdown(false)} type="button">
                   <span className="material-symbols-outlined">close</span>
                 </button>
               </div>
             </div>
             {renderNotificationList()}
           </div>
+        </div>
+      ) : null}
+
+      {showAllNotifications ? (
+        <div className="fixed inset-0 z-[60] flex items-center justify-center bg-black/40 p-4">
+          <section className="flex max-h-[88vh] w-full max-w-2xl flex-col overflow-hidden rounded-xl bg-white shadow-xl">
+            <div className="flex items-center justify-between border-b border-surface-border px-5 py-4">
+              <div>
+                <h2 className="mb-0 text-lg font-bold text-text-main">Notifications</h2>
+                <p className="mb-0 text-xs text-text-muted">{unreadCount} unread update{unreadCount === 1 ? '' : 's'}</p>
+              </div>
+              <button className="rounded p-2 text-on-surface-variant hover:bg-surface-container" onClick={() => setShowAllNotifications(false)} type="button">
+                <span className="material-symbols-outlined">close</span>
+              </button>
+            </div>
+            {renderNotificationList(true)}
+          </section>
         </div>
       ) : null}
     </div>

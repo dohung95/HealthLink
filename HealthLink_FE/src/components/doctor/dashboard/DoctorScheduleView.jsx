@@ -1,4 +1,5 @@
-import React, { useState, useEffect } from 'react';
+import React, { useEffect, useState } from 'react';
+import { toast } from 'sonner';
 import { doctorScheduleService } from '../../../api/doctorApi';
 import { doctorComplianceService } from '../../../api/complianceApi';
 import WeeklyScheduleBuilder from './schedule/WeeklyScheduleBuilder';
@@ -6,24 +7,17 @@ import ScheduleCalendarView from './schedule/ScheduleCalendarView';
 import ScheduleExceptionModal from './schedule/ScheduleExceptionModal';
 import ComplianceStatusBanner from './compliance/ComplianceStatusBanner';
 import ComplianceWarningModal from './compliance/ComplianceWarningModal';
-import { toast } from 'sonner';
 
 const DoctorScheduleView = () => {
-  const [activeTab, setActiveTab] = useState('weekly'); // 'weekly' | 'calendar'
+  const [activeTab, setActiveTab] = useState('weekly');
   const [scheduleData, setScheduleData] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [showExceptionModal, setShowExceptionModal] = useState(false);
   const [selectedDate, setSelectedDate] = useState(null);
-
-  // Compliance state
   const [showComplianceModal, setShowComplianceModal] = useState(false);
   const [complianceResult, setComplianceResult] = useState(null);
-  const [complianceKey, setComplianceKey] = useState(0); // For refreshing banner
-
-  useEffect(() => {
-    fetchSchedule();
-  }, []);
+  const [complianceKey, setComplianceKey] = useState(0);
 
   const fetchSchedule = async () => {
     try {
@@ -40,6 +34,15 @@ const DoctorScheduleView = () => {
     }
   };
 
+  useEffect(() => {
+    fetchSchedule();
+  }, []);
+
+  const refreshSchedule = () => {
+    fetchSchedule();
+    setComplianceKey((current) => current + 1);
+  };
+
   const handleCreateException = (date) => {
     setSelectedDate(date);
     setShowExceptionModal(true);
@@ -48,12 +51,10 @@ const DoctorScheduleView = () => {
   const handleExceptionSuccess = () => {
     setShowExceptionModal(false);
     setSelectedDate(null);
-    fetchSchedule();
-    setComplianceKey(prev => prev + 1); // Refresh compliance banner
+    refreshSchedule();
     toast.success('Exception created successfully');
   };
 
-  // Compliance handlers
   const handleValidateCompliance = async () => {
     try {
       const result = await doctorComplianceService.validateSchedule();
@@ -65,14 +66,9 @@ const DoctorScheduleView = () => {
     }
   };
 
-  const handleScheduleRefresh = () => {
-    fetchSchedule();
-    setComplianceKey(prev => prev + 1); // Refresh compliance banner
-  };
-
   if (loading) {
     return (
-      <div className="d-flex justify-content-center align-items-center" style={{ minHeight: '400px' }}>
+      <div className="flex min-h-[420px] items-center justify-center rounded-lg border border-surface-border bg-white">
         <div className="spinner-border text-primary" role="status">
           <span className="visually-hidden">Loading...</span>
         </div>
@@ -82,10 +78,10 @@ const DoctorScheduleView = () => {
 
   if (error) {
     return (
-      <div className="alert alert-danger m-4" role="alert">
-        <h5 className="alert-heading">Error Loading Schedule</h5>
-        <p>{error}</p>
-        <button className="btn btn-outline-danger" onClick={fetchSchedule}>
+      <div className="rounded-lg border border-error-container bg-white p-5 text-error" role="alert">
+        <h3 className="mb-2 text-lg font-bold">Error Loading Schedule</h3>
+        <p className="mb-4 text-sm">{error}</p>
+        <button className="rounded border border-error px-4 py-2 text-sm font-semibold text-error hover:bg-error-container/30" onClick={fetchSchedule} type="button">
           Try Again
         </button>
       </div>
@@ -93,73 +89,49 @@ const DoctorScheduleView = () => {
   }
 
   return (
-    <div className="doctor-schedule-container p-4">
-      {/* Header */}
-      <div className="d-flex justify-content-between align-items-center mb-4">
-        <div>
-          <h4 className="mb-1">My Schedule</h4>
-          <p className="text-muted mb-0">Manage your working hours and time off</p>
-        </div>
+    <div className="flex flex-col gap-4">
+      <header className="flex flex-col justify-between gap-4 md:flex-row md:items-end">
         <button
-          className="btn btn-primary"
+          className="flex h-10 w-max items-center justify-center gap-2 rounded bg-primary-container px-4 py-2 text-sm font-semibold text-white shadow-sm transition hover:bg-primary"
           onClick={() => handleCreateException(new Date())}
+          type="button"
         >
-          <span className="material-symbols-outlined me-2" style={{ fontSize: '18px', verticalAlign: 'middle' }}>
-            add_circle
-          </span>
+          <span className="material-symbols-outlined text-[18px]">add_circle</span>
           Add Exception
         </button>
-      </div>
+      </header>
 
-      {/* Compliance Status Banner */}
-      <ComplianceStatusBanner
-        key={complianceKey}
-        onValidateClick={handleValidateCompliance}
-      />
+      <ComplianceStatusBanner key={complianceKey} onValidateClick={handleValidateCompliance} />
 
-      {/* Tab Navigation */}
-      <ul className="nav nav-tabs mb-4">
-        <li className="nav-item">
+      <section className="flex flex-col gap-4">
+        <div className="flex gap-5 border-b border-surface-border">
           <button
-            className={`nav-link ${activeTab === 'weekly' ? 'active' : ''}`}
+            className={`border-b-2 pb-3 text-xs font-bold tracking-wide transition ${activeTab === 'weekly' ? 'border-primary text-primary' : 'border-transparent text-text-muted hover:text-text-main'}`}
             onClick={() => setActiveTab('weekly')}
+            type="button"
           >
-            <span className="material-symbols-outlined me-2" style={{ fontSize: '18px', verticalAlign: 'middle' }}>
-              calendar_view_week
-            </span>
-            Weekly Schedule
+            WEEKLY SCHEDULE
           </button>
-        </li>
-        <li className="nav-item">
           <button
-            className={`nav-link ${activeTab === 'calendar' ? 'active' : ''}`}
+            className={`border-b-2 pb-3 text-xs font-bold tracking-wide transition ${activeTab === 'calendar' ? 'border-primary text-primary' : 'border-transparent text-text-muted hover:text-text-main'}`}
             onClick={() => setActiveTab('calendar')}
+            type="button"
           >
-            <span className="material-symbols-outlined me-2" style={{ fontSize: '18px', verticalAlign: 'middle' }}>
-              calendar_month
-            </span>
-            Calendar View
+            CALENDAR VIEW
           </button>
-        </li>
-      </ul>
+        </div>
 
-      {/* Content */}
-      {activeTab === 'weekly' && (
-        <WeeklyScheduleBuilder
-          schedules={scheduleData?.schedules || []}
-          onRefresh={handleScheduleRefresh}
-        />
-      )}
+        {activeTab === 'weekly' ? (
+          <WeeklyScheduleBuilder schedules={scheduleData?.schedules || []} onRefresh={refreshSchedule} />
+        ) : (
+          <ScheduleCalendarView
+            exceptions={scheduleData?.exceptions || []}
+            onCreateException={handleCreateException}
+            onRefresh={refreshSchedule}
+          />
+        )}
+      </section>
 
-      {activeTab === 'calendar' && (
-        <ScheduleCalendarView
-          exceptions={scheduleData?.exceptions || []}
-          onCreateException={handleCreateException}
-          onRefresh={handleScheduleRefresh}
-        />
-      )}
-
-      {/* Exception Modal */}
       <ScheduleExceptionModal
         isOpen={showExceptionModal}
         onClose={() => {
@@ -170,7 +142,6 @@ const DoctorScheduleView = () => {
         onSuccess={handleExceptionSuccess}
       />
 
-      {/* Compliance Warning Modal */}
       <ComplianceWarningModal
         isOpen={showComplianceModal}
         onClose={() => {
@@ -180,7 +151,7 @@ const DoctorScheduleView = () => {
         validationResult={complianceResult}
         onAddMoreHours={() => {
           setShowComplianceModal(false);
-          setActiveTab('weekly'); // Switch to weekly view to add hours
+          setActiveTab('weekly');
         }}
         onSaveAnyway={() => {
           setShowComplianceModal(false);

@@ -7,7 +7,6 @@ import {
   MetricCard,
   ORDER_FLOW,
   ORDER_TABS,
-  PageHeader,
   Pagination,
   dateTime,
   exportCsv,
@@ -121,12 +120,6 @@ export default function PharmacyOrdersTab({ orders, globalSearch, reload }) {
 
   return (
     <>
-      <PageHeader
-        title="Orders Management"
-        description="Monitor and process incoming prescriptions and retail orders."
-        action={<button className="pharmacy-secondary-action" onClick={() => exportCsv(filtered, 'pharmacy-orders.csv')} type="button">Export CSV</button>}
-      />
-
       <div className="pharmacy-metrics-grid is-three">
         <MetricCard label="Pending Orders" value={stats.PENDING} hint="Needs action" icon="schedule" tone="warning" />
         <MetricCard label="Preparing" value={stats.PREPARING} hint="In fulfillment" icon="hourglass_empty" tone="info" />
@@ -155,6 +148,7 @@ export default function PharmacyOrdersTab({ orders, globalSearch, reload }) {
             <option value="PICKUP">Pickup</option>
             <option value="DELIVERY">Home Delivery</option>
           </select>
+          <button className="pharmacy-secondary-action pharmacy-filter-action" onClick={() => exportCsv(filtered, 'pharmacy-orders.csv')} type="button">Export CSV</button>
         </div>
 
         <OrderTable orders={visible} onSelect={setSelected} />
