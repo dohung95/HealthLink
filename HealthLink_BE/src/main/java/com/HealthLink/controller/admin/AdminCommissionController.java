@@ -4,6 +4,7 @@ import com.HealthLink.dto.commission.admin.*;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
 
 import java.time.LocalDate;
@@ -17,6 +18,7 @@ import com.HealthLink.service.admin.AdminCommissionService;
 @RestController
 @RequestMapping("/api/admin/commission")
 @RequiredArgsConstructor
+@PreAuthorize("hasRole('ADMIN')")
 public class AdminCommissionController {
 
     private final AdminCommissionService commissionService;

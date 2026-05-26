@@ -125,7 +125,7 @@ export const pharmaciesApi = {
   },
 
   updateVerification: async (id, verified) => {
-    const response = await adminApi.put(`/adminpharmacies/${id}/verification`, { verified });
+    const response = await adminApi.put(`/adminpharmacies/${id}/verify`, { verified });
     return response.data;
   },
 

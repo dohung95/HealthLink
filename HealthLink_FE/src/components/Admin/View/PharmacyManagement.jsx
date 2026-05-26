@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from "react";
+import { createPortal } from "react-dom";
 import NavbarAdmin from "./NavbarAdmin";
 import { pharmaciesApi } from "../../../api/adminApi";
 import Toast from "./Toast";
@@ -169,24 +170,26 @@ export default function PharmacyManagement() {
     }
   };
 
-  const handleDeletePharmacy = async (pharmacy) => {
+  const handleBanPharmacy = async (pharmacy) => {
     const id = getPharmacyId(pharmacy);
     if (!id) {
-      showToast({ title: 'Delete Failed', message: 'Unable to determine pharmacy ID', type: 'error' });
+      showToast({ title: 'Ban Failed', message: 'Unable to determine pharmacy ID', type: 'error' });
       return;
     }
 
-    if (!window.confirm('Are you sure you want to permanently delete this pharmacy?')) {
+    if (!window.confirm('Are you sure you want to ban this pharmacy?')) {
       return;
     }
 
     try {
       setShowActionLoading(true);
       await pharmaciesApi.delete(id);
-      setPharmacies((prev) => prev.filter((item) => item !== pharmacy));
-      showToast({ title: 'Deleted', message: 'Pharmacy was removed successfully', type: 'success' });
+      setPharmacies((prev) => prev.map((item) =>
+        item === pharmacy ? { ...item, status: 'Banned', active: false } : item
+      ));
+      showToast({ title: 'Banned', message: 'Pharmacy has been banned successfully', type: 'success' });
     } catch (err) {
-      showToast({ title: 'Delete Failed', message: err.response?.data?.error || err.message || 'Unable to delete pharmacy', type: 'error', duration: 5000 });
+      showToast({ title: 'Ban Failed', message: err.response?.data?.error || err.message || 'Unable to ban pharmacy', type: 'error', duration: 5000 });
       console.error(err);
     } finally {
       setShowActionLoading(false);
@@ -512,11 +515,12 @@ export default function PharmacyManagement() {
                         <i className={pharmacy.status?.toLowerCase() === 'active' ? 'bi bi-pause-fill' : 'bi bi-play-fill'}></i>
                       </button>
                       <button
-                        className="pharmacy-btn delete"
-                        onClick={() => handleDeletePharmacy(pharmacy)}
+                        className="pharmacy-btn ban"
+                        onClick={() => handleBanPharmacy(pharmacy)}
                         disabled={showActionLoading}
+                        title="Ban Pharmacy"
                       >
-                        <i className="bi bi-trash3-fill"></i>
+                        <i className="bi bi-slash-circle-fill"></i>
                       </button>
                     </div>
                   </div>
@@ -626,12 +630,12 @@ export default function PharmacyManagement() {
                             <i className={pharmacy.status?.toLowerCase() === 'active' ? 'bi bi-pause' : 'bi bi-play'}></i>
                           </button>
                           <button
-                            className="action-btn delete"
-                            onClick={() => handleDeletePharmacy(pharmacy)}
+                            className="action-btn ban"
+                            onClick={() => handleBanPharmacy(pharmacy)}
                             disabled={showActionLoading}
-                            title="Delete"
+                            title="Ban"
                           >
-                            <i className="bi bi-trash3"></i>
+                            <i className="bi bi-slash-circle"></i>
                           </button>
                         </div>
                       </td>
@@ -706,9 +710,9 @@ export default function PharmacyManagement() {
           </div>
         )}
 
-        {/* View Modal */}
-        {showViewModal && selectedPharmacy && (
-          <div className="pharmacy-modal-overlay" onClick={() => setShowViewModal(false)}>
+        {/* View Modal - Using Portal to render outside component tree */}
+        {showViewModal && selectedPharmacy && createPortal(
+          <div className="pharmacy-modal-overlay" onClick={() => setShowViewModal(false)} align="center">
             <div className="pharmacy-modal" onClick={(e) => e.stopPropagation()}>
               <div className="pharmacy-modal-header">
                 <div className="pharmacy-modal-title">
@@ -847,7 +851,8 @@ export default function PharmacyManagement() {
                 </button>
               </div>
             </div>
-          </div>
+          </div>,
+          document.body
         )}
 
         <Toast show={toast.show} onClose={hideToast} title={toast.title} message={toast.message} type={toast.type} duration={toast.duration} />

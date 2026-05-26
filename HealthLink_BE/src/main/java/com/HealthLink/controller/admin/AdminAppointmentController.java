@@ -7,6 +7,7 @@ import com.HealthLink.service.admin.AdminAppointmentService;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.validation.Valid;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.web.bind.annotation.*;
@@ -14,6 +15,7 @@ import org.springframework.web.bind.annotation.*;
 @RestController
 @RequestMapping("/api/admin/adminappointments")
 @CrossOrigin(origins = "http://localhost:63527")
+@PreAuthorize("hasRole('ADMIN')")
 public class AdminAppointmentController {
 
     private final AdminAppointmentService appointmentService;
