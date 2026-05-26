@@ -9,12 +9,15 @@ const DocumentsStep = ({
     onNext, }) => {
     const fileRef = useRef();
 
+    const today = new Date().toISOString().split('T')[0];
+
     const handleFileChange = (event) => {
         const selectedFiles = Array.from(event.target.files || []).map((file) => ({
             file,
             name: file.name,
             size: `${(file.size / 1024 / 1024).toFixed(1)} MB`,
             type: file.type.includes('pdf') ? 'pdf' : 'image',
+            documentDate: '',
         }));
 
         setFiles((prev) => [...prev, ...selectedFiles]);
@@ -23,6 +26,28 @@ const DocumentsStep = ({
     const removeFile = (index) => {
         setFiles((prev) => prev.filter((_, fileIndex) => fileIndex !== index));
     };
+
+    const updateFileDocumentDate = (index, documentDate) => {
+        setFiles((prev) =>
+            prev.map((file, fileIndex) =>
+                fileIndex === index
+                    ? { ...file, documentDate }
+                    : file
+            )
+        );
+    };
+
+    const handleReview = () => {
+        const hasMissingDocumentDate = files.some((file) => !file.documentDate);
+
+        if (hasMissingDocumentDate) {
+            alert('Please select Date Performed for all uploaded documents.');
+            return;
+        }
+
+        onNext();
+    };
+
     return (
         <div className="schedule-card">
             <h2>Symptoms & medical documents</h2>
@@ -75,6 +100,17 @@ const DocumentsStep = ({
                             <div className="file-meta">
                                 <strong>{file.name}</strong>
                                 <span>{file.size}</span>
+
+                                <label className="document-date-label">
+                                    Date Performed
+                                    <input
+                                        type="date"
+                                        value={file.documentDate || ''}
+                                        max={new Date().toISOString().split('T')[0]}
+                                        onChange={(e) => updateFileDocumentDate(index, e.target.value)}
+                                        required
+                                    />
+                                </label>
                             </div>
 
                             <button type="button" onClick={() => removeFile(index)}>
@@ -86,8 +122,7 @@ const DocumentsStep = ({
             )}
 
             <div className="documents-note">
-                Lưu ý: phần file hiện mới là giao diện phía frontend, chưa được gửi thật
-                lên backend trong flow đặt lịch hiện tại.
+                Note: Documents will be uploaded and shared with the doctor only after successful payment.
             </div>
 
             <div className="schedule-actions">
@@ -95,7 +130,7 @@ const DocumentsStep = ({
                     Back
                 </button>
 
-                <button type="button" className="btn-primary-soft" onClick={onNext}>
+                <button type="button" className="btn-primary-soft" onClick={handleReview}>
                     Review
                 </button>
             </div>

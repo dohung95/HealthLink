@@ -14,12 +14,19 @@ const getAuthConfig = () => {
 
 export const healthRecordApi = {
     // Lấy toàn bộ health record của patient
-    getMyRecords: async (patientId, page = 1, size = 6) => {
+    getMyRecords: async (patientId, page = 1, size = 5, filters = {}) => {
         const response = await axios.get(
             `${API_URL}/health-records/my`,
             {
                 ...getAuthConfig(),
-                params: { patientId, page, size },
+                params: {
+                    patientId,
+                    page,
+                    size,
+                    fromDate: filters.fromDate || undefined,
+                    toDate: filters.toDate || undefined,
+                    sort: filters.sort || 'newest',
+                },
             }
         );
 

@@ -34,10 +34,22 @@ public class HealthRecordController {
     public ResponseEntity<PagedResponse<HealthRecordResponse>> getMyRecords(
             @RequestParam String patientId,
             @RequestParam(defaultValue = "1") int page,
-            @RequestParam(defaultValue = "5") int size
+            @RequestParam(defaultValue = "5") int size,
+            @RequestParam(required = false)
+            @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate fromDate,
+            @RequestParam(required = false)
+            @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate toDate,
+            @RequestParam(defaultValue = "newest") String sort
     ) {
         return ResponseEntity.ok(
-                healthRecordService.getMyRecords(patientId, page, size)
+                healthRecordService.getMyRecords(
+                        patientId,
+                        page,
+                        size,
+                        fromDate,
+                        toDate,
+                        sort
+                )
         );
     }
 

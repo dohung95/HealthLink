@@ -24,11 +24,17 @@ public interface DoctorRepository extends JpaRepository<Doctor, String> {
      * @param pageable
      * @return
      */
-    @Query("SELECT d FROM Doctor d LEFT JOIN d.specialtyEntity se WHERE "
-            + "(:specialty IS NULL OR se.name LIKE %:specialty% "
-            + "    OR (se IS NULL AND d.specialty LIKE %:specialty%)) AND "
-            + "(:name IS NULL OR d.fullName LIKE %:name%) AND "
-            + "(:location IS NULL OR d.location LIKE %:location%)")
+    @Query("""
+    SELECT d
+    FROM Doctor d
+    JOIN d.user u
+    LEFT JOIN d.specialtyEntity se
+    WHERE LOWER(u.status) = 'active'
+      AND (:specialty IS NULL OR se.name LIKE %:specialty%
+           OR (se IS NULL AND d.specialty LIKE %:specialty%))
+      AND (:name IS NULL OR d.fullName LIKE %:name%)
+      AND (:location IS NULL OR d.location LIKE %:location%)
+    """)
     Page<Doctor> findByFiltersPaged(
             @Param("specialty") String specialty,
             @Param("name") String name,
@@ -36,10 +42,16 @@ public interface DoctorRepository extends JpaRepository<Doctor, String> {
             Pageable pageable
     );
 
-    @Query("SELECT d FROM Doctor d LEFT JOIN d.specialtyEntity se WHERE "
-            + "(:specialty IS NULL OR se.name LIKE %:specialty% "
-            + "    OR (se IS NULL AND d.specialty LIKE %:specialty%)) AND "
-            + "(:name IS NULL OR d.fullName LIKE %:name%)")
+    @Query("""
+    SELECT d
+    FROM Doctor d
+    JOIN d.user u
+    LEFT JOIN d.specialtyEntity se
+    WHERE LOWER(u.status) = 'active'
+      AND (:specialty IS NULL OR se.name LIKE %:specialty%
+           OR (se IS NULL AND d.specialty LIKE %:specialty%))
+      AND (:name IS NULL OR d.fullName LIKE %:name%)
+    """)
     List<Doctor> findByFilters(
             @Param("specialty") String specialty,
             @Param("name") String name
@@ -56,11 +68,13 @@ public interface DoctorRepository extends JpaRepository<Doctor, String> {
     Optional<Doctor> findByIdWithUser(@Param("doctorId") String doctorId);
 
     @Query("""
-       SELECT DISTINCT COALESCE(se.name, d.specialty)
-       FROM Doctor d
-       LEFT JOIN d.specialtyEntity se
-       WHERE COALESCE(se.name, d.specialty) IS NOT NULL
-       ORDER BY COALESCE(se.name, d.specialty)
-       """)
+   SELECT DISTINCT COALESCE(se.name, d.specialty)
+   FROM Doctor d
+   JOIN d.user u
+   LEFT JOIN d.specialtyEntity se
+   WHERE LOWER(u.status) = 'active'
+     AND COALESCE(se.name, d.specialty) IS NOT NULL
+   ORDER BY COALESCE(se.name, d.specialty)
+   """)
     List<String> findAllSpecialtyNames();
 }

@@ -33,23 +33,12 @@ const DoctorDirectoryContent = ({
     }, []);
 
     useEffect(() => {
-        loadDoctors();
-    }, [pagination.page]);
-
-    useEffect(() => {
         const timer = setTimeout(() => {
-            if (pagination.page === 1) {
-                loadDoctors();
-            } else {
-                setPagination((prev) => ({
-                    ...prev,
-                    page: 1
-                }));
-            }
+            loadDoctors();
         }, 500);
 
         return () => clearTimeout(timer);
-    }, [filters]);
+    }, [pagination.page, pagination.pageSize, filters]);
 
     const loadSpecialties = async () => {
         try {
@@ -110,6 +99,11 @@ const DoctorDirectoryContent = ({
             ...prev,
             [name]: value
         }));
+
+        setPagination((prev) => ({
+            ...prev,
+            page: 1
+        }));
     };
 
     const handleClearFilters = () => {
@@ -118,6 +112,11 @@ const DoctorDirectoryContent = ({
             specialty: '',
             location: ''
         });
+
+        setPagination((prev) => ({
+            ...prev,
+            page: 1
+        }));
     };
 
     const handlePageChange = (newPage) => {

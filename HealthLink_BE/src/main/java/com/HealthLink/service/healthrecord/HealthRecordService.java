@@ -16,7 +16,14 @@ public interface HealthRecordService {
     // Patient operations
     HealthRecordResponse createRecord(String patientId, HealthRecordRequest request);
 
-    PagedResponse<HealthRecordResponse> getMyRecords(String patientId, int page, int size);
+    PagedResponse<HealthRecordResponse> getMyRecords(
+            String patientId,
+            int page,
+            int size,
+            LocalDate fromDate,
+            LocalDate toDate,
+            String sort
+    );
 
     HealthRecordResponse getRecordById(Integer recordId, String patientId);
 

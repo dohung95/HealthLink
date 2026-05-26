@@ -1,4 +1,5 @@
 package com.HealthLink.entity;
+
 import jakarta.persistence.*;
 import lombok.*;
 import java.time.LocalDateTime;
@@ -6,9 +7,11 @@ import java.time.LocalDateTime;
 @Entity
 @Table(name = "VitalSigns")
 @Data
-@NoArgsConstructor @AllArgsConstructor
+@NoArgsConstructor
+@AllArgsConstructor
 @Builder
 public class VitalSign {
+
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     @Column(name = "VitalSignID")
@@ -37,7 +40,7 @@ public class VitalSign {
     private LocalDateTime measuredAt;
 
     @Column(length = 50)
-    private String source; // Manual, Device, Camera
+    private String source; // HomeDevice, Manual
 
     @Column(length = 100)
     private String deviceName;
@@ -45,4 +48,9 @@ public class VitalSign {
     @Column(name = "CreatedAt")
     @Builder.Default
     private LocalDateTime createdAt = LocalDateTime.now();
+
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "AppointmentID")
+    @ToString.Exclude
+    private Appointment appointment;
 }

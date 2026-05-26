@@ -34,8 +34,8 @@ const HealthRecords = ({ embedded = false }) => {
     const [documentDate, setDocumentDate] = useState(new Date().toISOString().split('T')[0]);
     const [uploading, setUploading] = useState(false);
     // States for filters & search
-    const [searchQuery, setSearchQuery] = useState('');
-    const [filterCategory, setFilterCategory] = useState('all');
+    const [fromDate, setFromDate] = useState('');
+    const [toDate, setToDate] = useState('');
     const [sortBy, setSortBy] = useState('newest');
     const [selectedDocument, setSelectedDocument] = useState(null);
     const [showViewer, setShowViewer] = useState(false);
@@ -62,6 +62,12 @@ const HealthRecords = ({ embedded = false }) => {
         initializePage();
     }, [token]);
 
+    useEffect(() => {
+        if (!patientId) return;
+
+        loadData(patientId, 1);
+    }, [fromDate, toDate, sortBy]);
+
     const loadData = async (
         currentPatientId = patientId,
         page = currentPage
@@ -74,7 +80,12 @@ const HealthRecords = ({ embedded = false }) => {
             const docsData = await healthRecordApi.getMyRecords(
                 currentPatientId,
                 page,
-                HEALTH_RECORD_PAGE_SIZE
+                HEALTH_RECORD_PAGE_SIZE,
+                {
+                    fromDate,
+                    toDate,
+                    sort: sortBy,
+                }
             );
 
             setRecords(docsData.items || []);
@@ -134,65 +145,6 @@ const HealthRecords = ({ embedded = false }) => {
         pages.push(total);
 
         return pages;
-    };
-
-    // Filter and sort records
-    const getFilteredAndSortedRecords = () => {
-        let filtered = [...records];
-
-        // Apply category filter
-        if (filterCategory !== 'all') {
-            filtered = filtered.map(record => ({
-                ...record,
-                documents: record.documents?.filter(doc => doc.category === filterCategory)
-            })).filter(record => record.documents && record.documents.length > 0);
-        }
-
-        // Apply search
-        if (searchQuery.trim()) {
-            const query = searchQuery.toLowerCase();
-            filtered = filtered.map(record => ({
-                ...record,
-                documents: record.documents?.filter(doc =>
-                    doc.documentName?.toLowerCase().includes(query) ||
-                    doc.description?.toLowerCase().includes(query) ||
-                    doc.category?.toLowerCase().includes(query) ||
-                    doc.testResults?.toLowerCase().includes(query)
-                )
-            })).filter(record => record.documents && record.documents.length > 0);
-        }
-
-        // Apply sorting
-        // Apply sorting
-        if (sortBy === 'newest') {
-            // Sort record groups by upload day
-            filtered.sort((a, b) =>
-                new Date(b.recordDate) - new Date(a.recordDate)
-            );
-
-            // Sort documents inside each record by upload time
-            filtered = filtered.map(record => ({
-                ...record,
-                documents: [...(record.documents || [])].sort((a, b) =>
-                    new Date(b.uploadedAt) - new Date(a.uploadedAt)
-                )
-            }));
-
-        } else if (sortBy === 'oldest') {
-            // Sort record groups by upload day
-            filtered.sort((a, b) =>
-                new Date(a.recordDate) - new Date(b.recordDate)
-            );
-
-            // Sort documents inside each record by upload time
-            filtered = filtered.map(record => ({
-                ...record,
-                documents: [...(record.documents || [])].sort((a, b) =>
-                    new Date(a.uploadedAt) - new Date(b.uploadedAt)
-                )
-            }));
-        }
-        return filtered;
     };
 
     const handleViewDocument = (document) => {
@@ -426,41 +378,51 @@ const HealthRecords = ({ embedded = false }) => {
                     {/* Filter Toolbar */}
                     <div className="card-header bg-white p-3 border-bottom-0">
                         <div className="row g-2 align-items-center">
-                            <div className="col-md-5">
-                                <div className="input-group">
-                                    <span className="input-group-text bg-light border-end-0 rounded-start-pill ps-3"><i className="bi bi-search text-muted"></i></span>
-                                    <input
-                                        type="text"
-                                        className="form-control bg-light border-start-0 rounded-end-pill"
-                                        placeholder="Search documents..."
-                                        value={searchQuery}
-                                        onChange={e => setSearchQuery(e.target.value)}
-                                    />
-                                </div>
-                            </div>
                             <div className="col-md-3">
-                                <select className="form-select bg-light border-0 rounded-pill" value={filterCategory} onChange={e => setFilterCategory(e.target.value)}>
-                                    <option value="all">All Categories</option>
-                                    <option value="X-Ray">🩻 X-Ray</option>
-                                    <option value="CT-Scan">🔬 CT Scan</option>
-                                    <option value="MRI">🧲 MRI</option>
-                                    <option value="Ultrasound">📡 Ultrasound</option>
-                                    <option value="Blood-Test">💉 Blood Test</option>
-                                    <option value="Lab-Report">🧪 Lab Report</option>
-                                    <option value="Prescription">💊 Prescription</option>
-                                    <option value="Consultation-Notes">📝 Notes</option>
-                                    <option value="Other">📄 Other</option>
+                                <label className="form-label small text-muted mb-1">From date</label>
+                                <input
+                                    type="date"
+                                    className="form-control bg-light border-0 rounded-pill"
+                                    value={fromDate}
+                                    onChange={(e) => setFromDate(e.target.value)}
+                                    max={toDate || new Date().toISOString().split('T')[0]}
+                                />
+                            </div>
+
+                            <div className="col-md-3">
+                                <label className="form-label small text-muted mb-1">To date</label>
+                                <input
+                                    type="date"
+                                    className="form-control bg-light border-0 rounded-pill"
+                                    value={toDate}
+                                    onChange={(e) => setToDate(e.target.value)}
+                                    min={fromDate || undefined}
+                                    max={new Date().toISOString().split('T')[0]}
+                                />
+                            </div>
+
+                            <div className="col-md-3">
+                                <label className="form-label small text-muted mb-1">Sort</label>
+                                <select
+                                    className="form-select bg-light border-0 rounded-pill"
+                                    value={sortBy}
+                                    onChange={(e) => setSortBy(e.target.value)}
+                                >
+                                    <option value="newest">Newest First</option>
+                                    <option value="oldest">Oldest First</option>
                                 </select>
                             </div>
-                            <div className="col-md-3">
-                                <select className="form-select bg-light border-0 rounded-pill" value={sortBy} onChange={e => setSortBy(e.target.value)}>
-                                    <option value="newest">🕒 Newest First</option>
-                                    <option value="oldest">🕓 Oldest First</option>
-                                </select>
-                            </div>
-                            <div className="col-md-1 text-end">
-                                {(searchQuery || filterCategory !== 'all') && (
-                                    <button className="btn btn-link text-danger text-decoration-none small" onClick={() => { setSearchQuery(''); setFilterCategory('all'); }}>
+
+                            <div className="col-md-3 d-flex align-items-end justify-content-end">
+                                {(fromDate || toDate || sortBy !== 'newest') && (
+                                    <button
+                                        className="btn btn-link text-danger text-decoration-none small"
+                                        onClick={() => {
+                                            setFromDate('');
+                                            setToDate('');
+                                            setSortBy('newest');
+                                        }}
+                                    >
                                         <i className="bi bi-x-circle"></i> Clear
                                     </button>
                                 )}
@@ -474,14 +436,14 @@ const HealthRecords = ({ embedded = false }) => {
                             <div className="text-center py-5">
                                 <div className="spinner-border text-primary"></div>
                             </div>
-                        ) : getFilteredAndSortedRecords().length === 0 ? (
+                        ) : records.length === 0 ? (
                             <div className="text-center py-5 text-muted">
                                 <i className="bi bi-folder2-open fs-1 d-block mb-2 opacity-50"></i>
                                 <p>No health records found.</p>
                             </div>
                         ) : (
                             <div className="d-flex flex-column gap-3">
-                                {getFilteredAndSortedRecords().map((record) => {
+                                {records.map((record) => {
                                     const isExpanded = expandedRecordId === record.healthRecordId;
 
                                     return (

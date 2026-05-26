@@ -9,6 +9,7 @@ import java.time.LocalDateTime;
 @Builder
 public class MedicalDocumentResponse {
     private Integer documentId;
+    private Integer healthRecordId;
     private String documentName;
     private String documentType;
     private String fileLocation;
