@@ -4302,3 +4302,57 @@
     }
   }
   }
+
+/* === CONSULTATION TYPE BADGES === */
+.consultation-types {
+  display: flex;
+  gap: 6px;
+  flex-wrap: wrap;
+}
+
+.consult-badge {
+  width: 28px;
+  height: 28px;
+  border-radius: 6px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 12px;
+}
+
+.consult-badge.video {
+  background: rgba(59, 130, 246, 0.15);
+  color: #3b82f6;
+}
+
+.consult-badge.audio {
+  background: rgba(16, 185, 129, 0.15);
+  color: #10b981;
+}
+
+.consult-badge.chat {
+  background: rgba(139, 92, 246, 0.15);
+  color: #8b5cf6;
+}
+
+.consult-badge.offline {
+  background: rgba(245, 158, 11, 0.15);
+  color: #f59e0b;
+}
+
+/* === VERIFIED BADGE === */
+.verified-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 4px 10px;
+  background: rgba(16, 185, 129, 0.12);
+  color: #10b981;
+  font-size: 11px;
+  font-weight: 600;
+  border-radius: 20px;
+}
+
+.verified-badge i {
+  font-size: 12px;
+}

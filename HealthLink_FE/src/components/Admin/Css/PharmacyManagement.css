@@ -231,11 +231,17 @@
   flex-wrap: wrap;
   gap: 12px;
   padding: 16px 20px;
+  align-items: center;
 }
 
 .pharmacy-filter-group {
-  flex: 1;
-  min-width: 160px;
+  flex: 1 1 140px;
+  min-width: 120px;
+  max-width: 200px;
+}
+
+.pharmacy-filter-group:last-child {
+  flex: 1 1 120px;
 }
 
 .pharmacy-search-input {
@@ -966,20 +972,24 @@
 
 .pharmacy-table-actions {
   display: flex;
-  gap: 6px;
+  flex-wrap: wrap;
+  gap: 4px;
+  justify-content: center;
+  min-width: 110px;
 }
 
 .pharmacy-table-actions .action-btn {
-  width: 34px;
-  height: 34px;
+  width: 28px;
+  height: 28px;
   display: flex;
   align-items: center;
   justify-content: center;
   border: none;
-  border-radius: 8px;
-  font-size: 14px;
+  border-radius: 6px;
+  font-size: 12px;
   cursor: pointer;
   transition: all 0.2s ease;
+  flex-shrink: 0;
 }
 
 .pharmacy-table-actions .action-btn.view {
@@ -1504,5 +1514,25 @@
   .pharmacy-view-btn {
     flex: 1;
     justify-content: center;
+  }
+}
+
+/* === TABLE ACTIONS RESPONSIVE === */
+@media (max-width: 1400px) {
+  .pharmacy-table-actions {
+    min-width: 90px;
+  }
+
+  .pharmacy-table-actions .action-btn {
+    width: 26px;
+    height: 26px;
+    font-size: 11px;
+  }
+}
+
+@media (max-width: 1200px) {
+  .pharmacy-table th:nth-child(3),
+  .pharmacy-table td:nth-child(3) {
+    display: none;
   }
 }
