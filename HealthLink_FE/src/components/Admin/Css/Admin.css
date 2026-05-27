@@ -647,8 +647,24 @@
 
 /* ==== MODALS ==== */
 .admin-modal-backdrop {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
   background-color: rgba(0, 160, 139, 0.15);
   backdrop-filter: blur(4px);
+  z-index: 1050;
+  overflow-y: auto;
+  display: flex;
+  justify-content: center;
+  align-items: flex-start;
+  padding: 1.75rem;
+}
+
+.admin-modal-backdrop .modal-dialog {
+  margin: 1.75rem auto;
+  max-height: calc(100vh - 3.5rem);
 }
 
 .admin-modal-header {
@@ -3515,19 +3531,21 @@
   padding: 20px 24px;
   background: #fafbfc;
   display: flex;
-  gap: 12px;
+  flex-wrap: wrap;
+  gap: 10px;
 }
 
 .action-btn {
-  flex: 1;
+  flex: 1 1 calc(50% - 5px);
+  min-width: 100px;
   display: flex;
   align-items: center;
   justify-content: center;
-  gap: 8px;
-  padding: 12px 16px;
+  gap: 6px;
+  padding: 10px 12px;
   border: 2px solid;
   border-radius: 10px;
-  font-size: 14px;
+  font-size: 13px;
   font-weight: 600;
   cursor: pointer;
   transition: all 0.2s ease;
@@ -3557,6 +3575,34 @@
 .edit-btn:hover {
   background: #eff6ff;
   border-color: #3b82f6;
+  transform: translateY(-2px);
+}
+
+/* Reassign Button */
+.reassign-btn {
+  border-color: #a5b4fc;
+  color: #4f46e5;
+  background: #eef2ff;
+}
+
+.reassign-btn:hover {
+  background: #6366f1;
+  border-color: #6366f1;
+  color: white;
+  transform: translateY(-2px);
+}
+
+/* Cancel Button */
+.cancel-btn {
+  border-color: #fca5a5;
+  color: #dc2626;
+  background: #fef2f2;
+}
+
+.cancel-btn:hover {
+  background: #ef4444;
+  border-color: #ef4444;
+  color: white;
   transform: translateY(-2px);
 }
 
@@ -3629,6 +3675,16 @@
     grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
     gap: 20px;
   }
+
+  .appointment-actions {
+    gap: 8px;
+  }
+
+  .action-btn {
+    flex: 1 1 calc(50% - 4px);
+    padding: 10px 12px;
+    font-size: 13px;
+  }
 }
 
 @media (max-width: 768px) {
@@ -3653,11 +3709,22 @@
 
   .appointment-actions {
     padding: 16px 20px;
-    flex-direction: column;
+    gap: 8px;
   }
 
   .action-btn {
-    width: 100%;
+    flex: 1 1 calc(50% - 4px);
+    min-width: 80px;
+    padding: 8px 10px;
+    font-size: 12px;
+  }
+
+  .action-btn span {
+    display: none;
+  }
+
+  .action-btn i {
+    font-size: 16px;
   }
 }
 
@@ -3675,6 +3742,15 @@
   .appointment-status-badge {
     font-size: 11px;
     padding: 5px 12px;
+  }
+
+  .appointment-actions {
+    padding: 12px 16px;
+  }
+
+  .action-btn {
+    flex: 1 1 calc(50% - 4px);
+    padding: 10px 8px;
   }
 }
 
@@ -4226,3 +4302,57 @@
     }
   }
   }
+
+/* === CONSULTATION TYPE BADGES === */
+.consultation-types {
+  display: flex;
+  gap: 6px;
+  flex-wrap: wrap;
+}
+
+.consult-badge {
+  width: 28px;
+  height: 28px;
+  border-radius: 6px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 12px;
+}
+
+.consult-badge.video {
+  background: rgba(59, 130, 246, 0.15);
+  color: #3b82f6;
+}
+
+.consult-badge.audio {
+  background: rgba(16, 185, 129, 0.15);
+  color: #10b981;
+}
+
+.consult-badge.chat {
+  background: rgba(139, 92, 246, 0.15);
+  color: #8b5cf6;
+}
+
+.consult-badge.offline {
+  background: rgba(245, 158, 11, 0.15);
+  color: #f59e0b;
+}
+
+/* === VERIFIED BADGE === */
+.verified-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 4px 10px;
+  background: rgba(16, 185, 129, 0.12);
+  color: #10b981;
+  font-size: 11px;
+  font-weight: 600;
+  border-radius: 20px;
+}
+
+.verified-badge i {
+  font-size: 12px;
+}

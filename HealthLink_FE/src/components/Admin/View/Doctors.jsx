@@ -458,16 +458,43 @@ export default function Doctors() {
                     <span className={`specialty-badge ${getSpecialtyBadgeClass(doctor.specialty)}`}>
                       {doctor.specialty}
                     </span>
+                    {doctor.verified && (
+                      <span className="verified-badge">
+                        <i className="bi bi-patch-check-fill"></i> Verified
+                      </span>
+                    )}
                     <span className={`status-badge ${getStatusBadgeCardClass(doctor.status)}`}>
                       {doctor.status}
                     </span>
                   </div>
 
                   <div className="card-details">
+                    {doctor.clinicName && (
+                      <div className="card-detail-item">
+                        <i className="bi bi-hospital"></i>
+                        <span>{doctor.clinicName}</span>
+                      </div>
+                    )}
                     <div className="card-detail-item">
                       <i className="bi bi-envelope"></i>
                       <span>{doctor.email}</span>
                     </div>
+                    {doctor.consultationFee && (
+                      <div className="card-detail-item">
+                        <i className="bi bi-currency-dollar"></i>
+                        <span>${Number(doctor.consultationFee).toFixed(2)}/session</span>
+                      </div>
+                    )}
+                    {/* Consultation Types */}
+                    <div className="card-detail-item">
+                      <div className="consultation-types">
+                        {doctor.availableForVideo && <span className="consult-badge video" title="Video"><i className="bi bi-camera-video-fill"></i></span>}
+                        {doctor.availableForAudio && <span className="consult-badge audio" title="Audio"><i className="bi bi-telephone-fill"></i></span>}
+                        {doctor.availableForChat && <span className="consult-badge chat" title="Chat"><i className="bi bi-chat-dots-fill"></i></span>}
+                        {doctor.availableForOffline && <span className="consult-badge offline" title="In-person"><i className="bi bi-person-fill"></i></span>}
+                      </div>
+                    </div>
+                    {/* Rating */}
                     {doctor.rating && (
                       <div className="card-detail-item">
                         <div className="card-rating">
@@ -550,9 +577,10 @@ export default function Doctors() {
                         <th>ID</th>
                         <th>Full Name</th>
                         <th>Specialty</th>
-                        <th>Experience</th>
-                        <th>Email</th>
+                        <th>Clinic</th>
+                        <th>Fee</th>
                         <th>Status</th>
+                        <th>Verified</th>
                         <th>Rating</th>
                         <th className="text-center">Actions</th>
                       </tr>
@@ -570,12 +598,27 @@ export default function Doctors() {
                             </div>
                           </td>
                           <td>{doctor.specialty}</td>
-                          <td>{doctor.yearsOfExperience ? `${doctor.yearsOfExperience} years` : 'N/A'}</td>
-                          <td>{doctor.email}</td>
+                          <td>{doctor.clinicName || '—'}</td>
+                          <td>
+                            {doctor.consultationFee
+                              ? `$${Number(doctor.consultationFee).toFixed(2)}`
+                              : '—'}
+                          </td>
                           <td>
                             <span className={`badge ${getStatusBadgeClass(doctor.status)}`}>
                               {doctor.status}
                             </span>
+                          </td>
+                          <td>
+                            {doctor.verified ? (
+                              <span className="badge bg-success">
+                                <i className="bi bi-patch-check-fill me-1"></i>Verified
+                              </span>
+                            ) : (
+                              <span className="badge bg-warning text-dark">
+                                <i className="bi bi-clock me-1"></i>Pending
+                              </span>
+                            )}
                           </td>
                           <td>
                             {doctor.rating ? (
@@ -920,6 +963,103 @@ export default function Doctors() {
                           <span style={{ display: 'block', marginTop: 'var(--spacing-sm)' }}>
                             {selectedDoctor.bio || 'No biography provided'}
                           </span>
+                        </div>
+                      </div>
+
+                      {/* Clinic Information */}
+                      <div className="admin-modal-section">
+                        <h6 className="admin-modal-section-title primary">
+                          <i className="bi bi-hospital"></i>
+                          Clinic Information
+                        </h6>
+                        <div className="admin-info-row">
+                          <strong>Clinic Name:</strong>
+                          <span>{selectedDoctor.clinicName || 'Not specified'}</span>
+                        </div>
+                        <div className="admin-info-row">
+                          <strong>Clinic Address:</strong>
+                          <span>{selectedDoctor.clinicAddress || 'Not specified'}</span>
+                        </div>
+                        <div className="admin-info-row">
+                          <strong>Consultation Fee:</strong>
+                          <span>
+                            {selectedDoctor.consultationFee
+                              ? `$${Number(selectedDoctor.consultationFee).toFixed(2)}`
+                              : 'Not set'}
+                          </span>
+                        </div>
+                      </div>
+
+                      {/* Consultation Types */}
+                      <div className="admin-modal-section">
+                        <h6 className="admin-modal-section-title primary">
+                          <i className="bi bi-headset"></i>
+                          Available Consultation Types
+                        </h6>
+                        <div className="d-flex flex-wrap gap-2">
+                          <span className={`badge ${selectedDoctor.availableForVideo ? 'bg-success' : 'bg-secondary'}`}>
+                            <i className="bi bi-camera-video me-1"></i>Video
+                          </span>
+                          <span className={`badge ${selectedDoctor.availableForAudio ? 'bg-success' : 'bg-secondary'}`}>
+                            <i className="bi bi-telephone me-1"></i>Audio
+                          </span>
+                          <span className={`badge ${selectedDoctor.availableForChat ? 'bg-success' : 'bg-secondary'}`}>
+                            <i className="bi bi-chat-dots me-1"></i>Chat
+                          </span>
+                          <span className={`badge ${selectedDoctor.availableForOffline ? 'bg-success' : 'bg-secondary'}`}>
+                            <i className="bi bi-person me-1"></i>In-person
+                          </span>
+                        </div>
+                      </div>
+
+                      {/* Finance & Commission */}
+                      <div className="admin-modal-section">
+                        <h6 className="admin-modal-section-title primary">
+                          <i className="bi bi-wallet2"></i>
+                          Finance & Commission
+                        </h6>
+                        <div className="admin-info-row">
+                          <strong>Commission Tier:</strong>
+                          <span>
+                            <span className={`badge ${
+                              selectedDoctor.commissionTier === 'VIP' ? 'bg-warning text-dark' :
+                              selectedDoctor.commissionTier === 'PREMIUM' ? 'bg-info' : 'bg-secondary'
+                            }`}>
+                              {selectedDoctor.commissionTier || 'STANDARD'}
+                            </span>
+                          </span>
+                        </div>
+                        <div className="admin-info-row">
+                          <strong>Total Earnings:</strong>
+                          <span className="text-success fw-bold">
+                            ${Number(selectedDoctor.totalEarnings || 0).toFixed(2)}
+                          </span>
+                        </div>
+                        <div className="admin-info-row">
+                          <strong>Pending Settlement:</strong>
+                          <span className="text-warning fw-bold">
+                            ${Number(selectedDoctor.pendingSettlement || 0).toFixed(2)}
+                          </span>
+                        </div>
+                      </div>
+
+                      {/* Payment Information */}
+                      <div className="admin-modal-section">
+                        <h6 className="admin-modal-section-title primary">
+                          <i className="bi bi-bank"></i>
+                          Payment Information
+                        </h6>
+                        <div className="admin-info-row">
+                          <strong>Bank Name:</strong>
+                          <span>{selectedDoctor.bankName || '—'}</span>
+                        </div>
+                        <div className="admin-info-row">
+                          <strong>Bank Account:</strong>
+                          <span>{selectedDoctor.bankAccount || '—'}</span>
+                        </div>
+                        <div className="admin-info-row">
+                          <strong>PayPal Email:</strong>
+                          <span>{selectedDoctor.paypalEmail || '—'}</span>
                         </div>
                       </div>
                     </div>

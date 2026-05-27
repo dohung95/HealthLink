@@ -6,6 +6,7 @@ import com.HealthLink.dto.admin.AdminPatientMedicalHistoryDto;
 import com.HealthLink.dto.admin.AdminPrescriptionDto;
 import com.HealthLink.service.admin.AdminMedicalRecordService;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
@@ -13,6 +14,7 @@ import java.util.List;
 @RestController
 @RequestMapping("/api/admin/adminmedicalrecords")
 @CrossOrigin(origins = "http://localhost:5173")
+@PreAuthorize("hasRole('ADMIN')")
 public class AdminMedicalRecordController {
 
     private final AdminMedicalRecordService medicalRecordService;

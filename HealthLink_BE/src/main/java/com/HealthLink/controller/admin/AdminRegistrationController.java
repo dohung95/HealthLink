@@ -8,12 +8,14 @@ import com.HealthLink.service.registration.RegistrationService;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
 
 @CrossOrigin(origins = {"http://localhost:5173", "http://localhost:63527"})
 @RestController
 @RequestMapping("/api/admin/registrations")
 @RequiredArgsConstructor
+@PreAuthorize("hasRole('ADMIN')")
 public class AdminRegistrationController {
 
     private final RegistrationService registrationService;

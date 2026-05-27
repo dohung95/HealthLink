@@ -3,11 +3,13 @@ package com.HealthLink.controller.admin;
 import com.HealthLink.dto.admin.AdminAnalyticsResponseDto;
 import com.HealthLink.service.admin.AdminAnalyticsService;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
 
 @RestController
 @RequestMapping("/api/admin/analytics")
 @CrossOrigin(origins = "http://localhost:5173")
+@PreAuthorize("hasRole('ADMIN')")
 public class AdminAnalyticsController {
 
     private final AdminAnalyticsService analyticsService;

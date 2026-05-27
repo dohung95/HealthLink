@@ -231,11 +231,17 @@
   flex-wrap: wrap;
   gap: 12px;
   padding: 16px 20px;
+  align-items: center;
 }
 
 .pharmacy-filter-group {
-  flex: 1;
-  min-width: 160px;
+  flex: 1 1 140px;
+  min-width: 120px;
+  max-width: 200px;
+}
+
+.pharmacy-filter-group:last-child {
+  flex: 1 1 120px;
 }
 
 .pharmacy-search-input {
@@ -622,6 +628,19 @@
   box-shadow: 0 4px 12px rgba(239, 68, 68, 0.3);
 }
 
+.pharmacy-btn.ban {
+  width: 42px;
+  padding: 10px;
+  background: rgba(239, 68, 68, 0.1);
+  color: #ef4444;
+}
+
+.pharmacy-btn.ban:hover {
+  background: linear-gradient(135deg, #ef4444 0%, #f87171 100%);
+  color: white;
+  box-shadow: 0 4px 12px rgba(239, 68, 68, 0.3);
+}
+
 .pharmacy-btn:disabled {
   opacity: 0.5;
   cursor: not-allowed;
@@ -953,20 +972,24 @@
 
 .pharmacy-table-actions {
   display: flex;
-  gap: 6px;
+  flex-wrap: wrap;
+  gap: 4px;
+  justify-content: center;
+  min-width: 110px;
 }
 
 .pharmacy-table-actions .action-btn {
-  width: 34px;
-  height: 34px;
+  width: 28px;
+  height: 28px;
   display: flex;
   align-items: center;
   justify-content: center;
   border: none;
-  border-radius: 8px;
-  font-size: 14px;
+  border-radius: 6px;
+  font-size: 12px;
   cursor: pointer;
   transition: all 0.2s ease;
+  flex-shrink: 0;
 }
 
 .pharmacy-table-actions .action-btn.view {
@@ -1021,6 +1044,16 @@
 }
 
 .pharmacy-table-actions .action-btn.delete:hover {
+  background: #ef4444;
+  color: white;
+}
+
+.pharmacy-table-actions .action-btn.ban {
+  background: rgba(239, 68, 68, 0.1);
+  color: #ef4444;
+}
+
+.pharmacy-table-actions .action-btn.ban:hover {
   background: #ef4444;
   color: white;
 }
@@ -1120,14 +1153,19 @@
 
 /* === MODAL === */
 .pharmacy-modal-overlay {
-  position: fixed;
-  inset: 0;
+  position: fixed !important;
+  top: 0 !important;
+  left: 0 !important;
+  right: 0 !important;
+  bottom: 0 !important;
+  width: 100vw !important;
+  height: 100vh !important;
   background: rgba(15, 23, 42, 0.6);
   backdrop-filter: blur(4px);
   display: flex;
   align-items: center;
   justify-content: center;
-  z-index: 1050;
+  z-index: 9999 !important;
   padding: 20px;
   animation: fadeIn 0.2s ease;
 }
@@ -1476,5 +1514,25 @@
   .pharmacy-view-btn {
     flex: 1;
     justify-content: center;
+  }
+}
+
+/* === TABLE ACTIONS RESPONSIVE === */
+@media (max-width: 1400px) {
+  .pharmacy-table-actions {
+    min-width: 90px;
+  }
+
+  .pharmacy-table-actions .action-btn {
+    width: 26px;
+    height: 26px;
+    font-size: 11px;
+  }
+}
+
+@media (max-width: 1200px) {
+  .pharmacy-table th:nth-child(3),
+  .pharmacy-table td:nth-child(3) {
+    display: none;
   }
 }
