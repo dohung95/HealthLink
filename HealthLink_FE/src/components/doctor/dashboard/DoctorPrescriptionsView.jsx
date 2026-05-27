@@ -31,14 +31,9 @@ const getStatusBadgeClass = (status) => {
   return 'doctor-prescription-item__status-badge--default';
 };
 
-const getDetailStatusClass = (status) => {
-  if (status === 'Active') return 'doctor-prescription-detail__status-badge--active';
-  if (status === 'Expired') return 'doctor-prescription-detail__status-badge--expired';
-  return 'doctor-prescription-detail__status-badge--default';
-};
 
 const avatarColors = [
-  '#137fec', '#10b981', '#f59e0b', '#ef4444',
+  '#0052cc', '#10b981', '#d97706', '#dc2626',
   '#8b5cf6', '#ec4899', '#06b6d4', '#f97316',
 ];
 
@@ -131,22 +126,25 @@ export default function DoctorPrescriptionsView({ doctorId, onOpenAppointmentByI
   }, [filteredPrescriptions]);
 
   return (
-    <div className="doctor-content-section">
-      {/* Page Header */}
-      <div className="doctor-page-header mb-3">
-        <h1 className="doctor-page-header__title">Prescriptions</h1>
-        <p className="doctor-page-header__subtitle">
-          Prescription archive &middot; {prescriptions.length} total
-          {query && ` &middot; ${sortedPrescriptions.length} matching`}
-        </p>
-      </div>
+    <div className="doctor-content-section px-3 px-xl-4 py-3 py-md-4">
+      {/* ==================== TOOLBAR ==================== */}
+      <div className="doctor-prescription-toolbar d-flex flex-column flex-md-row justify-content-between align-items-start align-items-md-center gap-3 mb-4 pb-3"
+        style={{
+          background: 'linear-gradient(135deg, var(--surface) 0%, var(--primary-subtle) 100%)',
+          boxShadow: '0 8px 32px rgba(0, 82, 204, 0.06), 0 2px 8px rgba(0, 0, 0, 0.03)',
+        }}>
 
-      {/* Toolbar */}
-      <div className="d-flex flex-column flex-md-row justify-content-between align-items-start align-items-md-center gap-3 mb-3">
-        <div className="d-flex align-items-center gap-3 flex-wrap">
-          {/* Search */}
-          <div className="doctor-prescription-search">
-            <span className="material-symbols-outlined doctor-prescription-search__icon">search</span>
+        {/* Left: Search */}
+        <div className="doctor-prescription-search-wrap flex-grow-1">
+          <div className="doctor-prescription-search"
+            style={{
+              background: query ? 'var(--surface)' : 'rgba(255,255,255,0.85)',
+              border: query ? '1.5px solid var(--primary)' : '1.5px solid var(--border)',
+              boxShadow: query ? '0 0 0 4px var(--focus-ring), 0 2px 8px rgba(0,82,204,0.08)' : '0 1px 3px rgba(0,0,0,0.04)',
+              transition: 'all 0.3s cubic-bezier(0.16, 1, 0.3, 1)',
+            }}
+          >
+            <span className="doctor-prescription-search__icon material-symbols-outlined">search</span>
             <input
               aria-label="Search prescriptions"
               className="doctor-prescription-search__input"
@@ -154,7 +152,7 @@ export default function DoctorPrescriptionsView({ doctorId, onOpenAppointmentByI
               placeholder="Search patient, diagnosis..."
               value={query}
             />
-            {query && (
+            {query ? (
               <button
                 className="doctor-prescription-search__clear"
                 onClick={() => setQuery('')}
@@ -163,60 +161,71 @@ export default function DoctorPrescriptionsView({ doctorId, onOpenAppointmentByI
               >
                 <span className="material-symbols-outlined">close</span>
               </button>
+            ) : (
+              <span className="doctor-prescription-search__hint">
+                <kbd>/</kbd>
+              </span>
             )}
           </div>
+        </div>
 
-          {/* Status filter chips */}
-          <div className="doctor-prescription-filters">
-            {statuses.map((value) => (
-              <button
-                key={value}
-                className={`doctor-prescription-filter-chip ${status === value ? 'doctor-prescription-filter-chip--active' : ''}`}
-                onClick={() => setStatus(value)}
-                type="button"
-              >
-                {value === 'all' ? 'All' : value}
-                <span className="doctor-prescription-filter-chip__count">{statusCounts[value] || 0}</span>
-              </button>
-            ))}
-          </div>
+        {/* Right: Status filter chips */}
+        <div className="doctor-prescription-filters flex-shrink-0">
+          {statuses.map((value) => (
+            <button
+              key={value}
+              className={`doctor-prescription-filter-chip ${status === value ? 'doctor-prescription-filter-chip--active' : ''}`}
+              onClick={() => setStatus(value)}
+              type="button"
+            >
+              {value === 'all' ? 'All' : value}
+              <span className="doctor-prescription-filter-chip__count">{statusCounts[value] || 0}</span>
+            </button>
+          ))}
         </div>
       </div>
 
+      {/* ==================== CONTENT ==================== */}
       {loading ? (
-        <div className="doctor-empty-state">
-          <div className="spinner-border text-primary" role="status" style={{ width: '2rem', height: '2rem' }}>
+        <div className="prescription-state">
+          <div className="spinner-border mb-3" role="status" style={{ width: '2.25rem', height: '2.25rem', color: 'var(--primary)' }}>
             <span className="visually-hidden">Loading...</span>
           </div>
-          <h3 className="doctor-empty-state__title mt-3">Loading prescriptions</h3>
-          <p className="doctor-empty-state__desc">Fetching prescription data...</p>
+          <h3 className="prescription-state__title">Loading prescriptions</h3>
+          <p className="prescription-state__desc">Fetching prescription data...</p>
         </div>
       ) : error ? (
-        <div className="doctor-schedule-state doctor-schedule-state--error">
-          <span className="material-symbols-outlined" style={{ fontSize: '2rem', color: 'var(--error)' }}>error</span>
-          <h3 className="doctor-schedule-state__error-title">{error}</h3>
-          <p className="doctor-schedule-state__error-desc">Please try again or contact support.</p>
+        <div className="prescription-state">
+          <div className="prescription-state__icon-wrapper" style={{ background: 'rgba(220, 38, 38, 0.1)', color: 'var(--error)' }}>
+            <span className="material-symbols-outlined" style={{ fontSize: '1.5rem' }}>error</span>
+          </div>
+          <h3 className="prescription-state__title" style={{ color: 'var(--error)' }}>{error}</h3>
+          <p className="prescription-state__desc">Please try again or contact support.</p>
         </div>
       ) : sortedPrescriptions.length === 0 ? (
-        <div className="doctor-empty-state" style={{ minHeight: '300px' }}>
-          <div className="doctor-empty-state__icon">
+        <div className="d-flex flex-column align-items-center justify-content-center text-center py-5 rounded-4"
+          style={{ background: 'var(--surface)', border: '1px dashed var(--border)', minHeight: '300px' }}>
+          <div className="d-flex align-items-center justify-content-center rounded-circle mb-3"
+            style={{ width: '3.5rem', height: '3.5rem', background: 'var(--surface-muted)', color: 'var(--text-muted)' }}>
             <span className="material-symbols-outlined" style={{ fontSize: '1.5rem' }}>medication</span>
           </div>
-          <h3 className="doctor-empty-state__title">
+          <h3 className="fs-6 fw-bold mb-1" style={{ color: 'var(--text-primary)' }}>
             {query || status !== 'all' ? 'No matching prescriptions' : 'No prescriptions found'}
           </h3>
-          <p className="doctor-empty-state__desc">
+          <p className="small mb-0" style={{ color: 'var(--text-muted)', maxWidth: '280px' }}>
             {query || status !== 'all'
               ? 'Try adjusting your search or filter criteria.'
               : 'Issued prescriptions will appear here.'}
           </p>
         </div>
       ) : (
-        <div className="row g-3">
-          {/* List column */}
-          <div className="col-lg-5 doctor-prescription-list">
+        <div className="row g-3 align-items-stretch">
+          {/* ==================== LIST COLUMN ==================== */}
+          <div className="col-lg-5 d-flex flex-column">
+            <div className="doctor-prescription-list flex-grow-1">
             {sortedPrescriptions.map((prescription) => {
               const isSelected = selected?.prescriptionHeaderId === prescription.prescriptionHeaderId;
+              const avatarColor = getAvatarColor(prescription.patientName);
               return (
                 <article
                   key={prescription.prescriptionHeaderId}
@@ -225,7 +234,7 @@ export default function DoctorPrescriptionsView({ doctorId, onOpenAppointmentByI
                 >
                   <div
                     className="doctor-prescription-item__avatar"
-                    style={{ background: getAvatarColor(prescription.patientName) }}
+                    style={{ background: avatarColor }}
                   >
                     {getInitials(prescription.patientName)}
                   </div>
@@ -255,10 +264,11 @@ export default function DoctorPrescriptionsView({ doctorId, onOpenAppointmentByI
                 </article>
               );
             })}
+            </div>
           </div>
 
-          {/* Detail column */}
-          <aside className="col-lg-7">
+          {/* ==================== DETAIL COLUMN ==================== */}
+          <aside className="col-lg-7 d-flex">
             {selected ? (
               <div className="doctor-prescription-detail">
                 {/* Sticky Header */}
@@ -266,17 +276,34 @@ export default function DoctorPrescriptionsView({ doctorId, onOpenAppointmentByI
                   <div className="doctor-prescription-detail__patient-group">
                     <p className="doctor-prescription-detail__label">Prescription</p>
                     <h4 className="doctor-prescription-detail__patient-name">
+                      <span className="material-symbols-outlined me-1 align-middle" style={{ fontSize: '1.125rem', color: 'var(--primary)' }}>person</span>
                       {selected.patientName || 'Unknown Patient'}
                     </h4>
                   </div>
-                  <span
-                    className={`doctor-prescription-detail__status-badge ${getDetailStatusClass(selected.status)}`}
-                  >
-                    <span className="material-symbols-outlined" style={{ fontSize: '0.875rem' }}>
-                      {selected.status === 'Active' ? 'check_circle' : 'info'}
-                    </span>
-                    {selected.status || 'Issued'}
-                  </span>
+                  {(selected.appointmentId || selected.consultationId) && (
+                    <button
+                      className="btn btn-sm d-inline-flex align-items-center gap-1"
+                      onClick={() => onOpenAppointmentById?.(selected.appointmentId || selected.consultationId)}
+                      type="button"
+                      style={{
+                        borderRadius: '999px',
+                        padding: '0.4rem 1rem',
+                        fontWeight: 700,
+                        fontSize: '0.75rem',
+                        background: 'var(--primary)',
+                        border: 'none',
+                        color: '#fff',
+                        whiteSpace: 'nowrap',
+                        transition: 'all 0.2s ease',
+                        cursor: 'pointer',
+                      }}
+                      onMouseEnter={(e) => { e.currentTarget.style.background = 'var(--primary-hover)'; e.currentTarget.style.boxShadow = '0 4px 12px rgba(0,82,204,0.3)'; }}
+                      onMouseLeave={(e) => { e.currentTarget.style.background = 'var(--primary)'; e.currentTarget.style.boxShadow = 'none'; }}
+                    >
+                      <span className="material-symbols-outlined" style={{ fontSize: '0.875rem' }}>open_in_new</span>
+                      Consultation Detail
+                    </button>
+                  )}
                 </div>
 
                 {/* Body */}
@@ -284,22 +311,30 @@ export default function DoctorPrescriptionsView({ doctorId, onOpenAppointmentByI
                   {/* Info Grid */}
                   <div className="doctor-prescription-detail__info-grid">
                     <div className="doctor-prescription-detail__info-item">
-                      <p className="doctor-prescription-detail__info-label">Issue Date</p>
+                      <p className="doctor-prescription-detail__info-label">
+                        <span className="material-symbols-outlined me-1 align-middle" style={{ fontSize: '0.75rem' }}>calendar_today</span>
+                        Issue Date
+                      </p>
                       <p className="doctor-prescription-detail__info-value">
                         {formatDateTime(selected.issueDate)}
                       </p>
                     </div>
-                    {selected.diagnosis && (
+                    {selected.diagnosis ? (
                       <div className="doctor-prescription-detail__info-item">
-                        <p className="doctor-prescription-detail__info-label">Diagnosis</p>
+                        <p className="doctor-prescription-detail__info-label">
+                          <span className="material-symbols-outlined me-1 align-middle" style={{ fontSize: '0.75rem' }}>biotech</span>
+                          Diagnosis
+                        </p>
                         <p className="doctor-prescription-detail__info-value">
                           {selected.diagnosis}
                         </p>
                       </div>
-                    )}
-                    {!selected.diagnosis && (
+                    ) : (
                       <div className="doctor-prescription-detail__info-item">
-                        <p className="doctor-prescription-detail__info-label">Status</p>
+                        <p className="doctor-prescription-detail__info-label">
+                          <span className="material-symbols-outlined me-1 align-middle" style={{ fontSize: '0.75rem' }}>info</span>
+                          Status
+                        </p>
                         <p className="doctor-prescription-detail__info-value">
                           {selected.status || 'Issued'}
                         </p>
@@ -310,7 +345,10 @@ export default function DoctorPrescriptionsView({ doctorId, onOpenAppointmentByI
                   {/* Doctor Notes */}
                   {selected.notes && (
                     <div className="doctor-prescription-detail__notes">
-                      <p className="doctor-prescription-detail__notes-label">Doctor Notes</p>
+                      <p className="doctor-prescription-detail__notes-label">
+                        <span className="material-symbols-outlined me-1 align-middle" style={{ fontSize: '0.75rem' }}>description</span>
+                        Doctor Notes
+                      </p>
                       <p className="doctor-prescription-detail__notes-text">{selected.notes}</p>
                     </div>
                   )}
@@ -319,7 +357,7 @@ export default function DoctorPrescriptionsView({ doctorId, onOpenAppointmentByI
                   <div className="doctor-prescription-detail__meds-section">
                     <div className="doctor-prescription-detail__meds-header">
                       <p className="doctor-prescription-detail__meds-title">
-                        <span className="material-symbols-outlined" style={{ fontSize: '1rem', color: 'var(--primary)' }}>
+                        <span className="material-symbols-outlined">
                           medication
                         </span>
                         Medications
@@ -380,9 +418,9 @@ export default function DoctorPrescriptionsView({ doctorId, onOpenAppointmentByI
 
                     {(!selected.medications || selected.medications.length === 0) &&
                       (!selected.items || selected.items.length === 0) && (
-                      <div className="text-center py-3">
-                        <span className="material-symbols-outlined" style={{ fontSize: '1.5rem', color: 'var(--text-muted)' }}>medication</span>
-                        <p className="mt-1 mb-0" style={{ fontSize: '0.8125rem', color: 'var(--text-muted)' }}>
+                      <div className="text-center py-4 rounded-3" style={{ background: 'var(--surface-muted)', border: '1px dashed var(--border)' }}>
+                        <span className="material-symbols-outlined d-block mb-2" style={{ fontSize: '1.5rem', color: 'var(--text-muted)' }}>medication</span>
+                        <p className="mb-0" style={{ fontSize: '0.8125rem', color: 'var(--text-muted)' }}>
                           No medication details available
                         </p>
                       </div>
@@ -390,35 +428,19 @@ export default function DoctorPrescriptionsView({ doctorId, onOpenAppointmentByI
                   </div>
                 </div>
 
-                {/* Action bar */}
-                {selected.appointmentId && (
-                  <div className="doctor-prescription-detail__action-bar">
-                    <button
-                      className="btn btn-primary w-100"
-                      onClick={() => onOpenAppointmentById?.(selected.appointmentId)}
-                      type="button"
-                    >
-                      <span className="material-symbols-outlined me-1" style={{ fontSize: '1rem' }}>open_in_new</span>
-                      Open Linked Appointment
-                    </button>
-                  </div>
-                )}
+
               </div>
             ) : (
-              <div className="doctor-prescription-detail">
-                <div
-                  className="doctor-empty-state"
-                  style={{
-                    minHeight: '460px',
-                    border: 'none',
-                    borderRadius: '0',
-                  }}
-                >
-                  <div className="doctor-empty-state__icon">
-                    <span className="material-symbols-outlined" style={{ fontSize: '1.5rem' }}>file_present</span>
+              <div className="doctor-prescription-detail d-flex align-items-center justify-content-center">
+                <div className="text-center py-5 px-3">
+                  <div className="d-flex align-items-center justify-content-center rounded-circle mx-auto mb-3"
+                    style={{ width: '4rem', height: '4rem', background: 'var(--primary-subtle)', color: 'var(--primary)' }}>
+                    <span className="material-symbols-outlined" style={{ fontSize: '1.75rem' }}>file_present</span>
                   </div>
-                  <h3 className="doctor-empty-state__title">Select a prescription</h3>
-                  <p className="doctor-empty-state__desc">
+                  <h3 className="fs-6 fw-bold mb-1" style={{ color: 'var(--text-primary)' }}>
+                    Select a prescription
+                  </h3>
+                  <p className="small mb-0 mx-auto" style={{ color: 'var(--text-muted)', maxWidth: '260px', lineHeight: '1.5' }}>
                     Choose an issued prescription from the list to view full details, medications, and actions.
                   </p>
                 </div>

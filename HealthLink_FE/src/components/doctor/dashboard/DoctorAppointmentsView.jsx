@@ -426,43 +426,51 @@ const NextAppointmentCard = ({ appointment, onView, selectedDate }) => {
       </div>
 
       <div className="doctor-next-card__body">
-        <div className="flex-1 border-md-end border-surface-border pe-md-4">
-          <div className="d-flex align-items-center gap-3 mb-3">
-            <PatientAvatar appointment={appointment} name={patientName} size="large" />
-            <div className="min-w-0">
-              <h3 className="fw-semibold text-text-main text-truncate mb-0" style={{fontSize:'1rem',lineHeight:'1.25'}}>{patientName}</h3>
-              {patientMeta ? <p className="text-text-muted text-truncate mb-0" style={{fontSize:'0.8125rem',marginTop:'0.125rem'}}>{patientMeta}</p> : null}
+        <div className="doctor-next-card__patient-section">
+          <div className="d-flex align-items-start gap-3">
+            <div className="doctor-next-card__avatar-wrap flex-shrink-0">
+              <PatientAvatar appointment={appointment} name={patientName} size="large" />
             </div>
-          </div>
-
-          <div className="d-flex flex-column" style={{gap:'0.5rem'}}>
-            <div className="d-flex flex-wrap align-items-center" style={{gap:'1.25rem 0.25rem'}}>
-              <div>
-                <span className="small text-uppercase text-text-muted" style={{fontSize:'0.6875rem',fontWeight:'600',letterSpacing:'0.06em'}}>Time</span>
-                <span className="ms-1 small fw-medium text-text-main">{formatTimeFromDate(appointmentDate)}</span>
+            <div className="flex-grow-1 min-w-0">
+              {/* Patient Name + ID side by side */}
+              <div className="d-flex align-items-center gap-2 mb-2 flex-wrap">
+                <h3 className="doctor-next-card__patient-name text-truncate mb-0">{patientName}</h3>
+                -
+                {patientMeta && (
+                  <span className="doctor-next-card__patient-meta flex-shrink-0">
+                    {patientMeta}
+                  </span>
+                )}
               </div>
-              <div>
-                <span className="small text-uppercase text-text-muted" style={{fontSize:'0.6875rem',fontWeight:'600',letterSpacing:'0.06em'}}>Type</span>
-                <span className="ms-1 small fw-medium text-text-main">
-                  <span className="material-symbols-outlined align-middle me-1" style={{fontSize:'14px',color:'var(--text-muted)'}}>{getTypeIcon(appointment.consultationType)}</span>
+
+              {/* Info items as pill badges */}
+              <div className="d-flex flex-wrap gap-2 pb-4">
+                <span className="doctor-next-card__info-item">
+                  <span className="material-symbols-outlined">schedule</span>
+                  {formatTimeFromDate(appointmentDate)}
+                </span>
+                <span className="doctor-next-card__info-item">
+                  <span className="material-symbols-outlined">{getTypeIcon(appointment.consultationType)}</span>
                   {appointment.consultationType || 'Consultation'}
                 </span>
               </div>
-            </div>
-            <div>
-              <span className="small text-uppercase text-text-muted" style={{fontSize:'0.6875rem',fontWeight:'600',letterSpacing:'0.06em'}}>Reason</span>
-              <p className="small fw-medium text-text-main mb-0" style={{marginTop:'0.125rem',lineHeight:'1.5'}}>{reason || 'Not provided'}</p>
+
+              {/* Reason section */}
+              <div className="doctor-next-card__reason">
+                <span className="doctor-next-card__reason-label">Visit Reason</span>
+                <p className="doctor-next-card__reason-text mb-0">{reason || 'Not provided'}</p>
+              </div>
             </div>
           </div>
         </div>
 
-        <div className="d-flex flex-column justify-content-center gap-2" style={{minWidth:'160px'}}>
-          <button className="btn btn-primary btn-sm w-100 d-flex align-items-center justify-content-center gap-1" onClick={() => onView(appointment)} type="button">
-            <span className="material-symbols-outlined" style={{fontSize:'0.875rem'}}>open_in_new</span>
+        <div className="doctor-next-card__actions">
+          <button className="btn btn-primary" onClick={() => onView(appointment)} type="button">
+            <span className="material-symbols-outlined" style={{fontSize:'1rem'}}>open_in_new</span>
             Open Detail
           </button>
-          <button className="btn btn-outline-primary btn-sm w-100 d-flex align-items-center justify-content-center gap-1" onClick={() => onView(appointment)} type="button">
-            <span className="material-symbols-outlined" style={{fontSize:'0.875rem'}}>description</span>
+          <button className="btn btn-outline-primary" onClick={() => onView(appointment)} type="button">
+            <span className="material-symbols-outlined" style={{fontSize:'1rem'}}>description</span>
             Medical History
           </button>
         </div>
