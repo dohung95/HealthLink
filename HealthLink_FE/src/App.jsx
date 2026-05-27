@@ -17,7 +17,6 @@ import Chat from './components/Chat';
 import Payment from './components/Payment';
 
 import ProfilePatient from './pages/profilePatient';
-import DoctorProfilePage from './pages/doctor/DoctorProfilePage';
 
 import Admin from './components/Admin/View/Admin';
 import Patients from './components/Admin/View/Patients';
@@ -125,7 +124,6 @@ function AppContent() {
     '/health-records',
     '/share-records',
     '/profile-patient',
-    '/profile-doctor',
     '/profile-pharmacy',
     '/doctor-page',
     '/patient-dashboard',
@@ -188,7 +186,6 @@ function AppContent() {
             <Route path="/health-records" element={<HealthRecords />} />
             <Route path="/share-records" element={<ShareHealthRecords />} />
             <Route path="/profile-patient" element={<ProfilePatient />} />
-            <Route path="/profile-doctor" element={<DoctorProfilePage />} />
             <Route path="/profile-pharmacy" element={<Navigate to="/pharmacy-page/profile" replace />} />
 
             {/* <Route path="/schedule" element={<Schedule />} /> */}
