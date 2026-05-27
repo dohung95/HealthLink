@@ -38,9 +38,16 @@ lerna-debug.log*
 # Rider / IntelliJ
 .idea/
 
+# DOC & Skills
 /doc
 /skills
 /HealthLink_BE/doc/
+/.agents
+/knowledge.md
+/.opencode
+/graphify-out
+/AGENTS.md
+
 
 # === Custom ignores cho file XML do IDE sinh ra ===
 HealthLink/HealthLink_BE/HealthLink_BEynbactions.xml

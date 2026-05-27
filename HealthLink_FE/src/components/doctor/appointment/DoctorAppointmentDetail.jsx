@@ -4,50 +4,50 @@ import 'react-calendar/dist/Calendar.css';
 import '../Css/DoctorDashboard.css';
 import { toast } from 'react-toastify';
 import { collection, getDocs, query, where } from 'firebase/firestore';
-import Calendar from 'react-calendar';
 import DoctorPrescriptionWorkspace from '../prescription/DoctorPrescriptionWorkspace';
-import SharedRecordsView from '../../SharedRecordsView';
+import ConsultationNotesTab from './tabs/ConsultationNotesTab';
+import MedicalHistoryTab from './tabs/MedicalHistoryTab';
+import SharedRecordsTab from './tabs/SharedRecordsTab';
+import FollowUpTab from './tabs/FollowUpTab';
 import { appointmentService } from '../../../api/appointmentApi';
 import { consultationApi } from '../../../api/consultationApi';
 import { prescriptionService } from '../../../api/prescriptionApi';
 import { useAuth } from '../../../context/AuthContext';
 import { useChat } from '../../../context/ChatContext';
 import { db } from '../../../firebase';
+import {
+  toLocalDateValue,
+  toMonthValue,
+  buildFollowUpDateTime,
+  normalizeStatus,
+  formatDate,
+  formatCompactDate,
+  formatTime,
+  formatDateTime,
+  getStatusClassName,
+  getTypeClassName,
+  getTypeIcon,
+  buildConsultation,
+  getPatientInitials,
+  calculateAge,
+} from '../helper/tabHelpers';
 import { vitalSignApi } from '../../../api/vitalSignApi';
 
 const TABS = [
-  { id: 'notes', label: 'Consultation Notes', shortLabel: 'Notes', icon: 'bi-journal-text' },
-  { id: 'history', label: 'Medical History', shortLabel: 'History', icon: 'bi-clock-history' },
-  { id: 'shared', label: 'Shared Records', shortLabel: 'Shared', icon: 'bi-folder2-open' },
-  { id: 'prescription', label: 'Prescription', shortLabel: 'Prescription', icon: 'bi-capsule-pill' },
-  { id: 'followup', label: 'Follow-up', shortLabel: 'Follow-up', icon: 'bi-calendar-check' },
+  { id: 'notes', label: 'Consultation Notes', icon: 'bi-journal-text' },
+  { id: 'history', label: 'Medical History', icon: 'bi-clock-history' },
+  { id: 'shared', label: 'Shared Records', icon: 'bi-folder2-open' },
+  { id: 'prescription', label: 'Prescription', icon: 'bi-capsule-pill' },
+  { id: 'followup', label: 'Follow-up', icon: 'bi-calendar-check' },
 ];
 
-const toLocalDateValue = (date) => {
-  if (!date) return '';
-  const value = date instanceof Date ? date : new Date(date);
-  if (Number.isNaN(value.getTime())) return '';
-
-  const year = value.getFullYear();
-  const month = String(value.getMonth() + 1).padStart(2, '0');
-  const day = String(value.getDate()).padStart(2, '0');
-  return `${year}-${month}-${day}`;
-};
-
-const toMonthValue = (date) => {
-  if (!date) return '';
-  const value = date instanceof Date ? date : new Date(date);
-  if (Number.isNaN(value.getTime())) return '';
-  return `${value.getFullYear()}-${String(value.getMonth() + 1).padStart(2, '0')}`;
-};
-
-const buildFollowUpDateTime = (date, startTime) => {
-  const dateValue = toLocalDateValue(date);
-  if (!dateValue || !startTime) return null;
-  return `${dateValue}T${startTime}:00`;
-};
-
-const DoctorAppointmentDetail = ({ appointment, patient, doctorId: currentDoctorId, onBack, onOpenAppointmentById }) => {
+const DoctorAppointmentDetail = ({
+  appointment,
+  patient,
+  doctorId: currentDoctorId,
+  onBack,
+  onOpenAppointmentById,
+}) => {
   const [medicalHistory, setMedicalHistory] = useState(null);
   const [loadingHistory, setLoadingHistory] = useState(false);
   const [appointmentDetail, setAppointmentDetail] = useState(null);
@@ -58,7 +58,7 @@ const DoctorAppointmentDetail = ({ appointment, patient, doctorId: currentDoctor
   const [prescriptionDraft, setPrescriptionDraft] = useState(null);
   const [loadingPrescription, setLoadingPrescription] = useState(false);
   const [selectedHistoryAppointment, setSelectedHistoryAppointment] = useState(null);
-  const [showDetailModal, setShowDetailModal] = useState(false);
+  const [loadingHistorySnapshot, setLoadingHistorySnapshot] = useState(false);
   const [completingAppointment, setCompletingAppointment] = useState(false);
   const [showCompleteConfirmModal, setShowCompleteConfirmModal] = useState(false);
   const [activeTab, setActiveTab] = useState('notes');
@@ -106,37 +106,6 @@ const DoctorAppointmentDetail = ({ appointment, patient, doctorId: currentDoctor
     doctorId;
   const followUpSelectedDateValue = toLocalDateValue(followUpSelectedDate);
 
-  const formatDate = (dateString) => {
-    if (!dateString) return 'N/A';
-    const date = new Date(dateString);
-    return date.toLocaleDateString('en-US', {
-      year: 'numeric',
-      month: 'long',
-      day: 'numeric',
-    });
-  };
-
-  const formatTime = (dateString) => {
-    if (!dateString) return 'N/A';
-    const date = new Date(dateString);
-    return date.toLocaleTimeString('en-US', {
-      hour: '2-digit',
-      minute: '2-digit',
-    });
-  };
-
-  const formatDateTime = (dateString) => {
-    if (!dateString) return 'N/A';
-    const date = new Date(dateString);
-    return date.toLocaleString('en-US', {
-      year: 'numeric',
-      month: 'short',
-      day: 'numeric',
-      hour: '2-digit',
-      minute: '2-digit',
-    });
-  };
-
   const loadLatestVitalSign = useCallback(async () => {
     if (!appointmentId) return;
 
@@ -167,86 +136,6 @@ const DoctorAppointmentDetail = ({ appointment, patient, doctorId: currentDoctor
   useEffect(() => {
     loadLatestVitalSign();
   }, [loadLatestVitalSign]);
-
-  const calculateAge = (dateOfBirth) => {
-    if (!dateOfBirth) return 'N/A';
-    const today = new Date();
-    const birthDate = new Date(dateOfBirth);
-    let age = today.getFullYear() - birthDate.getFullYear();
-    const monthDiff = today.getMonth() - birthDate.getMonth();
-
-    if (monthDiff < 0 || (monthDiff === 0 && today.getDate() < birthDate.getDate())) {
-      age -= 1;
-    }
-
-    return age;
-  };
-
-  const getPatientInitials = (name) => {
-    if (!name) return 'PT';
-    return name
-      .split(' ')
-      .filter(Boolean)
-      .slice(0, 2)
-      .map((part) => part[0]?.toUpperCase())
-      .join('');
-  };
-
-  const getStatusClassName = (status) => {
-    switch ((status || '').toLowerCase()) {
-      case 'completed':
-        return 'doctor-detail-status doctor-detail-status--completed';
-      case 'scheduled':
-        return 'doctor-detail-status doctor-detail-status--scheduled';
-      case 'cancelled':
-        return 'doctor-detail-status doctor-detail-status--cancelled';
-      default:
-        return 'doctor-detail-status';
-    }
-  };
-
-  const getTypeClassName = (type) => {
-    switch ((type || '').toLowerCase()) {
-      case 'video call':
-        return 'doctor-detail-chip doctor-detail-chip--video';
-      case 'audio call':
-        return 'doctor-detail-chip doctor-detail-chip--audio';
-      case 'chat':
-        return 'doctor-detail-chip doctor-detail-chip--chat';
-      default:
-        return 'doctor-detail-chip';
-    }
-  };
-
-  const getTypeIcon = (type) => {
-    switch ((type || '').toLowerCase()) {
-      case 'video call':
-        return 'bi-camera-video';
-      case 'audio call':
-        return 'bi-telephone';
-      case 'chat':
-        return 'bi-chat-dots';
-      default:
-        return 'bi-calendar-event';
-    }
-  };
-
-  const buildConsultation = (source) => {
-    const consultation = source?.consultation || {};
-
-    return {
-      consultationId: consultation.consultationId ?? source?.consultationId ?? null,
-      startTime: consultation.startTime ?? source?.consultationStartTime ?? source?.startTime ?? null,
-      endTime: consultation.endTime ?? source?.consultationEndTime ?? source?.endTime ?? null,
-      diagnosis: consultation.diagnosis ?? source?.diagnosis ?? null,
-      doctorNotes: consultation.doctorNotes ?? source?.doctorNotes ?? null,
-      treatmentPlan: consultation.treatmentPlan ?? source?.treatmentPlan ?? null,
-      followUpDate: consultation.followUpDate ?? source?.followUpDate ?? null,
-      followUpAppointmentId: consultation.followUpAppointmentId ?? source?.followUpAppointmentId ?? null,
-      followUpNotes: consultation.followUpNotes ?? source?.followUpNotes ?? null,
-    };
-  };
-
   const fetchAppointmentBundle = useCallback(async (targetAppointmentId, options = {}) => {
     const detail = await appointmentService.getAppointmentDetail(targetAppointmentId);
     const resolvedDoctorId = detail?.doctorId || detail?.doctorID || doctorId;
@@ -294,12 +183,12 @@ const DoctorAppointmentDetail = ({ appointment, patient, doctorId: currentDoctor
   }, [appointmentId, fetchAppointmentBundle]);
 
   useEffect(() => {
-    const loadAppointmentData = async () => {
-      await refreshAppointmentData();
-    };
-
-    loadAppointmentData();
+    refreshAppointmentData();
   }, [refreshAppointmentData]);
+
+  useEffect(() => {
+    setSelectedHistoryAppointment(null);
+  }, [appointmentId]);
 
   useEffect(() => {
     const fetchMedicalHistory = async () => {
@@ -432,18 +321,23 @@ const DoctorAppointmentDetail = ({ appointment, patient, doctorId: currentDoctor
   }, [loadFollowUpCalendar]);
 
   const handleViewAppointmentDetail = async (targetAppointmentId) => {
+    if (!targetAppointmentId) return;
+
+    setLoadingHistorySnapshot(true);
     try {
       const bundle = await fetchAppointmentBundle(targetAppointmentId, { showErrors: true });
       setSelectedHistoryAppointment(bundle);
-      setShowDetailModal(true);
     } catch (error) {
       console.error('Error loading appointment detail:', error);
       toast.error('Failed to load appointment details');
+    } finally {
+      setLoadingHistorySnapshot(false);
     }
   };
 
   const handleFollowUpDateChange = (date) => {
     setFollowUpSelectedDate(date);
+    setSelectedFollowUpDateTime(null);
   };
 
   const handleFollowUpMonthChange = ({ activeStartDate }) => {
@@ -458,7 +352,7 @@ const DoctorAppointmentDetail = ({ appointment, patient, doctorId: currentDoctor
       appointmentDetail?.appointmentId ||
       appointmentDetail?.appointmentID ||
       appointmentId;
-    const consultation = buildConsultation(appointmentDetail || appointment);
+    const consultationData = buildConsultation(appointmentDetail || appointment);
 
     if (!targetAppointmentId) {
       toast.error('Appointment data is not ready yet');
@@ -468,13 +362,13 @@ const DoctorAppointmentDetail = ({ appointment, patient, doctorId: currentDoctor
       toast.error('Please select an available follow-up slot');
       return false;
     }
-    if (consultation.followUpAppointmentId) {
+    if (consultationData.followUpAppointmentId) {
       toast.error('Follow-up appointment has already been created');
       return false;
     }
 
     setSavingFollowUp(true);
-    setFollowUpAction('save');
+    setFollowUpAction('confirm');
     try {
       await consultationApi.updateAppointmentFollowUp(targetAppointmentId, {
         followUpDate,
@@ -497,53 +391,20 @@ const DoctorAppointmentDetail = ({ appointment, patient, doctorId: currentDoctor
     }
   };
 
-  const handleSelectFollowUpSlot = async (slot) => {
+  const handleSelectFollowUpSlot = (slot) => {
     if (!slot?.selectable || savingFollowUp) {
       return;
     }
 
-    const nextFollowUpDateTime = buildFollowUpDateTime(followUpSelectedDate, slot.startTime);
-    const previousFollowUpDateTime = selectedFollowUpDateTime;
-
-    setSelectedFollowUpDateTime(nextFollowUpDateTime);
-
-    const saved = await savePendingFollowUp(
-      nextFollowUpDateTime,
-      followUpNotes,
-      'Follow-up slot selected',
-    );
-    if (!saved) {
-      setSelectedFollowUpDateTime(previousFollowUpDateTime);
-    }
+    setSelectedFollowUpDateTime(buildFollowUpDateTime(followUpSelectedDate, slot.startTime));
   };
 
-  const handleFollowUpNotesBlur = async (event) => {
-    if (event?.relatedTarget?.dataset?.followupAction) {
-      return;
-    }
-
-    const consultation = buildConsultation(appointmentDetail || appointment);
-    const targetAppointmentId =
-      appointmentDetail?.appointmentId ||
-      appointmentDetail?.appointmentID ||
-      appointmentId;
-
-    if (
-      savingFollowUp ||
-      consultation.followUpAppointmentId ||
-      !targetAppointmentId ||
-      !selectedFollowUpDateTime
-    ) {
-      return;
-    }
-
-    const savedNotes = consultation.followUpNotes || '';
-    const nextNotes = followUpNotes.trim();
-    if (consultation.followUpDate === selectedFollowUpDateTime && savedNotes === nextNotes) {
-      return;
-    }
-
-    await savePendingFollowUp(selectedFollowUpDateTime, followUpNotes);
+  const handleConfirmFollowUp = async () => {
+    await savePendingFollowUp(
+      selectedFollowUpDateTime,
+      followUpNotes,
+      'Follow-up schedule saved',
+    );
   };
 
   const handleCancelFollowUp = async () => {
@@ -551,14 +412,19 @@ const DoctorAppointmentDetail = ({ appointment, patient, doctorId: currentDoctor
       appointmentDetail?.appointmentId ||
       appointmentDetail?.appointmentID ||
       appointmentId;
-    const consultation = buildConsultation(appointmentDetail || appointment);
+    const consultationData = buildConsultation(appointmentDetail || appointment);
 
     if (!targetAppointmentId) {
       toast.error('Appointment data is not ready yet');
       return;
     }
-    if (consultation.followUpAppointmentId) {
+    if (consultationData.followUpAppointmentId) {
       toast.error('Follow-up appointment has already been created');
+      return;
+    }
+    if (!consultationData.followUpDate && !consultationData.followUpNotes) {
+      setSelectedFollowUpDateTime(null);
+      setFollowUpNotes('');
       return;
     }
 
@@ -817,15 +683,11 @@ const DoctorAppointmentDetail = ({ appointment, patient, doctorId: currentDoctor
     appointmentId: appointmentDetail?.appointmentId ?? appointment?.appointmentId ?? appointment?.appointmentID,
   };
   const consultation = buildConsultation(currentAppointment);
+  const statusKey = normalizeStatus(currentAppointment?.status);
   const patientName = patient?.fullName || currentAppointment?.patientName || 'Unknown patient';
   const patientEmail = patient?.email || patient?.user?.email || appointmentDetail?.patientEmail || 'N/A';
   const completedHistory =
-    medicalHistory?.appointments?.filter((historyItem) => historyItem.status === 'Completed') || [];
-  const sharedRecordCount =
-    medicalHistory?.documentsByCategory?.reduce(
-      (total, category) => total + (category.documentCount || 0),
-      0,
-    ) || 0;
+    medicalHistory?.appointments?.filter((historyItem) => normalizeStatus(historyItem.status) === 'completed') || [];
   const appointmentTime = currentAppointment?.appointmentTime
     ? new Date(currentAppointment.appointmentTime)
     : null;
@@ -833,21 +695,22 @@ const DoctorAppointmentDetail = ({ appointment, patient, doctorId: currentDoctor
     ? appointmentTime <= new Date()
     : false;
   const hasStarted = Boolean(consultation.startTime || currentAppointment?.consultationStartTime);
-  const isReadOnlyAppointment = currentAppointment?.status === 'Completed';
-  const isCancelledAppointment = currentAppointment?.status === 'Cancelled';
+  const isReadOnlyAppointment = statusKey === 'completed';
+  const isCancelledAppointment = statusKey === 'cancelled' || statusKey === 'canceled';
   const canStartConsultation =
-    currentAppointment?.status === 'Scheduled' &&
+    statusKey === 'scheduled' &&
     hasAppointmentTimeArrived &&
     !hasStarted &&
     !startingConsultation;
-  const canEditClinical = currentAppointment?.status === 'Scheduled' && hasStarted;
-  const joinDisabled = !canEditClinical;
+  const canEditClinical = statusKey === 'scheduled' && hasStarted;
+  const canEditFollowUp = canEditClinical && !isReadOnlyAppointment && !isCancelledAppointment;
+  const joinDisabled = !hasStarted || isReadOnlyAppointment || isCancelledAppointment;
   const hasPendingFollowUp = Boolean(consultation.followUpDate || selectedFollowUpDateTime);
   const canCancelFollowUp = Boolean(
     currentAppointment?.appointmentId &&
     hasPendingFollowUp &&
     !consultation.followUpAppointmentId &&
-    !isReadOnlyAppointment,
+    canEditFollowUp,
   );
   const actionLabel =
     currentAppointment?.consultationType === 'Chat'
@@ -859,6 +722,10 @@ const DoctorAppointmentDetail = ({ appointment, patient, doctorId: currentDoctor
     appointmentDetail?.reason,
     appointmentDetail?.symptoms,
   ].find((value) => typeof value === 'string' && value.trim()) || '';
+  const selectedHistoryConsultation = buildConsultation(selectedHistoryAppointment);
+  const selectedScheduleLabel = selectedFollowUpDateTime
+    ? formatDateTime(selectedFollowUpDateTime)
+    : 'No follow-up time selected';
 
   const renderEmptyState = (title, description) => (
     <div className="doctor-detail-empty">
@@ -1009,584 +876,224 @@ const DoctorAppointmentDetail = ({ appointment, patient, doctorId: currentDoctor
   };
 
   return (
-    <div className="doctor-detail-layout">
+    <div className="doctor-detail-layout doctor-detail-shell">
       <div className="doctor-detail-back">
-        <button className="btn btn-link p-0 text-decoration-none" onClick={() => onBack?.()}>
+        <button className="btn btn-link p-0 text-decoration-none" onClick={() => onBack?.()} type="button">
           <i className="bi bi-arrow-left me-2"></i>
           Back to appointments
         </button>
       </div>
 
-      <div className="row g-4 align-items-stretch">
-        <div className="col-12 col-xl-4">
-          <div className="doctor-detail-stack">
-            <section className="doctor-detail-card doctor-detail-card--hero">
-              <div className="doctor-detail-card__hero-top">
-                <span className={getTypeClassName(currentAppointment?.consultationType)}>
-                  <i className={`bi ${getTypeIcon(currentAppointment?.consultationType)}`}></i>
-                  {currentAppointment?.consultationType || 'Consultation'}
-                </span>
-                <span className={getStatusClassName(currentAppointment?.status)}>
-                  {currentAppointment?.status || 'Unknown'}
-                </span>
-              </div>
-
-              <div className="doctor-detail-patient">
-                {patient?.avatarUrl ? (
-                  <img
-                    className="doctor-detail-avatar"
-                    src={patient.avatarUrl}
-                    alt={patientName}
-                  />
-                ) : (
-                  <div className="doctor-detail-avatar doctor-detail-avatar--fallback">
-                    {getPatientInitials(patientName)}
-                  </div>
-                )}
-
-                <div>
-                  <h2 className="doctor-detail-patient__name">{patientName}</h2>
-                  <p className="doctor-detail-patient__meta">
-                    {calculateAge(patient?.dateOfBirth)} yrs
-                    <span className="doctor-detail-dot"></span>
-                    {patient?.gender || 'Gender N/A'}
-                  </p>
-                </div>
-              </div>
-
-              <div className="doctor-detail-overview-grid">
-                <div className="doctor-detail-overview-item">
-                  <span className="doctor-detail-overview-item__label" aria-label="Appointment" title="Appointment">
-                    <span className="material-symbols-outlined" aria-hidden="true">calendar_month</span>
-                  </span>
-                  <span className="doctor-detail-overview-item__value">
-                    {formatDate(currentAppointment?.appointmentTime)}
-                  </span>
-                </div>
-                <div className="doctor-detail-overview-item">
-                  <span className="doctor-detail-overview-item__label" aria-label="Time" title="Time">
-                    <span className="material-symbols-outlined" aria-hidden="true">schedule</span>
-                  </span>
-                  <span className="doctor-detail-overview-item__value">
-                    {formatTime(currentAppointment?.appointmentTime)}
-                  </span>
-                </div>
-                <div className="doctor-detail-overview-item">
-                  <span className="doctor-detail-overview-item__label" aria-label="Email" title="Email">
-                    <span className="material-symbols-outlined" aria-hidden="true">mail</span>
-                  </span>
-                  <span className="doctor-detail-overview-item__value">{patientEmail}</span>
-                </div>
-                <div className="doctor-detail-overview-item">
-                  <span className="doctor-detail-overview-item__label" aria-label="Phone" title="Phone">
-                    <span className="material-symbols-outlined" aria-hidden="true">call</span>
-                  </span>
-                  <span className="doctor-detail-overview-item__value">
-                    {patient?.phoneNumber || appointmentDetail?.patientPhone || 'N/A'}
-                  </span>
-                </div>
-              </div>
-              <div className="doctor-detail-visit">
-                <div className="doctor-detail-visit__divider"></div>
-                <h3 className="doctor-detail-visit__label">Reason for visit</h3>
-                <p
-                  className={`doctor-detail-visit__content ${visitReason ? '' : 'doctor-detail-visit__content--empty'
-                    }`}
-                >
-                  {visitReason || 'The patient has not shared symptoms or a reason for this appointment yet.'}
-                </p>
-              </div>
-            </section>
-          </div>
-        </div>
-
-        <div className="col-12 col-xl-8">
-          {renderPreConsultationVitals()}
-
-          <section className="doctor-detail-card doctor-detail-workspace">
-            <div className="doctor-detail-tabs" role="tablist" aria-label="Appointment detail tabs">
-              {TABS.map((tab) => (
-                <button
-                  key={tab.id}
-                  className={`doctor-detail-tab ${activeTab === tab.id ? 'doctor-detail-tab--active' : ''}`}
-                  onClick={() => setActiveTab(tab.id)}
-                  type="button"
-                  title={tab.label}
-                  aria-label={tab.label}
-                >
-                  <i className={`bi ${tab.icon}`}></i>
-                  <span className="doctor-detail-tab__label">{tab.shortLabel || tab.label}</span>
-                  {tab.id === 'shared' && sharedRecordCount > 0 ? (
-                    <span className="doctor-detail-tab__count">{sharedRecordCount}</span>
-                  ) : null}
-                </button>
-              ))}
+      <section className="doctor-detail-summary-card">
+        <div className="doctor-detail-summary-card__main">
+          {patient?.avatarUrl ? (
+            <img
+              className="doctor-detail-avatar doctor-detail-avatar--round"
+              src={patient.avatarUrl}
+              alt={patientName}
+            />
+          ) : (
+            <div className="doctor-detail-avatar doctor-detail-avatar--fallback doctor-detail-avatar--round">
+              {getPatientInitials(patientName)}
             </div>
+          )}
 
-            <div className="doctor-detail-tab-panel">
-              {activeTab === 'notes' && (
-                <>
-                  {loadingAppointment ? (
-                    <div className="text-center py-5">
-                      <div className="spinner-border text-primary" role="status">
-                        <span className="visually-hidden">Loading...</span>
-                      </div>
-                    </div>
-                  ) : (
-                    <div className="doctor-notes-workspace">
-                      {!canEditClinical && !isReadOnlyAppointment ? (
-                        <div className="doctor-detail-note-card doctor-notes-lock">
-                          <p className="doctor-detail-note-card__label">Locked</p>
-                          <p className="doctor-detail-note-card__value">
-                            Start the consultation when the appointment time arrives to record diagnosis, notes, and treatment plan.
-                          </p>
-                        </div>
-                      ) : null}
-
-                      <label className="doctor-notes-field">
-                        <span>Diagnosis</span>
-                        <textarea
-                          className="form-control doctor-prescription-input doctor-prescription-input--textarea"
-                          disabled={!canEditClinical || savingNotes}
-                          onChange={(event) => handleNotesDraftChange('diagnosis', event.target.value)}
-                          placeholder="Enter the primary diagnosis..."
-                          rows="3"
-                          value={notesDraft.diagnosis}
-                        />
-                      </label>
-
-                      <label className="doctor-notes-field">
-                        <span>Doctor Notes</span>
-                        <textarea
-                          className="form-control doctor-prescription-input doctor-prescription-input--textarea"
-                          disabled={!canEditClinical || savingNotes}
-                          onChange={(event) => handleNotesDraftChange('doctorNotes', event.target.value)}
-                          placeholder="Record observations, assessment, and consultation notes..."
-                          rows="5"
-                          value={notesDraft.doctorNotes}
-                        />
-                      </label>
-
-                      <label className="doctor-notes-field">
-                        <span>Treatment Plan</span>
-                        <textarea
-                          className="form-control doctor-prescription-input doctor-prescription-input--textarea"
-                          disabled={!canEditClinical || savingNotes}
-                          onChange={(event) => handleNotesDraftChange('treatmentPlan', event.target.value)}
-                          placeholder="Outline treatment plan, lifestyle guidance, and next steps..."
-                          rows="4"
-                          value={notesDraft.treatmentPlan}
-                        />
-                      </label>
-
-                      <div className="doctor-notes-actions">
-                        <button
-                          className="btn btn-primary"
-                          disabled={!canEditClinical || savingNotes}
-                          onClick={handleSaveNotes}
-                          type="button"
-                        >
-                          <i className="bi bi-save me-2"></i>
-                          {savingNotes ? 'Saving...' : 'Save Notes'}
-                        </button>
-                      </div>
-                    </div>
-                  )}
-                </>
-              )}
-
-              {activeTab === 'history' && (
-                <>
-                  {loadingHistory ? (
-                    <div className="text-center py-5">
-                      <div className="spinner-border text-primary" role="status">
-                        <span className="visually-hidden">Loading...</span>
-                      </div>
-                    </div>
-                  ) : (
-                    <div className="doctor-detail-history">
-                      {completedHistory.length > 0 ? (
-                        <div className="doctor-detail-history-list">
-                          {completedHistory.map((historyItem) => (
-                            <article className="doctor-detail-history-card" key={historyItem.appointmentID || historyItem.appointmentId}>
-                              <div className="doctor-detail-history-card__header">
-                                <div className="doctor-detail-history-card__header-main">
-                                  <div>
-                                    <p className="doctor-detail-history-card__eyebrow">Completed visit</p>
-                                    <h4>{formatDate(historyItem.appointmentTime)}</h4>
-                                  </div>
-                                  <p className="doctor-detail-history-card__time">
-                                    <i className="bi bi-clock me-2"></i>
-                                    {formatTime(historyItem.appointmentTime)}
-                                  </p>
-                                </div>
-                                <div className="doctor-detail-history-card__header-row">
-                                  <p className="doctor-detail-history-card__chips">
-                                    <span className={getStatusClassName(historyItem.status)}>
-                                      {historyItem.status}
-                                    </span>
-                                    <span className={getTypeClassName(historyItem.consultationType)}>
-                                      {historyItem.consultationType}
-                                    </span>
-                                  </p>
-                                  <button
-                                    className="btn btn-outline-primary btn-sm doctor-detail-history-card__action"
-                                    onClick={() => handleViewAppointmentDetail(historyItem.appointmentID)}
-                                    type="button"
-                                  >
-                                    Open snapshot
-                                  </button>
-                                </div>
-                              </div>
-
-                              <div className="doctor-detail-history-card__body">
-                                <div className="doctor-detail-history-card__fact">
-                                  <span className="doctor-detail-history-card__fact-label">Provider</span>
-                                  <p className="doctor-detail-history-card__fact-value">
-                                    {historyItem.doctorName || 'N/A'}
-                                    {historyItem.doctorSpecialty ? ` - ${historyItem.doctorSpecialty}` : ''}
-                                  </p>
-                                </div>
-                                {historyItem.symptoms ? (
-                                  <div className="doctor-detail-history-card__fact">
-                                    <span className="doctor-detail-history-card__fact-label">Visit reason</span>
-                                    <p className="doctor-detail-history-card__fact-value">{historyItem.symptoms}</p>
-                                  </div>
-                                ) : null}
-                                {historyItem.diagnosis ? (
-                                  <div className="doctor-detail-history-card__fact">
-                                    <span className="doctor-detail-history-card__fact-label">Diagnosis</span>
-                                    <p className="doctor-detail-history-card__fact-value">{historyItem.diagnosis}</p>
-                                  </div>
-                                ) : null}
-                              </div>
-                            </article>
-                          ))}
-                        </div>
-                      ) : (
-                        renderEmptyState(
-                          'No completed appointments found',
-                          'Completed visits for this patient will appear here once they become available.',
-                        )
-                      )}
-                    </div>
-                  )}
-                </>
-              )}
-
-              {activeTab === 'shared' && (
-                <div className="doctor-detail-shared">
-                  <p className="doctor-detail-shared__intro">
-                    Shared records available for {patientName}
-                  </p>
-                  <SharedRecordsView doctorId={effectiveDoctorId} patientFilter={patientId} />
-                </div>
-              )}
-
-              <div hidden={activeTab !== 'prescription'}>
-                <DoctorPrescriptionWorkspace
-                  appointment={currentAppointment}
-                  patient={patient}
-                  consultation={consultation}
-                  prescription={prescription}
-                  loadingPrescription={loadingPrescription}
-                  onDraftChange={setPrescriptionDraft}
-                  readOnly={!canEditClinical || isReadOnlyAppointment}
-                />
-              </div>
-
-              {activeTab === 'followup' && (
-                <div className="doctor-detail-followup">
-                  {consultation.followUpDate || consultation.followUpNotes ? (
-                    <div className="doctor-detail-followup__summary">
-                      <div className="doctor-detail-note-card">
-                        <p className="doctor-detail-note-card__label">Saved Date</p>
-                        <p className="doctor-detail-note-card__value">
-                          {consultation.followUpDate ? formatDateTime(consultation.followUpDate) : 'Not scheduled'}
-                        </p>
-                      </div>
-                      <div className="doctor-detail-note-card">
-                        <p className="doctor-detail-note-card__label">Saved Notes</p>
-                        <p className="doctor-detail-note-card__value">
-                          {consultation.followUpNotes || 'No follow-up notes recorded.'}
-                        </p>
-                      </div>
-                    </div>
-                  ) : null}
-
-                  <div className="doctor-detail-followup__planner">
-                    <div className="doctor-detail-followup__calendar">
-                      <div className="doctor-detail-followup__header">
-                        <div>
-                          <p className="doctor-detail-eyebrow mb-1">Follow-up</p>
-                          <h3 className="doctor-detail-section-title doctor-detail-section-title--compact">
-                            Select a date
-                          </h3>
-                        </div>
-                        {loadingFollowUpCalendar ? (
-                          <span className="doctor-detail-followup__loading">Refreshing</span>
-                        ) : null}
-                      </div>
-
-                      <Calendar
-                        minDate={new Date()}
-                        onActiveStartDateChange={handleFollowUpMonthChange}
-                        onChange={handleFollowUpDateChange}
-                        tileClassName={({ date, view }) => {
-                          if (view !== 'month') return null;
-                          const day = followUpCalendarDayMap.get(toLocalDateValue(date));
-                          if (!day) return null;
-                          return [
-                            day.hasAppointments ? 'doctor-followup-calendar__tile--busy' : '',
-                            day.availableSlots === 0 ? 'doctor-followup-calendar__tile--full' : '',
-                          ].filter(Boolean).join(' ');
-                        }}
-                        tileContent={({ date, view }) => {
-                          if (view !== 'month') return null;
-                          const day = followUpCalendarDayMap.get(toLocalDateValue(date));
-                          if (!day?.hasAppointments) return null;
-                          return <span className="doctor-followup-calendar__dot"></span>;
-                        }}
-                        value={followUpSelectedDate}
-                      />
-                    </div>
-
-                    <div className="doctor-detail-followup__slots">
-                      <div className="doctor-detail-followup__header">
-                        <div>
-                          <p className="doctor-detail-eyebrow mb-1">
-                            {followUpSelectedDateValue || 'Selected day'}
-                          </p>
-                          <h3 className="doctor-detail-section-title doctor-detail-section-title--compact">
-                            Available slots
-                          </h3>
-                        </div>
-                      </div>
-
-                      {loadingFollowUpSlots ? (
-                        <div className="doctor-detail-followup__slot-skeleton">
-                          <span className="spinner-border spinner-border-sm me-2" aria-hidden="true"></span>
-                          Loading slots...
-                        </div>
-                      ) : followUpSlots.length > 0 ? (
-                        <div className="doctor-detail-followup__slot-grid">
-                          {followUpSlots.map((slot) => {
-                            const slotDateTime = buildFollowUpDateTime(followUpSelectedDate, slot.startTime);
-                            const isSelected = selectedFollowUpDateTime === slotDateTime;
-
-                            return (
-                              <button
-                                className={[
-                                  'doctor-followup-slot',
-                                  slot.selectable ? 'doctor-followup-slot--available' : 'doctor-followup-slot--disabled',
-                                  isSelected ? 'doctor-followup-slot--selected' : '',
-                                ].filter(Boolean).join(' ')}
-                                disabled={!slot.selectable || isReadOnlyAppointment || savingFollowUp}
-                                key={slot.startTime}
-                                onClick={() => handleSelectFollowUpSlot(slot)}
-                                title={slot.disabledReason || slot.label}
-                                data-followup-action="select-slot"
-                                type="button"
-                              >
-                                <span className="doctor-followup-slot__time">{slot.label}</span>
-                                <span className="doctor-followup-slot__status">
-                                  {slot.status === 'BOOKED'
-                                    ? 'Booked'
-                                    : slot.status === 'DISABLED'
-                                      ? slot.disabledReason || 'Disabled'
-                                      : isSelected
-                                        ? followUpAction === 'save'
-                                          ? 'Saving'
-                                          : 'Selected'
-                                        : 'Available'}
-                                </span>
-                              </button>
-                            );
-                          })}
-                        </div>
-                      ) : (
-                        renderEmptyState(
-                          'No slots available',
-                          'Choose another date to view follow-up availability.',
-                        )
-                      )}
-
-                      <label className="doctor-detail-followup__notes">
-                        <span>Follow-up notes</span>
-                        <textarea
-                          className="form-control doctor-prescription-input doctor-prescription-input--textarea"
-                          disabled={isReadOnlyAppointment || savingFollowUp}
-                          onBlur={handleFollowUpNotesBlur}
-                          onChange={(event) => setFollowUpNotes(event.target.value)}
-                          placeholder="Add concise notes for the next appointment..."
-                          rows="4"
-                          value={followUpNotes}
-                        />
-                      </label>
-
-                      <div className="doctor-detail-followup__actions">
-                        {canCancelFollowUp ? (
-                          <button
-                            className="btn btn-outline-danger"
-                            disabled={savingFollowUp}
-                            onClick={handleCancelFollowUp}
-                            data-followup-action="cancel"
-                            type="button"
-                          >
-                            {followUpAction === 'cancel' ? 'Cancelling...' : 'Cancel follow-up'}
-                          </button>
-                        ) : null}
-                      </div>
-                    </div>
-                  </div>
-                </div>
-              )}
+          <div className="doctor-detail-summary-card__identity">
+            <div className="doctor-detail-summary-card__title-row">
+              <h2>{patientName}</h2>
+              <span className={getStatusClassName(currentAppointment?.status)}>
+                {currentAppointment?.status || 'Unknown'}
+              </span>
             </div>
-
-            <div className="doctor-detail-actionbar doctor-detail-actionbar--workspace">
-              <div className="doctor-detail-actionbar__group">
-                <button className="btn btn-outline-primary" onClick={handleChat} type="button">
-                  <i className="bi bi-chat-dots me-2"></i>
-                  Send Message
-                </button>
-              </div>
-              <div className="doctor-detail-actionbar__group doctor-detail-actionbar__group--primary">
-                <button
-                  className="btn btn-outline-success"
-                  disabled={!canStartConsultation}
-                  onClick={handleStartConsultation}
-                  title={
-                    hasStarted
-                      ? 'Consultation already started'
-                      : !hasAppointmentTimeArrived
-                        ? 'Consultation can only be started when the appointment time arrives'
-                        : isCancelledAppointment || isReadOnlyAppointment
-                          ? 'This appointment cannot be started'
-                          : 'Start consultation'
-                  }
-                  type="button"
-                >
-                  <i className="bi bi-play-circle me-2"></i>
-                  {startingConsultation ? 'Starting...' : hasStarted ? 'Started' : 'Start Consultation'}
-                </button>
-                <button
-                  className="btn btn-primary"
-                  onClick={() => {
-                    if (currentAppointment?.consultationType === 'Chat') {
-                      handleChat();
-                      return;
-                    }
-                    handleVideoCall();
-                  }}
-                  type="button"
-                  title={
-                    !hasStarted
-                      ? 'Start the consultation first'
-                      : actionLabel
-                  }
-                  disabled={joinDisabled}
-                >
-                  <i className={`bi ${getTypeIcon(currentAppointment?.consultationType)} me-2`}></i>
-                  {actionLabel}
-                </button>
-                <button
-                  className="btn btn-success"
-                  onClick={() => setShowCompleteConfirmModal(true)}
-                  type="button"
-                  disabled={!canEditClinical || completingAppointment}
-                >
-                  <i className="bi bi-check-circle me-2"></i>
-                  {completingAppointment ? 'Completing...' : 'Complete Consultation'}
-                </button>
-              </div>
-            </div>
-          </section>
-        </div>
-      </div>
-
-      {showDetailModal && selectedHistoryAppointment ? (
-        <div className="modal show d-block" tabIndex="-1" style={{ backgroundColor: 'rgba(15, 23, 42, 0.45)' }}>
-          <div className="modal-dialog modal-lg modal-dialog-scrollable">
-            <div className="modal-content border-0 shadow-lg">
-              <div className="modal-header">
-                <h5 className="modal-title fw-bold">Appointment Snapshot</h5>
-                <button
-                  type="button"
-                  className="btn-close"
-                  onClick={() => setShowDetailModal(false)}
-                ></button>
-              </div>
-              <div className="modal-body">
-                <div className="doctor-detail-modal-grid">
-                  <div className="doctor-detail-note-card">
-                    <p className="doctor-detail-note-card__label">Date & Time</p>
-                    <p className="doctor-detail-note-card__value">
-                      {formatDateTime(selectedHistoryAppointment.appointmentTime)}
-                    </p>
-                  </div>
-                  <div className="doctor-detail-note-card">
-                    <p className="doctor-detail-note-card__label">Consultation Type</p>
-                    <p className="doctor-detail-note-card__value">
-                      {selectedHistoryAppointment.consultationType || 'N/A'}
-                    </p>
-                  </div>
-                  <div className="doctor-detail-note-card">
-                    <p className="doctor-detail-note-card__label">Doctor</p>
-                    <p className="doctor-detail-note-card__value">
-                      {selectedHistoryAppointment.doctorName || 'N/A'}
-                    </p>
-                  </div>
-                  <div className="doctor-detail-note-card">
-                    <p className="doctor-detail-note-card__label">Status</p>
-                    <p className="doctor-detail-note-card__value">
-                      {selectedHistoryAppointment.status || 'N/A'}
-                    </p>
-                  </div>
-                </div>
-
-                {buildConsultation(selectedHistoryAppointment).diagnosis ? (
-                  <div className="doctor-detail-note-card mt-3">
-                    <p className="doctor-detail-note-card__label">Diagnosis</p>
-                    <p className="doctor-detail-note-card__value">
-                      {buildConsultation(selectedHistoryAppointment).diagnosis}
-                    </p>
-                  </div>
-                ) : null}
-
-                {buildConsultation(selectedHistoryAppointment).doctorNotes ? (
-                  <div className="doctor-detail-note-card mt-3">
-                    <p className="doctor-detail-note-card__label">Doctor Notes</p>
-                    <p className="doctor-detail-note-card__value">
-                      {buildConsultation(selectedHistoryAppointment).doctorNotes}
-                    </p>
-                  </div>
-                ) : null}
-
-                {selectedHistoryAppointment?.prescription?.medications?.length ? (
-                  <div className="doctor-detail-note-card mt-3">
-                    <p className="doctor-detail-note-card__label">Prescription</p>
-                    <div className="doctor-detail-prescription__list mt-2">
-                      {selectedHistoryAppointment.prescription.medications.map((medication, index) => (
-                        <div className="doctor-detail-prescription__item" key={`${medication.medicationName}-${index}`}>
-                          <div className="doctor-detail-prescription__item-top">
-                            <h4>{medication.medicationName}</h4>
-                            <span>{medication.dosage}</span>
-                          </div>
-                          <p>{medication.instructions}</p>
-                          <small>{medication.totalSupplyDays} days supply</small>
-                        </div>
-                      ))}
-                    </div>
-                  </div>
-                ) : null}
-              </div>
+            <div className="doctor-detail-summary-card__meta">
+              <span>
+                <i className="bi bi-cake2"></i>
+                {calculateAge(patient?.dateOfBirth)} yrs
+              </span>
+              <span>
+                <i className="bi bi-person"></i>
+                {patient?.gender || 'Gender N/A'}
+              </span>
+              <span>
+                <i className="bi bi-envelope"></i>
+                {patientEmail}
+              </span>
+              <span>
+                <i className="bi bi-telephone"></i>
+                {patient?.phoneNumber || appointmentDetail?.patientPhone || 'N/A'}
+              </span>
             </div>
           </div>
         </div>
-      ) : null}
+
+        <div className="doctor-detail-summary-card__visit">
+          <p className="doctor-detail-eyebrow mb-1">Reason for Visit</p>
+          <p className={`doctor-detail-summary-card__reason ${visitReason ? '' : 'doctor-detail-summary-card__reason--empty'}`}>
+            {visitReason || 'No reason shared yet.'}
+          </p>
+          <div className="doctor-detail-summary-card__chips">
+            <span className={getTypeClassName(currentAppointment?.consultationType)}>
+              <i className={`bi ${getTypeIcon(currentAppointment?.consultationType)}`}></i>
+              {currentAppointment?.consultationType || 'Consultation'}
+            </span>
+            <span className="doctor-detail-chip">
+              <i className="bi bi-calendar-event"></i>
+              {formatDateTime(currentAppointment?.appointmentTime)}
+            </span>
+            <span className="doctor-detail-chip">
+              ID: {currentAppointment?.appointmentID || currentAppointment?.appointmentId || 'N/A'}
+            </span>
+          </div>
+        </div>
+      </section>
+
+      <section className="doctor-detail-card doctor-detail-workspace doctor-detail-workspace--full">
+        <div className="doctor-detail-tabs" role="tablist" aria-label="Appointment detail tabs">
+          {TABS.map((tab) => (
+            <button
+              key={tab.id}
+              className={`doctor-detail-tab ${activeTab === tab.id ? 'doctor-detail-tab--active' : ''}`}
+              onClick={() => setActiveTab(tab.id)}
+              type="button"
+              title={tab.label}
+              aria-label={tab.label}
+            >
+              <i className={`bi ${tab.icon}`}></i>
+              <span className="doctor-detail-tab__label">{tab.label}</span>
+            </button>
+          ))}
+        </div>
+
+        <div className="doctor-detail-tab-panel doctor-detail-tab-panel--workspace">
+          {activeTab === 'notes' ? (
+            <ConsultationNotesTab
+              loadingAppointment={loadingAppointment}
+              visitReason={visitReason}
+              canEditClinical={canEditClinical}
+              isReadOnlyAppointment={isReadOnlyAppointment}
+              savingNotes={savingNotes}
+              notesDraft={notesDraft}
+              onNotesChange={handleNotesDraftChange}
+              onSaveNotes={handleSaveNotes}
+            />
+          ) : null}
+          {activeTab === 'history' ? (
+            <MedicalHistoryTab
+              loadingHistory={loadingHistory}
+              completedHistory={completedHistory}
+              selectedHistoryAppointment={selectedHistoryAppointment}
+              loadingHistorySnapshot={loadingHistorySnapshot}
+              selectedHistoryConsultation={selectedHistoryConsultation}
+              onViewAppointmentDetail={handleViewAppointmentDetail}
+              renderEmptyState={renderEmptyState}
+              formatCompactDate={formatCompactDate}
+              formatTime={formatTime}
+              formatDate={formatDate}
+              getStatusClassName={getStatusClassName}
+              getTypeIcon={getTypeIcon}
+            />
+          ) : null}
+          {activeTab === 'shared' ? <SharedRecordsTab /> : null}
+          <div hidden={activeTab !== 'prescription'} className="doctor-detail-prescription-panel">
+            <DoctorPrescriptionWorkspace
+              appointment={currentAppointment}
+              patient={patient}
+              consultation={consultation}
+              prescription={prescription}
+              loadingPrescription={loadingPrescription}
+              onDraftChange={setPrescriptionDraft}
+              readOnly={!canEditClinical || isReadOnlyAppointment}
+            />
+          </div>
+          {activeTab === 'followup' ? (
+            <FollowUpTab
+              canEditFollowUp={canEditFollowUp}
+              isReadOnlyAppointment={isReadOnlyAppointment}
+              consultation={consultation}
+              formatDateTime={formatDateTime}
+              loadingFollowUpCalendar={loadingFollowUpCalendar}
+              followUpCalendarDayMap={followUpCalendarDayMap}
+              followUpSelectedDate={followUpSelectedDate}
+              toLocalDateValue={toLocalDateValue}
+              onFollowUpMonthChange={handleFollowUpMonthChange}
+              onFollowUpDateChange={handleFollowUpDateChange}
+              loadingFollowUpSlots={loadingFollowUpSlots}
+              followUpSlots={followUpSlots}
+              buildFollowUpDateTime={buildFollowUpDateTime}
+              selectedFollowUpDateTime={selectedFollowUpDateTime}
+              savingFollowUp={savingFollowUp}
+              onSelectFollowUpSlot={handleSelectFollowUpSlot}
+              selectedScheduleLabel={selectedScheduleLabel}
+              canCancelFollowUp={canCancelFollowUp}
+              onCancelFollowUp={handleCancelFollowUp}
+              followUpAction={followUpAction}
+              onConfirmFollowUp={handleConfirmFollowUp}
+              currentAppointment={currentAppointment}
+              getTypeIcon={getTypeIcon}
+              followUpNotes={followUpNotes}
+              onFollowUpNotesChange={setFollowUpNotes}
+              renderEmptyState={renderEmptyState}
+            />
+          ) : null}
+        </div>
+
+        <div className="doctor-detail-actionbar doctor-detail-actionbar--workspace doctor-detail-actionbar--consultation">
+          <div className="doctor-detail-actionbar__group">
+            <button className="btn btn-outline-primary" onClick={handleChat} type="button">
+              <i className="bi bi-chat-dots me-2"></i>
+              Send Message
+            </button>
+          </div>
+          <div className="doctor-detail-actionbar__group doctor-detail-actionbar__group--primary">
+            <button
+              className="btn btn-outline-success"
+              disabled={!canStartConsultation}
+              onClick={handleStartConsultation}
+              title={
+                hasStarted
+                  ? 'Consultation already started'
+                  : !hasAppointmentTimeArrived
+                    ? 'Consultation can only be started when the appointment time arrives'
+                    : isCancelledAppointment || isReadOnlyAppointment
+                      ? 'This appointment cannot be started'
+                      : 'Start consultation'
+              }
+              type="button"
+            >
+              <i className="bi bi-play-circle me-2"></i>
+              {startingConsultation ? 'Starting...' : hasStarted ? 'Started' : 'Start Consultation'}
+            </button>
+            <button
+              className="btn btn-primary"
+              onClick={() => {
+                if (currentAppointment?.consultationType === 'Chat') {
+                  handleChat();
+                  return;
+                }
+                handleVideoCall();
+              }}
+              type="button"
+              title={!hasStarted ? 'Start the consultation first' : actionLabel}
+              disabled={joinDisabled}
+            >
+              <i className={`bi ${getTypeIcon(currentAppointment?.consultationType)} me-2`}></i>
+              {actionLabel}
+            </button>
+            <button
+              className="btn btn-success"
+              onClick={() => setShowCompleteConfirmModal(true)}
+              type="button"
+              disabled={!canEditClinical || completingAppointment}
+            >
+              <i className="bi bi-check-circle me-2"></i>
+              {completingAppointment ? 'Completing...' : 'Complete Consultation'}
+            </button>
+          </div>
+        </div>
+      </section>
 
       {showCompleteConfirmModal ? (
-        <div className="modal show d-block" tabIndex="-1" style={{ backgroundColor: 'rgba(15, 23, 42, 0.45)' }}>
+        <div className="modal show d-block doctor-detail-modal-overlay" tabIndex="-1">
           <div className="modal-dialog modal-dialog-centered">
             <div className="modal-content border-0 shadow-lg">
               <div className="modal-header border-0 pb-0">

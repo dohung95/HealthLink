@@ -1,8 +1,29 @@
-import React, { useState, useEffect } from 'react';
+import React, { useCallback, useEffect, useState } from 'react';
 import Calendar from 'react-calendar';
-import { doctorScheduleService } from '../../../../api/doctorApi';
 import { toast } from 'sonner';
+import { doctorScheduleService } from '../../../../api/doctorApi';
 import 'react-calendar/dist/Calendar.css';
+
+const getMonthRange = (date) => {
+  const start = new Date(date.getFullYear(), date.getMonth(), 1);
+  const end = new Date(date.getFullYear(), date.getMonth() + 1, 0);
+  return { start, end };
+};
+
+const toDateValue = (date) => date.toISOString().split('T')[0];
+
+const formatTime = (time) => {
+  if (!time) return '';
+  const parts = String(time).split(':');
+  return `${parts[0]}:${parts[1]}`;
+};
+
+const STATUS_CLASSES = {
+  WORKING: 'doctor-schedule-item__tag bg-success/10 text-success',
+  DAY_OFF: 'doctor-schedule-item__tag bg-critical/10 text-critical',
+  MODIFIED: 'doctor-schedule-item__tag bg-warning/10 text-warning',
+  NO_SCHEDULE: 'doctor-schedule-item__tag bg-surface-container text-text-muted',
+};
 
 const ScheduleCalendarView = ({ exceptions, onCreateException, onRefresh }) => {
   const [selectedDate, setSelectedDate] = useState(new Date());
@@ -10,44 +31,30 @@ const ScheduleCalendarView = ({ exceptions, onCreateException, onRefresh }) => {
   const [loading, setLoading] = useState(false);
   const [selectedDaySlots, setSelectedDaySlots] = useState(null);
   const [deletingId, setDeletingId] = useState(null);
-
-  // Calculate current month range
-  const getMonthRange = (date) => {
-    const start = new Date(date.getFullYear(), date.getMonth(), 1);
-    const end = new Date(date.getFullYear(), date.getMonth() + 1, 0);
-    return { start, end };
-  };
-
   const [viewRange, setViewRange] = useState(() => getMonthRange(new Date()));
 
-  useEffect(() => {
-    fetchCalendarData();
-  }, [viewRange]);
-
-  const fetchCalendarData = async () => {
+  const fetchCalendarData = useCallback(async () => {
     try {
       setLoading(true);
-      const startDate = viewRange.start.toISOString().split('T')[0];
-      const endDate = viewRange.end.toISOString().split('T')[0];
-      const data = await doctorScheduleService.getCalendarView(startDate, endDate);
+      const data = await doctorScheduleService.getCalendarView(toDateValue(viewRange.start), toDateValue(viewRange.end));
       setCalendarData(data);
+      const selectedDay = data.find((day) => day.date === toDateValue(selectedDate));
+      setSelectedDaySlots(selectedDay || null);
     } catch (err) {
       console.error('Error fetching calendar data:', err);
       toast.error('Failed to load calendar data');
     } finally {
       setLoading(false);
     }
-  };
+  }, [selectedDate, viewRange]);
 
-  const handleActiveStartDateChange = ({ activeStartDate, view }) => {
-    if (view === 'month') {
-      setViewRange(getMonthRange(activeStartDate));
-    }
-  };
+  useEffect(() => {
+    fetchCalendarData();
+  }, [fetchCalendarData]);
 
   const getDayData = (date) => {
-    const dateStr = date.toISOString().split('T')[0];
-    return calendarData.find(d => d.date === dateStr);
+    const dateStr = toDateValue(date);
+    return calendarData.find((day) => day.date === dateStr);
   };
 
   const tileClassName = ({ date, view }) => {
@@ -56,39 +63,41 @@ const ScheduleCalendarView = ({ exceptions, onCreateException, onRefresh }) => {
     if (!dayData) return 'calendar-day-no-schedule';
 
     switch (dayData.status) {
-      case 'WORKING': return 'calendar-day-working';
-      case 'DAY_OFF': return 'calendar-day-off';
-      case 'MODIFIED': return 'calendar-day-modified';
-      default: return 'calendar-day-no-schedule';
+      case 'WORKING':
+        return 'calendar-day-working';
+      case 'DAY_OFF':
+        return 'calendar-day-off';
+      case 'MODIFIED':
+        return 'calendar-day-modified';
+      default:
+        return 'calendar-day-no-schedule';
     }
   };
 
   const tileContent = ({ date, view }) => {
     if (view !== 'month') return null;
     const dayData = getDayData(date);
-    if (!dayData || !dayData.slots) return null;
+    if (!dayData?.slots?.length) return null;
 
-    const bookedCount = dayData.slots.filter(s => s.status === 'BOOKED').length;
-    const availableCount = dayData.slots.filter(s => s.status === 'AVAILABLE').length;
+    const bookedCount = dayData.slots.filter((slot) => slot.status === 'BOOKED').length;
+    if (!bookedCount) return null;
 
-    if (bookedCount > 0 || availableCount > 0) {
-      return (
-        <div className="calendar-tile-info">
-          {bookedCount > 0 && (
-            <span className="badge bg-primary rounded-pill" style={{ fontSize: '10px' }}>
-              {bookedCount}
-            </span>
-          )}
-        </div>
-      );
+    return (
+      <div className="calendar-tile-info">
+        <span className="calendar-tile-info__count">{bookedCount}</span>
+      </div>
+    );
+  };
+
+  const handleActiveStartDateChange = ({ activeStartDate, view }) => {
+    if (view === 'month') {
+      setViewRange(getMonthRange(activeStartDate));
     }
-    return null;
   };
 
   const handleDateClick = (date) => {
     setSelectedDate(date);
-    const dayData = getDayData(date);
-    setSelectedDaySlots(dayData);
+    setSelectedDaySlots(getDayData(date) || null);
   };
 
   const handleDeleteException = async (exceptionId) => {
@@ -108,22 +117,14 @@ const ScheduleCalendarView = ({ exceptions, onCreateException, onRefresh }) => {
     }
   };
 
-  const formatTime = (time) => {
-    if (!time) return '';
-    const parts = time.split(':');
-    return `${parts[0]}:${parts[1]}`;
-  };
-
-  // Filter upcoming exceptions (next 30 days)
   const upcomingExceptions = exceptions
-    .filter(e => new Date(e.exceptionDate) >= new Date())
-    .sort((a, b) => new Date(a.exceptionDate) - new Date(b.exceptionDate))
+    .filter((exception) => new Date(exception.exceptionDate) >= new Date())
+    .sort((left, right) => new Date(left.exceptionDate) - new Date(right.exceptionDate))
     .slice(0, 5);
 
   return (
     <div className="schedule-calendar-view">
       <div className="row g-4">
-        {/* Calendar */}
         <div className="col-lg-8">
           <div className="card shadow-sm">
             <div className="card-body">
@@ -146,157 +147,80 @@ const ScheduleCalendarView = ({ exceptions, onCreateException, onRefresh }) => {
               />
             </div>
           </div>
+        </div>
 
-          {/* Selected Day Details */}
-          {selectedDaySlots && (
-            <div className="card shadow-sm mt-4">
-              <div className="card-header bg-light">
-                <h6 className="mb-0">
-                  {selectedDate.toLocaleDateString('en-US', {
-                    weekday: 'long',
-                    year: 'numeric',
-                    month: 'long',
-                    day: 'numeric'
-                  })}
-                  <span className={`badge ms-2 ${
-                    selectedDaySlots.status === 'WORKING' ? 'bg-success' :
-                    selectedDaySlots.status === 'DAY_OFF' ? 'bg-danger' :
-                    selectedDaySlots.status === 'MODIFIED' ? 'bg-warning' :
-                    'bg-secondary'
-                  }`}>
-                    {selectedDaySlots.status?.replace('_', ' ')}
-                  </span>
-                </h6>
-              </div>
-              <div className="card-body">
-                {selectedDaySlots.slots && selectedDaySlots.slots.length > 0 ? (
-                  <div className="row g-2">
-                    {selectedDaySlots.slots.map((slot, idx) => (
-                      <div key={idx} className="col-6 col-md-4 col-lg-3">
-                        <div className={`p-2 rounded text-center border ${
-                          slot.status === 'BOOKED' ? 'bg-primary bg-opacity-10 border-primary' :
-                          slot.status === 'HELD' ? 'bg-warning bg-opacity-10 border-warning' :
-                          'bg-success bg-opacity-10 border-success'
-                        }`}>
-                          <div className="fw-bold small">
-                            {formatTime(slot.startTime)} - {formatTime(slot.endTime)}
-                          </div>
-                          <div className="small text-muted">
-                            {slot.status === 'BOOKED' && slot.patientName ? (
-                              <span className="text-primary">{slot.patientName}</span>
-                            ) : (
-                              slot.status
-                            )}
-                          </div>
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                ) : (
-                  <p className="text-muted mb-0">No slots for this day</p>
-                )}
-
-                <div className="mt-3">
-                  <button
-                    className="btn btn-outline-primary btn-sm"
-                    onClick={() => onCreateException(selectedDate)}
-                  >
-                    <span className="material-symbols-outlined me-1" style={{ fontSize: '16px', verticalAlign: 'middle' }}>
-                      add
-                    </span>
-                    Add Exception for this day
-                  </button>
+        <aside className="col-lg-4 d-flex flex-column gap-3">
+          <section className="doctor-calendar-panel">
+            <div className="doctor-calendar-panel__header">
+              <h3 className="doctor-calendar-panel__title">Legend</h3>
+            </div>
+            <div className="doctor-calendar-panel__body">
+              <div className="doctor-legend">
+                <div className="doctor-legend__item">
+                  <span className="doctor-legend__dot doctor-legend__dot--working" />
+                  Working (Available)
+                </div>
+                <div className="doctor-legend__item">
+                  <span className="doctor-legend__dot doctor-legend__dot--dayoff" />
+                  Day Off
+                </div>
+                <div className="doctor-legend__item">
+                  <span className="doctor-legend__dot doctor-legend__dot--modified" />
+                  Modified Hours
+                </div>
+                <div className="doctor-legend__item">
+                  <span className="doctor-legend__dot doctor-legend__dot--noschedule" />
+                  No Schedule
                 </div>
               </div>
             </div>
-          )}
-        </div>
+          </section>
 
-        {/* Sidebar */}
-        <div className="col-lg-4">
-          {/* Legend */}
-          <div className="card shadow-sm mb-4">
-            <div className="card-header bg-light">
-              <h6 className="mb-0">Legend</h6>
+          <section className="doctor-calendar-panel">
+            <div className="doctor-calendar-panel__header">
+              <h3 className="doctor-calendar-panel__title">Upcoming Exceptions</h3>
+              <span className="doctor-calendar-panel__badge">{upcomingExceptions.length}</span>
             </div>
-            <div className="card-body">
-              <div className="d-flex align-items-center mb-2">
-                <span className="legend-dot bg-success me-2"></span>
-                Working (Available)
-              </div>
-              <div className="d-flex align-items-center mb-2">
-                <span className="legend-dot bg-danger me-2"></span>
-                Day Off
-              </div>
-              <div className="d-flex align-items-center mb-2">
-                <span className="legend-dot bg-warning me-2"></span>
-                Modified Hours
-              </div>
-              <div className="d-flex align-items-center">
-                <span className="legend-dot bg-secondary me-2"></span>
-                No Schedule
-              </div>
-            </div>
-          </div>
-
-          {/* Upcoming Exceptions */}
-          <div className="card shadow-sm">
-            <div className="card-header bg-light d-flex justify-content-between align-items-center">
-              <h6 className="mb-0">Upcoming Exceptions</h6>
-              <span className="badge bg-secondary">{upcomingExceptions.length}</span>
-            </div>
-            <div className="card-body">
+            <div className="doctor-calendar-panel__body d-flex flex-column gap-2">
               {upcomingExceptions.length === 0 ? (
-                <p className="text-muted mb-0">No upcoming exceptions</p>
+                <p className="mb-0 text-sm text-text-muted">No upcoming exceptions.</p>
               ) : (
-                upcomingExceptions.map(ex => (
-                  <div key={ex.exceptionId} className="exception-item mb-3 p-3 border rounded">
-                    <div className="d-flex justify-content-between align-items-start">
-                      <div>
-                        <strong>{new Date(ex.exceptionDate).toLocaleDateString()}</strong>
-                        <span className={`badge ms-2 ${
-                          ex.exceptionType === 'DayOff' ? 'bg-danger' :
-                          ex.exceptionType === 'Modified' ? 'bg-warning' :
-                          'bg-info'
-                        }`}>
-                          {ex.exceptionType}
-                        </span>
+                upcomingExceptions.map((exception) => {
+                  const typeClass =
+                    exception.exceptionType === 'DayOff' ? 'doctor-exception-card__type--dayoff' :
+                    exception.exceptionType === 'Modified' ? 'doctor-exception-card__type--modified' :
+                    'doctor-exception-card__type--addslot';
+
+                  return (
+                    <article className="doctor-exception-card" key={exception.exceptionId}>
+                      <div className="doctor-exception-card__top">
+                        <div>
+                          <p className="doctor-exception-card__date">{new Date(exception.exceptionDate).toLocaleDateString()}</p>
+                          <span className={`doctor-exception-card__type ${typeClass}`}>{exception.exceptionType}</span>
+                        </div>
+                        {!exception.isAdminCreated ? (
+                          <button className="doctor-exception-card__delete" disabled={deletingId === exception.exceptionId} onClick={() => handleDeleteException(exception.exceptionId)} title="Delete exception" type="button">
+                            <span className="material-symbols-outlined">{deletingId === exception.exceptionId ? 'progress_activity' : 'delete'}</span>
+                          </button>
+                        ) : null}
                       </div>
-                      {!ex.isAdminCreated && (
-                        <button
-                          className="btn btn-sm btn-outline-danger"
-                          onClick={() => handleDeleteException(ex.exceptionId)}
-                          disabled={deletingId === ex.exceptionId}
-                          title="Delete exception"
-                        >
-                          {deletingId === ex.exceptionId ? (
-                            <span className="spinner-border spinner-border-sm" />
-                          ) : (
-                            <span className="material-symbols-outlined" style={{ fontSize: '16px' }}>delete</span>
-                          )}
-                        </button>
-                      )}
-                    </div>
-                    <div className="small text-muted mt-1">
-                      {ex.reason}
-                      {ex.isAdminCreated && (
-                        <span className="badge bg-secondary ms-2">Admin Created</span>
-                      )}
-                    </div>
-                    {ex.startTime && ex.endTime && (
-                      <div className="small mt-1">
-                        <span className="material-symbols-outlined" style={{ fontSize: '14px', verticalAlign: 'middle' }}>
-                          schedule
-                        </span>
-                        {' '}{formatTime(ex.startTime)} - {formatTime(ex.endTime)}
-                      </div>
-                    )}
-                  </div>
-                ))
+                      <p className="doctor-exception-card__reason">
+                        {exception.reason}
+                        {exception.isAdminCreated ? <span className="doctor-exception-card__admin-badge">Admin Created</span> : null}
+                      </p>
+                      {exception.startTime && exception.endTime ? (
+                        <p className="doctor-exception-card__time">
+                          <span className="material-symbols-outlined">schedule</span>
+                          {formatTime(exception.startTime)} - {formatTime(exception.endTime)}
+                        </p>
+                      ) : null}
+                    </article>
+                  );
+                })
               )}
             </div>
-          </div>
-        </div>
+          </section>
+        </aside>
       </div>
     </div>
   );

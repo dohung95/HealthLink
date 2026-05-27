@@ -4,7 +4,6 @@ import { toast } from 'sonner';
 import medicineApi from '../../../api/medicineApi';
 import pharmacyApi from '../../../api/pharmacyApi';
 import {
-  PageHeader,
   REQUEST_TABS,
   dateTime,
   initials,
@@ -35,11 +34,6 @@ export default function PharmacyConsultationsTab({ requests, globalSearch, reloa
 
   return (
     <>
-      <PageHeader
-        title="Consultation Requests"
-        description="Manage incoming patient queries and virtual consults."
-      />
-
       <div className="pharmacy-request-tabs">
         {REQUEST_TABS.map((tab) => (
           <button className={activeStatus === tab.key ? 'active' : ''} key={tab.key} onClick={() => setActiveStatus(tab.key)} type="button">

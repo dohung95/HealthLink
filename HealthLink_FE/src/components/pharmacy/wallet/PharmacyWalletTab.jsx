@@ -6,7 +6,6 @@ import {
   Detail,
   MetricCard,
   Modal,
-  PageHeader,
   dateTime,
   money,
   statusClass,
@@ -71,18 +70,12 @@ export default function PharmacyWalletTab({ profile, balance, transactions, sett
 
   return (
     <>
-      <PageHeader
-        title="Wallet & Settlement"
-        description="Manage your earnings, view history, and request withdrawals."
-        action={(
-          <div className="pharmacy-wallet-actions">
-            <span className={balance?.eligibleForWithdrawal ? 'eligible' : 'blocked'}>
-              {balance?.eligibleForWithdrawal ? 'Eligible for withdrawal' : 'Not eligible yet'}
-            </span>
-            <button onClick={() => setWithdrawOpen(true)} type="button">Request Withdrawal</button>
-          </div>
-        )}
-      />
+      <div className="pharmacy-wallet-actions pharmacy-wallet-actions--standalone">
+        <span className={balance?.eligibleForWithdrawal ? 'eligible' : 'blocked'}>
+          {balance?.eligibleForWithdrawal ? 'Eligible for withdrawal' : 'Not eligible yet'}
+        </span>
+        <button onClick={() => setWithdrawOpen(true)} type="button">Request Withdrawal</button>
+      </div>
 
       <div className="pharmacy-metrics-grid is-three">
         <MetricCard label="Current Available Balance" value={money(pendingBalance)} hint={balance?.withdrawalStatus} icon="account_balance" />

@@ -1,16 +1,28 @@
-import React, { useState, useEffect } from 'react';
+import React, { useEffect, useState } from 'react';
 import { doctorComplianceService } from '../../../../api/complianceApi';
-import { toast } from 'sonner';
+
+const STATUS_META = {
+  COMPLIANT: { icon: 'check_circle', label: 'Compliant', badgeClass: 'doctor-status-badge--compliant', progressClass: 'doctor-compliance-banner__progress-fill--compliant', accentClass: 'doctor-compliance-banner__accent--compliant', iconClass: 'doctor-compliance-banner__icon--compliant', progressPctClass: 'doctor-compliance-banner__progress-pct--compliant' },
+  IN_PROGRESS: { icon: 'info', label: 'In Progress', badgeClass: 'doctor-status-badge--in-progress', progressClass: 'doctor-compliance-banner__progress-fill--warning', accentClass: 'doctor-compliance-banner__accent--warning', iconClass: 'doctor-compliance-banner__icon--warning', progressPctClass: 'doctor-compliance-banner__progress-pct--warning' },
+  PENDING: { icon: 'schedule', label: 'Pending', badgeClass: 'doctor-status-badge--pending', progressClass: 'doctor-compliance-banner__progress-fill--pending', accentClass: 'doctor-compliance-banner__accent--pending', iconClass: 'doctor-compliance-banner__icon--pending', progressPctClass: 'doctor-compliance-banner__progress-pct--compliant' },
+  NON_COMPLIANT: { icon: 'error', label: 'Non-compliant', badgeClass: 'doctor-status-badge--non-compliant', progressClass: 'doctor-compliance-banner__progress-fill--error', accentClass: 'doctor-compliance-banner__accent--error', iconClass: 'doctor-compliance-banner__icon--error', progressPctClass: 'doctor-compliance-banner__progress-pct--warning' },
+  EXEMPTED: { icon: 'verified_user', label: 'Exempted', badgeClass: 'doctor-status-badge--exempted', progressClass: 'doctor-compliance-banner__progress-fill--compliant', accentClass: 'doctor-compliance-banner__accent--compliant', iconClass: 'doctor-compliance-banner__icon--compliant', progressPctClass: 'doctor-compliance-banner__progress-pct--compliant' },
+};
+
+const formatMonth = (monthStr) => {
+  if (!monthStr) return '';
+  const [year, month] = monthStr.split('-');
+  const date = new Date(Number(year), Number(month) - 1);
+  return date.toLocaleDateString('en-US', { month: 'long', year: 'numeric' });
+};
+
+const getMeta = (status) => STATUS_META[status] || STATUS_META.PENDING;
 
 const ComplianceStatusBanner = ({ onValidateClick }) => {
   const [complianceData, setComplianceData] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [expanded, setExpanded] = useState(false);
-
-  useEffect(() => {
-    fetchComplianceStatus();
-  }, []);
 
   const fetchComplianceStatus = async () => {
     try {
@@ -26,69 +38,29 @@ const ComplianceStatusBanner = ({ onValidateClick }) => {
     }
   };
 
-  const getStatusColor = (status) => {
-    switch (status) {
-      case 'COMPLIANT':
-        return 'success';
-      case 'IN_PROGRESS':
-        return 'warning';
-      case 'PENDING':
-        return 'info';
-      case 'NON_COMPLIANT':
-        return 'danger';
-      case 'EXEMPTED':
-        return 'secondary';
-      default:
-        return 'secondary';
-    }
-  };
-
-  const getStatusIcon = (status) => {
-    switch (status) {
-      case 'COMPLIANT':
-        return 'check_circle';
-      case 'IN_PROGRESS':
-        return 'pending';
-      case 'PENDING':
-        return 'schedule';
-      case 'NON_COMPLIANT':
-        return 'error';
-      case 'EXEMPTED':
-        return 'verified_user';
-      default:
-        return 'info';
-    }
-  };
-
-  const formatMonth = (monthStr) => {
-    if (!monthStr) return '';
-    const [year, month] = monthStr.split('-');
-    const date = new Date(year, parseInt(month) - 1);
-    return date.toLocaleDateString('en-US', { month: 'long', year: 'numeric' });
-  };
+  useEffect(() => {
+    fetchComplianceStatus();
+  }, []);
 
   if (loading) {
     return (
-      <div className="card mb-4">
-        <div className="card-body d-flex align-items-center justify-content-center py-3">
-          <div className="spinner-border spinner-border-sm text-primary me-2" role="status">
-            <span className="visually-hidden">Loading...</span>
-          </div>
-          <span className="text-muted">Loading compliance status...</span>
+      <section className="doctor-compliance-banner">
+        <div className="doctor-compliance-banner__body" style={{justifyContent:'center'}}>
+          <span className="text-sm text-text-muted">Loading compliance status...</span>
         </div>
-      </div>
+      </section>
     );
   }
 
   if (error) {
     return (
-      <div className="alert alert-warning mb-4 d-flex align-items-center" role="alert">
-        <span className="material-symbols-outlined me-2">warning</span>
-        <span>{error}</span>
-        <button className="btn btn-sm btn-outline-warning ms-auto" onClick={fetchComplianceStatus}>
-          Retry
-        </button>
-      </div>
+      <section className="doctor-compliance-banner">
+        <div className="doctor-compliance-banner__body" style={{flexDirection:'row',alignItems:'center',gap:'0.75rem'}}>
+          <span className="material-symbols-outlined text-warning">warning</span>
+          <span className="text-sm text-text-main flex-1">{error}</span>
+          <button className="btn btn-outline-warning btn-sm flex-shrink-0" onClick={fetchComplianceStatus} type="button">Retry</button>
+        </div>
+      </section>
     );
   }
 
@@ -96,105 +68,73 @@ const ComplianceStatusBanner = ({ onValidateClick }) => {
 
   const currentMonth = complianceData;
   const nextMonth = complianceData.nextMonthStatus;
-  const statusColor = getStatusColor(currentMonth.status);
-  const percentage = Math.min(currentMonth.compliancePercentage || 0, 100);
+  const meta = getMeta(currentMonth.status);
+  const percentage = Math.min(Number(currentMonth.compliancePercentage || 0), 100);
+  const scheduledHours = currentMonth.scheduledHours || 0;
+  const requiredHours = currentMonth.requiredHours || 0;
+  const isWarning = currentMonth.status !== 'COMPLIANT' && currentMonth.status !== 'EXEMPTED';
 
   return (
-    <div className={`card border-${statusColor} mb-4`}>
-      <div className="card-header bg-transparent d-flex align-items-center justify-content-between py-3">
-        <div className="d-flex align-items-center">
-          <span className={`material-symbols-outlined text-${statusColor} me-2`} style={{ fontSize: '24px' }}>
-            {getStatusIcon(currentMonth.status)}
-          </span>
+    <section className="doctor-compliance-banner">
+      <div className={`doctor-compliance-banner__accent ${meta.accentClass}`} />
+      <div className="doctor-compliance-banner__body">
+        <div className="doctor-compliance-banner__content">
+          <span className={`material-symbols-outlined doctor-compliance-banner__icon ${meta.iconClass}`}>{meta.icon}</span>
           <div>
-            <h6 className="mb-0">Schedule Compliance - {formatMonth(currentMonth.complianceMonth)}</h6>
-            <small className="text-muted">{currentMonth.statusMessage}</small>
-          </div>
-        </div>
-        <div className="d-flex align-items-center gap-2">
-          {currentMonth.status !== 'COMPLIANT' && currentMonth.status !== 'EXEMPTED' && (
-            <button
-              className="btn btn-sm btn-outline-primary"
-              onClick={onValidateClick}
-            >
-              <span className="material-symbols-outlined me-1" style={{ fontSize: '16px', verticalAlign: 'middle' }}>
-                check_circle
-              </span>
-              Validate
+            <div className="d-flex flex-wrap align-items-center gap-2 mb-1">
+              <h3 className="doctor-compliance-banner__info-title">Schedule Compliance - {formatMonth(currentMonth.complianceMonth)}</h3>
+              <span className={`doctor-status-badge ${meta.badgeClass}`}>{meta.label}</span>
+            </div>
+            <p className="doctor-compliance-banner__info-desc">
+              {currentMonth.scheduleActive
+                ? currentMonth.statusMessage || 'Patients can book appointments with you.'
+                : 'Patients cannot book appointments until minimum schedule hours are met.'}
+            </p>
+            <button className="doctor-compliance-banner__expand-mobile" onClick={() => setExpanded((current) => !current)} type="button">
+              {expanded ? 'Hide details' : 'Show details'}
+              <span className="material-symbols-outlined" style={{fontSize:'1rem'}}>{expanded ? 'expand_less' : 'expand_more'}</span>
             </button>
-          )}
-          <button
-            className="btn btn-sm btn-link text-muted p-0"
-            onClick={() => setExpanded(!expanded)}
-          >
-            <span className="material-symbols-outlined">
-              {expanded ? 'expand_less' : 'expand_more'}
-            </span>
-          </button>
+          </div>
+        </div>
+
+        <div className="doctor-compliance-banner__right">
+          <div>
+            <div className="doctor-compliance-banner__progress-header">
+              <span className="doctor-compliance-banner__progress-hours">{scheduledHours}/{requiredHours} hours</span>
+              <span className={`doctor-compliance-banner__progress-pct ${meta.progressPctClass}`}>{percentage.toFixed(0)}%</span>
+            </div>
+            <div className="doctor-compliance-banner__progress-bar">
+              <div className={`doctor-compliance-banner__progress-fill ${meta.progressClass}`} style={{ width: `${percentage}%` }} />
+            </div>
+          </div>
+          <div className="doctor-compliance-banner__actions">
+            {isWarning ? (
+              <button className="btn btn-outline-primary btn-sm" onClick={onValidateClick} type="button">Validate</button>
+            ) : null}
+            {nextMonth ? (
+              <button className="doctor-compliance-banner__expand" onClick={() => setExpanded((current) => !current)} type="button">
+                <span className="material-symbols-outlined">{expanded ? 'expand_less' : 'expand_more'}</span>
+              </button>
+            ) : null}
+          </div>
         </div>
       </div>
 
-      <div className="card-body py-3">
-        {/* Progress Bar */}
-        <div className="mb-3">
-          <div className="d-flex justify-content-between align-items-center mb-1">
-            <span className="small">
-              <strong>{currentMonth.scheduledHours || 0}</strong> / {currentMonth.requiredHours || 0} hours scheduled
-            </span>
-            <span className={`badge bg-${statusColor}`}>
-              {percentage.toFixed(0)}%
-            </span>
+      {expanded && nextMonth ? (
+        <div className="doctor-compliance-banner__next-month">
+          <div className="d-flex align-items-center justify-content-between mb-2">
+            <span className="fw-semibold text-sm text-text-main">Next Month: {formatMonth(nextMonth.complianceMonth)}</span>
+            <span className="text-xs text-text-muted">{(nextMonth.compliancePercentage || 0).toFixed(0)}%</span>
           </div>
-          <div className="progress" style={{ height: '8px' }}>
+          <div className="doctor-compliance-banner__progress-bar">
             <div
-              className={`progress-bar bg-${statusColor}`}
-              role="progressbar"
-              style={{ width: `${percentage}%` }}
-              aria-valuenow={percentage}
-              aria-valuemin="0"
-              aria-valuemax="100"
-            />
-          </div>
-        </div>
-
-        {/* Schedule Active Status */}
-        <div className="d-flex align-items-center gap-2">
-          <span className="material-symbols-outlined" style={{ fontSize: '18px', color: currentMonth.scheduleActive ? '#198754' : '#dc3545' }}>
-            {currentMonth.scheduleActive ? 'toggle_on' : 'toggle_off'}
-          </span>
-          <span className="small">
-            Schedule is <strong>{currentMonth.scheduleActive ? 'Active' : 'Inactive'}</strong>
-            {!currentMonth.scheduleActive && currentMonth.status !== 'EXEMPTED' && (
-              <span className="text-muted"> - Add more hours to activate</span>
-            )}
-          </span>
-        </div>
-      </div>
-
-      {/* Expanded Details */}
-      {expanded && nextMonth && (
-        <div className="card-footer bg-light">
-          <h6 className="small text-muted mb-2">
-            Next Month: {formatMonth(nextMonth.complianceMonth)}
-          </h6>
-          <div className="d-flex justify-content-between align-items-center">
-            <span className="small">
-              <strong>{nextMonth.scheduledHours || 0}</strong> / {nextMonth.requiredHours || 0} hours
-            </span>
-            <span className={`badge bg-${getStatusColor(nextMonth.status)}`}>
-              {(nextMonth.compliancePercentage || 0).toFixed(0)}%
-            </span>
-          </div>
-          <div className="progress mt-1" style={{ height: '6px' }}>
-            <div
-              className={`progress-bar bg-${getStatusColor(nextMonth.status)}`}
-              role="progressbar"
+              className="doctor-compliance-banner__progress-fill doctor-compliance-banner__progress-fill--pending"
               style={{ width: `${Math.min(nextMonth.compliancePercentage || 0, 100)}%` }}
             />
           </div>
         </div>
-      )}
-    </div>
+      ) : null}
+    </section>
   );
 };
 
