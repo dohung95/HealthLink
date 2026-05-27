@@ -234,6 +234,16 @@
    TIMELINE LIST - MODERN STYLING
    ============================================ */
 .doctor-timeline__list {
+  /* Timeline geometry variables - shared with ::before for precise connector alignment */
+  --tl-time-width: 3.5rem;
+  --tl-time-padding-right: 0.625rem;
+  --tl-dot-size: 20px;
+  --tl-dot-padding-top: 0.5rem;
+  --tl-dot-inner-margin-top: 0.0625rem;
+  --tl-dot-inner-size: 0.75rem;
+  --tl-list-padding-y: 0.75rem;
+  --tl-list-padding-x: 1rem;
+
   flex: 1;
   overflow-y: auto;
   padding: 0.75rem 1rem;
@@ -256,13 +266,34 @@
 }
 
 /* Vertical connecting line - gradient style
-   Positioned to pass through center of dots, not cut through time column */
+   Positioned to pass through center of every timeline dot.
+   Uses CSS custom properties from .doctor-timeline__list so the line stays
+   anchored to the actual dot geometry instead of hard-coded offsets. */
 .doctor-timeline__list::before {
   content: '';
   position: absolute;
-  left: 75px;
-  top: 1.3125rem;
-  bottom: 3rem;
+  /* Center of dot column: list padding-left + time width + time padding-right + half of dot width */
+  left: calc(
+    var(--tl-list-padding-x) +
+    var(--tl-time-width) +
+    var(--tl-time-padding-right) +
+    (var(--tl-dot-size) / 2)
+  );
+  transform: translateX(-50%);
+  /* Start at first dot center: list padding-top + dot padding-top + inner margin-top + half inner height */
+  top: calc(
+    var(--tl-list-padding-y) +
+    var(--tl-dot-padding-top) +
+    var(--tl-dot-inner-margin-top) +
+    (var(--tl-dot-inner-size) / 2)
+  );
+  /* End at last dot center (same formula — last item has margin-bottom: 0) */
+  bottom: calc(
+    var(--tl-list-padding-y) +
+    var(--tl-dot-padding-top) +
+    var(--tl-dot-inner-margin-top) +
+    (var(--tl-dot-inner-size) / 2)
+  );
   width: 2px;
   background: linear-gradient(180deg, var(--primary-border) 0%, var(--border) 50%, var(--primary-border) 100%);
   z-index: 0;
@@ -329,11 +360,11 @@
 
 /* ---- Time Display (Bootstrap badge style) ---- */
 .doctor-timeline__item-time {
-  width: 3.5rem;
+  width: var(--tl-time-width);
   flex-shrink: 0;
   text-align: right;
-  padding-right: 0.625rem;
-  padding-top: 0.5rem;
+  padding-right: var(--tl-time-padding-right);
+  padding-top: var(--tl-dot-padding-top);
   font-size: 0.6875rem;
   font-weight: 700;
   color: var(--text-muted);
@@ -348,24 +379,24 @@
 
 /* ---- Dot Indicator (Bootstrap rounded-circle) ---- */
 .doctor-timeline__item-dot {
-  width: 20px;
+  width: var(--tl-dot-size);
   flex-shrink: 0;
   display: flex;
   align-items: flex-start;
   justify-content: center;
-  padding-top: 0.5rem;
+  padding-top: var(--tl-dot-padding-top);
   position: relative;
   z-index: 2;
 }
 
 .doctor-timeline__item-dot-inner {
-  width: 0.75rem;
-  height: 0.75rem;
+  width: var(--tl-dot-inner-size);
+  height: var(--tl-dot-inner-size);
   border-radius: 50%;
   /* border: 2.5px solid var(--primary); */
   flex-shrink: 0;
   transition: all 0.3s cubic-bezier(0.16, 1, 0.3, 1);
-  margin-top: 0.0625rem;
+  margin-top: var(--tl-dot-inner-margin-top);
   box-shadow: 0 0 0 0 transparent;
 }
 
