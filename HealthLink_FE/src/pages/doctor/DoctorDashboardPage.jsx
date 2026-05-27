@@ -64,16 +64,6 @@ const normalizeAppointmentDetail = (detail, appointmentId) => ({
   },
 });
 
-const getInitials = (name) => {
-  if (!name) return 'DR';
-  return name
-    .split(' ')
-    .filter(Boolean)
-    .slice(0, 2)
-    .map((part) => part[0]?.toUpperCase())
-    .join('');
-};
-
 const formatNotificationTime = (value) => {
   if (!value) return '';
   const date = new Date(value);
@@ -127,9 +117,6 @@ const DoctorDashboardPage = () => {
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
 
   const doctorId = doctorData?.doctorID || doctorData?.doctorId;
-  const doctorName = doctorData?.fullName || 'Doctor';
-  const doctorSpecialty = doctorData?.specialty || 'HealthLink Professional';
-  const doctorAvatar = doctorData?.avatarUrl || doctorData?.profileImage || doctorData?.imageUrl;
   const isDetailView = view === APPOINTMENT_DETAIL_VIEW || view === PATIENT_DETAIL_VIEW;
   const currentNavItem = useMemo(() => {
     if (view === APPOINTMENT_DETAIL_VIEW) return NAV_ITEMS[0];
@@ -316,16 +303,6 @@ const DoctorDashboardPage = () => {
     fetchNotifications();
   };
 
-  const renderAvatar = (sizeStyle = {width:'2.5rem',height:'2.5rem'}) => (
-    <div className="shrink-0 overflow-hidden rounded-circle border border-surface-border bg-primary-fixed text-primary d-flex align-items-center justify-content-center fw-bold" style={{width:sizeStyle.width || '2.5rem',height:sizeStyle.height || '2.5rem'}}>
-      {doctorAvatar ? (
-        <img alt={doctorName} className="object-fit-cover w-100 h-100" src={doctorAvatar} />
-      ) : (
-        <span>{getInitials(doctorName)}</span>
-      )}
-    </div>
-  );
-
   const renderNavigationLinks = (mobile = false) => (
     <div className={mobile ? 'd-flex gap-1 justify-content-around' : 'd-flex flex-column gap-1'}>
       {NAV_ITEMS.map((item) => {
@@ -503,15 +480,8 @@ const DoctorDashboardPage = () => {
       <aside className="doctor-sidebar position-fixed top-0 start-0 z-40 d-none d-lg-flex flex-column border-end border-surface-border bg-surface-container-lowest py-4 min-vh-100" style={{width:'240px'}}>
         <div className="doctor-sidebar-header text-center px-4">
           <div className="d-flex flex-column align-items-center">
-            {renderAvatar({width:'3.5rem',height:'3.5rem'})}
-            <h2 className="mb-1 mt-3 fs-6 fw-bold text-text-main">{doctorName}</h2>
-            <p className="mb-0 small text-text-muted">{doctorSpecialty}</p>
-          </div>
-          <div className="mt-3">
-            <div className="d-inline-flex align-items-center gap-2 rounded-5 px-3 py-1 small fw-semibold text-white shadow-sm" style={{background:'linear-gradient(135deg, #0052cc 0%, #137fec 100%)'}}>
-              <span className="d-inline-block rounded-circle bg-success" style={{width:'8px',height:'8px',boxShadow:'0 0 0 2px rgba(16,185,129,0.3)'}} />
-              <span>Available</span>
-            </div>
+            <span className="material-symbols-outlined" style={{fontSize:'3rem',color:'var(--color-primary,#0052cc)'}}>medical_services</span>
+            <span className="fs-5 fw-bold" style={{color:'var(--color-primary,#0052cc)'}}>HealthLink</span>
           </div>
         </div>
 
@@ -523,11 +493,8 @@ const DoctorDashboardPage = () => {
           <aside className="doctor-mobile-sidebar ms-auto h-100 shadow-lg bg-white p-4" style={{width:'300px',maxWidth:'86vw'}} onClick={(event) => event.stopPropagation()}>
             <div className="mb-4 d-flex align-items-center justify-content-between">
               <div className="d-flex align-items-center gap-3">
-                {renderAvatar()}
-                <div>
-                  <p className="mb-0 small fw-bold text-text-main">{doctorName}</p>
-                  <p className="mb-0 text-xs text-text-muted">{doctorSpecialty}</p>
-                </div>
+                <span className="material-symbols-outlined" style={{fontSize:'2rem',color:'var(--color-primary,#0052cc)'}}>medical_services</span>
+                <span className="fs-5 fw-bold" style={{color:'var(--color-primary,#0052cc)'}}>HealthLink</span>
               </div>
               <button className="doctor-mobile-close rounded-3 p-2 text-on-surface-variant hover:bg-surface-container border-0 bg-transparent" onClick={() => setIsMobileMenuOpen(false)} type="button">
                 <span className="material-symbols-outlined">close</span>
@@ -539,26 +506,25 @@ const DoctorDashboardPage = () => {
       ) : null}
 
       <div className="doctor-main-area min-vh-100" style={{paddingLeft:'240px'}}>
-        <header className="doctor-header sticky-top z-30 d-flex align-items-center justify-content-between px-3 px-md-4">
+        <header className="doctor-header sticky-top z-30 d-flex align-items-center justify-content-between px-5" style={{paddingRight:'3rem'}}>
           <div className="d-flex align-items-center gap-3">
             <button className="rounded-3 p-2 text-on-surface-variant hover:bg-surface-container d-lg-none border-0 bg-transparent" onClick={() => setIsMobileMenuOpen(true)} type="button">
               <span className="material-symbols-outlined">menu</span>
             </button>
-            <span className="material-symbols-outlined d-none d-md-inline-flex" style={{color:'var(--color-primary,#0052cc)'}}>medical_services</span>
-            <span className="fs-5 fw-bold" style={{color:'var(--color-primary,#0052cc)'}}>HealthLink</span>
           </div>
 
-          <div className="d-flex min-w-0 align-items-center gap-2">
-            <label className="position-relative d-none d-lg-block">
-              <span className="material-symbols-outlined position-absolute start-0 top-50 -translate-y-1\/2 text-[20px]" style={{left:'0.75rem',color:'var(--color-text-muted,#94a3b8)'}}>search</span>
-              <input
-                className="doctor-header-search"
-                placeholder="Search patients, appointments..."
-                type="search"
-              />
-            </label>
-            {renderNotificationBell()}
-            {renderAvatar({width:'2.25rem',height:'2.25rem'})}
+          <div className="d-flex align-items-center gap-0 ms-auto">
+            <div className="d-flex align-items-center gap-3 pe-3">
+              {renderNotificationBell()}
+              <div className="shrink-0 overflow-hidden rounded-circle border border-surface-border bg-primary-fixed text-primary d-flex align-items-center justify-content-center fw-bold" style={{width:'2.75rem',height:'2.75rem',fontSize:'1rem'}}>
+                {doctorData?.avatarUrl || doctorData?.profileImage || doctorData?.imageUrl ? (
+                  <img alt="Doctor" className="object-fit-cover w-100 h-100" src={doctorData?.avatarUrl || doctorData?.profileImage || doctorData?.imageUrl} />
+                ) : (
+                  <span>{(doctorData?.fullName || 'DR').split(' ').filter(Boolean).slice(0,2).map(p => p[0]?.toUpperCase()).join('')}</span>
+                )}
+              </div>
+            </div>
+            <div className="border-end me-3" style={{height:'1.5rem',borderColor:'var(--border-light)',borderWidth:'1px'}} />
             <button className="doctor-header-logout d-none d-md-flex align-items-center justify-content-center rounded-3 text-on-surface-variant border-0 bg-transparent" onClick={handleLogout} type="button" title="Logout">
               <span className="material-symbols-outlined">logout</span>
             </button>
