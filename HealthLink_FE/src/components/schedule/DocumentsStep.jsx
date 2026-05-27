@@ -1,4 +1,5 @@
 import { useRef } from "react";
+import { toast } from 'sonner';
 
 const DocumentsStep = ({
     symptoms,
@@ -41,7 +42,7 @@ const DocumentsStep = ({
         const hasMissingDocumentDate = files.some((file) => !file.documentDate);
 
         if (hasMissingDocumentDate) {
-            alert('Please select Date Performed for all uploaded documents.');
+            toast.warning('Please select Date Performed for all uploaded documents.');
             return;
         }
 
