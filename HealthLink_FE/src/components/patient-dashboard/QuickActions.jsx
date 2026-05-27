@@ -82,7 +82,23 @@ const QuickActions = () => {
                     list = data.items;
                 }
 
-                setDoctors(list.slice(0, 5));
+                const suggestedDoctors = list
+                    .sort((a, b) => {
+                        const ratingDiff =
+                            Number(b.averageRating || 0) - Number(a.averageRating || 0);
+
+                        if (ratingDiff !== 0) return ratingDiff;
+
+                        const reviewDiff =
+                            Number(b.totalReviews || 0) - Number(a.totalReviews || 0);
+
+                        if (reviewDiff !== 0) return reviewDiff;
+
+                        return Number(b.yearsOfExperience || 0) - Number(a.yearsOfExperience || 0);
+                    })
+                    .slice(0, 5);
+
+                setDoctors(suggestedDoctors);
             } catch (e) {
                 console.error('[QuickActions] Failed to fetch doctors:', e);
             } finally {

@@ -23,7 +23,15 @@
   padding: 28px;
   height: 100vh;
   overflow-y: auto;
-  background: #f5f8f7;
+
+  background:
+    linear-gradient(rgba(245, 248, 247, 0.38), rgba(245, 248, 247, 0.38)),
+    url('/public/Hung/Background_Doctors.jpg');
+
+  background-size: cover;
+  background-position: center center;
+  background-repeat: no-repeat;
+  background-attachment: fixed;
 }
 
 .patient-sidebar-brand {
@@ -606,4 +614,21 @@
 .patient-profile-page .row {
   margin-left: 0;
   margin-right: 0;
+}
+
+.appointment-dashboard-page {
+  min-height: auto;
+  background: transparent;
+  padding: 0;
+  position: relative;
+}
+
+.appointment-dashboard-page .container,
+.appointment-dashboard-page .container-fluid {
+  max-width: 100%;
+}
+
+.appointment-dashboard-page h1,
+.appointment-dashboard-page h2 {
+  margin-top: 0;
 }

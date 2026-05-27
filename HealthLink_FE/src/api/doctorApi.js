@@ -8,43 +8,27 @@ import {
   normalizeReview,
 } from './normalizers';
 
-const paginate = (items, page = 1, pageSize = 5) => {
-  const currentPage = Number(page) || 1;
-  const size = Number(pageSize) || 5;
-  const start = (currentPage - 1) * size;
-  const pagedItems = items.slice(start, start + size);
-
-  return {
-    items: pagedItems,
-    page: currentPage,
-    pageSize: size,
-    totalItems: items.length,
-    totalPages: Math.max(1, Math.ceil(items.length / size)),
-  };
-};
-
 export const doctorService = {
   searchDoctors: async (params = {}) => {
-    const response = await axiosInstance.get('/api/account/doctors', {
+    const response = await axiosInstance.get('/api/account/doctors/search', {
       params: {
         specialty: params.specialty || undefined,
         name: params.name || undefined,
+        location: params.location || undefined,
+        page: params.page || 1,
+        pageSize: params.pageSize || 5,
       },
     });
 
-    const doctors = (response.data || []).map(normalizeDoctorSummary);
-    const filtered = params.location
-      ? doctors.filter((doctor) =>
-          doctor.location?.toLowerCase().includes(params.location.toLowerCase()),
-        )
-      : doctors;
-
-    return paginate(filtered, params.page, params.pageSize);
+    return {
+      ...response.data,
+      items: (response.data?.items || []).map(normalizeDoctorSummary),
+    };
   },
 
   getSpecialties: async () => {
-    const response = await axiosInstance.get('/api/registration/specialties');
-    return (response.data || []).map((item) => item.name ?? item.specialtyName ?? item);
+    const response = await axiosInstance.get('/api/account/doctors/specialties');
+    return response.data || [];
   },
 
   getAllDoctors: async () => {

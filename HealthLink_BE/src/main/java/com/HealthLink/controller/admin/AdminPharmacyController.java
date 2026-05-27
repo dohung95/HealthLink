@@ -7,11 +7,13 @@ import com.HealthLink.dto.admin.StatusUpdateRequest;
 import com.HealthLink.dto.admin.VerificationUpdateRequest;
 import com.HealthLink.service.admin.AdminPharmacyService;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
 
 @CrossOrigin(origins = "http://localhost:63527")
 @RestController
 @RequestMapping("/api/admin/adminpharmacies")
+@PreAuthorize("hasRole('ADMIN')")
 public class AdminPharmacyController {
 
     private final AdminPharmacyService adminPharmacyService;

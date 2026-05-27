@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import { getProfile, updateProfile, uploadPatientAvatar, changePassword, requestEmailChange, verifyEmailChange } from '../api/account';
 import { toast } from 'sonner';
@@ -497,6 +498,7 @@ function GeneralInfoForm({ profile, token, onUpdate }) {
 
 // --- COMPONENT CON: FORM ĐỔI MẬT KHẨU VÀ EMAIL---
 function SecurityForm({ token, logout, profile }) {
+    const navigate = useNavigate();
     const [passwords, setPasswords] = useState({ currentPassword: '', newPassword: '', confirmNewPassword: '' });
     const [passwordErrors, setPasswordErrors] = useState({ currentPassword: '', newPassword: '', confirmNewPassword: '' });
     const [changing, setChanging] = useState(false);
@@ -505,6 +507,22 @@ function SecurityForm({ token, logout, profile }) {
     // Trạng thái bước 2: nhập OTP xác nhận đổi email
     const [emailOtpStep, setEmailOtpStep] = useState(false);
     const [otpCode, setOtpCode] = useState('');
+
+    const [showSuccessModal, setShowSuccessModal] = useState(false);
+    const [countdown, setCountdown] = useState(3);
+
+    useEffect(() => {
+        let timer;
+        if (showSuccessModal && countdown > 0) {
+            timer = setTimeout(() => {
+                setCountdown(prev => prev - 1);
+            }, 1000);
+        } else if (showSuccessModal && countdown === 0) {
+            logout();
+            navigate('/login');
+        }
+        return () => clearTimeout(timer);
+    }, [showSuccessModal, countdown, logout, navigate]);
 
     // Hàm kiểm tra độ mạnh mật khẩu (giống Sign_up.jsx)
     const validatePasswordStrength = (pwd) => {
@@ -560,8 +578,7 @@ function SecurityForm({ token, logout, profile }) {
         setChanging(true);
         try {
             await changePassword(token, passwords);
-            toast.success("Password changed successfully! Please log in again.");
-            logout();
+            setShowSuccessModal(true);
         } catch (error) {
             const errorMsg = error.response?.data?.message || "Current password is incorrect.";
             setPasswordErrors({ ...newErrors, currentPassword: errorMsg });
@@ -770,6 +787,90 @@ function SecurityForm({ token, logout, profile }) {
                     </div>
                 </form>
             </div>
+
+            {/* Premium Fullscreen Success Modal Overlay */}
+            {showSuccessModal && (
+                <div style={{
+                    position: 'fixed',
+                    top: 0,
+                    left: 0,
+                    right: 0,
+                    bottom: 0,
+                    backgroundColor: 'rgba(15, 23, 42, 0.75)',
+                    backdropFilter: 'blur(6px)',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    zIndex: 99999,
+                }}>
+                    <style>{`
+                        @keyframes fadeInScale {
+                            from { opacity: 0; transform: scale(0.95); }
+                            to { opacity: 1; transform: scale(1); }
+                        }
+                    `}</style>
+                    <div style={{
+                        background: '#ffffff',
+                        borderRadius: '20px',
+                        padding: '40px 32px',
+                        width: '90%',
+                        maxWidth: '420px',
+                        textAlign: 'center',
+                        boxShadow: '0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04)',
+                        border: '1px solid #f1f5f9',
+                        animation: 'fadeInScale 0.3s ease-out'
+                    }}>
+                        <div style={{
+                            width: '80px',
+                            height: '80px',
+                            backgroundColor: '#e6f7f5',
+                            borderRadius: '50%',
+                            display: 'flex',
+                            alignItems: 'center',
+                            justifyContent: 'center',
+                            margin: '0 auto 24px',
+                            color: '#00b09a',
+                        }}>
+                            <i className="bi bi-shield-check-fill" style={{ fontSize: '3rem' }}></i>
+                        </div>
+                        <h4 style={{
+                            color: '#0f172a',
+                            fontWeight: '700',
+                            fontSize: '1.4rem',
+                            marginBottom: '12px'
+                        }}>Password Changed Successfully!</h4>
+                        <p style={{
+                            color: '#64748b',
+                            fontSize: '0.95rem',
+                            lineHeight: '1.6',
+                            marginBottom: '28px'
+                        }}>
+                            Your password has been successfully updated. For security reasons, you will be logged out automatically in <strong style={{ color: '#00b09a', fontSize: '1.1rem' }}>{countdown}</strong> seconds.
+                        </p>
+                        <button
+                            onClick={() => {
+                                logout();
+                                navigate('/login');
+                            }}
+                            style={{
+                                width: '100%',
+                                padding: '12px 24px',
+                                background: 'linear-gradient(135deg, #00b09a, #007a6a)',
+                                color: '#ffffff',
+                                border: 'none',
+                                borderRadius: '10px',
+                                fontSize: '0.95rem',
+                                fontWeight: '600',
+                                cursor: 'pointer',
+                                transition: 'all 0.2s ease',
+                                boxShadow: '0 4px 6px -1px rgba(0, 176, 154, 0.2)'
+                            }}
+                        >
+                            <i className="bi bi-box-arrow-right me-2"></i>Back to Login
+                        </button>
+                    </div>
+                </div>
+            )}
         </div>
     );
 }

@@ -34,7 +34,7 @@ const loadPayPalSdk = (clientId) => {
   });
 };
 
-const PaymentStep = ({ bookingDraft, selectedDoctor, onPaymentComplete }) => {
+const PaymentStep = ({ bookingDraft, selectedDoctor, onBack, onPaymentComplete }) => {
   const buttonRef = useRef(null);
   const orderCreationErrorRef = useRef(false);
   const [loadingSdk, setLoadingSdk] = useState(false);
@@ -137,7 +137,7 @@ const PaymentStep = ({ bookingDraft, selectedDoctor, onPaymentComplete }) => {
     <div className="schedule-card payment-step-card">
       <h2>Payment</h2>
       <p className="schedule-card-subtitle">
-        Complete payment to confirm your appointment.
+        Your appointment will only be created after payment is completed successfully.
       </p>
 
       <div className="payment-summary">
@@ -164,6 +164,19 @@ const PaymentStep = ({ bookingDraft, selectedDoctor, onPaymentComplete }) => {
         {processing && <div className="payment-inline-state">Capturing payment...</div>}
         <div ref={buttonRef} />
       </div>
+
+      {!paidInvoice && (
+        <div className="schedule-actions payment-step-actions">
+          <button
+            type="button"
+            className="btn-outline-soft"
+            onClick={onBack}
+            disabled={processing}
+          >
+            ← Back to confirmation
+          </button>
+        </div>
+      )}
 
       {paidInvoice && (
         <div className="payment-modal-backdrop" role="dialog" aria-modal="true">

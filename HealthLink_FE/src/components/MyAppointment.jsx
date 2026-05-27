@@ -10,6 +10,7 @@ import ConfirmModal from './ConfirmModal';
 import Loading from './Loading';
 import { getProfile } from '../api/account';
 import RescheduleAppointmentModal from './RescheduleAppointmentModal';
+import PreConsultationVitalsModal from './PreConsultationVitalsModal';
 
 const MyAppointments = () => {
     const APPOINTMENTS_PAGE_SIZE = 5;
@@ -31,6 +32,9 @@ const MyAppointments = () => {
         totalItems: 0,
         totalPages: 0,
     });
+    const [showVitalsModal, setShowVitalsModal] = useState(false);
+    const [pendingConsultationAppointment, setPendingConsultationAppointment] = useState(null);
+    const [pendingConsultationAction, setPendingConsultationAction] = useState(null);
 
     useEffect(() => {
         if (!token) return;
@@ -140,6 +144,12 @@ const MyAppointments = () => {
         setPendingAppointmentId(null);
     };
 
+    const openVitalsBeforeConsultation = (appointment, action) => {
+        setPendingConsultationAppointment(appointment);
+        setPendingConsultationAction(action);
+        setShowVitalsModal(true);
+    };
+
     const handleChat = async (appointment) => {
         const isDoctor = roles && roles.some(r => String(r).trim().toLowerCase() === 'doctor');
         const partnerID = isDoctor ? appointment.patientId : appointment.doctorId;
@@ -216,6 +226,27 @@ const MyAppointments = () => {
         }
     };
 
+    const handleVitalsSaved = async () => {
+        setShowVitalsModal(false);
+
+        const appointment = pendingConsultationAppointment;
+        const action = pendingConsultationAction;
+
+        setPendingConsultationAppointment(null);
+        setPendingConsultationAction(null);
+
+        if (!appointment) return;
+
+        if (action === 'chat') {
+            await handleChat(appointment);
+            return;
+        }
+
+        if (action === 'video') {
+            await handleVideoCall(appointment);
+        }
+    };
+
     const getStatusBadge = (status) => {
         switch (status) {
             case 'Scheduled': return 'bg-success';
@@ -254,8 +285,8 @@ const MyAppointments = () => {
     }
 
     return (
-        <div className='Background_Doctors'>
-            <div className="container mt-5">
+        <div className="appointment-dashboard-page">
+            <div className="container-fluid px-0">
                 <div className="d-flex justify-content-between align-items-center mb-4">
                     <h2>My Appointments</h2>
                     <button
@@ -333,7 +364,7 @@ const MyAppointments = () => {
                                                     {item.consultationType === 'Chat' && item.status === 'Scheduled' && (
                                                         <button
                                                             className="btn btn-sm btn-primary"
-                                                            onClick={() => handleChat(item)}
+                                                            onClick={() => openVitalsBeforeConsultation(item, 'chat')}
                                                             title={
                                                                 new Date(item.appointmentTime) < new Date()
                                                                     ? "Appointment time has passed"
@@ -349,7 +380,7 @@ const MyAppointments = () => {
                                                     {item.consultationType === 'Video' && item.status === 'Scheduled' && (
                                                         <button
                                                             className="btn btn-sm btn-success"
-                                                            onClick={() => handleVideoCall(item)}
+                                                            onClick={() => openVitalsBeforeConsultation(item, 'video')}
                                                             title={
                                                                 new Date(item.appointmentTime) < new Date()
                                                                     ? "Appointment time has passed"
@@ -467,6 +498,18 @@ const MyAppointments = () => {
                 appointment={selectedRescheduleAppointment}
                 onClose={handleCloseRescheduleModal}
                 onRescheduled={handleRescheduled}
+            />
+
+            <PreConsultationVitalsModal
+                isOpen={showVitalsModal}
+                appointment={pendingConsultationAppointment}
+                patientId={patientId}
+                onClose={() => {
+                    setShowVitalsModal(false);
+                    setPendingConsultationAppointment(null);
+                    setPendingConsultationAction(null);
+                }}
+                onSaved={handleVitalsSaved}
             />
         </div>
     );

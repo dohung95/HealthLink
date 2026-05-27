@@ -1,6 +1,6 @@
 .schedule-wizard-page {
   min-height: 100vh;
-  background: #f5f8f7;
+  background: transparent;
   padding: 36px 24px;
 }
 
@@ -247,20 +247,6 @@
   margin: 0 0 14px;
   color: #0a2e2a;
   font-size: 16px;
-}
-
-.slot-grid {
-  display: grid;
-  grid-template-columns: repeat(4, 1fr);
-  gap: 10px;
-}
-
-.slot-button {
-  border: 1.5px solid #d8dedd;
-  background: #fff;
-  border-radius: 10px;
-  padding: 11px 8px;
-  font-weight: 600;
 }
 
 .slot-button.selected {
@@ -524,12 +510,6 @@
   }
 }
 
-.schedule-wizard-page {
-  min-height: 100vh;
-  background: #f9fafb;
-  padding: 28px;
-}
-
 .date-options {
   display: flex;
   flex-wrap: wrap;
@@ -611,14 +591,11 @@
 .slot-button.held {
   opacity: 0.45;
   cursor: not-allowed;
+  background: rgba(255, 193, 7, 0.847);
 }
 
 .slot-button.booked {
   background: rgba(255, 255, 255, 0.297);
-}
-
-.slot-button.held {
-  background: rgba(255, 193, 7, 0.847);
 }
 
 .slot-button:disabled {

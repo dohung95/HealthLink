@@ -167,7 +167,7 @@ public class AdminPharmacyService {
             .orElseThrow(() -> new ResourceNotFoundException("Pharmacy", "id", pharmacyId));
 
         if (pharmacy.getUser() != null) {
-            pharmacy.getUser().setStatus("Deleted");
+            pharmacy.getUser().setStatus("Banned");
         }
         pharmacy.setActive(false);
         pharmacy.setUpdatedAt(LocalDateTime.now());

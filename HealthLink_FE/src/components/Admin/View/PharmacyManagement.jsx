@@ -169,24 +169,26 @@ export default function PharmacyManagement() {
     }
   };
 
-  const handleDeletePharmacy = async (pharmacy) => {
+  const handleBanPharmacy = async (pharmacy) => {
     const id = getPharmacyId(pharmacy);
     if (!id) {
-      showToast({ title: 'Delete Failed', message: 'Unable to determine pharmacy ID', type: 'error' });
+      showToast({ title: 'Ban Failed', message: 'Unable to determine pharmacy ID', type: 'error' });
       return;
     }
 
-    if (!window.confirm('Are you sure you want to permanently delete this pharmacy?')) {
+    if (!window.confirm('Are you sure you want to ban this pharmacy?')) {
       return;
     }
 
     try {
       setShowActionLoading(true);
       await pharmaciesApi.delete(id);
-      setPharmacies((prev) => prev.filter((item) => item !== pharmacy));
-      showToast({ title: 'Deleted', message: 'Pharmacy was removed successfully', type: 'success' });
+      setPharmacies((prev) => prev.map((item) =>
+        item === pharmacy ? { ...item, status: 'Banned', active: false } : item
+      ));
+      showToast({ title: 'Banned', message: 'Pharmacy has been banned successfully', type: 'success' });
     } catch (err) {
-      showToast({ title: 'Delete Failed', message: err.response?.data?.error || err.message || 'Unable to delete pharmacy', type: 'error', duration: 5000 });
+      showToast({ title: 'Ban Failed', message: err.response?.data?.error || err.message || 'Unable to ban pharmacy', type: 'error', duration: 5000 });
       console.error(err);
     } finally {
       setShowActionLoading(false);
@@ -197,7 +199,7 @@ export default function PharmacyManagement() {
     if (value == null || value === '') {
       return 'N/A';
     }
-    return new Intl.NumberFormat('vi-VN', { style: 'currency', currency: 'VND' }).format(Number(value));
+    return new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD' }).format(Number(value));
   };
 
   const clearFilters = () => {
@@ -512,11 +514,12 @@ export default function PharmacyManagement() {
                         <i className={pharmacy.status?.toLowerCase() === 'active' ? 'bi bi-pause-fill' : 'bi bi-play-fill'}></i>
                       </button>
                       <button
-                        className="pharmacy-btn delete"
-                        onClick={() => handleDeletePharmacy(pharmacy)}
+                        className="pharmacy-btn ban"
+                        onClick={() => handleBanPharmacy(pharmacy)}
                         disabled={showActionLoading}
+                        title="Ban Pharmacy"
                       >
-                        <i className="bi bi-trash3-fill"></i>
+                        <i className="bi bi-slash-circle-fill"></i>
                       </button>
                     </div>
                   </div>
@@ -626,12 +629,12 @@ export default function PharmacyManagement() {
                             <i className={pharmacy.status?.toLowerCase() === 'active' ? 'bi bi-pause' : 'bi bi-play'}></i>
                           </button>
                           <button
-                            className="action-btn delete"
-                            onClick={() => handleDeletePharmacy(pharmacy)}
+                            className="action-btn ban"
+                            onClick={() => handleBanPharmacy(pharmacy)}
                             disabled={showActionLoading}
-                            title="Delete"
+                            title="Ban"
                           >
-                            <i className="bi bi-trash3"></i>
+                            <i className="bi bi-slash-circle"></i>
                           </button>
                         </div>
                       </td>
@@ -706,145 +709,147 @@ export default function PharmacyManagement() {
           </div>
         )}
 
-        {/* View Modal */}
+        {/* View Modal - Using Bootstrap modal pattern like Appointments */}
         {showViewModal && selectedPharmacy && (
-          <div className="pharmacy-modal-overlay" onClick={() => setShowViewModal(false)}>
-            <div className="pharmacy-modal" onClick={(e) => e.stopPropagation()}>
-              <div className="pharmacy-modal-header">
-                <div className="pharmacy-modal-title">
-                  <div className="pharmacy-modal-icon">
-                    <i className="bi bi-capsule-pill"></i>
-                  </div>
-                  <div>
-                    <h3>{selectedPharmacy.name || selectedPharmacy.Name || 'Pharmacy Details'}</h3>
-                    <span className="pharmacy-modal-license">
-                      {selectedPharmacy.licenseNumber || selectedPharmacy.LicenseNumber || 'No license'}
-                    </span>
-                  </div>
-                </div>
-                <button className="pharmacy-modal-close" onClick={() => setShowViewModal(false)}>
-                  <i className="bi bi-x-lg"></i>
-                </button>
-              </div>
-
-              <div className="pharmacy-modal-body">
-                <div className="pharmacy-modal-section">
-                  <h4><i className="bi bi-info-circle-fill"></i> Basic Information</h4>
-                  <div className="pharmacy-modal-grid">
-                    <div className="pharmacy-modal-item">
-                      <label>Status</label>
-                      <span className={`status-pill ${selectedPharmacy.status?.toLowerCase() === 'active' ? 'active' : 'inactive'}`}>
-                        {selectedPharmacy.status || 'Unknown'}
-                      </span>
+          <div className="modal show d-block admin-modal-backdrop" tabIndex="-1">
+            <div className="modal-dialog modal-lg modal-dialog-scrollable modal-dialog-centered">
+              <div className="modal-content" style={{ border: 'none', boxShadow: 'var(--shadow-lg)', borderRadius: '24px', overflow: 'hidden' }}>
+                <div className="pharmacy-modal-header">
+                  <div className="pharmacy-modal-title">
+                    <div className="pharmacy-modal-icon">
+                      <i className="bi bi-capsule-pill"></i>
                     </div>
-                    <div className="pharmacy-modal-item">
-                      <label>Verification</label>
-                      <span className={`status-pill ${selectedPharmacy.verified ? 'verified' : 'pending'}`}>
-                        {selectedPharmacy.verified ? 'Verified' : 'Pending'}
+                    <div>
+                      <h3>{selectedPharmacy.name || selectedPharmacy.Name || 'Pharmacy Details'}</h3>
+                      <span className="pharmacy-modal-license">
+                        {selectedPharmacy.licenseNumber || selectedPharmacy.LicenseNumber || 'No license'}
                       </span>
                     </div>
                   </div>
+                  <button className="pharmacy-modal-close" onClick={() => setShowViewModal(false)}>
+                    <i className="bi bi-x-lg"></i>
+                  </button>
                 </div>
 
-                <div className="pharmacy-modal-section">
-                  <h4><i className="bi bi-geo-alt-fill"></i> Location & Address</h4>
-                  <div className="pharmacy-modal-grid">
-                    <div className="pharmacy-modal-item full">
-                      <label>Address</label>
-                      <span>{selectedPharmacy.address || selectedPharmacy.Address || '—'}</span>
-                    </div>
-                    <div className="pharmacy-modal-item">
-                      <label>District</label>
-                      <span>{selectedPharmacy.district || selectedPharmacy.District || '—'}</span>
-                    </div>
-                    <div className="pharmacy-modal-item">
-                      <label>Ward</label>
-                      <span>{selectedPharmacy.ward || selectedPharmacy.Ward || '—'}</span>
-                    </div>
-                    <div className="pharmacy-modal-item">
-                      <label>City</label>
-                      <span>{selectedPharmacy.city || selectedPharmacy.City || '—'}</span>
-                    </div>
-                  </div>
-                </div>
-
-                <div className="pharmacy-modal-section">
-                  <h4><i className="bi bi-telephone-fill"></i> Contact Information</h4>
-                  <div className="pharmacy-modal-grid">
-                    <div className="pharmacy-modal-item">
-                      <label>Phone</label>
-                      <span>{selectedPharmacy.phoneNumber || selectedPharmacy.PhoneNumber || '—'}</span>
-                    </div>
-                    <div className="pharmacy-modal-item">
-                      <label>Email</label>
-                      <span>{selectedPharmacy.email || selectedPharmacy.Email || '—'}</span>
-                    </div>
-                  </div>
-                </div>
-
-                <div className="pharmacy-modal-section">
-                  <h4><i className="bi bi-clock-fill"></i> Operating Hours & Services</h4>
-                  <div className="pharmacy-modal-grid">
-                    <div className="pharmacy-modal-item">
-                      <label>Working Hours</label>
-                      <span>
-                        {selectedPharmacy.open24Hours
-                          ? '24/7 Open'
-                          : `${selectedPharmacy.openTime || '—'} - ${selectedPharmacy.closeTime || '—'}`}
-                      </span>
-                    </div>
-                    <div className="pharmacy-modal-item">
-                      <label>Delivery Service</label>
-                      <span>{selectedPharmacy.deliveryAvailable ? `Yes (${selectedPharmacy.deliveryRadius || 0} km)` : 'No'}</span>
-                    </div>
-                  </div>
-                </div>
-
-                <div className="pharmacy-modal-section">
-                  <h4><i className="bi bi-bank"></i> Payment Information</h4>
-                  <div className="pharmacy-modal-grid">
-                    <div className="pharmacy-modal-item">
-                      <label>Bank Name</label>
-                      <span>{selectedPharmacy.bankName || selectedPharmacy.BankName || '—'}</span>
-                    </div>
-                    <div className="pharmacy-modal-item">
-                      <label>Account Number</label>
-                      <span>{selectedPharmacy.bankAccount || selectedPharmacy.BankAccount || '—'}</span>
-                    </div>
-                    <div className="pharmacy-modal-item">
-                      <label>Total Revenue</label>
-                      <span className="revenue-value">
-                        {formatCurrency(selectedPharmacy.totalEarnings ?? selectedPharmacy.totalRevenue ?? 0)}
-                      </span>
-                    </div>
-                  </div>
-                </div>
-
-                {(selectedPharmacy.description || selectedPharmacy.Description) && (
+                <div className="pharmacy-modal-body">
                   <div className="pharmacy-modal-section">
-                    <h4><i className="bi bi-card-text"></i> Description</h4>
-                    <p className="pharmacy-description">
-                      {selectedPharmacy.description || selectedPharmacy.Description}
-                    </p>
+                    <h4><i className="bi bi-info-circle-fill"></i> Basic Information</h4>
+                    <div className="pharmacy-modal-grid">
+                      <div className="pharmacy-modal-item">
+                        <label>Status</label>
+                        <span className={`status-pill ${selectedPharmacy.status?.toLowerCase() === 'active' ? 'active' : 'inactive'}`}>
+                          {selectedPharmacy.status || 'Unknown'}
+                        </span>
+                      </div>
+                      <div className="pharmacy-modal-item">
+                        <label>Verification</label>
+                        <span className={`status-pill ${selectedPharmacy.verified ? 'verified' : 'pending'}`}>
+                          {selectedPharmacy.verified ? 'Verified' : 'Pending'}
+                        </span>
+                      </div>
+                    </div>
                   </div>
-                )}
-              </div>
 
-              <div className="pharmacy-modal-footer">
-                <button className="pharmacy-modal-btn secondary" onClick={() => setShowViewModal(false)}>
-                  <i className="bi bi-x-circle"></i>
-                  Close
-                </button>
-                <button
-                  className={`pharmacy-modal-btn ${selectedPharmacy.verified ? 'warning' : 'success'}`}
-                  onClick={() => {
-                    handleToggleVerification(selectedPharmacy);
-                    setShowViewModal(false);
-                  }}
-                >
-                  <i className={selectedPharmacy.verified ? 'bi bi-x-lg' : 'bi bi-patch-check'}></i>
-                  {selectedPharmacy.verified ? 'Unverify' : 'Verify'}
-                </button>
+                  <div className="pharmacy-modal-section">
+                    <h4><i className="bi bi-geo-alt-fill"></i> Location & Address</h4>
+                    <div className="pharmacy-modal-grid">
+                      <div className="pharmacy-modal-item full">
+                        <label>Address</label>
+                        <span>{selectedPharmacy.address || selectedPharmacy.Address || '—'}</span>
+                      </div>
+                      <div className="pharmacy-modal-item">
+                        <label>District</label>
+                        <span>{selectedPharmacy.district || selectedPharmacy.District || '—'}</span>
+                      </div>
+                      <div className="pharmacy-modal-item">
+                        <label>Ward</label>
+                        <span>{selectedPharmacy.ward || selectedPharmacy.Ward || '—'}</span>
+                      </div>
+                      <div className="pharmacy-modal-item">
+                        <label>City</label>
+                        <span>{selectedPharmacy.city || selectedPharmacy.City || '—'}</span>
+                      </div>
+                    </div>
+                  </div>
+
+                  <div className="pharmacy-modal-section">
+                    <h4><i className="bi bi-telephone-fill"></i> Contact Information</h4>
+                    <div className="pharmacy-modal-grid">
+                      <div className="pharmacy-modal-item">
+                        <label>Phone</label>
+                        <span>{selectedPharmacy.phoneNumber || selectedPharmacy.PhoneNumber || '—'}</span>
+                      </div>
+                      <div className="pharmacy-modal-item">
+                        <label>Email</label>
+                        <span>{selectedPharmacy.email || selectedPharmacy.Email || '—'}</span>
+                      </div>
+                    </div>
+                  </div>
+
+                  <div className="pharmacy-modal-section">
+                    <h4><i className="bi bi-clock-fill"></i> Operating Hours & Services</h4>
+                    <div className="pharmacy-modal-grid">
+                      <div className="pharmacy-modal-item">
+                        <label>Working Hours</label>
+                        <span>
+                          {selectedPharmacy.open24Hours
+                            ? '24/7 Open'
+                            : `${selectedPharmacy.openTime || '—'} - ${selectedPharmacy.closeTime || '—'}`}
+                        </span>
+                      </div>
+                      <div className="pharmacy-modal-item">
+                        <label>Delivery Service</label>
+                        <span>{selectedPharmacy.deliveryAvailable ? `Yes (${selectedPharmacy.deliveryRadius || 0} km)` : 'No'}</span>
+                      </div>
+                    </div>
+                  </div>
+
+                  <div className="pharmacy-modal-section">
+                    <h4><i className="bi bi-bank"></i> Payment Information</h4>
+                    <div className="pharmacy-modal-grid">
+                      <div className="pharmacy-modal-item">
+                        <label>Bank Name</label>
+                        <span>{selectedPharmacy.bankName || selectedPharmacy.BankName || '—'}</span>
+                      </div>
+                      <div className="pharmacy-modal-item">
+                        <label>Account Number</label>
+                        <span>{selectedPharmacy.bankAccount || selectedPharmacy.BankAccount || '—'}</span>
+                      </div>
+                      <div className="pharmacy-modal-item">
+                        <label>Total Revenue</label>
+                        <span className="revenue-value">
+                          {formatCurrency(selectedPharmacy.totalEarnings ?? selectedPharmacy.totalRevenue ?? 0)}
+                        </span>
+                      </div>
+                    </div>
+                  </div>
+
+                  {(selectedPharmacy.description || selectedPharmacy.Description) && (
+                    <div className="pharmacy-modal-section">
+                      <h4><i className="bi bi-card-text"></i> Description</h4>
+                      <p className="pharmacy-description">
+                        {selectedPharmacy.description || selectedPharmacy.Description}
+                      </p>
+                    </div>
+                  )}
+                </div>
+
+                <div className="pharmacy-modal-footer">
+                  <button className="pharmacy-modal-btn secondary" onClick={() => setShowViewModal(false)}>
+                    <i className="bi bi-x-circle"></i>
+                    Close
+                  </button>
+                  <button
+                    className={`pharmacy-modal-btn ${selectedPharmacy.verified ? 'warning' : 'success'}`}
+                    onClick={() => {
+                      handleToggleVerification(selectedPharmacy);
+                      setShowViewModal(false);
+                    }}
+                  >
+                    <i className={selectedPharmacy.verified ? 'bi bi-x-lg' : 'bi bi-patch-check'}></i>
+                    {selectedPharmacy.verified ? 'Unverify' : 'Verify'}
+                  </button>
+                </div>
               </div>
             </div>
           </div>

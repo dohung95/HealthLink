@@ -31,6 +31,7 @@ import {
   getPatientInitials,
   calculateAge,
 } from '../helper/tabHelpers';
+import { vitalSignApi } from '../../../api/vitalSignApi';
 
 const TABS = [
   { id: 'notes', label: 'Consultation Notes', icon: 'bi-journal-text' },
@@ -52,6 +53,8 @@ const DoctorAppointmentDetail = ({
   const [appointmentDetail, setAppointmentDetail] = useState(null);
   const [loadingAppointment, setLoadingAppointment] = useState(false);
   const [prescription, setPrescription] = useState(null);
+  const [latestVitalSign, setLatestVitalSign] = useState(null);
+  const [loadingVitalSign, setLoadingVitalSign] = useState(false);
   const [prescriptionDraft, setPrescriptionDraft] = useState(null);
   const [loadingPrescription, setLoadingPrescription] = useState(false);
   const [selectedHistoryAppointment, setSelectedHistoryAppointment] = useState(null);
@@ -103,6 +106,36 @@ const DoctorAppointmentDetail = ({
     doctorId;
   const followUpSelectedDateValue = toLocalDateValue(followUpSelectedDate);
 
+  const loadLatestVitalSign = useCallback(async () => {
+    if (!appointmentId) return;
+
+    setLoadingVitalSign(true);
+
+    try {
+      const data = await vitalSignApi.getLatestAppointmentVitalSign(appointmentId);
+      setLatestVitalSign(data || null);
+    } catch (error) {
+      console.error('Error loading vital signs:', error);
+      setLatestVitalSign(null);
+    } finally {
+      setLoadingVitalSign(false);
+    }
+  }, [appointmentId]);
+
+  const formatVitalSource = (source) => {
+    switch (source) {
+      case 'HomeDevice':
+        return 'Home device';
+      case 'Manual':
+        return 'Manual measurement';
+      default:
+        return source || 'N/A';
+    }
+  };
+
+  useEffect(() => {
+    loadLatestVitalSign();
+  }, [loadLatestVitalSign]);
   const fetchAppointmentBundle = useCallback(async (targetAppointmentId, options = {}) => {
     const detail = await appointmentService.getAppointmentDetail(targetAppointmentId);
     const resolvedDoctorId = detail?.doctorId || detail?.doctorID || doctorId;
@@ -477,9 +510,9 @@ const DoctorAppointmentDetail = ({
       const source = Array.isArray(row?.timings) && row.timings.length > 0
         ? row.timings
         : String(row?.timing || '')
-            .split(',')
-            .map((value) => value.trim())
-            .filter(Boolean);
+          .split(',')
+          .map((value) => value.trim())
+          .filter(Boolean);
 
       return [...new Set(source.map((value) => String(value).toUpperCase()).filter(Boolean))];
     };
@@ -505,31 +538,31 @@ const DoctorAppointmentDetail = ({
     const prescriptionPayload =
       !prescription && draftRows.length > 0
         ? {
-            appointmentId,
-            diagnosis:
-              prescriptionDraft?.diagnosis?.trim() ||
-              appointmentDetail?.consultation?.diagnosis ||
-              appointmentDetail?.diagnosis ||
-              null,
-            notes:
-              appointmentDetail?.consultation?.doctorNotes ||
-              appointmentDetail?.doctorNotes ||
-              null,
-            items: draftRows.map((row) => {
-              const timings = getRowTimings(row);
-              return {
-                medicineId: row.medicineId,
-                totalSupplyDays: Number(row.totalSupplyDays),
-                quantity: Number(row.quantity),
-                unit: row.unit || null,
-                frequency: row.frequency || null,
-                timing: timings.join(','),
-                timings,
-                route: row.route || null,
-                notes: row.notes?.trim() || null,
-              };
-            }),
-          }
+          appointmentId,
+          diagnosis:
+            prescriptionDraft?.diagnosis?.trim() ||
+            appointmentDetail?.consultation?.diagnosis ||
+            appointmentDetail?.diagnosis ||
+            null,
+          notes:
+            appointmentDetail?.consultation?.doctorNotes ||
+            appointmentDetail?.doctorNotes ||
+            null,
+          items: draftRows.map((row) => {
+            const timings = getRowTimings(row);
+            return {
+              medicineId: row.medicineId,
+              totalSupplyDays: Number(row.totalSupplyDays),
+              quantity: Number(row.quantity),
+              unit: row.unit || null,
+              frequency: row.frequency || null,
+              timing: timings.join(','),
+              timings,
+              route: row.route || null,
+              notes: row.notes?.trim() || null,
+            };
+          }),
+        }
         : null;
 
     setCompletingAppointment(true);
@@ -703,6 +736,144 @@ const DoctorAppointmentDetail = ({
       <p className="doctor-detail-empty__description">{description}</p>
     </div>
   );
+
+  const VitalItem = ({ label, value, unit, icon, muted = false }) => (
+    <div className={`doctor-vital-item ${muted ? 'doctor-vital-item--muted' : ''}`}>
+      <div className="doctor-vital-item__icon">
+        <i className={`bi ${icon}`}></i>
+      </div>
+
+      <div>
+        <div className="doctor-vital-item__label">{label}</div>
+        <div className="doctor-vital-item__value">
+          {value || 'N/A'}
+          {value && unit ? <span> {unit}</span> : null}
+        </div>
+      </div>
+    </div>
+  );
+
+  const renderPreConsultationVitals = () => {
+    if (loadingVitalSign) {
+      return (
+        <section className="doctor-detail-vitals-card">
+          <div className="d-flex align-items-center gap-2 text-muted">
+            <span className="spinner-border spinner-border-sm" />
+            Loading pre-consultation vitals...
+          </div>
+        </section>
+      );
+    }
+
+    if (!latestVitalSign) {
+      return (
+        <section className="doctor-detail-vitals-card doctor-detail-vitals-card--empty">
+          <div>
+            <h3 className="doctor-detail-section-title doctor-detail-section-title--compact">
+              Pre-consultation vitals
+            </h3>
+            <p className="text-muted mb-0">
+              The patient has not submitted vital signs for this appointment yet.
+            </p>
+          </div>
+
+          <button
+            type="button"
+            className="btn btn-sm btn-outline-primary"
+            onClick={loadLatestVitalSign}
+          >
+            <i className="bi bi-arrow-clockwise me-1"></i>
+            Refresh
+          </button>
+        </section>
+      );
+    }
+
+    const bloodPressure =
+      latestVitalSign.bloodPressureSystolic && latestVitalSign.bloodPressureDiastolic
+        ? `${latestVitalSign.bloodPressureSystolic}/${latestVitalSign.bloodPressureDiastolic}`
+        : null;
+
+    return (
+      <section className="doctor-detail-vitals-card">
+        <div className="doctor-detail-vitals-header">
+          <div>
+            <h3 className="doctor-detail-section-title doctor-detail-section-title--compact">
+              Pre-consultation vitals
+            </h3>
+            <p className="text-muted small mb-0">
+              Measured at {formatDateTime(latestVitalSign.measuredAt)}
+            </p>
+          </div>
+
+          <button
+            type="button"
+            className="btn btn-sm btn-outline-primary"
+            onClick={loadLatestVitalSign}
+          >
+            <i className="bi bi-arrow-clockwise me-1"></i>
+            Refresh
+          </button>
+        </div>
+
+        <div className="doctor-vitals-grid">
+          <VitalItem
+            label="Heart rate"
+            value={latestVitalSign.heartRate}
+            unit="bpm"
+            icon="bi-heart-pulse"
+          />
+
+          <VitalItem
+            label="Blood pressure"
+            value={bloodPressure}
+            unit="mmHg"
+            icon="bi-activity"
+          />
+
+          <VitalItem
+            label="SpO₂"
+            value={latestVitalSign.oxygenSaturation}
+            unit="%"
+            icon="bi-lungs"
+          />
+
+          <VitalItem
+            label="Temperature"
+            value={latestVitalSign.temperature}
+            unit="°C"
+            icon="bi-thermometer-half"
+          />
+
+          <VitalItem
+            label="Respiratory rate"
+            value={latestVitalSign.respiratoryRate}
+            unit="breaths/min"
+            icon="bi-wind"
+          />
+
+          <VitalItem
+            label="Measurement method"
+            value={formatVitalSource(latestVitalSign.source)}
+            icon="bi-house-heart"
+            muted
+          />
+        </div>
+
+        {latestVitalSign.deviceName ? (
+          <div className="doctor-vitals-note">
+            <strong>Device:</strong> {latestVitalSign.deviceName}
+          </div>
+        ) : null}
+
+        {latestVitalSign.notes ? (
+          <div className="doctor-vitals-note">
+            <strong>Patient notes:</strong> {latestVitalSign.notes}
+          </div>
+        ) : null}
+      </section>
+    );
+  };
 
   return (
     <div className="doctor-detail-layout doctor-detail-shell">

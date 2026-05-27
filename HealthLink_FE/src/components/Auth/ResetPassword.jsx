@@ -20,6 +20,16 @@ export default function ResetPassword() {
     const [success, setSuccess] = useState(false);
     const [error, setError] = useState('');
 
+    // Password validation checks
+    const passwordRequirements = {
+        minLength: newPassword.length >= 6,
+        hasUppercase: /[A-Z]/.test(newPassword),
+        hasLowercase: /[a-z]/.test(newPassword),
+        hasNumber: /[0-9]/.test(newPassword),
+        hasSpecialChar: /[^a-zA-Z0-9\s]/.test(newPassword),
+        hasMatch: newPassword === confirmPassword && newPassword.length > 0
+    };
+
     // Nếu không có token trong URL thì báo lỗi ngay
     useEffect(() => {
         if (!token) {
@@ -102,6 +112,30 @@ export default function ResetPassword() {
                                             <i className={`bi bi-eye${showPass ? '-slash' : ''}`}></i>
                                         </button>
                                     </div>
+                                    {newPassword.length > 0 && (
+                                        <div style={styles.requirementsWrap}>
+                                            <div style={{ ...styles.reqItem, color: passwordRequirements.minLength ? '#00b09a' : '#dc3545' }}>
+                                                <i className={`bi bi-${passwordRequirements.minLength ? 'check-circle-fill' : 'x-circle'}`} style={{ marginRight: '6px' }}></i>
+                                                <span>At least 6 characters</span>
+                                            </div>
+                                            <div style={{ ...styles.reqItem, color: passwordRequirements.hasUppercase ? '#00b09a' : '#dc3545' }}>
+                                                <i className={`bi bi-${passwordRequirements.hasUppercase ? 'check-circle-fill' : 'x-circle'}`} style={{ marginRight: '6px' }}></i>
+                                                <span>Needs uppercase letter (A-Z)</span>
+                                            </div>
+                                            <div style={{ ...styles.reqItem, color: passwordRequirements.hasLowercase ? '#00b09a' : '#dc3545' }}>
+                                                <i className={`bi bi-${passwordRequirements.hasLowercase ? 'check-circle-fill' : 'x-circle'}`} style={{ marginRight: '6px' }}></i>
+                                                <span>Needs lowercase letter (a-z)</span>
+                                            </div>
+                                            <div style={{ ...styles.reqItem, color: passwordRequirements.hasNumber ? '#00b09a' : '#dc3545' }}>
+                                                <i className={`bi bi-${passwordRequirements.hasNumber ? 'check-circle-fill' : 'x-circle'}`} style={{ marginRight: '6px' }}></i>
+                                                <span>Needs number (0-9)</span>
+                                            </div>
+                                            <div style={{ ...styles.reqItem, color: passwordRequirements.hasSpecialChar ? '#00b09a' : '#dc3545' }}>
+                                                <i className={`bi bi-${passwordRequirements.hasSpecialChar ? 'check-circle-fill' : 'x-circle'}`} style={{ marginRight: '6px' }}></i>
+                                                <span>Needs special character</span>
+                                            </div>
+                                        </div>
+                                    )}
                                 </div>
 
                                 <div style={styles.fieldWrap}>
@@ -114,6 +148,20 @@ export default function ResetPassword() {
                                         style={styles.input}
                                         disabled={loading}
                                     />
+                                    {confirmPassword.length > 0 && (
+                                        <div style={{
+                                            color: passwordRequirements.hasMatch ? '#00b09a' : '#dc3545',
+                                            fontSize: '12px',
+                                            marginTop: '6px',
+                                            display: 'flex',
+                                            alignItems: 'center',
+                                            gap: '4px',
+                                            textAlign: 'left'
+                                        }}>
+                                            <i className={`bi bi-${passwordRequirements.hasMatch ? 'check-circle-fill' : 'x-circle'}`}></i>
+                                            <span>{passwordRequirements.hasMatch ? 'Passwords match ✓' : 'Passwords do not match ✗'}</span>
+                                        </div>
+                                    )}
                                 </div>
 
                                 <button type="submit" style={styles.btn} disabled={loading || !token}>
@@ -209,4 +257,18 @@ const styles = {
     successBox: { padding: '20px 0', color: '#1a1a2e' },
     footer: { marginTop: '24px', borderTop: '1px solid #eee', paddingTop: '16px', fontSize: '0.9rem' },
     link: { color: '#00b09a', fontWeight: 600, textDecoration: 'none' },
+    requirementsWrap: {
+        marginTop: '8px',
+        padding: '10px 12px',
+        background: '#f8fafc',
+        borderRadius: '8px',
+        border: '1px solid #e2e8f0',
+        textAlign: 'left',
+    },
+    reqItem: {
+        fontSize: '0.82rem',
+        display: 'flex',
+        alignItems: 'center',
+        marginBottom: '4px',
+    },
 };

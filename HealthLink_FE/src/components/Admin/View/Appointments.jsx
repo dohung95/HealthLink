@@ -876,19 +876,17 @@ export default function Appointments() {
                     {appointment.status !== 'Cancelled' && appointment.status !== 'Completed' && (
                       <>
                         <button
-                          className="action-btn"
+                          className="action-btn reassign-btn"
                           title="Reassign to another doctor"
                           onClick={() => handleOpenReassignModal(appointment)}
-                          style={{ backgroundColor: '#6366f1', color: 'white' }}
                         >
                           <i className="bi bi-arrow-left-right"></i>
                           <span>Reassign</span>
                         </button>
                         <button
-                          className="action-btn"
+                          className="action-btn cancel-btn"
                           title="Cancel Appointment"
                           onClick={() => handleOpenCancelModal(appointment)}
-                          style={{ backgroundColor: '#ef4444', color: 'white' }}
                         >
                           <i className="bi bi-x-circle"></i>
                           <span>Cancel</span>
