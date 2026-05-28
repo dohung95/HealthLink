@@ -108,7 +108,8 @@ public class AdminMedicalRecordService {
         List<AdminAppointmentSummaryDto> appointments = new ArrayList<>();
         if (patient.getAppointments() != null) {
             appointments = patient.getAppointments().stream()
-                .sorted((a, b) -> b.getAppointmentTime().compareTo(a.getAppointmentTime()))
+                .sorted(Comparator.comparing(Appointment::getAppointmentTime,
+                        Comparator.nullsLast(Comparator.reverseOrder())))
                 .map(this::mapToAppointmentSummaryDto)
                 .collect(Collectors.toList());
         }

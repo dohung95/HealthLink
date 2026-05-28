@@ -47,6 +47,7 @@ lerna-debug.log*
 /.opencode
 /graphify-out
 /AGENTS.md
+/.github
 
 
 # === Custom ignores cho file XML do IDE sinh ra ===

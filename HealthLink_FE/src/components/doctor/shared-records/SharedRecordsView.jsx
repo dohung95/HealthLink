@@ -1,6 +1,6 @@
 import React, { useEffect, useMemo, useState } from 'react';
-import { shareApi } from '../api/shareRecordApi';
-import DocumentViewerModal from './DocumentViewerModal';
+import { shareApi } from '../../../api/shareRecordApi';
+import DocumentViewerModal from '../../DocumentViewerModal';
 
 const SharedRecordsView = ({ doctorId, patientFilter }) => {
     const [sharedRecords, setSharedRecords] = useState([]);
