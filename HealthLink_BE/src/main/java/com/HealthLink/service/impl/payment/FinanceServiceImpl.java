@@ -656,6 +656,8 @@ public class FinanceServiceImpl implements FinanceService {
             appointment.setConfirmedAt(paidAt);
             appointment = appointmentRepository.save(appointment);
 
+            notifyDoctorAboutNewAppointmentAfterCommit(appointment);
+
             BigDecimal consultationFee = appointment.getFee() != null
                     ? appointment.getFee()
                     : expectedAmount;
@@ -1163,6 +1165,54 @@ public class FinanceServiceImpl implements FinanceService {
                         actionUrl
                 )
         );
+    }
+
+    private void notifyDoctorAboutNewAppointmentAfterCommit(Appointment appointment) {
+        User doctorUser = resolveDoctorUser(appointment, NotificationType.NEW_APPOINTMENT);
+        if (doctorUser == null) {
+            return;
+        }
+
+        String patientName = safeValue(appointment.getPatient().getFullName(), "Unknown patient");
+        String appointmentTime = appointment.getAppointmentTime() != null
+                ? appointment.getAppointmentTime().format(DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm"))
+                : "unknown time";
+        String consultationType = safeValue(appointment.getConsultationType(), "consultation");
+        Integer appointmentId = appointment.getAppointmentId();
+        String actionUrl = "/appointments/" + appointmentId;
+
+        runAfterCommit("new appointment notification appointmentId=" + appointmentId, () -> {
+            notificationService.sendWebSocketNotification(
+                    doctorUser,
+                    NotificationType.NEW_APPOINTMENT,
+                    "New appointment booked",
+                    String.format(
+                            "%s booked a %s appointment at %s.",
+                            patientName,
+                            consultationType,
+                            appointmentTime
+                    ),
+                    appointmentId,
+                    actionUrl
+            );
+            log.info("New appointment notification queued for doctorUserId={}, appointmentId={}",
+                    doctorUser.getId(), appointmentId);
+        });
+    }
+
+    private User resolveDoctorUser(Appointment appointment, NotificationType type) {
+        if (appointment == null || appointment.getDoctor() == null) {
+            log.warn("Cannot send {} notification: appointment or doctor is missing", type);
+            return null;
+        }
+
+        User user = appointment.getDoctor().getUser();
+        if (user == null || user.getId() == null || user.getId().isBlank()) {
+            log.warn("Cannot send {} notification: doctorId={} is not mapped to a user",
+                    type, appointment.getDoctor().getDoctorId());
+            return null;
+        }
+        return user;
     }
 
     private boolean shouldNotifyDoctorAboutCompletedPaidOrder(PharmacyOrder pharmacyOrder) {

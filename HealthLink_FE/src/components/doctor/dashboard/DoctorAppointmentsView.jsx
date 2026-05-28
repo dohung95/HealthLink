@@ -172,7 +172,7 @@ const isActionableAppointment = (appointment) => {
   return statusKey !== 'cancelled' && statusKey !== 'completed';
 };
 
-export default function DoctorAppointmentsView({ doctorId, onViewAppointment }) {
+export default function DoctorAppointmentsView({ doctorId, onViewAppointment, refreshKey }) {
   const navigate = useNavigate();
   const [appointments, setAppointments] = useState([]);
   const [counts, setCounts] = useState({
@@ -225,7 +225,7 @@ export default function DoctorAppointmentsView({ doctorId, onViewAppointment }) 
     return () => {
       mounted = false;
     };
-  }, [doctorId, selectedDate, selectedStatus]);
+  }, [doctorId, selectedDate, selectedStatus, refreshKey]);
 
   const selectedDateLabel = useMemo(() => formatDateLabel(selectedDate), [selectedDate]);
 

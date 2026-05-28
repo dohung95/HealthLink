@@ -16,6 +16,7 @@ import com.HealthLink.repository.pharmacy.PharmacyConsultationRequestRepository;
 import com.HealthLink.repository.pharmacy.PharmacyOrderRepository;
 import com.HealthLink.repository.pharmacy.PharmacyRepository;
 import com.HealthLink.repository.prescription.PrescriptionHeaderRepository;
+import com.HealthLink.audit.AuditLogger;
 import com.HealthLink.service.pharmacy.PharmacyOrderService;
 import com.HealthLink.service.notification.NotificationService;
 import com.HealthLink.utility.mapper.PharmacyOrderMapper;
@@ -85,6 +86,7 @@ public class PharmacyOrderServiceImpl implements PharmacyOrderService {
     private final PrescriptionHeaderRepository prescriptionHeaderRepository;
     private final NotificationService notificationService;
     private final DeviceTokenRepository deviceTokenRepository;
+    private final AuditLogger audit = AuditLogger.pharmacy();
 
     // =========================================================================
     // Patient creates a pharmacy order from an existing prescription
@@ -174,6 +176,11 @@ public class PharmacyOrderServiceImpl implements PharmacyOrderService {
 
         PharmacyOrder saved = orderRepository.save(order);
 
+        audit.log("ORDER_CREATED", String.valueOf(saved.getOrderId()), patientId,
+                java.util.Map.of("pharmacyId", request.getPharmacyId(),
+                        "totalAmount", String.valueOf(totalAmount),
+                        "deliveryType", deliveryType));
+
         notifyPharmacyAboutNewOrderAfterCommit(saved);
 
         return PharmacyOrderMapper.toResponse(saved);
@@ -260,6 +267,10 @@ public class PharmacyOrderServiceImpl implements PharmacyOrderService {
         consultationRequest.setStatus(REQUEST_STATUS_ORDER_CREATED);
         consultationRequestRepository.save(consultationRequest);
 
+        audit.log("ORDER_CREATED_FROM_CONSULTATION", String.valueOf(savedOrder.getOrderId()), pharmacyId,
+                java.util.Map.of("consultationRequestId", String.valueOf(requestId),
+                        "totalAmount", String.valueOf(totalAmount)));
+
         notifyPatientAboutNewOrderFromRequestAfterCommit(savedOrder);
 
         return PharmacyOrderMapper.toResponse(savedOrder);
@@ -324,6 +335,9 @@ public class PharmacyOrderServiceImpl implements PharmacyOrderService {
             order.setDoctorCompletionPaidNotified(true);
         }
         PharmacyOrder updated = orderRepository.save(order);
+
+        audit.log("ORDER_STATUS_CHANGED", String.valueOf(orderId), null,
+                java.util.Map.of("from", currentStatus, "to", targetStatus));
 
         notifyPatientAboutOrderStatusAfterCommit(updated, currentStatus, targetStatus);
         if (notifyDoctorAboutCompletedPaidOrder) {

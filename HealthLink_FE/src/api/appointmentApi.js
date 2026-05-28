@@ -90,7 +90,7 @@ export const appointmentService = {
     },
 
     getAppointmentDetail: async (id) => {
-        const response = await axiosInstance.get(`/api/admin/adminappointments/${id}`);
+        const response = await axiosInstance.get(`/api/appointments/${id}`);
         return response.data;
     },
 
@@ -104,7 +104,7 @@ export const appointmentService = {
     },
 
     getPatientMedicalHistory: async (patientId) => {
-        const response = await axiosInstance.get(`/api/admin/adminmedicalrecords/patient/${patientId}/details`);
+        const response = await axiosInstance.get(`/api/doctor/medicalrecords/patient/${patientId}/details`);
         return response.data;
     },
 

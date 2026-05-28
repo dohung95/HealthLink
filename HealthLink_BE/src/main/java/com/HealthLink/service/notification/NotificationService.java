@@ -1,5 +1,6 @@
 package com.HealthLink.service.notification;
 
+import com.HealthLink.audit.AuditLogger;
 import com.HealthLink.dto.notification.FcmTokenRequest;
 import com.HealthLink.dto.notification.NotificationResponse;
 import com.HealthLink.entity.DeviceToken;
@@ -18,6 +19,7 @@ import org.springframework.data.domain.Pageable;
 import org.springframework.security.core.userdetails.UsernameNotFoundException;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.transaction.annotation.Propagation;
 
 import java.time.LocalDateTime;
 import java.util.List;
@@ -44,6 +46,7 @@ public class NotificationService {
     private final DeviceTokenRepository        deviceTokenRepository;
     private final WebSocketNotificationService webSocketService;
     private final FirebaseNotificationService  firebaseService;
+    private final AuditLogger audit = AuditLogger.notification();
 
     // =========================================================================
     // 1. GỬI THÔNG BÁO (được gọi nội bộ từ các service khác)
@@ -52,6 +55,10 @@ public class NotificationService {
     /**
      * Tạo và gửi thông báo WebSocket đến Doctor/Pharmacy (web UI).
      *
+     * Chạy không transaction để saveNotification() dùng transaction riêng
+     * của Spring Data JPA (commit ngay sau save), đảm bảo WebSocket send
+     * chỉ xảy ra sau khi notification đã được commit xuống DB.
+     *
      * @param user     User nhận thông báo (Doctor hoặc Pharmacy)
      * @param type     Loại thông báo
      * @param title    Tiêu đề
@@ -59,19 +66,24 @@ public class NotificationService {
      * @param relatedId ID đối tượng liên quan (AppointmentID, v.v.)
      * @param actionUrl URL điều hướng khi click
      */
+    @Transactional(propagation = Propagation.NOT_SUPPORTED)
     public void sendWebSocketNotification(User user, NotificationType type,
                                           String title, String message,
                                           Integer relatedId, String actionUrl) {
-        // Lưu vào DB trước
         Notification notification = saveNotification(user, type, title, message,
                 NotificationChannel.WEB_SOCKET, NotificationPriority.NORMAL, relatedId, actionUrl, null);
 
-        // Đẩy realtime qua WebSocket (bất đồng bộ)
         webSocketService.sendToUser(user.getId(), notification);
+
+        audit.log("NOTIFICATION_SENT", String.valueOf(notification.getNotificationId()),
+                user.getId() != null ? user.getId() : null,
+                java.util.Map.of("type", String.valueOf(type), "channel", "WEB_SOCKET",
+                        "relatedId", String.valueOf(relatedId)));
 
         log.info("WebSocket notification dispatched: type={}, userId={}", type, user.getId());
     }
 
+    @Transactional(propagation = Propagation.NOT_SUPPORTED)
     public void sendWebSocketNotification(User user, NotificationType type,
                                           String title, String message,
                                           Integer relatedId, String actionUrl,
@@ -80,6 +92,11 @@ public class NotificationService {
                 NotificationChannel.WEB_SOCKET, NotificationPriority.NORMAL, relatedId, actionUrl, metadata);
 
         webSocketService.sendToUser(user.getId(), notification);
+
+        audit.log("NOTIFICATION_SENT", String.valueOf(notification.getNotificationId()),
+                user.getId() != null ? user.getId() : null,
+                java.util.Map.of("type", String.valueOf(type), "channel", "WEB_SOCKET",
+                        "relatedId", String.valueOf(relatedId)));
 
         log.info("WebSocket notification dispatched: type={}, userId={}", type, user.getId());
     }
@@ -106,6 +123,10 @@ public class NotificationService {
         // Gửi FCM đến tất cả thiết bị active của user (bất đồng bộ)
         firebaseService.sendToUser(user.getId(), title, message, type, relatedId, actionUrl, null);
 
+        audit.log("NOTIFICATION_SENT", String.valueOf(relatedId),
+                user.getId() != null ? user.getId() : null,
+                java.util.Map.of("type", String.valueOf(type), "channel", "MOBILE_PUSH"));
+
         log.info("Mobile push notification dispatched: type={}, userId={}", type, user.getId());
     }
 
@@ -118,6 +139,10 @@ public class NotificationService {
                 NotificationChannel.MOBILE_PUSH, priority, relatedId, actionUrl, metadata);
 
         firebaseService.sendToUser(user.getId(), title, message, type, relatedId, actionUrl, metadata);
+
+        audit.log("NOTIFICATION_SENT", String.valueOf(relatedId),
+                user.getId() != null ? user.getId() : null,
+                java.util.Map.of("type", String.valueOf(type), "channel", "MOBILE_PUSH"));
 
         log.info("Mobile push notification dispatched: type={}, userId={}", type, user.getId());
     }
