@@ -15,12 +15,10 @@ import org.springframework.stereotype.Component;
 import org.springframework.util.StringUtils;
 import org.springframework.web.filter.OncePerRequestFilter;
 
+import org.slf4j.MDC;
+
 import java.io.IOException;
 
-/**
- * Filter chạy một lần mỗi request, đọc JWT từ header Authorization
- * và đặt Authentication vào SecurityContext.
- */
 @Component
 @RequiredArgsConstructor
 @Slf4j
@@ -43,15 +41,19 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
                 && !tokenBlacklistService.isBlacklisted(token)) {
 
             String email = jwtTokenProvider.getEmailFromToken(token);
-
             UserDetails userDetails = userDetailsService.loadUserByUsername(email);
 
             UsernamePasswordAuthenticationToken auth =
                     new UsernamePasswordAuthenticationToken(
                             userDetails, null, userDetails.getAuthorities());
             auth.setDetails(new WebAuthenticationDetailsSource().buildDetails(request));
-
             SecurityContextHolder.getContext().setAuthentication(auth);
+
+            MDC.put("userId", email);
+            MDC.put("userRole", userDetails.getAuthorities().stream()
+                    .findFirst()
+                    .map(Object::toString)
+                    .orElse(""));
         }
 
         filterChain.doFilter(request, response);

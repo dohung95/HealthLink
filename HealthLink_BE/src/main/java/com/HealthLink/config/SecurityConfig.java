@@ -29,6 +29,7 @@ import org.springframework.security.web.authentication.UsernamePasswordAuthentic
 public class SecurityConfig {
 
     private final JwtAuthenticationFilter jwtAuthenticationFilter;
+    private final CorrelationIdFilter correlationIdFilter;
     private final UserDetailsServiceImpl userDetailsService;
 
     // -------------------------------------------------------------------------
@@ -88,8 +89,9 @@ public class SecurityConfig {
                 // Dùng DaoAuthenticationProvider vừa tạo
                 .authenticationProvider(authenticationProvider())
                 // Thêm JWT filter trước UsernamePasswordAuthenticationFilter
-                .addFilterBefore(jwtAuthenticationFilter,
-                        UsernamePasswordAuthenticationFilter.class);
+                .addFilterBefore(jwtAuthenticationFilter, UsernamePasswordAuthenticationFilter.class)
+                // Correlation ID filter (MDC) chạy trước JWT filter
+                .addFilterBefore(correlationIdFilter, JwtAuthenticationFilter.class);
 
         return http.build();
     }

@@ -1,11 +1,13 @@
 package com.HealthLink.config;
 
-// import com.HealthLink.entity.Message;
+import com.HealthLink.entity.User;
+import com.HealthLink.repository.auth.UserRepository;
 import com.HealthLink.security.JwtTokenProvider;
 import lombok.RequiredArgsConstructor;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.core.Ordered;
 import org.springframework.core.annotation.Order;
+import org.springframework.messaging.Message;
 import org.springframework.messaging.MessageChannel;
 import org.springframework.messaging.simp.config.ChannelRegistration;
 import org.springframework.messaging.simp.config.MessageBrokerRegistry;
@@ -15,11 +17,10 @@ import org.springframework.messaging.support.ChannelInterceptor;
 import org.springframework.messaging.support.MessageHeaderAccessor;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.core.userdetails.UserDetails;
+import org.springframework.security.core.userdetails.UserDetailsService;
 import org.springframework.web.socket.config.annotation.EnableWebSocketMessageBroker;
 import org.springframework.web.socket.config.annotation.StompEndpointRegistry;
 import org.springframework.web.socket.config.annotation.WebSocketMessageBrokerConfigurer;
-import org.springframework.messaging.Message;
-import org.springframework.security.core.userdetails.UserDetailsService;
 
 /**
  * Cấu hình WebSocket + STOMP cho hệ thống thông báo realtime.
@@ -39,6 +40,7 @@ public class WebSocketConfig implements WebSocketMessageBrokerConfigurer {
     // Khai báo các Bean cần thiết (Sẽ được @RequiredArgsConstructor tự động Inject)
     private final JwtTokenProvider jwtTokenProvider;
     private final UserDetailsService userDetailsService;
+    private final UserRepository userRepository;
 
     /**
      * Cấu hình message broker:
@@ -84,14 +86,20 @@ public class WebSocketConfig implements WebSocketMessageBrokerConfigurer {
                     
                     if (authHeader != null && authHeader.startsWith("Bearer ")) {
                         String token = authHeader.substring(7);
-                        
+
                         if (jwtTokenProvider.validateToken(token)) {
                             String email = jwtTokenProvider.getEmailFromToken(token);
                             UserDetails userDetails = userDetailsService.loadUserByUsername(email);
-                            
-                            UsernamePasswordAuthenticationToken auth = 
-                                new UsernamePasswordAuthenticationToken(userDetails, null, userDetails.getAuthorities());
-                            
+
+                            // Look up User entity and use its internal id as the Principal name
+                            // so that convertAndSendToUser(userId, ...) resolves correctly.
+                            User user = userRepository.findByEmail(email).orElse(null);
+                            String principalName = user != null ? user.getId() : userDetails.getUsername();
+
+                            UsernamePasswordAuthenticationToken auth =
+                                    new UsernamePasswordAuthenticationToken(
+                                            principalName, null, userDetails.getAuthorities());
+
                             // QUAN TRỌNG: Gán user vào accessor để Spring nhận diện được session này của ai
                             accessor.setUser(auth);
                         }

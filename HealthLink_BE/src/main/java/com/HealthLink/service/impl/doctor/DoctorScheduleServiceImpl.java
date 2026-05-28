@@ -21,6 +21,7 @@ import com.HealthLink.repository.doctor.DoctorRepository;
 import com.HealthLink.repository.doctor.DoctorScheduleRepository;
 import com.HealthLink.service.compliance.ScheduleComplianceService;
 import com.HealthLink.service.doctor.DoctorScheduleService;
+import com.HealthLink.audit.AuditLogger;
 import com.HealthLink.service.notification.NotificationService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.context.annotation.Lazy;
@@ -51,6 +52,7 @@ public class DoctorScheduleServiceImpl implements DoctorScheduleService {
     private final AppointmentSlotHoldRepository appointmentSlotHoldRepository;
     private final NotificationService notificationService;
     private final @Lazy ScheduleComplianceService complianceService;
+    private final AuditLogger audit = AuditLogger.doctor();
 
     private static final String[] DAY_NAMES = {"Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"};
 
@@ -91,6 +93,11 @@ public class DoctorScheduleServiceImpl implements DoctorScheduleService {
         log.info("Doctor {} created schedule for day {} from {} to {}",
                 doctorId, DAY_NAMES[request.getDayOfWeek()], request.getStartTime(), request.getEndTime());
 
+        audit.log("SCHEDULE_CREATED", String.valueOf(saved.getScheduleId()), doctorId,
+                java.util.Map.of("dayOfWeek", request.getDayOfWeek(),
+                        "startTime", String.valueOf(request.getStartTime()),
+                        "endTime", String.valueOf(request.getEndTime())));
+
         // Update compliance after schedule change
         updateComplianceAsync(doctorId);
 
@@ -114,6 +121,11 @@ public class DoctorScheduleServiceImpl implements DoctorScheduleService {
         DoctorSchedule saved = scheduleRepository.save(schedule);
         log.info("Doctor {} updated schedule {}", doctorId, scheduleId);
 
+        audit.log("SCHEDULE_UPDATED", String.valueOf(scheduleId), doctorId,
+                java.util.Map.of("dayOfWeek", request.getDayOfWeek(),
+                        "startTime", String.valueOf(request.getStartTime()),
+                        "endTime", String.valueOf(request.getEndTime())));
+
         // Update compliance after schedule change
         updateComplianceAsync(doctorId);
 
@@ -126,6 +138,8 @@ public class DoctorScheduleServiceImpl implements DoctorScheduleService {
         scheduleRepository.delete(schedule);
         log.info("Doctor {} deleted schedule {}", doctorId, scheduleId);
 
+        audit.log("SCHEDULE_DELETED", String.valueOf(scheduleId), doctorId);
+
         // Update compliance after schedule change
         updateComplianceAsync(doctorId);
     }
@@ -135,6 +149,9 @@ public class DoctorScheduleServiceImpl implements DoctorScheduleService {
         DoctorSchedule schedule = findScheduleAndVerifyOwnership(doctorId, scheduleId);
         schedule.setAvailable(available);
         scheduleRepository.save(schedule);
+
+        audit.log("SCHEDULE_AVAILABILITY_TOGGLED", String.valueOf(scheduleId), doctorId,
+                java.util.Map.of("available", String.valueOf(available)));
 
         // Update compliance after availability change
         updateComplianceAsync(doctorId);

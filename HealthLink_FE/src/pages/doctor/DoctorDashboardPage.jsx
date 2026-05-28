@@ -124,6 +124,8 @@ const DoctorDashboardPage = () => {
   const [notifications, setNotifications] = useState([]);
   const [unreadCount, setUnreadCount] = useState(0);
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
+  const [appointmentsRefreshKey, setAppointmentsRefreshKey] = useState(0);
+  const seenNotificationIds = useRef(new Set());
 
   const doctorId = doctorData?.doctorID || doctorData?.doctorId;
   const isDetailView = view === APPOINTMENT_DETAIL_VIEW || view === PATIENT_DETAIL_VIEW;
@@ -172,7 +174,21 @@ const DoctorDashboardPage = () => {
 
   useEffect(() => {
     const initSignalR = async () => {
-      const handleAppointmentNotification = () => {
+      const handleAppointmentNotification = (notification) => {
+        const nid = notification?.notificationId ?? notification?.notificationID;
+        if (nid && seenNotificationIds.current.has(nid)) return;
+        if (nid) seenNotificationIds.current.add(nid);
+
+        setNotifications((prev) => [notification, ...prev.filter((n) => {
+          const prevId = n.notificationId ?? n.notificationID;
+          return prevId !== nid;
+        })]);
+        if (!notification.isRead) {
+          setUnreadCount((prev) => prev + 1);
+        }
+        if (notification.type === 'NEW_APPOINTMENT') {
+          setAppointmentsRefreshKey((prev) => prev + 1);
+        }
         fetchNotifications();
       };
 
@@ -183,6 +199,46 @@ const DoctorDashboardPage = () => {
     initSignalR();
     return () => {
       signalRService.off('ReceiveAppointmentNotification');
+    };
+  }, []);
+
+  const reconcileNotificationsDebounced = useRef(null);
+
+  useEffect(() => {
+    const debounce = (fn, wait = 2000) => {
+      let t = null;
+      return (...args) => {
+        if (t) clearTimeout(t);
+        t = setTimeout(() => fn(...args), wait);
+      };
+    };
+
+    reconcileNotificationsDebounced.current = debounce(() => {
+      if (document.visibilityState === 'visible') {
+        fetchNotifications();
+      }
+    }, 2000);
+
+    const genericHandler = (notification) => {
+      console.debug('[WS] Generic notification received on doctor dashboard:', notification);
+      const nid = notification?.notificationId ?? notification?.notificationID;
+      if (nid && seenNotificationIds.current.has(nid)) return;
+      if (nid) seenNotificationIds.current.add(nid);
+
+      setNotifications((prev) => [notification, ...prev.filter((n) => {
+        const prevId = n.notificationId ?? n.notificationID;
+        return prevId !== nid;
+      })]);
+      if (!notification.isRead) {
+        setUnreadCount((prev) => prev + 1);
+      }
+      reconcileNotificationsDebounced.current();
+    };
+
+    signalRService.on('ReceiveNotification', genericHandler);
+
+    return () => {
+      signalRService.off('ReceiveNotification', genericHandler);
     };
   }, []);
 
@@ -433,7 +489,7 @@ const DoctorDashboardPage = () => {
 
   const renderContent = () => {
     if (view === 'appointments') {
-      return <DoctorAppointmentsView doctorId={doctorId} onViewAppointment={(appointment) => openAppointmentDetail(appointment, 'appointments')} />;
+      return <DoctorAppointmentsView doctorId={doctorId} onViewAppointment={(appointment) => openAppointmentDetail(appointment, 'appointments')} refreshKey={appointmentsRefreshKey} />;
     }
     if (view === 'patients') {
       return <DoctorPatientsView onViewPatient={handleViewPatient} />;

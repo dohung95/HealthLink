@@ -1,0 +1,116 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<configuration>
+    <include resource="org/springframework/boot/logging/logback/defaults.xml"/>
+
+    <!-- ================================================================== -->
+    <!-- CONSOLE (dev) — colored, human-friendly                             -->
+    <!-- ================================================================== -->
+    <appender name="CONSOLE" class="ch.qos.logback.core.ConsoleAppender">
+        <encoder>
+            <pattern>%d{yyyy-MM-dd HH:mm:ss.SSS} %highlight(%-5level) [%magenta(%X{traceId})] %cyan(%logger{36}) - %msg%n</pattern>
+        </encoder>
+    </appender>
+
+    <!-- ================================================================== -->
+    <!-- JSON FILE (prod) — structured, for log ingestion                    -->
+    <!-- ================================================================== -->
+    <appender name="JSON_FILE" class="ch.qos.logback.core.rolling.RollingFileAppender">
+        <file>logs/healthlink.log</file>
+        <rollingPolicy class="ch.qos.logback.core.rolling.TimeBasedRollingPolicy">
+            <fileNamePattern>logs/archived/healthlink-%d{yyyy-MM-dd}.%i.log.gz</fileNamePattern>
+            <timeBasedFileNamingAndTriggeringPolicy class="ch.qos.logback.core.rolling.SizeAndTimeBasedFNATP">
+                <maxFileSize>100MB</maxFileSize>
+            </timeBasedFileNamingAndTriggeringPolicy>
+            <maxHistory>30</maxHistory>
+        </rollingPolicy>
+        <encoder class="net.logstash.logback.encoder.LogstashEncoder">
+            <includeMdc>true</includeMdc>
+        </encoder>
+    </appender>
+
+    <!-- ================================================================== -->
+    <!-- AUDIT FILES (prod) — separate files per business domain             -->
+    <!-- ================================================================== -->
+    <appender name="AUDIT_DOCTOR_FILE" class="ch.qos.logback.core.rolling.RollingFileAppender">
+        <file>logs/audit-doctor.log</file>
+        <rollingPolicy class="ch.qos.logback.core.rolling.TimeBasedRollingPolicy">
+            <fileNamePattern>logs/archived/audit-doctor-%d{yyyy-MM-dd}.%i.log.gz</fileNamePattern>
+            <timeBasedFileNamingAndTriggeringPolicy class="ch.qos.logback.core.rolling.SizeAndTimeBasedFNATP">
+                <maxFileSize>50MB</maxFileSize>
+            </timeBasedFileNamingAndTriggeringPolicy>
+            <maxHistory>90</maxHistory>
+        </rollingPolicy>
+        <encoder class="net.logstash.logback.encoder.LogstashEncoder">
+            <includeMdc>true</includeMdc>
+        </encoder>
+    </appender>
+
+    <appender name="AUDIT_PHARMACY_FILE" class="ch.qos.logback.core.rolling.RollingFileAppender">
+        <file>logs/audit-pharmacy.log</file>
+        <rollingPolicy class="ch.qos.logback.core.rolling.TimeBasedRollingPolicy">
+            <fileNamePattern>logs/archived/audit-pharmacy-%d{yyyy-MM-dd}.%i.log.gz</fileNamePattern>
+            <timeBasedFileNamingAndTriggeringPolicy class="ch.qos.logback.core.rolling.SizeAndTimeBasedFNATP">
+                <maxFileSize>50MB</maxFileSize>
+            </timeBasedFileNamingAndTriggeringPolicy>
+            <maxHistory>90</maxHistory>
+        </rollingPolicy>
+        <encoder class="net.logstash.logback.encoder.LogstashEncoder">
+            <includeMdc>true</includeMdc>
+        </encoder>
+    </appender>
+
+    <appender name="AUDIT_NOTIFICATION_FILE" class="ch.qos.logback.core.rolling.RollingFileAppender">
+        <file>logs/audit-notification.log</file>
+        <rollingPolicy class="ch.qos.logback.core.rolling.TimeBasedRollingPolicy">
+            <fileNamePattern>logs/archived/audit-notification-%d{yyyy-MM-dd}.%i.log.gz</fileNamePattern>
+            <timeBasedFileNamingAndTriggeringPolicy class="ch.qos.logback.core.rolling.SizeAndTimeBasedFNATP">
+                <maxFileSize>50MB</maxFileSize>
+            </timeBasedFileNamingAndTriggeringPolicy>
+            <maxHistory>30</maxHistory>
+        </rollingPolicy>
+        <encoder class="net.logstash.logback.encoder.LogstashEncoder">
+            <includeMdc>true</includeMdc>
+        </encoder>
+    </appender>
+
+    <!-- ================================================================== -->
+    <!-- DEV PROFILE                                                         -->
+    <!-- ================================================================== -->
+    <springProfile name="dev">
+        <root level="INFO">
+            <appender-ref ref="CONSOLE"/>
+        </root>
+        <!-- Audit logs inherit root → console in dev -->
+        <logger name="audit.doctor" level="INFO" additivity="true"/>
+        <logger name="audit.pharmacy" level="INFO" additivity="true"/>
+        <logger name="audit.notification" level="INFO" additivity="true"/>
+    </springProfile>
+
+    <!-- ================================================================== -->
+    <!-- PROD / DEFAULT PROFILE                                              -->
+    <!-- ================================================================== -->
+    <springProfile name="!dev">
+        <root level="INFO">
+            <appender-ref ref="JSON_FILE"/>
+        </root>
+        <logger name="audit.doctor" level="INFO" additivity="false">
+            <appender-ref ref="AUDIT_DOCTOR_FILE"/>
+        </logger>
+        <logger name="audit.pharmacy" level="INFO" additivity="false">
+            <appender-ref ref="AUDIT_PHARMACY_FILE"/>
+        </logger>
+        <logger name="audit.notification" level="INFO" additivity="false">
+            <appender-ref ref="AUDIT_NOTIFICATION_FILE"/>
+        </logger>
+    </springProfile>
+
+    <!-- ================================================================== -->
+    <!-- HIBERNATE NOISE REDUCTION (both profiles)                           -->
+    <!-- ================================================================== -->
+    <logger name="org.hibernate.SQL" level="WARN"/>
+    <logger name="org.hibernate.type.descriptor.sql" level="WARN"/>
+    <logger name="org.hibernate.orm.jpa" level="WARN"/>
+    <logger name="org.hibernate.engine.transaction" level="WARN"/>
+    <logger name="org.hibernate.engine.jdbc.spi.SqlExceptionHelper" level="WARN"/>
+    <logger name="org.springframework.security" level="WARN"/>
+</configuration>

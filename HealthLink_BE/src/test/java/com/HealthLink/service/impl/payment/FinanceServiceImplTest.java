@@ -309,13 +309,13 @@ class FinanceServiceImplTest {
         assertThat(appointment.getConfirmedAt()).isNotNull();
         verify(appointmentService).createAppointment(any());
         verify(commissionService, never()).processConsultationCommission(any(Invoice.class));
-        verify(notificationService, never()).sendWebSocketNotification(
+        verify(notificationService).sendWebSocketNotification(
                 eq(doctorUser),
                 eq(NotificationType.NEW_APPOINTMENT),
-                any(),
-                any(),
-                any(),
-                any()
+                eq("New appointment booked"),
+                contains("Patient One booked a Video appointment at"),
+                eq(33),
+                eq("/appointments/33")
         );
     }
 

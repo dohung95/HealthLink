@@ -1,15 +1,14 @@
 import React from 'react';
+import SharedRecordsView from '../../shared-records/SharedRecordsView';
+import '../../Css/SharedRecordsTab.css';
 
-const SharedRecordsTab = () => (
-  <div className="doctor-shared-placeholder">
-    <div className="doctor-shared-placeholder__icon">
-      <i className="bi bi-folder2-open"></i>
-    </div>
-    <h4 className="doctor-shared-placeholder__title">Shared Records</h4>
-    <p className="doctor-shared-placeholder__desc">
-      Documents and records shared by the patient will appear here.
-    </p>
-  </div>
+const SharedRecordsTab = ({ doctorId, patientId }) => (
+  <SharedRecordsView
+    doctorId={doctorId}
+    patientFilter={patientId}
+    emptyTitle="No Shared Records from This Patient"
+    emptyMessage="This patient has not shared any health records with you."
+  />
 );
 
 export default SharedRecordsTab;

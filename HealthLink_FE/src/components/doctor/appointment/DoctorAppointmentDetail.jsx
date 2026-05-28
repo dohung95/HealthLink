@@ -993,7 +993,7 @@ const DoctorAppointmentDetail = ({
               getTypeIcon={getTypeIcon}
             />
           ) : null}
-          {activeTab === 'shared' ? <SharedRecordsTab /> : null}
+          {activeTab === 'shared' ? <SharedRecordsTab doctorId={effectiveDoctorId} patientId={patientId} /> : null}
           <div hidden={activeTab !== 'prescription'} className="doctor-detail-prescription-panel">
             <DoctorPrescriptionWorkspace
               appointment={currentAppointment}

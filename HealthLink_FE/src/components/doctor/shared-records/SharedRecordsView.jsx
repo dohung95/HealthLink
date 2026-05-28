@@ -2,7 +2,7 @@ import React, { useEffect, useMemo, useState } from 'react';
 import { shareApi } from '../../../api/shareRecordApi';
 import DocumentViewerModal from '../../DocumentViewerModal';
 
-const SharedRecordsView = ({ doctorId, patientFilter }) => {
+const SharedRecordsView = ({ doctorId, patientFilter, emptyTitle = 'No Shared Records', emptyMessage = 'No patients have shared their health records with you yet.' }) => {
     const [sharedRecords, setSharedRecords] = useState([]);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState(null);
@@ -101,9 +101,17 @@ const SharedRecordsView = ({ doctorId, patientFilter }) => {
 
     if (error) {
         return (
-            <div className="alert alert-danger" role="alert">
-                <i className="bi bi-exclamation-triangle me-2"></i>
-                {error}
+            <div className="text-center py-5">
+                <div className="alert alert-danger d-inline-block" role="alert">
+                    <i className="bi bi-exclamation-triangle me-2"></i>
+                    {error}
+                </div>
+                <div className="mt-3">
+                    <button type="button" className="btn btn-outline-primary btn-sm" onClick={loadSharedRecords}>
+                        <i className="bi bi-arrow-clockwise me-1"></i>
+                        Retry
+                    </button>
+                </div>
             </div>
         );
     }
@@ -114,10 +122,8 @@ const SharedRecordsView = ({ doctorId, patientFilter }) => {
                 <div className="mb-4">
                     <i className="bi bi-inbox" style={{ fontSize: '4rem', color: '#cbd5e1' }}></i>
                 </div>
-                <h5 className="text-secondary mb-2">No Shared Records</h5>
-                <p className="text-muted mb-0">
-                    No patients have shared their health records with you yet.
-                </p>
+                <h5 className="text-secondary mb-2">{emptyTitle}</h5>
+                <p className="text-muted mb-0">{emptyMessage}</p>
             </div>
         );
     }
