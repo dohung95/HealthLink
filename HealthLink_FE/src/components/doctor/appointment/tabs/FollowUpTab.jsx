@@ -112,9 +112,6 @@ const FollowUpTab = ({
         <div className="doctor-detail-followup__slots">
           <div className="doctor-detail-followup__header">
             <div>
-              <p className="doctor-detail-eyebrow mb-1">
-                {toLocalDateValue(followUpSelectedDate) || 'Selected day'}
-              </p>
               <h3 className="doctor-detail-section-title doctor-detail-section-title--compact">
                 Available slots
               </h3>
