@@ -98,101 +98,462 @@ const ScheduleFormModal = ({ isOpen, onClose, schedule, onSuccess }) => {
   if (!isOpen) return null;
 
   return (
-    <div className="fixed inset-0 z-50 d-flex align-items-center justify-content-center bg-black/50 p-4" onClick={onClose}>
-      <section className="max-h-92vh w-100 max-w-xl overflow-y-auto rounded-xl bg-white shadow-xl" onClick={(event) => event.stopPropagation()}>
-        <div className="d-flex align-items-center justify-content-between border-bottom border-surface-border px-5 py-4">
-          <div className="d-flex align-items-center gap-2">
-            <span className="material-symbols-outlined text-primary-container">{schedule?.isNew ? 'add_circle' : 'edit_calendar'}</span>
-            <h2 className="mb-0 text-lg fw-bold text-text-main">{schedule?.isNew ? 'Add Schedule' : 'Edit Schedule'}</h2>
-          </div>
-          <button className="btn border-0 rounded p-2 text-text-muted hover:bg-surface-container" disabled={loading} onClick={onClose} type="button">
-            <span className="material-symbols-outlined">close</span>
+    <div style={{
+      position: 'fixed',
+      inset: 0,
+      zIndex: 1050,
+      display: 'flex',
+      alignItems: 'center',
+      justifyContent: 'center',
+      padding: '1rem',
+    }}>
+      <div
+        onClick={onClose}
+        style={{
+          position: 'absolute',
+          inset: 0,
+          backgroundColor: 'rgba(0,0,0,0.5)',
+          zIndex: 0,
+        }}
+      />
+      <div
+        className="modal-modern"
+        onClick={(e) => e.stopPropagation()}
+        style={{
+          position: 'relative',
+          zIndex: 1,
+          width: '100%',
+          maxWidth: '600px',
+          maxHeight: 'calc(100vh - 2rem)',
+          display: 'flex',
+          flexDirection: 'column',
+          backgroundColor: '#fff',
+          borderRadius: 'var(--radius-xl, 1.25rem)',
+          boxShadow: '0 25px 60px rgba(11,24,43,0.18)',
+          animation: 'modalFadeIn 0.2s ease',
+          overflow: 'hidden',
+        }}
+      >
+        <div style={{
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'space-between',
+          padding: '1.25rem 1.5rem',
+          borderBottom: '1px solid var(--border-light, #edf2f7)',
+          background: 'linear-gradient(135deg, var(--primary, #0052cc) 0%, #0047b3 100%)',
+        }}>
+          <h5 style={{
+            display: 'flex',
+            alignItems: 'center',
+            gap: '0.625rem',
+            margin: 0,
+            fontSize: '1.0625rem',
+            fontWeight: 700,
+            color: '#fff',
+            letterSpacing: '-0.01em',
+          }}>
+            <span className="material-symbols-outlined" style={{ fontSize: '1.5rem', color: 'rgba(255,255,255,0.9)' }}>
+              {schedule?.isNew ? 'add_circle' : 'edit_calendar'}
+            </span>
+            {schedule?.isNew ? 'Add Schedule' : 'Edit Schedule'}
+          </h5>
+          <button
+            type="button"
+            disabled={loading}
+            onClick={onClose}
+            style={{
+              width: '2rem',
+              height: '2rem',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              border: 'none',
+              background: 'transparent',
+              color: 'rgba(255,255,255,0.7)',
+              borderRadius: 'var(--radius-md, 0.625rem)',
+              cursor: 'pointer',
+              fontSize: '1rem',
+              transition: 'color 0.15s ease',
+            }}
+            onMouseEnter={(e) => e.currentTarget.style.color = '#fff'}
+            onMouseLeave={(e) => e.currentTarget.style.color = 'rgba(255,255,255,0.7)'}
+            aria-label="Close"
+          >
+            <span className="material-symbols-outlined" style={{ fontSize: '1.25rem' }}>close</span>
           </button>
         </div>
 
-        <form onSubmit={handleSubmit}>
-          <div className="d-grid gap-4 px-5 py-4">
+        <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', flex: 1, minHeight: 0 }}>
+          <div style={{
+            padding: '1.5rem',
+            overflowY: 'auto',
+            flex: 1,
+          }}>
             {error ? (
-              <div className="rounded border border-error-container bg-error-container/40 px-3 py-2 text-sm text-error" role="alert">
+              <div style={{
+                display: 'flex',
+                alignItems: 'center',
+                gap: '0.5rem',
+                padding: '0.5rem 0.75rem',
+                marginBottom: '1.5rem',
+                fontSize: '0.8125rem',
+                borderRadius: 'var(--radius-md, 0.625rem)',
+                color: '#dc2626',
+                backgroundColor: 'rgba(220,38,38,0.06)',
+                border: '1px solid rgba(220,38,38,0.2)',
+              }} role="alert">
+                <span className="material-symbols-outlined" style={{ fontSize: '1.125rem' }}>error</span>
                 {error}
               </div>
             ) : null}
 
-            <label className="d-grid gap-1">
-              <span className="text-xs fw-bold text-uppercase tracking-wide text-text-muted">Day of Week</span>
-              <select className="form-select h-10 rounded border border-surface-border bg-white px-3 text-sm focus-ring-primary" disabled={loading} name="dayOfWeek" onChange={handleChange} value={formData.dayOfWeek}>
+            <div style={{ marginBottom: '1.25rem' }}>
+              <label style={{
+                fontSize: '0.75rem',
+                fontWeight: 700,
+                textTransform: 'uppercase',
+                letterSpacing: '0.05em',
+                color: 'var(--text-muted, #64748b)',
+                marginBottom: '0.375rem',
+                display: 'block',
+              }}>
+                Day of Week
+              </label>
+              <select
+                className="form-select"
+                disabled={loading}
+                name="dayOfWeek"
+                onChange={handleChange}
+                value={formData.dayOfWeek}
+                style={{
+                  border: '1.5px solid var(--border, #e2e8f0)',
+                  borderRadius: 'var(--radius-md, 0.625rem)',
+                  padding: '0.625rem 0.875rem',
+                  fontSize: '0.875rem',
+                  color: 'var(--text-primary, #0f172a)',
+                  background: '#fff',
+                  minHeight: '42px',
+                  width: '100%',
+                  boxSizing: 'border-box',
+                }}
+              >
                 {DAYS.map((day, index) => (
                   <option key={day} value={index}>{day}</option>
                 ))}
               </select>
-            </label>
+            </div>
 
-            <div className="row g-4">
+            <div className="row g-3" style={{ marginBottom: '1.25rem' }}>
               <div className="col-12 col-sm-6">
-                <label className="d-grid gap-1">
-                  <span className="text-xs fw-bold text-uppercase tracking-wide text-text-muted">Start Time</span>
-                  <input className="form-control h-10 rounded border border-surface-border px-3 text-sm focus-ring-primary" disabled={loading} name="startTime" onChange={handleChange} required type="time" value={formData.startTime} />
-                </label>
+                <div style={{ marginBottom: 0 }}>
+                  <label style={{
+                    fontSize: '0.75rem',
+                    fontWeight: 700,
+                    textTransform: 'uppercase',
+                    letterSpacing: '0.05em',
+                    color: 'var(--text-muted, #64748b)',
+                    marginBottom: '0.375rem',
+                    display: 'block',
+                  }}>
+                    Start Time
+                  </label>
+                  <input
+                    className="form-control"
+                    disabled={loading}
+                    name="startTime"
+                    onChange={handleChange}
+                    required
+                    type="time"
+                    value={formData.startTime}
+                    style={{
+                      border: '1.5px solid var(--border, #e2e8f0)',
+                      borderRadius: 'var(--radius-md, 0.625rem)',
+                      padding: '0.625rem 0.875rem',
+                      fontSize: '0.875rem',
+                      color: 'var(--text-primary, #0f172a)',
+                      background: '#fff',
+                      minHeight: '42px',
+                      width: '100%',
+                      boxSizing: 'border-box',
+                    }}
+                  />
+                </div>
               </div>
               <div className="col-12 col-sm-6">
-                <label className="d-grid gap-1">
-                  <span className="text-xs fw-bold text-uppercase tracking-wide text-text-muted">End Time</span>
-                  <input className="form-control h-10 rounded border border-surface-border px-3 text-sm focus-ring-primary" disabled={loading} name="endTime" onChange={handleChange} required type="time" value={formData.endTime} />
-                </label>
+                <div style={{ marginBottom: 0 }}>
+                  <label style={{
+                    fontSize: '0.75rem',
+                    fontWeight: 700,
+                    textTransform: 'uppercase',
+                    letterSpacing: '0.05em',
+                    color: 'var(--text-muted, #64748b)',
+                    marginBottom: '0.375rem',
+                    display: 'block',
+                  }}>
+                    End Time
+                  </label>
+                  <input
+                    className="form-control"
+                    disabled={loading}
+                    name="endTime"
+                    onChange={handleChange}
+                    required
+                    type="time"
+                    value={formData.endTime}
+                    style={{
+                      border: '1.5px solid var(--border, #e2e8f0)',
+                      borderRadius: 'var(--radius-md, 0.625rem)',
+                      padding: '0.625rem 0.875rem',
+                      fontSize: '0.875rem',
+                      color: 'var(--text-primary, #0f172a)',
+                      background: '#fff',
+                      minHeight: '42px',
+                      width: '100%',
+                      boxSizing: 'border-box',
+                    }}
+                  />
+                </div>
               </div>
             </div>
 
-            <div className="row g-4">
+            <div className="row g-3" style={{ marginBottom: '1.25rem' }}>
               <div className="col-12 col-sm-6">
-                <label className="d-grid gap-1">
-                  <span className="text-xs fw-bold text-uppercase tracking-wide text-text-muted">Slot Duration</span>
-                  <select className="form-select h-10 rounded border border-surface-border bg-white px-3 text-sm focus-ring-primary" disabled={loading} name="slotDuration" onChange={handleChange} value={formData.slotDuration}>
+                <div style={{ marginBottom: 0 }}>
+                  <label style={{
+                    fontSize: '0.75rem',
+                    fontWeight: 700,
+                    textTransform: 'uppercase',
+                    letterSpacing: '0.05em',
+                    color: 'var(--text-muted, #64748b)',
+                    marginBottom: '0.375rem',
+                    display: 'block',
+                  }}>
+                    Slot Duration
+                  </label>
+                  <select
+                    className="form-select"
+                    disabled={loading}
+                    name="slotDuration"
+                    onChange={handleChange}
+                    value={formData.slotDuration}
+                    style={{
+                      border: '1.5px solid var(--border, #e2e8f0)',
+                      borderRadius: 'var(--radius-md, 0.625rem)',
+                      padding: '0.625rem 0.875rem',
+                      fontSize: '0.875rem',
+                      color: 'var(--text-primary, #0f172a)',
+                      background: '#fff',
+                      minHeight: '42px',
+                      width: '100%',
+                      boxSizing: 'border-box',
+                    }}
+                  >
                     {SLOT_DURATIONS.map((duration) => (
                       <option key={duration} value={duration}>{duration} mins</option>
                     ))}
                   </select>
-                </label>
+                </div>
               </div>
               <div className="col-12 col-sm-6">
-                <label className="d-grid gap-1">
-                  <span className="text-xs fw-bold text-uppercase tracking-wide text-text-muted">Max Patients per Slot</span>
-                  <input className="form-control h-10 rounded border border-surface-border px-3 text-sm focus-ring-primary" disabled={loading} max="10" min="1" name="maxPatients" onChange={handleChange} type="number" value={formData.maxPatients} />
-                </label>
+                <div style={{ marginBottom: 0 }}>
+                  <label style={{
+                    fontSize: '0.75rem',
+                    fontWeight: 700,
+                    textTransform: 'uppercase',
+                    letterSpacing: '0.05em',
+                    color: 'var(--text-muted, #64748b)',
+                    marginBottom: '0.375rem',
+                    display: 'block',
+                  }}>
+                    Max Patients per Slot
+                  </label>
+                  <input
+                    className="form-control"
+                    disabled={loading}
+                    max="10"
+                    min="1"
+                    name="maxPatients"
+                    onChange={handleChange}
+                    type="number"
+                    value={formData.maxPatients}
+                    style={{
+                      border: '1.5px solid var(--border, #e2e8f0)',
+                      borderRadius: 'var(--radius-md, 0.625rem)',
+                      padding: '0.625rem 0.875rem',
+                      fontSize: '0.875rem',
+                      color: 'var(--text-primary, #0f172a)',
+                      background: '#fff',
+                      minHeight: '42px',
+                      width: '100%',
+                      boxSizing: 'border-box',
+                    }}
+                  />
+                </div>
               </div>
             </div>
 
-            <label className="d-grid gap-1">
-              <span className="text-xs fw-bold text-uppercase tracking-wide text-text-muted">Consultation Type</span>
-              <select className="form-select h-10 rounded border border-surface-border bg-white px-3 text-sm focus-ring-primary" disabled={loading} name="consultationType" onChange={handleChange} value={formData.consultationType}>
+            <div style={{ marginBottom: '1.25rem' }}>
+              <label style={{
+                fontSize: '0.75rem',
+                fontWeight: 700,
+                textTransform: 'uppercase',
+                letterSpacing: '0.05em',
+                color: 'var(--text-muted, #64748b)',
+                marginBottom: '0.375rem',
+                display: 'block',
+              }}>
+                Consultation Type
+              </label>
+              <select
+                className="form-select"
+                disabled={loading}
+                name="consultationType"
+                onChange={handleChange}
+                value={formData.consultationType}
+                style={{
+                  border: '1.5px solid var(--border, #e2e8f0)',
+                  borderRadius: 'var(--radius-md, 0.625rem)',
+                  padding: '0.625rem 0.875rem',
+                  fontSize: '0.875rem',
+                  color: 'var(--text-primary, #0f172a)',
+                  background: '#fff',
+                  minHeight: '42px',
+                  width: '100%',
+                  boxSizing: 'border-box',
+                }}
+              >
                 <option value="">All Types</option>
                 {CONSULTATION_TYPES.map((type) => (
                   <option key={type} value={type}>{type}</option>
                 ))}
               </select>
-            </label>
+            </div>
 
-            <label className="d-grid gap-1">
-              <span className="text-xs fw-bold text-uppercase tracking-wide text-text-muted">Location</span>
-              <input className="form-control h-10 rounded border border-surface-border px-3 text-sm focus-ring-primary" disabled={loading} name="location" onChange={handleChange} placeholder="Room number, clinic address..." type="text" value={formData.location} />
-            </label>
+            <div style={{ marginBottom: '1.25rem' }}>
+              <label style={{
+                fontSize: '0.75rem',
+                fontWeight: 700,
+                textTransform: 'uppercase',
+                letterSpacing: '0.05em',
+                color: 'var(--text-muted, #64748b)',
+                marginBottom: '0.375rem',
+                display: 'block',
+              }}>
+                Location
+              </label>
+              <input
+                className="form-control"
+                disabled={loading}
+                name="location"
+                onChange={handleChange}
+                placeholder="Room number, clinic address..."
+                type="text"
+                value={formData.location}
+                style={{
+                  border: '1.5px solid var(--border, #e2e8f0)',
+                  borderRadius: 'var(--radius-md, 0.625rem)',
+                  padding: '0.625rem 0.875rem',
+                  fontSize: '0.875rem',
+                  color: 'var(--text-primary, #0f172a)',
+                  background: '#fff',
+                  minHeight: '42px',
+                  width: '100%',
+                  boxSizing: 'border-box',
+                }}
+              />
+            </div>
 
-            <label className="d-grid gap-1">
-              <span className="text-xs fw-bold text-uppercase tracking-wide text-text-muted">Notes</span>
-              <textarea className="form-control min-h-20 rounded border border-surface-border px-3 py-2 text-sm focus-ring-primary" disabled={loading} name="notes" onChange={handleChange} placeholder="Any additional notes..." value={formData.notes} />
-            </label>
+            <div style={{ marginBottom: 0 }}>
+              <label style={{
+                fontSize: '0.75rem',
+                fontWeight: 700,
+                textTransform: 'uppercase',
+                letterSpacing: '0.05em',
+                color: 'var(--text-muted, #64748b)',
+                marginBottom: '0.375rem',
+                display: 'block',
+              }}>
+                Notes
+              </label>
+              <textarea
+                className="form-control"
+                disabled={loading}
+                name="notes"
+                onChange={handleChange}
+                placeholder="Any additional notes..."
+                value={formData.notes}
+                style={{
+                  border: '1.5px solid var(--border, #e2e8f0)',
+                  borderRadius: 'var(--radius-md, 0.625rem)',
+                  padding: '0.625rem 0.875rem',
+                  fontSize: '0.875rem',
+                  color: 'var(--text-primary, #0f172a)',
+                  background: '#fff',
+                  minHeight: '90px',
+                  width: '100%',
+                  boxSizing: 'border-box',
+                  resize: 'vertical',
+                  fontFamily: 'inherit',
+                }}
+              />
+            </div>
           </div>
 
-          <div className="d-flex justify-content-end gap-3 border-top border-surface-border px-5 py-4">
-            <button className="btn rounded border border-surface-border px-4 py-2 text-sm fw-semibold text-text-main hover:bg-surface-container" disabled={loading} onClick={onClose} type="button">
+          <div style={{
+            display: 'flex',
+            justifyContent: 'flex-end',
+            gap: '0.75rem',
+            padding: '1rem 1.5rem',
+            borderTop: '1px solid var(--border-light, #edf2f7)',
+            background: 'var(--surface-muted, #f8fafc)',
+          }}>
+            <button type="button" disabled={loading} onClick={onClose} style={{
+              display: 'inline-flex',
+              alignItems: 'center',
+              gap: '0.5rem',
+              padding: '0.625rem 1.25rem',
+              borderRadius: 'var(--radius-md, 0.625rem)',
+              border: '1.5px solid var(--border, #e2e8f0)',
+              background: '#fff',
+              color: 'var(--text-secondary, #475569)',
+              fontSize: '0.875rem',
+              fontWeight: 600,
+              cursor: loading ? 'not-allowed' : 'pointer',
+              transition: 'all 0.15s ease',
+              opacity: loading ? 0.5 : 1,
+            }}
+            onMouseEnter={(e) => { if (!loading) { e.currentTarget.style.background = 'var(--surface-hover, #f1f4f8)'; e.currentTarget.style.color = 'var(--text-primary, #0f172a)'; } }}
+            onMouseLeave={(e) => { if (!loading) { e.currentTarget.style.background = '#fff'; e.currentTarget.style.color = 'var(--text-secondary, #475569)'; } }}
+            >
               Cancel
             </button>
-            <button className="btn d-inline-flex align-items-center gap-2 rounded bg-primary-container px-4 py-2 text-sm fw-semibold text-white hover:bg-primary disabled:opacity-60" disabled={loading} type="submit">
-              <span className="material-symbols-outlined text-18px">{loading ? 'progress_activity' : 'save'}</span>
+            <button type="submit" disabled={loading} style={{
+              display: 'inline-flex',
+              alignItems: 'center',
+              gap: '0.5rem',
+              padding: '0.625rem 1.25rem',
+              borderRadius: 'var(--radius-md, 0.625rem)',
+              border: 'none',
+              background: 'linear-gradient(135deg, var(--primary, #0052cc) 0%, #0047b3 100%)',
+              color: '#fff',
+              fontSize: '0.875rem',
+              fontWeight: 600,
+              cursor: loading ? 'not-allowed' : 'pointer',
+              transition: 'all 0.2s ease',
+              boxShadow: '0 2px 8px rgba(0,82,204,0.25)',
+              opacity: loading ? 0.5 : 1,
+            }}
+            onMouseEnter={(e) => { if (!loading) { e.currentTarget.style.transform = 'translateY(-1px)'; e.currentTarget.style.boxShadow = '0 4px 14px rgba(0,82,204,0.35)'; } }}
+            onMouseLeave={(e) => { if (!loading) { e.currentTarget.style.transform = 'none'; e.currentTarget.style.boxShadow = '0 2px 8px rgba(0,82,204,0.25)'; } }}
+            >
+              <span className="material-symbols-outlined" style={{ fontSize: '1.125rem' }}>
+                {loading ? 'progress_activity' : 'save'}
+              </span>
               {loading ? 'Saving...' : schedule?.isNew ? 'Create Schedule' : 'Save Changes'}
             </button>
           </div>
         </form>
-      </section>
+      </div>
     </div>
   );
 };

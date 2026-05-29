@@ -286,12 +286,12 @@ export default function DoctorAppointmentsView({ doctorId, onViewAppointment, re
   };
 
   return (
-    <div className="doctor-content-section">
+    <div className="doctor-content-section pt-4">
       {/* Page Header */}
-      <div className="doctor-page-header mb-3">
+      {/* <div className="doctor-page-header mb-3">
         <h1 className="doctor-page-header__title">Appointments</h1>
         <p className="doctor-page-header__subtitle">{selectedDateLabel} &middot; {counts.all} appointment{counts.all !== 1 ? 's' : ''}</p>
-      </div>
+      </div> */}
 
       {/* Quick Stats Row */}
       <div className="doctor-stat-row mb-3">
@@ -557,6 +557,7 @@ const getCalendarDays = (dateStr) => {
   const startOffset = firstDay.getDay() === 0 ? 6 : firstDay.getDay() - 1; // Monday = 0
   const daysInMonth = new Date(year, month + 1, 0).getDate();
   const today = new Date();
+  const todayStart = new Date(today.getFullYear(), today.getMonth(), today.getDate());
   const selectedDay = date.getDate();
 
   const days = [];
@@ -571,13 +572,19 @@ const getCalendarDays = (dateStr) => {
       today.getMonth() === month &&
       today.getDate() === d;
     const isSelected = d === selectedDay;
-    days.push({ day: d, label: String(d), isToday, isSelected });
+    const isPast = new Date(year, month, d) < todayStart && !isToday;
+    days.push({ day: d, label: String(d), isToday, isSelected, isPast });
   }
   return days;
 };
 
 const TodayTimeline = ({ appointments, loading, selectedDate, onView, onDateChange }) => {
   const calendarDays = useMemo(() => getCalendarDays(selectedDate), [selectedDate]);
+  const isCurrentMonth = useMemo(() => {
+    const d = new Date(selectedDate + 'T00:00:00');
+    const now = new Date();
+    return d.getFullYear() === now.getFullYear() && d.getMonth() === now.getMonth();
+  }, [selectedDate]);
 
   return (
     <section className="doctor-timeline">
@@ -587,28 +594,32 @@ const TodayTimeline = ({ appointments, loading, selectedDate, onView, onDateChan
           <span className="doctor-timeline__title-dot" />
           Today's Schedule
         </h2>
-        <div className="d-flex gap-1">
+        <div className="d-flex gap-1 align-items-center">
           <button
             className="doctor-timeline__nav-btn"
+            disabled={isCurrentMonth}
             onClick={() => {
               const d = new Date(selectedDate + 'T00:00:00');
-              d.setDate(d.getDate() - 1);
+              d.setMonth(d.getMonth() - 1);
               onDateChange(toDateInputValue(d));
             }}
             type="button"
-            aria-label="Previous day"
+            aria-label="Previous month"
           >
             <span className="material-symbols-outlined" style={{fontSize:'1rem'}}>chevron_left</span>
           </button>
+          <span style={{fontSize:'0.8rem',fontWeight:600,whiteSpace:'nowrap'}}>
+            {new Date(selectedDate + 'T00:00:00').toLocaleDateString('en-US', { month: 'short'}).replace('.', '')}
+          </span>
           <button
             className="doctor-timeline__nav-btn"
             onClick={() => {
               const d = new Date(selectedDate + 'T00:00:00');
-              d.setDate(d.getDate() + 1);
+              d.setMonth(d.getMonth() + 1);
               onDateChange(toDateInputValue(d));
             }}
             type="button"
-            aria-label="Next day"
+            aria-label="Next month"
           >
             <span className="material-symbols-outlined" style={{fontSize:'1rem'}}>chevron_right</span>
           </button>
@@ -633,9 +644,12 @@ const TodayTimeline = ({ appointments, loading, selectedDate, onView, onDateChan
                     ? 'doctor-timeline__calendar-day--selected'
                     : day.isToday
                       ? 'doctor-timeline__calendar-day--today'
-                      : ''
+                      : day.isPast
+                        ? 'doctor-timeline__calendar-day--disabled'
+                        : ''
                 }`}
                 key={`day-${day.day}`}
+                disabled={day.isPast}
                 onClick={() => {
                   const d = new Date(selectedDate + 'T00:00:00');
                   d.setDate(d.getDate() + (day.day - d.getDate()));

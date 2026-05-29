@@ -14,7 +14,7 @@ import DoctorPatientsView from '../../components/doctor/dashboard/DoctorPatients
 import DoctorPrescriptionsView from '../../components/doctor/dashboard/DoctorPrescriptionsView';
 import DoctorProfileView from '../../components/doctor/dashboard/DoctorProfileView';
 import DoctorScheduleView from '../../components/doctor/dashboard/DoctorScheduleView';
-import SharedRecordsView from '../../components/doctor/shared-records/SharedRecordsView';
+
 
 const NAV_ITEMS = [
   {
@@ -27,14 +27,6 @@ const NAV_ITEMS = [
     key: 'patients',
     label: 'Patients',
     icon: 'groups',
-    wide: true,
-  },
-  {
-    key: 'sharedRecords',
-    label: 'Shared Records',
-    icon: 'folder_shared',
-    title: 'Shared Health Records',
-    description: 'Review medical documents shared by your patients.',
     wide: true,
   },
   {
@@ -493,9 +485,6 @@ const DoctorDashboardPage = () => {
     }
     if (view === 'patients') {
       return <DoctorPatientsView onViewPatient={handleViewPatient} />;
-    }
-    if (view === 'sharedRecords') {
-      return <SharedRecordsView doctorId={doctorId} />;
     }
     if (view === 'prescriptions') {
       return <DoctorPrescriptionsView doctorId={doctorId} onOpenAppointmentById={(appointmentId) => handleOpenAppointmentById(appointmentId, 'prescriptions')} />;

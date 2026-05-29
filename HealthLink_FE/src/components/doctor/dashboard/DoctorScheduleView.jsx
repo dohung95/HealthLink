@@ -91,15 +91,9 @@ const DoctorScheduleView = () => {
   }
 
   return (
-    <div className="doctor-schedule-container">
-      {/* Page Header */}
-      <div className="doctor-schedule-header">
-        <h1 className="doctor-page-header__title">Schedule</h1>
-        <p className="doctor-page-header__subtitle">Manage your weekly availability and calendar exceptions</p>
-      </div>
-
+    <div className="doctor-schedule-container pt-3">
       <div className="doctor-schedule-action-bar">
-        <div className="doctor-schedule-tabs">
+        <div className="doctor-schedule-tabs" style={{backgroundColor:'var(--primary-light)'}}>
           <button
             className={`doctor-schedule-tab ${activeTab === 'weekly' ? 'doctor-schedule-tab--active' : ''}`}
             onClick={() => setActiveTab('weekly')}

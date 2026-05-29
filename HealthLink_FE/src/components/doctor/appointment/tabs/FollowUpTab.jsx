@@ -32,15 +32,6 @@ const FollowUpTab = ({
 }) => {
   return (
     <div className="doctor-detail-followup">
-      {!canEditFollowUp && !isReadOnlyAppointment ? (
-        <div className="doctor-detail-note-card doctor-notes-lock">
-          <p className="doctor-detail-note-card__label">Locked</p>
-          <p className="doctor-detail-note-card__value">
-            Start the consultation before scheduling a follow-up appointment.
-          </p>
-        </div>
-      ) : null}
-
       {consultation.followUpDate || consultation.followUpNotes ? (
         <div className="doctor-detail-followup__summary">
           <div className="doctor-detail-note-card">
@@ -62,18 +53,14 @@ const FollowUpTab = ({
         <div className="doctor-detail-followup__left">
           <div className="doctor-detail-followup__calendar">
             <div className="doctor-detail-followup__header">
-              <div>
-                <p className="doctor-detail-eyebrow mb-1">Follow-up</p>
-                <h3 className="doctor-detail-section-title doctor-detail-section-title--compact">
-                  Select a date
-                </h3>
-              </div>
+              
               {loadingFollowUpCalendar ? (
                 <span className="doctor-detail-followup__loading">Refreshing</span>
               ) : null}
             </div>
 
             <Calendar
+              locale="en-US"
               minDate={new Date()}
               onActiveStartDateChange={onFollowUpMonthChange}
               onChange={onFollowUpDateChange}

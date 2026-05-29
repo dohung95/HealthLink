@@ -1,6 +1,7 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { toast } from 'react-toastify';
 import { medicineApi } from '../../../api/medicineApi';
+import Select, { components } from 'react-select'; // eslint-disable-line no-unused-vars
 
 const FREQUENCY_OPTIONS = [
   { value: '', label: 'Optional' },
@@ -30,6 +31,78 @@ const LIBRARY_FILTERS = [
   { key: 'dosageForm', label: 'Dosage Form' },
   { key: 'manufacturer', label: 'Manufacturer' },
 ];
+
+const FREQUENCY_SELECT_OPTIONS = FREQUENCY_OPTIONS.filter((o) => o.value !== '');
+const ROUTE_SELECT_OPTIONS = ROUTE_OPTIONS.filter((o) => o.value !== '');
+
+const SelectControlWithIcon = ({ icon, children, ...props }) => (
+  <components.Control {...props}>
+    <span style={{ display: 'flex', alignItems: 'center', padding: '0 0.25rem 0 0.75rem', color: 'var(--text-muted)', fontSize: '0.8125rem' }}>
+      <i className={`bi ${icon}`}></i>
+    </span>
+    {children}
+  </components.Control>
+);
+
+const prescSelectStyles = {
+  control: (base, { isDisabled, isFocused }) => ({
+    ...base,
+    border: `1px solid var(--border)`,
+    borderRadius: '0.625rem',
+    minHeight: '2.375rem',
+    boxShadow: isFocused ? '0 0 0 3px var(--focus-ring)' : 'none',
+    borderColor: isFocused ? 'var(--primary)' : 'var(--border)',
+    backgroundColor: isDisabled ? 'var(--surface-muted)' : 'var(--surface)',
+    cursor: isDisabled ? 'not-allowed' : 'pointer',
+    fontSize: '0.8125rem',
+  }),
+  valueContainer: (base) => ({
+    ...base,
+    padding: '0 0.75rem 0 0.25rem',
+    height: '100%',
+  }),
+  indicatorsContainer: (base) => ({
+    ...base,
+    height: '2.375rem',
+  }),
+  dropdownIndicator: (base, { isDisabled }) => ({
+    ...base,
+    color: 'var(--text-muted)',
+    padding: '0 0.5rem',
+    cursor: isDisabled ? 'not-allowed' : 'pointer',
+  }),
+  indicatorSeparator: () => ({ display: 'none' }),
+  menu: (base) => ({
+    ...base,
+    borderRadius: '0.625rem',
+    boxShadow: '0 4px 16px rgba(11, 24, 43, 0.12)',
+    zIndex: 10,
+    overflow: 'hidden',
+  }),
+  option: (base, { isSelected, isFocused }) => ({
+    ...base,
+    fontSize: '0.8125rem',
+    padding: '0.5rem 0.75rem',
+    backgroundColor: isSelected ? 'var(--primary-light)' : isFocused ? 'var(--surface-hover)' : 'transparent',
+    color: isSelected ? 'var(--primary)' : 'var(--text-primary)',
+    cursor: 'pointer',
+  }),
+  singleValue: (base) => ({
+    ...base,
+    color: 'var(--text-primary)',
+    fontSize: '0.8125rem',
+  }),
+  placeholder: (base) => ({
+    ...base,
+    color: 'var(--text-muted)',
+    fontSize: '0.8125rem',
+  }),
+  input: (base) => ({
+    ...base,
+    fontSize: '0.8125rem',
+    color: 'var(--text-primary)',
+  }),
+};
 
 const createRowId = () => `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
 
@@ -298,22 +371,25 @@ const MedicineLibraryModal = ({
 
             <div className="doctor-prescription-library__header-actions">
               <button
-                className={`btn ${showFilters ? 'btn-primary' : 'btn-outline-primary'}`}
+                className="btn doctor-prescription-library__filter-btn"
                 onClick={onToggleFilters}
                 type="button"
               >
-                <i className="bi bi-funnel me-2"></i>
-                Filters
-                <span className="doctor-prescription-library__filter-count">{activeFilterCount}</span>
+                <span className={`doctor-prescription-library__filter-icon-wrapper${showFilters ? ' doctor-prescription-library__filter-icon-wrapper--active' : ''}`}>
+                  <i className="bi bi-funnel"></i>
+                  {activeFilterCount > 0 ? (
+                    <span className="doctor-prescription-library__filter-count">{activeFilterCount}</span>
+                  ) : null}
+                </span>
               </button>
-              <button
+              {/* <button
                 aria-label="Close medicine library"
-                className="btn btn-light doctor-prescription-library__close"
+                className="btn btn-light doctor-prescription-library__close border-0"
                 onClick={onClose}
                 type="button"
               >
                 <i className="bi bi-x-lg"></i>
-              </button>
+              </button> */}
             </div>
           </div>
 
@@ -417,6 +493,165 @@ const MedicineLibraryModal = ({
   );
 };
 
+const PrescriptionEditorModal = ({ row, readOnly, onClose, onRowChange, onTimingToggle }) => {
+  const timingValues = normalizeTimingValues(row.timings, row.timing);
+  const handleNaturalNumber = (field) => (event) => {
+    const raw = event.target.value;
+    const cleaned = raw.replace(/\D/g, '');
+    onRowChange(row.id, field, cleaned);
+  };
+
+  return (
+    <div className="doctor-prescription-editor-modal">
+      <div className="doctor-prescription-editor-modal__backdrop" onClick={onClose}></div>
+      <div
+        aria-modal="true"
+        className="doctor-prescription-editor-modal__dialog"
+        role="dialog"
+      >
+        <div className="doctor-prescription-editor-modal__header">
+          <div className="doctor-prescription-editor-modal__title-group">
+            <h5 className="doctor-prescription-editor-modal__title">
+              <i className="bi bi-pencil-square me-2"></i>
+              {row.displayName || row.medicineQuery || 'Selected medication'}
+            </h5>
+            {row.strength ? (
+              <span className="doctor-prescription-chip doctor-prescription-chip--strength">{row.strength}</span>
+            ) : null}
+            {row.dosageForm ? (
+              <span className="doctor-prescription-chip doctor-prescription-chip--muted">{row.dosageForm}</span>
+            ) : null}
+          </div>
+          <button
+            className="btn doctor-prescription-editor-modal__close"
+            onClick={onClose}
+            type="button"
+            aria-label="Close"
+          >
+            <i className="bi bi-x-lg"></i>
+          </button>
+        </div>
+
+        <div className="doctor-prescription-editor-modal__body">
+          <div className="doctor-prescription-editor">
+            <div className="row g-3">
+              <div className="col-sm-6">
+                <label className="doctor-prescription-editor__label">
+                  Quantity {row.unit ? `(${row.unit})` : ''}
+                </label>
+                <div className="input-group">
+                  <span className="input-group-text"><i className="bi bi-box-seam"></i></span>
+                  <input
+                    className="form-control"
+                    min="1"
+                    placeholder="Enter quantity"
+                    readOnly={readOnly}
+                    type="text"
+                    inputMode="numeric"
+                    value={row.quantity}
+                    onChange={handleNaturalNumber('quantity')}
+                  />
+                </div>
+              </div>
+
+              <div className="col-sm-6">
+                <label className="doctor-prescription-editor__label">Supply Days</label>
+                <div className="input-group">
+                  <span className="input-group-text"><i className="bi bi-calendar3"></i></span>
+                  <input
+                    className="form-control"
+                    min="1"
+                    placeholder="Days of supply"
+                    readOnly={readOnly}
+                    type="text"
+                    inputMode="numeric"
+                    value={row.totalSupplyDays}
+                    onChange={handleNaturalNumber('totalSupplyDays')}
+                  />
+                </div>
+              </div>
+
+              <hr className="doctor-prescription-editor__divider" />
+
+              <div className="col-sm-6">
+                <label className="doctor-prescription-editor__label">Frequency</label>
+                <Select
+                  options={FREQUENCY_SELECT_OPTIONS}
+                  value={FREQUENCY_SELECT_OPTIONS.find((o) => o.value === row.frequency) || null}
+                  onChange={(opt) => onRowChange(row.id, 'frequency', opt ? opt.value : '')}
+                  isDisabled={readOnly}
+                  placeholder="Optional"
+                  isSearchable={false}
+                  styles={prescSelectStyles}
+                  components={{ Control: (props) => <SelectControlWithIcon icon="bi-clock" {...props} /> }}
+                />
+              </div>
+
+              <div className="col-sm-6">
+                <label className="doctor-prescription-editor__label">Route</label>
+                <Select
+                  options={ROUTE_SELECT_OPTIONS}
+                  value={ROUTE_SELECT_OPTIONS.find((o) => o.value === row.route) || null}
+                  onChange={(opt) => onRowChange(row.id, 'route', opt ? opt.value : '')}
+                  isDisabled={readOnly}
+                  placeholder="Optional"
+                  isSearchable={false}
+                  styles={prescSelectStyles}
+                  components={{ Control: (props) => <SelectControlWithIcon icon="bi-arrow-right-circle" {...props} /> }}
+                />
+              </div>
+
+              <hr className="doctor-prescription-editor__divider" />
+
+              <div className="col-12">
+                <label className="doctor-prescription-editor__label">Timing</label>
+                <div className="doctor-prescription-editor__timing">
+                  {TIMING_OPTIONS.map((option) => (
+                    <button
+                      type="button"
+                      key={option.value}
+                      className={`btn ${timingValues.includes(option.value) ? 'btn-primary' : ''}`}
+                      disabled={readOnly}
+                      onClick={() => onTimingToggle(row.id, option.value)}
+                    >
+                      <i className={`bi ${option.value === 'MORNING' ? 'bi-sunrise' : option.value === 'AFTERNOON' ? 'bi-sun' : 'bi-moon'}`}></i>
+                      {option.label}
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              <hr className="doctor-prescription-editor__divider" />
+
+              <div className="col-12">
+                <label className="doctor-prescription-editor__label">
+                  <i className="bi bi-chat-square-text me-1"></i>
+                  Instructions / Notes
+                </label>
+                <textarea
+                  className="form-control"
+                  placeholder="Add short instructions for the patient..."
+                  readOnly={readOnly}
+                  rows="3"
+                  value={row.notes}
+                  onChange={(event) => onRowChange(row.id, 'notes', event.target.value)}
+                />
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div className="doctor-prescription-editor-modal__footer">
+          <button className="btn btn-primary" onClick={onClose} type="button">
+            <i className="bi bi-check2 me-2"></i>
+            Done
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+};
+
 const DoctorPrescriptionWorkspace = ({
   appointment,
   patient,
@@ -437,7 +672,7 @@ const DoctorPrescriptionWorkspace = ({
   const [libraryQuery, setLibraryQuery] = useState('');
   const [showLibraryFilters, setShowLibraryFilters] = useState(false);
   const [libraryFilters, setLibraryFilters] = useState(createEmptyFilterState);
-  const [expandedRowId, setExpandedRowId] = useState(null);
+  const [editorModalRowId, setEditorModalRowId] = useState(null);
   const [highlightedRowId, setHighlightedRowId] = useState(null);
   const [recentMedicineIds, setRecentMedicineIds] = useState([]);
 
@@ -477,7 +712,7 @@ const DoctorPrescriptionWorkspace = ({
       initializedAppointmentIdRef.current = workspaceAppointmentId;
       setDiagnosis(consultation?.diagnosis ?? '');
       setMedicationRows([]);
-      setExpandedRowId(null);
+      setEditorModalRowId(null);
       setHighlightedRowId(null);
       setRecentMedicineIds([]);
       setIsLibraryOpen(false);
@@ -552,6 +787,27 @@ const DoctorPrescriptionWorkspace = ({
       window.removeEventListener('keydown', handleEscape);
     };
   }, [isLibraryOpen]);
+
+  useEffect(() => {
+    if (!editorModalRowId) {
+      return undefined;
+    }
+
+    const previousOverflow = document.body.style.overflow;
+    const handleEscape = (event) => {
+      if (event.key === 'Escape') {
+        setEditorModalRowId(null);
+      }
+    };
+
+    document.body.style.overflow = 'hidden';
+    window.addEventListener('keydown', handleEscape);
+
+    return () => {
+      document.body.style.overflow = previousOverflow;
+      window.removeEventListener('keydown', handleEscape);
+    };
+  }, [editorModalRowId]);
 
   const recentMedicines = useMemo(
     () => recentMedicineIds.map((id) => medicineMap.get(id)).filter(Boolean),
@@ -665,7 +921,7 @@ const DoctorPrescriptionWorkspace = ({
     setLibraryQuery('');
 
     if (existingRowId) {
-      setExpandedRowId(existingRowId);
+      setEditorModalRowId(existingRowId);
       pulseRow(existingRowId);
       focusRow(existingRowId);
       toast.info('This medication is already in the prescription');
@@ -673,7 +929,7 @@ const DoctorPrescriptionWorkspace = ({
     }
 
     if (nextRowId) {
-      setExpandedRowId(nextRowId);
+      setEditorModalRowId(nextRowId);
       pulseRow(nextRowId);
       focusRow(nextRowId);
       toast.success('Medication added to prescription');
@@ -682,7 +938,7 @@ const DoctorPrescriptionWorkspace = ({
 
   const handleRemoveRow = (rowId) => {
     setMedicationRows((currentRows) => currentRows.filter((row) => row.id !== rowId));
-    setExpandedRowId((currentId) => (currentId === rowId ? null : currentId));
+    setEditorModalRowId((currentId) => (currentId === rowId ? null : currentId));
     setHighlightedRowId((currentId) => (currentId === rowId ? null : currentId));
   };
 
@@ -800,18 +1056,11 @@ const DoctorPrescriptionWorkspace = ({
             <div>
               <p className="doctor-detail-eyebrow mb-1">Medications</p>
             </div>
-            {!readOnly ? (
-              <button className="btn btn-outline-primary" onClick={openMedicineLibrary} type="button">
-                <i className="bi bi-plus-lg me-2"></i>
-                Add Item
-              </button>
-            ) : null}
           </div>
 
           {medicationRows.length > 0 ? (
             <div className="doctor-prescription-list">
               {medicationRows.map((row, index) => {
-                const isExpanded = expandedRowId === row.id;
                 const isHighlighted = highlightedRowId === row.id;
                 const timingValues = normalizeTimingValues(row.timings, row.timing);
                 const scheduleBadges = [
@@ -847,162 +1096,70 @@ const DoctorPrescriptionWorkspace = ({
                       <div
                         className={`doctor-prescription-item-card__content ${row.quantity ? 'doctor-prescription-item-card__content--with-quantity' : ''}`}
                       >
-                        <div className="doctor-prescription-item-card__title-row">
-                          <span className="doctor-prescription-item-card__index">{index + 1}</span>
-                          <h4>{row.displayName || row.medicineQuery || 'Selected medication'}</h4>
-                          {row.strength ? (
-                            <span className="doctor-prescription-chip">{row.strength}</span>
-                          ) : null}
-                        </div>
+                         <div className="doctor-prescription-item-card__title-row">
+                           <span className="doctor-prescription-item-card__index">{index + 1}</span>
+                           <h4>{row.displayName || row.medicineQuery || 'Selected medication'}</h4>
+                           {row.strength ? (
+                             <span className="doctor-prescription-chip">{row.strength}</span>
+                           ) : null}
+                           <div
+                             className={`doctor-prescription-item-card__actions ${row.quantity ? 'doctor-prescription-item-card__actions--with-quantity' : ''}`}
+                           >
+                              <button
+                                className="btn btn-sm btn-outline-primary"
+                                onClick={() => setEditorModalRowId(row.id)}
+                                type="button"
+                              >
+                                <i className="bi bi-pencil-square me-2"></i>
+                                {readOnly ? 'View' : 'Edit'}
+                              </button>
+                             {!readOnly ? (
+                               <button
+                                 className="btn btn-sm btn-link text-danger"
+                                 onClick={() => handleRemoveRow(row.id)}
+                                 type="button"
+                               >
+                                 <i className="bi bi-trash3 me-1"></i>
+                               </button>
+                             ) : null}
+                           </div>
+                         </div>
 
-                        <p className="doctor-prescription-item-card__meta">
-                          {row.genericName ? `Generic: ${row.genericName}` : 'Selected from medicine library'}
-                          {row.brandName ? ` | Brand: ${row.brandName}` : ''}
-                        </p>
+                         {/* <p className="doctor-prescription-item-card__meta">
+                           {row.genericName ? `Generic: ${row.genericName}` : 'Selected from medicine library'}
+                           {row.brandName ? ` | Brand: ${row.brandName}` : ''}
+                         </p> */}
 
-                        {scheduleBadges.length > 0 ? (
-                          <div className="doctor-prescription-pill-list">
-                            {scheduleBadges.map((badge) => (
-                              <span className="doctor-prescription-pill" key={badge}>
-                                {badge}
-                              </span>
-                            ))}
-                          </div>
-                        ) : (
-                          <p className="doctor-prescription-item-card__helper">
-                            Add quantity, supply days, timing, and instructions below.
-                          </p>
-                        )}
-                      </div>
+                         {scheduleBadges.length > 0 ? (
+                           <div className="doctor-prescription-pill-list">
+                             {scheduleBadges.map((badge) => (
+                               <span className="doctor-prescription-pill" key={badge}>
+                                 {badge}
+                               </span>
+                             ))}
+                           </div>
+                         ) : (
+                           <p className="doctor-prescription-item-card__helper">
+                             Add quantity, supply days, timing, and instructions below.
+                           </p>
+                         )}
+                       </div>
+                     </div>
 
-                      <div
-                        className={`doctor-prescription-item-card__actions ${row.quantity ? 'doctor-prescription-item-card__actions--with-quantity' : ''}`}
-                      >
-                        <button
-                          className="btn btn-sm btn-outline-primary"
-                          onClick={() => setExpandedRowId(isExpanded ? null : row.id)}
-                          type="button"
-                        >
-                          <i className={`bi ${isExpanded ? 'bi-chevron-up' : 'bi-chevron-down'} me-2`}></i>
-                          {isExpanded ? 'Hide Details' : readOnly ? 'View Details' : 'Edit Details'}
-                        </button>
-                        {!readOnly ? (
-                          <button
-                            className="btn btn-sm btn-link text-danger"
-                            onClick={() => handleRemoveRow(row.id)}
-                            type="button"
-                          >
-                            <i className="bi bi-trash3 me-1"></i>
-                            Remove
-                          </button>
-                        ) : null}
-                      </div>
-                    </div>
-
-                    {isExpanded ? (
-                      <div className="doctor-prescription-item-card__editor">
-                        <div className="doctor-prescription-field-grid">
-                          <label className="doctor-prescription-field">
-                            <span>Quantity {row.unit ? `(${row.unit})` : ''}</span>
-                            <input
-                              className="form-control doctor-prescription-input"
-                              min="1"
-                              placeholder="Qty"
-                              readOnly={readOnly}
-                              type="number"
-                              value={row.quantity}
-                              onChange={(event) => handleRowChange(row.id, 'quantity', event.target.value)}
-                            />
-                          </label>
-
-                          <label className="doctor-prescription-field">
-                            <span>Supply Days</span>
-                            <input
-                              className="form-control doctor-prescription-input"
-                              min="1"
-                              placeholder="Days"
-                              readOnly={readOnly}
-                              type="number"
-                              value={row.totalSupplyDays}
-                              onChange={(event) => handleRowChange(row.id, 'totalSupplyDays', event.target.value)}
-                            />
-                          </label>
-
-                          <label className="doctor-prescription-field">
-                            <span>Frequency</span>
-                            <select
-                              className="form-select doctor-prescription-input"
-                              disabled={readOnly}
-                              value={row.frequency}
-                              onChange={(event) => handleRowChange(row.id, 'frequency', event.target.value)}
-                            >
-                              {FREQUENCY_OPTIONS.map((option) => (
-                                <option key={option.value || 'blank'} value={option.value}>
-                                  {option.label}
-                                </option>
-                              ))}
-                            </select>
-                          </label>
-
-                          <label className="doctor-prescription-field">
-                            <span>Route</span>
-                            <select
-                              className="form-select doctor-prescription-input"
-                              disabled={readOnly}
-                              value={row.route}
-                              onChange={(event) => handleRowChange(row.id, 'route', event.target.value)}
-                            >
-                              {ROUTE_OPTIONS.map((option) => (
-                                <option key={option.value || 'blank'} value={option.value}>
-                                  {option.label}
-                                </option>
-                              ))}
-                            </select>
-                          </label>
-
-                          <div className="doctor-prescription-field">
-                            <span>Timing</span>
-                            <div className="doctor-prescription-timing-toggle">
-                              {TIMING_OPTIONS.map((option) => (
-                                <button
-                                  type="button"
-                                  key={option.value}
-                                  className={`btn btn-sm ${timingValues.includes(option.value) ? 'btn-primary' : 'btn-outline-primary'}`}
-                                  disabled={readOnly}
-                                  onClick={() => handleRowTimingToggle(row.id, option.value)}
-                                >
-                                  {option.label}
-                                </button>
-                              ))}
-                            </div>
-                          </div>
-
-                          <label className="doctor-prescription-field">
-                            <span>Strength</span>
-                            <input
-                              className="form-control doctor-prescription-input"
-                              readOnly
-                              value={[row.strength, row.dosageForm].filter(Boolean).join(' / ') || 'Auto'}
-                            />
-                          </label>
-
-                          <label className="doctor-prescription-field doctor-prescription-field--full">
-                            <span>Instructions / Notes</span>
-                            <textarea
-                              className="form-control doctor-prescription-input doctor-prescription-input--textarea"
-                              placeholder="Add short instructions for the patient..."
-                              readOnly={readOnly}
-                              rows="3"
-                              value={row.notes}
-                              onChange={(event) => handleRowChange(row.id, 'notes', event.target.value)}
-                            />
-                          </label>
-                        </div>
-                      </div>
-                    ) : null}
+                     {null}
                   </article>
                 );
               })}
+              {!readOnly ? (
+                <button
+                  className="doctor-prescription-list__add-btn"
+                  onClick={openMedicineLibrary}
+                  type="button"
+                  title="Add medication"
+                >
+                  <i className="bi bi-plus"></i>
+                </button>
+              ) : null}
             </div>
           ) : (
             <div className="doctor-prescription-empty-state">
@@ -1043,6 +1200,16 @@ const DoctorPrescriptionWorkspace = ({
           recentMedicines={recentMedicines}
           selectedMedicineIds={selectedMedicineIds}
           showFilters={showLibraryFilters}
+        />
+      ) : null}
+
+      {editorModalRowId ? (
+        <PrescriptionEditorModal
+          readOnly={readOnly}
+          row={medicationRows.find((r) => r.id === editorModalRowId)}
+          onClose={() => setEditorModalRowId(null)}
+          onRowChange={handleRowChange}
+          onTimingToggle={handleRowTimingToggle}
         />
       ) : null}
     </>
