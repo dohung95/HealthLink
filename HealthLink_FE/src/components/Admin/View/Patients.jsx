@@ -501,7 +501,11 @@ export default function Patients() {
                     <div className="card-header-section">
                       <div className="card-avatar-container">
                         <div className={`card-avatar ${getAvatarGradient(patient.fullName)}`}>
-                          {patient.fullName.charAt(0)}
+                          {patient.avatarUrl ? (
+                            <img src={patient.avatarUrl} alt={patient.fullName} style={{width: '100%', height: '100%', objectFit: 'cover', borderRadius: '50%'}} />
+                          ) : (
+                            patient.fullName.charAt(0)
+                          )}
                         </div>
                         <div className={`status-indicator-dot ${getStatusDotClass(patient.status)}`}></div>
                       </div>
@@ -617,8 +621,12 @@ export default function Patients() {
                           <td><strong>{patient.patientID.substring(0, 8)}</strong></td>
                           <td>
                             <div className="d-flex align-items-center">
-                              <div className="rounded-circle bg-primary text-white d-flex align-items-center justify-content-center me-2" style={{width: "35px", height: "35px"}}>
-                                {patient.fullName.charAt(0)}
+                              <div className="rounded-circle bg-primary text-white d-flex align-items-center justify-content-center me-2" style={{width: "35px", height: "35px", overflow: 'hidden'}}>
+                                {patient.avatarUrl ? (
+                                  <img src={patient.avatarUrl} alt={patient.fullName} style={{width: '100%', height: '100%', objectFit: 'cover'}} />
+                                ) : (
+                                  patient.fullName.charAt(0)
+                                )}
                               </div>
                               {patient.fullName}
                             </div>

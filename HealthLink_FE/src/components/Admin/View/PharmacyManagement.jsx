@@ -421,7 +421,11 @@ export default function PharmacyManagement() {
                     {/* Card Header */}
                     <div className="pharmacy-card-header-v2">
                       <div className="pharmacy-avatar">
-                        <i className="bi bi-capsule-pill"></i>
+                        {pharmacy.avatarUrl ? (
+                          <img src={pharmacy.avatarUrl} alt={pharmacy.name || pharmacy.Name} style={{width: '100%', height: '100%', objectFit: 'cover', borderRadius: '50%'}} />
+                        ) : (
+                          <i className="bi bi-capsule-pill"></i>
+                        )}
                       </div>
                       <div className="pharmacy-info">
                         <h4 className="pharmacy-name-v2">{pharmacy.name || pharmacy.Name || 'Untitled'}</h4>
@@ -570,7 +574,11 @@ export default function PharmacyManagement() {
                       <td>
                         <div className="pharmacy-table-name">
                           <div className="pharmacy-table-avatar">
-                            <i className="bi bi-capsule-pill"></i>
+                            {pharmacy.avatarUrl ? (
+                              <img src={pharmacy.avatarUrl} alt={pharmacy.name || pharmacy.Name} style={{width: '100%', height: '100%', objectFit: 'cover', borderRadius: '50%'}} />
+                            ) : (
+                              <i className="bi bi-capsule-pill"></i>
+                            )}
                           </div>
                           <div>
                             <div className="name">{pharmacy.name || pharmacy.Name || 'Untitled'}</div>
