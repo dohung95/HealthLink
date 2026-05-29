@@ -350,16 +350,29 @@ export default function Appointments() {
     });
     setShowReassignModal(true);
 
-    // Fetch doctors with same specialty
+    // Fetch doctors - first try same specialty, then fallback to all active doctors
     try {
       setLoadingDoctors(true);
-      const response = await doctorsApi.getAll({
+
+      // First try: Same specialty
+      let response = await doctorsApi.getAll({
         pageSize: 100,
         status: 'Active',
         specialty: appointment.department
       });
-      // Filter out current doctor
-      const filtered = (response.doctors || []).filter(d => d.doctorID !== appointment.doctorId);
+
+      let filtered = (response.doctors || []).filter(d => d.doctorID !== appointment.doctorId);
+
+      // Fallback: If no doctors found with same specialty, get all active doctors
+      if (filtered.length === 0) {
+        console.log('No doctors found with same specialty, fetching all active doctors...');
+        response = await doctorsApi.getAll({
+          pageSize: 100,
+          status: 'Active'
+        });
+        filtered = (response.doctors || []).filter(d => d.doctorID !== appointment.doctorId);
+      }
+
       setAvailableDoctors(filtered);
     } catch (err) {
       console.error('Error fetching doctors:', err);
@@ -379,18 +392,40 @@ export default function Appointments() {
 
     try {
       setReassignSubmitting(true);
+
+      // Log the request for debugging
+      console.log('Reassigning appointment:', {
+        appointmentId: selectedAppointment.appointmentID,
+        newDoctorId: reassignForm.newDoctorId,
+        reason: reassignForm.reason
+      });
+
       await appointmentsApi.reassign(selectedAppointment.appointmentID, reassignForm);
       setShowReassignModal(false);
       await fetchAppointments();
       await fetchStats();
+
+      // Refresh calendar if in calendar view
+      if (viewMode === 'calendar') {
+        await fetchCalendarAppointments();
+      }
+
       showToast({ title: 'Success!', message: 'Appointment reassigned successfully', type: 'success' });
     } catch (err) {
+      // Better error handling with detailed message
+      const errorMessage = err.response?.data?.message
+        || err.response?.data?.error
+        || err.response?.data
+        || err.message
+        || 'Failed to reassign appointment';
+
       showToast({
         title: 'Reassign Failed',
-        message: err.response?.data?.message || 'Failed to reassign appointment',
-        type: 'error'
+        message: typeof errorMessage === 'string' ? errorMessage : JSON.stringify(errorMessage),
+        type: 'error',
+        duration: 5000
       });
-      console.error('Error reassigning appointment:', err);
+      console.error('Error reassigning appointment:', err.response?.data || err);
     } finally {
       setReassignSubmitting(false);
     }
@@ -1313,15 +1348,24 @@ export default function Appointments() {
                           required
                         >
                           <option value="">-- Select Doctor --</option>
-                          {availableDoctors.map(doc => (
-                            <option key={doc.doctorID} value={doc.doctorID}>
-                              {doc.fullName} - {doc.specialty}
-                            </option>
-                          ))}
+                          {availableDoctors.map(doc => {
+                            const isSameSpecialty = doc.specialty?.toLowerCase() === selectedAppointment?.department?.toLowerCase();
+                            return (
+                              <option key={doc.doctorID} value={doc.doctorID}>
+                                {doc.fullName} - {doc.specialty} {isSameSpecialty ? '★' : ''}
+                              </option>
+                            );
+                          })}
                         </select>
                       )}
                       {availableDoctors.length === 0 && !loadingDoctors && (
-                        <small className="text-muted">No other doctors available in this specialty</small>
+                        <small className="text-danger">No other active doctors available</small>
+                      )}
+                      {availableDoctors.length > 0 && !loadingDoctors && (
+                        <small className="text-muted d-block mt-1">
+                          <i className="bi bi-info-circle me-1"></i>
+                          ★ indicates same specialty as current appointment
+                        </small>
                       )}
                     </div>
 

@@ -164,11 +164,16 @@ public class AdminDoctorService {
             }
 
             if (StringUtils.hasText(status)) {
-                predicates.add(cb.equal(cb.lower(userJoin.get("status")), status.trim().toLowerCase()));
+                // Handle case-insensitive status comparison and ensure user is not null
+                predicates.add(cb.and(
+                    cb.isNotNull(userJoin.get("status")),
+                    cb.equal(cb.lower(userJoin.get("status")), status.trim().toLowerCase())
+                ));
             }
 
             if (StringUtils.hasText(specialty)) {
-                predicates.add(cb.equal(cb.lower(root.get("specialty")), specialty.trim().toLowerCase()));
+                // Use LIKE for more flexible matching (e.g., "Cardiology" matches "General Cardiology")
+                predicates.add(cb.like(cb.lower(root.get("specialty")), "%" + specialty.trim().toLowerCase() + "%"));
             }
 
             return predicates.isEmpty() ? cb.conjunction() : cb.and(predicates.toArray(new jakarta.persistence.criteria.Predicate[0]));

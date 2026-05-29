@@ -2,6 +2,7 @@ import React, { createContext, useContext, useState, useEffect } from 'react';
 import websocketService from '../services/websocketService';
 import { useAuth } from './AuthContext';
 import { audioService } from '../utils/audioService';
+import { notificationApi } from '../api/notificationApi';
 
 const NotificationContext = createContext();
 
@@ -28,6 +29,17 @@ export const NotificationProvider = ({ children }) => {
         if (user?.id) {
             websocketService.connect();
             const unsubscribe = websocketService.subscribeToNotifications(handleNewNotification);
+
+            // Fetch initial unread count from API
+            const fetchInitialUnreadCount = async () => {
+                try {
+                    const count = await notificationApi.getUnreadCount();
+                    setUnreadCount(count || 0);
+                } catch (error) {
+                    console.error('Failed to fetch initial unread count:', error);
+                }
+            };
+            fetchInitialUnreadCount();
 
             return () => {
                 unsubscribe();
@@ -102,6 +114,15 @@ export const NotificationProvider = ({ children }) => {
         setUnreadCount(0);
     };
 
+    const refreshUnreadCount = async () => {
+        try {
+            const count = await notificationApi.getUnreadCount();
+            setUnreadCount(count || 0);
+        } catch (error) {
+            console.error('Failed to refresh unread count:', error);
+        }
+    };
+
     const closePrescriptionModal = () => {
         setShowPrescriptionModal(false);
         setLatestPrescription(null);
@@ -128,6 +149,7 @@ export const NotificationProvider = ({ children }) => {
         adminActionNotification,
         markAsRead,
         clearAll,
+        refreshUnreadCount,
         closePrescriptionModal,
         closeAdminActionModal,
         isConnected: websocketService.isConnected()

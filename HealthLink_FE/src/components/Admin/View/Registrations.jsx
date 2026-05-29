@@ -498,7 +498,9 @@ export default function Registrations() {
                       </div>
                       <div className="detail-row">
                         <span className="label">Experience:</span>
-                        <span className="value">{selectedRequest.yearsOfExperience} years</span>
+                        <span className="value">
+                          {selectedRequest.yearsOfExperience != null ? `${selectedRequest.yearsOfExperience} year${selectedRequest.yearsOfExperience !== 1 ? 's' : ''}` : <span className="text-warning fst-italic">Not provided</span>}
+                        </span>
                       </div>
                       <div className="detail-row">
                         <span className="label">Languages:</span>
@@ -506,18 +508,22 @@ export default function Registrations() {
                       </div>
                       <div className="detail-row">
                         <span className="label">Consultation Fee:</span>
-                        <span className="value">{selectedRequest.consultationFee?.toLocaleString()} VND</span>
+                        <span className="value">${selectedRequest.consultationFee?.toLocaleString() || '0'}</span>
                       </div>
                     </div>
                     <div className="detail-section">
-                      <h4><i className="bi bi-hospital"></i> Clinic Information</h4>
+                      <h4><i className="bi bi-hospital"></i> Clinic/Hospital Information</h4>
                       <div className="detail-row">
-                        <span className="label">Clinic Name:</span>
-                        <span className="value">{selectedRequest.clinicName || 'N/A'}</span>
+                        <span className="label">Clinic/Hospital Name:</span>
+                        <span className="value">
+                          {selectedRequest.clinicName ? selectedRequest.clinicName : <span className="text-warning fst-italic">Not provided</span>}
+                        </span>
                       </div>
                       <div className="detail-row">
-                        <span className="label">Clinic Address:</span>
-                        <span className="value">{selectedRequest.clinicAddress || 'N/A'}</span>
+                        <span className="label">Clinic/Hospital Address:</span>
+                        <span className="value">
+                          {selectedRequest.clinicAddress ? selectedRequest.clinicAddress : <span className="text-warning fst-italic">Not provided</span>}
+                        </span>
                       </div>
                     </div>
                     <div className="detail-section">

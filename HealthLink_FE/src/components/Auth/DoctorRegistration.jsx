@@ -216,9 +216,14 @@ export function DoctorRegistration() {
         e.preventDefault();
         setError('');
 
-        // Validation
-        if (!formData.fullName || !formData.email || !formData.phoneNumber) {
-            setError('Please fill in all required fields');
+        // Validation - Personal Information
+        if (!formData.fullName?.trim()) {
+            setError('Full name is required');
+            return;
+        }
+
+        if (!formData.email?.trim()) {
+            setError('Email is required');
             return;
         }
 
@@ -227,8 +232,73 @@ export function DoctorRegistration() {
             return;
         }
 
-        if (!formData.qualifications || !formData.specialtyId || !formData.languageSpoken || !formData.location) {
-            setError('Please fill in all professional information');
+        if (!formData.phoneNumber?.trim()) {
+            setError('Phone number is required');
+            return;
+        }
+
+        // Validate phone number format (10-11 digits)
+        const phoneRegex = /^[0-9]{10,11}$/;
+        if (!phoneRegex.test(formData.phoneNumber.replace(/[\s-]/g, ''))) {
+            setError('Phone number must be 10-11 digits');
+            return;
+        }
+
+        if (!formData.location?.trim()) {
+            setError('Location is required');
+            return;
+        }
+
+        // Validation - Professional Information
+        if (!formData.qualifications?.trim()) {
+            setError('Qualifications are required');
+            return;
+        }
+
+        if (!formData.specialtyId) {
+            setError('Please select a specialty');
+            return;
+        }
+
+        if (!formData.yearsOfExperience || parseInt(formData.yearsOfExperience) < 0) {
+            setError('Years of experience is required and must be non-negative');
+            return;
+        }
+
+        if (!formData.languageSpoken?.trim()) {
+            setError('Languages spoken is required');
+            return;
+        }
+
+        if (!formData.consultationFee || parseFloat(formData.consultationFee) < 1) {
+            setError('Consultation fee is required and must be at least 1');
+            return;
+        }
+
+        // Validation - Clinic Information (required for profile display)
+        if (!formData.clinicName?.trim()) {
+            setError('Clinic/Hospital name is required');
+            return;
+        }
+
+        if (!formData.clinicAddress?.trim()) {
+            setError('Clinic/Hospital address is required');
+            return;
+        }
+
+        // Validation - Required Documents
+        if (!documents.medicalDegree) {
+            setError('Medical Degree Certificate is required');
+            return;
+        }
+
+        if (!documents.practiceLicense) {
+            setError('Practice License is required');
+            return;
+        }
+
+        if (!documents.idCard) {
+            setError('ID Card / Passport is required');
             return;
         }
 
@@ -242,9 +312,18 @@ export function DoctorRegistration() {
         try {
             const submitData = {
                 ...formData,
-                specialtyId: parseInt(formData.specialtyId) || null,
-                yearsOfExperience: parseInt(formData.yearsOfExperience) || 0,
-                consultationFee: parseFloat(formData.consultationFee) || 0
+                fullName: formData.fullName.trim(),
+                email: formData.email.trim().toLowerCase(),
+                phoneNumber: formData.phoneNumber.replace(/[\s-]/g, ''),
+                qualifications: formData.qualifications.trim(),
+                languageSpoken: formData.languageSpoken.trim(),
+                location: formData.location.trim(),
+                bio: formData.bio?.trim() || '',
+                clinicName: formData.clinicName.trim(),
+                clinicAddress: formData.clinicAddress.trim(),
+                specialtyId: parseInt(formData.specialtyId),
+                yearsOfExperience: parseInt(formData.yearsOfExperience),
+                consultationFee: parseFloat(formData.consultationFee)
             };
 
             const response = await registrationService.submitDoctorRegistration(submitData);
@@ -426,7 +505,7 @@ export function DoctorRegistration() {
                             </div>
                             <div className="form-row">
                                 <div className="form-group">
-                                    <label>Years of Experience</label>
+                                    <label>Years of Experience <span className="required">*</span></label>
                                     <input
                                         type="number"
                                         name="yearsOfExperience"
@@ -435,6 +514,7 @@ export function DoctorRegistration() {
                                         placeholder="5"
                                         min="0"
                                         disabled={submitting}
+                                        required
                                     />
                                 </div>
                                 <div className="form-group">
@@ -451,16 +531,19 @@ export function DoctorRegistration() {
                             </div>
                             <div className="form-row">
                                 <div className="form-group">
-                                    <label>Consultation Fee (VND)</label>
+                                    <label>Consultation Fee (USD) <span className="required">*</span></label>
                                     <input
                                         type="number"
                                         name="consultationFee"
                                         value={formData.consultationFee}
                                         onChange={handleChange}
-                                        placeholder="200000"
-                                        min="0"
+                                        placeholder="50"
+                                        min="1"
+                                        step="0.01"
                                         disabled={submitting}
+                                        required
                                     />
+                                    <small className="form-text text-muted">Minimum fee: $1.00</small>
                                 </div>
                                 <div className="form-group">
                                     <label>Bio</label>
@@ -587,10 +670,11 @@ export function DoctorRegistration() {
 
                         {/* Clinic Information */}
                         <div className="form-section">
-                            <h3><i className="bi bi-hospital"></i> Clinic Information</h3>
+                            <h3><i className="bi bi-hospital"></i> Clinic/Hospital Information</h3>
+                            <p className="section-description">This information will be displayed on your public profile</p>
                             <div className="form-row">
                                 <div className="form-group">
-                                    <label>Clinic Name</label>
+                                    <label>Clinic/Hospital Name <span className="required">*</span></label>
                                     <input
                                         type="text"
                                         name="clinicName"
@@ -598,17 +682,19 @@ export function DoctorRegistration() {
                                         onChange={handleChange}
                                         placeholder="HealthLink Medical Center"
                                         disabled={submitting}
+                                        required
                                     />
                                 </div>
                                 <div className="form-group">
-                                    <label>Clinic Address</label>
+                                    <label>Clinic/Hospital Address <span className="required">*</span></label>
                                     <input
                                         type="text"
                                         name="clinicAddress"
                                         value={formData.clinicAddress}
                                         onChange={handleChange}
-                                        placeholder="123 Main Street, District 1"
+                                        placeholder="123 Main Street, District 1, Ho Chi Minh City"
                                         disabled={submitting}
+                                        required
                                     />
                                 </div>
                             </div>

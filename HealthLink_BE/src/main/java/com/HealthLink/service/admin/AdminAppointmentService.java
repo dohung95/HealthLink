@@ -283,38 +283,56 @@ public class AdminAppointmentService {
         );
 
         // Send notifications (using Admin notification system)
-        if (request.isNotifyPatient() && appointment.getPatient() != null && appointment.getPatient().getUser() != null) {
-            adminNotificationService.sendMobilePushNotification(
-                    appointment.getPatient().getUser().getId(),
-                    NotificationType.ADMIN_APPOINTMENT_REASSIGN,
-                    "Thay đổi bác sĩ khám",
-                    String.format("Lịch hẹn của bạn đã được chuyển sang bác sĩ %s. Lý do: %s",
-                            newDoctor.getFullName(), request.getReason()),
-                    appointment.getAppointmentId()
-            );
+        if (request.isNotifyPatient() && appointment.getPatient() != null) {
+            User patientUser = appointment.getPatient().getUser();
+            if (patientUser == null) {
+                patientUser = userRepository.findById(appointment.getPatient().getPatientId()).orElse(null);
+            }
+            if (patientUser != null) {
+                adminNotificationService.sendMobilePushNotification(
+                        patientUser.getId(),
+                        NotificationType.ADMIN_APPOINTMENT_REASSIGN,
+                        "Appointment Reassigned",
+                        String.format("Your appointment has been reassigned to Dr. %s. Reason: %s",
+                                newDoctor.getFullName(), request.getReason()),
+                        appointment.getAppointmentId()
+                );
+            }
         }
 
-        if (request.isNotifyOldDoctor() && oldDoctor != null && oldDoctor.getUser() != null) {
-            adminNotificationService.sendWebSocketNotification(
-                    oldDoctor.getUser().getId(),
-                    NotificationType.ADMIN_APPOINTMENT_REASSIGN,
-                    "Lịch hẹn được chuyển",
-                    String.format("Lịch hẹn #%d đã được Admin chuyển sang bác sĩ khác. Lý do: %s",
-                            appointment.getAppointmentId(), request.getReason()),
-                    appointment.getAppointmentId()
-            );
+        if (request.isNotifyOldDoctor() && oldDoctor != null) {
+            User oldDoctorUser = oldDoctor.getUser();
+            if (oldDoctorUser == null) {
+                oldDoctorUser = userRepository.findById(oldDoctor.getDoctorId()).orElse(null);
+            }
+            if (oldDoctorUser != null) {
+                adminNotificationService.sendWebSocketNotification(
+                        oldDoctorUser.getId(),
+                        NotificationType.ADMIN_APPOINTMENT_REASSIGN,
+                        "Appointment Transferred",
+                        String.format("Appointment #%d has been reassigned to another doctor by Admin. Reason: %s",
+                                appointment.getAppointmentId(), request.getReason()),
+                        appointment.getAppointmentId()
+                );
+            }
         }
 
-        if (request.isNotifyNewDoctor() && newDoctor.getUser() != null) {
-            adminNotificationService.sendWebSocketNotification(
-                    newDoctor.getUser().getId(),
-                    NotificationType.ADMIN_APPOINTMENT_REASSIGN,
-                    "Lịch hẹn mới được chuyển đến",
-                    String.format("Bạn nhận được lịch hẹn #%d từ Admin. Bệnh nhân: %s",
-                            appointment.getAppointmentId(),
-                            appointment.getPatient() != null ? appointment.getPatient().getFullName() : "Unknown"),
-                    appointment.getAppointmentId()
-            );
+        if (request.isNotifyNewDoctor()) {
+            User newDoctorUser = newDoctor.getUser();
+            if (newDoctorUser == null) {
+                newDoctorUser = userRepository.findById(newDoctor.getDoctorId()).orElse(null);
+            }
+            if (newDoctorUser != null) {
+                adminNotificationService.sendWebSocketNotification(
+                        newDoctorUser.getId(),
+                        NotificationType.ADMIN_APPOINTMENT_REASSIGN,
+                        "New Appointment Assigned",
+                        String.format("You have been assigned appointment #%d by Admin. Patient: %s",
+                                appointment.getAppointmentId(),
+                                appointment.getPatient() != null ? appointment.getPatient().getFullName() : "Unknown"),
+                        appointment.getAppointmentId()
+                );
+            }
         }
 
         return mapToDto(savedAppointment);
@@ -372,10 +390,10 @@ public class AdminAppointmentService {
             adminNotificationService.sendMobilePushNotification(
                     appointment.getPatient().getUser().getId(),
                     NotificationType.ADMIN_APPOINTMENT_CANCEL,
-                    "Lịch hẹn bị hủy",
-                    String.format("Lịch hẹn của bạn vào %s đã bị Admin hủy. Lý do: %s",
+                    "Appointment Cancelled",
+                    String.format("Your appointment on %s has been cancelled by Admin. Reason: %s",
                             appointment.getAppointmentTime() != null ?
-                                    appointment.getAppointmentTime().format(DateTimeFormatter.ofPattern("dd/MM/yyyy HH:mm")) : "",
+                                    appointment.getAppointmentTime().format(DateTimeFormatter.ofPattern("MMM dd, yyyy HH:mm")) : "",
                             request.getReason()),
                     appointment.getAppointmentId()
             );
@@ -385,8 +403,8 @@ public class AdminAppointmentService {
             adminNotificationService.sendWebSocketNotification(
                     appointment.getDoctor().getUser().getId(),
                     NotificationType.ADMIN_APPOINTMENT_CANCEL,
-                    "Lịch hẹn bị hủy bởi Admin",
-                    String.format("Lịch hẹn #%d với bệnh nhân %s đã bị Admin hủy. Lý do: %s",
+                    "Appointment Cancelled by Admin",
+                    String.format("Appointment #%d with patient %s has been cancelled by Admin. Reason: %s",
                             appointment.getAppointmentId(),
                             appointment.getPatient() != null ? appointment.getPatient().getFullName() : "Unknown",
                             request.getReason()),
