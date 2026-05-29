@@ -1,5 +1,5 @@
 import React from 'react';
-import '../../Css/ConsultationNotesTab.css';
+import '../../../../Css/ConsultationNotesTab.css';
 
 const ConsultationNotesTab = ({
   loadingAppointment,

@@ -1,6 +1,6 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { toast } from 'react-toastify';
-import { medicineApi } from '../../../api/medicineApi';
+import { medicineApi } from '../../../../../../api/medicineApi';
 import Select, { components } from 'react-select'; // eslint-disable-line no-unused-vars
 
 const FREQUENCY_OPTIONS = [
@@ -382,14 +382,6 @@ const MedicineLibraryModal = ({
                   ) : null}
                 </span>
               </button>
-              {/* <button
-                aria-label="Close medicine library"
-                className="btn btn-light doctor-prescription-library__close border-0"
-                onClick={onClose}
-                type="button"
-              >
-                <i className="bi bi-x-lg"></i>
-              </button> */}
             </div>
           </div>
 
@@ -652,7 +644,7 @@ const PrescriptionEditorModal = ({ row, readOnly, onClose, onRowChange, onTiming
   );
 };
 
-const DoctorPrescriptionWorkspace = ({
+const PrescriptionTab = ({
   appointment,
   patient,
   consultation,
@@ -1097,56 +1089,51 @@ const DoctorPrescriptionWorkspace = ({
                         className={`doctor-prescription-item-card__content ${row.quantity ? 'doctor-prescription-item-card__content--with-quantity' : ''}`}
                       >
                          <div className="doctor-prescription-item-card__title-row">
-                           <span className="doctor-prescription-item-card__index">{index + 1}</span>
-                           <h4>{row.displayName || row.medicineQuery || 'Selected medication'}</h4>
-                           {row.strength ? (
-                             <span className="doctor-prescription-chip">{row.strength}</span>
-                           ) : null}
-                           <div
-                             className={`doctor-prescription-item-card__actions ${row.quantity ? 'doctor-prescription-item-card__actions--with-quantity' : ''}`}
-                           >
-                              <button
-                                className="btn btn-sm btn-outline-primary"
-                                onClick={() => setEditorModalRowId(row.id)}
-                                type="button"
-                              >
-                                <i className="bi bi-pencil-square me-2"></i>
-                                {readOnly ? 'View' : 'Edit'}
-                              </button>
-                             {!readOnly ? (
+                            <span className="doctor-prescription-item-card__index">{index + 1}</span>
+                            <h4>{row.displayName || row.medicineQuery || 'Selected medication'}</h4>
+                            {row.strength ? (
+                              <span className="doctor-prescription-chip">{row.strength}</span>
+                            ) : null}
+                            <div
+                              className={`doctor-prescription-item-card__actions ${row.quantity ? 'doctor-prescription-item-card__actions--with-quantity' : ''}`}
+                            >
                                <button
-                                 className="btn btn-sm btn-link text-danger"
-                                 onClick={() => handleRemoveRow(row.id)}
+                                 className="btn btn-sm btn-outline-primary"
+                                 onClick={() => setEditorModalRowId(row.id)}
                                  type="button"
                                >
-                                 <i className="bi bi-trash3 me-1"></i>
+                                 <i className="bi bi-pencil-square me-2"></i>
+                                 {readOnly ? 'View' : 'Edit'}
                                </button>
-                             ) : null}
-                           </div>
-                         </div>
-
-                         {/* <p className="doctor-prescription-item-card__meta">
-                           {row.genericName ? `Generic: ${row.genericName}` : 'Selected from medicine library'}
-                           {row.brandName ? ` | Brand: ${row.brandName}` : ''}
-                         </p> */}
+                              {!readOnly ? (
+                                <button
+                                  className="btn btn-sm btn-link text-danger"
+                                  onClick={() => handleRemoveRow(row.id)}
+                                  type="button"
+                                >
+                                  <i className="bi bi-trash3 me-1"></i>
+                                </button>
+                              ) : null}
+                            </div>
+                          </div>
 
                          {scheduleBadges.length > 0 ? (
-                           <div className="doctor-prescription-pill-list">
-                             {scheduleBadges.map((badge) => (
-                               <span className="doctor-prescription-pill" key={badge}>
-                                 {badge}
-                               </span>
-                             ))}
-                           </div>
-                         ) : (
-                           <p className="doctor-prescription-item-card__helper">
-                             Add quantity, supply days, timing, and instructions below.
-                           </p>
-                         )}
-                       </div>
-                     </div>
+                            <div className="doctor-prescription-pill-list">
+                              {scheduleBadges.map((badge) => (
+                                <span className="doctor-prescription-pill" key={badge}>
+                                  {badge}
+                                </span>
+                              ))}
+                            </div>
+                          ) : (
+                            <p className="doctor-prescription-item-card__helper">
+                              Add quantity, supply days, timing, and instructions below.
+                            </p>
+                          )}
+                        </div>
+                      </div>
 
-                     {null}
+                      {null}
                   </article>
                 );
               })}
@@ -1216,4 +1203,4 @@ const DoctorPrescriptionWorkspace = ({
   );
 };
 
-export default DoctorPrescriptionWorkspace;
+export default PrescriptionTab;

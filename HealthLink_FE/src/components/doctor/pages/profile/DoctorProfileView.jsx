@@ -1,5 +1,5 @@
 import React, { useEffect, useRef } from 'react';
-import DoctorWalletTab from '../profile/DoctorWalletTab';
+import DoctorWalletTab from './DoctorWalletTab';
 
 const getInitials = (name) => {
   if (!name) return 'DR';

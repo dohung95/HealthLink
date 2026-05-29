@@ -1,6 +1,6 @@
 import React, { useEffect, useMemo, useState } from 'react';
-import { doctorService } from '../../../api/doctorApi';
-import '../Css/DoctorDashboard.css';
+import { doctorService } from '../../../../api/doctorApi';
+import '../../Css/DoctorDashboard.css';
 
 const formatDateTime = (value) => {
   if (!value) return 'N/A';

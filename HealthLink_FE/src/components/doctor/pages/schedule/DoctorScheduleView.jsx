@@ -1,12 +1,12 @@
 import React, { useEffect, useState } from 'react';
 import { toast } from 'sonner';
-import { doctorScheduleService } from '../../../api/doctorApi';
-import { doctorComplianceService } from '../../../api/complianceApi';
-import WeeklyScheduleBuilder from './schedule/WeeklyScheduleBuilder';
-import ScheduleCalendarView from './schedule/ScheduleCalendarView';
-import ScheduleExceptionModal from './schedule/ScheduleExceptionModal';
-import ComplianceStatusBanner from './compliance/ComplianceStatusBanner';
-import ComplianceWarningModal from './compliance/ComplianceWarningModal';
+import { doctorScheduleService } from '../../../../api/doctorApi';
+import { doctorComplianceService } from '../../../../api/complianceApi';
+import WeeklyScheduleBuilder from './WeeklyScheduleBuilder';
+import ScheduleCalendarView from './ScheduleCalendarView';
+import ScheduleExceptionModal from './ScheduleExceptionModal';
+import ComplianceStatusBanner from './ComplianceStatusBanner';
+import ComplianceWarningModal from './ComplianceWarningModal';
 
 const DoctorScheduleView = () => {
   const [activeTab, setActiveTab] = useState('weekly');

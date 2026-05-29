@@ -1,5 +1,5 @@
 import React from 'react';
-import '../../Css/MedicalHistoryTab.css';
+import '../../../../Css/MedicalHistoryTab.css';
 
 const MedicalHistoryTab = ({
   loadingHistory,

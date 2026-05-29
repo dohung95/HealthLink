@@ -1,7 +1,7 @@
 import React, { useEffect, useMemo, useState } from 'react';
-import { shareApi } from '../../../../api/shareRecordApi';
-import DocumentViewerModal from '../../../DocumentViewerModal';
-import '../../Css/SharedRecordsTab.css';
+import { shareApi } from '../../../../../../api/shareRecordApi';
+import DocumentViewerModal from '../../../../../DocumentViewerModal';
+import '../../../../Css/SharedRecordsTab.css';
 
 const SharedRecordsTab = ({ doctorId, patientId }) => {
     const [sharedRecords, setSharedRecords] = useState([]);

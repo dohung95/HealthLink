@@ -330,7 +330,10 @@ public class FollowUpAppointmentServiceImpl implements FollowUpAppointmentServic
                 .doctor(sourceAppointment.getDoctor())
                 .appointmentTime(followUpDate)
                 .endTime(followUpDate.plusMinutes(SLOT_MINUTES))
-                .consultationType(sourceAppointment.getConsultationType())
+                .consultationType(
+                        consultation.getConsultationType() != null
+                                ? consultation.getConsultationType()
+                                : sourceAppointment.getConsultationType())
                 .status("SCHEDULED")
                 .symptoms(firstNonBlank(consultation.getSymptoms(), sourceAppointment.getSymptoms()))
                 .notes(firstNonBlank(consultation.getFollowUpNotes(), sourceAppointment.getNotes()))
