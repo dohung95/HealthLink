@@ -102,9 +102,14 @@ public class ConsultationServiceImpl implements ConsultationService {
         if (consultation == null) {
             consultation = Consultation.builder()
                     .appointment(appointment)
-                    .consultationType(appointment.getConsultationType())
+                    .consultationType(
+                            request.getConsultationType() != null
+                                    ? request.getConsultationType()
+                                    : appointment.getConsultationType())
                     .symptoms(appointment.getSymptoms())
                     .build();
+        } else if (request.getConsultationType() != null) {
+            consultation.setConsultationType(request.getConsultationType());
         }
 
         consultation.setFollowUpDate(request.getFollowUpDate());
@@ -189,6 +194,7 @@ public class ConsultationServiceImpl implements ConsultationService {
                 .diagnosis(c.getDiagnosis())
                 .doctorNotes(c.getDoctorNotes())
                 .treatmentPlan(c.getTreatmentPlan())
+                .consultationType(c.getConsultationType())
                 .build();
     }
 

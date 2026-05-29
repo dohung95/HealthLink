@@ -10,4 +10,6 @@ public class FollowUpRequest {
     private LocalDateTime followUpDate;
 
     private String followUpNotes;
+
+    private String consultationType;
 }
