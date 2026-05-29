@@ -3,7 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import ConfirmModal from './ConfirmModal';
 import DoctorDirectoryContent from './DoctorDirectoryContent';
-import './doctor/Css/DoctorDirectory.css';
+import './Css/DoctorDirectory.css';
 
 const DoctorsList = () => {
     const navigate = useNavigate();
