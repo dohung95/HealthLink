@@ -3,6 +3,7 @@ import NavbarAdmin from "./NavbarAdmin";
 import { adminComplianceService } from "../../../api/complianceApi";
 import Toast from "./Toast";
 import useToast from "../useToast";
+import { getAvatarUrl } from "../../../utils/avatarHelper";
 import "bootstrap/dist/css/bootstrap.min.css";
 import "bootstrap-icons/font/bootstrap-icons.css";
 import "../Css/Admin.css";
@@ -301,7 +302,7 @@ export default function ScheduleComplianceDashboard() {
                         <td>
                           <div className="d-flex align-items-center">
                             <img
-                              src={item.avatarUrl || '/default-avatar.png'}
+                              src={getAvatarUrl(item.avatarUrl) || '/default-avatar.png'}
                               alt={item.doctorName}
                               className="rounded-circle me-2"
                               style={{ width: '36px', height: '36px', objectFit: 'cover' }}

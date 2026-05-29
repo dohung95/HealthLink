@@ -3,6 +3,7 @@ import NavbarAdmin from "./NavbarAdmin";
 import { pharmaciesApi } from "../../../api/adminApi";
 import Toast from "./Toast";
 import useToast from "../useToast";
+import { getAvatarUrl } from "../../../utils/avatarHelper";
 import "bootstrap/dist/css/bootstrap.min.css";
 import "bootstrap-icons/font/bootstrap-icons.css";
 import "../Css/Admin.css";
@@ -421,8 +422,8 @@ export default function PharmacyManagement() {
                     {/* Card Header */}
                     <div className="pharmacy-card-header-v2">
                       <div className="pharmacy-avatar">
-                        {pharmacy.avatarUrl ? (
-                          <img src={pharmacy.avatarUrl} alt={pharmacy.name || pharmacy.Name} style={{width: '100%', height: '100%', objectFit: 'cover', borderRadius: '50%'}} />
+                        {getAvatarUrl(pharmacy.avatarUrl) ? (
+                          <img src={getAvatarUrl(pharmacy.avatarUrl)} alt={pharmacy.name || pharmacy.Name} style={{width: '100%', height: '100%', objectFit: 'cover', borderRadius: '50%'}} />
                         ) : (
                           <i className="bi bi-capsule-pill"></i>
                         )}
@@ -574,8 +575,8 @@ export default function PharmacyManagement() {
                       <td>
                         <div className="pharmacy-table-name">
                           <div className="pharmacy-table-avatar">
-                            {pharmacy.avatarUrl ? (
-                              <img src={pharmacy.avatarUrl} alt={pharmacy.name || pharmacy.Name} style={{width: '100%', height: '100%', objectFit: 'cover', borderRadius: '50%'}} />
+                            {getAvatarUrl(pharmacy.avatarUrl) ? (
+                              <img src={getAvatarUrl(pharmacy.avatarUrl)} alt={pharmacy.name || pharmacy.Name} style={{width: '100%', height: '100%', objectFit: 'cover', borderRadius: '50%'}} />
                             ) : (
                               <i className="bi bi-capsule-pill"></i>
                             )}

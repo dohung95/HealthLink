@@ -3,6 +3,7 @@ import NavbarAdmin from "./NavbarAdmin";
 import { doctorsApi } from "../../../api/adminApi";
 import Toast from "./Toast";
 import useToast from "../useToast";
+import { getAvatarUrl } from "../../../utils/avatarHelper";
 import "bootstrap/dist/css/bootstrap.min.css";
 import "bootstrap-icons/font/bootstrap-icons.css";
 import "../Css/Admin.css";
@@ -444,8 +445,8 @@ export default function Doctors() {
                   <div className="card-header-section">
                     <div className="card-avatar-container">
                       <div className={`card-avatar ${getAvatarGradient(doctor.fullName)}`}>
-                        {doctor.avatarUrl ? (
-                          <img src={doctor.avatarUrl} alt={doctor.fullName} style={{width: '100%', height: '100%', objectFit: 'cover', borderRadius: '50%'}} />
+                        {getAvatarUrl(doctor.avatarUrl) ? (
+                          <img src={getAvatarUrl(doctor.avatarUrl)} alt={doctor.fullName} style={{width: '100%', height: '100%', objectFit: 'cover', borderRadius: '50%'}} />
                         ) : (
                           doctor.fullName.charAt(0)
                         )}
@@ -596,8 +597,8 @@ export default function Doctors() {
                           <td>
                             <div className="d-flex align-items-center">
                               <div className="rounded-circle bg-primary text-white d-flex align-items-center justify-content-center me-2" style={{ width: "35px", height: "35px", overflow: 'hidden' }}>
-                                {doctor.avatarUrl ? (
-                                  <img src={doctor.avatarUrl} alt={doctor.fullName} style={{width: '100%', height: '100%', objectFit: 'cover'}} />
+                                {getAvatarUrl(doctor.avatarUrl) ? (
+                                  <img src={getAvatarUrl(doctor.avatarUrl)} alt={doctor.fullName} style={{width: '100%', height: '100%', objectFit: 'cover'}} />
                                 ) : (
                                   doctor.fullName.charAt(0)
                                 )}
@@ -789,15 +790,20 @@ export default function Doctors() {
                           width: '80px',
                           height: '80px',
                           borderRadius: 'var(--radius-full)',
-                          background: 'rgba(255, 255, 255, 0.2)',
+                          background: getAvatarUrl(selectedDoctor.avatarUrl) ? 'transparent' : 'rgba(255, 255, 255, 0.2)',
                           display: 'flex',
                           alignItems: 'center',
                           justifyContent: 'center',
                           fontSize: '32px',
                           fontWeight: '700',
-                          border: '3px solid rgba(255, 255, 255, 0.3)'
+                          border: '3px solid rgba(255, 255, 255, 0.3)',
+                          overflow: 'hidden'
                         }}>
-                          {selectedDoctor.fullName.charAt(0)}
+                          {getAvatarUrl(selectedDoctor.avatarUrl) ? (
+                            <img src={getAvatarUrl(selectedDoctor.avatarUrl)} alt={selectedDoctor.fullName} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                          ) : (
+                            selectedDoctor.fullName.charAt(0)
+                          )}
                         </div>
                       </div>
                       <div className="col">
@@ -1273,8 +1279,12 @@ export default function Doctors() {
                   }}>
                     <div className="d-flex align-items-center gap-3">
                       <div className="rounded-circle bg-primary text-white d-flex align-items-center justify-content-center"
-                        style={{ width: "50px", height: "50px", fontSize: "20px", fontWeight: "600" }}>
-                        {selectedDoctor.fullName.charAt(0)}
+                        style={{ width: "50px", height: "50px", fontSize: "20px", fontWeight: "600", overflow: "hidden" }}>
+                        {getAvatarUrl(selectedDoctor.avatarUrl) ? (
+                          <img src={getAvatarUrl(selectedDoctor.avatarUrl)} alt={selectedDoctor.fullName} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                        ) : (
+                          selectedDoctor.fullName.charAt(0)
+                        )}
                       </div>
                       <div>
                         <h6 className="mb-1" style={{ color: '#0f172a', fontWeight: '600' }}>

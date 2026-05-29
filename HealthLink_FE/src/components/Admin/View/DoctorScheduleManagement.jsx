@@ -3,6 +3,7 @@ import NavbarAdmin from "./NavbarAdmin";
 import { doctorsApi, scheduleApi } from "../../../api/adminApi";
 import Toast from "./Toast";
 import useToast from "../useToast";
+import { getAvatarUrl } from "../../../utils/avatarHelper";
 import "bootstrap/dist/css/bootstrap.min.css";
 import "bootstrap-icons/font/bootstrap-icons.css";
 import "../Css/Admin.css";
@@ -292,9 +293,9 @@ export default function DoctorScheduleManagement() {
                 {doctorSchedule && (
                   <div className="col-md-8">
                     <div className="d-flex align-items-center">
-                      {doctorSchedule.avatarUrl && (
+                      {getAvatarUrl(doctorSchedule.avatarUrl) && (
                         <img
-                          src={doctorSchedule.avatarUrl}
+                          src={getAvatarUrl(doctorSchedule.avatarUrl)}
                           alt={doctorSchedule.doctorName}
                           className="rounded-circle me-3"
                           style={{ width: '50px', height: '50px', objectFit: 'cover' }}

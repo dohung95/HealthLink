@@ -4,6 +4,7 @@ import PatientCardGrid from "./PatientCardGrid";
 import { medicalRecordsApi } from "../../../api/adminApi";
 import Toast from "./Toast";
 import useToast from "../useToast";
+import { getAvatarUrl } from "../../../utils/avatarHelper";
 import "bootstrap/dist/css/bootstrap.min.css";
 import "bootstrap-icons/font/bootstrap-icons.css";
 import "../Css/Admin.css";
@@ -577,8 +578,16 @@ export default function MedicalRecords() {
                   <div className="row align-items-center">
                     <div className="col-md-8">
                       <div className="d-flex align-items-center gap-3 mb-3">
-                        <div className="rounded-circle bg-white text-primary d-flex align-items-center justify-content-center" style={{ width: "60px", height: "60px", fontSize: "24px", fontWeight: "bold" }}>
-                          {patientHistory.fullName.charAt(0)}
+                        <div className="rounded-circle bg-white text-primary d-flex align-items-center justify-content-center" style={{ width: "60px", height: "60px", fontSize: "24px", fontWeight: "bold", overflow: "hidden" }}>
+                          {getAvatarUrl(patientHistory.avatarUrl) ? (
+                            <img
+                              src={getAvatarUrl(patientHistory.avatarUrl)}
+                              alt={patientHistory.fullName}
+                              style={{ width: '100%', height: '100%', objectFit: 'cover' }}
+                            />
+                          ) : (
+                            patientHistory.fullName.charAt(0)
+                          )}
                         </div>
                         <div>
                           <h3 className="mb-1" style={{ fontWeight: '700' }}>{patientHistory.fullName}</h3>

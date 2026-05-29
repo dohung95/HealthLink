@@ -205,11 +205,13 @@ public class AdminAppointmentService {
             .patientName(patient != null ? patient.getFullName() : null)
             .patientEmail(patient != null && patient.getUser() != null ? patient.getUser().getEmail() : null)
             .patientPhone(patient != null && patient.getUser() != null ? patient.getUser().getPhoneNumber() : null)
+            .patientAvatarUrl(patient != null ? patient.getAvatarUrl() : null)
             // Doctor info
             .doctorId(doctor != null ? doctor.getDoctorId() : null)
             .doctorName(doctor != null ? doctor.getFullName() : null)
             .doctorEmail(doctor != null && doctor.getUser() != null ? doctor.getUser().getEmail() : null)
             .department(doctor != null ? doctor.getSpecialty() : null)
+            .doctorAvatarUrl(doctor != null ? doctor.getAvatarUrl() : null)
             // Consultation info
             .consultationId(consultation != null ? consultation.getConsultationId() : null)
             .consultationStartTime(consultation != null ? consultation.getStartTime() : null)
