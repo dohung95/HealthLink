@@ -1,0 +1,8 @@
+@import './_tokens.css';
+@import './doctor-bootstrap.css';
+@import './doctor-layout.css';
+@import './doctor-components.css';
+@import './doctor-appointments.css';
+@import './doctor-consultation.css';
+@import './doctor-prescriptions.css';
+@import './doctor-schedule.css';

@@ -5,16 +5,12 @@ import { doctorService } from '@api/doctorApi';
 import { appointmentService } from '@api/appointmentApi';
 import signalRService from '@services/signalrService';
 import 'bootstrap/dist/css/bootstrap.min.css';
-import '@components/Css/doctor/doctor-dashboard/foundation.css';
-import '@components/Css/doctor/doctor-dashboard/layout.css';
-import '@components/Css/doctor/doctor-dashboard/shared-ui.css';
-import '@components/Css/doctor/doctor-dashboard/schedule.css';
-import '@components/Css/doctor/doctor-dashboard/profile-wallet.css';
-import '@components/Css/doctor/doctor-dashboard/utilities-compat.css';
-import '@components/Css/doctor/doctor-dashboard/responsive.css';
+import '@components/Css/doctor/doctor-dashboard/doctor-dashboard.css';
 import DoctorAppointmentDetail from '@pages/doctor/appointment/appointmentDetail/DoctorAppointmentDetail';
 import DoctorPatientDetailView from '@pages/doctor/patient/DoctorPatientDetailView';
 import DoctorLayout from '@layouts/DoctorLayout';
+import { DoctorSkeletonPage } from '@components/doctor/DoctorSkeleton';
+import DoctorErrorState from '@components/doctor/DoctorErrorState';
 import { useNotifications } from '@hooks/doctor/useNotifications';
 import { NAV_ITEMS, normalizeAppointmentDetail } from '@layouts/navigationConfig';
 
@@ -50,13 +46,7 @@ export function DoctorAppointmentDetailRoute() {
   }, [appointmentId]);
 
   if (loading) {
-    return (
-      <div className="py-5 text-center">
-        <div className="spinner-border text-primary" role="status">
-          <span className="visually-hidden">Loading...</span>
-        </div>
-      </div>
-    );
+    return <DoctorSkeletonPage />;
   }
 
   return (
@@ -90,13 +80,7 @@ export function DoctorPatientDetailRoute() {
   }, [patientId]);
 
   if (!patient) {
-    return (
-      <div className="py-5 text-center">
-        <div className="spinner-border text-primary" role="status">
-          <span className="visually-hidden">Loading...</span>
-        </div>
-      </div>
-    );
+    return <DoctorSkeletonPage />;
   }
 
   return (
@@ -249,19 +233,13 @@ const DoctorDashboardPage = () => {
   }), [doctorData, doctorId, appointmentsRefreshKey]);
 
   if (loading) {
-    return (
-      <div className="d-flex min-vh-100 align-items-center justify-content-center bg-background">
-        <div className="spinner-border text-primary" role="status">
-          <span className="visually-hidden">Loading...</span>
-        </div>
-      </div>
-    );
+    return <DoctorSkeletonPage />;
   }
 
   if (error) {
     return (
-      <div className="d-flex min-vh-100 align-items-center justify-content-center bg-background p-4">
-        <div className="rounded-3 border border-error-container bg-white p-4 text-error" role="alert">{error}</div>
+      <div className="d-flex doctor-viewport align-items-center justify-content-center" style={{ background: 'var(--doctor-bg)' }}>
+        <DoctorErrorState message={error} onRetry={fetchDoctorData} />
       </div>
     );
   }

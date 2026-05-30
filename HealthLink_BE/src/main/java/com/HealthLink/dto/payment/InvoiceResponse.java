@@ -21,6 +21,7 @@ public class InvoiceResponse {
     private Integer invoiceId;
     private String invoiceNumber;
     private Integer appointmentId;
+    private Integer pharmacyOrderId;
     private String patientId;
 
     // --- Chi tiết chi phí ---

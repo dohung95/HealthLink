@@ -16,5 +16,5 @@ public interface FollowUpAppointmentService {
 
     void validateFollowUpSlot(Appointment appointment, LocalDateTime followUpDate);
 
-    CompleteAppointmentResponse completeAppointment(Integer appointmentId);
+    CompleteAppointmentResponse completeAppointment(Integer appointmentId, boolean copyPrescription);
 }

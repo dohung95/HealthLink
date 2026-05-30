@@ -1,11 +1,7 @@
 import React, { memo } from 'react';
 import 'bootstrap/dist/css/bootstrap.min.css';
 import 'react-calendar/dist/Calendar.css';
-import '@components/Css/doctor/doctor-dashboard/foundation.css';
-import '@components/Css/doctor/doctor-dashboard/layout.css';
-import '@components/Css/doctor/doctor-dashboard/shared-ui.css';
-import '@components/Css/doctor/doctor-dashboard/consultation.css';
-import '@components/Css/doctor/doctor-dashboard/responsive.css';
+import '@components/Css/doctor/doctor-dashboard/doctor-dashboard.css';
 import {
   formatDate, formatCompactDate, formatTime, formatDateTime,
   getStatusClassName, getTypeClassName, getTypeIcon,
@@ -184,6 +180,9 @@ const DoctorAppointmentDetail = memo(({ appointment, patient, doctorId, onBack, 
       <CompleteConfirmModal
         show={ctx.showCompleteConfirmModal}
         completingAppointment={ctx.completingAppointment}
+        copyPrescription={ctx.copyPrescription}
+        onCopyPrescriptionChange={ctx.setCopyPrescription}
+        hasPendingFollowUp={ctx.hasPendingFollowUp}
         onClose={() => ctx.setShowCompleteConfirmModal(false)}
         onConfirm={ctx.handleCompleteAppointment}
       />

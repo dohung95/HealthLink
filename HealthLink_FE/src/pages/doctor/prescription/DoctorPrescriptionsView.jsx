@@ -1,11 +1,10 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { useNavigate, useOutletContext } from 'react-router-dom';
 import { prescriptionService } from '@api/prescriptionApi';
-import '@components/Css/doctor/doctor-dashboard/foundation.css';
-import '@components/Css/doctor/doctor-dashboard/shared-ui.css';
-import '@components/Css/doctor/doctor-dashboard/layout.css';
-import '@components/Css/doctor/doctor-dashboard/prescriptions.css';
-import '@components/Css/doctor/doctor-dashboard/responsive.css';
+import '@components/Css/doctor/doctor-dashboard/doctor-dashboard.css';
+import { DoctorSkeletonList } from '@components/doctor/DoctorSkeleton';
+import DoctorEmptyState from '@components/doctor/DoctorEmptyState';
+import DoctorErrorState from '@components/doctor/DoctorErrorState';
 
 const formatDateTime = (value) => {
   if (!value) return 'N/A';
@@ -194,49 +193,32 @@ export default function DoctorPrescriptionsView() {
 
       {/* ==================== CONTENT ==================== */}
       {loading ? (
-        <div className="prescription-state">
-          <div className="spinner-border mb-3" role="status" style={{ width: '2.25rem', height: '2.25rem', color: 'var(--primary)' }}>
-            <span className="visually-hidden">Loading...</span>
-          </div>
-          <h3 className="prescription-state__title">Loading prescriptions</h3>
-          <p className="prescription-state__desc">Fetching prescription data...</p>
+        <div style={{ padding: '1.25rem' }}>
+          <DoctorSkeletonList rows={5} />
         </div>
       ) : error ? (
-        <div className="prescription-state">
-          <div className="prescription-state__icon-wrapper" style={{ background: 'rgba(220, 38, 38, 0.1)', color: 'var(--error)' }}>
-            <span className="material-symbols-outlined" style={{ fontSize: '1.5rem' }}>error</span>
-          </div>
-          <h3 className="prescription-state__title" style={{ color: 'var(--error)' }}>{error}</h3>
-          <p className="prescription-state__desc">Please try again or contact support.</p>
-        </div>
+        <DoctorErrorState message={error} />
       ) : sortedPrescriptions.length === 0 ? (
-        <div className="d-flex flex-column align-items-center justify-content-center text-center py-5 rounded-4"
-          style={{ background: 'var(--surface)', border: '1px dashed var(--border)', minHeight: '300px' }}>
-          <div className="d-flex align-items-center justify-content-center rounded-circle mb-3"
-            style={{ width: '3.5rem', height: '3.5rem', background: 'var(--surface-muted)', color: 'var(--text-muted)' }}>
-            <span className="material-symbols-outlined" style={{ fontSize: '1.5rem' }}>medication</span>
-          </div>
-          <h3 className="fs-6 fw-bold mb-1" style={{ color: 'var(--text-primary)' }}>
-            {query || status !== 'all' ? 'No matching prescriptions' : 'No prescriptions found'}
-          </h3>
-          <p className="small mb-0" style={{ color: 'var(--text-muted)', maxWidth: '280px' }}>
-            {query || status !== 'all'
-              ? 'Try adjusting your search or filter criteria.'
-              : 'Issued prescriptions will appear here.'}
-          </p>
-        </div>
+        <DoctorEmptyState
+          icon="medication"
+          title={query || status !== 'all' ? 'No matching prescriptions' : 'No prescriptions found'}
+          description={query || status !== 'all'
+            ? 'Try adjusting your search or filter criteria.'
+            : 'Issued prescriptions will appear here.'}
+        />
       ) : (
         <div className="row g-3 align-items-stretch">
           {/* ==================== LIST COLUMN ==================== */}
           <div className="col-lg-5 d-flex flex-column">
             <div className="doctor-prescription-list flex-grow-1">
-            {sortedPrescriptions.map((prescription) => {
+            {sortedPrescriptions.map((prescription, index) => {
               const isSelected = selected?.prescriptionHeaderId === prescription.prescriptionHeaderId;
               const avatarColor = getAvatarColor(prescription.patientName);
               return (
                 <article
                   key={prescription.prescriptionHeaderId}
-                  className={`doctor-prescription-item ${isSelected ? 'doctor-prescription-item--selected' : ''}`}
+                  className={`doctor-prescription-item ${isSelected ? 'doctor-prescription-item--selected' : ''} doctor-stagger-item-fast`}
+                  style={{ '--stagger-index': index }}
                   onClick={() => setSelected(prescription)}
                 >
                   <div

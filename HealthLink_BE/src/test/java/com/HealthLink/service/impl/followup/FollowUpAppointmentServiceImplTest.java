@@ -5,15 +5,18 @@ import com.HealthLink.dto.response.FollowUpSlotsResponse;
 import com.HealthLink.entity.Appointment;
 import com.HealthLink.entity.Consultation;
 import com.HealthLink.entity.Doctor;
+import com.HealthLink.entity.DoctorSchedule;
 import com.HealthLink.entity.Invoice;
 import com.HealthLink.entity.Medicine;
 import com.HealthLink.entity.Patient;
 import com.HealthLink.entity.PrescriptionHeader;
 import com.HealthLink.entity.PrescriptionItem;
 import com.HealthLink.exception.BadRequestException;
+import com.HealthLink.repository.admin.DoctorScheduleExceptionRepository;
 import com.HealthLink.repository.appointment.AppointmentRepository;
 import com.HealthLink.repository.consultation.ConsultationRepository;
 import com.HealthLink.repository.doctor.DoctorRepository;
+import com.HealthLink.repository.doctor.DoctorScheduleRepository;
 import com.HealthLink.repository.payment.InvoiceRepository;
 import com.HealthLink.repository.prescription.PrescriptionHeaderRepository;
 import com.HealthLink.service.payment.CommissionService;
@@ -27,6 +30,7 @@ import org.mockito.junit.jupiter.MockitoExtension;
 import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
+import java.time.LocalTime;
 import java.util.List;
 import java.util.Optional;
 
@@ -53,6 +57,12 @@ class FollowUpAppointmentServiceImplTest {
     private DoctorRepository doctorRepository;
 
     @Mock
+    private DoctorScheduleRepository scheduleRepository;
+
+    @Mock
+    private DoctorScheduleExceptionRepository exceptionRepository;
+
+    @Mock
     private InvoiceRepository invoiceRepository;
 
     @Mock
@@ -65,29 +75,80 @@ class FollowUpAppointmentServiceImplTest {
     private FollowUpAppointmentServiceImpl followUpAppointmentService;
 
     @Test
-    void getSlots_shouldReturnTwelveHourlySlotsFromNineToTwenty() {
+    void getSlots_shouldReturnSlotsBasedOnDoctorSchedule() {
         LocalDate date = LocalDate.now().plusDays(2);
-        when(doctorRepository.findById("doctor-1")).thenReturn(Optional.of(doctor()));
+        int dayOfWeek = date.getDayOfWeek().getValue() % 7;
+        Doctor doctor = doctor();
+        DoctorSchedule schedule = DoctorSchedule.builder()
+                .scheduleId(1)
+                .doctor(doctor)
+                .dayOfWeek(dayOfWeek)
+                .startTime(LocalTime.of(9, 0))
+                .endTime(LocalTime.of(17, 0))
+                .slotDuration(60)
+                .available(true)
+                .build();
+
+        when(doctorRepository.findById("doctor-1")).thenReturn(Optional.of(doctor));
+        when(exceptionRepository.findByDoctor_DoctorIdAndExceptionDate("doctor-1", date))
+                .thenReturn(Optional.empty());
+        when(scheduleRepository.findByDoctor_DoctorIdAndDayOfWeekAndAvailableTrue("doctor-1", dayOfWeek))
+                .thenReturn(List.of(schedule));
         when(appointmentRepository.findByDoctor_DoctorIdAndStatusNotAndAppointmentTimeBetween(
                 eq("doctor-1"), eq("CANCELLED"), any(), any()))
                 .thenReturn(List.of());
 
         FollowUpSlotsResponse response = followUpAppointmentService.getSlots("doctor-1", date);
 
-        assertThat(response.getSlots()).hasSize(12);
+        assertThat(response.getSlots()).hasSize(8);
         assertThat(response.getSlots().getFirst().getStartTime()).isEqualTo("09:00");
-        assertThat(response.getSlots().getLast().getStartTime()).isEqualTo("20:00");
+        assertThat(response.getSlots().getLast().getStartTime()).isEqualTo("16:00");
         assertThat(response.getSlots())
-                .noneMatch(slot -> "21:00".equals(slot.getStartTime()));
+                .noneMatch(slot -> "17:00".equals(slot.getStartTime()));
+    }
+
+    @Test
+    void getSlots_shouldReturnEmptyForDayOff() {
+        LocalDate date = LocalDate.now().plusDays(2);
+        Doctor doctor = doctor();
+
+        when(doctorRepository.findById("doctor-1")).thenReturn(Optional.of(doctor));
+        when(exceptionRepository.findByDoctor_DoctorIdAndExceptionDate("doctor-1", date))
+                .thenReturn(Optional.of(
+                        com.HealthLink.entity.DoctorScheduleException.builder()
+                                .exceptionType("DayOff")
+                                .exceptionDate(date)
+                                .build()
+                ));
+
+        FollowUpSlotsResponse response = followUpAppointmentService.getSlots("doctor-1", date);
+
+        assertThat(response.getSlots()).isEmpty();
     }
 
     @Test
     void getSlots_shouldMarkOverlappingAppointmentAsBooked() {
         LocalDate date = LocalDate.now().plusDays(2);
-        Appointment booked = appointment(2, date.atTime(10, 30), "Scheduled");
+        int dayOfWeek = date.getDayOfWeek().getValue() % 7;
+        Doctor doctor = doctor();
+        DoctorSchedule schedule = DoctorSchedule.builder()
+                .scheduleId(1)
+                .doctor(doctor)
+                .dayOfWeek(dayOfWeek)
+                .startTime(LocalTime.of(9, 0))
+                .endTime(LocalTime.of(17, 0))
+                .slotDuration(60)
+                .available(true)
+                .build();
+
+        Appointment booked = appointment(2, date.atTime(10, 30), "SCHEDULED");
         booked.setEndTime(date.atTime(11, 30));
 
-        when(doctorRepository.findById("doctor-1")).thenReturn(Optional.of(doctor()));
+        when(doctorRepository.findById("doctor-1")).thenReturn(Optional.of(doctor));
+        when(exceptionRepository.findByDoctor_DoctorIdAndExceptionDate("doctor-1", date))
+                .thenReturn(Optional.empty());
+        when(scheduleRepository.findByDoctor_DoctorIdAndDayOfWeekAndAvailableTrue("doctor-1", dayOfWeek))
+                .thenReturn(List.of(schedule));
         when(appointmentRepository.findByDoctor_DoctorIdAndStatusNotAndAppointmentTimeBetween(
                 eq("doctor-1"), eq("CANCELLED"), any(), any()))
                 .thenReturn(List.of(booked));
@@ -100,25 +161,82 @@ class FollowUpAppointmentServiceImplTest {
     }
 
     @Test
-    void validateFollowUpSlot_shouldAllowTwentyAndRejectTwentyOne() {
+    void validateFollowUpSlot_shouldAcceptSlotWithinSchedule() {
         LocalDate date = LocalDate.now().plusDays(2);
-        Appointment appointment = appointment(1, LocalDateTime.now().minusHours(1), "Scheduled");
+        int dayOfWeek = date.getDayOfWeek().getValue() % 7;
+        Doctor doctor = doctor();
+        DoctorSchedule schedule = DoctorSchedule.builder()
+                .scheduleId(1)
+                .doctor(doctor)
+                .dayOfWeek(dayOfWeek)
+                .startTime(LocalTime.of(9, 0))
+                .endTime(LocalTime.of(21, 0))
+                .slotDuration(60)
+                .available(true)
+                .build();
 
+        Appointment appointment = appointment(1, LocalDateTime.now().minusHours(1), "SCHEDULED");
+        appointment.setDoctor(doctor);
+
+        when(exceptionRepository.findByDoctor_DoctorIdAndExceptionDate("doctor-1", date))
+                .thenReturn(Optional.empty());
+        when(scheduleRepository.findByDoctor_DoctorIdAndDayOfWeekAndAvailableTrue("doctor-1", dayOfWeek))
+                .thenReturn(List.of(schedule));
         when(appointmentRepository.findByDoctor_DoctorIdAndStatusNotAndAppointmentTimeBetween(
                 eq("doctor-1"), eq("CANCELLED"), any(), any()))
                 .thenReturn(List.of());
 
         assertThatCode(() -> followUpAppointmentService.validateFollowUpSlot(appointment, date.atTime(20, 0)))
                 .doesNotThrowAnyException();
+    }
+
+    @Test
+    void validateFollowUpSlot_shouldRejectSlotOutsideSchedule() {
+        LocalDate date = LocalDate.now().plusDays(2);
+        int dayOfWeek = date.getDayOfWeek().getValue() % 7;
+        Doctor doctor = doctor();
+        DoctorSchedule schedule = DoctorSchedule.builder()
+                .scheduleId(1)
+                .doctor(doctor)
+                .dayOfWeek(dayOfWeek)
+                .startTime(LocalTime.of(9, 0))
+                .endTime(LocalTime.of(17, 0))
+                .slotDuration(60)
+                .available(true)
+                .build();
+
+        Appointment appointment = appointment(1, LocalDateTime.now().minusHours(1), "SCHEDULED");
+        appointment.setDoctor(doctor);
+
+        when(exceptionRepository.findByDoctor_DoctorIdAndExceptionDate("doctor-1", date))
+                .thenReturn(Optional.empty());
+        when(scheduleRepository.findByDoctor_DoctorIdAndDayOfWeekAndAvailableTrue("doctor-1", dayOfWeek))
+                .thenReturn(List.of(schedule));
+        when(appointmentRepository.findByDoctor_DoctorIdAndStatusNotAndAppointmentTimeBetween(
+                eq("doctor-1"), eq("CANCELLED"), any(), any()))
+                .thenReturn(List.of());
+
         assertThatThrownBy(() -> followUpAppointmentService.validateFollowUpSlot(appointment, date.atTime(21, 0)))
                 .isInstanceOf(BadRequestException.class)
-                .hasMessage("Follow-up slot must be between 09:00 and 20:00");
+                .hasMessageContaining("The selected follow-up slot is not available");
     }
 
     @Test
     void completeAppointment_shouldCreateFollowUpAndCopyPrescription() {
         LocalDate date = LocalDate.now().plusDays(3);
-        Appointment sourceAppointment = appointment(10, LocalDateTime.now().minusHours(1), "Scheduled");
+        int dayOfWeek = date.getDayOfWeek().getValue() % 7;
+        Doctor doctor = doctor();
+        DoctorSchedule schedule = DoctorSchedule.builder()
+                .scheduleId(1)
+                .doctor(doctor)
+                .dayOfWeek(dayOfWeek)
+                .startTime(LocalTime.of(9, 0))
+                .endTime(LocalTime.of(21, 0))
+                .slotDuration(60)
+                .available(true)
+                .build();
+
+        Appointment sourceAppointment = appointment(10, LocalDateTime.now().minusHours(1), "IN_CONSULTATION");
         sourceAppointment.setInvoice(paidInvoice(sourceAppointment));
         Consultation consultation = Consultation.builder()
                 .consultationId(20)
@@ -133,6 +251,10 @@ class FollowUpAppointmentServiceImplTest {
         PrescriptionHeader sourcePrescription = sourcePrescription(sourceAppointment);
 
         when(appointmentRepository.findById(10)).thenReturn(Optional.of(sourceAppointment));
+        when(exceptionRepository.findByDoctor_DoctorIdAndExceptionDate("doctor-1", date))
+                .thenReturn(Optional.empty());
+        when(scheduleRepository.findByDoctor_DoctorIdAndDayOfWeekAndAvailableTrue("doctor-1", dayOfWeek))
+                .thenReturn(List.of(schedule));
         when(appointmentRepository.findByDoctor_DoctorIdAndStatusNotAndAppointmentTimeBetween(
                 eq("doctor-1"), eq("CANCELLED"), any(), any()))
                 .thenReturn(List.of());
@@ -152,7 +274,7 @@ class FollowUpAppointmentServiceImplTest {
             return saved;
         });
 
-        CompleteAppointmentResponse response = followUpAppointmentService.completeAppointment(10);
+        CompleteAppointmentResponse response = followUpAppointmentService.completeAppointment(10, true);
 
         assertThat(response.isCreatedFollowUp()).isTrue();
         assertThat(response.getFollowUpAppointment().getAppointmentId()).isEqualTo(99);
@@ -175,7 +297,7 @@ class FollowUpAppointmentServiceImplTest {
 
     @Test
     void completeAppointment_shouldNotCreateFollowUpWithoutPendingFollowUpDate() {
-        Appointment sourceAppointment = appointment(10, LocalDateTime.now().minusHours(1), "Scheduled");
+        Appointment sourceAppointment = appointment(10, LocalDateTime.now().minusHours(1), "IN_CONSULTATION");
         sourceAppointment.setInvoice(paidInvoice(sourceAppointment));
         Consultation consultation = Consultation.builder()
                 .consultationId(20)
@@ -187,7 +309,7 @@ class FollowUpAppointmentServiceImplTest {
         when(appointmentRepository.findById(10)).thenReturn(Optional.of(sourceAppointment));
         when(appointmentRepository.save(any(Appointment.class))).thenAnswer(invocation -> invocation.getArgument(0));
 
-        CompleteAppointmentResponse response = followUpAppointmentService.completeAppointment(10);
+        CompleteAppointmentResponse response = followUpAppointmentService.completeAppointment(10, false);
 
         assertThat(response.isCreatedFollowUp()).isFalse();
         assertThat(response.getFollowUpAppointment()).isNull();
@@ -201,8 +323,8 @@ class FollowUpAppointmentServiceImplTest {
 
     @Test
     void completeAppointment_shouldBeIdempotentWhenAlreadyCompleted() {
-        Appointment completed = appointment(10, LocalDateTime.now().minusHours(1), "Completed");
-        Appointment followUp = appointment(99, LocalDate.now().plusDays(2).atTime(9, 0), "Scheduled");
+        Appointment completed = appointment(10, LocalDateTime.now().minusHours(1), "COMPLETED");
+        Appointment followUp = appointment(99, LocalDate.now().plusDays(2).atTime(9, 0), "SCHEDULED");
         Consultation consultation = Consultation.builder()
                 .consultationId(20)
                 .appointment(completed)
@@ -214,7 +336,7 @@ class FollowUpAppointmentServiceImplTest {
         when(appointmentRepository.findById(10)).thenReturn(Optional.of(completed));
         when(appointmentRepository.findById(99)).thenReturn(Optional.of(followUp));
 
-        CompleteAppointmentResponse response = followUpAppointmentService.completeAppointment(10);
+        CompleteAppointmentResponse response = followUpAppointmentService.completeAppointment(10, true);
 
         assertThat(response.isCreatedFollowUp()).isFalse();
         assertThat(response.getFollowUpAppointment().getAppointmentId()).isEqualTo(99);
@@ -223,7 +345,7 @@ class FollowUpAppointmentServiceImplTest {
 
     @Test
     void completeAppointment_shouldRejectUnpaidAppointment() {
-        Appointment sourceAppointment = appointment(10, LocalDateTime.now().minusHours(1), "Scheduled");
+        Appointment sourceAppointment = appointment(10, LocalDateTime.now().minusHours(1), "IN_CONSULTATION");
         sourceAppointment.setInvoice(Invoice.builder()
                 .invoiceId(1)
                 .appointment(sourceAppointment)
@@ -239,7 +361,7 @@ class FollowUpAppointmentServiceImplTest {
 
         when(appointmentRepository.findById(10)).thenReturn(Optional.of(sourceAppointment));
 
-        assertThatThrownBy(() -> followUpAppointmentService.completeAppointment(10))
+        assertThatThrownBy(() -> followUpAppointmentService.completeAppointment(10, true))
                 .isInstanceOf(BadRequestException.class)
                 .hasMessage("Appointment must be paid before it can be completed");
 
@@ -249,12 +371,12 @@ class FollowUpAppointmentServiceImplTest {
 
     @Test
     void completeAppointment_shouldRejectBeforeConsultationStarts() {
-        Appointment sourceAppointment = appointment(10, LocalDateTime.now().minusHours(1), "Scheduled");
+        Appointment sourceAppointment = appointment(10, LocalDateTime.now().minusHours(1), "IN_CONSULTATION");
         sourceAppointment.setInvoice(paidInvoice(sourceAppointment));
 
         when(appointmentRepository.findById(10)).thenReturn(Optional.of(sourceAppointment));
 
-        assertThatThrownBy(() -> followUpAppointmentService.completeAppointment(10))
+        assertThatThrownBy(() -> followUpAppointmentService.completeAppointment(10, false))
                 .isInstanceOf(BadRequestException.class)
                 .hasMessage("Consultation must be started before appointment can be completed");
         verify(appointmentRepository, never()).save(any(Appointment.class));

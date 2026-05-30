@@ -90,7 +90,6 @@ public interface AppointmentRepository extends JpaRepository<Appointment, Intege
             JOIN a.patient p
             LEFT JOIN p.user u
             WHERE a.doctor.doctorId = :doctorId
-              AND UPPER(a.status) <> 'PENDINGPAYMENT'
               AND (
                 :searchTerm IS NULL
                 OR LOWER(p.fullName) LIKE LOWER(CONCAT('%', :searchTerm, '%'))
@@ -109,7 +108,6 @@ public interface AppointmentRepository extends JpaRepository<Appointment, Intege
             SELECT COUNT(a) > 0 FROM Appointment a
             WHERE a.doctor.doctorId = :doctorId
               AND a.patient.patientId = :patientId
-              AND UPPER(a.status) <> 'PENDINGPAYMENT'
             """)
     boolean existsDoctorPatientRelation(
             @Param("doctorId") String doctorId,
@@ -120,7 +118,6 @@ public interface AppointmentRepository extends JpaRepository<Appointment, Intege
             SELECT a FROM Appointment a
             WHERE a.doctor.doctorId = :doctorId
               AND a.patient.patientId = :patientId
-              AND UPPER(a.status) <> 'PENDINGPAYMENT'
             ORDER BY a.appointmentTime DESC
             """)
     List<Appointment> findDoctorPatientAppointments(
@@ -131,7 +128,6 @@ public interface AppointmentRepository extends JpaRepository<Appointment, Intege
     @Query("""
             SELECT a FROM Appointment a
             WHERE a.doctor.doctorId = :doctorId
-              AND UPPER(a.status) <> 'PENDINGPAYMENT'
               AND a.appointmentTime >= :start
               AND a.appointmentTime < :end
             ORDER BY a.appointmentTime ASC
@@ -141,15 +137,6 @@ public interface AppointmentRepository extends JpaRepository<Appointment, Intege
             @Param("start") LocalDateTime start,
             @Param("end") LocalDateTime end
     );
-
-    @Query("""
-            SELECT a FROM Appointment a
-            JOIN a.invoice i
-            WHERE UPPER(a.status) = 'PENDINGPAYMENT'
-            AND UPPER(i.status) = 'PENDING'
-            AND i.issueDate < :cutoff
-            """)
-    List<Appointment> findExpiredPendingPaymentAppointments(@Param("cutoff") LocalDateTime cutoff);
 
     /**
      * Tìm các lịch hẹn sắp diễn ra trong khoảng thời gian cho trước và chưa gửi

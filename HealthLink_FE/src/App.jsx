@@ -77,6 +77,7 @@ import PatientDashboard from './pages/PatientDashboard';
 import PatientDashboardHome from './components/patient-dashboard/PatientDashboardHome';
 import NotFound from './pages/NotFound';
 import PharmacyDashboardPage from './pages/pharmacy/PharmacyDashboardPage';
+import PharmacyConsultationsPage from './pages/patient/PharmacyConsultationsPage';
 
 //-----------------------------------------------------------------------------------------------
 
@@ -174,7 +175,7 @@ function AppContent() {
       {!isVideoCallPage && !isAdminPage && <PrescriptionNotificationModal />}
       {!isVideoCallPage && !isAdminPage && <AdminActionNotificationModal />}
       <div className="App">
-        {!isVideoCallPage && !isAdminPage && !isPharmacyDashboard && !is404Page && !isResetPasswordPage && <Chat />}
+        {!isVideoCallPage && !isAdminPage && !is404Page && !isResetPasswordPage && <Chat />}
         <ScrollToTop />
         {!hideLayout && <Navbar />}
 
@@ -231,6 +232,11 @@ function AppContent() {
             <Route path="/my-appointments" element={
               <ProtectedRoute allowedRoles={['Patient']}>
                 <MyAppointments />
+              </ProtectedRoute>
+            } />
+            <Route path="/my-consultations/pharmacy" element={
+              <ProtectedRoute allowedRoles={['Patient', 'Pharmacy']}>
+                <PharmacyConsultationsPage />
               </ProtectedRoute>
             } />
 

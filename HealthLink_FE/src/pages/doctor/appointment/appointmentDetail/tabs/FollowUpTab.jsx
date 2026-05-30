@@ -1,8 +1,6 @@
 import React from 'react';
 import Calendar from 'react-calendar';
-import '@components/Css/doctor/doctor-dashboard/foundation.css';
-import '@components/Css/doctor/doctor-dashboard/shared-ui.css';
-import '@components/Css/doctor/FollowUpTab.css';
+import '@components/Css/doctor/doctor-dashboard/doctor-dashboard.css';
 
 const CONSULTATION_TYPES = [
   { value: 'Video Call', label: 'Video Call', icon: 'bi-camera-video' },

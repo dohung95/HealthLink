@@ -87,11 +87,11 @@ class AppointmentServiceImplTest {
                 day.toLocalDate().plusDays(1).atStartOfDay()
         )).thenReturn(List.of(
                 appointment(1, day.withHour(9), doctor),
-                appointment(2, day.withHour(10), doctor, "Completed"),
-                appointment(3, day.withHour(11), doctor, "Cancelled")
+                appointment(2, day.withHour(10), doctor, "COMPLETED"),
+                appointment(3, day.withHour(11), doctor, "CANCELLED")
         ));
 
-        var response = appointmentService.getDoctorDailyAppointments("doctor-1", day.toLocalDate(), "Scheduled");
+        var response = appointmentService.getDoctorDailyAppointments("doctor-1", day.toLocalDate(), "SCHEDULED");
 
         assertThat(response.getAppointments()).hasSize(1);
         assertThat(response.getAppointments().getFirst().getAppointmentId()).isEqualTo(1);
@@ -102,7 +102,7 @@ class AppointmentServiceImplTest {
     }
 
     private Appointment appointment(Integer id, LocalDateTime time, Doctor doctor) {
-        return appointment(id, time, doctor, "Scheduled");
+        return appointment(id, time, doctor, "SCHEDULED");
     }
 
     private Appointment appointment(Integer id, LocalDateTime time, Doctor doctor, String status) {

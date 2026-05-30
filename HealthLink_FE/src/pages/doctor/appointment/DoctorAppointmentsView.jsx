@@ -1,14 +1,13 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { useNavigate, useOutletContext } from 'react-router-dom';
 import { doctorService } from '@api/doctorApi';
-import '@components/Css/doctor/doctor-dashboard/foundation.css';
-import '@components/Css/doctor/doctor-dashboard/shared-ui.css';
-import '@components/Css/doctor/doctor-dashboard/layout.css';
-import '@components/Css/doctor/doctor-dashboard/appointments.css';
-import '@components/Css/doctor/doctor-dashboard/responsive.css';
+import '@components/Css/doctor/doctor-dashboard/doctor-dashboard.css';
 import NextAppointmentCard from '@components/doctor/NextAppointmentCard';
 import AppointmentCard from '@components/doctor/AppointmentCard';
 import TodayTimeline from '@components/doctor/TodayTimeline';
+import { DoctorSkeletonList } from '@components/doctor/DoctorSkeleton';
+import DoctorEmptyState from '@components/doctor/DoctorEmptyState';
+import DoctorErrorState from '@components/doctor/DoctorErrorState';
 import {
   isSameLocalDay,
   isActionableAppointment,
@@ -22,9 +21,10 @@ import {
 
 const STATUS_FILTERS = [
   { key: 'All', label: 'All', countKey: 'all' },
-  { key: 'Scheduled', label: 'Scheduled', countKey: 'scheduled' },
-  { key: 'Completed', label: 'Completed', countKey: 'completed' },
-  { key: 'Cancelled', label: 'Cancelled', countKey: 'cancelled' },
+  { key: 'SCHEDULED', label: 'Scheduled', countKey: 'scheduled' },
+  { key: 'IN_CONSULTATION', label: 'In Progress', countKey: 'inprogress' },
+  { key: 'COMPLETED', label: 'Completed', countKey: 'completed' },
+  { key: 'CANCELLED', label: 'Cancelled', countKey: 'cancelled' },
 ];
 
 export default function DoctorAppointmentsView() {
@@ -158,8 +158,8 @@ export default function DoctorAppointmentsView() {
         </div>
       </div>
 
-      <div className="row g-4 align-items-start">
-        <div className="col-lg-8 d-flex flex-column gap-4">
+      <div className="doctor-asymmetric-grid">
+        <div className="d-flex flex-column gap-4">
           <NextAppointmentCard appointment={nextAppointment} onView={handleView} selectedDate={selectedDate} />
 
           <div className="d-flex flex-column gap-3">
@@ -197,32 +197,28 @@ export default function DoctorAppointmentsView() {
             </div>
 
             {loading ? (
-              <div className="doctor-empty-state">
-                <div className="spinner-border text-primary" role="status">
-                  <span className="visually-hidden">Loading...</span>
-                </div>
-              </div>
+              <DoctorSkeletonList rows={4} />
             ) : error ? (
-              <div className="alert alert-danger py-2 mb-0" role="alert" style={{fontSize:'0.8125rem'}}>{error}</div>
+              <DoctorErrorState message={error} />
             ) : filteredAppointments.length === 0 ? (
-              <div className="doctor-empty-state">
-                <div className="doctor-empty-state__icon">
-                  <span className="material-symbols-outlined">calendar_today</span>
-                </div>
-                <h3 className="doctor-empty-state__title">No appointments for this day</h3>
-                <p className="doctor-empty-state__desc">Choose another date or status to review the schedule.</p>
-              </div>
+              <DoctorEmptyState
+                icon="calendar_today"
+                title="No appointments for this day"
+                description="Choose another date or status to review the schedule."
+              />
             ) : (
               <div className="d-flex flex-column" style={{gap:'0.625rem'}}>
-                {filteredAppointments.map((appointment) => (
-                  <AppointmentCard appointment={appointment} key={appointment.appointmentID || appointment.appointmentId} onView={handleView} />
+                {filteredAppointments.map((appointment, index) => (
+                  <div key={appointment.appointmentID || appointment.appointmentId} className="doctor-stagger-item" style={{ '--stagger-index': index }}>
+                    <AppointmentCard appointment={appointment} onView={handleView} />
+                  </div>
                 ))}
               </div>
             )}
           </div>
         </div>
 
-        <aside className="col-lg-4">
+        <aside className="doctor-asymmetric-grid__divider">
           <TodayTimeline appointments={sortedAppointments} loading={loading} selectedDate={selectedDate} onView={handleView} onDateChange={setSelectedDate} />
         </aside>
       </div>

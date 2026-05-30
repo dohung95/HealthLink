@@ -48,16 +48,6 @@ export const appointmentService = {
         );
     },
 
-    createAppointment: async (data) => {
-        const response = await axios.post(
-            `${API_URL}/appointments`,
-            data,
-            getAuthConfig()
-        );
-
-        return response.data;
-    },
-
     getAppointmentById: async (id) => {
         const response = await axios.get(
             `${API_URL}/appointments/${id}`,
@@ -108,8 +98,8 @@ export const appointmentService = {
         return response.data;
     },
 
-    completeAppointment: async (id) => {
-        const response = await axiosInstance.put(`/api/appointments/${id}/complete`);
+    completeAppointment: async (id, body = {}) => {
+        const response = await axiosInstance.put(`/api/appointments/${id}/complete`, body);
         return response.data;
     },
 

@@ -1,8 +1,10 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { doctorService } from '@api/doctorApi';
-import '@components/Css/doctor/doctor-dashboard/foundation.css';
-import '@components/Css/doctor/doctor-dashboard/utilities-compat.css';
+import '@components/Css/doctor/doctor-dashboard/doctor-dashboard.css';
+import { DoctorSkeletonCard } from '@components/doctor/DoctorSkeleton';
+import DoctorEmptyState from '@components/doctor/DoctorEmptyState';
+import DoctorErrorState from '@components/doctor/DoctorErrorState';
 
 const STATUS_FILTER_OPTIONS = [
   { key: 'all', label: 'All' },
@@ -137,26 +139,26 @@ export default function DoctorPatientsView() {
       </div>
 
       {loading ? (
-        <div className="text-center py-5">
-          <div className="spinner-border text-primary" role="status">
-            <span className="visually-hidden">Loading...</span>
-          </div>
+        <div className="row g-3">
+          {Array.from({ length: 6 }, (_, i) => (
+            <div className="col-md-6 col-lg-4" key={i}>
+              <DoctorSkeletonCard />
+            </div>
+          ))}
         </div>
       ) : error ? (
-        <div className="rounded-3 border border-surface-border bg-surface-container-lowest p-3 text-xs text-critical" role="alert">{error}</div>
+        <DoctorErrorState message={error} />
       ) : patients.length === 0 ? (
-        <div className="d-flex flex-column align-items-center justify-content-center rounded-3 border border-dashed border-surface-border bg-surface-container-lowest p-4 text-center" style={{ minHeight: '120px' }}>
-          <div className="d-flex align-items-center justify-content-center rounded-circle bg-surface-container text-text-muted" style={{ width: '2.25rem', height: '2.25rem' }}>
-            <i className="bi bi-people"></i>
-          </div>
-          <h3 className="mb-1 mt-2 small fw-bold text-on-surface">No patients found</h3>
-          <p className="mb-0 text-xs text-text-muted">{emptyMessage}</p>
-        </div>
+        <DoctorEmptyState
+          icon="groups"
+          title="No patients found"
+          description={emptyMessage}
+        />
       ) : (
         <>
           <div className="row g-3">
-            {patients.map((patient) => (
-              <article className="col-md-6 col-lg-4" key={patient.patientId}>
+            {patients.map((patient, index) => (
+              <article className="col-md-6 col-lg-4 doctor-stagger-item" key={patient.patientId} style={{ '--stagger-index': index }}>
                 <div
                   className="d-flex flex-column p-3 rounded-3 border border-surface-border bg-white transition-base"
                   style={{ gap: '0.75rem', height: '100%' }}

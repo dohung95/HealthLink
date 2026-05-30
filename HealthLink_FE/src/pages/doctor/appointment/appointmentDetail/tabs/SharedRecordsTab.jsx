@@ -1,9 +1,7 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { shareApi } from '@api/shareRecordApi';
 import DocumentViewerModal from '@components/DocumentViewerModal';
-import '@components/Css/doctor/doctor-dashboard/foundation.css';
-import '@components/Css/doctor/doctor-dashboard/shared-ui.css';
-import '@components/Css/doctor/SharedRecordsTab.css';
+import '@components/Css/doctor/doctor-dashboard/doctor-dashboard.css';
 
 const SharedRecordsTab = ({ doctorId, patientId }) => {
     const [sharedRecords, setSharedRecords] = useState([]);

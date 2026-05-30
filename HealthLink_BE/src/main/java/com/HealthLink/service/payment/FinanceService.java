@@ -3,8 +3,6 @@ package com.HealthLink.service.payment;
 import com.HealthLink.dto.payment.InvoiceResponse;
 import com.HealthLink.dto.payment.AppointmentPayPalCaptureRequest;
 import com.HealthLink.dto.payment.AppointmentPayPalOrderRequest;
-import com.HealthLink.dto.payment.PayPalCaptureRequest;
-import com.HealthLink.dto.payment.PayPalOrderRequest;
 import com.HealthLink.dto.payment.PharmacyOrderPayPalCaptureRequest;
 import com.HealthLink.dto.payment.PharmacyOrderPayPalOrderRequest;
 import com.HealthLink.dto.pharmacy.PharmacyOrderResponse;
@@ -23,21 +21,6 @@ import java.util.Map;
  */
 public interface FinanceService {
 
-    // -----------------------------------------------------------------------
-    // Task 3.1 – Invoice generation
-    // -----------------------------------------------------------------------
-
-    /**
-     * Tự động tạo một hóa đơn cho lịch hẹn đã hoàn tất.
-     *
-     * <p>Hóa đơn lịch hẹn chỉ thu phí tư vấn của bác sĩ.
-     * Tiền thuốc và giao hàng được thanh toán riêng trên PharmacyOrder.
-     *
-     * @param appointmentId mã lịch hẹn vừa hoàn tất
-     * @return hóa đơn đã tạo dưới dạng DTO phản hồi
-     */
-    InvoiceResponse generateInvoice(Integer appointmentId);
-
     /**
      * Lấy thông tin chi tiết hóa đơn (bao gồm các bản ghi thanh toán con) theo ID hóa đơn.
      */
@@ -49,34 +32,12 @@ public interface FinanceService {
     List<InvoiceResponse> getInvoicesByPatient(String patientId);
 
     // -----------------------------------------------------------------------
-    // Task 3.2 – PayPal integration
+    // PayPal integration
     // -----------------------------------------------------------------------
-
-    /**
-     * Tạo một đơn hàng PayPal và trả về orderId để front-end
-     * dùng hiển thị PayPal Smart Buttons hoặc chuyển hướng.
-     *
-     * @param request chứa invoiceId và currency tùy chọn
-     * @return map với tối thiểu {@code {"orderId": "..."} }
-     */
-    Map<String, Object> createPayPalOrder(PayPalOrderRequest request);
 
     Map<String, Object> createAppointmentPayPalOrder(AppointmentPayPalOrderRequest request);
 
     Map<String, Object> createPharmacyOrderPayPalOrder(PharmacyOrderPayPalOrderRequest request);
-
-    /**
-     * Xác nhận thanh toán sau khi người dùng đã duyệt đơn hàng PayPal.
-     * Khi thành công:
-     * <ul>
-     *   <li>Lưu một bản ghi {@link com.HealthLink.entity.Payment}</li>
-     *   <li>Thiết lập Invoice.paidAt và chuyển trạng thái sang STATUS_PAID</li>
-     * </ul>
-     *
-     * @param request chứa orderId, invoiceId và paymentMethod
-     * @return hóa đơn đã cập nhật dưới dạng phản hồi
-     */
-    InvoiceResponse capturePayPalPayment(PayPalCaptureRequest request);
 
     InvoiceResponse captureAppointmentPayPalPayment(AppointmentPayPalCaptureRequest request);
 

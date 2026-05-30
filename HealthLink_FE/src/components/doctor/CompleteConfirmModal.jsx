@@ -1,6 +1,6 @@
 import React from 'react';
 
-const CompleteConfirmModal = ({ show, completingAppointment, onClose, onConfirm }) => {
+const CompleteConfirmModal = ({ show, completingAppointment, copyPrescription, onCopyPrescriptionChange, hasPendingFollowUp, onClose, onConfirm }) => {
   if (!show) return null;
 
   return (
@@ -15,6 +15,21 @@ const CompleteConfirmModal = ({ show, completingAppointment, onClose, onConfirm 
           </div>
           <div className="modal-body">
             <p className="mb-0">Are you sure you want to mark this appointment as completed?</p>
+            {hasPendingFollowUp && (
+              <div className="form-check mt-3">
+                <input
+                  type="checkbox"
+                  className="form-check-input"
+                  id="copyPrescriptionCheck"
+                  checked={copyPrescription}
+                  onChange={(e) => onCopyPrescriptionChange(e.target.checked)}
+                  disabled={completingAppointment}
+                />
+                <label className="form-check-label" htmlFor="copyPrescriptionCheck">
+                  Copy latest prescription to follow-up
+                </label>
+              </div>
+            )}
           </div>
           <div className="modal-footer border-0 pt-0">
             <button

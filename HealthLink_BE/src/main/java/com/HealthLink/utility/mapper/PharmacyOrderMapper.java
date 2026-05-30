@@ -22,6 +22,7 @@ public final class PharmacyOrderMapper {
 
         return PharmacyOrderResponse.builder()
                 .orderId(order.getOrderId())
+                .invoiceId(order.getInvoice() != null ? order.getInvoice().getInvoiceId() : null)
                 .orderNumber(order.getOrderNumber())
                 .prescriptionHeaderId(prescription != null ? prescription.getPrescriptionHeaderId() : null)
                 .pharmacyRequestId(consultationRequest != null ? consultationRequest.getRequestId() : null)

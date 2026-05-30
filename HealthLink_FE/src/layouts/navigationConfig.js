@@ -41,13 +41,13 @@ export const formatNotificationTime = (value) => {
 export const getNotificationTone = (notification) => {
   const value = `${notification?.type || ''} ${notification?.message || ''}`.toLowerCase();
   if (value.includes('wallet') || value.includes('balance')) {
-    return { icon: 'account_balance_wallet', title: 'Wallet Update', accent: 'text-success', bg: 'bg-success/10' };
+    return { icon: 'account_balance_wallet', title: 'Wallet Update', tone: 'success' };
   }
   if (value.includes('emergency') || value.includes('urgent')) {
-    return { icon: 'emergency', title: 'Emergency Update', accent: 'text-critical', bg: 'bg-critical/10' };
+    return { icon: 'emergency', title: 'Emergency Update', tone: 'critical' };
   }
   if (value.includes('lab') || value.includes('record')) {
-    return { icon: 'lab_research', title: 'Medical Record', accent: 'text-success', bg: 'bg-success/10' };
+    return { icon: 'lab_research', title: 'Medical Record', tone: 'warning' };
   }
-  return { icon: 'event', title: 'Appointment Update', accent: 'text-primary-container', bg: 'bg-primary-container/10' };
+  return { icon: 'event', title: 'Appointment Update', tone: 'primary' };
 };

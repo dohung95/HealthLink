@@ -92,7 +92,7 @@
    TODAY'S SCHEDULE TIMELINE
    ============================================ */
 .doctor-timeline {
-  max-height: min(750px, calc(100vh - 220px));
+  max-height: min(750px, calc(100dvh - 220px));
   border-radius: var(--radius-lg);
   border: 1px solid var(--border);
   background: var(--surface);
@@ -868,5 +868,41 @@
 
 .doctor-next-card__actions .btn-outline-primary:active {
   transform: translateY(0);
+}
+
+/* ============================================
+   ASYMMETRIC GRID LAYOUT (Phase 5 — DESIGN_VARIANCE=8)
+   ============================================ */
+.doctor-asymmetric-grid {
+  display: grid;
+  grid-template-columns: 2fr 1fr;
+  gap: 1.5rem;
+  align-items: start;
+}
+
+.doctor-asymmetric-grid__divider {
+  position: relative;
+}
+
+.doctor-asymmetric-grid__divider::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  left: -0.75rem;
+  width: 1px;
+  background: linear-gradient(180deg, transparent 0%, var(--border) 20%, var(--border) 80%, transparent 100%);
+  pointer-events: none;
+}
+
+@media (max-width: 992px) {
+  .doctor-asymmetric-grid {
+    grid-template-columns: 1fr;
+    gap: 1rem;
+  }
+
+  .doctor-asymmetric-grid__divider::before {
+    display: none;
+  }
 }
 

@@ -20,6 +20,7 @@ public class DoctorDailyAppointmentsResponse {
     public static class Counts {
         private long all;
         private long scheduled;
+        private long inprogress;
         private long completed;
         private long cancelled;
     }

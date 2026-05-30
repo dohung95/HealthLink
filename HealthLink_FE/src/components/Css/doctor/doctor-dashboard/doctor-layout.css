@@ -134,8 +134,10 @@
 }
 
 .doctor-main-content {
-  padding: 1.25rem !important;
-  min-height: calc(100vh - var(--header-height));
+  padding: var(--doctor-padding-section) !important;
+  padding-left: calc(var(--doctor-padding-section) + 0.25rem) !important;
+  min-height: calc(100dvh - var(--header-height));
+  transition: padding 0.2s ease;
 }
 
 .doctor-content-section {
@@ -165,6 +167,17 @@
     transform: translateY(0);
   }
 }
+
+/* ============================================
+   VIEWPORT & SPACING UTILITIES
+   ============================================ */
+.doctor-viewport {
+  min-height: 100dvh;
+}
+
+.doctor-content-section {
+  padding: var(--doctor-padding-section);
+} 
 
 /* ============================================
    BOTTOM NAV (Mobile)
@@ -284,7 +297,6 @@
   border: 1px solid var(--border);
   border-radius: var(--radius-xl);
   box-shadow: var(--shadow-lg);
-  overflow: hidden;
   animation: dropdownSlideIn 0.2s ease;
 }
 
@@ -316,12 +328,84 @@
   cursor: pointer;
 }
 
-.notification-item:hover {
-  background: var(--surface-muted);
+.notification-list {
+  overflow-y: auto;
+  overflow-x: hidden;
+  padding-top: 0;
+}
+.notification-list > .notification-item:first-child {
+  padding-top: 0;
+}
+.notification-list > .notification-item + .notification-item {
+  border-top: 1px solid var(--border-light);
 }
 
+.notification-item {
+  transition: background-color 0.2s ease, box-shadow 0.2s ease, translate 0.2s ease;
+  cursor: pointer;
+  border-left: 3px solid transparent;
+  position: relative;
+}
+.notification-item:hover {
+  background: var(--surface-hover);
+  box-shadow: var(--doctor-shadow-sm);
+  translate: 4px 0;
+}
 .notification-item-unread {
   background: var(--primary-light);
+  border-left-color: var(--doctor-primary);
+}
+.notification-item-unread:hover {
+  background: var(--primary-light);
+}
+
+.notification-icon {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 2.5rem;
+  height: 2.5rem;
+  flex-shrink: 0;
+}
+.notification-icon .material-symbols-outlined {
+  font-size: 1.25rem;
+}
+
+.notification-tone--success .notification-icon .material-symbols-outlined {
+  color: var(--doctor-success);
+}
+.notification-tone--success .notification-title {
+  color: var(--doctor-success);
+}
+
+.notification-tone--critical .notification-icon .material-symbols-outlined {
+  color: var(--doctor-critical);
+}
+.notification-tone--critical .notification-title {
+  color: var(--doctor-critical);
+}
+
+.notification-tone--primary .notification-icon .material-symbols-outlined {
+  color: var(--doctor-primary);
+}
+.notification-tone--primary .notification-title {
+  color: var(--doctor-primary);
+}
+
+.notification-tone--warning .notification-icon .material-symbols-outlined {
+  color: var(--doctor-warning);
+}
+.notification-tone--warning .notification-title {
+  color: var(--doctor-warning);
+}
+
+.notification-text-xs {
+  font-size: 0.75rem;
+  line-height: 1.25rem;
+}
+
+.notification-text-11 {
+  font-size: 0.6875rem;
 }
 
 @keyframes bellPulse {
@@ -329,3 +413,46 @@
   50% { opacity: 0.6; }
 }
 
+
+/* ============================================
+   PROFILE & WALLET (merged from profile-wallet.css)
+   ============================================ */
+/* ============================================
+   PROFILE & WALLET PAGE CUSTOM COMPLEMENTS
+   (Core layout uses Bootstrap 5.3.8 + CSS variables)
+   ============================================ */
+
+/* Card hover effects */
+.doctor-content-section .card {
+  transition: all 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.doctor-content-section .card:hover {
+  box-shadow: 0 8px 28px rgba(0, 82, 204, 0.08) !important;
+  transform: translateY(-2px);
+}
+
+/* Badge pill styling */
+.doctor-content-section .badge.rounded-pill {
+  font-size: 0.75rem;
+}
+
+/* Material icons alignment fix for badges */
+.doctor-content-section .badge .material-symbols-outlined {
+  vertical-align: middle;
+}
+
+/* Metric row background hover */
+.doctor-content-section [style*="background"]:hover {
+  filter: brightness(0.97);
+}
+
+/* Modal focus ring override */
+#doctor-withdraw-amount:focus,
+input[type="email"]:focus {
+  outline: none;
+}
+
+.btn-close {
+  filter: invert(1); /* đảo màu icon từ đen sang trắng */
+}
