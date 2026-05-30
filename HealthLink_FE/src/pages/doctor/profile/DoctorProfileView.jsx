@@ -1,4 +1,5 @@
 import React, { useEffect, useRef } from 'react';
+import { useOutletContext, useLocation } from 'react-router-dom';
 import DoctorWalletTab from '@components/doctor/DoctorWalletTab';
 
 const getInitials = (name) => {
@@ -51,7 +52,10 @@ const StarRating = ({ rating }) => {
   return <>{stars}</>;
 };
 
-export default function DoctorProfileView({ doctorData, activeTab = 'personal' }) {
+export default function DoctorProfileView() {
+  const { doctorData } = useOutletContext();
+  const location = useLocation();
+  const activeTab = new URLSearchParams(location.search).get('tab') || 'personal';
   const walletSectionRef = useRef(null);
 
   useEffect(() => {

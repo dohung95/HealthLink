@@ -1,4 +1,5 @@
 import React, { useEffect, useMemo, useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { doctorService } from '@api/doctorApi';
 import '@components/Css/doctor/doctor-dashboard/foundation.css';
 import '@components/Css/doctor/doctor-dashboard/utilities-compat.css';
@@ -27,7 +28,8 @@ const getRelationshipStatus = (patient) => {
   return 'Inactive';
 };
 
-export default function DoctorPatientsView({ onViewPatient }) {
+export default function DoctorPatientsView() {
+  const navigate = useNavigate();
   const [patients, setPatients] = useState([]);
   const [search, setSearch] = useState('');
   const [status, setStatus] = useState('all');
@@ -215,7 +217,7 @@ export default function DoctorPatientsView({ onViewPatient }) {
                   <button
                     type="button"
                     className="btn w-100"
-                    onClick={() => onViewPatient?.(patient)}
+                    onClick={() => navigate(`/doctor/patients/${patient.patientId}`)}
                     style={{
                       border: '1px solid var(--border-light, #e2e8f0)',
                       borderRadius: '0.5rem',
