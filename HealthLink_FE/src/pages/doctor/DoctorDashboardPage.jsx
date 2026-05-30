@@ -1,9 +1,8 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { useLocation, useNavigate } from 'react-router-dom';
+import { Outlet, useLocation, useNavigate, useOutletContext, useParams } from 'react-router-dom';
 import { useAuth } from '@context/AuthContext';
 import { doctorService } from '@api/doctorApi';
 import { appointmentService } from '@api/appointmentApi';
-import { notificationApi } from '@api/notificationApi';
 import signalRService from '@services/signalrService';
 import 'bootstrap/dist/css/bootstrap.min.css';
 import '@components/Css/doctor/doctor-dashboard/foundation.css';
@@ -14,15 +13,100 @@ import '@components/Css/doctor/doctor-dashboard/profile-wallet.css';
 import '@components/Css/doctor/doctor-dashboard/utilities-compat.css';
 import '@components/Css/doctor/doctor-dashboard/responsive.css';
 import DoctorAppointmentDetail from '@pages/doctor/appointment/appointmentDetail/DoctorAppointmentDetail';
-import DoctorAppointmentsView from '@pages/doctor/appointment/DoctorAppointmentsView';
 import DoctorPatientDetailView from '@pages/doctor/patient/DoctorPatientDetailView';
-import DoctorPatientsView from '@pages/doctor/patient/DoctorPatientsView';
-import DoctorPrescriptionsView from '@pages/doctor/prescription/DoctorPrescriptionsView';
-import DoctorProfileView from '@pages/doctor/profile/DoctorProfileView';
-import DoctorScheduleView from '@pages/doctor/schedule/DoctorScheduleView';
 import DoctorLayout from '@layouts/DoctorLayout';
 import { useNotifications } from '@hooks/doctor/useNotifications';
-import { NAV_ITEMS, APPOINTMENT_DETAIL_VIEW, PATIENT_DETAIL_VIEW, normalizeAppointmentDetail } from '@layouts/navigationConfig';
+import { NAV_ITEMS, normalizeAppointmentDetail } from '@layouts/navigationConfig';
+
+export function DoctorAppointmentDetailRoute() {
+  const { appointmentId } = useParams();
+  const navigate = useNavigate();
+  const { doctorId } = useOutletContext();
+  const [appointment, setAppointment] = useState(null);
+  const [patient, setPatient] = useState(null);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    let mounted = true;
+    const load = async () => {
+      try {
+        setLoading(true);
+        const detail = await appointmentService.getAppointmentDetail(appointmentId);
+        const normalized = normalizeAppointmentDetail(detail, appointmentId);
+        const patientId = normalized.patient?.patientID || normalized.patientId;
+        const patientData = patientId ? await doctorService.getPatientById(patientId) : null;
+        if (mounted) {
+          setAppointment(normalized);
+          setPatient(patientData);
+        }
+      } catch (err) {
+        console.error('Error loading appointment detail:', err);
+      } finally {
+        if (mounted) setLoading(false);
+      }
+    };
+    if (appointmentId) load();
+    return () => { mounted = false; };
+  }, [appointmentId]);
+
+  if (loading) {
+    return (
+      <div className="py-5 text-center">
+        <div className="spinner-border text-primary" role="status">
+          <span className="visually-hidden">Loading...</span>
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <DoctorAppointmentDetail
+      appointment={appointment}
+      patient={patient}
+      doctorId={doctorId}
+      onBack={() => navigate('/doctor')}
+      onOpenAppointmentById={(id) => navigate(`/doctor/appointments/${id}`)}
+    />
+  );
+}
+
+export function DoctorPatientDetailRoute() {
+  const { patientId } = useParams();
+  const navigate = useNavigate();
+  const [patient, setPatient] = useState(null);
+
+  useEffect(() => {
+    let mounted = true;
+    const load = async () => {
+      try {
+        const data = await doctorService.getPatientById(patientId);
+        if (mounted) setPatient(data);
+      } catch (err) {
+        console.error('Error loading patient detail:', err);
+      }
+    };
+    if (patientId) load();
+    return () => { mounted = false; };
+  }, [patientId]);
+
+  if (!patient) {
+    return (
+      <div className="py-5 text-center">
+        <div className="spinner-border text-primary" role="status">
+          <span className="visually-hidden">Loading...</span>
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <DoctorPatientDetailView
+      patient={patient}
+      onBack={() => navigate('/doctor/patients')}
+      onOpenAppointmentById={(id) => navigate(`/doctor/appointments/${id}`)}
+    />
+  );
+}
 
 const DoctorDashboardPage = () => {
   const navigate = useNavigate();
@@ -31,49 +115,38 @@ const DoctorDashboardPage = () => {
 
   const [doctorData, setDoctorData] = useState(null);
   const [loading, setLoading] = useState(true);
-  const [detailLoading, setDetailLoading] = useState(false);
   const [error, setError] = useState(null);
-  const [view, setView] = useState('appointments');
-  const [detailReturnView, setDetailReturnView] = useState('appointments');
-  const [profileTab, setProfileTab] = useState('personal');
-  const [selectedAppointment, setSelectedAppointment] = useState(null);
-  const [selectedPatient, setSelectedPatient] = useState(null);
-  const [selectedPatientSummary, setSelectedPatientSummary] = useState(null);
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const [appointmentsRefreshKey, setAppointmentsRefreshKey] = useState(0);
   const seenNotificationIds = useRef(new Set());
 
   const doctorId = doctorData?.doctorID || doctorData?.doctorId;
-  const isDetailView = view === APPOINTMENT_DETAIL_VIEW || view === PATIENT_DETAIL_VIEW;
 
   const currentNavItem = useMemo(() => {
-    if (view === APPOINTMENT_DETAIL_VIEW) return NAV_ITEMS[0];
-    if (view === PATIENT_DETAIL_VIEW) return NAV_ITEMS[1];
-    return NAV_ITEMS.find((item) => item.key === view) || NAV_ITEMS[0];
-  }, [view]);
+    const path = location.pathname;
+    if (path === '/doctor' || path.startsWith('/doctor/appointments')) return NAV_ITEMS[0];
+    if (path.startsWith('/doctor/patients')) return NAV_ITEMS[1];
+    if (path.startsWith('/doctor/prescriptions')) return NAV_ITEMS[2];
+    if (path.startsWith('/doctor/schedule')) return NAV_ITEMS[3];
+    if (path.startsWith('/doctor/profile')) return NAV_ITEMS[4];
+    return NAV_ITEMS[0];
+  }, [location.pathname]);
+
+  const isDetailView = useMemo(() => {
+    return /\/doctor\/(appointments|patients)\/[\w-]+/.test(location.pathname);
+  }, [location.pathname]);
 
   const handleNavigateToAppointment = useCallback(async (notification) => {
     try {
       if (notification.type === 'WALLET_BALANCE_CHANGED' || notification.actionUrl === '/profile-doctor?tab=wallet') {
-        navigate('/doctor-page?tab=wallet');
+        navigate('/doctor/profile?tab=wallet');
         return;
       }
       if (notification.appointmentId) {
-        setDetailLoading(true);
-        const detail = await appointmentService.getAppointmentDetail(notification.appointmentId);
-        const normalizedAppointment = normalizeAppointmentDetail(detail, notification.appointmentId);
-        const patientId = normalizedAppointment.patient?.patientID || normalizedAppointment.patientId;
-        const patientData = patientId ? await doctorService.getPatientById(patientId) : null;
-        setSelectedAppointment(normalizedAppointment);
-        setSelectedPatient(patientData);
-        setDetailReturnView('appointments');
-        setView(APPOINTMENT_DETAIL_VIEW);
-        setDetailLoading(false);
+        navigate(`/doctor/appointments/${notification.appointmentId}`);
       }
     } catch (err) {
       console.error('Error navigating notification:', err);
-      setDetailLoading(false);
-      alert('Failed to load notification target');
     }
   }, [navigate]);
 
@@ -96,14 +169,6 @@ const DoctorDashboardPage = () => {
   useEffect(() => {
     fetchDoctorData();
   }, []);
-
-  useEffect(() => {
-    const queryTab = new URLSearchParams(location.search).get('tab');
-    if (queryTab === 'wallet') {
-      setView('profile');
-      setProfileTab('wallet');
-    }
-  }, [location.search]);
 
   useEffect(() => {
     const initSignalR = async () => {
@@ -155,11 +220,13 @@ const DoctorDashboardPage = () => {
     };
   }, [notificationsHook.fetchNotifications]);
 
-  const selectView = (nextView) => {
-    setView(nextView);
+  const selectView = (key) => {
     setIsMobileMenuOpen(false);
-    setProfileTab('personal');
-    navigate('/doctor-page', { replace: true });
+    if (key === 'appointments') {
+      navigate('/doctor');
+    } else {
+      navigate(`/doctor/${key}`);
+    }
   };
 
   const handleLogout = async () => {
@@ -175,99 +242,11 @@ const DoctorDashboardPage = () => {
     }
   };
 
-  const openAppointmentDetail = async (appointment, returnView = 'appointments') => {
-    try {
-      setDetailLoading(true);
-      const patientId = appointment?.patient?.patientID || appointment?.patient?.patientId || appointment?.patientId || appointment?.patientID;
-      const patientData = patientId ? await doctorService.getPatientById(patientId) : null;
-      setSelectedAppointment(appointment);
-      setSelectedPatient(patientData);
-      setDetailReturnView(returnView);
-      setView(APPOINTMENT_DETAIL_VIEW);
-    } catch (err) {
-      console.error('Error fetching patient data:', err);
-      setError('Failed to load patient information');
-    } finally {
-      setDetailLoading(false);
-    }
-  };
-
-  const handleOpenAppointmentById = async (appointmentId, returnView = view) => {
-    try {
-      setDetailLoading(true);
-      const detail = await appointmentService.getAppointmentDetail(appointmentId);
-      const normalizedAppointment = normalizeAppointmentDetail(detail, appointmentId);
-      const patientId = normalizedAppointment.patient?.patientID || normalizedAppointment.patientId;
-      const patientData = patientId ? await doctorService.getPatientById(patientId) : null;
-      setSelectedAppointment(normalizedAppointment);
-      setSelectedPatient(patientData);
-      setDetailReturnView(returnView === APPOINTMENT_DETAIL_VIEW ? 'appointments' : returnView);
-      setView(APPOINTMENT_DETAIL_VIEW);
-    } catch (err) {
-      console.error('Error opening appointment:', err);
-      setError('Failed to load appointment information');
-    } finally {
-      setDetailLoading(false);
-    }
-  };
-
-  const handleBackFromAppointment = () => {
-    setView(detailReturnView || 'appointments');
-    setSelectedAppointment(null);
-    setSelectedPatient(null);
-  };
-
-  const handleViewPatient = (patient) => {
-    setSelectedPatientSummary(patient);
-    setView(PATIENT_DETAIL_VIEW);
-  };
-
-  const handleBackFromPatient = () => {
-    setSelectedPatientSummary(null);
-    setView('patients');
-  };
-
-  const renderContent = () => {
-    if (detailLoading) {
-      return (
-        <div className="py-5 text-center">
-          <div className="spinner-border text-primary" role="status">
-            <span className="visually-hidden">Loading...</span>
-          </div>
-        </div>
-      );
-    }
-    if (view === 'appointments') {
-      return <DoctorAppointmentsView doctorId={doctorId} onViewAppointment={(appointment) => openAppointmentDetail(appointment, 'appointments')} refreshKey={appointmentsRefreshKey} />;
-    }
-    if (view === 'patients') {
-      return <DoctorPatientsView onViewPatient={handleViewPatient} />;
-    }
-    if (view === 'prescriptions') {
-      return <DoctorPrescriptionsView doctorId={doctorId} onOpenAppointmentById={(appointmentId) => handleOpenAppointmentById(appointmentId, 'prescriptions')} />;
-    }
-    if (view === 'schedule') {
-      return <DoctorScheduleView doctorId={doctorId} />;
-    }
-    if (view === 'profile') {
-      return <DoctorProfileView activeTab={profileTab} doctorData={doctorData} />;
-    }
-    if (view === PATIENT_DETAIL_VIEW) {
-      return <DoctorPatientDetailView onBack={handleBackFromPatient} onOpenAppointmentById={(appointmentId) => handleOpenAppointmentById(appointmentId, PATIENT_DETAIL_VIEW)} patient={selectedPatientSummary} />;
-    }
-    if (view === APPOINTMENT_DETAIL_VIEW) {
-      return (
-        <DoctorAppointmentDetail
-          appointment={selectedAppointment}
-          doctorId={doctorId}
-          onBack={handleBackFromAppointment}
-          onOpenAppointmentById={(appointmentId) => handleOpenAppointmentById(appointmentId, APPOINTMENT_DETAIL_VIEW)}
-          patient={selectedPatient}
-        />
-      );
-    }
-    return null;
-  };
+  const contextValue = useMemo(() => ({
+    doctorData,
+    doctorId,
+    appointmentsRefreshKey,
+  }), [doctorData, doctorId, appointmentsRefreshKey]);
 
   if (loading) {
     return (
@@ -306,8 +285,8 @@ const DoctorDashboardPage = () => {
       onMarkAllRead={notificationsHook.handleMarkAllRead}
       onCloseAllNotifications={() => notificationsHook.setShowAllNotifications(true)}
     >
-      <section className={`doctor-content-section ${isDetailView || view === 'schedule' || view === 'appointments' ? '' : 'card-section'}`}>
-        {renderContent()}
+      <section className={`doctor-content-section ${isDetailView || currentNavItem?.key === 'schedule' || currentNavItem?.key === 'appointments' ? '' : 'card-section'}`}>
+        <Outlet context={contextValue} />
       </section>
     </DoctorLayout>
   );

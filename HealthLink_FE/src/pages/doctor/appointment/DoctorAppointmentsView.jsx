@@ -1,5 +1,5 @@
 import React, { useEffect, useMemo, useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useOutletContext } from 'react-router-dom';
 import { doctorService } from '@api/doctorApi';
 import '@components/Css/doctor/doctor-dashboard/foundation.css';
 import '@components/Css/doctor/doctor-dashboard/shared-ui.css';
@@ -27,8 +27,9 @@ const STATUS_FILTERS = [
   { key: 'Cancelled', label: 'Cancelled', countKey: 'cancelled' },
 ];
 
-export default function DoctorAppointmentsView({ doctorId, onViewAppointment, refreshKey }) {
+export default function DoctorAppointmentsView() {
   const navigate = useNavigate();
+  const { doctorId, appointmentsRefreshKey: refreshKey } = useOutletContext();
   const [appointments, setAppointments] = useState([]);
   const [counts, setCounts] = useState({
     all: 0,
@@ -133,11 +134,7 @@ export default function DoctorAppointmentsView({ doctorId, onViewAppointment, re
   }, [selectedDate, sortedAppointments]);
 
   const handleView = (appointment) => {
-    if (onViewAppointment) {
-      onViewAppointment(appointment);
-      return;
-    }
-    navigate(`/appointment/${appointment.appointmentID || appointment.appointmentId}`);
+    navigate(`/doctor/appointments/${appointment.appointmentID || appointment.appointmentId}`);
   };
 
   return (

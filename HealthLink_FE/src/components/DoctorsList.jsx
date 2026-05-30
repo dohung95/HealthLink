@@ -44,7 +44,7 @@ const DoctorsList = () => {
                     <DoctorDirectoryContent
                         title="Available Doctors"
                         pageSize={5}
-                        onViewProfile={(doctorId) => navigate(`/doctor/${doctorId}`)}
+                        onViewProfile={(doctorId) => navigate(`/doctors/${doctorId}`)}
                         onBookDoctor={handleBookNow}
                     />
                 </div>

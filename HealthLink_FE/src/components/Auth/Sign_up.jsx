@@ -52,7 +52,7 @@ export function Sign_up() {
             if (roles.some(r => String(r).trim().toLowerCase() === 'admin')) {
                 navigate('/admin', { replace: true });
             } else if (roles.some(r => String(r).trim().toLowerCase() === 'doctor')) {
-                navigate('/doctor-page', { replace: true });
+                navigate('/doctor', { replace: true });
             } else {
                 navigate('/', { replace: true });
             }

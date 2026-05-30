@@ -13,7 +13,7 @@ const NotFound = () => {
             if (userRoles.includes('admin')) {
                 navigate('/admin');
             } else if (userRoles.includes('doctor')) {
-                navigate('/doctor-page');
+                navigate('/doctor');
             } else if (userRoles.includes('pharmacy')) {
                 navigate('/pharmacy-page');
             } else {

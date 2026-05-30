@@ -1,4 +1,5 @@
 import React, { useEffect, useMemo, useState } from 'react';
+import { useNavigate, useOutletContext } from 'react-router-dom';
 import { prescriptionService } from '@api/prescriptionApi';
 import '@components/Css/doctor/doctor-dashboard/foundation.css';
 import '@components/Css/doctor/doctor-dashboard/shared-ui.css';
@@ -50,7 +51,9 @@ const getAvatarColor = (name) => {
   return avatarColors[Math.abs(hash) % avatarColors.length];
 };
 
-export default function DoctorPrescriptionsView({ doctorId, onOpenAppointmentById }) {
+export default function DoctorPrescriptionsView() {
+  const navigate = useNavigate();
+  const { doctorId } = useOutletContext();
   const [prescriptions, setPrescriptions] = useState([]);
   const [query, setQuery] = useState('');
   const [status, setStatus] = useState('all');
@@ -287,7 +290,7 @@ export default function DoctorPrescriptionsView({ doctorId, onOpenAppointmentByI
                   {(selected.appointmentId || selected.consultationId) && (
                     <button
                       className="btn btn-sm d-inline-flex align-items-center gap-1"
-                      onClick={() => onOpenAppointmentById?.(selected.appointmentId || selected.consultationId)}
+                      onClick={() => navigate(`/doctor/appointments/${selected.appointmentId || selected.consultationId}`)}
                       type="button"
                       style={{
                         borderRadius: '999px',
