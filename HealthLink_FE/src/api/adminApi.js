@@ -319,6 +319,38 @@ export const commissionApi = {
   }
 };
 
+// ==================== FINANCIAL API ====================
+
+export const financialApi = {
+  getOverview: async () => {
+    const response = await adminApi.get('/financial/overview');
+    return response.data;
+  },
+
+  getTransactions: async (params = {}) => {
+    const {
+      pageNumber = 1,
+      pageSize = 10,
+      status = '',
+      transactionType = '',
+      fromDate = null,
+      toDate = null,
+      searchTerm = ''
+    } = params;
+    const response = await adminApi.get('/financial/transactions', {
+      params: { pageNumber, pageSize, status, transactionType, fromDate, toDate, searchTerm }
+    });
+    return response.data;
+  },
+
+  getRevenueByDay: async (year = 0, month = 0) => {
+    const response = await adminApi.get('/financial/revenue-by-day', {
+      params: { year, month }
+    });
+    return response.data;
+  }
+};
+
 // ==================== REGISTRATIONS API ====================
 
 export const registrationsApi = {

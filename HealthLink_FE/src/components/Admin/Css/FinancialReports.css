@@ -1,0 +1,278 @@
+/* Financial Reports Page Styles */
+
+/* Page Header */
+.financial-page-header {
+    background: linear-gradient(135deg, #f0fdf4 0%, #ecfdf5 100%);
+    border-radius: 12px;
+    padding: 24px;
+    border: 1px solid #d1fae5;
+}
+
+.financial-page-icon {
+    width: 56px;
+    height: 56px;
+    border-radius: 14px;
+    background: linear-gradient(135deg, #10b981 0%, #059669 100%);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    box-shadow: 0 4px 12px rgba(16, 185, 129, 0.3);
+}
+
+.financial-page-icon i {
+    font-size: 26px;
+    color: white;
+}
+
+.admin-page-badge-financial {
+    display: inline-flex;
+    align-items: center;
+    padding: 4px 12px;
+    background: linear-gradient(135deg, #10b981 0%, #059669 100%);
+    color: white;
+    border-radius: 20px;
+    font-size: 12px;
+    font-weight: 600;
+}
+
+/* Overview Cards Grid */
+.financial-overview-grid {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 20px;
+}
+
+.financial-card {
+    background: white;
+    border-radius: 12px;
+    padding: 20px;
+    display: flex;
+    align-items: flex-start;
+    gap: 16px;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.04);
+    border: 1px solid #e5e7eb;
+    transition: all 0.2s ease;
+}
+
+.financial-card:hover {
+    transform: translateY(-3px);
+    box-shadow: 0 8px 20px rgba(0, 0, 0, 0.08);
+}
+
+.financial-card-icon {
+    width: 48px;
+    height: 48px;
+    border-radius: 12px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+}
+
+.financial-card-icon i {
+    font-size: 22px;
+    color: white;
+}
+
+/* Card color variants */
+.financial-card.total-revenue .financial-card-icon {
+    background: linear-gradient(135deg, #10b981 0%, #059669 100%);
+}
+
+.financial-card.this-month .financial-card-icon {
+    background: linear-gradient(135deg, #3b82f6 0%, #1d4ed8 100%);
+}
+
+.financial-card.this-week .financial-card-icon {
+    background: linear-gradient(135deg, #06b6d4 0%, #0891b2 100%);
+}
+
+.financial-card.today .financial-card-icon {
+    background: linear-gradient(135deg, #8b5cf6 0%, #6d28d9 100%);
+}
+
+.financial-card.platform-fees .financial-card-icon {
+    background: linear-gradient(135deg, #f59e0b 0%, #d97706 100%);
+}
+
+.financial-card.doctor-earnings .financial-card-icon {
+    background: linear-gradient(135deg, #ec4899 0%, #db2777 100%);
+}
+
+.financial-card.transactions .financial-card-icon {
+    background: linear-gradient(135deg, #6366f1 0%, #4f46e5 100%);
+}
+
+.financial-card.avg-value .financial-card-icon {
+    background: linear-gradient(135deg, #14b8a6 0%, #0d9488 100%);
+}
+
+.financial-card-content {
+    flex: 1;
+    min-width: 0;
+}
+
+.financial-label {
+    display: block;
+    font-size: 12px;
+    color: #6b7280;
+    font-weight: 500;
+    text-transform: uppercase;
+    letter-spacing: 0.3px;
+    margin-bottom: 4px;
+}
+
+.financial-value {
+    display: block;
+    font-size: 24px;
+    font-weight: 700;
+    color: #1f2937;
+    line-height: 1.2;
+    margin-bottom: 4px;
+}
+
+.financial-sub {
+    display: block;
+    font-size: 12px;
+    color: #9ca3af;
+}
+
+.financial-growth {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    font-size: 12px;
+    font-weight: 600;
+    padding: 3px 10px;
+    border-radius: 20px;
+}
+
+.financial-growth.positive {
+    background: #d1fae5;
+    color: #059669;
+}
+
+.financial-growth.negative {
+    background: #fee2e2;
+    color: #dc2626;
+}
+
+.financial-growth i {
+    font-size: 10px;
+}
+
+/* Tabs */
+.financial-tabs {
+    display: flex;
+    gap: 8px;
+    background: #f3f4f6;
+    padding: 6px;
+    border-radius: 10px;
+    width: fit-content;
+}
+
+.financial-tab {
+    padding: 10px 20px;
+    border: none;
+    background: transparent;
+    border-radius: 8px;
+    font-size: 14px;
+    font-weight: 500;
+    color: #6b7280;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    display: flex;
+    align-items: center;
+}
+
+.financial-tab:hover {
+    color: #1f2937;
+    background: rgba(255, 255, 255, 0.5);
+}
+
+.financial-tab.active {
+    background: white;
+    color: #10b981;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
+}
+
+.financial-tab i {
+    font-size: 16px;
+}
+
+/* Table styles */
+.text-purple {
+    color: #8b5cf6 !important;
+}
+
+/* Responsive */
+@media (max-width: 1400px) {
+    .financial-overview-grid {
+        grid-template-columns: repeat(4, 1fr);
+    }
+}
+
+@media (max-width: 1200px) {
+    .financial-overview-grid {
+        grid-template-columns: repeat(2, 1fr);
+    }
+}
+
+@media (max-width: 768px) {
+    .financial-overview-grid {
+        grid-template-columns: 1fr;
+        gap: 12px;
+    }
+
+    .financial-card {
+        padding: 16px;
+    }
+
+    .financial-card-icon {
+        width: 42px;
+        height: 42px;
+    }
+
+    .financial-card-icon i {
+        font-size: 18px;
+    }
+
+    .financial-value {
+        font-size: 20px;
+    }
+
+    .financial-tabs {
+        width: 100%;
+        overflow-x: auto;
+    }
+
+    .financial-tab {
+        padding: 8px 16px;
+        font-size: 13px;
+        white-space: nowrap;
+    }
+
+    .financial-page-header {
+        padding: 16px;
+    }
+
+    .financial-page-icon {
+        width: 48px;
+        height: 48px;
+    }
+
+    .financial-page-icon i {
+        font-size: 22px;
+    }
+}
+
+@media (max-width: 576px) {
+    .financial-tabs {
+        flex-direction: column;
+        width: 100%;
+    }
+
+    .financial-tab {
+        justify-content: center;
+    }
+}
