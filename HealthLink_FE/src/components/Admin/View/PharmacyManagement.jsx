@@ -325,17 +325,17 @@ export default function PharmacyManagement() {
           </div>
           <div className="pharmacy-filter-body">
             <div className="pharmacy-filter-group">
-              <div className="pharmacy-search-input">
+              <div className="pharmacy-search-input" >
                 <i className="bi bi-search"></i>
                 <input
                   type="text"
-                  placeholder="Search by name, license, email..."
+                  placeholder="     Search by name, license, email..."
                   value={filters.searchTerm}
                   onChange={handleSearch}
                 />
               </div>
             </div>
-            <div className="pharmacy-filter-group">
+            <div className="pharmacy-filter-group" style={{ paddingLeft: '20px' }}>
               <select value={filters.status} onChange={handleFilterChange('status')}>
                 <option value="">All Status</option>
                 <option value="ACTIVE">Active</option>

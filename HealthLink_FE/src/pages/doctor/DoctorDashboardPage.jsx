@@ -13,6 +13,7 @@ import DoctorPatientDetailView from '../../components/doctor/patient/DoctorPatie
 import DoctorPatientsView from '../../components/doctor/dashboard/DoctorPatientsView';
 import DoctorPrescriptionsView from '../../components/doctor/dashboard/DoctorPrescriptionsView';
 import DoctorProfileView from '../../components/doctor/dashboard/DoctorProfileView';
+import DoctorReviewsView from '../../components/doctor/dashboard/DoctorReviewsView';
 import DoctorScheduleView from '../../components/doctor/dashboard/DoctorScheduleView';
 import SharedRecordsView from '../../components/doctor/shared-records/SharedRecordsView';
 
@@ -41,6 +42,12 @@ const NAV_ITEMS = [
     key: 'prescriptions',
     label: 'Prescriptions',
     icon: 'medication',
+    wide: true,
+  },
+  {
+    key: 'reviews',
+    label: 'Reviews',
+    icon: 'star',
     wide: true,
   },
   {
@@ -499,6 +506,9 @@ const DoctorDashboardPage = () => {
     }
     if (view === 'prescriptions') {
       return <DoctorPrescriptionsView doctorId={doctorId} onOpenAppointmentById={(appointmentId) => handleOpenAppointmentById(appointmentId, 'prescriptions')} />;
+    }
+    if (view === 'reviews') {
+      return <DoctorReviewsView />;
     }
     if (view === 'schedule') {
       return <DoctorScheduleView doctorId={doctorId} />;

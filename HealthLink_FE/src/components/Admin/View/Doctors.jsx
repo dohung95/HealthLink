@@ -511,7 +511,9 @@ export default function Doctors() {
                               ></i>
                             ))}
                           </span>
-                          <span className="rating-number">{doctor.rating.toFixed(1)}</span>
+                          <span className="rating-number" style={{ fontSize: '1.8rem' }}>
+                            {doctor.rating.toFixed(1)}
+                          </span>
                           {doctor.totalReviews && (
                             <span className="rating-count">({doctor.totalReviews})</span>
                           )}

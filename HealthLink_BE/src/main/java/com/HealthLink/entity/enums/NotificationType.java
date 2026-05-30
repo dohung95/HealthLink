@@ -28,5 +28,9 @@ public enum NotificationType {
     // Schedule compliance notifications
     SCHEDULE_COMPLIANCE_WARNING,    // Doctor: Chưa đủ giờ làm việc
     DOCTOR_SCHEDULE_NON_COMPLIANT,  // Admin: Bác sĩ không đạt chuẩn số giờ
-    SCHEDULE_COMPLIANCE_ACHIEVED    // Doctor: Đã đạt đủ giờ làm việc
+    SCHEDULE_COMPLIANCE_ACHIEVED,   // Doctor: Đã đạt đủ giờ làm việc
+
+    // Review notifications
+    NEW_REVIEW,                     // Doctor: Có review mới
+    REVIEW_REPLY                    // Patient: Doctor/Admin đã phản hồi review
 }

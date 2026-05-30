@@ -405,6 +405,7 @@ public class FollowUpAppointmentServiceImpl implements FollowUpAppointmentServic
                 .patientName(appointment.getPatient() != null ? appointment.getPatient().getFullName() : null)
                 .doctorId(appointment.getDoctor() != null ? appointment.getDoctor().getDoctorId() : null)
                 .doctorName(appointment.getDoctor() != null ? appointment.getDoctor().getFullName() : null)
+                .doctorAvatar(appointment.getDoctor() != null ? appointment.getDoctor().getAvatarUrl() : null)
                 .appointmentTime(appointment.getAppointmentTime())
                 .consultationType(appointment.getConsultationType())
                 .status(appointment.getStatus())
