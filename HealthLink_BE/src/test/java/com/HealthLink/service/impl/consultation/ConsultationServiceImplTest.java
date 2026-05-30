@@ -49,7 +49,7 @@ class ConsultationServiceImplTest {
 
     @Test
     void startByAppointment_shouldCreateConsultationWhenAppointmentTimeArrived() {
-        Appointment appointment = appointment(10, "Scheduled");
+        Appointment appointment = appointment(10, "SCHEDULED");
         appointment.setAppointmentTime(LocalDateTime.now().minusMinutes(5));
 
         when(appointmentRepository.findById(10)).thenReturn(Optional.of(appointment));
@@ -71,7 +71,7 @@ class ConsultationServiceImplTest {
 
     @Test
     void startByAppointment_shouldRejectBeforeAppointmentTime() {
-        Appointment appointment = appointment(10, "Scheduled");
+        Appointment appointment = appointment(10, "SCHEDULED");
         appointment.setAppointmentTime(LocalDateTime.now().plusMinutes(5));
 
         when(appointmentRepository.findById(10)).thenReturn(Optional.of(appointment));
@@ -84,7 +84,7 @@ class ConsultationServiceImplTest {
 
     @Test
     void startByAppointment_shouldReturnExistingStartedConsultation() {
-        Appointment appointment = appointment(10, "Scheduled");
+        Appointment appointment = appointment(10, "SCHEDULED");
         appointment.setAppointmentTime(LocalDateTime.now().minusMinutes(5));
         Consultation consultation = Consultation.builder()
                 .consultationId(20)
@@ -105,7 +105,7 @@ class ConsultationServiceImplTest {
 
     @Test
     void updateNotesByAppointment_shouldRejectBeforeStart() {
-        Appointment appointment = appointment(10, "Scheduled");
+        Appointment appointment = appointment(10, "SCHEDULED");
         ConsultationNotesRequest request = new ConsultationNotesRequest();
 
         when(appointmentRepository.findById(10)).thenReturn(Optional.of(appointment));
@@ -118,7 +118,7 @@ class ConsultationServiceImplTest {
 
     @Test
     void updateNotesByAppointment_shouldSaveStartedConsultationNotes() {
-        Appointment appointment = appointment(10, "Scheduled");
+        Appointment appointment = appointment(10, "SCHEDULED");
         Consultation consultation = Consultation.builder()
                 .consultationId(20)
                 .appointment(appointment)
@@ -143,7 +143,7 @@ class ConsultationServiceImplTest {
     @Test
     void updateFollowUpByAppointment_shouldCreateConsultationWhenMissing() {
         LocalDateTime followUpDate = LocalDateTime.now().plusDays(2).withMinute(0).withSecond(0).withNano(0);
-        Appointment appointment = appointment(10, "Scheduled");
+        Appointment appointment = appointment(10, "SCHEDULED");
         appointment.setSymptoms("Headache");
         FollowUpRequest request = new FollowUpRequest();
         request.setFollowUpDate(followUpDate);
@@ -177,7 +177,7 @@ class ConsultationServiceImplTest {
     @Test
     void updateFollowUpByAppointment_shouldUpdateExistingConsultation() {
         LocalDateTime followUpDate = LocalDateTime.now().plusDays(3).withMinute(0).withSecond(0).withNano(0);
-        Appointment appointment = appointment(10, "Scheduled");
+        Appointment appointment = appointment(10, "SCHEDULED");
         Consultation consultation = Consultation.builder()
                 .consultationId(20)
                 .appointment(appointment)
@@ -204,7 +204,7 @@ class ConsultationServiceImplTest {
 
     @Test
     void updateFollowUpByAppointment_shouldClearPendingFollowUp() {
-        Appointment appointment = appointment(10, "Scheduled");
+        Appointment appointment = appointment(10, "SCHEDULED");
         Consultation consultation = Consultation.builder()
                 .consultationId(20)
                 .appointment(appointment)
@@ -229,7 +229,7 @@ class ConsultationServiceImplTest {
 
     @Test
     void updateFollowUpByAppointment_shouldCancelWithoutConsultation() {
-        Appointment appointment = appointment(10, "Scheduled");
+        Appointment appointment = appointment(10, "SCHEDULED");
         FollowUpRequest request = new FollowUpRequest();
         request.setFollowUpDate(null);
 
@@ -247,7 +247,7 @@ class ConsultationServiceImplTest {
 
     @Test
     void updateFollowUpByAppointment_shouldRejectCompletedAppointment() {
-        Appointment appointment = appointment(10, "Completed");
+        Appointment appointment = appointment(10, "COMPLETED");
         FollowUpRequest request = new FollowUpRequest();
         request.setFollowUpDate(LocalDateTime.now().plusDays(2).withMinute(0).withSecond(0).withNano(0));
 
@@ -262,7 +262,7 @@ class ConsultationServiceImplTest {
 
     @Test
     void updateFollowUpByAppointment_shouldRejectWhenFollowUpAppointmentAlreadyExists() {
-        Appointment appointment = appointment(10, "Scheduled");
+        Appointment appointment = appointment(10, "SCHEDULED");
         Consultation consultation = Consultation.builder()
                 .consultationId(20)
                 .appointment(appointment)

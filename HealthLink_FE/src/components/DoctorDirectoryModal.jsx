@@ -37,7 +37,7 @@ const DoctorDirectoryModal = ({ isOpen, onClose }) => {
                     pageSize={5}
                     showCloseButton={true}
                     onClose={onClose}
-                    onViewProfile={(doctorId) => navigate(`/doctor/${doctorId}`)}
+                    onViewProfile={(doctorId) => navigate(`/doctors/${doctorId}`)}
                     onBookDoctor={(doctorId) => {
                         onClose();
                         navigate(`/patient-dashboard/book/${doctorId}`);

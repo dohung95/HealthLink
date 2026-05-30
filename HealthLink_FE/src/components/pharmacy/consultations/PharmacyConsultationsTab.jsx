@@ -1,5 +1,7 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { toast } from 'sonner';
+import { useAuth } from '../../../context/AuthContext';
+import { useChat } from '../../../context/ChatContext';
 
 import medicineApi from '../../../api/medicineApi';
 import pharmacyApi from '../../../api/pharmacyApi';
@@ -12,7 +14,7 @@ import {
   useDebouncedValue,
 } from '../common/pharmacyDashboardShared';
 
-export default function PharmacyConsultationsTab({ requests, globalSearch, reload }) {
+export default function PharmacyConsultationsTab({ requests, globalSearch, reload, navigate }) {
   const [activeStatus, setActiveStatus] = useState('PENDING');
   const [selected, setSelected] = useState(null);
   const deferredSearch = useDebouncedValue(globalSearch);
@@ -77,6 +79,8 @@ export default function PharmacyConsultationsTab({ requests, globalSearch, reloa
 }
 
 function RequestDetailPanel({ request, onUpdated }) {
+  const { currentUserId, initiateCall } = useAuth();
+  const { openChatWith } = useChat();
   const [notes, setNotes] = useState('');
   const [creatingOrder, setCreatingOrder] = useState(false);
   const [orderAmount, setOrderAmount] = useState('');
@@ -226,6 +230,30 @@ function RequestDetailPanel({ request, onUpdated }) {
           <button onClick={() => updateStatus('IN_REVIEW')} type="button">Accept Request</button>
           <button onClick={() => updateStatus('NEED_MORE_INFO')} type="button">Need More Info</button>
           <button className="danger" onClick={() => updateStatus('CANCELLED')} type="button">Reject</button>
+        </div>
+      )}
+
+      {!['PENDING', 'CANCELLED'].includes(status) && (
+        <div className="pharmacy-request-actions" style={{ marginTop: '12px' }}>
+          <button
+            type="button"
+            onClick={() => {
+              openChatWith({ uid: request.patientId, displayName: request.patientName });
+            }}
+          >
+            <i className="bi bi-chat-dots-fill me-1"></i> Chat
+          </button>
+          <button
+            type="button"
+            onClick={() => {
+              const roomId = Array.from({ length: 45 }, () =>
+                'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789'[Math.floor(Math.random() * 62)]
+              ).join('');
+              initiateCall(request.patientId, roomId, request.patientName, 'Pharmacy');
+            }}
+          >
+            <i className="bi bi-camera-video-fill me-1"></i> Video Call
+          </button>
         </div>
       )}
 

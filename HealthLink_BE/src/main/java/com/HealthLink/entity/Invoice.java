@@ -17,9 +17,14 @@ public class Invoice {
     private Integer invoiceId;
 
     @OneToOne
-    @JoinColumn(name = "AppointmentId", nullable = false)
+    @JoinColumn(name = "AppointmentId", nullable = true)
     @ToString.Exclude
     private Appointment appointment;
+
+    @OneToOne
+    @JoinColumn(name = "PharmacyOrderId")
+    @ToString.Exclude
+    private PharmacyOrder pharmacyOrder;
 
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "PatientID", nullable = false)

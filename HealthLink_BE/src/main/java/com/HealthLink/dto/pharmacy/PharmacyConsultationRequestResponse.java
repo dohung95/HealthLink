@@ -21,6 +21,7 @@ public class PharmacyConsultationRequestResponse {
     private String additionalNotes;
     private String preferredDeliveryType;
     private String status;
+    private String chatRoomId;
     private String pharmacyNotes;
     private String patientFollowUpNotes;
     private Integer prescriptionHeaderId;
