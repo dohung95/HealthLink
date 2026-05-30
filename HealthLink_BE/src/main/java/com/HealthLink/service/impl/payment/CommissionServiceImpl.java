@@ -245,7 +245,12 @@ public class CommissionServiceImpl implements CommissionService {
 
         Appointment appointment = invoice.getAppointment();
         if (appointment == null) {
-            log.warn("Invoice {} has no appointment – skipping commission refund", invoiceId);
+            // Handle pharmacy-order-only invoice
+            if (invoice.getPharmacyOrder() != null) {
+                refundPharmacyOrderCommissions(invoice.getPharmacyOrder());
+                return;
+            }
+            log.warn("Invoice {} has no appointment or pharmacy order – skipping commission refund", invoiceId);
             return;
         }
 
@@ -371,6 +376,27 @@ public class CommissionServiceImpl implements CommissionService {
             log.warn("Failed to send wallet change notification for doctor {}: {}",
                     doctor.getDoctorId(), ex.getMessage());
         }
+    }
+
+    private void refundPharmacyOrderCommissions(PharmacyOrder pharmacyOrder) {
+        List<CommissionTransaction> pharmacyTxs = commissionTransactionRepository
+                .findByPharmacyOrderId(pharmacyOrder.getOrderId());
+        for (CommissionTransaction tx : pharmacyTxs) {
+            if ("REFUNDED".equals(tx.getStatus())) continue;
+            tx.setStatus("REFUNDED");
+            commissionTransactionRepository.save(tx);
+            Pharmacy pharmacy = pharmacyRepository.findById(tx.getRecipientId()).orElse(null);
+            if (pharmacy != null) {
+                BigDecimal currentPending = pharmacy.getPendingSettlement() != null
+                        ? pharmacy.getPendingSettlement() : BigDecimal.ZERO;
+                BigDecimal reversed = currentPending.subtract(tx.getNetAmount()).max(BigDecimal.ZERO);
+                pharmacy.setPendingSettlement(reversed);
+                pharmacyRepository.save(pharmacy);
+                log.info("Refund: pharmacy {} pendingSettlement reduced by {} (tx={})",
+                        pharmacy.getPharmacyId(), tx.getNetAmount(), tx.getTransactionNumber());
+            }
+        }
+        log.info("Pharmacy order commission refund complete for order {}", pharmacyOrder.getOrderId());
     }
 
     /** Ánh xạ CommissionTransaction → CommissionTransactionResponse. */

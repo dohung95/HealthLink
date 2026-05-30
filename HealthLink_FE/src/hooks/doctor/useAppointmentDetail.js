@@ -36,6 +36,7 @@ export function useAppointmentDetail({ appointment, patient, doctorId: currentDo
   const [startingConsultation, setStartingConsultation] = useState(false);
   const [completingAppointment, setCompletingAppointment] = useState(false);
   const [prescriptionDraft, setPrescriptionDraft] = useState(null);
+  const [copyPrescription, setCopyPrescription] = useState(true);
 
   const appointmentData = useAppointmentData(appointmentId, patientId, doctorId);
   const vitals = useVitalSigns(appointmentId);
@@ -186,7 +187,7 @@ export function useAppointmentDetail({ appointment, patient, doctorId: currentDo
         appointmentData.refreshAppointmentData({ showToast: false });
       }
 
-      const completionResult = await appointmentService.completeAppointment(appointmentId);
+      const completionResult = await appointmentService.completeAppointment(appointmentId, { copyPrescription });
       const followUpAppointmentId = completionResult?.followUpAppointment?.appointmentId ||
         completionResult?.followUpAppointment?.appointmentID || null;
 
@@ -239,6 +240,8 @@ export function useAppointmentDetail({ appointment, patient, doctorId: currentDo
     showCompleteConfirmModal,
     setShowCompleteConfirmModal,
     completingAppointment,
+    copyPrescription,
+    setCopyPrescription,
     prescriptionDraft,
     setPrescriptionDraft,
     ...appointmentData,

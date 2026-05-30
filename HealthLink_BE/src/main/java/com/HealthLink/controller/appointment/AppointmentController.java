@@ -2,6 +2,7 @@ package com.HealthLink.controller.appointment;
 
 import com.HealthLink.dto.request.AppointmentRequest;
 import com.HealthLink.dto.request.CancelAppointmentRequest;
+import com.HealthLink.dto.request.CompleteAppointmentRequest;
 import com.HealthLink.dto.request.HoldSlotRequest;
 import com.HealthLink.dto.request.RescheduleAppointmentRequest;
 import com.HealthLink.dto.consultation.FollowUpRequest;
@@ -93,10 +94,12 @@ public class AppointmentController {
         return ResponseEntity.ok(appointmentService.rescheduleAppointment(id, request));
     }
 
-    // Lấy toàn bộ slot trong ngày của bác sĩ
     @PutMapping("/{id}/complete")
-    public ResponseEntity<CompleteAppointmentResponse> complete(@PathVariable Integer id) {
-        return ResponseEntity.ok(followUpAppointmentService.completeAppointment(id));
+    public ResponseEntity<CompleteAppointmentResponse> complete(
+            @PathVariable Integer id,
+            @RequestBody(required = false) CompleteAppointmentRequest request) {
+        boolean copyPrescription = request != null && request.isCopyPrescription();
+        return ResponseEntity.ok(followUpAppointmentService.completeAppointment(id, copyPrescription));
     }
 
     @PutMapping("/{id}/start")

@@ -54,7 +54,7 @@ import java.util.stream.Collectors;
 public class AppointmentServiceImpl implements AppointmentService {
 
     private static final String STATUS_CANCELLED = "CANCELLED";
-    private static final String STATUS_PENDING_PAYMENT = "PENDINGPAYMENT";
+    private static final String STATUS_SCHEDULED = "SCHEDULED";
 
     private static final DateTimeFormatter NOTIFICATION_TIME_FORMATTER =
             DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm");
@@ -146,7 +146,7 @@ public class AppointmentServiceImpl implements AppointmentService {
                 .appointmentTime(appointmentTime)
                 .endTime(appointmentTime.plusMinutes(slotMinutes))
                 .consultationType(request.getConsultationType())
-                .status(STATUS_PENDING_PAYMENT)
+                .status(STATUS_SCHEDULED)
                 .symptoms(request.getSymptoms())
                 .notes(request.getNotes())
                 .fee(doctor.getConsultationFee())
@@ -476,7 +476,6 @@ public class AppointmentServiceImpl implements AppointmentService {
         return appointmentRepository
                 .findByDoctor_DoctorIdOrderByAppointmentTimeDesc(doctorId)
                 .stream()
-                .filter(appointment -> !STATUS_PENDING_PAYMENT.equalsIgnoreCase(appointment.getStatus()))
                 .map(this::toResponse)
                 .collect(Collectors.toList());
     }
@@ -516,6 +515,7 @@ public class AppointmentServiceImpl implements AppointmentService {
                 .counts(DoctorDailyAppointmentsResponse.Counts.builder()
                         .all(dailyAppointments.size())
                         .scheduled(countByStatus(dailyAppointments, "SCHEDULED"))
+                        .inprogress(countByStatus(dailyAppointments, "IN_CONSULTATION"))
                         .completed(countByStatus(dailyAppointments, "COMPLETED"))
                         .cancelled(countByStatus(dailyAppointments, "CANCELLED"))
                         .build())
@@ -554,6 +554,9 @@ public class AppointmentServiceImpl implements AppointmentService {
         if ("COMPLETED".equalsIgnoreCase(appointment.getStatus())) {
             throw new BusinessException("Completed appointments cannot be canceled");
         }
+        if ("IN_CONSULTATION".equalsIgnoreCase(appointment.getStatus())) {
+            throw new BusinessException("Cannot cancel an appointment that is in consultation");
+        }
         if (appointment.getAppointmentTime().isBefore(LocalDateTime.now().plusHours(2))) {
             throw new BusinessException(
                     "Cannot cancel an appointment less than 2 hours before the scheduled time");
@@ -581,6 +584,9 @@ public class AppointmentServiceImpl implements AppointmentService {
         }
         if ("COMPLETED".equalsIgnoreCase(appointment.getStatus())) {
             throw new BusinessException("Cannot reschedule a completed appointment");
+        }
+        if ("IN_CONSULTATION".equalsIgnoreCase(appointment.getStatus())) {
+            throw new BusinessException("Cannot reschedule an appointment that is in consultation");
         }
         if (appointment.getAppointmentTime().isBefore(LocalDateTime.now().plusHours(2))) {
             throw new BusinessException(

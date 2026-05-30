@@ -139,7 +139,7 @@ const ScheduleExceptionModal = ({ isOpen, onClose, selectedDate, onSuccess }) =>
           zIndex: 1,
           width: '100%',
           maxWidth: '600px',
-          maxHeight: 'calc(100vh - 2rem)',
+          maxHeight: 'calc(100dvh - 2rem)',
           display: 'flex',
           flexDirection: 'column',
           backgroundColor: '#fff',

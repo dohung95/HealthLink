@@ -5,9 +5,7 @@ import { doctorComplianceService } from '@api/complianceApi';
 import WeeklyScheduleBuilder from '@components/doctor/WeeklyScheduleBuilder';
 import ScheduleCalendarView from '@components/doctor/ScheduleCalendarView';
 import ScheduleExceptionModal from '@components/doctor/ScheduleExceptionModal';
-import '@components/Css/doctor/doctor-dashboard/foundation.css';
-import '@components/Css/doctor/doctor-dashboard/shared-ui.css';
-import '@components/Css/doctor/doctor-dashboard/compliance.css';
+import '@components/Css/doctor/doctor-dashboard/doctor-dashboard.css';
 import ComplianceStatusBanner from '@components/doctor/ComplianceStatusBanner';
 import ComplianceWarningModal from '@components/doctor/ComplianceWarningModal';
 

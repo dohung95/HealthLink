@@ -1,8 +1,5 @@
 import React from 'react';
-import '@components/Css/doctor/doctor-dashboard/foundation.css';
-import '@components/Css/doctor/doctor-dashboard/shared-ui.css';
-import '@components/Css/doctor/doctor-dashboard/consultation.css';
-import '@components/Css/doctor/ConsultationNotesTab.css';
+import '@components/Css/doctor/doctor-dashboard/doctor-dashboard.css';
 
 const ConsultationNotesTab = ({
   loadingAppointment,

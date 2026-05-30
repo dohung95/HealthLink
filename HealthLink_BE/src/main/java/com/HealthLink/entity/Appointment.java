@@ -25,7 +25,7 @@ public class Appointment {
 
     @Column(name = "Status")
     @Builder.Default
-    private String status = "Scheduled";
+    private String status = "SCHEDULED";
 
     @Column(length = 2000)
     private String symptoms;

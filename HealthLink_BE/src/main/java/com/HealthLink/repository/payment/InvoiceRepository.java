@@ -34,4 +34,9 @@ public interface InvoiceRepository extends JpaRepository<Invoice, Integer> {
      * Lấy hóa đơn gắn với một lịch hẹn cụ thể.
      */
     Optional<Invoice> findByAppointment_AppointmentId(Integer appointmentId);
+
+    /**
+     * Lấy hóa đơn gắn với một pharmacy order cụ thể.
+     */
+    Optional<Invoice> findByPharmacyOrder_OrderId(Integer orderId);
 }

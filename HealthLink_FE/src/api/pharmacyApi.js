@@ -46,6 +46,11 @@ export const pharmacyApi = {
     return response.data || [];
   },
 
+  getConsultationRequestsByPatient: async (patientId) => {
+    const response = await axiosInstance.get(`/api/pharmacy-requests/patient/${patientId}`);
+    return response.data || [];
+  },
+
   getConsultationRequestById: async (requestId) => {
     const response = await axiosInstance.get(`/api/pharmacy-requests/${requestId}`);
     return response.data;
@@ -68,3 +73,4 @@ export const pharmacyApi = {
 };
 
 export default pharmacyApi;
+export const getConsultationRequestsByPatient = pharmacyApi.getConsultationRequestsByPatient;

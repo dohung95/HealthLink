@@ -24,21 +24,8 @@ const toAppointmentPaymentPayload = (bookingDraft, extra = {}) => {
 };
 
 export const paymentApi = {
-  generateAppointmentInvoice: async (appointmentId) => {
-    const response = await axiosInstance.post(`/api/payment/invoices/generate/${appointmentId}`);
-    return response.data;
-  },
-
   getInvoice: async (invoiceId) => {
     const response = await axiosInstance.get(`/api/payment/invoices/${invoiceId}`);
-    return response.data;
-  },
-
-  createPayPalOrder: async ({ invoiceId, currency = 'USD' }) => {
-    const response = await axiosInstance.post('/api/payment/paypal/create', {
-      invoiceId,
-      currency,
-    });
     return response.data;
   },
 
@@ -47,15 +34,6 @@ export const paymentApi = {
       '/api/payment/appointments/paypal/create',
       toAppointmentPaymentPayload(bookingDraft)
     );
-    return response.data;
-  },
-
-  capturePayPalPayment: async ({ invoiceId, orderId, paymentMethod = 'EWallet' }) => {
-    const response = await axiosInstance.post('/api/payment/paypal/capture', {
-      invoiceId,
-      orderId,
-      paymentMethod,
-    });
     return response.data;
   },
 

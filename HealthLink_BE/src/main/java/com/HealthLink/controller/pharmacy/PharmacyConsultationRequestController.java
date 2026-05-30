@@ -1,5 +1,6 @@
 package com.HealthLink.controller.pharmacy;
 
+import com.HealthLink.dto.chat.ChatRoomDTO;
 import com.HealthLink.dto.pharmacy.PharmacyConsultationOrderCreateRequest;
 import com.HealthLink.dto.pharmacy.PharmacyConsultationRequestCreateRequest;
 import com.HealthLink.dto.pharmacy.PharmacyConsultationRequestResponse;
@@ -9,6 +10,7 @@ import com.HealthLink.dto.pharmacy.PharmacyPrescriptionCreationResponse;
 import com.HealthLink.dto.pharmacy.PharmacyPrescriptionRequest;
 import com.HealthLink.exception.ResourceNotFoundException;
 import com.HealthLink.repository.auth.UserRepository;
+import com.HealthLink.service.chat.ChatService;
 import com.HealthLink.service.pharmacy.PharmacyConsultationRequestService;
 import com.HealthLink.service.pharmacy.PharmacyOrderService;
 import jakarta.validation.Valid;
@@ -30,6 +32,7 @@ public class PharmacyConsultationRequestController {
     private final PharmacyConsultationRequestService pharmacyConsultationRequestService;
     private final PharmacyOrderService pharmacyOrderService;
     private final UserRepository userRepository;
+    private final ChatService chatService;
 
     @PostMapping
     public ResponseEntity<PharmacyConsultationRequestResponse> createRequest(
@@ -59,6 +62,16 @@ public class PharmacyConsultationRequestController {
     public ResponseEntity<PharmacyConsultationRequestResponse> getRequestById(
             @PathVariable Integer requestId) {
         return ResponseEntity.ok(pharmacyConsultationRequestService.getRequestById(requestId));
+    }
+
+    @GetMapping("/{requestId}/chat-room")
+    public ResponseEntity<ChatRoomDTO> getChatRoom(@PathVariable Integer requestId) {
+        PharmacyConsultationRequestResponse request = pharmacyConsultationRequestService
+                .getRequestById(requestId);
+        if (request.getChatRoomId() == null) {
+            return ResponseEntity.notFound().build();
+        }
+        return ResponseEntity.ok(chatService.getRoomById(request.getChatRoomId()));
     }
 
     @PatchMapping("/{requestId}/status")

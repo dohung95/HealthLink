@@ -70,6 +70,10 @@ public class PharmacyOrder {
     private String cancelReason;
     private String cancelledBy;
 
+    @OneToOne(mappedBy = "pharmacyOrder", fetch = FetchType.LAZY)
+    @ToString.Exclude
+    private Invoice invoice;
+
     @Builder.Default
     private LocalDateTime createdAt = LocalDateTime.now();
 
