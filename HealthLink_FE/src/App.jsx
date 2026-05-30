@@ -29,6 +29,8 @@ import Registrations from './components/Admin/View/Registrations';
 import DoctorScheduleManagement from './components/Admin/View/DoctorScheduleManagement';
 import ScheduleAuditLog from './components/Admin/View/ScheduleAuditLog';
 import ScheduleComplianceDashboard from './components/Admin/View/ScheduleComplianceDashboard';
+import FinancialReports from './components/Admin/View/FinancialReports';
+import ReviewManagement from './components/Admin/View/ReviewManagement';
 
 import Sign_in from './components/Auth/Sign_in';
 import Sign_up from './components/Auth/Sign_up';
@@ -282,6 +284,11 @@ function AppContent() {
                 <CommissionManagement />
               </AdminRoute>
             } />
+            <Route path="/admin/financial-reports" element={
+              <AdminRoute>
+                <FinancialReports />
+              </AdminRoute>
+            } />
             <Route path="/admin/appointments" element={
               <AdminRoute>
                 <Appointments />
@@ -310,6 +317,11 @@ function AppContent() {
             <Route path="/admin/compliance" element={
               <AdminRoute>
                 <ScheduleComplianceDashboard />
+              </AdminRoute>
+            } />
+            <Route path="/admin/reviews" element={
+              <AdminRoute>
+                <ReviewManagement />
               </AdminRoute>
             } />
 

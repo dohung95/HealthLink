@@ -15,7 +15,8 @@ import java.time.LocalDateTime;
 @Builder
 public class AdminAppointmentReassignRequest {
 
-    @NotNull(message = "Appointment ID is required")
+    // appointmentId is set from path variable in controller, not from request body
+    // So we don't validate it here - controller will set it
     private Integer appointmentId;
 
     @NotBlank(message = "New doctor ID is required")

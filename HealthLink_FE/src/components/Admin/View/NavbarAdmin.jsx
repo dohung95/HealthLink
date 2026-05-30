@@ -26,17 +26,30 @@ export default function NavbarAdmin({ sidebarCollapsed, onToggleSidebar, childre
   };
 
   const menuItems = [
+    // Overview
     { icon: "bi-speedometer2", label: "Dashboard", path: "/admin" },
+
+    // User Management
+    { icon: "bi-person-plus", label: "Registrations", path: "/admin/registrations", divider: "Users" },
     { icon: "bi-people", label: "Patients", path: "/admin/patients" },
     { icon: "bi-heart-pulse", label: "Doctors", path: "/admin/doctors" },
-    { icon: "bi-box-seam", label: "Pharmacies", path: "/admin/pharmacies" },
-    { icon: "bi-currency-exchange", label: "Commission", path: "/admin/commission" },
-    { icon: "bi-calendar-check", label: "Appointments", path: "/admin/appointments" },
+    { icon: "bi-shop", label: "Pharmacies", path: "/admin/pharmacies" },
+
+    // Operations
+    { icon: "bi-calendar-check", label: "Appointments", path: "/admin/appointments", divider: "Operations" },
     { icon: "bi-calendar3", label: "Doctor Schedules", path: "/admin/doctor-schedules" },
-    { icon: "bi-clipboard-check", label: "Compliance", path: "/admin/compliance" },
     { icon: "bi-file-medical", label: "Medical Records", path: "/admin/medical-records" },
-    { icon: "bi-person-plus", label: "Registrations", path: "/admin/registrations" },
-    { icon: "bi-journal-text", label: "Audit Log", path: "/admin/audit-log" },
+
+    // Feedback & Quality
+    { icon: "bi-star", label: "Reviews", path: "/admin/reviews", divider: "Quality" },
+    { icon: "bi-clipboard-check", label: "Compliance", path: "/admin/compliance" },
+
+    // Finance
+    { icon: "bi-graph-up-arrow", label: "Financial Reports", path: "/admin/financial-reports", divider: "Finance" },
+    { icon: "bi-currency-exchange", label: "Commission", path: "/admin/commission" },
+
+    // System
+    { icon: "bi-journal-text", label: "Audit Log", path: "/admin/audit-log", divider: "System" },
   ];
 
   return (
@@ -55,53 +68,68 @@ export default function NavbarAdmin({ sidebarCollapsed, onToggleSidebar, childre
           }`}
       >
         {/* Logo */}
-        <div className={`admin-logo ${sidebarCollapsed ? 'p-2' : 'px-3 py-3'} transition-all`}>
+        <div className={`admin-logo ${sidebarCollapsed ? 'p-2' : ''} transition-all`}>
           <div className="d-flex align-items-center justify-content-center">
-            <div className="admin-logo-icon" style={{ width: '38px', height: '38px', fontSize: '18px' }}>
+            <div className="admin-logo-icon">
               <i className="bi bi-heart-pulse-fill"></i>
             </div>
             {!sidebarCollapsed && (
               <div className="admin-logo-text ms-2" style={{ whiteSpace: 'nowrap', overflow: 'hidden' }}>
-                <h6 className="mb-0" style={{ fontWeight: '700', letterSpacing: '-0.5px', fontSize: '15px' }}>
+                <h6 className="mb-0" style={{ fontWeight: '700', letterSpacing: '-0.5px', fontSize: '14px' }}>
                   HealthLink
                 </h6>
-                <small style={{ fontSize: '10px', opacity: 0.8 }}>Admin Dashboard</small>
+                <small style={{ fontSize: '9px', opacity: 0.8 }}>Admin Dashboard</small>
               </div>
             )}
           </div>
         </div>
 
         {/* Navigation */}
-        <nav className="flex-grow-1 mt-1 px-2">
+        <nav className="flex-grow-1 px-2">
           <ul className="nav flex-column">
-            {menuItems.map((item) => (
-              <li key={item.label} className="nav-item">
-                <a
-                  href="#"
-                  onClick={(e) => { e.preventDefault(); navigate(item.path); }}
-                  className={`admin-nav-link d-flex align-items-center rounded-3 ${location.pathname === item.path ? "admin-active" : "admin-nav-hover"
-                    }`}
-                >
-                  <i className={`bi ${item.icon} ${sidebarCollapsed ? "" : "me-2"}`} style={{ fontSize: '16px' }}></i>
-                  <span className="admin-menu-label" style={{ fontSize: '13px', fontWeight: '500' }}>{item.label}</span>
-                  {location.pathname === item.path && !sidebarCollapsed && (
-                    <i className="bi bi-chevron-right ms-auto" style={{ fontSize: '10px' }}></i>
-                  )}
-                </a>
-              </li>
+            {menuItems.map((item, index) => (
+              <React.Fragment key={item.label}>
+                {/* Divider with label */}
+                {item.divider && !sidebarCollapsed && (
+                  <li className="nav-item">
+                    <div className="admin-nav-divider">
+                      <span>{item.divider}</span>
+                    </div>
+                  </li>
+                )}
+                {item.divider && sidebarCollapsed && (
+                  <li className="nav-item">
+                    <hr className="admin-nav-divider-line" />
+                  </li>
+                )}
+                <li className="nav-item">
+                  <a
+                    href="#"
+                    onClick={(e) => { e.preventDefault(); navigate(item.path); }}
+                    className={`admin-nav-link d-flex align-items-center rounded-2 ${location.pathname === item.path ? "admin-active" : "admin-nav-hover"
+                      }`}
+                  >
+                    <i className={`bi ${item.icon} ${sidebarCollapsed ? "" : "me-2"}`} style={{ fontSize: '14px' }}></i>
+                    <span className="admin-menu-label" style={{ fontSize: '12px', fontWeight: '500' }}>{item.label}</span>
+                    {location.pathname === item.path && !sidebarCollapsed && (
+                      <i className="bi bi-chevron-right ms-auto" style={{ fontSize: '9px' }}></i>
+                    )}
+                  </a>
+                </li>
+              </React.Fragment>
             ))}
           </ul>
         </nav>
 
         {/* Logout */}
-        <div className="px-2 py-2">
+        <div>
           <button
             className="admin-logout-btn w-100 d-flex align-items-center justify-content-center gap-2"
             onClick={handleLogout}
           >
-            <i className="bi bi-box-arrow-right" style={{ fontSize: '13px' }}></i>
+            <i className="bi bi-box-arrow-right" style={{ fontSize: '12px' }}></i>
             {!sidebarCollapsed && (
-              <span className="admin-menu-label" style={{ fontSize: '12px' }}>Logout</span>
+              <span className="admin-menu-label" style={{ fontSize: '11px' }}>Logout</span>
             )}
           </button>
         </div>
@@ -110,8 +138,8 @@ export default function NavbarAdmin({ sidebarCollapsed, onToggleSidebar, childre
       {/* Main Content Area */}
       <div className={`admin-main ${sidebarCollapsed ? "admin-sidebar-collapsed" : ""}`}>
         {/* Topbar */}
-        <header className="admin-topbar px-4 py-3 d-flex align-items-center justify-content-between">
-          <div className="d-flex align-items-center gap-3">
+        <header className="admin-topbar px-3 py-2 d-flex align-items-center justify-content-between">
+          <div className="d-flex align-items-center gap-2">
             <button
               className="admin-toggle-btn"
               onClick={onToggleSidebar}
@@ -119,10 +147,10 @@ export default function NavbarAdmin({ sidebarCollapsed, onToggleSidebar, childre
               <i className="bi bi-list"></i>
             </button>
             <div className="d-none d-md-block">
-              <h6 className="mb-0" style={{ fontSize: '15px', fontWeight: '600', color: 'var(--admin-text)' }}>
+              <h6 className="mb-0" style={{ fontSize: '13px', fontWeight: '600', color: 'var(--admin-text)' }}>
                 Welcome back, Admin
               </h6>
-              <small style={{ fontSize: '12px', color: 'var(--admin-text-light)' }}>
+              <small style={{ fontSize: '11px', color: 'var(--admin-text-light)' }}>
                 {new Date().toLocaleDateString('en-US', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })}
               </small>
             </div>
@@ -140,7 +168,7 @@ export default function NavbarAdmin({ sidebarCollapsed, onToggleSidebar, childre
                   alt="Admin"
                 />
               </div>
-              <span className="d-none d-md-inline" style={{ fontSize: '14px', fontWeight: '600', color: 'var(--admin-text)' }}>
+              <span className="d-none d-md-inline" style={{ fontSize: '12px', fontWeight: '600', color: 'var(--admin-text)' }}>
                 Admin
               </span>
             </div>

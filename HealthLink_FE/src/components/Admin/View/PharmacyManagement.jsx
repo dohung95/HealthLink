@@ -3,6 +3,7 @@ import NavbarAdmin from "./NavbarAdmin";
 import { pharmaciesApi } from "../../../api/adminApi";
 import Toast from "./Toast";
 import useToast from "../useToast";
+import { getAvatarUrl } from "../../../utils/avatarHelper";
 import "bootstrap/dist/css/bootstrap.min.css";
 import "bootstrap-icons/font/bootstrap-icons.css";
 import "../Css/Admin.css";
@@ -324,17 +325,17 @@ export default function PharmacyManagement() {
           </div>
           <div className="pharmacy-filter-body">
             <div className="pharmacy-filter-group">
-              <div className="pharmacy-search-input">
+              <div className="pharmacy-search-input" >
                 <i className="bi bi-search"></i>
                 <input
                   type="text"
-                  placeholder="Search by name, license, email..."
+                  placeholder="     Search by name, license, email..."
                   value={filters.searchTerm}
                   onChange={handleSearch}
                 />
               </div>
             </div>
-            <div className="pharmacy-filter-group">
+            <div className="pharmacy-filter-group" style={{ paddingLeft: '20px' }}>
               <select value={filters.status} onChange={handleFilterChange('status')}>
                 <option value="">All Status</option>
                 <option value="ACTIVE">Active</option>
@@ -421,7 +422,11 @@ export default function PharmacyManagement() {
                     {/* Card Header */}
                     <div className="pharmacy-card-header-v2">
                       <div className="pharmacy-avatar">
-                        <i className="bi bi-capsule-pill"></i>
+                        {getAvatarUrl(pharmacy.avatarUrl) ? (
+                          <img src={getAvatarUrl(pharmacy.avatarUrl)} alt={pharmacy.name || pharmacy.Name} style={{width: '100%', height: '100%', objectFit: 'cover', borderRadius: '50%'}} />
+                        ) : (
+                          <i className="bi bi-capsule-pill"></i>
+                        )}
                       </div>
                       <div className="pharmacy-info">
                         <h4 className="pharmacy-name-v2">{pharmacy.name || pharmacy.Name || 'Untitled'}</h4>
@@ -570,7 +575,11 @@ export default function PharmacyManagement() {
                       <td>
                         <div className="pharmacy-table-name">
                           <div className="pharmacy-table-avatar">
-                            <i className="bi bi-capsule-pill"></i>
+                            {getAvatarUrl(pharmacy.avatarUrl) ? (
+                              <img src={getAvatarUrl(pharmacy.avatarUrl)} alt={pharmacy.name || pharmacy.Name} style={{width: '100%', height: '100%', objectFit: 'cover', borderRadius: '50%'}} />
+                            ) : (
+                              <i className="bi bi-capsule-pill"></i>
+                            )}
                           </div>
                           <div>
                             <div className="name">{pharmacy.name || pharmacy.Name || 'Untitled'}</div>

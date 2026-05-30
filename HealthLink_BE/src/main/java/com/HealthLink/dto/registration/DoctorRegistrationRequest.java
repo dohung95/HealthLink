@@ -27,6 +27,7 @@ public class DoctorRegistrationRequest {
 
     private String specialty;
 
+    @NotNull(message = "Years of experience is required")
     @Min(value = 0, message = "Years of experience must be non-negative")
     private Integer yearsOfExperience;
 
@@ -38,10 +39,14 @@ public class DoctorRegistrationRequest {
 
     private String bio;
 
-    @DecimalMin(value = "0.0", message = "Consultation fee must be non-negative")
+    @NotNull(message = "Consultation fee is required")
+    @DecimalMin(value = "1.0", message = "Consultation fee must be at least 1.0")
     private BigDecimal consultationFee;
 
+    @NotBlank(message = "Clinic/Hospital name is required")
     private String clinicName;
+
+    @NotBlank(message = "Clinic/Hospital address is required")
     private String clinicAddress;
 
     @Builder.Default

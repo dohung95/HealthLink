@@ -56,17 +56,17 @@ export default function Admin() {
       sidebarCollapsed={sidebarCollapsed}
       onToggleSidebar={() => setSidebarCollapsed(!sidebarCollapsed)}
     >
-      <main className="admin-content p-4">
+      <main className="admin-content">
           {/* Dashboard Page Header with Visual Distinction */}
-          <div className="admin-page-header-dashboard mb-4">
+          <div className="admin-page-header-dashboard mb-3">
             <div className="d-flex justify-content-between align-items-start">
               <div className="admin-page-title-section">
-                <div className="d-flex align-items-center gap-3 mb-2">
+                <div className="d-flex align-items-center gap-2 mb-1">
                   <div className="admin-page-icon-dashboard">
                     <i className="bi bi-speedometer2"></i>
                   </div>
                   <div>
-                    <h2 className="admin-page-title mb-1">
+                    <h2 className="admin-page-title mb-0">
                       System Dashboard
                     </h2>
                     <div className="d-flex align-items-center gap-2">
@@ -101,7 +101,7 @@ export default function Admin() {
         ) : (
           <>
             {/* Stats Inline */}
-            <div className="dashboard-stats-inline mb-4">
+            <div className="dashboard-stats-inline mb-3">
               <div className="stat-inline-item stat-patients">
                 <div className="stat-inline-icon">
                   <i className="bi bi-people-fill"></i>

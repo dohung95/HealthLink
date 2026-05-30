@@ -1,4 +1,5 @@
 import React from 'react';
+import { getAvatarUrl } from '../../../utils/avatarHelper';
 import 'bootstrap/dist/css/bootstrap.min.css';
 import 'bootstrap-icons/font/bootstrap-icons.css';
 
@@ -35,14 +36,23 @@ export default function PatientCardGrid({ patients, onViewPatient, formatDate })
                                     style={{
                                         width: '56px',
                                         height: '56px',
-                                        background: 'linear-gradient(135deg, #00a08b 0%, #00c4ac 100%)',
+                                        background: getAvatarUrl(patient.avatarUrl) ? 'transparent' : 'linear-gradient(135deg, #00a08b 0%, #00c4ac 100%)',
                                         color: 'white',
                                         fontSize: '22px',
                                         fontWeight: '600',
-                                        boxShadow: '0 4px 12px rgba(0, 160, 139, 0.2)'
+                                        boxShadow: '0 4px 12px rgba(0, 160, 139, 0.2)',
+                                        overflow: 'hidden'
                                     }}
                                 >
-                                    {patient.fullName.charAt(0)}
+                                    {getAvatarUrl(patient.avatarUrl) ? (
+                                        <img
+                                            src={getAvatarUrl(patient.avatarUrl)}
+                                            alt={patient.fullName}
+                                            style={{ width: '100%', height: '100%', objectFit: 'cover' }}
+                                        />
+                                    ) : (
+                                        patient.fullName.charAt(0)
+                                    )}
                                 </div>
                                 <div className="flex-grow-1">
                                     <h6 className="mb-1" style={{ fontWeight: '600', color: '#0f172a', fontSize: '15px' }}>
