@@ -1245,55 +1245,11 @@ export default function Appointments() {
                           </h6>
                           <div className="admin-info-row">
                             <strong>Patient:</strong>
-                            <div className="d-flex align-items-center gap-2">
-                              <div style={{
-                                width: '28px',
-                                height: '28px',
-                                borderRadius: '50%',
-                                background: getAvatarUrl(selectedAppointment.patientAvatarUrl) ? 'transparent' : 'linear-gradient(135deg, #00a08b 0%, #00c4ac 100%)',
-                                color: 'white',
-                                display: 'flex',
-                                alignItems: 'center',
-                                justifyContent: 'center',
-                                fontSize: '12px',
-                                fontWeight: '600',
-                                overflow: 'hidden',
-                                flexShrink: 0
-                              }}>
-                                {getAvatarUrl(selectedAppointment.patientAvatarUrl) ? (
-                                  <img src={getAvatarUrl(selectedAppointment.patientAvatarUrl)} alt={selectedAppointment.patientName} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
-                                ) : (
-                                  selectedAppointment.patientName?.charAt(0)
-                                )}
-                              </div>
-                              <span>{selectedAppointment.patientName}</span>
-                            </div>
+                            <span>{selectedAppointment.patientName}</span>
                           </div>
                           <div className="admin-info-row">
                             <strong>Doctor:</strong>
-                            <div className="d-flex align-items-center gap-2">
-                              <div style={{
-                                width: '28px',
-                                height: '28px',
-                                borderRadius: '50%',
-                                background: getAvatarUrl(selectedAppointment.doctorAvatarUrl) ? 'transparent' : 'linear-gradient(135deg, #6366f1 0%, #818cf8 100%)',
-                                color: 'white',
-                                display: 'flex',
-                                alignItems: 'center',
-                                justifyContent: 'center',
-                                fontSize: '12px',
-                                fontWeight: '600',
-                                overflow: 'hidden',
-                                flexShrink: 0
-                              }}>
-                                {getAvatarUrl(selectedAppointment.doctorAvatarUrl) ? (
-                                  <img src={getAvatarUrl(selectedAppointment.doctorAvatarUrl)} alt={selectedAppointment.doctorName} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
-                                ) : (
-                                  selectedAppointment.doctorName?.charAt(0)
-                                )}
-                              </div>
-                              <span>{selectedAppointment.doctorName}</span>
-                            </div>
+                            <span>{selectedAppointment.doctorName}</span>
                           </div>
                           <div className="admin-info-row">
                             <strong>Department:</strong>
@@ -1440,55 +1396,9 @@ export default function Appointments() {
                 <form onSubmit={handleReassignAppointment}>
                   <div className="modal-body">
                     <div className="alert alert-info mb-3">
-                      <div className="d-flex align-items-center gap-2 mb-2">
-                        <strong>Patient:</strong>
-                        <div style={{
-                          width: '24px',
-                          height: '24px',
-                          borderRadius: '50%',
-                          background: getAvatarUrl(selectedAppointment.patientAvatarUrl) ? 'transparent' : 'linear-gradient(135deg, #00a08b 0%, #00c4ac 100%)',
-                          color: 'white',
-                          display: 'flex',
-                          alignItems: 'center',
-                          justifyContent: 'center',
-                          fontSize: '10px',
-                          fontWeight: '600',
-                          overflow: 'hidden',
-                          flexShrink: 0
-                        }}>
-                          {getAvatarUrl(selectedAppointment.patientAvatarUrl) ? (
-                            <img src={getAvatarUrl(selectedAppointment.patientAvatarUrl)} alt={selectedAppointment.patientName} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
-                          ) : (
-                            selectedAppointment.patientName?.charAt(0)
-                          )}
-                        </div>
-                        <span>{selectedAppointment.patientName}</span>
-                      </div>
-                      <div className="d-flex align-items-center gap-2 mb-1">
-                        <strong>Doctor:</strong>
-                        <div style={{
-                          width: '24px',
-                          height: '24px',
-                          borderRadius: '50%',
-                          background: getAvatarUrl(selectedAppointment.doctorAvatarUrl) ? 'transparent' : 'linear-gradient(135deg, #6366f1 0%, #818cf8 100%)',
-                          color: 'white',
-                          display: 'flex',
-                          alignItems: 'center',
-                          justifyContent: 'center',
-                          fontSize: '10px',
-                          fontWeight: '600',
-                          overflow: 'hidden',
-                          flexShrink: 0
-                        }}>
-                          {getAvatarUrl(selectedAppointment.doctorAvatarUrl) ? (
-                            <img src={getAvatarUrl(selectedAppointment.doctorAvatarUrl)} alt={selectedAppointment.doctorName} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
-                          ) : (
-                            selectedAppointment.doctorName?.charAt(0)
-                          )}
-                        </div>
-                        <span>Dr. {selectedAppointment.doctorName}</span>
-                      </div>
-                      <small>Department: {selectedAppointment.department}</small>
+                      <div className="mb-1"><strong>Patient:</strong> {selectedAppointment.patientName}</div>
+                      <div className="mb-1"><strong>Current Doctor:</strong> Dr. {selectedAppointment.doctorName}</div>
+                      <div><strong>Department:</strong> {selectedAppointment.department}</div>
                     </div>
 
                     <div className="mb-3">
@@ -1634,54 +1544,8 @@ export default function Appointments() {
                     </div>
 
                     <div className="mb-3">
-                      <div className="d-flex align-items-center gap-2 mb-2">
-                        <strong>Patient:</strong>
-                        <div style={{
-                          width: '24px',
-                          height: '24px',
-                          borderRadius: '50%',
-                          background: getAvatarUrl(selectedAppointment.patientAvatarUrl) ? 'transparent' : 'linear-gradient(135deg, #00a08b 0%, #00c4ac 100%)',
-                          color: 'white',
-                          display: 'flex',
-                          alignItems: 'center',
-                          justifyContent: 'center',
-                          fontSize: '10px',
-                          fontWeight: '600',
-                          overflow: 'hidden',
-                          flexShrink: 0
-                        }}>
-                          {getAvatarUrl(selectedAppointment.patientAvatarUrl) ? (
-                            <img src={getAvatarUrl(selectedAppointment.patientAvatarUrl)} alt={selectedAppointment.patientName} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
-                          ) : (
-                            selectedAppointment.patientName?.charAt(0)
-                          )}
-                        </div>
-                        <span>{selectedAppointment.patientName}</span>
-                      </div>
-                      <div className="d-flex align-items-center gap-2 mb-2">
-                        <strong>Doctor:</strong>
-                        <div style={{
-                          width: '24px',
-                          height: '24px',
-                          borderRadius: '50%',
-                          background: getAvatarUrl(selectedAppointment.doctorAvatarUrl) ? 'transparent' : 'linear-gradient(135deg, #6366f1 0%, #818cf8 100%)',
-                          color: 'white',
-                          display: 'flex',
-                          alignItems: 'center',
-                          justifyContent: 'center',
-                          fontSize: '10px',
-                          fontWeight: '600',
-                          overflow: 'hidden',
-                          flexShrink: 0
-                        }}>
-                          {getAvatarUrl(selectedAppointment.doctorAvatarUrl) ? (
-                            <img src={getAvatarUrl(selectedAppointment.doctorAvatarUrl)} alt={selectedAppointment.doctorName} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
-                          ) : (
-                            selectedAppointment.doctorName?.charAt(0)
-                          )}
-                        </div>
-                        <span>{selectedAppointment.doctorName}</span>
-                      </div>
+                      <div className="mb-1"><strong>Patient:</strong> {selectedAppointment.patientName}</div>
+                      <div className="mb-1"><strong>Doctor:</strong> {selectedAppointment.doctorName}</div>
                       <div><strong>Date:</strong> {selectedAppointment.date} {selectedAppointment.time}</div>
                     </div>
 
