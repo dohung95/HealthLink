@@ -55,7 +55,9 @@ export const NotificationProvider = ({ children }) => {
         setUnreadCount(prev => prev + 1);
 
         // Handle specific notification types
-        if (notification.eventType === 'PRESCRIPTION_CREATED' || notification.type === 'NEW_PRESCRIPTION') {
+        if (notification.eventType === 'PRESCRIPTION_CREATED'
+            || notification.type === 'NEW_PRESCRIPTION'
+            || notification.type === 'PRESCRIPTION_ISSUED') {
             setLatestPrescription({
                 id: notification.prescriptionHeaderId || notification.relatedId,
                 message: notification.message,
@@ -69,6 +71,39 @@ export const NotificationProvider = ({ children }) => {
                     body: notification.message,
                     icon: '/logo.png',
                     tag: 'prescription-' + (notification.prescriptionHeaderId || notification.relatedId)
+                });
+            }
+        }
+
+        // Handle payment required notification
+        if (notification.type === 'PAYMENT_REQUIRED') {
+            if ('Notification' in window && Notification.permission === 'granted') {
+                new Notification(notification.title || 'Payment Required', {
+                    body: notification.message,
+                    icon: '/logo.png',
+                    tag: 'payment-' + notification.relatedId
+                });
+            }
+        }
+
+        // Handle order status updates
+        if (notification.type === 'ORDER_STATUS') {
+            if ('Notification' in window && Notification.permission === 'granted') {
+                new Notification(notification.title || 'Order Update', {
+                    body: notification.message,
+                    icon: '/logo.png',
+                    tag: 'order-' + notification.relatedId
+                });
+            }
+        }
+
+        // Handle appointment reminders
+        if (notification.type === 'APPOINTMENT_REMINDER') {
+            if ('Notification' in window && Notification.permission === 'granted') {
+                new Notification(notification.title || 'Appointment Reminder', {
+                    body: notification.message,
+                    icon: '/logo.png',
+                    tag: 'appointment-' + notification.relatedId
                 });
             }
         }

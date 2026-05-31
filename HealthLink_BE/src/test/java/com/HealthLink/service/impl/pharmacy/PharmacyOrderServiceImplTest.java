@@ -246,15 +246,14 @@ class PharmacyOrderServiceImplTest {
 
         when(orderRepository.findById(77)).thenReturn(Optional.of(order));
         when(orderRepository.save(any(PharmacyOrder.class))).thenAnswer(invocation -> invocation.getArgument(0));
-        when(deviceTokenRepository.findByUser_IdAndActiveTrue("patient-user-1")).thenReturn(List.of());
 
         PharmacyOrderResponse response = pharmacyOrderService.updateOrderStatus(77, request);
 
         verify(notificationService).sendWebSocketNotification(
                 eq(patientUser),
                 eq(NotificationType.ORDER_STATUS),
-                eq("Order status updated"),
-                contains("CONFIRMED"),
+                eq("Order confirmed"),
+                contains("has been confirmed"),
                 eq(77),
                 eq("/pharmacy-orders/77")
         );
@@ -299,7 +298,6 @@ class PharmacyOrderServiceImplTest {
 
         when(orderRepository.findById(77)).thenReturn(Optional.of(order));
         when(orderRepository.save(any(PharmacyOrder.class))).thenAnswer(invocation -> invocation.getArgument(0));
-        when(deviceTokenRepository.findByUser_IdAndActiveTrue("patient-user-1")).thenReturn(List.of());
 
         PharmacyOrderResponse response = pharmacyOrderService.updateOrderStatus(77, request);
 

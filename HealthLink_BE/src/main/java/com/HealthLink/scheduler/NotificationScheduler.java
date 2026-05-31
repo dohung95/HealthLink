@@ -47,8 +47,8 @@ public class NotificationScheduler {
     @Transactional
     public void sendAppointmentReminders() {
         LocalDateTime now = LocalDateTime.now();
-        LocalDateTime from = now.plusMinutes(30);
-        LocalDateTime to = now.plusMinutes(35);
+        LocalDateTime from = now.plusHours(1);
+        LocalDateTime to = now.plusHours(1).plusMinutes(5);
 
         List<Appointment> upcomingAppointments =
                 appointmentRepository.findUpcomingAndReminderNotSent(from, to);
@@ -266,12 +266,11 @@ public class NotificationScheduler {
                 String message = buildMedicationReminderMessage(prescription, timing, itemsForTiming, remainingDays);
                 String metadata = buildMedicationReminderMetadata(prescription, timing, itemsForTiming, remainingDays);
 
-                notificationService.sendMobilePushNotification(
+                notificationService.sendWebSocketNotification(
                         patientUser,
                         NotificationType.NEW_PRESCRIPTION,
                         title,
                         message,
-                        NotificationPriority.NORMAL,
                         prescriptionHeaderId,
                         "/prescriptions/" + prescriptionHeaderId,
                         metadata
@@ -394,6 +393,67 @@ public class NotificationScheduler {
         } catch (Exception ex) {
             log.warn("Failed to serialize medication reminder metadata: {}", ex.getMessage());
             return null;
+        }
+    }
+
+    @Scheduled(cron = "0 0 7 * * *")
+    @Transactional
+    public void sendDailyAppointmentDigest() {
+        LocalDate today = LocalDate.now();
+        LocalDateTime startOfDay = today.atStartOfDay();
+        LocalDateTime endOfDay = today.atTime(23, 59, 59);
+
+        List<Appointment> todayAppointments = appointmentRepository.findDailyAppointments(startOfDay, endOfDay);
+
+        if (todayAppointments.isEmpty()) {
+            log.debug("Daily appointment digest: no appointments today");
+            return;
+        }
+
+        Map<String, List<Appointment>> byPatient = todayAppointments.stream()
+                .collect(Collectors.groupingBy(
+                        a -> a.getPatient().getPatientId(),
+                        LinkedHashMap::new,
+                        Collectors.toList()
+                ));
+
+        log.info("Daily appointment digest: {} patients have appointments today", byPatient.size());
+
+        for (Map.Entry<String, List<Appointment>> entry : byPatient.entrySet()) {
+            try {
+                List<Appointment> patientAppointments = entry.getValue();
+                User patientUser = patientAppointments.get(0).getPatient().getUser();
+                if (patientUser == null) {
+                    log.warn("Skipping daily digest for patientId={}: user is missing", entry.getKey());
+                    continue;
+                }
+
+                int count = patientAppointments.size();
+                String times = patientAppointments.stream()
+                        .map(a -> a.getAppointmentTime().toLocalTime().toString())
+                        .collect(Collectors.joining(", "));
+
+                String title = "Today's appointment" + (count > 1 ? "s" : "");
+                String message = String.format(
+                        "You have %d appointment%s today at %s.",
+                        count, count > 1 ? "s" : "", times
+                );
+
+                notificationService.sendWebSocketNotification(
+                        patientUser,
+                        NotificationType.APPOINTMENT_REMINDER,
+                        title,
+                        message,
+                        null,
+                        "/appointments"
+                );
+
+                log.info("Daily appointment digest sent to patientUserId={}, appointmentCount={}",
+                        patientUser.getId(), count);
+            } catch (Exception ex) {
+                log.error("Failed to send daily digest for patientId={}: {}",
+                        entry.getKey(), ex.getMessage(), ex);
+            }
         }
     }
 }

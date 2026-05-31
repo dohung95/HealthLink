@@ -11,6 +11,8 @@ import com.HealthLink.entity.Medicine;
 import com.HealthLink.entity.PharmacyConsultationRequest;
 import com.HealthLink.entity.PrescriptionHeader;
 import com.HealthLink.entity.PrescriptionItem;
+import com.HealthLink.entity.User;
+import com.HealthLink.entity.enums.NotificationType;
 import com.HealthLink.entity.enums.PrescriptionTiming;
 import com.HealthLink.exception.BadRequestException;
 import com.HealthLink.exception.ForbiddenException;
@@ -19,8 +21,10 @@ import com.HealthLink.repository.appointment.AppointmentRepository;
 import com.HealthLink.repository.consultation.ConsultationRepository;
 import com.HealthLink.repository.medicine.MedicineRepository;
 import com.HealthLink.repository.prescription.PrescriptionHeaderRepository;
+import com.HealthLink.service.notification.NotificationService;
 import com.HealthLink.service.prescription.PrescriptionService;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -32,12 +36,14 @@ import java.util.stream.Collectors;
 
 @Service
 @RequiredArgsConstructor
+@Slf4j
 public class PrescriptionServiceImpl implements PrescriptionService {
 
     private final PrescriptionHeaderRepository headerRepository;
     private final MedicineRepository medicineRepository;
     private final AppointmentRepository appointmentRepository;
     private final ConsultationRepository consultationRepository;
+    private final NotificationService notificationService;
 
     @Override
     @Transactional
@@ -120,6 +126,9 @@ public class PrescriptionServiceImpl implements PrescriptionService {
         header.setTotalAmount(totalAmount);
 
         PrescriptionHeader saved = headerRepository.save(header);
+
+        notifyPatientAboutNewPrescription(saved);
+
         return toResponse(saved, null);
     }
 
@@ -179,6 +188,42 @@ public class PrescriptionServiceImpl implements PrescriptionService {
                 .prescriptionHeaderId(header.getPrescriptionHeaderId())
                 .openedAt(header.getOpenedAt())
                 .build();
+    }
+
+    private void notifyPatientAboutNewPrescription(PrescriptionHeader prescription) {
+        try {
+            User patientUser = prescription.getPatient() != null ? prescription.getPatient().getUser() : null;
+            if (patientUser == null) {
+                log.warn("Cannot notify about prescription {}: patient user is missing",
+                        prescription.getPrescriptionHeaderId());
+                return;
+            }
+
+            String doctorName = prescription.getDoctor() != null
+                    ? prescription.getDoctor().getFullName()
+                    : "your doctor";
+            Integer prescriptionId = prescription.getPrescriptionHeaderId();
+            String title = "New Prescription";
+            String message = String.format(
+                    "You have a new prescription from Dr. %s. You can now order from a pharmacy.",
+                    doctorName
+            );
+            String actionUrl = "/prescriptions/" + prescriptionId;
+
+            notificationService.sendWebSocketNotification(
+                    patientUser,
+                    NotificationType.PRESCRIPTION_ISSUED,
+                    title,
+                    message,
+                    prescriptionId,
+                    actionUrl
+            );
+
+            log.info("Prescription notification sent to patientUserId={}, prescriptionId={}",
+                    patientUser.getId(), prescriptionId);
+        } catch (Exception ex) {
+            log.error("Failed to send prescription notification: {}", ex.getMessage(), ex);
+        }
     }
 
     private PrescriptionHeader getPrescriptionOrThrow(Integer prescriptionHeaderId) {
