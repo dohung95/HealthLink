@@ -107,7 +107,7 @@ class PrescriptionServiceImplTest {
                 .strength("5mg")
                 .unit("tablet")
                 .description("Take after food")
-                .referencePrice(new BigDecimal("12.50"))
+                .price(new BigDecimal("12.50"))
                 .build();
 
         when(appointmentRepository.findById(11)).thenReturn(Optional.of(appointment));
@@ -156,7 +156,7 @@ class PrescriptionServiceImplTest {
                 .name("Amlodipine 5mg")
                 .strength("5mg")
                 .unit("tablet")
-                .referencePrice(new BigDecimal("12.50"))
+                .price(new BigDecimal("12.50"))
                 .build();
 
         when(appointmentRepository.findById(11)).thenReturn(Optional.of(appointment));

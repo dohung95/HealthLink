@@ -93,7 +93,7 @@ public class PrescriptionServiceImpl implements PrescriptionService {
 
             BigDecimal unitPrice = itemReq.getUnitPrice();
             if (unitPrice == null) {
-                unitPrice = medicine.getReferencePrice();
+                unitPrice = medicine.getPrice();
             }
 
             BigDecimal totalPrice = BigDecimal.ZERO;

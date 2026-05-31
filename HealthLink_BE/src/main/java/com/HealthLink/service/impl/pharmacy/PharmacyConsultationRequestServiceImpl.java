@@ -191,7 +191,7 @@ public class PharmacyConsultationRequestServiceImpl implements PharmacyConsultat
 
             BigDecimal unitPrice = itemRequest.getUnitPrice() != null
                     ? itemRequest.getUnitPrice()
-                    : medicine.getReferencePrice();
+                    : medicine.getPrice();
 
             BigDecimal totalPrice = BigDecimal.ZERO;
             if (unitPrice != null && itemRequest.getQuantity() != null) {
@@ -252,6 +252,8 @@ public class PharmacyConsultationRequestServiceImpl implements PharmacyConsultat
                 .patientName(request.getPatient() != null ? request.getPatient().getFullName() : null)
                 .pharmacyId(request.getPharmacy() != null ? request.getPharmacy().getPharmacyId() : null)
                 .pharmacyName(request.getPharmacy() != null ? request.getPharmacy().getName() : null)
+                .pharmacyUserId(request.getPharmacy() != null && request.getPharmacy().getUser() != null
+                        ? request.getPharmacy().getUser().getId() : null)
                 .symptoms(request.getSymptoms())
                 .description(request.getDescription())
                 .allergies(request.getAllergies())

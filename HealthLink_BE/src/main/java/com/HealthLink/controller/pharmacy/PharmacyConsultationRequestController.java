@@ -35,6 +35,7 @@ public class PharmacyConsultationRequestController {
     private final ChatService chatService;
 
     @PostMapping
+    @PreAuthorize("hasRole('PATIENT')")
     public ResponseEntity<PharmacyConsultationRequestResponse> createRequest(
             @Valid @RequestBody PharmacyConsultationRequestCreateRequest request) {
         return ResponseEntity.status(HttpStatus.CREATED)
@@ -42,6 +43,7 @@ public class PharmacyConsultationRequestController {
     }
 
     @GetMapping("/pharmacy/{pharmacyId}")
+    @PreAuthorize("hasRole('PHARMACY')")
     public ResponseEntity<List<PharmacyConsultationRequestResponse>> getRequestsByPharmacy(
             @PathVariable String pharmacyId,
             @RequestParam(required = false) String status) {
@@ -51,6 +53,7 @@ public class PharmacyConsultationRequestController {
     }
 
     @GetMapping("/patient/{patientId}")
+    @PreAuthorize("hasRole('PATIENT')")
     public ResponseEntity<List<PharmacyConsultationRequestResponse>> getRequestsByPatient(
             @PathVariable String patientId) {
         return ResponseEntity.ok(
@@ -59,12 +62,14 @@ public class PharmacyConsultationRequestController {
     }
 
     @GetMapping("/{requestId}")
+    @PreAuthorize("isAuthenticated()")
     public ResponseEntity<PharmacyConsultationRequestResponse> getRequestById(
             @PathVariable Integer requestId) {
         return ResponseEntity.ok(pharmacyConsultationRequestService.getRequestById(requestId));
     }
 
     @GetMapping("/{requestId}/chat-room")
+    @PreAuthorize("isAuthenticated()")
     public ResponseEntity<ChatRoomDTO> getChatRoom(@PathVariable Integer requestId) {
         PharmacyConsultationRequestResponse request = pharmacyConsultationRequestService
                 .getRequestById(requestId);
@@ -75,6 +80,7 @@ public class PharmacyConsultationRequestController {
     }
 
     @PatchMapping("/{requestId}/status")
+    @PreAuthorize("hasRole('PHARMACY')")
     public ResponseEntity<PharmacyConsultationRequestResponse> updateRequestStatus(
             @PathVariable Integer requestId,
             @Valid @RequestBody PharmacyConsultationRequestStatusUpdateRequest request) {
@@ -84,6 +90,7 @@ public class PharmacyConsultationRequestController {
     }
 
     @PostMapping("/{requestId}/prescription")
+    @PreAuthorize("hasRole('PHARMACY')")
     public ResponseEntity<PharmacyPrescriptionCreationResponse> createPrescription(
             @PathVariable Integer requestId,
             @Valid @RequestBody PharmacyPrescriptionRequest request) {

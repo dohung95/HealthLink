@@ -13,6 +13,8 @@ export default function PharmacyConsultationsPage() {
   const [requests, setRequests] = useState([]);
   const [loading, setLoading] = useState(true);
   const [selected, setSelected] = useState(null);
+  const [order, setOrder] = useState(null);
+  const [cancelling, setCancelling] = useState(false);
 
   const loadRequests = async () => {
     if (!currentUserId) return;
@@ -33,6 +35,32 @@ export default function PharmacyConsultationsPage() {
 
   const status = selected ? selected.status || '' : '';
   const canCommunicate = status && !['PENDING', 'CANCELLED'].includes(status.toUpperCase());
+
+  useEffect(() => {
+    if (!selected?.pharmacyOrderId) {
+      setOrder(null);
+      return;
+    }
+    pharmacyApi.getOrderById(selected.pharmacyOrderId)
+      .then(setOrder)
+      .catch(() => setOrder(null));
+  }, [selected?.pharmacyOrderId]);
+
+  const cancelOrder = async () => {
+    if (!order) return;
+    setCancelling(true);
+    try {
+      await pharmacyApi.cancelOrder(order.orderId, { cancelReason: 'Patient requested cancellation' });
+      toast.success('Order cancelled.');
+      setOrder(null);
+      const data = await pharmacyApi.getConsultationRequestsByPatient(currentUserId);
+      setRequests(Array.isArray(data) ? data : []);
+    } catch (error) {
+      toast.error(error.response?.data?.message || 'Unable to cancel order.');
+    } finally {
+      setCancelling(false);
+    }
+  };
 
   return (
     <div className="container mt-4">
@@ -131,20 +159,30 @@ export default function PharmacyConsultationsPage() {
                     <div className="d-flex gap-2 mt-3">
                       <button
                         className="btn btn-outline-primary"
-                        onClick={() => openChatWith({ uid: selected.patientId, displayName: selected.patientName })}
+                        onClick={() => openChatWith({ uid: selected.pharmacyUserId, displayName: selected.pharmacyName })}
                       >
                         <i className="bi bi-chat-dots-fill me-1"></i> Chat with Pharmacy
                       </button>
                       <button
                         className="btn btn-outline-success"
                         onClick={() => {
-                          const roomId = Array.from({ length: 45 }, () =>
+                          const roomId = selected.chatRoomId || Array.from({ length: 45 }, () =>
                             'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789'[Math.floor(Math.random() * 62)]
                           ).join('');
-                          initiateCall(selected.pharmacyId, roomId, selected.pharmacyName, 'Patient');
+                          initiateCall(selected.pharmacyUserId || selected.pharmacyId, roomId, selected.pharmacyName, 'Patient');
                         }}
                       >
                         <i className="bi bi-camera-video-fill me-1"></i> Video Call
+                      </button>
+                    </div>
+                  )}
+
+                  {order && ['PENDING', 'CONFIRMED'].includes(order.status) && (
+                    <div className="mt-3">
+                      <hr />
+                      <p><strong>Order:</strong> {order.orderNumber} — <span className={`badge bg-${order.status === 'PENDING' ? 'warning' : 'info'}`}>{order.status}</span></p>
+                      <button className="btn btn-outline-danger btn-sm" disabled={cancelling} onClick={cancelOrder} type="button">
+                        {cancelling ? 'Cancelling...' : 'Cancel Order'}
                       </button>
                     </div>
                   )}

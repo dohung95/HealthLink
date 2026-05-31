@@ -83,6 +83,7 @@ export default function PharmacyDashboardPage() {
     settlements,
     pharmacyId,
     globalSearch,
+    loading,
     reload: loadDashboardData,
     navigate,
   };

@@ -31,7 +31,7 @@ public class MedicineResponse {
     private String interactions;
     private String storageConditions;
     private boolean prescriptionRequired;
-    private BigDecimal referencePrice;
+    private BigDecimal price;
     private boolean active;
     private String imageUrl;
 }

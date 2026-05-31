@@ -6,14 +6,16 @@ import {
   Detail,
   MetricCard,
   Modal,
+  Pagination,
   dateTime,
   money,
   statusClass,
 } from '../common/pharmacyDashboardShared';
 
-export default function PharmacyWalletTab({ profile, balance, transactions, settlements, pharmacyId, reload }) {
+export default function PharmacyWalletTab({ profile, balance, transactions, settlements, pharmacyId, reload, loading }) {
   const [activeHistory, setActiveHistory] = useState('settlements');
   const [query, setQuery] = useState('');
+  const [page, setPage] = useState(1);
   const [withdrawOpen, setWithdrawOpen] = useState(false);
   const [withdrawAmount, setWithdrawAmount] = useState('');
   const [paypalEmail, setPaypalEmail] = useState(profile?.paypalEmail || '');
@@ -46,6 +48,11 @@ export default function PharmacyWalletTab({ profile, balance, transactions, sett
     }));
 
   const filtered = rows.filter((item) => [item.number, item.type, item.status].join(' ').toLowerCase().includes(query.toLowerCase()));
+  const pageSize = 8;
+  const pages = Math.max(1, Math.ceil(filtered.length / pageSize));
+  const visible = filtered.slice((page - 1) * pageSize, page * pageSize);
+
+  useEffect(() => setPage(1), [activeHistory, query]);
 
   const submitWithdraw = async (event) => {
     event.preventDefault();
@@ -67,6 +74,15 @@ export default function PharmacyWalletTab({ profile, balance, transactions, sett
       setSubmitting(false);
     }
   };
+
+  if (loading) {
+    return (
+      <div className="pharmacy-loading">
+        <span className="material-symbols-outlined">hourglass_empty</span>
+        Loading wallet data...
+      </div>
+    );
+  }
 
   return (
     <>
@@ -97,7 +113,7 @@ export default function PharmacyWalletTab({ profile, balance, transactions, sett
               <tr><th>Date</th><th>Transaction ID</th><th>Type</th><th>Amount</th><th>Status</th></tr>
             </thead>
             <tbody>
-              {filtered.length ? filtered.map((item) => (
+              {visible.length ? visible.map((item) => (
                 <tr key={`${activeHistory}-${item.id}`}>
                   <td>{dateTime(item.date)}</td>
                   <td><strong>{item.number || `#${item.id}`}</strong></td>
@@ -111,6 +127,7 @@ export default function PharmacyWalletTab({ profile, balance, transactions, sett
             </tbody>
           </table>
         </div>
+        <Pagination page={page} pages={pages} total={filtered.length} onPage={setPage} label="entries" />
       </section>
 
       {withdrawOpen && (

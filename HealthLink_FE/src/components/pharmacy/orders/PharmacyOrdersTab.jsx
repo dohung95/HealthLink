@@ -169,12 +169,13 @@ export default function PharmacyOrdersTab({ orders, globalSearch, reload }) {
   );
 }
 
-function OrderDetailDrawer({ order, onClose, onUpdated }) {
+export function OrderDetailDrawer({ order, onClose, onUpdated }) {
   const current = normalize(order.status);
   const allowed = ORDER_FLOW[current] || [];
   const [status, setStatus] = useState(allowed[0] || '');
   const [pharmacistNotes, setPharmacistNotes] = useState(order.pharmacistNotes || '');
   const [cancelReason, setCancelReason] = useState('');
+  const [cancelledBy, setCancelledBy] = useState('Pharmacy');
   const [estimatedDeliveryTime, setEstimatedDeliveryTime] = useState('');
   const [saving, setSaving] = useState(false);
 
@@ -187,7 +188,7 @@ function OrderDetailDrawer({ order, onClose, onUpdated }) {
         status,
         pharmacistNotes,
         cancelReason,
-        cancelledBy: status === 'CANCELLED' ? 'Pharmacy' : undefined,
+        cancelledBy: status === 'CANCELLED' ? cancelledBy : undefined,
         estimatedDeliveryTime: estimatedDeliveryTime || undefined,
       });
       toast.success('Order status updated.');
@@ -251,7 +252,14 @@ function OrderDetailDrawer({ order, onClose, onUpdated }) {
                   <input onChange={(event) => setEstimatedDeliveryTime(event.target.value)} type="datetime-local" value={estimatedDeliveryTime} />
                 )}
                 {status === 'CANCELLED' && (
-                  <textarea onChange={(event) => setCancelReason(event.target.value)} placeholder="Cancellation reason" required value={cancelReason} />
+                  <>
+                    <select onChange={(event) => setCancelledBy(event.target.value)} value={cancelledBy}>
+                      <option value="Pharmacy">Cancelled by Pharmacy</option>
+                      <option value="Patient">Cancelled by Patient</option>
+                      <option value="System">Cancelled by System</option>
+                    </select>
+                    <textarea onChange={(event) => setCancelReason(event.target.value)} placeholder="Cancellation reason" required value={cancelReason} />
+                  </>
                 )}
                 <textarea onChange={(event) => setPharmacistNotes(event.target.value)} placeholder="Pharmacist notes" value={pharmacistNotes} />
                 <button disabled={saving} type="submit">{saving ? 'Saving...' : 'Save Status'}</button>

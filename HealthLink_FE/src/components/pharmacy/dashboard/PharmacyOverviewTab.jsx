@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState } from 'react';
 
 import {
   Avatar,
@@ -10,9 +10,10 @@ import {
   normalize,
   routeByTab,
 } from '../common/pharmacyDashboardShared';
-import { OrderTable } from '../orders/PharmacyOrdersTab';
+import { OrderTable, OrderDetailDrawer } from '../orders/PharmacyOrdersTab';
 
-export default function PharmacyOverviewTab({ profile, orders, requests, balance, navigate }) {
+export default function PharmacyOverviewTab({ profile, orders, requests, balance, navigate, reload }) {
+  const [selected, setSelected] = useState(null);
   const recentOrders = [...orders]
     .sort((a, b) => new Date(getOrderTime(b) || 0) - new Date(getOrderTime(a) || 0))
     .slice(0, 5);
@@ -36,7 +37,7 @@ export default function PharmacyOverviewTab({ profile, orders, requests, balance
             </div>
             <button onClick={() => navigate(routeByTab.orders)} type="button">View All</button>
           </div>
-          <OrderTable orders={recentOrders} compact />
+          <OrderTable orders={recentOrders} compact onSelect={setSelected} />
         </section>
 
         <aside className="pharmacy-side-stack">
@@ -74,6 +75,17 @@ export default function PharmacyOverviewTab({ profile, orders, requests, balance
           </section>
         </aside>
       </div>
+
+      {selected && (
+        <OrderDetailDrawer
+          order={selected}
+          onClose={() => setSelected(null)}
+          onUpdated={async () => {
+            await reload?.();
+            setSelected(null);
+          }}
+        />
+      )}
     </>
   );
 }

@@ -14,6 +14,7 @@ public class PharmacyConsultationRequestResponse {
     private String patientName;
     private String pharmacyId;
     private String pharmacyName;
+    private String pharmacyUserId;
     private String symptoms;
     private String description;
     private String allergies;

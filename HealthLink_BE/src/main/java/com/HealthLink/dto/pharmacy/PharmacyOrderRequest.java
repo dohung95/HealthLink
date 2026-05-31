@@ -33,4 +33,7 @@ public class PharmacyOrderRequest {
 
     /** Ghi chú của bệnh nhân/bác sĩ */
     private String notes;
+
+    /** Ghi chú của dược sĩ (tùy chọn) */
+    private String pharmacistNotes;
 }
