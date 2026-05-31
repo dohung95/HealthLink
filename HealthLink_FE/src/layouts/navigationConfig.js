@@ -2,6 +2,7 @@ export const NAV_ITEMS = [
   { key: 'appointments', label: 'Appointments', icon: 'calendar_today', wide: true },
   { key: 'patients', label: 'Patients', icon: 'groups', wide: true },
   { key: 'prescriptions', label: 'Prescriptions', icon: 'medication', wide: true },
+  { key: 'reviews', label: 'Reviews', icon: 'star', wide: true },
   { key: 'schedule', label: 'Schedule', icon: 'event_note', wide: true },
   { key: 'profile', label: 'Profile', icon: 'person_outline', wide: false },
 ];
@@ -48,6 +49,9 @@ export const getNotificationTone = (notification) => {
   }
   if (value.includes('lab') || value.includes('record')) {
     return { icon: 'lab_research', title: 'Medical Record', tone: 'warning' };
+  }
+  if (value.includes('review') || value.includes('rating')) {
+    return { icon: 'star', title: 'New Review', tone: 'warning' };
   }
   return { icon: 'event', title: 'Appointment Update', tone: 'primary' };
 };

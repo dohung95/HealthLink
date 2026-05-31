@@ -93,7 +93,7 @@
 
 /* ==== SIDEBAR STYLES ==== */
 .admin-sidebar {
-  width: 260px;
+  width: 220px;
   background: linear-gradient(180deg, #ffffff 0%, var(--admin-medical-light) 100%);
   border-right: 1px solid var(--admin-border);
   transition: all 0.3s ease;
@@ -105,7 +105,7 @@
 }
 
 .admin-sidebar.collapsed {
-  width: 75px;
+  width: 60px;
 }
 
 .admin-sidebar.collapsed .admin-menu-label,
@@ -113,36 +113,18 @@
   display: none;
 }
 
-/* Sidebar Navigation - Scrollable */
+/* Sidebar Navigation */
 .admin-sidebar nav {
-  overflow-y: auto;
-  overflow-x: hidden;
+  overflow: hidden;
   flex: 1;
-  min-height: 0; /* Important for flex scroll */
-}
-
-/* Custom scrollbar for sidebar */
-.admin-sidebar nav::-webkit-scrollbar {
-  width: 4px;
-}
-
-.admin-sidebar nav::-webkit-scrollbar-track {
-  background: transparent;
-}
-
-.admin-sidebar nav::-webkit-scrollbar-thumb {
-  background: var(--admin-border-dark);
-  border-radius: 4px;
-}
-
-.admin-sidebar nav::-webkit-scrollbar-thumb:hover {
-  background: var(--admin-primary);
+  display: flex;
+  flex-direction: column;
 }
 
 /* Logo */
 .admin-logo {
   border-bottom: 1px solid var(--admin-border);
-  padding-bottom: var(--spacing-md);
+  padding: 10px 12px !important;
   position: relative;
   flex-shrink: 0; /* Prevent logo from shrinking */
 }
@@ -159,16 +141,16 @@
 }
 
 .admin-logo-icon {
-  width: 44px;
-  height: 44px;
+  width: 36px;
+  height: 36px;
   background: linear-gradient(135deg, var(--admin-primary) 0%, var(--admin-primary-light) 100%);
-  border-radius: var(--radius-lg);
+  border-radius: var(--radius-md);
   display: flex;
   align-items: center;
   justify-content: center;
   color: white;
-  font-size: 22px;
-  box-shadow: 0 4px 12px rgba(0, 160, 139, 0.3);
+  font-size: 18px;
+  box-shadow: 0 3px 10px rgba(0, 160, 139, 0.3);
   animation: pulse-glow 3s ease-in-out infinite;
 }
 
@@ -195,11 +177,11 @@
   border-left: 3px solid transparent;
   text-decoration: none;
   position: relative;
-  padding: 10px 12px !important; /* Compact padding */
+  padding: 6px 10px !important;
 }
 
 .admin-sidebar .nav-item {
-  margin-bottom: 2px !important; /* Reduce gap between items */
+  margin-bottom: 0 !important;
 }
 
 .admin-nav-hover:hover {
@@ -217,21 +199,43 @@
   box-shadow: inset 0 1px 3px rgba(0, 160, 139, 0.1);
 }
 
+/* Navigation Dividers */
+.admin-nav-divider {
+  padding: 8px 12px 4px 12px;
+  margin-top: 4px;
+}
+
+.admin-nav-divider span {
+  font-size: 9px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: var(--admin-text-lighter);
+}
+
+.admin-nav-divider-line {
+  margin: 6px 12px 4px 12px;
+  border: none;
+  border-top: 1px solid var(--admin-border);
+  opacity: 0.6;
+}
+
 /* Logout Button Container */
 .admin-sidebar > div:last-child {
   flex-shrink: 0; /* Prevent logout area from shrinking */
   border-top: 1px solid var(--admin-border);
   background: linear-gradient(180deg, var(--admin-medical-light) 0%, #ffffff 100%);
+  padding: 8px !important;
 }
 
 /* Logout Button */
 .admin-logout-btn {
-  padding: 8px 14px;
+  padding: 6px 12px;
   border: none;
   border-radius: var(--radius-md);
   background: linear-gradient(135deg, rgba(239, 68, 68, 0.05) 0%, rgba(239, 68, 68, 0.08) 100%);
   color: #dc2626;
-  font-size: 13px;
+  font-size: 12px;
   font-weight: 500;
   transition: all 0.25s ease;
   cursor: pointer;
@@ -268,13 +272,13 @@
 
 /* ==== MAIN LAYOUT ==== */
 .admin-main {
-  margin-left: 260px;
+  margin-left: 220px;
   transition: margin-left 0.3s ease;
   min-height: 100vh;
 }
 
 .admin-sidebar-collapsed {
-  margin-left: 75px !important;
+  margin-left: 60px !important;
 }
 
 /* ==== TOPBAR ==== */
@@ -290,13 +294,13 @@
 
 /* Topbar Toggle Button */
 .admin-toggle-btn {
-  width: 40px;
-  height: 40px;
+  width: 34px;
+  height: 34px;
   border: none;
   border-radius: var(--radius-md);
   background: linear-gradient(135deg, var(--admin-medical-light) 0%, white 100%);
   color: var(--admin-primary);
-  font-size: 24px;
+  font-size: 20px;
   display: flex;
   align-items: center;
   justify-content: center;
@@ -314,13 +318,13 @@
 
 /* Topbar Icon Button */
 .admin-icon-btn {
-  width: 40px;
-  height: 40px;
+  width: 34px;
+  height: 34px;
   border: 1px solid var(--admin-border);
   border-radius: var(--radius-md);
   background: linear-gradient(135deg, white 0%, var(--admin-medical-light) 100%);
   color: var(--admin-text-light);
-  font-size: 18px;
+  font-size: 16px;
   display: flex;
   align-items: center;
   justify-content: center;
@@ -351,7 +355,7 @@
 
 /* User Display */
 .admin-user-display {
-  padding: 6px 12px;
+  padding: 4px 10px;
   border: 1px solid var(--admin-border);
   border-radius: var(--radius-md);
   background: linear-gradient(135deg, white 0%, var(--admin-medical-light) 100%);
@@ -359,8 +363,8 @@
 
 /* User Avatar */
 .admin-avatar-img {
-  width: 36px;
-  height: 36px;
+  width: 30px;
+  height: 30px;
   border-radius: 50%;
   overflow: hidden;
   border: 2px solid var(--admin-primary);
@@ -405,31 +409,32 @@
 /* ==== CONTENT AREA ==== */
 .admin-content {
   background-color: var(--admin-bg);
-  min-height: calc(100vh - 64px);
+  min-height: calc(100vh - 56px);
+  padding: 16px !important;
 }
 
 /* ==== TYPOGRAPHY ==== */
 .admin-page-title {
-  font-size: var(--font-size-2xl);
+  font-size: 18px;
   font-weight: 700;
   color: var(--admin-text);
   margin: 0;
 }
 
 .admin-section-title {
-  font-size: var(--font-size-lg);
+  font-size: 14px;
   font-weight: 600;
   color: var(--admin-primary);
-  margin-bottom: var(--spacing-md);
-  padding-bottom: var(--spacing-sm);
+  margin-bottom: 12px;
+  padding-bottom: 6px;
   border-bottom: 2px solid var(--admin-border);
 }
 
 .admin-subsection-title {
-  font-size: var(--font-size-base);
+  font-size: 13px;
   font-weight: 600;
   color: var(--admin-secondary);
-  margin-bottom: var(--spacing-sm);
+  margin-bottom: 6px;
 }
 
 /* ==== CARDS ==== */
@@ -449,8 +454,8 @@
 .admin-stat-card {
   background: linear-gradient(135deg, #ffffff 0%, var(--admin-medical-light) 100%);
   border: 1px solid var(--admin-border);
-  border-radius: var(--radius-lg);
-  padding: var(--spacing-lg);
+  border-radius: var(--radius-md);
+  padding: 14px;
   transition: all 0.2s ease;
   position: relative;
   overflow: hidden;
@@ -462,15 +467,15 @@
   top: 0;
   left: 0;
   right: 0;
-  height: 3px;
+  height: 2px;
   background: linear-gradient(90deg, var(--admin-primary) 0%, var(--admin-primary-light) 100%);
   opacity: 0;
   transition: opacity 0.2s ease;
 }
 
 .admin-stat-card:hover {
-  transform: translateY(-3px);
-  box-shadow: 0 6px 16px rgba(0, 160, 139, 0.15);
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(0, 160, 139, 0.15);
   border-color: var(--admin-primary);
 }
 
@@ -479,13 +484,13 @@
 }
 
 .admin-stat-icon {
-  width: 48px;
-  height: 48px;
-  border-radius: var(--radius-lg);
+  width: 40px;
+  height: 40px;
+  border-radius: var(--radius-md);
   display: flex;
   align-items: center;
   justify-content: center;
-  font-size: 20px;
+  font-size: 18px;
 }
 
 .admin-stat-icon.primary {
@@ -1504,23 +1509,24 @@
 .card-rating {
   display: flex;
   align-items: center;
-  gap: 6px;
-  font-size: 13px;
+  gap: 4px;
+  font-size: 11px;
 }
 
 .rating-stars {
   color: #f59e0b;
-  font-size: 14px;
+  font-size: 10px;
 }
 
 .rating-number {
   font-weight: 600;
   color: #0f172a;
+  font-size: 12px;
 }
 
 .rating-count {
   color: #64748b;
-  font-size: 12px;
+  font-size: 10px;
 }
 
 /* Card Footer with Actions */
@@ -1969,8 +1975,8 @@
 .admin-page-header-doctors {
   background: linear-gradient(135deg, #f0fdf9 0%, #f0fdf9 100%);
   border: 1px solid #bae6fd;
-  border-radius: 10px;
-  padding: 20px;
+  border-radius: 8px;
+  padding: 14px 16px;
   box-shadow: 0 2px 8px rgba(0, 160, 139, 0.04);
   position: relative;
   overflow: hidden;
@@ -1988,16 +1994,16 @@
 
 /* Doctors Icon */
 .admin-page-icon-doctors {
-  width: 52px;
-  height: 52px;
-  border-radius: 12px;
+  width: 40px;
+  height: 40px;
+  border-radius: 10px;
   background: linear-gradient(135deg, #00a08b 0%, #00c4ac 100%);
   display: flex;
   align-items: center;
   justify-content: center;
   color: white;
-  font-size: 26px;
-  box-shadow: 0 4px 12px rgba(0, 160, 139, 0.15);
+  font-size: 20px;
+  box-shadow: 0 3px 10px rgba(0, 160, 139, 0.15);
   flex-shrink: 0;
 }
 
@@ -2005,31 +2011,31 @@
 .admin-page-badge-doctors {
   display: inline-flex;
   align-items: center;
-  padding: 5px 12px;
+  padding: 3px 10px;
   background: rgba(0, 160, 139, 0.08);
   border: 1px solid rgba(0, 160, 139, 0.2);
-  border-radius: 16px;
+  border-radius: 12px;
   color: #007a6a;
-  font-size: 12px;
+  font-size: 10px;
   font-weight: 600;
   text-transform: uppercase;
   letter-spacing: 0.3px;
 }
 
 .admin-page-badge-doctors i {
-  font-size: 13px;
+  font-size: 11px;
 }
 
 /* Doctors Count Badge */
 .admin-page-count {
   display: inline-flex;
   align-items: center;
-  padding: 4px 10px;
+  padding: 3px 8px;
   background: white;
   border: 1px solid #e0f2fe;
-  border-radius: 16px;
+  border-radius: 12px;
   color: #00a08b;
-  font-size: 12px;
+  font-size: 11px;
   font-weight: 500;
   box-shadow: 0 1px 3px rgba(0, 160, 139, 0.05);
 }
@@ -2037,10 +2043,10 @@
 /* Doctors Subtitle */
 .admin-page-subtitle-doctors {
   color: #64748b;
-  font-size: 13px;
-  line-height: 1.6;
-  margin-top: 6px;
-  padding-left: 64px;
+  font-size: 12px;
+  line-height: 1.5;
+  margin-top: 4px;
+  padding-left: 52px;
   font-style: italic;
 }
 
@@ -2127,8 +2133,8 @@
 .admin-page-header-patients {
   background: linear-gradient(135deg, #f0fdf9 0%, #ecfdf5 100%);
   border: 1px solid #b2ece3;
-  border-radius: 10px;
-  padding: 20px;
+  border-radius: 8px;
+  padding: 14px 16px;
   box-shadow: 0 2px 8px rgba(0, 196, 172, 0.04);
   position: relative;
   overflow: hidden;
@@ -2146,16 +2152,16 @@
 
 /* Patients Icon */
 .admin-page-icon-patients {
-  width: 52px;
-  height: 52px;
-  border-radius: 12px;
+  width: 40px;
+  height: 40px;
+  border-radius: 10px;
   background: linear-gradient(135deg, #00c4ac 0%, #34d399 100%);
   display: flex;
   align-items: center;
   justify-content: center;
   color: white;
-  font-size: 26px;
-  box-shadow: 0 4px 12px rgba(0, 196, 172, 0.15);
+  font-size: 20px;
+  box-shadow: 0 3px 10px rgba(0, 196, 172, 0.15);
   flex-shrink: 0;
 }
 
@@ -2163,28 +2169,28 @@
 .admin-page-badge-patients {
   display: inline-flex;
   align-items: center;
-  padding: 5px 12px;
+  padding: 3px 10px;
   background: rgba(0, 196, 172, 0.08);
   border: 1px solid rgba(0, 196, 172, 0.2);
-  border-radius: 16px;
+  border-radius: 12px;
   color: #047857;
-  font-size: 12px;
+  font-size: 10px;
   font-weight: 600;
   text-transform: uppercase;
   letter-spacing: 0.3px;
 }
 
 .admin-page-badge-patients i {
-  font-size: 13px;
+  font-size: 11px;
 }
 
 /* Patients Subtitle */
 .admin-page-subtitle-patients {
   color: #64748b;
-  font-size: 13px;
-  line-height: 1.6;
-  margin-top: 6px;
-  padding-left: 64px;
+  font-size: 12px;
+  line-height: 1.5;
+  margin-top: 4px;
+  padding-left: 52px;
   font-style: italic;
 }
 
@@ -2687,8 +2693,8 @@
 .admin-page-header-appointments-v2 {
   background: linear-gradient(135deg, #fffbeb 0%, #fef3c7 100%);
   border: 1px solid #fde68a;
-  border-radius: 10px;
-  padding: 20px;
+  border-radius: 8px;
+  padding: 14px 16px;
   box-shadow: 0 2px 8px rgba(245, 158, 11, 0.04);
   position: relative;
   overflow: hidden;
@@ -2706,16 +2712,16 @@
 
 /* Appointments Icon */
 .admin-page-icon-appointments-v2 {
-  width: 52px;
-  height: 52px;
-  border-radius: 12px;
+  width: 40px;
+  height: 40px;
+  border-radius: 10px;
   background: linear-gradient(135deg, #f59e0b 0%, #fbbf24 100%);
   display: flex;
   align-items: center;
   justify-content: center;
   color: white;
-  font-size: 26px;
-  box-shadow: 0 4px 12px rgba(245, 158, 11, 0.15);
+  font-size: 20px;
+  box-shadow: 0 3px 10px rgba(245, 158, 11, 0.15);
   flex-shrink: 0;
 }
 
@@ -2723,47 +2729,47 @@
 .admin-page-badge-appointments-v2 {
   display: inline-flex;
   align-items: center;
-  padding: 5px 12px;
+  padding: 3px 10px;
   background: rgba(245, 158, 11, 0.08);
   border: 1px solid rgba(245, 158, 11, 0.2);
-  border-radius: 16px;
+  border-radius: 12px;
   color: #d97706;
-  font-size: 12px;
+  font-size: 10px;
   font-weight: 600;
   text-transform: uppercase;
   letter-spacing: 0.3px;
 }
 
 .admin-page-badge-appointments-v2 i {
-  font-size: 13px;
+  font-size: 11px;
 }
 
 /* Appointments Subtitle */
 .admin-page-subtitle-appointments-v2 {
   color: #64748b;
-  font-size: 13px;
-  line-height: 1.6;
-  margin-top: 6px;
-  padding-left: 64px;
+  font-size: 12px;
+  line-height: 1.5;
+  margin-top: 4px;
+  padding-left: 52px;
   font-style: italic;
 }
 
 /* Inline Stats Row */
 .appointments-stats-inline {
   display: flex;
-  gap: 14px;
+  gap: 12px;
   flex-wrap: wrap;
 }
 
 .stat-inline-item {
   flex: 1;
-  min-width: 200px;
+  min-width: 160px;
   display: flex;
   align-items: center;
-  gap: 14px;
+  gap: 10px;
   background: white;
-  border-radius: 10px;
-  padding: 16px;
+  border-radius: 8px;
+  padding: 12px;
   border: 1px solid;
   box-shadow: 0 1px 3px rgba(0, 0, 0, 0.02);
   transition: all 0.2s ease;
@@ -2775,13 +2781,13 @@
 }
 
 .stat-inline-icon {
-  width: 44px;
-  height: 44px;
-  border-radius: 10px;
+  width: 36px;
+  height: 36px;
+  border-radius: 8px;
   display: flex;
   align-items: center;
   justify-content: center;
-  font-size: 20px;
+  font-size: 16px;
   color: white;
   flex-shrink: 0;
 }
@@ -2791,14 +2797,14 @@
 }
 
 .stat-inline-value {
-  font-size: 24px;
+  font-size: 20px;
   font-weight: 700;
   line-height: 1;
-  margin-bottom: 4px;
+  margin-bottom: 2px;
 }
 
 .stat-inline-label {
-  font-size: 12px;
+  font-size: 10px;
   font-weight: 500;
   text-transform: uppercase;
   letter-spacing: 0.3px;
@@ -3763,8 +3769,8 @@
 .admin-page-header-dashboard {
   background: linear-gradient(135deg, #eff6ff 0%, #dbeafe 100%);
   border: 1px solid #bfdbfe;
-  border-radius: 10px;
-  padding: 20px;
+  border-radius: 8px;
+  padding: 14px 16px;
   box-shadow: 0 2px 8px rgba(59, 130, 246, 0.04);
   position: relative;
   overflow: hidden;
@@ -3782,16 +3788,16 @@
 
 /* Dashboard Icon */
 .admin-page-icon-dashboard {
-  width: 52px;
-  height: 52px;
-  border-radius: 12px;
+  width: 40px;
+  height: 40px;
+  border-radius: 10px;
   background: linear-gradient(135deg, #3b82f6 0%, #60a5fa 100%);
   display: flex;
   align-items: center;
   justify-content: center;
   color: white;
-  font-size: 26px;
-  box-shadow: 0 4px 12px rgba(59, 130, 246, 0.15);
+  font-size: 20px;
+  box-shadow: 0 3px 10px rgba(59, 130, 246, 0.15);
   flex-shrink: 0;
 }
 
@@ -3799,35 +3805,35 @@
 .admin-page-badge-dashboard {
   display: inline-flex;
   align-items: center;
-  padding: 5px 12px;
+  padding: 3px 10px;
   background: rgba(59, 130, 246, 0.08);
   border: 1px solid rgba(59, 130, 246, 0.2);
-  border-radius: 16px;
+  border-radius: 12px;
   color: #1e40af;
-  font-size: 12px;
+  font-size: 10px;
   font-weight: 600;
   text-transform: uppercase;
   letter-spacing: 0.3px;
 }
 
 .admin-page-badge-dashboard i {
-  font-size: 13px;
+  font-size: 11px;
 }
 
 /* Dashboard Subtitle */
 .admin-page-subtitle-dashboard {
   color: #64748b;
-  font-size: 13px;
-  line-height: 1.6;
-  margin-top: 6px;
-  padding-left: 64px;
+  font-size: 12px;
+  line-height: 1.5;
+  margin-top: 4px;
+  padding-left: 52px;
   font-style: italic;
 }
 
 /* Dashboard Stats Inline */
 .dashboard-stats-inline {
   display: flex;
-  gap: 14px;
+  gap: 12px;
   flex-wrap: wrap;
 }
 
@@ -4188,57 +4194,67 @@
 
     /* Condensed Sidebar */
     .admin-sidebar {
-      width: 200px;
+      width: 180px;
     }
 
     /* Adjust main content margin only if NOT mobile (tablets) */
     /* Mobile will override this to 0 */
     .admin-main {
-      margin-left: 200px;
+      margin-left: 180px;
     }
 
     /* Smaller Logo */
     .admin-logo {
-      padding: 12px 10px !important;
+      padding: 8px 10px !important;
     }
 
     .admin-logo-icon {
-      width: 32px !important;
-      height: 32px !important;
-      font-size: 16px !important;
+      width: 30px !important;
+      height: 30px !important;
+      font-size: 14px !important;
     }
 
     .admin-logo-text h5,
     .admin-logo-text h6 {
-      font-size: 14px !important;
+      font-size: 13px !important;
     }
 
     .admin-logo-text small {
-      font-size: 9px !important;
+      font-size: 8px !important;
     }
 
     /* Compact Menu Items */
     .admin-nav-link {
-      padding: 8px 10px !important;
+      padding: 5px 8px !important;
     }
 
     .admin-menu-label {
-      font-size: 12px !important;
+      font-size: 11px !important;
     }
 
     .admin-nav-link i {
-      font-size: 14px !important;
-      margin-right: 8px !important;
+      font-size: 13px !important;
+      margin-right: 6px !important;
     }
 
     .admin-sidebar .nav-item {
-      margin-bottom: 1px !important;
+      margin-bottom: 0 !important;
+    }
+
+    /* Compact dividers */
+    .admin-nav-divider {
+      padding: 6px 10px 3px 10px !important;
+      margin-top: 2px !important;
+    }
+
+    .admin-nav-divider span {
+      font-size: 8px !important;
     }
 
     /* Compact logout */
     .admin-logout-btn {
-      padding: 6px 10px !important;
-      font-size: 11px !important;
+      padding: 5px 8px !important;
+      font-size: 10px !important;
     }
   }
 
@@ -4248,18 +4264,16 @@
 
   @media (max-width: 768px) {
 
-    /* Sidebar becomes overlay - inherits 200px width from above */
+    /* Sidebar becomes overlay - inherits 180px width from above */
     .admin-sidebar {
-      width: 200px;
-      /* Explicitly ensure it's 200px */
+      width: 180px;
       transform: translateX(0);
       box-shadow: 0 0 20px rgba(0, 0, 0, 0.15);
     }
 
     /* Hidden state on mobile */
     .admin-sidebar.collapsed {
-      width: 200px;
-      /* Keep correct width but slide out */
+      width: 180px;
       transform: translateX(-100%);
     }
 

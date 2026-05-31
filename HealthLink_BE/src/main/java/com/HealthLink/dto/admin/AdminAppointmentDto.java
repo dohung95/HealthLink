@@ -30,12 +30,14 @@ public class AdminAppointmentDto {
     private String patientName;
     private String patientEmail;
     private String patientPhone;
+    private String patientAvatarUrl;
 
     // Doctor info
     private String doctorId;
     private String doctorName;
     private String doctorEmail;
     private String department;
+    private String doctorAvatarUrl;
 
     // Consultation info (from related Consultation entity)
     private Integer consultationId;

@@ -13,7 +13,7 @@ import lombok.NoArgsConstructor;
 @Builder
 public class AdminAppointmentCancelRequest {
 
-    @NotNull(message = "Appointment ID is required")
+    // appointmentId is set from path variable in controller, not from request body
     private Integer appointmentId;
 
     @NotBlank(message = "Cancel reason is required")

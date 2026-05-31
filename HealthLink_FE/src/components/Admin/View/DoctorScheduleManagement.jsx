@@ -3,9 +3,11 @@ import NavbarAdmin from "./NavbarAdmin";
 import { doctorsApi, scheduleApi } from "../../../api/adminApi";
 import Toast from "./Toast";
 import useToast from "../useToast";
+import { getAvatarUrl } from "../../../utils/avatarHelper";
 import "bootstrap/dist/css/bootstrap.min.css";
 import "bootstrap-icons/font/bootstrap-icons.css";
 import "../Css/Admin.css";
+import "../Css/DoctorSchedule.css";
 
 export default function DoctorScheduleManagement() {
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
@@ -251,63 +253,65 @@ export default function DoctorScheduleManagement() {
       <Toast title={toast.title} message={toast.message} type={toast.type} show={toast.show} onClose={hideToast} />
 
       <div className="admin-content">
-        <div className="container-fluid py-4">
+        <div className="container-fluid py-3">
           {/* Header */}
-          <div className="d-flex justify-content-between align-items-center mb-4">
-            <div>
-              <h2 className="mb-1">Doctor Schedule Management</h2>
-              <p className="text-muted mb-0">View and manage doctor work schedules</p>
+          <div className="schedule-page-header mb-3">
+            <div className="d-flex justify-content-between align-items-center">
+              <div className="d-flex align-items-center gap-2">
+                <div className="schedule-page-icon">
+                  <i className="bi bi-calendar3"></i>
+                </div>
+                <div>
+                  <h2 className="schedule-page-title">Doctor Schedule Management</h2>
+                  <p className="schedule-page-subtitle mb-0">View and manage doctor work schedules</p>
+                </div>
+              </div>
+              <button
+                className="schedule-create-btn"
+                onClick={() => handleOpenExceptionModal()}
+                disabled={!selectedDoctorId}
+              >
+                <i className="bi bi-plus-lg"></i>
+                Create Exception
+              </button>
             </div>
-            <button
-              className="btn btn-primary"
-              onClick={() => handleOpenExceptionModal()}
-              disabled={!selectedDoctorId}
-            >
-              <i className="bi bi-plus-lg me-2"></i>
-              Create Exception
-            </button>
           </div>
 
           {/* Doctor Selection */}
-          <div className="card mb-4">
-            <div className="card-body">
-              <div className="row align-items-center">
-                <div className="col-md-4">
-                  <label className="form-label fw-semibold">Select Doctor</label>
-                  <select
-                    className="form-select"
-                    value={selectedDoctorId}
-                    onChange={(e) => setSelectedDoctorId(e.target.value)}
-                    disabled={doctorsLoading}
-                  >
-                    <option value="">-- Select a doctor --</option>
-                    {doctors.map(doc => (
-                      <option key={doc.doctorID} value={doc.doctorID}>
-                        {doc.fullName} - {doc.specialty}
-                      </option>
-                    ))}
-                  </select>
-                </div>
-
-                {doctorSchedule && (
-                  <div className="col-md-8">
-                    <div className="d-flex align-items-center">
-                      {doctorSchedule.avatarUrl && (
-                        <img
-                          src={doctorSchedule.avatarUrl}
-                          alt={doctorSchedule.doctorName}
-                          className="rounded-circle me-3"
-                          style={{ width: '50px', height: '50px', objectFit: 'cover' }}
-                        />
-                      )}
-                      <div>
-                        <h5 className="mb-0">{doctorSchedule.doctorName}</h5>
-                        <small className="text-muted">{doctorSchedule.specialty}</small>
-                      </div>
-                    </div>
-                  </div>
-                )}
+          <div className="schedule-selector-card mb-3">
+            <div className="d-flex align-items-center gap-4 flex-wrap">
+              <div>
+                <label className="schedule-selector-label">Select Doctor</label>
+                <select
+                  className="schedule-selector-select"
+                  value={selectedDoctorId}
+                  onChange={(e) => setSelectedDoctorId(e.target.value)}
+                  disabled={doctorsLoading}
+                >
+                  <option value="">-- Select a doctor --</option>
+                  {doctors.map(doc => (
+                    <option key={doc.doctorID} value={doc.doctorID}>
+                      {doc.fullName} - {doc.specialty}
+                    </option>
+                  ))}
+                </select>
               </div>
+
+              {doctorSchedule && (
+                <div className="schedule-doctor-info">
+                  {getAvatarUrl(doctorSchedule.avatarUrl) && (
+                    <img
+                      src={getAvatarUrl(doctorSchedule.avatarUrl)}
+                      alt={doctorSchedule.doctorName}
+                      className="schedule-doctor-avatar"
+                    />
+                  )}
+                  <div>
+                    <h5 className="schedule-doctor-name">{doctorSchedule.doctorName}</h5>
+                    <span className="schedule-doctor-specialty">{doctorSchedule.specialty}</span>
+                  </div>
+                </div>
+              )}
             </div>
           </div>
 
@@ -323,29 +327,26 @@ export default function DoctorScheduleManagement() {
           {doctorSchedule && !loading && (
             <>
               {/* Weekly Schedule Summary */}
-              <div className="card mb-4">
-                <div className="card-header">
-                  <h5 className="mb-0">Weekly Schedule</h5>
+              <div className="schedule-weekly-card mb-3">
+                <div className="schedule-card-header">
+                  <h5 className="schedule-card-title">Weekly Schedule</h5>
                 </div>
-                <div className="card-body">
-                  <div className="row">
+                <div className="schedule-card-body">
+                  <div className="schedule-weekly-grid">
                     {dayNames.map((dayName, idx) => {
                       const schedules = getScheduleForDay(idx);
                       return (
-                        <div key={idx} className="col-md-3 col-lg mb-3">
-                          <div className={`p-2 rounded ${schedules.length > 0 ? 'bg-success bg-opacity-10 border border-success' : 'bg-light'}`}>
-                            <div className="fw-semibold">{dayName}</div>
-                            {schedules.length > 0 ? (
-                              schedules.map((s, i) => (
-                                <small key={i} className="d-block text-success">
-                                  {s.startTime?.slice(0,5)} - {s.endTime?.slice(0,5)}
-                                  {s.consultationType && ` (${s.consultationType})`}
-                                </small>
-                              ))
-                            ) : (
-                              <small className="text-muted">Not working</small>
-                            )}
-                          </div>
+                        <div key={idx} className={`schedule-day-item ${schedules.length > 0 ? 'active' : 'inactive'}`}>
+                          <div className="schedule-day-name">{dayName.slice(0,3)}</div>
+                          {schedules.length > 0 ? (
+                            schedules.map((s, i) => (
+                              <div key={i} className="schedule-day-time">
+                                {s.startTime?.slice(0,5)} - {s.endTime?.slice(0,5)}
+                              </div>
+                            ))
+                          ) : (
+                            <div className="schedule-day-off">Off</div>
+                          )}
                         </div>
                       );
                     })}
@@ -354,35 +355,33 @@ export default function DoctorScheduleManagement() {
               </div>
 
               {/* Calendar View */}
-              <div className="card">
-                <div className="card-header d-flex justify-content-between align-items-center">
-                  <h5 className="mb-0">Monthly Calendar</h5>
-                  <div className="d-flex align-items-center gap-2">
-                    <button className="btn btn-outline-secondary btn-sm" onClick={() => navigateCalendar(-1)}>
+              <div className="schedule-calendar-card">
+                <div className="schedule-calendar-header">
+                  <h5 className="schedule-card-title">Monthly Calendar</h5>
+                  <div className="schedule-calendar-nav">
+                    <button className="schedule-nav-btn" onClick={() => navigateCalendar(-1)}>
                       <i className="bi bi-chevron-left"></i>
                     </button>
-                    <span className="fw-semibold" style={{ minWidth: '150px', textAlign: 'center' }}>
+                    <span className="schedule-month-label">
                       {calendarDate.toLocaleDateString('en-US', { month: 'long', year: 'numeric' })}
                     </span>
-                    <button className="btn btn-outline-secondary btn-sm" onClick={() => navigateCalendar(1)}>
+                    <button className="schedule-nav-btn" onClick={() => navigateCalendar(1)}>
                       <i className="bi bi-chevron-right"></i>
                     </button>
-                    <button className="btn btn-outline-primary btn-sm ms-2" onClick={() => setCalendarDate(new Date())}>
+                    <button className="schedule-today-btn" onClick={() => setCalendarDate(new Date())}>
                       Today
                     </button>
                   </div>
                 </div>
-                <div className="card-body p-0">
+                <div>
                   {/* Calendar Header */}
-                  <div className="d-grid" style={{ gridTemplateColumns: 'repeat(7, 1fr)' }}>
+                  <div className="schedule-calendar-weekdays">
                     {['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'].map(day => (
-                      <div key={day} className="text-center py-2 bg-light border fw-semibold">
-                        {day}
-                      </div>
+                      <div key={day} className="schedule-weekday">{day}</div>
                     ))}
                   </div>
                   {/* Calendar Days */}
-                  <div className="d-grid" style={{ gridTemplateColumns: 'repeat(7, 1fr)' }}>
+                  <div className="schedule-calendar-days">
                     {getCalendarDays.map(renderDayCell)}
                   </div>
                 </div>
@@ -390,58 +389,54 @@ export default function DoctorScheduleManagement() {
 
               {/* Exceptions List */}
               {doctorSchedule.exceptions?.length > 0 && (
-                <div className="card mt-4">
-                  <div className="card-header">
-                    <h5 className="mb-0">Exceptions List</h5>
+                <div className="schedule-exceptions-card mt-3">
+                  <div className="schedule-card-header">
+                    <h5 className="schedule-card-title">Exceptions List</h5>
                   </div>
-                  <div className="card-body p-0">
-                    <div className="table-responsive">
-                      <table className="table table-hover mb-0">
-                        <thead className="table-light">
-                          <tr>
-                            <th>Date</th>
-                            <th>Type</th>
-                            <th>Time</th>
-                            <th>Reason</th>
-                            <th>Source</th>
-                            <th>Actions</th>
+                  <div className="table-responsive">
+                    <table className="schedule-exceptions-table">
+                      <thead>
+                        <tr>
+                          <th>Date</th>
+                          <th>Type</th>
+                          <th>Time</th>
+                          <th>Reason</th>
+                          <th>Source</th>
+                          <th>Actions</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {doctorSchedule.exceptions.map(exc => (
+                          <tr key={exc.exceptionId}>
+                            <td>{new Date(exc.exceptionDate).toLocaleDateString('en-US')}</td>
+                            <td>
+                              <span className={`schedule-type-badge ${exc.exceptionType === 'DayOff' ? 'dayoff' : exc.exceptionType === 'AddSlot' ? 'addslot' : 'modified'}`}>
+                                {exc.exceptionType === 'DayOff' ? 'Day Off' : exc.exceptionType === 'AddSlot' ? 'Add Slot' : 'Modified'}
+                              </span>
+                            </td>
+                            <td>
+                              {exc.startTime && exc.endTime
+                                ? `${exc.startTime.slice(0,5)} - ${exc.endTime.slice(0,5)}`
+                                : 'All Day'}
+                            </td>
+                            <td>{exc.reason?.replace('[Admin] ', '')}</td>
+                            <td>
+                              <span className={`schedule-source-badge ${exc.isAdminCreated ? 'admin' : 'doctor'}`}>
+                                {exc.isAdminCreated ? 'Admin' : 'Doctor'}
+                              </span>
+                            </td>
+                            <td>
+                              <button
+                                className="schedule-delete-btn"
+                                onClick={() => handleDeleteException(exc.exceptionId)}
+                              >
+                                <i className="bi bi-trash"></i>
+                              </button>
+                            </td>
                           </tr>
-                        </thead>
-                        <tbody>
-                          {doctorSchedule.exceptions.map(exc => (
-                            <tr key={exc.exceptionId}>
-                              <td>{new Date(exc.exceptionDate).toLocaleDateString('en-US')}</td>
-                              <td>
-                                <span className={`badge ${exc.exceptionType === 'DayOff' ? 'bg-danger' : exc.exceptionType === 'AddSlot' ? 'bg-success' : 'bg-warning'}`}>
-                                  {exc.exceptionType === 'DayOff' ? 'Day Off' : exc.exceptionType === 'AddSlot' ? 'Add Slot' : 'Modified'}
-                                </span>
-                              </td>
-                              <td>
-                                {exc.startTime && exc.endTime
-                                  ? `${exc.startTime.slice(0,5)} - ${exc.endTime.slice(0,5)}`
-                                  : 'All Day'}
-                              </td>
-                              <td>{exc.reason?.replace('[Admin] ', '')}</td>
-                              <td>
-                                {exc.isAdminCreated ? (
-                                  <span className="badge bg-info">Admin</span>
-                                ) : (
-                                  <span className="badge bg-secondary">Doctor</span>
-                                )}
-                              </td>
-                              <td>
-                                <button
-                                  className="btn btn-sm btn-outline-danger"
-                                  onClick={() => handleDeleteException(exc.exceptionId)}
-                                >
-                                  <i className="bi bi-trash"></i>
-                                </button>
-                              </td>
-                            </tr>
-                          ))}
-                        </tbody>
-                      </table>
-                    </div>
+                        ))}
+                      </tbody>
+                    </table>
                   </div>
                 </div>
               )}
@@ -449,9 +444,9 @@ export default function DoctorScheduleManagement() {
           )}
 
           {!selectedDoctorId && !loading && (
-            <div className="text-center py-5">
-              <i className="bi bi-calendar3 display-1 text-muted"></i>
-              <p className="text-muted mt-3">Please select a doctor to view their schedule</p>
+            <div className="schedule-empty">
+              <i className="bi bi-calendar3 schedule-empty-icon"></i>
+              <p className="schedule-empty-text">Please select a doctor to view their schedule</p>
             </div>
           )}
         </div>

@@ -6,6 +6,7 @@ import useToast from "../useToast";
 import "bootstrap/dist/css/bootstrap.min.css";
 import "bootstrap-icons/font/bootstrap-icons.css";
 import "../Css/Admin.css";
+import "../Css/AuditLog.css";
 
 export default function ScheduleAuditLog() {
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
@@ -159,230 +160,204 @@ export default function ScheduleAuditLog() {
       <Toast message={toast.message} type={toast.type} show={toast.show} onClose={hideToast} />
 
       <div className="admin-content">
-        <div className="container-fluid py-4">
+        <div className="container-fluid py-3">
           {/* Header */}
-          <div className="d-flex justify-content-between align-items-center mb-4">
-            <div>
-              <h2 className="mb-1">
-                <i className="bi bi-journal-text me-2 text-primary"></i>
-                Audit Log
-              </h2>
-              <p className="text-muted mb-0">Track all admin actions on schedules and appointments</p>
+          <div className="audit-page-header mb-3">
+            <div className="d-flex justify-content-between align-items-center">
+              <div className="d-flex align-items-center gap-2">
+                <div className="audit-page-icon">
+                  <i className="bi bi-journal-text"></i>
+                </div>
+                <div>
+                  <h2 className="audit-page-title">Audit Log</h2>
+                  <p className="audit-page-subtitle mb-0">Track all admin actions on schedules and appointments</p>
+                </div>
+              </div>
+              <span className="audit-count-badge">
+                {pagination.totalElements} records
+              </span>
             </div>
-            <span className="badge bg-primary fs-6">
-              {pagination.totalElements} records
-            </span>
           </div>
 
           {/* Filters */}
-          <div className="card mb-4">
-            <div className="card-body">
-              <div className="row g-3 align-items-end">
-                <div className="col-md-3">
-                  <label className="form-label">Doctor</label>
-                  <select
-                    className="form-select"
-                    name="doctorId"
-                    value={filters.doctorId}
-                    onChange={handleFilterChange}
-                  >
-                    <option value="">All Doctors</option>
-                    {doctors.map(doc => (
-                      <option key={doc.doctorID} value={doc.doctorID}>
-                        {doc.fullName}
-                      </option>
-                    ))}
-                  </select>
-                </div>
-                <div className="col-md-2">
-                  <label className="form-label">Action Type</label>
-                  <select
-                    className="form-select"
-                    name="actionType"
-                    value={filters.actionType}
-                    onChange={handleFilterChange}
-                  >
-                    {actionTypes.map(at => (
-                      <option key={at.value} value={at.value}>{at.label}</option>
-                    ))}
-                  </select>
-                </div>
-                <div className="col-md-2">
-                  <label className="form-label">From Date</label>
-                  <input
-                    type="date"
-                    className="form-control"
-                    name="startDate"
-                    value={filters.startDate}
-                    onChange={handleFilterChange}
-                  />
-                </div>
-                <div className="col-md-2">
-                  <label className="form-label">To Date</label>
-                  <input
-                    type="date"
-                    className="form-control"
-                    name="endDate"
-                    value={filters.endDate}
-                    onChange={handleFilterChange}
-                  />
-                </div>
-                <div className="col-md-3">
-                  <div className="d-flex gap-2">
-                    <button className="btn btn-primary" onClick={handleApplyFilters}>
-                      <i className="bi bi-search me-1"></i> Filter
-                    </button>
-                    <button className="btn btn-outline-secondary" onClick={handleClearFilters}>
-                      <i className="bi bi-x-lg me-1"></i> Clear
-                    </button>
-                  </div>
-                </div>
+          <div className="audit-filter-card mb-3">
+            <div className="audit-filter-row">
+              <div className="audit-filter-group">
+                <label className="audit-filter-label">Doctor</label>
+                <select
+                  className="audit-filter-select"
+                  name="doctorId"
+                  value={filters.doctorId}
+                  onChange={handleFilterChange}
+                >
+                  <option value="">All Doctors</option>
+                  {doctors.map(doc => (
+                    <option key={doc.doctorID} value={doc.doctorID}>
+                      {doc.fullName}
+                    </option>
+                  ))}
+                </select>
+              </div>
+              <div className="audit-filter-group">
+                <label className="audit-filter-label">Action Type</label>
+                <select
+                  className="audit-filter-select"
+                  name="actionType"
+                  value={filters.actionType}
+                  onChange={handleFilterChange}
+                >
+                  {actionTypes.map(at => (
+                    <option key={at.value} value={at.value}>{at.label}</option>
+                  ))}
+                </select>
+              </div>
+              <div className="audit-filter-group">
+                <label className="audit-filter-label">From Date</label>
+                <input
+                  type="date"
+                  className="audit-filter-input"
+                  name="startDate"
+                  value={filters.startDate}
+                  onChange={handleFilterChange}
+                />
+              </div>
+              <div className="audit-filter-group">
+                <label className="audit-filter-label">To Date</label>
+                <input
+                  type="date"
+                  className="audit-filter-input"
+                  name="endDate"
+                  value={filters.endDate}
+                  onChange={handleFilterChange}
+                />
+              </div>
+              <div className="audit-filter-actions">
+                <button className="audit-btn primary" onClick={handleApplyFilters}>
+                  <i className="bi bi-search"></i> Filter
+                </button>
+                <button className="audit-btn outline" onClick={handleClearFilters}>
+                  <i className="bi bi-x-lg"></i> Clear
+                </button>
               </div>
             </div>
           </div>
 
           {/* Logs Table */}
-          <div className="card">
-            <div className="card-body p-0">
-              {loading ? (
-                <div className="text-center py-5">
-                  <div className="spinner-border text-primary" role="status">
-                    <span className="visually-hidden">Loading...</span>
-                  </div>
+          <div className="audit-table-card">
+            {loading ? (
+              <div className="audit-empty">
+                <div className="spinner-border text-primary" role="status">
+                  <span className="visually-hidden">Loading...</span>
                 </div>
-              ) : logs.length === 0 ? (
-                <div className="text-center py-5">
-                  <i className="bi bi-journal-x display-1 text-muted"></i>
-                  <p className="text-muted mt-3">No audit logs found</p>
-                </div>
-              ) : (
-                <div className="table-responsive">
-                  <table className="table table-hover align-middle mb-0">
-                    <thead className="table-light">
-                      <tr>
-                        <th style={{ width: '150px' }}>Time</th>
-                        <th style={{ width: '130px' }}>Action</th>
-                        <th>Admin</th>
-                        <th>Target Doctor</th>
-                        <th>Description</th>
-                        <th>Reason</th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {logs.map(log => (
-                        <tr
-                          key={log.logId}
-                          onClick={() => handleViewDetail(log)}
-                          style={{ cursor: 'pointer' }}
-                          className="table-row-hover"
-                        >
-                          <td>
-                            <small>{formatDateTime(log.createdAt)}</small>
-                          </td>
-                          <td>
-                            <span className={`badge ${getActionBadgeClass(log.actionType)}`}>
-                              {log.actionTypeDisplay || log.actionType}
-                            </span>
-                          </td>
-                          <td>
-                            <div className="d-flex align-items-center">
-                              <div className="avatar-sm bg-primary bg-opacity-10 rounded-circle d-flex align-items-center justify-content-center me-2">
-                                <i className="bi bi-person-badge text-primary"></i>
-                              </div>
-                              <div>
-                                <div className="fw-semibold">{log.adminUserName || 'Unknown'}</div>
-                                <small className="text-muted">{log.adminEmail}</small>
-                              </div>
+              </div>
+            ) : logs.length === 0 ? (
+              <div className="audit-empty">
+                <i className="bi bi-journal-x audit-empty-icon"></i>
+                <p className="audit-empty-text">No audit logs found</p>
+              </div>
+            ) : (
+              <div className="table-responsive">
+                <table className="audit-table">
+                  <thead>
+                    <tr>
+                      <th style={{ width: '130px' }}>Time</th>
+                      <th style={{ width: '110px' }}>Action</th>
+                      <th>Admin</th>
+                      <th>Target</th>
+                      <th>Description</th>
+                      <th>Reason</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {logs.map(log => (
+                      <tr key={log.logId} onClick={() => handleViewDetail(log)}>
+                        <td>
+                          <span className="audit-time">{formatDateTime(log.createdAt)}</span>
+                        </td>
+                        <td>
+                          <span className={`audit-action-badge ${log.actionType === 'BLOCK_SLOT' ? 'block' : log.actionType === 'UNBLOCK_SLOT' ? 'unblock' : log.actionType === 'MODIFY_SCHEDULE' ? 'modify' : log.actionType === 'CANCEL_APPOINTMENT' ? 'cancel' : 'reassign'}`}>
+                            {log.actionTypeDisplay || log.actionType}
+                          </span>
+                        </td>
+                        <td>
+                          <div className="audit-admin-info">
+                            <div className="audit-admin-avatar">
+                              <i className="bi bi-person-badge"></i>
                             </div>
-                          </td>
-                          <td>
+                            <div>
+                              <div className="audit-admin-name">{log.adminUserName || 'Unknown'}</div>
+                              <div className="audit-admin-email">{log.adminEmail}</div>
+                            </div>
+                          </div>
+                        </td>
+                        <td>
+                          <span className="audit-target">
                             {log.targetDoctorName ? (
-                              <span>
-                                <i className="bi bi-person me-1"></i>
-                                {log.targetDoctorName}
-                              </span>
+                              <><i className="bi bi-person me-1"></i>{log.targetDoctorName}</>
                             ) : log.targetAppointmentId ? (
-                              <span className="text-muted">
-                                Appointment #{log.targetAppointmentId}
-                              </span>
-                            ) : (
-                              <span className="text-muted">-</span>
-                            )}
-                          </td>
-                          <td>
-                            <span className="text-truncate d-inline-block" style={{ maxWidth: '250px' }} title={log.description}>
-                              {log.description}
-                            </span>
-                          </td>
-                          <td>
-                            <span className="text-truncate d-inline-block" style={{ maxWidth: '200px' }} title={log.reason}>
-                              {log.reason || '-'}
-                            </span>
-                          </td>
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
-                </div>
-              )}
-            </div>
+                              <>Appt #{log.targetAppointmentId}</>
+                            ) : '-'}
+                          </span>
+                        </td>
+                        <td>
+                          <span className="audit-description" title={log.description}>
+                            {log.description}
+                          </span>
+                        </td>
+                        <td>
+                          <span className="audit-description" title={log.reason}>
+                            {log.reason || '-'}
+                          </span>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            )}
 
             {/* Pagination */}
             {!loading && logs.length > 0 && (
-              <div className="card-footer bg-white">
-                <div className="d-flex justify-content-between align-items-center">
-                  <span className="text-muted">
-                    Page {pagination.pageNumber} of {pagination.totalPages}
-                    {' '}&bull;{' '}
-                    {pagination.totalElements} total records
-                  </span>
-                  <nav>
-                    <ul className="pagination mb-0">
-                      <li className={`page-item ${pagination.pageNumber === 1 ? 'disabled' : ''}`}>
-                        <button
-                          className="page-link"
-                          onClick={() => handlePageChange(pagination.pageNumber - 1)}
-                          disabled={pagination.pageNumber === 1}
-                        >
-                          <i className="bi bi-chevron-left"></i>
-                        </button>
-                      </li>
-                      {[...Array(Math.min(5, pagination.totalPages))].map((_, idx) => {
-                        let pageNum;
-                        if (pagination.totalPages <= 5) {
-                          pageNum = idx + 1;
-                        } else if (pagination.pageNumber <= 3) {
-                          pageNum = idx + 1;
-                        } else if (pagination.pageNumber >= pagination.totalPages - 2) {
-                          pageNum = pagination.totalPages - 4 + idx;
-                        } else {
-                          pageNum = pagination.pageNumber - 2 + idx;
-                        }
-                        return (
-                          <li
-                            key={pageNum}
-                            className={`page-item ${pagination.pageNumber === pageNum ? 'active' : ''}`}
-                          >
-                            <button
-                              className="page-link"
-                              onClick={() => handlePageChange(pageNum)}
-                            >
-                              {pageNum}
-                            </button>
-                          </li>
-                        );
-                      })}
-                      <li className={`page-item ${pagination.pageNumber === pagination.totalPages ? 'disabled' : ''}`}>
-                        <button
-                          className="page-link"
-                          onClick={() => handlePageChange(pagination.pageNumber + 1)}
-                          disabled={pagination.pageNumber === pagination.totalPages}
-                        >
-                          <i className="bi bi-chevron-right"></i>
-                        </button>
-                      </li>
-                    </ul>
-                  </nav>
+              <div className="audit-pagination">
+                <span className="audit-pagination-info">
+                  Page {pagination.pageNumber} of {pagination.totalPages} &bull; {pagination.totalElements} records
+                </span>
+                <div className="audit-pagination-controls">
+                  <button
+                    className="audit-page-btn"
+                    onClick={() => handlePageChange(pagination.pageNumber - 1)}
+                    disabled={pagination.pageNumber === 1}
+                  >
+                    <i className="bi bi-chevron-left"></i>
+                  </button>
+                  {[...Array(Math.min(5, pagination.totalPages))].map((_, idx) => {
+                    let pageNum;
+                    if (pagination.totalPages <= 5) {
+                      pageNum = idx + 1;
+                    } else if (pagination.pageNumber <= 3) {
+                      pageNum = idx + 1;
+                    } else if (pagination.pageNumber >= pagination.totalPages - 2) {
+                      pageNum = pagination.totalPages - 4 + idx;
+                    } else {
+                      pageNum = pagination.pageNumber - 2 + idx;
+                    }
+                    return (
+                      <button
+                        key={pageNum}
+                        className={`audit-page-btn ${pagination.pageNumber === pageNum ? 'active' : ''}`}
+                        onClick={() => handlePageChange(pageNum)}
+                      >
+                        {pageNum}
+                      </button>
+                    );
+                  })}
+                  <button
+                    className="audit-page-btn"
+                    onClick={() => handlePageChange(pagination.pageNumber + 1)}
+                    disabled={pagination.pageNumber === pagination.totalPages}
+                  >
+                    <i className="bi bi-chevron-right"></i>
+                  </button>
                 </div>
               </div>
             )}
@@ -392,111 +367,79 @@ export default function ScheduleAuditLog() {
 
       {/* Detail Modal */}
       {showDetailModal && selectedLog && (
-        <div className="modal fade show d-block" style={{ backgroundColor: 'rgba(0,0,0,0.5)' }}>
-          <div className="modal-dialog modal-dialog-centered modal-lg">
-            <div className="modal-content">
-              <div className="modal-header">
-                <h5 className="modal-title">
-                  <i className="bi bi-journal-text me-2"></i>
-                  Audit Log Detail
-                </h5>
-                <button type="button" className="btn-close" onClick={handleCloseDetailModal}></button>
-              </div>
-              <div className="modal-body">
-                <div className="row g-3">
-                  {/* Log ID & Time */}
-                  <div className="col-md-6">
-                    <div className="p-3 bg-light rounded">
-                      <label className="form-label text-muted small mb-1">Log ID</label>
-                      <div className="fw-semibold">#{selectedLog.logId}</div>
-                    </div>
+        <div className="audit-modal-overlay">
+          <div className="audit-modal">
+            <div className="audit-modal-header">
+              <h5 className="audit-modal-title">
+                <i className="bi bi-journal-text"></i>
+                Audit Log Detail
+              </h5>
+              <button className="audit-modal-close" onClick={handleCloseDetailModal}>
+                <i className="bi bi-x-lg"></i>
+              </button>
+            </div>
+            <div className="audit-modal-body">
+              <div className="audit-detail-grid">
+                <div className="audit-detail-item">
+                  <div className="audit-detail-label">Log ID</div>
+                  <div className="audit-detail-value">#{selectedLog.logId}</div>
+                </div>
+                <div className="audit-detail-item">
+                  <div className="audit-detail-label">Timestamp</div>
+                  <div className="audit-detail-value">{formatDateTime(selectedLog.createdAt)}</div>
+                </div>
+                <div className="audit-detail-item">
+                  <div className="audit-detail-label">Action Type</div>
+                  <div className="audit-detail-value">
+                    <span className={`audit-action-badge ${selectedLog.actionType === 'BLOCK_SLOT' ? 'block' : selectedLog.actionType === 'UNBLOCK_SLOT' ? 'unblock' : 'modify'}`}>
+                      {selectedLog.actionTypeDisplay || selectedLog.actionType}
+                    </span>
                   </div>
-                  <div className="col-md-6">
-                    <div className="p-3 bg-light rounded">
-                      <label className="form-label text-muted small mb-1">Timestamp</label>
-                      <div className="fw-semibold">{formatDateTime(selectedLog.createdAt)}</div>
+                </div>
+                <div className="audit-detail-item">
+                  <div className="audit-detail-label">Performed By</div>
+                  <div className="audit-admin-info">
+                    <div className="audit-admin-avatar">
+                      <i className="bi bi-person-badge"></i>
                     </div>
-                  </div>
-
-                  {/* Action Type */}
-                  <div className="col-md-6">
-                    <div className="p-3 bg-light rounded">
-                      <label className="form-label text-muted small mb-1">Action Type</label>
-                      <div>
-                        <span className={`badge ${getActionBadgeClass(selectedLog.actionType)} fs-6`}>
-                          {selectedLog.actionTypeDisplay || selectedLog.actionType}
-                        </span>
-                      </div>
-                    </div>
-                  </div>
-
-                  {/* Admin Info */}
-                  <div className="col-md-6">
-                    <div className="p-3 bg-light rounded">
-                      <label className="form-label text-muted small mb-1">Performed By (Admin)</label>
-                      <div className="d-flex align-items-center">
-                        <div className="avatar-sm bg-primary bg-opacity-10 rounded-circle d-flex align-items-center justify-content-center me-2">
-                          <i className="bi bi-person-badge text-primary"></i>
-                        </div>
-                        <div>
-                          <div className="fw-semibold">{selectedLog.adminUserName || 'Unknown'}</div>
-                          <small className="text-muted">{selectedLog.adminEmail}</small>
-                        </div>
-                      </div>
-                    </div>
-                  </div>
-
-                  {/* Target Doctor */}
-                  {selectedLog.targetDoctorName && (
-                    <div className="col-md-6">
-                      <div className="p-3 bg-light rounded">
-                        <label className="form-label text-muted small mb-1">Target Doctor</label>
-                        <div className="d-flex align-items-center">
-                          <i className="bi bi-person-circle text-success me-2 fs-5"></i>
-                          <span className="fw-semibold">{selectedLog.targetDoctorName}</span>
-                        </div>
-                      </div>
-                    </div>
-                  )}
-
-                  {/* Target Appointment */}
-                  {selectedLog.targetAppointmentId && (
-                    <div className="col-md-6">
-                      <div className="p-3 bg-light rounded">
-                        <label className="form-label text-muted small mb-1">Target Appointment</label>
-                        <div className="d-flex align-items-center">
-                          <i className="bi bi-calendar-check text-info me-2 fs-5"></i>
-                          <span className="fw-semibold">Appointment #{selectedLog.targetAppointmentId}</span>
-                        </div>
-                      </div>
-                    </div>
-                  )}
-
-                  {/* Description */}
-                  <div className="col-12">
-                    <div className="p-3 bg-light rounded">
-                      <label className="form-label text-muted small mb-1">Description</label>
-                      <div className="fw-semibold">{selectedLog.description || '-'}</div>
-                    </div>
-                  </div>
-
-                  {/* Reason */}
-                  <div className="col-12">
-                    <div className="p-3 bg-warning bg-opacity-10 border border-warning rounded">
-                      <label className="form-label text-muted small mb-1">
-                        <i className="bi bi-chat-left-text me-1"></i>
-                        Reason
-                      </label>
-                      <div className="fw-semibold">{selectedLog.reason || 'No reason provided'}</div>
+                    <div>
+                      <div className="audit-admin-name">{selectedLog.adminUserName || 'Unknown'}</div>
+                      <div className="audit-admin-email">{selectedLog.adminEmail}</div>
                     </div>
                   </div>
                 </div>
+                {selectedLog.targetDoctorName && (
+                  <div className="audit-detail-item">
+                    <div className="audit-detail-label">Target Doctor</div>
+                    <div className="audit-detail-value">
+                      <i className="bi bi-person-circle me-1"></i>{selectedLog.targetDoctorName}
+                    </div>
+                  </div>
+                )}
+                {selectedLog.targetAppointmentId && (
+                  <div className="audit-detail-item">
+                    <div className="audit-detail-label">Target Appointment</div>
+                    <div className="audit-detail-value">
+                      <i className="bi bi-calendar-check me-1"></i>#{selectedLog.targetAppointmentId}
+                    </div>
+                  </div>
+                )}
+                <div className="audit-detail-item full">
+                  <div className="audit-detail-label">Description</div>
+                  <div className="audit-detail-value">{selectedLog.description || '-'}</div>
+                </div>
+                <div className="audit-detail-item full warning">
+                  <div className="audit-detail-label">
+                    <i className="bi bi-chat-left-text me-1"></i>Reason
+                  </div>
+                  <div className="audit-detail-value">{selectedLog.reason || 'No reason provided'}</div>
+                </div>
               </div>
-              <div className="modal-footer">
-                <button type="button" className="btn btn-secondary" onClick={handleCloseDetailModal}>
-                  Close
-                </button>
-              </div>
+            </div>
+            <div className="audit-modal-footer">
+              <button className="audit-modal-btn" onClick={handleCloseDetailModal}>
+                Close
+              </button>
             </div>
           </div>
         </div>
