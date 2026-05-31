@@ -7,10 +7,12 @@
       "@utils/*": ["src/utils/*"],
       "@components/*": ["src/components/*"],
       "@pages/*": ["src/pages/*"],
+      "@layouts/*": ["src/layouts/*"],
       "@services/*": ["src/services/*"],
       "@context/*": ["src/context/*"],
       "@/*": ["src/*"]
-    }
+    },
+    "ignoreDeprecations": "6.0"
   },
   "include": ["src"]
 }
