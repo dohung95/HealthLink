@@ -6,3 +6,5 @@
 @import './doctor-consultation.css';
 @import './doctor-prescriptions.css';
 @import './doctor-schedule.css';
+@import './doctor-patients.css';
+@import './doctor-shared-records.css';

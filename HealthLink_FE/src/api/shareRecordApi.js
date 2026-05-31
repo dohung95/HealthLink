@@ -62,12 +62,15 @@ export const shareApi = {
     },
 
     // Doctor xem danh sách record được share cho mình
-    getSharedWithMe: async (doctorId) => {
+    getSharedWithMe: async (doctorId, appointmentId) => {
+        const params = { doctorId };
+        if (appointmentId) params.appointmentId = appointmentId;
+
         const response = await axios.get(
             `${API_URL}/doctor/health-records/shared-with-me`,
             {
                 ...getAuthConfig(),
-                params: { doctorId },
+                params,
             }
         );
 

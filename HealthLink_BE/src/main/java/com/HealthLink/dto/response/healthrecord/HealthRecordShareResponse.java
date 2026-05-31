@@ -24,4 +24,5 @@ public class HealthRecordShareResponse {
     private String revokeReason;
     private String sharedDocumentIds;
     private List<MedicalDocumentResponse> documents;
+    private Integer appointmentId;
 }

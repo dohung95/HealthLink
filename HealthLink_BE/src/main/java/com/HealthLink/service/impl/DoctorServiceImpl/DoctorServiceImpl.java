@@ -31,6 +31,7 @@ import com.HealthLink.repository.auth.UserRepository;
 import com.HealthLink.repository.auth.EmailVerificationTokenRepository;
 import com.HealthLink.repository.doctor.DoctorRepository;
 import com.HealthLink.repository.doctor.DoctorScheduleRepository;
+import com.HealthLink.repository.patient.PatientRepository;
 import com.HealthLink.repository.prescription.PrescriptionHeaderRepository;
 import com.HealthLink.service.doctor.DoctorService;
 import com.HealthLink.service.email.EmailService;
@@ -77,6 +78,7 @@ public class DoctorServiceImpl implements DoctorService {
     private final DoctorScheduleRepository scheduleRepository;
     private final AppointmentRepository appointmentRepository;
     private final PrescriptionHeaderRepository prescriptionHeaderRepository;
+    private final PatientRepository patientRepository;
     private final UserRepository userRepository;
     private final EmailVerificationTokenRepository emailVerificationTokenRepository;
     private final EmailService emailService;
@@ -129,14 +131,45 @@ public class DoctorServiceImpl implements DoctorService {
         int queryPage = "all".equals(normalizedStatus) ? safePage - 1 : 0;
         int querySize = "all".equals(normalizedStatus) ? safePageSize : 1000;
         Pageable pageable = PageRequest.of(queryPage, querySize);
-        Page<Patient> patientPage = appointmentRepository.findDoctorPatients(
+
+        Page<String> patientIdPage = appointmentRepository.findDoctorPatientIds(
                 doctorId,
                 normalizedSearch,
                 pageable
         );
 
-        List<DoctorPatientSummaryResponse> summaries = patientPage.getContent().stream()
-                .map(patient -> toDoctorPatientSummary(doctorId, patient))
+        List<String> patientIds = patientIdPage.getContent();
+        if (patientIds.isEmpty()) {
+            return DoctorPatientPageResponse.builder()
+                    .patients(List.of())
+                    .pageNumber(safePage)
+                    .pageSize(safePageSize)
+                    .totalCount(0)
+                    .totalPages(1)
+                    .build();
+        }
+
+        List<Patient> patients = patientRepository.findByIdsWithUser(patientIds);
+
+        Map<String, Patient> patientMap = patients.stream()
+                .collect(Collectors.toMap(Patient::getPatientId, p -> p));
+        List<Patient> orderedPatients = patientIds.stream()
+                .map(patientMap::get)
+                .collect(Collectors.toList());
+
+        List<Appointment> allAppointments = appointmentRepository
+                .findAppointmentsByDoctorAndPatientIds(doctorId, patientIds);
+
+        Map<String, List<Appointment>> appointmentsByPatient = allAppointments.stream()
+                .collect(Collectors.groupingBy(a -> a.getPatient().getPatientId()));
+
+        LocalDateTime now = LocalDateTime.now();
+        List<DoctorPatientSummaryResponse> summaries = orderedPatients.stream()
+                .map(patient -> {
+                    List<Appointment> patientAppts = appointmentsByPatient
+                            .getOrDefault(patient.getPatientId(), List.of());
+                    return buildPatientSummary(patient, patientAppts, now);
+                })
                 .filter(summary -> matchesPatientStatus(summary, normalizedStatus))
                 .collect(Collectors.toList());
 
@@ -155,10 +188,10 @@ public class DoctorServiceImpl implements DoctorService {
 
         return DoctorPatientPageResponse.builder()
                 .patients(summaries)
-                .pageNumber(patientPage.getNumber() + 1)
-                .pageSize(patientPage.getSize())
-                .totalCount(patientPage.getTotalElements())
-                .totalPages(patientPage.getTotalPages())
+                .pageNumber(safePage)
+                .pageSize(safePageSize)
+                .totalCount(patientIdPage.getTotalElements())
+                .totalPages(patientIdPage.getTotalPages())
                 .build();
     }
 
@@ -392,23 +425,22 @@ public class DoctorServiceImpl implements DoctorService {
     // -------------------------------------------------------------------------
     // Private helpers
     // -------------------------------------------------------------------------
-    private DoctorPatientSummaryResponse toDoctorPatientSummary(String doctorId, Patient patient) {
-        List<Appointment> appointments = appointmentRepository.findDoctorPatientAppointments(
-                doctorId,
-                patient.getPatientId()
-        );
-        LocalDateTime now = LocalDateTime.now();
+    private DoctorPatientSummaryResponse buildPatientSummary(
+            Patient patient,
+            List<Appointment> appointments,
+            LocalDateTime now
+    ) {
         Appointment latestAppointment = appointments.stream()
                 .max(Comparator.comparing(Appointment::getAppointmentTime))
                 .orElse(null);
         LocalDateTime lastAppointmentTime = appointments.stream()
-                .filter(appointment -> appointment.getAppointmentTime().isBefore(now))
+                .filter(a -> a.getAppointmentTime().isBefore(now))
                 .map(Appointment::getAppointmentTime)
                 .max(LocalDateTime::compareTo)
                 .orElse(null);
         LocalDateTime nextAppointmentTime = appointments.stream()
-                .filter(appointment -> appointment.getAppointmentTime().isAfter(now))
-                .filter(appointment -> !"CANCELLED".equalsIgnoreCase(appointment.getStatus()))
+                .filter(a -> a.getAppointmentTime().isAfter(now))
+                .filter(a -> !"CANCELLED".equalsIgnoreCase(a.getStatus()))
                 .map(Appointment::getAppointmentTime)
                 .min(LocalDateTime::compareTo)
                 .orElse(null);
@@ -426,7 +458,7 @@ public class DoctorServiceImpl implements DoctorService {
                 .nextAppointmentTime(nextAppointmentTime)
                 .totalAppointments(appointments.size())
                 .completedAppointments(appointments.stream()
-                        .filter(appointment -> "COMPLETED".equalsIgnoreCase(appointment.getStatus()))
+                        .filter(a -> "COMPLETED".equalsIgnoreCase(a.getStatus()))
                         .count())
                 .latestStatus(latestAppointment != null ? latestAppointment.getStatus() : null)
                 .build();

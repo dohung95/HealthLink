@@ -86,7 +86,7 @@ public interface AppointmentRepository extends JpaRepository<Appointment, Intege
     List<Appointment> findByDoctor_DoctorIdOrderByAppointmentTimeDesc(String doctorId);
 
     @Query("""
-            SELECT DISTINCT p FROM Appointment a
+            SELECT DISTINCT p.patientId FROM Appointment a
             JOIN a.patient p
             LEFT JOIN p.user u
             WHERE a.doctor.doctorId = :doctorId
@@ -96,9 +96,8 @@ public interface AppointmentRepository extends JpaRepository<Appointment, Intege
                 OR LOWER(u.email) LIKE LOWER(CONCAT('%', :searchTerm, '%'))
                 OR LOWER(u.phoneNumber) LIKE LOWER(CONCAT('%', :searchTerm, '%'))
               )
-            ORDER BY p.fullName ASC
             """)
-    Page<Patient> findDoctorPatients(
+    Page<String> findDoctorPatientIds(
             @Param("doctorId") String doctorId,
             @Param("searchTerm") String searchTerm,
             Pageable pageable
@@ -123,6 +122,17 @@ public interface AppointmentRepository extends JpaRepository<Appointment, Intege
     List<Appointment> findDoctorPatientAppointments(
             @Param("doctorId") String doctorId,
             @Param("patientId") String patientId
+    );
+
+    @Query("""
+            SELECT a FROM Appointment a
+            WHERE a.doctor.doctorId = :doctorId
+              AND a.patient.patientId IN :patientIds
+            ORDER BY a.appointmentTime DESC
+            """)
+    List<Appointment> findAppointmentsByDoctorAndPatientIds(
+            @Param("doctorId") String doctorId,
+            @Param("patientIds") List<String> patientIds
     );
 
     @Query("""

@@ -322,6 +322,7 @@ public class HealthRecordServiceImpl implements HealthRecordService {
                 .expiryDate(request.getExpiryDate())
                 .sharedDocumentIds(docIds)
                 .revoked(false)
+                .appointmentId(request.getAppointmentId())
                 .build();
 
         return toShareResponse(healthRecordShareRepository.save(share));
@@ -378,10 +379,11 @@ public class HealthRecordServiceImpl implements HealthRecordService {
 
     @Override
     @Transactional(readOnly = true)
-    public List<HealthRecordShareResponse> getSharedWithMe(String doctorId) {
+    public List<HealthRecordShareResponse> getSharedWithMe(String doctorId, Integer appointmentId) {
         return healthRecordShareRepository.findBySharedWithDoctor_DoctorIdAndRevokedFalseOrderByConsentGivenAtDesc(doctorId)
                 .stream()
                 .filter(share -> share.getExpiryDate() == null || share.getExpiryDate().isAfter(LocalDateTime.now()))
+                .filter(share -> appointmentId == null || appointmentId.equals(share.getAppointmentId()))
                 .map(this::toShareResponse)
                 .collect(Collectors.toList());
     }
@@ -476,6 +478,7 @@ public class HealthRecordServiceImpl implements HealthRecordService {
                 .revokedAt(share.getRevokedAt())
                 .revokeReason(share.getRevokeReason())
                 .sharedDocumentIds(share.getSharedDocumentIds())
+                .appointmentId(share.getAppointmentId())
                 .documents(docs)
                 .build();
     }

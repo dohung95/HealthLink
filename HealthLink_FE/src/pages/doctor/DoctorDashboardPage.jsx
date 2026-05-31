@@ -269,7 +269,7 @@ const DoctorDashboardPage = () => {
       onMarkAllRead={notificationsHook.handleMarkAllRead}
       onCloseAllNotifications={() => notificationsHook.setShowAllNotifications(true)}
     >
-      <section className={`doctor-content-section ${isDetailView || currentNavItem?.key === 'schedule' || currentNavItem?.key === 'appointments' || currentNavItem?.key === 'reviews' ? '' : 'card-section'}`}>
+      <section className={`doctor-content-section ${isDetailView || currentNavItem?.key === 'schedule' || currentNavItem?.key === 'appointments' || currentNavItem?.key === 'patients' ? '' : 'card-section'}`}>
         <Outlet context={contextValue} />
       </section>
     </DoctorLayout>
