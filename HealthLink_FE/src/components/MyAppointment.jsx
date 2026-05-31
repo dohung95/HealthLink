@@ -37,6 +37,7 @@ const MyAppointments = () => {
     const [showVitalsModal, setShowVitalsModal] = useState(false);
     const [pendingConsultationAppointment, setPendingConsultationAppointment] = useState(null);
     const [pendingConsultationAction, setPendingConsultationAction] = useState(null);
+    const [now, setNow] = useState(new Date());
     const [showReviewModal, setShowReviewModal] = useState(false);
     const [selectedReviewAppointment, setSelectedReviewAppointment] = useState(null);
     const [reviewableAppointments, setReviewableAppointments] = useState({});
@@ -62,6 +63,14 @@ const MyAppointments = () => {
 
         initializeAppointments();
     }, [token]);
+
+    useEffect(() => {
+        const timer = setInterval(() => {
+            setNow(new Date());
+        }, 30 * 1000);
+
+        return () => clearInterval(timer);
+    }, []);
 
     const loadAppointments = async (currentPatientId = patientId, page = currentPage) => {
         if (!currentPatientId) return;
@@ -267,6 +276,58 @@ const MyAppointments = () => {
         }
     };
 
+    const normalizeText = (value) => String(value || '').trim().toLowerCase();
+
+    const isScheduledAppointment = (appointment) => {
+        return normalizeText(appointment.status) === 'scheduled';
+    };
+
+    const isChatAppointment = (appointment) => {
+        return normalizeText(appointment.consultationType) === 'chat';
+    };
+
+    const isVideoAppointment = (appointment) => {
+        const type = normalizeText(appointment.consultationType);
+        return type === 'video' || type === 'video call';
+    };
+
+    const getAppointmentStartTime = (appointment) => {
+        return new Date(appointment.appointmentTime);
+    };
+
+    const getAppointmentEndTime = (appointment) => {
+        if (appointment.consultationEndTime) {
+            return new Date(appointment.consultationEndTime);
+        }
+
+        const startTime = getAppointmentStartTime(appointment);
+
+        // Nếu BE chưa trả consultationEndTime thì tạm cho phép dùng trong 30 phút
+        return new Date(startTime.getTime() + 30 * 60 * 1000);
+    };
+
+    const isAppointmentJoinable = (appointment) => {
+        if (!isScheduledAppointment(appointment)) return false;
+
+        const startTime = getAppointmentStartTime(appointment);
+        const endTime = getAppointmentEndTime(appointment);
+
+        return now >= startTime && now <= endTime;
+    };
+
+    const formatStatusLabel = (status) => {
+        switch (normalizeText(status)) {
+            case 'scheduled':
+                return 'Scheduled';
+            case 'cancelled':
+                return 'Cancelled';
+            case 'completed':
+                return 'Completed';
+            default:
+                return status || 'Unknown';
+        }
+    };
+
     const getStatusBadge = (status) => {
         switch (status) {
             case 'Scheduled': return 'bg-success';
@@ -281,7 +342,7 @@ const MyAppointments = () => {
         const twoHoursFromNow = new Date(Date.now() + 2 * 60 * 60 * 1000);
 
         return (
-            appointment.status === 'Scheduled' &&
+            isScheduledAppointment(appointment) &&
             appointmentTime > twoHoursFromNow
         );
     };
@@ -385,29 +446,24 @@ const MyAppointments = () => {
 
                                             <td>
                                                 <span className={`badge ${getStatusBadge(item.status)}`}>
-                                                    {item.status}
+                                                    {formatStatusLabel(item.status)}
                                                 </span>
                                             </td>
 
                                             <td>
                                                 <div className="d-flex gap-2 flex-wrap">
-                                                    {item.consultationType === 'Chat' && item.status === 'Scheduled' && (
+                                                    {isChatAppointment(item) && isAppointmentJoinable(item) && (
                                                         <button
                                                             className="btn btn-sm btn-primary"
                                                             onClick={() => openVitalsBeforeConsultation(item, 'chat')}
-                                                            title={
-                                                                new Date(item.appointmentTime) < new Date()
-                                                                    ? "Appointment time has passed"
-                                                                    : "Start chat"
-                                                            }
-                                                            disabled={new Date(item.appointmentTime) < new Date()}
+                                                            title="Start chat"
                                                         >
                                                             <i className="bi bi-chat-dots me-1"></i>
                                                             Chat
                                                         </button>
                                                     )}
 
-                                                    {item.consultationType === 'Video' && item.status === 'Scheduled' && (
+                                                    {isVideoAppointment(item) && isAppointmentJoinable(item) && (
                                                         <button
                                                             className="btn btn-sm btn-success"
                                                             onClick={() => openVitalsBeforeConsultation(item, 'video')}
@@ -432,7 +488,7 @@ const MyAppointments = () => {
                                                         </button>
                                                     )}
 
-                                                    {item.status === 'Scheduled' && (
+                                                    {isScheduledAppointment(item) && (
                                                         <button
                                                             className="btn btn-sm btn-outline-danger"
                                                             onClick={() =>

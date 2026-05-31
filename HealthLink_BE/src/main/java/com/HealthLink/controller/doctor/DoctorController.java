@@ -52,6 +52,12 @@ public class DoctorController {
         return ResponseEntity.ok(doctorService.getDoctorSchedules(doctorId));
     }
 
+    // Public: xem hồ sơ bác sĩ ở trang danh sách bác sĩ
+    @GetMapping("/public/{doctorId}")
+    public ResponseEntity<DoctorProfileResponse> getPublicDoctorProfile(@PathVariable String doctorId) {
+        return ResponseEntity.ok(doctorService.getDoctorProfile(doctorId));
+    }
+
     // Hiển thị hồ sơ bác sĩ theo doctorId.
     @GetMapping("/{doctorId}")
     public ResponseEntity<DoctorProfileResponse> getDoctorProfile(@PathVariable String doctorId) {

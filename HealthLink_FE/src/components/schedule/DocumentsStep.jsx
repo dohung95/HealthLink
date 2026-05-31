@@ -42,7 +42,7 @@ const DocumentsStep = ({
         const hasMissingDocumentDate = files.some((file) => !file.documentDate);
 
         if (hasMissingDocumentDate) {
-            toast.warning('Please select Date Performed for all uploaded documents.');
+            toast.warning('Date Performed is required for every uploaded document.');
             return;
         }
 
@@ -102,16 +102,25 @@ const DocumentsStep = ({
                                 <strong>{file.name}</strong>
                                 <span>{file.size}</span>
 
-                                <label className="document-date-label">
-                                    Date Performed
+                                <div className="document-date-field">
+                                    <label htmlFor={`document-date-${index}`}>
+                                        Date Performed <span style={{ color: 'red' }}>*</span>
+                                    </label>
+
                                     <input
+                                        id={`document-date-${index}`}
                                         type="date"
                                         value={file.documentDate || ''}
-                                        max={new Date().toISOString().split('T')[0]}
+                                        max={today}
                                         onChange={(e) => updateFileDocumentDate(index, e.target.value)}
                                         required
+                                        className={!file.documentDate ? 'required-input' : ''}
                                     />
-                                </label>
+
+                                    <small>
+                                        Select the date when this test, image, or document was performed.
+                                    </small>
+                                </div>
                             </div>
 
                             <button type="button" onClick={() => removeFile(index)}>

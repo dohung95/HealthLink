@@ -13,6 +13,8 @@ const DoctorPublicProfilePage = () => {
     const [loading, setLoading] = useState(true);
     const { isAuthenticated } = useAuth();
     const [showModal, setShowModal] = useState(false);
+    const REVIEW_PAGE_SIZE = 5;
+    const [reviewPage, setReviewPage] = useState(1);
 
     useEffect(() => {
         const fetchDoctor = async () => {
@@ -35,11 +37,26 @@ const DoctorPublicProfilePage = () => {
 
     // Hiển thị Loading component
     if (loading) return <Loading />;
-    
+
     if (!doctor) return (
         <div className="container mt-5 text-center">
             <div className="alert alert-danger">Doctor not found.</div>
         </div>
+    );
+
+    const doctorId = doctor.doctorId || doctor.doctorID || id;
+    const doctorName = doctor.fullName || doctor.name || 'Doctor';
+    const doctorInitial = doctorName.charAt(0).toUpperCase();
+
+    const reviews = Array.isArray(doctor.reviews) ? doctor.reviews : [];
+
+    const averageRating = Number(doctor.averageRating || 0);
+    const totalReviews = Number(doctor.totalReviews || reviews.length || 0);
+    const totalReviewPages = Math.max(1, Math.ceil(reviews.length / REVIEW_PAGE_SIZE));
+
+    const pagedReviews = reviews.slice(
+        (reviewPage - 1) * REVIEW_PAGE_SIZE,
+        reviewPage * REVIEW_PAGE_SIZE
     );
 
     // helper function to render stars
@@ -48,19 +65,62 @@ const DoctorPublicProfilePage = () => {
         return <span className="text-warning fs-4">{"★".repeat(r)}{"☆".repeat(5 - r)}</span>;
     };
 
+    const getPaginationItems = (current, total) => {
+        const delta = 2;
+        const range = [];
+        const result = [];
+        let last;
+
+        for (let i = 1; i <= total; i++) {
+            if (
+                i === 1 ||
+                i === total ||
+                (i >= current - delta && i <= current + delta)
+            ) {
+                range.push(i);
+            }
+        }
+
+        for (const page of range) {
+            if (last) {
+                if (page - last === 2) {
+                    result.push(last + 1);
+                } else if (page - last > 2) {
+                    result.push('...');
+                }
+            }
+
+            result.push(page);
+            last = page;
+        }
+
+        return result;
+    };
+
     // Xử lý khi click Schedule Appointment
     const handleScheduleAppointment = () => {
+        const target = `/patient-dashboard/book/${doctorId}`;
+
         if (!isAuthenticated) {
             setShowModal(true);
         } else {
-            navigate(`/book/${doctor.doctorID}`);
+            navigate(target);
         }
     };
 
     // Xử lý khi xác nhận trong modal
     const handleConfirmLogin = () => {
+        const target = `/patient-dashboard/book/${doctorId}`;
+
         setShowModal(false);
-        navigate('/login');
+
+        sessionStorage.setItem('postLoginRedirect', target);
+
+        navigate('/login', {
+            state: {
+                redirectTo: target,
+            },
+        });
     };
 
     // Xử lý khi hủy modal
@@ -82,9 +142,9 @@ const DoctorPublicProfilePage = () => {
                             <div className="col-md-3 text-center border-end">
                                 <div className="bg-primary text-white rounded-circle d-flex align-items-center justify-content-center mx-auto mb-3"
                                     style={{ width: '120px', height: '120px', fontSize: '40px' }}>
-                                    {doctor.fullName.charAt(0)}
+                                    {doctorInitial}
                                 </div>
-                                <h3 className="mb-1">{doctor.fullName}</h3>
+                                <h3 className="mb-1">{doctorName}</h3>
                             </div>
                             <div className="col-md-9 ps-md-5">
                                 <h5 className="text-uppercase text-muted mb-3">Doctor Details</h5>
@@ -110,12 +170,12 @@ const DoctorPublicProfilePage = () => {
                                 {/* Rating Box */}
                                 <div className="d-flex align-items-center bg-light p-3 rounded shadow-sm">
                                     <div className="me-4 text-center">
-                                        <h1 className="mb-0 text-warning fw-bold">{doctor.averageRating.toFixed(1)}</h1>
+                                        <h1 className="mb-0 text-warning fw-bold">{averageRating.toFixed(1)}</h1>
                                         <small className="text-muted">Rating</small>
                                     </div>
                                     <div className="border-start ps-4">
-                                        <div>{renderStars(doctor.averageRating)}</div>
-                                        <div className="text-muted small mt-1">Based on {doctor.totalReviews} reviews</div>
+                                        <div>{renderStars(averageRating)}</div>
+                                        <div className="text-muted small mt-1">Based on {totalReviews} reviews</div>
                                     </div>
                                     <div className="ms-auto">
                                         <button
@@ -138,8 +198,8 @@ const DoctorPublicProfilePage = () => {
                     </div>
                     <div className="card-body">
                         {doctor.reviews && doctor.reviews.length > 0 ? (
-                            doctor.reviews.map((review) => (
-                                <div key={review.reviewID} className="border-bottom pb-3 mb-3">
+                            pagedReviews.map((review) => (
+                                <div key={review.reviewId || review.reviewID} className="border-bottom pb-3 mb-3">
                                     <div className="d-flex justify-content-between align-items-center mb-1">
                                         <h6 className="fw-bold mb-0 text-dark">{review.patientName}</h6>
                                         <small className="text-muted">{new Date(review.reviewDate).toLocaleDateString()}</small>
@@ -158,6 +218,45 @@ const DoctorPublicProfilePage = () => {
                         )}
                     </div>
                 </div>
+
+                {reviews.length > REVIEW_PAGE_SIZE && (
+                    <div className="d-flex justify-content-center align-items-center gap-2 mt-3">
+                        <button
+                            className="btn btn-sm btn-outline-primary"
+                            disabled={reviewPage === 1}
+                            onClick={() => setReviewPage((prev) => Math.max(1, prev - 1))}
+                        >
+                            Previous
+                        </button>
+
+                        {getPaginationItems(reviewPage, totalReviewPages).map((item, index) =>
+                            item === '...' ? (
+                                <span key={`dots-${index}`} className="px-2 text-muted">
+                                    ...
+                                </span>
+                            ) : (
+                                <button
+                                    key={item}
+                                    className={`btn btn-sm ${item === reviewPage ? 'btn-primary' : 'btn-outline-primary'
+                                        }`}
+                                    onClick={() => setReviewPage(item)}
+                                >
+                                    {item}
+                                </button>
+                            )
+                        )}
+
+                        <button
+                            className="btn btn-sm btn-outline-primary"
+                            disabled={reviewPage === totalReviewPages}
+                            onClick={() =>
+                                setReviewPage((prev) => Math.min(totalReviewPages, prev + 1))
+                            }
+                        >
+                            Next
+                        </button>
+                    </div>
+                )}
             </div>
 
             {/* Modal xác nhận đăng nhập */}

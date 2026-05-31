@@ -82,6 +82,7 @@ public class SecurityConfig {
                 .requestMatchers(HttpMethod.GET, "/api/account/doctors").permitAll()
                 .requestMatchers(HttpMethod.GET, "/api/account/doctors/search").permitAll()
                 .requestMatchers(HttpMethod.GET, "/api/account/doctors/specialties").permitAll()
+                .requestMatchers(HttpMethod.GET, "/api/account/doctors/public/**").permitAll()
                 // Public: tạo kết nối websocket với backend
                 .requestMatchers("/ws/**").permitAll()
                 // Tất cả còn lại yêu cầu xác thực

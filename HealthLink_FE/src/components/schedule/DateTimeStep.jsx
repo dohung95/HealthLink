@@ -1,8 +1,9 @@
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 
 const DateTimeStep = ({
   date,
   setDate,
+  onChangeDate,
   slots,
   selectedSlot,
   onSelectSlot,
@@ -10,50 +11,160 @@ const DateTimeStep = ({
   loadingSlots,
   onBack,
   onNext,
+  doctorSchedules = [],
+  consultationType,
+  maxDate,
 }) => {
-  const [weekOffset, setWeekOffset] = useState(0);
+  const [weekIndex, setWeekIndex] = useState(0);
 
-  const totalDays = 30;
-  const daysPerPage = 7;
+  const weekdayLabels = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
 
-  const dateOptions = useMemo(() => {
+  const toDateValue = (value) => {
+    const year = value.getFullYear();
+    const month = String(value.getMonth() + 1).padStart(2, '0');
+    const day = String(value.getDate()).padStart(2, '0');
+
+    return `${year}-${month}-${day}`;
+  };
+
+  const isSameDate = (a, b) => {
+    return toDateValue(a) === toDateValue(b);
+  };
+
+  const getStartOfToday = () => {
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    return today;
+  };
+
+  const getMondayOfWeek = (baseDate) => {
+    const date = new Date(baseDate);
+    date.setHours(0, 0, 0, 0);
+
+    const day = date.getDay();
+    const diffToMonday = day === 0 ? -6 : 1 - day;
+
+    date.setDate(date.getDate() + diffToMonday);
+    return date;
+  };
+
+  const normalizeConsultationType = (value) => {
+    return String(value || '')
+      .trim()
+      .toLowerCase();
+  };
+
+  const isScheduleMatchedWithConsultationType = (schedule) => {
+    const scheduleType = normalizeConsultationType(schedule.consultationType);
+    const selectedType = normalizeConsultationType(consultationType);
+
+    // Backend đang hiểu null / blank là áp dụng cho mọi loại tư vấn
+    if (!scheduleType) return true;
+
+    return scheduleType === selectedType;
+  };
+
+  const workingDaySet = useMemo(() => {
+    return new Set(
+      (doctorSchedules || [])
+        .filter((schedule) => schedule.available !== false)
+        .filter(isScheduleMatchedWithConsultationType)
+        .map((schedule) => Number(schedule.dayOfWeek))
+    );
+  }, [doctorSchedules, consultationType]);
+
+  const shouldFilterByDoctorSchedule = true;
+
+  const buildWeekOptions = (targetWeekIndex) => {
+    const today = getStartOfToday();
+    const tomorrow = new Date(today);
+    tomorrow.setDate(today.getDate() + 1);
+
+    const max = maxDate ? new Date(`${maxDate}T00:00:00`) : new Date(today);
+    if (!maxDate) {
+      max.setDate(today.getDate() + 30);
+    }
+
+    const monday = getMondayOfWeek(today);
+    monday.setDate(monday.getDate() + targetWeekIndex * 7);
+
     const result = [];
 
-    for (
-      let i = weekOffset;
-      i < Math.min(weekOffset + daysPerPage, totalDays);
-      i++
-    ) {
-      const current = new Date();
-      current.setDate(current.getDate() + i);
+    for (let i = 0; i < 7; i++) {
+      const current = new Date(monday);
+      current.setDate(monday.getDate() + i);
 
-      const value = current.toISOString().split('T')[0];
+      if (current < today) continue;
+      if (current > max) continue;
 
-      let label = '';
+      const dayOfWeek = current.getDay();
 
-      if (i === 0) {
+      if (
+        shouldFilterByDoctorSchedule &&
+        !workingDaySet.has(dayOfWeek)
+      ) {
+        continue;
+      }
+
+      const value = toDateValue(current);
+
+      let label;
+
+      if (isSameDate(current, today)) {
         label = 'Today';
-      } else if (i === 1) {
+      } else if (isSameDate(current, tomorrow)) {
         label = 'Tomorrow';
       } else {
-        const weekday = current.toLocaleDateString('en-US', {
-          weekday: 'short',
-        });
-
-        const day = current.getDate();
-        const month = current.getMonth() + 1;
-
-        label = `${weekday}, ${day}/${month}`;
+        label = `${weekdayLabels[dayOfWeek]}, ${current.getDate()}/${current.getMonth() + 1}`;
       }
 
       result.push({
         value,
         label,
+        dayOfWeek,
       });
     }
 
     return result;
-  }, [weekOffset]);
+  };
+
+  const dateOptions = useMemo(() => {
+    return buildWeekOptions(weekIndex);
+  }, [weekIndex, workingDaySet, shouldFilterByDoctorSchedule, maxDate, consultationType]);
+
+  const nextWeekOptions = useMemo(() => {
+    return buildWeekOptions(weekIndex + 1);
+  }, [weekIndex, workingDaySet, shouldFilterByDoctorSchedule, maxDate, consultationType]);
+
+  const canGoPreviousWeek = weekIndex > 0;
+  const canGoNextWeek = nextWeekOptions.length > 0;
+  const hasSelectableDate = dateOptions.some((item) => item.value === date);
+
+  const weekLabel = useMemo(() => {
+    const today = getStartOfToday();
+    const monday = getMondayOfWeek(today);
+    monday.setDate(monday.getDate() + weekIndex * 7);
+
+    const sunday = new Date(monday);
+    sunday.setDate(monday.getDate() + 6);
+
+    return `${monday.getDate()}/${monday.getMonth() + 1} - ${sunday.getDate()}/${sunday.getMonth() + 1}`;
+  }, [weekIndex]);
+
+  useEffect(() => {
+    if (dateOptions.length === 0) {
+      if (date) {
+        setDate('');
+      }
+      return;
+    }
+
+    const currentDateStillVisible = dateOptions.some((item) => item.value === date);
+
+    if (!currentDateStillVisible) {
+      setDate(dateOptions[0].value);
+    }
+  }, [dateOptions, date, setDate]);
 
   return (
     <div className="schedule-card datetime-card">
@@ -63,48 +174,53 @@ const DateTimeStep = ({
         <button
           type="button"
           className="week-nav-button"
-          onClick={() => setWeekOffset((prev) => Math.max(prev - 7, 0))}
-          disabled={weekOffset === 0}
+          onClick={() => setWeekIndex((prev) => Math.max(prev - 1, 0))}
+          disabled={!canGoPreviousWeek}
         >
-          Last week
+          Previous week
         </button>
 
         <span className="week-label">
-          {dateOptions[0]?.label} - {dateOptions[dateOptions.length - 1]?.label}
+          Week {weekLabel}
         </span>
 
         <button
           type="button"
           className="week-nav-button"
-          onClick={() =>
-            setWeekOffset((prev) =>
-              Math.min(prev + 7, totalDays - daysPerPage)
-            )
-          }
-          disabled={weekOffset + daysPerPage >= totalDays}
+          onClick={() => setWeekIndex((prev) => prev + 1)}
+          disabled={!canGoNextWeek}
         >
           Next week
         </button>
       </div>
 
       <div className="date-options weekly-date-options">
-        {dateOptions.map((item) => (
-          <button
-            key={item.value}
-            type="button"
-            className={`date-option ${date === item.value ? 'selected' : ''}`}
-            onClick={() => setDate(item.value)}
-          >
-            {item.label}
-          </button>
-        ))}
+        {dateOptions.length === 0 ? (
+          <div className="empty-block">
+            The doctor is not working this week.
+          </div>
+        ) : (
+          dateOptions.map((item) => (
+            <button
+              key={item.value}
+              type="button"
+              className={`date-option ${date === item.value ? 'selected' : ''}`}
+              onClick={() => onChangeDate(item.value)}
+            >
+              {item.label}
+            </button>
+          ))
+        )}
       </div>
-
 
       <div className="slot-section">
         <h3>Available slots</h3>
 
-        {loadingSlots ? (
+        {!hasSelectableDate ? (
+          <div className="empty-block">
+            Please select an available working day first.
+          </div>
+        ) : loadingSlots ? (
           <div className="empty-block">Loading slots...</div>
         ) : slots.length === 0 ? (
           <div className="empty-block">
@@ -154,7 +270,6 @@ const DateTimeStep = ({
               );
             })}
           </div>
-
         )}
       </div>
 
@@ -167,7 +282,7 @@ const DateTimeStep = ({
           type="button"
           className="btn-primary-soft"
           onClick={onNext}
-          disabled={!selectedSlot}
+          disabled={!hasSelectableDate || !selectedSlot}
         >
           Next
         </button>
