@@ -111,8 +111,9 @@ const DoctorDashboardPage = () => {
     if (path === '/doctor' || path.startsWith('/doctor/appointments')) return NAV_ITEMS[0];
     if (path.startsWith('/doctor/patients')) return NAV_ITEMS[1];
     if (path.startsWith('/doctor/prescriptions')) return NAV_ITEMS[2];
-    if (path.startsWith('/doctor/schedule')) return NAV_ITEMS[3];
-    if (path.startsWith('/doctor/profile')) return NAV_ITEMS[4];
+    if (path.startsWith('/doctor/reviews')) return NAV_ITEMS[3];
+    if (path.startsWith('/doctor/schedule')) return NAV_ITEMS[4];
+    if (path.startsWith('/doctor/profile')) return NAV_ITEMS[5];
     return NAV_ITEMS[0];
   }, [location.pathname]);
 
@@ -124,6 +125,11 @@ const DoctorDashboardPage = () => {
     try {
       if (notification.type === 'WALLET_BALANCE_CHANGED' || notification.actionUrl === '/profile-doctor?tab=wallet') {
         navigate('/doctor/profile?tab=wallet');
+        return;
+      }
+      // Navigate to reviews tab when receiving NEW_REVIEW notification
+      if (notification.type === 'NEW_REVIEW') {
+        navigate('/doctor/reviews');
         return;
       }
       if (notification.appointmentId) {
@@ -263,7 +269,7 @@ const DoctorDashboardPage = () => {
       onMarkAllRead={notificationsHook.handleMarkAllRead}
       onCloseAllNotifications={() => notificationsHook.setShowAllNotifications(true)}
     >
-      <section className={`doctor-content-section ${isDetailView || currentNavItem?.key === 'schedule' || currentNavItem?.key === 'appointments' ? '' : 'card-section'}`}>
+      <section className={`doctor-content-section ${isDetailView || currentNavItem?.key === 'schedule' || currentNavItem?.key === 'appointments' || currentNavItem?.key === 'reviews' ? '' : 'card-section'}`}>
         <Outlet context={contextValue} />
       </section>
     </DoctorLayout>
