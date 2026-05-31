@@ -7,7 +7,8 @@ import java.util.List;
 
 @Entity
 @Table(name = "Appointments")
-@Data
+@Getter
+@Setter
 @NoArgsConstructor
 @AllArgsConstructor
 @Builder
@@ -52,18 +53,23 @@ public class Appointment {
     // --- Relationships ---
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "PatientID", nullable = false)
+    @ToString.Exclude
     private Patient patient;
 
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "DoctorID", nullable = false)
+    @ToString.Exclude
     private Doctor doctor;
 
     @OneToOne(mappedBy = "appointment")
+    @ToString.Exclude
     private Consultation consultation;
 
     @OneToOne(mappedBy = "appointment")
+    @ToString.Exclude
     private Invoice invoice;
 
     @OneToMany(mappedBy = "appointment")
+    @ToString.Exclude
     private List<PrescriptionHeader> prescriptionHeaders;
 }

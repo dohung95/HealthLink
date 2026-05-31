@@ -51,7 +51,7 @@ public interface HealthRecordService {
     HealthRecordShareResponse revokeShare(Integer shareId, String patientId, RevokeShareRequest request);
 
     // Doctor operations
-    List<HealthRecordShareResponse> getSharedWithMe(String doctorId);
+    List<HealthRecordShareResponse> getSharedWithMe(String doctorId, Integer appointmentId);
 
     HealthRecordShareResponse getShareDetail(Integer shareId, String doctorId);
 }

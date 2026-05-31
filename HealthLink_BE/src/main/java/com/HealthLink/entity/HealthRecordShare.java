@@ -51,4 +51,7 @@ public class HealthRecordShare {
     
     @Column(name = "RevokeReason")
     private String revokeReason;
+
+    @Column(name = "AppointmentID")
+    private Integer appointmentId;
 }

@@ -16,8 +16,10 @@ public class DoctorHealthRecordController {
     private final HealthRecordService healthRecordService;
 
     @GetMapping("/shared-with-me")
-    public ResponseEntity<List<HealthRecordShareResponse>> getSharedWithMe(@RequestParam String doctorId) {
-        return ResponseEntity.ok(healthRecordService.getSharedWithMe(doctorId));
+    public ResponseEntity<List<HealthRecordShareResponse>> getSharedWithMe(
+            @RequestParam String doctorId,
+            @RequestParam(required = false) Integer appointmentId) {
+        return ResponseEntity.ok(healthRecordService.getSharedWithMe(doctorId, appointmentId));
     }
 
     @GetMapping("/shares/{shareId}")

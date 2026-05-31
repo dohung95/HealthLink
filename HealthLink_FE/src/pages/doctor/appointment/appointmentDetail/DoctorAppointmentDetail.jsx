@@ -111,7 +111,7 @@ const DoctorAppointmentDetail = memo(({ appointment, patient, doctorId, onBack, 
                 getTypeIcon={getTypeIcon}
               />
             ) : null}
-            {ctx.activeTab === 'shared' ? <SharedRecordsTab doctorId={ctx.effectiveDoctorId} patientId={ctx.patientId} /> : null}
+            {ctx.activeTab === 'shared' ? <SharedRecordsTab doctorId={ctx.effectiveDoctorId} patientId={ctx.patientId} appointmentId={ctx.currentAppointment?.appointmentId} /> : null}
             {ctx.activeTab === 'prescription' ? (
               <PrescriptionTab
                 appointment={ctx.currentAppointment}

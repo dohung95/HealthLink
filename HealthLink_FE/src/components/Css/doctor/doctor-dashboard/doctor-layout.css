@@ -176,7 +176,7 @@
 }
 
 .doctor-content-section {
-  padding: var(--doctor-padding-section);
+  padding: 0;
 } 
 
 /* ============================================
