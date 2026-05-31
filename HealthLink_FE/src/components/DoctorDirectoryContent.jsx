@@ -243,45 +243,53 @@ const DoctorDirectoryContent = ({
                     ) : doctors.length === 0 ? (
                         <p className="doctor-directory-message">No doctors found.</p>
                     ) : (
-                        doctors.map((doc) => (
-                            <div key={doc.doctorId} className="doctor-directory-item">
-                                <div className="doctor-avatar">
-                                    {getInitials(doc.fullName)}
-                                </div>
+                        doctors.map((doc) => {
+                            const resolvedDoctorId = doc.doctorId || doc.doctorID;
 
-                                <div className="doctor-main-info">
-                                    <h4>{doc.fullName}</h4>
-                                    <p className="doctor-specialty">{doc.specialtyName}</p>
-
-                                    <div className="doctor-meta">
-                                        <span>{doc.location}</span>
-                                        <span>{doc.languageSpoken}</span>
-                                        <span>{doc.yearsOfExperience} years exp</span>
+                            return (
+                                <div key={resolvedDoctorId} className="doctor-directory-item">
+                                    <div className="doctor-avatar">
+                                        {getInitials(doc.fullName)}
                                     </div>
 
-                                    <div className="doctor-rating">
-                                        <span>{renderStars(doc.averageRating)}</span>
-                                        <small>({doc.totalReviews || 0} reviews)</small>
+                                    <div className="doctor-main-info">
+                                        <h4>{doc.fullName}</h4>
+                                        <p className="doctor-specialty">
+                                            {doc.specialtyName || doc.specialty}
+                                        </p>
+
+                                        <div className="doctor-meta">
+                                            <span>{doc.location || 'Location N/A'}</span>
+                                            <span>{doc.languageSpoken || 'Language N/A'}</span>
+                                            <span>{doc.yearsOfExperience || 0} years exp</span>
+                                        </div>
+
+                                        <div className="doctor-rating">
+                                            <span>{renderStars(doc.averageRating)}</span>
+                                            <small>({doc.totalReviews || 0} reviews)</small>
+                                        </div>
+                                    </div>
+
+                                    <div className="doctor-actions">
+                                        <button
+                                            className="view-profile-btn"
+                                            onClick={() => onViewProfile?.(resolvedDoctorId)}
+                                            disabled={!resolvedDoctorId}
+                                        >
+                                            View Profile
+                                        </button>
+
+                                        <button
+                                            className="book-now-btn"
+                                            onClick={() => onBookDoctor?.(resolvedDoctorId)}
+                                            disabled={!resolvedDoctorId}
+                                        >
+                                            Book
+                                        </button>
                                     </div>
                                 </div>
-
-                                <div className="doctor-actions">
-                                    <button
-                                        className="view-profile-btn"
-                                        onClick={() => onViewProfile?.(doc.doctorId)}
-                                    >
-                                        View Profile
-                                    </button>
-
-                                    <button
-                                        className="book-now-btn"
-                                        onClick={() => onBookDoctor?.(doc.doctorId)}
-                                    >
-                                        Book
-                                    </button>
-                                </div>
-                            </div>
-                        ))
+                            );
+                        })
                     )}
 
                     {pagination.totalPages > 1 && (

@@ -94,7 +94,7 @@ public class FinanceServiceImpl implements FinanceService {
     private static final String METHOD_CARD      = "Card";
 
     private static final String APPT_PENDING_PAYMENT = "PENDINGPAYMENT";
-    private static final String APPT_SCHEDULED = "SCHEDULED";
+    private static final String APPT_SCHEDULED = "Scheduled";
     private static final String APPOINTMENT_CHECKOUT_REFERENCE_ID = "appointment-checkout";
     private static final String ROLE_ADMIN = "ADMIN";
     private static final String ROLE_PATIENT = "PATIENT";

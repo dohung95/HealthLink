@@ -305,6 +305,58 @@
   flex-direction: column;
 }
 
+.file-title-row {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  margin-bottom: 12px;
+}
+
+.document-date-field {
+  width: 100%;
+  max-width: 360px;
+  background: #f8fbfa;
+  border: 1px solid #d9e7e4;
+  border-radius: 12px;
+  padding: 12px;
+}
+
+.document-date-field label {
+  display: block;
+  font-size: 13px;
+  font-weight: 700;
+  color: #123f39;
+  margin-bottom: 6px;
+}
+
+.document-date-field input {
+  width: 100%;
+  height: 42px;
+  border: 1px solid #cbd8d6;
+  border-radius: 10px;
+  padding: 0 12px;
+  font-size: 15px;
+  background: #fff;
+}
+
+.document-date-field input:focus {
+  outline: none;
+  border-color: #1f9d8a;
+  box-shadow: 0 0 0 3px rgba(31, 157, 138, 0.14);
+}
+
+.document-date-field input.required-input {
+  border-color: #dc3545;
+  background: #fff8f8;
+}
+
+.document-date-field small {
+  display: block;
+  margin-top: 6px;
+  color: #6b7b77;
+  font-size: 12px;
+}
+
 .file-meta span {
   color: #8fa09d;
   font-size: 13px;

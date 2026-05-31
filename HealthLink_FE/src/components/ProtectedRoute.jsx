@@ -1,13 +1,22 @@
 import React from 'react';
-import { Navigate } from 'react-router-dom';
+import { Navigate, useLocation } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 
 const ProtectedRoute = ({ children, allowedRoles = [] }) => {
     const { isAuthenticated, roles } = useAuth();
+    const location = useLocation();
 
     // Check if user is authenticated
     if (!isAuthenticated) {
-        return <Navigate to="/login" replace />;
+        return (
+            <Navigate
+                to="/login"
+                replace
+                state={{
+                    redirectTo: location.pathname + location.search,
+                }}
+            />
+        );
     }
 
     // If no roles specified, allow any authenticated user
@@ -16,7 +25,7 @@ const ProtectedRoute = ({ children, allowedRoles = [] }) => {
     }
 
     // Check if user has at least one of the allowed roles (case-insensitive)
-    const hasRequiredRole = roles.some(role => 
+    const hasRequiredRole = roles.some(role =>
         allowedRoles.map(r => r.toLowerCase()).includes(role.toLowerCase())
     );
 

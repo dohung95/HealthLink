@@ -37,7 +37,7 @@ export const doctorService = {
   },
 
   getDoctorById: async (id) => {
-    const response = await axiosInstance.get(`/api/account/doctors/${id}`);
+    const response = await axiosInstance.get(`/api/account/doctors/public/${id}`);
     return normalizeDoctorProfile(response.data);
   },
 
