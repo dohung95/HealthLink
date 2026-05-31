@@ -163,6 +163,12 @@ public interface AppointmentRepository extends JpaRepository<Appointment, Intege
             @Param("to") LocalDateTime to);
 
     @Query("SELECT a FROM Appointment a WHERE a.appointmentTime BETWEEN :from AND :to "
+            + "AND UPPER(a.status) = 'SCHEDULED' ORDER BY a.appointmentTime ASC")
+    List<Appointment> findDailyAppointments(
+            @Param("from") LocalDateTime from,
+            @Param("to") LocalDateTime to);
+
+    @Query("SELECT a FROM Appointment a WHERE a.appointmentTime BETWEEN :from AND :to "
             + "AND (a.doctorReminderSent IS NULL OR a.doctorReminderSent = false) "
             + "AND UPPER(a.status) = 'SCHEDULED'")
     List<Appointment> findUpcomingDoctorReminderCandidates(

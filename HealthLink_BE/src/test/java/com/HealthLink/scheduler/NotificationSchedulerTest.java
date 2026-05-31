@@ -8,7 +8,6 @@ import com.HealthLink.entity.PrescriptionItem;
 import com.HealthLink.entity.PrescriptionReminderLog;
 import com.HealthLink.entity.User;
 import com.HealthLink.entity.enums.NotificationType;
-import com.HealthLink.entity.enums.NotificationPriority;
 import com.HealthLink.entity.enums.PrescriptionTiming;
 import com.HealthLink.repository.appointment.AppointmentRepository;
 import com.HealthLink.repository.consultation.ConsultationRepository;
@@ -110,12 +109,11 @@ class NotificationSchedulerTest {
         notificationScheduler.sendPrescriptionRemindersForTiming(PrescriptionTiming.MORNING, now);
 
         ArgumentCaptor<String> messageCaptor = ArgumentCaptor.forClass(String.class);
-        verify(notificationService).sendMobilePushNotification(
+        verify(notificationService).sendWebSocketNotification(
                 eq(patientUser),
                 eq(NotificationType.NEW_PRESCRIPTION),
                 eq("Morning medication reminder"),
                 messageCaptor.capture(),
-                eq(NotificationPriority.NORMAL),
                 eq(101),
                 eq("/prescriptions/101"),
                 eq("{}")
@@ -146,22 +144,20 @@ class NotificationSchedulerTest {
         notificationScheduler.sendPrescriptionRemindersForTiming(PrescriptionTiming.MORNING, morning);
         notificationScheduler.sendPrescriptionRemindersForTiming(PrescriptionTiming.EVENING, evening);
 
-        verify(notificationService).sendMobilePushNotification(
+        verify(notificationService).sendWebSocketNotification(
                 eq(patientUser),
                 eq(NotificationType.NEW_PRESCRIPTION),
                 eq("Morning medication reminder"),
                 contains("Amlodipine"),
-                eq(NotificationPriority.NORMAL),
                 eq(101),
                 eq("/prescriptions/101"),
                 eq("{}")
         );
-        verify(notificationService).sendMobilePushNotification(
+        verify(notificationService).sendWebSocketNotification(
                 eq(patientUser),
                 eq(NotificationType.NEW_PRESCRIPTION),
                 eq("Evening medication reminder"),
                 contains("Amlodipine"),
-                eq(NotificationPriority.NORMAL),
                 eq(101),
                 eq("/prescriptions/101"),
                 eq("{}")
@@ -193,22 +189,20 @@ class NotificationSchedulerTest {
         notificationScheduler.sendPrescriptionRemindersForTiming(PrescriptionTiming.MORNING, morning);
         notificationScheduler.sendPrescriptionRemindersForTiming(PrescriptionTiming.AFTERNOON, afternoon);
 
-        verify(notificationService, never()).sendMobilePushNotification(
+        verify(notificationService, never()).sendWebSocketNotification(
                 eq(patientUser),
                 eq(NotificationType.NEW_PRESCRIPTION),
                 eq("Morning medication reminder"),
                 any(),
                 any(),
                 any(),
-                any(),
                 any()
         );
-        verify(notificationService).sendMobilePushNotification(
+        verify(notificationService).sendWebSocketNotification(
                 eq(patientUser),
                 eq(NotificationType.NEW_PRESCRIPTION),
                 eq("Afternoon medication reminder"),
                 contains("Cetirizine"),
-                eq(NotificationPriority.NORMAL),
                 eq(101),
                 eq("/prescriptions/101"),
                 eq("{}")

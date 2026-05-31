@@ -4,8 +4,10 @@ public enum NotificationType {
     // Patient notifications
     APPOINTMENT_REMINDER,
     NEW_PRESCRIPTION,
+    PRESCRIPTION_ISSUED,
     NEW_PHARMACY_REQUEST,
     ORDER_STATUS,
+    PAYMENT_REQUIRED,
     INVOICE_PAID,
     WALLET_BALANCE_CHANGED,
 
