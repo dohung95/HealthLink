@@ -86,20 +86,18 @@ public interface AppointmentRepository extends JpaRepository<Appointment, Intege
     List<Appointment> findByDoctor_DoctorIdOrderByAppointmentTimeDesc(String doctorId);
 
     @Query("""
-            SELECT DISTINCT p FROM Appointment a
+            SELECT DISTINCT p.patientId FROM Appointment a
             JOIN a.patient p
             LEFT JOIN p.user u
             WHERE a.doctor.doctorId = :doctorId
-              AND UPPER(a.status) <> 'PENDINGPAYMENT'
               AND (
                 :searchTerm IS NULL
                 OR LOWER(p.fullName) LIKE LOWER(CONCAT('%', :searchTerm, '%'))
                 OR LOWER(u.email) LIKE LOWER(CONCAT('%', :searchTerm, '%'))
                 OR LOWER(u.phoneNumber) LIKE LOWER(CONCAT('%', :searchTerm, '%'))
               )
-            ORDER BY p.fullName ASC
             """)
-    Page<Patient> findDoctorPatients(
+    Page<String> findDoctorPatientIds(
             @Param("doctorId") String doctorId,
             @Param("searchTerm") String searchTerm,
             Pageable pageable
@@ -109,7 +107,6 @@ public interface AppointmentRepository extends JpaRepository<Appointment, Intege
             SELECT COUNT(a) > 0 FROM Appointment a
             WHERE a.doctor.doctorId = :doctorId
               AND a.patient.patientId = :patientId
-              AND UPPER(a.status) <> 'PENDINGPAYMENT'
             """)
     boolean existsDoctorPatientRelation(
             @Param("doctorId") String doctorId,
@@ -120,7 +117,6 @@ public interface AppointmentRepository extends JpaRepository<Appointment, Intege
             SELECT a FROM Appointment a
             WHERE a.doctor.doctorId = :doctorId
               AND a.patient.patientId = :patientId
-              AND UPPER(a.status) <> 'PENDINGPAYMENT'
             ORDER BY a.appointmentTime DESC
             """)
     List<Appointment> findDoctorPatientAppointments(
@@ -131,7 +127,17 @@ public interface AppointmentRepository extends JpaRepository<Appointment, Intege
     @Query("""
             SELECT a FROM Appointment a
             WHERE a.doctor.doctorId = :doctorId
-              AND UPPER(a.status) <> 'PENDINGPAYMENT'
+              AND a.patient.patientId IN :patientIds
+            ORDER BY a.appointmentTime DESC
+            """)
+    List<Appointment> findAppointmentsByDoctorAndPatientIds(
+            @Param("doctorId") String doctorId,
+            @Param("patientIds") List<String> patientIds
+    );
+
+    @Query("""
+            SELECT a FROM Appointment a
+            WHERE a.doctor.doctorId = :doctorId
               AND a.appointmentTime >= :start
               AND a.appointmentTime < :end
             ORDER BY a.appointmentTime ASC
@@ -141,15 +147,6 @@ public interface AppointmentRepository extends JpaRepository<Appointment, Intege
             @Param("start") LocalDateTime start,
             @Param("end") LocalDateTime end
     );
-
-    @Query("""
-            SELECT a FROM Appointment a
-            JOIN a.invoice i
-            WHERE UPPER(a.status) = 'PENDINGPAYMENT'
-            AND UPPER(i.status) = 'PENDING'
-            AND i.issueDate < :cutoff
-            """)
-    List<Appointment> findExpiredPendingPaymentAppointments(@Param("cutoff") LocalDateTime cutoff);
 
     /**
      * Tìm các lịch hẹn sắp diễn ra trong khoảng thời gian cho trước và chưa gửi
@@ -162,6 +159,12 @@ public interface AppointmentRepository extends JpaRepository<Appointment, Intege
     @Query("SELECT a FROM Appointment a WHERE a.appointmentTime BETWEEN :from AND :to "
             + "AND a.reminderSent = false AND UPPER(a.status) = 'SCHEDULED'")
     List<Appointment> findUpcomingAndReminderNotSent(
+            @Param("from") LocalDateTime from,
+            @Param("to") LocalDateTime to);
+
+    @Query("SELECT a FROM Appointment a WHERE a.appointmentTime BETWEEN :from AND :to "
+            + "AND UPPER(a.status) = 'SCHEDULED' ORDER BY a.appointmentTime ASC")
+    List<Appointment> findDailyAppointments(
             @Param("from") LocalDateTime from,
             @Param("to") LocalDateTime to);
 

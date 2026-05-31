@@ -3,6 +3,7 @@ import NavbarAdmin from "./NavbarAdmin";
 import { appointmentsApi, doctorsApi } from "../../../api/adminApi";
 import Toast from "./Toast";
 import useToast from "../useToast";
+import { getAvatarUrl } from "../../../utils/avatarHelper";
 import "bootstrap/dist/css/bootstrap.min.css";
 import "bootstrap-icons/font/bootstrap-icons.css";
 import "../Css/Admin.css";
@@ -350,16 +351,29 @@ export default function Appointments() {
     });
     setShowReassignModal(true);
 
-    // Fetch doctors with same specialty
+    // Fetch doctors - first try same specialty, then fallback to all active doctors
     try {
       setLoadingDoctors(true);
-      const response = await doctorsApi.getAll({
+
+      // First try: Same specialty
+      let response = await doctorsApi.getAll({
         pageSize: 100,
         status: 'Active',
         specialty: appointment.department
       });
-      // Filter out current doctor
-      const filtered = (response.doctors || []).filter(d => d.doctorID !== appointment.doctorId);
+
+      let filtered = (response.doctors || []).filter(d => d.doctorID !== appointment.doctorId);
+
+      // Fallback: If no doctors found with same specialty, get all active doctors
+      if (filtered.length === 0) {
+        console.log('No doctors found with same specialty, fetching all active doctors...');
+        response = await doctorsApi.getAll({
+          pageSize: 100,
+          status: 'Active'
+        });
+        filtered = (response.doctors || []).filter(d => d.doctorID !== appointment.doctorId);
+      }
+
       setAvailableDoctors(filtered);
     } catch (err) {
       console.error('Error fetching doctors:', err);
@@ -379,18 +393,40 @@ export default function Appointments() {
 
     try {
       setReassignSubmitting(true);
+
+      // Log the request for debugging
+      console.log('Reassigning appointment:', {
+        appointmentId: selectedAppointment.appointmentID,
+        newDoctorId: reassignForm.newDoctorId,
+        reason: reassignForm.reason
+      });
+
       await appointmentsApi.reassign(selectedAppointment.appointmentID, reassignForm);
       setShowReassignModal(false);
       await fetchAppointments();
       await fetchStats();
+
+      // Refresh calendar if in calendar view
+      if (viewMode === 'calendar') {
+        await fetchCalendarAppointments();
+      }
+
       showToast({ title: 'Success!', message: 'Appointment reassigned successfully', type: 'success' });
     } catch (err) {
+      // Better error handling with detailed message
+      const errorMessage = err.response?.data?.message
+        || err.response?.data?.error
+        || err.response?.data
+        || err.message
+        || 'Failed to reassign appointment';
+
       showToast({
         title: 'Reassign Failed',
-        message: err.response?.data?.message || 'Failed to reassign appointment',
-        type: 'error'
+        message: typeof errorMessage === 'string' ? errorMessage : JSON.stringify(errorMessage),
+        type: 'error',
+        duration: 5000
       });
-      console.error('Error reassigning appointment:', err);
+      console.error('Error reassigning appointment:', err.response?.data || err);
     } finally {
       setReassignSubmitting(false);
     }
@@ -825,8 +861,29 @@ export default function Appointments() {
                       <i className="bi bi-person"></i>
                       Patient
                     </div>
-                    <div className="section-value patient-name">
-                      {appointment.patientName}
+                    <div className="section-value patient-info">
+                      <div className="patient-avatar" style={{
+                        width: '28px',
+                        height: '28px',
+                        borderRadius: '50%',
+                        background: getAvatarUrl(appointment.patientAvatarUrl) ? 'transparent' : 'linear-gradient(135deg, #00a08b 0%, #00c4ac 100%)',
+                        color: 'white',
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        fontSize: '12px',
+                        fontWeight: '600',
+                        marginRight: '8px',
+                        overflow: 'hidden',
+                        flexShrink: 0
+                      }}>
+                        {getAvatarUrl(appointment.patientAvatarUrl) ? (
+                          <img src={getAvatarUrl(appointment.patientAvatarUrl)} alt={appointment.patientName} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                        ) : (
+                          appointment.patientName?.charAt(0)
+                        )}
+                      </div>
+                      <span>{appointment.patientName}</span>
                     </div>
                   </div>
 
@@ -837,8 +894,12 @@ export default function Appointments() {
                       Doctor
                     </div>
                     <div className="section-value doctor-info">
-                      <div className="doctor-avatar">
-                        {appointment.doctorName.charAt(0)}
+                      <div className="doctor-avatar" style={{ overflow: 'hidden' }}>
+                        {getAvatarUrl(appointment.doctorAvatarUrl) ? (
+                          <img src={getAvatarUrl(appointment.doctorAvatarUrl)} alt={appointment.doctorName} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                        ) : (
+                          appointment.doctorName.charAt(0)
+                        )}
                       </div>
                       <span>{appointment.doctorName}</span>
                     </div>
@@ -1057,12 +1118,56 @@ export default function Appointments() {
                           Patient & Doctor Information
                         </h6>
                         <div className="admin-info-row">
-                          <strong>Patient Name:</strong>
-                          <span>{selectedAppointment.patientName}</span>
+                          <strong>Patient:</strong>
+                          <div className="d-flex align-items-center gap-2">
+                            <div style={{
+                              width: '32px',
+                              height: '32px',
+                              borderRadius: '50%',
+                              background: getAvatarUrl(selectedAppointment.patientAvatarUrl) ? 'transparent' : 'linear-gradient(135deg, #00a08b 0%, #00c4ac 100%)',
+                              color: 'white',
+                              display: 'flex',
+                              alignItems: 'center',
+                              justifyContent: 'center',
+                              fontSize: '14px',
+                              fontWeight: '600',
+                              overflow: 'hidden',
+                              flexShrink: 0
+                            }}>
+                              {getAvatarUrl(selectedAppointment.patientAvatarUrl) ? (
+                                <img src={getAvatarUrl(selectedAppointment.patientAvatarUrl)} alt={selectedAppointment.patientName} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                              ) : (
+                                selectedAppointment.patientName?.charAt(0)
+                              )}
+                            </div>
+                            <span>{selectedAppointment.patientName}</span>
+                          </div>
                         </div>
                         <div className="admin-info-row">
-                          <strong>Doctor Name:</strong>
-                          <span>{selectedAppointment.doctorName}</span>
+                          <strong>Doctor:</strong>
+                          <div className="d-flex align-items-center gap-2">
+                            <div style={{
+                              width: '32px',
+                              height: '32px',
+                              borderRadius: '50%',
+                              background: getAvatarUrl(selectedAppointment.doctorAvatarUrl) ? 'transparent' : 'linear-gradient(135deg, #6366f1 0%, #818cf8 100%)',
+                              color: 'white',
+                              display: 'flex',
+                              alignItems: 'center',
+                              justifyContent: 'center',
+                              fontSize: '14px',
+                              fontWeight: '600',
+                              overflow: 'hidden',
+                              flexShrink: 0
+                            }}>
+                              {getAvatarUrl(selectedAppointment.doctorAvatarUrl) ? (
+                                <img src={getAvatarUrl(selectedAppointment.doctorAvatarUrl)} alt={selectedAppointment.doctorName} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                              ) : (
+                                selectedAppointment.doctorName?.charAt(0)
+                              )}
+                            </div>
+                            <span>{selectedAppointment.doctorName}</span>
+                          </div>
                         </div>
                         <div className="admin-info-row">
                           <strong>Department:</strong>
@@ -1291,9 +1396,9 @@ export default function Appointments() {
                 <form onSubmit={handleReassignAppointment}>
                   <div className="modal-body">
                     <div className="alert alert-info mb-3">
-                      <strong>Current:</strong> {selectedAppointment.patientName} with Dr. {selectedAppointment.doctorName}
-                      <br />
-                      <small>Department: {selectedAppointment.department}</small>
+                      <div className="mb-1"><strong>Patient:</strong> {selectedAppointment.patientName}</div>
+                      <div className="mb-1"><strong>Current Doctor:</strong> Dr. {selectedAppointment.doctorName}</div>
+                      <div><strong>Department:</strong> {selectedAppointment.department}</div>
                     </div>
 
                     <div className="mb-3">
@@ -1313,15 +1418,24 @@ export default function Appointments() {
                           required
                         >
                           <option value="">-- Select Doctor --</option>
-                          {availableDoctors.map(doc => (
-                            <option key={doc.doctorID} value={doc.doctorID}>
-                              {doc.fullName} - {doc.specialty}
-                            </option>
-                          ))}
+                          {availableDoctors.map(doc => {
+                            const isSameSpecialty = doc.specialty?.toLowerCase() === selectedAppointment?.department?.toLowerCase();
+                            return (
+                              <option key={doc.doctorID} value={doc.doctorID}>
+                                {doc.fullName} - {doc.specialty} {isSameSpecialty ? '★' : ''}
+                              </option>
+                            );
+                          })}
                         </select>
                       )}
                       {availableDoctors.length === 0 && !loadingDoctors && (
-                        <small className="text-muted">No other doctors available in this specialty</small>
+                        <small className="text-danger">No other active doctors available</small>
+                      )}
+                      {availableDoctors.length > 0 && !loadingDoctors && (
+                        <small className="text-muted d-block mt-1">
+                          <i className="bi bi-info-circle me-1"></i>
+                          ★ indicates same specialty as current appointment
+                        </small>
                       )}
                     </div>
 
@@ -1430,9 +1544,9 @@ export default function Appointments() {
                     </div>
 
                     <div className="mb-3">
-                      <strong>Patient:</strong> {selectedAppointment.patientName}<br />
-                      <strong>Doctor:</strong> {selectedAppointment.doctorName}<br />
-                      <strong>Date:</strong> {selectedAppointment.date} {selectedAppointment.time}
+                      <div className="mb-1"><strong>Patient:</strong> {selectedAppointment.patientName}</div>
+                      <div className="mb-1"><strong>Doctor:</strong> {selectedAppointment.doctorName}</div>
+                      <div><strong>Date:</strong> {selectedAppointment.date} {selectedAppointment.time}</div>
                     </div>
 
                     <div className="mb-3">

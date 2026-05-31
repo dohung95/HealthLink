@@ -29,6 +29,8 @@ import Registrations from './components/Admin/View/Registrations';
 import DoctorScheduleManagement from './components/Admin/View/DoctorScheduleManagement';
 import ScheduleAuditLog from './components/Admin/View/ScheduleAuditLog';
 import ScheduleComplianceDashboard from './components/Admin/View/ScheduleComplianceDashboard';
+import FinancialReports from './components/Admin/View/FinancialReports';
+import ReviewManagement from './components/Admin/View/ReviewManagement';
 
 import Sign_in from './components/Auth/Sign_in';
 import Sign_up from './components/Auth/Sign_up';
@@ -56,7 +58,16 @@ import Navbar from './components/Navbar';
 import DoctorPublicProfilePage from './pages/doctor/DoctorPublicProfilePage';
 import PatientPrescriptionView from './components/PatientPrescriptionView';
 
-import DoctorDashboardPage from './pages/doctor/DoctorDashboardPage';
+import DoctorDashboardPage, {
+  DoctorAppointmentDetailRoute,
+  DoctorPatientDetailRoute,
+} from './pages/doctor/DoctorDashboardPage';
+import DoctorAppointmentsView from './pages/doctor/appointment/DoctorAppointmentsView';
+import DoctorPatientsView from './pages/doctor/patient/DoctorPatientsView';
+import DoctorPrescriptionsView from './pages/doctor/prescription/DoctorPrescriptionsView';
+import DoctorScheduleView from './pages/doctor/schedule/DoctorScheduleView';
+import DoctorProfileView from './pages/doctor/profile/DoctorProfileView';
+import DoctorReviewsView from './pages/doctor/reviews/DoctorReviewsView';
 import ProtectedRoute from './components/ProtectedRoute';
 import ExcludeRolesRoute from './components/ExcludeRolesRoute';
 
@@ -69,6 +80,7 @@ import PatientDashboard from './pages/PatientDashboard';
 import PatientDashboardHome from './components/patient-dashboard/PatientDashboardHome';
 import NotFound from './pages/NotFound';
 import PharmacyDashboardPage from './pages/pharmacy/PharmacyDashboardPage';
+import PharmacyConsultationsPage from './pages/patient/PharmacyConsultationsPage';
 
 //-----------------------------------------------------------------------------------------------
 
@@ -90,7 +102,7 @@ function AppContent() {
   const { isAuthenticated, roles } = useAuth();
   const location = useLocation();
   const isVideoCallPage = location.pathname === '/video-calling';
-  const isDoctorPage = location.pathname === '/doctor-page';
+  const isDoctorPage = location.pathname === '/doctor' || location.pathname.startsWith('/doctor/');
   const isLoginPage = location.pathname === '/login';
   const isAdminPage = location.pathname.startsWith('/admin');
   const isPatientDashboard = location.pathname.startsWith('/patient-dashboard');
@@ -123,7 +135,7 @@ function AppContent() {
     '/share-records',
     '/profile-patient',
     '/profile-pharmacy',
-    '/doctor-page',
+    '/doctor',
     '/patient-dashboard',
     '/pharmacy-page',
     '/admin',
@@ -135,7 +147,7 @@ function AppContent() {
 
   const isKnownPath = allValidPaths.some(path =>
     location.pathname === path || location.pathname.startsWith(path + '/')
-  ) || location.pathname.startsWith('/doctor/') || location.pathname.startsWith('/book/');
+  ) || location.pathname.startsWith('/book/');
 
   const is404Page = !isKnownPath;
 
@@ -161,7 +173,7 @@ function AppContent() {
       if (userRoles.includes('admin')) {
         navigate('/admin', { replace: true });
       } else if (userRoles.includes('doctor')) {
-        navigate('/doctor-page', { replace: true });
+        navigate('/doctor', { replace: true });
       } else if (userRoles.includes('pharmacy')) {
         navigate('/pharmacy-page', { replace: true });
       } else if (userRoles.includes('patient')) {
@@ -177,7 +189,7 @@ function AppContent() {
       {!isVideoCallPage && !isAdminPage && <PrescriptionNotificationModal />}
       {!isVideoCallPage && !isAdminPage && <AdminActionNotificationModal />}
       <div className="App">
-        {!isVideoCallPage && !isAdminPage && !isPharmacyDashboard && !is404Page && !isResetPasswordPage && <Chat />}
+        {!isVideoCallPage && !isAdminPage && !is404Page && !isResetPasswordPage && <Chat />}
         <ScrollToTop />
         {!hideLayout && <Navbar />}
 
@@ -204,13 +216,23 @@ function AppContent() {
             {/* <Route path="/book/:doctorId" element={<Schedule />} /> */}
             {/* <Route path="/my-appointments" element={<MyAppointments />} /> */}
             <Route path="/doctors" element={<Doctors />} />
-            <Route path="/doctor/:id" element={<DoctorPublicProfilePage />} />
+            <Route path="/doctors/:id" element={<DoctorPublicProfilePage />} />
             {/* Doctor only */}
-            <Route path="/doctor-page" element={
+            <Route path="/doctor" element={
               <ProtectedRoute allowedRoles={['Doctor']}>
                 <DoctorDashboardPage />
               </ProtectedRoute>
-            } />
+            }>
+              <Route index element={<DoctorAppointmentsView />} />
+              <Route path="appointments" element={<DoctorAppointmentsView />} />
+              <Route path="appointments/:appointmentId" element={<DoctorAppointmentDetailRoute />} />
+              <Route path="patients" element={<DoctorPatientsView />} />
+              <Route path="patients/:patientId" element={<DoctorPatientDetailRoute />} />
+              <Route path="prescriptions" element={<DoctorPrescriptionsView />} />
+              <Route path="reviews" element={<DoctorReviewsView />} />
+              <Route path="schedule" element={<DoctorScheduleView />} />
+              <Route path="profile" element={<DoctorProfileView />} />
+            </Route>
 
             <Route path="/schedule" element={
               <ExcludeRolesRoute excludedRoles={['Admin', 'Doctor']}>
@@ -225,6 +247,11 @@ function AppContent() {
             <Route path="/my-appointments" element={
               <ProtectedRoute allowedRoles={['Patient']}>
                 <MyAppointments />
+              </ProtectedRoute>
+            } />
+            <Route path="/my-consultations/pharmacy" element={
+              <ProtectedRoute allowedRoles={['Patient', 'Pharmacy']}>
+                <PharmacyConsultationsPage />
               </ProtectedRoute>
             } />
 
@@ -270,6 +297,11 @@ function AppContent() {
                 <CommissionManagement />
               </AdminRoute>
             } />
+            <Route path="/admin/financial-reports" element={
+              <AdminRoute>
+                <FinancialReports />
+              </AdminRoute>
+            } />
             <Route path="/admin/appointments" element={
               <AdminRoute>
                 <Appointments />
@@ -298,6 +330,11 @@ function AppContent() {
             <Route path="/admin/compliance" element={
               <AdminRoute>
                 <ScheduleComplianceDashboard />
+              </AdminRoute>
+            } />
+            <Route path="/admin/reviews" element={
+              <AdminRoute>
+                <ReviewManagement />
               </AdminRoute>
             } />
 

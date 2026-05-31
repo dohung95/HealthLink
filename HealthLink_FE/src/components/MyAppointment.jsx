@@ -11,6 +11,8 @@ import Loading from './Loading';
 import { getProfile } from '../api/account';
 import RescheduleAppointmentModal from './RescheduleAppointmentModal';
 import PreConsultationVitalsModal from './PreConsultationVitalsModal';
+import ReviewForm from './patient-dashboard/ReviewForm';
+import { patientReviewApi } from '../api/reviewApi';
 
 const MyAppointments = () => {
     const APPOINTMENTS_PAGE_SIZE = 5;
@@ -36,6 +38,9 @@ const MyAppointments = () => {
     const [pendingConsultationAppointment, setPendingConsultationAppointment] = useState(null);
     const [pendingConsultationAction, setPendingConsultationAction] = useState(null);
     const [now, setNow] = useState(new Date());
+    const [showReviewModal, setShowReviewModal] = useState(false);
+    const [selectedReviewAppointment, setSelectedReviewAppointment] = useState(null);
+    const [reviewableAppointments, setReviewableAppointments] = useState({});
 
     useEffect(() => {
         if (!token) return;
@@ -87,6 +92,21 @@ const MyAppointments = () => {
                 totalPages: data.totalPages || 0,
             });
             setCurrentPage(data.page || page);
+
+            // Check which completed appointments can be reviewed
+            const completedAppointments = (data.items || []).filter(a => a.status === 'Completed');
+            const reviewableMap = {};
+            await Promise.all(
+                completedAppointments.map(async (apt) => {
+                    try {
+                        const result = await patientReviewApi.canReview(apt.appointmentId);
+                        reviewableMap[apt.appointmentId] = result.canReview;
+                    } catch (error) {
+                        reviewableMap[apt.appointmentId] = false;
+                    }
+                })
+            );
+            setReviewableAppointments(reviewableMap);
         } catch (error) {
             console.error('Failed to load appointments', error);
             toast.error('Unable to load appointments.');
@@ -341,6 +361,16 @@ const MyAppointments = () => {
         await loadAppointments(patientId, currentPage);
     };
 
+    const handleRateClick = (appointment) => {
+        setSelectedReviewAppointment(appointment);
+        setShowReviewModal(true);
+    };
+
+    const handleReviewSubmitted = async () => {
+        // Reload appointments to update the reviewable status
+        await loadAppointments(patientId, currentPage);
+    };
+
     if (actionLoading) {
         return <Loading />;
     }
@@ -474,6 +504,18 @@ const MyAppointments = () => {
                                                             Cancel
                                                         </button>
                                                     )}
+
+                                                    {/* Rate button for completed appointments */}
+                                                    {item.status === 'Completed' && (
+                                                        <button
+                                                            className={`btn btn-sm ${reviewableAppointments[item.appointmentId] ? 'btn-warning' : 'btn-outline-secondary'}`}
+                                                            onClick={() => handleRateClick(item)}
+                                                            title={reviewableAppointments[item.appointmentId] ? 'Rate this appointment' : 'View your review'}
+                                                        >
+                                                            <i className={`bi ${reviewableAppointments[item.appointmentId] ? 'bi-star' : 'bi-star-fill'} me-1`}></i>
+                                                            {reviewableAppointments[item.appointmentId] ? 'Rate' : 'Reviewed'}
+                                                        </button>
+                                                    )}
                                                 </div>
                                             </td>
                                         </tr>
@@ -566,6 +608,17 @@ const MyAppointments = () => {
                     setPendingConsultationAction(null);
                 }}
                 onSaved={handleVitalsSaved}
+            />
+
+            {/* Review Modal */}
+            <ReviewForm
+                isOpen={showReviewModal}
+                onClose={() => {
+                    setShowReviewModal(false);
+                    setSelectedReviewAppointment(null);
+                }}
+                appointment={selectedReviewAppointment}
+                onReviewSubmitted={handleReviewSubmitted}
             />
         </div>
     );

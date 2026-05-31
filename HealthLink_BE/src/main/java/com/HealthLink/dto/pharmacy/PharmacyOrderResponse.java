@@ -15,6 +15,7 @@ import java.time.LocalDateTime;
 public class PharmacyOrderResponse {
 
     private Integer orderId;
+    private Integer invoiceId;
 
     /** Mã đơn hàng, format: ORD-YYYYMMDD-XXXX */
     private String orderNumber;

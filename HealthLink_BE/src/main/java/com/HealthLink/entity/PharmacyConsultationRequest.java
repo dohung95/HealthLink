@@ -62,6 +62,9 @@ public class PharmacyConsultationRequest {
     @Column(length = 50, nullable = false)
     private String status;
 
+    @Column(length = 36)
+    private String chatRoomId;
+
     @Column(length = 2000)
     private String pharmacyNotes;
 

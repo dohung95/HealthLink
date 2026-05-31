@@ -4,8 +4,10 @@ public enum NotificationType {
     // Patient notifications
     APPOINTMENT_REMINDER,
     NEW_PRESCRIPTION,
+    PRESCRIPTION_ISSUED,
     NEW_PHARMACY_REQUEST,
     ORDER_STATUS,
+    PAYMENT_REQUIRED,
     INVOICE_PAID,
     WALLET_BALANCE_CHANGED,
 
@@ -28,5 +30,9 @@ public enum NotificationType {
     // Schedule compliance notifications
     SCHEDULE_COMPLIANCE_WARNING,    // Doctor: Chưa đủ giờ làm việc
     DOCTOR_SCHEDULE_NON_COMPLIANT,  // Admin: Bác sĩ không đạt chuẩn số giờ
-    SCHEDULE_COMPLIANCE_ACHIEVED    // Doctor: Đã đạt đủ giờ làm việc
+    SCHEDULE_COMPLIANCE_ACHIEVED,   // Doctor: Đã đạt đủ giờ làm việc
+
+    // Review notifications
+    NEW_REVIEW,                     // Doctor: Có review mới
+    REVIEW_REPLY                    // Patient: Doctor/Admin đã phản hồi review
 }

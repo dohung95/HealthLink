@@ -647,6 +647,11 @@ public class PharmacyOrderServiceImpl implements PharmacyOrderService {
     }
 
     private void notifyPatientAboutOrderStatusAfterCommit(PharmacyOrder order, String oldStatus, String newStatus) {
+        if (STATUS_PREPARING.equals(newStatus)) {
+            notifyPatientPaymentRequired(order);
+            return;
+        }
+
         User patientUser = resolvePatientUser(order, NotificationType.ORDER_STATUS);
         if (patientUser == null) {
             return;
@@ -655,16 +660,43 @@ public class PharmacyOrderServiceImpl implements PharmacyOrderService {
         String orderNumber = safeValue(order.getOrderNumber(), "unknown order");
         Integer orderId = order.getOrderId();
         String actionUrl = "/pharmacy-orders/" + orderId;
-        String title = "Order status updated";
-        String message = String.format(
-                "Order %s changed from %s to %s.",
-                orderNumber,
-                safeValue(oldStatus, "unknown"),
-                safeValue(newStatus, "unknown")
-        );
-        boolean hasActiveMobileToken = !deviceTokenRepository
-                .findByUser_IdAndActiveTrue(patientUser.getId())
-                .isEmpty();
+
+        String title;
+        String message;
+        switch (newStatus) {
+            case STATUS_CONFIRMED:
+                title = "Order confirmed";
+                message = String.format("Your order %s has been confirmed by the pharmacy.", orderNumber);
+                break;
+            case STATUS_READY:
+                title = "Order ready";
+                message = String.format("Your order %s is ready.", orderNumber);
+                break;
+            case STATUS_SHIPPING:
+                title = "Order shipped";
+                message = String.format("Your order %s is on its way!", orderNumber);
+                break;
+            case STATUS_DELIVERED:
+                title = "Order delivered";
+                message = String.format("Your order %s has been delivered.", orderNumber);
+                break;
+            case STATUS_COMPLETED:
+                title = "Order completed";
+                message = String.format("Your order %s is completed. Thank you!", orderNumber);
+                break;
+            case STATUS_CANCELLED:
+                title = "Order cancelled";
+                String reason = safeValue(order.getCancelReason(), "");
+                message = reason.isBlank()
+                        ? String.format("Your order %s has been cancelled.", orderNumber)
+                        : String.format("Your order %s has been cancelled. Reason: %s", orderNumber, reason);
+                break;
+            default:
+                title = "Order status updated";
+                message = String.format("Your order %s changed from %s to %s.",
+                        orderNumber, safeValue(oldStatus, "unknown"), safeValue(newStatus, "unknown"));
+                break;
+        }
 
         runAfterCommit("order status notification orderId=" + orderId, () -> {
             notificationService.sendWebSocketNotification(
@@ -676,20 +708,38 @@ public class PharmacyOrderServiceImpl implements PharmacyOrderService {
                     actionUrl
             );
 
-            if (hasActiveMobileToken) {
-                notificationService.sendMobilePushNotification(
-                        patientUser,
-                        NotificationType.ORDER_STATUS,
-                        title,
-                        message,
-                        NotificationPriority.NORMAL,
-                        orderId,
-                        actionUrl
-                );
-            }
+            log.info("Order status notification sent to patientUserId={}, orderId={}, newStatus={}",
+                    patientUser.getId(), orderId, newStatus);
+        });
+    }
 
-            log.info("Order status notification queued for patientUserId={}, orderId={}, oldStatus={}, newStatus={}, mobilePush={}",
-                    patientUser.getId(), orderId, oldStatus, newStatus, hasActiveMobileToken);
+    private void notifyPatientPaymentRequired(PharmacyOrder order) {
+        User patientUser = resolvePatientUser(order, NotificationType.PAYMENT_REQUIRED);
+        if (patientUser == null) {
+            return;
+        }
+
+        String orderNumber = safeValue(order.getOrderNumber(), "unknown order");
+        Integer orderId = order.getOrderId();
+        String title = "Payment required";
+        String message = String.format(
+                "Your order %s is being prepared. Please proceed to payment.",
+                orderNumber
+        );
+        String actionUrl = "/payment/order/" + orderId;
+
+        runAfterCommit("payment notification orderId=" + orderId, () -> {
+            notificationService.sendWebSocketNotification(
+                    patientUser,
+                    NotificationType.PAYMENT_REQUIRED,
+                    title,
+                    message,
+                    orderId,
+                    actionUrl
+            );
+
+            log.info("Payment notification sent to patientUserId={}, orderId={}",
+                    patientUser.getId(), orderId);
         });
     }
 

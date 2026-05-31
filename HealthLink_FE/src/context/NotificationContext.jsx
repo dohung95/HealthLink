@@ -2,6 +2,7 @@ import React, { createContext, useContext, useState, useEffect } from 'react';
 import websocketService from '../services/websocketService';
 import { useAuth } from './AuthContext';
 import { audioService } from '../utils/audioService';
+import { notificationApi } from '../api/notificationApi';
 
 const NotificationContext = createContext();
 
@@ -29,6 +30,17 @@ export const NotificationProvider = ({ children }) => {
             websocketService.connect();
             const unsubscribe = websocketService.subscribeToNotifications(handleNewNotification);
 
+            // Fetch initial unread count from API
+            const fetchInitialUnreadCount = async () => {
+                try {
+                    const count = await notificationApi.getUnreadCount();
+                    setUnreadCount(count || 0);
+                } catch (error) {
+                    console.error('Failed to fetch initial unread count:', error);
+                }
+            };
+            fetchInitialUnreadCount();
+
             return () => {
                 unsubscribe();
             };
@@ -43,7 +55,9 @@ export const NotificationProvider = ({ children }) => {
         setUnreadCount(prev => prev + 1);
 
         // Handle specific notification types
-        if (notification.eventType === 'PRESCRIPTION_CREATED' || notification.type === 'NEW_PRESCRIPTION') {
+        if (notification.eventType === 'PRESCRIPTION_CREATED'
+            || notification.type === 'NEW_PRESCRIPTION'
+            || notification.type === 'PRESCRIPTION_ISSUED') {
             setLatestPrescription({
                 id: notification.prescriptionHeaderId || notification.relatedId,
                 message: notification.message,
@@ -57,6 +71,39 @@ export const NotificationProvider = ({ children }) => {
                     body: notification.message,
                     icon: '/logo.png',
                     tag: 'prescription-' + (notification.prescriptionHeaderId || notification.relatedId)
+                });
+            }
+        }
+
+        // Handle payment required notification
+        if (notification.type === 'PAYMENT_REQUIRED') {
+            if ('Notification' in window && Notification.permission === 'granted') {
+                new Notification(notification.title || 'Payment Required', {
+                    body: notification.message,
+                    icon: '/logo.png',
+                    tag: 'payment-' + notification.relatedId
+                });
+            }
+        }
+
+        // Handle order status updates
+        if (notification.type === 'ORDER_STATUS') {
+            if ('Notification' in window && Notification.permission === 'granted') {
+                new Notification(notification.title || 'Order Update', {
+                    body: notification.message,
+                    icon: '/logo.png',
+                    tag: 'order-' + notification.relatedId
+                });
+            }
+        }
+
+        // Handle appointment reminders
+        if (notification.type === 'APPOINTMENT_REMINDER') {
+            if ('Notification' in window && Notification.permission === 'granted') {
+                new Notification(notification.title || 'Appointment Reminder', {
+                    body: notification.message,
+                    icon: '/logo.png',
+                    tag: 'appointment-' + notification.relatedId
                 });
             }
         }
@@ -102,6 +149,15 @@ export const NotificationProvider = ({ children }) => {
         setUnreadCount(0);
     };
 
+    const refreshUnreadCount = async () => {
+        try {
+            const count = await notificationApi.getUnreadCount();
+            setUnreadCount(count || 0);
+        } catch (error) {
+            console.error('Failed to refresh unread count:', error);
+        }
+    };
+
     const closePrescriptionModal = () => {
         setShowPrescriptionModal(false);
         setLatestPrescription(null);
@@ -128,6 +184,7 @@ export const NotificationProvider = ({ children }) => {
         adminActionNotification,
         markAsRead,
         clearAll,
+        refreshUnreadCount,
         closePrescriptionModal,
         closeAdminActionModal,
         isConnected: websocketService.isConnected()

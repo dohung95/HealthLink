@@ -48,6 +48,20 @@ if (eventName === 'ReceiveAppointmentNotification' &&
         });
       }
 
+      // New prescription issued by doctor
+      if (eventName === 'ReceivePrescriptionNotification' && notification.type === 'PRESCRIPTION_ISSUED') {
+        callback({
+          ...notification,
+        });
+      }
+
+      // Payment required notification
+      if (eventName === 'ReceivePaymentNotification' && notification.type === 'PAYMENT_REQUIRED') {
+        callback({
+          ...notification,
+        });
+      }
+
       // Generic notification handler - for any notification type
       if (eventName === 'ReceiveNotification') {
         callback(notification);

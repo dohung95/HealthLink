@@ -56,10 +56,11 @@ export default function IncomingCallModal() {
         declineCall();
     };
 
-    // === XÁC ĐỊNH XEM NGƯỜI GỌI CÓ PHẢI BÁC SĨ KHÔNG ===
-    // Nếu người nhận là bệnh nhân → người gọi là bác sĩ
+    // === XÁC ĐỊNH XEM NGƯỜI GỌI CÓ PHẢI BÁC SĨ / NHÀ THUỐC KHÔNG ===
     const isPatient = roles && roles.some(r => String(r).trim().toLowerCase() === 'patient');
     const callerIsDoctor = incomingCall.callerType === 'doctor' || isPatient;
+    const callerIsPharmacy = incomingCall.callerType === 'pharmacy';
+    const callerPrefix = callerIsDoctor ? 'Dr. ' : callerIsPharmacy ? 'Pharmacy: ' : '';
 
     // 3. Nếu CÓ cuộc gọi, hiển thị Modal
     return (
@@ -88,7 +89,7 @@ export default function IncomingCallModal() {
                 <div>
                     <h5 className="mb-0" style={{ fontWeight: '700', color: '#2c3e50' }}>Incoming Call...</h5>
                     <p className="mb-0 text-muted" style={{ fontSize: '0.9rem' }}>
-                        {callerIsDoctor ? `Dr. ${incomingCall.callerName}` : incomingCall.callerName}
+                        {callerPrefix}{incomingCall.callerName}
                     </p>
                 </div>
             </div>

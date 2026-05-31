@@ -75,7 +75,7 @@ public class ConsultationServiceImpl implements ConsultationService {
                     .orElse(null);
         }
 
-        if ("Completed".equalsIgnoreCase(appointment.getStatus())) {
+        if ("COMPLETED".equalsIgnoreCase(appointment.getStatus())) {
             throw new BadRequestException("Completed appointments cannot update follow-up");
         }
 
@@ -102,9 +102,14 @@ public class ConsultationServiceImpl implements ConsultationService {
         if (consultation == null) {
             consultation = Consultation.builder()
                     .appointment(appointment)
-                    .consultationType(appointment.getConsultationType())
+                    .consultationType(
+                            request.getConsultationType() != null
+                                    ? request.getConsultationType()
+                                    : appointment.getConsultationType())
                     .symptoms(appointment.getSymptoms())
                     .build();
+        } else if (request.getConsultationType() != null) {
+            consultation.setConsultationType(request.getConsultationType());
         }
 
         consultation.setFollowUpDate(request.getFollowUpDate());
@@ -127,6 +132,9 @@ public class ConsultationServiceImpl implements ConsultationService {
             consultation.setStartTime(LocalDateTime.now());
         }
 
+        appointment.setStatus("IN_CONSULTATION");
+        appointmentRepository.save(appointment);
+
         Consultation saved = consultationRepository.save(consultation);
         appointment.setConsultation(saved);
         return toConsultationResponse(saved);
@@ -137,10 +145,10 @@ public class ConsultationServiceImpl implements ConsultationService {
     public ConsultationResponse updateNotesByAppointment(Integer appointmentId, ConsultationNotesRequest request) {
         Appointment appointment = getAppointmentOrThrow(appointmentId);
 
-        if ("Completed".equalsIgnoreCase(appointment.getStatus())) {
+        if ("COMPLETED".equalsIgnoreCase(appointment.getStatus())) {
             throw new BadRequestException("Completed appointments cannot update consultation notes");
         }
-        if ("Cancelled".equalsIgnoreCase(appointment.getStatus())) {
+        if ("CANCELLED".equalsIgnoreCase(appointment.getStatus())) {
             throw new BadRequestException("Cancelled appointments cannot update consultation notes");
         }
 
@@ -189,6 +197,7 @@ public class ConsultationServiceImpl implements ConsultationService {
                 .diagnosis(c.getDiagnosis())
                 .doctorNotes(c.getDoctorNotes())
                 .treatmentPlan(c.getTreatmentPlan())
+                .consultationType(c.getConsultationType())
                 .build();
     }
 
@@ -221,7 +230,7 @@ public class ConsultationServiceImpl implements ConsultationService {
     }
 
     private void assertCanStart(Appointment appointment) {
-        if (!"Scheduled".equalsIgnoreCase(appointment.getStatus())) {
+        if (!"SCHEDULED".equalsIgnoreCase(appointment.getStatus())) {
             throw new BadRequestException("Only scheduled appointments can be started");
         }
         if (appointment.getAppointmentTime() == null || LocalDateTime.now().isBefore(appointment.getAppointmentTime())) {

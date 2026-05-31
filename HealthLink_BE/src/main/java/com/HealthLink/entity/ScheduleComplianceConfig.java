@@ -22,7 +22,7 @@ public class ScheduleComplianceConfig {
     private Specialty specialty; // null = global config
 
     @Column(name = "MinHoursPerMonth", nullable = false)
-    private Integer minHoursPerMonth; // VD: 40
+    private Integer minHoursPerMonth; // VD: 80
 
     @Column(name = "WarningThresholdPercent")
     @Builder.Default

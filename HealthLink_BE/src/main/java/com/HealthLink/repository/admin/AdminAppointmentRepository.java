@@ -13,12 +13,12 @@ public interface AdminAppointmentRepository extends JpaRepository<Appointment, I
     @Query("SELECT COUNT(a) FROM Appointment a WHERE a.appointmentTime >= :startOfDay AND a.appointmentTime < :endOfDay")
     long countTodayAppointments(@Param("startOfDay") LocalDateTime startOfDay, @Param("endOfDay") LocalDateTime endOfDay);
 
-    @Query("SELECT COUNT(a) FROM Appointment a WHERE LOWER(a.status) = 'pending' OR LOWER(a.status) = 'scheduled'")
+    @Query("SELECT COUNT(a) FROM Appointment a WHERE a.status = 'SCHEDULED' OR a.status = 'IN_CONSULTATION'")
     long countPendingAppointments();
 
-    @Query("SELECT COUNT(a) FROM Appointment a WHERE LOWER(a.status) = 'completed'")
+    @Query("SELECT COUNT(a) FROM Appointment a WHERE a.status = 'COMPLETED'")
     long countCompletedAppointments();
 
-    @Query("SELECT COUNT(a) FROM Appointment a WHERE LOWER(a.status) = 'cancelled'")
+    @Query("SELECT COUNT(a) FROM Appointment a WHERE a.status = 'CANCELLED'")
     long countCancelledAppointments();
 }

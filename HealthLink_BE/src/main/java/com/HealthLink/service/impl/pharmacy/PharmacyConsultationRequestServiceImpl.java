@@ -1,5 +1,6 @@
 package com.HealthLink.service.impl.pharmacy;
 
+import com.HealthLink.dto.chat.CreateRoomRequest;
 import com.HealthLink.dto.pharmacy.*;
 import com.HealthLink.dto.prescription.PrescriptionItemResponse;
 import com.HealthLink.dto.prescription.PrescriptionResponse;
@@ -15,6 +16,7 @@ import com.HealthLink.repository.patient.PatientRepository;
 import com.HealthLink.repository.pharmacy.PharmacyConsultationRequestRepository;
 import com.HealthLink.repository.pharmacy.PharmacyRepository;
 import com.HealthLink.repository.prescription.PrescriptionHeaderRepository;
+import com.HealthLink.service.chat.ChatService;
 import com.HealthLink.service.notification.NotificationService;
 import com.HealthLink.service.pharmacy.PharmacyConsultationRequestService;
 import com.fasterxml.jackson.core.type.TypeReference;
@@ -53,6 +55,7 @@ public class PharmacyConsultationRequestServiceImpl implements PharmacyConsultat
     private final NotificationService notificationService;
     private final DeviceTokenRepository deviceTokenRepository;
     private final ObjectMapper objectMapper;
+    private final ChatService chatService;
 
     @Override
     @Transactional
@@ -131,6 +134,25 @@ public class PharmacyConsultationRequestServiceImpl implements PharmacyConsultat
         }
 
         PharmacyConsultationRequest updated = consultationRequestRepository.save(consultationRequest);
+
+        // Auto-create ChatRoom when status moves to IN_REVIEW
+        if (STATUS_IN_REVIEW.equals(targetStatus) && updated.getChatRoomId() == null) {
+            try {
+                String pharmacyUserId = updated.getPharmacy().getUser().getId();
+                String patientUserId = updated.getPatient().getUser().getId();
+                CreateRoomRequest roomRequest = CreateRoomRequest.builder()
+                        .user1Id(pharmacyUserId)
+                        .user2Id(patientUserId)
+                        .build();
+                com.HealthLink.dto.chat.ChatRoomDTO chatRoom = chatService.getOrCreateRoom(roomRequest);
+                updated.setChatRoomId(chatRoom.getChatRoomId());
+                consultationRequestRepository.save(updated);
+            } catch (Exception ex) {
+                log.warn("Failed to auto-create ChatRoom for consultation request {}: {}",
+                        updated.getRequestId(), ex.getMessage());
+            }
+        }
+
         notifyPatientAboutRequestStatusAfterCommit(updated);
         return toResponse(updated);
     }
@@ -237,6 +259,7 @@ public class PharmacyConsultationRequestServiceImpl implements PharmacyConsultat
                 .additionalNotes(request.getAdditionalNotes())
                 .preferredDeliveryType(request.getPreferredDeliveryType())
                 .status(request.getStatus())
+                .chatRoomId(request.getChatRoomId())
                 .pharmacyNotes(request.getPharmacyNotes())
                 .patientFollowUpNotes(request.getPatientFollowUpNotes())
                 .prescriptionHeaderId(request.getPrescriptionHeader() != null

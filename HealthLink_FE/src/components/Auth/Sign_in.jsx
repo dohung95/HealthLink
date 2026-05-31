@@ -130,7 +130,7 @@ export function Sign_in() {
                 if (userRoles.some(r => r.toLowerCase() === 'admin')) {
                     navigate('/admin');
                 } else if (userRoles.some(r => r.toLowerCase() === 'doctor')) {
-                    navigate('/doctor-page');
+                    navigate('/doctor');
                 } else if (userRoles.some(r => r.toLowerCase() === 'pharmacy')) {
                     navigate('/pharmacy-page');
                 } else if (userRoles.some(r => r.toLowerCase() === 'patient')) {

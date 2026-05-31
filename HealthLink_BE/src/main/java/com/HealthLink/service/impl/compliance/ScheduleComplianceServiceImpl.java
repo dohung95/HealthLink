@@ -623,7 +623,7 @@ public class ScheduleComplianceServiceImpl implements ScheduleComplianceService 
         // Fallback to global config
         return configRepository.findActiveGlobalConfig(monthDate)
                 .map(ScheduleComplianceConfig::getMinHoursPerMonth)
-                .orElse(40); // Default 40 hours if no config
+                .orElse(80); // Default 80 hours if no config
     }
 
     private DoctorScheduleCompliance getOrCreateCompliance(Doctor doctor, String month, int requiredHours) {

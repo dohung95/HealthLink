@@ -55,4 +55,10 @@ public class Review {
     @Column(name = "HelpfulCount")
     @Builder.Default
     private Integer helpfulCount = 0;
+
+    @Column(name = "AdminReply", length = 1000)
+    private String adminReply;
+
+    @Column(name = "AdminReplyDate")
+    private LocalDateTime adminReplyDate;
 }

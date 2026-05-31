@@ -1,16 +1,20 @@
 import React from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useNotifications } from '../context/NotificationContext';
+import { useAuth } from '../context/AuthContext';
 import 'bootstrap/dist/css/bootstrap.min.css';
 
 /**
- * Modal hiển thị thông báo khi Admin thực hiện action ảnh hưởng đến lịch hẹn của Patient.
+ * Modal hiển thị thông báo khi Admin thực hiện action ảnh hưởng đến lịch hẹn.
  * - ADMIN_APPOINTMENT_CANCEL: Admin hủy lịch hẹn
  * - ADMIN_APPOINTMENT_REASSIGN: Admin chuyển lịch hẹn sang bác sĩ khác
+ *
+ * Supports: Patient, Doctor
  */
 const AdminActionNotificationModal = () => {
     const navigate = useNavigate();
     const { showAdminActionModal, adminActionNotification, closeAdminActionModal } = useNotifications();
+    const { roles } = useAuth();
 
     if (!showAdminActionModal || !adminActionNotification) {
         return null;
@@ -18,9 +22,15 @@ const AdminActionNotificationModal = () => {
 
     const isCancel = adminActionNotification.type === 'ADMIN_APPOINTMENT_CANCEL';
     const isReassign = adminActionNotification.type === 'ADMIN_APPOINTMENT_REASSIGN';
+    const isDoctor = roles?.includes('Doctor');
+    const isPatient = roles?.includes('Patient');
 
     const handleViewAppointments = () => {
-        navigate('/patient-dashboard/appointments');
+        if (isDoctor) {
+            navigate('/doctor-page/appointments');
+        } else {
+            navigate('/patient-dashboard/appointments');
+        }
         closeAdminActionModal();
     };
 
@@ -97,16 +107,18 @@ const AdminActionNotificationModal = () => {
                             {isCancel && (
                                 <div className="alert alert-danger mb-0">
                                     <i className="bi bi-exclamation-triangle me-2"></i>
-                                    Your appointment has been cancelled by the administrator.
-                                    Please contact support if you have any questions.
+                                    {isDoctor
+                                        ? 'This appointment has been cancelled by the administrator.'
+                                        : 'Your appointment has been cancelled by the administrator. Please contact support if you have any questions.'}
                                 </div>
                             )}
 
                             {isReassign && (
                                 <div className="alert alert-warning mb-0">
                                     <i className="bi bi-info-circle me-2"></i>
-                                    Your appointment has been reassigned to a different doctor.
-                                    Please check your appointments for updated details.
+                                    {isDoctor
+                                        ? 'An appointment has been reassigned. Please check your schedule for updated details.'
+                                        : 'Your appointment has been reassigned to a different doctor. Please check your appointments for updated details.'}
                                 </div>
                             )}
                         </div>
@@ -124,7 +136,7 @@ const AdminActionNotificationModal = () => {
                                 onClick={handleViewAppointments}
                             >
                                 <i className="bi bi-calendar-check me-2"></i>
-                                View My Appointments
+                                {isDoctor ? 'View My Schedule' : 'View My Appointments'}
                             </button>
                         </div>
                     </div>
