@@ -68,7 +68,6 @@ public class AdminCommissionServiceImpl implements AdminCommissionService {
         if (dto.getDescription() != null) {
             config.setDescription(dto.getDescription());
         }
-        config.setActive(dto.isActive());
         config.setEffectiveFrom(dto.getEffectiveFrom());
         config.setEffectiveTo(dto.getEffectiveTo());
         config.setUpdatedAt(LocalDateTime.now());

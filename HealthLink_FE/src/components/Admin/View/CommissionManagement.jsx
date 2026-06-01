@@ -44,7 +44,6 @@ export default function CommissionManagement() {
     minCommission: '',
     maxCommission: '',
     description: '',
-    active: false,
     effectiveFrom: '',
     effectiveTo: ''
   });
@@ -209,7 +208,6 @@ export default function CommissionManagement() {
       minCommission: config.minCommission ?? '',
       maxCommission: config.maxCommission ?? '',
       description: config.description ?? '',
-      active: config.active ?? false,
       effectiveFrom: config.effectiveFrom ? config.effectiveFrom.slice(0, 16) : '',
       effectiveTo: config.effectiveTo ? config.effectiveTo.slice(0, 16) : ''
     });
@@ -217,7 +215,7 @@ export default function CommissionManagement() {
   };
 
   const handleConfigChange = (field) => (e) => {
-    const value = field === 'active' ? e.target.checked : e.target.value;
+    const value = e.target.value;
     setConfigForm({ ...configForm, [field]: value });
   };
 
@@ -236,7 +234,6 @@ export default function CommissionManagement() {
         minCommission: configForm.minCommission ? parseFloat(configForm.minCommission) : null,
         maxCommission: configForm.maxCommission ? parseFloat(configForm.maxCommission) : null,
         description: configForm.description,
-        active: configForm.active,
         effectiveFrom: configForm.effectiveFrom ? new Date(configForm.effectiveFrom).toISOString() : null,
         effectiveTo: configForm.effectiveTo ? new Date(configForm.effectiveTo).toISOString() : null
       });
@@ -822,7 +819,6 @@ export default function CommissionManagement() {
                         <th>Service Type</th>
                         <th>Commission Rate</th>
                         <th>Min / Max</th>
-                        <th>Status</th>
                         <th>Effective Period</th>
                         <th>Description</th>
                         <th className="text-end">Actions</th>
@@ -831,7 +827,7 @@ export default function CommissionManagement() {
                     <tbody>
                       {configs.length === 0 ? (
                         <tr>
-                          <td colSpan="7" className="text-center py-4 text-muted">No commission configurations found</td>
+                          <td colSpan="6" className="text-center py-4 text-muted">No commission configurations found</td>
                         </tr>
                       ) : configs.map((config) => (
                         <tr key={config.configId || config.serviceType}>
@@ -846,13 +842,6 @@ export default function CommissionManagement() {
                               Min: {formatAmount(config.minCommission)}<br />
                               Max: {config.maxCommission ? formatAmount(config.maxCommission) : 'No limit'}
                             </small>
-                          </td>
-                          <td>
-                            {config.active ? (
-                              <span className="badge bg-success">Active</span>
-                            ) : (
-                              <span className="badge bg-secondary">Inactive</span>
-                            )}
                           </td>
                           <td>
                             <small>
@@ -1050,21 +1039,6 @@ export default function CommissionManagement() {
                             />
                           </div>
                           <small className="text-muted">Platform fee percentage</small>
-                        </div>
-                        <div className="col-md-6">
-                          <label className="form-label">Status</label>
-                          <div className="form-check form-switch mt-2">
-                            <input
-                              className="form-check-input"
-                              type="checkbox"
-                              checked={configForm.active}
-                              onChange={handleConfigChange('active')}
-                              id="configActiveSwitch"
-                            />
-                            <label className="form-check-label" htmlFor="configActiveSwitch">
-                              {configForm.active ? 'Active' : 'Inactive'}
-                            </label>
-                          </div>
                         </div>
                         <div className="col-md-6">
                           <label className="form-label">Min Commission ($)</label>
