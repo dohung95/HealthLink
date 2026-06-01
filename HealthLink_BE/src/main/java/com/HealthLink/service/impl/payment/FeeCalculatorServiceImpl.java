@@ -141,16 +141,33 @@ public class FeeCalculatorServiceImpl implements FeeCalculatorService {
 
     /**
      * Xác định tỷ lệ cho bác sĩ theo thứ tự ưu tiên:
-     * 1. customCommissionRate của Doctor (nếu có)
+     * 1. customCommissionRateOnline/Offline của Doctor (nếu có và còn hiệu lực)
      * 2. CommissionConfigs trong DB
      * 3. Giá trị mặc định cứng
      */
     private BigDecimal resolveConsultationRate(Doctor doctor, String serviceType, boolean isOnline) {
-        // Ưu tiên 1: tỷ lệ riêng của bác sĩ
-        if (doctor != null && doctor.getCustomCommissionRate() != null
-                && doctor.getCustomCommissionRate().compareTo(BigDecimal.ZERO) > 0) {
-            log.debug("Using custom commission rate {} for doctor {}", doctor.getCustomCommissionRate(), doctor.getDoctorId());
-            return doctor.getCustomCommissionRate();
+        if (doctor != null) {
+            if (isOnline) {
+                // Ưu tiên 1: tỷ lệ riêng cho Online
+                if (doctor.getCustomCommissionRateOnline() != null
+                        && doctor.getCustomCommissionRateOnline().compareTo(BigDecimal.ZERO) > 0
+                        && isCustomRateValid(doctor.getCustomCommissionRateOnlineEffectiveFrom(),
+                                             doctor.getCustomCommissionRateOnlineEffectiveTo())) {
+                    log.debug("Using custom ONLINE commission rate {} for doctor {}",
+                            doctor.getCustomCommissionRateOnline(), doctor.getDoctorId());
+                    return doctor.getCustomCommissionRateOnline();
+                }
+            } else {
+                // Ưu tiên 1: tỷ lệ riêng cho Offline
+                if (doctor.getCustomCommissionRateOffline() != null
+                        && doctor.getCustomCommissionRateOffline().compareTo(BigDecimal.ZERO) > 0
+                        && isCustomRateValid(doctor.getCustomCommissionRateOfflineEffectiveFrom(),
+                                             doctor.getCustomCommissionRateOfflineEffectiveTo())) {
+                    log.debug("Using custom OFFLINE commission rate {} for doctor {}",
+                            doctor.getCustomCommissionRateOffline(), doctor.getDoctorId());
+                    return doctor.getCustomCommissionRateOffline();
+                }
+            }
         }
 
         // Ưu tiên 2: tra cứu DB
@@ -167,15 +184,17 @@ public class FeeCalculatorServiceImpl implements FeeCalculatorService {
 
     /**
      * Xác định tỷ lệ cho nhà thuốc theo thứ tự ưu tiên:
-     * 1. customCommissionRate của Pharmacy (nếu có)
+     * 1. customCommissionRate của Pharmacy (nếu có và còn hiệu lực)
      * 2. CommissionConfigs trong DB
      * 3. Giá trị mặc định 10%
      */
     private BigDecimal resolvePharmacyRate(PharmacyOrder pharmacyOrder) {
-        // Ưu tiên 1: tỷ lệ riêng của nhà thuốc
+        // Ưu tiên 1: tỷ lệ riêng của nhà thuốc (kiểm tra thời hạn)
         if (pharmacyOrder.getPharmacy() != null
                 && pharmacyOrder.getPharmacy().getCustomCommissionRate() != null
-                && pharmacyOrder.getPharmacy().getCustomCommissionRate().compareTo(BigDecimal.ZERO) > 0) {
+                && pharmacyOrder.getPharmacy().getCustomCommissionRate().compareTo(BigDecimal.ZERO) > 0
+                && isCustomRateValid(pharmacyOrder.getPharmacy().getCustomCommissionRateEffectiveFrom(),
+                                     pharmacyOrder.getPharmacy().getCustomCommissionRateEffectiveTo())) {
             log.debug("Using custom commission rate {} for pharmacy {}",
                     pharmacyOrder.getPharmacy().getCustomCommissionRate(),
                     pharmacyOrder.getPharmacy().getPharmacyId());
@@ -191,5 +210,22 @@ public class FeeCalculatorServiceImpl implements FeeCalculatorService {
                             DEFAULT_PHARMACY_RATE);
                     return DEFAULT_PHARMACY_RATE;
                 });
+    }
+
+    /**
+     * Kiểm tra xem custom rate có còn hiệu lực không
+     * @param effectiveFrom thời điểm bắt đầu (null = ngay lập tức)
+     * @param effectiveTo thời điểm kết thúc (null = vĩnh viễn)
+     * @return true nếu còn hiệu lực
+     */
+    private boolean isCustomRateValid(java.time.LocalDateTime effectiveFrom, java.time.LocalDateTime effectiveTo) {
+        java.time.LocalDateTime now = java.time.LocalDateTime.now();
+        if (effectiveFrom != null && now.isBefore(effectiveFrom)) {
+            return false; // Chưa đến thời điểm bắt đầu
+        }
+        if (effectiveTo != null && now.isAfter(effectiveTo)) {
+            return false; // Đã hết hạn
+        }
+        return true;
     }
 }

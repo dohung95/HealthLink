@@ -338,65 +338,69 @@ export default function ReviewManagement() {
           </div>
         </div>
 
-        {/* Filters */}
-        <div className="card mb-4">
-          <div className="card-body">
-            <div className="row g-3">
-              <div className="col-md-4">
-                <div className="input-group">
-                  <span className="input-group-text">
-                    <i className="bi bi-search"></i>
-                  </span>
-                  <input
-                    type="text"
-                    className="form-control"
-                    placeholder="Search by patient, doctor, or comment..."
-                    value={filters.searchTerm}
-                    onChange={handleSearch}
-                  />
-                </div>
-              </div>
-              <div className="col-md-2">
-                <select className="form-select" value={filters.rating} onChange={handleRatingFilter}>
-                  <option value="">All Ratings</option>
-                  <option value="5">5 Stars</option>
-                  <option value="4">4 Stars</option>
-                  <option value="3">3 Stars</option>
-                  <option value="2">2 Stars</option>
-                  <option value="1">1 Star</option>
-                </select>
-              </div>
-              <div className="col-md-2">
-                <select className="form-select" value={filters.visible} onChange={handleVisibilityFilter}>
-                  <option value="">All Status</option>
-                  <option value="true">Visible</option>
-                  <option value="false">Hidden</option>
-                </select>
-              </div>
-              <div className="col-md-2">
-                <select className="form-select" value={filters.sortBy} onChange={handleSort}>
-                  <option value="newest">Newest First</option>
-                  <option value="oldest">Oldest First</option>
-                  <option value="rating-high">Highest Rating</option>
-                  <option value="rating-low">Lowest Rating</option>
-                </select>
-              </div>
-              <div className="col-md-2">
-                <div className="btn-group w-100">
-                  <button
-                    className={`btn ${viewMode === 'grid' ? 'btn-primary' : 'btn-outline-primary'}`}
-                    onClick={() => setViewMode('grid')}
-                  >
-                    <i className="bi bi-grid"></i>
-                  </button>
-                  <button
-                    className={`btn ${viewMode === 'table' ? 'btn-primary' : 'btn-outline-primary'}`}
-                    onClick={() => setViewMode('table')}
-                  >
-                    <i className="bi bi-list"></i>
-                  </button>
-                </div>
-              </div>
+        {/* Compact Filter Bar */}
+        <div className="admin-filter-bar">
+          <div className="filter-search">
+            <i className="bi bi-search"></i>
+            <input
+              type="text"
+              className="form-control"
+              placeholder="Search reviews..."
+              value={filters.searchTerm}
+              onChange={handleSearch}
+            />
+          </div>
+          <div className="filter-select">
+            <select className="form-select" value={filters.rating} onChange={handleRatingFilter}>
+              <option value="">All Ratings</option>
+              <option value="5">5 Stars</option>
+              <option value="4">4 Stars</option>
+              <option value="3">3 Stars</option>
+              <option value="2">2 Stars</option>
+              <option value="1">1 Star</option>
+            </select>
+          </div>
+          <div className="filter-select">
+            <select className="form-select" value={filters.visible} onChange={handleVisibilityFilter}>
+              <option value="">All Status</option>
+              <option value="true">Visible</option>
+              <option value="false">Hidden</option>
+            </select>
+          </div>
+          <div className="filter-select">
+            <select className="form-select" value={filters.sortBy} onChange={handleSort}>
+              <option value="newest">Newest</option>
+              <option value="oldest">Oldest</option>
+              <option value="rating-high">Highest</option>
+              <option value="rating-low">Lowest</option>
+            </select>
+          </div>
+          <div className="filter-actions">
+            {(filters.searchTerm || filters.rating || filters.visible) && (
+              <button
+                className="btn btn-outline-secondary btn-clear-filter"
+                onClick={() => {
+                  setFilters({ searchTerm: '', rating: '', visible: '', sortBy: 'newest' });
+                  setPagination({ ...pagination, page: 0 });
+                }}
+              >
+                <i className="bi bi-x-circle"></i>
+                Clear
+              </button>
+            )}
+            <div className="view-toggle-group">
+              <button
+                className={`btn ${viewMode === 'grid' ? 'active' : ''}`}
+                onClick={() => setViewMode('grid')}
+              >
+                <i className="bi bi-grid-3x3-gap"></i>
+              </button>
+              <button
+                className={`btn ${viewMode === 'table' ? 'active' : ''}`}
+                onClick={() => setViewMode('table')}
+              >
+                <i className="bi bi-list"></i>
+              </button>
             </div>
           </div>
         </div>
