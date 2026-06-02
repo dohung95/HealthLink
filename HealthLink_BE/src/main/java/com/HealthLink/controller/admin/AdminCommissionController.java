@@ -12,6 +12,7 @@ import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
 import java.time.format.DateTimeParseException;
 import java.util.List;
+import java.util.Map;
 import com.HealthLink.service.admin.AdminCommissionService;
 
 @CrossOrigin(origins = "http://localhost:63527")
@@ -138,6 +139,42 @@ public class AdminCommissionController {
             @RequestParam(defaultValue = "PENDING") String status) {
         return ResponseEntity.ok(
             commissionService.getPendingTransactionsByRecipient(type.toUpperCase(), id));
+    }
+
+    // ========================================================================
+    // Partner Commission Management Endpoints
+    // ========================================================================
+
+    @GetMapping("/partners")
+    public ResponseEntity<Page<AdminPartnerCommissionDto>> getPartnerCommissions(
+            @RequestParam(defaultValue = "DOCTOR") String type,
+            @RequestParam(required = false) String searchTerm,
+            @RequestParam(defaultValue = "0") int page,
+            @RequestParam(defaultValue = "10") int size) {
+        return ResponseEntity.ok(commissionService.getPartnerCommissions(type, searchTerm, page, size));
+    }
+
+    @GetMapping("/partners/{type}/{id}")
+    public ResponseEntity<AdminPartnerCommissionDto> getPartnerCommission(
+            @PathVariable String type,
+            @PathVariable String id) {
+        return ResponseEntity.ok(commissionService.getPartnerCommission(type, id));
+    }
+
+    @PutMapping("/partners/{type}/{id}")
+    public ResponseEntity<AdminPartnerCommissionDto> updatePartnerCommission(
+            @PathVariable String type,
+            @PathVariable String id,
+            @RequestBody AdminPartnerCommissionUpdateDto dto) {
+        return ResponseEntity.ok(commissionService.updatePartnerCommission(type, id, dto));
+    }
+
+    @DeleteMapping("/partners/{type}/{id}/custom-rate")
+    public ResponseEntity<Map<String, String>> removePartnerCustomCommission(
+            @PathVariable String type,
+            @PathVariable String id) {
+        commissionService.removePartnerCustomCommission(type, id);
+        return ResponseEntity.ok(Map.of("message", "Custom commission rate removed successfully"));
     }
 
     private LocalDateTime parseDateTime(String input) {

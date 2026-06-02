@@ -597,75 +597,67 @@ export default function Appointments() {
           </div>
         )}
 
-        {/* Filter and Search */}
-        <div className="admin-card mb-4">
-          <div className="card-body">
-            <div className="d-flex justify-content-between align-items-center mb-3">
-              <div className="d-flex align-items-center" style={{ padding: "5px 10px" }}>
-                <i className="bi bi-funnel me-2" style={{ color: 'var(--admin-text-light)' }}></i>
-                <h6 className="mb-0" style={{ color: 'var(--admin-text-light)', fontSize: '13px', fontWeight: 600 }}>SEARCH & FILTERS</h6>
-              </div>
-              <div style={{ padding: "15px 5px 0 5px" }}>
-                <button
-                  className="btn btn-outline-secondary btn-sm"
-                  onClick={() => {
-                    setFilters({ searchTerm: '', date: '', status: '', department: '' });
-                    setPagination({ ...pagination, pageNumber: 1 });
-                  }}
-                  style={{ fontSize: '12px' }}
-                >
-                  <i className="bi bi-x-circle me-1"></i>
-                  Clear Filters
-                </button>
-              </div>
-            </div>
-            <div className="row g-3">
-              <div className="col-md-4" style={{ padding: "0 0 10px 20px" }}>
-                <input
-                  type="text"
-                  className="form-control"
-                  placeholder="Search by patient, doctor, ID..."
-                  value={filters.searchTerm}
-                  onChange={handleSearch}
-                />
-              </div>
-              <div className="col-md-2">
-                <input
-                  type="date"
-                  className="form-control"
-                  value={filters.date}
-                  onChange={handleDateFilter}
-                />
-              </div>
-              <div className="col-md-3">
-                <select
-                  className="form-select"
-                  value={filters.status}
-                  onChange={handleStatusFilter}
-                >
-                  <option value="">All Status</option>
-                  <option value="Pending">Pending</option>
-                  <option value="Scheduled">Scheduled</option>
-                  <option value="In Progress">In Progress</option>
-                  <option value="Completed">Completed</option>
-                  <option value="Cancelled">Cancelled</option>
-                </select>
-              </div>
-              <div className="col-md-3" style={{ padding: "0 20px 0 0" }}>
-                <select
-                  className="form-select"
-                  value={filters.department}
-                  onChange={handleDepartmentFilter}
-                >
-                  <option value="">All Departments</option>
-                  {departments.map((dept, index) => (
-                    <option key={index} value={dept}>
-                      {dept}
-                    </option>
-                  ))}
-                </select>
-              </div>
-            </div>
+        {/* Compact Filter Bar */}
+        <div className="admin-filter-bar">
+          <div className="filter-search">
+            <i className="bi bi-search"></i>
+            <input
+              type="text"
+              className="form-control"
+              placeholder="Search appointments..."
+              value={filters.searchTerm}
+              onChange={handleSearch}
+            />
+          </div>
+          <div className="filter-date">
+            <input
+              type="date"
+              className="form-control"
+              value={filters.date}
+              onChange={handleDateFilter}
+            />
+          </div>
+          <div className="filter-select">
+            <select
+              className="form-select"
+              value={filters.status}
+              onChange={handleStatusFilter}
+            >
+              <option value="">All Status</option>
+              <option value="Pending">Pending</option>
+              <option value="Scheduled">Scheduled</option>
+              <option value="In Progress">In Progress</option>
+              <option value="Completed">Completed</option>
+              <option value="Cancelled">Cancelled</option>
+            </select>
+          </div>
+          <div className="filter-select">
+            <select
+              className="form-select"
+              value={filters.department}
+              onChange={handleDepartmentFilter}
+            >
+              <option value="">All Depts</option>
+              {departments.map((dept, index) => (
+                <option key={index} value={dept}>
+                  {dept}
+                </option>
+              ))}
+            </select>
+          </div>
+          <div className="filter-actions">
+            {(filters.searchTerm || filters.date || filters.status || filters.department) && (
+              <button
+                className="btn btn-outline-secondary btn-clear-filter"
+                onClick={() => {
+                  setFilters({ searchTerm: '', date: '', status: '', department: '' });
+                  setPagination({ ...pagination, pageNumber: 1 });
+                }}
+              >
+                <i className="bi bi-x-circle"></i>
+                Clear
+              </button>
+            )}
           </div>
         </div>
 

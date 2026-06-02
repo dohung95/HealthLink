@@ -32,4 +32,10 @@ public interface AdminCommissionService {
     List<AdminRecipientSummaryDto> getRecipientSummaries(String type, int limit);
 
     BigDecimal getCommissionRate(String serviceType, String recipientId, String recipientType);
+
+    // Partner commission management
+    Page<AdminPartnerCommissionDto> getPartnerCommissions(String partnerType, String searchTerm, int page, int size);
+    AdminPartnerCommissionDto getPartnerCommission(String partnerType, String partnerId);
+    AdminPartnerCommissionDto updatePartnerCommission(String partnerType, String partnerId, AdminPartnerCommissionUpdateDto dto);
+    void removePartnerCustomCommission(String partnerType, String partnerId);
 }

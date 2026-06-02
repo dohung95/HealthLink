@@ -88,4 +88,10 @@ public interface DoctorRepository extends JpaRepository<Doctor, String> {
      * Used for compliance checking.
      */
     List<Doctor> findByUser_Status(String status);
+
+    /**
+     * Find doctors by name (case-insensitive search)
+     * Used for commission management
+     */
+    Page<Doctor> findByFullNameContainingIgnoreCase(String fullName, Pageable pageable);
 }

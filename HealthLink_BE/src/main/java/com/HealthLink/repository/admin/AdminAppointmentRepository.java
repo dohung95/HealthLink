@@ -6,7 +6,9 @@ import org.springframework.data.jpa.repository.JpaSpecificationExecutor;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 
+import java.math.BigDecimal;
 import java.time.LocalDateTime;
+import java.util.List;
 
 public interface AdminAppointmentRepository extends JpaRepository<Appointment, Integer>, JpaSpecificationExecutor<Appointment> {
 
@@ -21,4 +23,24 @@ public interface AdminAppointmentRepository extends JpaRepository<Appointment, I
 
     @Query("SELECT COUNT(a) FROM Appointment a WHERE a.status = 'CANCELLED'")
     long countCancelledAppointments();
+
+    // ========== Doctor Appointment Statistics ==========
+
+    // Count by doctor, status category, and online/offline
+    @Query("SELECT COUNT(a) FROM Appointment a WHERE a.doctor.doctorId = :doctorId " +
+           "AND a.status IN :statuses " +
+           "AND UPPER(a.consultationType) IN :consultationTypes")
+    Integer countByDoctorAndStatusAndType(
+        @Param("doctorId") String doctorId,
+        @Param("statuses") List<String> statuses,
+        @Param("consultationTypes") List<String> consultationTypes);
+
+    // Sum fee by doctor, status category, and online/offline
+    @Query("SELECT COALESCE(SUM(a.fee), 0) FROM Appointment a WHERE a.doctor.doctorId = :doctorId " +
+           "AND a.status IN :statuses " +
+           "AND UPPER(a.consultationType) IN :consultationTypes")
+    BigDecimal sumFeeByDoctorAndStatusAndType(
+        @Param("doctorId") String doctorId,
+        @Param("statuses") List<String> statuses,
+        @Param("consultationTypes") List<String> consultationTypes);
 }

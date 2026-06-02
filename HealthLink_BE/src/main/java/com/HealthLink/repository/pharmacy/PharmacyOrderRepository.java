@@ -6,6 +6,7 @@ import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 import org.springframework.stereotype.Repository;
 
+import java.math.BigDecimal;
 import java.util.List;
 
 @Repository
@@ -43,4 +44,20 @@ public interface PharmacyOrderRepository extends JpaRepository<PharmacyOrder, In
     boolean existsByPrescriptionHeader_PrescriptionHeaderId(Integer prescriptionHeaderId);
 
     boolean existsByConsultationRequest_RequestId(Integer requestId);
+
+    // ========== Pharmacy Order Statistics ==========
+
+    // Count by pharmacy and status list
+    @Query("SELECT COUNT(o) FROM PharmacyOrder o WHERE o.pharmacy.pharmacyId = :pharmacyId " +
+           "AND UPPER(o.status) IN :statuses")
+    Integer countByPharmacyAndStatuses(
+        @Param("pharmacyId") String pharmacyId,
+        @Param("statuses") List<String> statuses);
+
+    // Sum total amount by pharmacy and status list
+    @Query("SELECT COALESCE(SUM(o.totalAmount), 0) FROM PharmacyOrder o WHERE o.pharmacy.pharmacyId = :pharmacyId " +
+           "AND UPPER(o.status) IN :statuses")
+    BigDecimal sumTotalAmountByPharmacyAndStatuses(
+        @Param("pharmacyId") String pharmacyId,
+        @Param("statuses") List<String> statuses);
 }

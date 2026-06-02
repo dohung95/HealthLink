@@ -26,4 +26,11 @@ public class AdminCommissionTransactionDto {
     private Integer settlementId;
     private String settlementNumber;
     private LocalDateTime createdAt;
+
+    // Patient info (from Appointment or PharmacyOrder)
+    private String patientId;
+    private String patientName;
+
+    // Appointment status (for display)
+    private String appointmentStatus;
 }
