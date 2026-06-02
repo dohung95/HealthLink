@@ -414,6 +414,14 @@ public class FinanceServiceImpl implements FinanceService {
                     .build();
             paymentRepository.save(payment);
 
+            // Xử lý commission cho bác sĩ (tính theo tỷ lệ Online/Offline tương ứng)
+            try {
+                commissionService.processConsultationCommission(invoice);
+            } catch (Exception ex) {
+                log.error("Commission processing failed for appointment {}: {}",
+                        appointment.getAppointmentId(), ex.getMessage(), ex);
+            }
+
             log.info("Appointment {} created after PayPal payment order {}",
                     appointment.getAppointmentId(), request.getOrderId());
 

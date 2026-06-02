@@ -43,6 +43,31 @@ public class AdminPartnerCommissionDto {
     private BigDecimal totalCommissionPaid; // Total commission paid to platform
     private BigDecimal totalGrossRevenue; // Total gross revenue before commission
 
+    // Appointment breakdown by status and type (for Doctors)
+    // Online consultations
+    private BigDecimal onlinePendingAmount;
+    private Integer onlinePendingCount;
+    private BigDecimal onlineCompletedAmount;
+    private Integer onlineCompletedCount;
+    private BigDecimal onlineCancelledAmount;
+    private Integer onlineCancelledCount;
+
+    // Offline consultations
+    private BigDecimal offlinePendingAmount;
+    private Integer offlinePendingCount;
+    private BigDecimal offlineCompletedAmount;
+    private Integer offlineCompletedCount;
+    private BigDecimal offlineCancelledAmount;
+    private Integer offlineCancelledCount;
+
+    // Pharmacy order breakdown (for Pharmacy)
+    private BigDecimal pharmacyPendingAmount;
+    private Integer pharmacyPendingCount;
+    private BigDecimal pharmacyCompletedAmount;
+    private Integer pharmacyCompletedCount;
+    private BigDecimal pharmacyCancelledAmount;
+    private Integer pharmacyCancelledCount;
+
     // Status
     private boolean verified;
     private boolean active;

@@ -2,8 +2,11 @@ package com.HealthLink.service.impl.admin;
 
 import com.HealthLink.dto.commission.admin.*;
 import com.HealthLink.entity.*;
+import com.HealthLink.repository.admin.AdminAppointmentRepository;
 import com.HealthLink.repository.admin.commission.AdminSettlementRepository;
+import com.HealthLink.repository.appointment.AppointmentRepository;
 import com.HealthLink.repository.doctor.DoctorRepository;
+import com.HealthLink.repository.pharmacy.PharmacyOrderRepository;
 import com.HealthLink.repository.pharmacy.PharmacyRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.*;
@@ -15,6 +18,7 @@ import java.math.RoundingMode;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
+import java.util.Arrays;
 import java.util.List;
 import java.util.Locale;
 import com.HealthLink.repository.admin.commission.AdminCommissionConfigRepository;
@@ -31,6 +35,23 @@ public class AdminCommissionServiceImpl implements AdminCommissionService {
     private final AdminSettlementRepository settlementRepo;
     private final DoctorRepository doctorRepo;
     private final PharmacyRepository pharmacyRepo;
+    private final AdminAppointmentRepository adminAppointmentRepo;
+    private final AppointmentRepository appointmentRepo;
+    private final PharmacyOrderRepository pharmacyOrderRepo;
+
+    // Status categories
+    private static final List<String> PENDING_STATUSES = Arrays.asList("SCHEDULED", "IN_CONSULTATION", "CONFIRMED");
+    private static final List<String> COMPLETED_STATUSES = Arrays.asList("COMPLETED");
+    private static final List<String> CANCELLED_STATUSES = Arrays.asList("CANCELLED", "NO_SHOW", "REFUNDED");
+
+    // Consultation types
+    private static final List<String> ONLINE_TYPES = Arrays.asList("VIDEO", "AUDIO", "CHAT", "ONLINE");
+    private static final List<String> OFFLINE_TYPES = Arrays.asList("OFFLINE", "IN_PERSON", "CLINIC");
+
+    // Pharmacy order statuses
+    private static final List<String> PHARMACY_PENDING_STATUSES = Arrays.asList("PENDING", "CONFIRMED", "PREPARING", "READY", "SHIPPING");
+    private static final List<String> PHARMACY_COMPLETED_STATUSES = Arrays.asList("DELIVERED", "COMPLETED");
+    private static final List<String> PHARMACY_CANCELLED_STATUSES = Arrays.asList("CANCELLED", "REFUNDED", "RETURNED");
 
     @Override
     public List<AdminCommissionConfigDto> getAllConfigs() {
@@ -534,6 +555,24 @@ public class AdminCommissionServiceImpl implements AdminCommissionService {
         BigDecimal totalCommissionPaid = transactionRepo.getTotalCommissionByRecipient("DOCTOR", doctor.getDoctorId());
         BigDecimal totalGrossRevenue = transactionRepo.getTotalGrossByRecipient("DOCTOR", doctor.getDoctorId());
 
+        String doctorId = doctor.getDoctorId();
+
+        // Online appointment statistics
+        Integer onlinePendingCount = adminAppointmentRepo.countByDoctorAndStatusAndType(doctorId, PENDING_STATUSES, ONLINE_TYPES);
+        BigDecimal onlinePendingAmount = adminAppointmentRepo.sumFeeByDoctorAndStatusAndType(doctorId, PENDING_STATUSES, ONLINE_TYPES);
+        Integer onlineCompletedCount = adminAppointmentRepo.countByDoctorAndStatusAndType(doctorId, COMPLETED_STATUSES, ONLINE_TYPES);
+        BigDecimal onlineCompletedAmount = adminAppointmentRepo.sumFeeByDoctorAndStatusAndType(doctorId, COMPLETED_STATUSES, ONLINE_TYPES);
+        Integer onlineCancelledCount = adminAppointmentRepo.countByDoctorAndStatusAndType(doctorId, CANCELLED_STATUSES, ONLINE_TYPES);
+        BigDecimal onlineCancelledAmount = adminAppointmentRepo.sumFeeByDoctorAndStatusAndType(doctorId, CANCELLED_STATUSES, ONLINE_TYPES);
+
+        // Offline appointment statistics
+        Integer offlinePendingCount = adminAppointmentRepo.countByDoctorAndStatusAndType(doctorId, PENDING_STATUSES, OFFLINE_TYPES);
+        BigDecimal offlinePendingAmount = adminAppointmentRepo.sumFeeByDoctorAndStatusAndType(doctorId, PENDING_STATUSES, OFFLINE_TYPES);
+        Integer offlineCompletedCount = adminAppointmentRepo.countByDoctorAndStatusAndType(doctorId, COMPLETED_STATUSES, OFFLINE_TYPES);
+        BigDecimal offlineCompletedAmount = adminAppointmentRepo.sumFeeByDoctorAndStatusAndType(doctorId, COMPLETED_STATUSES, OFFLINE_TYPES);
+        Integer offlineCancelledCount = adminAppointmentRepo.countByDoctorAndStatusAndType(doctorId, CANCELLED_STATUSES, OFFLINE_TYPES);
+        BigDecimal offlineCancelledAmount = adminAppointmentRepo.sumFeeByDoctorAndStatusAndType(doctorId, CANCELLED_STATUSES, OFFLINE_TYPES);
+
         return AdminPartnerCommissionDto.builder()
             .partnerId(doctor.getDoctorId())
             .partnerName(doctor.getFullName())
@@ -558,6 +597,21 @@ public class AdminCommissionServiceImpl implements AdminCommissionService {
             .pendingSettlement(doctor.getPendingSettlement() != null ? doctor.getPendingSettlement() : BigDecimal.ZERO)
             .totalCommissionPaid(totalCommissionPaid != null ? totalCommissionPaid : BigDecimal.ZERO)
             .totalGrossRevenue(totalGrossRevenue != null ? totalGrossRevenue : BigDecimal.ZERO)
+            // Online appointment breakdown
+            .onlinePendingAmount(onlinePendingAmount)
+            .onlinePendingCount(onlinePendingCount != null ? onlinePendingCount : 0)
+            .onlineCompletedAmount(onlineCompletedAmount)
+            .onlineCompletedCount(onlineCompletedCount != null ? onlineCompletedCount : 0)
+            .onlineCancelledAmount(onlineCancelledAmount)
+            .onlineCancelledCount(onlineCancelledCount != null ? onlineCancelledCount : 0)
+            // Offline appointment breakdown
+            .offlinePendingAmount(offlinePendingAmount)
+            .offlinePendingCount(offlinePendingCount != null ? offlinePendingCount : 0)
+            .offlineCompletedAmount(offlineCompletedAmount)
+            .offlineCompletedCount(offlineCompletedCount != null ? offlineCompletedCount : 0)
+            .offlineCancelledAmount(offlineCancelledAmount)
+            .offlineCancelledCount(offlineCancelledCount != null ? offlineCancelledCount : 0)
+            // Status
             .verified(doctor.isVerified())
             .active(doctor.getUser() != null && "Active".equalsIgnoreCase(doctor.getUser().getStatus()))
             .commissionTier(doctor.getCommissionTier())
@@ -585,6 +639,16 @@ public class AdminCommissionServiceImpl implements AdminCommissionService {
         BigDecimal totalCommissionPaid = transactionRepo.getTotalCommissionByRecipient("PHARMACY", pharmacy.getPharmacyId());
         BigDecimal totalGrossRevenue = transactionRepo.getTotalGrossByRecipient("PHARMACY", pharmacy.getPharmacyId());
 
+        String pharmacyId = pharmacy.getPharmacyId();
+
+        // Pharmacy order statistics
+        Integer pharmacyPendingCount = pharmacyOrderRepo.countByPharmacyAndStatuses(pharmacyId, PHARMACY_PENDING_STATUSES);
+        BigDecimal pharmacyPendingAmount = pharmacyOrderRepo.sumTotalAmountByPharmacyAndStatuses(pharmacyId, PHARMACY_PENDING_STATUSES);
+        Integer pharmacyCompletedCount = pharmacyOrderRepo.countByPharmacyAndStatuses(pharmacyId, PHARMACY_COMPLETED_STATUSES);
+        BigDecimal pharmacyCompletedAmount = pharmacyOrderRepo.sumTotalAmountByPharmacyAndStatuses(pharmacyId, PHARMACY_COMPLETED_STATUSES);
+        Integer pharmacyCancelledCount = pharmacyOrderRepo.countByPharmacyAndStatuses(pharmacyId, PHARMACY_CANCELLED_STATUSES);
+        BigDecimal pharmacyCancelledAmount = pharmacyOrderRepo.sumTotalAmountByPharmacyAndStatuses(pharmacyId, PHARMACY_CANCELLED_STATUSES);
+
         return AdminPartnerCommissionDto.builder()
             .partnerId(pharmacy.getPharmacyId())
             .partnerName(pharmacy.getName())
@@ -601,6 +665,14 @@ public class AdminCommissionServiceImpl implements AdminCommissionService {
             .pendingSettlement(pharmacy.getPendingSettlement() != null ? pharmacy.getPendingSettlement() : BigDecimal.ZERO)
             .totalCommissionPaid(totalCommissionPaid != null ? totalCommissionPaid : BigDecimal.ZERO)
             .totalGrossRevenue(totalGrossRevenue != null ? totalGrossRevenue : BigDecimal.ZERO)
+            // Pharmacy order breakdown
+            .pharmacyPendingAmount(pharmacyPendingAmount)
+            .pharmacyPendingCount(pharmacyPendingCount != null ? pharmacyPendingCount : 0)
+            .pharmacyCompletedAmount(pharmacyCompletedAmount)
+            .pharmacyCompletedCount(pharmacyCompletedCount != null ? pharmacyCompletedCount : 0)
+            .pharmacyCancelledAmount(pharmacyCancelledAmount)
+            .pharmacyCancelledCount(pharmacyCancelledCount != null ? pharmacyCancelledCount : 0)
+            // Status
             .verified(pharmacy.isVerified())
             .active(pharmacy.isActive())
             .commissionTier(pharmacy.getCommissionTier())
@@ -713,6 +785,36 @@ public class AdminCommissionServiceImpl implements AdminCommissionService {
     }
 
     private AdminCommissionTransactionDto toTransactionDto(CommissionTransaction tx) {
+        String patientId = null;
+        String patientName = null;
+        String appointmentStatus = null;
+
+        // Get patient info from Appointment or PharmacyOrder
+        if ("APPOINTMENT".equals(tx.getSourceType()) && tx.getAppointmentId() != null) {
+            appointmentRepo.findById(tx.getAppointmentId()).ifPresent(appointment -> {
+                // Can't assign to local variables in lambda, so we use a different approach
+            });
+            var appointmentOpt = appointmentRepo.findById(tx.getAppointmentId());
+            if (appointmentOpt.isPresent()) {
+                Appointment appointment = appointmentOpt.get();
+                if (appointment.getPatient() != null) {
+                    patientId = appointment.getPatient().getPatientId();
+                    patientName = appointment.getPatient().getFullName();
+                }
+                appointmentStatus = appointment.getStatus();
+            }
+        } else if ("PHARMACY_ORDER".equals(tx.getSourceType()) && tx.getPharmacyOrderId() != null) {
+            var orderOpt = pharmacyOrderRepo.findById(tx.getPharmacyOrderId());
+            if (orderOpt.isPresent()) {
+                PharmacyOrder order = orderOpt.get();
+                if (order.getPatient() != null) {
+                    patientId = order.getPatient().getPatientId();
+                    patientName = order.getPatient().getFullName();
+                }
+                appointmentStatus = order.getStatus();
+            }
+        }
+
         return AdminCommissionTransactionDto.builder()
             .transactionId(tx.getTransactionId())
             .transactionNumber(tx.getTransactionNumber())
@@ -730,6 +832,9 @@ public class AdminCommissionServiceImpl implements AdminCommissionService {
             .settlementId(tx.getSettlement() != null ? tx.getSettlement().getSettlementId() : null)
             .settlementNumber(tx.getSettlement() != null ? tx.getSettlement().getSettlementNumber() : null)
             .createdAt(tx.getCreatedAt())
+            .patientId(patientId)
+            .patientName(patientName)
+            .appointmentStatus(appointmentStatus)
             .build();
     }
 

@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useCallback } from "react";
 import NavbarAdmin from "./NavbarAdmin";
-import { commissionApi } from "../../../api/adminApi";
+import { commissionApi, financialApi } from "../../../api/adminApi";
 import Toast from "./Toast";
 import useToast from "../useToast";
 import "bootstrap/dist/css/bootstrap.min.css";
@@ -12,17 +12,6 @@ const SERVICE_TYPE_LABELS = {
   'CONSULTATION_ONLINE': 'Online Consultation',
   'CONSULTATION_OFFLINE': 'Offline Consultation',
   'PHARMACY_ORDER': 'Pharmacy Order'
-};
-
-// Status badge colors
-const STATUS_COLORS = {
-  'PENDING': 'warning',
-  'SETTLED': 'success',
-  'COMPLETED': 'success',
-  'PROCESSING': 'info',
-  'FAILED': 'danger',
-  'REFUNDED': 'secondary',
-  'CANCELLED': 'secondary'
 };
 
 export default function CommissionManagement() {
@@ -59,6 +48,7 @@ export default function CommissionManagement() {
     totalCount: 0,
     totalPages: 0
   });
+  const [expandedPartnerId, setExpandedPartnerId] = useState(null);
   const [selectedPartner, setSelectedPartner] = useState(null);
   const [showPartnerModal, setShowPartnerModal] = useState(false);
   const [partnerForm, setPartnerForm] = useState({
@@ -79,19 +69,17 @@ export default function CommissionManagement() {
 
   // Transactions data
   const [transactions, setTransactions] = useState([]);
-  const [transactionPagination, setTransactionPagination] = useState({
+  const [transactionFilters, setTransactionFilters] = useState({
     pageNumber: 1,
     pageSize: 10,
+    status: "",
+    fromDate: "",
+    toDate: "",
+    searchTerm: ""
+  });
+  const [transactionPagination, setTransactionPagination] = useState({
     totalCount: 0,
     totalPages: 0
-  });
-  const [filters, setFilters] = useState({
-    searchTerm: '',
-    recipientType: '',
-    status: '',
-    serviceType: '',
-    dateFrom: '',
-    dateTo: ''
   });
 
   // Normalize page data from different API response formats
@@ -141,30 +129,6 @@ export default function CommissionManagement() {
     }
   }, [partnerType, partnerSearch, partnerPagination.pageNumber, partnerPagination.pageSize]);
 
-  // Load transactions
-  const loadTransactions = useCallback(async () => {
-    try {
-      setLoading(true);
-      const response = await commissionApi.getTransactions({
-        pageNumber: transactionPagination.pageNumber,
-        pageSize: transactionPagination.pageSize,
-        recipientType: filters.recipientType,
-        status: filters.status,
-        serviceType: filters.serviceType,
-        fromDate: filters.dateFrom,
-        toDate: filters.dateTo,
-        searchTerm: filters.searchTerm
-      });
-      const { items, pageNumber, pageSize, totalCount, totalPages } = normalizePageData(response, transactionPagination);
-      setTransactions(items);
-      setTransactionPagination({ pageNumber, pageSize, totalCount, totalPages });
-    } catch (err) {
-      setError(err.response?.data?.error || err.message || 'Failed to load transactions');
-    } finally {
-      setLoading(false);
-    }
-  }, [transactionPagination.pageNumber, filters]);
-
   // Initial load
   useEffect(() => {
     loadDashboardAndConfigs();
@@ -177,6 +141,23 @@ export default function CommissionManagement() {
     }
   }, [activeTab, loadPartners]);
 
+  // Load transactions
+  const loadTransactions = useCallback(async () => {
+    try {
+      setLoading(true);
+      const data = await financialApi.getTransactions(transactionFilters);
+      setTransactions(data.transactions || []);
+      setTransactionPagination({
+        totalCount: data.totalCount || 0,
+        totalPages: data.totalPages || 0
+      });
+    } catch (err) {
+      setError(err.response?.data?.error || err.message || 'Failed to load transactions');
+    } finally {
+      setLoading(false);
+    }
+  }, [transactionFilters]);
+
   // Load transactions when tab changes
   useEffect(() => {
     if (activeTab === 'transactions') {
@@ -184,15 +165,29 @@ export default function CommissionManagement() {
     }
   }, [activeTab, loadTransactions]);
 
-  // Handlers
-  const handleFilterChange = (field) => (e) => {
-    setFilters({ ...filters, [field]: e.target.value });
-    setTransactionPagination({ ...transactionPagination, pageNumber: 1 });
-  };
+  // Refresh all data based on current tab
+  const handleRefresh = useCallback(async () => {
+    setError(null);
+    try {
+      // Always refresh dashboard and configs
+      await loadDashboardAndConfigs();
 
+      // Refresh tab-specific data
+      if (activeTab === 'partners') {
+        await loadPartners();
+      } else if (activeTab === 'transactions') {
+        await loadTransactions();
+      }
+    } catch (err) {
+      setError(err.response?.data?.error || err.message || 'Failed to refresh data');
+    }
+  }, [activeTab, loadDashboardAndConfigs, loadPartners, loadTransactions]);
+
+  // Handlers
   const handlePartnerTypeChange = (type) => {
     setPartnerType(type);
     setPartnerPagination({ ...partnerPagination, pageNumber: 1 });
+    setExpandedPartnerId(null);
   };
 
   const handlePartnerSearch = (e) => {
@@ -370,9 +365,23 @@ export default function CommissionManagement() {
 
   const getServiceTypeLabel = (type) => SERVICE_TYPE_LABELS[type] || type || '—';
 
-  const getStatusBadge = (status) => {
-    const color = STATUS_COLORS[status] || 'secondary';
-    return <span className={`badge bg-${color}`}>{status || '—'}</span>;
+  const getStatusBadgeClass = (status) => {
+    switch (status?.toLowerCase()) {
+      case "completed":
+        return "success";
+      case "pending":
+      case "scheduled":
+        return "warning";
+      case "cancelled":
+      case "failed":
+        return "danger";
+      default:
+        return "secondary";
+    }
+  };
+
+  const handleTransactionPageChange = (newPage) => {
+    setTransactionFilters({ ...transactionFilters, pageNumber: newPage });
   };
 
   // Check if custom rate is expired
@@ -417,8 +426,13 @@ export default function CommissionManagement() {
               Configure commission rates, manage partner earnings, and track transactions.
             </p>
           </div>
-          <button className="btn btn-outline-primary btn-sm" onClick={loadDashboardAndConfigs}>
-            <i className="bi bi-arrow-clockwise me-1"></i> Refresh
+          <button className="btn btn-outline-primary btn-sm" onClick={handleRefresh} disabled={loading}>
+            {loading ? (
+              <span className="spinner-border spinner-border-sm me-1"></span>
+            ) : (
+              <i className="bi bi-arrow-clockwise me-1"></i>
+            )}
+            Refresh
           </button>
         </div>
 
@@ -654,6 +668,7 @@ export default function CommissionManagement() {
                       <table className="table table-hover mb-0">
                         <thead>
                           <tr>
+                            <th style={{ width: '40px' }}></th>
                             <th>Partner</th>
                             <th>{partnerType === 'DOCTOR' ? 'Specialty' : 'Location'}</th>
                             {partnerType === 'DOCTOR' ? (
@@ -665,7 +680,7 @@ export default function CommissionManagement() {
                               <th>Commission Rate</th>
                             )}
                             <th>Total Earnings</th>
-                            <th>Pending</th>
+                            <th>Pending Payout</th>
                             <th>Total Commission</th>
                             <th className="text-end">Actions</th>
                           </tr>
@@ -673,98 +688,245 @@ export default function CommissionManagement() {
                         <tbody>
                           {partners.length === 0 ? (
                             <tr>
-                              <td colSpan={partnerType === 'DOCTOR' ? 8 : 7} className="text-center py-4 text-muted">
+                              <td colSpan={partnerType === 'DOCTOR' ? 9 : 8} className="text-center py-4 text-muted">
                                 No {partnerType === 'DOCTOR' ? 'doctors' : 'pharmacies'} found
                               </td>
                             </tr>
                           ) : partners.map((partner) => (
-                            <tr key={partner.partnerId}>
-                              <td>
-                                <div className="d-flex align-items-center">
-                                  {partner.avatarUrl ? (
-                                    <img src={partner.avatarUrl} alt="" className="rounded-circle me-2" style={{ width: 32, height: 32, objectFit: 'cover' }} />
-                                  ) : (
-                                    <div className="rounded-circle bg-secondary text-white d-flex align-items-center justify-content-center me-2" style={{ width: 32, height: 32 }}>
-                                      <i className={`bi ${partnerType === 'DOCTOR' ? 'bi-person' : 'bi-shop'}`}></i>
+                            <React.Fragment key={partner.partnerId}>
+                              <tr
+                                style={{ cursor: 'pointer' }}
+                                onClick={() => setExpandedPartnerId(expandedPartnerId === partner.partnerId ? null : partner.partnerId)}
+                              >
+                                <td>
+                                  <i className={`bi ${expandedPartnerId === partner.partnerId ? 'bi-chevron-down' : 'bi-chevron-right'}`}></i>
+                                </td>
+                                <td>
+                                  <div className="d-flex align-items-center">
+                                    {partner.avatarUrl ? (
+                                      <img src={partner.avatarUrl} alt="" className="rounded-circle me-2" style={{ width: 32, height: 32, objectFit: 'cover' }} />
+                                    ) : (
+                                      <div className="rounded-circle bg-secondary text-white d-flex align-items-center justify-content-center me-2" style={{ width: 32, height: 32 }}>
+                                        <i className={`bi ${partnerType === 'DOCTOR' ? 'bi-person' : 'bi-shop'}`}></i>
+                                      </div>
+                                    )}
+                                    <div>
+                                      <div className="fw-medium">{partner.partnerName}</div>
+                                      <small className="text-muted">{partner.partnerId}</small>
                                     </div>
-                                  )}
-                                  <div>
-                                    <div className="fw-medium">{partner.partnerName}</div>
-                                    <small className="text-muted">{partner.partnerId}</small>
                                   </div>
-                                </div>
-                              </td>
-                              <td>{partner.specialty || partner.location || '—'}</td>
-                              {partnerType === 'DOCTOR' ? (
-                                <>
-                                  {/* Online Rate */}
+                                </td>
+                                <td>{partner.specialty || partner.location || '—'}</td>
+                                {partnerType === 'DOCTOR' ? (
+                                  <>
+                                    {/* Online Rate */}
+                                    <td>
+                                      <div>
+                                        <span className={`fw-bold ${partner.usingCustomRateOnline ? 'text-primary' : ''}`}>
+                                          {formatRate(partner.effectiveCommissionRateOnline)}
+                                        </span>
+                                        {partner.usingCustomRateOnline && (
+                                          <span className="badge bg-primary ms-1">Custom</span>
+                                        )}
+                                        {isCustomRateExpired(partner, 'online') && (
+                                          <span className="badge bg-danger ms-1">Expired</span>
+                                        )}
+                                      </div>
+                                      {partner.customCommissionRateOnline && (
+                                        <small className="text-muted d-block">
+                                          {formatDate(partner.customCommissionRateOnlineEffectiveFrom)} - {partner.customCommissionRateOnlineEffectiveTo ? formatDate(partner.customCommissionRateOnlineEffectiveTo) : '∞'}
+                                        </small>
+                                      )}
+                                    </td>
+                                    {/* Offline Rate */}
+                                    <td>
+                                      <div>
+                                        <span className={`fw-bold ${partner.usingCustomRateOffline ? 'text-info' : ''}`}>
+                                          {formatRate(partner.effectiveCommissionRateOffline)}
+                                        </span>
+                                        {partner.usingCustomRateOffline && (
+                                          <span className="badge bg-info ms-1">Custom</span>
+                                        )}
+                                        {isCustomRateExpired(partner, 'offline') && (
+                                          <span className="badge bg-danger ms-1">Expired</span>
+                                        )}
+                                      </div>
+                                      {partner.customCommissionRateOffline && (
+                                        <small className="text-muted d-block">
+                                          {formatDate(partner.customCommissionRateOfflineEffectiveFrom)} - {partner.customCommissionRateOfflineEffectiveTo ? formatDate(partner.customCommissionRateOfflineEffectiveTo) : '∞'}
+                                        </small>
+                                      )}
+                                    </td>
+                                  </>
+                                ) : (
                                   <td>
                                     <div>
-                                      <span className={`fw-bold ${partner.usingCustomRateOnline ? 'text-primary' : ''}`}>
-                                        {formatRate(partner.effectiveCommissionRateOnline)}
+                                      <span className={`fw-bold ${partner.usingCustomRate ? 'text-primary' : ''}`}>
+                                        {formatRate(partner.effectiveCommissionRate)}
                                       </span>
-                                      {partner.usingCustomRateOnline && (
+                                      {partner.usingCustomRate && (
                                         <span className="badge bg-primary ms-1">Custom</span>
                                       )}
-                                      {isCustomRateExpired(partner, 'online') && (
+                                      {isCustomRateExpired(partner) && (
                                         <span className="badge bg-danger ms-1">Expired</span>
                                       )}
                                     </div>
-                                    {partner.customCommissionRateOnline && (
+                                    {partner.customCommissionRate && (
                                       <small className="text-muted d-block">
-                                        {formatDate(partner.customCommissionRateOnlineEffectiveFrom)} - {partner.customCommissionRateOnlineEffectiveTo ? formatDate(partner.customCommissionRateOnlineEffectiveTo) : '∞'}
+                                        {formatDate(partner.customCommissionRateEffectiveFrom)} - {partner.customCommissionRateEffectiveTo ? formatDate(partner.customCommissionRateEffectiveTo) : '∞'}
                                       </small>
                                     )}
                                   </td>
-                                  {/* Offline Rate */}
-                                  <td>
-                                    <div>
-                                      <span className={`fw-bold ${partner.usingCustomRateOffline ? 'text-info' : ''}`}>
-                                        {formatRate(partner.effectiveCommissionRateOffline)}
-                                      </span>
-                                      {partner.usingCustomRateOffline && (
-                                        <span className="badge bg-info ms-1">Custom</span>
-                                      )}
-                                      {isCustomRateExpired(partner, 'offline') && (
-                                        <span className="badge bg-danger ms-1">Expired</span>
-                                      )}
-                                    </div>
-                                    {partner.customCommissionRateOffline && (
-                                      <small className="text-muted d-block">
-                                        {formatDate(partner.customCommissionRateOfflineEffectiveFrom)} - {partner.customCommissionRateOfflineEffectiveTo ? formatDate(partner.customCommissionRateOfflineEffectiveTo) : '∞'}
-                                      </small>
-                                    )}
-                                  </td>
-                                </>
-                              ) : (
-                                <td>
-                                  <div>
-                                    <span className={`fw-bold ${partner.usingCustomRate ? 'text-primary' : ''}`}>
-                                      {formatRate(partner.effectiveCommissionRate)}
-                                    </span>
-                                    {partner.usingCustomRate && (
-                                      <span className="badge bg-primary ms-1">Custom</span>
-                                    )}
-                                    {isCustomRateExpired(partner) && (
-                                      <span className="badge bg-danger ms-1">Expired</span>
-                                    )}
-                                  </div>
-                                  {partner.customCommissionRate && (
-                                    <small className="text-muted d-block">
-                                      {formatDate(partner.customCommissionRateEffectiveFrom)} - {partner.customCommissionRateEffectiveTo ? formatDate(partner.customCommissionRateEffectiveTo) : '∞'}
-                                    </small>
-                                  )}
+                                )}
+                                <td className="text-success fw-medium">{formatAmount(partner.totalEarnings)}</td>
+                                <td className="text-warning fw-medium">{formatAmount(partner.pendingSettlement)}</td>
+                                <td>{formatAmount(partner.totalCommissionPaid)}</td>
+                                <td className="text-end" onClick={(e) => e.stopPropagation()}>
+                                  <button className="btn btn-sm btn-outline-primary" onClick={() => handlePartnerEdit(partner)}>
+                                    <i className="bi bi-pencil"></i> Set Rate
+                                  </button>
                                 </td>
+                              </tr>
+                              {/* Expanded Detail Row */}
+                              {expandedPartnerId === partner.partnerId && (
+                                <tr>
+                                  <td colSpan={partnerType === 'DOCTOR' ? 9 : 8} className="bg-light p-3">
+                                    <div className="row g-3">
+                                      {partnerType === 'DOCTOR' ? (
+                                        <>
+                                          {/* Online Appointments Breakdown */}
+                                          <div className="col-md-6">
+                                            <div className="card border-0 shadow-sm h-100">
+                                              <div className="card-header bg-primary bg-opacity-10 py-2">
+                                                <h6 className="mb-0 text-primary">
+                                                  <i className="bi bi-camera-video me-2"></i>Online Consultations
+                                                </h6>
+                                              </div>
+                                              <div className="card-body py-2">
+                                                <div className="d-flex justify-content-between align-items-center py-1 border-bottom">
+                                                  <span className="text-info">
+                                                    <i className="bi bi-hourglass-split me-1"></i>In Progress
+                                                  </span>
+                                                  <span>
+                                                    <span className="badge bg-info me-2">{partner.onlinePendingCount || 0}</span>
+                                                    <strong>{formatAmount(partner.onlinePendingAmount)}</strong>
+                                                  </span>
+                                                </div>
+                                                <div className="d-flex justify-content-between align-items-center py-1 border-bottom">
+                                                  <span className="text-success">
+                                                    <i className="bi bi-check-circle me-1"></i>Completed
+                                                  </span>
+                                                  <span>
+                                                    <span className="badge bg-success me-2">{partner.onlineCompletedCount || 0}</span>
+                                                    <strong>{formatAmount(partner.onlineCompletedAmount)}</strong>
+                                                  </span>
+                                                </div>
+                                                <div className="d-flex justify-content-between align-items-center py-1">
+                                                  <span className="text-secondary">
+                                                    <i className="bi bi-x-circle me-1"></i>Cancelled
+                                                  </span>
+                                                  <span>
+                                                    <span className="badge bg-secondary me-2">{partner.onlineCancelledCount || 0}</span>
+                                                    <strong>{formatAmount(partner.onlineCancelledAmount)}</strong>
+                                                  </span>
+                                                </div>
+                                              </div>
+                                            </div>
+                                          </div>
+                                          {/* Offline Appointments Breakdown */}
+                                          <div className="col-md-6">
+                                            <div className="card border-0 shadow-sm h-100">
+                                              <div className="card-header bg-info bg-opacity-10 py-2">
+                                                <h6 className="mb-0 text-info">
+                                                  <i className="bi bi-building me-2"></i>Offline Consultations
+                                                </h6>
+                                              </div>
+                                              <div className="card-body py-2">
+                                                <div className="d-flex justify-content-between align-items-center py-1 border-bottom">
+                                                  <span className="text-info">
+                                                    <i className="bi bi-hourglass-split me-1"></i>In Progress
+                                                  </span>
+                                                  <span>
+                                                    <span className="badge bg-info me-2">{partner.offlinePendingCount || 0}</span>
+                                                    <strong>{formatAmount(partner.offlinePendingAmount)}</strong>
+                                                  </span>
+                                                </div>
+                                                <div className="d-flex justify-content-between align-items-center py-1 border-bottom">
+                                                  <span className="text-success">
+                                                    <i className="bi bi-check-circle me-1"></i>Completed
+                                                  </span>
+                                                  <span>
+                                                    <span className="badge bg-success me-2">{partner.offlineCompletedCount || 0}</span>
+                                                    <strong>{formatAmount(partner.offlineCompletedAmount)}</strong>
+                                                  </span>
+                                                </div>
+                                                <div className="d-flex justify-content-between align-items-center py-1">
+                                                  <span className="text-secondary">
+                                                    <i className="bi bi-x-circle me-1"></i>Cancelled
+                                                  </span>
+                                                  <span>
+                                                    <span className="badge bg-secondary me-2">{partner.offlineCancelledCount || 0}</span>
+                                                    <strong>{formatAmount(partner.offlineCancelledAmount)}</strong>
+                                                  </span>
+                                                </div>
+                                              </div>
+                                            </div>
+                                          </div>
+                                        </>
+                                      ) : (
+                                        /* Pharmacy Orders Breakdown */
+                                        <div className="col-12">
+                                          <div className="card border-0 shadow-sm">
+                                            <div className="card-header bg-success bg-opacity-10 py-2">
+                                              <h6 className="mb-0 text-success">
+                                                <i className="bi bi-box-seam me-2"></i>Pharmacy Orders
+                                              </h6>
+                                            </div>
+                                            <div className="card-body py-2">
+                                              <div className="row">
+                                                <div className="col-md-4">
+                                                  <div className="d-flex justify-content-between align-items-center py-1">
+                                                    <span className="text-info">
+                                                      <i className="bi bi-hourglass-split me-1"></i>In Progress
+                                                    </span>
+                                                    <span>
+                                                      <span className="badge bg-info me-2">{partner.pharmacyPendingCount || 0}</span>
+                                                      <strong>{formatAmount(partner.pharmacyPendingAmount)}</strong>
+                                                    </span>
+                                                  </div>
+                                                </div>
+                                                <div className="col-md-4">
+                                                  <div className="d-flex justify-content-between align-items-center py-1">
+                                                    <span className="text-success">
+                                                      <i className="bi bi-check-circle me-1"></i>Completed
+                                                    </span>
+                                                    <span>
+                                                      <span className="badge bg-success me-2">{partner.pharmacyCompletedCount || 0}</span>
+                                                      <strong>{formatAmount(partner.pharmacyCompletedAmount)}</strong>
+                                                    </span>
+                                                  </div>
+                                                </div>
+                                                <div className="col-md-4">
+                                                  <div className="d-flex justify-content-between align-items-center py-1">
+                                                    <span className="text-secondary">
+                                                      <i className="bi bi-x-circle me-1"></i>Cancelled
+                                                    </span>
+                                                    <span>
+                                                      <span className="badge bg-secondary me-2">{partner.pharmacyCancelledCount || 0}</span>
+                                                      <strong>{formatAmount(partner.pharmacyCancelledAmount)}</strong>
+                                                    </span>
+                                                  </div>
+                                                </div>
+                                              </div>
+                                            </div>
+                                          </div>
+                                        </div>
+                                      )}
+                                    </div>
+                                  </td>
+                                </tr>
                               )}
-                              <td className="text-success fw-medium">{formatAmount(partner.totalEarnings)}</td>
-                              <td className="text-warning fw-medium">{formatAmount(partner.pendingSettlement)}</td>
-                              <td>{formatAmount(partner.totalCommissionPaid)}</td>
-                              <td className="text-end">
-                                <button className="btn btn-sm btn-outline-primary" onClick={() => handlePartnerEdit(partner)}>
-                                  <i className="bi bi-pencil"></i> Set Rate
-                                </button>
-                              </td>
-                            </tr>
+                            </React.Fragment>
                           ))}
                         </tbody>
                       </table>
@@ -865,134 +1027,215 @@ export default function CommissionManagement() {
 
             {/* Transactions Tab */}
             {activeTab === 'transactions' && (
-              <div className="admin-card p-3">
-                {/* Filters */}
-                <div className="row g-2 mb-3">
-                  <div className="col-md-3">
-                    <input
-                      type="text"
-                      className="form-control"
-                      placeholder="Search by recipient..."
-                      value={filters.searchTerm}
-                      onChange={handleFilterChange('searchTerm')}
-                    />
-                  </div>
-                  <div className="col-md-2">
-                    <select className="form-select" value={filters.recipientType} onChange={handleFilterChange('recipientType')}>
-                      <option value="">All Recipients</option>
-                      <option value="DOCTOR">Doctor</option>
-                      <option value="PHARMACY">Pharmacy</option>
-                    </select>
-                  </div>
-                  <div className="col-md-2">
-                    <select className="form-select" value={filters.serviceType} onChange={handleFilterChange('serviceType')}>
-                      <option value="">All Services</option>
-                      <option value="CONSULTATION_ONLINE">Online Consultation</option>
-                      <option value="CONSULTATION_OFFLINE">Offline Consultation</option>
-                      <option value="PHARMACY_ORDER">Pharmacy Order</option>
-                    </select>
-                  </div>
-                  <div className="col-md-2">
-                    <select className="form-select" value={filters.status} onChange={handleFilterChange('status')}>
-                      <option value="">All Status</option>
-                      <option value="PENDING">Pending</option>
-                      <option value="SETTLED">Settled</option>
-                      <option value="REFUNDED">Refunded</option>
-                    </select>
-                  </div>
-                  <div className="col-md-3">
-                    <div className="input-group">
-                      <input type="date" className="form-control" value={filters.dateFrom} onChange={handleFilterChange('dateFrom')} />
-                      <input type="date" className="form-control" value={filters.dateTo} onChange={handleFilterChange('dateTo')} />
+              <div className="admin-card">
+                <div className="card-header bg-white py-3 px-4">
+                  <div className="d-flex justify-content-between align-items-center flex-wrap gap-3">
+                    <h5 className="mb-0">
+                      <i className="bi bi-list-ul me-2 text-info"></i>
+                      Transaction History
+                    </h5>
+                    <div className="d-flex gap-2 flex-wrap">
+                      <input
+                        type="text"
+                        className="form-control form-control-sm"
+                        placeholder="Search..."
+                        value={transactionFilters.searchTerm}
+                        onChange={(e) =>
+                          setTransactionFilters({
+                            ...transactionFilters,
+                            searchTerm: e.target.value,
+                            pageNumber: 1
+                          })
+                        }
+                        style={{ width: "150px" }}
+                      />
+                      <select
+                        className="form-select form-select-sm"
+                        value={transactionFilters.status}
+                        onChange={(e) =>
+                          setTransactionFilters({
+                            ...transactionFilters,
+                            status: e.target.value,
+                            pageNumber: 1
+                          })
+                        }
+                        style={{ width: "130px" }}
+                      >
+                        <option value="">All Status</option>
+                        <option value="completed">Completed</option>
+                        <option value="pending">Pending</option>
+                        <option value="scheduled">Scheduled</option>
+                        <option value="cancelled">Cancelled</option>
+                      </select>
+                      <input
+                        type="date"
+                        className="form-control form-control-sm"
+                        value={transactionFilters.fromDate}
+                        onChange={(e) =>
+                          setTransactionFilters({
+                            ...transactionFilters,
+                            fromDate: e.target.value,
+                            pageNumber: 1
+                          })
+                        }
+                        style={{ width: "140px" }}
+                      />
+                      <input
+                        type="date"
+                        className="form-control form-control-sm"
+                        value={transactionFilters.toDate}
+                        onChange={(e) =>
+                          setTransactionFilters({
+                            ...transactionFilters,
+                            toDate: e.target.value,
+                            pageNumber: 1
+                          })
+                        }
+                        style={{ width: "140px" }}
+                      />
                     </div>
                   </div>
                 </div>
-
-                {loading ? (
-                  <div className="text-center py-4">
-                    <div className="spinner-border spinner-border-sm text-primary"></div>
-                  </div>
-                ) : (
-                  <>
-                    <div className="table-responsive">
-                      <table className="table table-hover mb-0">
-                        <thead>
-                          <tr>
-                            <th>Transaction</th>
-                            <th>Recipient</th>
-                            <th>Service</th>
-                            <th>Gross Amount</th>
-                            <th>Commission</th>
-                            <th>Net Amount</th>
-                            <th>Status</th>
-                            <th>Date</th>
-                          </tr>
-                        </thead>
-                        <tbody>
-                          {transactions.length === 0 ? (
-                            <tr>
-                              <td colSpan="8" className="text-center py-4 text-muted">No transactions found</td>
-                            </tr>
-                          ) : transactions.map((tx) => (
-                            <tr key={tx.transactionId || tx.transactionNumber}>
-                              <td>
-                                <div className="fw-medium">{tx.transactionNumber}</div>
-                                <small className="text-muted">
-                                  {tx.sourceType}: #{tx.sourceId || tx.appointmentId || tx.pharmacyOrderId}
-                                </small>
-                              </td>
-                              <td>
-                                <div>{tx.recipientName}</div>
-                                <small className="text-muted">{tx.recipientType}</small>
-                              </td>
-                              <td>
-                                <span className="badge bg-light text-dark">
-                                  {getServiceTypeLabel(tx.serviceType)}
-                                </span>
-                              </td>
-                              <td>{formatAmount(tx.grossAmount)}</td>
-                              <td>
-                                <span className="text-success">{formatAmount(tx.commissionAmount)}</span>
-                                <br />
-                                <small className="text-muted">{formatRate(tx.commissionRate)}</small>
-                              </td>
-                              <td className="fw-medium">{formatAmount(tx.netAmount)}</td>
-                              <td>{getStatusBadge(tx.status)}</td>
-                              <td><small>{formatDateTime(tx.createdAt)}</small></td>
-                            </tr>
-                          ))}
-                        </tbody>
-                      </table>
-                    </div>
-
-                    {transactionPagination.totalPages > 1 && (
-                      <div className="d-flex justify-content-between align-items-center mt-3">
-                        <div className="text-muted">
-                          Page {transactionPagination.pageNumber} of {transactionPagination.totalPages}
-                        </div>
-                        <div className="btn-group">
-                          <button
-                            className="btn btn-outline-secondary btn-sm"
-                            disabled={transactionPagination.pageNumber === 1}
-                            onClick={() => setTransactionPagination({ ...transactionPagination, pageNumber: transactionPagination.pageNumber - 1 })}
-                          >
-                            Previous
-                          </button>
-                          <button className="btn btn-outline-secondary btn-sm" disabled>
-                            {transactionPagination.pageNumber}
-                          </button>
-                          <button
-                            className="btn btn-outline-secondary btn-sm"
-                            disabled={transactionPagination.pageNumber === transactionPagination.totalPages}
-                            onClick={() => setTransactionPagination({ ...transactionPagination, pageNumber: transactionPagination.pageNumber + 1 })}
-                          >
-                            Next
-                          </button>
-                        </div>
+                <div className="card-body p-0">
+                  {loading ? (
+                    <div className="text-center py-5">
+                      <div className="spinner-border text-primary" role="status">
+                        <span className="visually-hidden">Loading...</span>
                       </div>
-                    )}
-                  </>
-                )}
+                    </div>
+                  ) : (
+                    <>
+                      <div className="table-responsive">
+                        <table className="table table-hover mb-0">
+                          <thead className="bg-light">
+                            <tr>
+                              <th style={{ width: "80px" }}>ID</th>
+                              <th>Patient</th>
+                              <th>Doctor</th>
+                              <th className="text-end">Amount</th>
+                              <th className="text-end">Platform Fee</th>
+                              <th className="text-end">Doctor Earning</th>
+                              <th>Status</th>
+                              <th>Date</th>
+                            </tr>
+                          </thead>
+                          <tbody>
+                            {transactions.length === 0 ? (
+                              <tr>
+                                <td colSpan="8" className="text-center py-5 text-muted">
+                                  <i className="bi bi-inbox d-block mb-2" style={{ fontSize: "32px" }}></i>
+                                  No transactions found
+                                </td>
+                              </tr>
+                            ) : (
+                              transactions.map((tx) => (
+                                <tr key={tx.transactionId}>
+                                  <td>
+                                    <span className="badge bg-light text-dark">#{tx.transactionId}</span>
+                                  </td>
+                                  <td>
+                                    <div className="d-flex align-items-center gap-2">
+                                      <div
+                                        className="rounded-circle d-flex align-items-center justify-content-center"
+                                        style={{
+                                          width: "32px",
+                                          height: "32px",
+                                          background: "linear-gradient(135deg, #00a08b 0%, #00c4ac 100%)",
+                                          color: "white",
+                                          fontSize: "12px",
+                                          fontWeight: "600"
+                                        }}
+                                      >
+                                        {tx.patientName?.charAt(0) || "?"}
+                                      </div>
+                                      <span>{tx.patientName || "N/A"}</span>
+                                    </div>
+                                  </td>
+                                  <td>
+                                    <div className="d-flex align-items-center gap-2">
+                                      <div
+                                        className="rounded-circle d-flex align-items-center justify-content-center"
+                                        style={{
+                                          width: "32px",
+                                          height: "32px",
+                                          background: "linear-gradient(135deg, #6366f1 0%, #818cf8 100%)",
+                                          color: "white",
+                                          fontSize: "12px",
+                                          fontWeight: "600"
+                                        }}
+                                      >
+                                        {tx.providerName?.charAt(0) || "?"}
+                                      </div>
+                                      <span>{tx.providerName || "N/A"}</span>
+                                    </div>
+                                  </td>
+                                  <td className="text-end fw-semibold">{formatAmount(tx.amount)}</td>
+                                  <td className="text-end text-purple">{formatAmount(tx.platformFee)}</td>
+                                  <td className="text-end text-success">{formatAmount(tx.providerEarning)}</td>
+                                  <td>
+                                    <span className={`badge bg-${getStatusBadgeClass(tx.status)}`}>
+                                      {tx.status}
+                                    </span>
+                                  </td>
+                                  <td>
+                                    <small className="text-muted">{formatDateTime(tx.createdAt)}</small>
+                                  </td>
+                                </tr>
+                              ))
+                            )}
+                          </tbody>
+                        </table>
+                      </div>
+
+                      {/* Pagination */}
+                      {transactionPagination.totalPages > 1 && (
+                        <div className="d-flex justify-content-between align-items-center px-4 py-3 border-top">
+                          <span className="text-muted" style={{ fontSize: "13px" }}>
+                            Page {transactionFilters.pageNumber} of {transactionPagination.totalPages} •{" "}
+                            {transactionPagination.totalCount} total
+                          </span>
+                          <nav>
+                            <ul className="pagination pagination-sm mb-0">
+                              <li className={`page-item ${transactionFilters.pageNumber === 1 ? "disabled" : ""}`}>
+                                <button
+                                  className="page-link"
+                                  onClick={() => handleTransactionPageChange(transactionFilters.pageNumber - 1)}
+                                >
+                                  Previous
+                                </button>
+                              </li>
+                              {[...Array(Math.min(5, transactionPagination.totalPages))].map((_, i) => {
+                                const page = i + 1;
+                                return (
+                                  <li
+                                    key={page}
+                                    className={`page-item ${transactionFilters.pageNumber === page ? "active" : ""}`}
+                                  >
+                                    <button className="page-link" onClick={() => handleTransactionPageChange(page)}>
+                                      {page}
+                                    </button>
+                                  </li>
+                                );
+                              })}
+                              <li
+                                className={`page-item ${
+                                  transactionFilters.pageNumber === transactionPagination.totalPages ? "disabled" : ""
+                                }`}
+                              >
+                                <button
+                                  className="page-link"
+                                  onClick={() => handleTransactionPageChange(transactionFilters.pageNumber + 1)}
+                                >
+                                  Next
+                                </button>
+                              </li>
+                            </ul>
+                          </nav>
+                        </div>
+                      )}
+                    </>
+                  )}
+                </div>
               </div>
             )}
           </>
