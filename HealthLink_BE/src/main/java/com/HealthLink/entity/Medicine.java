@@ -70,7 +70,8 @@ public class Medicine {
     @Builder.Default
     private boolean prescriptionRequired = true;
 
-    private BigDecimal referencePrice;
+    @Column(name = "price", precision = 18, scale = 2)
+    private BigDecimal price;
 
     @Builder.Default
     private boolean active = true;

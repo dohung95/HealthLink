@@ -1,10 +1,10 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { toast } from 'sonner';
-import { useAuth } from '../../../context/AuthContext';
-import { useChat } from '../../../context/ChatContext';
+import { useAuth } from '../../context/AuthContext';
+import { useChat } from '../../context/ChatContext';
 
-import medicineApi from '../../../api/medicineApi';
-import pharmacyApi from '../../../api/pharmacyApi';
+import medicineApi from '../../api/medicineApi';
+import pharmacyApi from '../../api/pharmacyApi';
 import {
   REQUEST_TABS,
   dateTime,
@@ -12,7 +12,7 @@ import {
   normalize,
   statusClass,
   useDebouncedValue,
-} from '../common/pharmacyDashboardShared';
+} from './PharmacyShared';
 
 export default function PharmacyConsultationsTab({ requests, globalSearch, reload, navigate }) {
   const [activeStatus, setActiveStatus] = useState('PENDING');
@@ -85,6 +85,7 @@ function RequestDetailPanel({ request, onUpdated }) {
   const [creatingOrder, setCreatingOrder] = useState(false);
   const [orderAmount, setOrderAmount] = useState('');
   const [deliveryType, setDeliveryType] = useState('Delivery');
+  const [paymentMethod, setPaymentMethod] = useState('Cash');
   const [medicineQuery, setMedicineQuery] = useState('');
   const [medicines, setMedicines] = useState([]);
   const [selectedMedicine, setSelectedMedicine] = useState(null);
@@ -99,6 +100,12 @@ function RequestDetailPanel({ request, onUpdated }) {
     setSelectedMedicine(null);
     setMedicineQuery('');
   }, [request?.requestId]);
+
+  useEffect(() => {
+    if (selectedMedicine?.price) {
+      setUnitPrice(String(selectedMedicine.price));
+    }
+  }, [selectedMedicine]);
 
   useEffect(() => {
     if (!medicineQuery.trim()) {
@@ -129,6 +136,13 @@ function RequestDetailPanel({ request, onUpdated }) {
   }
 
   const updateStatus = async (status) => {
+    const confirmMessages = {
+      'IN_REVIEW': 'Accept this consultation request?',
+      'CANCELLED': 'Reject this consultation request? This action cannot be undone.',
+      'NEED_MORE_INFO': 'Mark this request as needing more information?',
+    };
+    if (confirmMessages[status] && !window.confirm(confirmMessages[status])) return;
+
     try {
       await pharmacyApi.updateConsultationStatus(request.requestId, {
         status,
@@ -148,7 +162,7 @@ function RequestDetailPanel({ request, onUpdated }) {
       await pharmacyApi.createOrderFromRequest(request.requestId, {
         medicineAmount: Number(orderAmount || 0),
         deliveryType,
-        paymentMethod: 'Cash',
+        paymentMethod,
         notes: request.additionalNotes,
         pharmacistNotes: notes,
       });
@@ -246,7 +260,7 @@ function RequestDetailPanel({ request, onUpdated }) {
           <button
             type="button"
             onClick={() => {
-              const roomId = Array.from({ length: 45 }, () =>
+              const roomId = request.chatRoomId || Array.from({ length: 45 }, () =>
                 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789'[Math.floor(Math.random() * 62)]
               ).join('');
               initiateCall(request.patientId, roomId, request.patientName, 'Pharmacy');
@@ -263,6 +277,11 @@ function RequestDetailPanel({ request, onUpdated }) {
         <select onChange={(event) => setDeliveryType(event.target.value)} value={deliveryType}>
           <option value="Delivery">Delivery</option>
           <option value="Pickup">Pickup</option>
+        </select>
+        <select onChange={(event) => setPaymentMethod(event.target.value)} value={paymentMethod}>
+          <option value="Cash">Cash</option>
+          <option value="Card">Card</option>
+          <option value="EWallet">E-Wallet</option>
         </select>
         <button disabled={creatingOrder} type="submit">{creatingOrder ? 'Creating...' : 'Create Order'}</button>
       </form>

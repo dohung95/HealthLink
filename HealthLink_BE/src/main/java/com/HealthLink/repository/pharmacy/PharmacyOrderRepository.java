@@ -29,6 +29,17 @@ public interface PharmacyOrderRepository extends JpaRepository<PharmacyOrder, In
     // Tìm đơn hàng theo patientId
     List<PharmacyOrder> findByPatient_PatientId(String patientId);
 
+    // Tìm đơn hàng theo patientId và status
+    @Query("""
+            SELECT o FROM PharmacyOrder o
+            WHERE o.patient.patientId = :patientId
+              AND UPPER(o.status) = UPPER(:status)
+            """)
+    List<PharmacyOrder> findByPatient_PatientIdAndStatus(
+            @Param("patientId") String patientId,
+            @Param("status") String status
+    );
+
     List<PharmacyOrder> findByPrescriptionHeader_Doctor_DoctorIdOrderByCreatedAtDesc(String doctorId);
 
     // Tìm đơn hàng theo prescriptionHeaderId

@@ -1,0 +1,7 @@
+@import './_tokens.css';
+@import './pharmacy-layout.css';
+@import './pharmacy-components.css';
+@import './pharmacy-orders.css';
+@import './pharmacy-consultations.css';
+@import './pharmacy-wallet.css';
+@import './pharmacy-profile.css';

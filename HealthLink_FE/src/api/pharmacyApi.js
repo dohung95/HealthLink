@@ -39,6 +39,11 @@ export const pharmacyApi = {
     return response.data;
   },
 
+  cancelOrder: async (orderId, payload) => {
+    const response = await axiosInstance.post(`/api/pharmacy-orders/${orderId}/cancel`, payload);
+    return response.data;
+  },
+
   getConsultationRequestsByPharmacy: async (pharmacyId, status) => {
     const response = await axiosInstance.get(`/api/pharmacy-requests/pharmacy/${pharmacyId}`, {
       params: status && status !== 'ALL' ? { status } : {},

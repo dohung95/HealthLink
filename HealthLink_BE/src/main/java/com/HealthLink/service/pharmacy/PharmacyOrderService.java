@@ -1,5 +1,6 @@
 package com.HealthLink.service.pharmacy;
 
+import com.HealthLink.dto.pharmacy.CancelOrderRequest;
 import com.HealthLink.dto.pharmacy.PharmacyConsultationOrderCreateRequest;
 import com.HealthLink.dto.pharmacy.PharmacyOrderRequest;
 import com.HealthLink.dto.pharmacy.PharmacyOrderResponse;
@@ -21,9 +22,11 @@ public interface PharmacyOrderService {
 
     List<PharmacyOrderResponse> getOrdersByPharmacy(String pharmacyId, String status);
 
-    List<PharmacyOrderResponse> getOrdersByPatient(String patientId);
+    List<PharmacyOrderResponse> getOrdersByPatient(String patientId, String status);
 
     List<PharmacyOrderResponse> getOrdersByDoctor(String doctorId);
 
     PharmacyOrderResponse getOrderById(Integer orderId);
+
+    PharmacyOrderResponse cancelOrderByPatient(Integer orderId, CancelOrderRequest request, String patientId);
 }

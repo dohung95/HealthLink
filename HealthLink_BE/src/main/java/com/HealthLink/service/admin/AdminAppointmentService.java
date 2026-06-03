@@ -244,8 +244,8 @@ public class AdminAppointmentService {
                 .orElseThrow(() -> new ResourceNotFoundException("Appointment", "id", request.getAppointmentId()));
 
         // Validate appointment status
-        if ("Cancelled".equalsIgnoreCase(appointment.getStatus()) ||
-            "Completed".equalsIgnoreCase(appointment.getStatus())) {
+        if ("CANCELLED".equalsIgnoreCase(appointment.getStatus()) ||
+            "COMPLETED".equalsIgnoreCase(appointment.getStatus())) {
             throw new BadRequestException("Cannot reassign a cancelled or completed appointment");
         }
 
@@ -352,10 +352,10 @@ public class AdminAppointmentService {
                 .orElseThrow(() -> new ResourceNotFoundException("Appointment", "id", request.getAppointmentId()));
 
         // Validate appointment status
-        if ("Cancelled".equalsIgnoreCase(appointment.getStatus())) {
+        if ("CANCELLED".equalsIgnoreCase(appointment.getStatus())) {
             throw new BadRequestException("Appointment is already cancelled");
         }
-        if ("Completed".equalsIgnoreCase(appointment.getStatus())) {
+        if ("COMPLETED".equalsIgnoreCase(appointment.getStatus())) {
             throw new BadRequestException("Cannot cancel a completed appointment");
         }
 
@@ -366,7 +366,7 @@ public class AdminAppointmentService {
         String oldState = appointmentToJson(appointment);
 
         // Update appointment
-        appointment.setStatus("Cancelled");
+        appointment.setStatus("CANCELLED");
         appointment.setCancelReason("[Admin] " + request.getReason());
         appointment.setCancelledBy("Admin");
         appointment.setCancelledAt(LocalDateTime.now());

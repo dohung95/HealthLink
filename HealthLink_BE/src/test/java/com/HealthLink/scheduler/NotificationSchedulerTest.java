@@ -73,7 +73,7 @@ class NotificationSchedulerTest {
                         .patientId("patient-1")
                         .fullName("Patient One")
                         .build())
-                .status("Scheduled")
+                .status("SCHEDULED")
                 .build();
 
         when(appointmentRepository.findUpcomingDoctorReminderCandidates(any(), any()))

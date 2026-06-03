@@ -5,6 +5,7 @@ import com.HealthLink.dto.medicine.MedicineResponse;
 import com.HealthLink.service.medicine.MedicineService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
@@ -41,6 +42,7 @@ public class MedicineController {
      * Thêm một loại thuốc mới.
      */
     @PostMapping
+    @PreAuthorize("hasRole('ADMIN')")
     public ResponseEntity<MedicineResponse> addMedicine(@RequestBody MedicineRequest medicine) {
         return ResponseEntity.ok(medicineService.addMedicine(medicine));
     }
@@ -50,6 +52,7 @@ public class MedicineController {
      * Cập nhật thông tin một loại thuốc.
      */
     @PutMapping("/{id}")
+    @PreAuthorize("hasRole('ADMIN')")
     public ResponseEntity<MedicineResponse> updateMedicine(@PathVariable Integer id,
             @RequestBody MedicineRequest medicine) {
         return ResponseEntity.ok(medicineService.updateMedicine(id, medicine));
@@ -60,6 +63,7 @@ public class MedicineController {
      * Xóa một loại thuốc.
      */
     @DeleteMapping("/{id}")
+    @PreAuthorize("hasRole('ADMIN')")
     public ResponseEntity<Void> deleteMedicine(@PathVariable Integer id) {
         medicineService.deleteMedicine(id);
         return ResponseEntity.noContent().build();

@@ -426,7 +426,7 @@ class FollowUpAppointmentServiceImplTest {
                 .issueDate(LocalDateTime.now().minusDays(1))
                 .diagnosis("Hypertension")
                 .notes("Continue treatment")
-                .status("Issued")
+                .status("ISSUED")
                 .totalAmount(new BigDecimal("20.00"))
                 .prescriptionItems(new java.util.ArrayList<>())
                 .build();

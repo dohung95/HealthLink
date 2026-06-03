@@ -1,0 +1,39 @@
+.pharmacy-wallet-actions {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.pharmacy-wallet-actions--standalone {
+  justify-content: flex-end;
+  margin-bottom: 14px;
+}
+
+.pharmacy-wallet-actions span {
+  border-radius: 999px;
+  padding: 8px 12px;
+  font-size: 12px;
+  font-weight: 800;
+}
+
+.pharmacy-wallet-actions span.eligible {
+  color: #047857;
+  background: #ecfdf5;
+}
+
+.pharmacy-wallet-actions span.blocked {
+  color: #b45309;
+  background: #fffbeb;
+}
+
+.pharmacy-modal-card {
+  width: min(520px, calc(100% - 28px));
+  position: relative;
+  margin: 8vh auto;
+  padding-bottom: 20px;
+  overflow: hidden;
+}
+
+.pharmacy-modal-card .pharmacy-form {
+  padding: 0 20px;
+}

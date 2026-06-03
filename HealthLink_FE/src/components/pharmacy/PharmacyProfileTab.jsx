@@ -7,8 +7,8 @@ import {
   updatePharmacyProfile,
   uploadPharmacyAvatar,
   verifyPharmacyEmailChange,
-} from '../../../api/account';
-import { Avatar, getProfileName } from '../common/pharmacyDashboardShared';
+} from '../../api/account';
+import { Avatar, getProfileName } from './PharmacyShared';
 
 export default function PharmacyProfileTab({ token, profile, reload, logout }) {
   const [form, setForm] = useState({});

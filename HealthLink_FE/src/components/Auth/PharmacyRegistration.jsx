@@ -498,7 +498,7 @@ export function PharmacyRegistration() {
                                         />
                                     </div>
                                     <div className="form-group">
-                                        <label>Delivery Fee (VND)</label>
+                                        <label>Delivery Fee (USD)</label>
                                         <input
                                             type="number"
                                             name="deliveryFee"

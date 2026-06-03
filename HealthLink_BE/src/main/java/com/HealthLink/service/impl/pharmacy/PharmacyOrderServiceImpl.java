@@ -1,5 +1,6 @@
 package com.HealthLink.service.impl.pharmacy;
 
+import com.HealthLink.dto.pharmacy.CancelOrderRequest;
 import com.HealthLink.dto.pharmacy.PharmacyConsultationOrderCreateRequest;
 import com.HealthLink.dto.pharmacy.PharmacyOrderRequest;
 import com.HealthLink.dto.pharmacy.PharmacyOrderResponse;
@@ -58,6 +59,12 @@ public class PharmacyOrderServiceImpl implements PharmacyOrderService {
     private static final String DELIVERY_TYPE_DELIVERY = "Delivery";
     private static final String DELIVERY_TYPE_PICKUP = "Pickup";
     private static final double EARTH_RADIUS_KM = 6371.0;
+
+    // ── Commission constants ──────────────────────────────────────────────────
+    private static final BigDecimal DEFAULT_COMMISSION_RATE = new BigDecimal("0.1000");
+    private static final BigDecimal STANDARD_COMMISSION_RATE = new BigDecimal("0.1000");
+    private static final BigDecimal PREMIUM_COMMISSION_RATE = new BigDecimal("0.0800");
+    private static final BigDecimal VIP_COMMISSION_RATE = new BigDecimal("0.0500");
 
     // ── Allowed next-status map (luồng hợp lệ) ───────────────────────────────
     // Pending → Confirmed / Cancelled
@@ -171,8 +178,11 @@ public class PharmacyOrderServiceImpl implements PharmacyOrderService {
                 .paymentStatus(PAYMENT_STATUS_PENDING)
                 .paymentMethod(request.getPaymentMethod())
                 .notes(request.getNotes())
+                .pharmacistNotes(trimToNull(request.getPharmacistNotes()))
                 .createdAt(LocalDateTime.now())
                 .build();
+
+        applyCommission(order, pharmacy, totalAmount);
 
         PharmacyOrder saved = orderRepository.save(order);
 
@@ -262,6 +272,8 @@ public class PharmacyOrderServiceImpl implements PharmacyOrderService {
                 .createdAt(LocalDateTime.now())
                 .build();
 
+        applyCommission(order, pharmacy, totalAmount);
+
         PharmacyOrder savedOrder = orderRepository.save(order);
         consultationRequest.setOrder(savedOrder);
         consultationRequest.setStatus(REQUEST_STATUS_ORDER_CREATED);
@@ -348,6 +360,39 @@ public class PharmacyOrderServiceImpl implements PharmacyOrderService {
     }
 
     // =========================================================================
+    // Patient cancels own order
+    // =========================================================================
+    @Override
+    @Transactional
+    public PharmacyOrderResponse cancelOrderByPatient(Integer orderId, CancelOrderRequest request, String patientId) {
+        PharmacyOrder order = orderRepository.findById(orderId)
+                .orElseThrow(() -> new ResourceNotFoundException("PharmacyOrder", "id", orderId));
+
+        if (order.getPatient() == null || !patientId.equals(order.getPatient().getPatientId())) {
+            throw new ForbiddenException("You are not allowed to cancel this order");
+        }
+
+        String currentStatus = normalizeStatus(order.getStatus());
+        if (!Set.of(STATUS_PENDING, STATUS_CONFIRMED).contains(currentStatus)) {
+            throw new BadRequestException("Order can only be cancelled when status is PENDING or CONFIRMED");
+        }
+
+        order.setStatus(STATUS_CANCELLED);
+        order.setCancelledAt(LocalDateTime.now());
+        order.setCancelledBy("Patient");
+        order.setCancelReason(trimToNull(request.getCancelReason()));
+
+        PharmacyOrder updated = orderRepository.save(order);
+
+        audit.log("ORDER_CANCELLED_BY_PATIENT", String.valueOf(orderId), patientId,
+                java.util.Map.of("cancelReason", request.getCancelReason()));
+
+        notifyPatientAboutOrderStatusAfterCommit(updated, currentStatus, STATUS_CANCELLED);
+
+        return PharmacyOrderMapper.toResponse(updated);
+    }
+
+    // =========================================================================
     // Queries
     // =========================================================================
     @Override
@@ -362,9 +407,11 @@ public class PharmacyOrderServiceImpl implements PharmacyOrderService {
 
     @Override
     @Transactional(readOnly = true)
-    public List<PharmacyOrderResponse> getOrdersByPatient(String patientId) {
-        return orderRepository.findByPatient_PatientId(patientId)
-                .stream().map(this::toResponse).collect(Collectors.toList());
+    public List<PharmacyOrderResponse> getOrdersByPatient(String patientId, String status) {
+        List<PharmacyOrder> orders = (status != null && !status.isBlank())
+                ? orderRepository.findByPatient_PatientIdAndStatus(patientId, status)
+                : orderRepository.findByPatient_PatientId(patientId);
+        return orders.stream().map(this::toResponse).collect(Collectors.toList());
     }
 
     @Override
@@ -380,6 +427,33 @@ public class PharmacyOrderServiceImpl implements PharmacyOrderService {
         PharmacyOrder order = orderRepository.findById(orderId)
                 .orElseThrow(() -> new ResourceNotFoundException("PharmacyOrder", "id", orderId));
         return PharmacyOrderMapper.toResponse(order);
+    }
+
+    // =========================================================================
+    // Commission helpers
+    // =========================================================================
+
+    private void applyCommission(PharmacyOrder order, Pharmacy pharmacy, BigDecimal totalAmount) {
+        BigDecimal rate = resolveCommissionRate(pharmacy);
+        BigDecimal platformFee = totalAmount.multiply(rate);
+        BigDecimal pharmacyEarning = totalAmount.subtract(platformFee);
+
+        order.setCommissionRate(rate);
+        order.setPlatformFee(platformFee);
+        order.setPharmacyEarning(pharmacyEarning);
+    }
+
+    private BigDecimal resolveCommissionRate(Pharmacy pharmacy) {
+        if (pharmacy.getCustomCommissionRate() != null) {
+            return pharmacy.getCustomCommissionRate();
+        }
+        String tier = pharmacy.getCommissionTier();
+        if (tier == null) tier = "STANDARD";
+        return switch (tier.toUpperCase()) {
+            case "VIP" -> VIP_COMMISSION_RATE;
+            case "PREMIUM" -> PREMIUM_COMMISSION_RATE;
+            default -> STANDARD_COMMISSION_RATE;
+        };
     }
 
     // =========================================================================
@@ -483,12 +557,14 @@ public class PharmacyOrderServiceImpl implements PharmacyOrderService {
     }
 
     private void validateDeliveryRadius(Pharmacy pharmacy, Double deliveryLat, Double deliveryLon) {
-        if (pharmacy.getDeliveryRadius() == null
-                || pharmacy.getLatitude() == null
-                || pharmacy.getLongitude() == null
-                || deliveryLat == null
-                || deliveryLon == null) {
-            return;
+        if (pharmacy.getDeliveryRadius() == null) {
+            throw new BadRequestException("Pharmacy has no delivery radius configured");
+        }
+        if (pharmacy.getLatitude() == null || pharmacy.getLongitude() == null) {
+            throw new BadRequestException("Pharmacy location is not configured");
+        }
+        if (deliveryLat == null || deliveryLon == null) {
+            throw new BadRequestException("Delivery location is required");
         }
 
         double distanceKm = calculateDistanceKm(

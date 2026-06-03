@@ -71,7 +71,7 @@ public class MedicineServiceImpl implements MedicineService {
         existing.setInteractions(medicine.getInteractions());
         existing.setStorageConditions(medicine.getStorageConditions());
         existing.setPrescriptionRequired(medicine.isPrescriptionRequired());
-        existing.setReferencePrice(medicine.getReferencePrice());
+        existing.setPrice(medicine.getPrice());
         existing.setActive(medicine.isActive());
         existing.setImageUrl(medicine.getImageUrl());
 
@@ -111,7 +111,7 @@ public class MedicineServiceImpl implements MedicineService {
                 .interactions(m.getInteractions())
                 .storageConditions(m.getStorageConditions())
                 .prescriptionRequired(m.isPrescriptionRequired())
-                .referencePrice(m.getReferencePrice())
+                .price(m.getPrice())
                 .active(m.isActive())
                 .imageUrl(m.getImageUrl())
                 .build();
@@ -138,7 +138,7 @@ public class MedicineServiceImpl implements MedicineService {
                 .interactions(r.getInteractions())
                 .storageConditions(r.getStorageConditions())
                 .prescriptionRequired(r.isPrescriptionRequired())
-                .referencePrice(r.getReferencePrice())
+                .price(r.getPrice())
                 .active(r.isActive())
                 .imageUrl(r.getImageUrl())
                 .build();

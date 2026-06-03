@@ -1,5 +1,6 @@
 package com.HealthLink.controller.pharmacy;
 
+import com.HealthLink.dto.pharmacy.CancelOrderRequest;
 import com.HealthLink.dto.pharmacy.PharmacyOrderRequest;
 import com.HealthLink.dto.pharmacy.PharmacyOrderResponse;
 import com.HealthLink.dto.pharmacy.PharmacyOrderStatusRequest;
@@ -44,6 +45,7 @@ public class PharmacyOrderController {
     }
 
     @PatchMapping("/{orderId}/status")
+    @PreAuthorize("hasRole('PHARMACY')")
     public ResponseEntity<PharmacyOrderResponse> updateOrderStatus(
             @PathVariable Integer orderId,
             @Valid @RequestBody PharmacyOrderStatusRequest request) {
@@ -53,6 +55,7 @@ public class PharmacyOrderController {
     }
 
     @GetMapping("/pharmacy/{pharmacyId}")
+    @PreAuthorize("hasRole('PHARMACY')")
     public ResponseEntity<List<PharmacyOrderResponse>> getOrdersByPharmacy(
             @PathVariable String pharmacyId,
             @RequestParam(required = false) String status) {
@@ -62,14 +65,17 @@ public class PharmacyOrderController {
     }
 
     @GetMapping("/patient/{patientId}")
+    @PreAuthorize("hasRole('PATIENT')")
     public ResponseEntity<List<PharmacyOrderResponse>> getOrdersByPatient(
-            @PathVariable String patientId) {
+            @PathVariable String patientId,
+            @RequestParam(required = false) String status) {
 
-        List<PharmacyOrderResponse> orders = pharmacyOrderService.getOrdersByPatient(patientId);
+        List<PharmacyOrderResponse> orders = pharmacyOrderService.getOrdersByPatient(patientId, status);
         return ResponseEntity.ok(orders);
     }
 
     @GetMapping("/doctor/{doctorId}")
+    @PreAuthorize("hasRole('DOCTOR')")
     public ResponseEntity<List<PharmacyOrderResponse>> getOrdersByDoctor(
             @PathVariable String doctorId) {
 
@@ -78,11 +84,24 @@ public class PharmacyOrderController {
     }
 
     @GetMapping("/{orderId}")
+    @PreAuthorize("isAuthenticated()")
     public ResponseEntity<PharmacyOrderResponse> getOrderById(
             @PathVariable Integer orderId) {
 
         PharmacyOrderResponse order = pharmacyOrderService.getOrderById(orderId);
         return ResponseEntity.ok(order);
+    }
+
+    @PostMapping("/{orderId}/cancel")
+    @PreAuthorize("hasRole('PATIENT')")
+    public ResponseEntity<PharmacyOrderResponse> cancelOrderByPatient(
+            @PathVariable Integer orderId,
+            @RequestBody CancelOrderRequest request,
+            @AuthenticationPrincipal UserDetails userDetails) {
+
+        String patientId = resolveUserId(userDetails);
+        PharmacyOrderResponse response = pharmacyOrderService.cancelOrderByPatient(orderId, request, patientId);
+        return ResponseEntity.ok(response);
     }
 
     private String resolveUserId(UserDetails userDetails) {

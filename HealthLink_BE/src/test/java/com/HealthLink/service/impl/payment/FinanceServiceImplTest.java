@@ -119,7 +119,7 @@ class FinanceServiceImplTest {
                 .build();
         Appointment appointment = Appointment.builder()
                 .appointmentId(33)
-                .status("PendingPayment")
+                .status("PENDINGPAYMENT")
                 .patient(patient)
                 .doctor(doctor)
                 .appointmentTime(java.time.LocalDateTime.now().plusDays(2))
@@ -189,7 +189,7 @@ class FinanceServiceImplTest {
         assertThat(appointment.getStatus()).isEqualTo("SCHEDULED");
         assertThat(appointment.getConfirmedAt()).isNotNull();
         verify(appointmentService).createAppointment(any());
-        verify(commissionService, never()).processConsultationCommission(any(Invoice.class));
+        verify(commissionService).processConsultationCommission(any(Invoice.class));
         verify(notificationService).sendWebSocketNotification(
                 eq(doctorUser),
                 eq(NotificationType.NEW_APPOINTMENT),
@@ -209,7 +209,7 @@ class FinanceServiceImplTest {
         PharmacyOrder pharmacyOrder = PharmacyOrder.builder()
                 .orderId(77)
                 .orderNumber("ORD-20260520-0001")
-                .status("Completed")
+                .status("COMPLETED")
                 .paymentStatus("Pending")
                 .totalAmount(new BigDecimal("35.50"))
                 .patient(Patient.builder()

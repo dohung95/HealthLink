@@ -192,7 +192,7 @@ public class AdminDoctorService {
         if (doctor.getAppointments() != null) {
             totalConsultations = (int) doctor.getAppointments().stream()
                 .filter(Objects::nonNull)
-                .filter(apt -> "Completed".equalsIgnoreCase(apt.getStatus()))
+                .filter(apt -> "COMPLETED".equalsIgnoreCase(apt.getStatus()))
                 .count();
         }
 

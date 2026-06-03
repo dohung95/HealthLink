@@ -2,17 +2,17 @@ import React, { useEffect, useMemo, useState } from 'react';
 import { NavLink, useLocation, useNavigate } from 'react-router-dom';
 import { toast } from 'sonner';
 
-import '../../components/pharmacy/Css/PharmacyDashboard.css';
+import '../../components/Css/pharmacy/pharmacy-dashboard/pharmacy-dashboard.css';
 import { getPharmacyProfile } from '../../api/account';
 import pharmacyApi from '../../api/pharmacyApi';
 import { paymentApi } from '../../api/paymentApi';
 import { useAuth } from '../../context/AuthContext';
-import PharmacyConsultationsTab from '../../components/pharmacy/consultations/PharmacyConsultationsTab';
-import PharmacyOverviewTab from '../../components/pharmacy/dashboard/PharmacyOverviewTab';
-import { Avatar, getProfileName, navItems, routeByTab } from '../../components/pharmacy/common/pharmacyDashboardShared';
-import PharmacyOrdersTab from '../../components/pharmacy/orders/PharmacyOrdersTab';
-import PharmacyProfileTab from '../../components/pharmacy/profile/PharmacyProfileTab';
-import PharmacyWalletTab from '../../components/pharmacy/wallet/PharmacyWalletTab';
+import PharmacyConsultationsTab from '../../components/pharmacy/PharmacyConsultationsTab';
+import PharmacyOverviewTab from '../../components/pharmacy/PharmacyOverviewTab';
+import { Avatar, getProfileName, navItems, routeByTab } from '../../components/pharmacy/PharmacyShared';
+import PharmacyOrdersTab from '../../components/pharmacy/PharmacyOrdersTab';
+import PharmacyProfileTab from '../../components/pharmacy/PharmacyProfileTab';
+import PharmacyWalletTab from '../../components/pharmacy/PharmacyWalletTab';
 
 export default function PharmacyDashboardPage() {
   const { token, currentUserId, logout } = useAuth();
@@ -83,6 +83,7 @@ export default function PharmacyDashboardPage() {
     settlements,
     pharmacyId,
     globalSearch,
+    loading,
     reload: loadDashboardData,
     navigate,
   };
