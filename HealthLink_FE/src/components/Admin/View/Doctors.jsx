@@ -319,24 +319,6 @@ export default function Doctors() {
                 Manage healthcare providers, specialties, and professional credentials
               </p>
             </div>
-            <div className="d-flex gap-2">
-              <button
-                className={`view-toggle-btn ${viewMode === 'grid' ? 'active' : ''}`}
-                onClick={() => toggleViewMode('grid')}
-                title="Grid View"
-              >
-                <i className="bi bi-grid-3x3-gap"></i>
-                Grid
-              </button>
-              <button
-                className={`view-toggle-btn ${viewMode === 'table' ? 'active' : ''}`}
-                onClick={() => toggleViewMode('table')}
-                title="Table View"
-              >
-                <i className="bi bi-table"></i>
-                Table
-              </button>
-            </div>
           </div>
         </div>
 
@@ -348,65 +330,73 @@ export default function Doctors() {
           </div>
         )}
 
-        {/* Search and Filter */}
-        <div className="admin-card mb-4">
-          <div className="card-body">
-            <div className="d-flex justify-content-between align-items-center mb-3">
-              <div className="d-flex align-items-center" style={{ padding: "5px 10px" }}>
-                <i className="bi bi-funnel me-2" style={{ color: 'var(--admin-text-light)' }}></i>
-                <h6 className="mb-0" style={{ color: 'var(--admin-text-light)', fontSize: '13px', fontWeight: 600 }}>SEARCH & FILTERS</h6>
-              </div>
-              <div style={{ padding: "15px 5px 0 5px" }}>
-                <button
-                  className="btn btn-outline-secondary btn-sm"
-                  onClick={() => {
-                    setFilters({ searchTerm: '', specialty: '', sortBy: 'newest' });
-                    setPagination({ ...pagination, pageNumber: 1 });
-                  }}
-                  style={{ fontSize: '12px' }}
-                >
-                  <i className="bi bi-x-circle me-1"></i>
-                  Clear Filters
-                </button>
-              </div>
-            </div>
-            <div className="row g-3">
-              <div className="col-md-6" style={{ padding: "0 0 10px 20px" }}>
-                <input
-                  type="text"
-                  className="form-control"
-                  placeholder="Search by name, email, specialty..."
-                  value={filters.searchTerm}
-                  onChange={handleSearch}
-                />
-              </div>
-              <div className="col-md-3">
-                <select
-                  className="form-select"
-                  value={filters.specialty}
-                  onChange={handleSpecialtyFilter}
-                >
-                  <option value="">All Specialties</option>
-                  <option value="Cardiology">Cardiology</option>
-                  <option value="Dermatology">Dermatology</option>
-                  <option value="Neurology">Neurology</option>
-                  <option value="Pediatrics">Pediatrics</option>
-                  <option value="Psychiatry">Psychiatry</option>
-                  <option value="General Practice">General Practice</option>
-                </select>
-              </div>
-              <div className="col-md-3" style={{ padding: "0 20px 0 0" }}>
-                <select
-                  className="form-select"
-                  value={filters.sortBy}
-                  onChange={handleSort}
-                >
-                  <option value="newest">Sort by: Newest</option>
-                  <option value="oldest">Sort by: Oldest</option>
-                  <option value="name-asc">Sort by: Name A-Z</option>
-                  <option value="name-desc">Sort by: Name Z-A</option>
-                </select>
-              </div>
+        {/* Compact Filter Bar */}
+        <div className="admin-filter-bar">
+          <div className="filter-search">
+            <i className="bi bi-search"></i>
+            <input
+              type="text"
+              className="form-control"
+              placeholder="Search doctors..."
+              value={filters.searchTerm}
+              onChange={handleSearch}
+            />
+          </div>
+          <div className="filter-select">
+            <select
+              className="form-select"
+              value={filters.specialty}
+              onChange={handleSpecialtyFilter}
+            >
+              <option value="">All Specialties</option>
+              <option value="Cardiology">Cardiology</option>
+              <option value="Dermatology">Dermatology</option>
+              <option value="Neurology">Neurology</option>
+              <option value="Pediatrics">Pediatrics</option>
+              <option value="Psychiatry">Psychiatry</option>
+              <option value="General Practice">General Practice</option>
+            </select>
+          </div>
+          <div className="filter-select">
+            <select
+              className="form-select"
+              value={filters.sortBy}
+              onChange={handleSort}
+            >
+              <option value="newest">Newest</option>
+              <option value="oldest">Oldest</option>
+              <option value="name-asc">Name A-Z</option>
+              <option value="name-desc">Name Z-A</option>
+            </select>
+          </div>
+          <div className="filter-actions">
+            {(filters.searchTerm || filters.specialty) && (
+              <button
+                className="btn btn-outline-secondary btn-clear-filter"
+                onClick={() => {
+                  setFilters({ searchTerm: '', specialty: '', sortBy: 'newest' });
+                  setPagination({ ...pagination, pageNumber: 1 });
+                }}
+              >
+                <i className="bi bi-x-circle"></i>
+                Clear
+              </button>
+            )}
+            <div className="view-toggle-group">
+              <button
+                className={`btn ${viewMode === 'grid' ? 'active' : ''}`}
+                onClick={() => toggleViewMode('grid')}
+                title="Grid View"
+              >
+                <i className="bi bi-grid-3x3-gap"></i>
+              </button>
+              <button
+                className={`btn ${viewMode === 'table' ? 'active' : ''}`}
+                onClick={() => toggleViewMode('table')}
+                title="Table View"
+              >
+                <i className="bi bi-list"></i>
+              </button>
             </div>
           </div>
         </div>
@@ -766,7 +756,7 @@ export default function Doctors() {
         {/* View Doctor Details Modal */}
         {showViewModal && selectedDoctor && (
           <div className="modal show d-block admin-modal-backdrop" tabIndex="-1">
-            <div className="modal-dialog modal-xl modal-dialog-scrollable">
+            <div className="modal-dialog modal-lg modal-dialog-scrollable">
               <div className="modal-content" style={{ border: 'none', boxShadow: 'var(--shadow-lg)' }}>
                 <div className="modal-header admin-modal-header primary" style={{ borderBottom: 'none' }}>
                   <h5 className="modal-title">
@@ -779,306 +769,208 @@ export default function Doctors() {
                     onClick={() => setShowViewModal(false)}
                   ></button>
                 </div>
-                <div className="modal-body admin-modal-body" style={{ backgroundColor: 'var(--admin-bg)' }}>
-                  {/* Doctor Header Card - Highlighted */}
-                  <div className="admin-card mb-4" style={{
+                <div className="modal-body admin-modal-body" style={{ backgroundColor: 'var(--admin-bg)', padding: '20px' }}>
+                  {/* Doctor Header Card */}
+                  <div className="admin-card mb-3" style={{
                     background: 'linear-gradient(135deg, var(--admin-primary-dark) 0%, var(--admin-primary) 100%)',
                     color: 'white',
-                    padding: 'var(--spacing-lg)'
+                    padding: '16px 20px'
                   }}>
-                    <div className="row align-items-center">
-                      <div className="col-auto">
-                        <div style={{
-                          width: '80px',
-                          height: '80px',
-                          borderRadius: 'var(--radius-full)',
-                          background: getAvatarUrl(selectedDoctor.avatarUrl) ? 'transparent' : 'rgba(255, 255, 255, 0.2)',
-                          display: 'flex',
-                          alignItems: 'center',
-                          justifyContent: 'center',
-                          fontSize: '32px',
-                          fontWeight: '700',
-                          border: '3px solid rgba(255, 255, 255, 0.3)',
-                          overflow: 'hidden'
-                        }}>
-                          {getAvatarUrl(selectedDoctor.avatarUrl) ? (
-                            <img src={getAvatarUrl(selectedDoctor.avatarUrl)} alt={selectedDoctor.fullName} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
-                          ) : (
-                            selectedDoctor.fullName.charAt(0)
-                          )}
+                    <div className="d-flex align-items-center gap-3">
+                      <div style={{
+                        width: '64px',
+                        height: '64px',
+                        borderRadius: '50%',
+                        background: getAvatarUrl(selectedDoctor.avatarUrl) ? 'transparent' : 'rgba(255, 255, 255, 0.2)',
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        fontSize: '24px',
+                        fontWeight: '700',
+                        border: '2px solid rgba(255, 255, 255, 0.3)',
+                        overflow: 'hidden',
+                        flexShrink: 0
+                      }}>
+                        {getAvatarUrl(selectedDoctor.avatarUrl) ? (
+                          <img src={getAvatarUrl(selectedDoctor.avatarUrl)} alt={selectedDoctor.fullName} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                        ) : (
+                          selectedDoctor.fullName.charAt(0)
+                        )}
+                      </div>
+                      <div className="flex-grow-1">
+                        <h5 className="mb-1" style={{ fontWeight: '700' }}>Dr. {selectedDoctor.fullName}</h5>
+                        <div className="d-flex flex-wrap gap-2" style={{ fontSize: '13px', opacity: 0.9 }}>
+                          <span><i className="bi bi-envelope me-1"></i>{selectedDoctor.email}</span>
+                          <span><i className="bi bi-telephone me-1"></i>{selectedDoctor.phoneNumber || 'N/A'}</span>
                         </div>
                       </div>
-                      <div className="col">
-                        <h4 className="mb-1" style={{ fontWeight: '700', fontSize: 'var(--font-size-2xl)' }}>
-                          Dr. {selectedDoctor.fullName}
-                        </h4>
-                        <div className="d-flex flex-wrap gap-3 mt-2" style={{ fontSize: 'var(--font-size-sm)' }}>
-                          <span style={{ opacity: 0.9 }}>
-                            <i className="bi bi-person-badge me-1"></i>
-                            ID: {selectedDoctor.doctorID}
+                      <div className="d-flex flex-column gap-1 text-end">
+                        <span className={`badge ${getStatusBadgeClass(selectedDoctor.status)}`} style={{ fontSize: '12px' }}>
+                          {selectedDoctor.status}
+                        </span>
+                        {selectedDoctor.rating && (
+                          <span style={{ fontSize: '13px', fontWeight: '600' }}>
+                            <i className="bi bi-star-fill me-1"></i>{selectedDoctor.rating.toFixed(1)}
                           </span>
-                          <span style={{ opacity: 0.9 }}>
-                            <i className="bi bi-telephone me-1"></i>
-                            {selectedDoctor.phoneNumber}
-                          </span>
-                          <span style={{ opacity: 0.9 }}>
-                            <i className="bi bi-envelope me-1"></i>
-                            {selectedDoctor.email}
-                          </span>
-                        </div>
-                      </div>
-                      <div className="col-auto text-end">
-                        <div className="d-flex flex-column gap-2">
-                          <div style={{
-                            background: 'rgba(255, 255, 255, 0.2)',
-                            padding: '8px 16px',
-                            borderRadius: 'var(--radius-md)',
-                            fontSize: 'var(--font-size-sm)',
-                            fontWeight: '600'
-                          }}>
-                            <i className="bi bi-star-fill me-1"></i>
-                            {selectedDoctor.rating ? `${selectedDoctor.rating.toFixed(1)} Rating` : 'No Rating'}
-                          </div>
-                          {selectedDoctor.yearsOfExperience && (
-                            <div style={{
-                              background: 'rgba(255, 255, 255, 0.2)',
-                              padding: '8px 16px',
-                              borderRadius: 'var(--radius-md)',
-                              fontSize: 'var(--font-size-sm)',
-                              fontWeight: '600'
-                            }}>
-                              <i className="bi bi-award me-1"></i>
-                              {selectedDoctor.yearsOfExperience} Years Exp.
-                            </div>
-                          )}
-                        </div>
+                        )}
                       </div>
                     </div>
                   </div>
 
-                  <div className="row">
-                    {/* Left Column */}
-                    <div className="col-lg-6">
-                      {/* Professional Information */}
-                      <div className="admin-modal-section">
-                        <h6 className="admin-modal-section-title primary">
-                          <i className="bi bi-briefcase"></i>
-                          Professional Information
-                        </h6>
-                        <div className="admin-info-row">
-                          <strong>Specialty:</strong>
-                          <span>{selectedDoctor.specialty || 'N/A'}</span>
+                  {/* Quick Stats Row */}
+                  <div className="row g-2 mb-3">
+                    <div className="col-3">
+                      <div className="text-center p-2" style={{ background: '#f0fdf4', borderRadius: '8px' }}>
+                        <div style={{ fontSize: '18px', fontWeight: '700', color: '#16a34a' }}>
+                          {selectedDoctor.yearsOfExperience || 0}
                         </div>
-                        <div className="admin-info-row">
-                          <strong>Qualifications:</strong>
-                          <span>{selectedDoctor.qualifications || 'N/A'}</span>
-                        </div>
-                        <div className="admin-info-row">
-                          <strong>Years of Experience:</strong>
-                          <span>{selectedDoctor.yearsOfExperience || 'N/A'}</span>
-                        </div>
-                        <div className="admin-info-row">
-                          <strong>Languages Spoken:</strong>
-                          <span>{selectedDoctor.languageSpoken || 'N/A'}</span>
-                        </div>
-                      </div>
-
-                      {/* Contact & Location Information */}
-                      <div className="admin-modal-section">
-                        <h6 className="admin-modal-section-title primary">
-                          <i className="bi bi-geo-alt"></i>
-                          Contact & Location
-                        </h6>
-                        <div className="admin-info-row">
-                          <strong>Location:</strong>
-                          <span>{selectedDoctor.location || 'N/A'}</span>
-                        </div>
-                        <div className="admin-info-row">
-                          <strong>Phone Number:</strong>
-                          <span>{selectedDoctor.phoneNumber || 'N/A'}</span>
-                        </div>
-                        <div className="admin-info-row">
-                          <strong>Email:</strong>
-                          <span>{selectedDoctor.email || 'N/A'}</span>
-                        </div>
-                      </div>
-
-                      {/* Account Information */}
-                      <div className="admin-modal-section">
-                        <h6 className="admin-modal-section-title primary">
-                          <i className="bi bi-shield-check"></i>
-                          Account Information
-                        </h6>
-                        <div className="admin-info-row">
-                          <strong>Status:</strong>
-                          <span>
-                            <span className={`badge ${getStatusBadgeClass(selectedDoctor.status)}`}>
-                              {selectedDoctor.status}
-                            </span>
-                          </span>
-                        </div>
-                        <div className="admin-info-row">
-                          <strong>Registration Date:</strong>
-                          <span>{formatDate(selectedDoctor.createdAt)}</span>
-                        </div>
+                        <div style={{ fontSize: '11px', color: '#64748b' }}>Years Exp.</div>
                       </div>
                     </div>
-
-                    {/* Right Column */}
-                    <div className="col-lg-6">
-                      {/* Performance Metrics */}
-                      <div className="admin-modal-section">
-                        <h6 className="admin-modal-section-title primary">
-                          <i className="bi bi-graph-up"></i>
-                          Performance Metrics
-                        </h6>
-                        <div className="admin-info-row">
-                          <strong>Overall Rating:</strong>
-                          <span>
-                            {selectedDoctor.rating ? (
-                              <>
-                                <i className="bi bi-star-fill text-warning"></i> {selectedDoctor.rating.toFixed(1)} / 5.0
-                              </>
-                            ) : 'No ratings yet'}
-                          </span>
+                    <div className="col-3">
+                      <div className="text-center p-2" style={{ background: '#eff6ff', borderRadius: '8px' }}>
+                        <div style={{ fontSize: '18px', fontWeight: '700', color: '#2563eb' }}>
+                          {selectedDoctor.totalConsultations || 0}
                         </div>
-                        <div className="admin-info-row">
-                          <strong>Total Consultations:</strong>
-                          <span>{selectedDoctor.totalConsultations || '0'}</span>
-                        </div>
-                        <div className="admin-info-row">
-                          <strong>Total Reviews:</strong>
-                          <span>{selectedDoctor.totalReviews || '0'}</span>
-                        </div>
+                        <div style={{ fontSize: '11px', color: '#64748b' }}>Consults</div>
                       </div>
-
-                      {/* Availability */}
-                      <div className="admin-modal-section">
-                        <h6 className="admin-modal-section-title primary">
-                          <i className="bi bi-calendar-check"></i>
-                          Availability
-                        </h6>
-                        <div className="admin-info-row">
-                          <strong>Consultation Hours:</strong>
-                          <span>{selectedDoctor.consultationHours || 'Not specified'}</span>
+                    </div>
+                    <div className="col-3">
+                      <div className="text-center p-2" style={{ background: '#fef3c7', borderRadius: '8px' }}>
+                        <div style={{ fontSize: '18px', fontWeight: '700', color: '#d97706' }}>
+                          {selectedDoctor.totalReviews || 0}
                         </div>
-                        <div className="admin-info-row">
-                          <strong>Available Days:</strong>
-                          <span>{selectedDoctor.availableDays || 'Not specified'}</span>
-                        </div>
+                        <div style={{ fontSize: '11px', color: '#64748b' }}>Reviews</div>
                       </div>
-
-                      {/* Additional Information */}
-                      <div className="admin-modal-section">
-                        <h6 className="admin-modal-section-title primary">
-                          <i className="bi bi-info-circle"></i>
-                          Additional Information
-                        </h6>
-                        <div className="admin-info-row">
-                          <strong>Biography:</strong>
-                          <span style={{ display: 'block', marginTop: 'var(--spacing-sm)' }}>
-                            {selectedDoctor.bio || 'No biography provided'}
-                          </span>
+                    </div>
+                    <div className="col-3">
+                      <div className="text-center p-2" style={{ background: '#f0fdf9', borderRadius: '8px' }}>
+                        <div style={{ fontSize: '18px', fontWeight: '700', color: '#00a08b' }}>
+                          ${Number(selectedDoctor.consultationFee || 0).toFixed(0)}
                         </div>
+                        <div style={{ fontSize: '11px', color: '#64748b' }}>Fee</div>
                       </div>
+                    </div>
+                  </div>
 
-                      {/* Clinic Information */}
-                      <div className="admin-modal-section">
-                        <h6 className="admin-modal-section-title primary">
-                          <i className="bi bi-hospital"></i>
-                          Clinic Information
-                        </h6>
-                        <div className="admin-info-row">
-                          <strong>Clinic Name:</strong>
-                          <span>{selectedDoctor.clinicName || 'Not specified'}</span>
-                        </div>
-                        <div className="admin-info-row">
-                          <strong>Clinic Address:</strong>
-                          <span>{selectedDoctor.clinicAddress || 'Not specified'}</span>
-                        </div>
-                        <div className="admin-info-row">
-                          <strong>Consultation Fee:</strong>
-                          <span>
-                            {selectedDoctor.consultationFee
-                              ? `$${Number(selectedDoctor.consultationFee).toFixed(2)}`
-                              : 'Not set'}
-                          </span>
-                        </div>
+                  {/* Professional Info */}
+                  <div className="admin-card mb-3" style={{ padding: '16px' }}>
+                    <h6 style={{ fontSize: '13px', fontWeight: '600', color: '#00a08b', marginBottom: '12px', display: 'flex', alignItems: 'center', gap: '6px' }}>
+                      <i className="bi bi-briefcase"></i> Professional Information
+                    </h6>
+                    <div className="row g-2">
+                      <div className="col-6">
+                        <div style={{ fontSize: '12px', color: '#64748b' }}>Specialty</div>
+                        <div style={{ fontSize: '14px', fontWeight: '500', color: '#0f172a' }}>{selectedDoctor.specialty || 'N/A'}</div>
                       </div>
+                      <div className="col-6">
+                        <div style={{ fontSize: '12px', color: '#64748b' }}>Languages</div>
+                        <div style={{ fontSize: '14px', fontWeight: '500', color: '#0f172a' }}>{selectedDoctor.languageSpoken || 'N/A'}</div>
+                      </div>
+                      <div className="col-12 mt-2">
+                        <div style={{ fontSize: '12px', color: '#64748b' }}>Qualifications</div>
+                        <div style={{ fontSize: '14px', fontWeight: '500', color: '#0f172a' }}>{selectedDoctor.qualifications || 'N/A'}</div>
+                      </div>
+                      {selectedDoctor.bio && (
+                        <div className="col-12 mt-2">
+                          <div style={{ fontSize: '12px', color: '#64748b' }}>Biography</div>
+                          <div style={{ fontSize: '13px', color: '#475569', lineHeight: '1.5' }}>{selectedDoctor.bio}</div>
+                        </div>
+                      )}
+                    </div>
+                  </div>
 
-                      {/* Consultation Types */}
-                      <div className="admin-modal-section">
-                        <h6 className="admin-modal-section-title primary">
-                          <i className="bi bi-headset"></i>
-                          Available Consultation Types
+                  {/* Clinic & Consultation */}
+                  <div className="row g-3 mb-3">
+                    <div className="col-md-6">
+                      <div className="admin-card h-100" style={{ padding: '16px' }}>
+                        <h6 style={{ fontSize: '13px', fontWeight: '600', color: '#00a08b', marginBottom: '12px', display: 'flex', alignItems: 'center', gap: '6px' }}>
+                          <i className="bi bi-hospital"></i> Clinic
+                        </h6>
+                        <div style={{ fontSize: '12px', color: '#64748b' }}>Name</div>
+                        <div style={{ fontSize: '14px', fontWeight: '500', color: '#0f172a', marginBottom: '8px' }}>{selectedDoctor.clinicName || 'Not specified'}</div>
+                        <div style={{ fontSize: '12px', color: '#64748b' }}>Address</div>
+                        <div style={{ fontSize: '13px', color: '#475569' }}>{selectedDoctor.clinicAddress || selectedDoctor.location || 'Not specified'}</div>
+                      </div>
+                    </div>
+                    <div className="col-md-6">
+                      <div className="admin-card h-100" style={{ padding: '16px' }}>
+                        <h6 style={{ fontSize: '13px', fontWeight: '600', color: '#00a08b', marginBottom: '12px', display: 'flex', alignItems: 'center', gap: '6px' }}>
+                          <i className="bi bi-headset"></i> Consultation Types
                         </h6>
                         <div className="d-flex flex-wrap gap-2">
-                          <span className={`badge ${selectedDoctor.availableForVideo ? 'bg-success' : 'bg-secondary'}`}>
+                          <span className={`badge ${selectedDoctor.availableForVideo ? 'bg-success' : 'bg-secondary'}`} style={{ fontSize: '12px' }}>
                             <i className="bi bi-camera-video me-1"></i>Video
                           </span>
-                          <span className={`badge ${selectedDoctor.availableForAudio ? 'bg-success' : 'bg-secondary'}`}>
+                          <span className={`badge ${selectedDoctor.availableForAudio ? 'bg-success' : 'bg-secondary'}`} style={{ fontSize: '12px' }}>
                             <i className="bi bi-telephone me-1"></i>Audio
                           </span>
-                          <span className={`badge ${selectedDoctor.availableForChat ? 'bg-success' : 'bg-secondary'}`}>
+                          <span className={`badge ${selectedDoctor.availableForChat ? 'bg-success' : 'bg-secondary'}`} style={{ fontSize: '12px' }}>
                             <i className="bi bi-chat-dots me-1"></i>Chat
                           </span>
-                          <span className={`badge ${selectedDoctor.availableForOffline ? 'bg-success' : 'bg-secondary'}`}>
+                          <span className={`badge ${selectedDoctor.availableForOffline ? 'bg-success' : 'bg-secondary'}`} style={{ fontSize: '12px' }}>
                             <i className="bi bi-person me-1"></i>In-person
                           </span>
                         </div>
-                      </div>
-
-                      {/* Finance & Commission */}
-                      <div className="admin-modal-section">
-                        <h6 className="admin-modal-section-title primary">
-                          <i className="bi bi-wallet2"></i>
-                          Finance & Commission
-                        </h6>
-                        <div className="admin-info-row">
-                          <strong>Commission Tier:</strong>
-                          <span>
-                            <span className={`badge ${
-                              selectedDoctor.commissionTier === 'VIP' ? 'bg-warning text-dark' :
-                              selectedDoctor.commissionTier === 'PREMIUM' ? 'bg-info' : 'bg-secondary'
-                            }`}>
-                              {selectedDoctor.commissionTier || 'STANDARD'}
-                            </span>
-                          </span>
-                        </div>
-                        <div className="admin-info-row">
-                          <strong>Total Earnings:</strong>
-                          <span className="text-success fw-bold">
-                            ${Number(selectedDoctor.totalEarnings || 0).toFixed(2)}
-                          </span>
-                        </div>
-                        <div className="admin-info-row">
-                          <strong>Pending Settlement:</strong>
-                          <span className="text-warning fw-bold">
-                            ${Number(selectedDoctor.pendingSettlement || 0).toFixed(2)}
-                          </span>
-                        </div>
-                      </div>
-
-                      {/* Payment Information */}
-                      <div className="admin-modal-section">
-                        <h6 className="admin-modal-section-title primary">
-                          <i className="bi bi-bank"></i>
-                          Payment Information
-                        </h6>
-                        <div className="admin-info-row">
-                          <strong>Bank Name:</strong>
-                          <span>{selectedDoctor.bankName || '—'}</span>
-                        </div>
-                        <div className="admin-info-row">
-                          <strong>Bank Account:</strong>
-                          <span>{selectedDoctor.bankAccount || '—'}</span>
-                        </div>
-                        <div className="admin-info-row">
-                          <strong>PayPal Email:</strong>
-                          <span>{selectedDoctor.paypalEmail || '—'}</span>
-                        </div>
+                        {(selectedDoctor.consultationHours || selectedDoctor.availableDays) && (
+                          <div className="mt-2 pt-2" style={{ borderTop: '1px solid #e2e8f0' }}>
+                            {selectedDoctor.consultationHours && (
+                              <div style={{ fontSize: '12px', color: '#475569' }}>
+                                <i className="bi bi-clock me-1"></i>{selectedDoctor.consultationHours}
+                              </div>
+                            )}
+                            {selectedDoctor.availableDays && (
+                              <div style={{ fontSize: '12px', color: '#475569' }}>
+                                <i className="bi bi-calendar3 me-1"></i>{selectedDoctor.availableDays}
+                              </div>
+                            )}
+                          </div>
+                        )}
                       </div>
                     </div>
+                  </div>
+
+                  {/* Finance Info */}
+                  <div className="admin-card" style={{ padding: '16px' }}>
+                    <h6 style={{ fontSize: '13px', fontWeight: '600', color: '#00a08b', marginBottom: '12px', display: 'flex', alignItems: 'center', gap: '6px' }}>
+                      <i className="bi bi-wallet2"></i> Finance & Payment
+                    </h6>
+                    <div className="row g-3">
+                      <div className="col-md-4">
+                        <div className="d-flex justify-content-between align-items-center p-2" style={{ background: '#f0fdf4', borderRadius: '6px' }}>
+                          <span style={{ fontSize: '12px', color: '#64748b' }}>Total Earnings</span>
+                          <span style={{ fontSize: '14px', fontWeight: '600', color: '#16a34a' }}>${Number(selectedDoctor.totalEarnings || 0).toFixed(2)}</span>
+                        </div>
+                      </div>
+                      <div className="col-md-4">
+                        <div className="d-flex justify-content-between align-items-center p-2" style={{ background: '#fef3c7', borderRadius: '6px' }}>
+                          <span style={{ fontSize: '12px', color: '#64748b' }}>Pending</span>
+                          <span style={{ fontSize: '14px', fontWeight: '600', color: '#d97706' }}>${Number(selectedDoctor.pendingSettlement || 0).toFixed(2)}</span>
+                        </div>
+                      </div>
+                      <div className="col-md-4">
+                        <div className="d-flex justify-content-between align-items-center p-2" style={{ background: '#f8fafc', borderRadius: '6px' }}>
+                          <span style={{ fontSize: '12px', color: '#64748b' }}>Tier</span>
+                          <span className={`badge ${selectedDoctor.commissionTier === 'VIP' ? 'bg-warning text-dark' : selectedDoctor.commissionTier === 'PREMIUM' ? 'bg-info' : 'bg-secondary'}`} style={{ fontSize: '11px' }}>
+                            {selectedDoctor.commissionTier || 'STANDARD'}
+                          </span>
+                        </div>
+                      </div>
+                      {(selectedDoctor.bankName || selectedDoctor.paypalEmail) && (
+                        <div className="col-12">
+                          <div className="d-flex flex-wrap gap-3 pt-2" style={{ borderTop: '1px solid #e2e8f0', fontSize: '12px', color: '#64748b' }}>
+                            {selectedDoctor.bankName && <span><i className="bi bi-bank me-1"></i>{selectedDoctor.bankName}</span>}
+                            {selectedDoctor.paypalEmail && <span><i className="bi bi-paypal me-1"></i>{selectedDoctor.paypalEmail}</span>}
+                          </div>
+                        </div>
+                      )}
+                    </div>
+                  </div>
+
+                  {/* Account Info Footer */}
+                  <div className="d-flex justify-content-between align-items-center mt-3 pt-2" style={{ borderTop: '1px solid #e2e8f0', fontSize: '12px', color: '#94a3b8' }}>
+                    <span><i className="bi bi-calendar-plus me-1"></i>Registered: {formatDate(selectedDoctor.createdAt)}</span>
+                    <span>ID: {selectedDoctor.doctorID}</span>
                   </div>
                 </div>
                 <div className="admin-modal-footer">

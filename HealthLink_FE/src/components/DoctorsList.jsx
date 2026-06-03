@@ -7,28 +7,54 @@ import './Css/DoctorDirectory.css';
 
 const DoctorsList = () => {
     const navigate = useNavigate();
-    const { isAuthenticated } = useAuth();
-
+    const { isAuthenticated, roles } = useAuth();
+    const [pendingRedirect, setPendingRedirect] = useState(null);
     const [showModal, setShowModal] = useState(false);
     const [pendingDoctorId, setPendingDoctorId] = useState(null);
 
     const handleBookNow = (doctorId) => {
+        const target = `/patient-dashboard/book/${doctorId}`;
+
         if (!isAuthenticated) {
             setPendingDoctorId(doctorId);
+            setPendingRedirect(target);
+
+            sessionStorage.setItem('postLoginRedirect', target);
+
             setShowModal(true);
-        } else {
-            navigate(`/book/${doctorId}`);
+            return;
         }
+
+        const isPatient = roles?.some(
+            (role) => String(role).toLowerCase() === 'patient'
+        );
+
+        if (!isPatient) {
+            navigate('/');
+            return;
+        }
+
+        navigate(target);
     };
 
     const handleConfirmLogin = () => {
         setShowModal(false);
-        navigate('/login');
+
+        const target = pendingRedirect || `/patient-dashboard/book/${pendingDoctorId}`;
+
+        sessionStorage.setItem('postLoginRedirect', target);
+
+        navigate('/login', {
+            state: {
+                redirectTo: target,
+            },
+        });
     };
 
     const handleCloseModal = () => {
         setShowModal(false);
         setPendingDoctorId(null);
+        setPendingRedirect(null);
     };
 
     return (

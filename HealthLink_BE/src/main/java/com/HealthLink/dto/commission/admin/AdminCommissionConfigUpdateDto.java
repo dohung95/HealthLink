@@ -14,7 +14,6 @@ public class AdminCommissionConfigUpdateDto {
     private BigDecimal minCommission;
     private BigDecimal maxCommission;
     private String description;
-    private boolean active;
     private LocalDateTime effectiveFrom;
     private LocalDateTime effectiveTo;
 }

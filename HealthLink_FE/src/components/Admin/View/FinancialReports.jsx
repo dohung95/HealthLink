@@ -2,7 +2,7 @@ import React, { useState, useEffect } from "react";
 import NavbarAdmin from "./NavbarAdmin";
 import { financialApi, analyticsApi } from "../../../api/adminApi";
 import {
-  AreaChart, Area, BarChart, Bar, LineChart, Line, ComposedChart,
+   Area, BarChart, Bar, Line, ComposedChart,
   XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Legend
 } from "recharts";
 import "bootstrap/dist/css/bootstrap.min.css";
@@ -19,27 +19,12 @@ export default function FinancialReports() {
   const [overview, setOverview] = useState(null);
   const [revenueByMonth, setRevenueByMonth] = useState([]);
   const [revenueByDay, setRevenueByDay] = useState([]);
-  const [transactions, setTransactions] = useState([]);
 
   // Filter states
   const currentYear = new Date().getFullYear();
   const currentMonth = new Date().getMonth() + 1;
   const [selectedYear, setSelectedYear] = useState(currentYear);
   const [selectedMonth, setSelectedMonth] = useState(currentMonth);
-
-  // Transaction filters
-  const [transactionFilters, setTransactionFilters] = useState({
-    pageNumber: 1,
-    pageSize: 10,
-    status: "",
-    fromDate: "",
-    toDate: "",
-    searchTerm: ""
-  });
-  const [transactionPagination, setTransactionPagination] = useState({
-    totalCount: 0,
-    totalPages: 0
-  });
 
   // Year options
   const yearOptions = [];
@@ -74,12 +59,6 @@ export default function FinancialReports() {
     }
   }, [activeTab, selectedYear, selectedMonth]);
 
-  useEffect(() => {
-    if (activeTab === "transactions") {
-      fetchTransactions();
-    }
-  }, [activeTab, transactionFilters]);
-
   const fetchOverview = async () => {
     try {
       setLoading(true);
@@ -110,38 +89,6 @@ export default function FinancialReports() {
     }
   };
 
-  const fetchTransactions = async () => {
-    try {
-      const data = await financialApi.getTransactions(transactionFilters);
-      setTransactions(data.transactions || []);
-      setTransactionPagination({
-        totalCount: data.totalCount,
-        totalPages: data.totalPages
-      });
-    } catch (error) {
-      console.error("Error fetching transactions:", error);
-    }
-  };
-
-  const handleTransactionPageChange = (newPage) => {
-    setTransactionFilters({ ...transactionFilters, pageNumber: newPage });
-  };
-
-  const getStatusBadgeClass = (status) => {
-    switch (status?.toLowerCase()) {
-      case "completed":
-        return "success";
-      case "pending":
-      case "scheduled":
-        return "warning";
-      case "cancelled":
-      case "failed":
-        return "danger";
-      default:
-        return "secondary";
-    }
-  };
-
   const formatCurrency = (value) => {
     return new Intl.NumberFormat("en-US", {
       style: "currency",
@@ -149,17 +96,6 @@ export default function FinancialReports() {
       minimumFractionDigits: 0,
       maximumFractionDigits: 0
     }).format(value || 0);
-  };
-
-  const formatDate = (dateString) => {
-    if (!dateString) return "N/A";
-    return new Date(dateString).toLocaleDateString("en-US", {
-      year: "numeric",
-      month: "short",
-      day: "numeric",
-      hour: "2-digit",
-      minute: "2-digit"
-    });
   };
 
   return (
@@ -330,13 +266,6 @@ export default function FinancialReports() {
             <i className="bi bi-calendar3 me-2"></i>
             Daily Breakdown
           </button>
-          <button
-            className={`financial-tab ${activeTab === "transactions" ? "active" : ""}`}
-            onClick={() => setActiveTab("transactions")}
-          >
-            <i className="bi bi-list-ul me-2"></i>
-            Transactions
-          </button>
         </div>
 
         {/* Tab Content */}
@@ -449,209 +378,6 @@ export default function FinancialReports() {
                   />
                 </BarChart>
               </ResponsiveContainer>
-            </div>
-          </div>
-        )}
-
-        {activeTab === "transactions" && (
-          <div className="admin-card">
-            <div className="card-header bg-white py-3 px-4">
-              <div className="d-flex justify-content-between align-items-center flex-wrap gap-3">
-                <h5 className="mb-0">
-                  <i className="bi bi-list-ul me-2 text-info"></i>
-                  Transaction History
-                </h5>
-                <div className="d-flex gap-2 flex-wrap">
-                  <input
-                    type="text"
-                    className="form-control form-control-sm"
-                    placeholder="Search..."
-                    value={transactionFilters.searchTerm}
-                    onChange={(e) =>
-                      setTransactionFilters({
-                        ...transactionFilters,
-                        searchTerm: e.target.value,
-                        pageNumber: 1
-                      })
-                    }
-                    style={{ width: "150px" }}
-                  />
-                  <select
-                    className="form-select form-select-sm"
-                    value={transactionFilters.status}
-                    onChange={(e) =>
-                      setTransactionFilters({
-                        ...transactionFilters,
-                        status: e.target.value,
-                        pageNumber: 1
-                      })
-                    }
-                    style={{ width: "130px" }}
-                  >
-                    <option value="">All Status</option>
-                    <option value="completed">Completed</option>
-                    <option value="pending">Pending</option>
-                    <option value="scheduled">Scheduled</option>
-                    <option value="cancelled">Cancelled</option>
-                  </select>
-                  <input
-                    type="date"
-                    className="form-control form-control-sm"
-                    value={transactionFilters.fromDate}
-                    onChange={(e) =>
-                      setTransactionFilters({
-                        ...transactionFilters,
-                        fromDate: e.target.value,
-                        pageNumber: 1
-                      })
-                    }
-                    style={{ width: "140px" }}
-                  />
-                  <input
-                    type="date"
-                    className="form-control form-control-sm"
-                    value={transactionFilters.toDate}
-                    onChange={(e) =>
-                      setTransactionFilters({
-                        ...transactionFilters,
-                        toDate: e.target.value,
-                        pageNumber: 1
-                      })
-                    }
-                    style={{ width: "140px" }}
-                  />
-                </div>
-              </div>
-            </div>
-            <div className="card-body p-0">
-              <div className="table-responsive">
-                <table className="table table-hover mb-0">
-                  <thead className="bg-light">
-                    <tr>
-                      <th style={{ width: "80px" }}>ID</th>
-                      <th>Patient</th>
-                      <th>Doctor</th>
-                      <th className="text-end">Amount</th>
-                      <th className="text-end">Platform Fee</th>
-                      <th className="text-end">Doctor Earning</th>
-                      <th>Status</th>
-                      <th>Date</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {transactions.length === 0 ? (
-                      <tr>
-                        <td colSpan="8" className="text-center py-5 text-muted">
-                          <i className="bi bi-inbox d-block mb-2" style={{ fontSize: "32px" }}></i>
-                          No transactions found
-                        </td>
-                      </tr>
-                    ) : (
-                      transactions.map((tx) => (
-                        <tr key={tx.transactionId}>
-                          <td>
-                            <span className="badge bg-light text-dark">#{tx.transactionId}</span>
-                          </td>
-                          <td>
-                            <div className="d-flex align-items-center gap-2">
-                              <div
-                                className="rounded-circle d-flex align-items-center justify-content-center"
-                                style={{
-                                  width: "32px",
-                                  height: "32px",
-                                  background: "linear-gradient(135deg, #00a08b 0%, #00c4ac 100%)",
-                                  color: "white",
-                                  fontSize: "12px",
-                                  fontWeight: "600"
-                                }}
-                              >
-                                {tx.patientName?.charAt(0) || "?"}
-                              </div>
-                              <span>{tx.patientName || "N/A"}</span>
-                            </div>
-                          </td>
-                          <td>
-                            <div className="d-flex align-items-center gap-2">
-                              <div
-                                className="rounded-circle d-flex align-items-center justify-content-center"
-                                style={{
-                                  width: "32px",
-                                  height: "32px",
-                                  background: "linear-gradient(135deg, #6366f1 0%, #818cf8 100%)",
-                                  color: "white",
-                                  fontSize: "12px",
-                                  fontWeight: "600"
-                                }}
-                              >
-                                {tx.providerName?.charAt(0) || "?"}
-                              </div>
-                              <span>{tx.providerName || "N/A"}</span>
-                            </div>
-                          </td>
-                          <td className="text-end fw-semibold">{formatCurrency(tx.amount)}</td>
-                          <td className="text-end text-purple">{formatCurrency(tx.platformFee)}</td>
-                          <td className="text-end text-success">{formatCurrency(tx.providerEarning)}</td>
-                          <td>
-                            <span className={`badge bg-${getStatusBadgeClass(tx.status)}`}>
-                              {tx.status}
-                            </span>
-                          </td>
-                          <td>
-                            <small className="text-muted">{formatDate(tx.createdAt)}</small>
-                          </td>
-                        </tr>
-                      ))
-                    )}
-                  </tbody>
-                </table>
-              </div>
-
-              {/* Pagination */}
-              {transactionPagination.totalPages > 1 && (
-                <div className="d-flex justify-content-between align-items-center px-4 py-3 border-top">
-                  <span className="text-muted" style={{ fontSize: "13px" }}>
-                    Page {transactionFilters.pageNumber} of {transactionPagination.totalPages} •{" "}
-                    {transactionPagination.totalCount} total
-                  </span>
-                  <nav>
-                    <ul className="pagination pagination-sm mb-0">
-                      <li className={`page-item ${transactionFilters.pageNumber === 1 ? "disabled" : ""}`}>
-                        <button
-                          className="page-link"
-                          onClick={() => handleTransactionPageChange(transactionFilters.pageNumber - 1)}
-                        >
-                          Previous
-                        </button>
-                      </li>
-                      {[...Array(Math.min(5, transactionPagination.totalPages))].map((_, i) => {
-                        const page = i + 1;
-                        return (
-                          <li
-                            key={page}
-                            className={`page-item ${transactionFilters.pageNumber === page ? "active" : ""}`}
-                          >
-                            <button className="page-link" onClick={() => handleTransactionPageChange(page)}>
-                              {page}
-                            </button>
-                          </li>
-                        );
-                      })}
-                      <li
-                        className={`page-item ${
-                          transactionFilters.pageNumber === transactionPagination.totalPages ? "disabled" : ""
-                        }`}
-                      >
-                        <button
-                          className="page-link"
-                          onClick={() => handleTransactionPageChange(transactionFilters.pageNumber + 1)}
-                        >
-                          Next
-                        </button>
-                      </li>
-                    </ul>
-                  </nav>
-                </div>
-              )}
             </div>
           </div>
         )}

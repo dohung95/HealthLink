@@ -316,6 +316,30 @@ export const commissionApi = {
       params: { page: pageNumber - 1, size: pageSize, status }
     });
     return response.data;
+  },
+
+  // Partner Commission Management
+  getPartners: async (params = {}) => {
+    const { type = 'DOCTOR', searchTerm = '', pageNumber = 1, pageSize = 10 } = params;
+    const response = await adminApi.get('/commission/partners', {
+      params: { type, searchTerm, page: pageNumber - 1, size: pageSize }
+    });
+    return response.data;
+  },
+
+  getPartner: async (type, id) => {
+    const response = await adminApi.get(`/commission/partners/${type}/${id}`);
+    return response.data;
+  },
+
+  updatePartnerCommission: async (type, id, data) => {
+    const response = await adminApi.put(`/commission/partners/${type}/${id}`, data);
+    return response.data;
+  },
+
+  removePartnerCustomRate: async (type, id) => {
+    const response = await adminApi.delete(`/commission/partners/${type}/${id}/custom-rate`);
+    return response.data;
   }
 };
 

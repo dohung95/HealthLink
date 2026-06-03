@@ -7,6 +7,7 @@ import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
+import org.springframework.data.repository.query.Param;
 import org.springframework.stereotype.Repository;
 
 import java.math.BigDecimal;
@@ -79,4 +80,10 @@ public interface AdminCommissionTransactionRepository extends JpaRepository<Comm
 
     @Query("SELECT MAX(t.transactionNumber) FROM CommissionTransaction t WHERE t.transactionNumber LIKE :prefix%")
     String findMaxTransactionNumber(String prefix);
+
+    @Query("SELECT COALESCE(SUM(t.commissionAmount), 0) FROM CommissionTransaction t WHERE t.recipientType = :recipientType AND t.recipientId = :recipientId")
+    BigDecimal getTotalCommissionByRecipient(@Param("recipientType") String recipientType, @Param("recipientId") String recipientId);
+
+    @Query("SELECT COALESCE(SUM(t.grossAmount), 0) FROM CommissionTransaction t WHERE t.recipientType = :recipientType AND t.recipientId = :recipientId")
+    BigDecimal getTotalGrossByRecipient(@Param("recipientType") String recipientType, @Param("recipientId") String recipientId);
 }

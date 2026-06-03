@@ -378,24 +378,6 @@ export default function Patients() {
                   Manage patient records, health information, and medical history
                 </p>
               </div>
-              <div className="d-flex gap-2">
-              <button
-                className={`view-toggle-btn ${viewMode === 'grid' ? 'active' : ''}`}
-                onClick={() => toggleViewMode('grid')}
-                title="Grid View"
-              >
-                <i className="bi bi-grid-3x3-gap"></i>
-                Grid
-              </button>
-              <button
-                className={`view-toggle-btn ${viewMode === 'table' ? 'active' : ''}`}
-                onClick={() => toggleViewMode('table')}
-                title="Table View"
-              >
-                <i className="bi bi-table"></i>
-                Table
-              </button>
-            </div>
             </div>
           </div>
 
@@ -407,63 +389,71 @@ export default function Patients() {
             </div>
           )}
 
-          {/* Search and Filter */}
-          <div className="admin-card mb-4">
-            <div className="card-body">
-              <div className="d-flex justify-content-between align-items-center mb-3">
-                <div className="d-flex align-items-center" style={{padding:"5px 10px"}}>
-                  <i className="bi bi-funnel me-2" style={{color: 'var(--admin-text-light)'}}></i>
-                  <h6 className="mb-0" style={{color: 'var(--admin-text-light)', fontSize: '13px', fontWeight: 600}}>SEARCH & FILTERS</h6>
-                </div>
-                <div style={{padding:"15px 5px 0 5px"}}>
-                  <button
-                  className="btn btn-outline-secondary btn-sm"
+          {/* Compact Filter Bar */}
+          <div className="admin-filter-bar">
+            <div className="filter-search">
+              <i className="bi bi-search"></i>
+              <input
+                type="text"
+                className="form-control"
+                placeholder="Search patients..."
+                value={filters.searchTerm}
+                onChange={handleSearch}
+              />
+            </div>
+            <div className="filter-select">
+              <select
+                className="form-select"
+                value={filters.status}
+                onChange={handleStatusFilter}
+              >
+                <option value="">All Status</option>
+                <option value="Active">Active</option>
+                <option value="Inactive">Inactive</option>
+                <option value="Suspended">Suspended</option>
+                <option value="Banned">Banned</option>
+              </select>
+            </div>
+            <div className="filter-select">
+              <select
+                className="form-select"
+                value={filters.sortBy}
+                onChange={handleSort}
+              >
+                <option value="newest">Newest</option>
+                <option value="oldest">Oldest</option>
+                <option value="name-asc">Name A-Z</option>
+                <option value="name-desc">Name Z-A</option>
+              </select>
+            </div>
+            <div className="filter-actions">
+              {(filters.searchTerm || filters.status) && (
+                <button
+                  className="btn btn-outline-secondary btn-clear-filter"
                   onClick={() => {
                     setFilters({ searchTerm: '', status: '', sortBy: 'newest' });
                     setPagination({ ...pagination, pageNumber: 1 });
                   }}
-                  style={{fontSize: '12px'}}
                 >
-                  <i className="bi bi-x-circle me-1"></i>
-                  Clear Filters
+                  <i className="bi bi-x-circle"></i>
+                  Clear
                 </button>
-                </div>
-              </div>
-              <div className="row g-3">
-                <div className="col-md-6" style={{padding:"0 0 10px 20px"}}>
-                  <input
-                    type="text"
-                    className="form-control"
-                    placeholder="Search by name, email, phone..."
-                    value={filters.searchTerm}
-                    onChange={handleSearch}
-                  />
-                </div>
-                <div className="col-md-3">
-                  <select
-                    className="form-select"
-                    value={filters.status}
-                    onChange={handleStatusFilter}
-                  >
-                    <option value="">All Status</option>
-                    <option value="Active">Active</option>
-                    <option value="Inactive">Inactive</option>
-                    <option value="Suspended">Suspended</option>
-                    <option value="Banned">Banned</option>
-                  </select>
-                </div>
-                <div className="col-md-3" style={{padding:"0 20px 0 0"}}>
-                  <select
-                    className="form-select"
-                    value={filters.sortBy}
-                    onChange={handleSort}
-                  >
-                    <option value="newest">Sort by: Newest</option>
-                    <option value="oldest">Sort by: Oldest</option>
-                    <option value="name-asc">Sort by: Name A-Z</option>
-                    <option value="name-desc">Sort by: Name Z-A</option>
-                  </select>
-                </div>
+              )}
+              <div className="view-toggle-group">
+                <button
+                  className={`btn ${viewMode === 'grid' ? 'active' : ''}`}
+                  onClick={() => toggleViewMode('grid')}
+                  title="Grid View"
+                >
+                  <i className="bi bi-grid-3x3-gap"></i>
+                </button>
+                <button
+                  className={`btn ${viewMode === 'table' ? 'active' : ''}`}
+                  onClick={() => toggleViewMode('table')}
+                  title="Table View"
+                >
+                  <i className="bi bi-list"></i>
+                </button>
               </div>
             </div>
           </div>

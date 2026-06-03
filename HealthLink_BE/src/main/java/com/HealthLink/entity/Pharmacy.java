@@ -111,6 +111,10 @@ public class Pharmacy {
     @Column(precision = 5, scale = 4)
     private BigDecimal customCommissionRate; // Tỉ lệ % app thu phí rêng cho nhà thuốc này (nếu có)
 
+    private LocalDateTime customCommissionRateEffectiveFrom; // Thời điểm bắt đầu áp dụng tỉ lệ riêng
+
+    private LocalDateTime customCommissionRateEffectiveTo; // Thời điểm kết thúc áp dụng tỉ lệ riêng (null = vĩnh viễn)
+
     @Column(length = 20)
     @Builder.Default
     private String commissionTier = "STANDARD";  // Hạng đối tác (STANDARD, PREMIUM, VIP) để nhận ưu đãi phí

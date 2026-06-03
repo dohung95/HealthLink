@@ -48,6 +48,7 @@ const Schedule = () => {
   const [date, setDate] = useState(new Date().toISOString().split('T')[0]);
   const [slots, setSlots] = useState([]);
   const [selectedSlot, setSelectedSlot] = useState(null);
+  const [doctorSchedules, setDoctorSchedules] = useState([]);
 
   const [symptoms, setSymptoms] = useState('');
   const [files, setFiles] = useState([]);
@@ -117,9 +118,10 @@ const Schedule = () => {
   useEffect(() => {
     if (!doctorId || doctors.length === 0) return;
 
-    const preselectedDoctor = doctors.find(
-      (doctor) => doctor.doctorId === doctorId
-    );
+    const preselectedDoctor = doctors.find((doctor) => {
+      const currentDoctorId = doctor.doctorId;
+      return String(currentDoctorId) === String(doctorId);
+    });
 
     if (preselectedDoctor) {
       setSelectedSpecialty(preselectedDoctor.specialtyName || '');
@@ -128,7 +130,43 @@ const Schedule = () => {
   }, [doctorId, doctors]);
 
   useEffect(() => {
-    if (!selectedDoctorId || !date || !consultationType) return;
+    if (!selectedDoctorId) {
+      setDoctorSchedules([]);
+      return;
+    }
+
+    let mounted = true;
+
+    async function fetchDoctorSchedules() {
+      try {
+        const data = await doctorService.getDoctorSchedules(selectedDoctorId);
+
+        if (!mounted) return;
+
+        setDoctorSchedules(Array.isArray(data) ? data : []);
+      } catch (error) {
+        console.error('Failed to load doctor schedules', error);
+
+        if (!mounted) return;
+
+        setDoctorSchedules([]);
+        toast.error('Can not load doctor working schedule.');
+      }
+    }
+
+    fetchDoctorSchedules();
+
+    return () => {
+      mounted = false;
+    };
+  }, [selectedDoctorId]);
+
+  useEffect(() => {
+    if (!selectedDoctorId || !date || !consultationType) {
+      setSlots([]);
+      setSelectedSlot(null);
+      return;
+    }
 
     async function fetchSlots() {
       setLoadingSlots(true);
@@ -172,6 +210,24 @@ const Schedule = () => {
     return doctors.find((doctor) => doctor.doctorId === selectedDoctorId);
   }, [doctors, selectedDoctorId]);
 
+  const releaseHoldSilently = async (holdId) => {
+    if (!holdId) return;
+
+    try {
+      await appointmentService.releaseHold(holdId);
+    } catch (error) {
+      const message = error.response?.data?.message || '';
+
+      const holdAlreadyGone =
+        error.response?.status === 404 ||
+        message.toLowerCase().includes('hold not found');
+
+      if (!holdAlreadyGone) {
+        console.warn('Failed to release slot hold:', error);
+      }
+    }
+  };
+
   const handleSelectSlot = async (slot) => {
     if (!slot.selectable) return;
 
@@ -189,7 +245,7 @@ const Schedule = () => {
         previousSelectedSlot?.holdId &&
         previousSelectedSlot.startTime !== slot.startTime
       ) {
-        await appointmentService.releaseHold(previousSelectedSlot.holdId);
+        await releaseHoldSilently(previousSelectedSlot.holdId);
       }
 
       const hold = await appointmentService.holdSlot({
@@ -255,31 +311,50 @@ const Schedule = () => {
   const handleClearSlot = async () => {
     if (!selectedSlot) return;
 
-    try {
-      if (selectedSlot.holdId) {
-        await appointmentService.releaseHold(selectedSlot.holdId);
-      }
+    const slotToClear = selectedSlot;
 
-      setSlots((prev) =>
-        prev.map((item) =>
-          item.startTime === selectedSlot.startTime
-            ? {
-              ...item,
-              status: 'AVAILABLE',
-              selectable: true,
-            }
-            : item
-        )
-      );
+    await releaseHoldSilently(slotToClear.holdId);
 
-      setSelectedSlot(null);
-    } catch (error) {
-      toast.error(
-        error.response?.data?.message || 'Can not cancel holding this time slot.'
-      );
-    }
+    setSlots((prev) =>
+      prev.map((item) =>
+        item.startTime === slotToClear.startTime
+          ? {
+            ...item,
+            status: 'AVAILABLE',
+            selectable: true,
+          }
+          : item
+      )
+    );
+
+    setSelectedSlot(null);
   };
 
+  const handleChangeDate = async (nextDate) => {
+    if (nextDate === date) return;
+
+    const slotToRelease = selectedSlot;
+
+    setSelectedSlot(null);
+    setSlots([]);
+    setDate(nextDate);
+
+    if (!slotToRelease?.holdId) return;
+
+    try {
+      await appointmentService.releaseHold(slotToRelease.holdId);
+    } catch (error) {
+      const message = error.response?.data?.message || '';
+
+      const holdAlreadyGone =
+        error.response?.status === 404 ||
+        message.toLowerCase().includes('hold not found');
+
+      if (!holdAlreadyGone) {
+        console.warn('Failed to release previous slot hold:', error);
+      }
+    }
+  };
 
   const handleNext = () => {
     if (currentStepKey === 'specialty' && !selectedSpecialty) {
@@ -307,6 +382,46 @@ const Schedule = () => {
 
   const handleBack = () => {
     setStep((prev) => Math.max(prev - 1, 1));
+  };
+
+  const clearSelectedSlotLocally = (slotToClear) => {
+    if (!slotToClear) return;
+
+    setSlots((prev) =>
+      prev.map((item) =>
+        item.startTime === slotToClear.startTime
+          ? {
+            ...item,
+            status: 'AVAILABLE',
+            selectable: true,
+          }
+          : item
+      )
+    );
+
+    setSelectedSlot(null);
+  };
+
+  const handleBackFromDateTime = async () => {
+    if (selectedSlot) {
+      const slotToRelease = selectedSlot;
+
+      await releaseHoldSilently(slotToRelease.holdId);
+      clearSelectedSlotLocally(slotToRelease);
+    }
+
+    handleBack();
+  };
+
+  const handleBackFromDocuments = async () => {
+    if (selectedSlot) {
+      const slotToRelease = selectedSlot;
+
+      await releaseHoldSilently(slotToRelease.holdId);
+      clearSelectedSlotLocally(slotToRelease);
+    }
+
+    handleBack();
   };
 
   const handleBackFromPayment = () => {
@@ -481,7 +596,17 @@ const Schedule = () => {
               {currentStepKey === 'consultation' && (
                 <ConsultationStep
                   consultationType={consultationType}
-                  onSelectConsultation={setConsultationType}
+                  onSelectConsultation={async (nextType) => {
+                    if (nextType === consultationType) return;
+
+                    if (selectedSlot) {
+                      await releaseHoldSilently(selectedSlot.holdId);
+                      setSelectedSlot(null);
+                      setSlots([]);
+                    }
+
+                    setConsultationType(nextType);
+                  }}
                   onBack={handleBack}
                   onNext={handleNext}
                   canGoBack={!hasPreselectedDoctor || step > 1}
@@ -493,16 +618,18 @@ const Schedule = () => {
                 <DateTimeStep
                   date={date}
                   setDate={setDate}
+                  onChangeDate={handleChangeDate}
                   slots={slots}
                   selectedSlot={selectedSlot}
                   onSelectSlot={handleSelectSlot}
                   onClearSlot={handleClearSlot}
                   loadingSlots={loadingSlots}
-                  onBack={handleBack}
+                  onBack={handleBackFromDateTime}
                   onNext={handleNext}
+                  doctorSchedules={doctorSchedules}
+                  consultationType={consultationType}
+                  maxDate={maxDate}
                 />
-
-
               )}
 
               {currentStepKey === 'documents' && (
@@ -511,7 +638,7 @@ const Schedule = () => {
                   setSymptoms={setSymptoms}
                   files={files}
                   setFiles={setFiles}
-                  onBack={handleBack}
+                  onBack={handleBackFromDocuments}
                   onNext={handleNext}
                 />
               )}

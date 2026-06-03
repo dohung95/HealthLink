@@ -86,7 +86,8 @@ public class FinanceServiceImpl implements FinanceService {
     private static final String METHOD_EWALLET   = "EWallet";
     private static final String METHOD_CARD      = "Card";
 
-    private static final String APPT_SCHEDULED = "SCHEDULED";
+    private static final String APPT_PENDING_PAYMENT = "PENDINGPAYMENT";
+    private static final String APPT_SCHEDULED = "Scheduled";
     private static final String APPOINTMENT_CHECKOUT_REFERENCE_ID = "appointment-checkout";
     private static final String ROLE_ADMIN = "ADMIN";
     private static final String ROLE_PATIENT = "PATIENT";
@@ -412,6 +413,14 @@ public class FinanceServiceImpl implements FinanceService {
                     .metadata(metadata)
                     .build();
             paymentRepository.save(payment);
+
+            // Xử lý commission cho bác sĩ (tính theo tỷ lệ Online/Offline tương ứng)
+            try {
+                commissionService.processConsultationCommission(invoice);
+            } catch (Exception ex) {
+                log.error("Commission processing failed for appointment {}: {}",
+                        appointment.getAppointmentId(), ex.getMessage(), ex);
+            }
 
             log.info("Appointment {} created after PayPal payment order {}",
                     appointment.getAppointmentId(), request.getOrderId());

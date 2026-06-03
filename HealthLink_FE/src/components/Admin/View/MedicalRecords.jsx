@@ -408,40 +408,30 @@ export default function MedicalRecords() {
               </div>
             )}
 
-            {/* Search */}
-            <div className="admin-card mb-4">
-              <div className="card-body">
-                <div className="d-flex justify-content-between align-items-center mb-3">
-                  <div className="d-flex align-items-center" style={{ padding: "5px 10px" }}>
-                    <i className="bi bi-search me-2" style={{ color: 'var(--admin-text-light)' }}></i>
-                    <h6 className="mb-0" style={{ color: 'var(--admin-text-light)', fontSize: '13px', fontWeight: 600 }}>SEARCH PATIENTS</h6>
-                  </div>
-                  <div style={{ padding: "15px 5px 0 5px" }}>
-                    <button
-                      className="btn btn-outline-secondary btn-sm"
-                      onClick={() => {
-                        setSearchTerm('');
-                        setPagination({ ...pagination, pageNumber: 1 });
-                      }}
-                      style={{ fontSize: '12px' }}
-                    >
-                      <i className="bi bi-x-circle me-1"></i>
-                      Clear
-                    </button>
-                  </div>
-                </div>
-                <div className="row g-3">
-                  <div className="col-md-12" style={{ padding: "0 20px 10px 20px" }}>
-                    <input
-                      type="text"
-                      className="form-control"
-                      placeholder="Search by patient name, ID, or email..."
-                      value={searchTerm}
-                      onChange={handleSearch}
-                    />
-                  </div>
-                </div>
+            {/* Compact Filter Bar */}
+            <div className="admin-filter-bar">
+              <div className="filter-search" style={{ maxWidth: '400px' }}>
+                <i className="bi bi-search"></i>
+                <input
+                  type="text"
+                  className="form-control"
+                  placeholder="Search by patient name, ID, or email..."
+                  value={searchTerm}
+                  onChange={handleSearch}
+                />
               </div>
+              {searchTerm && (
+                <button
+                  className="btn btn-outline-secondary btn-clear-filter"
+                  onClick={() => {
+                    setSearchTerm('');
+                    setPagination({ ...pagination, pageNumber: 1 });
+                  }}
+                >
+                  <i className="bi bi-x-circle"></i>
+                  Clear
+                </button>
+              )}
             </div>
 
             {/* Patient List Table */}

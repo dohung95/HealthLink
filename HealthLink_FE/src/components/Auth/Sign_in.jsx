@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { useNavigate, Link } from 'react-router-dom';
+import { useNavigate, Link, useLocation } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
 import { decodeToken } from '../../utils/tokenUtils';
 import { Modal, Button } from 'react-bootstrap';
@@ -8,6 +8,8 @@ import '../Css/Sign_in.css';
 
 export function Sign_in() {
     const navigate = useNavigate();
+    const location = useLocation();
+    const redirectTo = location.state?.redirectTo || sessionStorage.getItem('postLoginRedirect');
     const { login, token, roles } = useAuth();
     const [email, setEmail] = useState('');
     const [password, setPassword] = useState('');
@@ -107,7 +109,7 @@ export function Sign_in() {
 
         try {
             const result = await login(email, password);
-            
+
             if (result === true) {
                 // Get token and decode to extract roles
                 const token = localStorage.getItem('token');
@@ -132,7 +134,12 @@ export function Sign_in() {
                 } else if (userRoles.some(r => r.toLowerCase() === 'pharmacy')) {
                     navigate('/pharmacy-page');
                 } else if (userRoles.some(r => r.toLowerCase() === 'patient')) {
-                    navigate('/patient-dashboard');
+                    if (redirectTo && redirectTo.startsWith('/patient-dashboard')) {
+                        sessionStorage.removeItem('postLoginRedirect');
+                        navigate(redirectTo, { replace: true });
+                    } else {
+                        navigate('/patient-dashboard', { replace: true });
+                    }
                 } else {
                     navigate('/');
                 }

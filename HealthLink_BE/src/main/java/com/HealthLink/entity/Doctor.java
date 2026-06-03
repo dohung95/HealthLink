@@ -2,6 +2,7 @@ package com.HealthLink.entity;
 import jakarta.persistence.*;
 import lombok.*;
 import java.math.BigDecimal;
+import java.time.LocalDateTime;
 import java.util.List;
 
 @Entity
@@ -78,8 +79,26 @@ public class Doctor {
 
     // --- 5. TÀI CHÍNH & HOA HỒNG (Commission & Finance) ---
 
+    // Tỷ lệ hoa hồng riêng cho tư vấn ONLINE (Video, Audio, Chat)
     @Column(precision = 5, scale = 4)
-    private BigDecimal customCommissionRate; // Tỉ lệ % app thu phí riêng cho bác sĩ này (nếu khác với mức chung)
+    private BigDecimal customCommissionRateOnline;
+    private LocalDateTime customCommissionRateOnlineEffectiveFrom;
+    private LocalDateTime customCommissionRateOnlineEffectiveTo;
+
+    // Tỷ lệ hoa hồng riêng cho tư vấn OFFLINE (Khám trực tiếp)
+    @Column(precision = 5, scale = 4)
+    private BigDecimal customCommissionRateOffline;
+    private LocalDateTime customCommissionRateOfflineEffectiveFrom;
+    private LocalDateTime customCommissionRateOfflineEffectiveTo;
+
+    // Legacy field - giữ lại để tương thích ngược (deprecated)
+    @Column(precision = 5, scale = 4)
+    @Deprecated
+    private BigDecimal customCommissionRate;
+    @Deprecated
+    private LocalDateTime customCommissionRateEffectiveFrom;
+    @Deprecated
+    private LocalDateTime customCommissionRateEffectiveTo;
 
     @Column(length = 20)
     @Builder.Default

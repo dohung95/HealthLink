@@ -155,8 +155,19 @@ function AppContent() {
   const hideLayout = isVideoCallPage || isDoctorPage || isAdminPage || isPatientDashboard || isPharmacyDashboard || isSchedulePage || isResetPasswordPage || is404Page;
 
   useEffect(() => {
-    // Nếu đã đăng nhập mà cố tình truy cập vào các trang công khai
     if (isAuthenticated && publicPaths.includes(location.pathname)) {
+      const pendingRedirect =
+        location.state?.redirectTo ||
+        sessionStorage.getItem('postLoginRedirect');
+
+      if (
+        location.pathname === '/login' &&
+        pendingRedirect &&
+        pendingRedirect.startsWith('/patient-dashboard')
+      ) {
+        return;
+      }
+
       const userRoles = roles.map(r => r.toLowerCase());
 
       if (userRoles.includes('admin')) {
