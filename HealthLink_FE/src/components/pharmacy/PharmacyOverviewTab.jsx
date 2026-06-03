@@ -9,8 +9,8 @@ import {
   money,
   normalize,
   routeByTab,
-} from '../common/pharmacyDashboardShared';
-import { OrderTable, OrderDetailDrawer } from '../orders/PharmacyOrdersTab';
+} from './PharmacyShared';
+import { OrderTable, OrderDetailDrawer } from './PharmacyOrdersTab';
 
 export default function PharmacyOverviewTab({ profile, orders, requests, balance, navigate, reload }) {
   const [selected, setSelected] = useState(null);

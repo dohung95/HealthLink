@@ -242,7 +242,7 @@ public class ConsultationServiceImpl implements ConsultationService {
             invoice = invoiceRepository.findByAppointment_AppointmentId(appointment.getAppointmentId())
                     .orElse(null);
         }
-        if (invoice == null || !"Paid".equalsIgnoreCase(invoice.getStatus())) {
+        if (invoice == null || !"PAID".equalsIgnoreCase(invoice.getStatus())) {
             throw new BadRequestException("Appointment must be paid before consultation can be started");
         }
     }

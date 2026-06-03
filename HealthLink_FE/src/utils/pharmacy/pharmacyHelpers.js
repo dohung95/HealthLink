@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import { useEffect, useState } from 'react';
 
 export const ORDER_FLOW = {
   PENDING: ['CONFIRMED', 'CANCELLED'],
@@ -80,91 +80,6 @@ export function useDebouncedValue(value, delay = 250) {
   }, [value, delay]);
 
   return deferred;
-}
-
-export function Avatar({ profile, compact = false }) {
-  const name = getProfileName(profile);
-  return (
-    <div className={`pharmacy-avatar ${compact ? 'is-compact' : ''}`}>
-      {profile?.avatarUrl ? <img alt={name} src={profile.avatarUrl} /> : <span>{initials(name)}</span>}
-    </div>
-  );
-}
-
-export function PageHeader({ eyebrow, title, description, action }) {
-  return (
-    <div className="pharmacy-page-header">
-      <div>
-        {eyebrow && <span className="pharmacy-eyebrow">{eyebrow}</span>}
-        <h1>{title}</h1>
-        <p>{description}</p>
-      </div>
-      {action}
-    </div>
-  );
-}
-
-export function MetricCard({ label, value, hint, icon, tone = 'primary' }) {
-  return (
-    <div className={`pharmacy-metric-card tone-${tone}`}>
-      <div>
-        <span>{label}</span>
-        <strong>{value}</strong>
-        {hint && <small>{hint}</small>}
-      </div>
-      <span className="material-symbols-outlined">{icon}</span>
-    </div>
-  );
-}
-
-export function InfoLine({ icon, label, value }) {
-  return (
-    <div className="pharmacy-info-line">
-      <span className="material-symbols-outlined">{icon}</span>
-      <span>{label}</span>
-      <strong>{value}</strong>
-    </div>
-  );
-}
-
-export function Detail({ label, value, block = false }) {
-  return (
-    <div className={`pharmacy-detail ${block ? 'is-block' : ''}`}>
-      <span>{label}</span>
-      <strong>{value}</strong>
-    </div>
-  );
-}
-
-export function Pagination({ page, pages, total, onPage, label }) {
-  return (
-    <div className="pharmacy-pagination">
-      <span>Showing page {page} of {pages} · {total} {label}</span>
-      <div>
-        <button disabled={page <= 1} onClick={() => onPage(page - 1)} type="button">
-          <span className="material-symbols-outlined">chevron_left</span>
-        </button>
-        <button disabled={page >= pages} onClick={() => onPage(page + 1)} type="button">
-          <span className="material-symbols-outlined">chevron_right</span>
-        </button>
-      </div>
-    </div>
-  );
-}
-
-export function Modal({ title, children, onClose }) {
-  return (
-    <div className="pharmacy-modal">
-      <button className="pharmacy-modal-backdrop" onClick={onClose} type="button" />
-      <div className="pharmacy-modal-card">
-        <div className="pharmacy-modal-header">
-          <h2>{title}</h2>
-          <button onClick={onClose} type="button"><span className="material-symbols-outlined">close</span></button>
-        </div>
-        {children}
-      </div>
-    </div>
-  );
 }
 
 export function titleCase(value) {

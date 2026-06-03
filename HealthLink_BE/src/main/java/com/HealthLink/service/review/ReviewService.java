@@ -57,7 +57,7 @@ public class ReviewService {
         }
 
         // Check if appointment is completed
-        if (!"Completed".equalsIgnoreCase(appointment.getStatus())) {
+        if (!"COMPLETED".equalsIgnoreCase(appointment.getStatus())) {
             return false;
         }
 
@@ -79,7 +79,7 @@ public class ReviewService {
         }
 
         // Check appointment status
-        if (!"Completed".equalsIgnoreCase(appointment.getStatus())) {
+        if (!"COMPLETED".equalsIgnoreCase(appointment.getStatus())) {
             throw new IllegalStateException("Can only review completed appointments");
         }
 

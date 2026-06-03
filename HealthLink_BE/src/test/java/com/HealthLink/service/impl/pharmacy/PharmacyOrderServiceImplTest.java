@@ -75,6 +75,9 @@ class PharmacyOrderServiceImplTest {
                 .pharmacyId("pharmacy-1")
                 .name("Central Pharmacy")
                 .deliveryFee(new BigDecimal("5.50"))
+                .deliveryRadius(10.0)
+                .latitude(40.7128)
+                .longitude(-74.0060)
                 .deliveryAvailable(true)
                 .active(true)
                 .verified(true)
@@ -85,6 +88,8 @@ class PharmacyOrderServiceImplTest {
         request.setPrescriptionHeaderId(10);
         request.setPharmacyId("pharmacy-1");
         request.setDeliveryAddress("123 Main St");
+        request.setDeliveryLatitude(40.7128);
+        request.setDeliveryLongitude(-74.0060);
         request.setPaymentMethod("COD");
 
         when(prescriptionHeaderRepository.findById(10)).thenReturn(Optional.of(prescription));
@@ -152,6 +157,9 @@ class PharmacyOrderServiceImplTest {
                 .pharmacyId("pharmacy-1")
                 .name("Central Pharmacy")
                 .deliveryFee(new BigDecimal("4.00"))
+                .deliveryRadius(10.0)
+                .latitude(40.7128)
+                .longitude(-74.0060)
                 .deliveryAvailable(true)
                 .active(true)
                 .verified(true)

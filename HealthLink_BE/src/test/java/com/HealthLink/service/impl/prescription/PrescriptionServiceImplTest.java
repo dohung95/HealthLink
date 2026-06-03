@@ -95,7 +95,7 @@ class PrescriptionServiceImplTest {
 
         Appointment appointment = Appointment.builder()
                 .appointmentId(11)
-                .status("Scheduled")
+                .status("SCHEDULED")
                 .patient(patient("patient-1", "Patient One"))
                 .doctor(doctor("doctor-1", "Doctor One"))
                 .build();
@@ -145,7 +145,7 @@ class PrescriptionServiceImplTest {
 
         Appointment appointment = Appointment.builder()
                 .appointmentId(11)
-                .status("Scheduled")
+                .status("SCHEDULED")
                 .patient(patient("patient-1", "Patient One"))
                 .doctor(doctor("doctor-1", "Doctor One"))
                 .build();
@@ -193,7 +193,7 @@ class PrescriptionServiceImplTest {
 
         Appointment appointment = Appointment.builder()
                 .appointmentId(11)
-                .status("Scheduled")
+                .status("SCHEDULED")
                 .patient(patient("patient-1", "Patient One"))
                 .doctor(doctor("doctor-1", "Doctor One"))
                 .build();
@@ -224,7 +224,7 @@ class PrescriptionServiceImplTest {
 
         Appointment appointment = Appointment.builder()
                 .appointmentId(11)
-                .status("Scheduled")
+                .status("SCHEDULED")
                 .patient(patient("patient-1", "Patient One"))
                 .doctor(doctor("doctor-1", "Doctor One"))
                 .build();

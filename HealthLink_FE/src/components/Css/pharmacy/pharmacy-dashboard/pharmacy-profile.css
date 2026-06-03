@@ -1,0 +1,87 @@
+.pharmacy-profile-grid {
+  display: grid;
+  grid-template-columns: minmax(0, 1.7fr) minmax(280px, 0.9fr);
+  gap: 14px;
+}
+
+.pharmacy-profile-form {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  margin-top: 16px;
+}
+
+.pharmacy-profile-form label {
+  display: grid;
+  gap: 8px;
+  color: var(--pharmacy-muted);
+  font-weight: 700;
+}
+
+.pharmacy-profile-form label.wide,
+.pharmacy-profile-form .checkbox-line,
+.pharmacy-profile-form button {
+  grid-column: 1 / -1;
+}
+
+.pharmacy-profile-form textarea {
+  min-height: 110px;
+}
+
+.pharmacy-profile-form input:disabled {
+  background: #f1f5f9;
+}
+
+.checkbox-line {
+  display: flex !important;
+  grid-template-columns: unset !important;
+  flex-direction: row;
+  align-items: center;
+}
+
+.checkbox-line input {
+  width: auto;
+}
+
+.pharmacy-avatar-editor {
+  grid-column: 1 / -1;
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  padding-bottom: 14px;
+  border-bottom: 1px solid var(--pharmacy-border);
+}
+
+.pharmacy-public-preview {
+  text-align: center;
+  border: 1px solid var(--pharmacy-border);
+  border-radius: 12px;
+  overflow: hidden;
+  background: white;
+  margin-top: 16px;
+  padding: 0 18px 20px;
+}
+
+.pharmacy-public-preview .preview-map {
+  height: 110px;
+  margin: 0 -18px 0;
+  background:
+    radial-gradient(circle at 60% 55%, var(--pharmacy-primary) 0 5px, white 6px 8px, transparent 9px),
+    linear-gradient(135deg, #dce9ff, #eff4ff);
+}
+
+.pharmacy-public-preview .pharmacy-avatar {
+  margin: -24px auto 10px;
+  border: 3px solid white;
+}
+
+.pharmacy-public-preview h3 {
+  margin: 8px 0;
+}
+
+.pharmacy-public-preview span {
+  color: var(--pharmacy-success);
+  font-weight: 800;
+}
+
+.pharmacy-public-preview p {
+  color: var(--pharmacy-muted);
+}

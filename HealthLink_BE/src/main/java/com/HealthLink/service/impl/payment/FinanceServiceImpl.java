@@ -77,17 +77,19 @@ public class FinanceServiceImpl implements FinanceService {
 
     // ── Các hằng trạng thái ─────────────────────────────────────────────────
     private static final String INVOICE_PAID      = "PAID";
+    private static final String INVOICE_REFUNDED  = "REFUNDED";
 
     private static final String PAYMENT_PENDING = "PENDING";
     private static final String PAYMENT_SUCCESS = "SUCCESS";
     private static final String PAYMENT_FAILED  = "FAILED";
+    private static final String PAYMENT_REFUNDED = "REFUNDED";
 
     private static final String GATEWAY_PAYPAL   = "PayPal";
     private static final String METHOD_EWALLET   = "EWallet";
     private static final String METHOD_CARD      = "Card";
 
     private static final String APPT_PENDING_PAYMENT = "PENDINGPAYMENT";
-    private static final String APPT_SCHEDULED = "Scheduled";
+    private static final String APPT_SCHEDULED = "SCHEDULED";
     private static final String APPOINTMENT_CHECKOUT_REFERENCE_ID = "appointment-checkout";
     private static final String ROLE_ADMIN = "ADMIN";
     private static final String ROLE_PATIENT = "PATIENT";
@@ -607,14 +609,14 @@ public class FinanceServiceImpl implements FinanceService {
         }
 
         // 4. Cập nhật Payment → REFUNDED
-        payment.setStatus("REFUNDED");
+        payment.setStatus(PAYMENT_REFUNDED);
         payment.setRefundedAmount(payment.getAmount());
         payment.setRefundedAt(LocalDateTime.now());
         payment.setRefundReason(refundReason != null ? refundReason : "Refund requested");
         paymentRepository.save(payment);
 
         // 5. Cập nhật Invoice → REFUNDED
-        invoice.setStatus("REFUNDED");
+        invoice.setStatus(INVOICE_REFUNDED);
         invoiceRepository.save(invoice);
 
         // 6. Truy vết và hoàn lại commission của đối tác (Doctor + Pharmacy)

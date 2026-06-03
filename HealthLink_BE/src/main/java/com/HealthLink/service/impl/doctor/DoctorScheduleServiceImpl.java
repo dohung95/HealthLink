@@ -295,7 +295,7 @@ public class DoctorScheduleServiceImpl implements DoctorScheduleService {
 
         List<Appointment> affectedAppointments = appointmentRepository
                 .findByDoctor_DoctorIdAndStatusNotAndAppointmentTimeBetween(
-                        doctor.getDoctorId(), "Cancelled", dayStart, dayEnd);
+                        doctor.getDoctorId(), "CANCELLED", dayStart, dayEnd);
 
         for (Appointment appointment : affectedAppointments) {
             User patientUser = appointment.getPatient().getUser();
@@ -398,7 +398,7 @@ public class DoctorScheduleServiceImpl implements DoctorScheduleService {
         // Get booked appointments for this day
         List<Appointment> bookedAppointments = appointmentRepository
                 .findByDoctor_DoctorIdAndStatusNotAndAppointmentTimeBetween(
-                        doctorId, "Cancelled", dayStart, dayEnd);
+                        doctorId, "CANCELLED", dayStart, dayEnd);
 
         // Get active holds
         List<AppointmentSlotHold> activeHolds = appointmentSlotHoldRepository

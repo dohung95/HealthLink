@@ -178,7 +178,7 @@ public class FollowUpAppointmentServiceImpl implements FollowUpAppointmentServic
                     .orElseThrow(() -> new BadRequestException(
                             "Appointment must be paid before it can be completed"));
         }
-        if (!"Paid".equalsIgnoreCase(invoice.getStatus())) {
+        if (!"PAID".equalsIgnoreCase(invoice.getStatus())) {
             throw new BadRequestException("Appointment must be paid before it can be completed");
         }
 

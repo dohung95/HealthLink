@@ -1,7 +1,7 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { toast } from 'sonner';
 
-import pharmacyApi from '../../../api/pharmacyApi';
+import pharmacyApi from '../../api/pharmacyApi';
 import {
   Detail,
   MetricCard,
@@ -16,7 +16,7 @@ import {
   statusClass,
   titleCase,
   useDebouncedValue,
-} from '../common/pharmacyDashboardShared';
+} from './PharmacyShared';
 
 export function OrderTable({ orders, compact = false, onSelect }) {
   if (!orders.length) {

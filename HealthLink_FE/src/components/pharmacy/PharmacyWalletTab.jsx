@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { toast } from 'sonner';
 
-import { paymentApi } from '../../../api/paymentApi';
+import { paymentApi } from '../../api/paymentApi';
 import {
   Detail,
   MetricCard,
@@ -10,7 +10,7 @@ import {
   dateTime,
   money,
   statusClass,
-} from '../common/pharmacyDashboardShared';
+} from './PharmacyShared';
 
 export default function PharmacyWalletTab({ profile, balance, transactions, settlements, pharmacyId, reload, loading }) {
   const [activeHistory, setActiveHistory] = useState('settlements');

@@ -1,10 +1,10 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { toast } from 'sonner';
-import { useAuth } from '../../../context/AuthContext';
-import { useChat } from '../../../context/ChatContext';
+import { useAuth } from '../../context/AuthContext';
+import { useChat } from '../../context/ChatContext';
 
-import medicineApi from '../../../api/medicineApi';
-import pharmacyApi from '../../../api/pharmacyApi';
+import medicineApi from '../../api/medicineApi';
+import pharmacyApi from '../../api/pharmacyApi';
 import {
   REQUEST_TABS,
   dateTime,
@@ -12,7 +12,7 @@ import {
   normalize,
   statusClass,
   useDebouncedValue,
-} from '../common/pharmacyDashboardShared';
+} from './PharmacyShared';
 
 export default function PharmacyConsultationsTab({ requests, globalSearch, reload, navigate }) {
   const [activeStatus, setActiveStatus] = useState('PENDING');
