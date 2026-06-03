@@ -86,12 +86,85 @@ function TypingIndicator() {
     );
 }
 
+// ─── Component Lightbox xem ảnh phóng to ─────────────────────────────────────
+/**
+ * Hiển thị ảnh phóng to dạng overlay popup khi người dùng click vào ảnh trong chat.
+ * @param {{ src: string, onClose: () => void }} props
+ */
+function ImageLightbox({ src, onClose }) {
+    // Đóng khi nhấn phím Escape
+    useEffect(() => {
+        const handleKey = (e) => { if (e.key === 'Escape') onClose(); };
+        window.addEventListener('keydown', handleKey);
+        return () => window.removeEventListener('keydown', handleKey);
+    }, [onClose]);
+
+    return (
+        <div
+            onClick={onClose}
+            style={{
+                position: 'fixed',
+                inset: 0,
+                zIndex: 99999,
+                backgroundColor: 'rgba(0,0,0,0.85)',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                animation: 'msgFadeSlideIn 0.2s ease-out',
+                cursor: 'zoom-out',
+            }}
+        >
+            {/* Nút đóng */}
+            <button
+                onClick={onClose}
+                style={{
+                    position: 'absolute',
+                    top: '16px',
+                    right: '20px',
+                    background: 'rgba(255,255,255,0.15)',
+                    border: 'none',
+                    borderRadius: '50%',
+                    width: '40px',
+                    height: '40px',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    cursor: 'pointer',
+                    color: '#fff',
+                    fontSize: '1.2rem',
+                    backdropFilter: 'blur(4px)',
+                    transition: 'background 0.2s',
+                }}
+                title="Đóng (Esc)"
+            >
+                <i className="bi bi-x-lg" />
+            </button>
+
+            {/* Ảnh phóng to — stopPropagation để không đóng khi click vào ảnh */}
+            <img
+                src={src}
+                alt="preview"
+                onClick={(e) => e.stopPropagation()}
+                style={{
+                    maxWidth: '90vw',
+                    maxHeight: '90vh',
+                    objectFit: 'contain',
+                    borderRadius: '12px',
+                    boxShadow: '0 8px 40px rgba(0,0,0,0.6)',
+                    cursor: 'default',
+                    userSelect: 'none',
+                }}
+            />
+        </div>
+    );
+}
+
 // ─── Component tin nhắn ──────────────────────────────────────────────────────
 /**
- * @param {{ message: object, currentUserId: string, isNew?: boolean }} props
+ * @param {{ message: object, currentUserId: string, isNew?: boolean, onImageClick?: (src: string) => void }} props
  * isNew=true kích hoạt typewriter effect cho tin nhắn bot mới nhất
  */
-function ChatMessage({ message, currentUserId, isNew = false }) {
+function ChatMessage({ message, currentUserId, isNew = false, onImageClick }) {
     const isOwn = message.senderId === currentUserId || message.uid === currentUserId;
     const fullText = message.content || message.text || '';
 
@@ -139,8 +212,16 @@ function ChatMessage({ message, currentUserId, isNew = false }) {
                         <img
                             src={message.imageUrl}
                             alt="sent"
-                            style={{ maxWidth: '100%', maxHeight: '300px', borderRadius: '8px', display: 'block', cursor: 'pointer' }}
-                            onClick={() => window.open(message.imageUrl, '_blank')}
+                            style={{
+                                maxWidth: '100%',
+                                maxHeight: '300px',
+                                borderRadius: '8px',
+                                display: 'block',
+                                cursor: 'zoom-in',
+                                transition: 'opacity 0.15s',
+                            }}
+                            onClick={() => onImageClick?.(message.imageUrl)}
+                            title="Click để xem ảnh phóng to"
                         />
                     )}
                     {fullText && (
@@ -241,6 +322,7 @@ export default function Chat() {
     const [stompConnected, setStompConnected] = useState(false);
     const [isBotTyping, setIsBotTyping] = useState(false);       // hiển thị typing indicator
     const [latestBotMsgId, setLatestBotMsgId] = useState(null); // đánh dấu tin nhắn bot mới nhất để kích hoạt typewriter
+    const [lightboxImage, setLightboxImage] = useState(null);    // URL ảnh đang xem phóng to trong lightbox
 
     const scrollTo = useRef(null);
     const fileInputRef = useRef(null);
@@ -611,6 +693,11 @@ export default function Chat() {
 
     return (
         <>
+            {/* Lightbox xem ảnh phóng to */}
+            {lightboxImage && (
+                <ImageLightbox src={lightboxImage} onClose={() => setLightboxImage(null)} />
+            )}
+
             {/* Icon mở chat */}
             {!isChatBoxOpen && (
                 <div
@@ -655,7 +742,8 @@ export default function Chat() {
                                 {messages.length === 0 && <p className="text-center text-muted">Say Hello to Bot!</p>}
                                 {messages.map(msg => (
                                     <ChatMessage key={msg.messageId} message={msg} currentUserId="guest_temp"
-                                        isNew={msg.messageId === latestBotMsgId} />
+                                        isNew={msg.messageId === latestBotMsgId}
+                                        onImageClick={setLightboxImage} />
                                 ))}
                                 {isBotTyping && <TypingIndicator />}
                                 <div ref={scrollTo}></div>
@@ -677,7 +765,8 @@ export default function Chat() {
                                         {loading && <p className="text-center text-muted">Loading messages...</p>}
                                         {messages.map(msg => (
                                             <ChatMessage key={msg.messageId} message={msg} currentUserId={currentUserId}
-                                                isNew={msg.messageId === latestBotMsgId} />
+                                                isNew={msg.messageId === latestBotMsgId}
+                                                onImageClick={setLightboxImage} />
                                         ))}
                                         {isBotTyping && <TypingIndicator />}
                                         <div ref={scrollTo}></div>
@@ -701,7 +790,8 @@ export default function Chat() {
                                         {loading && <p className="text-center text-muted">Loading messages...</p>}
                                         {messages.map(msg => (
                                             <ChatMessage key={msg.messageId} message={msg} currentUserId={currentUserId}
-                                                isNew={msg.messageId === latestBotMsgId} />
+                                                isNew={msg.messageId === latestBotMsgId}
+                                                onImageClick={setLightboxImage} />
                                         ))}
                                         {isBotTyping && <TypingIndicator />}
                                         <div ref={scrollTo}></div>
@@ -717,7 +807,8 @@ export default function Chat() {
                                 {messages.length === 0 && !loading && <p className="text-center text-muted">Send messages!</p>}
                                 {messages.map(msg => (
                                     <ChatMessage key={msg.messageId} message={msg} currentUserId={currentUserId}
-                                        isNew={msg.messageId === latestBotMsgId} />
+                                        isNew={msg.messageId === latestBotMsgId}
+                                        onImageClick={setLightboxImage} />
                                 ))}
                                 {isBotTyping && <TypingIndicator />}
                                 <div ref={scrollTo}></div>
