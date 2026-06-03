@@ -57,6 +57,8 @@ lerna-debug.log*
 /.graphify_extract.json
 /.graphify_labels.json
 /.graphify_semantic.json
+/.claude
+/CLAUDE.md
 
 
 # === Custom ignores cho file XML do IDE sinh ra ===
