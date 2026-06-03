@@ -2,17 +2,37 @@
   "compilerOptions": {
     "baseUrl": ".",
     "paths": {
-      "@api/*": ["src/api/*"],
-      "@hooks/*": ["src/hooks/*"],
-      "@utils/*": ["src/utils/*"],
-      "@components/*": ["src/components/*"],
-      "@pages/*": ["src/pages/*"],
-      "@layouts/*": ["src/layouts/*"],
-      "@services/*": ["src/services/*"],
-      "@context/*": ["src/context/*"],
-      "@/*": ["src/*"]
+      "@api/*": [
+        "src/api/*"
+      ],
+      "@hooks/*": [
+        "src/hooks/*"
+      ],
+      "@utils/*": [
+        "src/utils/*"
+      ],
+      "@components/*": [
+        "src/components/*"
+      ],
+      "@pages/*": [
+        "src/pages/*"
+      ],
+      "@layouts/*": [
+        "src/layouts/*"
+      ],
+      "@services/*": [
+        "src/services/*"
+      ],
+      "@context/*": [
+        "src/context/*"
+      ],
+      "@/*": [
+        "src/*"
+      ]
     },
-    "ignoreDeprecations": "6.0"
+    "ignoreDeprecations": "5.0"
   },
-  "include": ["src"]
+  "include": [
+    "src"
+  ]
 }
