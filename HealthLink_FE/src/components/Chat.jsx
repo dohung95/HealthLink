@@ -1,10 +1,12 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import { useChat } from '../context/ChatContext';
 import { getOrCreateRoom, getMyRooms, getRoomMessages, sendMessage as apiSendMessage, markAsRead } from '../api/chatApi';
 import stompChatService from '../services/stompChatService';
 import { getGeminiResponse } from '../services/geminiService';
-import { checkKeywordAndGetBotReply } from '../AI_BOT/BotBrain';
+import { checkKeywordAndGetBotReply, checkSymptomAndGetSpecialty, getDoctorsBySpecialty } from '../AI_BOT/BotBrain';
+import { doctorService } from '../api/doctorApi';
 import { toast } from 'sonner';
 
 // ─── Bot cố định (chỉ dùng Gemini AI ở frontend, không lưu DB) ──────────────
@@ -161,10 +163,10 @@ function ImageLightbox({ src, onClose }) {
 
 // ─── Component tin nhắn ──────────────────────────────────────────────────────
 /**
- * @param {{ message: object, currentUserId: string, isNew?: boolean, onImageClick?: (src: string) => void }} props
+ * @param {{ message: object, currentUserId: string, isNew?: boolean, onImageClick?: (src: string) => void, onNavigate?: (url: string) => void }} props
  * isNew=true kích hoạt typewriter effect cho tin nhắn bot mới nhất
  */
-function ChatMessage({ message, currentUserId, isNew = false, onImageClick }) {
+function ChatMessage({ message, currentUserId, isNew = false, onImageClick, onNavigate }) {
     const isOwn = message.senderId === currentUserId || message.uid === currentUserId;
     const fullText = message.content || message.text || '';
 
@@ -203,7 +205,7 @@ function ChatMessage({ message, currentUserId, isNew = false, onImageClick }) {
                     to   { opacity: 1; transform: translateY(0); }
                 }
             `}</style>
-            <div style={{ maxWidth: '70%' }}>
+            <div style={{ maxWidth: '78%' }}>
                 <div
                     className={`p-2 rounded ${isOwn ? 'bg-primary text-white' : 'bg-light text-dark border'}`}
                     style={{ borderRadius: message.imageUrl ? '12px' : '20px', padding: message.imageUrl ? '4px' : '8px 16px' }}
@@ -246,12 +248,52 @@ function ChatMessage({ message, currentUserId, isNew = false, onImageClick }) {
                             `}</style>
                         </div>
                     )}
+
+                    {/* Mini doctor cards nội bộ (gợi ý bác sĩ từ BotBrain offline) */}
+                    {typewriterDone && message.suggestedDoctors?.length > 0 && (
+                        <div style={{ marginTop: '10px', display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                            {message.suggestedDoctors.map(doc => (
+                                <div key={doc.doctorId}
+                                    onClick={() => onNavigate?.(`/patient-dashboard/book/${doc.doctorId}`)}
+                                    style={{
+                                        background: '#fff',
+                                        border: '1px solid #dee2e6',
+                                        borderRadius: '12px',
+                                        padding: '8px 12px',
+                                        display: 'flex',
+                                        alignItems: 'center',
+                                        gap: '10px',
+                                        cursor: 'pointer',
+                                        transition: 'box-shadow 0.15s',
+                                    }}
+                                    onMouseEnter={e => e.currentTarget.style.boxShadow = '0 2px 8px rgba(0,176,154,0.2)'}
+                                    onMouseLeave={e => e.currentTarget.style.boxShadow = 'none'}
+                                >
+                                    <img
+                                        src={doc.avatarUrl || `https://api.dicebear.com/8.x/initials/svg?seed=${doc.fullName}`}
+                                        alt={doc.fullName}
+                                        style={{ width: 38, height: 38, borderRadius: '50%', flexShrink: 0, objectFit: 'cover' }}
+                                    />
+                                    <div style={{ minWidth: 0 }}>
+                                        <div style={{ fontWeight: 600, fontSize: '0.85rem', color: '#212529', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                                            {doc.fullName}
+                                        </div>
+                                        <div style={{ fontSize: '0.75rem', color: '#6c757d' }}>
+                                            ⭐ {doc.averageRating?.toFixed(1) || 'N/A'} &nbsp;·&nbsp; {doc.specialtyName || doc.specialty}
+                                        </div>
+                                    </div>
+                                    <i className="bi bi-chevron-right ms-auto text-muted" style={{ fontSize: '0.8rem' }} />
+                                </div>
+                            ))}
+                        </div>
+                    )}
+
                     {/* Nút hành động (chỉ hiện sau khi typewriter hoàn tất) */}
                     {typewriterDone && message.actionUrl && message.actionLabel && (
                         <div style={{ marginTop: '8px', animation: 'msgFadeSlideIn 0.3s ease-out' }}>
                             <button
                                 className="btn btn-sm btn-success"
-                                onClick={() => window.location.href = message.actionUrl}
+                                onClick={() => onNavigate?.(message.actionUrl)}
                                 style={{ borderRadius: '20px', fontSize: '0.85rem' }}
                             >
                                 {message.actionLabel}
@@ -303,6 +345,7 @@ function RoomListItem({ room, currentUserId, onSelect }) {
 
 // ─── Main Component ──────────────────────────────────────────────────────────
 export default function Chat() {
+    const navigate = useNavigate();
     const { user: authUser, roles, currentUserId } = useAuth();
     const {
         isChatOpen: isChatBoxOpen,
@@ -314,6 +357,7 @@ export default function Chat() {
     const [formValue, setFormValue] = useState('');
     const [messages, setMessages] = useState([]);
     const [roomList, setRoomList] = useState([]);   // danh sách phòng chat đã chat
+    const [allDoctors, setAllDoctors] = useState([]);            // cache bác sĩ cho gợi ý offline
     const [loading, setLoading] = useState(false);
     const [currentRoom, setCurrentRoom] = useState(null); // ChatRoomDTO đang mở
     const [selectedFile, setSelectedFile] = useState(null);
@@ -339,6 +383,25 @@ export default function Chat() {
     const isDoctor = roles?.some(r => r.toLowerCase() === 'doctor');
     const isPharmacy = roles?.some(r => r.toLowerCase() === 'pharmacy');
     const isGuest = !authUser;
+
+    /**
+     * Điều hướng mượt mà (SPA) và tự động đóng/thu nhỏ chat popup.
+     * Dùng cho cả nút action trong bubble và mini doctor cards.
+     * @param {string} url - Đường dẫn cần điều hướng tới.
+     */
+    const handleBotNavigate = useCallback((url) => {
+        if (!url) return;
+        setIsChatBoxOpen(false); // Thu nhỏ chat popup
+        navigate(url);           // Điều hướng SPA (không reload trang)
+    }, [navigate, setIsChatBoxOpen]);
+
+    // Load danh sách bác sĩ 1 lần khi chat bot mở → dùng cho gợi ý offline (0 token)
+    useEffect(() => {
+        if (allDoctors.length > 0) return; // Đã load rồi thì bỏ qua
+        doctorService.getAllDoctors()
+            .then(data => setAllDoctors(data || []))
+            .catch(() => {}); // Lỗi thì im lặng, không ảnh hưởng UX
+    }, []);
 
     // ── Đăng ký sự kiện Chat khi Component được render ────────────────────────────────
     useEffect(() => {
@@ -532,11 +595,11 @@ export default function Chat() {
 
         // ── Nếu là Bot ──
         if (chatPartner.isBot || chatPartner.userId === BOT_USER.userId) {
-            const keywordMatch = checkKeywordAndGetBotReply(text);
             setIsBotTyping(true); // bật typing indicator
 
+            // Bước 1: Kiểm tra keyword nội bộ (Tier 1 - offline, 0 token)
+            const keywordMatch = checkKeywordAndGetBotReply(text);
             if (keywordMatch) {
-                // Bot nội bộ: delay giả 600ms → tắt typing → hiện message ngay
                 await new Promise(r => setTimeout(r, 600));
                 setIsBotTyping(false);
                 const newMsgId = `bot_kw_${Date.now()}`;
@@ -550,8 +613,40 @@ export default function Chat() {
                     timestamp: new Date().toISOString(),
                 }]);
             } else {
-                // Gemini AI: giữ typing indicator BẬT trong suốt thời gian chờ API
-                // → tắt ngay khi response về → hiện message ngay lập tức (không có khoảng trống)
+                // Bước 2: Kiểm tra triệu chứng → gợi ý chuyên khoa + bác sĩ (Tier 1.5 - offline, 0 token)
+                const specialtyMatch = checkSymptomAndGetSpecialty(text);
+                if (specialtyMatch) {
+                    const suggestedDoctors = getDoctorsBySpecialty(allDoctors, specialtyMatch.specialty, 3);
+
+                    // Detect ngôn ngữ nhanh
+                    const hasVI = /[àáảãạăằắẳẵặâầấẩẫậèéẻẽẹêềếểễệìíỉĩịòóỏõọôồốổỗộơờớởỡợùúủũụưừứửữựỳýỷỹỵđ]/i.test(text);
+                    const hasID = /saya|aku|sakit|demam|batuk|pusing|dokter/i.test(text.toLowerCase());
+                    const lang = hasVI ? 'vi' : hasID ? 'id' : 'en';
+
+                    const specialtyName = specialtyMatch.label[lang] || specialtyMatch.label.en;
+                    const replyText = lang === 'vi'
+                        ? `${specialtyMatch.icon} Dựa trên triệu chứng bạn mô tả, mình gợi ý bạn nên khám chuyên khoa **${specialtyName}**! Dưới đây là một số bác sĩ phù hợp:`
+                        : lang === 'id'
+                        ? `${specialtyMatch.icon} Berdasarkan gejala yang kamu ceritakan, aku sarankan periksa ke spesialis **${specialtyName}**! Berikut beberapa dokter yang bisa membantu:`
+                        : `${specialtyMatch.icon} Based on your symptoms, I recommend seeing a **${specialtyName}** specialist! Here are some available doctors:`;
+
+                    await new Promise(r => setTimeout(r, 700));
+                    setIsBotTyping(false);
+                    const newMsgId = `bot_sp_${Date.now()}`;
+                    setLatestBotMsgId(newMsgId);
+                    setMessages(prev => [...prev, {
+                        messageId: newMsgId,
+                        senderId: BOT_USER.userId,
+                        content: replyText,
+                        suggestedDoctors: suggestedDoctors,
+                        actionUrl: `/schedule?specialty=${encodeURIComponent(specialtyMatch.specialty)}`,
+                        actionLabel: lang === 'vi' ? `📅 Xem tất cả bác sĩ ${specialtyName}` : lang === 'id' ? `📅 Lihat semua dokter ${specialtyName}` : `📅 View all ${specialtyName} doctors`,
+                        timestamp: new Date().toISOString(),
+                    }]);
+                    return;
+                }
+
+                // Bước 3: Gemini AI (Tier 2 - gọi API, tốn token) - chỉ khi câu hỏi phức tạp
                 const { text: aiText, actionUrl, actionLabel } = await getGeminiResponse(text, []);
                 setIsBotTyping(false);
                 const newMsgId = `bot_ai_${Date.now()}`;
@@ -563,11 +658,11 @@ export default function Chat() {
                     actionUrl: actionUrl ?? null,
                     actionLabel: actionLabel ?? null,
                     timestamp: new Date().toISOString(),
-
                 }]);
             }
             return;
         }
+
 
         // ── Guest cố chat với người thật ──
         if (isGuest) {
@@ -743,7 +838,8 @@ export default function Chat() {
                                 {messages.map(msg => (
                                     <ChatMessage key={msg.messageId} message={msg} currentUserId="guest_temp"
                                         isNew={msg.messageId === latestBotMsgId}
-                                        onImageClick={setLightboxImage} />
+                                        onImageClick={setLightboxImage}
+                                        onNavigate={handleBotNavigate} />
                                 ))}
                                 {isBotTyping && <TypingIndicator />}
                                 <div ref={scrollTo}></div>
@@ -766,7 +862,8 @@ export default function Chat() {
                                         {messages.map(msg => (
                                             <ChatMessage key={msg.messageId} message={msg} currentUserId={currentUserId}
                                                 isNew={msg.messageId === latestBotMsgId}
-                                                onImageClick={setLightboxImage} />
+                                                onImageClick={setLightboxImage}
+                                                onNavigate={handleBotNavigate} />
                                         ))}
                                         {isBotTyping && <TypingIndicator />}
                                         <div ref={scrollTo}></div>
@@ -791,7 +888,8 @@ export default function Chat() {
                                         {messages.map(msg => (
                                             <ChatMessage key={msg.messageId} message={msg} currentUserId={currentUserId}
                                                 isNew={msg.messageId === latestBotMsgId}
-                                                onImageClick={setLightboxImage} />
+                                                onImageClick={setLightboxImage}
+                                                onNavigate={handleBotNavigate} />
                                         ))}
                                         {isBotTyping && <TypingIndicator />}
                                         <div ref={scrollTo}></div>
@@ -808,7 +906,8 @@ export default function Chat() {
                                 {messages.map(msg => (
                                     <ChatMessage key={msg.messageId} message={msg} currentUserId={currentUserId}
                                         isNew={msg.messageId === latestBotMsgId}
-                                        onImageClick={setLightboxImage} />
+                                        onImageClick={setLightboxImage}
+                                        onNavigate={handleBotNavigate} />
                                 ))}
                                 {isBotTyping && <TypingIndicator />}
                                 <div ref={scrollTo}></div>

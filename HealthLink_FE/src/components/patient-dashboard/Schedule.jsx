@@ -1,5 +1,5 @@
 import React, { useEffect, useMemo, useState } from 'react';
-import { useNavigate, useParams } from 'react-router-dom';
+import { useNavigate, useParams, useSearchParams } from 'react-router-dom';
 import { toast } from 'sonner';
 import { shareApi } from '../../api/shareRecordApi';
 import { appointmentService } from '../../api/appointmentApi';
@@ -31,6 +31,7 @@ const buildAppointmentDateTime = (dateValue, timeValue) => {
 const Schedule = () => {
   const navigate = useNavigate();
   const { doctorId } = useParams();
+  const [searchParams] = useSearchParams();
   const { isAuthenticated, token } = useAuth();
 
   const hasPreselectedDoctor = !!doctorId;
@@ -114,6 +115,15 @@ const Schedule = () => {
 
     fetchDoctors();
   }, []);
+
+  // Tiếp nhận ?specialty=SpecialtyName từ URL (truyền bởi chatbot)
+  // Tự động pre-select chuyên khoa và skip bước 1 → chuyển thẳng sang bước chọn Bác sĩ
+  useEffect(() => {
+    const specialtyParam = searchParams.get('specialty');
+    if (!specialtyParam || doctorId) return; // Không áp dụng nếu đã có doctorId pre-selected
+    setSelectedSpecialty(decodeURIComponent(specialtyParam));
+    setStep(2); // Nhảy thẳng sang bước 2 (chọn bác sĩ)
+  }, [searchParams, doctorId]);
 
   useEffect(() => {
     if (!doctorId || doctors.length === 0) return;

@@ -1,3 +1,217 @@
+// ─── Hệ thống 10 chuyên khoa thực tế của HealthLink (khớp với DB) ─────────────
+// Mỗi chuyên khoa có danh sách từ khóa triệu chứng tương ứng (offline, 0 token)
+export const SPECIALTY_SYMPTOM_MAP = [
+    {
+        specialty: 'Internal Medicine',
+        label: { vi: 'Nội tổng quát', en: 'Internal Medicine', id: 'Penyakit Dalam' },
+        icon: '🩺',
+        keywords: [
+            // VI
+            'mệt mỏi', 'sốt kéo dài', 'sụt cân', 'thiếu máu', 'tiểu đường', 'huyết áp cao',
+            'huyết áp thấp', 'tăng huyết áp', 'suy nhược', 'viêm gan', 'vàng da', 'lao phổi',
+            'nhiễm trùng', 'sốt xuất huyết', 'sốt rét', 'bệnh nội khoa', 'nội tổng quát',
+            // EN
+            'fatigue', 'prolonged fever', 'weight loss', 'anemia', 'diabetes', 'hypertension',
+            'high blood pressure', 'low blood pressure', 'weakness', 'hepatitis', 'jaundice',
+            'tuberculosis', 'infection', 'dengue', 'malaria', 'internal medicine',
+            // ID
+            'kelelahan', 'demam berkepanjangan', 'penurunan berat', 'kurang darah', 'gula darah',
+            'hipertensi', 'lemas', 'liver', 'kuning', 'tbc', 'infeksi', 'demam berdarah', 'malaria',
+        ],
+    },
+    {
+        specialty: 'Cardiology',
+        label: { vi: 'Tim mạch', en: 'Cardiology', id: 'Jantung' },
+        icon: '❤️',
+        keywords: [
+            // VI
+            'đau ngực', 'tức ngực', 'nhồi máu cơ tim', 'đánh trống ngực', 'tim đập nhanh',
+            'hở van tim', 'hẹp van tim', 'rối loạn nhịp tim', 'suy tim', 'động mạch vành',
+            'tim mạch', 'huyết áp', 'cholesterol', 'mỡ máu',
+            // EN
+            'chest pain', 'heart attack', 'palpitation', 'heart disease', 'arrhythmia',
+            'heart failure', 'coronary', 'angina', 'cardiac', 'cholesterol',
+            // ID
+            'nyeri dada', 'serangan jantung', 'jantung berdebar', 'penyakit jantung', 'aritmia',
+        ],
+    },
+    {
+        specialty: 'Neurology',
+        label: { vi: 'Thần kinh', en: 'Neurology', id: 'Saraf' },
+        icon: '🧠',
+        keywords: [
+            // VI
+            'đau đầu', 'nhức đầu', 'đau nửa đầu', 'migraine', 'chóng mặt', 'hoa mắt',
+            'tê tay', 'tê chân', 'run tay', 'đột quỵ', 'liệt', 'động kinh', 'mất trí nhớ',
+            'alzheimer', 'parkinson', 'bppv', 'thần kinh tọa', 'mất ngủ', 'rối loạn giấc ngủ',
+            // EN
+            'headache', 'migraine', 'dizziness', 'vertigo', 'numbness', 'stroke', 'seizure',
+            'memory loss', 'tremor', 'epilepsy', 'parkinson', 'alzheimer', 'neuropathy',
+            // ID
+            'sakit kepala', 'pusing', 'vertigo', 'kebas', 'stroke', 'kejang', 'lupa',
+        ],
+    },
+    {
+        specialty: 'Dermatology',
+        label: { vi: 'Da liễu', en: 'Dermatology', id: 'Kulit' },
+        icon: '🌿',
+        keywords: [
+            // VI
+            'ngứa', 'nổi mẩn', 'mề đay', 'dị ứng da', 'phát ban', 'mụn', 'mụn trứng cá',
+            'rụng tóc', 'hói đầu', 'viêm da', 'chàm', 'vẩy nến', 'nấm da', 'lang ben',
+            'da liễu', 'da khô', 'nám', 'tàn nhang',
+            // EN
+            'itchy', 'rash', 'hives', 'urticaria', 'allergy skin', 'acne', 'pimple',
+            'hair loss', 'alopecia', 'eczema', 'psoriasis', 'fungal', 'dermatitis',
+            // ID
+            'gatal', 'ruam', 'biduran', 'alergi kulit', 'jerawat', 'rambut rontok', 'eksem',
+        ],
+    },
+    {
+        specialty: 'Pediatrics',
+        label: { vi: 'Nhi khoa', en: 'Pediatrics', id: 'Anak' },
+        icon: '👶',
+        keywords: [
+            // VI
+            'trẻ em', 'trẻ nhỏ', 'em bé', 'bé', 'con', 'nhi khoa', 'trẻ sốt', 'trẻ ho',
+            'bé khóc', 'trẻ biếng ăn', 'trẻ chậm phát triển', 'tiêm chủng trẻ em',
+            'bé sơ sinh', 'vàng da sơ sinh',
+            // EN
+            'child', 'baby', 'infant', 'toddler', 'kid', 'pediatric', 'child fever', 'child cough',
+            'newborn', 'vaccination child',
+            // ID
+            'anak', 'bayi', 'balita', 'anak sakit', 'bayi demam', 'anak batuk',
+        ],
+    },
+    {
+        specialty: 'Obstetrics & Gynecology',
+        label: { vi: 'Sản phụ khoa', en: 'Obstetrics & Gynecology', id: 'Kandungan' },
+        icon: '🤰',
+        keywords: [
+            // VI
+            'mang thai', 'thai kỳ', 'sinh con', 'đau bụng kinh', 'rong kinh', 'kinh nguyệt',
+            'phụ khoa', 'sản khoa', 'khí hư', 'viêm âm đạo', 'u xơ tử cung', 'buồng trứng',
+            'lạc nội mạc', 'tránh thai', 'vô sinh', 'hiếm muộn', 'siêu âm thai',
+            // EN
+            'pregnant', 'pregnancy', 'period pain', 'menstrual', 'gynecology', 'obstetrics',
+            'vaginal discharge', 'fibroids', 'ovarian', 'contraception', 'infertility',
+            // ID
+            'hamil', 'kehamilan', 'sakit haid', 'menstruasi', 'kandungan', 'keputihan',
+            'kontrasepsi', 'program hamil',
+        ],
+    },
+    {
+        specialty: 'ENT',
+        label: { vi: 'Tai mũi họng', en: 'ENT', id: 'THT' },
+        icon: '👂',
+        keywords: [
+            // VI
+            'đau tai', 'ù tai', 'viêm tai giữa', 'sổ mũi', 'nghẹt mũi', 'viêm xoang',
+            'chảy máu mũi', 'đau họng', 'viêm họng', 'amidan', 'khàn tiếng', 'tai mũi họng',
+            'nhiệt miệng', 'loét miệng', 'polyp mũi',
+            // EN
+            'ear pain', 'tinnitus', 'otitis', 'runny nose', 'sinusitis', 'nosebleed',
+            'sore throat', 'tonsil', 'hoarse', 'ent', 'nasal polyp', 'mouth ulcer',
+            // ID
+            'sakit telinga', 'telinga berdenging', 'hidung meler', 'sinusitis', 'mimisan',
+            'sakit tenggorokan', 'amandel', 'suara serak', 'tht',
+        ],
+    },
+    {
+        specialty: 'Ophthalmology',
+        label: { vi: 'Mắt', en: 'Ophthalmology', id: 'Mata' },
+        icon: '👁️',
+        keywords: [
+            // VI
+            'đau mắt', 'mắt đỏ', 'lẹo mắt', 'chắp mắt', 'khô mắt', 'nhìn mờ', 'mờ mắt',
+            'mất thị lực', 'đục thủy tinh thể', 'glôcôm', 'cận thị', 'viễn thị', 'loạn thị',
+            'kết mạc', 'viêm kết mạc', 'mắt lé',
+            // EN
+            'eye pain', 'red eye', 'stye', 'dry eye', 'blurry vision', 'vision loss',
+            'cataract', 'glaucoma', 'myopia', 'conjunctivitis', 'ophthalmology',
+            // ID
+            'mata merah', 'mata kering', 'pandangan kabur', 'katarak', 'glaukoma', 'rabun',
+        ],
+    },
+    {
+        specialty: 'Surgery',
+        label: { vi: 'Ngoại khoa', en: 'Surgery', id: 'Bedah' },
+        icon: '🔬',
+        keywords: [
+            // VI
+            'phẫu thuật', 'mổ', 'u bướu', 'sỏi mật', 'sỏi thận', 'viêm ruột thừa', 'thoát vị',
+            'trĩ nặng', 'bướu cổ', 'ngoại khoa', 'vết thương', 'chấn thương nặng',
+            // EN
+            'surgery', 'operation', 'tumor', 'gallstone', 'appendicitis', 'hernia',
+            'hemorrhoid surgery', 'wound', 'trauma surgery',
+            // ID
+            'operasi', 'bedah', 'tumor', 'batu empedu', 'usus buntu', 'hernia', 'wasir parah',
+        ],
+    },
+    {
+        specialty: 'Dentistry',
+        label: { vi: 'Nha khoa', en: 'Dentistry', id: 'Gigi' },
+        icon: '🦷',
+        keywords: [
+            // VI
+            'đau răng', 'sâu răng', 'viêm nướu', 'mất răng', 'nhổ răng', 'trám răng',
+            'niềng răng', 'răng khôn', 'nha khoa', 'nướu chảy máu', 'hàm răng',
+            // EN
+            'toothache', 'cavity', 'gum disease', 'tooth extraction', 'braces',
+            'wisdom tooth', 'dentistry', 'dental', 'bleeding gum',
+            // ID
+            'sakit gigi', 'gigi berlubang', 'gusi berdarah', 'cabut gigi', 'behel', 'gigi bungsu',
+        ],
+    },
+];
+
+/**
+ * Phân tích triệu chứng và gợi ý chuyên khoa phù hợp (OFFLINE, 0 token Gemini).
+ * So khớp từ khóa triệu chứng với bảng SPECIALTY_SYMPTOM_MAP.
+ * @param {string} text - Tin nhắn người dùng.
+ * @returns {{ specialty: string, label: object, icon: string } | null} - Chuyên khoa phù hợp hoặc null.
+ */
+export function checkSymptomAndGetSpecialty(text) {
+    const lower = text.toLowerCase();
+    let bestMatch = null;
+    let bestScore = 0;
+
+    for (const entry of SPECIALTY_SYMPTOM_MAP) {
+        let score = 0;
+        for (const kw of entry.keywords) {
+            if (lower.includes(kw)) {
+                // Ưu tiên từ khóa dài hơn (chính xác hơn)
+                score += kw.length > 5 ? 2 : 1;
+            }
+        }
+        if (score > bestScore) {
+            bestScore = score;
+            bestMatch = entry;
+        }
+    }
+
+    // Chỉ trả về nếu có ít nhất 1 từ khóa khớp
+    return bestScore > 0 ? bestMatch : null;
+}
+
+/**
+ * Lọc danh sách bác sĩ theo tên chuyên khoa (OFFLINE, dùng data đã load từ API một lần).
+ * @param {Array} allDoctors - Mảng bác sĩ đã load (từ state trong Schedule/Chat).
+ * @param {string} specialtyName - Tên chuyên khoa cần lọc (khớp với DB, ví dụ: 'Cardiology').
+ * @param {number} [limit=3] - Số bác sĩ tối đa trả về.
+ * @returns {Array} - Danh sách bác sĩ thuộc chuyên khoa, sắp xếp theo rating giảm dần.
+ */
+export function getDoctorsBySpecialty(allDoctors, specialtyName, limit = 3) {
+    if (!Array.isArray(allDoctors) || !specialtyName) return [];
+    return allDoctors
+        .filter(d => {
+            const ds = (d.specialtyName || d.specialty || '').toLowerCase();
+            return ds === specialtyName.toLowerCase();
+        })
+        .sort((a, b) => (b.averageRating || 0) - (a.averageRating || 0))
+        .slice(0, limit);
+}
+
 // ─── Keyword map: từ khóa → bot reply cố định (không gọi Gemini API) ─────────
 // reply và actionLabel hỗ trợ 3 ngôn ngữ: en / vi / id
 export const KEYWORD_REPLIES = [
