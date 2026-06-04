@@ -102,8 +102,8 @@ export const doctorService = {
   },
 
   getDoctorReviews: async (doctorId) => {
-    const profile = await doctorService.getDoctorById(doctorId);
-    return Array.isArray(profile.reviews) ? profile.reviews.map(normalizeReview) : [];
+    const response = await axiosInstance.get(`/api/doctor/reviews/public/${doctorId}`);
+    return (response.data || []).map(normalizeReview);
   },
 
   getPatientById: async (patientId) => {
