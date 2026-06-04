@@ -168,6 +168,11 @@ function AppContent() {
         return;
       }
 
+      // Nếu đang ở /schedule (có thể có ?specialty=...), không redirect để giữ nguyên luồng đặt lịch từ chatbot
+      if (location.pathname === '/schedule') {
+        return;
+      }
+
       const userRoles = roles.map(r => r.toLowerCase());
 
       if (userRoles.includes('admin')) {
