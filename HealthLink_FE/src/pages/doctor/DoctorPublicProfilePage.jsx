@@ -11,6 +11,7 @@ const DoctorPublicProfilePage = () => {
     const navigate = useNavigate();
     const [doctor, setDoctor] = useState(null);
     const [loading, setLoading] = useState(true);
+    const [reviews, setReviews] = useState([]);
     const { isAuthenticated } = useAuth();
     const [showModal, setShowModal] = useState(false);
     const REVIEW_PAGE_SIZE = 5;
@@ -22,6 +23,15 @@ const DoctorPublicProfilePage = () => {
                 setLoading(true);
                 const data = await doctorService.getDoctorById(id);
                 setDoctor(data);
+
+                try {
+                    const resolvedDoctorId = data.doctorId || data.doctorID || id;
+                    const reviewData = await doctorService.getDoctorReviews(resolvedDoctorId);
+                    setReviews(Array.isArray(reviewData) ? reviewData : []);
+                } catch (reviewError) {
+                    console.error('Error loading doctor reviews:', reviewError);
+                    setReviews([]);
+                }
             } catch (error) {
                 console.error("Error download profile:", error);
             } finally {
@@ -47,8 +57,6 @@ const DoctorPublicProfilePage = () => {
     const doctorId = doctor.doctorId || doctor.doctorID || id;
     const doctorName = doctor.fullName || doctor.name || 'Doctor';
     const doctorInitial = doctorName.charAt(0).toUpperCase();
-
-    const reviews = Array.isArray(doctor.reviews) ? doctor.reviews : [];
 
     const averageRating = Number(doctor.averageRating || 0);
     const totalReviews = Number(doctor.totalReviews || reviews.length || 0);
@@ -197,17 +205,23 @@ const DoctorPublicProfilePage = () => {
                         <h5 className="mb-0"><i className="bi bi-chat-left-text-fill me-2"></i>Patient Reviews</h5>
                     </div>
                     <div className="card-body">
-                        {doctor.reviews && doctor.reviews.length > 0 ? (
-                            pagedReviews.map((review) => (
-                                <div key={review.reviewId || review.reviewID} className="border-bottom pb-3 mb-3">
+                        {reviews.length > 0 ? (
+                            pagedReviews.map((review, index) => (
+                                <div key={review.reviewId || review.reviewID || index} className="border-bottom pb-3 mb-3">
                                     <div className="d-flex justify-content-between align-items-center mb-1">
                                         <h6 className="fw-bold mb-0 text-dark">{review.patientName}</h6>
-                                        <small className="text-muted">{new Date(review.reviewDate).toLocaleDateString()}</small>
+                                        <small className="text-muted">
+                                            {review.reviewDate
+                                                ? new Date(review.reviewDate).toLocaleDateString()
+                                                : 'No date'}
+                                        </small>
                                     </div>
                                     <div className="text-warning mb-2" style={{ fontSize: '0.9rem' }}>
                                         {"★".repeat(review.rating)}{"☆".repeat(5 - review.rating)}
                                     </div>
-                                    <p className="text-secondary mb-0 fst-italic">"{review.comment}"</p>
+                                    <p className="text-secondary mb-0 fst-italic">
+                                        "{review.comment || 'No comment provided.'}"
+                                    </p>
                                 </div>
                             ))
                         ) : (
