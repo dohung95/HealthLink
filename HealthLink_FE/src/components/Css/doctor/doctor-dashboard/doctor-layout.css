@@ -452,7 +452,3 @@
 input[type="email"]:focus {
   outline: none;
 }
-
-.btn-close {
-  filter: invert(1); /* đảo màu icon từ đen sang trắng */
-}
