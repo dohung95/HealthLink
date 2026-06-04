@@ -549,7 +549,7 @@ export default function DoctorWalletTab({ profile, onRefreshProfile }) {
                     </div>
                   </div>
                   <button
-                    className="btn-close"
+                    className="btn-close btn-close-white"
                     onClick={() => setIsWithdrawModalOpen(false)}
                     type="button"
                     aria-label="Close"
