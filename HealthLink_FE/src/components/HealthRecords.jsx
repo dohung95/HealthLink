@@ -6,6 +6,7 @@ import { toast } from 'sonner';
 import Loading from './Loading';
 import { getProfile } from '../api/account';
 import { useAuth } from '../context/AuthContext';
+import { moderateImageFile, isImageFile } from '../utils/imageModeration';
 
 const HealthRecords = ({ embedded = false }) => {
     const HEALTH_RECORD_PAGE_SIZE = 5;
@@ -164,7 +165,45 @@ const HealthRecords = ({ embedded = false }) => {
     };
 
     // --- HANDLE UPLOAD FILE ---
-    const handleFileChange = (e) => setFiles(e.target.files);
+    const handleFileChange = async (e) => {
+        const rawFiles = Array.from(e.target.files || []);
+        const acceptedFiles = [];
+
+        for (const file of rawFiles) {
+            try {
+                let result = null;
+
+                if (isImageFile(file)) {
+                    toast.info(`Scanning ${file.name}...`);
+
+                    result = await moderateImageFile(file);
+
+                    if (!result.safe) {
+                        toast.error(`${file.name} was blocked because it may contain explicit sensitive content.`);
+                        continue;
+                    }
+
+                    if (result.warning) {
+                        toast.warning(`${file.name} may be sensitive. Please make sure this is a valid medical document.`);
+                    }
+                }
+
+                acceptedFiles.push({
+                    file,
+                    name: file.name,
+                    size: file.size,
+                    moderationWarning: result?.warning || false,
+                    moderationReason: result?.reason || '',
+                });
+            } catch (error) {
+                console.error('Image moderation error:', error);
+                toast.error(`Cannot scan ${file.name}. Please try another file.`);
+            }
+        }
+
+        setFiles(acceptedFiles);
+        e.target.value = '';
+    };
 
     const handleSubmitUpload = async (e) => {
         e.preventDefault();
@@ -195,7 +234,7 @@ const HealthRecords = ({ embedded = false }) => {
             for (let i = 0; i < files.length; i++) {
                 await healthRecordApi.uploadDocumentAutoRecord(
                     patientId,
-                    files[i],
+                    files[i].file,
                     documentCategory,
                     description,
                     documentDate
@@ -325,7 +364,7 @@ const HealthRecords = ({ embedded = false }) => {
 
                                         <div className="mb-3">
                                             <label className="form-label small fw-bold text-muted text-uppercase">Attachments <span className="text-danger">*</span></label>
-                                            <input type="file" className="form-control bg-light border-0" multiple accept="image/*,.pdf" onChange={handleFileChange} required />
+                                            <input type="file" className="form-control bg-light border-0" multiple accept="image/*,.pdf" onChange={handleFileChange} />
                                             <div className="form-text small"><i className="bi bi-info-circle me-1"></i>Supports: PDF, JPG, PNG (Max 10MB)</div>
 
                                             {/* File Preview List */}
@@ -333,7 +372,18 @@ const HealthRecords = ({ embedded = false }) => {
                                                 <div className="mt-3 bg-light rounded p-2 border border-dashed">
                                                     <small className="text-success fw-bold d-block mb-1">✓ Selected {files.length} file(s):</small>
                                                     <ul className="mb-0 ps-3 small text-muted">
-                                                        {Array.from(files).map((f, i) => <li key={i}>{f.name} ({(f.size / 1024).toFixed(0)} KB)</li>)}
+                                                        {Array.from(files).map((f, i) => (
+                                                            <li key={i}>
+                                                                {f.name} ({(f.size / 1024).toFixed(0)} KB)
+
+                                                                {f.moderationWarning && (
+                                                                    <div className="moderation-warning mt-2">
+                                                                        <i className="bi bi-exclamation-triangle me-1"></i>
+                                                                        {f.moderationReason || 'This image may be sensitive. Please make sure this is a valid medical document.'}
+                                                                    </div>
+                                                                )}
+                                                            </li>
+                                                        ))}
                                                     </ul>
                                                 </div>
                                             )}
