@@ -7,7 +7,6 @@ import { getAvatarUrl } from "../../../utils/avatarHelper";
 import "bootstrap/dist/css/bootstrap.min.css";
 import "bootstrap-icons/font/bootstrap-icons.css";
 import "../Css/Admin.css";
-import "../Css/PharmacyManagement.css";
 
 export default function PharmacyManagement() {
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
@@ -16,9 +15,13 @@ export default function PharmacyManagement() {
   const [error, setError] = useState(null);
   const { toast, showToast, hideToast } = useToast();
 
+  const [viewMode, setViewMode] = useState(() => {
+    return localStorage.getItem('pharmacyViewMode') || 'grid';
+  });
+
   const [pagination, setPagination] = useState({
     pageNumber: 1,
-    pageSize: 12,
+    pageSize: 10,
     totalCount: 0,
     totalPages: 0
   });
@@ -26,34 +29,15 @@ export default function PharmacyManagement() {
   const [filters, setFilters] = useState({
     searchTerm: '',
     status: '',
-    city: '',
     verified: '',
     sortBy: 'newest'
   });
 
   const [selectedPharmacy, setSelectedPharmacy] = useState(null);
   const [showViewModal, setShowViewModal] = useState(false);
+  const [showStatusModal, setShowStatusModal] = useState(false);
+  const [newStatus, setNewStatus] = useState('');
   const [showActionLoading, setShowActionLoading] = useState(false);
-
-  // View mode state: 'table' or 'grid'
-  const [viewMode, setViewMode] = useState('grid');
-
-  // Stats
-  const [stats, setStats] = useState({
-    total: 0,
-    active: 0,
-    verified: 0,
-    pending: 0
-  });
-
-  const normalizePharmacyResponse = (response) => {
-    const items = response.pharmacies ?? response.content ?? response.data ?? [];
-    const pageNumber = response.pageNumber ?? (response.number != null ? response.number + 1 : pagination.pageNumber);
-    const pageSize = response.pageSize ?? response.size ?? pagination.pageSize;
-    const totalCount = response.totalCount ?? response.totalElements ?? items.length;
-    const totalPages = response.totalPages ?? (pageSize > 0 ? Math.ceil(totalCount / pageSize) : 1);
-    return { items, pageNumber, pageSize, totalCount, totalPages };
-  };
 
   const getPharmacyId = (pharmacy) => pharmacy.id ?? pharmacy.pharmacyId ?? pharmacy.pharmacyID ?? pharmacy._id;
 
@@ -67,34 +51,20 @@ export default function PharmacyManagement() {
         pageSize: pagination.pageSize,
         searchTerm: filters.searchTerm,
         status: filters.status,
-        city: filters.city,
         verified: filters.verified,
         sortBy: filters.sortBy
       });
 
-      const { items, pageNumber, pageSize, totalCount, totalPages } = normalizePharmacyResponse(response);
+      const items = response.pharmacies ?? response.content ?? response.data ?? [];
+      const pageNumber = response.pageNumber ?? pagination.pageNumber;
+      const pageSize = response.pageSize ?? pagination.pageSize;
+      const totalCount = response.totalCount ?? response.totalElements ?? items.length;
+      const totalPages = response.totalPages ?? Math.ceil(totalCount / pageSize);
+
       setPharmacies(items);
       setPagination({ pageNumber, pageSize, totalCount, totalPages });
-
-      // Calculate stats
-      const activeCount = items.filter(p => p.status?.toLowerCase() === 'active').length;
-      const verifiedCount = items.filter(p => p.verified).length;
-      const pendingCount = items.filter(p => !p.verified).length;
-      setStats({
-        total: totalCount,
-        active: activeCount,
-        verified: verifiedCount,
-        pending: pendingCount
-      });
     } catch (err) {
-      const errorMsg = err.response?.data?.error
-        || err.response?.data?.message
-        || err.response?.data?.trace?.substring(0, 200)
-        || err.message
-        || 'Failed to fetch pharmacies';
-      setError(`Error ${err.response?.status || ''}: ${errorMsg}`);
-      console.error('Error fetching pharmacies:', err);
-      console.error('Response data:', err.response?.data);
+      setError(err.response?.data?.error || 'Failed to fetch pharmacies');
     } finally {
       setLoading(false);
     }
@@ -109,8 +79,13 @@ export default function PharmacyManagement() {
     setPagination({ ...pagination, pageNumber: 1 });
   };
 
-  const handleFilterChange = (field) => (e) => {
-    setFilters({ ...filters, [field]: e.target.value });
+  const handleStatusFilter = (e) => {
+    setFilters({ ...filters, status: e.target.value });
+    setPagination({ ...pagination, pageNumber: 1 });
+  };
+
+  const handleVerifiedFilter = (e) => {
+    setFilters({ ...filters, verified: e.target.value });
     setPagination({ ...pagination, pageNumber: 1 });
   };
 
@@ -118,9 +93,13 @@ export default function PharmacyManagement() {
     setFilters({ ...filters, sortBy: e.target.value });
   };
 
-  const handlePageChange = (page) => {
-    if (page < 1 || page > pagination.totalPages) return;
-    setPagination({ ...pagination, pageNumber: page });
+  const handlePageChange = (newPage) => {
+    setPagination({ ...pagination, pageNumber: newPage });
+  };
+
+  const toggleViewMode = (mode) => {
+    setViewMode(mode);
+    localStorage.setItem('pharmacyViewMode', mode);
   };
 
   const handleViewPharmacy = (pharmacy) => {
@@ -128,22 +107,29 @@ export default function PharmacyManagement() {
     setShowViewModal(true);
   };
 
-  const handleToggleStatus = async (pharmacy) => {
-    const id = getPharmacyId(pharmacy);
+  const handleChangeStatus = (pharmacy) => {
+    setSelectedPharmacy(pharmacy);
+    setNewStatus(pharmacy.status || 'ACTIVE');
+    setShowStatusModal(true);
+  };
+
+  const handleUpdateStatus = async () => {
+    const id = getPharmacyId(selectedPharmacy);
     if (!id) {
       showToast({ title: 'Update Failed', message: 'Unable to determine pharmacy ID', type: 'error' });
       return;
     }
 
-    const nextStatus = pharmacy.status?.toLowerCase() === 'active' ? 'INACTIVE' : 'ACTIVE';
     try {
       setShowActionLoading(true);
-      await pharmaciesApi.updateStatus(id, nextStatus);
-      setPharmacies((prev) => prev.map((item) => item === pharmacy ? { ...item, status: nextStatus } : item));
-      showToast({ title: 'Status Updated', message: `Pharmacy has been marked ${nextStatus}`, type: 'success' });
+      await pharmaciesApi.updateStatus(id, newStatus);
+      setPharmacies((prev) => prev.map((item) =>
+        getPharmacyId(item) === id ? { ...item, status: newStatus } : item
+      ));
+      setShowStatusModal(false);
+      showToast({ title: 'Status Updated', message: 'Pharmacy status has been updated successfully', type: 'success' });
     } catch (err) {
       showToast({ title: 'Update Failed', message: err.response?.data?.error || err.message || 'Unable to update status', type: 'error', duration: 5000 });
-      console.error(err);
     } finally {
       setShowActionLoading(false);
     }
@@ -160,703 +146,618 @@ export default function PharmacyManagement() {
     try {
       setShowActionLoading(true);
       await pharmaciesApi.updateVerification(id, nextVerified);
-      setPharmacies((prev) => prev.map((item) => item === pharmacy ? { ...item, verified: nextVerified } : item));
-      showToast({ title: 'Verification Updated', message: `Pharmacy verification set to ${nextVerified}`, type: 'success' });
+      setPharmacies((prev) => prev.map((item) =>
+        getPharmacyId(item) === id ? { ...item, verified: nextVerified } : item
+      ));
+      showToast({ title: 'Verification Updated', message: `Pharmacy verification set to ${nextVerified ? 'Verified' : 'Pending'}`, type: 'success' });
     } catch (err) {
       showToast({ title: 'Update Failed', message: err.response?.data?.error || err.message || 'Unable to update verification', type: 'error', duration: 5000 });
-      console.error(err);
-    } finally {
-      setShowActionLoading(false);
-    }
-  };
-
-  const handleBanPharmacy = async (pharmacy) => {
-    const id = getPharmacyId(pharmacy);
-    if (!id) {
-      showToast({ title: 'Ban Failed', message: 'Unable to determine pharmacy ID', type: 'error' });
-      return;
-    }
-
-    if (!window.confirm('Are you sure you want to ban this pharmacy?')) {
-      return;
-    }
-
-    try {
-      setShowActionLoading(true);
-      await pharmaciesApi.delete(id);
-      setPharmacies((prev) => prev.map((item) =>
-        item === pharmacy ? { ...item, status: 'Banned', active: false } : item
-      ));
-      showToast({ title: 'Banned', message: 'Pharmacy has been banned successfully', type: 'success' });
-    } catch (err) {
-      showToast({ title: 'Ban Failed', message: err.response?.data?.error || err.message || 'Unable to ban pharmacy', type: 'error', duration: 5000 });
-      console.error(err);
     } finally {
       setShowActionLoading(false);
     }
   };
 
   const formatCurrency = (value) => {
-    if (value == null || value === '') {
-      return 'N/A';
-    }
+    if (value == null || value === '') return 'N/A';
     return new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD' }).format(Number(value));
   };
 
-  const clearFilters = () => {
-    setFilters({
-      searchTerm: '',
-      status: '',
-      city: '',
-      verified: '',
-      sortBy: 'newest'
-    });
-    setPagination({ ...pagination, pageNumber: 1 });
+  const getStatusBadgeClass = (status) => {
+    switch (status?.toLowerCase()) {
+      case 'active': return 'bg-success';
+      case 'inactive': return 'bg-secondary';
+      case 'suspended': return 'bg-warning';
+      case 'banned': return 'bg-danger';
+      default: return 'bg-secondary';
+    }
+  };
+
+  const getAvatarGradient = (name) => {
+    const charCode = (name || 'P').charCodeAt(0);
+    const gradientNumber = (charCode % 10) + 1;
+    return `avatar-gradient-${gradientNumber}`;
   };
 
   return (
     <NavbarAdmin sidebarCollapsed={sidebarCollapsed} onToggleSidebar={() => setSidebarCollapsed(!sidebarCollapsed)}>
       <main className="admin-content p-4">
         {/* Page Header */}
-        <div className="pharmacy-page-header mb-4">
-          <div className="d-flex flex-column flex-lg-row justify-content-between align-items-start gap-3">
-            <div className="pharmacy-header-left">
+        <div className="admin-page-header-doctors mb-4">
+          <div className="d-flex justify-content-between align-items-start">
+            <div className="admin-page-title-section">
               <div className="d-flex align-items-center gap-3 mb-2">
-                <div className="pharmacy-page-icon">
+                <div className="admin-page-icon-doctors" style={{ background: 'linear-gradient(135deg, #10b981 0%, #059669 100%)' }}>
                   <i className="bi bi-capsule-pill"></i>
                 </div>
                 <div>
-                  <h2 className="pharmacy-page-title mb-1">Pharmacy Management</h2>
-                  <div className="d-flex align-items-center gap-2 flex-wrap">
-                    <span className="pharmacy-page-badge">
+                  <h2 className="admin-page-title mb-1">Pharmacy Management</h2>
+                  <div className="d-flex align-items-center gap-2">
+                    <span className="admin-page-badge-doctors" style={{ background: 'rgba(16, 185, 129, 0.1)', color: '#059669' }}>
                       <i className="bi bi-shop me-1"></i>
                       Partner Network
                     </span>
-                    <span className="pharmacy-page-count">
-                      <i className="bi bi-database me-1"></i>
-                      {pagination.totalCount} Total
+                    <span className="admin-page-count">
+                      {pagination.totalCount} {pagination.totalCount === 1 ? 'Pharmacy' : 'Pharmacies'}
                     </span>
                   </div>
                 </div>
               </div>
-              <p className="pharmacy-page-subtitle mb-0">
+              <p className="admin-page-subtitle-doctors mb-0">
                 View, verify, and manage pharmacy partners across the platform
               </p>
             </div>
-
-            {/* View Toggle */}
-            <div className="pharmacy-view-toggle">
-              <button
-                className={`pharmacy-view-btn ${viewMode === 'grid' ? 'active' : ''}`}
-                onClick={() => setViewMode('grid')}
-              >
-                <i className="bi bi-grid-3x3-gap-fill"></i>
-                <span>Grid</span>
-              </button>
-              <button
-                className={`pharmacy-view-btn ${viewMode === 'table' ? 'active' : ''}`}
-                onClick={() => setViewMode('table')}
-              >
-                <i className="bi bi-list-ul"></i>
-                <span>Table</span>
-              </button>
-            </div>
           </div>
         </div>
 
-        {/* Stats Cards */}
-        <div className="pharmacy-stats-row mb-4">
-          <div className="pharmacy-stat-card stat-total">
-            <div className="pharmacy-stat-icon">
-              <i className="bi bi-shop"></i>
-            </div>
-            <div className="pharmacy-stat-content">
-              <div className="pharmacy-stat-value">{stats.total}</div>
-              <div className="pharmacy-stat-label">Total Pharmacies</div>
-            </div>
-          </div>
-          <div className="pharmacy-stat-card stat-active">
-            <div className="pharmacy-stat-icon">
-              <i className="bi bi-check-circle-fill"></i>
-            </div>
-            <div className="pharmacy-stat-content">
-              <div className="pharmacy-stat-value">{stats.active}</div>
-              <div className="pharmacy-stat-label">Active</div>
-            </div>
-          </div>
-          <div className="pharmacy-stat-card stat-verified">
-            <div className="pharmacy-stat-icon">
-              <i className="bi bi-patch-check-fill"></i>
-            </div>
-            <div className="pharmacy-stat-content">
-              <div className="pharmacy-stat-value">{stats.verified}</div>
-              <div className="pharmacy-stat-label">Verified</div>
-            </div>
-          </div>
-          <div className="pharmacy-stat-card stat-pending">
-            <div className="pharmacy-stat-icon">
-              <i className="bi bi-clock-history"></i>
-            </div>
-            <div className="pharmacy-stat-content">
-              <div className="pharmacy-stat-value">{stats.pending}</div>
-              <div className="pharmacy-stat-label">Pending Verification</div>
-            </div>
-          </div>
-        </div>
-
+        {/* Error Message */}
         {error && (
-          <div className="alert alert-danger d-flex align-items-center mb-4" role="alert">
-            <i className="bi bi-exclamation-triangle-fill me-2"></i>
-            <div>{error}</div>
+          <div className="alert alert-danger" role="alert">
+            <i className="bi bi-exclamation-triangle me-2"></i>
+            {error}
           </div>
         )}
 
         {/* Filter Bar */}
-        <div className="pharmacy-filter-card mb-4">
-          <div className="pharmacy-filter-header">
-            <div className="d-flex align-items-center gap-2">
-              <i className="bi bi-funnel-fill"></i>
-              <span>Search & Filters</span>
-            </div>
-            <button className="pharmacy-clear-btn" onClick={clearFilters}>
-              <i className="bi bi-x-circle me-1"></i>
-              Clear All
-            </button>
+        <div className="admin-filter-bar">
+          <div className="filter-search">
+            <i className="bi bi-search"></i>
+            <input
+              type="text"
+              className="form-control"
+              placeholder="Search pharmacies..."
+              value={filters.searchTerm}
+              onChange={handleSearch}
+            />
           </div>
-          <div className="pharmacy-filter-body">
-            <div className="pharmacy-filter-group">
-              <div className="pharmacy-search-input" >
-                <i className="bi bi-search"></i>
-                <input
-                  type="text"
-                  placeholder="     Search by name, license, email..."
-                  value={filters.searchTerm}
-                  onChange={handleSearch}
-                />
-              </div>
-            </div>
-            <div className="pharmacy-filter-group" style={{ paddingLeft: '20px' }}>
-              <select value={filters.status} onChange={handleFilterChange('status')}>
-                <option value="">All Status</option>
-                <option value="ACTIVE">Active</option>
-                <option value="INACTIVE">Inactive</option>
-                <option value="SUSPENDED">Suspended</option>
-              </select>
-            </div>
-            <div className="pharmacy-filter-group">
-              <select value={filters.verified} onChange={handleFilterChange('verified')}>
-                <option value="">Verification</option>
-                <option value="true">Verified</option>
-                <option value="false">Not Verified</option>
-              </select>
-            </div>
-            <div className="pharmacy-filter-group">
-              <input
-                type="text"
-                placeholder="Filter by city..."
-                value={filters.city}
-                onChange={handleFilterChange('city')}
-              />
-            </div>
-            <div className="pharmacy-filter-group">
-              <select value={filters.sortBy} onChange={handleSort}>
-                <option value="newest">Newest First</option>
-                <option value="oldest">Oldest First</option>
-                <option value="active">Active First</option>
-                <option value="verified">Verified First</option>
-              </select>
+          <div className="filter-select">
+            <select className="form-select" value={filters.status} onChange={handleStatusFilter}>
+              <option value="">All Status</option>
+              <option value="ACTIVE">Active</option>
+              <option value="INACTIVE">Inactive</option>
+              <option value="SUSPENDED">Suspended</option>
+            </select>
+          </div>
+          <div className="filter-select">
+            <select className="form-select" value={filters.verified} onChange={handleVerifiedFilter}>
+              <option value="">Verification</option>
+              <option value="true">Verified</option>
+              <option value="false">Pending</option>
+            </select>
+          </div>
+          <div className="filter-select">
+            <select className="form-select" value={filters.sortBy} onChange={handleSort}>
+              <option value="newest">Newest</option>
+              <option value="oldest">Oldest</option>
+              <option value="name-asc">Name A-Z</option>
+              <option value="name-desc">Name Z-A</option>
+            </select>
+          </div>
+          <div className="filter-actions">
+            {(filters.searchTerm || filters.status || filters.verified) && (
+              <button
+                className="btn btn-outline-secondary btn-clear-filter"
+                onClick={() => {
+                  setFilters({ searchTerm: '', status: '', verified: '', sortBy: 'newest' });
+                  setPagination({ ...pagination, pageNumber: 1 });
+                }}
+              >
+                <i className="bi bi-x-circle"></i>
+                Clear
+              </button>
+            )}
+            <div className="view-toggle-group">
+              <button
+                className={`btn ${viewMode === 'grid' ? 'active' : ''}`}
+                onClick={() => toggleViewMode('grid')}
+                title="Grid View"
+              >
+                <i className="bi bi-grid-3x3-gap"></i>
+              </button>
+              <button
+                className={`btn ${viewMode === 'table' ? 'active' : ''}`}
+                onClick={() => toggleViewMode('table')}
+                title="Table View"
+              >
+                <i className="bi bi-list"></i>
+              </button>
             </div>
           </div>
         </div>
 
         {/* Grid View */}
-        {viewMode === 'grid' && (
-          <div className="pharmacy-grid-container">
-            {loading ? (
-              // Skeleton Loading
-              <div className="pharmacy-grid">
-                {Array.from({ length: 6 }).map((_, index) => (
-                  <div key={index} className="pharmacy-skeleton-card">
-                    <div className="skeleton-bar"></div>
-                    <div className="skeleton-header">
-                      <div className="skeleton-icon"></div>
-                      <div className="skeleton-info">
-                        <div className="skeleton-title"></div>
-                        <div className="skeleton-subtitle"></div>
-                      </div>
-                    </div>
-                    <div className="skeleton-body">
-                      <div className="skeleton-line long"></div>
-                      <div className="skeleton-line medium"></div>
-                      <div className="skeleton-line short"></div>
-                    </div>
-                    <div className="skeleton-footer">
-                      <div className="skeleton-btn"></div>
-                      <div className="skeleton-btn"></div>
+        {viewMode === 'grid' ? (
+          loading ? (
+            <div className="card-grid-container">
+              {[1, 2, 3].map((i) => (
+                <div key={i} className="card-skeleton">
+                  <div className="d-flex gap-3 mb-3">
+                    <div className="skeleton-avatar"></div>
+                    <div className="flex-1">
+                      <div className="skeleton-line mb-2" style={{ width: '60%' }}></div>
+                      <div className="skeleton-line" style={{ width: '40%' }}></div>
                     </div>
                   </div>
-                ))}
-              </div>
-            ) : pharmacies.length === 0 ? (
-              <div className="pharmacy-empty-state">
-                <div className="pharmacy-empty-icon">
-                  <i className="bi bi-shop-window"></i>
                 </div>
-                <h4>No Pharmacies Found</h4>
-                <p>There are no pharmacies matching your search criteria.</p>
-                <button className="pharmacy-empty-btn" onClick={clearFilters}>
-                  <i className="bi bi-arrow-counterclockwise me-2"></i>
-                  Reset Filters
-                </button>
-              </div>
-            ) : (
-              <div className="pharmacy-grid">
-                {pharmacies.map((pharmacy) => (
-                  <div
-                    key={getPharmacyId(pharmacy) || pharmacy.name || pharmacy.email}
-                    className={`pharmacy-card-v2 ${pharmacy.status?.toLowerCase() === 'active' ? 'active' : 'inactive'}`}
-                  >
-                    {/* Status Bar */}
-                    <div className={`pharmacy-card-bar ${pharmacy.status?.toLowerCase() === 'active' ? 'active' : 'inactive'}`}></div>
-
-                    {/* Card Header */}
-                    <div className="pharmacy-card-header-v2">
-                      <div className="pharmacy-avatar">
+              ))}
+            </div>
+          ) : pharmacies.length === 0 ? (
+            <div className="card-grid-empty">
+              <i className="bi bi-shop-window"></i>
+              <h4>No pharmacies found</h4>
+              <p>Try adjusting your search or filters</p>
+            </div>
+          ) : (
+            <div className="card-grid-container">
+              {pharmacies.map((pharmacy) => (
+                <div key={getPharmacyId(pharmacy)} className="doctor-card" onClick={() => handleViewPharmacy(pharmacy)}>
+                  <div className="card-header-section">
+                    <div className="card-avatar-container">
+                      <div className={`card-avatar ${getAvatarGradient(pharmacy.name)}`}>
                         {getAvatarUrl(pharmacy.avatarUrl) ? (
-                          <img src={getAvatarUrl(pharmacy.avatarUrl)} alt={pharmacy.name || pharmacy.Name} style={{width: '100%', height: '100%', objectFit: 'cover', borderRadius: '50%'}} />
+                          <img src={getAvatarUrl(pharmacy.avatarUrl)} alt={pharmacy.name} style={{ width: '100%', height: '100%', objectFit: 'cover', borderRadius: '50%' }} />
                         ) : (
-                          <i className="bi bi-capsule-pill"></i>
+                          <i className="bi bi-capsule-pill" style={{ fontSize: '24px' }}></i>
                         )}
                       </div>
-                      <div className="pharmacy-info">
-                        <h4 className="pharmacy-name-v2">{pharmacy.name || pharmacy.Name || 'Untitled'}</h4>
-                        <div className="pharmacy-license-v2">
-                          <i className="bi bi-upc-scan"></i>
-                          {pharmacy.licenseNumber || pharmacy.LicenseNumber || 'No License'}
-                        </div>
-                      </div>
-                      <div className="pharmacy-badges-v2">
-                        {pharmacy.verified ? (
-                          <span className="pharmacy-badge verified">
-                            <i className="bi bi-patch-check-fill"></i>
-                          </span>
-                        ) : (
-                          <span className="pharmacy-badge pending">
-                            <i className="bi bi-clock"></i>
-                          </span>
-                        )}
-                      </div>
+                      <div className={`status-indicator-dot ${pharmacy.status?.toLowerCase() === 'active' ? 'status-dot-active' : 'status-dot-inactive'}`}></div>
                     </div>
-
-                    {/* Card Body */}
-                    <div className="pharmacy-card-body-v2">
-                      <div className="pharmacy-detail">
-                        <i className="bi bi-geo-alt-fill"></i>
-                        <span>{pharmacy.address || pharmacy.Address || 'No address provided'}</span>
-                      </div>
-                      <div className="pharmacy-detail">
-                        <i className="bi bi-building"></i>
-                        <span>{pharmacy.city || pharmacy.City || '—'}, {pharmacy.district || pharmacy.District || ''}</span>
-                      </div>
-                      <div className="pharmacy-detail">
-                        <i className="bi bi-envelope-fill"></i>
-                        <span>{pharmacy.email || pharmacy.Email || '—'}</span>
-                      </div>
-                      <div className="pharmacy-detail">
-                        <i className="bi bi-telephone-fill"></i>
-                        <span>{pharmacy.phoneNumber || pharmacy.PhoneNumber || '—'}</span>
-                      </div>
-                    </div>
-
-                    {/* Card Meta */}
-                    <div className="pharmacy-card-meta">
-                      <div className="pharmacy-meta-item">
-                        <i className="bi bi-clock-fill"></i>
-                        <span>{pharmacy.open24Hours ? '24/7' : `${pharmacy.openTime || '08:00'} - ${pharmacy.closeTime || '22:00'}`}</span>
-                      </div>
-                      {(pharmacy.deliveryAvailable || pharmacy.DeliveryAvailable) && (
-                        <div className="pharmacy-meta-item delivery">
-                          <i className="bi bi-truck"></i>
-                          <span>Delivery</span>
-                        </div>
-                      )}
-                      <div className="pharmacy-meta-item revenue">
-                        <i className="bi bi-cash-stack"></i>
-                        <span>{formatCurrency(pharmacy.totalEarnings ?? pharmacy.totalRevenue ?? 0)}</span>
-                      </div>
-                    </div>
-
-                    {/* Card Status */}
-                    <div className="pharmacy-card-status">
-                      <span className={`status-badge ${pharmacy.status?.toLowerCase() === 'active' ? 'active' : 'inactive'}`}>
-                        <span className="status-dot"></span>
-                        {pharmacy.status || 'Unknown'}
-                      </span>
-                      <span className={`verification-badge ${pharmacy.verified ? 'verified' : 'pending'}`}>
-                        {pharmacy.verified ? 'Verified' : 'Pending'}
-                      </span>
-                    </div>
-
-                    {/* Card Actions */}
-                    <div className="pharmacy-card-actions-v2">
-                      <button className="pharmacy-btn view" onClick={() => handleViewPharmacy(pharmacy)}>
-                        <i className="bi bi-eye-fill"></i>
-                        <span>Details</span>
-                      </button>
-                      <button
-                        className={`pharmacy-btn ${pharmacy.verified ? 'unverify' : 'verify'}`}
-                        onClick={() => handleToggleVerification(pharmacy)}
-                        disabled={showActionLoading}
-                      >
-                        <i className={pharmacy.verified ? 'bi bi-x-lg' : 'bi bi-patch-check'}></i>
-                        <span>{pharmacy.verified ? 'Unverify' : 'Verify'}</span>
-                      </button>
-                      <button
-                        className={`pharmacy-btn ${pharmacy.status?.toLowerCase() === 'active' ? 'disable' : 'enable'}`}
-                        onClick={() => handleToggleStatus(pharmacy)}
-                        disabled={showActionLoading}
-                      >
-                        <i className={pharmacy.status?.toLowerCase() === 'active' ? 'bi bi-pause-fill' : 'bi bi-play-fill'}></i>
-                      </button>
-                      <button
-                        className="pharmacy-btn ban"
-                        onClick={() => handleBanPharmacy(pharmacy)}
-                        disabled={showActionLoading}
-                        title="Ban Pharmacy"
-                      >
-                        <i className="bi bi-slash-circle-fill"></i>
-                      </button>
+                    <div className="card-info-section">
+                      <h3 className="card-title">{pharmacy.name || 'Untitled'}</h3>
+                      <p className="card-subtitle">{pharmacy.licenseNumber || 'No License'}</p>
                     </div>
                   </div>
-                ))}
-              </div>
-            )}
-          </div>
-        )}
 
-        {/* Table View */}
-        {viewMode === 'table' && (
-          <div className="pharmacy-table-container">
-            <table className="pharmacy-table">
-              <thead>
-                <tr>
-                  <th>Pharmacy</th>
-                  <th>Location</th>
-                  <th>Contact</th>
-                  <th>Status</th>
-                  <th>Verification</th>
-                  <th>Revenue</th>
-                  <th>Actions</th>
-                </tr>
-              </thead>
-              <tbody>
-                {loading ? (
-                  Array.from({ length: 5 }).map((_, index) => (
-                    <tr key={index} className="skeleton-row">
-                      <td><div className="skeleton-cell wide"></div></td>
-                      <td><div className="skeleton-cell medium"></div></td>
-                      <td><div className="skeleton-cell medium"></div></td>
-                      <td><div className="skeleton-cell small"></div></td>
-                      <td><div className="skeleton-cell small"></div></td>
-                      <td><div className="skeleton-cell small"></div></td>
-                      <td><div className="skeleton-cell actions"></div></td>
-                    </tr>
-                  ))
-                ) : pharmacies.length === 0 ? (
-                  <tr>
-                    <td colSpan="7" className="pharmacy-table-empty">
-                      <i className="bi bi-inbox"></i>
-                      <span>No pharmacies found</span>
-                    </td>
-                  </tr>
-                ) : (
-                  pharmacies.map((pharmacy) => (
-                    <tr key={getPharmacyId(pharmacy) || pharmacy.name || pharmacy.email}>
-                      <td>
-                        <div className="pharmacy-table-name">
-                          <div className="pharmacy-table-avatar">
-                            {getAvatarUrl(pharmacy.avatarUrl) ? (
-                              <img src={getAvatarUrl(pharmacy.avatarUrl)} alt={pharmacy.name || pharmacy.Name} style={{width: '100%', height: '100%', objectFit: 'cover', borderRadius: '50%'}} />
+                  <div className="card-badges">
+                    <span className="specialty-badge specialty-general">
+                      <i className="bi bi-geo-alt me-1"></i>
+                      {pharmacy.city || 'Unknown'}
+                    </span>
+                    {pharmacy.verified ? (
+                      <span className="verified-badge">
+                        <i className="bi bi-patch-check-fill"></i> Verified
+                      </span>
+                    ) : (
+                      <div className="verified-badge bg-warning pending">
+                        <span className="badge text-dark">
+                          <i className="bi bi-clock"></i> Pending
+                        </span>
+                      </div>
+
+                    )}
+                    <span className={`status-badge ${pharmacy.status?.toLowerCase() === 'active' ? 'status-badge-active' : 'status-badge-inactive'}`}>
+                      {pharmacy.status || 'Unknown'}
+                    </span>
+                  </div>
+
+                  <div className="card-details">
+                    <div className="card-detail-item">
+                      <i className="bi bi-geo-alt"></i>
+                      <span>{pharmacy.address || 'No address'}</span>
+                    </div>
+                    <div className="card-detail-item">
+                      <i className="bi bi-envelope"></i>
+                      <span>{pharmacy.email || '—'}</span>
+                    </div>
+                    <div className="card-detail-item">
+                      <i className="bi bi-telephone"></i>
+                      <span>{pharmacy.phoneNumber || '—'}</span>
+                    </div>
+                    <div className="card-detail-item">
+                      <i className="bi bi-clock"></i>
+                      <span>{pharmacy.open24Hours ? '24/7' : `${pharmacy.openTime || '08:00'} - ${pharmacy.closeTime || '22:00'}`}</span>
+                    </div>
+                    {pharmacy.deliveryAvailable && (
+                      <div className="card-detail-item">
+                        <i className="bi bi-truck text-success"></i>
+                        <span>Delivery Available</span>
+                      </div>
+                    )}
+                  </div>
+
+                  <div className="card-footer">
+                    <button
+                      className="card-action-btn primary"
+                      onClick={(e) => { e.stopPropagation(); handleViewPharmacy(pharmacy); }}
+                      title="View Details"
+                    >
+                      <i className="bi bi-eye"></i>
+                      View
+                    </button>
+                    <button
+                      className={`card-action-btn ${pharmacy.verified ? '' : 'success'}`}
+                      onClick={(e) => { e.stopPropagation(); handleToggleVerification(pharmacy); }}
+                      disabled={showActionLoading}
+                      title={pharmacy.verified ? 'Unverify' : 'Verify'}
+                    >
+                      <i className={pharmacy.verified ? 'bi bi-x-lg' : 'bi bi-patch-check'}></i>
+                      {pharmacy.verified ? 'Unverify' : 'Verify'}
+                    </button>
+                    <button
+                      className="card-action-btn"
+                      onClick={(e) => { e.stopPropagation(); handleChangeStatus(pharmacy); }}
+                      title="Change Status"
+                    >
+                      <i className="bi bi-toggle-on"></i>
+                    </button>
+                  </div>
+                </div>
+              ))}
+            </div>
+          )
+        ) : (
+          /* Table View */
+          <div className="card border-0 shadow-sm">
+            <div className="card-body p-0">
+              {loading ? (
+                <div className="text-center p-5">
+                  <div className="spinner-border text-primary" role="status">
+                    <span className="visually-hidden">Loading...</span>
+                  </div>
+                  <p className="mt-2">Loading pharmacies...</p>
+                </div>
+              ) : pharmacies.length === 0 ? (
+                <div className="admin-empty-state">
+                  <i className="bi bi-shop-window"></i>
+                  <p className="mt-2">No pharmacies found</p>
+                </div>
+              ) : (
+                <div className="table-responsive">
+                  <table className="admin-table table mb-0 align-middle">
+                    <thead className="table-light">
+                      <tr>
+                        <th>Pharmacy</th>
+                        <th>Location</th>
+                        <th>Contact</th>
+                        <th>Hours</th>
+                        <th>Status</th>
+                        <th>Verification</th>
+                        <th className="text-center">Actions</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {pharmacies.map((pharmacy) => (
+                        <tr key={getPharmacyId(pharmacy)}>
+                          <td>
+                            <div className="d-flex align-items-center">
+                              <div className={`rounded-circle d-flex align-items-center justify-content-center me-2 ${getAvatarGradient(pharmacy.name)}`} style={{ width: "40px", height: "40px", overflow: 'hidden', color: 'white' }}>
+                                {getAvatarUrl(pharmacy.avatarUrl) ? (
+                                  <img src={getAvatarUrl(pharmacy.avatarUrl)} alt={pharmacy.name} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                                ) : (
+                                  <i className="bi bi-capsule-pill"></i>
+                                )}
+                              </div>
+                              <div>
+                                <div className="fw-semibold">{pharmacy.name || 'Untitled'}</div>
+                                <small className="text-muted">{pharmacy.licenseNumber || 'No license'}</small>
+                              </div>
+                            </div>
+                          </td>
+                          <td>
+                            <div>{pharmacy.city || '—'}</div>
+                            <small className="text-muted">{pharmacy.address || ''}</small>
+                          </td>
+                          <td>
+                            <div><i className="bi bi-envelope me-1 text-muted"></i>{pharmacy.email || '—'}</div>
+                            <div><i className="bi bi-telephone me-1 text-muted"></i>{pharmacy.phoneNumber || '—'}</div>
+                          </td>
+                          <td>
+                            {pharmacy.open24Hours ? (
+                              <span className="badge bg-success">24/7</span>
                             ) : (
-                              <i className="bi bi-capsule-pill"></i>
+                              <span>{pharmacy.openTime || '08:00'} - {pharmacy.closeTime || '22:00'}</span>
                             )}
-                          </div>
-                          <div>
-                            <div className="name">{pharmacy.name || pharmacy.Name || 'Untitled'}</div>
-                            <div className="license">{pharmacy.licenseNumber || pharmacy.LicenseNumber || 'No license'}</div>
-                          </div>
-                        </div>
-                      </td>
-                      <td>
-                        <div className="pharmacy-table-location">
-                          <div className="city">{pharmacy.city || pharmacy.City || '—'}</div>
-                          <div className="address">{pharmacy.address || pharmacy.Address || ''}</div>
-                        </div>
-                      </td>
-                      <td>
-                        <div className="pharmacy-table-contact">
-                          <div className="email"><i className="bi bi-envelope"></i> {pharmacy.email || '—'}</div>
-                          <div className="phone"><i className="bi bi-telephone"></i> {pharmacy.phoneNumber || '—'}</div>
-                        </div>
-                      </td>
-                      <td>
-                        <span className={`pharmacy-table-status ${pharmacy.status?.toLowerCase() === 'active' ? 'active' : 'inactive'}`}>
-                          <span className="dot"></span>
-                          {pharmacy.status || 'Unknown'}
-                        </span>
-                      </td>
-                      <td>
-                        <span className={`pharmacy-table-verify ${pharmacy.verified ? 'verified' : 'pending'}`}>
-                          <i className={pharmacy.verified ? 'bi bi-patch-check-fill' : 'bi bi-clock'}></i>
-                          {pharmacy.verified ? 'Verified' : 'Pending'}
-                        </span>
-                      </td>
-                      <td>
-                        <span className="pharmacy-table-revenue">
-                          {formatCurrency(pharmacy.totalEarnings ?? pharmacy.totalRevenue ?? 0)}
-                        </span>
-                      </td>
-                      <td>
-                        <div className="pharmacy-table-actions">
-                          <button className="action-btn view" onClick={() => handleViewPharmacy(pharmacy)} title="View Details">
-                            <i className="bi bi-eye"></i>
-                          </button>
-                          <button
-                            className={`action-btn ${pharmacy.verified ? 'unverify' : 'verify'}`}
-                            onClick={() => handleToggleVerification(pharmacy)}
-                            disabled={showActionLoading}
-                            title={pharmacy.verified ? 'Unverify' : 'Verify'}
-                          >
-                            <i className={pharmacy.verified ? 'bi bi-x-lg' : 'bi bi-patch-check'}></i>
-                          </button>
-                          <button
-                            className={`action-btn ${pharmacy.status?.toLowerCase() === 'active' ? 'disable' : 'enable'}`}
-                            onClick={() => handleToggleStatus(pharmacy)}
-                            disabled={showActionLoading}
-                            title={pharmacy.status?.toLowerCase() === 'active' ? 'Disable' : 'Enable'}
-                          >
-                            <i className={pharmacy.status?.toLowerCase() === 'active' ? 'bi bi-pause' : 'bi bi-play'}></i>
-                          </button>
-                          <button
-                            className="action-btn ban"
-                            onClick={() => handleBanPharmacy(pharmacy)}
-                            disabled={showActionLoading}
-                            title="Ban"
-                          >
-                            <i className="bi bi-slash-circle"></i>
-                          </button>
-                        </div>
-                      </td>
-                    </tr>
-                  ))
-                )}
-              </tbody>
-            </table>
+                          </td>
+                          <td>
+                            <span className={`badge ${getStatusBadgeClass(pharmacy.status)}`}>
+                              {pharmacy.status || 'Unknown'}
+                            </span>
+                          </td>
+                          <td>
+                            {pharmacy.verified ? (
+                              <span className="badge bg-success">
+                                <i className="bi bi-patch-check-fill me-1"></i>Verified
+                              </span>
+                            ) : (
+                              <span className="badge bg-warning text-dark">
+                                <i className="bi bi-clock me-1"></i>Pending
+                              </span>
+                            )}
+                          </td>
+                          <td className="text-center">
+                            <div className="admin-btn-group">
+                              <button className="btn btn-outline-slate btn-sm" title="View Details" onClick={() => handleViewPharmacy(pharmacy)}>
+                                <i className="bi bi-eye"></i>
+                              </button>
+                              <button
+                                className={`btn btn-sm ${pharmacy.verified ? 'btn-outline-warning' : 'btn-outline-success'}`}
+                                title={pharmacy.verified ? 'Unverify' : 'Verify'}
+                                onClick={() => handleToggleVerification(pharmacy)}
+                                disabled={showActionLoading}
+                              >
+                                <i className={pharmacy.verified ? 'bi bi-x-lg' : 'bi bi-patch-check'}></i>
+                              </button>
+                              <button className="btn btn-outline-info btn-sm" title="Change Status" onClick={() => handleChangeStatus(pharmacy)}>
+                                <i className="bi bi-toggle-on"></i>
+                              </button>
+                            </div>
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              )}
+            </div>
           </div>
         )}
 
         {/* Pagination */}
-        {!loading && pharmacies.length > 0 && pagination.totalPages > 1 && (
-          <div className="pharmacy-pagination">
-            <div className="pharmacy-pagination-info">
-              Showing <strong>{(pagination.pageNumber - 1) * pagination.pageSize + 1}</strong> - <strong>{Math.min(pagination.pageNumber * pagination.pageSize, pagination.totalCount)}</strong> of <strong>{pagination.totalCount}</strong> pharmacies
-            </div>
-            <div className="pharmacy-pagination-controls">
-              <button
-                className="pharmacy-page-btn"
-                disabled={pagination.pageNumber === 1}
-                onClick={() => handlePageChange(1)}
-              >
-                <i className="bi bi-chevron-double-left"></i>
-              </button>
-              <button
-                className="pharmacy-page-btn"
-                disabled={pagination.pageNumber === 1}
-                onClick={() => handlePageChange(pagination.pageNumber - 1)}
-              >
-                <i className="bi bi-chevron-left"></i>
-              </button>
-
-              {Array.from({ length: Math.min(5, pagination.totalPages) }).map((_, index) => {
-                let pageNum;
-                if (pagination.totalPages <= 5) {
-                  pageNum = index + 1;
-                } else if (pagination.pageNumber <= 3) {
-                  pageNum = index + 1;
-                } else if (pagination.pageNumber >= pagination.totalPages - 2) {
-                  pageNum = pagination.totalPages - 4 + index;
-                } else {
-                  pageNum = pagination.pageNumber - 2 + index;
-                }
-
-                return (
-                  <button
-                    key={pageNum}
-                    className={`pharmacy-page-btn ${pagination.pageNumber === pageNum ? 'active' : ''}`}
-                    onClick={() => handlePageChange(pageNum)}
-                  >
-                    {pageNum}
-                  </button>
-                );
-              })}
-
-              <button
-                className="pharmacy-page-btn"
-                disabled={pagination.pageNumber === pagination.totalPages}
-                onClick={() => handlePageChange(pagination.pageNumber + 1)}
-              >
-                <i className="bi bi-chevron-right"></i>
-              </button>
-              <button
-                className="pharmacy-page-btn"
-                disabled={pagination.pageNumber === pagination.totalPages}
-                onClick={() => handlePageChange(pagination.totalPages)}
-              >
-                <i className="bi bi-chevron-double-right"></i>
-              </button>
+        {!loading && pharmacies.length > 0 && (
+          <div className="card-footer bg-white">
+            <div className="d-flex justify-content-between align-items-center">
+              <span className="text-muted" style={{ fontSize: '13px' }}>
+                Page <strong style={{ color: 'var(--admin-text)' }}>{pagination.pageNumber}</strong> of <strong style={{ color: 'var(--admin-text)' }}>{pagination.totalPages}</strong> • <strong style={{ color: 'var(--admin-text)' }}>{pagination.totalCount}</strong> total pharmacies
+              </span>
+              <nav>
+                <ul className="pagination mb-0">
+                  <li className={`page-item ${pagination.pageNumber === 1 ? 'disabled' : ''}`}>
+                    <button className="page-link" onClick={() => handlePageChange(pagination.pageNumber - 1)} disabled={pagination.pageNumber === 1}>
+                      Previous
+                    </button>
+                  </li>
+                  {Array.from({ length: Math.min(5, pagination.totalPages) }, (_, i) => {
+                    let pageNum = i + 1;
+                    if (pagination.totalPages > 5) {
+                      if (pagination.pageNumber <= 3) pageNum = i + 1;
+                      else if (pagination.pageNumber >= pagination.totalPages - 2) pageNum = pagination.totalPages - 4 + i;
+                      else pageNum = pagination.pageNumber - 2 + i;
+                    }
+                    return (
+                      <li key={pageNum} className={`page-item ${pagination.pageNumber === pageNum ? 'active' : ''}`}>
+                        <button className="page-link" onClick={() => handlePageChange(pageNum)}>{pageNum}</button>
+                      </li>
+                    );
+                  })}
+                  <li className={`page-item ${pagination.pageNumber === pagination.totalPages ? 'disabled' : ''}`}>
+                    <button className="page-link" onClick={() => handlePageChange(pagination.pageNumber + 1)} disabled={pagination.pageNumber === pagination.totalPages}>
+                      Next
+                    </button>
+                  </li>
+                </ul>
+              </nav>
             </div>
           </div>
         )}
 
-        {/* View Modal - Using Bootstrap modal pattern like Appointments */}
+        {/* View Modal */}
         {showViewModal && selectedPharmacy && (
           <div className="modal show d-block admin-modal-backdrop" tabIndex="-1">
-            <div className="modal-dialog modal-lg modal-dialog-scrollable modal-dialog-centered">
-              <div className="modal-content" style={{ border: 'none', boxShadow: 'var(--shadow-lg)', borderRadius: '24px', overflow: 'hidden' }}>
-                <div className="pharmacy-modal-header">
-                  <div className="pharmacy-modal-title">
-                    <div className="pharmacy-modal-icon">
-                      <i className="bi bi-capsule-pill"></i>
-                    </div>
-                    <div>
-                      <h3>{selectedPharmacy.name || selectedPharmacy.Name || 'Pharmacy Details'}</h3>
-                      <span className="pharmacy-modal-license">
-                        {selectedPharmacy.licenseNumber || selectedPharmacy.LicenseNumber || 'No license'}
-                      </span>
-                    </div>
-                  </div>
-                  <button className="pharmacy-modal-close" onClick={() => setShowViewModal(false)}>
-                    <i className="bi bi-x-lg"></i>
-                  </button>
+            <div className="modal-dialog modal-lg modal-dialog-scrollable">
+              <div className="modal-content" style={{ border: 'none', boxShadow: 'var(--shadow-lg)' }}>
+                <div className="modal-header admin-modal-header primary" style={{ borderBottom: 'none', background: 'linear-gradient(135deg, #10b981 0%, #059669 100%)' }}>
+                  <h5 className="modal-title">
+                    <i className="bi bi-capsule-pill me-2"></i>
+                    Pharmacy Details
+                  </h5>
+                  <button type="button" className="btn-close btn-close-white" onClick={() => setShowViewModal(false)}></button>
                 </div>
-
-                <div className="pharmacy-modal-body">
-                  <div className="pharmacy-modal-section">
-                    <h4><i className="bi bi-info-circle-fill"></i> Basic Information</h4>
-                    <div className="pharmacy-modal-grid">
-                      <div className="pharmacy-modal-item">
-                        <label>Status</label>
-                        <span className={`status-pill ${selectedPharmacy.status?.toLowerCase() === 'active' ? 'active' : 'inactive'}`}>
-                          {selectedPharmacy.status || 'Unknown'}
-                        </span>
+                <div className="modal-body admin-modal-body" style={{ backgroundColor: 'var(--admin-bg)', padding: '20px' }}>
+                  {/* Header Card */}
+                  <div className="admin-card mb-3" style={{
+                    background: 'linear-gradient(135deg, #059669 0%, #10b981 100%)',
+                    color: 'white',
+                    padding: '16px 20px'
+                  }}>
+                    <div className="d-flex align-items-center gap-3">
+                      <div style={{
+                        width: '64px', height: '64px', borderRadius: '50%',
+                        background: 'rgba(255, 255, 255, 0.2)',
+                        display: 'flex', alignItems: 'center', justifyContent: 'center',
+                        fontSize: '24px', border: '2px solid rgba(255, 255, 255, 0.3)'
+                      }}>
+                        <i className="bi bi-capsule-pill"></i>
                       </div>
-                      <div className="pharmacy-modal-item">
-                        <label>Verification</label>
-                        <span className={`status-pill ${selectedPharmacy.verified ? 'verified' : 'pending'}`}>
-                          {selectedPharmacy.verified ? 'Verified' : 'Pending'}
-                        </span>
+                      <div className="flex-grow-1">
+                        <h5 className="mb-1" style={{ fontWeight: '700' }}>{selectedPharmacy.name || 'Pharmacy'}</h5>
+                        <div style={{ fontSize: '13px', opacity: 0.9 }}>
+                          <span><i className="bi bi-upc-scan me-1"></i>{selectedPharmacy.licenseNumber || 'No License'}</span>
+                        </div>
                       </div>
-                    </div>
-                  </div>
-
-                  <div className="pharmacy-modal-section">
-                    <h4><i className="bi bi-geo-alt-fill"></i> Location & Address</h4>
-                    <div className="pharmacy-modal-grid">
-                      <div className="pharmacy-modal-item full">
-                        <label>Address</label>
-                        <span>{selectedPharmacy.address || selectedPharmacy.Address || '—'}</span>
-                      </div>
-                      <div className="pharmacy-modal-item">
-                        <label>District</label>
-                        <span>{selectedPharmacy.district || selectedPharmacy.District || '—'}</span>
-                      </div>
-                      <div className="pharmacy-modal-item">
-                        <label>Ward</label>
-                        <span>{selectedPharmacy.ward || selectedPharmacy.Ward || '—'}</span>
-                      </div>
-                      <div className="pharmacy-modal-item">
-                        <label>City</label>
-                        <span>{selectedPharmacy.city || selectedPharmacy.City || '—'}</span>
+                      <div className="d-flex flex-column gap-1 text-end">
+                        <span className={`badge ${getStatusBadgeClass(selectedPharmacy.status)}`}>{selectedPharmacy.status || 'Unknown'}</span>
+                        {selectedPharmacy.verified && <span className="badge bg-light text-success"><i className="bi bi-patch-check-fill me-1"></i>Verified</span>}
                       </div>
                     </div>
                   </div>
 
-                  <div className="pharmacy-modal-section">
-                    <h4><i className="bi bi-telephone-fill"></i> Contact Information</h4>
-                    <div className="pharmacy-modal-grid">
-                      <div className="pharmacy-modal-item">
-                        <label>Phone</label>
-                        <span>{selectedPharmacy.phoneNumber || selectedPharmacy.PhoneNumber || '—'}</span>
+                  {/* Location */}
+                  <div className="admin-card mb-3" style={{ padding: '16px' }}>
+                    <h6 style={{ fontSize: '13px', fontWeight: '600', color: '#059669', marginBottom: '12px' }}>
+                      <i className="bi bi-geo-alt-fill me-2"></i>Location & Address
+                    </h6>
+                    <div className="row g-2">
+                      <div className="col-12">
+                        <div style={{ fontSize: '12px', color: '#64748b' }}>Address</div>
+                        <div style={{ fontSize: '14px', fontWeight: '500' }}>{selectedPharmacy.address || 'N/A'}</div>
                       </div>
-                      <div className="pharmacy-modal-item">
-                        <label>Email</label>
-                        <span>{selectedPharmacy.email || selectedPharmacy.Email || '—'}</span>
+                      <div className="col-4">
+                        <div style={{ fontSize: '12px', color: '#64748b' }}>City</div>
+                        <div style={{ fontSize: '14px', fontWeight: '500' }}>{selectedPharmacy.city || 'N/A'}</div>
                       </div>
-                    </div>
-                  </div>
-
-                  <div className="pharmacy-modal-section">
-                    <h4><i className="bi bi-clock-fill"></i> Operating Hours & Services</h4>
-                    <div className="pharmacy-modal-grid">
-                      <div className="pharmacy-modal-item">
-                        <label>Working Hours</label>
-                        <span>
-                          {selectedPharmacy.open24Hours
-                            ? '24/7 Open'
-                            : `${selectedPharmacy.openTime || '—'} - ${selectedPharmacy.closeTime || '—'}`}
-                        </span>
+                      <div className="col-4">
+                        <div style={{ fontSize: '12px', color: '#64748b' }}>District</div>
+                        <div style={{ fontSize: '14px', fontWeight: '500' }}>{selectedPharmacy.district || 'N/A'}</div>
                       </div>
-                      <div className="pharmacy-modal-item">
-                        <label>Delivery Service</label>
-                        <span>{selectedPharmacy.deliveryAvailable ? `Yes (${selectedPharmacy.deliveryRadius || 0} km)` : 'No'}</span>
+                      <div className="col-4">
+                        <div style={{ fontSize: '12px', color: '#64748b' }}>Ward</div>
+                        <div style={{ fontSize: '14px', fontWeight: '500' }}>{selectedPharmacy.ward || 'N/A'}</div>
                       </div>
                     </div>
                   </div>
 
-                  <div className="pharmacy-modal-section">
-                    <h4><i className="bi bi-bank"></i> Payment Information</h4>
-                    <div className="pharmacy-modal-grid">
-                      <div className="pharmacy-modal-item">
-                        <label>Bank Name</label>
-                        <span>{selectedPharmacy.bankName || selectedPharmacy.BankName || '—'}</span>
+                  {/* Contact & Hours */}
+                  <div className="row g-3 mb-3">
+                    <div className="col-md-6">
+                      <div className="admin-card h-100" style={{ padding: '16px' }}>
+                        <h6 style={{ fontSize: '13px', fontWeight: '600', color: '#059669', marginBottom: '12px' }}>
+                          <i className="bi bi-telephone-fill me-2"></i>Contact
+                        </h6>
+                        <div className="mb-2">
+                          <div style={{ fontSize: '12px', color: '#64748b' }}>Phone</div>
+                          <div style={{ fontSize: '14px', fontWeight: '500' }}>{selectedPharmacy.phoneNumber || 'N/A'}</div>
+                        </div>
+                        <div>
+                          <div style={{ fontSize: '12px', color: '#64748b' }}>Email</div>
+                          <div style={{ fontSize: '14px', fontWeight: '500' }}>{selectedPharmacy.email || 'N/A'}</div>
+                        </div>
                       </div>
-                      <div className="pharmacy-modal-item">
-                        <label>Account Number</label>
-                        <span>{selectedPharmacy.bankAccount || selectedPharmacy.BankAccount || '—'}</span>
-                      </div>
-                      <div className="pharmacy-modal-item">
-                        <label>Total Revenue</label>
-                        <span className="revenue-value">
-                          {formatCurrency(selectedPharmacy.totalEarnings ?? selectedPharmacy.totalRevenue ?? 0)}
-                        </span>
+                    </div>
+                    <div className="col-md-6">
+                      <div className="admin-card h-100" style={{ padding: '16px' }}>
+                        <h6 style={{ fontSize: '13px', fontWeight: '600', color: '#059669', marginBottom: '12px' }}>
+                          <i className="bi bi-clock-fill me-2"></i>Operating Hours
+                        </h6>
+                        <div className="mb-2">
+                          <div style={{ fontSize: '12px', color: '#64748b' }}>Hours</div>
+                          <div style={{ fontSize: '14px', fontWeight: '500' }}>
+                            {selectedPharmacy.open24Hours ? '24/7 Open' : `${selectedPharmacy.openTime || '08:00'} - ${selectedPharmacy.closeTime || '22:00'}`}
+                          </div>
+                        </div>
+                        <div>
+                          <div style={{ fontSize: '12px', color: '#64748b' }}>Delivery</div>
+                          <div style={{ fontSize: '14px', fontWeight: '500' }}>
+                            {selectedPharmacy.deliveryAvailable ? `Available (${selectedPharmacy.deliveryRadius || 0} km)` : 'Not Available'}
+                          </div>
+                        </div>
                       </div>
                     </div>
                   </div>
 
-                  {(selectedPharmacy.description || selectedPharmacy.Description) && (
-                    <div className="pharmacy-modal-section">
-                      <h4><i className="bi bi-card-text"></i> Description</h4>
-                      <p className="pharmacy-description">
-                        {selectedPharmacy.description || selectedPharmacy.Description}
-                      </p>
+                  {/* Financial Summary */}
+                  <div className="admin-card" style={{ padding: '16px' }}>
+                    <h6 style={{ fontSize: '13px', fontWeight: '600', color: '#059669', marginBottom: '12px' }}>
+                      <i className="bi bi-cash-stack me-2"></i>Financial Summary
+                    </h6>
+                    <div className="row g-3">
+                      <div className="col-md-4">
+                        <div className="text-center p-2" style={{ background: '#f0fdf4', borderRadius: '8px' }}>
+                          <div style={{ fontSize: '18px', fontWeight: '700', color: '#16a34a' }}>
+                            {formatCurrency(selectedPharmacy.totalEarnings ?? selectedPharmacy.totalRevenue ?? 0)}
+                          </div>
+                          <div style={{ fontSize: '11px', color: '#64748b' }}>Total Revenue</div>
+                        </div>
+                      </div>
+                      <div className="col-md-8">
+                        <div className="d-flex align-items-center gap-2 p-2" style={{ background: '#f8fafc', borderRadius: '8px', height: '100%' }}>
+                          <i className="bi bi-shield-lock" style={{ color: '#94a3b8' }}></i>
+                          <span style={{ fontSize: '12px', color: '#64748b' }}>
+                            Payment details (bank account) are protected and managed by the pharmacy.
+                          </span>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+
+                  {selectedPharmacy.description && (
+                    <div className="admin-card mt-3" style={{ padding: '16px' }}>
+                      <h6 style={{ fontSize: '13px', fontWeight: '600', color: '#059669', marginBottom: '12px' }}>
+                        <i className="bi bi-card-text me-2"></i>Description
+                      </h6>
+                      <p style={{ fontSize: '13px', color: '#475569', marginBottom: 0 }}>{selectedPharmacy.description}</p>
                     </div>
                   )}
                 </div>
-
-                <div className="pharmacy-modal-footer">
-                  <button className="pharmacy-modal-btn secondary" onClick={() => setShowViewModal(false)}>
-                    <i className="bi bi-x-circle"></i>
-                    Close
+                <div className="admin-modal-footer">
+                  <button type="button" className="admin-btn-modal secondary" onClick={() => setShowViewModal(false)}>
+                    <i className="bi bi-x-circle"></i>Close
                   </button>
                   <button
-                    className={`pharmacy-modal-btn ${selectedPharmacy.verified ? 'warning' : 'success'}`}
-                    onClick={() => {
-                      handleToggleVerification(selectedPharmacy);
-                      setShowViewModal(false);
-                    }}
+                    type="button"
+                    className={`admin-btn-modal ${selectedPharmacy.verified ? 'warning' : 'success'}`}
+                    onClick={() => { handleToggleVerification(selectedPharmacy); setShowViewModal(false); }}
                   >
                     <i className={selectedPharmacy.verified ? 'bi bi-x-lg' : 'bi bi-patch-check'}></i>
                     {selectedPharmacy.verified ? 'Unverify' : 'Verify'}
+                  </button>
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* Status Modal */}
+        {showStatusModal && selectedPharmacy && (
+          <div className="admin-modal-overlay" onClick={() => setShowStatusModal(false)}>
+            <div className="admin-modal-container" onClick={(e) => e.stopPropagation()} style={{ maxWidth: '500px' }}>
+              <div className="admin-modal-content">
+                <div className="admin-modal-header primary" style={{ background: 'linear-gradient(135deg, #10b981 0%, #059669 100%)' }}>
+                  <h5><i className="bi bi-shield-check me-2"></i>Update Pharmacy Status</h5>
+                  <button type="button" className="admin-modal-close" onClick={() => setShowStatusModal(false)}>
+                    <i className="bi bi-x-lg"></i>
+                  </button>
+                </div>
+                <div className="admin-modal-body">
+                  <div style={{ background: '#f0fdf4', padding: '16px', borderRadius: '8px', marginBottom: '20px' }}>
+                    <div className="d-flex align-items-center gap-3">
+                      <div className="rounded-circle bg-success text-white d-flex align-items-center justify-content-center" style={{ width: "50px", height: "50px" }}>
+                        <i className="bi bi-capsule-pill"></i>
+                      </div>
+                      <div>
+                        <h6 className="mb-1" style={{ fontWeight: '600' }}>{selectedPharmacy.name}</h6>
+                        <p className="mb-0" style={{ fontSize: '13px', color: '#64748b' }}>{selectedPharmacy.licenseNumber || 'No License'}</p>
+                      </div>
+                    </div>
+                  </div>
+
+                  <div className="mb-4">
+                    <label className="admin-form-label">Current Status</label>
+                    <div style={{ padding: '12px 16px', background: 'white', border: '2px dashed #e0f2fe', borderRadius: '8px', display: 'inline-block' }}>
+                      <span className={`badge ${getStatusBadgeClass(selectedPharmacy.status)}`} style={{ fontSize: '14px', padding: '8px 16px' }}>
+                        {selectedPharmacy.status || 'Unknown'}
+                      </span>
+                    </div>
+                  </div>
+
+                  <div className="text-center mb-4">
+                    <i className="bi bi-arrow-down-circle-fill" style={{ fontSize: '24px', color: '#10b981' }}></i>
+                  </div>
+
+                  <div className="mb-4">
+                    <label className="admin-form-label">Select New Status</label>
+                    <select className="form-select admin-form-control" value={newStatus} onChange={(e) => setNewStatus(e.target.value)}>
+                      <option value="ACTIVE">Active</option>
+                      <option value="INACTIVE">Inactive</option>
+                      <option value="SUSPENDED">Suspended</option>
+                      <option value="BANNED">Banned</option>
+                    </select>
+                  </div>
+                </div>
+                <div className="admin-modal-footer">
+                  <button type="button" className="admin-btn-modal secondary" onClick={() => setShowStatusModal(false)}>
+                    <i className="bi bi-x-circle"></i>Cancel
+                  </button>
+                  <button type="button" className="admin-btn-modal primary" onClick={handleUpdateStatus} disabled={showActionLoading}>
+                    <i className="bi bi-check-circle"></i>Confirm Update
                   </button>
                 </div>
               </div>

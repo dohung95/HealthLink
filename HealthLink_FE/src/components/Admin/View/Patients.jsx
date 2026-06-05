@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from "react";
 import NavbarAdmin from "./NavbarAdmin";
-import { patientsApi, medicalRecordsApi } from "../../../api/adminApi";
+import { patientsApi } from "../../../api/adminApi";
 import Toast from "./Toast";
 import useToast from "../useToast";
 import { getAvatarUrl } from "../../../utils/avatarHelper";
@@ -34,37 +34,24 @@ export default function Patients() {
   const [showEditModal, setShowEditModal] = useState(false);
   const [showStatusModal, setShowStatusModal] = useState(false);
   const [selectedPatient, setSelectedPatient] = useState(null);
-  const [patientHealthRecords, setPatientHealthRecords] = useState([]);
-  const [loadingRecords, setLoadingRecords] = useState(false);
   const [newStatus, setNewStatus] = useState('');
 
-  // Edit form state
+  // Edit form state - Only non-medical fields that Admin can edit
   const [editForm, setEditForm] = useState({
     fullName: '',
-    phoneNumber: '',
     dateOfBirth: '',
     gender: '',
-    email: '',
     address: '',
     city: '',
     country: '',
-    bloodType: '',
     occupation: '',
     preferredLanguage: '',
     preferredContactMethod: '',
     emergencyContactName: '',
     emergencyContactPhone: '',
     emergencyContactRelationship: '',
-    medicalHistorySummary: '',
     insuranceProvider: '',
     insurancePolicyNumber: '',
-    // New fields
-    avatarUrl: '',
-    latitude: '',
-    longitude: '',
-    allergies: '',
-    chronicConditions: '',
-    currentMedications: '',
     heightCm: '',
     weightKg: ''
   });
@@ -123,63 +110,41 @@ export default function Patients() {
   };
 
   // Handle view patient details
-  const handleViewPatient = async (patient) => {
+  const handleViewPatient = (patient) => {
     setSelectedPatient(patient);
     setShowViewModal(true);
-    setLoadingRecords(true);
-
-    try {
-      const records = await medicalRecordsApi.getByPatientId(patient.patientID);
-      setPatientHealthRecords(records);
-    } catch (err) {
-      console.error('Error fetching health records:', err);
-      setPatientHealthRecords([]);
-    } finally {
-      setLoadingRecords(false);
-    }
   };
 
-  // Handle edit patient
+  // Handle edit patient - Only non-medical fields
   const handleEditPatient = (patient) => {
     setSelectedPatient(patient);
     setEditForm({
       fullName: patient.fullName,
-      phoneNumber: patient.phone,
       dateOfBirth: patient.dateOfBirth ? patient.dateOfBirth.split('T')[0] : '',
       gender: patient.gender || '',
-      email: patient.email || '',
       address: patient.address || '',
       city: patient.city || '',
       country: patient.country || '',
-      bloodType: patient.bloodType || '',
       occupation: patient.occupation || '',
       preferredLanguage: patient.preferredLanguage || '',
       preferredContactMethod: patient.preferredContactMethod || '',
       emergencyContactName: patient.emergencyContactName || '',
       emergencyContactPhone: patient.emergencyContactPhone || '',
       emergencyContactRelationship: patient.emergencyContactRelationship || '',
-      medicalHistorySummary: patient.medicalHistorySummary || '',
       insuranceProvider: patient.insuranceProvider || '',
       insurancePolicyNumber: patient.insurancePolicyNumber || '',
-      // New fields
-      avatarUrl: patient.avatarUrl || '',
-      latitude: patient.latitude || '',
-      longitude: patient.longitude || '',
-      allergies: patient.allergies || '',
-      chronicConditions: patient.chronicConditions || '',
-      currentMedications: patient.currentMedications || '',
       heightCm: patient.heightCm || '',
       weightKg: patient.weightKg || ''
     });
     setShowEditModal(true);
   };
 
-  // Handle update patient
+  // Handle update patient - Only non-medical fields
   const handleUpdatePatient = async (e) => {
     e.preventDefault();
 
     try {
-      // Prepare data according to AdminPatientUpdateDto (using camelCase to match backend)
+      // Prepare data - Admin can only update non-medical information
       const updateData = {
         fullName: editForm.fullName,
         dateOfBirth: editForm.dateOfBirth,
@@ -187,32 +152,19 @@ export default function Patients() {
         address: editForm.address,
         city: editForm.city,
         country: editForm.country,
-        bloodType: editForm.bloodType,
         occupation: editForm.occupation,
         preferredLanguage: editForm.preferredLanguage,
         preferredContactMethod: editForm.preferredContactMethod,
         emergencyContactName: editForm.emergencyContactName,
         emergencyContactPhone: editForm.emergencyContactPhone,
         emergencyContactRelationship: editForm.emergencyContactRelationship,
-        medicalHistorySummary: editForm.medicalHistorySummary,
         insuranceProvider: editForm.insuranceProvider,
         insurancePolicyNumber: editForm.insurancePolicyNumber,
-        // New fields
-        avatarUrl: editForm.avatarUrl,
-        latitude: editForm.latitude ? parseFloat(editForm.latitude) : null,
-        longitude: editForm.longitude ? parseFloat(editForm.longitude) : null,
-        allergies: editForm.allergies,
-        chronicConditions: editForm.chronicConditions,
-        currentMedications: editForm.currentMedications,
         heightCm: editForm.heightCm ? parseFloat(editForm.heightCm) : null,
         weightKg: editForm.weightKg ? parseFloat(editForm.weightKg) : null
       };
 
-      console.log('Sending update data:', updateData);
-      console.log('Patient ID:', selectedPatient.patientID);
-
       const response = await patientsApi.update(selectedPatient.patientID, updateData);
-      console.log('Update response:', response);
 
       showToast({
         title: 'Success!',
@@ -222,10 +174,6 @@ export default function Patients() {
       setShowEditModal(false);
       fetchPatients();
     } catch (err) {
-      console.error('Full error object:', err);
-      console.error('Error response:', err.response);
-      console.error('Error data:', err.response?.data);
-
       const errorMessage = err.response?.data?.error || err.response?.data?.details || err.message || 'Failed to update patient';
       showToast({
         title: 'Update Failed',
@@ -864,19 +812,9 @@ export default function Patients() {
                             <i className="bi bi-person-circle"></i>
                             Additional Information
                           </h6>
-                          <div className="row">
-                            <div className="col-md-6">
-                              <div className="admin-info-row">
-                                <strong>Date of Birth:</strong>
-                                <span>{formatDate(selectedPatient.dateOfBirth)}</span>
-                              </div>
-                            </div>
-                            <div className="col-md-6">
-                              <div className="admin-info-row">
-                                <strong>Blood Type:</strong>
-                                <span>{selectedPatient.bloodType || 'N/A'}</span>
-                              </div>
-                            </div>
+                          <div className="admin-info-row">
+                            <strong>Date of Birth:</strong>
+                            <span>{formatDate(selectedPatient.dateOfBirth)}</span>
                           </div>
                           <div className="row">
                             <div className="col-md-6">
@@ -936,20 +874,6 @@ export default function Patients() {
                               </div>
                             </div>
                           </div>
-                          <div className="row">
-                            <div className="col-md-6">
-                              <div className="admin-info-row">
-                                <strong>Latitude:</strong>
-                                <span>{selectedPatient.latitude != null ? selectedPatient.latitude : 'N/A'}</span>
-                              </div>
-                            </div>
-                            <div className="col-md-6">
-                              <div className="admin-info-row">
-                                <strong>Longitude:</strong>
-                                <span>{selectedPatient.longitude != null ? selectedPatient.longitude : 'N/A'}</span>
-                              </div>
-                            </div>
-                          </div>
                         </div>
 
                         {/* Emergency Contact */}
@@ -972,54 +896,34 @@ export default function Patients() {
                           </div>
                         </div>
 
-                        {/* Preferences */}
-                        <div className="admin-modal-section">
-                          <h6 className="admin-modal-section-title primary">
-                            <i className="bi bi-gear"></i>
-                            Preferences
-                          </h6>
-                          <div className="admin-info-row">
-                            <strong>Preferred Language:</strong>
-                            <span>{selectedPatient.preferredLanguage || 'N/A'}</span>
-                          </div>
-                          <div className="admin-info-row">
-                            <strong>Contact Method:</strong>
-                            <span>{selectedPatient.preferredContactMethod || 'N/A'}</span>
-                          </div>
-                        </div>
                       </div>
 
                       {/* Right Column */}
                       <div className="col-lg-6">
-                        {/* Medical Information */}
+                        {/* Medical Information - Limited view for Admin */}
                         <div className="admin-modal-section">
                           <h6 className="admin-modal-section-title primary">
                             <i className="bi bi-heart-pulse"></i>
                             Medical Information
+                            <span className="badge bg-secondary ms-2" style={{fontSize: '10px', fontWeight: 'normal'}}>Limited Access</span>
                           </h6>
                           <div className="admin-info-row">
+                            <strong>Blood Type:</strong>
+                            <span>{selectedPatient.bloodType || 'N/A'}</span>
+                          </div>
+                          <div className="admin-info-row">
                             <strong>Allergies:</strong>
-                            <span style={{display: 'block', marginTop: 'var(--spacing-sm)'}}>
+                            <span style={{display: 'block', marginTop: 'var(--spacing-sm)', color: selectedPatient.allergies ? '#dc2626' : '#64748b'}}>
                               {selectedPatient.allergies || 'No known allergies'}
                             </span>
                           </div>
-                          <div className="admin-info-row">
-                            <strong>Chronic Conditions:</strong>
-                            <span style={{display: 'block', marginTop: 'var(--spacing-sm)'}}>
-                              {selectedPatient.chronicConditions || 'None recorded'}
-                            </span>
-                          </div>
-                          <div className="admin-info-row">
-                            <strong>Current Medications:</strong>
-                            <span style={{display: 'block', marginTop: 'var(--spacing-sm)'}}>
-                              {selectedPatient.currentMedications || 'None recorded'}
-                            </span>
-                          </div>
-                          <div className="admin-info-row">
-                            <strong>Medical History:</strong>
-                            <span style={{display: 'block', marginTop: 'var(--spacing-sm)'}}>
-                              {selectedPatient.medicalHistorySummary || 'No medical history recorded'}
-                            </span>
+                          <div className="admin-info-row" style={{background: '#f8fafc', padding: '12px', borderRadius: '8px', marginTop: '12px'}}>
+                            <div className="d-flex align-items-center gap-2 text-muted">
+                              <i className="bi bi-shield-lock"></i>
+                              <span style={{fontSize: '13px'}}>
+                                Detailed medical records are only accessible by the patient and their healthcare providers.
+                              </span>
+                            </div>
                           </div>
                         </div>
 
@@ -1039,60 +943,6 @@ export default function Patients() {
                           </div>
                         </div>
 
-                        {/* Health Records */}
-                        <div className="admin-modal-section">
-                          <h6 className="admin-modal-section-title primary">
-                            <i className="bi bi-file-medical"></i>
-                            Health Records
-                            <span className="admin-badge primary ms-2">{patientHealthRecords.length} records</span>
-                          </h6>
-                          {loadingRecords ? (
-                            <div className="admin-loading">
-                              <div className="spinner-border text-primary" role="status">
-                                <span className="visually-hidden">Loading...</span>
-                              </div>
-                              <p className="mt-2">Loading health records...</p>
-                            </div>
-                          ) : patientHealthRecords.length === 0 ? (
-                            <div className="admin-empty-state">
-                              <i className="bi bi-file-medical"></i>
-                              <p className="mt-2">No health records found</p>
-                            </div>
-                          ) : (
-                            <div className="table-responsive">
-                              <table className="admin-table table mb-0">
-                                <thead>
-                                  <tr>
-                                    <th>Record ID</th>
-                                    <th>Date</th>
-                                    <th>Category</th>
-                                    <th>Diagnosis</th>
-                                    <th>Status</th>
-                                  </tr>
-                                </thead>
-                                <tbody>
-                                  {patientHealthRecords.map((record) => (
-                                    <tr key={record.healthRecordID}>
-                                      <td><strong>{record.healthRecordID}</strong></td>
-                                      <td>{formatDate(record.date)}</td>
-                                      <td>
-                                        <span className="admin-badge primary">
-                                          {record.category}
-                                        </span>
-                                      </td>
-                                      <td>{record.diagnosis}</td>
-                                      <td>
-                                        <span className={`admin-badge ${record.status.toLowerCase() === 'active' ? 'success' : 'info'}`}>
-                                          {record.status}
-                                        </span>
-                                      </td>
-                                    </tr>
-                                  ))}
-                                </tbody>
-                              </table>
-                            </div>
-                          )}
-                        </div>
                       </div>
                     </div>
                   </div>
@@ -1130,7 +980,7 @@ export default function Patients() {
                   <form onSubmit={handleUpdatePatient}>
                     <div className="modal-body admin-modal-body" style={{backgroundColor: 'var(--admin-bg)'}}>
                       <div className="row">
-                        {/* Left Column */}
+                        {/* Left Column - Personal & Address */}
                         <div className="col-lg-6">
                           {/* Personal Information Section */}
                           <div className="admin-modal-section">
@@ -1138,33 +988,25 @@ export default function Patients() {
                               <i className="bi bi-person-circle"></i>
                               Personal Information
                             </h6>
-                            <div className="mb-3">
-                              <label className="admin-form-label">Full Name <span className="text-danger">*</span></label>
-                              <input
-                                type="text"
-                                className="form-control admin-form-control"
-                                value={editForm.fullName}
-                                onChange={(e) => setEditForm({ ...editForm, fullName: e.target.value })}
-                                required
-                              />
-                            </div>
                             <div className="row">
                               <div className="col-md-6 mb-3">
-                                <label className="admin-form-label">Email</label>
+                                <label className="admin-form-label">Full Name <span className="text-danger">*</span></label>
                                 <input
-                                  type="email"
+                                  type="text"
                                   className="form-control admin-form-control"
-                                  value={editForm.email}
-                                  readOnly
+                                  value={editForm.fullName}
+                                  onChange={(e) => setEditForm({ ...editForm, fullName: e.target.value })}
+                                  required
                                 />
                               </div>
                               <div className="col-md-6 mb-3">
-                                <label className="admin-form-label">Phone Number</label>
+                                <label className="admin-form-label">Occupation</label>
                                 <input
-                                  type="tel"
+                                  type="text"
                                   className="form-control admin-form-control"
-                                  value={editForm.phoneNumber}
-                                  readOnly
+                                  value={editForm.occupation}
+                                  onChange={(e) => setEditForm({ ...editForm, occupation: e.target.value })}
+                                  placeholder="Enter occupation"
                                 />
                               </div>
                             </div>
@@ -1187,41 +1029,11 @@ export default function Patients() {
                                   onChange={(e) => setEditForm({ ...editForm, gender: e.target.value })}
                                   required
                                 >
-                                  <option value="">Select Gender</option>
+                                  <option value="">Select</option>
                                   <option value="Male">Male</option>
                                   <option value="Female">Female</option>
                                   <option value="Other">Other</option>
                                 </select>
-                              </div>
-                            </div>
-                            <div className="row">
-                              <div className="col-md-6 mb-3">
-                                <label className="admin-form-label">Blood Type</label>
-                                <select
-                                  className="form-select admin-form-control"
-                                  value={editForm.bloodType}
-                                  onChange={(e) => setEditForm({ ...editForm, bloodType: e.target.value })}
-                                >
-                                  <option value="">Select Blood Type</option>
-                                  <option value="A+">A+</option>
-                                  <option value="A-">A-</option>
-                                  <option value="B+">B+</option>
-                                  <option value="B-">B-</option>
-                                  <option value="AB+">AB+</option>
-                                  <option value="AB-">AB-</option>
-                                  <option value="O+">O+</option>
-                                  <option value="O-">O-</option>
-                                </select>
-                              </div>
-                              <div className="col-md-6 mb-3">
-                                <label className="admin-form-label">Occupation</label>
-                                <input
-                                  type="text"
-                                  className="form-control admin-form-control"
-                                  value={editForm.occupation}
-                                  onChange={(e) => setEditForm({ ...editForm, occupation: e.target.value })}
-                                  placeholder="Enter occupation"
-                                />
                               </div>
                             </div>
                             <div className="row">
@@ -1248,16 +1060,14 @@ export default function Patients() {
                                 />
                               </div>
                             </div>
-                            <div className="mb-3">
-                              <label className="admin-form-label">Avatar URL</label>
-                              <input
-                                type="url"
-                                className="form-control admin-form-control"
-                                value={editForm.avatarUrl}
-                                onChange={(e) => setEditForm({ ...editForm, avatarUrl: e.target.value })}
-                                placeholder="Enter avatar image URL"
-                              />
-                            </div>
+                          </div>
+
+                          {/* Address Section */}
+                          <div className="admin-modal-section">
+                            <h6 className="admin-modal-section-title info">
+                              <i className="bi bi-geo-alt"></i>
+                              Address
+                            </h6>
                             <div className="mb-3">
                               <label className="admin-form-label">Address</label>
                               <input
@@ -1291,32 +1101,25 @@ export default function Patients() {
                               </div>
                             </div>
                           </div>
+                        </div>
 
+                        {/* Right Column - Emergency, Preferences, Insurance */}
+                        <div className="col-lg-6">
                           {/* Emergency Contact Section */}
                           <div className="admin-modal-section">
                             <h6 className="admin-modal-section-title info">
                               <i className="bi bi-telephone-fill"></i>
                               Emergency Contact
                             </h6>
-                            <div className="mb-3">
-                              <label className="admin-form-label">Contact Name</label>
-                              <input
-                                type="text"
-                                className="form-control admin-form-control"
-                                value={editForm.emergencyContactName}
-                                onChange={(e) => setEditForm({ ...editForm, emergencyContactName: e.target.value })}
-                                placeholder="Enter contact name"
-                              />
-                            </div>
                             <div className="row">
                               <div className="col-md-6 mb-3">
-                                <label className="admin-form-label">Contact Phone</label>
+                                <label className="admin-form-label">Contact Name</label>
                                 <input
-                                  type="tel"
+                                  type="text"
                                   className="form-control admin-form-control"
-                                  value={editForm.emergencyContactPhone}
-                                  onChange={(e) => setEditForm({ ...editForm, emergencyContactPhone: e.target.value })}
-                                  placeholder="Enter phone"
+                                  value={editForm.emergencyContactName}
+                                  onChange={(e) => setEditForm({ ...editForm, emergencyContactName: e.target.value })}
+                                  placeholder="Enter contact name"
                                 />
                               </div>
                               <div className="col-md-6 mb-3">
@@ -1330,13 +1133,23 @@ export default function Patients() {
                                 />
                               </div>
                             </div>
+                            <div className="mb-3">
+                              <label className="admin-form-label">Contact Phone</label>
+                              <input
+                                type="tel"
+                                className="form-control admin-form-control"
+                                value={editForm.emergencyContactPhone}
+                                onChange={(e) => setEditForm({ ...editForm, emergencyContactPhone: e.target.value })}
+                                placeholder="Enter phone number"
+                              />
+                            </div>
                           </div>
 
-                          {/* Preferences Section */}
+                          {/* Preferences & Insurance Section */}
                           <div className="admin-modal-section">
                             <h6 className="admin-modal-section-title info">
                               <i className="bi bi-gear"></i>
-                              Preferences
+                              Preferences & Insurance
                             </h6>
                             <div className="row">
                               <div className="col-md-6 mb-3">
@@ -1363,116 +1176,44 @@ export default function Patients() {
                                 </select>
                               </div>
                             </div>
+                            <div className="row">
+                              <div className="col-md-6 mb-3">
+                                <label className="admin-form-label">Insurance Provider</label>
+                                <input
+                                  type="text"
+                                  className="form-control admin-form-control"
+                                  value={editForm.insuranceProvider}
+                                  onChange={(e) => setEditForm({ ...editForm, insuranceProvider: e.target.value })}
+                                  placeholder="e.g., Blue Cross"
+                                />
+                              </div>
+                              <div className="col-md-6 mb-3">
+                                <label className="admin-form-label">Policy Number</label>
+                                <input
+                                  type="text"
+                                  className="form-control admin-form-control"
+                                  value={editForm.insurancePolicyNumber}
+                                  onChange={(e) => setEditForm({ ...editForm, insurancePolicyNumber: e.target.value })}
+                                  placeholder="Enter policy number"
+                                />
+                              </div>
+                            </div>
                           </div>
-                        </div>
 
-                        {/* Right Column */}
-                        <div className="col-lg-6">
-                          {/* Medical Information Section */}
+                          {/* Medical Information Notice */}
                           <div className="admin-modal-section">
                             <h6 className="admin-modal-section-title info">
                               <i className="bi bi-heart-pulse"></i>
                               Medical Information
+                              <span className="badge bg-secondary ms-2" style={{fontSize: '10px', fontWeight: 'normal'}}>Read Only</span>
                             </h6>
-                            <div className="mb-3">
-                              <label className="admin-form-label">Allergies</label>
-                              <textarea
-                                className="form-control admin-form-control"
-                                rows="2"
-                                value={editForm.allergies}
-                                onChange={(e) => setEditForm({ ...editForm, allergies: e.target.value })}
-                                placeholder="Enter known allergies (e.g., Penicillin, Peanuts)"
-                              ></textarea>
-                            </div>
-                            <div className="mb-3">
-                              <label className="admin-form-label">Chronic Conditions</label>
-                              <textarea
-                                className="form-control admin-form-control"
-                                rows="2"
-                                value={editForm.chronicConditions}
-                                onChange={(e) => setEditForm({ ...editForm, chronicConditions: e.target.value })}
-                                placeholder="Enter chronic conditions (e.g., Diabetes, Hypertension)"
-                              ></textarea>
-                            </div>
-                            <div className="mb-3">
-                              <label className="admin-form-label">Current Medications</label>
-                              <textarea
-                                className="form-control admin-form-control"
-                                rows="2"
-                                value={editForm.currentMedications}
-                                onChange={(e) => setEditForm({ ...editForm, currentMedications: e.target.value })}
-                                placeholder="Enter current medications"
-                              ></textarea>
-                            </div>
-                            <div className="mb-3">
-                              <label className="admin-form-label">Medical History Summary</label>
-                              <textarea
-                                className="form-control admin-form-control"
-                                rows="4"
-                                value={editForm.medicalHistorySummary}
-                                onChange={(e) => setEditForm({ ...editForm, medicalHistorySummary: e.target.value })}
-                                placeholder="Enter medical history summary..."
-                              ></textarea>
-                            </div>
-                          </div>
-
-                          {/* Location Section */}
-                          <div className="admin-modal-section">
-                            <h6 className="admin-modal-section-title info">
-                              <i className="bi bi-geo"></i>
-                              Location (Optional)
-                            </h6>
-                            <div className="row">
-                              <div className="col-md-6 mb-3">
-                                <label className="admin-form-label">Latitude</label>
-                                <input
-                                  type="number"
-                                  step="any"
-                                  className="form-control admin-form-control"
-                                  value={editForm.latitude}
-                                  onChange={(e) => setEditForm({ ...editForm, latitude: e.target.value })}
-                                  placeholder="e.g., 10.7769"
-                                />
+                            <div style={{background: '#f8fafc', padding: '12px', borderRadius: '8px', textAlign: 'center'}}>
+                              <div className="d-flex align-items-center justify-content-center gap-2">
+                                <i className="bi bi-shield-lock" style={{fontSize: '20px', color: '#94a3b8'}}></i>
+                                <span style={{fontSize: '13px', color: '#64748b'}}>
+                                  Medical information can only be updated by the patient or healthcare providers.
+                                </span>
                               </div>
-                              <div className="col-md-6 mb-3">
-                                <label className="admin-form-label">Longitude</label>
-                                <input
-                                  type="number"
-                                  step="any"
-                                  className="form-control admin-form-control"
-                                  value={editForm.longitude}
-                                  onChange={(e) => setEditForm({ ...editForm, longitude: e.target.value })}
-                                  placeholder="e.g., 106.7009"
-                                />
-                              </div>
-                            </div>
-                          </div>
-
-                          {/* Insurance Information Section */}
-                          <div className="admin-modal-section">
-                            <h6 className="admin-modal-section-title info">
-                              <i className="bi bi-shield-check"></i>
-                              Insurance Information
-                            </h6>
-                            <div className="mb-3">
-                              <label className="admin-form-label">Insurance Provider</label>
-                              <input
-                                type="text"
-                                className="form-control admin-form-control"
-                                value={editForm.insuranceProvider}
-                                onChange={(e) => setEditForm({ ...editForm, insuranceProvider: e.target.value })}
-                                placeholder="e.g., Blue Cross, Aetna"
-                              />
-                            </div>
-                            <div className="mb-3">
-                              <label className="admin-form-label">Insurance Policy Number</label>
-                              <input
-                                type="text"
-                                className="form-control admin-form-control"
-                                value={editForm.insurancePolicyNumber}
-                                onChange={(e) => setEditForm({ ...editForm, insurancePolicyNumber: e.target.value })}
-                                placeholder="Enter policy number"
-                              />
                             </div>
                           </div>
                         </div>

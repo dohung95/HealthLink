@@ -2,8 +2,8 @@ import React, { useState, useEffect } from "react";
 import NavbarAdmin from "./NavbarAdmin";
 import { financialApi, analyticsApi } from "../../../api/adminApi";
 import {
-   Area, BarChart, Bar, Line, ComposedChart,
-  XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Legend
+  Area, BarChart, Bar, Line, ComposedChart,
+  XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer
 } from "recharts";
 import "bootstrap/dist/css/bootstrap.min.css";
 import "bootstrap-icons/font/bootstrap-icons.css";
@@ -152,162 +152,169 @@ export default function FinancialReports() {
           </div>
         </div>
 
-        {/* Overview Cards */}
+        {/* Compact Overview Stats */}
         {overview && (
-          <div className="financial-overview-grid mb-4">
-            <div className="financial-card total-revenue">
-              <div className="financial-card-icon">
-                <i className="bi bi-currency-dollar"></i>
-              </div>
-              <div className="financial-card-content">
-                <span className="financial-label">Total Revenue</span>
-                <span className="financial-value">{formatCurrency(overview.totalRevenue)}</span>
-                <span className="financial-sub">All time earnings</span>
+          <div className="financial-stats-strip mb-3">
+            <div className="stat-item primary">
+              <i className="bi bi-currency-dollar"></i>
+              <div className="stat-content">
+                <span className="stat-value">{formatCurrency(overview.totalRevenue)}</span>
+                <span className="stat-label">Total Revenue</span>
               </div>
             </div>
-
-            <div className="financial-card this-month">
-              <div className="financial-card-icon">
-                <i className="bi bi-calendar-month"></i>
-              </div>
-              <div className="financial-card-content">
-                <span className="financial-label">This Month</span>
-                <span className="financial-value">{formatCurrency(overview.thisMonthRevenue)}</span>
-                {overview.revenueGrowthPercent !== null && (
-                  <span className={`financial-growth ${overview.revenueGrowthPercent >= 0 ? "positive" : "negative"}`}>
-                    <i className={`bi ${overview.revenueGrowthPercent >= 0 ? "bi-arrow-up" : "bi-arrow-down"}`}></i>
-                    {Math.abs(overview.revenueGrowthPercent).toFixed(1)}% vs last month
-                  </span>
-                )}
-              </div>
-            </div>
-
-            <div className="financial-card this-week">
-              <div className="financial-card-icon">
-                <i className="bi bi-calendar-week"></i>
-              </div>
-              <div className="financial-card-content">
-                <span className="financial-label">This Week</span>
-                <span className="financial-value">{formatCurrency(overview.thisWeekRevenue)}</span>
-                <span className="financial-sub">Weekly earnings</span>
+            <div className="stat-divider"></div>
+            <div className="stat-item blue">
+              <i className="bi bi-calendar-month"></i>
+              <div className="stat-content">
+                <span className="stat-value">{formatCurrency(overview.thisMonthRevenue)}</span>
+                <span className="stat-label">
+                  This Month
+                  {overview.revenueGrowthPercent !== null && (
+                    <span className={`stat-growth ${overview.revenueGrowthPercent >= 0 ? "up" : "down"}`}>
+                      <i className={`bi ${overview.revenueGrowthPercent >= 0 ? "bi-caret-up-fill" : "bi-caret-down-fill"}`}></i>
+                      {Math.abs(overview.revenueGrowthPercent).toFixed(1)}%
+                    </span>
+                  )}
+                </span>
               </div>
             </div>
-
-            <div className="financial-card today">
-              <div className="financial-card-icon">
-                <i className="bi bi-calendar-day"></i>
-              </div>
-              <div className="financial-card-content">
-                <span className="financial-label">Today</span>
-                <span className="financial-value">{formatCurrency(overview.todayRevenue)}</span>
-                <span className="financial-sub">Today's earnings</span>
+            <div className="stat-divider"></div>
+            <div className="stat-item purple">
+              <i className="bi bi-calendar-day"></i>
+              <div className="stat-content">
+                <span className="stat-value">{formatCurrency(overview.todayRevenue)}</span>
+                <span className="stat-label">Today</span>
               </div>
             </div>
-
-            <div className="financial-card platform-fees">
-              <div className="financial-card-icon">
-                <i className="bi bi-bank"></i>
-              </div>
-              <div className="financial-card-content">
-                <span className="financial-label">Platform Fees</span>
-                <span className="financial-value">{formatCurrency(overview.platformFees)}</span>
-                <span className="financial-sub">Commission earned</span>
+            <div className="stat-divider"></div>
+            <div className="stat-item orange">
+              <i className="bi bi-bank"></i>
+              <div className="stat-content">
+                <span className="stat-value">{formatCurrency(overview.platformFees)}</span>
+                <span className="stat-label">Platform Fees</span>
               </div>
             </div>
-
-            <div className="financial-card doctor-earnings">
-              <div className="financial-card-icon">
-                <i className="bi bi-heart-pulse"></i>
-              </div>
-              <div className="financial-card-content">
-                <span className="financial-label">Doctor Earnings</span>
-                <span className="financial-value">{formatCurrency(overview.doctorEarnings)}</span>
-                <span className="financial-sub">Paid to doctors</span>
+            <div className="stat-divider"></div>
+            <div className="stat-item pink">
+              <i className="bi bi-heart-pulse"></i>
+              <div className="stat-content">
+                <span className="stat-value">{formatCurrency(overview.doctorEarnings)}</span>
+                <span className="stat-label">Doctor Earnings</span>
               </div>
             </div>
-
-            <div className="financial-card transactions">
-              <div className="financial-card-icon">
-                <i className="bi bi-receipt"></i>
-              </div>
-              <div className="financial-card-content">
-                <span className="financial-label">Total Transactions</span>
-                <span className="financial-value">{overview.totalTransactions?.toLocaleString()}</span>
-                <span className="financial-sub">{overview.completedTransactions} completed</span>
-              </div>
-            </div>
-
-            <div className="financial-card avg-value">
-              <div className="financial-card-icon">
-                <i className="bi bi-calculator"></i>
-              </div>
-              <div className="financial-card-content">
-                <span className="financial-label">Avg. Transaction</span>
-                <span className="financial-value">{formatCurrency(overview.averageTransactionValue)}</span>
-                <span className="financial-sub">Per transaction</span>
+            <div className="stat-divider"></div>
+            <div className="stat-item indigo">
+              <i className="bi bi-receipt"></i>
+              <div className="stat-content">
+                <span className="stat-value">{overview.totalTransactions?.toLocaleString()}</span>
+                <span className="stat-label">Transactions</span>
               </div>
             </div>
           </div>
         )}
 
-        {/* Tabs */}
-        <div className="financial-tabs mb-4">
-          <button
-            className={`financial-tab ${activeTab === "overview" ? "active" : ""}`}
-            onClick={() => setActiveTab("overview")}
-          >
-            <i className="bi bi-bar-chart-line me-2"></i>
-            Monthly Overview
-          </button>
-          <button
-            className={`financial-tab ${activeTab === "daily" ? "active" : ""}`}
-            onClick={() => setActiveTab("daily")}
-          >
-            <i className="bi bi-calendar3 me-2"></i>
-            Daily Breakdown
-          </button>
-        </div>
-
-        {/* Tab Content */}
-        {activeTab === "overview" && (
-          <div className="admin-card">
-            <div className="card-header bg-white py-3 px-4">
-              <h5 className="mb-0">
-                <i className="bi bi-graph-up me-2 text-success"></i>
-                Revenue by Month - {selectedYear}
-              </h5>
+        {/* Chart Section */}
+        <div className="financial-chart-container">
+          <div className="chart-header">
+            <div className="chart-title-section">
+              {activeTab === "overview" ? (
+                <>
+                  <div className="chart-icon green">
+                    <i className="bi bi-graph-up-arrow"></i>
+                  </div>
+                  <div>
+                    <h5 className="chart-title">Monthly Revenue Overview</h5>
+                    <span className="chart-subtitle">Revenue trends for {selectedYear}</span>
+                  </div>
+                </>
+              ) : (
+                <>
+                  <div className="chart-icon blue">
+                    <i className="bi bi-bar-chart-fill"></i>
+                  </div>
+                  <div>
+                    <h5 className="chart-title">Daily Revenue Breakdown</h5>
+                    <span className="chart-subtitle">{monthOptions[selectedMonth - 1]?.label} {selectedYear}</span>
+                  </div>
+                </>
+              )}
             </div>
-            <div className="card-body p-4">
-              <ResponsiveContainer width="100%" height={400}>
-                <ComposedChart data={revenueByMonth}>
+            <div className="chart-controls">
+              {/* Tabs */}
+              <div className="financial-tabs-inline">
+                <button
+                  className={`tab-btn ${activeTab === "overview" ? "active" : ""}`}
+                  onClick={() => setActiveTab("overview")}
+                >
+                  <i className="bi bi-graph-up"></i>
+                  Monthly
+                </button>
+                <button
+                  className={`tab-btn ${activeTab === "daily" ? "active" : ""}`}
+                  onClick={() => setActiveTab("daily")}
+                >
+                  <i className="bi bi-calendar3"></i>
+                  Daily
+                </button>
+              </div>
+              {activeTab === "daily" && (
+                <select
+                  className="form-select form-select-sm month-select"
+                  value={selectedMonth}
+                  onChange={(e) => setSelectedMonth(parseInt(e.target.value))}
+                >
+                  {monthOptions.map((month) => (
+                    <option key={month.value} value={month.value}>
+                      {month.label}
+                    </option>
+                  ))}
+                </select>
+              )}
+            </div>
+          </div>
+
+          <div className="chart-body">
+            {activeTab === "overview" ? (
+              <ResponsiveContainer width="100%" height={480}>
+                <ComposedChart data={revenueByMonth} margin={{ top: 20, right: 30, left: 20, bottom: 20 }}>
                   <defs>
                     <linearGradient id="revenueGradient" x1="0" y1="0" x2="0" y2="1">
-                      <stop offset="5%" stopColor="#10b981" stopOpacity={0.8} />
-                      <stop offset="95%" stopColor="#10b981" stopOpacity={0.1} />
+                      <stop offset="5%" stopColor="#10b981" stopOpacity={0.4} />
+                      <stop offset="95%" stopColor="#10b981" stopOpacity={0.05} />
                     </linearGradient>
                   </defs>
-                  <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" />
-                  <XAxis dataKey="month" stroke="#6b7280" />
+                  <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" vertical={false} />
+                  <XAxis
+                    dataKey="month"
+                    stroke="#94a3b8"
+                    tick={{ fontSize: 12, fill: '#64748b' }}
+                    axisLine={{ stroke: '#e5e7eb' }}
+                    tickLine={false}
+                  />
                   <YAxis
-                    stroke="#6b7280"
+                    stroke="#94a3b8"
+                    tick={{ fontSize: 12, fill: '#64748b' }}
                     tickFormatter={(value) => `$${(value / 1000).toFixed(0)}k`}
+                    axisLine={false}
+                    tickLine={false}
                   />
                   <Tooltip
                     contentStyle={{
                       backgroundColor: "#fff",
-                      border: "1px solid #e5e7eb",
-                      borderRadius: "8px",
-                      boxShadow: "0 4px 6px rgba(0,0,0,0.1)"
+                      border: "none",
+                      borderRadius: "12px",
+                      boxShadow: "0 10px 40px rgba(0,0,0,0.15)",
+                      padding: "12px 16px"
                     }}
                     formatter={(value) => [formatCurrency(value), "Revenue"]}
+                    labelStyle={{ color: '#1f2937', fontWeight: 600, marginBottom: 4 }}
                   />
-                  <Legend />
                   <Area
                     type="monotone"
                     dataKey="count"
                     name="Revenue"
                     stroke="#10b981"
-                    strokeWidth={2}
+                    strokeWidth={3}
                     fillOpacity={1}
                     fill="url(#revenueGradient)"
                   />
@@ -317,70 +324,61 @@ export default function FinancialReports() {
                     name="Trend"
                     stroke="#059669"
                     strokeWidth={3}
-                    dot={{ fill: "#059669", r: 5 }}
-                    activeDot={{ r: 7 }}
+                    dot={{ fill: "#fff", stroke: "#059669", strokeWidth: 3, r: 6 }}
+                    activeDot={{ r: 8, fill: "#059669", stroke: "#fff", strokeWidth: 3 }}
                   />
                 </ComposedChart>
               </ResponsiveContainer>
-            </div>
-          </div>
-        )}
-
-        {activeTab === "daily" && (
-          <div className="admin-card">
-            <div className="card-header bg-white py-3 px-4 d-flex justify-content-between align-items-center">
-              <h5 className="mb-0">
-                <i className="bi bi-calendar3 me-2 text-primary"></i>
-                Daily Revenue - {monthOptions[selectedMonth - 1]?.label} {selectedYear}
-              </h5>
-              <select
-                className="form-select form-select-sm"
-                value={selectedMonth}
-                onChange={(e) => setSelectedMonth(parseInt(e.target.value))}
-                style={{ width: "150px" }}
-              >
-                {monthOptions.map((month) => (
-                  <option key={month.value} value={month.value}>
-                    {month.label}
-                  </option>
-                ))}
-              </select>
-            </div>
-            <div className="card-body p-4">
-              <ResponsiveContainer width="100%" height={400}>
-                <BarChart data={revenueByDay}>
+            ) : (
+              <ResponsiveContainer width="100%" height={480}>
+                <BarChart data={revenueByDay} margin={{ top: 20, right: 30, left: 20, bottom: 20 }}>
                   <defs>
                     <linearGradient id="dailyRevenueGradient" x1="0" y1="0" x2="0" y2="1">
-                      <stop offset="5%" stopColor="#3b82f6" stopOpacity={0.9} />
-                      <stop offset="95%" stopColor="#3b82f6" stopOpacity={0.6} />
+                      <stop offset="0%" stopColor="#3b82f6" stopOpacity={1} />
+                      <stop offset="100%" stopColor="#3b82f6" stopOpacity={0.7} />
                     </linearGradient>
                   </defs>
-                  <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" />
-                  <XAxis dataKey="date" stroke="#6b7280" tick={{ fontSize: 11 }} />
-                  <YAxis stroke="#6b7280" tickFormatter={(value) => `$${value}`} />
+                  <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" vertical={false} />
+                  <XAxis
+                    dataKey="date"
+                    stroke="#94a3b8"
+                    tick={{ fontSize: 11, fill: '#64748b' }}
+                    axisLine={{ stroke: '#e5e7eb' }}
+                    tickLine={false}
+                  />
+                  <YAxis
+                    stroke="#94a3b8"
+                    tick={{ fontSize: 12, fill: '#64748b' }}
+                    tickFormatter={(value) => `$${value}`}
+                    axisLine={false}
+                    tickLine={false}
+                  />
                   <Tooltip
                     contentStyle={{
                       backgroundColor: "#fff",
-                      border: "1px solid #e5e7eb",
-                      borderRadius: "8px"
+                      border: "none",
+                      borderRadius: "12px",
+                      boxShadow: "0 10px 40px rgba(0,0,0,0.15)",
+                      padding: "12px 16px"
                     }}
                     formatter={(value, name) => [
                       name === "revenue" ? formatCurrency(value) : value,
                       name === "revenue" ? "Revenue" : "Transactions"
                     ]}
+                    labelStyle={{ color: '#1f2937', fontWeight: 600, marginBottom: 4 }}
                   />
-                  <Legend />
                   <Bar
                     dataKey="revenue"
                     name="Revenue"
                     fill="url(#dailyRevenueGradient)"
-                    radius={[4, 4, 0, 0]}
+                    radius={[6, 6, 0, 0]}
+                    maxBarSize={50}
                   />
                 </BarChart>
               </ResponsiveContainer>
-            </div>
+            )}
           </div>
-        )}
+        </div>
       </main>
     </NavbarAdmin>
   );
