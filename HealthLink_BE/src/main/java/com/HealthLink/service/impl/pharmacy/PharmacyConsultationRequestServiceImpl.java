@@ -9,8 +9,8 @@ import com.HealthLink.entity.enums.NotificationPriority;
 import com.HealthLink.entity.enums.NotificationType;
 import com.HealthLink.entity.enums.PrescriptionTiming;
 import com.HealthLink.exception.BadRequestException;
+import com.HealthLink.exception.ForbiddenException;
 import com.HealthLink.exception.ResourceNotFoundException;
-import com.HealthLink.repository.medicine.MedicineRepository;
 import com.HealthLink.repository.notification.DeviceTokenRepository;
 import com.HealthLink.repository.patient.PatientRepository;
 import com.HealthLink.repository.pharmacy.PharmacyConsultationRequestRepository;
@@ -28,10 +28,10 @@ import org.springframework.transaction.annotation.Transactional;
 import org.springframework.transaction.support.TransactionSynchronization;
 import org.springframework.transaction.support.TransactionSynchronizationManager;
 
-import java.math.BigDecimal;
-import java.time.LocalDateTime;
 import java.util.ArrayList;
+import java.util.LinkedHashSet;
 import java.util.List;
+import java.util.Objects;
 
 @Service
 @RequiredArgsConstructor
@@ -41,16 +41,12 @@ public class PharmacyConsultationRequestServiceImpl implements PharmacyConsultat
     private static final String STATUS_PENDING = "PENDING";
     private static final String STATUS_IN_REVIEW = "IN_REVIEW";
     private static final String STATUS_NEED_MORE_INFO = "NEED_MORE_INFO";
-    private static final String STATUS_PRESCRIPTION_CREATED = "PRESCRIPTION_CREATED";
     private static final String STATUS_ORDER_CREATED = "ORDER_CREATED";
     private static final String STATUS_CANCELLED = "CANCELLED";
-
-    private static final String PRESCRIPTION_STATUS_ISSUED = "ISSUED";
 
     private final PharmacyConsultationRequestRepository consultationRequestRepository;
     private final PatientRepository patientRepository;
     private final PharmacyRepository pharmacyRepository;
-    private final MedicineRepository medicineRepository;
     private final PrescriptionHeaderRepository prescriptionHeaderRepository;
     private final NotificationService notificationService;
     private final DeviceTokenRepository deviceTokenRepository;
@@ -79,6 +75,10 @@ public class PharmacyConsultationRequestServiceImpl implements PharmacyConsultat
                 .preferredDeliveryType(normalizeDeliveryType(request.getPreferredDeliveryType()))
                 .status(STATUS_PENDING)
                 .build();
+        attachRequestPrescriptions(
+                consultationRequest,
+                resolveRequestPrescriptions(patient, request.getPrescriptionHeaderIds())
+        );
 
         PharmacyConsultationRequest saved = consultationRequestRepository.save(consultationRequest);
         notifyPharmacyAboutNewRequestAfterCommit(saved);
@@ -158,82 +158,14 @@ public class PharmacyConsultationRequestServiceImpl implements PharmacyConsultat
     }
 
     @Override
-    @Transactional
-    public PharmacyPrescriptionCreationResponse createPrescription(
-            Integer requestId,
-            PharmacyPrescriptionRequest request
-    ) {
+    @Transactional(readOnly = true)
+    public List<PrescriptionResponse> getRequestPrescriptions(Integer requestId, String pharmacyId) {
         PharmacyConsultationRequest consultationRequest = getRequestOrThrow(requestId);
-        validatePrescriptionCreation(consultationRequest);
+        validatePharmacyOwnsRequest(consultationRequest, pharmacyId);
 
-        PrescriptionHeader header = PrescriptionHeader.builder()
-                .appointment(null)
-                .patient(consultationRequest.getPatient())
-                .doctor(null)
-                .issueDate(LocalDateTime.now())
-                .diagnosis(trimToNull(request.getDiagnosis()))
-                .notes(trimToNull(request.getNotes()))
-                .validUntil(request.getValidUntil())
-                .status(PRESCRIPTION_STATUS_ISSUED)
-                .prescriptionItems(new ArrayList<>())
-                .build();
-
-        BigDecimal totalAmount = BigDecimal.ZERO;
-        List<PrescriptionItem> items = new ArrayList<>();
-
-        for (PharmacyPrescriptionItemRequest itemRequest : request.getItems()) {
-            Medicine medicine = medicineRepository.findById(itemRequest.getMedicineId())
-                    .orElseThrow(() -> new ResourceNotFoundException(
-                            "Medicine",
-                            "id",
-                            itemRequest.getMedicineId()
-                    ));
-
-            BigDecimal unitPrice = itemRequest.getUnitPrice() != null
-                    ? itemRequest.getUnitPrice()
-                    : medicine.getPrice();
-
-            BigDecimal totalPrice = BigDecimal.ZERO;
-            if (unitPrice != null && itemRequest.getQuantity() != null) {
-                totalPrice = unitPrice.multiply(BigDecimal.valueOf(itemRequest.getQuantity()));
-            }
-
-            PrescriptionItem item = PrescriptionItem.builder()
-                    .prescriptionHeader(header)
-                    .medicine(medicine)
-                    .medicationName(medicine.getName())
-                    .dosage(buildDosage(medicine))
-                    .instructions(buildInstructions(medicine))
-                    .totalSupplyDays(itemRequest.getTotalSupplyDays())
-                    .quantity(itemRequest.getQuantity())
-                    .unit(itemRequest.getUnit() != null ? itemRequest.getUnit() : medicine.getUnit())
-                    .frequency(itemRequest.getFrequency())
-                    .timing(normalizeTiming(itemRequest.getTimings(), itemRequest.getTiming()))
-                    .route(itemRequest.getRoute())
-                    .unitPrice(unitPrice)
-                    .totalPrice(totalPrice)
-                    .notes(itemRequest.getNotes())
-                    .build();
-
-            items.add(item);
-            totalAmount = totalAmount.add(totalPrice);
-        }
-
-        header.getPrescriptionItems().addAll(items);
-        header.setTotalAmount(totalAmount);
-
-        PrescriptionHeader savedHeader = prescriptionHeaderRepository.save(header);
-
-        consultationRequest.setPrescriptionHeader(savedHeader);
-        consultationRequest.setStatus(STATUS_PRESCRIPTION_CREATED);
-        PharmacyConsultationRequest savedRequest = consultationRequestRepository.save(consultationRequest);
-        savedHeader.setConsultationRequest(savedRequest);
-        notifyPatientAboutPrescriptionAfterCommit(savedRequest, savedHeader);
-
-        return PharmacyPrescriptionCreationResponse.builder()
-                .request(toResponse(savedRequest))
-                .prescription(toPrescriptionResponse(savedHeader))
-                .build();
+        return requestPrescriptionHeaders(consultationRequest).stream()
+                .map(header -> toPrescriptionResponse(header, consultationRequest))
+                .toList();
     }
 
     private PharmacyConsultationRequest getRequestOrThrow(Integer requestId) {
@@ -264,31 +196,31 @@ public class PharmacyConsultationRequestServiceImpl implements PharmacyConsultat
                 .chatRoomId(request.getChatRoomId())
                 .pharmacyNotes(request.getPharmacyNotes())
                 .patientFollowUpNotes(request.getPatientFollowUpNotes())
-                .prescriptionHeaderId(request.getPrescriptionHeader() != null
-                        ? request.getPrescriptionHeader().getPrescriptionHeaderId()
-                        : null)
+                .prescriptionHeaderIds(requestPrescriptionHeaders(request).stream()
+                        .map(PrescriptionHeader::getPrescriptionHeaderId)
+                        .toList())
                 .pharmacyOrderId(request.getOrder() != null ? request.getOrder().getOrderId() : null)
                 .createdAt(request.getCreatedAt())
                 .updatedAt(request.getUpdatedAt())
                 .build();
     }
 
-    private PrescriptionResponse toPrescriptionResponse(PrescriptionHeader header) {
+    private PrescriptionResponse toPrescriptionResponse(
+            PrescriptionHeader header,
+            PharmacyConsultationRequest request
+    ) {
         return PrescriptionResponse.builder()
                 .prescriptionHeaderId(header.getPrescriptionHeaderId())
                 .appointmentId(null)
-                .pharmacyRequestId(header.getConsultationRequest() != null
-                        ? header.getConsultationRequest().getRequestId() : null)
+                .pharmacyRequestId(request != null ? request.getRequestId() : null)
                 .patientId(header.getPatient() != null ? header.getPatient().getPatientId() : null)
                 .patientName(header.getPatient() != null ? header.getPatient().getFullName() : null)
                 .doctorId(null)
                 .doctorName(null)
-                .pharmacyId(header.getConsultationRequest() != null
-                        && header.getConsultationRequest().getPharmacy() != null
-                        ? header.getConsultationRequest().getPharmacy().getPharmacyId() : null)
-                .pharmacyName(header.getConsultationRequest() != null
-                        && header.getConsultationRequest().getPharmacy() != null
-                        ? header.getConsultationRequest().getPharmacy().getName() : null)
+                .pharmacyId(request != null && request.getPharmacy() != null
+                        ? request.getPharmacy().getPharmacyId() : null)
+                .pharmacyName(request != null && request.getPharmacy() != null
+                        ? request.getPharmacy().getName() : null)
                 .issueDate(header.getIssueDate())
                 .diagnosis(header.getDiagnosis())
                 .notes(header.getNotes())
@@ -327,14 +259,68 @@ public class PharmacyConsultationRequestServiceImpl implements PharmacyConsultat
         }
     }
 
+    private List<PrescriptionHeader> resolveRequestPrescriptions(
+            Patient patient,
+            List<Integer> prescriptionHeaderIds
+    ) {
+        if (prescriptionHeaderIds == null || prescriptionHeaderIds.isEmpty()) {
+            return List.of();
+        }
+
+        List<PrescriptionHeader> prescriptions = new ArrayList<>();
+        for (Integer prescriptionHeaderId : new LinkedHashSet<>(prescriptionHeaderIds)) {
+            if (prescriptionHeaderId == null) {
+                continue;
+            }
+            PrescriptionHeader prescription = prescriptionHeaderRepository.findById(prescriptionHeaderId)
+                    .orElseThrow(() -> new ResourceNotFoundException(
+                            "PrescriptionHeader",
+                            "id",
+                            prescriptionHeaderId
+                    ));
+            validatePatientOwnsPrescription(patient, prescription);
+            prescriptions.add(prescription);
+        }
+        return prescriptions;
+    }
+
+    private void validatePatientOwnsPrescription(Patient patient, PrescriptionHeader prescription) {
+        if (prescription.getPatient() == null
+                || patient == null
+                || !Objects.equals(prescription.getPatient().getPatientId(), patient.getPatientId())) {
+            throw new ForbiddenException("Prescription does not belong to this patient");
+        }
+    }
+
+    private void attachRequestPrescriptions(
+            PharmacyConsultationRequest request,
+            List<PrescriptionHeader> prescriptions
+    ) {
+        request.getRequestPrescriptions().clear();
+        for (PrescriptionHeader prescription : prescriptions) {
+            request.getRequestPrescriptions().add(PharmacyConsultationRequestPrescription.builder()
+                    .consultationRequest(request)
+                    .prescriptionHeader(prescription)
+                    .build());
+        }
+    }
+
+    private List<PrescriptionHeader> requestPrescriptionHeaders(PharmacyConsultationRequest request) {
+        if (request.getRequestPrescriptions() == null) {
+            return List.of();
+        }
+        return request.getRequestPrescriptions().stream()
+                .map(PharmacyConsultationRequestPrescription::getPrescriptionHeader)
+                .filter(Objects::nonNull)
+                .toList();
+    }
+
     private void validateManualStatusUpdate(String currentStatus, String targetStatus) {
-        if (STATUS_PRESCRIPTION_CREATED.equals(currentStatus)
-                || STATUS_ORDER_CREATED.equals(currentStatus)
-                || STATUS_CANCELLED.equals(currentStatus)) {
+        if (STATUS_ORDER_CREATED.equals(currentStatus) || STATUS_CANCELLED.equals(currentStatus)) {
             throw new BadRequestException("Request can no longer be updated from status " + currentStatus);
         }
 
-        if (STATUS_PRESCRIPTION_CREATED.equals(targetStatus) || STATUS_ORDER_CREATED.equals(targetStatus)) {
+        if (STATUS_ORDER_CREATED.equals(targetStatus)) {
             throw new BadRequestException(targetStatus + " can only be set by the system");
         }
 
@@ -344,18 +330,12 @@ public class PharmacyConsultationRequestServiceImpl implements PharmacyConsultat
         }
     }
 
-    private void validatePrescriptionCreation(PharmacyConsultationRequest request) {
-        String status = normalizeStatus(request.getStatus());
-        if (STATUS_CANCELLED.equals(status)) {
-            throw new BadRequestException("Cannot create prescription for a cancelled request");
-        }
-
-        if (STATUS_ORDER_CREATED.equals(status) || request.getOrder() != null) {
-            throw new BadRequestException("This request already follows the direct order flow");
-        }
-
-        if (STATUS_PRESCRIPTION_CREATED.equals(status) || request.getPrescriptionHeader() != null) {
-            throw new BadRequestException("Prescription has already been created for this request");
+    private void validatePharmacyOwnsRequest(PharmacyConsultationRequest request, String pharmacyId) {
+        if (request == null
+                || request.getPharmacy() == null
+                || request.getPharmacy().getPharmacyId() == null
+                || !request.getPharmacy().getPharmacyId().equals(pharmacyId)) {
+            throw new ForbiddenException("You are not allowed to view prescriptions for this request");
         }
     }
 
@@ -373,17 +353,6 @@ public class PharmacyConsultationRequestServiceImpl implements PharmacyConsultat
         return normalized != null ? normalized : "Delivery";
     }
 
-    private String normalizeTiming(List<String> timings, String timing) {
-        try {
-            if (timings != null && !timings.isEmpty()) {
-                return PrescriptionTiming.normalizeJoined(timings);
-            }
-            return PrescriptionTiming.normalizeJoined(timing);
-        } catch (IllegalArgumentException ex) {
-            throw new BadRequestException(ex.getMessage());
-        }
-    }
-
     private String normalizeTimingForResponse(String timing) {
         if (PrescriptionTiming.isSupported(timing)) {
             return PrescriptionTiming.normalizeJoined(timing);
@@ -397,29 +366,6 @@ public class PharmacyConsultationRequestServiceImpl implements PharmacyConsultat
         } catch (IllegalArgumentException ex) {
             return List.of();
         }
-    }
-
-    private String buildDosage(Medicine medicine) {
-        if (medicine.getStrength() == null && medicine.getUnit() == null) {
-            return medicine.getName();
-        }
-        if (medicine.getStrength() == null) {
-            return medicine.getUnit();
-        }
-        if (medicine.getUnit() == null) {
-            return medicine.getStrength();
-        }
-        return medicine.getStrength() + " " + medicine.getUnit();
-    }
-
-    private String buildInstructions(Medicine medicine) {
-        if (medicine.getDescription() != null && !medicine.getDescription().isBlank()) {
-            return medicine.getDescription();
-        }
-        if (medicine.getIndications() != null && !medicine.getIndications().isBlank()) {
-            return medicine.getIndications();
-        }
-        return "Use as directed";
     }
 
     private String trimToNull(String value) {
@@ -516,52 +462,6 @@ public class PharmacyConsultationRequestServiceImpl implements PharmacyConsultat
                         NotificationPriority.NORMAL,
                         request.getRequestId(),
                         "/pharmacy-requests/" + request.getRequestId()
-                );
-            }
-        });
-    }
-
-    private void notifyPatientAboutPrescriptionAfterCommit(
-            PharmacyConsultationRequest request,
-            PrescriptionHeader prescriptionHeader
-    ) {
-        User patientUser = request.getPatient() != null ? request.getPatient().getUser() : null;
-        if (patientUser == null) {
-            return;
-        }
-
-        String pharmacyName = request.getPharmacy() != null ? request.getPharmacy().getName() : "Pharmacy";
-        String title = "Prescription ready";
-        String message = String.format(
-                "%s created prescription %s for your request %s.",
-                pharmacyName,
-                prescriptionHeader.getPrescriptionHeaderId(),
-                request.getRequestId()
-        );
-
-        boolean hasActiveMobileToken = !deviceTokenRepository
-                .findByUser_IdAndActiveTrue(patientUser.getId())
-                .isEmpty();
-
-        runAfterCommit("new prescription notification", () -> {
-            notificationService.sendWebSocketNotification(
-                    patientUser,
-                    NotificationType.NEW_PRESCRIPTION,
-                    title,
-                    message,
-                    prescriptionHeader.getPrescriptionHeaderId(),
-                    "/prescriptions/" + prescriptionHeader.getPrescriptionHeaderId()
-            );
-
-            if (hasActiveMobileToken) {
-                notificationService.sendMobilePushNotification(
-                        patientUser,
-                        NotificationType.NEW_PRESCRIPTION,
-                        title,
-                        message,
-                        NotificationPriority.NORMAL,
-                        prescriptionHeader.getPrescriptionHeaderId(),
-                        "/prescriptions/" + prescriptionHeader.getPrescriptionHeaderId()
                 );
             }
         });

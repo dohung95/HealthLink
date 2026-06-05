@@ -100,7 +100,7 @@ export default function PharmacyConsultationsPage() {
                     <small>{new Date(req.createdAt).toLocaleDateString()}</small>
                   </div>
                   <p className="mb-1 text-truncate">{req.description || req.symptoms || 'No description'}</p>
-                  <small className={`badge bg-${req.status === 'CANCELLED' ? 'danger' : req.status === 'IN_REVIEW' ? 'info' : req.status === 'PRESCRIPTION_CREATED' ? 'success' : 'secondary'}`}>
+                  <small className={`badge bg-${req.status === 'CANCELLED' ? 'danger' : req.status === 'IN_REVIEW' ? 'info' : 'secondary'}`}>
                     {req.status}
                   </small>
                 </button>
@@ -113,7 +113,7 @@ export default function PharmacyConsultationsPage() {
               <div className="card">
                 <div className="card-body">
                   <h5 className="card-title">{selected.pharmacyName}</h5>
-                  <span className={`badge bg-${selected.status === 'CANCELLED' ? 'danger' : selected.status === 'IN_REVIEW' ? 'info' : selected.status === 'PRESCRIPTION_CREATED' ? 'success' : 'secondary'} mb-3`}>
+                  <span className={`badge bg-${selected.status === 'CANCELLED' ? 'danger' : selected.status === 'IN_REVIEW' ? 'info' : 'secondary'} mb-3`}>
                     {selected.status}
                   </span>
 

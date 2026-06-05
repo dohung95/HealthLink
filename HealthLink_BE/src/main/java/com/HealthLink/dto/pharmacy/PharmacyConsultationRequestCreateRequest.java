@@ -18,6 +18,7 @@ public class PharmacyConsultationRequestCreateRequest {
     private String description;
     private String allergies;
     private List<String> attachments;
+    private List<Integer> prescriptionHeaderIds;
     private String additionalNotes;
     private String preferredDeliveryType = "Delivery";
 }

@@ -65,7 +65,7 @@ export const getOrderTime = (order) => order?.createdAt || order?.confirmedAt ||
 
 export function statusClass(status) {
   const normalized = normalize(status);
-  if (['COMPLETED', 'DELIVERED', 'READY', 'ORDER_CREATED', 'PRESCRIPTION_CREATED'].includes(normalized)) return 'is-success';
+  if (['COMPLETED', 'DELIVERED', 'READY', 'ORDER_CREATED'].includes(normalized)) return 'is-success';
   if (['PREPARING', 'SHIPPING', 'CONFIRMED', 'IN_REVIEW'].includes(normalized)) return 'is-processing';
   if (['CANCELLED', 'REFUNDED'].includes(normalized)) return 'is-danger';
   return 'is-pending';

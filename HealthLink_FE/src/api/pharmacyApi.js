@@ -16,7 +16,6 @@ export const CONSULTATION_STATUSES = [
   'PENDING',
   'IN_REVIEW',
   'NEED_MORE_INFO',
-  'PRESCRIPTION_CREATED',
   'ORDER_CREATED',
   'CANCELLED',
 ];
@@ -56,6 +55,11 @@ export const pharmacyApi = {
     return response.data || [];
   },
 
+  createConsultationRequest: async (payload) => {
+    const response = await axiosInstance.post('/api/pharmacy-requests', payload);
+    return response.data;
+  },
+
   getConsultationRequestById: async (requestId) => {
     const response = await axiosInstance.get(`/api/pharmacy-requests/${requestId}`);
     return response.data;
@@ -66,9 +70,9 @@ export const pharmacyApi = {
     return response.data;
   },
 
-  createPrescriptionFromRequest: async (requestId, payload) => {
-    const response = await axiosInstance.post(`/api/pharmacy-requests/${requestId}/prescription`, payload);
-    return response.data;
+  getRequestPrescriptions: async (requestId) => {
+    const response = await axiosInstance.get(`/api/pharmacy-requests/${requestId}/prescriptions`);
+    return response.data || [];
   },
 
   createOrderFromRequest: async (requestId, payload) => {

@@ -3,7 +3,6 @@ import { toast } from 'sonner';
 
 import { paymentApi } from '../../api/paymentApi';
 import {
-  Detail,
   MetricCard,
   Modal,
   Pagination,
@@ -131,16 +130,44 @@ export default function PharmacyWalletTab({ profile, balance, transactions, sett
       </section>
 
       {withdrawOpen && (
-        <Modal title="Withdraw to PayPal" onClose={() => setWithdrawOpen(false)}>
-          <form className="pharmacy-form" onSubmit={submitWithdraw}>
-            <Detail label="Available balance" value={money(pendingBalance)} />
-            <label>PayPal Email<input onChange={(event) => setPaypalEmail(event.target.value)} type="email" value={paypalEmail} /></label>
-            <label>Amount<input min="0" onChange={(event) => setWithdrawAmount(event.target.value)} step="0.01" type="number" value={withdrawAmount} /></label>
-            <p className={pendingBalance - requestedAmount > 10 ? 'pharmacy-success-text' : 'pharmacy-danger-text'}>
-              Remaining balance after withdrawal must be greater than $10.00.
-            </p>
-            <button disabled={!canWithdraw} type="submit">{submitting ? 'Submitting...' : 'Withdraw'}</button>
-          </form>
+        <Modal title="Request Withdrawal" icon="account_balance" onClose={() => setWithdrawOpen(false)}>
+          <div className="wd-modal-body">
+            <div className="wd-balance-card">
+              <div className="wd-balance-card-inner">
+                <div className="wd-balance-icon-wrap">
+                  <span className="material-symbols-outlined">account_balance_wallet</span>
+                </div>
+                <div>
+                  <p className="wd-balance-label">Current Balance</p>
+                  <p className="wd-balance-amount">{money(pendingBalance)}</p>
+                </div>
+              </div>
+            </div>
+            <form onSubmit={submitWithdraw}>
+              <div className="wd-field">
+                <label className="wd-label" htmlFor="paypalEmail">PayPal Email</label>
+                <div className="wd-input-group">
+                  <span className="wd-input-icon"><i className="bi bi-paypal"></i></span>
+                  <input className="wd-input" id="paypalEmail" onChange={(event) => setPaypalEmail(event.target.value)} placeholder="user@example.com" required type="email" value={paypalEmail} />
+                </div>
+              </div>
+              <div className="wd-field" style={{ marginTop: '24px' }}>
+                <label className="wd-label" htmlFor="amount">Amount</label>
+                <div className="wd-input-group">
+                  <span className="wd-input-icon"><span className="material-symbols-outlined">attach_money</span></span>
+                  <input className="wd-input" id="amount" min="0" onChange={(event) => setWithdrawAmount(event.target.value)} placeholder="0.00" required step="0.01" type="number" value={withdrawAmount} />
+                </div>
+                <p className={'wd-hint mt-3' + (pendingBalance - requestedAmount > 10 ? '' : ' wd-hint-error')}>
+                  <span className="material-symbols-outlined">info</span>
+                  Remaining balance after withdrawal must be greater than $10.00.
+                </p>
+              </div>
+              <div className="wd-actions" style={{ marginTop: '28px' }}>
+                <button className="wd-btn wd-btn-secondary" onClick={() => setWithdrawOpen(false)} type="button">Cancel</button>
+                <button className="wd-btn wd-btn-primary" disabled={!canWithdraw} type="submit">{submitting ? 'Submitting...' : 'Withdraw'}</button>
+              </div>
+            </form>
+          </div>
         </Modal>
       )}
     </>

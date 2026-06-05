@@ -18,6 +18,17 @@ import {
   useDebouncedValue,
 } from './PharmacyShared';
 
+function orderItems(order) {
+  return Array.isArray(order.items) ? order.items : [];
+}
+
+function medicationSummary(order) {
+  const items = orderItems(order);
+  if (!items.length) return order.diagnosis || order.notes || 'Prescription order';
+  const names = items.slice(0, 3).map((item) => item.medicationName || `Medicine #${item.medicineId}`);
+  return `${items.length} med${items.length === 1 ? '' : 's'}: ${names.join(', ')}${items.length > 3 ? '...' : ''}`;
+}
+
 export function OrderTable({ orders, compact = false, onSelect }) {
   if (!orders.length) {
     return (
@@ -49,7 +60,7 @@ export function OrderTable({ orders, compact = false, onSelect }) {
               <td><strong>{order.orderNumber || `#${order.orderId}`}</strong></td>
               <td>
                 <strong>{order.patientName || 'Unknown patient'}</strong>
-                <span>{order.diagnosis || order.notes || 'Prescription order'}</span>
+                <span>{medicationSummary(order)}</span>
               </td>
               {!compact && <td>{order.deliveryType || '-'}</td>}
               <td>{dateTime(getOrderTime(order))}</td>
@@ -94,6 +105,7 @@ export default function PharmacyOrdersTab({ orders, globalSearch, reload }) {
         order.notes,
         order.deliveryAddress,
         order.paymentStatus,
+        medicationSummary(order),
       ].join(' ').toLowerCase();
       const queryMatches = !deferredQuery || text.includes(deferredQuery.toLowerCase());
 
@@ -217,10 +229,28 @@ export function OrderDetailDrawer({ order, onClose, onUpdated }) {
             <Detail label="Status" value={<span className={`pharmacy-status ${statusClass(order.status)}`}>{order.status}</span>} />
             <Detail label="Payment" value={`${order.paymentStatus || '-'} · ${order.paymentMethod || '-'}`} />
             <Detail label="Medicine Amount" value={money(order.medicineAmount)} />
+            <Detail label="Medications" value={`${orderItems(order).length} item${orderItems(order).length === 1 ? '' : 's'}`} />
             <Detail label="Delivery Fee" value={money(order.deliveryFee)} />
             <Detail label="Total" value={money(order.totalAmount)} />
             <Detail label="Pharmacy Earning" value={money(order.pharmacyEarning)} />
           </div>
+
+          <section className="pharmacy-order-items">
+            <h3>Medication Items</h3>
+            {orderItems(order).length ? orderItems(order).map((item) => (
+              <div className="pharmacy-order-item-row" key={item.orderItemId || item.medicationName}>
+                <div>
+                  <strong>{item.medicationName || `Medicine #${item.medicineId}`}</strong>
+                  <span>{item.frequency || 'As directed'} {item.timing ? `- ${item.timing}` : ''}</span>
+                </div>
+                <small>
+                  {item.quantity || 0} {item.unit || 'unit'} - {money(item.totalPrice)}
+                </small>
+              </div>
+            )) : (
+              <p className="pharmacy-muted">No medication items recorded.</p>
+            )}
+          </section>
 
           <section className="pharmacy-timeline">
             <h3>Status Timeline</h3>
