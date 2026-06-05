@@ -30,6 +30,7 @@ import java.util.LinkedHashSet;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Sort;
+import com.HealthLink.service.moderation.ImageModerationService;
 
 @Service
 @RequiredArgsConstructor
@@ -41,6 +42,7 @@ public class HealthRecordServiceImpl implements HealthRecordService {
     private final PatientRepository patientRepository;
     private final DoctorRepository doctorRepository;
     private final FileStorageService fileStorageService;
+    private final ImageModerationService imageModerationService;
 
     @Override
     @Transactional
@@ -142,6 +144,8 @@ public class HealthRecordServiceImpl implements HealthRecordService {
             throw new BusinessException("You do not have permission to access this record");
         }
 
+        imageModerationService.validateFileIsSafe(file);
+        
         String fileLocation = fileStorageService.storeFile(file);
 
         MedicalDocument document = MedicalDocument.builder()
@@ -213,6 +217,8 @@ public class HealthRecordServiceImpl implements HealthRecordService {
             record = recordsOfUploadDay.get(0);
         }
 
+        imageModerationService.validateFileIsSafe(file);
+        
         String fileLocation = fileStorageService.storeFile(file);
 
         MedicalDocument document = MedicalDocument.builder()
