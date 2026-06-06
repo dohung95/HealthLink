@@ -7,6 +7,7 @@ import { useNotifications } from '../../context/NotificationContext';
 
 /**
  * PatientHeader - Hiển thị lời chào, ngày hiện tại và notification bell cho bệnh nhân.
+ * Sử dụng notifications từ WebSocket realtime (context).
  */
 const PatientHeader = () => {
     const { token } = useAuth();
@@ -14,10 +15,13 @@ const PatientHeader = () => {
     const notificationRef = useRef(null);
     const [patientName, setPatientName] = useState('Patient');
     const [showDropdown, setShowDropdown] = useState(false);
-    const [notifications, setNotifications] = useState([]);
-    const [loading, setLoading] = useState(false);
 
-    const { unreadCount, markAsRead: contextMarkAsRead, refreshUnreadCount } = useNotifications();
+    const {
+        notifications,
+        unreadCount,
+        markAsRead: contextMarkAsRead,
+        refreshUnreadCount
+    } = useNotifications();
 
     const today = new Date().toLocaleDateString('en-US', {
         weekday: 'long',
@@ -42,33 +46,13 @@ const PatientHeader = () => {
         fetchProfile();
     }, [token]);
 
-    // Fetch notifications when dropdown opens
-    const fetchNotifications = async () => {
-        try {
-            setLoading(true);
-            const data = await notificationApi.getMyNotifications();
-            setNotifications(data || []);
-        } catch (error) {
-            console.error('Failed to fetch notifications:', error);
-        } finally {
-            setLoading(false);
-        }
-    };
-
     const handleToggleDropdown = () => {
-        if (!showDropdown) {
-            fetchNotifications();
-        }
         setShowDropdown(!showDropdown);
     };
 
     const handleMarkAsRead = async (notificationId) => {
         try {
             await notificationApi.markAsRead(notificationId);
-            setNotifications(prev =>
-                prev.map(n => n.notificationId === notificationId ? { ...n, isRead: true, read: true } : n)
-            );
-            // Update global unread count in context
             contextMarkAsRead(notificationId);
         } catch (error) {
             console.error('Failed to mark as read:', error);
@@ -78,8 +62,6 @@ const PatientHeader = () => {
     const handleMarkAllAsRead = async () => {
         try {
             await notificationApi.markAllAsRead();
-            setNotifications(prev => prev.map(n => ({ ...n, isRead: true, read: true })));
-            // Refresh unread count from server
             await refreshUnreadCount();
         } catch (error) {
             console.error('Failed to mark all as read:', error);
@@ -92,10 +74,19 @@ const PatientHeader = () => {
         }
         setShowDropdown(false);
 
-        // Navigate based on notification type
-        if (notification.type?.includes('APPOINTMENT') || notification.appointmentId || notification.relatedId) {
+        // Navigate based on notification type (đồng bộ với PatientSidebar)
+        const type = notification.type;
+        if (type === 'PRESCRIPTION_ISSUED' || type === 'NEW_PRESCRIPTION') {
+            navigate('/patient-dashboard/prescriptions');
+        } else if (type === 'PAYMENT_REQUIRED') {
+            navigate('/patient-dashboard/prescriptions');
+        } else if (type === 'ORDER_STATUS') {
+            navigate('/patient-dashboard/prescriptions');
+        } else if (type === 'APPOINTMENT_REMINDER') {
             navigate('/patient-dashboard/appointments');
-        } else if (notification.type?.includes('PRESCRIPTION')) {
+        } else if (type?.includes('APPOINTMENT') || notification.appointmentId || notification.relatedId) {
+            navigate('/patient-dashboard/appointments');
+        } else if (type?.includes('PRESCRIPTION')) {
             navigate('/patient-dashboard/prescriptions');
         }
     };
@@ -128,8 +119,12 @@ const PatientHeader = () => {
         return date.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
     };
 
-    // Get icon based on notification type
+    // Get icon based on notification type (đồng bộ với PatientSidebar)
     const getNotificationIcon = (type) => {
+        if (type === 'PRESCRIPTION_ISSUED' || type === 'NEW_PRESCRIPTION') return 'bi-capsule text-success';
+        if (type === 'PAYMENT_REQUIRED') return 'bi-credit-card text-warning';
+        if (type === 'ORDER_STATUS') return 'bi-box-seam text-info';
+        if (type === 'APPOINTMENT_REMINDER') return 'bi-alarm text-primary';
         if (type?.includes('CANCEL')) return 'bi-calendar-x text-danger';
         if (type?.includes('REASSIGN')) return 'bi-arrow-left-right text-warning';
         if (type?.includes('APPOINTMENT')) return 'bi-calendar-check text-primary';
@@ -174,13 +169,7 @@ const PatientHeader = () => {
                             </div>
 
                             <div className="patient-notification-list">
-                                {loading ? (
-                                    <div className="patient-notification-loading">
-                                        <div className="spinner-border spinner-border-sm" role="status">
-                                            <span className="visually-hidden">Loading...</span>
-                                        </div>
-                                    </div>
-                                ) : notifications.length === 0 ? (
+                                {notifications.length === 0 ? (
                                     <div className="patient-notification-empty">
                                         <i className="bi bi-bell-slash"></i>
                                         <p>No notifications yet</p>
@@ -188,7 +177,7 @@ const PatientHeader = () => {
                                 ) : (
                                     notifications.slice(0, 10).map((notification) => (
                                         <div
-                                            key={notification.notificationId}
+                                            key={notification.notificationId || notification.createdAt}
                                             className={`patient-notification-item ${!notification.isRead && !notification.read ? 'unread' : ''}`}
                                             onClick={() => handleNotificationClick(notification)}
                                         >

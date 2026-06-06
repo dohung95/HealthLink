@@ -15,7 +15,7 @@ export const useNotifications = () => {
 };
 
 export const NotificationProvider = ({ children }) => {
-    const { user } = useAuth();
+    const { user, currentUserId, token } = useAuth();
     const [notifications, setNotifications] = useState([]);
     const [unreadCount, setUnreadCount] = useState(0);
     const [showPrescriptionModal, setShowPrescriptionModal] = useState(false);
@@ -25,8 +25,11 @@ export const NotificationProvider = ({ children }) => {
     const [showAdminActionModal, setShowAdminActionModal] = useState(false);
     const [adminActionNotification, setAdminActionNotification] = useState(null);
 
+    // Dùng currentUserId hoặc user?.sub (JWT subject) để check đăng nhập
+    const userId = currentUserId || user?.sub || user?.userId;
+
     useEffect(() => {
-        if (user?.id) {
+        if (userId && token) {
             websocketService.connect();
             const unsubscribe = websocketService.subscribeToNotifications(handleNewNotification);
 
@@ -45,7 +48,7 @@ export const NotificationProvider = ({ children }) => {
                 unsubscribe();
             };
         }
-    }, [user]);
+    }, [userId, token]);
 
     const handleNewNotification = (notification) => {
         console.log('New notification received:', notification);

@@ -1,9 +1,7 @@
 import { NavLink } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
-import { useEffect, useState, useRef } from 'react';
+import { useEffect, useState } from 'react';
 import { getProfile } from '../../api/account';
-import { useNotifications } from '../../context/NotificationContext';
-import { useNavigate } from 'react-router-dom';
 
 /**
  * PatientSidebar - Thanh điều hướng bên trái cho bệnh nhân.
@@ -11,10 +9,6 @@ import { useNavigate } from 'react-router-dom';
  */
 const PatientSidebar = () => {
     const { logout, token } = useAuth();
-    const navigate = useNavigate();
-    const { notifications, unreadCount, markAsRead } = useNotifications();
-    const [showDropdown, setShowDropdown] = useState(false);
-    const dropdownRef = useRef(null);
     const [patientInfo, setPatientInfo] = useState({ name: 'Bệnh nhân', email: '', avatarUrl: '' });
 
     useEffect(() => {
@@ -35,45 +29,6 @@ const PatientSidebar = () => {
 
         fetchProfile();
     }, [token]);
-
-    useEffect(() => {
-        const handleClickOutside = (event) => {
-            if (dropdownRef.current && !dropdownRef.current.contains(event.target)) {
-                setShowDropdown(false);
-            }
-        };
-        document.addEventListener('mousedown', handleClickOutside);
-        return () => document.removeEventListener('mousedown', handleClickOutside);
-    }, []);
-
-    const handleNotificationClick = (notification) => {
-        if (!notification.isRead && notification.notificationId) {
-            markAsRead(notification.notificationId);
-        }
-        setShowDropdown(false);
-        if (notification.type === 'PRESCRIPTION_ISSUED' || notification.type === 'NEW_PRESCRIPTION') {
-            navigate('/patient-dashboard/prescriptions');
-        } else if (notification.type === 'PAYMENT_REQUIRED') {
-            navigate('/patient-dashboard/prescriptions');
-        } else if (notification.type === 'ORDER_STATUS') {
-            navigate('/patient-dashboard/prescriptions');
-        } else if (notification.type === 'APPOINTMENT_REMINDER') {
-            navigate('/patient-dashboard/appointments');
-        }
-    };
-
-    const formatTime = (dateStr) => {
-        if (!dateStr) return '';
-        const d = new Date(dateStr);
-        const now = new Date();
-        const diffMs = now - d;
-        const diffMin = Math.floor(diffMs / 60000);
-        if (diffMin < 1) return 'Just now';
-        if (diffMin < 60) return diffMin + 'm ago';
-        const diffHr = Math.floor(diffMin / 60);
-        if (diffHr < 24) return diffHr + 'h ago';
-        return d.toLocaleDateString();
-    };
 
     const menuItems = [
         {
@@ -114,13 +69,6 @@ const PatientSidebar = () => {
         },
     ];
 
-    // Lấy 2 chữ cái đầu của tên làm avatar
-    // const avatarInitials = patientInfo.name
-    //     .split(' ')
-    //     .slice(-2)
-    //     .map((w) => w[0]?.toUpperCase() ?? '')
-    //     .join('');
-
     return (
         <aside className="patient-sidebar">
             <div className="patient-sidebar-brand">
@@ -128,70 +76,6 @@ const PatientSidebar = () => {
                 <div>
                     <h2>HealthLink</h2>
                     <p>Patient Portal</p>
-                </div>
-                <div className="patient-notification-wrapper" style={{ marginLeft: 'auto' }} ref={dropdownRef}>
-                    <button
-                        className="patient-notification-btn"
-                        onClick={() => setShowDropdown(prev => !prev)}
-                        type="button"
-                    >
-                        <i className="bi bi-bell-fill"></i>
-                        {unreadCount > 0 && (
-                            <span className="patient-notification-badge">{unreadCount > 9 ? '9+' : unreadCount}</span>
-                        )}
-                    </button>
-                    {showDropdown && (
-                        <div className="patient-notification-dropdown">
-                            <div className="patient-notification-header">
-                                <h4>Notifications</h4>
-                                {unreadCount > 0 && (
-                                    <button
-                                        className="patient-mark-all-btn"
-                                        onClick={() => {
-                                            notifications.forEach(n => {
-                                                if (!n.isRead && n.notificationId) markAsRead(n.notificationId);
-                                            });
-                                            setShowDropdown(false);
-                                        }}
-                                        type="button"
-                                    >
-                                        Mark all as read
-                                    </button>
-                                )}
-                            </div>
-                            <div className="patient-notification-list">
-                                {notifications.length === 0 ? (
-                                    <div className="patient-notification-empty">
-                                        <i className="bi bi-bell-slash"></i>
-                                        <p>No notifications</p>
-                                    </div>
-                                ) : (
-                                    notifications.map((n) => (
-                                        <div
-                                            key={n.notificationId || n.createdAt}
-                                            className={`patient-notification-item ${!n.isRead ? 'unread' : ''}`}
-                                            onClick={() => handleNotificationClick(n)}
-                                        >
-                                            <div className="patient-notification-icon">
-                                                <i className="bi bi-bell"></i>
-                                            </div>
-                                            <div className="patient-notification-content">
-                                                <div className="patient-notification-title">{n.title || 'Notification'}</div>
-                                                <div className="patient-notification-message">{n.message}</div>
-                                                <div className="patient-notification-time">{formatTime(n.createdAt)}</div>
-                                            </div>
-                                            {!n.isRead && <div className="patient-notification-dot" />}
-                                        </div>
-                                    ))
-                                )}
-                            </div>
-                            <div className="patient-notification-footer">
-                                <button onClick={() => setShowDropdown(false)} type="button">
-                                    View all notifications
-                                </button>
-                            </div>
-                        </div>
-                    )}
                 </div>
             </div>
 
@@ -205,7 +89,6 @@ const PatientSidebar = () => {
                             `patient-sidebar-link ${isActive ? 'active' : ''}`
                         }
                     >
-
                         <i className={item.icon}></i>
                         <span>{item.label}</span>
                     </NavLink>
