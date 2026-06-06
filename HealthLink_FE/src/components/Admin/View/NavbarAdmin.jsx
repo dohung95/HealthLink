@@ -37,12 +37,10 @@ export default function NavbarAdmin({ sidebarCollapsed, onToggleSidebar, childre
 
     // Operations
     { icon: "bi-calendar-check", label: "Appointments", path: "/admin/appointments", divider: "Operations" },
-    { icon: "bi-calendar3", label: "Doctor Schedules", path: "/admin/doctor-schedules" },
-    { icon: "bi-file-medical", label: "Medical Records", path: "/admin/medical-records" },
+    { icon: "bi-calendar3", label: "Doctor Schedules", path: "/admin/compliance" },
 
     // Feedback & Quality
     { icon: "bi-star", label: "Reviews", path: "/admin/reviews", divider: "Quality" },
-    { icon: "bi-clipboard-check", label: "Compliance", path: "/admin/compliance" },
 
     // Finance
     { icon: "bi-graph-up-arrow", label: "Financial Reports", path: "/admin/financial-reports", divider: "Finance" },

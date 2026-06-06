@@ -187,48 +187,6 @@ export const appointmentsApi = {
   }
 };
 
-// ==================== MEDICAL RECORDS API ====================
-
-export const medicalRecordsApi = {
-  getStats: async () => {
-    const response = await adminApi.get('/adminmedicalrecords/stats');
-    return response.data;
-  },
-
-  getAll: async (params = {}) => {
-    const { pageNumber = 1, pageSize = 10, searchTerm = '', fromDate = null, toDate = null, category = '' } = params;
-    const response = await adminApi.get('/adminmedicalrecords', {
-      params: { pageNumber, pageSize, searchTerm, fromDate, toDate, category }
-    });
-    return response.data;
-  },
-
-  getById: async (id) => {
-    const response = await adminApi.get(`/adminmedicalrecords/${id}`);
-    return response.data;
-  },
-
-  getByPatientId: async (patientId) => {
-    const response = await adminApi.get(`/adminmedicalrecords/patient/${patientId}`);
-    return response.data;
-  },
-
-  // New: Get patient list for patient-centric view
-  getPatients: async (params = {}) => {
-    const { pageNumber = 1, pageSize = 10, searchTerm = '' } = params;
-    const response = await adminApi.get('/adminmedicalrecords/patients', {
-      params: { pageNumber, pageSize, searchTerm }
-    });
-    return response.data;
-  },
-
-  // New: Get comprehensive patient medical history
-  getPatientMedicalHistory: async (patientId) => {
-    const response = await adminApi.get(`/adminmedicalrecords/patient/${patientId}/details`);
-    return response.data;
-  }
-};
-
 // ==================== ANALYTICS API ====================
 
 export const analyticsApi = {
@@ -423,24 +381,6 @@ export const scheduleApi = {
     const response = await adminApi.get(`/schedule/doctors/${doctorId}/range`, {
       params: { startDate, endDate }
     });
-    return response.data;
-  },
-
-  /**
-   * Admin tạo exception (block/mở slot) cho bác sĩ.
-   * @param {object} data - { doctorId, exceptionDate, exceptionType, startTime?, endTime?, reason, recurring?, recurringUntil? }
-   */
-  createException: async (data) => {
-    const response = await adminApi.post('/schedule/exceptions', data);
-    return response.data;
-  },
-
-  /**
-   * Admin xóa exception.
-   * @param {number} exceptionId - Exception ID
-   */
-  deleteException: async (exceptionId) => {
-    const response = await adminApi.delete(`/schedule/exceptions/${exceptionId}`);
     return response.data;
   },
 
