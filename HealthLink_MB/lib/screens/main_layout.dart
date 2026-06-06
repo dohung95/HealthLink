@@ -1,3 +1,4 @@
+import 'package:HealthLink/screens/patient_prescriptions_screen.dart';
 import 'package:flutter/material.dart';
 import '../widgets/tab_menu.dart';
 import 'patient_home_screen.dart';
@@ -38,6 +39,7 @@ class _MainLayoutState extends State<MainLayout> {
       case 'Booking':
       case 'Appointments':
       case 'Records':
+        return const PrescriptionsScreen();
       default:
         return Scaffold(
           body: Center(

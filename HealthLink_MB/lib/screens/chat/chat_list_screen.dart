@@ -1,4 +1,10 @@
 import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
+import '../../models/chat/conversation.dart';
+import '../../providers/auth_provider.dart';
+import '../../providers/chat_provider.dart';
+import '../../config/api_config.dart';
+import 'chat_room_screen.dart';
 
 class MessagesScreen extends StatefulWidget {
   const MessagesScreen({super.key});
@@ -9,6 +15,21 @@ class MessagesScreen extends StatefulWidget {
 
 class _MessagesScreenState extends State<MessagesScreen> {
   final TextEditingController _searchController = TextEditingController();
+  String _searchQuery = '';
+
+  @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      final auth = context.read<AuthProvider>();
+      if (auth.accessToken != null && auth.userId != null) {
+        context.read<ChatProvider>().loadConversations(
+          auth.accessToken!,
+          auth.userId!,
+        );
+      }
+    });
+  }
 
   @override
   void dispose() {
@@ -25,29 +46,114 @@ class _MessagesScreenState extends State<MessagesScreen> {
       children: [
         _buildHeader(isDesktop),
         Expanded(
-          child: SingleChildScrollView(
-            padding: EdgeInsets.symmetric(
-              horizontal: isDesktop ? 32.0 : 16.0,
-              vertical: isDesktop ? 32.0 : 8.0,
-            ),
-            child: Center(
-              child: Container(
-                constraints: const BoxConstraints(maxWidth: 896), // max-w-4xl
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    _buildSearchBar(),
-                    const SizedBox(height: 24),
+          child: Consumer<ChatProvider>(
+            builder: (context, chat, _) {
+              // Loading state
+              if (chat.isLoadingConversations) {
+                return const Center(child: CircularProgressIndicator());
+              }
+              // Error state
+              if (chat.conversationsError != null) {
+                return Center(
+                  child: Column(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      Icon(Icons.wifi_off, size: 48, color: Theme.of(context).colorScheme.onSurfaceVariant),
+                      const SizedBox(height: 16),
+                      Text(
+                        chat.conversationsError!,
+                        textAlign: TextAlign.center,
+                        style: TextStyle(color: Theme.of(context).colorScheme.onSurfaceVariant),
+                      ),
+                      const SizedBox(height: 24),
+                      FilledButton.tonal(
+                        onPressed: () {
+                          final auth = context.read<AuthProvider>();
+                          if (auth.accessToken != null && auth.userId != null) {
+                            chat.loadConversations(auth.accessToken!, auth.userId!);
+                          }
+                        },
+                        child: const Text('Thử lại'),
+                      ),
+                    ],
+                  ),
+                );
+              }
 
-                    // Danh sách tin nhắn
-                    
-                  ],
+              // Lọc theo search query
+              final filtered = _searchQuery.isEmpty
+                  ? chat.conversations
+                  : chat.conversations.where((c) {
+                      final q = _searchQuery.toLowerCase();
+                      return c.partnerName.toLowerCase().contains(q) ||
+                          (c.partnerSpecialty ?? '').toLowerCase().contains(q) ||
+                          c.lastMessage.toLowerCase().contains(q);
+                    }).toList();
+
+              // Empty state
+              if (filtered.isEmpty) {
+                return Center(
+                  child: Column(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      Icon(Icons.chat_bubble_outline, size: 64, color: Theme.of(context).colorScheme.outlineVariant),
+                      const SizedBox(height: 16),
+                      Text(
+                        _searchQuery.isEmpty ? 'Chưa có hội thoại nào.' : 'Không tìm thấy kết quả.',
+                        style: TextStyle(color: Theme.of(context).colorScheme.onSurfaceVariant, fontSize: 16),
+                      ),
+                    ],
+                  ),
+                );
+              }
+
+              // Danh sách conversation
+              return SingleChildScrollView(
+                padding: EdgeInsets.symmetric(
+                  horizontal: isDesktop ? 32.0 : 16.0,
+                  vertical: isDesktop ? 32.0 : 8.0,
                 ),
-              ),
-            ),
+                child: Center(
+                  child: Container(
+                    constraints: const BoxConstraints(maxWidth: 896),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        _buildSearchBar(),
+                        const SizedBox(height: 24),
+                        ...filtered.map((conv) => Padding(
+                          padding: const EdgeInsets.only(bottom: 12),
+                          child: _buildChatListItem(
+                            conversation: conv,
+                            onTap: () => _openChatRoom(conv),
+                          ),
+                        )),
+                      ],
+                    ),
+                  ),
+                ),
+              );
+            },
           ),
         ),
       ],
+    );
+  }
+
+  /// Điều hướng sang ChatRoomScreen với đúng conversation.
+  void _openChatRoom(Conversation conv) {
+    final auth = context.read<AuthProvider>();
+    if (auth.accessToken != null && auth.userId != null) {
+      context.read<ChatProvider>().openConversation(
+        auth.accessToken!,
+        auth.userId!,
+        conv,
+      );
+    }
+    Navigator.of(context).push(
+      MaterialPageRoute(
+        builder: (_) => ChatRoomScreen(conversation: conv),
+      ),
     );
   }
 
@@ -60,7 +166,7 @@ class _MessagesScreenState extends State<MessagesScreen> {
         decoration: BoxDecoration(
           color: Theme.of(context).colorScheme.surface,
           boxShadow: [
-            BoxShadow(color: Theme.of(context).colorScheme.shadow.withOpacity(0.05), blurRadius: 2, offset: const Offset(0, 1)),
+            BoxShadow(color: Theme.of(context).colorScheme.shadow.withValues(alpha: 0.05), blurRadius: 2, offset: const Offset(0, 1)),
           ],
         ),
         child: Row(
@@ -92,27 +198,7 @@ class _MessagesScreenState extends State<MessagesScreen> {
             ),
             Row(
               children: [
-                IconButton(
-                  icon: const Icon(Icons.notifications_none, size: 28),
-                  color: Theme.of(context).colorScheme.onSurfaceVariant,
-                  onPressed: () {},
-                ),
-                const SizedBox(width: 16),
-                Container(
-                  width: 40,
-                  height: 40,
-                  decoration: BoxDecoration(
-                    shape: BoxShape.circle,
-                    border: Border.all(color: Theme.of(context).colorScheme.surface, width: 2),
-                    color: Theme.of(context).colorScheme.surfaceContainerHighest,
-                  ),
-                  child: ClipRRect(
-                    borderRadius: BorderRadius.circular(20),
-                    child: Image.asset('assets/images/user_avatar.png', fit: BoxFit.cover,
-                      errorBuilder: (context, error, stackTrace) => Icon(Icons.person, color: Theme.of(context).colorScheme.onSurfaceVariant),
-                    ),
-                  ),
-                ),
+                _buildAvatarWidget(context, true),
               ],
             ),
           ],
@@ -131,20 +217,7 @@ class _MessagesScreenState extends State<MessagesScreen> {
           children: [
             Row(
               children: [
-                Container(
-                  width: 40,
-                  height: 40,
-                  decoration: BoxDecoration(
-                    shape: BoxShape.circle,
-                    color: Theme.of(context).colorScheme.surfaceContainerHighest,
-                  ),
-                  child: ClipRRect(
-                    borderRadius: BorderRadius.circular(20),
-                    child: Image.asset('assets/images/user_avatar.png', fit: BoxFit.cover,
-                      errorBuilder: (context, error, stackTrace) => Icon(Icons.person, color: Theme.of(context).colorScheme.onSurfaceVariant),
-                    ),
-                  ),
-                ),
+                _buildAvatarWidget(context, false),
                 const SizedBox(width: 12),
                 Text(
                   'Messages',
@@ -156,11 +229,6 @@ class _MessagesScreenState extends State<MessagesScreen> {
                   ),
                 ),
               ],
-            ),
-            IconButton(
-              icon: const Icon(Icons.notifications_none, size: 28),
-              color: Theme.of(context).colorScheme.onSurfaceVariant,
-              onPressed: () {},
             ),
           ],
         ),
@@ -178,9 +246,10 @@ class _MessagesScreenState extends State<MessagesScreen> {
       ),
       child: TextField(
         controller: _searchController,
+        onChanged: (value) => setState(() => _searchQuery = value),
         style: TextStyle(fontFamily: 'Inter', color: Theme.of(context).colorScheme.onSurface),
         decoration: InputDecoration(
-          hintText: 'Search doctors, specialties, or messages...',
+          hintText: 'Tìm kiếm bác sĩ, chuyên khoa hoặc tin nhắn...',
           hintStyle: TextStyle(color: Theme.of(context).colorScheme.onSurfaceVariant),
           prefixIcon: Padding(
             padding: const EdgeInsets.only(left: 8.0),
@@ -195,40 +264,46 @@ class _MessagesScreenState extends State<MessagesScreen> {
 
   // --- 3. Item trong danh sách Chat ---
   Widget _buildChatListItem({
-    required String name,
-    required String time,
-    required String specialty,
-    required String message,
-    required String avatarUrl,
-    required int unreadCount,
-    required bool isOnline,
-    bool isRead = false,
-    bool isSupport = false,
+    required Conversation conversation,
+    required VoidCallback onTap,
   }) {
-    final bool hasUnread = unreadCount > 0;
+    final hasUnread = conversation.unreadCount > 0;
+    final isRead = conversation.isLastMessageRead;
+    final isSupport = conversation.isSupport;
+    final isOnline = conversation.isOnline;
+    final avatarUrl = conversation.partnerAvatarUrl ?? '';
+
+    // Format thời gian hiển thị
+    final now = DateTime.now();
+    final msgTime = conversation.lastMessageTime;
+    String timeLabel;
+    if (now.difference(msgTime).inDays == 0) {
+      timeLabel = '${msgTime.hour.toString().padLeft(2, '0')}:${msgTime.minute.toString().padLeft(2, '0')}';
+    } else if (now.difference(msgTime).inDays == 1) {
+      timeLabel = 'Hôm qua';
+    } else {
+      timeLabel = '${msgTime.day}/${msgTime.month}';
+    }
 
     return InkWell(
-      onTap: () {
-        // Điều hướng vào màn hình chat chi tiết
-      },
+      onTap: onTap,
       borderRadius: BorderRadius.circular(16),
       child: Container(
         padding: const EdgeInsets.all(16),
         decoration: BoxDecoration(
           color: Theme.of(context).colorScheme.surface,
-          borderRadius: BorderRadius.circular(16), // rounded-2xl
+          borderRadius: BorderRadius.circular(16),
           border: Border.all(color: Colors.transparent),
           boxShadow: [
             BoxShadow(
-              color: Theme.of(context).colorScheme.shadow.withOpacity(0.05),
+              color: Theme.of(context).colorScheme.shadow.withValues(alpha: 0.05),
               blurRadius: 4,
               offset: const Offset(0, 1),
             ),
           ],
         ),
-        // Giảm opacity nếu tin nhắn đã đọc (Opacity 80%)
         child: Opacity(
-          opacity: isRead ? 0.8 : 1.0,
+          opacity: isRead && !hasUnread ? 0.8 : 1.0,
           child: Row(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
@@ -240,27 +315,25 @@ class _MessagesScreenState extends State<MessagesScreen> {
                     height: 56,
                     decoration: BoxDecoration(
                       shape: BoxShape.circle,
-                      color: isSupport ? Theme.of(context).colorScheme.secondaryContainer : Theme.of(context).colorScheme.surfaceContainerHighest,
+                      color: isSupport
+                          ? Theme.of(context).colorScheme.secondaryContainer
+                          : Theme.of(context).colorScheme.surfaceContainerHighest,
                     ),
                     child: isSupport
                         ? Icon(Icons.support_agent, color: Theme.of(context).colorScheme.onSecondaryContainer, size: 32)
-                        : ClipRRect(
-                      borderRadius: BorderRadius.circular(28),
-                      child: ColorFiltered(
-                        // Làm đen trắng nhẹ 20% cho tin nhắn đã đọc
-                        colorFilter: isRead
-                            ? const ColorFilter.matrix([
-                          0.8, 0.2, 0.2, 0, 0,
-                          0.2, 0.8, 0.2, 0, 0,
-                          0.2, 0.2, 0.8, 0, 0,
-                          0, 0, 0, 1, 0,
-                        ])
-                            : const ColorFilter.mode(Colors.transparent, BlendMode.multiply),
-                        child: Image.asset(avatarUrl, fit: BoxFit.cover,
-                          errorBuilder: (context, error, stackTrace) => Icon(Icons.person, color: Theme.of(context).colorScheme.onSurfaceVariant),
-                        ),
-                      ),
-                    ),
+                        : (ApiConfig.normalizeUrl(avatarUrl) != null)
+                            ? ClipRRect(
+                                borderRadius: BorderRadius.circular(28),
+                                child: Image.network(
+                                  ApiConfig.normalizeUrl(avatarUrl)!,
+                                  fit: BoxFit.cover,
+                                  width: 56,
+                                  height: 56,
+                                  errorBuilder: (context, error, stackTrace) =>
+                                      Icon(Icons.person, color: Theme.of(context).colorScheme.onSurfaceVariant),
+                                ),
+                              )
+                            : Icon(Icons.person, color: Theme.of(context).colorScheme.onSurfaceVariant),
                   ),
                   if (isOnline)
                     Positioned(
@@ -290,57 +363,67 @@ class _MessagesScreenState extends State<MessagesScreen> {
                       children: [
                         Expanded(
                           child: Text(
-                            name,
+                            conversation.partnerName,
                             maxLines: 1,
                             overflow: TextOverflow.ellipsis,
                             style: TextStyle(
                               fontFamily: 'Inter',
                               fontSize: 16,
                               fontWeight: hasUnread ? FontWeight.w600 : FontWeight.w500,
-                              color: hasUnread ? Theme.of(context).colorScheme.onSurface : Theme.of(context).colorScheme.onSurfaceVariant,
+                              color: hasUnread
+                                  ? Theme.of(context).colorScheme.onSurface
+                                  : Theme.of(context).colorScheme.onSurfaceVariant,
                             ),
                           ),
                         ),
                         Text(
-                          time,
+                          timeLabel,
                           style: TextStyle(
                             fontFamily: 'Inter',
                             fontSize: 12,
                             fontWeight: FontWeight.w500,
-                            color: hasUnread ? Theme.of(context).colorScheme.primary : Theme.of(context).colorScheme.onSurfaceVariant,
+                            color: hasUnread
+                                ? Theme.of(context).colorScheme.primary
+                                : Theme.of(context).colorScheme.onSurfaceVariant,
                           ),
                         ),
                       ],
                     ),
-                    const SizedBox(height: 4),
-                    Text(
-                      specialty,
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                      style: TextStyle(
-                        fontFamily: 'Inter',
-                        fontSize: 12,
-                        fontWeight: FontWeight.w500,
-                        color: hasUnread ? Theme.of(context).colorScheme.primary : Theme.of(context).colorScheme.onSurfaceVariant,
+                    if (conversation.partnerSpecialty != null) ...[
+                      const SizedBox(height: 2),
+                      Text(
+                        conversation.partnerSpecialty!,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: TextStyle(
+                          fontFamily: 'Inter',
+                          fontSize: 12,
+                          fontWeight: FontWeight.w500,
+                          color: hasUnread
+                              ? Theme.of(context).colorScheme.primary
+                              : Theme.of(context).colorScheme.onSurfaceVariant,
+                        ),
                       ),
-                    ),
+                    ],
                     const SizedBox(height: 4),
                     Text(
-                      message,
+                      conversation.lastMessage,
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
                       style: TextStyle(
                         fontFamily: 'Inter',
                         fontSize: 14,
                         fontWeight: FontWeight.w500,
-                        color: hasUnread ? Theme.of(context).colorScheme.onSurface : Theme.of(context).colorScheme.onSurfaceVariant,
+                        color: hasUnread
+                            ? Theme.of(context).colorScheme.onSurface
+                            : Theme.of(context).colorScheme.onSurfaceVariant,
                       ),
                     ),
                   ],
                 ),
               ),
 
-              // Badge chưa đọc (Unread Badge)
+              // Badge chưa đọc
               if (hasUnread)
                 Container(
                   margin: const EdgeInsets.only(left: 12, top: 12),
@@ -352,10 +435,10 @@ class _MessagesScreenState extends State<MessagesScreen> {
                   ),
                   child: Center(
                     child: Text(
-                      unreadCount.toString(),
+                      conversation.unreadCount > 99 ? '99+' : conversation.unreadCount.toString(),
                       style: TextStyle(
                         fontFamily: 'Inter',
-                        fontSize: 12,
+                        fontSize: 10,
                         fontWeight: FontWeight.bold,
                         color: Theme.of(context).colorScheme.onPrimary,
                       ),
@@ -369,4 +452,43 @@ class _MessagesScreenState extends State<MessagesScreen> {
     );
   }
 
+  // --- Helper: Avatar widget ---
+  Widget _buildAvatarWidget(BuildContext context, bool isDesktop) {
+    final avatarUrl = context.watch<AuthProvider>().avatarUrl;
+    final normalizedUrl = ApiConfig.normalizeUrl(avatarUrl);
+    const size = 40.0;
+
+    Widget avatar;
+    if (normalizedUrl != null) {
+      avatar = Image.network(
+        normalizedUrl,
+        fit: BoxFit.cover,
+        width: size,
+        height: size,
+        errorBuilder: (_, __, ___) => Icon(
+          Icons.person,
+          color: Theme.of(context).colorScheme.onSurfaceVariant,
+        ),
+      );
+    } else {
+      avatar = Icon(
+        Icons.person,
+        color: Theme.of(context).colorScheme.onSurfaceVariant,
+      );
+    }
+
+    return Container(
+      width: size,
+      height: size,
+      decoration: BoxDecoration(
+        shape: BoxShape.circle,
+        border: isDesktop ? Border.all(color: Theme.of(context).colorScheme.surface, width: 2) : null,
+        color: Theme.of(context).colorScheme.surfaceContainerHighest,
+      ),
+      child: ClipRRect(
+        borderRadius: BorderRadius.circular(size / 2),
+        child: avatar,
+      ),
+    );
+  }
 }

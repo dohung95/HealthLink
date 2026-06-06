@@ -80,7 +80,7 @@ class _WelcomeScreenState extends State<WelcomeScreen> with TickerProviderStateM
     final double screenWidth = MediaQuery.of(context).size.width;
 
     return Scaffold(
-      backgroundColor: Theme.of(context).colorScheme.background, // Màu nền tổng thể của body
+      backgroundColor: Theme.of(context).colorScheme.surface, // Màu nền tổng thể của body
       body: Stack(
         children: [
           // --- Vòng tròn trang trí mờ phía sau (Background Blur) ---
@@ -92,7 +92,7 @@ class _WelcomeScreenState extends State<WelcomeScreen> with TickerProviderStateM
             height: screenWidth * 0.7,
               child: Container(
               decoration: BoxDecoration(
-                color: Theme.of(context).colorScheme.surfaceVariant,
+                color: Theme.of(context).colorScheme.surfaceContainerHighest,
                 shape: BoxShape.circle,
               ),
               child: BackdropFilter(
@@ -142,7 +142,7 @@ class _WelcomeScreenState extends State<WelcomeScreen> with TickerProviderStateM
                             borderRadius: BorderRadius.circular(24), // rounded-3xl
                             boxShadow: [
                               BoxShadow(
-                                color: Theme.of(context).colorScheme.onSurface.withOpacity(0.06),
+                                color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.06),
                                 blurRadius: 30,
                                 offset: const Offset(0, 8),
                               ),
@@ -216,13 +216,13 @@ class _WelcomeScreenState extends State<WelcomeScreen> with TickerProviderStateM
                                   shape: RoundedRectangleBorder(
                                     borderRadius: BorderRadius.circular(12), // rounded-xl
                                   ),
-                                  shadowColor: Theme.of(context).colorScheme.onPrimary.withOpacity(0.08),
+                                  shadowColor: Theme.of(context).colorScheme.onPrimary.withValues(alpha: 0.08),
                                 ).copyWith(
                                   // Hiệu ứng hover đổi màu nền
                                   overlayColor: WidgetStateProperty.resolveWith<Color?>(
                                         (Set<WidgetState> states) {
                                       if (states.contains(WidgetState.hovered) || states.contains(WidgetState.pressed)) {
-                                        return Theme.of(context).colorScheme.tertiaryContainer.withOpacity(0.2);
+                                        return Theme.of(context).colorScheme.tertiaryContainer.withValues(alpha: 0.2);
                                       }
                                       return null;
                                     },
@@ -237,16 +237,19 @@ class _WelcomeScreenState extends State<WelcomeScreen> with TickerProviderStateM
                                 child: Row(
                                   mainAxisAlignment: MainAxisAlignment.center,
                                   children: [
-                                    Text(
-                                      'Get Started',
-                                      style: TextStyle(
-                                        fontFamily: 'Inter',
-                                        fontSize: 18, // text-title-md
-                                        fontWeight: FontWeight.w600,
+                                    const Flexible(
+                                      child: Text(
+                                        'Get Started',
+                                        style: TextStyle(
+                                          fontFamily: 'Inter',
+                                          fontSize: 18, // text-title-md
+                                          fontWeight: FontWeight.w600,
+                                        ),
+                                        overflow: TextOverflow.ellipsis,
                                       ),
                                     ),
                                     const SizedBox(width: 8),
-                                    Icon(
+                                    const Icon(
                                       Icons.arrow_forward, // Material Symbols Outlined arrow_forward
                                       size: 20,
                                     ),
@@ -257,37 +260,12 @@ class _WelcomeScreenState extends State<WelcomeScreen> with TickerProviderStateM
                             const SizedBox(height: 16), // mt-md
 
                             // Dòng Đăng nhập
-                            Row(
-                              mainAxisAlignment: MainAxisAlignment.center,
-                                children: [
-                                Text(
-                                  'Already have an account? ',
-                                  style: TextStyle(
-                                    fontFamily: 'Inter',
-                                    fontSize: 14, // text-body-md
-                                    fontWeight: FontWeight.w400,
-                                    color: Theme.of(context).colorScheme.outline,
-                                  ),
-                                ),
-                                GestureDetector(
-                                  onTap: () {
-                                    Navigator.push(
-                                      context,
-                                      MaterialPageRoute(builder: (context) => const LoginScreen()),
-                                    );
-                                  },
-                                  child: Text(
-                                    'Log In',
-                                    style: TextStyle(
-                                      fontFamily: 'Inter',
-                                      fontSize: 18, // text-title-md
-                                      fontWeight: FontWeight.w600,
-                                      color: Theme.of(context).colorScheme.primary,
-                                      decoration: TextDecoration.underline,
-                                      decorationThickness: 2,
-                                    ),
-                                  ),
-                                ),
+                            const Wrap(
+                              alignment: WrapAlignment.center,
+                              crossAxisAlignment: WrapCrossAlignment.center,
+                              children: [
+                                _LogInPrompt(),
+                                _LogInLink(),
                               ],
                             ),
                           ],
@@ -300,6 +278,50 @@ class _WelcomeScreenState extends State<WelcomeScreen> with TickerProviderStateM
             ),
           ),
         ],
+      ),
+    );
+  }
+}
+
+class _LogInPrompt extends StatelessWidget {
+  const _LogInPrompt();
+
+  @override
+  Widget build(BuildContext context) {
+    return Text(
+      'Already have an account? ',
+      style: TextStyle(
+        fontFamily: 'Inter',
+        fontSize: 14, // text-body-md
+        fontWeight: FontWeight.w400,
+        color: Theme.of(context).colorScheme.outline,
+      ),
+    );
+  }
+}
+
+class _LogInLink extends StatelessWidget {
+  const _LogInLink();
+
+  @override
+  Widget build(BuildContext context) {
+    return GestureDetector(
+      onTap: () {
+        Navigator.push(
+          context,
+          MaterialPageRoute(builder: (context) => const LoginScreen()),
+        );
+      },
+      child: Text(
+        'Log In',
+        style: TextStyle(
+          fontFamily: 'Inter',
+          fontSize: 18, // text-title-md
+          fontWeight: FontWeight.w600,
+          color: Theme.of(context).colorScheme.primary,
+          decoration: TextDecoration.underline,
+          decorationThickness: 2,
+        ),
       ),
     );
   }

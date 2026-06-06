@@ -1,4 +1,7 @@
 import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
+import '../providers/auth_provider.dart';
+import '../config/api_config.dart';
 
 class PatientHomeScreen extends StatefulWidget {
   const PatientHomeScreen({super.key});
@@ -69,12 +72,7 @@ class _PatientHomeScreenState extends State<PatientHomeScreen> {
                   ),
                   child: ClipRRect(
                     borderRadius: BorderRadius.circular(100),
-                    child: Image.asset(
-                      'assets/images/user_avatar.png', // Nhớ thêm ảnh avatar vào thư mục
-                      fit: BoxFit.cover,
-                      errorBuilder: (context, error, stackTrace) =>
-                        Icon(Icons.account_circle, size: 40, color: Theme.of(context).colorScheme.outline),
-                    ),
+                    child: _buildAvatarWidget(context, isDesktop),
                   ),
                 ),
                 const SizedBox(width: 12),
@@ -82,7 +80,7 @@ class _PatientHomeScreenState extends State<PatientHomeScreen> {
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Text(
-                      'Good morning,',
+                      _greeting(),
                       style: TextStyle(
                         fontFamily: 'Inter',
                         fontSize: isDesktop ? 14 : 12,
@@ -90,7 +88,7 @@ class _PatientHomeScreenState extends State<PatientHomeScreen> {
                       ),
                     ),
                     Text(
-                      'Nguyen Van A',
+                      context.watch<AuthProvider>().displayName ?? 'Người dùng',
                       style: TextStyle(
                         fontFamily: 'Inter',
                         fontSize: isDesktop ? 24 : 20,
@@ -145,6 +143,40 @@ class _PatientHomeScreenState extends State<PatientHomeScreen> {
         ),
       ),
     );
+  }
+
+  // --- Helper: Avatar widget với fallback ---
+  Widget _buildAvatarWidget(BuildContext context, bool isDesktop) {
+    final avatarUrl = context.watch<AuthProvider>().avatarUrl;
+    final normalizedUrl = ApiConfig.normalizeUrl(avatarUrl);
+    final size = isDesktop ? 48.0 : 40.0;
+
+    if (normalizedUrl != null) {
+      return Image.network(
+        normalizedUrl,
+        fit: BoxFit.cover,
+        width: size,
+        height: size,
+        errorBuilder: (_, __, ___) => Icon(
+          Icons.account_circle,
+          size: size,
+          color: Theme.of(context).colorScheme.outline,
+        ),
+      );
+    }
+    return Icon(
+      Icons.account_circle,
+      size: size,
+      color: Theme.of(context).colorScheme.outline,
+    );
+  }
+
+  // --- Helper: Lời chào theo giờ ---
+  String _greeting() {
+    final hour = DateTime.now().hour;
+    if (hour < 12) return 'Hello, Good Morning';
+    if (hour < 18) return 'Hi, Good Afternoon,';
+    return 'Have a good night';
   }
 
   // --- 2. Hàng Thống Kê ---

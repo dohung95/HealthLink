@@ -619,29 +619,12 @@ class _RegisterScreenState extends State<RegisterScreen> {
                         const SizedBox(height: 16),
 
                         // Log In link
-                        Row(
-                          mainAxisAlignment: MainAxisAlignment.center,
+                        Wrap(
+                          alignment: WrapAlignment.center,
+                          crossAxisAlignment: WrapCrossAlignment.center,
                           children: [
-                            Text(
-                              'Already have an account? ',
-                              style: TextStyle(
-                                  fontFamily: 'Inter',
-                                  fontSize: 14,
-                                  color: Theme.of(context).colorScheme.outline),
-                            ),
-                            GestureDetector(
-                              onTap: () => Navigator.push(context,
-                                  MaterialPageRoute(builder: (_) => const LoginScreen())),
-                              child: Text(
-                                'Log In',
-                                style: TextStyle(
-                                  fontFamily: 'Inter',
-                                  fontSize: 14,
-                                  fontWeight: FontWeight.w600,
-                                  color: Theme.of(context).colorScheme.primary,
-                                ),
-                              ),
-                            ),
+                            _LogInPrompt(),
+                            _LogInLink(),
                           ],
                         ),
                       ],
@@ -729,4 +712,40 @@ class _RegisterScreenState extends State<RegisterScreen> {
           ],
         ),
       );
+}
+
+class _LogInPrompt extends StatelessWidget {
+  const _LogInPrompt();
+
+  @override
+  Widget build(BuildContext context) {
+    return Text(
+      'Already have an account? ',
+      style: TextStyle(
+          fontFamily: 'Inter',
+          fontSize: 14,
+          color: Theme.of(context).colorScheme.outline),
+    );
+  }
+}
+
+class _LogInLink extends StatelessWidget {
+  const _LogInLink();
+
+  @override
+  Widget build(BuildContext context) {
+    return GestureDetector(
+      onTap: () => Navigator.push(
+          context, MaterialPageRoute(builder: (_) => const LoginScreen())),
+      child: Text(
+        'Log In',
+        style: TextStyle(
+          fontFamily: 'Inter',
+          fontSize: 14,
+          fontWeight: FontWeight.w600,
+          color: Theme.of(context).colorScheme.primary,
+        ),
+      ),
+    );
+  }
 }

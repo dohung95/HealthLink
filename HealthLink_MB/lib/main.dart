@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'config/themes.dart';
 import 'providers/auth_provider.dart';
+import 'providers/chat_provider.dart';
 import 'screens/welcome_screen.dart';
 import 'screens/main_layout.dart';
 
@@ -14,8 +15,11 @@ Future<void> main() async {
   await authProvider.loadSavedSession();
 
   runApp(
-    ChangeNotifierProvider<AuthProvider>.value(
-      value: authProvider,
+    MultiProvider(
+      providers: [
+        ChangeNotifierProvider<AuthProvider>.value(value: authProvider),
+        ChangeNotifierProvider<ChatProvider>(create: (_) => ChatProvider()),
+      ],
       child: const HealthLinkApp(),
     ),
   );

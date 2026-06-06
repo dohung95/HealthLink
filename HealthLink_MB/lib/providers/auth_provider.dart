@@ -1,4 +1,7 @@
+import 'dart:convert';
 import 'package:flutter/foundation.dart';
+import 'package:http/http.dart' as http;
+import '../config/api_config.dart';
 import '../models/auth/login_request.dart';
 import '../models/auth/login_response.dart';
 import '../models/auth/register_request.dart';
@@ -14,9 +17,13 @@ class AuthProvider extends ChangeNotifier {
   AuthStatus _status = AuthStatus.initial;
   String _errorMessage = '';
   String? _accessToken;
-  String? _refreshToken;      // Dùng khi implement auto refresh token
+  String? _refreshToken;
   String? _userId;
   List<String> _roles = [];
+
+  // Thông tin profile (tải sau khi login)
+  String? _displayName;
+  String? _avatarUrl;
 
   // ── Getters ────────────────────────────────────────────────────────────────
 
@@ -28,6 +35,8 @@ class AuthProvider extends ChangeNotifier {
   List<String> get roles       => _roles;
   bool       get isLoading     => _status == AuthStatus.loading;
   bool       get isAuthenticated => _status == AuthStatus.authenticated;
+  String?    get displayName   => _displayName;
+  String?    get avatarUrl     => _avatarUrl;
 
   // ── Init: Tải token từ SharedPreferences khi app khởi động ─────────────────
 
@@ -40,6 +49,8 @@ class AuthProvider extends ChangeNotifier {
       _userId       = await TokenUtils.getUserId();
       _roles        = _extractRoles(token);
       _status       = AuthStatus.authenticated;
+      // Tải profile ngầm sau khi khôi phục session
+      _fetchProfile(token);
     } else {
       _status = AuthStatus.unauthenticated;
     }
@@ -59,6 +70,8 @@ class AuthProvider extends ChangeNotifier {
       await _saveSession(response);
       _status = AuthStatus.authenticated;
       notifyListeners();
+      // Tải profile ngầm sau login
+      _fetchProfile(response.accessToken);
       return true;
     } catch (e) {
       _setError(_cleanErrorMessage(e.toString()));
@@ -172,10 +185,33 @@ class AuthProvider extends ChangeNotifier {
     _refreshToken = null;
     _userId       = null;
     _roles        = [];
+    _displayName  = null;
+    _avatarUrl    = null;
     _status       = AuthStatus.unauthenticated;
     _errorMessage = '';
     await TokenUtils.clearTokens();
     notifyListeners();
+  }
+
+  /// Gọi ngầm /api/account/patient/profile để lấy tên và avatar.
+  Future<void> _fetchProfile(String token) async {
+    try {
+      final res = await http.get(
+        Uri.parse(ApiConfig.patientProfile),
+        headers: {
+          'Authorization': 'Bearer $token',
+          'Accept': 'application/json',
+        },
+      ).timeout(ApiConfig.connectTimeout);
+      if (res.statusCode == 200) {
+        final data = jsonDecode(res.body) as Map<String, dynamic>;
+        _displayName = data['fullName']?.toString();
+        _avatarUrl   = data['avatarUrl']?.toString();
+        notifyListeners();
+      }
+    } catch (e) {
+      debugPrint('AuthProvider _fetchProfile error: $e');
+    }
   }
 
   /// Trích xuất roles từ JWT token.
