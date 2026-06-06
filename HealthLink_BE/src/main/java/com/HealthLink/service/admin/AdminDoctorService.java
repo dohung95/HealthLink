@@ -3,10 +3,16 @@ package com.HealthLink.service.admin;
 import com.HealthLink.dto.admin.*;
 import com.HealthLink.entity.AdminAuditLog;
 import com.HealthLink.entity.Doctor;
+import com.HealthLink.entity.DoctorSchedule;
+import com.HealthLink.entity.DoctorScheduleException;
+import com.HealthLink.entity.Specialty;
 import com.HealthLink.entity.User;
 import com.HealthLink.exception.BadRequestException;
 import com.HealthLink.exception.ResourceNotFoundException;
 import com.HealthLink.repository.admin.AdminDoctorRepository;
+import com.HealthLink.repository.admin.DoctorScheduleExceptionRepository;
+import com.HealthLink.repository.doctor.DoctorScheduleRepository;
+import com.HealthLink.repository.doctor.SpecialtyRepository;
 import jakarta.transaction.Transactional;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
@@ -16,10 +22,12 @@ import org.springframework.data.jpa.domain.Specification;
 import org.springframework.stereotype.Service;
 import org.springframework.util.StringUtils;
 
+import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Objects;
+import java.util.Optional;
 import java.util.stream.Collectors;
 
 @Service
@@ -28,10 +36,20 @@ public class AdminDoctorService {
 
     private final AdminDoctorRepository doctorRepository;
     private final AdminAuditLogService auditLogService;
+    private final DoctorScheduleRepository scheduleRepository;
+    private final DoctorScheduleExceptionRepository exceptionRepository;
+    private final SpecialtyRepository specialtyRepository;
 
-    public AdminDoctorService(AdminDoctorRepository doctorRepository, AdminAuditLogService auditLogService) {
+    public AdminDoctorService(AdminDoctorRepository doctorRepository,
+                              AdminAuditLogService auditLogService,
+                              DoctorScheduleRepository scheduleRepository,
+                              DoctorScheduleExceptionRepository exceptionRepository,
+                              SpecialtyRepository specialtyRepository) {
         this.doctorRepository = doctorRepository;
         this.auditLogService = auditLogService;
+        this.scheduleRepository = scheduleRepository;
+        this.exceptionRepository = exceptionRepository;
+        this.specialtyRepository = specialtyRepository;
     }
 
     public AdminDoctorPageResponse getDoctors(int pageNumber, int pageSize, String searchTerm,
@@ -68,7 +86,18 @@ public class AdminDoctorService {
             doctor.setFullName(updateDto.getFullName());
         }
         if (StringUtils.hasText(updateDto.getSpecialty())) {
-            doctor.setSpecialty(updateDto.getSpecialty());
+            String newSpecialtyName = updateDto.getSpecialty();
+            doctor.setSpecialty(newSpecialtyName);
+
+            // Also update specialtyEntity to keep both fields in sync
+            Optional<Specialty> specialtyOpt = specialtyRepository.findByNameIgnoreCase(newSpecialtyName);
+            if (specialtyOpt.isPresent()) {
+                doctor.setSpecialtyEntity(specialtyOpt.get());
+            } else {
+                // If specialty not found in Specialty table, clear the relationship
+                // This ensures Patient API will fallback to specialty String field
+                doctor.setSpecialtyEntity(null);
+            }
         }
         if (StringUtils.hasText(updateDto.getQualifications())) {
             doctor.setQualifications(updateDto.getQualifications());
@@ -152,6 +181,74 @@ public class AdminDoctorService {
         } else {
             throw new BadRequestException("Doctor has no associated user");
         }
+    }
+
+    /**
+     * Lấy danh sách bác sĩ có lịch làm việc vào ngày cụ thể.
+     * Logic:
+     * 1. Lấy tất cả bác sĩ Active theo specialty (nếu có)
+     * 2. Filter những bác sĩ có schedule vào dayOfWeek của ngày đó
+     * 3. Loại trừ những bác sĩ có exception DayOff vào ngày đó
+     * 4. Bao gồm những bác sĩ có exception AddSlot vào ngày đó (dù không có schedule cố định)
+     *
+     * @param date Ngày cần kiểm tra
+     * @param specialty Chuyên khoa (optional)
+     * @param excludeDoctorId ID bác sĩ cần loại trừ (bác sĩ hiện tại)
+     * @return Danh sách bác sĩ available
+     */
+    public List<AdminDoctorDto> getDoctorsAvailableOnDate(LocalDate date, String specialty, String excludeDoctorId) {
+        // Tính dayOfWeek: Java DayOfWeek (1=Monday...7=Sunday) -> convert to (0=Sunday, 1=Monday...6=Saturday)
+        int javaDayOfWeek = date.getDayOfWeek().getValue(); // 1=Mon, 7=Sun
+        int dayOfWeek = javaDayOfWeek == 7 ? 0 : javaDayOfWeek; // Convert: Sun=0, Mon=1...Sat=6
+
+        // Lấy tất cả bác sĩ Active
+        Specification<Doctor> spec = buildSpecification(null, "Active", specialty);
+        List<Doctor> allActiveDoctors = doctorRepository.findAll(spec);
+
+        List<AdminDoctorDto> availableDoctors = new ArrayList<>();
+
+        for (Doctor doctor : allActiveDoctors) {
+            // Loại trừ bác sĩ hiện tại
+            if (excludeDoctorId != null && doctor.getDoctorId().equals(excludeDoctorId)) {
+                continue;
+            }
+
+            if (isDoctorWorkingOnDate(doctor.getDoctorId(), date, dayOfWeek)) {
+                availableDoctors.add(mapToDto(doctor));
+            }
+        }
+
+        return availableDoctors;
+    }
+
+    /**
+     * Kiểm tra bác sĩ có làm việc vào ngày cụ thể không.
+     */
+    private boolean isDoctorWorkingOnDate(String doctorId, LocalDate date, int dayOfWeek) {
+        // Kiểm tra exception trước
+        Optional<DoctorScheduleException> exceptionOpt = exceptionRepository
+                .findByDoctor_DoctorIdAndExceptionDate(doctorId, date);
+
+        if (exceptionOpt.isPresent()) {
+            DoctorScheduleException exception = exceptionOpt.get();
+            String exceptionType = exception.getExceptionType();
+
+            // Nếu là DayOff -> không làm việc
+            if ("DayOff".equalsIgnoreCase(exceptionType)) {
+                return false;
+            }
+
+            // Nếu là AddSlot hoặc Modified -> có làm việc
+            if ("AddSlot".equalsIgnoreCase(exceptionType) || "Modified".equalsIgnoreCase(exceptionType)) {
+                return true;
+            }
+        }
+
+        // Kiểm tra schedule cố định theo dayOfWeek
+        List<DoctorSchedule> schedules = scheduleRepository
+                .findByDoctor_DoctorIdAndDayOfWeekAndAvailableTrue(doctorId, dayOfWeek);
+
+        return !schedules.isEmpty();
     }
 
     private Sort resolveSort(String sortBy) {

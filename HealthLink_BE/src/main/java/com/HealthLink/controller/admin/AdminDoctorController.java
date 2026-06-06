@@ -2,10 +2,14 @@ package com.HealthLink.controller.admin;
 
 import com.HealthLink.dto.admin.*;
 import com.HealthLink.service.admin.AdminDoctorService;
+import org.springframework.format.annotation.DateTimeFormat;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.core.Authentication;
 import org.springframework.web.bind.annotation.*;
+
+import java.time.LocalDate;
+import java.util.List;
 
 @CrossOrigin(origins = "http://localhost:63527")
 @RestController
@@ -69,5 +73,24 @@ public class AdminDoctorController {
     public ResponseEntity<Void> deleteDoctor(@PathVariable String doctorId) {
         adminDoctorService.deleteDoctor(doctorId);
         return ResponseEntity.noContent().build();
+    }
+
+    /**
+     * GET /api/admin/admindoctors/available-on-date
+     * Lấy danh sách bác sĩ có lịch làm việc vào ngày cụ thể.
+     * Dùng cho tính năng Reassign Appointment.
+     *
+     * @param date Ngày cần kiểm tra (format: yyyy-MM-dd)
+     * @param specialty Chuyên khoa (optional, ưu tiên cùng chuyên khoa)
+     * @param excludeDoctorId ID bác sĩ cần loại trừ (bác sĩ hiện tại của appointment)
+     */
+    @GetMapping("/available-on-date")
+    public ResponseEntity<List<AdminDoctorDto>> getDoctorsAvailableOnDate(
+            @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate date,
+            @RequestParam(required = false) String specialty,
+            @RequestParam(required = false) String excludeDoctorId
+    ) {
+        List<AdminDoctorDto> doctors = adminDoctorService.getDoctorsAvailableOnDate(date, specialty, excludeDoctorId);
+        return ResponseEntity.ok(doctors);
     }
 }

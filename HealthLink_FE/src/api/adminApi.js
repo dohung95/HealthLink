@@ -95,6 +95,31 @@ export const doctorsApi = {
   delete: async (id) => {
     const response = await adminApi.delete(`/admindoctors/${id}`);
     return response.data;
+  },
+
+  /**
+   * Lấy danh sách bác sĩ có lịch làm việc vào ngày cụ thể.
+   * @param {string} date - Ngày cần kiểm tra (format: yyyy-MM-dd)
+   * @param {string} specialty - Chuyên khoa (optional)
+   * @param {string} excludeDoctorId - ID bác sĩ cần loại trừ (optional)
+   * @returns {Promise<Array>} Danh sách bác sĩ available
+   */
+  getAvailableOnDate: async (date, specialty = '', excludeDoctorId = '') => {
+    const response = await adminApi.get('/admindoctors/available-on-date', {
+      params: { date, specialty, excludeDoctorId }
+    });
+    return response.data;
+  },
+
+  /**
+   * Lấy danh sách specialties từ database.
+   * Dùng cho filter và edit form.
+   * @returns {Promise<Array>} Danh sách specialties [{specialtyId, name}, ...]
+   */
+  getSpecialties: async () => {
+    // Sử dụng public API registration/specialties
+    const response = await axios.get(`${API_BASE_URL}/api/registration/specialties`);
+    return response.data;
   }
 };
 
