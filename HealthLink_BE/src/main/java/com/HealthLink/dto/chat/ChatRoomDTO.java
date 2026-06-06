@@ -18,10 +18,12 @@ public class ChatRoomDTO {
     private String user1Id;
     private String user1DisplayName;
     private String user1PhotoURL;
+    private String user1Specialty;
 
     private String user2Id;
     private String user2DisplayName;
     private String user2PhotoURL;
+    private String user2Specialty;
 
     /** Nội dung tin nhắn cuối cùng trong phòng. */
     private String lastMessage;

@@ -2,8 +2,9 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'config/themes.dart';
 import 'providers/auth_provider.dart';
+import 'providers/chat_provider.dart';
 import 'screens/welcome_screen.dart';
-import 'screens/patient_home_screen.dart';
+import 'screens/main_layout.dart';
 
 Future<void> main() async {
   // Đảm bảo Flutter binding sẵn sàng trước khi gọi SharedPreferences
@@ -14,8 +15,11 @@ Future<void> main() async {
   await authProvider.loadSavedSession();
 
   runApp(
-    ChangeNotifierProvider<AuthProvider>.value(
-      value: authProvider,
+    MultiProvider(
+      providers: [
+        ChangeNotifierProvider<AuthProvider>.value(value: authProvider),
+        ChangeNotifierProvider<ChatProvider>(create: (_) => ChatProvider()),
+      ],
       child: const HealthLinkApp(),
     ),
   );
@@ -40,7 +44,7 @@ class HealthLinkApp extends StatelessWidget {
 /// Widget quyết định màn hình khởi động dựa theo auth state.
 ///
 /// Logic:
-/// - [AuthStatus.authenticated] → PatientHomeScreen (đã có token hợp lệ)
+/// - [AuthStatus.authenticated] → MainLayout (đã có token hợp lệ)
 /// - Còn lại (initial, unauthenticated, error) → WelcomeScreen
 ///
 /// Lắng nghe [AuthProvider] để tự động điều hướng khi trạng thái thay đổi
@@ -55,7 +59,7 @@ class _RootRouter extends StatelessWidget {
       selector: (_, auth) => auth.status,
       builder: (_, status, __) {
         if (status == AuthStatus.authenticated) {
-          return const PatientHomeScreen();
+          return const MainLayout();
         }
         return const WelcomeScreen();
       },

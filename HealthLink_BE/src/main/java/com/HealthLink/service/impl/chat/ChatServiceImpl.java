@@ -208,14 +208,52 @@ public class ChatServiceImpl implements ChatService {
     // =========================================================================
 
     private ChatRoomDTO toRoomDTO(ChatRoom room) {
+        // Lấy ảnh + tên cached trong bảng ChatRooms
+        String user1Name  = room.getUser1DisplayName();
+        String user1Photo = room.getUser1PhotoURL();
+        String user2Name  = room.getUser2DisplayName();
+        String user2Photo = room.getUser2PhotoURL();
+        String user1Specialty = null;
+        String user2Specialty = null;
+
+        // Nếu avatar chưa được lưu (null/rỗng), lấy từ profile hiện tại.
+        // Điều này xảy ra khi phòng được tạo trước khi user upload avatar.
+        if (user1Photo == null || user1Photo.isBlank()) {
+            try {
+                java.util.Optional<com.HealthLink.entity.User> u1 =
+                        userRepository.findById(room.getUser1Id());
+                if (u1.isPresent()) {
+                    String[] info = extractUserInfo(u1.get());
+                    if (user1Name == null || user1Name.isBlank()) user1Name = info[0];
+                    if (user1Photo == null || user1Photo.isBlank()) user1Photo = info[1];
+                    user1Specialty = info[2];
+                }
+            } catch (Exception ignored) {}
+        } // <-- ĐÂY LÀ DẤU NGOẶC BẠN QUÊN ĐÓNG
+
+        if (user2Photo == null || user2Photo.isBlank()) {
+            try {
+                java.util.Optional<com.HealthLink.entity.User> u2 =
+                        userRepository.findById(room.getUser2Id());
+                if (u2.isPresent()) {
+                    String[] info = extractUserInfo(u2.get());
+                    if (user2Name == null || user2Name.isBlank()) user2Name = info[0];
+                    if (user2Photo == null || user2Photo.isBlank()) user2Photo = info[1];
+                    user2Specialty = info[2];
+                }
+            } catch (Exception ignored) {}
+        }
+
         return ChatRoomDTO.builder()
                 .chatRoomId(room.getChatRoomId())
                 .user1Id(room.getUser1Id())
-                .user1DisplayName(room.getUser1DisplayName())
-                .user1PhotoURL(room.getUser1PhotoURL())
+                .user1DisplayName(user1Name)
+                .user1PhotoURL(user1Photo)
+                .user1Specialty(user1Specialty)
                 .user2Id(room.getUser2Id())
-                .user2DisplayName(room.getUser2DisplayName())
-                .user2PhotoURL(room.getUser2PhotoURL())
+                .user2DisplayName(user2Name)
+                .user2PhotoURL(user2Photo)
+                .user2Specialty(user2Specialty)
                 .lastMessage(room.getLastMessage())
                 .lastMessageAt(room.getLastMessageAt())
                 .appointmentId(room.getAppointment() != null
@@ -257,18 +295,22 @@ public class ChatServiceImpl implements ChatService {
     private String[] extractUserInfo(User user) {
         String displayName = user.getUsername(); // default fallback
         String avatarUrl = null;
+        String specialty = null;
 
         if (user.getPatient() != null) {
             displayName = user.getPatient().getFullName();
             avatarUrl = user.getPatient().getAvatarUrl();
+            specialty = "Patient";
         } else if (user.getDoctor() != null) {
             displayName = user.getDoctor().getFullName();
             avatarUrl = user.getDoctor().getAvatarUrl();
+            specialty = user.getDoctor().getSpecialty();
         } else if (user.getPharmacy() != null) {
             displayName = user.getPharmacy().getName();
             avatarUrl = user.getPharmacy().getAvatarUrl();
+            specialty = "Pharmacy";
         }
 
-        return new String[]{displayName, avatarUrl};
+        return new String[]{displayName, avatarUrl, specialty};
     }
 }
