@@ -87,12 +87,27 @@ export function useAppointmentDetail({ appointment, patient, doctorId: currentDo
     const appointmentTime = currentAppointment?.appointmentTime ? new Date(currentAppointment.appointmentTime) : null;
     const hasAppointmentTimeArrived = appointmentTime ? appointmentTime <= new Date() : false;
     const hasStarted = Boolean(consultation.startTime || currentAppointment?.consultationStartTime);
+    const isScheduledAppointment = statusKey === 'scheduled';
+    const isInConsultationAppointment = statusKey === 'inconsultation' || statusKey === 'inprogress';
     const isReadOnlyAppointment = statusKey === 'completed';
     const isCancelledAppointment = statusKey === 'cancelled' || statusKey === 'canceled';
-    const canStartConsultation = statusKey === 'scheduled' && hasAppointmentTimeArrived && !hasStarted && !startingConsultation;
-    const canEditClinical = statusKey === 'scheduled' && hasStarted;
+    const canStartConsultation =
+      isScheduledAppointment && hasAppointmentTimeArrived && !hasStarted && !startingConsultation;
+    const canEditClinical =
+      (isScheduledAppointment || isInConsultationAppointment) &&
+      hasStarted &&
+      !isReadOnlyAppointment &&
+      !isCancelledAppointment;
+    const canEditPrescription = canEditClinical;
     const canEditFollowUp = canEditClinical && !isReadOnlyAppointment && !isCancelledAppointment;
     const joinDisabled = !hasStarted || isReadOnlyAppointment || isCancelledAppointment;
+    const prescriptionLockReason = isReadOnlyAppointment
+      ? 'This appointment is completed. Prescription editing is no longer available.'
+      : isCancelledAppointment
+        ? 'This appointment was cancelled. Prescription editing is not available.'
+        : !hasStarted
+          ? 'Start the consultation when the appointment time arrives to create a prescription.'
+          : 'Prescription editing is not available for this appointment.';
     const actionLabel = currentAppointment?.consultationType === 'Chat'
       ? 'Open Chat'
       : `Join ${currentAppointment?.consultationType || 'Consultation'}`;
@@ -104,7 +119,8 @@ export function useAppointmentDetail({ appointment, patient, doctorId: currentDo
     return {
       statusKey, patientName, patientEmail, completedHistory, appointmentTime,
       hasAppointmentTimeArrived, hasStarted, isReadOnlyAppointment, isCancelledAppointment,
-      canStartConsultation, canEditClinical, canEditFollowUp, joinDisabled, actionLabel, visitReason,
+      canStartConsultation, canEditClinical, canEditPrescription, canEditFollowUp,
+      joinDisabled, prescriptionLockReason, actionLabel, visitReason,
     };
   }, [currentAppointment, patient, appointmentData.medicalHistory, appointmentData.appointmentDetail, consultation, startingConsultation]);
 
@@ -183,7 +199,7 @@ export function useAppointmentDetail({ appointment, patient, doctorId: currentDo
 
     try {
       if (prescriptionPayload) {
-        const created = await prescriptionService.createPrescription(prescriptionPayload);
+        await prescriptionService.createPrescription(prescriptionPayload);
         appointmentData.refreshAppointmentData({ showToast: false });
       }
 

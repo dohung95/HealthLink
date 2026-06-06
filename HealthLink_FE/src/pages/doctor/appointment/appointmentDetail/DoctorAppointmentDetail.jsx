@@ -121,6 +121,8 @@ const DoctorAppointmentDetail = memo(({ appointment, patient, doctorId, onBack, 
                 loadingPrescription={ctx.loadingPrescription}
                 onDraftChange={ctx.setPrescriptionDraft}
                 readOnly={ctx.isReadOnlyAppointment}
+                canEditPrescription={ctx.canEditPrescription}
+                prescriptionLockReason={ctx.prescriptionLockReason}
               />
             ) : null}
             {ctx.activeTab === 'followup' ? (

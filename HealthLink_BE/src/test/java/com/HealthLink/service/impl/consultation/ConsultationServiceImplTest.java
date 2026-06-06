@@ -83,6 +83,65 @@ class ConsultationServiceImplTest {
     }
 
     @Test
+    void startByAppointmentForTesting_shouldBypassAppointmentTimeOnly() {
+        Appointment appointment = appointment(10, "SCHEDULED");
+        appointment.setAppointmentTime(LocalDateTime.now().plusMinutes(30));
+
+        when(appointmentRepository.findById(10)).thenReturn(Optional.of(appointment));
+        when(invoiceRepository.findByAppointment_AppointmentId(10)).thenReturn(Optional.of(paidInvoice(appointment)));
+        when(consultationRepository.findByAppointment_AppointmentId(10)).thenReturn(Optional.empty());
+        when(consultationRepository.save(any(Consultation.class))).thenAnswer(invocation -> {
+            Consultation saved = invocation.getArgument(0);
+            saved.setConsultationId(20);
+            return saved;
+        });
+
+        var response = consultationService.startByAppointmentForTesting(10);
+
+        assertThat(response.getConsultationId()).isEqualTo(20);
+        assertThat(response.getStartTime()).isNotNull();
+        assertThat(appointment.getStatus()).isEqualTo("IN_CONSULTATION");
+    }
+
+    @Test
+    void startByAppointmentForTesting_shouldRejectUnpaidAppointment() {
+        Appointment appointment = appointment(10, "SCHEDULED");
+        appointment.setAppointmentTime(LocalDateTime.now().plusMinutes(30));
+
+        when(appointmentRepository.findById(10)).thenReturn(Optional.of(appointment));
+        when(invoiceRepository.findByAppointment_AppointmentId(10)).thenReturn(Optional.empty());
+
+        assertThatThrownBy(() -> consultationService.startByAppointmentForTesting(10))
+                .isInstanceOf(BadRequestException.class)
+                .hasMessage("Appointment must be paid before consultation can be started");
+        verify(consultationRepository, never()).save(any(Consultation.class));
+    }
+
+    @Test
+    void startByAppointmentForTesting_shouldRejectCancelledAppointment() {
+        Appointment appointment = appointment(10, "CANCELLED");
+
+        when(appointmentRepository.findById(10)).thenReturn(Optional.of(appointment));
+
+        assertThatThrownBy(() -> consultationService.startByAppointmentForTesting(10))
+                .isInstanceOf(BadRequestException.class)
+                .hasMessage("Only scheduled appointments can be started");
+        verify(consultationRepository, never()).save(any(Consultation.class));
+    }
+
+    @Test
+    void startByAppointmentForTesting_shouldRejectCompletedAppointment() {
+        Appointment appointment = appointment(10, "COMPLETED");
+
+        when(appointmentRepository.findById(10)).thenReturn(Optional.of(appointment));
+
+        assertThatThrownBy(() -> consultationService.startByAppointmentForTesting(10))
+                .isInstanceOf(BadRequestException.class)
+                .hasMessage("Only scheduled appointments can be started");
+        verify(consultationRepository, never()).save(any(Consultation.class));
+    }
+
+    @Test
     void startByAppointment_shouldReturnExistingStartedConsultation() {
         Appointment appointment = appointment(10, "SCHEDULED");
         appointment.setAppointmentTime(LocalDateTime.now().minusMinutes(5));

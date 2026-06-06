@@ -652,8 +652,11 @@ const PrescriptionTab = ({
   loadingPrescription,
   onDraftChange,
   readOnly = false,
+  canEditPrescription = !readOnly,
+  prescriptionLockReason = 'Start the consultation when the appointment time arrives to create a prescription.',
 }) => {
   const workspaceAppointmentId = appointment?.appointmentID ?? appointment?.appointmentId ?? 'new';
+  const isWorkspaceReadOnly = readOnly || !canEditPrescription;
   const rowRefs = useRef({});
   const initializedAppointmentIdRef = useRef(null);
   const [diagnosis, setDiagnosis] = useState('');
@@ -746,7 +749,7 @@ const PrescriptionTab = ({
       return;
     }
 
-    if (prescription) {
+    if (prescription || !canEditPrescription) {
       onDraftChange(null);
       return;
     }
@@ -756,7 +759,17 @@ const PrescriptionTab = ({
       diagnosis,
       medicationRows,
     });
-  }, [diagnosis, medicationRows, onDraftChange, prescription, workspaceAppointmentId]);
+  }, [canEditPrescription, diagnosis, medicationRows, onDraftChange, prescription, workspaceAppointmentId]);
+
+  useEffect(() => {
+    if (!isWorkspaceReadOnly) {
+      return;
+    }
+
+    setIsLibraryOpen(false);
+    setShowLibraryFilters(false);
+    setEditorModalRowId(null);
+  }, [isWorkspaceReadOnly]);
 
   useEffect(() => {
     if (!isLibraryOpen) {
@@ -878,6 +891,10 @@ const PrescriptionTab = ({
   };
 
   const openMedicineLibrary = () => {
+    if (isWorkspaceReadOnly) {
+      return;
+    }
+
     setLibraryQuery('');
     setShowLibraryFilters(false);
     setIsLibraryOpen(true);
@@ -889,6 +906,10 @@ const PrescriptionTab = ({
   };
 
   const handleSelectMedicine = (medicine) => {
+    if (isWorkspaceReadOnly) {
+      return;
+    }
+
     let existingRowId = null;
     let nextRowId = null;
 
@@ -929,12 +950,20 @@ const PrescriptionTab = ({
   };
 
   const handleRemoveRow = (rowId) => {
+    if (isWorkspaceReadOnly) {
+      return;
+    }
+
     setMedicationRows((currentRows) => currentRows.filter((row) => row.id !== rowId));
     setEditorModalRowId((currentId) => (currentId === rowId ? null : currentId));
     setHighlightedRowId((currentId) => (currentId === rowId ? null : currentId));
   };
 
   const handleRowChange = (rowId, field, value) => {
+    if (isWorkspaceReadOnly) {
+      return;
+    }
+
     setMedicationRows((currentRows) =>
       currentRows.map((row) =>
         row.id === rowId
@@ -948,6 +977,10 @@ const PrescriptionTab = ({
   };
 
   const handleRowTimingToggle = (rowId, timingValue) => {
+    if (isWorkspaceReadOnly) {
+      return;
+    }
+
     setMedicationRows((currentRows) =>
       currentRows.map((row) => {
         if (row.id !== rowId) {
@@ -1035,13 +1068,22 @@ const PrescriptionTab = ({
           <p className="doctor-detail-note-card__label">Diagnosis Summary</p>
           <textarea
             className="form-control doctor-prescription-textarea"
-            readOnly={readOnly}
+            readOnly={isWorkspaceReadOnly}
             rows="4"
             placeholder="Enter primary diagnosis and relevant context for this prescription..."
             value={diagnosis}
             onChange={(event) => setDiagnosis(event.target.value)}
           />
         </div>
+
+        {isWorkspaceReadOnly ? (
+          <div className="doctor-detail-note-card doctor-notes-lock">
+            <p className="doctor-detail-note-card__label">Locked</p>
+            <p className="doctor-detail-note-card__value">
+              {prescriptionLockReason}
+            </p>
+          </div>
+        ) : null}
 
         <div className="doctor-prescription-table-card">
           <div className="doctor-prescription-table-card__header">
@@ -1103,9 +1145,9 @@ const PrescriptionTab = ({
                                  type="button"
                                >
                                  <i className="bi bi-pencil-square me-2"></i>
-                                 {readOnly ? 'View' : 'Edit'}
+                                 {isWorkspaceReadOnly ? 'View' : 'Edit'}
                                </button>
-                              {!readOnly ? (
+                              {!isWorkspaceReadOnly ? (
                                 <button
                                   className="btn btn-sm btn-link text-danger"
                                   onClick={() => handleRemoveRow(row.id)}
@@ -1137,7 +1179,7 @@ const PrescriptionTab = ({
                   </article>
                 );
               })}
-              {!readOnly ? (
+              {!isWorkspaceReadOnly ? (
                 <button
                   className="doctor-prescription-list__add-btn"
                   onClick={openMedicineLibrary}
@@ -1154,8 +1196,12 @@ const PrescriptionTab = ({
                 <i className="bi bi-capsule"></i>
               </div>
               <h4>No medication selected yet</h4>
-              <p>Open the medicine library to choose a medication before filling in dosage details.</p>
-              {!readOnly ? (
+              <p>
+                {isWorkspaceReadOnly
+                  ? 'No draft medication is available for this appointment yet.'
+                  : 'Open the medicine library to choose a medication before filling in dosage details.'}
+              </p>
+              {!isWorkspaceReadOnly ? (
                 <button className="btn btn-primary" onClick={openMedicineLibrary} type="button">
                   <i className="bi bi-search me-2"></i>
                   Open Medicine Library
@@ -1192,7 +1238,7 @@ const PrescriptionTab = ({
 
       {editorModalRowId ? (
         <PrescriptionEditorModal
-          readOnly={readOnly}
+          readOnly={isWorkspaceReadOnly}
           row={medicationRows.find((r) => r.id === editorModalRowId)}
           onClose={() => setEditorModalRowId(null)}
           onRowChange={handleRowChange}

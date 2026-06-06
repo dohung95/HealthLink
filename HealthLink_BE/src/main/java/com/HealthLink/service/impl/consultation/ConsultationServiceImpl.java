@@ -123,9 +123,19 @@ public class ConsultationServiceImpl implements ConsultationService {
     @Override
     @Transactional
     public ConsultationResponse startByAppointment(Integer appointmentId) {
+        return startByAppointment(appointmentId, false);
+    }
+
+    @Override
+    @Transactional
+    public ConsultationResponse startByAppointmentForTesting(Integer appointmentId) {
+        return startByAppointment(appointmentId, true);
+    }
+
+    private ConsultationResponse startByAppointment(Integer appointmentId, boolean ignoreAppointmentTime) {
         Appointment appointment = getAppointmentOrThrow(appointmentId);
 
-        assertCanStart(appointment);
+        assertCanStart(appointment, ignoreAppointmentTime);
 
         Consultation consultation = resolveConsultation(appointment);
         if (consultation.getStartTime() == null) {
@@ -229,11 +239,12 @@ public class ConsultationServiceImpl implements ConsultationService {
                 .build();
     }
 
-    private void assertCanStart(Appointment appointment) {
+    private void assertCanStart(Appointment appointment, boolean ignoreAppointmentTime) {
         if (!"SCHEDULED".equalsIgnoreCase(appointment.getStatus())) {
             throw new BadRequestException("Only scheduled appointments can be started");
         }
-        if (appointment.getAppointmentTime() == null || LocalDateTime.now().isBefore(appointment.getAppointmentTime())) {
+        if (!ignoreAppointmentTime &&
+                (appointment.getAppointmentTime() == null || LocalDateTime.now().isBefore(appointment.getAppointmentTime()))) {
             throw new BadRequestException("Consultation can only be started when the appointment time has arrived");
         }
 

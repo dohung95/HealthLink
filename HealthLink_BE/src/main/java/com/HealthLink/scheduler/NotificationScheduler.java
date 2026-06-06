@@ -46,7 +46,11 @@ public class NotificationScheduler {
     @Scheduled(cron = "0 0/5 * * * *")
     @Transactional
     public void sendAppointmentReminders() {
-        LocalDateTime now = LocalDateTime.now();
+        sendAppointmentReminders(LocalDateTime.now());
+    }
+
+    @Transactional
+    public void sendAppointmentReminders(LocalDateTime now) {
         LocalDateTime from = now.plusHours(1);
         LocalDateTime to = now.plusHours(1).plusMinutes(5);
 
@@ -96,7 +100,11 @@ public class NotificationScheduler {
     @Scheduled(cron = "0 0/5 * * * *")
     @Transactional
     public void sendDoctorAppointmentReminders() {
-        LocalDateTime now = LocalDateTime.now();
+        sendDoctorAppointmentReminders(LocalDateTime.now());
+    }
+
+    @Transactional
+    public void sendDoctorAppointmentReminders(LocalDateTime now) {
         LocalDateTime from = now.plusMinutes(30);
         LocalDateTime to = now.plusMinutes(35);
 
@@ -152,7 +160,12 @@ public class NotificationScheduler {
     @Scheduled(cron = "0 0 8 * * *")
     @Transactional
     public void sendFollowUpReminders() {
-        LocalDateTime startOfDay = LocalDateTime.now().toLocalDate().atStartOfDay();
+        sendFollowUpReminders(LocalDateTime.now());
+    }
+
+    @Transactional
+    public void sendFollowUpReminders(LocalDateTime now) {
+        LocalDateTime startOfDay = now.toLocalDate().atStartOfDay();
         LocalDateTime endOfDay = startOfDay.plusDays(1).minusSeconds(1);
 
         List<Consultation> dueConsultations =
@@ -220,11 +233,12 @@ public class NotificationScheduler {
         sendPrescriptionRemindersForTiming(PrescriptionTiming.MORNING);
     }
 
-    void sendPrescriptionRemindersForTiming(PrescriptionTiming timing) {
+    public void sendPrescriptionRemindersForTiming(PrescriptionTiming timing) {
         sendPrescriptionRemindersForTiming(timing, LocalDateTime.now().withNano(0));
     }
 
-    void sendPrescriptionRemindersForTiming(PrescriptionTiming timing, LocalDateTime now) {
+    @Transactional
+    public void sendPrescriptionRemindersForTiming(PrescriptionTiming timing, LocalDateTime now) {
         LocalDate reminderDate = now.toLocalDate();
         List<PrescriptionHeader> candidates = prescriptionHeaderRepository.findActiveReminderCandidates(now);
 
@@ -399,7 +413,11 @@ public class NotificationScheduler {
     @Scheduled(cron = "0 0 7 * * *")
     @Transactional
     public void sendDailyAppointmentDigest() {
-        LocalDate today = LocalDate.now();
+        sendDailyAppointmentDigest(LocalDate.now());
+    }
+
+    @Transactional
+    public void sendDailyAppointmentDigest(LocalDate today) {
         LocalDateTime startOfDay = today.atStartOfDay();
         LocalDateTime endOfDay = today.atTime(23, 59, 59);
 
