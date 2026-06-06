@@ -1,6 +1,7 @@
 package com.HealthLink.service.admin;
 
 import com.HealthLink.dto.admin.*;
+import com.HealthLink.entity.AdminAuditLog;
 import com.HealthLink.entity.Doctor;
 import com.HealthLink.entity.User;
 import com.HealthLink.exception.BadRequestException;
@@ -26,9 +27,11 @@ import java.util.stream.Collectors;
 public class AdminDoctorService {
 
     private final AdminDoctorRepository doctorRepository;
+    private final AdminAuditLogService auditLogService;
 
-    public AdminDoctorService(AdminDoctorRepository doctorRepository) {
+    public AdminDoctorService(AdminDoctorRepository doctorRepository, AdminAuditLogService auditLogService) {
         this.doctorRepository = doctorRepository;
+        this.auditLogService = auditLogService;
     }
 
     public AdminDoctorPageResponse getDoctors(int pageNumber, int pageSize, String searchTerm,
@@ -107,12 +110,31 @@ public class AdminDoctorService {
     }
 
     public AdminDoctorDto updateDoctorStatus(String doctorId, String status) {
+        return updateDoctorStatus(doctorId, status, null, null);
+    }
+
+    public AdminDoctorDto updateDoctorStatus(String doctorId, String status, String adminUserId, String reason) {
         Doctor doctor = doctorRepository.findById(doctorId)
             .orElseThrow(() -> new ResourceNotFoundException("Doctor", "id", doctorId));
 
         if (doctor.getUser() != null) {
+            String oldStatus = doctor.getUser().getStatus();
             doctor.getUser().setStatus(status);
             Doctor savedDoctor = doctorRepository.save(doctor);
+
+            // Log the status change
+            if (adminUserId != null) {
+                auditLogService.logUserStatusChange(
+                    adminUserId,
+                    AdminAuditLog.TARGET_DOCTOR,
+                    doctorId,
+                    doctor.getFullName(),
+                    oldStatus,
+                    status,
+                    reason
+                );
+            }
+
             return mapToDto(savedDoctor);
         } else {
             throw new BadRequestException("Doctor has no associated user");

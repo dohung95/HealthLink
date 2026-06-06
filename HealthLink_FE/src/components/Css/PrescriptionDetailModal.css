@@ -594,19 +594,15 @@
   }
 }
 
-/* Modal backdrop enhancement */
+/* Modal backdrop enhancement - SCOPED to prescription modal only */
 .prescription-detail-modal {
-  z-index: 9999 !important;
+  z-index: 1060 !important;
 }
 
-/* Backdrop element created by Bootstrap */
-.modal-backdrop.show {
-  z-index: 9998 !important;
-}
-
-.prescription-detail-modal .modal-backdrop {
+.prescription-detail-modal + .modal-backdrop.show,
+.prescription-detail-modal ~ .modal-backdrop.show {
+  z-index: 1059 !important;
   background-color: rgba(0, 0, 0, 0.6);
-  z-index: 9998 !important;
 }
 
 .prescription-detail-modal .modal-dialog {

@@ -35,6 +35,7 @@ export default function Doctors() {
   const [showStatusModal, setShowStatusModal] = useState(false);
   const [selectedDoctor, setSelectedDoctor] = useState(null);
   const [newStatus, setNewStatus] = useState('');
+  const [statusReason, setStatusReason] = useState('');
 
   // Edit form state
   const [editForm, setEditForm] = useState({
@@ -170,13 +171,18 @@ export default function Doctors() {
   const handleChangeStatus = (doctor) => {
     setSelectedDoctor(doctor);
     setNewStatus(doctor.status);
+    setStatusReason('');
     setShowStatusModal(true);
   };
 
   // Handle update status
   const handleUpdateStatus = async () => {
+    if (!statusReason.trim()) {
+      showToast({ title: 'Validation Error', message: 'Please provide a reason for status change', type: 'error' });
+      return;
+    }
     try {
-      await doctorsApi.updateStatus(selectedDoctor.doctorID, newStatus);
+      await doctorsApi.updateStatus(selectedDoctor.doctorID, newStatus, statusReason);
 
       // Update the doctor list immediately without refetching
       setDoctors(prevDoctors =>
@@ -930,10 +936,11 @@ export default function Doctors() {
                     </div>
                   </div>
 
-                  {/* Finance Info */}
+                  {/* Finance Info - Limited view for Admin */}
                   <div className="admin-card" style={{ padding: '16px' }}>
                     <h6 style={{ fontSize: '13px', fontWeight: '600', color: '#00a08b', marginBottom: '12px', display: 'flex', alignItems: 'center', gap: '6px' }}>
                       <i className="bi bi-wallet2"></i> Finance & Payment
+                      <span className="badge bg-secondary ms-2" style={{fontSize: '10px', fontWeight: 'normal'}}>Summary</span>
                     </h6>
                     <div className="row g-3">
                       <div className="col-md-4">
@@ -956,14 +963,12 @@ export default function Doctors() {
                           </span>
                         </div>
                       </div>
-                      {(selectedDoctor.bankName || selectedDoctor.paypalEmail) && (
-                        <div className="col-12">
-                          <div className="d-flex flex-wrap gap-3 pt-2" style={{ borderTop: '1px solid #e2e8f0', fontSize: '12px', color: '#64748b' }}>
-                            {selectedDoctor.bankName && <span><i className="bi bi-bank me-1"></i>{selectedDoctor.bankName}</span>}
-                            {selectedDoctor.paypalEmail && <span><i className="bi bi-paypal me-1"></i>{selectedDoctor.paypalEmail}</span>}
-                          </div>
+                      <div className="col-12">
+                        <div className="d-flex align-items-center gap-2 pt-2 text-muted" style={{ borderTop: '1px solid #e2e8f0', fontSize: '12px' }}>
+                          <i className="bi bi-shield-lock"></i>
+                          <span>Payment details (bank account, PayPal) are protected and managed by the doctor.</span>
                         </div>
-                      )}
+                      </div>
                     </div>
                   </div>
 
@@ -991,7 +996,7 @@ export default function Doctors() {
         {/* Edit Doctor Modal */}
         {showEditModal && selectedDoctor && (
           <div className="modal show d-block admin-modal-backdrop" tabIndex="-1">
-            <div className="modal-dialog modal-xl" style={{ maxWidth: '95%' }}>
+            <div className="modal-dialog modal-lg">
               <div className="modal-content" style={{ border: 'none', boxShadow: 'var(--shadow-lg)' }}>
                 <div className="modal-header admin-modal-header info" style={{ borderBottom: 'none' }}>
                   <h5 className="modal-title">
@@ -1006,118 +1011,108 @@ export default function Doctors() {
                 </div>
                 <form onSubmit={handleUpdateDoctor}>
                   <div className="modal-body admin-modal-body" style={{ backgroundColor: 'var(--admin-bg)' }}>
-                    <div className="row">
-                      {/* Left Column */}
-                      <div className="col-lg-6">
-                        {/* Personal Information Section */}
-                        <div className="admin-modal-section">
-                          <h6 className="admin-modal-section-title info">
-                            <i className="bi bi-person-circle"></i>
-                            Personal Information
-                          </h6>
-                          <div className="mb-3">
-                            <label className="admin-form-label">Full Name <span className="text-danger">*</span></label>
-                            <input
-                              type="text"
-                              className="form-control admin-form-control"
-                              value={editForm.fullName}
-                              onChange={(e) => setEditForm({ ...editForm, fullName: e.target.value })}
-                              required
-                            />
-                          </div>
-                          <div className="mb-3">
-                            <label className="admin-form-label">Phone Number <span className="text-danger">*</span></label>
-                            <input
-                              type="tel"
-                              className="form-control admin-form-control"
-                              value={editForm.phoneNumber}
-                              onChange={(e) => setEditForm({ ...editForm, phoneNumber: e.target.value })}
-                              required
-                            />
-                          </div>
-                          <div className="mb-3">
-                            <label className="admin-form-label">Location</label>
-                            <input
-                              type="text"
-                              className="form-control admin-form-control"
-                              value={editForm.location}
-                              onChange={(e) => setEditForm({ ...editForm, location: e.target.value })}
-                              placeholder="Enter location/city"
-                            />
-                          </div>
+                    {/* Personal & Contact */}
+                    <div className="admin-modal-section">
+                      <h6 className="admin-modal-section-title info">
+                        <i className="bi bi-person-circle"></i>
+                        Personal Information
+                      </h6>
+                      <div className="row">
+                        <div className="col-md-6 mb-3">
+                          <label className="admin-form-label">Full Name <span className="text-danger">*</span></label>
+                          <input
+                            type="text"
+                            className="form-control admin-form-control"
+                            value={editForm.fullName}
+                            onChange={(e) => setEditForm({ ...editForm, fullName: e.target.value })}
+                            required
+                          />
                         </div>
-
-                        {/* Language Information */}
-                        <div className="admin-modal-section">
-                          <h6 className="admin-modal-section-title info">
-                            <i className="bi bi-chat-dots"></i>
-                            Language
-                          </h6>
-                          <div className="mb-3">
-                            <label className="admin-form-label">Languages Spoken</label>
-                            <input
-                              type="text"
-                              className="form-control admin-form-control"
-                              value={editForm.languageSpoken}
-                              onChange={(e) => setEditForm({ ...editForm, languageSpoken: e.target.value })}
-                              placeholder="e.g., English, Spanish, Vietnamese"
-                            />
-                          </div>
+                        <div className="col-md-6 mb-3">
+                          <label className="admin-form-label">Phone Number <span className="text-danger">*</span></label>
+                          <input
+                            type="tel"
+                            className="form-control admin-form-control"
+                            value={editForm.phoneNumber}
+                            onChange={(e) => setEditForm({ ...editForm, phoneNumber: e.target.value })}
+                            required
+                          />
                         </div>
                       </div>
-
-                      {/* Right Column */}
-                      <div className="col-lg-6">
-                        {/* Professional Information Section */}
-                        <div className="admin-modal-section">
-                          <h6 className="admin-modal-section-title info">
-                            <i className="bi bi-briefcase"></i>
-                            Professional Information
-                          </h6>
-                          <div className="mb-3">
-                            <label className="admin-form-label">Specialty <span className="text-danger">*</span></label>
-                            <select
-                              className="form-select admin-form-control"
-                              value={editForm.specialty}
-                              onChange={(e) => setEditForm({ ...editForm, specialty: e.target.value })}
-                              required
-                            >
-                              <option value="">Select Specialty</option>
-                              <option value="Cardiology">Cardiology</option>
-                              <option value="Dermatology">Dermatology</option>
-                              <option value="Neurology">Neurology</option>
-                              <option value="Pediatrics">Pediatrics</option>
-                              <option value="Psychiatry">Psychiatry</option>
-                              <option value="General Practice">General Practice</option>
-                              <option value="Orthopedics">Orthopedics</option>
-                              <option value="Gynecology">Gynecology</option>
-                              <option value="Oncology">Oncology</option>
-                            </select>
-                          </div>
-                          <div className="mb-3">
-                            <label className="admin-form-label">Qualifications <span className="text-danger">*</span></label>
-                            <textarea
-                              className="form-control admin-form-control"
-                              rows="4"
-                              value={editForm.qualifications}
-                              onChange={(e) => setEditForm({ ...editForm, qualifications: e.target.value })}
-                              placeholder="e.g., MD, MBBS, Board Certified..."
-                              required
-                            ></textarea>
-                          </div>
-                          <div className="mb-3">
-                            <label className="admin-form-label">Years of Experience <span className="text-danger">*</span></label>
-                            <input
-                              type="number"
-                              className="form-control admin-form-control"
-                              value={editForm.yearsOfExperience}
-                              onChange={(e) => setEditForm({ ...editForm, yearsOfExperience: e.target.value })}
-                              placeholder="Enter years of experience"
-                              min="0"
-                              required
-                            />
-                          </div>
+                      <div className="row">
+                        <div className="col-md-6 mb-3">
+                          <label className="admin-form-label">Location</label>
+                          <input
+                            type="text"
+                            className="form-control admin-form-control"
+                            value={editForm.location}
+                            onChange={(e) => setEditForm({ ...editForm, location: e.target.value })}
+                            placeholder="Enter location/city"
+                          />
                         </div>
+                        <div className="col-md-6 mb-3">
+                          <label className="admin-form-label">Languages Spoken</label>
+                          <input
+                            type="text"
+                            className="form-control admin-form-control"
+                            value={editForm.languageSpoken}
+                            onChange={(e) => setEditForm({ ...editForm, languageSpoken: e.target.value })}
+                            placeholder="e.g., English, Vietnamese"
+                          />
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* Professional Information */}
+                    <div className="admin-modal-section">
+                      <h6 className="admin-modal-section-title info">
+                        <i className="bi bi-briefcase"></i>
+                        Professional Information
+                      </h6>
+                      <div className="row">
+                        <div className="col-md-6 mb-3">
+                          <label className="admin-form-label">Specialty <span className="text-danger">*</span></label>
+                          <select
+                            className="form-select admin-form-control"
+                            value={editForm.specialty}
+                            onChange={(e) => setEditForm({ ...editForm, specialty: e.target.value })}
+                            required
+                          >
+                            <option value="">Select Specialty</option>
+                            <option value="Cardiology">Cardiology</option>
+                            <option value="Dermatology">Dermatology</option>
+                            <option value="Neurology">Neurology</option>
+                            <option value="Pediatrics">Pediatrics</option>
+                            <option value="Psychiatry">Psychiatry</option>
+                            <option value="General Practice">General Practice</option>
+                            <option value="Orthopedics">Orthopedics</option>
+                            <option value="Gynecology">Gynecology</option>
+                            <option value="Oncology">Oncology</option>
+                          </select>
+                        </div>
+                        <div className="col-md-6 mb-3">
+                          <label className="admin-form-label">Years of Experience <span className="text-danger">*</span></label>
+                          <input
+                            type="number"
+                            className="form-control admin-form-control"
+                            value={editForm.yearsOfExperience}
+                            onChange={(e) => setEditForm({ ...editForm, yearsOfExperience: e.target.value })}
+                            placeholder="e.g., 5"
+                            min="0"
+                            required
+                          />
+                        </div>
+                      </div>
+                      <div className="mb-3">
+                        <label className="admin-form-label">Qualifications <span className="text-danger">*</span></label>
+                        <textarea
+                          className="form-control admin-form-control"
+                          rows="2"
+                          value={editForm.qualifications}
+                          onChange={(e) => setEditForm({ ...editForm, qualifications: e.target.value })}
+                          placeholder="e.g., MD, MBBS, Board Certified..."
+                          required
+                        ></textarea>
                       </div>
                     </div>
                   </div>
@@ -1272,6 +1267,23 @@ export default function Doctors() {
                         </p>
                       </div>
                     </div>
+                  </div>
+
+                  {/* Reason Input */}
+                  <div className="mt-4">
+                    <label className="admin-form-label" style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                      <i className="bi bi-chat-left-text" style={{ color: '#00a08b' }}></i>
+                      Reason for Status Change <span className="text-danger">*</span>
+                    </label>
+                    <textarea
+                      className="form-control admin-form-control"
+                      value={statusReason}
+                      onChange={(e) => setStatusReason(e.target.value)}
+                      placeholder="Please provide a reason for this status change..."
+                      rows={3}
+                      style={{ fontSize: '14px', resize: 'none' }}
+                    />
+                    <small className="text-muted">This reason will be recorded in the audit log.</small>
                   </div>
                 </div>
 

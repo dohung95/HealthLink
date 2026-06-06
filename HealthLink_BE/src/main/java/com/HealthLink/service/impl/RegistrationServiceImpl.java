@@ -16,10 +16,12 @@ import java.util.List;
 
 import com.HealthLink.service.email.EmailService;
 import com.HealthLink.service.admin.AdminNotificationHelper;
+import com.HealthLink.service.admin.AdminAuditLogService;
 import com.HealthLink.service.registration.RegistrationService;
 
 import jakarta.persistence.criteria.Predicate;
 import lombok.RequiredArgsConstructor;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Sort;
@@ -28,6 +30,11 @@ import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.io.IOException;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.nio.file.Paths;
+import java.nio.file.StandardCopyOption;
 import java.time.LocalDateTime;
 import java.util.*;
 import java.util.stream.Collectors;
@@ -36,6 +43,12 @@ import java.util.stream.Collectors;
 @RequiredArgsConstructor
 @Transactional
 public class RegistrationServiceImpl implements RegistrationService {
+
+    @Value("${app.base-url}")
+    private String baseUrl;
+
+    @Value("${app.upload.dir}")
+    private String uploadDir;
 
     private final RegistrationRequestRepository registrationRequestRepository;
     private final RegistrationDocumentRepository documentRepository;
@@ -46,6 +59,7 @@ public class RegistrationServiceImpl implements RegistrationService {
     private final SpecialtyRepository specialtyRepository;
     private final EmailService emailService;
     private final AdminNotificationHelper adminNotificationHelper;
+    private final AdminAuditLogService auditLogService;
 
     private static final String DEFAULT_PASSWORD = "HealthLink@123";
     private static final String TYPE_DOCTOR = "DOCTOR";
@@ -254,11 +268,24 @@ public class RegistrationServiceImpl implements RegistrationService {
         request.setReviewedBy(adminUserId);
         registrationRequestRepository.save(request);
 
+        // Log the approval in audit log
+        String recipientName = TYPE_DOCTOR.equals(request.getRegistrationType())
+                ? request.getFullName()
+                : request.getPharmacyName();
+        try {
+            auditLogService.logRegistrationApproved(
+                    adminUserId,
+                    request.getRegistrationType(),
+                    request.getRequestId(),
+                    recipientName,
+                    request.getEmail()
+            );
+        } catch (Exception e) {
+            System.err.println("Failed to create audit log: " + e.getMessage());
+        }
+
         // Send approval email with login credentials (don't let email errors rollback the transaction)
         try {
-            String recipientName = TYPE_DOCTOR.equals(request.getRegistrationType())
-                    ? request.getFullName()
-                    : request.getPharmacyName();
             emailService.sendApprovalEmail(
                     request.getEmail(),
                     recipientName,
@@ -278,6 +305,12 @@ public class RegistrationServiceImpl implements RegistrationService {
             specialty = specialtyRepository.findById(request.getSpecialtyId()).orElse(null);
         }
 
+        // Get avatar from registration documents (Profile Photo)
+        String avatarUrl = documentRepository
+                .findByRegistrationRequest_RequestIdAndDocumentType(request.getRequestId(), "Profile Photo")
+                .map(doc -> copyRegistrationAvatarToPublicFolder(doc.getFilePath(), "doctors"))
+                .orElse(null);
+
         Doctor doctor = Doctor.builder()
                 .user(user)
                 .fullName(request.getFullName())
@@ -296,6 +329,7 @@ public class RegistrationServiceImpl implements RegistrationService {
                 .availableForAudio(Boolean.TRUE.equals(request.getAvailableForAudio()))
                 .availableForChat(Boolean.TRUE.equals(request.getAvailableForChat()))
                 .availableForOffline(Boolean.TRUE.equals(request.getAvailableForOffline()))
+                .avatarUrl(avatarUrl)
                 .verified(false)
                 .averageRating(0.0)
                 .totalReviews(0)
@@ -321,6 +355,12 @@ public class RegistrationServiceImpl implements RegistrationService {
             address = "Address pending update";
         }
 
+        // Get avatar from registration documents (Profile Photo)
+        String avatarUrl = documentRepository
+                .findByRegistrationRequest_RequestIdAndDocumentType(request.getRequestId(), "Profile Photo")
+                .map(doc -> copyRegistrationAvatarToPublicFolder(doc.getFilePath(), "pharmacies"))
+                .orElse(null);
+
         Pharmacy pharmacy = new Pharmacy();
         pharmacy.setUser(user);  // @MapsId sẽ tự động lấy ID từ user
         pharmacy.setName(pharmacyName);
@@ -339,6 +379,7 @@ public class RegistrationServiceImpl implements RegistrationService {
         pharmacy.setDeliveryRadius(request.getDeliveryRadius());
         pharmacy.setDeliveryFee(request.getDeliveryFee());
         pharmacy.setDescription(request.getDescription());
+        pharmacy.setAvatarUrl(avatarUrl);
         pharmacy.setVerified(false);
         pharmacy.setActive(true);
         pharmacy.setAverageRating(0.0);
@@ -348,6 +389,32 @@ public class RegistrationServiceImpl implements RegistrationService {
         pharmacyRepository.save(pharmacy);
     }
 
+    private String copyRegistrationAvatarToPublicFolder(String sourceFilePath, String partnerType) {
+        try {
+            Path sourcePath = Paths.get(sourceFilePath);
+            if (!Files.exists(sourcePath) || !Files.isReadable(sourcePath)) {
+                return null;
+            }
+
+            String originalFileName = sourcePath.getFileName().toString();
+            String extension = ".jpg";
+            int dotIndex = originalFileName.lastIndexOf('.');
+            if (dotIndex >= 0) {
+                extension = originalFileName.substring(dotIndex);
+            }
+
+            Path destinationDir = Paths.get(uploadDir, "avatars", partnerType);
+            Files.createDirectories(destinationDir);
+            String filename = UUID.randomUUID() + extension;
+            Path destinationPath = destinationDir.resolve(filename);
+            Files.copy(sourcePath, destinationPath, StandardCopyOption.REPLACE_EXISTING);
+
+            return baseUrl + "/uploads/avatars/" + partnerType + "/" + filename;
+        } catch (IOException ex) {
+            throw new BadRequestException("Failed to process registration avatar: " + ex.getMessage());
+        }
+    }
+
     private void rejectRequest(RegistrationRequest request, String adminUserId, String reason) {
         request.setStatus(STATUS_REJECTED);
         request.setReviewedAt(LocalDateTime.now());
@@ -355,11 +422,25 @@ public class RegistrationServiceImpl implements RegistrationService {
         request.setRejectionReason(reason);
         registrationRequestRepository.save(request);
 
+        // Log the rejection in audit log
+        String recipientName = TYPE_DOCTOR.equals(request.getRegistrationType())
+                ? request.getFullName()
+                : request.getPharmacyName();
+        try {
+            auditLogService.logRegistrationRejected(
+                    adminUserId,
+                    request.getRegistrationType(),
+                    request.getRequestId(),
+                    recipientName,
+                    request.getEmail(),
+                    reason
+            );
+        } catch (Exception e) {
+            System.err.println("Failed to create audit log: " + e.getMessage());
+        }
+
         // Send rejection email with reason (don't let email errors rollback the transaction)
         try {
-            String recipientName = TYPE_DOCTOR.equals(request.getRegistrationType())
-                    ? request.getFullName()
-                    : request.getPharmacyName();
             emailService.sendRejectionEmail(
                     request.getEmail(),
                     recipientName,

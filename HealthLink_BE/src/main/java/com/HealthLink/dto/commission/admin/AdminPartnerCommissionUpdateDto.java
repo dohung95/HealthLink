@@ -23,4 +23,7 @@ public class AdminPartnerCommissionUpdateDto {
     private BigDecimal customCommissionRate;
     private LocalDateTime effectiveFrom;
     private LocalDateTime effectiveTo;
+
+    // Reason for audit log
+    private String reason;
 }

@@ -3,6 +3,7 @@ package com.HealthLink.service.admin;
 import com.HealthLink.dto.admin.AdminPatientDto;
 import com.HealthLink.dto.admin.AdminPatientPageResponse;
 import com.HealthLink.dto.admin.AdminPatientUpdateDto;
+import com.HealthLink.entity.AdminAuditLog;
 import com.HealthLink.entity.Appointment;
 import com.HealthLink.entity.Patient;
 import com.HealthLink.entity.User;
@@ -32,9 +33,11 @@ import java.util.stream.Collectors;
 public class AdminPatientService {
 
     private final AdminPatientRepository patientRepository;
+    private final AdminAuditLogService auditLogService;
 
-    public AdminPatientService(AdminPatientRepository patientRepository) {
+    public AdminPatientService(AdminPatientRepository patientRepository, AdminAuditLogService auditLogService) {
         this.patientRepository = patientRepository;
+        this.auditLogService = auditLogService;
     }
 
     public AdminPatientPageResponse getPatients(int pageNumber, int pageSize, String searchTerm, String status, String sortBy) {
@@ -244,13 +247,32 @@ public class AdminPatientService {
     }
 
     public AdminPatientDto updatePatientStatus(String patientId, String status) {
+        return updatePatientStatus(patientId, status, null, null);
+    }
+
+    public AdminPatientDto updatePatientStatus(String patientId, String status, String adminUserId, String reason) {
         Patient patient = patientRepository.findById(patientId)
             /* Không tìm thấy bệnh nhân với ID này khi cập nhật trạng thái */
             .orElseThrow(() -> new ResourceNotFoundException("Patient", "id", patientId));
 
         if (patient.getUser() != null) {
+            String oldStatus = patient.getUser().getStatus();
             patient.getUser().setStatus(status);
             Patient savedPatient = patientRepository.save(patient);
+
+            // Log the status change
+            if (adminUserId != null) {
+                auditLogService.logUserStatusChange(
+                    adminUserId,
+                    AdminAuditLog.TARGET_PATIENT,
+                    patientId,
+                    patient.getFullName(),
+                    oldStatus,
+                    status,
+                    reason
+                );
+            }
+
             return mapToDto(savedPatient);
         } else {
             /* Bệnh nhân không có tài khoản người dùng liên kết */

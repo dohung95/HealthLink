@@ -24,9 +24,7 @@ import AdminDoctors from './components/Admin/View/Doctors';
 import PharmacyManagement from './components/Admin/View/PharmacyManagement';
 import CommissionManagement from './components/Admin/View/CommissionManagement';
 import Appointments from './components/Admin/View/Appointments';
-import MedicalRecords from './components/Admin/View/MedicalRecords';
 import Registrations from './components/Admin/View/Registrations';
-import DoctorScheduleManagement from './components/Admin/View/DoctorScheduleManagement';
 import ScheduleAuditLog from './components/Admin/View/ScheduleAuditLog';
 import ScheduleComplianceDashboard from './components/Admin/View/ScheduleComplianceDashboard';
 import FinancialReports from './components/Admin/View/FinancialReports';
@@ -312,19 +310,9 @@ function AppContent() {
                 <Appointments />
               </AdminRoute>
             } />
-            <Route path="/admin/medical-records" element={
-              <AdminRoute>
-                <MedicalRecords />
-              </AdminRoute>
-            } />
             <Route path="/admin/registrations" element={
               <AdminRoute>
                 <Registrations />
-              </AdminRoute>
-            } />
-            <Route path="/admin/doctor-schedules" element={
-              <AdminRoute>
-                <DoctorScheduleManagement />
               </AdminRoute>
             } />
             <Route path="/admin/audit-log" element={
