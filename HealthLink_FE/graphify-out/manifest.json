@@ -1,0 +1,1177 @@
+{
+  "E:\\FAI\\Projects\\HealthLink\\HealthLink_FE\\.opencode\\opencode.json": {
+    "mtime": 1780713659.0852702,
+    "ast_hash": "1efe24ecf938911d4f23e4b1c6ec91f7",
+    "semantic_hash": "1efe24ecf938911d4f23e4b1c6ec91f7"
+  },
+  "E:\\FAI\\Projects\\HealthLink\\HealthLink_FE\\.opencode\\package.json": {
+    "mtime": 1780713669.0123494,
+    "ast_hash": "c9442b1dfba4cd254e8dc712cf2d3da8",
+    "semantic_hash": "c9442b1dfba4cd254e8dc712cf2d3da8"
+  },
+  "E:\\FAI\\Projects\\HealthLink\\HealthLink_FE\\.opencode\\plugins\\graphify.js": {
+    "mtime": 1780713652.3705716,
+    "ast_hash": "32b67963417a30cb80544e0b2a56a98d",
+    "semantic_hash": "32b67963417a30cb80544e0b2a56a98d"
+  },
+  "E:\\FAI\\Projects\\HealthLink\\HealthLink_FE\\eslint.config.js": {
+    "mtime": 1780053114.5209918,
+    "ast_hash": "2c92ee8c1d7c10a6cb0e834c108be353",
+    "semantic_hash": "2c92ee8c1d7c10a6cb0e834c108be353"
+  },
+  "E:\\FAI\\Projects\\HealthLink\\HealthLink_FE\\firebase.json": {
+    "mtime": 1780053114.5209918,
+    "ast_hash": "e0eac1918c3611adfdd281c241d09140",
+    "semantic_hash": "e0eac1918c3611adfdd281c241d09140"
+  },
+  "E:\\FAI\\Projects\\HealthLink\\HealthLink_FE\\jsconfig.json": {
+    "mtime": 1780655971.18094,
+    "ast_hash": "53f417c939626c22253981ab1cd7c625",
+    "semantic_hash": "53f417c939626c22253981ab1cd7c625"
+  },
+  "E:\\FAI\\Projects\\HealthLink\\HealthLink_FE\\package.json": {
+    "mtime": 1780655790.9886315,
+    "ast_hash": "1719eff46ccd9aaf8ffea58b71c8db2b",
+    "semantic_hash": "1719eff46ccd9aaf8ffea58b71c8db2b"
+  },
+  "E:\\FAI\\Projects\\HealthLink\\HealthLink_FE\\src\\AI_BOT\\BotBrain.jsx": {
+    "mtime": 1780655790.997692,
+    "ast_hash": "4d6b4e8335f3cbeff97891d3b3d6685e",
+    "semantic_hash": "4d6b4e8335f3cbeff97891d3b3d6685e"
+  },
+  "E:\\FAI\\Projects\\HealthLink\\HealthLink_FE\\src\\App.jsx": {
+    "mtime": 1780655791.0054417,
+    "ast_hash": "caa0bb250174614922f2a0b3b157bdef",
+    "semantic_hash": "caa0bb250174614922f2a0b3b157bdef"
+  },
+  "E:\\FAI\\Projects\\HealthLink\\HealthLink_FE\\src\\api\\account.js": {
+    "mtime": 1780053114.5830598,
+    "ast_hash": "f107daa890dfca635a90d6e4c6386fb0",
+    "semantic_hash": "f107daa890dfca635a90d6e4c6386fb0"
+  },
+  "E:\\FAI\\Projects\\HealthLink\\HealthLink_FE\\src\\api\\adminApi.js": {
+    "mtime": 1780450505.8757975,
+    "ast_hash": "c645c2c63badb1f81c2c009280e50148",
+    "semantic_hash": "c645c2c63badb1f81c2c009280e50148"
+  },
+  "E:\\FAI\\Projects\\HealthLink\\HealthLink_FE\\src\\api\\adminNotificationApi.js": {
+    "mtime": 1780053114.5840619,
+    "ast_hash": "463d7ef66ed51a16f16f5798ef52a9d3",
+    "semantic_hash": "463d7ef66ed51a16f16f5798ef52a9d3"
+  },
+  "E:\\FAI\\Projects\\HealthLink\\HealthLink_FE\\src\\api\\appointmentApi.js": {
+    "mtime": 1780123760.6708326,
+    "ast_hash": "c530fe22e22a8d45865b055729ad3395",
+    "semantic_hash": "c530fe22e22a8d45865b055729ad3395"
+  },
+  "E:\\FAI\\Projects\\HealthLink\\HealthLink_FE\\src\\api\\auth.js": {
+    "mtime": 1780053114.5850601,
+    "ast_hash": "a071268b68870b063b0b5701f513e180",
+    "semantic_hash": "a071268b68870b063b0b5701f513e180"
+  },
+  "E:\\FAI\\Projects\\HealthLink\\HealthLink_FE\\src\\api\\axiosConfig.js": {
+    "mtime": 1780053114.5860577,
+    "ast_hash": "b670d3298a0ca987edd8bc5b1e19432b",
+    "semantic_hash": "b670d3298a0ca987edd8bc5b1e19432b"
+  },
+  "E:\\FAI\\Projects\\HealthLink\\HealthLink_FE\\src\\api\\chatApi.js": {
+    "mtime": 1780053114.5860577,
+    "ast_hash": "2780f98288d0cf713aaab8147aa14df4",
+    "semantic_hash": "2780f98288d0cf713aaab8147aa14df4"
+  },
+  "E:\\FAI\\Projects\\HealthLink\\HealthLink_FE\\src\\api\\complianceApi.js": {
+    "mtime": 1780053114.5870543,
+    "ast_hash": "9a7ea68df0808296b94d9ebbfdb683d9",
+    "semantic_hash": "9a7ea68df0808296b94d9ebbfdb683d9"
+  },
+  "E:\\FAI\\Projects\\HealthLink\\HealthLink_FE\\src\\api\\consultationApi.js": {
+    "mtime": 1780053114.5880523,
+    "ast_hash": "61a39bd812060bd17be47f54438f33de",
+    "semantic_hash": "61a39bd812060bd17be47f54438f33de"
+  },
+  "E:\\FAI\\Projects\\HealthLink\\HealthLink_FE\\src\\api\\doctorApi.js": {
+    "mtime": 1780655791.014779,
+    "ast_hash": "2aac8ebabdea9a59b272e5737cf682a4",
+    "semantic_hash": "2aac8ebabdea9a59b272e5737cf682a4"
+  },
+  "E:\\FAI\\Projects\\HealthLink\\HealthLink_FE\\src\\api\\healthRecordApi.js": {
+    "mtime": 1780053114.5900474,
+    "ast_hash": "e109361885e7535d6a7cefdb88cbe4bd",
+    "semantic_hash": "e109361885e7535d6a7cefdb88cbe4bd"
+  },
+  "E:\\FAI\\Projects\\HealthLink\\HealthLink_FE\\src\\api\\medicineApi.js": {
+    "mtime": 1780053114.5910437,
+    "ast_hash": "48f6305e6dec7aebc4fed88275280b76",
+    "semantic_hash": "48f6305e6dec7aebc4fed88275280b76"
+  },
+  "E:\\FAI\\Projects\\HealthLink\\HealthLink_FE\\src\\api\\normalizers.js": {
+    "mtime": 1780053114.5920405,
+    "ast_hash": "b63bc555e77e2ed97ff0eae678189030",
+    "semantic_hash": "b63bc555e77e2ed97ff0eae678189030"
+  },
+  "E:\\FAI\\Projects\\HealthLink\\HealthLink_FE\\src\\api\\notificationApi.js": {
+    "mtime": 1780053114.5920405,
+    "ast_hash": "7ba653bcdef31ae6e2232721d23d6cf3",
+    "semantic_hash": "7ba653bcdef31ae6e2232721d23d6cf3"
+  },
+  "E:\\FAI\\Projects\\HealthLink\\HealthLink_FE\\src\\api\\paymentApi.js": {
+    "mtime": 1780123757.1349528,
+    "ast_hash": "283bfde382f2c8c2712a369f81a052b2",
+    "semantic_hash": "283bfde382f2c8c2712a369f81a052b2"
+  },
+  "E:\\FAI\\Projects\\HealthLink\\HealthLink_FE\\src\\api\\pharmacyApi.js": {
+    "mtime": 1780672132.2864654,
+    "ast_hash": "5c3c3c320c79c1a54e4dbf8ae0d00987",
+    "semantic_hash": "5c3c3c320c79c1a54e4dbf8ae0d00987"
+  },
+  "E:\\FAI\\Projects\\HealthLink\\HealthLink_FE\\src\\api\\prescriptionApi.js": {
+    "mtime": 1780053114.5934975,
+    "ast_hash": "8dfe82ba8f39c826fe3cc27af86327f5",
+    "semantic_hash": "8dfe82ba8f39c826fe3cc27af86327f5"
+  },
+  "E:\\FAI\\Projects\\HealthLink\\HealthLink_FE\\src\\api\\registrationApi.js": {
+    "mtime": 1780053114.5934975,
+    "ast_hash": "479345749cc3b3bf67fc1ccb45b30907",
+    "semantic_hash": "479345749cc3b3bf67fc1ccb45b30907"
+  },
+  "E:\\FAI\\Projects\\HealthLink\\HealthLink_FE\\src\\api\\reviewApi.js": {
+    "mtime": 1780218161.3621848,
+    "ast_hash": "f214a891a0a28fb3510a3dd00eff25dc",
+    "semantic_hash": "f214a891a0a28fb3510a3dd00eff25dc"
+  },
+  "E:\\FAI\\Projects\\HealthLink\\HealthLink_FE\\src\\api\\shareRecordApi.js": {
+    "mtime": 1780207094.495045,
+    "ast_hash": "38760c8c8e03a9b0bf201661e465fa23",
+    "semantic_hash": "38760c8c8e03a9b0bf201661e465fa23"
+  },
+  "E:\\FAI\\Projects\\HealthLink\\HealthLink_FE\\src\\api\\utils.js": {
+    "mtime": 1780053114.5948515,
+    "ast_hash": "7e06bcb588701ef3f17e4e829fea5785",
+    "semantic_hash": "7e06bcb588701ef3f17e4e829fea5785"
+  },
+  "E:\\FAI\\Projects\\HealthLink\\HealthLink_FE\\src\\api\\vitalSignApi.js": {
+    "mtime": 1780053114.59587,
+    "ast_hash": "9c954e15b1fee971b9719eeae8e1f01a",
+    "semantic_hash": "9c954e15b1fee971b9719eeae8e1f01a"
+  },
+  "E:\\FAI\\Projects\\HealthLink\\HealthLink_FE\\src\\components\\AboutUs.jsx": {
+    "mtime": 1780053114.6010742,
+    "ast_hash": "065686055277b0d17b8caea082524609",
+    "semantic_hash": "065686055277b0d17b8caea082524609"
+  },
+  "E:\\FAI\\Projects\\HealthLink\\HealthLink_FE\\src\\components\\AdminActionNotificationModal.jsx": {
+    "mtime": 1780218161.388756,
+    "ast_hash": "683dce977272d1d8c1d4d36f03277e00",
+    "semantic_hash": "683dce977272d1d8c1d4d36f03277e00"
+  },
+  "E:\\FAI\\Projects\\HealthLink\\HealthLink_FE\\src\\components\\Admin\\AdminRoute.jsx": {
+    "mtime": 1780053114.6020787,
+    "ast_hash": "fcac76ac8a79f399752b236e437ce3cf",
+    "semantic_hash": "fcac76ac8a79f399752b236e437ce3cf"
+  },
+  "E:\\FAI\\Projects\\HealthLink\\HealthLink_FE\\src\\components\\Admin\\Context\\AdminNotificationContext.jsx": {
+    "mtime": 1780053114.6030743,
+    "ast_hash": "2dd77cf37e5f1d44068b984ea85c5a9c",
+    "semantic_hash": "2dd77cf37e5f1d44068b984ea85c5a9c"
+  },
+  "E:\\FAI\\Projects\\HealthLink\\HealthLink_FE\\src\\components\\Admin\\View\\Admin.jsx": {
+    "mtime": 1780218161.37057,
+    "ast_hash": "8368625512b31591dd081cd1d7aa0f55",
+    "semantic_hash": "8368625512b31591dd081cd1d7aa0f55"
+  },
+  "E:\\FAI\\Projects\\HealthLink\\HealthLink_FE\\src\\components\\Admin\\View\\AdminNotificationDropdown.jsx": {
+    "mtime": 1780053114.6075668,
+    "ast_hash": "fd258eedc6714b0e2c93622883fb7ecf",
+    "semantic_hash": "fd258eedc6714b0e2c93622883fb7ecf"
+  },
+  "E:\\FAI\\Projects\\HealthLink\\HealthLink_FE\\src\\components\\Admin\\View\\AdminNotificationModal.jsx": {
+    "mtime": 1780053114.6085646,
+    "ast_hash": "cea3a0f0a12c9e0d85fb975fee6641ae",
+    "semantic_hash": "cea3a0f0a12c9e0d85fb975fee6641ae"
+  },
+  "E:\\FAI\\Projects\\HealthLink\\HealthLink_FE\\src\\components\\Admin\\View\\Appointments.jsx": {
+    "mtime": 1780450505.8789144,
+    "ast_hash": "6042cc14a34ec578a9206cbb2f93587c",
+    "semantic_hash": "6042cc14a34ec578a9206cbb2f93587c"
+  },
+  "E:\\FAI\\Projects\\HealthLink\\HealthLink_FE\\src\\components\\Admin\\View\\CommissionManagement.jsx": {
+    "mtime": 1780450505.8799565,
+    "ast_hash": "85038f20170878634a7a436a493a68f7",
+    "semantic_hash": "85038f20170878634a7a436a493a68f7"
+  },
+  "E:\\FAI\\Projects\\HealthLink\\HealthLink_FE\\src\\components\\Admin\\View\\DashboardCharts.jsx": {
+    "mtime": 1780218161.373775,
+    "ast_hash": "7bfaba704a3e3e28bad001deec0e5386",
+    "semantic_hash": "7bfaba704a3e3e28bad001deec0e5386"
+  },
+  "E:\\FAI\\Projects\\HealthLink\\HealthLink_FE\\src\\components\\Admin\\View\\DoctorScheduleManagement.jsx": {
+    "mtime": 1780218161.3747723,
+    "ast_hash": "7379aae5a1182038dfb8ed4e7aa9ba10",
+    "semantic_hash": "7379aae5a1182038dfb8ed4e7aa9ba10"
+  },
+  "E:\\FAI\\Projects\\HealthLink\\HealthLink_FE\\src\\components\\Admin\\View\\Doctors.jsx": {
+    "mtime": 1780450505.8799565,
+    "ast_hash": "14fb23d58cde0f9393bdccd6231c3f45",
+    "semantic_hash": "14fb23d58cde0f9393bdccd6231c3f45"
+  },
+  "E:\\FAI\\Projects\\HealthLink\\HealthLink_FE\\src\\components\\Admin\\View\\FinancialReports.jsx": {
+    "mtime": 1780450505.8809638,
+    "ast_hash": "a3a6fca91144e74df1fbf5db3507a7a9",
+    "semantic_hash": "a3a6fca91144e74df1fbf5db3507a7a9"
+  },
+  "E:\\FAI\\Projects\\HealthLink\\HealthLink_FE\\src\\components\\Admin\\View\\MedicalRecords.jsx": {
+    "mtime": 1780450505.8809638,
+    "ast_hash": "5e3a6e30f6087e3adc6b183643e410aa",
+    "semantic_hash": "5e3a6e30f6087e3adc6b183643e410aa"
+  },
+  "E:\\FAI\\Projects\\HealthLink\\HealthLink_FE\\src\\components\\Admin\\View\\NavbarAdmin.jsx": {
+    "mtime": 1780218161.3802652,
+    "ast_hash": "4ee4dc79340e4f8a66cd80ce902f85f8",
+    "semantic_hash": "4ee4dc79340e4f8a66cd80ce902f85f8"
+  },
+  "E:\\FAI\\Projects\\HealthLink\\HealthLink_FE\\src\\components\\Admin\\View\\PatientCardGrid.jsx": {
+    "mtime": 1780218161.3812656,
+    "ast_hash": "a15992299d98b5256c79ac51a2bde852",
+    "semantic_hash": "a15992299d98b5256c79ac51a2bde852"
+  },
+  "E:\\FAI\\Projects\\HealthLink\\HealthLink_FE\\src\\components\\Admin\\View\\Patients.jsx": {
+    "mtime": 1780450505.8821342,
+    "ast_hash": "ea417f5d7cc792462b336e956f1520f3",
+    "semantic_hash": "ea417f5d7cc792462b336e956f1520f3"
+  },
+  "E:\\FAI\\Projects\\HealthLink\\HealthLink_FE\\src\\components\\Admin\\View\\PharmacyManagement.jsx": {
+    "mtime": 1780218161.3832607,
+    "ast_hash": "c48aebf631cafa97c94ca6d135c3c56f",
+    "semantic_hash": "c48aebf631cafa97c94ca6d135c3c56f"
+  },
+  "E:\\FAI\\Projects\\HealthLink\\HealthLink_FE\\src\\components\\Admin\\View\\PrescriptionViewer.jsx": {
+    "mtime": 1780053114.6194284,
+    "ast_hash": "d434e87ca5bf99b5314684bfb2285c3c",
+    "semantic_hash": "d434e87ca5bf99b5314684bfb2285c3c"
+  },
+  "E:\\FAI\\Projects\\HealthLink\\HealthLink_FE\\src\\components\\Admin\\View\\Registrations.jsx": {
+    "mtime": 1780218161.3857608,
+    "ast_hash": "465253db00d9d68faeeb03c993754039",
+    "semantic_hash": "465253db00d9d68faeeb03c993754039"
+  },
+  "E:\\FAI\\Projects\\HealthLink\\HealthLink_FE\\src\\components\\Admin\\View\\ReviewManagement.jsx": {
+    "mtime": 1780450505.8821342,
+    "ast_hash": "82664bda189f61d37150d6355b086975",
+    "semantic_hash": "82664bda189f61d37150d6355b086975"
+  },
+  "E:\\FAI\\Projects\\HealthLink\\HealthLink_FE\\src\\components\\Admin\\View\\ScheduleAuditLog.jsx": {
+    "mtime": 1780218161.3867624,
+    "ast_hash": "e15b3ef3c55d9f60e8f79edd5e2fb6f8",
+    "semantic_hash": "e15b3ef3c55d9f60e8f79edd5e2fb6f8"
+  },
+  "E:\\FAI\\Projects\\HealthLink\\HealthLink_FE\\src\\components\\Admin\\View\\ScheduleComplianceDashboard.jsx": {
+    "mtime": 1780218161.387759,
+    "ast_hash": "0510966af371e347bda77865e4665017",
+    "semantic_hash": "0510966af371e347bda77865e4665017"
+  },
+  "E:\\FAI\\Projects\\HealthLink\\HealthLink_FE\\src\\components\\Admin\\View\\Toast.jsx": {
+    "mtime": 1780053114.62242,
+    "ast_hash": "9dfff8038ef13e3422b2971d86237938",
+    "semantic_hash": "9dfff8038ef13e3422b2971d86237938"
+  },
+  "E:\\FAI\\Projects\\HealthLink\\HealthLink_FE\\src\\components\\Admin\\useToast.js": {
+    "mtime": 1780053114.62242,
+    "ast_hash": "f9598dc0ee9de6c4d026998bd6f453c0",
+    "semantic_hash": "f9598dc0ee9de6c4d026998bd6f453c0"
+  },
+  "E:\\FAI\\Projects\\HealthLink\\HealthLink_FE\\src\\components\\Auth\\ConfirmEmail.jsx": {
+    "mtime": 1780053114.623419,
+    "ast_hash": "9840fabc16ecbe91e0e665dbe91bf52a",
+    "semantic_hash": "9840fabc16ecbe91e0e665dbe91bf52a"
+  },
+  "E:\\FAI\\Projects\\HealthLink\\HealthLink_FE\\src\\components\\Auth\\DoctorRegistration.jsx": {
+    "mtime": 1780218161.3901021,
+    "ast_hash": "c85b11dff6cb394a3376b7589f39d3a4",
+    "semantic_hash": "c85b11dff6cb394a3376b7589f39d3a4"
+  },
+  "E:\\FAI\\Projects\\HealthLink\\HealthLink_FE\\src\\components\\Auth\\EmailConfirmation.jsx": {
+    "mtime": 1780053114.62641,
+    "ast_hash": "8dda539efa087dac28f4b1797ea9dbfc",
+    "semantic_hash": "8dda539efa087dac28f4b1797ea9dbfc"
+  },
+  "E:\\FAI\\Projects\\HealthLink\\HealthLink_FE\\src\\components\\Auth\\ForgotPassword.jsx": {
+    "mtime": 1780053114.6274061,
+    "ast_hash": "1f94f22631d43ab43634caed8b35dff9",
+    "semantic_hash": "1f94f22631d43ab43634caed8b35dff9"
+  },
+  "E:\\FAI\\Projects\\HealthLink\\HealthLink_FE\\src\\components\\Auth\\PharmacyRegistration.jsx": {
+    "mtime": 1780235531.368855,
+    "ast_hash": "c9083cbff15b1931f80437b5d20ca98d",
+    "semantic_hash": "c9083cbff15b1931f80437b5d20ca98d"
+  },
+  "E:\\FAI\\Projects\\HealthLink\\HealthLink_FE\\src\\components\\Auth\\RegistrationChoice.jsx": {
+    "mtime": 1780053114.630401,
+    "ast_hash": "490f4154f14229325e22d4b3eb43ec6b",
+    "semantic_hash": "490f4154f14229325e22d4b3eb43ec6b"
+  },
+  "E:\\FAI\\Projects\\HealthLink\\HealthLink_FE\\src\\components\\Auth\\ResetPassword.jsx": {
+    "mtime": 1780053114.6318908,
+    "ast_hash": "4f8cdfc8776a644322ef8dc303be476a",
+    "semantic_hash": "4f8cdfc8776a644322ef8dc303be476a"
+  },
+  "E:\\FAI\\Projects\\HealthLink\\HealthLink_FE\\src\\components\\Auth\\Sign_in.jsx": {
+    "mtime": 1780450505.8831358,
+    "ast_hash": "808301183102cc1cec6dbf2159beac96",
+    "semantic_hash": "808301183102cc1cec6dbf2159beac96"
+  },
+  "E:\\FAI\\Projects\\HealthLink\\HealthLink_FE\\src\\components\\Auth\\Sign_up.jsx": {
+    "mtime": 1780112582.1623752,
+    "ast_hash": "4bb3d86f1df87032f833a4c89d8ade86",
+    "semantic_hash": "4bb3d86f1df87032f833a4c89d8ade86"
+  },
+  "E:\\FAI\\Projects\\HealthLink\\HealthLink_FE\\src\\components\\Chat.jsx": {
+    "mtime": 1780655791.0231135,
+    "ast_hash": "8d4b548463fd438485cd491240aa0a95",
+    "semantic_hash": "8d4b548463fd438485cd491240aa0a95"
+  },
+  "E:\\FAI\\Projects\\HealthLink\\HealthLink_FE\\src\\components\\ConfirmModal.jsx": {
+    "mtime": 1780053114.6340082,
+    "ast_hash": "70f13b3459e73d554738806fdc9e1ae0",
+    "semantic_hash": "70f13b3459e73d554738806fdc9e1ae0"
+  },
+  "E:\\FAI\\Projects\\HealthLink\\HealthLink_FE\\src\\components\\ContactUs.jsx": {
+    "mtime": 1780053114.6340082,
+    "ast_hash": "bd39fdbab6ed0dd4cfb6931e61def55b",
+    "semantic_hash": "bd39fdbab6ed0dd4cfb6931e61def55b"
+  },
+  "E:\\FAI\\Projects\\HealthLink\\HealthLink_FE\\src\\components\\DoctorDirectoryContent.jsx": {
+    "mtime": 1780450505.8841708,
+    "ast_hash": "61cfbdb1028a91b6fd23a31f684573bf",
+    "semantic_hash": "61cfbdb1028a91b6fd23a31f684573bf"
+  },
+  "E:\\FAI\\Projects\\HealthLink\\HealthLink_FE\\src\\components\\DoctorDirectoryModal.jsx": {
+    "mtime": 1780112581.2782779,
+    "ast_hash": "0e99ca665ca790db9b195dd48e994024",
+    "semantic_hash": "0e99ca665ca790db9b195dd48e994024"
+  },
+  "E:\\FAI\\Projects\\HealthLink\\HealthLink_FE\\src\\components\\DoctorsList.jsx": {
+    "mtime": 1780547309.2236125,
+    "ast_hash": "00c0506cafba0e626c659913d61b9d25",
+    "semantic_hash": "00c0506cafba0e626c659913d61b9d25"
+  },
+  "E:\\FAI\\Projects\\HealthLink\\HealthLink_FE\\src\\components\\DocumentViewerModal.jsx": {
+    "mtime": 1780210009.8956692,
+    "ast_hash": "29b9392beaec06fbd826dbd186298382",
+    "semantic_hash": "29b9392beaec06fbd826dbd186298382"
+  },
+  "E:\\FAI\\Projects\\HealthLink\\HealthLink_FE\\src\\components\\ExcludeRolesRoute.jsx": {
+    "mtime": 1780053114.646022,
+    "ast_hash": "f5c2235c6613205969aad41981d29fe1",
+    "semantic_hash": "f5c2235c6613205969aad41981d29fe1"
+  },
+  "E:\\FAI\\Projects\\HealthLink\\HealthLink_FE\\src\\components\\Footer.jsx": {
+    "mtime": 1780053114.646022,
+    "ast_hash": "b20ddf4e93cc0abb5e1f556745da717a",
+    "semantic_hash": "b20ddf4e93cc0abb5e1f556745da717a"
+  },
+  "E:\\FAI\\Projects\\HealthLink\\HealthLink_FE\\src\\components\\HealthRecords.jsx": {
+    "mtime": 1780655791.0525227,
+    "ast_hash": "6b2af3b89a828d1b3bf73c11111ce0a1",
+    "semantic_hash": "6b2af3b89a828d1b3bf73c11111ce0a1"
+  },
+  "E:\\FAI\\Projects\\HealthLink\\HealthLink_FE\\src\\components\\Home.jsx": {
+    "mtime": 1780053114.648072,
+    "ast_hash": "f31da85c5fddc3d4aff37f64ddacc3e3",
+    "semantic_hash": "f31da85c5fddc3d4aff37f64ddacc3e3"
+  },
+  "E:\\FAI\\Projects\\HealthLink\\HealthLink_FE\\src\\components\\IncomingCallModal.jsx": {
+    "mtime": 1780124043.9857385,
+    "ast_hash": "efcfb8ba9fa1cafa9d51d4d0e8daf94c",
+    "semantic_hash": "efcfb8ba9fa1cafa9d51d4d0e8daf94c"
+  },
+  "E:\\FAI\\Projects\\HealthLink\\HealthLink_FE\\src\\components\\Loading.jsx": {
+    "mtime": 1780053114.6500628,
+    "ast_hash": "b499aa9e6afd19909954e51cf0c0dd95",
+    "semantic_hash": "b499aa9e6afd19909954e51cf0c0dd95"
+  },
+  "E:\\FAI\\Projects\\HealthLink\\HealthLink_FE\\src\\components\\MyAppointment.jsx": {
+    "mtime": 1780450505.885467,
+    "ast_hash": "53b7b872b1656e3c662274a95306fe2d",
+    "semantic_hash": "53b7b872b1656e3c662274a95306fe2d"
+  },
+  "E:\\FAI\\Projects\\HealthLink\\HealthLink_FE\\src\\components\\Navbar.jsx": {
+    "mtime": 1780053114.6510606,
+    "ast_hash": "6e7cd2412ba2101bcb3d4db4f563bf28",
+    "semantic_hash": "6e7cd2412ba2101bcb3d4db4f563bf28"
+  },
+  "E:\\FAI\\Projects\\HealthLink\\HealthLink_FE\\src\\components\\NotificationBell.jsx": {
+    "mtime": 1780053114.6510606,
+    "ast_hash": "18d39b918f461075a0f1fe7c9bd3b275",
+    "semantic_hash": "18d39b918f461075a0f1fe7c9bd3b275"
+  },
+  "E:\\FAI\\Projects\\HealthLink\\HealthLink_FE\\src\\components\\PatientPrescriptionView.jsx": {
+    "mtime": 1780053114.652391,
+    "ast_hash": "448541e69f50b5e4101b87b04ded92ba",
+    "semantic_hash": "448541e69f50b5e4101b87b04ded92ba"
+  },
+  "E:\\FAI\\Projects\\HealthLink\\HealthLink_FE\\src\\components\\Payment.jsx": {
+    "mtime": 1780053114.652391,
+    "ast_hash": "c256de40a0f68df420adc82f0606da6f",
+    "semantic_hash": "c256de40a0f68df420adc82f0606da6f"
+  },
+  "E:\\FAI\\Projects\\HealthLink\\HealthLink_FE\\src\\components\\PreConsultationVitalsModal.jsx": {
+    "mtime": 1780053114.652391,
+    "ast_hash": "a2c341673cccb318a95c2ad1044385ba",
+    "semantic_hash": "a2c341673cccb318a95c2ad1044385ba"
+  },
+  "E:\\FAI\\Projects\\HealthLink\\HealthLink_FE\\src\\components\\PrescriptionDetailModal.jsx": {
+    "mtime": 1780053114.6534142,
+    "ast_hash": "bd045e97a6537cc79207ab029ed37379",
+    "semantic_hash": "bd045e97a6537cc79207ab029ed37379"
+  },
+  "E:\\FAI\\Projects\\HealthLink\\HealthLink_FE\\src\\components\\PrescriptionNotificationModal.jsx": {
+    "mtime": 1780053114.6534142,
+    "ast_hash": "0dbbe1cb1ffa0851ccc52bb694f6c69d",
+    "semantic_hash": "0dbbe1cb1ffa0851ccc52bb694f6c69d"
+  },
+  "E:\\FAI\\Projects\\HealthLink\\HealthLink_FE\\src\\components\\ProtectedRoute.jsx": {
+    "mtime": 1780450505.886468,
+    "ast_hash": "0f481bdb667039179ee662d447d026f7",
+    "semantic_hash": "0f481bdb667039179ee662d447d026f7"
+  },
+  "E:\\FAI\\Projects\\HealthLink\\HealthLink_FE\\src\\components\\Records.jsx": {
+    "mtime": 1780053114.6534142,
+    "ast_hash": "fa75a9d26d66979443965a80d280a730",
+    "semantic_hash": "fa75a9d26d66979443965a80d280a730"
+  },
+  "E:\\FAI\\Projects\\HealthLink\\HealthLink_FE\\src\\components\\Reminders.jsx": {
+    "mtime": 1780053114.654464,
+    "ast_hash": "3153a7a8b6de4a7e9d657dd820b4efa7",
+    "semantic_hash": "3153a7a8b6de4a7e9d657dd820b4efa7"
+  },
+  "E:\\FAI\\Projects\\HealthLink\\HealthLink_FE\\src\\components\\RescheduleAppointmentModal.jsx": {
+    "mtime": 1780053114.654464,
+    "ast_hash": "693c8a594d707490a4a67b1b0ef45cd2",
+    "semantic_hash": "693c8a594d707490a4a67b1b0ef45cd2"
+  },
+  "E:\\FAI\\Projects\\HealthLink\\HealthLink_FE\\src\\components\\ReviewModal.jsx": {
+    "mtime": 1780053114.654464,
+    "ast_hash": "ab1e28b5153e8b5cb6662ab97931b958",
+    "semantic_hash": "ab1e28b5153e8b5cb6662ab97931b958"
+  },
+  "E:\\FAI\\Projects\\HealthLink\\HealthLink_FE\\src\\components\\ReviewsView.jsx": {
+    "mtime": 1780053114.6554606,
+    "ast_hash": "5ae27550d7523f2c4f6b176209fbec79",
+    "semantic_hash": "5ae27550d7523f2c4f6b176209fbec79"
+  },
+  "E:\\FAI\\Projects\\HealthLink\\HealthLink_FE\\src\\components\\ScrollToTop.jsx": {
+    "mtime": 1780053114.6554606,
+    "ast_hash": "38fc96cc988ed371dafef35f4b949fdb",
+    "semantic_hash": "38fc96cc988ed371dafef35f4b949fdb"
+  },
+  "E:\\FAI\\Projects\\HealthLink\\HealthLink_FE\\src\\components\\ShareHealthRecords.jsx": {
+    "mtime": 1780053114.6554606,
+    "ast_hash": "3b36346637df8ce5afd2a3b722384da7",
+    "semantic_hash": "3b36346637df8ce5afd2a3b722384da7"
+  },
+  "E:\\FAI\\Projects\\HealthLink\\HealthLink_FE\\src\\components\\Slide_Home.jsx": {
+    "mtime": 1780053114.6554606,
+    "ast_hash": "b258a3ed1cfade91f9498562ffa28a2b",
+    "semantic_hash": "b258a3ed1cfade91f9498562ffa28a2b"
+  },
+  "E:\\FAI\\Projects\\HealthLink\\HealthLink_FE\\src\\components\\Video.jsx": {
+    "mtime": 1780053114.6554606,
+    "ast_hash": "b9f979460f73f3e85ccca62ce0776873",
+    "semantic_hash": "b9f979460f73f3e85ccca62ce0776873"
+  },
+  "E:\\FAI\\Projects\\HealthLink\\HealthLink_FE\\src\\components\\doctor\\ActionBar.jsx": {
+    "mtime": 1780059885.0345843,
+    "ast_hash": "1428caa9742a08cb547e5e32467349e6",
+    "semantic_hash": "1428caa9742a08cb547e5e32467349e6"
+  },
+  "E:\\FAI\\Projects\\HealthLink\\HealthLink_FE\\src\\components\\doctor\\AppointmentCard.jsx": {
+    "mtime": 1780072962.550124,
+    "ast_hash": "349f9875afe14a58797f2567c8e53794",
+    "semantic_hash": "349f9875afe14a58797f2567c8e53794"
+  },
+  "E:\\FAI\\Projects\\HealthLink\\HealthLink_FE\\src\\components\\doctor\\AppointmentSummary.jsx": {
+    "mtime": 1780059882.07663,
+    "ast_hash": "71f2ab6db7d6e10d5268df1a82012886",
+    "semantic_hash": "71f2ab6db7d6e10d5268df1a82012886"
+  },
+  "E:\\FAI\\Projects\\HealthLink\\HealthLink_FE\\src\\components\\doctor\\CompleteConfirmModal.jsx": {
+    "mtime": 1780123707.5744867,
+    "ast_hash": "8b8bcc871baca752d8652997d5988bb3",
+    "semantic_hash": "8b8bcc871baca752d8652997d5988bb3"
+  },
+  "E:\\FAI\\Projects\\HealthLink\\HealthLink_FE\\src\\components\\doctor\\ComplianceStatusBanner.jsx": {
+    "mtime": 1780069793.423028,
+    "ast_hash": "9d464b226ccffe8826bb577bef7152d8",
+    "semantic_hash": "9d464b226ccffe8826bb577bef7152d8"
+  },
+  "E:\\FAI\\Projects\\HealthLink\\HealthLink_FE\\src\\components\\doctor\\ComplianceWarningModal.jsx": {
+    "mtime": 1780053114.6699014,
+    "ast_hash": "9e1ec6779f5582db8f184026e7ebf596",
+    "semantic_hash": "9e1ec6779f5582db8f184026e7ebf596"
+  },
+  "E:\\FAI\\Projects\\HealthLink\\HealthLink_FE\\src\\components\\doctor\\DoctorEmptyState.jsx": {
+    "mtime": 1780115739.7988286,
+    "ast_hash": "9dbc086f539d9836cb59b5835e348d64",
+    "semantic_hash": "9dbc086f539d9836cb59b5835e348d64"
+  },
+  "E:\\FAI\\Projects\\HealthLink\\HealthLink_FE\\src\\components\\doctor\\DoctorErrorState.jsx": {
+    "mtime": 1780115741.4964485,
+    "ast_hash": "3388245af8fc6af9a07c43330ce723c6",
+    "semantic_hash": "3388245af8fc6af9a07c43330ce723c6"
+  },
+  "E:\\FAI\\Projects\\HealthLink\\HealthLink_FE\\src\\components\\doctor\\DoctorSkeleton.jsx": {
+    "mtime": 1780115738.241326,
+    "ast_hash": "c225c4274081abb91e98b756b5c7ee7f",
+    "semantic_hash": "c225c4274081abb91e98b756b5c7ee7f"
+  },
+  "E:\\FAI\\Projects\\HealthLink\\HealthLink_FE\\src\\components\\doctor\\DoctorWalletTab.jsx": {
+    "mtime": 1780655791.0604398,
+    "ast_hash": "b33a68fa6a766f3993ae02ce99af169f",
+    "semantic_hash": "b33a68fa6a766f3993ae02ce99af169f"
+  },
+  "E:\\FAI\\Projects\\HealthLink\\HealthLink_FE\\src\\components\\doctor\\EmptyState.jsx": {
+    "mtime": 1780059866.0724113,
+    "ast_hash": "ee490e094e12bd5eb51f32ee465d11df",
+    "semantic_hash": "ee490e094e12bd5eb51f32ee465d11df"
+  },
+  "E:\\FAI\\Projects\\HealthLink\\HealthLink_FE\\src\\components\\doctor\\NextAppointmentCard.jsx": {
+    "mtime": 1780072962.555896,
+    "ast_hash": "5086e7725419430a333f6a667766025b",
+    "semantic_hash": "5086e7725419430a333f6a667766025b"
+  },
+  "E:\\FAI\\Projects\\HealthLink\\HealthLink_FE\\src\\components\\doctor\\PatientAvatar.jsx": {
+    "mtime": 1780069738.3207624,
+    "ast_hash": "afbe4fd32440fce0b74c6d8575086cf3",
+    "semantic_hash": "afbe4fd32440fce0b74c6d8575086cf3"
+  },
+  "E:\\FAI\\Projects\\HealthLink\\HealthLink_FE\\src\\components\\doctor\\PatientCard.jsx": {
+    "mtime": 1780211088.5012045,
+    "ast_hash": "cc2118ea014b383d86cf991abcb47bd4",
+    "semantic_hash": "cc2118ea014b383d86cf991abcb47bd4"
+  },
+  "E:\\FAI\\Projects\\HealthLink\\HealthLink_FE\\src\\components\\doctor\\ScheduleCalendarView.jsx": {
+    "mtime": 1780069793.430643,
+    "ast_hash": "79dfc2929f395aea29fe77e7d80e452d",
+    "semantic_hash": "79dfc2929f395aea29fe77e7d80e452d"
+  },
+  "E:\\FAI\\Projects\\HealthLink\\HealthLink_FE\\src\\components\\doctor\\ScheduleExceptionModal.jsx": {
+    "mtime": 1780116046.728589,
+    "ast_hash": "fd20f82d2c9482a4e07ec2f61e4046dd",
+    "semantic_hash": "fd20f82d2c9482a4e07ec2f61e4046dd"
+  },
+  "E:\\FAI\\Projects\\HealthLink\\HealthLink_FE\\src\\components\\doctor\\ScheduleFormModal.jsx": {
+    "mtime": 1780116046.6637647,
+    "ast_hash": "d51917d08da1b73091dba3482275b712",
+    "semantic_hash": "d51917d08da1b73091dba3482275b712"
+  },
+  "E:\\FAI\\Projects\\HealthLink\\HealthLink_FE\\src\\components\\doctor\\TodayTimeline.jsx": {
+    "mtime": 1780069738.3028038,
+    "ast_hash": "92de1b4159420749c9be30e656424241",
+    "semantic_hash": "92de1b4159420749c9be30e656424241"
+  },
+  "E:\\FAI\\Projects\\HealthLink\\HealthLink_FE\\src\\components\\doctor\\VitalItem.jsx": {
+    "mtime": 1780059865.193226,
+    "ast_hash": "1a03dcf5462cc55ee414f7eb9fc8f105",
+    "semantic_hash": "1a03dcf5462cc55ee414f7eb9fc8f105"
+  },
+  "E:\\FAI\\Projects\\HealthLink\\HealthLink_FE\\src\\components\\doctor\\WeeklyScheduleBuilder.jsx": {
+    "mtime": 1780072962.5579078,
+    "ast_hash": "a47cc99e900bd85fae9df2db27f165c0",
+    "semantic_hash": "a47cc99e900bd85fae9df2db27f165c0"
+  },
+  "E:\\FAI\\Projects\\HealthLink\\HealthLink_FE\\src\\components\\doctor\\dashboard\\DoctorReviewsView.jsx": {
+    "mtime": 1780218161.3933394,
+    "ast_hash": "e29a0c6b65f2c8c072998c9f148acde2",
+    "semantic_hash": "e29a0c6b65f2c8c072998c9f148acde2"
+  },
+  "E:\\FAI\\Projects\\HealthLink\\HealthLink_FE\\src\\components\\patient-dashboard\\PatientDashboardHome.jsx": {
+    "mtime": 1780053114.6741588,
+    "ast_hash": "722cfa12fde1574db1a4c23587f50954",
+    "semantic_hash": "722cfa12fde1574db1a4c23587f50954"
+  },
+  "E:\\FAI\\Projects\\HealthLink\\HealthLink_FE\\src\\components\\patient-dashboard\\PatientHeader.jsx": {
+    "mtime": 1780218161.394337,
+    "ast_hash": "441d760236bc27fd53804b7a2a042245",
+    "semantic_hash": "441d760236bc27fd53804b7a2a042245"
+  },
+  "E:\\FAI\\Projects\\HealthLink\\HealthLink_FE\\src\\components\\patient-dashboard\\PatientSidebar.jsx": {
+    "mtime": 1780218791.4099467,
+    "ast_hash": "8b6614457ef10525d032288469031e56",
+    "semantic_hash": "8b6614457ef10525d032288469031e56"
+  },
+  "E:\\FAI\\Projects\\HealthLink\\HealthLink_FE\\src\\components\\patient-dashboard\\PatientStats.jsx": {
+    "mtime": 1780053114.6752064,
+    "ast_hash": "d1ea64e053c3a551e560b5539773f566",
+    "semantic_hash": "d1ea64e053c3a551e560b5539773f566"
+  },
+  "E:\\FAI\\Projects\\HealthLink\\HealthLink_FE\\src\\components\\patient-dashboard\\QuickActions.jsx": {
+    "mtime": 1780053114.6752064,
+    "ast_hash": "48fb13eeb1bbb22bcdd27384f6d0f99e",
+    "semantic_hash": "48fb13eeb1bbb22bcdd27384f6d0f99e"
+  },
+  "E:\\FAI\\Projects\\HealthLink\\HealthLink_FE\\src\\components\\patient-dashboard\\ReviewForm.jsx": {
+    "mtime": 1780218161.3963308,
+    "ast_hash": "a6b13699bf32c8fe6f748a9e67c0c0bb",
+    "semantic_hash": "a6b13699bf32c8fe6f748a9e67c0c0bb"
+  },
+  "E:\\FAI\\Projects\\HealthLink\\HealthLink_FE\\src\\components\\patient-dashboard\\Schedule.jsx": {
+    "mtime": 1780655791.0688958,
+    "ast_hash": "60ce563eb3c09d32af8e3075f1e361e0",
+    "semantic_hash": "60ce563eb3c09d32af8e3075f1e361e0"
+  },
+  "E:\\FAI\\Projects\\HealthLink\\HealthLink_FE\\src\\components\\pharmacy\\PharmacyAvatar.jsx": {
+    "mtime": 1780483092.7305248,
+    "ast_hash": "7c9241802b6c6ed0aa8fe63cb979b73c",
+    "semantic_hash": "7c9241802b6c6ed0aa8fe63cb979b73c"
+  },
+  "E:\\FAI\\Projects\\HealthLink\\HealthLink_FE\\src\\components\\pharmacy\\PharmacyConsultationsTab.jsx": {
+    "mtime": 1780721404.7149725,
+    "ast_hash": "3191ee77a2f8cd868e9ef7f140b8d99f",
+    "semantic_hash": ""
+  },
+  "E:\\FAI\\Projects\\HealthLink\\HealthLink_FE\\src\\components\\pharmacy\\PharmacyDetail.jsx": {
+    "mtime": 1780483095.4231615,
+    "ast_hash": "59832d089c524bc575f95b682816cbad",
+    "semantic_hash": "59832d089c524bc575f95b682816cbad"
+  },
+  "E:\\FAI\\Projects\\HealthLink\\HealthLink_FE\\src\\components\\pharmacy\\PharmacyInfoLine.jsx": {
+    "mtime": 1780483094.8572793,
+    "ast_hash": "49b8d4c51594bd59ee2b619ed311a17a",
+    "semantic_hash": "49b8d4c51594bd59ee2b619ed311a17a"
+  },
+  "E:\\FAI\\Projects\\HealthLink\\HealthLink_FE\\src\\components\\pharmacy\\PharmacyMetricCard.jsx": {
+    "mtime": 1780483094.322089,
+    "ast_hash": "34317cef0c91e3f0f508b0350d11ac4c",
+    "semantic_hash": "34317cef0c91e3f0f508b0350d11ac4c"
+  },
+  "E:\\FAI\\Projects\\HealthLink\\HealthLink_FE\\src\\components\\pharmacy\\PharmacyModal.jsx": {
+    "mtime": 1780661722.3539944,
+    "ast_hash": "365ae3f276553aadf60911f38c2d3a7a",
+    "semantic_hash": "365ae3f276553aadf60911f38c2d3a7a"
+  },
+  "E:\\FAI\\Projects\\HealthLink\\HealthLink_FE\\src\\components\\pharmacy\\PharmacyOrdersTab.jsx": {
+    "mtime": 1780669850.313594,
+    "ast_hash": "bcdc27496139883e68d4c051b7fd1f07",
+    "semantic_hash": "bcdc27496139883e68d4c051b7fd1f07"
+  },
+  "E:\\FAI\\Projects\\HealthLink\\HealthLink_FE\\src\\components\\pharmacy\\PharmacyOverviewTab.jsx": {
+    "mtime": 1780482984.3908074,
+    "ast_hash": "3f73b5b9804be4c0b6c09ae62fbcb5a2",
+    "semantic_hash": "3f73b5b9804be4c0b6c09ae62fbcb5a2"
+  },
+  "E:\\FAI\\Projects\\HealthLink\\HealthLink_FE\\src\\components\\pharmacy\\PharmacyPageHeader.jsx": {
+    "mtime": 1780483093.590476,
+    "ast_hash": "a2a91075478ba7c0e0097ee52d263345",
+    "semantic_hash": "a2a91075478ba7c0e0097ee52d263345"
+  },
+  "E:\\FAI\\Projects\\HealthLink\\HealthLink_FE\\src\\components\\pharmacy\\PharmacyPagination.jsx": {
+    "mtime": 1780483096.7181635,
+    "ast_hash": "9c6bc7ff25273e8281d5a8d7cfbc3bf6",
+    "semantic_hash": "9c6bc7ff25273e8281d5a8d7cfbc3bf6"
+  },
+  "E:\\FAI\\Projects\\HealthLink\\HealthLink_FE\\src\\components\\pharmacy\\PharmacyProfileTab.jsx": {
+    "mtime": 1780483138.8576286,
+    "ast_hash": "ea2adad91123841ab1ac6eaa4ea5c747",
+    "semantic_hash": "ea2adad91123841ab1ac6eaa4ea5c747"
+  },
+  "E:\\FAI\\Projects\\HealthLink\\HealthLink_FE\\src\\components\\pharmacy\\PharmacyShared.jsx": {
+    "mtime": 1780483108.097443,
+    "ast_hash": "0999a506cd282273c5e00d2ae2126fa3",
+    "semantic_hash": "0999a506cd282273c5e00d2ae2126fa3"
+  },
+  "E:\\FAI\\Projects\\HealthLink\\HealthLink_FE\\src\\components\\pharmacy\\PharmacyWalletTab.jsx": {
+    "mtime": 1780665787.9444199,
+    "ast_hash": "32880c5dd8589c990bfffd4e5e9404f3",
+    "semantic_hash": "32880c5dd8589c990bfffd4e5e9404f3"
+  },
+  "E:\\FAI\\Projects\\HealthLink\\HealthLink_FE\\src\\components\\schedule\\ConfirmStep.jsx": {
+    "mtime": 1780053114.6807206,
+    "ast_hash": "01c75e809bdc73b387cd9914363f7503",
+    "semantic_hash": "01c75e809bdc73b387cd9914363f7503"
+  },
+  "E:\\FAI\\Projects\\HealthLink\\HealthLink_FE\\src\\components\\schedule\\ConsultationStep.jsx": {
+    "mtime": 1780053114.6807206,
+    "ast_hash": "e27212fb22fbc1fdf498186ea8595c88",
+    "semantic_hash": "e27212fb22fbc1fdf498186ea8595c88"
+  },
+  "E:\\FAI\\Projects\\HealthLink\\HealthLink_FE\\src\\components\\schedule\\DateTimeStep.jsx": {
+    "mtime": 1780450505.8879142,
+    "ast_hash": "692faa82ad67aaf1f5d4de33e2c08ea3",
+    "semantic_hash": "692faa82ad67aaf1f5d4de33e2c08ea3"
+  },
+  "E:\\FAI\\Projects\\HealthLink\\HealthLink_FE\\src\\components\\schedule\\DoctorStep.jsx": {
+    "mtime": 1780053114.6817174,
+    "ast_hash": "7a778e4afbb7d695db9b3d251a6051b9",
+    "semantic_hash": "7a778e4afbb7d695db9b3d251a6051b9"
+  },
+  "E:\\FAI\\Projects\\HealthLink\\HealthLink_FE\\src\\components\\schedule\\DoctorSummaryCard.jsx": {
+    "mtime": 1780053114.6817174,
+    "ast_hash": "944fcc116e49e943176668f7c9c01764",
+    "semantic_hash": "944fcc116e49e943176668f7c9c01764"
+  },
+  "E:\\FAI\\Projects\\HealthLink\\HealthLink_FE\\src\\components\\schedule\\DocumentsStep.jsx": {
+    "mtime": 1780655791.0747018,
+    "ast_hash": "d82eede8c37fb4ffb81c8f0f455a0008",
+    "semantic_hash": "d82eede8c37fb4ffb81c8f0f455a0008"
+  },
+  "E:\\FAI\\Projects\\HealthLink\\HealthLink_FE\\src\\components\\schedule\\PaymentStep.jsx": {
+    "mtime": 1780053114.6817174,
+    "ast_hash": "e45c453cbe972f304af1e0a096951adb",
+    "semantic_hash": "e45c453cbe972f304af1e0a096951adb"
+  },
+  "E:\\FAI\\Projects\\HealthLink\\HealthLink_FE\\src\\components\\schedule\\ScheduleStepper.jsx": {
+    "mtime": 1780053114.6827145,
+    "ast_hash": "9c4624802b1867bb71a17de88f93b886",
+    "semantic_hash": "9c4624802b1867bb71a17de88f93b886"
+  },
+  "E:\\FAI\\Projects\\HealthLink\\HealthLink_FE\\src\\components\\schedule\\SpecialtyStep.jsx": {
+    "mtime": 1780053114.6827145,
+    "ast_hash": "234e501a4b43194558d607d1e57db5a9",
+    "semantic_hash": "234e501a4b43194558d607d1e57db5a9"
+  },
+  "E:\\FAI\\Projects\\HealthLink\\HealthLink_FE\\src\\context\\AuthContext.jsx": {
+    "mtime": 1780053114.6827145,
+    "ast_hash": "7dc125ca1e672ea7fad22616df982683",
+    "semantic_hash": "7dc125ca1e672ea7fad22616df982683"
+  },
+  "E:\\FAI\\Projects\\HealthLink\\HealthLink_FE\\src\\context\\ChatContext.jsx": {
+    "mtime": 1780053114.6837893,
+    "ast_hash": "734fd9a08929e3c26d79fd2060c2ac82",
+    "semantic_hash": "734fd9a08929e3c26d79fd2060c2ac82"
+  },
+  "E:\\FAI\\Projects\\HealthLink\\HealthLink_FE\\src\\context\\NotificationContext.jsx": {
+    "mtime": 1780218337.3748362,
+    "ast_hash": "163d6a0db0d3512e7f66f7016ea9b5bd",
+    "semantic_hash": "163d6a0db0d3512e7f66f7016ea9b5bd"
+  },
+  "E:\\FAI\\Projects\\HealthLink\\HealthLink_FE\\src\\firebase.jsx": {
+    "mtime": 1780053114.6837893,
+    "ast_hash": "4cc28d1ad0833a05a009389c111f29eb",
+    "semantic_hash": "4cc28d1ad0833a05a009389c111f29eb"
+  },
+  "E:\\FAI\\Projects\\HealthLink\\HealthLink_FE\\src\\hooks\\doctor\\useAppointmentData.js": {
+    "mtime": 1780069704.0567,
+    "ast_hash": "1de585863a879f209aeb175cb463ca28",
+    "semantic_hash": "1de585863a879f209aeb175cb463ca28"
+  },
+  "E:\\FAI\\Projects\\HealthLink\\HealthLink_FE\\src\\hooks\\doctor\\useAppointmentDetail.js": {
+    "mtime": 1780123719.4677916,
+    "ast_hash": "1ed25f0d855e3ca6b2306d62ce587b0c",
+    "semantic_hash": "1ed25f0d855e3ca6b2306d62ce587b0c"
+  },
+  "E:\\FAI\\Projects\\HealthLink\\HealthLink_FE\\src\\hooks\\doctor\\useChatVideo.js": {
+    "mtime": 1780069704.0653076,
+    "ast_hash": "539270ff4eba1b81f8fc23668a549917",
+    "semantic_hash": "539270ff4eba1b81f8fc23668a549917"
+  },
+  "E:\\FAI\\Projects\\HealthLink\\HealthLink_FE\\src\\hooks\\doctor\\useConsultationNotes.js": {
+    "mtime": 1780069704.0769236,
+    "ast_hash": "2c50a84ffcba66f04eb0f8dfe498430a",
+    "semantic_hash": "2c50a84ffcba66f04eb0f8dfe498430a"
+  },
+  "E:\\FAI\\Projects\\HealthLink\\HealthLink_FE\\src\\hooks\\doctor\\useFollowUp.js": {
+    "mtime": 1780069704.0801158,
+    "ast_hash": "03bff3dd7a90ca7da32d245839fa66d8",
+    "semantic_hash": "03bff3dd7a90ca7da32d245839fa66d8"
+  },
+  "E:\\FAI\\Projects\\HealthLink\\HealthLink_FE\\src\\hooks\\doctor\\useNotifications.js": {
+    "mtime": 1780069704.0924087,
+    "ast_hash": "8cc4bf9819b07a391b7a947f9d74174f",
+    "semantic_hash": "8cc4bf9819b07a391b7a947f9d74174f"
+  },
+  "E:\\FAI\\Projects\\HealthLink\\HealthLink_FE\\src\\hooks\\doctor\\useVitalSigns.js": {
+    "mtime": 1780069704.1310062,
+    "ast_hash": "f71b2473ee6e5fba695557e486d79a62",
+    "semantic_hash": "f71b2473ee6e5fba695557e486d79a62"
+  },
+  "E:\\FAI\\Projects\\HealthLink\\HealthLink_FE\\src\\hooks\\useWebRTC.js": {
+    "mtime": 1780053114.684791,
+    "ast_hash": "387e9ef75be931352e0beec115e87f66",
+    "semantic_hash": "387e9ef75be931352e0beec115e87f66"
+  },
+  "E:\\FAI\\Projects\\HealthLink\\HealthLink_FE\\src\\layouts\\DoctorLayout.jsx": {
+    "mtime": 1780117738.048697,
+    "ast_hash": "bd5c3cf2072b4eff655f804f7f9047d0",
+    "semantic_hash": "bd5c3cf2072b4eff655f804f7f9047d0"
+  },
+  "E:\\FAI\\Projects\\HealthLink\\HealthLink_FE\\src\\layouts\\navigationConfig.js": {
+    "mtime": 1780218161.397329,
+    "ast_hash": "5ce5332a008a81d1c01c73a570466761",
+    "semantic_hash": "5ce5332a008a81d1c01c73a570466761"
+  },
+  "E:\\FAI\\Projects\\HealthLink\\HealthLink_FE\\src\\main.jsx": {
+    "mtime": 1780053114.684791,
+    "ast_hash": "61002a83256197f99217abc153e9425e",
+    "semantic_hash": "61002a83256197f99217abc153e9425e"
+  },
+  "E:\\FAI\\Projects\\HealthLink\\HealthLink_FE\\src\\pages\\NotFound.jsx": {
+    "mtime": 1780112582.5795648,
+    "ast_hash": "fc464e056a33095801014796ae20d6c2",
+    "semantic_hash": "fc464e056a33095801014796ae20d6c2"
+  },
+  "E:\\FAI\\Projects\\HealthLink\\HealthLink_FE\\src\\pages\\PatientDashboard.jsx": {
+    "mtime": 1780053114.685928,
+    "ast_hash": "6a4e9abbe07f015a6bac5b9b6260ba75",
+    "semantic_hash": "6a4e9abbe07f015a6bac5b9b6260ba75"
+  },
+  "E:\\FAI\\Projects\\HealthLink\\HealthLink_FE\\src\\pages\\doctor\\DoctorDashboardPage.jsx": {
+    "mtime": 1780218161.4096515,
+    "ast_hash": "2476a7ca54ce40df9b2842f5e631e228",
+    "semantic_hash": "2476a7ca54ce40df9b2842f5e631e228"
+  },
+  "E:\\FAI\\Projects\\HealthLink\\HealthLink_FE\\src\\pages\\doctor\\DoctorPublicProfilePage.jsx": {
+    "mtime": 1780655791.0817597,
+    "ast_hash": "517543e43d97be82dcac94b75fc1ef80",
+    "semantic_hash": "517543e43d97be82dcac94b75fc1ef80"
+  },
+  "E:\\FAI\\Projects\\HealthLink\\HealthLink_FE\\src\\pages\\doctor\\appointment\\DoctorAppointmentsView.jsx": {
+    "mtime": 1780122396.7702885,
+    "ast_hash": "aaec7691bc939f28b3866682d52ffe4f",
+    "semantic_hash": "aaec7691bc939f28b3866682d52ffe4f"
+  },
+  "E:\\FAI\\Projects\\HealthLink\\HealthLink_FE\\src\\pages\\doctor\\appointment\\appointmentDetail\\DoctorAppointmentDetail.jsx": {
+    "mtime": 1780207104.0996592,
+    "ast_hash": "cdd334369c2a886163efe7ebf716adda",
+    "semantic_hash": "cdd334369c2a886163efe7ebf716adda"
+  },
+  "E:\\FAI\\Projects\\HealthLink\\HealthLink_FE\\src\\pages\\doctor\\appointment\\appointmentDetail\\tabs\\FollowUpTab.jsx": {
+    "mtime": 1780115448.8615196,
+    "ast_hash": "657539ac1156f67c271d120d6a7c40a6",
+    "semantic_hash": "657539ac1156f67c271d120d6a7c40a6"
+  },
+  "E:\\FAI\\Projects\\HealthLink\\HealthLink_FE\\src\\pages\\doctor\\appointment\\appointmentDetail\\tabs\\HistoryTab.jsx": {
+    "mtime": 1780115448.1940577,
+    "ast_hash": "b962bf00852d4f4be5798aff0e2b83b3",
+    "semantic_hash": "b962bf00852d4f4be5798aff0e2b83b3"
+  },
+  "E:\\FAI\\Projects\\HealthLink\\HealthLink_FE\\src\\pages\\doctor\\appointment\\appointmentDetail\\tabs\\NotesTab.jsx": {
+    "mtime": 1780115447.4768946,
+    "ast_hash": "8313d3026b1710e736851744d158c6af",
+    "semantic_hash": "8313d3026b1710e736851744d158c6af"
+  },
+  "E:\\FAI\\Projects\\HealthLink\\HealthLink_FE\\src\\pages\\doctor\\appointment\\appointmentDetail\\tabs\\PrescriptionTab.jsx": {
+    "mtime": 1780069738.3380377,
+    "ast_hash": "c3bae67356c7f9d92fc4f7e48b45b950",
+    "semantic_hash": "c3bae67356c7f9d92fc4f7e48b45b950"
+  },
+  "E:\\FAI\\Projects\\HealthLink\\HealthLink_FE\\src\\pages\\doctor\\appointment\\appointmentDetail\\tabs\\SharedRecordsTab.jsx": {
+    "mtime": 1780208858.9245114,
+    "ast_hash": "9d28eaab8a1983b45ea39efbc9b39f22",
+    "semantic_hash": "9d28eaab8a1983b45ea39efbc9b39f22"
+  },
+  "E:\\FAI\\Projects\\HealthLink\\HealthLink_FE\\src\\pages\\doctor\\patient\\DoctorPatientDetailView.jsx": {
+    "mtime": 1780115449.3901188,
+    "ast_hash": "f8eddcc82b16bf34581c219696d6db09",
+    "semantic_hash": "f8eddcc82b16bf34581c219696d6db09"
+  },
+  "E:\\FAI\\Projects\\HealthLink\\HealthLink_FE\\src\\pages\\doctor\\patient\\DoctorPatientsView.jsx": {
+    "mtime": 1780211093.8347683,
+    "ast_hash": "dcac469224da589d589e87915d57b52a",
+    "semantic_hash": "dcac469224da589d589e87915d57b52a"
+  },
+  "E:\\FAI\\Projects\\HealthLink\\HealthLink_FE\\src\\pages\\doctor\\prescription\\DoctorPrescriptionsView.jsx": {
+    "mtime": 1780116326.6204586,
+    "ast_hash": "83b41ce925baf8b686b12301d500854d",
+    "semantic_hash": "83b41ce925baf8b686b12301d500854d"
+  },
+  "E:\\FAI\\Projects\\HealthLink\\HealthLink_FE\\src\\pages\\doctor\\profile\\DoctorProfileView.jsx": {
+    "mtime": 1780112681.8646214,
+    "ast_hash": "3576864e44927030b51654ffce21c29f",
+    "semantic_hash": "3576864e44927030b51654ffce21c29f"
+  },
+  "E:\\FAI\\Projects\\HealthLink\\HealthLink_FE\\src\\pages\\doctor\\reviews\\DoctorReviewsView.jsx": {
+    "mtime": 1780218161.4106495,
+    "ast_hash": "1973ebf74ebe8b2274b96cfca900f10c",
+    "semantic_hash": "1973ebf74ebe8b2274b96cfca900f10c"
+  },
+  "E:\\FAI\\Projects\\HealthLink\\HealthLink_FE\\src\\pages\\doctor\\schedule\\DoctorScheduleView.jsx": {
+    "mtime": 1780115441.8444128,
+    "ast_hash": "58d37a7128d2b1f6cabb06b0baa41b8c",
+    "semantic_hash": "58d37a7128d2b1f6cabb06b0baa41b8c"
+  },
+  "E:\\FAI\\Projects\\HealthLink\\HealthLink_FE\\src\\pages\\patient\\PharmacyConsultationsPage.jsx": {
+    "mtime": 1780672132.8165975,
+    "ast_hash": "4d63e63649e539bc20497e5814c76e89",
+    "semantic_hash": "4d63e63649e539bc20497e5814c76e89"
+  },
+  "E:\\FAI\\Projects\\HealthLink\\HealthLink_FE\\src\\pages\\pharmacy\\PharmacyDashboardPage.jsx": {
+    "mtime": 1780482983.4131963,
+    "ast_hash": "94e0adbfaca9ecb33a867009b8f9ec8f",
+    "semantic_hash": "94e0adbfaca9ecb33a867009b8f9ec8f"
+  },
+  "E:\\FAI\\Projects\\HealthLink\\HealthLink_FE\\src\\pages\\profilePatient.jsx": {
+    "mtime": 1780053114.6879227,
+    "ast_hash": "04b19fde588d94dadd0accc6d56c3ce8",
+    "semantic_hash": "04b19fde588d94dadd0accc6d56c3ce8"
+  },
+  "E:\\FAI\\Projects\\HealthLink\\HealthLink_FE\\src\\pages\\profilePharmacy.jsx": {
+    "mtime": 1780053114.6879227,
+    "ast_hash": "c7c37d88e7696fadbe166edc15a0c86c",
+    "semantic_hash": "c7c37d88e7696fadbe166edc15a0c86c"
+  },
+  "E:\\FAI\\Projects\\HealthLink\\HealthLink_FE\\src\\pages\\video-calling.jsx": {
+    "mtime": 1780053114.6889226,
+    "ast_hash": "9c1024f2cbefa8ec7dfc8581898878be",
+    "semantic_hash": "9c1024f2cbefa8ec7dfc8581898878be"
+  },
+  "E:\\FAI\\Projects\\HealthLink\\HealthLink_FE\\src\\services\\geminiService.js": {
+    "mtime": 1780655791.0890226,
+    "ast_hash": "c0ffabd5a0c5152cfbb9334b541923f9",
+    "semantic_hash": "c0ffabd5a0c5152cfbb9334b541923f9"
+  },
+  "E:\\FAI\\Projects\\HealthLink\\HealthLink_FE\\src\\services\\signalrService.js": {
+    "mtime": 1780218337.3761868,
+    "ast_hash": "98ef4b635904a32ce35c09b94a6dcad5",
+    "semantic_hash": "98ef4b635904a32ce35c09b94a6dcad5"
+  },
+  "E:\\FAI\\Projects\\HealthLink\\HealthLink_FE\\src\\services\\stompAdminService.js": {
+    "mtime": 1780053114.6899173,
+    "ast_hash": "74d575fb5353658e5a7f2bb56557ea06",
+    "semantic_hash": "74d575fb5353658e5a7f2bb56557ea06"
+  },
+  "E:\\FAI\\Projects\\HealthLink\\HealthLink_FE\\src\\services\\stompChatService.js": {
+    "mtime": 1780053114.690931,
+    "ast_hash": "1d104179de919d45a2416a2b2d2470bd",
+    "semantic_hash": "1d104179de919d45a2416a2b2d2470bd"
+  },
+  "E:\\FAI\\Projects\\HealthLink\\HealthLink_FE\\src\\services\\videoCallService.js": {
+    "mtime": 1780053114.690931,
+    "ast_hash": "bb81d067e782691f28c7a16a9c548574",
+    "semantic_hash": "bb81d067e782691f28c7a16a9c548574"
+  },
+  "E:\\FAI\\Projects\\HealthLink\\HealthLink_FE\\src\\services\\websocketService.js": {
+    "mtime": 1780053114.690931,
+    "ast_hash": "f32374ae19346996621d83952fe3cdbf",
+    "semantic_hash": "f32374ae19346996621d83952fe3cdbf"
+  },
+  "E:\\FAI\\Projects\\HealthLink\\HealthLink_FE\\src\\utils\\audioService.js": {
+    "mtime": 1780053114.6919372,
+    "ast_hash": "1c2639f909e7571c2ee994719a8d108f",
+    "semantic_hash": "1c2639f909e7571c2ee994719a8d108f"
+  },
+  "E:\\FAI\\Projects\\HealthLink\\HealthLink_FE\\src\\utils\\authUtils.js": {
+    "mtime": 1780053114.6919372,
+    "ast_hash": "b5c1d64eece4afdef20d6954bd268da2",
+    "semantic_hash": "b5c1d64eece4afdef20d6954bd268da2"
+  },
+  "E:\\FAI\\Projects\\HealthLink\\HealthLink_FE\\src\\utils\\avatarHelper.js": {
+    "mtime": 1780218161.4106495,
+    "ast_hash": "cb2ac17b079604e0b633e4db03b76e74",
+    "semantic_hash": "cb2ac17b079604e0b633e4db03b76e74"
+  },
+  "E:\\FAI\\Projects\\HealthLink\\HealthLink_FE\\src\\utils\\doctor\\appointmentHelpers.js": {
+    "mtime": 1780067882.3916025,
+    "ast_hash": "564761dc8a81da4285440699944a9d0f",
+    "semantic_hash": "564761dc8a81da4285440699944a9d0f"
+  },
+  "E:\\FAI\\Projects\\HealthLink\\HealthLink_FE\\src\\utils\\doctor\\tabHelpers.js": {
+    "mtime": 1780067882.387601,
+    "ast_hash": "adc3c9c1afb1f7461df0818533eaf459",
+    "semantic_hash": "adc3c9c1afb1f7461df0818533eaf459"
+  },
+  "E:\\FAI\\Projects\\HealthLink\\HealthLink_FE\\src\\utils\\imageModeration.js": {
+    "mtime": 1780655791.0969517,
+    "ast_hash": "fe592c28849cbb12a5a6c5bd9bffbd8f",
+    "semantic_hash": "fe592c28849cbb12a5a6c5bd9bffbd8f"
+  },
+  "E:\\FAI\\Projects\\HealthLink\\HealthLink_FE\\src\\utils\\pharmacy\\pharmacyHelpers.js": {
+    "mtime": 1780672132.6525393,
+    "ast_hash": "0d051fc8ac22bb78f44127bb25207ee1",
+    "semantic_hash": "0d051fc8ac22bb78f44127bb25207ee1"
+  },
+  "E:\\FAI\\Projects\\HealthLink\\HealthLink_FE\\src\\utils\\tokenUtils.js": {
+    "mtime": 1780053114.6919372,
+    "ast_hash": "2b846bea409e390eec3b8e3ddca89e1f",
+    "semantic_hash": "2b846bea409e390eec3b8e3ddca89e1f"
+  },
+  "E:\\FAI\\Projects\\HealthLink\\HealthLink_FE\\vite.config.js": {
+    "mtime": 1780073107.8355825,
+    "ast_hash": "62e2680b80c5ee03508639932bc03e7c",
+    "semantic_hash": "62e2680b80c5ee03508639932bc03e7c"
+  },
+  "E:\\FAI\\Projects\\HealthLink\\HealthLink_FE\\index.html": {
+    "mtime": 1780053114.5209918,
+    "ast_hash": "a98db74cbf3af71f07b550e6d8a389b4",
+    "semantic_hash": "a98db74cbf3af71f07b550e6d8a389b4"
+  },
+  "E:\\FAI\\Projects\\HealthLink\\HealthLink_FE\\public\\Call.png": {
+    "mtime": 1780053114.5250926,
+    "ast_hash": "c1b5d9d43e4a2120b5b4169b335c753f",
+    "semantic_hash": "c1b5d9d43e4a2120b5b4169b335c753f"
+  },
+  "E:\\FAI\\Projects\\HealthLink\\HealthLink_FE\\public\\Call1.png": {
+    "mtime": 1780053114.5250926,
+    "ast_hash": "8135f1957fd7fd27228f2a63f968bb3d",
+    "semantic_hash": "8135f1957fd7fd27228f2a63f968bb3d"
+  },
+  "E:\\FAI\\Projects\\HealthLink\\HealthLink_FE\\public\\Hung\\Admin.jpg": {
+    "mtime": 1780053114.5260904,
+    "ast_hash": "637c849dd4a283441568b55c39c8c789",
+    "semantic_hash": "637c849dd4a283441568b55c39c8c789"
+  },
+  "E:\\FAI\\Projects\\HealthLink\\HealthLink_FE\\public\\Hung\\Background_AboutUs.jpg": {
+    "mtime": 1780053114.5336962,
+    "ast_hash": "9aac2741446b7639a3426abecda5e17d",
+    "semantic_hash": "9aac2741446b7639a3426abecda5e17d"
+  },
+  "E:\\FAI\\Projects\\HealthLink\\HealthLink_FE\\public\\Hung\\Background_ContactUs.jpg": {
+    "mtime": 1780053114.5349772,
+    "ast_hash": "73b34d926c2c7a3777ac1d6bc1b666f0",
+    "semantic_hash": "73b34d926c2c7a3777ac1d6bc1b666f0"
+  },
+  "E:\\FAI\\Projects\\HealthLink\\HealthLink_FE\\public\\Hung\\Background_Doctors.jpg": {
+    "mtime": 1780053114.5349772,
+    "ast_hash": "f28a16d6bd00c02273c266351b9b07e6",
+    "semantic_hash": "f28a16d6bd00c02273c266351b9b07e6"
+  },
+  "E:\\FAI\\Projects\\HealthLink\\HealthLink_FE\\public\\Hung\\Background_Home.jpg": {
+    "mtime": 1778031618.0202599,
+    "ast_hash": "aa1c95356ce97092fa55fb6210a52407",
+    "semantic_hash": "aa1c95356ce97092fa55fb6210a52407"
+  },
+  "E:\\FAI\\Projects\\HealthLink\\HealthLink_FE\\public\\Hung\\Background_Schedule.jpg": {
+    "mtime": 1780053114.5418308,
+    "ast_hash": "03445ace66d2dd50ce4c9d701c2dafde",
+    "semantic_hash": "03445ace66d2dd50ce4c9d701c2dafde"
+  },
+  "E:\\FAI\\Projects\\HealthLink\\HealthLink_FE\\public\\Hung\\Home01.jpg": {
+    "mtime": 1780053114.5418308,
+    "ast_hash": "fc9f1952502da03d235addf9bdec6232",
+    "semantic_hash": "fc9f1952502da03d235addf9bdec6232"
+  },
+  "E:\\FAI\\Projects\\HealthLink\\HealthLink_FE\\public\\Hung\\Home02.png": {
+    "mtime": 1780053114.5430655,
+    "ast_hash": "edd55f15a98a0c5c0839ef83f4bff258",
+    "semantic_hash": "edd55f15a98a0c5c0839ef83f4bff258"
+  },
+  "E:\\FAI\\Projects\\HealthLink\\HealthLink_FE\\public\\Hung\\Home03.jpg": {
+    "mtime": 1780053114.5430655,
+    "ast_hash": "c709d5663938b191794642652a5b4886",
+    "semantic_hash": "c709d5663938b191794642652a5b4886"
+  },
+  "E:\\FAI\\Projects\\HealthLink\\HealthLink_FE\\public\\Hung\\Home04.jpg": {
+    "mtime": 1780053114.5443616,
+    "ast_hash": "264933eeec8f2d2a28a7558b0267cbdf",
+    "semantic_hash": "264933eeec8f2d2a28a7558b0267cbdf"
+  },
+  "E:\\FAI\\Projects\\HealthLink\\HealthLink_FE\\public\\Hung\\Home05.jpg": {
+    "mtime": 1780053114.545552,
+    "ast_hash": "17e7593d84949262cbe271da2a6d9551",
+    "semantic_hash": "17e7593d84949262cbe271da2a6d9551"
+  },
+  "E:\\FAI\\Projects\\HealthLink\\HealthLink_FE\\public\\Hung\\Login.jpg": {
+    "mtime": 1780053114.545552,
+    "ast_hash": "b40917b9d98f5c38d22bb9e09056b227",
+    "semantic_hash": "b40917b9d98f5c38d22bb9e09056b227"
+  },
+  "E:\\FAI\\Projects\\HealthLink\\HealthLink_FE\\public\\Hung\\PP1.jpg": {
+    "mtime": 1780053114.5468602,
+    "ast_hash": "3cba44429138fd83db6541b42bb5f3fe",
+    "semantic_hash": "3cba44429138fd83db6541b42bb5f3fe"
+  },
+  "E:\\FAI\\Projects\\HealthLink\\HealthLink_FE\\public\\Hung\\PP2.jpg": {
+    "mtime": 1780053114.547855,
+    "ast_hash": "d9669795a372843e60b4b26734184b64",
+    "semantic_hash": "d9669795a372843e60b4b26734184b64"
+  },
+  "E:\\FAI\\Projects\\HealthLink\\HealthLink_FE\\public\\Hung\\PP3.jpg": {
+    "mtime": 1780053114.5533533,
+    "ast_hash": "0ccc1926c8685497c3dc443ccc075cc8",
+    "semantic_hash": "0ccc1926c8685497c3dc443ccc075cc8"
+  },
+  "E:\\FAI\\Projects\\HealthLink\\HealthLink_FE\\public\\Hung\\PP4.jpg": {
+    "mtime": 1780053114.5533533,
+    "ast_hash": "8b0a0dfccc05c7fc67218543825789c3",
+    "semantic_hash": "8b0a0dfccc05c7fc67218543825789c3"
+  },
+  "E:\\FAI\\Projects\\HealthLink\\HealthLink_FE\\public\\Hung\\Register.jpg": {
+    "mtime": 1780053114.5571835,
+    "ast_hash": "7095725fd2d07cfc57ee3dbda501fc16",
+    "semantic_hash": "7095725fd2d07cfc57ee3dbda501fc16"
+  },
+  "E:\\FAI\\Projects\\HealthLink\\HealthLink_FE\\public\\Hung\\about_us_profes.jpg": {
+    "mtime": 1780053114.559179,
+    "ast_hash": "69c21deb0468be31fa02c9d030605e97",
+    "semantic_hash": "69c21deb0468be31fa02c9d030605e97"
+  },
+  "E:\\FAI\\Projects\\HealthLink\\HealthLink_FE\\public\\Hung\\about_us_profes1.jpg": {
+    "mtime": 1780053114.5611746,
+    "ast_hash": "98d799a77ae5b5296a7e9373ec93727f",
+    "semantic_hash": "98d799a77ae5b5296a7e9373ec93727f"
+  },
+  "E:\\FAI\\Projects\\HealthLink\\HealthLink_FE\\public\\Hung\\covid19.jpg": {
+    "mtime": 1780053114.5625794,
+    "ast_hash": "e0e8a328e1c303c602bd8fb780a8b2ee",
+    "semantic_hash": "e0e8a328e1c303c602bd8fb780a8b2ee"
+  },
+  "E:\\FAI\\Projects\\HealthLink\\HealthLink_FE\\public\\Hung\\discussion.jpg": {
+    "mtime": 1780053114.5635765,
+    "ast_hash": "ebbb17258061c8c52dfdca1209ac2874",
+    "semantic_hash": "ebbb17258061c8c52dfdca1209ac2874"
+  },
+  "E:\\FAI\\Projects\\HealthLink\\HealthLink_FE\\public\\Hung\\loading.png": {
+    "mtime": 1780053114.5656228,
+    "ast_hash": "c6dd41575b0486f78793e365ab0c730a",
+    "semantic_hash": "c6dd41575b0486f78793e365ab0c730a"
+  },
+  "E:\\FAI\\Projects\\HealthLink\\HealthLink_FE\\public\\Hung\\loading1.png": {
+    "mtime": 1780053114.566687,
+    "ast_hash": "0786d77332a6dfb59a89ba6f37e2e810",
+    "semantic_hash": "0786d77332a6dfb59a89ba6f37e2e810"
+  },
+  "E:\\FAI\\Projects\\HealthLink\\HealthLink_FE\\public\\Hung\\medical_AI.png": {
+    "mtime": 1780053114.5688486,
+    "ast_hash": "56f66df396a8931e1e233c503b3513f5",
+    "semantic_hash": "56f66df396a8931e1e233c503b3513f5"
+  },
+  "E:\\FAI\\Projects\\HealthLink\\HealthLink_FE\\public\\logo.png": {
+    "mtime": 1780053114.5710137,
+    "ast_hash": "50a42f60729a4f03cfa462c0e28fb326",
+    "semantic_hash": "50a42f60729a4f03cfa462c0e28fb326"
+  },
+  "E:\\FAI\\Projects\\HealthLink\\HealthLink_FE\\public\\logo_footer.png": {
+    "mtime": 1780053114.5735126,
+    "ast_hash": "ddcb27a25774309d5b48a87ededfde29",
+    "semantic_hash": "ddcb27a25774309d5b48a87ededfde29"
+  },
+  "E:\\FAI\\Projects\\HealthLink\\HealthLink_FE\\public\\logo_footer1.png": {
+    "mtime": 1780053114.5748603,
+    "ast_hash": "dca4e42d045ac582d86562ef382540bb",
+    "semantic_hash": "dca4e42d045ac582d86562ef382540bb"
+  },
+  "E:\\FAI\\Projects\\HealthLink\\HealthLink_FE\\public\\logo_ko_nen.png": {
+    "mtime": 1780053114.575888,
+    "ast_hash": "e32f380431b968ad8f5d82623a56a840",
+    "semantic_hash": "e32f380431b968ad8f5d82623a56a840"
+  },
+  "E:\\FAI\\Projects\\HealthLink\\HealthLink_FE\\public\\medical_404.png": {
+    "mtime": 1780053114.5809004,
+    "ast_hash": "e98d07946e4bb302a24526fa8f4b756c",
+    "semantic_hash": "e98d07946e4bb302a24526fa8f4b756c"
+  },
+  "E:\\FAI\\Projects\\HealthLink\\HealthLink_FE\\src\\assets\\chat-dots-fill.svg": {
+    "mtime": 1780053114.599861,
+    "ast_hash": "b7ff0243cc98fb46e6379f7026b769b2",
+    "semantic_hash": "b7ff0243cc98fb46e6379f7026b769b2"
+  },
+  "E:\\FAI\\Projects\\HealthLink\\HealthLink_FE\\src\\assets\\person-lines-fill.svg": {
+    "mtime": 1780053114.599861,
+    "ast_hash": "0f95b4af2eb2743e7b08190480c99675",
+    "semantic_hash": "0f95b4af2eb2743e7b08190480c99675"
+  },
+  "E:\\FAI\\Projects\\HealthLink\\HealthLink_FE\\src\\assets\\react.svg": {
+    "mtime": 1780053114.6010742,
+    "ast_hash": "f0402b67b6ce880f65666bb49e841696",
+    "semantic_hash": "f0402b67b6ce880f65666bb49e841696"
+  },
+  "E:\\FAI\\Projects\\HealthLink\\HealthLink_FE\\src\\assets\\audio\\accept phone.m4a": {
+    "mtime": 1780053114.59587,
+    "ast_hash": "69ee308f9d418087c7fe7fb565512fe5",
+    "semantic_hash": "69ee308f9d418087c7fe7fb565512fe5"
+  },
+  "E:\\FAI\\Projects\\HealthLink\\HealthLink_FE\\src\\assets\\audio\\ring bel.mp3": {
+    "mtime": 1780053114.598865,
+    "ast_hash": "82e5b7ba7dd4135c372202f417295e42",
+    "semantic_hash": "82e5b7ba7dd4135c372202f417295e42"
+  }
+}
