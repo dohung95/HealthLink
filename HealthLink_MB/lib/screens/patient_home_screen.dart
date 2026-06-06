@@ -8,53 +8,37 @@ class PatientHomeScreen extends StatefulWidget {
 }
 
 class _PatientHomeScreenState extends State<PatientHomeScreen> {
-  int _currentIndex = 0; // Quản lý tab hiện tại cho BottomNavigationBar (Mobile)
 
   @override
   Widget build(BuildContext context) {
     // Tự động điều chỉnh giao diện nếu xoay ngang màn hình hoặc dùng Tablet (>= 768px)
     final bool isDesktop = MediaQuery.of(context).size.width >= 768;
 
-    return Scaffold(
-      backgroundColor: Theme.of(context).colorScheme.background, // Màu nền gốc
-
-      body: Row(
-        children: [
-          // Hiện thanh Menu bên trái nếu là Desktop/Tablet
-          if (isDesktop) _buildDesktopSideNav(),
-
-          Expanded(
-            child: Column(
-              children: [
-                _buildHeader(isDesktop),
-                Expanded(
-                  child: SingleChildScrollView(
-                    padding: EdgeInsets.symmetric(
-                      horizontal: isDesktop ? 24.0 : 16.0,
-                      vertical: 16.0,
-                    ),
-                    child: Container(
-                      constraints: const BoxConstraints(maxWidth: 1280),
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          _buildStatsRow(),
-                          const SizedBox(height: 24),
-                          _buildUpcomingAppointmentCard(),
-                          const SizedBox(height: 24),
-                          _buildQuickActionsGrid(),
-                        ],
-                      ),
-                    ),
-                  ),
-                ),
-              ],
+    return Column(
+      children: [
+        _buildHeader(isDesktop),
+        Expanded(
+          child: SingleChildScrollView(
+            padding: EdgeInsets.symmetric(
+              horizontal: isDesktop ? 24.0 : 16.0,
+              vertical: 16.0,
+            ),
+            child: Container(
+              constraints: const BoxConstraints(maxWidth: 1280),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  _buildStatsRow(),
+                  const SizedBox(height: 24),
+                  _buildUpcomingAppointmentCard(),
+                  const SizedBox(height: 24),
+                  _buildQuickActionsGrid(),
+                ],
+              ),
             ),
           ),
-        ],
-      ),
-      // Hiện Bottom Navigation nếu là Mobile
-      bottomNavigationBar: isDesktop ? null : _buildBottomNavBar(),
+        ),
+      ],
     );
   }
 
@@ -410,86 +394,5 @@ class _PatientHomeScreenState extends State<PatientHomeScreen> {
     );
   }
 
-  // --- 5. Thanh điều hướng cho Mobile ---
-  Widget _buildBottomNavBar() {
-    return Container(
-          decoration: BoxDecoration(
-            color: Theme.of(context).colorScheme.surface,
-            borderRadius: const BorderRadius.vertical(top: Radius.circular(16)),
-            boxShadow: [
-              BoxShadow(color: Theme.of(context).colorScheme.onSurface.withOpacity(0.04), blurRadius: 6, offset: const Offset(0, -4)),
-            ],
-          ),
-      child: BottomNavigationBar(
-        currentIndex: _currentIndex,
-        onTap: (index) {
-          setState(() {
-            _currentIndex = index;
-          });
-        },
-        type: BottomNavigationBarType.fixed,
-        backgroundColor: Theme.of(context).colorScheme.surface,
-        selectedItemColor: Theme.of(context).colorScheme.primary,
-        unselectedItemColor: Theme.of(context).colorScheme.outline,
-        selectedLabelStyle: TextStyle(fontFamily: 'Inter', fontSize: 12, fontWeight: FontWeight.bold),
-        unselectedLabelStyle: TextStyle(fontFamily: 'Inter', fontSize: 12),
-        items: const [
-          BottomNavigationBarItem(icon: Icon(Icons.home), label: 'Home'),
-          BottomNavigationBarItem(icon: Icon(Icons.add_circle_outline), label: 'Booking'),
-          BottomNavigationBarItem(icon: Icon(Icons.calendar_today), label: 'Appointments'),
-          BottomNavigationBarItem(icon: Icon(Icons.chat_bubble_outline), label: 'Chat'),
-          BottomNavigationBarItem(icon: Icon(Icons.description_outlined), label: 'Records'),
-        ],
-      ),
-    );
-  }
 
-  // --- 6. Thanh menu dọc cho Desktop ---
-  Widget _buildDesktopSideNav() {
-    return Container(
-      width: 256,
-      color: Theme.of(context).colorScheme.surface,
-      decoration: BoxDecoration(border: Border(right: BorderSide(color: Theme.of(context).colorScheme.outlineVariant))),
-      padding: const EdgeInsets.symmetric(vertical: 24),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 24.0, vertical: 16.0),
-            child: Text('Patient Home', style: TextStyle(fontFamily: 'Inter', fontSize: 24, fontWeight: FontWeight.bold, color: Theme.of(context).colorScheme.primary)),
-          ),
-          const SizedBox(height: 24),
-          Expanded(
-            child: ListView(
-              padding: const EdgeInsets.symmetric(horizontal: 12),
-              children: [
-                _buildSideNavItem(Icons.home, 'Home', true),
-                _buildSideNavItem(Icons.add_circle_outline, 'Booking', false),
-                _buildSideNavItem(Icons.calendar_today, 'Appointments', false),
-                _buildSideNavItem(Icons.description_outlined, 'Records', false),
-                _buildSideNavItem(Icons.person_outline, 'Profile', false),
-              ],
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildSideNavItem(IconData icon, String title, bool isActive) {
-    return Container(
-      margin: const EdgeInsets.symmetric(vertical: 4),
-      child: ListTile(
-        leading: Icon(icon, color: isActive ? Theme.of(context).colorScheme.primary : Theme.of(context).colorScheme.outline),
-        title: Text(
-          title,
-          style: TextStyle(fontFamily: 'Inter', fontSize: 14, fontWeight: isActive ? FontWeight.bold : FontWeight.normal, color: isActive ? Theme.of(context).colorScheme.primary : Theme.of(context).colorScheme.onSurfaceVariant),
-        ),
-        selected: isActive,
-        selectedTileColor: Theme.of(context).colorScheme.surfaceVariant,
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(100)),
-        onTap: () {},
-      ),
-    );
-  }
 }
