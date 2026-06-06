@@ -16,4 +16,5 @@ public class AdminCommissionConfigUpdateDto {
     private String description;
     private LocalDateTime effectiveFrom;
     private LocalDateTime effectiveTo;
+    private String reason;
 }

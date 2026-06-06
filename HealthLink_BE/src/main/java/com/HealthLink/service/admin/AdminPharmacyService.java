@@ -3,6 +3,7 @@ package com.HealthLink.service.admin;
 import com.HealthLink.dto.admin.AdminPharmacyDto;
 import com.HealthLink.dto.admin.AdminPharmacyPageResponse;
 import com.HealthLink.dto.admin.AdminPharmacyUpdateDto;
+import com.HealthLink.entity.AdminAuditLog;
 import com.HealthLink.entity.Pharmacy;
 import com.HealthLink.entity.User;
 import com.HealthLink.exception.BadRequestException;
@@ -28,9 +29,11 @@ import java.util.stream.Collectors;
 public class AdminPharmacyService {
 
     private final AdminPharmacyRepository pharmacyRepository;
+    private final AdminAuditLogService auditLogService;
 
-    public AdminPharmacyService(AdminPharmacyRepository pharmacyRepository) {
+    public AdminPharmacyService(AdminPharmacyRepository pharmacyRepository, AdminAuditLogService auditLogService) {
         this.pharmacyRepository = pharmacyRepository;
+        this.auditLogService = auditLogService;
     }
 
     public AdminPharmacyPageResponse getPharmacies(int pageNumber, int pageSize, String searchTerm,
@@ -140,15 +143,34 @@ public class AdminPharmacyService {
     }
 
     public AdminPharmacyDto updatePharmacyStatus(String pharmacyId, String status) {
+        return updatePharmacyStatus(pharmacyId, status, null, null);
+    }
+
+    public AdminPharmacyDto updatePharmacyStatus(String pharmacyId, String status, String adminUserId, String reason) {
         Pharmacy pharmacy = pharmacyRepository.findById(pharmacyId)
             .orElseThrow(() -> new ResourceNotFoundException("Pharmacy", "id", pharmacyId));
 
         if (pharmacy.getUser() == null) {
             throw new BadRequestException("Pharmacy has no associated user");
         }
+        String oldStatus = pharmacy.getUser().getStatus();
         pharmacy.getUser().setStatus(status);
         pharmacy.setUpdatedAt(LocalDateTime.now());
         Pharmacy saved = pharmacyRepository.save(pharmacy);
+
+        // Log the status change
+        if (adminUserId != null) {
+            auditLogService.logUserStatusChange(
+                adminUserId,
+                AdminAuditLog.TARGET_PHARMACY,
+                pharmacyId,
+                pharmacy.getName(),
+                oldStatus,
+                status,
+                reason
+            );
+        }
+
         return mapToDto(saved);
     }
 

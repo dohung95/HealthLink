@@ -16,6 +16,7 @@ import java.util.List;
 
 import com.HealthLink.service.email.EmailService;
 import com.HealthLink.service.admin.AdminNotificationHelper;
+import com.HealthLink.service.admin.AdminAuditLogService;
 import com.HealthLink.service.registration.RegistrationService;
 
 import jakarta.persistence.criteria.Predicate;
@@ -46,6 +47,7 @@ public class RegistrationServiceImpl implements RegistrationService {
     private final SpecialtyRepository specialtyRepository;
     private final EmailService emailService;
     private final AdminNotificationHelper adminNotificationHelper;
+    private final AdminAuditLogService auditLogService;
 
     private static final String DEFAULT_PASSWORD = "HealthLink@123";
     private static final String TYPE_DOCTOR = "DOCTOR";
@@ -254,11 +256,24 @@ public class RegistrationServiceImpl implements RegistrationService {
         request.setReviewedBy(adminUserId);
         registrationRequestRepository.save(request);
 
+        // Log the approval in audit log
+        String recipientName = TYPE_DOCTOR.equals(request.getRegistrationType())
+                ? request.getFullName()
+                : request.getPharmacyName();
+        try {
+            auditLogService.logRegistrationApproved(
+                    adminUserId,
+                    request.getRegistrationType(),
+                    request.getRequestId(),
+                    recipientName,
+                    request.getEmail()
+            );
+        } catch (Exception e) {
+            System.err.println("Failed to create audit log: " + e.getMessage());
+        }
+
         // Send approval email with login credentials (don't let email errors rollback the transaction)
         try {
-            String recipientName = TYPE_DOCTOR.equals(request.getRegistrationType())
-                    ? request.getFullName()
-                    : request.getPharmacyName();
             emailService.sendApprovalEmail(
                     request.getEmail(),
                     recipientName,
@@ -355,11 +370,25 @@ public class RegistrationServiceImpl implements RegistrationService {
         request.setRejectionReason(reason);
         registrationRequestRepository.save(request);
 
+        // Log the rejection in audit log
+        String recipientName = TYPE_DOCTOR.equals(request.getRegistrationType())
+                ? request.getFullName()
+                : request.getPharmacyName();
+        try {
+            auditLogService.logRegistrationRejected(
+                    adminUserId,
+                    request.getRegistrationType(),
+                    request.getRequestId(),
+                    recipientName,
+                    request.getEmail(),
+                    reason
+            );
+        } catch (Exception e) {
+            System.err.println("Failed to create audit log: " + e.getMessage());
+        }
+
         // Send rejection email with reason (don't let email errors rollback the transaction)
         try {
-            String recipientName = TYPE_DOCTOR.equals(request.getRegistrationType())
-                    ? request.getFullName()
-                    : request.getPharmacyName();
             emailService.sendRejectionEmail(
                     request.getEmail(),
                     recipientName,

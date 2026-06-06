@@ -37,6 +37,7 @@ export default function PharmacyManagement() {
   const [showViewModal, setShowViewModal] = useState(false);
   const [showStatusModal, setShowStatusModal] = useState(false);
   const [newStatus, setNewStatus] = useState('');
+  const [statusReason, setStatusReason] = useState('');
   const [showActionLoading, setShowActionLoading] = useState(false);
 
   const getPharmacyId = (pharmacy) => pharmacy.id ?? pharmacy.pharmacyId ?? pharmacy.pharmacyID ?? pharmacy._id;
@@ -110,6 +111,7 @@ export default function PharmacyManagement() {
   const handleChangeStatus = (pharmacy) => {
     setSelectedPharmacy(pharmacy);
     setNewStatus(pharmacy.status || 'ACTIVE');
+    setStatusReason('');
     setShowStatusModal(true);
   };
 
@@ -119,10 +121,14 @@ export default function PharmacyManagement() {
       showToast({ title: 'Update Failed', message: 'Unable to determine pharmacy ID', type: 'error' });
       return;
     }
+    if (!statusReason.trim()) {
+      showToast({ title: 'Validation Error', message: 'Please provide a reason for status change', type: 'error' });
+      return;
+    }
 
     try {
       setShowActionLoading(true);
-      await pharmaciesApi.updateStatus(id, newStatus);
+      await pharmaciesApi.updateStatus(id, newStatus, statusReason);
       setPharmacies((prev) => prev.map((item) =>
         getPharmacyId(item) === id ? { ...item, status: newStatus } : item
       ));
@@ -750,6 +756,23 @@ export default function PharmacyManagement() {
                       <option value="SUSPENDED">Suspended</option>
                       <option value="BANNED">Banned</option>
                     </select>
+                  </div>
+
+                  {/* Reason Input */}
+                  <div className="mb-3">
+                    <label className="admin-form-label" style={{display: 'flex', alignItems: 'center', gap: '8px'}}>
+                      <i className="bi bi-chat-left-text" style={{color: '#10b981'}}></i>
+                      Reason for Status Change <span className="text-danger">*</span>
+                    </label>
+                    <textarea
+                      className="form-control admin-form-control"
+                      value={statusReason}
+                      onChange={(e) => setStatusReason(e.target.value)}
+                      placeholder="Please provide a reason for this status change..."
+                      rows={3}
+                      style={{fontSize: '14px', resize: 'none'}}
+                    />
+                    <small className="text-muted">This reason will be recorded in the audit log.</small>
                   </div>
                 </div>
                 <div className="admin-modal-footer">

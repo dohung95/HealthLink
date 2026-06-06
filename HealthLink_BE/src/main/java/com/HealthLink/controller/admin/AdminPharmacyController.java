@@ -8,6 +8,7 @@ import com.HealthLink.dto.admin.VerificationUpdateRequest;
 import com.HealthLink.service.admin.AdminPharmacyService;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
+import org.springframework.security.core.Authentication;
 import org.springframework.web.bind.annotation.*;
 
 @CrossOrigin(origins = "http://localhost:63527")
@@ -56,9 +57,16 @@ public class AdminPharmacyController {
     @PutMapping("/{pharmacyId}/status")
     public ResponseEntity<AdminPharmacyDto> updatePharmacyStatus(
             @PathVariable String pharmacyId,
-            @RequestBody StatusUpdateRequest request
+            @RequestBody StatusUpdateRequest request,
+            Authentication authentication
     ) {
-        AdminPharmacyDto updated = adminPharmacyService.updatePharmacyStatus(pharmacyId, request.getStatus());
+        String adminUserId = authentication != null ? authentication.getName() : null;
+        AdminPharmacyDto updated = adminPharmacyService.updatePharmacyStatus(
+            pharmacyId,
+            request.getStatus(),
+            adminUserId,
+            request.getReason()
+        );
         return ResponseEntity.ok(updated);
     }
 

@@ -35,6 +35,7 @@ export default function Patients() {
   const [showStatusModal, setShowStatusModal] = useState(false);
   const [selectedPatient, setSelectedPatient] = useState(null);
   const [newStatus, setNewStatus] = useState('');
+  const [statusReason, setStatusReason] = useState('');
 
   // Edit form state - Only non-medical fields that Admin can edit
   const [editForm, setEditForm] = useState({
@@ -188,13 +189,18 @@ export default function Patients() {
   const handleChangeStatus = (patient) => {
     setSelectedPatient(patient);
     setNewStatus(patient.status);
+    setStatusReason('');
     setShowStatusModal(true);
   };
 
   // Handle update status
   const handleUpdateStatus = async () => {
+    if (!statusReason.trim()) {
+      showToast({ title: 'Validation Error', message: 'Please provide a reason for status change', type: 'error' });
+      return;
+    }
     try {
-      await patientsApi.updateStatus(selectedPatient.patientID, newStatus);
+      await patientsApi.updateStatus(selectedPatient.patientID, newStatus, statusReason);
 
       // Update the patient list immediately without refetching
       setPatients(prevPatients =>
@@ -1372,6 +1378,23 @@ export default function Patients() {
                           </p>
                         </div>
                       </div>
+                    </div>
+
+                    {/* Reason Input */}
+                    <div className="mt-4">
+                      <label className="admin-form-label" style={{display: 'flex', alignItems: 'center', gap: '8px'}}>
+                        <i className="bi bi-chat-left-text" style={{color: '#00a08b'}}></i>
+                        Reason for Status Change <span className="text-danger">*</span>
+                      </label>
+                      <textarea
+                        className="form-control admin-form-control"
+                        value={statusReason}
+                        onChange={(e) => setStatusReason(e.target.value)}
+                        placeholder="Please provide a reason for this status change..."
+                        rows={3}
+                        style={{fontSize: '14px', resize: 'none'}}
+                      />
+                      <small className="text-muted">This reason will be recorded in the audit log.</small>
                     </div>
                   </div>
 
