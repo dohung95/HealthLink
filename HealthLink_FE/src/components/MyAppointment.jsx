@@ -452,6 +452,7 @@ const MyAppointments = () => {
 
                                             <td>
                                                 <div className="d-flex gap-2 flex-wrap">
+                                                    {/* thay isAppointmentJoinable = isScheduledAppointment */}
                                                     {isChatAppointment(item) && isAppointmentJoinable(item) && (
                                                         <button
                                                             className="btn btn-sm btn-primary"
@@ -463,6 +464,7 @@ const MyAppointments = () => {
                                                         </button>
                                                     )}
 
+                                                    {/* thay isAppointmentJoinable = isScheduledAppointment */}
                                                     {isVideoAppointment(item) && isAppointmentJoinable(item) && (
                                                         <button
                                                             className="btn btn-sm btn-success"
