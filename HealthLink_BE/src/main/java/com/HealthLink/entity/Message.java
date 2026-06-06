@@ -42,6 +42,12 @@ public class Message {
     @Column(columnDefinition = "TEXT")
     private String imageUrl;
 
+    @Column(columnDefinition = "TEXT")
+    private String videoUrl;
+
+    @Column(columnDefinition = "TEXT")
+    private String fileUrl;
+
     @Column(name = "IsRead")
     @Builder.Default
     private boolean read = false;

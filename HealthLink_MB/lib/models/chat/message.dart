@@ -19,6 +19,12 @@ class Message {
   /// URL ảnh đính kèm (nếu có)
   final String? imageUrl;
 
+  /// URL video đính kèm (nếu có)
+  final String? videoUrl;
+
+  /// URL file đính kèm (nếu có)
+  final String? fileUrl;
+
   /// Vai trò người gửi (me / other) – xác định sau khi biết currentUserId
   final MessageSender sender;
 
@@ -37,6 +43,8 @@ class Message {
     required this.senderId,
     required this.content,
     this.imageUrl,
+    this.videoUrl,
+    this.fileUrl,
     required this.sender,
     required this.sentAt,
     this.isRead = false,
@@ -55,6 +63,8 @@ class Message {
       senderId: senderId,
       content: json['content']?.toString() ?? '',
       imageUrl: json['imageUrl']?.toString(),
+      videoUrl: json['videoUrl']?.toString(),
+      fileUrl: json['fileUrl']?.toString(),
       sender: sender,
       sentAt: json['timestamp'] != null
           ? DateTime.tryParse(json['timestamp'].toString()) ?? DateTime.now()

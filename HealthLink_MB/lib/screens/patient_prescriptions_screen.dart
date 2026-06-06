@@ -92,7 +92,6 @@ class _PrescriptionsScreenState extends State<PrescriptionsScreen> {
           ],
         ),
       ),
-      bottomNavigationBar: _buildBottomNavBar(),
     );
   }
 
@@ -579,51 +578,6 @@ class _PrescriptionsScreenState extends State<PrescriptionsScreen> {
               ],
             ),
           ),
-        ],
-      ),
-    );
-  }
-
-  // --- 6. Mobile Bottom Navigation Bar ---
-  Widget _buildBottomNavBar() {
-    return Container(
-      decoration: BoxDecoration(
-        color: Theme.of(context).colorScheme.surface,
-        borderRadius: const BorderRadius.vertical(top: Radius.circular(16)),
-        boxShadow: [
-          BoxShadow(color: const Color(0xFF0F3D38).withOpacity(0.04), blurRadius: 6, offset: const Offset(0, -4)),
-        ],
-      ),
-      child: BottomNavigationBar(
-        currentIndex: _currentIndex,
-        onTap: (index) {
-          setState(() {
-            _currentIndex = index;
-          });
-        },
-        type: BottomNavigationBarType.fixed,
-        backgroundColor: Theme.of(context).colorScheme.surface,
-        selectedItemColor: Theme.of(context).colorScheme.primary, // Đổi màu tab được chọn thành primary thay vì icon khác
-        unselectedItemColor: Theme.of(context).colorScheme.onSurfaceVariant,
-        selectedLabelStyle: const TextStyle(fontFamily: 'Inter', fontSize: 12, fontWeight: FontWeight.bold),
-        unselectedLabelStyle: const TextStyle(fontFamily: 'Inter', fontSize: 12),
-        items: [
-          const BottomNavigationBarItem(icon: Icon(Icons.home_outlined), activeIcon: Icon(Icons.home), label: 'Home'),
-          const BottomNavigationBarItem(icon: Icon(Icons.add_circle_outline), activeIcon: Icon(Icons.add_circle), label: 'Booking'),
-          const BottomNavigationBarItem(icon: Icon(Icons.calendar_today_outlined), activeIcon: Icon(Icons.calendar_today), label: 'Appointments'),
-          const BottomNavigationBarItem(icon: Icon(Icons.chat_bubble_outline), activeIcon: Icon(Icons.chat), label: 'Chat'),
-          // Custom tab Record đang active theo JSON (Dùng background tròn)
-          BottomNavigationBarItem(
-            icon: _currentIndex == 4
-                ? Container(
-              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
-              decoration: BoxDecoration(color: Theme.of(context).colorScheme.secondaryContainer, borderRadius: BorderRadius.circular(100)),
-              child: Icon(Icons.description, color: Theme.of(context).colorScheme.onSecondaryContainer),
-            )
-                : const Icon(Icons.description_outlined),
-            label: 'Records',
-          ),
-          const BottomNavigationBarItem(icon: Icon(Icons.person_outline), activeIcon: Icon(Icons.person), label: 'Profile'),
         ],
       ),
     );

@@ -148,6 +148,8 @@ public class ChatServiceImpl implements ChatService {
                 .receiver(receiver)
                 .content(request.getContent())
                 .imageUrl(request.getImageUrl())
+                .videoUrl(request.getVideoUrl())
+                .fileUrl(request.getFileUrl())
                 .read(false)
                 .timestamp(LocalDateTime.now())
                 .build();
@@ -155,11 +157,19 @@ public class ChatServiceImpl implements ChatService {
         Message saved = messageRepository.save(message);
 
         // Cập nhật lastMessage / lastMessageAt trên phòng chat
-        String preview = request.getContent() != null
-                ? (request.getContent().length() > 100
-                        ? request.getContent().substring(0, 100) + "…"
-                        : request.getContent())
-                : "[Ảnh]";
+        String preview;
+        if (request.getContent() != null && !request.getContent().isBlank()) {
+            preview = request.getContent().length() > 100
+                    ? request.getContent().substring(0, 100) + "…"
+                    : request.getContent();
+        } else if (request.getVideoUrl() != null && !request.getVideoUrl().isBlank()) {
+            preview = "[Video]";
+        } else if (request.getFileUrl() != null && !request.getFileUrl().isBlank()) {
+            preview = "[File]";
+        } else {
+            preview = "[Image]";
+        }
+        
         room.setLastMessage(preview);
         room.setLastMessageAt(saved.getTimestamp());
         chatRoomRepository.save(room);
@@ -286,6 +296,8 @@ public class ChatServiceImpl implements ChatService {
                 .receiverId(msg.getReceiver() != null ? msg.getReceiver().getId() : null)
                 .content(msg.getContent())
                 .imageUrl(msg.getImageUrl())
+                .videoUrl(msg.getVideoUrl())
+                .fileUrl(msg.getFileUrl())
                 .read(msg.isRead())
                 .timestamp(msg.getTimestamp())
                 .build();

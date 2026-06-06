@@ -120,4 +120,45 @@ public class ChatController {
         int updated = chatService.markMessagesAsRead(chatRoomId, userId);
         return ResponseEntity.ok(Map.of("updated", updated));
     }
+
+    /**
+     * POST /api/chat/upload
+     * Upload ảnh, video, hoặc file đính kèm trong chat.
+     * Lưu vào: uploads/chat/{type}/{chatRoomId}/
+     */
+    @PostMapping("/upload")
+    public ResponseEntity<Map<String, String>> uploadMedia(
+            @RequestParam("chatRoomId") String chatRoomId,
+            @RequestParam("type") String type, // "image", "video", "file"
+            @RequestParam("file") org.springframework.web.multipart.MultipartFile file) {
+        
+        if (file.isEmpty()) {
+            return ResponseEntity.badRequest().body(Map.of("error", "File is empty"));
+        }
+        try {
+            // Xác định thư mục lưu trữ
+            String uploadDir = "uploads/chat/" + type + "/" + chatRoomId + "/";
+            java.nio.file.Path uploadPath = java.nio.file.Paths.get(uploadDir);
+            if (!java.nio.file.Files.exists(uploadPath)) {
+                java.nio.file.Files.createDirectories(uploadPath);
+            }
+
+            // Tạo tên file an toàn (thêm timestamp)
+            String originalFileName = org.springframework.util.StringUtils.cleanPath(file.getOriginalFilename());
+            String fileName = System.currentTimeMillis() + "_" + originalFileName.replaceAll("\\s+", "_");
+            
+            java.nio.file.Path filePath = uploadPath.resolve(fileName);
+            java.nio.file.Files.copy(file.getInputStream(), filePath, java.nio.file.StandardCopyOption.REPLACE_EXISTING);
+
+            // Trả về đường dẫn công khai (vd: /uploads/chat/video/123/160..._vid.mp4)
+            // Cần đầy đủ đường dẫn tới server hoặc frontend sẽ xử lý thêm domain
+            String fileUrl = "/uploads/chat/" + type + "/" + chatRoomId + "/" + fileName;
+            
+            return ResponseEntity.ok(Map.of("url", fileUrl));
+            
+        } catch (java.io.IOException e) {
+            e.printStackTrace();
+            return ResponseEntity.internalServerError().body(Map.of("error", "Could not store file"));
+        }
+    }
 }

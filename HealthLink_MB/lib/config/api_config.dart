@@ -37,6 +37,9 @@ class ApiConfig {
   /// POST /api/chat/messages – Gửi tin nhắn mới.
   static const String chatSendMessage   = '$baseUrl/chat/messages';
 
+  /// POST /api/chat/upload – Tải lên file đa phương tiện.
+  static const String chatMediaUpload   = '$baseUrl/chat/upload';
+
   /// PATCH /api/chat/rooms/{id}/read – Đánh dấu đã đọc.
   static String chatMarkAsRead(String id) => '$baseUrl/chat/rooms/$id/read';
 

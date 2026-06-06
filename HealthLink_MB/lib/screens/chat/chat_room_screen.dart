@@ -1,6 +1,9 @@
 import 'dart:convert';
+import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
+import 'package:image_picker/image_picker.dart';
+import 'package:file_picker/file_picker.dart';
 import '../../models/chat/conversation.dart';
 import '../../models/chat/message.dart';
 import '../../providers/auth_provider.dart';
@@ -8,6 +11,8 @@ import '../../providers/chat_provider.dart';
 import '../../config/api_config.dart';
 import 'chat_search_screen.dart';
 import 'chat_media_screen.dart';
+import 'package:url_launcher/url_launcher.dart';
+
 /// Màn hình Chat Room – hiển thị tin nhắn và cho phép gửi tin nhắn.
 class ChatRoomScreen extends StatefulWidget {
   /// Thông tin conversation đến từ ChatListScreen
@@ -23,6 +28,12 @@ class _ChatRoomScreenState extends State<ChatRoomScreen> {
   final TextEditingController _messageController = TextEditingController();
   final ScrollController _scrollController = ScrollController();
   bool _isTextEmpty = true;
+
+  // Trạng thái đính kèm
+  File? _attachedImage;
+  File? _attachedVideo;
+  File? _attachedFile;
+  String? _attachedFileName;
 
   ColorScheme _colors(BuildContext context) => Theme.of(context).colorScheme;
 
@@ -69,19 +80,120 @@ class _ChatRoomScreenState extends State<ChatRoomScreen> {
     });
   }
 
+  /// Xoá đính kèm
+  void _clearAttachment() {
+    setState(() {
+      _attachedImage = null;
+      _attachedVideo = null;
+      _attachedFile = null;
+      _attachedFileName = null;
+    });
+  }
+
+  /// Chụp ảnh từ camera
+  Future<void> _takePicture() async {
+    final picker = ImagePicker();
+    final picked = await picker.pickImage(source: ImageSource.camera);
+    if (picked != null) {
+      final file = File(picked.path);
+      // Hiển thị dialog xác nhận
+      final confirmed = await showDialog<bool>(
+        context: context,
+        builder: (context) => AlertDialog(
+          title: const Text('Confirm Photo'),
+          content: Image.file(file, height: 300, fit: BoxFit.cover),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(context, false),
+              child: const Text('Cancel'),
+            ),
+            FilledButton(
+              onPressed: () => Navigator.pop(context, true),
+              child: const Text('Confirm'),
+            ),
+          ],
+        ),
+      );
+
+      if (confirmed == true) {
+        setState(() {
+          _clearAttachment();
+          _attachedImage = file;
+        });
+      }
+    }
+  }
+
+  /// Mở menu đính kèm
+  void _showAttachmentMenu() {
+    showModalBottomSheet(
+      context: context,
+      builder: (context) => SafeArea(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            ListTile(
+              leading: const Icon(Icons.photo_library),
+              title: const Text('Photo/Video Library'),
+              onTap: () async {
+                Navigator.pop(context);
+                final picker = ImagePicker();
+                final picked = await picker.pickMedia();
+                if (picked != null) {
+                  setState(() {
+                    _clearAttachment();
+                    if (picked.path.endsWith('.mp4') || picked.path.endsWith('.mov')) {
+                      _attachedVideo = File(picked.path);
+                    } else {
+                      _attachedImage = File(picked.path);
+                    }
+                  });
+                }
+              },
+            ),
+            ListTile(
+              leading: const Icon(Icons.insert_drive_file),
+                title: const Text('Document/File'),
+              onTap: () async {
+                Navigator.pop(context);
+                final result = await FilePicker.pickFiles();
+                if (result != null && result.files.single.path != null) {
+                  setState(() {
+                    _clearAttachment();
+                    _attachedFile = File(result.files.single.path!);
+                    _attachedFileName = result.files.single.name;
+                  });
+                }
+              },
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
   /// Gửi tin nhắn
   Future<void> _sendMessage() async {
     final content = _messageController.text.trim();
-    if (content.isEmpty) return;
+    if (content.isEmpty && _attachedImage == null && _attachedVideo == null && _attachedFile == null) return;
 
     final auth = context.read<AuthProvider>();
     if (auth.accessToken == null || auth.userId == null) return;
 
+    final imagePath = _attachedImage?.path;
+    final videoPath = _attachedVideo?.path;
+    final filePath = _attachedFile?.path;
+
     _messageController.clear();
+    _clearAttachment();
+
     await context.read<ChatProvider>().sendMessage(
       auth.accessToken!,
       auth.userId!,
       content,
+      imagePath: imagePath,
+      videoPath: videoPath,
+      filePath: filePath,
     );
     _scrollToBottom();
   }
@@ -348,6 +460,10 @@ class _ChatRoomScreenState extends State<ChatRoomScreen> {
             children: [
               if (msg.imageUrl != null && msg.imageUrl!.isNotEmpty)
                 _buildImageMessage(msg.imageUrl!, colors),
+              if (msg.videoUrl != null && msg.videoUrl!.isNotEmpty)
+                _buildVideoMessage(msg.videoUrl!, colors),
+              if (msg.fileUrl != null && msg.fileUrl!.isNotEmpty)
+                _buildFileMessage(msg.fileUrl!, msg.content, colors),
               if (msg.content.isNotEmpty)
                 Container(
                   padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
@@ -407,6 +523,10 @@ class _ChatRoomScreenState extends State<ChatRoomScreen> {
                   children: [
                     if (msg.imageUrl != null && msg.imageUrl!.isNotEmpty)
                       _buildImageMessage(msg.imageUrl!, colors),
+                    if (msg.videoUrl != null && msg.videoUrl!.isNotEmpty)
+                      _buildVideoMessage(msg.videoUrl!, colors),
+                    if (msg.fileUrl != null && msg.fileUrl!.isNotEmpty)
+                      _buildFileMessage(msg.fileUrl!, msg.content, colors),
                     if (msg.content.isNotEmpty)
                       Container(
                         padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
@@ -477,6 +597,8 @@ class _ChatRoomScreenState extends State<ChatRoomScreen> {
 
   Widget _buildInputArea() {
     final colors = _colors(context);
+    final hasAttachment = _attachedImage != null || _attachedVideo != null || _attachedFile != null;
+    final canSend = !_isTextEmpty || hasAttachment;
 
     return Container(
       padding: const EdgeInsets.all(12),
@@ -491,73 +613,122 @@ class _ChatRoomScreenState extends State<ChatRoomScreen> {
           ),
         ],
       ),
-      child: Row(
-        crossAxisAlignment: CrossAxisAlignment.end,
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          // Nút đính kèm
-          IconButton(
-            icon: const Icon(Icons.add),
-            color: colors.primary,
-            onPressed: () {},
-          ),
-
-          // Ô nhập tin nhắn
-          Expanded(
-            child: Container(
-              constraints: const BoxConstraints(maxHeight: 120),
+          // Preview đính kèm (nếu có)
+          if (hasAttachment)
+            Container(
+              margin: const EdgeInsets.only(bottom: 8),
+              padding: const EdgeInsets.all(8),
               decoration: BoxDecoration(
                 color: colors.surfaceContainerHigh,
-                borderRadius: BorderRadius.circular(24),
-                border: Border.all(color: colors.surfaceContainerHighest),
+                borderRadius: BorderRadius.circular(12),
               ),
-              child: TextField(
-                controller: _messageController,
-                maxLines: null,
-                keyboardType: TextInputType.multiline,
-                textInputAction: TextInputAction.newline,
-                style: TextStyle(fontFamily: 'Inter', fontSize: 14, color: colors.onSurface),
-                decoration: InputDecoration(
-                  hintText: 'Nhập tin nhắn...',
-                  hintStyle: TextStyle(color: colors.outline),
-                  border: InputBorder.none,
-                  contentPadding: const EdgeInsets.symmetric(vertical: 10, horizontal: 16),
-                ),
-              ),
-            ),
-          ),
-          const SizedBox(width: 8),
-
-          // Nút gửi (ẩn khi chưa nhập)
-          AnimatedScale(
-            scale: _isTextEmpty ? 0.0 : 1.0,
-            duration: const Duration(milliseconds: 200),
-            curve: Curves.elasticOut,
-            child: Container(
-              decoration: BoxDecoration(
-                color: colors.primary,
-                shape: BoxShape.circle,
-                boxShadow: [
-                  BoxShadow(
-                    color: colors.primary.withValues(alpha: 0.3),
-                    blurRadius: 8,
-                    offset: const Offset(0, 2),
+              child: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  if (_attachedImage != null)
+                    ClipRRect(
+                      borderRadius: BorderRadius.circular(8),
+                      child: Image.file(_attachedImage!, width: 50, height: 50, fit: BoxFit.cover),
+                    ),
+                  if (_attachedVideo != null)
+                    const Icon(Icons.videocam, size: 40),
+                  if (_attachedFile != null)
+                    const Icon(Icons.insert_drive_file, size: 40),
+                  const SizedBox(width: 8),
+                  if (_attachedFile != null)
+                    Expanded(
+                      child: Text(
+                        _attachedFileName ?? 'File',
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                    ),
+                  IconButton(
+                    icon: const Icon(Icons.close, size: 20),
+                    onPressed: _clearAttachment,
                   ),
                 ],
               ),
-              child: Consumer<ChatProvider>(
-                builder: (context, chat, _) => IconButton(
-                  icon: chat.isSending
-                      ? SizedBox(
-                          width: 20,
-                          height: 20,
-                          child: CircularProgressIndicator(strokeWidth: 2, color: colors.onPrimary),
-                        )
-                      : const Icon(Icons.send, size: 20),
-                  color: colors.onPrimary,
-                  onPressed: chat.isSending ? null : _sendMessage,
+            ),
+          
+          Row(
+            crossAxisAlignment: CrossAxisAlignment.end,
+            children: [
+              // Nút đính kèm
+              IconButton(
+                icon: const Icon(Icons.add),
+                color: colors.primary,
+                onPressed: _showAttachmentMenu,
+              ),
+              // Nút Camera
+              IconButton(
+                icon: const Icon(Icons.camera_alt),
+                color: colors.primary,
+                onPressed: _takePicture,
+              ),
+
+              // Ô nhập tin nhắn
+              Expanded(
+                child: Container(
+                  constraints: const BoxConstraints(maxHeight: 120),
+                  decoration: BoxDecoration(
+                    color: colors.surfaceContainerHigh,
+                    borderRadius: BorderRadius.circular(24),
+                    border: Border.all(color: colors.surfaceContainerHighest),
+                  ),
+                  child: TextField(
+                    controller: _messageController,
+                    maxLines: null,
+                    keyboardType: TextInputType.multiline,
+                    textInputAction: TextInputAction.newline,
+                    style: TextStyle(fontFamily: 'Inter', fontSize: 14, color: colors.onSurface),
+                    decoration: InputDecoration(
+                      hintText: 'Nhập tin nhắn...',
+                      hintStyle: TextStyle(color: colors.outline),
+                      border: InputBorder.none,
+                      contentPadding: const EdgeInsets.symmetric(vertical: 10, horizontal: 16),
+                    ),
+                  ),
                 ),
               ),
-            ),
+              const SizedBox(width: 8),
+
+              // Nút gửi (opacity thay vì scale)
+              AnimatedOpacity(
+                opacity: canSend ? 1.0 : 0.5,
+                duration: const Duration(milliseconds: 200),
+                child: Container(
+                  decoration: BoxDecoration(
+                    color: canSend ? colors.primary : colors.surfaceContainerHighest,
+                    shape: BoxShape.circle,
+                    boxShadow: canSend ? [
+                      BoxShadow(
+                        color: colors.primary.withValues(alpha: 0.3),
+                        blurRadius: 8,
+                        offset: const Offset(0, 2),
+                      ),
+                    ] : null,
+                  ),
+                  child: Consumer<ChatProvider>(
+                    builder: (context, chat, _) => IconButton(
+                      icon: chat.isSending
+                          ? SizedBox(
+                              width: 20,
+                              height: 20,
+                              child: CircularProgressIndicator(strokeWidth: 2, color: colors.onPrimary),
+                            )
+                          : const Icon(Icons.send, size: 20),
+                      color: canSend ? colors.onPrimary : colors.outline,
+                      onPressed: (canSend && !chat.isSending) ? _sendMessage : null,
+                    ),
+                  ),
+                ),
+              ),
+            ],
           ),
         ],
       ),
@@ -666,6 +837,113 @@ class _ChatRoomScreenState extends State<ChatRoomScreen> {
           const SizedBox(width: 8),
           Text('Không tải được ảnh', style: TextStyle(color: colors.outline, fontSize: 12)),
         ],
+      ),
+    );
+  }
+
+  Widget _buildVideoMessage(String videoUrl, ColorScheme colors) {
+    return GestureDetector(
+      onTap: () async {
+        final normalizedUrl = ApiConfig.normalizeUrl(videoUrl);
+        if (normalizedUrl != null) {
+          final uri = Uri.parse(normalizedUrl);
+          if (await canLaunchUrl(uri)) {
+            await launchUrl(uri, mode: LaunchMode.externalApplication);
+          } else {
+            if (context.mounted) {
+              ScaffoldMessenger.of(context).showSnackBar(
+                const SnackBar(content: Text('Can not play this video.')),
+              );
+            }
+          }
+        }
+      },
+      child: Container(
+        width: 200,
+        height: 120,
+        margin: const EdgeInsets.only(bottom: 4),
+        decoration: BoxDecoration(
+          color: colors.surfaceContainerHigh,
+          borderRadius: BorderRadius.circular(12),
+          border: Border.all(color: colors.surfaceContainerHighest),
+        ),
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Icon(Icons.play_circle_fill, size: 48, color: colors.primary),
+            const SizedBox(height: 8),
+            Text(
+              'Video',
+              style: TextStyle(color: colors.onSurfaceVariant, fontWeight: FontWeight.w500),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildFileMessage(String fileUrl, String content, ColorScheme colors) {
+    // Trích xuất tên file từ URL nếu có thể, hoặc dùng nội dung mặc định
+    String fileName = 'File';
+    if (fileUrl.isNotEmpty) {
+      fileName = fileUrl.split('/').last;
+      // Lấy phần tên thực sự sau timestamp (ví dụ: 123456789_file.pdf -> file.pdf)
+      final parts = fileName.split('_');
+      if (parts.length > 1) {
+        fileName = parts.sublist(1).join('_');
+      }
+    }
+
+    return GestureDetector(
+      onTap: () async {
+        final normalizedUrl = ApiConfig.normalizeUrl(fileUrl);
+        if (normalizedUrl != null) {
+          final uri = Uri.parse(normalizedUrl);
+          if (await canLaunchUrl(uri)) {
+            await launchUrl(uri, mode: LaunchMode.externalApplication);
+          } else {
+            if (context.mounted) {
+              ScaffoldMessenger.of(context).showSnackBar(
+                const SnackBar(content: Text('Can not open this file.')),
+              );
+            }
+          }
+        }
+      },
+      child: Container(
+        width: 200,
+        padding: const EdgeInsets.all(12),
+        margin: const EdgeInsets.only(bottom: 4),
+        decoration: BoxDecoration(
+          color: colors.surfaceContainerHigh,
+          borderRadius: BorderRadius.circular(12),
+          border: Border.all(color: colors.surfaceContainerHighest),
+        ),
+        child: Row(
+          children: [
+            Container(
+              padding: const EdgeInsets.all(8),
+              decoration: BoxDecoration(
+                color: colors.primary.withValues(alpha: 0.1),
+                borderRadius: BorderRadius.circular(8),
+              ),
+              child: Icon(Icons.insert_drive_file, color: colors.primary),
+            ),
+            const SizedBox(width: 12),
+            Expanded(
+              child: Text(
+                fileName,
+                maxLines: 2,
+                overflow: TextOverflow.ellipsis,
+                style: TextStyle(
+                  color: colors.onSurface,
+                  fontSize: 14,
+                  fontWeight: FontWeight.w500,
+                ),
+              ),
+            ),
+          ],
+        ),
       ),
     );
   }

@@ -33,13 +33,17 @@ class _MainLayoutState extends State<MainLayout> {
     switch (label) {
       case 'Home':
         return const PatientHomeScreen();
+
       case 'Chat':
         return const MessagesScreen();
-      // Thêm các tab khác ở đây sau này (Booking, Appointments, Records)
-      case 'Booking':
-      case 'Appointments':
+
       case 'Records':
         return const PrescriptionsScreen();
+
+      case 'Booking':
+
+      case 'Appointments':
+
       default:
         return Scaffold(
           body: Center(
@@ -63,7 +67,7 @@ class _MainLayoutState extends State<MainLayout> {
     );
 
     return Scaffold(
-      backgroundColor: Theme.of(context).colorScheme.background,
+      backgroundColor: Theme.of(context).colorScheme.surface,
       body: Row(
         children: [
           if (isDesktop)

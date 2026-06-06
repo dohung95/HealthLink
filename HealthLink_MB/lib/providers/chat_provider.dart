@@ -88,9 +88,12 @@ class ChatProvider extends ChangeNotifier {
   Future<void> sendMessage(
     String accessToken,
     String userId,
-    String content,
-  ) async {
-    if (_currentConversation == null || content.trim().isEmpty) return;
+    String content, {
+    String? imagePath,
+    String? videoPath,
+    String? filePath,
+  }) async {
+    if (_currentConversation == null || (content.trim().isEmpty && imagePath == null && videoPath == null && filePath == null)) return;
 
     final conv = _currentConversation!;
 
@@ -100,6 +103,9 @@ class ChatProvider extends ChangeNotifier {
       conversationId: conv.id,
       senderId: userId,
       content: content.trim(),
+      imageUrl: imagePath, // Tạm thời lưu path local để UI có thể (tuỳ chọn) hiển thị
+      videoUrl: videoPath,
+      fileUrl: filePath,
       sender: MessageSender.me,
       sentAt: DateTime.now(),
       isPending: true,
@@ -109,12 +115,28 @@ class ChatProvider extends ChangeNotifier {
     notifyListeners();
 
     try {
+      String? imageUrl;
+      String? videoUrl;
+      String? fileUrl;
+
+      // Upload media nếu có
+      if (imagePath != null) {
+        imageUrl = await ChatService.uploadMedia(accessToken, conv.id, 'image', imagePath);
+      } else if (videoPath != null) {
+        videoUrl = await ChatService.uploadMedia(accessToken, conv.id, 'video', videoPath);
+      } else if (filePath != null) {
+        fileUrl = await ChatService.uploadMedia(accessToken, conv.id, 'file', filePath);
+      }
+
       final confirmed = await ChatService.sendMessage(
         accessToken,
         userId,
         conv.id,
         conv.partnerId, // receiverId = đối phương
         content.trim(),
+        imageUrl: imageUrl,
+        videoUrl: videoUrl,
+        fileUrl: fileUrl,
       );
 
       // Thay thế tin nhắn pending
@@ -122,7 +144,13 @@ class ChatProvider extends ChangeNotifier {
       if (idx != -1) _messages[idx] = confirmed;
 
       // Cập nhật lastMessage trong danh sách phòng
-      _updateLastMessage(conv.id, content.trim());
+      String preview = content.trim();
+      if (preview.isEmpty) {
+        if (imageUrl != null) preview = '[Image]';
+        else if (videoUrl != null) preview = '[Video]';
+        else if (fileUrl != null) preview = '[File]';
+      }
+      _updateLastMessage(conv.id, preview);
     } catch (e) {
       // Xóa tin nhắn pending nếu thất bại
       _messages.removeWhere((m) => m.id == pending.id);

@@ -29,6 +29,9 @@ public class MessageDTO {
     /** URL ảnh đính kèm (nếu có). */
     private String imageUrl;
 
+    private String videoUrl;
+    private String fileUrl;
+
     /** Đã đọc hay chưa. */
     private boolean read;
 
