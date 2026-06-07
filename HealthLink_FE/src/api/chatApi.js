@@ -103,3 +103,30 @@ export async function markAsRead(chatRoomId) {
     if (!res.ok) throw new Error(`markAsRead failed: ${res.status}`);
     return res.json();
 }
+
+/**
+ * Upload file đa phương tiện (ảnh, video, file).
+ *
+ * @param {string} chatRoomId - ID phòng chat
+ * @param {string} type - 'image', 'video', 'file'
+ * @param {File} file - File object
+ * @returns {Promise<{url: string}>}
+ */
+export async function uploadMedia(chatRoomId, type, file) {
+    const token = localStorage.getItem('token');
+    const formData = new FormData();
+    formData.append('chatRoomId', chatRoomId);
+    formData.append('type', type);
+    formData.append('file', file);
+
+    const res = await fetch(`${BASE}/upload`, {
+        method: 'POST',
+        headers: {
+            'Authorization': `Bearer ${token}`,
+        },
+        body: formData,
+    });
+    
+    if (!res.ok) throw new Error(`uploadMedia failed: ${res.status}`);
+    return res.json();
+}
