@@ -463,7 +463,7 @@ class _ChatRoomScreenState extends State<ChatRoomScreen> {
               if (msg.videoUrl != null && msg.videoUrl!.isNotEmpty)
                 _buildVideoMessage(msg.videoUrl!, colors),
               if (msg.fileUrl != null && msg.fileUrl!.isNotEmpty)
-                _buildFileMessage(msg.fileUrl!, msg.content, colors),
+                _buildFileMessage(msg.fileUrl!, colors),
               if (msg.content.isNotEmpty)
                 Container(
                   padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
@@ -526,7 +526,7 @@ class _ChatRoomScreenState extends State<ChatRoomScreen> {
                     if (msg.videoUrl != null && msg.videoUrl!.isNotEmpty)
                       _buildVideoMessage(msg.videoUrl!, colors),
                     if (msg.fileUrl != null && msg.fileUrl!.isNotEmpty)
-                      _buildFileMessage(msg.fileUrl!, msg.content, colors),
+                      _buildFileMessage(msg.fileUrl!, colors),
                     if (msg.content.isNotEmpty)
                       Container(
                         padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
@@ -782,6 +782,15 @@ class _ChatRoomScreenState extends State<ChatRoomScreen> {
       } catch (e) {
         imageWidget = _buildErrorImage(colors);
       }
+    } else if (!imageUrl.startsWith('http') && !imageUrl.startsWith('/uploads')) {
+      // Local file path
+      imageWidget = Image.file(
+        File(imageUrl),
+        width: 200,
+        height: 200,
+        fit: BoxFit.cover,
+        errorBuilder: (_, __, ___) => _buildErrorImage(colors),
+      );
     } else {
       final normalizedImageUrl = ApiConfig.normalizeUrl(imageUrl);
       if (normalizedImageUrl != null) {
@@ -799,7 +808,10 @@ class _ChatRoomScreenState extends State<ChatRoomScreen> {
               child: const Center(child: CircularProgressIndicator()),
             );
           },
-          errorBuilder: (_, __, ___) => _buildErrorImage(colors),
+          errorBuilder: (context, error, stackTrace) {
+              debugPrint('[Chat] Image.network error: $error | url=$normalizedImageUrl');
+              return _buildErrorImage(colors);
+            },
         );
       } else {
         imageWidget = _buildErrorImage(colors);
@@ -822,6 +834,8 @@ class _ChatRoomScreenState extends State<ChatRoomScreen> {
     );
   }
 
+
+
   Widget _buildErrorImage(ColorScheme colors) {
     return Container(
       width: 200,
@@ -835,7 +849,7 @@ class _ChatRoomScreenState extends State<ChatRoomScreen> {
         children: [
           Icon(Icons.broken_image_outlined, color: colors.outline),
           const SizedBox(width: 8),
-          Text('Không tải được ảnh', style: TextStyle(color: colors.outline, fontSize: 12)),
+          Text("Can't load image", style: TextStyle(color: colors.outline, fontSize: 12)),
         ],
       ),
     );
@@ -882,7 +896,7 @@ class _ChatRoomScreenState extends State<ChatRoomScreen> {
     );
   }
 
-  Widget _buildFileMessage(String fileUrl, String content, ColorScheme colors) {
+  Widget _buildFileMessage(String fileUrl, ColorScheme colors) {
     // Trích xuất tên file từ URL nếu có thể, hoặc dùng nội dung mặc định
     String fileName = 'File';
     if (fileUrl.isNotEmpty) {

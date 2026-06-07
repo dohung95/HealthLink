@@ -189,7 +189,7 @@ function ImageLightbox({ src, onClose }) {
             }}>
                 <button onClick={(e) => { e.stopPropagation(); setScale(s => Math.min(s + 0.25, 5)); }} className="btn btn-sm btn-outline-light rounded-circle" style={{ width: 36, height: 36 }} title="Zoom In"><i className="bi bi-zoom-in"></i></button>
                 <button onClick={(e) => { e.stopPropagation(); setScale(s => Math.max(s - 0.25, 0.5)); }} className="btn btn-sm btn-outline-light rounded-circle" style={{ width: 36, height: 36 }} title="Zoom Out"><i className="bi bi-zoom-out"></i></button>
-                <button onClick={(e) => { e.stopPropagation(); setScale(1); setPosition({x: 0, y: 0}); }} className="btn btn-sm btn-outline-light rounded-circle" style={{ width: 36, height: 36 }} title="Reset"><i className="bi bi-arrow-counterclockwise"></i></button>
+                <button onClick={(e) => { e.stopPropagation(); setScale(1); setPosition({ x: 0, y: 0 }); }} className="btn btn-sm btn-outline-light rounded-circle" style={{ width: 36, height: 36 }} title="Reset"><i className="bi bi-arrow-counterclockwise"></i></button>
             </div>
 
             {/* Ảnh phóng to */}
@@ -294,14 +294,14 @@ function ChatMessage({ message, currentUserId, isNew = false, onImageClick, onNa
                         />
                     )}
                     {videoUrl && (
-                        <video 
-                            src={videoUrl} 
-                            controls 
-                            style={{ maxWidth: '100%', maxHeight: '300px', borderRadius: '8px', display: 'block' }} 
+                        <video
+                            src={videoUrl}
+                            controls
+                            style={{ maxWidth: '100%', maxHeight: '300px', borderRadius: '8px', display: 'block' }}
                         />
                     )}
                     {fileUrl && (
-                        <div 
+                        <div
                             onClick={(e) => {
                                 e.preventDefault();
                                 const filename = fileUrl.split('/').pop();
@@ -322,12 +322,12 @@ function ChatMessage({ message, currentUserId, isNew = false, onImageClick, onNa
                                         window.open(fileUrl, '_blank');
                                     });
                             }}
-                            style={{ 
-                                display: 'flex', 
-                                alignItems: 'center', 
-                                background: 'rgba(0,0,0,0.05)', 
-                                padding: '8px 12px', 
-                                borderRadius: '8px', 
+                            style={{
+                                display: 'flex',
+                                alignItems: 'center',
+                                background: 'rgba(0,0,0,0.05)',
+                                padding: '8px 12px',
+                                borderRadius: '8px',
                                 marginTop: imageUrl || videoUrl ? '8px' : '0',
                                 cursor: 'pointer',
                                 transition: 'background 0.2s'
@@ -516,7 +516,7 @@ export default function Chat() {
         if (allDoctors.length > 0) return; // Đã load rồi thì bỏ qua
         doctorService.getAllDoctors()
             .then(data => setAllDoctors(data || []))
-            .catch(() => {}); // Lỗi thì im lặng, không ảnh hưởng UX
+            .catch(() => { }); // Lỗi thì im lặng, không ảnh hưởng UX
     }, []);
 
     // ── Đăng ký sự kiện Chat khi Component được render ────────────────────────────────
@@ -743,8 +743,8 @@ export default function Chat() {
                     const replyText = lang === 'vi'
                         ? `${specialtyMatch.icon} Dựa trên triệu chứng bạn mô tả, mình gợi ý bạn nên khám chuyên khoa **${specialtyName}**! Dưới đây là một số bác sĩ phù hợp:`
                         : lang === 'id'
-                        ? `${specialtyMatch.icon} Berdasarkan gejala yang kamu ceritakan, aku sarankan periksa ke spesialis **${specialtyName}**! Berikut beberapa dokter yang bisa membantu:`
-                        : `${specialtyMatch.icon} Based on your symptoms, I recommend seeing a **${specialtyName}** specialist! Here are some available doctors:`;
+                            ? `${specialtyMatch.icon} Berdasarkan gejala yang kamu ceritakan, aku sarankan periksa ke spesialis **${specialtyName}**! Berikut beberapa dokter yang bisa membantu:`
+                            : `${specialtyMatch.icon} Based on your symptoms, I recommend seeing a **${specialtyName}** specialist! Here are some available doctors:`;
 
                     await new Promise(r => setTimeout(r, 700));
                     setIsBotTyping(false);
@@ -879,9 +879,9 @@ export default function Chat() {
         const file = e.target.files[0];
         if (!file) return;
         // Limit file size to 20MB
-        if (file.size > 20 * 1024 * 1024) { 
-            toast.info('File max size is 20MB!'); 
-            return; 
+        if (file.size > 20 * 1024 * 1024) {
+            toast.info('File max size is 20MB!');
+            return;
         }
         setSelectedFile(file);
     };

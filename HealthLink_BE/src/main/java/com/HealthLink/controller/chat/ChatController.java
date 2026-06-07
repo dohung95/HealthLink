@@ -143,9 +143,13 @@ public class ChatController {
                 java.nio.file.Files.createDirectories(uploadPath);
             }
 
-            // Tạo tên file an toàn (thêm timestamp)
+            // Tạo tên file an toàn: thêm timestamp và loại bỏ ký tự không an toàn
             String originalFileName = org.springframework.util.StringUtils.cleanPath(file.getOriginalFilename());
-            String fileName = System.currentTimeMillis() + "_" + originalFileName.replaceAll("\\s+", "_");
+            // Loại bỏ ký tự không phải ASCII (ký tự tiếng Việt, etc.) để URL luôn hợp lệ
+            String safeFileName = originalFileName
+                .replaceAll("[^a-zA-Z0-9._-]", "_")  // chỉ giữ lại ký tự an toàn
+                .replaceAll("_+", "_");                // gộp nhiều _ thành 1
+            String fileName = System.currentTimeMillis() + "_" + safeFileName;
             
             java.nio.file.Path filePath = uploadPath.resolve(fileName);
             java.nio.file.Files.copy(file.getInputStream(), filePath, java.nio.file.StandardCopyOption.REPLACE_EXISTING);
