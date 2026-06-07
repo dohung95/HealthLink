@@ -26,12 +26,12 @@ class HealthLinkTheme {
   static const Color lightErrorContainer = Color(0xFFFFDAD6);
   static const Color lightOnErrorContainer = Color(0xFF93000A);
 
-  static const Color lightBackground = Color(0xFFE4FFF9);
+  static const Color lightBackground = Color(0xFFF8FFFD);
   static const Color lightOnBackground = Color(0xFF071F1C);
 
-  static const Color lightSurface = Color(0xFFE4FFF9);
+  static const Color lightSurface = Color(0xFFF8FFFD);
   static const Color lightOnSurface = Color(0xFF071F1C);
-  static const Color lightSurfaceVariant = Color(0xFFCDE8E2);
+  static const Color lightSurfaceVariant = Color(0xFFE0F2EF);
   static const Color lightOnSurfaceVariant = Color(0xFF3F4946);
 
   static const Color lightOutline = Color(0xFF6F7975);
@@ -42,13 +42,13 @@ class HealthLinkTheme {
   static const Color lightInversePrimary = Color(0xFF89D5C2);
 
   // Nhóm màu mở rộng (Surface Containers) cho thẻ Card/Nền
-  static const Color lightSurfaceBright = Color(0xFFE4FFF9);
-  static const Color lightSurfaceDim = Color(0xFFC5E0DA);
+  static const Color lightSurfaceBright = Color(0xFFF8FFFD);
+  static const Color lightSurfaceDim = Color(0xFFE8F5F2);
   static const Color lightSurfaceContainerLowest = Color(0xFFFFFFFF);
-  static const Color lightSurfaceContainerLow = Color(0xFFDEF9F3);
-  static const Color lightSurfaceContainer = Color(0xFFD9F4EE);
-  static const Color lightSurfaceContainerHigh = Color(0xFFD3EEE8);
-  static const Color lightSurfaceContainerHighest = Color(0xFFCDE8E2);
+  static const Color lightSurfaceContainerLow = Color(0xFFF1FAF7);
+  static const Color lightSurfaceContainer = Color(0xFFECF7F4);
+  static const Color lightSurfaceContainerHigh = Color(0xFFE6F2EF);
+  static const Color lightSurfaceContainerHighest = Color(0xFFE0F2EF);
 
 
   // =========================================================

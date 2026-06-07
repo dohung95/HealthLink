@@ -2,6 +2,8 @@ import 'package:flutter/foundation.dart';
 import '../models/chat/conversation.dart';
 import '../models/chat/message.dart';
 import '../services/chat/chat_service.dart';
+import '../services/chat/stomp_service.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 /// Provider quản lý toàn bộ state của màn hình Chat.
 class ChatProvider extends ChangeNotifier {
@@ -11,9 +13,74 @@ class ChatProvider extends ChangeNotifier {
   bool _isLoadingConversations = false;
   String? _conversationsError;
 
+  // Local state for Mute and Block
+  final List<String> _mutedRoomIds = [];
+
   List<Conversation> get conversations          => _conversations;
   bool               get isLoadingConversations => _isLoadingConversations;
   String?            get conversationsError      => _conversationsError;
+
+  ChatProvider() {
+    _loadLocalSettings();
+  }
+
+  Future<void> _loadLocalSettings() async {
+    final prefs = await SharedPreferences.getInstance();
+    final muted = prefs.getStringList('muted_rooms') ?? [];
+    _chatThemeIndex = prefs.getInt('chat_theme_index') ?? 0;
+    _mutedRoomIds.addAll(muted);
+    notifyListeners();
+  }
+
+  bool isMuted(String roomId) => _mutedRoomIds.contains(roomId);
+  
+  /// Trả về ID của người chặn phòng chat (nếu có)
+  String? getBlockedBy(String roomId) {
+    try {
+      final conv = _conversations.firstWhere((c) => c.id == roomId);
+      return conv.blockedBy;
+    } catch (_) {
+      return null;
+    }
+  }
+
+  bool isBlocked(String roomId) => getBlockedBy(roomId) != null;
+
+  Future<void> toggleMute(String roomId) async {
+    final prefs = await SharedPreferences.getInstance();
+    if (_mutedRoomIds.contains(roomId)) {
+      _mutedRoomIds.remove(roomId);
+    } else {
+      _mutedRoomIds.add(roomId);
+    }
+    await prefs.setStringList('muted_rooms', _mutedRoomIds);
+    notifyListeners();
+  }
+
+  Future<void> toggleBlock(String accessToken, String userId, String roomId) async {
+    try {
+      await ChatService.toggleBlock(accessToken, roomId);
+      // Reload danh sách phòng chat sau khi đổi trạng thái block
+      await loadConversations(accessToken, userId);
+    } catch (e) {
+      debugPrint('[ChatProvider] toggleBlock error: $e');
+      rethrow;
+    }
+  }
+
+  // ── State: Chat Theme ──────────────────────────────────────────────────────
+
+  int _chatThemeIndex = 0;
+  int get chatThemeIndex => _chatThemeIndex;
+
+  Future<void> changeTheme(int index) async {
+    if (index >= 0 && index <= 5) {
+      _chatThemeIndex = index;
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.setInt('chat_theme_index', _chatThemeIndex);
+      notifyListeners();
+    }
+  }
 
   // ── State: Chat Room (tin nhắn) ───────────────────────────────────────────
 
@@ -31,16 +98,24 @@ class ChatProvider extends ChangeNotifier {
 
   // ── Conversations ──────────────────────────────────────────────────────────
 
+  String? _lastToken;
+  String? _lastUserId;
+
   /// Tải danh sách phòng chat từ backend.
   Future<void> loadConversations(String accessToken, String userId) async {
     _isLoadingConversations = true;
     _conversationsError = null;
+    _lastToken = accessToken;
+    _lastUserId = userId;
     notifyListeners();
 
     try {
       _conversations = await ChatService.getChatRooms(accessToken, userId);
       // Sắp xếp mới nhất lên đầu
       _conversations.sort((a, b) => b.lastMessageTime.compareTo(a.lastMessageTime));
+
+      // Bắt đầu kết nối STOMP WebSocket
+      StompService.instance.connect(accessToken, userId, _onStompMessage);
     } catch (e) {
       debugPrint('ChatProvider loadConversations error: $e');
       _conversationsError = _clean(e.toString());
@@ -48,6 +123,70 @@ class ChatProvider extends ChangeNotifier {
       _isLoadingConversations = false;
       notifyListeners();
     }
+  }
+
+  /// Xử lý tin nhắn nhận được từ STOMP
+  void _onStompMessage(Message msg) {
+    if (msg.content == '[SYSTEM_BLOCK_UPDATE]') {
+      if (_lastToken != null && _lastUserId != null) {
+        loadConversations(_lastToken!, _lastUserId!);
+      }
+      return;
+    }
+
+    // Nếu tin nhắn thuộc về phòng đang mở
+    if (_currentConversation?.id == msg.conversationId) {
+      // Bỏ qua tin nhắn do chính mình vừa gửi (đã được optimistic update)
+      // Thường thì backend trả về sẽ không có isPending=true. Chúng ta thay thế tin nhắn có cùng nội dung.
+      final pendingIdx = _messages.indexWhere((m) => m.isPending && m.content == msg.content && m.senderId == msg.senderId);
+      if (pendingIdx != -1) {
+        _messages[pendingIdx] = msg;
+      } else {
+        // Tránh bị duplicate do STOMP và REST gọi cùng lúc
+        final exists = _messages.any((m) => m.id == msg.id);
+        if (!exists) {
+          _messages.add(msg);
+          _messages.sort((a, b) => a.sentAt.compareTo(b.sentAt)); // Đảm bảo đúng thứ tự
+        }
+      }
+    }
+
+    // Cập nhật lastMessage cho phòng chat đó
+    String preview = msg.content;
+    if (preview.isEmpty) {
+      if (msg.imageUrl != null) preview = '[Image]';
+      else if (msg.videoUrl != null) preview = '[Video]';
+      else if (msg.fileUrl != null) preview = '[File]';
+    }
+    
+    _updateLastMessage(msg.conversationId, preview, time: msg.sentAt);
+
+    // Tăng unreadCount nếu không phải phòng đang mở
+    if (_currentConversation?.id != msg.conversationId && msg.senderId != currentConversation?.partnerId) {
+       final idx = _conversations.indexWhere((c) => c.id == msg.conversationId);
+       if (idx != -1) {
+         final old = _conversations[idx];
+         _conversations[idx] = Conversation(
+            id: old.id,
+            partnerId: old.partnerId,
+            partnerName: old.partnerName,
+            partnerAvatarUrl: old.partnerAvatarUrl,
+            appointmentId: old.appointmentId,
+            lastMessage: old.lastMessage,
+            lastMessageTime: old.lastMessageTime,
+            unreadCount: old.unreadCount + 1,
+         );
+       }
+    }
+
+    // Đẩy phòng chat lên đầu danh sách
+    final convIdx = _conversations.indexWhere((c) => c.id == msg.conversationId);
+    if (convIdx > 0) {
+      final conv = _conversations.removeAt(convIdx);
+      _conversations.insert(0, conv);
+    }
+    
+    notifyListeners();
   }
 
   // ── Messages ───────────────────────────────────────────────────────────────
@@ -88,9 +227,12 @@ class ChatProvider extends ChangeNotifier {
   Future<void> sendMessage(
     String accessToken,
     String userId,
-    String content,
-  ) async {
-    if (_currentConversation == null || content.trim().isEmpty) return;
+    String content, {
+    String? imagePath,
+    String? videoPath,
+    String? filePath,
+  }) async {
+    if (_currentConversation == null || (content.trim().isEmpty && imagePath == null && videoPath == null && filePath == null)) return;
 
     final conv = _currentConversation!;
 
@@ -100,6 +242,9 @@ class ChatProvider extends ChangeNotifier {
       conversationId: conv.id,
       senderId: userId,
       content: content.trim(),
+      imageUrl: imagePath, // Tạm thời lưu path local để UI có thể (tuỳ chọn) hiển thị
+      videoUrl: videoPath,
+      fileUrl: filePath,
       sender: MessageSender.me,
       sentAt: DateTime.now(),
       isPending: true,
@@ -109,12 +254,28 @@ class ChatProvider extends ChangeNotifier {
     notifyListeners();
 
     try {
+      String? imageUrl;
+      String? videoUrl;
+      String? fileUrl;
+
+      // Upload media nếu có
+      if (imagePath != null) {
+        imageUrl = await ChatService.uploadMedia(accessToken, conv.id, 'image', imagePath);
+      } else if (videoPath != null) {
+        videoUrl = await ChatService.uploadMedia(accessToken, conv.id, 'video', videoPath);
+      } else if (filePath != null) {
+        fileUrl = await ChatService.uploadMedia(accessToken, conv.id, 'file', filePath);
+      }
+
       final confirmed = await ChatService.sendMessage(
         accessToken,
         userId,
         conv.id,
         conv.partnerId, // receiverId = đối phương
         content.trim(),
+        imageUrl: imageUrl,
+        videoUrl: videoUrl,
+        fileUrl: fileUrl,
       );
 
       // Thay thế tin nhắn pending
@@ -122,7 +283,13 @@ class ChatProvider extends ChangeNotifier {
       if (idx != -1) _messages[idx] = confirmed;
 
       // Cập nhật lastMessage trong danh sách phòng
-      _updateLastMessage(conv.id, content.trim());
+      String preview = content.trim();
+      if (preview.isEmpty) {
+        if (imageUrl != null) preview = '[Image]';
+        else if (videoUrl != null) preview = '[Video]';
+        else if (fileUrl != null) preview = '[File]';
+      }
+      _updateLastMessage(conv.id, preview);
     } catch (e) {
       // Xóa tin nhắn pending nếu thất bại
       _messages.removeWhere((m) => m.id == pending.id);
@@ -166,7 +333,7 @@ class ChatProvider extends ChangeNotifier {
     }
   }
 
-  void _updateLastMessage(String conversationId, String content) {
+  void _updateLastMessage(String conversationId, String content, {DateTime? time}) {
     final idx = _conversations.indexWhere((c) => c.id == conversationId);
     if (idx != -1) {
       final old = _conversations[idx];
@@ -177,8 +344,8 @@ class ChatProvider extends ChangeNotifier {
         partnerAvatarUrl: old.partnerAvatarUrl,
         appointmentId: old.appointmentId,
         lastMessage: content,
-        lastMessageTime: DateTime.now(),
-        unreadCount: 0,
+        lastMessageTime: time ?? DateTime.now(),
+        unreadCount: old.unreadCount,
       );
     }
   }

@@ -82,6 +82,25 @@ class ChatService {
     throw Exception(_parseError(res, 'Không thể tạo phòng chat.'));
   }
 
+  /// POST /api/chat/rooms/{roomId}/block
+  /// Bật/Tắt chặn phòng chat.
+  static Future<void> toggleBlock(
+    String token,
+    String roomId,
+  ) async {
+    final res = await http
+        .post(
+          Uri.parse('${ApiConfig.baseUrl}/chat/rooms/$roomId/block'),
+          headers: _headers(token),
+        )
+        .timeout(ApiConfig.connectTimeout);
+
+    if (res.statusCode == 200) {
+      return;
+    }
+    throw Exception(_parseError(res, 'Can not toggle block room.'));
+  }
+
   // ── Messages ────────────────────────────────────────────────────────────────
 
   /// GET /api/chat/rooms/{chatRoomId}/messages
@@ -116,12 +135,18 @@ class ChatService {
     String currentUserId,
     String chatRoomId,
     String receiverId,
-    String content,
-  ) async {
+    String content, {
+    String? imageUrl,
+    String? videoUrl,
+    String? fileUrl,
+  }) async {
     final body = {
       'chatRoomId': chatRoomId,
       'receiverId': receiverId,
       'content': content,
+      if (imageUrl != null) 'imageUrl': imageUrl,
+      if (videoUrl != null) 'videoUrl': videoUrl,
+      if (fileUrl != null) 'fileUrl': fileUrl,
     };
 
     final res = await http
@@ -138,6 +163,31 @@ class ChatService {
     }
 
     throw Exception(_parseError(res, 'Không thể gửi tin nhắn.'));
+  }
+
+  /// POST /api/chat/upload
+  /// Upload file media và trả về đường dẫn URL.
+  static Future<String> uploadMedia(
+    String token,
+    String chatRoomId,
+    String type,
+    String filePath,
+  ) async {
+    var request = http.MultipartRequest('POST', Uri.parse(ApiConfig.chatMediaUpload));
+    request.headers.addAll({'Authorization': 'Bearer $token'});
+    request.fields['chatRoomId'] = chatRoomId;
+    request.fields['type'] = type;
+    request.files.add(await http.MultipartFile.fromPath('file', filePath));
+
+    final streamedResponse = await request.send().timeout(const Duration(seconds: 30));
+    final res = await http.Response.fromStream(streamedResponse);
+
+    if (res.statusCode == 200 || res.statusCode == 201) {
+      final data = jsonDecode(res.body) as Map<String, dynamic>;
+      return data['url'] as String;
+    }
+
+    throw Exception(_parseError(res, 'Can not upload media file.'));
   }
 
   /// PATCH /api/chat/rooms/{chatRoomId}/read

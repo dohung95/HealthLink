@@ -1,6 +1,9 @@
 import 'dart:convert';
+import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
+import 'package:image_picker/image_picker.dart';
+import 'package:file_picker/file_picker.dart';
 import '../../models/chat/conversation.dart';
 import '../../models/chat/message.dart';
 import '../../providers/auth_provider.dart';
@@ -8,6 +11,9 @@ import '../../providers/chat_provider.dart';
 import '../../config/api_config.dart';
 import 'chat_search_screen.dart';
 import 'chat_media_screen.dart';
+import 'package:url_launcher/url_launcher.dart';
+import '../../models/chat/chat_theme.dart';
+
 /// Màn hình Chat Room – hiển thị tin nhắn và cho phép gửi tin nhắn.
 class ChatRoomScreen extends StatefulWidget {
   /// Thông tin conversation đến từ ChatListScreen
@@ -23,6 +29,12 @@ class _ChatRoomScreenState extends State<ChatRoomScreen> {
   final TextEditingController _messageController = TextEditingController();
   final ScrollController _scrollController = ScrollController();
   bool _isTextEmpty = true;
+
+  // Trạng thái đính kèm
+  File? _attachedImage;
+  File? _attachedVideo;
+  File? _attachedFile;
+  String? _attachedFileName;
 
   ColorScheme _colors(BuildContext context) => Theme.of(context).colorScheme;
 
@@ -69,19 +81,120 @@ class _ChatRoomScreenState extends State<ChatRoomScreen> {
     });
   }
 
+  /// Xoá đính kèm
+  void _clearAttachment() {
+    setState(() {
+      _attachedImage = null;
+      _attachedVideo = null;
+      _attachedFile = null;
+      _attachedFileName = null;
+    });
+  }
+
+  /// Chụp ảnh từ camera
+  Future<void> _takePicture() async {
+    final picker = ImagePicker();
+    final picked = await picker.pickImage(source: ImageSource.camera);
+    if (picked != null) {
+      final file = File(picked.path);
+      // Hiển thị dialog xác nhận
+      final confirmed = await showDialog<bool>(
+        context: context,
+        builder: (context) => AlertDialog(
+          title: const Text('Confirm Photo'),
+          content: Image.file(file, height: 300, fit: BoxFit.cover),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(context, false),
+              child: const Text('Cancel'),
+            ),
+            FilledButton(
+              onPressed: () => Navigator.pop(context, true),
+              child: const Text('Confirm'),
+            ),
+          ],
+        ),
+      );
+
+      if (confirmed == true) {
+        setState(() {
+          _clearAttachment();
+          _attachedImage = file;
+        });
+      }
+    }
+  }
+
+  /// Mở menu đính kèm
+  void _showAttachmentMenu() {
+    showModalBottomSheet(
+      context: context,
+      builder: (context) => SafeArea(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            ListTile(
+              leading: const Icon(Icons.photo_library),
+              title: const Text('Photo/Video Library'),
+              onTap: () async {
+                Navigator.pop(context);
+                final picker = ImagePicker();
+                final picked = await picker.pickMedia();
+                if (picked != null) {
+                  setState(() {
+                    _clearAttachment();
+                    if (picked.path.endsWith('.mp4') || picked.path.endsWith('.mov')) {
+                      _attachedVideo = File(picked.path);
+                    } else {
+                      _attachedImage = File(picked.path);
+                    }
+                  });
+                }
+              },
+            ),
+            ListTile(
+              leading: const Icon(Icons.insert_drive_file),
+                title: const Text('Document/File'),
+              onTap: () async {
+                Navigator.pop(context);
+                final result = await FilePicker.pickFiles();
+                if (result != null && result.files.single.path != null) {
+                  setState(() {
+                    _clearAttachment();
+                    _attachedFile = File(result.files.single.path!);
+                    _attachedFileName = result.files.single.name;
+                  });
+                }
+              },
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
   /// Gửi tin nhắn
   Future<void> _sendMessage() async {
     final content = _messageController.text.trim();
-    if (content.isEmpty) return;
+    if (content.isEmpty && _attachedImage == null && _attachedVideo == null && _attachedFile == null) return;
 
     final auth = context.read<AuthProvider>();
     if (auth.accessToken == null || auth.userId == null) return;
 
+    final imagePath = _attachedImage?.path;
+    final videoPath = _attachedVideo?.path;
+    final filePath = _attachedFile?.path;
+
     _messageController.clear();
+    _clearAttachment();
+
     await context.read<ChatProvider>().sendMessage(
       auth.accessToken!,
       auth.userId!,
       content,
+      imagePath: imagePath,
+      videoPath: videoPath,
+      filePath: filePath,
     );
     _scrollToBottom();
   }
@@ -89,9 +202,11 @@ class _ChatRoomScreenState extends State<ChatRoomScreen> {
   @override
   Widget build(BuildContext context) {
     final colors = _colors(context);
+    final chat = context.watch<ChatProvider>();
+    final chatTheme = getActiveChatTheme(context, chat.chatThemeIndex);
 
     return Scaffold(
-      backgroundColor: colors.surface,
+      backgroundColor: chatTheme.background,
       body: SafeArea(
         child: Column(
           children: [
@@ -123,19 +238,21 @@ class _ChatRoomScreenState extends State<ChatRoomScreen> {
                                 );
                               }
                             },
-                            child: const Text('Thử lại'),
+                            child: const Text('Retry'),
                           ),
                         ],
                       ),
                     );
                   }
 
+                  final chatThemeIndex = chat.chatThemeIndex;
+                  final chatTheme = getActiveChatTheme(context, chatThemeIndex);
                   return Container(
-                    color: colors.surfaceContainerHigh.withValues(alpha: 0.3),
+                    color: chatTheme.background,
                     child: chat.messages.isEmpty
                         ? Center(
                             child: Text(
-                              'Chưa có tin nhắn nào.\nHãy bắt đầu cuộc trò chuyện!',
+                              'No messages yet.\nStart the conversation!',
                               textAlign: TextAlign.center,
                               style: TextStyle(color: colors.onSurfaceVariant, fontSize: 15),
                             ),
@@ -180,8 +297,8 @@ class _ChatRoomScreenState extends State<ChatRoomScreen> {
 
   String _formatDate(DateTime dt) {
     final now = DateTime.now();
-    if (_isSameDay(dt, now)) return 'Hôm nay';
-    if (_isSameDay(dt, now.subtract(const Duration(days: 1)))) return 'Hôm qua';
+    if (_isSameDay(dt, now)) return 'Today';
+    if (_isSameDay(dt, now.subtract(const Duration(days: 1)))) return 'Yesterday';
     return '${dt.day}/${dt.month}/${dt.year}';
   }
 
@@ -193,11 +310,14 @@ class _ChatRoomScreenState extends State<ChatRoomScreen> {
   Widget _buildAppBar(BuildContext context) {
     final colors = _colors(context);
     final conv = widget.conversation;
+    final chat = context.watch<ChatProvider>();
+    final chatThemeIndex = chat.chatThemeIndex;
+    final chatTheme = getActiveChatTheme(context, chatThemeIndex);
 
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
       decoration: BoxDecoration(
-        color: colors.surface,
+        color: chatTheme.background,
         border: Border(bottom: BorderSide(color: colors.surfaceContainerHighest)),
       ),
       child: Row(
@@ -205,7 +325,7 @@ class _ChatRoomScreenState extends State<ChatRoomScreen> {
           IconButton(
             padding: EdgeInsets.zero,
             constraints: const BoxConstraints(),
-            icon: Icon(Icons.arrow_back, color: colors.primary),
+            icon: Icon(Icons.arrow_back, color: chatTheme.primary),
             onPressed: () => Navigator.pop(context),
           ),
           const SizedBox(width: 12),
@@ -251,14 +371,29 @@ class _ChatRoomScreenState extends State<ChatRoomScreen> {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text(
-                  conv.partnerName,
-                  style: TextStyle(
-                    fontFamily: 'Inter',
-                    fontSize: 16,
-                    fontWeight: FontWeight.bold,
-                    color: colors.primary,
-                  ),
+                Row(
+                  children: [
+                    Flexible(
+                      child: Text(
+                        conv.partnerName,
+                        style: TextStyle(
+                          fontFamily: 'Inter',
+                          fontSize: 16,
+                          fontWeight: FontWeight.bold,
+                          color: context.watch<ChatProvider>().isBlocked(conv.id)
+                              ? Colors.red.shade400
+                              : chatTheme.primary,
+                        ),
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                    ),
+                    if (context.watch<ChatProvider>().isBlocked(conv.id))
+                      Padding(
+                        padding: const EdgeInsets.only(left: 4),
+                        child: Icon(Icons.block, size: 14, color: Colors.red.shade400),
+                      ),
+                  ],
                 ),
                 Text(
                   [
@@ -275,9 +410,12 @@ class _ChatRoomScreenState extends State<ChatRoomScreen> {
             ),
           ),
 
+          if (context.watch<ChatProvider>().isMuted(conv.id))
+            Icon(Icons.notifications_off, color: colors.outline, size: 20),
+            
           IconButton(
             icon: const Icon(Icons.info),
-            color: colors.primary,
+            color: chatTheme.primary,
             onPressed: () => _showChatDetails(context, conv, colors),
           ),
         ],
@@ -320,6 +458,9 @@ class _ChatRoomScreenState extends State<ChatRoomScreen> {
 
   Widget _buildDoctorBubble(BuildContext context, Message msg) {
     final colors = _colors(context);
+    final chat = context.watch<ChatProvider>();
+    final chatThemeIndex = chat.chatThemeIndex;
+    final chatTheme = getActiveChatTheme(context, chatThemeIndex);
 
     return Row(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -348,11 +489,15 @@ class _ChatRoomScreenState extends State<ChatRoomScreen> {
             children: [
               if (msg.imageUrl != null && msg.imageUrl!.isNotEmpty)
                 _buildImageMessage(msg.imageUrl!, colors),
+              if (msg.videoUrl != null && msg.videoUrl!.isNotEmpty)
+                _buildVideoMessage(msg.videoUrl!, colors),
+              if (msg.fileUrl != null && msg.fileUrl!.isNotEmpty)
+                _buildFileMessage(msg.fileUrl!, colors),
               if (msg.content.isNotEmpty)
                 Container(
                   padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
                   decoration: BoxDecoration(
-                    color: colors.surfaceContainerHigh,
+                    color: chatTheme.bubbleOther,
                     borderRadius: const BorderRadius.only(
                       topLeft: Radius.circular(4),
                       topRight: Radius.circular(16),
@@ -366,7 +511,7 @@ class _ChatRoomScreenState extends State<ChatRoomScreen> {
                     style: TextStyle(
                       fontFamily: 'Inter',
                       fontSize: 14,
-                      color: colors.onSurface,
+                      color: chatTheme.bubbleOtherText,
                       height: 1.4,
                     ),
                   ),
@@ -390,6 +535,9 @@ class _ChatRoomScreenState extends State<ChatRoomScreen> {
   Widget _buildPatientBubble(BuildContext context, Message msg) {
     final colors = _colors(context);
     final isPending = msg.isPending;
+    final chat = context.watch<ChatProvider>();
+    final chatThemeIndex = chat.chatThemeIndex;
+    final chatTheme = getActiveChatTheme(context, chatThemeIndex);
 
     return Row(
       mainAxisAlignment: MainAxisAlignment.end,
@@ -407,11 +555,15 @@ class _ChatRoomScreenState extends State<ChatRoomScreen> {
                   children: [
                     if (msg.imageUrl != null && msg.imageUrl!.isNotEmpty)
                       _buildImageMessage(msg.imageUrl!, colors),
+                    if (msg.videoUrl != null && msg.videoUrl!.isNotEmpty)
+                      _buildVideoMessage(msg.videoUrl!, colors),
+                    if (msg.fileUrl != null && msg.fileUrl!.isNotEmpty)
+                      _buildFileMessage(msg.fileUrl!, colors),
                     if (msg.content.isNotEmpty)
                       Container(
                         padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
                         decoration: BoxDecoration(
-                          color: colors.primary,
+                          color: chatTheme.bubbleUser,
                           borderRadius: const BorderRadius.only(
                             topLeft: Radius.circular(16),
                             topRight: Radius.circular(4),
@@ -420,7 +572,7 @@ class _ChatRoomScreenState extends State<ChatRoomScreen> {
                           ),
                           boxShadow: [
                             BoxShadow(
-                              color: colors.primary.withValues(alpha: 0.2),
+                              color: chatTheme.bubbleUser.withValues(alpha: 0.2),
                               blurRadius: 4,
                               offset: const Offset(0, 2),
                             ),
@@ -431,7 +583,7 @@ class _ChatRoomScreenState extends State<ChatRoomScreen> {
                           style: TextStyle(
                             fontFamily: 'Inter',
                             fontSize: 14,
-                            color: colors.onPrimary,
+                            color: chatTheme.bubbleUserText,
                             height: 1.4,
                           ),
                         ),
@@ -477,11 +629,32 @@ class _ChatRoomScreenState extends State<ChatRoomScreen> {
 
   Widget _buildInputArea() {
     final colors = _colors(context);
+    final chat = context.watch<ChatProvider>();
+    final chatTheme = getActiveChatTheme(context, chat.chatThemeIndex);
+    
+    final auth = context.read<AuthProvider>();
+    final blockedBy = chat.getBlockedBy(widget.conversation.id);
+
+    if (blockedBy != null) {
+      final isBlockedByMe = blockedBy == auth.userId;
+      return Container(
+        padding: const EdgeInsets.all(16),
+        color: chatTheme.background,
+        alignment: Alignment.center,
+        child: Text(
+          isBlockedByMe ? 'You blocked this user.' : 'You cannot reply to this conversation.',
+          style: TextStyle(color: colors.outline, fontStyle: FontStyle.italic),
+        ),
+      );
+    }
+
+    final hasAttachment = _attachedImage != null || _attachedVideo != null || _attachedFile != null;
+    final canSend = !_isTextEmpty || hasAttachment;
 
     return Container(
       padding: const EdgeInsets.all(12),
       decoration: BoxDecoration(
-        color: colors.surface,
+        color: chatTheme.background,
         border: Border(top: BorderSide(color: colors.surfaceContainerHighest)),
         boxShadow: [
           BoxShadow(
@@ -491,73 +664,122 @@ class _ChatRoomScreenState extends State<ChatRoomScreen> {
           ),
         ],
       ),
-      child: Row(
-        crossAxisAlignment: CrossAxisAlignment.end,
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          // Nút đính kèm
-          IconButton(
-            icon: const Icon(Icons.add),
-            color: colors.primary,
-            onPressed: () {},
-          ),
-
-          // Ô nhập tin nhắn
-          Expanded(
-            child: Container(
-              constraints: const BoxConstraints(maxHeight: 120),
+          // Preview đính kèm (nếu có)
+          if (hasAttachment)
+            Container(
+              margin: const EdgeInsets.only(bottom: 8),
+              padding: const EdgeInsets.all(8),
               decoration: BoxDecoration(
                 color: colors.surfaceContainerHigh,
-                borderRadius: BorderRadius.circular(24),
-                border: Border.all(color: colors.surfaceContainerHighest),
+                borderRadius: BorderRadius.circular(12),
               ),
-              child: TextField(
-                controller: _messageController,
-                maxLines: null,
-                keyboardType: TextInputType.multiline,
-                textInputAction: TextInputAction.newline,
-                style: TextStyle(fontFamily: 'Inter', fontSize: 14, color: colors.onSurface),
-                decoration: InputDecoration(
-                  hintText: 'Nhập tin nhắn...',
-                  hintStyle: TextStyle(color: colors.outline),
-                  border: InputBorder.none,
-                  contentPadding: const EdgeInsets.symmetric(vertical: 10, horizontal: 16),
-                ),
-              ),
-            ),
-          ),
-          const SizedBox(width: 8),
-
-          // Nút gửi (ẩn khi chưa nhập)
-          AnimatedScale(
-            scale: _isTextEmpty ? 0.0 : 1.0,
-            duration: const Duration(milliseconds: 200),
-            curve: Curves.elasticOut,
-            child: Container(
-              decoration: BoxDecoration(
-                color: colors.primary,
-                shape: BoxShape.circle,
-                boxShadow: [
-                  BoxShadow(
-                    color: colors.primary.withValues(alpha: 0.3),
-                    blurRadius: 8,
-                    offset: const Offset(0, 2),
+              child: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  if (_attachedImage != null)
+                    ClipRRect(
+                      borderRadius: BorderRadius.circular(8),
+                      child: Image.file(_attachedImage!, width: 50, height: 50, fit: BoxFit.cover),
+                    ),
+                  if (_attachedVideo != null)
+                    const Icon(Icons.videocam, size: 40),
+                  if (_attachedFile != null)
+                    const Icon(Icons.insert_drive_file, size: 40),
+                  const SizedBox(width: 8),
+                  if (_attachedFile != null)
+                    Expanded(
+                      child: Text(
+                        _attachedFileName ?? 'File',
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                    ),
+                  IconButton(
+                    icon: const Icon(Icons.close, size: 20),
+                    onPressed: _clearAttachment,
                   ),
                 ],
               ),
-              child: Consumer<ChatProvider>(
-                builder: (context, chat, _) => IconButton(
-                  icon: chat.isSending
-                      ? SizedBox(
-                          width: 20,
-                          height: 20,
-                          child: CircularProgressIndicator(strokeWidth: 2, color: colors.onPrimary),
-                        )
-                      : const Icon(Icons.send, size: 20),
-                  color: colors.onPrimary,
-                  onPressed: chat.isSending ? null : _sendMessage,
+            ),
+          
+          Row(
+            crossAxisAlignment: CrossAxisAlignment.end,
+            children: [
+              // Nút đính kèm
+              IconButton(
+                icon: const Icon(Icons.add),
+                color: chatTheme.primary,
+                onPressed: _showAttachmentMenu,
+              ),
+              // Nút Camera
+              IconButton(
+                icon: const Icon(Icons.camera_alt),
+                color: chatTheme.primary,
+                onPressed: _takePicture,
+              ),
+
+              // Ô nhập tin nhắn
+              Expanded(
+                child: Container(
+                  constraints: const BoxConstraints(maxHeight: 120),
+                  decoration: BoxDecoration(
+                    color: chatTheme.bubbleOther, // Nền ô chữ
+                    borderRadius: BorderRadius.circular(24),
+                    border: Border.all(color: chatTheme.primary.withValues(alpha: 0.2)),
+                  ),
+                  child: TextField(
+                    controller: _messageController,
+                    maxLines: null,
+                    keyboardType: TextInputType.multiline,
+                    textInputAction: TextInputAction.newline,
+                    style: TextStyle(fontFamily: 'Inter', fontSize: 14, color: chatTheme.bubbleOtherText),
+                    decoration: InputDecoration(
+                      hintText: 'Type message...',
+                      hintStyle: TextStyle(color: chatTheme.bubbleOtherText.withValues(alpha: 0.5)),
+                      border: InputBorder.none,
+                      contentPadding: const EdgeInsets.symmetric(vertical: 10, horizontal: 16),
+                    ),
+                  ),
                 ),
               ),
-            ),
+              const SizedBox(width: 8),
+
+              // Nút gửi (opacity thay vì scale)
+              AnimatedOpacity(
+                opacity: canSend ? 1.0 : 0.5,
+                duration: const Duration(milliseconds: 200),
+                child: Container(
+                  decoration: BoxDecoration(
+                    color: canSend ? chatTheme.primary : chatTheme.primary.withValues(alpha: 0.3),
+                    shape: BoxShape.circle,
+                    boxShadow: canSend ? [
+                      BoxShadow(
+                        color: chatTheme.primary.withValues(alpha: 0.3),
+                        blurRadius: 8,
+                        offset: const Offset(0, 2),
+                      ),
+                    ] : null,
+                  ),
+                  child: Consumer<ChatProvider>(
+                    builder: (context, chat, _) => IconButton(
+                      icon: chat.isSending
+                          ? SizedBox(
+                              width: 20,
+                              height: 20,
+                              child: CircularProgressIndicator(strokeWidth: 2, color: colors.onPrimary),
+                            )
+                          : const Icon(Icons.send, size: 20),
+                      color: canSend ? colors.onPrimary : colors.outline,
+                      onPressed: (canSend && !chat.isSending) ? _sendMessage : null,
+                    ),
+                  ),
+                ),
+              ),
+            ],
           ),
         ],
       ),
@@ -611,6 +833,15 @@ class _ChatRoomScreenState extends State<ChatRoomScreen> {
       } catch (e) {
         imageWidget = _buildErrorImage(colors);
       }
+    } else if (!imageUrl.startsWith('http') && !imageUrl.startsWith('/uploads')) {
+      // Local file path
+      imageWidget = Image.file(
+        File(imageUrl),
+        width: 200,
+        height: 200,
+        fit: BoxFit.cover,
+        errorBuilder: (_, __, ___) => _buildErrorImage(colors),
+      );
     } else {
       final normalizedImageUrl = ApiConfig.normalizeUrl(imageUrl);
       if (normalizedImageUrl != null) {
@@ -628,7 +859,10 @@ class _ChatRoomScreenState extends State<ChatRoomScreen> {
               child: const Center(child: CircularProgressIndicator()),
             );
           },
-          errorBuilder: (_, __, ___) => _buildErrorImage(colors),
+          errorBuilder: (context, error, stackTrace) {
+              debugPrint('[Chat] Image.network error: $error | url=$normalizedImageUrl');
+              return _buildErrorImage(colors);
+            },
         );
       } else {
         imageWidget = _buildErrorImage(colors);
@@ -651,6 +885,8 @@ class _ChatRoomScreenState extends State<ChatRoomScreen> {
     );
   }
 
+
+
   Widget _buildErrorImage(ColorScheme colors) {
     return Container(
       width: 200,
@@ -664,8 +900,115 @@ class _ChatRoomScreenState extends State<ChatRoomScreen> {
         children: [
           Icon(Icons.broken_image_outlined, color: colors.outline),
           const SizedBox(width: 8),
-          Text('Không tải được ảnh', style: TextStyle(color: colors.outline, fontSize: 12)),
+          Text("Can't load image", style: TextStyle(color: colors.outline, fontSize: 12)),
         ],
+      ),
+    );
+  }
+
+  Widget _buildVideoMessage(String videoUrl, ColorScheme colors) {
+    return GestureDetector(
+      onTap: () async {
+        final normalizedUrl = ApiConfig.normalizeUrl(videoUrl);
+        if (normalizedUrl != null) {
+          final uri = Uri.parse(normalizedUrl);
+          if (await canLaunchUrl(uri)) {
+            await launchUrl(uri, mode: LaunchMode.externalApplication);
+          } else {
+            if (context.mounted) {
+              ScaffoldMessenger.of(context).showSnackBar(
+                const SnackBar(content: Text('Can not play this video.')),
+              );
+            }
+          }
+        }
+      },
+      child: Container(
+        width: 200,
+        height: 120,
+        margin: const EdgeInsets.only(bottom: 4),
+        decoration: BoxDecoration(
+          color: colors.surfaceContainerHigh,
+          borderRadius: BorderRadius.circular(12),
+          border: Border.all(color: colors.surfaceContainerHighest),
+        ),
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Icon(Icons.play_circle_fill, size: 48, color: colors.primary),
+            const SizedBox(height: 8),
+            Text(
+              'Video',
+              style: TextStyle(color: colors.onSurfaceVariant, fontWeight: FontWeight.w500),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildFileMessage(String fileUrl, ColorScheme colors) {
+    // Trích xuất tên file từ URL nếu có thể, hoặc dùng nội dung mặc định
+    String fileName = 'File';
+    if (fileUrl.isNotEmpty) {
+      fileName = fileUrl.split('/').last;
+      // Lấy phần tên thực sự sau timestamp (ví dụ: 123456789_file.pdf -> file.pdf)
+      final parts = fileName.split('_');
+      if (parts.length > 1) {
+        fileName = parts.sublist(1).join('_');
+      }
+    }
+
+    return GestureDetector(
+      onTap: () async {
+        final normalizedUrl = ApiConfig.normalizeUrl(fileUrl);
+        if (normalizedUrl != null) {
+          final uri = Uri.parse(normalizedUrl);
+          if (await canLaunchUrl(uri)) {
+            await launchUrl(uri, mode: LaunchMode.externalApplication);
+          } else {
+            if (context.mounted) {
+              ScaffoldMessenger.of(context).showSnackBar(
+                const SnackBar(content: Text('Can not open this file.')),
+              );
+            }
+          }
+        }
+      },
+      child: Container(
+        width: 200,
+        padding: const EdgeInsets.all(12),
+        margin: const EdgeInsets.only(bottom: 4),
+        decoration: BoxDecoration(
+          color: colors.surfaceContainerHigh,
+          borderRadius: BorderRadius.circular(12),
+          border: Border.all(color: colors.surfaceContainerHighest),
+        ),
+        child: Row(
+          children: [
+            Container(
+              padding: const EdgeInsets.all(8),
+              decoration: BoxDecoration(
+                color: colors.primary.withValues(alpha: 0.1),
+                borderRadius: BorderRadius.circular(8),
+              ),
+              child: Icon(Icons.insert_drive_file, color: colors.primary),
+            ),
+            const SizedBox(width: 12),
+            Expanded(
+              child: Text(
+                fileName,
+                maxLines: 2,
+                overflow: TextOverflow.ellipsis,
+                style: TextStyle(
+                  color: colors.onSurface,
+                  fontSize: 14,
+                  fontWeight: FontWeight.w500,
+                ),
+              ),
+            ),
+          ],
+        ),
       ),
     );
   }
@@ -733,11 +1076,24 @@ class _ChatRoomScreenState extends State<ChatRoomScreen> {
                   children: [
                     _buildQuickAction(Icons.person, 'Profile', colors, () {
                       Navigator.pop(context); // Đóng BottomSheet
-                      ScaffoldMessenger.of(context).showSnackBar(
-                        const SnackBar(content: Text('Profile feature is under development')),
+                      showDialog(
+                        context: context,
+                        builder: (context) => AlertDialog(
+                          title: const Text('Notifications'),
+                          content: const Text('Profile viewing feature is being developed. Please come back later!'),
+                          actions: [
+                            TextButton(
+                              onPressed: () => Navigator.pop(context),
+                              child: const Text('Close'),
+                            ),
+                          ],
+                        ),
                       );
                     }),
-                    _buildQuickAction(Icons.notifications, 'Mute', colors, () {
+                    _buildQuickAction(
+                      context.watch<ChatProvider>().isMuted(conv.id) ? Icons.notifications_off : Icons.notifications, 
+                      context.watch<ChatProvider>().isMuted(conv.id) ? 'Unmute' : 'Mute', 
+                      colors, () {
                       Navigator.pop(context); // Đóng BottomSheet
                       _showMuteDialog(context);
                     }),
@@ -766,15 +1122,24 @@ class _ChatRoomScreenState extends State<ChatRoomScreen> {
                     ));
                   },
                 ),
-                const Divider(),
                 ListTile(
-                  leading: Icon(Icons.block, color: Colors.red.shade400),
-                  title: Text('Block', style: TextStyle(color: Colors.red.shade400)),
+                  leading: Icon(Icons.palette, color: colors.onSurfaceVariant),
+                  title: const Text('Change Theme'),
                   onTap: () {
                     Navigator.pop(context); // Đóng BottomSheet
-                    _showBlockDialog(context);
+                    _showThemeSelectionDialog(context);
                   },
                 ),
+                const Divider(),
+                if (context.watch<ChatProvider>().getBlockedBy(conv.id) == null || context.watch<ChatProvider>().getBlockedBy(conv.id) == context.read<AuthProvider>().userId)
+                  ListTile(
+                    leading: Icon(Icons.block, color: context.watch<ChatProvider>().isBlocked(conv.id) ? Colors.green : Colors.red.shade400),
+                    title: Text(context.watch<ChatProvider>().isBlocked(conv.id) ? 'Unblock' : 'Block', style: TextStyle(color: context.watch<ChatProvider>().isBlocked(conv.id) ? Colors.green : Colors.red.shade400)),
+                    onTap: () {
+                      Navigator.pop(context); // Đóng BottomSheet
+                      _showBlockDialog(context);
+                    },
+                  ),
               ],
             );
           },
@@ -783,12 +1148,69 @@ class _ChatRoomScreenState extends State<ChatRoomScreen> {
     );
   }
 
+  void _showThemeSelectionDialog(BuildContext context) {
+    showModalBottomSheet(
+      context: context,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(16)),
+      ),
+      builder: (context) {
+        return SafeArea(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              const Padding(
+                padding: EdgeInsets.all(16.0),
+                child: Text(
+                  'Select Chat Theme',
+                  style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, fontFamily: 'Inter'),
+                ),
+              ),
+              Flexible(
+                child: ListView.builder(
+                  shrinkWrap: true,
+                  itemCount: totalChatThemes,
+                  itemBuilder: (context, index) {
+                    final theme = getActiveChatTheme(context, index);
+                    final isSelected = context.watch<ChatProvider>().chatThemeIndex == index;
+                    return ListTile(
+                      leading: Container(
+                        width: 40,
+                        height: 40,
+                        decoration: BoxDecoration(
+                          shape: BoxShape.circle,
+                          color: theme.primary,
+                          border: Border.all(color: theme.bubbleOther, width: 2),
+                        ),
+                      ),
+                      title: Text(theme.name, style: const TextStyle(fontFamily: 'Inter')),
+                      trailing: isSelected ? Icon(Icons.check_circle, color: theme.primary) : null,
+                      onTap: () {
+                        context.read<ChatProvider>().changeTheme(index);
+                        Navigator.pop(context);
+                      },
+                    );
+                  },
+                ),
+              ),
+            ],
+          ),
+        );
+      },
+    );
+  }
+
   void _showMuteDialog(BuildContext context) {
+    final chat = context.read<ChatProvider>();
+    final isMuted = chat.isMuted(widget.conversation.id);
+
     showDialog(
       context: context,
       builder: (context) => AlertDialog(
-        title: const Text('Mute Notifications'),
-        content: const Text('Mute notifications for this conversation?'),
+        title: Text(isMuted ? 'Unmute Notifications' : 'Mute Notifications'),
+        content: Text(isMuted 
+            ? 'Receive notifications for this conversation again?' 
+            : 'Mute notifications for this conversation?'),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(context),
@@ -797,12 +1219,12 @@ class _ChatRoomScreenState extends State<ChatRoomScreen> {
           TextButton(
             onPressed: () {
               Navigator.pop(context);
-              // Lấy SharedPreferences ở đây (sẽ implement trong _saveMuteState)
+              chat.toggleMute(widget.conversation.id);
               ScaffoldMessenger.of(context).showSnackBar(
-                const SnackBar(content: Text('Notifications muted')),
+                SnackBar(content: Text(isMuted ? 'Notifications unmuted' : 'Notifications muted')),
               );
             },
-            child: const Text('MUTE'),
+            child: Text(isMuted ? 'UNMUTE' : 'MUTE'),
           ),
         ],
       ),
@@ -810,25 +1232,42 @@ class _ChatRoomScreenState extends State<ChatRoomScreen> {
   }
 
   void _showBlockDialog(BuildContext context) {
+    final chat = context.read<ChatProvider>();
+    final isBlocked = chat.isBlocked(widget.conversation.id);
+
     showDialog(
       context: context,
       builder: (context) => AlertDialog(
-        title: const Text('Block User'),
-        content: const Text('You won\'t receive messages or calls from this person anymore.'),
+        title: Text(isBlocked ? 'Unblock User' : 'Block User'),
+        content: Text(isBlocked
+            ? 'You will receive messages and calls from this person again.'
+            : 'You won\'t receive messages or calls from this person anymore.'),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(context),
             child: const Text('CANCEL'),
           ),
           TextButton(
-            style: TextButton.styleFrom(foregroundColor: Colors.red),
-            onPressed: () {
+            style: TextButton.styleFrom(foregroundColor: isBlocked ? Colors.green : Colors.red),
+            onPressed: () async {
               Navigator.pop(context);
-              ScaffoldMessenger.of(context).showSnackBar(
-                const SnackBar(content: Text('User blocked')),
-              );
+              final auth = context.read<AuthProvider>();
+              try {
+                await chat.toggleBlock(auth.accessToken!, auth.userId!, widget.conversation.id);
+                if (context.mounted) {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    SnackBar(content: Text(isBlocked ? 'User unblocked' : 'User blocked')),
+                  );
+                }
+              } catch (e) {
+                if (context.mounted) {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    SnackBar(content: Text('Error: $e')),
+                  );
+                }
+              }
             },
-            child: const Text('BLOCK'),
+            child: Text(isBlocked ? 'UNBLOCK' : 'BLOCK'),
           ),
         ],
       ),

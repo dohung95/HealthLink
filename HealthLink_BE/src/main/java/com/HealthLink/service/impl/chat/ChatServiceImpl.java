@@ -83,12 +83,14 @@ public class ChatServiceImpl implements ChatService {
                             .build();
 
                     messagingTemplate.convertAndSendToUser(
-                            user1.getEmail(),
+                            // user1.getEmail(),
+                            user1.getId(),
                             "/queue/chat",
                             roomCreatedMsg
                     );
                     messagingTemplate.convertAndSendToUser(
-                            user2.getEmail(),
+                            // user2.getEmail(),
+                            user2.getId(),
                             "/queue/chat",
                             roomCreatedMsg
                     );
@@ -135,6 +137,11 @@ public class ChatServiceImpl implements ChatService {
                 .orElseThrow(() -> new ResourceNotFoundException(
                         "ChatRoom", "id", request.getChatRoomId()));
 
+        // Kiểm tra xem phòng có bị chặn không
+        if (room.getBlockedBy() != null) {
+            throw new IllegalStateException("You cannot send messages because this conversation is blocked.");
+        }
+
         // Tạo entity User tạm cho sender (chỉ cần ID để JPA set foreign key)
         User sender = User.builder().id(senderId).build();
 
@@ -148,6 +155,8 @@ public class ChatServiceImpl implements ChatService {
                 .receiver(receiver)
                 .content(request.getContent())
                 .imageUrl(request.getImageUrl())
+                .videoUrl(request.getVideoUrl())
+                .fileUrl(request.getFileUrl())
                 .read(false)
                 .timestamp(LocalDateTime.now())
                 .build();
@@ -155,11 +164,19 @@ public class ChatServiceImpl implements ChatService {
         Message saved = messageRepository.save(message);
 
         // Cập nhật lastMessage / lastMessageAt trên phòng chat
-        String preview = request.getContent() != null
-                ? (request.getContent().length() > 100
-                        ? request.getContent().substring(0, 100) + "…"
-                        : request.getContent())
-                : "[Ảnh]";
+        String preview;
+        if (request.getContent() != null && !request.getContent().isBlank()) {
+            preview = request.getContent().length() > 100
+                    ? request.getContent().substring(0, 100) + "…"
+                    : request.getContent();
+        } else if (request.getVideoUrl() != null && !request.getVideoUrl().isBlank()) {
+            preview = "[Video]";
+        } else if (request.getFileUrl() != null && !request.getFileUrl().isBlank()) {
+            preview = "[File]";
+        } else {
+            preview = "[Image]";
+        }
+        
         room.setLastMessage(preview);
         room.setLastMessageAt(saved.getTimestamp());
         chatRoomRepository.save(room);
@@ -167,9 +184,17 @@ public class ChatServiceImpl implements ChatService {
         MessageDTO dto = toMessageDTO(saved);
 
         // Đẩy tin nhắn realtime đến người nhận qua WebSocket
-        // Spring STOMP đang nhận diện user bằng email (từ JWT Token)
+        // Spring STOMP đang nhận diện user bằng UUID thay vì email
         messagingTemplate.convertAndSendToUser(
-                receiver.getEmail(),
+                // receiver.getEmail(),
+                receiver.getId(),
+                "/queue/chat",
+                dto
+        );
+
+        // Đẩy tin nhắn realtime đến CHÍNH người gửi (để đồng bộ các thiết bị/tab khác của người gửi)
+        messagingTemplate.convertAndSendToUser(
+                sender.getId(),
                 "/queue/chat",
                 dto
         );
@@ -201,6 +226,41 @@ public class ChatServiceImpl implements ChatService {
     @Transactional
     public int markMessagesAsRead(String chatRoomId, String userId) {
         return messageRepository.markAllAsRead(chatRoomId, userId);
+    }
+
+    // -------------------------------------------------------------------------
+    // Bật/Tắt chặn (Block/Unblock)
+    // -------------------------------------------------------------------------
+    @Override
+    @Transactional
+    public void toggleBlock(String chatRoomId, String userId) {
+        ChatRoom room = chatRoomRepository.findById(chatRoomId)
+                .orElseThrow(() -> new ResourceNotFoundException("ChatRoom", "id", chatRoomId));
+
+        if (room.getBlockedBy() == null) {
+            // Chưa ai chặn -> Mình chặn
+            room.setBlockedBy(userId);
+        } else if (room.getBlockedBy().equals(userId)) {
+            // Mình đã chặn -> Bỏ chặn
+            room.setBlockedBy(null);
+        } else {
+            // Người kia đã chặn -> Báo lỗi
+            throw new IllegalStateException("Cannot unblock a conversation that was blocked by another user.");
+        }
+        chatRoomRepository.save(room);
+
+        // Báo cho cả 2 bên cập nhật trạng thái phòng bằng một tin nhắn hệ thống ngầm
+        String partnerId = room.getUser1Id().equals(userId) ? room.getUser2Id() : room.getUser1Id();
+        MessageDTO systemMsg = MessageDTO.builder()
+                .messageId("sys_" + java.util.UUID.randomUUID().toString())
+                .chatRoomId(chatRoomId)
+                .content("[SYSTEM_BLOCK_UPDATE]")
+                .senderId("SYSTEM")
+                .receiverId(partnerId)
+                .timestamp(java.time.LocalDateTime.now())
+                .build();
+        messagingTemplate.convertAndSendToUser(partnerId, "/queue/chat", systemMsg);
+        messagingTemplate.convertAndSendToUser(userId, "/queue/chat", systemMsg);
     }
 
     // =========================================================================
@@ -256,6 +316,7 @@ public class ChatServiceImpl implements ChatService {
                 .user2Specialty(user2Specialty)
                 .lastMessage(room.getLastMessage())
                 .lastMessageAt(room.getLastMessageAt())
+                .blockedBy(room.getBlockedBy())
                 .appointmentId(room.getAppointment() != null
                         ? room.getAppointment().getAppointmentId() : null)
                 .build();
@@ -286,6 +347,8 @@ public class ChatServiceImpl implements ChatService {
                 .receiverId(msg.getReceiver() != null ? msg.getReceiver().getId() : null)
                 .content(msg.getContent())
                 .imageUrl(msg.getImageUrl())
+                .videoUrl(msg.getVideoUrl())
+                .fileUrl(msg.getFileUrl())
                 .read(msg.isRead())
                 .timestamp(msg.getTimestamp())
                 .build();
