@@ -38,9 +38,12 @@ class _ChatRoomScreenState extends State<ChatRoomScreen> {
 
   ColorScheme _colors(BuildContext context) => Theme.of(context).colorScheme;
 
+  late ChatProvider _chatProvider;
+
   @override
   void initState() {
     super.initState();
+    _chatProvider = Provider.of<ChatProvider>(context, listen: false);
     _messageController.addListener(() {
       final isEmpty = _messageController.text.trim().isEmpty;
       if (isEmpty != _isTextEmpty) {
@@ -65,6 +68,8 @@ class _ChatRoomScreenState extends State<ChatRoomScreen> {
   void dispose() {
     _messageController.dispose();
     _scrollController.dispose();
+    // Xoá thông tin phòng chat hiện tại để nhận thông báo push top-down
+    Future.microtask(() => _chatProvider.clearCurrentConversation());
     super.dispose();
   }
 
