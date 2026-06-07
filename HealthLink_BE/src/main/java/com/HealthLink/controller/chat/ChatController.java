@@ -81,6 +81,19 @@ public class ChatController {
         return ResponseEntity.ok(chatService.getRoomById(chatRoomId));
     }
 
+    /**
+     * POST /api/chat/rooms/{chatRoomId}/block
+     * Bật/Tắt chặn phòng chat.
+     */
+    @PostMapping("/rooms/{chatRoomId}/block")
+    public ResponseEntity<Void> toggleBlock(
+            @PathVariable String chatRoomId,
+            @AuthenticationPrincipal UserDetails userDetails) {
+        String userId = resolveUserId(userDetails);
+        chatService.toggleBlock(chatRoomId, userId);
+        return ResponseEntity.ok().build();
+    }
+
     // -------------------------------------------------------------------------
     // Tin nhắn (Message)
     // -------------------------------------------------------------------------

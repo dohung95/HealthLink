@@ -632,15 +632,17 @@ class _ChatRoomScreenState extends State<ChatRoomScreen> {
     final chat = context.watch<ChatProvider>();
     final chatTheme = getActiveChatTheme(context, chat.chatThemeIndex);
     
-    final isBlocked = chat.isBlocked(widget.conversation.id);
+    final auth = context.read<AuthProvider>();
+    final blockedBy = chat.getBlockedBy(widget.conversation.id);
 
-    if (isBlocked) {
+    if (blockedBy != null) {
+      final isBlockedByMe = blockedBy == auth.userId;
       return Container(
         padding: const EdgeInsets.all(16),
         color: chatTheme.background,
         alignment: Alignment.center,
         child: Text(
-          'You blocked this user.',
+          isBlockedByMe ? 'You blocked this user.' : 'You cannot reply to this conversation.',
           style: TextStyle(color: colors.outline, fontStyle: FontStyle.italic),
         ),
       );
@@ -1129,14 +1131,15 @@ class _ChatRoomScreenState extends State<ChatRoomScreen> {
                   },
                 ),
                 const Divider(),
-                ListTile(
-                  leading: Icon(Icons.block, color: context.watch<ChatProvider>().isBlocked(conv.id) ? Colors.green : Colors.red.shade400),
-                  title: Text(context.watch<ChatProvider>().isBlocked(conv.id) ? 'Unblock' : 'Block', style: TextStyle(color: context.watch<ChatProvider>().isBlocked(conv.id) ? Colors.green : Colors.red.shade400)),
-                  onTap: () {
-                    Navigator.pop(context); // Đóng BottomSheet
-                    _showBlockDialog(context);
-                  },
-                ),
+                if (context.watch<ChatProvider>().getBlockedBy(conv.id) == null || context.watch<ChatProvider>().getBlockedBy(conv.id) == context.read<AuthProvider>().userId)
+                  ListTile(
+                    leading: Icon(Icons.block, color: context.watch<ChatProvider>().isBlocked(conv.id) ? Colors.green : Colors.red.shade400),
+                    title: Text(context.watch<ChatProvider>().isBlocked(conv.id) ? 'Unblock' : 'Block', style: TextStyle(color: context.watch<ChatProvider>().isBlocked(conv.id) ? Colors.green : Colors.red.shade400)),
+                    onTap: () {
+                      Navigator.pop(context); // Đóng BottomSheet
+                      _showBlockDialog(context);
+                    },
+                  ),
               ],
             );
           },
@@ -1246,12 +1249,23 @@ class _ChatRoomScreenState extends State<ChatRoomScreen> {
           ),
           TextButton(
             style: TextButton.styleFrom(foregroundColor: isBlocked ? Colors.green : Colors.red),
-            onPressed: () {
+            onPressed: () async {
               Navigator.pop(context);
-              chat.toggleBlock(widget.conversation.id);
-              ScaffoldMessenger.of(context).showSnackBar(
-                SnackBar(content: Text(isBlocked ? 'User unblocked' : 'User blocked')),
-              );
+              final auth = context.read<AuthProvider>();
+              try {
+                await chat.toggleBlock(auth.accessToken!, auth.userId!, widget.conversation.id);
+                if (context.mounted) {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    SnackBar(content: Text(isBlocked ? 'User unblocked' : 'User blocked')),
+                  );
+                }
+              } catch (e) {
+                if (context.mounted) {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    SnackBar(content: Text('Error: $e')),
+                  );
+                }
+              }
             },
             child: Text(isBlocked ? 'UNBLOCK' : 'BLOCK'),
           ),

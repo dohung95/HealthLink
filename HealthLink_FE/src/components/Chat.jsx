@@ -540,6 +540,19 @@ export default function Chat() {
                 return; // KHÔNG thêm vào màn hình hiển thị tin nhắn
             }
 
+            // Sự kiện phòng bị chặn/bỏ chặn
+            if (newMsg.content === "[SYSTEM_BLOCK_UPDATE]") {
+                getMyRooms().then(rooms => {
+                    setRoomList(rooms);
+                    const activeRoomId = currentRoomRef.current?.chatRoomId;
+                    if (activeRoomId === newMsg.chatRoomId) {
+                        const updatedRoom = rooms.find(r => r.chatRoomId === activeRoomId);
+                        if (updatedRoom) setCurrentRoom(updatedRoom);
+                    }
+                }).catch(err => console.error(err));
+                return; // KHÔNG hiển thị tin nhắn hệ thống
+            }
+
             const activeRoomId = currentRoomRef.current?.chatRoomId;
             const isRoomActive = activeRoomId === newMsg.chatRoomId && isChatBoxOpenRef.current;
 
@@ -923,7 +936,9 @@ export default function Chat() {
     };
 
     // ── Render ───────────────────────────────────────────────────────────────
-    const showInput = (isGuest && chatPartner) || (chatPartner && (isPatient || isDoctor || isPharmacy));
+    const isBlocked = currentRoom && currentRoom.blockedBy;
+    const isBlockedByMe = isBlocked && currentRoom.blockedBy === currentUserId;
+    const showInput = ((isGuest && chatPartner) || (chatPartner && (isPatient || isDoctor || isPharmacy))) && !isBlocked;
 
     return (
         <>
@@ -1055,7 +1070,13 @@ export default function Chat() {
                     </div>
 
                     {/* Input gửi tin nhắn */}
-                    {showInput && (
+                    {isBlocked ? (
+                        <div className="p-3 border-top bg-light text-center">
+                            <span className="text-muted fst-italic">
+                                {isBlockedByMe ? 'You blocked this user.' : 'You cannot reply to this conversation.'}
+                            </span>
+                        </div>
+                    ) : showInput && (
                         <div className="p-2 border-top">
                             {selectedFile && (
                                 <div className="mb-2 p-2 bg-light rounded d-flex align-items-center justify-content-between">

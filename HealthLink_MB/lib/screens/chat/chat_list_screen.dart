@@ -73,7 +73,7 @@ class _MessagesScreenState extends State<MessagesScreen> {
                             chat.loadConversations(auth.accessToken!, auth.userId!);
                           }
                         },
-                        child: const Text('Thử lại'),
+                        child: const Text('Try again'),
                       ),
                     ],
                   ),
@@ -99,7 +99,7 @@ class _MessagesScreenState extends State<MessagesScreen> {
                       Icon(Icons.chat_bubble_outline, size: 64, color: Theme.of(context).colorScheme.outlineVariant),
                       const SizedBox(height: 16),
                       Text(
-                        _searchQuery.isEmpty ? 'Chưa có hội thoại nào.' : 'Không tìm thấy kết quả.',
+                        _searchQuery.isEmpty ? 'No conversations yet.' : 'No results found.',
                         style: TextStyle(color: Theme.of(context).colorScheme.onSurfaceVariant, fontSize: 16),
                       ),
                     ],
@@ -159,19 +159,21 @@ class _MessagesScreenState extends State<MessagesScreen> {
 
   void _showBlockedUsersDialog(BuildContext context) {
     final chatProvider = context.read<ChatProvider>();
-    final blockedIds = chatProvider.blockedRoomIds;
-    final blockedConvs = chatProvider.conversations.where((c) => blockedIds.contains(c.id)).toList();
+    final auth = context.read<AuthProvider>();
+    final currentUserId = auth.userId;
+    
+    final blockedConvs = chatProvider.conversations.where((c) => c.blockedBy == currentUserId).toList();
 
     showDialog(
       context: context,
       builder: (context) {
         return AlertDialog(
-          title: const Text('Danh sách chặn'),
+          title: const Text('Blocked users'),
           content: SizedBox(
             width: double.maxFinite,
             height: 300,
             child: blockedConvs.isEmpty
-                ? const Center(child: Text('Không có người dùng nào bị chặn.'))
+                ? const Center(child: Text('No users are blocked.'))
                 : ListView.builder(
                     itemCount: blockedConvs.length,
                     itemBuilder: (context, index) {
@@ -185,14 +187,24 @@ class _MessagesScreenState extends State<MessagesScreen> {
                         ),
                         title: Text(conv.partnerName, style: TextStyle(color: Colors.red.shade400)),
                         trailing: TextButton(
-                          onPressed: () {
-                            chatProvider.toggleBlock(conv.id);
-                            Navigator.pop(context); // Đóng hộp thoại
-                            ScaffoldMessenger.of(context).showSnackBar(
-                              const SnackBar(content: Text('Đã bỏ chặn người dùng')),
-                            );
+                          onPressed: () async {
+                            try {
+                              await chatProvider.toggleBlock(auth.accessToken!, auth.userId!, conv.id);
+                              if (context.mounted) {
+                                Navigator.pop(context); // Đóng hộp thoại
+                                ScaffoldMessenger.of(context).showSnackBar(
+                                  const SnackBar(content: Text('Unblocked user successfully')),
+                                );
+                              }
+                            } catch (e) {
+                              if (context.mounted) {
+                                ScaffoldMessenger.of(context).showSnackBar(
+                                  SnackBar(content: Text('Error: $e')),
+                                );
+                              }
+                            }
                           },
-                          child: const Text('BỎ CHẶN', style: TextStyle(color: Colors.green)),
+                          child: const Text('Unblock', style: TextStyle(color: Colors.green)),
                         ),
                       );
                     },
@@ -201,7 +213,7 @@ class _MessagesScreenState extends State<MessagesScreen> {
           actions: [
             TextButton(
               onPressed: () => Navigator.pop(context),
-              child: const Text('ĐÓNG'),
+              child: const Text('Close'),
             ),
           ],
         );
@@ -253,7 +265,7 @@ class _MessagesScreenState extends State<MessagesScreen> {
                 IconButton(
                   icon: const Icon(Icons.block),
                   color: Colors.red.shade400,
-                  tooltip: 'Danh sách chặn',
+                  tooltip: 'Blocked users',
                   onPressed: () => _showBlockedUsersDialog(context),
                 ),
                 const SizedBox(width: 16),
@@ -292,7 +304,7 @@ class _MessagesScreenState extends State<MessagesScreen> {
             IconButton(
               icon: const Icon(Icons.block),
               color: Colors.red.shade400,
-              tooltip: 'Danh sách chặn',
+              tooltip: 'Blocked users',
               onPressed: () => _showBlockedUsersDialog(context),
             ),
           ],
@@ -314,7 +326,7 @@ class _MessagesScreenState extends State<MessagesScreen> {
         onChanged: (value) => setState(() => _searchQuery = value),
         style: TextStyle(fontFamily: 'Inter', color: Theme.of(context).colorScheme.onSurface),
         decoration: InputDecoration(
-          hintText: 'Tìm kiếm bác sĩ, chuyên khoa hoặc tin nhắn...',
+          hintText: 'Search doctor, specialty or message...',
           hintStyle: TextStyle(color: Theme.of(context).colorScheme.onSurfaceVariant),
           prefixIcon: Padding(
             padding: const EdgeInsets.only(left: 8.0),
@@ -345,7 +357,7 @@ class _MessagesScreenState extends State<MessagesScreen> {
     if (now.difference(msgTime).inDays == 0) {
       timeLabel = '${msgTime.hour.toString().padLeft(2, '0')}:${msgTime.minute.toString().padLeft(2, '0')}';
     } else if (now.difference(msgTime).inDays == 1) {
-      timeLabel = 'Hôm qua';
+      timeLabel = 'Yesterday';
     } else {
       timeLabel = '${msgTime.day}/${msgTime.month}';
     }

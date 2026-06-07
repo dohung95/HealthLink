@@ -82,6 +82,25 @@ class ChatService {
     throw Exception(_parseError(res, 'Không thể tạo phòng chat.'));
   }
 
+  /// POST /api/chat/rooms/{roomId}/block
+  /// Bật/Tắt chặn phòng chat.
+  static Future<void> toggleBlock(
+    String token,
+    String roomId,
+  ) async {
+    final res = await http
+        .post(
+          Uri.parse('${ApiConfig.baseUrl}/chat/rooms/$roomId/block'),
+          headers: _headers(token),
+        )
+        .timeout(ApiConfig.connectTimeout);
+
+    if (res.statusCode == 200) {
+      return;
+    }
+    throw Exception(_parseError(res, 'Can not toggle block room.'));
+  }
+
   // ── Messages ────────────────────────────────────────────────────────────────
 
   /// GET /api/chat/rooms/{chatRoomId}/messages

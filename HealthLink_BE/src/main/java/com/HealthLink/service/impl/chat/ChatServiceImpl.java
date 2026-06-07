@@ -137,6 +137,11 @@ public class ChatServiceImpl implements ChatService {
                 .orElseThrow(() -> new ResourceNotFoundException(
                         "ChatRoom", "id", request.getChatRoomId()));
 
+        // Kiểm tra xem phòng có bị chặn không
+        if (room.getBlockedBy() != null) {
+            throw new IllegalStateException("You cannot send messages because this conversation is blocked.");
+        }
+
         // Tạo entity User tạm cho sender (chỉ cần ID để JPA set foreign key)
         User sender = User.builder().id(senderId).build();
 
@@ -223,6 +228,41 @@ public class ChatServiceImpl implements ChatService {
         return messageRepository.markAllAsRead(chatRoomId, userId);
     }
 
+    // -------------------------------------------------------------------------
+    // Bật/Tắt chặn (Block/Unblock)
+    // -------------------------------------------------------------------------
+    @Override
+    @Transactional
+    public void toggleBlock(String chatRoomId, String userId) {
+        ChatRoom room = chatRoomRepository.findById(chatRoomId)
+                .orElseThrow(() -> new ResourceNotFoundException("ChatRoom", "id", chatRoomId));
+
+        if (room.getBlockedBy() == null) {
+            // Chưa ai chặn -> Mình chặn
+            room.setBlockedBy(userId);
+        } else if (room.getBlockedBy().equals(userId)) {
+            // Mình đã chặn -> Bỏ chặn
+            room.setBlockedBy(null);
+        } else {
+            // Người kia đã chặn -> Báo lỗi
+            throw new IllegalStateException("Cannot unblock a conversation that was blocked by another user.");
+        }
+        chatRoomRepository.save(room);
+
+        // Báo cho cả 2 bên cập nhật trạng thái phòng bằng một tin nhắn hệ thống ngầm
+        String partnerId = room.getUser1Id().equals(userId) ? room.getUser2Id() : room.getUser1Id();
+        MessageDTO systemMsg = MessageDTO.builder()
+                .messageId("sys_" + java.util.UUID.randomUUID().toString())
+                .chatRoomId(chatRoomId)
+                .content("[SYSTEM_BLOCK_UPDATE]")
+                .senderId("SYSTEM")
+                .receiverId(partnerId)
+                .timestamp(java.time.LocalDateTime.now())
+                .build();
+        messagingTemplate.convertAndSendToUser(partnerId, "/queue/chat", systemMsg);
+        messagingTemplate.convertAndSendToUser(userId, "/queue/chat", systemMsg);
+    }
+
     // =========================================================================
     // Mapper helpers
     // =========================================================================
@@ -276,6 +316,7 @@ public class ChatServiceImpl implements ChatService {
                 .user2Specialty(user2Specialty)
                 .lastMessage(room.getLastMessage())
                 .lastMessageAt(room.getLastMessageAt())
+                .blockedBy(room.getBlockedBy())
                 .appointmentId(room.getAppointment() != null
                         ? room.getAppointment().getAppointmentId() : null)
                 .build();

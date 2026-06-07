@@ -15,12 +15,10 @@ class ChatProvider extends ChangeNotifier {
 
   // Local state for Mute and Block
   final List<String> _mutedRoomIds = [];
-  final List<String> _blockedRoomIds = [];
 
   List<Conversation> get conversations          => _conversations;
   bool               get isLoadingConversations => _isLoadingConversations;
   String?            get conversationsError      => _conversationsError;
-  List<String>       get blockedRoomIds          => _blockedRoomIds;
 
   ChatProvider() {
     _loadLocalSettings();
@@ -29,15 +27,24 @@ class ChatProvider extends ChangeNotifier {
   Future<void> _loadLocalSettings() async {
     final prefs = await SharedPreferences.getInstance();
     final muted = prefs.getStringList('muted_rooms') ?? [];
-    final blocked = prefs.getStringList('blocked_rooms') ?? [];
     _chatThemeIndex = prefs.getInt('chat_theme_index') ?? 0;
     _mutedRoomIds.addAll(muted);
-    _blockedRoomIds.addAll(blocked);
     notifyListeners();
   }
 
   bool isMuted(String roomId) => _mutedRoomIds.contains(roomId);
-  bool isBlocked(String roomId) => _blockedRoomIds.contains(roomId);
+  
+  /// Trả về ID của người chặn phòng chat (nếu có)
+  String? getBlockedBy(String roomId) {
+    try {
+      final conv = _conversations.firstWhere((c) => c.id == roomId);
+      return conv.blockedBy;
+    } catch (_) {
+      return null;
+    }
+  }
+
+  bool isBlocked(String roomId) => getBlockedBy(roomId) != null;
 
   Future<void> toggleMute(String roomId) async {
     final prefs = await SharedPreferences.getInstance();
@@ -50,15 +57,15 @@ class ChatProvider extends ChangeNotifier {
     notifyListeners();
   }
 
-  Future<void> toggleBlock(String roomId) async {
-    final prefs = await SharedPreferences.getInstance();
-    if (_blockedRoomIds.contains(roomId)) {
-      _blockedRoomIds.remove(roomId);
-    } else {
-      _blockedRoomIds.add(roomId);
+  Future<void> toggleBlock(String accessToken, String userId, String roomId) async {
+    try {
+      await ChatService.toggleBlock(accessToken, roomId);
+      // Reload danh sách phòng chat sau khi đổi trạng thái block
+      await loadConversations(accessToken, userId);
+    } catch (e) {
+      debugPrint('[ChatProvider] toggleBlock error: $e');
+      rethrow;
     }
-    await prefs.setStringList('blocked_rooms', _blockedRoomIds);
-    notifyListeners();
   }
 
   // ── State: Chat Theme ──────────────────────────────────────────────────────
@@ -91,10 +98,15 @@ class ChatProvider extends ChangeNotifier {
 
   // ── Conversations ──────────────────────────────────────────────────────────
 
+  String? _lastToken;
+  String? _lastUserId;
+
   /// Tải danh sách phòng chat từ backend.
   Future<void> loadConversations(String accessToken, String userId) async {
     _isLoadingConversations = true;
     _conversationsError = null;
+    _lastToken = accessToken;
+    _lastUserId = userId;
     notifyListeners();
 
     try {
@@ -115,6 +127,13 @@ class ChatProvider extends ChangeNotifier {
 
   /// Xử lý tin nhắn nhận được từ STOMP
   void _onStompMessage(Message msg) {
+    if (msg.content == '[SYSTEM_BLOCK_UPDATE]') {
+      if (_lastToken != null && _lastUserId != null) {
+        loadConversations(_lastToken!, _lastUserId!);
+      }
+      return;
+    }
+
     // Nếu tin nhắn thuộc về phòng đang mở
     if (_currentConversation?.id == msg.conversationId) {
       // Bỏ qua tin nhắn do chính mình vừa gửi (đã được optimistic update)

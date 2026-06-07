@@ -44,5 +44,10 @@ public interface ChatService {
      * @param userId ID của người nhận — lấy từ JWT token ở tầng Controller
      */
     int markMessagesAsRead(String chatRoomId, String userId);
+
+    /**
+     * Bật/Tắt chặn cuộc trò chuyện.
+     */
+    void toggleBlock(String chatRoomId, String userId);
 }
 

@@ -34,6 +34,9 @@ public class ChatRoom {
     private String lastMessage;
     private LocalDateTime lastMessageAt;
 
+    @Column(length = 450)
+    private String blockedBy;
+
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "AppointmentId")
     @ToString.Exclude
