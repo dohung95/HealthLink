@@ -161,19 +161,7 @@ export default function Appointments() {
 
   // Modal states
   const [showViewModal, setShowViewModal] = useState(false);
-  const [showEditModal, setShowEditModal] = useState(false);
   const [selectedAppointment, setSelectedAppointment] = useState(null);
-
-  // Edit form state
-  const [editForm, setEditForm] = useState({
-    appointmentDate: '',
-    appointmentTime: '',
-    consultationType: '',
-    status: '',
-    reason: '',
-    notes: '',
-    diagnosis: ''
-  });
 
   // Reassign modal state
   const [showReassignModal, setShowReassignModal] = useState(false);
@@ -276,67 +264,6 @@ export default function Appointments() {
   const handleViewAppointment = async (appointment) => {
     setSelectedAppointment(appointment);
     setShowViewModal(true);
-  };
-
-  // Handle edit appointment
-  const handleEditAppointment = (appointment) => {
-    setSelectedAppointment(appointment);
-    setEditForm({
-      appointmentDate: appointment.rawDate || '',
-      appointmentTime: appointment.rawTime || '',
-      consultationType: appointment.consultationType || '',
-      status: appointment.status || '',
-      reason: appointment.followUpDate
-        ? new Date(appointment.followUpDate).toISOString().split('T')[0]
-        : '',
-      notes: appointment.doctorNotes || '',
-      diagnosis: appointment.diagnosis || ''
-    });
-    setShowEditModal(true);
-  };
-
-  // Handle update appointment
-  const handleUpdateAppointment = async (e) => {
-    e.preventDefault();
-
-    try {
-      // Combine date and time into DateTime
-      const appointmentDateTime = new Date(`${editForm.appointmentDate}T${editForm.appointmentTime}:00`);
-
-      // Prepare data according to UpdateAppointmentAdminDto
-      const updateData = {
-        appointmentTime: appointmentDateTime.toISOString(),
-        consultationType: editForm.consultationType,
-        status: editForm.status,
-        followUpDate: editForm.reason ? new Date(editForm.reason).toISOString() : null,
-        doctorNotes: editForm.notes || null,
-        diagnosis: editForm.diagnosis || null
-      };
-
-      await appointmentsApi.update(selectedAppointment.appointmentID, updateData);
-
-      // Close modal first
-      setShowEditModal(false);
-
-      // Then fetch updated data
-      await fetchAppointments();
-      await fetchStats();
-
-      // Finally show success message
-      showToast({
-        title: 'Success!',
-        message: 'Appointment has been updated successfully',
-        type: 'success'
-      });
-    } catch (err) {
-      showToast({
-        title: 'Update Failed',
-        message: err.response?.data?.error || 'Failed to update appointment',
-        type: 'error',
-        duration: 5000
-      });
-      console.error('Error updating appointment:', err);
-    }
   };
 
   // Open Reassign Modal
@@ -523,7 +450,7 @@ export default function Appointments() {
                 </div>
               </div>
               <p className="admin-page-subtitle-appointments-v2 mb-0">
-                Manage appointment schedules, track bookings, and monitor consultation status
+                Monitor appointments, reassign doctors when needed, and handle cancellations
               </p>
             </div>
 
@@ -918,14 +845,6 @@ export default function Appointments() {
                       <i className="bi bi-eye"></i>
                       <span>View</span>
                     </button>
-                    <button
-                      className="action-btn edit-btn"
-                      title="Edit Appointment"
-                      onClick={() => handleEditAppointment(appointment)}
-                    >
-                      <i className="bi bi-pencil"></i>
-                      <span>Edit</span>
-                    </button>
                     {appointment.status !== 'Cancelled' && appointment.status !== 'Completed' && (
                       <>
                         <button
@@ -1204,166 +1123,6 @@ export default function Appointments() {
                     Close
                   </button>
                 </div>
-              </div>
-            </div>
-          </div>
-        )}
-
-        {/* Edit Appointment Modal */}
-        {showEditModal && selectedAppointment && (
-          <div className="modal show d-block admin-modal-backdrop" tabIndex="-1">
-            <div className="modal-dialog modal-xl" style={{ maxWidth: '90%' }}>
-              <div className="modal-content" style={{ border: 'none', boxShadow: 'var(--shadow-lg)' }}>
-                <div className="modal-header admin-modal-header info">
-                  <h5 className="modal-title">
-                    <i className="bi bi-pencil-square me-2"></i>
-                    Edit Appointment
-                  </h5>
-                  <button
-                    type="button"
-                    className="btn-close btn-close-white"
-                    onClick={() => setShowEditModal(false)}
-                  ></button>
-                </div>
-                <form onSubmit={handleUpdateAppointment}>
-                  <div className="modal-body admin-modal-body" style={{ maxHeight: '75vh', overflowY: 'auto', backgroundColor: 'var(--admin-bg)' }}>
-                    <div className="row">
-                      {/* Left Column - Basic Information */}
-                      <div className="col-lg-6">
-                        <div className="admin-modal-section">
-                          <h6 className="admin-modal-section-title primary">
-                            <i className="bi bi-calendar-event me-2"></i>
-                            Appointment Details
-                          </h6>
-                          <div className="admin-info-row">
-                            <strong>Patient:</strong>
-                            <span>{selectedAppointment.patientName}</span>
-                          </div>
-                          <div className="admin-info-row">
-                            <strong>Doctor:</strong>
-                            <span>{selectedAppointment.doctorName}</span>
-                          </div>
-                          <div className="admin-info-row">
-                            <strong>Department:</strong>
-                            <span>{selectedAppointment.department}</span>
-                          </div>
-                          <div className="mb-3">
-                            <label className="admin-form-label">Appointment Date <span className="text-danger">*</span></label>
-                            <input
-                              type="date"
-                              className="form-control admin-form-control"
-                              value={editForm.appointmentDate}
-                              onChange={(e) => setEditForm({ ...editForm, appointmentDate: e.target.value })}
-                              required
-                            />
-                          </div>
-                          <div className="mb-3">
-                            <label className="admin-form-label">Appointment Time <span className="text-danger">*</span></label>
-                            <input
-                              type="time"
-                              className="form-control admin-form-control"
-                              value={editForm.appointmentTime}
-                              onChange={(e) => setEditForm({ ...editForm, appointmentTime: e.target.value })}
-                              required
-                            />
-                          </div>
-                          <div className="mb-3">
-                            <label className="admin-form-label">Consultation Type <span className="text-danger">*</span></label>
-                            <select
-                              className="form-select admin-form-control"
-                              value={editForm.consultationType}
-                              onChange={(e) => setEditForm({ ...editForm, consultationType: e.target.value })}
-                              required
-                            >
-                              <option value="">Select Type</option>
-                              <option value="Video">Video Call</option>
-                              <option value="Chat">Chat</option>
-                            </select>
-                          </div>
-                          <div className="mb-3">
-                            <label className="admin-form-label">Status <span className="text-danger">*</span></label>
-                            <select
-                              className="form-select admin-form-control"
-                              value={editForm.status}
-                              onChange={(e) => setEditForm({ ...editForm, status: e.target.value })}
-                              required
-                            >
-                              <option value="Pending">Pending</option>
-                              <option value="Scheduled">Scheduled</option>
-                              <option value="In Progress">In Progress</option>
-                              <option value="Completed">Completed</option>
-                              <option value="Cancelled">Cancelled</option>
-                            </select>
-                          </div>
-                        </div>
-                      </div>
-
-                      {/* Right Column - Additional Information */}
-                      <div className="col-lg-6">
-                        <div className="admin-modal-section">
-                          <h6 className="admin-modal-section-title info">
-                            <i className="bi bi-file-text me-2"></i>
-                            Additional Information
-                          </h6>
-                          <div className="mb-3">
-                            <label className="admin-form-label">Follow update</label>
-                            <input
-                              type="date"
-                              className="form-control admin-form-control"
-                              value={editForm.reason}
-                              onChange={(e) => setEditForm({ ...editForm, reason: e.target.value })}
-                            />
-                          </div>
-                          <div className="mb-3">
-                            <label className="admin-form-label" style={{
-                              color: '#008f7d',
-                              fontWeight: '600',
-                              fontSize: '14px'
-                            }}>
-                              <i className="bi bi-clipboard2-pulse-fill me-2"></i>
-                              Diagnosis
-                            </label>
-                            <textarea
-                              className="form-control admin-form-control"
-                              rows="4"
-                              value={editForm.diagnosis}
-                              onChange={(e) => setEditForm({ ...editForm, diagnosis: e.target.value })}
-                              placeholder="Enter diagnosis..."
-                              style={{
-                                borderColor: '#99f6e4',
-                                backgroundColor: '#f0fdf9'
-                              }}
-                            ></textarea>
-                          </div>
-                          <div className="mb-3">
-                            <label className="admin-form-label">Doctor Notes</label>
-                            <textarea
-                              className="form-control admin-form-control"
-                              rows="4"
-                              value={editForm.notes}
-                              onChange={(e) => setEditForm({ ...editForm, notes: e.target.value })}
-                              placeholder="Enter doctor's notes..."
-                            ></textarea>
-                          </div>
-                        </div>
-                      </div>
-                    </div>
-                  </div>
-                  <div className="admin-modal-footer">
-                    <button
-                      type="button"
-                      className="admin-btn-modal secondary"
-                      onClick={() => setShowEditModal(false)}
-                    >
-                      <i className="bi bi-x-circle"></i>
-                      Cancel
-                    </button>
-                    <button type="submit" className="admin-btn-modal success">
-                      <i className="bi bi-check-circle"></i>
-                      Save Changes
-                    </button>
-                  </div>
-                </form>
               </div>
             </div>
           </div>

@@ -4,6 +4,7 @@ import com.HealthLink.dto.admin.*;
 import com.HealthLink.service.admin.AdminDoctorService;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
+import org.springframework.security.core.Authentication;
 import org.springframework.web.bind.annotation.*;
 
 @CrossOrigin(origins = "http://localhost:63527")
@@ -51,9 +52,16 @@ public class AdminDoctorController {
     @PutMapping("/{doctorId}/status")
     public ResponseEntity<AdminDoctorDto> updateDoctorStatus(
             @PathVariable String doctorId,
-            @RequestBody StatusUpdateRequest statusRequest
+            @RequestBody StatusUpdateRequest statusRequest,
+            Authentication authentication
     ) {
-        AdminDoctorDto updatedDoctor = adminDoctorService.updateDoctorStatus(doctorId, statusRequest.getStatus());
+        String adminUserId = authentication != null ? authentication.getName() : null;
+        AdminDoctorDto updatedDoctor = adminDoctorService.updateDoctorStatus(
+            doctorId,
+            statusRequest.getStatus(),
+            adminUserId,
+            statusRequest.getReason()
+        );
         return ResponseEntity.ok(updatedDoctor);
     }
 

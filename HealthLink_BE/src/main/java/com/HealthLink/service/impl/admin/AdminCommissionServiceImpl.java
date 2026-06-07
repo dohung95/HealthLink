@@ -19,10 +19,13 @@ import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
 import java.util.Arrays;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Locale;
+import java.util.Map;
 import com.HealthLink.repository.admin.commission.AdminCommissionConfigRepository;
 import com.HealthLink.repository.admin.commission.AdminCommissionTransactionRepository;
+import com.HealthLink.service.admin.AdminAuditLogService;
 import com.HealthLink.service.admin.AdminCommissionService;
 
 @Service
@@ -38,6 +41,7 @@ public class AdminCommissionServiceImpl implements AdminCommissionService {
     private final AdminAppointmentRepository adminAppointmentRepo;
     private final AppointmentRepository appointmentRepo;
     private final PharmacyOrderRepository pharmacyOrderRepo;
+    private final AdminAuditLogService auditLogService;
 
     // Status categories
     private static final List<String> PENDING_STATUSES = Arrays.asList("SCHEDULED", "IN_CONSULTATION", "CONFIRMED");
@@ -76,8 +80,19 @@ public class AdminCommissionServiceImpl implements AdminCommissionService {
 
     @Override
     public AdminCommissionConfigDto updateConfig(Integer id, AdminCommissionConfigUpdateDto dto) {
+        return updateConfig(id, dto, null);
+    }
+
+    @Override
+    public AdminCommissionConfigDto updateConfig(Integer id, AdminCommissionConfigUpdateDto dto, String adminUserId) {
         CommissionConfig config = configRepo.findById(id)
             .orElseThrow(() -> new RuntimeException("Commission config not found"));
+
+        // Capture old values for audit log
+        BigDecimal oldRate = config.getCommissionRate();
+        BigDecimal oldMin = config.getMinCommission();
+        BigDecimal oldMax = config.getMaxCommission();
+        String serviceType = config.getServiceType();
 
         config.setCommissionRate(dto.getCommissionRate());
         if (dto.getMinCommission() != null) {
@@ -93,7 +108,25 @@ public class AdminCommissionServiceImpl implements AdminCommissionService {
         config.setEffectiveTo(dto.getEffectiveTo());
         config.setUpdatedAt(LocalDateTime.now());
 
-        return toConfigDto(configRepo.save(config));
+        CommissionConfig saved = configRepo.save(config);
+
+        // Log the config change
+        if (adminUserId != null) {
+            auditLogService.logCommissionConfigChange(
+                adminUserId,
+                id,
+                serviceType,
+                oldRate,
+                dto.getCommissionRate(),
+                oldMin,
+                dto.getMinCommission() != null ? dto.getMinCommission() : oldMin,
+                oldMax,
+                dto.getMaxCommission() != null ? dto.getMaxCommission() : oldMax,
+                dto.getReason()
+            );
+        }
+
+        return toConfigDto(saved);
     }
 
     @Override
@@ -462,11 +495,25 @@ public class AdminCommissionServiceImpl implements AdminCommissionService {
 
     @Override
     public AdminPartnerCommissionDto updatePartnerCommission(String partnerType, String partnerId, AdminPartnerCommissionUpdateDto dto) {
+        return updatePartnerCommission(partnerType, partnerId, dto, null);
+    }
+
+    @Override
+    public AdminPartnerCommissionDto updatePartnerCommission(String partnerType, String partnerId, AdminPartnerCommissionUpdateDto dto, String adminUserId) {
         LocalDateTime now = LocalDateTime.now();
 
         if ("DOCTOR".equalsIgnoreCase(partnerType)) {
             Doctor doctor = doctorRepo.findById(partnerId)
                 .orElseThrow(() -> new RuntimeException("Doctor not found: " + partnerId));
+
+            // Capture old values for audit log
+            Map<String, Object> oldRates = new HashMap<>();
+            oldRates.put("customCommissionRateOnline", doctor.getCustomCommissionRateOnline());
+            oldRates.put("customCommissionRateOffline", doctor.getCustomCommissionRateOffline());
+            oldRates.put("effectiveFromOnline", doctor.getCustomCommissionRateOnlineEffectiveFrom());
+            oldRates.put("effectiveToOnline", doctor.getCustomCommissionRateOnlineEffectiveTo());
+            oldRates.put("effectiveFromOffline", doctor.getCustomCommissionRateOfflineEffectiveFrom());
+            oldRates.put("effectiveToOffline", doctor.getCustomCommissionRateOfflineEffectiveTo());
 
             // Update Online rate
             doctor.setCustomCommissionRateOnline(dto.getCustomCommissionRateOnline());
@@ -480,15 +527,60 @@ public class AdminCommissionServiceImpl implements AdminCommissionService {
 
             doctorRepo.save(doctor);
 
+            // Log the change
+            if (adminUserId != null) {
+                Map<String, Object> newRates = new HashMap<>();
+                newRates.put("customCommissionRateOnline", dto.getCustomCommissionRateOnline());
+                newRates.put("customCommissionRateOffline", dto.getCustomCommissionRateOffline());
+                newRates.put("effectiveFromOnline", dto.getEffectiveFromOnline());
+                newRates.put("effectiveToOnline", dto.getEffectiveToOnline());
+                newRates.put("effectiveFromOffline", dto.getEffectiveFromOffline());
+                newRates.put("effectiveToOffline", dto.getEffectiveToOffline());
+
+                auditLogService.logPartnerCommissionChange(
+                    adminUserId,
+                    partnerType,
+                    partnerId,
+                    doctor.getFullName(),
+                    oldRates,
+                    newRates,
+                    dto.getReason()
+                );
+            }
+
             return toDoctorCommissionDto(doctor, now);
         } else if ("PHARMACY".equalsIgnoreCase(partnerType)) {
             Pharmacy pharmacy = pharmacyRepo.findById(partnerId)
                 .orElseThrow(() -> new RuntimeException("Pharmacy not found: " + partnerId));
 
+            // Capture old values for audit log
+            Map<String, Object> oldRates = new HashMap<>();
+            oldRates.put("customCommissionRate", pharmacy.getCustomCommissionRate());
+            oldRates.put("effectiveFrom", pharmacy.getCustomCommissionRateEffectiveFrom());
+            oldRates.put("effectiveTo", pharmacy.getCustomCommissionRateEffectiveTo());
+
             pharmacy.setCustomCommissionRate(dto.getCustomCommissionRate());
             pharmacy.setCustomCommissionRateEffectiveFrom(dto.getEffectiveFrom());
             pharmacy.setCustomCommissionRateEffectiveTo(dto.getEffectiveTo());
             pharmacyRepo.save(pharmacy);
+
+            // Log the change
+            if (adminUserId != null) {
+                Map<String, Object> newRates = new HashMap<>();
+                newRates.put("customCommissionRate", dto.getCustomCommissionRate());
+                newRates.put("effectiveFrom", dto.getEffectiveFrom());
+                newRates.put("effectiveTo", dto.getEffectiveTo());
+
+                auditLogService.logPartnerCommissionChange(
+                    adminUserId,
+                    partnerType,
+                    partnerId,
+                    pharmacy.getName(),
+                    oldRates,
+                    newRates,
+                    dto.getReason()
+                );
+            }
 
             return toPharmacyCommissionDto(pharmacy, now);
         }
@@ -498,9 +590,29 @@ public class AdminCommissionServiceImpl implements AdminCommissionService {
 
     @Override
     public void removePartnerCustomCommission(String partnerType, String partnerId) {
+        removePartnerCustomCommission(partnerType, partnerId, null, null);
+    }
+
+    @Override
+    public void removePartnerCustomCommission(String partnerType, String partnerId, String adminUserId) {
+        removePartnerCustomCommission(partnerType, partnerId, adminUserId, null);
+    }
+
+    @Override
+    public void removePartnerCustomCommission(String partnerType, String partnerId, String adminUserId, String reason) {
         if ("DOCTOR".equalsIgnoreCase(partnerType)) {
             Doctor doctor = doctorRepo.findById(partnerId)
                 .orElseThrow(() -> new RuntimeException("Doctor not found: " + partnerId));
+
+            // Capture old values for audit log
+            Map<String, Object> oldRates = new HashMap<>();
+            oldRates.put("customCommissionRateOnline", doctor.getCustomCommissionRateOnline());
+            oldRates.put("customCommissionRateOffline", doctor.getCustomCommissionRateOffline());
+            oldRates.put("effectiveFromOnline", doctor.getCustomCommissionRateOnlineEffectiveFrom());
+            oldRates.put("effectiveToOnline", doctor.getCustomCommissionRateOnlineEffectiveTo());
+            oldRates.put("effectiveFromOffline", doctor.getCustomCommissionRateOfflineEffectiveFrom());
+            oldRates.put("effectiveToOffline", doctor.getCustomCommissionRateOfflineEffectiveTo());
+
             // Remove Online rate
             doctor.setCustomCommissionRateOnline(null);
             doctor.setCustomCommissionRateOnlineEffectiveFrom(null);
@@ -510,13 +622,44 @@ public class AdminCommissionServiceImpl implements AdminCommissionService {
             doctor.setCustomCommissionRateOfflineEffectiveFrom(null);
             doctor.setCustomCommissionRateOfflineEffectiveTo(null);
             doctorRepo.save(doctor);
+
+            // Log the reset
+            if (adminUserId != null) {
+                auditLogService.logPartnerCommissionReset(
+                    adminUserId,
+                    partnerType,
+                    partnerId,
+                    doctor.getFullName(),
+                    oldRates,
+                    reason
+                );
+            }
         } else if ("PHARMACY".equalsIgnoreCase(partnerType)) {
             Pharmacy pharmacy = pharmacyRepo.findById(partnerId)
                 .orElseThrow(() -> new RuntimeException("Pharmacy not found: " + partnerId));
+
+            // Capture old values for audit log
+            Map<String, Object> oldRates = new HashMap<>();
+            oldRates.put("customCommissionRate", pharmacy.getCustomCommissionRate());
+            oldRates.put("effectiveFrom", pharmacy.getCustomCommissionRateEffectiveFrom());
+            oldRates.put("effectiveTo", pharmacy.getCustomCommissionRateEffectiveTo());
+
             pharmacy.setCustomCommissionRate(null);
             pharmacy.setCustomCommissionRateEffectiveFrom(null);
             pharmacy.setCustomCommissionRateEffectiveTo(null);
             pharmacyRepo.save(pharmacy);
+
+            // Log the reset
+            if (adminUserId != null) {
+                auditLogService.logPartnerCommissionReset(
+                    adminUserId,
+                    partnerType,
+                    partnerId,
+                    pharmacy.getName(),
+                    oldRates,
+                    reason
+                );
+            }
         } else {
             throw new RuntimeException("Invalid partner type: " + partnerType);
         }

@@ -2,7 +2,7 @@ import React, { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import NavbarAdmin from "./NavbarAdmin";
 import DashboardCharts from "./DashboardCharts";
-import { patientsApi, appointmentsApi, medicalRecordsApi } from "../../../api/adminApi";
+import { patientsApi, appointmentsApi } from "../../../api/adminApi";
 import "bootstrap/dist/css/bootstrap.min.css";
 import "bootstrap-icons/font/bootstrap-icons.css";
 import "../Css/Admin.css";
@@ -16,8 +16,7 @@ export default function Admin() {
   const [stats, setStats] = useState({
     totalPatients: 0,
     todayAppointments: 0,
-    pendingApproval: 0,
-    totalRecords: 0
+    pendingApproval: 0
   });
 
   // Fetch all stats from different APIs
@@ -27,17 +26,15 @@ export default function Admin() {
       setError(null);
 
       // Fetch stats from all APIs in parallel
-      const [patientsData, appointmentsData, recordsData] = await Promise.all([
+      const [patientsData, appointmentsData] = await Promise.all([
         patientsApi.getAll({ pageNumber: 1, pageSize: 1 }).catch(() => ({ totalCount: 0 })),
-        appointmentsApi.getStats().catch(() => ({ todayAppointments: 0, pendingApproval: 0 })),
-        medicalRecordsApi.getStats().catch(() => ({ totalRecords: 0 }))
+        appointmentsApi.getStats().catch(() => ({ todayAppointments: 0, pendingApproval: 0 }))
       ]);
 
       setStats({
         totalPatients: patientsData.totalCount || 0,
         todayAppointments: appointmentsData.todayAppointments || 0,
-        pendingApproval: appointmentsData.pendingApproval || 0,
-        totalRecords: recordsData.totalRecords || 0
+        pendingApproval: appointmentsData.pendingApproval || 0
       });
     } catch (err) {
       setError('Failed to load dashboard data');
@@ -129,16 +126,6 @@ export default function Admin() {
                 <div className="stat-inline-content">
                   <div className="stat-inline-value">{stats.pendingApproval}</div>
                   <div className="stat-inline-label">Pending Approval</div>
-                </div>
-              </div>
-
-              <div className="stat-inline-item stat-records">
-                <div className="stat-inline-icon">
-                  <i className="bi bi-file-medical-fill"></i>
-                </div>
-                <div className="stat-inline-content">
-                  <div className="stat-inline-value">{stats.totalRecords}</div>
-                  <div className="stat-inline-label">Medical Records</div>
                 </div>
               </div>
             </div>

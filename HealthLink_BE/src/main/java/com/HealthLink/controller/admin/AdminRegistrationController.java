@@ -9,6 +9,7 @@ import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
+import org.springframework.security.core.Authentication;
 import org.springframework.web.bind.annotation.*;
 
 @CrossOrigin(origins = {"http://localhost:5173", "http://localhost:63527"})
@@ -46,8 +47,9 @@ public class AdminRegistrationController {
     public ResponseEntity<RegistrationRequestResponse> reviewRegistration(
             @PathVariable Long requestId,
             @Valid @RequestBody ApproveRejectRequest request,
-            @RequestHeader(value = "X-Admin-User-Id", defaultValue = "admin") String adminUserId
+            Authentication authentication
     ) {
+        String adminUserId = authentication != null ? authentication.getName() : null;
         RegistrationRequestResponse response = registrationService.approveOrReject(
                 requestId, request, adminUserId
         );
@@ -58,8 +60,8 @@ public class AdminRegistrationController {
     public ResponseEntity<RegistrationRequestResponse> reviewRegistrationPost(
             @PathVariable Long requestId,
             @Valid @RequestBody ApproveRejectRequest request,
-            @RequestHeader(value = "X-Admin-User-Id", defaultValue = "admin") String adminUserId
+            Authentication authentication
     ) {
-        return reviewRegistration(requestId, request, adminUserId);
+        return reviewRegistration(requestId, request, authentication);
     }
 }

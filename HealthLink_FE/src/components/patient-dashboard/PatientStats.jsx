@@ -3,7 +3,6 @@ import { useAuth } from '../../context/AuthContext';
 import { appointmentService } from '../../api/appointmentApi';
 import { healthRecordApi } from '../../api/healthRecordApi';
 import { prescriptionService } from '../../api/prescriptionApi';
-import { notificationApi } from '../../api/notificationApi';
 import { getProfile } from '../../api/account';
 
 
@@ -17,7 +16,6 @@ const PatientStats = () => {
         upcomingAppointments: 0,
         healthRecords: 0,
         prescriptions: 0,
-        newNotifications: 0,
     });
     const [loading, setLoading] = useState(true);
 
@@ -29,11 +27,10 @@ const PatientStats = () => {
                 // Gọi song song để tối ưu thời gian tải
                 const profile = await getProfile(token);
 
-                const [appointments, records, prescriptions, unreadCount] = await Promise.allSettled([
+                const [appointments, records, prescriptions] = await Promise.allSettled([
                     appointmentService.getPatientAppointments(profile.userId),
                     healthRecordApi.getMyRecords(profile.userId, 1, 1),
                     prescriptionService.getMyPrescriptions(),
-                    notificationApi.getUnreadCount(),
                 ]);
 
                 // Lọc các lịch hẹn sắp tới (status: Scheduled)
@@ -51,18 +48,10 @@ const PatientStats = () => {
                     ? (Array.isArray(prescriptions.value) ? prescriptions.value.length : 0)
                     : 0;
 
-                // unreadCount có thể là số trực tiếp hoặc object { count: N }
-                const notifCount = unreadCount.status === 'fulfilled'
-                    ? (typeof unreadCount.value === 'number'
-                        ? unreadCount.value
-                        : unreadCount.value?.count ?? 0)
-                    : 0;
-
                 setStatsData({
                     upcomingAppointments: upcomingCount,
                     healthRecords: recordsCount,
                     prescriptions: prescriptionsCount,
-                    newNotifications: notifCount,
                 });
             } catch (error) {
                 console.error('PatientStats: Failed to fetch stats', error);
@@ -92,12 +81,6 @@ const PatientStats = () => {
             value: loading ? '...' : statsData.prescriptions,
             icon: 'bi bi-capsule',
             tone: 'amber',
-        },
-        {
-            title: 'New Notifications',
-            value: loading ? '...' : statsData.newNotifications,
-            icon: 'bi bi-bell',
-            tone: 'coral',
         },
     ];
 

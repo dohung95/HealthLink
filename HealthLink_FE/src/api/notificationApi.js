@@ -13,7 +13,8 @@ export const notificationApi = {
 
   getUnreadCount: async () => {
     const response = await axiosInstance.get('/api/notifications/unread-count');
-    return response.data;
+    // Backend trả về { unreadCount: N }
+    return response.data?.unreadCount ?? response.data ?? 0;
   },
 
   markAsRead: async (notificationId) => {
