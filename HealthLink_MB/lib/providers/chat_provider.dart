@@ -2,6 +2,8 @@ import 'package:flutter/foundation.dart';
 import '../models/chat/conversation.dart';
 import '../models/chat/message.dart';
 import '../services/chat/chat_service.dart';
+import '../services/chat/stomp_service.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 /// Provider quản lý toàn bộ state của màn hình Chat.
 class ChatProvider extends ChangeNotifier {
@@ -11,9 +13,52 @@ class ChatProvider extends ChangeNotifier {
   bool _isLoadingConversations = false;
   String? _conversationsError;
 
+  // Local state for Mute and Block
+  final List<String> _mutedRoomIds = [];
+  final List<String> _blockedRoomIds = [];
+
   List<Conversation> get conversations          => _conversations;
   bool               get isLoadingConversations => _isLoadingConversations;
   String?            get conversationsError      => _conversationsError;
+  List<String>       get blockedRoomIds          => _blockedRoomIds;
+
+  ChatProvider() {
+    _loadLocalSettings();
+  }
+
+  Future<void> _loadLocalSettings() async {
+    final prefs = await SharedPreferences.getInstance();
+    final muted = prefs.getStringList('muted_rooms') ?? [];
+    final blocked = prefs.getStringList('blocked_rooms') ?? [];
+    _mutedRoomIds.addAll(muted);
+    _blockedRoomIds.addAll(blocked);
+    notifyListeners();
+  }
+
+  bool isMuted(String roomId) => _mutedRoomIds.contains(roomId);
+  bool isBlocked(String roomId) => _blockedRoomIds.contains(roomId);
+
+  Future<void> toggleMute(String roomId) async {
+    final prefs = await SharedPreferences.getInstance();
+    if (_mutedRoomIds.contains(roomId)) {
+      _mutedRoomIds.remove(roomId);
+    } else {
+      _mutedRoomIds.add(roomId);
+    }
+    await prefs.setStringList('muted_rooms', _mutedRoomIds);
+    notifyListeners();
+  }
+
+  Future<void> toggleBlock(String roomId) async {
+    final prefs = await SharedPreferences.getInstance();
+    if (_blockedRoomIds.contains(roomId)) {
+      _blockedRoomIds.remove(roomId);
+    } else {
+      _blockedRoomIds.add(roomId);
+    }
+    await prefs.setStringList('blocked_rooms', _blockedRoomIds);
+    notifyListeners();
+  }
 
   // ── State: Chat Room (tin nhắn) ───────────────────────────────────────────
 
@@ -41,6 +86,9 @@ class ChatProvider extends ChangeNotifier {
       _conversations = await ChatService.getChatRooms(accessToken, userId);
       // Sắp xếp mới nhất lên đầu
       _conversations.sort((a, b) => b.lastMessageTime.compareTo(a.lastMessageTime));
+
+      // Bắt đầu kết nối STOMP WebSocket
+      StompService.instance.connect(accessToken, userId, _onStompMessage);
     } catch (e) {
       debugPrint('ChatProvider loadConversations error: $e');
       _conversationsError = _clean(e.toString());
@@ -48,6 +96,63 @@ class ChatProvider extends ChangeNotifier {
       _isLoadingConversations = false;
       notifyListeners();
     }
+  }
+
+  /// Xử lý tin nhắn nhận được từ STOMP
+  void _onStompMessage(Message msg) {
+    // Nếu tin nhắn thuộc về phòng đang mở
+    if (_currentConversation?.id == msg.conversationId) {
+      // Bỏ qua tin nhắn do chính mình vừa gửi (đã được optimistic update)
+      // Thường thì backend trả về sẽ không có isPending=true. Chúng ta thay thế tin nhắn có cùng nội dung.
+      final pendingIdx = _messages.indexWhere((m) => m.isPending && m.content == msg.content && m.senderId == msg.senderId);
+      if (pendingIdx != -1) {
+        _messages[pendingIdx] = msg;
+      } else {
+        // Tránh bị duplicate do STOMP và REST gọi cùng lúc
+        final exists = _messages.any((m) => m.id == msg.id);
+        if (!exists) {
+          _messages.add(msg);
+          _messages.sort((a, b) => a.sentAt.compareTo(b.sentAt)); // Đảm bảo đúng thứ tự
+        }
+      }
+    }
+
+    // Cập nhật lastMessage cho phòng chat đó
+    String preview = msg.content;
+    if (preview.isEmpty) {
+      if (msg.imageUrl != null) preview = '[Image]';
+      else if (msg.videoUrl != null) preview = '[Video]';
+      else if (msg.fileUrl != null) preview = '[File]';
+    }
+    
+    _updateLastMessage(msg.conversationId, preview, time: msg.sentAt);
+
+    // Tăng unreadCount nếu không phải phòng đang mở
+    if (_currentConversation?.id != msg.conversationId && msg.senderId != currentConversation?.partnerId) {
+       final idx = _conversations.indexWhere((c) => c.id == msg.conversationId);
+       if (idx != -1) {
+         final old = _conversations[idx];
+         _conversations[idx] = Conversation(
+            id: old.id,
+            partnerId: old.partnerId,
+            partnerName: old.partnerName,
+            partnerAvatarUrl: old.partnerAvatarUrl,
+            appointmentId: old.appointmentId,
+            lastMessage: old.lastMessage,
+            lastMessageTime: old.lastMessageTime,
+            unreadCount: old.unreadCount + 1,
+         );
+       }
+    }
+
+    // Đẩy phòng chat lên đầu danh sách
+    final convIdx = _conversations.indexWhere((c) => c.id == msg.conversationId);
+    if (convIdx > 0) {
+      final conv = _conversations.removeAt(convIdx);
+      _conversations.insert(0, conv);
+    }
+    
+    notifyListeners();
   }
 
   // ── Messages ───────────────────────────────────────────────────────────────
@@ -194,7 +299,7 @@ class ChatProvider extends ChangeNotifier {
     }
   }
 
-  void _updateLastMessage(String conversationId, String content) {
+  void _updateLastMessage(String conversationId, String content, {DateTime? time}) {
     final idx = _conversations.indexWhere((c) => c.id == conversationId);
     if (idx != -1) {
       final old = _conversations[idx];
@@ -205,8 +310,8 @@ class ChatProvider extends ChangeNotifier {
         partnerAvatarUrl: old.partnerAvatarUrl,
         appointmentId: old.appointmentId,
         lastMessage: content,
-        lastMessageTime: DateTime.now(),
-        unreadCount: 0,
+        lastMessageTime: time ?? DateTime.now(),
+        unreadCount: old.unreadCount,
       );
     }
   }

@@ -144,7 +144,11 @@ public class ChatController {
             }
 
             // Tạo tên file an toàn: thêm timestamp và loại bỏ ký tự không an toàn
-            String originalFileName = org.springframework.util.StringUtils.cleanPath(file.getOriginalFilename());
+            String original = file.getOriginalFilename();
+            if (original == null || original.isBlank()) {
+                original = "file";
+            }
+            String originalFileName = org.springframework.util.StringUtils.cleanPath(original);
             // Loại bỏ ký tự không phải ASCII (ký tự tiếng Việt, etc.) để URL luôn hợp lệ
             String safeFileName = originalFileName
                 .replaceAll("[^a-zA-Z0-9._-]", "_")  // chỉ giữ lại ký tự an toàn

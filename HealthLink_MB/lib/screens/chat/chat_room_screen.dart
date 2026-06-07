@@ -363,14 +363,29 @@ class _ChatRoomScreenState extends State<ChatRoomScreen> {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text(
-                  conv.partnerName,
-                  style: TextStyle(
-                    fontFamily: 'Inter',
-                    fontSize: 16,
-                    fontWeight: FontWeight.bold,
-                    color: colors.primary,
-                  ),
+                Row(
+                  children: [
+                    Flexible(
+                      child: Text(
+                        conv.partnerName,
+                        style: TextStyle(
+                          fontFamily: 'Inter',
+                          fontSize: 16,
+                          fontWeight: FontWeight.bold,
+                          color: context.watch<ChatProvider>().isBlocked(conv.id)
+                              ? Colors.red.shade400
+                              : colors.primary,
+                        ),
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                    ),
+                    if (context.watch<ChatProvider>().isBlocked(conv.id))
+                      Padding(
+                        padding: const EdgeInsets.only(left: 4),
+                        child: Icon(Icons.block, size: 14, color: Colors.red.shade400),
+                      ),
+                  ],
                 ),
                 Text(
                   [
@@ -387,6 +402,9 @@ class _ChatRoomScreenState extends State<ChatRoomScreen> {
             ),
           ),
 
+          if (context.watch<ChatProvider>().isMuted(conv.id))
+            Icon(Icons.notifications_off, color: colors.outline, size: 20),
+            
           IconButton(
             icon: const Icon(Icons.info),
             color: colors.primary,
@@ -597,6 +615,20 @@ class _ChatRoomScreenState extends State<ChatRoomScreen> {
 
   Widget _buildInputArea() {
     final colors = _colors(context);
+    final isBlocked = context.watch<ChatProvider>().isBlocked(widget.conversation.id);
+
+    if (isBlocked) {
+      return Container(
+        padding: const EdgeInsets.all(16),
+        color: colors.surface,
+        alignment: Alignment.center,
+        child: Text(
+          'You blocked this user.',
+          style: TextStyle(color: colors.outline, fontStyle: FontStyle.italic),
+        ),
+      );
+    }
+
     final hasAttachment = _attachedImage != null || _attachedVideo != null || _attachedFile != null;
     final canSend = !_isTextEmpty || hasAttachment;
 
@@ -1029,7 +1061,10 @@ class _ChatRoomScreenState extends State<ChatRoomScreen> {
                         const SnackBar(content: Text('Profile feature is under development')),
                       );
                     }),
-                    _buildQuickAction(Icons.notifications, 'Mute', colors, () {
+                    _buildQuickAction(
+                      context.watch<ChatProvider>().isMuted(conv.id) ? Icons.notifications_off : Icons.notifications, 
+                      context.watch<ChatProvider>().isMuted(conv.id) ? 'Unmute' : 'Mute', 
+                      colors, () {
                       Navigator.pop(context); // Đóng BottomSheet
                       _showMuteDialog(context);
                     }),
@@ -1060,8 +1095,8 @@ class _ChatRoomScreenState extends State<ChatRoomScreen> {
                 ),
                 const Divider(),
                 ListTile(
-                  leading: Icon(Icons.block, color: Colors.red.shade400),
-                  title: Text('Block', style: TextStyle(color: Colors.red.shade400)),
+                  leading: Icon(Icons.block, color: context.watch<ChatProvider>().isBlocked(conv.id) ? Colors.green : Colors.red.shade400),
+                  title: Text(context.watch<ChatProvider>().isBlocked(conv.id) ? 'Unblock' : 'Block', style: TextStyle(color: context.watch<ChatProvider>().isBlocked(conv.id) ? Colors.green : Colors.red.shade400)),
                   onTap: () {
                     Navigator.pop(context); // Đóng BottomSheet
                     _showBlockDialog(context);
@@ -1076,11 +1111,16 @@ class _ChatRoomScreenState extends State<ChatRoomScreen> {
   }
 
   void _showMuteDialog(BuildContext context) {
+    final chat = context.read<ChatProvider>();
+    final isMuted = chat.isMuted(widget.conversation.id);
+
     showDialog(
       context: context,
       builder: (context) => AlertDialog(
-        title: const Text('Mute Notifications'),
-        content: const Text('Mute notifications for this conversation?'),
+        title: Text(isMuted ? 'Unmute Notifications' : 'Mute Notifications'),
+        content: Text(isMuted 
+            ? 'Receive notifications for this conversation again?' 
+            : 'Mute notifications for this conversation?'),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(context),
@@ -1089,12 +1129,12 @@ class _ChatRoomScreenState extends State<ChatRoomScreen> {
           TextButton(
             onPressed: () {
               Navigator.pop(context);
-              // Lấy SharedPreferences ở đây (sẽ implement trong _saveMuteState)
+              chat.toggleMute(widget.conversation.id);
               ScaffoldMessenger.of(context).showSnackBar(
-                const SnackBar(content: Text('Notifications muted')),
+                SnackBar(content: Text(isMuted ? 'Notifications unmuted' : 'Notifications muted')),
               );
             },
-            child: const Text('MUTE'),
+            child: Text(isMuted ? 'UNMUTE' : 'MUTE'),
           ),
         ],
       ),
@@ -1102,25 +1142,31 @@ class _ChatRoomScreenState extends State<ChatRoomScreen> {
   }
 
   void _showBlockDialog(BuildContext context) {
+    final chat = context.read<ChatProvider>();
+    final isBlocked = chat.isBlocked(widget.conversation.id);
+
     showDialog(
       context: context,
       builder: (context) => AlertDialog(
-        title: const Text('Block User'),
-        content: const Text('You won\'t receive messages or calls from this person anymore.'),
+        title: Text(isBlocked ? 'Unblock User' : 'Block User'),
+        content: Text(isBlocked
+            ? 'You will receive messages and calls from this person again.'
+            : 'You won\'t receive messages or calls from this person anymore.'),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(context),
             child: const Text('CANCEL'),
           ),
           TextButton(
-            style: TextButton.styleFrom(foregroundColor: Colors.red),
+            style: TextButton.styleFrom(foregroundColor: isBlocked ? Colors.green : Colors.red),
             onPressed: () {
               Navigator.pop(context);
+              chat.toggleBlock(widget.conversation.id);
               ScaffoldMessenger.of(context).showSnackBar(
-                const SnackBar(content: Text('User blocked')),
+                SnackBar(content: Text(isBlocked ? 'User unblocked' : 'User blocked')),
               );
             },
-            child: const Text('BLOCK'),
+            child: Text(isBlocked ? 'UNBLOCK' : 'BLOCK'),
           ),
         ],
       ),

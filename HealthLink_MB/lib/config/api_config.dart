@@ -8,6 +8,7 @@ class ApiConfig {
 
   // ── Base URL ──────────────────────────────────────────────────────────────
   static const String baseUrl = 'http://127.0.0.1:8096/api';
+  static const String wsUrl   = 'ws://127.0.0.1:8096/ws/websocket';
 
   // ── Auth Endpoints ────────────────────────────────────────────────────────
   static const String login          = '$baseUrl/auth/login';

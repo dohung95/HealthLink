@@ -123,6 +123,7 @@ class _PrescriptionsScreenState extends State<PrescriptionsScreen> {
                 ),
               ),
               const SizedBox(width: 12),
+
               Text(
                 'HealthLink',
                 style: TextStyle(

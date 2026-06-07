@@ -83,12 +83,14 @@ public class ChatServiceImpl implements ChatService {
                             .build();
 
                     messagingTemplate.convertAndSendToUser(
-                            user1.getEmail(),
+                            // user1.getEmail(),
+                            user1.getId(),
                             "/queue/chat",
                             roomCreatedMsg
                     );
                     messagingTemplate.convertAndSendToUser(
-                            user2.getEmail(),
+                            // user2.getEmail(),
+                            user2.getId(),
                             "/queue/chat",
                             roomCreatedMsg
                     );
@@ -177,9 +179,17 @@ public class ChatServiceImpl implements ChatService {
         MessageDTO dto = toMessageDTO(saved);
 
         // Đẩy tin nhắn realtime đến người nhận qua WebSocket
-        // Spring STOMP đang nhận diện user bằng email (từ JWT Token)
+        // Spring STOMP đang nhận diện user bằng UUID thay vì email
         messagingTemplate.convertAndSendToUser(
-                receiver.getEmail(),
+                // receiver.getEmail(),
+                receiver.getId(),
+                "/queue/chat",
+                dto
+        );
+
+        // Đẩy tin nhắn realtime đến CHÍNH người gửi (để đồng bộ các thiết bị/tab khác của người gửi)
+        messagingTemplate.convertAndSendToUser(
+                sender.getId(),
                 "/queue/chat",
                 dto
         );

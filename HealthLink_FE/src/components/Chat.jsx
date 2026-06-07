@@ -666,7 +666,10 @@ export default function Chat() {
 
     // ── Scroll xuống cuối khi có tin nhắn mới ───────────────────────────────
     useEffect(() => {
-        scrollTo.current?.scrollIntoView({ behavior: 'smooth' });
+        if (scrollTo.current) {
+            // Sử dụng block: 'nearest' để tránh lỗi cuộn toàn bộ trang web (body) xuống theo
+            scrollTo.current.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+        }
     }, [messages, isChatBoxOpen]);
 
     // ── Lắng nghe sự kiện mở chat từ component khác ─────────────────────────

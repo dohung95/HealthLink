@@ -157,6 +157,58 @@ class _MessagesScreenState extends State<MessagesScreen> {
     );
   }
 
+  void _showBlockedUsersDialog(BuildContext context) {
+    final chatProvider = context.read<ChatProvider>();
+    final blockedIds = chatProvider.blockedRoomIds;
+    final blockedConvs = chatProvider.conversations.where((c) => blockedIds.contains(c.id)).toList();
+
+    showDialog(
+      context: context,
+      builder: (context) {
+        return AlertDialog(
+          title: const Text('Danh sách chặn'),
+          content: SizedBox(
+            width: double.maxFinite,
+            height: 300,
+            child: blockedConvs.isEmpty
+                ? const Center(child: Text('Không có người dùng nào bị chặn.'))
+                : ListView.builder(
+                    itemCount: blockedConvs.length,
+                    itemBuilder: (context, index) {
+                      final conv = blockedConvs[index];
+                      return ListTile(
+                        leading: CircleAvatar(
+                          backgroundImage: conv.partnerAvatarUrl != null
+                              ? NetworkImage(ApiConfig.normalizeUrl(conv.partnerAvatarUrl!) ?? '')
+                              : null,
+                          child: conv.partnerAvatarUrl == null ? const Icon(Icons.person) : null,
+                        ),
+                        title: Text(conv.partnerName, style: TextStyle(color: Colors.red.shade400)),
+                        trailing: TextButton(
+                          onPressed: () {
+                            chatProvider.toggleBlock(conv.id);
+                            Navigator.pop(context); // Đóng hộp thoại
+                            ScaffoldMessenger.of(context).showSnackBar(
+                              const SnackBar(content: Text('Đã bỏ chặn người dùng')),
+                            );
+                          },
+                          child: const Text('BỎ CHẶN', style: TextStyle(color: Colors.green)),
+                        ),
+                      );
+                    },
+                  ),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(context),
+              child: const Text('ĐÓNG'),
+            ),
+          ],
+        );
+      },
+    );
+  }
+
   // --- 1. Header Component (Phân biệt Mobile / Desktop) ---
   Widget _buildHeader(bool isDesktop) {
     if (isDesktop) {
@@ -198,6 +250,13 @@ class _MessagesScreenState extends State<MessagesScreen> {
             ),
             Row(
               children: [
+                IconButton(
+                  icon: const Icon(Icons.block),
+                  color: Colors.red.shade400,
+                  tooltip: 'Danh sách chặn',
+                  onPressed: () => _showBlockedUsersDialog(context),
+                ),
+                const SizedBox(width: 16),
                 _buildAvatarWidget(context, true),
               ],
             ),
@@ -229,6 +288,12 @@ class _MessagesScreenState extends State<MessagesScreen> {
                   ),
                 ),
               ],
+            ),
+            IconButton(
+              icon: const Icon(Icons.block),
+              color: Colors.red.shade400,
+              tooltip: 'Danh sách chặn',
+              onPressed: () => _showBlockedUsersDialog(context),
             ),
           ],
         ),
@@ -362,30 +427,53 @@ class _MessagesScreenState extends State<MessagesScreen> {
                       mainAxisAlignment: MainAxisAlignment.spaceBetween,
                       children: [
                         Expanded(
-                          child: Text(
-                            conversation.partnerName,
-                            maxLines: 1,
-                            overflow: TextOverflow.ellipsis,
-                            style: TextStyle(
-                              fontFamily: 'Inter',
-                              fontSize: 16,
-                              fontWeight: hasUnread ? FontWeight.w600 : FontWeight.w500,
-                              color: hasUnread
-                                  ? Theme.of(context).colorScheme.onSurface
-                                  : Theme.of(context).colorScheme.onSurfaceVariant,
-                            ),
+                          child: Row(
+                            children: [
+                              Flexible(
+                                child: Text(
+                                  conversation.partnerName,
+                                  maxLines: 1,
+                                  overflow: TextOverflow.ellipsis,
+                                  style: TextStyle(
+                                    fontFamily: 'Inter',
+                                    fontSize: 16,
+                                    fontWeight: hasUnread ? FontWeight.w600 : FontWeight.w500,
+                                    color: context.watch<ChatProvider>().isBlocked(conversation.id)
+                                        ? Colors.red.shade400
+                                        : (hasUnread
+                                            ? Theme.of(context).colorScheme.onSurface
+                                            : Theme.of(context).colorScheme.onSurfaceVariant),
+                                  ),
+                                ),
+                              ),
+                              if (context.watch<ChatProvider>().isBlocked(conversation.id))
+                                Padding(
+                                  padding: const EdgeInsets.only(left: 4),
+                                  child: Icon(Icons.block, size: 14, color: Colors.red.shade400),
+                                ),
+                            ],
                           ),
                         ),
-                        Text(
-                          timeLabel,
-                          style: TextStyle(
-                            fontFamily: 'Inter',
-                            fontSize: 12,
-                            fontWeight: FontWeight.w500,
-                            color: hasUnread
-                                ? Theme.of(context).colorScheme.primary
-                                : Theme.of(context).colorScheme.onSurfaceVariant,
-                          ),
+                        Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            if (context.watch<ChatProvider>().isMuted(conversation.id))
+                              Padding(
+                                padding: const EdgeInsets.only(right: 4),
+                                child: Icon(Icons.notifications_off, size: 14, color: Theme.of(context).colorScheme.outline),
+                              ),
+                            Text(
+                              timeLabel,
+                              style: TextStyle(
+                                fontFamily: 'Inter',
+                                fontSize: 12,
+                                fontWeight: FontWeight.w500,
+                                color: hasUnread
+                                    ? Theme.of(context).colorScheme.primary
+                                    : Theme.of(context).colorScheme.onSurfaceVariant,
+                              ),
+                            ),
+                          ],
                         ),
                       ],
                     ),

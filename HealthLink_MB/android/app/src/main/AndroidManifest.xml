@@ -3,6 +3,12 @@
     <uses-permission android:name="android.permission.INTERNET" />
     <!-- Cho phép HTTP cleartext trong môi trường development (127.0.0.1 qua ADB reverse) -->
     <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE" />
+    <!-- Quyền truy cập Camera và Storage cho tính năng đính kèm -->
+    <uses-permission android:name="android.permission.CAMERA" />
+    <uses-permission android:name="android.permission.READ_EXTERNAL_STORAGE" />
+    <uses-permission android:name="android.permission.WRITE_EXTERNAL_STORAGE" />
+    <uses-permission android:name="android.permission.READ_MEDIA_IMAGES" />
+    <uses-permission android:name="android.permission.READ_MEDIA_VIDEO" />
 
     <application
         android:label="HealthLink"
