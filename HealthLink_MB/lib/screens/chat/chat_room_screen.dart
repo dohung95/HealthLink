@@ -1074,8 +1074,18 @@ class _ChatRoomScreenState extends State<ChatRoomScreen> {
                   children: [
                     _buildQuickAction(Icons.person, 'Profile', colors, () {
                       Navigator.pop(context); // Đóng BottomSheet
-                      ScaffoldMessenger.of(context).showSnackBar(
-                        const SnackBar(content: Text('Profile feature is under development')),
+                      showDialog(
+                        context: context,
+                        builder: (context) => AlertDialog(
+                          title: const Text('Notifications'),
+                          content: const Text('Profile viewing feature is being developed. Please come back later!'),
+                          actions: [
+                            TextButton(
+                              onPressed: () => Navigator.pop(context),
+                              child: const Text('Close'),
+                            ),
+                          ],
+                        ),
                       );
                     }),
                     _buildQuickAction(
