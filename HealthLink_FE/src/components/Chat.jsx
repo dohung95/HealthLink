@@ -561,6 +561,17 @@ export default function Chat() {
                 setMessages(prev => {
                     // Tránh duplicate nếu cùng messageId
                     if (prev.some(m => m.messageId === newMsg.messageId)) return prev;
+
+                    // Xử lý race condition: STOMP tới trước REST
+                    if (newMsg.senderId === currentUserId) {
+                        const tempIndex = prev.findIndex(m => m.messageId.startsWith('temp_') && m.content === newMsg.content);
+                        if (tempIndex !== -1) {
+                            const newArr = [...prev];
+                            newArr[tempIndex] = newMsg;
+                            return newArr;
+                        }
+                    }
+
                     return [...prev, newMsg];
                 });
 
@@ -815,8 +826,14 @@ export default function Chat() {
                 receiverId: partnerId,
                 content: text,
             });
-            // Thay optimistic bằng tin nhắn thật
-            setMessages(prev => prev.map(m => m.messageId === optimistic.messageId ? saved : m));
+            
+            // Thay optimistic bằng tin nhắn thật, tránh duplicate với STOMP
+            setMessages(prev => {
+                if (prev.some(m => m.messageId === saved.messageId)) {
+                    return prev.filter(m => m.messageId !== optimistic.messageId);
+                }
+                return prev.map(m => m.messageId === optimistic.messageId ? saved : m);
+            });
 
             // Cập nhật roomList
             setRoomList(prevRooms => {
@@ -869,7 +886,10 @@ export default function Chat() {
 
             // Gửi tin nhắn
             const saved = await apiSendMessage(requestPayload);
-            setMessages(prev => [...prev, saved]);
+            setMessages(prev => {
+                if (prev.some(m => m.messageId === saved.messageId)) return prev;
+                return [...prev, saved];
+            });
 
             // Cập nhật roomList
             setRoomList(prevRooms => {
@@ -939,6 +959,7 @@ export default function Chat() {
     const isBlocked = currentRoom && currentRoom.blockedBy;
     const isBlockedByMe = isBlocked && currentRoom.blockedBy === currentUserId;
     const showInput = ((isGuest && chatPartner) || (chatPartner && (isPatient || isDoctor || isPharmacy))) && !isBlocked;
+    const totalUnread = roomList.reduce((acc, room) => acc + (room.unreadCount || 0), 0);
 
     return (
         <>
@@ -956,6 +977,12 @@ export default function Chat() {
                     title="Open Message"
                 >
                     <i className="bi bi-chat-fill text-white" style={{ fontSize: '1.5rem' }}></i>
+                    {totalUnread > 0 && (
+                        <span className="position-absolute badge rounded-pill bg-danger shadow-sm" style={{ fontSize: '0.75rem', top: '2px', right: '2px' }}>
+                            {totalUnread > 99 ? '99+' : totalUnread}
+                            <span className="visually-hidden">unread messages</span>
+                        </span>
+                    )}
                 </div>
             )}
 
@@ -1100,17 +1127,27 @@ export default function Chat() {
                             )}
                             <form className="d-flex" onSubmit={sendMsg}>
                                 {!isGuest && isPatient && (
-                                    <button type="button" className="btn btn-outline-secondary me-2"
+                                    <button type="button" className="btn btn-outline-secondary me-2 p-0 d-flex align-items-center justify-content-center"
+                                        style={{ width: '42px', height: '38px', flexShrink: 0 }}
                                         onClick={() => setShowDoctorListModal(true)} title="Choose doctor">
-                                        <i className="bi bi-person-lines-fill"></i>
+                                        <div className="position-relative d-inline-flex">
+                                            <i className="bi bi-person-lines-fill" style={{ fontSize: '1.25rem' }}></i>
+                                            {totalUnread > 0 && (
+                                                <span className="position-absolute bg-danger border border-white rounded-circle" 
+                                                      style={{ top: '-1px', right: '-3px', width: '10px', height: '10px' }}>
+                                                    <span className="visually-hidden">unread messages</span>
+                                                </span>
+                                            )}
+                                        </div>
                                     </button>
                                 )}
                                 {!isGuest && !chatPartner?.isBot && (
                                     <>
                                         <input type="file" ref={fileInputRef} accept="*/*" onChange={handleFileSelect} style={{ display: 'none' }} />
-                                        <button type="button" className="btn btn-outline-primary me-2"
+                                        <button type="button" className="btn btn-outline-primary me-2 p-0 d-flex align-items-center justify-content-center"
+                                            style={{ width: '42px', height: '38px', flexShrink: 0 }}
                                             onClick={() => fileInputRef.current?.click()} disabled={uploading} title="Attach file">
-                                            <i className="bi bi-paperclip"></i>
+                                            <i className="bi bi-paperclip" style={{ fontSize: '1.25rem' }}></i>
                                         </button>
                                     </>
                                 )}
