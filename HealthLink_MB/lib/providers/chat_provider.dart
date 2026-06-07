@@ -30,6 +30,7 @@ class ChatProvider extends ChangeNotifier {
     final prefs = await SharedPreferences.getInstance();
     final muted = prefs.getStringList('muted_rooms') ?? [];
     final blocked = prefs.getStringList('blocked_rooms') ?? [];
+    _chatThemeIndex = prefs.getInt('chat_theme_index') ?? 0;
     _mutedRoomIds.addAll(muted);
     _blockedRoomIds.addAll(blocked);
     notifyListeners();
@@ -58,6 +59,20 @@ class ChatProvider extends ChangeNotifier {
     }
     await prefs.setStringList('blocked_rooms', _blockedRoomIds);
     notifyListeners();
+  }
+
+  // ── State: Chat Theme ──────────────────────────────────────────────────────
+
+  int _chatThemeIndex = 0;
+  int get chatThemeIndex => _chatThemeIndex;
+
+  Future<void> changeTheme(int index) async {
+    if (index >= 0 && index <= 5) {
+      _chatThemeIndex = index;
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.setInt('chat_theme_index', _chatThemeIndex);
+      notifyListeners();
+    }
   }
 
   // ── State: Chat Room (tin nhắn) ───────────────────────────────────────────

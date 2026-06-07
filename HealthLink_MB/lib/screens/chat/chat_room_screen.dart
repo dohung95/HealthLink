@@ -12,6 +12,7 @@ import '../../config/api_config.dart';
 import 'chat_search_screen.dart';
 import 'chat_media_screen.dart';
 import 'package:url_launcher/url_launcher.dart';
+import '../../models/chat/chat_theme.dart';
 
 /// Màn hình Chat Room – hiển thị tin nhắn và cho phép gửi tin nhắn.
 class ChatRoomScreen extends StatefulWidget {
@@ -201,9 +202,11 @@ class _ChatRoomScreenState extends State<ChatRoomScreen> {
   @override
   Widget build(BuildContext context) {
     final colors = _colors(context);
+    final chat = context.watch<ChatProvider>();
+    final chatTheme = getActiveChatTheme(context, chat.chatThemeIndex);
 
     return Scaffold(
-      backgroundColor: colors.surface,
+      backgroundColor: chatTheme.background,
       body: SafeArea(
         child: Column(
           children: [
@@ -235,19 +238,21 @@ class _ChatRoomScreenState extends State<ChatRoomScreen> {
                                 );
                               }
                             },
-                            child: const Text('Thử lại'),
+                            child: const Text('Retry'),
                           ),
                         ],
                       ),
                     );
                   }
 
+                  final chatThemeIndex = chat.chatThemeIndex;
+                  final chatTheme = getActiveChatTheme(context, chatThemeIndex);
                   return Container(
-                    color: colors.surfaceContainerHigh.withValues(alpha: 0.3),
+                    color: chatTheme.background,
                     child: chat.messages.isEmpty
                         ? Center(
                             child: Text(
-                              'Chưa có tin nhắn nào.\nHãy bắt đầu cuộc trò chuyện!',
+                              'No messages yet.\nStart the conversation!',
                               textAlign: TextAlign.center,
                               style: TextStyle(color: colors.onSurfaceVariant, fontSize: 15),
                             ),
@@ -292,8 +297,8 @@ class _ChatRoomScreenState extends State<ChatRoomScreen> {
 
   String _formatDate(DateTime dt) {
     final now = DateTime.now();
-    if (_isSameDay(dt, now)) return 'Hôm nay';
-    if (_isSameDay(dt, now.subtract(const Duration(days: 1)))) return 'Hôm qua';
+    if (_isSameDay(dt, now)) return 'Today';
+    if (_isSameDay(dt, now.subtract(const Duration(days: 1)))) return 'Yesterday';
     return '${dt.day}/${dt.month}/${dt.year}';
   }
 
@@ -305,11 +310,14 @@ class _ChatRoomScreenState extends State<ChatRoomScreen> {
   Widget _buildAppBar(BuildContext context) {
     final colors = _colors(context);
     final conv = widget.conversation;
+    final chat = context.watch<ChatProvider>();
+    final chatThemeIndex = chat.chatThemeIndex;
+    final chatTheme = getActiveChatTheme(context, chatThemeIndex);
 
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
       decoration: BoxDecoration(
-        color: colors.surface,
+        color: chatTheme.background,
         border: Border(bottom: BorderSide(color: colors.surfaceContainerHighest)),
       ),
       child: Row(
@@ -317,7 +325,7 @@ class _ChatRoomScreenState extends State<ChatRoomScreen> {
           IconButton(
             padding: EdgeInsets.zero,
             constraints: const BoxConstraints(),
-            icon: Icon(Icons.arrow_back, color: colors.primary),
+            icon: Icon(Icons.arrow_back, color: chatTheme.primary),
             onPressed: () => Navigator.pop(context),
           ),
           const SizedBox(width: 12),
@@ -374,7 +382,7 @@ class _ChatRoomScreenState extends State<ChatRoomScreen> {
                           fontWeight: FontWeight.bold,
                           color: context.watch<ChatProvider>().isBlocked(conv.id)
                               ? Colors.red.shade400
-                              : colors.primary,
+                              : chatTheme.primary,
                         ),
                         maxLines: 1,
                         overflow: TextOverflow.ellipsis,
@@ -407,7 +415,7 @@ class _ChatRoomScreenState extends State<ChatRoomScreen> {
             
           IconButton(
             icon: const Icon(Icons.info),
-            color: colors.primary,
+            color: chatTheme.primary,
             onPressed: () => _showChatDetails(context, conv, colors),
           ),
         ],
@@ -450,6 +458,9 @@ class _ChatRoomScreenState extends State<ChatRoomScreen> {
 
   Widget _buildDoctorBubble(BuildContext context, Message msg) {
     final colors = _colors(context);
+    final chat = context.watch<ChatProvider>();
+    final chatThemeIndex = chat.chatThemeIndex;
+    final chatTheme = getActiveChatTheme(context, chatThemeIndex);
 
     return Row(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -486,7 +497,7 @@ class _ChatRoomScreenState extends State<ChatRoomScreen> {
                 Container(
                   padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
                   decoration: BoxDecoration(
-                    color: colors.surfaceContainerHigh,
+                    color: chatTheme.bubbleOther,
                     borderRadius: const BorderRadius.only(
                       topLeft: Radius.circular(4),
                       topRight: Radius.circular(16),
@@ -500,7 +511,7 @@ class _ChatRoomScreenState extends State<ChatRoomScreen> {
                     style: TextStyle(
                       fontFamily: 'Inter',
                       fontSize: 14,
-                      color: colors.onSurface,
+                      color: chatTheme.bubbleOtherText,
                       height: 1.4,
                     ),
                   ),
@@ -524,6 +535,9 @@ class _ChatRoomScreenState extends State<ChatRoomScreen> {
   Widget _buildPatientBubble(BuildContext context, Message msg) {
     final colors = _colors(context);
     final isPending = msg.isPending;
+    final chat = context.watch<ChatProvider>();
+    final chatThemeIndex = chat.chatThemeIndex;
+    final chatTheme = getActiveChatTheme(context, chatThemeIndex);
 
     return Row(
       mainAxisAlignment: MainAxisAlignment.end,
@@ -549,7 +563,7 @@ class _ChatRoomScreenState extends State<ChatRoomScreen> {
                       Container(
                         padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
                         decoration: BoxDecoration(
-                          color: colors.primary,
+                          color: chatTheme.bubbleUser,
                           borderRadius: const BorderRadius.only(
                             topLeft: Radius.circular(16),
                             topRight: Radius.circular(4),
@@ -558,7 +572,7 @@ class _ChatRoomScreenState extends State<ChatRoomScreen> {
                           ),
                           boxShadow: [
                             BoxShadow(
-                              color: colors.primary.withValues(alpha: 0.2),
+                              color: chatTheme.bubbleUser.withValues(alpha: 0.2),
                               blurRadius: 4,
                               offset: const Offset(0, 2),
                             ),
@@ -569,7 +583,7 @@ class _ChatRoomScreenState extends State<ChatRoomScreen> {
                           style: TextStyle(
                             fontFamily: 'Inter',
                             fontSize: 14,
-                            color: colors.onPrimary,
+                            color: chatTheme.bubbleUserText,
                             height: 1.4,
                           ),
                         ),
@@ -615,12 +629,15 @@ class _ChatRoomScreenState extends State<ChatRoomScreen> {
 
   Widget _buildInputArea() {
     final colors = _colors(context);
-    final isBlocked = context.watch<ChatProvider>().isBlocked(widget.conversation.id);
+    final chat = context.watch<ChatProvider>();
+    final chatTheme = getActiveChatTheme(context, chat.chatThemeIndex);
+    
+    final isBlocked = chat.isBlocked(widget.conversation.id);
 
     if (isBlocked) {
       return Container(
         padding: const EdgeInsets.all(16),
-        color: colors.surface,
+        color: chatTheme.background,
         alignment: Alignment.center,
         child: Text(
           'You blocked this user.',
@@ -635,7 +652,7 @@ class _ChatRoomScreenState extends State<ChatRoomScreen> {
     return Container(
       padding: const EdgeInsets.all(12),
       decoration: BoxDecoration(
-        color: colors.surface,
+        color: chatTheme.background,
         border: Border(top: BorderSide(color: colors.surfaceContainerHighest)),
         boxShadow: [
           BoxShadow(
@@ -693,13 +710,13 @@ class _ChatRoomScreenState extends State<ChatRoomScreen> {
               // Nút đính kèm
               IconButton(
                 icon: const Icon(Icons.add),
-                color: colors.primary,
+                color: chatTheme.primary,
                 onPressed: _showAttachmentMenu,
               ),
               // Nút Camera
               IconButton(
                 icon: const Icon(Icons.camera_alt),
-                color: colors.primary,
+                color: chatTheme.primary,
                 onPressed: _takePicture,
               ),
 
@@ -708,19 +725,19 @@ class _ChatRoomScreenState extends State<ChatRoomScreen> {
                 child: Container(
                   constraints: const BoxConstraints(maxHeight: 120),
                   decoration: BoxDecoration(
-                    color: colors.surfaceContainerHigh,
+                    color: chatTheme.bubbleOther, // Nền ô chữ
                     borderRadius: BorderRadius.circular(24),
-                    border: Border.all(color: colors.surfaceContainerHighest),
+                    border: Border.all(color: chatTheme.primary.withValues(alpha: 0.2)),
                   ),
                   child: TextField(
                     controller: _messageController,
                     maxLines: null,
                     keyboardType: TextInputType.multiline,
                     textInputAction: TextInputAction.newline,
-                    style: TextStyle(fontFamily: 'Inter', fontSize: 14, color: colors.onSurface),
+                    style: TextStyle(fontFamily: 'Inter', fontSize: 14, color: chatTheme.bubbleOtherText),
                     decoration: InputDecoration(
-                      hintText: 'Nhập tin nhắn...',
-                      hintStyle: TextStyle(color: colors.outline),
+                      hintText: 'Type message...',
+                      hintStyle: TextStyle(color: chatTheme.bubbleOtherText.withValues(alpha: 0.5)),
                       border: InputBorder.none,
                       contentPadding: const EdgeInsets.symmetric(vertical: 10, horizontal: 16),
                     ),
@@ -735,11 +752,11 @@ class _ChatRoomScreenState extends State<ChatRoomScreen> {
                 duration: const Duration(milliseconds: 200),
                 child: Container(
                   decoration: BoxDecoration(
-                    color: canSend ? colors.primary : colors.surfaceContainerHighest,
+                    color: canSend ? chatTheme.primary : chatTheme.primary.withValues(alpha: 0.3),
                     shape: BoxShape.circle,
                     boxShadow: canSend ? [
                       BoxShadow(
-                        color: colors.primary.withValues(alpha: 0.3),
+                        color: chatTheme.primary.withValues(alpha: 0.3),
                         blurRadius: 8,
                         offset: const Offset(0, 2),
                       ),
@@ -1093,6 +1110,14 @@ class _ChatRoomScreenState extends State<ChatRoomScreen> {
                     ));
                   },
                 ),
+                ListTile(
+                  leading: Icon(Icons.palette, color: colors.onSurfaceVariant),
+                  title: const Text('Change Theme'),
+                  onTap: () {
+                    Navigator.pop(context); // Đóng BottomSheet
+                    _showThemeSelectionDialog(context);
+                  },
+                ),
                 const Divider(),
                 ListTile(
                   leading: Icon(Icons.block, color: context.watch<ChatProvider>().isBlocked(conv.id) ? Colors.green : Colors.red.shade400),
@@ -1105,6 +1130,58 @@ class _ChatRoomScreenState extends State<ChatRoomScreen> {
               ],
             );
           },
+        );
+      },
+    );
+  }
+
+  void _showThemeSelectionDialog(BuildContext context) {
+    showModalBottomSheet(
+      context: context,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(16)),
+      ),
+      builder: (context) {
+        return SafeArea(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              const Padding(
+                padding: EdgeInsets.all(16.0),
+                child: Text(
+                  'Select Chat Theme',
+                  style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, fontFamily: 'Inter'),
+                ),
+              ),
+              Flexible(
+                child: ListView.builder(
+                  shrinkWrap: true,
+                  itemCount: totalChatThemes,
+                  itemBuilder: (context, index) {
+                    final theme = getActiveChatTheme(context, index);
+                    final isSelected = context.watch<ChatProvider>().chatThemeIndex == index;
+                    return ListTile(
+                      leading: Container(
+                        width: 40,
+                        height: 40,
+                        decoration: BoxDecoration(
+                          shape: BoxShape.circle,
+                          color: theme.primary,
+                          border: Border.all(color: theme.bubbleOther, width: 2),
+                        ),
+                      ),
+                      title: Text(theme.name, style: const TextStyle(fontFamily: 'Inter')),
+                      trailing: isSelected ? Icon(Icons.check_circle, color: theme.primary) : null,
+                      onTap: () {
+                        context.read<ChatProvider>().changeTheme(index);
+                        Navigator.pop(context);
+                      },
+                    );
+                  },
+                ),
+              ),
+            ],
+          ),
         );
       },
     );
