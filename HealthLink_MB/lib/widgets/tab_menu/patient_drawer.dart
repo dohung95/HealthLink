@@ -3,6 +3,7 @@ import 'package:provider/provider.dart';
 import '../../providers/auth_provider.dart';
 import '../../config/api_config.dart';
 import '../../screens/profile_patient/profile_patient_screen.dart';
+import '../../screens/profile_patient/update_security_screen.dart';
 
 class PatientDrawer extends StatelessWidget {
   const PatientDrawer({super.key});
@@ -52,8 +53,9 @@ class PatientDrawer extends StatelessWidget {
             title: const Text('Security'),
             onTap: () {
               Navigator.pop(context);
-              ScaffoldMessenger.of(context).showSnackBar(
-                const SnackBar(content: Text('Security settings are under development...')),
+              Navigator.push(
+                context,
+                MaterialPageRoute(builder: (context) => const SecuritySettingsScreen()),
               );
             },
           ),
