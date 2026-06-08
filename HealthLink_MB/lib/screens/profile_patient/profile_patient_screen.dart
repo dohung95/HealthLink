@@ -2,6 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../../providers/auth_provider.dart';
 import '../../config/api_config.dart';
+import '../../models/patient_profile.dart';
+import 'edit_patient_profile_screen.dart';
 
 class PatientProfileScreen extends StatelessWidget {
   const PatientProfileScreen({super.key});
@@ -40,14 +42,14 @@ class PatientProfileScreen extends StatelessWidget {
                 color: colorScheme.surfaceVariant,
               ),
               child: Icon(
-                Icons.medical_services_outlined,
+                Icons.person_outline,
                 size: 18,
                 color: colorScheme.primary,
               ),
             ),
             const SizedBox(width: 12),
             Text(
-              'MedPulse',
+              'My profile',
               style: theme.textTheme.titleMedium?.copyWith(
                 color: colorScheme.primary,
                 fontWeight: FontWeight.bold,
@@ -57,32 +59,32 @@ class PatientProfileScreen extends StatelessWidget {
         ),
         actions: [
           Padding(
-            padding: const EdgeInsets.only(right: 16.0),
-            child: Stack(
-              children: [
-                IconButton(
-                  onPressed: () {},
-                  icon: Icon(
-                    Icons.notifications_none_outlined,
-                    color: colorScheme.onSurfaceVariant,
-                  ),
-                ),
-                Positioned(
-                  top: 10,
-                  right: 10,
-                  child: Container(
-                    width: 8,
-                    height: 8,
-                    decoration: BoxDecoration(
-                      color: colorScheme.error,
-                      shape: BoxShape.circle,
-                      border: Border.all(color: colorScheme.surface, width: 1.5),
+            padding: const EdgeInsets.only(right: 8.0),
+            child: IconButton(
+              icon: Icon(Icons.edit_outlined, color: colorScheme.primary),
+              tooltip: 'Edit Profile',
+              onPressed: () async {
+                // Chúng ta sẽ cần tạo PatientProfile từ map `profile` để truyền đi
+                final patientProfile = PatientProfile.fromJson(profile);
+                
+                final result = await Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                    builder: (context) => EditPatientProfileScreen(
+                      currentProfile: patientProfile,
                     ),
                   ),
-                )
-              ],
+                );
+
+                if (result == true || result != null) {
+                  // Gọi API tải lại khi sửa thành công
+                  if (context.mounted) {
+                    context.read<AuthProvider>().fetchProfile();
+                  }
+                }
+              },
             ),
-          )
+          ),
         ],
       ),
 
@@ -428,16 +430,16 @@ class PatientProfileScreen extends StatelessWidget {
                         ),
                       ],
                     ),
-                    IconButton(
-                      style: IconButton.styleFrom(
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(8),
-                          side: BorderSide(color: colorScheme.outlineVariant),
-                        ),
-                      ),
-                      onPressed: () {},
-                      icon: Icon(Icons.edit_outlined, size: 18, color: colorScheme.onSurfaceVariant),
-                    )
+                    // IconButton(
+                    //   style: IconButton.styleFrom(
+                    //     shape: RoundedRectangleBorder(
+                    //       borderRadius: BorderRadius.circular(8),
+                    //       side: BorderSide(color: colorScheme.outlineVariant),
+                    //     ),
+                    //   ),
+                    //   onPressed: () {},
+                    //   icon: Icon(Icons.edit_outlined, size: 18, color: colorScheme.onSurfaceVariant),
+                    // )
                   ],
                 )
               ],

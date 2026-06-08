@@ -4,9 +4,12 @@ class PatientProfile {
   final DateTime? dateOfBirth;
   final String? gender;
   final String? occupation;
+  final String? address;
   final String? city;
   final String? country;
   final String? preferredLanguage;
+  final String? preferredContactMethod;
+  final String? phoneNumber;
   final String? bloodType;
   final double? heightCm;
   final double? weightKg;
@@ -15,6 +18,11 @@ class PatientProfile {
   final String? allergies;
   final String? chronicConditions;
   final String? currentMedications;
+  final String? insuranceProvider;
+  final String? insurancePolicyNumber;
+  final String? emergencyContactName;
+  final String? emergencyContactPhone;
+  final String? emergencyContactRelationship;
 
   PatientProfile({
     required this.userId,
@@ -22,9 +30,12 @@ class PatientProfile {
     this.dateOfBirth,
     this.gender,
     this.occupation,
+    this.address,
     this.city,
     this.country,
     this.preferredLanguage,
+    this.preferredContactMethod,
+    this.phoneNumber,
     this.bloodType,
     this.heightCm,
     this.weightKg,
@@ -33,6 +44,11 @@ class PatientProfile {
     this.allergies,
     this.chronicConditions,
     this.currentMedications,
+    this.insuranceProvider,
+    this.insurancePolicyNumber,
+    this.emergencyContactName,
+    this.emergencyContactPhone,
+    this.emergencyContactRelationship,
   });
 
   factory PatientProfile.fromJson(Map<String, dynamic> json) {
@@ -42,9 +58,12 @@ class PatientProfile {
       dateOfBirth: json['dateOfBirth'] != null ? DateTime.tryParse(json['dateOfBirth']) : null,
       gender: json['gender'],
       occupation: json['occupation'],
+      address: json['address'],
       city: json['city'],
       country: json['country'],
       preferredLanguage: json['preferredLanguage'],
+      preferredContactMethod: json['preferredContactMethod'],
+      phoneNumber: json['phoneNumber'],
       bloodType: json['bloodType'],
       heightCm: (json['heightCm'] as num?)?.toDouble(),
       weightKg: (json['weightKg'] as num?)?.toDouble(),
@@ -53,6 +72,11 @@ class PatientProfile {
       allergies: json['allergies'],
       chronicConditions: json['chronicConditions'],
       currentMedications: json['currentMedications'],
+      insuranceProvider: json['insuranceProvider'],
+      insurancePolicyNumber: json['insurancePolicyNumber'],
+      emergencyContactName: json['emergencyContactName'],
+      emergencyContactPhone: json['emergencyContactPhone'],
+      emergencyContactRelationship: json['emergencyContactRelationship'],
     );
   }
 }

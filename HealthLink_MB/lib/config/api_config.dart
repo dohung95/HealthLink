@@ -22,6 +22,7 @@ class ApiConfig {
   /// GET /api/account/patient/profile – Lấy profile của bản thân.
   static const String patientProfile = '$baseUrl/account/patient/profile';
   static String patientProfileById(String id) => '$baseUrl/account/patient/profile/$id';
+  static const String patientAvatar = '$baseUrl/account/patient/avatar';
 
   // ── Chat Endpoints ────────────────────────────────────────────────────────
   /// GET /api/chat/rooms/me – Lấy danh sách phòng chat của user hiện tại.
@@ -63,6 +64,12 @@ class ApiConfig {
     if (finalUrl.startsWith('/')) {
       final host = baseUrl.replaceAll('/api', '');
       finalUrl = '$host$finalUrl';
+    }
+
+    // Replace localhost if baseUrl uses something else (e.g., 10.0.2.2 for Android Emulator)
+    if (finalUrl.contains('localhost')) {
+      final baseUri = Uri.parse(baseUrl);
+      finalUrl = finalUrl.replaceAll('localhost', baseUri.host);
     }
 
     // Mã hóa URL để xử lý ký tự Unicode và đặc biệt trong tên file

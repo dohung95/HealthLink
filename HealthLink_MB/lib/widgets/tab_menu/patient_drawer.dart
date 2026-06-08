@@ -48,13 +48,12 @@ class PatientDrawer extends StatelessWidget {
             },
           ),
           ListTile(
-            leading: Icon(Icons.manage_accounts_outlined, color: colorScheme.primary),
-            title: const Text('Change Info'),
-            subtitle: const Text('Email, Password...'),
+            leading: Icon(Icons.security_outlined, color: colorScheme.primary),
+            title: const Text('Security'),
             onTap: () {
               Navigator.pop(context);
               ScaffoldMessenger.of(context).showSnackBar(
-                const SnackBar(content: Text('Change Info feature is under development...')),
+                const SnackBar(content: Text('Security settings are under development...')),
               );
             },
           ),
