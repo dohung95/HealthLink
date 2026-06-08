@@ -13,6 +13,7 @@ import 'chat_search_screen.dart';
 import 'chat_media_screen.dart';
 import 'package:url_launcher/url_launcher.dart';
 import '../../models/chat/chat_theme.dart';
+import '../profile_doctor_normal_forChat_screen.dart';
 
 /// Màn hình Chat Room – hiển thị tin nhắn và cho phép gửi tin nhắn.
 class ChatRoomScreen extends StatefulWidget {
@@ -1081,19 +1082,36 @@ class _ChatRoomScreenState extends State<ChatRoomScreen> {
                   children: [
                     _buildQuickAction(Icons.person, 'Profile', colors, () {
                       Navigator.pop(context); // Đóng BottomSheet
-                      showDialog(
-                        context: context,
-                        builder: (context) => AlertDialog(
-                          title: const Text('Notifications'),
-                          content: const Text('Profile viewing feature is being developed. Please come back later!'),
-                          actions: [
-                            TextButton(
-                              onPressed: () => Navigator.pop(context),
-                              child: const Text('Close'),
+                      final specialty = conv.partnerSpecialty?.toLowerCase() ?? '';
+                      final isDoctor = specialty.isNotEmpty && 
+                                       specialty != 'bệnh nhân' && 
+                                       specialty != 'patient';
+
+                      if (isDoctor) {
+                        Navigator.push(
+                          context,
+                          MaterialPageRoute(
+                            builder: (context) => DoctorInfoScreen(
+                              doctorId: conv.partnerId,
+                              initialName: conv.partnerName,
                             ),
-                          ],
-                        ),
-                      );
+                          ),
+                        );
+                      } else {
+                        showDialog(
+                          context: context,
+                          builder: (context) => AlertDialog(
+                            title: const Text('Notifications'),
+                            content: const Text('Profile viewing for this role is being developed. Please come back later!'),
+                            actions: [
+                              TextButton(
+                                onPressed: () => Navigator.pop(context),
+                                child: const Text('Close'),
+                              ),
+                            ],
+                          ),
+                        );
+                      }
                     }),
                     _buildQuickAction(
                       context.watch<ChatProvider>().isMuted(conv.id) ? Icons.notifications_off : Icons.notifications, 

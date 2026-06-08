@@ -1,8 +1,9 @@
 import 'package:HealthLink/screens/patient_prescriptions_screen.dart';
 import 'package:flutter/material.dart';
-import '../widgets/tab_menu.dart';
+import '../widgets/tab_menu/tab_menu.dart';
 import 'patient_home_screen.dart';
 import 'chat/chat_list_screen.dart';
+import '../widgets/tab_menu/patient_drawer.dart';
 
 class MainLayout extends StatefulWidget {
   const MainLayout({super.key});
@@ -37,7 +38,7 @@ class _MainLayoutState extends State<MainLayout> {
       case 'Chat':
         return const MessagesScreen();
 
-      case 'Records':
+      case 'prescription':
         return const PrescriptionsScreen();
 
       case 'Booking':
@@ -68,6 +69,7 @@ class _MainLayoutState extends State<MainLayout> {
 
     return Scaffold(
       backgroundColor: Theme.of(context).colorScheme.surface,
+      drawer: const PatientDrawer(),
       body: Row(
         children: [
           if (isDesktop)

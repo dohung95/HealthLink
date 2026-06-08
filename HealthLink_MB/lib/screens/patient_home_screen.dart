@@ -63,16 +63,21 @@ class _PatientHomeScreenState extends State<PatientHomeScreen> {
           children: [
             Row(
               children: [
-                Container(
-                  width: isDesktop ? 48 : 40,
-                  height: isDesktop ? 48 : 40,
-                  decoration: BoxDecoration(
-                    shape: BoxShape.circle,
-                    border: Border.all(color: Theme.of(context).colorScheme.outlineVariant),
-                  ),
-                  child: ClipRRect(
-                    borderRadius: BorderRadius.circular(100),
-                    child: _buildAvatarWidget(context, isDesktop),
+                GestureDetector(
+                  onTap: () {
+                    Scaffold.of(context).openDrawer();
+                  },
+                  child: Container(
+                    width: isDesktop ? 48 : 40,
+                    height: isDesktop ? 48 : 40,
+                    decoration: BoxDecoration(
+                      shape: BoxShape.circle,
+                      border: Border.all(color: Theme.of(context).colorScheme.outlineVariant),
+                    ),
+                    child: ClipRRect(
+                      borderRadius: BorderRadius.circular(100),
+                      child: _buildAvatarWidget(context, isDesktop),
+                    ),
                   ),
                 ),
                 const SizedBox(width: 12),
@@ -88,7 +93,7 @@ class _PatientHomeScreenState extends State<PatientHomeScreen> {
                       ),
                     ),
                     Text(
-                      context.watch<AuthProvider>().displayName ?? 'Người dùng',
+                      context.watch<AuthProvider>().displayName ?? 'User',
                       style: TextStyle(
                         fontFamily: 'Inter',
                         fontSize: isDesktop ? 24 : 20,

@@ -24,6 +24,7 @@ class AuthProvider extends ChangeNotifier {
   // Thông tin profile (tải sau khi login)
   String? _displayName;
   String? _avatarUrl;
+  Map<String, dynamic>? _patientProfile;
 
   // ── Getters ────────────────────────────────────────────────────────────────
 
@@ -37,6 +38,7 @@ class AuthProvider extends ChangeNotifier {
   bool       get isAuthenticated => _status == AuthStatus.authenticated;
   String?    get displayName   => _displayName;
   String?    get avatarUrl     => _avatarUrl;
+  Map<String, dynamic>? get patientProfile => _patientProfile;
 
   // ── Init: Tải token từ SharedPreferences khi app khởi động ─────────────────
 
@@ -193,6 +195,7 @@ class AuthProvider extends ChangeNotifier {
     _roles        = [];
     _displayName  = null;
     _avatarUrl    = null;
+    _patientProfile = null;
     _status       = AuthStatus.unauthenticated;
     _errorMessage = '';
     await TokenUtils.clearTokens();
@@ -211,7 +214,8 @@ class AuthProvider extends ChangeNotifier {
       ).timeout(ApiConfig.connectTimeout);
       if (res.statusCode == 200) {
         final data = jsonDecode(res.body) as Map<String, dynamic>;
-        _displayName = data['fullName']?.toString();
+        _patientProfile = data;
+        _displayName = data['fullName']?.toString() ?? data['username']?.toString();
         _avatarUrl   = data['avatarUrl']?.toString();
         notifyListeners();
       }
