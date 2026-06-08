@@ -21,6 +21,7 @@ class ApiConfig {
   // ── Patient Profile Endpoints ─────────────────────────────────────────────
   /// GET /api/account/patient/profile – Lấy profile của bản thân.
   static const String patientProfile = '$baseUrl/account/patient/profile';
+  static String patientProfileById(String id) => '$baseUrl/account/patient/profile/$id';
 
   // ── Chat Endpoints ────────────────────────────────────────────────────────
   /// GET /api/chat/rooms/me – Lấy danh sách phòng chat của user hiện tại.

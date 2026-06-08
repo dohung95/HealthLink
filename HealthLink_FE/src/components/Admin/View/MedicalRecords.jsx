@@ -115,7 +115,7 @@ export default function MedicalRecords() {
   // Fetch prescriptions and group by appointment ID
   const fetchPrescriptionsForAppointments = async (patientId) => {
     try {
-      const token = localStorage.getItem('token');
+      const token = localStorage.getItem('token') || sessionStorage.getItem('token');
       const response = await fetch(
         `${API_BASE_URL}/api/admin/adminmedicalrecords/patient/${patientId}/prescriptions`,
         {
@@ -192,7 +192,7 @@ export default function MedicalRecords() {
   const fetchDocumentPreview = async (documentId, documentType) => {
     try {
       setLoadingDocument(true);
-      const token = localStorage.getItem('token');
+      const token = localStorage.getItem('token') || sessionStorage.getItem('token');
 
       const response = await fetch(`${API_BASE_URL}/api/MedicalDocument/file/${documentId}`, {
         headers: {
@@ -323,7 +323,7 @@ export default function MedicalRecords() {
   // Handle document download with authentication
   const handleDownloadDocument = async (documentId, documentName) => {
     try {
-      const token = localStorage.getItem('token');
+      const token = localStorage.getItem('token') || sessionStorage.getItem('token');
 
       const response = await fetch(`${API_BASE_URL}/api/MedicalDocument/file/${documentId}`, {
         headers: {

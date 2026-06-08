@@ -25,8 +25,15 @@ class _PrescriptionsScreenState extends State<PrescriptionsScreen> {
           children: [
             _buildAppBar(),
             Expanded(
-              child: SingleChildScrollView(
-                padding: const EdgeInsets.only(left: 16, right: 16, top: 24, bottom: 96), // pb-24
+              child: RefreshIndicator(
+                color: Theme.of(context).colorScheme.primary,
+                onRefresh: () async {
+                  // TODO: Gọi API cập nhật danh sách đơn thuốc ở đây
+                  await Future.delayed(const Duration(seconds: 1));
+                },
+                child: SingleChildScrollView(
+                  physics: const AlwaysScrollableScrollPhysics(),
+                  padding: const EdgeInsets.only(left: 16, right: 16, top: 24, bottom: 96), // pb-24
                 child: Center(
                   child: Container(
                     constraints: const BoxConstraints(maxWidth: 768), // max-w-3xl
@@ -87,6 +94,7 @@ class _PrescriptionsScreenState extends State<PrescriptionsScreen> {
                     ),
                   ),
                 ),
+              ),
               ),
             ),
           ],

@@ -522,7 +522,7 @@ export default function Chat() {
     // ── Đăng ký sự kiện Chat khi Component được render ────────────────────────────────
     useEffect(() => {
         if (!authUser) return;
-        const token = localStorage.getItem('token');
+        const token = localStorage.getItem('token') || sessionStorage.getItem('token');
         if (!token) return;
 
         setStompConnected(stompChatService.isConnected);

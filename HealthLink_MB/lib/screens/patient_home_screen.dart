@@ -21,11 +21,15 @@ class _PatientHomeScreenState extends State<PatientHomeScreen> {
       children: [
         _buildHeader(isDesktop),
         Expanded(
-          child: SingleChildScrollView(
-            padding: EdgeInsets.symmetric(
-              horizontal: isDesktop ? 24.0 : 16.0,
-              vertical: 16.0,
-            ),
+          child: RefreshIndicator(
+            color: Theme.of(context).colorScheme.primary,
+            onRefresh: () => context.read<AuthProvider>().fetchProfile(),
+            child: SingleChildScrollView(
+              physics: const AlwaysScrollableScrollPhysics(),
+              padding: EdgeInsets.symmetric(
+                horizontal: isDesktop ? 24.0 : 16.0,
+                vertical: 16.0,
+              ),
             child: Container(
               constraints: const BoxConstraints(maxWidth: 1280),
               child: Column(
@@ -40,6 +44,7 @@ class _PatientHomeScreenState extends State<PatientHomeScreen> {
               ),
             ),
           ),
+        ),
         ),
       ],
     );

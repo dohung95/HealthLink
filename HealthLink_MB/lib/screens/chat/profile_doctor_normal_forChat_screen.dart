@@ -2,8 +2,8 @@ import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
 import 'package:provider/provider.dart';
-import '../config/api_config.dart';
-import '../providers/auth_provider.dart';
+import '../../config/api_config.dart';
+import '../../providers/auth_provider.dart';
 
 /// Model nhẹ dùng để ánh xạ DoctorProfileResponse từ backend.
 class _DoctorProfile {
@@ -215,9 +215,13 @@ class _DoctorInfoScreenState extends State<DoctorInfoScreen> {
     return Center(
       child: Container(
         constraints: const BoxConstraints(maxWidth: 480),
-        child: SingleChildScrollView(
-          padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 16.0),
-          child: Column(
+        child: RefreshIndicator(
+          color: colorScheme.primary,
+          onRefresh: _fetchDoctorProfile,
+          child: SingleChildScrollView(
+            physics: const AlwaysScrollableScrollPhysics(),
+            padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 16.0),
+            child: Column(
             crossAxisAlignment: CrossAxisAlignment.center,
             children: [
               // --- 1. Hero: Avatar + Name + Specialty ---
@@ -403,6 +407,7 @@ class _DoctorInfoScreenState extends State<DoctorInfoScreen> {
               const SizedBox(height: 100),
             ],
           ),
+        ),
         ),
       ),
     );

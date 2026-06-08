@@ -89,12 +89,15 @@ class PatientProfileScreen extends StatelessWidget {
       body: SafeArea(
         child: Center(
           child: ConstrainedBox(
-            // Tương đương max-w-2xl trong Tailwind (~672px)
             constraints: const BoxConstraints(maxWidth: 672),
-            child: SingleChildScrollView(
-              padding: const EdgeInsets.all(16.0),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.stretch,
+            child: RefreshIndicator(
+              color: colorScheme.primary,
+              onRefresh: () => context.read<AuthProvider>().fetchProfile(),
+              child: SingleChildScrollView(
+                physics: const AlwaysScrollableScrollPhysics(),
+                padding: const EdgeInsets.all(16.0),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
                 children: [
                   // 1. Header Area (Avatar & Identity Badge)
                   _buildHeaderArea(context, authProvider, profile),
@@ -125,6 +128,7 @@ class PatientProfileScreen extends StatelessWidget {
                   const SizedBox(height: 24), // Đệm khoảng cách cho phần bottom menu
                 ],
               ),
+            ),
             ),
           ),
         ),

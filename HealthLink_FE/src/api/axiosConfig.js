@@ -12,7 +12,7 @@ const axiosInstance = axios.create({
 // Add request interceptor to include JWT token
 axiosInstance.interceptors.request.use(
   (config) => {
-    const token = localStorage.getItem('token');
+    const token = localStorage.getItem('token') || sessionStorage.getItem('token');
     if (token) {
       config.headers.Authorization = `Bearer ${token}`;
     }
@@ -27,11 +27,19 @@ axiosInstance.interceptors.request.use(
 axiosInstance.interceptors.response.use(
   (response) => response,
   (error) => {
-    if (error.response?.status === 401) {
-      // Token expired or unauthorized
-      localStorage.removeItem('token');
-      localStorage.removeItem('refreshToken');
-      window.location.href = '/login';
+    console.log('[Axios Interceptor] Response error:', error.response?.status, 'Path:', window.location.pathname);
+    if (error.response?.status === 401 || error.response?.status === 403) {
+      const token = localStorage.getItem('token') || sessionStorage.getItem('token');
+      console.log('[Axios Interceptor] Token in storage:', !!token);
+      // Chỉ redirect nếu có token trong storage (chưa bị xóa) và hiện tại không ở trang login
+      if (token && window.location.pathname !== '/login') {
+        console.log('[Axios Interceptor] Redirecting to /login...');
+        localStorage.removeItem('token');
+        localStorage.removeItem('refreshToken');
+        sessionStorage.removeItem('token');
+        sessionStorage.removeItem('refreshToken');
+        window.location.href = '/login';
+      }
     }
     return Promise.reject(error);
   }

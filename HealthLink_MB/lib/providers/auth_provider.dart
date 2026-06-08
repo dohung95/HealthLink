@@ -52,7 +52,7 @@ class AuthProvider extends ChangeNotifier {
       _roles        = _extractRoles(token);
       _status       = AuthStatus.authenticated;
       // Tải profile ngầm sau khi khôi phục session
-      _fetchProfile(token);
+      fetchProfile();
     } else {
       _status = AuthStatus.unauthenticated;
     }
@@ -73,7 +73,7 @@ class AuthProvider extends ChangeNotifier {
       _status = AuthStatus.authenticated;
       notifyListeners();
       // Tải profile ngầm sau login
-      _fetchProfile(response.accessToken);
+      fetchProfile();
       return true;
     } catch (e) {
       _setError(_cleanErrorMessage(e.toString()));
@@ -202,13 +202,14 @@ class AuthProvider extends ChangeNotifier {
     notifyListeners();
   }
 
-  /// Gọi ngầm /api/account/patient/profile để lấy tên và avatar.
-  Future<void> _fetchProfile(String token) async {
+  /// Gọi ngầm /api/account/patient/profile để lấy tên và avatar. Hoặc được gọi công khai để pull-to-refresh.
+  Future<void> fetchProfile() async {
+    if (_accessToken == null) return;
     try {
       final res = await http.get(
         Uri.parse(ApiConfig.patientProfile),
         headers: {
-          'Authorization': 'Bearer $token',
+          'Authorization': 'Bearer $_accessToken',
           'Accept': 'application/json',
         },
       ).timeout(ApiConfig.connectTimeout);
@@ -220,7 +221,7 @@ class AuthProvider extends ChangeNotifier {
         notifyListeners();
       }
     } catch (e) {
-      debugPrint('AuthProvider _fetchProfile error: $e');
+      debugPrint('AuthProvider fetchProfile error: $e');
     }
   }
 

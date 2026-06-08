@@ -192,21 +192,23 @@ class ChatProvider extends ChangeNotifier {
          final context = navigatorKey.currentContext;
          final overlay = navigatorKey.currentState?.overlay;
          if (overlay != null && context != null) {
-           final title = idx != -1 ? _conversations[idx].partnerName : 'New Message';
-           final conv = idx != -1 ? _conversations[idx] : null;
-           NotificationHelper.showTopNotification(
-             overlay,
-             title: title,
-             message: preview,
-             onTap: conv != null ? () {
-               Navigator.push(
-                 context,
-                 MaterialPageRoute(
-                   builder: (_) => ChatRoomScreen(conversation: conv),
-                 ),
-               );
-             } : null,
-           );
+           if (!isMuted(msg.conversationId)) {
+             final title = idx != -1 ? _conversations[idx].partnerName : 'New Message';
+             final conv = idx != -1 ? _conversations[idx] : null;
+             NotificationHelper.showTopNotification(
+               overlay,
+               title: title,
+               message: preview,
+               onTap: conv != null ? () {
+                 Navigator.push(
+                   context,
+                   MaterialPageRoute(
+                     builder: (_) => ChatRoomScreen(conversation: conv),
+                   ),
+                 );
+               } : null,
+             );
+           }
          }
        }
     }

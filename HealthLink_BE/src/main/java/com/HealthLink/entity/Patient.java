@@ -12,57 +12,59 @@ import java.util.List;
 public class Patient {
     @Id
     @Column(name = "PatientID", length = 450)
-    private String patientId;
+    private String patientId; // ID của bệnh nhân (khớp 1-1 với ID trong bảng Users)
 
     @OneToOne
     @MapsId
     @JoinColumn(name = "PatientID")
     @ToString.Exclude
-    private User user;
+    private User user; // Liên kết 1-1 tới tài khoản User
 
     @Column(name = "FullName", nullable = false, columnDefinition = "NVARCHAR(MAX)")
-    private String fullName;
+    private String fullName; // Họ và tên đầy đủ của bệnh nhân
 
-    private LocalDateTime dateOfBirth;
+    private LocalDateTime dateOfBirth; // Ngày tháng năm sinh
     
     @Column(columnDefinition = "TEXT")
-    private String medicalHistorySummary;
+    private String medicalHistorySummary; // Tóm tắt lịch sử y khoa/bệnh án trước đây
     
-    private String insuranceProvider;
-    private String insurancePolicyNumber;
-    
-    @Column(length = 10)
-    private String gender;
-    
-    private String address;
-    private String city;
-    private String country;
+    private String insuranceProvider; // Công ty/nhà cung cấp bảo hiểm y tế
+    private String insurancePolicyNumber; // Số thẻ/số hợp đồng bảo hiểm y tế
     
     @Column(length = 10)
-    private String bloodType;
+    private String gender; // Giới tính (Nam, Nữ, Khác)
     
-    private String emergencyContactName;
-    private String emergencyContactPhone;
-    private String emergencyContactRelationship;
-    private String preferredLanguage;
-    private String preferredContactMethod;
-    private String occupation;
+    private String address; // Địa chỉ chi tiết (số nhà, tên đường...)
+    private String city; // Thành phố / Tỉnh
+    private String country; // Quốc gia
+    
+    @Column(length = 10)
+    private String bloodType; // Nhóm máu (ví dụ: A+, O-, AB...)
+    
+    private String emergencyContactName; // Tên người liên hệ trong trường hợp khẩn cấp
+    private String emergencyContactPhone; // Số điện thoại người liên hệ khẩn cấp
+    private String emergencyContactRelationship; // Mối quan hệ với người liên hệ khẩn cấp (bố, mẹ, vợ...)
+    private String preferredLanguage; // Ngôn ngữ ưu tiên giao tiếp (ví dụ: Tiếng Việt, Tiếng Anh)
+    private String preferredContactMethod; // Phương thức liên hệ ưu tiên (Email, Phone, SMS...)
+    private String occupation; // Nghề nghiệp của bệnh nhân
+    
     @Column(columnDefinition = "NVARCHAR(MAX)")
-    private String avatarUrl;
-    private Double latitude;
-    private Double longitude;
+    private String avatarUrl; // Đường dẫn URL tới ảnh đại diện của bệnh nhân
+    
+    private Double latitude; // Vĩ độ của bệnh nhân (phục vụ tính khoảng cách tới phòng khám)
+    private Double longitude; // Kinh độ của bệnh nhân (phục vụ tính khoảng cách tới phòng khám)
     
     @Column(length = 1000)
-    private String allergies;
+    private String allergies; // Thông tin về dị ứng (dị ứng thuốc, dị ứng thức ăn, thời tiết...)
     
     @Column(length = 1000)
-    private String chronicConditions;
+    private String chronicConditions; // Bệnh mãn tính (ví dụ: Tiểu đường, Cao huyết áp...)
     
     @Column(length = 1000)
-    private String currentMedications;
+    private String currentMedications; // Các loại thuốc đang sử dụng hiện tại
     
-    private Double heightCm;
-    private Double weightKg;
+    private Double heightCm; // Chiều cao (đơn vị: cm)
+    private Double weightKg; // Cân nặng (đơn vị: kg)
 
     // --- Relationships ---
     @OneToMany(mappedBy = "patient")

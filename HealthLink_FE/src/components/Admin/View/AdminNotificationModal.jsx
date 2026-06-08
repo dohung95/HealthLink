@@ -12,7 +12,7 @@ const AdminNotificationModal = ({ isOpen, onClose }) => {
     const API_URL = 'https://localhost:7267/api/admin/notifications';
 
     const getAuthHeader = () => {
-        const token = localStorage.getItem('token');
+        const token = localStorage.getItem('token') || sessionStorage.getItem('token');
         return token ? { Authorization: `Bearer ${token}` } : {};
     };
 

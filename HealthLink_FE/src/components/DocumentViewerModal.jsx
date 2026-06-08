@@ -240,7 +240,7 @@ const DocumentViewerModal = ({
               <button
                 className="dv-btn dv-btn--download"
                 onClick={() => {
-                  const token = localStorage.getItem('token');
+                  const token = localStorage.getItem('token') || sessionStorage.getItem('token');
                   const dlUrl = `${apiBaseUrl}/api/HealthRecord/document/${doc.documentId}?token=${encodeURIComponent(token || '')}`;
                   const link = window.document.createElement('a');
                   link.href = dlUrl;
