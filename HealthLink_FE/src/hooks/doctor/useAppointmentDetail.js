@@ -1,4 +1,4 @@
-import { useCallback, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import { toast } from 'react-toastify';
 import { useAuth } from '@context/AuthContext';
 import { useChat } from '@context/ChatContext';
@@ -37,8 +37,28 @@ export function useAppointmentDetail({ appointment, patient, doctorId: currentDo
   const [completingAppointment, setCompletingAppointment] = useState(false);
   const [prescriptionDraft, setPrescriptionDraft] = useState(null);
   const [copyPrescription, setCopyPrescription] = useState(true);
+  const [nowTick, setNowTick] = useState(Date.now());
 
   const appointmentData = useAppointmentData(appointmentId, patientId, doctorId);
+
+  useEffect(() => {
+    const appointmentTime = appointment?.appointmentTime
+      ? new Date(appointment.appointmentTime).getTime()
+      : null;
+    if (!appointmentTime || appointmentTime <= Date.now()) return;
+
+    const msUntilArrival = appointmentTime - Date.now();
+    if (msUntilArrival <= 0) {
+      setNowTick(Date.now());
+      return;
+    }
+
+    const timer = setTimeout(() => {
+      setNowTick(Date.now());
+    }, msUntilArrival + 100);
+
+    return () => clearTimeout(timer);
+  }, [appointment?.appointmentTime]);
   const vitals = useVitalSigns(appointmentId);
   const notes = useConsultationNotes(appointmentId, appointment, appointmentData.appointmentDetail);
 
@@ -85,7 +105,7 @@ export function useAppointmentDetail({ appointment, patient, doctorId: currentDo
       (item) => normalizeStatus(item.status) === 'completed',
     ) || [];
     const appointmentTime = currentAppointment?.appointmentTime ? new Date(currentAppointment.appointmentTime) : null;
-    const hasAppointmentTimeArrived = appointmentTime ? appointmentTime <= new Date() : false;
+    const hasAppointmentTimeArrived = appointmentTime ? appointmentTime <= new Date(nowTick) : false;
     const hasStarted = Boolean(consultation.startTime || currentAppointment?.consultationStartTime);
     const isScheduledAppointment = statusKey === 'scheduled';
     const isInConsultationAppointment = statusKey === 'inconsultation' || statusKey === 'inprogress';
@@ -122,7 +142,7 @@ export function useAppointmentDetail({ appointment, patient, doctorId: currentDo
       canStartConsultation, canEditClinical, canEditPrescription, canEditFollowUp,
       joinDisabled, prescriptionLockReason, actionLabel, visitReason,
     };
-  }, [currentAppointment, patient, appointmentData.medicalHistory, appointmentData.appointmentDetail, consultation, startingConsultation]);
+  }, [currentAppointment, patient, appointmentData.medicalHistory, appointmentData.appointmentDetail, consultation, startingConsultation, nowTick]);
 
   const handleStartConsultation = useCallback(async () => {
     if (!appointmentId || startingConsultation) return;
@@ -207,8 +227,10 @@ export function useAppointmentDetail({ appointment, patient, doctorId: currentDo
       const followUpAppointmentId = completionResult?.followUpAppointment?.appointmentId ||
         completionResult?.followUpAppointment?.appointmentID || null;
 
-      if (completionResult?.createdFollowUp && followUpAppointmentId) {
-        toast.success('Appointment completed and follow-up scheduled');
+      if (followUpAppointmentId) {
+        toast.success(completionResult?.createdFollowUp
+          ? 'Appointment completed and follow-up scheduled'
+          : 'Appointment completed. Follow-up appointment is scheduled.');
         if (typeof onOpenAppointmentById === 'function') {
           await onOpenAppointmentById(followUpAppointmentId);
           return;
@@ -244,6 +266,21 @@ export function useAppointmentDetail({ appointment, patient, doctorId: currentDo
     ),
   [currentAppointment?.appointmentId, hasPendingFollowUp, consultation.followUpAppointmentId, rendered.canEditFollowUp]);
 
+  const getLockedActionMessage = useCallback(() => {
+    if (!rendered.hasAppointmentTimeArrived) return 'Appointment time has not arrived yet.';
+    if (!rendered.hasStarted) return 'Please start the consultation first.';
+    return null;
+  }, [rendered.hasAppointmentTimeArrived, rendered.hasStarted]);
+
+  const showLockedActionToast = useCallback(() => {
+    const message = getLockedActionMessage();
+    if (message) {
+      toast.info(message);
+      return true;
+    }
+    return false;
+  }, [getLockedActionMessage]);
+
   return {
     appointment,
     patient,
@@ -276,5 +313,8 @@ export function useAppointmentDetail({ appointment, patient, doctorId: currentDo
     handleCompleteAppointment,
     handleChat: chatVideo.handleChat,
     handleVideoCall: chatVideo.handleVideoCall,
+    getLockedActionMessage,
+    showLockedActionToast,
+    onLockedAction: showLockedActionToast,
   };
 }

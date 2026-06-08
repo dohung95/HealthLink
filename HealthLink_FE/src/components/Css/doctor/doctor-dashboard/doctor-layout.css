@@ -408,6 +408,33 @@
   font-size: 0.6875rem;
 }
 
+.notification-item--unread {
+  cursor: pointer;
+}
+.notification-item--unread:hover {
+  background: var(--primary-light) !important;
+}
+.notification-item--read {
+  opacity: 0.85;
+}
+.notification-item--read:hover {
+  background: var(--surface-hover);
+}
+.notification-unread-dot {
+  display: inline-block;
+  width: 0.5rem;
+  height: 0.5rem;
+  border-radius: 50%;
+  background: var(--doctor-primary, #0052cc);
+  flex-shrink: 0;
+}
+.notification-new-badge {
+  font-size: 0.625rem;
+  font-weight: 600;
+  line-height: 1;
+  padding: 0.2em 0.5em;
+}
+
 @keyframes bellPulse {
   0%, 100% { opacity: 1; }
   50% { opacity: 0.6; }

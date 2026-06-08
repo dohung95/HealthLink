@@ -39,27 +39,18 @@ public class ConsultationServiceImpl implements ConsultationService {
                 .orElseThrow(() -> new ResourceNotFoundException(
                         "Consultation", "id", consultationId));
 
-        if (consultation.getFollowUpAppointmentId() != null) {
-            throw new BadRequestException("Follow-up appointment has already been created");
+        Appointment appointment = consultation.getAppointment();
+        if (appointment == null) {
+            throw new BadRequestException("Consultation has no associated appointment");
         }
 
         if (request.getFollowUpDate() == null) {
-            consultation.setFollowUpDate(null);
-            consultation.setFollowUpNotes(null);
-
-            Consultation saved = consultationRepository.save(consultation);
-            return toResponse(saved);
+            followUpAppointmentService.cancelPendingFollowUp(appointment);
+            return toResponse(consultationRepository.findById(consultationId)
+                    .orElse(consultation));
         }
 
-        followUpAppointmentService.validateFollowUpSlot(
-                consultation.getAppointment(),
-                request.getFollowUpDate());
-
-        consultation.setFollowUpDate(request.getFollowUpDate());
-        consultation.setFollowUpNotes(request.getFollowUpNotes());
-
-        Consultation saved = consultationRepository.save(consultation);
-        return toResponse(saved);
+        return followUpAppointmentService.scheduleFollowUpAppointment(appointment, request);
     }
 
     @Override
@@ -69,55 +60,24 @@ public class ConsultationServiceImpl implements ConsultationService {
                 .orElseThrow(() -> new ResourceNotFoundException(
                         "Appointment", "id", appointmentId));
 
-        Consultation consultation = appointment.getConsultation();
-        if (consultation == null) {
-            consultation = consultationRepository.findByAppointment_AppointmentId(appointmentId)
-                    .orElse(null);
-        }
-
         if ("COMPLETED".equalsIgnoreCase(appointment.getStatus())) {
+            Consultation consultation = appointment.getConsultation();
+            if (consultation == null) {
+                consultation = consultationRepository.findByAppointment_AppointmentId(appointmentId)
+                        .orElse(null);
+            }
+            if (consultation != null && consultation.getFollowUpAppointmentId() != null) {
+                throw new BadRequestException("Completed appointments cannot update follow-up. The follow-up appointment is active.");
+            }
             throw new BadRequestException("Completed appointments cannot update follow-up");
         }
 
-        if (consultation != null && consultation.getFollowUpAppointmentId() != null) {
-            throw new BadRequestException("Follow-up appointment has already been created");
-        }
-
         if (request.getFollowUpDate() == null) {
-            if (consultation == null) {
-                return toResponseForAppointment(appointment);
-            }
-
-            consultation.setFollowUpDate(null);
-            consultation.setFollowUpNotes(null);
-            Consultation saved = consultationRepository.save(consultation);
-            appointment.setConsultation(saved);
-            return toResponse(saved);
+            followUpAppointmentService.cancelPendingFollowUp(appointment);
+            return buildEmptyFollowUpResponse(appointmentId);
         }
 
-        followUpAppointmentService.validateFollowUpSlot(
-                appointment,
-                request.getFollowUpDate());
-
-        if (consultation == null) {
-            consultation = Consultation.builder()
-                    .appointment(appointment)
-                    .consultationType(
-                            request.getConsultationType() != null
-                                    ? request.getConsultationType()
-                                    : appointment.getConsultationType())
-                    .symptoms(appointment.getSymptoms())
-                    .build();
-        } else if (request.getConsultationType() != null) {
-            consultation.setConsultationType(request.getConsultationType());
-        }
-
-        consultation.setFollowUpDate(request.getFollowUpDate());
-        consultation.setFollowUpNotes(request.getFollowUpNotes());
-
-        Consultation saved = consultationRepository.save(consultation);
-        appointment.setConsultation(saved);
-        return toResponse(saved);
+        return followUpAppointmentService.scheduleFollowUpAppointment(appointment, request);
     }
 
     @Override
@@ -211,9 +171,9 @@ public class ConsultationServiceImpl implements ConsultationService {
                 .build();
     }
 
-    private FollowUpResponse toResponseForAppointment(Appointment appointment) {
+    private FollowUpResponse buildEmptyFollowUpResponse(Integer appointmentId) {
         return FollowUpResponse.builder()
-                .appointmentId(appointment.getAppointmentId())
+                .appointmentId(appointmentId)
                 .build();
     }
 

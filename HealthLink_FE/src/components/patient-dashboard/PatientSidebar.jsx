@@ -63,6 +63,11 @@ const PatientSidebar = () => {
             path: '/patient-dashboard/prescriptions',
         },
         {
+            label: 'Pharmacy',
+            icon: 'bi bi-shop',
+            path: '/patient-dashboard/pharmacy',
+        },
+        {
             label: 'Profile',
             icon: 'bi bi-person-circle',
             path: '/patient-dashboard/profile',

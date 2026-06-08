@@ -62,9 +62,10 @@ const DoctorLayout = memo(({
       ) : (
         notifications.map((notification) => {
           const tone = getNotificationTone(notification);
+          const isUnread = !notification.isRead;
           return (
             <article
-              className={`notification-item notification-tone--${tone.tone} d-flex gap-3 p-3 ${!notification.isRead ? 'notification-item-unread' : ''}`}
+              className={`notification-item ${isUnread ? 'bg-primary-subtle border-start border-4 border-primary notification-item--unread shadow-sm' : 'notification-item--read'} notification-tone--${tone.tone} d-flex gap-3 p-3`}
               key={notification.notificationId}
             >
               <div className="notification-icon">
@@ -75,7 +76,10 @@ const DoctorLayout = memo(({
                   <p className="notification-title mb-0 small fw-semibold">
                     {notification.title || tone.title}
                   </p>
-                  {!notification.isRead ? <span className="d-inline-block rounded-circle flex-shrink-0" style={{ width: '0.5rem', height: '0.5rem', marginTop: '0.375rem', background: 'var(--doctor-primary)' }} /> : null}
+                  <div className="d-flex align-items-center gap-2 flex-shrink-0">
+                    {isUnread ? <span className="badge rounded-pill text-bg-primary notification-new-badge">New</span> : null}
+                    {isUnread ? <span className="notification-unread-dot" /> : null}
+                  </div>
                 </div>
                 <p className="mb-0 text-secondary notification-text-xs" style={{ whiteSpace: 'pre-line' }}>{notification.message}</p>
                 <div className="d-flex align-items-center justify-content-between gap-3 pt-1">

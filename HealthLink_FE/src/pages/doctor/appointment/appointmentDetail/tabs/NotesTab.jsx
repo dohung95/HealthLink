@@ -5,11 +5,11 @@ const ConsultationNotesTab = ({
   loadingAppointment,
   visitReason,
   canEditClinical,
-  isReadOnlyAppointment,
   savingNotes,
   notesDraft,
   onNotesChange,
   onSaveNotes,
+  onLockedAction,
 }) => {
   if (loadingAppointment) {
     return (
@@ -35,21 +35,14 @@ const ConsultationNotesTab = ({
         </div>
       </div>
 
-      {!canEditClinical && !isReadOnlyAppointment ? (
-        <div className="doctor-detail-note-card doctor-notes-lock">
-          <p className="doctor-detail-note-card__label">Locked</p>
-          <p className="doctor-detail-note-card__value">
-            Start the consultation when the appointment time arrives to record diagnosis, notes, and treatment plan.
-          </p>
-        </div>
-      ) : null}
-
       <div className="doctor-notes-grid">
         <label className="doctor-notes-field">
           <span>Diagnosis</span>
           <textarea
             className="form-control doctor-prescription-input doctor-prescription-input--textarea"
-            disabled={!canEditClinical || savingNotes}
+            readOnly={!canEditClinical || savingNotes}
+            onFocus={() => { if (!canEditClinical && typeof onLockedAction === 'function') onLockedAction(); }}
+            onClick={() => { if (!canEditClinical && typeof onLockedAction === 'function') onLockedAction(); }}
             onChange={(event) => onNotesChange('diagnosis', event.target.value)}
             placeholder="Enter the primary diagnosis..."
             rows="2"
@@ -61,7 +54,9 @@ const ConsultationNotesTab = ({
           <span>Doctor Notes</span>
           <textarea
             className="form-control doctor-prescription-input doctor-prescription-input--textarea"
-            disabled={!canEditClinical || savingNotes}
+            readOnly={!canEditClinical || savingNotes}
+            onFocus={() => { if (!canEditClinical && typeof onLockedAction === 'function') onLockedAction(); }}
+            onClick={() => { if (!canEditClinical && typeof onLockedAction === 'function') onLockedAction(); }}
             onChange={(event) => onNotesChange('doctorNotes', event.target.value)}
             placeholder="Record observations, assessment, and consultation notes..."
             rows="3"
@@ -73,7 +68,9 @@ const ConsultationNotesTab = ({
           <span>Treatment Plan</span>
           <textarea
             className="form-control doctor-prescription-input doctor-prescription-input--textarea"
-            disabled={!canEditClinical || savingNotes}
+            readOnly={!canEditClinical || savingNotes}
+            onFocus={() => { if (!canEditClinical && typeof onLockedAction === 'function') onLockedAction(); }}
+            onClick={() => { if (!canEditClinical && typeof onLockedAction === 'function') onLockedAction(); }}
             onChange={(event) => onNotesChange('treatmentPlan', event.target.value)}
             placeholder="Outline treatment plan, lifestyle guidance, and next steps..."
             rows="3"
@@ -84,9 +81,15 @@ const ConsultationNotesTab = ({
 
       <div className="doctor-notes-actions">
         <button
-          className="btn btn-primary"
-          disabled={!canEditClinical || savingNotes}
-          onClick={onSaveNotes}
+          className={`btn btn-primary ${!canEditClinical || savingNotes ? 'disabled' : ''}`}
+          aria-disabled={!canEditClinical || savingNotes}
+          onClick={() => {
+            if (!canEditClinical) {
+              if (typeof onLockedAction === 'function') onLockedAction();
+              return;
+            }
+            onSaveNotes();
+          }}
           type="button"
         >
           <i className="bi bi-save me-2"></i>

@@ -32,4 +32,7 @@ public class AppointmentResponse {
     private String cancelledBy;
     private LocalDateTime confirmedAt;
     private String specialtyName;
+    private LocalDateTime followUpDate;
+    private Integer followUpAppointmentId;
+    private String followUpNotes;
 }

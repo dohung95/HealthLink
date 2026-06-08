@@ -17,6 +17,7 @@ import { NAV_ITEMS, normalizeAppointmentDetail } from '@layouts/navigationConfig
 export function DoctorAppointmentDetailRoute() {
   const { appointmentId } = useParams();
   const navigate = useNavigate();
+  const location = useLocation();
   const { doctorId } = useOutletContext();
   const [appointment, setAppointment] = useState(null);
   const [patient, setPatient] = useState(null);
@@ -43,7 +44,7 @@ export function DoctorAppointmentDetailRoute() {
     };
     if (appointmentId) load();
     return () => { mounted = false; };
-  }, [appointmentId]);
+  }, [appointmentId, location.state?.notificationOpenedAt]);
 
   if (loading) {
     return <DoctorSkeletonPage />;
@@ -121,19 +122,28 @@ const DoctorDashboardPage = () => {
     return /\/doctor\/(appointments|patients)\/[\w-]+/.test(location.pathname);
   }, [location.pathname]);
 
+  const resolveAppointmentId = (notification) => {
+    const id = notification.appointmentId ?? notification.appointmentID ?? notification.relatedId;
+    if (id) return id;
+    const match = (notification.actionUrl || '').match(/\/appointments\/(\d+)/);
+    return match ? match[1] : null;
+  };
+
   const handleNavigateToAppointment = useCallback(async (notification) => {
     try {
       if (notification.type === 'WALLET_BALANCE_CHANGED' || notification.actionUrl === '/profile-doctor?tab=wallet') {
         navigate('/doctor/profile?tab=wallet');
         return;
       }
-      // Navigate to reviews tab when receiving NEW_REVIEW notification
       if (notification.type === 'NEW_REVIEW') {
         navigate('/doctor/reviews');
         return;
       }
-      if (notification.appointmentId) {
-        navigate(`/doctor/appointments/${notification.appointmentId}`);
+      const appointmentId = resolveAppointmentId(notification);
+      if (appointmentId) {
+        navigate(`/doctor/appointments/${appointmentId}`, {
+          state: { notificationOpenedAt: Date.now() },
+        });
       }
     } catch (err) {
       console.error('Error navigating notification:', err);

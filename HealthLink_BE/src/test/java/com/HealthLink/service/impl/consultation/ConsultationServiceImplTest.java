@@ -14,7 +14,6 @@ import com.HealthLink.repository.payment.InvoiceRepository;
 import com.HealthLink.service.followup.FollowUpAppointmentService;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
-import org.mockito.ArgumentCaptor;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
@@ -201,20 +200,24 @@ class ConsultationServiceImplTest {
 
     @Test
     void updateFollowUpByAppointment_shouldCreateConsultationWhenMissing() {
-        LocalDateTime followUpDate = LocalDateTime.now().plusDays(2).withMinute(0).withSecond(0).withNano(0);
+        LocalDateTime followUpDate = LocalDateTime.now().plusDays(2);
         Appointment appointment = appointment(10, "SCHEDULED");
         appointment.setSymptoms("Headache");
         FollowUpRequest request = new FollowUpRequest();
         request.setFollowUpDate(followUpDate);
         request.setFollowUpNotes("Return after labs");
+        request.setConsultationType("Video");
+
+        FollowUpResponse expected = FollowUpResponse.builder()
+                .consultationId(20)
+                .appointmentId(10)
+                .followUpDate(followUpDate)
+                .followUpNotes("Return after labs")
+                .build();
 
         when(appointmentRepository.findById(10)).thenReturn(Optional.of(appointment));
-        when(consultationRepository.findByAppointment_AppointmentId(10)).thenReturn(Optional.empty());
-        when(consultationRepository.save(any(Consultation.class))).thenAnswer(invocation -> {
-            Consultation saved = invocation.getArgument(0);
-            saved.setConsultationId(20);
-            return saved;
-        });
+        when(followUpAppointmentService.scheduleFollowUpAppointment(appointment, request))
+                .thenReturn(expected);
 
         FollowUpResponse response = consultationService.updateFollowUpByAppointment(10, request);
 
@@ -222,20 +225,12 @@ class ConsultationServiceImplTest {
         assertThat(response.getAppointmentId()).isEqualTo(10);
         assertThat(response.getFollowUpDate()).isEqualTo(followUpDate);
         assertThat(response.getFollowUpNotes()).isEqualTo("Return after labs");
-        assertThat(appointment.getConsultation()).isNotNull();
-
-        ArgumentCaptor<Consultation> consultationCaptor = ArgumentCaptor.forClass(Consultation.class);
-        verify(consultationRepository).save(consultationCaptor.capture());
-        Consultation savedConsultation = consultationCaptor.getValue();
-        assertThat(savedConsultation.getAppointment()).isEqualTo(appointment);
-        assertThat(savedConsultation.getConsultationType()).isEqualTo("Video");
-        assertThat(savedConsultation.getSymptoms()).isEqualTo("Headache");
-        verify(followUpAppointmentService).validateFollowUpSlot(appointment, followUpDate);
+        verify(followUpAppointmentService).scheduleFollowUpAppointment(appointment, request);
     }
 
     @Test
     void updateFollowUpByAppointment_shouldUpdateExistingConsultation() {
-        LocalDateTime followUpDate = LocalDateTime.now().plusDays(3).withMinute(0).withSecond(0).withNano(0);
+        LocalDateTime followUpDate = LocalDateTime.now().plusDays(3);
         Appointment appointment = appointment(10, "SCHEDULED");
         Consultation consultation = Consultation.builder()
                 .consultationId(20)
@@ -248,17 +243,21 @@ class ConsultationServiceImplTest {
         request.setFollowUpDate(followUpDate);
         request.setFollowUpNotes("Updated note");
 
+        FollowUpResponse expected = FollowUpResponse.builder()
+                .consultationId(20)
+                .followUpDate(followUpDate)
+                .followUpNotes("Updated note")
+                .build();
+
         when(appointmentRepository.findById(10)).thenReturn(Optional.of(appointment));
-        when(consultationRepository.save(any(Consultation.class))).thenAnswer(invocation -> invocation.getArgument(0));
+        when(followUpAppointmentService.scheduleFollowUpAppointment(appointment, request))
+                .thenReturn(expected);
 
         FollowUpResponse response = consultationService.updateFollowUpByAppointment(10, request);
 
-        assertThat(response.getConsultationId()).isEqualTo(20);
         assertThat(response.getFollowUpDate()).isEqualTo(followUpDate);
         assertThat(response.getFollowUpNotes()).isEqualTo("Updated note");
-        assertThat(consultation.getFollowUpDate()).isEqualTo(followUpDate);
-        assertThat(consultation.getFollowUpNotes()).isEqualTo("Updated note");
-        verify(followUpAppointmentService).validateFollowUpSlot(appointment, followUpDate);
+        verify(followUpAppointmentService).scheduleFollowUpAppointment(appointment, request);
     }
 
     @Test
@@ -275,15 +274,11 @@ class ConsultationServiceImplTest {
         request.setFollowUpDate(null);
 
         when(appointmentRepository.findById(10)).thenReturn(Optional.of(appointment));
-        when(consultationRepository.save(any(Consultation.class))).thenAnswer(invocation -> invocation.getArgument(0));
 
         FollowUpResponse response = consultationService.updateFollowUpByAppointment(10, request);
 
-        assertThat(response.getFollowUpDate()).isNull();
-        assertThat(response.getFollowUpNotes()).isNull();
-        assertThat(consultation.getFollowUpDate()).isNull();
-        assertThat(consultation.getFollowUpNotes()).isNull();
-        verify(followUpAppointmentService, never()).validateFollowUpSlot(any(), any());
+        assertThat(response.getAppointmentId()).isEqualTo(10);
+        verify(followUpAppointmentService).cancelPendingFollowUp(appointment);
     }
 
     @Test
@@ -293,22 +288,18 @@ class ConsultationServiceImplTest {
         request.setFollowUpDate(null);
 
         when(appointmentRepository.findById(10)).thenReturn(Optional.of(appointment));
-        when(consultationRepository.findByAppointment_AppointmentId(10)).thenReturn(Optional.empty());
 
         FollowUpResponse response = consultationService.updateFollowUpByAppointment(10, request);
 
         assertThat(response.getAppointmentId()).isEqualTo(10);
-        assertThat(response.getConsultationId()).isNull();
-        assertThat(response.getFollowUpDate()).isNull();
-        verify(consultationRepository, never()).save(any(Consultation.class));
-        verify(followUpAppointmentService, never()).validateFollowUpSlot(any(), any());
+        verify(followUpAppointmentService).cancelPendingFollowUp(appointment);
     }
 
     @Test
     void updateFollowUpByAppointment_shouldRejectCompletedAppointment() {
         Appointment appointment = appointment(10, "COMPLETED");
         FollowUpRequest request = new FollowUpRequest();
-        request.setFollowUpDate(LocalDateTime.now().plusDays(2).withMinute(0).withSecond(0).withNano(0));
+        request.setFollowUpDate(LocalDateTime.now().plusDays(2));
 
         when(appointmentRepository.findById(10)).thenReturn(Optional.of(appointment));
         when(consultationRepository.findByAppointment_AppointmentId(10)).thenReturn(Optional.empty());
@@ -316,11 +307,11 @@ class ConsultationServiceImplTest {
         assertThatThrownBy(() -> consultationService.updateFollowUpByAppointment(10, request))
                 .isInstanceOf(BadRequestException.class)
                 .hasMessage("Completed appointments cannot update follow-up");
-        verify(consultationRepository, never()).save(any(Consultation.class));
+        verify(followUpAppointmentService, never()).scheduleFollowUpAppointment(any(), any());
     }
 
     @Test
-    void updateFollowUpByAppointment_shouldRejectWhenFollowUpAppointmentAlreadyExists() {
+    void updateFollowUpByAppointment_shouldCancelWhenFollowUpAppointmentAlreadyExists() {
         Appointment appointment = appointment(10, "SCHEDULED");
         Consultation consultation = Consultation.builder()
                 .consultationId(20)
@@ -333,38 +324,34 @@ class ConsultationServiceImplTest {
 
         when(appointmentRepository.findById(10)).thenReturn(Optional.of(appointment));
 
-        assertThatThrownBy(() -> consultationService.updateFollowUpByAppointment(10, request))
-                .isInstanceOf(BadRequestException.class)
-                .hasMessage("Follow-up appointment has already been created");
-        verify(consultationRepository, never()).save(any(Consultation.class));
+        FollowUpResponse response = consultationService.updateFollowUpByAppointment(10, request);
+
+        assertThat(response.getAppointmentId()).isEqualTo(10);
+        verify(followUpAppointmentService).cancelPendingFollowUp(appointment);
     }
 
     @Test
     void updateFollowUp_shouldClearPendingFollowUpWhenDateIsNull() {
+        Appointment appointment = Appointment.builder().appointmentId(10).build();
         Consultation consultation = Consultation.builder()
                 .consultationId(20)
-                .appointment(Appointment.builder().appointmentId(10).build())
+                .appointment(appointment)
                 .followUpDate(LocalDateTime.now().plusDays(2))
                 .followUpNotes("Bring lab results")
                 .build();
         FollowUpRequest request = new FollowUpRequest();
         request.setFollowUpDate(null);
-        request.setFollowUpNotes("ignored");
 
         when(consultationRepository.findById(20)).thenReturn(Optional.of(consultation));
-        when(consultationRepository.save(any(Consultation.class))).thenAnswer(invocation -> invocation.getArgument(0));
 
         FollowUpResponse response = consultationService.updateFollowUp(20, request);
 
-        assertThat(response.getFollowUpDate()).isNull();
-        assertThat(response.getFollowUpNotes()).isNull();
-        assertThat(consultation.getFollowUpDate()).isNull();
-        assertThat(consultation.getFollowUpNotes()).isNull();
-        verify(followUpAppointmentService, never()).validateFollowUpSlot(any(), any());
+        assertThat(response).isNotNull();
+        verify(followUpAppointmentService).cancelPendingFollowUp(appointment);
     }
 
     @Test
-    void updateFollowUp_shouldRejectChangesAfterFollowUpAppointmentHasBeenCreated() {
+    void updateFollowUp_shouldRejectWhenAppointmentIsMissing() {
         Consultation consultation = Consultation.builder()
                 .consultationId(20)
                 .followUpAppointmentId(99)
@@ -377,8 +364,8 @@ class ConsultationServiceImplTest {
 
         assertThatThrownBy(() -> consultationService.updateFollowUp(20, request))
                 .isInstanceOf(BadRequestException.class)
-                .hasMessage("Follow-up appointment has already been created");
-        verify(consultationRepository, never()).save(any(Consultation.class));
+                .hasMessage("Consultation has no associated appointment");
+        verify(followUpAppointmentService, never()).cancelPendingFollowUp(any());
     }
 
     private Appointment appointment(Integer appointmentId, String status) {

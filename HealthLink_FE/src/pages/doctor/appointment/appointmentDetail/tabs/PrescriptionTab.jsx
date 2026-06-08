@@ -653,7 +653,7 @@ const PrescriptionTab = ({
   onDraftChange,
   readOnly = false,
   canEditPrescription = !readOnly,
-  prescriptionLockReason = 'Start the consultation when the appointment time arrives to create a prescription.',
+  onLockedAction,
 }) => {
   const workspaceAppointmentId = appointment?.appointmentID ?? appointment?.appointmentId ?? 'new';
   const isWorkspaceReadOnly = readOnly || !canEditPrescription;
@@ -892,6 +892,7 @@ const PrescriptionTab = ({
 
   const openMedicineLibrary = () => {
     if (isWorkspaceReadOnly) {
+      if (typeof onLockedAction === 'function') onLockedAction();
       return;
     }
 
@@ -907,6 +908,7 @@ const PrescriptionTab = ({
 
   const handleSelectMedicine = (medicine) => {
     if (isWorkspaceReadOnly) {
+      if (typeof onLockedAction === 'function') onLockedAction();
       return;
     }
 
@@ -951,6 +953,7 @@ const PrescriptionTab = ({
 
   const handleRemoveRow = (rowId) => {
     if (isWorkspaceReadOnly) {
+      if (typeof onLockedAction === 'function') onLockedAction();
       return;
     }
 
@@ -961,6 +964,7 @@ const PrescriptionTab = ({
 
   const handleRowChange = (rowId, field, value) => {
     if (isWorkspaceReadOnly) {
+      if (typeof onLockedAction === 'function') onLockedAction();
       return;
     }
 
@@ -978,6 +982,7 @@ const PrescriptionTab = ({
 
   const handleRowTimingToggle = (rowId, timingValue) => {
     if (isWorkspaceReadOnly) {
+      if (typeof onLockedAction === 'function') onLockedAction();
       return;
     }
 
@@ -1069,21 +1074,14 @@ const PrescriptionTab = ({
           <textarea
             className="form-control doctor-prescription-textarea"
             readOnly={isWorkspaceReadOnly}
+            onFocus={() => { if (isWorkspaceReadOnly && typeof onLockedAction === 'function') onLockedAction(); }}
+            onClick={() => { if (isWorkspaceReadOnly && typeof onLockedAction === 'function') onLockedAction(); }}
             rows="4"
             placeholder="Enter primary diagnosis and relevant context for this prescription..."
             value={diagnosis}
             onChange={(event) => setDiagnosis(event.target.value)}
           />
         </div>
-
-        {isWorkspaceReadOnly ? (
-          <div className="doctor-detail-note-card doctor-notes-lock">
-            <p className="doctor-detail-note-card__label">Locked</p>
-            <p className="doctor-detail-note-card__value">
-              {prescriptionLockReason}
-            </p>
-          </div>
-        ) : null}
 
         <div className="doctor-prescription-table-card">
           <div className="doctor-prescription-table-card__header">
@@ -1201,12 +1199,15 @@ const PrescriptionTab = ({
                   ? 'No draft medication is available for this appointment yet.'
                   : 'Open the medicine library to choose a medication before filling in dosage details.'}
               </p>
-              {!isWorkspaceReadOnly ? (
-                <button className="btn btn-primary" onClick={openMedicineLibrary} type="button">
-                  <i className="bi bi-search me-2"></i>
-                  Open Medicine Library
-                </button>
-              ) : null}
+              <button
+                className={`btn btn-primary ${isWorkspaceReadOnly ? 'disabled' : ''}`}
+                aria-disabled={isWorkspaceReadOnly}
+                onClick={openMedicineLibrary}
+                type="button"
+              >
+                <i className="bi bi-search me-2"></i>
+                Open Medicine Library
+              </button>
             </div>
           )}
         </div>

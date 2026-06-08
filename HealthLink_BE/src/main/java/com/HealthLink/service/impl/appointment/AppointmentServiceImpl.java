@@ -870,6 +870,9 @@ public class AppointmentServiceImpl implements AppointmentService {
                 .cancelledBy(appointment.getCancelledBy())
                 .confirmedAt(appointment.getConfirmedAt())
                 .specialtyName(resolveSpecialtyName(appointment.getDoctor()))
+                .followUpDate(consultation != null ? consultation.getFollowUpDate() : null)
+                .followUpAppointmentId(consultation != null ? consultation.getFollowUpAppointmentId() : null)
+                .followUpNotes(consultation != null ? consultation.getFollowUpNotes() : null)
                 .build();
     }
 

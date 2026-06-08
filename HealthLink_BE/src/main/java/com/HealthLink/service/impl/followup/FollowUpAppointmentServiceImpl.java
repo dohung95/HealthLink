@@ -1,5 +1,7 @@
 package com.HealthLink.service.impl.followup;
 
+import com.HealthLink.dto.consultation.FollowUpRequest;
+import com.HealthLink.dto.consultation.FollowUpResponse;
 import com.HealthLink.dto.response.AppointmentResponse;
 import com.HealthLink.dto.response.CompleteAppointmentResponse;
 import com.HealthLink.dto.response.FollowUpCalendarDayResponse;
@@ -122,7 +124,13 @@ public class FollowUpAppointmentServiceImpl implements FollowUpAppointmentServic
         if (appointment == null || appointment.getDoctor() == null) {
             throw new BadRequestException("Consultation appointment is required");
         }
-        validateFollowUpDateTime(followUpDate);
+
+        if (followUpDate == null) {
+            throw new BadRequestException("Follow-up date is required");
+        }
+        if (!followUpDate.isAfter(LocalDateTime.now())) {
+            throw new BadRequestException("Follow-up date must be in the future");
+        }
 
         String doctorId = appointment.getDoctor().getDoctorId();
         List<FollowUpSlotResponse> slots = generateFollowUpSlotsForDay(
@@ -140,6 +148,162 @@ public class FollowUpAppointmentServiceImpl implements FollowUpAppointmentServic
                     .orElse("Slot is outside doctor's working hours");
             throw new BadRequestException("The selected follow-up slot is not available. " + detail);
         }
+    }
+
+    @Override
+    @Transactional
+    public FollowUpResponse scheduleFollowUpAppointment(Appointment sourceAppointment, FollowUpRequest request) {
+        if (sourceAppointment == null) {
+            throw new BadRequestException("Source appointment is required");
+        }
+        if ("COMPLETED".equalsIgnoreCase(sourceAppointment.getStatus())) {
+            throw new BadRequestException("Completed appointment cannot schedule follow-up");
+        }
+        if ("CANCELLED".equalsIgnoreCase(sourceAppointment.getStatus())) {
+            throw new BadRequestException("Cancelled appointment cannot schedule follow-up");
+        }
+
+        LocalDateTime followUpDate = request.getFollowUpDate();
+        if (followUpDate == null) {
+            throw new BadRequestException("Follow-up date is required to schedule a follow-up appointment");
+        }
+
+        Consultation consultation = sourceAppointment.getConsultation();
+        if (consultation == null) {
+            consultation = consultationRepository.findByAppointment_AppointmentId(
+                    sourceAppointment.getAppointmentId()).orElse(null);
+        }
+
+        if (consultation != null && consultation.getFollowUpAppointmentId() != null) {
+            Appointment existingFollowUp = appointmentRepository
+                    .findById(consultation.getFollowUpAppointmentId()).orElse(null);
+            if (existingFollowUp != null && !"CANCELLED".equalsIgnoreCase(existingFollowUp.getStatus())) {
+                return rescheduleExistingFollowUp(sourceAppointment, consultation, existingFollowUp, request);
+            }
+        }
+
+        validateFollowUpSlot(sourceAppointment, followUpDate);
+
+        if (consultation == null) {
+            consultation = Consultation.builder()
+                    .appointment(sourceAppointment)
+                    .consultationType(
+                            request.getConsultationType() != null
+                                    ? request.getConsultationType()
+                                    : sourceAppointment.getConsultationType())
+                    .symptoms(sourceAppointment.getSymptoms())
+                    .build();
+        } else if (request.getConsultationType() != null) {
+            consultation.setConsultationType(request.getConsultationType());
+        }
+
+        int slotMinutes = resolveFollowUpSlotDuration(
+                sourceAppointment.getDoctor().getDoctorId(), followUpDate);
+
+        Appointment followUpAppointment = Appointment.builder()
+                .patient(sourceAppointment.getPatient())
+                .doctor(sourceAppointment.getDoctor())
+                .appointmentTime(followUpDate)
+                .endTime(followUpDate.plusMinutes(slotMinutes))
+                .consultationType(
+                        request.getConsultationType() != null
+                                ? request.getConsultationType()
+                                : sourceAppointment.getConsultationType())
+                .status("SCHEDULED")
+                .symptoms(sourceAppointment.getSymptoms())
+                .notes(request.getFollowUpNotes() != null ? request.getFollowUpNotes() : sourceAppointment.getNotes())
+                .fee(sourceAppointment.getDoctor() != null
+                        ? sourceAppointment.getDoctor().getConsultationFee()
+                        : sourceAppointment.getFee())
+                .followUpSourceAppointmentId(sourceAppointment.getAppointmentId())
+                .build();
+
+        Appointment savedFollowUp = appointmentRepository.save(followUpAppointment);
+
+        consultation.setFollowUpDate(followUpDate);
+        consultation.setFollowUpNotes(request.getFollowUpNotes());
+        consultation.setFollowUpAppointmentId(savedFollowUp.getAppointmentId());
+
+        Consultation savedConsultation = consultationRepository.save(consultation);
+        sourceAppointment.setConsultation(savedConsultation);
+
+        return toFollowUpResponse(savedConsultation);
+    }
+
+    private FollowUpResponse rescheduleExistingFollowUp(
+            Appointment sourceAppointment,
+            Consultation consultation,
+            Appointment existingFollowUp,
+            FollowUpRequest request) {
+
+        LocalDateTime newDate = request.getFollowUpDate();
+
+        List<FollowUpSlotResponse> slots = generateFollowUpSlotsForDay(
+                sourceAppointment.getDoctor().getDoctorId(),
+                newDate.toLocalDate(),
+                LocalDateTime.now());
+
+        boolean isAvailable = slots.stream()
+                .anyMatch(slot -> "AVAILABLE".equals(slot.getStatus())
+                        && slot.getStartTime().equals(newDate.format(SLOT_TIME_FORMATTER)));
+
+        if (!isAvailable) {
+            throw new BadRequestException("The selected follow-up slot is not available for rescheduling");
+        }
+
+        int slotMinutes = resolveFollowUpSlotDuration(
+                sourceAppointment.getDoctor().getDoctorId(), newDate);
+
+        existingFollowUp.setAppointmentTime(newDate);
+        existingFollowUp.setEndTime(newDate.plusMinutes(slotMinutes));
+        existingFollowUp.setNotes(request.getFollowUpNotes() != null
+                ? request.getFollowUpNotes() : existingFollowUp.getNotes());
+        if (request.getConsultationType() != null) {
+            existingFollowUp.setConsultationType(request.getConsultationType());
+        }
+        appointmentRepository.save(existingFollowUp);
+
+        consultation.setFollowUpDate(newDate);
+        consultation.setFollowUpNotes(request.getFollowUpNotes());
+        Consultation saved = consultationRepository.save(consultation);
+
+        return toFollowUpResponse(saved);
+    }
+
+    @Override
+    @Transactional
+    public void cancelPendingFollowUp(Appointment sourceAppointment) {
+        if (sourceAppointment == null) {
+            throw new BadRequestException("Source appointment is required");
+        }
+        if ("COMPLETED".equalsIgnoreCase(sourceAppointment.getStatus())) {
+            throw new BadRequestException("Completed appointments cannot cancel follow-up. The follow-up appointment is active.");
+        }
+
+        Consultation consultation = sourceAppointment.getConsultation();
+        if (consultation == null) {
+            consultation = consultationRepository.findByAppointment_AppointmentId(
+                    sourceAppointment.getAppointmentId()).orElse(null);
+            if (consultation == null) {
+                return;
+            }
+        }
+
+        if (consultation.getFollowUpAppointmentId() != null) {
+            Appointment followUp = appointmentRepository
+                    .findById(consultation.getFollowUpAppointmentId()).orElse(null);
+            if (followUp != null && !"CANCELLED".equalsIgnoreCase(followUp.getStatus())) {
+                followUp.setStatus("CANCELLED");
+                followUp.setCancelReason("Follow-up selection cancelled by doctor");
+                followUp.setCancelledAt(LocalDateTime.now());
+                appointmentRepository.save(followUp);
+            }
+        }
+
+        consultation.setFollowUpDate(null);
+        consultation.setFollowUpNotes(null);
+        consultation.setFollowUpAppointmentId(null);
+        consultationRepository.save(consultation);
     }
 
     @Override
@@ -194,19 +358,19 @@ public class FollowUpAppointmentServiceImpl implements FollowUpAppointmentServic
         Integer followUpPrescriptionHeaderId = null;
         boolean createdFollowUp = false;
 
-        if (consultation != null && consultation.getFollowUpDate() != null) {
+        if (consultation != null && consultation.getFollowUpAppointmentId() != null) {
             followUpAppointment = findExistingFollowUpAppointment(consultation);
+        }
 
-            if (followUpAppointment == null) {
-                validateFollowUpSlot(completedAppointment, consultation.getFollowUpDate());
-                followUpAppointment = createFollowUpAppointment(completedAppointment, consultation);
-                consultation.setFollowUpAppointmentId(followUpAppointment.getAppointmentId());
-                consultationRepository.save(consultation);
-                if (copyPrescription) {
-                    followUpPrescriptionHeaderId = copyLatestPrescription(completedAppointment, followUpAppointment);
-                }
-                createdFollowUp = true;
+        if (followUpAppointment == null && consultation != null && consultation.getFollowUpDate() != null) {
+            validateFollowUpSlot(completedAppointment, consultation.getFollowUpDate());
+            followUpAppointment = createFollowUpAppointment(completedAppointment, consultation);
+            consultation.setFollowUpAppointmentId(followUpAppointment.getAppointmentId());
+            consultationRepository.save(consultation);
+            if (copyPrescription) {
+                followUpPrescriptionHeaderId = copyLatestPrescription(completedAppointment, followUpAppointment);
             }
+            createdFollowUp = true;
         }
 
         return CompleteAppointmentResponse.builder()
@@ -221,10 +385,6 @@ public class FollowUpAppointmentServiceImpl implements FollowUpAppointmentServic
     // Slot generation based on doctor's actual schedule
     // =========================================================================
 
-    /**
-     * Generate follow-up slots for a specific day based on the doctor's
-     * weekly schedule and any date-specific exceptions (DayOff, Modified, AddSlot).
-     */
     private List<FollowUpSlotResponse> generateFollowUpSlotsForDay(
             String doctorId, LocalDate date, LocalDateTime now) {
 
@@ -361,18 +521,6 @@ public class FollowUpAppointmentServiceImpl implements FollowUpAppointmentServic
         return availableSlots > 0 ? "AVAILABLE" : "FULL";
     }
 
-    private void validateFollowUpDateTime(LocalDateTime followUpDate) {
-        if (followUpDate == null) {
-            throw new BadRequestException("Follow-up date is required");
-        }
-        if (!followUpDate.isAfter(LocalDateTime.now())) {
-            throw new BadRequestException("Follow-up date must be in the future");
-        }
-        if (followUpDate.getMinute() != 0 || followUpDate.getSecond() != 0 || followUpDate.getNano() != 0) {
-            throw new BadRequestException("Follow-up slot must start on the hour");
-        }
-    }
-
     private Appointment createFollowUpAppointment(Appointment sourceAppointment, Consultation consultation) {
         LocalDateTime followUpDate = consultation.getFollowUpDate();
         int slotMinutes = resolveFollowUpSlotDuration(sourceAppointment.getDoctor().getDoctorId(), followUpDate);
@@ -466,7 +614,23 @@ public class FollowUpAppointmentServiceImpl implements FollowUpAppointmentServic
         return saved.getPrescriptionHeaderId();
     }
 
+    private FollowUpResponse toFollowUpResponse(Consultation c) {
+        return FollowUpResponse.builder()
+                .consultationId(c.getConsultationId())
+                .appointmentId(c.getAppointment() != null
+                        ? c.getAppointment().getAppointmentId() : null)
+                .followUpAppointmentId(c.getFollowUpAppointmentId())
+                .followUpDate(c.getFollowUpDate())
+                .followUpNotes(c.getFollowUpNotes())
+                .diagnosis(c.getDiagnosis())
+                .doctorNotes(c.getDoctorNotes())
+                .treatmentPlan(c.getTreatmentPlan())
+                .consultationType(c.getConsultationType())
+                .build();
+    }
+
     private AppointmentResponse toAppointmentResponse(Appointment appointment) {
+        Consultation consultation = appointment.getConsultation();
         return AppointmentResponse.builder()
                 .appointmentId(appointment.getAppointmentId())
                 .patientId(appointment.getPatient() != null ? appointment.getPatient().getPatientId() : null)
@@ -480,11 +644,16 @@ public class FollowUpAppointmentServiceImpl implements FollowUpAppointmentServic
                 .fee(appointment.getFee())
                 .symptoms(appointment.getSymptoms())
                 .notes(appointment.getNotes())
+                .consultationStartTime(consultation != null ? consultation.getStartTime() : null)
+                .consultationEndTime(consultation != null ? consultation.getEndTime() : null)
                 .cancelledAt(appointment.getCancelledAt())
                 .cancelReason(appointment.getCancelReason())
                 .cancelledBy(appointment.getCancelledBy())
                 .confirmedAt(appointment.getConfirmedAt())
                 .specialtyName(resolveSpecialtyName(appointment.getDoctor()))
+                .followUpDate(consultation != null ? consultation.getFollowUpDate() : null)
+                .followUpAppointmentId(consultation != null ? consultation.getFollowUpAppointmentId() : null)
+                .followUpNotes(consultation != null ? consultation.getFollowUpNotes() : null)
                 .build();
     }
 
