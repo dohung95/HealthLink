@@ -14,9 +14,9 @@ export function useAuth() {
 export function AuthProvider({ children }) {
     const [user, setUser] = useState(null);
     const [roles, setRoles] = useState([]);
-    const [token, setToken] = useState(() => localStorage.getItem('token') || null)
-    const [refreshToken, setRefreshToken] = useState(() => localStorage.getItem('refreshToken') || null)
-    const [currentUserId, setCurrentUserId] = useState(() => localStorage.getItem('userId') || null)
+    const [token, setToken] = useState(() => localStorage.getItem('token') || sessionStorage.getItem('token') || null)
+    const [refreshToken, setRefreshToken] = useState(() => localStorage.getItem('refreshToken') || sessionStorage.getItem('refreshToken') || null)
+    const [currentUserId, setCurrentUserId] = useState(() => localStorage.getItem('userId') || sessionStorage.getItem('userId') || null)
     const [tokenExpiry, setTokenExpiry] = useState(null);
     const [loading, setLoading] = useState(true); // Thêm loading state
 
@@ -112,17 +112,18 @@ export function AuthProvider({ children }) {
     }, [token]);
 
     ///=>> Spring Boot login
-    const login = async (email, password) => {
+    const login = async (email, password, rememberMe = true) => {
         try {
             const response = await loginAPI(email, password);
             if (!response || !response.accessToken) {
                 throw new Error('Login failed');
             }
 
-            localStorage.setItem('token', response.accessToken);
-            localStorage.setItem('refreshToken', response.refreshToken);
+            const storage = rememberMe ? localStorage : sessionStorage;
+            storage.setItem('token', response.accessToken);
+            storage.setItem('refreshToken', response.refreshToken);
             // Lưu userId thật (UUID) để chat và so sánh room không bị lệch email/UUID
-            if (response.userId) localStorage.setItem('userId', response.userId);
+            if (response.userId) storage.setItem('userId', response.userId);
             setToken(response.accessToken);
             setRefreshToken(response.refreshToken);
             if (response.userId) setCurrentUserId(response.userId);
@@ -150,6 +151,9 @@ export function AuthProvider({ children }) {
             localStorage.removeItem('token');
             localStorage.removeItem('refreshToken');
             localStorage.removeItem('userId');
+            sessionStorage.removeItem('token');
+            sessionStorage.removeItem('refreshToken');
+            sessionStorage.removeItem('userId');
             setCurrentUserId(null);
             throw error;
         }
@@ -167,6 +171,9 @@ export function AuthProvider({ children }) {
         localStorage.removeItem('token');
         localStorage.removeItem('refreshToken');
         localStorage.removeItem('userId');
+        sessionStorage.removeItem('token');
+        sessionStorage.removeItem('refreshToken');
+        sessionStorage.removeItem('userId');
         setCurrentUserId(null);
         window.location.href = '/';
     };
@@ -211,7 +218,7 @@ export function AuthProvider({ children }) {
                     // else if (type === "CALL_ACCEPTED") {
                     //     // Bác sĩ (người gọi) nhận được tín hiệu bắt máy từ bệnh nhân
                     //     // Lấy thông tin user hiện tại (Doctor)
-                    //     const currentToken = localStorage.getItem('token');
+                    //     const currentToken = localStorage.getItem('token') || sessionStorage.getItem('token');
                     //     const decodedUser = decodeToken(currentToken);
                     //     const userId = decodedUser.sub;
                     //     const userName = decodedUser.preferred_username || decodedUser.email;
@@ -267,7 +274,7 @@ export function AuthProvider({ children }) {
     const initiateCall = async (targetUserId, roomId, targetUserName = "User", callerName = "") => {
         try {
             // Lấy token và decode để lấy thông tin người gọi
-            const currentToken = localStorage.getItem('token');
+            const currentToken = localStorage.getItem('token') || sessionStorage.getItem('token');
             if (!currentToken) {
                 toast.error("Error: You are not logged in. Please log in again.");
                 return;
@@ -334,7 +341,7 @@ export function AuthProvider({ children }) {
 
         try {
             // 3. Lấy token của chính Bác sĩ (người nhận)
-            const currentToken = localStorage.getItem('token');
+            const currentToken = localStorage.getItem('token') || sessionStorage.getItem('token');
             if (!currentToken) {
                 console.error("Error: No token found for the receiver");
                 toast.error("Error: No token found, please log in again.");

@@ -61,13 +61,13 @@ class AuthProvider extends ChangeNotifier {
 
   /// Đăng nhập bằng email + password.
   /// Trả true nếu thành công, false nếu thất bại.
-  Future<bool> login(String email, String password) async {
+  Future<bool> login(String email, String password, {bool rememberMe = false}) async {
     _setLoading();
     try {
       final response = await AuthService.login(
         LoginRequest(email: email, password: password),
       );
-      await _saveSession(response);
+      await _saveSession(response, rememberMe: rememberMe);
       _status = AuthStatus.authenticated;
       notifyListeners();
       // Tải profile ngầm sau login
@@ -166,17 +166,23 @@ class AuthProvider extends ChangeNotifier {
   }
 
   /// Lưu tokens sau khi login thành công.
-  Future<void> _saveSession(LoginResponse response) async {
+  /// Nếu rememberMe = true, lưu vào SharedPreferences.
+  Future<void> _saveSession(LoginResponse response, {bool rememberMe = false}) async {
     _accessToken  = response.accessToken;
     _refreshToken = response.refreshToken;
     _userId       = response.userId;
     _roles        = _extractRoles(response.accessToken);
 
-    await TokenUtils.saveTokens(
-      accessToken:  response.accessToken,
-      refreshToken: response.refreshToken,
-      userId:       response.userId,
-    );
+    if (rememberMe) {
+      await TokenUtils.saveTokens(
+        accessToken:  response.accessToken,
+        refreshToken: response.refreshToken,
+        userId:       response.userId,
+      );
+    } else {
+      // Đảm bảo không có token cũ nào bị dính lại nếu chọn không remember
+      await TokenUtils.clearTokens();
+    }
   }
 
   /// Xóa toàn bộ session.

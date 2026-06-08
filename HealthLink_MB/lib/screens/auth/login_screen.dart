@@ -95,6 +95,7 @@ class _LoginScreenState extends State<LoginScreen>
     final success = await auth.login(
       _emailController.text.trim(),
       _passwordController.text,
+      rememberMe: _rememberMe,
     );
 
     if (!mounted) return;
