@@ -2,7 +2,7 @@ import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import { useChat } from '../context/ChatContext';
-import { getOrCreateRoom, getMyRooms, getRoomMessages, sendMessage as apiSendMessage, markAsRead } from '../api/chatApi';
+import { getOrCreateRoom, getMyRooms, getRoomMessages, sendMessage as apiSendMessage, markAsRead, uploadMedia } from '../api/chatApi';
 import stompChatService from '../services/stompChatService';
 import { getGeminiResponse } from '../services/geminiService';
 import { checkKeywordAndGetBotReply, checkSymptomAndGetSpecialty, getDoctorsBySpecialty } from '../AI_BOT/BotBrain';
@@ -94,6 +94,11 @@ function TypingIndicator() {
  * @param {{ src: string, onClose: () => void }} props
  */
 function ImageLightbox({ src, onClose }) {
+    const [scale, setScale] = useState(1);
+    const [position, setPosition] = useState({ x: 0, y: 0 });
+    const [isDragging, setIsDragging] = useState(false);
+    const [dragStart, setDragStart] = useState({ x: 0, y: 0 });
+
     // Đóng khi nhấn phím Escape
     useEffect(() => {
         const handleKey = (e) => { if (e.key === 'Escape') onClose(); };
@@ -101,9 +106,36 @@ function ImageLightbox({ src, onClose }) {
         return () => window.removeEventListener('keydown', handleKey);
     }, [onClose]);
 
+    const handleWheel = (e) => {
+        const scaleAmount = -e.deltaY * 0.002;
+        setScale(s => Math.min(Math.max(0.5, s + scaleAmount), 5));
+    };
+
+    const handleMouseDown = (e) => {
+        if (scale > 1) {
+            setIsDragging(true);
+            setDragStart({ x: e.clientX - position.x, y: e.clientY - position.y });
+        }
+    };
+
+    const handleMouseMove = (e) => {
+        if (isDragging) {
+            setPosition({
+                x: e.clientX - dragStart.x,
+                y: e.clientY - dragStart.y
+            });
+        }
+    };
+
+    const handleMouseUp = () => setIsDragging(false);
+
     return (
         <div
             onClick={onClose}
+            onWheel={handleWheel}
+            onMouseMove={handleMouseMove}
+            onMouseUp={handleMouseUp}
+            onMouseLeave={handleMouseUp}
             style={{
                 position: 'fixed',
                 inset: 0,
@@ -113,7 +145,7 @@ function ImageLightbox({ src, onClose }) {
                 alignItems: 'center',
                 justifyContent: 'center',
                 animation: 'msgFadeSlideIn 0.2s ease-out',
-                cursor: 'zoom-out',
+                overflow: 'hidden',
             }}
         >
             {/* Nút đóng */}
@@ -136,30 +168,61 @@ function ImageLightbox({ src, onClose }) {
                     fontSize: '1.2rem',
                     backdropFilter: 'blur(4px)',
                     transition: 'background 0.2s',
+                    zIndex: 100000,
                 }}
                 title="Đóng (Esc)"
             >
                 <i className="bi bi-x-lg" />
             </button>
 
-            {/* Ảnh phóng to — stopPropagation để không đóng khi click vào ảnh */}
+            {/* Công cụ Zoom */}
+            <div style={{
+                position: 'absolute',
+                bottom: '30px',
+                display: 'flex',
+                gap: '12px',
+                background: 'rgba(0,0,0,0.5)',
+                padding: '8px 16px',
+                borderRadius: '30px',
+                backdropFilter: 'blur(4px)',
+                zIndex: 100000,
+            }}>
+                <button onClick={(e) => { e.stopPropagation(); setScale(s => Math.min(s + 0.25, 5)); }} className="btn btn-sm btn-outline-light rounded-circle" style={{ width: 36, height: 36 }} title="Zoom In"><i className="bi bi-zoom-in"></i></button>
+                <button onClick={(e) => { e.stopPropagation(); setScale(s => Math.max(s - 0.25, 0.5)); }} className="btn btn-sm btn-outline-light rounded-circle" style={{ width: 36, height: 36 }} title="Zoom Out"><i className="bi bi-zoom-out"></i></button>
+                <button onClick={(e) => { e.stopPropagation(); setScale(1); setPosition({ x: 0, y: 0 }); }} className="btn btn-sm btn-outline-light rounded-circle" style={{ width: 36, height: 36 }} title="Reset"><i className="bi bi-arrow-counterclockwise"></i></button>
+            </div>
+
+            {/* Ảnh phóng to */}
             <img
                 src={src}
                 alt="preview"
+                onMouseDown={handleMouseDown}
                 onClick={(e) => e.stopPropagation()}
+                draggable="false"
                 style={{
+                    transform: `translate(${position.x}px, ${position.y}px) scale(${scale})`,
+                    transition: isDragging ? 'none' : 'transform 0.15s ease-out',
                     maxWidth: '90vw',
                     maxHeight: '90vh',
                     objectFit: 'contain',
-                    borderRadius: '12px',
                     boxShadow: '0 8px 40px rgba(0,0,0,0.6)',
-                    cursor: 'default',
+                    cursor: scale > 1 ? (isDragging ? 'grabbing' : 'grab') : 'default',
                     userSelect: 'none',
                 }}
             />
         </div>
     );
 }
+
+// ─── Helper: xử lý URL tương đối ──────────────────────────────────────────────
+const getFullUrl = (url) => {
+    if (!url) return null;
+    if (url.startsWith('/')) {
+        const baseUrl = import.meta.env.VITE_API_BASE_URL || import.meta.env.VITE_SPRING_API_BASE_URL || 'http://localhost:8096';
+        return `${baseUrl}${url}`;
+    }
+    return url;
+};
 
 // ─── Component tin nhắn ──────────────────────────────────────────────────────
 /**
@@ -196,6 +259,10 @@ function ChatMessage({ message, currentUserId, isNew = false, onImageClick, onNa
         ? new Date(message.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', day: '2-digit', month: '2-digit', year: 'numeric' })
         : (message.createdAt ? formatTime(message.createdAt) : '...');
 
+    const imageUrl = getFullUrl(message.imageUrl);
+    const videoUrl = getFullUrl(message.videoUrl);
+    const fileUrl = getFullUrl(message.fileUrl);
+
     return (
         <div className={`message d-flex mb-3 ${isOwn ? 'justify-content-end' : 'justify-content-start'}`}
             style={{ animation: 'msgFadeSlideIn 0.25s ease-out' }}>
@@ -208,11 +275,11 @@ function ChatMessage({ message, currentUserId, isNew = false, onImageClick, onNa
             <div style={{ maxWidth: '78%' }}>
                 <div
                     className={`p-2 rounded ${isOwn ? 'bg-primary text-white' : 'bg-light text-dark border'}`}
-                    style={{ borderRadius: message.imageUrl ? '12px' : '20px', padding: message.imageUrl ? '4px' : '8px 16px' }}
+                    style={{ borderRadius: imageUrl ? '12px' : '20px', padding: imageUrl ? '4px' : '8px 16px' }}
                 >
-                    {message.imageUrl && (
+                    {imageUrl && (
                         <img
-                            src={message.imageUrl}
+                            src={imageUrl}
                             alt="sent"
                             style={{
                                 maxWidth: '100%',
@@ -222,12 +289,61 @@ function ChatMessage({ message, currentUserId, isNew = false, onImageClick, onNa
                                 cursor: 'zoom-in',
                                 transition: 'opacity 0.15s',
                             }}
-                            onClick={() => onImageClick?.(message.imageUrl)}
+                            onClick={() => onImageClick?.(imageUrl)}
                             title="Click để xem ảnh phóng to"
                         />
                     )}
+                    {videoUrl && (
+                        <video
+                            src={videoUrl}
+                            controls
+                            style={{ maxWidth: '100%', maxHeight: '300px', borderRadius: '8px', display: 'block' }}
+                        />
+                    )}
+                    {fileUrl && (
+                        <div
+                            onClick={(e) => {
+                                e.preventDefault();
+                                const filename = fileUrl.split('/').pop();
+                                fetch(fileUrl)
+                                    .then(res => res.blob())
+                                    .then(blob => {
+                                        const url = window.URL.createObjectURL(blob);
+                                        const a = document.createElement('a');
+                                        a.style.display = 'none';
+                                        a.href = url;
+                                        a.download = filename;
+                                        document.body.appendChild(a);
+                                        a.click();
+                                        window.URL.revokeObjectURL(url);
+                                    })
+                                    .catch(err => {
+                                        console.error('Download failed', err);
+                                        window.open(fileUrl, '_blank');
+                                    });
+                            }}
+                            style={{
+                                display: 'flex',
+                                alignItems: 'center',
+                                background: 'rgba(0,0,0,0.05)',
+                                padding: '8px 12px',
+                                borderRadius: '8px',
+                                marginTop: imageUrl || videoUrl ? '8px' : '0',
+                                cursor: 'pointer',
+                                transition: 'background 0.2s'
+                            }}
+                            onMouseEnter={(e) => e.currentTarget.style.background = 'rgba(0,0,0,0.1)'}
+                            onMouseLeave={(e) => e.currentTarget.style.background = 'rgba(0,0,0,0.05)'}
+                            title="Click to download"
+                        >
+                            <i className="bi bi-file-earmark-arrow-down" style={{ fontSize: '24px', marginRight: '8px', color: isOwn ? '#fff' : '#0d6efd' }}></i>
+                            <span style={{ color: 'inherit', textDecoration: 'none', fontWeight: '500', wordBreak: 'break-all' }}>
+                                {fileUrl.split('/').pop()}
+                            </span>
+                        </div>
+                    )}
                     {fullText && (
-                        <div style={{ marginTop: message.imageUrl ? '8px' : '0', whiteSpace: 'pre-wrap' }}>
+                        <div style={{ marginTop: imageUrl || videoUrl || fileUrl ? '8px' : '0', whiteSpace: 'pre-wrap' }}>
                             {displayText}
                             {/* Con trỏ nhấp nháy trong khi chưa gõ xong */}
                             {isNew && !typewriterDone && (
@@ -400,7 +516,7 @@ export default function Chat() {
         if (allDoctors.length > 0) return; // Đã load rồi thì bỏ qua
         doctorService.getAllDoctors()
             .then(data => setAllDoctors(data || []))
-            .catch(() => {}); // Lỗi thì im lặng, không ảnh hưởng UX
+            .catch(() => { }); // Lỗi thì im lặng, không ảnh hưởng UX
     }, []);
 
     // ── Đăng ký sự kiện Chat khi Component được render ────────────────────────────────
@@ -422,6 +538,19 @@ export default function Chat() {
                     return prevRooms;
                 });
                 return; // KHÔNG thêm vào màn hình hiển thị tin nhắn
+            }
+
+            // Sự kiện phòng bị chặn/bỏ chặn
+            if (newMsg.content === "[SYSTEM_BLOCK_UPDATE]") {
+                getMyRooms().then(rooms => {
+                    setRoomList(rooms);
+                    const activeRoomId = currentRoomRef.current?.chatRoomId;
+                    if (activeRoomId === newMsg.chatRoomId) {
+                        const updatedRoom = rooms.find(r => r.chatRoomId === activeRoomId);
+                        if (updatedRoom) setCurrentRoom(updatedRoom);
+                    }
+                }).catch(err => console.error(err));
+                return; // KHÔNG hiển thị tin nhắn hệ thống
             }
 
             const activeRoomId = currentRoomRef.current?.chatRoomId;
@@ -550,7 +679,10 @@ export default function Chat() {
 
     // ── Scroll xuống cuối khi có tin nhắn mới ───────────────────────────────
     useEffect(() => {
-        scrollTo.current?.scrollIntoView({ behavior: 'smooth' });
+        if (scrollTo.current) {
+            // Sử dụng block: 'nearest' để tránh lỗi cuộn toàn bộ trang web (body) xuống theo
+            scrollTo.current.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+        }
     }, [messages, isChatBoxOpen]);
 
     // ── Lắng nghe sự kiện mở chat từ component khác ─────────────────────────
@@ -627,8 +759,8 @@ export default function Chat() {
                     const replyText = lang === 'vi'
                         ? `${specialtyMatch.icon} Dựa trên triệu chứng bạn mô tả, mình gợi ý bạn nên khám chuyên khoa **${specialtyName}**! Dưới đây là một số bác sĩ phù hợp:`
                         : lang === 'id'
-                        ? `${specialtyMatch.icon} Berdasarkan gejala yang kamu ceritakan, aku sarankan periksa ke spesialis **${specialtyName}**! Berikut beberapa dokter yang bisa membantu:`
-                        : `${specialtyMatch.icon} Based on your symptoms, I recommend seeing a **${specialtyName}** specialist! Here are some available doctors:`;
+                            ? `${specialtyMatch.icon} Berdasarkan gejala yang kamu ceritakan, aku sarankan periksa ke spesialis **${specialtyName}**! Berikut beberapa dokter yang bisa membantu:`
+                            : `${specialtyMatch.icon} Based on your symptoms, I recommend seeing a **${specialtyName}** specialist! Here are some available doctors:`;
 
                     await new Promise(r => setTimeout(r, 700));
                     setIsBotTyping(false);
@@ -701,55 +833,72 @@ export default function Chat() {
         }
     };
 
-    // ── Gửi ảnh ─────────────────────────────────────────────────────────────
-    const sendImage = async () => {
+    // ── Gửi đính kèm (Ảnh, Video, File) ─────────────────────────────────────────────────────────────
+    const sendMedia = async () => {
         if (!selectedFile || !currentRoom || isGuest) return;
-        if (chatPartner?.isBot) { toast.info('You cannot send image to Bot!'); return; }
+        if (chatPartner?.isBot) { toast.info('You cannot send media to Bot!'); return; }
 
         setUploading(true);
-        const reader = new FileReader();
-        reader.onload = async (ev) => {
-            const base64 = ev.target.result;
-            if (base64.length > 900 * 1024) {
-                toast.info('Image is too large after converting!');
-                setUploading(false);
-                return;
-            }
-            try {
-                const partnerId = chatPartner.userId || chatPartner.uid;
-                const saved = await apiSendMessage({
-                    chatRoomId: currentRoom.chatRoomId,
-                    receiverId: partnerId,
-                    imageUrl: base64,
-                });
-                setMessages(prev => [...prev, saved]);
+        try {
+            // Xác định type
+            const mimeType = selectedFile.type;
+            let type = 'file';
+            let requestPayload = { chatRoomId: currentRoom.chatRoomId, receiverId: chatPartner.userId || chatPartner.uid };
+            let previewText = '[Tệp đính kèm]';
 
-                // Cập nhật roomList
-                setRoomList(prevRooms => {
-                    const updated = prevRooms.map(r => r.chatRoomId === currentRoom.chatRoomId
-                        ? { ...r, lastMessage: "[Ảnh]", lastMessageAt: saved.timestamp }
-                        : r);
-                    updated.sort((a, b) => new Date(b.lastMessageAt || 0).getTime() - new Date(a.lastMessageAt || 0).getTime());
-                    return updated;
-                });
-
-                setSelectedFile(null);
-                if (fileInputRef.current) fileInputRef.current.value = '';
-            } catch (err) {
-                toast.error('Failed to send image!');
-            } finally {
-                setUploading(false);
+            if (mimeType.startsWith('image/')) {
+                type = 'image';
+                previewText = '[Ảnh]';
+            } else if (mimeType.startsWith('video/')) {
+                type = 'video';
+                previewText = '[Video]';
             }
-        };
-        reader.onerror = () => { toast.error('Failed to read file!'); setUploading(false); };
-        reader.readAsDataURL(selectedFile);
+
+            // Gọi API upload
+            const response = await uploadMedia(currentRoom.chatRoomId, type, selectedFile);
+            const fileUrl = response.url;
+
+            // Gắn URL vào request
+            if (type === 'image') {
+                requestPayload.imageUrl = fileUrl;
+            } else if (type === 'video') {
+                requestPayload.videoUrl = fileUrl;
+            } else {
+                requestPayload.fileUrl = fileUrl;
+            }
+
+            // Gửi tin nhắn
+            const saved = await apiSendMessage(requestPayload);
+            setMessages(prev => [...prev, saved]);
+
+            // Cập nhật roomList
+            setRoomList(prevRooms => {
+                const updated = prevRooms.map(r => r.chatRoomId === currentRoom.chatRoomId
+                    ? { ...r, lastMessage: previewText, lastMessageAt: saved.timestamp }
+                    : r);
+                updated.sort((a, b) => new Date(b.lastMessageAt || 0).getTime() - new Date(a.lastMessageAt || 0).getTime());
+                return updated;
+            });
+
+            setSelectedFile(null);
+            if (fileInputRef.current) fileInputRef.current.value = '';
+        } catch (err) {
+            console.error(err);
+            toast.error('Failed to send file!');
+        } finally {
+            setUploading(false);
+        }
     };
 
     // ── Xử lý chọn file để gửi ─────────────────────────────────────────────────────────────
     const handleFileSelect = (e) => {
         const file = e.target.files[0];
-        if (!file || !file.type.startsWith('image/')) { toast.info('Only accept image files!'); return; }
-        if (file.size > 300 * 1024) { toast.info('Image max 300KB!'); return; }
+        if (!file) return;
+        // Limit file size to 20MB
+        if (file.size > 20 * 1024 * 1024) {
+            toast.info('File max size is 20MB!');
+            return;
+        }
         setSelectedFile(file);
     };
 
@@ -757,12 +906,15 @@ export default function Chat() {
         const items = e.clipboardData?.items;
         if (!items) return;
         for (let i = 0; i < items.length; i++) {
-            if (items[i].type.startsWith('image/')) {
-                if (chatPartner?.isBot) { toast.info('You cannot send image to Bot!'); return; }
+            if (items[i].kind === 'file') {
+                if (chatPartner?.isBot) { toast.info('You cannot send media to Bot!'); return; }
                 e.preventDefault();
                 const file = items[i].getAsFile();
-                if (file && file.size <= 300 * 1024) setSelectedFile(file);
-                else toast.info('Image max 300KB!');
+                if (file && file.size <= 20 * 1024 * 1024) {
+                    setSelectedFile(file);
+                } else {
+                    toast.info('File max size is 20MB!');
+                }
                 break;
             }
         }
@@ -784,7 +936,9 @@ export default function Chat() {
     };
 
     // ── Render ───────────────────────────────────────────────────────────────
-    const showInput = (isGuest && chatPartner) || (chatPartner && (isPatient || isDoctor || isPharmacy));
+    const isBlocked = currentRoom && currentRoom.blockedBy;
+    const isBlockedByMe = isBlocked && currentRoom.blockedBy === currentUserId;
+    const showInput = ((isGuest && chatPartner) || (chatPartner && (isPatient || isDoctor || isPharmacy))) && !isBlocked;
 
     return (
         <>
@@ -916,14 +1070,30 @@ export default function Chat() {
                     </div>
 
                     {/* Input gửi tin nhắn */}
-                    {showInput && (
+                    {isBlocked ? (
+                        <div className="p-3 border-top bg-light text-center">
+                            <span className="text-muted fst-italic">
+                                {isBlockedByMe ? 'You blocked this user.' : 'You cannot reply to this conversation.'}
+                            </span>
+                        </div>
+                    ) : showInput && (
                         <div className="p-2 border-top">
                             {selectedFile && (
                                 <div className="mb-2 p-2 bg-light rounded d-flex align-items-center justify-content-between">
                                     <div className="d-flex align-items-center">
-                                        <img src={URL.createObjectURL(selectedFile)} alt="preview"
-                                            style={{ width: '50px', height: '50px', objectFit: 'cover', borderRadius: '4px', marginRight: '10px' }} />
-                                        <small className="text-truncate">{selectedFile.name}</small>
+                                        {selectedFile.type.startsWith('image/') ? (
+                                            <img src={URL.createObjectURL(selectedFile)} alt="preview"
+                                                style={{ width: '50px', height: '50px', objectFit: 'cover', borderRadius: '4px', marginRight: '10px' }} />
+                                        ) : selectedFile.type.startsWith('video/') ? (
+                                            <div style={{ width: '50px', height: '50px', backgroundColor: '#e9ecef', borderRadius: '4px', display: 'flex', alignItems: 'center', justifyContent: 'center', marginRight: '10px' }}>
+                                                <i className="bi bi-camera-video" style={{ fontSize: '24px', color: '#6c757d' }}></i>
+                                            </div>
+                                        ) : (
+                                            <div style={{ width: '50px', height: '50px', backgroundColor: '#e9ecef', borderRadius: '4px', display: 'flex', alignItems: 'center', justifyContent: 'center', marginRight: '10px' }}>
+                                                <i className="bi bi-file-earmark-text" style={{ fontSize: '24px', color: '#6c757d' }}></i>
+                                            </div>
+                                        )}
+                                        <small className="text-truncate" style={{ maxWidth: '150px' }}>{selectedFile.name}</small>
                                     </div>
                                     <button className="btn btn-sm btn-danger" onClick={() => { setSelectedFile(null); if (fileInputRef.current) fileInputRef.current.value = ''; }}>✕</button>
                                 </div>
@@ -937,10 +1107,10 @@ export default function Chat() {
                                 )}
                                 {!isGuest && !chatPartner?.isBot && (
                                     <>
-                                        <input type="file" ref={fileInputRef} accept="image/*" onChange={handleFileSelect} style={{ display: 'none' }} />
+                                        <input type="file" ref={fileInputRef} accept="*/*" onChange={handleFileSelect} style={{ display: 'none' }} />
                                         <button type="button" className="btn btn-outline-primary me-2"
-                                            onClick={() => fileInputRef.current?.click()} disabled={uploading} title="Send image">
-                                            <i className="bi bi-image"></i>
+                                            onClick={() => fileInputRef.current?.click()} disabled={uploading} title="Attach file">
+                                            <i className="bi bi-paperclip"></i>
                                         </button>
                                     </>
                                 )}
@@ -948,7 +1118,7 @@ export default function Chat() {
                                     onChange={e => setFormValue(e.target.value)} onPaste={handlePaste}
                                     placeholder="Type a message..." disabled={uploading} />
                                 {selectedFile ? (
-                                    <button className="btn btn-success ms-2" type="button" onClick={sendImage} disabled={uploading}>
+                                    <button className="btn btn-success ms-2" type="button" onClick={sendMedia} disabled={uploading}>
                                         {uploading ? <><span className="spinner-border spinner-border-sm me-1"></span>Sending...</> : 'Send'}
                                     </button>
                                 ) : (

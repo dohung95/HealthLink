@@ -37,6 +37,9 @@ class Conversation {
   /// true nếu tin nhắn cuối đã được đọc
   final bool isLastMessageRead;
 
+  /// ID của người dùng đã chặn phòng chat (nếu có)
+  final String? blockedBy;
+
   const Conversation({
     required this.id,
     required this.partnerId,
@@ -50,6 +53,7 @@ class Conversation {
     required this.lastMessageTime,
     this.unreadCount = 0,
     this.isLastMessageRead = true,
+    this.blockedBy,
   });
 
   /// Tạo Conversation từ ChatRoomDTO trả về từ backend.
@@ -90,6 +94,7 @@ class Conversation {
           : DateTime.now(),
       unreadCount: unreadCount,
       isLastMessageRead: unreadCount == 0,
+      blockedBy: json['blockedBy']?.toString(),
     );
   }
 }

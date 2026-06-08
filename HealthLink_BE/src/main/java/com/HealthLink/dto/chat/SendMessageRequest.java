@@ -24,4 +24,7 @@ public class SendMessageRequest {
 
     /** URL ảnh đính kèm (tuỳ chọn). */
     private String imageUrl;
+    
+    private String videoUrl;
+    private String fileUrl;
 }

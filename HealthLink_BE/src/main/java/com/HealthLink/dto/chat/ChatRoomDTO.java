@@ -34,6 +34,9 @@ public class ChatRoomDTO {
     /** ID cuộc hẹn (appointment) liên kết, nếu có. */
     private Integer appointmentId;
 
+    /** ID của người dùng đã block phòng chat này (nếu có). */
+    private String blockedBy;
+
     /** Số lượng tin nhắn chưa đọc của người dùng hiện tại (tuỳ chọn, tính ở service). */
     private long unreadCount;
 }

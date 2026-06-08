@@ -8,6 +8,7 @@ class ApiConfig {
 
   // ── Base URL ──────────────────────────────────────────────────────────────
   static const String baseUrl = 'http://127.0.0.1:8096/api';
+  static const String wsUrl   = 'ws://127.0.0.1:8096/ws/websocket';
 
   // ── Auth Endpoints ────────────────────────────────────────────────────────
   static const String login          = '$baseUrl/auth/login';
@@ -37,6 +38,9 @@ class ApiConfig {
   /// POST /api/chat/messages – Gửi tin nhắn mới.
   static const String chatSendMessage   = '$baseUrl/chat/messages';
 
+  /// POST /api/chat/upload – Tải lên file đa phương tiện.
+  static const String chatMediaUpload   = '$baseUrl/chat/upload';
+
   /// PATCH /api/chat/rooms/{id}/read – Đánh dấu đã đọc.
   static String chatMarkAsRead(String id) => '$baseUrl/chat/rooms/$id/read';
 
@@ -49,19 +53,25 @@ class ApiConfig {
   /// và thêm host cho các đường dẫn tương đối).
   static String? normalizeUrl(String? url) {
     if (url == null || url.isEmpty) return null;
-    
+    // Base64 data URI — dùng nguyên
+    if (url.startsWith('data:')) return url;
+
     String finalUrl = url;
-    
-    // Nếu là đường dẫn tương đối (ví dụ: /avatars/doctor01.jpg)
+
+    // Nếu là đường dẫn tương đối (bắt đầu bằng /) — thêm host
     if (finalUrl.startsWith('/')) {
       final host = baseUrl.replaceAll('/api', '');
       finalUrl = '$host$finalUrl';
     }
-    
-    // Thay thế localhost thành 127.0.0.1 để tránh lỗi phân giải DNS trên thiết bị di động
-    finalUrl = finalUrl.replaceAll('localhost', '127.0.0.1');
-    
+
+    // Mã hóa URL để xử lý ký tự Unicode và đặc biệt trong tên file
+    // Uri.encodeFull giữ nguyên cấu trúc URL (://, /, ?) nhưng mã hóa ký tự không an toàn
+    try {
+      finalUrl = Uri.encodeFull(finalUrl);
+    } catch (_) {
+      // Nếu encode lỗi, dùng nguyên bản
+    }
+
     return finalUrl;
   }
 }
-
