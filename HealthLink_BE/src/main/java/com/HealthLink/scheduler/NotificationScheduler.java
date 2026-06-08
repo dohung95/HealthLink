@@ -1,5 +1,6 @@
 package com.HealthLink.scheduler;
 
+import com.HealthLink.dto.notification.NotificationDispatchSummary;
 import com.HealthLink.entity.Appointment;
 import com.HealthLink.entity.Consultation;
 import com.HealthLink.entity.PrescriptionHeader;
@@ -9,6 +10,8 @@ import com.HealthLink.entity.User;
 import com.HealthLink.entity.enums.NotificationPriority;
 import com.HealthLink.entity.enums.NotificationType;
 import com.HealthLink.entity.enums.PrescriptionTiming;
+import com.HealthLink.exception.BadRequestException;
+import com.HealthLink.exception.ResourceNotFoundException;
 import com.HealthLink.repository.appointment.AppointmentRepository;
 import com.HealthLink.repository.consultation.ConsultationRepository;
 import com.HealthLink.repository.prescription.PrescriptionHeaderRepository;
@@ -24,6 +27,7 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDate;
 import java.time.LocalDateTime;
+import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.List;
@@ -46,23 +50,36 @@ public class NotificationScheduler {
     @Scheduled(cron = "0 0/5 * * * *")
     @Transactional
     public void sendAppointmentReminders() {
-        LocalDateTime now = LocalDateTime.now();
+        sendAppointmentReminders(LocalDateTime.now());
+    }
+
+    @Transactional
+    public NotificationDispatchSummary sendAppointmentReminders(LocalDateTime now) {
         LocalDateTime from = now.plusHours(1);
         LocalDateTime to = now.plusHours(1).plusMinutes(5);
 
         List<Appointment> upcomingAppointments =
                 appointmentRepository.findUpcomingAndReminderNotSent(from, to);
 
+        int candidateCount = upcomingAppointments.size();
+        int sentCount = 0;
+        int skippedCount = 0;
+        int failedCount = 0;
+
         if (upcomingAppointments.isEmpty()) {
             log.debug("Appointment reminder job: no upcoming appointments in window [{} - {}]", from, to);
-            return;
+            return buildSummary("PATIENT_APPOINTMENT_REMINDER", now, candidateCount, sentCount, skippedCount, failedCount);
         }
 
-        log.info("Appointment reminder job: found {} appointments to remind", upcomingAppointments.size());
+        log.info("Appointment reminder job: found {} appointments to remind", candidateCount);
 
         for (Appointment appointment : upcomingAppointments) {
             try {
                 User patientUser = appointment.getPatient().getUser();
+                if (patientUser == null || patientUser.getId() == null || patientUser.getId().isBlank()) {
+                    skippedCount++;
+                    continue;
+                }
 
                 String title = "Upcoming Appointment Reminder";
                 String message = String.format(
@@ -71,7 +88,7 @@ public class NotificationScheduler {
                         appointment.getAppointmentTime().toLocalTime()
                 );
 
-                notificationService.sendMobilePushNotification(
+                notificationService.sendWebSocketAndMobilePushNotification(
                         patientUser,
                         NotificationType.APPOINTMENT_REMINDER,
                         title,
@@ -82,38 +99,52 @@ public class NotificationScheduler {
                 );
 
                 appointmentRepository.markReminderSent(appointment.getAppointmentId());
+                sentCount++;
 
                 log.info("Reminder sent for appointmentId={}, patientId={}",
                         appointment.getAppointmentId(), patientUser.getId());
 
             } catch (Exception ex) {
+                failedCount++;
                 log.error("Failed to send reminder for appointmentId={}: {}",
                         appointment.getAppointmentId(), ex.getMessage());
             }
         }
+
+        return buildSummary("PATIENT_APPOINTMENT_REMINDER", now, candidateCount, sentCount, skippedCount, failedCount);
     }
 
     @Scheduled(cron = "0 0/5 * * * *")
     @Transactional
     public void sendDoctorAppointmentReminders() {
-        LocalDateTime now = LocalDateTime.now();
+        sendDoctorAppointmentReminders(LocalDateTime.now());
+    }
+
+    @Transactional
+    public NotificationDispatchSummary sendDoctorAppointmentReminders(LocalDateTime now) {
         LocalDateTime from = now.plusMinutes(30);
         LocalDateTime to = now.plusMinutes(35);
 
         List<Appointment> upcomingAppointments =
                 appointmentRepository.findUpcomingDoctorReminderCandidates(from, to);
 
+        int candidateCount = upcomingAppointments.size();
+        int sentCount = 0;
+        int skippedCount = 0;
+        int failedCount = 0;
+
         if (upcomingAppointments.isEmpty()) {
             log.debug("Doctor appointment reminder job: no upcoming appointments in window [{} - {}]", from, to);
-            return;
+            return buildSummary("DOCTOR_APPOINTMENT_REMINDER", now, candidateCount, sentCount, skippedCount, failedCount);
         }
 
-        log.info("Doctor appointment reminder job: found {} appointments to remind", upcomingAppointments.size());
+        log.info("Doctor appointment reminder job: found {} appointments to remind", candidateCount);
 
         for (Appointment appointment : upcomingAppointments) {
             try {
                 User doctorUser = appointment.getDoctor() != null ? appointment.getDoctor().getUser() : null;
                 if (doctorUser == null || doctorUser.getId() == null || doctorUser.getId().isBlank()) {
+                    skippedCount++;
                     log.warn("Skipping doctor reminder for appointmentId={} because doctor user mapping is missing",
                             appointment.getAppointmentId());
                     continue;
@@ -139,35 +170,129 @@ public class NotificationScheduler {
                 );
 
                 appointmentRepository.markDoctorReminderSent(appointment.getAppointmentId());
+                sentCount++;
 
                 log.info("Doctor reminder sent for appointmentId={}, doctorId={}",
                         appointment.getAppointmentId(), doctorUser.getId());
             } catch (Exception ex) {
+                failedCount++;
                 log.error("Failed to send doctor reminder for appointmentId={}: {}",
                         appointment.getAppointmentId(), ex.getMessage());
             }
+        }
+
+        return buildSummary("DOCTOR_APPOINTMENT_REMINDER", now, candidateCount, sentCount, skippedCount, failedCount);
+    }
+
+    @Transactional
+    public NotificationDispatchSummary unclockDoctorAppointmentReminder(Integer appointmentId, LocalDateTime effectiveNow) {
+        effectiveNow = effectiveNow != null ? effectiveNow : LocalDateTime.now();
+
+        Appointment appointment = appointmentRepository.findById(appointmentId)
+                .orElseThrow(() -> new ResourceNotFoundException("Appointment", "id", appointmentId));
+
+        if (!"SCHEDULED".equals(appointment.getStatus())) {
+            throw new BadRequestException("Only scheduled appointments can be unlocked for reminder");
+        }
+
+        User doctorUser = appointment.getDoctor() != null ? appointment.getDoctor().getUser() : null;
+        if (doctorUser == null || doctorUser.getId() == null || doctorUser.getId().isBlank()) {
+            log.warn("Cannot send unclock reminder for appointmentId={}: doctor user mapping is missing", appointmentId);
+            return NotificationDispatchSummary.builder()
+                    .job("DOCTOR_APPOINTMENT_UNCLOCK_REMINDER")
+                    .effectiveNow(effectiveNow.format(DateTimeFormatter.ISO_LOCAL_DATE_TIME))
+                    .candidateCount(1)
+                    .sentCount(0)
+                    .skippedCount(1)
+                    .failedCount(0)
+                    .message("Doctor user not found — skipped")
+                    .build();
+        }
+
+        java.time.Duration duration;
+        LocalDateTime originalAppointmentTime = appointment.getAppointmentTime();
+        LocalDateTime originalEndTime = appointment.getEndTime();
+        if (originalEndTime != null && originalEndTime.isAfter(originalAppointmentTime)) {
+            duration = java.time.Duration.between(originalAppointmentTime, originalEndTime);
+        } else {
+            duration = java.time.Duration.ofMinutes(30);
+        }
+
+        appointment.setAppointmentTime(effectiveNow);
+        appointment.setEndTime(effectiveNow.plus(duration));
+        appointment.setDoctorReminderSent(true);
+        appointmentRepository.save(appointment);
+
+        String patientName = appointment.getPatient() != null
+                ? appointment.getPatient().getFullName()
+                : "your patient";
+
+        try {
+            notificationService.sendWebSocketNotification(
+                    doctorUser,
+                    NotificationType.APPOINTMENT_REMINDER,
+                    "Appointment time arrived",
+                    String.format("Your appointment with %s is ready to start.", patientName),
+                    appointmentId,
+                    "/appointments/" + appointmentId
+            );
+            log.info("Unclock reminder sent for appointmentId={}, doctorId={}", appointmentId, doctorUser.getId());
+            return NotificationDispatchSummary.builder()
+                    .job("DOCTOR_APPOINTMENT_UNCLOCK_REMINDER")
+                    .effectiveNow(effectiveNow.format(DateTimeFormatter.ISO_LOCAL_DATE_TIME))
+                    .candidateCount(1)
+                    .sentCount(1)
+                    .skippedCount(0)
+                    .failedCount(0)
+                    .message("Unclock reminder sent successfully")
+                    .build();
+        } catch (Exception ex) {
+            log.error("Failed to send unclock reminder for appointmentId={}: {}", appointmentId, ex.getMessage());
+            return NotificationDispatchSummary.builder()
+                    .job("DOCTOR_APPOINTMENT_UNCLOCK_REMINDER")
+                    .effectiveNow(effectiveNow.format(DateTimeFormatter.ISO_LOCAL_DATE_TIME))
+                    .candidateCount(1)
+                    .sentCount(0)
+                    .skippedCount(0)
+                    .failedCount(1)
+                    .message("Failed to send notification: " + ex.getMessage())
+                    .build();
         }
     }
 
     @Scheduled(cron = "0 0 8 * * *")
     @Transactional
     public void sendFollowUpReminders() {
-        LocalDateTime startOfDay = LocalDateTime.now().toLocalDate().atStartOfDay();
+        sendFollowUpReminders(LocalDateTime.now());
+    }
+
+    @Transactional
+    public NotificationDispatchSummary sendFollowUpReminders(LocalDateTime now) {
+        LocalDateTime startOfDay = now.toLocalDate().atStartOfDay();
         LocalDateTime endOfDay = startOfDay.plusDays(1).minusSeconds(1);
 
         List<Consultation> dueConsultations =
                 consultationRepository.findFollowUpsDueForReminder(startOfDay, endOfDay);
 
+        int candidateCount = dueConsultations.size();
+        int sentCount = 0;
+        int skippedCount = 0;
+        int failedCount = 0;
+
         if (dueConsultations.isEmpty()) {
             log.debug("Follow-up reminder job: no follow-ups due today");
-            return;
+            return buildSummary("FOLLOW_UP_REMINDER", now, candidateCount, sentCount, skippedCount, failedCount);
         }
 
-        log.info("Follow-up reminder job: found {} follow-ups due today", dueConsultations.size());
+        log.info("Follow-up reminder job: found {} follow-ups due today", candidateCount);
 
         for (Consultation consultation : dueConsultations) {
             try {
                 User patientUser = consultation.getAppointment().getPatient().getUser();
+                if (patientUser == null || patientUser.getId() == null || patientUser.getId().isBlank()) {
+                    skippedCount++;
+                    continue;
+                }
 
                 String title = "Follow-Up Appointment Reminder";
                 String message = String.format(
@@ -177,7 +302,7 @@ public class NotificationScheduler {
                                 : "Please consult your doctor."
                 );
 
-                notificationService.sendMobilePushNotification(
+                notificationService.sendWebSocketAndMobilePushNotification(
                         patientUser,
                         NotificationType.APPOINTMENT_REMINDER,
                         title,
@@ -187,14 +312,19 @@ public class NotificationScheduler {
                         "/consultations/" + consultation.getConsultationId()
                 );
 
+                sentCount++;
+
                 log.info("Follow-up reminder sent for consultationId={}, patientId={}",
                         consultation.getConsultationId(), patientUser.getId());
 
             } catch (Exception ex) {
+                failedCount++;
                 log.error("Failed to send follow-up reminder for consultationId={}: {}",
                         consultation.getConsultationId(), ex.getMessage());
             }
         }
+
+        return buildSummary("FOLLOW_UP_REMINDER", now, candidateCount, sentCount, skippedCount, failedCount);
     }
 
     @Scheduled(cron = "0 0 8 * * *")
@@ -217,23 +347,28 @@ public class NotificationScheduler {
 
     @Transactional
     public void sendPrescriptionReminders() {
-        sendPrescriptionRemindersForTiming(PrescriptionTiming.MORNING);
+        sendPrescriptionRemindersForTiming(PrescriptionTiming.MORNING, LocalDateTime.now().withNano(0));
     }
 
-    void sendPrescriptionRemindersForTiming(PrescriptionTiming timing) {
-        sendPrescriptionRemindersForTiming(timing, LocalDateTime.now().withNano(0));
+    public NotificationDispatchSummary sendPrescriptionRemindersForTiming(PrescriptionTiming timing) {
+        return sendPrescriptionRemindersForTiming(timing, LocalDateTime.now().withNano(0));
     }
 
-    void sendPrescriptionRemindersForTiming(PrescriptionTiming timing, LocalDateTime now) {
+    @Transactional
+    public NotificationDispatchSummary sendPrescriptionRemindersForTiming(PrescriptionTiming timing, LocalDateTime now) {
         LocalDate reminderDate = now.toLocalDate();
         List<PrescriptionHeader> candidates = prescriptionHeaderRepository.findActiveReminderCandidates(now);
+        int candidateCount = candidates.size();
+        int sentCount = 0;
+        int skippedCount = 0;
+        int failedCount = 0;
 
         if (candidates.isEmpty()) {
             log.debug("Prescription reminder job: no active prescriptions for timing={}", timing);
-            return;
+            return buildSummary("PRESCRIPTION_REMINDER", now, candidateCount, sentCount, skippedCount, failedCount);
         }
 
-        log.info("Prescription reminder job: found {} active prescriptions for timing={}", candidates.size(), timing);
+        log.info("Prescription reminder job: found {} active prescriptions for timing={}", candidateCount, timing);
 
         for (PrescriptionHeader prescription : candidates) {
             try {
@@ -245,6 +380,7 @@ public class NotificationScheduler {
                                 timingName,
                                 reminderDate
                         )) {
+                    skippedCount++;
                     log.debug("Skipping prescription reminder already sent: prescription={}, timing={}, date={}",
                             prescriptionHeaderId, timingName, reminderDate);
                     continue;
@@ -252,11 +388,13 @@ public class NotificationScheduler {
 
                 List<PrescriptionItem> itemsForTiming = itemsForTiming(prescription, timing);
                 if (itemsForTiming.isEmpty()) {
+                    skippedCount++;
                     continue;
                 }
 
                 User patientUser = prescription.getPatient() != null ? prescription.getPatient().getUser() : null;
                 if (patientUser == null) {
+                    skippedCount++;
                     log.warn("Skipping prescription reminder {} because patient user is missing", prescriptionHeaderId);
                     continue;
                 }
@@ -283,13 +421,18 @@ public class NotificationScheduler {
                         .sentAt(now)
                         .build());
 
+                sentCount++;
+
                 log.info("Prescription reminder sent: prescription={}, timing={}, patientId={}, itemCount={}",
                         prescriptionHeaderId, timingName, patientUser.getId(), itemsForTiming.size());
             } catch (Exception ex) {
+                failedCount++;
                 log.error("Failed to send prescription reminder for prescriptionHeaderId={}, timing={}: {}",
                         prescription.getPrescriptionHeaderId(), timing.name(), ex.getMessage(), ex);
             }
         }
+
+        return buildSummary("PRESCRIPTION_REMINDER", now, candidateCount, sentCount, skippedCount, failedCount);
     }
 
     private List<PrescriptionItem> itemsForTiming(PrescriptionHeader prescription, PrescriptionTiming timing) {
@@ -399,15 +542,23 @@ public class NotificationScheduler {
     @Scheduled(cron = "0 0 7 * * *")
     @Transactional
     public void sendDailyAppointmentDigest() {
-        LocalDate today = LocalDate.now();
+        sendDailyAppointmentDigest(LocalDate.now());
+    }
+
+    @Transactional
+    public NotificationDispatchSummary sendDailyAppointmentDigest(LocalDate today) {
         LocalDateTime startOfDay = today.atStartOfDay();
         LocalDateTime endOfDay = today.atTime(23, 59, 59);
 
         List<Appointment> todayAppointments = appointmentRepository.findDailyAppointments(startOfDay, endOfDay);
 
+        int sentCount = 0;
+        int skippedCount = 0;
+        int failedCount = 0;
+
         if (todayAppointments.isEmpty()) {
             log.debug("Daily appointment digest: no appointments today");
-            return;
+            return buildSummary("DAILY_APPOINTMENT_DIGEST", today.atStartOfDay(), 0, 0, 0, 0);
         }
 
         Map<String, List<Appointment>> byPatient = todayAppointments.stream()
@@ -417,13 +568,15 @@ public class NotificationScheduler {
                         Collectors.toList()
                 ));
 
-        log.info("Daily appointment digest: {} patients have appointments today", byPatient.size());
+        int candidateCount = byPatient.size();
+        log.info("Daily appointment digest: {} patients have appointments today", candidateCount);
 
         for (Map.Entry<String, List<Appointment>> entry : byPatient.entrySet()) {
             try {
                 List<Appointment> patientAppointments = entry.getValue();
                 User patientUser = patientAppointments.get(0).getPatient().getUser();
                 if (patientUser == null) {
+                    skippedCount++;
                     log.warn("Skipping daily digest for patientId={}: user is missing", entry.getKey());
                     continue;
                 }
@@ -448,12 +601,31 @@ public class NotificationScheduler {
                         "/appointments"
                 );
 
+                sentCount++;
+
                 log.info("Daily appointment digest sent to patientUserId={}, appointmentCount={}",
                         patientUser.getId(), count);
             } catch (Exception ex) {
+                failedCount++;
                 log.error("Failed to send daily digest for patientId={}: {}",
                         entry.getKey(), ex.getMessage(), ex);
             }
         }
+
+        return buildSummary("DAILY_APPOINTMENT_DIGEST", today.atStartOfDay(), candidateCount, sentCount, skippedCount, failedCount);
+    }
+
+    private NotificationDispatchSummary buildSummary(String job, LocalDateTime effectiveNow, int candidateCount, int sentCount, int skippedCount, int failedCount) {
+        String message = String.format("Triggered %s: %d sent, %d skipped, %d failed",
+                job, sentCount, skippedCount, failedCount);
+        return NotificationDispatchSummary.builder()
+                .job(job)
+                .effectiveNow(effectiveNow.format(DateTimeFormatter.ISO_LOCAL_DATE_TIME))
+                .candidateCount(candidateCount)
+                .sentCount(sentCount)
+                .skippedCount(skippedCount)
+                .failedCount(failedCount)
+                .message(message)
+                .build();
     }
 }

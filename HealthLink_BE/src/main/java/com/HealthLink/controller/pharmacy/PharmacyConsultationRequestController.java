@@ -6,8 +6,7 @@ import com.HealthLink.dto.pharmacy.PharmacyConsultationRequestCreateRequest;
 import com.HealthLink.dto.pharmacy.PharmacyConsultationRequestResponse;
 import com.HealthLink.dto.pharmacy.PharmacyOrderResponse;
 import com.HealthLink.dto.pharmacy.PharmacyConsultationRequestStatusUpdateRequest;
-import com.HealthLink.dto.pharmacy.PharmacyPrescriptionCreationResponse;
-import com.HealthLink.dto.pharmacy.PharmacyPrescriptionRequest;
+import com.HealthLink.dto.prescription.PrescriptionResponse;
 import com.HealthLink.exception.ResourceNotFoundException;
 import com.HealthLink.repository.auth.UserRepository;
 import com.HealthLink.service.chat.ChatService;
@@ -89,13 +88,15 @@ public class PharmacyConsultationRequestController {
         );
     }
 
-    @PostMapping("/{requestId}/prescription")
+    @GetMapping("/{requestId}/prescriptions")
     @PreAuthorize("hasRole('PHARMACY')")
-    public ResponseEntity<PharmacyPrescriptionCreationResponse> createPrescription(
+    public ResponseEntity<List<PrescriptionResponse>> getRequestPrescriptions(
             @PathVariable Integer requestId,
-            @Valid @RequestBody PharmacyPrescriptionRequest request) {
-        return ResponseEntity.status(HttpStatus.CREATED)
-                .body(pharmacyConsultationRequestService.createPrescription(requestId, request));
+            @AuthenticationPrincipal UserDetails userDetails) {
+        String pharmacyId = resolveUserId(userDetails);
+        return ResponseEntity.ok(
+                pharmacyConsultationRequestService.getRequestPrescriptions(requestId, pharmacyId)
+        );
     }
 
     @PostMapping("/{requestId}/order")

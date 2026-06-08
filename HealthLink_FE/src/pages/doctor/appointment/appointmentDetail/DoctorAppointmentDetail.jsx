@@ -88,11 +88,11 @@ const DoctorAppointmentDetail = memo(({ appointment, patient, doctorId, onBack, 
                 loadingAppointment={ctx.loadingAppointment}
                 visitReason={ctx.visitReason}
                 canEditClinical={ctx.canEditClinical}
-                isReadOnlyAppointment={ctx.isReadOnlyAppointment}
                 savingNotes={ctx.savingNotes}
                 notesDraft={ctx.notesDraft}
                 onNotesChange={ctx.handleNotesDraftChange}
                 onSaveNotes={ctx.handleSaveNotes}
+                onLockedAction={ctx.onLockedAction}
               />
             ) : null}
             {ctx.activeTab === 'history' ? (
@@ -121,6 +121,8 @@ const DoctorAppointmentDetail = memo(({ appointment, patient, doctorId, onBack, 
                 loadingPrescription={ctx.loadingPrescription}
                 onDraftChange={ctx.setPrescriptionDraft}
                 readOnly={ctx.isReadOnlyAppointment}
+                canEditPrescription={ctx.canEditPrescription}
+                onLockedAction={ctx.onLockedAction}
               />
             ) : null}
             {ctx.activeTab === 'followup' ? (
@@ -152,6 +154,7 @@ const DoctorAppointmentDetail = memo(({ appointment, patient, doctorId, onBack, 
                 renderEmptyState={(title, description) => <EmptyState title={title} description={description} />}
                 followUpConsultationType={ctx.followUpConsultationType}
                 onFollowUpTypeChange={ctx.setFollowUpConsultationType}
+                onLockedAction={ctx.onLockedAction}
               />
             ) : null}
           </div>
@@ -173,6 +176,7 @@ const DoctorAppointmentDetail = memo(({ appointment, patient, doctorId, onBack, 
             canEditClinical={ctx.canEditClinical}
             completingAppointment={ctx.completingAppointment}
             onCompleteClick={() => ctx.setShowCompleteConfirmModal(true)}
+            onLockedAction={ctx.onLockedAction}
           />
         </section>
       </div>

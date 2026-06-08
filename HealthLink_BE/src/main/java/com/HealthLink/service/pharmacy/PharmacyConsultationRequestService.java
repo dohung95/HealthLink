@@ -3,8 +3,7 @@ package com.HealthLink.service.pharmacy;
 import com.HealthLink.dto.pharmacy.PharmacyConsultationRequestCreateRequest;
 import com.HealthLink.dto.pharmacy.PharmacyConsultationRequestResponse;
 import com.HealthLink.dto.pharmacy.PharmacyConsultationRequestStatusUpdateRequest;
-import com.HealthLink.dto.pharmacy.PharmacyPrescriptionCreationResponse;
-import com.HealthLink.dto.pharmacy.PharmacyPrescriptionRequest;
+import com.HealthLink.dto.prescription.PrescriptionResponse;
 
 import java.util.List;
 
@@ -23,8 +22,8 @@ public interface PharmacyConsultationRequestService {
             PharmacyConsultationRequestStatusUpdateRequest request
     );
 
-    PharmacyPrescriptionCreationResponse createPrescription(
+    List<PrescriptionResponse> getRequestPrescriptions(
             Integer requestId,
-            PharmacyPrescriptionRequest request
+            String pharmacyId
     );
 }

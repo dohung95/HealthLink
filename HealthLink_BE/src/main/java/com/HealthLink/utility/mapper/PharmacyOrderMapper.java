@@ -1,11 +1,16 @@
 package com.HealthLink.utility.mapper;
 
 import com.HealthLink.dto.pharmacy.PharmacyOrderResponse;
+import com.HealthLink.dto.pharmacy.PharmacyOrderItemResponse;
 import com.HealthLink.entity.Patient;
 import com.HealthLink.entity.Pharmacy;
 import com.HealthLink.entity.PharmacyConsultationRequest;
 import com.HealthLink.entity.PharmacyOrder;
+import com.HealthLink.entity.PharmacyOrderItem;
 import com.HealthLink.entity.PrescriptionHeader;
+import com.HealthLink.entity.enums.PrescriptionTiming;
+
+import java.util.List;
 
 public final class PharmacyOrderMapper {
 
@@ -14,9 +19,7 @@ public final class PharmacyOrderMapper {
 
     public static PharmacyOrderResponse toResponse(PharmacyOrder order) {
         PrescriptionHeader prescription = order.getPrescriptionHeader();
-        PharmacyConsultationRequest consultationRequest = order.getConsultationRequest() != null
-                ? order.getConsultationRequest()
-                : prescription != null ? prescription.getConsultationRequest() : null;
+        PharmacyConsultationRequest consultationRequest = order.getConsultationRequest();
         Pharmacy pharmacy = order.getPharmacy();
         Patient patient = order.getPatient();
 
@@ -50,6 +53,9 @@ public final class PharmacyOrderMapper {
                 .paymentMethod(order.getPaymentMethod())
                 .notes(order.getNotes())
                 .pharmacistNotes(order.getPharmacistNotes())
+                .items(order.getOrderItems() == null
+                        ? List.of()
+                        : order.getOrderItems().stream().map(PharmacyOrderMapper::toItemResponse).toList())
                 .estimatedDeliveryTime(order.getEstimatedDeliveryTime())
                 .actualDeliveryTime(order.getActualDeliveryTime())
                 .confirmedAt(order.getConfirmedAt())
@@ -64,5 +70,35 @@ public final class PharmacyOrderMapper {
                 .pharmacyEarning(order.getPharmacyEarning())
                 .commissionRate(order.getCommissionRate())
                 .build();
+    }
+
+    private static PharmacyOrderItemResponse toItemResponse(PharmacyOrderItem item) {
+        return PharmacyOrderItemResponse.builder()
+                .orderItemId(item.getOrderItemId())
+                .medicineId(item.getMedicine() != null ? item.getMedicine().getMedicineId() : null)
+                .sourcePrescriptionHeaderId(item.getSourcePrescriptionHeader() != null
+                        ? item.getSourcePrescriptionHeader().getPrescriptionHeaderId() : null)
+                .sourcePrescriptionItemId(item.getSourcePrescriptionItem() != null
+                        ? item.getSourcePrescriptionItem().getPrescriptionItemId() : null)
+                .medicationName(item.getMedicationName())
+                .totalSupplyDays(item.getTotalSupplyDays())
+                .quantity(item.getQuantity())
+                .unit(item.getUnit())
+                .frequency(item.getFrequency())
+                .timing(item.getTiming())
+                .timings(timingsForResponse(item.getTiming()))
+                .route(item.getRoute())
+                .unitPrice(item.getUnitPrice())
+                .totalPrice(item.getTotalPrice())
+                .notes(item.getNotes())
+                .build();
+    }
+
+    private static List<String> timingsForResponse(String timing) {
+        try {
+            return PrescriptionTiming.splitNormalized(timing);
+        } catch (IllegalArgumentException ex) {
+            return List.of();
+        }
     }
 }

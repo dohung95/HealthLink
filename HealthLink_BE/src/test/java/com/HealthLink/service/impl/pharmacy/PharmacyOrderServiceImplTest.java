@@ -1,19 +1,25 @@
 package com.HealthLink.service.impl.pharmacy;
 
 import com.HealthLink.dto.pharmacy.PharmacyConsultationOrderCreateRequest;
+import com.HealthLink.dto.pharmacy.PharmacyOrderItemRequest;
 import com.HealthLink.dto.pharmacy.PharmacyOrderRequest;
 import com.HealthLink.dto.pharmacy.PharmacyOrderResponse;
 import com.HealthLink.dto.pharmacy.PharmacyOrderStatusRequest;
 import com.HealthLink.entity.Appointment;
 import com.HealthLink.entity.Doctor;
+import com.HealthLink.entity.Medicine;
 import com.HealthLink.entity.Patient;
 import com.HealthLink.entity.Pharmacy;
 import com.HealthLink.entity.PharmacyConsultationRequest;
+import com.HealthLink.entity.PharmacyConsultationRequestPrescription;
 import com.HealthLink.entity.PharmacyOrder;
+import com.HealthLink.entity.PrescriptionItem;
 import com.HealthLink.entity.PrescriptionHeader;
 import com.HealthLink.entity.User;
 import com.HealthLink.entity.enums.NotificationType;
+import com.HealthLink.exception.BadRequestException;
 import com.HealthLink.exception.ForbiddenException;
+import com.HealthLink.repository.medicine.MedicineRepository;
 import com.HealthLink.repository.notification.DeviceTokenRepository;
 import com.HealthLink.repository.pharmacy.PharmacyConsultationRequestRepository;
 import com.HealthLink.repository.pharmacy.PharmacyOrderRepository;
@@ -55,6 +61,9 @@ class PharmacyOrderServiceImplTest {
 
     @Mock
     private PrescriptionHeaderRepository prescriptionHeaderRepository;
+
+    @Mock
+    private MedicineRepository medicineRepository;
 
     @Mock
     private NotificationService notificationService;
@@ -130,6 +139,9 @@ class PharmacyOrderServiceImplTest {
         assertThat(response.getAppointmentId()).isEqualTo(22);
         assertThat(response.getDeliveryFee()).isEqualByComparingTo("5.50");
         assertThat(response.getTotalAmount()).isEqualByComparingTo("35.50");
+        assertThat(response.getItems()).hasSize(1);
+        assertThat(response.getItems().get(0).getMedicationName()).isEqualTo("Amlodipine 5mg");
+        assertThat(response.getItems().get(0).getSourcePrescriptionHeaderId()).isEqualTo(10);
     }
 
     @Test
@@ -149,7 +161,7 @@ class PharmacyOrderServiceImplTest {
     }
 
     @Test
-    void createOrderFromConsultationRequest_shouldCreateDirectOrderAndNotifyPatient() {
+    void createOrderFromConsultationRequest_shouldCreateItemizedOrderAndNotifyPatient() {
         User patientUser = User.builder().id("patient-user-1").build();
         User pharmacyUser = User.builder().id("pharmacy-user-1").build();
 
@@ -187,13 +199,14 @@ class PharmacyOrderServiceImplTest {
                 .build();
 
         PharmacyConsultationOrderCreateRequest request = new PharmacyConsultationOrderCreateRequest();
-        request.setMedicineAmount(new BigDecimal("30.00"));
+        request.setItems(List.of(orderItemRequest(1, 2, new BigDecimal("15.00"))));
         request.setPaymentMethod("COD");
         request.setPharmacistNotes("Prepared based on consultation");
 
         when(consultationRequestRepository.findById(15)).thenReturn(Optional.of(consultationRequest));
         when(orderRepository.existsByConsultationRequest_RequestId(15)).thenReturn(false);
         when(orderRepository.existsByOrderNumber(anyString())).thenReturn(false);
+        when(medicineRepository.findById(1)).thenReturn(Optional.of(medicine(1, "Amlodipine 5mg", "tablet")));
         when(orderRepository.save(any(PharmacyOrder.class))).thenAnswer(invocation -> {
             PharmacyOrder saved = invocation.getArgument(0);
             saved.setOrderId(88);
@@ -225,6 +238,120 @@ class PharmacyOrderServiceImplTest {
         assertThat(response.getPrescriptionHeaderId()).isNull();
         assertThat(response.getDeliveryFee()).isEqualByComparingTo("4.00");
         assertThat(response.getTotalAmount()).isEqualByComparingTo("34.00");
+        assertThat(response.getMedicineAmount()).isEqualByComparingTo("30.00");
+        assertThat(response.getItems()).hasSize(1);
+        assertThat(response.getItems().get(0).getTotalPrice()).isEqualByComparingTo("30.00");
+    }
+
+    @Test
+    void createOrderFromConsultationRequest_shouldRejectEmptyMedicationList() {
+        Pharmacy pharmacy = Pharmacy.builder()
+                .pharmacyId("pharmacy-1")
+                .name("Central Pharmacy")
+                .deliveryAvailable(true)
+                .active(true)
+                .verified(true)
+                .build();
+        PharmacyConsultationRequest consultationRequest = PharmacyConsultationRequest.builder()
+                .requestId(15)
+                .patient(Patient.builder().patientId("patient-1").build())
+                .pharmacy(pharmacy)
+                .status("IN_REVIEW")
+                .build();
+        PharmacyConsultationOrderCreateRequest request = new PharmacyConsultationOrderCreateRequest();
+
+        when(consultationRequestRepository.findById(15)).thenReturn(Optional.of(consultationRequest));
+        when(orderRepository.existsByConsultationRequest_RequestId(15)).thenReturn(false);
+
+        assertThatThrownBy(() ->
+                pharmacyOrderService.createOrderFromConsultationRequest(15, request, "pharmacy-1"))
+                .isInstanceOf(BadRequestException.class)
+                .hasMessage("Order must have at least 1 medication");
+
+        verify(orderRepository, never()).save(any(PharmacyOrder.class));
+    }
+
+    @Test
+    void createOrderFromConsultationRequest_shouldAcceptSourcePrescriptionSentWithRequest() {
+        Pharmacy pharmacy = Pharmacy.builder()
+                .pharmacyId("pharmacy-1")
+                .name("Central Pharmacy")
+                .active(true)
+                .verified(true)
+                .build();
+        Patient patient = Patient.builder().patientId("patient-1").fullName("Patient One").build();
+        PrescriptionHeader prescription = prescription(User.builder().build());
+        PharmacyConsultationRequest consultationRequest = PharmacyConsultationRequest.builder()
+                .requestId(15)
+                .patient(patient)
+                .pharmacy(pharmacy)
+                .preferredDeliveryType("Pickup")
+                .status("IN_REVIEW")
+                .build();
+        consultationRequest.getRequestPrescriptions().add(PharmacyConsultationRequestPrescription.builder()
+                .consultationRequest(consultationRequest)
+                .prescriptionHeader(prescription)
+                .build());
+        PharmacyOrderItemRequest itemRequest = orderItemRequest(1, 2, new BigDecimal("15.00"));
+        itemRequest.setSourcePrescriptionHeaderId(10);
+        itemRequest.setSourcePrescriptionItemId(101);
+        PharmacyConsultationOrderCreateRequest request = new PharmacyConsultationOrderCreateRequest();
+        request.setDeliveryType("Pickup");
+        request.setItems(List.of(itemRequest));
+
+        when(consultationRequestRepository.findById(15)).thenReturn(Optional.of(consultationRequest));
+        when(orderRepository.existsByConsultationRequest_RequestId(15)).thenReturn(false);
+        when(orderRepository.existsByOrderNumber(anyString())).thenReturn(false);
+        when(medicineRepository.findById(1)).thenReturn(Optional.of(medicine(1, "Amlodipine 5mg", "tablet")));
+        when(orderRepository.save(any(PharmacyOrder.class))).thenAnswer(invocation -> {
+            PharmacyOrder saved = invocation.getArgument(0);
+            saved.setOrderId(89);
+            return saved;
+        });
+        when(consultationRequestRepository.save(any(PharmacyConsultationRequest.class)))
+                .thenAnswer(invocation -> invocation.getArgument(0));
+
+        PharmacyOrderResponse response =
+                pharmacyOrderService.createOrderFromConsultationRequest(15, request, "pharmacy-1");
+
+        assertThat(response.getItems()).hasSize(1);
+        assertThat(response.getItems().get(0).getSourcePrescriptionHeaderId()).isEqualTo(10);
+        assertThat(response.getItems().get(0).getSourcePrescriptionItemId()).isEqualTo(101);
+    }
+
+    @Test
+    void createOrderFromConsultationRequest_shouldRejectSourcePrescriptionNotSentWithRequest() {
+        Pharmacy pharmacy = Pharmacy.builder()
+                .pharmacyId("pharmacy-1")
+                .name("Central Pharmacy")
+                .active(true)
+                .verified(true)
+                .build();
+        PharmacyConsultationRequest consultationRequest = PharmacyConsultationRequest.builder()
+                .requestId(15)
+                .patient(Patient.builder().patientId("patient-1").build())
+                .pharmacy(pharmacy)
+                .preferredDeliveryType("Pickup")
+                .status("IN_REVIEW")
+                .build();
+        PharmacyOrderItemRequest itemRequest = orderItemRequest(1, 2, new BigDecimal("15.00"));
+        itemRequest.setSourcePrescriptionHeaderId(10);
+        itemRequest.setSourcePrescriptionItemId(101);
+        PharmacyConsultationOrderCreateRequest request = new PharmacyConsultationOrderCreateRequest();
+        request.setDeliveryType("Pickup");
+        request.setItems(List.of(itemRequest));
+
+        when(consultationRequestRepository.findById(15)).thenReturn(Optional.of(consultationRequest));
+        when(orderRepository.existsByConsultationRequest_RequestId(15)).thenReturn(false);
+        when(medicineRepository.findById(1)).thenReturn(Optional.of(medicine(1, "Amlodipine 5mg", "tablet")));
+
+        assertThatThrownBy(() ->
+                pharmacyOrderService.createOrderFromConsultationRequest(15, request, "pharmacy-1"))
+                .isInstanceOf(ForbiddenException.class)
+                .hasMessage("Source prescription was not sent with this request");
+
+        verify(prescriptionHeaderRepository, never()).findById(10);
+        verify(orderRepository, never()).save(any(PharmacyOrder.class));
     }
 
     @Test
@@ -321,6 +448,27 @@ class PharmacyOrderServiceImplTest {
         assertThat(response.getStatus()).isEqualTo("COMPLETED");
     }
 
+    private PharmacyOrderItemRequest orderItemRequest(Integer medicineId, Integer quantity, BigDecimal unitPrice) {
+        PharmacyOrderItemRequest request = new PharmacyOrderItemRequest();
+        request.setMedicineId(medicineId);
+        request.setQuantity(quantity);
+        request.setTotalSupplyDays(7);
+        request.setUnit("tablet");
+        request.setFrequency("Twice daily");
+        request.setTiming("MORNING,EVENING");
+        request.setUnitPrice(unitPrice);
+        return request;
+    }
+
+    private Medicine medicine(Integer medicineId, String name, String unit) {
+        return Medicine.builder()
+                .medicineId(medicineId)
+                .name(name)
+                .unit(unit)
+                .price(new BigDecimal("15.00"))
+                .build();
+    }
+
     private PrescriptionHeader prescription(User doctorUser) {
         Doctor doctor = Doctor.builder()
                 .doctorId("doctor-1")
@@ -328,7 +476,7 @@ class PharmacyOrderServiceImplTest {
                 .user(doctorUser)
                 .build();
 
-        return PrescriptionHeader.builder()
+        PrescriptionHeader header = PrescriptionHeader.builder()
                 .prescriptionHeaderId(10)
                 .appointment(Appointment.builder().appointmentId(22).build())
                 .patient(Patient.builder()
@@ -342,5 +490,22 @@ class PharmacyOrderServiceImplTest {
                 .totalAmount(new BigDecimal("30.00"))
                 .status("ISSUED")
                 .build();
+        PrescriptionItem item = PrescriptionItem.builder()
+                .prescriptionItemId(101)
+                .prescriptionHeader(header)
+                .medicine(medicine(1, "Amlodipine 5mg", "tablet"))
+                .medicationName("Amlodipine 5mg")
+                .dosage("5mg")
+                .instructions("Use as directed")
+                .totalSupplyDays(7)
+                .quantity(2)
+                .unit("tablet")
+                .frequency("Twice daily")
+                .timing("MORNING,EVENING")
+                .unitPrice(new BigDecimal("15.00"))
+                .totalPrice(new BigDecimal("30.00"))
+                .build();
+        header.setPrescriptionItems(List.of(item));
+        return header;
     }
 }

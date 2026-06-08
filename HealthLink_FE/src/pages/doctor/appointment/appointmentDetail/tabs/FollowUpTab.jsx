@@ -37,6 +37,7 @@ const FollowUpTab = ({
   renderEmptyState,
   followUpConsultationType,
   onFollowUpTypeChange,
+  onLockedAction,
 }) => {
   const hasExistingFollowUp = Boolean(consultation.followUpDate || consultation.followUpNotes);
 
@@ -118,7 +119,9 @@ const FollowUpTab = ({
               <label className="fu-notes-label">Follow-up Notes</label>
               <textarea
                 className="form-control fu-notes-input"
-                disabled={!canEditFollowUp || savingFollowUp}
+                readOnly={!canEditFollowUp || savingFollowUp}
+                onFocus={() => { if (!canEditFollowUp && typeof onLockedAction === 'function') onLockedAction(); }}
+                onClick={() => { if (!canEditFollowUp && typeof onLockedAction === 'function') onLockedAction(); }}
                 onChange={(event) => onFollowUpNotesChange(event.target.value)}
                 placeholder="Add concise notes for the next appointment..."
                 rows="2"
@@ -155,9 +158,16 @@ const FollowUpTab = ({
                     return (
                       <button
                         className={`fu-slot-btn ${slot.selectable ? 'fu-slot-btn--avail' : 'fu-slot-btn--disabled'} ${isSelected ? 'fu-slot-btn--selected' : ''}`}
-                        disabled={!slot.selectable || !canEditFollowUp || savingFollowUp}
+                        disabled={!slot.selectable || savingFollowUp}
+                        aria-disabled={!canEditFollowUp}
                         key={slot.startTime}
-                        onClick={() => onSelectFollowUpSlot(slot)}
+                        onClick={() => {
+                          if (!canEditFollowUp) {
+                            if (typeof onLockedAction === 'function') onLockedAction();
+                            return;
+                          }
+                          onSelectFollowUpSlot(slot);
+                        }}
                         title={slot.disabledReason || slot.label}
                         type="button"
                       >
@@ -194,9 +204,15 @@ const FollowUpTab = ({
                 return (
                   <button
                     key={type.value}
-                    className={`fu-type-btn ${isActive ? 'fu-type-btn--active' : ''}`}
-                    disabled={!canEditFollowUp || savingFollowUp}
-                    onClick={() => onFollowUpTypeChange(type.value)}
+                    className={`fu-type-btn ${isActive ? 'fu-type-btn--active' : ''} ${!canEditFollowUp ? 'disabled' : ''}`}
+                    aria-disabled={!canEditFollowUp || savingFollowUp}
+                    onClick={() => {
+                      if (!canEditFollowUp) {
+                        if (typeof onLockedAction === 'function') onLockedAction();
+                        return;
+                      }
+                      onFollowUpTypeChange(type.value);
+                    }}
                     type="button"
                   >
                     <i className={`bi ${type.icon}`}></i>
@@ -230,9 +246,15 @@ const FollowUpTab = ({
             </button>
           )}
           <button
-            className="btn btn-primary btn-sm"
-            disabled={!canEditFollowUp || savingFollowUp || !selectedFollowUpDateTime}
-            onClick={onConfirmFollowUp}
+            className={`btn btn-primary btn-sm ${!canEditFollowUp || savingFollowUp || !selectedFollowUpDateTime ? 'disabled' : ''}`}
+            aria-disabled={!canEditFollowUp || savingFollowUp || !selectedFollowUpDateTime}
+            onClick={() => {
+              if (!canEditFollowUp) {
+                if (typeof onLockedAction === 'function') onLockedAction();
+                return;
+              }
+              onConfirmFollowUp();
+            }}
             type="button"
           >
             {followUpAction === 'confirm' ? (

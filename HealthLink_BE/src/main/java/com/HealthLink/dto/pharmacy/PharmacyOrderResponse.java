@@ -7,6 +7,7 @@ import lombok.NoArgsConstructor;
 
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
+import java.util.List;
 
 @Data
 @NoArgsConstructor
@@ -56,6 +57,9 @@ public class PharmacyOrderResponse {
     // --- Notes ---
     private String notes;
     private String pharmacistNotes;
+
+    // --- Medication items ---
+    private List<PharmacyOrderItemResponse> items;
 
     // --- Timestamps ---
     private LocalDateTime estimatedDeliveryTime;

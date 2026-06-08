@@ -131,15 +131,11 @@ export function useFollowUp({ appointment, appointmentDetail, doctorId, onRefres
       toast.error('Please select an available follow-up slot');
       return false;
     }
-    if (consultation.followUpAppointmentId) {
-      toast.error('Follow-up appointment has already been created');
-      return false;
-    }
 
     setSavingFollowUp(true);
     setFollowUpAction('confirm');
     try {
-      await consultationApi.updateAppointmentFollowUp(targetAppointmentId, {
+      const response = await consultationApi.updateAppointmentFollowUp(targetAppointmentId, {
         followUpDate,
         followUpNotes: notes?.trim() || null,
         consultationType: followUpConsultationType,
@@ -148,7 +144,7 @@ export function useFollowUp({ appointment, appointmentDetail, doctorId, onRefres
       if (onRefreshAppointment) await onRefreshAppointment();
       await loadFollowUpSlots();
       await loadFollowUpCalendar();
-      return true;
+      return response?.followUpAppointmentId || true;
     } catch (error) {
       console.error('Error saving follow-up:', error);
       toast.error(error.response?.data?.message || 'Failed to save follow-up');
@@ -157,10 +153,10 @@ export function useFollowUp({ appointment, appointmentDetail, doctorId, onRefres
       setSavingFollowUp(false);
       setFollowUpAction(null);
     }
-  }, [appointmentId, consultation.followUpAppointmentId, followUpConsultationType, loadFollowUpCalendar, loadFollowUpSlots, onRefreshAppointment]);
+  }, [appointmentId, followUpConsultationType, loadFollowUpCalendar, loadFollowUpSlots, onRefreshAppointment]);
 
   const handleConfirmFollowUp = useCallback(async () => {
-    await savePendingFollowUp(selectedFollowUpDateTime, followUpNotes, 'Follow-up schedule saved');
+    await savePendingFollowUp(selectedFollowUpDateTime, followUpNotes, 'Follow-up appointment scheduled');
   }, [selectedFollowUpDateTime, followUpNotes, savePendingFollowUp]);
 
   const handleCancelFollowUp = useCallback(async () => {
@@ -169,11 +165,7 @@ export function useFollowUp({ appointment, appointmentDetail, doctorId, onRefres
       toast.error('Appointment data is not ready yet');
       return;
     }
-    if (consultation.followUpAppointmentId) {
-      toast.error('Follow-up appointment has already been created');
-      return;
-    }
-    if (!consultation.followUpDate && !consultation.followUpNotes) {
+    if (!consultation.followUpDate && !consultation.followUpNotes && !consultation.followUpAppointmentId) {
       setSelectedFollowUpDateTime(null);
       setFollowUpNotes('');
       return;

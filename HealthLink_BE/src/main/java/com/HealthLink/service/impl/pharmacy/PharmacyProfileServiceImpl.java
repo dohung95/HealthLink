@@ -26,7 +26,9 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.time.LocalDateTime;
+import java.util.List;
 import java.util.UUID;
+import java.util.stream.Collectors;
 
 @Service
 @Slf4j
@@ -320,5 +322,22 @@ public class PharmacyProfileServiceImpl implements PharmacyProfileService {
 
         log.info("Avatar uploaded for pharmacy {}: {}", pharmacyId, avatarUrl);
         return avatarUrl;
+    }
+
+    // =========================================================================
+    // GET ACTIVE VERIFIED PHARMACIES (public)
+    // =========================================================================
+
+    @Override
+    public List<PharmacyProfileResponse> getActiveVerifiedPharmacies(Boolean deliveryOnly) {
+        List<Pharmacy> pharmacies;
+        if (Boolean.TRUE.equals(deliveryOnly)) {
+            pharmacies = pharmacyRepository.findByActiveTrueAndVerifiedTrueAndDeliveryAvailableTrue();
+        } else {
+            pharmacies = pharmacyRepository.findByActiveTrueAndVerifiedTrue();
+        }
+        return pharmacies.stream()
+                .map(this::toResponse)
+                .collect(Collectors.toList());
     }
 }

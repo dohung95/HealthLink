@@ -3,6 +3,8 @@ import jakarta.persistence.*;
 import lombok.*;
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
+import java.util.ArrayList;
+import java.util.List;
 
 @Entity
 @Table(name = "PharmacyOrders")
@@ -49,6 +51,12 @@ public class PharmacyOrder {
     private BigDecimal deliveryFee;
     private BigDecimal medicineAmount;
     private BigDecimal totalAmount;
+
+    @OneToMany(mappedBy = "pharmacyOrder", cascade = CascadeType.ALL, orphanRemoval = true)
+    @Builder.Default
+    @ToString.Exclude
+    @EqualsAndHashCode.Exclude
+    private List<PharmacyOrderItem> orderItems = new ArrayList<>();
 
     @Column(length = 50)
     private String paymentStatus;

@@ -1,5 +1,7 @@
 package com.HealthLink.service.followup;
 
+import com.HealthLink.dto.consultation.FollowUpRequest;
+import com.HealthLink.dto.consultation.FollowUpResponse;
 import com.HealthLink.dto.response.CompleteAppointmentResponse;
 import com.HealthLink.dto.response.FollowUpCalendarResponse;
 import com.HealthLink.dto.response.FollowUpSlotsResponse;
@@ -15,6 +17,10 @@ public interface FollowUpAppointmentService {
     FollowUpCalendarResponse getCalendar(String doctorId, String month);
 
     void validateFollowUpSlot(Appointment appointment, LocalDateTime followUpDate);
+
+    FollowUpResponse scheduleFollowUpAppointment(Appointment sourceAppointment, FollowUpRequest request);
+
+    void cancelPendingFollowUp(Appointment sourceAppointment);
 
     CompleteAppointmentResponse completeAppointment(Integer appointmentId, boolean copyPrescription);
 }

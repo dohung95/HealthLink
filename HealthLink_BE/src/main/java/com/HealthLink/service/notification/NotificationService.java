@@ -130,6 +130,26 @@ public class NotificationService {
         log.info("Mobile push notification dispatched: type={}, userId={}", type, user.getId());
     }
 
+    @Transactional(propagation = Propagation.NOT_SUPPORTED)
+    public void sendWebSocketAndMobilePushNotification(User user, NotificationType type,
+                                                       String title, String message,
+                                                       NotificationPriority priority,
+                                                       Integer relatedId, String actionUrl) {
+        Notification notification = saveNotification(user, type, title, message,
+                NotificationChannel.WEB_SOCKET, priority, relatedId, actionUrl, null);
+
+        webSocketService.sendToUser(user.getId(), notification);
+
+        firebaseService.sendToUser(user.getId(), title, message, type, relatedId, actionUrl, null);
+
+        audit.log("NOTIFICATION_SENT", String.valueOf(notification.getNotificationId()),
+                user.getId() != null ? user.getId() : null,
+                java.util.Map.of("type", String.valueOf(type), "channel", "WEB_SOCKET+MOBILE_PUSH",
+                        "relatedId", String.valueOf(relatedId)));
+
+        log.info("WebSocket + Mobile push notification dispatched: type={}, userId={}", type, user.getId());
+    }
+
     public void sendMobilePushNotification(User user, NotificationType type,
                                            String title, String message,
                                            NotificationPriority priority,

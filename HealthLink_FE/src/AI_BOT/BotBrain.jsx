@@ -255,7 +255,7 @@ export const KEYWORD_REPLIES = [
             vi: '💊 Xem nhà thuốc',
             id: '💊 Lihat Apotek',
         },
-        actionUrl: '/pharmacy',
+        actionUrl: '/patient-dashboard/pharmacy',
     },
     {
         keywords: ['khẩn cấp', 'khan cap', 'cấp cứu', 'cap cuu', 'emergency', 'urgent', 'darurat', 'gawat'],

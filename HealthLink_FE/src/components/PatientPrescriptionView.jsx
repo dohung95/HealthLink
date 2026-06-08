@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { prescriptionService } from '../api/prescriptionApi';
 import { useAuth } from '../context/AuthContext';
 import 'bootstrap/dist/css/bootstrap.min.css';
@@ -6,6 +7,7 @@ import './Css/PatientPrescriptionView.css';
 // import Loading from './Loading';
 
 const PatientPrescriptionView = () => {
+  const navigate = useNavigate();
   const { userId } = useAuth();
   const [prescriptions, setPrescriptions] = useState([]);
   const [filteredPrescriptions, setFilteredPrescriptions] = useState([]);
@@ -228,6 +230,16 @@ const PatientPrescriptionView = () => {
                       </div>
                     </div>
                   )}
+
+                  {/* Order from Pharmacy CTA */}
+                  <div className="mt-4 pt-3 border-top border-custom">
+                    <button
+                      className="btn btn-success px-4"
+                      onClick={() => navigate('/patient-dashboard/pharmacy')}
+                    >
+                      <i className="bi bi-cart-plus me-2"></i>Order from pharmacy
+                    </button>
+                  </div>
                 </div>
               ) : (
                 <div className="p-5 d-flex justify-content-center align-items-center flex-grow-1">

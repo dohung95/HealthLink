@@ -68,26 +68,37 @@ const PatientHeader = () => {
         }
     };
 
+    const extractOrderId = (notification) => {
+        if (notification.relatedId) return notification.relatedId;
+        const actionUrl = notification.actionUrl || '';
+        const match = actionUrl.match(/\/pharmacy-orders\/([^/]+)/) || actionUrl.match(/\/payment\/order\/([^/]+)/) || actionUrl.match(/\/orders\/([^/]+)/);
+        return match ? match[1] : null;
+    };
+
     const handleNotificationClick = async (notification) => {
         if (!notification.isRead && !notification.read) {
             await handleMarkAsRead(notification.notificationId);
         }
         setShowDropdown(false);
 
-        // Navigate based on notification type (đồng bộ với PatientSidebar)
         const type = notification.type;
         if (type === 'PRESCRIPTION_ISSUED' || type === 'NEW_PRESCRIPTION') {
             navigate('/patient-dashboard/prescriptions');
-        } else if (type === 'PAYMENT_REQUIRED') {
-            navigate('/patient-dashboard/prescriptions');
-        } else if (type === 'ORDER_STATUS') {
-            navigate('/patient-dashboard/prescriptions');
+        } else if (type === 'PAYMENT_REQUIRED' || type === 'ORDER_STATUS' || type === 'NEW_ORDER') {
+            const orderId = extractOrderId(notification);
+            if (orderId) {
+                navigate(`/patient-dashboard/pharmacy/orders/${orderId}`);
+            } else {
+                navigate('/patient-dashboard/pharmacy/orders');
+            }
         } else if (type === 'APPOINTMENT_REMINDER') {
             navigate('/patient-dashboard/appointments');
-        } else if (type?.includes('APPOINTMENT') || notification.appointmentId || notification.relatedId) {
+        } else if (notification.appointmentId || type?.includes('APPOINTMENT')) {
             navigate('/patient-dashboard/appointments');
         } else if (type?.includes('PRESCRIPTION')) {
             navigate('/patient-dashboard/prescriptions');
+        } else if (notification.relatedId) {
+            navigate('/patient-dashboard/pharmacy/orders');
         }
     };
 
