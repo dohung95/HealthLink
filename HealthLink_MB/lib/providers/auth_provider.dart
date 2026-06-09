@@ -24,6 +24,7 @@ class AuthProvider extends ChangeNotifier {
   // Thông tin profile (tải sau khi login)
   String? _displayName;
   String? _avatarUrl;
+  Map<String, dynamic>? _patientProfile;
 
   // ── Getters ────────────────────────────────────────────────────────────────
 
@@ -37,6 +38,7 @@ class AuthProvider extends ChangeNotifier {
   bool       get isAuthenticated => _status == AuthStatus.authenticated;
   String?    get displayName   => _displayName;
   String?    get avatarUrl     => _avatarUrl;
+  Map<String, dynamic>? get patientProfile => _patientProfile;
 
   // ── Init: Tải token từ SharedPreferences khi app khởi động ─────────────────
 
@@ -50,7 +52,7 @@ class AuthProvider extends ChangeNotifier {
       _roles        = _extractRoles(token);
       _status       = AuthStatus.authenticated;
       // Tải profile ngầm sau khi khôi phục session
-      _fetchProfile(token);
+      fetchProfile();
     } else {
       _status = AuthStatus.unauthenticated;
     }
@@ -61,17 +63,17 @@ class AuthProvider extends ChangeNotifier {
 
   /// Đăng nhập bằng email + password.
   /// Trả true nếu thành công, false nếu thất bại.
-  Future<bool> login(String email, String password) async {
+  Future<bool> login(String email, String password, {bool rememberMe = false}) async {
     _setLoading();
     try {
       final response = await AuthService.login(
         LoginRequest(email: email, password: password),
       );
-      await _saveSession(response);
+      await _saveSession(response, rememberMe: rememberMe);
       _status = AuthStatus.authenticated;
       notifyListeners();
       // Tải profile ngầm sau login
-      _fetchProfile(response.accessToken);
+      fetchProfile();
       return true;
     } catch (e) {
       _setError(_cleanErrorMessage(e.toString()));
@@ -166,17 +168,23 @@ class AuthProvider extends ChangeNotifier {
   }
 
   /// Lưu tokens sau khi login thành công.
-  Future<void> _saveSession(LoginResponse response) async {
+  /// Nếu rememberMe = true, lưu vào SharedPreferences.
+  Future<void> _saveSession(LoginResponse response, {bool rememberMe = false}) async {
     _accessToken  = response.accessToken;
     _refreshToken = response.refreshToken;
     _userId       = response.userId;
     _roles        = _extractRoles(response.accessToken);
 
-    await TokenUtils.saveTokens(
-      accessToken:  response.accessToken,
-      refreshToken: response.refreshToken,
-      userId:       response.userId,
-    );
+    if (rememberMe) {
+      await TokenUtils.saveTokens(
+        accessToken:  response.accessToken,
+        refreshToken: response.refreshToken,
+        userId:       response.userId,
+      );
+    } else {
+      // Đảm bảo không có token cũ nào bị dính lại nếu chọn không remember
+      await TokenUtils.clearTokens();
+    }
   }
 
   /// Xóa toàn bộ session.
@@ -187,30 +195,33 @@ class AuthProvider extends ChangeNotifier {
     _roles        = [];
     _displayName  = null;
     _avatarUrl    = null;
+    _patientProfile = null;
     _status       = AuthStatus.unauthenticated;
     _errorMessage = '';
     await TokenUtils.clearTokens();
     notifyListeners();
   }
 
-  /// Gọi ngầm /api/account/patient/profile để lấy tên và avatar.
-  Future<void> _fetchProfile(String token) async {
+  /// Gọi ngầm /api/account/patient/profile để lấy tên và avatar. Hoặc được gọi công khai để pull-to-refresh.
+  Future<void> fetchProfile() async {
+    if (_accessToken == null) return;
     try {
       final res = await http.get(
         Uri.parse(ApiConfig.patientProfile),
         headers: {
-          'Authorization': 'Bearer $token',
+          'Authorization': 'Bearer $_accessToken',
           'Accept': 'application/json',
         },
       ).timeout(ApiConfig.connectTimeout);
       if (res.statusCode == 200) {
         final data = jsonDecode(res.body) as Map<String, dynamic>;
-        _displayName = data['fullName']?.toString();
+        _patientProfile = data;
+        _displayName = data['fullName']?.toString() ?? data['username']?.toString();
         _avatarUrl   = data['avatarUrl']?.toString();
         notifyListeners();
       }
     } catch (e) {
-      debugPrint('AuthProvider _fetchProfile error: $e');
+      debugPrint('AuthProvider fetchProfile error: $e');
     }
   }
 

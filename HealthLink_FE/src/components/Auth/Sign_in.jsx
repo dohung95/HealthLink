@@ -13,6 +13,7 @@ export function Sign_in() {
     const { login, token, roles } = useAuth();
     const [email, setEmail] = useState('');
     const [password, setPassword] = useState('');
+    const [rememberMe, setRememberMe] = useState(false);
     const [error, setError] = useState('');
     const [loading, setLoading] = useState(true); // Initial page loading
     const [submitting, setSubmitting] = useState(false); // Form submission loading
@@ -108,7 +109,7 @@ export function Sign_in() {
         setSubmitting(true);
 
         try {
-            const result = await login(email, password);
+            const result = await login(email, password, rememberMe);
 
             if (result === true) {
                 // Get token and decode to extract roles
@@ -236,7 +237,20 @@ export function Sign_in() {
                                     {passwordError}
                                 </div>
                             )}
-                            <div style={{ textAlign: 'right', marginTop: '6px' }}>
+                            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: '6px' }}>
+                                <div style={{ display: 'flex', alignItems: 'center' }}>
+                                    <input 
+                                        type="checkbox" 
+                                        id="rememberMe" 
+                                        checked={rememberMe} 
+                                        onChange={(e) => setRememberMe(e.target.checked)}
+                                        disabled={submitting}
+                                        style={{ marginRight: '8px', cursor: 'pointer' }}
+                                    />
+                                    <label htmlFor="rememberMe" style={{ margin: 0, fontSize: '0.9rem', cursor: 'pointer', color: '#555' }}>
+                                        Remember me
+                                    </label>
+                                </div>
                                 <Link to="/forgot-password" style={{ fontSize: '0.85rem', color: '#00b09a', textDecoration: 'none' }}>
                                     Forgot password?
                                 </Link>

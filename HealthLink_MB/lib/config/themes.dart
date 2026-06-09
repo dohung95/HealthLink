@@ -56,6 +56,8 @@ class HealthLinkTheme {
   // Lấy chính xác từ file cấu hình YAML Theme Dark
   // =========================================================
 
+  /*
+  // === BACKUP: CẤU HÌNH MÀU DARK THEME CŨ ===
   static const Color darkPrimary = Color(0xFF89D5C2);
   static const Color darkOnPrimary = Color(0xFF00382E);
   static const Color darkPrimaryContainer = Color(0xFF006051);
@@ -99,6 +101,51 @@ class HealthLinkTheme {
   static const Color darkSurfaceContainer = Color(0xFF0B2320);
   static const Color darkSurfaceContainerHigh = Color(0xFF162E2B);
   static const Color darkSurfaceContainerHighest = Color(0xFF213935);
+  */
+
+  static const Color darkPrimary = Color(0xFFFF2D78); // Hot pink neon
+  static const Color darkOnPrimary = Color(0xFFFFFFFF);
+  static const Color darkPrimaryContainer = Color(0xFF4A0E22);
+  static const Color darkOnPrimaryContainer = Color(0xFFFFD1DF);
+
+  static const Color darkSecondary = Color(0xFF00FFCC); // Cyan neon
+  static const Color darkOnSecondary = Color(0xFF00382B);
+  static const Color darkSecondaryContainer = Color(0xFF004D3D);
+  static const Color darkOnSecondaryContainer = Color(0xFFB3FFF0);
+
+  static const Color darkTertiary = Color(0xFFFFE04A); // Warm neon yellow
+  static const Color darkOnTertiary = Color(0xFF3B3200);
+  static const Color darkTertiaryContainer = Color(0xFF574A00);
+  static const Color darkOnTertiaryContainer = Color(0xFFFFF2B3);
+
+  static const Color darkError = Color(0xFFFF5555);
+  static const Color darkOnError = Color(0xFF4B0000);
+  static const Color darkErrorContainer = Color(0xFF7D0000);
+  static const Color darkOnErrorContainer = Color(0xFFFFDAD6);
+
+  static const Color darkBackground = Color(0xFF0A0A12); // Near-black with blue undertone
+  static const Color darkOnBackground = Color(0xFFE2E2EC);
+
+  static const Color darkSurface = Color(0xFF0A0A12);
+  static const Color darkOnSurface = Color(0xFFE2E2EC);
+  static const Color darkSurfaceVariant = Color(0xFF161625);
+  static const Color darkOnSurfaceVariant = Color(0xFFC5C5D3);
+
+  static const Color darkOutline = Color(0xFF464656);
+  static const Color darkOutlineVariant = Color(0xFF262635);
+
+  static const Color darkInverseSurface = Color(0xFFE2E2EC);
+  static const Color darkOnInverseSurface = Color(0xFF0A0A12);
+  static const Color darkInversePrimary = Color(0xFFFF2D78);
+
+  // Nhóm màu mở rộng (Surface Containers) cho thẻ Card/Nền bản Dark
+  static const Color darkSurfaceBright = Color(0xFF1C1C2D);
+  static const Color darkSurfaceDim = Color(0xFF07070D);
+  static const Color darkSurfaceContainerLowest = Color(0xFF030307);
+  static const Color darkSurfaceContainerLow = Color(0xFF0D0D17);
+  static const Color darkSurfaceContainer = Color(0xFF121221);
+  static const Color darkSurfaceContainerHigh = Color(0xFF17172B);
+  static const Color darkSurfaceContainerHighest = Color(0xFF22223B);
 
 
   // =========================================================
@@ -178,8 +225,35 @@ class HealthLinkTheme {
         inverseSurface: darkInverseSurface,
         onInverseSurface: darkOnInverseSurface,
         inversePrimary: darkInversePrimary,
+        surfaceBright: darkSurfaceBright,
+        surfaceDim: darkSurfaceDim,
+        surfaceContainerLowest: darkSurfaceContainerLowest,
+        surfaceContainerLow: darkSurfaceContainerLow,
+        surfaceContainer: darkSurfaceContainer,
+        surfaceContainerHigh: darkSurfaceContainerHigh,
+        surfaceContainerHighest: darkSurfaceContainerHighest,
       ),
       scaffoldBackgroundColor: darkBackground,
+      textTheme: const TextTheme(
+        // Headlines: Sora — geometric and futuristic, bold
+        displayLarge: TextStyle(fontFamily: 'Sora', fontWeight: FontWeight.bold),
+        displayMedium: TextStyle(fontFamily: 'Sora', fontWeight: FontWeight.bold),
+        displaySmall: TextStyle(fontFamily: 'Sora', fontWeight: FontWeight.bold),
+        headlineLarge: TextStyle(fontFamily: 'Sora', fontWeight: FontWeight.bold),
+        headlineMedium: TextStyle(fontFamily: 'Sora', fontWeight: FontWeight.bold),
+        headlineSmall: TextStyle(fontFamily: 'Sora', fontWeight: FontWeight.bold),
+        titleLarge: TextStyle(fontFamily: 'Sora', fontWeight: FontWeight.bold),
+        titleMedium: TextStyle(fontFamily: 'Sora', fontWeight: FontWeight.bold),
+        titleSmall: TextStyle(fontFamily: 'Sora', fontWeight: FontWeight.bold),
+        // Body: Inter — reliable contrast against dark backgrounds
+        bodyLarge: TextStyle(fontFamily: 'Inter'),
+        bodyMedium: TextStyle(fontFamily: 'Inter'),
+        bodySmall: TextStyle(fontFamily: 'Inter'),
+        // Labels: Space Grotesk — technical, monospaced feel
+        labelLarge: TextStyle(fontFamily: 'Space Grotesk'),
+        labelMedium: TextStyle(fontFamily: 'Space Grotesk'),
+        labelSmall: TextStyle(fontFamily: 'Space Grotesk'),
+      ),
     );
   }
 }

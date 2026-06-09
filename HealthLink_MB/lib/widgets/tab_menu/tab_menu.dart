@@ -8,7 +8,7 @@ class TabMenu {
     TabMenuItem(icon: Icons.calendar_today, label: 'Appointments'),
     TabMenuItem(icon: Icons.home, label: 'Home'),
     TabMenuItem(icon: Icons.chat_bubble_outline, label: 'Chat'),
-    TabMenuItem(icon: Icons.description_outlined, label: 'Records'),
+    TabMenuItem(icon: Icons.description_outlined, label: 'prescription'),
   ];
 }
 

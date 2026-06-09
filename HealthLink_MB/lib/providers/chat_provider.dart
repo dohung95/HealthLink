@@ -1,8 +1,12 @@
 import 'package:flutter/foundation.dart';
+import 'package:flutter/material.dart';
+import '../main.dart';
 import '../models/chat/conversation.dart';
 import '../models/chat/message.dart';
 import '../services/chat/chat_service.dart';
 import '../services/chat/stomp_service.dart';
+import '../utils/notification_helper.dart';
+import '../screens/chat/chat_room_screen.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 /// Provider quản lý toàn bộ state của màn hình Chat.
@@ -161,8 +165,8 @@ class ChatProvider extends ChangeNotifier {
     
     _updateLastMessage(msg.conversationId, preview, time: msg.sentAt);
 
-    // Tăng unreadCount nếu không phải phòng đang mở
-    if (_currentConversation?.id != msg.conversationId && msg.senderId != currentConversation?.partnerId) {
+    // Tăng unreadCount nếu không phải phòng đang mở và không phải tin nhắn do chính mình gửi
+    if (_currentConversation?.id != msg.conversationId && msg.senderId != _lastUserId) {
        final idx = _conversations.indexWhere((c) => c.id == msg.conversationId);
        if (idx != -1) {
          final old = _conversations[idx];
@@ -170,12 +174,42 @@ class ChatProvider extends ChangeNotifier {
             id: old.id,
             partnerId: old.partnerId,
             partnerName: old.partnerName,
+            partnerSpecialty: old.partnerSpecialty,
             partnerAvatarUrl: old.partnerAvatarUrl,
+            isOnline: old.isOnline,
+            isSupport: old.isSupport,
             appointmentId: old.appointmentId,
             lastMessage: old.lastMessage,
             lastMessageTime: old.lastMessageTime,
             unreadCount: old.unreadCount + 1,
+            isLastMessageRead: old.isLastMessageRead,
+            blockedBy: old.blockedBy,
          );
+       }
+
+       // Hiển thị thông báo Notification chạy từ trên xuống
+       if (msg.senderId != _lastUserId) {
+         final context = navigatorKey.currentContext;
+         final overlay = navigatorKey.currentState?.overlay;
+         if (overlay != null && context != null) {
+           if (!isMuted(msg.conversationId)) {
+             final title = idx != -1 ? _conversations[idx].partnerName : 'New Message';
+             final conv = idx != -1 ? _conversations[idx] : null;
+             NotificationHelper.showTopNotification(
+               overlay,
+               title: title,
+               message: preview,
+               onTap: conv != null ? () {
+                 Navigator.push(
+                   context,
+                   MaterialPageRoute(
+                     builder: (_) => ChatRoomScreen(conversation: conv),
+                   ),
+                 );
+               } : null,
+             );
+           }
+         }
        }
     }
 
@@ -221,6 +255,13 @@ class ChatProvider extends ChangeNotifier {
       _isLoadingMessages = false;
       notifyListeners();
     }
+  }
+
+  /// Xoá conversation hiện tại khi rời khỏi màn hình chat
+  void clearCurrentConversation() {
+    _currentConversation = null;
+    _messages = [];
+    notifyListeners();
   }
 
   /// Gửi tin nhắn với Optimistic Update.
@@ -324,11 +365,16 @@ class ChatProvider extends ChangeNotifier {
         id: old.id,
         partnerId: old.partnerId,
         partnerName: old.partnerName,
+        partnerSpecialty: old.partnerSpecialty,
         partnerAvatarUrl: old.partnerAvatarUrl,
+        isOnline: old.isOnline,
+        isSupport: old.isSupport,
         appointmentId: old.appointmentId,
         lastMessage: old.lastMessage,
         lastMessageTime: old.lastMessageTime,
         unreadCount: 0,
+        isLastMessageRead: true,
+        blockedBy: old.blockedBy,
       );
     }
   }
@@ -341,11 +387,16 @@ class ChatProvider extends ChangeNotifier {
         id: old.id,
         partnerId: old.partnerId,
         partnerName: old.partnerName,
+        partnerSpecialty: old.partnerSpecialty,
         partnerAvatarUrl: old.partnerAvatarUrl,
+        isOnline: old.isOnline,
+        isSupport: old.isSupport,
         appointmentId: old.appointmentId,
         lastMessage: content,
         lastMessageTime: time ?? DateTime.now(),
         unreadCount: old.unreadCount,
+        isLastMessageRead: old.isLastMessageRead,
+        blockedBy: old.blockedBy,
       );
     }
   }

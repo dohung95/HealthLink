@@ -21,7 +21,7 @@ const API_URL = `${API_BASE_URL}/api/admin/notifications`;
 
 // Helper: Lấy auth header
 const getAuthHeader = () => {
-    const token = localStorage.getItem('token');
+    const token = localStorage.getItem('token') || sessionStorage.getItem('token');
     return token ? { Authorization: `Bearer ${token}` } : {};
 };
 
@@ -29,9 +29,10 @@ const getAuthHeader = () => {
 const handleApiError = (error, defaultMessage) => {
     console.error(defaultMessage, error);
 
-    if (error.response?.status === 401) {
-        // Token hết hạn
+    if (error.response?.status === 401 || error.response?.status === 403) {
+        // Token hết hạn hoặc không có quyền
         localStorage.removeItem('token');
+        sessionStorage.removeItem('token');
         window.location.href = '/login';
     }
 
