@@ -20,4 +20,10 @@ public class RegistrationDocumentDto {
     private String mimeType;
     private LocalDateTime uploadedAt;
     private String downloadUrl;
+
+    // AI Verification fields
+    private String aiVerificationStatus;
+    private String aiVerificationResult;
+    private Boolean documentTypeVerified;
+    private Double aiConfidenceScore;
 }

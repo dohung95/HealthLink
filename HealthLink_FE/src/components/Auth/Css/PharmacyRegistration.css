@@ -836,3 +836,215 @@
         align-items: center;
     }
 }
+
+/* CV Import Section Styles */
+.pharmacy-registration-container .cv-import-section {
+    background: #f8fafb;
+    border: 1px solid #e2e8f0;
+    border-radius: 8px;
+    padding: 16px 20px !important;
+}
+
+.pharmacy-registration-container .cv-import-section h3 {
+    color: #374151;
+    font-size: 15px;
+    margin-bottom: 8px;
+}
+
+.pharmacy-registration-container .cv-import-section h3 i {
+    color: #6b7280;
+}
+
+.pharmacy-registration-container .cv-import-section .section-description {
+    color: #6b7280;
+    font-size: 13px;
+    margin-bottom: 12px;
+}
+
+.pharmacy-registration-container .cv-import-btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    padding: 10px 18px;
+    background: #fff;
+    color: #374151;
+    border: 1px solid #d1d5db;
+    border-radius: 6px;
+    font-size: 13px;
+    font-weight: 500;
+    cursor: pointer;
+    transition: all 0.2s ease;
+}
+
+.pharmacy-registration-container .cv-import-btn:hover:not(:disabled) {
+    background: #f9fafb;
+    border-color: #9ca3af;
+}
+
+.pharmacy-registration-container .cv-import-btn:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+}
+
+.pharmacy-registration-container .cv-import-btn i {
+    font-size: 15px;
+    color: #6b7280;
+}
+
+/* ==================== Submission Loading Overlay ==================== */
+.submission-overlay {
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: rgba(0, 0, 0, 0.6);
+    backdrop-filter: blur(4px);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 9999;
+    animation: fadeIn 0.3s ease;
+}
+
+@keyframes fadeIn {
+    from { opacity: 0; }
+    to { opacity: 1; }
+}
+
+.submission-modal {
+    background: white;
+    border-radius: 20px;
+    padding: 40px 50px;
+    text-align: center;
+    max-width: 480px;
+    width: 90%;
+    box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+    animation: slideUp 0.4s ease;
+}
+
+@keyframes slideUp {
+    from {
+        opacity: 0;
+        transform: translateY(30px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+.submission-spinner {
+    width: 60px;
+    height: 60px;
+    border: 4px solid #e5e7eb;
+    border-top-color: #6366f1;
+    border-radius: 50%;
+    margin: 0 auto 24px;
+    animation: spin 1s linear infinite;
+}
+
+@keyframes spin {
+    to { transform: rotate(360deg); }
+}
+
+.submission-modal h3 {
+    color: #1e293b;
+    font-size: 22px;
+    font-weight: 700;
+    margin-bottom: 12px;
+}
+
+.submission-message {
+    color: #64748b;
+    font-size: 15px;
+    margin-bottom: 30px;
+    line-height: 1.5;
+}
+
+/* Submission Steps Progress */
+.submission-steps {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    margin-bottom: 24px;
+}
+
+.submission-steps .step {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 8px;
+}
+
+.submission-steps .step-icon {
+    width: 44px;
+    height: 44px;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: #f1f5f9;
+    color: #94a3b8;
+    font-size: 18px;
+    transition: all 0.3s ease;
+}
+
+.submission-steps .step.active .step-icon {
+    background: linear-gradient(135deg, #6366f1 0%, #4f46e5 100%);
+    color: white;
+    box-shadow: 0 4px 15px rgba(99, 102, 241, 0.4);
+    animation: pulse 1.5s ease-in-out infinite;
+}
+
+@keyframes pulse {
+    0%, 100% { transform: scale(1); }
+    50% { transform: scale(1.08); }
+}
+
+.submission-steps .step.completed .step-icon {
+    background: #22c55e;
+    color: white;
+}
+
+.submission-steps .step span {
+    font-size: 11px;
+    color: #94a3b8;
+    font-weight: 500;
+    white-space: nowrap;
+}
+
+.submission-steps .step.active span {
+    color: #6366f1;
+    font-weight: 600;
+}
+
+.submission-steps .step.completed span {
+    color: #22c55e;
+}
+
+.submission-steps .step-line {
+    width: 40px;
+    height: 3px;
+    background: #e5e7eb;
+    border-radius: 2px;
+    margin-bottom: 20px;
+}
+
+.submission-note {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    color: #f59e0b;
+    font-size: 13px;
+    background: #fffbeb;
+    padding: 12px 16px;
+    border-radius: 10px;
+    border: 1px solid #fde68a;
+}
+
+.submission-note i {
+    font-size: 16px;
+}

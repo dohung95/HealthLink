@@ -3,6 +3,7 @@ import NavbarAdmin from "./NavbarAdmin";
 import { registrationsApi } from "../../../api/adminApi";
 import Toast from "./Toast";
 import useToast from "../useToast";
+import ScreeningBadge from "./ScreeningBadge";
 import "bootstrap/dist/css/bootstrap.min.css";
 import "bootstrap-icons/font/bootstrap-icons.css";
 import "../Css/Admin.css";
@@ -23,6 +24,7 @@ export default function Registrations() {
   const [filters, setFilters] = useState({
     type: '',
     status: '',
+    aiStatus: '',
     sortBy: 'newest'
   });
 
@@ -180,9 +182,21 @@ export default function Registrations() {
       case 'Pending': return 'status-badge pending';
       case 'Approved': return 'status-badge approved';
       case 'Rejected': return 'status-badge rejected';
+      case 'AI_Rejected': return 'status-badge ai-rejected';
       default: return 'status-badge';
     }
   };
+
+  // Handle AI status filter
+  const handleAIStatusFilter = (e) => {
+    setFilters({ ...filters, aiStatus: e.target.value });
+    setPagination({ ...pagination, pageNumber: 1 });
+  };
+
+  // Filter requests by AI status (client-side since backend may not support this filter yet)
+  const filteredRequests = filters.aiStatus
+    ? requests.filter(r => r.aiScreeningStatus === filters.aiStatus)
+    : requests;
 
   // Get type badge class
   const getTypeBadgeClass = (type) => {
@@ -290,6 +304,19 @@ export default function Registrations() {
                 <option value="Pending">Pending</option>
                 <option value="Approved">Approved</option>
                 <option value="Rejected">Rejected</option>
+                <option value="AI_Rejected">AI Rejected</option>
+              </select>
+
+              <select
+                className="filter-select"
+                value={filters.aiStatus}
+                onChange={handleAIStatusFilter}
+              >
+                <option value="">All AI Status</option>
+                <option value="PENDING">AI Pending</option>
+                <option value="PASSED">AI Verified</option>
+                <option value="FLAGGED">Needs Review</option>
+                <option value="REJECTED">AI Rejected</option>
               </select>
 
               <select
@@ -336,11 +363,12 @@ export default function Registrations() {
                       <th>Phone</th>
                       <th>Submitted</th>
                       <th>Status</th>
+                      <th>AI Status</th>
                       <th>Actions</th>
                     </tr>
                   </thead>
                   <tbody>
-                    {requests.map((request) => (
+                    {filteredRequests.map((request) => (
                       <tr key={request.requestId}>
                         <td>
                           <span className={getTypeBadgeClass(request.registrationType)}>
@@ -358,8 +386,14 @@ export default function Registrations() {
                         <td>{formatDate(request.createdAt)}</td>
                         <td>
                           <span className={getStatusBadgeClass(request.status)}>
-                            {request.status}
+                            {request.status === 'AI_Rejected' ? 'Auto-Rejected' : request.status}
                           </span>
+                        </td>
+                        <td>
+                          <ScreeningBadge
+                            status={request.aiScreeningStatus}
+                            reason={request.aiRejectionReason}
+                          />
                         </td>
                         <td>
                           <div className="action-buttons">
@@ -622,6 +656,34 @@ export default function Registrations() {
                   </>
                 )}
 
+                {/* AI Screening Results */}
+                {selectedRequest.aiScreeningStatus && (
+                  <div className="detail-section full-width">
+                    <h4><i className="bi bi-robot"></i> AI Screening Results</h4>
+                    <div className="ai-screening-summary">
+                      <div className="screening-row">
+                        <span className="label">Status:</span>
+                        <ScreeningBadge
+                          status={selectedRequest.aiScreeningStatus}
+                          reason={selectedRequest.aiRejectionReason}
+                        />
+                      </div>
+                      {selectedRequest.aiScreenedAt && (
+                        <div className="screening-row">
+                          <span className="label">Screened At:</span>
+                          <span className="value">{formatDate(selectedRequest.aiScreenedAt)}</span>
+                        </div>
+                      )}
+                      {selectedRequest.aiRejectionReason && (
+                        <div className="screening-row rejection-reason">
+                          <span className="label">AI Notes:</span>
+                          <span className="value warning-text">{selectedRequest.aiRejectionReason}</span>
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                )}
+
                 {/* Uploaded Documents */}
                 {selectedRequest.documents && selectedRequest.documents.length > 0 && (
                   <div className="detail-section full-width">
@@ -630,7 +692,7 @@ export default function Registrations() {
                       {selectedRequest.documents.map((doc) => (
                         <div
                           key={doc.documentId}
-                          className={`document-card ${isPreviewable(doc.mimeType) ? 'previewable' : ''}`}
+                          className={`document-card ${isPreviewable(doc.mimeType) ? 'previewable' : ''} ${doc.aiVerificationStatus === 'REJECTED_UNSAFE' ? 'unsafe-content' : ''}`}
                           onClick={() => isPreviewable(doc.mimeType) && handlePreviewDocument(doc)}
                         >
                           <div className="document-icon">
@@ -640,6 +702,20 @@ export default function Registrations() {
                             <span className="document-type">{doc.documentType}</span>
                             <span className="document-name">{doc.originalFileName}</span>
                             <span className="document-size">{formatFileSize(doc.fileSize)}</span>
+                            {/* AI Verification Status */}
+                            {doc.aiVerificationStatus && (
+                              <div className="document-ai-status">
+                                <ScreeningBadge
+                                  status={doc.aiVerificationStatus}
+                                  isUnsafe={doc.aiVerificationStatus === 'REJECTED_UNSAFE'}
+                                />
+                                {doc.aiConfidenceScore != null && (
+                                  <span className="confidence-score" title="AI Confidence Score">
+                                    {Math.round(doc.aiConfidenceScore * 100)}%
+                                  </span>
+                                )}
+                              </div>
+                            )}
                           </div>
                           <div className="document-actions">
                             {isPreviewable(doc.mimeType) && (
@@ -690,6 +766,11 @@ export default function Registrations() {
                     <i className="bi bi-x-lg"></i> Reject
                   </button>
                 </>
+              )}
+              {selectedRequest.status === 'AI_Rejected' && (
+                <span className="ai-rejected-notice">
+                  <i className="bi bi-robot"></i> Auto-rejected by AI screening
+                </span>
               )}
               <button className="btn btn-secondary" onClick={() => setShowViewModal(false)}>
                 Close

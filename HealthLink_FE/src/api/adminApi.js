@@ -383,6 +383,24 @@ export const registrationsApi = {
       rejectionReason
     });
     return response.data;
+  },
+
+  // AI Screening endpoints
+  getScreeningDetails: async (id) => {
+    const response = await adminApi.get(`/registrations/${id}/screening`);
+    return response.data;
+  },
+
+  rescanScreening: async (id) => {
+    const response = await adminApi.post(`/registrations/${id}/screening/rescan`);
+    return response.data;
+  },
+
+  overrideAIDecision: async (id, reason = '') => {
+    const response = await adminApi.put(`/registrations/${id}/screening/override`, {
+      reason
+    });
+    return response.data;
   }
 };
 

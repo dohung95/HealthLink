@@ -7,11 +7,15 @@ import com.HealthLink.exception.BadRequestException;
 import com.HealthLink.exception.ResourceNotFoundException;
 import com.HealthLink.repository.registration.RegistrationDocumentRepository;
 import com.HealthLink.repository.registration.RegistrationRequestRepository;
+import com.HealthLink.service.ai.AIScreeningService;
 
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.context.annotation.Lazy;
 import org.springframework.core.io.Resource;
 import org.springframework.core.io.UrlResource;
+import org.springframework.scheduling.annotation.Async;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.util.StringUtils;
@@ -32,10 +36,13 @@ import java.util.stream.Collectors;
 @Service
 @RequiredArgsConstructor
 @Transactional
+@Slf4j
 public class RegistrationDocumentService {
 
     private final RegistrationDocumentRepository documentRepository;
     private final RegistrationRequestRepository registrationRequestRepository;
+    @Lazy
+    private final AIScreeningService aiScreeningService;
 
     @Value("${upload.dir:uploads}")
     private String uploadDir;
@@ -72,13 +79,59 @@ public class RegistrationDocumentService {
                 .fileSize(file.getSize())
                 .mimeType(file.getContentType())
                 .uploadedAt(LocalDateTime.now())
+                .aiVerificationStatus("PENDING")
                 .build();
 
             document = documentRepository.save(document);
+
+            // Check if all required documents are uploaded, then trigger AI screening
+            triggerAIScreeningIfReady(request);
+
             return mapToDto(document, requestId);
 
         } catch (IOException e) {
             throw new BadRequestException("Failed to upload file: " + e.getMessage());
+        }
+    }
+
+    /**
+     * Check if registration has all required documents and trigger AI screening
+     * Doctor: Profile Photo + Medical Degree + Practice License + ID Card (4 docs)
+     * Pharmacy: Profile Photo + Business License + Pharmacy License + Owner ID Card (3-4 docs)
+     */
+    private void triggerAIScreeningIfReady(RegistrationRequest request) {
+        List<RegistrationDocument> documents = documentRepository.findByRegistrationRequest_RequestId(request.getRequestId());
+
+        int requiredDocs = "DOCTOR".equals(request.getRegistrationType()) ? 4 : 3;
+
+        // Only trigger if we have enough documents and screening hasn't started
+        if (documents.size() >= requiredDocs &&
+            ("PENDING".equals(request.getAiScreeningStatus()) || request.getAiScreeningStatus() == null)) {
+
+            log.info("Triggering AI screening for registration {} ({} documents uploaded)",
+                    request.getRequestId(), documents.size());
+
+            // Trigger async screening
+            try {
+                triggerScreeningAsync(request.getRequestId());
+            } catch (Exception e) {
+                log.error("Failed to trigger AI screening for request {}: {}",
+                        request.getRequestId(), e.getMessage());
+            }
+        }
+    }
+
+    /**
+     * Async method to trigger AI screening (non-blocking)
+     */
+    @Async
+    public void triggerScreeningAsync(Long requestId) {
+        try {
+            log.info("Starting async AI screening for request {}", requestId);
+            aiScreeningService.screenRegistration(requestId);
+            log.info("Completed AI screening for request {}", requestId);
+        } catch (Exception e) {
+            log.error("Error during AI screening for request {}: {}", requestId, e.getMessage(), e);
         }
     }
 
@@ -164,6 +217,11 @@ public class RegistrationDocumentService {
             .mimeType(document.getMimeType())
             .uploadedAt(document.getUploadedAt())
             .downloadUrl("/api/registration/documents/" + document.getDocumentId() + "/download")
+            // AI verification fields
+            .aiVerificationStatus(document.getAiVerificationStatus())
+            .aiVerificationResult(document.getAiVerificationResult())
+            .documentTypeVerified(document.getDocumentTypeVerified())
+            .aiConfidenceScore(document.getAiConfidenceScore())
             .build();
     }
 }
