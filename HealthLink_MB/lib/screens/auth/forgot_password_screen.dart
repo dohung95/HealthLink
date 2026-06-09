@@ -45,6 +45,13 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
     if (!mounted) return;
     if (success) {
       setState(() => _buttonState = 2);
+      
+      // Tự động chuyển về trang Login sau 3 giây
+      Future.delayed(const Duration(seconds: 3), () {
+        if (mounted) {
+          Navigator.pop(context);
+        }
+      });
     } else {
       setState(() => _buttonState = 0);
     }

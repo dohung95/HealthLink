@@ -120,4 +120,20 @@ class PatientService {
       throw Exception('Failed to verify email change: ${res.body}');
     }
   }
+
+  static Future<List<dynamic>> getPrescriptions(String token, String patientId) async {
+    final res = await http.get(
+      Uri.parse(ApiConfig.prescriptionsByPatientId(patientId)),
+      headers: {
+        'Accept': 'application/json',
+        'Authorization': 'Bearer $token',
+      },
+    ).timeout(ApiConfig.connectTimeout);
+
+    if (res.statusCode == 200) {
+      return jsonDecode(res.body) as List<dynamic>;
+    } else {
+      throw Exception('Failed to load prescriptions: ${res.body}');
+    }
+  }
 }

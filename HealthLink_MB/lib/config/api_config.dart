@@ -27,6 +27,9 @@ class ApiConfig {
   static const String requestEmailChange = '$baseUrl/account/patient/auth/email/request-change';
   static const String verifyEmailChange = '$baseUrl/account/patient/auth/email/verify-change';
 
+  // ── Prescription Endpoints ────────────────────────────────────────────────
+  static String prescriptionsByPatientId(String patientId) => '$baseUrl/prescriptions/patient/$patientId';
+
   // ── Chat Endpoints ────────────────────────────────────────────────────────
   /// GET /api/chat/rooms/me – Lấy danh sách phòng chat của user hiện tại.
   static const String chatRooms         = '$baseUrl/chat/rooms/me';

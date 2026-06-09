@@ -3,6 +3,7 @@ import 'package:provider/provider.dart';
 import '../../providers/auth_provider.dart';
 import '../../utils/auth/validators.dart';
 import '../../widgets/auth/auth_text_field.dart';
+import 'forgot_password_screen.dart';
 import 'register_screen.dart';
 
 /// Màn hình Đăng nhập.
@@ -333,7 +334,8 @@ class _LoginScreenState extends State<LoginScreen>
                                   ),
                                   TextButton(
                                     onPressed: () {
-                                      // TODO: Navigate to ForgotPasswordScreen
+                                      Navigator.push(context,
+                                          MaterialPageRoute(builder: (_) => const ForgotPasswordScreen()));
                                     },
                                     style: TextButton.styleFrom(
                                       padding: EdgeInsets.zero,
