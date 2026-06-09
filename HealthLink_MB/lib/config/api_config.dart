@@ -23,6 +23,9 @@ class ApiConfig {
   static const String patientProfile = '$baseUrl/account/patient/profile';
   static String patientProfileById(String id) => '$baseUrl/account/patient/profile/$id';
   static const String patientAvatar = '$baseUrl/account/patient/avatar';
+  static const String changePassword = '$baseUrl/account/patient/auth/password/change';
+  static const String requestEmailChange = '$baseUrl/account/patient/auth/email/request-change';
+  static const String verifyEmailChange = '$baseUrl/account/patient/auth/email/verify-change';
 
   // ── Chat Endpoints ────────────────────────────────────────────────────────
   /// GET /api/chat/rooms/me – Lấy danh sách phòng chat của user hiện tại.

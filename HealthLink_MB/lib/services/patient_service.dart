@@ -72,4 +72,52 @@ class PatientService {
 
     throw Exception('Failed to upload avatar: ${response.body}');
   }
+
+  static Future<void> changePassword(String token, Map<String, dynamic> data) async {
+    final res = await http.put(
+      Uri.parse(ApiConfig.changePassword),
+      headers: {
+        'Content-Type': 'application/json',
+        'Accept': 'application/json',
+        'Authorization': 'Bearer $token',
+      },
+      body: jsonEncode(data),
+    ).timeout(ApiConfig.connectTimeout);
+
+    if (res.statusCode != 200) {
+      throw Exception('Failed to change password: ${res.body}');
+    }
+  }
+
+  static Future<void> requestEmailChange(String token, Map<String, dynamic> data) async {
+    final res = await http.post(
+      Uri.parse(ApiConfig.requestEmailChange),
+      headers: {
+        'Content-Type': 'application/json',
+        'Accept': 'application/json',
+        'Authorization': 'Bearer $token',
+      },
+      body: jsonEncode(data),
+    ).timeout(ApiConfig.connectTimeout);
+
+    if (res.statusCode != 200) {
+      throw Exception('Failed to request email change: ${res.body}');
+    }
+  }
+
+  static Future<void> verifyEmailChange(String token, Map<String, dynamic> data) async {
+    final res = await http.post(
+      Uri.parse(ApiConfig.verifyEmailChange),
+      headers: {
+        'Content-Type': 'application/json',
+        'Accept': 'application/json',
+        'Authorization': 'Bearer $token',
+      },
+      body: jsonEncode(data),
+    ).timeout(ApiConfig.connectTimeout);
+
+    if (res.statusCode != 200) {
+      throw Exception('Failed to verify email change: ${res.body}');
+    }
+  }
 }
