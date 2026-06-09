@@ -16,6 +16,8 @@ public interface ConsultationService {
 
     ConsultationResponse startByAppointment(Integer appointmentId);
 
+    ConsultationResponse startByAppointmentForTesting(Integer appointmentId);
+
     ConsultationResponse updateNotesByAppointment(Integer appointmentId, ConsultationNotesRequest request);
 
     /**

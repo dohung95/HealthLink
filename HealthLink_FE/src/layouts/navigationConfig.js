@@ -53,5 +53,8 @@ export const getNotificationTone = (notification) => {
   if (value.includes('review') || value.includes('rating')) {
     return { icon: 'star', title: 'New Review', tone: 'warning' };
   }
+  if (value.includes('time arrived') || value.includes('ready to start')) {
+    return { icon: 'play_circle', title: 'Appointment time arrived', tone: 'primary' };
+  }
   return { icon: 'event', title: 'Appointment Update', tone: 'primary' };
 };

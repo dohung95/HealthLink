@@ -12,7 +12,7 @@ const PrescriptionNotificationModal = () => {
     }
 
     const handleViewPrescription = () => {
-        navigate(`/prescription`);
+        navigate(`/patient-dashboard/prescriptions`);
         closePrescriptionModal();
     };
 

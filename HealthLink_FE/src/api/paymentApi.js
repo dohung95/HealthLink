@@ -45,6 +45,23 @@ export const paymentApi = {
     return response.data;
   },
 
+  createPharmacyOrderPayPalOrder: async (pharmacyOrderId, currency = 'USD') => {
+    const response = await axiosInstance.post('/api/payment/pharmacy-orders/paypal/create', {
+      pharmacyOrderId,
+      currency,
+    });
+    return response.data;
+  },
+
+  capturePharmacyOrderPayPalPayment: async (pharmacyOrderId, orderId, paymentMethod = 'EWallet') => {
+    const response = await axiosInstance.post('/api/payment/pharmacy-orders/paypal/capture', {
+      pharmacyOrderId,
+      orderId,
+      paymentMethod,
+    });
+    return response.data;
+  },
+
   getPartnerBalance: async (partnerId, type = 'DOCTOR') => {
     const response = await axiosInstance.get(`/api/payment/partner/${partnerId}/balance`, {
       params: { type },

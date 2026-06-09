@@ -34,7 +34,8 @@ export default function CommissionManagement() {
     maxCommission: '',
     description: '',
     effectiveFrom: '',
-    effectiveTo: ''
+    effectiveTo: '',
+    reason: ''
   });
   const [savingConfig, setSavingConfig] = useState(false);
 
@@ -63,9 +64,13 @@ export default function CommissionManagement() {
     // For Pharmacy
     customCommissionRate: '',
     effectiveFrom: '',
-    effectiveTo: ''
+    effectiveTo: '',
+    // Reason for change
+    reason: ''
   });
   const [savingPartner, setSavingPartner] = useState(false);
+  const [resetReason, setResetReason] = useState('');
+  const [showResetConfirm, setShowResetConfirm] = useState(false);
 
   // Transactions data
   const [transactions, setTransactions] = useState([]);
@@ -204,7 +209,8 @@ export default function CommissionManagement() {
       maxCommission: config.maxCommission ?? '',
       description: config.description ?? '',
       effectiveFrom: config.effectiveFrom ? config.effectiveFrom.slice(0, 16) : '',
-      effectiveTo: config.effectiveTo ? config.effectiveTo.slice(0, 16) : ''
+      effectiveTo: config.effectiveTo ? config.effectiveTo.slice(0, 16) : '',
+      reason: ''
     });
     setShowConfigModal(true);
   };
@@ -220,6 +226,10 @@ export default function CommissionManagement() {
       showToast({ title: 'Error', message: 'No config selected.', type: 'error' });
       return;
     }
+    if (!configForm.reason.trim()) {
+      showToast({ title: 'Validation Error', message: 'Please provide a reason for this change.', type: 'error' });
+      return;
+    }
 
     try {
       setSavingConfig(true);
@@ -230,7 +240,8 @@ export default function CommissionManagement() {
         maxCommission: configForm.maxCommission ? parseFloat(configForm.maxCommission) : null,
         description: configForm.description,
         effectiveFrom: configForm.effectiveFrom ? new Date(configForm.effectiveFrom).toISOString() : null,
-        effectiveTo: configForm.effectiveTo ? new Date(configForm.effectiveTo).toISOString() : null
+        effectiveTo: configForm.effectiveTo ? new Date(configForm.effectiveTo).toISOString() : null,
+        reason: configForm.reason
       });
       setShowConfigModal(false);
       showToast({ title: 'Success', message: 'Commission config updated successfully.', type: 'success' });
@@ -256,7 +267,8 @@ export default function CommissionManagement() {
         effectiveToOffline: partner.customCommissionRateOfflineEffectiveTo ? partner.customCommissionRateOfflineEffectiveTo.slice(0, 16) : '',
         customCommissionRate: '',
         effectiveFrom: '',
-        effectiveTo: ''
+        effectiveTo: '',
+        reason: ''
       });
     } else {
       // Pharmacy - single rate
@@ -269,7 +281,8 @@ export default function CommissionManagement() {
         effectiveToOffline: '',
         customCommissionRate: partner.customCommissionRate != null ? (partner.customCommissionRate * 100).toFixed(2) : '',
         effectiveFrom: partner.customCommissionRateEffectiveFrom ? partner.customCommissionRateEffectiveFrom.slice(0, 16) : '',
-        effectiveTo: partner.customCommissionRateEffectiveTo ? partner.customCommissionRateEffectiveTo.slice(0, 16) : ''
+        effectiveTo: partner.customCommissionRateEffectiveTo ? partner.customCommissionRateEffectiveTo.slice(0, 16) : '',
+        reason: ''
       });
     }
     setShowPartnerModal(true);
@@ -285,6 +298,10 @@ export default function CommissionManagement() {
       showToast({ title: 'Error', message: 'No partner selected.', type: 'error' });
       return;
     }
+    if (!partnerForm.reason.trim()) {
+      showToast({ title: 'Validation Error', message: 'Please provide a reason for this change.', type: 'error' });
+      return;
+    }
 
     try {
       setSavingPartner(true);
@@ -298,14 +315,16 @@ export default function CommissionManagement() {
           effectiveToOnline: partnerForm.effectiveToOnline ? new Date(partnerForm.effectiveToOnline).toISOString() : null,
           customCommissionRateOffline: partnerForm.customCommissionRateOffline ? parseFloat(partnerForm.customCommissionRateOffline) / 100 : null,
           effectiveFromOffline: partnerForm.effectiveFromOffline ? new Date(partnerForm.effectiveFromOffline).toISOString() : null,
-          effectiveToOffline: partnerForm.effectiveToOffline ? new Date(partnerForm.effectiveToOffline).toISOString() : null
+          effectiveToOffline: partnerForm.effectiveToOffline ? new Date(partnerForm.effectiveToOffline).toISOString() : null,
+          reason: partnerForm.reason
         };
       } else {
         // Pharmacy - single rate
         payload = {
           customCommissionRate: partnerForm.customCommissionRate ? parseFloat(partnerForm.customCommissionRate) / 100 : null,
           effectiveFrom: partnerForm.effectiveFrom ? new Date(partnerForm.effectiveFrom).toISOString() : null,
-          effectiveTo: partnerForm.effectiveTo ? new Date(partnerForm.effectiveTo).toISOString() : null
+          effectiveTo: partnerForm.effectiveTo ? new Date(partnerForm.effectiveTo).toISOString() : null,
+          reason: partnerForm.reason
         };
       }
 
@@ -320,16 +339,22 @@ export default function CommissionManagement() {
     }
   };
 
-  const handleRemoveCustomRate = async () => {
+  const handleRemoveCustomRate = () => {
     if (!selectedPartner?.partnerId) return;
+    setResetReason('');
+    setShowResetConfirm(true);
+  };
 
-    if (!window.confirm('Are you sure you want to remove the custom commission rate? The default rate will be applied.')) {
+  const handleConfirmRemoveCustomRate = async () => {
+    if (!resetReason.trim()) {
+      showToast({ title: 'Validation Error', message: 'Please provide a reason for removing custom rate.', type: 'error' });
       return;
     }
 
     try {
       setSavingPartner(true);
-      await commissionApi.removePartnerCustomRate(selectedPartner.partnerType, selectedPartner.partnerId);
+      await commissionApi.removePartnerCustomRate(selectedPartner.partnerType, selectedPartner.partnerId, resetReason);
+      setShowResetConfirm(false);
       setShowPartnerModal(false);
       showToast({ title: 'Success', message: 'Custom commission rate removed.', type: 'success' });
       loadPartners();
@@ -1335,6 +1360,20 @@ export default function CommissionManagement() {
                             placeholder="Optional description for this rate configuration"
                           />
                         </div>
+                        <div className="col-12">
+                          <label className="form-label">
+                            <i className="bi bi-chat-left-text me-1"></i>
+                            Reason for Change <span className="text-danger">*</span>
+                          </label>
+                          <textarea
+                            className="form-control"
+                            rows="2"
+                            value={configForm.reason}
+                            onChange={handleConfigChange('reason')}
+                            placeholder="Please provide a reason for this change (required for audit log)"
+                            required
+                          />
+                        </div>
                       </div>
                     </div>
                     <div className="modal-footer">
@@ -1595,6 +1634,22 @@ export default function CommissionManagement() {
                           </div>
                         </>
                       )}
+
+                      {/* Reason for Change */}
+                      <div className="mt-3 p-3 border rounded bg-light">
+                        <label className="form-label fw-medium">
+                          <i className="bi bi-chat-left-text me-1"></i>
+                          Reason for Change <span className="text-danger">*</span>
+                        </label>
+                        <textarea
+                          className="form-control"
+                          rows="2"
+                          value={partnerForm.reason}
+                          onChange={handlePartnerFormChange('reason')}
+                          placeholder="Please provide a reason for this change (required for audit log)"
+                          required
+                        />
+                      </div>
                     </div>
                     <div className="modal-footer bg-light">
                       {(selectedPartner.partnerType === 'DOCTOR' ? hasDoctorCustomRate(selectedPartner) : selectedPartner.customCommissionRate) && (
@@ -1629,6 +1684,64 @@ export default function CommissionManagement() {
                 </div>
               </div>
             </div>
+        )}
+
+        {/* Reset Custom Rate Confirm Modal */}
+        {showResetConfirm && selectedPartner && (
+          <div
+            className="modal fade show"
+            style={{ display: 'block', backgroundColor: 'rgba(0,0,0,0.6)', zIndex: 1060 }}
+            tabIndex="-1"
+            onClick={() => setShowResetConfirm(false)}
+          >
+            <div className="modal-dialog modal-dialog-centered" style={{ maxWidth: '500px' }} onClick={(e) => e.stopPropagation()}>
+              <div className="modal-content">
+                <div className="modal-header bg-danger bg-opacity-10 border-0">
+                  <h5 className="modal-title text-danger">
+                    <i className="bi bi-exclamation-triangle me-2"></i>
+                    Reset to Default Rate
+                  </h5>
+                  <button type="button" className="btn-close" onClick={() => setShowResetConfirm(false)} />
+                </div>
+                <div className="modal-body">
+                  <div className="alert alert-warning">
+                    <i className="bi bi-info-circle me-2"></i>
+                    This will remove the custom commission rate for <strong>{selectedPartner.partnerName}</strong>. The default rate will be applied.
+                  </div>
+                  <div className="mb-3">
+                    <label className="form-label fw-medium">
+                      <i className="bi bi-chat-left-text me-1"></i>
+                      Reason for Reset <span className="text-danger">*</span>
+                    </label>
+                    <textarea
+                      className="form-control"
+                      rows="3"
+                      value={resetReason}
+                      onChange={(e) => setResetReason(e.target.value)}
+                      placeholder="Please provide a reason for resetting to default rate (required for audit log)"
+                    />
+                  </div>
+                </div>
+                <div className="modal-footer">
+                  <button type="button" className="btn btn-secondary" onClick={() => setShowResetConfirm(false)}>
+                    Cancel
+                  </button>
+                  <button
+                    type="button"
+                    className="btn btn-danger"
+                    onClick={handleConfirmRemoveCustomRate}
+                    disabled={savingPartner || !resetReason.trim()}
+                  >
+                    {savingPartner ? (
+                      <><span className="spinner-border spinner-border-sm me-1"></span>Processing...</>
+                    ) : (
+                      <><i className="bi bi-arrow-counterclockwise me-1"></i>Confirm Reset</>
+                    )}
+                  </button>
+                </div>
+              </div>
+            </div>
+          </div>
         )}
 
         <Toast show={toast.show} onClose={hideToast} title={toast.title} message={toast.message} type={toast.type} duration={toast.duration} />

@@ -1,6 +1,6 @@
 // src/App.js
 import { useEffect } from 'react';
-import { BrowserRouter as Router, Routes, Route, Navigate, useLocation, useNavigate } from 'react-router-dom';
+import { BrowserRouter as Router, Routes, Route, Navigate, useLocation, useNavigate, useParams } from 'react-router-dom';
 
 // ---------------------------------------------import file----------------------------------------------------------
 import { useAuth } from './context/AuthContext';
@@ -14,7 +14,7 @@ import Records from './components/Records';
 import Video from './components/Video';
 
 import Chat from './components/Chat';
-import Payment from './components/Payment';
+
 
 import ProfilePatient from './pages/profilePatient';
 
@@ -24,9 +24,7 @@ import AdminDoctors from './components/Admin/View/Doctors';
 import PharmacyManagement from './components/Admin/View/PharmacyManagement';
 import CommissionManagement from './components/Admin/View/CommissionManagement';
 import Appointments from './components/Admin/View/Appointments';
-import MedicalRecords from './components/Admin/View/MedicalRecords';
 import Registrations from './components/Admin/View/Registrations';
-import DoctorScheduleManagement from './components/Admin/View/DoctorScheduleManagement';
 import ScheduleAuditLog from './components/Admin/View/ScheduleAuditLog';
 import ScheduleComplianceDashboard from './components/Admin/View/ScheduleComplianceDashboard';
 import FinancialReports from './components/Admin/View/FinancialReports';
@@ -57,6 +55,7 @@ import AdminActionNotificationModal from './components/AdminActionNotificationMo
 import Navbar from './components/Navbar';
 import DoctorPublicProfilePage from './pages/doctor/DoctorPublicProfilePage';
 import PatientPrescriptionView from './components/PatientPrescriptionView';
+import PatientPharmacyPage from './components/patient-dashboard/PatientPharmacyPage';
 
 import DoctorDashboardPage, {
   DoctorAppointmentDetailRoute,
@@ -80,7 +79,6 @@ import PatientDashboard from './pages/PatientDashboard';
 import PatientDashboardHome from './components/patient-dashboard/PatientDashboardHome';
 import NotFound from './pages/NotFound';
 import PharmacyDashboardPage from './pages/pharmacy/PharmacyDashboardPage';
-import PharmacyConsultationsPage from './pages/patient/PharmacyConsultationsPage';
 
 //-----------------------------------------------------------------------------------------------
 
@@ -97,6 +95,12 @@ function App() {
 }
 
 // Tạo component mới để có thể dùng useLocation
+
+function PharmacyOrderRedirect() {
+  const { orderId } = useParams();
+  return <Navigate to={`/patient-dashboard/pharmacy/orders/${orderId}`} replace />;
+}
+
 function AppContent() {
   const navigate = useNavigate();
   const { isAuthenticated, roles } = useAuth();
@@ -140,6 +144,7 @@ function AppContent() {
     '/pharmacy-page',
     '/admin',
     '/my-appointments',
+    '/my-consultations',
     '/records',
     '/video',
     '/payment'
@@ -255,8 +260,18 @@ function AppContent() {
               </ProtectedRoute>
             } />
             <Route path="/my-consultations/pharmacy" element={
-              <ProtectedRoute allowedRoles={['Patient', 'Pharmacy']}>
-                <PharmacyConsultationsPage />
+              <ProtectedRoute allowedRoles={['Patient']}>
+                <Navigate to="/patient-dashboard/pharmacy/requests" replace />
+              </ProtectedRoute>
+            } />
+            <Route path="/payment/order/:orderId" element={
+              <ProtectedRoute allowedRoles={['Patient']}>
+                <PharmacyOrderRedirect />
+              </ProtectedRoute>
+            } />
+            <Route path="/payment" element={
+              <ProtectedRoute allowedRoles={['Patient']}>
+                <Navigate to="/patient-dashboard/pharmacy/orders" replace />
               </ProtectedRoute>
             } />
 
@@ -268,11 +283,6 @@ function AppContent() {
             <Route path="/video" element={
               <ProtectedRoute allowedRoles={['Patient']}>
                 <Video />
-              </ProtectedRoute>
-            } />
-            <Route path="/payment" element={
-              <ProtectedRoute allowedRoles={['Patient']}>
-                <Payment />
               </ProtectedRoute>
             } />
 
@@ -312,19 +322,9 @@ function AppContent() {
                 <Appointments />
               </AdminRoute>
             } />
-            <Route path="/admin/medical-records" element={
-              <AdminRoute>
-                <MedicalRecords />
-              </AdminRoute>
-            } />
             <Route path="/admin/registrations" element={
               <AdminRoute>
                 <Registrations />
-              </AdminRoute>
-            } />
-            <Route path="/admin/doctor-schedules" element={
-              <AdminRoute>
-                <DoctorScheduleManagement />
               </AdminRoute>
             } />
             <Route path="/admin/audit-log" element={
@@ -358,6 +358,10 @@ function AppContent() {
               <Route path="health-records" element={<HealthRecords embedded />} />
               <Route path="share-records" element={<ShareHealthRecords embedded />} />
               <Route path="prescriptions" element={<PatientPrescriptionView />} />
+              <Route path="pharmacy" element={<PatientPharmacyPage />} />
+              <Route path="pharmacy/requests" element={<PatientPharmacyPage />} />
+              <Route path="pharmacy/orders" element={<PatientPharmacyPage />} />
+              <Route path="pharmacy/orders/:orderId" element={<PatientPharmacyPage />} />
               <Route path="profile" element={<ProfilePatient />} />
             </Route>
 

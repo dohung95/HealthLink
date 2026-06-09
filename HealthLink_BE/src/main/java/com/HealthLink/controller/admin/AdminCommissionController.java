@@ -5,6 +5,7 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
+import org.springframework.security.core.Authentication;
 import org.springframework.web.bind.annotation.*;
 
 import java.time.LocalDate;
@@ -42,8 +43,10 @@ public class AdminCommissionController {
     @PutMapping("/configs/{id}")
     public ResponseEntity<AdminCommissionConfigDto> updateConfig(
             @PathVariable Integer id,
-            @RequestBody AdminCommissionConfigUpdateDto dto) {
-        return ResponseEntity.ok(commissionService.updateConfig(id, dto));
+            @RequestBody AdminCommissionConfigUpdateDto dto,
+            Authentication authentication) {
+        String adminUserId = authentication != null ? authentication.getName() : null;
+        return ResponseEntity.ok(commissionService.updateConfig(id, dto, adminUserId));
     }
 
     @GetMapping("/transactions")
@@ -165,15 +168,21 @@ public class AdminCommissionController {
     public ResponseEntity<AdminPartnerCommissionDto> updatePartnerCommission(
             @PathVariable String type,
             @PathVariable String id,
-            @RequestBody AdminPartnerCommissionUpdateDto dto) {
-        return ResponseEntity.ok(commissionService.updatePartnerCommission(type, id, dto));
+            @RequestBody AdminPartnerCommissionUpdateDto dto,
+            Authentication authentication) {
+        String adminUserId = authentication != null ? authentication.getName() : null;
+        return ResponseEntity.ok(commissionService.updatePartnerCommission(type, id, dto, adminUserId));
     }
 
     @DeleteMapping("/partners/{type}/{id}/custom-rate")
     public ResponseEntity<Map<String, String>> removePartnerCustomCommission(
             @PathVariable String type,
-            @PathVariable String id) {
-        commissionService.removePartnerCustomCommission(type, id);
+            @PathVariable String id,
+            @RequestBody(required = false) Map<String, String> body,
+            Authentication authentication) {
+        String adminUserId = authentication != null ? authentication.getName() : null;
+        String reason = body != null ? body.get("reason") : null;
+        commissionService.removePartnerCustomCommission(type, id, adminUserId, reason);
         return ResponseEntity.ok(Map.of("message", "Custom commission rate removed successfully"));
     }
 

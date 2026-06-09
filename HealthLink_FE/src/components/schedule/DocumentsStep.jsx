@@ -1,5 +1,6 @@
 import { useRef } from "react";
 import { toast } from 'sonner';
+import { moderateImageFile, isImageFile } from '../../utils/imageModeration';
 
 const DocumentsStep = ({
     symptoms,
@@ -12,16 +13,45 @@ const DocumentsStep = ({
 
     const today = new Date().toISOString().split('T')[0];
 
-    const handleFileChange = (event) => {
-        const selectedFiles = Array.from(event.target.files || []).map((file) => ({
-            file,
-            name: file.name,
-            size: `${(file.size / 1024 / 1024).toFixed(1)} MB`,
-            type: file.type.includes('pdf') ? 'pdf' : 'image',
-            documentDate: '',
-        }));
+    const handleFileChange = async (event) => {
+        const rawFiles = Array.from(event.target.files || []);
+        const acceptedFiles = [];
 
-        setFiles((prev) => [...prev, ...selectedFiles]);
+        for (const file of rawFiles) {
+            try {
+                if (isImageFile(file)) {
+                    toast.info(`Scanning ${file.name}...`);
+
+                    const result = await moderateImageFile(file);
+
+                    if (!result.safe) {
+                        toast.error(`${file.name} was blocked because it may contain explicit sensitive content.`);
+                        continue;
+                    }
+
+                    if (result.warning) {
+                        toast.warning(`${file.name} may be sensitive. Please make sure this is a valid medical document.`);
+                    }
+                }
+
+                acceptedFiles.push({
+                    file,
+                    name: file.name,
+                    size: `${(file.size / 1024 / 1024).toFixed(1)} MB`,
+                    type: file.type.includes('pdf') ? 'pdf' : 'image',
+                    documentDate: '',
+                });
+            } catch (error) {
+                console.error('Image moderation error:', error);
+                toast.error(`Cannot scan ${file.name}. Please try another file.`);
+            }
+        }
+
+        if (acceptedFiles.length > 0) {
+            setFiles((prev) => [...prev, ...acceptedFiles]);
+        }
+
+        event.target.value = '';
     };
 
     const removeFile = (index) => {

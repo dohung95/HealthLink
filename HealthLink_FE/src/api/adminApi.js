@@ -61,8 +61,8 @@ export const patientsApi = {
     return response.data;
   },
 
-  updateStatus: async (id, status) => {
-    const response = await adminApi.put(`/adminpatients/${id}/status`, { status });
+  updateStatus: async (id, status, reason = '') => {
+    const response = await adminApi.put(`/adminpatients/${id}/status`, { status, reason });
     return response.data;
   }
 };
@@ -88,8 +88,8 @@ export const doctorsApi = {
     return response.data;
   },
 
-  updateStatus: async (id, status) => {
-    const response = await adminApi.put(`/admindoctors/${id}/status`, { status });
+  updateStatus: async (id, status, reason = '') => {
+    const response = await adminApi.put(`/admindoctors/${id}/status`, { status, reason });
     return response.data;
   },
 
@@ -120,8 +120,8 @@ export const pharmaciesApi = {
     return response.data;
   },
 
-  updateStatus: async (id, status) => {
-    const response = await adminApi.put(`/adminpharmacies/${id}/status`, { status });
+  updateStatus: async (id, status, reason = '') => {
+    const response = await adminApi.put(`/adminpharmacies/${id}/status`, { status, reason });
     return response.data;
   },
 
@@ -184,48 +184,6 @@ export const appointmentsApi = {
    */
   cancel: async (id, data) => {
     const response = await adminApi.put(`/adminappointments/${id}/cancel`, data);
-    return response.data;
-  }
-};
-
-// ==================== MEDICAL RECORDS API ====================
-
-export const medicalRecordsApi = {
-  getStats: async () => {
-    const response = await adminApi.get('/adminmedicalrecords/stats');
-    return response.data;
-  },
-
-  getAll: async (params = {}) => {
-    const { pageNumber = 1, pageSize = 10, searchTerm = '', fromDate = null, toDate = null, category = '' } = params;
-    const response = await adminApi.get('/adminmedicalrecords', {
-      params: { pageNumber, pageSize, searchTerm, fromDate, toDate, category }
-    });
-    return response.data;
-  },
-
-  getById: async (id) => {
-    const response = await adminApi.get(`/adminmedicalrecords/${id}`);
-    return response.data;
-  },
-
-  getByPatientId: async (patientId) => {
-    const response = await adminApi.get(`/adminmedicalrecords/patient/${patientId}`);
-    return response.data;
-  },
-
-  // New: Get patient list for patient-centric view
-  getPatients: async (params = {}) => {
-    const { pageNumber = 1, pageSize = 10, searchTerm = '' } = params;
-    const response = await adminApi.get('/adminmedicalrecords/patients', {
-      params: { pageNumber, pageSize, searchTerm }
-    });
-    return response.data;
-  },
-
-  // New: Get comprehensive patient medical history
-  getPatientMedicalHistory: async (patientId) => {
-    const response = await adminApi.get(`/adminmedicalrecords/patient/${patientId}/details`);
     return response.data;
   }
 };
@@ -338,8 +296,10 @@ export const commissionApi = {
     return response.data;
   },
 
-  removePartnerCustomRate: async (type, id) => {
-    const response = await adminApi.delete(`/commission/partners/${type}/${id}/custom-rate`);
+  removePartnerCustomRate: async (type, id, reason = '') => {
+    const response = await adminApi.delete(`/commission/partners/${type}/${id}/custom-rate`, {
+      data: { reason }
+    });
     return response.data;
   }
 };
@@ -402,6 +362,42 @@ export const registrationsApi = {
   }
 };
 
+// ==================== AUDIT LOG API ====================
+
+export const auditApi = {
+  getLogs: async (params = {}) => {
+    const {
+      pageNumber = 1,
+      pageSize = 20,
+      category,
+      actionType,
+      targetType,
+      targetId,
+      adminUserId,
+      startTime,
+      endTime
+    } = params;
+
+    // Build clean params object - only include non-empty values
+    const queryParams = { pageNumber, pageSize };
+    if (category) queryParams.category = category;
+    if (actionType) queryParams.actionType = actionType;
+    if (targetType) queryParams.targetType = targetType;
+    if (targetId) queryParams.targetId = targetId;
+    if (adminUserId) queryParams.adminUserId = adminUserId;
+    if (startTime) queryParams.startTime = startTime;
+    if (endTime) queryParams.endTime = endTime;
+
+    const response = await adminApi.get('/audit-logs', { params: queryParams });
+    return response.data;
+  },
+
+  getLogDetail: async (id) => {
+    const response = await adminApi.get(`/audit-logs/${id}`);
+    return response.data;
+  }
+};
+
 // ==================== SCHEDULE API ====================
 
 export const scheduleApi = {
@@ -424,24 +420,6 @@ export const scheduleApi = {
     const response = await adminApi.get(`/schedule/doctors/${doctorId}/range`, {
       params: { startDate, endDate }
     });
-    return response.data;
-  },
-
-  /**
-   * Admin tạo exception (block/mở slot) cho bác sĩ.
-   * @param {object} data - { doctorId, exceptionDate, exceptionType, startTime?, endTime?, reason, recurring?, recurringUntil? }
-   */
-  createException: async (data) => {
-    const response = await adminApi.post('/schedule/exceptions', data);
-    return response.data;
-  },
-
-  /**
-   * Admin xóa exception.
-   * @param {number} exceptionId - Exception ID
-   */
-  deleteException: async (exceptionId) => {
-    const response = await adminApi.delete(`/schedule/exceptions/${exceptionId}`);
     return response.data;
   },
 

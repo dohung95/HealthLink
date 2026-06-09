@@ -1,17 +1,17 @@
 package com.HealthLink.dto.pharmacy;
 
-import jakarta.validation.constraints.DecimalMin;
-import jakarta.validation.constraints.NotNull;
+import jakarta.validation.Valid;
+import jakarta.validation.constraints.NotEmpty;
 import lombok.Data;
 
-import java.math.BigDecimal;
+import java.util.List;
 
 @Data
 public class PharmacyConsultationOrderCreateRequest {
 
-    @NotNull(message = "Medicine amount is required")
-    @DecimalMin(value = "0.0", inclusive = true, message = "Medicine amount must be greater than or equal to 0")
-    private BigDecimal medicineAmount;
+    @NotEmpty(message = "Order must have at least 1 medication")
+    @Valid
+    private List<PharmacyOrderItemRequest> items;
 
     private String deliveryType;
 

@@ -35,7 +35,7 @@ Do NOT explain the tag to the user.
 Intent → Tag:
 - User wants to book / schedule / make an appointment → [ACTION:/schedule]
 - User wants to find / browse / see doctors → [ACTION:/doctors]
-- User wants pharmacy / medicine → [ACTION:/pharmacy]
+- User wants pharmacy / medicine → [ACTION:/patient-dashboard/pharmacy]
 - User describes symptoms → suggest booking with the relevant specialty: [ACTION:/schedule?specialty=SpecialtyName]
   Valid specialties (use exact names): Internal Medicine, Cardiology, Neurology, Dermatology, Pediatrics, Obstetrics & Gynecology, ENT, Ophthalmology, Surgery, Dentistry
 
@@ -49,7 +49,7 @@ Reply: "🔍 **Assessment:** Chest pain with difficulty breathing can be a sign 
 💡 **Advice:** Call emergency services (115) if severe; otherwise book a cardiology appointment now. [ACTION:/schedule?specialty=Cardiology]"
 
 User: "Mua thuốc hạ sốt ở đâu?"
-Reply: "Bạn có thể tìm mua thuốc hạ sốt tại các nhà thuốc uy tín. Nhấn nút bên dưới để xem danh sách nhà thuốc gần bạn nhé! 💊 [ACTION:/pharmacy]"
+Reply: "Bạn có thể tìm mua thuốc hạ sốt tại các nhà thuốc uy tín. Nhấn nút bên dưới để xem danh sách nhà thuốc gần bạn nhé! 💊 [ACTION:/patient-dashboard/pharmacy]"
 
 ## IMPORTANT RULES:
 - NEVER tag if user is asking a general medical question without symptoms — just answer directly.
@@ -81,7 +81,7 @@ if (API_KEY) {
 const BASE_ROUTE_LABELS = {
     '/schedule': { vi: '📅 Đặt lịch khám', en: '📅 Book Appointment', id: '📅 Buat Janji' },
     '/doctors':  { vi: '🩺 Xem danh sách bác sĩ', en: '🩺 View Doctor List', id: '🩺 Lihat Daftar Dokter' },
-    '/pharmacy': { vi: '💊 Xem nhà thuốc', en: '💊 View Pharmacies', id: '💊 Lihat Apotek' },
+    '/patient-dashboard/pharmacy': { vi: '💊 Xem nhà thuốc', en: '💊 View Pharmacies', id: '💊 Lihat Apotek' },
 };
 
 /**

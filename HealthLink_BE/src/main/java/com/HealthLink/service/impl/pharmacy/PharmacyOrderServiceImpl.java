@@ -2,16 +2,19 @@ package com.HealthLink.service.impl.pharmacy;
 
 import com.HealthLink.dto.pharmacy.CancelOrderRequest;
 import com.HealthLink.dto.pharmacy.PharmacyConsultationOrderCreateRequest;
+import com.HealthLink.dto.pharmacy.PharmacyOrderItemRequest;
 import com.HealthLink.dto.pharmacy.PharmacyOrderRequest;
 import com.HealthLink.dto.pharmacy.PharmacyOrderResponse;
 import com.HealthLink.dto.pharmacy.PharmacyOrderStatusRequest;
 import com.HealthLink.entity.*;
 import com.HealthLink.entity.enums.NotificationPriority;
 import com.HealthLink.entity.enums.NotificationType;
+import com.HealthLink.entity.enums.PrescriptionTiming;
 import com.HealthLink.exception.BadRequestException;
 import com.HealthLink.exception.ForbiddenException;
 import com.HealthLink.exception.InvalidStatusException;
 import com.HealthLink.exception.ResourceNotFoundException;
+import com.HealthLink.repository.medicine.MedicineRepository;
 import com.HealthLink.repository.notification.DeviceTokenRepository;
 import com.HealthLink.repository.pharmacy.PharmacyConsultationRequestRepository;
 import com.HealthLink.repository.pharmacy.PharmacyOrderRepository;
@@ -31,6 +34,7 @@ import org.springframework.transaction.support.TransactionSynchronizationManager
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Objects;
 import java.util.Set;
@@ -51,7 +55,6 @@ public class PharmacyOrderServiceImpl implements PharmacyOrderService {
     private static final String STATUS_COMPLETED = "COMPLETED";
     private static final String STATUS_CANCELLED = "CANCELLED";
     private static final String STATUS_REFUNDED  = "REFUNDED";
-    private static final String REQUEST_STATUS_PRESCRIPTION_CREATED = "PRESCRIPTION_CREATED";
     private static final String REQUEST_STATUS_ORDER_CREATED = "ORDER_CREATED";
     private static final String REQUEST_STATUS_CANCELLED = "CANCELLED";
     private static final String PAYMENT_STATUS_PENDING = "PENDING";
@@ -91,6 +94,7 @@ public class PharmacyOrderServiceImpl implements PharmacyOrderService {
     private final PharmacyConsultationRequestRepository consultationRequestRepository;
     private final PharmacyRepository pharmacyRepository;
     private final PrescriptionHeaderRepository prescriptionHeaderRepository;
+    private final MedicineRepository medicineRepository;
     private final NotificationService notificationService;
     private final DeviceTokenRepository deviceTokenRepository;
     private final AuditLogger audit = AuditLogger.pharmacy();
@@ -121,9 +125,8 @@ public class PharmacyOrderServiceImpl implements PharmacyOrderService {
                         "Pharmacy", "id", request.getPharmacyId()));
         validatePharmacyCanReceiveOrders(pharmacy);
 
-        BigDecimal medicineAmount = prescription.getTotalAmount() != null
-                ? prescription.getTotalAmount()
-                : BigDecimal.ZERO;
+        List<PharmacyOrderItem> orderItems = buildOrderItemsFromPrescription(prescription);
+        BigDecimal medicineAmount = calculateMedicineAmount(orderItems);
 
         String deliveryType = normalizeDeliveryType(request.getDeliveryType());
         BigDecimal deliveryFee = BigDecimal.ZERO;
@@ -175,12 +178,14 @@ public class PharmacyOrderServiceImpl implements PharmacyOrderService {
                 .deliveryFee(deliveryFee)
                 .medicineAmount(medicineAmount)
                 .totalAmount(totalAmount)
+                .orderItems(orderItems)
                 .paymentStatus(PAYMENT_STATUS_PENDING)
                 .paymentMethod(request.getPaymentMethod())
                 .notes(request.getNotes())
                 .pharmacistNotes(trimToNull(request.getPharmacistNotes()))
                 .createdAt(LocalDateTime.now())
                 .build();
+        attachOrderItems(order, orderItems);
 
         applyCommission(order, pharmacy, totalAmount);
 
@@ -214,7 +219,8 @@ public class PharmacyOrderServiceImpl implements PharmacyOrderService {
         validatePharmacyCanReceiveOrders(pharmacy);
 
         Patient patient = consultationRequest.getPatient();
-        BigDecimal medicineAmount = normalizeMedicineAmount(request.getMedicineAmount());
+        List<PharmacyOrderItem> orderItems = buildOrderItemsFromRequest(request.getItems(), consultationRequest);
+        BigDecimal medicineAmount = calculateMedicineAmount(orderItems);
         String deliveryType = normalizeDeliveryType(
                 firstNonBlank(request.getDeliveryType(), consultationRequest.getPreferredDeliveryType())
         );
@@ -265,12 +271,14 @@ public class PharmacyOrderServiceImpl implements PharmacyOrderService {
                 .deliveryFee(deliveryFee)
                 .medicineAmount(medicineAmount)
                 .totalAmount(totalAmount)
+                .orderItems(orderItems)
                 .paymentStatus(PAYMENT_STATUS_PENDING)
                 .paymentMethod(trimToNull(request.getPaymentMethod()))
                 .notes(firstNonBlank(request.getNotes(), consultationRequest.getAdditionalNotes()))
                 .pharmacistNotes(trimToNull(request.getPharmacistNotes()))
                 .createdAt(LocalDateTime.now())
                 .build();
+        attachOrderItems(order, orderItems);
 
         applyCommission(order, pharmacy, totalAmount);
 
@@ -505,10 +513,6 @@ public class PharmacyOrderServiceImpl implements PharmacyOrderService {
             throw new BadRequestException("An order has already been created for this request");
         }
 
-        if (REQUEST_STATUS_PRESCRIPTION_CREATED.equalsIgnoreCase(safeValue(consultationRequest.getStatus(), ""))
-                || consultationRequest.getPrescriptionHeader() != null) {
-            throw new BadRequestException("This request already follows the prescription flow");
-        }
     }
 
     private void validatePharmacyCanReceiveOrders(Pharmacy pharmacy) {
@@ -521,16 +525,184 @@ public class PharmacyOrderServiceImpl implements PharmacyOrderService {
         }
     }
 
-    private BigDecimal normalizeMedicineAmount(BigDecimal medicineAmount) {
-        if (medicineAmount == null) {
-            throw new BadRequestException("Medicine amount is required");
+    private List<PharmacyOrderItem> buildOrderItemsFromRequest(
+            List<PharmacyOrderItemRequest> itemRequests,
+            PharmacyConsultationRequest consultationRequest
+    ) {
+        if (itemRequests == null || itemRequests.isEmpty()) {
+            throw new BadRequestException("Order must have at least 1 medication");
         }
 
-        if (medicineAmount.compareTo(BigDecimal.ZERO) < 0) {
-            throw new BadRequestException("Medicine amount must be greater than or equal to 0");
+        List<PharmacyOrderItem> items = new ArrayList<>();
+        for (PharmacyOrderItemRequest itemRequest : itemRequests) {
+            Medicine medicine = medicineRepository.findById(itemRequest.getMedicineId())
+                    .orElseThrow(() -> new ResourceNotFoundException(
+                            "Medicine", "id", itemRequest.getMedicineId()));
+            BigDecimal unitPrice = normalizeUnitPrice(itemRequest.getUnitPrice(), medicine.getPrice());
+            Integer quantity = normalizePositive(itemRequest.getQuantity(), "Quantity");
+            Integer totalSupplyDays = normalizePositive(itemRequest.getTotalSupplyDays(), "Total supply days");
+            PrescriptionHeader sourceHeader = resolveSourcePrescriptionHeader(
+                    itemRequest.getSourcePrescriptionHeaderId(),
+                    consultationRequest
+            );
+            PrescriptionItem sourceItem = resolveSourcePrescriptionItem(
+                    sourceHeader,
+                    itemRequest.getSourcePrescriptionItemId()
+            );
+
+            items.add(PharmacyOrderItem.builder()
+                    .medicine(medicine)
+                    .sourcePrescriptionHeader(sourceHeader)
+                    .sourcePrescriptionItem(sourceItem)
+                    .medicationName(medicine.getName())
+                    .totalSupplyDays(totalSupplyDays)
+                    .quantity(quantity)
+                    .unit(firstNonBlank(itemRequest.getUnit(), medicine.getUnit()))
+                    .frequency(trimToNull(itemRequest.getFrequency()))
+                    .timing(normalizeOptionalTiming(itemRequest.getTimings(), itemRequest.getTiming()))
+                    .route(trimToNull(itemRequest.getRoute()))
+                    .unitPrice(unitPrice)
+                    .totalPrice(unitPrice.multiply(BigDecimal.valueOf(quantity)))
+                    .notes(trimToNull(itemRequest.getNotes()))
+                    .build());
         }
 
-        return medicineAmount;
+        return items;
+    }
+
+    private List<PharmacyOrderItem> buildOrderItemsFromPrescription(PrescriptionHeader prescription) {
+        if (prescription.getPrescriptionItems() == null || prescription.getPrescriptionItems().isEmpty()) {
+            throw new BadRequestException("Prescription must have at least 1 medication");
+        }
+
+        List<PharmacyOrderItem> items = new ArrayList<>();
+        for (PrescriptionItem prescriptionItem : prescription.getPrescriptionItems()) {
+            Medicine medicine = prescriptionItem.getMedicine();
+            BigDecimal unitPrice = normalizeUnitPrice(prescriptionItem.getUnitPrice(),
+                    medicine != null ? medicine.getPrice() : null);
+            Integer quantity = defaultPositive(prescriptionItem.getQuantity());
+            Integer totalSupplyDays = defaultPositive(prescriptionItem.getTotalSupplyDays());
+            BigDecimal totalPrice = prescriptionItem.getTotalPrice() != null
+                    ? prescriptionItem.getTotalPrice()
+                    : unitPrice.multiply(BigDecimal.valueOf(quantity));
+
+            items.add(PharmacyOrderItem.builder()
+                    .medicine(medicine)
+                    .sourcePrescriptionHeader(prescription)
+                    .sourcePrescriptionItem(prescriptionItem)
+                    .medicationName(safeValue(firstNonBlank(prescriptionItem.getMedicationName(),
+                            medicine != null ? medicine.getName() : null), "Medication"))
+                    .totalSupplyDays(totalSupplyDays)
+                    .quantity(quantity)
+                    .unit(prescriptionItem.getUnit())
+                    .frequency(prescriptionItem.getFrequency())
+                    .timing(prescriptionItem.getTiming())
+                    .route(prescriptionItem.getRoute())
+                    .unitPrice(unitPrice)
+                    .totalPrice(totalPrice)
+                    .notes(prescriptionItem.getNotes())
+                    .build());
+        }
+
+        return items;
+    }
+
+    private PrescriptionHeader resolveSourcePrescriptionHeader(
+            Integer prescriptionHeaderId,
+            PharmacyConsultationRequest consultationRequest
+    ) {
+        if (prescriptionHeaderId == null) {
+            return null;
+        }
+
+        PrescriptionHeader sourceHeader = findRequestPrescription(consultationRequest, prescriptionHeaderId);
+        Patient patient = consultationRequest != null ? consultationRequest.getPatient() : null;
+        if (sourceHeader.getPatient() == null
+                || patient == null
+                || !Objects.equals(sourceHeader.getPatient().getPatientId(), patient.getPatientId())) {
+            throw new ForbiddenException("Source prescription does not belong to this patient");
+        }
+        return sourceHeader;
+    }
+
+    private PrescriptionHeader findRequestPrescription(
+            PharmacyConsultationRequest consultationRequest,
+            Integer prescriptionHeaderId
+    ) {
+        if (consultationRequest == null || consultationRequest.getRequestPrescriptions() == null) {
+            throw new ForbiddenException("Source prescription was not sent with this request");
+        }
+
+        return consultationRequest.getRequestPrescriptions().stream()
+                .map(PharmacyConsultationRequestPrescription::getPrescriptionHeader)
+                .filter(Objects::nonNull)
+                .filter(header -> Objects.equals(header.getPrescriptionHeaderId(), prescriptionHeaderId))
+                .findFirst()
+                .orElseThrow(() -> new ForbiddenException(
+                        "Source prescription was not sent with this request"
+                ));
+    }
+
+    private PrescriptionItem resolveSourcePrescriptionItem(PrescriptionHeader sourceHeader, Integer prescriptionItemId) {
+        if (prescriptionItemId == null) {
+            return null;
+        }
+        if (sourceHeader == null) {
+            throw new BadRequestException("Source prescription header is required for source prescription item");
+        }
+        if (sourceHeader.getPrescriptionItems() == null) {
+            throw new BadRequestException("Source prescription item does not belong to source prescription");
+        }
+        return sourceHeader.getPrescriptionItems().stream()
+                .filter(item -> Objects.equals(item.getPrescriptionItemId(), prescriptionItemId))
+                .findFirst()
+                .orElseThrow(() -> new BadRequestException("Source prescription item does not belong to source prescription"));
+    }
+
+    private BigDecimal calculateMedicineAmount(List<PharmacyOrderItem> items) {
+        return items.stream()
+                .map(item -> item.getTotalPrice() != null ? item.getTotalPrice() : BigDecimal.ZERO)
+                .reduce(BigDecimal.ZERO, BigDecimal::add);
+    }
+
+    private void attachOrderItems(PharmacyOrder order, List<PharmacyOrderItem> items) {
+        for (PharmacyOrderItem item : items) {
+            item.setPharmacyOrder(order);
+        }
+    }
+
+    private Integer normalizePositive(Integer value, String fieldName) {
+        if (value == null || value < 1) {
+            throw new BadRequestException(fieldName + " must be >= 1");
+        }
+        return value;
+    }
+
+    private Integer defaultPositive(Integer value) {
+        return value != null && value > 0 ? value : 1;
+    }
+
+    private BigDecimal normalizeUnitPrice(BigDecimal requestedPrice, BigDecimal fallbackPrice) {
+        BigDecimal unitPrice = requestedPrice != null ? requestedPrice : fallbackPrice;
+        if (unitPrice == null) {
+            return BigDecimal.ZERO;
+        }
+        if (unitPrice.compareTo(BigDecimal.ZERO) < 0) {
+            throw new BadRequestException("Unit price must be greater than or equal to 0");
+        }
+        return unitPrice;
+    }
+
+    private String normalizeOptionalTiming(List<String> timings, String timing) {
+        try {
+            if (timings != null && !timings.isEmpty()) {
+                return PrescriptionTiming.normalizeJoined(timings);
+            }
+            String normalized = trimToNull(timing);
+            return normalized != null ? PrescriptionTiming.normalizeJoined(normalized) : null;
+        } catch (IllegalArgumentException ex) {
+            throw new BadRequestException(ex.getMessage());
+        }
     }
 
     private String normalizeDeliveryType(String deliveryType) {

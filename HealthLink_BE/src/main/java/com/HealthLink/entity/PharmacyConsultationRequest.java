@@ -4,6 +4,8 @@ import jakarta.persistence.*;
 import lombok.*;
 
 import java.time.LocalDateTime;
+import java.util.ArrayList;
+import java.util.List;
 
 @Entity
 @Table(name = "PharmacyConsultationRequests")
@@ -30,16 +32,17 @@ public class PharmacyConsultationRequest {
     @EqualsAndHashCode.Exclude
     private Pharmacy pharmacy;
 
-    @OneToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "PrescriptionHeaderID", unique = true)
-    @ToString.Exclude
-    @EqualsAndHashCode.Exclude
-    private PrescriptionHeader prescriptionHeader;
-
     @OneToOne(mappedBy = "consultationRequest", fetch = FetchType.LAZY)
     @ToString.Exclude
     @EqualsAndHashCode.Exclude
     private PharmacyOrder order;
+
+    @OneToMany(mappedBy = "consultationRequest", cascade = CascadeType.ALL, orphanRemoval = true)
+    @OrderBy("createdAt ASC, requestPrescriptionId ASC")
+    @Builder.Default
+    @ToString.Exclude
+    @EqualsAndHashCode.Exclude
+    private List<PharmacyConsultationRequestPrescription> requestPrescriptions = new ArrayList<>();
 
     @Column(length = 2000)
     private String symptoms;

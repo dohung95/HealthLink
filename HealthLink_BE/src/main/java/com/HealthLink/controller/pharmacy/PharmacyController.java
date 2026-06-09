@@ -19,6 +19,7 @@ import org.springframework.web.bind.annotation.*;
 import org.springframework.web.multipart.MultipartFile;
 
 import java.io.IOException;
+import java.util.List;
 import java.util.Map;
 
 /**
@@ -54,6 +55,14 @@ public class PharmacyController {
             @AuthenticationPrincipal UserDetails userDetails) {
         String pharmacyId = resolveUserId(userDetails);
         return ResponseEntity.ok(pharmacyProfileService.getPharmacyProfile(pharmacyId));
+    }
+
+    // ── Danh sách nhà thuốc công khai (cho patient chọn pharmacy) ──────────
+    @GetMapping("/public")
+    public ResponseEntity<List<PharmacyProfileResponse>> getPublicPharmacies(
+            @RequestParam(required = false) Boolean deliveryOnly) {
+        return ResponseEntity.ok(
+                pharmacyProfileService.getActiveVerifiedPharmacies(deliveryOnly));
     }
 
     // ── Xem profile theo ID (bệnh nhân / bác sĩ tìm nhà thuốc) ─────────────

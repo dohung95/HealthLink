@@ -57,6 +57,7 @@ const DoctorPublicProfilePage = () => {
     const doctorId = doctor.doctorId || doctor.doctorID || id;
     const doctorName = doctor.fullName || doctor.name || 'Doctor';
     const doctorInitial = doctorName.charAt(0).toUpperCase();
+    const doctorBio = doctor.bio || doctor.description || '';
 
     const averageRating = Number(doctor.averageRating || 0);
     const totalReviews = Number(doctor.totalReviews || reviews.length || 0);
@@ -172,6 +173,25 @@ const DoctorPublicProfilePage = () => {
                                     <div className="col-md-6 mb-2">
                                         <i className="bi bi-geo-alt-fill text-primary me-2"></i>
                                         <strong>Location:</strong> {doctor.location}
+                                    </div>
+                                    <div className="mb-4 p-3 rounded bg-light border">
+                                        <div className="d-flex align-items-center mb-2">
+                                            <i className="bi bi-person-lines-fill text-primary me-2"></i>
+                                            <strong>About Doctor</strong>
+                                        </div>
+
+                                        {doctorBio ? (
+                                            <p
+                                                className="mb-0 text-secondary"
+                                                style={{ lineHeight: 1.6, whiteSpace: 'pre-line' }}
+                                            >
+                                                {doctorBio}
+                                            </p>
+                                        ) : (
+                                            <p className="mb-0 text-muted fst-italic">
+                                                No biography provided yet.
+                                            </p>
+                                        )}
                                     </div>
                                 </div>
 

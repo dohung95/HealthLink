@@ -14,6 +14,7 @@ public interface AdminCommissionService {
     AdminCommissionConfigDto getConfigById(Integer id);
     AdminCommissionConfigDto getActiveConfig(String serviceType);
     AdminCommissionConfigDto updateConfig(Integer id, AdminCommissionConfigUpdateDto dto);
+    AdminCommissionConfigDto updateConfig(Integer id, AdminCommissionConfigUpdateDto dto, String adminUserId);
 
     AdminCommissionTransactionDto calculateAndRecordAppointment(Appointment appointment);
     AdminCommissionTransactionDto calculateAndRecordPharmacyOrder(PharmacyOrder order);
@@ -37,5 +38,8 @@ public interface AdminCommissionService {
     Page<AdminPartnerCommissionDto> getPartnerCommissions(String partnerType, String searchTerm, int page, int size);
     AdminPartnerCommissionDto getPartnerCommission(String partnerType, String partnerId);
     AdminPartnerCommissionDto updatePartnerCommission(String partnerType, String partnerId, AdminPartnerCommissionUpdateDto dto);
+    AdminPartnerCommissionDto updatePartnerCommission(String partnerType, String partnerId, AdminPartnerCommissionUpdateDto dto, String adminUserId);
     void removePartnerCustomCommission(String partnerType, String partnerId);
+    void removePartnerCustomCommission(String partnerType, String partnerId, String adminUserId);
+    void removePartnerCustomCommission(String partnerType, String partnerId, String adminUserId, String reason);
 }

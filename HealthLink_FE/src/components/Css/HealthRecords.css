@@ -21,3 +21,12 @@
     align-items: center;
     justify-content: center;
 }
+
+.moderation-warning {
+    padding: 8px 10px;
+    border-radius: 10px;
+    background: #fff7ed;
+    color: #9a3412;
+    font-size: 13px;
+    border: 1px solid #fed7aa;
+}

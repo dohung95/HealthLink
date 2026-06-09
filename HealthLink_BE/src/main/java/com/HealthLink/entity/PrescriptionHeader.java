@@ -31,10 +31,6 @@ public class PrescriptionHeader {
     @ToString.Exclude
     private Doctor doctor;
 
-    @OneToOne(mappedBy = "prescriptionHeader")
-    @ToString.Exclude
-    private PharmacyConsultationRequest consultationRequest;
-
     @Column(nullable = false)
     private LocalDateTime issueDate;
 

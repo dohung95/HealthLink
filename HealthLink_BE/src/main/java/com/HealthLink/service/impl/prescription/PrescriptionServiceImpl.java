@@ -8,7 +8,6 @@ import com.HealthLink.dto.prescription.PrescriptionResponse;
 import com.HealthLink.entity.Appointment;
 import com.HealthLink.entity.Consultation;
 import com.HealthLink.entity.Medicine;
-import com.HealthLink.entity.PharmacyConsultationRequest;
 import com.HealthLink.entity.PrescriptionHeader;
 import com.HealthLink.entity.PrescriptionItem;
 import com.HealthLink.entity.User;
@@ -233,8 +232,6 @@ public class PrescriptionServiceImpl implements PrescriptionService {
     }
 
     private PrescriptionResponse toResponse(PrescriptionHeader header, String timingFilter) {
-        PharmacyConsultationRequest consultationRequest = header.getConsultationRequest();
-
         List<PrescriptionItemResponse> itemResponses = header.getPrescriptionItems() == null
                 ? List.of()
                 : header.getPrescriptionItems().stream()
@@ -245,15 +242,13 @@ public class PrescriptionServiceImpl implements PrescriptionService {
         return PrescriptionResponse.builder()
                 .prescriptionHeaderId(header.getPrescriptionHeaderId())
                 .appointmentId(header.getAppointment() != null ? header.getAppointment().getAppointmentId() : null)
-                .pharmacyRequestId(consultationRequest != null ? consultationRequest.getRequestId() : null)
+                .pharmacyRequestId(null)
                 .patientId(header.getPatient() != null ? header.getPatient().getPatientId() : null)
                 .patientName(header.getPatient() != null ? header.getPatient().getFullName() : null)
                 .doctorId(header.getDoctor() != null ? header.getDoctor().getDoctorId() : null)
                 .doctorName(header.getDoctor() != null ? header.getDoctor().getFullName() : null)
-                .pharmacyId(consultationRequest != null && consultationRequest.getPharmacy() != null
-                        ? consultationRequest.getPharmacy().getPharmacyId() : null)
-                .pharmacyName(consultationRequest != null && consultationRequest.getPharmacy() != null
-                        ? consultationRequest.getPharmacy().getName() : null)
+                .pharmacyId(null)
+                .pharmacyName(null)
                 .issueDate(header.getIssueDate())
                 .diagnosis(header.getDiagnosis())
                 .notes(header.getNotes())

@@ -32,4 +32,7 @@ public interface PharmacyProfileService {
      */
     String uploadAvatar(String pharmacyId, org.springframework.web.multipart.MultipartFile file)
             throws java.io.IOException;
+
+    /** Lấy danh sách nhà thuốc đang hoạt động và đã xác minh. */
+    java.util.List<PharmacyProfileResponse> getActiveVerifiedPharmacies(Boolean deliveryOnly);
 }

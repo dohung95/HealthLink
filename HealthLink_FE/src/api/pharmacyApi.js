@@ -16,12 +16,28 @@ export const CONSULTATION_STATUSES = [
   'PENDING',
   'IN_REVIEW',
   'NEED_MORE_INFO',
-  'PRESCRIPTION_CREATED',
   'ORDER_CREATED',
   'CANCELLED',
 ];
 
 export const pharmacyApi = {
+  getPublicPharmacies: async (params = {}) => {
+    const response = await axiosInstance.get('/api/account/pharmacy/public', { params });
+    return response.data || [];
+  },
+
+  getOrdersByPatient: async (patientId, status) => {
+    const response = await axiosInstance.get(`/api/pharmacy-orders/patient/${patientId}`, {
+      params: status && status !== 'ALL' ? { status } : {},
+    });
+    return response.data || [];
+  },
+
+  createOrderFromPrescription: async (payload) => {
+    const response = await axiosInstance.post('/api/pharmacy-orders', payload);
+    return response.data;
+  },
+
   getOrdersByPharmacy: async (pharmacyId, status) => {
     const response = await axiosInstance.get(`/api/pharmacy-orders/pharmacy/${pharmacyId}`, {
       params: status && status !== 'ALL' ? { status } : {},
@@ -56,6 +72,11 @@ export const pharmacyApi = {
     return response.data || [];
   },
 
+  createConsultationRequest: async (payload) => {
+    const response = await axiosInstance.post('/api/pharmacy-requests', payload);
+    return response.data;
+  },
+
   getConsultationRequestById: async (requestId) => {
     const response = await axiosInstance.get(`/api/pharmacy-requests/${requestId}`);
     return response.data;
@@ -66,9 +87,9 @@ export const pharmacyApi = {
     return response.data;
   },
 
-  createPrescriptionFromRequest: async (requestId, payload) => {
-    const response = await axiosInstance.post(`/api/pharmacy-requests/${requestId}/prescription`, payload);
-    return response.data;
+  getRequestPrescriptions: async (requestId) => {
+    const response = await axiosInstance.get(`/api/pharmacy-requests/${requestId}/prescriptions`);
+    return response.data || [];
   },
 
   createOrderFromRequest: async (requestId, payload) => {
@@ -78,4 +99,3 @@ export const pharmacyApi = {
 };
 
 export default pharmacyApi;
-export const getConsultationRequestsByPatient = pharmacyApi.getConsultationRequestsByPatient;

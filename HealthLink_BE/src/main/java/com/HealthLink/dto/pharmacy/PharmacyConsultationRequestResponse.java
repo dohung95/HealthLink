@@ -25,7 +25,7 @@ public class PharmacyConsultationRequestResponse {
     private String chatRoomId;
     private String pharmacyNotes;
     private String patientFollowUpNotes;
-    private Integer prescriptionHeaderId;
+    private List<Integer> prescriptionHeaderIds;
     private Integer pharmacyOrderId;
     private LocalDateTime createdAt;
     private LocalDateTime updatedAt;

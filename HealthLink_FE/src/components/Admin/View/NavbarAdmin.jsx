@@ -30,26 +30,22 @@ export default function NavbarAdmin({ sidebarCollapsed, onToggleSidebar, childre
     { icon: "bi-speedometer2", label: "Dashboard", path: "/admin" },
 
     // User Management
-    { icon: "bi-person-plus", label: "Registrations", path: "/admin/registrations", divider: "Users" },
+    { icon: "bi-person-plus", label: "Registrations", path: "/admin/registrations", divider: "User Management" },
     { icon: "bi-people", label: "Patients", path: "/admin/patients" },
     { icon: "bi-heart-pulse", label: "Doctors", path: "/admin/doctors" },
     { icon: "bi-shop", label: "Pharmacies", path: "/admin/pharmacies" },
 
     // Operations
     { icon: "bi-calendar-check", label: "Appointments", path: "/admin/appointments", divider: "Operations" },
-    { icon: "bi-calendar3", label: "Doctor Schedules", path: "/admin/doctor-schedules" },
-    { icon: "bi-file-medical", label: "Medical Records", path: "/admin/medical-records" },
-
-    // Feedback & Quality
-    { icon: "bi-star", label: "Reviews", path: "/admin/reviews", divider: "Quality" },
-    { icon: "bi-clipboard-check", label: "Compliance", path: "/admin/compliance" },
+    { icon: "bi-calendar3", label: "Schedules", path: "/admin/compliance" },
+    { icon: "bi-star", label: "Reviews", path: "/admin/reviews" },
 
     // Finance
-    { icon: "bi-graph-up-arrow", label: "Financial Reports", path: "/admin/financial-reports", divider: "Finance" },
-    { icon: "bi-currency-exchange", label: "Commission", path: "/admin/commission" },
+    { icon: "bi-graph-up-arrow", label: "Financial", path: "/admin/financial-reports", divider: "Finance" },
+    { icon: "bi-percent", label: "Commission", path: "/admin/commission" },
 
     // System
-    { icon: "bi-journal-text", label: "Audit Log", path: "/admin/audit-log", divider: "System" },
+    { icon: "bi-shield-check", label: "Audit Log", path: "/admin/audit-log", divider: "System" },
   ];
 
   return (
@@ -108,11 +104,12 @@ export default function NavbarAdmin({ sidebarCollapsed, onToggleSidebar, childre
                     onClick={(e) => { e.preventDefault(); navigate(item.path); }}
                     className={`admin-nav-link d-flex align-items-center rounded-2 ${location.pathname === item.path ? "admin-active" : "admin-nav-hover"
                       }`}
+                    title={sidebarCollapsed ? item.label : undefined}
                   >
-                    <i className={`bi ${item.icon} ${sidebarCollapsed ? "" : "me-2"}`} style={{ fontSize: '14px' }}></i>
+                    <i className={`bi ${item.icon} ${sidebarCollapsed ? "" : "me-2"}`} style={{ fontSize: '15px', minWidth: '18px', textAlign: 'center' }}></i>
                     <span className="admin-menu-label" style={{ fontSize: '12px', fontWeight: '500' }}>{item.label}</span>
                     {location.pathname === item.path && !sidebarCollapsed && (
-                      <i className="bi bi-chevron-right ms-auto" style={{ fontSize: '9px' }}></i>
+                      <span className="ms-auto admin-active-dot"></span>
                     )}
                   </a>
                 </li>
@@ -139,19 +136,20 @@ export default function NavbarAdmin({ sidebarCollapsed, onToggleSidebar, childre
       <div className={`admin-main ${sidebarCollapsed ? "admin-sidebar-collapsed" : ""}`}>
         {/* Topbar */}
         <header className="admin-topbar px-3 py-2 d-flex align-items-center justify-content-between">
-          <div className="d-flex align-items-center gap-2">
+          <div className="d-flex align-items-center gap-3">
             <button
               className="admin-toggle-btn"
               onClick={onToggleSidebar}
+              title={sidebarCollapsed ? "Expand sidebar" : "Collapse sidebar"}
             >
-              <i className="bi bi-list"></i>
+              <i className={`bi ${sidebarCollapsed ? 'bi-layout-sidebar-inset' : 'bi-layout-sidebar'}`}></i>
             </button>
             <div className="d-none d-md-block">
-              <h6 className="mb-0" style={{ fontSize: '13px', fontWeight: '600', color: 'var(--admin-text)' }}>
-                Welcome back, Admin
+              <h6 className="mb-0" style={{ fontSize: '14px', fontWeight: '600', color: 'var(--admin-text)' }}>
+                Admin Dashboard
               </h6>
               <small style={{ fontSize: '11px', color: 'var(--admin-text-light)' }}>
-                {new Date().toLocaleDateString('en-US', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })}
+                {new Date().toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric', year: 'numeric' })}
               </small>
             </div>
           </div>
