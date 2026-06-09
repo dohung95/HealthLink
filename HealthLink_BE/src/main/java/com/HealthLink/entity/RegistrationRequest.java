@@ -140,6 +140,20 @@ public class RegistrationRequest {
     @Column(name = "Description", length = 1000)
     private String description;
 
+    // ============ AI Screening Fields ============
+    @Column(name = "AIScreeningStatus", length = 20)
+    @Builder.Default
+    private String aiScreeningStatus = "PENDING"; // PENDING, PROCESSING, PASSED, FLAGGED, REJECTED
+
+    @Column(name = "AIScreeningResult", columnDefinition = "NVARCHAR(MAX)")
+    private String aiScreeningResult;
+
+    @Column(name = "AIRejectionReason", length = 500)
+    private String aiRejectionReason;
+
+    @Column(name = "AIScreenedAt")
+    private LocalDateTime aiScreenedAt;
+
     // ============ Documents Relationship ============
     @OneToMany(mappedBy = "registrationRequest", cascade = CascadeType.ALL, orphanRemoval = true)
     @ToString.Exclude

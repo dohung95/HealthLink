@@ -6,11 +6,15 @@ import org.springframework.data.jpa.repository.Query;
 import org.springframework.stereotype.Repository;
 
 import java.util.List;
+import java.util.Optional;
 
 @Repository
 public interface SpecialtyRepository extends JpaRepository<Specialty, Integer> {
 
     List<Specialty> findByActiveTrue();
+
+    // Find specialty by name (case-insensitive)
+    Optional<Specialty> findByNameIgnoreCase(String name);
 
     // Get all specialties where active is true OR null (for data that hasn't been set)
     @Query("SELECT s FROM Specialty s WHERE s.active = true OR s.active IS NULL ORDER BY COALESCE(s.displayOrder, 999), s.name")

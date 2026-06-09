@@ -48,6 +48,9 @@ export default function Doctors() {
     location: ''
   });
 
+  // Specialties from database
+  const [specialties, setSpecialties] = useState([]);
+
   // Fetch doctors from API
   const fetchDoctors = async () => {
     try {
@@ -78,6 +81,21 @@ export default function Doctors() {
   useEffect(() => {
     fetchDoctors();
   }, [pagination.pageNumber, filters]);
+
+  // Fetch specialties from database
+  useEffect(() => {
+    const fetchSpecialties = async () => {
+      try {
+        const data = await doctorsApi.getSpecialties();
+        if (Array.isArray(data)) {
+          setSpecialties(data);
+        }
+      } catch (err) {
+        console.error('Error fetching specialties:', err);
+      }
+    };
+    fetchSpecialties();
+  }, []);
 
   // Handle search
   const handleSearch = (e) => {
@@ -355,12 +373,11 @@ export default function Doctors() {
               onChange={handleSpecialtyFilter}
             >
               <option value="">All Specialties</option>
-              <option value="Cardiology">Cardiology</option>
-              <option value="Dermatology">Dermatology</option>
-              <option value="Neurology">Neurology</option>
-              <option value="Pediatrics">Pediatrics</option>
-              <option value="Psychiatry">Psychiatry</option>
-              <option value="General Practice">General Practice</option>
+              {specialties.map(spec => (
+                <option key={spec.specialtyId} value={spec.name}>
+                  {spec.name}
+                </option>
+              ))}
             </select>
           </div>
           <div className="filter-select">
@@ -1079,15 +1096,11 @@ export default function Doctors() {
                             required
                           >
                             <option value="">Select Specialty</option>
-                            <option value="Cardiology">Cardiology</option>
-                            <option value="Dermatology">Dermatology</option>
-                            <option value="Neurology">Neurology</option>
-                            <option value="Pediatrics">Pediatrics</option>
-                            <option value="Psychiatry">Psychiatry</option>
-                            <option value="General Practice">General Practice</option>
-                            <option value="Orthopedics">Orthopedics</option>
-                            <option value="Gynecology">Gynecology</option>
-                            <option value="Oncology">Oncology</option>
+                            {specialties.map(spec => (
+                              <option key={spec.specialtyId} value={spec.name}>
+                                {spec.name}
+                              </option>
+                            ))}
                           </select>
                         </div>
                         <div className="col-md-6 mb-3">

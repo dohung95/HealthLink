@@ -493,6 +493,11 @@ public class RegistrationServiceImpl implements RegistrationService {
                 .mimeType(doc.getMimeType())
                 .uploadedAt(doc.getUploadedAt())
                 .downloadUrl("/api/registration/documents/" + doc.getDocumentId() + "/download")
+                // AI verification fields
+                .aiVerificationStatus(doc.getAiVerificationStatus())
+                .aiVerificationResult(doc.getAiVerificationResult())
+                .documentTypeVerified(doc.getDocumentTypeVerified())
+                .aiConfidenceScore(doc.getAiConfidenceScore())
                 .build())
             .collect(Collectors.toList());
 
@@ -536,6 +541,11 @@ public class RegistrationServiceImpl implements RegistrationService {
                 .deliveryFee(entity.getDeliveryFee())
                 .description(entity.getDescription())
                 .documents(documentDtos)
+                // AI Screening fields
+                .aiScreeningStatus(entity.getAiScreeningStatus())
+                .aiScreeningResult(entity.getAiScreeningResult())
+                .aiRejectionReason(entity.getAiRejectionReason())
+                .aiScreenedAt(entity.getAiScreenedAt())
                 .build();
     }
 }

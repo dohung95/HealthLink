@@ -3,6 +3,8 @@ import { useNavigate, Link } from 'react-router-dom';
 import { Modal, Button } from 'react-bootstrap';
 import Loading from '../Loading';
 import registrationService from '../../api/registrationApi';
+import CVImportModal from './CVImportModal';
+import { quickContentCheck } from '../../utils/documentModeration';
 import './Css/DoctorRegistration.css';
 
 export function DoctorRegistration() {
@@ -48,6 +50,45 @@ export function DoctorRegistration() {
     const [avatarPreview, setAvatarPreview] = useState(null);
 
     const [uploadingFiles, setUploadingFiles] = useState(false);
+    const [moderatingFile, setModeratingFile] = useState(null); // Track which file is being moderated
+    const [submissionStep, setSubmissionStep] = useState(''); // Track current submission step
+
+    // CV Import Modal state
+    const [showCVImportModal, setShowCVImportModal] = useState(false);
+
+    // Handle CV import data
+    const handleCVImport = (extractedData) => {
+        setFormData(prev => {
+            const newData = { ...prev };
+            // Only merge non-null, non-empty values
+            Object.keys(extractedData).forEach(key => {
+                if (extractedData[key] !== null && extractedData[key] !== undefined && extractedData[key] !== '') {
+                    // Map CV data to form fields
+                    if (key === 'yearsOfExperience' && typeof extractedData[key] === 'number') {
+                        newData[key] = extractedData[key].toString();
+                    } else if (key === 'specialty') {
+                        // Try to match specialty name to specialtyId
+                        const specialtyName = extractedData[key].toLowerCase().trim();
+                        const matchedSpecialty = specialties.find(s =>
+                            s.name?.toLowerCase().includes(specialtyName) ||
+                            specialtyName.includes(s.name?.toLowerCase())
+                        );
+                        if (matchedSpecialty) {
+                            newData.specialtyId = matchedSpecialty.specialtyId?.toString() || matchedSpecialty.id?.toString();
+                            newData.specialty = matchedSpecialty.name;
+                        } else {
+                            // Keep the extracted specialty name for reference
+                            newData.specialty = extractedData[key];
+                        }
+                    } else {
+                        newData[key] = extractedData[key];
+                    }
+                }
+            });
+            return newData;
+        });
+        setError('');
+    };
 
     useEffect(() => {
         const loadData = async () => {
@@ -92,7 +133,7 @@ export function DoctorRegistration() {
         }
     };
 
-    const handleAvatarChange = (e) => {
+    const handleAvatarChange = async (e) => {
         const file = e.target.files[0];
         if (file) {
             // Validate file size (max 5MB for avatar)
@@ -106,6 +147,23 @@ export function DoctorRegistration() {
                 setError('Please upload an image file (JPG, PNG, or WebP)');
                 return;
             }
+
+            // Content moderation
+            setModeratingFile('avatar');
+            try {
+                const result = await quickContentCheck(file);
+                if (!result.safe) {
+                    setError(result.reason || 'This image contains inappropriate content and cannot be uploaded.');
+                    e.target.value = '';
+                    setModeratingFile(null);
+                    return;
+                }
+            } catch (err) {
+                console.error('Moderation error:', err);
+            } finally {
+                setModeratingFile(null);
+            }
+
             setAvatar(file);
             setAvatarPreview(URL.createObjectURL(file));
             setError('');
@@ -120,7 +178,7 @@ export function DoctorRegistration() {
         setAvatarPreview(null);
     };
 
-    const handleFileChange = (e, documentType) => {
+    const handleFileChange = async (e, documentType) => {
         const file = e.target.files[0];
         if (file) {
             // Validate file size (max 10MB)
@@ -135,6 +193,31 @@ export function DoctorRegistration() {
                 setError('File type not allowed. Please upload PDF, JPG, PNG, DOC, or DOCX files.');
                 return;
             }
+
+            // Content moderation for images
+            if (file.type.startsWith('image/')) {
+                setModeratingFile(documentType);
+                setError('');
+                try {
+                    const result = await quickContentCheck(file);
+                    if (!result.safe) {
+                        setError(result.reason || 'This image contains inappropriate content and cannot be uploaded.');
+                        e.target.value = '';
+                        setModeratingFile(null);
+                        return;
+                    }
+                    if (result.warning) {
+                        // Allow but show warning
+                        console.warn('Image warning:', result.reason);
+                    }
+                } catch (err) {
+                    console.error('Moderation error:', err);
+                    // Allow on error, will be checked by backend
+                } finally {
+                    setModeratingFile(null);
+                }
+            }
+
             setDocuments(prev => ({
                 ...prev,
                 [documentType]: file
@@ -308,6 +391,7 @@ export function DoctorRegistration() {
         }
 
         setSubmitting(true);
+        setSubmissionStep('submitting');
 
         try {
             const submitData = {
@@ -334,8 +418,13 @@ export function DoctorRegistration() {
 
             if (hasDocuments && response.requestId) {
                 setUploadingFiles(true);
+                setSubmissionStep('uploading');
                 try {
                     await uploadDocuments(response.requestId);
+                    // After upload, AI screening will start automatically
+                    setSubmissionStep('verifying');
+                    // Small delay to show verifying message
+                    await new Promise(resolve => setTimeout(resolve, 1500));
                 } catch (uploadErr) {
                     console.error('Error uploading documents:', uploadErr);
                     // Continue even if document upload fails - registration is still successful
@@ -343,10 +432,12 @@ export function DoctorRegistration() {
                 setUploadingFiles(false);
             }
 
+            setSubmissionStep('complete');
             setShowSuccessModal(true);
         } catch (err) {
             const errorMsg = err.response?.data?.message || err.response?.data || 'Registration failed. Please try again.';
             setError(typeof errorMsg === 'string' ? errorMsg : 'Registration failed. Please try again.');
+            setSubmissionStep('');
         } finally {
             setSubmitting(false);
             setUploadingFiles(false);
@@ -364,6 +455,65 @@ export function DoctorRegistration() {
 
     return (
         <>
+            {/* Submission Loading Overlay */}
+            {(submitting || uploadingFiles) && (
+                <div className="submission-overlay">
+                    <div className="submission-modal">
+                        <div className="submission-spinner"></div>
+                        <h3>
+                            {submissionStep === 'submitting' && 'Submitting Registration'}
+                            {submissionStep === 'uploading' && 'Uploading Documents'}
+                            {submissionStep === 'verifying' && 'AI Verification in Progress'}
+                            {submissionStep === 'complete' && 'Almost Done!'}
+                        </h3>
+                        <p className="submission-message">
+                            {submissionStep === 'submitting' && 'Please wait while we process your registration...'}
+                            {submissionStep === 'uploading' && 'Uploading your documents securely. This may take a moment...'}
+                            {submissionStep === 'verifying' && 'Our AI is reviewing your documents for verification...'}
+                            {submissionStep === 'complete' && 'Your registration has been submitted successfully!'}
+                        </p>
+                        <div className="submission-steps">
+                            <div className={`step ${submissionStep === 'submitting' ? 'active' : ''} ${['uploading', 'verifying', 'complete'].includes(submissionStep) ? 'completed' : ''}`}>
+                                <div className="step-icon">
+                                    {['uploading', 'verifying', 'complete'].includes(submissionStep) ? (
+                                        <i className="bi bi-check-lg"></i>
+                                    ) : (
+                                        <i className="bi bi-person-lines-fill"></i>
+                                    )}
+                                </div>
+                                <span>Submit Info</span>
+                            </div>
+                            <div className="step-line"></div>
+                            <div className={`step ${submissionStep === 'uploading' ? 'active' : ''} ${['verifying', 'complete'].includes(submissionStep) ? 'completed' : ''}`}>
+                                <div className="step-icon">
+                                    {['verifying', 'complete'].includes(submissionStep) ? (
+                                        <i className="bi bi-check-lg"></i>
+                                    ) : (
+                                        <i className="bi bi-cloud-upload"></i>
+                                    )}
+                                </div>
+                                <span>Upload Files</span>
+                            </div>
+                            <div className="step-line"></div>
+                            <div className={`step ${submissionStep === 'verifying' ? 'active' : ''} ${submissionStep === 'complete' ? 'completed' : ''}`}>
+                                <div className="step-icon">
+                                    {submissionStep === 'complete' ? (
+                                        <i className="bi bi-check-lg"></i>
+                                    ) : (
+                                        <i className="bi bi-robot"></i>
+                                    )}
+                                </div>
+                                <span>AI Review</span>
+                            </div>
+                        </div>
+                        <p className="submission-note">
+                            <i className="bi bi-info-circle"></i>
+                            Please do not close this page or navigate away
+                        </p>
+                    </div>
+                </div>
+            )}
+
             <div className="doctor-registration-bg">
                 <div className="doctor-registration-container">
                     <div className="form-header">
@@ -382,6 +532,23 @@ export function DoctorRegistration() {
                     )}
 
                     <form onSubmit={handleSubmit} noValidate>
+                        {/* CV Import Section */}
+                        <div className="form-section cv-import-section">
+                            <h3><i className="bi bi-file-text"></i> Quick Fill</h3>
+                            <p className="section-description">
+                                Upload your CV to auto-fill the form (PDF, DOCX, or image)
+                            </p>
+                            <button
+                                type="button"
+                                className="cv-import-btn"
+                                onClick={() => setShowCVImportModal(true)}
+                                disabled={submitting}
+                            >
+                                <i className="bi bi-upload"></i>
+                                Upload CV
+                            </button>
+                        </div>
+
                         {/* Profile Photo */}
                         <div className="form-section">
                             <h3><i className="bi bi-person-circle"></i> Profile Photo</h3>
@@ -949,6 +1116,14 @@ export function DoctorRegistration() {
                     </Button>
                 </Modal.Footer>
             </Modal>
+
+            {/* CV Import Modal */}
+            <CVImportModal
+                show={showCVImportModal}
+                onHide={() => setShowCVImportModal(false)}
+                onImport={handleCVImport}
+                type="doctor"
+            />
         </>
     );
 }

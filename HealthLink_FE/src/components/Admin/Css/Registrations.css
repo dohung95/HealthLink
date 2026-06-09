@@ -141,6 +141,12 @@
   color: #991b1b;
 }
 
+.status-badge.ai-rejected {
+  background: linear-gradient(135deg, #fee2e2 0%, #fecaca 100%);
+  color: #991b1b;
+  border: 1px solid #f87171;
+}
+
 /* Name Cell */
 .name-cell {
   display: flex;
@@ -854,6 +860,142 @@
   color: #64748b;
   font-size: 16px;
   margin-bottom: 20px;
+}
+
+/* AI Screening Summary */
+.ai-screening-summary {
+  background: #f1f5f9;
+  border-radius: 8px;
+  padding: 16px;
+  margin-top: 12px;
+}
+
+.screening-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 8px 0;
+  border-bottom: 1px dashed #e2e8f0;
+}
+
+.screening-row:last-child {
+  border-bottom: none;
+}
+
+.screening-row .label {
+  color: #64748b;
+  font-size: 13px;
+  font-weight: 500;
+}
+
+.screening-row .value {
+  color: #1e293b;
+  font-size: 13px;
+}
+
+.screening-row.rejection-reason {
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 8px;
+}
+
+.screening-row .warning-text {
+  background: #fef2f2;
+  color: #dc2626;
+  padding: 10px 14px;
+  border-radius: 6px;
+  font-size: 12px;
+  line-height: 1.5;
+  border-left: 3px solid #dc2626;
+}
+
+/* Document AI Status */
+.document-ai-status {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-top: 4px;
+}
+
+.confidence-score {
+  font-size: 10px;
+  font-weight: 600;
+  color: #64748b;
+  background: #e2e8f0;
+  padding: 2px 6px;
+  border-radius: 4px;
+}
+
+/* Unsafe Content Card */
+.document-card.unsafe-content {
+  border-color: #dc2626;
+  background: #fef2f2;
+}
+
+.document-card.unsafe-content:hover {
+  border-color: #b91c1c;
+  box-shadow: 0 2px 8px rgba(220, 38, 38, 0.2);
+}
+
+.document-card.unsafe-content .document-icon {
+  background: linear-gradient(135deg, #dc2626 0%, #991b1b 100%);
+}
+
+.document-card.unsafe-content .document-type {
+  color: #dc2626;
+}
+
+/* AI Status in Table */
+.ai-status-cell {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+/* Warning Banner for Unsafe Content */
+.unsafe-warning-banner {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 14px 18px;
+  background: linear-gradient(135deg, #7f1d1d 0%, #991b1b 100%);
+  color: white;
+  border-radius: 8px;
+  margin-bottom: 16px;
+}
+
+.unsafe-warning-banner i {
+  font-size: 24px;
+}
+
+.unsafe-warning-banner .warning-content h5 {
+  margin: 0 0 4px 0;
+  font-size: 14px;
+  font-weight: 600;
+}
+
+.unsafe-warning-banner .warning-content p {
+  margin: 0;
+  font-size: 12px;
+  opacity: 0.9;
+}
+
+/* AI Rejected Notice in Modal Footer */
+.ai-rejected-notice {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 16px;
+  background: linear-gradient(135deg, #fef2f2 0%, #fee2e2 100%);
+  color: #991b1b;
+  border-radius: 8px;
+  font-size: 13px;
+  font-weight: 500;
+  border: 1px solid #fca5a5;
+}
+
+.ai-rejected-notice i {
+  font-size: 16px;
 }
 
 /* Responsive */
