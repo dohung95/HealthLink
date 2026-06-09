@@ -4,6 +4,8 @@ import '../widgets/tab_menu/tab_menu.dart';
 import 'patient_home_screen.dart';
 import 'chat/chat_list_screen.dart';
 import '../widgets/tab_menu/patient_drawer.dart';
+import 'booking/booking_screen.dart';
+import 'appointments/appointment_screen.dart';
 
 class MainLayout extends StatefulWidget {
   const MainLayout({super.key});
@@ -42,8 +44,20 @@ class _MainLayoutState extends State<MainLayout> {
         return const PrescriptionsScreen();
 
       case 'Booking':
+        return const BookingScreen();
 
       case 'Appointments':
+        return AppointmentScreen(
+          onBookNew: () {
+            final bookingIndex = TabMenu.defaultItems.indexWhere(
+                  (item) => item.label == 'Booking',
+            );
+
+            if (bookingIndex != -1) {
+              _onTabChanged(bookingIndex);
+            }
+          },
+        );
 
       default:
         return Scaffold(

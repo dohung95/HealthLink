@@ -7,8 +7,8 @@ class ApiConfig {
   ApiConfig._(); // Không cho khởi tạo
 
   // ── Base URL ──────────────────────────────────────────────────────────────
-  static const String baseUrl = 'http://127.0.0.1:8096/api';
-  static const String wsUrl   = 'ws://127.0.0.1:8096/ws/websocket';
+  static const String baseUrl = 'http://192.168.120.6:8096/api';
+  static const String wsUrl   = 'ws://10.0.0.2:8096/ws/websocket';
 
   // ── Auth Endpoints ────────────────────────────────────────────────────────
   static const String login          = '$baseUrl/auth/login';
@@ -29,6 +29,27 @@ class ApiConfig {
 
   // ── Prescription Endpoints ────────────────────────────────────────────────
   static String prescriptionsByPatientId(String patientId) => '$baseUrl/prescriptions/patient/$patientId';
+
+  // Booking / Doctor Directory Endpoints
+  static const String doctorSearch      = '$baseUrl/account/doctors/search';
+  static const String doctorSpecialties = '$baseUrl/account/doctors/specialties';
+  static const String availableSlots    = '$baseUrl/appointments/available-slots';
+  static const String holdSlot          = '$baseUrl/appointments/hold-slot';
+  static const String appointments      = '$baseUrl/appointments';
+  static String patientAppointmentsPage(String patientId) => '$appointments/patient/$patientId/page';
+
+  static String cancelAppointment(int appointmentId) => '$appointments/$appointmentId/cancel';
+
+  static String rescheduleAppointment(int appointmentId) =>
+      '$appointments/$appointmentId/reschedule';
+
+  static String releaseHold(int holdId) => '$baseUrl/appointments/hold-slot/$holdId';
+  static String doctorPublicProfile(String doctorId) => '$baseUrl/account/doctors/public/$doctorId';
+
+  //Upload medical records
+  static const String healthRecordAutoDocument = '$baseUrl/health-records/documents/auto';
+
+  static String shareHealthRecord(int recordId) => '$baseUrl/health-records/$recordId/share';
 
   // ── Chat Endpoints ────────────────────────────────────────────────────────
   /// GET /api/chat/rooms/me – Lấy danh sách phòng chat của user hiện tại.
