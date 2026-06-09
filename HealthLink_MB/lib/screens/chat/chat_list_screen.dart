@@ -587,17 +587,22 @@ class _MessagesScreenState extends State<MessagesScreen> {
       );
     }
 
-    return Container(
-      width: size,
-      height: size,
-      decoration: BoxDecoration(
-        shape: BoxShape.circle,
-        border: isDesktop ? Border.all(color: Theme.of(context).colorScheme.surface, width: 2) : null,
-        color: Theme.of(context).colorScheme.surfaceContainerHighest,
-      ),
-      child: ClipRRect(
-        borderRadius: BorderRadius.circular(size / 2),
-        child: avatar,
+    return GestureDetector(
+      onTap: () {
+        Scaffold.of(context).openDrawer();
+      },
+      child: Container(
+        width: size,
+        height: size,
+        decoration: BoxDecoration(
+          shape: BoxShape.circle,
+          border: isDesktop ? Border.all(color: Theme.of(context).colorScheme.surface, width: 2) : null,
+          color: Theme.of(context).colorScheme.surfaceContainerHighest,
+        ),
+        child: ClipRRect(
+          borderRadius: BorderRadius.circular(size / 2),
+          child: avatar,
+        ),
       ),
     );
   }

@@ -179,23 +179,28 @@ class _PrescriptionsScreenState extends State<PrescriptionsScreen> {
         children: [
           Row(
             children: [
-              Container(
-                width: 40,
-                height: 40,
-                decoration: BoxDecoration(
-                  shape: BoxShape.circle,
-                  color: Theme.of(context).colorScheme.surfaceVariant,
-                ),
-                child: ClipRRect(
-                  borderRadius: BorderRadius.circular(20),
-                  child: avatarUrl != null && avatarUrl.isNotEmpty
-                      ? Image.network(
-                          avatarUrl,
-                          fit: BoxFit.cover,
-                          errorBuilder: (context, error, stackTrace) =>
-                              Icon(Icons.person, color: Theme.of(context).colorScheme.onSurfaceVariant),
-                        )
-                      : Icon(Icons.person, color: Theme.of(context).colorScheme.onSurfaceVariant),
+              GestureDetector(
+                onTap: () {
+                  Scaffold.of(context).openDrawer();
+                },
+                child: Container(
+                  width: 40,
+                  height: 40,
+                  decoration: BoxDecoration(
+                    shape: BoxShape.circle,
+                    color: Theme.of(context).colorScheme.surfaceVariant,
+                  ),
+                  child: ClipRRect(
+                    borderRadius: BorderRadius.circular(20),
+                    child: avatarUrl != null && avatarUrl.isNotEmpty
+                        ? Image.network(
+                            avatarUrl,
+                            fit: BoxFit.cover,
+                            errorBuilder: (context, error, stackTrace) =>
+                                Icon(Icons.person, color: Theme.of(context).colorScheme.onSurfaceVariant),
+                          )
+                        : Icon(Icons.person, color: Theme.of(context).colorScheme.onSurfaceVariant),
+                  ),
                 ),
               ),
               const SizedBox(width: 12),
