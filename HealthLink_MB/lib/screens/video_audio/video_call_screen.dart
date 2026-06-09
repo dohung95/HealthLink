@@ -182,12 +182,33 @@ class _VideoCallScreenState extends State<VideoCallScreen> with SingleTickerProv
                 child: Stack(
                   fit: StackFit.expand,
                   children: [
-                    Image.asset(
-                      'assets/images/patient_view.png', // Ảnh đại diện cam của bệnh nhân
-                      fit: BoxFit.cover,
-                      errorBuilder: (context, error, stackTrace) =>
-                          Container(color: Colors.black87, child: const Icon(Icons.person, color: Colors.white54)),
-                    ),
+                    if (!_isVideoOff)
+                      Image.asset(
+                        'assets/images/patient_view.png', // Ảnh đại diện cam của bệnh nhân
+                        fit: BoxFit.cover,
+                        errorBuilder: (context, error, stackTrace) =>
+                            Container(color: Colors.black87, child: const Icon(Icons.person, color: Colors.white54)),
+                      )
+                    else
+                      Container(
+                        color: Colors.black87,
+                        child: const Icon(Icons.videocam_off, color: Colors.white54, size: 40),
+                      ),
+                    
+                    if (_isMuted)
+                      Positioned(
+                        top: 8,
+                        right: 8,
+                        child: Container(
+                          padding: const EdgeInsets.all(4),
+                          decoration: BoxDecoration(
+                            color: Colors.black54,
+                            shape: BoxShape.circle,
+                          ),
+                          child: const Icon(Icons.mic_off, color: Colors.redAccent, size: 16),
+                        ),
+                      ),
+
                     Positioned(
                       bottom: 8,
                       left: 8,
