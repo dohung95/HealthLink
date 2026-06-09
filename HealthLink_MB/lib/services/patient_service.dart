@@ -131,7 +131,7 @@ class PatientService {
     ).timeout(ApiConfig.connectTimeout);
 
     if (res.statusCode == 200) {
-      return jsonDecode(res.body) as List<dynamic>;
+      return jsonDecode(utf8.decode(res.bodyBytes)) as List<dynamic>;
     } else {
       throw Exception('Failed to load prescriptions: ${res.body}');
     }
