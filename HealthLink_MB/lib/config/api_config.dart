@@ -7,8 +7,16 @@ class ApiConfig {
   ApiConfig._(); // Không cho khởi tạo
 
   // ── Base URL ──────────────────────────────────────────────────────────────
-  static const String baseUrl = 'http://192.168.120.6:8096/api';
-  static const String wsUrl   = 'ws://10.0.0.2:8096/ws/websocket';
+  // Thay đổi cờ này thành true nếu chạy giả lập, false nếu chạy máy thật
+  static const bool isEmulator = false;
+
+  static const String baseUrl = isEmulator 
+      ? 'http://10.0.2.2:8096/api' 
+      : 'http://192.168.120.6:8096/api'; // IP LAN của máy bạn hoặc 127.0.0.1 nếu dùng adb reverse
+
+  static const String wsUrl = isEmulator 
+      ? 'ws://10.0.2.2:8096/ws/websocket' 
+      : 'ws://192.168.120.6:8096/ws/websocket';
 
   // ── Auth Endpoints ────────────────────────────────────────────────────────
   static const String login          = '$baseUrl/auth/login';
