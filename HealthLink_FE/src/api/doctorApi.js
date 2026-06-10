@@ -136,28 +136,10 @@ export const doctorScheduleService = {
   },
 
   /**
-   * Update an existing schedule
-   */
-  updateSchedule: async (scheduleId, data) => {
-    const response = await axiosInstance.put(`/api/doctors/schedule/${scheduleId}`, data);
-    return response.data;
-  },
-
-  /**
    * Delete a schedule
    */
   deleteSchedule: async (scheduleId) => {
     const response = await axiosInstance.delete(`/api/doctors/schedule/${scheduleId}`);
-    return response.data;
-  },
-
-  /**
-   * Toggle schedule availability
-   */
-  toggleAvailability: async (scheduleId, available) => {
-    const response = await axiosInstance.patch(
-      `/api/doctors/schedule/${scheduleId}/availability?available=${available}`
-    );
     return response.data;
   },
 
@@ -190,6 +172,22 @@ export const doctorScheduleService = {
     const response = await axiosInstance.get('/api/doctors/schedule/calendar', {
       params: { startDate, endDate }
     });
+    return response.data;
+  },
+
+  /**
+   * Get my schedule change requests.
+   */
+  getMyScheduleChangeRequests: async () => {
+    const response = await axiosInstance.get('/api/doctors/schedule/change-requests');
+    return response.data || [];
+  },
+
+  /**
+   * Create a new schedule change request.
+   */
+  createScheduleChangeRequest: async (data) => {
+    const response = await axiosInstance.post('/api/doctors/schedule/change-requests', data);
     return response.data;
   },
 };

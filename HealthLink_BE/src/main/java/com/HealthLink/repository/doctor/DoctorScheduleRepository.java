@@ -1,6 +1,7 @@
 package com.HealthLink.repository.doctor;
 
 import com.HealthLink.entity.DoctorSchedule;
+import com.HealthLink.entity.enums.DoctorScheduleStatus;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.stereotype.Repository;
 
@@ -19,8 +20,13 @@ public interface DoctorScheduleRepository extends JpaRepository<DoctorSchedule, 
     List<DoctorSchedule> findByDoctor_DoctorIdAndDayOfWeekAndAvailableTrue(
             String doctorId, Integer dayOfWeek);
 
+    List<DoctorSchedule> findByDoctor_DoctorIdAndDayOfWeekAndAvailableTrueAndScheduleStatus(
+            String doctorId, Integer dayOfWeek, DoctorScheduleStatus scheduleStatus);
+
     /**
      * Lấy toàn bộ lịch làm việc của bác sĩ (dùng để hiển thị).
      */
     List<DoctorSchedule> findByDoctor_DoctorId(String doctorId);
+
+    List<DoctorSchedule> findByDoctor_DoctorIdAndScheduleStatus(String doctorId, DoctorScheduleStatus scheduleStatus);
 }

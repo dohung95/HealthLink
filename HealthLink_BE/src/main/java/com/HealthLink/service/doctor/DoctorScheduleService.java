@@ -24,19 +24,9 @@ public interface DoctorScheduleService {
     DoctorScheduleResponse createSchedule(String doctorId, DoctorScheduleRequest request);
 
     /**
-     * Update an existing schedule.
-     */
-    DoctorScheduleResponse updateSchedule(String doctorId, Integer scheduleId, DoctorScheduleRequest request);
-
-    /**
      * Delete a schedule.
      */
     void deleteSchedule(String doctorId, Integer scheduleId);
-
-    /**
-     * Toggle schedule availability.
-     */
-    void toggleScheduleAvailability(String doctorId, Integer scheduleId, boolean available);
 
     /**
      * Get exceptions in date range.

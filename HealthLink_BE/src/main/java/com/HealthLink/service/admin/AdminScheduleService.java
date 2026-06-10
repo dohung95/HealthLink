@@ -322,6 +322,7 @@ public class AdminScheduleService {
                 .consultationType(s.getConsultationType())
                 .location(s.getLocation())
                 .notes(s.getNotes())
+                .scheduleStatus(s.getScheduleStatus())
                 .build();
     }
 

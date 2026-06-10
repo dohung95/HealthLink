@@ -22,7 +22,7 @@ const initialFormData = {
   notes: '',
 };
 
-const ScheduleFormModal = ({ isOpen, onClose, schedule, onSuccess }) => {
+const ScheduleFormModal = ({ isOpen, onClose, schedule, onSuccess, batchMode = false }) => {
   const [formData, setFormData] = useState(initialFormData);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
@@ -79,13 +79,15 @@ const ScheduleFormModal = ({ isOpen, onClose, schedule, onSuccess }) => {
     setError('');
     if (!validateForm()) return;
 
+    // In batch mode, just pass data back to parent without calling API
+    if (batchMode) {
+      onSuccess(formData);
+      return;
+    }
+
     try {
       setLoading(true);
-      if (schedule?.isNew) {
-        await doctorScheduleService.createSchedule(formData);
-      } else {
-        await doctorScheduleService.updateSchedule(schedule.scheduleId, formData);
-      }
+      await doctorScheduleService.createSchedule(formData);
       onSuccess();
     } catch (err) {
       console.error('Save error:', err);
@@ -547,9 +549,9 @@ const ScheduleFormModal = ({ isOpen, onClose, schedule, onSuccess }) => {
             onMouseLeave={(e) => { if (!loading) { e.currentTarget.style.transform = 'none'; e.currentTarget.style.boxShadow = '0 2px 8px rgba(0,82,204,0.25)'; } }}
             >
               <span className="material-symbols-outlined" style={{ fontSize: '1.125rem' }}>
-                {loading ? 'progress_activity' : 'save'}
+                {loading ? 'progress_activity' : batchMode ? 'add' : 'save'}
               </span>
-              {loading ? 'Saving...' : schedule?.isNew ? 'Create Schedule' : 'Save Changes'}
+              {loading ? 'Saving...' : batchMode ? 'Add Schedule' : 'Create Schedule'}
             </button>
           </div>
         </form>
