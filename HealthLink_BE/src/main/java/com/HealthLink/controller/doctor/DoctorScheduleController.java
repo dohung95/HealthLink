@@ -1,12 +1,14 @@
 package com.HealthLink.controller.doctor;
 
 import com.HealthLink.dto.doctor.schedule.CalendarDayResponse;
-import com.HealthLink.dto.doctor.schedule.DoctorScheduleExceptionRequest;
+import com.HealthLink.dto.doctor.schedule.DoctorScheduleChangeRequestRequest;
+import com.HealthLink.dto.doctor.schedule.DoctorScheduleChangeRequestResponse;
 import com.HealthLink.dto.doctor.schedule.DoctorScheduleRequest;
 import com.HealthLink.dto.doctor.schedule.WeeklyScheduleResponse;
 import com.HealthLink.dto.response.DoctorScheduleResponse;
 import com.HealthLink.repository.auth.UserRepository;
 import com.HealthLink.repository.doctor.DoctorRepository;
+import com.HealthLink.service.doctor.DoctorScheduleChangeRequestService;
 import com.HealthLink.service.doctor.DoctorScheduleService;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
@@ -34,6 +36,7 @@ import java.util.Map;
 public class DoctorScheduleController {
 
     private final DoctorScheduleService scheduleService;
+    private final DoctorScheduleChangeRequestService changeRequestService;
     private final UserRepository userRepository;
     private final DoctorRepository doctorRepository;
 
@@ -74,18 +77,6 @@ public class DoctorScheduleController {
     }
 
     /**
-     * Update an existing schedule.
-     */
-    @PutMapping("/{scheduleId}")
-    public ResponseEntity<DoctorScheduleResponse> updateSchedule(
-            @PathVariable Integer scheduleId,
-            @Valid @RequestBody DoctorScheduleRequest request,
-            @AuthenticationPrincipal UserDetails userDetails) {
-        String doctorId = resolveDoctorId(userDetails);
-        return ResponseEntity.ok(scheduleService.updateSchedule(doctorId, scheduleId, request));
-    }
-
-    /**
      * Delete a schedule.
      */
     @DeleteMapping("/{scheduleId}")
@@ -97,17 +88,19 @@ public class DoctorScheduleController {
         return ResponseEntity.ok(Map.of("message", "Schedule deleted successfully"));
     }
 
-    /**
-     * Toggle schedule availability.
-     */
-    @PatchMapping("/{scheduleId}/availability")
-    public ResponseEntity<Map<String, String>> toggleAvailability(
-            @PathVariable Integer scheduleId,
-            @RequestParam boolean available,
+    @PostMapping("/change-requests")
+    public ResponseEntity<DoctorScheduleChangeRequestResponse> createScheduleChangeRequest(
+            @Valid @RequestBody DoctorScheduleChangeRequestRequest request,
             @AuthenticationPrincipal UserDetails userDetails) {
         String doctorId = resolveDoctorId(userDetails);
-        scheduleService.toggleScheduleAvailability(doctorId, scheduleId, available);
-        return ResponseEntity.ok(Map.of("message", "Availability updated to " + available));
+        return ResponseEntity.ok(changeRequestService.createChangeRequest(doctorId, request));
+    }
+
+    @GetMapping("/change-requests")
+    public ResponseEntity<List<DoctorScheduleChangeRequestResponse>> getMyScheduleChangeRequests(
+            @AuthenticationPrincipal UserDetails userDetails) {
+        String doctorId = resolveDoctorId(userDetails);
+        return ResponseEntity.ok(changeRequestService.getMyChangeRequests(doctorId));
     }
 
     // ========== Exceptions ==========
@@ -127,14 +120,6 @@ public class DoctorScheduleController {
     /**
      * Create a schedule exception (DayOff, Modified, AddSlot).
      */
-    @PostMapping("/exceptions")
-    public ResponseEntity<WeeklyScheduleResponse.ExceptionItem> createException(
-            @Valid @RequestBody DoctorScheduleExceptionRequest request,
-            @AuthenticationPrincipal UserDetails userDetails) {
-        String doctorId = resolveDoctorId(userDetails);
-        return ResponseEntity.ok(scheduleService.createException(doctorId, request));
-    }
-
     /**
      * Delete an exception. Cannot delete admin-created exceptions.
      */

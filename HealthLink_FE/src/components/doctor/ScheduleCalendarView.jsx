@@ -36,7 +36,7 @@ const getStatusMeta = (status) => {
   }
 };
 
-const ScheduleCalendarView = ({ exceptions, onCreateException, onRefresh }) => {
+const ScheduleCalendarView = ({ exceptions, onRefresh }) => {
   const [selectedDate, setSelectedDate] = useState(new Date());
   const [calendarData, setCalendarData] = useState([]);
   const [loading, setLoading] = useState(false);

@@ -17,6 +17,9 @@ public class WeeklyScheduleResponse {
 
     private String doctorId;
     private String doctorName;
+    private com.HealthLink.entity.enums.DoctorScheduleStatus doctorScheduleStatus; // Overall doctor schedule status
+    private Double totalMonthlyHours; // Total working hours per month
+    private Double requiredMonthlyHours; // Minimum required hours per month (80h)
     private List<ScheduleItem> schedules;
     private List<ExceptionItem> exceptions;
 
@@ -36,6 +39,7 @@ public class WeeklyScheduleResponse {
         private String location;
         private String notes;
         private boolean available;
+        private com.HealthLink.entity.enums.DoctorScheduleStatus scheduleStatus;
     }
 
     @Data

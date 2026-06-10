@@ -147,7 +147,8 @@ public interface AppointmentRepository extends JpaRepository<Appointment, Intege
             @Param("start") LocalDateTime start,
             @Param("end") LocalDateTime end
     );
-
+    List<Appointment> findByDoctor_DoctorIdAndStatusNotAndAppointmentTimeAfter(
+            String doctorId, String status, LocalDateTime after);
     /**
      * Tìm các lịch hẹn sắp diễn ra trong khoảng thời gian cho trước và chưa gửi
      * reminder. Dùng cho @Scheduled job nhắc nhở trước 30 phút.

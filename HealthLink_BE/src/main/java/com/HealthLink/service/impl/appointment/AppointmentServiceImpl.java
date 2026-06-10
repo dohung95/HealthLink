@@ -93,7 +93,8 @@ public class AppointmentServiceImpl implements AppointmentService {
         LocalTime requestedTime = appointmentTime.toLocalTime();
 
         List<DoctorSchedule> schedulesOfDay = scheduleRepository
-                .findByDoctor_DoctorIdAndDayOfWeekAndAvailableTrue(doctor.getDoctorId(), dayOfWeek);
+                .findByDoctor_DoctorIdAndDayOfWeekAndAvailableTrueAndScheduleStatus(
+                        doctor.getDoctorId(), dayOfWeek, com.HealthLink.entity.enums.DoctorScheduleStatus.APPROVED);
 
         if (schedulesOfDay.isEmpty()) {
             throw new BusinessException("Doctor busy at " + getDayName(dayOfWeek));
@@ -187,7 +188,8 @@ public class AppointmentServiceImpl implements AppointmentService {
         int dayOfWeek = date.getDayOfWeek().getValue() % 7;
 
         List<DoctorSchedule> schedules = scheduleRepository
-                .findByDoctor_DoctorIdAndDayOfWeekAndAvailableTrue(doctorId, dayOfWeek);
+                .findByDoctor_DoctorIdAndDayOfWeekAndAvailableTrueAndScheduleStatus(
+                        doctorId, dayOfWeek, com.HealthLink.entity.enums.DoctorScheduleStatus.APPROVED);
 
         LocalDateTime dayStart = date.atStartOfDay();
         LocalDateTime dayEnd = date.plusDays(1).atStartOfDay().minusSeconds(1);
@@ -359,9 +361,10 @@ public class AppointmentServiceImpl implements AppointmentService {
         LocalTime requestedTime = appointmentTime.toLocalTime();
 
         List<DoctorSchedule> schedulesOfDay = scheduleRepository
-                .findByDoctor_DoctorIdAndDayOfWeekAndAvailableTrue(
+                .findByDoctor_DoctorIdAndDayOfWeekAndAvailableTrueAndScheduleStatus(
                         doctor.getDoctorId(),
-                        dayOfWeek
+                        dayOfWeek,
+                        com.HealthLink.entity.enums.DoctorScheduleStatus.APPROVED
                 );
 
         DoctorSchedule matchedSchedule = schedulesOfDay.stream()

@@ -1,10 +1,9 @@
 import React, { useEffect, useState } from 'react';
 import { toast } from 'sonner';
-import { doctorScheduleService } from '@api/doctorApi';
+import { doctorScheduleService, doctorService } from '@api/doctorApi';
 import { doctorComplianceService } from '@api/complianceApi';
 import WeeklyScheduleBuilder from '@components/doctor/WeeklyScheduleBuilder';
 import ScheduleCalendarView from '@components/doctor/ScheduleCalendarView';
-import ScheduleExceptionModal from '@components/doctor/ScheduleExceptionModal';
 import '@components/Css/doctor/doctor-dashboard/doctor-dashboard.css';
 import ComplianceStatusBanner from '@components/doctor/ComplianceStatusBanner';
 import ComplianceWarningModal from '@components/doctor/ComplianceWarningModal';
@@ -14,11 +13,16 @@ const DoctorScheduleView = () => {
   const [scheduleData, setScheduleData] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
-  const [showExceptionModal, setShowExceptionModal] = useState(false);
-  const [selectedDate, setSelectedDate] = useState(null);
   const [showComplianceModal, setShowComplianceModal] = useState(false);
   const [complianceResult, setComplianceResult] = useState(null);
   const [complianceKey, setComplianceKey] = useState(0);
+  const [doctorId, setDoctorId] = useState(null);
+  const [availableAppointments, setAvailableAppointments] = useState([]);
+  const [changeRequests, setChangeRequests] = useState([]);
+  const [selectedAppointmentId, setSelectedAppointmentId] = useState(null);
+  const [requestReason, setRequestReason] = useState('');
+  const [loadingRequests, setLoadingRequests] = useState(false);
+  const [creatingRequest, setCreatingRequest] = useState(false);
 
   const fetchSchedule = async () => {
     try {
@@ -37,23 +41,106 @@ const DoctorScheduleView = () => {
 
   useEffect(() => {
     fetchSchedule();
+    fetchDoctorInfo();
   }, []);
 
   const refreshSchedule = () => {
     fetchSchedule();
+    fetchDoctorInfo();
     setComplianceKey((current) => current + 1);
   };
 
-  const handleCreateException = (date) => {
-    setSelectedDate(date);
-    setShowExceptionModal(true);
+  const getAppointmentTimeValue = (appointment) => {
+    return appointment?.appointmentTime || appointment?.consultationStartTime || appointment?.startTime || null;
   };
 
-  const handleExceptionSuccess = () => {
-    setShowExceptionModal(false);
-    setSelectedDate(null);
-    refreshSchedule();
-    toast.success('Exception created successfully');
+  const fetchDoctorInfo = async () => {
+    try {
+      setLoadingRequests(true);
+      const doctor = await doctorService.getCurrentDoctor();
+      setDoctorId(doctor?.doctorId || doctor?.doctorID || null);
+
+      const doctorAppointments = await doctorService.getDoctorAppointments(doctor?.doctorId || doctor?.doctorID || null);
+      const now = new Date();
+      const upcoming = (doctorAppointments || [])
+        .filter((appointment) => {
+          const appointmentTime = getAppointmentTimeValue(appointment);
+          const status = (appointment?.status || appointment?.statusName || '').toString().toUpperCase();
+          return appointmentTime && new Date(appointmentTime) > now && status === 'SCHEDULED';
+        })
+        .sort((a, b) => new Date(getAppointmentTimeValue(a)) - new Date(getAppointmentTimeValue(b)));
+
+      setAvailableAppointments(upcoming);
+      const requests = await doctorScheduleService.getMyScheduleChangeRequests();
+      setChangeRequests(requests || []);
+    } catch (err) {
+      console.error('Error fetching schedule change request data:', err);
+      toast.error(err.response?.data?.message || 'Failed to load schedule change request data');
+    } finally {
+      setLoadingRequests(false);
+    }
+  };
+
+  const handleSubmitChangeRequest = async () => {
+    if (!selectedAppointmentId) {
+      toast.error('Please select a future appointment to request a schedule change.');
+      return;
+    }
+
+    if (!requestReason.trim()) {
+      toast.error('Please enter a reason for the schedule change request.');
+      return;
+    }
+
+    try {
+      setCreatingRequest(true);
+      await doctorScheduleService.createScheduleChangeRequest({
+        appointmentId: selectedAppointmentId,
+        reason: requestReason.trim(),
+      });
+
+      toast.success('Schedule change request sent to admin.');
+      setSelectedAppointmentId(null);
+      setRequestReason('');
+      await fetchDoctorInfo();
+      await fetchSchedule();
+    } catch (err) {
+      console.error('Error sending schedule change request:', err);
+      toast.error(err.response?.data?.message || 'Failed to send schedule change request');
+    } finally {
+      setCreatingRequest(false);
+    }
+  };
+
+  const handleAppointmentSelection = (event) => {
+    setSelectedAppointmentId(event.target.value ? Number(event.target.value) : null);
+  };
+
+  const formatAppointmentTime = (appointment) => {
+    const value = getAppointmentTimeValue(appointment);
+    if (!value) return 'Unknown';
+    return new Date(value).toLocaleString();
+  };
+
+  const formatRequestDate = (timestamp) => {
+    if (!timestamp) return '-';
+    return new Date(timestamp).toLocaleString();
+  };
+
+  const getStatusBadgeClass = (status) => {
+    switch ((status || '').toString().toUpperCase()) {
+      case 'APPROVED':
+        return 'badge bg-success';
+      case 'REJECTED':
+        return 'badge bg-danger';
+      case 'PENDING':
+      default:
+        return 'badge bg-warning text-dark';
+    }
+  };
+
+  const requestStatusText = (status) => {
+    return status ? status.toString().replace('_', ' ') : 'UNKNOWN';
   };
 
   const handleValidateCompliance = async () => {
@@ -112,37 +199,27 @@ const DoctorScheduleView = () => {
             Calendar View
           </button>
         </div>
-        <button
-          className="btn btn-primary btn-sm d-flex align-items-center gap-1 shadow-sm"
-          onClick={() => handleCreateException(new Date())}
-          type="button"
-        >
-          <span className="material-symbols-outlined" style={{fontSize:'1rem'}}>add_circle</span>
-          Add Exception
-        </button>
       </div>
 
       <ComplianceStatusBanner key={complianceKey} onValidateClick={handleValidateCompliance} />
 
       {activeTab === 'weekly' ? (
-        <WeeklyScheduleBuilder schedules={scheduleData?.schedules || []} onRefresh={refreshSchedule} />
+        <WeeklyScheduleBuilder
+          schedules={scheduleData?.schedules || []}
+          scheduleData={scheduleData}
+          onRefresh={refreshSchedule}
+          appointments={availableAppointments}
+          changeRequests={changeRequests}
+          onCreateChangeRequest={handleSubmitChangeRequest}
+          loadingRequests={loadingRequests}
+          onRefreshRequests={fetchDoctorInfo}
+        />
       ) : (
         <ScheduleCalendarView
           exceptions={scheduleData?.exceptions || []}
-          onCreateException={handleCreateException}
           onRefresh={refreshSchedule}
         />
       )}
-
-      <ScheduleExceptionModal
-        isOpen={showExceptionModal}
-        onClose={() => {
-          setShowExceptionModal(false);
-          setSelectedDate(null);
-        }}
-        selectedDate={selectedDate}
-        onSuccess={handleExceptionSuccess}
-      />
 
       <ComplianceWarningModal
         isOpen={showComplianceModal}

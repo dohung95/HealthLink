@@ -25,11 +25,14 @@ public interface DoctorRepository extends JpaRepository<Doctor, String> {
      * @return
      */
     @Query("""
-    SELECT d
+    SELECT DISTINCT d
     FROM Doctor d
     JOIN d.user u
+    JOIN d.schedules s
     LEFT JOIN d.specialtyEntity se
     WHERE LOWER(u.status) = 'active'
+      AND s.available = true
+      AND d.scheduleStatus = 'APPROVED'
       AND (:specialty IS NULL OR se.name LIKE %:specialty%
            OR (se IS NULL AND d.specialty LIKE %:specialty%))
       AND (:name IS NULL OR d.fullName LIKE %:name%)
@@ -43,11 +46,14 @@ public interface DoctorRepository extends JpaRepository<Doctor, String> {
     );
 
     @Query("""
-    SELECT d
+    SELECT DISTINCT d
     FROM Doctor d
     JOIN d.user u
+    JOIN d.schedules s
     LEFT JOIN d.specialtyEntity se
     WHERE LOWER(u.status) = 'active'
+      AND s.available = true
+      AND d.scheduleStatus = 'APPROVED'
       AND (:specialty IS NULL OR se.name LIKE %:specialty%
            OR (se IS NULL AND d.specialty LIKE %:specialty%))
       AND (:name IS NULL OR d.fullName LIKE %:name%)

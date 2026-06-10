@@ -30,4 +30,6 @@ public class DoctorScheduleResponse {
     private String consultationType;
 
     private boolean available;
+
+    private com.HealthLink.entity.enums.DoctorScheduleStatus scheduleStatus;
 }
