@@ -189,6 +189,13 @@ public class AdminAuditLogService {
             String applicantEmail,
             String rejectionDetails
     ) {
+        // Get AI System user for audit logging
+        User systemUser = getAISystemUser();
+        if (systemUser == null) {
+            log.error("AI System user not found. Cannot create audit log for AI rejection. RequestId: {}", requestId);
+            return;
+        }
+
         String targetType = "DOCTOR".equalsIgnoreCase(registrationType)
                 ? AdminAuditLog.TARGET_DOCTOR
                 : AdminAuditLog.TARGET_PHARMACY;
@@ -204,11 +211,11 @@ public class AdminAuditLogService {
 
         AdminAuditLog auditLog = AdminAuditLog.builder()
                 .category(AdminAuditLog.CATEGORY_REGISTRATION)
-                .actionType("AI_REJECTED")
+                .actionType(AdminAuditLog.ACTION_AI_REJECTED)
                 .targetType(targetType)
                 .targetId(String.valueOf(requestId))
                 .targetName(applicantName)
-                .adminUser(null)  // No admin user - this is AI action
+                .adminUser(systemUser)  // Use AI System user instead of null
                 .description(description)
                 .newValue(toJson(details))
                 .reason(rejectionDetails)
@@ -218,6 +225,15 @@ public class AdminAuditLogService {
 
         auditLogRepository.save(auditLog);
         log.info("AI rejection audit log created for requestId:{} - {}", requestId, applicantName);
+    }
+
+    /**
+     * Get AI System user for audit logging
+     * This user is created by SystemUserInitializer on startup
+     */
+    private User getAISystemUser() {
+        return userRepository.findById(com.HealthLink.config.SystemUserInitializer.SYSTEM_USER_ID)
+                .orElse(null);
     }
 
     /**

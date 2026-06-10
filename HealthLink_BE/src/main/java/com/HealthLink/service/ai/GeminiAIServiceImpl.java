@@ -80,27 +80,32 @@ public class GeminiAIServiceImpl implements GeminiAIService {
 
     private static final String DOCUMENT_VERIFY_PROMPT = """
             You are an AI document verification specialist for a healthcare platform.
-            Analyze this document image thoroughly and check for:
+            The user claims this image is a "%s". You must verify this claim.
 
-            1. CONTENT SAFETY (CRITICAL - Check first):
-               - NSFW content (nudity, sexual content, hentai, pornography)
-               - Violence/gore (blood, injury, weapons, disturbing imagery)
-               - Hate symbols or offensive content
-               - Drug-related inappropriate content
-               - Any content unsuitable for a professional medical platform
+            ============ STEP 1: CONTENT SAFETY (CRITICAL - Reject immediately if violated) ============
+            First, check if this image contains ANY inappropriate content:
+            - NSFW content (nudity, sexual content, hentai, pornography, revealing clothing)
+            - Violence/gore imagery (blood, injury, weapons, corpses, war photos, disturbing scenes)
+            - Hate symbols or offensive gestures
+            - Drug-related inappropriate content
+            - Memes, jokes, cartoons, or troll images
+            - Random photos of people, animals, landscapes, or objects that are NOT official documents
+            - Any content unsuitable for a professional medical/healthcare platform
 
-            2. DOCUMENT VERIFICATION:
-               - What type of document is this?
-               - Is it a valid "%s"?
-               - Is the document readable and clear (not blurry, cropped, or damaged)?
-               - Does it appear authentic (no photoshop, manipulation, fake watermarks)?
-               - Is all required information visible and complete?
-               - Are there any signs of forgery (inconsistent fonts, unnatural edges)?
+            >>> If ANY of the above is detected: set contentSafe=false, nsfwDetected/violenceDetected/hateContentDetected=true as appropriate, and FAIL the verification.
 
-            3. DOCUMENT QUALITY:
-               - Image resolution and clarity
-               - Proper orientation
-               - Complete document (no cut-off edges)
+            ============ STEP 2: DOCUMENT TYPE VERIFICATION (CRITICAL) ============
+            Check if this image is ACTUALLY a "%s":
+            - Is this a real official document (license, certificate, ID card, passport)?
+            - Does it match the expected document type "%s"?
+            - If the image is NOT a document at all (e.g., a random photo, selfie, meme, violence image), set typeMatches=false
+
+            >>> If the image is NOT the expected document type: set typeMatches=false and confidence=0.0
+
+            ============ STEP 3: DOCUMENT QUALITY (Only if Steps 1 & 2 pass) ============
+            - Is the document readable and clear?
+            - Does it appear authentic?
+            - Is all required information visible?
 
             Return JSON only (no markdown, no code blocks):
             {
@@ -110,13 +115,13 @@ public class GeminiAIServiceImpl implements GeminiAIService {
               "hateContentDetected": true/false,
               "safetyScore": 0.0-1.0,
               "safetyIssues": ["list of safety concerns if any"],
-              "detectedType": "type of document you see",
+              "detectedType": "what you actually see in the image",
               "typeMatches": true/false,
               "readable": true/false,
               "appearsAuthentic": true/false,
               "complete": true/false,
               "confidence": 0.0-1.0,
-              "issues": ["list of document issues if any"]
+              "issues": ["list of issues if any"]
             }
             """;
 
@@ -258,7 +263,7 @@ public class GeminiAIServiceImpl implements GeminiAIService {
             if (isProfilePhoto) {
                 prompt = PROFILE_PHOTO_VERIFY_PROMPT;
             } else {
-                prompt = String.format(DOCUMENT_VERIFY_PROMPT, expectedType);
+                prompt = String.format(DOCUMENT_VERIFY_PROMPT, expectedType, expectedType, expectedType);
             }
 
             String response;
@@ -370,6 +375,7 @@ public class GeminiAIServiceImpl implements GeminiAIService {
             boolean authentic = getBooleanValue(jsonNode, "appearsAuthentic", true);
             boolean complete = getBooleanValue(jsonNode, "complete", true);
             double confidence = getDoubleValue(jsonNode, "confidence", 0.5);
+            String detectedType = getTextValue(jsonNode, "detectedType");
 
             List<String> issues = new ArrayList<>();
             JsonNode issuesNode = jsonNode.get("issues");
@@ -379,12 +385,18 @@ public class GeminiAIServiceImpl implements GeminiAIService {
                 }
             }
 
+            // Add clear issues for type mismatch
+            if (!typeMatches) {
+                issues.add(0, String.format("Image is not a valid '%s'. Detected: %s",
+                        expectedType, detectedType != null ? detectedType : "unknown/inappropriate content"));
+            }
+
             // Document passes if: safe content + type matches + readable + authentic
             boolean passed = contentSafe && typeMatches && readable && authentic;
 
             return DocumentScreeningResult.builder()
                     .expectedType(expectedType)
-                    .detectedType(getTextValue(jsonNode, "detectedType"))
+                    .detectedType(detectedType)
                     .typeMatches(typeMatches)
                     .readable(readable)
                     .appearsAuthentic(authentic)
