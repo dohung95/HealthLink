@@ -189,3 +189,290 @@
 .pharmacy-order-item-row small {
   color: var(--pharmacy-muted);
 }
+
+/* ===== Unified Order Operations ===== */
+.pharmacy-order-ops {
+  margin-bottom: 16px;
+}
+
+.pharmacy-order-toolbar {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 12px;
+}
+
+.pharmacy-order-toolbar h2 {
+  margin: 0;
+  font-size: 20px;
+  font-weight: 800;
+}
+
+.pharmacy-stage-strip {
+  display: flex;
+  gap: 8px;
+}
+
+.pharmacy-stage-metric {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+  padding: 10px 16px;
+  border: 1px solid var(--pharmacy-border);
+  border-radius: 8px;
+  background: var(--pharmacy-card);
+  cursor: pointer;
+  transition: all 0.15s ease;
+  width: 100%;
+}
+
+.pharmacy-stage-metric:hover {
+  border-color: var(--pharmacy-primary);
+  transform: translateY(-1px);
+  box-shadow: 0 2px 8px rgba(0,60,144,0.08);
+}
+
+.pharmacy-stage-metric.is-active {
+  border-color: var(--pharmacy-primary);
+  background: var(--pharmacy-primary-soft);
+}
+
+.pharmacy-stage-metric-label {
+  font-size: 12px;
+  color: var(--pharmacy-muted);
+  white-space: nowrap;
+}
+
+.pharmacy-stage-metric-value {
+  font-size: 22px;
+  font-weight: 800;
+  color: var(--pharmacy-text);
+}
+
+.pharmacy-card-title {
+  font-size: 16px;
+  font-weight: 700;
+  color: var(--pharmacy-text);
+  margin-bottom: 8px;
+}
+
+/* ===== Case Table ===== */
+.pharmacy-case-table {
+  min-width: 900px;
+}
+
+.pharmacy-case-row {
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.pharmacy-case-row:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 2px 8px rgba(0,60,144,0.06);
+}
+
+.pharmacy-case-row td:first-child {
+  border-left: 3px solid transparent;
+}
+
+.pharmacy-case-row.is-selected td:first-child {
+  border-left-color: var(--pharmacy-primary);
+}
+
+.pharmacy-case-row.is-selected {
+  background: var(--pharmacy-primary-soft);
+}
+
+.pharmacy-case-source-badge {
+  display: inline-block;
+  font-size: 10px;
+  font-weight: 700;
+  padding: 2px 6px;
+  border-radius: 4px;
+  margin-left: 6px;
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+}
+
+.pharmacy-case-source-badge.is-consult {
+  background: #dbeafe;
+  color: #1d4ed8;
+}
+
+.pharmacy-case-source-badge.is-direct {
+  background: #d1fae5;
+  color: #047857;
+}
+
+.pharmacy-case-detail {
+  display: block;
+  font-size: 13px;
+  color: var(--pharmacy-muted);
+  margin-top: 2px;
+  max-width: 200px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.pharmacy-next-action {
+  color: var(--pharmacy-muted);
+  font-size: 13px;
+}
+
+.pharmacy-case-actions {
+  white-space: nowrap;
+}
+
+/* ===== Case Drawer ===== */
+.pharmacy-case-drawer .pharmacy-drawer-panel {
+  width: min(720px, 100%);
+}
+
+.pharmacy-case-header {
+  display: flex;
+  align-items: flex-start;
+}
+
+.pharmacy-case-header-main {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.pharmacy-case-header-main h2 {
+  margin: 0;
+  font-size: 18px;
+}
+
+.pharmacy-case-header-meta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  align-items: center;
+  margin-top: 4px;
+  font-size: 13px;
+  color: var(--pharmacy-muted);
+}
+
+/* ===== Case Timeline ===== */
+.pharmacy-case-timeline {
+  margin-bottom: 16px;
+}
+
+.pharmacy-case-timeline h3 {
+  font-size: 14px;
+  font-weight: 700;
+  margin-bottom: 8px;
+}
+
+.pharmacy-timeline div.is-current span {
+  background: var(--pharmacy-primary);
+  box-shadow: 0 0 0 3px var(--pharmacy-primary-soft);
+  animation: pharmacy-pulse 2s infinite;
+}
+
+@keyframes pharmacy-pulse {
+  0%, 100% { box-shadow: 0 0 0 3px var(--pharmacy-primary-soft); }
+  50% { box-shadow: 0 0 0 6px rgba(59,130,246,0.15); }
+}
+
+/* ===== Case Section ===== */
+.pharmacy-case-section {
+  border: 1px solid var(--pharmacy-border);
+  border-radius: 8px;
+  padding: 14px;
+  margin-bottom: 12px;
+}
+
+.pharmacy-case-section h3 {
+  font-size: 14px;
+  font-weight: 700;
+  margin: 0 0 8px;
+  display: flex;
+  align-items: center;
+}
+
+/* ===== Order Draft Row ===== */
+.pharmacy-order-draft-row .card-body {
+  padding: 8px 12px;
+}
+
+/* ===== Action Bar ===== */
+.pharmacy-case-action-bar {
+  position: sticky;
+  bottom: 0;
+  display: flex;
+  gap: 8px;
+  padding: 12px 16px;
+  background: var(--pharmacy-card);
+  border-top: 1px solid var(--pharmacy-border);
+}
+
+/* ===== Status variants ===== */
+.pharmacy-status.is-waiting {
+  color: #6d28d9;
+  background: #f5f3ff;
+  border-color: #ddd6fe;
+}
+
+/* ===== Prescription import row ===== */
+.pharmacy-prescription-import-row {
+  transition: all 0.15s ease;
+}
+
+.pharmacy-prescription-import-row:hover {
+  border-color: var(--pharmacy-primary);
+}
+
+/* ===== Empty state compact ===== */
+.pharmacy-empty.compact {
+  padding: 24px 16px;
+}
+
+.pharmacy-empty.compact h3 {
+  font-size: 15px;
+}
+
+/* ===== Loading state ===== */
+.pharmacy-bootstrap-loading {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 24px;
+  justify-content: center;
+  color: var(--pharmacy-muted);
+}
+
+/* ===== Status update form in drawer ===== */
+.pharmacy-form h4 {
+  font-size: 14px;
+  font-weight: 700;
+  margin: 12px 0 8px;
+}
+
+/* ===== Responsive ===== */
+@media (max-width: 820px) {
+  .pharmacy-case-table {
+    min-width: 600px;
+  }
+  .pharmacy-case-detail {
+    max-width: 120px;
+  }
+  .pharmacy-case-drawer .pharmacy-drawer-panel {
+    width: 100%;
+  }
+  .pharmacy-drawer-backdrop {
+    background: rgba(11, 28, 48, 0.5);
+  }
+}
+
+@media (max-width: 520px) {
+  .pharmacy-stage-metric-label {
+    font-size: 10px;
+  }
+  .pharmacy-stage-metric-value {
+    font-size: 18px;
+  }
+}

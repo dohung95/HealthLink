@@ -1,8 +1,10 @@
 package com.HealthLink.controller.pharmacy;
 
 import com.HealthLink.dto.pharmacy.CancelOrderRequest;
+import com.HealthLink.dto.pharmacy.PharmacyConsultationOrderCreateRequest;
 import com.HealthLink.dto.pharmacy.PharmacyOrderRequest;
 import com.HealthLink.dto.pharmacy.PharmacyOrderResponse;
+import com.HealthLink.dto.pharmacy.PharmacyOrderRevisionRequest;
 import com.HealthLink.dto.pharmacy.PharmacyOrderStatusRequest;
 import com.HealthLink.exception.ResourceNotFoundException;
 import com.HealthLink.repository.auth.UserRepository;
@@ -18,6 +20,7 @@ import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PatchMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
@@ -101,6 +104,30 @@ public class PharmacyOrderController {
 
         String patientId = resolveUserId(userDetails);
         PharmacyOrderResponse response = pharmacyOrderService.cancelOrderByPatient(orderId, request, patientId);
+        return ResponseEntity.ok(response);
+    }
+
+    @PostMapping("/{orderId}/request-revision")
+    @PreAuthorize("hasRole('PATIENT')")
+    public ResponseEntity<PharmacyOrderResponse> requestOrderRevision(
+            @PathVariable Integer orderId,
+            @Valid @RequestBody PharmacyOrderRevisionRequest request,
+            @AuthenticationPrincipal UserDetails userDetails) {
+
+        String patientId = resolveUserId(userDetails);
+        PharmacyOrderResponse response = pharmacyOrderService.requestOrderRevision(orderId, request, patientId);
+        return ResponseEntity.ok(response);
+    }
+
+    @PutMapping("/{orderId}/quote")
+    @PreAuthorize("hasRole('PHARMACY')")
+    public ResponseEntity<PharmacyOrderResponse> updateOrderQuote(
+            @PathVariable Integer orderId,
+            @Valid @RequestBody PharmacyConsultationOrderCreateRequest request,
+            @AuthenticationPrincipal UserDetails userDetails) {
+
+        String pharmacyId = resolveUserId(userDetails);
+        PharmacyOrderResponse response = pharmacyOrderService.updateOrderQuote(orderId, request, pharmacyId);
         return ResponseEntity.ok(response);
     }
 

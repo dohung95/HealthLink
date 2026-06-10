@@ -8,7 +8,7 @@ import './Css/PatientPrescriptionView.css';
 
 const PatientPrescriptionView = () => {
   const navigate = useNavigate();
-  const { userId } = useAuth();
+  const { currentUserId: userId } = useAuth();
   const [prescriptions, setPrescriptions] = useState([]);
   const [filteredPrescriptions, setFilteredPrescriptions] = useState([]);
   const [selectedPrescription, setSelectedPrescription] = useState(null);

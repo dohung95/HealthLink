@@ -6,15 +6,54 @@ import { useChat } from '../../context/ChatContext';
 import medicineApi from '../../api/medicineApi';
 import pharmacyApi from '../../api/pharmacyApi';
 import {
+  Detail,
   Modal,
-  REQUEST_TABS,
+  ORDER_FLOW,
   dateTime,
   initials,
   money,
   normalize,
   statusClass,
+  titleCase,
   useDebouncedValue,
 } from './PharmacyShared';
+
+const VALID_TIMINGS = new Set(['MORNING', 'AFTERNOON', 'EVENING']);
+
+function normalizeTimingForPayload(rawTiming) {
+  if (!rawTiming) return '';
+  const tokens = String(rawTiming)
+    .split(',')
+    .map((token) => token.trim().toUpperCase())
+    .filter((token) => VALID_TIMINGS.has(token));
+  return [...new Set(tokens)].join(',');
+}
+
+function normalizeTimingWithNotesFallback(item) {
+  const rawTiming = getTimingText(item);
+  const normalized = normalizeTimingForPayload(rawTiming);
+  const rawTokens = String(rawTiming)
+    .split(',')
+    .map((token) => token.trim())
+    .filter(Boolean);
+  const invalidTokens = rawTokens.filter(
+    (token) => !VALID_TIMINGS.has(token.trim().toUpperCase()),
+  );
+  const existingNotes = item.notes || item.instructions || '';
+  if (invalidTokens.length > 0 && !normalized) {
+    const timingNote = `Timing note: ${invalidTokens.join(', ')}`;
+    return {
+      timing: '',
+      notes: existingNotes
+        ? `${existingNotes}\n${timingNote}`
+        : timingNote,
+    };
+  }
+  return {
+    timing: normalized,
+    notes: existingNotes,
+  };
+}
 
 const TIMING_OPTIONS = [
   { value: 'MORNING', label: 'Morning', icon: 'bi-sunrise' },
@@ -29,29 +68,96 @@ const LIBRARY_FILTERS = [
   { key: 'manufacturer', label: 'Manufacturer' },
 ];
 
+const WORKFLOW_TABS = [
+  { key: 'NEW_REQUEST', label: 'New Requests' },
+  { key: 'ACCEPTED', label: 'Accepted' },
+  { key: 'AWAITING_PATIENT_CONFIRMATION', label: 'Awaiting Patient' },
+  { key: 'PREPARING', label: 'Preparing' },
+  { key: 'READY_SHIPPING', label: 'Ready / Shipping' },
+  { key: 'COMPLETED', label: 'Completed' },
+  { key: 'CANCELLED', label: 'Cancelled' },
+];
+
 const WORKSPACE_TABS = [
   { key: 'details', label: 'Details' },
   { key: 'prescription', label: 'Prescription' },
   { key: 'order', label: 'Order' },
 ];
 
-export default function PharmacyConsultationsTab({ requests, globalSearch, reload, profile }) {
-  const [activeStatus, setActiveStatus] = useState('PENDING');
+function getWorkFlowStageTab(stage) {
+  if (stage === 'READY' || stage === 'SHIPPING') return 'READY_SHIPPING';
+  return stage;
+}
+
+function getNextActionHint(item) {
+  const actions = item.availableActions || [];
+  if (actions.includes('ACCEPT_REQUEST')) return 'Accept request';
+  if (actions.includes('CREATE_ORDER')) return 'Create order';
+  if (actions.includes('UPDATE_ORDER_STATUS')) {
+    if (item.orderStatus === 'PREPARING') return 'Mark ready';
+    if (item.orderStatus === 'READY') return 'Mark delivered';
+    if (item.orderStatus === 'SHIPPING') return 'Mark delivered';
+    if (item.orderStatus === 'DELIVERED') return 'Mark completed';
+    return 'Update status';
+  }
+  if (actions.includes('CANCEL_ORDER')) return 'Cancel order';
+  if (item.workflowStage === 'AWAITING_PATIENT_CONFIRMATION') return 'Waiting for patient confirmation';
+  if (item.workflowStage === 'AWAITING_PAYMENT') return 'Waiting for payment';
+  return 'View details';
+}
+
+export default function PharmacyConsultationsTab({ workItems, requests, globalSearch, reload, profile }) {
+  const [activeTabKey, setActiveTabKey] = useState('NEW_REQUEST');
   const [selected, setSelected] = useState(null);
   const deferredSearch = useDebouncedValue(globalSearch);
 
-  const filtered = useMemo(() => requests.filter((request) => {
-    const normalized = normalize(request.status);
-    const statusMatches = activeStatus === 'CONVERTED'
-      ? normalized === 'ORDER_CREATED'
-      : normalized === activeStatus;
-    const text = [request.patientName, request.symptoms, request.description, request.allergies, request.additionalNotes]
-      .join(' ')
-      .toLowerCase();
-    return statusMatches && (!deferredSearch || text.includes(deferredSearch.toLowerCase()));
-  }), [requests, activeStatus, deferredSearch]);
+  const items = useMemo(() => {
+    if (Array.isArray(workItems) && workItems.length) return workItems;
+    return (requests || []).map((r) => ({
+      requestId: r.requestId,
+      workItemId: 'REQ-' + r.requestId,
+      workflowStage: r.status === 'ORDER_CREATED' ? 'AWAITING_PAYMENT'
+        : r.status === 'IN_REVIEW' ? 'CONSULTING'
+        : r.status === 'NEED_MORE_INFO' ? 'CONSULTING'
+        : r.status === 'CANCELLED' ? 'CANCELLED'
+        : 'NEW_REQUEST',
+      availableActions: [],
+      patientId: r.patientId,
+      patientName: r.patientName,
+      symptoms: r.symptoms,
+      description: r.description,
+      allergies: r.allergies,
+      attachments: r.attachments,
+      additionalNotes: r.additionalNotes,
+      preferredDeliveryType: r.preferredDeliveryType,
+      requestStatus: r.status,
+      chatRoomId: r.chatRoomId,
+      pharmacyNotes: r.pharmacyNotes,
+      patientFollowUpNotes: r.patientFollowUpNotes,
+      prescriptionHeaderIds: r.prescriptionHeaderIds,
+      createdAt: r.createdAt,
+      updatedAt: r.updatedAt,
+      orderId: r.pharmacyOrderId,
+      orderStatus: null,
+      paymentStatus: null,
+      totalAmount: null,
+      itemCount: null,
+    }));
+  }, [workItems, requests]);
 
-  const selectedRequest = filtered.some((request) => request.requestId === selected?.requestId)
+  const filtered = useMemo(() => {
+    const normalizedQuery = deferredSearch ? deferredSearch.toLowerCase() : '';
+    return items.filter((item) => {
+      const stageMatches = getWorkFlowStageTab(item.workflowStage) === activeTabKey
+        || (activeTabKey === 'ALL' && item.workflowStage);
+      const text = [item.patientName, item.symptoms, item.description, item.orderNumber]
+        .join(' ')
+        .toLowerCase();
+      return stageMatches && (!normalizedQuery || text.includes(normalizedQuery));
+    });
+  }, [items, activeTabKey, deferredSearch]);
+
+  const selectedItem = filtered.some((item) => item.workItemId === selected?.workItemId)
     ? selected
     : filtered[0] || null;
 
@@ -59,30 +165,31 @@ export default function PharmacyConsultationsTab({ requests, globalSearch, reloa
     <div className="pharmacy-consult-grid">
       <div className="pharmacy-request-rail">
         <div className="pharmacy-request-tabs">
-          {REQUEST_TABS.map((tab) => (
-            <button className={activeStatus === tab.key ? 'active' : ''} key={tab.key} onClick={() => setActiveStatus(tab.key)} type="button">
+          {WORKFLOW_TABS.map((tab) => (
+            <button className={activeTabKey === tab.key ? 'active' : ''} key={tab.key} onClick={() => setActiveTabKey(tab.key)} type="button">
               {tab.label}
             </button>
           ))}
         </div>
 
         <section className="pharmacy-request-list">
-          {filtered.length ? filtered.map((request) => (
+          {filtered.length ? filtered.map((item) => (
             <button
-              className={`pharmacy-request-card ${selectedRequest?.requestId === request.requestId ? 'active' : ''}`}
-              key={request.requestId}
-              onClick={() => setSelected(request)}
+              className={`pharmacy-request-card ${selectedItem?.workItemId === item.workItemId ? 'active' : ''}`}
+              key={item.workItemId}
+              onClick={() => setSelected(item)}
               type="button"
             >
               <div className="pharmacy-request-card-row">
-                <div className="pharmacy-request-avatar">{initials(request.patientName || 'PT')}</div>
+                <div className="pharmacy-request-avatar">{initials(item.patientName || 'PT')}</div>
                 <div className="pharmacy-request-card-info">
-                  <h3>{request.patientName || 'Unknown patient'}</h3>
-                  <span className="pharmacy-request-card-time">{dateTime(request.createdAt)}</span>
+                  <h3>{item.patientName || 'Unknown patient'}</h3>
+                  <span className="pharmacy-request-card-time">{dateTime(item.createdAt)}</span>
                 </div>
-                <span className={`pharmacy-status ${statusClass(request.status)}`}>{request.status}</span>
+                <span className={`pharmacy-status ${statusClass(item.workflowStage)}`}>{item.workflowStage}</span>
               </div>
-              <p className="pharmacy-request-card-desc">{request.description || request.symptoms || 'No description provided.'}</p>
+              <p className="pharmacy-request-card-desc">{item.description || item.symptoms || 'No description provided.'}</p>
+              <small className="pharmacy-next-action-hint">{getNextActionHint(item)}</small>
             </button>
           )) : (
             <div className="pharmacy-empty">
@@ -95,7 +202,7 @@ export default function PharmacyConsultationsTab({ requests, globalSearch, reloa
       </div>
 
       <section className="pharmacy-workspace-column">
-        <RequestWorkspace request={selectedRequest} onUpdated={reload} profile={profile} />
+        <WorkItemWorkspace item={selectedItem} onUpdated={reload} profile={profile} />
       </section>
     </div>
   );
@@ -118,28 +225,32 @@ function WorkspaceTabs({ active, onChange }) {
   );
 }
 
-function RequestWorkspace({ request, onUpdated, profile }) {
+function WorkItemWorkspace({ item, onUpdated, profile }) {
   const [notes, setNotes] = useState('');
   const [workspaceTab, setWorkspaceTab] = useState('details');
   const [activeModal, setActiveModal] = useState(null);
-  const [items, setItems] = useState([]);
+  const [orderItems, setOrderItems] = useState([]);
   const [pendingMedicine, setPendingMedicine] = useState(null);
   const [recentMedicineIds, setRecentMedicineIds] = useState([]);
   const [prescriptions, setPrescriptions] = useState([]);
   const [loadingPrescriptions, setLoadingPrescriptions] = useState(false);
 
-  useEffect(() => {
-    setNotes(request?.pharmacyNotes || '');
-  }, [request?.requestId, request?.pharmacyNotes]);
+  const requestId = item?.requestId;
+  const isOrderExisting = !!item?.orderId;
+  const actions = item?.availableActions || [];
 
   useEffect(() => {
-    setItems([]);
+    setNotes(item?.pharmacyNotes || '');
+  }, [requestId, item?.pharmacyNotes]);
+
+  useEffect(() => {
+    setOrderItems([]);
     setPendingMedicine(null);
     setRecentMedicineIds([]);
-  }, [request?.requestId]);
+  }, [requestId]);
 
   useEffect(() => {
-    if (!request?.requestId) {
+    if (!requestId) {
       setPrescriptions([]);
       setLoadingPrescriptions(false);
       return undefined;
@@ -147,7 +258,7 @@ function RequestWorkspace({ request, onUpdated, profile }) {
 
     let alive = true;
     setLoadingPrescriptions(true);
-    pharmacyApi.getRequestPrescriptions(request.requestId)
+    pharmacyApi.getRequestPrescriptions(requestId)
       .then((data) => {
         if (alive) setPrescriptions(Array.isArray(data) ? data : []);
       })
@@ -164,16 +275,16 @@ function RequestWorkspace({ request, onUpdated, profile }) {
     return () => {
       alive = false;
     };
-  }, [request?.requestId]);
+  }, [requestId]);
 
   const importedItemKeys = useMemo(
-    () => new Set(items.map((item) => item.sourcePrescriptionItemKey).filter(Boolean)),
-    [items],
+    () => new Set(orderItems.map((oi) => oi.sourcePrescriptionItemKey).filter(Boolean)),
+    [orderItems],
   );
 
   const selectedMedicineIds = useMemo(
-    () => new Set(items.map((item) => item.medicineId).filter(Boolean)),
-    [items],
+    () => new Set(orderItems.map((oi) => oi.medicineId).filter(Boolean)),
+    [orderItems],
   );
 
   const importOrderItems = (mappedItems) => {
@@ -182,8 +293,8 @@ function RequestWorkspace({ request, onUpdated, profile }) {
       return;
     }
 
-    const existingKeys = new Set(items.map((item) => item.sourcePrescriptionItemKey).filter(Boolean));
-    const imported = mappedItems.filter((item) => !item.sourcePrescriptionItemKey || !existingKeys.has(item.sourcePrescriptionItemKey));
+    const existingKeys = new Set(orderItems.map((oi) => oi.sourcePrescriptionItemKey).filter(Boolean));
+    const imported = mappedItems.filter((oi) => !oi.sourcePrescriptionItemKey || !existingKeys.has(oi.sourcePrescriptionItemKey));
     const skipped = mappedItems.length - imported.length;
 
     if (!imported.length) {
@@ -192,7 +303,7 @@ function RequestWorkspace({ request, onUpdated, profile }) {
       return;
     }
 
-    setItems((current) => [...current, ...imported]);
+    setOrderItems((current) => [...current, ...imported]);
     setWorkspaceTab('order');
     toast.success(`${imported.length} medication${imported.length === 1 ? '' : 's'} imported${skipped ? `, ${skipped} skipped` : ''}.`);
   };
@@ -214,7 +325,7 @@ function RequestWorkspace({ request, onUpdated, profile }) {
     setActiveModal(null);
   };
 
-  if (!request) {
+  if (!item) {
     return (
       <aside className="pharmacy-request-workspace">
         <div className="pharmacy-empty">
@@ -231,8 +342,9 @@ function RequestWorkspace({ request, onUpdated, profile }) {
       <WorkspaceTabs active={workspaceTab} onChange={setWorkspaceTab} />
 
       {workspaceTab === 'details' && (
-        <RequestDetailPanel
-          request={request}
+        <WorkItemDetailPanel
+          actions={actions}
+          item={item}
           notes={notes}
           onNotesChange={setNotes}
           onUpdated={onUpdated}
@@ -251,21 +363,25 @@ function RequestWorkspace({ request, onUpdated, profile }) {
       )}
 
       {workspaceTab === 'order' && (
-        <PharmacyRequestOrderPanel
-          items={items}
-          onConsumePendingMedicine={() => setPendingMedicine(null)}
-          onOpenMedicineSearch={() => setActiveModal('medicine')}
-          onUpdated={onUpdated}
-          pendingMedicine={pendingMedicine}
-          profile={profile}
-          request={request}
-          setItems={setItems}
-        />
+        isOrderExisting ? (
+          <ExistingOrderPanel item={item} onUpdated={onUpdated} />
+        ) : (
+          <PharmacyRequestOrderPanel
+            items={orderItems}
+            onConsumePendingMedicine={() => setPendingMedicine(null)}
+            onOpenMedicineSearch={() => setActiveModal('medicine')}
+            onUpdated={onUpdated}
+            pendingMedicine={pendingMedicine}
+            profile={profile}
+            request={item}
+            setItems={setOrderItems}
+          />
+        )
       )}
 
       {activeModal === 'attachments' && (
         <RequestAttachmentsModal
-          attachments={request.attachments}
+          attachments={item.attachments}
           onClose={() => setActiveModal(null)}
         />
       )}
@@ -282,20 +398,21 @@ function RequestWorkspace({ request, onUpdated, profile }) {
   );
 }
 
-function RequestDetailPanel({ request, notes, onNotesChange, onUpdated, onOpenAttachments }) {
+function WorkItemDetailPanel({ actions, item, notes, onNotesChange, onUpdated, onOpenAttachments }) {
   const { initiateCall } = useAuth();
   const { openChatWith } = useChat();
+
+  const hasAction = (action) => actions.includes(action);
 
   const updateStatus = async (status) => {
     const confirmMessages = {
       IN_REVIEW: 'Accept this consultation request?',
       CANCELLED: 'Reject this consultation request? This action cannot be undone.',
-      NEED_MORE_INFO: 'Mark this request as needing more information?',
     };
     if (confirmMessages[status] && !window.confirm(confirmMessages[status])) return;
 
     try {
-      await pharmacyApi.updateConsultationStatus(request.requestId, {
+      await pharmacyApi.updateConsultationStatus(item.requestId, {
         status,
         pharmacyNotes: notes,
       });
@@ -306,30 +423,40 @@ function RequestDetailPanel({ request, notes, onNotesChange, onUpdated, onOpenAt
     }
   };
 
-  const status = normalize(request.status);
-  const canManuallyUpdate = !['ORDER_CREATED', 'CANCELLED'].includes(status);
-  const attachments = request.attachments || [];
+  const attachments = item.attachments || [];
   const attachmentCount = attachments.length;
 
   return (
     <aside className="pharmacy-request-detail">
       <div className="pharmacy-request-detail-header">
-        <div className="pharmacy-request-avatar is-large">{initials(request.patientName || 'PT')}</div>
+        <div className="pharmacy-request-avatar is-large">{initials(item.patientName || 'PT')}</div>
         <div>
-          <h2>{request.patientName || 'Unknown patient'}</h2>
-          <p>ID: #{request.requestId} - <span className={`pharmacy-status ${statusClass(request.status)}`}>{request.status}</span></p>
+          <h2>{item.patientName || 'Unknown patient'}</h2>
+          <p>ID: #{item.requestId} - <span className={`pharmacy-status ${statusClass(item.workflowStage)}`}>{item.workflowStage}</span></p>
         </div>
       </div>
 
       <div className="pharmacy-detail-block">
         <h3>Consultation Request</h3>
-        <p>{request.description || request.symptoms || 'No description provided.'}</p>
+        <p>{item.description || item.symptoms || 'No description provided.'}</p>
         <div className="pharmacy-chip-row">
-          {request.symptoms && <span>Symptoms: {request.symptoms}</span>}
-          {request.preferredDeliveryType && <span>{request.preferredDeliveryType}</span>}
-          {request.allergies && <span className="danger">Allergies: {request.allergies}</span>}
+          {item.symptoms && <span>Symptoms: {item.symptoms}</span>}
+          {item.preferredDeliveryType && <span>{item.preferredDeliveryType}</span>}
+          {item.allergies && <span className="danger">Allergies: {item.allergies}</span>}
         </div>
       </div>
+
+      {item.orderId && (
+        <div className="pharmacy-detail-block">
+          <h3>Order</h3>
+          <p>Order #{item.orderNumber || item.orderId} - <span className={`pharmacy-status ${statusClass(item.orderStatus)}`}>{item.orderStatus}</span></p>
+          <div className="pharmacy-chip-row">
+            {item.paymentStatus && <span>Payment: {item.paymentStatus}</span>}
+            {item.totalAmount != null && <span>Total: {money(item.totalAmount)}</span>}
+            {item.itemCount != null && <span>{item.itemCount} item{item.itemCount === 1 ? '' : 's'}</span>}
+          </div>
+        </div>
+      )}
 
       {attachmentCount > 0 && (
         <div className="pharmacy-detail-block">
@@ -346,35 +473,197 @@ function RequestDetailPanel({ request, notes, onNotesChange, onUpdated, onOpenAt
         <textarea onChange={(event) => onNotesChange(event.target.value)} value={notes} />
       </label>
 
-      {canManuallyUpdate && (
+      {hasAction('ACCEPT_REQUEST') && (
         <div className="pharmacy-request-actions">
           <button onClick={() => updateStatus('IN_REVIEW')} type="button">Accept Request</button>
-          <button onClick={() => updateStatus('NEED_MORE_INFO')} type="button">Need More Info</button>
           <button className="danger" onClick={() => updateStatus('CANCELLED')} type="button">Reject</button>
         </div>
       )}
 
-      {!['PENDING', 'CANCELLED'].includes(status) && (
+      {(hasAction('CHAT') || hasAction('VIDEO_CALL') || hasAction('CREATE_ORDER')) && (
         <div className="pharmacy-request-actions">
-          <button
-            type="button"
-            onClick={() => openChatWith({ uid: request.patientId, displayName: request.patientName })}
-          >
-            <i className="bi bi-chat-dots-fill me-1"></i> Chat
-          </button>
-          <button
-            type="button"
-            onClick={() => {
-              const roomId = request.chatRoomId || Array.from({ length: 45 }, () =>
-                'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789'[Math.floor(Math.random() * 62)]
-              ).join('');
-              initiateCall(request.patientId, roomId, request.patientName, 'Pharmacy');
-            }}
-          >
-            <i className="bi bi-camera-video-fill me-1"></i> Video Call
-          </button>
+          {hasAction('CHAT') && (
+            <button type="button" onClick={() => openChatWith({ uid: item.patientId, displayName: item.patientName })}>
+              <i className="bi bi-chat-dots-fill me-1"></i> Chat
+            </button>
+          )}
+          {hasAction('VIDEO_CALL') && (
+            <button
+              type="button"
+              onClick={() => {
+                const roomId = item.chatRoomId || Array.from({ length: 45 }, () =>
+                  'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789'[Math.floor(Math.random() * 62)]
+                ).join('');
+                initiateCall(item.patientId, roomId, item.patientName, 'Pharmacy');
+              }}
+            >
+              <i className="bi bi-camera-video-fill me-1"></i> Video Call
+            </button>
+          )}
         </div>
       )}
+    </aside>
+  );
+}
+
+function PharmacyOrderTimeline({ order }) {
+  const steps = [
+    ['Created', order.createdAt],
+    ['Confirmed', order.confirmedAt],
+    ['Preparing', order.preparingAt],
+    ['Shipped', order.shippedAt],
+    ['Delivered', order.deliveredAt],
+    ['Completed', order.actualDeliveryTime],
+    ['Cancelled', order.cancelledAt],
+  ].filter(([, value]) => !!value);
+
+  if (!steps.length) return null;
+
+  return (
+    <section className="pharmacy-timeline">
+      <h3>Status Timeline</h3>
+      {steps.map(([label, value]) => (
+        <div key={label}><span /> <strong>{label}</strong> <small>{dateTime(value)}</small></div>
+      ))}
+    </section>
+  );
+}
+
+function PharmacyOrderStatusActions({ orderId, currentStatus, onUpdated }) {
+  const current = normalize(currentStatus);
+  const allowed = ORDER_FLOW[current] || [];
+  const [status, setStatus] = useState(allowed[0] || '');
+  const [pharmacistNotes, setPharmacistNotes] = useState('');
+  const [cancelReason, setCancelReason] = useState('');
+  const [cancelledBy, setCancelledBy] = useState('Pharmacy');
+  const [estimatedDeliveryTime, setEstimatedDeliveryTime] = useState('');
+  const [saving, setSaving] = useState(false);
+
+  const submit = async (event) => {
+    event.preventDefault();
+    if (!status) return;
+    setSaving(true);
+    try {
+      await pharmacyApi.updateOrderStatus(orderId, {
+        status,
+        pharmacistNotes,
+        cancelReason,
+        cancelledBy: status === 'CANCELLED' ? cancelledBy : undefined,
+        estimatedDeliveryTime: estimatedDeliveryTime || undefined,
+      });
+      toast.success('Order status updated.');
+      onUpdated();
+    } catch (error) {
+      toast.error(error.response?.data?.message || 'Unable to update order.');
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  if (!allowed.length) return null;
+
+  return (
+    <form className="pharmacy-form" onSubmit={submit}>
+      <h3>Update Status</h3>
+      <select onChange={(event) => setStatus(event.target.value)} value={status}>
+        {allowed.map((item) => <option key={item} value={item}>{titleCase(item)}</option>)}
+      </select>
+      {status === 'SHIPPING' && (
+        <input onChange={(event) => setEstimatedDeliveryTime(event.target.value)} type="datetime-local" value={estimatedDeliveryTime} />
+      )}
+      {status === 'CANCELLED' && (
+        <>
+          <select onChange={(event) => setCancelledBy(event.target.value)} value={cancelledBy}>
+            <option value="Pharmacy">Cancelled by Pharmacy</option>
+            <option value="Patient">Cancelled by Patient</option>
+            <option value="System">Cancelled by System</option>
+          </select>
+          <textarea onChange={(event) => setCancelReason(event.target.value)} placeholder="Cancellation reason" required value={cancelReason} />
+        </>
+      )}
+      <textarea onChange={(event) => setPharmacistNotes(event.target.value)} placeholder="Pharmacist notes" value={pharmacistNotes} />
+      <button disabled={saving} type="submit">{saving ? 'Saving...' : 'Save Status'}</button>
+    </form>
+  );
+}
+
+function ExistingOrderPanel({ item, onUpdated }) {
+  const [orderData, setOrderData] = useState(null);
+  const [loading, setLoading] = useState(false);
+
+  useEffect(() => {
+    if (!item.orderId) return;
+    let alive = true;
+    setLoading(true);
+    pharmacyApi.getOrderById(item.orderId)
+      .then((data) => { if (alive) setOrderData(data); })
+      .catch(() => { if (alive) setOrderData(null); })
+      .finally(() => { if (alive) setLoading(false); });
+    return () => { alive = false; };
+  }, [item.orderId]);
+
+  if (loading) {
+    return (
+      <aside className="pharmacy-prescription-panel">
+        <div className="pharmacy-bootstrap-loading">
+          <div className="spinner-border text-primary" role="status">
+            <span className="visually-hidden">Loading...</span>
+          </div>
+          <span>Loading order details...</span>
+        </div>
+      </aside>
+    );
+  }
+
+  const order = orderData || item;
+
+  return (
+    <aside className="pharmacy-request-order-panel">
+      <div className="pharmacy-request-order-header">
+        <div>
+          <p className="pharmacy-section-eyebrow">Order</p>
+          <h3>{order.orderNumber || `Order #${order.orderId}`}</h3>
+        </div>
+      </div>
+
+      <div className="pharmacy-detail-grid">
+        <Detail label="Status" value={<span className={`pharmacy-status ${statusClass(order.orderStatus || order.status)}`}>{titleCase(order.orderStatus || order.status)}</span>} />
+        <Detail label="Payment" value={`${order.paymentStatus || '-'} · ${order.paymentMethod || '-'}`} />
+        <Detail label="Medicine Amount" value={money(order.medicineAmount)} />
+        <Detail label="Delivery Fee" value={money(order.deliveryFee)} />
+        <Detail label="Total" value={money(order.totalAmount)} />
+        {order.pharmacyEarning != null && <Detail label="Pharmacy Earning" value={money(order.pharmacyEarning)} />}
+      </div>
+
+      <section className="pharmacy-order-items">
+        <h3>Medication Items</h3>
+        {(order.items || []).length ? order.items.map((oi) => (
+          <div className="pharmacy-order-item-row" key={oi.orderItemId || oi.medicationName}>
+            <div>
+              <strong>{oi.medicationName || `Medicine #${oi.medicineId}`}</strong>
+              <span>{oi.frequency || 'As directed'} {oi.timing ? `- ${oi.timing}` : ''}</span>
+            </div>
+            <small>{oi.quantity || 0} {oi.unit || 'unit'} - {money(oi.totalPrice)}</small>
+          </div>
+        )) : (
+          item.itemCount != null && <p className="pharmacy-muted">{item.itemCount} item{item.itemCount === 1 ? '' : 's'}</p>
+        )}
+      </section>
+
+      <PharmacyOrderTimeline order={order} />
+
+      {(order.deliveryAddress || order.deliveryType) && (
+        <Detail label="Delivery" value={`${order.deliveryType || '-'}: ${order.deliveryAddress || 'Not provided'}`} block />
+      )}
+      {(order.notes || item.additionalNotes) && (
+        <Detail label="Notes" value={order.notes || item.additionalNotes || 'No notes'} block />
+      )}
+
+      <PharmacyOrderStatusActions
+        currentStatus={order.orderStatus || order.status}
+        onUpdated={onUpdated}
+        orderId={order.orderId}
+      />
     </aside>
   );
 }
@@ -512,11 +801,13 @@ function PharmacyRequestOrderPanel({
   const [draft, setDraft] = useState(defaultDraft());
   const [deliveryEnabled, setDeliveryEnabled] = useState(false);
   const [deliveryFee, setDeliveryFee] = useState('');
+  const [estimatedDeliveryTime, setEstimatedDeliveryTime] = useState('');
 
   useEffect(() => {
     const preferredDelivery = isDeliveryPreferred(request?.preferredDeliveryType);
     setDeliveryEnabled(preferredDelivery);
     setDeliveryFee(preferredDelivery ? String(profile?.deliveryFee ?? request?.deliveryFee ?? 0) : '');
+    setEstimatedDeliveryTime('');
     setSelectedMedicine(null);
     setDraft(defaultDraft());
   }, [profile?.deliveryFee, request?.deliveryFee, request?.preferredDeliveryType, request?.requestId]);
@@ -598,15 +889,21 @@ function PharmacyRequestOrderPanel({
       toast.error('Add at least one medication.');
       return;
     }
+    if (deliveryEnabled && !estimatedDeliveryTime) {
+      toast.error('Please provide an estimated delivery time for delivery orders.');
+      return;
+    }
     setCreatingOrder(true);
     try {
-      await pharmacyApi.createOrderFromRequest(request.requestId, {
+      const payload = {
         deliveryType: deliveryEnabled ? 'Delivery' : 'Pickup',
         deliveryFee: deliveryFeeAmount,
+        estimatedDeliveryTime: estimatedDeliveryTime ? new Date(estimatedDeliveryTime).toISOString() : null,
         paymentMethod: 'Cash',
         notes: request.additionalNotes,
         items: items.map(toOrderItemPayload),
-      });
+      };
+      await pharmacyApi.createOrderFromRequest(request.requestId, payload);
       toast.success('Order created from request.');
       setItems([]);
       await onUpdated();
@@ -737,6 +1034,12 @@ function PharmacyRequestOrderPanel({
                 <p>Add medicine manually or import prescriptions from the Prescription tab.</p>
               </div>
             )}
+            {items.length > 0 && !items.some((i) => i.quantity > 0) && (
+              <div className="alert alert-warning small mt-2 mb-0">
+                <i className="bi bi-exclamation-triangle me-1"></i>
+                Some items may have insufficient quantity. Check your inventory before submitting.
+              </div>
+            )}
           </section>
 
           <section className="card pharmacy-order-checkout">
@@ -755,13 +1058,23 @@ function PharmacyRequestOrderPanel({
             </div>
 
             {deliveryEnabled && (
-              <div>
-                <label className="form-label">Delivery Fee</label>
-                <div className="input-group">
-                  <span className="input-group-text">$</span>
-                  <input className="form-control" min="0" onChange={(event) => setDeliveryFee(event.target.value)} step="0.01" type="number" value={deliveryFee} />
+              <>
+                <div>
+                  <label className="form-label">Delivery Fee <span className="text-danger">*</span></label>
+                  <div className="input-group">
+                    <span className="input-group-text">$</span>
+                    <input className="form-control" min="0" onChange={(event) => setDeliveryFee(event.target.value)} step="0.01" type="number" value={deliveryFee} />
+                  </div>
                 </div>
-              </div>
+                <div>
+                  <label className="form-label">Estimated Delivery Time <span className="text-danger">*</span></label>
+                  <div className="input-group">
+                    <span className="input-group-text"><i className="bi bi-calendar-event"></i></span>
+                    <input className="form-control" onChange={(event) => setEstimatedDeliveryTime(event.target.value)} type="datetime-local" value={estimatedDeliveryTime} />
+                  </div>
+                  <div className="form-text">Enter the estimated delivery date and time after contacting the third-party delivery service.</div>
+                </div>
+              </>
             )}
 
             <div className="pharmacy-order-summary">
@@ -1073,13 +1386,14 @@ function lineTotal(item) {
 }
 
 function toOrderItemPayload(item) {
+  const timing = normalizeTimingForPayload(item.timing);
   return {
     medicineId: item.medicineId,
     totalSupplyDays: Number(item.totalSupplyDays || 1),
     quantity: Number(item.quantity || 1),
     unit: item.unit || undefined,
     frequency: item.frequency || undefined,
-    timing: item.timing || undefined,
+    timing: timing || undefined,
     route: item.route || undefined,
     unitPrice: Number(item.unitPrice || 0),
     notes: item.notes || undefined,
@@ -1120,6 +1434,7 @@ function mapPrescriptionToOrderItems(prescription) {
   return getPrescriptionItems(prescription).map((item, index) => {
     const originalItemId = getOriginalPrescriptionItemId(item);
     const medicineId = item.medicineId || item.medicineID || item.medicine?.medicineId || item.medicine?.id;
+    const { timing, notes } = normalizeTimingWithNotesFallback(item);
     return {
       localId: `rx-${Date.now()}-${prescriptionId}-${originalItemId || medicineId || index}`,
       medicineId,
@@ -1128,10 +1443,10 @@ function mapPrescriptionToOrderItems(prescription) {
       quantity: Number(item.quantity || 1),
       unit: item.unit || item.medicine?.unit || 'unit',
       frequency: item.frequency || '',
-      timing: getTimingText(item),
+      timing,
       route: item.route || '',
       unitPrice: Number(item.unitPrice || item.price || item.medicine?.price || 0),
-      notes: item.notes || item.instructions || '',
+      notes,
       sourcePrescriptionHeaderId: rawPrescriptionId,
       sourcePrescriptionItemId: originalItemId,
       sourcePrescriptionItemKey: getPrescriptionItemKey(prescription, item, index),

@@ -65,12 +65,16 @@ public class PharmacyOrderResponse {
     private LocalDateTime estimatedDeliveryTime;
     private LocalDateTime actualDeliveryTime;
     private LocalDateTime confirmedAt;
+    private LocalDateTime patientConfirmedAt;
     private LocalDateTime preparingAt;
     private LocalDateTime shippedAt;
     private LocalDateTime deliveredAt;
     private LocalDateTime cancelledAt;
     private String cancelReason;
     private String cancelledBy;
+    private LocalDateTime revisionRequestedAt;
+    private String revisionRequestNotes;
+    private LocalDateTime revisionResolvedAt;
     private LocalDateTime createdAt;
 
     // --- Thông tin chiết khấu (CHỈ hiển thị cho Pharmacy/Admin, KHÔNG trả về cho Patient) ---

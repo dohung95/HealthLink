@@ -15,6 +15,10 @@ public interface PharmacyOrderRepository extends JpaRepository<PharmacyOrder, In
     // Tìm đơn hàng theo pharmacyId
     List<PharmacyOrder> findByPharmacy_PharmacyId(String pharmacyId);
 
+    // Tìm direct orders (không có consultation request)
+    @Query("SELECT o FROM PharmacyOrder o WHERE o.pharmacy.pharmacyId = :pharmacyId AND o.consultationRequest IS NULL")
+    List<PharmacyOrder> findByPharmacy_PharmacyIdAndConsultationRequestIsNull(@Param("pharmacyId") String pharmacyId);
+
     // Tìm đơn hàng theo pharmacyId và status
     @Query("""
             SELECT o FROM PharmacyOrder o

@@ -30,6 +30,7 @@ import com.HealthLink.service.appointment.AppointmentService;
 import com.HealthLink.service.notification.NotificationService;
 import com.HealthLink.service.payment.CommissionService;
 import com.HealthLink.service.payment.FinanceService;
+import com.HealthLink.service.payment.InvoicePdfService;
 import com.HealthLink.entity.enums.NotificationPriority;
 import com.HealthLink.entity.enums.NotificationType;
 import com.HealthLink.entity.User;
@@ -65,6 +66,7 @@ import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import java.util.stream.Collectors;
 
 /**
@@ -94,6 +96,9 @@ public class FinanceServiceImpl implements FinanceService {
     private static final String ROLE_ADMIN = "ADMIN";
     private static final String ROLE_PATIENT = "PATIENT";
     private static final String ROLE_DOCTOR = "DOCTOR";
+    private static final String PHARMACY_ORDER_PENDING = "PENDING";
+    private static final String PHARMACY_ORDER_CONFIRMED = "CONFIRMED";
+    private static final String PHARMACY_ORDER_PREPARING = "PREPARING";
     private static final String PHARMACY_ORDER_COMPLETED = "COMPLETED";
     // ── Các phụ thuộc ───────────────────────────────────────────────────────
     private final PayPalConfig payPalConfig;
@@ -116,6 +121,9 @@ public class FinanceServiceImpl implements FinanceService {
 
     /** Service xử lý logic chiết khấu sau khi thanh toán thành công */
     private final CommissionService              commissionService;
+
+    /** Service xử lý tạo PDF hóa đơn */
+    private final InvoicePdfService invoicePdfService;
 
     // ========================================================================
     // Tác vụ 3.1 – Tạo hóa đơn
@@ -236,6 +244,20 @@ public class FinanceServiceImpl implements FinanceService {
 
         if (INVOICE_PAID.equalsIgnoreCase(pharmacyOrder.getPaymentStatus())) {
             throw new BadRequestException("This pharmacy order has already been paid.");
+        }
+
+        if (!PAYMENT_PENDING.equalsIgnoreCase(safeValue(pharmacyOrder.getPaymentStatus(), ""))) {
+            throw new BadRequestException("This pharmacy order payment status is not valid for payment.");
+        }
+
+        if ("CANCELLED".equalsIgnoreCase(safeValue(pharmacyOrder.getStatus(), ""))
+                || "REFUNDED".equalsIgnoreCase(safeValue(pharmacyOrder.getStatus(), ""))
+                || "REVISION_REQUESTED".equalsIgnoreCase(safeValue(pharmacyOrder.getStatus(), ""))) {
+            throw new BadRequestException("This pharmacy order cannot be paid due to its current status.");
+        }
+
+        if (pharmacyOrder.getTotalAmount() == null || pharmacyOrder.getTotalAmount().compareTo(java.math.BigDecimal.ZERO) <= 0) {
+            throw new BadRequestException("Order total amount must be greater than zero.");
         }
 
         String accessToken = getPayPalAccessToken();
@@ -453,6 +475,20 @@ public class FinanceServiceImpl implements FinanceService {
             throw new BadRequestException("This pharmacy order has already been paid.");
         }
 
+        if (INVOICE_PAID.equalsIgnoreCase(safeValue(pharmacyOrder.getPaymentStatus(), ""))) {
+            throw new BadRequestException("This pharmacy order has already been paid.");
+        }
+
+        if ("CANCELLED".equalsIgnoreCase(safeValue(pharmacyOrder.getStatus(), ""))
+                || "REFUNDED".equalsIgnoreCase(safeValue(pharmacyOrder.getStatus(), ""))
+                || "REVISION_REQUESTED".equalsIgnoreCase(safeValue(pharmacyOrder.getStatus(), ""))) {
+            throw new BadRequestException("This pharmacy order cannot be paid due to its current status.");
+        }
+
+        if (pharmacyOrder.getTotalAmount() == null || pharmacyOrder.getTotalAmount().compareTo(java.math.BigDecimal.ZERO) <= 0) {
+            throw new BadRequestException("Order total amount must be greater than zero.");
+        }
+
         if (paymentRepository.findByTransactionId(request.getOrderId()).isPresent()) {
             throw new BadRequestException(
                     "This PayPal transaction has already been processed: " + request.getOrderId()
@@ -495,6 +531,8 @@ public class FinanceServiceImpl implements FinanceService {
                     ? METHOD_CARD : METHOD_EWALLET;
 
             if ("COMPLETED".equals(paypalStatus)) {
+                LocalDateTime paidAt = LocalDateTime.now();
+
                 // Idempotency: check if invoice already exists for this pharmacy order
                 Invoice invoice = invoiceRepository.findByPharmacyOrder_OrderId(pharmacyOrder.getOrderId())
                         .orElse(null);
@@ -510,8 +548,8 @@ public class FinanceServiceImpl implements FinanceService {
                             .amount(pharmacyOrder.getTotalAmount() != null
                                     ? pharmacyOrder.getTotalAmount() : BigDecimal.ZERO)
                             .status(INVOICE_PAID)
-                            .issueDate(LocalDateTime.now())
-                            .paidAt(LocalDateTime.now())
+                            .issueDate(paidAt)
+                            .paidAt(paidAt)
                             .build();
                     invoiceRepository.save(invoice);
                 }
@@ -524,7 +562,7 @@ public class FinanceServiceImpl implements FinanceService {
                         .paymentGateway(GATEWAY_PAYPAL)
                         .transactionId(request.getOrderId())
                         .status(PAYMENT_SUCCESS)
-                        .paidAt(LocalDateTime.now())
+                        .paidAt(paidAt)
                         .metadata(metadata)
                         .build();
                 paymentRepository.save(payment);
@@ -533,6 +571,17 @@ public class FinanceServiceImpl implements FinanceService {
                 if (pharmacyOrder.getPaymentMethod() == null || pharmacyOrder.getPaymentMethod().isBlank()) {
                     pharmacyOrder.setPaymentMethod(paymentMethod);
                 }
+
+                String currentOrderStatus = safeValue(pharmacyOrder.getStatus(), "");
+                if (Set.of(PHARMACY_ORDER_PENDING, PHARMACY_ORDER_CONFIRMED)
+                        .contains(currentOrderStatus.toUpperCase())) {
+                    if (pharmacyOrder.getConfirmedAt() == null) {
+                        pharmacyOrder.setConfirmedAt(paidAt);
+                    }
+                    pharmacyOrder.setStatus(PHARMACY_ORDER_PREPARING);
+                    pharmacyOrder.setPreparingAt(paidAt);
+                }
+
                 boolean notifyDoctorAboutCompletedPaidOrder = shouldNotifyDoctorAboutCompletedPaidOrder(pharmacyOrder);
                 if (notifyDoctorAboutCompletedPaidOrder) {
                     pharmacyOrder.setDoctorCompletionPaidNotified(true);
@@ -582,6 +631,28 @@ public class FinanceServiceImpl implements FinanceService {
                     ex
             );
         }
+    }
+
+    // ========================================================================
+    // Invoice PDF generation
+    // ========================================================================
+
+    @Override
+    @Transactional(readOnly = true)
+    public byte[] generateInvoicePdf(Integer invoiceId) {
+        Invoice invoice = invoiceRepository.findById(invoiceId)
+                .orElseThrow(() -> new InvoiceNotFoundException(invoiceId));
+
+        // Authorization
+        assertInvoiceAccess(invoice);
+
+        if (invoice.getPharmacyOrder() != null) {
+            return invoicePdfService.generatePharmacyOrderInvoicePdf(invoice, invoice.getPharmacyOrder());
+        } else if (invoice.getAppointment() != null) {
+            return invoicePdfService.generateAppointmentInvoicePdf(invoice);
+        }
+
+        throw new BadRequestException("Invoice has no associated order or appointment");
     }
 
     // ========================================================================

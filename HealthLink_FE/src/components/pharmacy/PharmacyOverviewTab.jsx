@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useMemo, useState } from 'react';
 
 import {
   Avatar,
@@ -12,20 +12,33 @@ import {
 } from './PharmacyShared';
 import { OrderTable, OrderDetailDrawer } from './PharmacyOrdersTab';
 
-export default function PharmacyOverviewTab({ profile, orders, requests, balance, navigate, reload }) {
+export default function PharmacyOverviewTab({ profile, orders, workItems, requests, balance, navigate, reload }) {
   const [selected, setSelected] = useState(null);
   const recentOrders = [...orders]
     .sort((a, b) => new Date(getOrderTime(b) || 0) - new Date(getOrderTime(a) || 0))
     .slice(0, 5);
-  const activeRequests = requests.filter((item) => ['PENDING', 'IN_REVIEW', 'NEED_MORE_INFO'].includes(normalize(item.status)));
+
+  const workflowMetrics = useMemo(() => {
+    const items = Array.isArray(workItems) ? workItems : [];
+    return {
+      newRequests: items.filter((i) => i.workflowStage === 'NEW_REQUEST').length,
+      consulting: items.filter((i) => i.workflowStage === 'CONSULTING').length,
+      awaitingPatient: items.filter((i) => i.workflowStage === 'AWAITING_PAYMENT').length,
+      preparing: items.filter((i) => i.workflowStage === 'PREPARING').length,
+      ready: items.filter((i) => i.workflowStage === 'READY').length,
+      completedToday: items.filter((i) => i.workflowStage === 'COMPLETED'
+        && i.sortAt && new Date(i.sortAt).toDateString() === new Date().toDateString()).length,
+    };
+  }, [workItems]);
 
   return (
     <>
-      <div className="pharmacy-metrics-grid">
-        <MetricCard label="Total Earnings" value={money(balance?.totalEarnings ?? profile?.totalEarnings)} hint="Lifetime pharmacy earnings" icon="payments" />
-        <MetricCard label="Pending Settlement" value={money(balance?.pendingBalance ?? profile?.pendingSettlement)} hint={balance?.withdrawalStatus || 'Awaiting withdrawal'} icon="hourglass_empty" tone="warning" />
-        <MetricCard label="Recent Orders" value={orders.length} hint="All loaded pharmacy orders" icon="receipt_long" tone="info" />
-        <MetricCard label="Active Requests" value={activeRequests.length} hint="Needs pharmacy attention" icon="medical_services" tone="success" />
+      <div className="pharmacy-metrics-grid is-five">
+        <MetricCard label="New Requests" value={workflowMetrics.newRequests} hint="Triage needed" icon="support_agent" tone="warning" />
+        <MetricCard label="Consulting" value={workflowMetrics.consulting} hint="Active consultations" icon="chat" tone="info" />
+        <MetricCard label="Payment Due" value={workflowMetrics.awaitingPatient} hint="Unpaid orders" icon="payments" tone="info" />
+        <MetricCard label="Preparing" value={workflowMetrics.preparing} hint="In fulfillment" icon="hourglass_empty" tone="info" />
+        <MetricCard label="Ready" value={workflowMetrics.ready} hint="Ready for handoff" icon="checklist" tone="success" />
       </div>
 
       <div className="pharmacy-overview-grid">
@@ -60,13 +73,17 @@ export default function PharmacyOverviewTab({ profile, orders, requests, balance
 
           <section className="pharmacy-card">
             <h2>Quick Actions</h2>
-            <button className="pharmacy-action-row" onClick={() => navigate(routeByTab.orders)} type="button">
-              <span className="material-symbols-outlined">receipt_long</span>
-              Review orders
-            </button>
-            <button className="pharmacy-action-row" onClick={() => navigate(routeByTab.consultations)} type="button">
+            <button className="pharmacy-action-row" onClick={() => navigate(routeByTab.orders + '?group=NEW_REQUESTS')} type="button">
               <span className="material-symbols-outlined">support_agent</span>
-              Handle requests
+              New Requests
+            </button>
+            <button className="pharmacy-action-row" onClick={() => navigate(routeByTab.orders + '?group=PAYMENT_DUE')} type="button">
+              <span className="material-symbols-outlined">payments</span>
+              Payment Due
+            </button>
+            <button className="pharmacy-action-row" onClick={() => navigate(routeByTab.orders + '?stage=PREPARING')} type="button">
+              <span className="material-symbols-outlined">hourglass_empty</span>
+              Fulfillment
             </button>
             <button className="pharmacy-action-row" onClick={() => navigate(routeByTab.wallet)} type="button">
               <span className="material-symbols-outlined">account_balance_wallet</span>
