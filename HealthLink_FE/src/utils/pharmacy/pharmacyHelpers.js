@@ -12,7 +12,77 @@ export const ORDER_FLOW = {
   REFUNDED: [],
 };
 
-export const ORDER_TABS = ['ALL', 'PENDING', 'CONFIRMED', 'PREPARING', 'READY', 'DELIVERED', 'CANCELLED'];
+export const ORDER_TABS = ['ALL', 'PENDING', 'CONFIRMED', 'PREPARING', 'READY', 'SHIPPING', 'DELIVERED', 'CANCELLED'];
+
+export const DEFAULT_STAGE_GROUP = 'NEW_REQUESTS';
+
+export const STAGE_GROUPS = [
+  { key: 'NEW_REQUESTS', label: 'New Requests', stages: ['NEW_REQUEST'] },
+  { key: 'CONSULTING', label: 'Consulting', stages: ['CONSULTING', 'REVISION_REQUESTED'] },
+  { key: 'PAYMENT_DUE', label: 'Payment Due', stages: ['AWAITING_PAYMENT'] },
+  { key: 'PREPARING', label: 'Preparing', stages: ['PREPARING'] },
+  { key: 'READY', label: 'Ready', stages: ['READY'] },
+  { key: 'DELIVERY', label: 'Delivery', stages: ['SHIPPING', 'DELIVERED'] },
+  { key: 'DONE', label: 'Done', stages: ['COMPLETED', 'CANCELLED'] },
+];
+
+export const WORKFLOW_STAGES = [
+  'NEW_REQUEST',
+  'CONSULTING',
+  'REVISION_REQUESTED',
+  'AWAITING_PAYMENT',
+  'PREPARING',
+  'READY',
+  'SHIPPING',
+  'DELIVERED',
+  'COMPLETED',
+  'CANCELLED',
+];
+
+export const STAGE_LABELS = {
+  NEW_REQUEST: 'New Requests',
+  CONSULTING: 'Consulting',
+  REVISION_REQUESTED: 'Revision Requested',
+  AWAITING_PAYMENT: 'Payment Due',
+  PREPARING: 'Preparing',
+  READY: 'Ready',
+  SHIPPING: 'Shipping',
+  DELIVERED: 'Delivered',
+  COMPLETED: 'Completed',
+  CANCELLED: 'Cancelled',
+};
+
+export function getNextActionHint(item) {
+  const actions = item.availableActions || [];
+  const stage = item.workflowStage;
+  if (actions.includes('ACCEPT_REQUEST')) return 'Accept request';
+  if (actions.includes('CREATE_ORDER')) return 'Create order';
+  if (actions.includes('UPDATE_ORDER_STATUS')) {
+    if (item.orderStatus === 'PREPARING') return 'Mark ready';
+    if (item.orderStatus === 'READY') return 'Mark delivered';
+    if (item.orderStatus === 'SHIPPING') return 'Mark delivered';
+    if (item.orderStatus === 'DELIVERED') return 'Mark completed';
+    return 'Update status';
+  }
+  if (actions.includes('CANCEL_ORDER')) return 'Cancel order';
+  if (stage === 'AWAITING_PAYMENT') return 'Waiting for payment';
+  if (stage === 'REVISION_REQUESTED') return 'Revise order';
+  return 'View details';
+}
+
+export function stageClass(stage) {
+  const s = stage || '';
+  if (['COMPLETED', 'DELIVERED', 'READY'].includes(s)) return 'is-success';
+  if (['PREPARING', 'SHIPPING', 'CONSULTING'].includes(s)) return 'is-processing';
+  if (['CANCELLED'].includes(s)) return 'is-danger';
+  if (['NEW_REQUEST'].includes(s)) return 'is-pending';
+  if (['AWAITING_PAYMENT', 'REVISION_REQUESTED'].includes(s)) return 'is-waiting';
+  return 'is-pending';
+}
+
+export function orderStatusLabel(status) {
+  return titleCase(status);
+}
 export const REQUEST_TABS = [
   { key: 'PENDING', label: 'Pending' },
   { key: 'IN_REVIEW', label: 'Accepted' },
@@ -22,6 +92,7 @@ export const REQUEST_TABS = [
 
 export const routeByTab = {
   overview: '/pharmacy-page',
+  inventory: '/pharmacy-page/inventory',
   orders: '/pharmacy-page/orders',
   consultations: '/pharmacy-page/consultations',
   wallet: '/pharmacy-page/wallet',
@@ -30,8 +101,8 @@ export const routeByTab = {
 
 export const navItems = [
   { key: 'overview', label: 'Overview', icon: 'dashboard', path: routeByTab.overview, end: true },
+  { key: 'inventory', label: 'Inventory', icon: 'inventory_2', path: routeByTab.inventory },
   { key: 'orders', label: 'Orders', icon: 'receipt_long', path: routeByTab.orders },
-  { key: 'consultations', label: 'Consultation Requests', icon: 'medical_services', path: routeByTab.consultations },
   { key: 'wallet', label: 'Wallet / Settlement', icon: 'account_balance_wallet', path: routeByTab.wallet },
   { key: 'profile', label: 'Profile & Security', icon: 'shield_person', path: routeByTab.profile },
 ];
@@ -66,8 +137,9 @@ export const getOrderTime = (order) => order?.createdAt || order?.confirmedAt ||
 export function statusClass(status) {
   const normalized = normalize(status);
   if (['COMPLETED', 'DELIVERED', 'READY', 'ORDER_CREATED'].includes(normalized)) return 'is-success';
-  if (['PREPARING', 'SHIPPING', 'CONFIRMED', 'IN_REVIEW'].includes(normalized)) return 'is-processing';
+  if (['PREPARING', 'SHIPPING', 'CONFIRMED', 'IN_REVIEW', 'ACCEPTED'].includes(normalized)) return 'is-processing';
   if (['CANCELLED', 'REFUNDED'].includes(normalized)) return 'is-danger';
+  if (['NEW_REQUEST', 'AWAITING_PATIENT_CONFIRMATION', 'AWAITING_PAYMENT', 'REVISION_REQUESTED'].includes(normalized)) return 'is-pending';
   return 'is-pending';
 }
 
@@ -89,16 +161,23 @@ export function titleCase(value) {
     .replace(/\b\w/g, (letter) => letter.toUpperCase());
 }
 
-export function exportCsv(rows, filename) {
-  const csv = rows.map((row) => [
-    row.orderNumber,
-    row.patientName,
-    row.status,
-    row.paymentStatus,
-    row.totalAmount,
-    row.createdAt,
-  ].map((cell) => `"${String(cell ?? '').replace(/"/g, '""')}"`).join(','));
-  const blob = new Blob([['Order,Patient,Status,Payment,Total,Created At', ...csv].join('\n')], { type: 'text/csv' });
+export function exportCsv(rows, filename, columns) {
+  const headers = columns || ['Order,Patient,Status,Payment,Total,Created At'];
+  const csv = rows.map((row) => {
+    if (columns) {
+      return columns.map((col) => `"${String(row[col] ?? '').replace(/"/g, '""')}"`).join(',');
+    }
+    return [
+      row.orderNumber,
+      row.patientName,
+      row.status,
+      row.paymentStatus,
+      row.totalAmount,
+      row.createdAt,
+    ].map((cell) => `"${String(cell ?? '').replace(/"/g, '""')}"`).join(',');
+  });
+  const headerRow = columns ? columns.join(',') : 'Order,Patient,Status,Payment,Total,Created At';
+  const blob = new Blob([[headerRow, ...csv].join('\n')], { type: 'text/csv' });
   const url = URL.createObjectURL(blob);
   const link = document.createElement('a');
   link.href = url;

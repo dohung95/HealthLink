@@ -40,7 +40,6 @@ public class PharmacyConsultationRequestServiceImpl implements PharmacyConsultat
 
     private static final String STATUS_PENDING = "PENDING";
     private static final String STATUS_IN_REVIEW = "IN_REVIEW";
-    private static final String STATUS_NEED_MORE_INFO = "NEED_MORE_INFO";
     private static final String STATUS_ORDER_CREATED = "ORDER_CREATED";
     private static final String STATUS_CANCELLED = "CANCELLED";
 
@@ -324,7 +323,7 @@ public class PharmacyConsultationRequestServiceImpl implements PharmacyConsultat
             throw new BadRequestException(targetStatus + " can only be set by the system");
         }
 
-        if (!List.of(STATUS_PENDING, STATUS_IN_REVIEW, STATUS_NEED_MORE_INFO, STATUS_CANCELLED)
+        if (!List.of(STATUS_PENDING, STATUS_IN_REVIEW, STATUS_CANCELLED)
                 .contains(targetStatus)) {
             throw new BadRequestException("Unsupported request status: " + targetStatus);
         }

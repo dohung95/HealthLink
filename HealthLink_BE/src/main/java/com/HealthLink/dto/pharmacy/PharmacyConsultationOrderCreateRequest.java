@@ -4,6 +4,8 @@ import jakarta.validation.Valid;
 import jakarta.validation.constraints.NotEmpty;
 import lombok.Data;
 
+import java.math.BigDecimal;
+import java.time.LocalDateTime;
 import java.util.List;
 
 @Data
@@ -20,6 +22,10 @@ public class PharmacyConsultationOrderCreateRequest {
     private Double deliveryLatitude;
 
     private Double deliveryLongitude;
+
+    private BigDecimal deliveryFee;
+
+    private LocalDateTime estimatedDeliveryTime;
 
     private String paymentMethod;
 

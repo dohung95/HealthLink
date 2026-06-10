@@ -10,7 +10,12 @@ import SockJS from 'sockjs-client';
  *  3. disconnect() → ngắt kết nối khi logout hoặc unmount
  */
 
-const BACKEND_WS_URL = 'http://localhost:8096/ws';
+const API_BASE_URL =
+  import.meta.env.VITE_API_BASE_URL
+  || import.meta.env.VITE_SPRING_API_BASE_URL
+  || 'http://localhost:8096';
+
+const BACKEND_WS_URL = `${API_BASE_URL.replace(/\/$/, '')}/ws`;
 
 class StompChatService {
     constructor() {

@@ -5,6 +5,7 @@ import com.HealthLink.dto.pharmacy.PharmacyConsultationOrderCreateRequest;
 import com.HealthLink.dto.pharmacy.PharmacyOrderItemRequest;
 import com.HealthLink.dto.pharmacy.PharmacyOrderRequest;
 import com.HealthLink.dto.pharmacy.PharmacyOrderResponse;
+import com.HealthLink.dto.pharmacy.PharmacyOrderRevisionRequest;
 import com.HealthLink.dto.pharmacy.PharmacyOrderStatusRequest;
 import com.HealthLink.entity.*;
 import com.HealthLink.entity.enums.NotificationPriority;
@@ -55,6 +56,7 @@ public class PharmacyOrderServiceImpl implements PharmacyOrderService {
     private static final String STATUS_COMPLETED = "COMPLETED";
     private static final String STATUS_CANCELLED = "CANCELLED";
     private static final String STATUS_REFUNDED  = "REFUNDED";
+    private static final String STATUS_REVISION_REQUESTED = "REVISION_REQUESTED";
     private static final String REQUEST_STATUS_ORDER_CREATED = "ORDER_CREATED";
     private static final String REQUEST_STATUS_CANCELLED = "CANCELLED";
     private static final String PAYMENT_STATUS_PENDING = "PENDING";
@@ -256,7 +258,11 @@ public class PharmacyOrderServiceImpl implements PharmacyOrderService {
             deliveryLon = patient != null ? patient.getLongitude() : null;
         }
 
-        BigDecimal totalAmount = medicineAmount.add(deliveryFee);
+        // Use delivery fee from request if provided, otherwise fallback to pharmacy default
+        BigDecimal actualDeliveryFee = request.getDeliveryFee() != null
+                ? request.getDeliveryFee()
+                : deliveryFee;
+        BigDecimal totalAmount = medicineAmount.add(actualDeliveryFee);
 
         PharmacyOrder order = PharmacyOrder.builder()
                 .orderNumber(generateOrderNumber())
@@ -268,9 +274,10 @@ public class PharmacyOrderServiceImpl implements PharmacyOrderService {
                 .deliveryAddress(deliveryAddress)
                 .deliveryLatitude(deliveryLat)
                 .deliveryLongitude(deliveryLon)
-                .deliveryFee(deliveryFee)
+                .deliveryFee(actualDeliveryFee)
                 .medicineAmount(medicineAmount)
                 .totalAmount(totalAmount)
+                .estimatedDeliveryTime(request.getEstimatedDeliveryTime())
                 .orderItems(orderItems)
                 .paymentStatus(PAYMENT_STATUS_PENDING)
                 .paymentMethod(trimToNull(request.getPaymentMethod()))
@@ -280,7 +287,7 @@ public class PharmacyOrderServiceImpl implements PharmacyOrderService {
                 .build();
         attachOrderItems(order, orderItems);
 
-        applyCommission(order, pharmacy, totalAmount);
+        applyCommission(order, pharmacy, medicineAmount);
 
         PharmacyOrder savedOrder = orderRepository.save(order);
         consultationRequest.setOrder(savedOrder);
@@ -396,6 +403,116 @@ public class PharmacyOrderServiceImpl implements PharmacyOrderService {
                 java.util.Map.of("cancelReason", request.getCancelReason()));
 
         notifyPatientAboutOrderStatusAfterCommit(updated, currentStatus, STATUS_CANCELLED);
+
+        return PharmacyOrderMapper.toResponse(updated);
+    }
+
+    // =========================================================================
+    // Patient requests revision
+    // =========================================================================
+    @Override
+    @Transactional
+    public PharmacyOrderResponse requestOrderRevision(Integer orderId, PharmacyOrderRevisionRequest request, String patientId) {
+        PharmacyOrder order = orderRepository.findById(orderId)
+                .orElseThrow(() -> new ResourceNotFoundException("PharmacyOrder", "id", orderId));
+
+        if (order.getPatient() == null || !patientId.equals(order.getPatient().getPatientId())) {
+            throw new ForbiddenException("You are not allowed to request revision for this order");
+        }
+
+        String currentStatus = normalizeStatus(order.getStatus());
+        if (!Set.of(STATUS_PENDING, STATUS_CONFIRMED).contains(currentStatus)) {
+            throw new BadRequestException("Order can only be revised when status is PENDING or CONFIRMED");
+        }
+
+        if (PAYMENT_STATUS_PAID.equalsIgnoreCase(safeValue(order.getPaymentStatus(), ""))) {
+            throw new BadRequestException("Cannot request revision for a paid order");
+        }
+
+        order.setStatus(STATUS_REVISION_REQUESTED);
+        order.setRevisionRequestNotes(trimToNull(request.getReason()));
+        order.setRevisionRequestedAt(LocalDateTime.now());
+        order.setRevisionResolvedAt(null);
+        order.setPatientConfirmedAt(null);
+
+        PharmacyOrder updated = orderRepository.save(order);
+
+        audit.log("REVISION_REQUESTED", String.valueOf(orderId), patientId,
+                java.util.Map.of("reason", request.getReason()));
+
+        notifyPharmacyAboutRevisionRequestAfterCommit(updated);
+        notifyPatientAboutOrderStatusAfterCommit(updated, currentStatus, STATUS_REVISION_REQUESTED);
+
+        return PharmacyOrderMapper.toResponse(updated);
+    }
+
+    // =========================================================================
+    // Pharmacy updates order quote
+    // =========================================================================
+    @Override
+    @Transactional
+    public PharmacyOrderResponse updateOrderQuote(Integer orderId, PharmacyConsultationOrderCreateRequest request, String pharmacyId) {
+        PharmacyOrder order = orderRepository.findById(orderId)
+                .orElseThrow(() -> new ResourceNotFoundException("PharmacyOrder", "id", orderId));
+
+        if (order.getPharmacy() == null || !pharmacyId.equals(order.getPharmacy().getPharmacyId())) {
+            throw new ForbiddenException("You are not allowed to update this order");
+        }
+
+        String currentStatus = normalizeStatus(order.getStatus());
+        if (!Set.of(STATUS_PENDING, STATUS_CONFIRMED, STATUS_REVISION_REQUESTED).contains(currentStatus)) {
+            throw new BadRequestException("Cannot update quote for order with status " + currentStatus);
+        }
+
+        if (PAYMENT_STATUS_PAID.equalsIgnoreCase(safeValue(order.getPaymentStatus(), ""))) {
+            throw new BadRequestException("Cannot update quote for a paid order");
+        }
+
+        List<PharmacyOrderItem> orderItems = buildOrderItemsFromRequest(request.getItems(),
+                order.getConsultationRequest());
+        BigDecimal medicineAmount = calculateMedicineAmount(orderItems);
+
+        String deliveryType = normalizeDeliveryType(request.getDeliveryType());
+        BigDecimal deliveryFee = request.getDeliveryFee() != null ? request.getDeliveryFee() : BigDecimal.ZERO;
+
+        String deliveryAddress = trimToNull(request.getDeliveryAddress());
+        if (deliveryAddress == null) {
+            deliveryAddress = order.getDeliveryAddress();
+        }
+
+        Double deliveryLat = request.getDeliveryLatitude() != null ? request.getDeliveryLatitude() : order.getDeliveryLatitude();
+        Double deliveryLon = request.getDeliveryLongitude() != null ? request.getDeliveryLongitude() : order.getDeliveryLongitude();
+
+        BigDecimal totalAmount = medicineAmount.add(deliveryFee);
+
+        order.getOrderItems().clear();
+        order.setOrderItems(orderItems);
+        attachOrderItems(order, orderItems);
+
+        order.setMedicineAmount(medicineAmount);
+        order.setDeliveryFee(deliveryFee);
+        order.setTotalAmount(totalAmount);
+        order.setDeliveryType(deliveryType);
+        order.setDeliveryAddress(deliveryAddress);
+        order.setDeliveryLatitude(deliveryLat);
+        order.setDeliveryLongitude(deliveryLon);
+        order.setEstimatedDeliveryTime(request.getEstimatedDeliveryTime());
+        order.setNotes(firstNonBlank(request.getNotes(), order.getNotes()));
+        order.setPharmacistNotes(firstNonBlank(request.getPharmacistNotes(), order.getPharmacistNotes()));
+        order.setPaymentMethod(trimToNull(request.getPaymentMethod()));
+
+        order.setStatus(STATUS_PENDING);
+        order.setRevisionResolvedAt(LocalDateTime.now());
+        order.setPatientConfirmedAt(null);
+
+        applyCommission(order, order.getPharmacy(), medicineAmount);
+
+        PharmacyOrder updated = orderRepository.save(order);
+
+        audit.log("ORDER_QUOTE_UPDATED", String.valueOf(orderId), pharmacyId,
+                java.util.Map.of("totalAmount", String.valueOf(totalAmount)));
+
+        notifyPatientAboutOrderQuoteUpdatedAfterCommit(updated);
 
         return PharmacyOrderMapper.toResponse(updated);
     }
@@ -801,6 +918,81 @@ public class PharmacyOrderServiceImpl implements PharmacyOrderService {
         } while (orderRepository.existsByOrderNumber(orderNumber));
 
         return orderNumber;
+    }
+
+    private void notifyPharmacyAboutRevisionRequestAfterCommit(PharmacyOrder order) {
+        User pharmacyUser = resolvePharmacyUser(order, NotificationType.ORDER_STATUS);
+        if (pharmacyUser == null) {
+            return;
+        }
+
+        String orderNumber = safeValue(order.getOrderNumber(), "unknown order");
+        String patientName = order.getPatient() != null
+                ? safeValue(order.getPatient().getFullName(), "Unknown patient")
+                : "Unknown patient";
+        Integer orderId = order.getOrderId();
+        String actionUrl = "/pharmacy-orders/" + orderId;
+        String title = "Revision requested";
+        String message = String.format(
+                "Patient %s requested changes for order %s.",
+                patientName,
+                orderNumber
+        );
+
+        runAfterCommit("revision request notification orderId=" + orderId, () -> {
+            notificationService.sendWebSocketNotification(
+                    pharmacyUser,
+                    NotificationType.ORDER_STATUS,
+                    title,
+                    message,
+                    orderId,
+                    actionUrl
+            );
+            log.info("Revision request notification queued for pharmacyUserId={}, orderId={}",
+                    pharmacyUser.getId(), orderId);
+        });
+    }
+
+    private void notifyPatientAboutOrderQuoteUpdatedAfterCommit(PharmacyOrder order) {
+        User patientUser = resolvePatientUser(order, NotificationType.ORDER_STATUS);
+        if (patientUser == null) {
+            return;
+        }
+
+        String orderNumber = safeValue(order.getOrderNumber(), "unknown order");
+        Integer orderId = order.getOrderId();
+        String actionUrl = "/pharmacy-orders/" + orderId;
+        String title = "Order quote updated";
+        String message = String.format(
+                "Your order %s has been updated by the pharmacy. Please review and confirm.",
+                orderNumber
+        );
+        boolean hasActiveMobileToken = !deviceTokenRepository
+                .findByUser_IdAndActiveTrue(patientUser.getId())
+                .isEmpty();
+
+        runAfterCommit("order quote updated notification orderId=" + orderId, () -> {
+            notificationService.sendWebSocketNotification(
+                    patientUser,
+                    NotificationType.ORDER_STATUS,
+                    title,
+                    message,
+                    orderId,
+                    actionUrl
+            );
+
+            if (hasActiveMobileToken) {
+                notificationService.sendMobilePushNotification(
+                        patientUser,
+                        NotificationType.ORDER_STATUS,
+                        title,
+                        message,
+                        NotificationPriority.NORMAL,
+                        orderId,
+                        actionUrl
+                );
+            }
+        });
     }
 
     private void notifyPharmacyAboutNewOrderAfterCommit(PharmacyOrder order) {

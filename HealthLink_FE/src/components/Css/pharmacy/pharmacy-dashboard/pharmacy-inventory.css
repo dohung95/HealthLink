@@ -1,0 +1,16 @@
+.pharmacy-tab-content {
+  padding: 0;
+}
+
+.pharmacy-tab-content .table th {
+  font-size: 0.8rem;
+  white-space: nowrap;
+}
+
+.pharmacy-tab-content .table td {
+  font-size: 0.875rem;
+}
+
+.pharmacy-tab-content .badge {
+  font-size: 0.75rem;
+}

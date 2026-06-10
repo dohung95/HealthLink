@@ -4,6 +4,7 @@ import com.HealthLink.dto.pharmacy.CancelOrderRequest;
 import com.HealthLink.dto.pharmacy.PharmacyConsultationOrderCreateRequest;
 import com.HealthLink.dto.pharmacy.PharmacyOrderRequest;
 import com.HealthLink.dto.pharmacy.PharmacyOrderResponse;
+import com.HealthLink.dto.pharmacy.PharmacyOrderRevisionRequest;
 import com.HealthLink.dto.pharmacy.PharmacyOrderStatusRequest;
 
 import java.util.List;
@@ -29,4 +30,8 @@ public interface PharmacyOrderService {
     PharmacyOrderResponse getOrderById(Integer orderId);
 
     PharmacyOrderResponse cancelOrderByPatient(Integer orderId, CancelOrderRequest request, String patientId);
+
+    PharmacyOrderResponse requestOrderRevision(Integer orderId, PharmacyOrderRevisionRequest request, String patientId);
+
+    PharmacyOrderResponse updateOrderQuote(Integer orderId, PharmacyConsultationOrderCreateRequest request, String pharmacyId);
 }

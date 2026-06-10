@@ -15,6 +15,7 @@ import com.HealthLink.entity.PharmacyOrder;
 import com.HealthLink.entity.PrescriptionHeader;
 import com.HealthLink.entity.User;
 import com.HealthLink.entity.enums.NotificationType;
+import com.HealthLink.exception.BadRequestException;
 import com.HealthLink.repository.auth.UserRepository;
 import com.HealthLink.repository.appointment.AppointmentRepository;
 import com.HealthLink.repository.doctor.DoctorRepository;
@@ -41,11 +42,13 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.web.client.RestTemplate;
 
 import java.math.BigDecimal;
+import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.ArgumentMatchers.contains;
@@ -211,6 +214,7 @@ class FinanceServiceImplTest {
                 .orderNumber("ORD-20260520-0001")
                 .status("COMPLETED")
                 .paymentStatus("Pending")
+                .patientConfirmedAt(LocalDateTime.now())
                 .totalAmount(new BigDecimal("35.50"))
                 .patient(Patient.builder()
                         .patientId("patient-1")
@@ -276,5 +280,33 @@ class FinanceServiceImplTest {
 
         assertThat(response.getOrderId()).isEqualTo(77);
         assertThat(response.getPaymentStatus()).isEqualTo("PAID");
+    }
+
+    @Test
+    void capturePharmacyOrderPayPalPayment_shouldRejectUnconfirmedQuoteBeforePaymentProcessing() {
+        PharmacyOrder pharmacyOrder = PharmacyOrder.builder()
+                .orderId(77)
+                .paymentStatus("Pending")
+                .build();
+
+        PharmacyOrderPayPalCaptureRequest request = new PharmacyOrderPayPalCaptureRequest();
+        request.setPharmacyOrderId(77);
+        request.setOrderId("paypal-order-1");
+
+        when(pharmacyOrderRepository.findById(77)).thenReturn(Optional.of(pharmacyOrder));
+
+        assertThatThrownBy(() -> financeService.capturePharmacyOrderPayPalPayment(request))
+                .isInstanceOf(BadRequestException.class)
+                .hasMessage("You must confirm the pharmacy quote before proceeding to payment.");
+
+        verify(paymentRepository, never()).save(any(Payment.class));
+        verify(pharmacyOrderRepository, never()).save(any(PharmacyOrder.class));
+        verify(payPalConfig, never()).getClientId();
+        verify(restTemplate, never()).exchange(
+                any(String.class),
+                any(HttpMethod.class),
+                any(HttpEntity.class),
+                eq(Map.class)
+        );
     }
 }

@@ -1,15 +1,20 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import { useNavigate, useLocation, Link } from 'react-router-dom';
 import { toast } from 'sonner';
 import { useAuth } from '../../context/AuthContext';
 import pharmacyApi from '../../api/pharmacyApi';
 import { paymentApi } from '../../api/paymentApi';
+import { loadPayPalSdk } from '../../utils/paypalSdk';
+import { titleCase } from '../../utils/pharmacy/pharmacyHelpers';
+import './PatientPharmacy.css';
 
 const TABS = [
   { label: 'Pharmacies', icon: 'bi-shop', path: '' },
   { label: 'Requests', icon: 'bi-chat-square-text', path: '/requests' },
   { label: 'Orders', icon: 'bi-box-seam', path: '/orders' },
 ];
+
+const WIZARD_STEPS = ['prescription', 'pharmacy', 'connect', 'payment'];
 
 function getActiveTab(location) {
   const p = location.pathname.replace(/\/+$/, '');
@@ -22,7 +27,7 @@ function getActiveTab(location) {
 export default function PatientPharmacyPage() {
   const navigate = useNavigate();
   const location = useLocation();
-  const { userId } = useAuth();
+  const { currentUserId: userId } = useAuth();
   const activeTab = getActiveTab(location);
   const isOrderDetail = location.pathname.includes('/orders/') && location.pathname.match(/\/orders\/([^/]+)$/);
   const orderId = isOrderDetail ? location.pathname.match(/\/orders\/([^/]+)$/)[1] : null;
@@ -55,43 +60,204 @@ export default function PatientPharmacyPage() {
       ) : activeTab === '/orders' ? (
         <OrdersView userId={userId} navigate={navigate} />
       ) : (
-        <PharmacyListView userId={userId} navigate={navigate} />
+        <PharmacyWizard userId={userId} navigate={navigate} />
       )}
     </div>
   );
 }
 
-function PharmacyListView({ userId, navigate }) {
+function PharmacyWizard({ userId, navigate }) {
+  const [step, setStep] = useState('prescription');
+  const [prescriptionHeaderId, setPrescriptionHeaderId] = useState(null);
+  const [prescriptions, setPrescriptions] = useState([]);
+  const [selectedPharmacy, setSelectedPharmacy] = useState(null);
+  const [request, setRequest] = useState(null);
+  const [geolocation, setGeolocation] = useState(null);
+  const [geoTried, setGeoTried] = useState(false);
+  const stepIndex = WIZARD_STEPS.indexOf(step);
+
+  useEffect(() => {
+    if (!geoTried && navigator.geolocation) {
+      navigator.geolocation.getCurrentPosition(
+        (pos) => { setGeolocation({ lat: pos.coords.latitude, lng: pos.coords.longitude }); setGeoTried(true); },
+        () => { setGeoTried(true); },
+        { timeout: 5000 }
+      );
+    } else {
+      setGeoTried(true);
+    }
+  }, [geoTried]);
+
+  const handleSelectPrescription = (id) => {
+    setPrescriptionHeaderId(id);
+    setStep('pharmacy');
+  };
+
+  const handleSkipPrescription = () => {
+    setPrescriptionHeaderId(null);
+    setStep('pharmacy');
+  };
+
+  const handleSelectPharmacy = async (pharmacy) => {
+    setSelectedPharmacy(pharmacy);
+    setStep('connect');
+
+    try {
+      const payload = {
+        patientId: userId,
+        pharmacyId: pharmacy.pharmacyId,
+        symptoms: '',
+        description: 'Patient initiated pharmacy consultation',
+        allergies: '',
+        additionalNotes: '',
+        preferredDeliveryType: pharmacy.deliveryAvailable ? 'Delivery' : 'Pickup',
+        prescriptionHeaderIds: prescriptionHeaderId ? [prescriptionHeaderId] : undefined,
+      };
+      const created = await pharmacyApi.createConsultationRequest(payload);
+      setRequest(created);
+    } catch (err) {
+      toast.error(err.response?.data?.message || 'Failed to create consultation request.');
+      setStep('pharmacy');
+    }
+  };
+
+  const handleGoBack = () => {
+    const idx = WIZARD_STEPS.indexOf(step);
+    if (idx > 0) setStep(WIZARD_STEPS[idx - 1]);
+  };
+
+  const handleRequestUpdated = (updatedRequest) => {
+    setRequest(updatedRequest);
+    if (updatedRequest.status === 'ORDER_CREATED' && updatedRequest.pharmacyOrderId) {
+      navigate(`/patient-dashboard/pharmacy/orders/${updatedRequest.pharmacyOrderId}`);
+    }
+  };
+
+  if (stepIndex === -1) return null;
+
+  return (
+    <div>
+      <div className="d-flex align-items-center gap-2 mb-4">
+        {WIZARD_STEPS.map((s, i) => (
+          <div key={s} className="d-flex align-items-center gap-1">
+            <div className={`rounded-circle d-flex align-items-center justify-content-center ${i <= stepIndex ? 'bg-primary text-white' : 'bg-light text-muted'}`}
+              style={{ width: 28, height: 28, fontSize: 12, fontWeight: 600 }}>
+              {i + 1}
+            </div>
+            <small className={i <= stepIndex ? 'fw-medium' : 'text-muted'}>
+              {s === 'prescription' ? 'Prescription' : s === 'pharmacy' ? 'Pharmacy' : s === 'connect' ? 'Connect' : 'Payment'}
+            </small>
+            {i < WIZARD_STEPS.length - 1 && <div className="border-top mx-1" style={{ width: 20 }} />}
+          </div>
+        ))}
+      </div>
+
+      {step === 'prescription' && (
+        <PrescriptionStep
+          userId={userId}
+          onSelect={handleSelectPrescription}
+          onSkip={handleSkipPrescription}
+          prescriptions={prescriptions}
+          setPrescriptions={setPrescriptions}
+        />
+      )}
+
+      {step === 'pharmacy' && (
+        <PharmacySelectionStep
+          userId={userId}
+          geolocation={geolocation}
+          prescriptionHeaderId={prescriptionHeaderId}
+          onSelect={handleSelectPharmacy}
+          onBack={handleGoBack}
+        />
+      )}
+
+      {step === 'connect' && (
+        <ConnectStep
+          request={request}
+          pharmacy={selectedPharmacy}
+          geolocation={geolocation}
+          userId={userId}
+          onRequestUpdated={handleRequestUpdated}
+          onBack={handleGoBack}
+        />
+      )}
+    </div>
+  );
+}
+
+function PrescriptionStep({ userId, onSelect, onSkip, prescriptions, setPrescriptions }) {
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    if (!userId) { setLoading(false); return; }
+    setLoading(true);
+    import('../../api/prescriptionApi')
+      .then((mod) => mod.prescriptionService.getMyPrescriptions())
+      .then((data) => { setPrescriptions(Array.isArray(data) ? data : []); })
+      .catch(() => { setPrescriptions([]); })
+      .finally(() => setLoading(false));
+  }, [userId, setPrescriptions]);
+
+  return (
+    <div>
+      <h5 className="fw-semibold mb-1">Do you have a prescription?</h5>
+      <p className="text-muted small mb-3">Select an existing prescription or skip to browse pharmacies without one.</p>
+
+      {loading ? (
+        <div className="text-center py-4">
+          <div className="spinner-border text-primary" role="status" />
+        </div>
+      ) : prescriptions.length > 0 ? (
+        <div className="list-group mb-3">
+          {prescriptions.map((rx) => (
+            <button key={rx.prescriptionHeaderID} className="list-group-item list-group-item-action text-start"
+              onClick={() => onSelect(rx.prescriptionHeaderID)}>
+              <div className="d-flex justify-content-between align-items-center">
+                <div>
+                  <strong>{rx.doctorName || 'Doctor'}</strong>
+                  <p className="mb-0 small text-muted">{new Date(rx.issueDate).toLocaleDateString()} - {rx.diagnosis || 'No diagnosis'}</p>
+                </div>
+                <i className="bi bi-chevron-right text-muted"></i>
+              </div>
+            </button>
+          ))}
+        </div>
+      ) : (
+        <div className="text-center py-4 text-muted">
+          <i className="bi bi-prescription2" style={{ fontSize: '2rem' }}></i>
+          <p className="mt-2">No prescriptions found.</p>
+        </div>
+      )}
+
+      <button className="btn btn-outline-secondary" onClick={onSkip}>
+        <i className="bi bi-skip-forward me-1"></i>Skip, I don't have a prescription
+      </button>
+    </div>
+  );
+}
+
+function PharmacySelectionStep({ userId, geolocation, prescriptionHeaderId, onSelect, onBack }) {
   const [pharmacies, setPharmacies] = useState([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState('');
   const [deliveryOnly, setDeliveryOnly] = useState(false);
-  const [showRequestModal, setShowRequestModal] = useState(false);
-  const [selectedPharmacy, setSelectedPharmacy] = useState(null);
-  const [requestForm, setRequestForm] = useState({
-    symptoms: '',
-    description: '',
-    allergies: '',
-    additionalNotes: '',
-    preferredDeliveryType: 'Delivery',
-    prescriptionHeaderIds: [],
-  });
-  const [submitting, setSubmitting] = useState(false);
-  const [prescriptions, setPrescriptions] = useState([]);
 
-  const loadPharmacies = useCallback(async () => {
+  useEffect(() => {
+    if (!userId) { setLoading(false); return; }
     setLoading(true);
-    try {
-      const data = await pharmacyApi.getPublicPharmacies({ deliveryOnly: deliveryOnly || undefined });
-      setPharmacies(Array.isArray(data) ? data : []);
-    } catch {
-      toast.error('Unable to load pharmacies.');
-    } finally {
-      setLoading(false);
+    const params = {};
+    if (deliveryOnly) params.deliveryOnly = true;
+    if (prescriptionHeaderId) params.prescriptionHeaderId = prescriptionHeaderId;
+    if (geolocation) {
+      params.lat = geolocation.lat;
+      params.lng = geolocation.lng;
     }
-  }, [deliveryOnly]);
-
-  useEffect(() => { loadPharmacies(); }, [loadPharmacies]);
+    pharmacyApi.getRecommendations(params)
+      .then((data) => setPharmacies(Array.isArray(data) ? data : []))
+      .catch(() => toast.error('Unable to load pharmacies.'))
+      .finally(() => setLoading(false));
+  }, [userId, deliveryOnly, prescriptionHeaderId, geolocation]);
 
   const filtered = pharmacies.filter((p) => {
     if (!search) return true;
@@ -99,51 +265,22 @@ function PharmacyListView({ userId, navigate }) {
     return (p.name || '').toLowerCase().includes(q) || (p.address || '').toLowerCase().includes(q);
   });
 
-  const openRequestModal = async (pharmacy) => {
-    setSelectedPharmacy(pharmacy);
-    setRequestForm({ symptoms: '', description: '', allergies: '', additionalNotes: '', preferredDeliveryType: 'Delivery', prescriptionHeaderIds: [] });
-    try {
-      const mod = await import('../../api/prescriptionApi');
-      const data = await mod.prescriptionService.getMyPrescriptions();
-      setPrescriptions(Array.isArray(data) ? data : []);
-    } catch { setPrescriptions([]); }
-    setShowRequestModal(true);
-  };
-
-  const submitRequest = async () => {
-    if (!requestForm.symptoms.trim()) {
-      toast.error('Please describe your symptoms.');
-      return;
-    }
-    setSubmitting(true);
-    try {
-      await pharmacyApi.createConsultationRequest({
-        pharmacyId: selectedPharmacy.pharmacyId,
-        symptoms: requestForm.symptoms,
-        description: requestForm.description,
-        allergies: requestForm.allergies,
-        additionalNotes: requestForm.additionalNotes,
-        preferredDeliveryType: requestForm.preferredDeliveryType,
-        prescriptionHeaderIds: requestForm.prescriptionHeaderIds.length > 0 ? requestForm.prescriptionHeaderIds : undefined,
-      });
-      toast.success('Consultation request sent!');
-      setShowRequestModal(false);
-    } catch (err) {
-      toast.error(err.response?.data?.message || 'Failed to send request.');
-    } finally {
-      setSubmitting(false);
-    }
+  const stockBadge = (status) => {
+    if (status === 'FULL') return { cls: 'bg-success', label: 'Du thuoc' };
+    if (status === 'PARTIAL') return { cls: 'bg-warning text-dark', label: 'Thieu mot phan' };
+    return { cls: 'bg-secondary', label: 'Chua co du lieu kho' };
   };
 
   return (
-    <>
+    <div>
       <div className="d-flex flex-wrap gap-3 mb-3 align-items-center">
+        <button className="btn btn-sm btn-outline-secondary" onClick={onBack}>
+          <i className="bi bi-arrow-left me-1"></i>Back
+        </button>
         <div className="input-group" style={{ maxWidth: '320px' }}>
           <span className="input-group-text"><i className="bi bi-search"></i></span>
-          <input
-            type="text" className="form-control" placeholder="Search by name or address..."
-            value={search} onChange={(e) => setSearch(e.target.value)}
-          />
+          <input type="text" className="form-control" placeholder="Search by name or address..."
+            value={search} onChange={(e) => setSearch(e.target.value)} />
         </div>
         <div className="form-check form-switch">
           <input className="form-check-input" type="checkbox" id="deliveryOnly"
@@ -155,7 +292,6 @@ function PharmacyListView({ userId, navigate }) {
       {loading ? (
         <div className="text-center py-5">
           <div className="spinner-border text-primary" role="status" />
-          <p className="mt-2 text-muted">Loading pharmacies...</p>
         </div>
       ) : filtered.length === 0 ? (
         <div className="text-center py-5 text-muted">
@@ -164,114 +300,215 @@ function PharmacyListView({ userId, navigate }) {
         </div>
       ) : (
         <div className="row g-3">
-          {filtered.map((p) => (
-            <div className="col-md-6 col-lg-4" key={p.pharmacyId}>
-              <div className="card h-100 shadow-sm">
-                <div className="card-body">
-                  <div className="d-flex align-items-start gap-3 mb-2">
-                    <div className="rounded-circle bg-light d-flex align-items-center justify-content-center"
-                      style={{ width: 48, height: 48, minWidth: 48 }}>
-                      <i className="bi bi-shop fs-4 text-success"></i>
+          {filtered.map((p) => {
+            const badge = prescriptionHeaderId ? stockBadge(p.stockStatus) : null;
+            return (
+              <div className="col-md-6 col-lg-4" key={p.pharmacyId}>
+                <div className="card h-100 shadow-sm">
+                  <div className="card-body">
+                    <div className="d-flex align-items-start gap-3 mb-2">
+                      <div className="rounded-circle bg-light d-flex align-items-center justify-content-center"
+                        style={{ width: 48, height: 48, minWidth: 48 }}>
+                        <i className="bi bi-shop fs-4 text-success"></i>
+                      </div>
+                      <div className="min-width-0 flex-grow-1">
+                        <h6 className="mb-1">{p.name}</h6>
+                        <p className="small text-muted mb-0">{p.address}</p>
+                        {p.distanceLabel && (
+                          <span className="small text-primary">
+                            <i className="bi bi-geo-alt me-1"></i>{p.distanceLabel}
+                          </span>
+                        )}
+                      </div>
                     </div>
-                    <div className="min-width-0">
-                      <h6 className="mb-1">{p.name}</h6>
-                      <p className="small text-muted mb-0">{p.address}</p>
+                    <div className="small text-muted mb-2">
+                      {p.averageRating != null && (
+                        <span className="me-3"><i className="bi bi-star-fill text-warning me-1"></i>{p.averageRating.toFixed(1)}</span>
+                      )}
+                      {p.deliveryAvailable && (
+                        <span className="me-3"><i className="bi bi-truck text-info me-1"></i>Delivery</span>
+                      )}
+                      {badge && (
+                        <span className={`badge ${badge.cls} me-1`}>{badge.label}</span>
+                      )}
                     </div>
-                  </div>
-                  <div className="small text-muted mb-2">
-                    {p.averageRating != null && (
-                      <span className="me-3"><i className="bi bi-star-fill text-warning me-1"></i>{p.averageRating.toFixed(1)} ({p.totalReviews || 0})</span>
+                    {prescriptionHeaderId && p.missingItems?.length > 0 && (
+                      <div className="small text-danger mb-2">
+                        <i className="bi bi-exclamation-triangle me-1"></i>
+                        Missing: {p.missingItems.slice(0, 3).map((m) => m.medicationName).join(', ')}
+                        {p.missingItems.length > 3 && ` +${p.missingItems.length - 3} more`}
+                      </div>
                     )}
-                    {p.deliveryAvailable && (
-                      <span className="me-3"><i className="bi bi-truck text-info me-1"></i>{p.deliveryFee ? `$${p.deliveryFee}` : 'Free'}</span>
-                    )}
-                    {p.openTime && (
-                      <span><i className="bi bi-clock me-1"></i>{p.openTime.substring(0, 5)} - {p.closeTime?.substring(0, 5)}</span>
-                    )}
-                  </div>
-                  <div className="d-flex gap-2">
-                    <button className="btn btn-sm btn-outline-primary" onClick={() => openRequestModal(p)}>
+                    <button className="btn btn-sm btn-outline-primary w-100" onClick={() => onSelect(p)}>
                       <i className="bi bi-chat-square-text me-1"></i>Consult
                     </button>
                   </div>
                 </div>
               </div>
-            </div>
-          ))}
+            );
+          })}
+        </div>
+      )}
+    </div>
+  );
+}
+
+function ConnectStep({ request, pharmacy, geolocation, userId, onRequestUpdated, onBack }) {
+  const { openChatWith } = useAuth();
+  const [polling, setPolling] = useState(null);
+  const startTime = useRef(Date.now());
+
+  useEffect(() => {
+    if (!request || request.status !== 'PENDING') return;
+
+    const poll = setInterval(async () => {
+      try {
+        const updated = await pharmacyApi.getConsultationRequestById(request.requestId);
+        if (updated.status !== 'PENDING') {
+          onRequestUpdated(updated);
+          setPolling(null);
+          clearInterval(poll);
+        }
+      } catch { }
+    }, 5000);
+
+    setPolling(poll);
+    return () => { if (poll) clearInterval(poll); };
+  }, [request?.requestId, request?.status, onRequestUpdated]);
+
+  useEffect(() => {
+    return () => { if (polling) clearInterval(polling); };
+  }, [polling]);
+
+  const [elapsed, setElapsed] = useState('00:00');
+  useEffect(() => {
+    if (request?.status !== 'PENDING') return;
+    const timer = setInterval(() => {
+      const diff = Math.floor((Date.now() - startTime.current) / 1000);
+      const m = String(Math.floor(diff / 60)).padStart(2, '0');
+      const s = String(diff % 60).padStart(2, '0');
+      setElapsed(`${m}:${s}`);
+    }, 1000);
+    return () => clearInterval(timer);
+  }, [request?.status]);
+
+  if (!request) return null;
+
+  const isPending = request.status === 'PENDING';
+  const isConnected = request.status === 'IN_REVIEW';
+  const isOrderCreated = request.status === 'ORDER_CREATED';
+  const isCancelled = request.status === 'CANCELLED';
+
+  const handleRefreshOrder = async () => {
+    try {
+      const updated = await pharmacyApi.getConsultationRequestById(request.requestId);
+      onRequestUpdated(updated);
+    } catch { }
+  };
+
+  return (
+    <div className="text-center py-4">
+      {/* Pharmacy card */}
+      <div className="card shadow-sm mx-auto mb-4" style={{ maxWidth: 400 }}>
+        <div className="card-body">
+          <div className="rounded-circle bg-light d-flex align-items-center justify-content-center mx-auto mb-2"
+            style={{ width: 64, height: 64 }}>
+            <i className="bi bi-shop fs-2 text-success"></i>
+          </div>
+          <h5 className="fw-semibold mb-1">{pharmacy?.name || 'Pharmacy'}</h5>
+          <p className="small text-muted mb-0">{pharmacy?.address}</p>
+          {pharmacy?.distanceLabel && (
+            <span className="small text-primary"><i className="bi bi-geo-alt me-1"></i>{pharmacy.distanceLabel}</span>
+          )}
+        </div>
+      </div>
+
+      {/* Timeline */}
+      <div className="d-flex justify-content-center gap-4 mb-4">
+        <div className="text-center">
+          <div className={`rounded-circle d-flex align-items-center justify-content-center mx-auto mb-1 ${isPending || isConnected || isOrderCreated ? 'bg-success text-white' : 'bg-light text-muted'}`}
+            style={{ width: 36, height: 36 }}>
+            <i className="bi bi-check-lg"></i>
+          </div>
+          <small className="text-muted">Request sent</small>
+        </div>
+        <div className="align-self-center border-top flex-grow-1" style={{ maxWidth: 60 }} />
+        <div className="text-center">
+          <div className={`rounded-circle d-flex align-items-center justify-content-center mx-auto mb-1 ${isPending ? 'bg-warning pulse-animation' : isConnected || isOrderCreated ? 'bg-success text-white' : 'bg-light text-muted'}`}
+            style={{ width: 36, height: 36 }}>
+            {isPending ? <span className="spinner-grow spinner-grow-sm"></span> : <i className="bi bi-check-lg"></i>}
+          </div>
+          <small className="text-muted">Waiting</small>
+        </div>
+        <div className="align-self-center border-top flex-grow-1" style={{ maxWidth: 60 }} />
+        <div className="text-center">
+          <div className={`rounded-circle d-flex align-items-center justify-content-center mx-auto mb-1 ${isConnected || isOrderCreated ? 'bg-success text-white' : 'bg-light text-muted'}`}
+            style={{ width: 36, height: 36 }}>
+            <i className="bi bi-plug"></i>
+          </div>
+          <small className="text-muted">Connected</small>
+        </div>
+      </div>
+
+      {isPending && (
+        <>
+          <div className="mb-3">
+            <div className="spinner-border text-primary mb-2" role="status" />
+            <p className="fw-medium mb-1">Waiting for pharmacy to accept...</p>
+            <p className="small text-muted">Elapsed: {elapsed}</p>
+          </div>
+          <button className="btn btn-sm btn-outline-secondary" onClick={() => {
+            pharmacyApi.getConsultationRequestById(request.requestId).then(onRequestUpdated).catch(() => {});
+          }}>
+            <i className="bi bi-arrow-clockwise me-1"></i>Refresh
+          </button>
+        </>
+      )}
+
+      {isConnected && (
+        <div>
+          <div className="alert alert-success mb-3">
+            <i className="bi bi-check-circle-fill me-2"></i>
+            Pharmacy has accepted your request! You are now connected.
+          </div>
+          <div className="d-flex justify-content-center gap-2">
+            <button className="btn btn-primary" onClick={() => {
+              if (openChatWith) openChatWith({ uid: request.patientId, displayName: request.patientName ? request.patientName : `Patient #${request.patientId}` });
+            }}>
+              <i className="bi bi-chat-dots-fill me-1"></i>Chat
+            </button>
+            <button className="btn btn-outline-primary" onClick={handleRefreshOrder}>
+              <i className="bi bi-arrow-clockwise me-1"></i>Check for order
+            </button>
+          </div>
         </div>
       )}
 
-      {showRequestModal && selectedPharmacy && (
-        <>
-          <div className="modal-backdrop fade show" style={{ zIndex: 1050 }} onClick={() => setShowRequestModal(false)}></div>
-          <div className="modal fade show d-block" tabIndex="-1" style={{ zIndex: 1055 }}>
-            <div className="modal-dialog modal-lg modal-dialog-centered" onClick={(e) => e.stopPropagation()}>
-              <div className="modal-content">
-                <div className="modal-header">
-                  <h5 className="modal-title">Consult {selectedPharmacy.name}</h5>
-                  <button type="button" className="btn-close" onClick={() => setShowRequestModal(false)}></button>
-                </div>
-                <div className="modal-body">
-                  <div className="mb-3">
-                    <label className="form-label fw-semibold">Symptoms <span className="text-danger">*</span></label>
-                    <textarea className="form-control" rows="2" placeholder="Describe your symptoms..."
-                      value={requestForm.symptoms}
-                      onChange={(e) => setRequestForm({ ...requestForm, symptoms: e.target.value })} />
-                  </div>
-                  <div className="mb-3">
-                    <label className="form-label fw-semibold">Description</label>
-                    <textarea className="form-control" rows="2" placeholder="Additional details..."
-                      value={requestForm.description}
-                      onChange={(e) => setRequestForm({ ...requestForm, description: e.target.value })} />
-                  </div>
-                  <div className="mb-3">
-                    <label className="form-label fw-semibold">Allergies</label>
-                    <input type="text" className="form-control" placeholder="List any allergies..."
-                      value={requestForm.allergies}
-                      onChange={(e) => setRequestForm({ ...requestForm, allergies: e.target.value })} />
-                  </div>
-                  <div className="mb-3">
-                    <label className="form-label fw-semibold">Preferred Delivery</label>
-                    <select className="form-select"
-                      value={requestForm.preferredDeliveryType}
-                      onChange={(e) => setRequestForm({ ...requestForm, preferredDeliveryType: e.target.value })}>
-                      <option value="Delivery">Delivery</option>
-                      <option value="Pickup">Pickup</option>
-                    </select>
-                  </div>
-                  {prescriptions.length > 0 && (
-                    <div className="mb-3">
-                      <label className="form-label fw-semibold">Link Prescriptions (optional)</label>
-                      {prescriptions.map((rx) => (
-                        <div className="form-check" key={rx.prescriptionHeaderID}>
-                          <input className="form-check-input" type="checkbox"
-                            checked={requestForm.prescriptionHeaderIds.includes(rx.prescriptionHeaderID)}
-                            onChange={(e) => {
-                              const ids = e.target.checked
-                                ? [...requestForm.prescriptionHeaderIds, rx.prescriptionHeaderID]
-                                : requestForm.prescriptionHeaderIds.filter((id) => id !== rx.prescriptionHeaderID);
-                              setRequestForm({ ...requestForm, prescriptionHeaderIds: ids });
-                            }} />
-                          <label className="form-check-label">
-                            {rx.doctorName} — {new Date(rx.issueDate).toLocaleDateString()}
-                          </label>
-                        </div>
-                      ))}
-                    </div>
-                  )}
-                </div>
-                <div className="modal-footer">
-                  <button className="btn btn-secondary" onClick={() => setShowRequestModal(false)}>Cancel</button>
-                  <button className="btn btn-primary" disabled={submitting} onClick={submitRequest}>
-                    {submitting ? 'Sending...' : 'Send Request'}
-                  </button>
-                </div>
-              </div>
-            </div>
+      {isOrderCreated && request.pharmacyOrderId && (
+        <div>
+          <div className="alert alert-info mb-3">
+            <i className="bi bi-file-text me-2"></i>
+            Pharmacy has created an order for you!
           </div>
-        </>
+          <Link className="btn btn-primary" to={`/patient-dashboard/pharmacy/orders/${request.pharmacyOrderId}`}>
+            <i className="bi bi-eye me-1"></i>View Order & Confirm
+          </Link>
+        </div>
       )}
-    </>
+
+      {isCancelled && (
+        <div className="alert alert-danger">
+          <i className="bi bi-x-circle-fill me-2"></i>
+          Request was cancelled.
+        </div>
+      )}
+
+      {isPending && (
+        <button className="btn btn-sm btn-outline-danger mt-3" onClick={onBack}>
+          <i className="bi bi-arrow-left me-1"></i>Back to pharmacy list
+        </button>
+      )}
+    </div>
   );
 }
 
@@ -280,7 +517,7 @@ function RequestsView({ userId }) {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    if (!userId) return;
+    if (!userId) { setLoading(false); return; }
     setLoading(true);
     pharmacyApi.getConsultationRequestsByPatient(userId)
       .then((data) => setRequests(Array.isArray(data) ? data : []))
@@ -335,7 +572,7 @@ function OrdersView({ userId, navigate }) {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    if (!userId) return;
+    if (!userId) { setLoading(false); return; }
     setLoading(true);
     pharmacyApi.getOrdersByPatient(userId)
       .then((data) => setOrders(Array.isArray(data) ? data : []))
@@ -373,11 +610,11 @@ function OrdersView({ userId, navigate }) {
           style={{ cursor: 'pointer' }}>
           <div className="d-flex w-100 justify-content-between align-items-start">
             <div>
-              <h6 className="mb-1">{o.orderNumber || `Order #${o.orderId?.substring(0, 8)}`}</h6>
+              <h6 className="mb-1">{o.orderNumber || `Order #${o.orderId}`}</h6>
               <p className="mb-1 small text-muted">{o.pharmacyName || 'Pharmacy'}</p>
             </div>
             <div className="text-end">
-              <span className={`badge ${statusBadge(o.status)} me-1`}>{o.status}</span>
+              <span className={`badge ${statusBadge(o.status)} me-1`}>{titleCase(o.status)}</span>
               {o.paymentStatus && (
                 <span className={`badge ${o.paymentStatus === 'PAID' ? 'bg-success' : 'bg-warning'}`}>{o.paymentStatus}</span>
               )}
@@ -392,27 +629,155 @@ function OrdersView({ userId, navigate }) {
   );
 }
 
+function PharmacyPayPalButton({ order, onPaid, onCancel, onError, onFail }) {
+  const buttonRef = useRef(null);
+  const orderCreationErrorRef = useRef(false);
+  const [loadingSdk, setLoadingSdk] = useState(false);
+  const [processing, setProcessing] = useState(false);
+
+  useEffect(() => {
+    if (!order?.orderId || !buttonRef.current || order.paymentStatus === 'PAID') return;
+
+    const clientId = import.meta.env.VITE_PAYPAL_CLIENT_ID;
+    if (!clientId) {
+      toast.error('PayPal client id is missing. Please set VITE_PAYPAL_CLIENT_ID.');
+      return;
+    }
+
+    let cancelled = false;
+    buttonRef.current.innerHTML = '';
+    setLoadingSdk(true);
+
+    loadPayPalSdk(clientId, 'USD')
+      .then((paypal) => {
+        if (cancelled || !paypal || !buttonRef.current) return;
+
+        paypal.Buttons({
+          style: {
+            layout: 'vertical',
+            color: 'gold',
+            shape: 'rect',
+            label: 'paypal',
+          },
+          createOrder: async () => {
+            try {
+              const createRes = await paymentApi.createPharmacyOrderPayPalOrder(order.orderId);
+              const paypalOrderId = createRes?.orderId || createRes?.id;
+              if (!paypalOrderId) {
+                throw new Error('Unexpected pharmacy PayPal create response');
+              }
+              return paypalOrderId;
+            } catch (error) {
+              orderCreationErrorRef.current = true;
+              toast.error(error.response?.data?.message || 'Can not create PayPal payment order.');
+              onFail?.();
+              throw error;
+            }
+          },
+          onApprove: async (data) => {
+            setProcessing(true);
+            try {
+              const updatedOrder = await paymentApi.capturePharmacyOrderPayPalPayment(
+                order.orderId,
+                data.orderID,
+                'EWallet'
+              );
+              toast.success('Payment successful!');
+              onPaid(updatedOrder);
+            } catch (error) {
+              toast.error(error.response?.data?.message || 'Payment could not be captured.');
+              onFail?.();
+            } finally {
+              setProcessing(false);
+            }
+          },
+          onCancel: () => {
+            toast.warning('Payment was cancelled.');
+            onCancel?.();
+          },
+          onError: (error) => {
+            console.error('PayPal pharmacy error', error);
+            if (orderCreationErrorRef.current) {
+              orderCreationErrorRef.current = false;
+              return;
+            }
+            toast.error('PayPal could not process this payment.');
+            onError?.();
+          },
+        }).render(buttonRef.current);
+      })
+      .catch((error) => {
+        console.error('Could not load PayPal SDK', error);
+        toast.error('Could not load PayPal checkout.');
+      })
+      .finally(() => {
+        if (!cancelled) setLoadingSdk(false);
+      });
+
+    return () => {
+      cancelled = true;
+      if (buttonRef.current) {
+        buttonRef.current.innerHTML = '';
+      }
+    };
+  }, [order?.orderId, order?.paymentStatus, onPaid, onCancel, onError, onFail]);
+
+  if (order.paymentStatus === 'PAID') {
+    return (
+      <div className="alert alert-success mb-0 text-center">
+        <i className="bi bi-check-circle-fill me-2"></i>Payment completed
+      </div>
+    );
+  }
+
+  return (
+    <div>
+      {loadingSdk && <div className="text-center small text-muted mb-2"><div className="spinner-border spinner-border-sm me-1" role="status" />Loading PayPal...</div>}
+      {processing && <div className="text-center small text-muted mb-2"><div className="spinner-border spinner-border-sm me-1" role="status" />Processing payment...</div>}
+      <div ref={buttonRef} />
+    </div>
+  );
+}
+
 function OrderDetailView({ orderId, userId, navigate }) {
   const [order, setOrder] = useState(null);
   const [loading, setLoading] = useState(true);
   const [cancelling, setCancelling] = useState(false);
+  const [confirmedForPayment, setConfirmedForPayment] = useState(false);
+  const [revisionReason, setRevisionReason] = useState('');
+  const [requestingRevision, setRequestingRevision] = useState(false);
+  const [showRevisionForm, setShowRevisionForm] = useState(false);
 
-  useEffect(() => {
+  const loadOrder = useCallback(async () => {
     if (!orderId) return;
     setLoading(true);
-    pharmacyApi.getOrderById(orderId)
-      .then((data) => setOrder(data))
-      .catch(() => toast.error('Unable to load order.'))
-      .finally(() => setLoading(false));
+    try {
+      const data = await pharmacyApi.getOrderById(orderId);
+      setOrder(data);
+      setConfirmedForPayment(false);
+    } catch {
+      toast.error('Unable to load order.');
+    } finally {
+      setLoading(false);
+    }
   }, [orderId]);
+
+  useEffect(() => {
+    loadOrder();
+  }, [loadOrder]);
+
+  useEffect(() => {
+    const handleOffline = () => setConfirmedForPayment(false);
+    window.addEventListener('offline', handleOffline);
+    return () => window.removeEventListener('offline', handleOffline);
+  }, []);
 
   const handleCancel = async () => {
     setCancelling(true);
     try {
       await pharmacyApi.cancelOrder(order.orderId, { cancelReason: 'Patient requested cancellation' });
       toast.success('Order cancelled.');
-      const data = await pharmacyApi.getOrderById(orderId);
-      setOrder(data);
+      await loadOrder();
     } catch (err) {
       toast.error(err.response?.data?.message || 'Unable to cancel order.');
     } finally {
@@ -420,39 +785,65 @@ function OrderDetailView({ orderId, userId, navigate }) {
     }
   };
 
-  const handlePayPal = async () => {
+  const handleConfirmOrder = () => {
+    setConfirmedForPayment(true);
+    toast.success('Order confirmed! You can now proceed to payment.');
+  };
+
+  const handleRequestRevision = async () => {
+    if (!revisionReason.trim()) {
+      toast.error('Please provide a reason for the change request.');
+      return;
+    }
+    setRequestingRevision(true);
     try {
-      const createRes = await paymentApi.createPharmacyOrderPayPalOrder(order.orderId);
-      if (!createRes?.approvalUrl) {
-        toast.error('Failed to initiate payment.');
-        return;
-      }
-      const popup = window.open('', '_blank', 'width=600,height=700');
-      if (popup) {
-        popup.document.write(`<html><body style="margin:0;display:flex;justify-content:center;align-items:center;height:100vh;background:#f5f5f5"><p>Redirecting to PayPal...</p></body></html>`);
-        popup.location.href = createRes.approvalUrl;
-        const timer = setInterval(async () => {
-          if (popup.closed) {
-            clearInterval(timer);
-            try {
-              const data = await pharmacyApi.getOrderById(orderId);
-              setOrder(data);
-              if (data.paymentStatus === 'PAID') {
-                toast.success('Payment successful!');
-              }
-            } catch { }
-          }
-        }, 1500);
-      } else {
-        window.location.href = createRes.approvalUrl;
-      }
+      await pharmacyApi.requestOrderRevision(order.orderId, { reason: revisionReason });
+      toast.success('Change request sent. Waiting for pharmacy update.');
+      setShowRevisionForm(false);
+      setRevisionReason('');
+      await loadOrder();
     } catch (err) {
-      toast.error(err.response?.data?.message || 'Payment initiation failed.');
+      toast.error(err.response?.data?.message || 'Unable to request changes.');
+    } finally {
+      setRequestingRevision(false);
+    }
+  };
+
+  const handlePayPalCancel = useCallback(() => {
+    setConfirmedForPayment(false);
+  }, []);
+
+  const handlePayPalError = useCallback(() => {
+    setConfirmedForPayment(false);
+  }, []);
+
+  const handlePayPalFail = useCallback(() => {
+    setConfirmedForPayment(false);
+  }, []);
+
+  const handleDownloadPdf = async () => {
+    if (!order.invoiceId) {
+      toast.error('No invoice available yet.');
+      return;
+    }
+    try {
+      const { default: axiosInstance } = await import('../../api/axiosConfig');
+      const response = await axiosInstance.get(`/api/payment/invoices/${order.invoiceId}/pdf`, {
+        responseType: 'blob',
+      });
+      const url = URL.createObjectURL(new Blob([response.data], { type: 'application/pdf' }));
+      const link = document.createElement('a');
+      link.href = url;
+      link.download = `invoice-${order.invoiceId}.pdf`;
+      link.click();
+      URL.revokeObjectURL(url);
+    } catch {
+      toast.error('Failed to download invoice PDF.');
     }
   };
 
   const statusBadge = (s) => {
-    const map = { PENDING: 'warning', CONFIRMED: 'info', PREPARING: 'primary', READY: 'primary', SHIPPING: 'info', DELIVERED: 'success', COMPLETED: 'success', CANCELLED: 'danger', REFUNDED: 'secondary' };
+    const map = { PENDING: 'warning', CONFIRMED: 'info', PREPARING: 'primary', READY: 'primary', SHIPPING: 'info', DELIVERED: 'success', COMPLETED: 'success', CANCELLED: 'danger', REFUNDED: 'secondary', REVISION_REQUESTED: 'warning' };
     return map[s] || 'secondary';
   };
 
@@ -474,8 +865,13 @@ function OrderDetailView({ orderId, userId, navigate }) {
     );
   }
 
-  const needsPayment = order.paymentStatus !== 'PAID' && !['CANCELLED', 'REFUNDED'].includes(order.status);
+  const isRevisionRequested = order.status === 'REVISION_REQUESTED';
+  const isPaid = order.paymentStatus === 'PAID';
+  const needsPayment = !isPaid && !['CANCELLED', 'REFUNDED'].includes(order.status) && !isRevisionRequested;
   const canCancel = ['PENDING', 'CONFIRMED'].includes(order.status);
+  const canRequestRevision = needsPayment && !isRevisionRequested;
+  const showConfirmButton = needsPayment && !confirmedForPayment;
+  const showPayPal = needsPayment && confirmedForPayment;
 
   return (
     <div>
@@ -483,12 +879,24 @@ function OrderDetailView({ orderId, userId, navigate }) {
         <button className="btn btn-outline-secondary btn-sm" onClick={() => navigate('/patient-dashboard/pharmacy/orders')}>
           <i className="bi bi-arrow-left"></i>
         </button>
-        <h4 className="mb-0">Order {order.orderNumber || `#${orderId?.substring(0, 8)}`}</h4>
-        <span className={`badge bg-${statusBadge(order.status)}`}>{order.status}</span>
+        <h4 className="mb-0">Order {order.orderNumber || `#${orderId}`}</h4>
+        <span className={`badge bg-${statusBadge(order.status)}`}>{titleCase(order.status)}</span>
         {order.paymentStatus && (
-          <span className={`badge ${order.paymentStatus === 'PAID' ? 'bg-success' : 'bg-warning'}`}>{order.paymentStatus}</span>
+          <span className={`badge ${isPaid ? 'bg-success' : 'bg-warning'}`}>{order.paymentStatus}</span>
+        )}
+        {order.invoiceId && (
+          <button className="btn btn-sm btn-outline-primary" onClick={handleDownloadPdf}>
+            <i className="bi bi-file-pdf me-1"></i>PDF
+          </button>
         )}
       </div>
+
+      {isRevisionRequested && (
+        <div className="alert alert-warning mb-3">
+          <i className="bi bi-pencil-square me-2"></i>
+          Change request sent. Waiting for pharmacy to update the order.
+        </div>
+      )}
 
       <div className="row g-4">
         <div className="col-md-8">
@@ -502,8 +910,8 @@ function OrderDetailView({ orderId, userId, navigate }) {
                   <tr><td className="text-muted">Delivery Type</td><td>{order.deliveryType || 'N/A'}</td></tr>
                   {order.deliveryAddress && <tr><td className="text-muted">Delivery Address</td><td>{order.deliveryAddress}</td></tr>}
                   {order.deliveryFee != null && <tr><td className="text-muted">Delivery Fee</td><td>${Number(order.deliveryFee).toFixed(2)}</td></tr>}
+                  {order.estimatedDeliveryTime && <tr><td className="text-muted">Estimated Delivery</td><td>{new Date(order.estimatedDeliveryTime).toLocaleString()}</td></tr>}
                   <tr><td className="text-muted">Created</td><td>{order.createdAt ? new Date(order.createdAt).toLocaleString() : 'N/A'}</td></tr>
-                  {order.updatedAt && <tr><td className="text-muted">Updated</td><td>{new Date(order.updatedAt).toLocaleString()}</td></tr>}
                 </tbody>
               </table>
             </div>
@@ -519,7 +927,7 @@ function OrderDetailView({ orderId, userId, navigate }) {
                       <tr>
                         <th>Medication</th>
                         <th>Qty</th>
-                        <th>Price</th>
+                        <th>Unit Price</th>
                         <th>Total</th>
                       </tr>
                     </thead>
@@ -535,20 +943,87 @@ function OrderDetailView({ orderId, userId, navigate }) {
                     </tbody>
                   </table>
                 </div>
+                <div className="border-top pt-2 mt-2">
+                  <div className="d-flex justify-content-between small"><span>Medicine Amount</span><strong>${Number(order.medicineAmount || 0).toFixed(2)}</strong></div>
+                  <div className="d-flex justify-content-between small"><span>Delivery Fee</span><strong>${Number(order.deliveryFee || 0).toFixed(2)}</strong></div>
+                  <div className="d-flex justify-content-between fw-bold mt-1"><span>Total</span><span>${Number(order.totalAmount || 0).toFixed(2)}</span></div>
+                </div>
               </div>
             </div>
           )}
         </div>
 
         <div className="col-md-4">
-          {needsPayment && (
+          {showConfirmButton && (
+            <div className="card shadow-sm mb-3 border-primary">
+              <div className="card-body text-center">
+                <h6 className="fw-semibold mb-3 text-primary">Confirm Order</h6>
+                <p className="small text-muted mb-3">Review the order details. Once confirmed, PayPal payment will be available.</p>
+                <button className="btn btn-primary w-100" onClick={handleConfirmOrder}>
+                  <i className="bi bi-check-circle me-2"></i>Confirm Order
+                </button>
+              </div>
+            </div>
+          )}
+
+          {showPayPal && (
             <div className="card shadow-sm mb-3">
               <div className="card-body text-center">
                 <h6 className="fw-semibold mb-3">Payment</h6>
                 <p className="small text-muted mb-3">Pay with PayPal to complete your order.</p>
-                <button className="btn btn-primary w-100" onClick={handlePayPal}>
-                  <i className="bi bi-paypal me-2"></i>Pay with PayPal
+                <PharmacyPayPalButton
+                  order={order}
+                  onPaid={async (updatedOrder) => {
+                    if (updatedOrder?.paymentStatus === 'PAID') {
+                      setOrder(updatedOrder);
+                      setConfirmedForPayment(false);
+                      return;
+                    }
+                    const data = await pharmacyApi.getOrderById(orderId);
+                    setOrder(data);
+                  }}
+                  onCancel={handlePayPalCancel}
+                  onError={handlePayPalError}
+                  onFail={handlePayPalFail}
+                />
+              </div>
+            </div>
+          )}
+
+          {canRequestRevision && !showRevisionForm && (
+            <div className="card shadow-sm mb-3">
+              <div className="card-body text-center">
+                <h6 className="fw-semibold mb-3">Request Changes</h6>
+                <p className="small text-muted mb-3">Need to modify medications, prices, or delivery?</p>
+                <button className="btn btn-outline-warning w-100" onClick={() => setShowRevisionForm(true)}>
+                  <i className="bi bi-pencil me-2"></i>Request Changes
                 </button>
+              </div>
+            </div>
+          )}
+
+          {canRequestRevision && showRevisionForm && (
+            <div className="card shadow-sm mb-3 border-warning">
+              <div className="card-body">
+                <h6 className="fw-semibold mb-3">Request Changes</h6>
+                <div className="mb-3">
+                  <label className="form-label small">Describe the changes you need:</label>
+                  <textarea
+                    className="form-control"
+                    rows="3"
+                    placeholder="e.g., Please remove Vitamin C and update delivery time."
+                    value={revisionReason}
+                    onChange={(e) => setRevisionReason(e.target.value)}
+                  />
+                </div>
+                <div className="d-flex gap-2">
+                  <button className="btn btn-warning flex-grow-1" disabled={requestingRevision} onClick={handleRequestRevision}>
+                    {requestingRevision ? 'Sending...' : 'Send Request'}
+                  </button>
+                  <button className="btn btn-outline-secondary" onClick={() => { setShowRevisionForm(false); setRevisionReason(''); }}>
+                    Cancel
+                  </button>
+                </div>
               </div>
             </div>
           )}

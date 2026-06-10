@@ -45,6 +45,11 @@
             <scope>runtime</scope>
         </dependency>
         <dependency>
+            <groupId>com.h2database</groupId>
+            <artifactId>h2</artifactId>
+            <scope>test</scope>
+        </dependency>
+        <dependency>
             <groupId>org.projectlombok</groupId>
             <artifactId>lombok</artifactId>
             <version>1.18.42</version>
@@ -138,6 +143,20 @@
             <artifactId>logstash-logback-encoder</artifactId>
             <version>7.4</version>
         </dependency>
+
+        <!-- Apache Commons CSV for CSV import -->
+        <dependency>
+            <groupId>org.apache.commons</groupId>
+            <artifactId>commons-csv</artifactId>
+            <version>1.11.0</version>
+        </dependency>
+
+        <!-- Apache PDFBox for invoice PDF generation -->
+        <dependency>
+            <groupId>org.apache.pdfbox</groupId>
+            <artifactId>pdfbox</artifactId>
+            <version>3.0.1</version>
+        </dependency>
     </dependencies>
 
     <build>
@@ -145,6 +164,15 @@
             <plugin>
                 <groupId>org.springframework.boot</groupId>
                 <artifactId>spring-boot-maven-plugin</artifactId>
+            </plugin>
+
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-surefire-plugin</artifactId>
+                <configuration>
+                    <argLine>-Djdk.net.URLClassPath.disableClassPathURLCheck=true</argLine>
+                    <useManifestOnlyJar>false</useManifestOnlyJar>
+                </configuration>
             </plugin>
 
             <plugin>
