@@ -43,7 +43,12 @@ class AppointmentService {
 
     final response = await http
         .get(uri, headers: _headers)
-        .timeout(ApiConfig.connectTimeout);
+        .timeout(
+      ApiConfig.receiveTimeout,
+      onTimeout: () {
+        throw Exception('Request timed out. Please check backend connection.');
+      },
+    );
 
     if (response.statusCode != 200) {
       throw Exception(parseError(response, 'Unable to load appointments.'));

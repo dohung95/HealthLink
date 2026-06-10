@@ -128,7 +128,6 @@ public class FinanceServiceImpl implements FinanceService {
     // ========================================================================
     // Tác vụ 3.1 – Tạo hóa đơn
     // ========================================================================
-
     @Override
     @Transactional(readOnly = true)
     public InvoiceResponse getInvoice(Integer invoiceId) {
@@ -150,7 +149,6 @@ public class FinanceServiceImpl implements FinanceService {
     // ========================================================================
     // Tác vụ 3.2 – Tích hợp PayPal
     // ========================================================================
-
     @Override
     @Transactional(readOnly = true)
     public Map<String, Object> createAppointmentPayPalOrder(AppointmentPayPalOrderRequest request) {
@@ -658,7 +656,6 @@ public class FinanceServiceImpl implements FinanceService {
     // ========================================================================
     // Tác vụ 3.3 – Xử lý hoàn tiền (Refund Logic)
     // ========================================================================
-
     @Override
     @Transactional
     public InvoiceResponse processRefund(Integer paymentId, String refundReason) {
@@ -894,7 +891,6 @@ public class FinanceServiceImpl implements FinanceService {
     }
 
     // ─── Ánh xạ DTO ────────────────────────────────────────────────────────
-
     private void notifyAboutPaidPharmacyOrderAfterCommit(PharmacyOrder pharmacyOrder) {
         User patientUser = pharmacyOrder.getPatient() != null ? pharmacyOrder.getPatient().getUser() : null;
         User pharmacyUser = pharmacyOrder.getPharmacy() != null ? pharmacyOrder.getPharmacy().getUser() : null;

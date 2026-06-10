@@ -291,6 +291,99 @@ class BookingService {
       throw Exception(parseError(response, 'Can not share document with doctor.'));
     }
   }
+
+  Future<Map<String, dynamic>> createAppointmentPayPalOrder({
+    required String patientId,
+    required String doctorId,
+    required String appointmentTime,
+    required String consultationType,
+    required String symptoms,
+    String notes = '',
+    String currency = 'USD',
+  }) async {
+    final response = await http
+        .post(
+      Uri.parse(ApiConfig.createAppointmentPayPalOrder),
+      headers: _headers,
+      body: jsonEncode({
+        'patientId': patientId,
+        'doctorId': doctorId,
+        'appointmentTime': appointmentTime,
+        'consultationType': consultationType,
+        'symptoms': symptoms,
+        'notes': notes,
+        'currency': currency,
+      }),
+    )
+        .timeout(ApiConfig.connectTimeout);
+
+    if (response.statusCode != 200) {
+      throw Exception(parseError(response, 'Can not create PayPal order.'));
+    }
+
+    return jsonDecode(response.body) as Map<String, dynamic>;
+  }
+
+  Future<Map<String, dynamic>> captureAppointmentPayPalPayment({
+    required String orderId,
+    required String patientId,
+    required String doctorId,
+    required String appointmentTime,
+    required String consultationType,
+    required String symptoms,
+    String notes = '',
+    String paymentMethod = 'EWallet',
+    String currency = 'USD',
+  }) async {
+    final response = await http
+        .post(
+      Uri.parse(ApiConfig.captureAppointmentPayPalPayment),
+      headers: _headers,
+      body: jsonEncode({
+        'orderId': orderId,
+        'patientId': patientId,
+        'doctorId': doctorId,
+        'appointmentTime': appointmentTime,
+        'consultationType': consultationType,
+        'symptoms': symptoms,
+        'notes': notes,
+        'paymentMethod': paymentMethod,
+        'currency': currency,
+      }),
+    )
+        .timeout(ApiConfig.connectTimeout);
+
+    if (response.statusCode != 200) {
+      throw Exception(parseError(response, 'Payment failed.'));
+    }
+
+    return jsonDecode(response.body) as Map<String, dynamic>;
+  }
+
+  Future<List<DoctorWorkingSchedule>> getDoctorSchedules(String doctorId) async {
+    final response = await http
+        .get(
+      Uri.parse(ApiConfig.doctorSchedules(doctorId)),
+      headers: _headers,
+    )
+        .timeout(ApiConfig.connectTimeout);
+
+    if (response.statusCode != 200) {
+      throw Exception(parseError(response, 'Can not load doctor schedules.'));
+    }
+
+    final data = jsonDecode(response.body);
+
+    if (data is! List) {
+      return [];
+    }
+
+    return data
+        .whereType<Map<String, dynamic>>()
+        .map(DoctorWorkingSchedule.fromJson)
+        .where((item) => item.available)
+        .toList();
+  }
 }
 
 class PagedDoctors {
@@ -466,3 +559,34 @@ class UploadedMedicalDocument {
   final String documentName;
 }
 
+class DoctorWorkingSchedule {
+  DoctorWorkingSchedule({
+    required this.scheduleId,
+    required this.dayOfWeek,
+    required this.startTime,
+    required this.endTime,
+    required this.slotDuration,
+    required this.consultationType,
+    required this.available,
+  });
+
+  factory DoctorWorkingSchedule.fromJson(Map<String, dynamic> json) {
+    return DoctorWorkingSchedule(
+      scheduleId: _toInt(json['scheduleId'], 0),
+      dayOfWeek: _toInt(json['dayOfWeek'], 0),
+      startTime: (json['startTime'] ?? '').toString(),
+      endTime: (json['endTime'] ?? '').toString(),
+      slotDuration: _toInt(json['slotDuration'], 30),
+      consultationType: (json['consultationType'] ?? '').toString(),
+      available: json['available'] == true,
+    );
+  }
+
+  final int scheduleId;
+  final int dayOfWeek;
+  final String startTime;
+  final String endTime;
+  final int slotDuration;
+  final String consultationType;
+  final bool available;
+}

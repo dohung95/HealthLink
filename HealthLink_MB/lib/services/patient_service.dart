@@ -136,4 +136,49 @@ class PatientService {
       throw Exception('Failed to load prescriptions: ${res.body}');
     }
   }
+
+  static Future<int> getPrescriptionCount(String token, String patientId) async {
+    final prescriptions = await getPrescriptions(token, patientId);
+    return prescriptions.length;
+  }
+
+  static Future<int> getHealthRecordCount(String token, String patientId) async {
+    final uri = Uri.parse(ApiConfig.myHealthRecords).replace(
+      queryParameters: {
+        'patientId': patientId,
+        'page': '1',
+        'size': '1',
+      },
+    );
+
+    final res = await http.get(
+      uri,
+      headers: {
+        'Accept': 'application/json',
+        'Authorization': 'Bearer $token',
+      },
+    ).timeout(
+      ApiConfig.receiveTimeout,
+      onTimeout: () {
+        throw Exception('Request timed out while loading health records.');
+      },
+    );
+
+    if (res.statusCode != 200) {
+      throw Exception('Failed to load health records: ${res.body}');
+    }
+
+    final data = jsonDecode(utf8.decode(res.bodyBytes));
+
+    if (data is Map<String, dynamic>) {
+      final totalItems = data['totalItems'];
+
+      if (totalItems is int) return totalItems;
+      if (totalItems is num) return totalItems.toInt();
+
+      return int.tryParse(totalItems?.toString() ?? '') ?? 0;
+    }
+
+    return 0;
+  }
 }
