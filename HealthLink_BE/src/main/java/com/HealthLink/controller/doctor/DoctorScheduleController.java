@@ -1,7 +1,6 @@
 package com.HealthLink.controller.doctor;
 
 import com.HealthLink.dto.doctor.schedule.CalendarDayResponse;
-import com.HealthLink.dto.doctor.schedule.DoctorScheduleExceptionRequest;
 import com.HealthLink.dto.doctor.schedule.DoctorScheduleRequest;
 import com.HealthLink.dto.doctor.schedule.WeeklyScheduleResponse;
 import com.HealthLink.dto.response.DoctorScheduleResponse;
@@ -127,14 +126,6 @@ public class DoctorScheduleController {
     /**
      * Create a schedule exception (DayOff, Modified, AddSlot).
      */
-    @PostMapping("/exceptions")
-    public ResponseEntity<WeeklyScheduleResponse.ExceptionItem> createException(
-            @Valid @RequestBody DoctorScheduleExceptionRequest request,
-            @AuthenticationPrincipal UserDetails userDetails) {
-        String doctorId = resolveDoctorId(userDetails);
-        return ResponseEntity.ok(scheduleService.createException(doctorId, request));
-    }
-
     /**
      * Delete an exception. Cannot delete admin-created exceptions.
      */

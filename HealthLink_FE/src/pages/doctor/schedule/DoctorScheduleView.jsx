@@ -4,7 +4,6 @@ import { doctorScheduleService } from '@api/doctorApi';
 import { doctorComplianceService } from '@api/complianceApi';
 import WeeklyScheduleBuilder from '@components/doctor/WeeklyScheduleBuilder';
 import ScheduleCalendarView from '@components/doctor/ScheduleCalendarView';
-import ScheduleExceptionModal from '@components/doctor/ScheduleExceptionModal';
 import '@components/Css/doctor/doctor-dashboard/doctor-dashboard.css';
 import ComplianceStatusBanner from '@components/doctor/ComplianceStatusBanner';
 import ComplianceWarningModal from '@components/doctor/ComplianceWarningModal';
@@ -14,8 +13,6 @@ const DoctorScheduleView = () => {
   const [scheduleData, setScheduleData] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
-  const [showExceptionModal, setShowExceptionModal] = useState(false);
-  const [selectedDate, setSelectedDate] = useState(null);
   const [showComplianceModal, setShowComplianceModal] = useState(false);
   const [complianceResult, setComplianceResult] = useState(null);
   const [complianceKey, setComplianceKey] = useState(0);
@@ -42,18 +39,6 @@ const DoctorScheduleView = () => {
   const refreshSchedule = () => {
     fetchSchedule();
     setComplianceKey((current) => current + 1);
-  };
-
-  const handleCreateException = (date) => {
-    setSelectedDate(date);
-    setShowExceptionModal(true);
-  };
-
-  const handleExceptionSuccess = () => {
-    setShowExceptionModal(false);
-    setSelectedDate(null);
-    refreshSchedule();
-    toast.success('Exception created successfully');
   };
 
   const handleValidateCompliance = async () => {
@@ -112,14 +97,6 @@ const DoctorScheduleView = () => {
             Calendar View
           </button>
         </div>
-        <button
-          className="btn btn-primary btn-sm d-flex align-items-center gap-1 shadow-sm"
-          onClick={() => handleCreateException(new Date())}
-          type="button"
-        >
-          <span className="material-symbols-outlined" style={{fontSize:'1rem'}}>add_circle</span>
-          Add Exception
-        </button>
       </div>
 
       <ComplianceStatusBanner key={complianceKey} onValidateClick={handleValidateCompliance} />
@@ -129,20 +106,9 @@ const DoctorScheduleView = () => {
       ) : (
         <ScheduleCalendarView
           exceptions={scheduleData?.exceptions || []}
-          onCreateException={handleCreateException}
           onRefresh={refreshSchedule}
         />
       )}
-
-      <ScheduleExceptionModal
-        isOpen={showExceptionModal}
-        onClose={() => {
-          setShowExceptionModal(false);
-          setSelectedDate(null);
-        }}
-        selectedDate={selectedDate}
-        onSuccess={handleExceptionSuccess}
-      />
 
       <ComplianceWarningModal
         isOpen={showComplianceModal}

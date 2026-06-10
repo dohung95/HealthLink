@@ -174,14 +174,6 @@ export const doctorScheduleService = {
   },
 
   /**
-   * Create a schedule exception (DayOff, Modified, AddSlot)
-   */
-  createException: async (data) => {
-    const response = await axiosInstance.post('/api/doctors/schedule/exceptions', data);
-    return response.data;
-  },
-
-  /**
    * Delete an exception (cannot delete admin-created)
    */
   deleteException: async (exceptionId) => {

@@ -1,7 +1,6 @@
 package com.HealthLink.service.doctor;
 
 import com.HealthLink.dto.doctor.schedule.CalendarDayResponse;
-import com.HealthLink.dto.doctor.schedule.DoctorScheduleExceptionRequest;
 import com.HealthLink.dto.doctor.schedule.DoctorScheduleRequest;
 import com.HealthLink.dto.doctor.schedule.WeeklyScheduleResponse;
 import com.HealthLink.dto.response.DoctorScheduleResponse;
@@ -43,12 +42,6 @@ public interface DoctorScheduleService {
      * Get exceptions in date range.
      */
     List<WeeklyScheduleResponse.ExceptionItem> getMyExceptions(String doctorId, LocalDate startDate, LocalDate endDate);
-
-    /**
-     * Create a schedule exception (DayOff, Modified, AddSlot).
-     * Notifies affected patients if DayOff.
-     */
-    WeeklyScheduleResponse.ExceptionItem createException(String doctorId, DoctorScheduleExceptionRequest request);
 
     /**
      * Delete an exception. Cannot delete admin-created exceptions.

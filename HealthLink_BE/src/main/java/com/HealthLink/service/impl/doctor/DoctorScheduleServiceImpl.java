@@ -1,7 +1,6 @@
 package com.HealthLink.service.impl.doctor;
 
 import com.HealthLink.dto.doctor.schedule.CalendarDayResponse;
-import com.HealthLink.dto.doctor.schedule.DoctorScheduleExceptionRequest;
 import com.HealthLink.dto.doctor.schedule.DoctorScheduleRequest;
 import com.HealthLink.dto.doctor.schedule.WeeklyScheduleResponse;
 import com.HealthLink.dto.response.DoctorScheduleResponse;
@@ -171,39 +170,6 @@ public class DoctorScheduleServiceImpl implements DoctorScheduleService {
     }
 
     @Override
-    public WeeklyScheduleResponse.ExceptionItem createException(String doctorId, DoctorScheduleExceptionRequest request) {
-        Doctor doctor = findDoctor(doctorId);
-        validateExceptionRequest(request);
-
-        // Check for existing exception on same date
-        exceptionRepository.findByDoctor_DoctorIdAndExceptionDate(doctorId, request.getExceptionDate())
-                .ifPresent(existing -> {
-                    throw new BadRequestException("An exception already exists for " + request.getExceptionDate() + ". Delete it first.");
-                });
-
-        // If DayOff, notify affected patients
-        if ("DayOff".equals(request.getExceptionType())) {
-            notifyAffectedPatients(doctor, request.getExceptionDate(), request.getReason());
-        }
-
-        DoctorScheduleException exception = DoctorScheduleException.builder()
-                .doctor(doctor)
-                .exceptionDate(request.getExceptionDate())
-                .exceptionType(request.getExceptionType())
-                .startTime(request.getStartTime())
-                .endTime(request.getEndTime())
-                .reason(request.getReason()) // No [Admin] prefix for doctor-created
-                .recurring(request.isRecurring())
-                .recurringUntil(request.getRecurringUntil())
-                .build();
-
-        DoctorScheduleException saved = exceptionRepository.save(exception);
-        log.info("Doctor {} created {} exception on {}", doctorId, request.getExceptionType(), request.getExceptionDate());
-
-        return mapExceptionToItem(saved);
-    }
-
-    @Override
     public void deleteException(String doctorId, Integer exceptionId) {
         DoctorScheduleException exception = exceptionRepository.findById(exceptionId)
                 .orElseThrow(() -> new ResourceNotFoundException("Schedule Exception", "id", exceptionId.toString()));
@@ -268,26 +234,6 @@ public class DoctorScheduleServiceImpl implements DoctorScheduleService {
         }
     }
 
-    private void validateExceptionRequest(DoctorScheduleExceptionRequest request) {
-        String type = request.getExceptionType();
-        if (!List.of("DayOff", "Modified", "AddSlot").contains(type)) {
-            throw new BadRequestException("Exception type must be DayOff, Modified, or AddSlot");
-        }
-
-        if (("Modified".equals(type) || "AddSlot".equals(type))
-                && (request.getStartTime() == null || request.getEndTime() == null)) {
-            throw new BadRequestException("Start time and end time are required for Modified/AddSlot exceptions");
-        }
-
-        if (request.getStartTime() != null && request.getEndTime() != null
-                && request.getStartTime().isAfter(request.getEndTime())) {
-            throw new BadRequestException("Start time must be before end time");
-        }
-
-        if (request.getExceptionDate().isBefore(LocalDate.now())) {
-            throw new BadRequestException("Exception date cannot be in the past");
-        }
-    }
 
     private void notifyAffectedPatients(Doctor doctor, LocalDate date, String reason) {
         LocalDateTime dayStart = date.atStartOfDay();
