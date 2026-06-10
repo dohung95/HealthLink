@@ -31,11 +31,23 @@ class _MainLayoutState extends State<MainLayout> {
     });
   }
 
+  void _openAppointmentsTab() {
+    final appointmentIndex = TabMenu.defaultItems.indexWhere(
+          (item) => item.label == 'Appointments',
+    );
+
+    if (appointmentIndex != -1) {
+      _onTabChanged(appointmentIndex);
+    }
+  }
+
   /// Ánh xạ Label của Tab sang màn hình tương ứng
   Widget _getScreenForLabel(String label) {
     switch (label) {
       case 'Home':
-        return const PatientHomeScreen();
+        return PatientHomeScreen(
+          onOpenAppointments: _openAppointmentsTab,
+        );
 
       case 'Chat':
         return const MessagesScreen();
@@ -75,11 +87,8 @@ class _MainLayoutState extends State<MainLayout> {
   Widget build(BuildContext context) {
     final bool isDesktop = MediaQuery.of(context).size.width >= 768;
 
-    // Dùng IndexedStack để giữ trạng thái (state) của các màn hình khi chuyển đổi
-    final bodyContent = IndexedStack(
-      index: _currentIndex,
-      children: TabMenu.defaultItems.map((item) => _getScreenForLabel(item.label)).toList(),
-    );
+    final currentLabel = TabMenu.defaultItems[_currentIndex].label;
+    final bodyContent = _getScreenForLabel(currentLabel);
 
     return Scaffold(
       backgroundColor: Theme.of(context).colorScheme.surface,
@@ -97,9 +106,9 @@ class _MainLayoutState extends State<MainLayout> {
       bottomNavigationBar: isDesktop
           ? null
           : MobileTabMenu(
-              currentIndex: _currentIndex,
-              onTabChanged: _onTabChanged,
-            ),
+        currentIndex: _currentIndex,
+        onTabChanged: _onTabChanged,
+      ),
     );
   }
 }

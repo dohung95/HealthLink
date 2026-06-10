@@ -48,6 +48,7 @@ dependencies:
   url_launcher: ^6.3.2
   stomp_dart_client: ^3.0.1
   flutter_ringtone_player: ^4.0.0+4
+  app_links: ^7.0.0
 
 dev_dependencies:
   flutter_test:
