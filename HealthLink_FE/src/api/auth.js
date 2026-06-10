@@ -74,7 +74,7 @@ export async function refreshAccessToken(refreshToken) {
  * Backend nhận Authorization header, không nhận body.
  */
 export async function logout() {
-    const token = localStorage.getItem('token');
+    const token = localStorage.getItem('token') || sessionStorage.getItem('token');
     if (!token) return true;
     try {
         await axios.post(`${API_URL}/logout`, null, {
@@ -125,7 +125,7 @@ export async function resetPassword(token, newPassword) {
 export function setupAxiosInterceptors() {
     axios.interceptors.request.use(
         (config) => {
-            const token = localStorage.getItem('token');
+            const token = localStorage.getItem('token') || sessionStorage.getItem('token');
             if (token) {
                 config.headers.Authorization = `Bearer ${token}`;
             }
@@ -142,20 +142,24 @@ export function setupAxiosInterceptors() {
             // Nếu là lỗi 401 và KHÔNG PHẢI là request thuộc /auth/ (login, register, refresh...)
             if (error.response?.status === 401 && !originalRequest.url.includes('/auth/') && !originalRequest._retry) {
                 originalRequest._retry = true;
-                const storedRefreshToken = localStorage.getItem('refreshToken');
+                const isSession = !!sessionStorage.getItem('refreshToken');
+                const storedRefreshToken = localStorage.getItem('refreshToken') || sessionStorage.getItem('refreshToken');
 
                 if (storedRefreshToken) {
                     try {
                         const newTokens = await refreshAccessToken(storedRefreshToken);
                         if (newTokens) {
-                            localStorage.setItem('token', newTokens.accessToken);
-                            localStorage.setItem('refreshToken', newTokens.refreshToken);
+                            const storage = isSession ? sessionStorage : localStorage;
+                            storage.setItem('token', newTokens.accessToken);
+                            storage.setItem('refreshToken', newTokens.refreshToken);
                             originalRequest.headers.Authorization = `Bearer ${newTokens.accessToken}`;
                             return axios(originalRequest);
                         }
                     } catch {
                         localStorage.removeItem('token');
                         localStorage.removeItem('refreshToken');
+                        sessionStorage.removeItem('token');
+                        sessionStorage.removeItem('refreshToken');
                         window.location.href = '/login';
                     }
                 }

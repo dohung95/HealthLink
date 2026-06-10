@@ -21,11 +21,15 @@ class _PatientHomeScreenState extends State<PatientHomeScreen> {
       children: [
         _buildHeader(isDesktop),
         Expanded(
-          child: SingleChildScrollView(
-            padding: EdgeInsets.symmetric(
-              horizontal: isDesktop ? 24.0 : 16.0,
-              vertical: 16.0,
-            ),
+          child: RefreshIndicator(
+            color: Theme.of(context).colorScheme.primary,
+            onRefresh: () => context.read<AuthProvider>().fetchProfile(),
+            child: SingleChildScrollView(
+              physics: const AlwaysScrollableScrollPhysics(),
+              padding: EdgeInsets.symmetric(
+                horizontal: isDesktop ? 24.0 : 16.0,
+                vertical: 16.0,
+              ),
             child: Container(
               constraints: const BoxConstraints(maxWidth: 1280),
               child: Column(
@@ -40,6 +44,7 @@ class _PatientHomeScreenState extends State<PatientHomeScreen> {
               ),
             ),
           ),
+        ),
         ),
       ],
     );
@@ -63,16 +68,21 @@ class _PatientHomeScreenState extends State<PatientHomeScreen> {
           children: [
             Row(
               children: [
-                Container(
-                  width: isDesktop ? 48 : 40,
-                  height: isDesktop ? 48 : 40,
-                  decoration: BoxDecoration(
-                    shape: BoxShape.circle,
-                    border: Border.all(color: Theme.of(context).colorScheme.outlineVariant),
-                  ),
-                  child: ClipRRect(
-                    borderRadius: BorderRadius.circular(100),
-                    child: _buildAvatarWidget(context, isDesktop),
+                GestureDetector(
+                  onTap: () {
+                    Scaffold.of(context).openDrawer();
+                  },
+                  child: Container(
+                    width: isDesktop ? 48 : 40,
+                    height: isDesktop ? 48 : 40,
+                    decoration: BoxDecoration(
+                      shape: BoxShape.circle,
+                      border: Border.all(color: Theme.of(context).colorScheme.outlineVariant),
+                    ),
+                    child: ClipRRect(
+                      borderRadius: BorderRadius.circular(100),
+                      child: _buildAvatarWidget(context, isDesktop),
+                    ),
                   ),
                 ),
                 const SizedBox(width: 12),
@@ -88,7 +98,7 @@ class _PatientHomeScreenState extends State<PatientHomeScreen> {
                       ),
                     ),
                     Text(
-                      context.watch<AuthProvider>().displayName ?? 'Người dùng',
+                      context.watch<AuthProvider>().displayName ?? 'User',
                       style: TextStyle(
                         fontFamily: 'Inter',
                         fontSize: isDesktop ? 24 : 20,

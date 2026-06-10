@@ -1,8 +1,10 @@
 package com.HealthLink.controller.admin;
 
+import com.HealthLink.dto.ai.ScreeningResult;
 import com.HealthLink.dto.registration.ApproveRejectRequest;
 import com.HealthLink.dto.registration.RegistrationPageResponse;
 import com.HealthLink.dto.registration.RegistrationRequestResponse;
+import com.HealthLink.service.ai.AIScreeningService;
 import com.HealthLink.service.registration.RegistrationService;
 
 import jakarta.validation.Valid;
@@ -12,6 +14,8 @@ import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.core.Authentication;
 import org.springframework.web.bind.annotation.*;
 
+import java.util.Map;
+
 @CrossOrigin(origins = {"http://localhost:5173", "http://localhost:63527"})
 @RestController
 @RequestMapping("/api/admin/registrations")
@@ -20,6 +24,7 @@ import org.springframework.web.bind.annotation.*;
 public class AdminRegistrationController {
 
     private final RegistrationService registrationService;
+    private final AIScreeningService aiScreeningService;
 
     @GetMapping
     public ResponseEntity<RegistrationPageResponse> getRegistrations(
@@ -63,5 +68,42 @@ public class AdminRegistrationController {
             Authentication authentication
     ) {
         return reviewRegistration(requestId, request, authentication);
+    }
+
+    /**
+     * Get AI screening details for a registration
+     */
+    @GetMapping("/{requestId}/screening")
+    public ResponseEntity<ScreeningResult> getScreeningDetails(
+            @PathVariable Long requestId
+    ) {
+        ScreeningResult result = aiScreeningService.screenRegistration(requestId);
+        return ResponseEntity.ok(result);
+    }
+
+    /**
+     * Trigger AI re-scan for a registration
+     */
+    @PostMapping("/{requestId}/screening/rescan")
+    public ResponseEntity<ScreeningResult> rescanRegistration(
+            @PathVariable Long requestId
+    ) {
+        ScreeningResult result = aiScreeningService.rescanRegistration(requestId);
+        return ResponseEntity.ok(result);
+    }
+
+    /**
+     * Override AI decision (admin can approve despite AI rejection)
+     */
+    @PutMapping("/{requestId}/screening/override")
+    public ResponseEntity<Map<String, String>> overrideAIDecision(
+            @PathVariable Long requestId,
+            @RequestBody Map<String, String> body,
+            Authentication authentication
+    ) {
+        String adminId = authentication != null ? authentication.getName() : "unknown";
+        String reason = body.getOrDefault("reason", "Admin override");
+        aiScreeningService.overrideAIDecision(requestId, adminId, reason);
+        return ResponseEntity.ok(Map.of("message", "AI decision overridden successfully"));
     }
 }

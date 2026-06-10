@@ -8,6 +8,8 @@ import axiosInstance from './axiosConfig';
 
 const BASE = 'http://localhost:8096/api/chat';
 
+const getToken = () => localStorage.getItem('token') || sessionStorage.getItem('token');
+
 /**
  * Tạo mới hoặc lấy phòng chat 1-1 giữa người dùng hiện tại và đối phương.
  * user1Id được lấy tự động từ JWT ở backend – không cần truyền từ FE.
@@ -17,7 +19,7 @@ const BASE = 'http://localhost:8096/api/chat';
  * @returns {Promise<ChatRoomDTO>}
  */
 export async function getOrCreateRoom(partnerId, appointmentId = null) {
-    const token = localStorage.getItem('token');
+    const token = getToken();
     const body = { user2Id: partnerId };
     if (appointmentId) body.appointmentId = appointmentId;
 
@@ -40,7 +42,7 @@ export async function getOrCreateRoom(partnerId, appointmentId = null) {
  * @returns {Promise<ChatRoomDTO[]>}
  */
 export async function getMyRooms() {
-    const token = localStorage.getItem('token');
+    const token = getToken();
     const res = await fetch(`${BASE}/rooms/me`, {
         headers: { 'Authorization': `Bearer ${token}` },
     });
@@ -55,7 +57,7 @@ export async function getMyRooms() {
  * @returns {Promise<MessageDTO[]>}
  */
 export async function getRoomMessages(chatRoomId) {
-    const token = localStorage.getItem('token');
+    const token = getToken();
     const res = await fetch(`${BASE}/rooms/${chatRoomId}/messages`, {
         headers: { 'Authorization': `Bearer ${token}` },
     });
@@ -75,7 +77,7 @@ export async function getRoomMessages(chatRoomId) {
  * @returns {Promise<MessageDTO>}
  */
 export async function sendMessage(request) {
-    const token = localStorage.getItem('token');
+    const token = getToken();
     const res = await fetch(`${BASE}/messages`, {
         method: 'POST',
         headers: {
@@ -95,7 +97,7 @@ export async function sendMessage(request) {
  * @returns {Promise<{updated: number}>}
  */
 export async function markAsRead(chatRoomId) {
-    const token = localStorage.getItem('token');
+    const token = getToken();
     const res = await fetch(`${BASE}/rooms/${chatRoomId}/read`, {
         method: 'PATCH',
         headers: { 'Authorization': `Bearer ${token}` },
@@ -113,7 +115,7 @@ export async function markAsRead(chatRoomId) {
  * @returns {Promise<{url: string}>}
  */
 export async function uploadMedia(chatRoomId, type, file) {
-    const token = localStorage.getItem('token');
+    const token = getToken();
     const formData = new FormData();
     formData.append('chatRoomId', chatRoomId);
     formData.append('type', type);

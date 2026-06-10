@@ -1,4 +1,7 @@
 import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
+import '../providers/auth_provider.dart';
+import '../services/patient_service.dart';
 
 class PrescriptionsScreen extends StatefulWidget {
   const PrescriptionsScreen({super.key});
@@ -15,6 +18,68 @@ class _PrescriptionsScreenState extends State<PrescriptionsScreen> {
   String _selectedFilter = 'All';
   final List<String> _filters = ['All', 'Active', 'Completed'];
 
+  bool _isLoading = true;
+  String _errorMessage = '';
+  List<dynamic> _prescriptions = [];
+
+  @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      _fetchPrescriptions();
+    });
+  }
+
+  Future<void> _fetchPrescriptions() async {
+    if (!mounted) return;
+    setState(() {
+      _isLoading = true;
+      _errorMessage = '';
+    });
+    try {
+      final authProvider = context.read<AuthProvider>();
+      final token = authProvider.accessToken ?? '';
+      final patientId = authProvider.userId ?? '';
+
+      if (token.isEmpty || patientId.isEmpty) {
+        throw Exception('User is not logged in');
+      }
+
+      final data = await PatientService.getPrescriptions(token, patientId);
+      if (mounted) {
+        setState(() {
+          _prescriptions = data;
+          _isLoading = false;
+        });
+      }
+    } catch (e) {
+      if (mounted) {
+        setState(() {
+          _errorMessage = e.toString().replaceAll('Exception: ', '');
+          _isLoading = false;
+        });
+      }
+    }
+  }
+
+  String _formatDate(dynamic issueDate) {
+    if (issueDate == null) return 'N/A';
+    if (issueDate is String) {
+      try {
+        final dt = DateTime.parse(issueDate);
+        return '${dt.day.toString().padLeft(2, '0')}/${dt.month.toString().padLeft(2, '0')}/${dt.year}';
+      } catch (_) {
+        return issueDate;
+      }
+    } else if (issueDate is List && issueDate.length >= 3) {
+      final year = issueDate[0];
+      final month = issueDate[1].toString().padLeft(2, '0');
+      final day = issueDate[2].toString().padLeft(2, '0');
+      return '$day/$month/$year';
+    }
+    return issueDate.toString();
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -25,8 +90,12 @@ class _PrescriptionsScreenState extends State<PrescriptionsScreen> {
           children: [
             _buildAppBar(),
             Expanded(
-              child: SingleChildScrollView(
-                padding: const EdgeInsets.only(left: 16, right: 16, top: 24, bottom: 96), // pb-24
+              child: RefreshIndicator(
+                color: Theme.of(context).colorScheme.primary,
+                onRefresh: _fetchPrescriptions,
+                child: SingleChildScrollView(
+                  physics: const AlwaysScrollableScrollPhysics(),
+                  padding: const EdgeInsets.only(left: 16, right: 16, top: 24, bottom: 96), // pb-24
                 child: Center(
                   child: Container(
                     constraints: const BoxConstraints(maxWidth: 768), // max-w-3xl
@@ -88,6 +157,7 @@ class _PrescriptionsScreenState extends State<PrescriptionsScreen> {
                   ),
                 ),
               ),
+              ),
             ),
           ],
         ),
@@ -97,6 +167,10 @@ class _PrescriptionsScreenState extends State<PrescriptionsScreen> {
 
   // --- 1. Top App Bar ---
   Widget _buildAppBar() {
+    final authProvider = context.watch<AuthProvider>();
+    final profile = authProvider.patientProfile ?? {};
+    final avatarUrl = profile['avatarUrl']?.toString();
+
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
       color: Theme.of(context).colorScheme.surface, // surface-bright
@@ -105,20 +179,27 @@ class _PrescriptionsScreenState extends State<PrescriptionsScreen> {
         children: [
           Row(
             children: [
-              Container(
-                width: 40,
-                height: 40,
-                decoration: BoxDecoration(
-                  shape: BoxShape.circle,
-                  color: Theme.of(context).colorScheme.surfaceVariant,
-                ),
-                child: ClipRRect(
-                  borderRadius: BorderRadius.circular(20),
-                  child: Image.asset(
-                    'assets/images/user_avatar.png',
-                    fit: BoxFit.cover,
-                    errorBuilder: (context, error, stackTrace) =>
-                        Icon(Icons.person, color: Theme.of(context).colorScheme.onSurfaceVariant),
+              GestureDetector(
+                onTap: () {
+                  Scaffold.of(context).openDrawer();
+                },
+                child: Container(
+                  width: 40,
+                  height: 40,
+                  decoration: BoxDecoration(
+                    shape: BoxShape.circle,
+                    color: Theme.of(context).colorScheme.surfaceVariant,
+                  ),
+                  child: ClipRRect(
+                    borderRadius: BorderRadius.circular(20),
+                    child: avatarUrl != null && avatarUrl.isNotEmpty
+                        ? Image.network(
+                            avatarUrl,
+                            fit: BoxFit.cover,
+                            errorBuilder: (context, error, stackTrace) =>
+                                Icon(Icons.person, color: Theme.of(context).colorScheme.onSurfaceVariant),
+                          )
+                        : Icon(Icons.person, color: Theme.of(context).colorScheme.onSurfaceVariant),
                   ),
                 ),
               ),
@@ -189,38 +270,51 @@ class _PrescriptionsScreenState extends State<PrescriptionsScreen> {
 
   // --- 3. Dữ liệu các Card Đơn thuốc ---
   List<Widget> _buildPrescriptionCards() {
-    return [
-      _buildPrescriptionCard(
-        doctorName: 'Dr. Nguyễn Văn A',
-        specialty: 'Internal Medicine',
-        status: 'Active',
-        date: '15/10/2023',
-        condition: 'Acute Pharyngitis',
-        medCount: 3,
-        isActive: true,
-        onTap: () => _showPrescriptionDetailsModal(context),
-      ),
-      _buildPrescriptionCard(
-        doctorName: 'Dr. Trần Thị B',
-        specialty: 'Dermatology',
-        status: 'Finished',
-        date: '02/09/2023',
-        condition: 'Atopic Dermatitis',
-        medCount: 2,
-        isActive: false,
-        onTap: () {}, // Gọi hàm modal tương ứng nếu có
-      ),
-      _buildPrescriptionCard(
-        doctorName: 'Dr. Lê Văn C',
-        specialty: 'Gastroenterology',
-        status: 'Finished',
-        date: '10/08/2023',
-        condition: 'Acid Reflux',
-        medCount: 4,
-        isActive: false,
-        onTap: () {},
-      ),
-    ];
+    if (_isLoading) {
+      return [const Center(child: Padding(padding: EdgeInsets.all(32.0), child: CircularProgressIndicator()))];
+    }
+    if (_errorMessage.isNotEmpty) {
+      return [
+        Center(
+          child: Padding(
+            padding: const EdgeInsets.all(32.0),
+            child: Text(_errorMessage, style: TextStyle(color: Theme.of(context).colorScheme.error)),
+          ),
+        )
+      ];
+    }
+    if (_prescriptions.isEmpty) {
+      return [const Center(child: Padding(padding: EdgeInsets.all(32.0), child: Text('No prescriptions found.')))];
+    }
+
+    final filtered = _prescriptions.where((p) {
+      if (_selectedFilter == 'All') return true;
+      final status = (p['status']?.toString() ?? '').toUpperCase();
+      if (_selectedFilter == 'Active') return status == 'ACTIVE';
+      if (_selectedFilter == 'Completed') return status == 'COMPLETED' || status == 'FINISHED';
+      return true;
+    }).toList();
+
+    if (filtered.isEmpty) {
+      return [const Center(child: Padding(padding: EdgeInsets.all(32.0), child: Text('No prescriptions match the filter.')))];
+    }
+
+    return filtered.map((p) {
+      final status = (p['status']?.toString() ?? 'UNKNOWN').toUpperCase();
+      final isActive = status == 'ACTIVE';
+      final items = p['items'] as List<dynamic>? ?? [];
+
+      return _buildPrescriptionCard(
+        doctorName: p['doctorName']?.toString() ?? 'Unknown Doctor',
+        specialty: 'Prescription', // Not provided by API usually
+        status: status,
+        date: _formatDate(p['issueDate']),
+        condition: p['diagnosis']?.toString() ?? 'N/A',
+        medCount: items.length,
+        isActive: isActive,
+        onTap: () => _showPrescriptionDetailsModal(context, p),
+      );
+    }).toList();
   }
 
   // --- 4. Card Đơn thuốc Item ---
@@ -359,7 +453,11 @@ class _PrescriptionsScreenState extends State<PrescriptionsScreen> {
   }
 
   // --- 5. Modal Chi tiết Đơn thuốc (Bottom Sheet) ---
-  void _showPrescriptionDetailsModal(BuildContext context) {
+  void _showPrescriptionDetailsModal(BuildContext context, Map<String, dynamic> prescription) {
+    final status = (prescription['status']?.toString() ?? 'UNKNOWN').toUpperCase();
+    final isActive = status == 'ACTIVE';
+    final items = prescription['items'] as List<dynamic>? ?? [];
+
     showModalBottomSheet(
       context: context,
       isScrollControlled: true, // Cho phép modal cao tùy chỉnh
@@ -416,89 +514,74 @@ class _PrescriptionsScreenState extends State<PrescriptionsScreen> {
                               children: [
                                 Icon(Icons.local_hospital, color: Theme.of(context).colorScheme.primary),
                                 const SizedBox(width: 8),
-                                Text('Acute Pharyngitis', style: TextStyle(fontFamily: 'Inter', fontSize: 18, fontWeight: FontWeight.w600, color: Theme.of(context).colorScheme.onBackground)),
+                                Expanded(child: Text(prescription['diagnosis']?.toString() ?? 'N/A', style: TextStyle(fontFamily: 'Inter', fontSize: 18, fontWeight: FontWeight.w600, color: Theme.of(context).colorScheme.onBackground))),
                               ],
                             ),
                             const SizedBox(height: 12),
-                            Text('Doctor: Dr. Nguyễn Văn A', style: TextStyle(fontFamily: 'Inter', fontSize: 14, color: Theme.of(context).colorScheme.onSurfaceVariant)),
+                            Text('Doctor: ${prescription['doctorName'] ?? 'Unknown Doctor'}', style: TextStyle(fontFamily: 'Inter', fontSize: 14, color: Theme.of(context).colorScheme.onSurfaceVariant)),
                             const SizedBox(height: 4),
-                            Text('Date: 15/10/2023', style: TextStyle(fontFamily: 'Inter', fontSize: 14, color: Theme.of(context).colorScheme.onSurfaceVariant)),
+                            Text('Date: ${_formatDate(prescription['issueDate'])}', style: TextStyle(fontFamily: 'Inter', fontSize: 14, color: Theme.of(context).colorScheme.onSurfaceVariant)),
+                            if (prescription['notes'] != null && prescription['notes'].toString().isNotEmpty) ...[
+                              const SizedBox(height: 12),
+                              Text('Notes: ${prescription['notes']}', style: TextStyle(fontFamily: 'Inter', fontSize: 14, color: Theme.of(context).colorScheme.onSurfaceVariant, fontStyle: FontStyle.italic)),
+                            ]
                           ],
                         ),
                       ),
                       const SizedBox(height: 16),
 
-                      Text('Medication List (3)', style: TextStyle(fontFamily: 'Inter', fontSize: 18, fontWeight: FontWeight.w600, color: Theme.of(context).colorScheme.onBackground)),
+                      Text('Medication List (${items.length})', style: TextStyle(fontFamily: 'Inter', fontSize: 18, fontWeight: FontWeight.w600, color: Theme.of(context).colorScheme.onBackground)),
                       const SizedBox(height: 12),
 
-                      // Medication 1
-                      _buildMedicationItem(
-                        name: 'Amoxicillin',
-                        dosage: '500mg',
-                        instruction: '1 pill / time - 2 times / day',
-                        note: 'Take after breakfast and dinner',
-                        icon: Icons.medication,
-                        noteColor: Theme.of(context).colorScheme.primary,
-                        noteIcon: Icons.info_outline,
-                      ),
-                      const SizedBox(height: 12),
-
-                      // Medication 2
-                      _buildMedicationItem(
-                        name: 'Prospan Cough Syrup',
-                        dosage: '100ml',
-                        instruction: '5ml / time - 3 times / day',
-                        note: 'Take after meals',
-                        icon: Icons.medication_liquid,
-                        noteColor: Theme.of(context).colorScheme.primary,
-                        noteIcon: Icons.info_outline,
-                      ),
-                      const SizedBox(height: 12),
-
-                      // Medication 3
-                      _buildMedicationItem(
-                        name: 'Paracetamol',
-                        dosage: '500mg',
-                        instruction: '1 pill when fever is over 38.5°C',
-                        note: 'At least 4-6 hours apart',
-                        icon: Icons.medication,
-                        noteColor: Theme.of(context).colorScheme.secondary,
-                        noteIcon: Icons.warning_amber_rounded,
-                      ),
+                      ...items.map((item) {
+                        return Padding(
+                          padding: const EdgeInsets.only(bottom: 12.0),
+                          child: _buildMedicationItem(
+                            name: item['medicationName']?.toString() ?? 'Unknown Medication',
+                            dosage: item['dosage']?.toString() ?? '',
+                            instruction: item['instructions']?.toString() ?? '',
+                            note: item['notes']?.toString() ?? '',
+                            icon: Icons.medication,
+                            noteColor: Theme.of(context).colorScheme.primary,
+                            noteIcon: Icons.info_outline,
+                          ),
+                        );
+                      }).toList(),
                     ],
                   ),
                 ),
               ),
 
               // Sticky Footer Button
-              Container(
-                padding: const EdgeInsets.all(16),
-                decoration: BoxDecoration(
-                  color: Theme.of(context).colorScheme.surface,
-                  border: Border(top: BorderSide(color: Theme.of(context).colorScheme.outlineVariant.withOpacity(0.3))),
-                ),
-                child: SizedBox(
-                  width: double.infinity,
-                  height: 48,
-                  child: ElevatedButton.icon(
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: Theme.of(context).colorScheme.primary,
-                      foregroundColor: Theme.of(context).colorScheme.onPrimary,
-                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-                      elevation: 0,
-                    ),
-                    onPressed: () {
-                      // Xử lý cài đặt nhắc nhở uống thuốc
-                      Navigator.pop(context);
-                    },
-                    icon: const Icon(Icons.alarm_add, size: 20),
-                    label: const Text(
-                      'Set Medication Reminder',
-                      style: TextStyle(fontFamily: 'Inter', fontSize: 16, fontWeight: FontWeight.w600),
+              if (isActive)
+                Container(
+                  padding: const EdgeInsets.all(16),
+                  decoration: BoxDecoration(
+                    color: Theme.of(context).colorScheme.surface,
+                    border: Border(top: BorderSide(color: Theme.of(context).colorScheme.outlineVariant.withOpacity(0.3))),
+                  ),
+                  child: SizedBox(
+                    width: double.infinity,
+                    height: 48,
+                    child: ElevatedButton.icon(
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: Theme.of(context).colorScheme.primary,
+                        foregroundColor: Theme.of(context).colorScheme.onPrimary,
+                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                        elevation: 0,
+                      ),
+                      onPressed: () {
+                        // Xử lý cài đặt nhắc nhở uống thuốc
+                        Navigator.pop(context);
+                      },
+                      icon: const Icon(Icons.alarm_add, size: 20),
+                      label: const Text(
+                        'Set Medication Reminder',
+                        style: TextStyle(fontFamily: 'Inter', fontSize: 16, fontWeight: FontWeight.w600),
+                      ),
                     ),
                   ),
                 ),
-              ),
             ],
           ),
         );
@@ -555,27 +638,29 @@ class _PrescriptionsScreenState extends State<PrescriptionsScreen> {
                 ),
                 const SizedBox(height: 4),
                 Text(instruction, style: TextStyle(fontFamily: 'Inter', fontSize: 14, color: Theme.of(context).colorScheme.onSurfaceVariant)),
-                const SizedBox(height: 8),
-                Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-                  decoration: BoxDecoration(
-                    color: Theme.of(context).colorScheme.surfaceVariant.withOpacity(0.5), // bg-surface-container-low
-                    borderRadius: BorderRadius.circular(6),
-                  ),
-                  child: Row(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      Icon(noteIcon, size: 16, color: noteColor),
-                      const SizedBox(width: 4),
-                      Flexible(
-                        child: Text(
-                          note,
-                          style: TextStyle(fontFamily: 'Inter', fontSize: 11, fontWeight: FontWeight.w600, color: noteColor),
+                if (note.isNotEmpty) ...[
+                  const SizedBox(height: 8),
+                  Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                    decoration: BoxDecoration(
+                      color: Theme.of(context).colorScheme.surfaceVariant.withOpacity(0.5), // bg-surface-container-low
+                      borderRadius: BorderRadius.circular(6),
+                    ),
+                    child: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Icon(noteIcon, size: 16, color: noteColor),
+                        const SizedBox(width: 4),
+                        Flexible(
+                          child: Text(
+                            note,
+                            style: TextStyle(fontFamily: 'Inter', fontSize: 11, fontWeight: FontWeight.w600, color: noteColor),
+                          ),
                         ),
-                      ),
-                    ],
+                      ],
+                    ),
                   ),
-                ),
+                ],
               ],
             ),
           ),

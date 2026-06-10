@@ -19,7 +19,7 @@ export default function PrescriptionViewer({ patientId }) {
     const fetchPrescriptions = async () => {
         try {
             setLoading(true);
-            const token = localStorage.getItem('token');
+            const token = localStorage.getItem('token') || sessionStorage.getItem('token');
             const response = await fetch(`${API_BASE_URL}/api/admin/adminmedicalrecords/patient/${patientId}/prescriptions`, {
                 headers: {
                     'Authorization': `Bearer ${token}`

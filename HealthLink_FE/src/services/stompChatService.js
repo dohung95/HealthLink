@@ -52,7 +52,7 @@ class StompChatService {
             reconnectDelay: 5000,
 
             onConnect: (frame) => {
-                console.log('[STOMP Chat] Successfully connected:', frame.headers['user-name']);
+                console.log('[STOMP Chat] Successfully connected');
                 this.isConnected = true;
 
                 // Đăng ký các subscription đang chờ

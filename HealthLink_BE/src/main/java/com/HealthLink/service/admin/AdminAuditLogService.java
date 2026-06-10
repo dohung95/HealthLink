@@ -179,6 +179,64 @@ public class AdminAuditLogService {
     }
 
     /**
+     * Log AI auto-rejection of registration
+     * This is called when AI screening automatically rejects a registration
+     */
+    public void logAIRejection(
+            String registrationType,
+            Long requestId,
+            String applicantName,
+            String applicantEmail,
+            String rejectionDetails
+    ) {
+        // Get AI System user for audit logging
+        User systemUser = getAISystemUser();
+        if (systemUser == null) {
+            log.error("AI System user not found. Cannot create audit log for AI rejection. RequestId: {}", requestId);
+            return;
+        }
+
+        String targetType = "DOCTOR".equalsIgnoreCase(registrationType)
+                ? AdminAuditLog.TARGET_DOCTOR
+                : AdminAuditLog.TARGET_PHARMACY;
+
+        Map<String, Object> details = new HashMap<>();
+        details.put("requestId", requestId);
+        details.put("registrationType", registrationType);
+        details.put("email", applicantEmail);
+        details.put("aiScreening", true);
+
+        String description = String.format("AI auto-rejected %s registration for '%s'",
+                registrationType.toLowerCase(), applicantName);
+
+        AdminAuditLog auditLog = AdminAuditLog.builder()
+                .category(AdminAuditLog.CATEGORY_REGISTRATION)
+                .actionType(AdminAuditLog.ACTION_AI_REJECTED)
+                .targetType(targetType)
+                .targetId(String.valueOf(requestId))
+                .targetName(applicantName)
+                .adminUser(systemUser)  // Use AI System user instead of null
+                .description(description)
+                .newValue(toJson(details))
+                .reason(rejectionDetails)
+                .ipAddress("AI_SYSTEM")
+                .createdAt(LocalDateTime.now())
+                .build();
+
+        auditLogRepository.save(auditLog);
+        log.info("AI rejection audit log created for requestId:{} - {}", requestId, applicantName);
+    }
+
+    /**
+     * Get AI System user for audit logging
+     * This user is created by SystemUserInitializer on startup
+     */
+    private User getAISystemUser() {
+        return userRepository.findById(com.HealthLink.config.SystemUserInitializer.SYSTEM_USER_ID)
+                .orElse(null);
+    }
+
+    /**
      * Log commission config change (global rate) - backward compatible
      */
     public void logCommissionConfigChange(

@@ -108,27 +108,37 @@ class _MessagesScreenState extends State<MessagesScreen> {
               }
 
               // Danh sách conversation
-              return SingleChildScrollView(
-                padding: EdgeInsets.symmetric(
-                  horizontal: isDesktop ? 32.0 : 16.0,
-                  vertical: isDesktop ? 32.0 : 8.0,
-                ),
-                child: Center(
-                  child: Container(
-                    constraints: const BoxConstraints(maxWidth: 896),
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        _buildSearchBar(),
-                        const SizedBox(height: 24),
-                        ...filtered.map((conv) => Padding(
-                          padding: const EdgeInsets.only(bottom: 12),
-                          child: _buildChatListItem(
-                            conversation: conv,
-                            onTap: () => _openChatRoom(conv),
-                          ),
-                        )),
-                      ],
+              return RefreshIndicator(
+                color: Theme.of(context).colorScheme.primary,
+                onRefresh: () async {
+                  final auth = context.read<AuthProvider>();
+                  if (auth.accessToken != null && auth.userId != null) {
+                    await chat.loadConversations(auth.accessToken!, auth.userId!);
+                  }
+                },
+                child: SingleChildScrollView(
+                  physics: const AlwaysScrollableScrollPhysics(),
+                  padding: EdgeInsets.symmetric(
+                    horizontal: isDesktop ? 32.0 : 16.0,
+                    vertical: isDesktop ? 32.0 : 8.0,
+                  ),
+                  child: Center(
+                    child: Container(
+                      constraints: const BoxConstraints(maxWidth: 896),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          _buildSearchBar(),
+                          const SizedBox(height: 24),
+                          ...filtered.map((conv) => Padding(
+                            padding: const EdgeInsets.only(bottom: 12),
+                            child: _buildChatListItem(
+                              conversation: conv,
+                              onTap: () => _openChatRoom(conv),
+                            ),
+                          )),
+                        ],
+                      ),
                     ),
                   ),
                 ),
@@ -577,17 +587,22 @@ class _MessagesScreenState extends State<MessagesScreen> {
       );
     }
 
-    return Container(
-      width: size,
-      height: size,
-      decoration: BoxDecoration(
-        shape: BoxShape.circle,
-        border: isDesktop ? Border.all(color: Theme.of(context).colorScheme.surface, width: 2) : null,
-        color: Theme.of(context).colorScheme.surfaceContainerHighest,
-      ),
-      child: ClipRRect(
-        borderRadius: BorderRadius.circular(size / 2),
-        child: avatar,
+    return GestureDetector(
+      onTap: () {
+        Scaffold.of(context).openDrawer();
+      },
+      child: Container(
+        width: size,
+        height: size,
+        decoration: BoxDecoration(
+          shape: BoxShape.circle,
+          border: isDesktop ? Border.all(color: Theme.of(context).colorScheme.surface, width: 2) : null,
+          color: Theme.of(context).colorScheme.surfaceContainerHighest,
+        ),
+        child: ClipRRect(
+          borderRadius: BorderRadius.circular(size / 2),
+          child: avatar,
+        ),
       ),
     );
   }

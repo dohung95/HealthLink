@@ -3,6 +3,8 @@ import { useNavigate, Link } from 'react-router-dom';
 import { Modal, Button } from 'react-bootstrap';
 import Loading from '../Loading';
 import registrationService from '../../api/registrationApi';
+import CVImportModal from './CVImportModal';
+import { quickContentCheck } from '../../utils/documentModeration';
 import './Css/PharmacyRegistration.css';
 
 export function PharmacyRegistration() {
@@ -46,6 +48,31 @@ export function PharmacyRegistration() {
     const [avatarPreview, setAvatarPreview] = useState(null);
 
     const [uploadingFiles, setUploadingFiles] = useState(false);
+    const [moderatingFile, setModeratingFile] = useState(null);
+    const [submissionStep, setSubmissionStep] = useState(''); // Track current submission step
+
+    // CV Import Modal state
+    const [showCVImportModal, setShowCVImportModal] = useState(false);
+
+    // Handle CV import data
+    const handleCVImport = (extractedData) => {
+        setFormData(prev => {
+            const newData = { ...prev };
+            // Map pharmacy data fields
+            Object.keys(extractedData).forEach(key => {
+                if (extractedData[key] !== null && extractedData[key] !== undefined && extractedData[key] !== '') {
+                    // Map pharmacyName to name (form uses 'name')
+                    if (key === 'pharmacyName') {
+                        newData.name = extractedData[key];
+                    } else {
+                        newData[key] = extractedData[key];
+                    }
+                }
+            });
+            return newData;
+        });
+        setError('');
+    };
 
     useEffect(() => {
         const timer = setTimeout(() => {
@@ -62,7 +89,7 @@ export function PharmacyRegistration() {
         }));
     };
 
-    const handleAvatarChange = (e) => {
+    const handleAvatarChange = async (e) => {
         const file = e.target.files[0];
         if (file) {
             // Validate file size (max 5MB for avatar)
@@ -76,6 +103,23 @@ export function PharmacyRegistration() {
                 setError('Please upload an image file (JPG, PNG, or WebP)');
                 return;
             }
+
+            // Content moderation
+            setModeratingFile('avatar');
+            try {
+                const result = await quickContentCheck(file);
+                if (!result.safe) {
+                    setError(result.reason || 'This image contains inappropriate content and cannot be uploaded.');
+                    e.target.value = '';
+                    setModeratingFile(null);
+                    return;
+                }
+            } catch (err) {
+                console.error('Moderation error:', err);
+            } finally {
+                setModeratingFile(null);
+            }
+
             setAvatar(file);
             setAvatarPreview(URL.createObjectURL(file));
             setError('');
@@ -90,7 +134,7 @@ export function PharmacyRegistration() {
         setAvatarPreview(null);
     };
 
-    const handleFileChange = (e, documentType) => {
+    const handleFileChange = async (e, documentType) => {
         const file = e.target.files[0];
         if (file) {
             if (file.size > 10 * 1024 * 1024) {
@@ -103,6 +147,29 @@ export function PharmacyRegistration() {
                 setError('File type not allowed. Please upload PDF, JPG, PNG, DOC, or DOCX files.');
                 return;
             }
+
+            // Content moderation for images
+            if (file.type.startsWith('image/')) {
+                setModeratingFile(documentType);
+                setError('');
+                try {
+                    const result = await quickContentCheck(file);
+                    if (!result.safe) {
+                        setError(result.reason || 'This image contains inappropriate content and cannot be uploaded.');
+                        e.target.value = '';
+                        setModeratingFile(null);
+                        return;
+                    }
+                    if (result.warning) {
+                        console.warn('Image warning:', result.reason);
+                    }
+                } catch (err) {
+                    console.error('Moderation error:', err);
+                } finally {
+                    setModeratingFile(null);
+                }
+            }
+
             setDocuments(prev => ({
                 ...prev,
                 [documentType]: file
@@ -206,6 +273,7 @@ export function PharmacyRegistration() {
         }
 
         setSubmitting(true);
+        setSubmissionStep('submitting');
 
         try {
             const submitData = {
@@ -224,18 +292,25 @@ export function PharmacyRegistration() {
 
             if (hasDocuments && response.requestId) {
                 setUploadingFiles(true);
+                setSubmissionStep('uploading');
                 try {
                     await uploadDocuments(response.requestId);
+                    // After upload, AI screening will start automatically
+                    setSubmissionStep('verifying');
+                    // Small delay to show verifying message
+                    await new Promise(resolve => setTimeout(resolve, 1500));
                 } catch (uploadErr) {
                     console.error('Error uploading documents:', uploadErr);
                 }
                 setUploadingFiles(false);
             }
 
+            setSubmissionStep('complete');
             setShowSuccessModal(true);
         } catch (err) {
             const errorMsg = err.response?.data?.message || err.response?.data || 'Registration failed. Please try again.';
             setError(typeof errorMsg === 'string' ? errorMsg : 'Registration failed. Please try again.');
+            setSubmissionStep('');
         } finally {
             setSubmitting(false);
             setUploadingFiles(false);
@@ -253,6 +328,65 @@ export function PharmacyRegistration() {
 
     return (
         <>
+            {/* Submission Loading Overlay */}
+            {(submitting || uploadingFiles) && (
+                <div className="submission-overlay">
+                    <div className="submission-modal">
+                        <div className="submission-spinner"></div>
+                        <h3>
+                            {submissionStep === 'submitting' && 'Submitting Registration'}
+                            {submissionStep === 'uploading' && 'Uploading Documents'}
+                            {submissionStep === 'verifying' && 'AI Verification in Progress'}
+                            {submissionStep === 'complete' && 'Almost Done!'}
+                        </h3>
+                        <p className="submission-message">
+                            {submissionStep === 'submitting' && 'Please wait while we process your registration...'}
+                            {submissionStep === 'uploading' && 'Uploading your documents securely. This may take a moment...'}
+                            {submissionStep === 'verifying' && 'Our AI is reviewing your documents for verification...'}
+                            {submissionStep === 'complete' && 'Your registration has been submitted successfully!'}
+                        </p>
+                        <div className="submission-steps">
+                            <div className={`step ${submissionStep === 'submitting' ? 'active' : ''} ${['uploading', 'verifying', 'complete'].includes(submissionStep) ? 'completed' : ''}`}>
+                                <div className="step-icon">
+                                    {['uploading', 'verifying', 'complete'].includes(submissionStep) ? (
+                                        <i className="bi bi-check-lg"></i>
+                                    ) : (
+                                        <i className="bi bi-building"></i>
+                                    )}
+                                </div>
+                                <span>Submit Info</span>
+                            </div>
+                            <div className="step-line"></div>
+                            <div className={`step ${submissionStep === 'uploading' ? 'active' : ''} ${['verifying', 'complete'].includes(submissionStep) ? 'completed' : ''}`}>
+                                <div className="step-icon">
+                                    {['verifying', 'complete'].includes(submissionStep) ? (
+                                        <i className="bi bi-check-lg"></i>
+                                    ) : (
+                                        <i className="bi bi-cloud-upload"></i>
+                                    )}
+                                </div>
+                                <span>Upload Files</span>
+                            </div>
+                            <div className="step-line"></div>
+                            <div className={`step ${submissionStep === 'verifying' ? 'active' : ''} ${submissionStep === 'complete' ? 'completed' : ''}`}>
+                                <div className="step-icon">
+                                    {submissionStep === 'complete' ? (
+                                        <i className="bi bi-check-lg"></i>
+                                    ) : (
+                                        <i className="bi bi-robot"></i>
+                                    )}
+                                </div>
+                                <span>AI Review</span>
+                            </div>
+                        </div>
+                        <p className="submission-note">
+                            <i className="bi bi-info-circle"></i>
+                            Please do not close this page or navigate away
+                        </p>
+                    </div>
+                </div>
+            )}
+
             <div className="pharmacy-registration-bg">
                 <div className="pharmacy-registration-container">
                     <div className="form-header">
@@ -271,6 +405,23 @@ export function PharmacyRegistration() {
                     )}
 
                     <form onSubmit={handleSubmit} noValidate>
+                        {/* Document Import Section */}
+                        <div className="form-section cv-import-section">
+                            <h3><i className="bi bi-file-text"></i> Quick Fill</h3>
+                            <p className="section-description">
+                                Upload documents to auto-fill the form (PDF, DOCX, or image)
+                            </p>
+                            <button
+                                type="button"
+                                className="cv-import-btn"
+                                onClick={() => setShowCVImportModal(true)}
+                                disabled={submitting}
+                            >
+                                <i className="bi bi-upload"></i>
+                                Upload Document
+                            </button>
+                        </div>
+
                         {/* Profile Photo */}
                         <div className="form-section">
                             <h3><i className="bi bi-image"></i> Profile Photo</h3>
@@ -837,6 +988,14 @@ export function PharmacyRegistration() {
                     </Button>
                 </Modal.Footer>
             </Modal>
+
+            {/* CV Import Modal */}
+            <CVImportModal
+                show={showCVImportModal}
+                onHide={() => setShowCVImportModal(false)}
+                onImport={handleCVImport}
+                type="pharmacy"
+            />
         </>
     );
 }

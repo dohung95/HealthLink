@@ -6,6 +6,8 @@ import 'providers/chat_provider.dart';
 import 'screens/welcome_screen.dart';
 import 'screens/main_layout.dart';
 
+final GlobalKey<NavigatorState> navigatorKey = GlobalKey<NavigatorState>();
+
 Future<void> main() async {
   // Đảm bảo Flutter binding sẵn sàng trước khi gọi SharedPreferences
   WidgetsFlutterBinding.ensureInitialized();
@@ -36,6 +38,7 @@ class HealthLinkApp extends StatelessWidget {
       theme: HealthLinkTheme.lightTheme,
       darkTheme: HealthLinkTheme.darkTheme,
       themeMode: ThemeMode.system,
+      navigatorKey: navigatorKey,
       home: const _RootRouter(),
     );
   }

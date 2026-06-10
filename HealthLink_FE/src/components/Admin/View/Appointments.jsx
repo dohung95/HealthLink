@@ -278,32 +278,39 @@ export default function Appointments() {
     });
     setShowReassignModal(true);
 
-    // Fetch doctors - first try same specialty, then fallback to all active doctors
+    // Fetch doctors available on the appointment date
     try {
       setLoadingDoctors(true);
 
-      // First try: Same specialty
-      let response = await doctorsApi.getAll({
-        pageSize: 100,
-        status: 'Active',
-        specialty: appointment.department
-      });
+      // Extract date from appointment (rawDate format: yyyy-MM-dd)
+      const appointmentDate = appointment.rawDate;
 
-      let filtered = (response.doctors || []).filter(d => d.doctorID !== appointment.doctorId);
-
-      // Fallback: If no doctors found with same specialty, get all active doctors
-      if (filtered.length === 0) {
-        console.log('No doctors found with same specialty, fetching all active doctors...');
-        response = await doctorsApi.getAll({
-          pageSize: 100,
-          status: 'Active'
-        });
-        filtered = (response.doctors || []).filter(d => d.doctorID !== appointment.doctorId);
+      if (!appointmentDate) {
+        console.error('No appointment date found');
+        showToast({ title: 'Error', message: 'Could not determine appointment date', type: 'error' });
+        return;
       }
 
-      setAvailableDoctors(filtered);
+      // First try: Same specialty + available on date
+      let doctors = await doctorsApi.getAvailableOnDate(
+        appointmentDate,
+        appointment.department,
+        appointment.doctorId
+      );
+
+      // Fallback: If no doctors found with same specialty, try all specialties
+      if (!doctors || doctors.length === 0) {
+        console.log('No doctors found with same specialty on this date, fetching all available doctors...');
+        doctors = await doctorsApi.getAvailableOnDate(
+          appointmentDate,
+          '', // No specialty filter
+          appointment.doctorId
+        );
+      }
+
+      setAvailableDoctors(doctors || []);
     } catch (err) {
-      console.error('Error fetching doctors:', err);
+      console.error('Error fetching available doctors:', err);
       showToast({ title: 'Error', message: 'Could not load doctors list', type: 'error' });
     } finally {
       setLoadingDoctors(false);
@@ -1180,10 +1187,16 @@ export default function Appointments() {
                         </select>
                       )}
                       {availableDoctors.length === 0 && !loadingDoctors && (
-                        <small className="text-danger">No other active doctors available</small>
+                        <small className="text-danger">
+                          <i className="bi bi-exclamation-triangle me-1"></i>
+                          No doctors available on this date ({selectedAppointment?.rawDate})
+                        </small>
                       )}
                       {availableDoctors.length > 0 && !loadingDoctors && (
                         <small className="text-muted d-block mt-1">
+                          <i className="bi bi-calendar-check me-1"></i>
+                          Showing {availableDoctors.length} doctor(s) working on {selectedAppointment?.rawDate}
+                          <br />
                           <i className="bi bi-info-circle me-1"></i>
                           ★ indicates same specialty as current appointment
                         </small>

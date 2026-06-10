@@ -3,7 +3,7 @@ import axios from 'axios';
 const API_URL = 'http://localhost:8096/api';
 
 const getAuthConfig = () => {
-    const token = localStorage.getItem('token');
+    const token = localStorage.getItem('token') || sessionStorage.getItem('token');
 
     return {
         headers: {
@@ -73,12 +73,13 @@ export const healthRecordApi = {
             formData.append('description', description);
         }
 
+        const token = localStorage.getItem('token') || sessionStorage.getItem('token');
         const response = await axios.post(
             `${API_URL}/health-records/${recordId}/documents`,
             formData,
             {
                 headers: {
-                    Authorization: `Bearer ${localStorage.getItem('token')}`,
+                    Authorization: `Bearer ${token}`,
                     'Content-Type': 'multipart/form-data',
                 },
                 params: { patientId },
@@ -116,12 +117,13 @@ export const healthRecordApi = {
             formData.append('documentDate', documentDate);
         }
 
+        const token = localStorage.getItem('token') || sessionStorage.getItem('token');
         const response = await axios.post(
             `${API_URL}/health-records/documents/auto`,
             formData,
             {
                 headers: {
-                    Authorization: `Bearer ${localStorage.getItem('token')}`,
+                    Authorization: `Bearer ${token}`,
                     'Content-Type': 'multipart/form-data',
                 },
                 params: { patientId },

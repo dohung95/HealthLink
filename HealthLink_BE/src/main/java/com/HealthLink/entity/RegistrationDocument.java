@@ -42,4 +42,19 @@ public class RegistrationDocument {
     @Column(name = "UploadedAt")
     @Builder.Default
     private LocalDateTime uploadedAt = LocalDateTime.now();
+
+    // ============ AI Verification Fields ============
+    @Column(name = "AIVerificationStatus", length = 20)
+    @Builder.Default
+    private String aiVerificationStatus = "PENDING"; // PENDING, VERIFIED, FLAGGED, REJECTED
+
+    @Column(name = "AIVerificationResult", columnDefinition = "NVARCHAR(MAX)")
+    private String aiVerificationResult;
+
+    @Column(name = "DocumentTypeVerified")
+    @Builder.Default
+    private Boolean documentTypeVerified = false;
+
+    @Column(name = "AIConfidenceScore")
+    private Double aiConfidenceScore;
 }

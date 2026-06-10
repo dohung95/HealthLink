@@ -12,7 +12,7 @@ class WebSocketService {
     this.pending = [];
   }
 
-  connect(token = localStorage.getItem('token')) {
+  connect(token = localStorage.getItem('token') || sessionStorage.getItem('token')) {
     if (!token) {
       return;
     }

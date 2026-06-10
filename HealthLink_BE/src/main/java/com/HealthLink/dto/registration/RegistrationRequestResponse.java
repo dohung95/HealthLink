@@ -56,4 +56,10 @@ public class RegistrationRequestResponse {
 
     // Documents
     private List<RegistrationDocumentDto> documents;
+
+    // AI Screening fields
+    private String aiScreeningStatus;
+    private String aiScreeningResult;
+    private String aiRejectionReason;
+    private LocalDateTime aiScreenedAt;
 }

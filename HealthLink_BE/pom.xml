@@ -144,18 +144,32 @@
             <version>7.4</version>
         </dependency>
 
-        <!-- Apache Commons CSV for CSV import -->
+<!-- Apache Commons CSV for CSV import -->
         <dependency>
             <groupId>org.apache.commons</groupId>
             <artifactId>commons-csv</artifactId>
             <version>1.11.0</version>
         </dependency>
 
-        <!-- Apache PDFBox for invoice PDF generation -->
+        <!-- Gemini AI SDK (Google Vertex AI) -->
+        <dependency>
+            <groupId>com.google.cloud</groupId>
+            <artifactId>google-cloud-vertexai</artifactId>
+            <version>1.1.0</version>
+        </dependency>
+
+        <!-- PDFBox for invoice PDF generation -->
         <dependency>
             <groupId>org.apache.pdfbox</groupId>
             <artifactId>pdfbox</artifactId>
             <version>3.0.1</version>
+        </dependency>
+
+        <!-- DOCX Processing -->
+        <dependency>
+            <groupId>org.apache.poi</groupId>
+            <artifactId>poi-ooxml</artifactId>
+            <version>5.2.5</version>
         </dependency>
     </dependencies>
 

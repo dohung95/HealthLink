@@ -13,6 +13,8 @@ import 'chat_search_screen.dart';
 import 'chat_media_screen.dart';
 import 'package:url_launcher/url_launcher.dart';
 import '../../models/chat/chat_theme.dart';
+import 'profile_patient_normal_forChar_screen.dart';
+import 'profile_doctor_normal_forChat_screen.dart';
 
 /// Màn hình Chat Room – hiển thị tin nhắn và cho phép gửi tin nhắn.
 class ChatRoomScreen extends StatefulWidget {
@@ -38,9 +40,12 @@ class _ChatRoomScreenState extends State<ChatRoomScreen> {
 
   ColorScheme _colors(BuildContext context) => Theme.of(context).colorScheme;
 
+  late ChatProvider _chatProvider;
+
   @override
   void initState() {
     super.initState();
+    _chatProvider = Provider.of<ChatProvider>(context, listen: false);
     _messageController.addListener(() {
       final isEmpty = _messageController.text.trim().isEmpty;
       if (isEmpty != _isTextEmpty) {
@@ -65,6 +70,8 @@ class _ChatRoomScreenState extends State<ChatRoomScreen> {
   void dispose() {
     _messageController.dispose();
     _scrollController.dispose();
+    // Xoá thông tin phòng chat hiện tại để nhận thông báo push top-down
+    Future.microtask(() => _chatProvider.clearCurrentConversation());
     super.dispose();
   }
 
@@ -1074,22 +1081,59 @@ class _ChatRoomScreenState extends State<ChatRoomScreen> {
                 Row(
                   mainAxisAlignment: MainAxisAlignment.spaceEvenly,
                   children: [
-                    _buildQuickAction(Icons.person, 'Profile', colors, () {
-                      Navigator.pop(context); // Đóng BottomSheet
-                      showDialog(
-                        context: context,
-                        builder: (context) => AlertDialog(
-                          title: const Text('Notifications'),
-                          content: const Text('Profile viewing feature is being developed. Please come back later!'),
-                          actions: [
-                            TextButton(
-                              onPressed: () => Navigator.pop(context),
-                              child: const Text('Close'),
+                      _buildQuickAction(Icons.person, 'Profile', colors, () {
+                        Navigator.pop(context); // Đóng BottomSheet
+                        final specialty = conv.partnerSpecialty?.toLowerCase().trim() ?? '';
+                        
+                        final isPharmacy = specialty.contains('nhà thuốc') || 
+                                           specialty.contains('pharmacy') || 
+                                           specialty.contains('pharmacist') ||
+                                           specialty.contains('phòng khám') ||
+                                           specialty.contains('clinic');
+                                           
+                        final isDoctor = specialty.isNotEmpty && 
+                                         !isPharmacy && 
+                                         specialty != 'bệnh nhân' && 
+                                         specialty != 'patient';
+
+                        if (isDoctor) {
+                          Navigator.push(
+                            context,
+                            MaterialPageRoute(
+                              builder: (context) => DoctorInfoScreen(
+                                doctorId: conv.partnerId,
+                                initialName: conv.partnerName,
+                              ),
                             ),
-                          ],
-                        ),
-                      );
-                    }),
+                          );
+                        } else if (isPharmacy) {
+                          showDialog(
+                            context: context,
+                            builder: (context) => AlertDialog(
+                              title: const Text('Notifications'),
+                              content: const Text('Profile viewing for this role is being developed. Please come back later!'),
+                              actions: [
+                                TextButton(
+                                  onPressed: () => Navigator.pop(context),
+                                  child: const Text('Close'),
+                                ),
+                              ],
+                            ),
+                          );
+                        } else {
+                          // Mặc định các trường hợp còn lại (người dùng thường/bệnh nhân)
+                          Navigator.push(
+                            context,
+                            MaterialPageRoute(
+                              builder: (context) => PatientInfoScreen(
+                                patientId: conv.partnerId,
+                                initialName: conv.partnerName,
+                              ),
+                            ),
+                          );
+                        }
+                      }),
+
                     _buildQuickAction(
                       context.watch<ChatProvider>().isMuted(conv.id) ? Icons.notifications_off : Icons.notifications, 
                       context.watch<ChatProvider>().isMuted(conv.id) ? 'Unmute' : 'Mute', 
