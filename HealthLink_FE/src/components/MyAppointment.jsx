@@ -307,12 +307,8 @@ const MyAppointments = () => {
     };
 
     const isAppointmentJoinable = (appointment) => {
-        if (!isScheduledAppointment(appointment)) return false;
-
-        const startTime = getAppointmentStartTime(appointment);
-        const endTime = getAppointmentEndTime(appointment);
-
-        return now >= startTime && now <= endTime;
+        const s = normalizeText(appointment.status);
+        return s === 'in_consultation' || s === 'inconsultation' || s === 'in_progress';
     };
 
     const formatStatusLabel = (status) => {

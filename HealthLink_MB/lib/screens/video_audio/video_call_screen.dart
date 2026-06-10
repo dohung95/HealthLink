@@ -1,9 +1,24 @@
 import 'dart:async';
 import 'dart:ui';
 import 'package:flutter/material.dart';
+import 'package:camera/camera.dart';
+import 'package:provider/provider.dart';
+import '../../providers/auth_provider.dart';
+import '../../services/chat/stomp_service.dart';
 
 class VideoCallScreen extends StatefulWidget {
-  const VideoCallScreen({super.key});
+  final String partnerName;
+  final String partnerRole;
+  final String? partnerId;
+  final String? roomId;
+
+  const VideoCallScreen({
+    super.key,
+    this.partnerName = 'Dr. Sarah Mitchell',
+    this.partnerRole = 'Doctor',
+    this.partnerId,
+    this.roomId,
+  });
 
   @override
   State<VideoCallScreen> createState() => _VideoCallScreenState();
@@ -12,7 +27,7 @@ class VideoCallScreen extends StatefulWidget {
 class _VideoCallScreenState extends State<VideoCallScreen> with SingleTickerProviderStateMixin {
   // Bộ đếm thời gian
   late Timer _timer;
-  int _secondsElapsed = 954; // Bắt đầu từ 15:54 (765s -> 954s để khớp với code HTML gốc)
+  int _secondsElapsed = 0; // Bắt đầu từ 00:00
 
   // Trạng thái các nút điều khiển
   bool _isMuted = false;
@@ -22,9 +37,16 @@ class _VideoCallScreenState extends State<VideoCallScreen> with SingleTickerProv
   late AnimationController _animationController;
   late Animation<double> _fadeAnimation;
 
+  // Real Camera Controller
+  CameraController? _cameraController;
+  List<CameraDescription>? _cameras;
+  int _selectedCameraIndex = 0;
+
   @override
   void initState() {
     super.initState();
+
+    _initCamera();
 
     // 1. Khởi tạo Timer
     _timer = Timer.periodic(const Duration(seconds: 1), (timer) {
@@ -55,10 +77,56 @@ class _VideoCallScreenState extends State<VideoCallScreen> with SingleTickerProv
     });
   }
 
+  Future<void> _initCamera() async {
+    try {
+      _cameras = await availableCameras();
+      if (_cameras != null && _cameras!.isNotEmpty) {
+        // Ưu tiên camera trước (front)
+        _selectedCameraIndex = _cameras!.indexWhere(
+          (cam) => cam.lensDirection == CameraLensDirection.front,
+        );
+        if (_selectedCameraIndex == -1) _selectedCameraIndex = 0;
+
+        await _startCamera(_selectedCameraIndex);
+      }
+    } catch (e) {
+      debugPrint('Error: $e');
+    }
+  }
+
+  Future<void> _startCamera(int cameraIndex) async {
+    if (_cameras == null || _cameras!.isEmpty) return;
+
+    if (_cameraController != null) {
+      await _cameraController!.dispose();
+    }
+
+    _cameraController = CameraController(
+      _cameras![cameraIndex],
+      ResolutionPreset.medium,
+      enableAudio: false,
+    );
+
+    try {
+      await _cameraController!.initialize();
+      if (mounted) setState(() {}); // Cập nhật lại UI sau khi camera đã sẵn sàng
+    } catch (e) {
+      debugPrint('Error initializing camera: $e');
+    }
+  }
+
+  Future<void> _switchCamera() async {
+    if (_cameras == null || _cameras!.length < 2) return;
+    
+    _selectedCameraIndex = (_selectedCameraIndex + 1) % _cameras!.length;
+    await _startCamera(_selectedCameraIndex);
+  }
+
   @override
   void dispose() {
     _timer.cancel();
     _animationController.dispose();
+    _cameraController?.dispose();
     super.dispose();
   }
 
@@ -79,15 +147,28 @@ class _VideoCallScreenState extends State<VideoCallScreen> with SingleTickerProv
       backgroundColor: Colors.black, // Nền đen khi chưa load được video
       body: Stack(
         children: [
-          // --- 1. Background Video Feed (Bác sĩ) ---
-          SizedBox(
+          // --- 1. Background Video Feed (Partner) ---
+          Container(
             width: double.infinity,
             height: double.infinity,
-            child: Image.asset(
-              'assets/images/doctor_mitchell.png', // Hãy thêm ảnh này vào tài nguyên của bạn
-              fit: BoxFit.cover,
-              errorBuilder: (context, error, stackTrace) =>
-              const Center(child: Icon(Icons.videocam_off, color: Colors.white54, size: 64)),
+            color: Colors.black87,
+            child: Center(
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  const Icon(Icons.person, color: Colors.white54, size: 80),
+                  const SizedBox(height: 16),
+                  Text(
+                    '${widget.partnerName}',
+                    style: const TextStyle(color: Colors.white54, fontSize: 18),
+                  ),
+                  const SizedBox(height: 8),
+                  const Text(
+                    'Camera is off',
+                    style: TextStyle(color: Colors.white38, fontSize: 14),
+                  ),
+                ],
+              ),
             ),
           ),
 
@@ -136,9 +217,9 @@ class _VideoCallScreenState extends State<VideoCallScreen> with SingleTickerProv
                               crossAxisAlignment: CrossAxisAlignment.start,
                               mainAxisSize: MainAxisSize.min,
                               children: [
-                                const Text(
-                                  'Dr. Sarah Mitchell',
-                                  style: TextStyle(fontFamily: 'Inter', fontSize: 20, fontWeight: FontWeight.bold, color: Colors.white),
+                                Text(
+                                  widget.partnerName,
+                                  style: const TextStyle(fontFamily: 'Inter', fontSize: 20, fontWeight: FontWeight.bold, color: Colors.white),
                                 ),
                                 Row(
                                   children: [
@@ -183,12 +264,12 @@ class _VideoCallScreenState extends State<VideoCallScreen> with SingleTickerProv
                   fit: StackFit.expand,
                   children: [
                     if (!_isVideoOff)
-                      Image.asset(
-                        'assets/images/patient_view.png', // Ảnh đại diện cam của bệnh nhân
-                        fit: BoxFit.cover,
-                        errorBuilder: (context, error, stackTrace) =>
-                            Container(color: Colors.black87, child: const Icon(Icons.person, color: Colors.white54)),
-                      )
+                      (_cameraController != null && _cameraController!.value.isInitialized)
+                        ? CameraPreview(_cameraController!)
+                        : Container(
+                            color: Colors.grey[900],
+                            child: const Icon(Icons.person, color: Colors.white54, size: 40),
+                          )
                     else
                       Container(
                         color: Colors.black87,
@@ -335,6 +416,15 @@ class _VideoCallScreenState extends State<VideoCallScreen> with SingleTickerProv
                               onTap: () => setState(() => _isVideoOff = !_isVideoOff),
                             ),
 
+                            // Nút Đảo Camera
+                            _buildControlButton(
+                              iconOn: Icons.cameraswitch,
+                              iconOff: Icons.cameraswitch,
+                              label: 'Flip',
+                              isToggled: false,
+                              onTap: _switchCamera,
+                            ),
+
                             // Nút Kết thúc cuộc gọi
                             Column(
                               mainAxisSize: MainAxisSize.min,
@@ -346,6 +436,18 @@ class _VideoCallScreenState extends State<VideoCallScreen> with SingleTickerProv
                                   elevation: 8,
                                   child: InkWell(
                                     onTap: () {
+                                      if (widget.partnerId != null && widget.roomId != null) {
+                                        final myId = context.read<AuthProvider>().userId;
+                                        if (myId != null) {
+                                          StompService.instance.sendWebRTCSignal({
+                                            'type': 'HANGUP',
+                                            'senderId': myId,
+                                            'senderName': 'Patient',
+                                            'receiverId': widget.partnerId,
+                                            'data': widget.roomId,
+                                          });
+                                        }
+                                      }
                                       Navigator.pop(context); // Tắt màn hình khi bấm End
                                     },
                                     customBorder: const CircleBorder(),

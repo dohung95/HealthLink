@@ -1,10 +1,16 @@
 import 'dart:async';
+import 'dart:math' as math;
 
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../../services/booking/booking_service.dart';
 import '../../providers/auth_provider.dart';
 import '../../services/appointments/appointment_service.dart';
+import '../../services/chat/chat_service.dart';
+import '../chat/chat_room_screen.dart';
+import '../video_audio/video_call_screen.dart';
+import '../../utils/notification_helper.dart';
+import '../../providers/chat_provider.dart';
 
 class AppointmentScreen extends StatefulWidget {
   const AppointmentScreen({
@@ -181,14 +187,69 @@ class _AppointmentScreenState extends State<AppointmentScreen> {
     }
   }
 
-  void _handleChat(PatientAppointment appointment) {
-    // Sau nay noi vao ChatProvider / MessagesScreen.
-    _showMessage('Chat will be available when the consultation starts.');
+  void _handleChat(PatientAppointment appointment) async {
+    final auth = context.read<AuthProvider>();
+    if (!auth.isAuthenticated || auth.accessToken == null || _patientId == null) return;
+    
+    setState(() => _actionLoading = true);
+    
+    try {
+      final conversation = await ChatService.getOrCreateRoom(
+        auth.accessToken!,
+        _patientId!,
+        appointment.doctorId,
+        appointmentId: appointment.appointmentId,
+      );
+      
+      if (!mounted) return;
+      Navigator.push(
+        context,
+        MaterialPageRoute(
+          builder: (_) => ChatRoomScreen(conversation: conversation),
+        ),
+      );
+    } catch (e) {
+      _showMessage(_cleanError(e), isError: true);
+    } finally {
+      if (mounted) {
+        setState(() => _actionLoading = false);
+      }
+    }
   }
 
   void _handleVideo(PatientAppointment appointment) {
-    // Sau nay noi vao luong video call + vitals.
-    _showMessage('Video call will be available when the consultation starts.');
+    final auth = context.read<AuthProvider>();
+    final chatProvider = context.read<ChatProvider>();
+    
+    if (auth.isAuthenticated && auth.userId != null) {
+      // Tạo ngẫu nhiên một roomId 45 ký tự giống web
+      const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789';
+      final rnd = math.Random();
+      final roomId = String.fromCharCodes(Iterable.generate(
+          45, (_) => chars.codeUnitAt(rnd.nextInt(chars.length))));
+
+      chatProvider.sendCallRequest(
+        receiverId: appointment.doctorId,
+        roomId: roomId,
+        myId: auth.userId!,
+        myName: appointment.patientName,
+      );
+
+      Navigator.push(
+        context,
+        MaterialPageRoute(
+          settings: const RouteSettings(name: '/video_call'),
+          builder: (_) => VideoCallScreen(
+            partnerName: 'Dr. ${appointment.doctorName}',
+            partnerRole: 'Doctor',
+            partnerId: appointment.doctorId,
+            roomId: roomId,
+          ),
+        ),
+      );
+    } else {
+      _showMessage('Can not start video call, please login.', isError: true);
+    }
   }
 
   Future<void> _handleReschedule(PatientAppointment appointment) async {

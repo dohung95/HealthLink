@@ -7,6 +7,7 @@ import '../services/chat/chat_service.dart';
 import '../services/chat/stomp_service.dart';
 import '../utils/notification_helper.dart';
 import '../screens/chat/chat_room_screen.dart';
+import '../screens/video_audio/video_call_screen.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 /// Provider quản lý toàn bộ state của màn hình Chat.
@@ -119,7 +120,12 @@ class ChatProvider extends ChangeNotifier {
       _conversations.sort((a, b) => b.lastMessageTime.compareTo(a.lastMessageTime));
 
       // Bắt đầu kết nối STOMP WebSocket
-      StompService.instance.connect(accessToken, userId, _onStompMessage);
+      StompService.instance.connect(
+        accessToken, 
+        userId, 
+        _onStompMessage,
+        onWebRTCSignalReceived: _onWebRTCSignal,
+      );
     } catch (e) {
       debugPrint('ChatProvider loadConversations error: $e');
       _conversationsError = _clean(e.toString());
@@ -221,6 +227,141 @@ class ChatProvider extends ChangeNotifier {
     }
     
     notifyListeners();
+  }
+
+  // ── Call State Guard ───────────────────────────────────────────────────────
+  bool _isInCall = false;
+  bool get isInCall => _isInCall;
+
+  /// Xử lý tín hiệu WebRTC từ STOMP (Video Call)
+  void _onWebRTCSignal(Map<String, dynamic> signal) {
+    debugPrint('[ChatProvider] ⚡️ WebRTC signal received: $signal');
+    final type = signal['type'];
+    final senderId = signal['senderId'];
+    final senderName = signal['senderName'];
+    final roomId = signal['data'];
+    
+    debugPrint('[ChatProvider] type=$type, senderId=$senderId, senderName=$senderName, roomId=$roomId');
+    
+    if (type == 'CALL_REQUEST') {
+      // Issue #5: Guard chồng chéo cuộc gọi
+      if (_isInCall) {
+        debugPrint('[ChatProvider] Automatically declining because already in a call.');
+        StompService.instance.sendWebRTCSignal({
+          'type': 'CALL_DECLINED',
+          'senderId': _lastUserId ?? '',
+          'senderName': 'Patient',
+          'receiverId': senderId,
+          'data': roomId,
+        });
+        return;
+      }
+
+      debugPrint('[ChatProvider] 📲 Incoming call from $senderName - showing dialog...');
+      final context = navigatorKey.currentContext;
+      
+      if (context != null) {
+        showDialog(
+          context: context,
+          barrierDismissible: false, // Bắt buộc user phải chọn Accept hoặc Decline
+          routeSettings: const RouteSettings(name: '/incoming_call'),
+          builder: (BuildContext dialogContext) {
+            return AlertDialog(
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+              title: Row(
+                children: [
+                  const Icon(Icons.videocam, color: Colors.green, size: 28),
+                  const SizedBox(width: 8),
+                  const Text('Incoming Video Call'),
+                ],
+              ),
+              content: Text('${senderName ?? 'A doctor'} is calling you for a consultation.'),
+              actions: [
+                TextButton(
+                  onPressed: () {
+                    Navigator.pop(dialogContext);
+                    // Báo từ chối cuộc gọi
+                    StompService.instance.sendWebRTCSignal({
+                      'type': 'CALL_DECLINED',
+                      'senderId': _lastUserId ?? '',
+                      'senderName': 'Patient',
+                      'receiverId': senderId,
+                      'data': roomId,
+                    });
+                  },
+                  child: const Text('Decline', style: TextStyle(color: Colors.red)),
+                ),
+                  FilledButton(
+                  onPressed: () {
+                    Navigator.pop(dialogContext);
+                    // Báo chấp nhận cuộc gọi
+                    StompService.instance.sendWebRTCSignal({
+                      'type': 'CALL_ACCEPTED',
+                      'senderId': _lastUserId ?? '',
+                      'senderName': 'Patient',
+                      'receiverId': senderId,
+                      'data': roomId,
+                    });
+                    
+                    _isInCall = true;
+
+                    // Vào màn hình Video Call với ĐÚNG roomId của bác sĩ
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                        settings: const RouteSettings(name: '/video_call'),
+                        builder: (_) => VideoCallScreen(
+                          partnerName: senderName ?? 'Unknown',
+                          partnerRole: 'Doctor',
+                          partnerId: senderId,
+                          roomId: roomId,
+                        ),
+                      ),
+                    ).then((_) {
+                      _isInCall = false; // Khi đóng màn hình thì reset
+                    });
+                  },
+                  child: const Text('Accept'),
+                ),
+              ],
+            );
+          }
+        );
+      }
+    } else if (type == 'HANGUP' || type == 'CALL_DECLINED') {
+      debugPrint('[ChatProvider] 📞 Call ended/declined by $senderName');
+      _isInCall = false;
+      // Đóng hộp thoại gọi đến hoặc màn hình VideoCall nếu đang mở
+      navigatorKey.currentState?.popUntil((route) {
+        final name = route.settings.name;
+        if (name == '/video_call' || name == '/incoming_call') {
+          return false; // Pop route này đi
+        }
+        return true; // Dừng lại ở màn hình bình thường
+      });
+    }
+  }
+
+  void sendCallRequest({
+    required String receiverId,
+    required String roomId,
+    required String myId,
+    required String myName,
+  }) {
+    if (_isInCall) {
+      debugPrint('[ChatProvider] Blocked: Already in a call');
+      return;
+    }
+
+    _isInCall = true;
+
+    StompService.instance.sendWebRTCSignal({
+      'type': 'CALL_REQUEST',
+      'senderId': myId,
+      'senderName': myName,
+      'receiverId': receiverId,
+      'data': roomId,
+    });
   }
 
   // ── Messages ───────────────────────────────────────────────────────────────

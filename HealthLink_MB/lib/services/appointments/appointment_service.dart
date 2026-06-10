@@ -204,7 +204,8 @@ class PatientAppointment {
   }
 
   bool isJoinable(DateTime now) {
-    return isScheduled && now.isAfter(appointmentTime) && now.isBefore(effectiveEndTime);
+    final s = status.trim().toLowerCase();
+    return s == 'in_consultation' || s == 'inconsultation' || s == 'in_progress';
   }
 
   bool canCancel(DateTime now) {

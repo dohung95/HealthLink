@@ -6,6 +6,7 @@ import '../../config/api_config.dart';
 import '../../models/chat/message.dart';
 
 typedef OnMessageCallback = void Function(Message message);
+typedef OnWebRTCSignalCallback = void Function(Map<String, dynamic> signal);
 
 class StompService {
   static final StompService _instance = StompService._internal();
@@ -15,19 +16,31 @@ class StompService {
 
   StompClient? _stompClient;
   bool _isConnected = false;
+  bool _isConnecting = false; // Tránh tạo 2 kết nối cùng lúc
   OnMessageCallback? _onMessageReceived;
+  OnWebRTCSignalCallback? _onWebRTCSignalReceived;
   String? _userId;
 
   /// Kết nối đến STOMP WebSocket
-  void connect(String token, String userId, OnMessageCallback onMessageReceived) {
+  void connect(String token, String userId, OnMessageCallback onMessageReceived, {OnWebRTCSignalCallback? onWebRTCSignalReceived}) {
+    // Luôn cập nhật callbacks trước
+    _onMessageReceived = onMessageReceived;
+    _onWebRTCSignalReceived = onWebRTCSignalReceived;
+    _userId = userId;
+
     if (_isConnected && _stompClient != null) {
-      debugPrint('[STOMP] Already connected.');
-      _onMessageReceived = onMessageReceived;
+      debugPrint('[STOMP] Already connected. Callbacks updated. userId=$userId');
       return;
     }
 
-    _onMessageReceived = onMessageReceived;
-    _userId = userId;
+    // Tránh tạo 2 kết nối cùng lúc (race condition)
+    if (_isConnecting) {
+      debugPrint('[STOMP] Connection already in progress, skipping. userId=$userId');
+      return;
+    }
+
+    _isConnecting = true;
+    debugPrint('[STOMP] Initiating new connection for userId=$userId');
 
     _stompClient = StompClient(
       config: StompConfig(
@@ -41,6 +54,7 @@ class StompService {
         onDisconnect: (StompFrame frame) {
           debugPrint('[STOMP] Disconnected.');
           _isConnected = false;
+          _isConnecting = false;
         },
         stompConnectHeaders: {
           'Authorization': 'Bearer $token',
@@ -57,6 +71,7 @@ class StompService {
   void _onConnect(StompFrame frame) {
     debugPrint('[STOMP] Connected to backend!');
     _isConnected = true;
+    _isConnecting = false;
 
     // Lắng nghe kênh tin nhắn đến
     final destination = '/user/queue/chat';
@@ -79,6 +94,35 @@ class StompService {
         }
       },
     );
+
+    // Lắng nghe kênh tín hiệu WebRTC (Video Call)
+    _stompClient?.subscribe(
+      destination: '/user/queue/webrtc',
+      callback: (StompFrame frame) {
+        if (frame.body != null) {
+          try {
+            final jsonMap = json.decode(frame.body!);
+            debugPrint('[STOMP] Received WebRTC signal: ${jsonMap['type']}');
+            if (_onWebRTCSignalReceived != null) {
+              _onWebRTCSignalReceived!(jsonMap);
+            }
+          } catch (e) {
+            debugPrint('[STOMP] Error parsing WebRTC signal: $e');
+          }
+        }
+      },
+    );
+  }
+
+  void sendWebRTCSignal(Map<String, dynamic> signal) {
+    if (_isConnected && _stompClient != null) {
+      _stompClient?.send(
+        destination: '/app/webrtc.signal',
+        body: json.encode(signal),
+      );
+    } else {
+      debugPrint('[STOMP] Cannot send signal, not connected.');
+    }
   }
 
   void disconnect() {
