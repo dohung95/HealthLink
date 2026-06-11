@@ -42,7 +42,8 @@ export default function VideoCallPage() {
         toggleCamera,
         endCall,
         isCallAccepted,
-        setIsCallAccepted
+        setIsCallAccepted,
+        isRemoteCameraOff
     } = useWebRTC(roomID, targetUserId);
 
     // Bắt đầu local stream và khởi tạo cuộc gọi khi mount
@@ -149,7 +150,7 @@ export default function VideoCallPage() {
 
         videoEl.srcObject = remoteStream;
         videoEl.play().catch(() => {});
-    }, [remoteStream]);
+    }, [remoteStream, isRemoteCameraOff]);
 
     /**
      * Định dạng giây → MM:SS
@@ -260,9 +261,10 @@ export default function VideoCallPage() {
                             display: 'flex',
                             alignItems: 'center',
                             justifyContent: 'center',
-                            boxShadow: '0 10px 30px rgba(0,0,0,0.5)'
+                            boxShadow: '0 10px 30px rgba(0,0,0,0.5)',
+                            position: 'relative'
                         }}>
-                            {remoteStream ? (
+                            {remoteStream && !isRemoteCameraOff ? (
                                 <video
                                     ref={remoteVideoRef}
                                     autoPlay
@@ -270,13 +272,25 @@ export default function VideoCallPage() {
                                     style={{ width: '100%', height: '100%', objectFit: 'cover' }}
                                 />
                             ) : (
-                                <div className="text-center text-muted">
-                                    <i className="bi bi-person-video" style={{ fontSize: '4rem' }}></i>
-                                    <p className="mt-2">
-                                        {callStatus === 'connected'
-                                            ? 'Waiting for remote video...'
-                                            : 'Connecting...'}
-                                    </p>
+                                <div className="text-center text-muted d-flex flex-column align-items-center justify-content-center h-100 w-100" style={{ backgroundColor: '#1a1a1a' }}>
+                                    {callStatus === 'connected' ? (
+                                        <>
+                                            <div style={{
+                                                width: '100px', height: '100px', borderRadius: '50%',
+                                                backgroundColor: '#333', display: 'flex',
+                                                alignItems: 'center', justifyContent: 'center',
+                                                marginBottom: '1rem'
+                                            }}>
+                                                <i className="bi bi-camera-video-off" style={{ fontSize: '3rem', color: '#dc3545' }}></i>
+                                            </div>
+                                            <p className="mt-2 text-white-50">Remote camera is off</p>
+                                        </>
+                                    ) : (
+                                        <>
+                                            <i className="bi bi-person-video" style={{ fontSize: '4rem' }}></i>
+                                            <p className="mt-2">Connecting...</p>
+                                        </>
+                                    )}
                                 </div>
                             )}
                         </div>

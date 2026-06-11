@@ -136,9 +136,11 @@ class _VideoCallScreenState extends State<VideoCallScreen> with SingleTickerProv
 
   @override
   Widget build(BuildContext context) {
-    final colorScheme = Theme.of(context).colorScheme;
-    final textTheme = Theme.of(context).textTheme;
+    final ColorScheme colorScheme = Theme.of(context).colorScheme;
+    final TextTheme textTheme = Theme.of(context).textTheme;
     final bool isWide = MediaQuery.of(context).size.width > 1024;
+    final provider = context.watch<VideoCallProvider>();
+    final bool isRemoteCameraOff = provider.isRemoteCameraOff;
 
     return PopScope(
       canPop: false,
@@ -157,10 +159,28 @@ class _VideoCallScreenState extends State<VideoCallScreen> with SingleTickerProv
               height: double.infinity,
               color: Colors.black87,
               child: _isConnected
-                  ? RTCVideoView(
-                      WebRTCService.instance.remoteRenderer,
-                      objectFit: RTCVideoViewObjectFit.RTCVideoViewObjectFitCover,
-                    )
+                  ? (isRemoteCameraOff
+                      ? Center(
+                          child: Column(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              Container(
+                                padding: const EdgeInsets.all(24),
+                                decoration: BoxDecoration(
+                                  color: Colors.grey[900],
+                                  shape: BoxShape.circle,
+                                ),
+                                child: const Icon(Icons.videocam_off, color: Colors.redAccent, size: 48),
+                              ),
+                              const SizedBox(height: 16),
+                              const Text('Remote camera is off', style: TextStyle(color: Colors.white54, fontSize: 16)),
+                            ],
+                          ),
+                        )
+                      : RTCVideoView(
+                          WebRTCService.instance.remoteRenderer,
+                          objectFit: RTCVideoViewObjectFit.RTCVideoViewObjectFitCover,
+                        ))
                   : Center(
                       child: Column(
                         mainAxisSize: MainAxisSize.min,
@@ -385,6 +405,7 @@ class _VideoCallScreenState extends State<VideoCallScreen> with SingleTickerProv
                                 onTap: () {
                                   setState(() => _isVideoOff = !_isVideoOff);
                                   WebRTCService.instance.toggleCamera(_isVideoOff);
+                                  context.read<VideoCallProvider>().sendToggleCameraSignal(_isVideoOff);
                                 },
                               ),
 

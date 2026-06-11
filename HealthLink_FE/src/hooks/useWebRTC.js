@@ -15,6 +15,7 @@ export const useWebRTC = (roomId, targetUserId) => {
     const [remoteStream, setRemoteStream] = useState(null);
     const [isMicMuted, setIsMicMuted] = useState(false);
     const [isCameraOff, setIsCameraOff] = useState(false);
+    const [isRemoteCameraOff, setIsRemoteCameraOff] = useState(false);
     // connecting | ringing | connected | disconnected
     const [callStatus, setCallStatus] = useState('connecting');
     const [isCallAccepted, setIsCallAccepted] = useState(false);
@@ -310,6 +311,16 @@ export const useWebRTC = (roomId, targetUserId) => {
             if (videoTrack) {
                 videoTrack.enabled = !videoTrack.enabled;
                 setIsCameraOff(!videoTrack.enabled);
+
+                // Gửi tín hiệu báo cho đối phương
+                if (targetUserIdRef.current && currentUserIdRef.current) {
+                    videoCallService.sendWebRTCSignal({
+                        type: 'TOGGLE_CAMERA',
+                        senderId: currentUserIdRef.current,
+                        receiverId: targetUserIdRef.current,
+                        data: (!videoTrack.enabled).toString()
+                    });
+                }
             }
         }
     }, []);
@@ -374,6 +385,9 @@ export const useWebRTC = (roomId, targetUserId) => {
                     break;
                 case 'CANDIDATE':
                     handleReceiveIceCandidate(data);
+                    break;
+                case 'TOGGLE_CAMERA':
+                    setIsRemoteCameraOff(data === 'true');
                     break;
                 case 'CALL_ACCEPTED':
                     console.log('[WebRTC] Call accepted by remote user');
@@ -485,6 +499,7 @@ export const useWebRTC = (roomId, targetUserId) => {
         isCameraOff,
         callStatus,
         isCallAccepted,
+        isRemoteCameraOff,
         setIsCallAccepted,
         startLocalStream,
         createOffer,

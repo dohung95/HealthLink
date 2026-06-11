@@ -22,6 +22,7 @@ class VideoCallProvider extends ChangeNotifier {
   String? currentRoomId;
   bool currentIsCaller = false;
   DateTime? callStartTime;
+  bool isRemoteCameraOff = false;
 
   VideoCallProvider() {
     // Register STOMP callback
@@ -167,6 +168,7 @@ class VideoCallProvider extends ChangeNotifier {
 
       _isInCall = false;
       callStartTime = null;
+      isRemoteCameraOff = false;
       hidePiP();
       notifyListeners();
       try {
@@ -246,8 +248,14 @@ class VideoCallProvider extends ChangeNotifier {
     } else if (type == 'CALL_ACCEPTED') {
       // Khi Mobile là Caller, Web đã nhận cuộc gọi
       // Mobile tạo Offer và gửi đi
-      debugPrint('[VideoCallProvider] Call accepted by Web. Creating Offer...');
+      debugPrint('[VideoCallProvider] Call accepted by Web. Creating Offer after delay...');
       callStartTime = DateTime.now();
+      
+      // Đợi 2.5s để tab Web của người nhận kịp mở và subscribe WebRTC (giống logic trên Web)
+      await Future.delayed(const Duration(milliseconds: 2500));
+      
+      if (!_isInCall) return; // Đề phòng user cúp máy trong lúc chờ
+      
       final offer = await WebRTCService.instance.createOffer();
       if (offer != null) {
         WebrtcStompService.instance.sendWebRTCSignal({
@@ -257,6 +265,23 @@ class VideoCallProvider extends ChangeNotifier {
           'data': json.encode({'sdp': offer.sdp, 'type': offer.type}),
         });
       }
+    } else if (type == 'TOGGLE_CAMERA') {
+      final String? statusStr = signal['data'];
+      if (statusStr != null) {
+        isRemoteCameraOff = statusStr == 'true';
+        notifyListeners();
+      }
+    }
+  }
+
+  void sendToggleCameraSignal(bool isOff) {
+    if (currentPartnerId != null) {
+      WebrtcStompService.instance.sendWebRTCSignal({
+        'type': 'TOGGLE_CAMERA',
+        'senderId': _lastUserId ?? '',
+        'receiverId': currentPartnerId,
+        'data': isOff.toString(),
+      });
     }
   }
 
@@ -292,6 +317,7 @@ class VideoCallProvider extends ChangeNotifier {
   void endCall() {
     _isInCall = false;
     callStartTime = null;
+    isRemoteCameraOff = false;
     hidePiP();
     notifyListeners();
     FlutterRingtonePlayer().stop();
