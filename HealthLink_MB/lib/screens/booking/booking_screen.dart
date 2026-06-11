@@ -410,24 +410,32 @@ class _BookingScreenState extends State<BookingScreen> {
         throw Exception('Payment succeeded but appointment was not returned.');
       }
 
+      final rejectedDocuments = <String>[];
+
       if (_documents.isNotEmpty) {
         final uploadedByRecord = <int, List<int>>{};
 
         for (final item in _documents) {
-          final uploaded = await _service!.uploadDocumentAutoRecord(
-            patientId: patientId,
-            file: item.file,
-            category: 'Consultation-Notes',
-            description: _symptomsCtrl.text.trim(),
-            documentDate: _formatDate(item.documentDate!),
-          );
+          try {
+            final uploaded = await _service!.uploadDocumentAutoRecord(
+              patientId: patientId,
+              file: item.file,
+              category: 'Consultation-Notes',
+              description: _symptomsCtrl.text.trim(),
+              documentDate: _formatDate(item.documentDate!),
+            );
 
-          if (uploaded.healthRecordId == 0 || uploaded.documentId == 0) {
-            continue;
+            if (uploaded.healthRecordId == 0 || uploaded.documentId == 0) {
+              continue;
+            }
+
+            uploadedByRecord.putIfAbsent(uploaded.healthRecordId, () => []);
+            uploadedByRecord[uploaded.healthRecordId]!.add(uploaded.documentId);
+          } catch (e) {
+            rejectedDocuments.add(
+              _friendlyDocumentUploadError(item.file.name, e),
+            );
           }
-
-          uploadedByRecord.putIfAbsent(uploaded.healthRecordId, () => []);
-          uploadedByRecord[uploaded.healthRecordId]!.add(uploaded.documentId);
         }
 
         for (final entry in uploadedByRecord.entries) {
@@ -439,6 +447,10 @@ class _BookingScreenState extends State<BookingScreen> {
             appointmentId: appointmentId,
           );
         }
+      }
+
+      if (rejectedDocuments.isNotEmpty) {
+        await _showDocumentModerationWarning(rejectedDocuments);
       }
 
       await _showSuccess(appointmentId.toString());
@@ -976,17 +988,13 @@ class _BookingScreenState extends State<BookingScreen> {
   }
 
   Widget _typeStep(ColorScheme colors) {
-    final scheduleTypes = _doctorSchedules
-        .map((item) => item.consultationType)
-        .where((item) => item.trim().isNotEmpty)
+    final types = _doctorSchedules
+        .where((item) => item.isBookable)
+        .map((item) => item.consultationType.trim())
+        .where((item) => item.isNotEmpty)
         .toSet()
-        .toList();
-
-    final types = scheduleTypes.isNotEmpty
-        ? scheduleTypes
-        : (_selectedDoctor?.availableTypes.isNotEmpty == true
-        ? _selectedDoctor!.availableTypes
-        : _fallbackTypes);
+        .toList()
+      ..sort();
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -1061,21 +1069,22 @@ class _BookingScreenState extends State<BookingScreen> {
 
     final workingDayNumbers = _doctorSchedules
         .where((schedule) {
-      if (_selectedType == null) return true;
+      if (!schedule.isBookable) return false;
+      if (_selectedType == null) return false;
 
-      return schedule.consultationType.isEmpty ||
-          schedule.consultationType.toLowerCase() ==
-              _selectedType!.toLowerCase();
+      final scheduleType = schedule.consultationType.trim().toLowerCase();
+      final selectedType = _selectedType!.trim().toLowerCase();
+
+      return scheduleType == selectedType;
     })
         .map((schedule) => schedule.dayOfWeek)
         .toSet();
 
-    final days = workingDayNumbers.isEmpty
-        ? allDays
-        : allDays.where((day) {
+    final days = allDays.where((day) {
       final backendDay = day.weekday % 7; // Sunday = 0, Monday = 1
       return workingDayNumbers.contains(backendDay);
     }).toList();
+
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -1083,7 +1092,9 @@ class _BookingScreenState extends State<BookingScreen> {
           'Choose date & time',
           'Select one available slot. Tap again to cancel your selection.',
         ),
-        const SizedBox(height: 16),
+
+        SizedBox(height: 16),
+
         SizedBox(
           height: 82,
           child: ListView.separated(
@@ -1093,6 +1104,7 @@ class _BookingScreenState extends State<BookingScreen> {
             itemBuilder: (_, index) {
               final day = days[index];
               final selected = _sameDay(day, _selectedDate);
+
               return InkWell(
                 borderRadius: BorderRadius.circular(18),
                 onTap: () async {
@@ -1141,6 +1153,7 @@ class _BookingScreenState extends State<BookingScreen> {
             },
           ),
         ),
+
         const SizedBox(height: 22),
         Text(
           'Available slots',
@@ -1500,14 +1513,83 @@ class _BookingScreenState extends State<BookingScreen> {
     ),
   );
 
+  Future<void> _showDocumentModerationWarning(List<String> messages) async {
+    if (!mounted) return;
+
+    await showDialog<void>(
+      context: context,
+      builder: (context) {
+        final colors = Theme.of(context).colorScheme;
+
+        return AlertDialog(
+          icon: Icon(
+            Icons.shield_outlined,
+            color: colors.error,
+            size: 34,
+          ),
+          title: const Text('Some documents were not uploaded'),
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              const Text(
+                'Your appointment was booked successfully, but some documents could not be uploaded:',
+              ),
+              const SizedBox(height: 12),
+              ...messages.map(
+                    (message) => Padding(
+                  padding: const EdgeInsets.only(bottom: 8),
+                  child: Text('• $message'),
+                ),
+              ),
+            ],
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(context),
+              child: const Text('Got it'),
+            ),
+          ],
+        );
+      },
+    );
+  }
+
   void _snack(String message, {bool error = false}) {
     if (!mounted) return;
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text(message),
-        backgroundColor: error ? Theme.of(context).colorScheme.error : null,
-      ),
-    );
+
+    final colors = Theme.of(context).colorScheme;
+
+    ScaffoldMessenger.of(context)
+      ..hideCurrentSnackBar()
+      ..showSnackBar(
+        SnackBar(
+          behavior: SnackBarBehavior.floating,
+          margin: const EdgeInsets.all(16),
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(14),
+          ),
+          backgroundColor: error ? colors.error : colors.primary,
+          content: Row(
+            children: [
+              Icon(
+                error ? Icons.error_outline : Icons.check_circle_outline,
+                color: error ? colors.onError : colors.onPrimary,
+              ),
+              const SizedBox(width: 10),
+              Expanded(
+                child: Text(
+                  message,
+                  style: TextStyle(
+                    color: error ? colors.onError : colors.onPrimary,
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ),
+      );
   }
 
   IconData _typeIcon(String type) {
@@ -1528,6 +1610,26 @@ class _BookingScreenState extends State<BookingScreen> {
   String _cleanError(Object error) {
     final raw = error.toString();
     return raw.startsWith('Exception: ') ? raw.substring(11) : raw;
+  }
+
+  bool _isImageModerationError(String message) {
+    final lower = message.toLowerCase();
+
+    return lower.contains('sensitive content') ||
+        lower.contains('explicit') ||
+        lower.contains('moderation') ||
+        lower.contains('scan image') ||
+        lower.contains('unable to scan image');
+  }
+
+  String _friendlyDocumentUploadError(String fileName, Object error) {
+    final message = _cleanError(error);
+
+    if (_isImageModerationError(message)) {
+      return 'The file "$fileName" may contain sensitive content and cannot be uploaded.';
+    }
+
+    return 'Can not upload "$fileName". $message';
   }
 
   DateTime _dayStart(DateTime value) =>

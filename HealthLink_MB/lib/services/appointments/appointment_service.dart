@@ -188,13 +188,18 @@ class PatientAppointment {
   final DateTime appointmentTime;
   final DateTime? consultationEndTime;
 
-  bool get isScheduled => status.trim().toLowerCase() == 'scheduled';
+  String get normalizedStatus => status.trim().toLowerCase();
 
-  bool get isCompleted => status.trim().toLowerCase() == 'completed';
+  bool get isActive {
+    return normalizedStatus == 'scheduled' || normalizedStatus == 'confirmed';
+  }
+
+  bool get isScheduled => isActive;
+
+  bool get isCompleted => normalizedStatus == 'completed';
 
   bool get isCancelled {
-    final value = status.trim().toLowerCase();
-    return value == 'cancelled' || value == 'canceled';
+    return normalizedStatus == 'cancelled' || normalizedStatus == 'canceled';
   }
 
   bool get isChat => consultationType.trim().toLowerCase() == 'chat';
@@ -208,17 +213,34 @@ class PatientAppointment {
     return consultationEndTime ?? appointmentTime.add(const Duration(minutes: 30));
   }
 
+  bool isExpired(DateTime now) {
+    return isActive && effectiveEndTime.isBefore(now);
+  }
+
+  String displayStatus(DateTime now) {
+    if (isCancelled) return 'Cancelled';
+    if (isCompleted) return 'Completed';
+    if (isExpired(now)) return 'Expired';
+    if (normalizedStatus == 'confirmed') return 'Confirmed';
+    if (normalizedStatus == 'scheduled') return 'Scheduled';
+
+    return status;
+  }
+
   bool isJoinable(DateTime now) {
-    return isScheduled && now.isAfter(appointmentTime) && now.isBefore(effectiveEndTime);
+    return isActive &&
+        !isExpired(now) &&
+        now.isAfter(appointmentTime) &&
+        now.isBefore(effectiveEndTime);
   }
 
   bool canCancel(DateTime now) {
-    return isScheduled && appointmentTime.isAfter(now);
+    return isActive && !isExpired(now) && appointmentTime.isAfter(now);
   }
 
   bool canReschedule(DateTime now) {
     final twoHoursFromNow = now.add(const Duration(hours: 2));
-    return isScheduled && appointmentTime.isAfter(twoHoursFromNow);
+    return isActive && !isExpired(now) && appointmentTime.isAfter(twoHoursFromNow);
   }
 }
 

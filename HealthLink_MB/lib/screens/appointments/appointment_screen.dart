@@ -388,7 +388,7 @@ class _AppointmentScreenState extends State<AppointmentScreen> {
                     ],
                   ),
                 ),
-                _statusChip(colors, appointment.status),
+                _statusChip(colors, appointment.displayStatus(_now)),
               ],
             ),
             const SizedBox(height: 16),
@@ -468,10 +468,18 @@ class _AppointmentScreenState extends State<AppointmentScreen> {
     Color fg;
     String label;
 
-    if (normalized == 'scheduled') {
+    if (normalized == 'expired') {
+      bg = colors.surfaceContainerHighest;
+      fg = colors.onSurfaceVariant;
+      label = 'Expired';
+    } else if (normalized == 'scheduled') {
       bg = colors.primary.withValues(alpha: 0.12);
       fg = colors.primary;
       label = 'Scheduled';
+    } else if (normalized == 'confirmed') {
+      bg = colors.tertiary.withValues(alpha: 0.12);
+      fg = colors.tertiary;
+      label = 'Confirmed';
     } else if (normalized == 'completed') {
       bg = colors.secondary.withValues(alpha: 0.12);
       fg = colors.secondary;
