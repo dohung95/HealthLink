@@ -11,6 +11,7 @@ import '../chat/chat_room_screen.dart';
 import '../video_audio/video_call_screen.dart';
 import '../../utils/notification_helper.dart';
 import '../../providers/chat_provider.dart';
+import '../../providers/video_call_provider.dart';
 
 class AppointmentScreen extends StatefulWidget {
   const AppointmentScreen({
@@ -219,7 +220,7 @@ class _AppointmentScreenState extends State<AppointmentScreen> {
 
   void _handleVideo(PatientAppointment appointment) {
     final auth = context.read<AuthProvider>();
-    final chatProvider = context.read<ChatProvider>();
+    final videoCallProvider = context.read<VideoCallProvider>();
     
     if (auth.isAuthenticated && auth.userId != null) {
       // Tạo ngẫu nhiên một roomId 45 ký tự giống web
@@ -228,12 +229,17 @@ class _AppointmentScreenState extends State<AppointmentScreen> {
       final roomId = String.fromCharCodes(Iterable.generate(
           45, (_) => chars.codeUnitAt(rnd.nextInt(chars.length))));
 
-      chatProvider.sendCallRequest(
+      final success = videoCallProvider.sendCallRequest(
         receiverId: appointment.doctorId,
         roomId: roomId,
         myId: auth.userId!,
         myName: appointment.patientName,
       );
+
+      if (!success) {
+        _showMessage('You are already in a call!', isError: true);
+        return;
+      }
 
       Navigator.push(
         context,

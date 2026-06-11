@@ -355,6 +355,10 @@ export const useWebRTC = (roomId, targetUserId) => {
                     setCallStatus('connected');
                     break;
                 case 'CALL_DECLINED':
+                    if (data && data !== roomId) {
+                        console.log('[WebRTC] Ignored CALL_DECLINED for different room:', data);
+                        break;
+                    }
                     console.log('[WebRTC] Call declined by remote user');
                     setCallStatus('disconnected');
                     // Issue #6: Không dùng alert, tự đóng tab
@@ -365,6 +369,10 @@ export const useWebRTC = (roomId, targetUserId) => {
                     }, 100);
                     break;
                 case 'HANGUP':
+                    if (data && data !== roomId) {
+                        console.log('[WebRTC] Ignored HANGUP for different room:', data);
+                        break;
+                    }
                     console.log('[WebRTC] Remote user hung up.');
                     // Issue #6: Xóa alert, chỉ endCall và đóng tab
                     endCall(false);

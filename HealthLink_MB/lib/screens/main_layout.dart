@@ -9,6 +9,8 @@ import 'appointments/appointment_screen.dart';
 import 'package:provider/provider.dart';
 import '../providers/auth_provider.dart';
 import '../providers/chat_provider.dart';
+import '../providers/video_call_provider.dart';
+import '../services/video_audio/webrtc_stomp_service.dart';
 
 class MainLayout extends StatefulWidget {
   const MainLayout({super.key});
@@ -32,6 +34,8 @@ class _MainLayoutState extends State<MainLayout> {
       final auth = context.read<AuthProvider>();
       if (auth.isAuthenticated && auth.accessToken != null && auth.userId != null) {
         context.read<ChatProvider>().loadConversations(auth.accessToken!, auth.userId!);
+        context.read<VideoCallProvider>().updateUserId(auth.userId);
+        WebrtcStompService.instance.connect(auth.accessToken!, auth.userId!);
       }
     });
   }

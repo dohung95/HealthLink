@@ -1,16 +1,21 @@
 import 'dart:async';
 import 'dart:ui';
+import 'dart:convert';
 import 'package:flutter/material.dart';
-import 'package:camera/camera.dart';
+import 'package:flutter_webrtc/flutter_webrtc.dart';
 import 'package:provider/provider.dart';
 import '../../providers/auth_provider.dart';
-import '../../services/chat/stomp_service.dart';
+import '../../services/video_audio/webrtc_stomp_service.dart';
+import '../../services/video_audio/webrtc_service.dart';
+import '../../providers/video_call_provider.dart';
 
 class VideoCallScreen extends StatefulWidget {
   final String partnerName;
   final String partnerRole;
   final String? partnerId;
   final String? roomId;
+  final bool isCaller;
+  final bool isResuming;
 
   const VideoCallScreen({
     super.key,
@@ -18,6 +23,8 @@ class VideoCallScreen extends StatefulWidget {
     this.partnerRole = 'Doctor',
     this.partnerId,
     this.roomId,
+    this.isCaller = false,
+    this.isResuming = false,
   });
 
   @override
@@ -25,115 +32,97 @@ class VideoCallScreen extends StatefulWidget {
 }
 
 class _VideoCallScreenState extends State<VideoCallScreen> with SingleTickerProviderStateMixin {
-  // Bộ đếm thời gian
   late Timer _timer;
-  int _secondsElapsed = 0; // Bắt đầu từ 00:00
 
-  // Trạng thái các nút điều khiển
   bool _isMuted = false;
   bool _isVideoOff = false;
+  bool _isConnected = false;
 
-  // Animation cho Connection Toast
   late AnimationController _animationController;
   late Animation<double> _fadeAnimation;
-
-  // Real Camera Controller
-  CameraController? _cameraController;
-  List<CameraDescription>? _cameras;
-  int _selectedCameraIndex = 0;
 
   @override
   void initState() {
     super.initState();
 
-    _initCamera();
-
-    // 1. Khởi tạo Timer
     _timer = Timer.periodic(const Duration(seconds: 1), (timer) {
-      if (mounted) {
-        setState(() {
-          _secondsElapsed++;
-        });
+      if (_isConnected && mounted) {
+        setState(() {}); // Just rebuild to update the timer text
       }
     });
 
-    // 2. Khởi tạo Animation cho thông báo mạng "Stable Connection"
     _animationController = AnimationController(
       vsync: this,
       duration: const Duration(milliseconds: 500),
     );
     _fadeAnimation = Tween<double>(begin: 0.0, end: 1.0).animate(_animationController);
 
-    // Kích hoạt Toast hiện lên rồi mờ đi sau 2 giây giống HTML script
-    Future.delayed(const Duration(seconds: 2), () {
+    _initWebRTC();
+  }
+
+  Future<void> _initWebRTC() async {
+    final webrtc = WebRTCService.instance;
+    await webrtc.initialize();
+
+    webrtc.onConnectionStateChange = () {
       if (mounted) {
-        _animationController.forward(); // Hiện Toast
+        setState(() {
+          _isConnected = true;
+        });
+        _animationController.forward();
         Future.delayed(const Duration(seconds: 3), () {
-          if (mounted) {
-            _animationController.reverse(); // Mờ dần Toast
-          }
+          if (mounted) _animationController.reverse();
         });
       }
-    });
-  }
+    };
 
-  Future<void> _initCamera() async {
-    try {
-      _cameras = await availableCameras();
-      if (_cameras != null && _cameras!.isNotEmpty) {
-        // Ưu tiên camera trước (front)
-        _selectedCameraIndex = _cameras!.indexWhere(
-          (cam) => cam.lensDirection == CameraLensDirection.front,
-        );
-        if (_selectedCameraIndex == -1) _selectedCameraIndex = 0;
+    webrtc.onAddRemoteStream = (stream) {
+      if (mounted) setState(() {});
+    };
 
-        await _startCamera(_selectedCameraIndex);
+    webrtc.onIceCandidate = (candidate) {
+      WebrtcStompService.instance.sendWebRTCSignal({
+        'type': 'CANDIDATE',
+        'senderId': context.read<AuthProvider>().userId ?? '',
+        'receiverId': widget.partnerId,
+        'data': json.encode({
+          'candidate': candidate.candidate,
+          'sdpMid': candidate.sdpMid,
+          'sdpMLineIndex': candidate.sdpMLineIndex,
+        }),
+      });
+    };
+
+    if (widget.isResuming) {
+      if (mounted) {
+        setState(() {
+          _isConnected = true;
+        });
       }
-    } catch (e) {
-      debugPrint('Error: $e');
-    }
-  }
-
-  Future<void> _startCamera(int cameraIndex) async {
-    if (_cameras == null || _cameras!.isEmpty) return;
-
-    if (_cameraController != null) {
-      await _cameraController!.dispose();
+    } else {
+      await webrtc.startLocalStream();
+      await webrtc.setupPeerConnection();
+      if (mounted) setState(() {}); // Cập nhật local renderer
     }
 
-    _cameraController = CameraController(
-      _cameras![cameraIndex],
-      ResolutionPreset.medium,
-      enableAudio: false,
-    );
-
-    try {
-      await _cameraController!.initialize();
-      if (mounted) setState(() {}); // Cập nhật lại UI sau khi camera đã sẵn sàng
-    } catch (e) {
-      debugPrint('Error initializing camera: $e');
-    }
-  }
-
-  Future<void> _switchCamera() async {
-    if (_cameras == null || _cameras!.length < 2) return;
-    
-    _selectedCameraIndex = (_selectedCameraIndex + 1) % _cameras!.length;
-    await _startCamera(_selectedCameraIndex);
+    // Nếu mình là người gọi (Mobile gọi Web), mình đã tạo Offer lúc nhấn Call rồi.
+    // Nếu mình là người nghe (Web gọi Mobile), Web sẽ tự tạo Offer gửi qua. Mình chờ OFFER.
   }
 
   @override
   void dispose() {
     _timer.cancel();
     _animationController.dispose();
-    _cameraController?.dispose();
     super.dispose();
   }
 
-  // Hàm chuyển đổi giây thành chuỗi phút:giây (MM:SS)
   String get _formattedTime {
-    final int minutes = _secondsElapsed ~/ 60;
-    final int seconds = _secondsElapsed % 60;
+    final provider = context.read<VideoCallProvider>();
+    if (provider.callStartTime == null) return '00:00';
+    
+    final secondsElapsed = DateTime.now().difference(provider.callStartTime!).inSeconds;
+    final int minutes = secondsElapsed ~/ 60;
+    final int seconds = secondsElapsed % 60;
     return '${minutes.toString().padLeft(2, '0')}:${seconds.toString().padLeft(2, '0')}';
   }
 
@@ -141,166 +130,106 @@ class _VideoCallScreenState extends State<VideoCallScreen> with SingleTickerProv
   Widget build(BuildContext context) {
     final colorScheme = Theme.of(context).colorScheme;
     final textTheme = Theme.of(context).textTheme;
-    final bool isWide = MediaQuery.of(context).size.width > 1024; // Check màn hình ngang (Tablet/Web)
+    final bool isWide = MediaQuery.of(context).size.width > 1024;
 
-    return Scaffold(
-      backgroundColor: Colors.black, // Nền đen khi chưa load được video
-      body: Stack(
-        children: [
-          // --- 1. Background Video Feed (Partner) ---
-          Container(
-            width: double.infinity,
-            height: double.infinity,
-            color: Colors.black87,
-            child: Center(
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  const Icon(Icons.person, color: Colors.white54, size: 80),
-                  const SizedBox(height: 16),
-                  Text(
-                    '${widget.partnerName}',
-                    style: const TextStyle(color: Colors.white54, fontSize: 18),
-                  ),
-                  const SizedBox(height: 8),
-                  const Text(
-                    'Camera is off',
-                    style: TextStyle(color: Colors.white38, fontSize: 14),
-                  ),
-                ],
-              ),
-            ),
-          ),
-
-          // --- 2. Top Header Overlay ---
-          SafeArea(
-            child: Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 12.0), // p-margin-mobile
-              child: Row(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                children: [
-                  // Bảng thông tin góc trái trên
-                  ClipRRect(
-                    borderRadius: BorderRadius.circular(12),
-                    child: BackdropFilter(
-                      filter: ImageFilter.blur(sigmaX: 12, sigmaY: 12),
-                      child: Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-                        decoration: BoxDecoration(
-                          color: const Color(0xFF00463B).withOpacity(0.6), // Tương đương rgba(0, 70, 59, 0.6)
-                          border: Border.all(color: Colors.white.withOpacity(0.1)),
-                        ),
-                        child: Row(
-                          mainAxisSize: MainAxisSize.min,
-                          children: [
-                            Stack(
-                              clipBehavior: Clip.none,
-                              children: [
-                                const Icon(Icons.videocam, color: Colors.white, size: 20),
-                                Positioned(
-                                  right: -2,
-                                  top: -2,
-                                  child: Container(
-                                    width: 8,
-                                    height: 8,
-                                    decoration: const BoxDecoration(
-                                      color: Colors.redAccent, // bg-error
-                                      shape: BoxShape.circle,
-                                    ),
-                                  ),
-                                ),
-                              ],
-                            ),
-                            const SizedBox(width: 12),
-                            Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              mainAxisSize: MainAxisSize.min,
-                              children: [
-                                Text(
-                                  widget.partnerName,
-                                  style: const TextStyle(fontFamily: 'Inter', fontSize: 20, fontWeight: FontWeight.bold, color: Colors.white),
-                                ),
-                                Row(
-                                  children: [
-                                    Text('LIVE', style: textTheme.labelSmall?.copyWith(color: colorScheme.surfaceVariant, letterSpacing: 1.2)),
-                                    Container(
-                                      width: 4, height: 4,
-                                      margin: const EdgeInsets.symmetric(horizontal: 8),
-                                      decoration: BoxDecoration(color: colorScheme.surfaceVariant, shape: BoxShape.circle),
-                                    ),
-                                    Text(_formattedTime, style: textTheme.labelSmall?.copyWith(color: Colors.white70, fontFamily: 'monospace')),
-                                  ],
-                                ),
-                              ],
-                            ),
-                          ],
-                        ),
+    return PopScope(
+      canPop: false,
+      onPopInvokedWithResult: (didPop, result) {
+        if (didPop) return;
+        context.read<VideoCallProvider>().showPiP(context);
+        Navigator.pop(context);
+      },
+      child: Scaffold(
+        backgroundColor: Colors.black,
+        body: Stack(
+          children: [
+            // --- 1. Background Video Feed (Partner) ---
+            Container(
+              width: double.infinity,
+              height: double.infinity,
+              color: Colors.black87,
+              child: _isConnected
+                  ? RTCVideoView(
+                      WebRTCService.instance.remoteRenderer,
+                      objectFit: RTCVideoViewObjectFit.RTCVideoViewObjectFitCover,
+                    )
+                  : Center(
+                      child: Column(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          const CircularProgressIndicator(color: Colors.white54),
+                          const SizedBox(height: 16),
+                          Text(
+                            'Connecting to ${widget.partnerName}...',
+                            style: const TextStyle(color: Colors.white54, fontSize: 18),
+                          ),
+                        ],
                       ),
                     ),
-                  ),
-                ],
-              ),
             ),
-          ),
 
-          // --- 3. Picture-in-Picture (Góc nhìn của bệnh nhân) ---
-          Positioned(
-            top: 96,
-            right: 16,
-            child: Container(
-              width: 120, // Tương đương w-32
-              height: 160, // Tương đương h-44
-              decoration: BoxDecoration(
-                borderRadius: BorderRadius.circular(12),
-                border: Border.all(color: Colors.white.withOpacity(0.2), width: 2),
-                boxShadow: const [
-                  BoxShadow(color: Colors.black38, blurRadius: 20, offset: Offset(0, 10)),
-                ],
-              ),
-              child: ClipRRect(
-                borderRadius: BorderRadius.circular(10),
-                child: Stack(
-                  fit: StackFit.expand,
+            // --- 2. Top Header Overlay ---
+            SafeArea(
+              child: Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 12.0),
+                child: Row(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [
-                    if (!_isVideoOff)
-                      (_cameraController != null && _cameraController!.value.isInitialized)
-                        ? CameraPreview(_cameraController!)
-                        : Container(
-                            color: Colors.grey[900],
-                            child: const Icon(Icons.person, color: Colors.white54, size: 40),
-                          )
-                    else
-                      Container(
-                        color: Colors.black87,
-                        child: const Icon(Icons.videocam_off, color: Colors.white54, size: 40),
-                      ),
-                    
-                    if (_isMuted)
-                      Positioned(
-                        top: 8,
-                        right: 8,
+                    ClipRRect(
+                      borderRadius: BorderRadius.circular(12),
+                      child: BackdropFilter(
+                        filter: ImageFilter.blur(sigmaX: 12, sigmaY: 12),
                         child: Container(
-                          padding: const EdgeInsets.all(4),
+                          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
                           decoration: BoxDecoration(
-                            color: Colors.black54,
-                            shape: BoxShape.circle,
-                          ),
-                          child: const Icon(Icons.mic_off, color: Colors.redAccent, size: 16),
-                        ),
-                      ),
-
-                    Positioned(
-                      bottom: 8,
-                      left: 8,
-                      child: ClipRRect(
-                        borderRadius: BorderRadius.circular(4),
-                        child: BackdropFilter(
-                          filter: ImageFilter.blur(sigmaX: 12, sigmaY: 12),
-                          child: Container(
-                            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
                             color: const Color(0xFF00463B).withOpacity(0.6),
-                            child: const Text('You', style: TextStyle(fontFamily: 'Inter', fontSize: 10, color: Colors.white, fontWeight: FontWeight.bold)),
+                            border: Border.all(color: Colors.white.withOpacity(0.1)),
+                          ),
+                          child: Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              Stack(
+                                clipBehavior: Clip.none,
+                                children: [
+                                  const Icon(Icons.videocam, color: Colors.white, size: 20),
+                                  Positioned(
+                                    right: -2,
+                                    top: -2,
+                                    child: Container(
+                                      width: 8,
+                                      height: 8,
+                                      decoration: BoxDecoration(
+                                        color: _isConnected ? Colors.green : Colors.redAccent,
+                                        shape: BoxShape.circle,
+                                      ),
+                                    ),
+                                  ),
+                                ],
+                              ),
+                              const SizedBox(width: 12),
+                              Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                mainAxisSize: MainAxisSize.min,
+                                children: [
+                                  Text(
+                                    widget.partnerName,
+                                    style: const TextStyle(fontFamily: 'Inter', fontSize: 20, fontWeight: FontWeight.bold, color: Colors.white),
+                                  ),
+                                  Row(
+                                    children: [
+                                      Text('LIVE', style: textTheme.labelSmall?.copyWith(color: colorScheme.surfaceVariant, letterSpacing: 1.2)),
+                                      Container(
+                                        width: 4, height: 4,
+                                        margin: const EdgeInsets.symmetric(horizontal: 8),
+                                        decoration: BoxDecoration(color: colorScheme.surfaceVariant, shape: BoxShape.circle),
+                                      ),
+                                      Text(_formattedTime, style: textTheme.labelSmall?.copyWith(color: Colors.white70, fontFamily: 'monospace')),
+                                    ],
+                                  ),
+                                ],
+                              ),
+                            ],
                           ),
                         ),
                       ),
@@ -309,161 +238,183 @@ class _VideoCallScreenState extends State<VideoCallScreen> with SingleTickerProv
                 ),
               ),
             ),
-          ),
 
-          // --- 4. Connection Toast (Thông báo nổi giữa màn hình) ---
-          Positioned(
-            top: 96,
-            left: 0,
-            right: 0,
-            child: Center(
-              child: FadeTransition(
-                opacity: _fadeAnimation,
-                child: Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-                  decoration: BoxDecoration(
-                    color: colorScheme.secondaryContainer.withOpacity(0.9),
-                    borderRadius: BorderRadius.circular(100),
-                    border: Border.all(color: colorScheme.outlineVariant.withOpacity(0.3)),
-                    boxShadow: const [BoxShadow(color: Colors.black26, blurRadius: 10, offset: Offset(0, 4))],
-                  ),
-                  child: Row(
-                    mainAxisSize: MainAxisSize.min,
+            // --- 3. Picture-in-Picture (Góc nhìn của bệnh nhân) ---
+            Positioned(
+              top: 96,
+              right: 16,
+              child: Container(
+                width: 120,
+                height: 160,
+                decoration: BoxDecoration(
+                  borderRadius: BorderRadius.circular(12),
+                  border: Border.all(color: Colors.white.withOpacity(0.2), width: 2),
+                  boxShadow: const [
+                    BoxShadow(color: Colors.black38, blurRadius: 20, offset: Offset(0, 10)),
+                  ],
+                ),
+                child: ClipRRect(
+                  borderRadius: BorderRadius.circular(10),
+                  child: Stack(
+                    fit: StackFit.expand,
                     children: [
-                      Icon(Icons.wifi, color: colorScheme.onSecondaryContainer, size: 16),
-                      const SizedBox(width: 8),
-                      Text('Stable Connection', style: textTheme.labelMedium?.copyWith(color: colorScheme.onSecondaryContainer)),
+                      if (!_isVideoOff)
+                        RTCVideoView(
+                          WebRTCService.instance.localRenderer,
+                          mirror: true,
+                          objectFit: RTCVideoViewObjectFit.RTCVideoViewObjectFitCover,
+                        )
+                      else
+                        Container(
+                          color: Colors.black87,
+                          child: const Icon(Icons.videocam_off, color: Colors.white54, size: 40),
+                        ),
+
+                      if (_isMuted)
+                        Positioned(
+                          top: 8,
+                          right: 8,
+                          child: Container(
+                            padding: const EdgeInsets.all(4),
+                            decoration: const BoxDecoration(
+                              color: Colors.black54,
+                              shape: BoxShape.circle,
+                            ),
+                            child: const Icon(Icons.mic_off, color: Colors.redAccent, size: 16),
+                          ),
+                        ),
+
+                      Positioned(
+                        bottom: 8,
+                        left: 8,
+                        child: ClipRRect(
+                          borderRadius: BorderRadius.circular(4),
+                          child: BackdropFilter(
+                            filter: ImageFilter.blur(sigmaX: 12, sigmaY: 12),
+                            child: Container(
+                              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                              color: const Color(0xFF00463B).withOpacity(0.6),
+                              child: const Text('You', style: TextStyle(fontFamily: 'Inter', fontSize: 10, color: Colors.white, fontWeight: FontWeight.bold)),
+                            ),
+                          ),
+                        ),
+                      ),
                     ],
                   ),
                 ),
               ),
             ),
-          ),
 
-          // --- 5. Floating Note (Dành cho màn hình rộng / Desktop) ---
-          if (isWide)
+            // --- 4. Connection Toast ---
             Positioned(
-              bottom: 128,
-              right: 48,
-              child: Container(
-                width: 256, // w-64
-                padding: const EdgeInsets.all(16),
-                decoration: BoxDecoration(
-                  color: colorScheme.surface.withOpacity(0.9),
-                  borderRadius: BorderRadius.circular(12),
-                  border: Border.all(color: colorScheme.primary.withOpacity(0.1)),
-                  boxShadow: const [BoxShadow(color: Colors.black12, blurRadius: 16, offset: Offset(0, 8))],
-                ),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Row(
+              top: 96,
+              left: 0,
+              right: 0,
+              child: Center(
+                child: FadeTransition(
+                  opacity: _fadeAnimation,
+                  child: Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                    decoration: BoxDecoration(
+                      color: colorScheme.secondaryContainer.withOpacity(0.9),
+                      borderRadius: BorderRadius.circular(100),
+                      border: Border.all(color: colorScheme.outlineVariant.withOpacity(0.3)),
+                      boxShadow: const [BoxShadow(color: Colors.black26, blurRadius: 10, offset: Offset(0, 4))],
+                    ),
+                    child: Row(
+                      mainAxisSize: MainAxisSize.min,
                       children: [
-                        Icon(Icons.assignment, color: colorScheme.primary, size: 16),
+                        Icon(Icons.wifi, color: colorScheme.onSecondaryContainer, size: 16),
                         const SizedBox(width: 8),
-                        Text('Appointment Notes', style: textTheme.labelMedium?.copyWith(color: colorScheme.primary)),
+                        Text('Stable Connection', style: textTheme.labelMedium?.copyWith(color: colorScheme.onSecondaryContainer)),
                       ],
                     ),
-                    const SizedBox(height: 8),
-                    Text(
-                      '"Reviewing blood work results from March 12. Cholesterol levels show positive trends."',
-                      style: textTheme.bodyMedium?.copyWith(color: colorScheme.onSurfaceVariant, fontStyle: FontStyle.italic),
-                    ),
-                  ],
+                  ),
                 ),
               ),
             ),
 
-          // --- 6. Bottom Control Bar ---
-          Positioned(
-            bottom: 40,
-            left: 0,
-            right: 0,
-            child: SafeArea(
-              child: Center(
-                child: Container(
-                  width: MediaQuery.of(context).size.width * 0.9,
-                  constraints: const BoxConstraints(maxWidth: 400),
-                  child: ClipRRect(
-                    borderRadius: BorderRadius.circular(100),
-                    child: BackdropFilter(
-                      filter: ImageFilter.blur(sigmaX: 12, sigmaY: 12),
-                      child: Container(
-                        padding: const EdgeInsets.all(16),
-                        decoration: BoxDecoration(
-                          color: const Color(0xFF00463B).withOpacity(0.6), // glass-panel
-                          borderRadius: BorderRadius.circular(100),
-                          border: Border.all(color: Colors.white.withOpacity(0.1)),
-                        ),
-                        child: Row(
-                          mainAxisAlignment: MainAxisAlignment.spaceAround,
-                          children: [
-                            // Nút Mute
-                            _buildControlButton(
-                              iconOn: Icons.mic,
-                              iconOff: Icons.mic_off,
-                              label: 'Mute',
-                              isToggled: _isMuted,
-                              onTap: () => setState(() => _isMuted = !_isMuted),
-                            ),
+            // --- 6. Bottom Control Bar ---
+            Positioned(
+              bottom: 40,
+              left: 0,
+              right: 0,
+              child: SafeArea(
+                child: Center(
+                  child: Container(
+                    width: MediaQuery.of(context).size.width * 0.9,
+                    constraints: const BoxConstraints(maxWidth: 400),
+                    child: ClipRRect(
+                      borderRadius: BorderRadius.circular(100),
+                      child: BackdropFilter(
+                        filter: ImageFilter.blur(sigmaX: 12, sigmaY: 12),
+                        child: Container(
+                          padding: const EdgeInsets.all(16),
+                          decoration: BoxDecoration(
+                            color: const Color(0xFF00463B).withOpacity(0.6),
+                            borderRadius: BorderRadius.circular(100),
+                            border: Border.all(color: Colors.white.withOpacity(0.1)),
+                          ),
+                          child: Row(
+                            mainAxisAlignment: MainAxisAlignment.spaceAround,
+                            children: [
+                              _buildControlButton(
+                                iconOn: Icons.mic,
+                                iconOff: Icons.mic_off,
+                                label: 'Mute',
+                                isToggled: _isMuted,
+                                onTap: () {
+                                  setState(() => _isMuted = !_isMuted);
+                                  WebRTCService.instance.toggleMic(_isMuted);
+                                },
+                              ),
 
-                            // Nút Tắt Camera
-                            _buildControlButton(
-                              iconOn: Icons.videocam,
-                              iconOff: Icons.videocam_off,
-                              label: 'Video',
-                              isToggled: _isVideoOff,
-                              onTap: () => setState(() => _isVideoOff = !_isVideoOff),
-                            ),
+                              _buildControlButton(
+                                iconOn: Icons.videocam,
+                                iconOff: Icons.videocam_off,
+                                label: 'Video',
+                                isToggled: _isVideoOff,
+                                onTap: () {
+                                  setState(() => _isVideoOff = !_isVideoOff);
+                                  WebRTCService.instance.toggleCamera(_isVideoOff);
+                                },
+                              ),
 
-                            // Nút Đảo Camera
-                            _buildControlButton(
-                              iconOn: Icons.cameraswitch,
-                              iconOff: Icons.cameraswitch,
-                              label: 'Flip',
-                              isToggled: false,
-                              onTap: _switchCamera,
-                            ),
+                              _buildControlButton(
+                                iconOn: Icons.cameraswitch,
+                                iconOff: Icons.cameraswitch,
+                                label: 'Flip',
+                                isToggled: false,
+                                onTap: () async {
+                                  await WebRTCService.instance.switchCamera();
+                                },
+                              ),
 
-                            // Nút Kết thúc cuộc gọi
-                            Column(
-                              mainAxisSize: MainAxisSize.min,
-                              children: [
-                                Material(
-                                  color: Colors.redAccent, // bg-error
-                                  shape: const CircleBorder(),
-                                  shadowColor: Colors.redAccent.withOpacity(0.5),
-                                  elevation: 8,
-                                  child: InkWell(
-                                    onTap: () {
-                                      if (widget.partnerId != null && widget.roomId != null) {
-                                        final myId = context.read<AuthProvider>().userId;
-                                        if (myId != null) {
-                                          StompService.instance.sendWebRTCSignal({
-                                            'type': 'HANGUP',
-                                            'senderId': myId,
-                                            'senderName': 'Patient',
-                                            'receiverId': widget.partnerId,
-                                            'data': widget.roomId,
-                                          });
-                                        }
-                                      }
-                                      Navigator.pop(context); // Tắt màn hình khi bấm End
-                                    },
-                                    customBorder: const CircleBorder(),
-                                    child: Container(
-                                      width: 56, // h-14
-                                      height: 56, // w-14
-                                      alignment: Alignment.center,
-                                      child: const Icon(Icons.call_end, color: Colors.white, size: 28),
+                              Column(
+                                mainAxisSize: MainAxisSize.min,
+                                children: [
+                                  Material(
+                                    color: Colors.redAccent,
+                                    shape: const CircleBorder(),
+                                    shadowColor: Colors.redAccent.withOpacity(0.5),
+                                    elevation: 8,
+                                    child: InkWell(
+                                      onTap: _handleEndCall,
+                                      customBorder: const CircleBorder(),
+                                      child: Container(
+                                        width: 56,
+                                        height: 56,
+                                        alignment: Alignment.center,
+                                        child: const Icon(Icons.call_end, color: Colors.white, size: 28),
+                                      ),
                                     ),
                                   ),
-                                ),
-                                const SizedBox(height: 4),
-                                const Text('END', style: TextStyle(fontFamily: 'Inter', fontSize: 10, color: Colors.redAccent, fontWeight: FontWeight.bold)),
-                              ],
-                            ),
-                          ],
+                                  const SizedBox(height: 4),
+                                  const Text('END', style: TextStyle(fontFamily: 'Inter', fontSize: 10, color: Colors.redAccent, fontWeight: FontWeight.bold)),
+                                ],
+                              ),
+                            ],
+                          ),
                         ),
                       ),
                     ),
@@ -471,13 +422,12 @@ class _VideoCallScreenState extends State<VideoCallScreen> with SingleTickerProv
                 ),
               ),
             ),
-          ),
-        ],
-      ),
+          ],
+        ),
+      )
     );
   }
 
-  // Widget hỗ trợ: Nút điều khiển âm thanh/camera
   Widget _buildControlButton({
     required IconData iconOn,
     required IconData iconOff,
@@ -485,7 +435,6 @@ class _VideoCallScreenState extends State<VideoCallScreen> with SingleTickerProv
     required bool isToggled,
     required VoidCallback onTap,
   }) {
-    // Nếu isToggled == true => Đã bị tắt (Màu đỏ, Icon gạch chéo)
     final Color bgColor = isToggled ? Colors.redAccent.withOpacity(0.2) : Colors.white.withOpacity(0.1);
     final Color iconColor = isToggled ? Colors.redAccent : Colors.white;
     final IconData currentIcon = isToggled ? iconOff : iconOn;
@@ -514,5 +463,24 @@ class _VideoCallScreenState extends State<VideoCallScreen> with SingleTickerProv
         ),
       ],
     );
+  }
+
+  void _handleEndCall() {
+    if (widget.partnerId != null && widget.roomId != null) {
+      final myId = context.read<AuthProvider>().userId;
+      if (myId != null) {
+        WebrtcStompService.instance.sendWebRTCSignal({
+          'type': 'HANGUP',
+          'senderId': myId,
+          'senderName': 'Patient',
+          'receiverId': widget.partnerId,
+          'data': widget.roomId,
+        });
+      }
+    }
+    context.read<VideoCallProvider>().endCall();
+    if (Navigator.canPop(context)) {
+      Navigator.pop(context);
+    }
   }
 }

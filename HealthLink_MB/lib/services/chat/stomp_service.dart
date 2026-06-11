@@ -18,14 +18,12 @@ class StompService {
   bool _isConnected = false;
   bool _isConnecting = false; // Tránh tạo 2 kết nối cùng lúc
   OnMessageCallback? _onMessageReceived;
-  OnWebRTCSignalCallback? _onWebRTCSignalReceived;
   String? _userId;
 
   /// Kết nối đến STOMP WebSocket
-  void connect(String token, String userId, OnMessageCallback onMessageReceived, {OnWebRTCSignalCallback? onWebRTCSignalReceived}) {
+  void connect(String token, String userId, OnMessageCallback onMessageReceived) {
     // Luôn cập nhật callbacks trước
     _onMessageReceived = onMessageReceived;
-    _onWebRTCSignalReceived = onWebRTCSignalReceived;
     _userId = userId;
 
     if (_isConnected && _stompClient != null) {
@@ -94,35 +92,6 @@ class StompService {
         }
       },
     );
-
-    // Lắng nghe kênh tín hiệu WebRTC (Video Call)
-    _stompClient?.subscribe(
-      destination: '/user/queue/webrtc',
-      callback: (StompFrame frame) {
-        if (frame.body != null) {
-          try {
-            final jsonMap = json.decode(frame.body!);
-            debugPrint('[STOMP] Received WebRTC signal: ${jsonMap['type']}');
-            if (_onWebRTCSignalReceived != null) {
-              _onWebRTCSignalReceived!(jsonMap);
-            }
-          } catch (e) {
-            debugPrint('[STOMP] Error parsing WebRTC signal: $e');
-          }
-        }
-      },
-    );
-  }
-
-  void sendWebRTCSignal(Map<String, dynamic> signal) {
-    if (_isConnected && _stompClient != null) {
-      _stompClient?.send(
-        destination: '/app/webrtc.signal',
-        body: json.encode(signal),
-      );
-    } else {
-      debugPrint('[STOMP] Cannot send signal, not connected.');
-    }
   }
 
   void disconnect() {

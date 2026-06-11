@@ -3,6 +3,7 @@ import 'package:provider/provider.dart';
 import 'config/themes.dart';
 import 'providers/auth_provider.dart';
 import 'providers/chat_provider.dart';
+import 'providers/video_call_provider.dart';
 import 'screens/welcome_screen.dart';
 import 'screens/main_layout.dart';
 
@@ -21,6 +22,7 @@ Future<void> main() async {
       providers: [
         ChangeNotifierProvider<AuthProvider>.value(value: authProvider),
         ChangeNotifierProvider<ChatProvider>(create: (_) => ChatProvider()),
+        ChangeNotifierProvider<VideoCallProvider>(create: (_) => VideoCallProvider()),
       ],
       child: const HealthLinkApp(),
     ),
