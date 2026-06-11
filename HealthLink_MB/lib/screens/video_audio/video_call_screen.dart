@@ -8,6 +8,7 @@ import '../../providers/auth_provider.dart';
 import '../../services/video_audio/webrtc_stomp_service.dart';
 import '../../services/video_audio/webrtc_service.dart';
 import '../../providers/video_call_provider.dart';
+import 'package:wakelock_plus/wakelock_plus.dart';
 
 class VideoCallScreen extends StatefulWidget {
   final String partnerName;
@@ -44,6 +45,8 @@ class _VideoCallScreenState extends State<VideoCallScreen> with SingleTickerProv
   @override
   void initState() {
     super.initState();
+    
+    WakelockPlus.enable(); // Ngăn màn hình tự tắt khi đang gọi
 
     _timer = Timer.periodic(const Duration(seconds: 1), (timer) {
       if (_isConnected && mounted) {
@@ -119,6 +122,7 @@ class _VideoCallScreenState extends State<VideoCallScreen> with SingleTickerProv
 
   @override
   void dispose() {
+    WakelockPlus.disable(); // Cho phép màn hình tự tắt trở lại
     _timer.cancel();
     _animationController.dispose();
     super.dispose();

@@ -8,6 +8,7 @@ import '../../screens/video_audio/video_call_screen.dart';
 import '../providers/auth_provider.dart';
 import 'package:provider/provider.dart';
 import 'package:flutter_ringtone_player/flutter_ringtone_player.dart';
+import 'package:wakelock_plus/wakelock_plus.dart';
 
 class VideoCallProvider extends ChangeNotifier {
   bool _isInCall = false;
@@ -124,6 +125,7 @@ class VideoCallProvider extends ChangeNotifier {
                     });
                     
                     _isInCall = true;
+                    WakelockPlus.enable();
                     callStartTime = DateTime.now();
                     notifyListeners();
 
@@ -167,6 +169,7 @@ class VideoCallProvider extends ChangeNotifier {
       }
 
       _isInCall = false;
+      WakelockPlus.disable();
       callStartTime = null;
       isRemoteCameraOff = false;
       hidePiP();
@@ -297,6 +300,7 @@ class VideoCallProvider extends ChangeNotifier {
     }
 
     _isInCall = true;
+    WakelockPlus.enable();
     currentPartnerId = receiverId;
     currentRoomId = roomId;
     currentPartnerName = 'Doctor';
@@ -316,6 +320,7 @@ class VideoCallProvider extends ChangeNotifier {
 
   void endCall() {
     _isInCall = false;
+    WakelockPlus.disable();
     callStartTime = null;
     isRemoteCameraOff = false;
     hidePiP();
