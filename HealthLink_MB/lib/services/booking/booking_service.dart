@@ -381,7 +381,7 @@ class BookingService {
     return data
         .whereType<Map<String, dynamic>>()
         .map(DoctorWorkingSchedule.fromJson)
-        .where((item) => item.available)
+        .where((item) => item.isBookable)
         .toList();
   }
 }
@@ -568,6 +568,7 @@ class DoctorWorkingSchedule {
     required this.slotDuration,
     required this.consultationType,
     required this.available,
+    required this.scheduleStatus,
   });
 
   factory DoctorWorkingSchedule.fromJson(Map<String, dynamic> json) {
@@ -579,6 +580,7 @@ class DoctorWorkingSchedule {
       slotDuration: _toInt(json['slotDuration'], 30),
       consultationType: (json['consultationType'] ?? '').toString(),
       available: json['available'] == true,
+      scheduleStatus: (json['scheduleStatus'] ?? '').toString(),
     );
   }
 
@@ -589,4 +591,15 @@ class DoctorWorkingSchedule {
   final int slotDuration;
   final String consultationType;
   final bool available;
+  final String scheduleStatus;
+
+  bool get isApproved {
+    final normalized = scheduleStatus.trim().toUpperCase();
+
+    // Nếu backend/database chưa có scheduleStatus thì tạm coi là APPROVED
+    // để không làm mất toàn bộ lịch hiện có.
+    return normalized.isEmpty || normalized == 'APPROVED';
+  }
+
+  bool get isBookable => available && isApproved;
 }

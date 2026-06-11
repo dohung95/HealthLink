@@ -658,6 +658,7 @@ public class DoctorServiceImpl implements DoctorService {
                 .slotDuration(s.getSlotDuration())
                 .consultationType(s.getConsultationType())
                 .available(s.isAvailable())
+                .scheduleStatus(s.getScheduleStatus())
                 .build();
     }
 

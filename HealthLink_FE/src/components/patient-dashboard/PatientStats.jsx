@@ -34,9 +34,12 @@ const PatientStats = () => {
                 ]);
 
                 // Lọc các lịch hẹn sắp tới (status: Scheduled)
+                const now = new Date();
+
                 const upcomingCount = appointments.status === 'fulfilled'
-                    ? (Array.isArray(appointments.value) ? appointments.value : []).filter(
-                        (a) => a.status === 'Scheduled' || a.status === 'Confirmed'
+                    ? (Array.isArray(appointments.value) ? appointments.value : []).filter((a) =>
+                        (a.status === 'Scheduled' || a.status === 'Confirmed') &&
+                        new Date(a.appointmentTime) >= now
                     ).length
                     : 0;
 
