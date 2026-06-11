@@ -3306,12 +3306,22 @@
   border-color: #fbbf24;
 }
 
+.badge-in-consultation {
+  background: rgba(139, 92, 246, 0.12);
+  color: #6d28d9;
+  border-color: #8b5cf6;
+}
+
 .status-scheduled .appointment-status-bar {
   background: linear-gradient(90deg, #4ade80 0%, #22c55e 100%);
 }
 
 .status-in-progress .appointment-status-bar {
   background: linear-gradient(90deg, #fbbf24 0%, #f59e0b 100%);
+}
+
+.status-in-consultation .appointment-status-bar {
+  background: linear-gradient(90deg, #8b5cf6 0%, #7c3aed 100%);
 }
 
 /* Appointment View Toggle */
@@ -3498,6 +3508,14 @@
 .calendar-appt-item.cancelled {
   border-left: 4px solid #ef4444;
   opacity: 0.75;
+}
+
+.calendar-appt-item.confirmed {
+  border-left: 4px solid #00c4ac;
+}
+
+.calendar-appt-item.in-consultation {
+  border-left: 4px solid #8b5cf6;
 }
 
 .calendar-appt-time {
