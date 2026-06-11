@@ -35,10 +35,6 @@ export default function PharmacyDashboardPage() {
   const activeTab = useMemo(() => {
     if (location.pathname.includes('/inventory')) return 'inventory';
     if (location.pathname.includes('/orders')) return 'orders';
-    if (location.pathname.includes('/consultations')) {
-      navigate(routeByTab.orders + '?stage=NEW_REQUEST', { replace: true });
-      return 'orders';
-    }
     if (location.pathname.includes('/wallet')) return 'wallet';
     if (location.pathname.includes('/profile')) return 'profile';
     return 'overview';

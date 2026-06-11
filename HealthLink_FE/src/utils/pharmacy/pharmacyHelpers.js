@@ -94,7 +94,6 @@ export const routeByTab = {
   overview: '/pharmacy-page',
   inventory: '/pharmacy-page/inventory',
   orders: '/pharmacy-page/orders',
-  consultations: '/pharmacy-page/consultations',
   wallet: '/pharmacy-page/wallet',
   profile: '/pharmacy-page/profile',
 };
