@@ -21,6 +21,7 @@ class VideoCallProvider extends ChangeNotifier {
   String? currentPartnerId;
   String? currentRoomId;
   bool currentIsCaller = false;
+  DateTime? callStartTime;
 
   VideoCallProvider() {
     // Register STOMP callback
@@ -90,6 +91,14 @@ class VideoCallProvider extends ChangeNotifier {
                       'receiverId': senderId,
                       'data': roomId,
                     });
+
+                    // Báo cho các thiết bị KHÁC CỦA CHÍNH MÌNH tắt chuông
+                    WebrtcStompService.instance.sendWebRTCSignal({
+                      'type': 'CALL_HANDLED_ELSEWHERE',
+                      'senderId': _lastUserId ?? '',
+                      'receiverId': _lastUserId ?? '',
+                      'data': roomId,
+                    });
                   },
                   child: const Text('Decline', style: TextStyle(color: Colors.red)),
                 ),
@@ -104,8 +113,17 @@ class VideoCallProvider extends ChangeNotifier {
                       'receiverId': senderId,
                       'data': roomId,
                     });
+
+                    // Báo cho các thiết bị KHÁC CỦA CHÍNH MÌNH tắt chuông
+                    WebrtcStompService.instance.sendWebRTCSignal({
+                      'type': 'CALL_HANDLED_ELSEWHERE',
+                      'senderId': _lastUserId ?? '',
+                      'receiverId': _lastUserId ?? '',
+                      'data': roomId,
+                    });
                     
                     _isInCall = true;
+                    callStartTime = DateTime.now();
                     notifyListeners();
 
                     currentPartnerName = senderName ?? 'Unknown';
@@ -136,10 +154,19 @@ class VideoCallProvider extends ChangeNotifier {
           }
         );
       }
-    } else if (type == 'HANGUP' || type == 'CALL_DECLINED') {
-      debugPrint('[VideoCallProvider] 📞 Call ended/declined by $senderName');
+    } else if (type == 'HANGUP' || type == 'CALL_DECLINED' || type == 'CALL_HANDLED_ELSEWHERE') {
+      debugPrint('[VideoCallProvider] 📞 Call ended/declined/handled elsewhere by $senderName');
       FlutterRingtonePlayer().stop();
+
+      // Nếu là CALL_HANDLED_ELSEWHERE và thiết bị này ĐÃ VÀO CUỘC GỌI (chính nó vừa Accept)
+      // thì KHÔNG ĐƯỢC tắt cuộc gọi, chỉ bỏ qua tín hiệu này.
+      if (type == 'CALL_HANDLED_ELSEWHERE' && _isInCall) {
+        debugPrint('[VideoCallProvider] Ignoring CALL_HANDLED_ELSEWHERE because this device accepted the call.');
+        return;
+      }
+
       _isInCall = false;
+      callStartTime = null;
       hidePiP();
       notifyListeners();
       try {
@@ -159,6 +186,11 @@ class VideoCallProvider extends ChangeNotifier {
       final dataStr = signal['data'];
       if (dataStr != null) {
         try {
+          while (!WebRTCService.instance.isPeerConnectionReady && _isInCall) {
+            await Future.delayed(const Duration(milliseconds: 500));
+          }
+          if (!_isInCall) return;
+
           final offerMap = json.decode(dataStr);
           final description = RTCSessionDescription(offerMap['sdp'], offerMap['type']);
           await WebRTCService.instance.setRemoteDescription(description);
@@ -179,6 +211,11 @@ class VideoCallProvider extends ChangeNotifier {
       final dataStr = signal['data'];
       if (dataStr != null) {
         try {
+          while (!WebRTCService.instance.isPeerConnectionReady && _isInCall) {
+            await Future.delayed(const Duration(milliseconds: 500));
+          }
+          if (!_isInCall) return;
+
           final answerMap = json.decode(dataStr);
           final description = RTCSessionDescription(answerMap['sdp'], answerMap['type']);
           await WebRTCService.instance.setRemoteDescription(description);
@@ -190,6 +227,11 @@ class VideoCallProvider extends ChangeNotifier {
       final dataStr = signal['data'];
       if (dataStr != null) {
         try {
+          while (!WebRTCService.instance.isPeerConnectionReady && _isInCall) {
+            await Future.delayed(const Duration(milliseconds: 500));
+          }
+          if (!_isInCall) return;
+
           final candidateMap = json.decode(dataStr);
           final candidate = RTCIceCandidate(
             candidateMap['candidate'],
@@ -205,6 +247,7 @@ class VideoCallProvider extends ChangeNotifier {
       // Khi Mobile là Caller, Web đã nhận cuộc gọi
       // Mobile tạo Offer và gửi đi
       debugPrint('[VideoCallProvider] Call accepted by Web. Creating Offer...');
+      callStartTime = DateTime.now();
       final offer = await WebRTCService.instance.createOffer();
       if (offer != null) {
         WebrtcStompService.instance.sendWebRTCSignal({
@@ -248,6 +291,7 @@ class VideoCallProvider extends ChangeNotifier {
 
   void endCall() {
     _isInCall = false;
+    callStartTime = null;
     hidePiP();
     notifyListeners();
     FlutterRingtonePlayer().stop();

@@ -22,6 +22,7 @@ export const useWebRTC = (roomId, targetUserId) => {
     const peerConnection = useRef(null);
     const localStreamRef = useRef(null);
     const pendingCandidates = useRef([]);
+    const isStreamStartingRef = useRef(false);
     // Lưu refs cho các giá trị mới nhất để tránh stale closure trong callback
     const targetUserIdRef = useRef(targetUserId);
     const currentUserIdRef = useRef(currentUserId);
@@ -122,6 +123,12 @@ export const useWebRTC = (roomId, targetUserId) => {
      * Gọi TRƯỚC createOffer/createAnswer.
      */
     const startLocalStream = useCallback(async () => {
+        if (isStreamStartingRef.current || localStreamRef.current) {
+            console.log('[WebRTC] Local stream is already starting or started, skipping...');
+            return localStreamRef.current;
+        }
+        isStreamStartingRef.current = true;
+
         try {
             let stream = null;
             try {
@@ -135,6 +142,16 @@ export const useWebRTC = (roomId, targetUserId) => {
                     console.warn('[WebRTC] Audio also failed, no local media:', err2);
                     stream = null;
                 }
+            }
+
+            // Mấu chốt chặn StrictMode: Nếu đã lấy camera xong ở 1 luồng khác, đóng luồng này lại!
+            if (localStreamRef.current) {
+                console.log('[WebRTC] Duplicate stream detected due to StrictMode, stopping new tracks...');
+                if (stream) {
+                    stream.getTracks().forEach(t => t.stop());
+                }
+                isStreamStartingRef.current = false;
+                return localStreamRef.current;
             }
 
             const pc = initializePeerConnection();
@@ -169,6 +186,7 @@ export const useWebRTC = (roomId, targetUserId) => {
         } catch (error) {
             console.error('[WebRTC] Critical error in startLocalStream:', error);
             setCallStatus('disconnected');
+            isStreamStartingRef.current = false;
             throw error;
         }
     }, [initializePeerConnection]);
@@ -179,13 +197,10 @@ export const useWebRTC = (roomId, targetUserId) => {
     const createOffer = useCallback(async () => {
         const pc = initializePeerConnection();
         try {
-            const offer = await pc.createOffer({
-                offerToReceiveAudio: true,
-                offerToReceiveVideo: true
-            });
+            const offer = await pc.createOffer();
             await pc.setLocalDescription(offer);
 
-            console.log('[WebRTC] Sending OFFER to', targetUserIdRef.current);
+            console.log('%c[WebRTC LOG] Sending OFFER to ' + targetUserIdRef.current, 'color: blue; font-size: 14px; font-weight: bold;');
             videoCallService.sendWebRTCSignal({
                 type: 'OFFER',
                 senderId: currentUserIdRef.current,
@@ -210,7 +225,7 @@ export const useWebRTC = (roomId, targetUserId) => {
             const answer = await pc.createAnswer();
             await pc.setLocalDescription(answer);
 
-            console.log('[WebRTC] Sending ANSWER to', targetUserIdRef.current);
+            console.log('%c[WebRTC LOG] Sending ANSWER to ' + targetUserIdRef.current, 'color: blue; font-size: 14px; font-weight: bold;');
             videoCallService.sendWebRTCSignal({
                 type: 'ANSWER',
                 senderId: currentUserIdRef.current,
@@ -243,6 +258,13 @@ export const useWebRTC = (roomId, targetUserId) => {
             const answer = JSON.parse(answerStr);
             await pc.setRemoteDescription(new RTCSessionDescription(answer));
             console.log('[WebRTC] Remote description (answer) set successfully.');
+
+            // Xử lý các ICE candidates đang chờ
+            while (pendingCandidates.current.length > 0) {
+                const candidate = pendingCandidates.current.shift();
+                await pc.addIceCandidate(new RTCIceCandidate(candidate));
+                console.log('[WebRTC] Applied pending ICE candidate.');
+            }
         } catch (error) {
             console.error('[WebRTC] Error handling answer:', error);
         }
@@ -299,6 +321,10 @@ export const useWebRTC = (roomId, targetUserId) => {
      * @returns {Promise<void>}
      */
     const endCall = useCallback((sendHangup = true) => {
+        console.log('[WebRTC] Disposing call...');
+        
+        isStreamStartingRef.current = false;
+
         // Dừng local media tracks
         if (localStreamRef.current) {
             localStreamRef.current.getTracks().forEach((track) => track.stop());
@@ -337,7 +363,7 @@ export const useWebRTC = (roomId, targetUserId) => {
             // Chỉ xử lý tín hiệu từ đúng targetUserId
             if (senderId !== targetUserId) return;
 
-            console.log('[WebRTC] Received signal:', type, 'from', senderId);
+            console.log('%c[WebRTC LOG] Received signal: ' + type + ' from ' + senderId, 'color: red; font-size: 14px; font-weight: bold;');
 
             switch (type) {
                 case 'OFFER':
@@ -433,7 +459,11 @@ export const useWebRTC = (roomId, targetUserId) => {
         // Kiểm tra ngay lúc mount (signal có thể đã được set trước khi tab này load)
         try {
             const initialSignal = JSON.parse(localStorage.getItem('webrtc_signal'));
-            handleStorageSignal(initialSignal);
+            if (initialSignal) {
+                handleStorageSignal(initialSignal);
+                // Xóa signal cũ sau khi đọc để tránh lỗi tự động đóng khi gọi cuộc gọi mới trong vòng 15s
+                localStorage.removeItem('webrtc_signal');
+            }
         } catch (e) { /* ignore */ }
 
         const handleStorageChange = (e) => {

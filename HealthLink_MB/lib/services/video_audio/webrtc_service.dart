@@ -10,6 +10,8 @@ class WebRTCService {
   WebRTCService._internal();
 
   RTCPeerConnection? _peerConnection;
+  
+  bool get isPeerConnectionReady => _peerConnection != null;
   MediaStream? _localStream;
   MediaStream? _remoteStream;
 
@@ -20,9 +22,11 @@ class WebRTCService {
   // Callbacks for signaling
   Function(RTCIceCandidate candidate)? onIceCandidate;
   Function(MediaStream stream)? onAddRemoteStream;
-  Function()? onConnectionStateChange;
+  Function(RTCPeerConnectionState state)? onConnectionStateChange;
 
   bool _isInitialized = false;
+  bool _isRemoteDescriptionSet = false;
+  final List<RTCIceCandidate> _pendingCandidates = [];
 
   final Map<String, dynamic> _iceConfiguration = {
     'iceServers': [
@@ -111,8 +115,12 @@ class WebRTCService {
 
     // Lắng nghe trạng thái
     _peerConnection!.onConnectionState = (RTCPeerConnectionState state) {
-      debugPrint('[WebRTC] Connection state change: $state');
-      onConnectionStateChange?.call();
+      debugPrint('\x1B[31m[WebRTC LOG] Connection state change: $state\x1B[0m');
+      onConnectionStateChange?.call(state);
+    };
+
+    _peerConnection!.onIceConnectionState = (RTCIceConnectionState state) {
+      debugPrint('\x1B[31m[WebRTC LOG] ICE Connection state change: $state\x1B[0m');
     };
   }
 
@@ -146,7 +154,15 @@ class WebRTCService {
     if (_peerConnection == null) return;
     try {
       await _peerConnection!.setRemoteDescription(description);
+      _isRemoteDescriptionSet = true;
       debugPrint('[WebRTC] Remote description set');
+      
+      // Process pending candidates
+      for (var candidate in _pendingCandidates) {
+        await _peerConnection!.addCandidate(candidate);
+        debugPrint('[WebRTC] Applied pending remote ICE candidate');
+      }
+      _pendingCandidates.clear();
     } catch (e) {
       debugPrint('[WebRTC] Error setting remote description: $e');
     }
@@ -154,6 +170,13 @@ class WebRTCService {
 
   Future<void> addIceCandidate(RTCIceCandidate candidate) async {
     if (_peerConnection == null) return;
+    
+    if (!_isRemoteDescriptionSet) {
+      debugPrint('[WebRTC] Queuing ICE candidate because remote description is not set yet');
+      _pendingCandidates.add(candidate);
+      return;
+    }
+    
     try {
       await _peerConnection!.addCandidate(candidate);
       debugPrint('[WebRTC] Remote ICE candidate added');
@@ -194,6 +217,9 @@ class WebRTCService {
   void disposeCall() {
     debugPrint('[WebRTC] Disposing call...');
     
+    _pendingCandidates.clear();
+    _isRemoteDescriptionSet = false;
+
     _localStream?.getTracks().forEach((track) {
       track.stop();
     });

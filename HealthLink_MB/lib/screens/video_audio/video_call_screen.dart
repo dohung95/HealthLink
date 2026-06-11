@@ -64,15 +64,23 @@ class _VideoCallScreenState extends State<VideoCallScreen> with SingleTickerProv
     final webrtc = WebRTCService.instance;
     await webrtc.initialize();
 
-    webrtc.onConnectionStateChange = () {
+    webrtc.onConnectionStateChange = (state) {
       if (mounted) {
-        setState(() {
-          _isConnected = true;
-        });
-        _animationController.forward();
-        Future.delayed(const Duration(seconds: 3), () {
-          if (mounted) _animationController.reverse();
-        });
+        if (state == RTCPeerConnectionState.RTCPeerConnectionStateConnected) {
+          setState(() {
+            _isConnected = true;
+          });
+          _animationController.forward();
+          Future.delayed(const Duration(seconds: 3), () {
+            if (mounted) _animationController.reverse();
+          });
+        } else if (state == RTCPeerConnectionState.RTCPeerConnectionStateDisconnected || 
+                   state == RTCPeerConnectionState.RTCPeerConnectionStateFailed || 
+                   state == RTCPeerConnectionState.RTCPeerConnectionStateClosed) {
+          setState(() {
+            _isConnected = false;
+          });
+        }
       }
     };
 
