@@ -112,12 +112,14 @@ public class ChatController {
 
     /**
      * GET /api/chat/rooms/{chatRoomId}/messages
-     * Lấy toàn bộ lịch sử tin nhắn trong phòng.
+     * Lấy lịch sử tin nhắn trong phòng với phân trang.
      */
     @GetMapping("/rooms/{chatRoomId}/messages")
     public ResponseEntity<List<MessageDTO>> getMessages(
-            @PathVariable String chatRoomId) {
-        return ResponseEntity.ok(chatService.getMessages(chatRoomId));
+            @PathVariable String chatRoomId,
+            @RequestParam(defaultValue = "0") int page,
+            @RequestParam(defaultValue = "25") int size) {
+        return ResponseEntity.ok(chatService.getMessages(chatRoomId, page, size));
     }
 
     /**

@@ -23,6 +23,9 @@ import java.time.LocalDateTime;
 import java.util.List;
 import java.util.UUID;
 import java.util.stream.Collectors;
+import java.util.Collections;
+import org.springframework.data.domain.Pageable;
+import org.springframework.data.domain.PageRequest;
 
 @Service
 @RequiredArgsConstructor
@@ -207,14 +210,19 @@ public class ChatServiceImpl implements ChatService {
     // -------------------------------------------------------------------------
     @Override
     @Transactional(readOnly = true)
-    public List<MessageDTO> getMessages(String chatRoomId) {
+    public List<MessageDTO> getMessages(String chatRoomId, int page, int size) {
         // Đảm bảo phòng tồn tại
         if (!chatRoomRepository.existsById(chatRoomId)) {
             throw new ResourceNotFoundException("ChatRoom", "id", chatRoomId);
         }
-        return messageRepository
-                .findByChatRoom_ChatRoomIdOrderByTimestampAsc(chatRoomId)
-                .stream()
+        Pageable pageable = PageRequest.of(page, size);
+        List<Message> messages = messageRepository
+                .findByChatRoom_ChatRoomIdOrderByTimestampDesc(chatRoomId, pageable);
+        
+        // Đảo ngược danh sách để trả về thứ tự thời gian tăng dần cho client hiển thị
+        Collections.reverse(messages);
+
+        return messages.stream()
                 .map(this::toMessageDTO)
                 .collect(Collectors.toList());
     }
@@ -276,33 +284,29 @@ public class ChatServiceImpl implements ChatService {
         String user1Specialty = null;
         String user2Specialty = null;
 
-        // Nếu avatar chưa được lưu (null/rỗng), lấy từ profile hiện tại.
-        // Điều này xảy ra khi phòng được tạo trước khi user upload avatar.
-        if (user1Photo == null || user1Photo.isBlank()) {
-            try {
-                java.util.Optional<com.HealthLink.entity.User> u1 =
-                        userRepository.findById(room.getUser1Id());
-                if (u1.isPresent()) {
-                    String[] info = extractUserInfo(u1.get());
-                    if (user1Name == null || user1Name.isBlank()) user1Name = info[0];
-                    if (user1Photo == null || user1Photo.isBlank()) user1Photo = info[1];
-                    user1Specialty = info[2];
-                }
-            } catch (Exception ignored) {}
-        } // <-- ĐÂY LÀ DẤU NGOẶC BẠN QUÊN ĐÓNG
+        // Luôn luôn lấy thông tin live (tên, avatar) từ bảng User/Profile
+        // để tránh trường hợp user thay đổi avatar nhưng chat room vẫn giữ avatar cũ.
+        try {
+            java.util.Optional<com.HealthLink.entity.User> u1 =
+                    userRepository.findById(room.getUser1Id());
+            if (u1.isPresent()) {
+                String[] info = extractUserInfo(u1.get());
+                user1Name = info[0];
+                user1Photo = info[1];
+                user1Specialty = info[2];
+            }
+        } catch (Exception ignored) {}
 
-        if (user2Photo == null || user2Photo.isBlank()) {
-            try {
-                java.util.Optional<com.HealthLink.entity.User> u2 =
-                        userRepository.findById(room.getUser2Id());
-                if (u2.isPresent()) {
-                    String[] info = extractUserInfo(u2.get());
-                    if (user2Name == null || user2Name.isBlank()) user2Name = info[0];
-                    if (user2Photo == null || user2Photo.isBlank()) user2Photo = info[1];
-                    user2Specialty = info[2];
-                }
-            } catch (Exception ignored) {}
-        }
+        try {
+            java.util.Optional<com.HealthLink.entity.User> u2 =
+                    userRepository.findById(room.getUser2Id());
+            if (u2.isPresent()) {
+                String[] info = extractUserInfo(u2.get());
+                user2Name = info[0];
+                user2Photo = info[1];
+                user2Specialty = info[2];
+            }
+        } catch (Exception ignored) {}
 
         return ChatRoomDTO.builder()
                 .chatRoomId(room.getChatRoomId())

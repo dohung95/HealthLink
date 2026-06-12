@@ -114,7 +114,8 @@ const DoctorDashboardPage = () => {
     if (path.startsWith('/doctor/prescriptions')) return NAV_ITEMS[2];
     if (path.startsWith('/doctor/reviews')) return NAV_ITEMS[3];
     if (path.startsWith('/doctor/schedule')) return NAV_ITEMS[4];
-    if (path.startsWith('/doctor/profile')) return NAV_ITEMS[5];
+    if (path.startsWith('/doctor/chat')) return NAV_ITEMS[5];
+    if (path.startsWith('/doctor/profile')) return NAV_ITEMS[6];
     return NAV_ITEMS[0];
   }, [location.pathname]);
 

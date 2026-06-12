@@ -51,14 +51,16 @@ export async function getMyRooms() {
 }
 
 /**
- * Lấy toàn bộ lịch sử tin nhắn trong một phòng chat.
+ * Lấy lịch sử tin nhắn trong một phòng chat với phân trang.
  *
  * @param {string} chatRoomId - ID phòng chat
+ * @param {number} page - Trang cần lấy (mặc định 0)
+ * @param {number} size - Số lượng tin nhắn mỗi trang (mặc định 25)
  * @returns {Promise<MessageDTO[]>}
  */
-export async function getRoomMessages(chatRoomId) {
+export async function getRoomMessages(chatRoomId, page = 0, size = 25) {
     const token = getToken();
-    const res = await fetch(`${BASE}/rooms/${chatRoomId}/messages`, {
+    const res = await fetch(`${BASE}/rooms/${chatRoomId}/messages?page=${page}&size=${size}`, {
         headers: { 'Authorization': `Bearer ${token}` },
     });
     if (!res.ok) throw new Error(`getRoomMessages failed: ${res.status}`);
@@ -128,7 +130,7 @@ export async function uploadMedia(chatRoomId, type, file) {
         },
         body: formData,
     });
-    
+
     if (!res.ok) throw new Error(`uploadMedia failed: ${res.status}`);
     return res.json();
 }

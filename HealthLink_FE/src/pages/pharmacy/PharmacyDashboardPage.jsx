@@ -13,6 +13,7 @@ import { Avatar, getProfileName, navItems, routeByTab } from '../../components/p
 import PharmacyOrdersTab from '../../components/pharmacy/PharmacyOrdersTab';
 import PharmacyProfileTab from '../../components/pharmacy/PharmacyProfileTab';
 import PharmacyWalletTab from '../../components/pharmacy/PharmacyWalletTab';
+import ChatPage from '../../components/ChatPage';
 
 export default function PharmacyDashboardPage() {
   const { token, currentUserId, logout } = useAuth();
@@ -36,6 +37,7 @@ export default function PharmacyDashboardPage() {
     if (location.pathname.includes('/inventory')) return 'inventory';
     if (location.pathname.includes('/orders')) return 'orders';
     if (location.pathname.includes('/wallet')) return 'wallet';
+    if (location.pathname.includes('/chat')) return 'chat';
     if (location.pathname.includes('/profile')) return 'profile';
     return 'overview';
   }, [location.pathname]);
@@ -166,8 +168,8 @@ export default function PharmacyDashboardPage() {
           </div>
         </header>
 
-        <main className="pharmacy-content">
-          {loading ? (
+        <main className="pharmacy-content" style={activeTab === 'chat' ? { padding: 0, overflow: 'hidden', display: 'flex', flexDirection: 'column' } : {}}>
+          {loading && activeTab !== 'chat' ? (
             <div className="pharmacy-loading">
               <span className="material-symbols-outlined">hourglass_empty</span>
               Loading pharmacy dashboard...
@@ -178,6 +180,7 @@ export default function PharmacyDashboardPage() {
               {activeTab === 'inventory' && <PharmacyInventoryTab {...shellProps} />}
               {activeTab === 'orders' && <PharmacyOrdersTab {...shellProps} />}
               {activeTab === 'wallet' && <PharmacyWalletTab {...shellProps} />}
+              {/* {activeTab === 'chat' && <ChatPage showBot={false} />}  nếu mà a muốn cho pharmacy chat thì mở cmt là xong */}
               {activeTab === 'profile' && <PharmacyProfileTab token={token} logout={logout} {...shellProps} />}
             </>
           )}
