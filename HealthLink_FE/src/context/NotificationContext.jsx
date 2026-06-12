@@ -33,16 +33,20 @@ export const NotificationProvider = ({ children }) => {
             websocketService.connect();
             const unsubscribe = websocketService.subscribeToNotifications(handleNewNotification);
 
-            // Fetch initial unread count from API
-            const fetchInitialUnreadCount = async () => {
+            // Fetch initial notifications and unread count from API
+            const fetchInitialData = async () => {
                 try {
-                    const count = await notificationApi.getUnreadCount();
+                    const [count, list] = await Promise.all([
+                        notificationApi.getUnreadCount(),
+                        notificationApi.getMyNotifications()
+                    ]);
                     setUnreadCount(count || 0);
+                    setNotifications(list || []);
                 } catch (error) {
-                    console.error('Failed to fetch initial unread count:', error);
+                    console.error('Failed to fetch initial notifications:', error);
                 }
             };
-            fetchInitialUnreadCount();
+            fetchInitialData();
 
             return () => {
                 unsubscribe();

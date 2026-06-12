@@ -2,9 +2,12 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'config/themes.dart';
 import 'providers/auth_provider.dart';
-import 'providers/chat_provider.dart';
+import 'providers/chat/chat_provider.dart';
+import 'providers/chat/chatbot_provider.dart';
+import 'providers/video_call_provider.dart';
 import 'screens/welcome_screen.dart';
 import 'screens/main_layout.dart';
+import 'screens/doctor/doctor_main_layout.dart';
 
 final GlobalKey<NavigatorState> navigatorKey = GlobalKey<NavigatorState>();
 
@@ -21,6 +24,8 @@ Future<void> main() async {
       providers: [
         ChangeNotifierProvider<AuthProvider>.value(value: authProvider),
         ChangeNotifierProvider<ChatProvider>(create: (_) => ChatProvider()),
+        ChangeNotifierProvider<ChatbotProvider>(create: (_) => ChatbotProvider()),
+        ChangeNotifierProvider<VideoCallProvider>(create: (_) => VideoCallProvider()),
       ],
       child: const HealthLinkApp(),
     ),
@@ -44,10 +49,11 @@ class HealthLinkApp extends StatelessWidget {
   }
 }
 
-/// Widget quyết định màn hình khởi động dựa theo auth state.
+/// Widget quyết định màn hình khởi động dựa theo auth state và role.
 ///
 /// Logic:
-/// - [AuthStatus.authenticated] → MainLayout (đã có token hợp lệ)
+/// - [AuthStatus.authenticated] + role DOCTOR → DoctorMainLayout
+/// - [AuthStatus.authenticated] + role khác → MainLayout (Patient)
 /// - Còn lại (initial, unauthenticated, error) → WelcomeScreen
 ///
 /// Lắng nghe [AuthProvider] để tự động điều hướng khi trạng thái thay đổi
@@ -57,11 +63,18 @@ class _RootRouter extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Selector<AuthProvider, AuthStatus>(
-      // Chỉ rebuild khi status thay đổi, tránh re-render không cần thiết
-      selector: (_, auth) => auth.status,
-      builder: (_, status, __) {
+    return Selector<AuthProvider, (AuthStatus, List<String>)>(
+      // Rebuild khi status hoặc roles thay đổi
+      selector: (_, auth) => (auth.status, auth.roles),
+      builder: (_, data, __) {
+        final (status, roles) = data;
+
         if (status == AuthStatus.authenticated) {
+          // Phân luồng theo role
+          if (roles.contains('DOCTOR')) {
+            return const DoctorMainLayout();
+          }
+          // Mặc định: Patient layout
           return const MainLayout();
         }
         return const WelcomeScreen();

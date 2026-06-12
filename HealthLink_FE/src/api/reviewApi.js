@@ -92,6 +92,18 @@ export const doctorReviewApi = {
         const response = await axiosInstance.get(`/api/doctor/reviews/public/${doctorId}`);
         return response.data;
     },
+
+    /**
+     * Get featured reviews for homepage
+     * @param {number} limit
+     * @returns {Promise<ReviewResponseDto[]>}
+     */
+    getFeatured: async (limit = 10) => {
+        const response = await axiosInstance.get('/api/doctor/reviews/public/featured', {
+            params: { limit }
+        });
+        return response.data;
+    },
 };
 
 /**

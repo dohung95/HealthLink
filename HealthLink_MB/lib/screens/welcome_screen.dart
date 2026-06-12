@@ -231,7 +231,7 @@ class _WelcomeScreenState extends State<WelcomeScreen> with TickerProviderStateM
                                 onPressed: () {
                                   Navigator.push(
                                     context,
-                                    MaterialPageRoute(builder: (context) => const RegisterScreen()),
+                                    MaterialPageRoute(builder: (context) => const LoginScreen()),
                                   );
                                 },
                                 child: Row(
@@ -259,13 +259,13 @@ class _WelcomeScreenState extends State<WelcomeScreen> with TickerProviderStateM
                             ),
                             const SizedBox(height: 16), // mt-md
 
-                            // Dòng Đăng nhập
+                            // Dòng Đăng ký
                             const Wrap(
                               alignment: WrapAlignment.center,
                               crossAxisAlignment: WrapCrossAlignment.center,
                               children: [
-                                _LogInPrompt(),
-                                _LogInLink(),
+                                _RegisterPrompt(),
+                                _RegisterLink(),
                               ],
                             ),
                           ],
@@ -283,13 +283,13 @@ class _WelcomeScreenState extends State<WelcomeScreen> with TickerProviderStateM
   }
 }
 
-class _LogInPrompt extends StatelessWidget {
-  const _LogInPrompt();
+class _RegisterPrompt extends StatelessWidget {
+  const _RegisterPrompt();
 
   @override
   Widget build(BuildContext context) {
     return Text(
-      'Already have an account? ',
+      "Don't have an account? ",
       style: TextStyle(
         fontFamily: 'Inter',
         fontSize: 14, // text-body-md
@@ -300,8 +300,8 @@ class _LogInPrompt extends StatelessWidget {
   }
 }
 
-class _LogInLink extends StatelessWidget {
-  const _LogInLink();
+class _RegisterLink extends StatelessWidget {
+  const _RegisterLink();
 
   @override
   Widget build(BuildContext context) {
@@ -309,11 +309,11 @@ class _LogInLink extends StatelessWidget {
       onTap: () {
         Navigator.push(
           context,
-          MaterialPageRoute(builder: (context) => const LoginScreen()),
+          MaterialPageRoute(builder: (context) => const RegisterScreen()),
         );
       },
       child: Text(
-        'Log In',
+        'Register',
         style: TextStyle(
           fontFamily: 'Inter',
           fontSize: 18, // text-title-md

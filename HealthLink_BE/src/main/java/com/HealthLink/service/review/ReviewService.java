@@ -179,6 +179,18 @@ public class ReviewService {
     }
 
     /**
+     * Get featured reviews for homepage testimonials
+     */
+    @Transactional(readOnly = true)
+    public List<ReviewResponseDto> getFeaturedReviews(int limit) {
+        Pageable pageable = PageRequest.of(0, limit);
+        return reviewRepository.findFeaturedReviews(4, pageable)
+                .stream()
+                .map(this::mapToResponseDto)
+                .collect(Collectors.toList());
+    }
+
+    /**
      * Get review statistics for a doctor
      */
     @Transactional(readOnly = true)

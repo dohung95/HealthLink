@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../../models/chat/conversation.dart';
 import '../../models/chat/message.dart';
-import '../../providers/chat_provider.dart';
+import '../../providers/chat/chat_provider.dart';
 import '../../config/api_config.dart';
 import 'dart:convert';
 import 'package:url_launcher/url_launcher.dart';
