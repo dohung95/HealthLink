@@ -2,8 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../../providers/auth_provider.dart';
 import '../../config/api_config.dart';
-import '../../screens/profile_patient/profile_patient_screen.dart';
-import '../../screens/profile_patient/update_security_screen.dart';
+import '../../screens/patient/profile_patient/profile_patient_screen.dart';
+import '../../screens/patient/profile_patient/update_security_screen.dart';
 
 class PatientDrawer extends StatelessWidget {
   const PatientDrawer({super.key});

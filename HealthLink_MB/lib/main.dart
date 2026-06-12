@@ -6,7 +6,7 @@ import 'providers/chat/chat_provider.dart';
 import 'providers/chat/chatbot_provider.dart';
 import 'providers/video_call_provider.dart';
 import 'screens/welcome_screen.dart';
-import 'screens/main_layout.dart';
+import 'screens/patient/main_layout.dart';
 import 'screens/doctor/doctor_main_layout.dart';
 
 final GlobalKey<NavigatorState> navigatorKey = GlobalKey<NavigatorState>();

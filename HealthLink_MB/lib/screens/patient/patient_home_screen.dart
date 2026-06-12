@@ -1,12 +1,12 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
-import '../providers/auth_provider.dart';
-import '../config/api_config.dart';
-import '../services/appointments/appointment_service.dart';
-import '../services/patient_service.dart';
-import '../services/booking/booking_service.dart';
-import 'health_records/health_records_screen.dart';
-import 'health_records/share_health_records_screen.dart';
+import '../../providers/auth_provider.dart';
+import '../../config/api_config.dart';
+import '../../services/appointments/appointment_service.dart';
+import '../../services/patient_service.dart';
+import '../../services/booking/booking_service.dart';
+import '../health_records/health_records_screen.dart';
+import '../health_records/share_health_records_screen.dart';
 
 class PatientHomeScreen extends StatefulWidget {
   const PatientHomeScreen({

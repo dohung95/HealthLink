@@ -3,15 +3,15 @@ import 'dart:math' as math;
 
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
-import '../../services/booking/booking_service.dart';
-import '../../providers/auth_provider.dart';
-import '../../services/appointments/appointment_service.dart';
-import '../../services/chat/chat_service.dart';
-import '../chat/chat_room_screen.dart';
-import '../video_audio/video_call_screen.dart';
-import '../../utils/notification_helper.dart';
-import '../../providers/chat/chat_provider.dart';
-import '../../providers/video_call_provider.dart';
+import '../../../services/booking/booking_service.dart';
+import '../../../providers/auth_provider.dart';
+import '../../../services/appointments/appointment_service.dart';
+import '../../../services/chat/chat_service.dart';
+import '../../chat/chat_room_screen.dart';
+import '../../video_audio/video_call_screen.dart';
+import '../../../utils/notification_helper.dart';
+import '../../../providers/chat/chat_provider.dart';
+import '../../../providers/video_call_provider.dart';
 
 class AppointmentScreen extends StatefulWidget {
   const AppointmentScreen({
