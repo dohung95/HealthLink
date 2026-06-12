@@ -208,7 +208,7 @@ class AuthProvider extends ChangeNotifier {
   }
 
   /// Gọi ngầm API profile dựa theo role để lấy tên và avatar.
-  /// - Doctor: /api/doctors/profile
+  /// - Doctor: /api/account/doctors/profile
   /// - Patient: /api/account/patient/profile
   Future<void> fetchProfile() async {
     if (_accessToken == null) return;
