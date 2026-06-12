@@ -9,7 +9,7 @@ class ApiConfig {
   static const String paypalClientId = 'Abj_ov73E4EuBjVPEu23yN-oPJUu-7AQMrsMaVmcCTmQI9JlkK-HJ_nd7Hy7gtxE8O68hmJbbCrKP27b';
 
   // ── Base URL ──────────────────────────────────────────────────────────────
-  static const String baseUrl = 'http://192.168.0.90:8096/api';
+  static const String baseUrl = 'http://192.168.120.8:8096/api';
   static const String wsUrl   = 'ws://10.0.2.2:8096/ws/websocket';
 
   // ── Auth Endpoints ────────────────────────────────────────────────────────
@@ -51,6 +51,10 @@ class ApiConfig {
   static const String healthRecordAutoDocument = '$baseUrl/health-records/documents/auto';
   static const String myHealthRecords = '$baseUrl/health-records/my';
   static String shareHealthRecord(int recordId) => '$baseUrl/health-records/$recordId/share';
+
+  //Share health record
+  static const String myHealthRecordShares = '$baseUrl/health-records/shares/my';
+  static String revokeHealthRecordShare(int shareId) => '$baseUrl/health-records/shares/$shareId/revoke';
 
   // ── Chat Endpoints ────────────────────────────────────────────────────────
   /// GET /api/chat/rooms/me – Lấy danh sách phòng chat của user hiện tại.

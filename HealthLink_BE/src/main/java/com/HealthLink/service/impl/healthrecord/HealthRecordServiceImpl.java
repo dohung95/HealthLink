@@ -145,7 +145,7 @@ public class HealthRecordServiceImpl implements HealthRecordService {
         }
 
         imageModerationService.validateFileIsSafe(file);
-        
+
         String fileLocation = fileStorageService.storeFile(file);
 
         MedicalDocument document = MedicalDocument.builder()
@@ -218,7 +218,7 @@ public class HealthRecordServiceImpl implements HealthRecordService {
         }
 
         imageModerationService.validateFileIsSafe(file);
-        
+
         String fileLocation = fileStorageService.storeFile(file);
 
         MedicalDocument document = MedicalDocument.builder()
@@ -274,10 +274,11 @@ public class HealthRecordServiceImpl implements HealthRecordService {
                 .orElseThrow(() -> new ResourceNotFoundException("Doctor not found: " + request.getDoctorId()));
 
         var existingShareOpt
-                = healthRecordShareRepository.findBySharedByPatient_PatientIdAndHealthRecord_HealthRecordIdAndSharedWithDoctor_DoctorIdAndRevokedFalse(
+                = healthRecordShareRepository.findActiveShareByPatientRecordAndDoctor(
                         patientId,
                         recordId,
-                        request.getDoctorId()
+                        request.getDoctorId(),
+                        LocalDateTime.now()
                 );
 
         if (existingShareOpt.isPresent()) {

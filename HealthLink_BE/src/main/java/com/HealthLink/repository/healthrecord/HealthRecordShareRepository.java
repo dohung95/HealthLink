@@ -38,4 +38,20 @@ public interface HealthRecordShareRepository extends JpaRepository<HealthRecordS
     // Check duplicate active share
     Optional<HealthRecordShare> findBySharedByPatient_PatientIdAndHealthRecord_HealthRecordIdAndSharedWithDoctor_DoctorIdAndRevokedFalse(
             String patientId, Integer healthRecordId, String doctorId);
+    
+    // check for mobile
+    @Query("""
+    SELECT s FROM HealthRecordShare s
+    WHERE s.sharedByPatient.patientId = :patientId
+      AND s.healthRecord.healthRecordId = :healthRecordId
+      AND s.sharedWithDoctor.doctorId = :doctorId
+      AND s.revoked = false
+      AND (s.expiryDate IS NULL OR s.expiryDate > :now)
+    """)
+    Optional<HealthRecordShare> findActiveShareByPatientRecordAndDoctor(
+            @Param("patientId") String patientId,
+            @Param("healthRecordId") Integer healthRecordId,
+            @Param("doctorId") String doctorId,
+            @Param("now") LocalDateTime now
+    );
 }
