@@ -9,7 +9,7 @@ class ApiConfig {
   static const String paypalClientId = 'Abj_ov73E4EuBjVPEu23yN-oPJUu-7AQMrsMaVmcCTmQI9JlkK-HJ_nd7Hy7gtxE8O68hmJbbCrKP27b';
 
   // ── Base URL ──────────────────────────────────────────────────────────────
-  static const String baseUrl = 'http://192.168.0.90:8096/api';
+  static const String baseUrl = 'http://192.168.5.101:8096/api';
   static const String wsUrl   = 'ws://10.0.2.2:8096/ws/websocket';
 
   // ── Auth Endpoints ────────────────────────────────────────────────────────
@@ -29,6 +29,10 @@ class ApiConfig {
   static const String requestEmailChange = '$baseUrl/account/patient/auth/email/request-change';
   static const String verifyEmailChange = '$baseUrl/account/patient/auth/email/verify-change';
   static String doctorSchedules(String doctorId) => '$baseUrl/account/doctors/$doctorId/schedules';
+
+  // ── Doctor Profile Endpoints ───────────────────────────────────────────────
+  /// GET /api/doctors/profile – Lấy profile của bác sĩ đang đăng nhập.
+  static const String doctorProfile = '$baseUrl/doctors/profile';
 
   // ── Prescription Endpoints ────────────────────────────────────────────────
   static String prescriptionsByPatientId(String patientId) => '$baseUrl/prescriptions/patient/$patientId';
