@@ -230,7 +230,7 @@ class PatientAppointment {
   bool isJoinable(DateTime now) {
     return isActive &&
         !isExpired(now) &&
-        now.isAfter(appointmentTime) &&
+        !now.isBefore(appointmentTime) &&
         now.isBefore(effectiveEndTime);
   }
 

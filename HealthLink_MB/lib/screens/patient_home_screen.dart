@@ -4,6 +4,7 @@ import '../providers/auth_provider.dart';
 import '../config/api_config.dart';
 import '../services/appointments/appointment_service.dart';
 import '../services/patient_service.dart';
+import '../services/booking/booking_service.dart';
 
 class PatientHomeScreen extends StatefulWidget {
   const PatientHomeScreen({
@@ -27,6 +28,12 @@ class _PatientHomeScreenState extends State<PatientHomeScreen> {
   int _healthRecordCount = 0;
   int _prescriptionCount = 0;
 
+  // Doctor Ranking
+  bool _loadingDoctorRanking = false;
+  List<BookingDoctor> _rankingDoctors = [];
+  String? _doctorRankingError;
+  String _doctorRankingSort = 'rating';
+
   @override
   void initState() {
     super.initState();
@@ -43,6 +50,7 @@ class _PatientHomeScreenState extends State<PatientHomeScreen> {
     ]);
   }
 
+  // Count Upcoming, New Record, Prescription
   Future<void> _loadStats() async {
     final auth = context.read<AuthProvider>();
 
@@ -101,6 +109,99 @@ class _PatientHomeScreenState extends State<PatientHomeScreen> {
           _loadingStats = false;
         });
       }
+    }
+  }
+
+  // Load Doctor ranking
+  Future<void> _loadDoctorRanking() async {
+    final auth = context.read<AuthProvider>();
+
+    if (!auth.isAuthenticated || auth.accessToken == null) {
+      if (!mounted) return;
+
+      setState(() {
+        _loadingDoctorRanking = false;
+        _rankingDoctors = [];
+        _doctorRankingError = null;
+      });
+
+      return;
+    }
+
+    if (!mounted) return;
+
+    setState(() {
+      _loadingDoctorRanking = true;
+      _doctorRankingError = null;
+    });
+
+    try {
+      final service = BookingService(accessToken: auth.accessToken!);
+
+      final result = await service.searchDoctors(
+        page: 1,
+        pageSize: 100,
+      );
+
+      final doctors = result.items.toList();
+
+      _sortRankingDoctors(doctors);
+
+      if (!mounted) return;
+
+      setState(() {
+        _rankingDoctors = doctors;
+      });
+    } catch (e) {
+      if (!mounted) return;
+
+      setState(() {
+        _doctorRankingError = e.toString().replaceFirst('Exception: ', '');
+        _rankingDoctors = [];
+      });
+    } finally {
+      if (mounted) {
+        setState(() {
+          _loadingDoctorRanking = false;
+        });
+      }
+    }
+  }
+
+  void _sortRankingDoctors(List<BookingDoctor> doctors) {
+    switch (_doctorRankingSort) {
+      case 'reviews':
+        doctors.sort((a, b) {
+          final reviewCompare = b.totalReviews.compareTo(a.totalReviews);
+          if (reviewCompare != 0) return reviewCompare;
+
+          return b.averageRating.compareTo(a.averageRating);
+        });
+        break;
+
+      case 'experience':
+        doctors.sort((a, b) {
+          final experienceCompare =
+          b.yearsOfExperience.compareTo(a.yearsOfExperience);
+          if (experienceCompare != 0) return experienceCompare;
+
+          return b.averageRating.compareTo(a.averageRating);
+        });
+        break;
+
+      case 'name':
+        doctors.sort((a, b) => a.fullName.compareTo(b.fullName));
+        break;
+
+      case 'rating':
+      default:
+        doctors.sort((a, b) {
+          final ratingCompare = b.averageRating.compareTo(a.averageRating);
+          if (ratingCompare != 0) return ratingCompare;
+
+          return b.totalReviews.compareTo(a.totalReviews);
+        });
+        break;
     }
   }
 
@@ -560,6 +661,8 @@ class _PatientHomeScreenState extends State<PatientHomeScreen> {
   Widget _buildUpcomingAppointmentItem(PatientAppointment appointment) {
     final colors = Theme.of(context).colorScheme;
     final isToday = _isSameDay(appointment.appointmentTime, DateTime.now());
+    final now = DateTime.now();
+    final joinable = appointment.isJoinable(now);
 
     return Container(
       padding: const EdgeInsets.all(16),
@@ -708,36 +811,51 @@ class _PatientHomeScreenState extends State<PatientHomeScreen> {
                   label: const Text('More'),
                 ),
               ),
-              const SizedBox(width: 12),
-              Expanded(
-                child: ElevatedButton.icon(
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: colors.primary,
-                    foregroundColor: colors.onPrimary,
-                    elevation: 0,
-                    padding: const EdgeInsets.symmetric(vertical: 12),
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(8),
+
+              if (joinable) ...[
+                const SizedBox(width: 12),
+                Expanded(
+                  child: ElevatedButton.icon(
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: colors.primary,
+                      foregroundColor: colors.onPrimary,
+                      elevation: 0,
+                      padding: const EdgeInsets.symmetric(vertical: 12),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(8),
+                      ),
+                    ),
+                    onPressed: () {
+                      if (appointment.isChat) {
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          const SnackBar(
+                            content: Text('Opening chat room...'),
+                          ),
+                        );
+
+                        // TODO: Navigate to chat room
+                      } else {
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          const SnackBar(
+                            content: Text('Opening video room...'),
+                          ),
+                        );
+
+                        // TODO: Navigate to video room
+                      }
+                    },
+                    icon: Icon(
+                      appointment.isChat
+                          ? Icons.chat_bubble_outline
+                          : Icons.videocam_outlined,
+                      size: 16,
+                    ),
+                    label: Text(
+                      appointment.isChat ? 'Chat' : 'Join Room',
                     ),
                   ),
-                  onPressed: () {
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      const SnackBar(
-                        content: Text('You can join when the consultation starts.'),
-                      ),
-                    );
-                  },
-                  icon: Icon(
-                    appointment.isChat
-                        ? Icons.chat_bubble_outline
-                        : Icons.videocam_outlined,
-                    size: 16,
-                  ),
-                  label: Text(
-                    appointment.isChat ? 'Chat' : 'Join Room',
-                  ),
                 ),
-              ),
+              ],
             ],
           ),
         ],
@@ -766,7 +884,13 @@ class _PatientHomeScreenState extends State<PatientHomeScreen> {
               crossAxisSpacing: 12,
               childAspectRatio: 1.1,
               children: [
-                _buildQuickActionButton(Icons.calendar_month, 'Book Appointment', Theme.of(context).colorScheme.surface, Theme.of(context).colorScheme.primary),
+                _buildQuickActionButton(
+                  Icons.emoji_events_outlined,
+                  'Doctor Ranking',
+                  Theme.of(context).colorScheme.surface,
+                  Theme.of(context).colorScheme.primary,
+                  onTap: _openDoctorRanking,
+                ),
                 _buildQuickActionButton(Icons.medical_information, 'Health Records', Theme.of(context).colorScheme.secondary, Theme.of(context).colorScheme.onSecondary),
                 _buildQuickActionButton(Icons.share, 'Share Records', Theme.of(context).colorScheme.secondary.withOpacity(0.1), Theme.of(context).colorScheme.secondary),
                 _buildQuickActionButton(Icons.chat, 'Chat with Doctor', Theme.of(context).colorScheme.surface, Theme.of(context).colorScheme.primary),
@@ -778,9 +902,306 @@ class _PatientHomeScreenState extends State<PatientHomeScreen> {
     );
   }
 
-  Widget _buildQuickActionButton(IconData icon, String title, Color iconBgColor, Color iconColor) {
+  Future<void> _openDoctorRanking() async {
+    final colors = Theme.of(context).colorScheme;
+
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (_) {
+        return Center(
+          child: Container(
+            padding: const EdgeInsets.all(20),
+            decoration: BoxDecoration(
+              color: colors.surface,
+              borderRadius: BorderRadius.circular(16),
+            ),
+            child: const CircularProgressIndicator(),
+          ),
+        );
+      },
+    );
+
+    await _loadDoctorRanking();
+
+    if (!mounted) return;
+
+    Navigator.of(context, rootNavigator: true).pop();
+
+    if (!mounted) return;
+
+    _showDoctorRankingSheet();
+  }
+
+  void _showDoctorRankingSheet() {
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      useSafeArea: true,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+      ),
+      builder: (context) {
+        return StatefulBuilder(
+          builder: (context, setSheetState) {
+            final colors = Theme.of(context).colorScheme;
+
+            return Padding(
+              padding: const EdgeInsets.fromLTRB(20, 16, 20, 24),
+              child: SizedBox(
+                height: MediaQuery.of(context).size.height * 0.75,
+                child: Column(
+                  children: [
+                    Container(
+                      width: 42,
+                      height: 4,
+                      decoration: BoxDecoration(
+                        color: colors.outlineVariant,
+                        borderRadius: BorderRadius.circular(99),
+                      ),
+                    ),
+                    const SizedBox(height: 18),
+
+                    Row(
+                      children: [
+                        Container(
+                          width: 44,
+                          height: 44,
+                          decoration: BoxDecoration(
+                            color: colors.primary.withOpacity(0.12),
+                            shape: BoxShape.circle,
+                          ),
+                          child: Icon(
+                            Icons.emoji_events_outlined,
+                            color: colors.primary,
+                          ),
+                        ),
+                        const SizedBox(width: 12),
+                        Expanded(
+                          child: Text(
+                            'Doctor Ranking',
+                            style:
+                            Theme.of(context).textTheme.titleLarge?.copyWith(
+                              fontWeight: FontWeight.w900,
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+
+                    const SizedBox(height: 16),
+
+                    Row(
+                      children: [
+                        Expanded(
+                          child: Text(
+                            '${_rankingDoctors.length} doctors',
+                            style: TextStyle(
+                              color: colors.onSurfaceVariant,
+                              fontWeight: FontWeight.w600,
+                            ),
+                          ),
+                        ),
+                        DropdownButton<String>(
+                          value: _doctorRankingSort,
+                          items: const [
+                            DropdownMenuItem(
+                              value: 'rating',
+                              child: Text('Highest rating'),
+                            ),
+                            DropdownMenuItem(
+                              value: 'reviews',
+                              child: Text('Most reviews'),
+                            ),
+                            DropdownMenuItem(
+                              value: 'experience',
+                              child: Text('Most experience'),
+                            ),
+                            DropdownMenuItem(
+                              value: 'name',
+                              child: Text('A-Z'),
+                            ),
+                          ],
+                          onChanged: (value) {
+                            if (value == null) return;
+
+                            setState(() {
+                              _doctorRankingSort = value;
+                              _sortRankingDoctors(_rankingDoctors);
+                            });
+
+                            setSheetState(() {});
+                          },
+                        ),
+                      ],
+                    ),
+
+                    const SizedBox(height: 12),
+
+                    if (_doctorRankingError != null)
+                      Container(
+                        width: double.infinity,
+                        padding: const EdgeInsets.all(14),
+                        decoration: BoxDecoration(
+                          color: colors.errorContainer,
+                          borderRadius: BorderRadius.circular(14),
+                        ),
+                        child: Text(
+                          _doctorRankingError!,
+                          style: TextStyle(color: colors.onErrorContainer),
+                        ),
+                      )
+                    else if (_rankingDoctors.isEmpty)
+                      Expanded(
+                        child: Center(
+                          child: Text(
+                            'No doctors available.',
+                            style: TextStyle(color: colors.onSurfaceVariant),
+                          ),
+                        ),
+                      )
+                    else
+                      Expanded(
+                        child: ListView.separated(
+                          itemCount: _rankingDoctors.length,
+                          separatorBuilder: (_, __) => const SizedBox(height: 10),
+                          itemBuilder: (context, index) {
+                            return _doctorRankingTile(
+                              doctor: _rankingDoctors[index],
+                              rank: index + 1,
+                            );
+                          },
+                        ),
+                      ),
+                  ],
+                ),
+              ),
+            );
+          },
+        );
+      },
+    );
+  }
+
+  Widget _doctorRankingTile({
+    required BookingDoctor doctor,
+    required int rank,
+  }) {
+    final colors = Theme.of(context).colorScheme;
+
+    return Container(
+      padding: const EdgeInsets.all(14),
+      decoration: BoxDecoration(
+        color: colors.surfaceContainerLow,
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: colors.outlineVariant),
+      ),
+      child: Row(
+        children: [
+          Container(
+            width: 34,
+            height: 34,
+            decoration: BoxDecoration(
+              color: rank == 1
+                  ? const Color(0xFFFFC107)
+                  : colors.primary.withOpacity(0.12),
+              shape: BoxShape.circle,
+            ),
+            child: Center(
+              child: Text(
+                '#$rank',
+                style: TextStyle(
+                  color: rank == 1 ? Colors.black : colors.primary,
+                  fontWeight: FontWeight.w900,
+                ),
+              ),
+            ),
+          ),
+          const SizedBox(width: 12),
+
+          CircleAvatar(
+            backgroundColor: colors.primary,
+            child: Text(
+              doctor.initials,
+              style: TextStyle(
+                color: colors.onPrimary,
+                fontWeight: FontWeight.w900,
+              ),
+            ),
+          ),
+
+          const SizedBox(width: 12),
+
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  doctor.fullName,
+                  style: const TextStyle(
+                    fontWeight: FontWeight.w900,
+                  ),
+                ),
+                if (doctor.specialtyName.isNotEmpty)
+                  Text(
+                    doctor.specialtyName,
+                    style: TextStyle(
+                      color: colors.onSurfaceVariant,
+                      fontSize: 12,
+                    ),
+                  ),
+                const SizedBox(height: 4),
+                Row(
+                  children: [
+                    const Icon(
+                      Icons.star,
+                      size: 16,
+                      color: Color(0xFFFFB300),
+                    ),
+                    const SizedBox(width: 4),
+                    Text(
+                      doctor.averageRating > 0
+                          ? doctor.averageRating.toStringAsFixed(1)
+                          : 'New',
+                      style: const TextStyle(
+                        fontWeight: FontWeight.w700,
+                      ),
+                    ),
+                    const SizedBox(width: 8),
+                    Text(
+                      '${doctor.totalReviews} reviews',
+                      style: TextStyle(
+                        color: colors.onSurfaceVariant,
+                        fontSize: 12,
+                      ),
+                    ),
+                    const SizedBox(width: 8),
+                    Text(
+                      '${doctor.yearsOfExperience} yrs',
+                      style: TextStyle(
+                        color: colors.onSurfaceVariant,
+                        fontSize: 12,
+                      ),
+                    ),
+                  ],
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildQuickActionButton(
+      IconData icon,
+      String title,
+      Color iconBgColor,
+      Color iconColor, {
+        VoidCallback? onTap,
+      }) {
     return InkWell(
-      onTap: () {},
+      onTap: onTap,
       borderRadius: BorderRadius.circular(12),
         child: Container(
         padding: const EdgeInsets.all(16),
