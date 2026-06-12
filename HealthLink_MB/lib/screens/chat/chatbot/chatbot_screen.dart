@@ -2,7 +2,7 @@ import 'dart:math' as math;
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../../../providers/chat/chatbot_provider.dart';
-import '../../booking/booking_screen.dart';
+import '../../patient/booking/booking_screen.dart';
 
 /// Màn hình chat với HealthLink AI Bot.
 class ChatbotScreen extends StatefulWidget {
