@@ -12,7 +12,7 @@ import { toast } from 'sonner';
 const BOT_USER = {
     userId: 'support_bot_001',
     displayName: 'HealthLink AI Bot',
-    photoURL: 'https://api.dicebear.com/8.x/bottts/svg?seed=support',
+    photoURL: 'https://api.dicebear.com/9.x/bottts/svg?seed=support',
     isBot: true,
 };
 
@@ -39,7 +39,7 @@ function formatRelative(isoString) {
 }
 
 const getFullUrl = (url) => {
-    if (!url) return null;
+    if (!url || url === 'null' || url === 'undefined') return null;
     if (url.startsWith('/')) {
         const baseUrl = import.meta.env.VITE_API_BASE_URL || import.meta.env.VITE_SPRING_API_BASE_URL || 'http://localhost:8096';
         return `${baseUrl}${url}`;
@@ -228,7 +228,7 @@ function ChatMessage({ message, currentUserId, isNew = false, onImageClick, onNa
                             {message.suggestedDoctors.map(doc => (
                                 <div key={doc.doctorId} onClick={() => onNavigate?.(`/patient-dashboard/book/${doc.doctorId}`)}
                                     style={{ background: '#fff', border: '1px solid #dee2e6', borderRadius: '12px', padding: '8px 12px', display: 'flex', alignItems: 'center', gap: '10px', cursor: 'pointer', color: '#212529' }}>
-                                    <img src={doc.avatarUrl || `https://api.dicebear.com/8.x/initials/svg?seed=${doc.fullName}`} alt={doc.fullName} style={{ width: 38, height: 38, borderRadius: '50%', objectFit: 'cover' }} />
+                                    <img src={getFullUrl(doc.avatarUrl) || `https://api.dicebear.com/9.x/initials/svg?seed=${doc.fullName}`} alt={doc.fullName} style={{ width: 38, height: 38, borderRadius: '50%', objectFit: 'cover' }} onError={(e) => { e.target.onerror = null; e.target.src = `https://api.dicebear.com/9.x/initials/svg?seed=${doc.fullName}`; }} />
                                     <div style={{ minWidth: 0 }}>
                                         <div style={{ fontWeight: 600, fontSize: '0.85rem', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{doc.fullName}</div>
                                         <div style={{ fontSize: '0.75rem', color: '#6c757d' }}>⭐ {doc.averageRating?.toFixed(1) || 'N/A'} · {doc.specialtyName || doc.specialty}</div>
@@ -262,7 +262,8 @@ function RoomListItem({ room, currentUserId, onSelect, isActive }) {
         <li onClick={() => onSelect(room)}
             className={`list-group-item list-group-item-action d-flex align-items-center border-0 mb-1 rounded ${isActive ? 'bg-primary text-white shadow-sm' : isUnread ? 'bg-light' : 'bg-transparent'}`}
             style={{ cursor: 'pointer', padding: '12px 15px' }}>
-            <img src={photo || `https://api.dicebear.com/8.x/initials/svg?seed=${name}`} alt="ava"
+            <img src={getFullUrl(photo) || `https://api.dicebear.com/9.x/initials/svg?seed=${name}`} alt="ava"
+                onError={(e) => { e.target.onerror = null; e.target.src = `https://api.dicebear.com/9.x/initials/svg?seed=${name}`; }}
                 className="rounded-circle me-3 border" style={{ width: 45, height: 45, flexShrink: 0, objectFit: 'cover', background: '#fff' }} />
             <div className="flex-grow-1" style={{ minWidth: 0 }}>
                 <div className={`fw-bold text-truncate ${isActive ? 'text-white' : isUnread ? 'text-dark' : ''}`}>{name}</div>
@@ -750,8 +751,9 @@ export default function ChatPage({ showBot = true }) {
                     {/* Header */}
                     <div className="p-3 border-bottom d-flex align-items-center bg-white shadow-sm z-index-1">
                         <img
-                            src={chatPartner?.photoURL || (currentRoom ? (currentRoom.user1Id === currentUserId ? currentRoom.user2PhotoURL : currentRoom.user1PhotoURL) : `https://api.dicebear.com/8.x/initials/svg?seed=${chatPartner?.displayName}`)}
+                            src={getFullUrl(chatPartner?.photoURL) || getFullUrl(currentRoom ? (currentRoom.user1Id === currentUserId ? currentRoom.user2PhotoURL : currentRoom.user1PhotoURL) : null) || `https://api.dicebear.com/9.x/initials/svg?seed=${chatPartner?.displayName}`}
                             alt="avatar"
+                            onError={(e) => { e.target.onerror = null; e.target.src = `https://api.dicebear.com/9.x/initials/svg?seed=${chatPartner?.displayName || 'Chat'}`; }}
                             className="rounded-circle me-3 shadow-sm"
                             style={{ width: 45, height: 45, objectFit: 'cover' }}
                         />
