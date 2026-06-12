@@ -20,16 +20,16 @@ export function useAppointmentDetail({ appointment, patient, doctorId: currentDo
     patient?.patientID || patient?.patientId ||
     appointment?.patientID || appointment?.patientId ||
     appointment?.patient?.patientID || appointment?.patient?.patientId || null,
-  [patient, appointment]);
+    [patient, appointment]);
 
   const appointmentId = useMemo(() =>
     appointment?.appointmentID || appointment?.appointmentId || null,
-  [appointment]);
+    [appointment]);
 
   const doctorId = useMemo(() =>
     currentDoctorId || appointment?.doctorID || appointment?.doctorId ||
     appointment?.doctor?.doctorID || appointment?.doctor?.doctorId || null,
-  [currentDoctorId, appointment]);
+    [currentDoctorId, appointment]);
 
   const [activeTab, setActiveTab] = useState('notes');
   const [showCompleteConfirmModal, setShowCompleteConfirmModal] = useState(false);
@@ -95,7 +95,7 @@ export function useAppointmentDetail({ appointment, patient, doctorId: currentDo
 
   const hasPendingFollowUp = useMemo(() =>
     Boolean(consultation.followUpDate || followUp.selectedFollowUpDateTime),
-  [consultation.followUpDate, followUp.selectedFollowUpDateTime]);
+    [consultation.followUpDate, followUp.selectedFollowUpDateTime]);
 
   const rendered = useMemo(() => {
     const statusKey = normalizeStatus(currentAppointment?.status);
@@ -264,7 +264,7 @@ export function useAppointmentDetail({ appointment, patient, doctorId: currentDo
       !consultation.followUpAppointmentId &&
       rendered.canEditFollowUp,
     ),
-  [currentAppointment?.appointmentId, hasPendingFollowUp, consultation.followUpAppointmentId, rendered.canEditFollowUp]);
+    [currentAppointment?.appointmentId, hasPendingFollowUp, consultation.followUpAppointmentId, rendered.canEditFollowUp]);
 
   const getLockedActionMessage = useCallback(() => {
     if (!rendered.hasAppointmentTimeArrived) return 'Appointment time has not arrived yet.';

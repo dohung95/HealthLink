@@ -2,9 +2,10 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../../models/chat/conversation.dart';
 import '../../providers/auth_provider.dart';
-import '../../providers/chat_provider.dart';
+import '../../providers/chat/chat_provider.dart';
 import '../../config/api_config.dart';
 import 'chat_room_screen.dart';
+import './chatbot/chatbot_screen.dart';
 
 class MessagesScreen extends StatefulWidget {
   const MessagesScreen({super.key});
@@ -129,7 +130,10 @@ class _MessagesScreenState extends State<MessagesScreen> {
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
                           _buildSearchBar(),
-                          const SizedBox(height: 24),
+                          const SizedBox(height: 16),
+                          // AI Bot item — luôn hiển thị đầu danh sách
+                          _buildBotItem(),
+                          const SizedBox(height: 8),
                           ...filtered.map((conv) => Padding(
                             padding: const EdgeInsets.only(bottom: 12),
                             child: _buildChatListItem(
@@ -557,6 +561,146 @@ class _MessagesScreenState extends State<MessagesScreen> {
                 ),
             ],
           ),
+        ),
+      ),
+    );
+  }
+
+  // --- Bot Item: AI Chatbot pinned ở đầu danh sách ---
+  Widget _buildBotItem() {
+    return InkWell(
+      onTap: () {
+        Navigator.of(context).push(
+          MaterialPageRoute(
+            builder: (_) => const ChatbotScreen(),
+          ),
+        );
+      },
+      borderRadius: BorderRadius.circular(16),
+      child: Container(
+        padding: const EdgeInsets.all(16),
+        decoration: BoxDecoration(
+          gradient: LinearGradient(
+            colors: [
+              Colors.purple.shade50,
+              Colors.teal.shade50,
+            ],
+            begin: Alignment.centerLeft,
+            end: Alignment.centerRight,
+          ),
+          borderRadius: BorderRadius.circular(16),
+          border: Border.all(
+            color: Colors.purple.shade100,
+            width: 1,
+          ),
+          boxShadow: [
+            BoxShadow(
+              color: Colors.purple.withValues(alpha: 0.08),
+              blurRadius: 8,
+              offset: const Offset(0, 2),
+            ),
+          ],
+        ),
+        child: Row(
+          children: [
+            // Avatar gradient
+            Container(
+              width: 56,
+              height: 56,
+              decoration: BoxDecoration(
+                shape: BoxShape.circle,
+                gradient: LinearGradient(
+                  colors: [Colors.purple.shade400, Colors.teal.shade400],
+                  begin: Alignment.topLeft,
+                  end: Alignment.bottomRight,
+                ),
+                boxShadow: [
+                  BoxShadow(
+                    color: Colors.purple.withValues(alpha: 0.3),
+                    blurRadius: 8,
+                    offset: const Offset(0, 3),
+                  ),
+                ],
+              ),
+              child: const Icon(Icons.auto_awesome, color: Colors.white, size: 28),
+            ),
+            const SizedBox(width: 16),
+            // Nội dung
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Row(
+                    children: [
+                      Text(
+                        'HealthLink AI',
+                        style: TextStyle(
+                          fontFamily: 'Inter',
+                          fontSize: 16,
+                          fontWeight: FontWeight.w700,
+                          color: Colors.purple.shade800,
+                        ),
+                      ),
+                      const SizedBox(width: 8),
+                      Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                        decoration: BoxDecoration(
+                          gradient: LinearGradient(
+                            colors: [Colors.purple.shade400, Colors.teal.shade400],
+                          ),
+                          borderRadius: BorderRadius.circular(10),
+                        ),
+                        child: const Text(
+                          'AI',
+                          style: TextStyle(
+                            fontFamily: 'Inter',
+                            fontSize: 10,
+                            fontWeight: FontWeight.bold,
+                            color: Colors.white,
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 2),
+                  Text(
+                    'Your intelligent health assistant',
+                    style: TextStyle(
+                      fontFamily: 'Inter',
+                      fontSize: 12,
+                      fontWeight: FontWeight.w500,
+                      color: Colors.teal.shade700,
+                    ),
+                  ),
+                  const SizedBox(height: 4),
+                  Text(
+                    'Ask about symptoms, book an appointment...',
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: TextStyle(
+                      fontFamily: 'Inter',
+                      fontSize: 13,
+                      color: Colors.purple.shade400,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            // Online dot
+            Column(
+              mainAxisAlignment: MainAxisAlignment.start,
+              children: [
+                Container(
+                  width: 10,
+                  height: 10,
+                  decoration: const BoxDecoration(
+                    color: Colors.green,
+                    shape: BoxShape.circle,
+                  ),
+                ),
+              ],
+            ),
+          ],
         ),
       ),
     );

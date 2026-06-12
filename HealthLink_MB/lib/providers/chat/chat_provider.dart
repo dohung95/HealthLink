@@ -1,12 +1,13 @@
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
-import '../main.dart';
-import '../models/chat/conversation.dart';
-import '../models/chat/message.dart';
-import '../services/chat/chat_service.dart';
-import '../services/chat/stomp_service.dart';
-import '../utils/notification_helper.dart';
-import '../screens/chat/chat_room_screen.dart';
+import '../../main.dart';
+import '../../models/chat/conversation.dart';
+import '../../models/chat/message.dart';
+import '../../services/chat/chat_service.dart';
+import '../../services/chat/stomp_service.dart';
+import '../../utils/notification_helper.dart';
+import '../../screens/chat/chat_room_screen.dart';
+import '../../screens/video_audio/video_call_screen.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 /// Provider quản lý toàn bộ state của màn hình Chat.
@@ -119,7 +120,11 @@ class ChatProvider extends ChangeNotifier {
       _conversations.sort((a, b) => b.lastMessageTime.compareTo(a.lastMessageTime));
 
       // Bắt đầu kết nối STOMP WebSocket
-      StompService.instance.connect(accessToken, userId, _onStompMessage);
+      StompService.instance.connect(
+        accessToken, 
+        userId, 
+        _onStompMessage,
+      );
     } catch (e) {
       debugPrint('ChatProvider loadConversations error: $e');
       _conversationsError = _clean(e.toString());

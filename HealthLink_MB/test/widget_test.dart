@@ -4,7 +4,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:provider/provider.dart';
 import 'package:HealthLink/main.dart';
 import 'package:HealthLink/providers/auth_provider.dart';
-import 'package:HealthLink/providers/chat_provider.dart';
+import 'package:HealthLink/providers/chat/chat_provider.dart';
 
 void main() {
   testWidgets('HealthLink smoke test', (WidgetTester tester) async {

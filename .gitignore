@@ -14,7 +14,7 @@
 /HealthLink_BE/src/resources/application.properties
 /HealthLink_BE/uploads/*
 !/HealthLink_BE/uploads/.gitkeep
-
+/HealthLink_BE/logs/*
 # Lờ các file build output
 /dist/
 /dist-ssr/
