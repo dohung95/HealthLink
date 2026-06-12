@@ -4,6 +4,7 @@ export const NAV_ITEMS = [
   { key: 'prescriptions', label: 'Prescriptions', icon: 'medication', wide: true },
   { key: 'reviews', label: 'Reviews', icon: 'star', wide: true },
   { key: 'schedule', label: 'Schedule', icon: 'event_note', wide: true },
+  { key: 'chat', label: 'Chat', icon: 'chat', wide: true },
   { key: 'profile', label: 'Profile', icon: 'person_outline', wide: false },
 ];
 

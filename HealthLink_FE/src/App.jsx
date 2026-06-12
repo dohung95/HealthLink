@@ -200,7 +200,7 @@ function AppContent() {
       {!isVideoCallPage && !isAdminPage && <PrescriptionNotificationModal />}
       {!isVideoCallPage && !isAdminPage && <AdminActionNotificationModal />}
       <div className="App">
-        {!isVideoCallPage && !isAdminPage && !is404Page && !isResetPasswordPage && !isPatientDashboard && <Chat />}
+        {!isVideoCallPage && !isAdminPage && !is404Page && !isResetPasswordPage && !isPatientDashboard && !isDoctorPage && !isPharmacyDashboard && <Chat />}
         <ScrollToTop />
         {!hideLayout && <Navbar />}
 
@@ -242,6 +242,7 @@ function AppContent() {
               <Route path="prescriptions" element={<DoctorPrescriptionsView />} />
               <Route path="reviews" element={<DoctorReviewsView />} />
               <Route path="schedule" element={<DoctorScheduleView />} />
+              <Route path="chat" element={<PatientChatPage showBot={false} />} />
               <Route path="profile" element={<DoctorProfileView />} />
             </Route>
 

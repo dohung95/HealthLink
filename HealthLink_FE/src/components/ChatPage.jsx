@@ -289,11 +289,15 @@ function RoomListItem({ room, currentUserId, onSelect, isActive }) {
 }
 
 // ─── Main Component: PatientChatPage ──────────────────────────────────────────
-export default function PatientChatPage() {
+/**
+ * Component chat dùng chung cho Patient, Doctor, Pharmacy.
+ * @param {boolean} showBot - Hiển thị AI Bot hay không (chỉ Patient mới có, mặc định true).
+ */
+export default function PatientChatPage({ showBot = true }) {
     const navigate = useNavigate();
     const { user: authUser, currentUserId } = useAuth();
 
-    const [chatPartner, setChatPartner] = useState(BOT_USER);
+    const [chatPartner, setChatPartner] = useState(showBot ? BOT_USER : null);
     const [currentRoom, setCurrentRoom] = useState(null);
 
     const [formValue, setFormValue] = useState('');
@@ -710,16 +714,18 @@ export default function PatientChatPage() {
                     </div>
                     <div className="flex-grow-1 overflow-auto hide-scrollbar p-2 bg-light">
                         <ul className="list-group list-group-flush gap-1">
-                            {/* AI Bot */}
-                            <li onClick={() => { setChatPartner(BOT_USER); setCurrentRoom(null); }}
-                                className={`list-group-item list-group-item-action d-flex align-items-center border-0 mb-1 rounded ${chatPartner?.isBot ? 'bg-primary text-white shadow-sm' : 'bg-transparent'}`}
-                                style={{ cursor: 'pointer', padding: '12px 15px' }}>
-                                <img src={BOT_USER.photoURL} alt="bot" className="rounded-circle me-3 border bg-white" style={{ width: 45, height: 45 }} />
-                                <div>
-                                    <div className="fw-bold m-0">{BOT_USER.displayName}</div>
-                                    <small className={chatPartner?.isBot ? 'text-white-50' : 'text-muted'}>Support 24/7</small>
-                                </div>
-                            </li>
+                            {/* AI Bot — chỉ hiển thị với Patient */}
+                            {showBot && (
+                                <li onClick={() => { setChatPartner(BOT_USER); setCurrentRoom(null); }}
+                                    className={`list-group-item list-group-item-action d-flex align-items-center border-0 mb-1 rounded ${chatPartner?.isBot ? 'bg-primary text-white shadow-sm' : 'bg-transparent'}`}
+                                    style={{ cursor: 'pointer', padding: '12px 15px' }}>
+                                    <img src={BOT_USER.photoURL} alt="bot" className="rounded-circle me-3 border bg-white" style={{ width: 45, height: 45 }} />
+                                    <div>
+                                        <div className="fw-bold m-0">{BOT_USER.displayName}</div>
+                                        <small className={chatPartner?.isBot ? 'text-white-50' : 'text-muted'}>Support 24/7</small>
+                                    </div>
+                                </li>
+                            )}
 
                             {/* Room List */}
                             {roomList.map(room => (
@@ -769,11 +775,18 @@ export default function PatientChatPage() {
                             </div>
                         )}
 
-                        {chatPartner?.isBot && messages.length === 0 && (
+                        {showBot && chatPartner?.isBot && messages.length === 0 && (
                             <div className="text-center my-4">
                                 <img src={BOT_USER.photoURL} alt="bot" width="80" className="mb-3 rounded-circle shadow-sm bg-white" />
                                 <h5>Welcome to HealthLink AI</h5>
                                 <p className="text-muted">How can I help you with your health today?</p>
+                            </div>
+                        )}
+
+                        {!showBot && !currentRoom && messages.length === 0 && !loading && (
+                            <div className="text-center my-5 text-muted">
+                                <i className="bi bi-chat-dots" style={{ fontSize: '3rem', opacity: 0.3 }}></i>
+                                <p className="mt-3">Select a conversation to start chatting</p>
                             </div>
                         )}
 
