@@ -2,8 +2,9 @@
 /* SLIDE HOME CSS - SCOPED TO .home-page ONLY */
 /* ================================================================== */
 
-.home-page .testimonial-section {
-  padding: 20px 20px;
+.home-page .testimonial-section,
+.testimonial-section {
+  padding: 10px 0;
   background: none;
   text-align: center;
   color: white;
@@ -16,7 +17,8 @@
   font-weight: 700;
 }
 
-.home-page .testimonial-slider {
+.home-page .testimonial-slider,
+.testimonial-slider {
   position: relative;
   max-width: 800px;
   margin: 0 auto;
@@ -24,22 +26,29 @@
   border-radius: 20px;
 }
 
-.home-page .testimonial-slide {
+.home-page .testimonial-slide,
+.testimonial-slide {
   display: none;
   animation: fade 1s;
 }
 
-.home-page .testimonial-slide.active {
+.home-page .testimonial-slide.active,
+.testimonial-slide.active {
   display: block;
 }
 
-.home-page .testimonial-card {
+.home-page .testimonial-card,
+.testimonial-card {
   background: none;
-  padding: 40px 30px;
+  padding: 20px 30px;
   border-radius: 20px;
   box-shadow: 0 10px 30px rgba(0,0,0,0.1);
   position: relative;
   color: #bbb;
+  text-align: center;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
 }
 
 .home-page .doctor-icon {
@@ -49,7 +58,7 @@
   background: white;
   border-radius: 50%;
   padding: 10px;
-  box-shadow: 0 4px 15px rgba(0, 176, 154, 0.3);   /* Đổi sang màu mới */
+  box-shadow: 0 4px 15px rgba(0, 176, 154, 0.3);
 }
 
 .home-page .stars span {
@@ -57,18 +66,22 @@
   font-size: 28px;
 }
 
-.home-page .content {
-  font-size: 1.25rem;
-  line-height: 1.7;
+.home-page .content,
+.testimonial-card .content {
+  font-size: 1rem;
+  line-height: 1.6;
   color: #ffffff;
-  margin: 25px 0;
+  margin: 15px 0;
   font-style: italic;
+  text-align: center;
 }
 
-.home-page .name {
-  color: #00b09a;                    /* Màu xanh mới */
+.home-page .name,
+.testimonial-card .name {
+  color: #00b09a;
   font-weight: bold;
   font-size: 1.3rem;
+  text-align: center;
 }
 
 .home-page .prev,
@@ -76,7 +89,7 @@
   position: absolute;
   top: 50%;
   transform: translateY(-50%);
-  background: rgba(0, 176, 154, 0.8);   /* Màu xanh mới */
+  background: rgba(0, 176, 154, 0.8);
   color: white;
   border: none;
   width: 50px;
@@ -90,12 +103,14 @@
 .home-page .prev { left: 10px; }
 .home-page .next { right: 10px; }
 
-.home-page .dots {
+.home-page .dots,
+.dots {
   text-align: center;
-  padding: 20px 0;
+  padding: 10px 0;
 }
 
-.home-page .dot {
+.home-page .dot,
+.dot {
   cursor: pointer;
   height: 12px;
   width: 12px;
@@ -106,8 +121,9 @@
   transition: 0.3s;
 }
 
-.home-page .dot.active {
-  background-color: #00b09a;           /* Màu xanh mới */
+.home-page .dot.active,
+.dot.active {
+  background-color: #00b09a;
   transform: scale(1.3);
 }
 
@@ -124,8 +140,46 @@
   .home-page .next { width: 40px; height: 40px; font-size: 20px; }
 }
 
-.home-page .avatar {
+.home-page .avatar,
+.testimonial-card .avatar {
   width: 60px;
   height: 60px;
   border-radius: 50%;
+  object-fit: cover;
+}
+
+/* Rating stars */
+.home-page .rating-stars,
+.rating-stars {
+  margin: 10px 0;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  width: 100%;
+}
+
+.home-page .rating-stars .star,
+.rating-stars .star {
+  font-size: 20px;
+  color: #ddd;
+  margin: 0 1px;
+}
+
+.home-page .rating-stars .star.filled,
+.rating-stars .star.filled {
+  color: #f39c12;
+}
+
+/* Doctor info */
+.home-page .doctor-info,
+.doctor-info,
+.testimonial-card p.doctor-info {
+  font-size: 0.85rem !important;
+  color: #aaa !important;
+  margin-top: 8px !important;
+  text-align: center !important;
+  width: 100% !important;
+  display: block !important;
+  margin-left: auto !important;
+  margin-right: auto !important;
 }

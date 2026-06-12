@@ -430,22 +430,33 @@
 
 /* ==================== SECTION 4: TESTIMONIALS ==================== */
 .home-page .testimonials-section {
-    padding: 0 30%;
+    padding: 40px 20%;
     text-align: center;
     color: white;
 }
 
 .home-page .testimonials-subtitle {
-    padding: 10% 0 2% 0;
+    padding: 0 0 10px 0;
+    font-size: 14px;
+    letter-spacing: 2px;
 }
 
 .home-page .testimonials-title {
-    font-size: 2.5vw;
-    padding: 2% 0;
+    font-size: clamp(20px, 2.5vw, 32px);
+    padding: 10px 0;
+    line-height: 1.3;
 }
 
 .home-page .testimonials-divider {
-    padding: 2% 0;
+    padding: 10px 0;
+}
+
+.home-page .testimonials-description {
+    font-size: 14px;
+    color: rgba(255, 255, 255, 0.8);
+    max-width: 600px;
+    margin: 0 auto;
+    line-height: 1.5;
 }
 
 .home-page .testimonials-divider svg {
@@ -619,7 +630,7 @@
     }
 
     .home-page .testimonials-section {
-        padding: 0 25%;
+        padding: 35px 25%;
     }
 
     .home-page .testimonials-title {
@@ -774,7 +785,7 @@
     }
 
     .home-page .testimonials-section {
-        padding: 0 20%;
+        padding: 30px 20%;
     }
 
     .home-page .testimonials-title {
@@ -983,12 +994,12 @@
 
     /* Testimonials section */
     .home-page .testimonials-section {
-        padding: 0 10%;
+        padding: 25px 10%;
     }
 
     .home-page .testimonials-subtitle {
         font-size: 13px;
-        padding: 12% 0 3% 0;
+        padding: 0 0 8px 0;
     }
 
     .home-page .testimonials-title {
@@ -1169,12 +1180,12 @@
     }
 
     .home-page .testimonials-section {
-        padding: 0 8%;
+        padding: 20px 8%;
     }
 
     .home-page .testimonials-subtitle {
         font-size: 12px;
-        padding: 15% 0 4% 0;
+        padding: 0 0 8px 0;
     }
 
     .home-page .testimonials-title {
@@ -1341,12 +1352,12 @@
     }
 
     .home-page .testimonials-section {
-        padding: 0 5%;
+        padding: 15px 5%;
     }
 
     .home-page .testimonials-subtitle {
         font-size: 11px;
-        padding: 18% 0 5% 0;
+        padding: 0 0 8px 0;
     }
 
     .home-page .testimonials-title {
