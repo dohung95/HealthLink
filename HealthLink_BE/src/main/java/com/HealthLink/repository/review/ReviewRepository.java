@@ -184,4 +184,16 @@ public interface ReviewRepository extends JpaRepository<Review, Integer>, JpaSpe
             @Param("visible") Boolean visible,
             Pageable pageable
     );
+
+    /**
+     * Get featured reviews for homepage (visible, high rating, recent)
+     */
+    @Query("SELECT r FROM Review r " +
+            "LEFT JOIN FETCH r.patient " +
+            "LEFT JOIN FETCH r.doctor " +
+            "WHERE r.visible = true " +
+            "AND r.rating >= :minRating " +
+            "AND r.comment IS NOT NULL " +
+            "ORDER BY r.rating DESC, r.reviewDate DESC")
+    List<Review> findFeaturedReviews(@Param("minRating") Integer minRating, Pageable pageable);
 }

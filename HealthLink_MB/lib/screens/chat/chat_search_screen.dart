@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../../models/chat/conversation.dart';
-import '../../providers/chat_provider.dart';
+import '../../providers/chat/chat_provider.dart';
 
 class ChatSearchScreen extends StatefulWidget {
   final Conversation conversation;

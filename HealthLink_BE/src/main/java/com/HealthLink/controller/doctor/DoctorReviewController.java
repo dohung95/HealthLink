@@ -81,6 +81,18 @@ public class DoctorReviewController {
     }
 
     /**
+     * GET /api/doctor/reviews/public/featured
+     * Get featured reviews for homepage (no auth required)
+     */
+    @GetMapping("/public/featured")
+    @PreAuthorize("permitAll()")
+    public ResponseEntity<List<ReviewResponseDto>> getFeaturedReviews(
+            @RequestParam(defaultValue = "10") int limit) {
+        List<ReviewResponseDto> reviews = reviewService.getFeaturedReviews(Math.min(limit, 20));
+        return ResponseEntity.ok(reviews);
+    }
+
+    /**
      * GET /api/doctor/reviews/public/{doctorId}
      * Get public visible reviews for any doctor (no auth required)
      * Used for doctor profile pages
