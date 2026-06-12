@@ -201,8 +201,6 @@ const DoctorScheduleView = () => {
         </div>
       </div>
 
-      <ComplianceStatusBanner key={complianceKey} onValidateClick={handleValidateCompliance} />
-
       {activeTab === 'weekly' ? (
         <WeeklyScheduleBuilder
           schedules={scheduleData?.schedules || []}
