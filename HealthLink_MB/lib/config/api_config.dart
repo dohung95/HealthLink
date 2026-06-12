@@ -9,7 +9,6 @@ class ApiConfig {
   static const String paypalClientId = 'Abj_ov73E4EuBjVPEu23yN-oPJUu-7AQMrsMaVmcCTmQI9JlkK-HJ_nd7Hy7gtxE8O68hmJbbCrKP27b';
 
   // ── Base URL ──────────────────────────────────────────────────────────────
-
   // Đặt cờ này thành true khi code được chạy bởi nhóm của bạn
   // Đặt thành false khi BẠN chạy trên máy thật của mình (kèm lệnh adb reverse)
   static const bool isTeamConfig = false;
