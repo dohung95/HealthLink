@@ -10,7 +10,7 @@ import '../../services/chat/chat_service.dart';
 import '../chat/chat_room_screen.dart';
 import '../video_audio/video_call_screen.dart';
 import '../../utils/notification_helper.dart';
-import '../../providers/chat_provider.dart';
+import '../../providers/chat/chat_provider.dart';
 import '../../providers/video_call_provider.dart';
 
 class AppointmentScreen extends StatefulWidget {

@@ -7,7 +7,7 @@ import 'package:file_picker/file_picker.dart';
 import '../../models/chat/conversation.dart';
 import '../../models/chat/message.dart';
 import '../../providers/auth_provider.dart';
-import '../../providers/chat_provider.dart';
+import '../../providers/chat/chat_provider.dart';
 import '../../config/api_config.dart';
 import 'chat_search_screen.dart';
 import 'chat_media_screen.dart';

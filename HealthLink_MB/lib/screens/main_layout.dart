@@ -8,7 +8,7 @@ import 'booking/booking_screen.dart';
 import 'appointments/appointment_screen.dart';
 import 'package:provider/provider.dart';
 import '../providers/auth_provider.dart';
-import '../providers/chat_provider.dart';
+import '../providers/chat/chat_provider.dart';
 import '../providers/video_call_provider.dart';
 import '../services/video_audio/webrtc_stomp_service.dart';
 
