@@ -277,6 +277,7 @@ function ChatMessage({ message, currentUserId, isNew = false, onImageClick, onNa
                     className={`p-2 rounded ${isOwn ? 'bg-primary text-white' : 'bg-light text-dark border'}`}
                     style={{ borderRadius: imageUrl ? '12px' : '20px', padding: imageUrl ? '4px' : '8px 16px' }}
                 >
+                    {/* image */}
                     {imageUrl && (
                         <img
                             src={imageUrl}
@@ -290,9 +291,10 @@ function ChatMessage({ message, currentUserId, isNew = false, onImageClick, onNa
                                 transition: 'opacity 0.15s',
                             }}
                             onClick={() => onImageClick?.(imageUrl)}
-                            title="Click để xem ảnh phóng to"
+                            title="click to zoom in"
                         />
                     )}
+                    {/* video */}
                     {videoUrl && (
                         <video
                             src={videoUrl}
@@ -300,6 +302,7 @@ function ChatMessage({ message, currentUserId, isNew = false, onImageClick, onNa
                             style={{ maxWidth: '100%', maxHeight: '300px', borderRadius: '8px', display: 'block' }}
                         />
                     )}
+                    {/* link file */}
                     {fileUrl && (
                         <div
                             onClick={(e) => {
@@ -342,6 +345,7 @@ function ChatMessage({ message, currentUserId, isNew = false, onImageClick, onNa
                             </span>
                         </div>
                     )}
+                    {/* text */}
                     {fullText && (
                         <div style={{ marginTop: imageUrl || videoUrl || fileUrl ? '8px' : '0', whiteSpace: 'pre-wrap' }}>
                             {displayText}
@@ -484,6 +488,10 @@ export default function Chat() {
     const [latestBotMsgId, setLatestBotMsgId] = useState(null); // đánh dấu tin nhắn bot mới nhất để kích hoạt typewriter
     const [lightboxImage, setLightboxImage] = useState(null);    // URL ảnh đang xem phóng to trong lightbox
 
+    // ── States cho hiệu ứng icon thu/hiện ──────────────────────────────────────
+    const [isIconHidden, setIsIconHidden] = useState(true);   // true = icon đang thu vào phải
+    const [isShaking, setIsShaking] = useState(false);         // true = đang chạy animation lắc
+
     const scrollTo = useRef(null);
     const fileInputRef = useRef(null);
     const unsubscribeChat = useRef(null);
@@ -518,6 +526,31 @@ export default function Chat() {
             .then(data => setAllDoctors(data || []))
             .catch(() => { }); // Lỗi thì im lặng, không ảnh hưởng UX
     }, []);
+
+    // ── Hiệu ứng peek-and-shake mỗi 10 giây (khi icon đang đóng) ──────────────
+    useEffect(() => {
+        if (isChatBoxOpen) return; // Không cần khi chat đang mở
+        const timer = setInterval(() => {
+            // Bước 1: Trượt ra
+            setIsIconHidden(false);
+            setIsShaking(true);
+            // Bước 2: Sau 3 giây → thu vào lại
+            const hideTimer = setTimeout(() => {
+                setIsShaking(false);
+                setIsIconHidden(true);
+            }, 3000);
+            return () => clearTimeout(hideTimer);
+        }, 10000);
+        return () => clearInterval(timer);
+    }, [isChatBoxOpen]);
+
+    // ── Khi popup chat đóng → thu icon vào phải lại ─────────────────────────
+    useEffect(() => {
+        if (!isChatBoxOpen) {
+            setIsIconHidden(true);
+            setIsShaking(false);
+        }
+    }, [isChatBoxOpen]);
 
     // ── Đăng ký sự kiện Chat khi Component được render ────────────────────────────────
     useEffect(() => {
@@ -826,7 +859,7 @@ export default function Chat() {
                 receiverId: partnerId,
                 content: text,
             });
-            
+
             // Thay optimistic bằng tin nhắn thật, tránh duplicate với STOMP
             setMessages(prev => {
                 if (prev.some(m => m.messageId === saved.messageId)) {
@@ -968,23 +1001,113 @@ export default function Chat() {
                 <ImageLightbox src={lightboxImage} onClose={() => setLightboxImage(null)} />
             )}
 
-            {/* Icon mở chat */}
-            {!isChatBoxOpen && (
-                <div
-                    className="chat-icon rounded-circle d-flex align-items-center justify-content-center shadow-lg"
-                    style={styles.chatIcon}
-                    onClick={() => setIsChatBoxOpen(true)}
-                    title="Open Message"
-                >
-                    <i className="bi bi-chat-fill text-white" style={{ fontSize: '1.5rem' }}></i>
-                    {totalUnread > 0 && (
-                        <span className="position-absolute badge rounded-pill bg-danger shadow-sm" style={{ fontSize: '0.75rem', top: '2px', right: '2px' }}>
-                            {totalUnread > 99 ? '99+' : totalUnread}
-                            <span className="visually-hidden">unread messages</span>
-                        </span>
+            {/* Icon chat nổi - luôn hiển thị, chỉ ẩn hiệu ứng khi popup đang mở */}
+            <>
+                <style>{`
+                    @keyframes chatShake {
+                        0%, 100% { transform: translateX(0) rotate(0deg); }
+                        15%  { transform: translateX(-4px) rotate(-8deg); }
+                        30%  { transform: translateX(4px) rotate(8deg); }
+                        45%  { transform: translateX(-4px) rotate(-5deg); }
+                        60%  { transform: translateX(4px) rotate(5deg); }
+                        75%  { transform: translateX(-2px) rotate(-3deg); }
+                        90%  { transform: translateX(2px) rotate(3deg); }
+                    }
+                    @keyframes chatPulseRing {
+                        0%   { box-shadow: 0 0 0 0 rgba(0,176,154,0.55); }
+                        70%  { box-shadow: 0 0 0 14px rgba(0,176,154,0); }
+                        100% { box-shadow: 0 0 0 0 rgba(0,176,154,0); }
+                    }
+                    .chat-float-wrapper {
+                        position: fixed;
+                        bottom: 80px;
+                        right: 5px;
+                        z-index: 1000;
+                        display: flex;
+                        align-items: center;
+                        transition: transform 0.45s cubic-bezier(.34,1.56,.64,1);
+                    }
+                    .chat-float-wrapper.hidden {
+                        transform: translateX(64px);
+                    }
+                    .chat-float-wrapper.visible {
+                        transform: translateX(0);
+                    }
+                    .chat-float-icon {
+                        width: 56px;
+                        height: 56px;
+                        border-radius: 50%;
+                        background: linear-gradient(135deg, #00c6a0, #007cf0);
+                        display: flex;
+                        align-items: center;
+                        justify-content: center;
+                        cursor: pointer;
+                        box-shadow: 0 4px 18px rgba(0,150,136,0.4);
+                        position: relative;
+                        transition: transform 0.2s, box-shadow 0.2s;
+                        flex-shrink: 0;
+                    }
+                    .chat-float-icon:hover {
+                        transform: scale(1.08);
+                        box-shadow: 0 6px 24px rgba(0,150,136,0.55);
+                    }
+                    .chat-float-icon.shaking {
+                        animation: chatShake 0.7s ease 0.1s, chatPulseRing 1s ease 0.1s 2;
+                    }
+                    .chat-float-toggle {
+                        width: 30px;
+                        height: 44px;
+                        background: linear-gradient(135deg, #00c6a0, #007cf0);
+                        border: none;
+                        border-radius: 6px 0 0 6px;
+                        cursor: pointer;
+                        display: flex;
+                        align-items: center;
+                        justify-content: center;
+                        color: #fff;
+                        font-size: 0.8rem;
+                        box-shadow: -2px 0 10px rgba(0,0,0,0.15);
+                        transition: background 0.2s;
+                        flex-shrink: 0;
+                    }
+                    .chat-float-toggle:hover {
+                        background: linear-gradient(135deg, #009e85, #005bb5);
+                    }
+                `}</style>
+                {/* Khi popup đang MỞ: icon hiện tĩnh visible, không mũi tên, không lắc */}
+                {/* Khi popup ĐÓNG: icon thu vào phải, có mũi tên, 10 giây peek+lắc */}
+                <div className={`chat-float-wrapper ${isChatBoxOpen ? 'visible' : (isIconHidden ? 'hidden' : 'visible')}`}>
+                    {/* Nút mũi tên - chỉ hiện khi popup đóng VÀ icon đang ẩn */}
+                    {!isChatBoxOpen && isIconHidden && (
+                        <button
+                            className="chat-float-toggle"
+                            onClick={() => { setIsChatBoxOpen(true); setIsIconHidden(false); setIsShaking(false); }}
+                            title="Open chat"
+                        >
+                            <i className="bi bi-chevron-left" />
+                        </button>
                     )}
+
+                    {/* Icon chat chính */}
+                    <div
+                        className={`chat-float-icon ${!isChatBoxOpen && isShaking ? 'shaking' : ''}`}
+                        onClick={() => { setIsChatBoxOpen(prev => !prev); setIsIconHidden(false); setIsShaking(false); }}
+                        title={isChatBoxOpen ? 'close chat' : 'open chat'}
+                    >
+                        <i className={`bi ${isChatBoxOpen ? 'bi-x-lg' : 'bi-chat-dots-fill'} text-white`} style={{ fontSize: '1.4rem' }} />
+                        {!isChatBoxOpen && totalUnread > 0 && (
+                            <span
+                                className="position-absolute badge rounded-pill bg-danger shadow-sm"
+                                style={{ fontSize: '0.7rem', top: '-2px', right: '-2px', minWidth: '18px' }}
+                            >
+                                {totalUnread > 99 ? '99+' : totalUnread}
+                                <span className="visually-hidden">unread messages</span>
+                            </span>
+                        )}
+                    </div>
                 </div>
-            )}
+            </>
+
 
             {/* 2. Chat Box (popup) */}
             {isChatBoxOpen && (
@@ -1133,8 +1256,8 @@ export default function Chat() {
                                         <div className="position-relative d-inline-flex">
                                             <i className="bi bi-person-lines-fill" style={{ fontSize: '1.25rem' }}></i>
                                             {totalUnread > 0 && (
-                                                <span className="position-absolute bg-danger border border-white rounded-circle" 
-                                                      style={{ top: '-1px', right: '-3px', width: '10px', height: '10px' }}>
+                                                <span className="position-absolute bg-danger border border-white rounded-circle"
+                                                    style={{ top: '-1px', right: '-3px', width: '10px', height: '10px' }}>
                                                     <span className="visually-hidden">unread messages</span>
                                                 </span>
                                             )}

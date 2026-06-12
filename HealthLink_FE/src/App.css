@@ -84,8 +84,8 @@
 /* Chat Box Responsive Styles */
 .chat-box-responsive {
   position: fixed;
-  bottom: 100px;
-  right: 30px;
+  bottom: 135px;
+  right: 45px;
   width: 350px;
   height: 500px;
   z-index: 999;
@@ -96,21 +96,25 @@
 @media (max-width: 768px) {
   .chat-box-responsive {
     position: fixed;
-  bottom: 100px;
-  right: 30px;
-  width: 70%;
-  height: 40%;
-  z-index: 999;
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
-  transition: all 0.3s ease;
+    bottom: 100px;
+    right: 30px;
+    width: 70%;
+    height: 40%;
+    z-index: 999;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+    transition: all 0.3s ease;
   }
 }
 
 /* ─── Hiding Scrollbar Utility ─── */
 .hide-scrollbar {
-  -ms-overflow-style: none;  /* IE and Edge */
-  scrollbar-width: none;     /* Firefox */
+  -ms-overflow-style: none;
+  /* IE and Edge */
+  scrollbar-width: none;
+  /* Firefox */
 }
+
 .hide-scrollbar::-webkit-scrollbar {
-  display: none;             /* Chrome, Safari and Opera */
+  display: none;
+  /* Chrome, Safari and Opera */
 }
