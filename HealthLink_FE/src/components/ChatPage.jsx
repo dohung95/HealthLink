@@ -288,12 +288,12 @@ function RoomListItem({ room, currentUserId, onSelect, isActive }) {
     );
 }
 
-// ─── Main Component: PatientChatPage ──────────────────────────────────────────
+// ─── Main Component: ChatPage ──────────────────────────────────────────
 /**
  * Component chat dùng chung cho Patient, Doctor, Pharmacy.
  * @param {boolean} showBot - Hiển thị AI Bot hay không (chỉ Patient mới có, mặc định true).
  */
-export default function PatientChatPage({ showBot = true }) {
+export default function ChatPage({ showBot = true }) {
     const navigate = useNavigate();
     const { user: authUser, currentUserId } = useAuth();
 

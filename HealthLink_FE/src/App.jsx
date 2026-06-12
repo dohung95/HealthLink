@@ -80,7 +80,7 @@ import PatientDashboard from './pages/PatientDashboard';
 import PatientDashboardHome from './components/patient-dashboard/PatientDashboardHome';
 import NotFound from './pages/NotFound';
 import PharmacyDashboardPage from './pages/pharmacy/PharmacyDashboardPage';
-import PatientChatPage from './components/ChatPage';
+import ChatPage from './components/ChatPage';
 //-----------------------------------------------------------------------------------------------
 
 function App() {
@@ -242,7 +242,7 @@ function AppContent() {
               <Route path="prescriptions" element={<DoctorPrescriptionsView />} />
               <Route path="reviews" element={<DoctorReviewsView />} />
               <Route path="schedule" element={<DoctorScheduleView />} />
-              <Route path="chat" element={<PatientChatPage showBot={false} />} />
+              <Route path="chat" element={<ChatPage showBot={false} />} />
               <Route path="profile" element={<DoctorProfileView />} />
             </Route>
 
@@ -370,7 +370,7 @@ function AppContent() {
               <Route path="pharmacy/orders" element={<PatientPharmacyPage />} />
               <Route path="pharmacy/orders/:orderId" element={<PatientPharmacyPage />} />
               <Route path="profile" element={<ProfilePatient />} />
-              <Route path="chat" element={<PatientChatPage />} />
+              <Route path="chat" element={<ChatPage />} />
             </Route>
 
             <Route

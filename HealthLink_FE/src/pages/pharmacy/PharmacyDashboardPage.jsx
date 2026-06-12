@@ -13,7 +13,7 @@ import { Avatar, getProfileName, navItems, routeByTab } from '../../components/p
 import PharmacyOrdersTab from '../../components/pharmacy/PharmacyOrdersTab';
 import PharmacyProfileTab from '../../components/pharmacy/PharmacyProfileTab';
 import PharmacyWalletTab from '../../components/pharmacy/PharmacyWalletTab';
-import PatientChatPage from '../../components/ChatPage';
+import ChatPage from '../../components/ChatPage';
 
 export default function PharmacyDashboardPage() {
   const { token, currentUserId, logout } = useAuth();
@@ -180,7 +180,7 @@ export default function PharmacyDashboardPage() {
               {activeTab === 'inventory' && <PharmacyInventoryTab {...shellProps} />}
               {activeTab === 'orders' && <PharmacyOrdersTab {...shellProps} />}
               {activeTab === 'wallet' && <PharmacyWalletTab {...shellProps} />}
-              {/* {activeTab === 'chat' && <PatientChatPage showBot={false} />}  nếu mà a muốn cho pharmacy chat thì mở cmt là xong */}
+              {/* {activeTab === 'chat' && <ChatPage showBot={false} />}  nếu mà a muốn cho pharmacy chat thì mở cmt là xong */}
               {activeTab === 'profile' && <PharmacyProfileTab token={token} logout={logout} {...shellProps} />}
             </>
           )}
