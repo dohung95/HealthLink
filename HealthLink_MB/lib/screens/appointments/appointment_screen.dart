@@ -499,9 +499,9 @@ class _AppointmentScreenState extends State<AppointmentScreen> {
                     icon: const Icon(Icons.edit_calendar_outlined),
                     label: const Text('Reschedule'),
                   ),
-                if (appointment.isScheduled)
+                if (canCancel)
                   OutlinedButton.icon(
-                    onPressed: canCancel ? () => _confirmCancel(appointment) : null,
+                    onPressed: () => _confirmCancel(appointment),
                     icon: const Icon(Icons.close),
                     label: const Text('Cancel'),
                   ),
