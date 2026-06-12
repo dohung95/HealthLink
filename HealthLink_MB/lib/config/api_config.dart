@@ -42,6 +42,10 @@ class ApiConfig {
   static const String verifyEmailChange = '$baseUrl/account/patient/auth/email/verify-change';
   static String doctorSchedules(String doctorId) => '$baseUrl/account/doctors/$doctorId/schedules';
 
+  // ── Doctor Profile Endpoints ───────────────────────────────────────────────
+  /// GET /api/account/doctors/profile – Lấy profile của bác sĩ đang đăng nhập.
+  static const String doctorProfile = '$baseUrl/account/doctors/profile';
+
   // ── Prescription Endpoints ────────────────────────────────────────────────
   static String prescriptionsByPatientId(String patientId) => '$baseUrl/prescriptions/patient/$patientId';
 

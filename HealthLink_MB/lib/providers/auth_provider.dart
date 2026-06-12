@@ -25,6 +25,7 @@ class AuthProvider extends ChangeNotifier {
   String? _displayName;
   String? _avatarUrl;
   Map<String, dynamic>? _patientProfile;
+  Map<String, dynamic>? _doctorProfile;
 
   // ── Getters ────────────────────────────────────────────────────────────────
 
@@ -39,6 +40,9 @@ class AuthProvider extends ChangeNotifier {
   String?    get displayName   => _displayName;
   String?    get avatarUrl     => _avatarUrl;
   Map<String, dynamic>? get patientProfile => _patientProfile;
+  Map<String, dynamic>? get doctorProfile  => _doctorProfile;
+  bool get isDoctor => _roles.contains('DOCTOR');
+  bool get isPatient => _roles.contains('PATIENT') || (!isDoctor && _roles.isEmpty);
 
   // ── Init: Tải token từ SharedPreferences khi app khởi động ─────────────────
 
@@ -196,28 +200,43 @@ class AuthProvider extends ChangeNotifier {
     _displayName  = null;
     _avatarUrl    = null;
     _patientProfile = null;
+    _doctorProfile  = null;
     _status       = AuthStatus.unauthenticated;
     _errorMessage = '';
     await TokenUtils.clearTokens();
     notifyListeners();
   }
 
-  /// Gọi ngầm /api/account/patient/profile để lấy tên và avatar. Hoặc được gọi công khai để pull-to-refresh.
+  /// Gọi ngầm API profile dựa theo role để lấy tên và avatar.
+  /// - Doctor: /api/account/doctors/profile
+  /// - Patient: /api/account/patient/profile
   Future<void> fetchProfile() async {
     if (_accessToken == null) return;
     try {
+      final String profileUrl = isDoctor
+          ? ApiConfig.doctorProfile
+          : ApiConfig.patientProfile;
+
       final res = await http.get(
-        Uri.parse(ApiConfig.patientProfile),
+        Uri.parse(profileUrl),
         headers: {
           'Authorization': 'Bearer $_accessToken',
           'Accept': 'application/json',
         },
       ).timeout(ApiConfig.connectTimeout);
+
       if (res.statusCode == 200) {
         final data = jsonDecode(res.body) as Map<String, dynamic>;
-        _patientProfile = data;
-        _displayName = data['fullName']?.toString() ?? data['username']?.toString();
-        _avatarUrl   = data['avatarUrl']?.toString();
+
+        if (isDoctor) {
+          _doctorProfile = data;
+          _displayName = data['fullName']?.toString() ?? data['username']?.toString();
+          _avatarUrl = data['avatarUrl']?.toString();
+        } else {
+          _patientProfile = data;
+          _displayName = data['fullName']?.toString() ?? data['username']?.toString();
+          _avatarUrl = data['avatarUrl']?.toString();
+        }
         notifyListeners();
       }
     } catch (e) {
