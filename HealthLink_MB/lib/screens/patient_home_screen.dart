@@ -5,6 +5,8 @@ import '../config/api_config.dart';
 import '../services/appointments/appointment_service.dart';
 import '../services/patient_service.dart';
 import '../services/booking/booking_service.dart';
+import 'health_records/health_records_screen.dart';
+import 'health_records/share_health_records_screen.dart';
 
 class PatientHomeScreen extends StatefulWidget {
   const PatientHomeScreen({
@@ -885,14 +887,38 @@ class _PatientHomeScreenState extends State<PatientHomeScreen> {
               childAspectRatio: 1.1,
               children: [
                 _buildQuickActionButton(
+                  Icons.medical_information,
+                  'Health Records',
+                  Theme.of(context).colorScheme.secondary,
+                  Theme.of(context).colorScheme.onSecondary,
+                  onTap: () {
+                    Navigator.of(context).push(
+                      MaterialPageRoute(
+                        builder: (_) => const HealthRecordsScreen(),
+                      ),
+                    );
+                  },
+                ),
+                _buildQuickActionButton(
+                  Icons.share,
+                  'Share Records',
+                  Theme.of(context).colorScheme.secondary.withOpacity(0.1),
+                  Theme.of(context).colorScheme.secondary,
+                  onTap: () {
+                    Navigator.of(context).push(
+                      MaterialPageRoute(
+                        builder: (_) => const ShareHealthRecordsScreen(),
+                      ),
+                    );
+                  },
+                ),
+                _buildQuickActionButton(
                   Icons.emoji_events_outlined,
                   'Doctor Ranking',
                   Theme.of(context).colorScheme.surface,
                   Theme.of(context).colorScheme.primary,
                   onTap: _openDoctorRanking,
                 ),
-                _buildQuickActionButton(Icons.medical_information, 'Health Records', Theme.of(context).colorScheme.secondary, Theme.of(context).colorScheme.onSecondary),
-                _buildQuickActionButton(Icons.share, 'Share Records', Theme.of(context).colorScheme.secondary.withOpacity(0.1), Theme.of(context).colorScheme.secondary),
                 _buildQuickActionButton(Icons.chat, 'Chat with Doctor', Theme.of(context).colorScheme.surface, Theme.of(context).colorScheme.primary),
               ],
             );

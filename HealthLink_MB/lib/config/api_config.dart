@@ -68,6 +68,10 @@ class ApiConfig {
   static const String myHealthRecords = '$baseUrl/health-records/my';
   static String shareHealthRecord(int recordId) => '$baseUrl/health-records/$recordId/share';
 
+  //Share health record
+  static const String myHealthRecordShares = '$baseUrl/health-records/shares/my';
+  static String revokeHealthRecordShare(int shareId) => '$baseUrl/health-records/shares/$shareId/revoke';
+
   // ── Chat Endpoints ────────────────────────────────────────────────────────
   /// GET /api/chat/rooms/me – Lấy danh sách phòng chat của user hiện tại.
   static const String chatRooms         = '$baseUrl/chat/rooms/me';
