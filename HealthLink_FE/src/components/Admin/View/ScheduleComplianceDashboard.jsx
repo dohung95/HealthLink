@@ -15,6 +15,9 @@ export default function ScheduleComplianceDashboard() {
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
   const { toast, showToast, hideToast } = useToast();
 
+  // Active tab: 'compliance' or 'change-requests'
+  const [activeTab, setActiveTab] = useState('compliance');
+
   // Month selection
   const [selectedMonth, setSelectedMonth] = useState(() => {
     const now = new Date();
@@ -47,13 +50,73 @@ export default function ScheduleComplianceDashboard() {
   const [calendarDate, setCalendarDate] = useState(new Date());
   const scheduleDetailRef = useRef(null);
 
+  // Schedule Change Requests section
+  const [changeRequests, setChangeRequests] = useState([]);
+  const [changeRequestsLoading, setChangeRequestsLoading] = useState(false);
+  const [showRejectModal, setShowRejectModal] = useState(false);
+  const [rejectingRequest, setRejectingRequest] = useState(null);
+  const [rejectReason, setRejectReason] = useState('');
+  const [processingRequestId, setProcessingRequestId] = useState(null);
+
   // Day names for schedule display
   const dayNames = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
 
   // Fetch compliance data when filters change
   useEffect(() => {
     fetchData();
+    fetchChangeRequests();
   }, [selectedMonth, statusFilter, specialtyFilter, pageNumber]);
+
+  // Fetch schedule change requests
+  const fetchChangeRequests = async () => {
+    try {
+      setChangeRequestsLoading(true);
+      const data = await scheduleApi.getScheduleChangeRequests();
+      setChangeRequests(data || []);
+    } catch (err) {
+      console.error('Error fetching change requests:', err);
+      // Silently fail - not critical
+    } finally {
+      setChangeRequestsLoading(false);
+    }
+  };
+
+  // Approve a change request
+  const handleApproveRequest = async (requestId) => {
+    try {
+      setProcessingRequestId(requestId);
+      await scheduleApi.approveScheduleChangeRequest(requestId, 'Approved by admin');
+      showToast({ title: 'Success', message: 'Change request approved', type: 'success' });
+      fetchChangeRequests();
+    } catch (err) {
+      console.error('Error approving request:', err);
+      showToast({ title: 'Error', message: err.response?.data?.message || 'Failed to approve request', type: 'error' });
+    } finally {
+      setProcessingRequestId(null);
+    }
+  };
+
+  // Reject a change request
+  const handleRejectRequest = async () => {
+    if (!rejectingRequest || !rejectReason.trim()) {
+      showToast({ title: 'Error', message: 'Please provide a reason for rejection', type: 'error' });
+      return;
+    }
+    try {
+      setProcessingRequestId(rejectingRequest.requestId);
+      await scheduleApi.rejectScheduleChangeRequest(rejectingRequest.requestId, rejectReason.trim());
+      showToast({ title: 'Success', message: 'Change request rejected', type: 'success' });
+      setShowRejectModal(false);
+      setRejectingRequest(null);
+      setRejectReason('');
+      fetchChangeRequests();
+    } catch (err) {
+      console.error('Error rejecting request:', err);
+      showToast({ title: 'Error', message: err.response?.data?.message || 'Failed to reject request', type: 'error' });
+    } finally {
+      setProcessingRequestId(null);
+    }
+  };
 
   const fetchData = async () => {
     try {
@@ -311,6 +374,36 @@ export default function ScheduleComplianceDashboard() {
             </div>
           </div>
 
+          {/* Tabs */}
+          <div className="compliance-tabs mb-3">
+            <div className="d-flex gap-2 p-1 rounded-3" style={{ background: '#f1f5f9', display: 'inline-flex' }}>
+              <button
+                className={`btn btn-sm px-4 py-2 rounded-2 ${activeTab === 'compliance' ? 'btn-primary' : 'btn-link text-muted'}`}
+                onClick={() => setActiveTab('compliance')}
+                style={{ fontWeight: 500, textDecoration: 'none' }}
+              >
+                <i className="bi bi-clipboard-check me-2"></i>
+                Compliance
+              </button>
+              <button
+                className={`btn btn-sm px-4 py-2 rounded-2 ${activeTab === 'change-requests' ? 'btn-primary' : 'btn-link text-muted'}`}
+                onClick={() => setActiveTab('change-requests')}
+                style={{ fontWeight: 500, textDecoration: 'none', position: 'relative' }}
+              >
+                <i className="bi bi-arrow-repeat me-2"></i>
+                Change Requests
+                {changeRequests.filter(r => r.status === 'PENDING').length > 0 && (
+                  <span className="position-absolute top-0 start-100 translate-middle badge rounded-pill bg-danger" style={{ fontSize: '10px' }}>
+                    {changeRequests.filter(r => r.status === 'PENDING').length}
+                  </span>
+                )}
+              </button>
+            </div>
+          </div>
+
+          {/* Tab Content: Compliance */}
+          {activeTab === 'compliance' && (
+            <>
           {/* Statistics Cards */}
           {statistics && (
             <div className="compliance-stats-row mb-3">
@@ -653,8 +746,211 @@ export default function ScheduleComplianceDashboard() {
               )}
             </div>
           )}
+            </>
+          )}
+
+          {/* Tab Content: Change Requests */}
+          {activeTab === 'change-requests' && (
+            <div className="change-requests-section">
+              <div className="compliance-filter-card mb-3">
+                <div className="d-flex justify-content-between align-items-center">
+                  <div>
+                    <span className="text-muted small">
+                      {changeRequests.filter(r => r.status === 'PENDING').length} pending requests
+                    </span>
+                  </div>
+                  <button
+                    className="compliance-btn primary"
+                    onClick={fetchChangeRequests}
+                    disabled={changeRequestsLoading}
+                  >
+                    <i className="bi bi-arrow-clockwise"></i>
+                    Refresh
+                  </button>
+                </div>
+              </div>
+
+              <div className="compliance-table-card">
+                {changeRequestsLoading ? (
+                  <div className="compliance-empty">
+                    <div className="spinner-border text-primary" role="status">
+                      <span className="visually-hidden">Loading...</span>
+                    </div>
+                  </div>
+                ) : changeRequests.length > 0 ? (
+                  <div className="table-responsive">
+                    <table className="compliance-table">
+                      <thead>
+                        <tr>
+                          <th>Request ID</th>
+                          <th>Doctor / Patient</th>
+                          <th>Appointment</th>
+                          <th>Reason</th>
+                          <th>Status</th>
+                          <th>Actions</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {changeRequests.map((request) => (
+                          <tr key={request.requestId}>
+                            <td>
+                              <span className="fw-semibold">#{request.requestId}</span>
+                            </td>
+                            <td>
+                              <div className="fw-semibold">{request.doctorName}</div>
+                              <div className="text-muted small">{request.patientName}</div>
+                            </td>
+                            <td>
+                              <div>
+                                {request.appointmentTime ?
+                                  new Date(request.appointmentTime).toLocaleString('en-US', {
+                                    month: 'short',
+                                    day: 'numeric',
+                                    hour: '2-digit',
+                                    minute: '2-digit'
+                                  }) : 'N/A'}
+                              </div>
+                              <div className="text-muted small">#{request.appointmentId}</div>
+                            </td>
+                            <td style={{ maxWidth: '220px' }}>
+                              <div className="text-break small">{request.reason}</div>
+                            </td>
+                            <td>
+                              <span className={`compliance-badge ${
+                                request.status === 'APPROVED' ? 'success' :
+                                request.status === 'REJECTED' ? 'danger' : 'warning'
+                              }`}>
+                                {request.status}
+                              </span>
+                              {request.adminReason && (
+                                <div className="text-muted small mt-1">{request.adminReason}</div>
+                              )}
+                            </td>
+                            <td>
+                              {request.status === 'PENDING' ? (
+                                <div className="d-flex gap-1">
+                                  <button
+                                    className="compliance-action-btn"
+                                    style={{ color: '#16a34a' }}
+                                    onClick={() => handleApproveRequest(request.requestId)}
+                                    disabled={processingRequestId === request.requestId}
+                                    title="Approve"
+                                  >
+                                    <i className="bi bi-check-circle"></i>
+                                    Approve
+                                  </button>
+                                  <button
+                                    className="compliance-action-btn"
+                                    style={{ color: '#dc2626' }}
+                                    onClick={() => {
+                                      setRejectingRequest(request);
+                                      setShowRejectModal(true);
+                                    }}
+                                    disabled={processingRequestId === request.requestId}
+                                    title="Reject"
+                                  >
+                                    <i className="bi bi-x-circle"></i>
+                                    Reject
+                                  </button>
+                                </div>
+                              ) : (
+                                <span className="text-muted small">Processed</span>
+                              )}
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                ) : (
+                  <div className="compliance-empty">
+                    <i className="bi bi-inbox compliance-empty-icon"></i>
+                    <p className="compliance-empty-text">No schedule change requests found</p>
+                  </div>
+                )}
+              </div>
+            </div>
+          )}
         </div>
       </div>
+
+      {/* Reject Change Request Modal */}
+      {showRejectModal && rejectingRequest && (
+        <div className="compliance-modal-overlay">
+          <div className="compliance-modal">
+            <div className="compliance-modal-header">
+              <h5 className="compliance-modal-title">Reject Schedule Change Request</h5>
+              <button className="compliance-modal-close" onClick={() => {
+                setShowRejectModal(false);
+                setRejectingRequest(null);
+                setRejectReason('');
+              }}>
+                <i className="bi bi-x-lg"></i>
+              </button>
+            </div>
+            <div className="compliance-modal-body">
+              <div className="mb-3 p-3 rounded" style={{ background: '#f8fafc' }}>
+                <div className="d-flex justify-content-between align-items-start">
+                  <div>
+                    <div className="fw-bold">{rejectingRequest.doctorName}</div>
+                    <div className="text-muted small">Patient: {rejectingRequest.patientName}</div>
+                    <div className="text-muted small">
+                      Appointment: {rejectingRequest.appointmentTime ?
+                        new Date(rejectingRequest.appointmentTime).toLocaleString() : 'N/A'}
+                    </div>
+                  </div>
+                  <span className="badge bg-warning text-dark">#{rejectingRequest.requestId}</span>
+                </div>
+                <div className="mt-2 pt-2 border-top">
+                  <small className="text-muted">Doctor's reason:</small>
+                  <div>{rejectingRequest.reason}</div>
+                </div>
+              </div>
+              <div className="compliance-form-group">
+                <label className="compliance-form-label">Reason for Rejection *</label>
+                <textarea
+                  className="compliance-form-textarea"
+                  value={rejectReason}
+                  onChange={(e) => setRejectReason(e.target.value)}
+                  placeholder="Explain why the request is being rejected..."
+                  required
+                  rows={3}
+                />
+              </div>
+            </div>
+            <div className="compliance-modal-footer">
+              <button
+                className="compliance-modal-btn secondary"
+                onClick={() => {
+                  setShowRejectModal(false);
+                  setRejectingRequest(null);
+                  setRejectReason('');
+                }}
+              >
+                Cancel
+              </button>
+              <button
+                className="compliance-modal-btn"
+                style={{ background: '#dc2626', color: '#fff' }}
+                onClick={handleRejectRequest}
+                disabled={processingRequestId || !rejectReason.trim()}
+              >
+                {processingRequestId ? (
+                  <>
+                    <span className="spinner-border spinner-border-sm"></span>
+                    Processing...
+                  </>
+                ) : (
+                  <>
+                    <i className="bi bi-x-circle"></i>
+                    Reject Request
+                  </>
+                )}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Exemption Modal */}
       {showExemptModal && (

@@ -7,8 +7,11 @@ import com.HealthLink.dto.payment.PharmacyOrderPayPalCaptureRequest;
 import com.HealthLink.dto.payment.PharmacyOrderPayPalOrderRequest;
 import com.HealthLink.dto.pharmacy.PharmacyOrderResponse;
 import com.HealthLink.service.payment.FinanceService;
+import com.HealthLink.service.payment.InvoicePdfService;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
+import org.springframework.http.HttpHeaders;
+import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
@@ -34,6 +37,7 @@ import java.util.Map;
 public class PaymentController {
 
     private final FinanceService financeService;
+    private final InvoicePdfService invoicePdfService;
 
     // ──────────────────────────────────────────────────────────────────────
     // Các endpoint hóa đơn
@@ -66,6 +70,24 @@ public class PaymentController {
     public ResponseEntity<List<InvoiceResponse>> getPatientHistory(
             @PathVariable String patientId) {
         return ResponseEntity.ok(financeService.getInvoicesByPatient(patientId));
+    }
+
+    /**
+     * Tải xuống PDF hóa đơn.
+     *
+     * GET /api/payment/invoices/{id}/pdf
+     */
+    @GetMapping("/invoices/{id}/pdf")
+    @PreAuthorize("hasAnyRole('ADMIN', 'DOCTOR', 'PHARMACY', 'PATIENT')")
+    public ResponseEntity<byte[]> getInvoicePdf(@PathVariable Integer id) {
+        InvoiceResponse invoiceResponse = financeService.getInvoice(id);
+        byte[] pdfBytes = financeService.generateInvoicePdf(id);
+        HttpHeaders headers = new HttpHeaders();
+        headers.setContentType(MediaType.APPLICATION_PDF);
+        headers.setContentDispositionFormData("attachment", "invoice-" + id + ".pdf");
+        return ResponseEntity.ok()
+                .headers(headers)
+                .body(pdfBytes);
     }
 
     // ──────────────────────────────────────────────────────────────────────

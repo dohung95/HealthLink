@@ -44,6 +44,11 @@ public interface FinanceService {
     PharmacyOrderResponse capturePharmacyOrderPayPalPayment(PharmacyOrderPayPalCaptureRequest request);
 
     /**
+     * Generate PDF for an invoice.
+     */
+    byte[] generateInvoicePdf(Integer invoiceId);
+
+    /**
      * Xử lý hoàn tiền cho bệnh nhân.
      * Khi một Payment được yêu cầu hoàn tiền:
      * <ul>

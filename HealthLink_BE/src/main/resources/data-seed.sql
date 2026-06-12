@@ -91,7 +91,7 @@ INSERT INTO Doctors (DoctorID, FullName, qualifications, specialty, yearsOfExper
 
 -- 6. PATIENTS (10 patients)
 INSERT INTO Patients (PatientID, FullName, dateOfBirth, medicalHistorySummary, insuranceProvider, insurancePolicyNumber, gender, address, city, country, bloodType, emergencyContactName, emergencyContactPhone, emergencyContactRelationship, preferredLanguage, preferredContactMethod, occupation, avatarUrl, latitude, longitude, allergies, chronicConditions, currentMedications, heightCm, weightKg) VALUES
-('user-p01', 'Michael Anderson', '1990-05-15', 'No significant medical history', 'Blue Cross', 'BC-2024-001', 'Male', '45 Oak Street, Apt 3B', 'New York', 'USA', 'A+', 'Lisa Anderson', '0912345678', 'Wife', 'English', 'Phone', 'Software Engineer', '/avatars/patient01.jpg', 40.7128, -74.0060, 'Penicillin', NULL, NULL, 175, 70),
+('user-p01', 'Michael Anderson', '1990-05-15', 'No significant medical history', 'Blue Cross', 'BC-2024-001', 'Male', '12 Le Loi Street, District 1', 'Ho Chi Minh City', 'Vietnam', 'A+', 'Lisa Anderson', '0912345678', 'Wife', 'English', 'Phone', 'Software Engineer', '/avatars/patient01.jpg', 10.7769, 106.7009, 'Penicillin', NULL, NULL, 175, 70),
 ('user-p02', 'Emma Thompson', '1985-08-22', 'History of gastritis', 'Aetna', 'AET-2024-002', 'Female', '123 Maple Avenue', 'Los Angeles', 'USA', 'B+', 'Tom Thompson', '0923456789', 'Husband', 'English', 'Email', 'Teacher', '/avatars/patient02.jpg', 34.0522, -118.2437, NULL, 'Chronic gastritis', 'Omeprazole 20mg', 165, 58),
 ('user-p03', 'William Brown', '1978-12-01', 'Type 2 diabetes', 'United Healthcare', 'UHC-2024-003', 'Male', '78 Pine Road', 'Chicago', 'USA', 'O+', 'Mary Brown', '0934567890', 'Wife', 'English', 'Phone', 'Business Owner', '/avatars/patient03.jpg', 41.8781, -87.6298, NULL, 'Type 2 diabetes', 'Metformin 500mg', 178, 85),
 ('user-p04', 'Sophia Garcia', '1995-03-10', 'No significant medical history', 'Cigna', 'CIG-2024-004', 'Female', '56 Cedar Lane', 'Houston', 'USA', 'AB+', 'Carlos Garcia', '0945678901', 'Father', 'English', 'Text', 'Student', '/avatars/patient04.jpg', 29.7604, -95.3698, 'Shellfish', NULL, NULL, 160, 52),
@@ -104,9 +104,9 @@ INSERT INTO Patients (PatientID, FullName, dateOfBirth, medicalHistorySummary, i
 
 -- 7. PHARMACIES (10 pharmacies)
 INSERT INTO Pharmacies (PharmacyID, name, licenseNumber, address, city, district, ward, latitude, longitude, phoneNumber, email, description, avatarUrl, openTime, closeTime, Open24Hours, workingDays, Verified, Active, AverageRating, TotalReviews, DeliveryAvailable, DeliveryRadius, DeliveryFee, CreatedAt, updatedAt, totalEarnings, pendingSettlement, paypalEmail) VALUES
-('user-ph01', 'CVS Pharmacy - Manhattan', 'PH-NY-001', '15 Broadway Ave', 'New York', 'Manhattan', 'Midtown', 40.7580, -73.9855, '2123001001', 'cvs.manhattan@pharmacy.com', 'Trusted pharmacy with great service', '/pharmacy/cvs1.jpg', '07:00', '22:00', 0, 'Mon-Sun', 1, 1, 4.8, 523, 1, 5.0, 5.99, '2024-01-01', '2024-05-01', 700.00, 90.00, 'sb-mzkxc42229383@personal.example.com'),
-('user-ph02', 'Walgreens - LA Downtown', 'PH-CA-002', '120 Sunset Blvd', 'Los Angeles', 'Downtown', 'Central', 34.0407, -118.2468, '2133002002', 'walgreens.la@pharmacy.com', 'Large pharmacy chain', '/pharmacy/walgreens1.jpg', '07:30', '22:30', 0, 'Mon-Sun', 1, 1, 4.7, 412, 1, 7.0, 6.99, '2024-01-15', '2024-05-02', 650.00, 75.00, 'walgreens.la@healthlink.com'),
-('user-ph03', 'Rite Aid - Chicago', 'PH-IL-003', '56 Michigan Ave', 'Chicago', 'Loop', 'Central', 41.8827, -87.6233, '3123003003', 'riteaid.chi@pharmacy.com', 'Your neighborhood pharmacy', '/pharmacy/riteaid.jpg', '06:30', '21:30', 0, 'Mon-Sat', 1, 1, 4.6, 187, 1, 4.0, 4.99, '2024-02-01', '2024-05-03', 420.00, 30.00, 'riteaid.chi@healthlink.com'),
+('user-ph01', 'HealthLink Pharmacy - Ben Thanh', 'PH-HCM-001', '22 Le Thanh Ton Street', 'Ho Chi Minh City', 'District 1', 'Ben Nghe', 10.7828, 106.7033, '0283001001', 'ben.thanh@pharmacy.com', 'Central District 1 pharmacy with fast delivery', '/pharmacy/cvs1.jpg', '07:00', '22:00', 0, 'Mon-Sun', 1, 1, 4.8, 523, 1, 5.0, 5.99, '2024-01-01', '2024-05-01', 700.00, 90.00, 'sb-mzkxc42229383@personal.example.com'),
+('user-ph02', 'An Khang Pharmacy - Nguyen Hue', 'PH-HCM-002', '68 Nguyen Hue Street', 'Ho Chi Minh City', 'District 1', 'Ben Nghe', 10.7950, 106.7050, '0283002002', 'nguyen.hue@pharmacy.com', 'Large pharmacy near the city center', '/pharmacy/walgreens1.jpg', '07:30', '22:30', 0, 'Mon-Sun', 1, 1, 4.7, 412, 1, 7.0, 6.99, '2024-01-15', '2024-05-02', 650.00, 75.00, 'walgreens.la@healthlink.com'),
+('user-ph03', 'Pharmacity - Thu Thiem', 'PH-HCM-003', '12 Tran Bach Dang Street', 'Ho Chi Minh City', 'Thu Duc City', 'Thu Thiem', 10.7760, 106.7228, '0283003003', 'thu.thiem@pharmacy.com', 'Nearby pharmacy intentionally seeded without inventory', '/pharmacy/riteaid.jpg', '06:30', '21:30', 0, 'Mon-Sat', 1, 1, 4.6, 187, 1, 4.0, 4.99, '2024-02-01', '2024-05-03', 420.00, 30.00, 'riteaid.chi@healthlink.com'),
 ('user-ph04', 'CVS Pharmacy - SF', 'PH-CA-004', '789 Market Street', 'San Francisco', 'Financial', 'Downtown', 37.7879, -122.4074, '4153004004', 'cvs.sf@pharmacy.com', 'Tech-friendly pharmacy', '/pharmacy/cvs2.jpg', '07:00', '23:00', 0, 'Mon-Sun', 1, 1, 4.9, 678, 1, 6.0, 7.99, '2024-02-15', '2024-05-04', 840.00, 110.00, 'cvs.sf@healthlink.com'),
 ('user-ph05', 'Walgreens - Boston', 'PH-MA-005', '23 Newbury Street', 'Boston', 'Back Bay', 'Central', 42.3505, -71.0762, '6173005005', 'walgreens.bos@pharmacy.com', 'Premium pharmacy services', '/pharmacy/walgreens2.jpg', '08:00', '20:00', 0, 'Mon-Sat', 1, 1, 4.5, 234, 1, 3.0, 5.49, '2024-03-01', '2024-05-05', 390.00, 20.00, 'walgreens.bos@healthlink.com'),
 ('user-ph06', 'Hospital Pharmacy - NYC', 'PH-NY-006', '78 Hospital Drive', 'New York', 'Queens', 'Jamaica', 40.7282, -73.7949, '7183006006', 'hospital.nyc@pharmacy.com', 'Open 24/7', '/pharmacy/hospital.jpg', NULL, NULL, 1, 'Mon-Sun', 1, 1, 4.4, 892, 0, NULL, NULL, '2024-03-15', '2024-05-06', 510.00, 60.00, 'hospital.nyc@healthlink.com'),
@@ -130,7 +130,40 @@ INSERT INTO Medicines (MedicineID, name, genericName, brandName, category, dosag
 (10, 'Allopurinol 300mg', 'Allopurinol', 'Zyloprim', 'Gout', 'Tablet', '300mg', 'Tablet', 'Takeda', 'Japan', 'Uric acid reducer', 'Allopurinol', 'Gout, hyperuricemia', 'Allopurinol allergy', 'Rash, liver problems', 'Drink plenty of water', 'Increased azathioprine toxicity', 'Store below 25C, protect from moisture', 1, 14.99, 1, '/medicines/allopurinol.jpg', '2024-01-01', NULL);
 SET IDENTITY_INSERT Medicines OFF;
 
--- 9. DOCTOR_SCHEDULES (10 schedules)
+-- 9. PHARMACY_INVENTORY (28 inventory rows)
+SET IDENTITY_INSERT PharmacyInventory ON;
+INSERT INTO PharmacyInventory (InventoryID, PharmacyID, MedicineID, quantity, reservedQuantity, unitPrice, unit, expiryDate, active, lastImportedAt, createdAt, updatedAt) VALUES
+(1, 'user-ph01', 1, 120, 10, 0.30, 'Tablet', '2026-12-31', 1, '2024-05-20 08:00:00', '2024-05-20 08:00:00', '2024-05-20 08:00:00'),
+(2, 'user-ph01', 7, 80, 5, 0.93, 'Tablet', '2026-12-31', 1, '2024-05-20 08:00:00', '2024-05-20 08:00:00', '2024-05-20 08:00:00'),
+(3, 'user-ph01', 5, 6, 0, 0.63, 'Tablet', '2026-08-31', 1, '2024-05-20 08:00:00', '2024-05-20 08:00:00', '2024-05-20 08:00:00'),
+(4, 'user-ph01', 8, 0, 0, 0.53, 'Tablet', '2026-07-31', 1, '2024-05-20 08:00:00', '2024-05-20 08:00:00', '2024-05-20 08:00:00'),
+(5, 'user-ph01', 2, 30, 0, 1.08, 'Capsule', '2026-05-31', 0, '2024-05-20 08:00:00', '2024-05-20 08:00:00', '2024-05-20 08:00:00'),
+(6, 'user-ph02', 1, 40, 0, 0.30, 'Tablet', '2026-12-31', 1, '2024-05-20 08:15:00', '2024-05-20 08:15:00', '2024-05-20 08:15:00'),
+(7, 'user-ph02', 6, 25, 0, 0.71, 'Tablet', '2026-11-30', 1, '2024-05-20 08:15:00', '2024-05-20 08:15:00', '2024-05-20 08:15:00'),
+(8, 'user-ph02', 3, 12, 0, 0.53, 'Capsule', '2026-09-30', 1, '2024-05-20 08:15:00', '2024-05-20 08:15:00', '2024-05-20 08:15:00'),
+(9, 'user-ph02', 5, 45, 5, 0.63, 'Tablet', '2026-08-31', 1, '2024-05-20 08:15:00', '2024-05-20 08:15:00', '2024-05-20 08:15:00'),
+(10, 'user-ph02', 7, 4, 0, 0.93, 'Tablet', '2026-12-31', 1, '2024-05-20 08:15:00', '2024-05-20 08:15:00', '2024-05-20 08:15:00'),
+(11, 'user-ph02', 10, 0, 0, 0.50, 'Tablet', '2026-10-31', 1, '2024-05-20 08:15:00', '2024-05-20 08:15:00', '2024-05-20 08:15:00'),
+(12, 'user-ph04', 1, 50, 0, 0.30, 'Tablet', '2026-12-31', 1, '2024-05-20 08:30:00', '2024-05-20 08:30:00', '2024-05-20 08:30:00'),
+(13, 'user-ph04', 5, 12, 0, 0.63, 'Tablet', '2026-08-31', 1, '2024-05-20 08:30:00', '2024-05-20 08:30:00', '2024-05-20 08:30:00'),
+(14, 'user-ph04', 8, 20, 0, 0.53, 'Tablet', '2026-07-31', 1, '2024-05-20 08:30:00', '2024-05-20 08:30:00', '2024-05-20 08:30:00'),
+(15, 'user-ph07', 10, 45, 5, 0.50, 'Tablet', '2026-10-31', 1, '2024-05-20 08:45:00', '2024-05-20 08:45:00', '2024-05-20 08:45:00'),
+(16, 'user-ph07', 1, 8, 0, 0.30, 'Tablet', '2026-12-31', 1, '2024-05-20 08:45:00', '2024-05-20 08:45:00', '2024-05-20 08:45:00'),
+(17, 'user-ph07', 6, 0, 0, 0.71, 'Tablet', '2026-11-30', 1, '2024-05-20 08:45:00', '2024-05-20 08:45:00', '2024-05-20 08:45:00'),
+(18, 'user-ph05', 4, 60, 0, 0.30, 'Tablet', '2026-06-30', 1, '2024-05-20 09:00:00', '2024-05-20 09:00:00', '2024-05-20 09:00:00'),
+(19, 'user-ph05', 8, 3, 0, 0.53, 'Tablet', '2026-07-31', 1, '2024-05-20 09:00:00', '2024-05-20 09:00:00', '2024-05-20 09:00:00'),
+(20, 'user-ph05', 9, 20, 2, 2.40, 'Inhaler', '2026-10-31', 1, '2024-05-20 09:00:00', '2024-05-20 09:00:00', '2024-05-20 09:00:00'),
+(21, 'user-ph06', 8, 20, 0, 0.53, 'Tablet', '2026-07-31', 1, '2024-05-20 09:15:00', '2024-05-20 09:15:00', '2024-05-20 09:15:00'),
+(22, 'user-ph06', 2, 20, 0, 1.08, 'Capsule', '2026-05-31', 1, '2024-05-20 09:15:00', '2024-05-20 09:15:00', '2024-05-20 09:15:00'),
+(23, 'user-ph08', 10, 5, 0, 0.50, 'Tablet', '2026-10-31', 1, '2024-05-20 09:30:00', '2024-05-20 09:30:00', '2024-05-20 09:30:00'),
+(24, 'user-ph08', 7, 20, 0, 0.93, 'Tablet', '2026-12-31', 1, '2024-05-20 09:30:00', '2024-05-20 09:30:00', '2024-05-20 09:30:00'),
+(25, 'user-ph09', 4, 60, 0, 0.30, 'Tablet', '2026-06-30', 1, '2024-05-20 09:45:00', '2024-05-20 09:45:00', '2024-05-20 09:45:00'),
+(26, 'user-ph09', 9, 15, 0, 2.40, 'Inhaler', '2026-10-31', 1, '2024-05-20 09:45:00', '2024-05-20 09:45:00', '2024-05-20 09:45:00'),
+(27, 'user-ph10', 8, 20, 0, 0.53, 'Tablet', '2026-07-31', 1, '2024-05-20 10:00:00', '2024-05-20 10:00:00', '2024-05-20 10:00:00'),
+(28, 'user-ph10', 3, 0, 0, 0.53, 'Capsule', '2026-09-30', 1, '2024-05-20 10:00:00', '2024-05-20 10:00:00', '2024-05-20 10:00:00');
+SET IDENTITY_INSERT PharmacyInventory OFF;
+
+-- 10. DOCTOR_SCHEDULES (10 schedules)
 SET IDENTITY_INSERT DoctorSchedules ON;
 INSERT INTO DoctorSchedules (ScheduleID, DoctorId, dayOfWeek, startTime, endTime, SlotDuration, MaxPatients, Available, consultationType, location, notes) VALUES
 (1, 'user-d01', 1, '08:00', '12:00', 30, 1, 1, 'Video', NULL, 'Monday morning video consultations'),
@@ -145,7 +178,7 @@ INSERT INTO DoctorSchedules (ScheduleID, DoctorId, dayOfWeek, startTime, endTime
 (10, 'user-d09', 3, '13:30', '17:00', 25, 2, 1, 'Video', NULL, 'ENT video consultations');
 SET IDENTITY_INSERT DoctorSchedules OFF;
 
--- 10. DOCTOR_SCHEDULE_EXCEPTIONS (10 exceptions)
+-- 11. DOCTOR_SCHEDULE_EXCEPTIONS (10 exceptions)
 SET IDENTITY_INSERT DoctorScheduleExceptions ON;
 INSERT INTO DoctorScheduleExceptions (ExceptionID, DoctorId, exceptionDate, exceptionType, startTime, endTime, reason, Recurring, recurringUntil) VALUES
 (1, 'user-d01', '2024-06-01', 'DayOff', NULL, NULL, 'Holiday - Memorial Day', 0, NULL),
@@ -160,7 +193,35 @@ INSERT INTO DoctorScheduleExceptions (ExceptionID, DoctorId, exceptionDate, exce
 (10, 'user-d10', '2024-05-27', 'DayOff', NULL, NULL, 'Annual leave', 0, NULL);
 SET IDENTITY_INSERT DoctorScheduleExceptions OFF;
 
--- 11. APPOINTMENTS (11 appointments)
+-- 12. SCHEDULE_COMPLIANCE_CONFIGS (3 configs)
+SET IDENTITY_INSERT ScheduleComplianceConfigs ON;
+INSERT INTO ScheduleComplianceConfigs (ConfigID, SpecialtyId, MinHoursPerMonth, WarningThresholdPercent, description, Active, EffectiveFrom, EffectiveTo, CreatedAt, UpdatedAt) VALUES
+(1, NULL, 80, 80, 'Global minimum monthly schedule requirement', 1, '2026-06-01', NULL, '2026-06-01 08:00:00', NULL),
+(2, 3, 72, 85, 'Pediatrics schedule requirement', 1, '2026-06-01', NULL, '2026-06-01 08:00:00', NULL),
+(3, 6, 96, 80, 'Cardiology schedule requirement', 1, '2026-06-01', NULL, '2026-06-01 08:00:00', NULL);
+SET IDENTITY_INSERT ScheduleComplianceConfigs OFF;
+
+-- 13. DOCTOR_SCHEDULE_COMPLIANCE (6 records)
+SET IDENTITY_INSERT DoctorScheduleCompliance ON;
+INSERT INTO DoctorScheduleCompliance (ComplianceID, DoctorId, ComplianceMonth, RequiredHours, ScheduledHours, Status, ScheduleActive, LastNotificationSent, AdminNotified, notes, ExemptedBy, ExemptedAt, ExemptReason, CreatedAt, UpdatedAt) VALUES
+(1, 'user-d01', '2026-06', 80, 84.00, 'COMPLIANT', 1, '2026-06-05 08:00:00', 0, 'Doctor has met the monthly schedule requirement', NULL, NULL, NULL, '2026-06-01 08:00:00', '2026-06-05 08:00:00'),
+(2, 'user-d02', '2026-06', 72, 50.00, 'IN_PROGRESS', 0, '2026-06-06 08:00:00', 0, 'Pediatrics schedule still needs additional hours', NULL, NULL, NULL, '2026-06-01 08:00:00', '2026-06-06 08:00:00'),
+(3, 'user-d03', '2026-06', 96, 64.00, 'NON_COMPLIANT', 0, '2026-06-07 08:00:00', 1, 'Cardiology schedule is below required monthly hours', NULL, NULL, NULL, '2026-06-01 08:00:00', '2026-06-07 08:00:00'),
+(4, 'user-d04', '2026-06', 80, 0.00, 'PENDING', 0, NULL, 0, 'No schedule submitted yet', NULL, NULL, NULL, '2026-06-01 08:00:00', NULL),
+(5, 'user-d05', '2026-06', 80, 20.00, 'EXEMPTED', 1, NULL, 0, 'Doctor is exempted for maternity clinic leave coverage', 'user-a01', '2026-06-03 09:00:00', 'Approved temporary exemption', '2026-06-01 08:00:00', '2026-06-03 09:00:00'),
+(6, 'user-d07', '2026-06', 80, 72.00, 'IN_PROGRESS', 0, '2026-06-08 08:00:00', 0, 'Close to required monthly hours', NULL, NULL, NULL, '2026-06-01 08:00:00', '2026-06-08 08:00:00');
+SET IDENTITY_INSERT DoctorScheduleCompliance OFF;
+
+-- 14. APPOINTMENT_SLOT_HOLDS (4 holds)
+SET IDENTITY_INSERT AppointmentSlotHolds ON;
+INSERT INTO AppointmentSlotHolds (HoldID, DoctorID, PatientID, AppointmentTime, ConsultationType, ExpiresAt, CreatedAt) VALUES
+(1, 'user-d01', 'user-p01', '2026-06-10 09:00:00', 'Video', '2026-06-09 09:05:00', '2026-06-09 09:00:00'),
+(2, 'user-d02', 'user-p02', '2026-06-10 10:00:00', 'Video', '2026-06-09 09:10:00', '2026-06-09 09:05:00'),
+(3, 'user-d07', 'user-p07', '2026-06-11 15:00:00', 'Offline', '2026-06-09 09:15:00', '2026-06-09 09:10:00'),
+(4, 'user-d08', 'user-p08', '2026-06-09 08:30:00', 'Offline', '2026-06-09 08:35:00', '2026-06-09 08:30:00');
+SET IDENTITY_INSERT AppointmentSlotHolds OFF;
+
+-- 15. APPOINTMENTS (13 appointments)
 SET IDENTITY_INSERT Appointments ON;
 INSERT INTO Appointments (AppointmentID, AppointmentTime, ConsultationType, Status, symptoms, notes, fee, endTime, cancelReason, cancelledBy, cancelledAt, rescheduledFrom, reminderSent, confirmedAt, PatientID, DoctorID) VALUES
 (1, '2024-05-10 09:00:00', 'Video', 'Completed', 'Headache and fatigue for 3 days', 'Patient needs follow-up', 150.00, '2024-05-10 09:30:00', NULL, NULL, NULL, NULL, 1, '2024-05-09 15:00:00', 'user-p01', 'user-d01'),
@@ -178,7 +239,16 @@ INSERT INTO Appointments (AppointmentID, AppointmentTime, ConsultationType, Stat
 (13, '2024-05-26 10:00:00', 'Video', 'Scheduled', 'Follow-up consultation', NULL, 150.00, NULL, NULL, NULL, NULL, NULL, 0, NULL, 'user-p01', 'user-d01');
 SET IDENTITY_INSERT Appointments OFF;
 
--- 12. CONSULTATIONS (11 consultations)
+-- 16. ADMIN_SCHEDULE_AUDIT_LOGS (4 logs)
+SET IDENTITY_INSERT AdminScheduleAuditLogs ON;
+INSERT INTO AdminScheduleAuditLogs (LogId, AdminUserId, ActionType, TargetDoctorId, TargetAppointmentId, TargetPatientId, Description, OldValue, NewValue, Reason, CreatedAt, IpAddress) VALUES
+(1, 'user-a01', 'BLOCK_SLOT', 'user-d01', NULL, NULL, 'Admin blocked one video slot for doctor user-d01', '{"available":true}', '{"available":false,"slot":"2026-06-10T09:00:00"}', 'Clinic maintenance window', '2026-06-09 08:45:00', '127.0.0.1'),
+(2, 'user-a01', 'UNBLOCK_SLOT', 'user-d02', NULL, NULL, 'Admin reopened a pediatric video slot', '{"available":false}', '{"available":true,"slot":"2026-06-10T10:00:00"}', 'Doctor confirmed availability', '2026-06-09 08:50:00', '127.0.0.1'),
+(3, 'user-a01', 'CANCEL_APPOINTMENT', 'user-d09', 9, 'user-p09', 'Admin recorded appointment cancellation audit', '{"status":"Confirmed"}', '{"status":"Cancelled"}', 'Patient cancellation request', '2024-05-13 08:05:00', '127.0.0.1'),
+(4, 'user-a01', 'REASSIGN_APPOINTMENT', 'user-d07', 7, 'user-p07', 'Admin prepared reassignment audit sample', '{"doctorId":"user-d07"}', '{"doctorId":"user-d07","status":"kept"}', 'No alternative doctor needed after review', '2024-05-19 11:10:00', '127.0.0.1');
+SET IDENTITY_INSERT AdminScheduleAuditLogs OFF;
+
+-- 17. CONSULTATIONS (11 consultations)
 SET IDENTITY_INSERT Consultations ON;
 INSERT INTO Consultations (ConsultationID, AppointmentId, startTime, endTime, doctorNotes, diagnosis, followUpDate, consultationType, roomId, roomUrl, recordingUrl, duration, symptoms, treatmentPlan, followUpNotes) VALUES
 (1, 1, '2024-05-10 09:00:00', '2024-05-10 09:28:00', 'Patient shows signs of stress and sleep deprivation', 'Mild anxiety disorder, work-related stress', '2024-05-24', 'Video', 'room-001', 'https://meet.healthlink.com/room-001', NULL, 28, 'Headache, fatigue', 'Rest, stress management, medication as prescribed', 'Follow up in 2 weeks'),
@@ -194,7 +264,7 @@ INSERT INTO Consultations (ConsultationID, AppointmentId, startTime, endTime, do
 (11, 11, '2024-05-24 16:00:00', '2024-05-24 16:25:00', 'Stable condition, no new complaints', 'Recovered from seasonal flu, recommend rest and hydration', '2024-06-07', 'Video', 'room-011', 'https://meet.healthlink.com/room-011', NULL, 25, 'Follow-up visit after flu', 'Rest, hydration, vitamin C', 'Return if fever recurs');
 SET IDENTITY_INSERT Consultations OFF;
 
--- 13. HEALTH_RECORDS (10 health records)
+-- 18. HEALTH_RECORDS (10 health records)
 SET IDENTITY_INSERT HealthRecords ON;
 INSERT INTO HealthRecords (HealthRecordID, PatientID, lastUpdated, title, description, recordType, recordDate, createdAt) VALUES
 (1, 'user-p01', '2024-05-10', 'Annual Physical Exam 2024', 'Routine annual health checkup', 'Checkup', '2024-01-15', '2024-01-15'),
@@ -209,7 +279,7 @@ INSERT INTO HealthRecords (HealthRecordID, PatientID, lastUpdated, title, descri
 (10, 'user-p10', '2024-05-25', 'Spine X-Ray Results', 'Spinal degeneration monitoring', 'Imaging', '2024-04-10', '2024-04-10');
 SET IDENTITY_INSERT HealthRecords OFF;
 
--- 14. MEDICAL_DOCUMENTS (10 documents)
+-- 19. MEDICAL_DOCUMENTS (10 documents)
 SET IDENTITY_INSERT MedicalDocuments ON;
 INSERT INTO MedicalDocuments (DocumentID, HealthRecordID, documentName, documentType, fileLocation, category, description, testResults, referenceRange, testStatus, documentDate, performedBy, UploadedAt, FileSize, mimeType, thumbnailUrl) VALUES
 (1, 1, 'Complete Blood Count', 'LabReport', '/documents/1/blood-test.pdf', 'Blood', 'CBC test results', 'WBC: 7.5, RBC: 4.8, Hb: 14.2', 'WBC: 4-10, RBC: 4.5-5.5, Hb: 12-16', 'Normal', '2024-01-15', 'Dr. Lab Tech', '2024-01-15 10:00:00', 245000, 'application/pdf', '/thumbnails/1/blood-test.jpg'),
@@ -224,7 +294,7 @@ INSERT INTO MedicalDocuments (DocumentID, HealthRecordID, documentName, document
 (10, 10, 'Lumbar Spine X-Ray', 'Imaging', '/documents/10/spine-xray.pdf', 'Ortho', 'Lumbar spine radiograph', 'L4-L5 degeneration, osteophytes present', NULL, 'Abnormal', '2024-04-10', 'Dr. Radiologist', '2024-04-10 14:00:00', 1800000, 'application/pdf', '/thumbnails/10/spine-xray.jpg');
 SET IDENTITY_INSERT MedicalDocuments OFF;
 
--- 15. VITAL_SIGNS (10 vital signs)
+-- 20. VITAL_SIGNS (10 vital signs)
 SET IDENTITY_INSERT VitalSigns ON;
 INSERT INTO VitalSigns (VitalSignID, PatientID, heartRate, bloodPressureSystolic, bloodPressureDiastolic, temperature, oxygenSaturation, respiratoryRate, bloodGlucose, weight, height, bmi, notes, measuredAt, source, deviceName, CreatedAt) VALUES
 (1, 'user-p01', 72, 120, 80, 98.6, 98, 16, NULL, 70.0, 175.0, 22.9, 'Normal readings', '2024-05-10 08:30:00', 'Manual', NULL, '2024-05-10 08:30:00'),
@@ -239,7 +309,7 @@ INSERT INTO VitalSigns (VitalSignID, PatientID, heartRate, bloodPressureSystolic
 (10, 'user-p10', 74, 130, 85, 98.9, 97, 17, NULL, 62.0, 158.0, 24.8, 'Slightly elevated BP', '2024-05-25 09:30:00', 'Manual', NULL, '2024-05-25 09:30:00');
 SET IDENTITY_INSERT VitalSigns OFF;
 
--- 16. INVOICES (10 invoices)
+-- 21. INVOICES (10 invoices)
 SET IDENTITY_INSERT Invoices ON;
 INSERT INTO Invoices (InvoiceID, AppointmentId, PatientID, amount, issueDate, status, invoiceNumber, consultationFee, medicineFee, deliveryFee, discount, tax, dueDate, paidAt, notes) VALUES
 (1, 1, 'user-p01', 175.00, '2024-05-10 09:30:00', 'Paid', 'INV-2024-0001', 150.00, 25.00, 0, 0, 0, '2024-05-17', '2024-05-10 09:35:00', 'Paid online'),
@@ -254,7 +324,7 @@ INSERT INTO Invoices (InvoiceID, AppointmentId, PatientID, amount, issueDate, st
 (10, 10, 'user-p10', 90.00, '2024-05-25 10:00:00', 'Pending', 'INV-2024-0010', 90.00, 0, 0, 0, 0, '2024-06-01', NULL, 'Pending consultation');
 SET IDENTITY_INSERT Invoices OFF;
 
--- 17. PAYMENTS (10 payments)
+-- 22. PAYMENTS (10 payments)
 SET IDENTITY_INSERT Payments ON;
 INSERT INTO Payments (PaymentID, InvoiceID, amount, paymentMethod, paymentGateway, transactionId, status, paidAt, failureReason, refundedAmount, refundedAt, refundReason, metadata, CreatedAt) VALUES
 (1, 1, 175.00, 'Card', 'Stripe', 'STR20240510001', 'Completed', '2024-05-10 09:35:00', NULL, NULL, NULL, NULL, '{"cardLast4":"4242","cardBrand":"Visa"}', '2024-05-10 09:35:00'),
@@ -269,7 +339,7 @@ INSERT INTO Payments (PaymentID, InvoiceID, amount, paymentMethod, paymentGatewa
 (10, 10, 90.00, 'Cash', NULL, NULL, 'Pending', NULL, NULL, NULL, NULL, NULL, NULL, '2024-05-25 10:00:00');
 SET IDENTITY_INSERT Payments OFF;
 
--- 18. PRESCRIPTION_HEADERS (10 prescriptions)
+-- 23. PRESCRIPTION_HEADERS (10 prescriptions)
 SET IDENTITY_INSERT PrescriptionHeaders ON;
 INSERT INTO PrescriptionHeaders (PrescriptionHeaderID, AppointmentId, PatientID, DoctorID, issueDate, diagnosis, notes, validUntil, status, totalAmount) VALUES
 (1, 1, 'user-p01', 'user-d01', '2024-05-10', 'Mild anxiety disorder', 'Take medication regularly, follow up in 2 weeks', '2024-06-10', 'Active', 45.00),
@@ -284,37 +354,118 @@ INSERT INTO PrescriptionHeaders (PrescriptionHeaderID, AppointmentId, PatientID,
 (10, 7, 'user-p07', 'user-d07', '2024-04-20', 'Acute gout', 'Acute episode treatment', '2024-05-20', 'Active', 48.00);
 SET IDENTITY_INSERT PrescriptionHeaders OFF;
 
--- 19. PRESCRIPTION_ITEMS (10 items)
+-- 24. PRESCRIPTION_ITEMS (11 items)
 SET IDENTITY_INSERT PrescriptionItems ON;
 INSERT INTO PrescriptionItems (PrescriptionItemID, PrescriptionHeaderID, medicationName, dosage, instructions, totalSupplyDays, MedicineID, quantity, unit, frequency, timing, route, unitPrice, totalPrice, notes) VALUES
 (1, 1, 'Paracetamol 500mg', '500mg', 'Take when headache occurs, max 3 tablets per day', 7, 1, 21, 'Tablet', '3 times daily', 'As needed', 'Oral', 0.30, 6.30, NULL),
-(2, 1, 'Vitamin C 1000mg', '1000mg', 'Take 1 tablet in morning after breakfast', 14, 7, 14, 'Tablet', 'Once daily', 'Morning', 'Oral', 0.93, 13.02, 'Immune support'),
+(2, 1, 'Vitamin C 1000mg', '1000mg', 'Take 1 tablet in morning after breakfast', 14, 7, 14, 'Tablet', 'Once daily', 'MORNING', 'Oral', 0.93, 13.02, 'Immune support'),
 (3, 2, 'Paracetamol 500mg', '250mg', 'Take when fever exceeds 100.4F', 5, 1, 10, 'Tablet', 'As needed', 'When fever', 'Oral', 0.30, 3.00, 'Half tablet for child'),
 (4, 2, 'Cetirizine 10mg', '5mg', 'Take once before bedtime', 7, 6, 7, 'Tablet', 'Once daily', 'Night', 'Oral', 0.71, 4.97, 'Half tablet'),
-(5, 3, 'Amlodipine 5mg', '5mg', 'Take 1 tablet every morning', 30, 5, 30, 'Tablet', 'Once daily', 'Morning', 'Oral', 0.63, 18.90, 'Maintain blood pressure'),
-(6, 4, 'Ibuprofen 400mg', '400mg', 'Take after meals when in pain', 5, 8, 15, 'Tablet', '3 times daily', 'After meals', 'Oral', 0.53, 7.95, 'Do not take on empty stomach'),
-(7, 5, 'Prenatal Multivitamin', '1 tablet', 'Take 1 tablet daily after breakfast', 30, NULL, 30, 'Tablet', 'Once daily', 'Morning', 'Oral', 1.83, 54.90, 'Prenatal vitamin'),
-(8, 8, 'Metformin 500mg', '500mg', 'Take after breakfast and dinner', 30, 4, 60, 'Tablet', 'Twice daily', 'Morning, evening', 'Oral', 0.30, 18.00, NULL),
-(9, 9, 'Amlodipine 5mg', '5mg', 'Take every morning', 30, 5, 30, 'Tablet', 'Once daily', 'Morning', 'Oral', 0.63, 18.90, NULL),
-(10, 10, 'Allopurinol 300mg', '300mg', 'Take after breakfast', 30, 10, 30, 'Tablet', 'Once daily', 'Morning', 'Oral', 0.50, 15.00, 'Drink plenty of water');
+(5, 3, 'Amlodipine 5mg', '5mg', 'Take 1 tablet every morning', 30, 5, 30, 'Tablet', 'Once daily', 'MORNING', 'Oral', 0.63, 18.90, 'Maintain blood pressure'),
+(6, 4, 'Ibuprofen 400mg', '400mg', 'Take after meals when in pain', 5, 8, 15, 'Tablet', '3 times daily', 'AFTERNOON', 'Oral', 0.53, 7.95, 'Do not take on empty stomach'),
+(7, 5, 'Prenatal Multivitamin', '1 tablet', 'Take 1 tablet daily after breakfast', 30, NULL, 30, 'Tablet', 'Once daily', 'MORNING', 'Oral', 1.83, 54.90, 'Prenatal vitamin'),
+(8, 8, 'Metformin 500mg', '500mg', 'Take after breakfast and dinner', 30, 4, 60, 'Tablet', 'Twice daily', 'MORNING', 'Oral', 0.30, 18.00, NULL),
+(9, 9, 'Amlodipine 5mg', '5mg', 'Take every morning', 30, 5, 30, 'Tablet', 'Once daily', 'MORNING', 'Oral', 0.63, 18.90, NULL),
+(10, 10, 'Allopurinol 300mg', '300mg', 'Take after breakfast', 30, 10, 30, 'Tablet', 'Once daily', 'MORNING', 'Oral', 0.50, 15.00, 'Drink plenty of water'),
+(11, 3, 'Paracetamol 500mg', '500mg', 'Take when chest discomfort causes headache, max 2 tablets per day', 5, 1, 10, 'Tablet', 'As needed', 'When pain', 'Oral', 0.30, 3.00, 'Added to support partial pharmacy stock matching');
 SET IDENTITY_INSERT PrescriptionItems OFF;
 
--- 20. PHARMACY_ORDERS (10 orders)
+-- 25. PRESCRIPTION_REMINDER_LOGS (6 logs)
+SET IDENTITY_INSERT PrescriptionReminderLogs ON;
+INSERT INTO PrescriptionReminderLogs (ReminderLogID, PrescriptionHeaderID, ReminderDate, Timing, SentAt) VALUES
+(1, 1, '2024-05-11', 'MORNING', '2024-05-11 07:30:00'),
+(2, 1, '2024-05-11', 'Night', '2024-05-11 20:30:00'),
+(3, 2, '2024-05-12', 'Night', '2024-05-12 20:00:00'),
+(4, 3, '2024-05-13', 'MORNING', '2024-05-13 07:45:00'),
+(5, 5, '2024-05-17', 'MORNING', '2024-05-17 08:00:00'),
+(6, 10, '2024-04-21', 'MORNING', '2024-04-21 08:00:00');
+SET IDENTITY_INSERT PrescriptionReminderLogs OFF;
+
+-- 26. PHARMACY_CONSULTATION_REQUESTS (5 requests)
+SET IDENTITY_INSERT PharmacyConsultationRequests ON;
+INSERT INTO PharmacyConsultationRequests (RequestID, PatientID, PharmacyID, symptoms, description, allergies, attachments, additionalNotes, preferredDeliveryType, status, chatRoomId, pharmacyNotes, patientFollowUpNotes, CreatedAt, UpdatedAt) VALUES
+(1, 'user-p01', 'user-ph01', 'Need to fill active prescription quickly', 'Patient selected HealthLink Pharmacy - Ben Thanh and is waiting for pharmacy acceptance.', 'Penicillin', '[]', 'Please deliver after 6 PM if accepted.', 'Delivery', 'PENDING', NULL, NULL, NULL, '2024-05-20 15:00:00', '2024-05-20 15:00:00'),
+(2, 'user-p02', 'user-ph02', 'Child fever prescription follow-up', 'Patient wants pharmacist to verify dosage before delivery.', NULL, '[]', 'Urgent order for child.', 'Delivery', 'IN_REVIEW', 'pharm-chat-002', 'Pharmacist is reviewing child dosage and stock.', NULL, '2024-05-20 15:10:00', '2024-05-20 15:20:00'),
+(3, 'user-p03', 'user-ph04', 'Cardiology prescription availability check', 'Patient needs the pharmacy to confirm partial stock and alternatives.', NULL, '[]', 'Please advise if Amlodipine stock is insufficient.', 'Delivery', 'IN_REVIEW', 'pharm-chat-003', 'Amlodipine quantity is insufficient; need confirmation for partial fulfillment.', 'Patient will confirm whether partial fulfillment is acceptable.', '2024-05-20 15:30:00', '2024-05-20 15:45:00'),
+(4, 'user-p07', 'user-ph07', 'Gout medication order request', 'Pharmacy accepted the request and prepared an order quote with delivery fee and estimated delivery time.', NULL, '[]', 'Afternoon delivery preferred.', 'Delivery', 'ORDER_CREATED', 'pharm-chat-004', 'Order quote has been prepared.', NULL, '2024-05-20 15:50:00', '2024-05-20 16:05:00'),
+(5, 'user-p05', 'user-ph01', 'Hypertension refill request', 'Patient cancelled the pharmacy request before review.', NULL, '[]', 'No longer needed.', 'Pickup', 'CANCELLED', NULL, 'Cancelled before pharmacy review.', NULL, '2024-05-20 16:10:00', '2024-05-20 16:20:00');
+SET IDENTITY_INSERT PharmacyConsultationRequests OFF;
+
+-- 27. PHARMACY_CONSULTATION_REQUEST_PRESCRIPTIONS (5 links)
+SET IDENTITY_INSERT PharmacyConsultationRequestPrescriptions ON;
+INSERT INTO PharmacyConsultationRequestPrescriptions (RequestPrescriptionID, RequestID, PrescriptionHeaderID, CreatedAt) VALUES
+(1, 1, 1, '2024-05-20 15:00:00'),
+(2, 2, 2, '2024-05-20 15:10:00'),
+(3, 3, 3, '2024-05-20 15:30:00'),
+(4, 4, 10, '2024-05-20 15:50:00'),
+(5, 5, 9, '2024-05-20 16:10:00');
+SET IDENTITY_INSERT PharmacyConsultationRequestPrescriptions OFF;
+
+-- 28. PHARMACY_ORDERS (15 orders)
 SET IDENTITY_INSERT PharmacyOrders ON;
-INSERT INTO PharmacyOrders (OrderID, orderNumber, PrescriptionHeaderId, PharmacyId, PatientId, status, deliveryType, deliveryAddress, deliveryLatitude, deliveryLongitude, deliveryFee, medicineAmount, totalAmount, paymentStatus, paymentMethod, notes, pharmacistNotes, estimatedDeliveryTime, actualDeliveryTime, confirmedAt, preparingAt, shippedAt, deliveredAt, cancelledAt, cancelReason, cancelledBy, createdAt) VALUES
-(1, 'ORD-2024-0001', 1, 'user-ph01', 'user-p01', 'Delivered', 'Delivery', '45 Oak Street, Apt 3B, New York, NY', 40.7128, -74.0060, 5.99, 45.00, 50.99, 'Paid', 'COD', 'Deliver during office hours', 'Prescription verified', '2024-05-10 14:00:00', '2024-05-10 13:45:00', '2024-05-10 10:00:00', '2024-05-10 10:30:00', '2024-05-10 11:00:00', '2024-05-10 13:45:00', NULL, NULL, NULL, '2024-05-10 09:40:00'),
-(2, 'ORD-2024-0002', 2, 'user-ph02', 'user-p02', 'Delivered', 'Delivery', '123 Maple Avenue, Los Angeles, CA', 34.0522, -118.2437, 6.99, 35.00, 41.99, 'Paid', 'Card', 'Urgent for child', 'Priority delivery', '2024-05-11 15:00:00', '2024-05-11 14:30:00', '2024-05-11 11:00:00', '2024-05-11 11:30:00', '2024-05-11 12:00:00', '2024-05-11 14:30:00', NULL, NULL, NULL, '2024-05-11 10:30:00'),
-(3, 'ORD-2024-0003', 3, 'user-ph04', 'user-p03', 'Shipped', 'Delivery', '78 Pine Road, Chicago, IL', 41.8781, -87.6298, 7.99, 75.00, 82.99, 'Paid', 'EWallet', NULL, 'In transit', '2024-05-12 16:00:00', NULL, '2024-05-12 11:00:00', '2024-05-12 11:30:00', '2024-05-12 14:00:00', NULL, NULL, NULL, NULL, '2024-05-12 10:30:00'),
-(4, 'ORD-2024-0004', 4, 'user-ph06', 'user-p04', 'Preparing', 'Pickup', NULL, NULL, NULL, 0, 40.00, 40.00, 'Pending', 'Cash', 'Will pick up in person', 'Preparing order', NULL, NULL, '2024-05-15 09:00:00', '2024-05-15 09:30:00', NULL, NULL, NULL, NULL, NULL, '2024-05-15 08:35:00'),
-(5, 'ORD-2024-0005', 5, 'user-ph02', 'user-p05', 'Confirmed', 'Delivery', '234 Elm Street, San Francisco, CA', 37.7749, -122.4194, 6.99, 55.00, 61.99, 'Paid', 'Card', NULL, NULL, '2024-05-16 18:00:00', NULL, '2024-05-16 15:00:00', NULL, NULL, NULL, NULL, NULL, NULL, '2024-05-16 14:40:00'),
-(6, 'ORD-2024-0006', 6, 'user-ph05', 'user-p01', 'Cancelled', 'Delivery', '45 Oak Street, New York', 40.7128, -74.0060, 5.49, 25.00, 30.49, 'Refunded', 'EWallet', NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, '2024-04-11 08:00:00', 'Prescription expired', 'System', '2024-04-10 16:00:00'),
-(7, 'ORD-2024-0007', 7, 'user-ph02', 'user-p02', 'Delivered', 'Delivery', '123 Maple Avenue, Los Angeles', 34.0522, -118.2437, 6.99, 50.00, 56.99, 'Paid', 'COD', NULL, 'OK', '2024-03-16 12:00:00', '2024-03-16 11:30:00', '2024-03-15 16:00:00', '2024-03-15 16:30:00', '2024-03-16 09:00:00', '2024-03-16 11:30:00', NULL, NULL, NULL, '2024-03-15 15:30:00'),
-(8, 'ORD-2024-0008', 8, 'user-ph04', 'user-p03', 'Delivered', 'Pickup', NULL, NULL, NULL, 0, 65.00, 65.00, 'Paid', 'Cash', 'Store pickup', 'Completed', NULL, '2024-04-02 10:00:00', '2024-04-01 14:00:00', '2024-04-01 14:30:00', NULL, '2024-04-02 10:00:00', NULL, NULL, NULL, '2024-04-01 13:00:00'),
-(9, 'ORD-2024-0009', 9, 'user-ph01', 'user-p05', 'Delivered', 'Delivery', '234 Elm Street, San Francisco', 37.7749, -122.4194, 5.99, 60.00, 65.99, 'Paid', 'Card', NULL, 'Delivered successfully', '2024-04-17 15:00:00', '2024-04-17 14:30:00', '2024-04-16 17:00:00', '2024-04-16 17:30:00', '2024-04-17 09:00:00', '2024-04-17 14:30:00', NULL, NULL, NULL, '2024-04-16 16:30:00'),
-(10, 'ORD-2024-0010', 10, 'user-ph07', 'user-p07', 'Pending', 'Delivery', '12 Walnut Drive, Miami, FL', 25.7617, -80.1918, 5.99, 48.00, 53.99, 'Pending', 'COD', 'Afternoon delivery', NULL, '2024-05-21 17:00:00', NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, '2024-05-20 15:30:00');
+INSERT INTO PharmacyOrders (OrderID, orderNumber, PrescriptionHeaderId, RequestID, PharmacyId, PatientId, status, deliveryType, deliveryAddress, deliveryLatitude, deliveryLongitude, deliveryFee, medicineAmount, totalAmount, paymentStatus, paymentMethod, notes, pharmacistNotes, estimatedDeliveryTime, actualDeliveryTime, confirmedAt, patientConfirmedAt, preparingAt, shippedAt, deliveredAt, cancelledAt, cancelReason, cancelledBy, createdAt, doctorCompletionPaidNotified, platformFee, pharmacyEarning, commissionRate) VALUES
+(1, 'ORD-2024-0001', 1, NULL, 'user-ph01', 'user-p01', 'DELIVERED', 'Delivery', '12 Le Loi Street, District 1, Ho Chi Minh City', 10.7769, 106.7009, 5.99, 45.00, 50.99, 'PAID', 'COD', 'Deliver during office hours', 'Prescription verified', '2024-05-10 14:00:00', '2024-05-10 13:45:00', '2024-05-10 10:00:00', '2024-05-10 10:05:00', '2024-05-10 10:30:00', '2024-05-10 11:00:00', '2024-05-10 13:45:00', NULL, NULL, NULL, '2024-05-10 09:40:00', 0, 4.08, 46.91, 0.0800),
+(2, 'ORD-2024-0002', 2, NULL, 'user-ph02', 'user-p02', 'DELIVERED', 'Delivery', '123 Maple Avenue, Los Angeles, CA', 34.0522, -118.2437, 6.99, 35.00, 41.99, 'PAID', 'Card', 'Urgent for child', 'Priority delivery', '2024-05-11 15:00:00', '2024-05-11 14:30:00', '2024-05-11 11:00:00', '2024-05-11 11:05:00', '2024-05-11 11:30:00', '2024-05-11 12:00:00', '2024-05-11 14:30:00', NULL, NULL, NULL, '2024-05-11 10:30:00', 0, 3.36, 38.63, 0.0800),
+(3, 'ORD-2024-0003', 3, NULL, 'user-ph04', 'user-p03', 'SHIPPING', 'Delivery', '78 Pine Road, Chicago, IL', 41.8781, -87.6298, 7.99, 75.00, 82.99, 'PAID', 'EWallet', NULL, 'In transit', '2024-05-12 16:00:00', NULL, '2024-05-12 11:00:00', '2024-05-12 11:05:00', '2024-05-12 11:30:00', '2024-05-12 14:00:00', NULL, NULL, NULL, NULL, '2024-05-12 10:30:00', 0, 6.64, 76.35, 0.0800),
+(4, 'ORD-2024-0004', 4, NULL, 'user-ph06', 'user-p04', 'PREPARING', 'Pickup', NULL, NULL, NULL, 0, 40.00, 40.00, 'PENDING', 'Cash', 'Will pick up in person', 'Preparing order', NULL, NULL, '2024-05-15 09:00:00', '2024-05-15 09:05:00', '2024-05-15 09:30:00', NULL, NULL, NULL, NULL, NULL, '2024-05-15 08:35:00', 0, 3.20, 36.80, 0.0800),
+(5, 'ORD-2024-0005', 5, NULL, 'user-ph02', 'user-p05', 'CONFIRMED', 'Delivery', '234 Elm Street, San Francisco, CA', 37.7749, -122.4194, 6.99, 55.00, 61.99, 'PAID', 'Card', NULL, NULL, '2024-05-16 18:00:00', NULL, '2024-05-16 15:00:00', '2024-05-16 15:05:00', NULL, NULL, NULL, NULL, NULL, NULL, '2024-05-16 14:40:00', 0, 4.96, 57.03, 0.0800),
+(6, 'ORD-2024-0006', 6, NULL, 'user-ph05', 'user-p01', 'CANCELLED', 'Delivery', '12 Le Loi Street, District 1, Ho Chi Minh City', 10.7769, 106.7009, 5.49, 25.00, 30.49, 'REFUNDED', 'EWallet', NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, '2024-04-11 08:00:00', 'Prescription expired', 'System', '2024-04-10 16:00:00', 0, 2.44, 28.05, 0.0800),
+(7, 'ORD-2024-0007', 7, NULL, 'user-ph02', 'user-p02', 'DELIVERED', 'Delivery', '123 Maple Avenue, Los Angeles', 34.0522, -118.2437, 6.99, 50.00, 56.99, 'PAID', 'COD', NULL, 'OK', '2024-03-16 12:00:00', '2024-03-16 11:30:00', '2024-03-15 16:00:00', '2024-03-15 16:05:00', '2024-03-15 16:30:00', '2024-03-16 09:00:00', '2024-03-16 11:30:00', NULL, NULL, NULL, '2024-03-15 15:30:00', 0, 4.56, 52.43, 0.0800),
+(8, 'ORD-2024-0008', 8, NULL, 'user-ph04', 'user-p03', 'DELIVERED', 'Pickup', NULL, NULL, NULL, 0, 65.00, 65.00, 'PAID', 'Cash', 'Store pickup', 'Completed', NULL, '2024-04-02 10:00:00', '2024-04-01 14:00:00', '2024-04-01 14:05:00', '2024-04-01 14:30:00', NULL, '2024-04-02 10:00:00', NULL, NULL, NULL, '2024-04-01 13:00:00', 0, 5.20, 59.80, 0.0800),
+(9, 'ORD-2024-0009', 9, NULL, 'user-ph01', 'user-p05', 'DELIVERED', 'Delivery', '234 Elm Street, San Francisco', 37.7749, -122.4194, 5.99, 60.00, 65.99, 'PAID', 'Card', NULL, 'Delivered successfully', '2024-04-17 15:00:00', '2024-04-17 14:30:00', '2024-04-16 17:00:00', '2024-04-16 17:05:00', '2024-04-16 17:30:00', '2024-04-17 09:00:00', '2024-04-17 14:30:00', NULL, NULL, NULL, '2024-04-16 16:30:00', 0, 5.28, 60.71, 0.0800),
+(10, 'ORD-2024-0010', 10, NULL, 'user-ph07', 'user-p07', 'PENDING', 'Delivery', '12 Walnut Drive, Miami, FL', 25.7617, -80.1918, 5.99, 48.00, 53.99, 'PENDING', 'COD', 'Afternoon delivery', NULL, '2024-05-21 17:00:00', NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, '2024-05-20 15:30:00', 0, 4.32, 49.67, 0.0800),
+(11, 'ORD-2024-0011', 10, 4, 'user-ph07', 'user-p07', 'PENDING', 'Delivery', '12 Walnut Drive, Miami, FL', 25.7617, -80.1918, 5.99, 48.00, 53.99, 'PENDING', 'PayPal', 'Quote prepared from consultation request; waiting patient confirmation', 'Third-party courier quoted delivery by late afternoon', '2024-05-21 17:00:00', NULL, '2024-05-20 16:05:00', NULL, NULL, NULL, NULL, NULL, NULL, NULL, '2024-05-20 16:05:00', 0, 4.32, 49.67, 0.0800),
+(12, 'ORD-2024-0012', 1, NULL, 'user-ph01', 'user-p01', 'CONFIRMED', 'Delivery', '12 Le Loi Street, District 1, Ho Chi Minh City', 10.7769, 106.7009, 5.99, 45.00, 50.99, 'PENDING', 'PayPal', 'Patient confirmed quote and is on payment step', 'Delivery fee and estimated time confirmed by third-party courier', '2024-05-20 19:30:00', NULL, '2024-05-20 17:00:00', '2024-05-20 17:05:00', NULL, NULL, NULL, NULL, NULL, NULL, '2024-05-20 16:55:00', 0, 4.08, 46.91, 0.0800),
+(13, 'ORD-2024-0013', 2, NULL, 'user-ph02', 'user-p02', 'COMPLETED', 'Delivery', '123 Maple Avenue, Los Angeles, CA', 34.0522, -118.2437, 6.99, 35.00, 41.99, 'PAID', 'PayPal', 'Completed PayPal pharmacy order', 'Delivered and completed', '2024-05-21 15:00:00', '2024-05-21 14:30:00', '2024-05-21 11:00:00', '2024-05-21 11:05:00', '2024-05-21 11:30:00', '2024-05-21 12:00:00', '2024-05-21 14:30:00', NULL, NULL, NULL, '2024-05-21 10:30:00', 1, 3.36, 38.63, 0.0800),
+(14, 'ORD-2024-0014', 3, NULL, 'user-ph04', 'user-p03', 'REFUNDED', 'Delivery', '78 Pine Road, Chicago, IL', 41.8781, -87.6298, 7.99, 75.00, 82.99, 'REFUNDED', 'PayPal', 'Refunded due to partial stock rejection', 'Refund processed after patient declined substitute', '2024-05-22 16:00:00', NULL, '2024-05-22 11:00:00', '2024-05-22 11:05:00', NULL, NULL, NULL, '2024-05-22 12:30:00', 'Patient declined partial fulfillment', 'Patient', '2024-05-22 10:30:00', 0, 6.64, 76.35, 0.0800),
+(15, 'ORD-2024-0015', 4, NULL, 'user-ph06', 'user-p04', 'READY', 'Pickup', NULL, NULL, NULL, 0, 40.00, 40.00, 'PAID', 'Cash', 'Pickup order ready at counter', 'Ready for patient pickup', NULL, NULL, '2024-05-23 09:00:00', '2024-05-23 09:05:00', '2024-05-23 09:30:00', NULL, NULL, NULL, NULL, NULL, '2024-05-23 08:35:00', 0, 3.20, 36.80, 0.0800);
 SET IDENTITY_INSERT PharmacyOrders OFF;
 
--- 21. CHAT_ROOMS (10 chat rooms)
+-- 29. PHARMACY_ORDER_ITEMS (21 items)
+SET IDENTITY_INSERT PharmacyOrderItems ON;
+INSERT INTO PharmacyOrderItems (OrderItemID, OrderID, MedicineID, SourcePrescriptionHeaderID, SourcePrescriptionItemID, medicationName, totalSupplyDays, quantity, unit, frequency, timing, route, unitPrice, totalPrice, notes) VALUES
+(1, 1, 1, 1, 1, 'Paracetamol 500mg', 7, 21, 'Tablet', '3 times daily', 'As needed', 'Oral', 0.30, 6.30, NULL),
+(2, 1, 7, 1, 2, 'Vitamin C 1000mg', 14, 14, 'Tablet', 'Once daily', 'MORNING', 'Oral', 0.93, 13.02, 'Immune support'),
+(3, 2, 1, 2, 3, 'Paracetamol 500mg', 5, 10, 'Tablet', 'As needed', 'When fever', 'Oral', 0.30, 3.00, 'Half tablet for child'),
+(4, 2, 6, 2, 4, 'Cetirizine 10mg', 7, 7, 'Tablet', 'Once daily', 'Night', 'Oral', 0.71, 4.97, 'Half tablet'),
+(5, 3, 5, 3, 5, 'Amlodipine 5mg', 30, 30, 'Tablet', 'Once daily', 'MORNING', 'Oral', 0.63, 18.90, 'Insufficient inventory demo'),
+(6, 3, 1, 3, 11, 'Paracetamol 500mg', 5, 10, 'Tablet', 'As needed', 'When pain', 'Oral', 0.30, 3.00, 'Available item for partial stock demo'),
+(7, 4, 8, 4, 6, 'Ibuprofen 400mg', 5, 15, 'Tablet', '3 times daily', 'AFTERNOON', 'Oral', 0.53, 7.95, NULL),
+(8, 5, NULL, 5, 7, 'Prenatal Multivitamin', 30, 30, 'Tablet', 'Once daily', 'MORNING', 'Oral', 1.83, 54.90, 'Manual medication item without catalog medicine'),
+(9, 6, 1, 6, NULL, 'Cold relief pack', 7, 1, 'Pack', 'As directed', 'As needed', 'Oral', 25.00, 25.00, 'Legacy order item without prescription item'),
+(10, 7, 3, 7, NULL, 'Omeprazole 20mg', 30, 30, 'Capsule', 'Once daily', 'MORNING', 'Oral', 0.53, 15.90, 'Legacy order item without prescription item'),
+(11, 8, 4, 8, 8, 'Metformin 500mg', 30, 60, 'Tablet', 'Twice daily', 'MORNING', 'Oral', 0.30, 18.00, NULL),
+(12, 9, 5, 9, 9, 'Amlodipine 5mg', 30, 30, 'Tablet', 'Once daily', 'MORNING', 'Oral', 0.63, 18.90, NULL),
+(13, 10, 10, 10, 10, 'Allopurinol 300mg', 30, 30, 'Tablet', 'Once daily', 'MORNING', 'Oral', 0.50, 15.00, NULL),
+(14, 11, 10, 10, 10, 'Allopurinol 300mg', 30, 30, 'Tablet', 'Once daily', 'MORNING', 'Oral', 0.50, 15.00, 'Quote item from pharmacy consultation request'),
+(15, 12, 1, 1, 1, 'Paracetamol 500mg', 7, 21, 'Tablet', '3 times daily', 'As needed', 'Oral', 0.30, 6.30, 'Patient confirmed quote'),
+(16, 12, 7, 1, 2, 'Vitamin C 1000mg', 14, 14, 'Tablet', 'Once daily', 'MORNING', 'Oral', 0.93, 13.02, 'Patient confirmed quote'),
+(17, 13, 1, 2, 3, 'Paracetamol 500mg', 5, 10, 'Tablet', 'As needed', 'When fever', 'Oral', 0.30, 3.00, 'Completed pharmacy order'),
+(18, 13, 6, 2, 4, 'Cetirizine 10mg', 7, 7, 'Tablet', 'Once daily', 'Night', 'Oral', 0.71, 4.97, 'Completed pharmacy order'),
+(19, 14, 5, 3, 5, 'Amlodipine 5mg', 30, 30, 'Tablet', 'Once daily', 'MORNING', 'Oral', 0.63, 18.90, 'Refunded partial stock case'),
+(20, 14, 1, 3, 11, 'Paracetamol 500mg', 5, 10, 'Tablet', 'As needed', 'When pain', 'Oral', 0.30, 3.00, 'Refunded partial stock case'),
+(21, 15, 8, 4, 6, 'Ibuprofen 400mg', 5, 15, 'Tablet', '3 times daily', 'AFTERNOON', 'Oral', 0.53, 7.95, 'Ready for pickup');
+SET IDENTITY_INSERT PharmacyOrderItems OFF;
+
+-- 30. PHARMACY_ORDER_INVOICES (4 invoices)
+SET IDENTITY_INSERT Invoices ON;
+INSERT INTO Invoices (InvoiceID, AppointmentId, PharmacyOrderId, PatientID, amount, issueDate, status, invoiceNumber, consultationFee, medicineFee, deliveryFee, discount, tax, dueDate, paidAt, notes) VALUES
+(11, NULL, 13, 'user-p02', 41.99, '2024-05-21 14:30:00', 'PAID', 'INV-PH-2024-0011', 0, 35.00, 6.99, 0, 0, '2024-05-28', '2024-05-21 14:35:00', 'Paid pharmacy order invoice via PayPal'),
+(12, NULL, 12, 'user-p01', 50.99, '2024-05-20 17:05:00', 'PENDING', 'INV-PH-2024-0012', 0, 45.00, 5.99, 0, 0, '2024-05-27', NULL, 'Awaiting PayPal payment after patient confirmed quote'),
+(13, NULL, 14, 'user-p03', 82.99, '2024-05-22 11:05:00', 'REFUNDED', 'INV-PH-2024-0013', 0, 75.00, 7.99, 0, 0, '2024-05-29', '2024-05-22 11:10:00', 'Refunded pharmacy order invoice'),
+(14, NULL, 15, 'user-p04', 40.00, '2024-05-23 09:05:00', 'PAID', 'INV-PH-2024-0014', 0, 40.00, 0, 0, 0, '2024-05-30', '2024-05-23 09:10:00', 'Paid pickup pharmacy order invoice');
+SET IDENTITY_INSERT Invoices OFF;
+
+-- 31. PHARMACY_ORDER_PAYMENTS (4 payments)
+SET IDENTITY_INSERT Payments ON;
+INSERT INTO Payments (PaymentID, InvoiceID, OrderID, amount, paymentMethod, paymentGateway, transactionId, status, paidAt, failureReason, refundedAmount, refundedAt, refundReason, metadata, CreatedAt) VALUES
+(11, 11, 13, 41.99, 'EWallet', 'PayPal', 'PP-PH-20240521001', 'SUCCESS', '2024-05-21 14:35:00', NULL, NULL, NULL, NULL, '{"payerId":"PAYPAL-PH-002","orderType":"PHARMACY_ORDER"}', '2024-05-21 14:35:00'),
+(12, 12, 12, 50.99, 'EWallet', 'PayPal', 'PP-PH-20240520001', 'PENDING', NULL, NULL, NULL, NULL, NULL, '{"checkoutState":"CREATED","orderType":"PHARMACY_ORDER"}', '2024-05-20 17:05:00'),
+(13, 13, 14, 82.99, 'EWallet', 'PayPal', 'PP-PH-20240522001', 'REFUNDED', '2024-05-22 11:10:00', NULL, 82.99, '2024-05-22 12:30:00', 'Patient declined partial fulfillment', '{"refundId":"RF-PH-001","orderType":"PHARMACY_ORDER"}', '2024-05-22 11:10:00'),
+(14, 14, 15, 40.00, 'Cash', NULL, 'CASH-PH-20240523001', 'SUCCESS', '2024-05-23 09:10:00', NULL, NULL, NULL, NULL, '{"pickupCounter":"A1","orderType":"PHARMACY_ORDER"}', '2024-05-23 09:10:00');
+SET IDENTITY_INSERT Payments OFF;
+
+-- 32. CHAT_ROOMS (13 chat rooms)
 INSERT INTO ChatRooms (ChatRoomId, user1Id, user2Id, user1DisplayName, user1PhotoURL, user2DisplayName, user2PhotoURL, lastMessage, lastMessageAt, AppointmentId) VALUES
 ('chat-001', 'user-p01', 'user-d01', 'Michael Anderson', '/avatars/patient01.jpg', 'Dr. John Smith', '/avatars/doctor01.jpg', 'Thank you, doctor!', '2024-05-10 09:35:00', 1),
 ('chat-002', 'user-p02', 'user-d02', 'Emma Thompson', '/avatars/patient02.jpg', 'Dr. Sarah Johnson', '/avatars/doctor02.jpg', 'The fever has gone down', '2024-05-12 08:00:00', 2),
@@ -325,9 +476,12 @@ INSERT INTO ChatRooms (ChatRoomId, user1Id, user2Id, user1DisplayName, user1Phot
 ('chat-007', 'user-p07', 'user-d07', 'Daniel Miller', '/avatars/patient07.jpg', 'Dr. David Wilson', '/avatars/doctor07.jpg', 'I am waiting for the appointment', '2024-05-19 11:05:00', 7),
 ('chat-008', 'user-p08', 'user-d08', 'Isabella Moore', '/avatars/patient08.jpg', 'Dr. Amanda Lee', '/avatars/doctor08.jpg', NULL, NULL, 8),
 ('chat-009', 'user-p09', 'user-d09', 'Alexander Johnson', '/avatars/patient09.jpg', 'Dr. James Taylor', '/avatars/doctor09.jpg', 'Sorry I have to cancel', '2024-05-13 08:05:00', 9),
-('chat-010', 'user-p10', 'user-d10', 'Charlotte Taylor', '/avatars/patient10.jpg', 'Dr. Jennifer Martinez', '/avatars/doctor10.jpg', NULL, NULL, 10);
+('chat-010', 'user-p10', 'user-d10', 'Charlotte Taylor', '/avatars/patient10.jpg', 'Dr. Jennifer Martinez', '/avatars/doctor10.jpg', NULL, NULL, 10),
+('pharm-chat-002', 'user-p02', 'user-ph02', 'Emma Thompson', '/avatars/patient02.jpg', 'An Khang Pharmacy - Nguyen Hue', '/pharmacy/walgreens1.jpg', 'We are checking the child dosage now.', '2024-05-20 15:22:00', NULL),
+('pharm-chat-003', 'user-p03', 'user-ph04', 'William Brown', '/avatars/patient03.jpg', 'CVS Pharmacy - SF', '/pharmacy/cvs2.jpg', 'Amlodipine stock is short today.', '2024-05-20 15:44:00', NULL),
+('pharm-chat-004', 'user-p07', 'user-ph07', 'Daniel Miller', '/avatars/patient07.jpg', 'MedExpress Pharmacy', '/pharmacy/medexpress.jpg', 'Quote is ready with delivery ETA.', '2024-05-20 16:05:00', NULL);
 
--- 22. MESSAGES (10 messages)
+-- 33. MESSAGES (16 messages)
 INSERT INTO ChatMessages (MessageID, ChatRoomId, SenderId, ReceiverId, content, photoURL, imageUrl, IsRead, SentAt) VALUES
 ('11111111-1111-1111-1111-111111111111', 'chat-001', 'user-d01', 'user-p01', 'Hi Michael, can you describe your headache symptoms?', '/avatars/doctor01.jpg', NULL, 1, '2024-05-10 09:02:00'),
 ('11111111-1111-1111-1111-111111111112', 'chat-001', 'user-p01', 'user-d01', 'I have been having a dull pain on the right side of my head for 3 days', '/avatars/patient01.jpg', NULL, 1, '2024-05-10 09:05:00'),
@@ -338,9 +492,15 @@ INSERT INTO ChatMessages (MessageID, ChatRoomId, SenderId, ReceiverId, content, 
 ('11111111-1111-1111-1111-111111111117', 'chat-002', 'user-p02', 'user-d02', 'The fever was 101.3F since last night, with dry cough', '/avatars/patient02.jpg', NULL, 1, '2024-05-11 10:05:00'),
 ('11111111-1111-1111-1111-111111111118', 'chat-002', 'user-p02', 'user-d02', 'The fever has gone down', '/avatars/patient02.jpg', NULL, 1, '2024-05-12 08:00:00'),
 ('11111111-1111-1111-1111-111111111119', 'chat-003', 'user-d03', 'user-p03', 'You need to get an ECG and cardiac enzyme test as soon as possible', '/avatars/doctor03.jpg', NULL, 1, '2024-05-12 10:15:00'),
-('11111111-1111-1111-1111-11111111111a', 'chat-003', 'user-p03', 'user-d03', 'I will get the tests done right away', '/avatars/patient03.jpg', NULL, 1, '2024-05-12 10:20:00');
+('11111111-1111-1111-1111-11111111111a', 'chat-003', 'user-p03', 'user-d03', 'I will get the tests done right away', '/avatars/patient03.jpg', NULL, 1, '2024-05-12 10:20:00'),
+('22222222-2222-2222-2222-222222222221', 'pharm-chat-002', 'user-ph02', 'user-p02', 'Hello Emma, we are checking the child dosage now.', '/pharmacy/walgreens1.jpg', NULL, 1, '2024-05-20 15:20:00'),
+('22222222-2222-2222-2222-222222222222', 'pharm-chat-002', 'user-p02', 'user-ph02', 'Thank you. Please prioritize delivery if stock is available.', '/avatars/patient02.jpg', NULL, 0, '2024-05-20 15:22:00'),
+('22222222-2222-2222-2222-222222222223', 'pharm-chat-003', 'user-ph04', 'user-p03', 'Amlodipine stock is short today. We can prepare the available items first.', '/pharmacy/cvs2.jpg', NULL, 1, '2024-05-20 15:40:00'),
+('22222222-2222-2222-2222-222222222224', 'pharm-chat-003', 'user-p03', 'user-ph04', 'Please keep the request open while I check with my doctor.', '/avatars/patient03.jpg', NULL, 0, '2024-05-20 15:44:00'),
+('22222222-2222-2222-2222-222222222225', 'pharm-chat-004', 'user-ph07', 'user-p07', 'Quote is ready with delivery ETA. Please review and confirm.', '/pharmacy/medexpress.jpg', NULL, 1, '2024-05-20 16:05:00'),
+('22222222-2222-2222-2222-222222222226', 'pharm-chat-004', 'user-p07', 'user-ph07', 'I will review the quote this afternoon.', '/avatars/patient07.jpg', NULL, 0, '2024-05-20 16:06:00');
 
--- 23. NOTIFICATIONS (10 notifications)
+-- 34. NOTIFICATIONS (18 notifications)
 SET IDENTITY_INSERT Notifications ON;
 INSERT INTO Notifications (NotificationID, UserId, type, message, relatedId, IsRead, CreatedAt, appointmentId, title, imageUrl, actionUrl, priority, expiresAt, sentVia) VALUES
 (1, 'user-p01', 'APPOINTMENT_REMINDER', 'You have an appointment with Dr. John Smith tomorrow at 9:00 AM', 1, 1, '2024-05-09 18:00:00', 1, 'Appointment Reminder', '/icons/calendar.png', '/appointments/1', 'HIGH', '2024-05-10 09:00:00', 'MOBILE_PUSH'),
@@ -352,10 +512,18 @@ INSERT INTO Notifications (NotificationID, UserId, type, message, relatedId, IsR
 (7, 'user-d02', 'INVOICE_PAID', 'You received a 5-star review from a patient', 1, 0, '2024-05-12 09:00:00', 2, 'New Review', '/icons/star.png', '/doctor/reviews', 'LOW', NULL, 'EMAIL'),
 (8, 'user-p06', 'APPOINTMENT_REMINDER', 'Your appointment is scheduled for 9:00 AM on May 18th', 6, 0, '2024-05-17 18:00:00', 6, 'Appointment Reminder', '/icons/calendar.png', '/appointments/6', 'HIGH', '2024-05-18 09:00:00', 'MOBILE_PUSH'),
 (9, 'user-p09', 'CANCEL_APPOINTMENT', 'Your appointment has been cancelled', 9, 1, '2024-05-13 08:05:00', 9, 'Appointment Cancelled', '/icons/cancel.png', '/appointments/9', 'NORMAL', NULL, 'MOBILE_PUSH'),
-(10, 'user-p07', 'APPOINTMENT_REMINDER', 'Your appointment on May 20th has been confirmed', 7, 1, '2024-05-19 11:00:00', 7, 'Appointment Confirmed', '/icons/check.png', '/appointments/7', 'NORMAL', NULL, 'MOBILE_PUSH');
+(10, 'user-p07', 'APPOINTMENT_REMINDER', 'Your appointment on May 20th has been confirmed', 7, 1, '2024-05-19 11:00:00', 7, 'Appointment Confirmed', '/icons/check.png', '/appointments/7', 'NORMAL', NULL, 'MOBILE_PUSH'),
+(11, 'user-ph01', 'NEW_PHARMACY_REQUEST', 'New pharmacy consultation request from Michael Anderson', 1, 0, '2024-05-20 15:00:00', NULL, 'New Pharmacy Request', '/icons/pharmacy.png', '/pharmacy/consultations/1', 'HIGH', NULL, 'WEB_SOCKET'),
+(12, 'user-p02', 'ORDER_STATUS', 'An Khang Pharmacy accepted your request and opened a chat room', 2, 0, '2024-05-20 15:20:00', NULL, 'Pharmacy Connected', '/icons/check.png', '/patient/pharmacy/requests/2', 'NORMAL', NULL, 'MOBILE_PUSH'),
+(13, 'user-p03', 'ORDER_STATUS', 'The pharmacy needs more information before preparing your order', 3, 0, '2024-05-20 15:45:00', NULL, 'More Information Needed', '/icons/info.png', '/patient/pharmacy/requests/3', 'NORMAL', NULL, 'MOBILE_PUSH'),
+(14, 'user-p07', 'PAYMENT_REQUIRED', 'Your pharmacy order quote is ready with delivery fee and ETA', 11, 0, '2024-05-20 16:05:00', NULL, 'Quote Ready', '/icons/payment.png', '/patient/pharmacy/orders/11', 'HIGH', NULL, 'MOBILE_PUSH'),
+(15, 'user-p01', 'PAYMENT_REQUIRED', 'Your confirmed pharmacy quote is ready for PayPal payment', 12, 0, '2024-05-20 17:05:00', NULL, 'Payment Required', '/icons/paypal.png', '/patient/pharmacy/orders/12/pay', 'HIGH', NULL, 'MOBILE_PUSH'),
+(16, 'user-ph02', 'INVOICE_PAID', 'PayPal payment received for pharmacy order ORD-2024-0013', 13, 0, '2024-05-21 14:35:00', NULL, 'Order Paid', '/icons/invoice.png', '/pharmacy/orders/13', 'NORMAL', NULL, 'WEB_SOCKET'),
+(17, 'user-ph02', 'WALLET_BALANCE_CHANGED', 'Net pharmacy earning was added to your wallet for ORD-2024-0013', 13, 0, '2024-05-21 14:36:00', NULL, 'Wallet Updated', '/icons/wallet.png', '/pharmacy/wallet', 'NORMAL', NULL, 'WEB_SOCKET'),
+(18, 'user-p03', 'ORDER_STATUS', 'Your refunded pharmacy order has been updated', 14, 0, '2024-05-22 12:30:00', NULL, 'Order Refunded', '/icons/refund.png', '/patient/pharmacy/orders/14', 'NORMAL', NULL, 'MOBILE_PUSH');
 SET IDENTITY_INSERT Notifications OFF;
 
--- 24. REVIEWS (10 reviews)
+-- 35. REVIEWS (10 reviews)
 SET IDENTITY_INSERT Reviews ON;
 INSERT INTO Reviews (ReviewID, PatientID, DoctorID, rating, comment, reviewDate, AppointmentId, Anonymous, doctorReply, doctorReplyDate, Visible, HelpfulCount) VALUES
 (1, 'user-p01', 'user-d01', 5, 'Dr. Smith was very attentive and thorough. He explained my condition clearly.', '2024-05-10 10:00:00', 1, 0, 'Thank you for your trust. Wishing you good health!', '2024-05-10 12:00:00', 1, 12),
@@ -370,7 +538,7 @@ INSERT INTO Reviews (ReviewID, PatientID, DoctorID, rating, comment, reviewDate,
 (10, 'user-p07', 'user-d07', 4, 'Wait time was long but the consultation was very thorough.', '2024-04-20 16:00:00', 7, 0, NULL, NULL, 1, 4);
 SET IDENTITY_INSERT Reviews OFF;
 
--- 25. HEALTH_RECORD_SHARES (10 shares)
+-- 36. HEALTH_RECORD_SHARES (10 shares)
 SET IDENTITY_INSERT HealthRecordShares ON;
 INSERT INTO HealthRecordShares (ShareID, HealthRecordID, sharedDocumentIds, SharedWithDoctorId, SharedByPatientId, PermissionLevel, ConsentGivenAt, ExpiryDate, Revoked, RevokedAt, RevokeReason) VALUES
 (1, 1, '1', 'user-d01', 'user-p01', 'View', '2024-05-10 08:30:00', '2024-06-10', 0, NULL, NULL),
@@ -385,7 +553,7 @@ INSERT INTO HealthRecordShares (ShareID, HealthRecordID, sharedDocumentIds, Shar
 (10, 10, '10', 'user-d07', 'user-p10', 'View', '2024-05-20 09:00:00', '2024-06-20', 0, NULL, NULL);
 SET IDENTITY_INSERT HealthRecordShares OFF;
 
--- 26. REFRESH_TOKENS (10 tokens)
+-- 37. REFRESH_TOKENS (10 tokens)
 SET IDENTITY_INSERT RefreshTokens ON;
 INSERT INTO RefreshTokens (id, UserId, token, expiryDate, Revoked, CreatedDate, deviceInfo, ipAddress, userAgent) VALUES
 (1, 'user-p01', 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.token1', '2024-06-10 08:00:00', 0, '2024-05-10 08:00:00', 'iPhone 15 Pro', '192.168.1.100', 'Mozilla/5.0 (iPhone; iOS 17)'),
@@ -400,7 +568,7 @@ INSERT INTO RefreshTokens (id, UserId, token, expiryDate, Revoked, CreatedDate, 
 (10, 'user-d05', 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.token10', '2024-06-16 08:00:00', 0, '2024-05-16 08:00:00', 'MacBook Air', '192.168.1.53', 'Mozilla/5.0 (Macintosh)');
 SET IDENTITY_INSERT RefreshTokens OFF;
 
--- 27. PASSWORD_RESET_TOKENS (10 tokens)
+-- 38. PASSWORD_RESET_TOKENS (10 tokens)
 SET IDENTITY_INSERT PasswordResetTokens ON;
 INSERT INTO PasswordResetTokens (Id, Token, UserId, ExpiryDate, Used) VALUES
 (1, 'prt-user-p01-20240510', 'user-p01', '2024-05-10 23:59:00', 0),
@@ -415,7 +583,7 @@ INSERT INTO PasswordResetTokens (Id, Token, UserId, ExpiryDate, Used) VALUES
 (10, 'prt-user-d05-20240510', 'user-d05', '2024-05-10 23:59:00', 0);
 SET IDENTITY_INSERT PasswordResetTokens OFF;
 
--- 28. REGISTRATION_REQUESTS (10 requests)
+-- 39. REGISTRATION_REQUESTS (10 requests)
 SET IDENTITY_INSERT RegistrationRequests ON;
 INSERT INTO RegistrationRequests (RequestID, RegistrationType, Email, PhoneNumber, Status, CreatedAt, ReviewedAt, ReviewedBy, RejectionReason, FullName, Qualifications, SpecialtyId, Specialty, YearsOfExperience, LanguageSpoken, Location, Bio, ConsultationFee, ClinicName, ClinicAddress, AvailableForVideo, AvailableForAudio, AvailableForChat, AvailableForOffline, PharmacyName, LicenseNumber, Address, City, District, Ward, OpenTime, CloseTime, Open24Hours, WorkingDays, DeliveryAvailable, DeliveryRadius, DeliveryFee, Description) VALUES
 (1, 'DOCTOR', 'applicant1@healthlink.com', '0905000001', 'Pending', '2024-05-01 10:00:00', NULL, NULL, NULL, 'Dr. Applicant One', 'MD', 1, 'Internal Medicine', 8, 'English', 'New York', 'Doctor registration request', 100.00, 'Applicant Clinic 1', '1 Health St', 1, 1, 1, 1, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL),
@@ -430,7 +598,7 @@ INSERT INTO RegistrationRequests (RequestID, RegistrationType, Email, PhoneNumbe
 (10, 'PHARMACY', 'pharmacyapp5@healthlink.com', '0915000005', 'Pending', '2024-05-10 11:00:00', NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, 'Pharmacy Applicant 5', 'LIC-005', '50 Main St', 'San Francisco', 'Market', 'West', '07:30', '21:30', 0, 'Mon-Sat', 1, 8.0, 7.99, 'Pending pharmacy application');
 SET IDENTITY_INSERT RegistrationRequests OFF;
 
--- 29. REGISTRATION_DOCUMENTS (10 documents)
+-- 40. REGISTRATION_DOCUMENTS (10 documents)
 SET IDENTITY_INSERT RegistrationDocuments ON;
 INSERT INTO RegistrationDocuments (DocumentID, RequestID, DocumentType, FileName, OriginalFileName, FilePath, FileSize, MimeType, UploadedAt) VALUES
 (1, 1, 'Medical Degree', 'req1-degree.pdf', 'degree.pdf', '/registrations/1/degree.pdf', 245000, 'application/pdf', '2024-05-01 10:10:00'),
@@ -445,7 +613,7 @@ INSERT INTO RegistrationDocuments (DocumentID, RequestID, DocumentType, FileName
 (10, 10, 'Business License', 'req10-business.pdf', 'business.pdf', '/registrations/10/business.pdf', 305000, 'application/pdf', '2024-05-10 11:10:00');
 SET IDENTITY_INSERT RegistrationDocuments OFF;
 
--- 30. COMMISSION_CONFIGS (3 configs)
+-- 41. COMMISSION_CONFIGS (3 configs)
 SET IDENTITY_INSERT CommissionConfigs ON;
 INSERT INTO CommissionConfigs (ConfigId, serviceType, commissionRate, minCommission, maxCommission, description, active, effectiveFrom, effectiveTo, CreatedAt, UpdatedAt) VALUES
 (1, 'CONSULTATION_ONLINE', 0.1500, 0.50, 100.00, 'Online consultation commission rate', 1, '2024-01-01 00:00:00', NULL, '2024-01-01 00:00:00', NULL),
@@ -453,32 +621,36 @@ INSERT INTO CommissionConfigs (ConfigId, serviceType, commissionRate, minCommiss
 (3, 'PHARMACY_ORDER', 0.0800, 0.50, 80.00, 'Pharmacy order commission rate', 1, '2024-01-01 00:00:00', NULL, '2024-01-01 00:00:00', NULL);
 SET IDENTITY_INSERT CommissionConfigs OFF;
 
--- 31. SETTLEMENTS (3 settlements)
+-- 42. SETTLEMENTS (3 settlements)
 SET IDENTITY_INSERT Settlements ON;
 INSERT INTO Settlements (SettlementId, settlementNumber, recipientType, recipientId, recipientName, grossAmount, commissionAmount, netAmount, transactionCount, status, paymentMethod, bankAccount, bankName, paypalEmail, periodStart, periodEnd, processedAt, processedBy, completedAt, notes, CreatedAt) VALUES
 (1, 'STL-202405-00001', 'DOCTOR', 'user-d01', 'Dr. John Smith', 500.00, 75.00, 425.00, 2, 'COMPLETED', 'BANK_TRANSFER', '1234567890', 'Bank of America', NULL, '2024-05-01 00:00:00', '2024-05-15 23:59:00', '2024-05-16 10:00:00', 'admin', '2024-05-16 10:30:00', 'First doctor settlement', '2024-05-16 10:00:00'),
-(2, 'STL-202405-00002', 'PHARMACY', 'user-ph01', 'CVS Pharmacy - Manhattan', 700.00, 56.00, 644.00, 2, 'COMPLETED', 'BANK_TRANSFER', '9876543210', 'Chase', NULL, '2024-05-01 00:00:00', '2024-05-15 23:59:00', '2024-05-16 10:15:00', 'admin', '2024-05-16 10:45:00', 'Pharmacy settlement batch', '2024-05-16 10:15:00'),
+(2, 'STL-202405-00002', 'PHARMACY', 'user-ph01', 'HealthLink Pharmacy - Ben Thanh', 700.00, 56.00, 644.00, 2, 'COMPLETED', 'BANK_TRANSFER', '9876543210', 'Chase', NULL, '2024-05-01 00:00:00', '2024-05-15 23:59:00', '2024-05-16 10:15:00', 'admin', '2024-05-16 10:45:00', 'Pharmacy settlement batch', '2024-05-16 10:15:00'),
 (3, 'STL-202405-00003', 'DOCTOR', 'user-d05', 'Dr. Jessica Williams', 450.00, 54.00, 396.00, 2, 'PROCESSING', 'PAYPAL', NULL, NULL, 'drjess@example.com', '2024-05-01 00:00:00', '2024-05-15 23:59:00', '2024-05-16 11:00:00', 'admin', NULL, 'Queued for payout', '2024-05-16 11:00:00');
 SET IDENTITY_INSERT Settlements OFF;
 
--- 32. COMMISSION_TRANSACTIONS (10 transactions)
+-- 43. COMMISSION_TRANSACTIONS (14 transactions)
 SET IDENTITY_INSERT CommissionTransactions ON;
 INSERT INTO CommissionTransactions (TransactionId, transactionNumber, sourceType, appointmentId, pharmacyOrderId, recipientType, recipientId, recipientName, serviceType, grossAmount, commissionRate, commissionAmount, netAmount, status, SettlementId, CreatedAt) VALUES
 (1, 'CTX-202405-00001', 'APPOINTMENT', 1, NULL, 'DOCTOR', 'user-d01', 'Dr. John Smith', 'CONSULTATION_ONLINE', 150.00, 0.1500, 22.50, 127.50, 'SETTLED', 1, '2024-05-10 10:00:00'),
-(2, 'CTX-202405-00002', 'PHARMACY_ORDER', NULL, 1, 'PHARMACY', 'user-ph01', 'CVS Pharmacy - Manhattan', 'PHARMACY_ORDER', 50.99, 0.0800, 4.08, 46.91, 'SETTLED', 2, '2024-05-10 13:45:00'),
+(2, 'CTX-202405-00002', 'PHARMACY_ORDER', NULL, 1, 'PHARMACY', 'user-ph01', 'HealthLink Pharmacy - Ben Thanh', 'PHARMACY_ORDER', 50.99, 0.0800, 4.08, 46.91, 'SETTLED', 2, '2024-05-10 13:45:00'),
 (3, 'CTX-202405-00003', 'APPOINTMENT', 2, NULL, 'DOCTOR', 'user-d02', 'Dr. Sarah Johnson', 'CONSULTATION_ONLINE', 120.00, 0.1500, 18.00, 102.00, 'SETTLED', 1, '2024-05-11 10:20:00'),
-(4, 'CTX-202405-00004', 'PHARMACY_ORDER', NULL, 2, 'PHARMACY', 'user-ph02', 'Walgreens - LA Downtown', 'PHARMACY_ORDER', 41.99, 0.0800, 3.36, 38.63, 'SETTLED', 2, '2024-05-11 14:30:00'),
+(4, 'CTX-202405-00004', 'PHARMACY_ORDER', NULL, 2, 'PHARMACY', 'user-ph02', 'An Khang Pharmacy - Nguyen Hue', 'PHARMACY_ORDER', 41.99, 0.0800, 3.36, 38.63, 'SETTLED', 2, '2024-05-11 14:30:00'),
 (5, 'CTX-202405-00005', 'APPOINTMENT', 3, NULL, 'DOCTOR', 'user-d03', 'Dr. Michael Chen', 'CONSULTATION_ONLINE', 250.00, 0.1500, 37.50, 212.50, 'SETTLED', 1, '2024-05-12 10:15:00'),
 (6, 'CTX-202405-00006', 'PHARMACY_ORDER', NULL, 3, 'PHARMACY', 'user-ph04', 'CVS Pharmacy - SF', 'PHARMACY_ORDER', 82.99, 0.0800, 6.64, 76.35, 'PENDING', 2, '2024-05-12 14:00:00'),
 (7, 'CTX-202405-00007', 'APPOINTMENT', 5, NULL, 'DOCTOR', 'user-d05', 'Dr. Jessica Williams', 'CONSULTATION_ONLINE', 140.00, 0.1500, 21.00, 119.00, 'SETTLED', 3, '2024-05-16 14:30:00'),
-(8, 'CTX-202405-00008', 'PHARMACY_ORDER', NULL, 5, 'PHARMACY', 'user-ph02', 'Walgreens - LA Downtown', 'PHARMACY_ORDER', 61.99, 0.0800, 4.96, 57.03, 'SETTLED', 2, '2024-05-16 18:00:00'),
+(8, 'CTX-202405-00008', 'PHARMACY_ORDER', NULL, 5, 'PHARMACY', 'user-ph02', 'An Khang Pharmacy - Nguyen Hue', 'PHARMACY_ORDER', 61.99, 0.0800, 4.96, 57.03, 'SETTLED', 2, '2024-05-16 18:00:00'),
 (9, 'CTX-202405-00009', 'APPOINTMENT', 7, NULL, 'DOCTOR', 'user-d07', 'Dr. David Wilson', 'CONSULTATION_OFFLINE', 220.00, 0.1200, 26.40, 193.60, 'PENDING', 3, '2024-05-20 15:00:00'),
-(10, 'CTX-202405-00010', 'PHARMACY_ORDER', NULL, 10, 'PHARMACY', 'user-ph07', 'MedExpress Pharmacy', 'PHARMACY_ORDER', 53.99, 0.0800, 4.32, 49.67, 'PENDING', 2, '2024-05-20 15:30:00');
+(10, 'CTX-202405-00010', 'PHARMACY_ORDER', NULL, 10, 'PHARMACY', 'user-ph07', 'MedExpress Pharmacy', 'PHARMACY_ORDER', 53.99, 0.0800, 4.32, 49.67, 'PENDING', 2, '2024-05-20 15:30:00'),
+(11, 'CTX-202405-00011', 'PHARMACY_ORDER', NULL, 12, 'PHARMACY', 'user-ph01', 'HealthLink Pharmacy - Ben Thanh', 'PHARMACY_ORDER', 50.99, 0.0800, 4.08, 46.91, 'PENDING', NULL, '2024-05-20 17:05:00'),
+(12, 'CTX-202405-00012', 'PHARMACY_ORDER', NULL, 13, 'PHARMACY', 'user-ph02', 'An Khang Pharmacy - Nguyen Hue', 'PHARMACY_ORDER', 41.99, 0.0800, 3.36, 38.63, 'PENDING', NULL, '2024-05-21 14:35:00'),
+(13, 'CTX-202405-00013', 'PHARMACY_ORDER', NULL, 14, 'PHARMACY', 'user-ph04', 'CVS Pharmacy - SF', 'PHARMACY_ORDER', 82.99, 0.0800, 6.64, 76.35, 'REFUNDED', NULL, '2024-05-22 12:30:00'),
+(14, 'CTX-202405-00014', 'PHARMACY_ORDER', NULL, 15, 'PHARMACY', 'user-ph06', 'Hospital Pharmacy - NYC', 'PHARMACY_ORDER', 40.00, 0.0800, 3.20, 36.80, 'PENDING', NULL, '2024-05-23 09:10:00');
 SET IDENTITY_INSERT CommissionTransactions OFF;
 
 -- =====================================================
 -- END SEED DATA
--- Total: 32 tables, mixed sample sizes
+-- Total: 43 seed sections, mixed sample sizes
 -- =====================================================
 PRINT 'Seed data completed successfully!';
 

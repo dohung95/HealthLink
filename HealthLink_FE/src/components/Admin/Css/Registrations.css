@@ -95,6 +95,32 @@
   border-color: #cbd5e1;
 }
 
+/* Clear Filter Button */
+.btn-clear-filter {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 7px 14px;
+  font-size: 12px;
+  font-weight: 600;
+  color: #64748b;
+  background: #f1f5f9;
+  border: 1px solid #e2e8f0;
+  border-radius: 6px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.btn-clear-filter:hover {
+  color: #dc2626;
+  background: #fef2f2;
+  border-color: #fecaca;
+}
+
+.btn-clear-filter i {
+  font-size: 14px;
+}
+
 /* Type Badge */
 .type-badge {
   display: inline-flex;

@@ -1,4 +1,5 @@
 package com.HealthLink.entity;
+import com.HealthLink.entity.enums.DoctorScheduleStatus;
 import jakarta.persistence.*;
 import lombok.*;
 import java.time.LocalTime;
@@ -38,6 +39,12 @@ public class DoctorSchedule {
     @Column(name = "Available")
     @Builder.Default
     private boolean available = true;
+
+    // Individual schedule is always APPROVED; Doctor.scheduleStatus controls visibility
+    @Enumerated(EnumType.STRING)
+    @Column(name = "ScheduleStatus", length = 20)
+    @Builder.Default
+    private DoctorScheduleStatus scheduleStatus = DoctorScheduleStatus.APPROVED;
 
     @Column(length = 50)
     private String consultationType;

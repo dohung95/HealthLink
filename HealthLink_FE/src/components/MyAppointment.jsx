@@ -94,7 +94,7 @@ const MyAppointments = () => {
             setCurrentPage(data.page || page);
 
             // Check which completed appointments can be reviewed
-            const completedAppointments = (data.items || []).filter(a => a.status === 'Completed');
+            const completedAppointments = (data.items || []).filter(a => a.status?.toUpperCase() === 'COMPLETED');
             const reviewableMap = {};
             await Promise.all(
                 completedAppointments.map(async (apt) => {
@@ -319,16 +319,19 @@ const MyAppointments = () => {
                 return 'Cancelled';
             case 'completed':
                 return 'Completed';
+            case 'in_consultation':
+                return 'In Consultation';
             default:
                 return status || 'Unknown';
         }
     };
 
     const getStatusBadge = (status) => {
-        switch (status) {
-            case 'Scheduled': return 'bg-success';
-            case 'Cancelled': return 'bg-danger';
-            case 'Completed': return 'bg-primary';
+        switch (normalizeText(status)) {
+            case 'scheduled': return 'bg-success';
+            case 'cancelled': return 'bg-danger';
+            case 'completed': return 'bg-primary';
+            case 'in_consultation': return 'bg-warning';
             default: return 'bg-secondary';
         }
     };
@@ -504,7 +507,7 @@ const MyAppointments = () => {
                                                     )}
 
                                                     {/* Rate button for completed appointments */}
-                                                    {item.status === 'Completed' && (
+                                                    {item.status?.toUpperCase() === 'COMPLETED' && (
                                                         <button
                                                             className={`btn btn-sm ${reviewableAppointments[item.appointmentId] ? 'btn-warning' : 'btn-outline-secondary'}`}
                                                             onClick={() => handleRateClick(item)}

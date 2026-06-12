@@ -6,6 +6,8 @@
 class ApiConfig {
   ApiConfig._(); // Không cho khởi tạo
 
+  static const String paypalClientId = 'Abj_ov73E4EuBjVPEu23yN-oPJUu-7AQMrsMaVmcCTmQI9JlkK-HJ_nd7Hy7gtxE8O68hmJbbCrKP27b';
+
   // ── Base URL ──────────────────────────────────────────────────────────────
   // Đặt cờ này thành true khi code được chạy bởi nhóm của bạn
   // Đặt thành false khi BẠN chạy trên máy thật của mình (kèm lệnh adb reverse)
@@ -18,6 +20,9 @@ class ApiConfig {
   static const String wsUrl = isTeamConfig 
       ? 'ws://10.0.0.2:8096/ws/websocket' // Cấu hình của nhóm bạn
       : 'ws://127.0.0.1:8096/ws/websocket'; // Dành riêng cho máy thật của bạn
+
+  // static const String baseUrl = 'http://192.168.0.90:8096/api';
+  // static const String wsUrl   = 'ws://10.0.2.2:8096/ws/websocket';
 
   // ── Auth Endpoints ────────────────────────────────────────────────────────
   static const String login          = '$baseUrl/auth/login';
@@ -35,6 +40,7 @@ class ApiConfig {
   static const String changePassword = '$baseUrl/account/patient/auth/password/change';
   static const String requestEmailChange = '$baseUrl/account/patient/auth/email/request-change';
   static const String verifyEmailChange = '$baseUrl/account/patient/auth/email/verify-change';
+  static String doctorSchedules(String doctorId) => '$baseUrl/account/doctors/$doctorId/schedules';
 
   // ── Prescription Endpoints ────────────────────────────────────────────────
   static String prescriptionsByPatientId(String patientId) => '$baseUrl/prescriptions/patient/$patientId';
@@ -46,18 +52,16 @@ class ApiConfig {
   static const String holdSlot          = '$baseUrl/appointments/hold-slot';
   static const String appointments      = '$baseUrl/appointments';
   static String patientAppointmentsPage(String patientId) => '$appointments/patient/$patientId/page';
-
+  static const String createAppointmentPayPalOrder = '$baseUrl/payment/appointments/paypal/create';
+  static const String captureAppointmentPayPalPayment = '$baseUrl/payment/appointments/paypal/capture';
   static String cancelAppointment(int appointmentId) => '$appointments/$appointmentId/cancel';
-
-  static String rescheduleAppointment(int appointmentId) =>
-      '$appointments/$appointmentId/reschedule';
-
+  static String rescheduleAppointment(int appointmentId) => '$appointments/$appointmentId/reschedule';
   static String releaseHold(int holdId) => '$baseUrl/appointments/hold-slot/$holdId';
   static String doctorPublicProfile(String doctorId) => '$baseUrl/account/doctors/public/$doctorId';
 
   //Upload medical records
   static const String healthRecordAutoDocument = '$baseUrl/health-records/documents/auto';
-
+  static const String myHealthRecords = '$baseUrl/health-records/my';
   static String shareHealthRecord(int recordId) => '$baseUrl/health-records/$recordId/share';
 
   // ── Chat Endpoints ────────────────────────────────────────────────────────

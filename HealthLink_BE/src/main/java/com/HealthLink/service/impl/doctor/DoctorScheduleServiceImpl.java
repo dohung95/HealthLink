@@ -1,7 +1,6 @@
 package com.HealthLink.service.impl.doctor;
 
 import com.HealthLink.dto.doctor.schedule.CalendarDayResponse;
-import com.HealthLink.dto.doctor.schedule.DoctorScheduleExceptionRequest;
 import com.HealthLink.dto.doctor.schedule.DoctorScheduleRequest;
 import com.HealthLink.dto.doctor.schedule.WeeklyScheduleResponse;
 import com.HealthLink.dto.response.DoctorScheduleResponse;
@@ -11,9 +10,11 @@ import com.HealthLink.entity.Doctor;
 import com.HealthLink.entity.DoctorSchedule;
 import com.HealthLink.entity.DoctorScheduleException;
 import com.HealthLink.entity.User;
+import com.HealthLink.entity.enums.DoctorScheduleStatus;
 import com.HealthLink.entity.enums.NotificationType;
 import com.HealthLink.exception.BadRequestException;
 import com.HealthLink.exception.ResourceNotFoundException;
+import com.HealthLink.repository.admin.AdminScheduleAuditLogRepository;
 import com.HealthLink.repository.admin.DoctorScheduleExceptionRepository;
 import com.HealthLink.repository.appointment.AppointmentRepository;
 import com.HealthLink.repository.appointment.AppointmentSlotHoldRepository;
@@ -30,13 +31,16 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.DayOfWeek;
+import java.time.Duration;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.LocalTime;
+import java.time.YearMonth;
 import java.time.format.TextStyle;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Locale;
+import java.util.Map;
 import java.util.stream.Collectors;
 
 @Service
@@ -51,10 +55,14 @@ public class DoctorScheduleServiceImpl implements DoctorScheduleService {
     private final AppointmentRepository appointmentRepository;
     private final AppointmentSlotHoldRepository appointmentSlotHoldRepository;
     private final NotificationService notificationService;
+    private final AdminScheduleAuditLogRepository auditLogRepository;
     private final @Lazy ScheduleComplianceService complianceService;
     private final AuditLogger audit = AuditLogger.doctor();
 
     private static final String[] DAY_NAMES = {"Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"};
+
+    // Minimum required working hours per MONTH for APPROVED status
+    private static final double MIN_MONTHLY_HOURS = 80.0;
 
     @Override
     public WeeklyScheduleResponse getMySchedule(String doctorId) {
@@ -63,9 +71,14 @@ public class DoctorScheduleServiceImpl implements DoctorScheduleService {
         List<DoctorSchedule> schedules = scheduleRepository.findByDoctor_DoctorId(doctorId);
         List<DoctorScheduleException> exceptions = exceptionRepository.findByDoctor_DoctorId(doctorId);
 
+        double monthlyHours = calculateMonthlyHours(doctorId);
+
         return WeeklyScheduleResponse.builder()
                 .doctorId(doctorId)
                 .doctorName(doctor.getFullName())
+                .doctorScheduleStatus(doctor.getScheduleStatus())
+                .totalMonthlyHours(monthlyHours)
+                .requiredMonthlyHours(MIN_MONTHLY_HOURS)
                 .schedules(schedules.stream().map(this::mapScheduleToItem).collect(Collectors.toList()))
                 .exceptions(exceptions.stream().map(this::mapExceptionToItem).collect(Collectors.toList()))
                 .build();
@@ -87,6 +100,8 @@ public class DoctorScheduleServiceImpl implements DoctorScheduleService {
                 .location(request.getLocation())
                 .notes(request.getNotes())
                 .available(true)
+                // Individual schedule is always APPROVED; Doctor.scheduleStatus controls visibility
+                .scheduleStatus(DoctorScheduleStatus.APPROVED)
                 .build();
 
         DoctorSchedule saved = scheduleRepository.save(schedule);
@@ -101,33 +116,8 @@ public class DoctorScheduleServiceImpl implements DoctorScheduleService {
         // Update compliance after schedule change
         updateComplianceAsync(doctorId);
 
-        return mapToScheduleResponse(saved);
-    }
-
-    @Override
-    public DoctorScheduleResponse updateSchedule(String doctorId, Integer scheduleId, DoctorScheduleRequest request) {
-        DoctorSchedule schedule = findScheduleAndVerifyOwnership(doctorId, scheduleId);
-        validateScheduleRequest(request);
-
-        schedule.setDayOfWeek(request.getDayOfWeek());
-        schedule.setStartTime(request.getStartTime());
-        schedule.setEndTime(request.getEndTime());
-        schedule.setSlotDuration(request.getSlotDuration() != null ? request.getSlotDuration() : 30);
-        schedule.setMaxPatients(request.getMaxPatients() != null ? request.getMaxPatients() : 1);
-        schedule.setConsultationType(request.getConsultationType());
-        schedule.setLocation(request.getLocation());
-        schedule.setNotes(request.getNotes());
-
-        DoctorSchedule saved = scheduleRepository.save(schedule);
-        log.info("Doctor {} updated schedule {}", doctorId, scheduleId);
-
-        audit.log("SCHEDULE_UPDATED", String.valueOf(scheduleId), doctorId,
-                java.util.Map.of("dayOfWeek", request.getDayOfWeek(),
-                        "startTime", String.valueOf(request.getStartTime()),
-                        "endTime", String.valueOf(request.getEndTime())));
-
-        // Update compliance after schedule change
-        updateComplianceAsync(doctorId);
+        // Update Doctor.scheduleStatus based on total weekly hours
+        updateDoctorScheduleStatus(doctorId);
 
         return mapToScheduleResponse(saved);
     }
@@ -135,29 +125,51 @@ public class DoctorScheduleServiceImpl implements DoctorScheduleService {
     @Override
     public void deleteSchedule(String doctorId, Integer scheduleId) {
         DoctorSchedule schedule = findScheduleAndVerifyOwnership(doctorId, scheduleId);
+
+        LocalDateTime now = LocalDateTime.now();
+        boolean hasFutureBookings = appointmentRepository
+                .findByDoctor_DoctorIdAndStatusNotAndAppointmentTimeAfter(doctorId, "CANCELLED", now)
+                .stream()
+                .anyMatch(a -> a.getAppointmentTime().getDayOfWeek().getValue() % 7 == schedule.getDayOfWeek()
+                        && !a.getAppointmentTime().toLocalTime().isBefore(schedule.getStartTime())
+                        && a.getAppointmentTime().toLocalTime().isBefore(schedule.getEndTime()));
+
+        if (hasFutureBookings) {
+            throw new BadRequestException("Cannot delete a schedule that contains future booked appointments. Please reschedule those appointments first.");
+        }
+
         scheduleRepository.delete(schedule);
         log.info("Doctor {} deleted schedule {}", doctorId, scheduleId);
 
         audit.log("SCHEDULE_DELETED", String.valueOf(scheduleId), doctorId);
+        logAdminScheduleDeletion(schedule);
 
         // Update compliance after schedule change
         updateComplianceAsync(doctorId);
+
+        // Update Doctor.scheduleStatus based on total weekly hours
+        updateDoctorScheduleStatus(doctorId);
     }
 
-    @Override
-    public void toggleScheduleAvailability(String doctorId, Integer scheduleId, boolean available) {
-        DoctorSchedule schedule = findScheduleAndVerifyOwnership(doctorId, scheduleId);
-        schedule.setAvailable(available);
-        scheduleRepository.save(schedule);
-
-        audit.log("SCHEDULE_AVAILABILITY_TOGGLED", String.valueOf(scheduleId), doctorId,
-                java.util.Map.of("available", String.valueOf(available)));
-
-        // Update compliance after availability change
-        updateComplianceAsync(doctorId);
-        log.info("Doctor {} set schedule {} availability to {}", doctorId, scheduleId, available);
+    private void logAdminScheduleDeletion(DoctorSchedule schedule) {
+        if (schedule.getDoctor() != null && schedule.getDoctor().getUser() != null) {
+            auditLogRepository.save(
+                    com.HealthLink.entity.AdminScheduleAuditLog.builder()
+                            .adminUser(schedule.getDoctor().getUser())
+                            .actionType("DELETE_SCHEDULE")
+                            .targetDoctorId(schedule.getDoctor().getDoctorId())
+                            .targetAppointmentId(null)
+                            .targetPatientId(null)
+                            .description("Doctor deleted schedule " + schedule.getScheduleId() + " for day " + DAY_NAMES[schedule.getDayOfWeek()])
+                            .oldValue("{\"scheduleId\":" + schedule.getScheduleId() + ",\"dayOfWeek\":" + schedule.getDayOfWeek() + ",\"startTime\":\"" + schedule.getStartTime() + "\",\"endTime\":\"" + schedule.getEndTime() + "\"}")
+                            .newValue(null)
+                            .reason("Doctor deleted schedule")
+                            .ipAddress(null)
+                            .createdAt(LocalDateTime.now())
+                            .build()
+            );
+        }
     }
-
     @Override
     public List<WeeklyScheduleResponse.ExceptionItem> getMyExceptions(String doctorId, LocalDate startDate, LocalDate endDate) {
         findDoctor(doctorId); // Verify doctor exists
@@ -168,39 +180,6 @@ public class DoctorScheduleServiceImpl implements DoctorScheduleService {
         return exceptions.stream()
                 .map(this::mapExceptionToItem)
                 .collect(Collectors.toList());
-    }
-
-    @Override
-    public WeeklyScheduleResponse.ExceptionItem createException(String doctorId, DoctorScheduleExceptionRequest request) {
-        Doctor doctor = findDoctor(doctorId);
-        validateExceptionRequest(request);
-
-        // Check for existing exception on same date
-        exceptionRepository.findByDoctor_DoctorIdAndExceptionDate(doctorId, request.getExceptionDate())
-                .ifPresent(existing -> {
-                    throw new BadRequestException("An exception already exists for " + request.getExceptionDate() + ". Delete it first.");
-                });
-
-        // If DayOff, notify affected patients
-        if ("DayOff".equals(request.getExceptionType())) {
-            notifyAffectedPatients(doctor, request.getExceptionDate(), request.getReason());
-        }
-
-        DoctorScheduleException exception = DoctorScheduleException.builder()
-                .doctor(doctor)
-                .exceptionDate(request.getExceptionDate())
-                .exceptionType(request.getExceptionType())
-                .startTime(request.getStartTime())
-                .endTime(request.getEndTime())
-                .reason(request.getReason()) // No [Admin] prefix for doctor-created
-                .recurring(request.isRecurring())
-                .recurringUntil(request.getRecurringUntil())
-                .build();
-
-        DoctorScheduleException saved = exceptionRepository.save(exception);
-        log.info("Doctor {} created {} exception on {}", doctorId, request.getExceptionType(), request.getExceptionDate());
-
-        return mapExceptionToItem(saved);
     }
 
     @Override
@@ -268,26 +247,6 @@ public class DoctorScheduleServiceImpl implements DoctorScheduleService {
         }
     }
 
-    private void validateExceptionRequest(DoctorScheduleExceptionRequest request) {
-        String type = request.getExceptionType();
-        if (!List.of("DayOff", "Modified", "AddSlot").contains(type)) {
-            throw new BadRequestException("Exception type must be DayOff, Modified, or AddSlot");
-        }
-
-        if (("Modified".equals(type) || "AddSlot".equals(type))
-                && (request.getStartTime() == null || request.getEndTime() == null)) {
-            throw new BadRequestException("Start time and end time are required for Modified/AddSlot exceptions");
-        }
-
-        if (request.getStartTime() != null && request.getEndTime() != null
-                && request.getStartTime().isAfter(request.getEndTime())) {
-            throw new BadRequestException("Start time must be before end time");
-        }
-
-        if (request.getExceptionDate().isBefore(LocalDate.now())) {
-            throw new BadRequestException("Exception date cannot be in the past");
-        }
-    }
 
     private void notifyAffectedPatients(Doctor doctor, LocalDate date, String reason) {
         LocalDateTime dayStart = date.atStartOfDay();
@@ -349,7 +308,7 @@ public class DoctorScheduleServiceImpl implements DoctorScheduleService {
         } else {
             // Normal schedules
             List<DoctorSchedule> daySchedules = schedules.stream()
-                    .filter(s -> s.getDayOfWeek() == dayOfWeek && s.isAvailable())
+                    .filter(s -> s.getDayOfWeek() == dayOfWeek && s.isAvailable() && s.getScheduleStatus() == DoctorScheduleStatus.APPROVED)
                     .collect(Collectors.toList());
 
             if (daySchedules.isEmpty()) {
@@ -465,6 +424,7 @@ public class DoctorScheduleServiceImpl implements DoctorScheduleService {
                 .location(schedule.getLocation())
                 .notes(schedule.getNotes())
                 .available(schedule.isAvailable())
+                .scheduleStatus(schedule.getScheduleStatus())
                 .build();
     }
 
@@ -492,6 +452,7 @@ public class DoctorScheduleServiceImpl implements DoctorScheduleService {
                 .slotDuration(schedule.getSlotDuration())
                 .consultationType(schedule.getConsultationType())
                 .available(schedule.isAvailable())
+                .scheduleStatus(schedule.getScheduleStatus())
                 .build();
     }
 
@@ -505,6 +466,160 @@ public class DoctorScheduleServiceImpl implements DoctorScheduleService {
         } catch (Exception e) {
             log.error("Error updating compliance for doctor {}: {}", doctorId, e.getMessage());
             // Don't throw - compliance update failure shouldn't affect schedule operations
+        }
+    }
+
+    /**
+     * Calculate total working hours for the current month by iterating through each day.
+     * This accounts for:
+     * - Regular schedules for each day of week
+     * - Exceptions (DayOff, Modified, AddSlot)
+     *
+     * @param doctorId the doctor ID
+     * @return total hours for the current month
+     */
+    private double calculateMonthlyHours(String doctorId) {
+        YearMonth currentMonth = YearMonth.now();
+        LocalDate startDate = currentMonth.atDay(1);
+        LocalDate endDate = currentMonth.atEndOfMonth();
+
+        // Get all schedules for the doctor
+        List<DoctorSchedule> schedules = scheduleRepository.findByDoctor_DoctorId(doctorId);
+        if (schedules.isEmpty()) {
+            return 0.0;
+        }
+
+        // Get all exceptions for the current month
+        List<DoctorScheduleException> exceptions = exceptionRepository
+                .findByDoctor_DoctorIdAndExceptionDateBetween(doctorId, startDate, endDate);
+
+        // Create a map of exceptions by date for quick lookup
+        Map<LocalDate, DoctorScheduleException> exceptionMap = exceptions.stream()
+                .collect(Collectors.toMap(
+                        DoctorScheduleException::getExceptionDate,
+                        e -> e,
+                        (e1, e2) -> e1 // In case of duplicates, keep the first
+                ));
+
+        double totalMinutes = 0.0;
+
+        // Iterate through each day of the month
+        for (LocalDate date = startDate; !date.isAfter(endDate); date = date.plusDays(1)) {
+            int dayOfWeek = date.getDayOfWeek().getValue() % 7; // Convert to 0=Sunday format
+
+            // Check for exception on this date
+            DoctorScheduleException exception = exceptionMap.get(date);
+
+            if (exception != null) {
+                if ("DayOff".equals(exception.getExceptionType())) {
+                    // Day off - no hours for this day
+                    continue;
+                } else if ("Modified".equals(exception.getExceptionType())) {
+                    // Modified schedule - use exception times instead of regular schedule
+                    if (exception.getStartTime() != null && exception.getEndTime() != null) {
+                        long minutes = Duration.between(exception.getStartTime(), exception.getEndTime()).toMinutes();
+                        totalMinutes += Math.max(0, minutes);
+                    }
+                    continue;
+                }
+                // AddSlot - will be added below along with regular schedule
+            }
+
+            // Add hours from regular schedules for this day of week
+            for (DoctorSchedule schedule : schedules) {
+                if (schedule.getDayOfWeek() == dayOfWeek && schedule.isAvailable()) {
+                    long minutes = Duration.between(schedule.getStartTime(), schedule.getEndTime()).toMinutes();
+                    totalMinutes += Math.max(0, minutes);
+                }
+            }
+
+            // Add extra hours from AddSlot exception
+            if (exception != null && "AddSlot".equals(exception.getExceptionType())) {
+                if (exception.getStartTime() != null && exception.getEndTime() != null) {
+                    long minutes = Duration.between(exception.getStartTime(), exception.getEndTime()).toMinutes();
+                    totalMinutes += Math.max(0, minutes);
+                }
+            }
+        }
+
+        return totalMinutes / 60.0;
+    }
+
+    /**
+     * Update Doctor.scheduleStatus based on total monthly hours.
+     * - PENDING: No schedules
+     * - APPROVED: >= 80 hours/month
+     * - REJECTED: < 80 hours/month but has schedules
+     */
+    private void updateDoctorScheduleStatus(String doctorId) {
+        Doctor doctor = findDoctor(doctorId);
+        List<DoctorSchedule> schedules = scheduleRepository.findByDoctor_DoctorId(doctorId);
+
+        DoctorScheduleStatus oldStatus = doctor.getScheduleStatus();
+        DoctorScheduleStatus newStatus;
+
+        if (schedules.isEmpty() || schedules.stream().noneMatch(DoctorSchedule::isAvailable)) {
+            // No schedules or all unavailable -> PENDING
+            newStatus = DoctorScheduleStatus.PENDING;
+        } else {
+            double monthlyHours = calculateMonthlyHours(doctorId);
+            if (monthlyHours >= MIN_MONTHLY_HOURS) {
+                newStatus = DoctorScheduleStatus.APPROVED;
+            } else {
+                newStatus = DoctorScheduleStatus.REJECTED;
+            }
+            log.info("Doctor {} monthly hours: {}h (required: {}h) -> {}",
+                    doctorId, String.format("%.1f", monthlyHours), MIN_MONTHLY_HOURS, newStatus);
+        }
+
+        if (oldStatus != newStatus) {
+            doctor.setScheduleStatus(newStatus);
+            doctorRepository.save(doctor);
+            log.info("Doctor {} schedule status changed: {} -> {}", doctorId, oldStatus, newStatus);
+
+            // Notify doctor about status change
+            notifyDoctorScheduleStatusChange(doctor, oldStatus, newStatus);
+        }
+    }
+
+    /**
+     * Notify doctor when their schedule status changes.
+     */
+    private void notifyDoctorScheduleStatusChange(Doctor doctor, DoctorScheduleStatus oldStatus, DoctorScheduleStatus newStatus) {
+        if (doctor.getUser() == null) return;
+
+        String title;
+        String message;
+
+        switch (newStatus) {
+            case APPROVED:
+                title = "Schedule Approved";
+                message = "Your schedule meets the minimum requirement (80 hours/month). You are now visible to patients for booking.";
+                break;
+            case REJECTED:
+                double currentHours = calculateMonthlyHours(doctor.getDoctorId());
+                title = "Schedule Not Approved";
+                message = String.format("Your current schedule is %.1f hours/month. You need at least 80 hours/month to be visible to patients.", currentHours);
+                break;
+            case PENDING:
+                title = "Schedule Pending";
+                message = "Please set up your weekly schedule to be visible to patients for booking.";
+                break;
+            default:
+                return;
+        }
+
+        try {
+            notificationService.sendWebSocketNotification(
+                    doctor.getUser(),
+                    NotificationType.ADMIN_SCHEDULE_CHANGE,
+                    title,
+                    message,
+                    null,
+                    "/doctor/schedule"
+            );
+        } catch (Exception e) {
+            log.error("Failed to notify doctor {} about schedule status change: {}", doctor.getDoctorId(), e.getMessage());
         }
     }
 }

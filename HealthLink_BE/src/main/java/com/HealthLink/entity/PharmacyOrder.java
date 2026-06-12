@@ -71,12 +71,17 @@ public class PharmacyOrder {
     private LocalDateTime estimatedDeliveryTime;
     private LocalDateTime actualDeliveryTime;
     private LocalDateTime confirmedAt;
+    private LocalDateTime patientConfirmedAt;
     private LocalDateTime preparingAt;
     private LocalDateTime shippedAt;
     private LocalDateTime deliveredAt;
     private LocalDateTime cancelledAt;
     private String cancelReason;
     private String cancelledBy;
+    private LocalDateTime revisionRequestedAt;
+    @Column(length = 1000)
+    private String revisionRequestNotes;
+    private LocalDateTime revisionResolvedAt;
 
     @OneToOne(mappedBy = "pharmacyOrder", fetch = FetchType.LAZY)
     @ToString.Exclude

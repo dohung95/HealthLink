@@ -15,7 +15,6 @@ export const ORDER_STATUSES = [
 export const CONSULTATION_STATUSES = [
   'PENDING',
   'IN_REVIEW',
-  'NEED_MORE_INFO',
   'ORDER_CREATED',
   'CANCELLED',
 ];
@@ -94,6 +93,67 @@ export const pharmacyApi = {
 
   createOrderFromRequest: async (requestId, payload) => {
     const response = await axiosInstance.post(`/api/pharmacy-requests/${requestId}/order`, payload);
+    return response.data;
+  },
+
+  // ======== Inventory API ========
+  getInventory: async (params = {}) => {
+    const response = await axiosInstance.get('/api/pharmacy/inventory', { params });
+    return response.data;
+  },
+
+  getInventoryItem: async (inventoryId) => {
+    const response = await axiosInstance.get(`/api/pharmacy/inventory/${inventoryId}`);
+    return response.data;
+  },
+
+  updateInventory: async (inventoryId, payload) => {
+    const response = await axiosInstance.patch(`/api/pharmacy/inventory/${inventoryId}`, payload);
+    return response.data;
+  },
+
+  importInventoryCsv: async (file, onProgress) => {
+    const formData = new FormData();
+    formData.append('file', file);
+    const response = await axiosInstance.post('/api/pharmacy/inventory/import', formData, {
+      headers: { 'Content-Type': 'multipart/form-data' },
+      onUploadProgress: onProgress,
+    });
+    return response.data;
+  },
+
+  downloadInventoryTemplate: async () => {
+    const response = await axiosInstance.get('/api/pharmacy/inventory/template', {
+      responseType: 'blob',
+    });
+    const url = URL.createObjectURL(new Blob([response.data], { type: 'text/csv' }));
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = 'inventory-template.csv';
+    link.click();
+    URL.revokeObjectURL(url);
+  },
+
+  // ======== Recommendation API ========
+  getRecommendations: async (params = {}) => {
+    const response = await axiosInstance.get('/api/account/pharmacy/public/recommendations', { params });
+    return response.data || [];
+  },
+
+  // ======== Work Items API ========
+  getWorkItemsByPharmacy: async (pharmacyId) => {
+    const response = await axiosInstance.get(`/api/pharmacy-work-items/pharmacy/${pharmacyId}`);
+    return response.data || [];
+  },
+
+  // ======== Revision & Quote update ========
+  requestOrderRevision: async (orderId, payload) => {
+    const response = await axiosInstance.post(`/api/pharmacy-orders/${orderId}/request-revision`, payload);
+    return response.data;
+  },
+
+  updateOrderQuote: async (orderId, payload) => {
+    const response = await axiosInstance.put(`/api/pharmacy-orders/${orderId}/quote`, payload);
     return response.data;
   },
 };

@@ -476,6 +476,25 @@ export const scheduleApi = {
       params: { pageNumber, pageSize, adminUserId, doctorId, actionType, startTime, endTime }
     });
     return response.data;
+  },
+
+  getScheduleChangeRequests: async () => {
+    const response = await adminApi.get('/schedule/change-requests');
+    return response.data || [];
+  },
+
+  approveScheduleChangeRequest: async (requestId, adminReason = '') => {
+    const response = await adminApi.post(`/schedule/change-requests/${requestId}/approve`, null, {
+      params: { adminReason }
+    });
+    return response.data;
+  },
+
+  rejectScheduleChangeRequest: async (requestId, adminReason = '') => {
+    const response = await adminApi.post(`/schedule/change-requests/${requestId}/reject`, null, {
+      params: { adminReason }
+    });
+    return response.data;
   }
 };
 

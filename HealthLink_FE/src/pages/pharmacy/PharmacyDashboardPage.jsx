@@ -7,7 +7,7 @@ import { getPharmacyProfile } from '../../api/account';
 import pharmacyApi from '../../api/pharmacyApi';
 import { paymentApi } from '../../api/paymentApi';
 import { useAuth } from '../../context/AuthContext';
-import PharmacyConsultationsTab from '../../components/pharmacy/PharmacyConsultationsTab';
+import PharmacyInventoryTab from '../../components/pharmacy/PharmacyInventoryTab';
 import PharmacyOverviewTab from '../../components/pharmacy/PharmacyOverviewTab';
 import { Avatar, getProfileName, navItems, routeByTab } from '../../components/pharmacy/PharmacyShared';
 import PharmacyOrdersTab from '../../components/pharmacy/PharmacyOrdersTab';
@@ -24,6 +24,7 @@ export default function PharmacyDashboardPage() {
   const [profile, setProfile] = useState(null);
   const [orders, setOrders] = useState([]);
   const [requests, setRequests] = useState([]);
+  const [workItems, setWorkItems] = useState([]);
   const [balance, setBalance] = useState(null);
   const [transactions, setTransactions] = useState([]);
   const [settlements, setSettlements] = useState([]);
@@ -32,8 +33,8 @@ export default function PharmacyDashboardPage() {
   const pharmacyId = profile?.pharmacyId || currentUserId;
 
   const activeTab = useMemo(() => {
+    if (location.pathname.includes('/inventory')) return 'inventory';
     if (location.pathname.includes('/orders')) return 'orders';
-    if (location.pathname.includes('/consultations')) return 'consultations';
     if (location.pathname.includes('/wallet')) return 'wallet';
     if (location.pathname.includes('/profile')) return 'profile';
     return 'overview';
@@ -47,9 +48,10 @@ export default function PharmacyDashboardPage() {
       const resolvedPharmacyId = profileData?.pharmacyId || currentUserId;
       setProfile(profileData);
 
-      const [orderData, requestData, balanceData, transactionData, settlementData] = await Promise.all([
+      const [orderData, requestData, workItemData, balanceData, transactionData, settlementData] = await Promise.all([
         resolvedPharmacyId ? pharmacyApi.getOrdersByPharmacy(resolvedPharmacyId) : Promise.resolve([]),
         resolvedPharmacyId ? pharmacyApi.getConsultationRequestsByPharmacy(resolvedPharmacyId) : Promise.resolve([]),
+        resolvedPharmacyId ? pharmacyApi.getWorkItemsByPharmacy(resolvedPharmacyId) : Promise.resolve([]),
         resolvedPharmacyId ? paymentApi.getPartnerBalance(resolvedPharmacyId, 'PHARMACY') : Promise.resolve(null),
         resolvedPharmacyId ? paymentApi.getPartnerTransactions(resolvedPharmacyId) : Promise.resolve([]),
         resolvedPharmacyId ? paymentApi.getPartnerSettlements(resolvedPharmacyId) : Promise.resolve([]),
@@ -57,6 +59,7 @@ export default function PharmacyDashboardPage() {
 
       setOrders(Array.isArray(orderData) ? orderData : []);
       setRequests(Array.isArray(requestData) ? requestData : []);
+      setWorkItems(Array.isArray(workItemData) ? workItemData : []);
       setBalance(balanceData);
       setTransactions(Array.isArray(transactionData) ? transactionData : []);
       setSettlements(Array.isArray(settlementData) ? settlementData : []);
@@ -78,6 +81,7 @@ export default function PharmacyDashboardPage() {
     profile,
     orders,
     requests,
+    workItems,
     balance,
     transactions,
     settlements,
@@ -171,8 +175,8 @@ export default function PharmacyDashboardPage() {
           ) : (
             <>
               {activeTab === 'overview' && <PharmacyOverviewTab {...shellProps} />}
+              {activeTab === 'inventory' && <PharmacyInventoryTab {...shellProps} />}
               {activeTab === 'orders' && <PharmacyOrdersTab {...shellProps} />}
-              {activeTab === 'consultations' && <PharmacyConsultationsTab {...shellProps} />}
               {activeTab === 'wallet' && <PharmacyWalletTab {...shellProps} />}
               {activeTab === 'profile' && <PharmacyProfileTab token={token} logout={logout} {...shellProps} />}
             </>

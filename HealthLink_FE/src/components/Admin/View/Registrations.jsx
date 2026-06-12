@@ -327,6 +327,21 @@ export default function Registrations() {
                 <option value="newest">Newest First</option>
                 <option value="oldest">Oldest First</option>
               </select>
+
+              {/* Clear Filter Button */}
+              {(filters.type || filters.status || filters.aiStatus) && (
+                <button
+                  className="btn-clear-filter"
+                  onClick={() => {
+                    setFilters({ type: '', status: '', aiStatus: '', sortBy: 'newest' });
+                    setPagination({ ...pagination, pageNumber: 1 });
+                  }}
+                  title="Clear all filters"
+                >
+                  <i className="bi bi-x-circle"></i>
+                  Clear
+                </button>
+              )}
             </div>
           </div>
 

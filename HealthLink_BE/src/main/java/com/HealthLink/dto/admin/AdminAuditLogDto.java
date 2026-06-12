@@ -44,6 +44,7 @@ public class AdminAuditLogDto {
             case "USER_STATUS_CHANGED" -> "Status Changed";
             case "REGISTRATION_APPROVED" -> "Approved";
             case "REGISTRATION_REJECTED" -> "Rejected";
+            case "AI_REJECTED" -> "AI Auto-Rejected";
             case "COMMISSION_CONFIG_CHANGED" -> "Config Changed";
             case "COMMISSION_PARTNER_CHANGED" -> "Partner Rate Changed";
             case "COMMISSION_PARTNER_RESET" -> "Partner Rate Reset";

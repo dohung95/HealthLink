@@ -3,9 +3,11 @@ package com.HealthLink.controller.admin;
 import com.HealthLink.dto.admin.AdminDoctorScheduleDto;
 import com.HealthLink.dto.admin.AdminScheduleExceptionRequest;
 import com.HealthLink.dto.admin.schedule.AdminAuditLogPageResponse;
+import com.HealthLink.dto.doctor.schedule.DoctorScheduleChangeRequestResponse;
 import com.HealthLink.entity.User;
 import com.HealthLink.repository.auth.UserRepository;
 import com.HealthLink.service.admin.AdminScheduleService;
+import com.HealthLink.service.doctor.DoctorScheduleChangeRequestService;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.validation.Valid;
 import org.springframework.format.annotation.DateTimeFormat;
@@ -17,6 +19,7 @@ import org.springframework.web.bind.annotation.*;
 
 import java.time.LocalDate;
 import java.time.LocalDateTime;
+import java.util.List;
 import java.util.Map;
 
 @CrossOrigin(origins = "http://localhost:63527")
@@ -26,10 +29,14 @@ import java.util.Map;
 public class AdminScheduleController {
 
     private final AdminScheduleService adminScheduleService;
+    private final DoctorScheduleChangeRequestService changeRequestService;
     private final UserRepository userRepository;
 
-    public AdminScheduleController(AdminScheduleService adminScheduleService, UserRepository userRepository) {
+    public AdminScheduleController(AdminScheduleService adminScheduleService,
+                                   DoctorScheduleChangeRequestService changeRequestService,
+                                   UserRepository userRepository) {
         this.adminScheduleService = adminScheduleService;
+        this.changeRequestService = changeRequestService;
         this.userRepository = userRepository;
     }
 
@@ -85,6 +92,31 @@ public class AdminScheduleController {
         String adminUserId = resolveUserId(userDetails);
         adminScheduleService.deleteScheduleException(exceptionId, adminUserId, httpRequest);
         return ResponseEntity.ok(Map.of("message", "Schedule exception deleted successfully"));
+    }
+
+    @GetMapping("/change-requests")
+    public ResponseEntity<List<DoctorScheduleChangeRequestResponse>> getChangeRequests() {
+        return ResponseEntity.ok(changeRequestService.getAllChangeRequests());
+    }
+
+    @PostMapping("/change-requests/{requestId}/approve")
+    public ResponseEntity<DoctorScheduleChangeRequestResponse> approveChangeRequest(
+            @PathVariable Integer requestId,
+            @RequestParam(required = false) String adminReason,
+            @AuthenticationPrincipal UserDetails userDetails) {
+
+        String adminUserId = resolveUserId(userDetails);
+        return ResponseEntity.ok(changeRequestService.approveChangeRequest(requestId, adminUserId, adminReason));
+    }
+
+    @PostMapping("/change-requests/{requestId}/reject")
+    public ResponseEntity<DoctorScheduleChangeRequestResponse> rejectChangeRequest(
+            @PathVariable Integer requestId,
+            @RequestParam(required = false) String adminReason,
+            @AuthenticationPrincipal UserDetails userDetails) {
+
+        String adminUserId = resolveUserId(userDetails);
+        return ResponseEntity.ok(changeRequestService.rejectChangeRequest(requestId, adminUserId, adminReason));
     }
 
     /**

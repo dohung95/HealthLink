@@ -3,6 +3,10 @@ import 'package:provider/provider.dart';
 import 'package:file_picker/file_picker.dart';
 import '../../providers/auth_provider.dart';
 import '../../services/booking/booking_service.dart';
+import '../../config/api_config.dart';
+import 'dart:async';
+import 'package:app_links/app_links.dart';
+import 'package:url_launcher/url_launcher.dart';
 
 class BookingScreen extends StatefulWidget {
   const BookingScreen({super.key});
@@ -19,6 +23,7 @@ class _BookingScreenState extends State<BookingScreen> {
     'Date & Time',
     'Medical Info',
     'Confirm',
+    'Payment',
   ];
   static const _fallbackTypes = ['Video', 'Chat', 'Audio', 'Offline'];
 
@@ -47,16 +52,29 @@ class _BookingScreenState extends State<BookingScreen> {
   List<String> _specialties = [];
   List<BookingDoctor> _doctors = [];
   List<BookingSlot> _slots = [];
+  List<DoctorWorkingSchedule> _doctorSchedules = [];
   List<_BookingDocumentDraft> _documents = [];
+
+  final AppLinks _appLinks = AppLinks();
+  StreamSubscription<Uri>? _paypalLinkSub;
+
+  String? _pendingPayPalOrderId;
+  String? _pendingAppointmentTime;
 
   @override
   void initState() {
     super.initState();
+
     WidgetsBinding.instance.addPostFrameCallback((_) => _loadInitialData());
+
+    _paypalLinkSub = _appLinks.uriLinkStream.listen((uri) {
+      _handlePayPalDeepLink(uri);
+    });
   }
 
   @override
   void dispose() {
+    _paypalLinkSub?.cancel();
     _releaseHoldSilently();
     _searchCtrl.dispose();
     _symptomsCtrl.dispose();
@@ -120,7 +138,8 @@ class _BookingScreenState extends State<BookingScreen> {
   }
 
   Future<void> _loadSlots() async {
-    if (_service == null || _selectedDoctor == null || _selectedType == null) return;
+    if (_service == null || _selectedDoctor == null || _selectedType == null)
+      return;
 
     setState(() {
       _loadingSlots = true;
@@ -148,22 +167,66 @@ class _BookingScreenState extends State<BookingScreen> {
   }
 
   Future<void> _selectSlot(BookingSlot slot) async {
-    if (!slot.selectable || _service == null || _selectedDoctor == null || _selectedType == null) return;
+    if (_service == null || _selectedDoctor == null || _selectedType == null) {
+      return;
+    }
+
+    final isSelectedSlot = _selectedSlot?.startTime == slot.startTime;
+
+    // Chỉ chặn slot không chọn được nếu nó KHÔNG PHẢI slot đang được chọn.
+    // Nếu là slot đang chọn thì vẫn cho bấm lại để hủy chọn.
+    if (!slot.selectable && !isSelectedSlot) {
+      return;
+    }
 
     final auth = context.read<AuthProvider>();
     final patientId = auth.userId;
+
     if (patientId == null || patientId.isEmpty) {
-      _snack('Can not find patient information. Please login again.', error: true);
+      _snack(
+        'Can not find patient information. Please login again.',
+        error: true,
+      );
       return;
     }
 
-    if (_selectedSlot?.startTime == slot.startTime) {
+    // Bấm lại chính slot đang chọn => release hold và trả UI về available.
+    if (isSelectedSlot) {
+      final oldStartTime = slot.startTime;
+
       await _releaseHoldSilently();
-      _markSlotAvailable(slot.startTime);
+
+      if (!mounted) return;
+
+      _markSlotAvailable(oldStartTime);
       return;
     }
+
+    // Nếu đang có slot cũ, release hold cũ trước.
+    final previousStartTime = _selectedSlot?.startTime;
 
     await _releaseHoldSilently();
+
+    if (!mounted) return;
+
+    // Trả slot cũ về trạng thái available trên UI.
+    if (previousStartTime != null) {
+      setState(() {
+        _slots = _slots.map((item) {
+          if (item.startTime == previousStartTime) {
+            return item.copyWith(
+              status: 'AVAILABLE',
+              selectable: true,
+              clearHold: true,
+            );
+          }
+
+          return item;
+        }).toList();
+
+        _selectedSlot = null;
+      });
+    }
 
     try {
       final hold = await _service!.holdSlot(
@@ -172,14 +235,27 @@ class _BookingScreenState extends State<BookingScreen> {
         appointmentTime: _appointmentDateTime(_selectedDate, slot.startTime),
         consultationType: _selectedType!,
       );
+
       if (!mounted) return;
+
       setState(() {
-        _selectedSlot = slot.copyWith(status: 'HELD', selectable: false, holdId: hold.holdId);
-        _slots = _slots
-            .map((item) => item.startTime == slot.startTime
-                ? item.copyWith(status: 'HELD', selectable: false, holdId: hold.holdId)
-                : item)
-            .toList();
+        _selectedSlot = slot.copyWith(
+          status: 'HELD',
+          selectable: false,
+          holdId: hold.holdId,
+        );
+
+        _slots = _slots.map((item) {
+          if (item.startTime == slot.startTime) {
+            return item.copyWith(
+              status: 'HELD',
+              selectable: false,
+              holdId: hold.holdId,
+            );
+          }
+
+          return item;
+        }).toList();
       });
     } catch (e) {
       _snack(_cleanError(e), error: true);
@@ -217,9 +293,15 @@ class _BookingScreenState extends State<BookingScreen> {
   void _markSlotAvailable(String startTime) {
     setState(() {
       _slots = _slots
-          .map((item) => item.startTime == startTime
-              ? item.copyWith(status: 'AVAILABLE', selectable: true, clearHold: true)
-              : item)
+          .map(
+            (item) => item.startTime == startTime
+                ? item.copyWith(
+                    status: 'AVAILABLE',
+                    selectable: true,
+                    clearHold: true,
+                  )
+                : item,
+          )
           .toList();
       _selectedSlot = null;
     });
@@ -241,14 +323,19 @@ class _BookingScreenState extends State<BookingScreen> {
       if (mounted) _markSlotAvailable(start);
     }
 
-    if (mounted) setState(() => _step = (_step - 1).clamp(0, _steps.length - 1).toInt());
+    if (mounted)
+      setState(() => _step = (_step - 1).clamp(0, _steps.length - 1).toInt());
   }
 
   bool _validateCurrentStep() {
-    if (_step == 0 && _selectedSpecialty == null) return _warn('Please select a specialty.');
-    if (_step == 1 && _selectedDoctor == null) return _warn('Please select a doctor.');
-    if (_step == 2 && _selectedType == null) return _warn('Please select a consultation type.');
-    if (_step == 3 && _selectedSlot == null) return _warn('Please select an available time slot.');
+    if (_step == 0 && _selectedSpecialty == null)
+      return _warn('Please select a specialty.');
+    if (_step == 1 && _selectedDoctor == null)
+      return _warn('Please select a doctor.');
+    if (_step == 2 && _selectedType == null)
+      return _warn('Please select a consultation type.');
+    if (_step == 3 && _selectedSlot == null)
+      return _warn('Please select an available time slot.');
     if (_step == 4 && _documents.any((item) => item.documentDate == null)) {
       return _warn('Please select Date Performed for all uploaded documents.');
     }
@@ -260,47 +347,95 @@ class _BookingScreenState extends State<BookingScreen> {
     return false;
   }
 
-  Future<void> _submit() async {
-    if (_service == null || _selectedDoctor == null || _selectedType == null || _selectedSlot == null) return;
+  Future<void> _handlePayPalDeepLink(Uri uri) async {
+    if (uri.scheme != 'healthlink') return;
+
+    if (uri.host == 'paypal-cancel') {
+      _snack('Payment was cancelled.');
+      setState(() {
+        _pendingPayPalOrderId = null;
+        _pendingAppointmentTime = null;
+      });
+      return;
+    }
+
+    if (uri.host != 'paypal-success') return;
+
+    if (_pendingPayPalOrderId == null) {
+      _snack('Can not find pending PayPal order.', error: true);
+      return;
+    }
+
+    await _capturePendingPayPalPayment();
+  }
+
+  Future<void> _capturePendingPayPalPayment() async {
+    if (_service == null ||
+        _selectedDoctor == null ||
+        _selectedType == null ||
+        _selectedSlot == null ||
+        _pendingPayPalOrderId == null) {
+      return;
+    }
 
     final patientId = context.read<AuthProvider>().userId;
+
     if (patientId == null || patientId.isEmpty) {
       _snack('Can not find patient information. Please login again.', error: true);
       return;
     }
 
     setState(() => _submitting = true);
+
     try {
-      final appointment = await _service!.createAppointment(
+      final appointmentTime = _pendingAppointmentTime ??
+          _appointmentDateTime(_selectedDate, _selectedSlot!.startTime);
+
+      final invoice = await _service!.captureAppointmentPayPalPayment(
+        orderId: _pendingPayPalOrderId!,
         patientId: patientId,
         doctorId: _selectedDoctor!.doctorId,
-        appointmentTime: _appointmentDateTime(_selectedDate, _selectedSlot!.startTime),
+        appointmentTime: appointmentTime,
         consultationType: _selectedType!,
         symptoms: _symptomsCtrl.text.trim(),
         notes: _notesCtrl.text.trim(),
       );
+
       if (!mounted) return;
-      final id = appointment['appointmentId'] ?? appointment['appointmentID'];
+
+      final id = invoice['appointmentId'] ?? invoice['appointmentID'];
       final appointmentId = id is int ? id : int.tryParse(id?.toString() ?? '');
+
+      if (appointmentId == null) {
+        throw Exception('Payment succeeded but appointment was not returned.');
+      }
+
+      final rejectedDocuments = <String>[];
 
       if (_documents.isNotEmpty) {
         final uploadedByRecord = <int, List<int>>{};
 
         for (final item in _documents) {
-          final uploaded = await _service!.uploadDocumentAutoRecord(
-            patientId: patientId,
-            file: item.file,
-            category: 'Consultation-Notes',
-            description: _symptomsCtrl.text.trim(),
-            documentDate: _formatDate(item.documentDate!),
-          );
+          try {
+            final uploaded = await _service!.uploadDocumentAutoRecord(
+              patientId: patientId,
+              file: item.file,
+              category: 'Consultation-Notes',
+              description: _symptomsCtrl.text.trim(),
+              documentDate: _formatDate(item.documentDate!),
+            );
 
-          if (uploaded.healthRecordId == 0 || uploaded.documentId == 0) {
-            continue;
+            if (uploaded.healthRecordId == 0 || uploaded.documentId == 0) {
+              continue;
+            }
+
+            uploadedByRecord.putIfAbsent(uploaded.healthRecordId, () => []);
+            uploadedByRecord[uploaded.healthRecordId]!.add(uploaded.documentId);
+          } catch (e) {
+            rejectedDocuments.add(
+              _friendlyDocumentUploadError(item.file.name, e),
+            );
           }
-
-          uploadedByRecord.putIfAbsent(uploaded.healthRecordId, () => []);
-          uploadedByRecord[uploaded.healthRecordId]!.add(uploaded.documentId);
         }
 
         for (final entry in uploadedByRecord.entries) {
@@ -314,12 +449,89 @@ class _BookingScreenState extends State<BookingScreen> {
         }
       }
 
-      await _showSuccess(id?.toString() ?? '');
+      if (rejectedDocuments.isNotEmpty) {
+        await _showDocumentModerationWarning(rejectedDocuments);
+      }
+
+      await _showSuccess(appointmentId.toString());
+
+      setState(() {
+        _pendingPayPalOrderId = null;
+        _pendingAppointmentTime = null;
+      });
+
       _reset();
     } catch (e) {
       _snack(_cleanError(e), error: true);
     } finally {
-      if (mounted) setState(() => _submitting = false);
+      if (mounted) {
+        setState(() => _submitting = false);
+      }
+    }
+  }
+
+  Future<void> _submit() async {
+    if (_service == null ||
+        _selectedDoctor == null ||
+        _selectedType == null ||
+        _selectedSlot == null) {
+      return;
+    }
+
+    final patientId = context.read<AuthProvider>().userId;
+
+    if (patientId == null || patientId.isEmpty) {
+      _snack('Can not find patient information. Please login again.', error: true);
+      return;
+    }
+
+    final appointmentTime = _appointmentDateTime(
+      _selectedDate,
+      _selectedSlot!.startTime,
+    );
+
+    setState(() => _submitting = true);
+
+    try {
+      final order = await _service!.createAppointmentPayPalOrder(
+        patientId: patientId,
+        doctorId: _selectedDoctor!.doctorId,
+        appointmentTime: appointmentTime,
+        consultationType: _selectedType!,
+        symptoms: _symptomsCtrl.text.trim(),
+        notes: _notesCtrl.text.trim(),
+      );
+
+      final orderId = order['orderId']?.toString();
+      final approvalUrl = order['approvalUrl']?.toString();
+
+      if (orderId == null || orderId.isEmpty) {
+        throw Exception('Can not create PayPal order.');
+      }
+
+      if (approvalUrl == null || approvalUrl.isEmpty) {
+        throw Exception('Can not open PayPal approval page.');
+      }
+
+      setState(() {
+        _pendingPayPalOrderId = orderId;
+        _pendingAppointmentTime = appointmentTime;
+      });
+
+      final opened = await launchUrl(
+        Uri.parse(approvalUrl),
+        mode: LaunchMode.externalApplication,
+      );
+
+      if (!opened) {
+        throw Exception('Can not open PayPal.');
+      }
+    } catch (e) {
+      _snack(_cleanError(e), error: true);
+    } finally {
+      if (mounted) {
+        setState(() => _submitting = false);
+      }
     }
   }
 
@@ -382,124 +594,151 @@ class _BookingScreenState extends State<BookingScreen> {
   }
 
   Widget _authWall(ColorScheme colors) => Scaffold(
-        backgroundColor: colors.surface,
-        body: Center(
-          child: Card(
-            color: colors.surfaceContainerHighest,
-            child: Padding(
-              padding: const EdgeInsets.all(24),
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  Icon(Icons.lock_outline, color: colors.primary, size: 48),
-                  const SizedBox(height: 12),
-                  const Text('Login required', style: TextStyle(fontSize: 20, fontWeight: FontWeight.w900)),
-                  const SizedBox(height: 8),
-                  Text('Please login before booking an appointment.', style: TextStyle(color: colors.onSurfaceVariant)),
-                ],
-              ),
-            ),
-          ),
-        ),
-      );
-
-  Widget _header(ColorScheme colors) => Container(
-        width: double.infinity,
-        padding: const EdgeInsets.fromLTRB(20, 20, 20, 16),
-        decoration: BoxDecoration(
-          color: colors.surfaceVariant.withValues(alpha: 0.55),
-          border: Border(bottom: BorderSide(color: colors.outlineVariant)),
-        ),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text(
-              'Book an appointment',
-              style: Theme.of(context).textTheme.headlineSmall?.copyWith(fontWeight: FontWeight.w900),
-            ),
-            const SizedBox(height: 6),
-            Text('Select a specialty, doctor and time that suits you.', style: TextStyle(color: colors.onSurfaceVariant)),
-          ],
-        ),
-      );
-
-  Widget _stepper(ColorScheme colors) => SizedBox(
-        height: 76,
-        child: ListView.separated(
-          scrollDirection: Axis.horizontal,
-          itemCount: _steps.length,
-          separatorBuilder: (_, __) => const SizedBox(width: 8),
-          itemBuilder: (_, index) {
-            final active = index == _step;
-            final done = index < _step;
-            return Container(
-              width: 110,
-              padding: const EdgeInsets.all(10),
-              decoration: BoxDecoration(
-                color: active || done ? colors.primary : colors.surfaceContainerHighest,
-                borderRadius: BorderRadius.circular(18),
-                border: Border.all(color: active || done ? colors.primary : colors.outlineVariant),
-              ),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Icon(done ? Icons.check_circle : Icons.circle_outlined,
-                      color: active || done ? colors.onPrimary : colors.outline),
-                  const Spacer(),
-                  Text(
-                    _steps[index],
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                    style: TextStyle(
-                      color: active || done ? colors.onPrimary : colors.onSurfaceVariant,
-                      fontWeight: FontWeight.w800,
-                      fontSize: 12,
-                    ),
-                  ),
-                ],
-              ),
-            );
-          },
-        ),
-      );
-
-  Widget _card(ColorScheme colors) => Card(
-        elevation: 0,
-        color: colors.surfaceContainerLowest,
-        shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(24),
-          side: BorderSide(color: colors.outlineVariant),
-        ),
+    backgroundColor: colors.surface,
+    body: Center(
+      child: Card(
+        color: colors.surfaceContainerHighest,
         child: Padding(
-          padding: const EdgeInsets.all(20),
+          padding: const EdgeInsets.all(24),
           child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
+            mainAxisSize: MainAxisSize.min,
             children: [
-              _stepContent(colors),
-              const SizedBox(height: 24),
-              Row(
-                children: [
-                  Expanded(
-                    child: OutlinedButton(
-                      onPressed: _step == 0 || _submitting ? null : _back,
-                      child: const Text('Back'),
-                    ),
-                  ),
-                  const SizedBox(width: 12),
-                  Expanded(
-                    child: FilledButton(
-                      onPressed: _submitting ? null : (_step == _steps.length - 1 ? _submit : _next),
-                      child: _submitting
-                          ? const SizedBox(width: 18, height: 18, child: CircularProgressIndicator(strokeWidth: 2))
-                          : Text(_step == _steps.length - 1 ? 'Confirm booking' : 'Next'),
-                    ),
-                  ),
-                ],
+              Icon(Icons.lock_outline, color: colors.primary, size: 48),
+              const SizedBox(height: 12),
+              const Text(
+                'Login required',
+                style: TextStyle(fontSize: 20, fontWeight: FontWeight.w900),
+              ),
+              const SizedBox(height: 8),
+              Text(
+                'Please login before booking an appointment.',
+                style: TextStyle(color: colors.onSurfaceVariant),
               ),
             ],
           ),
         ),
-      );
+      ),
+    ),
+  );
+
+  Widget _header(ColorScheme colors) => Container(
+    width: double.infinity,
+    padding: const EdgeInsets.fromLTRB(20, 20, 20, 16),
+    decoration: BoxDecoration(
+      color: colors.surfaceVariant.withValues(alpha: 0.55),
+      border: Border(bottom: BorderSide(color: colors.outlineVariant)),
+    ),
+    child: Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          'Book an appointment',
+          style: Theme.of(
+            context,
+          ).textTheme.headlineSmall?.copyWith(fontWeight: FontWeight.w900),
+        ),
+        const SizedBox(height: 6),
+        Text(
+          'Select a specialty, doctor and time that suits you.',
+          style: TextStyle(color: colors.onSurfaceVariant),
+        ),
+      ],
+    ),
+  );
+
+  Widget _stepper(ColorScheme colors) => SizedBox(
+    height: 76,
+    child: ListView.separated(
+      scrollDirection: Axis.horizontal,
+      itemCount: _steps.length,
+      separatorBuilder: (_, __) => const SizedBox(width: 8),
+      itemBuilder: (_, index) {
+        final active = index == _step;
+        final done = index < _step;
+        return Container(
+          width: 110,
+          padding: const EdgeInsets.all(10),
+          decoration: BoxDecoration(
+            color: active || done
+                ? colors.primary
+                : colors.surfaceContainerHighest,
+            borderRadius: BorderRadius.circular(18),
+            border: Border.all(
+              color: active || done ? colors.primary : colors.outlineVariant,
+            ),
+          ),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Icon(
+                done ? Icons.check_circle : Icons.circle_outlined,
+                color: active || done ? colors.onPrimary : colors.outline,
+              ),
+              const Spacer(),
+              Text(
+                _steps[index],
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: TextStyle(
+                  color: active || done
+                      ? colors.onPrimary
+                      : colors.onSurfaceVariant,
+                  fontWeight: FontWeight.w800,
+                  fontSize: 12,
+                ),
+              ),
+            ],
+          ),
+        );
+      },
+    ),
+  );
+
+  Widget _card(ColorScheme colors) => Card(
+    elevation: 0,
+    color: colors.surfaceContainerLowest,
+    shape: RoundedRectangleBorder(
+      borderRadius: BorderRadius.circular(24),
+      side: BorderSide(color: colors.outlineVariant),
+    ),
+    child: Padding(
+      padding: const EdgeInsets.all(20),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          _stepContent(colors),
+          const SizedBox(height: 24),
+          Row(
+            children: [
+              Expanded(
+                child: OutlinedButton(
+                  onPressed: _step == 0 || _submitting ? null : _back,
+                  child: const Text('Back'),
+                ),
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: FilledButton(
+                  onPressed: _submitting
+                      ? null
+                      : (_step == _steps.length - 1 ? _submit : _next),
+                  child: _submitting
+                      ? const SizedBox(
+                          width: 18,
+                          height: 18,
+                          child: CircularProgressIndicator(strokeWidth: 2),
+                        )
+                      : Text(
+                          _step == _steps.length - 1 ? 'Pay & Confirm' : 'Next',
+                        ),
+                ),
+              ),
+            ],
+          ),
+        ],
+      ),
+    ),
+  );
 
   Widget _stepContent(ColorScheme colors) {
     switch (_step) {
@@ -513,8 +752,12 @@ class _BookingScreenState extends State<BookingScreen> {
         return _dateTimeStep(colors);
       case 4:
         return _medicalInfoStep(colors);
-      default:
+      case 5:
         return _confirmStep(colors);
+      case 6:
+        return _paymentStep(colors);
+      default:
+        return _specialtyStep(colors);
     }
   }
 
@@ -523,7 +766,12 @@ class _BookingScreenState extends State<BookingScreen> {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Text(title, style: Theme.of(context).textTheme.titleLarge?.copyWith(fontWeight: FontWeight.w900)),
+        Text(
+          title,
+          style: Theme.of(
+            context,
+          ).textTheme.titleLarge?.copyWith(fontWeight: FontWeight.w900),
+        ),
         const SizedBox(height: 6),
         Text(subtitle, style: TextStyle(color: colors.onSurfaceVariant)),
       ],
@@ -531,83 +779,105 @@ class _BookingScreenState extends State<BookingScreen> {
   }
 
   Widget _specialtyStep(ColorScheme colors) => Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          _title('Choose a specialty', 'Start by selecting the care area you need.'),
-          const SizedBox(height: 16),
-          Wrap(
-            spacing: 10,
-            runSpacing: 10,
-            children: _specialties.map((name) {
-              return ChoiceChip(
-                label: Text(name),
-                selected: _selectedSpecialty == name,
-                onSelected: (_) async {
-                  await _releaseHoldSilently();
-                  setState(() {
-                    _selectedSpecialty = name;
-                    _selectedDoctor = null;
-                    _selectedType = null;
-                    _selectedSlot = null;
-                    _slots = [];
-                  });
-                  await _loadDoctors(reset: true);
-                },
-              );
-            }).toList(),
-          ),
-        ],
-      );
+    crossAxisAlignment: CrossAxisAlignment.start,
+    children: [
+      _title(
+        'Choose a specialty',
+        'Start by selecting the care area you need.',
+      ),
+      const SizedBox(height: 16),
+      Wrap(
+        spacing: 10,
+        runSpacing: 10,
+        children: _specialties.map((name) {
+          return ChoiceChip(
+            label: Text(name),
+            selected: _selectedSpecialty == name,
+            onSelected: (_) async {
+              await _releaseHoldSilently();
+              setState(() {
+                _selectedSpecialty = name;
+                _selectedDoctor = null;
+                _selectedType = null;
+                _selectedSlot = null;
+                _slots = [];
+              });
+              await _loadDoctors(reset: true);
+            },
+          );
+        }).toList(),
+      ),
+    ],
+  );
 
   Widget _doctorStep(ColorScheme colors) => Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          _title('Choose a doctor', 'Only doctors matching your selected specialty are shown.'),
-          const SizedBox(height: 14),
-          TextField(
-            controller: _searchCtrl,
-            decoration: InputDecoration(
-              hintText: 'Search doctor by name',
-              prefixIcon: const Icon(Icons.search),
-              suffixIcon: IconButton(icon: const Icon(Icons.tune), onPressed: () => _loadDoctors(reset: true)),
-              border: OutlineInputBorder(borderRadius: BorderRadius.circular(18)),
-            ),
-            onSubmitted: (_) => _loadDoctors(reset: true),
+    crossAxisAlignment: CrossAxisAlignment.start,
+    children: [
+      _title(
+        'Choose a doctor',
+        'Only doctors matching your selected specialty are shown.',
+      ),
+      const SizedBox(height: 14),
+      TextField(
+        controller: _searchCtrl,
+        decoration: InputDecoration(
+          hintText: 'Search doctor by name',
+          prefixIcon: const Icon(Icons.search),
+          suffixIcon: IconButton(
+            icon: const Icon(Icons.tune),
+            onPressed: () => _loadDoctors(reset: true),
           ),
-          const SizedBox(height: 16),
-          if (_loadingDoctors)
-            const Center(child: Padding(padding: EdgeInsets.all(24), child: CircularProgressIndicator()))
-          else if (_doctors.isEmpty)
-            _empty(colors, Icons.person_search, 'No doctors found for this specialty.')
-          else
-            Column(children: _doctors.map((doctor) => _doctorCard(colors, doctor)).toList()),
-          if (_totalDoctorPages > 1)
-            Row(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                IconButton(
-                  onPressed: _doctorPage > 1
-                      ? () {
-                          _doctorPage--;
-                          _loadDoctors();
-                        }
-                      : null,
-                  icon: const Icon(Icons.chevron_left),
-                ),
-                Text('Page $_doctorPage of $_totalDoctorPages'),
-                IconButton(
-                  onPressed: _doctorPage < _totalDoctorPages
-                      ? () {
-                          _doctorPage++;
-                          _loadDoctors();
-                        }
-                      : null,
-                  icon: const Icon(Icons.chevron_right),
-                ),
-              ],
+          border: OutlineInputBorder(borderRadius: BorderRadius.circular(18)),
+        ),
+        onSubmitted: (_) => _loadDoctors(reset: true),
+      ),
+      const SizedBox(height: 16),
+      if (_loadingDoctors)
+        const Center(
+          child: Padding(
+            padding: EdgeInsets.all(24),
+            child: CircularProgressIndicator(),
+          ),
+        )
+      else if (_doctors.isEmpty)
+        _empty(
+          colors,
+          Icons.person_search,
+          'No doctors found for this specialty.',
+        )
+      else
+        Column(
+          children: _doctors
+              .map((doctor) => _doctorCard(colors, doctor))
+              .toList(),
+        ),
+      if (_totalDoctorPages > 1)
+        Row(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            IconButton(
+              onPressed: _doctorPage > 1
+                  ? () {
+                      _doctorPage--;
+                      _loadDoctors();
+                    }
+                  : null,
+              icon: const Icon(Icons.chevron_left),
             ),
-        ],
-      );
+            Text('Page $_doctorPage of $_totalDoctorPages'),
+            IconButton(
+              onPressed: _doctorPage < _totalDoctorPages
+                  ? () {
+                      _doctorPage++;
+                      _loadDoctors();
+                    }
+                  : null,
+              icon: const Icon(Icons.chevron_right),
+            ),
+          ],
+        ),
+    ],
+  );
 
   Widget _doctorCard(ColorScheme colors, BookingDoctor doctor) {
     final selected = _selectedDoctor?.doctorId == doctor.doctorId;
@@ -622,37 +892,88 @@ class _BookingScreenState extends State<BookingScreen> {
             _selectedType = null;
             _selectedSlot = null;
             _slots = [];
+            _doctorSchedules = [];
           });
+
+          try {
+            final schedules = await _service!.getDoctorSchedules(doctor.doctorId);
+
+            if (!mounted) return;
+
+            setState(() {
+              _doctorSchedules = schedules;
+            });
+          } catch (e) {
+            _snack(_cleanError(e), error: true);
+          }
         },
         child: Container(
           padding: const EdgeInsets.all(14),
           decoration: BoxDecoration(
-            color: selected ? colors.primary.withValues(alpha: 0.08) : colors.surfaceContainerLow,
+            color: selected
+                ? colors.primary.withValues(alpha: 0.08)
+                : colors.surfaceContainerLow,
             borderRadius: BorderRadius.circular(20),
-            border: Border.all(color: selected ? colors.primary : colors.outlineVariant, width: selected ? 1.8 : 1),
+            border: Border.all(
+              color: selected ? colors.primary : colors.outlineVariant,
+              width: selected ? 1.8 : 1,
+            ),
           ),
           child: Row(
             children: [
               CircleAvatar(
                 radius: 28,
                 backgroundColor: colors.primary,
-                child: Text(doctor.initials, style: TextStyle(color: colors.onPrimary, fontWeight: FontWeight.w900)),
+                child: Text(
+                  doctor.initials,
+                  style: TextStyle(
+                    color: colors.onPrimary,
+                    fontWeight: FontWeight.w900,
+                  ),
+                ),
               ),
               const SizedBox(width: 14),
               Expanded(
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Text(doctor.fullName, style: const TextStyle(fontWeight: FontWeight.w900, fontSize: 16)),
-                    Text(doctor.specialtyName, style: TextStyle(color: colors.primary, fontWeight: FontWeight.w700)),
+                    Text(
+                      doctor.fullName,
+                      style: const TextStyle(
+                        fontWeight: FontWeight.w900,
+                        fontSize: 16,
+                      ),
+                    ),
+                    Text(
+                      doctor.specialtyName,
+                      style: TextStyle(
+                        color: colors.primary,
+                        fontWeight: FontWeight.w700,
+                      ),
+                    ),
                     const SizedBox(height: 8),
                     Wrap(
                       spacing: 8,
                       runSpacing: 6,
                       children: [
-                        _chip(colors, Icons.star, doctor.averageRating > 0 ? doctor.averageRating.toStringAsFixed(1) : 'New'),
-                        _chip(colors, Icons.work_outline, '${doctor.yearsOfExperience} yrs'),
-                        if (doctor.location.isNotEmpty) _chip(colors, Icons.location_on_outlined, doctor.location),
+                        _chip(
+                          colors,
+                          Icons.star,
+                          doctor.averageRating > 0
+                              ? doctor.averageRating.toStringAsFixed(1)
+                              : 'New',
+                        ),
+                        _chip(
+                          colors,
+                          Icons.work_outline,
+                          '${doctor.yearsOfExperience} yrs',
+                        ),
+                        if (doctor.location.isNotEmpty)
+                          _chip(
+                            colors,
+                            Icons.location_on_outlined,
+                            doctor.location,
+                          ),
                       ],
                     ),
                   ],
@@ -667,17 +988,34 @@ class _BookingScreenState extends State<BookingScreen> {
   }
 
   Widget _typeStep(ColorScheme colors) {
-    final types = _selectedDoctor?.availableTypes.isNotEmpty == true ? _selectedDoctor!.availableTypes : _fallbackTypes;
+    final types = _doctorSchedules
+        .where((item) => item.isBookable)
+        .map((item) => item.consultationType.trim())
+        .where((item) => item.isNotEmpty)
+        .toSet()
+        .toList()
+      ..sort();
+
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        _title('Choose consultation type', 'Pick how you want to meet your doctor.'),
-        const SizedBox(height: 16),
-        Wrap(
-          spacing: 12,
-          runSpacing: 12,
-          children: types.map((type) => _typeCard(colors, type)).toList(),
+        _title(
+          'Choose consultation type',
+          'Pick how you want to meet your doctor.',
         ),
+        const SizedBox(height: 16),
+        if (types.isEmpty)
+          _empty(
+            colors,
+            Icons.event_busy_outlined,
+            'This doctor has no working schedule yet.',
+          )
+        else
+          Wrap(
+            spacing: 12,
+            runSpacing: 12,
+            children: types.map((type) => _typeCard(colors, type)).toList(),
+          ),
       ],
     );
   }
@@ -699,14 +1037,21 @@ class _BookingScreenState extends State<BookingScreen> {
         child: Container(
           padding: const EdgeInsets.all(16),
           decoration: BoxDecoration(
-            color: selected ? colors.primary.withValues(alpha: 0.08) : colors.surfaceContainerLow,
+            color: selected
+                ? colors.primary.withValues(alpha: 0.08)
+                : colors.surfaceContainerLow,
             borderRadius: BorderRadius.circular(18),
-            border: Border.all(color: selected ? colors.primary : colors.outlineVariant),
+            border: Border.all(
+              color: selected ? colors.primary : colors.outlineVariant,
+            ),
           ),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Icon(_typeIcon(type), color: selected ? colors.primary : colors.outline),
+              Icon(
+                _typeIcon(type),
+                color: selected ? colors.primary : colors.outline,
+              ),
               const SizedBox(height: 12),
               Text(type, style: const TextStyle(fontWeight: FontWeight.w900)),
             ],
@@ -717,15 +1062,39 @@ class _BookingScreenState extends State<BookingScreen> {
   }
 
   Widget _dateTimeStep(ColorScheme colors) {
-    final days = List.generate(
+    final allDays = List.generate(
       _bookingWindowDays.clamp(7, 30).toInt(),
-      (i) => _dayStart(DateTime.now()).add(Duration(days: i)),
+          (i) => _dayStart(DateTime.now()).add(Duration(days: i)),
     );
+
+    final workingDayNumbers = _doctorSchedules
+        .where((schedule) {
+      if (!schedule.isBookable) return false;
+      if (_selectedType == null) return false;
+
+      final scheduleType = schedule.consultationType.trim().toLowerCase();
+      final selectedType = _selectedType!.trim().toLowerCase();
+
+      return scheduleType == selectedType;
+    })
+        .map((schedule) => schedule.dayOfWeek)
+        .toSet();
+
+    final days = allDays.where((day) {
+      final backendDay = day.weekday % 7; // Sunday = 0, Monday = 1
+      return workingDayNumbers.contains(backendDay);
+    }).toList();
+
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        _title('Choose date & time', 'Select one available slot. Tap again to cancel your selection.'),
-        const SizedBox(height: 16),
+        _title(
+          'Choose date & time',
+          'Select one available slot. Tap again to cancel your selection.',
+        ),
+
+        SizedBox(height: 16),
+
         SizedBox(
           height: 82,
           child: ListView.separated(
@@ -735,6 +1104,7 @@ class _BookingScreenState extends State<BookingScreen> {
             itemBuilder: (_, index) {
               final day = days[index];
               final selected = _sameDay(day, _selectedDate);
+
               return InkWell(
                 borderRadius: BorderRadius.circular(18),
                 onTap: () async {
@@ -750,15 +1120,32 @@ class _BookingScreenState extends State<BookingScreen> {
                   width: 96,
                   padding: const EdgeInsets.all(12),
                   decoration: BoxDecoration(
-                    color: selected ? colors.primary : colors.surfaceContainerHigh,
+                    color: selected
+                        ? colors.primary
+                        : colors.surfaceContainerHigh,
                     borderRadius: BorderRadius.circular(18),
-                    border: Border.all(color: selected ? colors.primary : colors.outlineVariant),
+                    border: Border.all(
+                      color: selected ? colors.primary : colors.outlineVariant,
+                    ),
                   ),
                   child: Column(
                     mainAxisAlignment: MainAxisAlignment.center,
                     children: [
-                      Text(_dayLabel(day), style: TextStyle(color: selected ? colors.onPrimary : colors.onSurface, fontWeight: FontWeight.w900)),
-                      Text('${day.day}/${day.month}', style: TextStyle(color: selected ? colors.onPrimary : colors.onSurfaceVariant)),
+                      Text(
+                        _dayLabel(day),
+                        style: TextStyle(
+                          color: selected ? colors.onPrimary : colors.onSurface,
+                          fontWeight: FontWeight.w900,
+                        ),
+                      ),
+                      Text(
+                        '${day.day}/${day.month}',
+                        style: TextStyle(
+                          color: selected
+                              ? colors.onPrimary
+                              : colors.onSurfaceVariant,
+                        ),
+                      ),
                     ],
                   ),
                 ),
@@ -766,15 +1153,34 @@ class _BookingScreenState extends State<BookingScreen> {
             },
           ),
         ),
+
         const SizedBox(height: 22),
-        Text('Available slots', style: Theme.of(context).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w900)),
+        Text(
+          'Available slots',
+          style: Theme.of(
+            context,
+          ).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w900),
+        ),
         const SizedBox(height: 12),
         if (_loadingSlots)
-          const Center(child: Padding(padding: EdgeInsets.all(24), child: CircularProgressIndicator()))
+          const Center(
+            child: Padding(
+              padding: EdgeInsets.all(24),
+              child: CircularProgressIndicator(),
+            ),
+          )
         else if (_slots.isEmpty)
-          _empty(colors, Icons.event_busy_outlined, 'No available slots on this day.')
+          _empty(
+            colors,
+            Icons.event_busy_outlined,
+            'No available slots on this day.',
+          )
         else
-          Wrap(spacing: 10, runSpacing: 10, children: _slots.map((slot) => _slotButton(colors, slot)).toList()),
+          Wrap(
+            spacing: 10,
+            runSpacing: 10,
+            children: _slots.map((slot) => _slotButton(colors, slot)).toList(),
+          ),
       ],
     );
   }
@@ -787,219 +1193,403 @@ class _BookingScreenState extends State<BookingScreen> {
       child: FilledButton.tonal(
         onPressed: enabled ? () => _selectSlot(slot) : null,
         style: FilledButton.styleFrom(
-          backgroundColor: selected ? colors.primary : (enabled ? colors.inverseSurface : colors.surfaceContainerHighest),
-          foregroundColor: selected ? colors.onPrimary : (enabled ? colors.onInverseSurface : colors.outline),
+          backgroundColor: selected
+              ? const Color(0xFFFFE6A3)
+              : (enabled
+                    ? colors.inverseSurface
+                    : colors.surfaceContainerHighest),
+          foregroundColor: selected
+              ? const Color(0xFF003B35)
+              : (enabled ? colors.onInverseSurface : colors.outline),
           padding: const EdgeInsets.symmetric(vertical: 14),
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(14),
+          ),
         ),
-        child: Text(_shortTime(slot.startTime), style: const TextStyle(fontWeight: FontWeight.w900)),
+        child: Text(
+          _shortTime(slot.startTime),
+          style: const TextStyle(fontWeight: FontWeight.w900),
+        ),
       ),
     );
   }
 
   Widget _medicalInfoStep(ColorScheme colors) => Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          _title('Symptoms & medical information', 'Describe your condition so the doctor can prepare better.'),
-          const SizedBox(height: 16),
-          TextField(
-            controller: _symptomsCtrl,
-            minLines: 5,
-            maxLines: 8,
-            decoration: InputDecoration(
-              labelText: 'Symptoms / reason for examination *',
-              hintText: 'Example: mild chest pain for the past 2 days...',
-              border: OutlineInputBorder(borderRadius: BorderRadius.circular(18)),
-              alignLabelWithHint: true,
-            ),
-          ),
-          const SizedBox(height: 14),
-          TextField(
-            controller: _notesCtrl,
-            minLines: 3,
-            maxLines: 5,
-            decoration: InputDecoration(
-              labelText: 'Additional notes',
-              hintText: 'Anything else you want the doctor to know.',
-              border: OutlineInputBorder(borderRadius: BorderRadius.circular(18)),
-              alignLabelWithHint: true,
-            ),
-          ),
-          const SizedBox(height: 14),
-          const SizedBox(height: 14),
-          OutlinedButton.icon(
-            onPressed: _pickDocuments,
-            icon: const Icon(Icons.attach_file),
-            label: const Text('Upload medical documents'),
-          ),
+    crossAxisAlignment: CrossAxisAlignment.start,
+    children: [
+      _title(
+        'Symptoms & medical information',
+        'Describe your condition so the doctor can prepare better.',
+      ),
+      const SizedBox(height: 16),
+      TextField(
+        controller: _symptomsCtrl,
+        minLines: 5,
+        maxLines: 8,
+        decoration: InputDecoration(
+          labelText: 'Symptoms / reason for examination *',
+          hintText: 'Example: mild chest pain for the past 2 days...',
+          border: OutlineInputBorder(borderRadius: BorderRadius.circular(18)),
+          alignLabelWithHint: true,
+        ),
+      ),
+      const SizedBox(height: 14),
+      TextField(
+        controller: _notesCtrl,
+        minLines: 3,
+        maxLines: 5,
+        decoration: InputDecoration(
+          labelText: 'Additional notes',
+          hintText: 'Anything else you want the doctor to know.',
+          border: OutlineInputBorder(borderRadius: BorderRadius.circular(18)),
+          alignLabelWithHint: true,
+        ),
+      ),
+      const SizedBox(height: 14),
+      const SizedBox(height: 14),
+      OutlinedButton.icon(
+        onPressed: _pickDocuments,
+        icon: const Icon(Icons.attach_file),
+        label: const Text('Upload medical documents'),
+      ),
 
-          if (_documents.isNotEmpty) ...[
-            const SizedBox(height: 14),
-            Column(
-              children: _documents.asMap().entries.map((entry) {
-                final index = entry.key;
-                final item = entry.value;
+      if (_documents.isNotEmpty) ...[
+        const SizedBox(height: 14),
+        Column(
+          children: _documents.asMap().entries.map((entry) {
+            final index = entry.key;
+            final item = entry.value;
 
-                return Container(
-                  margin: const EdgeInsets.only(bottom: 12),
-                  padding: const EdgeInsets.all(14),
-                  decoration: BoxDecoration(
-                    color: colors.surfaceContainerLow,
-                    borderRadius: BorderRadius.circular(16),
-                    border: Border.all(color: colors.outlineVariant),
-                  ),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
+            return Container(
+              margin: const EdgeInsets.only(bottom: 12),
+              padding: const EdgeInsets.all(14),
+              decoration: BoxDecoration(
+                color: colors.surfaceContainerLow,
+                borderRadius: BorderRadius.circular(16),
+                border: Border.all(color: colors.outlineVariant),
+              ),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Row(
                     children: [
-                      Row(
-                        children: [
-                          const Icon(Icons.description_outlined),
-                          const SizedBox(width: 10),
-                          Expanded(
-                            child: Text(
-                              item.file.name,
-                              style: const TextStyle(fontWeight: FontWeight.w800),
-                              overflow: TextOverflow.ellipsis,
-                            ),
-                          ),
-                          IconButton(
-                            onPressed: () {
-                              setState(() {
-                                _documents.removeAt(index);
-                              });
-                            },
-                            icon: const Icon(Icons.close),
-                          ),
-                        ],
-                      ),
-                      const SizedBox(height: 10),
-                      Text(
-                        'Date Performed *',
-                        style: TextStyle(
-                          color: colors.onSurface,
-                          fontWeight: FontWeight.w800,
+                      const Icon(Icons.description_outlined),
+                      const SizedBox(width: 10),
+                      Expanded(
+                        child: Text(
+                          item.file.name,
+                          style: const TextStyle(fontWeight: FontWeight.w800),
+                          overflow: TextOverflow.ellipsis,
                         ),
                       ),
-                      const SizedBox(height: 6),
-                      OutlinedButton.icon(
-                        onPressed: () async {
-                          final picked = await showDatePicker(
-                            context: context,
-                            initialDate: item.documentDate ?? DateTime.now(),
-                            firstDate: DateTime(1900),
-                            lastDate: DateTime.now(),
-                          );
-
-                          if (picked != null) {
-                            setState(() {
-                              item.documentDate = picked;
-                            });
-                          }
+                      IconButton(
+                        onPressed: () {
+                          setState(() {
+                            _documents.removeAt(index);
+                          });
                         },
-                        icon: const Icon(Icons.calendar_today_outlined),
-                        label: Text(
-                          item.documentDate == null
-                              ? 'Select date performed'
-                              : _formatDate(item.documentDate!),
-                        ),
+                        icon: const Icon(Icons.close),
                       ),
                     ],
                   ),
-                );
-              }).toList(),
-            ),
-          ],
+                  const SizedBox(height: 10),
+                  Text(
+                    'Date Performed *',
+                    style: TextStyle(
+                      color: colors.onSurface,
+                      fontWeight: FontWeight.w800,
+                    ),
+                  ),
+                  const SizedBox(height: 6),
+                  OutlinedButton.icon(
+                    onPressed: () async {
+                      final picked = await showDatePicker(
+                        context: context,
+                        initialDate: item.documentDate ?? DateTime.now(),
+                        firstDate: DateTime(1900),
+                        lastDate: DateTime.now(),
+                      );
 
-          _note(
-            colors,
-            'Documents will be uploaded and shared with the doctor after the appointment is confirmed.',
-          ),        ],
-      );
+                      if (picked != null) {
+                        setState(() {
+                          item.documentDate = picked;
+                        });
+                      }
+                    },
+                    icon: const Icon(Icons.calendar_today_outlined),
+                    label: Text(
+                      item.documentDate == null
+                          ? 'Select date performed'
+                          : _formatDate(item.documentDate!),
+                    ),
+                  ),
+                ],
+              ),
+            );
+          }).toList(),
+        ),
+      ],
+
+      _note(
+        colors,
+        'Documents will be uploaded and shared with the doctor after the appointment is confirmed.',
+      ),
+    ],
+  );
 
   Widget _confirmStep(ColorScheme colors) => Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          _title('Confirm appointment', 'Review your booking before submitting.'),
-          const SizedBox(height: 16),
-          _summary(colors, 'Doctor', _selectedDoctor?.fullName ?? '-'),
-          _summary(colors, 'Specialty', _selectedDoctor?.specialtyName ?? _selectedSpecialty ?? '-'),
-          _summary(colors, 'Consultation type', _selectedType ?? '-'),
-          _summary(colors, 'Date', _friendlyDate(_selectedDate)),
-          _summary(colors, 'Time', _selectedSlot == null ? '-' : _shortTime(_selectedSlot!.startTime)),
-          _summary(colors, 'Fee', _selectedDoctor == null ? '-' : '\$${_selectedDoctor!.consultationFee.toStringAsFixed(2)}'),
-          const SizedBox(height: 12),
-          _note(colors, 'Payment note: mobile PayPal checkout still needs an approval URL/native SDK. This version confirms booking through the current appointment endpoint.'),
-        ],
-      );
+    crossAxisAlignment: CrossAxisAlignment.start,
+    children: [
+      _title('Confirm appointment', 'Review your booking before submitting.'),
+      const SizedBox(height: 16),
+      _summary(colors, 'Doctor', _selectedDoctor?.fullName ?? '-'),
+      _summary(
+        colors,
+        'Specialty',
+        _selectedDoctor?.specialtyName ?? _selectedSpecialty ?? '-',
+      ),
+      _summary(colors, 'Consultation type', _selectedType ?? '-'),
+      _summary(colors, 'Date', _friendlyDate(_selectedDate)),
+      _summary(
+        colors,
+        'Time',
+        _selectedSlot == null ? '-' : _shortTime(_selectedSlot!.startTime),
+      ),
+      _summary(
+        colors,
+        'Fee',
+        _selectedDoctor == null
+            ? '-'
+            : '\$${_selectedDoctor!.consultationFee.toStringAsFixed(2)}',
+      ),
+      const SizedBox(height: 12),
+      _note(
+        colors,
+        'Payment note: mobile PayPal checkout still needs an approval URL/native SDK. This version confirms booking through the current appointment endpoint.',
+      ),
+    ],
+  );
+
+  Widget _paymentStep(ColorScheme colors) {
+    final fee = _selectedDoctor?.consultationFee ?? 0;
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        _title('Payment', 'Complete payment to confirm your appointment.'),
+        const SizedBox(height: 16),
+
+        _summary(colors, 'Doctor', _selectedDoctor?.fullName ?? '-'),
+        _summary(
+          colors,
+          'Specialty',
+          _selectedDoctor?.specialtyName ?? _selectedSpecialty ?? '-',
+        ),
+        _summary(colors, 'Consultation type', _selectedType ?? '-'),
+        _summary(colors, 'Date', _friendlyDate(_selectedDate)),
+        _summary(
+          colors,
+          'Time',
+          _selectedSlot == null ? '-' : _shortTime(_selectedSlot!.startTime),
+        ),
+        _summary(colors, 'Total amount', '\$${fee.toStringAsFixed(2)}'),
+
+        const SizedBox(height: 12),
+        _note(
+          colors,
+          'Your appointment will only be created after payment is successful.',
+        ),
+      ],
+    );
+  }
 
   Widget _chip(ColorScheme colors, IconData icon, String text) => Container(
-        padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 5),
-        decoration: BoxDecoration(color: colors.surfaceContainerHighest, borderRadius: BorderRadius.circular(100)),
-        child: Row(mainAxisSize: MainAxisSize.min, children: [
-          Icon(icon, size: 14, color: colors.primary),
-          const SizedBox(width: 4),
-          Text(text, style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w700)),
-        ]),
-      );
+    padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 5),
+    decoration: BoxDecoration(
+      color: colors.surfaceContainerHighest,
+      borderRadius: BorderRadius.circular(100),
+    ),
+    child: Row(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        Icon(icon, size: 14, color: colors.primary),
+        const SizedBox(width: 4),
+        Text(
+          text,
+          style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w700),
+        ),
+      ],
+    ),
+  );
 
   Widget _summary(ColorScheme colors, String label, String value) => Container(
-        margin: const EdgeInsets.only(bottom: 10),
-        padding: const EdgeInsets.all(14),
-        decoration: BoxDecoration(
-          color: colors.surfaceContainerLow,
-          borderRadius: BorderRadius.circular(16),
-          border: Border.all(color: colors.outlineVariant),
+    margin: const EdgeInsets.only(bottom: 10),
+    padding: const EdgeInsets.all(14),
+    decoration: BoxDecoration(
+      color: colors.surfaceContainerLow,
+      borderRadius: BorderRadius.circular(16),
+      border: Border.all(color: colors.outlineVariant),
+    ),
+    child: Row(
+      children: [
+        Expanded(
+          child: Text(label, style: TextStyle(color: colors.onSurfaceVariant)),
         ),
-        child: Row(children: [
-          Expanded(child: Text(label, style: TextStyle(color: colors.onSurfaceVariant))),
-          Flexible(child: Text(value, textAlign: TextAlign.right, style: const TextStyle(fontWeight: FontWeight.w900))),
-        ]),
-      );
+        Flexible(
+          child: Text(
+            value,
+            textAlign: TextAlign.right,
+            style: const TextStyle(fontWeight: FontWeight.w900),
+          ),
+        ),
+      ],
+    ),
+  );
 
   Widget _note(ColorScheme colors, String text) => Container(
-        width: double.infinity,
-        padding: const EdgeInsets.all(14),
-        decoration: BoxDecoration(color: colors.secondaryContainer.withValues(alpha: 0.45), borderRadius: BorderRadius.circular(16)),
-        child: Text(text, style: TextStyle(color: colors.onSurfaceVariant)),
-      );
+    width: double.infinity,
+    padding: const EdgeInsets.all(14),
+    decoration: BoxDecoration(
+      color: colors.secondaryContainer.withValues(alpha: 0.45),
+      borderRadius: BorderRadius.circular(16),
+    ),
+    child: Text(text, style: TextStyle(color: colors.onSurfaceVariant)),
+  );
 
   Widget _empty(ColorScheme colors, IconData icon, String text) => Container(
-        width: double.infinity,
-        padding: const EdgeInsets.all(20),
-        decoration: BoxDecoration(color: colors.surfaceContainerLow, borderRadius: BorderRadius.circular(18)),
-        child: Column(children: [
-          Icon(icon, color: colors.outline, size: 38),
-          const SizedBox(height: 8),
-          Text(text, textAlign: TextAlign.center, style: TextStyle(color: colors.onSurfaceVariant)),
-        ]),
-      );
+    width: double.infinity,
+    padding: const EdgeInsets.all(20),
+    decoration: BoxDecoration(
+      color: colors.surfaceContainerLow,
+      borderRadius: BorderRadius.circular(18),
+    ),
+    child: Column(
+      children: [
+        Icon(icon, color: colors.outline, size: 38),
+        const SizedBox(height: 8),
+        Text(
+          text,
+          textAlign: TextAlign.center,
+          style: TextStyle(color: colors.onSurfaceVariant),
+        ),
+      ],
+    ),
+  );
 
   Widget _errorBanner(ColorScheme colors) => Container(
-        width: double.infinity,
-        margin: const EdgeInsets.only(bottom: 12),
-        padding: const EdgeInsets.all(12),
-        decoration: BoxDecoration(color: colors.errorContainer, borderRadius: BorderRadius.circular(14)),
-        child: Text(_error!, style: TextStyle(color: colors.onErrorContainer, fontWeight: FontWeight.w700)),
-      );
+    width: double.infinity,
+    margin: const EdgeInsets.only(bottom: 12),
+    padding: const EdgeInsets.all(12),
+    decoration: BoxDecoration(
+      color: colors.errorContainer,
+      borderRadius: BorderRadius.circular(14),
+    ),
+    child: Text(
+      _error!,
+      style: TextStyle(
+        color: colors.onErrorContainer,
+        fontWeight: FontWeight.w700,
+      ),
+    ),
+  );
 
   Future<void> _showSuccess(String id) => showDialog<void>(
-        context: context,
-        barrierDismissible: false,
-        builder: (context) => AlertDialog(
-          icon: Icon(Icons.check_circle, color: Theme.of(context).colorScheme.primary, size: 48),
-          title: const Text('Booking successful'),
-          content: Text(id.isEmpty ? 'Your appointment has been created.' : 'Appointment #$id has been created.'),
-          actions: [
-            FilledButton(onPressed: () => Navigator.of(context).pop(), child: const Text('Done')),
-          ],
+    context: context,
+    barrierDismissible: false,
+    builder: (context) => AlertDialog(
+      icon: Icon(
+        Icons.check_circle,
+        color: Theme.of(context).colorScheme.primary,
+        size: 48,
+      ),
+      title: const Text('Booking successful'),
+      content: Text('Your appointment has been created.'),
+      actions: [
+        FilledButton(
+          onPressed: () => Navigator.of(context).pop(),
+          child: const Text('Done'),
         ),
-      );
+      ],
+    ),
+  );
+
+  Future<void> _showDocumentModerationWarning(List<String> messages) async {
+    if (!mounted) return;
+
+    await showDialog<void>(
+      context: context,
+      builder: (context) {
+        final colors = Theme.of(context).colorScheme;
+
+        return AlertDialog(
+          icon: Icon(
+            Icons.shield_outlined,
+            color: colors.error,
+            size: 34,
+          ),
+          title: const Text('Some documents were not uploaded'),
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              const Text(
+                'Your appointment was booked successfully, but some documents could not be uploaded:',
+              ),
+              const SizedBox(height: 12),
+              ...messages.map(
+                    (message) => Padding(
+                  padding: const EdgeInsets.only(bottom: 8),
+                  child: Text('• $message'),
+                ),
+              ),
+            ],
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(context),
+              child: const Text('Got it'),
+            ),
+          ],
+        );
+      },
+    );
+  }
 
   void _snack(String message, {bool error = false}) {
     if (!mounted) return;
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(content: Text(message), backgroundColor: error ? Theme.of(context).colorScheme.error : null),
-    );
+
+    final colors = Theme.of(context).colorScheme;
+
+    ScaffoldMessenger.of(context)
+      ..hideCurrentSnackBar()
+      ..showSnackBar(
+        SnackBar(
+          behavior: SnackBarBehavior.floating,
+          margin: const EdgeInsets.all(16),
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(14),
+          ),
+          backgroundColor: error ? colors.error : colors.primary,
+          content: Row(
+            children: [
+              Icon(
+                error ? Icons.error_outline : Icons.check_circle_outline,
+                color: error ? colors.onError : colors.onPrimary,
+              ),
+              const SizedBox(width: 10),
+              Expanded(
+                child: Text(
+                  message,
+                  style: TextStyle(
+                    color: error ? colors.onError : colors.onPrimary,
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ),
+      );
   }
 
   IconData _typeIcon(String type) {
@@ -1022,35 +1612,66 @@ class _BookingScreenState extends State<BookingScreen> {
     return raw.startsWith('Exception: ') ? raw.substring(11) : raw;
   }
 
-  DateTime _dayStart(DateTime value) => DateTime(value.year, value.month, value.day);
-  bool _sameDay(DateTime a, DateTime b) => a.year == b.year && a.month == b.month && a.day == b.day;
+  bool _isImageModerationError(String message) {
+    final lower = message.toLowerCase();
+
+    return lower.contains('sensitive content') ||
+        lower.contains('explicit') ||
+        lower.contains('moderation') ||
+        lower.contains('scan image') ||
+        lower.contains('unable to scan image');
+  }
+
+  String _friendlyDocumentUploadError(String fileName, Object error) {
+    final message = _cleanError(error);
+
+    if (_isImageModerationError(message)) {
+      return 'The file "$fileName" may contain sensitive content and cannot be uploaded.';
+    }
+
+    return 'Can not upload "$fileName". $message';
+  }
+
+  DateTime _dayStart(DateTime value) =>
+      DateTime(value.year, value.month, value.day);
+  bool _sameDay(DateTime a, DateTime b) =>
+      a.year == b.year && a.month == b.month && a.day == b.day;
 
   String _formatDate(DateTime date) =>
       '${date.year.toString().padLeft(4, '0')}-${date.month.toString().padLeft(2, '0')}-${date.day.toString().padLeft(2, '0')}';
 
   String _appointmentDateTime(DateTime date, String time) {
     final clean = time.length >= 5 ? time : '00:00';
-    final withSeconds = clean.length == 5 ? '$clean:00' : clean.split('.').first;
+    final withSeconds = clean.length == 5
+        ? '$clean:00'
+        : clean.split('.').first;
     return '${_formatDate(date)}T$withSeconds';
   }
 
-  String _shortTime(String time) => time.length >= 5 ? time.substring(0, 5) : time;
+  String _shortTime(String time) =>
+      time.length >= 5 ? time.substring(0, 5) : time;
 
   String _dayLabel(DateTime date) {
     if (_sameDay(date, DateTime.now())) return 'Today';
     final tomorrow = _dayStart(DateTime.now()).add(const Duration(days: 1));
     if (_sameDay(date, tomorrow)) return 'Tomorrow';
-    return const ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'][date.weekday - 1];
+    return const [
+      'Mon',
+      'Tue',
+      'Wed',
+      'Thu',
+      'Fri',
+      'Sat',
+      'Sun',
+    ][date.weekday - 1];
   }
 
-  String _friendlyDate(DateTime date) => '${_dayLabel(date)}, ${date.day}/${date.month}/${date.year}';
+  String _friendlyDate(DateTime date) =>
+      '${_dayLabel(date)}, ${date.day}/${date.month}/${date.year}';
 }
 
 class _BookingDocumentDraft {
-  _BookingDocumentDraft({
-    required this.file,
-    this.documentDate,
-  });
+  _BookingDocumentDraft({required this.file, this.documentDate});
 
   final PlatformFile file;
   DateTime? documentDate;

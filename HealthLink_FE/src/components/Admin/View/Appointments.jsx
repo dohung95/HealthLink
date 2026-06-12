@@ -41,18 +41,8 @@ export default function Appointments() {
   const [calendarAppointments, setCalendarAppointments] = useState([]);
   const [calendarLoading, setCalendarLoading] = useState(false);
 
-  const departments = [
-    "General Internal Medicine",
-    "Gastroenterology",
-    "Cardiology",
-    "Oncology",
-    "Endocrinology",
-    "Neurology",
-    "Pediatrics",
-    "Dermatology",
-    "Orthopedics",
-    "Psychiatry"
-  ];
+  // Specialties fetched from API
+  const [specialties, setSpecialties] = useState([]);
 
   // Calendar helper functions
   const getCalendarDays = useMemo(() => {
@@ -223,6 +213,16 @@ export default function Appointments() {
 
   useEffect(() => {
     fetchStats();
+    // Fetch specialties for department filter
+    const fetchSpecialties = async () => {
+      try {
+        const data = await doctorsApi.getSpecialties();
+        setSpecialties(data || []);
+      } catch (err) {
+        console.error('Error fetching specialties:', err);
+      }
+    };
+    fetchSpecialties();
   }, []);
 
   useEffect(() => {
@@ -412,19 +412,30 @@ export default function Appointments() {
   };
 
   const getStatusBadgeClass = (status) => {
-    switch (status.toLowerCase()) {
+    switch (status?.toLowerCase()) {
       case 'completed':
         return 'success';
       case 'scheduled':
-      case 'pending':
-        return 'secondary';
-      case 'in progress':
+        return 'primary';
+      case 'confirmed':
+        return 'info';
+      case 'in_consultation':
         return 'warning';
       case 'cancelled':
         return 'danger';
       default:
         return 'secondary';
     }
+  };
+
+  // Format status for display (e.g., "IN_CONSULTATION" -> "In Consultation")
+  const formatStatus = (status) => {
+    if (!status) return 'Unknown';
+    return status
+      .toLowerCase()
+      .split('_')
+      .map(word => word.charAt(0).toUpperCase() + word.slice(1))
+      .join(' ');
   };
 
   return (
@@ -558,11 +569,11 @@ export default function Appointments() {
               onChange={handleStatusFilter}
             >
               <option value="">All Status</option>
-              <option value="Pending">Pending</option>
-              <option value="Scheduled">Scheduled</option>
-              <option value="In Progress">In Progress</option>
-              <option value="Completed">Completed</option>
-              <option value="Cancelled">Cancelled</option>
+              <option value="SCHEDULED">Scheduled</option>
+              <option value="CONFIRMED">Confirmed</option>
+              <option value="IN_CONSULTATION">In Consultation</option>
+              <option value="COMPLETED">Completed</option>
+              <option value="CANCELLED">Cancelled</option>
             </select>
           </div>
           <div className="filter-select">
@@ -572,9 +583,9 @@ export default function Appointments() {
               onChange={handleDepartmentFilter}
             >
               <option value="">All Depts</option>
-              {departments.map((dept, index) => (
-                <option key={index} value={dept}>
-                  {dept}
+              {specialties.map((spec) => (
+                <option key={spec.specialtyId} value={spec.name}>
+                  {spec.name}
                 </option>
               ))}
             </select>
@@ -650,7 +661,7 @@ export default function Appointments() {
                         {dayAppointments.slice(0, displayCount).map((appt, apptIndex) => (
                           <div
                             key={apptIndex}
-                            className={`calendar-appt-item ${appt.status.toLowerCase().replace(' ', '-')}`}
+                            className={`calendar-appt-item ${appt.status?.toLowerCase().replace(/_/g, '-')}`}
                             onClick={() => handleViewAppointment(appt)}
                             title={`${appt.time} - ${appt.patientName}`}
                           >
@@ -716,7 +727,7 @@ export default function Appointments() {
                     </div>
                     <div className="todays-appt-status">
                       <span className={`admin-badge ${getStatusBadgeClass(appt.status)}`}>
-                        {appt.status}
+                        {formatStatus(appt.status)}
                       </span>
                     </div>
                   </div>
@@ -754,7 +765,7 @@ export default function Appointments() {
           ) : (
             <div className="appointments-grid">
               {appointments.map((appointment) => (
-                <div key={appointment.appointmentID} className={`appointment-card status-${appointment.status.toLowerCase().replace(' ', '-')}`}>
+                <div key={appointment.appointmentID} className={`appointment-card status-${appointment.status?.toLowerCase().replace(/_/g, '-')}`}>
                   {/* Status Bar */}
                   <div className="appointment-status-bar"></div>
 
@@ -764,8 +775,8 @@ export default function Appointments() {
                       <i className="bi bi-hash"></i>
                       <span>{appointment.appointmentID}</span>
                     </div>
-                    <span className={`appointment-status-badge badge-${appointment.status.toLowerCase().replace(' ', '-')}`}>
-                      {appointment.status}
+                    <span className={`appointment-status-badge badge-${appointment.status?.toLowerCase().replace(/_/g, '-')}`}>
+                      {formatStatus(appointment.status)}
                     </span>
                   </div>
 
@@ -1022,7 +1033,7 @@ export default function Appointments() {
                         <div className="admin-info-row">
                           <strong>Status:</strong>
                           <span className={`admin-badge ${getStatusBadgeClass(selectedAppointment.status)}`}>
-                            {selectedAppointment.status}
+                            {formatStatus(selectedAppointment.status)}
                           </span>
                         </div>
                       </div>

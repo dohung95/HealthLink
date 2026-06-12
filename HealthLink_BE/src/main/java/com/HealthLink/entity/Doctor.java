@@ -1,4 +1,5 @@
 package com.HealthLink.entity;
+import com.HealthLink.entity.enums.DoctorScheduleStatus;
 import jakarta.persistence.*;
 import lombok.*;
 import java.math.BigDecimal;
@@ -73,7 +74,16 @@ public class Doctor {
 
     @Builder.Default
     private boolean verified = false; // Trạng thái Admin đã kiểm duyệt bằng cấp, chứng chỉ hợp pháp hay chưa
-    
+
+    // Trạng thái lịch làm việc tổng thể của bác sĩ (dùng để quyết định hiển thị trong booking)
+    // PENDING: Bác sĩ mới chưa xếp lịch
+    // APPROVED: Tổng giờ làm/tuần >= 80h, được hiển thị trong danh sách booking
+    // REJECTED: Tổng giờ làm/tuần < 80h, không hiển thị trong danh sách booking
+    @Enumerated(EnumType.STRING)
+    @Column(name = "ScheduleStatus", length = 20)
+    @Builder.Default
+    private DoctorScheduleStatus scheduleStatus = DoctorScheduleStatus.PENDING;
+
     private Double averageRating; // Điểm đánh giá trung bình từ các bệnh nhân cũ (VD: 4.8/5 sao)
     private Integer totalReviews; // Tổng số lượt bệnh nhân đã để lại đánh giá cho bác sĩ này
 

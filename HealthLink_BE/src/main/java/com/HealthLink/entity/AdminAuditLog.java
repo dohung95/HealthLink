@@ -69,6 +69,7 @@ public class AdminAuditLog {
     public static final String ACTION_USER_STATUS_CHANGED = "USER_STATUS_CHANGED";
     public static final String ACTION_REGISTRATION_APPROVED = "REGISTRATION_APPROVED";
     public static final String ACTION_REGISTRATION_REJECTED = "REGISTRATION_REJECTED";
+    public static final String ACTION_AI_REJECTED = "AI_REJECTED";
     public static final String ACTION_COMMISSION_CONFIG_CHANGED = "COMMISSION_CONFIG_CHANGED";
     public static final String ACTION_COMMISSION_PARTNER_CHANGED = "COMMISSION_PARTNER_CHANGED";
     public static final String ACTION_COMMISSION_PARTNER_RESET = "COMMISSION_PARTNER_RESET";

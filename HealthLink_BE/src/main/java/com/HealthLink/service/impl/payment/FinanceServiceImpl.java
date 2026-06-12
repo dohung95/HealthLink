@@ -30,6 +30,7 @@ import com.HealthLink.service.appointment.AppointmentService;
 import com.HealthLink.service.notification.NotificationService;
 import com.HealthLink.service.payment.CommissionService;
 import com.HealthLink.service.payment.FinanceService;
+import com.HealthLink.service.payment.InvoicePdfService;
 import com.HealthLink.entity.enums.NotificationPriority;
 import com.HealthLink.entity.enums.NotificationType;
 import com.HealthLink.entity.User;
@@ -65,6 +66,7 @@ import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import java.util.stream.Collectors;
 
 /**
@@ -76,17 +78,17 @@ import java.util.stream.Collectors;
 public class FinanceServiceImpl implements FinanceService {
 
     // ── Các hằng trạng thái ─────────────────────────────────────────────────
-    private static final String INVOICE_PAID      = "PAID";
-    private static final String INVOICE_REFUNDED  = "REFUNDED";
+    private static final String INVOICE_PAID = "PAID";
+    private static final String INVOICE_REFUNDED = "REFUNDED";
 
     private static final String PAYMENT_PENDING = "PENDING";
     private static final String PAYMENT_SUCCESS = "SUCCESS";
-    private static final String PAYMENT_FAILED  = "FAILED";
+    private static final String PAYMENT_FAILED = "FAILED";
     private static final String PAYMENT_REFUNDED = "REFUNDED";
 
-    private static final String GATEWAY_PAYPAL   = "PayPal";
-    private static final String METHOD_EWALLET   = "EWallet";
-    private static final String METHOD_CARD      = "Card";
+    private static final String GATEWAY_PAYPAL = "PayPal";
+    private static final String METHOD_EWALLET = "EWallet";
+    private static final String METHOD_CARD = "Card";
 
     private static final String APPT_PENDING_PAYMENT = "PENDINGPAYMENT";
     private static final String APPT_SCHEDULED = "SCHEDULED";
@@ -94,6 +96,9 @@ public class FinanceServiceImpl implements FinanceService {
     private static final String ROLE_ADMIN = "ADMIN";
     private static final String ROLE_PATIENT = "PATIENT";
     private static final String ROLE_DOCTOR = "DOCTOR";
+    private static final String PHARMACY_ORDER_PENDING = "PENDING";
+    private static final String PHARMACY_ORDER_CONFIRMED = "CONFIRMED";
+    private static final String PHARMACY_ORDER_PREPARING = "PREPARING";
     private static final String PHARMACY_ORDER_COMPLETED = "COMPLETED";
     // ── Các phụ thuộc ───────────────────────────────────────────────────────
     private final PayPalConfig payPalConfig;
@@ -103,24 +108,28 @@ public class FinanceServiceImpl implements FinanceService {
 
     private final ObjectMapper objectMapper;
 
-    private final AppointmentRepository          appointmentRepository;
-    private final AppointmentService             appointmentService;
-    private final DoctorRepository               doctorRepository;
-    private final PatientRepository              patientRepository;
-    private final InvoiceRepository              invoiceRepository;
-    private final PaymentRepository              paymentRepository;
-    private final PharmacyOrderRepository        pharmacyOrderRepository;
-    private final UserRepository                 userRepository;
-    private final NotificationService            notificationService;
-    private final DeviceTokenRepository          deviceTokenRepository;
+    private final AppointmentRepository appointmentRepository;
+    private final AppointmentService appointmentService;
+    private final DoctorRepository doctorRepository;
+    private final PatientRepository patientRepository;
+    private final InvoiceRepository invoiceRepository;
+    private final PaymentRepository paymentRepository;
+    private final PharmacyOrderRepository pharmacyOrderRepository;
+    private final UserRepository userRepository;
+    private final NotificationService notificationService;
+    private final DeviceTokenRepository deviceTokenRepository;
 
-    /** Service xử lý logic chiết khấu sau khi thanh toán thành công */
-    private final CommissionService              commissionService;
+    /**
+     * Service xử lý logic chiết khấu sau khi thanh toán thành công
+     */
+    private final CommissionService commissionService;
+
+    /** Service xử lý tạo PDF hóa đơn */
+    private final InvoicePdfService invoicePdfService;
 
     // ========================================================================
     // Tác vụ 3.1 – Tạo hóa đơn
     // ========================================================================
-
     @Override
     @Transactional(readOnly = true)
     public InvoiceResponse getInvoice(Integer invoiceId) {
@@ -142,7 +151,6 @@ public class FinanceServiceImpl implements FinanceService {
     // ========================================================================
     // Tác vụ 3.2 – Tích hợp PayPal
     // ========================================================================
-
     @Override
     @Transactional(readOnly = true)
     public Map<String, Object> createAppointmentPayPalOrder(AppointmentPayPalOrderRequest request) {
@@ -174,9 +182,17 @@ public class FinanceServiceImpl implements FinanceService {
                 "custom_id", String.format("%s:%s", patient.getPatientId(), doctor.getDoctorId()),
                 "amount", amountMap
         );
+        Map<String, Object> applicationContext = Map.of(
+                "return_url", "healthlink://paypal-success",
+                "cancel_url", "healthlink://paypal-cancel",
+                "user_action", "PAY_NOW",
+                "brand_name", "HealthLink"
+        );
+
         Map<String, Object> payload = Map.of(
                 "intent", "CAPTURE",
-                "purchase_units", List.of(purchaseUnit)
+                "purchase_units", List.of(purchaseUnit),
+                "application_context", applicationContext
         );
 
         try {
@@ -204,6 +220,23 @@ public class FinanceServiceImpl implements FinanceService {
                 throw new PayPalIntegrationException("PayPal response does not contain order ID.");
             }
 
+            String approvalUrl = null;
+
+            Object linksObj = responseBody.get("links");
+            if (linksObj instanceof List<?> links) {
+                for (Object linkObj : links) {
+                    if (linkObj instanceof Map<?, ?> link) {
+                        Object rel = link.get("rel");
+                        Object href = link.get("href");
+
+                        if ("approve".equalsIgnoreCase(String.valueOf(rel))) {
+                            approvalUrl = String.valueOf(href);
+                            break;
+                        }
+                    }
+                }
+            }
+
             String orderId = idObj.toString();
             log.info("PayPal appointment checkout order created: {} for patient {} doctor {}",
                     orderId, patient.getPatientId(), doctor.getDoctorId());
@@ -212,6 +245,8 @@ public class FinanceServiceImpl implements FinanceService {
             result.put("orderId", orderId);
             result.put("amount", amount);
             result.put("currency", currency);
+            result.put("approvalUrl", approvalUrl);
+            result.put("links", responseBody.get("links"));
             return result;
 
         } catch (PayPalIntegrationException ex) {
@@ -231,11 +266,25 @@ public class FinanceServiceImpl implements FinanceService {
     public Map<String, Object> createPharmacyOrderPayPalOrder(PharmacyOrderPayPalOrderRequest request) {
         PharmacyOrder pharmacyOrder = pharmacyOrderRepository.findById(request.getPharmacyOrderId())
                 .orElseThrow(() -> new BadRequestException(
-                        "Pharmacy order not found with ID: " + request.getPharmacyOrderId()
-                ));
+                "Pharmacy order not found with ID: " + request.getPharmacyOrderId()
+        ));
 
         if (INVOICE_PAID.equalsIgnoreCase(pharmacyOrder.getPaymentStatus())) {
             throw new BadRequestException("This pharmacy order has already been paid.");
+        }
+
+        if (!PAYMENT_PENDING.equalsIgnoreCase(safeValue(pharmacyOrder.getPaymentStatus(), ""))) {
+            throw new BadRequestException("This pharmacy order payment status is not valid for payment.");
+        }
+
+        if ("CANCELLED".equalsIgnoreCase(safeValue(pharmacyOrder.getStatus(), ""))
+                || "REFUNDED".equalsIgnoreCase(safeValue(pharmacyOrder.getStatus(), ""))
+                || "REVISION_REQUESTED".equalsIgnoreCase(safeValue(pharmacyOrder.getStatus(), ""))) {
+            throw new BadRequestException("This pharmacy order cannot be paid due to its current status.");
+        }
+
+        if (pharmacyOrder.getTotalAmount() == null || pharmacyOrder.getTotalAmount().compareTo(java.math.BigDecimal.ZERO) <= 0) {
+            throw new BadRequestException("Order total amount must be greater than zero.");
         }
 
         String accessToken = getPayPalAccessToken();
@@ -372,7 +421,7 @@ public class FinanceServiceImpl implements FinanceService {
 
             Appointment appointment = appointmentRepository.findById(appointmentId)
                     .orElseThrow(() -> new BadRequestException(
-                            "Appointment not found after payment capture: " + appointmentId));
+                    "Appointment not found after payment capture: " + appointmentId));
 
             LocalDateTime paidAt = LocalDateTime.now();
             appointment.setStatus(APPT_SCHEDULED);
@@ -446,11 +495,25 @@ public class FinanceServiceImpl implements FinanceService {
     public PharmacyOrderResponse capturePharmacyOrderPayPalPayment(PharmacyOrderPayPalCaptureRequest request) {
         PharmacyOrder pharmacyOrder = pharmacyOrderRepository.findById(request.getPharmacyOrderId())
                 .orElseThrow(() -> new BadRequestException(
-                        "Pharmacy order not found with ID: " + request.getPharmacyOrderId()
-                ));
+                "Pharmacy order not found with ID: " + request.getPharmacyOrderId()
+        ));
 
         if (INVOICE_PAID.equalsIgnoreCase(pharmacyOrder.getPaymentStatus())) {
             throw new BadRequestException("This pharmacy order has already been paid.");
+        }
+
+        if (INVOICE_PAID.equalsIgnoreCase(safeValue(pharmacyOrder.getPaymentStatus(), ""))) {
+            throw new BadRequestException("This pharmacy order has already been paid.");
+        }
+
+        if ("CANCELLED".equalsIgnoreCase(safeValue(pharmacyOrder.getStatus(), ""))
+                || "REFUNDED".equalsIgnoreCase(safeValue(pharmacyOrder.getStatus(), ""))
+                || "REVISION_REQUESTED".equalsIgnoreCase(safeValue(pharmacyOrder.getStatus(), ""))) {
+            throw new BadRequestException("This pharmacy order cannot be paid due to its current status.");
+        }
+
+        if (pharmacyOrder.getTotalAmount() == null || pharmacyOrder.getTotalAmount().compareTo(java.math.BigDecimal.ZERO) <= 0) {
+            throw new BadRequestException("Order total amount must be greater than zero.");
         }
 
         if (paymentRepository.findByTransactionId(request.getOrderId()).isPresent()) {
@@ -495,6 +558,8 @@ public class FinanceServiceImpl implements FinanceService {
                     ? METHOD_CARD : METHOD_EWALLET;
 
             if ("COMPLETED".equals(paypalStatus)) {
+                LocalDateTime paidAt = LocalDateTime.now();
+
                 // Idempotency: check if invoice already exists for this pharmacy order
                 Invoice invoice = invoiceRepository.findByPharmacyOrder_OrderId(pharmacyOrder.getOrderId())
                         .orElse(null);
@@ -510,8 +575,8 @@ public class FinanceServiceImpl implements FinanceService {
                             .amount(pharmacyOrder.getTotalAmount() != null
                                     ? pharmacyOrder.getTotalAmount() : BigDecimal.ZERO)
                             .status(INVOICE_PAID)
-                            .issueDate(LocalDateTime.now())
-                            .paidAt(LocalDateTime.now())
+                            .issueDate(paidAt)
+                            .paidAt(paidAt)
                             .build();
                     invoiceRepository.save(invoice);
                 }
@@ -524,7 +589,7 @@ public class FinanceServiceImpl implements FinanceService {
                         .paymentGateway(GATEWAY_PAYPAL)
                         .transactionId(request.getOrderId())
                         .status(PAYMENT_SUCCESS)
-                        .paidAt(LocalDateTime.now())
+                        .paidAt(paidAt)
                         .metadata(metadata)
                         .build();
                 paymentRepository.save(payment);
@@ -533,6 +598,17 @@ public class FinanceServiceImpl implements FinanceService {
                 if (pharmacyOrder.getPaymentMethod() == null || pharmacyOrder.getPaymentMethod().isBlank()) {
                     pharmacyOrder.setPaymentMethod(paymentMethod);
                 }
+
+                String currentOrderStatus = safeValue(pharmacyOrder.getStatus(), "");
+                if (Set.of(PHARMACY_ORDER_PENDING, PHARMACY_ORDER_CONFIRMED)
+                        .contains(currentOrderStatus.toUpperCase())) {
+                    if (pharmacyOrder.getConfirmedAt() == null) {
+                        pharmacyOrder.setConfirmedAt(paidAt);
+                    }
+                    pharmacyOrder.setStatus(PHARMACY_ORDER_PREPARING);
+                    pharmacyOrder.setPreparingAt(paidAt);
+                }
+
                 boolean notifyDoctorAboutCompletedPaidOrder = shouldNotifyDoctorAboutCompletedPaidOrder(pharmacyOrder);
                 if (notifyDoctorAboutCompletedPaidOrder) {
                     pharmacyOrder.setDoctorCompletionPaidNotified(true);
@@ -570,8 +646,8 @@ public class FinanceServiceImpl implements FinanceService {
 
             PharmacyOrder refreshedOrder = pharmacyOrderRepository.findById(pharmacyOrder.getOrderId())
                     .orElseThrow(() -> new BadRequestException(
-                            "Pharmacy order not found with ID: " + pharmacyOrder.getOrderId()
-                    ));
+                    "Pharmacy order not found with ID: " + pharmacyOrder.getOrderId()
+            ));
             return PharmacyOrderMapper.toResponse(refreshedOrder);
 
         } catch (PayPalIntegrationException | BadRequestException ex) {
@@ -585,9 +661,30 @@ public class FinanceServiceImpl implements FinanceService {
     }
 
     // ========================================================================
-    // Tác vụ 3.3 – Xử lý hoàn tiền (Refund Logic)
+    // Invoice PDF generation
     // ========================================================================
 
+    @Override
+    @Transactional(readOnly = true)
+    public byte[] generateInvoicePdf(Integer invoiceId) {
+        Invoice invoice = invoiceRepository.findById(invoiceId)
+                .orElseThrow(() -> new InvoiceNotFoundException(invoiceId));
+
+        // Authorization
+        assertInvoiceAccess(invoice);
+
+        if (invoice.getPharmacyOrder() != null) {
+            return invoicePdfService.generatePharmacyOrderInvoicePdf(invoice, invoice.getPharmacyOrder());
+        } else if (invoice.getAppointment() != null) {
+            return invoicePdfService.generateAppointmentInvoicePdf(invoice);
+        }
+
+        throw new BadRequestException("Invoice has no associated order or appointment");
+    }
+
+    // ========================================================================
+    // Tác vụ 3.3 – Xử lý hoàn tiền (Refund Logic)
+    // ========================================================================
     @Override
     @Transactional
     public InvoiceResponse processRefund(Integer paymentId, String refundReason) {
@@ -637,8 +734,9 @@ public class FinanceServiceImpl implements FinanceService {
     // ========================================================================
     // Private helpers
     // ========================================================================
-
-    /** Đổi client-credentials lấy PayPal access token. */
+    /**
+     * Đổi client-credentials lấy PayPal access token.
+     */
     private String getPayPalAccessToken() {
         String credentials = payPalConfig.getClientId() + ":" + payPalConfig.getClientSecret();
         String encoded = Base64.getEncoder()
@@ -688,8 +786,8 @@ public class FinanceServiceImpl implements FinanceService {
     }
 
     /**
-    * Tạo số hóa đơn duy nhất theo định dạng INV-YYYYMMDD-XXXX.
-    * Dùng ngày hiện tại + số thứ tự 4 chữ số dựa trên số hóa đơn trong ngày.
+     * Tạo số hóa đơn duy nhất theo định dạng INV-YYYYMMDD-XXXX. Dùng ngày hiện
+     * tại + số thứ tự 4 chữ số dựa trên số hóa đơn trong ngày.
      */
     private String generateInvoiceNumber() {
         String datePart = LocalDateTime.now()
@@ -699,23 +797,23 @@ public class FinanceServiceImpl implements FinanceService {
     }
 
     /**
-     * Thử trích xuất số tiền đã capture từ phản hồi PayPal.
-     * Nếu lỗi phân tích, sẽ dùng số tiền của hóa đơn làm giá trị dự phòng.
+     * Thử trích xuất số tiền đã capture từ phản hồi PayPal. Nếu lỗi phân tích,
+     * sẽ dùng số tiền của hóa đơn làm giá trị dự phòng.
      */
     @SuppressWarnings("unchecked")
     private BigDecimal extractCapturedAmount(Map<String, Object> body, BigDecimal fallback) {
         try {
-            List<Map<String, Object>> units =
-                    (List<Map<String, Object>>) body.get("purchase_units");
+            List<Map<String, Object>> units
+                    = (List<Map<String, Object>>) body.get("purchase_units");
             if (units != null && !units.isEmpty()) {
-                Map<String, Object> payments =
-                        (Map<String, Object>) units.get(0).get("payments");
+                Map<String, Object> payments
+                        = (Map<String, Object>) units.get(0).get("payments");
                 if (payments != null) {
-                    List<Map<String, Object>> captures =
-                            (List<Map<String, Object>>) payments.get("captures");
+                    List<Map<String, Object>> captures
+                            = (List<Map<String, Object>>) payments.get("captures");
                     if (captures != null && !captures.isEmpty()) {
-                        Map<String, Object> amount =
-                                (Map<String, Object>) captures.get(0).get("amount");
+                        Map<String, Object> amount
+                                = (Map<String, Object>) captures.get(0).get("amount");
                         if (amount != null) {
                             return new BigDecimal(amount.get("value").toString())
                                     .setScale(2, RoundingMode.HALF_UP);
@@ -809,11 +907,16 @@ public class FinanceServiceImpl implements FinanceService {
         }
 
         boolean supported = switch (consultationType.trim().toLowerCase()) {
-            case "video" -> doctor.isAvailableForVideo();
-            case "audio" -> doctor.isAvailableForAudio();
-            case "chat" -> doctor.isAvailableForChat();
-            case "offline" -> doctor.isAvailableForOffline();
-            default -> false;
+            case "video" ->
+                doctor.isAvailableForVideo();
+            case "audio" ->
+                doctor.isAvailableForAudio();
+            case "chat" ->
+                doctor.isAvailableForChat();
+            case "offline" ->
+                doctor.isAvailableForOffline();
+            default ->
+                false;
         };
 
         if (!supported) {
@@ -823,7 +926,6 @@ public class FinanceServiceImpl implements FinanceService {
     }
 
     // ─── Ánh xạ DTO ────────────────────────────────────────────────────────
-
     private void notifyAboutPaidPharmacyOrderAfterCommit(PharmacyOrder pharmacyOrder) {
         User patientUser = pharmacyOrder.getPatient() != null ? pharmacyOrder.getPatient().getUser() : null;
         User pharmacyUser = pharmacyOrder.getPharmacy() != null ? pharmacyOrder.getPharmacy().getUser() : null;
@@ -902,8 +1004,8 @@ public class FinanceServiceImpl implements FinanceService {
                 ? safeValue(pharmacyOrder.getPharmacy().getName(), "the pharmacy")
                 : "the pharmacy";
 
-        runAfterCommit("doctor completed and paid pharmacy order notification", () ->
-                notificationService.sendWebSocketNotification(
+        runAfterCommit("doctor completed and paid pharmacy order notification", ()
+                -> notificationService.sendWebSocketNotification(
                         doctorUser,
                         NotificationType.INVOICE_PAID,
                         "Pharmacy order completed and paid",
@@ -1147,14 +1249,14 @@ public class FinanceServiceImpl implements FinanceService {
         if (invoice.getPayments() != null) {
             paymentSummaries = invoice.getPayments().stream()
                     .map(p -> InvoiceResponse.PaymentSummary.builder()
-                            .paymentId(p.getPaymentId())
-                            .amount(p.getAmount())
-                            .paymentMethod(p.getPaymentMethod())
-                            .paymentGateway(p.getPaymentGateway())
-                            .transactionId(p.getTransactionId())
-                            .status(p.getStatus())
-                            .paidAt(p.getPaidAt())
-                            .build())
+                    .paymentId(p.getPaymentId())
+                    .amount(p.getAmount())
+                    .paymentMethod(p.getPaymentMethod())
+                    .paymentGateway(p.getPaymentGateway())
+                    .transactionId(p.getTransactionId())
+                    .status(p.getStatus())
+                    .paidAt(p.getPaidAt())
+                    .build())
                     .collect(Collectors.toList());
         }
 

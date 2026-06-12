@@ -1,0 +1,16 @@
+.patient-pharmacy-page {
+  position: relative;
+}
+
+@keyframes pulse {
+  0%, 100% { opacity: 1; transform: scale(1); }
+  50% { opacity: 0.7; transform: scale(1.05); }
+}
+
+.pulse-animation {
+  animation: pulse 1.5s ease-in-out infinite;
+}
+
+.patient-pharmacy-page .min-width-0 {
+  min-width: 0;
+}

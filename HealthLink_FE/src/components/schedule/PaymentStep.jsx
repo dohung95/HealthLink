@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from 'react';
 import { toast } from 'sonner';
 
 import { paymentApi } from '../../api/paymentApi';
+import { loadPayPalSdk } from '../../utils/paypalSdk';
 
 const formatCurrency = (value) => {
   const amount = Number(value ?? 0);
@@ -9,29 +10,6 @@ const formatCurrency = (value) => {
     style: 'currency',
     currency: 'USD',
   }).format(amount);
-};
-
-const loadPayPalSdk = (clientId) => {
-  const existingScript = document.getElementById('paypal-js-sdk');
-  if (existingScript) {
-    if (window.paypal) {
-      return Promise.resolve(window.paypal);
-    }
-    return new Promise((resolve, reject) => {
-      existingScript.addEventListener('load', () => resolve(window.paypal), { once: true });
-      existingScript.addEventListener('error', reject, { once: true });
-    });
-  }
-
-  return new Promise((resolve, reject) => {
-    const script = document.createElement('script');
-    script.id = 'paypal-js-sdk';
-    script.src = `https://www.paypal.com/sdk/js?client-id=${clientId}&currency=USD&intent=capture`;
-    script.async = true;
-    script.onload = () => resolve(window.paypal);
-    script.onerror = reject;
-    document.body.appendChild(script);
-  });
 };
 
 const PaymentStep = ({ bookingDraft, selectedDoctor, onBack, onPaymentComplete }) => {

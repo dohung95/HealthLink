@@ -43,6 +43,7 @@ public class AdminDoctorScheduleDto {
         private String consultationType;
         private String location;
         private String notes;
+        private com.HealthLink.entity.enums.DoctorScheduleStatus scheduleStatus;
     }
 
     @Data
