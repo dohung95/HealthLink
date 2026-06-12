@@ -11,6 +11,8 @@ export function useAuth() {
     return useContext(AuthContext);
 }
 
+const getInCallKey = () => 'healthlink_in_call_' + (localStorage.getItem('userId') || sessionStorage.getItem('userId') || 'guest');
+
 export function AuthProvider({ children }) {
     const [user, setUser] = useState(null);
     const [roles, setRoles] = useState([]);
@@ -22,6 +24,8 @@ export function AuthProvider({ children }) {
 
     const [connection, setConnection] = useState(null); // DISABLED - using STOMP instead
     const [incomingCall, setIncomingCall] = useState(null);
+    // Issue #5: Guard chống cuộc gọi chồng chéo — dùng localStorage để sync cross-tab
+    const [isInCall, setIsInCall] = useState(() => localStorage.getItem(getInCallKey()) === 'true');
 
     // Setup axios interceptors on mount
     useEffect(() => {
@@ -188,7 +192,7 @@ export function AuthProvider({ children }) {
             throw error;
         }
     };
-    
+
     // reset password
     const resetPassword = async (token, password) => {
         try {
@@ -206,12 +210,25 @@ export function AuthProvider({ children }) {
             // 1. Kết nối STOMP Server (Spring Boot) thay vì SignalR
             stompChatService.connect(token, () => {
                 setConnection(true); // Đánh dấu đã kết nối
-                
+
                 // 2. Đăng ký lắng nghe tín hiệu WebRTC (Incoming Call)
                 videoCallService.subscribeToWebRTC((signal) => {
                     const { type, senderId, senderName, data } = signal;
 
                     if (type === "CALL_REQUEST") {
+                        // Issue #5: Chặn nếu đang trong cuộc gọi khác (đọc trực tiếp localStorage)
+                        if (localStorage.getItem(getInCallKey()) === 'true') {
+                            console.log('[WebRTC] Automatically declining because already in a call.');
+                            videoCallService.sendWebRTCSignal({
+                                type: 'CALL_DECLINED',
+                                senderId: localStorage.getItem('userId') || sessionStorage.getItem('userId'),
+                                senderName: 'User',
+                                receiverId: senderId,
+                                data: data
+                            });
+                            return;
+                        }
+
                         // Nhận được cuộc gọi mới
                         setIncomingCall({ callerId: senderId, callerName: senderName, roomId: data });
                     }
@@ -238,11 +255,15 @@ export function AuthProvider({ children }) {
                             timestamp: Date.now()
                         }));
                     }
-                    else if (type === "CALL_DECLINED" || type === "HANGUP") {
+                    else if (type === "CALL_DECLINED" || type === "HANGUP" || type === "CALL_HANDLED_ELSEWHERE") {
                         // Nếu người gọi hủy cuộc gọi, đóng popup lại
                         setIncomingCall(prev => {
-                            if (prev && prev.callerId === senderId) {
-                                toast.info("The call has ended or was canceled.");
+                            console.log('[WebRTC] Received HANGUP/DECLINED/HANDLED. prev:', prev, 'senderId:', senderId);
+                            // Nếu HANGUP/DECLINED từ người gọi, hoặc là HANDLED_ELSEWHERE từ chính mình
+                            if ((prev && prev.callerId === senderId) || (type === "CALL_HANDLED_ELSEWHERE" && prev && prev.roomId === data)) {
+                                if (type !== "CALL_HANDLED_ELSEWHERE") {
+                                    toast.info("The call has ended or was canceled.");
+                                }
                                 return null;
                             }
                             return prev;
@@ -270,8 +291,42 @@ export function AuthProvider({ children }) {
         }
     }, [token, connection]);
 
+    // Issue #5: Sync isInCall state khi localStorage thay đổi (cross-tab)
+    useEffect(() => {
+        const handleStorageChange = (e) => {
+            if (e.key === getInCallKey()) {
+                setIsInCall(e.newValue === 'true');
+            }
+        };
+        window.addEventListener('storage', handleStorageChange);
+        return () => window.removeEventListener('storage', handleStorageChange);
+    }, []);
+
+    /**
+     * Đánh dấu đang trong/ngoài cuộc gọi, sync cross-tab qua localStorage.
+     * @param {boolean} inCall
+     */
+    const setCallActive = (inCall) => {
+        setIsInCall(inCall);
+        if (inCall) {
+            localStorage.setItem(getInCallKey(), 'true');
+        } else {
+            localStorage.removeItem(getInCallKey());
+        }
+    };
+
     // 1. Khi BẠN bấm nút "Gọi"
     const initiateCall = async (targetUserId, roomId, targetUserName = "User", callerName = "") => {
+        // Issue #5: Chặn nếu đang trong cuộc gọi
+        if (isInCall || localStorage.getItem(getInCallKey()) === 'true') {
+            toast.warning("You are currently on another call. Please end the current call before making a new one.");
+            return;
+        }
+
+        // Đánh dấu ngay lập tức để chặn spam click (Double click prevention)
+        localStorage.setItem(getInCallKey(), 'true');
+        setIsInCall(true);
+
         try {
             // Lấy token và decode để lấy thông tin người gọi
             const currentToken = localStorage.getItem('token') || sessionStorage.getItem('token');
@@ -311,21 +366,54 @@ export function AuthProvider({ children }) {
             }
             // =========================================================
 
+            // Đánh dấu đang trong cuộc gọi
+            setCallActive(true);
+
             // Điều hướng người gọi đến trang video call
             const callUrl = `/video-calling?roomID=${roomId}&targetUserId=${encodeURIComponent(targetUserId)}&userName=${encodeURIComponent(targetUserName)}&isCaller=true`;
 
-            // Mở trong tab mới hoặc điều hướng trực tiếp
-            const windowSpecs = 'width=1000,height=700,noopener,noreferrer';
-            window.open(callUrl, '_blank', windowSpecs);
+            // Mở trong tab mới
+            const windowSpecs = 'width=1000,height=700';
+            const callWindow = window.open(callUrl, '_blank', windowSpecs);
+
+            // Khi tab video call đóng → clear isInCall flag
+            if (callWindow) {
+                const checkClosed = setInterval(() => {
+                    if (callWindow.closed) {
+                        clearInterval(checkClosed);
+                        setCallActive(false);
+                        
+                        // Gửi thêm tín hiệu HANGUP phòng hờ trường hợp user bấm dấu X đóng thẳng cửa sổ
+                        videoCallService.sendWebRTCSignal({
+                            type: 'HANGUP',
+                            senderId: currentUserId,
+                            receiverId: targetUserId,
+                            data: roomId
+                        });
+                    }
+                }, 1000);
+            }
 
         } catch (error) {
             console.error("Error initiating call:", error);
             toast.error("Error: Unable to initiate call. " + error.message);
+            setCallActive(false);
         }
     };
 
-    // 2. Khi BẠN bấm "Bắt máy" - TEMPORARILY DISABLED
+    // 2. Khi BẠN bấm "Bắt máy"
     const acceptCall = async () => {
+        // Issue #5: Chặn nếu đang trong cuộc gọi khác
+        if (isInCall || localStorage.getItem(getInCallKey()) === 'true') {
+            toast.warning("You are currently on another call. Please end the current call before making a new one.");
+            setIncomingCall(null); // Tự động từ chối
+            return;
+        }
+
+        // Đánh dấu ngay lập tức để chặn spam click
+        localStorage.setItem(getInCallKey(), 'true');
+        setIsInCall(true);
+
         // 1. Kiểm tra connection và cuộc gọi đến
         if (!connection || !stompChatService.isConnected) {
             console.error("Error: No STOMP connection");
@@ -340,7 +428,7 @@ export function AuthProvider({ children }) {
         }
 
         try {
-            // 3. Lấy token của chính Bác sĩ (người nhận)
+            // Lấy token của người nhận
             const currentToken = localStorage.getItem('token') || sessionStorage.getItem('token');
             if (!currentToken) {
                 console.error("Error: No token found for the receiver");
@@ -348,7 +436,6 @@ export function AuthProvider({ children }) {
                 return;
             }
 
-            // 4. Tự giải mã token
             const decodedUser = decodeToken(currentToken);
             if (!decodedUser) {
                 console.error("Error: Unable to decode token of the receiver");
@@ -356,28 +443,54 @@ export function AuthProvider({ children }) {
                 return;
             }
 
-            // 5. Lấy thông tin user TƯƠI MỚI (fresh)
             const userName = decodedUser.preferred_username || decodedUser.email || decodedUser.sub || "User";
 
-            // 6. Báo cho server là bạn đã bắt máy
+            // Báo cho server là đã bắt máy
             videoCallService.sendWebRTCSignal({
                 type: "CALL_ACCEPTED",
-                senderId: currentUserId, // Dùng state currentUserId (UUID) thay vì decodedUser.sub (Email)
+                senderId: currentUserId,
                 senderName: userName,
                 receiverId: incomingCall.callerId,
                 data: incomingCall.roomId
             });
-            // console.log(`✓ Đã chấp nhận cuộc gọi từ ${incomingCall.callerName}`);
 
-            // 7. Mở cửa sổ video call (vì BẠN là người nhận)
+            // Báo cho các thiết bị KHÁC CỦA CHÍNH MÌNH tắt chuông
+            videoCallService.sendWebRTCSignal({
+                type: "CALL_HANDLED_ELSEWHERE",
+                senderId: currentUserId,
+                receiverId: currentUserId, // Gửi cho chính mình
+                data: incomingCall.roomId
+            });
+
+            // Đánh dấu đang trong cuộc gọi
+            setCallActive(true);
+
+            // Mở cửa sổ video call (người nhận)
             const callUrl = `/video-calling?roomID=${incomingCall.roomId}&targetUserId=${encodeURIComponent(incomingCall.callerId)}&userName=${encodeURIComponent(incomingCall.callerName)}&isCaller=false`;
-            const windowSpecs = 'width=1000,height=700,noopener,noreferrer';
-            window.open(callUrl, '_blank', windowSpecs);
+            const windowSpecs = 'width=1000,height=700';
+            const callWindow = window.open(callUrl, '_blank', windowSpecs);
+
+            // Khi tab video call đóng → clear isInCall flag
+            if (callWindow) {
+                const checkClosed = setInterval(() => {
+                    if (callWindow.closed) {
+                        clearInterval(checkClosed);
+                        setCallActive(false);
+                        videoCallService.sendWebRTCSignal({
+                            type: 'HANGUP',
+                            senderId: currentUserId,
+                            receiverId: incomingCall.callerId,
+                            data: incomingCall.roomId
+                        });
+                    }
+                }, 1000);
+            }
 
             setIncomingCall(null); // Đóng pop-up
         } catch (error) {
             console.error("Error accepting call:", error);
             toast.error("Error: Unable to accept call. " + error.message);
+            setCallActive(false);
         }
     };
 
@@ -389,6 +502,14 @@ export function AuthProvider({ children }) {
                 type: "CALL_DECLINED",
                 senderId: currentUserId,
                 receiverId: incomingCall.callerId,
+                data: incomingCall.roomId
+            });
+
+            // Báo cho các thiết bị KHÁC CỦA CHÍNH MÌNH tắt chuông
+            videoCallService.sendWebRTCSignal({
+                type: "CALL_HANDLED_ELSEWHERE",
+                senderId: currentUserId,
+                receiverId: currentUserId, // Gửi cho chính mình
                 data: incomingCall.roomId
             });
             setIncomingCall(null); // Đóng pop-up
@@ -414,7 +535,9 @@ export function AuthProvider({ children }) {
         initiateCall,
         acceptCall,
         declineCall,
-        incomingCall
+        incomingCall,
+        isInCall,        // Issue #5: Guard chống cuộc gọi chồng chéo
+        setCallActive    // Expose để video-calling page có thể clear khi đóng
     }
 
     return (

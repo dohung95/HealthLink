@@ -2,7 +2,9 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'config/themes.dart';
 import 'providers/auth_provider.dart';
-import 'providers/chat_provider.dart';
+import 'providers/chat/chat_provider.dart';
+import 'providers/chat/chatbot_provider.dart';
+import 'providers/video_call_provider.dart';
 import 'screens/welcome_screen.dart';
 import 'screens/main_layout.dart';
 import 'screens/doctor/doctor_main_layout.dart';
@@ -22,6 +24,8 @@ Future<void> main() async {
       providers: [
         ChangeNotifierProvider<AuthProvider>.value(value: authProvider),
         ChangeNotifierProvider<ChatProvider>(create: (_) => ChatProvider()),
+        ChangeNotifierProvider<ChatbotProvider>(create: (_) => ChatbotProvider()),
+        ChangeNotifierProvider<VideoCallProvider>(create: (_) => VideoCallProvider()),
       ],
       child: const HealthLinkApp(),
     ),
