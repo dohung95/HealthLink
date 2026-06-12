@@ -552,9 +552,9 @@ export default function PatientChatPage() {
         try {
             const mimeType = selectedFile.type;
             let type = 'file';
-            let requestPayload = { 
-                chatRoomId: currentRoom.chatRoomId, 
-                receiverId: chatPartner.userId || chatPartner.uid 
+            let requestPayload = {
+                chatRoomId: currentRoom.chatRoomId,
+                receiverId: chatPartner.userId || chatPartner.uid
             };
             let previewText = '[Tệp đính kèm]';
 
@@ -641,7 +641,7 @@ export default function PatientChatPage() {
     const isBlockedByMe = currentRoom?.blockedBy === currentUserId;
 
     return (
-        <div className="container-fluid h-100 py-3" style={{ background: '#f8f9fa' }}>
+        <div className="container-fluid h-100 py-3">
             {lightboxImage && <ImageLightbox src={lightboxImage} onClose={() => setLightboxImage(null)} />}
 
             <div className="row h-100 g-0 shadow-sm rounded-4 overflow-hidden bg-white" style={{ minHeight: 'calc(100vh - 120px)' }}>
