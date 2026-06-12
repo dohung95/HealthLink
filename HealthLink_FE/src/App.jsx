@@ -80,7 +80,7 @@ import PatientDashboard from './pages/PatientDashboard';
 import PatientDashboardHome from './components/patient-dashboard/PatientDashboardHome';
 import NotFound from './pages/NotFound';
 import PharmacyDashboardPage from './pages/pharmacy/PharmacyDashboardPage';
-
+import PatientChatPage from './components/ChatPage';
 //-----------------------------------------------------------------------------------------------
 
 function App() {
@@ -200,7 +200,7 @@ function AppContent() {
       {!isVideoCallPage && !isAdminPage && <PrescriptionNotificationModal />}
       {!isVideoCallPage && !isAdminPage && <AdminActionNotificationModal />}
       <div className="App">
-        {!isVideoCallPage && !isAdminPage && !is404Page && !isResetPasswordPage && <Chat />}
+        {!isVideoCallPage && !isAdminPage && !is404Page && !isResetPasswordPage && !isPatientDashboard && <Chat />}
         <ScrollToTop />
         {!hideLayout && <Navbar />}
 
@@ -369,6 +369,7 @@ function AppContent() {
               <Route path="pharmacy/orders" element={<PatientPharmacyPage />} />
               <Route path="pharmacy/orders/:orderId" element={<PatientPharmacyPage />} />
               <Route path="profile" element={<ProfilePatient />} />
+              <Route path="chat" element={<PatientChatPage />} />
             </Route>
 
             <Route
