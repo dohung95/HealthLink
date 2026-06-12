@@ -34,9 +34,9 @@ public interface ChatService {
     MessageDTO sendMessage(SendMessageRequest request, String senderId);
 
     /**
-     * Lấy toàn bộ lịch sử tin nhắn trong một phòng chat.
+     * Lấy lịch sử tin nhắn phân trang trong một phòng chat.
      */
-    List<MessageDTO> getMessages(String chatRoomId);
+    List<MessageDTO> getMessages(String chatRoomId, int page, int size);
 
     /**
      * Đánh dấu tất cả tin nhắn chưa đọc trong phòng là đã đọc.

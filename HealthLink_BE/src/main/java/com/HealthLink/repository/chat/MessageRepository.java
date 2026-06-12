@@ -11,6 +11,8 @@ import java.util.List;
 
 import java.util.UUID;
 
+import org.springframework.data.domain.Pageable;
+
 @Repository
 public interface MessageRepository extends JpaRepository<Message, String> {
 
@@ -18,6 +20,11 @@ public interface MessageRepository extends JpaRepository<Message, String> {
      * Lấy tất cả tin nhắn trong một phòng chat, sắp xếp theo thời gian tăng dần.
      */
     List<Message> findByChatRoom_ChatRoomIdOrderByTimestampAsc(String chatRoomId);
+
+    /**
+     * Lấy tin nhắn phân trang trong một phòng chat, sắp xếp theo thời gian giảm dần (mới nhất trước).
+     */
+    List<Message> findByChatRoom_ChatRoomIdOrderByTimestampDesc(String chatRoomId, Pageable pageable);
 
     /**
      * Đếm số tin nhắn chưa đọc mà một người dùng nhận được trong một phòng chat.

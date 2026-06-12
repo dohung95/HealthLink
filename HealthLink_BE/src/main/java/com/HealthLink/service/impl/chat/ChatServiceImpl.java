@@ -23,6 +23,9 @@ import java.time.LocalDateTime;
 import java.util.List;
 import java.util.UUID;
 import java.util.stream.Collectors;
+import java.util.Collections;
+import org.springframework.data.domain.Pageable;
+import org.springframework.data.domain.PageRequest;
 
 @Service
 @RequiredArgsConstructor
@@ -207,14 +210,19 @@ public class ChatServiceImpl implements ChatService {
     // -------------------------------------------------------------------------
     @Override
     @Transactional(readOnly = true)
-    public List<MessageDTO> getMessages(String chatRoomId) {
+    public List<MessageDTO> getMessages(String chatRoomId, int page, int size) {
         // Đảm bảo phòng tồn tại
         if (!chatRoomRepository.existsById(chatRoomId)) {
             throw new ResourceNotFoundException("ChatRoom", "id", chatRoomId);
         }
-        return messageRepository
-                .findByChatRoom_ChatRoomIdOrderByTimestampAsc(chatRoomId)
-                .stream()
+        Pageable pageable = PageRequest.of(page, size);
+        List<Message> messages = messageRepository
+                .findByChatRoom_ChatRoomIdOrderByTimestampDesc(chatRoomId, pageable);
+        
+        // Đảo ngược danh sách để trả về thứ tự thời gian tăng dần cho client hiển thị
+        Collections.reverse(messages);
+
+        return messages.stream()
                 .map(this::toMessageDTO)
                 .collect(Collectors.toList());
     }

@@ -307,6 +307,12 @@ export default function PatientChatPage() {
     const [latestBotMsgId, setLatestBotMsgId] = useState(null);
     const [lightboxImage, setLightboxImage] = useState(null);
 
+    const [page, setPage] = useState(0);
+    const [hasMore, setHasMore] = useState(true);
+    const [loadingMore, setLoadingMore] = useState(false);
+    const chatContainerRef = useRef(null);
+    const shouldScrollToBottomRef = useRef(true);
+
     const scrollTo = useRef(null);
     const fileInputRef = useRef(null);
     const unsubscribeChat = useRef(null);
@@ -356,6 +362,7 @@ export default function PatientChatPage() {
             const isRoomActive = activeRoomId === newMsg.chatRoomId;
 
             if (isRoomActive) {
+                shouldScrollToBottomRef.current = true;
                 setMessages(prev => {
                     if (prev.some(m => m.messageId === newMsg.messageId)) return prev;
                     if (newMsg.senderId === currentUserId) {
@@ -410,11 +417,19 @@ export default function PatientChatPage() {
     useEffect(() => {
         if (!currentRoom) {
             setMessages([]);
+            setPage(0);
+            setHasMore(true);
             return;
         }
         setLoading(true);
-        getRoomMessages(currentRoom.chatRoomId).then(msgs => {
+        setPage(0);
+        setHasMore(true);
+        shouldScrollToBottomRef.current = true;
+        getRoomMessages(currentRoom.chatRoomId, 0, 25).then(msgs => {
             setMessages(msgs);
+            if (msgs.length < 25) {
+                setHasMore(false);
+            }
             return markAsRead(currentRoom.chatRoomId)
                 .then(res => {
                     setRoomList(prevRooms => prevRooms.map(room => {
@@ -446,8 +461,46 @@ export default function PatientChatPage() {
         }).catch(() => toast.error('Cannot open room!'));
     }, [chatPartner, currentUserId]);
 
+    const loadMoreMessages = useCallback(() => {
+        if (!currentRoom || loadingMore || !hasMore) return;
+        setLoadingMore(true);
+        shouldScrollToBottomRef.current = false;
+        const nextPage = page + 1;
+        const container = chatContainerRef.current;
+        const previousScrollHeight = container ? container.scrollHeight : 0;
+
+        getRoomMessages(currentRoom.chatRoomId, nextPage, 25)
+            .then(newMsgs => {
+                if (newMsgs.length > 0) {
+                    setMessages(prev => [...newMsgs, ...prev]);
+                    setPage(nextPage);
+                    if (newMsgs.length < 25) {
+                        setHasMore(false);
+                    }
+                    setTimeout(() => {
+                        if (container) {
+                            const newScrollHeight = container.scrollHeight;
+                            container.scrollTop = newScrollHeight - previousScrollHeight;
+                        }
+                    }, 0);
+                } else {
+                    setHasMore(false);
+                }
+            })
+            .catch(() => { })
+            .finally(() => setLoadingMore(false));
+    }, [currentRoom, page, hasMore, loadingMore]);
+
+    const handleScroll = () => {
+        if (!chatContainerRef.current) return;
+        const { scrollTop } = chatContainerRef.current;
+        if (scrollTop === 0 && hasMore && !loading && !loadingMore && currentRoom) {
+            loadMoreMessages();
+        }
+    };
+
     useEffect(() => {
-        if (scrollTo.current) {
+        if (shouldScrollToBottomRef.current && scrollTo.current) {
             scrollTo.current.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
         }
     }, [messages, isBotTyping]);
@@ -455,6 +508,7 @@ export default function PatientChatPage() {
     const sendMsg = async (e) => {
         e.preventDefault();
         if (!formValue.trim() || !chatPartner) return;
+        shouldScrollToBottomRef.current = true;
         const text = formValue.trim();
         setFormValue('');
 
@@ -549,6 +603,7 @@ export default function PatientChatPage() {
     const sendMedia = async () => {
         if (!selectedFile || !currentRoom) return;
         setUploading(true);
+        shouldScrollToBottomRef.current = true;
         try {
             const mimeType = selectedFile.type;
             let type = 'file';
@@ -701,7 +756,13 @@ export default function PatientChatPage() {
                     </div>
 
                     {/* Danh sách tin nhắn */}
-                    <div className="flex-grow-1 p-4 overflow-auto" style={{ backgroundColor: '#f0f2f5' }}>
+                    <div ref={chatContainerRef} onScroll={handleScroll} className="flex-grow-1 p-4 overflow-auto" style={{ backgroundColor: '#f0f2f5' }}>
+                        {loadingMore && (
+                            <div className="text-center p-2 text-muted">
+                                <div className="spinner-border spinner-border-sm me-2"></div> Loading older messages...
+                            </div>
+                        )}
+
                         {loading && (
                             <div className="text-center p-3 text-muted">
                                 <div className="spinner-border spinner-border-sm me-2"></div> Loading...
