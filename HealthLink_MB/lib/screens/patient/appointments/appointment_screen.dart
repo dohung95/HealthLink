@@ -14,10 +14,7 @@ import '../../../providers/chat/chat_provider.dart';
 import '../../../providers/video_call_provider.dart';
 
 class AppointmentScreen extends StatefulWidget {
-  const AppointmentScreen({
-    super.key,
-    this.onBookNew,
-  });
+  const AppointmentScreen({super.key, this.onBookNew});
 
   final VoidCallback? onBookNew;
 
@@ -45,6 +42,17 @@ class _AppointmentScreenState extends State<AppointmentScreen> {
   Timer? _timer;
 
   List<PatientAppointment> _appointments = [];
+
+  String _statusFilter = 'ALL';
+
+  static const Map<String, String> _statusOptions = {
+    'ALL': 'All',
+    'UPCOMING': 'Upcoming',
+    'EXPIRED': 'Expired',
+    'COMPLETED': 'Completed',
+    'CANCELLED': 'Cancelled',
+    'IN_CONSULTATION': 'In consultation',
+  };
 
   @override
   void initState() {
@@ -108,6 +116,7 @@ class _AppointmentScreenState extends State<AppointmentScreen> {
         patientId: _patientId!,
         page: page,
         size: _pageSize,
+        status: _statusFilter,
       );
 
       if (!mounted) return;
@@ -131,6 +140,18 @@ class _AppointmentScreenState extends State<AppointmentScreen> {
         });
       }
     }
+  }
+
+  Future<void> _handleStatusChanged(String? status) async {
+    if (status == null || status == _statusFilter) return;
+
+    setState(() {
+      _statusFilter = status;
+      _currentPage = 1;
+      _appointments = [];
+    });
+
+    await _loadAppointments(page: 1);
   }
 
   Future<void> _confirmCancel(PatientAppointment appointment) async {
@@ -190,10 +211,11 @@ class _AppointmentScreenState extends State<AppointmentScreen> {
 
   void _handleChat(PatientAppointment appointment) async {
     final auth = context.read<AuthProvider>();
-    if (!auth.isAuthenticated || auth.accessToken == null || _patientId == null) return;
-    
+    if (!auth.isAuthenticated || auth.accessToken == null || _patientId == null)
+      return;
+
     setState(() => _actionLoading = true);
-    
+
     try {
       final conversation = await ChatService.getOrCreateRoom(
         auth.accessToken!,
@@ -201,7 +223,7 @@ class _AppointmentScreenState extends State<AppointmentScreen> {
         appointment.doctorId,
         appointmentId: appointment.appointmentId,
       );
-      
+
       if (!mounted) return;
       Navigator.push(
         context,
@@ -221,13 +243,18 @@ class _AppointmentScreenState extends State<AppointmentScreen> {
   void _handleVideo(PatientAppointment appointment) {
     final auth = context.read<AuthProvider>();
     final videoCallProvider = context.read<VideoCallProvider>();
-    
+
     if (auth.isAuthenticated && auth.userId != null) {
       // Tạo ngẫu nhiên một roomId 45 ký tự giống web
-      const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789';
+      const chars =
+          'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789';
       final rnd = math.Random();
-      final roomId = String.fromCharCodes(Iterable.generate(
-          45, (_) => chars.codeUnitAt(rnd.nextInt(chars.length))));
+      final roomId = String.fromCharCodes(
+        Iterable.generate(
+          45,
+          (_) => chars.codeUnitAt(rnd.nextInt(chars.length)),
+        ),
+      );
 
       final success = videoCallProvider.sendCallRequest(
         receiverId: appointment.doctorId,
@@ -322,9 +349,7 @@ class _AppointmentScreenState extends State<AppointmentScreen> {
       padding: const EdgeInsets.fromLTRB(20, 20, 20, 16),
       decoration: BoxDecoration(
         color: colors.surfaceVariant.withValues(alpha: 0.55),
-        border: Border(
-          bottom: BorderSide(color: colors.outlineVariant),
-        ),
+        border: Border(bottom: BorderSide(color: colors.outlineVariant)),
       ),
       child: Row(
         children: [
@@ -356,6 +381,55 @@ class _AppointmentScreenState extends State<AppointmentScreen> {
     );
   }
 
+  Widget _buildStatusFilter(ColorScheme colors) {
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 4),
+      decoration: BoxDecoration(
+        color: colors.surfaceContainerLowest,
+        borderRadius: BorderRadius.circular(14),
+        border: Border.all(color: colors.outlineVariant),
+      ),
+      child: DropdownButtonHideUnderline(
+        child: DropdownButton<String>(
+          value: _statusFilter,
+          isExpanded: true,
+          icon: const Icon(Icons.keyboard_arrow_down),
+          items: _statusOptions.entries.map((entry) {
+            return DropdownMenuItem<String>(
+              value: entry.key,
+              child: Row(
+                children: [
+                  Icon(_statusIcon(entry.key), size: 18, color: colors.primary),
+                  const SizedBox(width: 10),
+                  Text(entry.value),
+                ],
+              ),
+            );
+          }).toList(),
+          onChanged: _loading ? null : _handleStatusChanged,
+        ),
+      ),
+    );
+  }
+
+  IconData _statusIcon(String status) {
+    switch (status) {
+      case 'UPCOMING':
+        return Icons.upcoming_outlined;
+      case 'EXPIRED':
+        return Icons.schedule_outlined;
+      case 'COMPLETED':
+        return Icons.check_circle_outline;
+      case 'CANCELLED':
+        return Icons.cancel_outlined;
+      case 'IN_CONSULTATION':
+        return Icons.medical_services_outlined;
+      default:
+        return Icons.filter_list;
+    }
+  }
+
   Widget _buildContent(ColorScheme colors) {
     if (_loading) {
       return const Padding(
@@ -374,36 +448,52 @@ class _AppointmentScreenState extends State<AppointmentScreen> {
     }
 
     if (_appointments.isEmpty) {
-      return _emptyState(
-        colors,
-        icon: Icons.event_busy_outlined,
-        title: 'No appointments yet',
-        subtitle: 'Book your first appointment to start consulting with a doctor.',
+      final selectedLabel =
+          _statusOptions[_statusFilter] ?? 'selected';
+
+      return Column(
+        children: [
+          _buildStatusFilter(colors),
+          const SizedBox(height: 16),
+          _emptyState(
+            colors,
+            icon: Icons.event_busy_outlined,
+            title: _statusFilter == 'ALL'
+                ? 'No appointments yet'
+                : 'No $selectedLabel appointments',
+            subtitle: _statusFilter == 'ALL'
+                ? 'Book your first appointment to start consulting with a doctor.'
+                : 'No appointments match the selected status.',
+          ),
+        ],
       );
     }
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
+        _buildStatusFilter(colors),
+        const SizedBox(height: 16),
+
         if (_actionLoading)
           LinearProgressIndicator(
             color: colors.primary,
             backgroundColor: colors.surfaceContainerHighest,
           ),
+
         const SizedBox(height: 12),
+
         ..._appointments.map((appointment) {
           return _appointmentCard(colors, appointment);
         }),
+
         const SizedBox(height: 16),
         _pagination(colors),
       ],
     );
   }
 
-  Widget _appointmentCard(
-      ColorScheme colors,
-      PatientAppointment appointment,
-      ) {
+  Widget _appointmentCard(ColorScheme colors, PatientAppointment appointment) {
     final joinable = appointment.isJoinable(_now);
     final canCancel = appointment.canCancel(_now);
     final canReschedule = appointment.canReschedule(_now);
@@ -448,9 +538,7 @@ class _AppointmentScreenState extends State<AppointmentScreen> {
                       if (appointment.specialtyName.isNotEmpty)
                         Text(
                           appointment.specialtyName,
-                          style: TextStyle(
-                            color: colors.onSurfaceVariant,
-                          ),
+                          style: TextStyle(color: colors.onSurfaceVariant),
                         ),
                     ],
                   ),
@@ -471,11 +559,7 @@ class _AppointmentScreenState extends State<AppointmentScreen> {
               appointment.consultationType,
             ),
             const SizedBox(height: 8),
-            _infoRow(
-              colors,
-              Icons.person_outline,
-              appointment.patientName,
-            ),
+            _infoRow(colors, Icons.person_outline, appointment.patientName),
             const SizedBox(height: 16),
             Wrap(
               spacing: 10,
@@ -519,10 +603,7 @@ class _AppointmentScreenState extends State<AppointmentScreen> {
         Icon(icon, size: 18, color: colors.primary),
         const SizedBox(width: 8),
         Expanded(
-          child: Text(
-            text,
-            style: TextStyle(color: colors.onSurfaceVariant),
-          ),
+          child: Text(text, style: TextStyle(color: colors.onSurfaceVariant)),
         ),
       ],
     );
@@ -569,11 +650,7 @@ class _AppointmentScreenState extends State<AppointmentScreen> {
       ),
       child: Text(
         label,
-        style: TextStyle(
-          color: fg,
-          fontSize: 12,
-          fontWeight: FontWeight.w900,
-        ),
+        style: TextStyle(color: fg, fontSize: 12, fontWeight: FontWeight.w900),
       ),
     );
   }
@@ -611,11 +688,11 @@ class _AppointmentScreenState extends State<AppointmentScreen> {
   }
 
   Widget _emptyState(
-      ColorScheme colors, {
-        required IconData icon,
-        required String title,
-        required String subtitle,
-      }) {
+    ColorScheme colors, {
+    required IconData icon,
+    required String title,
+    required String subtitle,
+  }) {
     return Container(
       width: double.infinity,
       padding: const EdgeInsets.all(24),
@@ -630,10 +707,7 @@ class _AppointmentScreenState extends State<AppointmentScreen> {
           const SizedBox(height: 12),
           Text(
             title,
-            style: const TextStyle(
-              fontWeight: FontWeight.w900,
-              fontSize: 18,
-            ),
+            style: const TextStyle(fontWeight: FontWeight.w900, fontSize: 18),
           ),
           const SizedBox(height: 6),
           Text(
@@ -885,7 +959,7 @@ class _RescheduleAppointmentSheetState
     final colors = Theme.of(context).colorScheme;
     final days = List.generate(
       _bookingWindowDays.clamp(7, 30).toInt(),
-          (index) => _dayStart(DateTime.now()).add(Duration(days: index)),
+      (index) => _dayStart(DateTime.now()).add(Duration(days: index)),
     );
 
     return Padding(
@@ -912,9 +986,9 @@ class _RescheduleAppointmentSheetState
           const SizedBox(height: 18),
           Text(
             'Reschedule Appointment',
-            style: Theme.of(context).textTheme.titleLarge?.copyWith(
-              fontWeight: FontWeight.w900,
-            ),
+            style: Theme.of(
+              context,
+            ).textTheme.titleLarge?.copyWith(fontWeight: FontWeight.w900),
           ),
           const SizedBox(height: 6),
           Text(
@@ -991,9 +1065,9 @@ class _RescheduleAppointmentSheetState
           const SizedBox(height: 22),
           Text(
             'Available slots',
-            style: Theme.of(context).textTheme.titleMedium?.copyWith(
-              fontWeight: FontWeight.w900,
-            ),
+            style: Theme.of(
+              context,
+            ).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w900),
           ),
           const SizedBox(height: 12),
 
@@ -1062,12 +1136,12 @@ class _RescheduleAppointmentSheetState
                   onPressed: _submitting
                       ? null
                       : () async {
-                    await _releaseHoldSilently();
+                          await _releaseHoldSilently();
 
-                    if (context.mounted) {
-                      Navigator.of(context).pop(false);
-                    }
-                  },
+                          if (context.mounted) {
+                            Navigator.of(context).pop(false);
+                          }
+                        },
                   child: const Text('Cancel'),
                 ),
               ),
@@ -1077,10 +1151,10 @@ class _RescheduleAppointmentSheetState
                   onPressed: _submitting ? null : _confirmReschedule,
                   child: _submitting
                       ? const SizedBox(
-                    width: 18,
-                    height: 18,
-                    child: CircularProgressIndicator(strokeWidth: 2),
-                  )
+                          width: 18,
+                          height: 18,
+                          child: CircularProgressIndicator(strokeWidth: 2),
+                        )
                       : const Text('Confirm'),
                 ),
               ),
@@ -1097,8 +1171,7 @@ class _RescheduleAppointmentSheetState
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
         content: Text(message),
-        backgroundColor:
-        isError ? Theme.of(context).colorScheme.error : null,
+        backgroundColor: isError ? Theme.of(context).colorScheme.error : null,
       ),
     );
   }
@@ -1124,7 +1197,9 @@ class _RescheduleAppointmentSheetState
 
   String _appointmentDateTime(DateTime date, String time) {
     final clean = time.length >= 5 ? time : '00:00';
-    final withSeconds = clean.length == 5 ? '$clean:00' : clean.split('.').first;
+    final withSeconds = clean.length == 5
+        ? '$clean:00'
+        : clean.split('.').first;
 
     return '${_formatDate(date)}T$withSeconds';
   }
@@ -1139,7 +1214,14 @@ class _RescheduleAppointmentSheetState
     final tomorrow = _dayStart(DateTime.now()).add(const Duration(days: 1));
     if (_sameDay(date, tomorrow)) return 'Tomorrow';
 
-    return const ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun']
-    [date.weekday - 1];
+    return const [
+      'Mon',
+      'Tue',
+      'Wed',
+      'Thu',
+      'Fri',
+      'Sat',
+      'Sun',
+    ][date.weekday - 1];
   }
 }

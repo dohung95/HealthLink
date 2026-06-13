@@ -56,8 +56,8 @@ public class AppointmentServiceImpl implements AppointmentService {
     private static final String STATUS_CANCELLED = "CANCELLED";
     private static final String STATUS_SCHEDULED = "SCHEDULED";
 
-    private static final DateTimeFormatter NOTIFICATION_TIME_FORMATTER =
-            DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm");
+    private static final DateTimeFormatter NOTIFICATION_TIME_FORMATTER
+            = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm");
 
     private final AppointmentRepository appointmentRepository;
     private final PatientRepository patientRepository;
@@ -80,11 +80,11 @@ public class AppointmentServiceImpl implements AppointmentService {
 
         Patient patient = patientRepository.findById(request.getPatientId())
                 .orElseThrow(() -> new ResourceNotFoundException(
-                        "Not found patient ID: " + request.getPatientId()));
+                "Not found patient ID: " + request.getPatientId()));
 
         Doctor doctor = doctorRepository.findById(request.getDoctorId())
                 .orElseThrow(() -> new ResourceNotFoundException(
-                        "Bot found doctor ID: " + request.getDoctorId()));
+                "Bot found doctor ID: " + request.getDoctorId()));
 
         checkConsultationTypeSupported(doctor, request.getConsultationType());
 
@@ -103,12 +103,12 @@ public class AppointmentServiceImpl implements AppointmentService {
         DoctorSchedule matchedSchedule = schedulesOfDay.stream()
                 .filter(s -> isConsultationTypeMatch(s, request.getConsultationType()))
                 .filter(s -> !requestedTime.isBefore(s.getStartTime())
-                        && requestedTime.isBefore(s.getEndTime()))
+                && requestedTime.isBefore(s.getEndTime()))
                 .filter(s -> isAlignedWithSlot(s, requestedTime))
                 .findFirst()
                 .orElseThrow(() -> new BusinessException(
-                        "Doctor does not have a suitable working shift at "
-                                + requestedTime + " for consultation type " + request.getConsultationType()));
+                "Doctor does not have a suitable working shift at "
+                + requestedTime + " for consultation type " + request.getConsultationType()));
 
         int slotMinutes = Objects.requireNonNullElse(matchedSchedule.getSlotDuration(), 30);
         LocalDateTime slotStart = appointmentTime;
@@ -350,11 +350,11 @@ public class AppointmentServiceImpl implements AppointmentService {
 
         Doctor doctor = doctorRepository.findById(request.getDoctorId())
                 .orElseThrow(() -> new ResourceNotFoundException(
-                        "Doctor not found with ID: " + request.getDoctorId()));
+                "Doctor not found with ID: " + request.getDoctorId()));
 
         Patient patient = patientRepository.findById(request.getPatientId())
                 .orElseThrow(() -> new ResourceNotFoundException(
-                        "Patient not found with ID: " + request.getPatientId()));
+                "Patient not found with ID: " + request.getPatientId()));
 
         LocalDateTime appointmentTime = request.getAppointmentTime();
         int dayOfWeek = appointmentTime.getDayOfWeek().getValue() % 7;
@@ -370,11 +370,11 @@ public class AppointmentServiceImpl implements AppointmentService {
         DoctorSchedule matchedSchedule = schedulesOfDay.stream()
                 .filter(s -> isConsultationTypeMatch(s, request.getConsultationType()))
                 .filter(s -> !requestedTime.isBefore(s.getStartTime())
-                        && requestedTime.isBefore(s.getEndTime()))
+                && requestedTime.isBefore(s.getEndTime()))
                 .filter(s -> isAlignedWithSlot(s, requestedTime))
                 .findFirst()
                 .orElseThrow(() -> new BusinessException(
-                        "Doctor does not have a suitable working shift at this time"));
+                "Doctor does not have a suitable working shift at this time"));
 
         int slotMinutes = Objects.requireNonNullElse(matchedSchedule.getSlotDuration(), 30);
         LocalDateTime slotEnd = appointmentTime.plusMinutes(slotMinutes);
@@ -426,7 +426,7 @@ public class AppointmentServiceImpl implements AppointmentService {
     public void releaseHold(Integer holdId) {
         AppointmentSlotHold hold = appointmentSlotHoldRepository.findById(holdId)
                 .orElseThrow(() -> new ResourceNotFoundException(
-                        "Hold not found with ID: " + holdId));
+                "Hold not found with ID: " + holdId));
 
         appointmentSlotHoldRepository.delete(hold);
     }
@@ -435,7 +435,7 @@ public class AppointmentServiceImpl implements AppointmentService {
     public List<AppointmentResponse> getPatientAppointments(String patientId) {
         patientRepository.findById(patientId)
                 .orElseThrow(() -> new ResourceNotFoundException(
-                        "not found patient with ID: " + patientId));
+                "not found patient with ID: " + patientId));
 
         return appointmentRepository
                 .findByPatient_PatientIdOrderByAppointmentTimeDesc(patientId)
@@ -445,22 +445,39 @@ public class AppointmentServiceImpl implements AppointmentService {
     }
 
     @Override
-    public PagedResponse<AppointmentResponse> getPatientAppointmentsPaged(String patientId, int page, int size) {
+    public PagedResponse<AppointmentResponse> getPatientAppointmentsPaged(
+            String patientId,
+            int page,
+            int size,
+            String status
+    ) {
         patientRepository.findById(patientId)
                 .orElseThrow(() -> new ResourceNotFoundException(
-                        "not found patient with ID: " + patientId));
+                "not found patient with ID: " + patientId));
 
         int safePage = Math.max(page, 1);
         int safeSize = Math.min(Math.max(size, 1), 50);
 
-        Page<Appointment> appointmentPage = appointmentRepository.findPatientAppointmentsOrdered(
-                patientId,
-                LocalDateTime.now(),
-                PageRequest.of(safePage - 1, safeSize)
-        );
+        String normalizedStatus
+                = status == null || status.isBlank()
+                ? "ALL"
+                : status.trim().toUpperCase();
+
+        LocalDateTime now = LocalDateTime.now();
+        LocalDateTime expiredBefore = now.minusMinutes(30);
+
+        Page<Appointment> appointmentPage
+                = appointmentRepository.findPatientAppointmentsOrdered(
+                        patientId,
+                        normalizedStatus,
+                        now,
+                        expiredBefore,
+                        PageRequest.of(safePage - 1, safeSize)
+                );
 
         return PagedResponse.<AppointmentResponse>builder()
-                .items(appointmentPage.getContent().stream()
+                .items(appointmentPage.getContent()
+                        .stream()
                         .map(this::toResponse)
                         .collect(Collectors.toList()))
                 .page(safePage)
@@ -474,7 +491,7 @@ public class AppointmentServiceImpl implements AppointmentService {
     public List<AppointmentResponse> getDoctorAppointments(String doctorId) {
         doctorRepository.findById(doctorId)
                 .orElseThrow(() -> new ResourceNotFoundException(
-                        "not found doctor with ID: " + doctorId));
+                "not found doctor with ID: " + doctorId));
 
         return appointmentRepository
                 .findByDoctor_DoctorIdOrderByAppointmentTimeDesc(doctorId)
@@ -487,7 +504,7 @@ public class AppointmentServiceImpl implements AppointmentService {
     public DoctorDailyAppointmentsResponse getDoctorDailyAppointments(String doctorId, LocalDate date, String status) {
         doctorRepository.findById(doctorId)
                 .orElseThrow(() -> new ResourceNotFoundException(
-                        "not found doctor with ID: " + doctorId));
+                "not found doctor with ID: " + doctorId));
 
         if (date == null) {
             throw new BusinessException("Date is required");
@@ -507,7 +524,7 @@ public class AppointmentServiceImpl implements AppointmentService {
 
         List<AppointmentResponse> appointments = dailyAppointments.stream()
                 .filter(appointment -> normalizedStatus == null
-                        || normalizedStatus.equalsIgnoreCase(appointment.getStatus()))
+                || normalizedStatus.equalsIgnoreCase(appointment.getStatus()))
                 .map(this::toResponse)
                 .collect(Collectors.toList());
 
@@ -530,7 +547,7 @@ public class AppointmentServiceImpl implements AppointmentService {
         return toResponse(
                 appointmentRepository.findById(id)
                         .orElseThrow(() -> new ResourceNotFoundException(
-                                "Khong tim thay lich hen voi ID: " + id)));
+                        "Khong tim thay lich hen voi ID: " + id)));
     }
 
     @Override
@@ -538,7 +555,7 @@ public class AppointmentServiceImpl implements AppointmentService {
     public AppointmentResponse cancelAppointment(Integer id, CancelAppointmentRequest request) {
         Appointment appointment = appointmentRepository.findById(id)
                 .orElseThrow(() -> new ResourceNotFoundException(
-                        "mot found appointment with ID: " + id));
+                "mot found appointment with ID: " + id));
 
         String cancelledBy = request.getCancelledBy();
         if (cancelledBy == null || cancelledBy.isBlank()) {
@@ -580,7 +597,7 @@ public class AppointmentServiceImpl implements AppointmentService {
     public AppointmentResponse rescheduleAppointment(Integer id, RescheduleAppointmentRequest request) {
         Appointment appointment = appointmentRepository.findById(id)
                 .orElseThrow(() -> new ResourceNotFoundException(
-                        "Not found appointment with ID: " + id));
+                "Not found appointment with ID: " + id));
 
         if (STATUS_CANCELLED.equalsIgnoreCase(appointment.getStatus())) {
             throw new BusinessException("Cannot reschedule a cancelled appointment");
@@ -618,12 +635,12 @@ public class AppointmentServiceImpl implements AppointmentService {
         DoctorSchedule matchedSchedule = schedulesOfDay.stream()
                 .filter(s -> isConsultationTypeMatch(s, appointment.getConsultationType()))
                 .filter(s -> !newRequestedTime.isBefore(s.getStartTime())
-                        && newRequestedTime.isBefore(s.getEndTime()))
+                && newRequestedTime.isBefore(s.getEndTime()))
                 .filter(s -> isAlignedWithSlot(s, newRequestedTime))
                 .findFirst()
                 .orElseThrow(() -> new BusinessException(
-                        "Doctor does not have a suitable working shift at "
-                                + newRequestedTime + " for consultation type " + appointment.getConsultationType()));
+                "Doctor does not have a suitable working shift at "
+                + newRequestedTime + " for consultation type " + appointment.getConsultationType()));
 
         int slotMinutes = Objects.requireNonNullElse(matchedSchedule.getSlotDuration(), 30);
         LocalDateTime slotStart = newTime;
@@ -679,19 +696,24 @@ public class AppointmentServiceImpl implements AppointmentService {
 
     private void checkConsultationTypeSupported(Doctor doctor, String consultationType) {
         boolean supported = switch (consultationType.toLowerCase()) {
-            case "video" -> doctor.isAvailableForVideo();
-            case "audio" -> doctor.isAvailableForAudio();
-            case "chat" -> doctor.isAvailableForChat();
-            case "offline" -> doctor.isAvailableForOffline();
-            default -> throw new BusinessException(
-                    "Invalid consultation type: '" + consultationType
-                            + "'. Must be: Video, Audio, Chat, Offline");
+            case "video" ->
+                doctor.isAvailableForVideo();
+            case "audio" ->
+                doctor.isAvailableForAudio();
+            case "chat" ->
+                doctor.isAvailableForChat();
+            case "offline" ->
+                doctor.isAvailableForOffline();
+            default ->
+                throw new BusinessException(
+                        "Invalid consultation type: '" + consultationType
+                        + "'. Must be: Video, Audio, Chat, Offline");
         };
 
         if (!supported) {
             throw new BusinessException(
                     "Doctor " + doctor.getFullName()
-                            + " does not support consultation type: " + consultationType);
+                    + " does not support consultation type: " + consultationType);
         }
     }
 

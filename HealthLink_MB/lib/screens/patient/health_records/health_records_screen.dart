@@ -3,8 +3,8 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:url_launcher/url_launcher.dart';
 
-import '../../providers/auth_provider.dart';
-import '../../services/health_records/health_records_service.dart';
+import '../../../providers/auth_provider.dart';
+import '../../../services/health_records/health_records_service.dart';
 
 class HealthRecordsScreen extends StatefulWidget {
   const HealthRecordsScreen({super.key});
@@ -257,7 +257,25 @@ class _HealthRecordsScreenState extends State<HealthRecordsScreen> {
     return Scaffold(
       backgroundColor: colors.surface,
       appBar: AppBar(
-        title: const Text('Health Records'),
+        backgroundColor: colors.surfaceVariant.withValues(alpha: 0.55),
+        foregroundColor: colors.onSurface,
+        surfaceTintColor: Colors.transparent,
+        elevation: 0,
+        scrolledUnderElevation: 0,
+        centerTitle: false,
+        toolbarHeight: 72,
+        title: Text(
+          'Health Records',
+          style: Theme.of(context).textTheme.titleLarge?.copyWith(
+            fontWeight: FontWeight.w900,
+            color: colors.onSurface,
+          ),
+        ),
+        shape: Border(
+          bottom: BorderSide(
+            color: colors.outlineVariant,
+          ),
+        ),
       ),
       body: RefreshIndicator(
         onRefresh: () => _loadRecords(page: _page),

@@ -61,9 +61,19 @@ public class AppointmentController {
     public ResponseEntity<PagedResponse<AppointmentResponse>> getByPatientPaged(
             @PathVariable String patientId,
             @RequestParam(defaultValue = "1") int page,
-            @RequestParam(defaultValue = "5") int size) {
-        return ResponseEntity.ok(appointmentService.getPatientAppointmentsPaged(patientId, page, size));
+            @RequestParam(defaultValue = "5") int size,
+            @RequestParam(defaultValue = "ALL") String status
+    ) {
+        return ResponseEntity.ok(
+                appointmentService.getPatientAppointmentsPaged(
+                        patientId,
+                        page,
+                        size,
+                        status
+                )
+        );
     }
+
     @GetMapping("/doctor/{doctorId}")
     public ResponseEntity<List<AppointmentResponse>> getByDoctor(
             @PathVariable String doctorId) {

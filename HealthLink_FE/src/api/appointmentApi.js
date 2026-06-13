@@ -103,14 +103,24 @@ export const appointmentService = {
         return response.data;
     },
 
-    getPatientAppointmentsPage: async (patientId, page = 1, size = 5) => {
+    getPatientAppointmentsPage: async (
+        patientId,
+        page = 1,
+        size = 5,
+        status = 'ALL'
+    ) => {
         const response = await axios.get(
             `${API_URL}/appointments/patient/${patientId}/page`,
             {
                 ...getAuthConfig(),
-                params: { page, size },
+                params: {
+                    page,
+                    size,
+                    status,
+                },
             }
         );
+
         return response.data;
     },
 
