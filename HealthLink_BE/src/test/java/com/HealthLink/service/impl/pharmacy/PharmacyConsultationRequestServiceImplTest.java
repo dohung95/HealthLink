@@ -2,12 +2,15 @@ package com.HealthLink.service.impl.pharmacy;
 
 import com.HealthLink.dto.pharmacy.PharmacyConsultationRequestCreateRequest;
 import com.HealthLink.dto.pharmacy.PharmacyConsultationRequestResponse;
+import com.HealthLink.dto.pharmacy.PharmacyConsultationRequestStatusUpdateRequest;
 import com.HealthLink.dto.prescription.PrescriptionResponse;
 import com.HealthLink.entity.Patient;
 import com.HealthLink.entity.Pharmacy;
 import com.HealthLink.entity.PharmacyConsultationRequest;
 import com.HealthLink.entity.PharmacyConsultationRequestPrescription;
 import com.HealthLink.entity.PrescriptionHeader;
+import com.HealthLink.entity.User;
+import com.HealthLink.entity.enums.NotificationType;
 import com.HealthLink.exception.ForbiddenException;
 import com.HealthLink.repository.notification.DeviceTokenRepository;
 import com.HealthLink.repository.patient.PatientRepository;
@@ -34,6 +37,9 @@ import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyString;
+import static org.mockito.ArgumentMatchers.contains;
+import static org.mockito.ArgumentMatchers.eq;
 
 @ExtendWith(MockitoExtension.class)
 class PharmacyConsultationRequestServiceImplTest {
@@ -174,6 +180,87 @@ class PharmacyConsultationRequestServiceImplTest {
                 .consultationRequest(request)
                 .prescriptionHeader(prescription)
                 .build());
+    }
+
+    @Test
+    void createRequest_shouldNotifyPharmacyAboutNewRequest() {
+        User pharmacyUser = User.builder().id("pharmacy-user-1").build();
+        Patient patient = Patient.builder()
+                .patientId("patient-1")
+                .fullName("Patient One")
+                .build();
+        Pharmacy pharmacy = Pharmacy.builder()
+                .pharmacyId("pharmacy-1")
+                .name("Central Pharmacy")
+                .user(pharmacyUser)
+                .build();
+
+        PharmacyConsultationRequestCreateRequest request = new PharmacyConsultationRequestCreateRequest();
+        request.setPatientId("patient-1");
+        request.setPharmacyId("pharmacy-1");
+        request.setDescription("Need medication review");
+
+        when(patientRepository.findById("patient-1")).thenReturn(Optional.of(patient));
+        when(pharmacyRepository.findById("pharmacy-1")).thenReturn(Optional.of(pharmacy));
+        when(consultationRequestRepository.save(any(PharmacyConsultationRequest.class)))
+                .thenAnswer(invocation -> {
+                    PharmacyConsultationRequest saved = invocation.getArgument(0);
+                    saved.setRequestId(15);
+                    return saved;
+                });
+
+        consultationRequestService.createRequest(request);
+
+        verify(notificationService).sendWebSocketNotification(
+                eq(pharmacyUser),
+                eq(NotificationType.NEW_PHARMACY_REQUEST),
+                eq("New pharmacy request"),
+                contains("Patient One"),
+                eq(15),
+                eq("/pharmacy-requests/15")
+        );
+    }
+
+    @Test
+    void updateRequestStatus_shouldNotifyPatientWithRequestStatusType() {
+        User patientUser = User.builder().id("patient-user-1").build();
+        Patient patient = Patient.builder()
+                .patientId("patient-1")
+                .fullName("Patient One")
+                .user(patientUser)
+                .build();
+        Pharmacy pharmacy = Pharmacy.builder()
+                .pharmacyId("pharmacy-1")
+                .name("Central Pharmacy")
+                .user(User.builder().id("pharmacy-user-1").build())
+                .build();
+        PharmacyConsultationRequest consultationRequest = PharmacyConsultationRequest.builder()
+                .requestId(15)
+                .patient(patient)
+                .pharmacy(pharmacy)
+                .status("PENDING")
+                .build();
+
+        PharmacyConsultationRequestStatusUpdateRequest request =
+                new PharmacyConsultationRequestStatusUpdateRequest();
+        request.setStatus("IN_REVIEW");
+
+        when(consultationRequestRepository.findById(15)).thenReturn(Optional.of(consultationRequest));
+        when(consultationRequestRepository.save(any(PharmacyConsultationRequest.class)))
+                .thenAnswer(invocation -> invocation.getArgument(0));
+        when(deviceTokenRepository.findByUser_IdAndActiveTrue("patient-user-1"))
+                .thenReturn(List.of());
+
+        consultationRequestService.updateRequestStatus(15, request);
+
+        verify(notificationService).sendWebSocketNotification(
+                eq(patientUser),
+                eq(NotificationType.PHARMACY_REQUEST_STATUS),
+                eq("Pharmacy request updated"),
+                contains("Request 15 is now IN_REVIEW"),
+                eq(15),
+                eq("/pharmacy-requests/15")
+        );
     }
 
     private PrescriptionHeader prescription(

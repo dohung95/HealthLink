@@ -52,56 +52,6 @@
 .pharmacy-status.is-danger { color: #b91c1c; background: #fef2f2; border-color: #fecaca; }
 .pharmacy-status.is-pending { color: #b45309; background: #fffbeb; border-color: #fde68a; }
 
-.pharmacy-drawer {
-  position: fixed;
-  inset: 0;
-  z-index: 100;
-  display: block;
-}
-
-.pharmacy-drawer-backdrop {
-  position: absolute;
-  inset: 0;
-  background: rgba(11, 28, 48, 0.42);
-  border: 0;
-}
-
-.pharmacy-drawer-panel {
-  position: absolute;
-  top: 0;
-  right: 0;
-  width: min(560px, 100%);
-  height: 100%;
-  border-radius: 18px 0 0 18px;
-  display: flex;
-  flex-direction: column;
-  overflow: hidden;
-}
-
-.pharmacy-drawer-header {
-  display: flex;
-  justify-content: space-between;
-  gap: 16px;
-  align-items: flex-start;
-  padding: 16px;
-  border-bottom: 1px solid var(--pharmacy-border);
-}
-
-.pharmacy-drawer-header p {
-  color: var(--pharmacy-muted);
-  margin: 6px 0 0;
-}
-
-.pharmacy-drawer-header button {
-  border: 0;
-  background: transparent;
-}
-
-.pharmacy-drawer-body {
-  overflow-y: auto;
-  padding: 16px;
-}
-
 .pharmacy-detail-grid {
   display: grid;
   grid-template-columns: 1fr 1fr;
@@ -476,9 +426,6 @@
   }
   .pharmacy-case-detail {
     max-width: 120px;
-  }
-  .pharmacy-drawer-backdrop {
-    background: rgba(11, 28, 48, 0.5);
   }
 }
 

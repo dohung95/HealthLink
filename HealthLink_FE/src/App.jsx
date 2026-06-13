@@ -51,6 +51,7 @@ import { ChatProvider } from './context/ChatContext';
 import { NotificationProvider } from './context/NotificationContext';
 import VideocallPage from './pages/video-calling';
 import IncomingCallModal from './components/IncomingCallModal';
+import NotificationToastBridge from './components/notifications/NotificationToastBridge';
 import PrescriptionNotificationModal from './components/PrescriptionNotificationModal';
 import AdminActionNotificationModal from './components/AdminActionNotificationModal';
 import Navbar from './components/Navbar';
@@ -196,6 +197,7 @@ function AppContent() {
   return (
     <>
       <Toaster position="top-right" richColors />
+      <NotificationToastBridge />
       {!isVideoCallPage && !isAdminPage && <IncomingCallModal />}
       {!isVideoCallPage && !isAdminPage && <PrescriptionNotificationModal />}
       {!isVideoCallPage && !isAdminPage && <AdminActionNotificationModal />}

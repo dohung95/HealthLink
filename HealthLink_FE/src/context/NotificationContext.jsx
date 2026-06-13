@@ -21,6 +21,8 @@ export const NotificationProvider = ({ children }) => {
     const [showPrescriptionModal, setShowPrescriptionModal] = useState(false);
     const [latestPrescription, setLatestPrescription] = useState(null);
 
+    const [latestRealtimeNotification, setLatestRealtimeNotification] = useState(null);
+
     // Admin action notification state (for Patient)
     const [showAdminActionModal, setShowAdminActionModal] = useState(false);
     const [adminActionNotification, setAdminActionNotification] = useState(null);
@@ -57,6 +59,9 @@ export const NotificationProvider = ({ children }) => {
     const handleNewNotification = (notification) => {
         console.log('New notification received:', notification);
 
+        // Track as latest realtime notification for toast bridge
+        setLatestRealtimeNotification(notification);
+
         // Add to notifications list
         setNotifications(prev => [notification, ...prev]);
         setUnreadCount(prev => prev + 1);
@@ -82,37 +87,46 @@ export const NotificationProvider = ({ children }) => {
             }
         }
 
-        // Handle payment required notification
-        if (notification.type === 'PAYMENT_REQUIRED') {
+        const showBrowserNotification = (notification, fallbackTitle, tagPrefix) => {
             if ('Notification' in window && Notification.permission === 'granted') {
-                new Notification(notification.title || 'Payment Required', {
+                new Notification(notification.title || fallbackTitle, {
                     body: notification.message,
                     icon: '/logo.png',
-                    tag: 'payment-' + notification.relatedId
+                    tag: `${tagPrefix}-${notification.relatedId || notification.notificationId || Date.now()}`
                 });
             }
+        };
+
+        // Handle pharmacy workflow browser notifications
+        if (notification.type === 'NEW_PHARMACY_REQUEST') {
+            showBrowserNotification(notification, 'New pharmacy request', 'pharmacy-request');
+        }
+
+        if (notification.type === 'PHARMACY_REQUEST_STATUS') {
+            showBrowserNotification(notification, 'Pharmacy request updated', 'pharmacy-request-status');
+        }
+
+        if (notification.type === 'NEW_ORDER') {
+            showBrowserNotification(notification, 'New order update', 'pharmacy-order');
+        }
+
+        if (notification.type === 'INVOICE_PAID') {
+            showBrowserNotification(notification, 'Payment confirmed', 'invoice-paid');
+        }
+
+        // Handle payment required notification
+        if (notification.type === 'PAYMENT_REQUIRED') {
+            showBrowserNotification(notification, 'Payment Required', 'payment');
         }
 
         // Handle order status updates
         if (notification.type === 'ORDER_STATUS') {
-            if ('Notification' in window && Notification.permission === 'granted') {
-                new Notification(notification.title || 'Order Update', {
-                    body: notification.message,
-                    icon: '/logo.png',
-                    tag: 'order-' + notification.relatedId
-                });
-            }
+            showBrowserNotification(notification, 'Order Update', 'order');
         }
 
         // Handle appointment reminders
         if (notification.type === 'APPOINTMENT_REMINDER') {
-            if ('Notification' in window && Notification.permission === 'granted') {
-                new Notification(notification.title || 'Appointment Reminder', {
-                    body: notification.message,
-                    icon: '/logo.png',
-                    tag: 'appointment-' + notification.relatedId
-                });
-            }
+            showBrowserNotification(notification, 'Appointment Reminder', 'appointment');
         }
 
         // Handle Admin action notifications (cancel/reassign appointment)
@@ -126,14 +140,7 @@ export const NotificationProvider = ({ children }) => {
             });
             setShowAdminActionModal(true);
 
-            // Show browser notification
-            if ('Notification' in window && Notification.permission === 'granted') {
-                new Notification(notification.title || 'Appointment Update', {
-                    body: notification.message,
-                    icon: '/logo.png',
-                    tag: 'admin-action-' + notification.relatedId
-                });
-            }
+            showBrowserNotification(notification, 'Appointment Update', 'admin-action');
         }
 
         // Play notification sound (optional)
@@ -149,6 +156,12 @@ export const NotificationProvider = ({ children }) => {
             prev.map(n => n.notificationId === notificationId ? { ...n, isRead: true } : n)
         );
         setUnreadCount(prev => Math.max(0, prev - 1));
+    };
+
+    const markAllAsRead = async () => {
+        await notificationApi.markAllAsRead();
+        setNotifications(prev => prev.map(n => ({ ...n, isRead: true, read: true })));
+        setUnreadCount(0);
     };
 
     const clearAll = () => {
@@ -190,10 +203,12 @@ export const NotificationProvider = ({ children }) => {
         showAdminActionModal,
         adminActionNotification,
         markAsRead,
+        markAllAsRead,
         clearAll,
         refreshUnreadCount,
         closePrescriptionModal,
         closeAdminActionModal,
+        latestRealtimeNotification,
         isConnected: websocketService.isConnected()
     };
 

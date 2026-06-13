@@ -1,17 +1,5 @@
 import { useEffect, useState } from 'react';
 
-export const ORDER_FLOW = {
-  PENDING: ['CONFIRMED', 'CANCELLED'],
-  CONFIRMED: ['PREPARING', 'CANCELLED'],
-  PREPARING: ['READY', 'CANCELLED'],
-  READY: ['SHIPPING', 'DELIVERED', 'CANCELLED'],
-  SHIPPING: ['DELIVERED'],
-  DELIVERED: ['COMPLETED'],
-  COMPLETED: [],
-  CANCELLED: ['REFUNDED'],
-  REFUNDED: [],
-};
-
 export const ORDER_TABS = ['ALL', 'PENDING', 'CONFIRMED', 'PREPARING', 'READY', 'SHIPPING', 'DELIVERED', 'CANCELLED'];
 
 export const DEFAULT_STAGE_GROUP = 'NEW_REQUESTS';
@@ -19,8 +7,8 @@ export const DEFAULT_STAGE_GROUP = 'NEW_REQUESTS';
 export const STAGE_GROUPS = [
   { key: 'NEW_REQUESTS', label: 'New Requests', stages: ['NEW_REQUEST'] },
   { key: 'CONSULTING', label: 'Consulting', stages: ['CONSULTING', 'REVISION_REQUESTED'] },
-  { key: 'PAYMENT_DUE', label: 'Payment Due', stages: ['AWAITING_PAYMENT'] },
-  { key: 'DELIVERY', label: 'Delivery', stages: ['PREPARING', 'READY', 'SHIPPING', 'DELIVERED'] },
+  { key: 'PAYMENT_DUE', label: 'Payment Due', stages: ['AWAITING_PAYMENT', 'PREPARING'] },
+  { key: 'DELIVERY', label: 'Delivery', stages: ['READY', 'SHIPPING', 'DELIVERED'] },
   { key: 'HISTORY', label: 'History', stages: ['COMPLETED', 'CANCELLED', 'REFUNDED'] },
 ];
 

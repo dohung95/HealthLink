@@ -445,7 +445,7 @@ public class PharmacyConsultationRequestServiceImpl implements PharmacyConsultat
         runAfterCommit("pharmacy request status notification", () -> {
             notificationService.sendWebSocketNotification(
                     patientUser,
-                    NotificationType.ORDER_STATUS,
+                    NotificationType.PHARMACY_REQUEST_STATUS,
                     title,
                     message,
                     request.getRequestId(),
@@ -455,7 +455,7 @@ public class PharmacyConsultationRequestServiceImpl implements PharmacyConsultat
             if (hasActiveMobileToken) {
                 notificationService.sendMobilePushNotification(
                         patientUser,
-                        NotificationType.ORDER_STATUS,
+                        NotificationType.PHARMACY_REQUEST_STATUS,
                         title,
                         message,
                         NotificationPriority.NORMAL,

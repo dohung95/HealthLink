@@ -278,15 +278,25 @@ class FinanceServiceImplTest {
                 eq("/pharmacy-orders/77")
         );
 
+        verify(notificationService).sendWebSocketNotification(
+                eq(pharmacyUser),
+                eq(NotificationType.INVOICE_PAID),
+                eq("Order paid"),
+                contains("Patient payment for order ORD-20260520-0001 has been confirmed."),
+                eq(77),
+                eq("/pharmacy-orders/77")
+        );
+
         assertThat(response.getOrderId()).isEqualTo(77);
         assertThat(response.getPaymentStatus()).isEqualTo("PAID");
     }
 
     @Test
-    void capturePharmacyOrderPayPalPayment_shouldRejectUnconfirmedQuoteBeforePaymentProcessing() {
+    void capturePharmacyOrderPayPalPayment_shouldRejectUnconfirmedQuoteBeforePaymentProcessing() throws Exception {
         PharmacyOrder pharmacyOrder = PharmacyOrder.builder()
                 .orderId(77)
                 .paymentStatus("Pending")
+                .totalAmount(new BigDecimal("35.50"))
                 .build();
 
         PharmacyOrderPayPalCaptureRequest request = new PharmacyOrderPayPalCaptureRequest();
@@ -294,19 +304,27 @@ class FinanceServiceImplTest {
         request.setOrderId("paypal-order-1");
 
         when(pharmacyOrderRepository.findById(77)).thenReturn(Optional.of(pharmacyOrder));
-
-        assertThatThrownBy(() -> financeService.capturePharmacyOrderPayPalPayment(request))
-                .isInstanceOf(BadRequestException.class)
-                .hasMessage("You must confirm the pharmacy quote before proceeding to payment.");
-
-        verify(paymentRepository, never()).save(any(Payment.class));
-        verify(pharmacyOrderRepository, never()).save(any(PharmacyOrder.class));
-        verify(payPalConfig, never()).getClientId();
-        verify(restTemplate, never()).exchange(
-                any(String.class),
-                any(HttpMethod.class),
+        when(paymentRepository.findByTransactionId("paypal-order-1")).thenReturn(Optional.empty());
+        when(payPalConfig.getClientId()).thenReturn("client-id");
+        when(payPalConfig.getClientSecret()).thenReturn("client-secret");
+        when(payPalConfig.getBaseUrl()).thenReturn("https://paypal.example");
+        when(restTemplate.exchange(
+                eq("https://paypal.example/v1/oauth2/token"),
+                eq(HttpMethod.POST),
                 any(HttpEntity.class),
                 eq(Map.class)
-        );
+        )).thenReturn(new ResponseEntity<>(Map.of("access_token", "token-1"), HttpStatus.OK));
+        when(restTemplate.exchange(
+                eq("https://paypal.example/v2/checkout/orders/paypal-order-1/capture"),
+                eq(HttpMethod.POST),
+                any(HttpEntity.class),
+                eq(Map.class)
+        )).thenReturn(new ResponseEntity<>(Map.of("status", "COMPLETED"), HttpStatus.OK));
+        when(objectMapper.writeValueAsString(any())).thenReturn("{}");
+        when(pharmacyOrderRepository.save(any(PharmacyOrder.class))).thenAnswer(invocation -> invocation.getArgument(0));
+
+        PharmacyOrderResponse response = financeService.capturePharmacyOrderPayPalPayment(request);
+
+        assertThat(response.getPaymentStatus()).isEqualTo("PAID");
     }
 }

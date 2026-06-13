@@ -11,7 +11,7 @@ import {
   money,
   routeByTab,
 } from './PharmacyShared';
-import { OrderTable, OrderDetailDrawer } from './PharmacyOrdersTab';
+import { OrderTable } from './PharmacyOrdersTab';
 
 const LOW_STOCK_THRESHOLD = 10;
 const INVENTORY_SUMMARY_PAGE_SIZE = 5000;
@@ -37,8 +37,7 @@ function summarizeInventoryItems(items) {
   }, { available: 0, lowStock: 0, out: 0 });
 }
 
-export default function PharmacyOverviewTab({ profile, orders, workItems, balance, navigate, reload }) {
-  const [selected, setSelected] = useState(null);
+export default function PharmacyOverviewTab({ profile, orders, workItems, balance, navigate }) {
   const [inventorySummary, setInventorySummary] = useState({
     total: 0,
     available: 0,
@@ -144,7 +143,7 @@ export default function PharmacyOverviewTab({ profile, orders, workItems, balanc
             </div>
             <button onClick={() => navigate(routeByTab.orders)} type="button">View All</button>
           </div>
-          <OrderTable orders={recentOrders} compact onSelect={setSelected} />
+          <OrderTable orders={recentOrders} compact />
         </section>
 
         <aside className="pharmacy-side-stack">
@@ -186,17 +185,6 @@ export default function PharmacyOverviewTab({ profile, orders, workItems, balanc
           </section>
         </aside>
       </div>
-
-      {selected && (
-        <OrderDetailDrawer
-          order={selected}
-          onClose={() => setSelected(null)}
-          onUpdated={async () => {
-            await reload?.();
-            setSelected(null);
-          }}
-        />
-      )}
     </>
   );
 }
