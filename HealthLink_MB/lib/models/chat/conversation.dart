@@ -25,6 +25,13 @@ class Conversation {
   /// ID cuộc hẹn liên kết (nếu có)
   final int? appointmentId;
 
+  /// Trạng thái của cuộc hẹn liên kết (nếu có).
+  /// Ví dụ: "SCHEDULED", "IN_CONSULTATION", "COMPLETED", "CANCELLED".
+  ///
+  /// Dùng để kiểm tra xem chat có bị khóa không:
+  /// nếu "COMPLETED" → chỉ cho xem tin, không cho gửi thêm.
+  final String? appointmentStatus;
+
   /// Nội dung tin nhắn cuối cùng
   final String lastMessage;
 
@@ -49,6 +56,7 @@ class Conversation {
     this.isOnline = false,
     this.isSupport = false,
     this.appointmentId,
+    this.appointmentStatus,
     required this.lastMessage,
     required this.lastMessageTime,
     this.unreadCount = 0,
@@ -88,6 +96,8 @@ class Conversation {
       isOnline: false,          // Backend chưa hỗ trợ realtime presence
       isSupport: false,
       appointmentId: json['appointmentId'] as int?,
+      // Parse trạng thái cuộc hẹn từ backend để hiển thị/khóa chat phù hợp
+      appointmentStatus: json['appointmentStatus']?.toString(),
       lastMessage: json['lastMessage']?.toString() ?? '',
       lastMessageTime: json['lastMessageAt'] != null
           ? DateTime.tryParse(json['lastMessageAt'].toString()) ?? DateTime.now()
