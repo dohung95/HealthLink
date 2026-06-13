@@ -20,10 +20,8 @@ export const STAGE_GROUPS = [
   { key: 'NEW_REQUESTS', label: 'New Requests', stages: ['NEW_REQUEST'] },
   { key: 'CONSULTING', label: 'Consulting', stages: ['CONSULTING', 'REVISION_REQUESTED'] },
   { key: 'PAYMENT_DUE', label: 'Payment Due', stages: ['AWAITING_PAYMENT'] },
-  { key: 'PREPARING', label: 'Preparing', stages: ['PREPARING'] },
-  { key: 'READY', label: 'Ready', stages: ['READY'] },
-  { key: 'DELIVERY', label: 'Delivery', stages: ['SHIPPING', 'DELIVERED'] },
-  { key: 'DONE', label: 'Done', stages: ['COMPLETED', 'CANCELLED'] },
+  { key: 'DELIVERY', label: 'Delivery', stages: ['PREPARING', 'READY', 'SHIPPING', 'DELIVERED'] },
+  { key: 'HISTORY', label: 'History', stages: ['COMPLETED', 'CANCELLED', 'REFUNDED'] },
 ];
 
 export const WORKFLOW_STAGES = [
@@ -37,6 +35,7 @@ export const WORKFLOW_STAGES = [
   'DELIVERED',
   'COMPLETED',
   'CANCELLED',
+  'REFUNDED',
 ];
 
 export const STAGE_LABELS = {
@@ -50,6 +49,7 @@ export const STAGE_LABELS = {
   DELIVERED: 'Delivered',
   COMPLETED: 'Completed',
   CANCELLED: 'Cancelled',
+  REFUNDED: 'Refunded',
 };
 
 export function getNextActionHint(item) {
@@ -74,7 +74,7 @@ export function stageClass(stage) {
   const s = stage || '';
   if (['COMPLETED', 'DELIVERED', 'READY'].includes(s)) return 'is-success';
   if (['PREPARING', 'SHIPPING', 'CONSULTING'].includes(s)) return 'is-processing';
-  if (['CANCELLED'].includes(s)) return 'is-danger';
+  if (['CANCELLED', 'REFUNDED'].includes(s)) return 'is-danger';
   if (['NEW_REQUEST'].includes(s)) return 'is-pending';
   if (['AWAITING_PAYMENT', 'REVISION_REQUESTED'].includes(s)) return 'is-waiting';
   return 'is-pending';
@@ -163,7 +163,6 @@ export function titleCase(value) {
 }
 
 export function exportCsv(rows, filename, columns) {
-  const headers = columns || ['Order,Patient,Status,Payment,Total,Created At'];
   const csv = rows.map((row) => {
     if (columns) {
       return columns.map((col) => `"${String(row[col] ?? '').replace(/"/g, '""')}"`).join(',');

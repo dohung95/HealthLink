@@ -18,13 +18,16 @@ import org.mockito.ArgumentCaptor;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
+import org.apache.commons.csv.CSVFormat;
+import org.apache.commons.csv.CSVParser;
+import org.apache.commons.csv.CSVRecord;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageImpl;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.web.multipart.MultipartFile;
 
 import java.io.ByteArrayInputStream;
-import java.io.InputStream;
+import java.io.StringReader;
 import java.math.BigDecimal;
 import java.nio.charset.StandardCharsets;
 import java.time.LocalDate;
@@ -508,15 +511,156 @@ class PharmacyInventoryServiceImplTest {
 
     @Test
     void generateCsvTemplate_returnsNonEmpty() {
-        byte[] template = inventoryService.generateCsvTemplate();
+        when(medicineRepository.findByActiveTrueOrderByMedicineIdAsc()).thenReturn(List.of());
+        when(inventoryRepository.findByPharmacy_PharmacyId("pharmacy-1")).thenReturn(List.of());
+
+        byte[] template = inventoryService.generateCsvTemplate("pharmacy-1");
+
         assertThat(template).isNotEmpty();
     }
 
     @Test
     void generateCsvTemplate_containsHeaders() {
-        byte[] template = inventoryService.generateCsvTemplate();
+        when(medicineRepository.findByActiveTrueOrderByMedicineIdAsc()).thenReturn(List.of());
+        when(inventoryRepository.findByPharmacy_PharmacyId("pharmacy-1")).thenReturn(List.of());
+
+        byte[] template = inventoryService.generateCsvTemplate("pharmacy-1");
         String content = new String(template, StandardCharsets.UTF_8);
-        assertThat(content).contains("medicineId,medicineName,strength,dosageForm");
+        assertThat(content).startsWith("medicineId,medicineName,strength,dosageForm,quantity,reservedQuantity,availableQuantity,unitPrice,expiryDate,active");
+    }
+
+    @Test
+    void generateCsvTemplate_mergesActiveMedicinesWithCurrentInventory() throws Exception {
+        Medicine existingMedicine = Medicine.builder()
+                .medicineId(1)
+                .name("Paracetamol 500mg")
+                .strength("500mg")
+                .dosageForm("Tablet")
+                .unit("Tablet")
+                .active(true)
+                .build();
+        Medicine newMedicine = Medicine.builder()
+                .medicineId(2)
+                .name("Amoxicillin 500mg")
+                .strength("500mg")
+                .dosageForm("Capsule")
+                .unit("Capsule")
+                .active(true)
+                .build();
+
+        PharmacyInventory inventory = createInventory(1, "Paracetamol 500mg", 25);
+        inventory.setMedicine(existingMedicine);
+        inventory.setReservedQuantity(5);
+        inventory.setUnitPrice(new BigDecimal("1.20"));
+        inventory.setExpiryDate(LocalDate.of(2027, 1, 31));
+        inventory.setActive(true);
+
+        when(medicineRepository.findByActiveTrueOrderByMedicineIdAsc()).thenReturn(List.of(existingMedicine, newMedicine));
+        when(inventoryRepository.findByPharmacy_PharmacyId("pharmacy-1")).thenReturn(List.of(inventory));
+
+        List<CSVRecord> records = parseCsv(inventoryService.generateCsvTemplate("pharmacy-1"));
+
+        assertThat(records).hasSize(2);
+        CSVRecord existingRow = records.get(0);
+        assertThat(existingRow.get("medicineId")).isEqualTo("1");
+        assertThat(existingRow.get("quantity")).isEqualTo("25");
+        assertThat(existingRow.get("reservedQuantity")).isEqualTo("5");
+        assertThat(existingRow.get("availableQuantity")).isEqualTo("20");
+        assertThat(existingRow.get("unitPrice")).isEqualTo("1.20");
+        assertThat(existingRow.get("expiryDate")).isEqualTo("2027-01-31");
+        assertThat(existingRow.get("active")).isEqualTo("true");
+
+        CSVRecord defaultRow = records.get(1);
+        assertThat(defaultRow.get("medicineId")).isEqualTo("2");
+        assertThat(defaultRow.get("medicineName")).isEqualTo("Amoxicillin 500mg");
+        assertThat(defaultRow.get("strength")).isEqualTo("500mg");
+        assertThat(defaultRow.get("dosageForm")).isEqualTo("Capsule");
+        assertThat(defaultRow.get("quantity")).isEqualTo("0");
+        assertThat(defaultRow.get("reservedQuantity")).isEqualTo("0");
+        assertThat(defaultRow.get("availableQuantity")).isEqualTo("0");
+        assertThat(defaultRow.get("unitPrice")).isEqualTo("0");
+        assertThat(defaultRow.get("expiryDate")).isBlank();
+        assertThat(defaultRow.get("active")).isEqualTo("false");
+    }
+
+    @Test
+    void importCsv_newTemplateCreatesInactiveZeroStockItem() throws Exception {
+        String csv = "medicineId,medicineName,strength,dosageForm,quantity,reservedQuantity,availableQuantity,unitPrice,expiryDate,active\n" +
+                     "1,Paracetamol 500mg,500mg,Tablet,0,0,0,0,,false\n";
+
+        Pharmacy pharmacy = Pharmacy.builder().pharmacyId("pharmacy-1").name("Central Pharmacy").build();
+        when(pharmacyRepository.findById("pharmacy-1")).thenReturn(Optional.of(pharmacy));
+
+        Medicine med = Medicine.builder()
+                .medicineId(1)
+                .name("Paracetamol 500mg")
+                .unit("Tablet")
+                .active(true)
+                .build();
+        when(medicineRepository.findById(1)).thenReturn(Optional.of(med));
+        when(inventoryRepository.findByPharmacy_PharmacyIdAndMedicine_MedicineId("pharmacy-1", 1))
+                .thenReturn(Optional.empty());
+
+        PharmacyInventoryImportResult result = inventoryService.importCsv("pharmacy-1", mockCsvFile(csv));
+
+        assertThat(result.getImportedCount()).isEqualTo(1);
+        assertThat(result.getSkippedCount()).isEqualTo(0);
+
+        ArgumentCaptor<PharmacyInventory> captor = ArgumentCaptor.forClass(PharmacyInventory.class);
+        verify(inventoryRepository).save(captor.capture());
+        PharmacyInventory saved = captor.getValue();
+        assertThat(saved.getQuantity()).isZero();
+        assertThat(saved.getReservedQuantity()).isZero();
+        assertThat(saved.getAvailableQuantity()).isZero();
+        assertThat(saved.getUnitPrice()).isEqualByComparingTo("0");
+        assertThat(saved.getExpiryDate()).isNull();
+        assertThat(saved.getActive()).isFalse();
+        assertThat(saved.getUnit()).isEqualTo("Tablet");
+    }
+
+    @Test
+    void importCsv_newTemplateUpdatesReservedQuantityAndIgnoresAvailableQuantity() throws Exception {
+        String csv = "medicineId,medicineName,strength,dosageForm,quantity,reservedQuantity,availableQuantity,unitPrice,expiryDate,active\n" +
+                     "1,Paracetamol 500mg,500mg,Tablet,12,3,999,0.70,2028-02-02,true\n";
+
+        Pharmacy pharmacy = Pharmacy.builder().pharmacyId("pharmacy-1").name("Central Pharmacy").build();
+        when(pharmacyRepository.findById("pharmacy-1")).thenReturn(Optional.of(pharmacy));
+
+        Medicine med = Medicine.builder()
+                .medicineId(1)
+                .name("Paracetamol 500mg")
+                .unit("Tablet")
+                .active(true)
+                .build();
+        when(medicineRepository.findById(1)).thenReturn(Optional.of(med));
+
+        PharmacyInventory existing = createInventory(1, "Paracetamol 500mg", 100);
+        existing.setReservedQuantity(1);
+        existing.setUnit("Existing Unit");
+        when(inventoryRepository.findByPharmacy_PharmacyIdAndMedicine_MedicineId("pharmacy-1", 1))
+                .thenReturn(Optional.of(existing));
+
+        PharmacyInventoryImportResult result = inventoryService.importCsv("pharmacy-1", mockCsvFile(csv));
+
+        assertThat(result.getUpdatedCount()).isEqualTo(1);
+        assertThat(result.getSkippedCount()).isEqualTo(0);
+        assertThat(existing.getQuantity()).isEqualTo(12);
+        assertThat(existing.getReservedQuantity()).isEqualTo(3);
+        assertThat(existing.getAvailableQuantity()).isEqualTo(9);
+        assertThat(existing.getUnitPrice()).isEqualByComparingTo("0.70");
+        assertThat(existing.getExpiryDate()).isEqualTo(LocalDate.of(2028, 2, 2));
+        assertThat(existing.getUnit()).isEqualTo("Existing Unit");
+    }
+
+    private List<CSVRecord> parseCsv(byte[] bytes) throws Exception {
+        try (CSVParser parser = CSVFormat.DEFAULT.builder()
+                .setHeader()
+                .setSkipHeaderRecord(true)
+                .setTrim(true)
+                .build()
+                .parse(new StringReader(new String(bytes, StandardCharsets.UTF_8)))) {
+            return parser.getRecords();
+        }
     }
 
     // --- Helpers ---

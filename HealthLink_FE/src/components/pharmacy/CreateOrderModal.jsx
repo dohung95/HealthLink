@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { toast } from 'sonner';
 import medicineApi from '../../api/medicineApi';
 import pharmacyApi from '../../api/pharmacyApi';
@@ -128,14 +128,6 @@ function getMedicineDisplayName(medicine = {}) {
   return brandName || genericName || `Medicine #${medicine.medicineId || medicine.id || 'N/A'}`;
 }
 
-const DELIVERY_TIME_OPTIONS = [
-  { value: 15, label: '15 minutes' },
-  { value: 30, label: '30 minutes' },
-  { value: 45, label: '45 minutes' },
-  { value: 60, label: '60 minutes' },
-  { value: 0, label: 'Custom' },
-];
-
 export default function CreateOrderModal({ request, profile, onClose, onCreated }) {
   const [leftTab, setLeftTab] = useState('prescriptions');
   const [orderItems, setOrderItems] = useState([]);
@@ -143,8 +135,8 @@ export default function CreateOrderModal({ request, profile, onClose, onCreated 
   const [loadingPrescriptions, setLoadingPrescriptions] = useState(false);
   const [deliveryEnabled, setDeliveryEnabled] = useState(false);
   const [deliveryFee, setDeliveryFee] = useState('');
-  const [deliveryMinutes, setDeliveryMinutes] = useState(null);
-  const [customMinutes, setCustomMinutes] = useState('');
+  const [expandedItemId, setExpandedItemId] = useState(null);
+  const [deliveryMinuteDigits, setDeliveryMinuteDigits] = useState([0, 4, 5]);
   const [creatingOrder, setCreatingOrder] = useState(false);
 
   useEffect(() => {
@@ -189,6 +181,7 @@ export default function CreateOrderModal({ request, profile, onClose, onCreated 
 
   const medicationSubtotal = orderItems.reduce((sum, item) => sum + lineTotal(item), 0);
   const deliveryFeeAmount = deliveryEnabled ? Number(deliveryFee || 0) : 0;
+  const estimatedDeliveryMinutes = Number(deliveryMinuteDigits.join(''));
   const orderTotal = medicationSubtotal + deliveryFeeAmount;
 
   const importOrderItems = (mappedItems) => {
@@ -244,6 +237,7 @@ export default function CreateOrderModal({ request, profile, onClose, onCreated 
 
   const removeItem = (localId) => {
     setOrderItems((current) => current.filter((item) => item.localId !== localId));
+    setExpandedItemId((prev) => prev === localId ? null : prev);
   };
 
   const handleCreateOrder = async (event) => {
@@ -252,23 +246,27 @@ export default function CreateOrderModal({ request, profile, onClose, onCreated 
       toast.error('Add at least one medication.');
       return;
     }
-    if (deliveryEnabled && !deliveryMinutes && !customMinutes) {
-      toast.error('Please provide an estimated delivery time for delivery orders.');
+    const parsedDeliveryFee = Number(deliveryFee || 0);
+    if (deliveryEnabled && (!Number.isFinite(parsedDeliveryFee) || parsedDeliveryFee < 0)) {
+      toast.error('Please enter a valid delivery fee.');
+      return;
+    }
+    if (deliveryEnabled && (estimatedDeliveryMinutes < 1 || estimatedDeliveryMinutes > 999)) {
+      toast.error('Please select a delivery time from 001 to 999 minutes.');
       return;
     }
     setCreatingOrder(true);
     try {
-      const resolvedMinutes = deliveryMinutes === 0
-        ? Number(customMinutes)
-        : deliveryMinutes;
       const payload = {
         deliveryType: deliveryEnabled ? 'Delivery' : 'Pickup',
-        deliveryFee: deliveryFeeAmount,
-        estimatedDeliveryMinutes: deliveryEnabled ? resolvedMinutes : null,
+        deliveryFee: deliveryEnabled ? parsedDeliveryFee : 0,
         paymentMethod: 'Cash',
         notes: request.additionalNotes,
         items: orderItems.map(toOrderItemPayload),
       };
+      if (deliveryEnabled) {
+        payload.estimatedDeliveryMinutes = estimatedDeliveryMinutes;
+      }
       await pharmacyApi.createOrderFromRequest(request.requestId, payload);
       toast.success('Order created from request.');
       setOrderItems([]);
@@ -399,10 +397,15 @@ export default function CreateOrderModal({ request, profile, onClose, onCreated 
                   <p>Import from prescriptions or search the medicine library on the left.</p>
                 </div>
               ) : (
-                orderItems.map((orderItem) => (
+                orderItems.map((orderItem, index) => (
                   <OrderItemCard
                     item={orderItem}
                     key={orderItem.localId}
+                    index={index + 1}
+                    expanded={expandedItemId === orderItem.localId}
+                    onToggle={() => setExpandedItemId(
+                      (prev) => prev === orderItem.localId ? null : orderItem.localId,
+                    )}
                     onRemove={removeItem}
                     onUpdate={updateItem}
                   />
@@ -438,8 +441,6 @@ export default function CreateOrderModal({ request, profile, onClose, onCreated 
                       setDeliveryFee((current) => current || String(profile?.deliveryFee ?? 0));
                     } else {
                       setDeliveryFee('');
-                      setDeliveryMinutes(null);
-                      setCustomMinutes('');
                     }
                   }}
                   type="checkbox"
@@ -467,28 +468,10 @@ export default function CreateOrderModal({ request, profile, onClose, onCreated 
                   </div>
                   <div className="mb-2">
                     <label className="form-label small">Delivery time</label>
-                    <select
-                      className="form-select form-select-sm"
-                      onChange={(e) => setDeliveryMinutes(Number(e.target.value))}
-                      value={deliveryMinutes ?? ''}
-                    >
-                      <option value="" disabled>Select time</option>
-                      {DELIVERY_TIME_OPTIONS.map((opt) => (
-                        <option key={opt.value} value={opt.value}>{opt.label}</option>
-                      ))}
-                    </select>
-                    {deliveryMinutes === 0 && (
-                      <div className="mt-1">
-                        <input
-                          className="form-control form-control-sm"
-                          min="1"
-                          onChange={(e) => setCustomMinutes(e.target.value)}
-                          placeholder="Minutes"
-                          type="number"
-                          value={customMinutes}
-                        />
-                      </div>
-                    )}
+                    <DeliveryDurationPicker
+                      digits={deliveryMinuteDigits}
+                      onChange={setDeliveryMinuteDigits}
+                    />
                   </div>
                 </div>
               )}
@@ -528,6 +511,94 @@ export default function CreateOrderModal({ request, profile, onClose, onCreated 
             </div>
           </div>
         </div>
+      </div>
+    </div>
+  );
+}
+
+function clampDigit(value) {
+  return ((value % 10) + 10) % 10;
+}
+
+function updateDigit(digits, index, nextDigit) {
+  return digits.map((digit, currentIndex) => (
+    currentIndex === index ? clampDigit(nextDigit) : digit
+  ));
+}
+
+function DeliveryDurationPicker({ digits, onChange }) {
+  const pointerRef = useRef(null);
+
+  const handlePointerDown = (index) => (e) => {
+    e.preventDefault();
+    const target = e.currentTarget;
+    target.setPointerCapture(e.pointerId);
+    pointerRef.current = { startY: e.clientY, index, accumulated: 0 };
+    const onMove = (ev) => {
+      if (!pointerRef.current) return;
+      const delta = ev.clientY - pointerRef.current.startY;
+      if (Math.abs(delta) >= 24) {
+        const steps = Math.floor(Math.abs(delta) / 24) * Math.sign(delta);
+        pointerRef.current.startY = ev.clientY;
+        onChange(updateDigit(digits, pointerRef.current.index, digits[pointerRef.current.index] - steps));
+      }
+    };
+    const onUp = () => {
+      pointerRef.current = null;
+      target.removeEventListener('pointermove', onMove);
+      target.removeEventListener('pointerup', onUp);
+      target.removeEventListener('pointercancel', onUp);
+    };
+    target.addEventListener('pointermove', onMove);
+    target.addEventListener('pointerup', onUp);
+    target.addEventListener('pointercancel', onUp);
+  };
+
+  const handleWheel = (index) => (e) => {
+    e.preventDefault();
+    const direction = e.deltaY > 0 ? -1 : 1;
+    onChange(updateDigit(digits, index, digits[index] + direction));
+  };
+
+  const handleKeyDown = (index) => (e) => {
+    if (e.key === 'ArrowUp') {
+      e.preventDefault();
+      onChange(updateDigit(digits, index, digits[index] + 1));
+    } else if (e.key === 'ArrowDown') {
+      e.preventDefault();
+      onChange(updateDigit(digits, index, digits[index] - 1));
+    } else if (/^[0-9]$/.test(e.key)) {
+      e.preventDefault();
+      onChange(updateDigit(digits, index, Number(e.key)));
+    }
+  };
+
+  const labels = ['hundreds', 'tens', 'ones'];
+
+  return (
+    <div className="pharmacy-duration-picker">
+      <div className="pharmacy-duration-picker__digits">
+        {digits.map((digit, index) => (
+          <button
+            key={index}
+            className="pharmacy-duration-picker__cell"
+            type="button"
+            aria-label={`Delivery minutes ${labels[index]} digit`}
+            onPointerDown={handlePointerDown(index)}
+            onWheel={handleWheel(index)}
+            onKeyDown={handleKeyDown(index)}
+          >
+            <span className="pharmacy-duration-picker__ghost">{clampDigit(digit + 1)}</span>
+            <span className="pharmacy-duration-picker__digit">{digit}</span>
+            <span className="pharmacy-duration-picker__ghost">{clampDigit(digit - 1)}</span>
+          </button>
+        ))}
+      </div>
+      <div className="pharmacy-duration-picker__summary">
+        <span className="pharmacy-duration-picker__summary-value">{String(Number(digits.join(''))).padStart(3, '0')} min</span>
+        <span className="pharmacy-duration-picker__eta">
+          Est. arrival: ~{new Date(Date.now() + Number(digits.join('')) * 60000).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+        </span>
       </div>
     </div>
   );

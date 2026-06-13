@@ -7,7 +7,6 @@ import {
   CreateOrderModal,
   DEFAULT_STAGE_GROUP,
   Detail,
-  MetricCard,
   ORDER_FLOW,
   Pagination,
   STAGE_GROUPS,
@@ -35,12 +34,36 @@ function medicationSummary(order) {
   return `${items.length} med${items.length === 1 ? '' : 's'}: ${names.join(', ')}${items.length > 3 ? '...' : ''}`;
 }
 
+function caseLabel(item) {
+  return item.displayId || item.orderNumber || `#${item.orderId || item.requestId}`;
+}
+
+function isDeliveryOrder(item) {
+  return normalize(item.deliveryType) === 'DELIVERY';
+}
+
+function getOrderStatus(item) {
+  return normalize(item.orderStatus || item.status || item.workflowStage);
+}
+
+function getNextOrderStatus(item) {
+  const status = getOrderStatus(item);
+  if (status === 'PREPARING') return 'READY';
+  if (status === 'READY') return isDeliveryOrder(item) ? 'SHIPPING' : 'DELIVERED';
+  if (status === 'SHIPPING') return 'DELIVERED';
+  if (status === 'DELIVERED') return 'COMPLETED';
+  return null;
+}
+
 function visibleActions(item) {
   const actions = item.availableActions || [];
   const has = (a) => actions.includes(a);
   if (has('ACCEPT_REQUEST')) return ['ACCEPT_REQUEST', 'REJECT_REQUEST'];
-  if (has('CREATE_ORDER')) return ['CREATE_ORDER'];
-  return [];
+  const visible = [];
+  if (has('CREATE_ORDER')) visible.push('CREATE_ORDER');
+  if (has('UPDATE_ORDER_STATUS') && getNextOrderStatus(item)) visible.push('UPDATE_ORDER_STATUS');
+  if (has('CANCEL_ORDER')) visible.push('CANCEL_ORDER');
+  return visible;
 }
 
 const STAGE_EMPTY_MESSAGES = {
@@ -55,9 +78,29 @@ const STAGE_EMPTY_MESSAGES = {
   COMPLETED: { icon: 'task_alt', title: 'No completed orders in this filter', desc: '' },
 };
 
-export function OrderCaseTable({ items, compact = false, onAcceptRequest, onRejectRequest, onCreateOrder, updatingRequestId, activeStage }) {
+const GROUP_EMPTY_MESSAGES = {
+  NEW_REQUESTS: { icon: 'inbox', title: 'No new consultation requests', desc: '' },
+  CONSULTING: { icon: 'chat', title: 'No active consultations', desc: '' },
+  PAYMENT_DUE: { icon: 'payments', title: 'No orders awaiting payment', desc: '' },
+  DELIVERY: { icon: 'local_shipping', title: 'No orders in delivery', desc: '' },
+  HISTORY: { icon: 'history', title: 'No order history yet', desc: '' },
+};
+
+export function OrderCaseTable({
+  items,
+  compact = false,
+  onAcceptRequest,
+  onRejectRequest,
+  onCreateOrder,
+  onUpdateOrderStatus,
+  onCancelOrder,
+  updatingRequestId,
+  updatingOrderId,
+  activeStage,
+  activeStageGroup,
+}) {
   if (!items.length) {
-    const empty = STAGE_EMPTY_MESSAGES[activeStage] || { icon: 'inbox', title: 'No cases found', desc: 'Cases matching your filters will appear here.' };
+    const empty = GROUP_EMPTY_MESSAGES[activeStageGroup] || STAGE_EMPTY_MESSAGES[activeStage] || { icon: 'inbox', title: 'No cases found', desc: 'Cases matching your filters will appear here.' };
     return (
       <div className="pharmacy-empty">
         <span className="material-symbols-outlined">{empty.icon}</span>
@@ -67,13 +110,18 @@ export function OrderCaseTable({ items, compact = false, onAcceptRequest, onReje
     );
   }
 
-  const rows = items.map((item) => (
-    <tr
-      className="pharmacy-case-row"
-      key={item.caseId || item.workItemId}
-    >
+  const rows = items.map((item) => {
+    const rowActions = visibleActions(item);
+    const nextOrderStatus = getNextOrderStatus(item);
+    const updatingThisOrder = updatingOrderId === item.orderId;
+
+    return (
+      <tr
+        className="pharmacy-case-row"
+        key={item.caseId || item.workItemId}
+      >
       <td>
-        <strong>{item.displayId || item.orderNumber || `#${item.orderId || item.requestId}`}</strong>
+        <strong>{caseLabel(item)}</strong>
         {item.sourceType && (
           <span className={`pharmacy-case-source-badge ${item.sourceType === 'DIRECT_ORDER' ? 'is-direct' : 'is-consult'}`}>
             {item.sourceType === 'DIRECT_ORDER' ? 'Order' : 'Request'}
@@ -100,25 +148,36 @@ export function OrderCaseTable({ items, compact = false, onAcceptRequest, onReje
       <td>{dateTime(item.sortAt || item.updatedAt || item.createdAt)}</td>
       {!compact && (
         <td className="text-right pharmacy-case-actions">
-          {visibleActions(item).includes('ACCEPT_REQUEST') && (
+          {rowActions.includes('ACCEPT_REQUEST') && (
             <button className="btn btn-sm btn-outline-success me-1" disabled={updatingRequestId === item.requestId} onClick={(e) => { e.stopPropagation(); onAcceptRequest?.(item); }} type="button" title="Accept">
               <i className="bi bi-check2"></i>
             </button>
           )}
-          {visibleActions(item).includes('REJECT_REQUEST') && (
+          {rowActions.includes('REJECT_REQUEST') && (
             <button className="btn btn-sm btn-outline-danger me-1" disabled={updatingRequestId === item.requestId} onClick={(e) => { e.stopPropagation(); onRejectRequest?.(item); }} type="button" title="Reject">
               <i className="bi bi-x-circle"></i>
             </button>
           )}
-          {visibleActions(item).includes('CREATE_ORDER') && (
-            <button className="btn btn-sm btn-outline-primary" onClick={(e) => { e.stopPropagation(); onCreateOrder?.(item); }} type="button" title="Create Order">
+          {rowActions.includes('CREATE_ORDER') && (
+            <button className="btn btn-sm btn-outline-primary me-1" onClick={(e) => { e.stopPropagation(); onCreateOrder?.(item); }} type="button" title="Create Order">
               <i className="bi bi-bag-plus"></i>
+            </button>
+          )}
+          {rowActions.includes('UPDATE_ORDER_STATUS') && (
+            <button className="btn btn-sm btn-outline-success me-1" disabled={updatingThisOrder} onClick={(e) => { e.stopPropagation(); onUpdateOrderStatus?.(item); }} type="button" title={`Mark ${titleCase(nextOrderStatus)}`}>
+              <i className={`bi ${nextOrderStatus === 'SHIPPING' ? 'bi-truck' : 'bi-check2-circle'}`}></i>
+            </button>
+          )}
+          {rowActions.includes('CANCEL_ORDER') && (
+            <button className="btn btn-sm btn-outline-danger" disabled={updatingThisOrder} onClick={(e) => { e.stopPropagation(); onCancelOrder?.(item); }} type="button" title="Cancel Order">
+              <i className="bi bi-slash-circle"></i>
             </button>
           )}
         </td>
       )}
-    </tr>
-  ));
+      </tr>
+    );
+  });
 
   return (
     <div className="pharmacy-table-wrap">
@@ -323,22 +382,58 @@ function getStageGroupKey(stage) {
   return group ? group.key : null;
 }
 
+const LEGACY_GROUP_ALIASES = {
+  ALL: DEFAULT_STAGE_GROUP,
+  NEEDS_INFO: 'CONSULTING',
+  QUOTE_SENT: 'PAYMENT_DUE',
+  PREPARING: 'DELIVERY',
+  READY: 'DELIVERY',
+  DONE: 'HISTORY',
+};
+
+function targetGroupForStage(stage) {
+  return getStageGroupKey(stage) || DEFAULT_STAGE_GROUP;
+}
+
 function resolveInitialGroup(searchParams) {
-  const groupParam = searchParams.get('group');
+  const groupParam = normalize(searchParams.get('group'));
   if (groupParam) {
     const match = STAGE_GROUPS.find((g) => g.key === groupParam);
     if (match) return match.key;
+    if (LEGACY_GROUP_ALIASES[groupParam]) return LEGACY_GROUP_ALIASES[groupParam];
   }
 
-  const legacyStage = searchParams.get('stage');
+  const legacyStage = normalize(searchParams.get('stage'));
   if (legacyStage) {
-    if (legacyStage === 'ALL' || legacyStage === 'NEEDS_INFO' || legacyStage === 'QUOTE_SENT') {
-      if (legacyStage === 'QUOTE_SENT') return 'PAYMENT_DUE';
-      if (legacyStage === 'NEEDS_INFO') return 'CONSULTING';
-    }
+    if (LEGACY_GROUP_ALIASES[legacyStage]) return LEGACY_GROUP_ALIASES[legacyStage];
+    return targetGroupForStage(legacyStage);
   }
 
   return DEFAULT_STAGE_GROUP;
+}
+
+function PharmacyConfirmModal({ action, saving, onCancel, onConfirm }) {
+  if (!action) return null;
+  return (
+    <div className="pharmacy-confirm-modal" role="dialog" aria-modal="true" aria-labelledby="pharmacy-confirm-title">
+      <button className="pharmacy-confirm-backdrop" onClick={onCancel} type="button" aria-label="Cancel" />
+      <div className="pharmacy-confirm-card">
+        <div className={`pharmacy-confirm-icon ${action.variant || 'primary'}`}>
+          <i className={`bi ${action.icon || 'bi-question-circle'}`}></i>
+        </div>
+        <h2 id="pharmacy-confirm-title">{action.title}</h2>
+        <p>{action.message}</p>
+        <div className="pharmacy-confirm-actions">
+          <button className="btn btn-light" disabled={saving} onClick={onCancel} type="button">
+            Cancel
+          </button>
+          <button className={`btn btn-${action.variant || 'primary'}`} disabled={saving} onClick={onConfirm} type="button">
+            {saving ? 'Saving...' : action.confirmText}
+          </button>
+        </div>
+      </div>
+    </div>
+  );
 }
 
 export default function PharmacyOrdersTab({ workItems, orders, globalSearch, reload, profile }) {
@@ -349,12 +444,26 @@ export default function PharmacyOrdersTab({ workItems, orders, globalSearch, rel
   const [deliveryFilter, setDeliveryFilter] = useState('ALL');
   const [createOrderRequest, setCreateOrderRequest] = useState(null);
   const [updatingRequestId, setUpdatingRequestId] = useState(null);
+  const [updatingOrderId, setUpdatingOrderId] = useState(null);
+  const [pendingAction, setPendingAction] = useState(null);
+  const [confirmSaving, setConfirmSaving] = useState(false);
   const [page, setPage] = useState(1);
   const deferredQuery = useDebouncedValue(`${globalSearch} ${query}`.trim());
   const pageSize = 10;
 
-  const activeGroup = STAGE_GROUPS.find((g) => g.key === activeStageGroup);
-  const activeStages = activeGroup ? activeGroup.stages : [];
+  const activeGroup = useMemo(
+    () => STAGE_GROUPS.find((g) => g.key === activeStageGroup),
+    [activeStageGroup],
+  );
+  const activeStages = useMemo(
+    () => activeGroup ? activeGroup.stages : [],
+    [activeGroup],
+  );
+
+  const selectStageGroup = (groupKey) => {
+    if (!STAGE_GROUPS.some((group) => group.key === groupKey)) return;
+    setActiveStageGroup(groupKey);
+  };
 
   const items = useMemo(() => {
     if (Array.isArray(workItems) && workItems.length) return workItems;
@@ -415,7 +524,18 @@ export default function PharmacyOrdersTab({ workItems, orders, globalSearch, rel
     setSearchParams({ group: activeStageGroup }, { replace: true });
   }, [activeStageGroup, setSearchParams]);
 
-  const updateRequestStatus = async (item, status) => {
+  const showStageToast = (message, targetGroupKey) => {
+    const targetGroup = STAGE_GROUPS.find((group) => group.key === targetGroupKey);
+    toast.success(message, {
+      icon: <i className="bi bi-check-circle-fill" aria-hidden="true"></i>,
+      action: targetGroup ? {
+        label: `Go to ${targetGroup.label}`,
+        onClick: () => selectStageGroup(targetGroup.key),
+      } : undefined,
+    });
+  };
+
+  const updateRequestStatus = async (item, status, targetGroupKey, successMessage) => {
     if (!item?.requestId) return;
     setUpdatingRequestId(item.requestId);
     try {
@@ -423,24 +543,107 @@ export default function PharmacyOrdersTab({ workItems, orders, globalSearch, rel
         status,
         pharmacyNotes: item.pharmacyNotes || '',
       });
-      toast.success(status === 'IN_REVIEW' ? 'Request accepted.' : 'Request rejected.');
       await reload();
+      showStageToast(successMessage, targetGroupKey);
     } catch (error) {
       toast.error(error.response?.data?.message || 'Unable to update request.');
+      throw error;
     } finally {
       setUpdatingRequestId(null);
     }
   };
 
-  const handleAcceptRequest = (item) => updateRequestStatus(item, 'IN_REVIEW');
+  const updateOrderStatus = async (item, status, targetGroupKey, successMessage) => {
+    if (!item?.orderId) return;
+    setUpdatingOrderId(item.orderId);
+    try {
+      await pharmacyApi.updateOrderStatus(item.orderId, {
+        status,
+        pharmacistNotes: item.pharmacistNotes || '',
+        cancelReason: status === 'CANCELLED' ? 'Cancelled by pharmacy' : undefined,
+        cancelledBy: status === 'CANCELLED' ? 'Pharmacy' : undefined,
+      });
+      await reload();
+      showStageToast(successMessage, targetGroupKey);
+    } catch (error) {
+      toast.error(error.response?.data?.message || 'Unable to update order.');
+      throw error;
+    } finally {
+      setUpdatingOrderId(null);
+    }
+  };
+
+  const confirmPendingAction = async () => {
+    if (!pendingAction?.run) return;
+    setConfirmSaving(true);
+    try {
+      await pendingAction.run();
+      setPendingAction(null);
+    } catch {
+      // The mutation helper already shows the API error toast.
+    } finally {
+      setConfirmSaving(false);
+    }
+  };
+
+  const closePendingAction = () => {
+    if (!confirmSaving) setPendingAction(null);
+  };
+
+  const handleAcceptRequest = (item) => {
+    setPendingAction({
+      title: 'Accept request?',
+      message: `Accept ${caseLabel(item)} and move it to Consulting?`,
+      confirmText: 'Accept Request',
+      icon: 'bi-check2-circle',
+      variant: 'success',
+      run: () => updateRequestStatus(item, 'IN_REVIEW', 'CONSULTING', 'Request accepted.'),
+    });
+  };
 
   const handleRejectRequest = (item) => {
-    if (!window.confirm('Reject this consultation request? This action cannot be undone.')) return;
-    updateRequestStatus(item, 'CANCELLED');
+    setPendingAction({
+      title: 'Reject request?',
+      message: `Reject ${caseLabel(item)} and move it to History?`,
+      confirmText: 'Reject Request',
+      icon: 'bi-x-circle',
+      variant: 'danger',
+      run: () => updateRequestStatus(item, 'CANCELLED', 'HISTORY', 'Request rejected.'),
+    });
   };
 
   const handleCreateOrder = (item) => {
     setCreateOrderRequest(item);
+  };
+
+  const handleUpdateOrderStatus = (item) => {
+    const nextStatus = getNextOrderStatus(item);
+    if (!nextStatus) return;
+    const nextLabel = titleCase(nextStatus);
+    setPendingAction({
+      title: `Mark ${nextLabel}?`,
+      message: `Update ${caseLabel(item)} to ${nextLabel}?`,
+      confirmText: `Mark ${nextLabel}`,
+      icon: nextStatus === 'SHIPPING' ? 'bi-truck' : 'bi-check2-circle',
+      variant: 'success',
+      run: () => updateOrderStatus(
+        item,
+        nextStatus,
+        targetGroupForStage(nextStatus),
+        `Order marked ${nextLabel.toLowerCase()}.`,
+      ),
+    });
+  };
+
+  const handleCancelOrder = (item) => {
+    setPendingAction({
+      title: 'Cancel order?',
+      message: `Cancel ${caseLabel(item)} and move it to History?`,
+      confirmText: 'Cancel Order',
+      icon: 'bi-slash-circle',
+      variant: 'danger',
+      run: () => updateOrderStatus(item, 'CANCELLED', 'HISTORY', 'Order cancelled.'),
+    });
   };
 
   return (
@@ -453,18 +656,19 @@ export default function PharmacyOrdersTab({ workItems, orders, globalSearch, rel
           </div>
         </div>
 
-        <div className="pharmacy-stage-strip row g-2">
+        <div className="pharmacy-order-tabs" role="tablist" aria-label="Order stages">
           {STAGE_GROUPS.map((group) => (
-            <div className="col" key={group.key}>
-              <button
-                className={`pharmacy-stage-metric ${activeStageGroup === group.key ? 'is-active' : ''}`}
-                onClick={() => setActiveStageGroup(group.key)}
-                type="button"
-              >
-                <span className="pharmacy-stage-metric-label">{group.label}</span>
-                <span className="pharmacy-stage-metric-value">{groupCounts[group.key] || 0}</span>
-              </button>
-            </div>
+            <button
+              aria-selected={activeStageGroup === group.key}
+              className={`pharmacy-order-tab ${activeStageGroup === group.key ? 'is-active' : ''}`}
+              key={group.key}
+              onClick={() => selectStageGroup(group.key)}
+              role="tab"
+              type="button"
+            >
+              <span className="pharmacy-order-tab-label">{group.label}</span>
+              <span className="pharmacy-order-tab-count">{groupCounts[group.key] || 0}</span>
+            </button>
           ))}
         </div>
       </div>
@@ -498,11 +702,15 @@ export default function PharmacyOrdersTab({ workItems, orders, globalSearch, rel
 
         <OrderCaseTable
           activeStage={activeStages.length === 1 ? activeStages[0] : null}
+          activeStageGroup={activeStageGroup}
           items={visible}
           onAcceptRequest={handleAcceptRequest}
           onRejectRequest={handleRejectRequest}
           onCreateOrder={handleCreateOrder}
+          onUpdateOrderStatus={handleUpdateOrderStatus}
+          onCancelOrder={handleCancelOrder}
           updatingRequestId={updatingRequestId}
+          updatingOrderId={updatingOrderId}
         />
         <Pagination page={page} pages={pages} total={filtered.length} onPage={setPage} label="cases" />
       </section>
@@ -515,13 +723,17 @@ export default function PharmacyOrdersTab({ workItems, orders, globalSearch, rel
           onCreated={async () => {
             await reload();
             setCreateOrderRequest(null);
+            selectStageGroup('PAYMENT_DUE');
           }}
         />
       )}
+
+      <PharmacyConfirmModal
+        action={pendingAction}
+        saving={confirmSaving}
+        onCancel={closePendingAction}
+        onConfirm={confirmPendingAction}
+      />
     </>
   );
 }
-
-
-
-

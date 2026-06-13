@@ -1,7 +1,11 @@
-import React, { useState, useEffect, useCallback, useMemo } from 'react';
+import { useState, useEffect, useCallback, useMemo } from 'react';
 import { toast } from 'sonner';
 import pharmacyApi from '../../api/pharmacyApi';
-import { money, dateTime, useDebouncedValue, Modal } from './PharmacyShared';
+import { money, useDebouncedValue, Modal } from './PharmacyShared';
+
+const PAGE_SIZE = 5;
+const LOW_STOCK_THRESHOLD = 10;
+const PAGE_BUTTON_LIMIT = 3;
 
 const FILTER_OPTIONS = [
   { key: '', label: 'All' },
@@ -10,8 +14,38 @@ const FILTER_OPTIONS = [
   { key: 'lowStock', label: 'Low Stock' },
 ];
 
-export default function PharmacyInventoryTab({ globalSearch, pharmacyId }) {
+function getAvailableTone(value) {
+  const available = Number(value ?? 0);
+  if (available <= 0) return 'danger';
+  if (available <= LOW_STOCK_THRESHOLD) return 'warning';
+  return 'success';
+}
+
+function getRowStockClass(value) {
+  const tone = getAvailableTone(value);
+  if (tone === 'danger') return 'is-out-stock';
+  if (tone === 'warning') return 'is-low-stock';
+  return '';
+}
+
+function formatInventoryDate(value) {
+  if (!value) return '-';
+  const date = new Date(`${value}T00:00:00`);
+  if (Number.isNaN(date.getTime())) return '-';
+  return date.toLocaleDateString('en-US');
+}
+
+function getVisiblePageNumbers(totalPages, currentPage) {
+  if (totalPages <= 0) return [];
+  const visibleCount = Math.min(PAGE_BUTTON_LIMIT, totalPages);
+  const maxStart = Math.max(totalPages - visibleCount, 0);
+  const start = Math.min(Math.max(currentPage - 1, 0), maxStart);
+  return Array.from({ length: visibleCount }, (_, index) => start + index);
+}
+
+export default function PharmacyInventoryTab({ globalSearch }) {
   const [inventory, setInventory] = useState({ content: [], totalElements: 0, totalPages: 0 });
+  const [lowStockCount, setLowStockCount] = useState(0);
   const [loading, setLoading] = useState(true);
   const [page, setPage] = useState(0);
   const [filter, setFilter] = useState('');
@@ -22,13 +56,18 @@ export default function PharmacyInventoryTab({ globalSearch, pharmacyId }) {
   const loadInventory = useCallback(async () => {
     setLoading(true);
     try {
-      const params = { page, size: 20 };
+      const params = { page, size: PAGE_SIZE };
       if (deferredSearch) params.query = deferredSearch;
       if (filter === 'active') params.active = true;
       else if (filter === 'inactive') params.active = false;
       else if (filter === 'lowStock') params.lowStock = true;
-      const data = await pharmacyApi.getInventory(params);
+
+      const [data, lowStockData] = await Promise.all([
+        pharmacyApi.getInventory(params),
+        pharmacyApi.getInventory({ page: 0, size: 1, lowStock: true }),
+      ]);
       setInventory(data);
+      setLowStockCount(Number(lowStockData?.totalElements ?? 0));
     } catch {
       toast.error('Unable to load inventory.');
     } finally {
@@ -40,110 +79,163 @@ export default function PharmacyInventoryTab({ globalSearch, pharmacyId }) {
 
   const handleImportClick = () => setShowImportModal(true);
   const handleDownloadTemplate = () => pharmacyApi.downloadInventoryTemplate();
-
   const handleEdit = (item) => setEditItem({ ...item });
 
+  const items = inventory.content || [];
+  const totalElements = Number(inventory.totalElements ?? 0);
+  const totalPages = Number(inventory.totalPages ?? 0);
+  const startEntry = totalElements > 0 ? page * PAGE_SIZE + 1 : 0;
+  const endEntry = totalElements > 0 ? Math.min(page * PAGE_SIZE + items.length, totalElements) : 0;
+  const visiblePageNumbers = useMemo(() => getVisiblePageNumbers(totalPages, page), [totalPages, page]);
+
+  const handleFilterChange = (nextFilter) => {
+    setFilter(nextFilter);
+    setPage(0);
+  };
+
+  const handlePageChange = (nextPage) => {
+    if (nextPage < 0 || nextPage >= totalPages) return;
+    setPage(nextPage);
+  };
+
   return (
-    <div className="pharmacy-tab-content">
-      <div className="d-flex flex-wrap align-items-center justify-content-between gap-2 mb-3">
-        <h4 className="mb-0">Inventory</h4>
-        <div className="d-flex gap-2">
-          <button className="btn btn-outline-primary btn-sm" onClick={handleDownloadTemplate}>
-            <i className="bi bi-download me-1"></i>Template
+    <div className="pharmacy-tab-content pharmacy-inventory">
+      <div className="pharmacy-inventory-header">
+        <h1>Inventory</h1>
+        <div className="pharmacy-inventory-actions">
+          <button className="pharmacy-inventory-action secondary" onClick={handleDownloadTemplate} type="button">
+            <span className="material-symbols-outlined">download</span>
+            Template
           </button>
-          <button className="btn btn-primary btn-sm" onClick={handleImportClick}>
-            <i className="bi bi-upload me-1"></i>Import CSV
+          <button className="pharmacy-inventory-action primary" onClick={handleImportClick} type="button">
+            <span className="material-symbols-outlined">upload</span>
+            Import CSV
           </button>
         </div>
       </div>
 
-      <div className="d-flex gap-2 mb-3">
-        {FILTER_OPTIONS.map((opt) => (
-          <button
-            key={opt.key}
-            className={`btn btn-sm ${filter === opt.key ? 'btn-primary' : 'btn-outline-secondary'}`}
-            onClick={() => { setFilter(opt.key); setPage(0); }}
-          >
-            {opt.label}
-          </button>
-        ))}
-      </div>
+      <section className="pharmacy-inventory-card">
+        <div className="pharmacy-inventory-tabs" role="tablist" aria-label="Inventory filters">
+          {FILTER_OPTIONS.map((opt) => (
+            <button
+              aria-selected={filter === opt.key}
+              className={filter === opt.key ? 'active' : ''}
+              key={opt.key}
+              onClick={() => handleFilterChange(opt.key)}
+              role="tab"
+              type="button"
+            >
+              {opt.label}
+              {opt.key === 'lowStock' && lowStockCount > 0 ? (
+                <span className="pharmacy-inventory-tab-count">{lowStockCount}</span>
+              ) : null}
+            </button>
+          ))}
+        </div>
 
-      {loading ? (
-        <div className="text-center py-5">
-          <div className="spinner-border text-primary" role="status" />
-        </div>
-      ) : inventory.content?.length === 0 ? (
-        <div className="text-center py-5 text-muted">
-          <i className="bi bi-inboxes" style={{ fontSize: '3rem' }}></i>
-          <p className="mt-2">No inventory items found.</p>
-        </div>
-      ) : (
-        <>
-          <div className="table-responsive">
-            <table className="table table-hover align-middle">
-              <thead className="table-light">
-                <tr>
-                  <th>Medicine</th>
-                  <th>Strength</th>
-                  <th>Form</th>
-                  <th className="text-center">Qty</th>
-                  <th className="text-center">Reserved</th>
-                  <th className="text-center">Available</th>
-                  <th className="text-end">Unit Price</th>
-                  <th>Expiry</th>
-                  <th className="text-center">Active</th>
-                  <th></th>
-                </tr>
-              </thead>
-              <tbody>
-                {inventory.content.map((item) => (
-                  <tr key={item.inventoryId}>
-                    <td className="fw-medium">{item.medicineName}</td>
-                    <td className="text-muted small">{item.strength || '-'}</td>
-                    <td className="text-muted small">{item.dosageForm || '-'}</td>
-                    <td className="text-center">{item.quantity}</td>
-                    <td className="text-center">{item.reservedQuantity}</td>
-                    <td className="text-center">
-                      <span className={`badge ${item.availableQuantity > 10 ? 'bg-success' : item.availableQuantity > 0 ? 'bg-warning' : 'bg-danger'}`}>
-                        {item.availableQuantity}
-                      </span>
-                    </td>
-                    <td className="text-end">{item.unitPrice ? money(item.unitPrice) : '-'}</td>
-                    <td className="small">{item.expiryDate ? new Date(item.expiryDate).toLocaleDateString() : '-'}</td>
-                    <td className="text-center">
-                      <span className={`badge ${item.active ? 'bg-success' : 'bg-secondary'}`}>
-                        {item.active ? 'Yes' : 'No'}
-                      </span>
-                    </td>
-                    <td>
-                      <button className="btn btn-sm btn-outline-primary" onClick={() => handleEdit(item)}>
-                        <i className="bi bi-pencil"></i>
-                      </button>
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
+        {loading ? (
+          <div className="pharmacy-inventory-loading" aria-live="polite" role="status">
+            {Array.from({ length: PAGE_SIZE }, (_, index) => (
+              <span key={index} />
+            ))}
           </div>
-
-          {inventory.totalPages > 1 && (
-            <div className="d-flex justify-content-center gap-2 mt-3">
-              <button className="btn btn-sm btn-outline-secondary" disabled={page === 0}
-                onClick={() => setPage((p) => p - 1)}>
-                <i className="bi bi-chevron-left"></i>
-              </button>
-              <span className="align-self-center small">
-                Page {page + 1} of {inventory.totalPages}
-              </span>
-              <button className="btn btn-sm btn-outline-secondary" disabled={page >= inventory.totalPages - 1}
-                onClick={() => setPage((p) => p + 1)}>
-                <i className="bi bi-chevron-right"></i>
-              </button>
+        ) : items.length === 0 ? (
+          <div className="pharmacy-inventory-empty">
+            <span className="material-symbols-outlined">inventory_2</span>
+            <h2>No inventory items found.</h2>
+            <p>Try another filter or import a CSV template.</p>
+          </div>
+        ) : (
+          <>
+            <div className="pharmacy-inventory-table-scroll">
+              <table className="pharmacy-inventory-table">
+                <thead>
+                  <tr>
+                    <th>Medicine</th>
+                    <th>Strength</th>
+                    <th>Form</th>
+                    <th className="is-number">Qty</th>
+                    <th className="is-number">Reserved</th>
+                    <th className="is-number">Available</th>
+                    <th className="is-number">Unit Price</th>
+                    <th>Expiry</th>
+                    <th className="is-center">Active</th>
+                    <th className="is-action"></th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {items.map((item) => {
+                    const availableTone = getAvailableTone(item.availableQuantity);
+                    return (
+                      <tr className={getRowStockClass(item.availableQuantity)} key={item.inventoryId}>
+                        <td className="pharmacy-inventory-medicine">{item.medicineName || '-'}</td>
+                        <td>{item.strength || '-'}</td>
+                        <td>{item.dosageForm || '-'}</td>
+                        <td className="is-number">{item.quantity ?? 0}</td>
+                        <td className="is-number">{item.reservedQuantity ?? 0}</td>
+                        <td className={`is-number pharmacy-inventory-available-text is-${availableTone}`}>
+                          {item.availableQuantity ?? 0}
+                        </td>
+                        <td className="is-number">{item.unitPrice ? money(item.unitPrice) : '-'}</td>
+                        <td>{formatInventoryDate(item.expiryDate)}</td>
+                        <td className="is-center">
+                          <span className={`pharmacy-inventory-status ${item.active ? 'is-active' : 'is-inactive'}`}>
+                            {item.active ? 'Yes' : 'No'}
+                          </span>
+                        </td>
+                        <td className="is-action">
+                          <button
+                            aria-label={`Edit ${item.medicineName || 'inventory item'}`}
+                            className="pharmacy-inventory-edit"
+                            onClick={() => handleEdit(item)}
+                            title="Edit"
+                            type="button"
+                          >
+                            <span className="material-symbols-outlined">edit</span>
+                          </button>
+                        </td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
             </div>
-          )}
-        </>
-      )}
+
+            <div className="pharmacy-inventory-footer">
+              <span>Showing {startEntry} to {endEntry} of {totalElements} entries</span>
+              <div className="pharmacy-inventory-pages" aria-label="Inventory pagination">
+                <button
+                  aria-label="Previous page"
+                  disabled={page === 0}
+                  onClick={() => handlePageChange(page - 1)}
+                  type="button"
+                >
+                  <span className="material-symbols-outlined">chevron_left</span>
+                </button>
+                {visiblePageNumbers.map((pageNumber) => (
+                  <button
+                    aria-current={pageNumber === page ? 'page' : undefined}
+                    className={pageNumber === page ? 'active' : ''}
+                    key={pageNumber}
+                    onClick={() => handlePageChange(pageNumber)}
+                    type="button"
+                  >
+                    {pageNumber + 1}
+                  </button>
+                ))}
+                <button
+                  aria-label="Next page"
+                  disabled={page >= totalPages - 1}
+                  onClick={() => handlePageChange(page + 1)}
+                  type="button"
+                >
+                  <span className="material-symbols-outlined">chevron_right</span>
+                </button>
+              </div>
+            </div>
+          </>
+        )}
+      </section>
 
       {showImportModal && (
         <ImportModal

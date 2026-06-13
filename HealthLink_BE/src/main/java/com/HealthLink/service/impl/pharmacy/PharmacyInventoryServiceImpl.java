@@ -48,9 +48,9 @@ public class PharmacyInventoryServiceImpl implements PharmacyInventoryService {
     private static final int MAX_ROWS = 5000;
     private static final int LOW_STOCK_THRESHOLD = 10;
 
-    private static final String[] CSV_HEADERS = {
+    private static final String[] TEMPLATE_CSV_HEADERS = {
             "medicineId", "medicineName", "strength", "dosageForm",
-            "quantity", "unitPrice", "unit", "expiryDate", "active"
+            "quantity", "reservedQuantity", "availableQuantity", "unitPrice", "expiryDate", "active"
     };
 
     private final PharmacyInventoryRepository inventoryRepository;
@@ -135,12 +135,12 @@ public class PharmacyInventoryServiceImpl implements PharmacyInventoryService {
         }
 
         List<PharmacyInventoryRowError> rowErrors = new ArrayList<>();
-        Map<String, CSVRecord> mergedRecords = new LinkedHashMap<>();
+        Map<String, ProcessedRow> mergedRows = new LinkedHashMap<>();
         int totalRows = 0;
 
         try (InputStreamReader reader = new InputStreamReader(file.getInputStream(), StandardCharsets.UTF_8);
              CSVParser parser = CSVFormat.DEFAULT.builder()
-                     .setHeader(CSV_HEADERS)
+                     .setHeader()
                      .setSkipHeaderRecord(true)
                      .setTrim(true)
                      .build()
@@ -156,8 +156,8 @@ public class PharmacyInventoryServiceImpl implements PharmacyInventoryService {
                     break;
                 }
 
-                String medicineIdStr = record.get("medicineId");
-                String medicineName = record.get("medicineName");
+                String medicineIdStr = getCsvValue(record, "medicineId");
+                String medicineName = getCsvValue(record, "medicineName");
 
                 Integer medicineId = null;
                 if (medicineIdStr != null && !medicineIdStr.isBlank()) {
@@ -174,7 +174,7 @@ public class PharmacyInventoryServiceImpl implements PharmacyInventoryService {
                     }
                 }
 
-                String quantityStr = record.get("quantity");
+                String quantityStr = getCsvValue(record, "quantity");
                 if (quantityStr == null || quantityStr.isBlank()) {
                     rowErrors.add(PharmacyInventoryRowError.builder()
                             .rowNumber(totalRows)
@@ -200,7 +200,26 @@ public class PharmacyInventoryServiceImpl implements PharmacyInventoryService {
                     continue;
                 }
 
-                String unitPriceStr = record.get("unitPrice");
+                Integer reservedQuantity = null;
+                String reservedQuantityStr = getCsvValue(record, "reservedQuantity");
+                if (reservedQuantityStr != null && !reservedQuantityStr.isBlank()) {
+                    try {
+                        reservedQuantity = Integer.parseInt(reservedQuantityStr);
+                        if (reservedQuantity < 0) {
+                            throw new NumberFormatException("Negative");
+                        }
+                    } catch (NumberFormatException e) {
+                        rowErrors.add(PharmacyInventoryRowError.builder()
+                                .rowNumber(totalRows)
+                                .medicineId(medicineId)
+                                .medicineName(medicineName)
+                                .message("Invalid reservedQuantity: " + reservedQuantityStr)
+                                .build());
+                        continue;
+                    }
+                }
+
+                String unitPriceStr = getCsvValue(record, "unitPrice");
                 BigDecimal unitPrice = null;
                 if (unitPriceStr != null && !unitPriceStr.isBlank()) {
                     try {
@@ -220,7 +239,7 @@ public class PharmacyInventoryServiceImpl implements PharmacyInventoryService {
                 }
 
                 LocalDate expiryDate = null;
-                String expiryDateStr = record.get("expiryDate");
+                String expiryDateStr = getCsvValue(record, "expiryDate");
                 if (expiryDateStr != null && !expiryDateStr.isBlank()) {
                     try {
                         expiryDate = LocalDate.parse(expiryDateStr, DateTimeFormatter.ISO_LOCAL_DATE);
@@ -235,10 +254,13 @@ public class PharmacyInventoryServiceImpl implements PharmacyInventoryService {
                     }
                 }
 
-                String activeStr = record.get("active");
+                String activeStr = getCsvValue(record, "active");
                 boolean active = activeStr == null || activeStr.isBlank() || Boolean.parseBoolean(activeStr);
 
-                String unit = record.get("unit");
+                String unit = getCsvValue(record, "unit");
+                if (unit != null && unit.isBlank()) {
+                    unit = null;
+                }
 
                 // Determine medicine
                 Medicine medicine = null;
@@ -294,124 +316,25 @@ public class PharmacyInventoryServiceImpl implements PharmacyInventoryService {
                 if (unitPrice == null) {
                     unitPrice = medicine.getPrice() != null ? medicine.getPrice() : BigDecimal.ZERO;
                 }
-                if (unit == null || unit.isBlank()) {
-                    unit = medicine.getUnit();
-                }
 
                 // Merge duplicate medicine rows (last wins)
                 String key = pharmacyId + ":" + medicine.getMedicineId();
-                CSVRecord existing = mergedRecords.get(key);
-                if (existing != null) {
-                    mergedRecords.put(key, record);
-                } else {
-                    mergedRecords.put(key, record);
-                }
+                ProcessedRow processed = ProcessedRow.builder()
+                        .medicine(medicine)
+                        .quantity(quantity)
+                        .reservedQuantity(reservedQuantity)
+                        .unitPrice(unitPrice)
+                        .unit(unit)
+                        .expiryDate(expiryDate)
+                        .active(active)
+                        .build();
 
-                // Actually, we need to store the processed data, not the raw CSVRecord
-                // Let's use a map of processed values instead
+                mergedRows.put(key, processed);
             }
         } catch (BadRequestException e) {
             throw e;
         } catch (Exception e) {
             throw new BadRequestException("Failed to parse CSV: " + e.getMessage());
-        }
-
-        // Re-process merged entries
-        Map<String, ProcessedRow> mergedRows = new LinkedHashMap<>();
-        int processedTotal = 0;
-
-        try (InputStreamReader reader = new InputStreamReader(file.getInputStream(), StandardCharsets.UTF_8);
-             CSVParser parser = CSVFormat.DEFAULT.builder()
-                     .setHeader(CSV_HEADERS)
-                     .setSkipHeaderRecord(true)
-                     .setTrim(true)
-                     .build()
-                     .parse(reader)) {
-
-            for (CSVRecord record : parser) {
-                processedTotal++;
-                if (processedTotal > MAX_ROWS) break;
-
-                String medicineIdStr = record.get("medicineId");
-                String medicineName = record.get("medicineName");
-
-                Integer medId = null;
-                if (medicineIdStr != null && !medicineIdStr.isBlank()) {
-                    try {
-                        medId = Integer.parseInt(medicineIdStr);
-                    } catch (NumberFormatException e) {
-                        continue;
-                    }
-                }
-
-                String qtyStr = record.get("quantity");
-                if (qtyStr == null || qtyStr.isBlank()) continue;
-                int qty;
-                try {
-                    qty = Integer.parseInt(qtyStr);
-                    if (qty < 0) throw new NumberFormatException();
-                } catch (NumberFormatException e) {
-                    continue;
-                }
-
-                String upStr = record.get("unitPrice");
-                BigDecimal up = null;
-                if (upStr != null && !upStr.isBlank()) {
-                    try {
-                        up = new BigDecimal(upStr);
-                        if (up.compareTo(BigDecimal.ZERO) < 0) throw new NumberFormatException();
-                    } catch (NumberFormatException e) {
-                        continue;
-                    }
-                }
-
-                LocalDate expiry = null;
-                String expStr = record.get("expiryDate");
-                if (expStr != null && !expStr.isBlank()) {
-                    try {
-                        expiry = LocalDate.parse(expStr, DateTimeFormatter.ISO_LOCAL_DATE);
-                    } catch (DateTimeParseException e) {
-                        continue;
-                    }
-                }
-
-                String actStr = record.get("active");
-                boolean act = actStr == null || actStr.isBlank() || Boolean.parseBoolean(actStr);
-                String u = record.get("unit");
-
-                Medicine medicine = null;
-                if (medId != null) {
-                    medicine = medicineRepository.findById(medId).orElse(null);
-                } else if (medicineName != null && !medicineName.isBlank()) {
-                    List<Medicine> matches = medicineRepository.findByNameContainingIgnoreCase(medicineName);
-                    if (matches.size() == 1) {
-                        medicine = matches.get(0);
-                    }
-                }
-
-                if (medicine == null) continue;
-
-                if (up == null) {
-                    up = medicine.getPrice() != null ? medicine.getPrice() : BigDecimal.ZERO;
-                }
-                if (u == null || u.isBlank()) {
-                    u = medicine.getUnit();
-                }
-
-                String key = pharmacyId + ":" + medicine.getMedicineId();
-                ProcessedRow processed = ProcessedRow.builder()
-                        .medicine(medicine)
-                        .quantity(qty)
-                        .unitPrice(up)
-                        .unit(u)
-                        .expiryDate(expiry)
-                        .active(act)
-                        .build();
-
-                mergedRows.put(key, processed);
-            }
-        } catch (Exception e) {
-            throw new BadRequestException("Failed to process CSV: " + e.getMessage());
         }
 
         int importedCount = 0;
@@ -428,8 +351,13 @@ public class PharmacyInventoryServiceImpl implements PharmacyInventoryService {
             if (existingOpt.isPresent()) {
                 PharmacyInventory existing = existingOpt.get();
                 existing.setQuantity(row.getQuantity());
+                if (row.getReservedQuantity() != null) {
+                    existing.setReservedQuantity(row.getReservedQuantity());
+                }
                 existing.setUnitPrice(row.getUnitPrice());
-                existing.setUnit(row.getUnit());
+                if (row.getUnit() != null) {
+                    existing.setUnit(row.getUnit());
+                }
                 existing.setExpiryDate(row.getExpiryDate());
                 existing.setActive(row.isActive());
                 existing.setLastImportedAt(now);
@@ -441,9 +369,9 @@ public class PharmacyInventoryServiceImpl implements PharmacyInventoryService {
                         .pharmacy(pharmacy)
                         .medicine(medicine)
                         .quantity(row.getQuantity())
-                        .reservedQuantity(0)
+                        .reservedQuantity(row.getReservedQuantity() != null ? row.getReservedQuantity() : 0)
                         .unitPrice(row.getUnitPrice())
-                        .unit(row.getUnit())
+                        .unit(row.getUnit() != null ? row.getUnit() : medicine.getUnit())
                         .expiryDate(row.getExpiryDate())
                         .active(row.isActive())
                         .lastImportedAt(now)
@@ -462,17 +390,55 @@ public class PharmacyInventoryServiceImpl implements PharmacyInventoryService {
     }
 
     @Override
-    public byte[] generateCsvTemplate() {
+    @Transactional(readOnly = true)
+    public byte[] generateCsvTemplate(String pharmacyId) {
+        List<Medicine> medicines = medicineRepository.findByActiveTrueOrderByMedicineIdAsc();
+        Map<Integer, PharmacyInventory> inventoryByMedicineId = inventoryRepository.findByPharmacy_PharmacyId(pharmacyId)
+                .stream()
+                .filter(inv -> inv.getMedicine() != null && inv.getMedicine().getMedicineId() != null)
+                .collect(Collectors.toMap(
+                        inv -> inv.getMedicine().getMedicineId(),
+                        inv -> inv,
+                        (existing, replacement) -> existing,
+                        LinkedHashMap::new));
+
         try (ByteArrayOutputStream out = new ByteArrayOutputStream();
              OutputStreamWriter writer = new OutputStreamWriter(out, StandardCharsets.UTF_8);
              CSVPrinter printer = new CSVPrinter(writer, CSVFormat.DEFAULT.builder()
-                     .setHeader(CSV_HEADERS)
+                     .setHeader(TEMPLATE_CSV_HEADERS)
                      .build())) {
 
-            printer.printRecord("1", "Paracetamol 500mg", "500mg", "Tablet",
-                    "120", "0.50", "tablet", "2027-12-31", "true");
-            printer.printRecord("2", "Amoxicillin 250mg", "250mg", "Capsule",
-                    "80", "0.75", "capsule", "2026-06-30", "true");
+            for (Medicine medicine : medicines) {
+                PharmacyInventory inventory = inventoryByMedicineId.get(medicine.getMedicineId());
+                if (inventory == null) {
+                    printer.printRecord(
+                            medicine.getMedicineId(),
+                            medicine.getName(),
+                            medicine.getStrength(),
+                            medicine.getDosageForm(),
+                            0,
+                            0,
+                            0,
+                            "0",
+                            "",
+                            "false");
+                    continue;
+                }
+
+                int quantity = inventory.getQuantity() != null ? inventory.getQuantity() : 0;
+                int reservedQuantity = inventory.getReservedQuantity() != null ? inventory.getReservedQuantity() : 0;
+                printer.printRecord(
+                        medicine.getMedicineId(),
+                        medicine.getName(),
+                        medicine.getStrength(),
+                        medicine.getDosageForm(),
+                        quantity,
+                        reservedQuantity,
+                        quantity - reservedQuantity,
+                        formatDecimal(inventory.getUnitPrice()),
+                        formatDate(inventory.getExpiryDate()),
+                        String.valueOf(Boolean.TRUE.equals(inventory.getActive())));
+            }
 
             printer.flush();
             return out.toByteArray();
@@ -490,6 +456,18 @@ public class PharmacyInventoryServiceImpl implements PharmacyInventoryService {
             throw new ForbiddenException("You do not own this inventory item");
         }
         return toResponse(inventory);
+    }
+
+    private String getCsvValue(CSVRecord record, String header) {
+        return record.isMapped(header) ? record.get(header) : null;
+    }
+
+    private String formatDecimal(BigDecimal value) {
+        return value == null ? "" : value.toPlainString();
+    }
+
+    private String formatDate(LocalDate value) {
+        return value == null ? "" : value.toString();
     }
 
     private PharmacyInventoryResponse toResponse(PharmacyInventory inv) {
@@ -520,6 +498,7 @@ public class PharmacyInventoryServiceImpl implements PharmacyInventoryService {
     private static class ProcessedRow {
         private Medicine medicine;
         private int quantity;
+        private Integer reservedQuantity;
         private BigDecimal unitPrice;
         private String unit;
         private LocalDate expiryDate;

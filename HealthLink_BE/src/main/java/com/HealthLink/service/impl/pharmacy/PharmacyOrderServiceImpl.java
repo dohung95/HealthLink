@@ -262,7 +262,15 @@ public class PharmacyOrderServiceImpl implements PharmacyOrderService {
         BigDecimal actualDeliveryFee = request.getDeliveryFee() != null
                 ? request.getDeliveryFee()
                 : deliveryFee;
+        // Validate delivery fee
+        if (actualDeliveryFee.compareTo(BigDecimal.ZERO) < 0) {
+            throw new BadRequestException("Delivery fee must be greater than or equal to 0");
+        }
+
         BigDecimal totalAmount = medicineAmount.add(actualDeliveryFee);
+
+        LocalDateTime estimatedDeliveryTime =
+                resolveEstimatedDeliveryTime(deliveryType, request);
 
         PharmacyOrder order = PharmacyOrder.builder()
                 .orderNumber(generateOrderNumber())
@@ -277,7 +285,7 @@ public class PharmacyOrderServiceImpl implements PharmacyOrderService {
                 .deliveryFee(actualDeliveryFee)
                 .medicineAmount(medicineAmount)
                 .totalAmount(totalAmount)
-                .estimatedDeliveryTime(request.getEstimatedDeliveryTime())
+                .estimatedDeliveryTime(estimatedDeliveryTime)
                 .orderItems(orderItems)
                 .paymentStatus(PAYMENT_STATUS_PENDING)
                 .paymentMethod(trimToNull(request.getPaymentMethod()))
@@ -836,6 +844,29 @@ public class PharmacyOrderServiceImpl implements PharmacyOrderService {
         }
 
         throw new BadRequestException("Delivery type must be Delivery or Pickup");
+    }
+
+    private LocalDateTime resolveEstimatedDeliveryTime(
+            String deliveryType,
+            PharmacyConsultationOrderCreateRequest request
+    ) {
+        if (!DELIVERY_TYPE_DELIVERY.equals(deliveryType)) {
+            return request.getEstimatedDeliveryTime();
+        }
+
+        if (request.getEstimatedDeliveryTime() != null) {
+            return request.getEstimatedDeliveryTime();
+        }
+
+        Integer minutes = request.getEstimatedDeliveryMinutes();
+        if (minutes == null) {
+            throw new BadRequestException("Estimated delivery time is required for delivery orders");
+        }
+        if (minutes < 1 || minutes > 999) {
+            throw new BadRequestException("Estimated delivery minutes must be between 1 and 999");
+        }
+
+        return LocalDateTime.now().plusMinutes(minutes);
     }
 
     private String normalizeStatus(String status) {

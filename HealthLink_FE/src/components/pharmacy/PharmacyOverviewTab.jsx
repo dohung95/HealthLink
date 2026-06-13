@@ -6,13 +6,11 @@ import {
   MetricCard,
   getOrderTime,
   getProfileName,
-  money,
-  normalize,
   routeByTab,
 } from './PharmacyShared';
 import { OrderTable, OrderDetailDrawer } from './PharmacyOrdersTab';
 
-export default function PharmacyOverviewTab({ profile, orders, workItems, requests, balance, navigate, reload }) {
+export default function PharmacyOverviewTab({ profile, orders, workItems, navigate, reload }) {
   const [selected, setSelected] = useState(null);
   const recentOrders = [...orders]
     .sort((a, b) => new Date(getOrderTime(b) || 0) - new Date(getOrderTime(a) || 0))
@@ -81,7 +79,7 @@ export default function PharmacyOverviewTab({ profile, orders, workItems, reques
               <span className="material-symbols-outlined">payments</span>
               Payment Due
             </button>
-            <button className="pharmacy-action-row" onClick={() => navigate(routeByTab.orders + '?stage=PREPARING')} type="button">
+            <button className="pharmacy-action-row" onClick={() => navigate(routeByTab.orders + '?group=DELIVERY')} type="button">
               <span className="material-symbols-outlined">hourglass_empty</span>
               Fulfillment
             </button>
