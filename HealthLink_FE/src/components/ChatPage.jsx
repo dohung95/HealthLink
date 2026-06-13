@@ -302,7 +302,8 @@ export default function ChatPage({ showBot = true }) {
     // Check if we navigated here with a specific partner in state
     const initialStatePartner = location.state?.partnerId ? {
         userId: location.state.partnerId,
-        displayName: location.state.partnerName || 'Chat'
+        displayName: location.state.partnerName || 'Chat',
+        appointmentId: location.state.appointmentId
     } : (showBot ? BOT_USER : null);
 
     const [chatPartner, setChatPartner] = useState(initialStatePartner);
@@ -468,7 +469,7 @@ export default function ChatPage({ showBot = true }) {
         const partnerId = chatPartner.userId || chatPartner.uid;
         if (!partnerId || !currentUserId) return;
 
-        getOrCreateRoom(partnerId).then(room => {
+        getOrCreateRoom(partnerId, chatPartner.appointmentId).then(room => {
             setCurrentRoom(room);
             setRoomList(prev => !prev.some(r => r.chatRoomId === room.chatRoomId) ? [room, ...prev] : prev);
         }).catch(() => toast.error('Cannot open room!'));
@@ -708,6 +709,10 @@ export default function ChatPage({ showBot = true }) {
     const isAppointmentCompleted = currentRoom?.appointmentStatus === 'COMPLETED';
     const isBlocked = currentRoom?.blockedBy || isAppointmentCompleted;
     const isBlockedByMe = currentRoom?.blockedBy === currentUserId;
+
+    console.log('[DEBUG ChatPage] currentRoom:', currentRoom);
+    console.log('[DEBUG ChatPage] isAppointmentCompleted:', isAppointmentCompleted);
+    console.log('[DEBUG ChatPage] isBlocked:', isBlocked);
 
     return (
         <div className="container-fluid h-100 py-3">

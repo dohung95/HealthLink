@@ -46,7 +46,19 @@ public class ChatServiceImpl implements ChatService {
         // Kiểm tra phòng đã tồn tại chưa
         return chatRoomRepository
                 .findByUsers(request.getUser1Id(), request.getUser2Id())
-                .map(this::toRoomDTO)
+                .map(existingRoom -> {
+                    if (request.getAppointmentId() != null) {
+                        if (existingRoom.getAppointment() == null || 
+                            !existingRoom.getAppointment().getAppointmentId().equals(request.getAppointmentId())) {
+                            Appointment appointment = appointmentRepository
+                                    .findById(request.getAppointmentId())
+                                    .orElseThrow(() -> new ResourceNotFoundException("Appointment", "id", request.getAppointmentId()));
+                            existingRoom.setAppointment(appointment);
+                            chatRoomRepository.save(existingRoom);
+                        }
+                    }
+                    return toRoomDTO(existingRoom);
+                })
                 .orElseGet(() -> {
                     // Lấy thông tin 2 user để lưu tên hiển thị và avatar
                     User user1 = userRepository.findById(request.getUser1Id())

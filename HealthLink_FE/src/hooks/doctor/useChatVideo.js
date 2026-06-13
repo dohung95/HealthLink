@@ -42,7 +42,8 @@ export function useChatVideo({ appointment, doctorId, patientId, patient, roles,
     navigate('/doctor/chat', { 
       state: { 
         partnerId: partnerId,
-        partnerName: partnerName
+        partnerName: partnerName,
+        appointmentId: appointment?.appointmentId
       } 
     });
   }, [appointment, patientId, patient, navigate]);
