@@ -41,6 +41,7 @@ const MyAppointments = () => {
     const [showReviewModal, setShowReviewModal] = useState(false);
     const [selectedReviewAppointment, setSelectedReviewAppointment] = useState(null);
     const [reviewableAppointments, setReviewableAppointments] = useState({});
+    const [statusFilter, setStatusFilter] = useState('ALL');
 
     useEffect(() => {
         if (!token) return;
@@ -52,7 +53,7 @@ const MyAppointments = () => {
                 const profile = await getProfile(token);
                 setPatientId(profile.userId);
 
-                await loadAppointments(profile.userId, 1);
+                await loadAppointments(profile.userId, 1, 'ALL');
             } catch (error) {
                 console.error('Failed to initialize appointments', error);
                 navigate('/login');
@@ -72,7 +73,11 @@ const MyAppointments = () => {
         return () => clearInterval(timer);
     }, []);
 
-    const loadAppointments = async (currentPatientId = patientId, page = currentPage) => {
+    const loadAppointments = async (
+        currentPatientId = patientId,
+        page = currentPage,
+        status = statusFilter
+    ) => {
         if (!currentPatientId) return;
 
         try {
@@ -81,7 +86,8 @@ const MyAppointments = () => {
             const data = await appointmentService.getPatientAppointmentsPage(
                 currentPatientId,
                 page,
-                APPOINTMENTS_PAGE_SIZE
+                APPOINTMENTS_PAGE_SIZE,
+                status
             );
 
             setAppointments(data.items || []);
@@ -113,6 +119,15 @@ const MyAppointments = () => {
         } finally {
             setLoading(false);
         }
+    };
+
+    const handleStatusChange = async (event) => {
+        const nextStatus = event.target.value;
+
+        setStatusFilter(nextStatus);
+        setCurrentPage(1);
+
+        await loadAppointments(patientId, 1, nextStatus);
     };
 
     const handlePageChange = async (page) => {
@@ -306,33 +321,76 @@ const MyAppointments = () => {
         return new Date(startTime.getTime() + 30 * 60 * 1000);
     };
 
+    const isExpiredAppointment = (appointment) => {
+        const status = normalizeText(appointment.status);
+
+        const isActive =
+            status === 'scheduled' ||
+            status === 'confirmed';
+
+        if (!isActive) return false;
+
+        return getAppointmentEndTime(appointment) < now;
+    };
+
+    const getDisplayStatus = (appointment) => {
+        if (isExpiredAppointment(appointment)) {
+            return 'expired';
+        }
+
+        return normalizeText(appointment.status);
+    };
+
     const isAppointmentJoinable = (appointment) => {
         const s = normalizeText(appointment.status);
         return s === 'in_consultation' || s === 'inconsultation' || s === 'in_progress';
     };
 
-    const formatStatusLabel = (status) => {
-        switch (normalizeText(status)) {
+    const formatStatusLabel = (appointment) => {
+        switch (getDisplayStatus(appointment)) {
             case 'scheduled':
                 return 'Scheduled';
+            case 'confirmed':
+                return 'Confirmed';
+            case 'expired':
+                return 'Expired';
             case 'cancelled':
+            case 'canceled':
                 return 'Cancelled';
             case 'completed':
                 return 'Completed';
             case 'in_consultation':
+            case 'inconsultation':
+            case 'in_progress':
                 return 'In Consultation';
             default:
-                return status || 'Unknown';
+                return appointment.status || 'Unknown';
         }
     };
 
-    const getStatusBadge = (status) => {
-        switch (normalizeText(status)) {
-            case 'scheduled': return 'bg-success';
-            case 'cancelled': return 'bg-danger';
-            case 'completed': return 'bg-primary';
-            case 'in_consultation': return 'bg-warning';
-            default: return 'bg-secondary';
+    const getStatusBadge = (appointment) => {
+        switch (getDisplayStatus(appointment)) {
+            case 'scheduled':
+            case 'confirmed':
+                return 'bg-success';
+
+            case 'expired':
+                return 'bg-secondary';
+
+            case 'cancelled':
+            case 'canceled':
+                return 'bg-danger';
+
+            case 'completed':
+                return 'bg-primary';
+
+            case 'in_consultation':
+            case 'inconsultation':
+            case 'in_progress':
+                return 'bg-warning text-dark';
+
+            default:
+                return 'bg-secondary';
         }
     };
 
@@ -385,6 +443,32 @@ const MyAppointments = () => {
                     >
                         + Book New Appointment
                     </button>
+                </div>
+
+                <div className="d-flex justify-content-end mb-3">
+                    <div style={{ width: '220px' }}>
+                        <label
+                            htmlFor="appointment-status-filter"
+                            className="form-label fw-semibold"
+                        >
+                            Filter by status
+                        </label>
+
+                        <select
+                            id="appointment-status-filter"
+                            className="form-select"
+                            value={statusFilter}
+                            onChange={handleStatusChange}
+                            disabled={loading}
+                        >
+                            <option value="ALL">All appointments</option>
+                            <option value="UPCOMING">Upcoming</option>
+                            <option value="EXPIRED">Expired</option>
+                            <option value="COMPLETED">Completed</option>
+                            <option value="CANCELLED">Cancelled</option>
+                            <option value="IN_CONSULTATION">In consultation</option>
+                        </select>
+                    </div>
                 </div>
 
                 {loading ? (
@@ -444,8 +528,8 @@ const MyAppointments = () => {
                                             </td>
 
                                             <td>
-                                                <span className={`badge ${getStatusBadge(item.status)}`}>
-                                                    {formatStatusLabel(item.status)}
+                                                <span className={`badge ${getStatusBadge(item)}`}>
+                                                    {formatStatusLabel(item)}
                                                 </span>
                                             </td>
 
@@ -489,7 +573,7 @@ const MyAppointments = () => {
                                                         </button>
                                                     )}
 
-                                                    {isScheduledAppointment(item) && (
+                                                    {isScheduledAppointment(item) && !isExpiredAppointment(item) && (
                                                         <button
                                                             className="btn btn-sm btn-outline-danger"
                                                             onClick={() =>
@@ -500,7 +584,6 @@ const MyAppointments = () => {
                                                                     ? "Appointment time has passed"
                                                                     : "Cancel appointment"
                                                             }
-                                                            disabled={new Date(item.appointmentTime) < new Date()}
                                                         >
                                                             Cancel
                                                         </button>
