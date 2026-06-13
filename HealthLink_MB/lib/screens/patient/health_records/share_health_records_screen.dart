@@ -1,10 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
-import '../../providers/auth_provider.dart';
-import '../../services/booking/booking_service.dart';
-import '../../services/health_records/health_records_service.dart';
-import '../../services/health_records/share_health_record_service.dart';
+import '../../../providers/auth_provider.dart';
+import '../../../services/booking/booking_service.dart';
+import '../../../services/health_records/health_records_service.dart';
+import '../../../services/health_records/share_health_record_service.dart';
 
 class ShareHealthRecordsScreen extends StatefulWidget {
   const ShareHealthRecordsScreen({super.key});
@@ -418,7 +418,25 @@ class _ShareHealthRecordsScreenState extends State<ShareHealthRecordsScreen> {
 
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Share Health Records'),
+        backgroundColor: colors.surfaceVariant.withValues(alpha: 0.55),
+        foregroundColor: colors.onSurface,
+        surfaceTintColor: Colors.transparent,
+        elevation: 0,
+        scrolledUnderElevation: 0,
+        centerTitle: false,
+        toolbarHeight: 72,
+        title: Text(
+          'Share Health Records',
+          style: Theme.of(context).textTheme.titleLarge?.copyWith(
+            fontWeight: FontWeight.w900,
+            color: colors.onSurface,
+          ),
+        ),
+        shape: Border(
+          bottom: BorderSide(
+            color: colors.outlineVariant,
+          ),
+        ),
       ),
       body: RefreshIndicator(
         onRefresh: _loadData,

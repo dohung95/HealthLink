@@ -22,17 +22,41 @@ public interface AppointmentRepository extends JpaRepository<Appointment, Intege
     List<Appointment> findByPatient_PatientIdOrderByAppointmentTimeDesc(String patientId);
 
     @Query("""
-            SELECT a FROM Appointment a
-            WHERE a.patient.patientId = :patientId
-            ORDER BY
-                CASE WHEN UPPER(a.status) = 'CANCELLED' THEN 1 ELSE 0 END ASC,
-                CASE WHEN a.appointmentTime >= :now THEN 0 ELSE 1 END ASC,
-                CASE WHEN a.appointmentTime >= :now THEN a.appointmentTime ELSE null END ASC,
-                CASE WHEN a.appointmentTime < :now THEN a.appointmentTime ELSE null END DESC
-            """)
+        SELECT a FROM Appointment a
+        WHERE a.patient.patientId = :patientId
+          AND (
+              :status = 'ALL'
+
+              OR (
+                  :status = 'UPCOMING'
+                  AND UPPER(a.status) IN ('SCHEDULED', 'CONFIRMED')
+                  AND a.appointmentTime >= :expiredBefore
+              )
+
+              OR (
+                  :status = 'EXPIRED'
+                  AND UPPER(a.status) IN ('SCHEDULED', 'CONFIRMED')
+                  AND a.appointmentTime < :expiredBefore
+              )
+
+              OR (
+                  :status NOT IN ('ALL', 'UPCOMING', 'EXPIRED')
+                  AND UPPER(a.status) = :status
+              )
+          )
+        ORDER BY
+            CASE WHEN UPPER(a.status) = 'CANCELLED' THEN 1 ELSE 0 END ASC,
+            CASE WHEN a.appointmentTime >= :now THEN 0 ELSE 1 END ASC,
+            CASE WHEN a.appointmentTime >= :now
+                 THEN a.appointmentTime ELSE null END ASC,
+            CASE WHEN a.appointmentTime < :now
+                 THEN a.appointmentTime ELSE null END DESC
+        """)
     Page<Appointment> findPatientAppointmentsOrdered(
             @Param("patientId") String patientId,
+            @Param("status") String status,
             @Param("now") LocalDateTime now,
+            @Param("expiredBefore") LocalDateTime expiredBefore,
             Pageable pageable
     );
 
@@ -147,8 +171,10 @@ public interface AppointmentRepository extends JpaRepository<Appointment, Intege
             @Param("start") LocalDateTime start,
             @Param("end") LocalDateTime end
     );
+
     List<Appointment> findByDoctor_DoctorIdAndStatusNotAndAppointmentTimeAfter(
             String doctorId, String status, LocalDateTime after);
+
     /**
      * Tìm các lịch hẹn sắp diễn ra trong khoảng thời gian cho trước và chưa gửi
      * reminder. Dùng cho @Scheduled job nhắc nhở trước 30 phút.

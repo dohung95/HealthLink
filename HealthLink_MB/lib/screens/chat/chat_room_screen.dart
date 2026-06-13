@@ -642,19 +642,40 @@ class _ChatRoomScreenState extends State<ChatRoomScreen> {
     final auth = context.read<AuthProvider>();
     final blockedBy = chat.getBlockedBy(widget.conversation.id);
 
-    if (blockedBy != null) {
-      final isBlockedByMe = blockedBy == auth.userId;
-      return Container(
-        padding: const EdgeInsets.all(16),
-        color: chatTheme.background,
-        alignment: Alignment.center,
-        child: Text(
-          isBlockedByMe ? 'You blocked this user.' : 'You cannot reply to this conversation.',
-          style: TextStyle(color: colors.outline, fontStyle: FontStyle.italic),
-        ),
+    // ── Ưu tiên 1: Kiểm tra cuộc hẹn đã COMPLETED chưa ─────────────────────
+    // Nếu conversation này gắn với một appointment đã COMPLETED, khóa chat:
+    // chỉ cho xem tin nhắn cũ, không cho gửi thêm. Điều này xảy ra khi
+    // bác sĩ bấm "Complete Consultation" → appointment status chuyển sang COMPLETED.
+    final isAppointmentCompleted =
+        widget.conversation.appointmentStatus?.toUpperCase() == 'COMPLETED';
+
+    if (isAppointmentCompleted) {
+      // Hiển thị banner thông báo chat đã bị khóa
+      return _buildReadOnlyBanner(
+        colors: colors,
+        chatTheme: chatTheme,
+        icon: Icons.lock_outline,
+        // Thông báo tiếng Anh hiển thị trên màn hình
+        message: 'This consultation has been completed. Chat is now read-only.',
       );
     }
 
+    // ── Ưu tiên 2: Kiểm tra xem phòng chat có bị block không ────────────────
+    // Block có thể do bác sĩ hoặc bệnh nhân chủ động block qua tính năng Block.
+    if (blockedBy != null) {
+      final isBlockedByMe = blockedBy == auth.userId;
+      return _buildReadOnlyBanner(
+        colors: colors,
+        chatTheme: chatTheme,
+        icon: Icons.block,
+        // Phân biệt thông báo: bạn block người kia hay bị người kia block
+        message: isBlockedByMe
+            ? 'You blocked this user.'
+            : 'You cannot reply to this conversation.',
+      );
+    }
+
+    // ── Trường hợp bình thường: hiển thị input area đầy đủ ─────────────────
     final hasAttachment = _attachedImage != null || _attachedVideo != null || _attachedFile != null;
     final canSend = !_isTextEmpty || hasAttachment;
 
@@ -787,6 +808,47 @@ class _ChatRoomScreenState extends State<ChatRoomScreen> {
                 ),
               ),
             ],
+          ),
+        ],
+      ),
+    );
+  }
+
+  /// Widget banner thông báo "read-only" — dùng chung cho 2 trường hợp:
+  /// (1) Appointment đã COMPLETED → chat khóa.
+  /// (2) Phòng chat bị block → không gửi được tin.
+  ///
+  /// [icon]    : icon hiển thị bên trái banner.
+  /// [message] : nội dung thông báo (tiếng Anh, hiển thị cho người dùng).
+  Widget _buildReadOnlyBanner({
+    required ColorScheme colors,
+    required dynamic chatTheme,
+    required IconData icon,
+    required String message,
+  }) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+      decoration: BoxDecoration(
+        // Nền hơi mờ để phân biệt với vùng tin nhắn bình thường
+        color: colors.surfaceContainerHighest.withValues(alpha: 0.85),
+        border: Border(top: BorderSide(color: colors.outlineVariant)),
+      ),
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          Icon(icon, size: 18, color: colors.outline),
+          const SizedBox(width: 10),
+          Flexible(
+            child: Text(
+              message,
+              textAlign: TextAlign.center,
+              style: TextStyle(
+                fontFamily: 'Inter',
+                fontSize: 13,
+                color: colors.outline,
+                fontStyle: FontStyle.italic,
+              ),
+            ),
           ),
         ],
       ),

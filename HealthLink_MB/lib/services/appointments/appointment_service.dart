@@ -33,11 +33,15 @@ class AppointmentService {
     required String patientId,
     int page = 1,
     int size = 5,
+    String status = 'ALL',
   }) async {
-    final uri = Uri.parse(ApiConfig.patientAppointmentsPage(patientId)).replace(
+    final uri = Uri.parse(
+      ApiConfig.patientAppointmentsPage(patientId),
+    ).replace(
       queryParameters: {
         'page': '$page',
         'size': '$size',
+        'status': status,
       },
     );
 
@@ -46,12 +50,16 @@ class AppointmentService {
         .timeout(
       ApiConfig.receiveTimeout,
       onTimeout: () {
-        throw Exception('Request timed out. Please check backend connection.');
+        throw Exception(
+          'Request timed out. Please check backend connection.',
+        );
       },
     );
 
     if (response.statusCode != 200) {
-      throw Exception(parseError(response, 'Unable to load appointments.'));
+      throw Exception(
+        parseError(response, 'Unable to load appointments.'),
+      );
     }
 
     final data = jsonDecode(response.body);

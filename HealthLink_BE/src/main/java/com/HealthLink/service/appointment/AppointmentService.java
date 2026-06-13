@@ -25,15 +25,15 @@ public interface AppointmentService {
      * @return
      */
     AppointmentResponse createAppointment(AppointmentRequest request);
-    
-        AvailableSlotsResponse getAvailableSlots(
+
+    AvailableSlotsResponse getAvailableSlots(
             String doctorId,
             LocalDate date,
             String consultationType
     );
 
     HoldSlotResponse holdSlot(HoldSlotRequest request);
-    
+
     void releaseHold(Integer holdId);
 
     /**
@@ -44,8 +44,15 @@ public interface AppointmentService {
      */
     List<AppointmentResponse> getPatientAppointments(String patientId);
 
-    PagedResponse<AppointmentResponse> getPatientAppointmentsPaged(String patientId, int page, int size);
+    PagedResponse<AppointmentResponse> getPatientAppointmentsPaged(
+            String patientId,
+            int page,
+            int size,
+            String status
+    );
+
     List<AppointmentResponse> getDoctorAppointments(String doctorId);
+
     DoctorDailyAppointmentsResponse getDoctorDailyAppointments(String doctorId, LocalDate date, String status);
 
     /**

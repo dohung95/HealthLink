@@ -46,7 +46,19 @@ public class ChatServiceImpl implements ChatService {
         // Kiểm tra phòng đã tồn tại chưa
         return chatRoomRepository
                 .findByUsers(request.getUser1Id(), request.getUser2Id())
-                .map(this::toRoomDTO)
+                .map(existingRoom -> {
+                    if (request.getAppointmentId() != null) {
+                        if (existingRoom.getAppointment() == null || 
+                            !existingRoom.getAppointment().getAppointmentId().equals(request.getAppointmentId())) {
+                            Appointment appointment = appointmentRepository
+                                    .findById(request.getAppointmentId())
+                                    .orElseThrow(() -> new ResourceNotFoundException("Appointment", "id", request.getAppointmentId()));
+                            existingRoom.setAppointment(appointment);
+                            chatRoomRepository.save(existingRoom);
+                        }
+                    }
+                    return toRoomDTO(existingRoom);
+                })
                 .orElseGet(() -> {
                     // Lấy thông tin 2 user để lưu tên hiển thị và avatar
                     User user1 = userRepository.findById(request.getUser1Id())
@@ -321,8 +333,14 @@ public class ChatServiceImpl implements ChatService {
                 .lastMessage(room.getLastMessage())
                 .lastMessageAt(room.getLastMessageAt())
                 .blockedBy(room.getBlockedBy())
+                // Truyền appointmentId nếu phòng chat này gắn với một cuộc hẹn
                 .appointmentId(room.getAppointment() != null
                         ? room.getAppointment().getAppointmentId() : null)
+                // Truyền appointmentStatus để client biết trạng thái cuộc hẹn.
+                // Client (web/mobile) dùng field này để tự động khóa chat khi
+                // appointment đã "COMPLETED" — chỉ cho xem tin, không cho gửi thêm.
+                .appointmentStatus(room.getAppointment() != null
+                        ? room.getAppointment().getStatus() : null)
                 .build();
     }
 
