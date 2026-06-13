@@ -1,6 +1,8 @@
 package com.HealthLink.dto.pharmacy;
 
 import jakarta.validation.Valid;
+import jakarta.validation.constraints.Max;
+import jakarta.validation.constraints.Min;
 import jakarta.validation.constraints.NotEmpty;
 import lombok.Data;
 
@@ -26,6 +28,10 @@ public class PharmacyConsultationOrderCreateRequest {
     private BigDecimal deliveryFee;
 
     private LocalDateTime estimatedDeliveryTime;
+
+    @Min(value = 1, message = "Estimated delivery minutes must be >= 1")
+    @Max(value = 999, message = "Estimated delivery minutes must be <= 999")
+    private Integer estimatedDeliveryMinutes;
 
     private String paymentMethod;
 

@@ -7,6 +7,20 @@ const TIMING_OPTIONS = [
   { value: 'EVENING', label: 'Evening' },
 ];
 
+const UNIT_OPTIONS = ['Tablet', 'Capsule', 'Vial', 'Ampoule', 'Sachet', 'Bottle', 'Tube'];
+
+const FREQUENCY_OPTIONS = [
+  '3 times daily',
+  'Twice daily',
+  'Once daily',
+  '4 times daily',
+  'Every 6 hours',
+  'Every 8 hours',
+  'Every 12 hours',
+  'As needed',
+  'As directed',
+];
+
 function lineTotal(item) {
   return Number(item.quantity || 0) * Number(item.unitPrice || 0);
 }
@@ -16,14 +30,15 @@ function getTimingLabel(value) {
   return opt ? opt.label : value;
 }
 
-export default function OrderItemCard({ item, onUpdate, onRemove }) {
-  const [expanded, setExpanded] = useState(false);
+export default function OrderItemCard({ item, onUpdate, onRemove, index, expanded, onToggle }) {
+  const [showNoteInput, setShowNoteInput] = useState(!!item.notes);
   const total = lineTotal(item);
 
   return (
     <article className={`pharmacy-order-item ${expanded ? 'is-expanded' : ''}`}>
-      <div className="pharmacy-order-item-summary" onClick={() => setExpanded((c) => !c)}>
+      <div className="pharmacy-order-item-summary" onClick={onToggle}>
         <div className="pharmacy-order-item-info">
+          <span className="pharmacy-order-item-number">{index}</span>
           <strong className="pharmacy-order-item-name">{item.medicationName}</strong>
           {!expanded && (
             <span className="pharmacy-order-item-meta">
@@ -35,7 +50,7 @@ export default function OrderItemCard({ item, onUpdate, onRemove }) {
         </div>
         <div className="pharmacy-order-item-actions">
           <span className="pharmacy-order-item-total">{money(total)}</span>
-          <button className="btn btn-sm btn-link text-secondary p-0" onClick={(e) => { e.stopPropagation(); setExpanded((c) => !c); }} type="button" aria-label={expanded ? 'Collapse' : 'Expand'}>
+          <button className="btn btn-sm btn-link text-secondary p-0" onClick={(e) => { e.stopPropagation(); onToggle(); }} type="button" aria-label={expanded ? 'Collapse' : 'Expand'}>
             <i className={`bi ${expanded ? 'bi-chevron-up' : 'bi-chevron-down'}`}></i>
           </button>
           <button className="btn btn-sm btn-link text-danger p-0 ms-1" onClick={(e) => { e.stopPropagation(); onRemove(item.localId); }} type="button" aria-label="Remove">
@@ -46,46 +61,78 @@ export default function OrderItemCard({ item, onUpdate, onRemove }) {
 
       {expanded && (
         <div className="pharmacy-order-item-editor">
-          <div className="row g-2">
-            <div className="col-4 col-md-3">
-              <label className="form-label">Qty</label>
+          <div className="row g-3">
+            <div className="col-6 col-md-3">
+              <label className="form-label">QTY</label>
               <input className="form-control form-control-sm" min="1" onChange={(e) => onUpdate(item.localId, 'quantity', e.target.value)} type="number" value={item.quantity} />
             </div>
-            <div className="col-4 col-md-3">
-              <label className="form-label">Days</label>
+            <div className="col-6 col-md-3">
+              <label className="form-label">DAYS</label>
               <input className="form-control form-control-sm" min="1" onChange={(e) => onUpdate(item.localId, 'totalSupplyDays', e.target.value)} type="number" value={item.totalSupplyDays} />
             </div>
-            <div className="col-4 col-md-3">
-              <label className="form-label">Unit</label>
-              <input className="form-control form-control-sm" onChange={(e) => onUpdate(item.localId, 'unit', e.target.value)} value={item.unit} />
+            <div className="col-6 col-md-3">
+              <label className="form-label">ROUTE</label>
+              <input className="form-control form-control-sm" disabled value={item.route || 'Oral'} />
             </div>
             <div className="col-6 col-md-3">
-              <label className="form-label">Unit Price</label>
-              <input className="form-control form-control-sm" min="0" onChange={(e) => onUpdate(item.localId, 'unitPrice', e.target.value)} step="0.01" type="number" value={item.unitPrice} />
+              <label className="form-label">UNIT PRICE</label>
+              <input className="form-control form-control-sm" disabled value={money(item.unitPrice)} />
             </div>
             <div className="col-4">
-              <label className="form-label">Frequency</label>
-              <input className="form-control form-control-sm" onChange={(e) => onUpdate(item.localId, 'frequency', e.target.value)} placeholder="As directed" value={item.frequency} />
-            </div>
-            <div className="col-4">
-              <label className="form-label">Timing</label>
-              <select className="form-select form-select-sm" onChange={(e) => onUpdate(item.localId, 'timing', e.target.value)} value={item.timing}>
-                <option value="">Timing</option>
-                {TIMING_OPTIONS.map((t) => <option key={t.value} value={t.value}>{t.label}</option>)}
+              <label className="form-label">UNIT</label>
+              <select className="form-select form-select-sm" onChange={(e) => onUpdate(item.localId, 'unit', e.target.value)} value={item.unit}>
+                <option value="">Select unit</option>
+                {UNIT_OPTIONS.map((u) => <option key={u} value={u}>{u}</option>)}
               </select>
             </div>
             <div className="col-4">
-              <label className="form-label">Route</label>
-              <input className="form-control form-control-sm" onChange={(e) => onUpdate(item.localId, 'route', e.target.value)} placeholder="Oral" value={item.route} />
+              <label className="form-label">FREQUENCY</label>
+              <select className="form-select form-select-sm" onChange={(e) => onUpdate(item.localId, 'frequency', e.target.value)} value={item.frequency}>
+                <option value="">Select frequency</option>
+                {FREQUENCY_OPTIONS.map((f) => <option key={f} value={f}>{f}</option>)}
+              </select>
+            </div>
+            <div className="col-4">
+              <label className="form-label">TIMING</label>
+              <select className="form-select form-select-sm" onChange={(e) => onUpdate(item.localId, 'timing', e.target.value)} value={item.timing}>
+                <option value="">Select timing</option>
+                {TIMING_OPTIONS.map((t) => <option key={t.value} value={t.value}>{t.label}</option>)}
+              </select>
             </div>
             <div className="col-12">
-              <label className="form-label">Notes</label>
-              <input className="form-control form-control-sm" onChange={(e) => onUpdate(item.localId, 'notes', e.target.value)} placeholder="Instructions for patient" value={item.notes} />
+              {showNoteInput ? (
+                <div>
+                  <div className="d-flex align-items-center justify-content-between mb-1">
+                    <label className="form-label mb-0">PHARMACIST NOTE</label>
+                    <button
+                      className="btn btn-sm btn-link text-secondary text-decoration-none p-0"
+                      onClick={() => { setShowNoteInput(false); onUpdate(item.localId, 'notes', ''); }}
+                      type="button"
+                      aria-label="Remove note"
+                    >
+                      <i className="bi bi-x-lg"></i>
+                    </button>
+                  </div>
+                  <textarea
+                    className="form-control form-control-sm"
+                    onChange={(e) => onUpdate(item.localId, 'notes', e.target.value)}
+                    placeholder="Add instructions for the patient..."
+                    rows={2}
+                    value={item.notes}
+                  />
+                </div>
+              ) : (
+                <button className="btn btn-sm btn-link text-decoration-none p-0 text-primary fw-semibold" onClick={() => setShowNoteInput(true)} type="button">
+                  <i className="bi bi-plus-circle me-1"></i>
+                  Add Pharmacist Note
+                </button>
+              )}
             </div>
-          </div>
-          <div className="pharmacy-order-item-footer">
-            <span className="text-muted small">{item.route || 'Route not set'}</span>
-            <strong>{money(total)}</strong>
+            {!showNoteInput && item.notes && (
+              <div className="col-12">
+                <div className="pharmacy-order-item-note-display">{item.notes}</div>
+              </div>
+            )}
           </div>
         </div>
       )}

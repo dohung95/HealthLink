@@ -13,5 +13,7 @@ public interface MedicineRepository extends JpaRepository<Medicine, Integer> {
 
     List<Medicine> findByActiveTrue();
 
+    List<Medicine> findByActiveTrueOrderByMedicineIdAsc();
+
     List<Medicine> findByNameContainingIgnoreCaseAndActiveTrue(String name);
 }

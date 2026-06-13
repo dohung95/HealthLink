@@ -14,7 +14,7 @@ public interface PharmacyInventoryService {
 
     PharmacyInventoryImportResult importCsv(String pharmacyId, MultipartFile file);
 
-    byte[] generateCsvTemplate();
+    byte[] generateCsvTemplate(String pharmacyId);
 
     PharmacyInventoryResponse getInventoryItem(String pharmacyId, Integer inventoryId);
 }

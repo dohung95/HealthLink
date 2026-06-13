@@ -71,8 +71,10 @@ public class PharmacyInventoryController {
 
     @GetMapping("/template")
     @PreAuthorize("hasRole('PHARMACY')")
-    public ResponseEntity<byte[]> downloadTemplate() {
-        byte[] template = inventoryService.generateCsvTemplate();
+    public ResponseEntity<byte[]> downloadTemplate(
+            @AuthenticationPrincipal UserDetails userDetails) {
+        String pharmacyId = resolveUserId(userDetails);
+        byte[] template = inventoryService.generateCsvTemplate(pharmacyId);
         HttpHeaders headers = new HttpHeaders();
         headers.setContentType(MediaType.parseMediaType("text/csv"));
         headers.setContentDispositionFormData("attachment", "inventory-template.csv");
