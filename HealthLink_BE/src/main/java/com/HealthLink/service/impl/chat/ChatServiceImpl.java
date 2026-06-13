@@ -321,8 +321,14 @@ public class ChatServiceImpl implements ChatService {
                 .lastMessage(room.getLastMessage())
                 .lastMessageAt(room.getLastMessageAt())
                 .blockedBy(room.getBlockedBy())
+                // Truyền appointmentId nếu phòng chat này gắn với một cuộc hẹn
                 .appointmentId(room.getAppointment() != null
                         ? room.getAppointment().getAppointmentId() : null)
+                // Truyền appointmentStatus để client biết trạng thái cuộc hẹn.
+                // Client (web/mobile) dùng field này để tự động khóa chat khi
+                // appointment đã "COMPLETED" — chỉ cho xem tin, không cho gửi thêm.
+                .appointmentStatus(room.getAppointment() != null
+                        ? room.getAppointment().getStatus() : null)
                 .build();
     }
 

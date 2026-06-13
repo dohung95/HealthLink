@@ -5,7 +5,11 @@ import lombok.*;
 import java.time.LocalDateTime;
 
 /**
- * DTO trả về thông tin phòng chat cho client.
+ * DTO trả về thông tin phòng chat cho client (web/mobile).
+ *
+ * <p>Bao gồm thông tin 2 người dùng trong phòng, nội dung tin nhắn cuối,
+ * liên kết cuộc hẹn (nếu có) và trạng thái cuộc hẹn để client biết khi nào
+ * cần khóa giao diện chat (không cho gửi tin nữa).</p>
  */
 @Data
 @NoArgsConstructor
@@ -31,8 +35,17 @@ public class ChatRoomDTO {
     /** Thời điểm tin nhắn cuối được gửi. */
     private LocalDateTime lastMessageAt;
 
-    /** ID cuộc hẹn (appointment) liên kết, nếu có. */
+    /** ID cuộc hẹn (appointment) liên kết với phòng chat này (nếu có). */
     private Integer appointmentId;
+
+    /**
+     * Trạng thái của cuộc hẹn liên kết (nếu có).
+     * Ví dụ: "SCHEDULED", "IN_CONSULTATION", "COMPLETED", "CANCELLED".
+     *
+     * <p>Client sử dụng trường này để quyết định có khóa chat hay không:
+     * nếu status là "COMPLETED", chat chỉ được xem, không được gửi tin mới.</p>
+     */
+    private String appointmentStatus;
 
     /** ID của người dùng đã block phòng chat này (nếu có). */
     private String blockedBy;

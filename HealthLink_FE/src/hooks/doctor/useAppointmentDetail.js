@@ -161,7 +161,14 @@ export function useAppointmentDetail({ appointment, patient, doctorId: currentDo
 
   const handleCompleteAppointment = useCallback(async () => {
     if (!appointmentId) return;
-    const currentConsultation = buildConsultation(appointmentData.appointmentDetail || appointment);
+    const appointmentToComplete = appointmentData.appointmentDetail || appointment;
+    console.log('--- DEBUG COMPLETE ---');
+    console.log('Appointment ID:', appointmentId);
+    console.log('Status:', appointmentToComplete?.status);
+    console.log('Consultation Start Time:', appointmentToComplete?.consultationStartTime);
+    const currentConsultation = buildConsultation(appointmentToComplete);
+    console.log('Current Consultation:', currentConsultation);
+    
     if (!currentConsultation.startTime) {
       toast.error('Start the consultation before completing it.');
       return;
@@ -246,7 +253,9 @@ export function useAppointmentDetail({ appointment, patient, doctorId: currentDo
       }
     } catch (error) {
       console.error('Error completing appointment:', error);
-      toast.error('Failed to complete appointment');
+      // toast.error('Failed to complete appointment');
+      const errorMsg = error.response?.data?.message || 'Failed to complete appointment';
+      toast.error(errorMsg);
     } finally {
       setCompletingAppointment(false);
     }

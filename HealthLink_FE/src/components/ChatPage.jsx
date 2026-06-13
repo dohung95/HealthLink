@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useLocation } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import { getOrCreateRoom, getMyRooms, getRoomMessages, sendMessage as apiSendMessage, markAsRead, uploadMedia } from '../api/chatApi';
 import stompChatService from '../services/stompChatService';
@@ -296,9 +296,16 @@ function RoomListItem({ room, currentUserId, onSelect, isActive }) {
  */
 export default function ChatPage({ showBot = true }) {
     const navigate = useNavigate();
+    const location = useLocation();
     const { user: authUser, currentUserId } = useAuth();
 
-    const [chatPartner, setChatPartner] = useState(showBot ? BOT_USER : null);
+    // Check if we navigated here with a specific partner in state
+    const initialStatePartner = location.state?.partnerId ? {
+        userId: location.state.partnerId,
+        displayName: location.state.partnerName || 'Chat'
+    } : (showBot ? BOT_USER : null);
+
+    const [chatPartner, setChatPartner] = useState(initialStatePartner);
     const [currentRoom, setCurrentRoom] = useState(null);
 
     const [formValue, setFormValue] = useState('');
@@ -317,6 +324,7 @@ export default function ChatPage({ showBot = true }) {
     const [loadingMore, setLoadingMore] = useState(false);
     const chatContainerRef = useRef(null);
     const shouldScrollToBottomRef = useRef(true);
+
 
     const scrollTo = useRef(null);
     const fileInputRef = useRef(null);
@@ -697,7 +705,8 @@ export default function ChatPage({ showBot = true }) {
         }
     };
 
-    const isBlocked = currentRoom?.blockedBy;
+    const isAppointmentCompleted = currentRoom?.appointmentStatus === 'COMPLETED';
+    const isBlocked = currentRoom?.blockedBy || isAppointmentCompleted;
     const isBlockedByMe = currentRoom?.blockedBy === currentUserId;
 
     return (
@@ -810,7 +819,11 @@ export default function ChatPage({ showBot = true }) {
                     {isBlocked ? (
                         <div className="p-3 border-top bg-light text-center">
                             <span className="text-muted fst-italic">
-                                {isBlockedByMe ? 'You blocked this user.' : 'You cannot reply to this conversation.'}
+                                {isBlockedByMe 
+                                    ? 'You blocked this user.' 
+                                    : isAppointmentCompleted 
+                                        ? 'This appointment is completed. The conversation is read-only.' 
+                                        : 'You cannot reply to this conversation.'}
                             </span>
                         </div>
                     ) : (
