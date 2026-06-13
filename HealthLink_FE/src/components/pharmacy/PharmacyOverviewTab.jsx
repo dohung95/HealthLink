@@ -1,4 +1,6 @@
-import React, { useMemo, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useState } from 'react';
+
+import pharmacyApi from '../../api/pharmacyApi';
 
 import {
   Avatar,
@@ -6,37 +8,131 @@ import {
   MetricCard,
   getOrderTime,
   getProfileName,
+  money,
   routeByTab,
 } from './PharmacyShared';
 import { OrderTable, OrderDetailDrawer } from './PharmacyOrdersTab';
 
-export default function PharmacyOverviewTab({ profile, orders, workItems, navigate, reload }) {
+const LOW_STOCK_THRESHOLD = 10;
+const INVENTORY_SUMMARY_PAGE_SIZE = 5000;
+const ACTIVE_ORDER_STAGES = new Set([
+  'AWAITING_PAYMENT',
+  'REVISION_REQUESTED',
+  'PREPARING',
+  'READY',
+  'SHIPPING',
+  'DELIVERED',
+]);
+
+function summarizeInventoryItems(items) {
+  return items.reduce((summary, item) => {
+    const availableQuantity = Number(item.availableQuantity ?? 0);
+    if (availableQuantity <= 0) {
+      return { ...summary, out: summary.out + 1 };
+    }
+    if (availableQuantity <= LOW_STOCK_THRESHOLD) {
+      return { ...summary, lowStock: summary.lowStock + 1 };
+    }
+    return { ...summary, available: summary.available + 1 };
+  }, { available: 0, lowStock: 0, out: 0 });
+}
+
+export default function PharmacyOverviewTab({ profile, orders, workItems, balance, navigate, reload }) {
   const [selected, setSelected] = useState(null);
+  const [inventorySummary, setInventorySummary] = useState({
+    total: 0,
+    available: 0,
+    lowStock: 0,
+    out: 0,
+    failed: false,
+  });
+
+  const loadInventorySummary = useCallback(async () => {
+    try {
+      const firstPage = await pharmacyApi.getInventory({
+        page: 0,
+        size: INVENTORY_SUMMARY_PAGE_SIZE,
+      });
+      const totalPages = Number(firstPage?.totalPages ?? 1);
+      const total = Number(firstPage?.totalElements ?? 0);
+      const allItems = Array.isArray(firstPage?.content) ? [...firstPage.content] : [];
+
+      for (let pageIndex = 1; pageIndex < totalPages; pageIndex += 1) {
+        const pageData = await pharmacyApi.getInventory({
+          page: pageIndex,
+          size: INVENTORY_SUMMARY_PAGE_SIZE,
+        });
+        if (Array.isArray(pageData?.content)) {
+          allItems.push(...pageData.content);
+        }
+      }
+
+      setInventorySummary({
+        total: total || allItems.length,
+        ...summarizeInventoryItems(allItems),
+        failed: false,
+      });
+    } catch {
+      setInventorySummary((current) => ({ ...current, failed: true }));
+    }
+  }, []);
+
+  useEffect(() => {
+    loadInventorySummary();
+  }, [loadInventorySummary]);
+
   const recentOrders = [...orders]
     .sort((a, b) => new Date(getOrderTime(b) || 0) - new Date(getOrderTime(a) || 0))
     .slice(0, 5);
 
-  const workflowMetrics = useMemo(() => {
+  const overviewMetrics = useMemo(() => {
     const items = Array.isArray(workItems) ? workItems : [];
     return {
-      newRequests: items.filter((i) => i.workflowStage === 'NEW_REQUEST').length,
-      consulting: items.filter((i) => i.workflowStage === 'CONSULTING').length,
-      awaitingPatient: items.filter((i) => i.workflowStage === 'AWAITING_PAYMENT').length,
-      preparing: items.filter((i) => i.workflowStage === 'PREPARING').length,
-      ready: items.filter((i) => i.workflowStage === 'READY').length,
-      completedToday: items.filter((i) => i.workflowStage === 'COMPLETED'
-        && i.sortAt && new Date(i.sortAt).toDateString() === new Date().toDateString()).length,
+      requests: items.filter((item) => item.workflowStage === 'NEW_REQUEST').length,
+      orders: items.filter((item) => item.hasOrder && ACTIVE_ORDER_STAGES.has(item.workflowStage)).length,
+      revenue: money(balance?.totalEarnings ?? profile?.totalEarnings ?? 0),
     };
-  }, [workItems]);
+  }, [balance?.totalEarnings, profile?.totalEarnings, workItems]);
 
   return (
     <>
-      <div className="pharmacy-metrics-grid is-five">
-        <MetricCard label="New Requests" value={workflowMetrics.newRequests} hint="Triage needed" icon="support_agent" tone="warning" />
-        <MetricCard label="Consulting" value={workflowMetrics.consulting} hint="Active consultations" icon="chat" tone="info" />
-        <MetricCard label="Payment Due" value={workflowMetrics.awaitingPatient} hint="Unpaid orders" icon="payments" tone="info" />
-        <MetricCard label="Preparing" value={workflowMetrics.preparing} hint="In fulfillment" icon="hourglass_empty" tone="info" />
-        <MetricCard label="Ready" value={workflowMetrics.ready} hint="Ready for handoff" icon="checklist" tone="success" />
+      <div className="pharmacy-metrics-grid">
+        <MetricCard
+          label="Requests"
+          value={overviewMetrics.requests}
+          hint="New requests"
+          icon="support_agent"
+          tone="warning"
+        />
+        <MetricCard
+          label="Orders"
+          value={overviewMetrics.orders}
+          hint="Active order work"
+          icon="receipt_long"
+          tone="info"
+        />
+        <MetricCard
+          label="Inventory"
+          value={inventorySummary.total}
+          hint={inventorySummary.failed ? 'Unable to load stock summary' : `${inventorySummary.available} available`}
+          icon="inventory_2"
+          tone="success"
+        >
+          {!inventorySummary.failed && (
+            <ul className="pharmacy-metric-stock-list" aria-label="Inventory stock breakdown">
+              <li className="is-available"><i /> <b>{inventorySummary.available}</b> available</li>
+              <li className="is-low"><i /> <b>{inventorySummary.lowStock}</b> low stock</li>
+              <li className="is-out"><i /> <b>{inventorySummary.out}</b> out</li>
+            </ul>
+          )}
+        </MetricCard>
+        <MetricCard
+          label="Revenue"
+          value={overviewMetrics.revenue}
+          hint="Lifetime earnings"
+          icon="monitoring"
+          tone="success"
+        />
       </div>
 
       <div className="pharmacy-overview-grid">
