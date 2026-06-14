@@ -139,10 +139,6 @@ public class PharmacyOrderServiceImpl implements PharmacyOrderService {
         String deliveryAddressSource = PharmacyServiceHelper.normalizeDeliveryAddressSource(request.getDeliveryAddressSource());
 
         if (DELIVERY_TYPE_DELIVERY.equals(deliveryType)) {
-            if (!pharmacy.isDeliveryAvailable()) {
-                throw new BadRequestException("Pharmacy does not support delivery");
-            }
-
             if (deliveryAddress == null || deliveryAddress.isBlank()) {
                 deliveryAddress = PharmacyServiceHelper.buildPatientAddress(patient);
                 deliveryLat     = patient.getLatitude();
@@ -718,6 +714,29 @@ public class PharmacyOrderServiceImpl implements PharmacyOrderService {
         if (!pharmacy.isVerified()) {
             throw new BadRequestException("Pharmacy is not verified");
         }
+    }
+
+    private void checkNoExistingOrder(Integer prescriptionHeaderId) {
+        if (orderRepository.existsByPrescriptionHeader_PrescriptionHeaderId(prescriptionHeaderId)) {
+            throw new BadRequestException(
+                    "A pharmacy order already exists for prescription " + prescriptionHeaderId
+            );
+        }
+    }
+
+    private String resolveDeliveryType(PharmacyOrderRequest request, Pharmacy pharmacy) {
+        String deliveryType = normalizeDeliveryType(request.getDeliveryType());
+        if (DELIVERY_TYPE_DELIVERY.equals(deliveryType) && !pharmacy.isDeliveryAvailable()) {
+            throw new BadRequestException("Pharmacy does not support delivery");
+        }
+        return deliveryType;
+    }
+
+    private String buildDeliveryAddress(PharmacyOrderRequest request, Patient patient) {
+        if (request.getDeliveryAddress() != null && !request.getDeliveryAddress().isBlank()) {
+            return request.getDeliveryAddress();
+        }
+        return PharmacyServiceHelper.buildPatientAddress(patient);
     }
 
     private List<PharmacyOrderItem> buildOrderItemsFromRequest(
