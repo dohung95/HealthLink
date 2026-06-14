@@ -53,29 +53,31 @@ export default function PharmacyInventoryTab({ globalSearch }) {
   const [editItem, setEditItem] = useState(null);
   const deferredSearch = useDebouncedValue(globalSearch);
 
-  const loadInventory = useCallback(async () => {
+  const loadInventory = useCallback(async (params, shouldFetchLowStock) => {
     setLoading(true);
     try {
-      const params = { page, size: PAGE_SIZE };
-      if (deferredSearch) params.query = deferredSearch;
-      if (filter === 'active') params.active = true;
-      else if (filter === 'inactive') params.active = false;
-      else if (filter === 'lowStock') params.lowStock = true;
-
-      const [data, lowStockData] = await Promise.all([
-        pharmacyApi.getInventory(params),
-        pharmacyApi.getInventory({ page: 0, size: 1, lowStock: true }),
-      ]);
+      const data = await pharmacyApi.getInventory(params);
       setInventory(data);
-      setLowStockCount(Number(lowStockData?.totalElements ?? 0));
+
+      if (shouldFetchLowStock) {
+        const lowStockData = await pharmacyApi.getInventory({ page: 0, size: 1, lowStock: true });
+        setLowStockCount(Number(lowStockData?.totalElements ?? 0));
+      }
     } catch {
       toast.error('Unable to load inventory.');
     } finally {
       setLoading(false);
     }
-  }, [page, filter, deferredSearch]);
+  }, []);
 
-  useEffect(() => { loadInventory(); }, [loadInventory]);
+  useEffect(() => {
+    const params = { page, size: PAGE_SIZE };
+    if (deferredSearch) params.query = deferredSearch;
+    if (filter === 'active') params.active = true;
+    else if (filter === 'inactive') params.active = false;
+    else if (filter === 'lowStock') params.lowStock = true;
+    loadInventory(params, filter === 'lowStock');
+  }, [page, filter, deferredSearch, loadInventory]);
 
   const handleImportClick = () => setShowImportModal(true);
   const handleDownloadTemplate = () => pharmacyApi.downloadInventoryTemplate();

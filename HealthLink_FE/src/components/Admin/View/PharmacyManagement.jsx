@@ -92,6 +92,7 @@ export default function PharmacyManagement() {
 
   const handleSort = (e) => {
     setFilters({ ...filters, sortBy: e.target.value });
+    setPagination({ ...pagination, pageNumber: 1 });
   };
 
   const handlePageChange = (newPage) => {
@@ -149,14 +150,18 @@ export default function PharmacyManagement() {
     }
 
     const nextVerified = !Boolean(pharmacy.verified);
+    const original = pharmacy.verified;
+    setPharmacies(prev => prev.map(p =>
+      getPharmacyId(p) === id ? { ...p, verified: nextVerified } : p
+    ));
     try {
       setShowActionLoading(true);
       await pharmaciesApi.updateVerification(id, nextVerified);
-      setPharmacies((prev) => prev.map((item) =>
-        getPharmacyId(item) === id ? { ...item, verified: nextVerified } : item
-      ));
       showToast({ title: 'Verification Updated', message: `Pharmacy verification set to ${nextVerified ? 'Verified' : 'Pending'}`, type: 'success' });
     } catch (err) {
+      setPharmacies(prev => prev.map(p =>
+        getPharmacyId(p) === id ? { ...p, verified: original } : p
+      ));
       showToast({ title: 'Update Failed', message: err.response?.data?.error || err.message || 'Unable to update verification', type: 'error', duration: 5000 });
     } finally {
       setShowActionLoading(false);

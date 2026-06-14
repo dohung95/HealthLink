@@ -93,15 +93,15 @@ export default function PharmacyWalletTab({ profile, balance, transactions, sett
       </div>
 
       <div className="pharmacy-metrics-grid is-three">
-        <MetricCard label="Current Available Balance" value={money(pendingBalance)} hint={balance?.withdrawalStatus} icon="account_balance" />
-        <MetricCard label="Pending Balance" value={money(pendingBalance)} hint="Available for approved withdrawals" icon="schedule" tone="warning" />
+        <MetricCard label="Current Available Balance" value={money(balance?.balance ?? pendingBalance)} hint={balance?.withdrawalStatus} icon="account_balance" />
+        <MetricCard label="Pending Balance" value={money(pendingBalance)} hint="Pending settlement" icon="schedule" tone="warning" />
         <MetricCard label="Total Revenue" value={money(balance?.totalEarnings ?? profile?.totalEarnings)} hint="Lifetime earnings" icon="monitoring" tone="success" />
       </div>
 
       <section className="pharmacy-card">
         <div className="pharmacy-tabs">
           <button className={activeHistory === 'settlements' ? 'active' : ''} onClick={() => setActiveHistory('settlements')} type="button">Settlement History</button>
-          <button className={activeHistory === 'commission' ? 'active' : ''} onClick={() => setActiveHistory('commission')} type="button">Commission History</button>
+          <button className={activeHistory === 'transactions' ? 'active' : ''} onClick={() => setActiveHistory('transactions')} type="button">Commission History</button>
         </div>
         <div className="pharmacy-filter-bar">
           <input onChange={(event) => setQuery(event.target.value)} placeholder="Search transactions..." value={query} />

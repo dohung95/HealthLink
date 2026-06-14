@@ -423,18 +423,20 @@ export default function PharmacyOrdersTab({ workItems, orders, globalSearch, rel
   };
 
   const items = useMemo(() => {
-    if (Array.isArray(workItems) && workItems.length) return workItems;
-    return (orders || []).map((o) => ({
-      ...o,
-      caseId: 'ORD-' + o.orderId,
-      workItemId: 'ORD-' + o.orderId,
-      sourceType: 'DIRECT_ORDER',
-      displayId: o.orderNumber || 'Order #' + o.orderId,
-      workflowStage: o.status,
-      hasOrder: true,
-      hasConsultationRequest: false,
-      sortAt: o.createdAt,
-      availableActions: [],
+    const workItemList = Array.isArray(workItems) ? workItems : [];
+    const orderList = Array.isArray(orders) ? orders : [];
+
+    if (workItemList.length > 0 && orderList.length > 0) {
+      const workItemIds = new Set(workItemList.map(w => w.orderId || w.id));
+      const extraOrders = orderList.filter(o => !workItemIds.has(o.orderId || o.id));
+      const mapped = extraOrders.map(o => ({
+        ...o, workflowStage: o.status || 'UNKNOWN', hasOrder: true,
+      }));
+      return [...workItemList, ...mapped];
+    }
+    if (workItemList.length > 0) return workItemList;
+    return orderList.map(o => ({
+      ...o, workflowStage: o.status || 'UNKNOWN', hasOrder: true,
     }));
   }, [workItems, orders]);
 
