@@ -1,3 +1,4 @@
+import 'package:HealthLink/screens/patient/pharmacy/pharmacy_consultation_screen.dart';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../../providers/auth_provider.dart';
@@ -919,7 +920,19 @@ class _PatientHomeScreenState extends State<PatientHomeScreen> {
                   Theme.of(context).colorScheme.primary,
                   onTap: _openDoctorRanking,
                 ),
-                _buildQuickActionButton(Icons.chat, 'Chat with Doctor', Theme.of(context).colorScheme.surface, Theme.of(context).colorScheme.primary),
+                _buildQuickActionButton(
+                  Icons.local_pharmacy,
+                  'Pharmacy',
+                  Theme.of(context).colorScheme.surface,
+                  Theme.of(context).colorScheme.primary,
+                  onTap: () {
+                    Navigator.of(context).push(
+                      MaterialPageRoute(
+                        builder: (context) => const PharmacyConsultationScreen(),
+                      ),
+                    );
+                  },
+                ),
               ],
             );
           },
