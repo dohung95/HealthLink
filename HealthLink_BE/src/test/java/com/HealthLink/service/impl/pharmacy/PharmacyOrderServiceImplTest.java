@@ -1,5 +1,6 @@
 package com.HealthLink.service.impl.pharmacy;
 
+import com.HealthLink.dto.pharmacy.CancelOrderRequest;
 import com.HealthLink.dto.pharmacy.PharmacyConsultationOrderCreateRequest;
 import com.HealthLink.dto.pharmacy.PharmacyOrderItemRequest;
 import com.HealthLink.dto.pharmacy.PharmacyOrderRevisionRequest;
@@ -869,6 +870,228 @@ class PharmacyOrderServiceImplTest {
         assertThatThrownBy(() -> pharmacyOrderService.updateOrderQuote(77, request, "pharmacy-1"))
                 .isInstanceOf(BadRequestException.class)
                 .hasMessage("Cannot update quote for order with status CANCELLED");
+
+        verify(orderRepository, never()).save(any(PharmacyOrder.class));
+    }
+
+    // =========================================================================
+    // Tests for Order Request / Paid Cancel Policy (Task 3)
+    // =========================================================================
+
+    @Test
+    void createOrderFromConsultationRequest_shouldAllowPendingOrderRequest() {
+        User patientUser = User.builder().id("patient-user-1").build();
+        User pharmacyUser = User.builder().id("pharmacy-user-1").build();
+
+        Pharmacy pharmacy = Pharmacy.builder()
+                .pharmacyId("pharmacy-1")
+                .name("Central Pharmacy")
+                .deliveryFee(new BigDecimal("4.00"))
+                .deliveryRadius(10.0)
+                .latitude(40.7128)
+                .longitude(-74.0060)
+                .deliveryAvailable(true)
+                .active(true)
+                .verified(true)
+                .user(pharmacyUser)
+                .build();
+
+        Patient patient = Patient.builder()
+                .patientId("patient-1")
+                .fullName("Patient One")
+                .address("45 Oak Street")
+                .city("New York")
+                .country("USA")
+                .latitude(40.7128)
+                .longitude(-74.0060)
+                .user(patientUser)
+                .build();
+
+        PrescriptionHeader prescription = PrescriptionHeader.builder()
+                .prescriptionHeaderId(10)
+                .patient(patient)
+                .totalAmount(new BigDecimal("30.00"))
+                .status("ISSUED")
+                .build();
+        PrescriptionItem item = PrescriptionItem.builder()
+                .prescriptionItemId(101)
+                .prescriptionHeader(prescription)
+                .medicine(medicine(1, "Amlodipine 5mg", "tablet"))
+                .medicationName("Amlodipine 5mg")
+                .totalSupplyDays(7)
+                .quantity(2)
+                .unit("tablet")
+                .frequency("Twice daily")
+                .timing("MORNING,EVENING")
+                .unitPrice(new BigDecimal("15.00"))
+                .totalPrice(new BigDecimal("30.00"))
+                .build();
+        prescription.setPrescriptionItems(List.of(item));
+
+        PharmacyConsultationRequest consultationRequest = PharmacyConsultationRequest.builder()
+                .requestId(15)
+                .patient(patient)
+                .pharmacy(pharmacy)
+                .requestType("ORDER_REQUEST")
+                .status("PENDING")
+                .preferredDeliveryType("Pickup")
+                .build();
+        consultationRequest.getRequestPrescriptions().add(PharmacyConsultationRequestPrescription.builder()
+                .consultationRequest(consultationRequest)
+                .prescriptionHeader(prescription)
+                .build());
+
+        PharmacyConsultationOrderCreateRequest request = new PharmacyConsultationOrderCreateRequest();
+        PharmacyOrderItemRequest itemRequest = orderItemRequest(1, 2, new BigDecimal("15.00"));
+        itemRequest.setSourcePrescriptionHeaderId(10);
+        itemRequest.setSourcePrescriptionItemId(101);
+        request.setDeliveryType("Pickup");
+        request.setItems(List.of(itemRequest));
+        request.setPaymentMethod("COD");
+
+        when(consultationRequestRepository.findById(15)).thenReturn(Optional.of(consultationRequest));
+        when(orderRepository.existsByConsultationRequest_RequestId(15)).thenReturn(false);
+        when(orderRepository.existsByOrderNumber(anyString())).thenReturn(false);
+        when(medicineRepository.findById(1)).thenReturn(Optional.of(medicine(1, "Amlodipine 5mg", "tablet")));
+        when(orderRepository.save(any(PharmacyOrder.class))).thenAnswer(invocation -> {
+            PharmacyOrder saved = invocation.getArgument(0);
+            saved.setOrderId(91);
+            return saved;
+        });
+        when(consultationRequestRepository.save(any(PharmacyConsultationRequest.class)))
+                .thenAnswer(invocation -> invocation.getArgument(0));
+
+        PharmacyOrderResponse response =
+                pharmacyOrderService.createOrderFromConsultationRequest(15, request, "pharmacy-1");
+
+        assertThat(response.getOrderId()).isEqualTo(91);
+        assertThat(response.getPharmacyRequestId()).isEqualTo(15);
+        assertThat(response.getStatus()).isEqualTo("PENDING");
+        assertThat(response.getItems()).hasSize(1);
+
+        ArgumentCaptor<PharmacyConsultationRequest> captor =
+                ArgumentCaptor.forClass(PharmacyConsultationRequest.class);
+        verify(consultationRequestRepository).save(captor.capture());
+        assertThat(captor.getValue().getStatus()).isEqualTo("ORDER_CREATED");
+    }
+
+    @Test
+    void createOrderFromConsultationRequest_shouldRejectOrderRequestItemNotFromPrescription() {
+        Pharmacy pharmacy = Pharmacy.builder()
+                .pharmacyId("pharmacy-1")
+                .name("Central Pharmacy")
+                .deliveryAvailable(true)
+                .active(true)
+                .verified(true)
+                .build();
+
+        Patient patient = Patient.builder()
+                .patientId("patient-1")
+                .fullName("Patient One")
+                .build();
+
+        PrescriptionHeader prescription = PrescriptionHeader.builder()
+                .prescriptionHeaderId(10)
+                .patient(patient)
+                .status("ISSUED")
+                .build();
+        PrescriptionItem item = PrescriptionItem.builder()
+                .prescriptionItemId(101)
+                .prescriptionHeader(prescription)
+                .medicine(medicine(1, "Amlodipine 5mg", "tablet"))
+                .medicationName("Amlodipine 5mg")
+                .totalSupplyDays(7)
+                .quantity(2)
+                .unit("tablet")
+                .unitPrice(new BigDecimal("15.00"))
+                .totalPrice(new BigDecimal("30.00"))
+                .build();
+        prescription.setPrescriptionItems(List.of(item));
+
+        PharmacyConsultationRequest consultationRequest = PharmacyConsultationRequest.builder()
+                .requestId(15)
+                .patient(patient)
+                .pharmacy(pharmacy)
+                .requestType("ORDER_REQUEST")
+                .status("PENDING")
+                .preferredDeliveryType("Pickup")
+                .build();
+        consultationRequest.getRequestPrescriptions().add(PharmacyConsultationRequestPrescription.builder()
+                .consultationRequest(consultationRequest)
+                .prescriptionHeader(prescription)
+                .build());
+
+        PharmacyConsultationOrderCreateRequest request = new PharmacyConsultationOrderCreateRequest();
+        PharmacyOrderItemRequest itemRequest = orderItemRequest(1, 2, new BigDecimal("15.00"));
+        itemRequest.setSourcePrescriptionHeaderId(null);
+        itemRequest.setSourcePrescriptionItemId(null);
+        request.setDeliveryType("Pickup");
+        request.setItems(List.of(itemRequest));
+
+        when(consultationRequestRepository.findById(15)).thenReturn(Optional.of(consultationRequest));
+        when(orderRepository.existsByConsultationRequest_RequestId(15)).thenReturn(false);
+        when(medicineRepository.findById(1)).thenReturn(Optional.of(medicine(1, "Amlodipine 5mg", "tablet")));
+
+        assertThatThrownBy(() ->
+                pharmacyOrderService.createOrderFromConsultationRequest(15, request, "pharmacy-1"))
+                .isInstanceOf(BadRequestException.class)
+                .hasMessage("Order request items must come from the submitted prescription");
+
+        verify(orderRepository, never()).save(any(PharmacyOrder.class));
+    }
+
+    @Test
+    void updateOrderStatus_shouldRejectCancellingPaidOrder() {
+        PharmacyOrder order = PharmacyOrder.builder()
+                .orderId(77)
+                .orderNumber("ORD-20260520-0001")
+                .status("PREPARING")
+                .paymentStatus("PAID")
+                .pharmacy(Pharmacy.builder()
+                        .pharmacyId("pharmacy-1")
+                        .name("Central Pharmacy")
+                        .build())
+                .patient(Patient.builder()
+                        .patientId("patient-1")
+                        .fullName("Patient One")
+                        .build())
+                .build();
+
+        PharmacyOrderStatusRequest request = new PharmacyOrderStatusRequest();
+        request.setStatus("CANCELLED");
+
+        when(orderRepository.findById(77)).thenReturn(Optional.of(order));
+
+        assertThatThrownBy(() -> pharmacyOrderService.updateOrderStatus(77, request))
+                .isInstanceOf(BadRequestException.class)
+                .hasMessage("Paid orders cannot be cancelled. Use the refund flow instead.");
+
+        verify(orderRepository, never()).save(any(PharmacyOrder.class));
+    }
+
+    @Test
+    void cancelOrderByPatient_shouldRejectPaidOrder() {
+        PharmacyOrder order = PharmacyOrder.builder()
+                .orderId(77)
+                .orderNumber("ORD-20260520-0001")
+                .status("CONFIRMED")
+                .paymentStatus("PAID")
+                .pharmacy(Pharmacy.builder()
+                        .pharmacyId("pharmacy-1")
+                        .name("Central Pharmacy")
+                        .build())
+                .patient(Patient.builder()
+                        .patientId("patient-1")
+                        .fullName("Patient One")
+                        .build())
+                .build();
+
+        when(orderRepository.findById(77)).thenReturn(Optional.of(order));
+
+        assertThatThrownBy(() ->
+                pharmacyOrderService.cancelOrderByPatient(77, new CancelOrderRequest(), "patient-1"))
+                .isInstanceOf(BadRequestException.class)
+                .hasMessage("Paid orders cannot be cancelled. Use the refund flow instead.");
 
         verify(orderRepository, never()).save(any(PharmacyOrder.class));
     }

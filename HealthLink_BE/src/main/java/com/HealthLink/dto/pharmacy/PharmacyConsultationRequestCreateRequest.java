@@ -21,4 +21,5 @@ public class PharmacyConsultationRequestCreateRequest {
     private List<Integer> prescriptionHeaderIds;
     private String additionalNotes;
     private String preferredDeliveryType = "Delivery";
+    private String requestType = "CONSULTATION";
 }

@@ -129,6 +129,7 @@ function getMedicineDisplayName(medicine = {}) {
 }
 
 export default function CreateOrderModal({ request, profile, onClose, onCreated }) {
+  const isOrderRequest = request?.requestType === 'ORDER_REQUEST' || request?.sourceType === 'ORDER_REQUEST';
   const [leftTab, setLeftTab] = useState('prescriptions');
   const [orderItems, setOrderItems] = useState([]);
   const [prescriptions, setPrescriptions] = useState([]);
@@ -155,6 +156,12 @@ export default function CreateOrderModal({ request, profile, onClose, onCreated 
       .finally(() => { if (alive) setLoadingPrescriptions(false); });
     return () => { alive = false; };
   }, [request?.requestId]);
+
+  useEffect(() => {
+    if (!isOrderRequest || loadingPrescriptions || orderItems.length || !prescriptions.length) return;
+    const imported = prescriptions.flatMap(mapPrescriptionToOrderItems);
+    setOrderItems(imported);
+  }, [isOrderRequest, loadingPrescriptions, orderItems.length, prescriptions]);
 
   useEffect(() => {
     const previousOverflow = document.body.style.overflow;
@@ -200,6 +207,7 @@ export default function CreateOrderModal({ request, profile, onClose, onCreated 
   };
 
   const addMedicine = (medicine) => {
+    if (isOrderRequest) return;
     const medicineId = medicine?.medicineId || medicine?.id;
     if (!medicineId) {
       toast.error('Selected medicine is missing an ID.');
@@ -244,6 +252,10 @@ export default function CreateOrderModal({ request, profile, onClose, onCreated 
     event.preventDefault();
     if (!orderItems.length) {
       toast.error('Add at least one medication.');
+      return;
+    }
+    if (isOrderRequest && !orderItems.every((item) => item.sourcePrescriptionItemId)) {
+      toast.error('Order requests can only use medicines from the submitted prescription.');
       return;
     }
     const parsedDeliveryFee = Number(deliveryFee || 0);
@@ -305,18 +317,20 @@ export default function CreateOrderModal({ request, profile, onClose, onCreated 
                 <i className="bi bi-prescription me-1"></i>
                 Prescriptions
               </button>
-              <button
-                className={`pharmacy-tab-btn ${leftTab === 'medicine' ? 'is-active' : ''}`}
-                onClick={() => setLeftTab('medicine')}
-                type="button"
-              >
-                <i className="bi bi-capsule me-1"></i>
-                Medicine Library
-              </button>
+              {!isOrderRequest && (
+                <button
+                  className={`pharmacy-tab-btn ${leftTab === 'medicine' ? 'is-active' : ''}`}
+                  onClick={() => setLeftTab('medicine')}
+                  type="button"
+                >
+                  <i className="bi bi-capsule me-1"></i>
+                  Medicine Library
+                </button>
+              )}
             </div>
 
             <div className="pharmacy-create-order-left-content">
-              {leftTab === 'prescriptions' ? (
+              {(leftTab === 'prescriptions' || isOrderRequest) ? (
                 loadingPrescriptions ? (
                   <div className="pharmacy-bootstrap-loading">
                     <div className="spinner-border text-primary" role="status"><span className="visually-hidden">Loading...</span></div>
@@ -355,7 +369,7 @@ export default function CreateOrderModal({ request, profile, onClose, onCreated 
                                   type="button"
                                 >
                                   <i className={`bi ${fullyImported ? 'bi-check2' : 'bi-box-arrow-in-down'} me-1`}></i>
-                                  {fullyImported ? 'Imported' : 'Import'}
+                                  {isOrderRequest ? 'Prescription locked' : fullyImported ? 'Imported' : 'Import'}
                                 </button>
                               </div>
                               {items.slice(0, 2).map((pItem, idx) => (
@@ -403,6 +417,7 @@ export default function CreateOrderModal({ request, profile, onClose, onCreated 
                     key={orderItem.localId}
                     index={index + 1}
                     expanded={expandedItemId === orderItem.localId}
+                    lockedMedication={isOrderRequest}
                     onToggle={() => setExpandedItemId(
                       (prev) => prev === orderItem.localId ? null : orderItem.localId,
                     )}

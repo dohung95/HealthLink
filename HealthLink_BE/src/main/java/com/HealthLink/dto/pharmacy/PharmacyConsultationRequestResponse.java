@@ -21,6 +21,7 @@ public class PharmacyConsultationRequestResponse {
     private List<String> attachments;
     private String additionalNotes;
     private String preferredDeliveryType;
+    private String requestType;
     private String status;
     private String chatRoomId;
     private String pharmacyNotes;

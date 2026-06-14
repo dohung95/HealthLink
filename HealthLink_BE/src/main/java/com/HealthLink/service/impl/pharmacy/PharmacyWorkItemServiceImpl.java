@@ -36,6 +36,10 @@ public class PharmacyWorkItemServiceImpl implements PharmacyWorkItemService {
     private static final String STAGE_COMPLETED = "COMPLETED";
     private static final String STAGE_CANCELLED = "CANCELLED";
 
+    private static final String REQUEST_TYPE_CONSULTATION = "CONSULTATION";
+    private static final String REQUEST_TYPE_ORDER_REQUEST = "ORDER_REQUEST";
+    private static final String SOURCE_ORDER_REQUEST = "ORDER_REQUEST";
+
     private static final String SOURCE_CONSULTATION_REQUEST = "CONSULTATION_REQUEST";
     private static final String SOURCE_DIRECT_ORDER = "DIRECT_ORDER";
 
@@ -89,7 +93,14 @@ public class PharmacyWorkItemServiceImpl implements PharmacyWorkItemService {
         PharmacyOrder order = request.getOrder();
         String requestStatus = normalize(request.getStatus());
         String workflowStage = deriveStage(requestStatus, order);
-        List<String> actions = deriveActions(workflowStage, request, order);
+        String requestType = requestTypeOf(request);
+        String sourceType = REQUEST_TYPE_ORDER_REQUEST.equals(requestType)
+                ? SOURCE_ORDER_REQUEST
+                : SOURCE_CONSULTATION_REQUEST;
+        String displayId = REQUEST_TYPE_ORDER_REQUEST.equals(requestType)
+                ? "Order Request #" + request.getRequestId()
+                : "Request #" + request.getRequestId();
+        List<String> actions = deriveActions(workflowStage, request, order, requestType);
         String caseId = "REQ-" + request.getRequestId();
         LocalDateTime sortAt = order != null && order.getCreatedAt() != null
                 ? order.getCreatedAt() : request.getCreatedAt();
@@ -98,8 +109,9 @@ public class PharmacyWorkItemServiceImpl implements PharmacyWorkItemService {
                 .requestId(request.getRequestId())
                 .workItemId(caseId)
                 .caseId(caseId)
-                .sourceType(SOURCE_CONSULTATION_REQUEST)
-                .displayId("Request #" + request.getRequestId())
+                .sourceType(sourceType)
+                .displayId(displayId)
+                .requestType(requestType)
                 .workflowStage(workflowStage)
                 .availableActions(actions)
                 .sortAt(sortAt)
@@ -130,7 +142,6 @@ public class PharmacyWorkItemServiceImpl implements PharmacyWorkItemService {
         if (order != null) {
             builder.orderId(order.getOrderId())
                     .orderNumber(order.getOrderNumber())
-                    .displayId("Order #" + order.getOrderId())
                     .orderStatus(order.getStatus())
                     .paymentStatus(order.getPaymentStatus())
                     .patientConfirmedAt(order.getPatientConfirmedAt())
@@ -240,50 +251,117 @@ public class PharmacyWorkItemServiceImpl implements PharmacyWorkItemService {
         };
     }
 
-    private List<String> deriveActions(String stage, PharmacyConsultationRequest request, PharmacyOrder order) {
+    private List<String> deriveConsultationActions(String stage, PharmacyConsultationRequest request, PharmacyOrder order) {
         return switch (stage) {
             case STAGE_NEW_REQUEST -> List.of(ACTION_ACCEPT_REQUEST, ACTION_REJECT_REQUEST);
             case STAGE_CONSULTING -> {
-                List<String> a = new ArrayList<>();
-                if (request.getChatRoomId() != null) {
-                    a.add(ACTION_CHAT);
-                    a.add(ACTION_VIDEO_CALL);
-                }
-                a.add(ACTION_CREATE_ORDER);
-                yield a;
+                List<String> actions = new ArrayList<>(communicationActionsForConsulting(request));
+                actions.add(ACTION_CREATE_ORDER);
+                yield List.copyOf(actions);
             }
             case STAGE_REVISION_REQUESTED -> {
-                List<String> a = new ArrayList<>();
-                a.add(ACTION_CREATE_ORDER);
-                if (request != null && request.getChatRoomId() != null) {
-                    a.add(ACTION_CHAT);
-                    a.add(ACTION_VIDEO_CALL);
-                }
-                yield a;
+                List<String> actions = new ArrayList<>();
+                actions.add(ACTION_CREATE_ORDER);
+                actions.addAll(communicationActionsForConsulting(request));
+                yield List.copyOf(actions);
             }
             case STAGE_AWAITING_PAYMENT -> {
-                List<String> a = new ArrayList<>();
-                a.add(ACTION_VIEW_ONLY);
-                if (request != null && request.getChatRoomId() != null) {
-                    a.add(ACTION_CHAT);
-                    a.add(ACTION_VIDEO_CALL);
-                }
-                yield a;
+                List<String> actions = new ArrayList<>();
+                actions.add(ACTION_VIEW_ONLY);
+                actions.addAll(communicationActionsForConsulting(request));
+                yield List.copyOf(actions);
             }
-            case STAGE_PREPARING -> List.of(ACTION_UPDATE_ORDER_STATUS, ACTION_CANCEL_ORDER);
-            case STAGE_READY -> List.of(ACTION_UPDATE_ORDER_STATUS, ACTION_CANCEL_ORDER);
-            case STAGE_SHIPPING -> List.of(ACTION_UPDATE_ORDER_STATUS);
-            case STAGE_DELIVERED -> List.of(ACTION_UPDATE_ORDER_STATUS);
-            case STAGE_COMPLETED -> List.of(ACTION_VIEW_ONLY);
+            case STAGE_PREPARING -> actionsWithChatIfAvailable(
+                    cancellableOrderActions(order),
+                    request
+            );
+            case STAGE_READY -> actionsWithChatIfAvailable(
+                    cancellableOrderActions(order),
+                    request
+            );
+            case STAGE_SHIPPING -> actionsWithChatIfAvailable(
+                    List.of(ACTION_UPDATE_ORDER_STATUS),
+                    request
+            );
+            case STAGE_DELIVERED -> actionsWithChatIfAvailable(
+                    List.of(ACTION_UPDATE_ORDER_STATUS),
+                    request
+            );
+            case STAGE_COMPLETED -> actionsWithChatIfAvailable(
+                    List.of(ACTION_VIEW_ONLY),
+                    request
+            );
             case STAGE_CANCELLED -> List.of(ACTION_VIEW_ONLY);
             default -> List.of(ACTION_VIEW_ONLY);
         };
     }
 
+    private List<String> deriveActions(
+            String stage,
+            PharmacyConsultationRequest request,
+            PharmacyOrder order,
+            String requestType
+    ) {
+        if (REQUEST_TYPE_ORDER_REQUEST.equals(requestType)) {
+            return deriveOrderRequestActions(stage, order);
+        }
+        return deriveConsultationActions(stage, request, order);
+    }
+
+    private List<String> deriveOrderRequestActions(String stage, PharmacyOrder order) {
+        if (order == null) {
+            return switch (stage) {
+                case STAGE_NEW_REQUEST -> List.of(ACTION_CREATE_ORDER, ACTION_REJECT_REQUEST);
+                case STAGE_CANCELLED -> List.of(ACTION_VIEW_ONLY);
+                default -> List.of(ACTION_CREATE_ORDER);
+            };
+        }
+        return deriveOrderActions(stage, order);
+    }
+
+    private boolean isPaid(PharmacyOrder order) {
+        return order != null && PAYMENT_STATUS_PAID.equals(normalize(order.getPaymentStatus()));
+    }
+
+    private List<String> cancellableOrderActions(PharmacyOrder order) {
+        if (isPaid(order)) {
+            return List.of(ACTION_UPDATE_ORDER_STATUS);
+        }
+        return List.of(ACTION_UPDATE_ORDER_STATUS, ACTION_CANCEL_ORDER);
+    }
+
+    private String requestTypeOf(PharmacyConsultationRequest request) {
+        String raw = request != null ? request.getRequestType() : null;
+        if (raw == null || raw.isBlank()) {
+            return REQUEST_TYPE_CONSULTATION;
+        }
+        return raw.trim().toUpperCase();
+    }
+
+    private List<String> communicationActionsForConsulting(PharmacyConsultationRequest request) {
+        if (request == null || request.getChatRoomId() == null) {
+            return List.of();
+        }
+        return List.of(ACTION_CHAT, ACTION_VIDEO_CALL);
+    }
+
+    private List<String> actionsWithChatIfAvailable(
+            List<String> baseActions,
+            PharmacyConsultationRequest request
+    ) {
+        List<String> actions = new ArrayList<>(baseActions);
+        if (request != null
+                && request.getChatRoomId() != null
+                && !actions.contains(ACTION_CHAT)) {
+            actions.add(ACTION_CHAT);
+        }
+        return List.copyOf(actions);
+    }
+
     private List<String> deriveOrderActions(String stage, PharmacyOrder order) {
         return switch (stage) {
-            case STAGE_PREPARING -> List.of(ACTION_UPDATE_ORDER_STATUS, ACTION_CANCEL_ORDER);
-            case STAGE_READY -> List.of(ACTION_UPDATE_ORDER_STATUS, ACTION_CANCEL_ORDER);
+            case STAGE_PREPARING -> cancellableOrderActions(order);
+            case STAGE_READY -> cancellableOrderActions(order);
             case STAGE_SHIPPING -> List.of(ACTION_UPDATE_ORDER_STATUS);
             case STAGE_DELIVERED -> List.of(ACTION_UPDATE_ORDER_STATUS);
             case STAGE_COMPLETED -> List.of(ACTION_VIEW_ONLY);

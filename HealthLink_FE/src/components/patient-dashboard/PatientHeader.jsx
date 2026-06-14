@@ -69,10 +69,17 @@ const PatientHeader = () => {
     };
 
     const extractOrderId = (notification) => {
-        if (notification.relatedId) return notification.relatedId;
         const actionUrl = notification.actionUrl || '';
-        const match = actionUrl.match(/\/pharmacy-orders\/([^/]+)/) || actionUrl.match(/\/payment\/order\/([^/]+)/) || actionUrl.match(/\/orders\/([^/]+)/);
-        return match ? match[1] : null;
+        const match = actionUrl.match(/\/pharmacy-orders\/([^/]+)/)
+            || actionUrl.match(/\/payment\/order\/([^/]+)/)
+            || actionUrl.match(/\/orders\/([^/]+)/);
+        return match ? match[1] : notification.relatedId || null;
+    };
+
+    const extractRequestId = (notification) => {
+        const actionUrl = notification.actionUrl || '';
+        const match = actionUrl.match(/\/pharmacy-requests\/([^/]+)/);
+        return match ? match[1] : notification.relatedId || null;
     };
 
     const handleNotificationClick = async (notification) => {
@@ -84,6 +91,9 @@ const PatientHeader = () => {
         const type = notification.type;
         if (type === 'PRESCRIPTION_ISSUED' || type === 'NEW_PRESCRIPTION') {
             navigate('/patient-dashboard/prescriptions');
+        } else if (type === 'PHARMACY_REQUEST_STATUS') {
+            extractRequestId(notification);
+            navigate('/patient-dashboard/pharmacy/requests');
         } else if (type === 'PAYMENT_REQUIRED' || type === 'ORDER_STATUS' || type === 'NEW_ORDER') {
             const orderId = extractOrderId(notification);
             if (orderId) {
@@ -135,6 +145,9 @@ const PatientHeader = () => {
         if (type === 'PRESCRIPTION_ISSUED' || type === 'NEW_PRESCRIPTION') return 'bi-capsule text-success';
         if (type === 'PAYMENT_REQUIRED') return 'bi-credit-card text-warning';
         if (type === 'ORDER_STATUS') return 'bi-box-seam text-info';
+        if (type === 'PHARMACY_REQUEST_STATUS') return 'bi-chat-square-text text-info';
+        if (type === 'NEW_ORDER') return 'bi-bag-check text-success';
+        if (type === 'INVOICE_PAID') return 'bi-receipt text-success';
         if (type === 'APPOINTMENT_REMINDER') return 'bi-alarm text-primary';
         if (type?.includes('CANCEL')) return 'bi-calendar-x text-danger';
         if (type?.includes('REASSIGN')) return 'bi-arrow-left-right text-warning';

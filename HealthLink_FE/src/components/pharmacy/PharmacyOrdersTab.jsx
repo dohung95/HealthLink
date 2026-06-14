@@ -3,17 +3,14 @@ import { toast } from 'sonner';
 import { useSearchParams } from 'react-router-dom';
 
 import pharmacyApi from '../../api/pharmacyApi';
+import { useChat } from '../../context/ChatContext';
 import {
   CreateOrderModal,
   DEFAULT_STAGE_GROUP,
-  Detail,
-  ORDER_FLOW,
   Pagination,
   STAGE_GROUPS,
   STAGE_LABELS,
-  dateTime,
   exportCsv,
-  getNextActionHint,
   getOrderTime,
   money,
   normalize,
@@ -35,7 +32,49 @@ function medicationSummary(order) {
 }
 
 function caseLabel(item) {
-  return item.displayId || item.orderNumber || `#${item.orderId || item.requestId}`;
+  if (item.sourceType === 'ORDER_REQUEST') return item.displayId || `Order Request #${item.requestId}`;
+  if (item.sourceType === 'DIRECT_ORDER') return item.displayId || `Direct Order #${item.orderId}`;
+  return item.displayId || `Request #${item.requestId}`;
+}
+
+function orderNumberLabel(item) {
+  if (!item.orderId) return '-';
+  return item.orderNumber || `#${item.orderId}`;
+}
+
+function sourceLabel(item) {
+  if (item.sourceType === 'ORDER_REQUEST') return 'Order Request';
+  if (item.sourceType === 'DIRECT_ORDER') return 'Direct Order';
+  return 'Consultation';
+}
+
+function sourceBadgeClass(item) {
+  if (item.sourceType === 'DIRECT_ORDER') return 'is-direct';
+  if (item.sourceType === 'ORDER_REQUEST') return 'is-order-request';
+  return 'is-consult';
+}
+
+function paymentStatusClass(status) {
+  const normalized = normalize(status);
+  if (normalized === 'PAID') return 'is-success';
+  if (['REFUNDED', 'FAILED', 'CANCELLED'].includes(normalized)) return 'is-danger';
+  return 'is-pending';
+}
+
+function shortDateTime(value) {
+  if (!value) return '-';
+  return new Intl.DateTimeFormat('en-GB', {
+    day: '2-digit',
+    month: '2-digit',
+    year: 'numeric',
+    hour: '2-digit',
+    minute: '2-digit',
+    hour12: false,
+  }).format(new Date(value)).replace(',', '');
+}
+
+function isPaid(item) {
+  return normalize(item.paymentStatus) === 'PAID';
 }
 
 function isDeliveryOrder(item) {
@@ -55,15 +94,24 @@ function getNextOrderStatus(item) {
   return null;
 }
 
-function visibleActions(item) {
+function visibleWorkflowActions(item) {
   const actions = item.availableActions || [];
   const has = (a) => actions.includes(a);
   if (has('ACCEPT_REQUEST')) return ['ACCEPT_REQUEST', 'REJECT_REQUEST'];
+
   const visible = [];
   if (has('CREATE_ORDER')) visible.push('CREATE_ORDER');
   if (has('UPDATE_ORDER_STATUS') && getNextOrderStatus(item)) visible.push('UPDATE_ORDER_STATUS');
-  if (has('CANCEL_ORDER')) visible.push('CANCEL_ORDER');
+  if (has('CANCEL_ORDER') && getOrderStatus(item) !== 'READY' && !isPaid(item)) visible.push('CANCEL_ORDER');
   return visible;
+}
+
+function canChatWithPatient(item) {
+  return Boolean(
+    item?.patientId
+      && Array.isArray(item.availableActions)
+      && item.availableActions.includes('CHAT')
+  );
 }
 
 const STAGE_EMPTY_MESSAGES = {
@@ -81,7 +129,7 @@ const STAGE_EMPTY_MESSAGES = {
 const GROUP_EMPTY_MESSAGES = {
   NEW_REQUESTS: { icon: 'inbox', title: 'No new consultation requests', desc: '' },
   CONSULTING: { icon: 'chat', title: 'No active consultations', desc: '' },
-  PAYMENT_DUE: { icon: 'payments', title: 'No orders awaiting payment', desc: '' },
+  PAYMENT_DUE: { icon: 'payments', title: 'No orders awaiting payment or ready check', desc: '' },
   DELIVERY: { icon: 'local_shipping', title: 'No orders in delivery', desc: '' },
   HISTORY: { icon: 'history', title: 'No order history yet', desc: '' },
 };
@@ -94,6 +142,7 @@ export function OrderCaseTable({
   onCreateOrder,
   onUpdateOrderStatus,
   onCancelOrder,
+  onChat,
   updatingRequestId,
   updatingOrderId,
   activeStage,
@@ -111,7 +160,8 @@ export function OrderCaseTable({
   }
 
   const rows = items.map((item) => {
-    const rowActions = visibleActions(item);
+    const rowActions = visibleWorkflowActions(item);
+    const showChatAction = canChatWithPatient(item);
     const nextOrderStatus = getNextOrderStatus(item);
     const updatingThisOrder = updatingOrderId === item.orderId;
 
@@ -120,32 +170,45 @@ export function OrderCaseTable({
         className="pharmacy-case-row"
         key={item.caseId || item.workItemId}
       >
-      <td>
-        <strong>{caseLabel(item)}</strong>
-        {item.sourceType && (
-          <span className={`pharmacy-case-source-badge ${item.sourceType === 'DIRECT_ORDER' ? 'is-direct' : 'is-consult'}`}>
-            {item.sourceType === 'DIRECT_ORDER' ? 'Order' : 'Request'}
-          </span>
-        )}
-      </td>
+      {!compact ? (
+        <td>
+          {item.sourceType && (
+            <span className={`pharmacy-case-source-badge ${sourceBadgeClass(item)}`}>
+              {sourceLabel(item)}
+            </span>
+          )}
+          <div className="pharmacy-order-number">{orderNumberLabel(item)}</div>
+        </td>
+      ) : (
+        <td>
+          {item.sourceType && (
+            <span className={`pharmacy-case-source-badge ${sourceBadgeClass(item)}`}>
+              {sourceLabel(item)}
+            </span>
+          )}
+          <div className="pharmacy-order-number">{caseLabel(item)}</div>
+        </td>
+      )}
       <td>
         <strong>{item.patientName || 'Unknown patient'}</strong>
         <span className="pharmacy-case-detail">{item.symptoms || item.description || ''}</span>
       </td>
-      {!compact && <td>{item.orderNumber ? `#${item.orderId}` : '-'}</td>}
       <td>
         <span className={`pharmacy-status ${stageClass(item.workflowStage)}`}>
           {STAGE_LABELS[item.workflowStage] || item.workflowStage}
         </span>
       </td>
+      {!compact && <td>{item.totalAmount != null ? money(item.totalAmount) : '-'}</td>}
       {!compact && (
         <td>
-          {item.totalAmount != null ? money(item.totalAmount) : '-'}
-          {item.paymentStatus && <span className="pharmacy-status is-pending ms-1">{item.paymentStatus}</span>}
+          {item.paymentStatus ? (
+            <span className={`pharmacy-status ${paymentStatusClass(item.paymentStatus)}`}>
+              {titleCase(item.paymentStatus)}
+            </span>
+          ) : '-'}
         </td>
       )}
-      {!compact && <td className="pharmacy-next-action">{getNextActionHint(item)}</td>}
-      <td>{dateTime(item.sortAt || item.updatedAt || item.createdAt)}</td>
+      <td>{shortDateTime(item.sortAt || item.updatedAt || item.createdAt)}</td>
       {!compact && (
         <td className="text-right pharmacy-case-actions">
           {rowActions.includes('ACCEPT_REQUEST') && (
@@ -165,12 +228,25 @@ export function OrderCaseTable({
           )}
           {rowActions.includes('UPDATE_ORDER_STATUS') && (
             <button className="btn btn-sm btn-outline-success me-1" disabled={updatingThisOrder} onClick={(e) => { e.stopPropagation(); onUpdateOrderStatus?.(item); }} type="button" title={`Mark ${titleCase(nextOrderStatus)}`}>
-              <i className={`bi ${nextOrderStatus === 'SHIPPING' ? 'bi-truck' : 'bi-check2-circle'}`}></i>
+              <i className={`bi ${nextOrderStatus === 'SHIPPING' ? 'bi-box-seam' : 'bi-check2-circle'}`}></i>
             </button>
           )}
           {rowActions.includes('CANCEL_ORDER') && (
             <button className="btn btn-sm btn-outline-danger" disabled={updatingThisOrder} onClick={(e) => { e.stopPropagation(); onCancelOrder?.(item); }} type="button" title="Cancel Order">
               <i className="bi bi-slash-circle"></i>
+            </button>
+          )}
+          {showChatAction && (
+            <button
+              className="btn btn-sm btn-outline-secondary me-1 pharmacy-chat-action"
+              onClick={(event) => {
+                event.stopPropagation();
+                onChat?.(item);
+              }}
+              type="button"
+              title="Chat with patient"
+            >
+              <i className="bi bi-chat-dots"></i>
             </button>
           )}
         </td>
@@ -184,12 +260,11 @@ export function OrderCaseTable({
       <table className="pharmacy-table pharmacy-case-table">
         <thead>
           <tr>
-            <th>Case / Order</th>
-            <th>Patient</th>
             {!compact && <th>Order #</th>}
+            <th>Patient</th>
             <th>Stage</th>
             {!compact && <th>Total</th>}
-            {!compact && <th>Next Action</th>}
+            {!compact && <th>Payment</th>}
             <th>Updated</th>
             {!compact && <th className="text-right">Actions</th>}
           </tr>
@@ -200,7 +275,7 @@ export function OrderCaseTable({
   );
 }
 
-export function OrderTable({ orders, compact = false, onSelect }) {
+export function OrderTable({ orders, compact = false }) {
   if (!orders.length) {
     return (
       <div className="pharmacy-empty">
@@ -222,7 +297,6 @@ export function OrderTable({ orders, compact = false, onSelect }) {
             <th>Date</th>
             <th>Payment</th>
             <th>Status</th>
-            {!compact && <th className="text-right">Actions</th>}
           </tr>
         </thead>
         <tbody>
@@ -234,145 +308,17 @@ export function OrderTable({ orders, compact = false, onSelect }) {
                 <span>{medicationSummary(order)}</span>
               </td>
               {!compact && <td>{order.deliveryType || '-'}</td>}
-              <td>{dateTime(getOrderTime(order))}</td>
+              <td>{shortDateTime(getOrderTime(order))}</td>
               <td>
                 <span className={`pharmacy-status ${statusClass(order.paymentStatus)}`}>
                   {order.paymentStatus || 'Pending'} {order.totalAmount != null ? `(${money(order.totalAmount)})` : ''}
                 </span>
               </td>
               <td><span className={`pharmacy-status ${statusClass(order.status)}`}>{titleCase(order.status) || '-'}</span></td>
-              {!compact && (
-                <td className="text-right">
-                  <button className="pharmacy-link-button" onClick={() => onSelect?.(order)} type="button">Review</button>
-                </td>
-              )}
             </tr>
           ))}
         </tbody>
       </table>
-    </div>
-  );
-}
-
-export function OrderDetailDrawer({ order, onClose, onUpdated }) {
-  const current = normalize(order.status);
-  const allowed = ORDER_FLOW[current] || [];
-  const [status, setStatus] = useState(allowed[0] || '');
-  const [pharmacistNotes, setPharmacistNotes] = useState(order.pharmacistNotes || '');
-  const [cancelReason, setCancelReason] = useState('');
-  const [cancelledBy, setCancelledBy] = useState('Pharmacy');
-  const [estimatedDeliveryTime, setEstimatedDeliveryTime] = useState('');
-  const [saving, setSaving] = useState(false);
-
-  const submit = async (event) => {
-    event.preventDefault();
-    if (!status) return;
-    setSaving(true);
-    try {
-      await pharmacyApi.updateOrderStatus(order.orderId, {
-        status,
-        pharmacistNotes,
-        cancelReason,
-        cancelledBy: status === 'CANCELLED' ? cancelledBy : undefined,
-        estimatedDeliveryTime: estimatedDeliveryTime || undefined,
-      });
-      toast.success('Order status updated.');
-      onUpdated();
-    } catch (error) {
-      toast.error(error.response?.data?.message || 'Unable to update order.');
-    } finally {
-      setSaving(false);
-    }
-  };
-
-  return (
-    <div className="pharmacy-drawer">
-      <button className="pharmacy-drawer-backdrop" onClick={onClose} type="button" />
-      <aside className="pharmacy-drawer-panel">
-        <div className="pharmacy-drawer-header">
-          <div>
-            <h2>{order.orderNumber || `Order #${order.orderId}`}</h2>
-            <p>{order.patientName || 'Unknown patient'} · {dateTime(getOrderTime(order))}</p>
-          </div>
-          <button onClick={onClose} type="button"><span className="material-symbols-outlined">close</span></button>
-        </div>
-
-        <div className="pharmacy-drawer-body">
-          <div className="pharmacy-detail-grid">
-            <Detail label="Status" value={<span className={`pharmacy-status ${statusClass(order.status)}`}>{titleCase(order.status)}</span>} />
-            <Detail label="Payment" value={`${order.paymentStatus || '-'} · ${order.paymentMethod || '-'}`} />
-            <Detail label="Medicine Amount" value={money(order.medicineAmount)} />
-            <Detail label="Medications" value={`${orderItems(order).length} item${orderItems(order).length === 1 ? '' : 's'}`} />
-            <Detail label="Delivery Fee" value={money(order.deliveryFee)} />
-            <Detail label="Total" value={money(order.totalAmount)} />
-            <Detail label="Pharmacy Earning" value={money(order.pharmacyEarning)} />
-          </div>
-
-          <section className="pharmacy-order-items">
-            <h3>Medication Items</h3>
-            {orderItems(order).length ? orderItems(order).map((item) => (
-              <div className="pharmacy-order-item-row" key={item.orderItemId || item.medicationName}>
-                <div>
-                  <strong>{item.medicationName || `Medicine #${item.medicineId}`}</strong>
-                  <span>{item.frequency || 'As directed'} {item.timing ? `- ${item.timing}` : ''}</span>
-                </div>
-                <small>
-                  {item.quantity || 0} {item.unit || 'unit'} - {money(item.totalPrice)}
-                </small>
-              </div>
-            )) : (
-              <p className="pharmacy-muted">No medication items recorded.</p>
-            )}
-          </section>
-
-          <section className="pharmacy-timeline">
-            <h3>Status Timeline</h3>
-            {[
-              ['Created', order.createdAt],
-              ['Confirmed', order.confirmedAt],
-              ['Preparing', order.preparingAt],
-              ['Shipped', order.shippedAt],
-              ['Delivered', order.deliveredAt],
-              ['Completed', order.actualDeliveryTime],
-              ['Cancelled', order.cancelledAt],
-            ].map(([label, value]) => value && (
-              <div key={label}><span /> <strong>{label}</strong> <small>{dateTime(value)}</small></div>
-            ))}
-          </section>
-
-          <Detail label="Delivery Address" value={order.deliveryAddress || 'Pickup / not provided'} block />
-          <Detail label="Notes" value={order.notes || 'No notes'} block />
-          <Detail label="Pharmacist Notes" value={order.pharmacistNotes || 'No notes'} block />
-
-          <form className="pharmacy-form" onSubmit={submit}>
-            <h3>Update Status</h3>
-            {allowed.length ? (
-              <>
-                <select onChange={(event) => setStatus(event.target.value)} value={status}>
-                  {allowed.map((item) => <option key={item} value={item}>{titleCase(item)}</option>)}
-                </select>
-                {status === 'SHIPPING' && (
-                  <input onChange={(event) => setEstimatedDeliveryTime(event.target.value)} type="datetime-local" value={estimatedDeliveryTime} />
-                )}
-                {status === 'CANCELLED' && (
-                  <>
-                    <select onChange={(event) => setCancelledBy(event.target.value)} value={cancelledBy}>
-                      <option value="Pharmacy">Cancelled by Pharmacy</option>
-                      <option value="Patient">Cancelled by Patient</option>
-                      <option value="System">Cancelled by System</option>
-                    </select>
-                    <textarea onChange={(event) => setCancelReason(event.target.value)} placeholder="Cancellation reason" required value={cancelReason} />
-                  </>
-                )}
-                <textarea onChange={(event) => setPharmacistNotes(event.target.value)} placeholder="Pharmacist notes" value={pharmacistNotes} />
-                <button disabled={saving} type="submit">{saving ? 'Saving...' : 'Save Status'}</button>
-              </>
-            ) : (
-              <p className="pharmacy-muted">This order is in a terminal state.</p>
-            )}
-          </form>
-        </div>
-      </aside>
     </div>
   );
 }
@@ -386,7 +332,7 @@ const LEGACY_GROUP_ALIASES = {
   ALL: DEFAULT_STAGE_GROUP,
   NEEDS_INFO: 'CONSULTING',
   QUOTE_SENT: 'PAYMENT_DUE',
-  PREPARING: 'DELIVERY',
+  PREPARING: 'PAYMENT_DUE',
   READY: 'DELIVERY',
   DONE: 'HISTORY',
 };
@@ -441,7 +387,6 @@ export default function PharmacyOrdersTab({ workItems, orders, globalSearch, rel
   const [activeStageGroup, setActiveStageGroup] = useState(() => resolveInitialGroup(searchParams));
   const [query, setQuery] = useState('');
   const [dateFilter, setDateFilter] = useState('ALL');
-  const [deliveryFilter, setDeliveryFilter] = useState('ALL');
   const [createOrderRequest, setCreateOrderRequest] = useState(null);
   const [updatingRequestId, setUpdatingRequestId] = useState(null);
   const [updatingOrderId, setUpdatingOrderId] = useState(null);
@@ -450,6 +395,8 @@ export default function PharmacyOrdersTab({ workItems, orders, globalSearch, rel
   const [page, setPage] = useState(1);
   const deferredQuery = useDebouncedValue(`${globalSearch} ${query}`.trim());
   const pageSize = 10;
+
+  const { openChatWith } = useChat();
 
   const activeGroup = useMemo(
     () => STAGE_GROUPS.find((g) => g.key === activeStageGroup),
@@ -501,6 +448,7 @@ export default function PharmacyOrdersTab({ workItems, orders, globalSearch, rel
         item.patientName,
         item.symptoms,
         item.description,
+        item.sourceType,
       ].join(' ').toLowerCase();
       const queryMatches = !deferredQuery || text.includes(deferredQuery.toLowerCase());
 
@@ -646,14 +594,24 @@ export default function PharmacyOrdersTab({ workItems, orders, globalSearch, rel
     });
   };
 
+  const handleChat = (item) => {
+    if (!item?.patientId) {
+      toast.error('Patient contact information is missing.');
+      return;
+    }
+
+    openChatWith({
+      userId: item.patientId,
+      displayName: item.patientName || 'Patient',
+      pharmacyRequestId: item.requestId,
+      pharmacyOrderId: item.orderId,
+    });
+  };
+
   return (
     <>
       <div className="pharmacy-order-ops">
         <div className="pharmacy-order-toolbar">
-          <div>
-            <h2>Orders Operations</h2>
-            <span className="pharmacy-muted">{items.length} case{items.length === 1 ? '' : 's'}</span>
-          </div>
         </div>
 
         <div className="pharmacy-order-tabs" role="tablist" aria-label="Order stages">
@@ -677,20 +635,15 @@ export default function PharmacyOrdersTab({ workItems, orders, globalSearch, rel
         <h3 className="pharmacy-card-title">{activeGroup?.label || ''} - {filtered.length} case{filtered.length === 1 ? '' : 's'}</h3>
 
         <div className="pharmacy-filter-bar">
-          <input onChange={(event) => setQuery(event.target.value)} placeholder="Search by ID, patient, symptoms..." value={query} />
+          <input onChange={(event) => setQuery(event.target.value)} placeholder="Search by ID, patient, symptoms, type..." value={query} />
           <select onChange={(event) => setDateFilter(event.target.value)} value={dateFilter}>
             <option value="ALL">Any date</option>
             <option value="TODAY">Today</option>
             <option value="7D">Last 7 days</option>
           </select>
-          <select onChange={(event) => setDeliveryFilter(event.target.value)} value={deliveryFilter}>
-            <option value="ALL">All Methods</option>
-            <option value="PICKUP">Pickup</option>
-            <option value="DELIVERY">Home Delivery</option>
-          </select>
           <button className="pharmacy-secondary-action pharmacy-filter-action" onClick={() => {
-            const cols = ['displayId', 'patientName', 'workflowStage', 'sourceType', 'totalAmount', 'paymentStatus'];
-            const labelRow = ['Case', 'Patient', 'Stage', 'Source', 'Total', 'Payment Status'];
+            const cols = ['displayId', 'orderNumber', 'patientName', 'workflowStage', 'sourceType', 'totalAmount', 'paymentStatus'];
+            const labelRow = ['Case', 'Order #', 'Patient', 'Stage', 'Source', 'Total', 'Payment'];
             const rows = filtered.map((r) => {
               const row = {};
               cols.forEach((col, i) => { row[labelRow[i]] = r[col] ?? ''; });
@@ -709,6 +662,7 @@ export default function PharmacyOrdersTab({ workItems, orders, globalSearch, rel
           onCreateOrder={handleCreateOrder}
           onUpdateOrderStatus={handleUpdateOrderStatus}
           onCancelOrder={handleCancelOrder}
+          onChat={handleChat}
           updatingRequestId={updatingRequestId}
           updatingOrderId={updatingOrderId}
         />

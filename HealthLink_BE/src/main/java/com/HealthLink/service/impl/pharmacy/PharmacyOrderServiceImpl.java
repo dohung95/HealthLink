@@ -61,6 +61,8 @@ public class PharmacyOrderServiceImpl implements PharmacyOrderService {
     private static final String REQUEST_STATUS_CANCELLED = "CANCELLED";
     private static final String PAYMENT_STATUS_PENDING = "PENDING";
     private static final String PAYMENT_STATUS_PAID = "PAID";
+    private static final String REQUEST_TYPE_CONSULTATION = "CONSULTATION";
+    private static final String REQUEST_TYPE_ORDER_REQUEST = "ORDER_REQUEST";
     private static final String DELIVERY_TYPE_DELIVERY = "Delivery";
     private static final String DELIVERY_TYPE_PICKUP = "Pickup";
     private static final double EARTH_RADIUS_KM = 6371.0;
@@ -222,6 +224,7 @@ public class PharmacyOrderServiceImpl implements PharmacyOrderService {
 
         Patient patient = consultationRequest.getPatient();
         List<PharmacyOrderItem> orderItems = buildOrderItemsFromRequest(request.getItems(), consultationRequest);
+        validateOrderRequestItems(consultationRequest, orderItems);
         BigDecimal medicineAmount = calculateMedicineAmount(orderItems);
         String deliveryType = normalizeDeliveryType(
                 firstNonBlank(request.getDeliveryType(), consultationRequest.getPreferredDeliveryType())
@@ -336,6 +339,11 @@ public class PharmacyOrderServiceImpl implements PharmacyOrderService {
             throw new InvalidStatusException(currentStatus, targetStatus);
         }
 
+        if (STATUS_CANCELLED.equals(targetStatus)
+                && PAYMENT_STATUS_PAID.equalsIgnoreCase(safeValue(order.getPaymentStatus(), ""))) {
+            throw new BadRequestException("Paid orders cannot be cancelled. Use the refund flow instead.");
+        }
+
         // Ghi nhận thời điểm tương ứng
         LocalDateTime now = LocalDateTime.now();
         switch (targetStatus) {
@@ -398,6 +406,10 @@ public class PharmacyOrderServiceImpl implements PharmacyOrderService {
         String currentStatus = normalizeStatus(order.getStatus());
         if (!Set.of(STATUS_PENDING, STATUS_CONFIRMED).contains(currentStatus)) {
             throw new BadRequestException("Order can only be cancelled when status is PENDING or CONFIRMED");
+        }
+
+        if (PAYMENT_STATUS_PAID.equalsIgnoreCase(safeValue(order.getPaymentStatus(), ""))) {
+            throw new BadRequestException("Paid orders cannot be cancelled. Use the refund flow instead.");
         }
 
         order.setStatus(STATUS_CANCELLED);
@@ -629,6 +641,20 @@ public class PharmacyOrderServiceImpl implements PharmacyOrderService {
             throw new BadRequestException("An order has already been created for this request");
         }
 
+        String requestType = requestTypeOf(consultationRequest);
+        String status = normalizeStatus(consultationRequest.getStatus());
+
+        if (REQUEST_TYPE_ORDER_REQUEST.equals(requestType)) {
+            if (!STATUS_PENDING.equals(status)) {
+                throw new BadRequestException("Order request can only create an order while pending");
+            }
+            if (consultationRequest.getRequestPrescriptions() == null
+                    || consultationRequest.getRequestPrescriptions().isEmpty()) {
+                throw new BadRequestException("Order request requires a prescription");
+            }
+            return;
+        }
+
         if (REQUEST_STATUS_CANCELLED.equalsIgnoreCase(safeValue(consultationRequest.getStatus(), ""))) {
             throw new BadRequestException("Cannot create order for a cancelled request");
         }
@@ -638,6 +664,30 @@ public class PharmacyOrderServiceImpl implements PharmacyOrderService {
             throw new BadRequestException("An order has already been created for this request");
         }
 
+    }
+
+    private void validateOrderRequestItems(
+            PharmacyConsultationRequest consultationRequest,
+            List<PharmacyOrderItem> orderItems
+    ) {
+        if (!REQUEST_TYPE_ORDER_REQUEST.equals(requestTypeOf(consultationRequest))) {
+            return;
+        }
+
+        Set<Integer> allowedPrescriptionItemIds = consultationRequest.getRequestPrescriptions().stream()
+                .filter(Objects::nonNull)
+                .flatMap(rp -> rp.getPrescriptionHeader().getPrescriptionItems().stream())
+                .map(PrescriptionItem::getPrescriptionItemId)
+                .collect(Collectors.toSet());
+
+        for (PharmacyOrderItem item : orderItems) {
+            Integer sourceId = item.getSourcePrescriptionItem() != null
+                    ? item.getSourcePrescriptionItem().getPrescriptionItemId()
+                    : null;
+            if (sourceId == null || !allowedPrescriptionItemIds.contains(sourceId)) {
+                throw new BadRequestException("Order request items must come from the submitted prescription");
+            }
+        }
     }
 
     private void validatePharmacyCanReceiveOrders(Pharmacy pharmacy) {
@@ -1321,6 +1371,14 @@ public class PharmacyOrderServiceImpl implements PharmacyOrderService {
         }
 
         safeTask.run();
+    }
+
+    private String requestTypeOf(PharmacyConsultationRequest request) {
+        String raw = request != null ? request.getRequestType() : null;
+        if (raw == null || raw.isBlank()) {
+            return REQUEST_TYPE_CONSULTATION;
+        }
+        return raw.trim().toUpperCase();
     }
 
     private String safeValue(String value, String fallback) {

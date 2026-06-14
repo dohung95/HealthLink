@@ -30,7 +30,7 @@ function getTimingLabel(value) {
   return opt ? opt.label : value;
 }
 
-export default function OrderItemCard({ item, onUpdate, onRemove, index, expanded, onToggle }) {
+export default function OrderItemCard({ item, onUpdate, onRemove, index, expanded, onToggle, lockedMedication = false }) {
   const [showNoteInput, setShowNoteInput] = useState(!!item.notes);
   const total = lineTotal(item);
 
@@ -53,9 +53,11 @@ export default function OrderItemCard({ item, onUpdate, onRemove, index, expande
           <button className="btn btn-sm btn-link text-secondary p-0" onClick={(e) => { e.stopPropagation(); onToggle(); }} type="button" aria-label={expanded ? 'Collapse' : 'Expand'}>
             <i className={`bi ${expanded ? 'bi-chevron-up' : 'bi-chevron-down'}`}></i>
           </button>
-          <button className="btn btn-sm btn-link text-danger p-0 ms-1" onClick={(e) => { e.stopPropagation(); onRemove(item.localId); }} type="button" aria-label="Remove">
-            <i className="bi bi-trash3"></i>
-          </button>
+          {!lockedMedication && (
+            <button className="btn btn-sm btn-link text-danger p-0 ms-1" onClick={(e) => { e.stopPropagation(); onRemove(item.localId); }} type="button" aria-label="Remove">
+              <i className="bi bi-trash3"></i>
+            </button>
+          )}
         </div>
       </div>
 
@@ -64,11 +66,11 @@ export default function OrderItemCard({ item, onUpdate, onRemove, index, expande
           <div className="row g-3">
             <div className="col-6 col-md-3">
               <label className="form-label">QTY</label>
-              <input className="form-control form-control-sm" min="1" onChange={(e) => onUpdate(item.localId, 'quantity', e.target.value)} type="number" value={item.quantity} />
+              <input className="form-control form-control-sm" disabled={lockedMedication} min="1" onChange={(e) => onUpdate(item.localId, 'quantity', e.target.value)} type="number" value={item.quantity} />
             </div>
             <div className="col-6 col-md-3">
               <label className="form-label">DAYS</label>
-              <input className="form-control form-control-sm" min="1" onChange={(e) => onUpdate(item.localId, 'totalSupplyDays', e.target.value)} type="number" value={item.totalSupplyDays} />
+              <input className="form-control form-control-sm" disabled={lockedMedication} min="1" onChange={(e) => onUpdate(item.localId, 'totalSupplyDays', e.target.value)} type="number" value={item.totalSupplyDays} />
             </div>
             <div className="col-6 col-md-3">
               <label className="form-label">ROUTE</label>
@@ -76,25 +78,25 @@ export default function OrderItemCard({ item, onUpdate, onRemove, index, expande
             </div>
             <div className="col-6 col-md-3">
               <label className="form-label">UNIT PRICE</label>
-              <input className="form-control form-control-sm" disabled value={money(item.unitPrice)} />
+              <input className="form-control form-control-sm" disabled={!lockedMedication} value={item.unitPrice} onChange={(e) => onUpdate(item.localId, 'unitPrice', e.target.value)} />
             </div>
             <div className="col-4">
               <label className="form-label">UNIT</label>
-              <select className="form-select form-select-sm" onChange={(e) => onUpdate(item.localId, 'unit', e.target.value)} value={item.unit}>
+              <select className="form-select form-select-sm" disabled={lockedMedication} onChange={(e) => onUpdate(item.localId, 'unit', e.target.value)} value={item.unit}>
                 <option value="">Select unit</option>
                 {UNIT_OPTIONS.map((u) => <option key={u} value={u}>{u}</option>)}
               </select>
             </div>
             <div className="col-4">
               <label className="form-label">FREQUENCY</label>
-              <select className="form-select form-select-sm" onChange={(e) => onUpdate(item.localId, 'frequency', e.target.value)} value={item.frequency}>
+              <select className="form-select form-select-sm" disabled={lockedMedication} onChange={(e) => onUpdate(item.localId, 'frequency', e.target.value)} value={item.frequency}>
                 <option value="">Select frequency</option>
                 {FREQUENCY_OPTIONS.map((f) => <option key={f} value={f}>{f}</option>)}
               </select>
             </div>
             <div className="col-4">
               <label className="form-label">TIMING</label>
-              <select className="form-select form-select-sm" onChange={(e) => onUpdate(item.localId, 'timing', e.target.value)} value={item.timing}>
+              <select className="form-select form-select-sm" disabled={lockedMedication} onChange={(e) => onUpdate(item.localId, 'timing', e.target.value)} value={item.timing}>
                 <option value="">Select timing</option>
                 {TIMING_OPTIONS.map((t) => <option key={t.value} value={t.value}>{t.label}</option>)}
               </select>

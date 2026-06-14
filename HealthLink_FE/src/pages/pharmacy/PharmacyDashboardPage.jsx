@@ -7,9 +7,11 @@ import { getPharmacyProfile } from '../../api/account';
 import pharmacyApi from '../../api/pharmacyApi';
 import { paymentApi } from '../../api/paymentApi';
 import { useAuth } from '../../context/AuthContext';
+import { useNotifications } from '../../context/NotificationContext';
 import PharmacyInventoryTab from '../../components/pharmacy/PharmacyInventoryTab';
 import PharmacyOverviewTab from '../../components/pharmacy/PharmacyOverviewTab';
 import { Avatar, getProfileName, navItems, routeByTab } from '../../components/pharmacy/PharmacyShared';
+import PharmacyNotificationDropdown from '../../components/pharmacy/PharmacyNotificationDropdown';
 import PharmacyOrdersTab from '../../components/pharmacy/PharmacyOrdersTab';
 import PharmacyProfileTab from '../../components/pharmacy/PharmacyProfileTab';
 import PharmacyWalletTab from '../../components/pharmacy/PharmacyWalletTab';
@@ -17,6 +19,7 @@ import ChatPage from '../../components/ChatPage';
 
 export default function PharmacyDashboardPage() {
   const { token, currentUserId, logout } = useAuth();
+  const { notifications } = useNotifications();
   const navigate = useNavigate();
   const location = useLocation();
   const [mobileOpen, setMobileOpen] = useState(false);
@@ -30,6 +33,7 @@ export default function PharmacyDashboardPage() {
   const [transactions, setTransactions] = useState([]);
   const [settlements, setSettlements] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [lastHandledWorkflowNotificationId, setLastHandledWorkflowNotificationId] = useState(null);
 
   const pharmacyId = profile?.pharmacyId || currentUserId;
 
@@ -77,6 +81,30 @@ export default function PharmacyDashboardPage() {
     loadDashboardData();
   }, [token, currentUserId]);
 
+  useEffect(() => {
+    const latest = notifications?.[0];
+    if (!latest || ![
+      'NEW_PHARMACY_REQUEST',
+      'INVOICE_PAID',
+      'NEW_ORDER',
+      'ORDER_STATUS',
+    ].includes(latest.type)) return;
+
+    const notificationKey = latest.notificationId || `${latest.type}-${latest.relatedId}-${latest.createdAt || latest.timestamp || ''}`;
+    if (!notificationKey || notificationKey === lastHandledWorkflowNotificationId) return;
+
+    const actionUrl = latest.actionUrl || '';
+    const isPharmacyWorkflowEvent =
+      latest.type === 'NEW_PHARMACY_REQUEST'
+      || actionUrl.includes('/pharmacy-orders/')
+      || actionUrl.includes('/pharmacy-requests/');
+
+    if (!isPharmacyWorkflowEvent) return;
+
+    setLastHandledWorkflowNotificationId(notificationKey);
+    loadDashboardData();
+  }, [notifications, lastHandledWorkflowNotificationId]);
+
   const closeMobile = () => setMobileOpen(false);
 
   const shellProps = {
@@ -105,12 +133,9 @@ export default function PharmacyDashboardPage() {
       <aside className={`pharmacy-sidebar ${mobileOpen ? 'is-open' : ''}`}>
         <div className="pharmacy-brand">
           <div className="pharmacy-brand-logo">
-            <span className="material-symbols-outlined">local_pharmacy</span>
+            <img src="/logo.png" alt="HealthLink" />
           </div>
-          <div>
-            <strong>HealthLink Pharmacy</strong>
-            <span>Pharmacy Partner</span>
-          </div>
+          <strong>HealthLink-Pharmacy</strong>
         </div>
 
         <nav className="pharmacy-nav">
@@ -158,9 +183,7 @@ export default function PharmacyDashboardPage() {
               <span />
               Online
             </span>
-            <button type="button" title="Notifications">
-              <span className="material-symbols-outlined">notifications</span>
-            </button>
+            <PharmacyNotificationDropdown />
             <button onClick={() => navigate(routeByTab.profile)} type="button" title="Settings">
               <span className="material-symbols-outlined">settings</span>
             </button>
@@ -180,7 +203,7 @@ export default function PharmacyDashboardPage() {
               {activeTab === 'inventory' && <PharmacyInventoryTab {...shellProps} />}
               {activeTab === 'orders' && <PharmacyOrdersTab {...shellProps} />}
               {activeTab === 'wallet' && <PharmacyWalletTab {...shellProps} />}
-              {/* {activeTab === 'chat' && <ChatPage showBot={false} />}  nếu mà a muốn cho pharmacy chat thì mở cmt là xong */}
+              {activeTab === 'chat' && <ChatPage showBot={false} />}
               {activeTab === 'profile' && <PharmacyProfileTab token={token} logout={logout} {...shellProps} />}
             </>
           )}

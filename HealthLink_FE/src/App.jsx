@@ -51,6 +51,7 @@ import { ChatProvider } from './context/ChatContext';
 import { NotificationProvider } from './context/NotificationContext';
 import VideocallPage from './pages/video-calling';
 import IncomingCallModal from './components/IncomingCallModal';
+import NotificationToastBridge from './components/notifications/NotificationToastBridge';
 import PrescriptionNotificationModal from './components/PrescriptionNotificationModal';
 import AdminActionNotificationModal from './components/AdminActionNotificationModal';
 import Navbar from './components/Navbar';
@@ -112,6 +113,7 @@ function AppContent() {
   const isAdminPage = location.pathname.startsWith('/admin');
   const isPatientDashboard = location.pathname.startsWith('/patient-dashboard');
   const isPharmacyDashboard = location.pathname.startsWith('/pharmacy-page');
+  const isPharmacyChatPage = location.pathname === '/pharmacy-page/chat';
   const isSchedulePage = location.pathname === '/schedule' || location.pathname.startsWith('/book/');
   const isResetPasswordPage = location.pathname === '/reset-password';
 
@@ -196,11 +198,19 @@ function AppContent() {
   return (
     <>
       <Toaster position="top-right" richColors />
+      <NotificationToastBridge />
       {!isVideoCallPage && !isAdminPage && <IncomingCallModal />}
       {!isVideoCallPage && !isAdminPage && <PrescriptionNotificationModal />}
       {!isVideoCallPage && !isAdminPage && <AdminActionNotificationModal />}
       <div className="App">
-        {!isVideoCallPage && !isAdminPage && !is404Page && !isResetPasswordPage && !isPatientDashboard && !isDoctorPage && !isPharmacyDashboard && <Chat />}
+        {!isVideoCallPage
+  && !isAdminPage
+  && !is404Page
+  && !isResetPasswordPage
+  && !isPatientDashboard
+  && !isDoctorPage
+  && !isPharmacyChatPage
+  && <Chat />}
         <ScrollToTop />
         {!hideLayout && <Navbar />}
 

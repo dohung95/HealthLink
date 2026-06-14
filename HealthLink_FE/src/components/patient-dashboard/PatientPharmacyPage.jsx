@@ -67,14 +67,18 @@ export default function PatientPharmacyPage() {
 }
 
 function PharmacyWizard({ userId, navigate }) {
-  const [step, setStep] = useState('prescription');
+  const [flowType, setFlowType] = useState(null);
+  const [step, setStep] = useState('mode');
   const [prescriptionHeaderId, setPrescriptionHeaderId] = useState(null);
   const [prescriptions, setPrescriptions] = useState([]);
   const [selectedPharmacy, setSelectedPharmacy] = useState(null);
   const [request, setRequest] = useState(null);
   const [geolocation, setGeolocation] = useState(null);
   const [geoTried, setGeoTried] = useState(false);
-  const stepIndex = WIZARD_STEPS.indexOf(step);
+  const steps = flowType === 'ORDER_REQUEST'
+    ? ['mode', 'prescription', 'pharmacy', 'submitted']
+    : ['mode', 'prescription', 'pharmacy', 'connect', 'payment'];
+  const stepIndex = steps.indexOf(step);
 
   useEffect(() => {
     if (!geoTried && navigator.geolocation) {
@@ -94,27 +98,41 @@ function PharmacyWizard({ userId, navigate }) {
   };
 
   const handleSkipPrescription = () => {
+    if (flowType === 'ORDER_REQUEST') {
+      toast.error('Please choose a prescription to request an order.');
+      return;
+    }
     setPrescriptionHeaderId(null);
     setStep('pharmacy');
   };
 
   const handleSelectPharmacy = async (pharmacy) => {
     setSelectedPharmacy(pharmacy);
-    setStep('connect');
 
     try {
       const payload = {
         patientId: userId,
         pharmacyId: pharmacy.pharmacyId,
-        symptoms: '',
-        description: 'Patient initiated pharmacy consultation',
+        requestType: flowType,
+        symptoms: flowType === 'CONSULTATION' ? '' : undefined,
+        description: flowType === 'CONSULTATION'
+          ? 'Patient initiated pharmacy consultation'
+          : 'Patient requested an order from an existing prescription',
         allergies: '',
         additionalNotes: '',
         preferredDeliveryType: pharmacy.deliveryAvailable ? 'Delivery' : 'Pickup',
         prescriptionHeaderIds: prescriptionHeaderId ? [prescriptionHeaderId] : undefined,
       };
       const created = await pharmacyApi.createConsultationRequest(payload);
+
+      if (flowType === 'ORDER_REQUEST') {
+        toast.success('Order request sent to pharmacy.');
+        navigate('/patient-dashboard/pharmacy/requests');
+        return;
+      }
+
       setRequest(created);
+      setStep('connect');
     } catch (err) {
       toast.error(err.response?.data?.message || 'Failed to create consultation request.');
       setStep('pharmacy');
@@ -122,8 +140,8 @@ function PharmacyWizard({ userId, navigate }) {
   };
 
   const handleGoBack = () => {
-    const idx = WIZARD_STEPS.indexOf(step);
-    if (idx > 0) setStep(WIZARD_STEPS[idx - 1]);
+    const idx = steps.indexOf(step);
+    if (idx > 0) setStep(steps[idx - 1]);
   };
 
   const handleRequestUpdated = (updatedRequest) => {
@@ -138,22 +156,27 @@ function PharmacyWizard({ userId, navigate }) {
   return (
     <div>
       <div className="d-flex align-items-center gap-2 mb-4">
-        {WIZARD_STEPS.map((s, i) => (
+        {steps.map((s, i) => (
           <div key={s} className="d-flex align-items-center gap-1">
             <div className={`rounded-circle d-flex align-items-center justify-content-center ${i <= stepIndex ? 'bg-primary text-white' : 'bg-light text-muted'}`}
               style={{ width: 28, height: 28, fontSize: 12, fontWeight: 600 }}>
               {i + 1}
             </div>
             <small className={i <= stepIndex ? 'fw-medium' : 'text-muted'}>
-              {s === 'prescription' ? 'Prescription' : s === 'pharmacy' ? 'Pharmacy' : s === 'connect' ? 'Connect' : 'Payment'}
+              {s === 'mode' ? 'Mode' : s === 'prescription' ? 'Prescription' : s === 'pharmacy' ? 'Pharmacy' : s === 'connect' ? 'Connect' : s === 'submitted' ? 'Submitted' : 'Payment'}
             </small>
-            {i < WIZARD_STEPS.length - 1 && <div className="border-top mx-1" style={{ width: 20 }} />}
+            {i < steps.length - 1 && <div className="border-top mx-1" style={{ width: 20 }} />}
           </div>
         ))}
       </div>
 
+      {step === 'mode' && (
+        <RequestModeStep onChoose={(type) => { setFlowType(type); setStep('prescription'); }} />
+      )}
+
       {step === 'prescription' && (
         <PrescriptionStep
+          mode={flowType}
           userId={userId}
           onSelect={handleSelectPrescription}
           onSkip={handleSkipPrescription}
@@ -186,7 +209,24 @@ function PharmacyWizard({ userId, navigate }) {
   );
 }
 
-function PrescriptionStep({ userId, onSelect, onSkip, prescriptions, setPrescriptions }) {
+function RequestModeStep({ onChoose }) {
+  return (
+    <div className="pharmacy-mode-grid">
+      <button className="pharmacy-mode-card" onClick={() => onChoose('CONSULTATION')} type="button">
+        <i className="bi bi-chat-square-text"></i>
+        <strong>Request consultation</strong>
+        <span>Ask the pharmacy to review your situation, chat if needed, then create an order.</span>
+      </button>
+      <button className="pharmacy-mode-card" onClick={() => onChoose('ORDER_REQUEST')} type="button">
+        <i className="bi bi-prescription2"></i>
+        <strong>Order from prescription</strong>
+        <span>Send an existing prescription for pricing and fulfillment. No consultation.</span>
+      </button>
+    </div>
+  );
+}
+
+function PrescriptionStep({ mode, userId, onSelect, onSkip, prescriptions, setPrescriptions }) {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
@@ -230,9 +270,11 @@ function PrescriptionStep({ userId, onSelect, onSkip, prescriptions, setPrescrip
         </div>
       )}
 
-      <button className="btn btn-outline-secondary" onClick={onSkip}>
-        <i className="bi bi-skip-forward me-1"></i>Skip, I don't have a prescription
-      </button>
+      {mode !== 'ORDER_REQUEST' && (
+        <button className="btn btn-outline-secondary" onClick={onSkip}>
+          <i className="bi bi-skip-forward me-1"></i>Skip, I don't have a prescription
+        </button>
+      )}
     </div>
   );
 }
@@ -552,6 +594,7 @@ function RequestsView({ userId }) {
           </div>
           <p className="mb-1 small">{req.symptoms || req.description || 'No description'}</p>
           <div className="d-flex gap-2 align-items-center">
+            <span className="badge bg-info">{req.requestType === 'ORDER_REQUEST' ? 'Order Request' : 'Consultation'}</span>
             <span className={`badge ${req.status === 'CANCELLED' ? 'bg-danger' : req.status === 'ORDER_CREATED' ? 'bg-success' : req.status === 'IN_REVIEW' ? 'bg-info' : 'bg-secondary'}`}>
               {req.status}
             </span>
