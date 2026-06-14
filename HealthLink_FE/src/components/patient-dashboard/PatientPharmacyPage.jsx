@@ -3,6 +3,7 @@ import { useNavigate, useLocation, Link } from 'react-router-dom';
 import { toast } from 'sonner';
 import { useAuth } from '../../context/AuthContext';
 import pharmacyApi from '../../api/pharmacyApi';
+import { getProfile } from '../../api/account';
 import { paymentApi } from '../../api/paymentApi';
 import { loadPayPalSdk } from '../../utils/paypalSdk';
 import { titleCase } from '../../utils/pharmacy/pharmacyHelpers';
@@ -75,9 +76,11 @@ function PharmacyWizard({ userId, navigate }) {
   const [request, setRequest] = useState(null);
   const [geolocation, setGeolocation] = useState(null);
   const [geoTried, setGeoTried] = useState(false);
+  const [patientProfile, setPatientProfile] = useState(null);
+  const [deliveryContact, setDeliveryContact] = useState(null);
   const steps = flowType === 'ORDER_REQUEST'
-    ? ['mode', 'prescription', 'pharmacy', 'submitted']
-    : ['mode', 'prescription', 'pharmacy', 'connect', 'payment'];
+    ? ['mode', 'prescription', 'delivery', 'pharmacy', 'submitted']
+    : ['mode', 'prescription', 'delivery', 'pharmacy', 'connect', 'payment'];
   const stepIndex = steps.indexOf(step);
 
   useEffect(() => {
@@ -92,9 +95,17 @@ function PharmacyWizard({ userId, navigate }) {
     }
   }, [geoTried]);
 
+  useEffect(() => {
+    const token = localStorage.getItem('token');
+    if (!token) return;
+    getProfile(token)
+      .then(setPatientProfile)
+      .catch(() => setPatientProfile(null));
+  }, []);
+
   const handleSelectPrescription = (id) => {
     setPrescriptionHeaderId(id);
-    setStep('pharmacy');
+    setStep('delivery');
   };
 
   const handleSkipPrescription = () => {
@@ -103,7 +114,7 @@ function PharmacyWizard({ userId, navigate }) {
       return;
     }
     setPrescriptionHeaderId(null);
-    setStep('pharmacy');
+    setStep('delivery');
   };
 
   const handleSelectPharmacy = async (pharmacy) => {
@@ -120,7 +131,13 @@ function PharmacyWizard({ userId, navigate }) {
           : 'Patient requested an order from an existing prescription',
         allergies: '',
         additionalNotes: '',
-        preferredDeliveryType: pharmacy.deliveryAvailable ? 'Delivery' : 'Pickup',
+        preferredDeliveryType: 'Delivery',
+        deliveryType: 'Delivery',
+        deliveryAddress: deliveryContact?.deliveryAddress,
+        deliveryLatitude: deliveryContact?.deliveryLatitude,
+        deliveryLongitude: deliveryContact?.deliveryLongitude,
+        deliveryPhoneNumber: deliveryContact?.deliveryPhoneNumber,
+        deliveryAddressSource: deliveryContact?.deliveryAddressSource,
         prescriptionHeaderIds: prescriptionHeaderId ? [prescriptionHeaderId] : undefined,
       };
       const created = await pharmacyApi.createConsultationRequest(payload);
@@ -163,7 +180,7 @@ function PharmacyWizard({ userId, navigate }) {
               {i + 1}
             </div>
             <small className={i <= stepIndex ? 'fw-medium' : 'text-muted'}>
-              {s === 'mode' ? 'Mode' : s === 'prescription' ? 'Prescription' : s === 'pharmacy' ? 'Pharmacy' : s === 'connect' ? 'Connect' : s === 'submitted' ? 'Submitted' : 'Payment'}
+              {s === 'mode' ? 'Mode' : s === 'prescription' ? 'Prescription' : s === 'delivery' ? 'Delivery' : s === 'pharmacy' ? 'Pharmacy' : s === 'connect' ? 'Connect' : s === 'submitted' ? 'Submitted' : 'Payment'}
             </small>
             {i < steps.length - 1 && <div className="border-top mx-1" style={{ width: 20 }} />}
           </div>
@@ -185,10 +202,24 @@ function PharmacyWizard({ userId, navigate }) {
         />
       )}
 
+      {step === 'delivery' && (
+        <DeliveryContactStep
+          profile={patientProfile}
+          geolocation={geolocation}
+          geoTried={geoTried}
+          onBack={handleGoBack}
+          onContinue={(contact) => {
+            setDeliveryContact(contact);
+            setStep('pharmacy');
+          }}
+        />
+      )}
+
       {step === 'pharmacy' && (
         <PharmacySelectionStep
           userId={userId}
           geolocation={geolocation}
+          deliveryContact={deliveryContact}
           prescriptionHeaderId={prescriptionHeaderId}
           onSelect={handleSelectPharmacy}
           onBack={handleGoBack}
@@ -279,11 +310,13 @@ function PrescriptionStep({ mode, userId, onSelect, onSkip, prescriptions, setPr
   );
 }
 
-function PharmacySelectionStep({ userId, geolocation, prescriptionHeaderId, onSelect, onBack }) {
+function PharmacySelectionStep({ userId, geolocation, deliveryContact, prescriptionHeaderId, onSelect, onBack }) {
   const [pharmacies, setPharmacies] = useState([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState('');
   const [deliveryOnly, setDeliveryOnly] = useState(false);
+  const refLat = deliveryContact?.deliveryLatitude ?? geolocation?.lat ?? null;
+  const refLng = deliveryContact?.deliveryLongitude ?? geolocation?.lng ?? null;
 
   useEffect(() => {
     if (!userId) { setLoading(false); return; }
@@ -291,15 +324,15 @@ function PharmacySelectionStep({ userId, geolocation, prescriptionHeaderId, onSe
     const params = {};
     if (deliveryOnly) params.deliveryOnly = true;
     if (prescriptionHeaderId) params.prescriptionHeaderId = prescriptionHeaderId;
-    if (geolocation) {
-      params.lat = geolocation.lat;
-      params.lng = geolocation.lng;
+    if (refLat && refLng) {
+      params.lat = refLat;
+      params.lng = refLng;
     }
     pharmacyApi.getRecommendations(params)
       .then((data) => setPharmacies(Array.isArray(data) ? data : []))
       .catch(() => toast.error('Unable to load pharmacies.'))
       .finally(() => setLoading(false));
-  }, [userId, deliveryOnly, prescriptionHeaderId, geolocation]);
+  }, [userId, deliveryOnly, prescriptionHeaderId, refLat, refLng]);
 
   const filtered = pharmacies.filter((p) => {
     if (!search) return true;
@@ -391,6 +424,142 @@ function PharmacySelectionStep({ userId, geolocation, prescriptionHeaderId, onSe
           })}
         </div>
       )}
+    </div>
+  );
+}
+
+function DeliveryContactStep({ profile, geolocation, geoTried, onBack, onContinue }) {
+  const [address, setAddress] = useState('');
+  const [phone, setPhone] = useState('');
+  const [latitude, setLatitude] = useState(null);
+  const [longitude, setLongitude] = useState(null);
+  const [source, setSource] = useState('PROFILE');
+  const [saving, setSaving] = useState(false);
+
+  useEffect(() => {
+    const profileAddress = [profile?.address, profile?.city, profile?.country].filter(Boolean).join(', ');
+    setAddress(profileAddress);
+    setPhone(profile?.phoneNumber || '');
+    setLatitude(profile?.latitude ?? null);
+    setLongitude(profile?.longitude ?? null);
+  }, [profile]);
+
+  const useCurrentLocation = async () => {
+    if (!geolocation) {
+      toast.error(geoTried ? 'Can not access your device location.' : 'Still trying to access your location.');
+      return;
+    }
+    setSaving(true);
+    try {
+      const result = await pharmacyApi.reverseGeocode({
+        latitude: geolocation.lat,
+        longitude: geolocation.lng,
+      });
+      setAddress(result.formattedAddress || '');
+      setLatitude(result.latitude);
+      setLongitude(result.longitude);
+      setSource('DEVICE_LOCATION');
+      toast.success('Delivery address updated from current location.');
+    } catch (error) {
+      const msg = error.response?.data?.message || '';
+      if (msg.includes('API key is not configured')) {
+        toast.error('Google Maps service is not configured. Please contact support.');
+      } else {
+        toast.error(msg || 'Unable to resolve current location.');
+      }
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const geocodeManualAddress = async () => {
+    if (!address.trim()) {
+      toast.error('Please enter a delivery address.');
+      return;
+    }
+    setSaving(true);
+    try {
+      const result = await pharmacyApi.geocodeAddress(address.trim());
+      setAddress(result.formattedAddress || address.trim());
+      setLatitude(result.latitude);
+      setLongitude(result.longitude);
+      setSource('MANUAL');
+      toast.success('Delivery address verified.');
+    } catch (error) {
+      const msg = error.response?.data?.message || '';
+      if (msg.includes('API key is not configured')) {
+        toast.error('Google Maps service is not configured. Please contact support.');
+      } else {
+        toast.error(msg || 'Unable to verify this address.');
+      }
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const submit = async () => {
+    if (!phone.trim()) {
+      toast.error('Please enter a delivery phone number.');
+      return;
+    }
+    if (!address.trim()) {
+      toast.error('Please enter a delivery address.');
+      return;
+    }
+    if (latitude == null || longitude == null) {
+      await geocodeManualAddress();
+      return;
+    }
+    onContinue({
+      deliveryType: 'Delivery',
+      deliveryAddress: address.trim(),
+      deliveryLatitude: latitude,
+      deliveryLongitude: longitude,
+      deliveryPhoneNumber: phone.trim(),
+      deliveryAddressSource: source,
+    });
+  };
+
+  return (
+    <div className="delivery-contact-card">
+      <div className="delivery-contact-header">
+        <div>
+          <h5 className="fw-semibold mb-1">Delivery contact</h5>
+          <p className="text-muted small mb-0">Choose where the pharmacy should send the order.</p>
+        </div>
+      </div>
+          <label className="form-label small">Receiver phone</label>
+          <input className="form-control mb-3" value={phone} onChange={(e) => setPhone(e.target.value)} />
+
+          <label className="form-label small">Delivery address</label>
+          <textarea className="form-control mb-2" rows="3" value={address} onChange={(e) => {
+            setAddress(e.target.value);
+            setLatitude(null);
+            setLongitude(null);
+            setSource('MANUAL');
+          }} />
+
+          <div className="d-flex flex-wrap gap-2 mb-3">
+            <button className="btn btn-outline-primary btn-sm" disabled={saving} onClick={useCurrentLocation} type="button">
+              <i className="bi bi-crosshair me-1"></i>Use current location
+            </button>
+            <button className="btn btn-outline-secondary btn-sm" disabled={saving || !address.trim()} onClick={geocodeManualAddress} type="button">
+              <i className="bi bi-geo-alt me-1"></i>Verify address
+            </button>
+          </div>
+
+          {latitude != null && longitude != null && (
+            <p className="small text-success mb-3">
+              <i className="bi bi-check-circle me-1"></i>Location verified: {latitude.toFixed(5)}, {longitude.toFixed(5)}
+            </p>
+          )}
+
+      <div className="d-flex gap-2">
+        <button className="btn btn-outline-secondary" onClick={onBack} type="button">Back</button>
+        <button className="btn btn-primary" disabled={saving} onClick={submit} type="button">
+          {saving ? 'Checking...' : 'Continue'}
+        </button>
+      </div>
     </div>
   );
 }

@@ -47,6 +47,8 @@ public final class PharmacyOrderMapper {
                 .deliveryAddress(order.getDeliveryAddress())
                 .deliveryLatitude(order.getDeliveryLatitude())
                 .deliveryLongitude(order.getDeliveryLongitude())
+                .deliveryPhoneNumber(order.getDeliveryPhoneNumber())
+                .deliveryAddressSource(order.getDeliveryAddressSource())
                 .medicineAmount(order.getMedicineAmount())
                 .deliveryFee(order.getDeliveryFee())
                 .totalAmount(order.getTotalAmount())

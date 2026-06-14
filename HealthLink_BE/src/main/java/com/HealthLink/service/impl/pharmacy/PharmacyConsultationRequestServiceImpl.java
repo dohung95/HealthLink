@@ -69,6 +69,9 @@ public class PharmacyConsultationRequestServiceImpl implements PharmacyConsultat
                 resolveRequestPrescriptions(patient, request.getPrescriptionHeaderIds());
         validateRequestContent(requestType, request.getSymptoms(), request.getDescription(), requestPrescriptions);
 
+        String deliveryType = normalizeDeliveryType(request.getDeliveryType());
+        validateDeliverySnapshot(deliveryType, request);
+
         PharmacyConsultationRequest consultationRequest = PharmacyConsultationRequest.builder()
                 .patient(patient)
                 .pharmacy(pharmacy)
@@ -78,6 +81,12 @@ public class PharmacyConsultationRequestServiceImpl implements PharmacyConsultat
                 .attachments(serializeAttachments(request.getAttachments()))
                 .additionalNotes(trimToNull(request.getAdditionalNotes()))
                 .preferredDeliveryType(normalizeDeliveryType(request.getPreferredDeliveryType()))
+                .deliveryType(deliveryType)
+                .deliveryAddress(trimToNull(request.getDeliveryAddress()))
+                .deliveryLatitude(request.getDeliveryLatitude())
+                .deliveryLongitude(request.getDeliveryLongitude())
+                .deliveryPhoneNumber(trimToNull(request.getDeliveryPhoneNumber()))
+                .deliveryAddressSource(normalizeDeliveryAddressSource(request.getDeliveryAddressSource()))
                 .requestType(requestType)
                 .status(STATUS_PENDING)
                 .build();
@@ -198,6 +207,12 @@ public class PharmacyConsultationRequestServiceImpl implements PharmacyConsultat
                 .attachments(deserializeAttachments(request.getAttachments()))
                 .additionalNotes(request.getAdditionalNotes())
                 .preferredDeliveryType(request.getPreferredDeliveryType())
+                .deliveryType(request.getDeliveryType())
+                .deliveryAddress(request.getDeliveryAddress())
+                .deliveryLatitude(request.getDeliveryLatitude())
+                .deliveryLongitude(request.getDeliveryLongitude())
+                .deliveryPhoneNumber(request.getDeliveryPhoneNumber())
+                .deliveryAddressSource(request.getDeliveryAddressSource())
                 .requestType(normalizeRequestType(request.getRequestType()))
                 .status(request.getStatus())
                 .chatRoomId(request.getChatRoomId())
@@ -382,8 +397,42 @@ public class PharmacyConsultationRequestServiceImpl implements PharmacyConsultat
     }
 
     private String normalizeDeliveryType(String deliveryType) {
-        String normalized = trimToNull(deliveryType);
-        return normalized != null ? normalized : "Delivery";
+        return trimToNull(deliveryType);
+    }
+
+    private void validateDeliverySnapshot(
+            String deliveryType,
+            PharmacyConsultationRequestCreateRequest request
+    ) {
+        if (!"Delivery".equals(deliveryType)) {
+            return;
+        }
+        if (trimToNull(request.getDeliveryAddress()) == null) {
+            throw new BadRequestException("Delivery address is required for delivery requests");
+        }
+        if (trimToNull(request.getDeliveryPhoneNumber()) == null) {
+            throw new BadRequestException("Delivery phone number is required for delivery requests");
+        }
+        if (request.getDeliveryLatitude() == null || request.getDeliveryLongitude() == null) {
+            throw new BadRequestException("Delivery location is required for delivery requests");
+        }
+    }
+
+    private String normalizeDeliveryAddressSource(String source) {
+        String normalized = trimToNull(source);
+        if (normalized == null) {
+            return null;
+        }
+        String upper = normalized.toUpperCase();
+        if (!List.of("DEVICE_LOCATION", "MANUAL", "PROFILE").contains(upper)) {
+            throw new BadRequestException("Unsupported delivery address source: " + upper);
+        }
+        return upper;
+    }
+
+    private String firstNonBlank(String primary, String fallback) {
+        String trimmedPrimary = trimToNull(primary);
+        return trimmedPrimary != null ? trimmedPrimary : trimToNull(fallback);
     }
 
     private String normalizeTimingForResponse(String timing) {

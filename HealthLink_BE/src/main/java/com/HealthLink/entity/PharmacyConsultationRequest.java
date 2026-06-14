@@ -63,6 +63,22 @@ public class PharmacyConsultationRequest {
     private String preferredDeliveryType;
 
     @Column(length = 50)
+    private String deliveryType;
+
+    @Column(length = 500)
+    private String deliveryAddress;
+
+    private Double deliveryLatitude;
+
+    private Double deliveryLongitude;
+
+    @Column(length = 30)
+    private String deliveryPhoneNumber;
+
+    @Column(length = 50)
+    private String deliveryAddressSource;
+
+    @Column(length = 50)
     private String requestType;
 
     @Column(length = 50, nullable = false)
