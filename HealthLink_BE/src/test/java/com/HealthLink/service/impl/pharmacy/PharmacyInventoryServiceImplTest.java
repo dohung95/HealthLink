@@ -526,7 +526,7 @@ class PharmacyInventoryServiceImplTest {
 
         byte[] template = inventoryService.generateCsvTemplate("pharmacy-1");
         String content = new String(template, StandardCharsets.UTF_8);
-        assertThat(content).startsWith("medicineId,medicineName,strength,dosageForm,quantity,reservedQuantity,availableQuantity,unitPrice,expiryDate,active");
+        assertThat(content).startsWith("medicineId,medicineName,strength,dosageForm,unit,quantity,reservedQuantity,availableQuantity,unitPrice,expiryDate,active");
     }
 
     @Test
@@ -563,6 +563,7 @@ class PharmacyInventoryServiceImplTest {
         assertThat(records).hasSize(2);
         CSVRecord existingRow = records.get(0);
         assertThat(existingRow.get("medicineId")).isEqualTo("1");
+        assertThat(existingRow.get("unit")).isEqualTo("Tablet");
         assertThat(existingRow.get("quantity")).isEqualTo("25");
         assertThat(existingRow.get("reservedQuantity")).isEqualTo("5");
         assertThat(existingRow.get("availableQuantity")).isEqualTo("20");
@@ -575,6 +576,7 @@ class PharmacyInventoryServiceImplTest {
         assertThat(defaultRow.get("medicineName")).isEqualTo("Amoxicillin 500mg");
         assertThat(defaultRow.get("strength")).isEqualTo("500mg");
         assertThat(defaultRow.get("dosageForm")).isEqualTo("Capsule");
+        assertThat(defaultRow.get("unit")).isEqualTo("Capsule");
         assertThat(defaultRow.get("quantity")).isEqualTo("0");
         assertThat(defaultRow.get("reservedQuantity")).isEqualTo("0");
         assertThat(defaultRow.get("availableQuantity")).isEqualTo("0");

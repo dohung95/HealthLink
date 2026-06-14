@@ -28,6 +28,7 @@ import com.HealthLink.service.notification.NotificationService;
 import com.HealthLink.utility.mapper.PharmacyOrderMapper;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.transaction.support.TransactionSynchronization;
@@ -197,7 +198,12 @@ public class PharmacyOrderServiceImpl implements PharmacyOrderService {
 
         applyCommission(order, pharmacy, totalAmount);
 
-        PharmacyOrder saved = orderRepository.save(order);
+        PharmacyOrder saved;
+        try {
+            saved = orderRepository.save(order);
+        } catch (DataIntegrityViolationException e) {
+            throw new BadRequestException("An order for this prescription/request already exists");
+        }
 
         audit.log("ORDER_CREATED", String.valueOf(saved.getOrderId()), patientId,
                 java.util.Map.of("pharmacyId", request.getPharmacyId(),

@@ -22,6 +22,7 @@ import java.util.List;
 import java.util.Set;
 
 @Service
+@Transactional(readOnly = true)
 @RequiredArgsConstructor
 @Slf4j
 public class PharmacyWorkItemServiceImpl implements PharmacyWorkItemService {

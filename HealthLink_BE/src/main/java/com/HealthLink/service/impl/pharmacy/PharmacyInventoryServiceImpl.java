@@ -49,7 +49,7 @@ public class PharmacyInventoryServiceImpl implements PharmacyInventoryService {
     private static final int LOW_STOCK_THRESHOLD = 10;
 
     private static final String[] TEMPLATE_CSV_HEADERS = {
-            "medicineId", "medicineName", "strength", "dosageForm",
+            "medicineId", "medicineName", "strength", "dosageForm", "unit",
             "quantity", "reservedQuantity", "availableQuantity", "unitPrice", "expiryDate", "active"
     };
 
@@ -334,7 +334,7 @@ public class PharmacyInventoryServiceImpl implements PharmacyInventoryService {
         } catch (BadRequestException e) {
             throw e;
         } catch (Exception e) {
-            throw new BadRequestException("Failed to parse CSV: " + e.getMessage());
+            throw new BadRequestException("Failed to parse CSV: " + e.getMessage(), e);
         }
 
         int importedCount = 0;
@@ -416,6 +416,7 @@ public class PharmacyInventoryServiceImpl implements PharmacyInventoryService {
                             medicine.getName(),
                             medicine.getStrength(),
                             medicine.getDosageForm(),
+                            medicine.getUnit() != null ? medicine.getUnit() : "",
                             0,
                             0,
                             0,
@@ -432,6 +433,7 @@ public class PharmacyInventoryServiceImpl implements PharmacyInventoryService {
                         medicine.getName(),
                         medicine.getStrength(),
                         medicine.getDosageForm(),
+                        medicine.getUnit() != null ? medicine.getUnit() : "",
                         quantity,
                         reservedQuantity,
                         quantity - reservedQuantity,

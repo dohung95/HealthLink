@@ -14,11 +14,13 @@ import com.HealthLink.service.pharmacy.PharmacyRecommendationService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 import java.util.*;
 import java.util.stream.Collectors;
 
 @Service
+@Transactional(readOnly = true)
 @RequiredArgsConstructor
 @Slf4j
 public class PharmacyRecommendationServiceImpl implements PharmacyRecommendationService {
@@ -206,7 +208,7 @@ public class PharmacyRecommendationServiceImpl implements PharmacyRecommendation
 
     public static String formatDistance(Double distanceKm) {
         if (distanceKm == null) {
-            return "Khong co khoang cach";
+            return "No distance available";
         }
         if (distanceKm < 1.0) {
             int meters = (int) Math.round(distanceKm * 1000);

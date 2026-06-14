@@ -100,10 +100,9 @@ public class Pharmacy {
     // --- 6. METADATA (Hệ thống tự quản lý) ---
 
     @Column(name = "CreatedAt")
-    @Builder.Default
-    private LocalDateTime createdAt = LocalDateTime.now(); // Thời điểm tạo tài khoản nhà thuốc này
-    
-    private LocalDateTime updatedAt; // Thời điểm cập nhật thông tin gần nhất
+    private LocalDateTime createdAt;
+
+    private LocalDateTime updatedAt;
 
     // --- 7. TÀI CHÍNH & HOA HỒNG (Commission & Finance) ---
     // (Phần này giống hệt bác sĩ, dùng để app tính chiết khấu khi bán được thuốc)
@@ -143,4 +142,15 @@ public class Pharmacy {
     @OneToMany(mappedBy = "pharmacy")
     @ToString.Exclude
     private List<PharmacyConsultationRequest> consultationRequests;
+
+    @PrePersist
+    public void prePersist() {
+        if (createdAt == null) createdAt = LocalDateTime.now();
+        updatedAt = LocalDateTime.now();
+    }
+
+    @PreUpdate
+    public void preUpdate() {
+        updatedAt = LocalDateTime.now();
+    }
 }
