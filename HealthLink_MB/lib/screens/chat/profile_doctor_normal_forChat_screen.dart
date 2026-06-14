@@ -1,9 +1,11 @@
 import 'dart:convert';
 import 'package:flutter/material.dart';
+import 'package:google_maps_flutter/google_maps_flutter.dart';
 import 'package:http/http.dart' as http;
 import 'package:provider/provider.dart';
 import '../../config/api_config.dart';
 import '../../providers/auth_provider.dart';
+import '../patient/booking/booking_screen.dart';
 
 /// Model nhẹ dùng để ánh xạ DoctorProfileResponse từ backend.
 class _DoctorProfile {
@@ -404,6 +406,49 @@ class _DoctorInfoScreenState extends State<DoctorInfoScreen> {
                   ),
                 ),
 
+              // --- 5. Map Section ---
+              if (profile.latitude != null && profile.longitude != null) ...[
+                const SizedBox(height: 24),
+                _buildSection(
+                  context,
+                  icon: Icons.map_outlined,
+                  title: 'Clinic Location',
+                  child: Container(
+                    height: 220,
+                    width: double.infinity,
+                    decoration: BoxDecoration(
+                      color: colorScheme.surfaceContainerHighest.withValues(alpha: 0.5),
+                      borderRadius: BorderRadius.circular(16),
+                      border: Border.all(color: colorScheme.outline.withValues(alpha: 0.15)),
+                    ),
+                    child: ClipRRect(
+                      borderRadius: BorderRadius.circular(16),
+                      child: GoogleMap(
+                        initialCameraPosition: CameraPosition(
+                          target: LatLng(profile.latitude!, profile.longitude!),
+                          zoom: 15,
+                        ),
+                        markers: {
+                          Marker(
+                            markerId: const MarkerId('doctor_clinic'),
+                            position: LatLng(profile.latitude!, profile.longitude!),
+                            infoWindow: InfoWindow(
+                              title: profile.clinicName ?? profile.fullName,
+                              snippet: profile.clinicAddress,
+                            ),
+                          ),
+                        },
+                        // Gestures configuration for embedded map
+                        myLocationButtonEnabled: false,
+                        zoomControlsEnabled: true,
+                        mapToolbarEnabled: true,
+                        scrollGesturesEnabled: false, // Prevents scrolling while scrolling the profile
+                      ),
+                    ),
+                  ),
+                ),
+              ],
+
               const SizedBox(height: 100),
             ],
           ),
@@ -516,9 +561,13 @@ class _DoctorInfoScreenState extends State<DoctorInfoScreen> {
                 elevation: 2,
               ),
               onPressed: () {
-                // TODO: Navigate sang màn hình đặt lịch với doctorId
-                ScaffoldMessenger.of(context).showSnackBar(
-                  const SnackBar(content: Text('Booking feature coming soon!')),
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                    builder: (context) => BookingScreen(
+                      initialDoctorId: widget.doctorId,
+                    ),
+                  ),
                 );
               },
               icon: const Icon(Icons.calendar_month_outlined, size: 20),
