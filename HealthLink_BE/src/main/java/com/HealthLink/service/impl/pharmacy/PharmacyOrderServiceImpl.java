@@ -56,7 +56,6 @@ public class PharmacyOrderServiceImpl implements PharmacyOrderService {
     private static final String STATUS_DELIVERED = "DELIVERED";
     private static final String STATUS_COMPLETED = "COMPLETED";
     private static final String STATUS_CANCELLED = "CANCELLED";
-    private static final String STATUS_REFUNDED  = "REFUNDED";
     private static final String STATUS_REVISION_REQUESTED = "REVISION_REQUESTED";
     private static final String REQUEST_STATUS_ORDER_CREATED = "ORDER_CREATED";
     private static final String REQUEST_STATUS_CANCELLED = "CANCELLED";
@@ -78,7 +77,7 @@ public class PharmacyOrderServiceImpl implements PharmacyOrderService {
     // Ready → Shipping (Delivery) or Delivered (Pickup) / Cancelled
     // Shipping → Delivered
     // Delivered → Completed
-    // Terminal states: Completed, Cancelled, Refunded
+    // Terminal states: Completed, Cancelled
     private static final java.util.Map<String, Set<String>> ALLOWED_TRANSITIONS =
         java.util.Map.of(
             STATUS_PENDING,   Set.of(STATUS_CONFIRMED, STATUS_CANCELLED),
@@ -88,8 +87,7 @@ public class PharmacyOrderServiceImpl implements PharmacyOrderService {
             STATUS_SHIPPING,  Set.of(STATUS_DELIVERED),
             STATUS_DELIVERED, Set.of(STATUS_COMPLETED),
             STATUS_COMPLETED, Set.of(),
-            STATUS_CANCELLED, Set.of(STATUS_REFUNDED),
-            STATUS_REFUNDED,  Set.of()
+            STATUS_CANCELLED, Set.of()
         );
 
     private final PharmacyOrderRepository orderRepository;
