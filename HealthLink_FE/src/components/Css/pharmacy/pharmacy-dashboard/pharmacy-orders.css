@@ -249,6 +249,11 @@
   border-left: 3px solid transparent;
 }
 
+.pharmacy-order-number {
+  font-weight: 600;
+  margin-top: 2px;
+}
+
 .pharmacy-case-source-badge {
   display: inline-block;
   font-size: 10px;
@@ -270,6 +275,11 @@
   color: #047857;
 }
 
+.pharmacy-case-source-badge.is-order-request {
+  background: #fef3c7;
+  color: #b45309;
+}
+
 .pharmacy-case-detail {
   display: block;
   font-size: 13px;
@@ -281,13 +291,12 @@
   white-space: nowrap;
 }
 
-.pharmacy-next-action {
-  color: var(--pharmacy-muted);
-  font-size: 13px;
-}
-
 .pharmacy-case-actions {
   white-space: nowrap;
+}
+
+.pharmacy-chat-action {
+  margin-left: 2px;
 }
 
 .pharmacy-timeline div.is-current span {

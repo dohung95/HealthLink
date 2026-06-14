@@ -14,3 +14,40 @@
 .patient-pharmacy-page .min-width-0 {
   min-width: 0;
 }
+
+.pharmacy-mode-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 16px;
+}
+
+.pharmacy-mode-card {
+  display: grid;
+  gap: 8px;
+  text-align: left;
+  padding: 18px;
+  border: 1px solid #dee2e6;
+  border-radius: 8px;
+  background: #fff;
+  color: inherit;
+}
+
+.pharmacy-mode-card:hover {
+  border-color: #0d6efd;
+}
+
+.pharmacy-mode-card i {
+  font-size: 24px;
+  color: #0d6efd;
+}
+
+.pharmacy-mode-card span {
+  color: #6c757d;
+  font-size: 14px;
+}
+
+@media (max-width: 640px) {
+  .pharmacy-mode-grid {
+    grid-template-columns: 1fr;
+  }
+}

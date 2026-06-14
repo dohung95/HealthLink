@@ -96,7 +96,9 @@ export default function PharmacyNotificationDropdown() {
   return (
     <div className="position-relative" ref={dropdownRef}>
       <button onClick={() => setOpen((value) => !value)} type="button" title="Notifications">
-        <span className="material-symbols-outlined">notifications</span>
+        <span className={`material-symbols-outlined ${pharmacyUnreadCount > 0 ? 'pharmacy-bell-ring' : ''}`}>
+          {pharmacyUnreadCount > 0 ? 'notifications_active' : 'notifications'}
+        </span>
         {pharmacyUnreadCount > 0 ? <span className="pharmacy-notification-dot" /> : null}
       </button>
 

@@ -113,6 +113,7 @@ function AppContent() {
   const isAdminPage = location.pathname.startsWith('/admin');
   const isPatientDashboard = location.pathname.startsWith('/patient-dashboard');
   const isPharmacyDashboard = location.pathname.startsWith('/pharmacy-page');
+  const isPharmacyChatPage = location.pathname === '/pharmacy-page/chat';
   const isSchedulePage = location.pathname === '/schedule' || location.pathname.startsWith('/book/');
   const isResetPasswordPage = location.pathname === '/reset-password';
 
@@ -202,7 +203,14 @@ function AppContent() {
       {!isVideoCallPage && !isAdminPage && <PrescriptionNotificationModal />}
       {!isVideoCallPage && !isAdminPage && <AdminActionNotificationModal />}
       <div className="App">
-        {!isVideoCallPage && !isAdminPage && !is404Page && !isResetPasswordPage && !isPatientDashboard && !isDoctorPage && !isPharmacyDashboard && <Chat />}
+        {!isVideoCallPage
+  && !isAdminPage
+  && !is404Page
+  && !isResetPasswordPage
+  && !isPatientDashboard
+  && !isDoctorPage
+  && !isPharmacyChatPage
+  && <Chat />}
         <ScrollToTop />
         {!hideLayout && <Navbar />}
 

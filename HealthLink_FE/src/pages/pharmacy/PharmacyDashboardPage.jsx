@@ -133,12 +133,9 @@ export default function PharmacyDashboardPage() {
       <aside className={`pharmacy-sidebar ${mobileOpen ? 'is-open' : ''}`}>
         <div className="pharmacy-brand">
           <div className="pharmacy-brand-logo">
-            <span className="material-symbols-outlined">local_pharmacy</span>
+            <img src="/logo.png" alt="HealthLink" />
           </div>
-          <div>
-            <strong>HealthLink Pharmacy</strong>
-            <span>Pharmacy Partner</span>
-          </div>
+          <strong>HealthLink-Pharmacy</strong>
         </div>
 
         <nav className="pharmacy-nav">
@@ -206,7 +203,7 @@ export default function PharmacyDashboardPage() {
               {activeTab === 'inventory' && <PharmacyInventoryTab {...shellProps} />}
               {activeTab === 'orders' && <PharmacyOrdersTab {...shellProps} />}
               {activeTab === 'wallet' && <PharmacyWalletTab {...shellProps} />}
-              {/* {activeTab === 'chat' && <ChatPage showBot={false} />}  nếu mà a muốn cho pharmacy chat thì mở cmt là xong */}
+              {activeTab === 'chat' && <ChatPage showBot={false} />}
               {activeTab === 'profile' && <PharmacyProfileTab token={token} logout={logout} {...shellProps} />}
             </>
           )}

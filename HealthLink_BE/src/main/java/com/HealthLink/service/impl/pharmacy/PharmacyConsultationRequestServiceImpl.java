@@ -43,6 +43,9 @@ public class PharmacyConsultationRequestServiceImpl implements PharmacyConsultat
     private static final String STATUS_ORDER_CREATED = "ORDER_CREATED";
     private static final String STATUS_CANCELLED = "CANCELLED";
 
+    private static final String REQUEST_TYPE_CONSULTATION = "CONSULTATION";
+    private static final String REQUEST_TYPE_ORDER_REQUEST = "ORDER_REQUEST";
+
     private final PharmacyConsultationRequestRepository consultationRequestRepository;
     private final PatientRepository patientRepository;
     private final PharmacyRepository pharmacyRepository;
@@ -55,13 +58,16 @@ public class PharmacyConsultationRequestServiceImpl implements PharmacyConsultat
     @Override
     @Transactional
     public PharmacyConsultationRequestResponse createRequest(PharmacyConsultationRequestCreateRequest request) {
-        validateRequestContent(request.getSymptoms(), request.getDescription());
-
         Patient patient = patientRepository.findById(request.getPatientId())
                 .orElseThrow(() -> new ResourceNotFoundException("Patient", "id", request.getPatientId()));
 
         Pharmacy pharmacy = pharmacyRepository.findById(request.getPharmacyId())
                 .orElseThrow(() -> new ResourceNotFoundException("Pharmacy", "id", request.getPharmacyId()));
+
+        String requestType = normalizeRequestType(request.getRequestType());
+        List<PrescriptionHeader> requestPrescriptions =
+                resolveRequestPrescriptions(patient, request.getPrescriptionHeaderIds());
+        validateRequestContent(requestType, request.getSymptoms(), request.getDescription(), requestPrescriptions);
 
         PharmacyConsultationRequest consultationRequest = PharmacyConsultationRequest.builder()
                 .patient(patient)
@@ -72,12 +78,10 @@ public class PharmacyConsultationRequestServiceImpl implements PharmacyConsultat
                 .attachments(serializeAttachments(request.getAttachments()))
                 .additionalNotes(trimToNull(request.getAdditionalNotes()))
                 .preferredDeliveryType(normalizeDeliveryType(request.getPreferredDeliveryType()))
+                .requestType(requestType)
                 .status(STATUS_PENDING)
                 .build();
-        attachRequestPrescriptions(
-                consultationRequest,
-                resolveRequestPrescriptions(patient, request.getPrescriptionHeaderIds())
-        );
+        attachRequestPrescriptions(consultationRequest, requestPrescriptions);
 
         PharmacyConsultationRequest saved = consultationRequestRepository.save(consultationRequest);
         notifyPharmacyAboutNewRequestAfterCommit(saved);
@@ -134,8 +138,11 @@ public class PharmacyConsultationRequestServiceImpl implements PharmacyConsultat
 
         PharmacyConsultationRequest updated = consultationRequestRepository.save(consultationRequest);
 
-        // Auto-create ChatRoom when status moves to IN_REVIEW
-        if (STATUS_IN_REVIEW.equals(targetStatus) && updated.getChatRoomId() == null) {
+        // Auto-create ChatRoom when status moves to IN_REVIEW (consultation only)
+        String requestType = normalizeRequestType(updated.getRequestType());
+        if (REQUEST_TYPE_CONSULTATION.equals(requestType)
+                && STATUS_IN_REVIEW.equals(targetStatus)
+                && updated.getChatRoomId() == null) {
             try {
                 String pharmacyUserId = updated.getPharmacy().getUser().getId();
                 String patientUserId = updated.getPatient().getUser().getId();
@@ -191,6 +198,7 @@ public class PharmacyConsultationRequestServiceImpl implements PharmacyConsultat
                 .attachments(deserializeAttachments(request.getAttachments()))
                 .additionalNotes(request.getAdditionalNotes())
                 .preferredDeliveryType(request.getPreferredDeliveryType())
+                .requestType(normalizeRequestType(request.getRequestType()))
                 .status(request.getStatus())
                 .chatRoomId(request.getChatRoomId())
                 .pharmacyNotes(request.getPharmacyNotes())
@@ -252,10 +260,36 @@ public class PharmacyConsultationRequestServiceImpl implements PharmacyConsultat
                 .build();
     }
 
-    private void validateRequestContent(String symptoms, String description) {
+    private void validateRequestContent(
+            String requestType,
+            String symptoms,
+            String description,
+            List<PrescriptionHeader> prescriptions
+    ) {
+        if (REQUEST_TYPE_ORDER_REQUEST.equals(requestType)) {
+            if (prescriptions == null || prescriptions.isEmpty()) {
+                throw new BadRequestException("Prescription is required for an order request");
+            }
+            return;
+        }
+
         if (trimToNull(symptoms) == null && trimToNull(description) == null) {
             throw new BadRequestException("Symptoms or description is required");
         }
+    }
+
+    private String normalizeRequestType(String requestType) {
+        String normalized = trimToNull(requestType);
+        if (normalized == null) {
+            return REQUEST_TYPE_CONSULTATION;
+        }
+
+        String upper = normalized.toUpperCase();
+        if (!List.of(REQUEST_TYPE_CONSULTATION, REQUEST_TYPE_ORDER_REQUEST).contains(upper)) {
+            throw new BadRequestException("Unsupported pharmacy request type: " + upper);
+        }
+
+        return upper;
     }
 
     private List<PrescriptionHeader> resolveRequestPrescriptions(

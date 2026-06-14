@@ -38,12 +38,15 @@
   border-radius: 10px;
   display: grid;
   place-items: center;
-  background: var(--pharmacy-primary);
-  color: white;
+  overflow: hidden;
 }
 
-.pharmacy-brand strong,
-.pharmacy-brand span,
+.pharmacy-brand-logo img {
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+}
+
 .pharmacy-user-card strong,
 .pharmacy-user-card span {
   display: block;
@@ -52,9 +55,9 @@
 .pharmacy-brand strong {
   color: var(--pharmacy-primary);
   font-size: 16px;
+  white-space: nowrap;
 }
 
-.pharmacy-brand span,
 .pharmacy-user-card span {
   color: var(--pharmacy-muted);
   font-size: 12px;

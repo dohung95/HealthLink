@@ -101,7 +101,6 @@ export default function PharmacyInventoryTab({ globalSearch }) {
   return (
     <div className="pharmacy-tab-content pharmacy-inventory">
       <div className="pharmacy-inventory-header">
-        <h1>Inventory</h1>
         <div className="pharmacy-inventory-actions">
           <button className="pharmacy-inventory-action secondary" onClick={handleDownloadTemplate} type="button">
             <span className="material-symbols-outlined">download</span>

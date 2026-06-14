@@ -511,6 +511,29 @@
   border-radius: 999px;
   background: #ef4444;
   border: 2px solid #fff;
+  animation: pharmacy-dot-pulse 2s ease-in-out infinite;
+}
+
+@keyframes pharmacy-dot-pulse {
+  0%, 100% { transform: scale(1); opacity: 1; }
+  50% { transform: scale(1.35); opacity: 0.85; }
+}
+
+@keyframes pharmacy-bell-shake {
+  0%, 70% { transform: rotate(0); }
+  73% { transform: rotate(-14deg); }
+  76% { transform: rotate(12deg); }
+  79% { transform: rotate(-10deg); }
+  82% { transform: rotate(8deg); }
+  85% { transform: rotate(-5deg); }
+  88% { transform: rotate(3deg); }
+  91%, 100% { transform: rotate(0); }
+}
+
+.pharmacy-bell-ring {
+  animation: pharmacy-bell-shake 6s ease-in-out infinite;
+  color: var(--pharmacy-primary);
+  font-variation-settings: 'FILL' 1, 'wght' 500, 'GRAD' 0, 'opsz' 24;
 }
 
 .pharmacy-notification-menu {

@@ -29,6 +29,7 @@ public class PharmacyWorkItemResponse {
     private List<String> attachments;
     private String additionalNotes;
     private String preferredDeliveryType;
+    private String requestType;
     private String requestStatus;
     private String chatRoomId;
     private String pharmacyNotes;

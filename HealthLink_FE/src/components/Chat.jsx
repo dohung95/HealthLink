@@ -17,20 +17,6 @@ const BOT_USER = {
     isBot: true,
 };
 
-const styles = {
-    chatIcon: {
-        position: 'fixed',
-        bottom: '70px',
-        right: '20px',
-        width: '60px',
-        height: '60px',
-        cursor: 'pointer',
-        zIndex: 1000,
-        backgroundColor: '#00b09a',
-        transition: 'transform 0.2s',
-    },
-};
-
 // ─── Helper: format thời gian ────────────────────────────────────────────────
 function formatTime(isoString) {
     if (!isoString) return '...';
@@ -78,12 +64,6 @@ function TypingIndicator() {
                     }} />
                 ))}
             </div>
-            <style>{`
-                @keyframes botTypingBounce {
-                    0%, 80%, 100% { transform: translateY(0); opacity: 0.4; }
-                    40% { transform: translateY(-6px); opacity: 1; }
-                }
-            `}</style>
         </div>
     );
 }
@@ -264,19 +244,8 @@ function ChatMessage({ message, currentUserId, isNew = false, onImageClick, onNa
     const fileUrl = getFullUrl(message.fileUrl);
 
     return (
-        <div className={`message d-flex mb-3 ${isOwn ? 'justify-content-end' : 'justify-content-start'}`}
-            style={{ animation: 'msgFadeSlideIn 0.25s ease-out' }}>
-            <style>{`
-                @keyframes msgFadeSlideIn {
-                    from { opacity: 0; transform: translateY(8px); }
-                    to   { opacity: 1; transform: translateY(0); }
-                }
-            `}</style>
-            <div style={{ maxWidth: '78%' }}>
-                <div
-                    className={`p-2 rounded ${isOwn ? 'bg-primary text-white' : 'bg-light text-dark border'}`}
-                    style={{ borderRadius: imageUrl ? '12px' : '20px', padding: imageUrl ? '4px' : '8px 16px' }}
-                >
+        <div className={`chat-msg ${isOwn ? 'chat-msg--own' : 'chat-msg--other'}`}>
+            <div className="chat-msg-bubble">
                     {/* image */}
                     {imageUrl && (
                         <img
@@ -360,12 +329,6 @@ function ChatMessage({ message, currentUserId, isNew = false, onImageClick, onNa
                                     animation: 'cursorBlink 0.7s steps(1) infinite',
                                 }} />
                             )}
-                            <style>{`
-                                @keyframes cursorBlink {
-                                    0%, 100% { opacity: 1; }
-                                    50% { opacity: 0; }
-                                }
-                            `}</style>
                         </div>
                     )}
 
@@ -421,9 +384,8 @@ function ChatMessage({ message, currentUserId, isNew = false, onImageClick, onNa
                         </div>
                     )}
                 </div>
-                <div className={`small text-muted mt-1 ${isOwn ? 'text-end' : 'text-start'}`}>{timeStr}</div>
+                <div className={`chat-msg-time`}>{timeStr}</div>
             </div>
-        </div>
     );
 }
 
@@ -466,7 +428,7 @@ function RoomListItem({ room, currentUserId, onSelect }) {
 // ─── Main Component ──────────────────────────────────────────────────────────
 export default function Chat() {
     const navigate = useNavigate();
-    const { user: authUser, roles, currentUserId } = useAuth();
+    const { user: authUser, roles, currentUserId, initiateCall, isInCall } = useAuth();
     const {
         isChatOpen: isChatBoxOpen,
         setIsChatOpen: setIsChatBoxOpen,
@@ -507,6 +469,16 @@ export default function Chat() {
     const isDoctor = roles?.some(r => r.toLowerCase() === 'doctor');
     const isPharmacy = roles?.some(r => r.toLowerCase() === 'pharmacy');
     const isGuest = !authUser;
+
+    const chatPartnerId = chatPartner?.userId || chatPartner?.uid;
+    const chatPartnerName = chatPartner?.displayName || 'Patient';
+    const canStartVideoFromChat = Boolean(
+      isPharmacy
+        && chatPartner
+        && !chatPartner.isBot
+        && currentRoom
+        && chatPartnerId
+    );
 
     /**
      * Điều hướng mượt mà (SPA) và tự động đóng/thu nhỏ chat popup.
@@ -988,6 +960,30 @@ export default function Chat() {
         setRoomList(prev => prev.map(r => r.chatRoomId === room.chatRoomId ? { ...r, unreadCount: 0 } : r));
     };
 
+    const handleVideoCallFromChat = () => {
+      if (!canStartVideoFromChat) {
+        toast.error('Open a patient conversation before starting a video call.');
+        return;
+      }
+
+      if (isInCall) {
+        toast.warning('You are currently on another call. Please end it before making a new one.');
+        return;
+      }
+
+      const callerName = authUser?.preferred_username
+        || authUser?.email
+        || authUser?.sub
+        || 'Pharmacy';
+
+      initiateCall(
+        chatPartnerId,
+        currentRoom.chatRoomId,
+        chatPartnerName,
+        callerName,
+      );
+    };
+
     // ── Render ───────────────────────────────────────────────────────────────
     const isBlocked = currentRoom && currentRoom.blockedBy;
     const isBlockedByMe = isBlocked && currentRoom.blockedBy === currentUserId;
@@ -1001,351 +997,258 @@ export default function Chat() {
                 <ImageLightbox src={lightboxImage} onClose={() => setLightboxImage(null)} />
             )}
 
-            {/* Icon chat nổi - luôn hiển thị, chỉ ẩn hiệu ứng khi popup đang mở */}
-            <>
-                <style>{`
-                    @keyframes chatShake {
-                        0%, 100% { transform: translateX(0) rotate(0deg); }
-                        15%  { transform: translateX(-4px) rotate(-8deg); }
-                        30%  { transform: translateX(4px) rotate(8deg); }
-                        45%  { transform: translateX(-4px) rotate(-5deg); }
-                        60%  { transform: translateX(4px) rotate(5deg); }
-                        75%  { transform: translateX(-2px) rotate(-3deg); }
-                        90%  { transform: translateX(2px) rotate(3deg); }
-                    }
-                    @keyframes chatPulseRing {
-                        0%   { box-shadow: 0 0 0 0 rgba(0,176,154,0.55); }
-                        70%  { box-shadow: 0 0 0 14px rgba(0,176,154,0); }
-                        100% { box-shadow: 0 0 0 0 rgba(0,176,154,0); }
-                    }
-                    .chat-float-wrapper {
-                        position: fixed;
-                        bottom: 80px;
-                        right: 5px;
-                        z-index: 1000;
-                        display: flex;
-                        align-items: center;
-                        transition: transform 0.45s cubic-bezier(.34,1.56,.64,1);
-                    }
-                    .chat-float-wrapper.hidden {
-                        transform: translateX(64px);
-                    }
-                    .chat-float-wrapper.visible {
-                        transform: translateX(0);
-                    }
-                    .chat-float-icon {
-                        width: 56px;
-                        height: 56px;
-                        border-radius: 50%;
-                        background: linear-gradient(135deg, #00c6a0, #007cf0);
-                        display: flex;
-                        align-items: center;
-                        justify-content: center;
-                        cursor: pointer;
-                        box-shadow: 0 4px 18px rgba(0,150,136,0.4);
-                        position: relative;
-                        transition: transform 0.2s, box-shadow 0.2s;
-                        flex-shrink: 0;
-                    }
-                    .chat-float-icon:hover {
-                        transform: scale(1.08);
-                        box-shadow: 0 6px 24px rgba(0,150,136,0.55);
-                    }
-                    .chat-float-icon.shaking {
-                        animation: chatShake 0.7s ease 0.1s, chatPulseRing 1s ease 0.1s 2;
-                    }
-                    .chat-float-toggle {
-                        width: 30px;
-                        height: 44px;
-                        background: linear-gradient(135deg, #00c6a0, #007cf0);
-                        border: none;
-                        border-radius: 6px 0 0 6px;
-                        cursor: pointer;
-                        display: flex;
-                        align-items: center;
-                        justify-content: center;
-                        color: #fff;
-                        font-size: 0.8rem;
-                        box-shadow: -2px 0 10px rgba(0,0,0,0.15);
-                        transition: background 0.2s;
-                        flex-shrink: 0;
-                    }
-                    .chat-float-toggle:hover {
-                        background: linear-gradient(135deg, #009e85, #005bb5);
-                    }
-                `}</style>
-                {/* Khi popup đang MỞ: icon hiện tĩnh visible, không mũi tên, không lắc */}
-                {/* Khi popup ĐÓNG: icon thu vào phải, có mũi tên, 10 giây peek+lắc */}
-                <div className={`chat-float-wrapper ${isChatBoxOpen ? 'visible' : (isIconHidden ? 'hidden' : 'visible')}`}>
-                    {/* Nút mũi tên - chỉ hiện khi popup đóng VÀ icon đang ẩn */}
-                    {!isChatBoxOpen && isIconHidden && (
-                        <button
-                            className="chat-float-toggle"
-                            onClick={() => { setIsChatBoxOpen(true); setIsIconHidden(false); setIsShaking(false); }}
-                            title="Open chat"
-                        >
-                            <i className="bi bi-chevron-left" />
-                        </button>
-                    )}
+            {/* Floating chat button */}
+            <div className="chat-float-wrapper">
+              <button
+                className={
+                  `chat-float-button${!isChatBoxOpen && isShaking ? ' chat-float-button--shaking' : ''}${isChatBoxOpen ? ' chat-float-button--hidden' : ''}`
+                }
+                onClick={() => { setIsChatBoxOpen(prev => !prev); setIsIconHidden(false); setIsShaking(false); }}
+                title={isChatBoxOpen ? 'Close chat' : 'Open chat'}
+              >
+                <i className={`bi ${isChatBoxOpen ? 'bi-x-lg' : 'bi-chat-dots-fill'}`} style={{ fontSize: '1.3rem' }} />
+                {!isChatBoxOpen && totalUnread > 0 && (
+                  <span className="chat-float-badge">
+                    {totalUnread > 99 ? '99+' : totalUnread}
+                  </span>
+                )}
+              </button>
+            </div>
 
-                    {/* Icon chat chính */}
-                    <div
-                        className={`chat-float-icon ${!isChatBoxOpen && isShaking ? 'shaking' : ''}`}
-                        onClick={() => { setIsChatBoxOpen(prev => !prev); setIsIconHidden(false); setIsShaking(false); }}
-                        title={isChatBoxOpen ? 'close chat' : 'open chat'}
-                    >
-                        <i className={`bi ${isChatBoxOpen ? 'bi-x-lg' : 'bi-chat-dots-fill'} text-white`} style={{ fontSize: '1.4rem' }} />
-                        {!isChatBoxOpen && totalUnread > 0 && (
-                            <span
-                                className="position-absolute badge rounded-pill bg-danger shadow-sm"
-                                style={{ fontSize: '0.7rem', top: '-2px', right: '-2px', minWidth: '18px' }}
-                            >
-                                {totalUnread > 99 ? '99+' : totalUnread}
-                                <span className="visually-hidden">unread messages</span>
-                            </span>
-                        )}
-                    </div>
-                </div>
-            </>
-
-
-            {/* 2. Chat Box (popup) */}
+            {/* Chat Box */}
             {isChatBoxOpen && (
-                <div className="chat-box chat-box-responsive container d-flex flex-column border rounded shadow-lg bg-white">
-                    {/* Header */}
-                    <div className="p-3 border-bottom bg-light d-flex justify-content-between align-items-center">
-                        {(isDoctor || isPharmacy) && chatPartner && (
-                            <button className="btn btn-sm btn-link text-decoration-none" onClick={() => { setChatPartner(null); setCurrentRoom(null); }}>
-                                <i className="bi bi-arrow-left" style={{ fontSize: '1.3rem', color: 'black' }}></i>
-                            </button>
-                        )}
-                        <h5 className="mb-0 fs-6">
-                            {isGuest && chatPartner && `Chat with ${chatPartner.displayName}`}
-                            {/* doctor */}
-                            {!isGuest && isDoctor && !chatPartner && 'List of patients'}
-                            {!isGuest && isDoctor && chatPartner && `Chat with ${chatPartner.displayName}`}
-                            {/* pharmacy */}
-                            {!isGuest && isPharmacy && !chatPartner && 'List of patients'}
-                            {!isGuest && isPharmacy && chatPartner && `Chat with ${chatPartner.displayName}`}
-                            {/* patient */}
-                            {!isGuest && isPatient && chatPartner && `Chat with ${chatPartner.displayName}`}
-                        </h5>
-                        <button className="btn-close" onClick={() => setIsChatBoxOpen(false)} aria-label="Close"></button>
-                    </div>
-
-                    {/* Nội dung */}
-                    <div className="flex-grow-1 p-3 overflow-y-auto hide-scrollbar" style={{ backgroundColor: '#f8f9fa' }}>
-                        {/* Guest chỉ thấy Bot */}
-                        {isGuest && chatPartner && (
-                            <>
-                                {messages.length === 0 && <p className="text-center text-muted">Say Hello to Bot!</p>}
-                                {messages.map(msg => (
-                                    <ChatMessage key={msg.messageId} message={msg} currentUserId="guest_temp"
-                                        isNew={msg.messageId === latestBotMsgId}
-                                        onImageClick={setLightboxImage}
-                                        onNavigate={handleBotNavigate} />
-                                ))}
-                                {isBotTyping && <TypingIndicator />}
-                                <div ref={scrollTo}></div>
-                            </>
-                        )}
-
-                        {/* Doctor: danh sách phòng hoặc tin nhắn */}
-                        {!isGuest && isDoctor && (
-                            <>
-                                {!chatPartner ? (
-                                    <ul className="list-group list-group-flush">
-                                        {roomList.length === 0 && <li className="list-group-item">No message here.</li>}
-                                        {roomList.map(room => (
-                                            <RoomListItem key={room.chatRoomId} room={room} currentUserId={currentUserId} onSelect={selectRoom} />
-                                        ))}
-                                    </ul>
-                                ) : (
-                                    <>
-                                        {loading && <p className="text-center text-muted">Loading messages...</p>}
-                                        {messages.map(msg => (
-                                            <ChatMessage key={msg.messageId} message={msg} currentUserId={currentUserId}
-                                                isNew={msg.messageId === latestBotMsgId}
-                                                onImageClick={setLightboxImage}
-                                                onNavigate={handleBotNavigate} />
-                                        ))}
-                                        {isBotTyping && <TypingIndicator />}
-                                        <div ref={scrollTo}></div>
-                                    </>
-                                )}
-                            </>
-                        )}
-
-                        {/* Pharmacy: danh sách phòng và tin nhắn */}
-                        {!isGuest && isPharmacy && (
-                            <>
-                                {!chatPartner ? (
-                                    <ul className="list-group list-group-flush">
-                                        {roomList.length === 0 && <li className="list-group-item">No message here.</li>}
-                                        {roomList.map(room => (
-                                            <RoomListItem key={room.chatRoomId} room={room} currentUserId={currentUserId} onSelect={selectRoom} />
-                                        ))}
-                                    </ul>
-                                ) : (
-                                    <>
-                                        {loading && <p className="text-center text-muted">Loading messages...</p>}
-                                        {messages.map(msg => (
-                                            <ChatMessage key={msg.messageId} message={msg} currentUserId={currentUserId}
-                                                isNew={msg.messageId === latestBotMsgId}
-                                                onImageClick={setLightboxImage}
-                                                onNavigate={handleBotNavigate} />
-                                        ))}
-                                        {isBotTyping && <TypingIndicator />}
-                                        <div ref={scrollTo}></div>
-                                    </>
-                                )}
-                            </>
-                        )}
-
-                        {/* Patient: tin nhắn */}
-                        {!isGuest && isPatient && chatPartner && (
-                            <>
-                                {loading && <p className="text-center text-muted">Loading messages...</p>}
-                                {messages.length === 0 && !loading && <p className="text-center text-muted">Send messages!</p>}
-                                {messages.map(msg => (
-                                    <ChatMessage key={msg.messageId} message={msg} currentUserId={currentUserId}
-                                        isNew={msg.messageId === latestBotMsgId}
-                                        onImageClick={setLightboxImage}
-                                        onNavigate={handleBotNavigate} />
-                                ))}
-                                {isBotTyping && <TypingIndicator />}
-                                <div ref={scrollTo}></div>
-                            </>
-                        )}
-                    </div>
-
-                    {/* Input gửi tin nhắn */}
-                    {isBlocked ? (
-                        <div className="p-3 border-top bg-light text-center">
-                            <span className="text-muted fst-italic">
-                                {isBlockedByMe ? 'You blocked this user.' : 'You cannot reply to this conversation.'}
-                            </span>
-                        </div>
-                    ) : showInput && (
-                        <div className="p-2 border-top">
-                            {selectedFile && (
-                                <div className="mb-2 p-2 bg-light rounded d-flex align-items-center justify-content-between">
-                                    <div className="d-flex align-items-center">
-                                        {selectedFile.type.startsWith('image/') ? (
-                                            <img src={URL.createObjectURL(selectedFile)} alt="preview"
-                                                style={{ width: '50px', height: '50px', objectFit: 'cover', borderRadius: '4px', marginRight: '10px' }} />
-                                        ) : selectedFile.type.startsWith('video/') ? (
-                                            <div style={{ width: '50px', height: '50px', backgroundColor: '#e9ecef', borderRadius: '4px', display: 'flex', alignItems: 'center', justifyContent: 'center', marginRight: '10px' }}>
-                                                <i className="bi bi-camera-video" style={{ fontSize: '24px', color: '#6c757d' }}></i>
-                                            </div>
-                                        ) : (
-                                            <div style={{ width: '50px', height: '50px', backgroundColor: '#e9ecef', borderRadius: '4px', display: 'flex', alignItems: 'center', justifyContent: 'center', marginRight: '10px' }}>
-                                                <i className="bi bi-file-earmark-text" style={{ fontSize: '24px', color: '#6c757d' }}></i>
-                                            </div>
-                                        )}
-                                        <small className="text-truncate" style={{ maxWidth: '150px' }}>{selectedFile.name}</small>
-                                    </div>
-                                    <button className="btn btn-sm btn-danger" onClick={() => { setSelectedFile(null); if (fileInputRef.current) fileInputRef.current.value = ''; }}>✕</button>
-                                </div>
-                            )}
-                            <form className="d-flex" onSubmit={sendMsg}>
-                                {!isGuest && isPatient && (
-                                    <button type="button" className="btn btn-outline-secondary me-2 p-0 d-flex align-items-center justify-content-center"
-                                        style={{ width: '42px', height: '38px', flexShrink: 0 }}
-                                        onClick={() => setShowDoctorListModal(true)} title="Choose doctor">
-                                        <div className="position-relative d-inline-flex">
-                                            <i className="bi bi-person-lines-fill" style={{ fontSize: '1.25rem' }}></i>
-                                            {totalUnread > 0 && (
-                                                <span className="position-absolute bg-danger border border-white rounded-circle"
-                                                    style={{ top: '-1px', right: '-3px', width: '10px', height: '10px' }}>
-                                                    <span className="visually-hidden">unread messages</span>
-                                                </span>
-                                            )}
-                                        </div>
-                                    </button>
-                                )}
-                                {!isGuest && !chatPartner?.isBot && (
-                                    <>
-                                        <input type="file" ref={fileInputRef} accept="*/*" onChange={handleFileSelect} style={{ display: 'none' }} />
-                                        <button type="button" className="btn btn-outline-primary me-2 p-0 d-flex align-items-center justify-content-center"
-                                            style={{ width: '42px', height: '38px', flexShrink: 0 }}
-                                            onClick={() => fileInputRef.current?.click()} disabled={uploading} title="Attach file">
-                                            <i className="bi bi-paperclip" style={{ fontSize: '1.25rem' }}></i>
-                                        </button>
-                                    </>
-                                )}
-                                <input type="text" className="form-control" value={formValue}
-                                    onChange={e => setFormValue(e.target.value)} onPaste={handlePaste}
-                                    placeholder="Type a message..." disabled={uploading} />
-                                {selectedFile ? (
-                                    <button className="btn btn-success ms-2" type="button" onClick={sendMedia} disabled={uploading}>
-                                        {uploading ? <><span className="spinner-border spinner-border-sm me-1"></span>Sending...</> : 'Send'}
-                                    </button>
-                                ) : (
-                                    <button className="btn btn-primary ms-2" type="submit" disabled={!formValue.trim() || uploading}>Send</button>
-                                )}
-                            </form>
-                        </div>
+              <div className="chat-box">
+                {/* Header */}
+                <div className="chat-box-header">
+                  <div className="chat-box-header-left">
+                    {(isDoctor || isPharmacy) && chatPartner && (
+                      <button
+                        className="chat-box-header-back"
+                        onClick={() => { setChatPartner(null); setCurrentRoom(null); }}
+                      >
+                        <i className="bi bi-arrow-left" />
+                      </button>
                     )}
-
-                    {/* Modal chọn bác sĩ (Patient) */}
-                    {isPatient && showDoctorListModal && (
-                        <div style={{ position: 'absolute', bottom: '80px', left: 0, right: 0, zIndex: 10, padding: '0 10px' }}>
-                            <div className="card shadow-lg">
-                                <div className="card-header d-flex justify-content-between align-items-center">
-                                    <h5 className="mb-0 fs-6">Choice Doctors</h5>
-                                    <button className="btn-close" onClick={() => setShowDoctorListModal(false)}></button>
-                                </div>
-                                <ul className="list-group list-group-flush hide-scrollbar" style={{ maxHeight: '300px', overflowY: 'auto' }}>
-                                    {/* Bot */}
-                                    <li onClick={() => { setChatPartner(BOT_USER); setCurrentRoom(null); setShowDoctorListModal(false); }}
-                                        className="list-group-item list-group-item-action d-flex align-items-center" style={{ cursor: 'pointer' }}>
-                                        <img src={BOT_USER.photoURL} alt="bot" className="rounded-circle me-2" style={{ width: 40, height: 40 }} />
-                                        <div>
-                                            <div className="fw-bold">{BOT_USER.displayName}</div>
-                                            <small className="text-muted" style={{ fontSize: '0.85rem' }}>AI support 24/7</small>
-                                        </div>
-                                    </li>
-                                    {/* Các phòng chat đã có */}
-                                    {roomList.map(room => (
-                                        <RoomListItem key={room.chatRoomId} room={room} currentUserId={currentUserId} onSelect={selectRoom} />
-                                    ))}
-                                </ul>
-                            </div>
-                        </div>
+                    <h5 className="chat-box-header-title">
+                      {isGuest && chatPartner && `Chat with ${chatPartner.displayName}`}
+                      {!isGuest && isDoctor && !chatPartner && 'Patients'}
+                      {!isGuest && isDoctor && chatPartner && chatPartner.displayName}
+                      {!isGuest && isPharmacy && !chatPartner && 'Patients'}
+                      {!isGuest && isPharmacy && chatPartner && chatPartner.displayName}
+                      {!isGuest && isPatient && chatPartner && chatPartner.displayName}
+                    </h5>
+                  </div>
+                  <div className="chat-box-header-actions">
+                    {canStartVideoFromChat && (
+                      <button
+                        className="chat-box-header-btn"
+                        onClick={handleVideoCallFromChat}
+                        title="Start video call"
+                      >
+                        <i className="bi bi-camera-video" />
+                      </button>
                     )}
-
-                    {/* Model chọn nhà thuốc (Patient) */}
-                    {/* {isPatient && showPharmacyListModal && (
-                        <div style={{ position: 'absolute', bottom: '80px', left: 0, right: 0, zIndex: 10, padding: '0 10px' }}>
-                            <div className="card shadow-lg">
-                                <div className="card-header d-flex justify-content-between align-items-center">
-                                    <h5 className="mb-0 fs-6">Choice Pharmacy</h5>
-                                    <button className="btn-close" onClick={() => setShowPharmacyListModal(false)}></button>
-                                </div>
-                                <ul className="list-group list-group-flush" style={{ maxHeight: '300px', overflowY: 'auto' }}> */}
-                    {/* Các phòng chat đã có */}
-                    {/* {roomList.map(room => {
-                                        const partnerId = room.user1Id === currentUserId ? room.user2Id : room.user1Id;
-                                        const name = room.user1Id === currentUserId ? room.user2DisplayName : room.user1DisplayName;
-                                        const photo = room.user1Id === currentUserId ? room.user2PhotoURL : room.user1PhotoURL;
-                                        return (
-                                            <li key={room.chatRoomId} onClick={() => selectRoom(room)}
-                                                className="list-group-item list-group-item-action d-flex align-items-center" style={{ cursor: 'pointer' }}>
-                                                <img src={photo || `https://api.dicebear.com/8.x/initials/svg?seed=${name}`}
-                                                    alt="ava" className="rounded-circle me-2" style={{ width: 40, height: 40 }} />
-                                                <div className="flex-grow-1" style={{ minWidth: 0 }}>
-                                                    <div className="fw-bold">Dr. {name}</div>
-                                                    {room.lastMessage && <small className="text-muted text-truncate d-block">{room.lastMessage}</small>}
-                                                </div>
-                                            </li>
-                                        );
-                                    })} 
-                                </ul>
-                            </div>
-                        </div>
-                    )}*/}
+                    <button
+                      className="chat-box-header-btn"
+                      onClick={() => setIsChatBoxOpen(false)}
+                      title="Close"
+                    >
+                      <i className="bi bi-x-lg" />
+                    </button>
+                  </div>
                 </div>
+
+                {/* Messages */}
+                <div className="chat-messages">
+                  {isGuest && chatPartner && (
+                    <>
+                      {messages.length === 0 && (
+                        <p style={{ textAlign: 'center', color: '#94a3b8', fontSize: '0.9rem', padding: '24px 0' }}>
+                          Say hello to start chatting
+                        </p>
+                      )}
+                      {messages.map(msg => (
+                        <ChatMessage key={msg.messageId} message={msg} currentUserId="guest_temp"
+                          isNew={msg.messageId === latestBotMsgId}
+                          onImageClick={setLightboxImage}
+                          onNavigate={handleBotNavigate} />
+                      ))}
+                      {isBotTyping && <TypingIndicator />}
+                      <div ref={scrollTo} />
+                    </>
+                  )}
+
+                  {!isGuest && isDoctor && (
+                    <>
+                      {!chatPartner ? (
+                        <>
+                          {roomList.length === 0 && (
+                            <p style={{ textAlign: 'center', color: '#94a3b8', fontSize: '0.9rem', padding: '24px 0' }}>
+                              No conversations yet
+                            </p>
+                          )}
+                          {roomList.map(room => (
+                            <RoomListItem key={room.chatRoomId} room={room} currentUserId={currentUserId} onSelect={selectRoom} />
+                          ))}
+                        </>
+                      ) : (
+                        <>
+                          {loading && <p style={{ textAlign: 'center', color: '#94a3b8', fontSize: '0.9rem', padding: '24px 0' }}>Loading...</p>}
+                          {messages.map(msg => (
+                            <ChatMessage key={msg.messageId} message={msg} currentUserId={currentUserId}
+                              isNew={msg.messageId === latestBotMsgId}
+                              onImageClick={setLightboxImage}
+                              onNavigate={handleBotNavigate} />
+                          ))}
+                          {isBotTyping && <TypingIndicator />}
+                          <div ref={scrollTo} />
+                        </>
+                      )}
+                    </>
+                  )}
+
+                  {!isGuest && isPharmacy && (
+                    <>
+                      {!chatPartner ? (
+                        <>
+                          {roomList.length === 0 && (
+                            <p style={{ textAlign: 'center', color: '#94a3b8', fontSize: '0.9rem', padding: '24px 0' }}>
+                              No conversations yet
+                            </p>
+                          )}
+                          {roomList.map(room => (
+                            <RoomListItem key={room.chatRoomId} room={room} currentUserId={currentUserId} onSelect={selectRoom} />
+                          ))}
+                        </>
+                      ) : (
+                        <>
+                          {loading && <p style={{ textAlign: 'center', color: '#94a3b8', fontSize: '0.9rem', padding: '24px 0' }}>Loading...</p>}
+                          {messages.map(msg => (
+                            <ChatMessage key={msg.messageId} message={msg} currentUserId={currentUserId}
+                              isNew={msg.messageId === latestBotMsgId}
+                              onImageClick={setLightboxImage}
+                              onNavigate={handleBotNavigate} />
+                          ))}
+                          {isBotTyping && <TypingIndicator />}
+                          <div ref={scrollTo} />
+                        </>
+                      )}
+                    </>
+                  )}
+
+                  {!isGuest && isPatient && chatPartner && (
+                    <>
+                      {loading && <p style={{ textAlign: 'center', color: '#94a3b8', fontSize: '0.9rem', padding: '24px 0' }}>Loading...</p>}
+                      {messages.length === 0 && !loading && (
+                        <p style={{ textAlign: 'center', color: '#94a3b8', fontSize: '0.9rem', padding: '24px 0' }}>
+                          No messages yet
+                        </p>
+                      )}
+                      {messages.map(msg => (
+                        <ChatMessage key={msg.messageId} message={msg} currentUserId={currentUserId}
+                          isNew={msg.messageId === latestBotMsgId}
+                          onImageClick={setLightboxImage}
+                          onNavigate={handleBotNavigate} />
+                      ))}
+                      {isBotTyping && <TypingIndicator />}
+                      <div ref={scrollTo} />
+                    </>
+                  )}
+                </div>
+
+                {/* Input */}
+                {isBlocked ? (
+                  <div className="chat-input-area">
+                    <p style={{ textAlign: 'center', color: '#94a3b8', fontStyle: 'italic', margin: 0, fontSize: '0.85rem' }}>
+                      {isBlockedByMe ? 'You blocked this user.' : 'You cannot reply to this conversation.'}
+                    </p>
+                  </div>
+                ) : showInput && (
+                  <div className="chat-input-area">
+                    {selectedFile && (
+                      <div className="chat-file-preview">
+                        {selectedFile.type.startsWith('image/') ? (
+                          <img src={URL.createObjectURL(selectedFile)} alt="" />
+                        ) : selectedFile.type.startsWith('video/') ? (
+                          <div className="chat-file-preview-icon">
+                            <i className="bi bi-camera-video" />
+                          </div>
+                        ) : (
+                          <div className="chat-file-preview-icon">
+                            <i className="bi bi-file-earmark-text" />
+                          </div>
+                        )}
+                        <span className="chat-file-preview-name">{selectedFile.name}</span>
+                        <button
+                          className="chat-file-preview-remove"
+                          onClick={() => { setSelectedFile(null); if (fileInputRef.current) fileInputRef.current.value = ''; }}
+                        >
+                          <i className="bi bi-x" />
+                        </button>
+                      </div>
+                    )}
+                    <form className="chat-input-row" onSubmit={sendMsg}>
+                      {!isGuest && isPatient && (
+                        <button
+                          type="button"
+                          className="chat-input-btn chat-input-btn--attach"
+                          onClick={() => setShowDoctorListModal(true)}
+                          title="Choose doctor"
+                        >
+                          <i className="bi bi-person-lines-fill" />
+                        </button>
+                      )}
+                      {!isGuest && !chatPartner?.isBot && (
+                        <>
+                          <input type="file" ref={fileInputRef} accept="*/*" onChange={handleFileSelect} style={{ display: 'none' }} />
+                          <button
+                            type="button"
+                            className="chat-input-btn chat-input-btn--attach"
+                            onClick={() => fileInputRef.current?.click()}
+                            disabled={uploading}
+                            title="Attach file"
+                          >
+                            <i className="bi bi-paperclip" />
+                          </button>
+                        </>
+                      )}
+                      <input
+                        type="text"
+                        className="chat-input-field"
+                        value={formValue}
+                        onChange={e => setFormValue(e.target.value)}
+                        onPaste={handlePaste}
+                        placeholder="Type a message..."
+                        disabled={uploading}
+                      />
+                      <button
+                        type="submit"
+                        className="chat-input-btn chat-input-btn--send"
+                        disabled={!formValue.trim() || uploading}
+                      >
+                        <i className="bi bi-send-fill" style={{ fontSize: '0.95rem' }} />
+                      </button>
+                    </form>
+                  </div>
+                )}
+
+                {/* Doctor select modal */}
+                {isPatient && showDoctorListModal && (
+                  <div className="chat-doctor-modal">
+                    <div className="chat-doctor-modal-header">
+                      <h5 className="chat-doctor-modal-title">Select a doctor</h5>
+                      <button className="chat-box-header-btn" onClick={() => setShowDoctorListModal(false)}>
+                        <i className="bi bi-x-lg" />
+                      </button>
+                    </div>
+                    <div className="chat-doctor-modal-list">
+                      {roomList.map(room => (
+                        <RoomListItem key={room.chatRoomId} room={room} currentUserId={currentUserId} onSelect={(r) => { selectRoom(r); setShowDoctorListModal(false); }} />
+                      ))}
+                    </div>
+                  </div>
+                )}
+              </div>
             )}
         </>
     );

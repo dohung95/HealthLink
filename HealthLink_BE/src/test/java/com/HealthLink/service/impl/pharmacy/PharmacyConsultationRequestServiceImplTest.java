@@ -11,6 +11,7 @@ import com.HealthLink.entity.PharmacyConsultationRequestPrescription;
 import com.HealthLink.entity.PrescriptionHeader;
 import com.HealthLink.entity.User;
 import com.HealthLink.entity.enums.NotificationType;
+import com.HealthLink.exception.BadRequestException;
 import com.HealthLink.exception.ForbiddenException;
 import com.HealthLink.repository.notification.DeviceTokenRepository;
 import com.HealthLink.repository.patient.PatientRepository;
@@ -261,6 +262,104 @@ class PharmacyConsultationRequestServiceImplTest {
                 eq(15),
                 eq("/pharmacy-requests/15")
         );
+    }
+
+    @Test
+    void createRequest_shouldDefaultMissingRequestTypeToConsultation() {
+        Patient patient = Patient.builder().patientId("patient-1").fullName("Patient One").build();
+        Pharmacy pharmacy = Pharmacy.builder().pharmacyId("pharmacy-1").name("Central Pharmacy").build();
+        PharmacyConsultationRequestCreateRequest request = new PharmacyConsultationRequestCreateRequest();
+        request.setPatientId("patient-1");
+        request.setPharmacyId("pharmacy-1");
+        request.setSymptoms("Headache");
+        request.setRequestType(null);
+
+        when(patientRepository.findById("patient-1")).thenReturn(Optional.of(patient));
+        when(pharmacyRepository.findById("pharmacy-1")).thenReturn(Optional.of(pharmacy));
+        when(consultationRequestRepository.save(any(PharmacyConsultationRequest.class)))
+                .thenAnswer(invocation -> invocation.getArgument(0));
+
+        PharmacyConsultationRequestResponse response = consultationRequestService.createRequest(request);
+
+        assertThat(response.getRequestType()).isEqualTo("CONSULTATION");
+    }
+
+    @Test
+    void createRequest_shouldCreateOrderRequestWhenPrescriptionProvided() {
+        Patient patient = Patient.builder().patientId("patient-1").fullName("Patient One").build();
+        Pharmacy pharmacy = Pharmacy.builder().pharmacyId("pharmacy-1").name("Central Pharmacy").build();
+        PrescriptionHeader prescription = prescription(1, patient, "ISSUED", LocalDateTime.now().plusDays(5));
+        PharmacyConsultationRequestCreateRequest request = new PharmacyConsultationRequestCreateRequest();
+        request.setPatientId("patient-1");
+        request.setPharmacyId("pharmacy-1");
+        request.setRequestType("ORDER_REQUEST");
+        request.setPrescriptionHeaderIds(List.of(1));
+
+        when(patientRepository.findById("patient-1")).thenReturn(Optional.of(patient));
+        when(pharmacyRepository.findById("pharmacy-1")).thenReturn(Optional.of(pharmacy));
+        when(prescriptionHeaderRepository.findById(1)).thenReturn(Optional.of(prescription));
+        when(consultationRequestRepository.save(any(PharmacyConsultationRequest.class)))
+                .thenAnswer(invocation -> invocation.getArgument(0));
+
+        PharmacyConsultationRequestResponse response = consultationRequestService.createRequest(request);
+
+        assertThat(response.getRequestType()).isEqualTo("ORDER_REQUEST");
+        assertThat(response.getPrescriptionHeaderIds()).containsExactly(1);
+    }
+
+    @Test
+    void createRequest_shouldRejectOrderRequestWithoutPrescription() {
+        Patient patient = Patient.builder().patientId("patient-1").fullName("Patient One").build();
+        Pharmacy pharmacy = Pharmacy.builder().pharmacyId("pharmacy-1").name("Central Pharmacy").build();
+        PharmacyConsultationRequestCreateRequest request = new PharmacyConsultationRequestCreateRequest();
+        request.setPatientId("patient-1");
+        request.setPharmacyId("pharmacy-1");
+        request.setRequestType("ORDER_REQUEST");
+
+        when(patientRepository.findById("patient-1")).thenReturn(Optional.of(patient));
+        when(pharmacyRepository.findById("pharmacy-1")).thenReturn(Optional.of(pharmacy));
+
+        assertThatThrownBy(() -> consultationRequestService.createRequest(request))
+                .isInstanceOf(BadRequestException.class)
+                .hasMessage("Prescription is required for an order request");
+
+        verify(consultationRequestRepository, never()).save(any(PharmacyConsultationRequest.class));
+    }
+
+    @Test
+    void updateRequestStatus_shouldNotCreateChatRoomForOrderRequest() {
+        User patientUser = User.builder().id("patient-user-1").build();
+        Patient patient = Patient.builder()
+                .patientId("patient-1")
+                .fullName("Patient One")
+                .user(patientUser)
+                .build();
+        Pharmacy pharmacy = Pharmacy.builder()
+                .pharmacyId("pharmacy-1")
+                .name("Central Pharmacy")
+                .user(User.builder().id("pharmacy-user-1").build())
+                .build();
+        PharmacyConsultationRequest consultationRequest = PharmacyConsultationRequest.builder()
+                .requestId(15)
+                .patient(patient)
+                .pharmacy(pharmacy)
+                .status("PENDING")
+                .requestType("ORDER_REQUEST")
+                .build();
+
+        PharmacyConsultationRequestStatusUpdateRequest request =
+                new PharmacyConsultationRequestStatusUpdateRequest();
+        request.setStatus("IN_REVIEW");
+
+        when(consultationRequestRepository.findById(15)).thenReturn(Optional.of(consultationRequest));
+        when(consultationRequestRepository.save(any(PharmacyConsultationRequest.class)))
+                .thenAnswer(invocation -> invocation.getArgument(0));
+        when(deviceTokenRepository.findByUser_IdAndActiveTrue("patient-user-1"))
+                .thenReturn(List.of());
+
+        consultationRequestService.updateRequestStatus(15, request);
+
+        verify(chatService, never()).getOrCreateRoom(any());
     }
 
     private PrescriptionHeader prescription(

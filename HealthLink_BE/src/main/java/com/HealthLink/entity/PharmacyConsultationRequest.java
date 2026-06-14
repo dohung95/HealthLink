@@ -62,6 +62,9 @@ public class PharmacyConsultationRequest {
     @Column(length = 50)
     private String preferredDeliveryType;
 
+    @Column(length = 50)
+    private String requestType;
+
     @Column(length = 50, nullable = false)
     private String status;
 
