@@ -104,7 +104,6 @@ export const navItems = [
   { key: 'inventory', label: 'Inventory', icon: 'inventory_2', path: routeByTab.inventory },
   { key: 'orders', label: 'Orders', icon: 'receipt_long', path: routeByTab.orders },
   { key: 'wallet', label: 'Wallet / Settlement', icon: 'account_balance_wallet', path: routeByTab.wallet },
-  { key: 'chat', label: 'Chat', icon: 'chat', path: routeByTab.chat },
   { key: 'profile', label: 'Profile & Security', icon: 'shield_person', path: routeByTab.profile },
 ];
 

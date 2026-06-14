@@ -1,9 +1,10 @@
 import 'package:flutter/material.dart';
 
 class OrderPaymentScreen extends StatelessWidget {
+  final Map<String, dynamic>? currentOrder;
   final VoidCallback? onPreviousStep;
 
-  const OrderPaymentScreen({super.key, this.onPreviousStep});
+  const OrderPaymentScreen({super.key, this.currentOrder, this.onPreviousStep});
 
   @override
   Widget build(BuildContext context) {
@@ -27,7 +28,7 @@ class OrderPaymentScreen extends StatelessWidget {
                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [
                     Text(
-                      'Order #ORD-9982',
+                      currentOrder != null ? 'Order #${currentOrder!['orderNumber']}' : 'Order #ORD-9982',
                       style: textTheme.headlineSmall?.copyWith(
                         fontWeight: FontWeight.w600,
                         color: colorScheme.onSurface,

@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../../providers/auth_provider.dart';
+import '../../providers/theme_provider.dart';
 import '../../config/api_config.dart';
 import '../../screens/patient/profile_patient/profile_patient_screen.dart';
 import '../../screens/patient/profile_patient/update_security_screen.dart';
@@ -16,6 +17,7 @@ class PatientDrawer extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final authProvider = context.watch<AuthProvider>();
+    final themeProvider = context.watch<ThemeProvider>();
     final colorScheme = Theme.of(context).colorScheme;
     final avatarUrl = ApiConfig.normalizeUrl(authProvider.avatarUrl);
 
@@ -73,9 +75,10 @@ class PatientDrawer extends StatelessWidget {
                   title: 'Settings',
                   onTap: () => _showComingSoon(context, 'Settings'),
                 ),
+                _buildThemeOptions(context, themeProvider),
 
                 const Divider(indent: 16, endIndent: 16),
-                
+
                 // --- SECTION: SUPPORT ---
                 _buildSectionHeader(context, 'SUPPORT'),
                 _buildMenuItem(
@@ -148,6 +151,105 @@ class PatientDrawer extends StatelessWidget {
       visualDensity: VisualDensity.compact,
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
       contentPadding: const EdgeInsets.symmetric(horizontal: 16),
+    );
+  }
+
+  Widget _buildThemeOptions(BuildContext context, ThemeProvider themeProvider) {
+    final colorScheme = Theme.of(context).colorScheme;
+    final themeMode = themeProvider.themeMode;
+
+    return Column(
+      children: [
+        ListTile(
+          leading: Icon(
+            themeMode == ThemeMode.system
+                ? Icons.brightness_auto_outlined
+                : themeMode == ThemeMode.dark
+                    ? Icons.dark_mode_outlined
+                    : Icons.light_mode_outlined,
+            color: colorScheme.primary,
+          ),
+          title: const Text(
+            'App Theme',
+            style: TextStyle(fontWeight: FontWeight.w500),
+          ),
+          subtitle: Text(
+            themeMode == ThemeMode.system
+                ? 'Follow System'
+                : themeMode == ThemeMode.dark
+                    ? 'Dark Mode'
+                    : 'Light Mode',
+            style: TextStyle(fontSize: 12, color: colorScheme.outline),
+          ),
+          onTap: () => _showThemeSelectionDialog(context, themeProvider),
+          visualDensity: VisualDensity.compact,
+          contentPadding: const EdgeInsets.symmetric(horizontal: 16),
+          trailing: Icon(Icons.chevron_right, size: 20, color: colorScheme.outline),
+        ),
+      ],
+    );
+  }
+
+  void _showThemeSelectionDialog(
+      BuildContext context, ThemeProvider themeProvider) {
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Select Theme', style: TextStyle(fontFamily: 'Sora')),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            RadioListTile<ThemeMode>(
+              title: const Row(
+                children: [
+                  Icon(Icons.brightness_auto_outlined, size: 20),
+                  const SizedBox(width: 12),
+                  const Text('Follow System'),
+                ],
+              ),
+              value: ThemeMode.system,
+              groupValue: themeProvider.themeMode,
+              onChanged: (mode) {
+                themeProvider.setThemeMode(mode!);
+                Navigator.pop(context);
+              },
+              contentPadding: EdgeInsets.zero,
+            ),
+            RadioListTile<ThemeMode>(
+              title: const Row(
+                children: [
+                  Icon(Icons.light_mode_outlined, size: 20),
+                  const SizedBox(width: 12),
+                  const Text('Light Mode'),
+                ],
+              ),
+              value: ThemeMode.light,
+              groupValue: themeProvider.themeMode,
+              onChanged: (mode) {
+                themeProvider.setThemeMode(mode!);
+                Navigator.pop(context);
+              },
+              contentPadding: EdgeInsets.zero,
+            ),
+            RadioListTile<ThemeMode>(
+              title: const Row(
+                children: [
+                  Icon(Icons.dark_mode_outlined, size: 20),
+                  const SizedBox(width: 12),
+                  const Text('Dark Mode'),
+                ],
+              ),
+              value: ThemeMode.dark,
+              groupValue: themeProvider.themeMode,
+              onChanged: (mode) {
+                themeProvider.setThemeMode(mode!);
+                Navigator.pop(context);
+              },
+              contentPadding: EdgeInsets.zero,
+            ),
+          ],
+        ),
+      ),
     );
   }
 

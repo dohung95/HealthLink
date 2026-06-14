@@ -5,6 +5,7 @@ import 'providers/auth_provider.dart';
 import 'providers/chat/chat_provider.dart';
 import 'providers/chat/chatbot_provider.dart';
 import 'providers/video_call_provider.dart';
+import 'providers/theme_provider.dart';
 import 'screens/welcome_screen.dart';
 import 'screens/patient/main_layout.dart';
 import 'screens/doctor/doctor_main_layout.dart';
@@ -18,11 +19,14 @@ Future<void> main() async {
   // Tạo AuthProvider và load session đã lưu trước đó
   final authProvider = AuthProvider();
   await authProvider.loadSavedSession();
+  
+  final themeProvider = ThemeProvider();
 
   runApp(
     MultiProvider(
       providers: [
         ChangeNotifierProvider<AuthProvider>.value(value: authProvider),
+        ChangeNotifierProvider<ThemeProvider>.value(value: themeProvider),
         ChangeNotifierProvider<ChatProvider>(create: (_) => ChatProvider()),
         ChangeNotifierProvider<ChatbotProvider>(create: (_) => ChatbotProvider()),
         ChangeNotifierProvider<VideoCallProvider>(create: (_) => VideoCallProvider()),
@@ -37,12 +41,14 @@ class HealthLinkApp extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final themeProvider = context.watch<ThemeProvider>();
+    
     return MaterialApp(
       title: 'HealthLink',
       debugShowCheckedModeBanner: false,
       theme: HealthLinkTheme.lightTheme,
       darkTheme: HealthLinkTheme.darkTheme,
-      themeMode: ThemeMode.system,
+      themeMode: themeProvider.themeMode,
       navigatorKey: navigatorKey,
       home: const _RootRouter(),
     );

@@ -1,20 +1,32 @@
 import 'dart:async';
 import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
+import '../../../providers/auth_provider.dart';
+import '../../../services/patient_pharmacy/pharmacy_service.dart';
 
 class ConnectingPharmacyScreen extends StatefulWidget {
+  final Map<String, dynamic>? currentRequest;
+  final Function(Map<String, dynamic>)? onOrderCreated;
   final VoidCallback? onNextStep;
   final VoidCallback? onPreviousStep;
 
-  const ConnectingPharmacyScreen({super.key, this.onNextStep, this.onPreviousStep});
+  const ConnectingPharmacyScreen({
+    super.key,
+    this.currentRequest,
+    this.onOrderCreated,
+    this.onNextStep,
+    this.onPreviousStep,
+  });
 
   @override
   State<ConnectingPharmacyScreen> createState() => _ConnectingPharmacyScreenState();
 }
-
 class _ConnectingPharmacyScreenState extends State<ConnectingPharmacyScreen> with SingleTickerProviderStateMixin {
-  // Bộ đếm thời gian (Bắt đầu từ 01:24 = 84 giây)
   late Timer _timer;
-  int _remainingSeconds = 84;
+
+  // Bỏ thời gian còn lại (bởi vì web đếm tiến độ lên, ta có thể đếm giây từ 0)
+  int _elapsedSeconds = 0;
+  Timer? _pollingTimer;
 
   // Animation xoay tròn cho icon Sync
   late AnimationController _spinController;
@@ -29,14 +41,42 @@ class _ConnectingPharmacyScreenState extends State<ConnectingPharmacyScreen> wit
       vsync: this,
     )..repeat();
 
-    // Khởi tạo Timer đếm ngược
+    // Khởi tạo Timer đếm tới
     _timer = Timer.periodic(const Duration(seconds: 1), (timer) {
-      if (_remainingSeconds > 0) {
-        setState(() {
-          _remainingSeconds--;
-        });
-      } else {
-        _timer.cancel();
+      setState(() {
+        _elapsedSeconds++;
+      });
+    });
+
+    _startPolling();
+  }
+
+  void _startPolling() {
+    final requestId = widget.currentRequest?['requestId'];
+    if (requestId == null) return;
+
+    _pollingTimer = Timer.periodic(const Duration(seconds: 5), (timer) async {
+      final authProvider = Provider.of<AuthProvider>(context, listen: false);
+      final token = authProvider.accessToken;
+      if (token == null) return;
+
+      try {
+        final updated = await PharmacyService.getConsultationRequestById(token, requestId.toString());
+        if (updated['status'] != 'PENDING') {
+          timer.cancel();
+          if (updated['status'] == 'ORDER_CREATED' && updated['pharmacyOrderId'] != null) {
+            // Lấy order
+            final order = await PharmacyService.getOrderById(token, updated['pharmacyOrderId'].toString());
+            if (widget.onOrderCreated != null) {
+              widget.onOrderCreated!(order);
+            }
+            if (widget.onNextStep != null) {
+              widget.onNextStep!();
+            }
+          }
+        }
+      } catch (e) {
+        // Có thể bỏ qua nếu lỗi mạng nhỏ
       }
     });
   }
@@ -44,14 +84,15 @@ class _ConnectingPharmacyScreenState extends State<ConnectingPharmacyScreen> wit
   @override
   void dispose() {
     _timer.cancel();
+    _pollingTimer?.cancel();
     _spinController.dispose();
     super.dispose();
   }
 
   // Format giây thành dạng MM:SS
   String get _formattedTime {
-    final int minutes = _remainingSeconds ~/ 60;
-    final int seconds = _remainingSeconds % 60;
+    final int minutes = _elapsedSeconds ~/ 60;
+    final int seconds = _elapsedSeconds % 60;
     return '${minutes.toString().padLeft(2, '0')}:${seconds.toString().padLeft(2, '0')}';
   }
 
@@ -121,9 +162,9 @@ class _ConnectingPharmacyScreenState extends State<ConnectingPharmacyScreen> wit
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text('City Central Pharmacy', style: textTheme.titleMedium?.copyWith(color: colorScheme.onSurface, fontSize: 20)),
+                Text(widget.currentRequest?['pharmacyName'] ?? 'Pharmacy', style: textTheme.titleMedium?.copyWith(color: colorScheme.onSurface, fontSize: 20)),
                 const SizedBox(height: 4),
-                Text('123 Medical Way', style: textTheme.bodyMedium?.copyWith(color: colorScheme.onSurfaceVariant)),
+                Text(widget.currentRequest?['pharmacyAddress'] ?? '', style: textTheme.bodyMedium?.copyWith(color: colorScheme.onSurfaceVariant)),
                 const SizedBox(height: 8),
                 Row(
                   children: [
@@ -307,23 +348,6 @@ class _ConnectingPharmacyScreenState extends State<ConnectingPharmacyScreen> wit
   Widget _buildActionButtons(ColorScheme colorScheme, TextTheme textTheme) {
     return Column(
       children: [
-        // Nút Chat (Disabled)
-        SizedBox(
-          width: double.infinity,
-          height: 56,
-          child: ElevatedButton.icon(
-            style: ElevatedButton.styleFrom(
-              backgroundColor: colorScheme.surfaceVariant.withOpacity(0.5), // bg-surface-container
-              foregroundColor: colorScheme.outlineVariant,
-              elevation: 0,
-              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
-            ),
-            onPressed: null, // Nút bị vô hiệu hóa
-            icon: const Icon(Icons.chat_outlined, size: 20),
-            label: const Text('Chat with Pharmacist', style: TextStyle(fontWeight: FontWeight.w600)),
-          ),
-        ),
-        const SizedBox(height: 16),
         // Nút Refresh
         SizedBox(
           width: double.infinity,
@@ -336,23 +360,10 @@ class _ConnectingPharmacyScreenState extends State<ConnectingPharmacyScreen> wit
               shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
             ),
             onPressed: () {
-              // Action làm mới
+              // Action làm mới (polling vẫn chạy ngầm)
             },
             icon: const Icon(Icons.refresh, size: 20),
             label: const Text('Refresh', style: TextStyle(fontWeight: FontWeight.w600)),
-          ),
-        ),
-        const SizedBox(height: 16),
-        // Nút Demo Next Step
-        SizedBox(
-          width: double.infinity,
-          height: 56,
-          child: FilledButton(
-            style: FilledButton.styleFrom(
-              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
-            ),
-            onPressed: widget.onNextStep,
-            child: const Text('Mock Accept (Next Step)', style: TextStyle(fontWeight: FontWeight.w600)),
           ),
         ),
         const SizedBox(height: 16),
@@ -361,7 +372,7 @@ class _ConnectingPharmacyScreenState extends State<ConnectingPharmacyScreen> wit
           height: 56,
           child: TextButton(
             onPressed: widget.onPreviousStep,
-            child: const Text('Back to Pharmacy Selection', style: TextStyle(fontWeight: FontWeight.w600)),
+            child: const Text('Cancel Request & Go Back', style: TextStyle(fontWeight: FontWeight.w600, color: Colors.redAccent)),
           ),
         ),
       ],

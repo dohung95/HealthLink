@@ -4,6 +4,9 @@ import 'consultation_requests.dart';
 import 'pharmacy_orders_list_screen.dart';
 import 'connecting_pharmacy_screen.dart';
 import 'order_payment_screen.dart';
+import 'package:provider/provider.dart';
+import '../../../providers/auth_provider.dart';
+import '../../../services/patient_service.dart';
 
 class PharmacyConsultationScreen extends StatefulWidget {
   const PharmacyConsultationScreen({super.key});
@@ -19,11 +22,45 @@ class _PharmacyConsultationScreenState extends State<PharmacyConsultationScreen>
   int _currentWizardStep = 0;
   late PageController _wizardPageController;
 
+  // --- Pharmacy Workflow State ---
+  List<dynamic> _prescriptions = [];
+  bool _isLoadingPrescriptions = true;
+  String? _selectedPrescriptionId;
+  Map<String, dynamic>? _currentRequest;
+  Map<String, dynamic>? _currentOrder;
+
   @override
   void initState() {
     super.initState();
     _pageController = PageController(initialPage: _selectedIndex);
     _wizardPageController = PageController(initialPage: _currentWizardStep);
+    
+    // Defer loading so we have access to context for Provider
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      _loadPrescriptions();
+    });
+  }
+
+  Future<void> _loadPrescriptions() async {
+    final authProvider = Provider.of<AuthProvider>(context, listen: false);
+    final token = authProvider.accessToken;
+    final userId = authProvider.userId;
+    
+    if (token == null || userId == null) {
+      setState(() => _isLoadingPrescriptions = false);
+      return;
+    }
+
+    try {
+      final data = await PatientService.getPrescriptions(token, userId);
+      setState(() {
+        _prescriptions = data;
+        _isLoadingPrescriptions = false;
+      });
+    } catch (e) {
+      setState(() => _isLoadingPrescriptions = false);
+      // Optional: Handle error gracefully
+    }
   }
 
   @override
@@ -128,6 +165,13 @@ class _PharmacyConsultationScreenState extends State<PharmacyConsultationScreen>
             children: [
               _buildPrescriptionStepBody(context, colorScheme, textTheme),
               SelectPharmacyScreen(
+                prescriptionHeaderId: _selectedPrescriptionId,
+                onSelectRequest: (request) {
+                  setState(() {
+                    _currentRequest = request;
+                  });
+                  _wizardPageController.nextPage(duration: const Duration(milliseconds: 300), curve: Curves.easeInOut);
+                },
                 onNextStep: () {
                   _wizardPageController.nextPage(duration: const Duration(milliseconds: 300), curve: Curves.easeInOut);
                 },
@@ -136,6 +180,12 @@ class _PharmacyConsultationScreenState extends State<PharmacyConsultationScreen>
                 },
               ),
               ConnectingPharmacyScreen(
+                currentRequest: _currentRequest,
+                onOrderCreated: (order) {
+                  setState(() {
+                    _currentOrder = order;
+                  });
+                },
                 onNextStep: () {
                   _wizardPageController.nextPage(duration: const Duration(milliseconds: 300), curve: Curves.easeInOut);
                 },
@@ -144,6 +194,7 @@ class _PharmacyConsultationScreenState extends State<PharmacyConsultationScreen>
                 },
               ),
               OrderPaymentScreen(
+                currentOrder: _currentOrder,
                 onPreviousStep: () {
                   _wizardPageController.previousPage(duration: const Duration(milliseconds: 300), curve: Curves.easeInOut);
                 },
@@ -185,54 +236,89 @@ class _PharmacyConsultationScreenState extends State<PharmacyConsultationScreen>
                 ),
                 const SizedBox(height: 48),
 
-                // --- 3. Empty State Content ---
-                Container(
-                  width: double.infinity,
-                  padding: const EdgeInsets.all(32), // p-xl
-                  constraints: const BoxConstraints(minHeight: 300),
-                  decoration: BoxDecoration(
-                    color: colorScheme.surface,
-                    borderRadius: BorderRadius.circular(16),
-                    border: Border.all(color: colorScheme.surfaceVariant),
-                    boxShadow: [
-                      BoxShadow(color: Colors.black.withOpacity(0.02), blurRadius: 8, offset: const Offset(0, 2)),
-                    ],
+                // --- 3. Content ---
+                if (_isLoadingPrescriptions)
+                  const Padding(
+                    padding: EdgeInsets.all(32.0),
+                    child: Center(child: CircularProgressIndicator()),
+                  )
+                else if (_prescriptions.isNotEmpty)
+                  ListView.separated(
+                    shrinkWrap: true,
+                    physics: const NeverScrollableScrollPhysics(),
+                    itemCount: _prescriptions.length,
+                    separatorBuilder: (context, index) => const SizedBox(height: 12),
+                    itemBuilder: (context, index) {
+                      final rx = _prescriptions[index];
+                      // Sửa lại thành các trường tương ứng với API mobile. (Tạm giả định các trường là prescriptionHeaderID, doctorName, issueDate, diagnosis)
+                      final rxId = rx['prescriptionHeaderID']?.toString();
+                      return ListTile(
+                        onTap: () {
+                          setState(() => _selectedPrescriptionId = rxId);
+                          _wizardPageController.nextPage(duration: const Duration(milliseconds: 300), curve: Curves.easeInOut);
+                        },
+                        tileColor: colorScheme.surface,
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(12),
+                          side: BorderSide(color: colorScheme.surfaceVariant),
+                        ),
+                        title: Text(rx['doctorName'] ?? 'Doctor', style: const TextStyle(fontWeight: FontWeight.bold)),
+                        subtitle: Text(
+                          "${rx['issueDate'] != null ? DateTime.parse(rx['issueDate']).toLocal().toString().split(' ')[0] : ''} - ${rx['diagnosis'] ?? 'No diagnosis'}",
+                          style: textTheme.bodySmall?.copyWith(color: colorScheme.onSurfaceVariant),
+                        ),
+                        trailing: Icon(Icons.chevron_right, color: colorScheme.outline),
+                      );
+                    },
+                  )
+                else
+                  Container(
+                    width: double.infinity,
+                    padding: const EdgeInsets.all(32), // p-xl
+                    constraints: const BoxConstraints(minHeight: 300),
+                    decoration: BoxDecoration(
+                      color: colorScheme.surface,
+                      borderRadius: BorderRadius.circular(16),
+                      border: Border.all(color: colorScheme.surfaceVariant),
+                      boxShadow: [
+                        BoxShadow(color: Colors.black.withOpacity(0.02), blurRadius: 8, offset: const Offset(0, 2)),
+                      ],
+                    ),
+                    child: Column(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        Container(
+                          width: 96,
+                          height: 96,
+                          decoration: BoxDecoration(
+                            color: colorScheme.surfaceVariant.withOpacity(0.5), // bg-surface-container
+                            shape: BoxShape.circle,
+                          ),
+                          child: Icon(
+                            Icons.receipt_long_outlined, // Thay thế cho icon prescriptions
+                            size: 48,
+                            color: colorScheme.primary.withOpacity(0.8),
+                          ),
+                        ),
+                        const SizedBox(height: 24),
+                        Text(
+                          'No prescriptions found',
+                          style: textTheme.titleMedium?.copyWith(
+                            fontWeight: FontWeight.w600,
+                            color: colorScheme.onBackground,
+                          ),
+                        ),
+                        const SizedBox(height: 8),
+                        Text(
+                          "We couldn't find any recent prescriptions linked to your account.",
+                          textAlign: TextAlign.center,
+                          style: textTheme.bodyMedium?.copyWith(
+                            color: colorScheme.onSurfaceVariant,
+                          ),
+                        ),
+                      ],
+                    ),
                   ),
-                  child: Column(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    children: [
-                      Container(
-                        width: 96,
-                        height: 96,
-                        decoration: BoxDecoration(
-                          color: colorScheme.surfaceVariant.withOpacity(0.5), // bg-surface-container
-                          shape: BoxShape.circle,
-                        ),
-                        child: Icon(
-                          Icons.receipt_long_outlined, // Thay thế cho icon prescriptions
-                          size: 48,
-                          color: colorScheme.primary.withOpacity(0.8),
-                        ),
-                      ),
-                      const SizedBox(height: 24),
-                      Text(
-                        'No prescriptions found',
-                        style: textTheme.titleMedium?.copyWith(
-                          fontWeight: FontWeight.w600,
-                          color: colorScheme.onBackground,
-                        ),
-                      ),
-                      const SizedBox(height: 8),
-                      Text(
-                        "We couldn't find any recent prescriptions linked to your account.",
-                        textAlign: TextAlign.center,
-                        style: textTheme.bodyMedium?.copyWith(
-                          color: colorScheme.onSurfaceVariant,
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
                 const SizedBox(height: 48),
 
                 // --- 4. Actions (Skip Button) ---
@@ -253,6 +339,7 @@ class _PharmacyConsultationScreenState extends State<PharmacyConsultationScreen>
                       }),
                     ),
                     onPressed: () {
+                      setState(() => _selectedPrescriptionId = null);
                       _wizardPageController.nextPage(duration: const Duration(milliseconds: 300), curve: Curves.easeInOut);
                     },
                     child: Row(

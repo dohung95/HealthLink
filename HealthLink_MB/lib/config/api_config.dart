@@ -49,6 +49,16 @@ class ApiConfig {
   // ── Prescription Endpoints ────────────────────────────────────────────────
   static String prescriptionsByPatientId(String patientId) => '$baseUrl/prescriptions/patient/$patientId';
 
+  // ── Pharmacy Endpoints ──────────────────────────────────────────────────
+  static const String pharmacyRecommendations = '$baseUrl/account/pharmacy/public/recommendations';
+  static const String pharmacyRequests = '$baseUrl/pharmacy-requests';
+  static String pharmacyRequestById(String id) => '$baseUrl/pharmacy-requests/$id';
+  static String pharmacyRequestsByPatient(String patientId) => '$baseUrl/pharmacy-requests/patient/$patientId';
+  static const String pharmacyOrders = '$baseUrl/pharmacy-orders';
+  static String pharmacyOrderById(String id) => '$baseUrl/pharmacy-orders/$id';
+  static String pharmacyOrdersByPatient(String patientId) => '$baseUrl/pharmacy-orders/patient/$patientId';
+  static String cancelPharmacyOrder(String orderId) => '$baseUrl/pharmacy-orders/$orderId/cancel';
+
   // Booking / Doctor Directory Endpoints
   static const String doctorSearch      = '$baseUrl/account/doctors/search';
   static const String doctorSpecialties = '$baseUrl/account/doctors/specialties';

@@ -1,10 +1,21 @@
 import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
+import '../../../providers/auth_provider.dart';
+import '../../../services/patient_pharmacy/pharmacy_service.dart';
 
 class SelectPharmacyScreen extends StatefulWidget {
+  final String? prescriptionHeaderId;
+  final Function(Map<String, dynamic>)? onSelectRequest;
   final VoidCallback? onNextStep;
   final VoidCallback? onPreviousStep;
 
-  const SelectPharmacyScreen({super.key, this.onNextStep, this.onPreviousStep});
+  const SelectPharmacyScreen({
+    super.key,
+    this.prescriptionHeaderId,
+    this.onSelectRequest,
+    this.onNextStep,
+    this.onPreviousStep,
+  });
 
   @override
   State<SelectPharmacyScreen> createState() => _SelectPharmacyScreenState();
@@ -13,6 +24,94 @@ class SelectPharmacyScreen extends StatefulWidget {
 class _SelectPharmacyScreenState extends State<SelectPharmacyScreen> {
   // Trạng thái cho nút gạt (Toggle) "Delivery only"
   bool _isDeliveryOnly = false;
+  String _searchQuery = '';
+  
+  List<dynamic> _pharmacies = [];
+  bool _isLoading = true;
+
+  @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      _loadPharmacies();
+    });
+  }
+
+  Future<void> _loadPharmacies() async {
+    setState(() => _isLoading = true);
+    
+    final authProvider = Provider.of<AuthProvider>(context, listen: false);
+    final token = authProvider.accessToken;
+    
+    if (token == null) {
+      setState(() => _isLoading = false);
+      return;
+    }
+
+    try {
+      final data = await PharmacyService.getRecommendations(
+        token,
+        deliveryOnly: _isDeliveryOnly ? true : null,
+        prescriptionHeaderId: widget.prescriptionHeaderId,
+        // lat, lng có thể được truyền vào nếu có
+      );
+      setState(() {
+        _pharmacies = data;
+        _isLoading = false;
+      });
+    } catch (e) {
+      setState(() => _isLoading = false);
+    }
+  }
+
+  Future<void> _consultPharmacy(Map<String, dynamic> pharmacy) async {
+    final authProvider = Provider.of<AuthProvider>(context, listen: false);
+    final token = authProvider.accessToken;
+    final userId = authProvider.userId;
+    
+    if (token == null || userId == null) return;
+    
+    // Hiện loading dialog
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (_) => const Center(child: CircularProgressIndicator()),
+    );
+
+    try {
+      final payload = {
+        'patientId': userId,
+        'pharmacyId': pharmacy['pharmacyId'],
+        'symptoms': '',
+        'description': 'Patient initiated pharmacy consultation',
+        'allergies': '',
+        'additionalNotes': '',
+        'preferredDeliveryType': pharmacy['deliveryAvailable'] == true ? 'Delivery' : 'Pickup',
+      };
+      
+      if (widget.prescriptionHeaderId != null) {
+        payload['prescriptionHeaderIds'] = [int.tryParse(widget.prescriptionHeaderId!) ?? 0];
+      }
+
+      final created = await PharmacyService.createConsultationRequest(token, payload);
+      
+      // Đóng loading dialog
+      if (mounted) Navigator.pop(context);
+      
+      // Chuyển sang bước kết nối
+      if (widget.onSelectRequest != null) {
+        widget.onSelectRequest!(created);
+      }
+    } catch (e) {
+      // Đóng loading dialog
+      if (mounted) {
+        Navigator.pop(context);
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Failed to create consultation request: $e')),
+        );
+      }
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -40,31 +139,62 @@ class _SelectPharmacyScreenState extends State<SelectPharmacyScreen> {
                 ),
                 const SizedBox(height: 16),
 
-                // Pharmacy Card 1 (Fully Stocked)
-                _buildPharmacyCard(
-                  name: 'City Central Pharmacy',
-                  address: '123 Medical Way',
-                  distance: '1.2 km away',
-                  rating: '4.8',
-                  isFullyStocked: true,
-                  isDeliveryAvailable: true,
-                  colorScheme: colorScheme,
-                  textTheme: textTheme,
-                ),
-                const SizedBox(height: 16),
+                if (_isLoading)
+                  const Padding(
+                    padding: EdgeInsets.all(32.0),
+                    child: Center(child: CircularProgressIndicator()),
+                  )
+                else if (_pharmacies.isEmpty)
+                  Container(
+                    width: double.infinity,
+                    padding: const EdgeInsets.all(32),
+                    decoration: BoxDecoration(
+                      color: colorScheme.surface,
+                      borderRadius: BorderRadius.circular(16),
+                    ),
+                    child: Column(
+                      children: [
+                        Icon(Icons.storefront_outlined, size: 48, color: colorScheme.outline),
+                        const SizedBox(height: 16),
+                        Text('No pharmacies found.', style: textTheme.bodyLarge),
+                      ],
+                    ),
+                  )
+                else
+                  ..._pharmacies.where((p) {
+                    if (_searchQuery.isEmpty) return true;
+                    final q = _searchQuery.toLowerCase();
+                    final name = (p['name'] ?? '').toLowerCase();
+                    final address = (p['address'] ?? '').toLowerCase();
+                    return name.contains(q) || address.contains(q);
+                  }).map((p) {
+                    final isFullyStocked = p['stockStatus'] == 'FULL';
+                    final missingItems = p['missingItems'] as List<dynamic>?;
+                    String? warning;
+                    if (widget.prescriptionHeaderId != null && missingItems != null && missingItems.isNotEmpty) {
+                      warning = 'Missing: ${missingItems.take(3).map((m) => m['medicationName']).join(', ')}';
+                      if (missingItems.length > 3) warning += ' +${missingItems.length - 3} more';
+                    }
+                    
+                    return Column(
+                      children: [
+                        _buildPharmacyCard(
+                          pharmacy: p,
+                          name: p['name'] ?? 'Unknown',
+                          address: p['address'] ?? '',
+                          distance: p['distanceLabel'] ?? '',
+                          rating: p['averageRating']?.toStringAsFixed(1) ?? 'N/A',
+                          isFullyStocked: isFullyStocked,
+                          isDeliveryAvailable: p['deliveryAvailable'] == true,
+                          warningText: warning,
+                          colorScheme: colorScheme,
+                          textTheme: textTheme,
+                        ),
+                        const SizedBox(height: 16),
+                      ],
+                    );
+                  }),
 
-                // Pharmacy Card 2 (Partially Stocked)
-                _buildPharmacyCard(
-                  name: 'Green Cross Apothecary',
-                  address: '45 Health St',
-                  distance: '2.5 km away',
-                  rating: '4.5',
-                  isFullyStocked: false,
-                  isDeliveryAvailable: true,
-                  warningText: 'Missing: Amoxicillin. Substitutes might be available upon professional consultation.',
-                  colorScheme: colorScheme,
-                  textTheme: textTheme,
-                ),
                 const SizedBox(height: 24),
 
                 // --- 4. Map Preview Placeholder ---
@@ -78,13 +208,6 @@ class _SelectPharmacyScreenState extends State<SelectPharmacyScreen> {
                       child: OutlinedButton(
                         onPressed: widget.onPreviousStep,
                         child: const Text('Back'),
-                      ),
-                    ),
-                    const SizedBox(width: 16),
-                    Expanded(
-                      child: FilledButton(
-                        onPressed: widget.onNextStep,
-                        child: const Text('Select / Consult'),
                       ),
                     ),
                   ],
@@ -113,6 +236,9 @@ class _SelectPharmacyScreenState extends State<SelectPharmacyScreen> {
           ),
           child: TextField(
             style: textTheme.bodyLarge?.copyWith(color: colorScheme.onSurface),
+            onChanged: (val) {
+              setState(() => _searchQuery = val);
+            },
             decoration: InputDecoration(
               hintText: 'Search pharmacies...',
               hintStyle: textTheme.bodyLarge?.copyWith(color: colorScheme.outline),
@@ -157,6 +283,7 @@ class _SelectPharmacyScreenState extends State<SelectPharmacyScreen> {
                   setState(() {
                     _isDeliveryOnly = value;
                   });
+                  _loadPharmacies();
                 },
               ),
             ],
@@ -168,6 +295,7 @@ class _SelectPharmacyScreenState extends State<SelectPharmacyScreen> {
 
   // --- Widget: Card Thông tin Nhà thuốc ---
   Widget _buildPharmacyCard({
+    required Map<String, dynamic> pharmacy,
     required String name,
     required String address,
     required String distance,
@@ -322,7 +450,7 @@ class _SelectPharmacyScreenState extends State<SelectPharmacyScreen> {
                   ),
                 ),
                 onPressed: () {
-                  widget.onNextStep?.call();
+                  _consultPharmacy(pharmacy);
                 },
                 child: Text(
                   isFullyStocked ? 'Select' : 'Consult',

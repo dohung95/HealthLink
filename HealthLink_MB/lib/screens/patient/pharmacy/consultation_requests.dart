@@ -1,10 +1,56 @@
 import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
+import 'package:intl/intl.dart';
+import '../../../providers/auth_provider.dart';
+import '../../../services/patient_pharmacy/pharmacy_service.dart';
 
-class ConsultationRequestsScreen extends StatelessWidget {
+class ConsultationRequestsScreen extends StatefulWidget {
   const ConsultationRequestsScreen({super.key});
 
   @override
+  State<ConsultationRequestsScreen> createState() => _ConsultationRequestsScreenState();
+}
+
+class _ConsultationRequestsScreenState extends State<ConsultationRequestsScreen> with AutomaticKeepAliveClientMixin {
+  List<dynamic> _requests = [];
+  bool _isLoading = true;
+
+  @override
+  bool get wantKeepAlive => true;
+
+  @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      _loadRequests();
+    });
+  }
+
+  Future<void> _loadRequests() async {
+    final authProvider = Provider.of<AuthProvider>(context, listen: false);
+    final token = authProvider.accessToken;
+    final userId = authProvider.userId;
+    
+    if (token == null || userId == null) {
+      setState(() => _isLoading = false);
+      return;
+    }
+
+    try {
+      final data = await PharmacyService.getConsultationRequestsByPatient(token, userId);
+      setState(() {
+        _requests = data;
+        _isLoading = false;
+      });
+    } catch (e) {
+      setState(() => _isLoading = false);
+      debugPrint('Error loading consultation requests: $e');
+    }
+  }
+
+  @override
   Widget build(BuildContext context) {
+    super.build(context); // Bắt buộc gọi cho AutomaticKeepAliveClientMixin
     final colorScheme = Theme.of(context).colorScheme;
     final textTheme = Theme.of(context).textTheme;
 
@@ -13,97 +59,92 @@ class ConsultationRequestsScreen extends StatelessWidget {
       child: Center(
         child: Container(
           constraints: const BoxConstraints(maxWidth: 768),
-          child: ListView(
-            padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 16.0),
-            children: [
-              // --- Card 1: ORDER_CREATED ---
-              _buildRequestCard(
-                context: context,
-                pharmacyName: 'Apex Care Pharmacy',
-                date: '14 Jun 2026',
-                description: '"Dry cough and runny nose for 3 days. Patient requests consultation for potential antihistamine or cough suppressant recommendation."',
-                statusText: 'ORDER_CREATED',
-                statusIcon: Icons.check_circle,
-                statusBgColor: colorScheme.secondaryContainer,
-                statusTextColor: colorScheme.onSecondaryContainer,
-                hasViewAction: true,
-                colorScheme: colorScheme,
-                textTheme: textTheme,
-              ),
-              const SizedBox(height: 16),
+          child: _isLoading
+              ? const Center(child: CircularProgressIndicator())
+              : RefreshIndicator(
+                  onRefresh: _loadRequests,
+                  child: _requests.isEmpty
+                      ? ListView(
+                          physics: const AlwaysScrollableScrollPhysics(),
+                          children: [
+                            SizedBox(height: MediaQuery.of(context).size.height * 0.3),
+                            Center(
+                              child: Text(
+                                'No consultation requests found.',
+                                style: textTheme.bodyLarge?.copyWith(color: colorScheme.outline),
+                              ),
+                            ),
+                          ],
+                        )
+                      : ListView.separated(
+                          padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 16.0),
+                          physics: const AlwaysScrollableScrollPhysics(),
+                          itemCount: _requests.length,
+                          separatorBuilder: (context, index) => const SizedBox(height: 16),
+                          itemBuilder: (context, index) {
+                            final req = _requests[index];
+                            final pharmacyName = req['pharmacyName'] ?? 'Pharmacy';
+                            
+                            // Parse date
+                            String dateStr = 'Unknown date';
+                            if (req['createdAt'] != null) {
+                              try {
+                                final dt = DateTime.parse(req['createdAt']).toLocal();
+                                dateStr = DateFormat('dd MMM yyyy, HH:mm').format(dt);
+                              } catch (_) {}
+                            }
 
-              // --- Card 2: IN_REVIEW ---
-              _buildRequestCard(
-                context: context,
-                pharmacyName: 'City Central Pharmacy',
-                date: '12 Jun 2026',
-                description: '"Migraine and light sensitivity. Currently taking sumatriptan but needs advice on supplementary management or dosage adjustment."',
-                statusText: 'IN_REVIEW',
-                statusIcon: Icons.schedule,
-                statusBgColor: colorScheme.primaryContainer, // Tương đương primary-fixed trong HTML
-                statusTextColor: colorScheme.onPrimaryContainer,
-                colorScheme: colorScheme,
-                textTheme: textTheme,
-              ),
-              const SizedBox(height: 16),
+                            final description = req['notes'] ?? 'No additional notes provided.';
+                            final status = req['status'] ?? 'PENDING';
 
-              // --- Card 3: PENDING ---
-              _buildRequestCard(
-                context: context,
-                pharmacyName: 'Green Cross Apothecary',
-                date: '10 Jun 2026',
-                description: '"Skin rash on left arm spreading to chest. Mildly itchy. No known allergies. Seeking over-the-counter topical recommendation."',
-                statusText: 'PENDING',
-                statusIcon: Icons.hourglass_empty,
-                statusBgColor: colorScheme.surfaceVariant,
-                statusTextColor: colorScheme.onSurfaceVariant,
-                colorScheme: colorScheme,
-                textTheme: textTheme,
-              ),
-              const SizedBox(height: 16),
+                            // Cấu hình UI theo status
+                            Color statusBgColor;
+                            Color statusTextColor;
+                            IconData statusIcon;
 
-              // --- Card 4: CANCELLED ---
-              Opacity(
-                opacity: 0.8, // Làm mờ đi một chút cho trạng thái Cancelled
-                child: _buildRequestCard(
-                  context: context,
-                  pharmacyName: 'HealthFirst Pharmacy',
-                  date: '08 Jun 2026',
-                  description: '"Follow-up for prescription refill. Patient missed previous appointment."',
-                  statusText: 'CANCELLED',
-                  statusIcon: Icons.cancel_outlined,
-                  statusBgColor: colorScheme.errorContainer,
-                  statusTextColor: colorScheme.onErrorContainer,
-                  pharmacyIconColor: colorScheme.outline,
-                  colorScheme: colorScheme,
-                  textTheme: textTheme,
+                            if (status == 'ORDER_CREATED') {
+                              statusBgColor = colorScheme.secondaryContainer;
+                              statusTextColor = colorScheme.onSecondaryContainer;
+                              statusIcon = Icons.check_circle;
+                            } else if (status == 'IN_REVIEW' || status == 'ACCEPTED') {
+                              statusBgColor = colorScheme.primaryContainer;
+                              statusTextColor = colorScheme.onPrimaryContainer;
+                              statusIcon = Icons.schedule;
+                            } else if (status == 'CANCELLED' || status == 'REJECTED') {
+                              statusBgColor = colorScheme.errorContainer;
+                              statusTextColor = colorScheme.onErrorContainer;
+                              statusIcon = Icons.cancel_outlined;
+                            } else {
+                              // PENDING or other
+                              statusBgColor = colorScheme.surfaceVariant;
+                              statusTextColor = colorScheme.onSurfaceVariant;
+                              statusIcon = Icons.hourglass_empty;
+                            }
+
+                            final isCancelled = (status == 'CANCELLED' || status == 'REJECTED');
+                            final hasViewAction = (status == 'ORDER_CREATED');
+
+                            Widget card = _buildRequestCard(
+                              context: context,
+                              pharmacyName: pharmacyName,
+                              date: dateStr,
+                              description: description,
+                              statusText: status,
+                              statusIcon: statusIcon,
+                              statusBgColor: statusBgColor,
+                              statusTextColor: statusTextColor,
+                              hasViewAction: hasViewAction,
+                              colorScheme: colorScheme,
+                              textTheme: textTheme,
+                            );
+
+                            if (isCancelled) {
+                              return Opacity(opacity: 0.7, child: card);
+                            }
+                            return card;
+                          },
+                        ),
                 ),
-              ),
-              const SizedBox(height: 32),
-            ],
-          ),
-        ),
-      ),
-    );
-  }
-
-  // --- Widget Hỗ trợ: Tab điều hướng ---
-  Widget _buildTopTab(String title, {required bool isActive, required ColorScheme colorScheme, required TextTheme textTheme}) {
-    return Container(
-      padding: const EdgeInsets.only(bottom: 12),
-      decoration: BoxDecoration(
-        border: Border(
-          bottom: BorderSide(
-            color: isActive ? colorScheme.primary : Colors.transparent,
-            width: 2,
-          ),
-        ),
-      ),
-      child: Text(
-        title,
-        style: textTheme.titleMedium?.copyWith(
-          color: isActive ? colorScheme.primary : colorScheme.outline,
-          fontWeight: isActive ? FontWeight.w600 : FontWeight.w500,
         ),
       ),
     );
@@ -186,6 +227,7 @@ class ConsultationRequestsScreen extends StatelessWidget {
 
                     // --- Body: Đoạn mô tả (Description) ---
                     Container(
+                      width: double.infinity,
                       padding: const EdgeInsets.all(12),
                       decoration: BoxDecoration(
                         color: colorScheme.surface, // bg-surface-container-lowest
@@ -193,7 +235,7 @@ class ConsultationRequestsScreen extends StatelessWidget {
                         border: Border.all(color: colorScheme.surfaceVariant.withOpacity(0.5)),
                       ),
                       child: Text(
-                        description,
+                        description.isNotEmpty ? description : 'No description',
                         maxLines: 2,
                         overflow: TextOverflow.ellipsis,
                         style: textTheme.bodyMedium?.copyWith(color: colorScheme.onSurfaceVariant),
