@@ -114,11 +114,7 @@ public class PharmacyOrderServiceImpl implements PharmacyOrderService {
         Patient patient = prescription.getPatient();
         validatePatientOwnsPrescription(patient, patientId);
         validatePrescriptionCanBeOrdered(prescription);
-        if (orderRepository.existsByPrescriptionHeader_PrescriptionHeaderId(request.getPrescriptionHeaderId())) {
-            throw new BadRequestException(
-                    "A pharmacy order already exists for prescription " + request.getPrescriptionHeaderId()
-            );
-        }
+        checkNoExistingOrder(request.getPrescriptionHeaderId());
 
         Pharmacy pharmacy = pharmacyRepository
                 .findById(request.getPharmacyId())
@@ -129,10 +125,10 @@ public class PharmacyOrderServiceImpl implements PharmacyOrderService {
         List<PharmacyOrderItem> orderItems = buildOrderItemsFromPrescription(prescription);
         BigDecimal medicineAmount = calculateMedicineAmount(orderItems);
 
-        String deliveryType = normalizeDeliveryType(request.getDeliveryType());
+        String deliveryType = resolveDeliveryType(request, pharmacy);
         BigDecimal deliveryFee = BigDecimal.ZERO;
 
-        String deliveryAddress = request.getDeliveryAddress();
+        String deliveryAddress = buildDeliveryAddress(request, patient);
         Double deliveryLat    = request.getDeliveryLatitude();
         Double deliveryLon    = request.getDeliveryLongitude();
 

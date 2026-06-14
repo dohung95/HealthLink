@@ -127,17 +127,37 @@ public class PharmacyInventoryServiceImpl implements PharmacyInventoryService {
         Pharmacy pharmacy = pharmacyRepository.findById(pharmacyId)
                 .orElseThrow(() -> new ResourceNotFoundException("Pharmacy", "id", pharmacyId));
 
+        validateCsvFile(file);
+
+        List<CSVRecord> records = parseCsv(file);
+
+        List<PharmacyInventoryRowError> rowErrors = new ArrayList<>();
+        Map<String, ImportRowResult> mergedRows = new LinkedHashMap<>();
+
+        for (int i = 0; i < records.size(); i++) {
+            CSVRecord record = records.get(i);
+            int rowIndex = i + 1;
+
+            ImportRowResult row = validateAndPrepareRow(record, rowIndex, pharmacy, rowErrors);
+            if (row == null) continue;
+
+            String key = pharmacyId + ":" + row.getMedicine().getMedicineId();
+            mergedRows.put(key, row);
+        }
+
+        return persistAll(mergedRows, rowErrors, pharmacy);
+    }
+
+    private void validateCsvFile(MultipartFile file) {
         if (file.isEmpty()) {
             throw new BadRequestException("CSV file is empty");
         }
         if (file.getSize() > MAX_FILE_SIZE_BYTES) {
             throw new BadRequestException("CSV file exceeds maximum size of 5 MB");
         }
+    }
 
-        List<PharmacyInventoryRowError> rowErrors = new ArrayList<>();
-        Map<String, ProcessedRow> mergedRows = new LinkedHashMap<>();
-        int totalRows = 0;
-
+    private List<CSVRecord> parseCsv(MultipartFile file) {
         try (InputStreamReader reader = new InputStreamReader(file.getInputStream(), StandardCharsets.UTF_8);
              CSVParser parser = CSVFormat.DEFAULT.builder()
                      .setHeader()
@@ -145,208 +165,203 @@ public class PharmacyInventoryServiceImpl implements PharmacyInventoryService {
                      .setTrim(true)
                      .build()
                      .parse(reader)) {
-
-            for (CSVRecord record : parser) {
-                totalRows++;
-                if (totalRows > MAX_ROWS) {
-                    rowErrors.add(PharmacyInventoryRowError.builder()
-                            .rowNumber(totalRows)
-                            .message("Row exceeds maximum of " + MAX_ROWS + " rows")
-                            .build());
-                    break;
-                }
-
-                String medicineIdStr = getCsvValue(record, "medicineId");
-                String medicineName = getCsvValue(record, "medicineName");
-
-                Integer medicineId = null;
-                if (medicineIdStr != null && !medicineIdStr.isBlank()) {
-                    try {
-                        medicineId = Integer.parseInt(medicineIdStr);
-                    } catch (NumberFormatException e) {
-                        rowErrors.add(PharmacyInventoryRowError.builder()
-                                .rowNumber(totalRows)
-                                .medicineId(null)
-                                .medicineName(medicineName)
-                                .message("Invalid medicineId: " + medicineIdStr)
-                                .build());
-                        continue;
-                    }
-                }
-
-                String quantityStr = getCsvValue(record, "quantity");
-                if (quantityStr == null || quantityStr.isBlank()) {
-                    rowErrors.add(PharmacyInventoryRowError.builder()
-                            .rowNumber(totalRows)
-                            .medicineId(medicineId)
-                            .medicineName(medicineName)
-                            .message("Quantity is required")
-                            .build());
-                    continue;
-                }
-                int quantity;
-                try {
-                    quantity = Integer.parseInt(quantityStr);
-                    if (quantity < 0) {
-                        throw new NumberFormatException("Negative");
-                    }
-                } catch (NumberFormatException e) {
-                    rowErrors.add(PharmacyInventoryRowError.builder()
-                            .rowNumber(totalRows)
-                            .medicineId(medicineId)
-                            .medicineName(medicineName)
-                            .message("Invalid quantity: " + quantityStr)
-                            .build());
-                    continue;
-                }
-
-                Integer reservedQuantity = null;
-                String reservedQuantityStr = getCsvValue(record, "reservedQuantity");
-                if (reservedQuantityStr != null && !reservedQuantityStr.isBlank()) {
-                    try {
-                        reservedQuantity = Integer.parseInt(reservedQuantityStr);
-                        if (reservedQuantity < 0) {
-                            throw new NumberFormatException("Negative");
-                        }
-                    } catch (NumberFormatException e) {
-                        rowErrors.add(PharmacyInventoryRowError.builder()
-                                .rowNumber(totalRows)
-                                .medicineId(medicineId)
-                                .medicineName(medicineName)
-                                .message("Invalid reservedQuantity: " + reservedQuantityStr)
-                                .build());
-                        continue;
-                    }
-                }
-
-                String unitPriceStr = getCsvValue(record, "unitPrice");
-                BigDecimal unitPrice = null;
-                if (unitPriceStr != null && !unitPriceStr.isBlank()) {
-                    try {
-                        unitPrice = new BigDecimal(unitPriceStr);
-                        if (unitPrice.compareTo(BigDecimal.ZERO) < 0) {
-                            throw new NumberFormatException("Negative");
-                        }
-                    } catch (NumberFormatException e) {
-                        rowErrors.add(PharmacyInventoryRowError.builder()
-                                .rowNumber(totalRows)
-                                .medicineId(medicineId)
-                                .medicineName(medicineName)
-                                .message("Invalid unitPrice: " + unitPriceStr)
-                                .build());
-                        continue;
-                    }
-                }
-
-                LocalDate expiryDate = null;
-                String expiryDateStr = getCsvValue(record, "expiryDate");
-                if (expiryDateStr != null && !expiryDateStr.isBlank()) {
-                    try {
-                        expiryDate = LocalDate.parse(expiryDateStr, DateTimeFormatter.ISO_LOCAL_DATE);
-                    } catch (DateTimeParseException e) {
-                        rowErrors.add(PharmacyInventoryRowError.builder()
-                                .rowNumber(totalRows)
-                                .medicineId(medicineId)
-                                .medicineName(medicineName)
-                                .message("Invalid expiryDate format (expected yyyy-MM-dd): " + expiryDateStr)
-                                .build());
-                        continue;
-                    }
-                }
-
-                String activeStr = getCsvValue(record, "active");
-                boolean active = activeStr == null || activeStr.isBlank() || Boolean.parseBoolean(activeStr);
-
-                String unit = getCsvValue(record, "unit");
-                if (unit != null && unit.isBlank()) {
-                    unit = null;
-                }
-
-                // Determine medicine
-                Medicine medicine = null;
-                if (medicineId != null) {
-                    medicine = medicineRepository.findById(medicineId).orElse(null);
-                    if (medicine == null) {
-                        rowErrors.add(PharmacyInventoryRowError.builder()
-                                .rowNumber(totalRows)
-                                .medicineId(medicineId)
-                                .medicineName(medicineName)
-                                .message("Medicine not found with id: " + medicineId)
-                                .build());
-                        continue;
-                    }
-                } else if (medicineName != null && !medicineName.isBlank()) {
-                    List<Medicine> matches = medicineRepository.findByNameContainingIgnoreCase(medicineName);
-                    if (matches.isEmpty()) {
-                        rowErrors.add(PharmacyInventoryRowError.builder()
-                                .rowNumber(totalRows)
-                                .medicineName(medicineName)
-                                .message("No active medicine found with name: " + medicineName)
-                                .build());
-                        continue;
-                    }
-                    if (matches.size() > 1) {
-                        rowErrors.add(PharmacyInventoryRowError.builder()
-                                .rowNumber(totalRows)
-                                .medicineName(medicineName)
-                                .message("Multiple medicines match name '" + medicineName
-                                        + "'. Please use medicineId.")
-                                .build());
-                        continue;
-                    }
-                    medicine = matches.get(0);
-                } else {
-                    rowErrors.add(PharmacyInventoryRowError.builder()
-                            .rowNumber(totalRows)
-                            .message("Either medicineId or medicineName is required")
-                            .build());
-                    continue;
-                }
-
-                if (!medicine.isActive()) {
-                    rowErrors.add(PharmacyInventoryRowError.builder()
-                            .rowNumber(totalRows)
-                            .medicineId(medicine.getMedicineId())
-                            .medicineName(medicine.getName())
-                            .message("Medicine is inactive: " + medicine.getName())
-                            .build());
-                    continue;
-                }
-
-                if (unitPrice == null) {
-                    unitPrice = medicine.getPrice() != null ? medicine.getPrice() : BigDecimal.ZERO;
-                }
-
-                // Merge duplicate medicine rows (last wins)
-                String key = pharmacyId + ":" + medicine.getMedicineId();
-                ProcessedRow processed = ProcessedRow.builder()
-                        .medicine(medicine)
-                        .quantity(quantity)
-                        .reservedQuantity(reservedQuantity)
-                        .unitPrice(unitPrice)
-                        .unit(unit)
-                        .expiryDate(expiryDate)
-                        .active(active)
-                        .build();
-
-                mergedRows.put(key, processed);
+            List<CSVRecord> records = parser.getRecords();
+            if (records.size() > MAX_ROWS) {
+                throw new BadRequestException("CSV file exceeds maximum of " + MAX_ROWS + " rows");
             }
+            return records;
         } catch (BadRequestException e) {
             throw e;
         } catch (Exception e) {
             throw new BadRequestException("Failed to parse CSV: " + e.getMessage(), e);
         }
+    }
 
+    private ImportRowResult validateAndPrepareRow(CSVRecord record, int rowIndex,
+                                                   Pharmacy pharmacy, List<PharmacyInventoryRowError> rowErrors) {
+        String medicineIdStr = getCsvValue(record, "medicineId");
+        String medicineName = getCsvValue(record, "medicineName");
+
+        Integer medicineId = null;
+        if (medicineIdStr != null && !medicineIdStr.isBlank()) {
+            try {
+                medicineId = Integer.parseInt(medicineIdStr);
+            } catch (NumberFormatException e) {
+                rowErrors.add(PharmacyInventoryRowError.builder()
+                        .rowNumber(rowIndex)
+                        .medicineId(null)
+                        .medicineName(medicineName)
+                        .message("Invalid medicineId: " + medicineIdStr)
+                        .build());
+                return null;
+            }
+        }
+
+        String quantityStr = getCsvValue(record, "quantity");
+        if (quantityStr == null || quantityStr.isBlank()) {
+            rowErrors.add(PharmacyInventoryRowError.builder()
+                    .rowNumber(rowIndex)
+                    .medicineId(medicineId)
+                    .medicineName(medicineName)
+                    .message("Quantity is required")
+                    .build());
+            return null;
+        }
+        int quantity;
+        try {
+            quantity = Integer.parseInt(quantityStr);
+            if (quantity < 0) {
+                throw new NumberFormatException("Negative");
+            }
+        } catch (NumberFormatException e) {
+            rowErrors.add(PharmacyInventoryRowError.builder()
+                    .rowNumber(rowIndex)
+                    .medicineId(medicineId)
+                    .medicineName(medicineName)
+                    .message("Invalid quantity: " + quantityStr)
+                    .build());
+            return null;
+        }
+
+        Integer reservedQuantity = null;
+        String reservedQuantityStr = getCsvValue(record, "reservedQuantity");
+        if (reservedQuantityStr != null && !reservedQuantityStr.isBlank()) {
+            try {
+                reservedQuantity = Integer.parseInt(reservedQuantityStr);
+                if (reservedQuantity < 0) {
+                    throw new NumberFormatException("Negative");
+                }
+            } catch (NumberFormatException e) {
+                rowErrors.add(PharmacyInventoryRowError.builder()
+                        .rowNumber(rowIndex)
+                        .medicineId(medicineId)
+                        .medicineName(medicineName)
+                        .message("Invalid reservedQuantity: " + reservedQuantityStr)
+                        .build());
+                return null;
+            }
+        }
+
+        String unitPriceStr = getCsvValue(record, "unitPrice");
+        BigDecimal unitPrice = null;
+        if (unitPriceStr != null && !unitPriceStr.isBlank()) {
+            try {
+                unitPrice = new BigDecimal(unitPriceStr);
+                if (unitPrice.compareTo(BigDecimal.ZERO) < 0) {
+                    throw new NumberFormatException("Negative");
+                }
+            } catch (NumberFormatException e) {
+                rowErrors.add(PharmacyInventoryRowError.builder()
+                        .rowNumber(rowIndex)
+                        .medicineId(medicineId)
+                        .medicineName(medicineName)
+                        .message("Invalid unitPrice: " + unitPriceStr)
+                        .build());
+                return null;
+            }
+        }
+
+        LocalDate expiryDate = null;
+        String expiryDateStr = getCsvValue(record, "expiryDate");
+        if (expiryDateStr != null && !expiryDateStr.isBlank()) {
+            try {
+                expiryDate = LocalDate.parse(expiryDateStr, DateTimeFormatter.ISO_LOCAL_DATE);
+            } catch (DateTimeParseException e) {
+                rowErrors.add(PharmacyInventoryRowError.builder()
+                        .rowNumber(rowIndex)
+                        .medicineId(medicineId)
+                        .medicineName(medicineName)
+                        .message("Invalid expiryDate format (expected yyyy-MM-dd): " + expiryDateStr)
+                        .build());
+                return null;
+            }
+        }
+
+        String activeStr = getCsvValue(record, "active");
+        boolean active = activeStr == null || activeStr.isBlank() || Boolean.parseBoolean(activeStr);
+
+        String unit = getCsvValue(record, "unit");
+        if (unit != null && unit.isBlank()) {
+            unit = null;
+        }
+
+        Medicine medicine;
+        if (medicineId != null) {
+            medicine = medicineRepository.findById(medicineId).orElse(null);
+            if (medicine == null) {
+                rowErrors.add(PharmacyInventoryRowError.builder()
+                        .rowNumber(rowIndex)
+                        .medicineId(medicineId)
+                        .medicineName(medicineName)
+                        .message("Medicine not found with id: " + medicineId)
+                        .build());
+                return null;
+            }
+        } else if (medicineName != null && !medicineName.isBlank()) {
+            List<Medicine> matches = medicineRepository.findByNameContainingIgnoreCase(medicineName);
+            if (matches.isEmpty()) {
+                rowErrors.add(PharmacyInventoryRowError.builder()
+                        .rowNumber(rowIndex)
+                        .medicineName(medicineName)
+                        .message("No active medicine found with name: " + medicineName)
+                        .build());
+                return null;
+            }
+            if (matches.size() > 1) {
+                rowErrors.add(PharmacyInventoryRowError.builder()
+                        .rowNumber(rowIndex)
+                        .medicineName(medicineName)
+                        .message("Multiple medicines match name '" + medicineName
+                                + "'. Please use medicineId.")
+                        .build());
+                return null;
+            }
+            medicine = matches.get(0);
+        } else {
+            rowErrors.add(PharmacyInventoryRowError.builder()
+                    .rowNumber(rowIndex)
+                    .message("Either medicineId or medicineName is required")
+                    .build());
+            return null;
+        }
+
+        if (!medicine.isActive()) {
+            rowErrors.add(PharmacyInventoryRowError.builder()
+                    .rowNumber(rowIndex)
+                    .medicineId(medicine.getMedicineId())
+                    .medicineName(medicine.getName())
+                    .message("Medicine is inactive: " + medicine.getName())
+                    .build());
+            return null;
+        }
+
+        if (unitPrice == null) {
+            unitPrice = medicine.getPrice() != null ? medicine.getPrice() : BigDecimal.ZERO;
+        }
+
+        return ImportRowResult.builder()
+                .medicine(medicine)
+                .quantity(quantity)
+                .reservedQuantity(reservedQuantity)
+                .unitPrice(unitPrice)
+                .unit(unit)
+                .expiryDate(expiryDate)
+                .active(active)
+                .build();
+    }
+
+    private PharmacyInventoryImportResult persistAll(Map<String, ImportRowResult> mergedRows,
+                                                      List<PharmacyInventoryRowError> rowErrors,
+                                                      Pharmacy pharmacy) {
         int importedCount = 0;
         int updatedCount = 0;
 
         LocalDateTime now = LocalDateTime.now();
-        for (Map.Entry<String, ProcessedRow> entry : mergedRows.entrySet()) {
-            ProcessedRow row = entry.getValue();
+        for (ImportRowResult row : mergedRows.values()) {
             Medicine medicine = row.getMedicine();
 
             java.util.Optional<PharmacyInventory> existingOpt = inventoryRepository
-                    .findByPharmacy_PharmacyIdAndMedicine_MedicineId(pharmacyId, medicine.getMedicineId());
+                    .findByPharmacy_PharmacyIdAndMedicine_MedicineId(pharmacy.getPharmacyId(), medicine.getMedicineId());
 
             if (existingOpt.isPresent()) {
                 PharmacyInventory existing = existingOpt.get();
@@ -497,7 +512,7 @@ public class PharmacyInventoryServiceImpl implements PharmacyInventoryService {
 
     @lombok.Builder
     @lombok.Data
-    private static class ProcessedRow {
+    private static class ImportRowResult {
         private Medicine medicine;
         private int quantity;
         private Integer reservedQuantity;

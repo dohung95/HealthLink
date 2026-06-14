@@ -3,7 +3,9 @@ import { toast } from 'sonner';
 import medicineApi from '../../api/medicineApi';
 import pharmacyApi from '../../api/pharmacyApi';
 import { money } from '../../utils/pharmacy/pharmacyHelpers';
-import OrderItemCard from './OrderItemCard';
+import OrderItemCard from '../OrderItemCard';
+import DeliveryDurationPicker from './DeliveryDurationPicker';
+import MedicineLibraryPanel from './MedicineLibraryPanel';
 
 const VALID_TIMINGS = new Set(['MORNING', 'AFTERNOON', 'EVENING']);
 
@@ -128,6 +130,10 @@ function getMedicineDisplayName(medicine = {}) {
   return brandName || genericName || `Medicine #${medicine.medicineId || medicine.id || 'N/A'}`;
 }
 
+function normalizeDelivery(value) {
+  return String(value || '').trim().toUpperCase() === 'DELIVERY';
+}
+
 export default function CreateOrderModal({ request, profile, onClose, onCreated }) {
   const isOrderRequest = request?.requestType === 'ORDER_REQUEST' || request?.sourceType === 'ORDER_REQUEST';
   const [leftTab, setLeftTab] = useState('prescriptions');
@@ -158,10 +164,12 @@ export default function CreateOrderModal({ request, profile, onClose, onCreated 
   }, [request?.requestId]);
 
   useEffect(() => {
-    if (!isOrderRequest || loadingPrescriptions || orderItems.length || !prescriptions.length) return;
-    const imported = prescriptions.flatMap(mapPrescriptionToOrderItems);
-    setOrderItems(imported);
-  }, [isOrderRequest, loadingPrescriptions, orderItems.length, prescriptions]);
+    if (!isOrderRequest || loadingPrescriptions || prescriptions.length === 0) return;
+    setOrderItems(prev => {
+      if (prev.length > 0) return prev;
+      return prescriptions.flatMap(mapPrescriptionToOrderItems);
+    });
+  }, [isOrderRequest, loadingPrescriptions, prescriptions]);
 
   useEffect(() => {
     const previousOverflow = document.body.style.overflow;
@@ -539,223 +547,6 @@ export default function CreateOrderModal({ request, profile, onClose, onCreated 
             </div>
           </div>
         </div>
-      </div>
-    </div>
-  );
-}
-
-function clampDigit(value) {
-  return ((value % 10) + 10) % 10;
-}
-
-function updateDigit(digits, index, nextDigit) {
-  return digits.map((digit, currentIndex) => (
-    currentIndex === index ? clampDigit(nextDigit) : digit
-  ));
-}
-
-function DeliveryDurationPicker({ digits, onChange }) {
-  const pointerRef = useRef(null);
-
-  const handlePointerDown = (index) => (e) => {
-    e.preventDefault();
-    const target = e.currentTarget;
-    target.setPointerCapture(e.pointerId);
-    pointerRef.current = { startY: e.clientY, index, accumulated: 0 };
-    const onMove = (ev) => {
-      if (!pointerRef.current) return;
-      const delta = ev.clientY - pointerRef.current.startY;
-      if (Math.abs(delta) >= 24) {
-        const steps = Math.floor(Math.abs(delta) / 24) * Math.sign(delta);
-        pointerRef.current.startY = ev.clientY;
-        onChange(updateDigit(digits, pointerRef.current.index, digits[pointerRef.current.index] - steps));
-      }
-    };
-    const onUp = () => {
-      pointerRef.current = null;
-      target.removeEventListener('pointermove', onMove);
-      target.removeEventListener('pointerup', onUp);
-      target.removeEventListener('pointercancel', onUp);
-    };
-    target.addEventListener('pointermove', onMove);
-    target.addEventListener('pointerup', onUp);
-    target.addEventListener('pointercancel', onUp);
-  };
-
-  const handleWheel = (index) => (e) => {
-    e.preventDefault();
-    const direction = e.deltaY > 0 ? -1 : 1;
-    onChange(updateDigit(digits, index, digits[index] + direction));
-  };
-
-  const handleKeyDown = (index) => (e) => {
-    if (e.key === 'ArrowUp') {
-      e.preventDefault();
-      onChange(updateDigit(digits, index, digits[index] + 1));
-    } else if (e.key === 'ArrowDown') {
-      e.preventDefault();
-      onChange(updateDigit(digits, index, digits[index] - 1));
-    } else if (/^[0-9]$/.test(e.key)) {
-      e.preventDefault();
-      onChange(updateDigit(digits, index, Number(e.key)));
-    }
-  };
-
-  const labels = ['hundreds', 'tens', 'ones'];
-
-  return (
-    <div className="pharmacy-duration-picker">
-      <div className="pharmacy-duration-picker__digits">
-        {digits.map((digit, index) => (
-          <button
-            key={index}
-            className="pharmacy-duration-picker__cell"
-            type="button"
-            aria-label={`Delivery minutes ${labels[index]} digit`}
-            onPointerDown={handlePointerDown(index)}
-            onWheel={handleWheel(index)}
-            onKeyDown={handleKeyDown(index)}
-          >
-            <span className="pharmacy-duration-picker__ghost">{clampDigit(digit + 1)}</span>
-            <span className="pharmacy-duration-picker__digit">{digit}</span>
-            <span className="pharmacy-duration-picker__ghost">{clampDigit(digit - 1)}</span>
-          </button>
-        ))}
-      </div>
-      <div className="pharmacy-duration-picker__summary">
-        <span className="pharmacy-duration-picker__summary-value">{String(Number(digits.join(''))).padStart(3, '0')} min</span>
-        <span className="pharmacy-duration-picker__eta">
-          Est. arrival: ~{new Date(Date.now() + Number(digits.join('')) * 60000).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
-        </span>
-      </div>
-    </div>
-  );
-}
-
-function normalizeDelivery(value) {
-  return String(value || '').trim().toUpperCase() === 'DELIVERY';
-}
-
-function MedicineLibraryPanel({
-  selectedMedicineIds,
-  onAddMedicine,
-}) {
-  const [query, setQuery] = useState('');
-  const [medicines, setMedicines] = useState([]);
-  const [loading, setLoading] = useState(true);
-  const [showFilters, setShowFilters] = useState(false);
-  const [filters, setFilters] = useState(() => ({
-    brandName: true,
-    genericName: true,
-    dosageForm: false,
-    manufacturer: false,
-  }));
-
-  useEffect(() => {
-    let alive = true;
-    medicineApi.searchMedicines()
-      .then((data) => {
-        if (alive) setMedicines(Array.isArray(data) ? data : []);
-      })
-      .catch(() => { if (alive) setMedicines([]); })
-      .finally(() => { if (alive) setLoading(false); });
-    return () => { alive = false; };
-  }, []);
-
-  const medicineOptions = useMemo(() => medicines.map((m) => {
-    const displayName = getMedicineDisplayName(m);
-    const medicineId = m.medicineId || m.id;
-    const dosageLabel = [m.strength, m.dosageForm].filter(Boolean).join(' - ');
-    const searchableText = [displayName, m.brandName, m.genericName, m.name, m.medicineName, m.dosageForm, m.strength, m.manufacturer, m.unit]
-      .filter(Boolean).join(' ').toLowerCase();
-    return { ...m, medicineId, displayName, dosageLabel, searchLabel: [displayName, dosageLabel].filter(Boolean).join(' - '), searchableText };
-  }), [medicines]);
-
-  const filteredMedicines = useMemo(() => {
-    const normalizedQuery = query.trim().toLowerCase();
-    if (!normalizedQuery) return medicineOptions;
-    const LIBRARY_FILTERS = [
-      { key: 'brandName', label: 'Brand Name' },
-      { key: 'genericName', label: 'Generic Name' },
-      { key: 'dosageForm', label: 'Dosage Form' },
-      { key: 'manufacturer', label: 'Manufacturer' },
-    ];
-    const enabledKeys = LIBRARY_FILTERS.filter((f) => filters[f.key]).map((f) => f.key);
-    return medicineOptions.filter((med) => (
-      med.searchableText.includes(normalizedQuery)
-      || enabledKeys.some((key) => String(med[key] || '').toLowerCase().includes(normalizedQuery))
-    ));
-  }, [filters, medicineOptions, query]);
-
-  return (
-    <div>
-      <div className="d-flex gap-1 mb-2">
-        <div className="input-group input-group-sm flex-grow-1">
-          <span className="input-group-text"><i className="bi bi-search"></i></span>
-          <input
-            className="form-control"
-            onChange={(e) => setQuery(e.target.value)}
-            placeholder="Search medicines..."
-            value={query}
-          />
-        </div>
-        <button className="btn btn-light btn-sm" onClick={() => setShowFilters((c) => !c)} type="button">
-          <i className="bi bi-funnel"></i>
-        </button>
-      </div>
-
-      {showFilters && (
-        <div className="d-flex gap-2 p-1 mb-2 border rounded">
-          {['brandName', 'genericName', 'dosageForm', 'manufacturer'].map((key) => (
-            <label className="form-check form-check-inline small" key={key}>
-              <input checked={filters[key]} className="form-check-input" onChange={() => setFilters((c) => ({ ...c, [key]: !c[key] }))} type="checkbox" />
-              <span className="form-check-label">{key === 'brandName' ? 'Brand' : key === 'genericName' ? 'Generic' : key === 'dosageForm' ? 'Form' : 'Mfr'}</span>
-            </label>
-          ))}
-        </div>
-      )}
-
-      <div className="pharmacy-create-order-library-results">
-        {loading ? (
-          <div className="pharmacy-bootstrap-loading compact">
-            <div className="spinner-border text-primary" role="status"><span className="visually-hidden">Loading...</span></div>
-            <span>Loading medicines...</span>
-          </div>
-        ) : filteredMedicines.length === 0 ? (
-          <div className="pharmacy-empty compact">
-            <span className="material-symbols-outlined">search</span>
-            <h3>No medicines matched</h3>
-          </div>
-        ) : (
-          <>
-            {filteredMedicines.map((medicine) => {
-              const isSelected = selectedMedicineIds.has(medicine.medicineId);
-              return (
-                <div
-                  className="pharmacy-medicine-library-result compact"
-                  key={medicine.medicineId || medicine.displayName}
-                >
-                  <span className="pharmacy-medicine-library-name">
-                    {medicine.displayName}
-                  </span>
-                  <span className={`pharmacy-medicine-library-dosage ${medicine.dosageLabel ? '' : 'is-empty'}`}>
-                    {medicine.dosageLabel || '-'}
-                  </span>
-                  <button
-                    className={`pharmacy-library-icon-button ${isSelected ? 'is-added' : ''}`}
-                    disabled={isSelected}
-                    onClick={() => onAddMedicine(medicine)}
-                    type="button"
-                    aria-label={isSelected ? 'Medicine already added' : 'Add medicine'}
-                    title={isSelected ? 'Already added' : 'Add medicine'}
-                  >
-                    <i className={`bi ${isSelected ? 'bi-check2' : 'bi-plus-lg'}`}></i>
-                  </button>
-                </div>
-              );
-            })}
-          </>
-        )}
       </div>
     </div>
   );

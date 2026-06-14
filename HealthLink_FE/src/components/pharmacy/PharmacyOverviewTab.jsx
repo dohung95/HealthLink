@@ -11,7 +11,7 @@ import {
   money,
   routeByTab,
 } from './PharmacyShared';
-import { OrderTable } from './PharmacyOrdersTab';
+import OrderTable from './OrderTable';
 
 const LOW_STOCK_THRESHOLD = 10;
 const INVENTORY_SUMMARY_PAGE_SIZE = 5000;
