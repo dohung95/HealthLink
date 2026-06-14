@@ -9,6 +9,7 @@ import com.HealthLink.entity.PharmacyOrder;
 import com.HealthLink.entity.PharmacyOrderItem;
 import com.HealthLink.entity.PrescriptionHeader;
 import com.HealthLink.entity.enums.PrescriptionTiming;
+import com.HealthLink.service.impl.pharmacy.PharmacyServiceHelper;
 
 import java.util.List;
 
@@ -92,7 +93,7 @@ public final class PharmacyOrderMapper {
                 .unit(item.getUnit())
                 .frequency(item.getFrequency())
                 .timing(item.getTiming())
-                .timings(timingsForResponse(item.getTiming()))
+                .timings(PharmacyServiceHelper.timingsForResponse(item.getTiming()))
                 .route(item.getRoute())
                 .unitPrice(item.getUnitPrice())
                 .totalPrice(item.getTotalPrice())
@@ -100,11 +101,4 @@ public final class PharmacyOrderMapper {
                 .build();
     }
 
-    private static List<String> timingsForResponse(String timing) {
-        try {
-            return PrescriptionTiming.splitNormalized(timing);
-        } catch (IllegalArgumentException ex) {
-            return List.of();
-        }
-    }
 }

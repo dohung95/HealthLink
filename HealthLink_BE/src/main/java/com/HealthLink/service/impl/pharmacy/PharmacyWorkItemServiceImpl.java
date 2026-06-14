@@ -5,6 +5,7 @@ import com.HealthLink.entity.PharmacyConsultationRequest;
 import com.HealthLink.entity.PharmacyOrder;
 import com.HealthLink.repository.pharmacy.PharmacyConsultationRequestRepository;
 import com.HealthLink.repository.pharmacy.PharmacyOrderRepository;
+import com.HealthLink.service.impl.pharmacy.PharmacyServiceHelper;
 import com.HealthLink.service.pharmacy.PharmacyWorkItemService;
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -93,7 +94,7 @@ public class PharmacyWorkItemServiceImpl implements PharmacyWorkItemService {
         PharmacyOrder order = request.getOrder();
         String requestStatus = normalize(request.getStatus());
         String workflowStage = deriveStage(requestStatus, order);
-        String requestType = requestTypeOf(request);
+        String requestType = PharmacyServiceHelper.requestTypeOf(request);
         String sourceType = REQUEST_TYPE_ORDER_REQUEST.equals(requestType)
                 ? SOURCE_ORDER_REQUEST
                 : SOURCE_CONSULTATION_REQUEST;
@@ -122,7 +123,7 @@ public class PharmacyWorkItemServiceImpl implements PharmacyWorkItemService {
                 .symptoms(request.getSymptoms())
                 .description(request.getDescription())
                 .allergies(request.getAllergies())
-                .attachments(deserializeAttachments(request.getAttachments()))
+                .attachments(PharmacyServiceHelper.deserializeAttachments(request.getAttachments(), objectMapper))
                 .additionalNotes(request.getAdditionalNotes())
                 .preferredDeliveryType(request.getPreferredDeliveryType())
                 .deliveryType(request.getDeliveryType())
@@ -344,13 +345,7 @@ public class PharmacyWorkItemServiceImpl implements PharmacyWorkItemService {
         return List.of(ACTION_UPDATE_ORDER_STATUS, ACTION_CANCEL_ORDER);
     }
 
-    private String requestTypeOf(PharmacyConsultationRequest request) {
-        String raw = request != null ? request.getRequestType() : null;
-        if (raw == null || raw.isBlank()) {
-            return REQUEST_TYPE_CONSULTATION;
-        }
-        return raw.trim().toUpperCase();
-    }
+    // requestTypeOf moved to PharmacyServiceHelper
 
     private List<String> communicationActionsForConsulting(PharmacyConsultationRequest request) {
         if (request == null || request.getChatRoomId() == null) {
@@ -382,18 +377,6 @@ public class PharmacyWorkItemServiceImpl implements PharmacyWorkItemService {
             case STAGE_CANCELLED -> List.of(ACTION_VIEW_ONLY);
             default -> List.of(ACTION_VIEW_ONLY);
         };
-    }
-
-    private List<String> deserializeAttachments(String attachments) {
-        if (attachments == null || attachments.isBlank()) {
-            return List.of();
-        }
-        try {
-            return objectMapper.readValue(attachments, new TypeReference<>() {});
-        } catch (Exception ex) {
-            log.warn("Failed to deserialize request attachments");
-            return List.of();
-        }
     }
 
     private String normalize(String value) {

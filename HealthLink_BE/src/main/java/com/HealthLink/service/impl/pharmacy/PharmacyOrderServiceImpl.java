@@ -22,6 +22,7 @@ import com.HealthLink.repository.pharmacy.PharmacyOrderRepository;
 import com.HealthLink.repository.pharmacy.PharmacyRepository;
 import com.HealthLink.repository.prescription.PrescriptionHeaderRepository;
 import com.HealthLink.audit.AuditLogger;
+import com.HealthLink.service.impl.pharmacy.PharmacyServiceHelper;
 import com.HealthLink.service.pharmacy.PharmacyOrderService;
 import com.HealthLink.service.notification.NotificationService;
 import com.HealthLink.utility.mapper.PharmacyOrderMapper;
@@ -65,10 +66,7 @@ public class PharmacyOrderServiceImpl implements PharmacyOrderService {
     private static final String REQUEST_TYPE_ORDER_REQUEST = "ORDER_REQUEST";
     private static final String DELIVERY_TYPE_DELIVERY = "Delivery";
     private static final String DELIVERY_TYPE_PICKUP = "Pickup";
-    private static final double EARTH_RADIUS_KM = 6371.0;
-
     // ── Commission constants ──────────────────────────────────────────────────
-    private static final BigDecimal DEFAULT_COMMISSION_RATE = new BigDecimal("0.1000");
     private static final BigDecimal STANDARD_COMMISSION_RATE = new BigDecimal("0.1000");
     private static final BigDecimal PREMIUM_COMMISSION_RATE = new BigDecimal("0.0800");
     private static final BigDecimal VIP_COMMISSION_RATE = new BigDecimal("0.0500");
@@ -139,11 +137,11 @@ public class PharmacyOrderServiceImpl implements PharmacyOrderService {
         Double deliveryLat    = request.getDeliveryLatitude();
         Double deliveryLon    = request.getDeliveryLongitude();
 
-        String deliveryPhoneNumber = firstNonBlank(
+        String deliveryPhoneNumber = PharmacyServiceHelper.firstNonBlank(
                 request.getDeliveryPhoneNumber(),
                 patient != null && patient.getUser() != null ? patient.getUser().getPhoneNumber() : null
         );
-        String deliveryAddressSource = normalizeDeliveryAddressSource(request.getDeliveryAddressSource());
+        String deliveryAddressSource = PharmacyServiceHelper.normalizeDeliveryAddressSource(request.getDeliveryAddressSource());
 
         if (DELIVERY_TYPE_DELIVERY.equals(deliveryType)) {
             if (!pharmacy.isDeliveryAvailable()) {
@@ -151,7 +149,7 @@ public class PharmacyOrderServiceImpl implements PharmacyOrderService {
             }
 
             if (deliveryAddress == null || deliveryAddress.isBlank()) {
-                deliveryAddress = buildPatientAddress(patient);
+                deliveryAddress = PharmacyServiceHelper.buildPatientAddress(patient);
                 deliveryLat     = patient.getLatitude();
                 deliveryLon     = patient.getLongitude();
             }
@@ -166,7 +164,7 @@ public class PharmacyOrderServiceImpl implements PharmacyOrderService {
                     ? pharmacy.getDeliveryFee()
                     : BigDecimal.ZERO;
         } else if (deliveryAddress == null || deliveryAddress.isBlank()) {
-            deliveryAddress = buildPatientAddress(patient);
+            deliveryAddress = PharmacyServiceHelper.buildPatientAddress(patient);
             deliveryLat     = patient.getLatitude();
             deliveryLon     = patient.getLongitude();
         }
@@ -194,7 +192,7 @@ public class PharmacyOrderServiceImpl implements PharmacyOrderService {
                 .paymentStatus(PAYMENT_STATUS_PENDING)
                 .paymentMethod(request.getPaymentMethod())
                 .notes(request.getNotes())
-                .pharmacistNotes(trimToNull(request.getPharmacistNotes()))
+                .pharmacistNotes(PharmacyServiceHelper.trimToNull(request.getPharmacistNotes()))
                 .createdAt(LocalDateTime.now())
                 .build();
         attachOrderItems(order, orderItems);
@@ -235,22 +233,22 @@ public class PharmacyOrderServiceImpl implements PharmacyOrderService {
         validateOrderRequestItems(consultationRequest, orderItems);
         BigDecimal medicineAmount = calculateMedicineAmount(orderItems);
         String deliveryType = normalizeDeliveryType(
-                firstNonBlank(request.getDeliveryType(), consultationRequest.getPreferredDeliveryType())
+                PharmacyServiceHelper.firstNonBlank(request.getDeliveryType(), consultationRequest.getPreferredDeliveryType())
         );
         BigDecimal deliveryFee = BigDecimal.ZERO;
 
-        String deliveryAddress = firstNonBlank(request.getDeliveryAddress(), consultationRequest.getDeliveryAddress());
+        String deliveryAddress = PharmacyServiceHelper.firstNonBlank(request.getDeliveryAddress(), consultationRequest.getDeliveryAddress());
         Double deliveryLat = request.getDeliveryLatitude() != null
                 ? request.getDeliveryLatitude()
                 : consultationRequest.getDeliveryLatitude();
         Double deliveryLon = request.getDeliveryLongitude() != null
                 ? request.getDeliveryLongitude()
                 : consultationRequest.getDeliveryLongitude();
-        String deliveryPhoneNumber = firstNonBlank(
+        String deliveryPhoneNumber = PharmacyServiceHelper.firstNonBlank(
                 request.getDeliveryPhoneNumber(),
                 consultationRequest.getDeliveryPhoneNumber()
         );
-        String deliveryAddressSource = firstNonBlank(
+        String deliveryAddressSource = PharmacyServiceHelper.firstNonBlank(
                 request.getDeliveryAddressSource(),
                 consultationRequest.getDeliveryAddressSource()
         );
@@ -261,7 +259,7 @@ public class PharmacyOrderServiceImpl implements PharmacyOrderService {
             }
 
             if (deliveryAddress == null) {
-                deliveryAddress = buildPatientAddress(patient);
+                deliveryAddress = PharmacyServiceHelper.buildPatientAddress(patient);
                 deliveryLat = patient != null ? patient.getLatitude() : null;
                 deliveryLon = patient != null ? patient.getLongitude() : null;
             }
@@ -276,7 +274,7 @@ public class PharmacyOrderServiceImpl implements PharmacyOrderService {
                     ? pharmacy.getDeliveryFee()
                     : BigDecimal.ZERO;
         } else if (deliveryAddress == null) {
-            deliveryAddress = buildPatientAddress(patient);
+            deliveryAddress = PharmacyServiceHelper.buildPatientAddress(patient);
             deliveryLat = patient != null ? patient.getLatitude() : null;
             deliveryLon = patient != null ? patient.getLongitude() : null;
         }
@@ -307,15 +305,15 @@ public class PharmacyOrderServiceImpl implements PharmacyOrderService {
                 .deliveryLongitude(deliveryLon)
                 .deliveryFee(actualDeliveryFee)
                 .deliveryPhoneNumber(deliveryPhoneNumber)
-                .deliveryAddressSource(normalizeDeliveryAddressSource(deliveryAddressSource))
+                .deliveryAddressSource(PharmacyServiceHelper.normalizeDeliveryAddressSource(deliveryAddressSource))
                 .medicineAmount(medicineAmount)
                 .totalAmount(totalAmount)
                 .estimatedDeliveryTime(estimatedDeliveryTime)
                 .orderItems(orderItems)
                 .paymentStatus(PAYMENT_STATUS_PENDING)
-                .paymentMethod(trimToNull(request.getPaymentMethod()))
-                .notes(firstNonBlank(request.getNotes(), consultationRequest.getAdditionalNotes()))
-                .pharmacistNotes(trimToNull(request.getPharmacistNotes()))
+                .paymentMethod(PharmacyServiceHelper.trimToNull(request.getPaymentMethod()))
+                .notes(PharmacyServiceHelper.firstNonBlank(request.getNotes(), consultationRequest.getAdditionalNotes()))
+                .pharmacistNotes(PharmacyServiceHelper.trimToNull(request.getPharmacistNotes()))
                 .createdAt(LocalDateTime.now())
                 .build();
         attachOrderItems(order, orderItems);
@@ -437,7 +435,7 @@ public class PharmacyOrderServiceImpl implements PharmacyOrderService {
         order.setStatus(STATUS_CANCELLED);
         order.setCancelledAt(LocalDateTime.now());
         order.setCancelledBy("Patient");
-        order.setCancelReason(trimToNull(request.getCancelReason()));
+        order.setCancelReason(PharmacyServiceHelper.trimToNull(request.getCancelReason()));
 
         PharmacyOrder updated = orderRepository.save(order);
 
@@ -472,7 +470,7 @@ public class PharmacyOrderServiceImpl implements PharmacyOrderService {
         }
 
         order.setStatus(STATUS_REVISION_REQUESTED);
-        order.setRevisionRequestNotes(trimToNull(request.getReason()));
+        order.setRevisionRequestNotes(PharmacyServiceHelper.trimToNull(request.getReason()));
         order.setRevisionRequestedAt(LocalDateTime.now());
         order.setRevisionResolvedAt(null);
         order.setPatientConfirmedAt(null);
@@ -517,7 +515,7 @@ public class PharmacyOrderServiceImpl implements PharmacyOrderService {
         String deliveryType = normalizeDeliveryType(request.getDeliveryType());
         BigDecimal deliveryFee = request.getDeliveryFee() != null ? request.getDeliveryFee() : BigDecimal.ZERO;
 
-        String deliveryAddress = trimToNull(request.getDeliveryAddress());
+        String deliveryAddress = PharmacyServiceHelper.trimToNull(request.getDeliveryAddress());
         if (deliveryAddress == null) {
             deliveryAddress = order.getDeliveryAddress();
         }
@@ -539,9 +537,9 @@ public class PharmacyOrderServiceImpl implements PharmacyOrderService {
         order.setDeliveryLatitude(deliveryLat);
         order.setDeliveryLongitude(deliveryLon);
         order.setEstimatedDeliveryTime(request.getEstimatedDeliveryTime());
-        order.setNotes(firstNonBlank(request.getNotes(), order.getNotes()));
-        order.setPharmacistNotes(firstNonBlank(request.getPharmacistNotes(), order.getPharmacistNotes()));
-        order.setPaymentMethod(trimToNull(request.getPaymentMethod()));
+        order.setNotes(PharmacyServiceHelper.firstNonBlank(request.getNotes(), order.getNotes()));
+        order.setPharmacistNotes(PharmacyServiceHelper.firstNonBlank(request.getPharmacistNotes(), order.getPharmacistNotes()));
+        order.setPaymentMethod(PharmacyServiceHelper.trimToNull(request.getPaymentMethod()));
 
         order.setStatus(STATUS_PENDING);
         order.setRevisionResolvedAt(LocalDateTime.now());
@@ -663,7 +661,7 @@ public class PharmacyOrderServiceImpl implements PharmacyOrderService {
             throw new BadRequestException("An order has already been created for this request");
         }
 
-        String requestType = requestTypeOf(consultationRequest);
+        String requestType = PharmacyServiceHelper.requestTypeOf(consultationRequest);
         String status = normalizeStatus(consultationRequest.getStatus());
 
         if (REQUEST_TYPE_ORDER_REQUEST.equals(requestType)) {
@@ -692,7 +690,7 @@ public class PharmacyOrderServiceImpl implements PharmacyOrderService {
             PharmacyConsultationRequest consultationRequest,
             List<PharmacyOrderItem> orderItems
     ) {
-        if (!REQUEST_TYPE_ORDER_REQUEST.equals(requestTypeOf(consultationRequest))) {
+        if (!REQUEST_TYPE_ORDER_REQUEST.equals(PharmacyServiceHelper.requestTypeOf(consultationRequest))) {
             return;
         }
 
@@ -754,13 +752,13 @@ public class PharmacyOrderServiceImpl implements PharmacyOrderService {
                     .medicationName(medicine.getName())
                     .totalSupplyDays(totalSupplyDays)
                     .quantity(quantity)
-                    .unit(firstNonBlank(itemRequest.getUnit(), medicine.getUnit()))
-                    .frequency(trimToNull(itemRequest.getFrequency()))
+                    .unit(PharmacyServiceHelper.firstNonBlank(itemRequest.getUnit(), medicine.getUnit()))
+                    .frequency(PharmacyServiceHelper.trimToNull(itemRequest.getFrequency()))
                     .timing(normalizeOptionalTiming(itemRequest.getTimings(), itemRequest.getTiming()))
-                    .route(trimToNull(itemRequest.getRoute()))
+                    .route(PharmacyServiceHelper.trimToNull(itemRequest.getRoute()))
                     .unitPrice(unitPrice)
                     .totalPrice(unitPrice.multiply(BigDecimal.valueOf(quantity)))
-                    .notes(trimToNull(itemRequest.getNotes()))
+                    .notes(PharmacyServiceHelper.trimToNull(itemRequest.getNotes()))
                     .build());
         }
 
@@ -787,7 +785,7 @@ public class PharmacyOrderServiceImpl implements PharmacyOrderService {
                     .medicine(medicine)
                     .sourcePrescriptionHeader(prescription)
                     .sourcePrescriptionItem(prescriptionItem)
-                    .medicationName(safeValue(firstNonBlank(prescriptionItem.getMedicationName(),
+                    .medicationName(safeValue(PharmacyServiceHelper.firstNonBlank(prescriptionItem.getMedicationName(),
                             medicine != null ? medicine.getName() : null), "Medication"))
                     .totalSupplyDays(totalSupplyDays)
                     .quantity(quantity)
@@ -895,7 +893,7 @@ public class PharmacyOrderServiceImpl implements PharmacyOrderService {
             if (timings != null && !timings.isEmpty()) {
                 return PrescriptionTiming.normalizeJoined(timings);
             }
-            String normalized = trimToNull(timing);
+            String normalized = PharmacyServiceHelper.trimToNull(timing);
             return normalized != null ? PrescriptionTiming.normalizeJoined(normalized) : null;
         } catch (IllegalArgumentException ex) {
             throw new BadRequestException(ex.getMessage());
@@ -959,7 +957,7 @@ public class PharmacyOrderServiceImpl implements PharmacyOrderService {
             throw new BadRequestException("Delivery location is required");
         }
 
-        double distanceKm = calculateDistanceKm(
+        double distanceKm = PharmacyServiceHelper.calculateDistanceKm(
                 pharmacy.getLatitude(),
                 pharmacy.getLongitude(),
                 deliveryLat,
@@ -970,35 +968,7 @@ public class PharmacyOrderServiceImpl implements PharmacyOrderService {
         }
     }
 
-    private double calculateDistanceKm(
-            double startLat,
-            double startLon,
-            double endLat,
-            double endLon
-    ) {
-        double latDistance = Math.toRadians(endLat - startLat);
-        double lonDistance = Math.toRadians(endLon - startLon);
-        double a = Math.sin(latDistance / 2) * Math.sin(latDistance / 2)
-                + Math.cos(Math.toRadians(startLat))
-                * Math.cos(Math.toRadians(endLat))
-                * Math.sin(lonDistance / 2)
-                * Math.sin(lonDistance / 2);
-        return EARTH_RADIUS_KM * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
-    }
-
-    /**
-     * Ghép địa chỉ đầy đủ từ Patient (address + city + country).
-     */
-    private String buildPatientAddress(Patient patient) {
-        StringBuilder sb = new StringBuilder();
-        if (patient == null) {
-            return "";
-        }
-        if (patient.getAddress() != null) sb.append(patient.getAddress());
-        if (patient.getCity()    != null) { if (!sb.isEmpty()) sb.append(", "); sb.append(patient.getCity()); }
-        if (patient.getCountry() != null) { if (!sb.isEmpty()) sb.append(", "); sb.append(patient.getCountry()); }
-        return sb.toString();
-    }
+    // calculateDistanceKm and buildPatientAddress moved to PharmacyServiceHelper
 
     /**
      * Sinh orderNumber dạng ORD-YYYYMMDD-XXXX (4 chữ số ngẫu nhiên,
@@ -1395,48 +1365,7 @@ public class PharmacyOrderServiceImpl implements PharmacyOrderService {
         safeTask.run();
     }
 
-    private String requestTypeOf(PharmacyConsultationRequest request) {
-        String raw = request != null ? request.getRequestType() : null;
-        if (raw == null || raw.isBlank()) {
-            return REQUEST_TYPE_CONSULTATION;
-        }
-        return raw.trim().toUpperCase();
-    }
-
     private String safeValue(String value, String fallback) {
         return value == null || value.isBlank() ? fallback : value;
-    }
-
-    private String trimToNull(String value) {
-        if (value == null) {
-            return null;
-        }
-
-        String trimmed = value.trim();
-        return trimmed.isEmpty() ? null : trimmed;
-    }
-
-    private String firstNonBlank(String primary, String fallback) {
-        String trimmedPrimary = trimToNull(primary);
-        return trimmedPrimary != null ? trimmedPrimary : trimToNull(fallback);
-    }
-
-    private String normalizeDeliveryAddressSource(String source) {
-        String normalized = trimToNull(source);
-        if (normalized == null) {
-            return null;
-        }
-        String upper = normalized.toUpperCase();
-        if (!List.of("DEVICE_LOCATION", "MANUAL", "PROFILE").contains(upper)) {
-            throw new BadRequestException("Unsupported delivery address source: " + upper);
-        }
-        return upper;
-    }
-
-    /**
-     * Map PharmacyOrder entity → PharmacyOrderResponse DTO.
-     */
-    private PharmacyOrderResponse toResponse(PharmacyOrder o) {
-        return PharmacyOrderMapper.toResponse(o);
     }
 }
