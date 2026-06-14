@@ -44,6 +44,8 @@ public class PharmacyOrderResponse {
     private String deliveryAddress;
     private Double deliveryLatitude;
     private Double deliveryLongitude;
+    private String deliveryPhoneNumber;
+    private String deliveryAddressSource;
 
     // --- Amounts (BigDecimal for precision) ---
     private BigDecimal medicineAmount;

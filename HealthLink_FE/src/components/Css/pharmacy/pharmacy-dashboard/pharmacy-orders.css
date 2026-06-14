@@ -1063,3 +1063,20 @@
     box-shadow: 0 0 0 3px var(--pharmacy-primary-soft);
   }
 }
+
+.pharmacy-case-detail.delivery {
+  display: block;
+  margin-top: 3px;
+  color: #495057;
+}
+
+.pharmacy-delivery-snapshot {
+  display: grid;
+  gap: 4px;
+  padding: 10px 12px;
+  margin-bottom: 12px;
+  border: 1px solid #d7e7ff;
+  border-radius: 8px;
+  background: #f5f9ff;
+  font-size: 13px;
+}

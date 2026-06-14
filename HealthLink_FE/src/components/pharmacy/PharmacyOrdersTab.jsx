@@ -192,6 +192,16 @@ export function OrderCaseTable({
       <td>
         <strong>{item.patientName || 'Unknown patient'}</strong>
         <span className="pharmacy-case-detail">{item.symptoms || item.description || ''}</span>
+        {item.deliveryAddress && (
+          <span className="pharmacy-case-detail delivery">
+            <i className="bi bi-geo-alt me-1"></i>{item.deliveryAddress}
+          </span>
+        )}
+        {item.deliveryPhoneNumber && (
+          <span className="pharmacy-case-detail delivery">
+            <i className="bi bi-telephone me-1"></i>{item.deliveryPhoneNumber}
+          </span>
+        )}
       </td>
       <td>
         <span className={`pharmacy-status ${stageClass(item.workflowStage)}`}>
@@ -642,8 +652,8 @@ export default function PharmacyOrdersTab({ workItems, orders, globalSearch, rel
             <option value="7D">Last 7 days</option>
           </select>
           <button className="pharmacy-secondary-action pharmacy-filter-action" onClick={() => {
-            const cols = ['displayId', 'orderNumber', 'patientName', 'workflowStage', 'sourceType', 'totalAmount', 'paymentStatus'];
-            const labelRow = ['Case', 'Order #', 'Patient', 'Stage', 'Source', 'Total', 'Payment'];
+            const cols = ['displayId', 'orderNumber', 'patientName', 'deliveryPhoneNumber', 'deliveryAddress', 'workflowStage', 'sourceType', 'totalAmount', 'paymentStatus'];
+            const labelRow = ['Case', 'Order #', 'Patient', 'Delivery Phone', 'Delivery Address', 'Stage', 'Source', 'Total', 'Payment'];
             const rows = filtered.map((r) => {
               const row = {};
               cols.forEach((col, i) => { row[labelRow[i]] = r[col] ?? ''; });

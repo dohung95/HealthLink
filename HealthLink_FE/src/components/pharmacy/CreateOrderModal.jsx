@@ -279,6 +279,11 @@ export default function CreateOrderModal({ request, profile, onClose, onCreated 
       if (deliveryEnabled) {
         payload.estimatedDeliveryMinutes = estimatedDeliveryMinutes;
       }
+      payload.deliveryAddress = request.deliveryAddress;
+      payload.deliveryLatitude = request.deliveryLatitude;
+      payload.deliveryLongitude = request.deliveryLongitude;
+      payload.deliveryPhoneNumber = request.deliveryPhoneNumber;
+      payload.deliveryAddressSource = request.deliveryAddressSource;
       await pharmacyApi.createOrderFromRequest(request.requestId, payload);
       toast.success('Order created from request.');
       setOrderItems([]);
@@ -438,6 +443,14 @@ export default function CreateOrderModal({ request, profile, onClose, onCreated 
             </div>
 
             <div className="pharmacy-invoice-summary">
+              {request?.deliveryType === 'Delivery' && (
+                <div className="pharmacy-delivery-snapshot">
+                  <strong>Delivery contact</strong>
+                  <span><i className="bi bi-telephone me-1"></i>{request.deliveryPhoneNumber || '-'}</span>
+                  <span><i className="bi bi-geo-alt me-1"></i>{request.deliveryAddress || '-'}</span>
+                </div>
+              )}
+
               <div className="pharmacy-invoice-row">
                 <span>Medications ({orderItems.length} items)</span>
                 <strong>{money(medicationSubtotal)}</strong>

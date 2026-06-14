@@ -38,4 +38,7 @@ public class PharmacyConsultationOrderCreateRequest {
     private String notes;
 
     private String pharmacistNotes;
+
+    private String deliveryPhoneNumber;
+    private String deliveryAddressSource;
 }

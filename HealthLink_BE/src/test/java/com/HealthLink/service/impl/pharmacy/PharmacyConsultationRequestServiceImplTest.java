@@ -327,6 +327,76 @@ class PharmacyConsultationRequestServiceImplTest {
     }
 
     @Test
+    void createRequest_shouldSaveDeliverySnapshotForDeliveryRequest() {
+        User patientUser = User.builder().id("patient-1").phoneNumber("0900000000").build();
+        Patient patient = Patient.builder()
+                .patientId("patient-1")
+                .fullName("Patient One")
+                .user(patientUser)
+                .build();
+        Pharmacy pharmacy = Pharmacy.builder()
+                .pharmacyId("pharmacy-1")
+                .name("Central Pharmacy")
+                .deliveryAvailable(true)
+                .active(true)
+                .verified(true)
+                .build();
+        PharmacyConsultationRequestCreateRequest request = new PharmacyConsultationRequestCreateRequest();
+        request.setPatientId("patient-1");
+        request.setPharmacyId("pharmacy-1");
+        request.setDescription("Need medication review");
+        request.setDeliveryType("Delivery");
+        request.setDeliveryAddress("12 Nguyen Trai, Hanoi");
+        request.setDeliveryLatitude(21.0285);
+        request.setDeliveryLongitude(105.8542);
+        request.setDeliveryPhoneNumber("0912345678");
+        request.setDeliveryAddressSource("MANUAL");
+
+        when(patientRepository.findById("patient-1")).thenReturn(Optional.of(patient));
+        when(pharmacyRepository.findById("pharmacy-1")).thenReturn(Optional.of(pharmacy));
+        when(consultationRequestRepository.save(any(PharmacyConsultationRequest.class)))
+                .thenAnswer(invocation -> invocation.getArgument(0));
+
+        PharmacyConsultationRequestResponse response = consultationRequestService.createRequest(request);
+
+        assertThat(response.getDeliveryType()).isEqualTo("Delivery");
+        assertThat(response.getDeliveryAddress()).isEqualTo("12 Nguyen Trai, Hanoi");
+        assertThat(response.getDeliveryLatitude()).isEqualTo(21.0285);
+        assertThat(response.getDeliveryLongitude()).isEqualTo(105.8542);
+        assertThat(response.getDeliveryPhoneNumber()).isEqualTo("0912345678");
+        assertThat(response.getDeliveryAddressSource()).isEqualTo("MANUAL");
+    }
+
+    @Test
+    void createRequest_shouldRejectDeliveryRequestWithoutPhone() {
+        Patient patient = Patient.builder().patientId("patient-1").fullName("Patient One").build();
+        Pharmacy pharmacy = Pharmacy.builder()
+                .pharmacyId("pharmacy-1")
+                .name("Central Pharmacy")
+                .deliveryAvailable(true)
+                .active(true)
+                .verified(true)
+                .build();
+        PharmacyConsultationRequestCreateRequest request = new PharmacyConsultationRequestCreateRequest();
+        request.setPatientId("patient-1");
+        request.setPharmacyId("pharmacy-1");
+        request.setDescription("Need medication review");
+        request.setDeliveryType("Delivery");
+        request.setDeliveryAddress("12 Nguyen Trai, Hanoi");
+        request.setDeliveryLatitude(21.0285);
+        request.setDeliveryLongitude(105.8542);
+
+        when(patientRepository.findById("patient-1")).thenReturn(Optional.of(patient));
+        when(pharmacyRepository.findById("pharmacy-1")).thenReturn(Optional.of(pharmacy));
+
+        assertThatThrownBy(() -> consultationRequestService.createRequest(request))
+                .isInstanceOf(BadRequestException.class)
+                .hasMessage("Delivery phone number is required for delivery requests");
+
+        verify(consultationRequestRepository, never()).save(any(PharmacyConsultationRequest.class));
+    }
+
+    @Test
     void updateRequestStatus_shouldNotCreateChatRoomForOrderRequest() {
         User patientUser = User.builder().id("patient-user-1").build();
         Patient patient = Patient.builder()

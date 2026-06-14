@@ -22,6 +22,12 @@ public class PharmacyConsultationRequestResponse {
     private String additionalNotes;
     private String preferredDeliveryType;
     private String requestType;
+    private String deliveryType;
+    private String deliveryAddress;
+    private Double deliveryLatitude;
+    private Double deliveryLongitude;
+    private String deliveryPhoneNumber;
+    private String deliveryAddressSource;
     private String status;
     private String chatRoomId;
     private String pharmacyNotes;

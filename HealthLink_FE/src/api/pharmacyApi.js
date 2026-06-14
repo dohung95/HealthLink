@@ -146,6 +146,17 @@ export const pharmacyApi = {
     return response.data || [];
   },
 
+  // ======== Geocoding API ========
+  geocodeAddress: async (address) => {
+    const response = await axiosInstance.post('/api/geocoding/geocode', { address });
+    return response.data;
+  },
+
+  reverseGeocode: async ({ latitude, longitude }) => {
+    const response = await axiosInstance.post('/api/geocoding/reverse', { latitude, longitude });
+    return response.data;
+  },
+
   // ======== Revision & Quote update ========
   requestOrderRevision: async (orderId, payload) => {
     const response = await axiosInstance.post(`/api/pharmacy-orders/${orderId}/request-revision`, payload);

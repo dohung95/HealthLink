@@ -48,6 +48,10 @@ public class PharmacyWorkItemResponse {
     private BigDecimal totalAmount;
     private String deliveryType;
     private String deliveryAddress;
+    private Double deliveryLatitude;
+    private Double deliveryLongitude;
+    private String deliveryPhoneNumber;
+    private String deliveryAddressSource;
     private Integer itemCount;
     private LocalDateTime confirmedAt;
     private LocalDateTime preparingAt;

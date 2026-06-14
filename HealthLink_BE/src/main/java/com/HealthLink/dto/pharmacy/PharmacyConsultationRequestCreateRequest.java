@@ -22,4 +22,10 @@ public class PharmacyConsultationRequestCreateRequest {
     private String additionalNotes;
     private String preferredDeliveryType = "Delivery";
     private String requestType = "CONSULTATION";
+    private String deliveryType;
+    private String deliveryAddress;
+    private Double deliveryLatitude;
+    private Double deliveryLongitude;
+    private String deliveryPhoneNumber;
+    private String deliveryAddressSource;
 }

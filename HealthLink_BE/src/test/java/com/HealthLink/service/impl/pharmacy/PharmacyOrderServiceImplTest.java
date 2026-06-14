@@ -199,10 +199,22 @@ class PharmacyOrderServiceImplTest {
                 .preferredDeliveryType("Delivery")
                 .additionalNotes("Needs delivery after 6 PM")
                 .status("IN_REVIEW")
+                .deliveryType("Delivery")
+                .deliveryAddress("12 Nguyen Trai, Hanoi")
+                .deliveryLatitude(21.0285)
+                .deliveryLongitude(105.8542)
+                .deliveryPhoneNumber("0912345678")
+                .deliveryAddressSource("MANUAL")
                 .build();
 
         PharmacyConsultationOrderCreateRequest request = new PharmacyConsultationOrderCreateRequest();
         request.setItems(List.of(orderItemRequest(1, 2, new BigDecimal("15.00"))));
+        // Explicitly set delivery fields on request (overrides consultation request defaults)
+        request.setDeliveryAddress("12 Nguyen Trai, Hanoi");
+        request.setDeliveryLatitude(40.7130);
+        request.setDeliveryLongitude(-74.0055);
+        request.setDeliveryPhoneNumber("0912345678");
+        request.setDeliveryAddressSource("MANUAL");
         request.setEstimatedDeliveryMinutes(45);
         request.setPaymentMethod("COD");
         request.setPharmacistNotes("Prepared based on consultation");
@@ -245,6 +257,12 @@ class PharmacyOrderServiceImplTest {
         assertThat(response.getMedicineAmount()).isEqualByComparingTo("30.00");
         assertThat(response.getItems()).hasSize(1);
         assertThat(response.getItems().get(0).getTotalPrice()).isEqualByComparingTo("30.00");
+
+        assertThat(response.getDeliveryAddress()).isEqualTo("12 Nguyen Trai, Hanoi");
+        assertThat(response.getDeliveryLatitude()).isEqualTo(40.7130);
+        assertThat(response.getDeliveryLongitude()).isEqualTo(-74.0055);
+        assertThat(response.getDeliveryPhoneNumber()).isEqualTo("0912345678");
+        assertThat(response.getDeliveryAddressSource()).isEqualTo("MANUAL");
     }
 
     @Test

@@ -60,6 +60,12 @@ class PharmacyWorkItemServiceImplTest {
                 .allergies("None")
                 .createdAt(LocalDateTime.now().minusDays(1))
                 .updatedAt(LocalDateTime.now())
+                .deliveryType("Delivery")
+                .deliveryAddress("12 Nguyen Trai, Hanoi")
+                .deliveryLatitude(21.0285)
+                .deliveryLongitude(105.8542)
+                .deliveryPhoneNumber("0912345678")
+                .deliveryAddressSource("MANUAL")
                 .build();
 
         when(requestRepository.findByPharmacy_PharmacyIdOrderByCreatedAtDesc("PH001"))
@@ -79,6 +85,13 @@ class PharmacyWorkItemServiceImplTest {
         assertThat(item.getPatientName()).isEqualTo("Alice");
         assertThat(item.getDisplayId()).isEqualTo("Request #1");
         assertThat(item.getSourceType()).isEqualTo("CONSULTATION_REQUEST");
+
+        assertThat(item.getDeliveryType()).isEqualTo("Delivery");
+        assertThat(item.getDeliveryAddress()).isEqualTo("12 Nguyen Trai, Hanoi");
+        assertThat(item.getDeliveryLatitude()).isEqualTo(21.0285);
+        assertThat(item.getDeliveryLongitude()).isEqualTo(105.8542);
+        assertThat(item.getDeliveryPhoneNumber()).isEqualTo("0912345678");
+        assertThat(item.getDeliveryAddressSource()).isEqualTo("MANUAL");
     }
 
     @Test

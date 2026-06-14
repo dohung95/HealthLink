@@ -36,4 +36,7 @@ public class PharmacyOrderRequest {
 
     /** Ghi chú của dược sĩ (tùy chọn) */
     private String pharmacistNotes;
+
+    private String deliveryPhoneNumber;
+    private String deliveryAddressSource;
 }

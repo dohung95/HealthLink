@@ -48,6 +48,13 @@ public class PharmacyOrder {
     private String deliveryAddress;
     private Double deliveryLatitude;
     private Double deliveryLongitude;
+
+    @Column(length = 30)
+    private String deliveryPhoneNumber;
+
+    @Column(length = 50)
+    private String deliveryAddressSource;
+
     private BigDecimal deliveryFee;
     private BigDecimal medicineAmount;
     private BigDecimal totalAmount;

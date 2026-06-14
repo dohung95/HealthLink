@@ -139,6 +139,12 @@ public class PharmacyOrderServiceImpl implements PharmacyOrderService {
         Double deliveryLat    = request.getDeliveryLatitude();
         Double deliveryLon    = request.getDeliveryLongitude();
 
+        String deliveryPhoneNumber = firstNonBlank(
+                request.getDeliveryPhoneNumber(),
+                patient != null && patient.getUser() != null ? patient.getUser().getPhoneNumber() : null
+        );
+        String deliveryAddressSource = normalizeDeliveryAddressSource(request.getDeliveryAddressSource());
+
         if (DELIVERY_TYPE_DELIVERY.equals(deliveryType)) {
             if (!pharmacy.isDeliveryAvailable()) {
                 throw new BadRequestException("Pharmacy does not support delivery");
@@ -180,6 +186,8 @@ public class PharmacyOrderServiceImpl implements PharmacyOrderService {
                 .deliveryLatitude(deliveryLat)
                 .deliveryLongitude(deliveryLon)
                 .deliveryFee(deliveryFee)
+                .deliveryPhoneNumber(deliveryPhoneNumber)
+                .deliveryAddressSource(deliveryAddressSource)
                 .medicineAmount(medicineAmount)
                 .totalAmount(totalAmount)
                 .orderItems(orderItems)
@@ -231,9 +239,21 @@ public class PharmacyOrderServiceImpl implements PharmacyOrderService {
         );
         BigDecimal deliveryFee = BigDecimal.ZERO;
 
-        String deliveryAddress = trimToNull(request.getDeliveryAddress());
-        Double deliveryLat = request.getDeliveryLatitude();
-        Double deliveryLon = request.getDeliveryLongitude();
+        String deliveryAddress = firstNonBlank(request.getDeliveryAddress(), consultationRequest.getDeliveryAddress());
+        Double deliveryLat = request.getDeliveryLatitude() != null
+                ? request.getDeliveryLatitude()
+                : consultationRequest.getDeliveryLatitude();
+        Double deliveryLon = request.getDeliveryLongitude() != null
+                ? request.getDeliveryLongitude()
+                : consultationRequest.getDeliveryLongitude();
+        String deliveryPhoneNumber = firstNonBlank(
+                request.getDeliveryPhoneNumber(),
+                consultationRequest.getDeliveryPhoneNumber()
+        );
+        String deliveryAddressSource = firstNonBlank(
+                request.getDeliveryAddressSource(),
+                consultationRequest.getDeliveryAddressSource()
+        );
 
         if (DELIVERY_TYPE_DELIVERY.equals(deliveryType)) {
             if (!pharmacy.isDeliveryAvailable()) {
@@ -286,6 +306,8 @@ public class PharmacyOrderServiceImpl implements PharmacyOrderService {
                 .deliveryLatitude(deliveryLat)
                 .deliveryLongitude(deliveryLon)
                 .deliveryFee(actualDeliveryFee)
+                .deliveryPhoneNumber(deliveryPhoneNumber)
+                .deliveryAddressSource(normalizeDeliveryAddressSource(deliveryAddressSource))
                 .medicineAmount(medicineAmount)
                 .totalAmount(totalAmount)
                 .estimatedDeliveryTime(estimatedDeliveryTime)
@@ -1397,6 +1419,18 @@ public class PharmacyOrderServiceImpl implements PharmacyOrderService {
     private String firstNonBlank(String primary, String fallback) {
         String trimmedPrimary = trimToNull(primary);
         return trimmedPrimary != null ? trimmedPrimary : trimToNull(fallback);
+    }
+
+    private String normalizeDeliveryAddressSource(String source) {
+        String normalized = trimToNull(source);
+        if (normalized == null) {
+            return null;
+        }
+        String upper = normalized.toUpperCase();
+        if (!List.of("DEVICE_LOCATION", "MANUAL", "PROFILE").contains(upper)) {
+            throw new BadRequestException("Unsupported delivery address source: " + upper);
+        }
+        return upper;
     }
 
     /**
