@@ -1,24 +1,5 @@
 import axiosInstance from './axiosConfig';
 
-export const ORDER_STATUSES = [
-  'PENDING',
-  'CONFIRMED',
-  'PREPARING',
-  'READY',
-  'SHIPPING',
-  'DELIVERED',
-  'COMPLETED',
-  'CANCELLED',
-  'REFUNDED',
-];
-
-export const CONSULTATION_STATUSES = [
-  'PENDING',
-  'IN_REVIEW',
-  'ORDER_CREATED',
-  'CANCELLED',
-];
-
 export const pharmacyApi = {
   getPublicPharmacies: async (params = {}) => {
     const response = await axiosInstance.get('/api/account/pharmacy/public', { params });

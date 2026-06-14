@@ -1,7 +1,5 @@
 import { useEffect, useState } from 'react';
 
-export const ORDER_TABS = ['ALL', 'PENDING', 'CONFIRMED', 'PREPARING', 'READY', 'SHIPPING', 'DELIVERED', 'CANCELLED'];
-
 export const DEFAULT_STAGE_GROUP = 'NEW_REQUESTS';
 
 export const STAGE_GROUPS = [
@@ -10,20 +8,6 @@ export const STAGE_GROUPS = [
   { key: 'PAYMENT_DUE', label: 'Payment Due', stages: ['AWAITING_PAYMENT', 'PREPARING'] },
   { key: 'DELIVERY', label: 'Delivery', stages: ['READY', 'SHIPPING', 'DELIVERED'] },
   { key: 'HISTORY', label: 'History', stages: ['COMPLETED', 'CANCELLED', 'REFUNDED'] },
-];
-
-export const WORKFLOW_STAGES = [
-  'NEW_REQUEST',
-  'CONSULTING',
-  'REVISION_REQUESTED',
-  'AWAITING_PAYMENT',
-  'PREPARING',
-  'READY',
-  'SHIPPING',
-  'DELIVERED',
-  'COMPLETED',
-  'CANCELLED',
-  'REFUNDED',
 ];
 
 export const STAGE_LABELS = {
@@ -40,24 +24,6 @@ export const STAGE_LABELS = {
   REFUNDED: 'Refunded',
 };
 
-export function getNextActionHint(item) {
-  const actions = item.availableActions || [];
-  const stage = item.workflowStage;
-  if (actions.includes('ACCEPT_REQUEST')) return 'Accept request';
-  if (actions.includes('CREATE_ORDER')) return 'Create order';
-  if (actions.includes('UPDATE_ORDER_STATUS')) {
-    if (item.orderStatus === 'PREPARING') return 'Mark ready';
-    if (item.orderStatus === 'READY') return 'Mark delivered';
-    if (item.orderStatus === 'SHIPPING') return 'Mark delivered';
-    if (item.orderStatus === 'DELIVERED') return 'Mark completed';
-    return 'Update status';
-  }
-  if (actions.includes('CANCEL_ORDER')) return 'Cancel order';
-  if (stage === 'AWAITING_PAYMENT') return 'Waiting for payment';
-  if (stage === 'REVISION_REQUESTED') return 'Revise order';
-  return 'View details';
-}
-
 export function stageClass(stage) {
   const s = stage || '';
   if (['COMPLETED', 'DELIVERED', 'READY'].includes(s)) return 'is-success';
@@ -68,15 +34,6 @@ export function stageClass(stage) {
   return 'is-pending';
 }
 
-export function orderStatusLabel(status) {
-  return titleCase(status);
-}
-export const REQUEST_TABS = [
-  { key: 'PENDING', label: 'Pending' },
-  { key: 'IN_REVIEW', label: 'Accepted' },
-  { key: 'CANCELLED', label: 'Rejected' },
-  { key: 'CONVERTED', label: 'Converted' },
-];
 
 export const routeByTab = {
   overview: '/pharmacy-page',
