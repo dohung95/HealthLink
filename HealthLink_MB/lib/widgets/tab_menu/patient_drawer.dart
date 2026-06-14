@@ -5,7 +5,7 @@ import '../../providers/theme_provider.dart';
 import '../../config/api_config.dart';
 import '../../screens/patient/profile_patient/profile_patient_screen.dart';
 import '../../screens/patient/profile_patient/update_security_screen.dart';
-import '../../screens/health_records/health_records_screen.dart';
+import '../../screens/patient/health_records/health_records_screen.dart';
 import '../../screens/patient/appointments/appointment_screen.dart';
 import '../../screens/patient/patient_prescriptions_screen.dart';
 import '../../screens/chat/chat_list_screen.dart';
