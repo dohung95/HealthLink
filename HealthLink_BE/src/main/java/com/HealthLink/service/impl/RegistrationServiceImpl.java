@@ -132,7 +132,7 @@ public class RegistrationServiceImpl implements RegistrationService {
                 .closeTime(request.getCloseTime())
                 .open24Hours(request.getOpen24Hours())
                 .workingDays(request.getWorkingDays())
-                .deliveryAvailable(request.getDeliveryAvailable())
+                .deliveryAvailable(request.isDeliveryAvailable())
                 .deliveryRadius(request.getDeliveryRadius())
                 .deliveryFee(request.getDeliveryFee())
                 .description(request.getDescription())

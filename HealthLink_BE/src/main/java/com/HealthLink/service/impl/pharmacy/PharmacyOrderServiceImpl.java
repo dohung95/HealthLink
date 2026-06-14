@@ -563,7 +563,7 @@ public class PharmacyOrderServiceImpl implements PharmacyOrderService {
                 ? orderRepository.findByPharmacy_PharmacyIdAndStatus(pharmacyId, status)
                 : orderRepository.findByPharmacy_PharmacyId(pharmacyId);
 
-        return orders.stream().map(this::toResponse).collect(Collectors.toList());
+        return orders.stream().map(PharmacyOrderMapper::toResponse).collect(Collectors.toList());
     }
 
     @Override
@@ -572,14 +572,14 @@ public class PharmacyOrderServiceImpl implements PharmacyOrderService {
         List<PharmacyOrder> orders = (status != null && !status.isBlank())
                 ? orderRepository.findByPatient_PatientIdAndStatus(patientId, status)
                 : orderRepository.findByPatient_PatientId(patientId);
-        return orders.stream().map(this::toResponse).collect(Collectors.toList());
+        return orders.stream().map(PharmacyOrderMapper::toResponse).collect(Collectors.toList());
     }
 
     @Override
     @Transactional(readOnly = true)
     public List<PharmacyOrderResponse> getOrdersByDoctor(String doctorId) {
         return orderRepository.findByPrescriptionHeader_Doctor_DoctorIdOrderByCreatedAtDesc(doctorId)
-                .stream().map(this::toResponse).collect(Collectors.toList());
+                .stream().map(PharmacyOrderMapper::toResponse).collect(Collectors.toList());
     }
 
     @Override

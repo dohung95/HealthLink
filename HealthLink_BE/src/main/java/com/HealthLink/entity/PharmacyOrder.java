@@ -94,7 +94,6 @@ public class PharmacyOrder {
     @ToString.Exclude
     private Invoice invoice;
 
-    @Builder.Default
     private LocalDateTime createdAt;
 
     @Builder.Default
