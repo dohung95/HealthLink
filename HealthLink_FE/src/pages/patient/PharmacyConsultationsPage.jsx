@@ -8,6 +8,14 @@ import pharmacyApi from '../../api/pharmacyApi';
 export default function PharmacyConsultationsPage() {
   const { currentUserId, initiateCall } = useAuth();
   const { openChatWith } = useChat();
+
+  const videoRoomId = useMemo(() =>
+    selected?.chatRoomId || crypto.randomUUID?.() ||
+      Array.from({ length: 45 }, () =>
+        'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789'
+          [Math.floor(Math.random() * 62)]
+      ).join(''),
+  , [selected?.chatRoomId, selected?.requestId]);
   const navigate = useNavigate();
 
   const [requests, setRequests] = useState([]);
@@ -165,12 +173,7 @@ export default function PharmacyConsultationsPage() {
                       </button>
                       <button
                         className="btn btn-outline-success"
-                        onClick={() => {
-                          const roomId = selected.chatRoomId || Array.from({ length: 45 }, () =>
-                            'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789'[Math.floor(Math.random() * 62)]
-                          ).join('');
-                          initiateCall(selected.pharmacyUserId || selected.pharmacyId, roomId, selected.pharmacyName, 'Patient');
-                        }}
+                        onClick={() => initiateCall(selected.pharmacyUserId || selected.pharmacyId, videoRoomId, selected.pharmacyName, 'Patient')}
                       >
                         <i className="bi bi-camera-video-fill me-1"></i> Video Call
                       </button>
