@@ -8,81 +8,9 @@ class PharmacyOrdersListScreen extends StatelessWidget {
     final colorScheme = Theme.of(context).colorScheme;
     final textTheme = Theme.of(context).textTheme;
 
-    return Scaffold(
-      backgroundColor: colorScheme.background,
-
-      // Top App Bar kèm Tabs
-      appBar: AppBar(
-        backgroundColor: colorScheme.surface,
-        elevation: 0,
-        scrolledUnderElevation: 0,
-        titleSpacing: 16.0,
-        title: Text(
-          'HealthLink',
-          style: textTheme.titleLarge?.copyWith(
-            fontWeight: FontWeight.bold,
-            color: colorScheme.primary,
-          ),
-        ),
-        actions: [
-          IconButton(
-            icon: const Icon(Icons.notifications_outlined),
-            color: colorScheme.onSurfaceVariant,
-            onPressed: () {},
-          ),
-          Padding(
-            padding: const EdgeInsets.only(right: 16.0, left: 8.0),
-            child: Container(
-              width: 32,
-              height: 32,
-              decoration: BoxDecoration(
-                shape: BoxShape.circle,
-                color: colorScheme.surfaceVariant,
-                border: Border.all(color: colorScheme.outlineVariant),
-              ),
-              child: ClipRRect(
-                borderRadius: BorderRadius.circular(16),
-                child: Image.asset(
-                  'assets/images/doctor_avatar.png', // Thay ảnh user
-                  fit: BoxFit.cover,
-                  errorBuilder: (context, error, stackTrace) =>
-                      Icon(Icons.person, size: 20, color: colorScheme.outline),
-                ),
-              ),
-            ),
-          ),
-        ],
-        bottom: PreferredSize(
-          preferredSize: const Size.fromHeight(48),
-          child: Container(
-            width: double.infinity,
-            decoration: BoxDecoration(
-              border: Border(bottom: BorderSide(color: colorScheme.surfaceVariant)),
-            ),
-            child: Center(
-              child: ConstrainedBox(
-                constraints: const BoxConstraints(maxWidth: 768),
-                child: SingleChildScrollView(
-                  scrollDirection: Axis.horizontal,
-                  padding: const EdgeInsets.symmetric(horizontal: 16.0),
-                  child: Row(
-                    children: [
-                      _buildTopTab('Dashboard', isActive: false, colorScheme: colorScheme, textTheme: textTheme),
-                      const SizedBox(width: 32),
-                      _buildTopTab('Orders', isActive: true, colorScheme: colorScheme, textTheme: textTheme),
-                      const SizedBox(width: 32),
-                      _buildTopTab('Pharmacy', isActive: false, colorScheme: colorScheme, textTheme: textTheme),
-                    ],
-                  ),
-                ),
-              ),
-            ),
-          ),
-        ),
-      ),
-
-      // Nội dung chính
-      body: SingleChildScrollView(
+    return Container(
+      color: colorScheme.background,
+      child: SingleChildScrollView(
         padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 24.0), // px-margin-mobile py-lg
         child: Center(
           child: Container(

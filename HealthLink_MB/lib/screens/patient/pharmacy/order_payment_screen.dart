@@ -1,35 +1,18 @@
 import 'package:flutter/material.dart';
 
 class OrderPaymentScreen extends StatelessWidget {
-  const OrderPaymentScreen({super.key});
+  final VoidCallback? onPreviousStep;
+
+  const OrderPaymentScreen({super.key, this.onPreviousStep});
 
   @override
   Widget build(BuildContext context) {
     final colorScheme = Theme.of(context).colorScheme;
     final textTheme = Theme.of(context).textTheme;
 
-    return Scaffold(
-      backgroundColor: colorScheme.background,
-
-      // Top App Bar
-      appBar: AppBar(
-        backgroundColor: colorScheme.surface.withOpacity(0.9), // Kính mờ (glass-header)
-        elevation: 0,
-        scrolledUnderElevation: 0,
-        leading: IconButton(
-          icon: Icon(Icons.arrow_back, color: colorScheme.primary),
-          onPressed: () => Navigator.pop(context),
-        ),
-        title: Text(
-          'Order Prescription',
-          style: textTheme.titleLarge?.copyWith(
-            fontWeight: FontWeight.w600,
-            color: colorScheme.onSurface,
-          ),
-        ),
-      ),
-
-      body: SingleChildScrollView(
+    return Container(
+      color: colorScheme.background,
+      child: SingleChildScrollView(
         padding: const EdgeInsets.symmetric(horizontal: 20.0, vertical: 24.0),
         child: Center(
           child: Container(
@@ -37,9 +20,7 @@ class OrderPaymentScreen extends StatelessWidget {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                // --- 1. Progress Wizard ---
-                _buildProgressWizard(colorScheme, textTheme),
-                const SizedBox(height: 32), // mb-xl
+                const SizedBox(height: 16),
 
                 // --- 2. Header Information ---
                 Row(
@@ -243,6 +224,18 @@ class OrderPaymentScreen extends StatelessWidget {
                   label: const Text('Cancel Order', style: TextStyle(fontWeight: FontWeight.w600)),
                 ),
 
+                const SizedBox(height: 8),
+
+                TextButton.icon(
+                  style: TextButton.styleFrom(
+                    foregroundColor: colorScheme.outline,
+                    minimumSize: const Size(double.infinity, 56),
+                  ),
+                  onPressed: onPreviousStep,
+                  icon: const Icon(Icons.arrow_back),
+                  label: const Text('Back to Connection', style: TextStyle(fontWeight: FontWeight.w600)),
+                ),
+
                 const SizedBox(height: 48), // Spacing đáy
               ],
             ),
@@ -252,72 +245,7 @@ class OrderPaymentScreen extends StatelessWidget {
     );
   }
 
-  // --- Hỗ trợ: Thanh tiến trình (Progress Wizard) ---
-  Widget _buildProgressWizard(ColorScheme colorScheme, TextTheme textTheme) {
-    return Row(
-      children: [
-        _buildStepNode(label: 'Prescription', isCompleted: true, isActive: false, stepNum: '1', colorScheme: colorScheme),
-        _buildLine(isCompleted: true, colorScheme: colorScheme),
-        _buildStepNode(label: 'Pharmacy', isCompleted: true, isActive: false, stepNum: '2', colorScheme: colorScheme),
-        _buildLine(isCompleted: true, colorScheme: colorScheme),
-        _buildStepNode(label: 'Connect', isCompleted: true, isActive: false, stepNum: '3', colorScheme: colorScheme),
-        _buildLine(isCompleted: false, colorScheme: colorScheme), // Line xám (Chưa thanh toán xong)
-        _buildStepNode(label: 'Payment', isCompleted: false, isActive: true, stepNum: '4', colorScheme: colorScheme, isPulsing: true),
-      ],
-    );
-  }
 
-  Widget _buildStepNode({required String label, required bool isCompleted, required bool isActive, required String stepNum, required ColorScheme colorScheme, bool isPulsing = false}) {
-    Color bgColor = colorScheme.surfaceVariant.withOpacity(0.5);
-    Color textColor = colorScheme.outline;
-    BoxBorder? border;
-
-    if (isCompleted) {
-      bgColor = colorScheme.primary;
-      textColor = colorScheme.onPrimary;
-    } else if (isActive) {
-      bgColor = colorScheme.primaryContainer;
-      textColor = colorScheme.primary;
-      border = Border.all(color: colorScheme.primaryContainer.withOpacity(0.5), width: 4); // Fake pulse ring
-    }
-
-    return Column(
-      children: [
-        Container(
-          width: 40, height: 40,
-          decoration: BoxDecoration(
-            color: bgColor,
-            shape: BoxShape.circle,
-            border: border,
-          ),
-          child: Center(
-            child: isCompleted
-                ? Icon(Icons.check, color: textColor, size: 20)
-                : Text(stepNum, style: TextStyle(color: textColor, fontWeight: FontWeight.bold, fontSize: 16)),
-          ),
-        ),
-        const SizedBox(height: 8),
-        Text(
-          label,
-          style: TextStyle(
-            fontSize: 11,
-            fontWeight: (isCompleted || isActive) ? FontWeight.bold : FontWeight.w500,
-            color: (isCompleted) ? colorScheme.onSurface : (isActive ? colorScheme.primary : colorScheme.outline),
-          ),
-        ),
-      ],
-    );
-  }
-
-  Widget _buildLine({required bool isCompleted, required ColorScheme colorScheme}) {
-    return Expanded(
-      child: Container(
-        height: 2,
-        margin: const EdgeInsets.only(bottom: 24), // Đẩy line lên giữa vòng tròn
-        color: isCompleted ? colorScheme.primary : colorScheme.surfaceVariant,
-      ),
-    );
-  }
 
   // --- Hỗ trợ: Hiển thị trường thông tin chi tiết ---
   Widget _buildDetailField(String label, String value, ColorScheme colorScheme, TextTheme textTheme) {

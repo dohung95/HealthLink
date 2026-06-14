@@ -1,7 +1,10 @@
 import 'package:flutter/material.dart';
 
 class SelectPharmacyScreen extends StatefulWidget {
-  const SelectPharmacyScreen({super.key});
+  final VoidCallback? onNextStep;
+  final VoidCallback? onPreviousStep;
+
+  const SelectPharmacyScreen({super.key, this.onNextStep, this.onPreviousStep});
 
   @override
   State<SelectPharmacyScreen> createState() => _SelectPharmacyScreenState();
@@ -16,28 +19,9 @@ class _SelectPharmacyScreenState extends State<SelectPharmacyScreen> {
     final colorScheme = Theme.of(context).colorScheme;
     final textTheme = Theme.of(context).textTheme;
 
-    return Scaffold(
-      backgroundColor: colorScheme.background,
-
-      // Top App Bar
-      appBar: AppBar(
-        backgroundColor: colorScheme.surface.withOpacity(0.9), // Tương đương glass-header
-        elevation: 0,
-        scrolledUnderElevation: 0,
-        leading: IconButton(
-          icon: Icon(Icons.arrow_back, color: colorScheme.primary),
-          onPressed: () => Navigator.pop(context),
-        ),
-        title: Text(
-          'Order Prescription',
-          style: textTheme.titleLarge?.copyWith(
-            fontWeight: FontWeight.w600,
-            color: colorScheme.onSurface,
-          ),
-        ),
-      ),
-
-      body: SingleChildScrollView(
+    return Container(
+      color: colorScheme.background,
+      child: SingleChildScrollView(
         padding: const EdgeInsets.only(left: 20.0, right: 20.0, top: 16.0, bottom: 48.0), // px-container-margin mt-md
         child: Center(
           child: Container(
@@ -45,10 +29,6 @@ class _SelectPharmacyScreenState extends State<SelectPharmacyScreen> {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                // --- 1. Progress Wizard ---
-                _buildProgressWizard(colorScheme, textTheme),
-                const SizedBox(height: 24), // space-y-lg
-
                 // --- 2. Search and Filter ---
                 _buildSearchAndFilter(colorScheme, textTheme),
                 const SizedBox(height: 24),
@@ -89,97 +69,31 @@ class _SelectPharmacyScreenState extends State<SelectPharmacyScreen> {
 
                 // --- 4. Map Preview Placeholder ---
                 _buildMapPreview(colorScheme, textTheme),
+                const SizedBox(height: 24),
+                
+                // Action Buttons
+                Row(
+                  children: [
+                    Expanded(
+                      child: OutlinedButton(
+                        onPressed: widget.onPreviousStep,
+                        child: const Text('Back'),
+                      ),
+                    ),
+                    const SizedBox(width: 16),
+                    Expanded(
+                      child: FilledButton(
+                        onPressed: widget.onNextStep,
+                        child: const Text('Select / Consult'),
+                      ),
+                    ),
+                  ],
+                ),
               ],
             ),
           ),
         ),
       ),
-    );
-  }
-
-  // --- Widget: Thanh tiến trình (Progress Wizard) ---
-  Widget _buildProgressWizard(ColorScheme colorScheme, TextTheme textTheme) {
-    return Padding(
-      padding: const EdgeInsets.symmetric(vertical: 16.0),
-      child: Stack(
-        alignment: Alignment.center,
-        children: [
-          // Đường kẻ nền (Màu xám)
-          Positioned(
-            left: 16,
-            right: 16,
-            child: Container(height: 2, color: colorScheme.outlineVariant),
-          ),
-          // Đường kẻ đang chạy (Màu primary) - Chạy từ step 1 đến step 2
-          Positioned(
-            left: 16,
-            right: MediaQuery.of(context).size.width * 0.6, // Tạm tính chiếm khoảng 1/3
-            child: Container(height: 2, color: colorScheme.primary),
-          ),
-
-          // Các Step
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: [
-              // Step 1: Hoàn thành
-              _buildStepItem('1', 'Prescription', isCompleted: true, isActive: false, colorScheme: colorScheme, textTheme: textTheme),
-              // Step 2: Đang thực hiện
-              _buildStepItem('2', 'Pharmacy', isCompleted: false, isActive: true, colorScheme: colorScheme, textTheme: textTheme),
-              // Step 3: Chưa tới
-              _buildStepItem('3', 'Connect', isCompleted: false, isActive: false, colorScheme: colorScheme, textTheme: textTheme),
-              // Step 4: Chưa tới
-              _buildStepItem('4', 'Payment', isCompleted: false, isActive: false, colorScheme: colorScheme, textTheme: textTheme),
-            ],
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildStepItem(String step, String title, {required bool isCompleted, required bool isActive, required ColorScheme colorScheme, required TextTheme textTheme}) {
-    Color circleColor;
-    Color textColor;
-    Color iconColor;
-
-    if (isCompleted) {
-      circleColor = colorScheme.primary;
-      textColor = colorScheme.primary;
-      iconColor = colorScheme.onPrimary;
-    } else if (isActive) {
-      circleColor = colorScheme.primary;
-      textColor = colorScheme.primary;
-      iconColor = colorScheme.onPrimary;
-    } else {
-      circleColor = colorScheme.surfaceVariant; // Dùng thay thế cho surface-container-highest
-      textColor = colorScheme.outline; // Dùng thay cho secondary để tương phản tốt hơn
-      iconColor = colorScheme.outline;
-    }
-
-    return Column(
-      children: [
-        Container(
-          width: 32,
-          height: 32,
-          decoration: BoxDecoration(
-            color: circleColor,
-            shape: BoxShape.circle,
-            border: isActive ? Border.all(color: colorScheme.primaryContainer, width: 4) : null,
-          ),
-          child: Center(
-            child: isCompleted
-                ? Icon(Icons.check, color: iconColor, size: 20)
-                : Text(step, style: TextStyle(color: iconColor, fontWeight: FontWeight.bold, fontSize: 14)),
-          ),
-        ),
-        const SizedBox(height: 4),
-        Text(
-          title,
-          style: textTheme.labelMedium?.copyWith(
-            color: textColor,
-            fontWeight: isCompleted || isActive ? FontWeight.bold : FontWeight.normal,
-          ),
-        ),
-      ],
     );
   }
 
@@ -408,7 +322,7 @@ class _SelectPharmacyScreenState extends State<SelectPharmacyScreen> {
                   ),
                 ),
                 onPressed: () {
-                  // Xử lý khi nhấn Select / Consult
+                  widget.onNextStep?.call();
                 },
                 child: Text(
                   isFullyStocked ? 'Select' : 'Consult',

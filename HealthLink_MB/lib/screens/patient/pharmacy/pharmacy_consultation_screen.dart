@@ -1,7 +1,37 @@
 import 'package:flutter/material.dart';
+import 'select_pharmacy_screen.dart';
+import 'consultation_requests.dart';
+import 'pharmacy_orders_list_screen.dart';
+import 'connecting_pharmacy_screen.dart';
+import 'order_payment_screen.dart';
 
-class PharmacyConsultationScreen extends StatelessWidget {
+class PharmacyConsultationScreen extends StatefulWidget {
   const PharmacyConsultationScreen({super.key});
+
+  @override
+  State<PharmacyConsultationScreen> createState() => _PharmacyConsultationScreenState();
+}
+
+class _PharmacyConsultationScreenState extends State<PharmacyConsultationScreen> {
+  int _selectedIndex = 0;
+  late PageController _pageController;
+  
+  int _currentWizardStep = 0;
+  late PageController _wizardPageController;
+
+  @override
+  void initState() {
+    super.initState();
+    _pageController = PageController(initialPage: _selectedIndex);
+    _wizardPageController = PageController(initialPage: _currentWizardStep);
+  }
+
+  @override
+  void dispose() {
+    _pageController.dispose();
+    _wizardPageController.dispose();
+    super.dispose();
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -42,11 +72,17 @@ class PharmacyConsultationScreen extends StatelessWidget {
                   padding: const EdgeInsets.symmetric(horizontal: 16.0),
                   child: Row(
                     children: [
-                      _buildTopTab('Pharmacies', isActive: true, colorScheme: colorScheme, textTheme: textTheme),
+                      _buildTopTab('Pharmacies', isActive: _selectedIndex == 0, colorScheme: colorScheme, textTheme: textTheme, onTap: () {
+                        _pageController.animateToPage(0, duration: const Duration(milliseconds: 300), curve: Curves.easeInOut);
+                      }),
                       const SizedBox(width: 32),
-                      _buildTopTab('Requests', isActive: false, colorScheme: colorScheme, textTheme: textTheme),
+                      _buildTopTab('Requests', isActive: _selectedIndex == 1, colorScheme: colorScheme, textTheme: textTheme, onTap: () {
+                        _pageController.animateToPage(1, duration: const Duration(milliseconds: 300), curve: Curves.easeInOut);
+                      }),
                       const SizedBox(width: 32),
-                      _buildTopTab('Orders', isActive: false, colorScheme: colorScheme, textTheme: textTheme),
+                      _buildTopTab('Orders', isActive: _selectedIndex == 2, colorScheme: colorScheme, textTheme: textTheme, onTap: () {
+                        _pageController.animateToPage(2, duration: const Duration(milliseconds: 300), curve: Curves.easeInOut);
+                      }),
                     ],
                   ),
                 ),
@@ -56,17 +92,79 @@ class PharmacyConsultationScreen extends StatelessWidget {
         ),
       ),
 
-      body: SingleChildScrollView(
-        padding: const EdgeInsets.symmetric(horizontal: 20.0, vertical: 32.0), // py-lg md:py-xl
+      body: PageView(
+        controller: _pageController,
+        physics: const BouncingScrollPhysics(),
+        onPageChanged: (index) {
+          setState(() {
+            _selectedIndex = index;
+          });
+        },
+        children: [
+          _KeepAlivePage(child: _buildPharmacyWizard(context, colorScheme, textTheme)),
+          const _KeepAlivePage(child: ConsultationRequestsScreen()),
+          const _KeepAlivePage(child: PharmacyOrdersListScreen()),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildPharmacyWizard(BuildContext context, ColorScheme colorScheme, TextTheme textTheme) {
+    return Column(
+      children: [
+        Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 20.0, vertical: 16.0),
+          child: _buildProgressStepper(colorScheme, textTheme),
+        ),
+        Expanded(
+          child: PageView(
+            controller: _wizardPageController,
+            physics: const NeverScrollableScrollPhysics(), // Vô hiệu hóa vuốt bằng tay
+            onPageChanged: (index) {
+              setState(() {
+                _currentWizardStep = index;
+              });
+            },
+            children: [
+              _buildPrescriptionStepBody(context, colorScheme, textTheme),
+              SelectPharmacyScreen(
+                onNextStep: () {
+                  _wizardPageController.nextPage(duration: const Duration(milliseconds: 300), curve: Curves.easeInOut);
+                },
+                onPreviousStep: () {
+                  _wizardPageController.previousPage(duration: const Duration(milliseconds: 300), curve: Curves.easeInOut);
+                },
+              ),
+              ConnectingPharmacyScreen(
+                onNextStep: () {
+                  _wizardPageController.nextPage(duration: const Duration(milliseconds: 300), curve: Curves.easeInOut);
+                },
+                onPreviousStep: () {
+                  _wizardPageController.previousPage(duration: const Duration(milliseconds: 300), curve: Curves.easeInOut);
+                },
+              ),
+              OrderPaymentScreen(
+                onPreviousStep: () {
+                  _wizardPageController.previousPage(duration: const Duration(milliseconds: 300), curve: Curves.easeInOut);
+                },
+              ),
+            ],
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildPrescriptionStepBody(BuildContext context, ColorScheme colorScheme, TextTheme textTheme) {
+    return SingleChildScrollView(
+        padding: const EdgeInsets.symmetric(horizontal: 20.0, vertical: 16.0), // py-lg md:py-xl
         child: Center(
           child: Container(
             constraints: const BoxConstraints(maxWidth: 768), // max-w-3xl
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.center,
               children: [
-                // --- 1. Progress Stepper ---
-                _buildProgressStepper(colorScheme, textTheme),
-                const SizedBox(height: 48), // mb-xl
+                const SizedBox(height: 16),
 
                 // --- 2. Header Section ---
                 Text(
@@ -155,7 +253,7 @@ class PharmacyConsultationScreen extends StatelessWidget {
                       }),
                     ),
                     onPressed: () {
-                      // Xử lý khi nhấn bỏ qua
+                      _wizardPageController.nextPage(duration: const Duration(milliseconds: 300), curve: Curves.easeInOut);
                     },
                     child: Row(
                       mainAxisAlignment: MainAxisAlignment.center,
@@ -176,90 +274,101 @@ class PharmacyConsultationScreen extends StatelessWidget {
                 ),
               ],
             ),
-          ),
         ),
       ),
     );
   }
 
   // --- Widget hỗ trợ: Top Navigation Tab ---
-  Widget _buildTopTab(String title, {required bool isActive, required ColorScheme colorScheme, required TextTheme textTheme}) {
-    return Container(
-      padding: const EdgeInsets.only(bottom: 12),
-      decoration: BoxDecoration(
-        border: Border(
-          bottom: BorderSide(
-            color: isActive ? colorScheme.primary : Colors.transparent,
-            width: 2,
+  Widget _buildTopTab(String title, {required bool isActive, required ColorScheme colorScheme, required TextTheme textTheme, VoidCallback? onTap}) {
+    return GestureDetector(
+      onTap: onTap,
+      child: Container(
+        padding: const EdgeInsets.only(bottom: 12),
+        decoration: BoxDecoration(
+          border: Border(
+            bottom: BorderSide(
+              color: isActive ? colorScheme.primary : Colors.transparent,
+              width: 2,
+            ),
           ),
         ),
-      ),
-      child: Text(
-        title,
-        style: textTheme.titleMedium?.copyWith(
-          color: isActive ? colorScheme.primary : colorScheme.onSurfaceVariant,
-          fontWeight: isActive ? FontWeight.w600 : FontWeight.w500,
+        child: Text(
+          title,
+          style: textTheme.titleMedium?.copyWith(
+            color: isActive ? colorScheme.primary : colorScheme.onSurfaceVariant,
+            fontWeight: isActive ? FontWeight.w600 : FontWeight.w500,
+          ),
         ),
       ),
     );
   }
 
-  // --- Widget hỗ trợ: Progress Stepper ---
   Widget _buildProgressStepper(ColorScheme colorScheme, TextTheme textTheme) {
     return Stack(
       alignment: Alignment.center,
       children: [
-        // Đường line xám nằm dưới
         Positioned(
-          left: 0,
-          right: 0,
+          left: 16,
+          right: 16,
           child: Container(height: 2, color: colorScheme.surfaceVariant),
         ),
-        // Các Node của Stepper
+        Positioned(
+          left: 16,
+          right: MediaQuery.of(context).size.width - 16 - (MediaQuery.of(context).size.width - 32) * ((_currentWizardStep + 1) / 4),
+          child: AnimatedContainer(
+            duration: const Duration(milliseconds: 300),
+            height: 2,
+            color: colorScheme.primary,
+          ),
+        ),
         Row(
           mainAxisAlignment: MainAxisAlignment.spaceBetween,
           children: [
-            _buildStepperNode('1', 'Prescription', isActive: true, colorScheme: colorScheme, textTheme: textTheme),
-            _buildStepperNode('2', 'Pharmacy', isActive: false, colorScheme: colorScheme, textTheme: textTheme),
-            _buildStepperNode('3', 'Review', isActive: false, colorScheme: colorScheme, textTheme: textTheme),
-            _buildStepperNode('4', 'Confirm', isActive: false, colorScheme: colorScheme, textTheme: textTheme),
+            _buildStepperNode('1', 'Prescription', isCompleted: _currentWizardStep >= 0, isActive: _currentWizardStep == 0, colorScheme: colorScheme, textTheme: textTheme),
+            _buildStepperNode('2', 'Pharmacy', isCompleted: _currentWizardStep >= 1, isActive: _currentWizardStep == 1, colorScheme: colorScheme, textTheme: textTheme),
+            _buildStepperNode('3', 'Connect', isCompleted: _currentWizardStep >= 2, isActive: _currentWizardStep == 2, colorScheme: colorScheme, textTheme: textTheme),
+            _buildStepperNode('4', 'Payment', isCompleted: _currentWizardStep >= 3, isActive: _currentWizardStep == 3, colorScheme: colorScheme, textTheme: textTheme),
           ],
         ),
       ],
     );
   }
 
-  Widget _buildStepperNode(String stepNum, String label, {required bool isActive, required ColorScheme colorScheme, required TextTheme textTheme}) {
-    final bgColor = isActive ? colorScheme.primary : colorScheme.surfaceVariant;
-    final textColor = isActive ? colorScheme.onPrimary : colorScheme.onSurfaceVariant;
-    final labelColor = isActive ? colorScheme.primary : colorScheme.onSurfaceVariant;
+  Widget _buildStepperNode(String stepNum, String label, {required bool isCompleted, required bool isActive, required ColorScheme colorScheme, required TextTheme textTheme}) {
+    final bgColor = isCompleted || isActive ? colorScheme.primary : colorScheme.surfaceVariant;
+    final textColor = isCompleted || isActive ? colorScheme.onPrimary : colorScheme.onSurfaceVariant;
+    final labelColor = isCompleted || isActive ? colorScheme.primary : colorScheme.onSurfaceVariant;
 
     return Container(
-      color: colorScheme.background, // Tạo background để che đi đường line xám (giống lớp px-2 bg-background trong HTML)
+      color: colorScheme.background,
       padding: const EdgeInsets.symmetric(horizontal: 8),
       child: Column(
         children: [
-          Container(
+          AnimatedContainer(
+            duration: const Duration(milliseconds: 300),
             width: 32,
             height: 32,
             decoration: BoxDecoration(
               color: bgColor,
               shape: BoxShape.circle,
               boxShadow: isActive ? [BoxShadow(color: Colors.black.withOpacity(0.05), blurRadius: 4)] : [],
+              border: isActive ? Border.all(color: colorScheme.primaryContainer, width: 4) : null,
             ),
             child: Center(
-              child: Text(
-                stepNum,
-                style: TextStyle(
-                  color: textColor,
-                  fontWeight: FontWeight.bold,
-                  fontSize: 14,
-                ),
-              ),
+              child: isCompleted && !isActive
+                  ? Icon(Icons.check, color: textColor, size: 20)
+                  : Text(
+                      stepNum,
+                      style: TextStyle(
+                        color: textColor,
+                        fontWeight: FontWeight.bold,
+                        fontSize: 14,
+                      ),
+                    ),
             ),
           ),
           const SizedBox(height: 8),
-          // Chỉ ẩn label trên mobile nếu cần thiết, trong Flutter ta để nguyên hoặc bọc MediaQuery
           Text(
             label,
             style: textTheme.labelMedium?.copyWith(
@@ -270,5 +379,26 @@ class PharmacyConsultationScreen extends StatelessWidget {
         ],
       ),
     );
+  }
+}
+
+// --- Widget hỗ trợ: Giữ trạng thái của các tab ---
+class _KeepAlivePage extends StatefulWidget {
+  final Widget child;
+
+  const _KeepAlivePage({required this.child});
+
+  @override
+  State<_KeepAlivePage> createState() => _KeepAlivePageState();
+}
+
+class _KeepAlivePageState extends State<_KeepAlivePage> with AutomaticKeepAliveClientMixin {
+  @override
+  bool get wantKeepAlive => true;
+
+  @override
+  Widget build(BuildContext context) {
+    super.build(context);
+    return widget.child;
   }
 }

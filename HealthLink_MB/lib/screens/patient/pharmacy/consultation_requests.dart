@@ -8,76 +8,9 @@ class ConsultationRequestsScreen extends StatelessWidget {
     final colorScheme = Theme.of(context).colorScheme;
     final textTheme = Theme.of(context).textTheme;
 
-    return Scaffold(
-      backgroundColor: colorScheme.surface,
-
-      // Top App Bar kèm Secondary Nav (Tabs)
-      appBar: AppBar(
-        backgroundColor: colorScheme.surface,
-        elevation: 0,
-        scrolledUnderElevation: 0,
-        titleSpacing: 0,
-        leading: Padding(
-          padding: const EdgeInsets.all(8.0),
-          child: Container(
-            decoration: BoxDecoration(
-              shape: BoxShape.circle,
-              color: colorScheme.surfaceVariant.withOpacity(0.5),
-              border: Border.all(color: colorScheme.outlineVariant),
-            ),
-            child: ClipRRect(
-              borderRadius: BorderRadius.circular(100),
-              child: Image.asset(
-                'assets/images/doctor_avatar.png', // Thay thế bằng ảnh của bạn
-                fit: BoxFit.cover,
-                errorBuilder: (context, error, stackTrace) =>
-                    Icon(Icons.person, color: colorScheme.outline),
-              ),
-            ),
-          ),
-        ),
-        title: Text(
-          'HealthLink',
-          style: textTheme.titleLarge?.copyWith(
-            fontWeight: FontWeight.bold,
-            color: colorScheme.primary,
-          ),
-        ),
-        actions: [
-          IconButton(
-            icon: const Icon(Icons.notifications_outlined),
-            color: colorScheme.onSurfaceVariant,
-            onPressed: () {},
-          ),
-          const SizedBox(width: 8),
-        ],
-        bottom: PreferredSize(
-          preferredSize: const Size.fromHeight(48),
-          child: Container(
-            width: double.infinity,
-            decoration: BoxDecoration(
-              border: Border(bottom: BorderSide(color: colorScheme.surfaceVariant.withOpacity(0.5))),
-            ),
-            child: Center(
-              child: ConstrainedBox(
-                constraints: const BoxConstraints(maxWidth: 768),
-                child: Padding(
-                  padding: const EdgeInsets.symmetric(horizontal: 16.0),
-                  child: Row(
-                    children: [
-                      _buildTopTab('Requests', isActive: true, colorScheme: colorScheme, textTheme: textTheme),
-                      const SizedBox(width: 24),
-                      _buildTopTab('History', isActive: false, colorScheme: colorScheme, textTheme: textTheme),
-                    ],
-                  ),
-                ),
-              ),
-            ),
-          ),
-        ),
-      ),
-
-      body: Center(
+    return Container(
+      color: colorScheme.surface,
+      child: Center(
         child: Container(
           constraints: const BoxConstraints(maxWidth: 768),
           child: ListView(

@@ -2,7 +2,10 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 
 class ConnectingPharmacyScreen extends StatefulWidget {
-  const ConnectingPharmacyScreen({super.key});
+  final VoidCallback? onNextStep;
+  final VoidCallback? onPreviousStep;
+
+  const ConnectingPharmacyScreen({super.key, this.onNextStep, this.onPreviousStep});
 
   @override
   State<ConnectingPharmacyScreen> createState() => _ConnectingPharmacyScreenState();
@@ -57,28 +60,9 @@ class _ConnectingPharmacyScreenState extends State<ConnectingPharmacyScreen> wit
     final colorScheme = Theme.of(context).colorScheme;
     final textTheme = Theme.of(context).textTheme;
 
-    return Scaffold(
-      backgroundColor: colorScheme.background,
-
-      // --- Top App Bar ---
-      appBar: AppBar(
-        backgroundColor: colorScheme.surface,
-        elevation: 0,
-        scrolledUnderElevation: 0,
-        leading: IconButton(
-          icon: Icon(Icons.arrow_back, color: colorScheme.primary),
-          onPressed: () => Navigator.pop(context),
-        ),
-        title: Text(
-          'Order Prescription',
-          style: textTheme.titleLarge?.copyWith(
-            fontWeight: FontWeight.w600,
-            color: colorScheme.onSurface,
-          ),
-        ),
-      ),
-
-      body: SingleChildScrollView(
+    return Container(
+      color: colorScheme.background,
+      child: SingleChildScrollView(
         padding: const EdgeInsets.symmetric(horizontal: 20.0, vertical: 16.0),
         child: Center(
           child: Container(
@@ -86,9 +70,7 @@ class _ConnectingPharmacyScreenState extends State<ConnectingPharmacyScreen> wit
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                // --- 1. Progress Wizard ---
-                _buildProgressWizard(colorScheme, textTheme),
-                const SizedBox(height: 32),
+                const SizedBox(height: 16),
 
                 // --- 2. Status Card ---
                 _buildStatusCard(colorScheme, textTheme),
@@ -110,72 +92,6 @@ class _ConnectingPharmacyScreenState extends State<ConnectingPharmacyScreen> wit
           ),
         ),
       ),
-
-      // --- Bottom Navigation Bar ---
-      bottomNavigationBar: _buildBottomNavBar(colorScheme),
-    );
-  }
-
-  // --- Widget: Progress Wizard ngang ---
-  Widget _buildProgressWizard(ColorScheme colorScheme, TextTheme textTheme) {
-    return Stack(
-      alignment: Alignment.center,
-      children: [
-        // Thanh nền xám ngang
-        Positioned(
-          left: 16, right: 16, top: 16,
-          child: Container(height: 2, color: colorScheme.surfaceVariant.withOpacity(0.5)),
-        ),
-        // Thanh tiến độ đã chạy (Đến bước 3)
-        Positioned(
-          left: 16, right: MediaQuery.of(context).size.width * 0.5, top: 16,
-          child: Container(height: 2, color: colorScheme.primary),
-        ),
-
-        Row(
-          mainAxisAlignment: MainAxisAlignment.spaceBetween,
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            _buildStepNode(label: 'Prescription', isCompleted: true, isActive: false, stepNum: '1', colorScheme: colorScheme, textTheme: textTheme),
-            _buildStepNode(label: 'Pharmacy', isCompleted: true, isActive: false, stepNum: '2', colorScheme: colorScheme, textTheme: textTheme),
-            _buildStepNode(label: 'Connect', isCompleted: false, isActive: true, stepNum: '3', colorScheme: colorScheme, textTheme: textTheme),
-            _buildStepNode(label: 'Payment', isCompleted: false, isActive: false, stepNum: '4', colorScheme: colorScheme, textTheme: textTheme),
-          ],
-        ),
-      ],
-    );
-  }
-
-  Widget _buildStepNode({required String label, required bool isCompleted, required bool isActive, required String stepNum, required ColorScheme colorScheme, required TextTheme textTheme}) {
-    return Column(
-      children: [
-        Container(
-          width: 32, height: 32,
-          decoration: BoxDecoration(
-            shape: BoxShape.circle,
-            color: isCompleted
-                ? colorScheme.primary
-                : (isActive ? colorScheme.surface : colorScheme.surfaceVariant.withOpacity(0.5)),
-            border: isActive ? Border.all(color: colorScheme.primary, width: 2) : null,
-            boxShadow: (isCompleted || isActive) ? [BoxShadow(color: Colors.black.withOpacity(0.05), blurRadius: 4)] : [],
-          ),
-          child: Center(
-            child: isCompleted
-                ? Icon(Icons.check, color: colorScheme.onPrimary, size: 16)
-                : (isActive
-                ? Container(width: 10, height: 10, decoration: BoxDecoration(color: colorScheme.primary, shape: BoxShape.circle))
-                : Text(stepNum, style: TextStyle(color: colorScheme.outline, fontWeight: FontWeight.bold, fontSize: 14))),
-          ),
-        ),
-        const SizedBox(height: 8),
-        Text(
-          label,
-          style: textTheme.labelSmall?.copyWith(
-            color: (isCompleted || isActive) ? colorScheme.primary : colorScheme.outline,
-            fontWeight: (isCompleted || isActive) ? FontWeight.bold : FontWeight.normal,
-          ),
-        ),
-      ],
     );
   }
 
@@ -426,35 +342,29 @@ class _ConnectingPharmacyScreenState extends State<ConnectingPharmacyScreen> wit
             label: const Text('Refresh', style: TextStyle(fontWeight: FontWeight.w600)),
           ),
         ),
+        const SizedBox(height: 16),
+        // Nút Demo Next Step
+        SizedBox(
+          width: double.infinity,
+          height: 56,
+          child: FilledButton(
+            style: FilledButton.styleFrom(
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+            ),
+            onPressed: widget.onNextStep,
+            child: const Text('Mock Accept (Next Step)', style: TextStyle(fontWeight: FontWeight.w600)),
+          ),
+        ),
+        const SizedBox(height: 16),
+        SizedBox(
+          width: double.infinity,
+          height: 56,
+          child: TextButton(
+            onPressed: widget.onPreviousStep,
+            child: const Text('Back to Pharmacy Selection', style: TextStyle(fontWeight: FontWeight.w600)),
+          ),
+        ),
       ],
-    );
-  }
-
-  // --- Widget: Thanh điều hướng dưới cùng ---
-  Widget _buildBottomNavBar(ColorScheme colorScheme) {
-    return Container(
-      decoration: BoxDecoration(
-        color: colorScheme.surface,
-        borderRadius: const BorderRadius.vertical(top: Radius.circular(12)),
-        border: Border(top: BorderSide(color: colorScheme.surfaceVariant.withOpacity(0.5))),
-        boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.05), blurRadius: 12, offset: const Offset(0, -4))],
-      ),
-      child: BottomNavigationBar(
-        currentIndex: 1, // Focus vào tab Pharmacy
-        type: BottomNavigationBarType.fixed,
-        backgroundColor: Colors.transparent,
-        elevation: 0,
-        selectedItemColor: colorScheme.primary,
-        unselectedItemColor: colorScheme.outline,
-        selectedLabelStyle: const TextStyle(fontFamily: 'Inter', fontSize: 11, fontWeight: FontWeight.bold),
-        unselectedLabelStyle: const TextStyle(fontFamily: 'Inter', fontSize: 11),
-        items: const [
-          BottomNavigationBarItem(icon: Icon(Icons.medical_services_outlined), activeIcon: Icon(Icons.medical_services), label: 'Prescriptions'),
-          BottomNavigationBarItem(icon: Icon(Icons.local_pharmacy_outlined), activeIcon: Icon(Icons.local_pharmacy), label: 'Pharmacy'),
-          BottomNavigationBarItem(icon: Icon(Icons.receipt_long_outlined), activeIcon: Icon(Icons.receipt_long), label: 'Orders'),
-          BottomNavigationBarItem(icon: Icon(Icons.person_outline), activeIcon: Icon(Icons.person), label: 'Profile'),
-        ],
-      ),
     );
   }
 }
