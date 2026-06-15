@@ -1,10 +1,13 @@
 package com.HealthLink.entity;
+import com.HealthLink.entity.enums.ConsultationType;
 import com.HealthLink.entity.enums.DoctorScheduleStatus;
 import jakarta.persistence.*;
 import lombok.*;
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
+import java.util.EnumSet;
 import java.util.List;
+import java.util.Set;
 
 @Entity
 @Table(name = "Doctors")
@@ -70,6 +73,13 @@ public class Doctor {
     @Builder.Default
     private boolean availableForOffline = true; // Cho phép bệnh nhân đặt lịch đến khám trực tiếp tại phòng khám
 
+    @ElementCollection(targetClass = ConsultationType.class)
+    @Enumerated(EnumType.STRING)
+    @CollectionTable(name = "DoctorConsultationTypes", joinColumns = @JoinColumn(name = "doctorId"))
+    @Column(name = "consultationType")
+    @Builder.Default
+    private Set<ConsultationType> consultationTypes = EnumSet.allOf(ConsultationType.class);
+
     // --- 4. TRẠNG THÁI & ĐÁNH GIÁ (Status & Ratings) ---
 
     @Builder.Default
@@ -100,15 +110,6 @@ public class Doctor {
     private BigDecimal customCommissionRateOffline;
     private LocalDateTime customCommissionRateOfflineEffectiveFrom;
     private LocalDateTime customCommissionRateOfflineEffectiveTo;
-
-    // Legacy field - giữ lại để tương thích ngược (deprecated)
-    @Column(precision = 5, scale = 4)
-    @Deprecated
-    private BigDecimal customCommissionRate;
-    @Deprecated
-    private LocalDateTime customCommissionRateEffectiveFrom;
-    @Deprecated
-    private LocalDateTime customCommissionRateEffectiveTo;
 
     @Column(length = 20)
     @Builder.Default

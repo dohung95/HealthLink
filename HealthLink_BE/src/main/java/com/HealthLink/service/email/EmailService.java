@@ -92,6 +92,13 @@ public class EmailService {
         sendHtmlEmail(toEmail, subject, content);
     }
 
+    // gửi email văn bản đơn giản (OTP, thông báo nhanh)
+    public void sendSimpleMessage(String to, String subject, String text) {
+        log.info("sendSimpleMessage called - to: {}", to);
+        String htmlContent = "<html><body><p>" + text.replace("\n", "<br>") + "</p></body></html>";
+        sendHtmlEmail(to, subject, htmlContent);
+    }
+
     // gửi email thông qua JavaMailSender
     private void sendHtmlEmail(String to, String subject, String htmlContent) {
         log.info("=== START SENDING EMAIL ===");

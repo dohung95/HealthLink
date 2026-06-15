@@ -19,6 +19,7 @@ import com.HealthLink.entity.DoctorScheduleException;
 import com.HealthLink.entity.Patient;
 import com.HealthLink.entity.User;
 import com.HealthLink.entity.enums.NotificationType;
+import com.HealthLink.entity.enums.ScheduleExceptionType;
 import com.HealthLink.exception.BusinessException;
 import com.HealthLink.exception.ResourceNotFoundException;
 import com.HealthLink.repository.appointment.AppointmentRepository;
@@ -175,7 +176,7 @@ public class AppointmentServiceImpl implements AppointmentService {
                 .findByDoctor_DoctorIdAndExceptionDate(doctorId, date);
 
         // If DayOff exception exists, return empty slots
-        if (exceptionOpt.isPresent() && "DayOff".equals(exceptionOpt.get().getExceptionType())) {
+        if (exceptionOpt.isPresent() && exceptionOpt.get().getExceptionType() == ScheduleExceptionType.DAY_OFF) {
             log.info("Doctor {} has DayOff exception on {}, returning empty slots", doctorId, date);
             return AvailableSlotsResponse.builder()
                     .doctorId(doctorId)
@@ -215,7 +216,7 @@ public class AppointmentServiceImpl implements AppointmentService {
         List<AvailableSlotResponse> slots = new ArrayList<>();
 
         // Check if Modified exception - use exception hours instead of schedule
-        if (exceptionOpt.isPresent() && "Modified".equals(exceptionOpt.get().getExceptionType())) {
+        if (exceptionOpt.isPresent() && exceptionOpt.get().getExceptionType() == ScheduleExceptionType.MODIFIED) {
             DoctorScheduleException modifiedException = exceptionOpt.get();
             log.info("Doctor {} has Modified exception on {}, using exception hours: {} - {}",
                     doctorId, date, modifiedException.getStartTime(), modifiedException.getEndTime());
@@ -250,7 +251,7 @@ public class AppointmentServiceImpl implements AppointmentService {
         }
 
         // Check for AddSlot exception - add extra slots
-        if (exceptionOpt.isPresent() && "AddSlot".equals(exceptionOpt.get().getExceptionType())) {
+        if (exceptionOpt.isPresent() && exceptionOpt.get().getExceptionType() == ScheduleExceptionType.ADD_SLOT) {
             DoctorScheduleException addSlotException = exceptionOpt.get();
             log.info("Doctor {} has AddSlot exception on {}, adding extra slots: {} - {}",
                     doctorId, date, addSlotException.getStartTime(), addSlotException.getEndTime());

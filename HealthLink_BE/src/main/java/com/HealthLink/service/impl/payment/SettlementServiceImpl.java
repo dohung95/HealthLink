@@ -358,14 +358,9 @@ public class SettlementServiceImpl implements SettlementService {
         }
     }
 
-    /**
-     * Sinh số mã Settlement theo định dạng STL-YYYYMM-XXXXX.
-     */
     private String generateSettlementNumber() {
-        String datePart = LocalDateTime.now()
-                .format(DateTimeFormatter.ofPattern("yyyyMM"));
-        long count = settlementRepository.count() + 1;
-        return String.format("STL-%s-%05d", datePart, count);
+        return "STL-" + LocalDateTime.now()
+                .format(DateTimeFormatter.ofPattern("yyyyMMdd-HHmmss-SSSSSS"));
     }
 
     /** Ánh xạ Settlement → SettlementResponse. */

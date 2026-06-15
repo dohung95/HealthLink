@@ -11,39 +11,39 @@ import java.math.BigDecimal;
 @NoArgsConstructor
 @AllArgsConstructor
 public class AdminDoctorUpdateDto {
-    @JsonProperty("FullName")
+    @JsonProperty("fullName")
     private String fullName;
 
-    @JsonProperty("PhoneNumber")
+    @JsonProperty("phoneNumber")
     private String phoneNumber;
 
-    @JsonProperty("Specialty")
+    @JsonProperty("specialty")
     private String specialty;
 
-    @JsonProperty("Qualifications")
+    @JsonProperty("qualifications")
     private String qualifications;
 
-    @JsonProperty("YearsOfExperience")
+    @JsonProperty("yearsOfExperience")
     private Integer yearsOfExperience;
 
-    @JsonProperty("LanguageSpoken")
+    @JsonProperty("languageSpoken")
     private String languageSpoken;
 
-    @JsonProperty("Location")
+    @JsonProperty("location")
     private String location;
 
-    @JsonProperty("Bio")
+    @JsonProperty("bio")
     private String bio;
 
-    @JsonProperty("ConsultationFee")
+    @JsonProperty("consultationFee")
     private BigDecimal consultationFee;
 
-    @JsonProperty("ClinicName")
+    @JsonProperty("clinicName")
     private String clinicName;
 
-    @JsonProperty("ClinicAddress")
+    @JsonProperty("clinicAddress")
     private String clinicAddress;
 
-    @JsonProperty("Status")
+    @JsonProperty("status")
     private String status;
 }

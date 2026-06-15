@@ -39,6 +39,11 @@ public class EmailVerificationToken {
     @Column(name = "Used", nullable = false)
     private boolean used = false;
 
+    @Enumerated(EnumType.STRING)
+    @Column(name = "Type", nullable = false, length = 50)
+    @Builder.Default
+    private TokenType type = TokenType.EMAIL_VERIFICATION;
+
     @Column(name = "CreatedAt", nullable = false)
     @Builder.Default
     private LocalDateTime createdAt = LocalDateTime.now();

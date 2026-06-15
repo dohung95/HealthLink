@@ -1,7 +1,33 @@
-import React, { useCallback, useEffect, useMemo, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useState, memo } from 'react';
 import { toast } from 'sonner';
 
+import DatePicker from 'react-datepicker';
+import 'react-datepicker/dist/react-datepicker.css';
 import { paymentApi } from '@api/paymentApi';
+
+const DateInput = React.forwardRef(({ value, onClick, placeholder }, ref) => (
+  <input
+    ref={ref}
+    value={value}
+    onClick={onClick}
+    placeholder={placeholder}
+    readOnly
+    className="doctor-wallet-date-input"
+  />
+));
+
+const WalletDatePicker = memo(({ selected, onChange, placeholderText }) => (
+  <DatePicker
+    selected={selected}
+    onChange={onChange}
+    dateFormat="MMM d, yyyy"
+    placeholderText={placeholderText}
+    isClearable
+    popperPlacement="bottom-start"
+    calendarClassName="wallet-datepicker-popper"
+    customInput={<DateInput />}
+  />
+));
 
 const formatCurrency = (value) => {
   const amount = Number(value ?? 0);
@@ -33,21 +59,16 @@ const formatStatus = (status) => {
     .replace(/\b\w/g, (letter) => letter.toUpperCase());
 };
 
-const getStatusBadgeClass = (status) => {
+const getBadgeClass = (status) => {
   const normalized = String(status || '').toUpperCase();
-  if (['PAID', 'COMPLETED', 'SETTLED'].includes(normalized)) return 'bg-success-subtle text-success border-success-subtle';
-  if (['FAILED', 'REFUNDED', 'CANCELLED'].includes(normalized)) return 'bg-danger-subtle text-danger border-danger-subtle';
-  if (['PROCESSING', 'PENDING'].includes(normalized)) return 'bg-warning-subtle text-warning-emphasis border-warning-subtle';
-  return 'bg-body-tertiary text-body-tertiary border-secondary-subtle';
+  if (normalized === 'SETTLED') return 'settled';
+  if (['PAID', 'COMPLETED'].includes(normalized)) return 'completed';
+  if (['PROCESSING', 'PENDING'].includes(normalized)) return 'pending';
+  if (['FAILED', 'REFUNDED', 'CANCELLED'].includes(normalized)) return 'failed';
+  return 'completed';
 };
 
-const StatusBadge = ({ status }) => (
-  <span className={`badge border rounded-pill fw-bold px-2 py-1 ${getStatusBadgeClass(status)}`} style={{ fontSize: '0.625rem', lineHeight: 1.4 }}>
-    {formatStatus(status)}
-  </span>
-);
-
-export default function DoctorWalletTab({ profile, onRefreshProfile }) {
+export default function DoctorWalletTab({ profile, onRefreshProfile, filters, filterControls }) {
   const doctorId = profile?.doctorId || profile?.doctorID;
   const [balance, setBalance] = useState(null);
   const [transactions, setTransactions] = useState([]);
@@ -58,6 +79,8 @@ export default function DoctorWalletTab({ profile, onRefreshProfile }) {
   const [withdrawAmount, setWithdrawAmount] = useState('');
   const [paypalEmail, setPaypalEmail] = useState(profile?.paypalEmail || '');
   const [withdrawing, setWithdrawing] = useState(false);
+  const [page, setPage] = useState(1);
+  const pageSize = 10;
 
   useEffect(() => {
     setPaypalEmail(profile?.paypalEmail || '');
@@ -99,7 +122,6 @@ export default function DoctorWalletTab({ profile, onRefreshProfile }) {
   }, [loadWallet]);
 
   const availableBalance = Number(balance?.pendingBalance ?? profile?.pendingSettlement ?? 0);
-  const totalEarnings = Number(balance?.totalEarnings ?? profile?.totalEarnings ?? 0);
   const requestedAmount = Number(withdrawAmount || 0);
   const remainingAfterWithdrawal = availableBalance - requestedAmount;
   const canWithdraw =
@@ -136,6 +158,53 @@ export default function DoctorWalletTab({ profile, onRefreshProfile }) {
     );
   }, [transactions, settlements]);
 
+  const [localFilteredHistory, setLocalFilteredHistory] = useState(null);
+
+  useEffect(() => {
+    if (!filters) {
+      setLocalFilteredHistory(null);
+      return;
+    }
+
+    let filtered = [...history];
+
+    if (filters.searchTerm) {
+      const term = filters.searchTerm.toLowerCase();
+      filtered = filtered.filter((entry) =>
+        entry.title.toLowerCase().includes(term) ||
+        (entry.raw.appointmentId?.toString() || '').includes(term) ||
+        (entry.raw.settlementNumber?.toLowerCase() || '').includes(term)
+      );
+    }
+
+    if (filters.dateFrom) {
+      filtered = filtered.filter((entry) => new Date(entry.createdAt) >= filters.dateFrom);
+    }
+    if (filters.dateTo) {
+      const end = new Date(filters.dateTo);
+      end.setHours(23, 59, 59, 999);
+      filtered = filtered.filter((entry) => new Date(entry.createdAt) <= end);
+    }
+
+    if (filters.typeFilter && filters.typeFilter !== 'all') {
+      filtered = filtered.filter((entry) => entry.kind === filters.typeFilter);
+    }
+
+    if (filters.statusFilter && filters.statusFilter !== 'all') {
+      filtered = filtered.filter((entry) => {
+        const status = (entry.status || '').toUpperCase();
+        if (filters.statusFilter === 'completed') return ['PAID', 'COMPLETED', 'SETTLED'].includes(status);
+        if (filters.statusFilter === 'pending') return ['PROCESSING', 'PENDING'].includes(status);
+        if (filters.statusFilter === 'failed') return ['FAILED', 'REFUNDED', 'CANCELLED'].includes(status);
+        return true;
+      });
+    }
+
+    setLocalFilteredHistory(filtered);
+  }, [filters, history]);
+
+  useEffect(() => { setPage(1); }, [filters, history]);
+
   const handleWithdraw = async (event) => {
     event.preventDefault();
     if (!canWithdraw) return;
@@ -164,8 +233,85 @@ export default function DoctorWalletTab({ profile, onRefreshProfile }) {
     }
   };
 
+  const calendarStyle = useMemo(() => (
+    <style>{`
+      .react-datepicker-popper[data-placement] {
+        z-index: 1060 !important;
+      }
+      .wallet-datepicker-popper.react-datepicker {
+        font-family: inherit;
+        border-color: var(--border);
+        border-radius: 0.75rem;
+        background: var(--surface);
+        box-shadow: 0 8px 32px rgba(0,0,0,0.12);
+        transition: opacity 0.15s ease;
+      }
+      .wallet-datepicker-popper .react-datepicker__header {
+        background: var(--surface-muted);
+        border-bottom-color: var(--border);
+        padding: 10px 0 6px;
+      }
+      .wallet-datepicker-popper .react-datepicker__current-month,
+      .wallet-datepicker-popper .react-datepicker__day-name {
+        color: var(--text);
+        font-weight: 600;
+        letter-spacing: 0.01em;
+      }
+      .wallet-datepicker-popper .react-datepicker__day {
+        color: var(--text);
+        border-radius: 6px;
+        transition: background 0.12s ease, color 0.12s ease;
+        line-height: 1.8;
+      }
+      .wallet-datepicker-popper .react-datepicker__day:hover {
+        background: var(--primary);
+        color: #fff;
+      }
+      .wallet-datepicker-popper .react-datepicker__day--selected,
+      .wallet-datepicker-popper .react-datepicker__day--keyboard-selected {
+        background: var(--primary);
+        color: #fff;
+        font-weight: 600;
+      }
+      .wallet-datepicker-popper .react-datepicker__day--today {
+        font-weight: 700;
+        position: relative;
+      }
+      .wallet-datepicker-popper .react-datepicker__day--today:not(.react-datepicker__day--selected):not(.react-datepicker__day--keyboard-selected) {
+        background: rgba(67, 97, 238, 0.08);
+        color: var(--primary);
+      }
+      .wallet-datepicker-popper .react-datepicker__day--outside-month {
+        color: var(--text-muted);
+      }
+      .wallet-datepicker-popper .react-datepicker__day--disabled {
+        color: var(--border) !important;
+        cursor: not-allowed;
+      }
+      .wallet-datepicker-popper .react-datepicker__navigation-icon::before {
+        border-color: var(--text-secondary);
+        transition: border-color 0.15s ease;
+      }
+      .wallet-datepicker-popper .react-datepicker__navigation:hover .react-datepicker__navigation-icon::before {
+        border-color: var(--primary);
+      }
+      .wallet-datepicker-popper .react-datepicker__close-icon::after {
+        background: var(--text-muted);
+        transition: background 0.15s ease;
+      }
+      .wallet-datepicker-popper .react-datepicker__close-icon:hover::after {
+        background: var(--text-secondary);
+      }
+      .wallet-datepicker-popper .react-datepicker__day:focus-visible {
+        outline: 2px solid var(--primary);
+        outline-offset: 2px;
+      }
+    `}</style>
+  ), []);
+
   return (
     <div className="d-flex flex-column gap-4">
+      {calendarStyle}
       {/* ========== WALLET HERO ========== */}
       <section
         className="card border-0 overflow-hidden shadow-sm"
@@ -175,110 +321,137 @@ export default function DoctorWalletTab({ profile, onRefreshProfile }) {
           <div
             className="p-4 p-md-5 text-white position-relative"
             style={{
-              background: 'linear-gradient(135deg, var(--primary) 0%, var(--primary-hover) 50%, var(--primary-active) 100%)',
+              background: 'linear-gradient(135deg, #1a3a6b 0%, var(--primary) 35%, var(--primary-hover) 70%, var(--primary-active) 100%)',
+              boxShadow: 'inset 0 1px 0 rgba(255,255,255,0.12)',
             }}
           >
-            {/* Decorative accent circles */}
+            {/* Decorative glow orbs */}
             <div
               className="position-absolute rounded-circle"
               style={{
-                width: '12rem',
-                height: '12rem',
-                background: 'rgba(255,255,255,0.04)',
-                top: '-4rem',
-                right: '-3rem',
+                width: '18rem',
+                height: '18rem',
+                background: 'radial-gradient(circle, rgba(255,255,255,0.08) 0%, transparent 65%)',
+                top: '-8rem',
+                right: '-4rem',
                 pointerEvents: 'none',
               }}
             />
             <div
               className="position-absolute rounded-circle"
               style={{
-                width: '6rem',
-                height: '6rem',
-                background: 'rgba(255,255,255,0.06)',
-                bottom: '-1rem',
-                right: '4rem',
+                width: '10rem',
+                height: '10rem',
+                background: 'radial-gradient(circle, rgba(255,255,255,0.06) 0%, transparent 65%)',
+                bottom: '-3rem',
+                right: '8rem',
+                pointerEvents: 'none',
+              }}
+            />
+            <div
+              className="position-absolute rounded-circle"
+              style={{
+                width: '5rem',
+                height: '5rem',
+                background: 'radial-gradient(circle, rgba(255,255,255,0.05) 0%, transparent 65%)',
+                top: '1.5rem',
+                left: '25%',
                 pointerEvents: 'none',
               }}
             />
 
             <div className="d-flex flex-column gap-4 flex-md-row align-items-md-end justify-content-md-between position-relative">
               <div>
-                <p
-                  className="text-white-50 text-uppercase small fw-semibold mb-2 d-inline-flex align-items-center gap-1"
-                  style={{ letterSpacing: '0.05em', fontSize: '0.75rem' }}
+                <div
+                  className="d-inline-flex align-items-center px-2 py-1 rounded-3 mb-3"
+                  style={{ background: 'rgba(255,255,255,0.1)', border: '1px solid rgba(255,255,255,0.08)', gap: '0.375rem' }}
                 >
-                  <span className="material-symbols-outlined" style={{ fontSize: '0.875rem' }}>account_balance_wallet</span>
-                  Available Balance
-                </p>
+                  <span className="material-symbols-outlined" style={{ fontSize: '0.8125rem', opacity: 0.8 }}>account_balance_wallet</span>
+                  <span className="text-uppercase small fw-semibold" style={{ letterSpacing: '0.05em', fontSize: '0.6875rem', opacity: 0.85 }}>
+                    Available Balance
+                  </span>
+                </div>
+
                 <h2
-                  className="display-4 fw-bold mb-0"
-                  style={{ letterSpacing: '-0.03em', lineHeight: 1.1 }}
+                  className="fw-bold mb-0"
+                  style={{
+                    fontSize: 'clamp(2.25rem, 4.5vw, 3rem)',
+                    letterSpacing: '-0.03em',
+                    lineHeight: 1.05,
+                    textShadow: '0 2px 16px rgba(0,0,0,0.2)',
+                  }}
                 >
                   {formatCurrency(availableBalance)}
                 </h2>
 
-                <div className="d-flex align-items-center gap-4 gap-md-5 mt-3">
-                  <div>
-                    <span
-                      className="text-white-50 text-uppercase small fw-semibold d-block"
-                      style={{ fontSize: '0.6875rem', letterSpacing: '0.05em' }}
-                    >
-                      Total Earnings
-                    </span>
-                    <span className="fw-bold" style={{ fontSize: '1.0625rem' }}>{formatCurrency(totalEarnings)}</span>
-                  </div>
-                  <div style={{ width: '1px', height: '2.5rem', background: 'rgba(255,255,255,0.2)' }} />
-                  <div>
-                    <span
-                      className="text-white-50 text-uppercase small fw-semibold d-block"
-                      style={{ fontSize: '0.6875rem', letterSpacing: '0.05em' }}
-                    >
-                      Withdrawal Status
-                    </span>
-                    <span className="d-inline-flex align-items-center gap-1 fw-bold" style={{ fontSize: '1.0625rem' }}>
-                      <span
-                        className="d-inline-block rounded-circle"
-                        style={{
-                          width: '0.5rem',
-                          height: '0.5rem',
-                          background: eligibleForWithdrawal ? 'var(--success)' : 'var(--warning)',
-                          boxShadow: eligibleForWithdrawal
-                            ? '0 0 0 2px rgba(16, 185, 129, 0.3)'
-                            : '0 0 0 2px rgba(217, 119, 6, 0.3)',
-                        }}
-                      />
-                      {eligibleForWithdrawal ? 'Ready' : 'On Hold'}
+                <div className="d-flex align-items-center gap-2 mt-3">
+                  <span
+                    className="d-inline-block rounded-circle flex-shrink-0"
+                    style={{
+                      width: '0.5rem',
+                      height: '0.5rem',
+                      background: eligibleForWithdrawal ? 'var(--success)' : 'var(--warning)',
+                      boxShadow: eligibleForWithdrawal
+                        ? '0 0 0 3px rgba(16, 185, 129, 0.35)'
+                        : '0 0 0 3px rgba(217, 119, 6, 0.35)',
+                      animation: eligibleForWithdrawal ? 'pulse-dot 2s ease-in-out infinite' : 'none',
+                    }}
+                  />
+                  <div
+                    className="d-inline-flex align-items-center px-2 py-1 rounded-2"
+                    style={{ background: 'rgba(255,255,255,0.08)' }}
+                  >
+                    <span className="small fw-semibold" style={{ fontSize: '0.8125rem', opacity: 0.9 }}>
+                      {eligibleForWithdrawal ? 'Withdrawals Ready' : 'On Hold'}
                     </span>
                   </div>
                 </div>
               </div>
 
               <button
-                className="btn fw-semibold shadow-sm d-inline-flex align-items-center gap-2 px-4 py-2 border-0"
+                className="btn fw-bold d-inline-flex align-items-center justify-content-center gap-2 px-4 py-2 border-0"
                 disabled={!doctorId || !eligibleForWithdrawal}
                 onClick={() => setIsWithdrawModalOpen(true)}
                 type="button"
                 style={{
-                  borderRadius: '0.625rem',
+                  borderRadius: '0.75rem',
                   fontSize: '0.875rem',
-                  background: 'rgba(255,255,255,0.15)',
-                  color: '#fff',
-                  backdropFilter: 'blur(8px)',
-                  WebkitBackdropFilter: 'blur(8px)',
-                  border: '1px solid rgba(255,255,255,0.2)',
-                  transition: 'all 0.2s ease',
+                  background: eligibleForWithdrawal
+                    ? 'linear-gradient(135deg, #ffffff 0%, #f0f4ff 100%)'
+                    : 'rgba(255,255,255,0.1)',
+                  color: eligibleForWithdrawal ? 'var(--primary)' : 'rgba(255,255,255,0.35)',
+                  boxShadow: eligibleForWithdrawal
+                    ? '0 4px 16px -2px rgba(0,0,0,0.25), inset 0 1px 0 rgba(255,255,255,0.9)'
+                    : 'none',
+                  transition: 'all 0.25s cubic-bezier(0.16, 1, 0.3, 1)',
+                  cursor: eligibleForWithdrawal ? 'pointer' : 'not-allowed',
+                  transform: 'translateY(0)',
+                  paddingTop: '0.625rem',
+                  paddingBottom: '0.625rem',
+                  minWidth: '180px',
                 }}
                 onMouseEnter={(e) => {
                   if (!e.currentTarget.disabled) {
-                    e.currentTarget.style.background = 'rgba(255,255,255,0.25)';
-                    e.currentTarget.style.borderColor = 'rgba(255,255,255,0.35)';
+                    e.currentTarget.style.background = 'linear-gradient(135deg, #ffffff 0%, #e8efff 100%)';
+                    e.currentTarget.style.boxShadow = '0 8px 28px -4px rgba(0,0,0,0.3), inset 0 1px 0 rgba(255,255,255,0.95)';
+                    e.currentTarget.style.transform = 'translateY(-2px)';
                   }
                 }}
                 onMouseLeave={(e) => {
                   if (!e.currentTarget.disabled) {
-                    e.currentTarget.style.background = 'rgba(255,255,255,0.15)';
-                    e.currentTarget.style.borderColor = 'rgba(255,255,255,0.2)';
+                    e.currentTarget.style.background = 'linear-gradient(135deg, #ffffff 0%, #f0f4ff 100%)';
+                    e.currentTarget.style.boxShadow = '0 4px 16px -2px rgba(0,0,0,0.25), inset 0 1px 0 rgba(255,255,255,0.9)';
+                    e.currentTarget.style.transform = 'translateY(0)';
+                  }
+                }}
+                onMouseDown={(e) => {
+                  if (!e.currentTarget.disabled) {
+                    e.currentTarget.style.transform = 'scale(0.97)';
+                  }
+                }}
+                onMouseUp={(e) => {
+                  if (!e.currentTarget.disabled) {
+                    e.currentTarget.style.transform = 'translateY(-1px)';
                   }
                 }}
               >
@@ -286,57 +459,115 @@ export default function DoctorWalletTab({ profile, onRefreshProfile }) {
                 Withdraw via PayPal
               </button>
             </div>
+
+            {/* Liquid Glass refraction border */}
+            <div
+              style={{
+                position: 'absolute',
+                bottom: 0,
+                left: 0,
+                right: 0,
+                height: '1px',
+                background: 'linear-gradient(90deg, transparent, rgba(255,255,255,0.12) 20%, rgba(255,255,255,0.12) 80%, transparent)',
+              }}
+            />
           </div>
         </div>
       </section>
 
       {/* ========== TRANSACTIONS ========== */}
-      <section
-        className="card border-0 shadow-sm overflow-hidden"
-        style={{ borderRadius: '1.25rem', background: 'var(--surface)' }}
-      >
+      <section className="doctor-wallet-tx-section doctor-wallet-card-shadow">
+        {filterControls && (
+          <div className="doctor-wallet-tx-filters">
+            <div className="doctor-wallet-tx-filters-grid">
+              <div className="doctor-wallet-tx-filter-col doctor-wallet-tx-filter-col--search">
+                <label className="doctor-wallet-tx-filter-label">Search</label>
+                <div className="doctor-wallet-tx-filter-group">
+                  <span className="doctor-wallet-tx-filter-group-icon">
+                    <span className="material-symbols-outlined">search</span>
+                  </span>
+                  <input
+                    className="doctor-wallet-tx-filter-input"
+                    placeholder="Appointment ID, Settlement..."
+                    value={filterControls.searchTerm}
+                    onChange={(e) => filterControls.setSearchTerm(e.target.value)}
+                  />
+                </div>
+              </div>
+              <div className="doctor-wallet-tx-filter-col doctor-wallet-tx-filter-col--date">
+                <label className="doctor-wallet-tx-filter-label">From</label>
+                <WalletDatePicker
+                  selected={filterControls.dateFrom}
+                  onChange={(date) => filterControls.setDateFrom(date)}
+                  placeholderText="From date"
+                />
+              </div>
+              <div className="doctor-wallet-tx-filter-col doctor-wallet-tx-filter-col--date">
+                <label className="doctor-wallet-tx-filter-label">To</label>
+                <WalletDatePicker
+                  selected={filterControls.dateTo}
+                  onChange={(date) => filterControls.setDateTo(date)}
+                  placeholderText="To date"
+                />
+              </div>
+              <div className="doctor-wallet-tx-filter-col doctor-wallet-tx-filter-col--select">
+                <label className="doctor-wallet-tx-filter-label">Type</label>
+                <div className="doctor-wallet-tx-filter-select-wrap">
+                  <select
+                    className="doctor-wallet-tx-filter-select"
+                    value={filterControls.typeFilter}
+                    onChange={(e) => filterControls.setTypeFilter(e.target.value)}
+                  >
+                    <option value="all">All</option>
+                    <option value="earning">Earnings</option>
+                    <option value="withdrawal">Withdrawals</option>
+                  </select>
+                  <span className="doctor-wallet-tx-filter-select-icon">
+                    <span className="material-symbols-outlined">expand_more</span>
+                  </span>
+                </div>
+              </div>
+              <div className="doctor-wallet-tx-filter-col doctor-wallet-tx-filter-col--select">
+                <label className="doctor-wallet-tx-filter-label">Status</label>
+                <div className="doctor-wallet-tx-filter-select-wrap">
+                  <select
+                    className="doctor-wallet-tx-filter-select"
+                    value={filterControls.statusFilter}
+                    onChange={(e) => filterControls.setStatusFilter(e.target.value)}
+                  >
+                    <option value="all">All</option>
+                    <option value="completed">Completed</option>
+                    <option value="pending">Processing/Pending</option>
+                    <option value="failed">Failed/Cancelled</option>
+                  </select>
+                  <span className="doctor-wallet-tx-filter-select-icon">
+                    <span className="material-symbols-outlined">expand_more</span>
+                  </span>
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
+
         {/* Header */}
-        <div className="d-flex align-items-center justify-content-between px-4 py-3 border-bottom" style={{ borderColor: 'var(--border)' }}>
-          <div>
-            <h5 className="fw-bold mb-0" style={{ color: 'var(--text-primary)', fontSize: '0.9375rem' }}>
-              <span
-                className="material-symbols-outlined me-2"
-                style={{ fontSize: '1.125rem', color: 'var(--primary)', verticalAlign: 'middle' }}
-              >
-                receipt_long
-              </span>
-              Recent Transactions
-            </h5>
-            <p className="small fw-medium mb-0 mt-1" style={{ color: 'var(--text-muted)', fontSize: '0.75rem' }}>
-              <span
-                className={`d-inline-block rounded-circle me-1 ${eligibleForWithdrawal ? 'bg-success' : 'bg-warning'}`}
-                style={{ width: '0.375rem', height: '0.375rem', verticalAlign: 'middle' }}
-              />
-              {withdrawalStatus}
-            </p>
+        <div className="doctor-wallet-tx-header">
+          <div className="doctor-wallet-tx-header-left">
+            <div className="doctor-wallet-tx-header-icon">
+              <span className="material-symbols-outlined">receipt_long</span>
+            </div>
+            <div>
+              <h3 className="doctor-wallet-tx-header-title">Recent Transactions</h3>
+              <p className="doctor-wallet-tx-header-subtitle">
+                <span className={`doctor-wallet-tx-header-dot ${eligibleForWithdrawal ? 'doctor-wallet-tx-header-dot--ready' : 'doctor-wallet-tx-header-dot--hold'}`} />
+                {withdrawalStatus}
+              </p>
+            </div>
           </div>
           <button
-            className="btn btn-sm fw-semibold d-inline-flex align-items-center gap-1 border-0"
+            className="doctor-wallet-tx-header-refresh"
             disabled={loading}
             onClick={loadWallet}
             type="button"
-            style={{
-              background: 'var(--surface-muted)',
-              borderRadius: '0.5rem',
-              fontSize: '0.8125rem',
-              color: 'var(--text-secondary)',
-              transition: 'all 0.15s ease',
-            }}
-            onMouseEnter={(e) => {
-              if (!e.currentTarget.disabled) {
-                e.currentTarget.style.background = 'var(--surface-hover)';
-              }
-            }}
-            onMouseLeave={(e) => {
-              if (!e.currentTarget.disabled) {
-                e.currentTarget.style.background = 'var(--surface-muted)';
-              }
-            }}
           >
             {loading
               ? <span className="spinner-border spinner-border-sm" role="status" aria-hidden="true" />
@@ -347,132 +578,212 @@ export default function DoctorWalletTab({ profile, onRefreshProfile }) {
         </div>
 
         {/* Transaction list */}
-        {loading ? (
-          <div className="d-flex flex-column align-items-center justify-content-center py-5" style={{ minHeight: '12rem' }}>
-            <div
-              className="spinner-border mb-3"
-              role="status"
-              style={{ width: '2.5rem', height: '2.5rem', color: 'var(--primary)' }}
-            >
-              <span className="visually-hidden">Loading...</span>
-            </div>
-            <p className="fw-semibold mb-0" style={{ color: 'var(--text-primary)' }}>Loading wallet...</p>
-          </div>
-        ) : history.length === 0 ? (
-          <div className="d-flex flex-column align-items-center justify-content-center py-5" style={{ minHeight: '12rem' }}>
-            <div
-              className="d-flex align-items-center justify-content-center rounded-circle mb-3"
-              style={{ width: '3.5rem', height: '3.5rem', background: 'var(--surface-muted)' }}
-            >
-              <span className="material-symbols-outlined" style={{ fontSize: '1.5rem', color: 'var(--text-muted)' }}>receipt_long</span>
-            </div>
-            <p className="fw-semibold mb-0" style={{ color: 'var(--text-primary)', fontSize: '0.9375rem' }}>No wallet transactions yet.</p>
-            <p className="small mb-0 mt-1" style={{ color: 'var(--text-muted)' }}>Your consultation earnings will appear here.</p>
-          </div>
-        ) : (
-          <div className="list-group list-group-flush border-0">
-            {history.map((entry) => {
-              const isExpanded = expandedEntryId === entry.id;
-              const isCredit = Number(entry.amount) >= 0;
+        {(() => {
+          const displayData = localFilteredHistory ?? history;
+          const totalItems = displayData.length;
+          const totalPages = Math.max(1, Math.ceil(totalItems / pageSize));
+          const pagedData = displayData.slice((page - 1) * pageSize, page * pageSize);
+          const startItem = totalItems > 0 ? (page - 1) * pageSize + 1 : 0;
+          const endItem = Math.min(page * pageSize, totalItems);
 
-              return (
-                <div key={entry.id} className="border-0" style={{ borderBottom: '1px solid var(--border)' }}>
-                  <button
-                    aria-expanded={isExpanded}
-                    className="list-group-item list-group-item-action d-flex align-items-center justify-content-between gap-3 px-4 py-3 border-0 w-100 text-start"
-                    onClick={() => setExpandedEntryId(isExpanded ? null : entry.id)}
-                    type="button"
-                    style={{
-                      background: isExpanded ? 'var(--surface-muted)' : 'transparent',
-                      transition: 'background 0.12s ease',
-                      cursor: 'pointer',
-                    }}
-                  >
-                    <span className="d-flex align-items-center gap-3 min-w-0">
-                      <span
-                        className={`d-flex align-items-center justify-content-center rounded-circle flex-shrink-0 ${entry.kind === 'earning' ? '' : ''}`}
-                        style={{
-                          width: '2.5rem',
-                          height: '2.5rem',
-                          background: entry.kind === 'earning' ? 'var(--primary-light)' : 'var(--surface-muted)',
-                          color: entry.kind === 'earning' ? 'var(--primary)' : 'var(--text-secondary)',
-                        }}
-                      >
-                        <span className="material-symbols-outlined" style={{ fontSize: '1.125rem' }}>
-                          {entry.kind === 'earning' ? 'video_camera_front' : 'account_balance'}
-                        </span>
-                      </span>
-                      <span className="min-w-0">
-                        <span
-                          className="d-block fw-semibold text-truncate"
-                          style={{ color: 'var(--text-primary)', fontSize: '0.8125rem' }}
-                        >
-                          {entry.title}
-                        </span>
-                        <span
-                          className="d-block small"
-                          style={{ color: 'var(--text-muted)', fontSize: '0.6875rem', marginTop: '0.125rem' }}
-                        >
-                          {formatDateTime(entry.createdAt)}
-                        </span>
-                      </span>
-                    </span>
+          const getPageNumbers = () => {
+            const pages = [];
+            const maxVisible = 5;
+            if (totalPages <= maxVisible) {
+              for (let i = 1; i <= totalPages; i++) pages.push(i);
+            } else {
+              pages.push(1);
+              let start = Math.max(2, page - 1);
+              let end = Math.min(totalPages - 1, page + 1);
+              if (page <= 2) { start = 2; end = Math.min(4, totalPages - 1); }
+              if (page >= totalPages - 1) { start = Math.max(2, totalPages - 3); end = totalPages - 1; }
+              if (start > 2) pages.push('...');
+              for (let i = start; i <= end; i++) pages.push(i);
+              if (end < totalPages - 1) pages.push('...');
+              pages.push(totalPages);
+            }
+            return pages;
+          };
 
-                    <span className="d-flex align-items-center gap-2 flex-shrink-0">
-                      <span className="text-end">
-                        <span
-                          className={`d-block fw-bold text-nowrap ${isCredit ? '' : ''}`}
-                          style={{
-                            fontSize: '0.8125rem',
-                            color: isCredit ? 'var(--success)' : 'var(--text-primary)',
-                          }}
-                        >
-                          {isCredit ? '+' : ''}{formatCurrency(entry.amount)}
-                        </span>
-                        <StatusBadge status={entry.status} />
-                      </span>
-                      <span
-                        className="material-symbols-outlined"
-                        style={{
-                          fontSize: '1.125rem',
-                          color: 'var(--text-muted)',
-                          transition: 'transform 0.12s ease',
-                          transform: isExpanded ? 'rotate(180deg)' : 'none',
-                        }}
-                      >
-                        expand_more
-                      </span>
-                    </span>
-                  </button>
-
-                  {isExpanded && (
-                    <div className="px-4 pb-3" style={{ background: 'var(--surface-muted)' }}>
-                      <div className="rounded-3 p-3" style={{ background: 'var(--surface)' }}>
-                        {entry.kind === 'earning' ? (
-                          <>
-                            <DetailRow label="Time" value={formatDateTime(entry.raw.createdAt)} />
-                            <DetailRow label="Appointment ID" value={`#${entry.raw.appointmentId || '-'}`} />
-                            <DetailRow label="Appointment amount" value={formatCurrency(entry.raw.grossAmount)} valueClassName="text-success" />
-                            <DetailRow label="Commission" value={`-${formatCurrency(entry.raw.commissionAmount).replace('-', '')}`} valueClassName="text-danger" />
-                            <DetailRow label="Net received" value={formatCurrency(entry.raw.netAmount)} valueClassName="text-success" strong />
-                          </>
-                        ) : (
-                          <>
-                            <DetailRow label="Time" value={formatDateTime(entry.raw.createdAt)} />
-                            <DetailRow label="Settlement" value={entry.raw.settlementNumber || entry.raw.settlementId || '-'} />
-                            <DetailRow label="PayPal" value={entry.raw.paypalEmail || '-'} />
-                            <DetailRow label="Amount" value={`-${formatCurrency(entry.raw.netAmount).replace('-', '')}`} valueClassName="text-danger" />
-                            <DetailRow label="Status" value={formatStatus(entry.raw.status)} strong />
-                          </>
-                        )}
-                      </div>
-                    </div>
-                  )}
+          if (loading) {
+            return (
+              <div className="doctor-wallet-tx-empty">
+                <div className="spinner-border mb-3" role="status" style={{ width: '2.5rem', height: '2.5rem', color: 'var(--doctor-primary)' }}>
+                  <span className="visually-hidden">Loading...</span>
                 </div>
-              );
-            })}
-          </div>
-        )}
+                <p className="doctor-wallet-tx-empty-title">Loading wallet...</p>
+              </div>
+            );
+          }
+
+          if (totalItems === 0) {
+            return (
+              <div className="doctor-wallet-tx-empty">
+                <div className="doctor-wallet-tx-empty-icon">
+                  <span className="material-symbols-outlined">{filters ? 'search_off' : 'receipt_long'}</span>
+                </div>
+                <p className="doctor-wallet-tx-empty-title">
+                  {filters ? 'No matching transactions found.' : 'No wallet transactions yet.'}
+                </p>
+                <p className="doctor-wallet-tx-empty-desc">
+                  {filters ? 'Try adjusting your filters.' : 'Your consultation earnings will appear here.'}
+                </p>
+              </div>
+            );
+          }
+
+          return (
+            <>
+              <div className="doctor-wallet-tx-list">
+                {pagedData.map((entry) => {
+                  const isExpanded = expandedEntryId === entry.id;
+                  const isPositive = Number(entry.amount) >= 0;
+                  const entryKind = entry.kind;
+
+                  return (
+                    <div key={entry.id} className="doctor-wallet-tx-item">
+                      <div className={`doctor-wallet-tx-item-strip doctor-wallet-tx-item-strip--${isPositive ? 'positive' : 'negative'}`} />
+
+                      <div
+                        className="doctor-wallet-tx-item-main"
+                        onClick={() => setExpandedEntryId(isExpanded ? null : entry.id)}
+                      >
+                        <div className="doctor-wallet-tx-item-left">
+                          <div className={`doctor-wallet-tx-item-icon doctor-wallet-tx-item-icon--${entryKind}`}>
+                            <span className="material-symbols-outlined">
+                              {entryKind === 'earning' ? 'videocam' : 'account_balance'}
+                            </span>
+                          </div>
+                          <div className="doctor-wallet-tx-item-info">
+                            <span className="doctor-wallet-tx-item-title">{entry.title}</span>
+                            <span className="doctor-wallet-tx-item-date">{formatDateTime(entry.createdAt)}</span>
+                          </div>
+                        </div>
+
+                        <div className="doctor-wallet-tx-item-right">
+                          <div className="doctor-wallet-tx-item-amount-group">
+                            <span className={`doctor-wallet-tx-item-amount ${isPositive ? 'doctor-wallet-tx-item-amount--positive' : 'doctor-wallet-tx-item-amount--negative'}`}>
+                              {isPositive ? '+' : ''}{formatCurrency(entry.amount)}
+                            </span>
+                            <span className={`doctor-wallet-tx-item-badge doctor-wallet-tx-item-badge--${getBadgeClass(entry.status)}`}>
+                              {formatStatus(entry.status)}
+                            </span>
+                          </div>
+                          <button
+                            className="doctor-wallet-tx-item-expand"
+                            onClick={(e) => { e.stopPropagation(); setExpandedEntryId(isExpanded ? null : entry.id); }}
+                            type="button"
+                          >
+                            <span className={`material-symbols-outlined ${isExpanded ? 'rotated' : ''}`}>expand_more</span>
+                          </button>
+                        </div>
+                      </div>
+
+                      {isExpanded && (
+                        <div className="doctor-wallet-tx-details">
+                          <div className="doctor-wallet-tx-details-inner">
+                            <div className="doctor-wallet-tx-details-grid">
+                              {entryKind === 'earning' ? (
+                                <>
+                                  <div className="doctor-wallet-tx-details-item">
+                                    <span className="doctor-wallet-tx-details-label">Time</span>
+                                    <span className="doctor-wallet-tx-details-value">{formatDateTime(entry.raw.createdAt)}</span>
+                                  </div>
+                                  <div className="doctor-wallet-tx-details-item doctor-wallet-tx-details-item--right">
+                                    <span className="doctor-wallet-tx-details-label">Appointment Fee</span>
+                                    <span className="doctor-wallet-tx-details-value doctor-wallet-tx-details-value--positive">{formatCurrency(entry.raw.grossAmount)}</span>
+                                  </div>
+                                  <div className="doctor-wallet-tx-details-item">
+                                    <span className="doctor-wallet-tx-details-label">Appointment</span>
+                                    <span className="doctor-wallet-tx-details-value">#{entry.raw.appointmentId || '-'}</span>
+                                  </div>
+                                  <div className="doctor-wallet-tx-details-item doctor-wallet-tx-details-item--right">
+                                    <span className="doctor-wallet-tx-details-label">Commission</span>
+                                    <span className="doctor-wallet-tx-details-value doctor-wallet-tx-details-value--negative">-{formatCurrency(entry.raw.commissionAmount).replace('-', '')}</span>
+                                  </div>
+                                  <div className="doctor-wallet-tx-details-item">
+                                    <span className="doctor-wallet-tx-details-label">Status</span>
+                                    <span className="doctor-wallet-tx-details-value">{formatStatus(entry.raw.status)}</span>
+                                  </div>
+                                  <div className="doctor-wallet-tx-details-item doctor-wallet-tx-details-item--right">
+                                    <span className="doctor-wallet-tx-details-label">Net Received</span>
+                                    <span className="doctor-wallet-tx-details-value doctor-wallet-tx-details-value--positive">{formatCurrency(entry.raw.netAmount)}</span>
+                                  </div>
+                                </>
+                              ) : (
+                                <>
+                                  <div className="doctor-wallet-tx-details-item">
+                                    <span className="doctor-wallet-tx-details-label">Time</span>
+                                    <span className="doctor-wallet-tx-details-value">{formatDateTime(entry.raw.createdAt)}</span>
+                                  </div>
+                                  <div className="doctor-wallet-tx-details-item doctor-wallet-tx-details-item--right">
+                                    <span className="doctor-wallet-tx-details-label">Settlement</span>
+                                    <span className="doctor-wallet-tx-details-value">{entry.raw.settlementNumber || entry.raw.settlementId || '-'}</span>
+                                  </div>
+                                  <div className="doctor-wallet-tx-details-item">
+                                    <span className="doctor-wallet-tx-details-label">PayPal</span>
+                                    <span className="doctor-wallet-tx-details-value">{entry.raw.paypalEmail || '-'}</span>
+                                  </div>
+                                  <div className="doctor-wallet-tx-details-item doctor-wallet-tx-details-item--right">
+                                    <span className="doctor-wallet-tx-details-label">Amount</span>
+                                    <span className="doctor-wallet-tx-details-value doctor-wallet-tx-details-value--negative">-{formatCurrency(entry.raw.netAmount).replace('-', '')}</span>
+                                  </div>
+                                  <div className="doctor-wallet-tx-details-item">
+                                    <span className="doctor-wallet-tx-details-label">Status</span>
+                                    <span className="doctor-wallet-tx-details-value">{formatStatus(entry.raw.status)}</span>
+                                  </div>
+                                </>
+                              )}
+                            </div>
+                          </div>
+                        </div>
+                      )}
+                    </div>
+                  );
+                })}
+              </div>
+
+              {/* Pagination */}
+              <div className="doctor-wallet-tx-pagination">
+                <span className="doctor-wallet-tx-pagination-info">
+                  Showing {startItem} to {endItem} of {totalItems} entries
+                </span>
+                <div className="doctor-wallet-tx-pagination-buttons">
+                  <button
+                    className="doctor-wallet-tx-pagination-btn"
+                    disabled={page <= 1}
+                    onClick={() => setPage(page - 1)}
+                    type="button"
+                  >
+                    <span className="material-symbols-outlined">chevron_left</span>
+                  </button>
+                  {getPageNumbers().map((p, i) =>
+                    p === '...' ? (
+                      <span key={`e${i}`} className="doctor-wallet-tx-pagination-ellipsis">...</span>
+                    ) : (
+                      <button
+                        key={p}
+                        className={`doctor-wallet-tx-pagination-btn ${p === page ? 'doctor-wallet-tx-pagination-btn--active' : ''}`}
+                        onClick={() => setPage(p)}
+                        type="button"
+                      >
+                        {p}
+                      </button>
+                    )
+                  )}
+                  <button
+                    className="doctor-wallet-tx-pagination-btn"
+                    disabled={page >= totalPages}
+                    onClick={() => setPage(page + 1)}
+                    type="button"
+                  >
+                    <span className="material-symbols-outlined">chevron_right</span>
+                  </button>
+                </div>
+              </div>
+            </>
+          );
+        })()}
       </section>
 
       {/* ========== WITHDRAWAL MODAL ========== */}
@@ -512,14 +823,6 @@ export default function DoctorWalletTab({ profile, onRefreshProfile }) {
                 boxShadow: '0 25px 50px -12px rgba(0, 82, 204, 0.15), 0 0 0 1px rgba(0, 82, 204, 0.05)',
               }}
             >
-              {/* ===== Top accent bar =====
-              <div
-                style={{
-                  height: '4px',
-                  background: 'linear-gradient(90deg, var(--primary) 0%, var(--primary-hover) 60%, #2563eb 100%)',
-                }}
-              /> */}
-
               {/* ===== Modal Header ===== */}
               <div className="px-4 pt-4 pb-0 pb-4" style={{ background: 'var(--primary-active)' }}>
                 <div className="d-flex align-items-start justify-content-between">

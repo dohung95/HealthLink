@@ -99,6 +99,22 @@ export const verifyDoctorEmailChange = async (token, data) => {
     return normalizeDoctorProfile(res.data);
 };
 
+/** POST /api/account/doctors/auth/password/request-change */
+export const requestDoctorPasswordChange = async (token) => {
+    const res = await axios.post(`${BASE}/doctors/auth/password/request-change`, {}, authConfig(token));
+    return res.data;
+};
+
+/** PUT /api/account/doctors/auth/password/change */
+export const verifyDoctorPasswordChange = async (token, data) => {
+    const res = await axios.put(`${BASE}/doctors/auth/password/change`, {
+        verificationCode: data.verificationCode,
+        currentPassword: data.currentPassword,
+        newPassword: data.newPassword,
+    }, authConfig(token));
+    return res.data;
+};
+
 // =============================================================================
 // PHARMACY
 // =============================================================================

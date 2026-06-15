@@ -3,7 +3,7 @@ import { Outlet, useLocation, useNavigate, useOutletContext, useParams } from 'r
 import { useAuth } from '@context/AuthContext';
 import { doctorService } from '@api/doctorApi';
 import { appointmentService } from '@api/appointmentApi';
-import signalRService from '@services/signalrService';
+
 import 'bootstrap/dist/css/bootstrap.min.css';
 import '@components/Css/doctor/doctor-dashboard/doctor-dashboard.css';
 import DoctorAppointmentDetail from '@pages/doctor/appointment/appointmentDetail/DoctorAppointmentDetail';
@@ -13,6 +13,7 @@ import { DoctorSkeletonPage } from '@components/doctor/DoctorSkeleton';
 import DoctorErrorState from '@components/doctor/DoctorErrorState';
 import { useNotifications } from '@hooks/doctor/useNotifications';
 import { NAV_ITEMS, normalizeAppointmentDetail } from '@layouts/navigationConfig';
+import DoctorChangePasswordModal from '@components/doctor/DoctorChangePasswordModal';
 
 export function DoctorAppointmentDetailRoute() {
   const { appointmentId } = useParams();
@@ -96,14 +97,16 @@ export function DoctorPatientDetailRoute() {
 const DoctorDashboardPage = () => {
   const navigate = useNavigate();
   const location = useLocation();
-  const { logout } = useAuth();
+  const { logout, isAuthenticated } = useAuth();
 
   const [doctorData, setDoctorData] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const [appointmentsRefreshKey, setAppointmentsRefreshKey] = useState(0);
+  const [showChangePassword, setShowChangePassword] = useState(false);
   const seenNotificationIds = useRef(new Set());
+  const signalRRef = useRef(null);
 
   const doctorId = doctorData?.doctorID || doctorData?.doctorId;
 
@@ -115,7 +118,7 @@ const DoctorDashboardPage = () => {
     if (path.startsWith('/doctor/reviews')) return NAV_ITEMS[3];
     if (path.startsWith('/doctor/schedule')) return NAV_ITEMS[4];
     if (path.startsWith('/doctor/chat')) return NAV_ITEMS[5];
-    if (path.startsWith('/doctor/profile')) return NAV_ITEMS[6];
+    if (path.startsWith('/doctor/wallet')) return NAV_ITEMS[6];
     return NAV_ITEMS[0];
   }, [location.pathname]);
 
@@ -133,7 +136,7 @@ const DoctorDashboardPage = () => {
   const handleNavigateToAppointment = useCallback(async (notification) => {
     try {
       if (notification.type === 'WALLET_BALANCE_CHANGED' || notification.actionUrl === '/profile-doctor?tab=wallet') {
-        navigate('/doctor/profile?tab=wallet');
+        navigate('/doctor/wallet');
         return;
       }
       if (notification.type === 'NEW_REVIEW') {
@@ -172,7 +175,12 @@ const DoctorDashboardPage = () => {
   }, []);
 
   useEffect(() => {
+    if (!isAuthenticated) return;
+
     const initSignalR = async () => {
+      const { default: signalRService } = await import('@services/signalrService');
+      signalRRef.current = signalRService;
+
       const handleAppointmentNotification = (notification) => {
         const nid = notification?.notificationId ?? notification?.notificationID;
         if (nid && seenNotificationIds.current.has(nid)) return;
@@ -186,38 +194,39 @@ const DoctorDashboardPage = () => {
       await signalRService.startConnection();
     };
     initSignalR();
-    return () => {
-      signalRService.off('ReceiveAppointmentNotification');
-    };
-  }, [notificationsHook.fetchNotifications]);
 
-  const reconcileNotificationsDebounced = useRef(null);
+    return () => {
+      if (signalRRef.current) {
+        signalRRef.current.off('ReceiveAppointmentNotification');
+      }
+    };
+  }, [isAuthenticated, notificationsHook.fetchNotifications]);
 
   useEffect(() => {
-    const debounce = (fn, wait = 2000) => {
-      let t = null;
-      return (...args) => {
-        if (t) clearTimeout(t);
-        t = setTimeout(() => fn(...args), wait);
-      };
-    };
-    reconcileNotificationsDebounced.current = debounce(() => {
-      if (document.visibilityState === 'visible') {
-        notificationsHook.fetchNotifications();
-      }
-    }, 2000);
+    if (!signalRRef.current) return;
+
+    const timeoutRef = { current: null };
 
     const genericHandler = (notification) => {
-      console.debug('[WS] Generic notification received on doctor dashboard:', notification);
       const nid = notification?.notificationId ?? notification?.notificationID;
       if (nid && seenNotificationIds.current.has(nid)) return;
       if (nid) seenNotificationIds.current.add(nid);
       notificationsHook.fetchNotifications();
-      reconcileNotificationsDebounced.current();
+
+      if (timeoutRef.current) clearTimeout(timeoutRef.current);
+      timeoutRef.current = setTimeout(() => {
+        if (document.visibilityState === 'visible') {
+          notificationsHook.fetchNotifications();
+        }
+      }, 2000);
     };
-    signalRService.on('ReceiveNotification', genericHandler);
+    signalRRef.current.on('ReceiveNotification', genericHandler);
+
     return () => {
-      signalRService.off('ReceiveNotification', genericHandler);
+      if (signalRRef.current) {
+        signalRRef.current.off('ReceiveNotification', genericHandler);
+      }
+      if (timeoutRef.current) clearTimeout(timeoutRef.current);
     };
   }, [notificationsHook.fetchNotifications]);
 
@@ -230,9 +239,13 @@ const DoctorDashboardPage = () => {
     }
   };
 
+  const handleChangePassword = useCallback(() => {
+    setShowChangePassword(true);
+  }, []);
+
   const handleLogout = async () => {
     try {
-      await signalRService.stopConnection();
+      await signalRRef.current?.stopConnection();
       localStorage.removeItem('token');
       localStorage.removeItem('refreshToken');
       await logout();
@@ -262,7 +275,8 @@ const DoctorDashboardPage = () => {
   }
 
   return (
-    <DoctorLayout
+    <>
+      <DoctorLayout
       doctorData={doctorData}
       currentNavItem={currentNavItem}
       isDetailView={isDetailView}
@@ -279,11 +293,16 @@ const DoctorDashboardPage = () => {
       onNotificationClick={notificationsHook.handleNotificationClick}
       onMarkAllRead={notificationsHook.handleMarkAllRead}
       onCloseAllNotifications={() => notificationsHook.setShowAllNotifications(true)}
+      onChangePassword={handleChangePassword}
     >
-      <section className={`doctor-content-section ${isDetailView || currentNavItem?.key === 'schedule' || currentNavItem?.key === 'appointments' || currentNavItem?.key === 'patients' ? '' : 'card-section'}`}>
+      <section className={`doctor-content-section ${isDetailView || currentNavItem?.key === 'schedule' || currentNavItem?.key === 'appointments' || currentNavItem?.key === 'patients' || currentNavItem?.key === 'wallet' ? '' : 'card-section'}`}>
         <Outlet context={contextValue} />
       </section>
-    </DoctorLayout>
+      </DoctorLayout>
+      {showChangePassword && (
+        <DoctorChangePasswordModal onClose={() => setShowChangePassword(false)} />
+      )}
+    </>
   );
 };
 

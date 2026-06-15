@@ -3,6 +3,7 @@ package com.HealthLink.controller.doctor;
 import com.HealthLink.dto.admin.AdminPatientMedicalHistoryDto;
 import com.HealthLink.dto.admin.AdminPrescriptionDto;
 import com.HealthLink.service.admin.AdminMedicalRecordService;
+import com.HealthLink.utility.DoctorSecurityUtils;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.InjectMocks;
@@ -10,6 +11,7 @@ import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.http.HttpStatusCode;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.core.userdetails.UserDetails;
 
 import java.util.List;
 
@@ -21,6 +23,12 @@ class DoctorMedicalRecordControllerTest {
 
     @Mock
     private AdminMedicalRecordService medicalRecordService;
+
+    @Mock
+    private DoctorSecurityUtils securityUtils;
+
+    @Mock
+    private UserDetails userDetails;
 
     @InjectMocks
     private DoctorMedicalRecordController controller;
@@ -35,7 +43,7 @@ class DoctorMedicalRecordControllerTest {
 
         when(medicalRecordService.getPatientMedicalHistory(patientId)).thenReturn(expected);
 
-        ResponseEntity<AdminPatientMedicalHistoryDto> response = controller.getPatientMedicalHistory(patientId);
+        ResponseEntity<AdminPatientMedicalHistoryDto> response = controller.getPatientMedicalHistory(userDetails, patientId);
 
         assertThat(response.getStatusCode()).isEqualTo(HttpStatusCode.valueOf(200));
         assertThat(response.getBody()).isNotNull();
@@ -54,7 +62,7 @@ class DoctorMedicalRecordControllerTest {
 
         when(medicalRecordService.getPatientPrescriptions(patientId)).thenReturn(expected);
 
-        ResponseEntity<List<AdminPrescriptionDto>> response = controller.getPatientPrescriptions(patientId);
+        ResponseEntity<List<AdminPrescriptionDto>> response = controller.getPatientPrescriptions(userDetails, patientId);
 
         assertThat(response.getStatusCode()).isEqualTo(HttpStatusCode.valueOf(200));
         assertThat(response.getBody()).isNotNull();

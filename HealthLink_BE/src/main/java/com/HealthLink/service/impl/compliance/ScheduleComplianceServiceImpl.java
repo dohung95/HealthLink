@@ -5,6 +5,7 @@ import com.HealthLink.entity.*;
 import com.HealthLink.entity.enums.ComplianceStatus;
 import com.HealthLink.entity.enums.NotificationPriority;
 import com.HealthLink.entity.enums.NotificationType;
+import com.HealthLink.entity.enums.ScheduleExceptionType;
 import com.HealthLink.exception.BadRequestException;
 import com.HealthLink.exception.ResourceNotFoundException;
 import com.HealthLink.repository.admin.DoctorScheduleExceptionRepository;
@@ -380,10 +381,10 @@ public class ScheduleComplianceServiceImpl implements ScheduleComplianceService 
             DoctorScheduleException exception = exceptionMap.get(date);
 
             if (exception != null) {
-                if ("DayOff".equals(exception.getExceptionType())) {
+                if (exception.getExceptionType() == ScheduleExceptionType.DAY_OFF) {
                     // Day off - no hours
                     continue;
-                } else if ("Modified".equals(exception.getExceptionType())) {
+                } else if (exception.getExceptionType() == ScheduleExceptionType.MODIFIED) {
                     // Modified schedule - use exception times
                     if (exception.getStartTime() != null && exception.getEndTime() != null) {
                         long minutes = ChronoUnit.MINUTES.between(
@@ -407,7 +408,7 @@ public class ScheduleComplianceServiceImpl implements ScheduleComplianceService 
             }
 
             // Add extra hours from AddSlot exception
-            if (exception != null && "AddSlot".equals(exception.getExceptionType())) {
+            if (exception != null && exception.getExceptionType() == ScheduleExceptionType.ADD_SLOT) {
                 if (exception.getStartTime() != null && exception.getEndTime() != null) {
                     long minutes = ChronoUnit.MINUTES.between(
                             exception.getStartTime(), exception.getEndTime());
