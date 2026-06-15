@@ -39,7 +39,7 @@ public class PharmacyRegistrationRequest {
     private String workingDays;
 
     @Builder.Default
-    private Boolean deliveryAvailable = false;
+    private boolean deliveryAvailable = false;
 
     @DecimalMin(value = "0.0", message = "Delivery radius must be non-negative")
     private Double deliveryRadius;

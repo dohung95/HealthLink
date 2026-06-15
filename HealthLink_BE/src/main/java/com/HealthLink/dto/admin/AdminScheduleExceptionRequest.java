@@ -23,7 +23,7 @@ public class AdminScheduleExceptionRequest {
     private LocalDate exceptionDate;
 
     @NotBlank(message = "Exception type is required")
-    private String exceptionType; // DayOff, Modified, AddSlot
+    private String exceptionType; // DAY_OFF, MODIFIED, ADD_SLOT
 
     // Optional: Nếu exceptionType là Modified hoặc AddSlot
     private LocalTime startTime;

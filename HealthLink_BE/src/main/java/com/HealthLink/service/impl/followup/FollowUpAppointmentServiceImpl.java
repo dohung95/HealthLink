@@ -16,6 +16,7 @@ import com.HealthLink.entity.DoctorScheduleException;
 import com.HealthLink.entity.Invoice;
 import com.HealthLink.entity.PrescriptionHeader;
 import com.HealthLink.entity.PrescriptionItem;
+import com.HealthLink.entity.enums.ScheduleExceptionType;
 import com.HealthLink.exception.BadRequestException;
 import com.HealthLink.exception.ResourceNotFoundException;
 import com.HealthLink.repository.admin.DoctorScheduleExceptionRepository;
@@ -391,7 +392,7 @@ public class FollowUpAppointmentServiceImpl implements FollowUpAppointmentServic
         DoctorScheduleException exception = exceptionRepository
                 .findByDoctor_DoctorIdAndExceptionDate(doctorId, date).orElse(null);
 
-        if (exception != null && "DayOff".equals(exception.getExceptionType())) {
+        if (exception != null && exception.getExceptionType() == ScheduleExceptionType.DAY_OFF) {
             return List.of();
         }
 
@@ -407,7 +408,7 @@ public class FollowUpAppointmentServiceImpl implements FollowUpAppointmentServic
 
         List<FollowUpSlotResponse> slots = new ArrayList<>();
 
-        if (exception != null && "Modified".equals(exception.getExceptionType())) {
+        if (exception != null && exception.getExceptionType() == ScheduleExceptionType.MODIFIED) {
             int slotMinutes = resolveSlotDuration(schedules);
             generateFollowUpSlotsForTimeRange(
                     slots, date, exception.getStartTime(), exception.getEndTime(),
@@ -420,7 +421,7 @@ public class FollowUpAppointmentServiceImpl implements FollowUpAppointmentServic
                         slotMinutes, bookedAppointments, now);
             }
 
-            if (exception != null && "AddSlot".equals(exception.getExceptionType())) {
+            if (exception != null && exception.getExceptionType() == ScheduleExceptionType.ADD_SLOT) {
                 int slotMinutes = resolveSlotDuration(schedules);
                 generateFollowUpSlotsForTimeRange(
                         slots, date, exception.getStartTime(), exception.getEndTime(),

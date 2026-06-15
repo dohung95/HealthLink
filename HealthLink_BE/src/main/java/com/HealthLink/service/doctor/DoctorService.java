@@ -57,6 +57,16 @@ public interface DoctorService {
     DoctorProfileResponse verifyEmailChange(String doctorId, com.HealthLink.dto.auth.VerifyEmailChangeRequest request);
 
     /**
+     * Yêu cầu đổi mật khẩu - gửi OTP về email đã đăng ký.
+     */
+    String requestPasswordChange(String doctorId);
+
+    /**
+     * Xác nhận OTP và đổi mật khẩu.
+     */
+    void verifyPasswordChange(String doctorId, com.HealthLink.dto.auth.PasswordChangeVerifyRequest request);
+
+    /**
      * Upload ảnh đại diện cho bác sĩ. Lưu file vào uploads/avatars/doctors/ và
      * cập nhật DB. Trả về URL công khai của ảnh vừa upload.
      */

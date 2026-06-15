@@ -1,3 +1,5 @@
+export { getPatientInitials, getTypeIcon } from './sharedHelpers';
+
 export const STATUS_TONES = {
   scheduled: {
     badge: 'badge bg-surface-container-highest text-text-muted',
@@ -83,14 +85,6 @@ export const getPatientAvatar = (appointment) =>
   appointment?.avatarUrl ||
   '';
 
-export const getPatientInitials = (name) =>
-  String(name || 'UP')
-    .split(' ')
-    .filter(Boolean)
-    .slice(0, 2)
-    .map((part) => part[0]?.toUpperCase())
-    .join('') || 'UP';
-
 export const getVisitReason = (appointment) =>
   [appointment?.reason, appointment?.symptoms, appointment?.chiefComplaint]
     .find((value) => typeof value === 'string' && value.trim()) || '';
@@ -102,15 +96,6 @@ export const getTypeKey = (type) => {
   if (value.includes('chat')) return 'chat';
   if (value.includes('offline') || value.includes('room') || value.includes('clinic')) return 'offline';
   return 'default';
-};
-
-export const getTypeIcon = (type) => {
-  const key = getTypeKey(type);
-  if (key === 'video') return 'videocam';
-  if (key === 'audio') return 'call';
-  if (key === 'chat') return 'chat';
-  if (key === 'offline') return 'local_hospital';
-  return 'event';
 };
 
 export const getDisplayStatus = (appointment) => {

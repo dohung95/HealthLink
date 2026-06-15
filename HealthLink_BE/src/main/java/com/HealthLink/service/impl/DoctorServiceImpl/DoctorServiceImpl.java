@@ -3,6 +3,8 @@ package com.HealthLink.service.impl.DoctorServiceImpl;
 import com.HealthLink.dto.doctor.DoctorUpdateRequest;
 import com.HealthLink.dto.auth.ChangeEmailRequest;
 import com.HealthLink.dto.auth.VerifyEmailChangeRequest;
+import com.HealthLink.dto.auth.PasswordChangeVerifyRequest;
+import com.HealthLink.entity.TokenType;
 import com.HealthLink.dto.admin.AdminAppointmentSummaryDto;
 import com.HealthLink.dto.admin.AdminDocumentCategoryDto;
 import com.HealthLink.dto.admin.AdminMedicalDocumentDto;
@@ -35,6 +37,7 @@ import com.HealthLink.repository.patient.PatientRepository;
 import com.HealthLink.repository.prescription.PrescriptionHeaderRepository;
 import com.HealthLink.service.doctor.DoctorService;
 import com.HealthLink.service.email.EmailService;
+import com.HealthLink.utility.DoctorServiceHelper;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import com.HealthLink.entity.EmailVerificationToken;
 import com.HealthLink.exception.BadRequestException;
@@ -293,19 +296,9 @@ public class DoctorServiceImpl implements DoctorService {
     }
 
     private DoctorProfileResponse buildDoctorProfileResponse(Doctor d) {
-        List<String> availableTypes = new ArrayList<>();
-        if (d.isAvailableForVideo()) {
-            availableTypes.add("Video");
-        }
-        if (d.isAvailableForAudio()) {
-            availableTypes.add("Audio");
-        }
-        if (d.isAvailableForChat()) {
-            availableTypes.add("Chat");
-        }
-        if (d.isAvailableForOffline()) {
-            availableTypes.add("Offline");
-        }
+        List<String> availableTypes = DoctorServiceHelper.buildAvailableTypes(
+                d.isAvailableForVideo(), d.isAvailableForAudio(),
+                d.isAvailableForChat(), d.isAvailableForOffline());
 
         String specialtyName = (d.getSpecialtyEntity() != null)
                 ? d.getSpecialtyEntity().getName()
@@ -422,6 +415,62 @@ public class DoctorServiceImpl implements DoctorService {
         return buildDoctorProfileResponse(doctor);
     }
 
+    @Override
+    @Transactional
+    public String requestPasswordChange(String doctorId) {
+        User user = userRepository.findById(doctorId)
+                .orElseThrow(() -> new ResourceNotFoundException("User not found"));
+
+        String verificationCode = generateVerificationCode();
+
+        emailVerificationTokenRepository.findByUserAndType(user, TokenType.PASSWORD_RESET)
+                .ifPresent(emailVerificationTokenRepository::delete);
+
+        EmailVerificationToken token = EmailVerificationToken.builder()
+                .user(user)
+                .token(verificationCode)
+                .type(TokenType.PASSWORD_RESET)
+                .newEmail(user.getEmail())
+                .expiryDate(LocalDateTime.now().plusMinutes(5))
+                .used(false)
+                .build();
+        emailVerificationTokenRepository.save(token);
+
+        emailService.sendSimpleMessage(
+                user.getEmail(),
+                "Password Change OTP",
+                "Your OTP for password change is: " + verificationCode +
+                "\n\nThis code expires in 5 minutes.\n\nIf you did not request this, please ignore this email."
+        );
+
+        return "OTP sent to your registered email";
+    }
+
+    @Override
+    @Transactional
+    public void verifyPasswordChange(String doctorId, PasswordChangeVerifyRequest request) {
+        User user = userRepository.findById(doctorId)
+                .orElseThrow(() -> new ResourceNotFoundException("User not found"));
+
+        if (!passwordEncoder.matches(request.getCurrentPassword(), user.getPassword())) {
+            throw new BadRequestException("Current password is incorrect");
+        }
+
+        EmailVerificationToken token = emailVerificationTokenRepository
+                .findByTokenAndUserAndType(request.getVerificationCode(), user, TokenType.PASSWORD_RESET)
+                .orElseThrow(() -> new BadRequestException("Invalid or expired OTP"));
+
+        if (token.getExpiryDate().isBefore(LocalDateTime.now())) {
+            emailVerificationTokenRepository.delete(token);
+            throw new BadRequestException("OTP has expired. Please request a new one.");
+        }
+
+        user.setPassword(passwordEncoder.encode(request.getNewPassword()));
+        userRepository.save(user);
+
+        emailVerificationTokenRepository.delete(token);
+    }
+
     // -------------------------------------------------------------------------
     // Private helpers
     // -------------------------------------------------------------------------
@@ -492,7 +541,7 @@ public class DoctorServiceImpl implements DoctorService {
                 .symptoms(appointment.getSymptoms())
                 .notes(appointment.getNotes())
                 .fee(appointment.getFee())
-                .doctorID(doctor != null ? doctor.getDoctorId() : null)
+                .doctorId(doctor != null ? doctor.getDoctorId() : null)
                 .doctorName(doctor != null ? doctor.getFullName() : null)
                 .doctorSpecialty(doctor != null ? doctor.getSpecialty() : null)
                 .diagnosis(consultation != null ? consultation.getDiagnosis() : null)
@@ -609,19 +658,9 @@ public class DoctorServiceImpl implements DoctorService {
     }
 
     private DoctorResponse toResponse(Doctor d) {
-        List<String> availableTypes = new ArrayList<>();
-        if (d.isAvailableForVideo()) {
-            availableTypes.add("Video");
-        }
-        if (d.isAvailableForAudio()) {
-            availableTypes.add("Audio");
-        }
-        if (d.isAvailableForChat()) {
-            availableTypes.add("Chat");
-        }
-        if (d.isAvailableForOffline()) {
-            availableTypes.add("Offline");
-        }
+        List<String> availableTypes = DoctorServiceHelper.buildAvailableTypes(
+                d.isAvailableForVideo(), d.isAvailableForAudio(),
+                d.isAvailableForChat(), d.isAvailableForOffline());
 
         String specialtyName = (d.getSpecialtyEntity() != null)
                 ? d.getSpecialtyEntity().getName()

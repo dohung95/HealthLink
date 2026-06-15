@@ -295,12 +295,14 @@ export function PharmacyRegistration() {
                 setSubmissionStep('uploading');
                 try {
                     await uploadDocuments(response.requestId);
-                    // After upload, AI screening will start automatically
                     setSubmissionStep('verifying');
-                    // Small delay to show verifying message
                     await new Promise(resolve => setTimeout(resolve, 1500));
                 } catch (uploadErr) {
                     console.error('Error uploading documents:', uploadErr);
+                    setErrors(prev => ({ ...prev, documents: 'Failed to upload documents. Please try again.' }));
+                    setSubmitting(false);
+                    setUploadingFiles(false);
+                    return;
                 }
                 setUploadingFiles(false);
             }

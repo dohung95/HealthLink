@@ -73,15 +73,15 @@ export default function DoctorPatientDetailView({ patient, onBack, onOpenAppoint
   const data = history || patient;
 
   return (
+    <>
+    <style>{`.doctor-patient-detail__back-btn:hover{color:#1564e8!important}.doctor-patient-detail__action-btn:hover{border-color:#1564e8!important;color:#1564e8!important}`}</style>
     <div className="d-flex flex-column" style={{ gap: '1rem' }}>
       {/* Back button */}
       <button
         type="button"
-        className="d-inline-flex align-items-center gap-2 btn"
+        className="d-inline-flex align-items-center gap-2 btn doctor-patient-detail__back-btn"
         onClick={onBack}
         style={{ border: 'none', background: 'none', padding: 0, fontSize: '0.85rem', fontWeight: '600', color: '#64748b', cursor: 'pointer' }}
-        onMouseEnter={(e) => { e.currentTarget.style.color = '#1564e8'; }}
-        onMouseLeave={(e) => { e.currentTarget.style.color = '#64748b'; }}
       >
         <i className="bi bi-arrow-left"></i>
         Back to patients
@@ -150,7 +150,7 @@ export default function DoctorPatientDetailView({ patient, onBack, onOpenAppoint
               </div>
               <button
                 type="button"
-                className="btn"
+                className="btn doctor-patient-detail__action-btn"
                 onClick={() => onOpenAppointmentById?.(appointment.appointmentId)}
                 style={{
                   border: '1px solid var(--border-light, #e2e8f0)',
@@ -163,8 +163,6 @@ export default function DoctorPatientDetailView({ patient, onBack, onOpenAppoint
                   whiteSpace: 'nowrap',
                   cursor: 'pointer',
                 }}
-                onMouseEnter={(e) => { e.currentTarget.style.borderColor = '#1564e8'; e.currentTarget.style.color = '#1564e8'; }}
-                onMouseLeave={(e) => { e.currentTarget.style.borderColor = 'var(--border-light, #e2e8f0)'; e.currentTarget.style.color = '#475569'; }}
               >
                 Open
               </button>
@@ -192,7 +190,7 @@ export default function DoctorPatientDetailView({ patient, onBack, onOpenAppoint
               {prescription.appointmentId ? (
                 <button
                   type="button"
-                  className="btn"
+                  className="btn doctor-patient-detail__action-btn"
                   onClick={() => onOpenAppointmentById?.(prescription.appointmentId)}
                   style={{
                     border: '1px solid var(--border-light, #e2e8f0)',
@@ -205,8 +203,6 @@ export default function DoctorPatientDetailView({ patient, onBack, onOpenAppoint
                     whiteSpace: 'nowrap',
                     cursor: 'pointer',
                   }}
-                  onMouseEnter={(e) => { e.currentTarget.style.borderColor = '#1564e8'; e.currentTarget.style.color = '#1564e8'; }}
-                  onMouseLeave={(e) => { e.currentTarget.style.borderColor = 'var(--border-light, #e2e8f0)'; e.currentTarget.style.color = '#475569'; }}
                 >
                   Appointment
                 </button>
@@ -238,5 +234,6 @@ export default function DoctorPatientDetailView({ patient, onBack, onOpenAppoint
         </div>
       </div>
     </div>
+    </>
   );
 }

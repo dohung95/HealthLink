@@ -106,7 +106,7 @@ export default function PharmacyNotificationDropdown() {
         <div className="pharmacy-notification-menu">
           <div className="pharmacy-notification-header">
             <strong>Notifications</strong>
-            {unreadCount > 0 ? (
+            {pharmacyUnreadCount > 0 ? (
               <button onClick={handleMarkAllRead} type="button">Mark all read</button>
             ) : null}
           </div>

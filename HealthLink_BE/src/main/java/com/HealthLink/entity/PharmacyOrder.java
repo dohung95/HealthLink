@@ -94,8 +94,7 @@ public class PharmacyOrder {
     @ToString.Exclude
     private Invoice invoice;
 
-    @Builder.Default
-    private LocalDateTime createdAt = LocalDateTime.now();
+    private LocalDateTime createdAt;
 
     @Builder.Default
     private Boolean doctorCompletionPaidNotified = false;
@@ -109,4 +108,9 @@ public class PharmacyOrder {
 
     @Column(precision = 5, scale = 4)
     private BigDecimal commissionRate;
+
+    @PrePersist
+    public void prePersist() {
+        if (createdAt == null) createdAt = LocalDateTime.now();
+    }
 }

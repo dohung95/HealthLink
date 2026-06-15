@@ -5,7 +5,7 @@ import com.HealthLink.entity.*;
 import com.HealthLink.exception.ResourceNotFoundException;
 import com.HealthLink.repository.admin.AdminMedicalRecordRepository;
 import com.HealthLink.repository.prescription.PrescriptionHeaderRepository;
-import jakarta.transaction.Transactional;
+import org.springframework.transaction.annotation.Transactional;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
@@ -157,7 +157,7 @@ public class AdminMedicalRecordService {
             .symptoms(appointment.getSymptoms())
             .notes(appointment.getNotes())
             .fee(appointment.getFee())
-            .doctorID(doctor != null ? doctor.getDoctorId() : null)
+            .doctorId(doctor != null ? doctor.getDoctorId() : null)
             .doctorName(doctor != null ? doctor.getFullName() : null)
             .doctorSpecialty(doctor != null ? doctor.getSpecialty() : null)
             .diagnosis(consultation != null ? consultation.getDiagnosis() : null)

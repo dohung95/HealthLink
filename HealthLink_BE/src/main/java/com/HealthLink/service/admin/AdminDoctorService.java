@@ -7,13 +7,14 @@ import com.HealthLink.entity.DoctorSchedule;
 import com.HealthLink.entity.DoctorScheduleException;
 import com.HealthLink.entity.Specialty;
 import com.HealthLink.entity.User;
+import com.HealthLink.entity.enums.ScheduleExceptionType;
 import com.HealthLink.exception.BadRequestException;
 import com.HealthLink.exception.ResourceNotFoundException;
 import com.HealthLink.repository.admin.AdminDoctorRepository;
 import com.HealthLink.repository.admin.DoctorScheduleExceptionRepository;
 import com.HealthLink.repository.doctor.DoctorScheduleRepository;
 import com.HealthLink.repository.doctor.SpecialtyRepository;
-import jakarta.transaction.Transactional;
+import org.springframework.transaction.annotation.Transactional;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
@@ -174,6 +175,14 @@ public class AdminDoctorService {
         Doctor doctor = doctorRepository.findById(doctorId)
             .orElseThrow(() -> new ResourceNotFoundException("Doctor", "id", doctorId));
 
+        boolean hasFutureAppointments = doctor.getAppointments() != null
+                && doctor.getAppointments().stream()
+                    .filter(a -> a != null && a.getAppointmentTime() != null)
+                    .anyMatch(a -> a.getAppointmentTime().toLocalDate().isAfter(LocalDate.now()));
+        if (hasFutureAppointments) {
+            throw new BadRequestException("Cannot delete doctor with future appointments");
+        }
+
         // Soft delete by setting status to "Deleted"
         if (doctor.getUser() != null) {
             doctor.getUser().setStatus("Deleted");
@@ -231,15 +240,13 @@ public class AdminDoctorService {
 
         if (exceptionOpt.isPresent()) {
             DoctorScheduleException exception = exceptionOpt.get();
-            String exceptionType = exception.getExceptionType();
+            ScheduleExceptionType exceptionType = exception.getExceptionType();
 
-            // Nếu là DayOff -> không làm việc
-            if ("DayOff".equalsIgnoreCase(exceptionType)) {
+            if (exceptionType == ScheduleExceptionType.DAY_OFF) {
                 return false;
             }
 
-            // Nếu là AddSlot hoặc Modified -> có làm việc
-            if ("AddSlot".equalsIgnoreCase(exceptionType) || "Modified".equalsIgnoreCase(exceptionType)) {
+            if (exceptionType == ScheduleExceptionType.ADD_SLOT || exceptionType == ScheduleExceptionType.MODIFIED) {
                 return true;
             }
         }
@@ -254,18 +261,19 @@ public class AdminDoctorService {
     private Sort resolveSort(String sortBy) {
         if (StringUtils.hasText(sortBy)) {
             switch (sortBy.toLowerCase()) {
-                case "oldest":
-                    return Sort.by(Sort.Direction.ASC, "fullName");
-                case "name-asc":
-                    return Sort.by(Sort.Direction.ASC, "fullName");
-                case "name-desc":
-                    return Sort.by(Sort.Direction.DESC, "fullName");
                 case "newest":
-                default:
+                    return Sort.by(Sort.Direction.DESC, "createdAt");
+                case "oldest":
+                    return Sort.by(Sort.Direction.ASC, "createdAt");
+                case "name_asc":
+                    return Sort.by(Sort.Direction.ASC, "fullName");
+                case "name_desc":
                     return Sort.by(Sort.Direction.DESC, "fullName");
+                default:
+                    return Sort.by(Sort.Direction.DESC, "createdAt");
             }
         }
-        return Sort.by(Sort.Direction.DESC, "fullName");
+        return Sort.by(Sort.Direction.DESC, "createdAt");
     }
 
     private Specification<Doctor> buildSpecification(String searchTerm, String status, String specialty) {
@@ -316,7 +324,7 @@ public class AdminDoctorService {
         }
 
         return AdminDoctorDto.builder()
-            .doctorID(doctor.getDoctorId())
+            .doctorId(doctor.getDoctorId())
             .fullName(doctor.getFullName())
             .email(email)
             .phone(phone)

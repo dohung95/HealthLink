@@ -11,7 +11,7 @@ import {
   money,
   routeByTab,
 } from './PharmacyShared';
-import { OrderTable } from './PharmacyOrdersTab';
+import OrderTable from './OrderTable';
 
 const LOW_STOCK_THRESHOLD = 10;
 const INVENTORY_SUMMARY_PAGE_SIZE = 5000;
@@ -48,27 +48,12 @@ export default function PharmacyOverviewTab({ profile, orders, workItems, balanc
 
   const loadInventorySummary = useCallback(async () => {
     try {
-      const firstPage = await pharmacyApi.getInventory({
-        page: 0,
-        size: INVENTORY_SUMMARY_PAGE_SIZE,
-      });
-      const totalPages = Number(firstPage?.totalPages ?? 1);
-      const total = Number(firstPage?.totalElements ?? 0);
-      const allItems = Array.isArray(firstPage?.content) ? [...firstPage.content] : [];
-
-      for (let pageIndex = 1; pageIndex < totalPages; pageIndex += 1) {
-        const pageData = await pharmacyApi.getInventory({
-          page: pageIndex,
-          size: INVENTORY_SUMMARY_PAGE_SIZE,
-        });
-        if (Array.isArray(pageData?.content)) {
-          allItems.push(...pageData.content);
-        }
-      }
-
+      const data = await pharmacyApi.getInventory({ page: 0, size: 1 });
       setInventorySummary({
-        total: total || allItems.length,
-        ...summarizeInventoryItems(allItems),
+        total: data.totalElements ?? 0,
+        available: 0,
+        lowStock: 0,
+        out: 0,
         failed: false,
       });
     } catch {

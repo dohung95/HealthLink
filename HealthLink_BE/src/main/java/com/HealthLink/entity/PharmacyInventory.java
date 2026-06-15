@@ -53,16 +53,20 @@ public class PharmacyInventory {
 
     private LocalDateTime lastImportedAt;
 
-    @Builder.Default
     @Column(nullable = false, updatable = false)
-    private LocalDateTime createdAt = LocalDateTime.now();
+    private LocalDateTime createdAt;
 
-    @Builder.Default
     @Column(nullable = false)
-    private LocalDateTime updatedAt = LocalDateTime.now();
+    private LocalDateTime updatedAt;
+
+    @PrePersist
+    public void prePersist() {
+        if (createdAt == null) createdAt = LocalDateTime.now();
+        if (updatedAt == null) updatedAt = LocalDateTime.now();
+    }
 
     @PreUpdate
-    protected void onUpdate() {
+    public void preUpdate() {
         updatedAt = LocalDateTime.now();
     }
 

@@ -12,6 +12,7 @@ import com.HealthLink.entity.DoctorScheduleException;
 import com.HealthLink.entity.User;
 import com.HealthLink.entity.enums.DoctorScheduleStatus;
 import com.HealthLink.entity.enums.NotificationType;
+import com.HealthLink.entity.enums.ScheduleExceptionType;
 import com.HealthLink.exception.BadRequestException;
 import com.HealthLink.exception.ResourceNotFoundException;
 import com.HealthLink.repository.admin.AdminScheduleAuditLogRepository;
@@ -24,6 +25,7 @@ import com.HealthLink.service.compliance.ScheduleComplianceService;
 import com.HealthLink.service.doctor.DoctorScheduleService;
 import com.HealthLink.audit.AuditLogger;
 import com.HealthLink.service.notification.NotificationService;
+import com.HealthLink.utility.DoctorServiceHelper;
 import lombok.RequiredArgsConstructor;
 import org.springframework.context.annotation.Lazy;
 import lombok.extern.slf4j.Slf4j;
@@ -130,7 +132,7 @@ public class DoctorScheduleServiceImpl implements DoctorScheduleService {
         boolean hasFutureBookings = appointmentRepository
                 .findByDoctor_DoctorIdAndStatusNotAndAppointmentTimeAfter(doctorId, "CANCELLED", now)
                 .stream()
-                .anyMatch(a -> a.getAppointmentTime().getDayOfWeek().getValue() % 7 == schedule.getDayOfWeek()
+                .anyMatch(a -> DoctorServiceHelper.dayOfWeekIndex(a.getAppointmentTime().getDayOfWeek()) == schedule.getDayOfWeek()
                         && !a.getAppointmentTime().toLocalTime().isBefore(schedule.getStartTime())
                         && a.getAppointmentTime().toLocalTime().isBefore(schedule.getEndTime()));
 
@@ -288,7 +290,7 @@ public class DoctorScheduleServiceImpl implements DoctorScheduleService {
             List<DoctorScheduleException> exceptions,
             LocalDateTime now
     ) {
-        int dayOfWeek = date.getDayOfWeek().getValue() % 7;
+        int dayOfWeek = DoctorServiceHelper.dayOfWeekIndex(date.getDayOfWeek());
         String dayName = date.getDayOfWeek().getDisplayName(TextStyle.FULL, Locale.ENGLISH);
 
         // Check for exception on this date
@@ -300,9 +302,9 @@ public class DoctorScheduleServiceImpl implements DoctorScheduleService {
         String status;
         List<CalendarDayResponse.SlotInfo> slots = new ArrayList<>();
 
-        if (exception != null && "DayOff".equals(exception.getExceptionType())) {
+        if (exception != null && exception.getExceptionType() == ScheduleExceptionType.DAY_OFF) {
             status = "DAY_OFF";
-        } else if (exception != null && "Modified".equals(exception.getExceptionType())) {
+        } else if (exception != null && exception.getExceptionType() == ScheduleExceptionType.MODIFIED) {
             status = "MODIFIED";
             slots = generateSlots(doctor.getDoctorId(), date, exception.getStartTime(), exception.getEndTime(), 30, now);
         } else {
@@ -322,7 +324,7 @@ public class DoctorScheduleServiceImpl implements DoctorScheduleService {
             }
 
             // AddSlot exception adds extra slots
-            if (exception != null && "AddSlot".equals(exception.getExceptionType())) {
+            if (exception != null && exception.getExceptionType() == ScheduleExceptionType.ADD_SLOT) {
                 slots.addAll(generateSlots(doctor.getDoctorId(), date, exception.getStartTime(), exception.getEndTime(), 30, now));
                 if ("NO_SCHEDULE".equals(status)) {
                     status = "WORKING";
@@ -432,7 +434,7 @@ public class DoctorScheduleServiceImpl implements DoctorScheduleService {
         return WeeklyScheduleResponse.ExceptionItem.builder()
                 .exceptionId(exception.getExceptionId())
                 .exceptionDate(exception.getExceptionDate())
-                .exceptionType(exception.getExceptionType())
+                .exceptionType(exception.getExceptionType().name())
                 .startTime(exception.getStartTime())
                 .endTime(exception.getEndTime())
                 .reason(exception.getReason())
@@ -505,16 +507,16 @@ public class DoctorScheduleServiceImpl implements DoctorScheduleService {
 
         // Iterate through each day of the month
         for (LocalDate date = startDate; !date.isAfter(endDate); date = date.plusDays(1)) {
-            int dayOfWeek = date.getDayOfWeek().getValue() % 7; // Convert to 0=Sunday format
+            int dayOfWeek = DoctorServiceHelper.dayOfWeekIndex(date.getDayOfWeek());
 
             // Check for exception on this date
             DoctorScheduleException exception = exceptionMap.get(date);
 
             if (exception != null) {
-                if ("DayOff".equals(exception.getExceptionType())) {
+                if (exception.getExceptionType() == ScheduleExceptionType.DAY_OFF) {
                     // Day off - no hours for this day
                     continue;
-                } else if ("Modified".equals(exception.getExceptionType())) {
+                } else if (exception.getExceptionType() == ScheduleExceptionType.MODIFIED) {
                     // Modified schedule - use exception times instead of regular schedule
                     if (exception.getStartTime() != null && exception.getEndTime() != null) {
                         long minutes = Duration.between(exception.getStartTime(), exception.getEndTime()).toMinutes();
@@ -534,7 +536,7 @@ public class DoctorScheduleServiceImpl implements DoctorScheduleService {
             }
 
             // Add extra hours from AddSlot exception
-            if (exception != null && "AddSlot".equals(exception.getExceptionType())) {
+            if (exception != null && exception.getExceptionType() == ScheduleExceptionType.ADD_SLOT) {
                 if (exception.getStartTime() != null && exception.getEndTime() != null) {
                     long minutes = Duration.between(exception.getStartTime(), exception.getEndTime()).toMinutes();
                     totalMinutes += Math.max(0, minutes);

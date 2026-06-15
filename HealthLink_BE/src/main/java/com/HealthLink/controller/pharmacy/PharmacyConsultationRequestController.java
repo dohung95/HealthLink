@@ -12,6 +12,7 @@ import com.HealthLink.repository.auth.UserRepository;
 import com.HealthLink.service.chat.ChatService;
 import com.HealthLink.service.pharmacy.PharmacyConsultationRequestService;
 import com.HealthLink.service.pharmacy.PharmacyOrderService;
+import com.HealthLink.utility.SecurityUtils;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
@@ -30,6 +31,7 @@ public class PharmacyConsultationRequestController {
 
     private final PharmacyConsultationRequestService pharmacyConsultationRequestService;
     private final PharmacyOrderService pharmacyOrderService;
+    private final SecurityUtils securityUtils;
     private final UserRepository userRepository;
     private final ChatService chatService;
 
@@ -45,7 +47,9 @@ public class PharmacyConsultationRequestController {
     @PreAuthorize("hasRole('PHARMACY')")
     public ResponseEntity<List<PharmacyConsultationRequestResponse>> getRequestsByPharmacy(
             @PathVariable String pharmacyId,
-            @RequestParam(required = false) String status) {
+            @RequestParam(required = false) String status,
+            @AuthenticationPrincipal UserDetails userDetails) {
+        securityUtils.verifyPharmacyOwnership(userDetails, pharmacyId);
         return ResponseEntity.ok(
                 pharmacyConsultationRequestService.getRequestsByPharmacy(pharmacyId, status)
         );

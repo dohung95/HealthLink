@@ -103,9 +103,10 @@ export default function ProfilePharmacy() {
     );
 }
 
+const DAYS = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'];
+
 // ─── Form cập nhật thông tin nhà thuốc ────────────────────────────────────────
 function PharmacyInfoForm({ profile, token, onUpdate }) {
-    const DAYS = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'];
 
     const [formData, setFormData] = useState({
         phoneNumber: profile?.phoneNumber || '',
@@ -218,10 +219,10 @@ function PharmacyInfoForm({ profile, token, onUpdate }) {
                                 <label className="form-label">Avatar</label>
                                 <div className="d-flex align-items-center gap-3">
                                     <img
-                                        src={formData.avatarUrl || `https://api.dicebear.com/9.x/initials/svg?seed=${profile?.name}`}
+                                        src={formData.avatarUrl || `https://api.dicebear.com/9.x/initials/svg?seed=${profile?.pharmacyName || 'Pharmacy'}`}
                                         alt="Avatar"
                                         style={{ width: 72, height: 72, borderRadius: '50%', objectFit: 'cover', border: '2px solid #dee2e6' }}
-                                        onError={(e) => { e.target.src = `https://api.dicebear.com/9.x/initials/svg?seed=${profile?.name}`; }}
+                                        onError={(e) => { e.target.src = `https://api.dicebear.com/9.x/initials/svg?seed=${profile?.pharmacyName || 'Pharmacy'}`; }}
                                     />
                                     {isEditing && (
                                         <div>

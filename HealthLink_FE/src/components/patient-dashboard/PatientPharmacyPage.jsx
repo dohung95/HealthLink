@@ -2,6 +2,7 @@ import { useState, useEffect, useCallback, useRef } from 'react';
 import { useNavigate, useLocation, Link } from 'react-router-dom';
 import { toast } from 'sonner';
 import { useAuth } from '../../context/AuthContext';
+import { useChat } from '../../context/ChatContext';
 import pharmacyApi from '../../api/pharmacyApi';
 import { getProfile } from '../../api/account';
 import { paymentApi } from '../../api/paymentApi';
@@ -565,7 +566,7 @@ function DeliveryContactStep({ profile, geolocation, geoTried, onBack, onContinu
 }
 
 function ConnectStep({ request, pharmacy, geolocation, userId, onRequestUpdated, onBack }) {
-  const { openChatWith } = useAuth();
+  const { openChatWith } = useChat();
   const [polling, setPolling] = useState(null);
   const startTime = useRef(Date.now());
 
@@ -1021,6 +1022,20 @@ function OrderDetailView({ orderId, userId, navigate }) {
     }
   };
 
+  const handlePaid = useCallback(async (updatedOrder) => {
+    if (updatedOrder?.paymentStatus === 'PAID') {
+      setOrder(updatedOrder);
+      setConfirmedForPayment(false);
+      return;
+    }
+    try {
+      const data = await pharmacyApi.getOrderById(orderId);
+      setOrder(data);
+    } catch {
+      toast.error('Failed to refresh order after payment');
+    }
+  }, [orderId]);
+
   const handlePayPalCancel = useCallback(() => {
     setConfirmedForPayment(false);
   }, []);
@@ -1185,15 +1200,7 @@ function OrderDetailView({ orderId, userId, navigate }) {
                 <p className="small text-muted mb-3">Pay with PayPal to complete your order.</p>
                 <PharmacyPayPalButton
                   order={order}
-                  onPaid={async (updatedOrder) => {
-                    if (updatedOrder?.paymentStatus === 'PAID') {
-                      setOrder(updatedOrder);
-                      setConfirmedForPayment(false);
-                      return;
-                    }
-                    const data = await pharmacyApi.getOrderById(orderId);
-                    setOrder(data);
-                  }}
+                  onPaid={handlePaid}
                   onCancel={handlePayPalCancel}
                   onError={handlePayPalError}
                   onFail={handlePayPalFail}

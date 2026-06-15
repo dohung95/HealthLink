@@ -1,5 +1,6 @@
 import React, { memo, useEffect } from 'react';
 import { NAV_ITEMS, APPOINTMENT_DETAIL_VIEW, PATIENT_DETAIL_VIEW, formatNotificationTime, getNotificationTone } from './navigationConfig';
+import DoctorHeader from '@components/doctor/DoctorHeader';
 
 const DoctorLayout = memo(({
   children,
@@ -19,6 +20,7 @@ const DoctorLayout = memo(({
   onNotificationClick,
   onMarkAllRead,
   onCloseAllNotifications,
+  onChangePassword,
 }) => {
   useEffect(() => {
     document.body.style.overflow = isMobileMenuOpen || showAllNotifications ? 'hidden' : 'unset';
@@ -101,39 +103,6 @@ const DoctorLayout = memo(({
     </div>
   );
 
-  const renderNotificationBell = () => (
-    <div className="position-relative" ref={notificationRef}>
-      <button
-        aria-label="Open notifications"
-        className="notification-bell-btn"
-        onClick={() => onToggleNotificationDropdown()}
-        type="button"
-      >
-        <span className="material-symbols-outlined">notifications</span>
-        {unreadCount > 0 ? <span className="notification-bell-dot" /> : null}
-      </button>
-      {showNotificationDropdown ? (
-        <div className="notification-dropdown-desktop d-none d-md-block">
-          <div className="notification-dropdown-arrow" />
-          <div className="d-flex align-items-center justify-content-between border-bottom px-3 py-3" style={{ borderColor: 'var(--border-light)' }}>
-            <h3 className="mb-0 small fw-semibold">Notifications</h3>
-            {unreadCount > 0 ? (
-              <button className="text-xs fw-semibold border-0 bg-transparent" style={{ color: 'var(--primary)' }} onClick={onMarkAllRead} type="button">
-                Mark all as read
-              </button>
-            ) : null}
-          </div>
-          {renderNotificationList()}
-          <div className="border-top p-3 text-center" style={{ borderColor: 'var(--border-light)' }}>
-            <button className="text-xs fw-semibold border-0 bg-transparent" style={{ color: 'var(--primary)' }} onClick={onCloseAllNotifications} type="button">
-              View all notifications
-            </button>
-          </div>
-        </div>
-      ) : null}
-    </div>
-  );
-
   return (
     <div className="doctor-viewport bg-background text-text-main">
       {/* Desktop Sidebar */}
@@ -167,29 +136,22 @@ const DoctorLayout = memo(({
 
       {/* Main Area */}
       <div className="doctor-main-area doctor-viewport" style={{ paddingLeft: '240px' }}>
-        <header className="doctor-header sticky-top z-30 d-flex align-items-center justify-content-between px-5" style={{ paddingRight: '3rem' }}>
-          <div className="d-flex align-items-center gap-3">
-            <button className="rounded-3 p-2 text-on-surface-variant hover:bg-surface-container d-lg-none border-0 bg-transparent" onClick={() => onToggleMobileMenu()} type="button">
-              <span className="material-symbols-outlined">menu</span>
-            </button>
-          </div>
-          <div className="d-flex align-items-center gap-0 ms-auto">
-            <div className="d-flex align-items-center gap-3 pe-3">
-              {renderNotificationBell()}
-              <div className="shrink-0 overflow-hidden rounded-circle border border-surface-border bg-primary-fixed text-primary d-flex align-items-center justify-content-center fw-bold" style={{ width: '2.75rem', height: '2.75rem', fontSize: '1rem' }}>
-                {doctorData?.avatarUrl || doctorData?.profileImage || doctorData?.imageUrl ? (
-                  <img alt="Doctor" className="object-fit-cover w-100 h-100" src={doctorData?.avatarUrl || doctorData?.profileImage || doctorData?.imageUrl} />
-                ) : (
-                  <span>{(doctorData?.fullName || 'DR').split(' ').filter(Boolean).slice(0, 2).map((p) => p[0]?.toUpperCase()).join('')}</span>
-                )}
-              </div>
-            </div>
-            <div className="border-end me-3" style={{ height: '1.5rem', borderColor: 'var(--border-light)', borderWidth: '1px' }} />
-            <button className="doctor-header-logout d-none d-md-flex align-items-center justify-content-center rounded-3 text-on-surface-variant border-0 bg-transparent" onClick={onLogout} type="button" title="Logout">
-              <span className="material-symbols-outlined">logout</span>
-            </button>
-          </div>
-        </header>
+        <DoctorHeader
+          doctorData={doctorData}
+          isMobileMenuOpen={isMobileMenuOpen}
+          showAllNotifications={showAllNotifications}
+          notifications={notifications}
+          unreadCount={unreadCount}
+          showNotificationDropdown={showNotificationDropdown}
+          notificationRef={notificationRef}
+          onToggleMobileMenu={onToggleMobileMenu}
+          onToggleNotificationDropdown={onToggleNotificationDropdown}
+          onNotificationClick={onNotificationClick}
+          onMarkAllRead={onMarkAllRead}
+          onCloseAllNotifications={onCloseAllNotifications}
+          onLogout={onLogout}
+          onChangePassword={onChangePassword}
+        />
         <main className="doctor-main-content p-3 pb-5 p-md-4">
           <div className={`mx-auto ${currentNavItem?.wide || isDetailView ? '' : ''}`} style={{ maxWidth: currentNavItem?.wide || isDetailView ? '1400px' : '1120px' }}>
             {children}

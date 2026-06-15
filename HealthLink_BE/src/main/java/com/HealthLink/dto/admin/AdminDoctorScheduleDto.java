@@ -1,5 +1,6 @@
 package com.HealthLink.dto.admin;
 
+import com.HealthLink.entity.enums.DoctorScheduleStatus;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
@@ -43,7 +44,7 @@ public class AdminDoctorScheduleDto {
         private String consultationType;
         private String location;
         private String notes;
-        private com.HealthLink.entity.enums.DoctorScheduleStatus scheduleStatus;
+        private DoctorScheduleStatus scheduleStatus;
     }
 
     @Data

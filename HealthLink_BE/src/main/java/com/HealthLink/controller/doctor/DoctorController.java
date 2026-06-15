@@ -3,6 +3,7 @@ package com.HealthLink.controller.doctor;
 import com.HealthLink.dto.doctor.DoctorUpdateRequest;
 import com.HealthLink.dto.auth.ChangeEmailRequest;
 import com.HealthLink.dto.auth.VerifyEmailChangeRequest;
+import com.HealthLink.dto.auth.PasswordChangeVerifyRequest;
 import com.HealthLink.dto.response.DoctorPatientHistoryResponse;
 import com.HealthLink.dto.response.DoctorPatientPageResponse;
 import com.HealthLink.dto.response.DoctorProfileResponse;
@@ -125,6 +126,27 @@ public class DoctorController {
         String doctorId = resolveUserId(userDetails);
         DoctorProfileResponse updated = doctorService.verifyEmailChange(doctorId, request);
         return ResponseEntity.ok(updated);
+    }
+
+    // Yêu cầu đổi mật khẩu - gửi OTP về email
+    @PostMapping("auth/password/request-change")
+    @PreAuthorize("hasRole('DOCTOR')")
+    public ResponseEntity<String> requestPasswordChange(
+            @AuthenticationPrincipal UserDetails userDetails) {
+        String doctorId = resolveUserId(userDetails);
+        String message = doctorService.requestPasswordChange(doctorId);
+        return ResponseEntity.ok(message);
+    }
+
+    // Xác nhận OTP và đổi mật khẩu
+    @PutMapping("auth/password/change")
+    @PreAuthorize("hasRole('DOCTOR')")
+    public ResponseEntity<String> verifyPasswordChange(
+            @Valid @RequestBody PasswordChangeVerifyRequest request,
+            @AuthenticationPrincipal UserDetails userDetails) {
+        String doctorId = resolveUserId(userDetails);
+        doctorService.verifyPasswordChange(doctorId, request);
+        return ResponseEntity.ok("Password changed successfully");
     }
 
     // Upload ảnh đại diện cho bác sĩ

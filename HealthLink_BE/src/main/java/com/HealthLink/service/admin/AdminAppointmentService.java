@@ -11,7 +11,7 @@ import com.HealthLink.repository.admin.AdminScheduleAuditLogRepository;
 import com.HealthLink.repository.auth.UserRepository;
 import com.HealthLink.service.admin.AdminNotificationService;
 import jakarta.servlet.http.HttpServletRequest;
-import jakarta.transaction.Transactional;
+import org.springframework.transaction.annotation.Transactional;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
