@@ -82,7 +82,6 @@ class SettlementServiceImplTest {
     void withdrawDoctorEarnings_shouldPayOutWhenRemainingBalanceIsGreaterThanTen() throws Exception {
         Doctor doctor = doctor(new BigDecimal("25.00"));
         when(doctorRepository.findById("doctor-1")).thenReturn(Optional.of(doctor));
-        when(settlementRepository.count()).thenReturn(0L);
         when(settlementRepository.save(any(Settlement.class))).thenAnswer(invocation -> {
             Settlement settlement = invocation.getArgument(0);
             if (settlement.getSettlementId() == null) {
