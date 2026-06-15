@@ -108,11 +108,13 @@ class ChatService {
   static Future<List<Message>> getMessages(
     String token,
     String currentUserId,
-    String chatRoomId,
-  ) async {
+    String chatRoomId, {
+    int page = 0,
+    int size = 25,
+  }) async {
     final res = await http
         .get(
-          Uri.parse(ApiConfig.chatMessages(chatRoomId)),
+          Uri.parse(ApiConfig.chatMessages(chatRoomId, page: page, size: size)),
           headers: _headers(token),
         )
         .timeout(ApiConfig.connectTimeout);

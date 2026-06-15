@@ -52,6 +52,16 @@ class _ChatRoomScreenState extends State<ChatRoomScreen> {
         setState(() => _isTextEmpty = isEmpty);
       }
     });
+
+    _scrollController.addListener(() {
+      if (_scrollController.position.pixels >= _scrollController.position.maxScrollExtent - 200) {
+        final auth = context.read<AuthProvider>();
+        if (auth.accessToken != null && auth.userId != null) {
+          _chatProvider.loadMoreMessages(auth.accessToken!, auth.userId!);
+        }
+      }
+    });
+
     // Load tin nhắn - openConversation đã được gọi từ ChatListScreen rồi
     // Nếu vào trực tiếp (deeplink...) thì load lại ở đây
     WidgetsBinding.instance.addPostFrameCallback((_) {
@@ -206,6 +216,35 @@ class _ChatRoomScreenState extends State<ChatRoomScreen> {
     _scrollToBottom();
   }
 
+  String? _highlightedMessageId;
+
+  void _scrollToMessageId(String msgId) {
+    final messages = context.read<ChatProvider>().messages;
+    final index = messages.indexWhere((m) => m.id == msgId);
+    if (index != -1) {
+      final reverseIndex = messages.length - 1 - index;
+      final offset = (reverseIndex * 80.0);
+      _scrollController.animateTo(
+        offset,
+        duration: const Duration(milliseconds: 500),
+        curve: Curves.easeInOut,
+      );
+      
+      setState(() {
+        _highlightedMessageId = msgId;
+      });
+      Future.delayed(const Duration(seconds: 2), () {
+        if (mounted) {
+          setState(() {
+            if (_highlightedMessageId == msgId) {
+              _highlightedMessageId = null;
+            }
+          });
+        }
+      });
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     final colors = _colors(context);
@@ -268,9 +307,17 @@ class _ChatRoomScreenState extends State<ChatRoomScreen> {
                             reverse: true,
                             controller: _scrollController,
                             padding: const EdgeInsets.fromLTRB(16, 24, 16, 16),
-                            itemCount: chat.messages.length,
+                            itemCount: chat.messages.length + (chat.isLoadingMoreMessages ? 1 : 0),
                             separatorBuilder: (_, __) => const SizedBox(height: 16),
                             itemBuilder: (context, index) {
+                              if (index == chat.messages.length) {
+                                return const Center(
+                                  child: Padding(
+                                    padding: EdgeInsets.all(8.0),
+                                    child: CircularProgressIndicator(),
+                                  ),
+                                );
+                              }
                               final reverseIndex = chat.messages.length - 1 - index;
                               final msg = chat.messages[reverseIndex];
                               final showDate = reverseIndex == 0 ||
@@ -458,9 +505,19 @@ class _ChatRoomScreenState extends State<ChatRoomScreen> {
 
   Widget _buildMessageBubble(BuildContext context, Message msg) {
     final isMe = msg.sender == MessageSender.me;
-    return isMe
-        ? _buildPatientBubble(context, msg)
-        : _buildDoctorBubble(context, msg);
+    final isHighlighted = msg.id == _highlightedMessageId;
+    
+    return AnimatedContainer(
+      duration: const Duration(milliseconds: 500),
+      decoration: BoxDecoration(
+        color: isHighlighted ? Colors.yellow.withValues(alpha: 0.3) : Colors.transparent,
+        borderRadius: BorderRadius.circular(16),
+      ),
+      padding: EdgeInsets.all(isHighlighted ? 4.0 : 0.0),
+      child: isMe
+          ? _buildPatientBubble(context, msg)
+          : _buildDoctorBubble(context, msg),
+    );
   }
 
   Widget _buildDoctorBubble(BuildContext context, Message msg) {
@@ -1211,11 +1268,14 @@ class _ChatRoomScreenState extends State<ChatRoomScreen> {
                 ListTile(
                   leading: Icon(Icons.search, color: colors.onSurfaceVariant),
                   title: const Text('Search in Conversation'),
-                  onTap: () {
+                  onTap: () async {
                     Navigator.pop(context); // Đóng BottomSheet
-                    Navigator.push(context, MaterialPageRoute(
+                    final messageId = await Navigator.push<String?>(context, MaterialPageRoute(
                       builder: (_) => ChatSearchScreen(conversation: conv),
                     ));
+                    if (messageId != null) {
+                      _scrollToMessageId(messageId);
+                    }
                   },
                 ),
                 ListTile(
@@ -1239,9 +1299,10 @@ class _ChatRoomScreenState extends State<ChatRoomScreen> {
                 const Divider(),
                 if (context.watch<ChatProvider>().getBlockedBy(conv.id) == null || context.watch<ChatProvider>().getBlockedBy(conv.id) == context.read<AuthProvider>().userId)
                   ListTile(
-                    leading: Icon(Icons.block, color: context.watch<ChatProvider>().isBlocked(conv.id) ? Colors.green : Colors.red.shade400),
-                    title: Text(context.watch<ChatProvider>().isBlocked(conv.id) ? 'Unblock' : 'Block', style: TextStyle(color: context.watch<ChatProvider>().isBlocked(conv.id) ? Colors.green : Colors.red.shade400)),
-                    onTap: () {
+                    enabled: conv.appointmentStatus != 'COMPLETED',
+                    leading: Icon(Icons.block, color: conv.appointmentStatus == 'COMPLETED' ? Colors.grey : (context.watch<ChatProvider>().isBlocked(conv.id) ? Colors.green : Colors.red.shade400)),
+                    title: Text(context.watch<ChatProvider>().isBlocked(conv.id) ? 'Unblock' : 'Block', style: TextStyle(color: conv.appointmentStatus == 'COMPLETED' ? Colors.grey : (context.watch<ChatProvider>().isBlocked(conv.id) ? Colors.green : Colors.red.shade400))),
+                    onTap: conv.appointmentStatus == 'COMPLETED' ? null : () {
                       Navigator.pop(context); // Đóng BottomSheet
                       _showBlockDialog(context);
                     },

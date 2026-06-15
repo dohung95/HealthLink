@@ -95,13 +95,19 @@ class ChatProvider extends ChangeNotifier {
   bool          _isSending = false;
   String?       _messagesError;
 
+  int _currentPage = 0;
+  bool _hasMoreMessages = true;
+  bool _isLoadingMoreMessages = false;
+
   Conversation? get currentConversation  => _currentConversation;
   List<Message> get messages             => _messages;
   bool          get isLoadingMessages    => _isLoadingMessages;
   bool          get isSending            => _isSending;
   String?       get messagesError        => _messagesError;
+  bool          get hasMoreMessages      => _hasMoreMessages;
+  bool          get isLoadingMoreMessages => _isLoadingMoreMessages;
 
-  // ── Conversations ──────────────────────────────────────────────────────────
+  // ── WebSocket ──────────────────────────────────────────────────────────────
 
   String? _lastToken;
   String? _lastUserId;
@@ -241,6 +247,8 @@ class ChatProvider extends ChangeNotifier {
     if (_currentConversation?.id != conversation.id) {
       _messages = [];
       _currentConversation = conversation;
+      _currentPage = 0;
+      _hasMoreMessages = true;
     }
 
     _isLoadingMessages = true;
@@ -248,9 +256,12 @@ class ChatProvider extends ChangeNotifier {
     notifyListeners();
 
     try {
-      final msgs = await ChatService.getMessages(accessToken, userId, conversation.id);
+      final msgs = await ChatService.getMessages(accessToken, userId, conversation.id, page: 0, size: 25);
       // Sắp xếp cũ nhất → mới nhất để hiển thị đúng chiều
       _messages = msgs..sort((a, b) => a.sentAt.compareTo(b.sentAt));
+      _currentPage = 0;
+      _hasMoreMessages = msgs.length >= 25;
+      
       // Đánh dấu đã đọc ngầm
       ChatService.markAsRead(accessToken, conversation.id);
       // Cập nhật unreadCount về 0 trong danh sách
@@ -259,6 +270,40 @@ class ChatProvider extends ChangeNotifier {
       _messagesError = _clean(e.toString());
     } finally {
       _isLoadingMessages = false;
+      notifyListeners();
+    }
+  }
+
+  Future<void> loadMoreMessages(String accessToken, String userId) async {
+    if (_currentConversation == null || _isLoadingMoreMessages || !_hasMoreMessages) return;
+
+    _isLoadingMoreMessages = true;
+    notifyListeners();
+
+    try {
+      final nextPage = _currentPage + 1;
+      final msgs = await ChatService.getMessages(
+        accessToken, 
+        userId, 
+        _currentConversation!.id, 
+        page: nextPage, 
+        size: 25,
+      );
+
+      if (msgs.isNotEmpty) {
+        msgs.sort((a, b) => a.sentAt.compareTo(b.sentAt));
+        _messages.insertAll(0, msgs);
+        _currentPage = nextPage;
+        if (msgs.length < 25) {
+          _hasMoreMessages = false;
+        }
+      } else {
+        _hasMoreMessages = false;
+      }
+    } catch (e) {
+      debugPrint('[ChatProvider] loadMoreMessages error: $e');
+    } finally {
+      _isLoadingMoreMessages = false;
       notifyListeners();
     }
   }

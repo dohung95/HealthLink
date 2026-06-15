@@ -134,3 +134,18 @@ export async function uploadMedia(chatRoomId, type, file) {
     if (!res.ok) throw new Error(`uploadMedia failed: ${res.status}`);
     return res.json();
 }
+
+/**
+ * Bật/Tắt chặn phòng chat.
+ *
+ * @param {string} chatRoomId - ID phòng chat
+ * @returns {Promise<void>}
+ */
+export async function toggleBlock(chatRoomId) {
+    const token = getToken();
+    const res = await fetch(`${BASE}/rooms/${chatRoomId}/block`, {
+        method: 'POST',
+        headers: { 'Authorization': `Bearer ${token}` },
+    });
+    if (!res.ok) throw new Error(`toggleBlock failed: ${res.status}`);
+}

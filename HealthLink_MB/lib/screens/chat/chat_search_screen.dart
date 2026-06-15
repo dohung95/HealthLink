@@ -69,7 +69,7 @@ class _ChatSearchScreenState extends State<ChatSearchScreen> {
                       title: Text(msg.content, maxLines: 2, overflow: TextOverflow.ellipsis),
                       subtitle: Text(time, style: TextStyle(fontSize: 12, color: colors.outline)),
                       onTap: () {
-                        Navigator.pop(context);
+                        Navigator.pop(context, msg.id);
                       },
                     );
                   },
