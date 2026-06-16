@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useState } from 'react';
 import { vitalSignApi } from '@api/vitalSignApi';
 
-const DEFAULT_VITAL_SIGN = {
+const getDefaultVitalSign = () => ({
   heartRate: 78,
   bloodPressureSystolic: 125,
   bloodPressureDiastolic: 82,
@@ -12,10 +12,10 @@ const DEFAULT_VITAL_SIGN = {
   deviceName: 'Omron X7 Smart',
   measuredAt: new Date().toISOString(),
   notes: 'Patient reports feeling well this morning.',
-};
+});
 
 export function useVitalSigns(appointmentId) {
-  const [latestVitalSign, setLatestVitalSign] = useState(DEFAULT_VITAL_SIGN);
+  const [latestVitalSign, setLatestVitalSign] = useState(getDefaultVitalSign());
   const [loadingVitalSign, setLoadingVitalSign] = useState(false);
 
   const loadLatestVitalSign = useCallback(async () => {
@@ -24,10 +24,10 @@ export function useVitalSigns(appointmentId) {
     setLoadingVitalSign(true);
     try {
       const data = await vitalSignApi.getLatestAppointmentVitalSign(appointmentId);
-      setLatestVitalSign(data || DEFAULT_VITAL_SIGN);
+      setLatestVitalSign(data || getDefaultVitalSign());
     } catch (error) {
       console.error('Error loading vital signs:', error);
-      setLatestVitalSign(DEFAULT_VITAL_SIGN);
+      setLatestVitalSign(getDefaultVitalSign());
     } finally {
       setLoadingVitalSign(false);
     }

@@ -861,16 +861,8 @@ public class AdminCommissionServiceImpl implements AdminCommissionService {
     }
 
     private String generateSettlementNumber() {
-        String prefix = "STL-" + LocalDateTime.now().format(DateTimeFormatter.ofPattern("yyyyMM")) + "-";
-        String max = settlementRepo.findMaxSettlementNumber(prefix);
-        int next = 1;
-        if (max != null && max.length() > prefix.length()) {
-            try {
-                next = Integer.parseInt(max.substring(prefix.length())) + 1;
-            } catch (NumberFormatException ignored) {
-            }
-        }
-        return prefix + String.format("%05d", next);
+        return "STL-" + LocalDateTime.now()
+                .format(DateTimeFormatter.ofPattern("yyyyMMdd-HHmmss-SSSSSS"));
     }
 
     private void updateRecipientEarnings(Settlement settlement) {

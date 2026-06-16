@@ -52,6 +52,23 @@ class BookingService {
       ..sort();
   }
 
+  Future<BookingDoctor> getDoctorById(String doctorId) async {
+    final response = await http
+        .get(Uri.parse(ApiConfig.doctorPublicProfile(doctorId)), headers: _headers)
+        .timeout(ApiConfig.connectTimeout);
+
+    if (response.statusCode != 200) {
+      throw Exception(parseError(response, 'Can not load doctor information.'));
+    }
+
+    final data = jsonDecode(response.body);
+    if (data is! Map<String, dynamic>) {
+      throw Exception('Invalid doctor data format.');
+    }
+
+    return BookingDoctor.fromJson(data);
+  }
+
   Future<PagedDoctors> searchDoctors({
     String? specialty,
     String? name,

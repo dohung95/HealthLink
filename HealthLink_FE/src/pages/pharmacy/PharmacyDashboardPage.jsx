@@ -54,7 +54,7 @@ export default function PharmacyDashboardPage() {
       const resolvedPharmacyId = profileData?.pharmacyId || currentUserId;
       setProfile(profileData);
 
-      const [orderData, requestData, workItemData, balanceData, transactionData, settlementData] = await Promise.all([
+      const results = await Promise.allSettled([
         resolvedPharmacyId ? pharmacyApi.getOrdersByPharmacy(resolvedPharmacyId) : Promise.resolve([]),
         resolvedPharmacyId ? pharmacyApi.getConsultationRequestsByPharmacy(resolvedPharmacyId) : Promise.resolve([]),
         resolvedPharmacyId ? pharmacyApi.getWorkItemsByPharmacy(resolvedPharmacyId) : Promise.resolve([]),
@@ -62,16 +62,16 @@ export default function PharmacyDashboardPage() {
         resolvedPharmacyId ? paymentApi.getPartnerTransactions(resolvedPharmacyId) : Promise.resolve([]),
         resolvedPharmacyId ? paymentApi.getPartnerSettlements(resolvedPharmacyId) : Promise.resolve([]),
       ]);
+      const [orderResult, requestResult, workItemResult, balanceResult, transactionResult, settlementResult] = results;
 
-      setOrders(Array.isArray(orderData) ? orderData : []);
-      setRequests(Array.isArray(requestData) ? requestData : []);
-      setWorkItems(Array.isArray(workItemData) ? workItemData : []);
-      setBalance(balanceData);
-      setTransactions(Array.isArray(transactionData) ? transactionData : []);
-      setSettlements(Array.isArray(settlementData) ? settlementData : []);
+      if (orderResult.status === 'fulfilled') setOrders(Array.isArray(orderResult.value) ? orderResult.value : []);
+      if (requestResult.status === 'fulfilled') setRequests(Array.isArray(requestResult.value) ? requestResult.value : []);
+      if (workItemResult.status === 'fulfilled') setWorkItems(Array.isArray(workItemResult.value) ? workItemResult.value : []);
+      if (balanceResult.status === 'fulfilled') setBalance(balanceResult.value);
+      if (transactionResult.status === 'fulfilled') setTransactions(Array.isArray(transactionResult.value) ? transactionResult.value : []);
+      if (settlementResult.status === 'fulfilled') setSettlements(Array.isArray(settlementResult.value) ? settlementResult.value : []);
     } catch (error) {
       console.error('Failed to load pharmacy dashboard', error);
-      toast.error(error.response?.data?.message || 'Unable to load pharmacy dashboard.');
     } finally {
       setLoading(false);
     }

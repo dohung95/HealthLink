@@ -1,4 +1,6 @@
 package com.HealthLink.entity;
+
+import com.HealthLink.entity.enums.ScheduleExceptionType;
 import jakarta.persistence.*;
 import lombok.*;
 import java.time.LocalDate;
@@ -23,8 +25,8 @@ public class DoctorScheduleException {
     @Column(nullable = false)
     private LocalDate exceptionDate;
 
-    @Column(length = 50)
-    private String exceptionType; // DayOff, Modified
+    @Enumerated(EnumType.STRING)
+    private ScheduleExceptionType exceptionType;
 
     private LocalTime startTime;
     private LocalTime endTime;

@@ -9,20 +9,21 @@ import com.HealthLink.exception.ResourceNotFoundException;
 import com.HealthLink.repository.pharmacy.PharmacyInventoryRepository;
 import com.HealthLink.repository.pharmacy.PharmacyRepository;
 import com.HealthLink.repository.prescription.PrescriptionHeaderRepository;
+import com.HealthLink.service.impl.pharmacy.PharmacyServiceHelper;
 import com.HealthLink.service.pharmacy.PharmacyRecommendationService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 import java.util.*;
 import java.util.stream.Collectors;
 
 @Service
+@Transactional(readOnly = true)
 @RequiredArgsConstructor
 @Slf4j
 public class PharmacyRecommendationServiceImpl implements PharmacyRecommendationService {
-
-    private static final double EARTH_RADIUS_KM = 6371.0;
 
     private final PharmacyRepository pharmacyRepository;
     private final PharmacyInventoryRepository inventoryRepository;
@@ -93,7 +94,7 @@ public class PharmacyRecommendationServiceImpl implements PharmacyRecommendation
         Double distanceKm = null;
         if (patientLat != null && patientLng != null
                 && pharmacy.getLatitude() != null && pharmacy.getLongitude() != null) {
-            distanceKm = calculateDistanceKm(
+            distanceKm = PharmacyServiceHelper.calculateDistanceKm(
                     pharmacy.getLatitude(), pharmacy.getLongitude(),
                     patientLat, patientLng
             );
@@ -207,7 +208,7 @@ public class PharmacyRecommendationServiceImpl implements PharmacyRecommendation
 
     public static String formatDistance(Double distanceKm) {
         if (distanceKm == null) {
-            return "Khong co khoang cach";
+            return "No distance available";
         }
         if (distanceKm < 1.0) {
             int meters = (int) Math.round(distanceKm * 1000);
@@ -219,12 +220,5 @@ public class PharmacyRecommendationServiceImpl implements PharmacyRecommendation
         return String.format("%.1f km", distanceKm);
     }
 
-    private double calculateDistanceKm(double lat1, double lon1, double lat2, double lon2) {
-        double latDistance = Math.toRadians(lat2 - lat1);
-        double lonDistance = Math.toRadians(lon2 - lon1);
-        double a = Math.sin(latDistance / 2) * Math.sin(latDistance / 2)
-                + Math.cos(Math.toRadians(lat1)) * Math.cos(Math.toRadians(lat2))
-                * Math.sin(lonDistance / 2) * Math.sin(lonDistance / 2);
-        return EARTH_RADIUS_KM * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
-    }
+    // calculateDistanceKm moved to PharmacyServiceHelper
 }

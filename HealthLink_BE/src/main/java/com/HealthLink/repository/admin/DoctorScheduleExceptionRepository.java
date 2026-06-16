@@ -1,6 +1,7 @@
 package com.HealthLink.repository.admin;
 
 import com.HealthLink.entity.DoctorScheduleException;
+import com.HealthLink.entity.enums.ScheduleExceptionType;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
@@ -40,13 +41,13 @@ public interface DoctorScheduleExceptionRepository extends JpaRepository<DoctorS
      * Lấy exceptions theo loại (DayOff, Modified, AddSlot).
      */
     List<DoctorScheduleException> findByDoctor_DoctorIdAndExceptionType(
-            String doctorId, String exceptionType);
+            String doctorId, ScheduleExceptionType exceptionType);
 
     /**
      * Kiểm tra bác sĩ có exception trong ngày không (dùng cho booking validation).
      */
     boolean existsByDoctor_DoctorIdAndExceptionDateAndExceptionType(
-            String doctorId, LocalDate exceptionDate, String exceptionType);
+            String doctorId, LocalDate exceptionDate, ScheduleExceptionType exceptionType);
 
     /**
      * Lấy exceptions do Admin tạo (reason chứa [Admin]).

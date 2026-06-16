@@ -22,7 +22,7 @@ public class AdminAppointmentSummaryDto {
     private BigDecimal fee;
 
     // Doctor info
-    private String doctorID;
+    private String doctorId;
     private String doctorName;
     private String doctorSpecialty;
 

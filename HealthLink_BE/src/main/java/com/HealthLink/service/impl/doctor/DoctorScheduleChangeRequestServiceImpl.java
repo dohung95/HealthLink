@@ -14,7 +14,7 @@ import com.HealthLink.entity.enums.NotificationType;
 import com.HealthLink.repository.doctor.DoctorRepository;
 import com.HealthLink.service.doctor.DoctorScheduleChangeRequestService;
 import com.HealthLink.service.notification.NotificationService;
-import jakarta.transaction.Transactional;
+import org.springframework.transaction.annotation.Transactional;
 import org.springframework.stereotype.Service;
 
 import java.time.LocalDateTime;
@@ -130,11 +130,14 @@ public class DoctorScheduleChangeRequestServiceImpl implements DoctorScheduleCha
     }
 
     private DoctorScheduleChangeRequestResponse mapResponse(DoctorScheduleChangeRequest request) {
+        String patientName = request.getAppointment().getPatient() != null
+                ? request.getAppointment().getPatient().getFullName()
+                : null;
         return DoctorScheduleChangeRequestResponse.builder()
                 .requestId(request.getRequestId())
                 .appointmentId(request.getAppointment().getAppointmentId())
                 .appointmentTime(request.getAppointment().getAppointmentTime())
-                .patientName(request.getAppointment().getPatient().getFullName())
+                .patientName(patientName)
                 .doctorId(request.getDoctor().getDoctorId())
                 .doctorName(request.getDoctor().getFullName())
                 .status(request.getStatus())
@@ -181,7 +184,7 @@ public class DoctorScheduleChangeRequestServiceImpl implements DoctorScheduleCha
                             .actionType(actionType)
                             .targetDoctorId(doctor.getDoctorId())
                             .targetAppointmentId(appointment != null ? appointment.getAppointmentId() : null)
-                            .targetPatientId(appointment != null && appointment.getPatient() != null ? appointment.getPatient().getUser().getId() : null)
+                            .targetPatientId(appointment != null && appointment.getPatient() != null && appointment.getPatient().getUser() != null ? appointment.getPatient().getUser().getId() : null)
                             .description("Doctor schedule change request " + request.getRequestId() + " status " + request.getStatus())
                             .oldValue(null)
                             .newValue("{\"status\":\"" + request.getStatus() + "\",\"reason\":\"" + request.getReason() + "\"}")

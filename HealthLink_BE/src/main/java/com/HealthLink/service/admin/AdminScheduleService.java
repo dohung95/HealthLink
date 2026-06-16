@@ -13,8 +13,9 @@ import com.HealthLink.repository.doctor.DoctorScheduleRepository;
 import com.HealthLink.repository.admin.AdminDoctorRepository;
 import com.HealthLink.repository.auth.UserRepository;
 import com.HealthLink.entity.enums.NotificationType;
+import com.HealthLink.entity.enums.ScheduleExceptionType;
 import jakarta.servlet.http.HttpServletRequest;
-import jakarta.transaction.Transactional;
+import org.springframework.transaction.annotation.Transactional;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
@@ -92,8 +93,9 @@ public class AdminScheduleService {
         User adminUser = userRepository.findById(adminUserId)
                 .orElseThrow(() -> new ResourceNotFoundException("Admin User", "id", adminUserId));
 
-        // Validate exception type
+        // Validate and parse exception type
         validateExceptionType(request.getExceptionType());
+        ScheduleExceptionType exceptionType = ScheduleExceptionType.valueOf(request.getExceptionType().toUpperCase());
 
         // Check nếu đã có exception cho ngày này
         exceptionRepository.findByDoctor_DoctorIdAndExceptionDate(
@@ -108,7 +110,7 @@ public class AdminScheduleService {
         DoctorScheduleException exception = DoctorScheduleException.builder()
                 .doctor(doctor)
                 .exceptionDate(request.getExceptionDate())
-                .exceptionType(request.getExceptionType())
+                .exceptionType(exceptionType)
                 .startTime(request.getStartTime())
                 .endTime(request.getEndTime())
                 .reason(adminReason)
@@ -121,11 +123,11 @@ public class AdminScheduleService {
         // Ghi audit log
         logAdminAction(
                 adminUser,
-                "BLOCK_SLOT".equals(request.getExceptionType()) ? "BLOCK_SLOT" : "MODIFY_SCHEDULE",
+                exceptionType == ScheduleExceptionType.DAY_OFF ? "BLOCK_SLOT" : "MODIFY_SCHEDULE",
                 request.getDoctorId(),
                 null,
                 null,
-                "Created schedule exception: " + request.getExceptionType() + " on " + request.getExceptionDate(),
+                "Created schedule exception: " + exceptionType + " on " + request.getExceptionDate(),
                 null,
                 exceptionToJson(saved),
                 request.getReason(),
@@ -133,7 +135,7 @@ public class AdminScheduleService {
         );
 
         // Gửi notification cho bác sĩ
-        notifyDoctorScheduleChange(doctor, request.getExceptionType(), request.getExceptionDate(), adminReason);
+        notifyDoctorScheduleChange(doctor, exceptionType.name(), request.getExceptionDate(), adminReason);
 
         return mapExceptionToDto(saved);
     }
@@ -214,8 +216,8 @@ public class AdminScheduleService {
     // ==================== Private Helper Methods ====================
 
     private void validateExceptionType(String type) {
-        if (type == null || (!type.equals("DayOff") && !type.equals("Modified") && !type.equals("AddSlot"))) {
-            throw new BadRequestException("Invalid exception type. Must be: DayOff, Modified, or AddSlot");
+        if (type == null || (!type.equals("DAY_OFF") && !type.equals("MODIFIED") && !type.equals("ADD_SLOT"))) {
+            throw new BadRequestException("Invalid exception type. Must be: DAY_OFF, MODIFIED, or ADD_SLOT");
         }
     }
 
@@ -271,9 +273,9 @@ public class AdminScheduleService {
 
     private String getChangeTypeDisplay(String type) {
         switch (type) {
-            case "DayOff": return "marked your schedule as a day off";
-            case "Modified": return "modified your working hours";
-            case "AddSlot": return "added an extra working slot";
+            case "DAY_OFF": return "marked your schedule as a day off";
+            case "MODIFIED": return "modified your working hours";
+            case "ADD_SLOT": return "added an extra working slot";
             case "UNBLOCK": return "removed a schedule exception";
             default: return "changed";
         }
@@ -330,7 +332,7 @@ public class AdminScheduleService {
         return AdminDoctorScheduleDto.ExceptionItem.builder()
                 .exceptionId(e.getExceptionId())
                 .exceptionDate(e.getExceptionDate())
-                .exceptionType(e.getExceptionType())
+                .exceptionType(e.getExceptionType() != null ? e.getExceptionType().name() : null)
                 .startTime(e.getStartTime())
                 .endTime(e.getEndTime())
                 .reason(e.getReason())

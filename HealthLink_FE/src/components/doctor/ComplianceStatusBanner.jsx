@@ -66,13 +66,12 @@ const ComplianceStatusBanner = ({ onValidateClick }) => {
 
   if (!complianceData) return null;
 
-  const currentMonth = complianceData;
   const nextMonth = complianceData.nextMonthStatus;
-  const meta = getMeta(currentMonth.status);
-  const percentage = Math.min(Number(currentMonth.compliancePercentage || 0), 100);
-  const scheduledHours = currentMonth.scheduledHours || 0;
-  const requiredHours = currentMonth.requiredHours || 0;
-  const isWarning = currentMonth.status !== 'COMPLIANT' && currentMonth.status !== 'EXEMPTED';
+  const meta = getMeta(complianceData.status);
+  const percentage = Math.min(Number(complianceData.compliancePercentage || 0), 100);
+  const scheduledHours = complianceData.scheduledHours || 0;
+  const requiredHours = complianceData.requiredHours || 0;
+  const isWarning = complianceData.status !== 'COMPLIANT' && complianceData.status !== 'EXEMPTED';
 
   return (
     <section className="doctor-compliance-banner">
@@ -82,12 +81,12 @@ const ComplianceStatusBanner = ({ onValidateClick }) => {
           <span className={`material-symbols-outlined doctor-compliance-banner__icon ${meta.iconClass}`}>{meta.icon}</span>
           <div>
             <div className="d-flex flex-wrap align-items-center gap-2 mb-1">
-              <h3 className="doctor-compliance-banner__info-title">Schedule Compliance - {formatMonth(currentMonth.complianceMonth)}</h3>
+              <h3 className="doctor-compliance-banner__info-title">Schedule Compliance - {formatMonth(complianceData.complianceMonth)}</h3>
               <span className={`doctor-status-badge ${meta.badgeClass}`}>{meta.label}</span>
             </div>
             <p className="doctor-compliance-banner__info-desc">
-              {currentMonth.scheduleActive
-                ? currentMonth.statusMessage || 'Patients can book appointments with you.'
+              {complianceData.scheduleActive
+                ? complianceData.statusMessage || 'Patients can book appointments with you.'
                 : 'Patients cannot book appointments until minimum schedule hours are met.'}
             </p>
             <button className="doctor-compliance-banner__expand-mobile" onClick={() => setExpanded((current) => !current)} type="button">

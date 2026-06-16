@@ -17,6 +17,7 @@ import com.HealthLink.repository.pharmacy.PharmacyConsultationRequestRepository;
 import com.HealthLink.repository.pharmacy.PharmacyRepository;
 import com.HealthLink.repository.prescription.PrescriptionHeaderRepository;
 import com.HealthLink.service.chat.ChatService;
+import com.HealthLink.service.impl.pharmacy.PharmacyServiceHelper;
 import com.HealthLink.service.notification.NotificationService;
 import com.HealthLink.service.pharmacy.PharmacyConsultationRequestService;
 import com.fasterxml.jackson.core.type.TypeReference;
@@ -75,18 +76,18 @@ public class PharmacyConsultationRequestServiceImpl implements PharmacyConsultat
         PharmacyConsultationRequest consultationRequest = PharmacyConsultationRequest.builder()
                 .patient(patient)
                 .pharmacy(pharmacy)
-                .symptoms(trimToNull(request.getSymptoms()))
-                .description(trimToNull(request.getDescription()))
-                .allergies(trimToNull(request.getAllergies()))
+                .symptoms(PharmacyServiceHelper.trimToNull(request.getSymptoms()))
+                .description(PharmacyServiceHelper.trimToNull(request.getDescription()))
+                .allergies(PharmacyServiceHelper.trimToNull(request.getAllergies()))
                 .attachments(serializeAttachments(request.getAttachments()))
-                .additionalNotes(trimToNull(request.getAdditionalNotes()))
+                .additionalNotes(PharmacyServiceHelper.trimToNull(request.getAdditionalNotes()))
                 .preferredDeliveryType(normalizeDeliveryType(request.getPreferredDeliveryType()))
                 .deliveryType(deliveryType)
-                .deliveryAddress(trimToNull(request.getDeliveryAddress()))
+                .deliveryAddress(PharmacyServiceHelper.trimToNull(request.getDeliveryAddress()))
                 .deliveryLatitude(request.getDeliveryLatitude())
                 .deliveryLongitude(request.getDeliveryLongitude())
-                .deliveryPhoneNumber(trimToNull(request.getDeliveryPhoneNumber()))
-                .deliveryAddressSource(normalizeDeliveryAddressSource(request.getDeliveryAddressSource()))
+                .deliveryPhoneNumber(PharmacyServiceHelper.trimToNull(request.getDeliveryPhoneNumber()))
+                .deliveryAddressSource(PharmacyServiceHelper.normalizeDeliveryAddressSource(request.getDeliveryAddressSource()))
                 .requestType(requestType)
                 .status(STATUS_PENDING)
                 .build();
@@ -139,10 +140,10 @@ public class PharmacyConsultationRequestServiceImpl implements PharmacyConsultat
 
         consultationRequest.setStatus(targetStatus);
         if (request.getPharmacyNotes() != null) {
-            consultationRequest.setPharmacyNotes(trimToNull(request.getPharmacyNotes()));
+            consultationRequest.setPharmacyNotes(PharmacyServiceHelper.trimToNull(request.getPharmacyNotes()));
         }
         if (request.getPatientFollowUpNotes() != null) {
-            consultationRequest.setPatientFollowUpNotes(trimToNull(request.getPatientFollowUpNotes()));
+            consultationRequest.setPatientFollowUpNotes(PharmacyServiceHelper.trimToNull(request.getPatientFollowUpNotes()));
         }
 
         PharmacyConsultationRequest updated = consultationRequestRepository.save(consultationRequest);
@@ -204,7 +205,7 @@ public class PharmacyConsultationRequestServiceImpl implements PharmacyConsultat
                 .symptoms(request.getSymptoms())
                 .description(request.getDescription())
                 .allergies(request.getAllergies())
-                .attachments(deserializeAttachments(request.getAttachments()))
+                .attachments(PharmacyServiceHelper.deserializeAttachments(request.getAttachments(), objectMapper))
                 .additionalNotes(request.getAdditionalNotes())
                 .preferredDeliveryType(request.getPreferredDeliveryType())
                 .deliveryType(request.getDeliveryType())
@@ -267,7 +268,7 @@ public class PharmacyConsultationRequestServiceImpl implements PharmacyConsultat
                 .unit(item.getUnit())
                 .frequency(item.getFrequency())
                 .timing(normalizeTimingForResponse(item.getTiming()))
-                .timings(timingsForResponse(item.getTiming()))
+                .timings(PharmacyServiceHelper.timingsForResponse(item.getTiming()))
                 .route(item.getRoute())
                 .unitPrice(item.getUnitPrice())
                 .totalPrice(item.getTotalPrice())
@@ -288,13 +289,13 @@ public class PharmacyConsultationRequestServiceImpl implements PharmacyConsultat
             return;
         }
 
-        if (trimToNull(symptoms) == null && trimToNull(description) == null) {
+        if (PharmacyServiceHelper.trimToNull(symptoms) == null && PharmacyServiceHelper.trimToNull(description) == null) {
             throw new BadRequestException("Symptoms or description is required");
         }
     }
 
     private String normalizeRequestType(String requestType) {
-        String normalized = trimToNull(requestType);
+        String normalized = PharmacyServiceHelper.trimToNull(requestType);
         if (normalized == null) {
             return REQUEST_TYPE_CONSULTATION;
         }
@@ -388,7 +389,7 @@ public class PharmacyConsultationRequestServiceImpl implements PharmacyConsultat
     }
 
     private String normalizeStatus(String status) {
-        String normalized = trimToNull(status);
+        String normalized = PharmacyServiceHelper.trimToNull(status);
         if (normalized == null) {
             throw new BadRequestException("Status is required");
         }
@@ -397,7 +398,7 @@ public class PharmacyConsultationRequestServiceImpl implements PharmacyConsultat
     }
 
     private String normalizeDeliveryType(String deliveryType) {
-        return trimToNull(deliveryType);
+        return PharmacyServiceHelper.trimToNull(deliveryType);
     }
 
     private void validateDeliverySnapshot(
@@ -407,10 +408,10 @@ public class PharmacyConsultationRequestServiceImpl implements PharmacyConsultat
         if (!"Delivery".equals(deliveryType)) {
             return;
         }
-        if (trimToNull(request.getDeliveryAddress()) == null) {
+        if (PharmacyServiceHelper.trimToNull(request.getDeliveryAddress()) == null) {
             throw new BadRequestException("Delivery address is required for delivery requests");
         }
-        if (trimToNull(request.getDeliveryPhoneNumber()) == null) {
+        if (PharmacyServiceHelper.trimToNull(request.getDeliveryPhoneNumber()) == null) {
             throw new BadRequestException("Delivery phone number is required for delivery requests");
         }
         if (request.getDeliveryLatitude() == null || request.getDeliveryLongitude() == null) {
@@ -418,44 +419,11 @@ public class PharmacyConsultationRequestServiceImpl implements PharmacyConsultat
         }
     }
 
-    private String normalizeDeliveryAddressSource(String source) {
-        String normalized = trimToNull(source);
-        if (normalized == null) {
-            return null;
-        }
-        String upper = normalized.toUpperCase();
-        if (!List.of("DEVICE_LOCATION", "MANUAL", "PROFILE").contains(upper)) {
-            throw new BadRequestException("Unsupported delivery address source: " + upper);
-        }
-        return upper;
-    }
-
-    private String firstNonBlank(String primary, String fallback) {
-        String trimmedPrimary = trimToNull(primary);
-        return trimmedPrimary != null ? trimmedPrimary : trimToNull(fallback);
-    }
-
     private String normalizeTimingForResponse(String timing) {
         if (PrescriptionTiming.isSupported(timing)) {
             return PrescriptionTiming.normalizeJoined(timing);
         }
         return timing;
-    }
-
-    private List<String> timingsForResponse(String timing) {
-        try {
-            return PrescriptionTiming.splitNormalized(timing);
-        } catch (IllegalArgumentException ex) {
-            return List.of();
-        }
-    }
-
-    private String trimToNull(String value) {
-        if (value == null) {
-            return null;
-        }
-        String trimmed = value.trim();
-        return trimmed.isEmpty() ? null : trimmed;
     }
 
     private String serializeAttachments(List<String> attachments) {
@@ -467,20 +435,6 @@ public class PharmacyConsultationRequestServiceImpl implements PharmacyConsultat
             return objectMapper.writeValueAsString(attachments);
         } catch (Exception ex) {
             throw new BadRequestException("Unable to serialize attachments");
-        }
-    }
-
-    private List<String> deserializeAttachments(String attachments) {
-        if (attachments == null || attachments.isBlank()) {
-            return List.of();
-        }
-
-        try {
-            return objectMapper.readValue(attachments, new TypeReference<>() {
-            });
-        } catch (Exception ex) {
-            log.warn("Failed to deserialize request attachments for pharmacy consultation request");
-            return List.of();
         }
     }
 

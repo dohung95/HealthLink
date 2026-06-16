@@ -6,6 +6,7 @@ import com.HealthLink.entity.Appointment;
 import com.HealthLink.entity.Consultation;
 import com.HealthLink.entity.Doctor;
 import com.HealthLink.entity.DoctorSchedule;
+import com.HealthLink.entity.enums.ScheduleExceptionType;
 import com.HealthLink.entity.Invoice;
 import com.HealthLink.entity.Medicine;
 import com.HealthLink.entity.Patient;
@@ -116,7 +117,7 @@ class FollowUpAppointmentServiceImplTest {
         when(exceptionRepository.findByDoctor_DoctorIdAndExceptionDate("doctor-1", date))
                 .thenReturn(Optional.of(
                         com.HealthLink.entity.DoctorScheduleException.builder()
-                                .exceptionType("DayOff")
+                                .exceptionType(ScheduleExceptionType.DAY_OFF)
                                 .exceptionDate(date)
                                 .build()
                 ));

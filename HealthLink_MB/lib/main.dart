@@ -7,7 +7,7 @@ import 'providers/chat/chatbot_provider.dart';
 import 'providers/video_call_provider.dart';
 import 'providers/theme_provider.dart';
 import 'screens/welcome_screen.dart';
-import 'screens/patient/main_layout.dart';
+import 'screens/patient/patient_main_layout.dart';
 import 'screens/doctor/doctor_main_layout.dart';
 
 final GlobalKey<NavigatorState> navigatorKey = GlobalKey<NavigatorState>();
@@ -108,11 +108,18 @@ class _RootRouterState extends State<_RootRouter> {
         }
 
         if (status == AuthStatus.authenticated) {
+          // Phân luồng theo role DOCTOR
           if (roles.contains('DOCTOR')) {
             return const DoctorMainLayout();
           }
 
-          return const MainLayout();
+          // Phân luồng theo role PHARMACY
+          // if (roles.contains('PHARMACY')) {
+          //   return const DoctorMainLayout();
+          // }
+
+          // Mặc định: Patient layout
+          return const PatientMainLayout();
         }
 
         return const WelcomeScreen();

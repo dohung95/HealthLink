@@ -6,9 +6,10 @@ import com.HealthLink.dto.pharmacy.PharmacyOrderRequest;
 import com.HealthLink.dto.pharmacy.PharmacyOrderResponse;
 import com.HealthLink.dto.pharmacy.PharmacyOrderRevisionRequest;
 import com.HealthLink.dto.pharmacy.PharmacyOrderStatusRequest;
-import com.HealthLink.exception.ResourceNotFoundException;
+import com.HealthLink.exception.UnauthorizedAccessException;
 import com.HealthLink.repository.auth.UserRepository;
 import com.HealthLink.service.pharmacy.PharmacyOrderService;
+import com.HealthLink.utility.SecurityUtils;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
@@ -34,6 +35,7 @@ import java.util.List;
 public class PharmacyOrderController {
 
     private final PharmacyOrderService pharmacyOrderService;
+    private final SecurityUtils securityUtils;
     private final UserRepository userRepository;
 
     @PostMapping
@@ -51,8 +53,14 @@ public class PharmacyOrderController {
     @PreAuthorize("hasRole('PHARMACY')")
     public ResponseEntity<PharmacyOrderResponse> updateOrderStatus(
             @PathVariable Integer orderId,
-            @Valid @RequestBody PharmacyOrderStatusRequest request) {
+            @Valid @RequestBody PharmacyOrderStatusRequest request,
+            @AuthenticationPrincipal UserDetails userDetails) {
 
+        var pharmacy = securityUtils.verifyPharmacyOwnershipByUser(userDetails);
+        var existing = pharmacyOrderService.getOrderById(orderId);
+        if (!pharmacy.getPharmacyId().equals(existing.getPharmacyId())) {
+            throw new UnauthorizedAccessException("Access denied: this order does not belong to your pharmacy");
+        }
         PharmacyOrderResponse response = pharmacyOrderService.updateOrderStatus(orderId, request);
         return ResponseEntity.ok(response);
     }
@@ -61,8 +69,10 @@ public class PharmacyOrderController {
     @PreAuthorize("hasRole('PHARMACY')")
     public ResponseEntity<List<PharmacyOrderResponse>> getOrdersByPharmacy(
             @PathVariable String pharmacyId,
-            @RequestParam(required = false) String status) {
+            @RequestParam(required = false) String status,
+            @AuthenticationPrincipal UserDetails userDetails) {
 
+        securityUtils.verifyPharmacyOwnership(userDetails, pharmacyId);
         List<PharmacyOrderResponse> orders = pharmacyOrderService.getOrdersByPharmacy(pharmacyId, status);
         return ResponseEntity.ok(orders);
     }
@@ -133,7 +143,7 @@ public class PharmacyOrderController {
 
     private String resolveUserId(UserDetails userDetails) {
         return userRepository.findByEmail(userDetails.getUsername())
-                .orElseThrow(() -> new ResourceNotFoundException(
+                .orElseThrow(() -> new com.HealthLink.exception.ResourceNotFoundException(
                         "User", "email", userDetails.getUsername()))
                 .getId();
     }

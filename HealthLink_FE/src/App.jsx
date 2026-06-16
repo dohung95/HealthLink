@@ -67,7 +67,7 @@ import DoctorAppointmentsView from './pages/doctor/appointment/DoctorAppointment
 import DoctorPatientsView from './pages/doctor/patient/DoctorPatientsView';
 import DoctorPrescriptionsView from './pages/doctor/prescription/DoctorPrescriptionsView';
 import DoctorScheduleView from './pages/doctor/schedule/DoctorScheduleView';
-import DoctorProfileView from './pages/doctor/profile/DoctorProfileView';
+import DoctorWalletPage from './pages/doctor/DoctorWalletPage';
 import DoctorReviewsView from './pages/doctor/reviews/DoctorReviewsView';
 import ProtectedRoute from './components/ProtectedRoute';
 import ExcludeRolesRoute from './components/ExcludeRolesRoute';
@@ -253,7 +253,7 @@ function AppContent() {
               <Route path="reviews" element={<DoctorReviewsView />} />
               <Route path="schedule" element={<DoctorScheduleView />} />
               <Route path="chat" element={<ChatPage showBot={false} />} />
-              <Route path="profile" element={<DoctorProfileView />} />
+              <Route path="wallet" element={<DoctorWalletPage />} />
             </Route>
 
             <Route path="/schedule" element={

@@ -84,7 +84,7 @@ public class PharmacyController {
     }
 
     // ── Yêu cầu đổi email – gửi OTP về email mới ────────────────────────────
-    @PostMapping("auth/email/request-change")
+    @PostMapping("/auth/email/request-change")
     @PreAuthorize("hasRole('PHARMACY')")
     public ResponseEntity<String> requestEmailChange(
             @Valid @RequestBody ChangeEmailRequest request,
@@ -95,7 +95,7 @@ public class PharmacyController {
     }
 
     // ── Xác nhận đổi email bằng OTP ─────────────────────────────────────────
-    @PostMapping("auth/email/verify-change")
+    @PostMapping("/auth/email/verify-change")
     @PreAuthorize("hasRole('PHARMACY')")
     public ResponseEntity<PharmacyProfileResponse> verifyEmailChange(
             @Valid @RequestBody VerifyEmailChangeRequest request,
@@ -105,8 +105,8 @@ public class PharmacyController {
         return ResponseEntity.ok(updated);
     }
 
-    // ── Upload ảnh đại diện cho nhà thuốc ───────────────────────────────
-    @PutMapping("auth/password/change")
+    // ── Change pharmacy password ────────────────────────────────────────
+    @PutMapping("/auth/password/change")
     @PreAuthorize("hasRole('PHARMACY')")
     public ResponseEntity<Void> changePassword(
             @Valid @RequestBody ChangePasswordRequest request,

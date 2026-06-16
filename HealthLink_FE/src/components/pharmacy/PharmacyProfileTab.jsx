@@ -91,7 +91,7 @@ export default function PharmacyProfileTab({ token, profile, reload, logout }) {
   const verifyEmail = async (event) => {
     event.preventDefault();
     try {
-      await verifyPharmacyEmailChange(token, { newEmail: emailData.newEmail, verificationCode: otp });
+      await verifyPharmacyEmailChange(token, { newEmail: emailData.newEmail, otp });
       toast.success('Email changed. Please log in again.');
       await logout();
     } catch (error) {

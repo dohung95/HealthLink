@@ -42,6 +42,8 @@ public class PharmacyProfileServiceImpl implements PharmacyProfileService {
     @org.springframework.beans.factory.annotation.Value("${app.base-url:http://localhost:8096}")
     private String baseUrl;
 
+    private static final long MAX_AVATAR_FILE_SIZE = 5 * 1024 * 1024;
+
     private final PharmacyRepository pharmacyRepository;
     private final UserRepository userRepository;
     private final EmailVerificationTokenRepository emailVerificationTokenRepository;
@@ -294,7 +296,7 @@ public class PharmacyProfileServiceImpl implements PharmacyProfileService {
         if (contentType == null || !contentType.startsWith("image/")) {
             throw new BadRequestException("Only image files are allowed");
         }
-        if (file.getSize() > 5 * 1024 * 1024) {
+        if (file.getSize() > MAX_AVATAR_FILE_SIZE) {
             throw new BadRequestException("File size must be less than 5MB");
         }
 

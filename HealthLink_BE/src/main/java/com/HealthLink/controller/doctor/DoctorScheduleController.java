@@ -118,9 +118,6 @@ public class DoctorScheduleController {
     }
 
     /**
-     * Create a schedule exception (DayOff, Modified, AddSlot).
-     */
-    /**
      * Delete an exception. Cannot delete admin-created exceptions.
      */
     @DeleteMapping("/exceptions/{exceptionId}")

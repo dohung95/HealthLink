@@ -3,10 +3,9 @@ package com.HealthLink.controller.doctor;
 import com.HealthLink.dto.compliance.ComplianceStatusResponse;
 import com.HealthLink.dto.compliance.ValidateScheduleRequest;
 import com.HealthLink.dto.compliance.ValidateScheduleResponse;
-import com.HealthLink.entity.User;
-import com.HealthLink.repository.auth.UserRepository;
-import com.HealthLink.repository.doctor.DoctorRepository;
+import com.HealthLink.exception.BadRequestException;
 import com.HealthLink.service.compliance.ScheduleComplianceService;
+import com.HealthLink.utility.DoctorSecurityUtils;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.ResponseEntity;
@@ -18,12 +17,11 @@ import org.springframework.web.bind.annotation.*;
 @RequestMapping("/api/doctors/compliance")
 @RequiredArgsConstructor
 @Slf4j
-@CrossOrigin(origins = "http://localhost:63527")
+@CrossOrigin(origins = "${app.cors.allowed-origins}")
 public class DoctorComplianceController {
 
     private final ScheduleComplianceService complianceService;
-    private final UserRepository userRepository;
-    private final DoctorRepository doctorRepository;
+    private final DoctorSecurityUtils securityUtils;
 
     /**
      * Get compliance status for current month and next month.
@@ -32,7 +30,7 @@ public class DoctorComplianceController {
     @GetMapping("/status")
     public ResponseEntity<ComplianceStatusResponse> getComplianceStatus(
             @AuthenticationPrincipal UserDetails userDetails) {
-        String doctorId = resolveDoctorId(userDetails);
+        String doctorId = securityUtils.resolveDoctor(userDetails).getDoctorId();
         ComplianceStatusResponse response = complianceService.getComplianceStatus(doctorId);
         return ResponseEntity.ok(response);
     }
@@ -45,7 +43,7 @@ public class DoctorComplianceController {
     public ResponseEntity<ComplianceStatusResponse> checkCompliance(
             @AuthenticationPrincipal UserDetails userDetails,
             @RequestParam String month) {
-        String doctorId = resolveDoctorId(userDetails);
+        String doctorId = securityUtils.resolveDoctor(userDetails).getDoctorId();
         ComplianceStatusResponse response = complianceService.checkCompliance(doctorId, month);
         return ResponseEntity.ok(response);
     }
@@ -58,22 +56,11 @@ public class DoctorComplianceController {
     public ResponseEntity<ValidateScheduleResponse> validateSchedule(
             @AuthenticationPrincipal UserDetails userDetails,
             @RequestBody(required = false) ValidateScheduleRequest request) {
-        String doctorId = resolveDoctorId(userDetails);
+        if (request == null) {
+            throw new BadRequestException("Request body is required");
+        }
+        String doctorId = securityUtils.resolveDoctor(userDetails).getDoctorId();
         ValidateScheduleResponse response = complianceService.validateSchedule(doctorId, request);
         return ResponseEntity.ok(response);
-    }
-
-    /**
-     * Resolve doctor ID from authenticated user.
-     */
-    private String resolveDoctorId(UserDetails userDetails) {
-        String email = userDetails.getUsername();
-        User user = userRepository.findByEmail(email)
-                .orElseThrow(() -> new IllegalStateException("Authenticated user not found: " + email));
-
-        // Check if user is a doctor
-        return doctorRepository.findById(user.getId())
-                .map(doctor -> doctor.getDoctorId())
-                .orElseThrow(() -> new IllegalStateException("User is not a doctor: " + user.getId()));
     }
 }

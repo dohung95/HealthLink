@@ -132,6 +132,8 @@ export default function DoctorPrescriptionsView() {
   }, [filteredPrescriptions]);
 
   return (
+    <>
+    <style>{`.doctor-prescription-detail__view-btn:hover{background:var(--primary-hover)!important;box-shadow:0 4px 12px rgba(0,82,204,0.3)!important}`}</style>
     <div className="doctor-content-section px-3 px-xl-4 py-3 py-md-4">
       {/* ==================== TOOLBAR ==================== */}
       <div className="doctor-prescription-toolbar d-flex flex-column flex-md-row justify-content-between align-items-start align-items-md-center gap-3 mb-4 pb-3"
@@ -271,7 +273,7 @@ export default function DoctorPrescriptionsView() {
                   </div>
                   {(selected.appointmentId || selected.consultationId) && (
                     <button
-                      className="btn btn-sm d-inline-flex align-items-center gap-1"
+                      className="btn btn-sm d-inline-flex align-items-center gap-1 doctor-prescription-detail__view-btn"
                       onClick={() => navigate(`/doctor/appointments/${selected.appointmentId || selected.consultationId}`)}
                       type="button"
                       style={{
@@ -286,8 +288,6 @@ export default function DoctorPrescriptionsView() {
                         transition: 'all 0.2s ease',
                         cursor: 'pointer',
                       }}
-                      onMouseEnter={(e) => { e.currentTarget.style.background = 'var(--primary-hover)'; e.currentTarget.style.boxShadow = '0 4px 12px rgba(0,82,204,0.3)'; }}
-                      onMouseLeave={(e) => { e.currentTarget.style.background = 'var(--primary)'; e.currentTarget.style.boxShadow = 'none'; }}
                     >
                       <span className="material-symbols-outlined" style={{ fontSize: '0.875rem' }}>open_in_new</span>
                       Consultation Detail
@@ -439,5 +439,6 @@ export default function DoctorPrescriptionsView() {
         </div>
       )}
     </div>
+    </>
   );
 }

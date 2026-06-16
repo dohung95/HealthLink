@@ -1,3 +1,5 @@
+export { getPatientInitials, getTypeIcon } from './sharedHelpers';
+
 export const toLocalDateValue = (date) => {
   if (!date) return '';
   const value = date instanceof Date ? date : new Date(date);
@@ -85,16 +87,6 @@ export const calculateAge = (dateOfBirth) => {
   return age;
 };
 
-export const getPatientInitials = (name) => {
-  if (!name) return 'PT';
-  return name
-    .split(' ')
-    .filter(Boolean)
-    .slice(0, 2)
-    .map((part) => part[0]?.toUpperCase())
-    .join('');
-};
-
 export const getStatusClassName = (status) => {
   const key = normalizeStatus(status);
   if (key === 'completed') return 'doctor-detail-status doctor-detail-status--completed';
@@ -114,19 +106,6 @@ export const getTypeClassName = (type) => {
       return 'doctor-detail-chip doctor-detail-chip--chat';
     default:
       return 'doctor-detail-chip';
-  }
-};
-
-export const getTypeIcon = (type) => {
-  switch ((type || '').toLowerCase()) {
-    case 'video call':
-      return 'bi-camera-video';
-    case 'audio call':
-      return 'bi-telephone';
-    case 'chat':
-      return 'bi-chat-dots';
-    default:
-      return 'bi-calendar-event';
   }
 };
 
