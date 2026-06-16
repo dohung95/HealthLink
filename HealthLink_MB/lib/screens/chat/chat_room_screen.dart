@@ -1086,22 +1086,26 @@ class _ChatRoomScreenState extends State<ChatRoomScreen> {
   }) {
     final normalizedUrl = ApiConfig.normalizeUrl(url);
     if (normalizedUrl != null) {
-      return Image.network(
-        normalizedUrl,
-        width: size,
-        height: size,
-        fit: BoxFit.cover,
-        errorBuilder: (_, __, ___) => Icon(
-          Icons.person,
-          size: size * 0.6,
-          color: colors.outline,
+      return ClipOval(
+        child: Image.network(
+          normalizedUrl,
+          width: size,
+          height: size,
+          fit: BoxFit.cover,
+          errorBuilder: (_, __, ___) => Icon(
+            Icons.person,
+            size: size * 0.6,
+            color: colors.outline,
+          ),
         ),
       );
     }
-    return Icon(
-      Icons.person,
-      size: size * 0.6,
-      color: colors.outline,
+    return ClipOval(
+      child: Icon(
+        Icons.person,
+        size: size * 0.6,
+        color: colors.outline,
+      ),
     );
   }
 

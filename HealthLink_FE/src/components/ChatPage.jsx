@@ -7,6 +7,7 @@ import { getGeminiResponse } from '../services/geminiService';
 import { checkKeywordAndGetBotReply, checkSymptomAndGetSpecialty, getDoctorsBySpecialty } from '../AI_BOT/BotBrain';
 import { doctorService } from '../api/doctorApi';
 import { toast } from 'sonner';
+import BasicProfileModal from './BasicProfileModal';
 
 // ─── Bot cố định ──────────────
 const BOT_USER = {
@@ -347,6 +348,7 @@ export default function ChatPage({ showBot = true }) {
     const [showMediaModal, setShowMediaModal] = useState(false);
     const [showBlockConfirmModal, setShowBlockConfirmModal] = useState(false);
     const [showBlockedUsersModal, setShowBlockedUsersModal] = useState(false);
+    const [showProfileModal, setShowProfileModal] = useState(false);
     const [mutedRooms, setMutedRooms] = useState(() => {
         try { return JSON.parse(localStorage.getItem('muted_rooms') || '[]'); } catch { return []; }
     });
@@ -443,12 +445,10 @@ export default function ChatPage({ showBot = true }) {
         const isPharmacy = specialty.includes('nhà thuốc') || specialty.includes('pharmacy') || specialty.includes('pharmacist') || specialty.includes('phòng khám') || specialty.includes('clinic');
         const isDoctor = specialty && !isPharmacy && specialty !== 'bệnh nhân' && specialty !== 'patient';
 
-        if (isDoctor) {
-            navigate(`/patient-dashboard/book/${partnerId}`);
-        } else if (isPharmacy) {
+        if (isPharmacy) {
             toast.info('Profile viewing for this role is being developed. Please come back later!');
         } else {
-            toast.info('Viewing Patient profile is available in the appointments section.');
+            setShowProfileModal(true);
         }
         setShowChatDetails(false);
     };
@@ -671,7 +671,14 @@ export default function ChatPage({ showBot = true }) {
 
     useEffect(() => {
         if (shouldScrollToBottomRef.current && scrollTo.current) {
-            scrollTo.current.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+            setTimeout(() => {
+                if (scrollTo.current) {
+                    scrollTo.current.scrollIntoView({ 
+                        behavior: pageRef.current === 0 ? 'auto' : 'smooth', 
+                        block: 'end' 
+                    });
+                }
+            }, 100);
         }
     }, [messages, isBotTyping]);
 
@@ -1340,6 +1347,14 @@ export default function ChatPage({ showBot = true }) {
                     </div>
                 </div>
             )}
+
+            {/* --- Basic Profile Modal --- */}
+            <BasicProfileModal
+                show={showProfileModal}
+                onClose={() => setShowProfileModal(false)}
+                userId={currentRoom?.user1Id === currentUserId ? currentRoom?.user2Id : currentRoom?.user1Id}
+                role={(currentRoom?.user1Id === currentUserId ? currentRoom?.user2Specialty : currentRoom?.user1Specialty) || ''}
+            />
         </div>
     );
 }
