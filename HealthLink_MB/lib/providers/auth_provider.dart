@@ -48,19 +48,43 @@ class AuthProvider extends ChangeNotifier {
 
   /// Gọi trong main() hoặc initState() để khôi phục session trước đó.
   Future<void> loadSavedSession() async {
-    final token = await TokenUtils.getAccessToken();
-    if (token != null && TokenUtils.isTokenValid(token)) {
-      _accessToken  = token;
-      _refreshToken = await TokenUtils.getRefreshToken();
-      _userId       = await TokenUtils.getUserId();
-      _roles        = _extractRoles(token);
-      _status       = AuthStatus.authenticated;
-      // Tải profile ngầm sau khi khôi phục session
-      fetchProfile();
-    } else {
-      _status = AuthStatus.unauthenticated;
-    }
+    _status = AuthStatus.loading;
     notifyListeners();
+
+    try {
+      final sessionValues = await Future.wait<String?>([
+        TokenUtils.getAccessToken(),
+        TokenUtils.getRefreshToken(),
+        TokenUtils.getUserId(),
+      ]).timeout(const Duration(seconds: 5));
+
+      final token = sessionValues[0];
+      final refreshToken = sessionValues[1];
+      final userId = sessionValues[2];
+
+      if (token != null && TokenUtils.isTokenValid(token)) {
+        _accessToken = token;
+        _refreshToken = refreshToken;
+        _userId = userId;
+        _roles = _extractRoles(token);
+        _status = AuthStatus.authenticated;
+
+        // Không chặn quá trình mở ứng dụng.
+        fetchProfile();
+      } else {
+        _status = AuthStatus.unauthenticated;
+      }
+    } catch (error) {
+      debugPrint('AuthProvider loadSavedSession error: $error');
+
+      _accessToken = null;
+      _refreshToken = null;
+      _userId = null;
+      _roles = [];
+      _status = AuthStatus.unauthenticated;
+    } finally {
+      notifyListeners();
+    }
   }
 
   // ── Login ──────────────────────────────────────────────────────────────────

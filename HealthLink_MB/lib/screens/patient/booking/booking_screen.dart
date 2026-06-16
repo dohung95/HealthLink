@@ -7,6 +7,7 @@ import '../../../config/api_config.dart';
 import 'dart:async';
 import 'package:app_links/app_links.dart';
 import 'package:url_launcher/url_launcher.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 class BookingScreen extends StatefulWidget {
   const BookingScreen({super.key});
@@ -60,6 +61,8 @@ class _BookingScreenState extends State<BookingScreen> {
 
   String? _pendingPayPalOrderId;
   String? _pendingAppointmentTime;
+  static const String _pendingPayPalOrderKey = 'pending_paypal_order_id';
+  static const String _pendingPayPalAppointmentTimeKey = 'pending_paypal_appointment_time';
 
   @override
   void initState() {
@@ -518,9 +521,14 @@ class _BookingScreenState extends State<BookingScreen> {
         _pendingAppointmentTime = appointmentTime;
       });
 
+      await _savePendingPayPalPayment(
+        orderId: orderId,
+        appointmentTime: appointmentTime,
+      );
+
       final opened = await launchUrl(
         Uri.parse(approvalUrl),
-        mode: LaunchMode.externalApplication,
+        mode: LaunchMode.inAppBrowserView,
       );
 
       if (!opened) {
@@ -549,6 +557,16 @@ class _BookingScreenState extends State<BookingScreen> {
       _documents.clear();
     });
     _loadDoctors(reset: true);
+  }
+
+  Future<void> _savePendingPayPalPayment({
+    required String orderId,
+    required String appointmentTime,
+  }) async {
+    final prefs = await SharedPreferences.getInstance();
+
+    await prefs.setString(_pendingPayPalOrderKey, orderId);
+    await prefs.setString(_pendingPayPalAppointmentTimeKey, appointmentTime);
   }
 
   @override

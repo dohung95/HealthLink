@@ -10,6 +10,7 @@ import '../../screens/patient/appointments/appointment_screen.dart';
 import '../../screens/patient/patient_prescriptions_screen.dart';
 import '../../screens/chat/chat_list_screen.dart';
 import '../../screens/patient/about_us_screen.dart';
+import '../../screens/patient/help_support_screen.dart';
 
 class PatientDrawer extends StatelessWidget {
   const PatientDrawer({super.key});
@@ -69,12 +70,6 @@ class PatientDrawer extends StatelessWidget {
                   onTap: () =>
                       _navigate(context, const SecuritySettingsScreen()),
                 ),
-                _buildMenuItem(
-                  context,
-                  icon: Icons.settings_outlined,
-                  title: 'Settings',
-                  onTap: () => _showComingSoon(context, 'Settings'),
-                ),
                 _buildThemeOptions(context, themeProvider),
 
                 const Divider(indent: 16, endIndent: 16),
@@ -85,7 +80,10 @@ class PatientDrawer extends StatelessWidget {
                   context,
                   icon: Icons.help_outline,
                   title: 'Help & Support',
-                  onTap: () => _showComingSoon(context, 'Help & Support'),
+                  onTap: () => _navigate(
+                    context,
+                    const HelpSupportScreen(),
+                  ),
                 ),
                 _buildMenuItem(
                   context,
@@ -258,16 +256,6 @@ class PatientDrawer extends StatelessWidget {
     Navigator.push(
       context,
       MaterialPageRoute(builder: (context) => screen),
-    );
-  }
-
-  void _showComingSoon(BuildContext context, String feature) {
-    Navigator.pop(context);
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text('$feature feature is coming soon!'),
-        behavior: SnackBarBehavior.floating,
-      ),
     );
   }
 }

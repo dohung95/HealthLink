@@ -140,4 +140,18 @@ class ApiConfig {
 
     return finalUrl;
   }
+
+  // Notifications
+  static const String notifications = '$baseUrl/notifications';
+  static const String notificationUnreadCount =
+      '$baseUrl/notifications/unread-count';
+
+  static String markNotificationAsRead(int notificationId) =>
+      '$baseUrl/notifications/$notificationId/read';
+
+  static const String markAllNotificationsAsRead =
+      '$baseUrl/notifications/mark-all-read';
+
+  static String deleteNotification(int notificationId) =>
+      '$baseUrl/notifications/$notificationId';
 }
