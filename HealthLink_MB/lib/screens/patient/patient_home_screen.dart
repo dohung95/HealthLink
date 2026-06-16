@@ -8,6 +8,11 @@ import '../../services/patient_service.dart';
 import '../../services/booking/booking_service.dart';
 import '../patient/health_records/health_records_screen.dart';
 import '../patient/health_records/share_health_records_screen.dart';
+import 'dart:async';
+import '../../models/notification/notification_item.dart';
+import '../../services/notification/notification_service.dart';
+import '../../services/notification/notification_realtime_service.dart';
+import 'notifications/notification_center_sheet.dart';
 
 class PatientHomeScreen extends StatefulWidget {
   const PatientHomeScreen({
@@ -26,6 +31,11 @@ class _PatientHomeScreenState extends State<PatientHomeScreen> {
   String? _upcomingError;
   List<PatientAppointment> _upcomingAppointments = [];
 
+  //Notifications
+  bool _loadingNotifications = true;
+  int _unreadNotificationCount = 0;
+  StreamSubscription<NotificationItem>? _notificationSubscription;
+
   bool _loadingStats = true;
   int _upcomingCount = 0;
   int _healthRecordCount = 0;
@@ -43,14 +53,175 @@ class _PatientHomeScreenState extends State<PatientHomeScreen> {
 
     WidgetsBinding.instance.addPostFrameCallback((_) {
       _loadHomeData();
+      _setupRealtimeNotifications();
     });
+  }
+
+  @override
+  void dispose() {
+    _notificationSubscription?.cancel();
+    super.dispose();
   }
 
   Future<void> _loadHomeData() async {
     await Future.wait([
       _loadUpcomingAppointments(),
       _loadStats(),
+      _loadUnreadNotificationCount(),
     ]);
+  }
+
+  Future<void> _loadUnreadNotificationCount() async {
+    final auth = context.read<AuthProvider>();
+
+    if (!auth.isAuthenticated || auth.accessToken == null) {
+      if (!mounted) return;
+
+      setState(() {
+        _loadingNotifications = false;
+        _unreadNotificationCount = 0;
+      });
+
+      return;
+    }
+
+    if (!mounted) return;
+
+    setState(() {
+      _loadingNotifications = true;
+    });
+
+    try {
+      final service = NotificationService(
+        accessToken: auth.accessToken!,
+      );
+
+      final count = await service.getUnreadCount();
+
+      if (!mounted) return;
+
+      setState(() {
+        _unreadNotificationCount = count;
+      });
+    } catch (error) {
+      debugPrint('[Notification] Load unread count error: $error');
+
+      if (!mounted) return;
+
+      setState(() {
+        _unreadNotificationCount = 0;
+      });
+    } finally {
+      if (mounted) {
+        setState(() {
+          _loadingNotifications = false;
+        });
+      }
+    }
+  }
+
+  void _setupRealtimeNotifications() {
+    final auth = context.read<AuthProvider>();
+
+    if (!auth.isAuthenticated || auth.accessToken == null) {
+      return;
+    }
+
+    NotificationRealtimeService.instance.connect(
+      token: auth.accessToken!,
+    );
+
+    _notificationSubscription?.cancel();
+
+    _notificationSubscription =
+        NotificationRealtimeService.instance.stream.listen((notification) {
+          if (!mounted) return;
+
+          setState(() {
+            _unreadNotificationCount += 1;
+          });
+
+          _showRealtimeNotificationSnack(notification);
+        });
+  }
+
+  void _showRealtimeNotificationSnack(NotificationItem notification) {
+    final colors = Theme.of(context).colorScheme;
+
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        behavior: SnackBarBehavior.floating,
+        backgroundColor: colors.primary,
+        duration: const Duration(seconds: 4),
+        content: Row(
+          children: [
+            Icon(
+              Icons.notifications_active_outlined,
+              color: colors.onPrimary,
+            ),
+            const SizedBox(width: 12),
+            Expanded(
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    notification.title,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: TextStyle(
+                      color: colors.onPrimary,
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
+                  const SizedBox(height: 2),
+                  Text(
+                    notification.message,
+                    maxLines: 2,
+                    overflow: TextOverflow.ellipsis,
+                    style: TextStyle(
+                      color: colors.onPrimary.withOpacity(0.9),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ],
+        ),
+        action: SnackBarAction(
+          label: 'View',
+          textColor: colors.onPrimary,
+          onPressed: _openNotificationCenter,
+        ),
+      ),
+    );
+  }
+
+  Future<void> _openNotificationCenter() async {
+    final auth = context.read<AuthProvider>();
+
+    if (!auth.isAuthenticated || auth.accessToken == null) {
+      return;
+    }
+
+    final service = NotificationService(
+      accessToken: auth.accessToken!,
+    );
+
+    await showModalBottomSheet<void>(
+      context: context,
+      isScrollControlled: true,
+      useSafeArea: true,
+      backgroundColor: Colors.transparent,
+      builder: (_) {
+        return NotificationCenterSheet(
+          service: service,
+          onChanged: _loadUnreadNotificationCount,
+        );
+      },
+    );
+
+    await _loadUnreadNotificationCount();
   }
 
   // Count Upcoming, New Record, Prescription
@@ -418,21 +589,36 @@ class _PatientHomeScreenState extends State<PatientHomeScreen> {
                       child: IconButton(
                         icon: const Icon(Icons.notifications_outlined),
                         color: Theme.of(context).colorScheme.primary,
-                        onPressed: () {},
+                        onPressed: _openNotificationCenter,
                       ),
                     ),
-                    Positioned(
-                      top: 10,
-                      right: 10,
-                      child: Container(
-                        width: 8,
-                        height: 8,
-                        decoration: BoxDecoration(
-                          color: Theme.of(context).colorScheme.error,
-                          shape: BoxShape.circle,
+                    if (!_loadingNotifications && _unreadNotificationCount > 0)
+                      Positioned(
+                        top: 3,
+                        right: 3,
+                        child: Container(
+                          constraints: const BoxConstraints(
+                            minWidth: 18,
+                            minHeight: 18,
+                          ),
+                          padding: const EdgeInsets.symmetric(horizontal: 5),
+                          decoration: BoxDecoration(
+                            color: Theme.of(context).colorScheme.error,
+                            borderRadius: BorderRadius.circular(999),
+                          ),
+                          alignment: Alignment.center,
+                          child: Text(
+                            _unreadNotificationCount > 99
+                                ? '99+'
+                                : _unreadNotificationCount.toString(),
+                            style: TextStyle(
+                              color: Theme.of(context).colorScheme.onError,
+                              fontSize: 10,
+                              fontWeight: FontWeight.bold,
+                            ),
+                          ),
                         ),
                       ),
-                    ),
                   ],
                 ),
               ],
