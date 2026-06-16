@@ -240,6 +240,32 @@ public class ChatServiceImpl implements ChatService {
     }
 
     // -------------------------------------------------------------------------
+    // Tìm kiếm tin nhắn
+    // -------------------------------------------------------------------------
+    @Override
+    @Transactional(readOnly = true)
+    public List<MessageDTO> searchMessages(String chatRoomId, String query) {
+        if (!chatRoomRepository.existsById(chatRoomId)) {
+            throw new ResourceNotFoundException("ChatRoom", "id", chatRoomId);
+        }
+        if (query == null || query.trim().isEmpty()) {
+            return Collections.emptyList();
+        }
+        
+        String lowerQuery = query.trim().toLowerCase();
+
+        // Vì "content" được mã hóa bằng AES dưới cơ sở dữ liệu, ta không thể dùng toán tử LIKE trong SQL.
+        // Giải pháp: Kéo toàn bộ tin nhắn của phòng lên (JPA tự động giải mã)
+        // và lọc thủ công (in-memory filtering). Do giới hạn trong 1 phòng chat nên tốc độ vẫn đảm bảo.
+        List<Message> allMessages = messageRepository.findByChatRoom_ChatRoomIdOrderByTimestampAsc(chatRoomId);
+
+        return allMessages.stream()
+                .filter(m -> m.getContent() != null && m.getContent().toLowerCase().contains(lowerQuery))
+                .map(this::toMessageDTO)
+                .collect(Collectors.toList());
+    }
+
+    // -------------------------------------------------------------------------
     // Đánh dấu đã đọc
     // -------------------------------------------------------------------------
     @Override

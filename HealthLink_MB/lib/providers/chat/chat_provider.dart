@@ -292,7 +292,10 @@ class ChatProvider extends ChangeNotifier {
 
       if (msgs.isNotEmpty) {
         msgs.sort((a, b) => a.sentAt.compareTo(b.sentAt));
-        _messages.insertAll(0, msgs);
+        // Lọc bỏ tin nhắn trùng lặp để tránh lỗi UI
+        final existingIds = _messages.map((m) => m.id).toSet();
+        final uniqueMsgs = msgs.where((m) => !existingIds.contains(m.id)).toList();
+        _messages.insertAll(0, uniqueMsgs);
         _currentPage = nextPage;
         if (msgs.length < 25) {
           _hasMoreMessages = false;

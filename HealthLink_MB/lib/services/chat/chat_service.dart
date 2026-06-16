@@ -129,6 +129,31 @@ class ChatService {
     throw Exception(_parseError(res, 'Không thể tải tin nhắn.'));
   }
 
+  /// GET /api/chat/rooms/{chatRoomId}/messages/search
+  /// Tìm kiếm tin nhắn.
+  static Future<List<Message>> searchMessages(
+    String token,
+    String currentUserId,
+    String chatRoomId,
+    String query,
+  ) async {
+    final res = await http
+        .get(
+          Uri.parse(ApiConfig.chatMessagesSearch(chatRoomId, query)),
+          headers: _headers(token),
+        )
+        .timeout(ApiConfig.connectTimeout);
+
+    if (res.statusCode == 200) {
+      final List<dynamic> data = jsonDecode(res.body) as List<dynamic>;
+      return data
+          .map((e) => Message.fromJson(e as Map<String, dynamic>, currentUserId))
+          .toList();
+    }
+
+    throw Exception(_parseError(res, 'Can not search messages.'));
+  }
+
   /// POST /api/chat/messages
   /// Gửi tin nhắn mới.
   /// Backend yêu cầu: chatRoomId, receiverId, content.

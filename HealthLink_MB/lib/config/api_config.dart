@@ -95,6 +95,9 @@ class ApiConfig {
   /// GET /api/chat/rooms/{id}/messages – Lấy lịch sử tin nhắn.
   static String chatMessages(String id, {int page = 0, int size = 25}) => '$baseUrl/chat/rooms/$id/messages?page=$page&size=$size';
 
+  /// GET /api/chat/rooms/{id}/messages/search – Tìm kiếm tin nhắn
+  static String chatMessagesSearch(String id, String query) => '$baseUrl/chat/rooms/$id/messages/search?query=${Uri.encodeQueryComponent(query)}';
+
   /// POST /api/chat/messages – Gửi tin nhắn mới.
   static const String chatSendMessage   = '$baseUrl/chat/messages';
 

@@ -123,6 +123,17 @@ public class ChatController {
     }
 
     /**
+     * GET /api/chat/rooms/{chatRoomId}/messages/search
+     * Tìm kiếm tin nhắn trong phòng theo từ khóa.
+     */
+    @GetMapping("/rooms/{chatRoomId}/messages/search")
+    public ResponseEntity<List<MessageDTO>> searchMessages(
+            @PathVariable String chatRoomId,
+            @RequestParam String query) {
+        return ResponseEntity.ok(chatService.searchMessages(chatRoomId, query));
+    }
+
+    /**
      * PATCH /api/chat/rooms/{chatRoomId}/read
      * Đánh dấu tất cả tin nhắn chưa đọc là đã đọc.
      * userId lấy tự động từ JWT token.

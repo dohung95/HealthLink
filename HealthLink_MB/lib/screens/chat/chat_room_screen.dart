@@ -31,6 +31,11 @@ class _ChatRoomScreenState extends State<ChatRoomScreen> {
   final TextEditingController _messageController = TextEditingController();
   final ScrollController _scrollController = ScrollController();
   bool _isTextEmpty = true;
+  
+  // State cuộn xuống dưới
+  bool _showScrollToBottom = false;
+  bool _hasUnreadInView = false;
+  String? _lastMessageId;
 
   // Trạng thái đính kèm
   File? _attachedImage;
@@ -54,10 +59,22 @@ class _ChatRoomScreenState extends State<ChatRoomScreen> {
     });
 
     _scrollController.addListener(() {
+      // 1. Phân trang
       if (_scrollController.position.pixels >= _scrollController.position.maxScrollExtent - 200) {
         final auth = context.read<AuthProvider>();
         if (auth.accessToken != null && auth.userId != null) {
           _chatProvider.loadMoreMessages(auth.accessToken!, auth.userId!);
+        }
+      }
+
+      // 2. Ẩn/Hiện nút cuộn xuống dưới
+      if (_scrollController.hasClients) {
+        final isScrolledUp = _scrollController.position.pixels > 100;
+        if (isScrolledUp != _showScrollToBottom) {
+          setState(() => _showScrollToBottom = isScrolledUp);
+        }
+        if (!isScrolledUp && _hasUnreadInView) {
+          setState(() => _hasUnreadInView = false);
         }
       }
     });
@@ -218,30 +235,109 @@ class _ChatRoomScreenState extends State<ChatRoomScreen> {
 
   String? _highlightedMessageId;
 
-  void _scrollToMessageId(String msgId) {
-    final messages = context.read<ChatProvider>().messages;
-    final index = messages.indexWhere((m) => m.id == msgId);
-    if (index != -1) {
-      final reverseIndex = messages.length - 1 - index;
-      final offset = (reverseIndex * 80.0);
-      _scrollController.animateTo(
-        offset,
-        duration: const Duration(milliseconds: 500),
-        curve: Curves.easeInOut,
-      );
+  final GlobalKey _targetMessageKey = GlobalKey();
+
+  Future<void> _scrollToMessageId(String msgId) async {
+    final chat = context.read<ChatProvider>();
+    final auth = context.read<AuthProvider>();
+    
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (context) => const Center(
+        child: Card(
+          child: Padding(
+            padding: EdgeInsets.all(20.0),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                CircularProgressIndicator(),
+                SizedBox(height: 16),
+                Text('Going to the message...'),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+    
+    bool isMessageLoaded() {
+      return chat.messages.any((m) => m.id == msgId);
+    }
+
+    // 1. Tải dữ liệu cho đến khi tin nhắn có trong bộ nhớ
+    for (int i = 0; i < 20; i++) {
+      if (isMessageLoaded()) break;
+      if (!chat.hasMoreMessages) break;
       
-      setState(() {
-        _highlightedMessageId = msgId;
-      });
-      Future.delayed(const Duration(seconds: 2), () {
-        if (mounted) {
-          setState(() {
-            if (_highlightedMessageId == msgId) {
-              _highlightedMessageId = null;
-            }
-          });
+      if (chat.isLoadingMoreMessages) {
+        await Future.delayed(const Duration(milliseconds: 500));
+        continue;
+      }
+      
+      await chat.loadMoreMessages(auth.accessToken!, auth.userId!);
+      await Future.delayed(const Duration(milliseconds: 200)); // Đợi render
+    }
+
+    if (!isMessageLoaded()) {
+      if (mounted) {
+        Navigator.pop(context); // Đóng dialog
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Message too old, please load more.')),
+        );
+      }
+      return;
+    }
+
+    // 2. Gắn cờ highlight để ListView gán GlobalKey (nếu nó được render)
+    setState(() => _highlightedMessageId = msgId);
+    await Future.delayed(const Duration(milliseconds: 100)); // Đợi React/Flutter build frame
+
+    // 3. Crawler: Ép thanh cuộn chạy lên từng đoạn cho đến khi GlobalKey xuất hiện trong Widget Tree
+    bool scrolled = false;
+    for (int i = 0; i < 50; i++) {
+      if (!mounted) break;
+      
+      // Nếu tin nhắn đã vào tầm ngắm (được render)
+      if (_targetMessageKey.currentContext != null) {
+        Scrollable.ensureVisible(
+          _targetMessageKey.currentContext!,
+          duration: const Duration(milliseconds: 500),
+          curve: Curves.easeInOut,
+          alignment: 0.5, // Cuộn sao cho tin nhắn nằm giữa màn hình
+        );
+        scrolled = true;
+        break;
+      }
+
+      // Nếu chưa thấy, ép cuộn lên 800px để ép ListView vẽ tiếp các tin nhắn cũ hơn
+      if (_scrollController.hasClients) {
+        final pos = _scrollController.position;
+        if (pos.pixels + 800 < pos.maxScrollExtent) {
+          _scrollController.jumpTo(pos.pixels + 800);
+        } else {
+          _scrollController.jumpTo(pos.maxScrollExtent); // Nhảy tới giới hạn hiện tại để nới rộng thêm
         }
-      });
+        await Future.delayed(const Duration(milliseconds: 100)); // Chờ ListView layout các widget mới
+      }
+    }
+
+    // 4. Kết thúc
+    if (mounted) {
+      Navigator.pop(context); // Đóng dialog
+      if (scrolled) {
+        Future.delayed(const Duration(seconds: 2), () {
+          if (mounted && _highlightedMessageId == msgId) {
+            setState(() => _highlightedMessageId = null);
+          }
+        });
+      } else {
+        // Fallback nếu crawler bị lỗi
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Can not accurately scroll to the message.')),
+        );
+        setState(() => _highlightedMessageId = null);
+      }
     }
   }
 
@@ -251,8 +347,75 @@ class _ChatRoomScreenState extends State<ChatRoomScreen> {
     final chat = context.watch<ChatProvider>();
     final chatTheme = getActiveChatTheme(context, chat.chatThemeIndex);
 
+    // Phát hiện tin nhắn mới (phải kiểm tra .last thay vì .first vì tin cũ được chèn vào đầu mảng)
+    if (chat.messages.isNotEmpty) {
+      final latestId = chat.messages.last.id;
+      if (_lastMessageId != null && latestId != _lastMessageId) {
+        if (_showScrollToBottom) {
+          WidgetsBinding.instance.addPostFrameCallback((_) {
+            if (mounted) {
+              setState(() {
+                _hasUnreadInView = true;
+                _lastMessageId = latestId;
+              });
+            }
+          });
+        } else {
+          _lastMessageId = latestId;
+        }
+      } else if (_lastMessageId == null) {
+        _lastMessageId = latestId;
+      }
+    }
+
     return Scaffold(
       backgroundColor: chatTheme.background,
+            // Bạn có thể tùy chỉnh độ cao của nút bằng tham số bottom ở đây
+      floatingActionButton: _showScrollToBottom
+          ? Padding(
+              padding: const EdgeInsets.only(bottom: 40.0), // <-- CHỈNH ĐỘ CAO (BOTTOM) Ở ĐÂY (tăng số để nút bay cao hơn)
+              child: Stack(
+                clipBehavior: Clip.none,
+                children: [
+                  SizedBox(
+                    width: 40,
+                    height: 40,
+                    child: FloatingActionButton(
+                      onPressed: () {
+                        _scrollController.animateTo(
+                          0.0,
+                          duration: const Duration(milliseconds: 300),
+                          curve: Curves.easeOut,
+                        );
+                        setState(() => _hasUnreadInView = false);
+                      },
+                      backgroundColor: chatTheme.primary,
+                      shape: const CircleBorder(),
+                      elevation: 4,
+                      child: const Icon(Icons.keyboard_arrow_down, color: Colors.white),
+                    ),
+                  ),
+                  // Dấu chấm đỏ báo tin nhắn mới
+                  if (_hasUnreadInView)
+                    Positioned(
+                      right: 0, // <-- CHỈNH VỊ TRÍ CHẤM ĐỎ (Sang trái/phải)
+                      top: 0,   // <-- CHỈNH VỊ TRÍ CHẤM ĐỎ (Lên/xuống)
+                      child: Container(
+                        width: 12,  // <-- CHỈNH KÍCH THƯỚC CHẤM ĐỎ
+                        height: 12,
+                        decoration: BoxDecoration(
+                          color: Colors.red,
+                          shape: BoxShape.circle,
+                          // Nếu muốn bỏ viền trắng thì xóa dòng border bên dưới đi
+                          border: Border.all(color: chatTheme.background, width: 2), 
+                        ),
+                      ),
+                    ),
+                ],
+              ),
+            )
+          : null,
+      floatingActionButtonLocation: FloatingActionButtonLocation.centerFloat,
       body: SafeArea(
         child: Column(
           children: [
@@ -306,7 +469,7 @@ class _ChatRoomScreenState extends State<ChatRoomScreen> {
                         : ListView.separated(
                             reverse: true,
                             controller: _scrollController,
-                            padding: const EdgeInsets.fromLTRB(16, 24, 16, 16),
+                            padding: const EdgeInsets.fromLTRB(16, 24, 16, 80),
                             itemCount: chat.messages.length + (chat.isLoadingMoreMessages ? 1 : 0),
                             separatorBuilder: (_, __) => const SizedBox(height: 16),
                             itemBuilder: (context, index) {
@@ -508,6 +671,7 @@ class _ChatRoomScreenState extends State<ChatRoomScreen> {
     final isHighlighted = msg.id == _highlightedMessageId;
     
     return AnimatedContainer(
+      key: isHighlighted ? _targetMessageKey : null,
       duration: const Duration(milliseconds: 500),
       decoration: BoxDecoration(
         color: isHighlighted ? Colors.yellow.withValues(alpha: 0.3) : Colors.transparent,
