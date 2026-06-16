@@ -12,14 +12,14 @@ import '../../providers/chat/chat_provider.dart';
 import '../../providers/video_call_provider.dart';
 import '../../services/video_audio/webrtc_stomp_service.dart';
 
-class MainLayout extends StatefulWidget {
-  const MainLayout({super.key});
+class PatientMainLayout extends StatefulWidget {
+  const PatientMainLayout({super.key});
 
   @override
-  State<MainLayout> createState() => _MainLayoutState();
+  State<PatientMainLayout> createState() => _MainLayoutState();
 }
 
-class _MainLayoutState extends State<MainLayout> {
+class _MainLayoutState extends State<PatientMainLayout> {
   late int _currentIndex;
 
   @override

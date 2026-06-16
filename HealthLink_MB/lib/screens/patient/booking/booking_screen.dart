@@ -7,9 +7,11 @@ import '../../../config/api_config.dart';
 import 'dart:async';
 import 'package:app_links/app_links.dart';
 import 'package:url_launcher/url_launcher.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 class BookingScreen extends StatefulWidget {
-  const BookingScreen({super.key});
+  final String? initialDoctorId;
+  const BookingScreen({super.key, this.initialDoctorId});
 
   @override
   State<BookingScreen> createState() => _BookingScreenState();
@@ -60,6 +62,8 @@ class _BookingScreenState extends State<BookingScreen> {
 
   String? _pendingPayPalOrderId;
   String? _pendingAppointmentTime;
+  static const String _pendingPayPalOrderKey = 'pending_paypal_order_id';
+  static const String _pendingPayPalAppointmentTimeKey = 'pending_paypal_appointment_time';
 
   @override
   void initState() {
@@ -96,9 +100,28 @@ class _BookingScreenState extends State<BookingScreen> {
       if (!mounted) return;
       setState(() {
         _specialties = specialties;
-        _loading = false;
       });
-      await _loadDoctors(reset: true);
+
+      if (widget.initialDoctorId != null) {
+        // If coming from Doctor Profile, fetch that doctor specifically
+        final doctor = await _service!.getDoctorById(widget.initialDoctorId!);
+        final schedules = await _service!.getDoctorSchedules(widget.initialDoctorId!);
+
+        if (!mounted) return;
+        setState(() {
+          _selectedDoctor = doctor;
+          _selectedSpecialty = doctor.specialtyName;
+          _doctors = [doctor]; // Ensure Step 1 is not empty
+          _doctorSchedules = schedules;
+          _step = 2; // Jump to Consultation Type selection
+          _loading = false;
+        });
+      } else {
+        setState(() {
+          _loading = false;
+        });
+        await _loadDoctors(reset: true);
+      }
     } catch (e) {
       if (!mounted) return;
       setState(() {
@@ -328,16 +351,19 @@ class _BookingScreenState extends State<BookingScreen> {
   }
 
   bool _validateCurrentStep() {
-    if (_step == 0 && _selectedSpecialty == null)
-      return _warn('Please select a specialty.');
-    if (_step == 1 && _selectedDoctor == null)
-      return _warn('Please select a doctor.');
-    if (_step == 2 && _selectedType == null)
-      return _warn('Please select a consultation type.');
-    if (_step == 3 && _selectedSlot == null)
-      return _warn('Please select an available time slot.');
-    if (_step == 4 && _documents.any((item) => item.documentDate == null)) {
-      return _warn('Please select Date Performed for all uploaded documents.');
+    if (_step == 0) {
+      if (_selectedSpecialty == null) return _warn('Please select a specialty.');
+    } else if (_step == 1) {
+      if (_selectedDoctor == null) return _warn('Please select a doctor.');
+    } else if (_step == 2) {
+      if (_selectedType == null) return _warn('Please select a consultation type.');
+    } else if (_step == 3) {
+      if (_selectedSlot == null) return _warn('Please select an available time slot.');
+    } else if (_step == 4) {
+      if (_symptomsCtrl.text.trim().isEmpty) return _warn('Please describe your symptoms.');
+      if (_documents.any((item) => item.documentDate == null)) {
+        return _warn('Please select Date Performed for all uploaded documents.');
+      }
     }
     return true;
   }
@@ -518,9 +544,14 @@ class _BookingScreenState extends State<BookingScreen> {
         _pendingAppointmentTime = appointmentTime;
       });
 
+      await _savePendingPayPalPayment(
+        orderId: orderId,
+        appointmentTime: appointmentTime,
+      );
+
       final opened = await launchUrl(
         Uri.parse(approvalUrl),
-        mode: LaunchMode.externalApplication,
+        mode: LaunchMode.inAppBrowserView,
       );
 
       if (!opened) {
@@ -549,6 +580,16 @@ class _BookingScreenState extends State<BookingScreen> {
       _documents.clear();
     });
     _loadDoctors(reset: true);
+  }
+
+  Future<void> _savePendingPayPalPayment({
+    required String orderId,
+    required String appointmentTime,
+  }) async {
+    final prefs = await SharedPreferences.getInstance();
+
+    await prefs.setString(_pendingPayPalOrderKey, orderId);
+    await prefs.setString(_pendingPayPalAppointmentTimeKey, appointmentTime);
   }
 
   @override
@@ -625,7 +666,7 @@ class _BookingScreenState extends State<BookingScreen> {
     width: double.infinity,
     padding: const EdgeInsets.fromLTRB(20, 20, 20, 16),
     decoration: BoxDecoration(
-      color: colors.surfaceVariant.withValues(alpha: 0.55),
+      color: colors.surfaceContainerHighest.withValues(alpha: 0.55),
       border: Border(bottom: BorderSide(color: colors.outlineVariant)),
     ),
     child: Column(

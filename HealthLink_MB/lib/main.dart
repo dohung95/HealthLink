@@ -5,27 +5,37 @@ import 'providers/auth_provider.dart';
 import 'providers/chat/chat_provider.dart';
 import 'providers/chat/chatbot_provider.dart';
 import 'providers/video_call_provider.dart';
+import 'providers/theme_provider.dart';
 import 'screens/welcome_screen.dart';
-import 'screens/patient/main_layout.dart';
+import 'screens/patient/patient_main_layout.dart';
 import 'screens/doctor/doctor_main_layout.dart';
 
 final GlobalKey<NavigatorState> navigatorKey = GlobalKey<NavigatorState>();
 
 Future<void> main() async {
-  // Đảm bảo Flutter binding sẵn sàng trước khi gọi SharedPreferences
   WidgetsFlutterBinding.ensureInitialized();
 
-  // Tạo AuthProvider và load session đã lưu trước đó
   final authProvider = AuthProvider();
-  await authProvider.loadSavedSession();
+  final themeProvider = ThemeProvider();
 
   runApp(
     MultiProvider(
       providers: [
-        ChangeNotifierProvider<AuthProvider>.value(value: authProvider),
-        ChangeNotifierProvider<ChatProvider>(create: (_) => ChatProvider()),
-        ChangeNotifierProvider<ChatbotProvider>(create: (_) => ChatbotProvider()),
-        ChangeNotifierProvider<VideoCallProvider>(create: (_) => VideoCallProvider()),
+        ChangeNotifierProvider<AuthProvider>.value(
+          value: authProvider,
+        ),
+        ChangeNotifierProvider<ThemeProvider>.value(
+          value: themeProvider,
+        ),
+        ChangeNotifierProvider<ChatProvider>(
+          create: (_) => ChatProvider(),
+        ),
+        ChangeNotifierProvider<ChatbotProvider>(
+          create: (_) => ChatbotProvider(),
+        ),
+        ChangeNotifierProvider<VideoCallProvider>(
+          create: (_) => VideoCallProvider(),
+        ),
       ],
       child: const HealthLinkApp(),
     ),
@@ -37,12 +47,14 @@ class HealthLinkApp extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final themeProvider = context.watch<ThemeProvider>();
+    
     return MaterialApp(
       title: 'HealthLink',
       debugShowCheckedModeBanner: false,
       theme: HealthLinkTheme.lightTheme,
       darkTheme: HealthLinkTheme.darkTheme,
-      themeMode: ThemeMode.system,
+      themeMode: themeProvider.themeMode,
       navigatorKey: navigatorKey,
       home: const _RootRouter(),
     );
@@ -58,27 +70,97 @@ class HealthLinkApp extends StatelessWidget {
 ///
 /// Lắng nghe [AuthProvider] để tự động điều hướng khi trạng thái thay đổi
 /// (ví dụ: đăng nhập thành công từ WelcomeScreen, hoặc token hết hạn).
-class _RootRouter extends StatelessWidget {
+class _RootRouter extends StatefulWidget {
   const _RootRouter();
+
+  @override
+  State<_RootRouter> createState() => _RootRouterState();
+}
+
+class _RootRouterState extends State<_RootRouter> {
+  bool _sessionLoadingStarted = false;
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+
+    if (_sessionLoadingStarted) return;
+
+    _sessionLoadingStarted = true;
+
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) return;
+
+      context.read<AuthProvider>().loadSavedSession();
+    });
+  }
 
   @override
   Widget build(BuildContext context) {
     return Selector<AuthProvider, (AuthStatus, List<String>)>(
-      // Rebuild khi status hoặc roles thay đổi
       selector: (_, auth) => (auth.status, auth.roles),
       builder: (_, data, __) {
         final (status, roles) = data;
 
+        if (status == AuthStatus.initial ||
+            status == AuthStatus.loading) {
+          return const _StartupLoadingScreen();
+        }
+
         if (status == AuthStatus.authenticated) {
-          // Phân luồng theo role
+          // Phân luồng theo role DOCTOR
           if (roles.contains('DOCTOR')) {
             return const DoctorMainLayout();
           }
+
+          // Phân luồng theo role PHARMACY
+          // if (roles.contains('PHARMACY')) {
+          //   return const DoctorMainLayout();
+          // }
+
           // Mặc định: Patient layout
-          return const MainLayout();
+          return const PatientMainLayout();
         }
+
         return const WelcomeScreen();
       },
+    );
+  }
+}
+
+class _StartupLoadingScreen extends StatelessWidget {
+  const _StartupLoadingScreen();
+
+  @override
+  Widget build(BuildContext context) {
+    final colors = Theme.of(context).colorScheme;
+
+    return Scaffold(
+      backgroundColor: colors.surface,
+      body: Center(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Image.asset(
+              'assets/images/logo.png',
+              width: 130,
+              height: 130,
+              fit: BoxFit.contain,
+            ),
+            const SizedBox(height: 24),
+            CircularProgressIndicator(
+              color: colors.primary,
+            ),
+            const SizedBox(height: 16),
+            Text(
+              'Starting HealthLink...',
+              style: TextStyle(
+                color: colors.onSurfaceVariant,
+              ),
+            ),
+          ],
+        ),
+      ),
     );
   }
 }
