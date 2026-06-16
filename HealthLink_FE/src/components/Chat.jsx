@@ -998,10 +998,19 @@ export default function Chat() {
             )}
 
             {/* Floating chat button */}
-            <div className="chat-float-wrapper">
+            <div className={`chat-float-wrapper ${isIconHidden && !isChatBoxOpen ? 'chat-float-wrapper--retracted' : ''}`}>
+              {!isChatBoxOpen && isIconHidden && (
+                <button
+                  className="chat-float-toggle"
+                  onClick={() => { setIsChatBoxOpen(true); setIsIconHidden(false); setIsShaking(false); }}
+                  title="Open chat"
+                >
+                  <i className="bi bi-chevron-left" />
+                </button>
+              )}
               <button
                 className={
-                  `chat-float-button${!isChatBoxOpen && isShaking ? ' chat-float-button--shaking' : ''}${isChatBoxOpen ? ' chat-float-button--hidden' : ''}`
+                  `chat-float-button${!isChatBoxOpen && isShaking ? ' chat-float-button--shaking' : ''}${isChatBoxOpen ? ' chat-float-button--hidden' : ''}${!isChatBoxOpen && isGuest && !isShaking ? ' chat-float-button--pulsing' : ''}`
                 }
                 onClick={() => { setIsChatBoxOpen(prev => !prev); setIsIconHidden(false); setIsShaking(false); }}
                 title={isChatBoxOpen ? 'Close chat' : 'Open chat'}

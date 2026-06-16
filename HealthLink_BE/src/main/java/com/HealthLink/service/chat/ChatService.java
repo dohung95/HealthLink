@@ -49,5 +49,10 @@ public interface ChatService {
      * Bật/Tắt chặn cuộc trò chuyện.
      */
     void toggleBlock(String chatRoomId, String userId);
+
+    /**
+     * Tìm kiếm tin nhắn.
+     */
+    List<MessageDTO> searchMessages(String chatRoomId, String query);
 }
 

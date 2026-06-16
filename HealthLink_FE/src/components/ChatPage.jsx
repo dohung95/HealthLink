@@ -1,12 +1,13 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
-import { getOrCreateRoom, getMyRooms, getRoomMessages, sendMessage as apiSendMessage, markAsRead, uploadMedia } from '../api/chatApi';
+import { getOrCreateRoom, getMyRooms, getRoomMessages, sendMessage as apiSendMessage, markAsRead, uploadMedia, toggleBlock } from '../api/chatApi';
 import stompChatService from '../services/stompChatService';
 import { getGeminiResponse } from '../services/geminiService';
 import { checkKeywordAndGetBotReply, checkSymptomAndGetSpecialty, getDoctorsBySpecialty } from '../AI_BOT/BotBrain';
 import { doctorService } from '../api/doctorApi';
 import { toast } from 'sonner';
+import BasicProfileModal from './BasicProfileModal';
 
 // ─── Bot cố định ──────────────
 const BOT_USER = {
@@ -253,7 +254,7 @@ function ChatMessage({ message, currentUserId, isNew = false, onImageClick, onNa
 }
 
 // ─── Danh sách phòng chat ───────────────────────────────────────────────
-function RoomListItem({ room, currentUserId, onSelect, isActive }) {
+function RoomListItem({ room, currentUserId, onSelect, isActive, isMuted }) {
     const name = room.user1Id === currentUserId ? room.user2DisplayName : room.user1DisplayName;
     const photo = room.user1Id === currentUserId ? room.user2PhotoURL : room.user1PhotoURL;
     const isUnread = room.unreadCount > 0;
@@ -266,7 +267,10 @@ function RoomListItem({ room, currentUserId, onSelect, isActive }) {
                 onError={(e) => { e.target.onerror = null; e.target.src = `https://api.dicebear.com/9.x/initials/svg?seed=${name}`; }}
                 className="rounded-circle me-3 border" style={{ width: 45, height: 45, flexShrink: 0, objectFit: 'cover', background: '#fff' }} />
             <div className="flex-grow-1" style={{ minWidth: 0 }}>
-                <div className={`fw-bold text-truncate ${isActive ? 'text-white' : isUnread ? 'text-dark' : ''}`}>{name}</div>
+                <div className={`fw-bold text-truncate d-flex align-items-center ${isActive ? 'text-white' : isUnread ? 'text-dark' : ''}`}>
+                    <span className="text-truncate">{name}</span>
+                    {isMuted && <i className="bi bi-bell-slash-fill ms-2 text-danger" style={{ fontSize: '0.8rem', opacity: isActive ? 1 : 0.7 }}></i>}
+                </div>
                 {room.lastMessage && (
                     <small className={`text-truncate d-block ${isActive ? 'text-white-50' : isUnread ? 'fw-bold text-dark' : 'text-muted'}`}>
                         {room.lastMessage}
@@ -323,16 +327,131 @@ export default function ChatPage({ showBot = true }) {
     const [page, setPage] = useState(0);
     const [hasMore, setHasMore] = useState(true);
     const [loadingMore, setLoadingMore] = useState(false);
+
+    // Refs for async loops
+    const pageRef = useRef(0);
+    const hasMoreRef = useRef(true);
+    const loadingMoreRef = useRef(false);
+
+    const [showScrollBottom, setShowScrollBottom] = useState(false);
+    const [hasUnreadInView, setHasUnreadInView] = useState(false);
+
     const chatContainerRef = useRef(null);
     const shouldScrollToBottomRef = useRef(true);
 
+    // --- Extra Features States ---
+    const [showChatDetails, setShowChatDetails] = useState(false);
+    const [showSearchModal, setShowSearchModal] = useState(false);
+    const [searchQuery, setSearchQuery] = useState('');
+    const [searchResults, setSearchResults] = useState([]);
+    const [isSearching, setIsSearching] = useState(false);
+    const [showMediaModal, setShowMediaModal] = useState(false);
+    const [showBlockConfirmModal, setShowBlockConfirmModal] = useState(false);
+    const [showBlockedUsersModal, setShowBlockedUsersModal] = useState(false);
+    const [showProfileModal, setShowProfileModal] = useState(false);
+    const [mutedRooms, setMutedRooms] = useState(() => {
+        try { return JSON.parse(localStorage.getItem('muted_rooms') || '[]'); } catch { return []; }
+    });
 
     const scrollTo = useRef(null);
     const fileInputRef = useRef(null);
     const unsubscribeChat = useRef(null);
     const currentRoomRef = useRef(currentRoom);
 
+    // Search Effect
+    useEffect(() => {
+        if (!showSearchModal || !currentRoom || !searchQuery.trim()) {
+            setSearchResults([]);
+            return;
+        }
+
+        setIsSearching(true);
+        const timer = setTimeout(() => {
+            import('../api/chatApi').then(({ searchRoomMessages }) => {
+                searchRoomMessages(currentRoom.chatRoomId, searchQuery.trim())
+                    .then(data => setSearchResults(data || []))
+                    .catch(err => console.error('Search error:', err))
+                    .finally(() => setIsSearching(false));
+            });
+        }, 500); // 500ms debounce
+
+        return () => clearTimeout(timer);
+    }, [searchQuery, showSearchModal, currentRoom]);
+
+    const scrollToMessageWithRetry = async (msgId, maxRetries = 10) => {
+        const tryScroll = () => {
+            const el = document.getElementById(`message-${msgId}`);
+            if (el) {
+                el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                el.style.transition = 'background-color 0.5s';
+                el.style.backgroundColor = '#fff3cd';
+                el.style.borderRadius = '16px';
+                setTimeout(() => {
+                    el.style.backgroundColor = 'transparent';
+                }, 2000);
+                return true;
+            }
+            return false;
+        };
+
+        if (tryScroll()) return;
+
+        // Try loading more until found
+        for (let i = 0; i < maxRetries; i++) {
+            if (!hasMoreRef.current || loadingMoreRef.current) break;
+            const loadedSomething = await loadMoreMessages();
+            if (!loadedSomething) break;
+
+            await new Promise(resolve => setTimeout(resolve, 300));
+            if (tryScroll()) return;
+        }
+
+        // If still not found after retries
+        toast.warning('No messages found, please scroll up to load more');
+    };
+
     useEffect(() => { currentRoomRef.current = currentRoom; }, [currentRoom]);
+
+    const handleToggleMute = () => {
+        if (!currentRoom) return;
+        const roomId = currentRoom.chatRoomId;
+        const newMuted = mutedRooms.includes(roomId)
+            ? mutedRooms.filter(id => id !== roomId)
+            : [...mutedRooms, roomId];
+        setMutedRooms(newMuted);
+        localStorage.setItem('muted_rooms', JSON.stringify(newMuted));
+        toast.success(newMuted.includes(roomId) ? 'Notifications muted' : 'Notifications unmuted');
+    };
+
+    const handleBlockToggle = async () => {
+        if (!currentRoom) return;
+        try {
+            await toggleBlock(currentRoom.chatRoomId);
+            const isCurrentlyBlockedByMe = currentRoom.blockedBy === currentUserId;
+            toast.success(isCurrentlyBlockedByMe ? 'User unblocked' : 'User blocked');
+            setCurrentRoom(prev => ({ ...prev, blockedBy: isCurrentlyBlockedByMe ? null : currentUserId }));
+            setShowChatDetails(false);
+        } catch (err) {
+            console.error(err);
+            toast.error('Failed to toggle block status');
+        }
+    };
+
+    const handleProfileNavigation = () => {
+        if (!currentRoom) return;
+        const partnerSpecialty = (currentRoom.user1Id === currentUserId ? currentRoom.user2Specialty : currentRoom.user1Specialty) || '';
+        const specialty = partnerSpecialty.toLowerCase().trim();
+        const partnerId = currentRoom.user1Id === currentUserId ? currentRoom.user2Id : currentRoom.user1Id;
+        const isPharmacy = specialty.includes('nhà thuốc') || specialty.includes('pharmacy') || specialty.includes('pharmacist') || specialty.includes('phòng khám') || specialty.includes('clinic');
+        const isDoctor = specialty && !isPharmacy && specialty !== 'bệnh nhân' && specialty !== 'patient';
+
+        if (isPharmacy) {
+            toast.info('Profile viewing for this role is being developed. Please come back later!');
+        } else {
+            setShowProfileModal(true);
+        }
+        setShowChatDetails(false);
+    };
 
     const handleBotNavigate = useCallback((url) => {
         if (!url) return;
@@ -414,6 +533,15 @@ export default function ChatPage({ showBot = true }) {
                 });
 
                 updated.sort((a, b) => new Date(b.lastMessageAt || 0).getTime() - new Date(a.lastMessageAt || 0).getTime());
+
+                // Show notification if it's a new message in another room and not muted
+                if (!isRoomActive && newMsg.senderId !== currentUserId) {
+                    const localMutedRooms = JSON.parse(localStorage.getItem('muted_rooms') || '[]');
+                    if (!localMutedRooms.includes(newMsg.chatRoomId)) {
+                        toast.info(`New message from ${isNewRoom ? 'someone' : updated.find(r => r.chatRoomId === newMsg.chatRoomId)?.user1DisplayName || 'someone'}`);
+                    }
+                }
+
                 return updated;
             });
         });
@@ -432,17 +560,22 @@ export default function ChatPage({ showBot = true }) {
         if (!currentRoom) {
             setMessages([]);
             setPage(0);
+            pageRef.current = 0;
             setHasMore(true);
+            hasMoreRef.current = true;
             return;
         }
         setLoading(true);
         setPage(0);
+        pageRef.current = 0;
         setHasMore(true);
+        hasMoreRef.current = true;
         shouldScrollToBottomRef.current = true;
         getRoomMessages(currentRoom.chatRoomId, 0, 25).then(msgs => {
             setMessages(msgs);
             if (msgs.length < 25) {
                 setHasMore(false);
+                hasMoreRef.current = false;
             }
             return markAsRead(currentRoom.chatRoomId)
                 .then(res => {
@@ -476,19 +609,29 @@ export default function ChatPage({ showBot = true }) {
     }, [chatPartner, currentUserId]);
 
     const loadMoreMessages = useCallback(() => {
-        if (!currentRoom || loadingMore || !hasMore) return;
+        if (!currentRoom || loadingMoreRef.current || !hasMoreRef.current) return Promise.resolve(false);
+
+        loadingMoreRef.current = true;
         setLoadingMore(true);
         shouldScrollToBottomRef.current = false;
-        const nextPage = page + 1;
+
+        const nextPage = pageRef.current + 1;
         const container = chatContainerRef.current;
         const previousScrollHeight = container ? container.scrollHeight : 0;
 
-        getRoomMessages(currentRoom.chatRoomId, nextPage, 25)
+        return getRoomMessages(currentRoom.chatRoomId, nextPage, 25)
             .then(newMsgs => {
                 if (newMsgs.length > 0) {
-                    setMessages(prev => [...newMsgs, ...prev]);
+                    setMessages(prev => {
+                        // Tránh trường hợp duplicate bằng cách lọc theo messageId
+                        const prevIds = new Set(prev.map(m => m.messageId));
+                        const uniqueNewMsgs = newMsgs.filter(m => !prevIds.has(m.messageId));
+                        return [...uniqueNewMsgs, ...prev];
+                    });
+                    pageRef.current = nextPage;
                     setPage(nextPage);
                     if (newMsgs.length < 25) {
+                        hasMoreRef.current = false;
                         setHasMore(false);
                     }
                     setTimeout(() => {
@@ -497,25 +640,45 @@ export default function ChatPage({ showBot = true }) {
                             container.scrollTop = newScrollHeight - previousScrollHeight;
                         }
                     }, 0);
+                    return true;
                 } else {
+                    hasMoreRef.current = false;
                     setHasMore(false);
+                    return false;
                 }
             })
-            .catch(() => { })
-            .finally(() => setLoadingMore(false));
-    }, [currentRoom, page, hasMore, loadingMore]);
+            .catch(() => { return false; })
+            .finally(() => {
+                loadingMoreRef.current = false;
+                setLoadingMore(false);
+            });
+    }, [currentRoom]);
 
     const handleScroll = () => {
         if (!chatContainerRef.current) return;
-        const { scrollTop } = chatContainerRef.current;
+        const { scrollTop, scrollHeight, clientHeight } = chatContainerRef.current;
         if (scrollTop === 0 && hasMore && !loading && !loadingMore && currentRoom) {
             loadMoreMessages();
+        }
+
+        // Kiểm tra xem user có đang ở đáy hay không (dung sai 100px)
+        const isAtBottom = scrollHeight - scrollTop - clientHeight < 100;
+        setShowScrollBottom(!isAtBottom);
+        if (isAtBottom) {
+            setHasUnreadInView(false);
         }
     };
 
     useEffect(() => {
         if (shouldScrollToBottomRef.current && scrollTo.current) {
-            scrollTo.current.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+            setTimeout(() => {
+                if (scrollTo.current) {
+                    scrollTo.current.scrollIntoView({ 
+                        behavior: pageRef.current === 0 ? 'auto' : 'smooth', 
+                        block: 'end' 
+                    });
+                }
+            }, 100);
         }
     }, [messages, isBotTyping]);
 
@@ -722,10 +885,15 @@ export default function ChatPage({ showBot = true }) {
                 {/* ─── SIDEBAR TRÁI ─── */}
                 <div className="col-12 col-md-4 col-lg-3 border-end d-flex flex-column bg-white">
                     <div className="p-3 border-bottom d-flex align-items-center justify-content-between bg-white">
-                        <h5 className="mb-0 fw-bold">Messages</h5>
-                        <span className="badge bg-primary rounded-pill">
-                            {roomList.reduce((acc, r) => acc + (r.unreadCount || 0), 0) || 0}
-                        </span>
+                        <div className="d-flex align-items-center">
+                            <h5 className="mb-0 fw-bold me-2">Messages</h5>
+                            <span className="badge bg-primary rounded-pill">
+                                {roomList.reduce((acc, r) => acc + (r.unreadCount || 0), 0) || 0}
+                            </span>
+                        </div>
+                        <button className="btn btn-light btn-sm rounded-circle d-flex align-items-center justify-content-center shadow-sm" style={{ width: 32, height: 32 }} onClick={() => setShowBlockedUsersModal(true)} title="Blocked Users">
+                            <i className="bi bi-person-x text-danger"></i>
+                        </button>
                     </div>
                     <div className="flex-grow-1 overflow-auto hide-scrollbar p-2 bg-light">
                         <ul className="list-group list-group-flush gap-1">
@@ -754,6 +922,7 @@ export default function ChatPage({ showBot = true }) {
                                         setCurrentRoom(r);
                                     }}
                                     isActive={currentRoom?.chatRoomId === room.chatRoomId}
+                                    isMuted={mutedRooms.includes(room.chatRoomId)}
                                 />
                             ))}
                         </ul>
@@ -771,14 +940,22 @@ export default function ChatPage({ showBot = true }) {
                             className="rounded-circle me-3 shadow-sm"
                             style={{ width: 45, height: 45, objectFit: 'cover' }}
                         />
-                        <div>
+                        <div className="flex-grow-1">
                             <h5 className="mb-0 fw-bold">{chatPartner?.displayName || 'Chat'}</h5>
                             {chatPartner?.isBot && <small className="text-success fw-medium"><i className="bi bi-circle-fill me-1" style={{ fontSize: '8px' }}></i>Online</small>}
                         </div>
+                        {currentRoom && (
+                            <div className="d-flex align-items-center">
+                                {mutedRooms.includes(currentRoom.chatRoomId) && <i className="bi bi-bell-slash-fill text-danger me-3 fs-5"></i>}
+                                <button className="btn btn-light rounded-circle shadow-sm d-flex align-items-center justify-content-center" style={{ width: 40, height: 40, padding: 0 }} onClick={() => setShowChatDetails(true)}>
+                                    <i className="bi bi-info-circle text-primary fs-5"></i>
+                                </button>
+                            </div>
+                        )}
                     </div>
 
                     {/* Danh sách tin nhắn */}
-                    <div ref={chatContainerRef} onScroll={handleScroll} className="flex-grow-1 p-4 overflow-auto" style={{ backgroundColor: '#f0f2f5' }}>
+                    <div ref={chatContainerRef} onScroll={handleScroll} className="flex-grow-1 p-4 overflow-auto position-relative" style={{ backgroundColor: '#f0f2f5' }}>
                         {loadingMore && (
                             <div className="text-center p-2 text-muted">
                                 <div className="spinner-border spinner-border-sm me-2"></div> Loading older messages...
@@ -807,27 +984,60 @@ export default function ChatPage({ showBot = true }) {
                         )}
 
                         {messages.map((msg, index) => (
-                            <ChatMessage
-                                key={msg.messageId || index}
-                                message={msg}
-                                currentUserId={currentUserId}
-                                isNew={msg.messageId === latestBotMsgId}
-                                onImageClick={setLightboxImage}
-                                onNavigate={handleBotNavigate}
-                            />
+                            <div key={msg.messageId || index} id={`message-${msg.messageId}`}>
+                                <ChatMessage
+                                    message={msg}
+                                    currentUserId={currentUserId}
+                                    isNew={msg.messageId === latestBotMsgId}
+                                    onImageClick={setLightboxImage}
+                                    onNavigate={handleBotNavigate}
+                                />
+                            </div>
                         ))}
                         {isBotTyping && <TypingIndicator />}
                         <div ref={scrollTo}></div>
+
+                        {/* Nút cuộn xuống dưới */}
+                        {showScrollBottom && (
+                            <div style={{ position: 'sticky', bottom: '-20px', display: 'flex', justifyContent: 'center', pointerEvents: 'none', zIndex: 1000 }}>
+                                <button
+                                    className="btn rounded-circle shadow d-flex align-items-center justify-content-center border-0 position-relative"
+                                    style={{
+                                        width: '40px',
+                                        height: '40px',
+                                        transition: 'all 0.3s ease',
+                                        opacity: 0.95,
+                                        backgroundColor: '#007bff',
+                                        color: 'white',
+                                        pointerEvents: 'auto'
+                                    }}
+                                    onClick={(e) => {
+                                        e.preventDefault();
+                                        if (scrollTo.current) {
+                                            scrollTo.current.scrollIntoView({ behavior: 'smooth' });
+                                            setHasUnreadInView(false);
+                                        }
+                                    }}
+                                >
+                                    <i className="bi bi-chevron-down fs-5"></i>
+                                    {hasUnreadInView && (
+                                        <span className="position-absolute top-0 start-100 translate-middle p-2 bg-danger border border-light rounded-circle">
+                                            <span className="visually-hidden">New alerts</span>
+                                        </span>
+                                    )}
+                                </button>
+                            </div>
+                        )}
                     </div>
 
                     {/* Input box */}
                     {isBlocked ? (
                         <div className="p-3 border-top bg-light text-center">
                             <span className="text-muted fst-italic">
-                                {isBlockedByMe 
-                                    ? 'You blocked this user.' 
-                                    : isAppointmentCompleted 
-                                        ? 'This appointment is completed. The conversation is read-only.' 
+                                {isBlockedByMe
+                                    ? 'You blocked this user.'
+                                    : isAppointmentCompleted
+                                        ? 'This appointment is completed. The conversation is read-only.'
                                         : 'You cannot reply to this conversation.'}
                             </span>
                         </div>
@@ -881,6 +1091,270 @@ export default function ChatPage({ showBot = true }) {
                     )}
                 </div>
             </div>
+
+            {/* --- Offcanvas Chat Details --- */}
+            {showChatDetails && currentRoom && (
+                <>
+                    <div className="offcanvas-backdrop fade show" onClick={() => setShowChatDetails(false)} style={{ zIndex: 1040 }}></div>
+                    <div className="offcanvas offcanvas-end show shadow" style={{ width: '350px', visibility: 'visible', zIndex: 1045 }}>
+                        <div className="offcanvas-header border-bottom">
+                            <h5 className="offcanvas-title fw-bold">Chat Details</h5>
+                            <button type="button" className="btn-close" onClick={() => setShowChatDetails(false)}></button>
+                        </div>
+                        <div className="offcanvas-body p-0">
+                            <div className="text-center p-4 border-bottom bg-light">
+                                <img src={getFullUrl(currentRoom.user1Id === currentUserId ? currentRoom.user2PhotoURL : currentRoom.user1PhotoURL) || `https://api.dicebear.com/9.x/initials/svg?seed=${chatPartner?.displayName}`}
+                                    className="rounded-circle shadow-sm mb-3" style={{ width: 100, height: 100, objectFit: 'cover' }} alt="Avatar" onError={(e) => { e.target.onerror = null; e.target.src = `https://api.dicebear.com/9.x/initials/svg?seed=${chatPartner?.displayName}`; }} />
+                                <h4 className="fw-bold mb-1">{chatPartner?.displayName}</h4>
+                                <p className="text-muted small mb-3">{(currentRoom.user1Id === currentUserId ? currentRoom.user2Specialty : currentRoom.user1Specialty) || 'HealthLink User'}</p>
+
+                                <div className="d-flex justify-content-center gap-4 mt-2">
+                                    <div className="text-center" style={{ cursor: 'pointer' }} onClick={handleProfileNavigation}>
+                                        <div className="bg-white border rounded-circle d-flex align-items-center justify-content-center shadow-sm mx-auto mb-1" style={{ width: 45, height: 45 }}>
+                                            <i className="bi bi-person fs-5"></i>
+                                        </div>
+                                        <small className="text-muted">Profile</small>
+                                    </div>
+                                    <div className="text-center" style={{ cursor: 'pointer' }} onClick={handleToggleMute}>
+                                        <div className="bg-white border rounded-circle d-flex align-items-center justify-content-center shadow-sm mx-auto mb-1" style={{ width: 45, height: 45 }}>
+                                            <i className={`bi ${mutedRooms.includes(currentRoom.chatRoomId) ? 'bi-bell-slash text-danger' : 'bi-bell'} fs-5`}></i>
+                                        </div>
+                                        <small className="text-muted">{mutedRooms.includes(currentRoom.chatRoomId) ? 'Unmute' : 'Mute'}</small>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <div className="list-group list-group-flush mt-2">
+                                <button className="list-group-item list-group-item-action d-flex align-items-center py-3 border-0" onClick={() => { setShowChatDetails(false); setShowSearchModal(true); }}>
+                                    <i className="bi bi-search me-3 fs-5 text-muted"></i>
+                                    <span>Search in Conversation</span>
+                                </button>
+                                <button className="list-group-item list-group-item-action d-flex align-items-center py-3 border-0" onClick={() => { setShowChatDetails(false); setShowMediaModal(true); }}>
+                                    <i className="bi bi-images me-3 fs-5 text-muted"></i>
+                                    <span>View Media & Files</span>
+                                </button>
+
+                                <hr className="my-1" />
+
+                                {(!currentRoom.blockedBy || currentRoom.blockedBy === currentUserId) && (
+                                    <button
+                                        className={`list-group-item list-group-item-action d-flex align-items-center py-3 border-0 ${isAppointmentCompleted ? 'opacity-50 text-muted' : ''}`}
+                                        style={{ cursor: isAppointmentCompleted ? 'not-allowed' : 'pointer' }}
+                                        onClick={(e) => {
+                                            if (isAppointmentCompleted) {
+                                                e.preventDefault();
+                                                return;
+                                            }
+                                            setShowChatDetails(false);
+                                            setShowBlockConfirmModal(true);
+                                        }}
+                                        disabled={isAppointmentCompleted}
+                                    >
+                                        <i className={`bi bi-ban me-3 fs-5 ${isAppointmentCompleted ? 'text-muted' : (currentRoom.blockedBy === currentUserId ? 'text-success' : 'text-danger')}`}></i>
+                                        <span className={isAppointmentCompleted ? 'text-muted' : (currentRoom.blockedBy === currentUserId ? 'text-success' : 'text-danger')}>{currentRoom.blockedBy === currentUserId ? 'Unblock User' : 'Block User'}</span>
+                                    </button>
+                                )}
+                            </div>
+                        </div>
+                    </div>
+                </>
+            )}
+
+            {/* --- Block Confirm Modal --- */}
+            {showBlockConfirmModal && (
+                <div className="modal fade show d-block" style={{ backgroundColor: 'rgba(0,0,0,0.5)', zIndex: 1050 }}>
+                    <div className="modal-dialog modal-dialog-centered">
+                        <div className="modal-content border-0 shadow rounded-4 overflow-hidden">
+                            <div className={`modal-header border-bottom-0 p-4 text-white ${currentRoom?.blockedBy === currentUserId ? 'bg-success' : 'bg-danger'}`}>
+                                <h5 className="modal-title fw-bold">
+                                    <i className={`bi bi-ban me-2`}></i>
+                                    {currentRoom?.blockedBy === currentUserId ? 'Unblock User' : 'Block User'}
+                                </h5>
+                                <button type="button" className="btn-close btn-close-white" onClick={() => setShowBlockConfirmModal(false)}></button>
+                            </div>
+                            <div className="modal-body p-4 text-center">
+                                <p className="mb-0 fs-5">
+                                    {currentRoom?.blockedBy === currentUserId
+                                        ? 'You will receive messages and calls from this person again. Do you want to unblock them?'
+                                        : 'You won\'t receive messages or calls from this person anymore. Are you sure you want to block them?'}
+                                </p>
+                            </div>
+                            <div className="modal-footer border-top-0 d-flex justify-content-center pb-4 pt-0">
+                                <button type="button" className="btn btn-light rounded-pill px-4 py-2 me-2" onClick={() => setShowBlockConfirmModal(false)}>Cancel</button>
+                                <button type="button" className={`btn rounded-pill px-4 py-2 ${currentRoom?.blockedBy === currentUserId ? 'btn-success' : 'btn-danger'}`} onClick={() => {
+                                    handleBlockToggle();
+                                    setShowBlockConfirmModal(false);
+                                }}>
+                                    {currentRoom?.blockedBy === currentUserId ? 'Yes, Unblock' : 'Yes, Block'}
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            )}
+
+            {/* --- Search Modal --- */}
+            {showSearchModal && (
+                <div className="modal fade show d-block" style={{ backgroundColor: 'rgba(0,0,0,0.5)', zIndex: 1050 }}>
+                    <div className="modal-dialog modal-dialog-centered modal-dialog-scrollable">
+                        <div className="modal-content border-0 shadow overflow-hidden">
+                            <div className="modal-header rounded-0 border-bottom-0 p-4 bg-primary text-white">
+                                <div className="d-flex align-items-center bg-white border rounded-pill px-3 flex-grow-1 shadow-sm">
+                                    <i className="bi bi-search text-muted me-2"></i>
+                                    <input type="text" className="border-0 bg-transparent px-2 py-2 w-100 text-dark" style={{ outline: 'none', boxShadow: 'none' }} placeholder="Search in conversation..." autoFocus value={searchQuery} onChange={e => setSearchQuery(e.target.value)} />
+                                </div>
+                                <button type="button" className="btn-close btn-close-white ms-3" onClick={() => { setShowSearchModal(false); setSearchQuery(''); }}></button>
+                            </div>
+                            <div className="modal-body p-4 custom-scrollbar" style={{ minHeight: '300px', maxHeight: '480px', overflowY: 'auto' }}>
+                                {isSearching ? (
+                                    <div className="text-center text-primary mt-5">
+                                        <div className="spinner-border" role="status">
+                                            <span className="visually-hidden">Loading...</span>
+                                        </div>
+                                    </div>
+                                ) : searchQuery.trim() ? (
+                                    searchResults.length > 0 ? (
+                                        searchResults.map(msg => (
+                                            <div key={msg.messageId} className="card border-0 shadow-sm mb-3 rounded-4 overflow-hidden" style={{ cursor: 'pointer', transition: 'transform 0.2s' }} onClick={() => {
+                                                setShowSearchModal(false);
+                                                setSearchQuery('');
+                                                setTimeout(() => {
+                                                    scrollToMessageWithRetry(msg.messageId);
+                                                }, 300); // Wait for modal to close
+                                            }}>
+                                                <div className="card-body p-3">
+                                                    <div className="d-flex justify-content-between align-items-center mb-2">
+                                                        <small className="fw-bold text-primary">{msg.senderId === currentUserId ? 'You' : msg.senderDisplayName || chatPartner?.displayName}</small>
+                                                        <small className="text-muted" style={{ fontSize: '0.75rem' }}>{new Date(msg.timestamp || msg.createdAt).toLocaleDateString()} {new Date(msg.timestamp || msg.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</small>
+                                                    </div>
+                                                    <p className="mb-0 small">{msg.content}</p>
+                                                </div>
+                                            </div>
+                                        ))
+                                    ) : (
+                                        <div className="text-center text-muted my-5">
+                                            <i className="bi bi-search fs-1 opacity-25"></i>
+                                            <p className="mt-3">No messages found for "{searchQuery}"</p>
+                                        </div>
+                                    )
+                                ) : (
+                                    <div className="text-center text-muted my-5">
+                                        <i className="bi bi-search fs-1 opacity-25"></i>
+                                        <p className="mt-3">Type to search messages</p>
+                                    </div>
+                                )}
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            )}
+
+            {/* --- Blocked Users Modal --- */}
+            {showBlockedUsersModal && (
+                <div className="modal fade show d-block" style={{ backgroundColor: 'rgba(0,0,0,0.5)', zIndex: 1050 }}>
+                    <div className="modal-dialog modal-dialog-centered modal-dialog-scrollable">
+                        <div className="modal-content border-0 shadow overflow-hidden">
+                            <div className="modal-header rounded-0 border-bottom-0 p-4 bg-danger text-white">
+                                <h5 className="modal-title fw-bold">
+                                    <i className="bi bi-person-x me-2"></i> Blocked Users
+                                </h5>
+                                <button type="button" className="btn-close btn-close-white" onClick={() => setShowBlockedUsersModal(false)}></button>
+                            </div>
+                            <div className="modal-body p-0 custom-scrollbar" style={{ maxHeight: '400px', overflowY: 'auto' }}>
+                                {roomList.filter(r => r.blockedBy === currentUserId).length > 0 ? (
+                                    <ul className="list-group list-group-flush">
+                                        {roomList.filter(r => r.blockedBy === currentUserId).map(room => {
+                                            const partnerName = room.user1Id === currentUserId ? room.user2DisplayName : room.user1DisplayName;
+                                            const partnerPhoto = room.user1Id === currentUserId ? room.user2PhotoURL : room.user1PhotoURL;
+                                            return (
+                                                <li key={room.chatRoomId} className="list-group-item d-flex align-items-center justify-content-between p-3 border-bottom">
+                                                    <div className="d-flex align-items-center">
+                                                        <img src={getFullUrl(partnerPhoto) || `https://api.dicebear.com/9.x/initials/svg?seed=${partnerName}`}
+                                                            alt="avatar" className="rounded-circle me-3 border" style={{ width: 40, height: 40, objectFit: 'cover' }}
+                                                            onError={(e) => { e.target.onerror = null; e.target.src = `https://api.dicebear.com/9.x/initials/svg?seed=${partnerName}`; }} />
+                                                        <span className="fw-bold">{partnerName}</span>
+                                                    </div>
+                                                    <button className="btn btn-outline-danger btn-sm rounded-pill px-3" onClick={async () => {
+                                                        try {
+                                                            await toggleBlock(room.chatRoomId);
+                                                            setRoomList(prev => prev.map(r => r.chatRoomId === room.chatRoomId ? { ...r, blockedBy: null } : r));
+                                                            if (currentRoom?.chatRoomId === room.chatRoomId) {
+                                                                setCurrentRoom(prev => ({ ...prev, blockedBy: null }));
+                                                            }
+                                                            toast.success('User unblocked successfully');
+                                                        } catch (err) {
+                                                            toast.error('Failed to unblock user');
+                                                        }
+                                                    }}>Unblock</button>
+                                                </li>
+                                            );
+                                        })}
+                                    </ul>
+                                ) : (
+                                    <div className="text-center text-muted p-5">
+                                        <i className="bi bi-shield-check fs-1 text-success opacity-50 mb-3 d-block"></i>
+                                        <p>No blocked users</p>
+                                    </div>
+                                )}
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            )}
+
+            {/* --- Media Modal --- */}
+            {showMediaModal && (
+                <div className="modal fade show d-block" style={{ backgroundColor: 'rgba(0,0,0,0.5)', zIndex: 1050 }}>
+                    <div className="modal-dialog modal-dialog-centered modal-dialog-scrollable modal-lg">
+                        <div className="modal-content border-0 shadow">
+                            <div className="modal-header border-bottom">
+                                <h5 className="modal-title fw-bold">Media & Files</h5>
+                                <button type="button" className="btn-close" onClick={() => setShowMediaModal(false)}></button>
+                            </div>
+                            <div className="modal-body p-4 bg-light">
+                                <h6 className="fw-bold mb-3 text-secondary">Images & Videos</h6>
+                                <div className="row g-3 mb-4">
+                                    {messages.filter(m => m.imageUrl || m.videoUrl).length > 0 ? messages.filter(m => m.imageUrl || m.videoUrl).map(msg => (
+                                        <div key={msg.messageId} className="col-6 col-sm-4 col-md-3">
+                                            {msg.imageUrl ? (
+                                                <img src={getFullUrl(msg.imageUrl)} alt="Media" className="img-fluid rounded-3 border shadow-sm w-100" style={{ height: '100px', objectFit: 'cover', cursor: 'zoom-in' }} onClick={() => setLightboxImage(getFullUrl(msg.imageUrl))} />
+                                            ) : (
+                                                <div className="bg-dark rounded-3 border shadow-sm w-100 d-flex align-items-center justify-content-center position-relative" style={{ height: '100px', cursor: 'pointer', overflow: 'hidden' }} onClick={() => window.open(getFullUrl(msg.videoUrl), '_blank')}>
+                                                    <video src={getFullUrl(msg.videoUrl)} style={{ width: '100%', height: '100%', objectFit: 'cover', opacity: 0.5 }} />
+                                                    <i className="bi bi-play-circle-fill text-white fs-2 position-absolute shadow-sm" style={{ zIndex: 2 }}></i>
+                                                </div>
+                                            )}
+                                        </div>
+                                    )) : <div className="col-12 text-muted fst-italic small">No media found in this conversation.</div>}
+                                </div>
+
+                                <h6 className="fw-bold mb-3 text-secondary border-top pt-4">Files & Documents</h6>
+                                <div className="list-group list-group-flush shadow-sm rounded-4 overflow-hidden">
+                                    {messages.filter(m => m.fileUrl).length > 0 ? messages.filter(m => m.fileUrl).map(msg => (
+                                        <a key={msg.messageId} href={getFullUrl(msg.fileUrl)} target="_blank" rel="noopener noreferrer" className="list-group-item list-group-item-action d-flex align-items-center p-3 border-0 border-bottom">
+                                            <div className="bg-primary bg-opacity-10 rounded p-2 me-3 d-flex align-items-center justify-content-center" style={{ width: 45, height: 45 }}>
+                                                <i className="bi bi-file-earmark-text fs-4 text-primary"></i>
+                                            </div>
+                                            <div className="flex-grow-1 text-truncate">
+                                                <div className="fw-medium text-dark text-truncate mb-1">{msg.fileUrl.split('/').pop()}</div>
+                                                <small className="text-muted" style={{ fontSize: '0.75rem' }}>{new Date(msg.timestamp || msg.createdAt).toLocaleDateString()} {new Date(msg.timestamp || msg.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</small>
+                                            </div>
+                                        </a>
+                                    )) : <div className="list-group-item text-muted fst-italic small bg-white border-0 py-4 text-center">No files found in this conversation.</div>}
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            )}
+
+            {/* --- Basic Profile Modal --- */}
+            <BasicProfileModal
+                show={showProfileModal}
+                onClose={() => setShowProfileModal(false)}
+                userId={currentRoom?.user1Id === currentUserId ? currentRoom?.user2Id : currentRoom?.user1Id}
+                role={(currentRoom?.user1Id === currentUserId ? currentRoom?.user2Specialty : currentRoom?.user1Specialty) || ''}
+            />
         </div>
     );
 }

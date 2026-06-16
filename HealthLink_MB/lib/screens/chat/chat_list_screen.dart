@@ -131,9 +131,11 @@ class _MessagesScreenState extends State<MessagesScreen> {
                         children: [
                           _buildSearchBar(),
                           const SizedBox(height: 16),
-                          // AI Bot item — luôn hiển thị đầu danh sách
-                          _buildBotItem(),
-                          const SizedBox(height: 8),
+                          // AI Bot item — luôn hiển thị đầu danh sách (chỉ dành cho Patient)
+                          if (context.watch<AuthProvider>().isPatient) ...[
+                            _buildBotItem(),
+                            const SizedBox(height: 8),
+                          ],
                           ...filtered.map((conv) => Padding(
                             padding: const EdgeInsets.only(bottom: 12),
                             child: _buildChatListItem(

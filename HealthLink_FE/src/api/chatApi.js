@@ -68,6 +68,22 @@ export async function getRoomMessages(chatRoomId, page = 0, size = 25) {
 }
 
 /**
+ * Tìm kiếm tin nhắn trong phòng theo từ khóa.
+ *
+ * @param {string} chatRoomId - ID phòng chat
+ * @param {string} query - Từ khóa tìm kiếm
+ * @returns {Promise<MessageDTO[]>}
+ */
+export async function searchRoomMessages(chatRoomId, query) {
+    const token = getToken();
+    const res = await fetch(`${BASE}/rooms/${chatRoomId}/messages/search?query=${encodeURIComponent(query)}`, {
+        headers: { 'Authorization': `Bearer ${token}` },
+    });
+    if (!res.ok) throw new Error(`searchRoomMessages failed: ${res.status}`);
+    return res.json();
+}
+
+/**
  * Gửi tin nhắn mới.
  * senderId được lấy tự động từ JWT ở backend — không cần truyền.
  *
@@ -133,4 +149,19 @@ export async function uploadMedia(chatRoomId, type, file) {
 
     if (!res.ok) throw new Error(`uploadMedia failed: ${res.status}`);
     return res.json();
+}
+
+/**
+ * Bật/Tắt chặn phòng chat.
+ *
+ * @param {string} chatRoomId - ID phòng chat
+ * @returns {Promise<void>}
+ */
+export async function toggleBlock(chatRoomId) {
+    const token = getToken();
+    const res = await fetch(`${BASE}/rooms/${chatRoomId}/block`, {
+        method: 'POST',
+        headers: { 'Authorization': `Bearer ${token}` },
+    });
+    if (!res.ok) throw new Error(`toggleBlock failed: ${res.status}`);
 }

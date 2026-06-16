@@ -108,14 +108,26 @@ class _BookingScreenState extends State<BookingScreen> {
         final schedules = await _service!.getDoctorSchedules(widget.initialDoctorId!);
 
         if (!mounted) return;
-        setState(() {
-          _selectedDoctor = doctor;
-          _selectedSpecialty = doctor.specialtyName;
-          _doctors = [doctor]; // Ensure Step 1 is not empty
-          _doctorSchedules = schedules;
-          _step = 2; // Jump to Consultation Type selection
-          _loading = false;
-        });
+
+        if (schedules.isNotEmpty) {
+          setState(() {
+            _selectedDoctor = doctor;
+            _selectedSpecialty = doctor.specialtyName;
+            _doctors = [doctor]; // Ensure Step 1 is not empty
+            _doctorSchedules = schedules;
+            _step = 2; // Jump to Consultation Type selection
+            _loading = false;
+          });
+        } else {
+          setState(() {
+            _selectedSpecialty = doctor.specialtyName;
+            _selectedDoctor = doctor;
+            _step = 0; // Jump back to Step 1
+            _loading = false;
+          });
+          // Tải danh sách bác sĩ cùng chuyên khoa để người dùng có thể chọn người khác
+          await _loadDoctors(reset: true);
+        }
       } else {
         setState(() {
           _loading = false;
@@ -355,6 +367,7 @@ class _BookingScreenState extends State<BookingScreen> {
       if (_selectedSpecialty == null) return _warn('Please select a specialty.');
     } else if (_step == 1) {
       if (_selectedDoctor == null) return _warn('Please select a doctor.');
+      if (_doctorSchedules.isEmpty) return _warn('This doctor has no working schedule yet. Please choose another doctor.');
     } else if (_step == 2) {
       if (_selectedType == null) return _warn('Please select a consultation type.');
     } else if (_step == 3) {

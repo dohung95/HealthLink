@@ -146,11 +146,13 @@ class AboutUsScreen extends StatelessWidget {
                 children: [
                   _buildSectionTitle(context, 'Contact Us'),
                   const SizedBox(height: 16),
-                  _buildContactRow(context, Icons.email_outlined, 'support@healthlink.vn'),
+                  _buildContactRow(context, Icons.mail_outline, 'HealthLink@gmail.com   support@healthlink.com'),
+                  const SizedBox(height: 12),
+                  _buildContactRow(context, Icons.phone_outlined, '+84 (028) 1234 5678   +84 (028) 8765 4321'),
                   const SizedBox(height: 12),
                   _buildContactRow(context, Icons.language_outlined, 'www.healthlink.vn'),
                   const SizedBox(height: 12),
-                  _buildContactRow(context, Icons.location_on_outlined, 'High-Tech Park, Thu Duc City, HCMC'),
+                  _buildContactRow(context, Icons.location_on_outlined, '21 bis Hau Giang, Tan Son Nhat Ward, Ho Chi Minh City.'),
                 ],
               ),
             ),
@@ -228,7 +230,7 @@ class AboutUsScreen extends StatelessWidget {
     return Row(
       children: [
         Icon(icon, size: 20, color: colorScheme.primary),
-        const SizedBox(width: 12),
+        const SizedBox(width: 10),
         Expanded(
           child: Text(
             text,

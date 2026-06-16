@@ -40,4 +40,5 @@ public interface MessageRepository extends JpaRepository<Message, String> {
     @Query("UPDATE Message m SET m.read = true WHERE m.chatRoom.chatRoomId = :roomId " +
            "AND m.receiver.id = :userId AND m.read = false")
     int markAllAsRead(@Param("roomId") String roomId, @Param("userId") String userId);
+
 }
