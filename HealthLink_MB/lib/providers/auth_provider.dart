@@ -26,6 +26,7 @@ class AuthProvider extends ChangeNotifier {
   String? _avatarUrl;
   Map<String, dynamic>? _patientProfile;
   Map<String, dynamic>? _doctorProfile;
+  Map<String, dynamic>? _pharmacyProfile;
 
   // ── Getters ────────────────────────────────────────────────────────────────
 
@@ -43,6 +44,8 @@ class AuthProvider extends ChangeNotifier {
   Map<String, dynamic>? get doctorProfile  => _doctorProfile;
   bool get isDoctor => _roles.contains('DOCTOR');
   bool get isPatient => _roles.contains('PATIENT') || (!isDoctor && _roles.isEmpty);
+  bool get isPharmacy => _roles.contains('PHARMACY');
+  Map<String, dynamic>? get pharmacyProfile => _pharmacyProfile;
 
   // ── Init: Tải token từ SharedPreferences khi app khởi động ─────────────────
 
@@ -225,6 +228,7 @@ class AuthProvider extends ChangeNotifier {
     _avatarUrl    = null;
     _patientProfile = null;
     _doctorProfile  = null;
+    _pharmacyProfile = null;
     _status       = AuthStatus.unauthenticated;
     _errorMessage = '';
     await TokenUtils.clearTokens();
@@ -239,7 +243,9 @@ class AuthProvider extends ChangeNotifier {
     try {
       final String profileUrl = isDoctor
           ? ApiConfig.doctorProfile
-          : ApiConfig.patientProfile;
+          : isPharmacy
+              ? ApiConfig.pharmacyProfile
+              : ApiConfig.patientProfile;
 
       final res = await http.get(
         Uri.parse(profileUrl),
@@ -255,6 +261,10 @@ class AuthProvider extends ChangeNotifier {
         if (isDoctor) {
           _doctorProfile = data;
           _displayName = data['fullName']?.toString() ?? data['username']?.toString();
+          _avatarUrl = data['avatarUrl']?.toString();
+        } else if (isPharmacy) {
+          _pharmacyProfile = data;
+          _displayName = data['name']?.toString() ?? data['username']?.toString();
           _avatarUrl = data['avatarUrl']?.toString();
         } else {
           _patientProfile = data;

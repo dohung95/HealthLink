@@ -6,9 +6,12 @@ import 'providers/chat/chat_provider.dart';
 import 'providers/chat/chatbot_provider.dart';
 import 'providers/video_call_provider.dart';
 import 'providers/theme_provider.dart';
+import 'providers/pharmacy/pharmacy_order_provider.dart';
+import 'providers/pharmacy/pharmacy_request_provider.dart';
 import 'screens/welcome_screen.dart';
 import 'screens/patient/patient_main_layout.dart';
 import 'screens/doctor/doctor_main_layout.dart';
+import 'screens/pharmacy/pharmacy_main_layout.dart';
 
 final GlobalKey<NavigatorState> navigatorKey = GlobalKey<NavigatorState>();
 
@@ -35,6 +38,12 @@ Future<void> main() async {
         ),
         ChangeNotifierProvider<VideoCallProvider>(
           create: (_) => VideoCallProvider(),
+        ),
+        ChangeNotifierProvider<PharmacyOrderProvider>(
+          create: (_) => PharmacyOrderProvider(),
+        ),
+        ChangeNotifierProvider<PharmacyRequestProvider>(
+          create: (_) => PharmacyRequestProvider(),
         ),
       ],
       child: const HealthLinkApp(),
@@ -114,9 +123,9 @@ class _RootRouterState extends State<_RootRouter> {
           }
 
           // Phân luồng theo role PHARMACY
-          // if (roles.contains('PHARMACY')) {
-          //   return const DoctorMainLayout();
-          // }
+          if (roles.contains('PHARMACY')) {
+            return const PharmacyMainLayout();
+          }
 
           // Mặc định: Patient layout
           return const PatientMainLayout();
