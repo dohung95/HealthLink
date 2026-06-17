@@ -159,8 +159,8 @@ class _PharmacyEditProfileScreenState
                   TextFormField(
                     controller: _workingDaysController,
                     decoration: const InputDecoration(
-                        labelText: 'Working Days'),
-                    hintText: 'e.g. Mon-Fri',
+                        labelText: 'Working Days',
+                        hintText: 'e.g. Mon-Fri'),
                   ),
                   const SizedBox(height: 12),
                   TextFormField(

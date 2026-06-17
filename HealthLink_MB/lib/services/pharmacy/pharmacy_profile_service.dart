@@ -29,9 +29,7 @@ class PharmacyProfileService {
       final data = jsonDecode(res.body) as Map<String, dynamic>;
       return PharmacyProfile.fromJson(data);
     }
-    throw HttpException(
-        'Failed to load pharmacy profile',
-        Uri.parse(ApiConfig.pharmacyProfile));
+    throw Exception('Failed to load pharmacy profile');
   }
 
   static Future<PharmacyProfile> updateProfile(
@@ -48,9 +46,7 @@ class PharmacyProfileService {
       final responseData = jsonDecode(res.body) as Map<String, dynamic>;
       return PharmacyProfile.fromJson(responseData);
     }
-    throw HttpException(
-        'Failed to update pharmacy profile',
-        Uri.parse(ApiConfig.pharmacyProfile));
+    throw Exception('Failed to update pharmacy profile');
   }
 
   static Future<String> uploadAvatar(
@@ -72,9 +68,7 @@ class PharmacyProfileService {
           data['url']?.toString() ??
           '';
     }
-    throw HttpException(
-        'Failed to upload avatar',
-        Uri.parse(ApiConfig.pharmacyAvatar));
+    throw Exception('Failed to upload avatar');
   }
 
   static Future<void> changePassword(
@@ -91,9 +85,7 @@ class PharmacyProfileService {
         .timeout(ApiConfig.connectTimeout);
 
     if (res.statusCode != 200) {
-      throw HttpException(
-          'Failed to change password',
-          Uri.parse(ApiConfig.pharmacyChangePassword));
+      throw Exception('Failed to change password');
     }
   }
 }
