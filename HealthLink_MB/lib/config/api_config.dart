@@ -13,16 +13,21 @@ class ApiConfig {
   // Đặt thành false khi BẠN chạy trên máy thật của mình (kèm lệnh adb reverse)
   static const bool isTeamConfig = false;
 
-  static const String baseUrl = isTeamConfig 
-      ? 'http://192.168.120.6:8096/api' // Cấu hình của nhóm bạn
-      : 'http://127.0.0.1:8096/api'; // Dành riêng cho máy thật của bạn (chạy adb reverse)
+  // true = Android Emulator (dùng 10.0.2.2)
+  // false = máy thật USB (dùng 127.0.0.1 + adb reverse)
+  static const bool isEmulator = true;
 
-  static const String wsUrl = isTeamConfig 
-      ? 'ws://10.0.0.2:8096/ws/websocket' // Cấu hình của nhóm bạn
-      : 'ws://127.0.0.1:8096/ws/websocket'; // Dành riêng cho máy thật của bạn
+  static const String baseUrl = isTeamConfig
+      ? 'http://192.168.120.6:8096/api'
+      : isEmulator
+          ? 'http://10.0.2.2:8096/api'
+          : 'http://127.0.0.1:8096/api';
 
-  // static const String baseUrl = 'http://192.168.0.90:8096/api';
-  // static const String wsUrl   = 'ws://10.0.2.2:8096/ws/websocket';
+  static const String wsUrl = isTeamConfig
+      ? 'ws://10.0.0.2:8096/ws/websocket'
+      : isEmulator
+          ? 'ws://10.0.2.2:8096/ws/websocket'
+          : 'ws://127.0.0.1:8096/ws/websocket';
 
   // ── Auth Endpoints ────────────────────────────────────────────────────────
   static const String login          = '$baseUrl/auth/login';
