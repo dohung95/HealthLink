@@ -101,12 +101,19 @@ class _DoctorAppointmentsScreenState extends State<DoctorAppointmentsScreen>
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
+    final colors = context.doctorColors;
 
     return Scaffold(
       backgroundColor: theme.colorScheme.surface,
       appBar: AppBar(
         title: const Text('Appointments'),
+        backgroundColor: colors.primary,
+        foregroundColor: Colors.white,
         actions: [
+          IconButton(
+            icon: const Icon(Icons.refresh),
+            onPressed: _loadData,
+          ),
           IconButton(
             icon: const Icon(Icons.calendar_today),
             onPressed: _selectDate,
@@ -114,44 +121,53 @@ class _DoctorAppointmentsScreenState extends State<DoctorAppointmentsScreen>
         ],
         bottom: PreferredSize(
           preferredSize: const Size.fromHeight(100),
-          child: Column(
-            children: [
-              // Date display
-              Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-                child: Row(
-                  children: [
-                    Icon(Icons.event, color: theme.colorScheme.primary, size: 20),
-                    const SizedBox(width: 8),
-                    Text(
-                      DateFormat('EEEE, d MMMM yyyy').format(_selectedDate),
-                      style: TextStyle(
-                        fontSize: 14,
-                        fontWeight: FontWeight.w500,
-                        color: theme.colorScheme.onSurface,
+          child: Container(
+            color: theme.colorScheme.surface,
+            child: Column(
+              children: [
+                // Date display
+                Padding(
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                  child: Row(
+                    children: [
+                      Icon(Icons.event, color: colors.primary, size: 20),
+                      const SizedBox(width: 8),
+                      Text(
+                        DateFormat('EEEE, d MMMM yyyy').format(_selectedDate),
+                        style: TextStyle(
+                          fontSize: 14,
+                          fontWeight: FontWeight.w500,
+                          color: theme.colorScheme.onSurface,
+                        ),
                       ),
-                    ),
-                    const Spacer(),
-                    if (!_isDateToday(_selectedDate))
-                      TextButton(
-                        onPressed: () {
-                          setState(() {
-                            _selectedDate = DateTime.now();
-                          });
-                          _loadData();
-                        },
-                        child: const Text('Today'),
-                      ),
-                  ],
+                      const Spacer(),
+                      if (!_isDateToday(_selectedDate))
+                        TextButton(
+                          onPressed: () {
+                            setState(() {
+                              _selectedDate = DateTime.now();
+                            });
+                            _loadData();
+                          },
+                          child: const Text('Today'),
+                        ),
+                    ],
+                  ),
                 ),
-              ),
-              // Status tabs
-              TabBar(
-                controller: _tabController,
-                isScrollable: true,
-                tabs: _statusFilters.map((s) => Tab(text: _formatStatus(s))).toList(),
-              ),
-            ],
+                // Status tabs
+                TabBar(
+                  controller: _tabController,
+                  isScrollable: true,
+                  labelColor: colors.primary,
+                  unselectedLabelColor: colors.onSurfaceVariant,
+                  indicatorColor: colors.primary,
+                  tabs: _statusFilters
+                      .map((s) => Tab(text: _formatStatus(s)))
+                      .toList(),
+                ),
+              ],
+            ),
           ),
         ),
       ),

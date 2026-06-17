@@ -5,6 +5,8 @@ import '../../services/doctor/doctor_service.dart';
 import '../../models/doctor/doctor_profile.dart';
 import '../../config/api_config.dart';
 import '../../config/doctor_theme.dart';
+import 'doctor_security_screen.dart';
+import 'doctor_wallet_screen.dart';
 
 class DoctorProfileScreen extends StatefulWidget {
   const DoctorProfileScreen({super.key});
@@ -532,10 +534,21 @@ class _DoctorProfileScreenState extends State<DoctorProfileScreen> {
         ),
         _buildSettingsTile(
           theme,
-          icon: Icons.account_balance,
-          title: 'Bank Information',
-          subtitle: _profile?.bankName ?? 'Not configured',
-          onTap: () {},
+          icon: Icons.account_balance_wallet,
+          title: 'Wallet & Earnings',
+          subtitle: 'View earnings and withdraw funds',
+          onTap: () {
+            if (_profile != null) {
+              Navigator.push(
+                context,
+                MaterialPageRoute(
+                  builder: (context) => DoctorWalletScreen(
+                    doctorId: _profile!.doctorId,
+                  ),
+                ),
+              );
+            }
+          },
         ),
         _buildSettingsTile(
           theme,
@@ -549,7 +562,14 @@ class _DoctorProfileScreenState extends State<DoctorProfileScreen> {
           icon: Icons.security,
           title: 'Privacy & Security',
           subtitle: 'Password, 2FA, account security',
-          onTap: () {},
+          onTap: () {
+            Navigator.push(
+              context,
+              MaterialPageRoute(
+                builder: (context) => const DoctorSecurityScreen(),
+              ),
+            );
+          },
         ),
         _buildSettingsTile(
           theme,

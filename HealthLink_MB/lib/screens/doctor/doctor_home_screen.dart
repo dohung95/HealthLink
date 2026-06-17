@@ -1,12 +1,17 @@
+import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:intl/intl.dart';
 import '../../providers/auth_provider.dart';
 import '../../services/doctor/doctor_service.dart';
+import '../../services/notification/notification_service.dart';
+import '../../services/notification/notification_realtime_service.dart';
 import '../../models/doctor/doctor_appointment.dart';
 import '../../models/doctor/doctor_profile.dart';
+import '../../models/notification/notification_item.dart';
 import '../../config/api_config.dart';
 import '../../config/doctor_theme.dart';
+import 'doctor_notification_center_sheet.dart';
 
 class DoctorHomeScreen extends StatefulWidget {
   final VoidCallback? onViewAllAppointments;
@@ -24,10 +29,72 @@ class _DoctorHomeScreenState extends State<DoctorHomeScreen> {
   List<DoctorAppointment> _todayAppointments = [];
   Map<String, dynamic> _stats = {};
 
+  // Notification state
+  int _unreadCount = 0;
+  NotificationService? _notificationService;
+  StreamSubscription<NotificationItem>? _notificationSubscription;
+
   @override
   void initState() {
     super.initState();
     _loadData();
+    _initNotifications();
+  }
+
+  @override
+  void dispose() {
+    _notificationSubscription?.cancel();
+    super.dispose();
+  }
+
+  void _initNotifications() {
+    final auth = context.read<AuthProvider>();
+    final token = auth.accessToken;
+    if (token == null) return;
+
+    _notificationService = NotificationService(accessToken: token);
+    _loadUnreadCount();
+
+    // Connect to real-time notifications
+    NotificationRealtimeService.instance.connect(token: token);
+    _notificationSubscription =
+        NotificationRealtimeService.instance.stream.listen((notification) {
+      // Khi nhận notification mới, tăng count
+      if (mounted) {
+        setState(() {
+          _unreadCount++;
+        });
+      }
+    });
+  }
+
+  Future<void> _loadUnreadCount() async {
+    if (_notificationService == null) return;
+
+    try {
+      final count = await _notificationService!.getUnreadCount();
+      if (mounted) {
+        setState(() {
+          _unreadCount = count;
+        });
+      }
+    } catch (_) {
+      // Ignore error - không quan trọng
+    }
+  }
+
+  void _showNotificationSheet() {
+    if (_notificationService == null) return;
+
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (context) => DoctorNotificationCenterSheet(
+        service: _notificationService!,
+        onChanged: _loadUnreadCount,
+      ),
+    );
   }
 
   Future<void> _loadData() async {
@@ -133,6 +200,7 @@ class _DoctorHomeScreenState extends State<DoctorHomeScreen> {
   Widget _buildHeader(ThemeData theme) {
     final greeting = _getGreeting();
     final today = DateFormat('EEEE, d MMMM yyyy').format(DateTime.now());
+    final colors = context.doctorColors;
 
     return Row(
       children: [
@@ -174,6 +242,45 @@ class _DoctorHomeScreenState extends State<DoctorHomeScreen> {
               ),
             ],
           ),
+        ),
+        // Notification Bell
+        Stack(
+          children: [
+            IconButton(
+              onPressed: _showNotificationSheet,
+              icon: Icon(
+                Icons.notifications_outlined,
+                color: colors.primary,
+                size: 28,
+              ),
+              tooltip: 'Notifications',
+            ),
+            if (_unreadCount > 0)
+              Positioned(
+                right: 6,
+                top: 6,
+                child: Container(
+                  padding: const EdgeInsets.all(4),
+                  decoration: BoxDecoration(
+                    color: colors.error,
+                    shape: BoxShape.circle,
+                  ),
+                  constraints: const BoxConstraints(
+                    minWidth: 18,
+                    minHeight: 18,
+                  ),
+                  child: Text(
+                    _unreadCount > 99 ? '99+' : '$_unreadCount',
+                    style: const TextStyle(
+                      color: Colors.white,
+                      fontSize: 10,
+                      fontWeight: FontWeight.bold,
+                    ),
+                    textAlign: TextAlign.center,
+                  ),
+                ),
+              ),
+          ],
         ),
       ],
     );
