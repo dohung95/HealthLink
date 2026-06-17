@@ -36,6 +36,7 @@ public class ChatServiceImpl implements ChatService {
     private final AppointmentRepository appointmentRepository;
     private final UserRepository        userRepository;
     private final SimpMessagingTemplate messagingTemplate;
+    private final com.HealthLink.service.chat.PresenceService presenceService;
 
     // -------------------------------------------------------------------------
     // Tạo hoặc lấy phòng chat
@@ -57,7 +58,7 @@ public class ChatServiceImpl implements ChatService {
                             chatRoomRepository.save(existingRoom);
                         }
                     }
-                    return toRoomDTO(existingRoom);
+                    return toRoomDTO(existingRoom, request.getUser1Id());
                 })
                 .orElseGet(() -> {
                     // Lấy thông tin 2 user để lưu tên hiển thị và avatar
@@ -89,7 +90,7 @@ public class ChatServiceImpl implements ChatService {
                     }
 
                     ChatRoom saved = chatRoomRepository.save(builder.build());
-                    ChatRoomDTO dto = toRoomDTO(saved);
+                    ChatRoomDTO dto = toRoomDTO(saved, request.getUser1Id());
                     
                     // Báo qua WebSocket để người nhận biết có phòng mới (dù chưa có tin nhắn)
                     MessageDTO roomCreatedMsg = MessageDTO.builder()
@@ -123,7 +124,7 @@ public class ChatServiceImpl implements ChatService {
         return chatRoomRepository.findAllByUserId(userId)
                 .stream()
                 .map(room -> {
-                    ChatRoomDTO dto = toRoomDTO(room);
+                    ChatRoomDTO dto = toRoomDTO(room, userId);
                     dto.setUnreadCount(messageRepository.countUnread(room.getChatRoomId(), userId));
                     return dto;
                 })
@@ -135,10 +136,10 @@ public class ChatServiceImpl implements ChatService {
     // -------------------------------------------------------------------------
     @Override
     @Transactional(readOnly = true)
-    public ChatRoomDTO getRoomById(String chatRoomId) {
+    public ChatRoomDTO getRoomById(String chatRoomId, String userId) {
         ChatRoom room = chatRoomRepository.findById(chatRoomId)
                 .orElseThrow(() -> new ResourceNotFoundException("ChatRoom", "id", chatRoomId));
-        return toRoomDTO(room);
+        return toRoomDTO(room, userId);
     }
 
     // -------------------------------------------------------------------------
@@ -313,7 +314,7 @@ public class ChatServiceImpl implements ChatService {
     // Mapper helpers
     // =========================================================================
 
-    private ChatRoomDTO toRoomDTO(ChatRoom room) {
+    private ChatRoomDTO toRoomDTO(ChatRoom room, String requesterId) {
         // Lấy ảnh + tên cached trong bảng ChatRooms
         String user1Name  = room.getUser1DisplayName();
         String user1Photo = room.getUser1PhotoURL();
@@ -367,6 +368,11 @@ public class ChatServiceImpl implements ChatService {
                 // appointment đã "COMPLETED" — chỉ cho xem tin, không cho gửi thêm.
                 .appointmentStatus(room.getAppointment() != null
                         ? room.getAppointment().getStatus() : null)
+                .isOnline(presenceService.isUserOnline(
+                        requesterId != null && requesterId.equals(room.getUser1Id()) 
+                                ? room.getUser2Id() 
+                                : room.getUser1Id()
+                ))
                 .build();
     }
 

@@ -263,9 +263,14 @@ function RoomListItem({ room, currentUserId, onSelect, isActive, isMuted }) {
         <li onClick={() => onSelect(room)}
             className={`list-group-item list-group-item-action d-flex align-items-center border-0 mb-1 rounded ${isActive ? 'bg-primary text-white shadow-sm' : isUnread ? 'bg-light' : 'bg-transparent'}`}
             style={{ cursor: 'pointer', padding: '12px 15px' }}>
-            <img src={getFullUrl(photo) || `https://api.dicebear.com/9.x/initials/svg?seed=${name}`} alt="ava"
-                onError={(e) => { e.target.onerror = null; e.target.src = `https://api.dicebear.com/9.x/initials/svg?seed=${name}`; }}
-                className="rounded-circle me-3 border" style={{ width: 45, height: 45, flexShrink: 0, objectFit: 'cover', background: '#fff' }} />
+            <div className="position-relative me-3">
+                <img src={getFullUrl(photo) || `https://api.dicebear.com/9.x/initials/svg?seed=${name}`} alt="ava"
+                    onError={(e) => { e.target.onerror = null; e.target.src = `https://api.dicebear.com/9.x/initials/svg?seed=${name}`; }}
+                    className="rounded-circle border" style={{ width: 45, height: 45, flexShrink: 0, objectFit: 'cover', background: '#fff' }} />
+                {room.isOnline && (
+                    <span className="position-absolute bottom-0 end-0 border border-2 border-white rounded-circle bg-success" style={{ width: '12px', height: '12px' }}></span>
+                )}
+            </div>
             <div className="flex-grow-1" style={{ minWidth: 0 }}>
                 <div className={`fw-bold text-truncate d-flex align-items-center ${isActive ? 'text-white' : isUnread ? 'text-dark' : ''}`}>
                     <span className="text-truncate">{name}</span>
@@ -468,6 +473,27 @@ export default function ChatPage({ showBot = true }) {
     // Stomp connection
     useEffect(() => {
         if (!authUser) return;
+        
+        const unsubPresence = stompChatService.subscribeToPresence((event) => {
+            // event: { userId, isOnline }
+            setRoomList(prevRooms => prevRooms.map(r => {
+                const partnerId = r.user1Id === currentUserId ? r.user2Id : r.user1Id;
+                if (partnerId === event.userId) {
+                    return { ...r, isOnline: event.isOnline };
+                }
+                return r;
+            }));
+            setCurrentRoom(prevRoom => {
+                if (prevRoom) {
+                    const partnerId = prevRoom.user1Id === currentUserId ? prevRoom.user2Id : prevRoom.user1Id;
+                    if (partnerId === event.userId) {
+                        return { ...prevRoom, isOnline: event.isOnline };
+                    }
+                }
+                return prevRoom;
+            });
+        });
+
         const unsub = stompChatService.subscribeToChat((newMsg) => {
             if (newMsg.messageId === "ROOM_CREATED") {
                 setRoomList(prev => {
@@ -546,7 +572,10 @@ export default function ChatPage({ showBot = true }) {
             });
         });
         unsubscribeChat.current = unsub;
-        return () => { if (unsubscribeChat.current) unsubscribeChat.current(); };
+        return () => { 
+            if (unsubscribeChat.current) unsubscribeChat.current(); 
+            if (unsubPresence) unsubPresence();
+        };
     }, [authUser, currentUserId]);
 
     // Load rooms
@@ -942,7 +971,13 @@ export default function ChatPage({ showBot = true }) {
                         />
                         <div className="flex-grow-1">
                             <h5 className="mb-0 fw-bold">{chatPartner?.displayName || 'Chat'}</h5>
-                            {chatPartner?.isBot && <small className="text-success fw-medium"><i className="bi bi-circle-fill me-1" style={{ fontSize: '8px' }}></i>Online</small>}
+                            {chatPartner?.isBot ? (
+                                <small className="text-success fw-medium"><i className="bi bi-circle-fill me-1" style={{ fontSize: '8px' }}></i>Online</small>
+                            ) : currentRoom?.isOnline ? (
+                                <small className="text-success fw-medium"><i className="bi bi-circle-fill me-1" style={{ fontSize: '8px' }}></i>Online</small>
+                            ) : chatPartner && !chatPartner.isBot && currentRoom ? (
+                                <small className="text-muted fw-medium"><i className="bi bi-circle-fill me-1" style={{ fontSize: '8px' }}></i>Offline</small>
+                            ) : null}
                         </div>
                         {currentRoom && (
                             <div className="d-flex align-items-center">

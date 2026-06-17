@@ -526,8 +526,8 @@ class _ChatRoomScreenState extends State<ChatRoomScreen> {
 
   Widget _buildAppBar(BuildContext context) {
     final colors = _colors(context);
-    final conv = widget.conversation;
     final chat = context.watch<ChatProvider>();
+    final conv = chat.currentConversation ?? widget.conversation;
     final chatThemeIndex = chat.chatThemeIndex;
     final chatTheme = getActiveChatTheme(context, chatThemeIndex);
 
@@ -858,17 +858,18 @@ class _ChatRoomScreenState extends State<ChatRoomScreen> {
   Widget _buildInputArea() {
     final colors = _colors(context);
     final chat = context.watch<ChatProvider>();
+    final conv = chat.currentConversation ?? widget.conversation;
     final chatTheme = getActiveChatTheme(context, chat.chatThemeIndex);
     
     final auth = context.read<AuthProvider>();
-    final blockedBy = chat.getBlockedBy(widget.conversation.id);
+    final blockedBy = chat.getBlockedBy(conv.id);
 
     // ── Ưu tiên 1: Kiểm tra cuộc hẹn đã COMPLETED chưa ─────────────────────
     // Nếu conversation này gắn với một appointment đã COMPLETED, khóa chat:
     // chỉ cho xem tin nhắn cũ, không cho gửi thêm. Điều này xảy ra khi
     // bác sĩ bấm "Complete Consultation" → appointment status chuyển sang COMPLETED.
     final isAppointmentCompleted =
-        widget.conversation.appointmentStatus?.toUpperCase() == 'COMPLETED';
+        conv.appointmentStatus?.toUpperCase() == 'COMPLETED';
 
     if (isAppointmentCompleted) {
       // Hiển thị banner thông báo chat đã bị khóa

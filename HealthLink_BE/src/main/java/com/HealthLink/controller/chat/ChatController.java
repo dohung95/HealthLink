@@ -77,8 +77,16 @@ public class ChatController {
      */
     @GetMapping("/rooms/{chatRoomId}")
     public ResponseEntity<ChatRoomDTO> getRoomById(
-            @PathVariable String chatRoomId) {
-        return ResponseEntity.ok(chatService.getRoomById(chatRoomId));
+            // @PathVariable String chatRoomId) {
+            // return ResponseEntity.ok(chatService.getRoomById(chatRoomId));
+            @PathVariable String chatRoomId,
+            @AuthenticationPrincipal UserDetails userDetails) {
+        String userId = resolveUserId(userDetails);
+        
+        // Cần truy vấn phòng từ service và dùng toRoomDTO(room, userId)
+        // Vì chatService.getRoomById hiện trả về DTO luôn (đã sửa toRoomDTO để truyền requesterId)
+        // Ta cần sửa getRoomById trong ChatService để nhận userId
+        return ResponseEntity.ok(chatService.getRoomById(chatRoomId, userId));
     }
 
     /**

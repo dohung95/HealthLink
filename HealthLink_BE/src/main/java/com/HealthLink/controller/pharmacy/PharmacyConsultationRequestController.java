@@ -73,13 +73,16 @@ public class PharmacyConsultationRequestController {
 
     @GetMapping("/{requestId}/chat-room")
     @PreAuthorize("isAuthenticated()")
-    public ResponseEntity<ChatRoomDTO> getChatRoom(@PathVariable Integer requestId) {
+    public ResponseEntity<ChatRoomDTO> getChatRoom(
+            @PathVariable Integer requestId,
+            @AuthenticationPrincipal UserDetails userDetails) {
         PharmacyConsultationRequestResponse request = pharmacyConsultationRequestService
                 .getRequestById(requestId);
         if (request.getChatRoomId() == null) {
             return ResponseEntity.notFound().build();
         }
-        return ResponseEntity.ok(chatService.getRoomById(request.getChatRoomId()));
+        String userId = resolveUserId(userDetails);
+        return ResponseEntity.ok(chatService.getRoomById(request.getChatRoomId(), userId));
     }
 
     @PatchMapping("/{requestId}/status")

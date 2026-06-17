@@ -90,6 +90,18 @@ class StompChatService {
     }
 
     /**
+     * Đăng ký nhận sự kiện hiện diện (online/offline) từ backend.
+     * Backend push đến: /topic/presence
+     *
+     * @param {Function} onPresenceCallback - Callback nhận PresenceEventDTO
+     * @returns {Function} Hàm để huỷ đăng ký (unsubscribe)
+     */
+    subscribeToPresence(onPresenceCallback) {
+        const destination = '/topic/presence';
+        return this.subscribeToDestination(destination, onPresenceCallback);
+    }
+
+    /**
      * Đăng ký nhận message từ một destination bất kỳ
      */
     subscribeToDestination(destination, onMessageCallback) {
