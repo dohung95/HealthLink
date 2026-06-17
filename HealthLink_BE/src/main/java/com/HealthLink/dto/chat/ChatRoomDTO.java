@@ -1,6 +1,7 @@
 package com.HealthLink.dto.chat;
 
 import lombok.*;
+import com.fasterxml.jackson.annotation.JsonProperty;
 
 import java.time.LocalDateTime;
 
@@ -52,4 +53,8 @@ public class ChatRoomDTO {
 
     /** Số lượng tin nhắn chưa đọc của người dùng hiện tại (tuỳ chọn, tính ở service). */
     private long unreadCount;
+
+    /** Trạng thái online của đối tác chat. */
+    @JsonProperty("isOnline")
+    private boolean isOnline;
 }
