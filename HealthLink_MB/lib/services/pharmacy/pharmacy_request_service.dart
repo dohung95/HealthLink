@@ -1,5 +1,4 @@
 import 'dart:convert';
-import 'dart:io';
 import 'package:http/http.dart' as http;
 import '../../config/api_config.dart';
 import '../../models/pharmacy/pharmacy_consultation_request.dart';
@@ -52,9 +51,7 @@ class PharmacyRequestService {
       }
       return [];
     }
-    throw HttpException(
-        'Failed to load requests',
-        Uri.parse(ApiConfig.pharmacyRequestsByPharmacy(pharmacyId)));
+    throw Exception('Failed to load requests');
   }
 
   static Future<PharmacyConsultationRequest> getRequestById(
@@ -70,9 +67,7 @@ class PharmacyRequestService {
       final data = jsonDecode(res.body) as Map<String, dynamic>;
       return PharmacyConsultationRequest.fromJson(data);
     }
-    throw HttpException(
-        'Failed to load request',
-        Uri.parse(ApiConfig.pharmacyRequestById(requestId)));
+    throw Exception('Failed to load request');
   }
 
   static Future<PharmacyConsultationRequest> updateRequestStatus(
@@ -97,9 +92,7 @@ class PharmacyRequestService {
       final data = jsonDecode(res.body) as Map<String, dynamic>;
       return PharmacyConsultationRequest.fromJson(data);
     }
-    throw HttpException(
-        'Failed to update request status',
-        Uri.parse(ApiConfig.pharmacyRequestUpdateStatus(requestId)));
+    throw Exception('Failed to update request status');
   }
 
   static Future<List<Map<String, dynamic>>> getPrescriptions(
@@ -118,9 +111,7 @@ class PharmacyRequestService {
       }
       return [];
     }
-    throw HttpException(
-        'Failed to load prescriptions',
-        Uri.parse(ApiConfig.pharmacyRequestPrescriptions(requestId)));
+    throw Exception('Failed to load prescriptions');
   }
 
   static Future<Map<String, dynamic>> createOrderFromRequest(
@@ -156,9 +147,7 @@ class PharmacyRequestService {
     if (res.statusCode == 200 || res.statusCode == 201) {
       return jsonDecode(res.body) as Map<String, dynamic>;
     }
-    throw HttpException(
-        'Failed to create order from request',
-        Uri.parse(ApiConfig.pharmacyRequestCreateOrder(requestId)));
+    throw Exception('Failed to create order from request');
   }
 
   static Future<String?> getChatRoomId(

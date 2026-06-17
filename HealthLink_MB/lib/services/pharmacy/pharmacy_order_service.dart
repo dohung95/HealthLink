@@ -1,5 +1,4 @@
 import 'dart:convert';
-import 'dart:io';
 import 'package:http/http.dart' as http;
 import '../../config/api_config.dart';
 import '../../models/pharmacy/pharmacy_order.dart';
@@ -54,8 +53,7 @@ class PharmacyOrderService {
       }
       return [];
     }
-    throw HttpException(
-        'Failed to load orders', Uri.parse(ApiConfig.pharmacyOrdersByPharmacy(pharmacyId)));
+    throw Exception('Failed to load orders');
   }
 
   static Future<PharmacyOrder> getOrderById(String token, String orderId) async {
@@ -70,8 +68,7 @@ class PharmacyOrderService {
       final data = jsonDecode(res.body) as Map<String, dynamic>;
       return PharmacyOrder.fromJson(data);
     }
-    throw HttpException(
-        'Failed to load order', Uri.parse(ApiConfig.pharmacyOrderById(orderId)));
+    throw Exception('Failed to load order');
   }
 
   static Future<PharmacyOrder> updateOrderStatus(
@@ -85,24 +82,23 @@ class PharmacyOrderService {
     final body = <String, dynamic>{
       'status': status,
       if (pharmacistNotes != null) 'pharmacistNotes': pharmacistNotes,
-      if (estimatedDeliveryTime != null) 'estimatedDeliveryTime': estimatedDeliveryTime,
+      if (estimatedDeliveryTime !=
+          null) 'estimatedDeliveryTime': estimatedDeliveryTime,
       if (cancelReason != null) 'cancelReason': cancelReason,
     };
     final res = await http
         .patch(
-          Uri.parse(ApiConfig.pharmacyOrderUpdateStatus(orderId)),
-          headers: _authHeaders(token),
-          body: jsonEncode(body),
-        )
+      Uri.parse(ApiConfig.pharmacyOrderUpdateStatus(orderId)),
+      headers: _authHeaders(token),
+      body: jsonEncode(body),
+    )
         .timeout(ApiConfig.connectTimeout);
 
     if (res.statusCode == 200) {
       final data = jsonDecode(res.body) as Map<String, dynamic>;
       return PharmacyOrder.fromJson(data);
     }
-    throw HttpException(
-        'Failed to update order status',
-        Uri.parse(ApiConfig.pharmacyOrderUpdateStatus(orderId)));
+    throw Exception('Failed to update order status');
   }
 
   static Future<PharmacyOrder> updateOrderQuote(
@@ -129,8 +125,6 @@ class PharmacyOrderService {
       final data = jsonDecode(res.body) as Map<String, dynamic>;
       return PharmacyOrder.fromJson(data);
     }
-    throw HttpException(
-        'Failed to update quote',
-        Uri.parse(ApiConfig.pharmacyOrderUpdateQuote(orderId)));
+    throw Exception('Failed to update quote');
   }
 }
