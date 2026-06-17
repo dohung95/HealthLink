@@ -149,6 +149,20 @@ class ApiConfig {
   static const String notificationUnreadCount =
       '$baseUrl/notifications/unread-count';
 
+  // ── Pharmacy-Facing Endpoints (PHARMACY role) ──────────────────────────
+  static const String pharmacyProfile = '$baseUrl/account/pharmacy/profile';
+  static const String pharmacyAvatar = '$baseUrl/account/pharmacy/avatar';
+  static const String pharmacyChangePassword = '$baseUrl/account/pharmacy/auth/password/change';
+  static String pharmacyOrdersByPharmacy(String id) => '$baseUrl/pharmacy-orders/pharmacy/$id';
+  static String pharmacyOrderUpdateStatus(String id) => '$baseUrl/pharmacy-orders/$id/status';
+  static String pharmacyOrderUpdateQuote(String id) => '$baseUrl/pharmacy-orders/$id/quote';
+  static String pharmacyRequestsByPharmacy(String id) => '$baseUrl/pharmacy-requests/pharmacy/$id';
+  static String pharmacyRequestUpdateStatus(String id) => '$baseUrl/pharmacy-requests/$id/status';
+  static String pharmacyRequestPrescriptions(String id) => '$baseUrl/pharmacy-requests/$id/prescriptions';
+  static String pharmacyRequestCreateOrder(String id) => '$baseUrl/pharmacy-requests/$id/order';
+  static String pharmacyWorkItems(String id) => '$baseUrl/pharmacy-work-items/pharmacy/$id';
+  static String pharmacyRequestChatRoom(String id) => '$baseUrl/pharmacy-requests/$id/chat-room';
+
   static String markNotificationAsRead(int notificationId) =>
       '$baseUrl/notifications/$notificationId/read';
 
