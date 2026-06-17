@@ -6,6 +6,7 @@ import '../../services/doctor/doctor_service.dart';
 import '../../models/doctor/doctor_appointment.dart';
 import '../../models/doctor/doctor_profile.dart';
 import '../../config/api_config.dart';
+import '../../config/doctor_theme.dart';
 
 class DoctorHomeScreen extends StatefulWidget {
   final VoidCallback? onViewAllAppointments;
@@ -70,48 +71,52 @@ class _DoctorHomeScreenState extends State<DoctorHomeScreen> {
 
     return Scaffold(
       backgroundColor: theme.colorScheme.surface,
-      body: _isLoading
-          ? const Center(child: CircularProgressIndicator())
-          : _error != null
-              ? _buildErrorWidget()
-              : RefreshIndicator(
-                  onRefresh: _loadData,
-                  child: SingleChildScrollView(
-                    physics: const AlwaysScrollableScrollPhysics(),
-                    padding: const EdgeInsets.all(16),
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        _buildHeader(theme),
-                        const SizedBox(height: 24),
-                        _buildStatsCards(theme),
-                        const SizedBox(height: 24),
-                        _buildTodayAppointments(theme),
-                      ],
+      body: SafeArea(
+        child: _isLoading
+            ? const Center(child: CircularProgressIndicator())
+            : _error != null
+                ? _buildErrorWidget()
+                : RefreshIndicator(
+                    onRefresh: _loadData,
+                    child: SingleChildScrollView(
+                      physics: const AlwaysScrollableScrollPhysics(),
+                      padding: const EdgeInsets.all(16),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          _buildHeader(theme),
+                          const SizedBox(height: 24),
+                          _buildStatsCards(theme),
+                          const SizedBox(height: 24),
+                          _buildTodayAppointments(theme),
+                          const SizedBox(height: 16), // Bottom padding
+                        ],
+                      ),
                     ),
                   ),
-                ),
+      ),
     );
   }
 
   Widget _buildErrorWidget() {
+    final colors = context.doctorColors;
     return Center(
       child: Padding(
         padding: const EdgeInsets.all(24),
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            Icon(Icons.error_outline, size: 64, color: Colors.red.shade300),
+            Icon(Icons.error_outline, size: 64, color: colors.error),
             const SizedBox(height: 16),
             Text(
               'Failed to load data',
-              style: TextStyle(fontSize: 18, color: Colors.grey.shade700),
+              style: TextStyle(fontSize: 18, color: colors.onSurfaceVariant),
             ),
             const SizedBox(height: 8),
             Text(
               _error ?? '',
               textAlign: TextAlign.center,
-              style: TextStyle(fontSize: 14, color: Colors.grey.shade500),
+              style: TextStyle(fontSize: 14, color: colors.onSurfaceVariant.withOpacity(0.7)),
             ),
             const SizedBox(height: 24),
             ElevatedButton.icon(
@@ -155,7 +160,7 @@ class _DoctorHomeScreenState extends State<DoctorHomeScreen> {
                 ),
               ),
               Text(
-                'Dr. ${_profile?.fullName ?? 'Doctor'}',
+                _formatDoctorName(_profile?.fullName),
                 style: theme.textTheme.headlineSmall?.copyWith(
                   fontWeight: FontWeight.bold,
                 ),
@@ -174,6 +179,27 @@ class _DoctorHomeScreenState extends State<DoctorHomeScreen> {
     );
   }
 
+  /// Format tên bác sĩ - luôn dùng prefix "Dr."
+  String _formatDoctorName(String? fullName) {
+    if (fullName == null || fullName.isEmpty) return 'Dr. Doctor';
+
+    String name = fullName.trim();
+    final lowerName = name.toLowerCase();
+
+    // Loại bỏ prefix cũ nếu có (BS., Dr., Bs., dr.)
+    if (lowerName.startsWith('bs.')) {
+      name = name.substring(3).trim();
+    } else if (lowerName.startsWith('bs ')) {
+      name = name.substring(2).trim();
+    } else if (lowerName.startsWith('dr.')) {
+      name = name.substring(3).trim();
+    } else if (lowerName.startsWith('dr ')) {
+      name = name.substring(2).trim();
+    }
+
+    return 'Dr. $name';
+  }
+
   String _getGreeting() {
     final hour = DateTime.now().hour;
     if (hour < 12) return 'Good morning';
@@ -182,6 +208,7 @@ class _DoctorHomeScreenState extends State<DoctorHomeScreen> {
   }
 
   Widget _buildStatsCards(ThemeData theme) {
+    final colors = context.doctorColors;
     return GridView.count(
       shrinkWrap: true,
       physics: const NeverScrollableScrollPhysics(),
@@ -195,21 +222,24 @@ class _DoctorHomeScreenState extends State<DoctorHomeScreen> {
           icon: Icons.calendar_today,
           label: "Today's Appointments",
           value: '${_stats['todayAppointments'] ?? 0}',
-          color: Colors.blue,
+          color: colors.statAppointments,
+          bgColor: colors.statAppointmentsBg,
         ),
         _buildStatCard(
           theme,
           icon: Icons.check_circle_outline,
           label: 'Completed',
           value: '${_stats['completedToday'] ?? 0}',
-          color: Colors.green,
+          color: colors.statCompleted,
+          bgColor: colors.statCompletedBg,
         ),
         _buildStatCard(
           theme,
           icon: Icons.pending_actions,
           label: 'Pending',
           value: '${_stats['pendingToday'] ?? 0}',
-          color: Colors.orange,
+          color: colors.statPending,
+          bgColor: colors.statPendingBg,
         ),
         _buildStatCard(
           theme,
@@ -217,7 +247,8 @@ class _DoctorHomeScreenState extends State<DoctorHomeScreen> {
           label: 'Rating',
           value: (_stats['averageRating'] as num?)?.toStringAsFixed(1) ?? '0.0',
           subtitle: '${_stats['totalReviews'] ?? 0} reviews',
-          color: Colors.amber,
+          color: colors.statRating,
+          bgColor: colors.statRatingBg,
         ),
       ],
     );
@@ -230,11 +261,12 @@ class _DoctorHomeScreenState extends State<DoctorHomeScreen> {
     required String value,
     String? subtitle,
     required Color color,
+    required Color bgColor,
   }) {
     return Container(
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
-        color: color.withOpacity(0.1),
+        color: bgColor,
         borderRadius: BorderRadius.circular(16),
         border: Border.all(color: color.withOpacity(0.2)),
       ),
@@ -354,29 +386,14 @@ class _DoctorHomeScreenState extends State<DoctorHomeScreen> {
   }
 
   Widget _buildAppointmentCard(ThemeData theme, DoctorAppointment appointment) {
+    final colors = context.doctorColors;
     final timeFormat = DateFormat('HH:mm');
     final time = appointment.appointmentTime != null
         ? timeFormat.format(appointment.appointmentTime!)
         : '--:--';
 
-    Color statusColor;
-    switch (appointment.status?.toUpperCase()) {
-      case 'CONFIRMED':
-        statusColor = Colors.blue;
-        break;
-      case 'IN_PROGRESS':
-        statusColor = Colors.orange;
-        break;
-      case 'COMPLETED':
-        statusColor = Colors.green;
-        break;
-      case 'CANCELLED':
-      case 'NO_SHOW':
-        statusColor = Colors.red;
-        break;
-      default:
-        statusColor = Colors.grey;
-    }
+    final statusColor = colors.getStatusColor(appointment.status);
+    final statusBgColor = colors.getStatusBgColor(appointment.status);
 
     IconData typeIcon;
     switch (appointment.consultationType?.toUpperCase()) {
@@ -398,10 +415,10 @@ class _DoctorHomeScreenState extends State<DoctorHomeScreen> {
       decoration: BoxDecoration(
         color: theme.colorScheme.surface,
         borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: theme.colorScheme.outlineVariant),
+        border: Border.all(color: colors.cardBorder),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withOpacity(0.05),
+            color: colors.cardShadow,
             blurRadius: 10,
             offset: const Offset(0, 2),
           ),
@@ -414,7 +431,7 @@ class _DoctorHomeScreenState extends State<DoctorHomeScreen> {
             width: 60,
             padding: const EdgeInsets.symmetric(vertical: 8, horizontal: 4),
             decoration: BoxDecoration(
-              color: theme.colorScheme.primary.withOpacity(0.1),
+              color: colors.primary.withOpacity(0.1),
               borderRadius: BorderRadius.circular(8),
             ),
             child: Column(
@@ -424,10 +441,10 @@ class _DoctorHomeScreenState extends State<DoctorHomeScreen> {
                   style: TextStyle(
                     fontSize: 16,
                     fontWeight: FontWeight.bold,
-                    color: theme.colorScheme.primary,
+                    color: colors.primary,
                   ),
                 ),
-                Icon(typeIcon, size: 20, color: theme.colorScheme.primary),
+                Icon(typeIcon, size: 20, color: colors.primary),
               ],
             ),
           ),
@@ -449,7 +466,7 @@ class _DoctorHomeScreenState extends State<DoctorHomeScreen> {
                   appointment.symptoms ?? 'No symptoms provided',
                   style: TextStyle(
                     fontSize: 13,
-                    color: theme.colorScheme.onSurfaceVariant,
+                    color: colors.onSurfaceVariant,
                   ),
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
@@ -461,7 +478,7 @@ class _DoctorHomeScreenState extends State<DoctorHomeScreen> {
           Container(
             padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
             decoration: BoxDecoration(
-              color: statusColor.withOpacity(0.1),
+              color: statusBgColor,
               borderRadius: BorderRadius.circular(12),
             ),
             child: Text(

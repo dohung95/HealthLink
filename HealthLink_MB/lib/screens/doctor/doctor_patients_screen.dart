@@ -5,6 +5,7 @@ import '../../providers/auth_provider.dart';
 import '../../services/doctor/doctor_service.dart';
 import '../../models/doctor/doctor_patient.dart';
 import '../../config/api_config.dart';
+import '../../config/doctor_theme.dart';
 
 class DoctorPatientsScreen extends StatefulWidget {
   const DoctorPatientsScreen({super.key});
@@ -203,23 +204,24 @@ class _DoctorPatientsScreenState extends State<DoctorPatientsScreen> {
   }
 
   Widget _buildErrorWidget() {
+    final colors = context.doctorColors;
     return Center(
       child: Padding(
         padding: const EdgeInsets.all(24),
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            Icon(Icons.error_outline, size: 64, color: Colors.red.shade300),
+            Icon(Icons.error_outline, size: 64, color: colors.error),
             const SizedBox(height: 16),
             Text(
               'Failed to load patients',
-              style: TextStyle(fontSize: 18, color: Colors.grey.shade700),
+              style: TextStyle(fontSize: 18, color: colors.onSurfaceVariant),
             ),
             const SizedBox(height: 8),
             Text(
               _error ?? '',
               textAlign: TextAlign.center,
-              style: TextStyle(fontSize: 14, color: Colors.grey.shade500),
+              style: TextStyle(fontSize: 14, color: colors.onSurfaceVariant.withOpacity(0.7)),
             ),
             const SizedBox(height: 24),
             ElevatedButton.icon(
@@ -234,6 +236,7 @@ class _DoctorPatientsScreenState extends State<DoctorPatientsScreen> {
   }
 
   Widget _buildEmptyState() {
+    final colors = context.doctorColors;
     return Center(
       child: Column(
         mainAxisAlignment: MainAxisAlignment.center,
@@ -241,7 +244,7 @@ class _DoctorPatientsScreenState extends State<DoctorPatientsScreen> {
           Icon(
             Icons.people_outline,
             size: 64,
-            color: Colors.grey.shade400,
+            color: colors.onSurfaceVariant.withOpacity(0.5),
           ),
           const SizedBox(height: 16),
           Text(
@@ -250,7 +253,7 @@ class _DoctorPatientsScreenState extends State<DoctorPatientsScreen> {
                 : 'No patients yet',
             style: TextStyle(
               fontSize: 16,
-              color: Colors.grey.shade600,
+              color: colors.onSurfaceVariant,
             ),
           ),
         ],
@@ -259,6 +262,7 @@ class _DoctorPatientsScreenState extends State<DoctorPatientsScreen> {
   }
 
   Widget _buildPatientCard(ThemeData theme, DoctorPatient patient) {
+    final colors = context.doctorColors;
     final dateFormat = DateFormat('dd/MM/yyyy');
 
     return Card(
@@ -273,12 +277,12 @@ class _DoctorPatientsScreenState extends State<DoctorPatientsScreen> {
               // Avatar
               CircleAvatar(
                 radius: 28,
-                backgroundColor: theme.colorScheme.primary.withOpacity(0.1),
+                backgroundColor: colors.primary.withOpacity(0.1),
                 backgroundImage: patient.avatarUrl != null
                     ? NetworkImage(ApiConfig.normalizeUrl(patient.avatarUrl!) ?? '')
                     : null,
                 child: patient.avatarUrl == null
-                    ? Icon(Icons.person, size: 28, color: theme.colorScheme.primary)
+                    ? Icon(Icons.person, size: 28, color: colors.primary)
                     : null,
               ),
               const SizedBox(width: 16),
@@ -303,7 +307,7 @@ class _DoctorPatientsScreenState extends State<DoctorPatientsScreen> {
                                 ? Icons.male
                                 : Icons.female,
                             size: 16,
-                            color: theme.colorScheme.onSurfaceVariant,
+                            color: colors.onSurfaceVariant,
                           ),
                           const SizedBox(width: 4),
                         ],
@@ -312,7 +316,7 @@ class _DoctorPatientsScreenState extends State<DoctorPatientsScreen> {
                             '${patient.age} years',
                             style: TextStyle(
                               fontSize: 13,
-                              color: theme.colorScheme.onSurfaceVariant,
+                              color: colors.onSurfaceVariant,
                             ),
                           ),
                         if (patient.bloodType != null) ...[
@@ -320,7 +324,7 @@ class _DoctorPatientsScreenState extends State<DoctorPatientsScreen> {
                           Container(
                             padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
                             decoration: BoxDecoration(
-                              color: Colors.red.shade50,
+                              color: colors.bloodTypeBg,
                               borderRadius: BorderRadius.circular(4),
                             ),
                             child: Text(
@@ -328,7 +332,7 @@ class _DoctorPatientsScreenState extends State<DoctorPatientsScreen> {
                               style: TextStyle(
                                 fontSize: 11,
                                 fontWeight: FontWeight.w600,
-                                color: Colors.red.shade700,
+                                color: colors.bloodType,
                               ),
                             ),
                           ),
@@ -338,13 +342,13 @@ class _DoctorPatientsScreenState extends State<DoctorPatientsScreen> {
                     const SizedBox(height: 4),
                     Row(
                       children: [
-                        Icon(Icons.event, size: 14, color: theme.colorScheme.onSurfaceVariant),
+                        Icon(Icons.event, size: 14, color: colors.onSurfaceVariant),
                         const SizedBox(width: 4),
                         Text(
                           '${patient.totalAppointments} visits',
                           style: TextStyle(
                             fontSize: 12,
-                            color: theme.colorScheme.onSurfaceVariant,
+                            color: colors.onSurfaceVariant,
                           ),
                         ),
                         if (patient.lastAppointmentTime != null) ...[
@@ -353,7 +357,7 @@ class _DoctorPatientsScreenState extends State<DoctorPatientsScreen> {
                             'Last: ${dateFormat.format(patient.lastAppointmentTime!)}',
                             style: TextStyle(
                               fontSize: 12,
-                              color: theme.colorScheme.onSurfaceVariant,
+                              color: colors.onSurfaceVariant,
                             ),
                           ),
                         ],
@@ -365,7 +369,7 @@ class _DoctorPatientsScreenState extends State<DoctorPatientsScreen> {
               // Arrow
               Icon(
                 Icons.chevron_right,
-                color: theme.colorScheme.onSurfaceVariant,
+                color: colors.onSurfaceVariant,
               ),
             ],
           ),
@@ -445,7 +449,7 @@ class _PatientDetailsSheetState extends State<_PatientDetailsSheet> {
 
   @override
   Widget build(BuildContext context) {
-    final theme = Theme.of(context);
+    final colors = context.doctorColors;
 
     return Container(
       padding: const EdgeInsets.all(20),
@@ -458,7 +462,7 @@ class _PatientDetailsSheetState extends State<_PatientDetailsSheet> {
               width: 40,
               height: 4,
               decoration: BoxDecoration(
-                color: Colors.grey.shade300,
+                color: colors.divider,
                 borderRadius: BorderRadius.circular(2),
               ),
             ),
@@ -469,12 +473,12 @@ class _PatientDetailsSheetState extends State<_PatientDetailsSheet> {
             children: [
               CircleAvatar(
                 radius: 36,
-                backgroundColor: theme.colorScheme.primary.withOpacity(0.1),
+                backgroundColor: colors.primary.withOpacity(0.1),
                 backgroundImage: widget.patient.avatarUrl != null
                     ? NetworkImage(ApiConfig.normalizeUrl(widget.patient.avatarUrl!) ?? '')
                     : null,
                 child: widget.patient.avatarUrl == null
-                    ? Icon(Icons.person, size: 36, color: theme.colorScheme.primary)
+                    ? Icon(Icons.person, size: 36, color: colors.primary)
                     : null,
               ),
               const SizedBox(width: 16),
@@ -490,22 +494,22 @@ class _PatientDetailsSheetState extends State<_PatientDetailsSheet> {
                     if (widget.patient.phoneNumber != null)
                       Row(
                         children: [
-                          const Icon(Icons.phone, size: 16, color: Colors.grey),
+                          Icon(Icons.phone, size: 16, color: colors.onSurfaceVariant),
                           const SizedBox(width: 4),
                           Text(
                             widget.patient.phoneNumber!,
-                            style: const TextStyle(color: Colors.grey),
+                            style: TextStyle(color: colors.onSurfaceVariant),
                           ),
                         ],
                       ),
                     if (widget.patient.email != null)
                       Row(
                         children: [
-                          const Icon(Icons.email, size: 16, color: Colors.grey),
+                          Icon(Icons.email, size: 16, color: colors.onSurfaceVariant),
                           const SizedBox(width: 4),
                           Text(
                             widget.patient.email!,
-                            style: const TextStyle(color: Colors.grey),
+                            style: TextStyle(color: colors.onSurfaceVariant),
                           ),
                         ],
                       ),
@@ -520,6 +524,7 @@ class _PatientDetailsSheetState extends State<_PatientDetailsSheet> {
             children: [
               Expanded(
                 child: _buildInfoCard(
+                  context,
                   icon: Icons.cake,
                   label: 'Age',
                   value: widget.patient.age != null ? '${widget.patient.age} years' : '-',
@@ -528,6 +533,7 @@ class _PatientDetailsSheetState extends State<_PatientDetailsSheet> {
               const SizedBox(width: 12),
               Expanded(
                 child: _buildInfoCard(
+                  context,
                   icon: Icons.bloodtype,
                   label: 'Blood Type',
                   value: widget.patient.bloodType ?? '-',
@@ -536,6 +542,7 @@ class _PatientDetailsSheetState extends State<_PatientDetailsSheet> {
               const SizedBox(width: 12),
               Expanded(
                 child: _buildInfoCard(
+                  context,
                   icon: Icons.person,
                   label: 'Gender',
                   value: widget.patient.gender ?? '-',
@@ -549,21 +556,23 @@ class _PatientDetailsSheetState extends State<_PatientDetailsSheet> {
             children: [
               Expanded(
                 child: _buildStatCard(
-                  theme,
+                  context,
                   icon: Icons.event,
                   label: 'Total Visits',
                   value: '${widget.patient.totalAppointments}',
-                  color: Colors.blue,
+                  color: colors.statAppointments,
+                  bgColor: colors.statAppointmentsBg,
                 ),
               ),
               const SizedBox(width: 12),
               Expanded(
                 child: _buildStatCard(
-                  theme,
+                  context,
                   icon: Icons.check_circle,
                   label: 'Completed',
                   value: '${widget.patient.completedAppointments}',
-                  color: Colors.green,
+                  color: colors.statCompleted,
+                  bgColor: colors.statCompletedBg,
                 ),
               ),
             ],
@@ -581,7 +590,7 @@ class _PatientDetailsSheetState extends State<_PatientDetailsSheet> {
             Center(
               child: Text(
                 'No medical history available',
-                style: TextStyle(color: Colors.grey.shade600),
+                style: TextStyle(color: colors.onSurfaceVariant),
               ),
             )
           else
@@ -592,12 +601,12 @@ class _PatientDetailsSheetState extends State<_PatientDetailsSheet> {
             Container(
               padding: const EdgeInsets.all(16),
               decoration: BoxDecoration(
-                color: theme.colorScheme.primary.withOpacity(0.1),
+                color: colors.primary.withOpacity(0.1),
                 borderRadius: BorderRadius.circular(12),
               ),
               child: Row(
                 children: [
-                  Icon(Icons.event, color: theme.colorScheme.primary),
+                  Icon(Icons.event, color: colors.primary),
                   const SizedBox(width: 12),
                   Expanded(
                     child: Column(
@@ -610,7 +619,7 @@ class _PatientDetailsSheetState extends State<_PatientDetailsSheet> {
                         Text(
                           DateFormat('EEEE, d MMMM yyyy HH:mm')
                               .format(widget.patient.nextAppointmentTime!),
-                          style: TextStyle(color: theme.colorScheme.onSurfaceVariant),
+                          style: TextStyle(color: colors.onSurfaceVariant),
                         ),
                       ],
                     ),
@@ -624,20 +633,22 @@ class _PatientDetailsSheetState extends State<_PatientDetailsSheet> {
     );
   }
 
-  Widget _buildInfoCard({
+  Widget _buildInfoCard(
+    BuildContext context, {
     required IconData icon,
     required String label,
     required String value,
   }) {
+    final colors = context.doctorColors;
     return Container(
       padding: const EdgeInsets.all(12),
       decoration: BoxDecoration(
-        color: Colors.grey.shade100,
+        color: colors.surfaceContainer,
         borderRadius: BorderRadius.circular(8),
       ),
       child: Column(
         children: [
-          Icon(icon, size: 24, color: Colors.grey.shade600),
+          Icon(icon, size: 24, color: colors.onSurfaceVariant),
           const SizedBox(height: 4),
           Text(
             value,
@@ -645,7 +656,7 @@ class _PatientDetailsSheetState extends State<_PatientDetailsSheet> {
           ),
           Text(
             label,
-            style: TextStyle(fontSize: 12, color: Colors.grey.shade600),
+            style: TextStyle(fontSize: 12, color: colors.onSurfaceVariant),
           ),
         ],
       ),
@@ -653,16 +664,18 @@ class _PatientDetailsSheetState extends State<_PatientDetailsSheet> {
   }
 
   Widget _buildStatCard(
-    ThemeData theme, {
+    BuildContext context, {
     required IconData icon,
     required String label,
     required String value,
     required Color color,
+    required Color bgColor,
   }) {
+    final colors = context.doctorColors;
     return Container(
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
-        color: color.withOpacity(0.1),
+        color: bgColor,
         borderRadius: BorderRadius.circular(12),
       ),
       child: Row(
@@ -684,7 +697,7 @@ class _PatientDetailsSheetState extends State<_PatientDetailsSheet> {
                 label,
                 style: TextStyle(
                   fontSize: 12,
-                  color: theme.colorScheme.onSurfaceVariant,
+                  color: colors.onSurfaceVariant,
                 ),
               ),
             ],
@@ -695,13 +708,14 @@ class _PatientDetailsSheetState extends State<_PatientDetailsSheet> {
   }
 
   Widget _buildHistorySection() {
+    final colors = context.doctorColors;
     final appointments = _history?['appointments'] as List<dynamic>? ?? [];
 
     if (appointments.isEmpty) {
       return Center(
         child: Text(
           'No appointment history',
-          style: TextStyle(color: Colors.grey.shade600),
+          style: TextStyle(color: colors.onSurfaceVariant),
         ),
       );
     }
@@ -711,12 +725,14 @@ class _PatientDetailsSheetState extends State<_PatientDetailsSheet> {
         final date = DateTime.tryParse(apt['appointmentTime']?.toString() ?? '');
         final status = apt['status'] as String? ?? 'Unknown';
         final diagnosis = apt['diagnosis'] as String?;
+        final statusColor = colors.getStatusColor(status);
+        final statusBgColor = colors.getStatusBgColor(status);
 
         return Container(
           margin: const EdgeInsets.only(bottom: 8),
           padding: const EdgeInsets.all(12),
           decoration: BoxDecoration(
-            border: Border.all(color: Colors.grey.shade200),
+            border: Border.all(color: colors.cardBorder),
             borderRadius: BorderRadius.circular(8),
           ),
           child: Row(
@@ -724,12 +740,12 @@ class _PatientDetailsSheetState extends State<_PatientDetailsSheet> {
               Container(
                 padding: const EdgeInsets.all(8),
                 decoration: BoxDecoration(
-                  color: _getStatusColor(status).withOpacity(0.1),
+                  color: statusBgColor,
                   borderRadius: BorderRadius.circular(8),
                 ),
                 child: Icon(
                   Icons.event,
-                  color: _getStatusColor(status),
+                  color: statusColor,
                   size: 20,
                 ),
               ),
@@ -749,7 +765,7 @@ class _PatientDetailsSheetState extends State<_PatientDetailsSheet> {
                         diagnosis,
                         style: TextStyle(
                           fontSize: 13,
-                          color: Colors.grey.shade600,
+                          color: colors.onSurfaceVariant,
                         ),
                         maxLines: 1,
                         overflow: TextOverflow.ellipsis,
@@ -760,7 +776,7 @@ class _PatientDetailsSheetState extends State<_PatientDetailsSheet> {
               Container(
                 padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
                 decoration: BoxDecoration(
-                  color: _getStatusColor(status).withOpacity(0.1),
+                  color: statusBgColor,
                   borderRadius: BorderRadius.circular(8),
                 ),
                 child: Text(
@@ -768,7 +784,7 @@ class _PatientDetailsSheetState extends State<_PatientDetailsSheet> {
                   style: TextStyle(
                     fontSize: 11,
                     fontWeight: FontWeight.w600,
-                    color: _getStatusColor(status),
+                    color: statusColor,
                   ),
                 ),
               ),
@@ -777,21 +793,5 @@ class _PatientDetailsSheetState extends State<_PatientDetailsSheet> {
         );
       }).toList(),
     );
-  }
-
-  Color _getStatusColor(String status) {
-    switch (status.toUpperCase()) {
-      case 'CONFIRMED':
-        return Colors.blue;
-      case 'IN_PROGRESS':
-        return Colors.orange;
-      case 'COMPLETED':
-        return Colors.green;
-      case 'CANCELLED':
-      case 'NO_SHOW':
-        return Colors.red;
-      default:
-        return Colors.grey;
-    }
   }
 }
