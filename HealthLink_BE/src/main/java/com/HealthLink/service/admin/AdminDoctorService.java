@@ -55,8 +55,8 @@ public class AdminDoctorService {
 
     public AdminDoctorPageResponse getDoctors(int pageNumber, int pageSize, String searchTerm,
                                                String status, String specialty, String sortBy) {
-        Pageable pageable = PageRequest.of(Math.max(pageNumber - 1, 0), Math.max(pageSize, 1), resolveSort(sortBy));
-        Specification<Doctor> specification = buildSpecification(searchTerm, status, specialty);
+        Pageable pageable = PageRequest.of(Math.max(pageNumber - 1, 0), Math.max(pageSize, 1));
+        Specification<Doctor> specification = buildSpecification(searchTerm, status, specialty, sortBy);
         Page<Doctor> page = doctorRepository.findAll(specification, pageable);
 
         List<AdminDoctorDto> doctors = page.stream()
@@ -211,7 +211,7 @@ public class AdminDoctorService {
         int dayOfWeek = javaDayOfWeek == 7 ? 0 : javaDayOfWeek; // Convert: Sun=0, Mon=1...Sat=6
 
         // Lấy tất cả bác sĩ Active
-        Specification<Doctor> spec = buildSpecification(null, "Active", specialty);
+        Specification<Doctor> spec = buildSpecification(null, "Active", specialty, null);
         List<Doctor> allActiveDoctors = doctorRepository.findAll(spec);
 
         List<AdminDoctorDto> availableDoctors = new ArrayList<>();
@@ -258,25 +258,7 @@ public class AdminDoctorService {
         return !schedules.isEmpty();
     }
 
-    private Sort resolveSort(String sortBy) {
-        if (StringUtils.hasText(sortBy)) {
-            switch (sortBy.toLowerCase()) {
-                case "newest":
-                    return Sort.by(Sort.Direction.DESC, "createdAt");
-                case "oldest":
-                    return Sort.by(Sort.Direction.ASC, "createdAt");
-                case "name_asc":
-                    return Sort.by(Sort.Direction.ASC, "fullName");
-                case "name_desc":
-                    return Sort.by(Sort.Direction.DESC, "fullName");
-                default:
-                    return Sort.by(Sort.Direction.DESC, "createdAt");
-            }
-        }
-        return Sort.by(Sort.Direction.DESC, "createdAt");
-    }
-
-    private Specification<Doctor> buildSpecification(String searchTerm, String status, String specialty) {
+    private Specification<Doctor> buildSpecification(String searchTerm, String status, String specialty, String sortBy) {
         return (root, query, cb) -> {
             var predicates = new ArrayList<jakarta.persistence.criteria.Predicate>();
             var userJoin = root.join("user", jakarta.persistence.criteria.JoinType.LEFT);
@@ -301,6 +283,32 @@ public class AdminDoctorService {
             if (StringUtils.hasText(specialty)) {
                 // Use LIKE for more flexible matching (e.g., "Cardiology" matches "General Cardiology")
                 predicates.add(cb.like(cb.lower(root.get("specialty")), "%" + specialty.trim().toLowerCase() + "%"));
+            }
+
+            // Apply sorting - sort by user.createdDate for newest/oldest
+            if (query != null && query.getResultType() != Long.class && query.getResultType() != long.class) {
+                if (StringUtils.hasText(sortBy)) {
+                    switch (sortBy.toLowerCase()) {
+                        case "newest":
+                            query.orderBy(cb.desc(userJoin.get("createdDate")));
+                            break;
+                        case "oldest":
+                            query.orderBy(cb.asc(userJoin.get("createdDate")));
+                            break;
+                        case "name_asc":
+                        case "name-asc":
+                            query.orderBy(cb.asc(root.get("fullName")));
+                            break;
+                        case "name_desc":
+                        case "name-desc":
+                            query.orderBy(cb.desc(root.get("fullName")));
+                            break;
+                        default:
+                            query.orderBy(cb.desc(userJoin.get("createdDate")));
+                    }
+                } else {
+                    query.orderBy(cb.desc(userJoin.get("createdDate")));
+                }
             }
 
             return predicates.isEmpty() ? cb.conjunction() : cb.and(predicates.toArray(new jakarta.persistence.criteria.Predicate[0]));

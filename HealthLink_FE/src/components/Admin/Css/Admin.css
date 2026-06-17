@@ -1717,11 +1717,19 @@
   font-weight: 600;
   color: #0f172a;
   font-size: 12px;
+  overflow: visible !important;
+  text-overflow: unset !important;
+  white-space: nowrap !important;
+  flex-shrink: 0;
 }
 
 .rating-count {
   color: #64748b;
   font-size: 10px;
+  overflow: visible !important;
+  text-overflow: unset !important;
+  white-space: nowrap !important;
+  flex-shrink: 0;
 }
 
 /* Card Footer with Actions */
