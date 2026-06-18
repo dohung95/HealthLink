@@ -145,20 +145,20 @@ export default function Doctors() {
     e.preventDefault();
 
     try {
-      // Prepare data according to UpdateDoctorAdminDto (using PascalCase to match backend)
+      // Prepare data according to AdminDoctorUpdateDto (using camelCase to match backend)
       const updateData = {
-        FullName: editForm.fullName,
-        PhoneNumber: editForm.phoneNumber,
-        Specialty: editForm.specialty,
-        Qualifications: editForm.qualifications,
-        YearsOfExperience: editForm.yearsOfExperience !== '' && editForm.yearsOfExperience !== null
+        fullName: editForm.fullName,
+        phoneNumber: editForm.phoneNumber,
+        specialty: editForm.specialty,
+        qualifications: editForm.qualifications,
+        yearsOfExperience: editForm.yearsOfExperience !== '' && editForm.yearsOfExperience !== null
           ? parseInt(editForm.yearsOfExperience)
           : null,
-        LanguageSpoken: editForm.languageSpoken,
-        Location: editForm.location
+        languageSpoken: editForm.languageSpoken,
+        location: editForm.location
       };
 
-      await doctorsApi.update(selectedDoctor.doctorID, updateData);
+      await doctorsApi.update(selectedDoctor.doctorId, updateData);
 
       // Close modal first
       setShowEditModal(false);
@@ -200,12 +200,12 @@ export default function Doctors() {
       return;
     }
     try {
-      await doctorsApi.updateStatus(selectedDoctor.doctorID, newStatus, statusReason);
+      await doctorsApi.updateStatus(selectedDoctor.doctorId, newStatus, statusReason);
 
       // Update the doctor list immediately without refetching
       setDoctors(prevDoctors =>
         prevDoctors.map(doctor =>
-          doctor.doctorID === selectedDoctor.doctorID
+          doctor.doctorId === selectedDoctor.doctorId
             ? { ...doctor, status: newStatus }
             : doctor
         )
@@ -451,7 +451,7 @@ export default function Doctors() {
             <div className="card-grid-container">
               {doctors.map((doctor) => (
                 <div
-                  key={doctor.doctorID}
+                  key={doctor.doctorId}
                   className="doctor-card"
                   onClick={() => handleViewDoctor(doctor)}
                 >
@@ -607,8 +607,8 @@ export default function Doctors() {
                     </thead>
                     <tbody>
                       {doctors.map((doctor) => (
-                        <tr key={doctor.doctorID}>
-                          <td><strong>{doctor.doctorID.substring(0, 8)}</strong></td>
+                        <tr key={doctor.doctorId}>
+                          <td><strong>{doctor.doctorId.substring(0, 8)}</strong></td>
                           <td>
                             <div className="d-flex align-items-center">
                               <div className="rounded-circle bg-primary text-white d-flex align-items-center justify-content-center me-2" style={{ width: "35px", height: "35px", overflow: 'hidden' }}>
@@ -824,7 +824,7 @@ export default function Doctors() {
                         <h5 className="mb-1" style={{ fontWeight: '700' }}>Dr. {selectedDoctor.fullName}</h5>
                         <div className="d-flex flex-wrap gap-2" style={{ fontSize: '13px', opacity: 0.9 }}>
                           <span><i className="bi bi-envelope me-1"></i>{selectedDoctor.email}</span>
-                          <span><i className="bi bi-telephone me-1"></i>{selectedDoctor.phoneNumber || 'N/A'}</span>
+                          <span><i className="bi bi-telephone me-1"></i>{selectedDoctor.phone || 'N/A'}</span>
                         </div>
                       </div>
                       <div className="d-flex flex-column gap-1 text-end">
@@ -992,7 +992,7 @@ export default function Doctors() {
                   {/* Account Info Footer */}
                   <div className="d-flex justify-content-between align-items-center mt-3 pt-2" style={{ borderTop: '1px solid #e2e8f0', fontSize: '12px', color: '#94a3b8' }}>
                     <span><i className="bi bi-calendar-plus me-1"></i>Registered: {formatDate(selectedDoctor.createdAt)}</span>
-                    <span>ID: {selectedDoctor.doctorID}</span>
+                    <span>ID: {selectedDoctor.doctorId}</span>
                   </div>
                 </div>
                 <div className="admin-modal-footer">

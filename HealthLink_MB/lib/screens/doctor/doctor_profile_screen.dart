@@ -4,6 +4,9 @@ import '../../providers/auth_provider.dart';
 import '../../services/doctor/doctor_service.dart';
 import '../../models/doctor/doctor_profile.dart';
 import '../../config/api_config.dart';
+import '../../config/doctor_theme.dart';
+import 'doctor_security_screen.dart';
+import 'doctor_wallet_screen.dart';
 
 class DoctorProfileScreen extends StatefulWidget {
   const DoctorProfileScreen({super.key});
@@ -99,23 +102,24 @@ class _DoctorProfileScreenState extends State<DoctorProfileScreen> {
   }
 
   Widget _buildErrorWidget() {
+    final colors = context.doctorColors;
     return Center(
       child: Padding(
         padding: const EdgeInsets.all(24),
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            Icon(Icons.error_outline, size: 64, color: Colors.red.shade300),
+            Icon(Icons.error_outline, size: 64, color: colors.error),
             const SizedBox(height: 16),
             Text(
               'Failed to load profile',
-              style: TextStyle(fontSize: 18, color: Colors.grey.shade700),
+              style: TextStyle(fontSize: 18, color: colors.onSurfaceVariant),
             ),
             const SizedBox(height: 8),
             Text(
               _error ?? '',
               textAlign: TextAlign.center,
-              style: TextStyle(fontSize: 14, color: Colors.grey.shade500),
+              style: TextStyle(fontSize: 14, color: colors.onSurfaceVariant.withOpacity(0.7)),
             ),
             const SizedBox(height: 24),
             ElevatedButton.icon(
@@ -130,9 +134,14 @@ class _DoctorProfileScreenState extends State<DoctorProfileScreen> {
   }
 
   Widget _buildAppBar(ThemeData theme) {
+    final colors = context.doctorColors;
+    final statusBarHeight = MediaQuery.of(context).padding.top;
+
     return SliverAppBar(
       expandedHeight: 280,
       pinned: true,
+      backgroundColor: const Color(0xFF0D7681),
+      foregroundColor: Colors.white,
       actions: [
         IconButton(
           icon: const Icon(Icons.edit),
@@ -141,13 +150,14 @@ class _DoctorProfileScreenState extends State<DoctorProfileScreen> {
       ],
       flexibleSpace: FlexibleSpaceBar(
         background: Container(
-          decoration: BoxDecoration(
+          width: double.infinity,
+          decoration: const BoxDecoration(
             gradient: LinearGradient(
               begin: Alignment.topCenter,
               end: Alignment.bottomCenter,
               colors: [
-                theme.colorScheme.primary,
-                theme.colorScheme.primary.withOpacity(0.8),
+                Color(0xFF0D7681),
+                Color(0xFF0C6872),
               ],
             ),
           ),
@@ -155,26 +165,39 @@ class _DoctorProfileScreenState extends State<DoctorProfileScreen> {
             child: Column(
               mainAxisAlignment: MainAxisAlignment.center,
               children: [
-                const SizedBox(height: 40),
-                // Avatar
-                CircleAvatar(
-                  radius: 50,
-                  backgroundColor: Colors.white,
-                  backgroundImage: _profile?.avatarUrl != null
-                      ? NetworkImage(ApiConfig.normalizeUrl(_profile!.avatarUrl!) ?? '')
-                      : null,
-                  child: _profile?.avatarUrl == null
-                      ? Icon(Icons.person, size: 50, color: theme.colorScheme.primary)
-                      : null,
+                const SizedBox(height: 40), // Space for AppBar
+                // Avatar with border
+                Container(
+                  decoration: BoxDecoration(
+                    shape: BoxShape.circle,
+                    border: Border.all(color: const Color(0xFFFFF8E7), width: 3),
+                    boxShadow: [
+                      BoxShadow(
+                        color: Colors.black.withOpacity(0.3),
+                        blurRadius: 10,
+                        offset: const Offset(0, 4),
+                      ),
+                    ],
+                  ),
+                  child: CircleAvatar(
+                    radius: 50,
+                    backgroundColor: Colors.white,
+                    backgroundImage: _profile?.avatarUrl != null
+                        ? NetworkImage(ApiConfig.normalizeUrl(_profile!.avatarUrl!) ?? '')
+                        : null,
+                    child: _profile?.avatarUrl == null
+                        ? Icon(Icons.person, size: 50, color: colors.primary)
+                        : null,
+                  ),
                 ),
                 const SizedBox(height: 16),
                 // Name
                 Text(
-                  'Dr. ${_profile?.fullName ?? 'Doctor'}',
+                  _formatDoctorName(_profile?.fullName),
                   style: const TextStyle(
                     fontSize: 24,
                     fontWeight: FontWeight.bold,
-                    color: Colors.white,
+                    color: Color(0xFFFFFFFF),
                   ),
                 ),
                 const SizedBox(height: 4),
@@ -183,7 +206,8 @@ class _DoctorProfileScreenState extends State<DoctorProfileScreen> {
                   _profile?.specialtyName ?? _profile?.specialty ?? 'General Practitioner',
                   style: TextStyle(
                     fontSize: 16,
-                    color: Colors.white.withOpacity(0.9),
+                    color: const Color(0xFFFFFFFF).withOpacity(0.9),
+                    fontWeight: FontWeight.w500,
                   ),
                 ),
                 const SizedBox(height: 8),
@@ -192,20 +216,21 @@ class _DoctorProfileScreenState extends State<DoctorProfileScreen> {
                   Container(
                     padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
                     decoration: BoxDecoration(
-                      color: Colors.white.withOpacity(0.2),
+                      color: const Color(0xFFFFFFFF).withOpacity(0.2),
                       borderRadius: BorderRadius.circular(16),
+                      border: Border.all(color: const Color(0xFFFFF8E7).withOpacity(0.5)),
                     ),
                     child: const Row(
                       mainAxisSize: MainAxisSize.min,
                       children: [
-                        Icon(Icons.verified, size: 16, color: Colors.white),
+                        Icon(Icons.verified, size: 16, color: Color(0xFFFFF8E7)),
                         SizedBox(width: 4),
                         Text(
                           'Verified',
                           style: TextStyle(
                             fontSize: 12,
-                            color: Colors.white,
-                            fontWeight: FontWeight.w500,
+                            color: Color(0xFFFFF8E7),
+                            fontWeight: FontWeight.w600,
                           ),
                         ),
                       ],
@@ -219,7 +244,29 @@ class _DoctorProfileScreenState extends State<DoctorProfileScreen> {
     );
   }
 
+  /// Format tên bác sĩ - luôn dùng prefix "Dr."
+  String _formatDoctorName(String? fullName) {
+    if (fullName == null || fullName.isEmpty) return 'Dr. Doctor';
+
+    String name = fullName.trim();
+    final lowerName = name.toLowerCase();
+
+    // Loại bỏ prefix cũ nếu có (BS., Dr., Bs., dr.)
+    if (lowerName.startsWith('bs.')) {
+      name = name.substring(3).trim();
+    } else if (lowerName.startsWith('bs ')) {
+      name = name.substring(2).trim();
+    } else if (lowerName.startsWith('dr.')) {
+      name = name.substring(3).trim();
+    } else if (lowerName.startsWith('dr ')) {
+      name = name.substring(2).trim();
+    }
+
+    return 'Dr. $name';
+  }
+
   Widget _buildStatsSection(ThemeData theme) {
+    final colors = context.doctorColors;
     return Row(
       children: [
         Expanded(
@@ -230,7 +277,8 @@ class _DoctorProfileScreenState extends State<DoctorProfileScreen> {
                 _profile?.averageRating?.toStringAsFixed(1) ??
                 '0.0',
             label: 'Rating',
-            color: Colors.amber,
+            color: colors.statRating,
+            bgColor: colors.statRatingBg,
           ),
         ),
         const SizedBox(width: 12),
@@ -240,7 +288,8 @@ class _DoctorProfileScreenState extends State<DoctorProfileScreen> {
             icon: Icons.reviews,
             value: '${_reviewStats['totalReviews'] ?? _profile?.totalReviews ?? 0}',
             label: 'Reviews',
-            color: Colors.blue,
+            color: colors.statAppointments,
+            bgColor: colors.statAppointmentsBg,
           ),
         ),
         const SizedBox(width: 12),
@@ -250,7 +299,8 @@ class _DoctorProfileScreenState extends State<DoctorProfileScreen> {
             icon: Icons.work_history,
             value: '${_profile?.yearsOfExperience ?? 0}',
             label: 'Years Exp.',
-            color: Colors.green,
+            color: colors.statExperience,
+            bgColor: colors.statExperienceBg,
           ),
         ),
       ],
@@ -263,11 +313,12 @@ class _DoctorProfileScreenState extends State<DoctorProfileScreen> {
     required String value,
     required String label,
     required Color color,
+    required Color bgColor,
   }) {
     return Container(
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
-        color: color.withOpacity(0.1),
+        color: bgColor,
         borderRadius: BorderRadius.circular(12),
       ),
       child: Column(
@@ -326,7 +377,7 @@ class _DoctorProfileScreenState extends State<DoctorProfileScreen> {
           icon: Icons.attach_money,
           label: 'Consultation Fee',
           value: _profile?.consultationFee != null
-              ? '${_profile!.consultationFee!.toStringAsFixed(0)} VND'
+              ? '${_profile!.consultationFee!.toStringAsFixed(0)} USD'
               : '-',
         ),
         if (_profile?.bio != null && _profile!.bio!.isNotEmpty) ...[
@@ -483,10 +534,21 @@ class _DoctorProfileScreenState extends State<DoctorProfileScreen> {
         ),
         _buildSettingsTile(
           theme,
-          icon: Icons.account_balance,
-          title: 'Bank Information',
-          subtitle: _profile?.bankName ?? 'Not configured',
-          onTap: () {},
+          icon: Icons.account_balance_wallet,
+          title: 'Wallet & Earnings',
+          subtitle: 'View earnings and withdraw funds',
+          onTap: () {
+            if (_profile != null) {
+              Navigator.push(
+                context,
+                MaterialPageRoute(
+                  builder: (context) => DoctorWalletScreen(
+                    doctorId: _profile!.doctorId,
+                  ),
+                ),
+              );
+            }
+          },
         ),
         _buildSettingsTile(
           theme,
@@ -500,7 +562,14 @@ class _DoctorProfileScreenState extends State<DoctorProfileScreen> {
           icon: Icons.security,
           title: 'Privacy & Security',
           subtitle: 'Password, 2FA, account security',
-          onTap: () {},
+          onTap: () {
+            Navigator.push(
+              context,
+              MaterialPageRoute(
+                builder: (context) => const DoctorSecurityScreen(),
+              ),
+            );
+          },
         ),
         _buildSettingsTile(
           theme,
@@ -540,13 +609,14 @@ class _DoctorProfileScreenState extends State<DoctorProfileScreen> {
   }
 
   Widget _buildLogoutButton(ThemeData theme) {
+    final colors = context.doctorColors;
     return SizedBox(
       width: double.infinity,
       child: OutlinedButton.icon(
         onPressed: _logout,
         style: OutlinedButton.styleFrom(
-          foregroundColor: Colors.red,
-          side: const BorderSide(color: Colors.red),
+          foregroundColor: colors.error,
+          side: BorderSide(color: colors.error),
           padding: const EdgeInsets.symmetric(vertical: 12),
         ),
         icon: const Icon(Icons.logout),
@@ -582,6 +652,7 @@ class _DoctorProfileScreenState extends State<DoctorProfileScreen> {
   }
 
   Future<void> _logout() async {
+    final colors = context.doctorColors;
     final confirm = await showDialog<bool>(
       context: context,
       builder: (context) => AlertDialog(
@@ -594,7 +665,10 @@ class _DoctorProfileScreenState extends State<DoctorProfileScreen> {
           ),
           ElevatedButton(
             onPressed: () => Navigator.pop(context, true),
-            style: ElevatedButton.styleFrom(backgroundColor: Colors.red),
+            style: ElevatedButton.styleFrom(
+              backgroundColor: colors.error,
+              foregroundColor: Colors.white,
+            ),
             child: const Text('Logout'),
           ),
         ],
@@ -624,39 +698,25 @@ class _EditProfileSheet extends StatefulWidget {
 
 class _EditProfileSheetState extends State<_EditProfileSheet> {
   final _formKey = GlobalKey<FormState>();
-  late TextEditingController _fullNameController;
   late TextEditingController _phoneController;
   late TextEditingController _bioController;
-  late TextEditingController _qualificationsController;
-  late TextEditingController _clinicNameController;
-  late TextEditingController _clinicAddressController;
-  late TextEditingController _feeController;
+  late TextEditingController _paypalEmailController;
 
   bool _isSaving = false;
 
   @override
   void initState() {
     super.initState();
-    _fullNameController = TextEditingController(text: widget.profile.fullName);
     _phoneController = TextEditingController(text: widget.profile.phoneNumber);
     _bioController = TextEditingController(text: widget.profile.bio);
-    _qualificationsController = TextEditingController(text: widget.profile.qualifications);
-    _clinicNameController = TextEditingController(text: widget.profile.clinicName);
-    _clinicAddressController = TextEditingController(text: widget.profile.clinicAddress);
-    _feeController = TextEditingController(
-      text: widget.profile.consultationFee?.toStringAsFixed(0) ?? '',
-    );
+    _paypalEmailController = TextEditingController(text: widget.profile.paypalEmail);
   }
 
   @override
   void dispose() {
-    _fullNameController.dispose();
     _phoneController.dispose();
     _bioController.dispose();
-    _qualificationsController.dispose();
-    _clinicNameController.dispose();
-    _clinicAddressController.dispose();
-    _feeController.dispose();
+    _paypalEmailController.dispose();
     super.dispose();
   }
 
@@ -673,13 +733,9 @@ class _EditProfileSheetState extends State<_EditProfileSheet> {
       if (token == null) throw Exception('Not authenticated');
 
       await DoctorService.updateProfile(token, {
-        'fullName': _fullNameController.text,
         'phoneNumber': _phoneController.text,
         'bio': _bioController.text,
-        'qualifications': _qualificationsController.text,
-        'clinicName': _clinicNameController.text,
-        'clinicAddress': _clinicAddressController.text,
-        'consultationFee': double.tryParse(_feeController.text),
+        'paypalEmail': _paypalEmailController.text,
       });
 
       if (mounted) {
@@ -705,6 +761,7 @@ class _EditProfileSheetState extends State<_EditProfileSheet> {
 
   @override
   Widget build(BuildContext context) {
+    final colors = context.doctorColors;
     return Container(
       padding: const EdgeInsets.all(20),
       child: Form(
@@ -718,7 +775,7 @@ class _EditProfileSheetState extends State<_EditProfileSheet> {
                 width: 40,
                 height: 4,
                 decoration: BoxDecoration(
-                  color: Colors.grey.shade300,
+                  color: colors.divider,
                   borderRadius: BorderRadius.circular(2),
                 ),
               ),
@@ -741,29 +798,13 @@ class _EditProfileSheetState extends State<_EditProfileSheet> {
             const SizedBox(height: 24),
             // Form fields
             TextFormField(
-              controller: _fullNameController,
-              decoration: const InputDecoration(
-                labelText: 'Full Name',
-                border: OutlineInputBorder(),
-              ),
-              validator: (v) => v?.isEmpty == true ? 'Required' : null,
-            ),
-            const SizedBox(height: 16),
-            TextFormField(
               controller: _phoneController,
               decoration: const InputDecoration(
                 labelText: 'Phone Number',
                 border: OutlineInputBorder(),
+                prefixIcon: Icon(Icons.phone),
               ),
               keyboardType: TextInputType.phone,
-            ),
-            const SizedBox(height: 16),
-            TextFormField(
-              controller: _qualificationsController,
-              decoration: const InputDecoration(
-                labelText: 'Qualifications',
-                border: OutlineInputBorder(),
-              ),
             ),
             const SizedBox(height: 16),
             TextFormField(
@@ -771,34 +812,28 @@ class _EditProfileSheetState extends State<_EditProfileSheet> {
               decoration: const InputDecoration(
                 labelText: 'Bio',
                 border: OutlineInputBorder(),
+                prefixIcon: Icon(Icons.person_outline),
+                hintText: 'Write a short introduction about yourself...',
               ),
-              maxLines: 3,
+              maxLines: 4,
+              maxLength: 500,
             ),
             const SizedBox(height: 16),
             TextFormField(
-              controller: _clinicNameController,
+              controller: _paypalEmailController,
               decoration: const InputDecoration(
-                labelText: 'Clinic Name',
+                labelText: 'PayPal Email',
                 border: OutlineInputBorder(),
+                prefixIcon: Icon(Icons.payment),
+                hintText: 'Email for receiving payments',
               ),
-            ),
-            const SizedBox(height: 16),
-            TextFormField(
-              controller: _clinicAddressController,
-              decoration: const InputDecoration(
-                labelText: 'Clinic Address',
-                border: OutlineInputBorder(),
-              ),
-              maxLines: 2,
-            ),
-            const SizedBox(height: 16),
-            TextFormField(
-              controller: _feeController,
-              decoration: const InputDecoration(
-                labelText: 'Consultation Fee (VND)',
-                border: OutlineInputBorder(),
-              ),
-              keyboardType: TextInputType.number,
+              keyboardType: TextInputType.emailAddress,
+              validator: (v) {
+                if (v != null && v.isNotEmpty && !v.contains('@')) {
+                  return 'Please enter a valid email';
+                }
+                return null;
+              },
             ),
             const SizedBox(height: 24),
             SizedBox(

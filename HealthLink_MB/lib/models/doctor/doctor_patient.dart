@@ -95,16 +95,44 @@ class DoctorPatientPage {
   });
 
   factory DoctorPatientPage.fromJson(Map<String, dynamic> json) {
-    final content = json['content'] as List<dynamic>? ?? json['items'] as List<dynamic>? ?? [];
+    // Backend trả về 'patients' array trực tiếp, không phải 'content'
+    final content = json['patients'] as List<dynamic>? ??
+        json['content'] as List<dynamic>? ??
+        json['items'] as List<dynamic>? ??
+        [];
+
+    final totalElements = json['totalCount'] as int? ??
+        json['totalElements'] as int? ??
+        json['total'] as int? ??
+        content.length;
+
+    final totalPages = json['totalPages'] as int? ?? 1;
+
+    final currentPage = json['pageNumber'] as int? ??
+        json['number'] as int? ??
+        json['page'] as int? ??
+        1;
+
+    final pageSize =
+        json['pageSize'] as int? ?? json['size'] as int? ?? 12;
+
+    // Tính hasNext dựa trên currentPage và totalPages
+    final hasNext = json['hasNext'] as bool? ??
+        (currentPage < totalPages);
+
+    final hasPrevious = json['hasPrevious'] as bool? ??
+        (currentPage > 1);
 
     return DoctorPatientPage(
-      patients: content.map((e) => DoctorPatient.fromJson(e as Map<String, dynamic>)).toList(),
-      totalElements: json['totalElements'] as int? ?? json['total'] as int? ?? content.length,
-      totalPages: json['totalPages'] as int? ?? 1,
-      currentPage: json['number'] as int? ?? json['page'] as int? ?? 0,
-      pageSize: json['size'] as int? ?? json['pageSize'] as int? ?? 10,
-      hasNext: json['hasNext'] as bool? ?? !(json['last'] as bool? ?? true),
-      hasPrevious: json['hasPrevious'] as bool? ?? !(json['first'] as bool? ?? true),
+      patients: content
+          .map((e) => DoctorPatient.fromJson(e as Map<String, dynamic>))
+          .toList(),
+      totalElements: totalElements,
+      totalPages: totalPages,
+      currentPage: currentPage,
+      pageSize: pageSize,
+      hasNext: hasNext,
+      hasPrevious: hasPrevious,
     );
   }
 }

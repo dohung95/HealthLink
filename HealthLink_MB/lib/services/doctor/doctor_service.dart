@@ -104,28 +104,47 @@ class DoctorService {
     String token,
     String doctorId, {
     DateTime? date,
+    String status = 'All',
   }) async {
-    final dateStr = (date ?? DateTime.now()).toIso8601String().split('T')[0];
-    final uri = Uri.parse('${ApiConfig.baseUrl}/appointments/doctor/$doctorId/daily')
-        .replace(queryParameters: {'date': dateStr});
+    final targetDate = date ?? DateTime.now();
+    // Format date as yyyy-MM-dd (LocalDate format)
+    final dateStr =
+        '${targetDate.year}-${targetDate.month.toString().padLeft(2, '0')}-${targetDate.day.toString().padLeft(2, '0')}';
+
+    final uri =
+        Uri.parse('${ApiConfig.baseUrl}/appointments/doctor/$doctorId/daily')
+            .replace(queryParameters: {
+      'date': dateStr,
+      'status': status,
+    });
+
+    debugPrint('[DoctorService] Fetching daily appointments: $uri');
 
     final res = await http
         .get(uri, headers: _authHeaders(token))
         .timeout(ApiConfig.connectTimeout);
 
+    debugPrint('[DoctorService] Response status: ${res.statusCode}');
+
     if (res.statusCode == 200) {
       final data = jsonDecode(res.body);
+      debugPrint(
+          '[DoctorService] Appointments count: ${(data['appointments'] as List?)?.length ?? 0}');
+
       if (data is Map<String, dynamic>) {
         return DoctorDailyAppointments.fromJson(data);
       } else if (data is List) {
         // Nếu API trả về list trực tiếp
         return DoctorDailyAppointments(
-          date: date ?? DateTime.now(),
-          appointments: data.map((e) => DoctorAppointment.fromJson(e as Map<String, dynamic>)).toList(),
+          date: targetDate,
+          appointments: data
+              .map((e) => DoctorAppointment.fromJson(e as Map<String, dynamic>))
+              .toList(),
         );
       }
     }
 
+    debugPrint('[DoctorService] Error response: ${res.body}');
     throw Exception('Failed to load daily appointments: ${res.statusCode}');
   }
 
@@ -211,27 +230,35 @@ class DoctorService {
   // ══════════════════════════════════════════════════════════════════════════
 
   /// Lấy danh sách bệnh nhân của bác sĩ
+  /// [status] có thể là 'all', 'upcoming', 'recent'
   static Future<DoctorPatientPage> getPatients(
     String token, {
     String? search,
+    String status = 'all',
     int page = 1,
     int pageSize = 12,
   }) async {
     final queryParams = {
       'page': page.toString(),
       'pageSize': pageSize.toString(),
+      'status': status,
       if (search != null && search.isNotEmpty) 'search': search,
     };
 
     final uri = Uri.parse('${ApiConfig.baseUrl}/account/doctors/me/patients')
         .replace(queryParameters: queryParams);
 
+    debugPrint('[DoctorService] Fetching patients: $uri');
+
     final res = await http
         .get(uri, headers: _authHeaders(token))
         .timeout(ApiConfig.connectTimeout);
 
+    debugPrint('[DoctorService] Response status: ${res.statusCode}');
+
     if (res.statusCode == 200) {
       final data = jsonDecode(res.body) as Map<String, dynamic>;
+      debugPrint('[DoctorService] Patients count: ${(data['patients'] as List?)?.length ?? 0}');
       return DoctorPatientPage.fromJson(data);
     }
 
@@ -353,6 +380,76 @@ class DoctorService {
     }
 
     throw Exception('Failed to load review stats: ${res.statusCode}');
+  }
+
+  // ══════════════════════════════════════════════════════════════════════════
+  // PASSWORD CHANGE (2-step OTP)
+  // ══════════════════════════════════════════════════════════════════════════
+
+  /// Step 1: Yêu cầu đổi mật khẩu - gửi OTP đến email
+  /// Trả về message từ server (thường là "Verification code sent to your email")
+  static Future<String> requestPasswordChange(String token) async {
+    final res = await http
+        .post(
+          Uri.parse(ApiConfig.doctorRequestPasswordChange),
+          headers: _authHeaders(token),
+        )
+        .timeout(ApiConfig.connectTimeout);
+
+    if (res.statusCode == 200) {
+      final data = jsonDecode(res.body);
+      if (data is Map<String, dynamic>) {
+        return data['message']?.toString() ?? 'Verification code sent';
+      }
+      return 'Verification code sent';
+    }
+
+    // Parse error
+    try {
+      final data = jsonDecode(res.body);
+      if (data is Map<String, dynamic>) {
+        throw Exception(data['message'] ?? data['error'] ?? 'Request failed');
+      }
+    } catch (_) {}
+
+    throw Exception('Failed to request password change: ${res.statusCode}');
+  }
+
+  /// Step 2: Đổi mật khẩu với OTP verification
+  static Future<void> changePassword(
+    String token, {
+    required String verificationCode,
+    required String currentPassword,
+    required String newPassword,
+  }) async {
+    final res = await http
+        .put(
+          Uri.parse(ApiConfig.doctorChangePassword),
+          headers: _authHeaders(token),
+          body: jsonEncode({
+            'verificationCode': verificationCode,
+            'currentPassword': currentPassword,
+            'newPassword': newPassword,
+          }),
+        )
+        .timeout(ApiConfig.connectTimeout);
+
+    if (res.statusCode == 200) {
+      return;
+    }
+
+    // Parse error
+    try {
+      final data = jsonDecode(res.body);
+      if (data is Map<String, dynamic>) {
+        throw Exception(
+            data['message'] ?? data['error'] ?? 'Password change failed');
+      }
+    } catch (e) {
+      if (e is Exception) rethrow;
+    }
+
+    throw Exception('Failed to change password: ${res.statusCode}');
   }
 
   // ══════════════════════════════════════════════════════════════════════════

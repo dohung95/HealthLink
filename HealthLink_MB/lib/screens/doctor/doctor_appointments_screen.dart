@@ -6,6 +6,7 @@ import '../../services/doctor/doctor_service.dart';
 import '../../models/doctor/doctor_appointment.dart';
 import '../../models/doctor/doctor_profile.dart';
 import '../../config/api_config.dart';
+import '../../config/doctor_theme.dart';
 
 class DoctorAppointmentsScreen extends StatefulWidget {
   const DoctorAppointmentsScreen({super.key});
@@ -100,12 +101,19 @@ class _DoctorAppointmentsScreenState extends State<DoctorAppointmentsScreen>
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
+    final colors = context.doctorColors;
 
     return Scaffold(
       backgroundColor: theme.colorScheme.surface,
       appBar: AppBar(
         title: const Text('Appointments'),
+        backgroundColor: colors.primary,
+        foregroundColor: Colors.white,
         actions: [
+          IconButton(
+            icon: const Icon(Icons.refresh),
+            onPressed: _loadData,
+          ),
           IconButton(
             icon: const Icon(Icons.calendar_today),
             onPressed: _selectDate,
@@ -113,44 +121,53 @@ class _DoctorAppointmentsScreenState extends State<DoctorAppointmentsScreen>
         ],
         bottom: PreferredSize(
           preferredSize: const Size.fromHeight(100),
-          child: Column(
-            children: [
-              // Date display
-              Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-                child: Row(
-                  children: [
-                    Icon(Icons.event, color: theme.colorScheme.primary, size: 20),
-                    const SizedBox(width: 8),
-                    Text(
-                      DateFormat('EEEE, d MMMM yyyy').format(_selectedDate),
-                      style: TextStyle(
-                        fontSize: 14,
-                        fontWeight: FontWeight.w500,
-                        color: theme.colorScheme.onSurface,
+          child: Container(
+            color: theme.colorScheme.surface,
+            child: Column(
+              children: [
+                // Date display
+                Padding(
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                  child: Row(
+                    children: [
+                      Icon(Icons.event, color: colors.primary, size: 20),
+                      const SizedBox(width: 8),
+                      Text(
+                        DateFormat('EEEE, d MMMM yyyy').format(_selectedDate),
+                        style: TextStyle(
+                          fontSize: 14,
+                          fontWeight: FontWeight.w500,
+                          color: theme.colorScheme.onSurface,
+                        ),
                       ),
-                    ),
-                    const Spacer(),
-                    if (!_isDateToday(_selectedDate))
-                      TextButton(
-                        onPressed: () {
-                          setState(() {
-                            _selectedDate = DateTime.now();
-                          });
-                          _loadData();
-                        },
-                        child: const Text('Today'),
-                      ),
-                  ],
+                      const Spacer(),
+                      if (!_isDateToday(_selectedDate))
+                        TextButton(
+                          onPressed: () {
+                            setState(() {
+                              _selectedDate = DateTime.now();
+                            });
+                            _loadData();
+                          },
+                          child: const Text('Today'),
+                        ),
+                    ],
+                  ),
                 ),
-              ),
-              // Status tabs
-              TabBar(
-                controller: _tabController,
-                isScrollable: true,
-                tabs: _statusFilters.map((s) => Tab(text: _formatStatus(s))).toList(),
-              ),
-            ],
+                // Status tabs
+                TabBar(
+                  controller: _tabController,
+                  isScrollable: true,
+                  labelColor: colors.primary,
+                  unselectedLabelColor: colors.onSurfaceVariant,
+                  indicatorColor: colors.primary,
+                  tabs: _statusFilters
+                      .map((s) => Tab(text: _formatStatus(s)))
+                      .toList(),
+                ),
+              ],
+            ),
           ),
         ),
       ),
@@ -204,23 +221,24 @@ class _DoctorAppointmentsScreenState extends State<DoctorAppointmentsScreen>
   }
 
   Widget _buildErrorWidget() {
+    final colors = context.doctorColors;
     return Center(
       child: Padding(
         padding: const EdgeInsets.all(24),
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            Icon(Icons.error_outline, size: 64, color: Colors.red.shade300),
+            Icon(Icons.error_outline, size: 64, color: colors.error),
             const SizedBox(height: 16),
             Text(
               'Failed to load appointments',
-              style: TextStyle(fontSize: 18, color: Colors.grey.shade700),
+              style: TextStyle(fontSize: 18, color: colors.onSurfaceVariant),
             ),
             const SizedBox(height: 8),
             Text(
               _error ?? '',
               textAlign: TextAlign.center,
-              style: TextStyle(fontSize: 14, color: Colors.grey.shade500),
+              style: TextStyle(fontSize: 14, color: colors.onSurfaceVariant.withOpacity(0.7)),
             ),
             const SizedBox(height: 24),
             ElevatedButton.icon(
@@ -235,6 +253,7 @@ class _DoctorAppointmentsScreenState extends State<DoctorAppointmentsScreen>
   }
 
   Widget _buildEmptyState(String status) {
+    final colors = context.doctorColors;
     return Center(
       child: Column(
         mainAxisAlignment: MainAxisAlignment.center,
@@ -242,7 +261,7 @@ class _DoctorAppointmentsScreenState extends State<DoctorAppointmentsScreen>
           Icon(
             Icons.event_available,
             size: 64,
-            color: Colors.grey.shade400,
+            color: colors.onSurfaceVariant.withOpacity(0.5),
           ),
           const SizedBox(height: 16),
           Text(
@@ -251,7 +270,7 @@ class _DoctorAppointmentsScreenState extends State<DoctorAppointmentsScreen>
                 : 'No ${_formatStatus(status).toLowerCase()} appointments',
             style: TextStyle(
               fontSize: 16,
-              color: Colors.grey.shade600,
+              color: colors.onSurfaceVariant,
             ),
           ),
         ],
@@ -260,29 +279,14 @@ class _DoctorAppointmentsScreenState extends State<DoctorAppointmentsScreen>
   }
 
   Widget _buildAppointmentCard(ThemeData theme, DoctorAppointment appointment) {
+    final colors = context.doctorColors;
     final timeFormat = DateFormat('HH:mm');
     final time = appointment.appointmentTime != null
         ? timeFormat.format(appointment.appointmentTime!)
         : '--:--';
 
-    Color statusColor;
-    switch (appointment.status?.toUpperCase()) {
-      case 'CONFIRMED':
-        statusColor = Colors.blue;
-        break;
-      case 'IN_PROGRESS':
-        statusColor = Colors.orange;
-        break;
-      case 'COMPLETED':
-        statusColor = Colors.green;
-        break;
-      case 'CANCELLED':
-      case 'NO_SHOW':
-        statusColor = Colors.red;
-        break;
-      default:
-        statusColor = Colors.grey;
-    }
+    final statusColor = colors.getStatusColor(appointment.status);
+    final statusBgColor = colors.getStatusBgColor(appointment.status);
 
     IconData typeIcon;
     switch (appointment.consultationType?.toUpperCase()) {
@@ -314,12 +318,12 @@ class _DoctorAppointmentsScreenState extends State<DoctorAppointmentsScreen>
                   // Patient avatar
                   CircleAvatar(
                     radius: 24,
-                    backgroundColor: theme.colorScheme.primary.withOpacity(0.1),
+                    backgroundColor: colors.primary.withOpacity(0.1),
                     backgroundImage: appointment.patientAvatar != null
                         ? NetworkImage(ApiConfig.normalizeUrl(appointment.patientAvatar!) ?? '')
                         : null,
                     child: appointment.patientAvatar == null
-                        ? Icon(Icons.person, color: theme.colorScheme.primary)
+                        ? Icon(Icons.person, color: colors.primary)
                         : null,
                   ),
                   const SizedBox(width: 12),
@@ -337,13 +341,13 @@ class _DoctorAppointmentsScreenState extends State<DoctorAppointmentsScreen>
                         const SizedBox(height: 4),
                         Row(
                           children: [
-                            Icon(typeIcon, size: 16, color: theme.colorScheme.primary),
+                            Icon(typeIcon, size: 16, color: colors.primary),
                             const SizedBox(width: 4),
                             Text(
                               appointment.consultationType ?? 'In-person',
                               style: TextStyle(
                                 fontSize: 13,
-                                color: theme.colorScheme.onSurfaceVariant,
+                                color: colors.onSurfaceVariant,
                               ),
                             ),
                           ],
@@ -355,7 +359,7 @@ class _DoctorAppointmentsScreenState extends State<DoctorAppointmentsScreen>
                   Container(
                     padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
                     decoration: BoxDecoration(
-                      color: statusColor.withOpacity(0.1),
+                      color: statusBgColor,
                       borderRadius: BorderRadius.circular(12),
                     ),
                     child: Text(
@@ -369,20 +373,20 @@ class _DoctorAppointmentsScreenState extends State<DoctorAppointmentsScreen>
                   ),
                 ],
               ),
-              const Divider(height: 24),
+              Divider(height: 24, color: colors.divider),
               Row(
                 children: [
                   // Time
                   Row(
                     children: [
-                      Icon(Icons.access_time, size: 16, color: theme.colorScheme.primary),
+                      Icon(Icons.access_time, size: 16, color: colors.primary),
                       const SizedBox(width: 4),
                       Text(
                         time,
                         style: TextStyle(
                           fontSize: 14,
                           fontWeight: FontWeight.w500,
-                          color: theme.colorScheme.primary,
+                          color: colors.primary,
                         ),
                       ),
                     ],
@@ -392,12 +396,12 @@ class _DoctorAppointmentsScreenState extends State<DoctorAppointmentsScreen>
                   if (appointment.fee != null)
                     Row(
                       children: [
-                        Icon(Icons.attach_money, size: 16, color: Colors.green.shade600),
+                        Icon(Icons.attach_money, size: 16, color: colors.money),
                         Text(
                           '${appointment.fee!.toStringAsFixed(0)} VND',
                           style: TextStyle(
                             fontSize: 14,
-                            color: Colors.green.shade600,
+                            color: colors.money,
                           ),
                         ),
                       ],
@@ -416,7 +420,8 @@ class _DoctorAppointmentsScreenState extends State<DoctorAppointmentsScreen>
                     ElevatedButton(
                       onPressed: () => _completeAppointment(appointment),
                       style: ElevatedButton.styleFrom(
-                        backgroundColor: Colors.green,
+                        backgroundColor: colors.success,
+                        foregroundColor: Colors.white,
                         padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
                       ),
                       child: const Text('Complete'),
@@ -428,20 +433,20 @@ class _DoctorAppointmentsScreenState extends State<DoctorAppointmentsScreen>
                 Container(
                   padding: const EdgeInsets.all(12),
                   decoration: BoxDecoration(
-                    color: theme.colorScheme.surfaceContainerHighest.withOpacity(0.5),
+                    color: colors.surfaceContainer,
                     borderRadius: BorderRadius.circular(8),
                   ),
                   child: Row(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      Icon(Icons.medical_information, size: 16, color: theme.colorScheme.onSurfaceVariant),
+                      Icon(Icons.medical_information, size: 16, color: colors.onSurfaceVariant),
                       const SizedBox(width: 8),
                       Expanded(
                         child: Text(
                           appointment.symptoms!,
                           style: TextStyle(
                             fontSize: 13,
-                            color: theme.colorScheme.onSurfaceVariant,
+                            color: colors.onSurfaceVariant,
                           ),
                           maxLines: 2,
                           overflow: TextOverflow.ellipsis,
@@ -562,7 +567,7 @@ class _AppointmentDetailsSheet extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final theme = Theme.of(context);
+    final colors = context.doctorColors;
     final dateFormat = DateFormat('EEEE, d MMMM yyyy');
     final timeFormat = DateFormat('HH:mm');
 
@@ -577,7 +582,7 @@ class _AppointmentDetailsSheet extends StatelessWidget {
               width: 40,
               height: 4,
               decoration: BoxDecoration(
-                color: Colors.grey.shade300,
+                color: colors.divider,
                 borderRadius: BorderRadius.circular(2),
               ),
             ),
@@ -594,12 +599,12 @@ class _AppointmentDetailsSheet extends StatelessWidget {
             children: [
               CircleAvatar(
                 radius: 30,
-                backgroundColor: theme.colorScheme.primary.withOpacity(0.1),
+                backgroundColor: colors.primary.withOpacity(0.1),
                 backgroundImage: appointment.patientAvatar != null
                     ? NetworkImage(ApiConfig.normalizeUrl(appointment.patientAvatar!) ?? '')
                     : null,
                 child: appointment.patientAvatar == null
-                    ? Icon(Icons.person, size: 30, color: theme.colorScheme.primary)
+                    ? Icon(Icons.person, size: 30, color: colors.primary)
                     : null,
               ),
               const SizedBox(width: 16),
@@ -614,7 +619,7 @@ class _AppointmentDetailsSheet extends StatelessWidget {
                     if (appointment.patientPhone != null)
                       Text(
                         appointment.patientPhone!,
-                        style: TextStyle(color: theme.colorScheme.onSurfaceVariant),
+                        style: TextStyle(color: colors.onSurfaceVariant),
                       ),
                   ],
                 ),
@@ -623,14 +628,14 @@ class _AppointmentDetailsSheet extends StatelessWidget {
           ),
           const SizedBox(height: 24),
           // Details
-          _buildDetailRow(Icons.calendar_today, 'Date',
+          _buildDetailRow(context, Icons.calendar_today, 'Date',
               appointment.appointmentTime != null ? dateFormat.format(appointment.appointmentTime!) : '-'),
-          _buildDetailRow(Icons.access_time, 'Time',
+          _buildDetailRow(context, Icons.access_time, 'Time',
               appointment.appointmentTime != null ? timeFormat.format(appointment.appointmentTime!) : '-'),
-          _buildDetailRow(Icons.videocam, 'Type', appointment.consultationType ?? 'In-person'),
-          _buildDetailRow(Icons.info_outline, 'Status', appointment.status ?? 'Pending'),
+          _buildDetailRow(context, Icons.videocam, 'Type', appointment.consultationType ?? 'In-person'),
+          _buildDetailRow(context, Icons.info_outline, 'Status', appointment.status ?? 'Pending'),
           if (appointment.fee != null)
-            _buildDetailRow(Icons.attach_money, 'Fee', '${appointment.fee!.toStringAsFixed(0)} VND'),
+            _buildDetailRow(context, Icons.attach_money, 'Fee', '${appointment.fee!.toStringAsFixed(0)} VND'),
           const SizedBox(height: 16),
           // Symptoms
           if (appointment.symptoms != null) ...[
@@ -639,7 +644,7 @@ class _AppointmentDetailsSheet extends StatelessWidget {
             Container(
               padding: const EdgeInsets.all(12),
               decoration: BoxDecoration(
-                color: theme.colorScheme.surfaceContainerHighest,
+                color: colors.surfaceContainer,
                 borderRadius: BorderRadius.circular(8),
               ),
               child: Text(appointment.symptoms!),
@@ -653,7 +658,7 @@ class _AppointmentDetailsSheet extends StatelessWidget {
             Container(
               padding: const EdgeInsets.all(12),
               decoration: BoxDecoration(
-                color: theme.colorScheme.surfaceContainerHighest,
+                color: colors.surfaceContainer,
                 borderRadius: BorderRadius.circular(8),
               ),
               child: Text(appointment.notes!),
@@ -675,7 +680,10 @@ class _AppointmentDetailsSheet extends StatelessWidget {
               width: double.infinity,
               child: ElevatedButton(
                 onPressed: onCompleteAppointment,
-                style: ElevatedButton.styleFrom(backgroundColor: Colors.green),
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: colors.success,
+                  foregroundColor: Colors.white,
+                ),
                 child: const Text('Complete Appointment'),
               ),
             ),
@@ -684,12 +692,13 @@ class _AppointmentDetailsSheet extends StatelessWidget {
     );
   }
 
-  Widget _buildDetailRow(IconData icon, String label, String value) {
+  Widget _buildDetailRow(BuildContext context, IconData icon, String label, String value) {
+    final colors = context.doctorColors;
     return Padding(
       padding: const EdgeInsets.symmetric(vertical: 8),
       child: Row(
         children: [
-          Icon(icon, size: 20, color: Colors.grey),
+          Icon(icon, size: 20, color: colors.onSurfaceVariant),
           const SizedBox(width: 12),
           Text('$label: ', style: const TextStyle(fontWeight: FontWeight.w500)),
           Text(value),
