@@ -162,3 +162,35 @@ export const verifyPharmacyEmailChange = async (token, data) => {
     const res = await axios.post(`${BASE}/pharmacy/auth/email/verify-change`, payload, authConfig(token));
     return res.data;
 };
+
+/** POST /api/account/pharmacy/auth/paypal/request-otp — Bước 1: Yêu cầu OTP đổi PayPal email */
+export const requestPharmacyPaypalOtp = async (token, data) => {
+    const res = await axios.post(`${BASE}/pharmacy/auth/paypal/request-otp`, data, authConfig(token));
+    return res.data;
+};
+
+/** POST /api/account/pharmacy/auth/paypal/verify-otp — Bước 2: Xác nhận OTP + cập nhật PayPal email */
+export const verifyPharmacyPaypalOtp = async (token, data) => {
+    const payload = {
+        newPaypalEmail: data.newPaypalEmail,
+        otp: data.otp,
+    };
+    const res = await axios.post(`${BASE}/pharmacy/auth/paypal/verify-otp`, payload, authConfig(token));
+    return res.data;
+};
+
+/** POST /api/account/pharmacy/auth/password/request-otp — Bước 1: Yêu cầu OTP đổi mật khẩu */
+export const requestPharmacyPasswordChangeOtp = async (token) => {
+    const res = await axios.post(`${BASE}/pharmacy/auth/password/request-otp`, {}, authConfig(token));
+    return res.data;
+};
+
+/** PUT /api/account/pharmacy/auth/password/change — Bước 2: Xác nhận OTP + đổi mật khẩu */
+export const verifyPharmacyPasswordChangeOtp = async (token, data) => {
+    const payload = {
+        otp: data.otp,
+        newPassword: data.newPassword,
+    };
+    const res = await axios.put(`${BASE}/pharmacy/auth/password/change`, payload, authConfig(token));
+    return res.data;
+};

@@ -51,7 +51,7 @@ class PharmacyRequestService {
       }
       return [];
     }
-    throw Exception('Failed to load requests');
+    throw Exception('Failed to load requests (${res.statusCode}): ${res.body}');
   }
 
   static Future<PharmacyConsultationRequest> getRequestById(
@@ -67,7 +67,7 @@ class PharmacyRequestService {
       final data = jsonDecode(res.body) as Map<String, dynamic>;
       return PharmacyConsultationRequest.fromJson(data);
     }
-    throw Exception('Failed to load request');
+    throw Exception('Failed to load request (${res.statusCode}): ${res.body}');
   }
 
   static Future<PharmacyConsultationRequest> updateRequestStatus(
@@ -92,7 +92,7 @@ class PharmacyRequestService {
       final data = jsonDecode(res.body) as Map<String, dynamic>;
       return PharmacyConsultationRequest.fromJson(data);
     }
-    throw Exception('Failed to update request status');
+    throw Exception('Failed to update request status (${res.statusCode}): ${res.body}');
   }
 
   static Future<List<Map<String, dynamic>>> getPrescriptions(
@@ -111,7 +111,7 @@ class PharmacyRequestService {
       }
       return [];
     }
-    throw Exception('Failed to load prescriptions');
+    throw Exception('Failed to load prescriptions (${res.statusCode}): ${res.body}');
   }
 
   static Future<Map<String, dynamic>> createOrderFromRequest(
@@ -147,7 +147,7 @@ class PharmacyRequestService {
     if (res.statusCode == 200 || res.statusCode == 201) {
       return jsonDecode(res.body) as Map<String, dynamic>;
     }
-    throw Exception('Failed to create order from request');
+    throw Exception('Failed to create order from request (${res.statusCode}): ${res.body}');
   }
 
   static Future<String?> getChatRoomId(
