@@ -23,7 +23,7 @@ public interface ChatService {
     /**
      * Lấy thông tin một phòng chat theo ID.
      */
-    ChatRoomDTO getRoomById(String chatRoomId);
+    ChatRoomDTO getRoomById(String chatRoomId, String userId);
 
     /**
      * Gửi tin nhắn vào một phòng chat.

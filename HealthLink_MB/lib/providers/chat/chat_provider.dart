@@ -130,6 +130,7 @@ class ChatProvider extends ChangeNotifier {
         accessToken, 
         userId, 
         _onStompMessage,
+        onPresenceReceived: _onPresenceReceived,
       );
     } catch (e) {
       debugPrint('ChatProvider loadConversations error: $e');
@@ -233,6 +234,30 @@ class ChatProvider extends ChangeNotifier {
     }
     
     notifyListeners();
+  }
+
+  /// Xử lý tin nhắn trạng thái online/offline từ STOMP
+  void _onPresenceReceived(Map<String, dynamic> presenceData) {
+    if (presenceData['userId'] == null || presenceData['isOnline'] == null) return;
+    
+    final userId = presenceData['userId'];
+    final isOnline = presenceData['isOnline'] == true;
+
+    bool updated = false;
+    for (int i = 0; i < _conversations.length; i++) {
+      if (_conversations[i].partnerId == userId) {
+        _conversations[i] = _conversations[i].copyWith(isOnline: isOnline);
+        updated = true;
+      }
+    }
+
+    if (updated) {
+      // Cập nhật lại _currentConversation nếu đang mở
+      if (_currentConversation?.partnerId == userId) {
+        _currentConversation = _currentConversation!.copyWith(isOnline: isOnline);
+      }
+      notifyListeners();
+    }
   }
 
   // ── Messages ───────────────────────────────────────────────────────────────

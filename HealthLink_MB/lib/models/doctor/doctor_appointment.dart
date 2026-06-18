@@ -171,12 +171,24 @@ class DoctorDailyAppointments {
             .toList() ??
         [];
 
+    // Parse counts from backend response
+    final counts = json['counts'] as Map<String, dynamic>?;
+    final totalCount = counts?['all'] as int? ??
+        json['totalCount'] as int? ??
+        appointmentsList.length;
+    final completedCount =
+        counts?['completed'] as int? ?? json['completedCount'] as int? ?? 0;
+    final pendingCount = counts?['scheduled'] as int? ??
+        counts?['inprogress'] as int? ??
+        json['pendingCount'] as int? ??
+        0;
+
     return DoctorDailyAppointments(
       date: DateTime.tryParse(json['date']?.toString() ?? '') ?? DateTime.now(),
       appointments: appointmentsList,
-      totalCount: json['totalCount'] as int? ?? appointmentsList.length,
-      completedCount: json['completedCount'] as int? ?? 0,
-      pendingCount: json['pendingCount'] as int? ?? 0,
+      totalCount: totalCount,
+      completedCount: completedCount,
+      pendingCount: pendingCount,
     );
   }
 }

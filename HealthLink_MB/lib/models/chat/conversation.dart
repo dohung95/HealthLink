@@ -93,7 +93,7 @@ class Conversation {
       partnerName: partnerName,
       partnerSpecialty: partnerSpecialty,
       partnerAvatarUrl: partnerAvatarUrl,
-      isOnline: false,          // Backend chưa hỗ trợ realtime presence
+      isOnline: json['isOnline'] == true,
       isSupport: false,
       appointmentId: json['appointmentId'] as int?,
       // Parse trạng thái cuộc hẹn từ backend để hiển thị/khóa chat phù hợp
@@ -105,6 +105,41 @@ class Conversation {
       unreadCount: unreadCount,
       isLastMessageRead: unreadCount == 0,
       blockedBy: json['blockedBy']?.toString(),
+    );
+  }
+
+  /// Copy with method to update specific fields
+  Conversation copyWith({
+    String? id,
+    String? partnerId,
+    String? partnerName,
+    String? partnerSpecialty,
+    String? partnerAvatarUrl,
+    bool? isOnline,
+    bool? isSupport,
+    int? appointmentId,
+    String? appointmentStatus,
+    String? lastMessage,
+    DateTime? lastMessageTime,
+    int? unreadCount,
+    bool? isLastMessageRead,
+    String? blockedBy,
+  }) {
+    return Conversation(
+      id: id ?? this.id,
+      partnerId: partnerId ?? this.partnerId,
+      partnerName: partnerName ?? this.partnerName,
+      partnerSpecialty: partnerSpecialty ?? this.partnerSpecialty,
+      partnerAvatarUrl: partnerAvatarUrl ?? this.partnerAvatarUrl,
+      isOnline: isOnline ?? this.isOnline,
+      isSupport: isSupport ?? this.isSupport,
+      appointmentId: appointmentId ?? this.appointmentId,
+      appointmentStatus: appointmentStatus ?? this.appointmentStatus,
+      lastMessage: lastMessage ?? this.lastMessage,
+      lastMessageTime: lastMessageTime ?? this.lastMessageTime,
+      unreadCount: unreadCount ?? this.unreadCount,
+      isLastMessageRead: isLastMessageRead ?? this.isLastMessageRead,
+      blockedBy: blockedBy ?? this.blockedBy,
     );
   }
 }

@@ -20,6 +20,7 @@ class DoctorProfile {
   final String? scheduleStatus;
   final String? bankAccount;
   final String? bankName;
+  final String? paypalEmail;
   final double? customCommissionRateOnline;
   final double? customCommissionRateOffline;
 
@@ -44,6 +45,7 @@ class DoctorProfile {
     this.scheduleStatus,
     this.bankAccount,
     this.bankName,
+    this.paypalEmail,
     this.customCommissionRateOnline,
     this.customCommissionRateOffline,
   });
@@ -70,6 +72,7 @@ class DoctorProfile {
       scheduleStatus: json['scheduleStatus'] as String?,
       bankAccount: json['bankAccount'] as String?,
       bankName: json['bankName'] as String?,
+      paypalEmail: json['paypalEmail'] as String?,
       customCommissionRateOnline: (json['customCommissionRateOnline'] as num?)?.toDouble(),
       customCommissionRateOffline: (json['customCommissionRateOffline'] as num?)?.toDouble(),
     );
@@ -97,6 +100,7 @@ class DoctorProfile {
       'scheduleStatus': scheduleStatus,
       'bankAccount': bankAccount,
       'bankName': bankName,
+      'paypalEmail': paypalEmail,
       'customCommissionRateOnline': customCommissionRateOnline,
       'customCommissionRateOffline': customCommissionRateOffline,
     };

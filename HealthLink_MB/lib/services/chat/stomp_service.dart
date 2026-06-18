@@ -8,6 +8,8 @@ import '../../models/chat/message.dart';
 typedef OnMessageCallback = void Function(Message message);
 typedef OnWebRTCSignalCallback = void Function(Map<String, dynamic> signal);
 
+typedef OnPresenceCallback = void Function(Map<String, dynamic> presence);
+
 class StompService {
   static final StompService _instance = StompService._internal();
   static StompService get instance => _instance;
@@ -18,16 +20,37 @@ class StompService {
   bool _isConnected = false;
   bool _isConnecting = false; // Tránh tạo 2 kết nối cùng lúc
   OnMessageCallback? _onMessageReceived;
+  OnPresenceCallback? _onPresenceReceived;
   String? _userId;
 
   /// Kết nối đến STOMP WebSocket
-  void connect(String token, String userId, OnMessageCallback onMessageReceived) {
+  void connect(String token, String userId, OnMessageCallback onMessageReceived, {OnPresenceCallback? onPresenceReceived}) {
     // Luôn cập nhật callbacks trước
     _onMessageReceived = onMessageReceived;
+    _onPresenceReceived = onPresenceReceived;
     _userId = userId;
 
     if (_isConnected && _stompClient != null) {
       debugPrint('[STOMP] Already connected. Callbacks updated. userId=$userId');
+      
+      // Nếu đã kết nối, phải subscribe lại vào /topic/presence ngay lập tức để nhận sự kiện 
+      // (đề phòng trường hợp trước đó chưa subscribe do hot-reload)
+      _stompClient?.subscribe(
+        destination: '/topic/presence',
+        callback: (StompFrame frame) {
+          if (frame.body != null) {
+            try {
+              final jsonMap = json.decode(frame.body!);
+              if (_onPresenceReceived != null) {
+                _onPresenceReceived!(jsonMap);
+              }
+            } catch (e) {
+              debugPrint('[STOMP] Error parsing presence message (already connected): $e');
+            }
+          }
+        },
+      );
+
       return;
     }
 
@@ -88,6 +111,23 @@ class StompService {
             }
           } catch (e) {
             debugPrint('[STOMP] Error parsing message: $e');
+          }
+        }
+      },
+    );
+
+    // Lắng nghe kênh trạng thái online/offline
+    _stompClient?.subscribe(
+      destination: '/topic/presence',
+      callback: (StompFrame frame) {
+        if (frame.body != null) {
+          try {
+            final jsonMap = json.decode(frame.body!);
+            if (_onPresenceReceived != null) {
+              _onPresenceReceived!(jsonMap);
+            }
+          } catch (e) {
+            debugPrint('[STOMP] Error parsing presence message: $e');
           }
         }
       },
