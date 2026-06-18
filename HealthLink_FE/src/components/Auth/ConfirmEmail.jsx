@@ -1,82 +1,143 @@
-import React, { useEffect, useState } from 'react';
-import { useSearchParams, Link } from 'react-router-dom';
+import React, { useState, useEffect, useRef } from 'react';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 import axios from 'axios';
-import './Css/confirmemail.css';
+import '../Css/EmailConfirmation.css'; // Dùng CSS của giao diện xịn
 
-const API_URL = 'http://localhost:8096/api/auth';
+const API_URL = 'http://localhost:8096/api/auth'; // Giữ lại đúng API_URL gốc của dự án
 
-/**
- * Trang xác nhận email sau đăng ký.
- * User click link trong email → /confirm-email?token=xxx
- * Route: /confirm-email
- */
 export default function ConfirmEmail() {
     const [searchParams] = useSearchParams();
+    const navigate = useNavigate();
     const token = searchParams.get('token') || '';
 
-    const [status, setStatus] = useState('loading'); // 'loading' | 'success' | 'error'
+    const [status, setStatus] = useState('loading'); // loading, success, error
     const [message, setMessage] = useState('');
-    const hasCalledAPI = React.useRef(false);
+    const hasCalledAPI = useRef(false);
 
     useEffect(() => {
-        if (!token) {
-            setStatus('error');
-            setMessage('Invalid confirmation link. No token provided.');
-            return;
-        }
-
-        if (hasCalledAPI.current) return;
-        hasCalledAPI.current = true;
-
-        // Gọi API xác nhận email
-        axios.get(`${API_URL}/confirm-email`, { params: { token } })
-            .then(() => {
-                setStatus('success');
-                setMessage('Your email has been confirmed successfully!');
-            })
-            .catch((err) => {
+        const confirmEmail = async () => {
+            if (!token) {
                 setStatus('error');
-                const msg = err.response?.data?.message || 'The confirmation link is invalid or has expired.';
-                setMessage(msg);
-            });
-    }, [token]);
+                setMessage('Invalid confirmation link. No token provided.');
+                return;
+            }
 
+            if (hasCalledAPI.current) return;
+            hasCalledAPI.current = true;
+
+            try {
+                // Gọi API theo đúng logic cũ: chỉ truyền token lên endpoint cũ
+                const response = await axios.get(`${API_URL}/confirm-email`, {
+                    params: { token }
+                });
+
+                setStatus('success');
+                setMessage(response.data?.message || 'Email confirmed successfully! You can now log in to your account.');
+
+                // Redirect to login after 30 seconds (đây là tính năng UX từ file mới)
+                setTimeout(() => {
+                    navigate('/login');
+                }, 30000);
+            } catch (error) {
+                setStatus('error');
+                if (error.response) {
+                    setMessage(error.response.data?.message || error.response.data?.error || 'Email confirmation failed. The link may be invalid or expired.');
+                } else {
+                    setMessage('Network error. Please check your connection and try again.');
+                }
+                console.error('Email confirmation error:', error);
+            }
+        };
+
+        confirmEmail();
+    }, [token, navigate]);
+
+    const handleGoToLogin = () => {
+        navigate('/login');
+    };
+
+    const handleGoToHome = () => {
+        navigate('/');
+    };
+
+    // Toàn bộ phần return bên dưới là copy nguyên vẹn cấu trúc UI và class CSS từ bản mới xịn sang
     return (
-        <div className="confirm-email-container">
-            <div className="confirm-email-card">
+        <div className='email-confirmation-container'>
+            <div className='email-confirm-card'>
                 {status === 'loading' && (
                     <>
-                        <div className="spinner-border text-success mb-3" role="status"></div>
-                        <h2 className="confirm-email-title">Verifying your email...</h2>
-                        <p className="confirm-email-subtitle">Please wait a moment.</p>
+                        <div className='email-confirm-spinner-container'>
+                            <div className='email-confirm-spinner'></div>
+                        </div>
+                        <h2>Verifying Your Email...</h2>
+                        <p>Please wait while we confirm your email address.</p>
                     </>
                 )}
 
                 {status === 'success' && (
                     <>
-                        <div style={{ fontSize: '3rem', marginBottom: '12px' }}>✅</div>
-                        <h2 className="confirm-email-title" style={{ color: '#00b09a' }}>Email Confirmed!</h2>
-                        <p className="confirm-email-subtitle">{message}</p>
-                        <p className="confirm-email-subtitle">You can now log in to your account.</p>
-                        <Link to="/login" className="confirm-email-btn">Go to Login</Link>
+                        <div className='email-confirm-icon-container success'>
+                            <i className="bi bi-check-circle-fill"></i>
+                        </div>
+                        <h2>Email Verified Successfully!</h2>
+                        <div className='email-confirm-message-box success'>
+                            <p>{message}</p>
+                        </div>
+                        <div className='email-confirm-info-box'>
+                            <i className="bi bi-info-circle"></i>
+                            <span>Your account is now active. You will be redirected to login in 30 seconds...</span>
+                        </div>
+                        <div className='email-confirm-button-group'>
+                            <button onClick={handleGoToLogin} className='email-confirm-btn-primary'>
+                                <i className="bi bi-box-arrow-in-right"></i> Go to Login
+                            </button>
+                            <button onClick={handleGoToHome} className='email-confirm-btn-secondary'>
+                                <i className="bi bi-house"></i> Back to Home
+                            </button>
+                        </div>
                     </>
                 )}
 
                 {status === 'error' && (
                     <>
-                        <div style={{ fontSize: '3rem', marginBottom: '12px' }}>❌</div>
-                        <h2 className="confirm-email-title" style={{ color: '#c62828' }}>Confirmation Failed</h2>
-                        <p className="confirm-email-subtitle">{message}</p>
-                        <div style={{ display: 'flex', gap: '12px', justifyContent: 'center', marginTop: '16px' }}>
-                            <Link to="/sign_up" className="confirm-email-btn">Register Again</Link>
-                            <Link to="/login" className="confirm-email-btn" style={{ background: '#666' }}>Back to Login</Link>
+                        <div className='email-confirm-icon-container error'>
+                            <i className="bi bi-x-circle-fill"></i>
+                        </div>
+                        <h2>Verification Failed</h2>
+                        <div className='email-confirm-message-box error'>
+                            <p>{message}</p>
+                        </div>
+                        <div className='email-confirm-help-section'>
+                            <h4>What can you do?</h4>
+                            <ul>
+                                <li>
+                                    <i className="bi bi-arrow-right-circle"></i>
+                                    Check if you clicked the correct link from your email
+                                </li>
+                                <li>
+                                    <i className="bi bi-arrow-right-circle"></i>
+                                    The verification link may have expired (valid for 24 hours)
+                                </li>
+                                <li>
+                                    <i className="bi bi-arrow-right-circle"></i>
+                                    Your email may already be verified - try logging in
+                                </li>
+                                <li>
+                                    <i className="bi bi-arrow-right-circle"></i>
+                                    Contact our support team for assistance
+                                </li>
+                            </ul>
+                        </div>
+                        <div className='email-confirm-button-group'>
+                            <button onClick={handleGoToLogin} className='email-confirm-btn-primary'>
+                                <i className="bi bi-box-arrow-in-right"></i> Try to Login
+                            </button>
+                            <button onClick={handleGoToHome} className='email-confirm-btn-secondary'>
+                                <i className="bi bi-house"></i> Back to Home
+                            </button>
                         </div>
                     </>
                 )}
-
-                <div className="confirm-email-footer">
-                    <Link to="/" className="confirm-email-link">← Return to Home</Link>
-                </div>
             </div>
         </div>
     );

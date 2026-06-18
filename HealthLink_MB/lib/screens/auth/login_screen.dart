@@ -438,35 +438,33 @@ class _LoginScreenState extends State<LoginScreen>
                             ),
 
                             // ── Footer Logo ──────────────────────────────────
-                            Opacity(
-                              opacity: 0.3,
-                              child: Padding(
-                                padding: const EdgeInsets.only(bottom: 24),
-                                child: Row(
-                                  mainAxisAlignment: MainAxisAlignment.center,
-                                  children: [
-                                    Container(
-                                      width: 24,
-                                      height: 24,
-                                      decoration: BoxDecoration(
-                                        color: Theme.of(context).colorScheme.primary,
-                                        shape: BoxShape.circle,
-                                      ),
-                                      child: Icon(Icons.medical_services,
-                                          size: 14, color: Theme.of(context).colorScheme.onPrimary),
+                            Padding(
+                              padding: const EdgeInsets.only(bottom: 24),
+                              child: Row(
+                                mainAxisAlignment: MainAxisAlignment.center,
+                                children: [
+                                  Container(
+                                    width: 24,
+                                    height: 24,
+                                    decoration: BoxDecoration(
+                                      color: Theme.of(context).colorScheme.primary,
+                                      shape: BoxShape.circle,
                                     ),
-                                    const SizedBox(width: 8),
-                                    const Text(
-                                      'HEALTHLINK',
-                                      style: TextStyle(
-                                        fontFamily: 'Inter',
-                                        fontSize: 12,
-                                        fontWeight: FontWeight.bold,
-                                        letterSpacing: -0.5,
-                                      ),
+                                    child: Icon(Icons.medical_services,
+                                        size: 14, color: Theme.of(context).colorScheme.onPrimary),
+                                  ),
+                                  const SizedBox(width: 8),
+                                  Text(
+                                    'HEALTHLINK',
+                                    style: TextStyle(
+                                      fontFamily: 'Inter',
+                                      fontSize: 13,
+                                      fontWeight: FontWeight.w900,
+                                      color: Theme.of(context).colorScheme.onSurface,
+                                      letterSpacing: 0.5,
                                     ),
-                                  ],
-                                ),
+                                  ),
+                                ],
                               ),
                             ),
                           ],
