@@ -51,6 +51,32 @@ class ApiConfig {
   /// GET /api/account/doctors/profile – Lấy profile của bác sĩ đang đăng nhập.
   static const String doctorProfile = '$baseUrl/account/doctors/profile';
 
+  // ── Doctor Auth Endpoints ────────────────────────────────────────────────
+  /// POST /api/account/doctors/auth/password/request-change – Yêu cầu đổi mật khẩu (gửi OTP)
+  static const String doctorRequestPasswordChange =
+      '$baseUrl/account/doctors/auth/password/request-change';
+
+  /// PUT /api/account/doctors/auth/password/change – Đổi mật khẩu với OTP
+  static const String doctorChangePassword =
+      '$baseUrl/account/doctors/auth/password/change';
+
+  // ── Doctor Wallet Endpoints ──────────────────────────────────────────────
+  /// GET /api/payment/partner/{doctorId}/balance?type=DOCTOR – Lấy số dư ví
+  static String doctorWalletBalance(String doctorId) =>
+      '$baseUrl/payment/partner/$doctorId/balance?type=DOCTOR';
+
+  /// GET /api/payment/partner/{doctorId}/transactions – Lấy lịch sử giao dịch
+  static String doctorTransactions(String doctorId) =>
+      '$baseUrl/payment/partner/$doctorId/transactions';
+
+  /// GET /api/payment/partner/{doctorId}/settlements – Lấy lịch sử rút tiền
+  static String doctorSettlements(String doctorId) =>
+      '$baseUrl/payment/partner/$doctorId/settlements';
+
+  /// POST /api/payment/partner/{doctorId}/settle?type=DOCTOR – Yêu cầu rút tiền
+  static String doctorSettle(String doctorId) =>
+      '$baseUrl/payment/partner/$doctorId/settle?type=DOCTOR';
+
   // ── Prescription Endpoints ────────────────────────────────────────────────
   static String prescriptionsByPatientId(String patientId) => '$baseUrl/prescriptions/patient/$patientId';
 
