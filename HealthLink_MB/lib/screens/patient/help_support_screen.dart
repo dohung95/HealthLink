@@ -15,7 +15,6 @@ class _HelpSupportScreenState extends State<HelpSupportScreen> {
   String _searchKeyword = '';
 
   static const String _supportEmail = 'support@healthlink.vn';
-  static const String _websiteUrl = 'https://www.healthlink.vn';
 
   final List<String> _categories = const [
     'All',
@@ -174,13 +173,6 @@ Thank you.
     );
   }
 
-  Future<void> _openWebsite() async {
-    await _launchExternalUri(
-      Uri.parse(_websiteUrl),
-      errorMessage: 'Unable to open the HealthLink website.',
-    );
-  }
-
   Future<void> _callEmergencyService() async {
     await _launchExternalUri(
       Uri(scheme: 'tel', path: '115'),
@@ -336,14 +328,6 @@ Thank you.
               onTap: _sendSupportEmail,
             ),
             const SizedBox(height: 10),
-
-            _buildContactCard(
-              context,
-              icon: Icons.language_outlined,
-              title: 'HealthLink Website',
-              subtitle: 'Visit our support website',
-              onTap: _openWebsite,
-            ),
 
             const SizedBox(height: 24),
             _buildPrivacyNotice(context),
