@@ -32,6 +32,9 @@ class _PharmacyRequestsScreenState extends State<PharmacyRequestsScreen> {
   Future<void> _loadRequests() async {
     final auth = context.read<AuthProvider>();
     if (auth.accessToken == null) return;
+    if (auth.pharmacyProfile == null) {
+      await auth.fetchProfile();
+    }
     final pharmacyId =
         auth.pharmacyProfile?['pharmacyId']?.toString() ?? auth.userId!;
     await context
@@ -89,10 +92,13 @@ class _PharmacyRequestsScreenState extends State<PharmacyRequestsScreen> {
           return ChoiceChip(
             label: Text(filter),
             selected: isSelected,
-            onSelected: (_) {
+            onSelected: (_) async {
               provider.setFilter(filter);
               final auth = context.read<AuthProvider>();
               if (auth.accessToken != null) {
+                if (auth.pharmacyProfile == null) {
+                  await auth.fetchProfile();
+                }
                 provider.fetchRequests(
                   auth.accessToken!,
                   auth.pharmacyProfile?['pharmacyId']?.toString() ??
