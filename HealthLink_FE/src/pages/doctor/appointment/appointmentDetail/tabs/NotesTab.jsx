@@ -1,9 +1,15 @@
 import React from 'react';
+import { CKEditor } from '@ckeditor/ckeditor5-react';
+import ClassicEditor from '@ckeditor/ckeditor5-build-classic';
 import '@components/Css/doctor/doctor-dashboard/doctor-dashboard.css';
+
+const editorConfig = {
+  placeholder: 'Enter details...',
+  toolbar: ['heading', '|', 'bold', 'italic', 'bulletedList', 'numberedList', '|', 'undo', 'redo'],
+};
 
 const ConsultationNotesTab = ({
   loadingAppointment,
-  visitReason,
   canEditClinical,
   savingNotes,
   notesDraft,
@@ -21,80 +27,71 @@ const ConsultationNotesTab = ({
     );
   }
 
+  const isDisabled = !canEditClinical || savingNotes;
+
+  const handleLockedAction = () => {
+    if (!canEditClinical && typeof onLockedAction === 'function') onLockedAction();
+  };
+
   return (
     <div className="doctor-notes-workspace doctor-notes-workspace--consultation">
-      <div className="doctor-notes-chief-card">
-        <div className="doctor-notes-chief-card__icon">
-          <i className="bi bi-chat-square-text"></i>
-        </div>
-        <div>
-          <p className="doctor-detail-eyebrow mb-1">Chief Complaint</p>
-          <p className={`doctor-notes-chief-card__text ${visitReason ? '' : 'doctor-notes-chief-card__text--empty'}`}>
-            {visitReason || 'The patient has not shared symptoms or a reason for this appointment yet.'}
-          </p>
-        </div>
-      </div>
-
-      <div className="doctor-notes-grid">
+      <div className="doctor-notes-content">
         <label className="doctor-notes-field">
           <span>Diagnosis</span>
-          <textarea
-            className="form-control doctor-prescription-input doctor-prescription-input--textarea"
-            readOnly={!canEditClinical || savingNotes}
-            onFocus={() => { if (!canEditClinical && typeof onLockedAction === 'function') onLockedAction(); }}
-            onClick={() => { if (!canEditClinical && typeof onLockedAction === 'function') onLockedAction(); }}
-            onChange={(event) => onNotesChange('diagnosis', event.target.value)}
-            placeholder="Enter the primary diagnosis..."
-            rows="2"
-            value={notesDraft.diagnosis}
-          />
+          <div onClick={handleLockedAction} onFocus={handleLockedAction}>
+            <CKEditor
+              editor={ClassicEditor}
+              data={notesDraft.diagnosis}
+              onChange={(event, editor) => onNotesChange('diagnosis', editor.getData())}
+              disabled={isDisabled}
+              config={editorConfig}
+            />
+          </div>
         </label>
 
         <label className="doctor-notes-field">
           <span>Doctor Notes</span>
-          <textarea
-            className="form-control doctor-prescription-input doctor-prescription-input--textarea"
-            readOnly={!canEditClinical || savingNotes}
-            onFocus={() => { if (!canEditClinical && typeof onLockedAction === 'function') onLockedAction(); }}
-            onClick={() => { if (!canEditClinical && typeof onLockedAction === 'function') onLockedAction(); }}
-            onChange={(event) => onNotesChange('doctorNotes', event.target.value)}
-            placeholder="Record observations, assessment, and consultation notes..."
-            rows="3"
-            value={notesDraft.doctorNotes}
-          />
+          <div onClick={handleLockedAction} onFocus={handleLockedAction}>
+            <CKEditor
+              editor={ClassicEditor}
+              data={notesDraft.doctorNotes}
+              onChange={(event, editor) => onNotesChange('doctorNotes', editor.getData())}
+              disabled={isDisabled}
+              config={editorConfig}
+            />
+          </div>
         </label>
 
-        <label className="doctor-notes-field doctor-notes-field--full">
+        <label className="doctor-notes-field">
           <span>Treatment Plan</span>
-          <textarea
-            className="form-control doctor-prescription-input doctor-prescription-input--textarea"
-            readOnly={!canEditClinical || savingNotes}
-            onFocus={() => { if (!canEditClinical && typeof onLockedAction === 'function') onLockedAction(); }}
-            onClick={() => { if (!canEditClinical && typeof onLockedAction === 'function') onLockedAction(); }}
-            onChange={(event) => onNotesChange('treatmentPlan', event.target.value)}
-            placeholder="Outline treatment plan, lifestyle guidance, and next steps..."
-            rows="3"
-            value={notesDraft.treatmentPlan}
-          />
+          <div onClick={handleLockedAction} onFocus={handleLockedAction}>
+            <CKEditor
+              editor={ClassicEditor}
+              data={notesDraft.treatmentPlan}
+              onChange={(event, editor) => onNotesChange('treatmentPlan', editor.getData())}
+              disabled={isDisabled}
+              config={editorConfig}
+            />
+          </div>
         </label>
-      </div>
 
-      <div className="doctor-notes-actions">
-        <button
-          className={`btn btn-primary ${!canEditClinical || savingNotes ? 'disabled' : ''}`}
-          aria-disabled={!canEditClinical || savingNotes}
-          onClick={() => {
-            if (!canEditClinical) {
-              if (typeof onLockedAction === 'function') onLockedAction();
-              return;
-            }
-            onSaveNotes();
-          }}
-          type="button"
-        >
-          <i className="bi bi-save me-2"></i>
-          {savingNotes ? 'Saving...' : 'Save Notes'}
-        </button>
+        <div className="doctor-notes-actions">
+          <button
+            className={`btn btn-primary ${isDisabled ? 'disabled' : ''}`}
+            aria-disabled={isDisabled}
+            onClick={() => {
+              if (!canEditClinical) {
+                if (typeof onLockedAction === 'function') onLockedAction();
+                return;
+              }
+              onSaveNotes();
+            }}
+            type="button"
+          >
+            <i className="bi bi-save me-2"></i>
+            {savingNotes ? 'Saving...' : 'Save Notes'}
+          </button>
+        </div>
       </div>
     </div>
   );

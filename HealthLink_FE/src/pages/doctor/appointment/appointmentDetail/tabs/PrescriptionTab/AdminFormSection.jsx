@@ -107,11 +107,7 @@ const PrescriptionReadonlyItem = ({ item, index }) => {
 
 export default function AdminFormSection({
   prescription,
-  diagnosis,
   patientName,
-  isWorkspaceReadOnly,
-  onDiagnosisChange,
-  onLockedAction,
 }) {
   if (prescription) {
     const issuedAtLabel = prescription?.issueDate
@@ -173,19 +169,5 @@ export default function AdminFormSection({
     );
   }
 
-  return (
-    <div className="doctor-detail-note-card doctor-prescription-diagnosis-card">
-      <p className="doctor-detail-note-card__label">Diagnosis Summary</p>
-      <textarea
-        className="form-control doctor-prescription-textarea"
-        readOnly={isWorkspaceReadOnly}
-        onFocus={() => { if (isWorkspaceReadOnly && typeof onLockedAction === 'function') onLockedAction(); }}
-        onClick={() => { if (isWorkspaceReadOnly && typeof onLockedAction === 'function') onLockedAction(); }}
-        rows="4"
-        placeholder="Enter primary diagnosis and relevant context for this prescription..."
-        value={diagnosis}
-        onChange={(event) => onDiagnosisChange(event.target.value)}
-      />
-    </div>
-  );
+  return null;
 }

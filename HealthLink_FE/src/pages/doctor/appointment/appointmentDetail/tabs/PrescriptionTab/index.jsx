@@ -1,10 +1,9 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { toast } from 'react-toastify';
 import { medicineApi } from '@api/medicineApi';
+import AdminFormSection from './AdminFormSection';
 import MedicationForm from './MedicationForm';
 import MedicineSearch from './MedicineSearch';
-import PrescriptionEditorModal from './PrescriptionConfirmModal';
-import AdminFormSection from './AdminFormSection';
 
 let rowCounter = 0;
 const createRowId = () => `row-${Date.now()}-${++rowCounter}`;
@@ -103,7 +102,6 @@ const hydrateMedicationRow = (row, medicine) => {
 const PrescriptionTab = ({
   appointment,
   patient,
-  consultation,
   prescription,
   loadingPrescription,
   onDraftChange,
@@ -115,17 +113,15 @@ const PrescriptionTab = ({
   const isWorkspaceReadOnly = readOnly || !canEditPrescription;
   const rowRefs = useRef({});
   const initializedAppointmentIdRef = useRef(null);
-  const [diagnosis, setDiagnosis] = useState('');
   const [medicationRows, setMedicationRows] = useState([]);
   const [medicines, setMedicines] = useState([]);
   const [loadingMedicines, setLoadingMedicines] = useState(false);
-  const [isLibraryOpen, setIsLibraryOpen] = useState(false);
   const [libraryQuery, setLibraryQuery] = useState('');
   const [showLibraryFilters, setShowLibraryFilters] = useState(false);
   const [libraryFilters, setLibraryFilters] = useState(createEmptyFilterState);
-  const [editorModalRowId, setEditorModalRowId] = useState(null);
   const [highlightedRowId, setHighlightedRowId] = useState(null);
   const [recentMedicineIds, setRecentMedicineIds] = useState([]);
+  const [activeDosageForm, setActiveDosageForm] = useState(null);
 
   useEffect(() => {
     const loadMedicines = async () => {
@@ -161,20 +157,16 @@ const PrescriptionTab = ({
 
     if (initializedAppointmentIdRef.current !== workspaceAppointmentId) {
       initializedAppointmentIdRef.current = workspaceAppointmentId;
-      setDiagnosis(consultation?.diagnosis ?? '');
       setMedicationRows([]);
-      setEditorModalRowId(null);
       setHighlightedRowId(null);
       setRecentMedicineIds([]);
-      setIsLibraryOpen(false);
       setLibraryQuery('');
       setShowLibraryFilters(false);
       setLibraryFilters(createEmptyFilterState());
       return;
     }
 
-    setDiagnosis((currentDiagnosis) => currentDiagnosis || consultation?.diagnosis || '');
-  }, [consultation?.diagnosis, prescription, workspaceAppointmentId]);
+  }, [prescription, workspaceAppointmentId]);
 
   useEffect(() => {
     if (!medicineMap.size) {
@@ -212,63 +204,17 @@ const PrescriptionTab = ({
 
     onDraftChange({
       appointmentId: workspaceAppointmentId,
-      diagnosis,
       medicationRows,
     });
-  }, [canEditPrescription, diagnosis, medicationRows, onDraftChange, prescription, workspaceAppointmentId]);
+  }, [canEditPrescription, medicationRows, onDraftChange, prescription, workspaceAppointmentId]);
 
   useEffect(() => {
     if (!isWorkspaceReadOnly) {
       return;
     }
 
-    setIsLibraryOpen(false);
     setShowLibraryFilters(false);
-    setEditorModalRowId(null);
   }, [isWorkspaceReadOnly]);
-
-  useEffect(() => {
-    if (!isLibraryOpen) {
-      return undefined;
-    }
-
-    const previousOverflow = document.body.style.overflow;
-    const handleEscape = (event) => {
-      if (event.key === 'Escape') {
-        setIsLibraryOpen(false);
-        setShowLibraryFilters(false);
-      }
-    };
-
-    document.body.style.overflow = 'hidden';
-    window.addEventListener('keydown', handleEscape);
-
-    return () => {
-      document.body.style.overflow = previousOverflow;
-      window.removeEventListener('keydown', handleEscape);
-    };
-  }, [isLibraryOpen]);
-
-  useEffect(() => {
-    if (!editorModalRowId) {
-      return undefined;
-    }
-
-    const previousOverflow = document.body.style.overflow;
-    const handleEscape = (event) => {
-      if (event.key === 'Escape') {
-        setEditorModalRowId(null);
-      }
-    };
-
-    document.body.style.overflow = 'hidden';
-    window.addEventListener('keydown', handleEscape);
-
-    return () => {
-      document.body.style.overflow = previousOverflow;
-      window.removeEventListener('keydown', handleEscape);
-    };
-  }, [editorModalRowId]);
 
   const recentMedicines = useMemo(
     () => recentMedicineIds.map((id) => medicineMap.get(id)).filter(Boolean),
@@ -277,11 +223,18 @@ const PrescriptionTab = ({
 
   const commonMedicines = useMemo(() => medicineOptions.slice(0, 4), [medicineOptions]);
 
+  const dosageForms = useMemo(() => {
+    const forms = new Set(
+      medicineOptions
+        .map((m) => m.dosageForm?.trim().toLowerCase())
+        .filter(Boolean),
+    );
+    forms.delete('tablet');
+    return Array.from(forms).sort();
+  }, [medicineOptions]);
+
   const filteredMedicines = useMemo(() => {
     const normalizedQuery = libraryQuery.trim().toLowerCase();
-    if (!normalizedQuery) {
-      return medicineOptions;
-    }
 
     const LIBRARY_FILTERS = [
       { key: 'brandName', label: 'Brand Name' },
@@ -295,19 +248,23 @@ const PrescriptionTab = ({
     );
 
     return medicineOptions.filter((medicine) => {
-      if (medicine.searchableText.includes(normalizedQuery)) {
+      if (activeDosageForm && medicine.dosageForm?.toLowerCase() !== activeDosageForm) {
+        return false;
+      }
+
+      if (!normalizedQuery) {
         return true;
       }
 
       if (!enabledKeys.length) {
-        return false;
+        return medicine.searchableText.includes(normalizedQuery);
       }
 
       return enabledKeys.some((key) =>
         String(medicine[key] || '').toLowerCase().includes(normalizedQuery),
       );
     });
-  }, [libraryFilters, libraryQuery, medicineOptions]);
+  }, [libraryFilters, libraryQuery, medicineOptions, activeDosageForm]);
 
   const selectedMedicineIds = useMemo(
     () => new Set(medicationRows.map((row) => row.medicineId).filter(Boolean)),
@@ -351,12 +308,6 @@ const PrescriptionTab = ({
 
     setLibraryQuery('');
     setShowLibraryFilters(false);
-    setIsLibraryOpen(true);
-  };
-
-  const closeMedicineLibrary = () => {
-    setIsLibraryOpen(false);
-    setShowLibraryFilters(false);
   };
 
   const handleSelectMedicine = (medicine) => {
@@ -365,43 +316,22 @@ const PrescriptionTab = ({
       return;
     }
 
-    let existingRowId = null;
-    let nextRowId = null;
-
     setMedicationRows((currentRows) => {
-      const existingRow = currentRows.find((row) => row.medicineId === medicine.medicineId);
-      if (existingRow) {
-        existingRowId = existingRow.id;
+      const existing = currentRows.find((r) => r.medicineId === medicine.medicineId);
+      if (existing) {
+        setTimeout(() => {
+          pulseRow(existing.id);
+          focusRow(existing.id);
+          toast.info('Medication already in prescription');
+        }, 0);
         return currentRows;
       }
-
-      const nextRow = createMedicationRowFromMedicine(medicine);
-      nextRowId = nextRow.id;
-      return [...currentRows, nextRow];
+      return [...currentRows, createMedicationRowFromMedicine(medicine)];
     });
 
-    setRecentMedicineIds((currentIds) => [
-      medicine.medicineId,
-      ...currentIds.filter((id) => id !== medicine.medicineId),
-    ].slice(0, 5));
-
-    closeMedicineLibrary();
-    setLibraryQuery('');
-
-    if (existingRowId) {
-      setEditorModalRowId(existingRowId);
-      pulseRow(existingRowId);
-      focusRow(existingRowId);
-      toast.info('This medication is already in the prescription');
-      return;
-    }
-
-    if (nextRowId) {
-      setEditorModalRowId(nextRowId);
-      pulseRow(nextRowId);
-      focusRow(nextRowId);
-      toast.success('Medication added to prescription');
-    }
+    setRecentMedicineIds((currentIds) =>
+      [medicine.medicineId, ...currentIds.filter((id) => id !== medicine.medicineId)].slice(0, 5)
+    );
   };
 
   const handleRemoveRow = (rowId) => {
@@ -411,7 +341,6 @@ const PrescriptionTab = ({
     }
 
     setMedicationRows((currentRows) => currentRows.filter((row) => row.id !== rowId));
-    setEditorModalRowId((currentId) => (currentId === rowId ? null : currentId));
     setHighlightedRowId((currentId) => (currentId === rowId ? null : currentId));
   };
 
@@ -480,67 +409,51 @@ const PrescriptionTab = ({
 
   return (
     <>
-      <div className="doctor-prescription-workspace">
-        <AdminFormSection
-          diagnosis={diagnosis}
-          isWorkspaceReadOnly={isWorkspaceReadOnly}
-          onDiagnosisChange={setDiagnosis}
-          onLockedAction={onLockedAction}
-        />
-
-        <div className="doctor-prescription-table-card">
-          <div className="doctor-prescription-table-card__header">
-            <div>
-              <p className="doctor-detail-eyebrow mb-1">Medications</p>
+      <div className="doctor-prescription-split">
+          <div className="doctor-prescription-split__left">
+            <MedicineSearch
+              isPanel={true}
+              commonMedicines={commonMedicines}
+              dosageForms={dosageForms}
+              activeDosageForm={activeDosageForm}
+              filteredMedicines={filteredMedicines}
+              filters={libraryFilters}
+              loading={loadingMedicines}
+              onClose={() => {}}
+              onDosageFormChange={setActiveDosageForm}
+              onQueryChange={setLibraryQuery}
+              onSelectMedicine={handleSelectMedicine}
+              onToggleFilter={(key) =>
+                setLibraryFilters((prev) => ({ ...prev, [key]: !prev[key] }))
+              }
+              onToggleFilters={() => setShowLibraryFilters((prev) => !prev)}
+              query={libraryQuery}
+              recentMedicines={recentMedicines}
+              selectedMedicineIds={selectedMedicineIds}
+              showFilters={showLibraryFilters}
+            />
+          </div>
+          <div className="doctor-prescription-split__right">
+            <div className="doctor-prescription-table-card">
+              <div className="doctor-prescription-table-card__header">
+                <p className="doctor-detail-eyebrow mb-1">
+                  Prescription ({medicationRows.length} items)
+                </p>
+              </div>
+              <MedicationForm
+                rows={medicationRows}
+                highlightedRowId={highlightedRowId}
+                isWorkspaceReadOnly={isWorkspaceReadOnly}
+                onRemove={handleRemoveRow}
+                onAdd={openMedicineLibrary}
+                rowRefs={rowRefs}
+                onRowChange={handleRowChange}
+                onTimingToggle={handleRowTimingToggle}
+              />
             </div>
           </div>
-
-          <MedicationForm
-            rows={medicationRows}
-            highlightedRowId={highlightedRowId}
-            isWorkspaceReadOnly={isWorkspaceReadOnly}
-            onEdit={setEditorModalRowId}
-            onRemove={handleRemoveRow}
-            onAdd={openMedicineLibrary}
-            rowRefs={rowRefs}
-          />
-        </div>
       </div>
-
-      {isLibraryOpen ? (
-        <MedicineSearch
-          commonMedicines={commonMedicines}
-          filteredMedicines={filteredMedicines}
-          filters={libraryFilters}
-          loading={loadingMedicines}
-          onClose={closeMedicineLibrary}
-          onQueryChange={setLibraryQuery}
-          onSelectMedicine={handleSelectMedicine}
-          onToggleFilter={(key) =>
-            setLibraryFilters((currentFilters) => ({
-              ...currentFilters,
-              [key]: !currentFilters[key],
-            }))
-          }
-          onToggleFilters={() => setShowLibraryFilters((currentValue) => !currentValue)}
-          query={libraryQuery}
-          recentMedicines={recentMedicines}
-          selectedMedicineIds={selectedMedicineIds}
-          showFilters={showLibraryFilters}
-        />
-      ) : null}
-
-      {editorModalRowId ? (
-        <PrescriptionEditorModal
-          readOnly={isWorkspaceReadOnly}
-          row={medicationRows.find((r) => r.id === editorModalRowId)}
-          onClose={() => setEditorModalRowId(null)}
-          onRowChange={handleRowChange}
-          onTimingToggle={handleRowTimingToggle}
-        />
-      ) : null}
-    </>
-  );
+    </>);
 };
 
 export default PrescriptionTab;

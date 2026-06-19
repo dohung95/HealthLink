@@ -130,14 +130,35 @@
    MAIN CONTENT AREA
    ============================================ */
 .doctor-main-area {
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  min-height: 0;
   transition: padding-left 0.2s ease;
 }
 
 .doctor-main-content {
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  flex: 1;
   padding: var(--doctor-padding-section) !important;
   padding-left: calc(var(--doctor-padding-section) + 0.25rem) !important;
-  min-height: calc(100dvh - var(--header-height));
   transition: padding 0.2s ease;
+}
+
+/* Detail views (appointment, patient) need a flex chain to constrain scrollable panels */
+.doctor-detail-wrapper {
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  min-height: 0;
+}
+.doctor-detail-wrapper > .doctor-content-section {
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  min-height: 0;
 }
 
 .doctor-content-section {
@@ -172,6 +193,8 @@
    VIEWPORT & SPACING UTILITIES
    ============================================ */
 .doctor-viewport {
+  display: flex;
+  flex-direction: column;
   min-height: 100dvh;
 }
 
