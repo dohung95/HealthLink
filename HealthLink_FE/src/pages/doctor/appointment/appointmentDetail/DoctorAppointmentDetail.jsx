@@ -19,6 +19,7 @@ import ActionBar from '@components/doctor/ActionBar';
 import CompleteConfirmModal from '@components/doctor/CompleteConfirmModal';
 
 const TABS = [
+  { id: 'summary', label: 'Summary', icon: 'bi-card-text' },
   { id: 'notes', label: 'Consultation Notes', icon: 'bi-journal-text' },
   { id: 'history', label: 'Medical History', icon: 'bi-clock-history' },
   { id: 'shared', label: 'Shared Records', icon: 'bi-folder2-open' },
@@ -48,42 +49,42 @@ const DoctorAppointmentDetail = memo(({ appointment, patient, doctorId, onBack, 
         </button>
       </div>
 
-      <div className="doctor-detail-columns">
-        <AppointmentSummary
-          currentAppointment={ctx.currentAppointment}
-          patient={ctx.patient}
-          patientName={ctx.patientName}
-          patientEmail={ctx.patientEmail}
-          getStatusClassName={getStatusClassName}
-          getTypeClassName={getTypeClassName}
-          formatCompactDate={formatCompactDate}
-          formatTime={formatTime}
-          calculateAge={calculateAge}
-          getPatientInitials={getPatientInitials}
-          loadingVitalSign={ctx.loadingVitalSign}
-          latestVitalSign={ctx.latestVitalSign}
-          visitReason={ctx.visitReason}
-        />
+      <section className="doctor-detail-card doctor-detail-workspace doctor-detail-workspace--full">
+        <div className="doctor-detail-tabs" role="tablist" aria-label="Appointment detail tabs">
+          {TABS.map((tab) => (
+            <button
+              key={tab.id}
+              className={`doctor-detail-tab ${ctx.activeTab === tab.id ? 'doctor-detail-tab--active' : ''}`}
+              onClick={() => ctx.setActiveTab(tab.id)}
+              type="button"
+              title={tab.label}
+              aria-label={tab.label}
+            >
+              <i className={`bi ${tab.icon}`}></i>
+              <span className="doctor-detail-tab__label">{tab.label}</span>
+            </button>
+          ))}
+        </div>
 
-        <section className="doctor-detail-card doctor-detail-workspace doctor-detail-workspace--full">
-          <div className="doctor-detail-tabs" role="tablist" aria-label="Appointment detail tabs">
-            {TABS.map((tab) => (
-              <button
-                key={tab.id}
-                className={`doctor-detail-tab ${ctx.activeTab === tab.id ? 'doctor-detail-tab--active' : ''}`}
-                onClick={() => ctx.setActiveTab(tab.id)}
-                type="button"
-                title={tab.label}
-                aria-label={tab.label}
-              >
-                <i className={`bi ${tab.icon}`}></i>
-                <span className="doctor-detail-tab__label">{tab.label}</span>
-              </button>
-            ))}
-          </div>
-
-          <div className="doctor-detail-tab-panel doctor-detail-tab-panel--workspace">
-            {ctx.activeTab === 'notes' ? (
+        <div className="doctor-detail-tab-panel doctor-detail-tab-panel--workspace">
+          {ctx.activeTab === 'summary' ? (
+            <AppointmentSummary
+              currentAppointment={ctx.currentAppointment}
+              patient={ctx.patient}
+              patientName={ctx.patientName}
+              patientEmail={ctx.patientEmail}
+              getStatusClassName={getStatusClassName}
+              getTypeClassName={getTypeClassName}
+              formatCompactDate={formatCompactDate}
+              formatTime={formatTime}
+              calculateAge={calculateAge}
+              getPatientInitials={getPatientInitials}
+              loadingVitalSign={ctx.loadingVitalSign}
+              latestVitalSign={ctx.latestVitalSign}
+              visitReason={ctx.visitReason}
+            />
+          ) : null}
+          {ctx.activeTab === 'notes' ? (
               <NotesTab
                 loadingAppointment={ctx.loadingAppointment}
                 visitReason={ctx.visitReason}
@@ -179,7 +180,6 @@ const DoctorAppointmentDetail = memo(({ appointment, patient, doctorId, onBack, 
             onLockedAction={ctx.onLockedAction}
           />
         </section>
-      </div>
 
       <CompleteConfirmModal
         show={ctx.showCompleteConfirmModal}

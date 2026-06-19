@@ -153,7 +153,7 @@ const DoctorLayout = memo(({
           onChangePassword={onChangePassword}
         />
         <main className="doctor-main-content p-3 pb-5 p-md-4">
-          <div className={`mx-auto ${currentNavItem?.wide || isDetailView ? '' : ''}`} style={{ maxWidth: currentNavItem?.wide || isDetailView ? '1400px' : '1120px' }}>
+          <div className={`mx-auto ${isDetailView ? 'doctor-detail-wrapper' : ''}`} style={{ maxWidth: isDetailView ? '1400px' : currentNavItem?.wide ? '1400px' : '1120px' }}>
             {children}
           </div>
         </main>

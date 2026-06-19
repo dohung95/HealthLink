@@ -1,11 +1,38 @@
 @import './_tokens.css';
 @import './doctor-bootstrap.css';
 @import './doctor-layout.css';
-@import './doctor-components.css';
-@import './doctor-appointments.css';
-@import './doctor-consultation.css';
-@import './doctor-prescriptions.css';
-@import './doctor-schedule.css';
 @import './doctor-patients.css';
 @import './doctor-shared-records.css';
-@import './doctor-wallet.css';
+
+/* Doctor components */
+@import './_comp-toolbar-cards.css';
+@import './_comp-elements.css';
+@import './_comp-compliance.css';
+@import './_comp-utilities.css';
+
+/* Appointments */
+@import './_appt-card.css';
+@import './_appt-timeline.css';
+@import './_appt-next-card.css';
+
+/* Consultation workspace */
+@import './_cons-summary.css';
+@import './_cons-vitals.css';
+@import './_cons-workspace.css';
+@import './_cons-notes-tab.css';
+@import './_cons-history-tab.css';
+
+/* Follow-up schedule (cleaned + fu compact redesign) */
+@import './doctor-followup-schedule.css';
+
+/* Prescriptions */
+@import './_prescriptions-master.css';
+@import './_prescriptions-detail.css';
+@import './_prescriptions-workspace.css';
+@import './_prescriptions-library.css';
+@import './_prescriptions-responsive.css';
+
+/* Schedule */
+@import './_schedule-tabs-days.css';
+@import './_schedule-calendar.css';
+@import './_schedule-exceptions.css';
