@@ -7,7 +7,6 @@ import { appointmentService } from '@api/appointmentApi';
 import 'bootstrap/dist/css/bootstrap.min.css';
 import '@components/Css/doctor/doctor-dashboard/doctor-dashboard.css';
 import DoctorAppointmentDetail from '@pages/doctor/appointment/appointmentDetail/DoctorAppointmentDetail';
-import DoctorPatientDetailView from '@pages/doctor/patient/DoctorPatientDetailView';
 import DoctorLayout from '@layouts/DoctorLayout';
 import { DoctorSkeletonPage } from '@components/doctor/DoctorSkeleton';
 import DoctorErrorState from '@components/doctor/DoctorErrorState';
@@ -58,38 +57,6 @@ export function DoctorAppointmentDetailRoute() {
       patient={patient}
       doctorId={doctorId}
       onBack={() => navigate('/doctor')}
-      onOpenAppointmentById={(id) => navigate(`/doctor/appointments/${id}`)}
-    />
-  );
-}
-
-export function DoctorPatientDetailRoute() {
-  const { patientId } = useParams();
-  const navigate = useNavigate();
-  const [patient, setPatient] = useState(null);
-
-  useEffect(() => {
-    let mounted = true;
-    const load = async () => {
-      try {
-        const data = await doctorService.getPatientById(patientId);
-        if (mounted) setPatient(data);
-      } catch (err) {
-        console.error('Error loading patient detail:', err);
-      }
-    };
-    if (patientId) load();
-    return () => { mounted = false; };
-  }, [patientId]);
-
-  if (!patient) {
-    return <DoctorSkeletonPage />;
-  }
-
-  return (
-    <DoctorPatientDetailView
-      patient={patient}
-      onBack={() => navigate('/doctor/patients')}
       onOpenAppointmentById={(id) => navigate(`/doctor/appointments/${id}`)}
     />
   );

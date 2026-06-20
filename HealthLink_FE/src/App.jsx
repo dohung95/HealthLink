@@ -61,7 +61,6 @@ import PatientPharmacyPage from './components/patient-dashboard/PatientPharmacyP
 
 import DoctorDashboardPage, {
   DoctorAppointmentDetailRoute,
-  DoctorPatientDetailRoute,
 } from './pages/doctor/DoctorDashboardPage';
 import DoctorAppointmentsView from './pages/doctor/appointment/DoctorAppointmentsView';
 import DoctorPatientsView from './pages/doctor/patient/DoctorPatientsView';
@@ -247,8 +246,10 @@ function AppContent() {
               <Route index element={<DoctorAppointmentsView />} />
               <Route path="appointments" element={<DoctorAppointmentsView />} />
               <Route path="appointments/:appointmentId" element={<DoctorAppointmentDetailRoute />} />
-              <Route path="patients" element={<DoctorPatientsView />} />
-              <Route path="patients/:patientId" element={<DoctorPatientDetailRoute />} />
+              <Route path="patients">
+                <Route index element={<DoctorPatientsView />} />
+                <Route path=":patientId" element={<DoctorPatientsView />} />
+              </Route>
               <Route path="prescriptions" element={<DoctorPrescriptionsView />} />
               <Route path="profile" element={<DoctorProfilePage />} />
               <Route path="schedule" element={<DoctorScheduleView />} />
