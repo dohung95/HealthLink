@@ -12,7 +12,6 @@ const DateTimeStep = ({
   onBack,
   onNext,
   doctorSchedules = [],
-  consultationType,
   maxDate,
 }) => {
   const [weekIndex, setWeekIndex] = useState(0);
@@ -48,30 +47,13 @@ const DateTimeStep = ({
     return date;
   };
 
-  const normalizeConsultationType = (value) => {
-    return String(value || '')
-      .trim()
-      .toLowerCase();
-  };
-
-  const isScheduleMatchedWithConsultationType = (schedule) => {
-    const scheduleType = normalizeConsultationType(schedule.consultationType);
-    const selectedType = normalizeConsultationType(consultationType);
-
-    // Backend đang hiểu null / blank là áp dụng cho mọi loại tư vấn
-    if (!scheduleType) return true;
-
-    return scheduleType === selectedType;
-  };
-
   const workingDaySet = useMemo(() => {
     return new Set(
       (doctorSchedules || [])
         .filter((schedule) => schedule.available !== false)
-        .filter(isScheduleMatchedWithConsultationType)
         .map((schedule) => Number(schedule.dayOfWeek))
     );
-  }, [doctorSchedules, consultationType]);
+  }, [doctorSchedules]);
 
   const shouldFilterByDoctorSchedule = true;
 
@@ -130,11 +112,11 @@ const DateTimeStep = ({
 
   const dateOptions = useMemo(() => {
     return buildWeekOptions(weekIndex);
-  }, [weekIndex, workingDaySet, shouldFilterByDoctorSchedule, maxDate, consultationType]);
+  }, [weekIndex, workingDaySet, shouldFilterByDoctorSchedule, maxDate]);
 
   const nextWeekOptions = useMemo(() => {
     return buildWeekOptions(weekIndex + 1);
-  }, [weekIndex, workingDaySet, shouldFilterByDoctorSchedule, maxDate, consultationType]);
+  }, [weekIndex, workingDaySet, shouldFilterByDoctorSchedule, maxDate]);
 
   const canGoPreviousWeek = weekIndex > 0;
   const canGoNextWeek = nextWeekOptions.length > 0;

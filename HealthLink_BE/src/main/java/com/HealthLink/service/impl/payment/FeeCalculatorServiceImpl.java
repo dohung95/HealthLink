@@ -39,7 +39,7 @@ public class FeeCalculatorServiceImpl implements FeeCalculatorService {
     // ── Các loại hình tư vấn thuộc nhóm ONLINE ──────────────────────────────
     private static final Set<String> ONLINE_TYPES = Set.of(
             "Video", "Audio", "Chat", "VIDEO", "AUDIO", "CHAT",
-            "video", "audio", "chat"
+            "video", "audio", "chat", "Online", "ONLINE", "Consultation", "CONSULTATION"
     );
 
     // ── ServiceType keys tra bảng CommissionConfigs ──────────────────────────

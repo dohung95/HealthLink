@@ -1,7 +1,6 @@
 const ConfirmStep = ({
     selectedDoctor,
     selectedSpecialty,
-    consultationType,
     selectedSlot,
     symptoms,
     files,
@@ -17,7 +16,6 @@ const ConfirmStep = ({
     const rows = [
         ['Doctor', selectedDoctor?.fullName || ''],
         ['Specialty', selectedSpecialty || selectedDoctor?.specialtyName || ''],
-        ['Consultation Type', consultationType],
         ['Date & Time', formattedDateTime],
         ['Symptoms', symptoms || 'None'],
         ['Attached files', files.length > 0 ? `${files.length} file` : 'None'],

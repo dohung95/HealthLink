@@ -78,6 +78,9 @@ public class AppointmentServiceImpl implements AppointmentService {
     @Transactional
     public AppointmentResponse createAppointment(AppointmentRequest request) {
         validateRequest(request);
+        request.setConsultationType(
+                normalizeConsultationTypeForBooking(request.getConsultationType())
+        );
 
         Patient patient = patientRepository.findById(request.getPatientId())
                 .orElseThrow(() -> new ResourceNotFoundException(
@@ -170,6 +173,7 @@ public class AppointmentServiceImpl implements AppointmentService {
     @Override
     public AvailableSlotsResponse getAvailableSlots(String doctorId, LocalDate date, String consultationType) {
         validateBookingDate(date);
+        consultationType = normalizeConsultationTypeForBooking(consultationType);
 
         // Check for schedule exceptions on this date
         java.util.Optional<DoctorScheduleException> exceptionOpt = exceptionRepository
@@ -348,6 +352,10 @@ public class AppointmentServiceImpl implements AppointmentService {
         }
 
         validateBookingDate(request.getAppointmentTime().toLocalDate());
+
+        request.setConsultationType(
+                normalizeConsultationTypeForBooking(request.getConsultationType())
+        );
 
         Doctor doctor = doctorRepository.findById(request.getDoctorId())
                 .orElseThrow(() -> new ResourceNotFoundException(
@@ -696,33 +704,41 @@ public class AppointmentServiceImpl implements AppointmentService {
     }
 
     private void checkConsultationTypeSupported(Doctor doctor, String consultationType) {
-        boolean supported = switch (consultationType.toLowerCase()) {
-            case "video" ->
-                doctor.isAvailableForVideo();
-            case "audio" ->
-                doctor.isAvailableForAudio();
-            case "chat" ->
-                doctor.isAvailableForChat();
+        String normalizedType = normalizeConsultationTypeForBooking(consultationType);
+
+        boolean supported = switch (normalizedType.toLowerCase()) {
+            case "online" ->
+                doctor.isAvailableForVideo()
+                || doctor.isAvailableForAudio()
+                || doctor.isAvailableForChat();
+
             case "offline" ->
                 doctor.isAvailableForOffline();
+
             default ->
-                throw new BusinessException(
-                        "Invalid consultation type: '" + consultationType
-                        + "'. Must be: Video, Audio, Chat, Offline");
+                true;
         };
 
         if (!supported) {
             throw new BusinessException(
                     "Doctor " + doctor.getFullName()
-                    + " does not support consultation type: " + consultationType);
+                    + " does not support consultation type: " + normalizedType);
         }
     }
 
     private boolean isConsultationTypeMatch(DoctorSchedule schedule, String consultationType) {
-        if (schedule.getConsultationType() == null || schedule.getConsultationType().isBlank()) {
-            return true;
+        String normalizedType = normalizeConsultationTypeForBooking(consultationType);
+        String scheduleType = schedule.getConsultationType();
+
+        if (TYPE_ONLINE.equalsIgnoreCase(normalizedType)) {
+            return isOnlineScheduleType(scheduleType);
         }
-        return schedule.getConsultationType().equalsIgnoreCase(consultationType);
+
+        if (TYPE_OFFLINE.equalsIgnoreCase(normalizedType)) {
+            return isOfflineScheduleType(scheduleType);
+        }
+
+        return true;
     }
 
     private boolean isAlignedWithSlot(DoctorSchedule schedule, LocalTime requestedTime) {
@@ -927,5 +943,53 @@ public class AppointmentServiceImpl implements AppointmentService {
     private String getDayName(int dayOfWeek) {
         String[] names = {"Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"};
         return (dayOfWeek >= 0 && dayOfWeek < names.length) ? names[dayOfWeek] : "unknown";
+    }
+
+    private static final String TYPE_ONLINE = "Online";
+    private static final String TYPE_OFFLINE = "Offline";
+
+    private String normalizeConsultationTypeForBooking(String consultationType) {
+        if (consultationType == null || consultationType.isBlank()) {
+            return TYPE_ONLINE;
+        }
+
+        String value = consultationType.trim().toLowerCase();
+
+        return switch (value) {
+            case "video", "video call", "audio", "audio call", "chat", "online", "consultation" ->
+                TYPE_ONLINE;
+            case "offline", "in-person", "in person" ->
+                TYPE_OFFLINE;
+            default ->
+                TYPE_ONLINE;
+        };
+    }
+
+    private boolean isOnlineScheduleType(String value) {
+        if (value == null || value.isBlank()) {
+            return true;
+        }
+
+        String type = value.trim().toLowerCase();
+
+        return type.equals("video")
+                || type.equals("video call")
+                || type.equals("audio")
+                || type.equals("audio call")
+                || type.equals("chat")
+                || type.equals("online")
+                || type.equals("consultation");
+    }
+
+    private boolean isOfflineScheduleType(String value) {
+        if (value == null || value.isBlank()) {
+            return true;
+        }
+
+        String type = value.trim().toLowerCase();
+
+        return type.equals("offline")
+                || type.equals("in-person")
+                || type.equals("in person");
     }
 }

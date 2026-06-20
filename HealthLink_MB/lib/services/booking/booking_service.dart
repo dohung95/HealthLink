@@ -10,16 +10,17 @@ class BookingService {
   final String accessToken;
 
   Map<String, String> get _headers => {
-        'Authorization': 'Bearer $accessToken',
-        'Accept': 'application/json',
-        'Content-Type': 'application/json',
-      };
+    'Authorization': 'Bearer $accessToken',
+    'Accept': 'application/json',
+    'Content-Type': 'application/json',
+  };
 
   static String parseError(http.Response response, String fallback) {
     try {
       final data = jsonDecode(response.body);
       if (data is Map<String, dynamic>) {
-        return (data['message'] ?? data['Message'] ?? data['title'] ?? fallback).toString();
+        return (data['message'] ?? data['Message'] ?? data['title'] ?? fallback)
+            .toString();
       }
     } catch (_) {
       // Giu nguyen fallback neu backend khong tra JSON.
@@ -42,7 +43,11 @@ class BookingService {
     return data
         .map((item) {
           if (item is Map<String, dynamic>) {
-            return (item['name'] ?? item['specialtyName'] ?? item['specialty'] ?? '').toString();
+            return (item['name'] ??
+                    item['specialtyName'] ??
+                    item['specialty'] ??
+                    '')
+                .toString();
           }
           return item.toString();
         })
@@ -54,7 +59,10 @@ class BookingService {
 
   Future<BookingDoctor> getDoctorById(String doctorId) async {
     final response = await http
-        .get(Uri.parse(ApiConfig.doctorPublicProfile(doctorId)), headers: _headers)
+        .get(
+          Uri.parse(ApiConfig.doctorPublicProfile(doctorId)),
+          headers: _headers,
+        )
         .timeout(ApiConfig.connectTimeout);
 
     if (response.statusCode != 200) {
@@ -80,13 +88,17 @@ class BookingService {
       queryParameters: {
         'page': '$page',
         'pageSize': '$pageSize',
-        if (specialty != null && specialty.trim().isNotEmpty) 'specialty': specialty.trim(),
+        if (specialty != null && specialty.trim().isNotEmpty)
+          'specialty': specialty.trim(),
         if (name != null && name.trim().isNotEmpty) 'name': name.trim(),
-        if (location != null && location.trim().isNotEmpty) 'location': location.trim(),
+        if (location != null && location.trim().isNotEmpty)
+          'location': location.trim(),
       },
     );
 
-    final response = await http.get(uri, headers: _headers).timeout(ApiConfig.connectTimeout);
+    final response = await http
+        .get(uri, headers: _headers)
+        .timeout(ApiConfig.connectTimeout);
 
     if (response.statusCode != 200) {
       throw Exception(parseError(response, 'Can not load doctors.'));
@@ -94,7 +106,9 @@ class BookingService {
 
     final data = jsonDecode(response.body);
     if (data is Map<String, dynamic>) {
-      final rawItems = (data['items'] ?? data['content'] ?? data['data'] ?? []) as List? ?? [];
+      final rawItems =
+          (data['items'] ?? data['content'] ?? data['data'] ?? []) as List? ??
+          [];
       return PagedDoctors(
         items: rawItems
             .whereType<Map<String, dynamic>>()
@@ -104,7 +118,10 @@ class BookingService {
         page: _toInt(data['page'], page),
         pageSize: _toInt(data['pageSize'] ?? data['size'], pageSize),
         totalPages: _toInt(data['totalPages'], 1),
-        totalItems: _toInt(data['totalItems'] ?? data['totalElements'], rawItems.length),
+        totalItems: _toInt(
+          data['totalItems'] ?? data['totalElements'],
+          rawItems.length,
+        ),
       );
     }
 
@@ -129,17 +146,20 @@ class BookingService {
   Future<AvailableSlotsResult> getAvailableSlots({
     required String doctorId,
     required String date,
-    required String consultationType,
+    String? consultationType,
   }) async {
     final uri = Uri.parse(ApiConfig.availableSlots).replace(
       queryParameters: {
         'doctorId': doctorId,
         'date': date,
-        'consultationType': consultationType,
+        if (consultationType != null && consultationType.trim().isNotEmpty)
+          'consultationType': consultationType,
       },
     );
 
-    final response = await http.get(uri, headers: _headers).timeout(ApiConfig.connectTimeout);
+    final response = await http
+        .get(uri, headers: _headers)
+        .timeout(ApiConfig.connectTimeout);
 
     if (response.statusCode != 200) {
       throw Exception(parseError(response, 'Can not load available slots.'));
@@ -151,7 +171,10 @@ class BookingService {
       doctorId: (data['doctorId'] ?? doctorId).toString(),
       date: (data['date'] ?? date).toString(),
       bookingWindowDays: _toInt(data['bookingWindowDays'], 30),
-      slots: rawSlots.whereType<Map<String, dynamic>>().map(BookingSlot.fromJson).toList(),
+      slots: rawSlots
+          .whereType<Map<String, dynamic>>()
+          .map(BookingSlot.fromJson)
+          .toList(),
     );
   }
 
@@ -159,7 +182,7 @@ class BookingService {
     required String doctorId,
     required String patientId,
     required String appointmentTime,
-    required String consultationType,
+    String? consultationType,
   }) async {
     final response = await http
         .post(
@@ -169,7 +192,8 @@ class BookingService {
             'doctorId': doctorId,
             'patientId': patientId,
             'appointmentTime': appointmentTime,
-            'consultationType': consultationType,
+            if (consultationType != null && consultationType.trim().isNotEmpty)
+              'consultationType': consultationType,
           }),
         )
         .timeout(ApiConfig.connectTimeout);
@@ -230,11 +254,9 @@ class BookingService {
     required String description,
     required String documentDate,
   }) async {
-    final uri = Uri.parse(ApiConfig.healthRecordAutoDocument).replace(
-      queryParameters: {
-        'patientId': patientId,
-      },
-    );
+    final uri = Uri.parse(
+      ApiConfig.healthRecordAutoDocument,
+    ).replace(queryParameters: {'patientId': patientId});
 
     final request = http.MultipartRequest('POST', uri);
 
@@ -248,23 +270,18 @@ class BookingService {
     request.fields['documentDate'] = documentDate;
 
     if (file.path != null) {
-      request.files.add(
-        await http.MultipartFile.fromPath('file', file.path!),
-      );
+      request.files.add(await http.MultipartFile.fromPath('file', file.path!));
     } else if (file.bytes != null) {
       request.files.add(
-        http.MultipartFile.fromBytes(
-          'file',
-          file.bytes!,
-          filename: file.name,
-        ),
+        http.MultipartFile.fromBytes('file', file.bytes!, filename: file.name),
       );
     } else {
       throw Exception('Can not read selected file.');
     }
 
-    final streamedResponse =
-    await request.send().timeout(ApiConfig.receiveTimeout);
+    final streamedResponse = await request.send().timeout(
+      ApiConfig.receiveTimeout,
+    );
 
     final response = await http.Response.fromStream(streamedResponse);
 
@@ -283,29 +300,29 @@ class BookingService {
     required List<int> documentIds,
     int? appointmentId,
   }) async {
-    final uri = Uri.parse(ApiConfig.shareHealthRecord(recordId)).replace(
-      queryParameters: {
-        'patientId': patientId,
-      },
-    );
+    final uri = Uri.parse(
+      ApiConfig.shareHealthRecord(recordId),
+    ).replace(queryParameters: {'patientId': patientId});
 
     final response = await http
         .post(
-      uri,
-      headers: _headers,
-      body: jsonEncode({
-        'doctorId': doctorId,
-        'permissionLevel': 'View',
-        'expiryDate': null,
-        'sharedDocumentIds': documentIds,
-        'allowMerge': true,
-        'appointmentId': appointmentId,
-      }),
-    )
+          uri,
+          headers: _headers,
+          body: jsonEncode({
+            'doctorId': doctorId,
+            'permissionLevel': 'View',
+            'expiryDate': null,
+            'sharedDocumentIds': documentIds,
+            'allowMerge': true,
+            'appointmentId': appointmentId,
+          }),
+        )
         .timeout(ApiConfig.connectTimeout);
 
     if (response.statusCode != 200 && response.statusCode != 201) {
-      throw Exception(parseError(response, 'Can not share document with doctor.'));
+      throw Exception(
+        parseError(response, 'Can not share document with doctor.'),
+      );
     }
   }
 
@@ -313,25 +330,26 @@ class BookingService {
     required String patientId,
     required String doctorId,
     required String appointmentTime,
-    required String consultationType,
+    String? consultationType,
     required String symptoms,
     String notes = '',
     String currency = 'USD',
   }) async {
     final response = await http
         .post(
-      Uri.parse(ApiConfig.createAppointmentPayPalOrder),
-      headers: _headers,
-      body: jsonEncode({
-        'patientId': patientId,
-        'doctorId': doctorId,
-        'appointmentTime': appointmentTime,
-        'consultationType': consultationType,
-        'symptoms': symptoms,
-        'notes': notes,
-        'currency': currency,
-      }),
-    )
+          Uri.parse(ApiConfig.createAppointmentPayPalOrder),
+          headers: _headers,
+          body: jsonEncode({
+            'patientId': patientId,
+            'doctorId': doctorId,
+            'appointmentTime': appointmentTime,
+            if (consultationType != null && consultationType.trim().isNotEmpty)
+              'consultationType': consultationType,
+            'symptoms': symptoms,
+            'notes': notes,
+            'currency': currency,
+          }),
+        )
         .timeout(ApiConfig.connectTimeout);
 
     if (response.statusCode != 200) {
@@ -346,7 +364,7 @@ class BookingService {
     required String patientId,
     required String doctorId,
     required String appointmentTime,
-    required String consultationType,
+    String? consultationType,
     required String symptoms,
     String notes = '',
     String paymentMethod = 'EWallet',
@@ -354,20 +372,21 @@ class BookingService {
   }) async {
     final response = await http
         .post(
-      Uri.parse(ApiConfig.captureAppointmentPayPalPayment),
-      headers: _headers,
-      body: jsonEncode({
-        'orderId': orderId,
-        'patientId': patientId,
-        'doctorId': doctorId,
-        'appointmentTime': appointmentTime,
-        'consultationType': consultationType,
-        'symptoms': symptoms,
-        'notes': notes,
-        'paymentMethod': paymentMethod,
-        'currency': currency,
-      }),
-    )
+          Uri.parse(ApiConfig.captureAppointmentPayPalPayment),
+          headers: _headers,
+          body: jsonEncode({
+            'orderId': orderId,
+            'patientId': patientId,
+            'doctorId': doctorId,
+            'appointmentTime': appointmentTime,
+            if (consultationType != null && consultationType.trim().isNotEmpty)
+              'consultationType': consultationType,
+            'symptoms': symptoms,
+            'notes': notes,
+            'paymentMethod': paymentMethod,
+            'currency': currency,
+          }),
+        )
         .timeout(ApiConfig.connectTimeout);
 
     if (response.statusCode != 200) {
@@ -377,12 +396,11 @@ class BookingService {
     return jsonDecode(response.body) as Map<String, dynamic>;
   }
 
-  Future<List<DoctorWorkingSchedule>> getDoctorSchedules(String doctorId) async {
+  Future<List<DoctorWorkingSchedule>> getDoctorSchedules(
+    String doctorId,
+  ) async {
     final response = await http
-        .get(
-      Uri.parse(ApiConfig.doctorSchedules(doctorId)),
-      headers: _headers,
-    )
+        .get(Uri.parse(ApiConfig.doctorSchedules(doctorId)), headers: _headers)
         .timeout(ApiConfig.connectTimeout);
 
     if (response.statusCode != 200) {
@@ -413,12 +431,12 @@ class PagedDoctors {
   });
 
   factory PagedDoctors.empty() => PagedDoctors(
-        items: const [],
-        page: 1,
-        pageSize: 10,
-        totalPages: 1,
-        totalItems: 0,
-      );
+    items: const [],
+    page: 1,
+    pageSize: 10,
+    totalPages: 1,
+    totalItems: 0,
+  );
 
   final List<BookingDoctor> items;
   final int page;
@@ -444,15 +462,24 @@ class BookingDoctor {
   });
 
   factory BookingDoctor.fromJson(Map<String, dynamic> json) {
-    final types = (json['availableTypes'] as List?)?.map((item) => item.toString()).toList() ?? const <String>[];
+    final types =
+        (json['availableTypes'] as List?)
+            ?.map((item) => item.toString())
+            .toList() ??
+        const <String>[];
     return BookingDoctor(
-      doctorId: (json['doctorId'] ?? json['doctorID'] ?? json['id'] ?? '').toString(),
-      fullName: (json['fullName'] ?? json['name'] ?? 'Unknown Doctor').toString(),
-      specialtyName: (json['specialtyName'] ?? json['specialty'] ?? '').toString(),
+      doctorId: (json['doctorId'] ?? json['doctorID'] ?? json['id'] ?? '')
+          .toString(),
+      fullName: (json['fullName'] ?? json['name'] ?? 'Unknown Doctor')
+          .toString(),
+      specialtyName: (json['specialtyName'] ?? json['specialty'] ?? '')
+          .toString(),
       yearsOfExperience: _toInt(json['yearsOfExperience'], 0),
-      languageSpoken: (json['languageSpoken'] ?? json['languages'] ?? '').toString(),
+      languageSpoken: (json['languageSpoken'] ?? json['languages'] ?? '')
+          .toString(),
       location: (json['location'] ?? '').toString(),
-      avatarUrl: ApiConfig.normalizeUrl((json['avatarUrl'] ?? '').toString()) ?? '',
+      avatarUrl:
+          ApiConfig.normalizeUrl((json['avatarUrl'] ?? '').toString()) ?? '',
       bio: (json['bio'] ?? json['description'] ?? '').toString(),
       consultationFee: _toDouble(json['consultationFee'] ?? json['fee'], 0),
       averageRating: _toDouble(json['averageRating'], 0),
@@ -475,12 +502,16 @@ class BookingDoctor {
   final List<String> availableTypes;
 
   String get initials {
-    final parts = fullName.trim().split(RegExp(r'\s+')).where((part) => part.isNotEmpty).toList();
+    final parts = fullName
+        .trim()
+        .split(RegExp(r'\s+'))
+        .where((part) => part.isNotEmpty)
+        .toList();
     if (parts.isEmpty) return 'DR';
     if (parts.length == 1) return parts.first.substring(0, 1).toUpperCase();
-    return '${parts.first.substring(0, 1)}${parts.last.substring(0, 1)}'.toUpperCase();
+    return '${parts.first.substring(0, 1)}${parts.last.substring(0, 1)}'
+        .toUpperCase();
   }
-
 }
 
 class AvailableSlotsResult {
@@ -507,11 +538,11 @@ class BookingSlot {
   });
 
   factory BookingSlot.fromJson(Map<String, dynamic> json) => BookingSlot(
-        startTime: (json['startTime'] ?? '').toString(),
-        endTime: (json['endTime'] ?? '').toString(),
-        status: (json['status'] ?? '').toString(),
-        selectable: json['selectable'] == true,
-      );
+    startTime: (json['startTime'] ?? '').toString(),
+    endTime: (json['endTime'] ?? '').toString(),
+    status: (json['status'] ?? '').toString(),
+    selectable: json['selectable'] == true,
+  );
 
   final String startTime;
   final String endTime;
@@ -519,7 +550,12 @@ class BookingSlot {
   final bool selectable;
   final int? holdId;
 
-  BookingSlot copyWith({String? status, bool? selectable, int? holdId, bool clearHold = false}) {
+  BookingSlot copyWith({
+    String? status,
+    bool? selectable,
+    int? holdId,
+    bool clearHold = false,
+  }) {
     return BookingSlot(
       startTime: startTime,
       endTime: endTime,
@@ -531,13 +567,17 @@ class BookingSlot {
 }
 
 class SlotHold {
-  SlotHold({required this.holdId, required this.expiresAt, required this.status});
+  SlotHold({
+    required this.holdId,
+    required this.expiresAt,
+    required this.status,
+  });
 
   factory SlotHold.fromJson(Map<String, dynamic> json) => SlotHold(
-        holdId: _toInt(json['holdId'], 0),
-        expiresAt: (json['expiresAt'] ?? '').toString(),
-        status: (json['status'] ?? '').toString(),
-      );
+    holdId: _toInt(json['holdId'], 0),
+    expiresAt: (json['expiresAt'] ?? '').toString(),
+    status: (json['status'] ?? '').toString(),
+  );
 
   final int holdId;
   final String expiresAt;

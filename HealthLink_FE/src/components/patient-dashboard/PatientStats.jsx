@@ -36,12 +36,24 @@ const PatientStats = () => {
                 // Lọc các lịch hẹn sắp tới (status: Scheduled)
                 const now = new Date();
 
-                const upcomingCount = appointments.status === 'fulfilled'
-                    ? (Array.isArray(appointments.value) ? appointments.value : []).filter((a) =>
-                        (a.status === 'Scheduled' || a.status === 'Confirmed') &&
+                const appointmentList = appointments.status === 'fulfilled'
+                    ? Array.isArray(appointments.value)
+                        ? appointments.value
+                        : Array.isArray(appointments.value?.items)
+                            ? appointments.value.items
+                            : Array.isArray(appointments.value?.content)
+                                ? appointments.value.content
+                                : []
+                    : [];
+
+                const upcomingCount = appointmentList.filter((a) => {
+                    const status = String(a.status || '').trim().toLowerCase();
+
+                    return (
+                        (status === 'scheduled' || status === 'confirmed') &&
                         new Date(a.appointmentTime) >= now
-                    ).length
-                    : 0;
+                    );
+                }).length;
 
                 const recordsCount = records.status === 'fulfilled'
                     ? records.value?.totalItems ?? 0

@@ -44,11 +44,23 @@ const QuickActions = () => {
                 const now = new Date();
 
                 // 3. Chỉ giữ các lịch còn ở tương lai và còn hiệu lực
-                const upcoming = (Array.isArray(data) ? data : [])
-                    .filter((a) =>
-                        (a.status === 'Scheduled' || a.status === 'Confirmed') &&
-                        new Date(a.appointmentTime) >= now
-                    )
+                const appointmentList = Array.isArray(data)
+                    ? data
+                    : Array.isArray(data?.items)
+                        ? data.items
+                        : Array.isArray(data?.content)
+                            ? data.content
+                            : [];
+
+                const upcoming = appointmentList
+                    .filter((a) => {
+                        const status = String(a.status || '').trim().toLowerCase();
+
+                        return (
+                            (status === 'scheduled' || status === 'confirmed') &&
+                            new Date(a.appointmentTime) >= now
+                        );
+                    })
                     .sort((a, b) => new Date(a.appointmentTime) - new Date(b.appointmentTime))
                     .slice(0, 5);
 
@@ -151,7 +163,7 @@ const QuickActions = () => {
                                     </div>
 
                                     <span className="appt-mini-badge">
-                                        {a.consultationType || 'Offline'}
+                                        {a.consultationType || 'Online'}
                                     </span>
                                 </div>
                             ))}
