@@ -24,7 +24,6 @@ public class AppointmentPayPalOrderRequest {
     @NotNull(message = "appointmentTime is required")
     private LocalDateTime appointmentTime;
 
-    @NotBlank(message = "consultationType is required")
     private String consultationType;
 
     private String symptoms;

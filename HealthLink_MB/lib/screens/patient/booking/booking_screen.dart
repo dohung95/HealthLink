@@ -3,7 +3,6 @@ import 'package:provider/provider.dart';
 import 'package:file_picker/file_picker.dart';
 import '../../../providers/auth_provider.dart';
 import '../../../services/booking/booking_service.dart';
-import '../../../config/api_config.dart';
 import 'dart:async';
 import 'package:app_links/app_links.dart';
 import 'package:url_launcher/url_launcher.dart';
@@ -21,13 +20,11 @@ class _BookingScreenState extends State<BookingScreen> {
   static const _steps = [
     'Specialty',
     'Doctor',
-    'Type',
     'Date & Time',
     'Medical Info',
     'Confirm',
     'Payment',
   ];
-  static const _fallbackTypes = ['Video', 'Chat', 'Audio', 'Offline'];
 
   final _searchCtrl = TextEditingController();
   final _symptomsCtrl = TextEditingController();
@@ -38,6 +35,7 @@ class _BookingScreenState extends State<BookingScreen> {
   int _doctorPage = 1;
   int _totalDoctorPages = 1;
   int _bookingWindowDays = 30;
+  int _weekIndex = 0;
 
   bool _loading = true;
   bool _loadingDoctors = false;
@@ -47,7 +45,6 @@ class _BookingScreenState extends State<BookingScreen> {
   String? _error;
   String? _selectedSpecialty;
   BookingDoctor? _selectedDoctor;
-  String? _selectedType;
   DateTime _selectedDate = DateTime.now();
   BookingSlot? _selectedSlot;
 
@@ -115,7 +112,7 @@ class _BookingScreenState extends State<BookingScreen> {
             _selectedSpecialty = doctor.specialtyName;
             _doctors = [doctor]; // Ensure Step 1 is not empty
             _doctorSchedules = schedules;
-            _step = 2; // Jump to Consultation Type selection
+            _step = 2; // Jump to Date & Time
             _loading = false;
           });
         } else {
@@ -173,8 +170,7 @@ class _BookingScreenState extends State<BookingScreen> {
   }
 
   Future<void> _loadSlots() async {
-    if (_service == null || _selectedDoctor == null || _selectedType == null)
-      return;
+    if (_service == null || _selectedDoctor == null) return;
 
     setState(() {
       _loadingSlots = true;
@@ -187,7 +183,6 @@ class _BookingScreenState extends State<BookingScreen> {
       final result = await _service!.getAvailableSlots(
         doctorId: _selectedDoctor!.doctorId,
         date: _formatDate(_selectedDate),
-        consultationType: _selectedType!,
       );
       if (!mounted) return;
       setState(() {
@@ -202,7 +197,7 @@ class _BookingScreenState extends State<BookingScreen> {
   }
 
   Future<void> _selectSlot(BookingSlot slot) async {
-    if (_service == null || _selectedDoctor == null || _selectedType == null) {
+    if (_service == null || _selectedDoctor == null) {
       return;
     }
 
@@ -268,7 +263,6 @@ class _BookingScreenState extends State<BookingScreen> {
         doctorId: _selectedDoctor!.doctorId,
         patientId: patientId,
         appointmentTime: _appointmentDateTime(_selectedDate, slot.startTime),
-        consultationType: _selectedType!,
       );
 
       if (!mounted) return;
@@ -344,7 +338,7 @@ class _BookingScreenState extends State<BookingScreen> {
 
   Future<void> _next() async {
     if (!_validateCurrentStep()) return;
-    if (_step == 2) await _loadSlots();
+    if (_step == 1) await _loadSlots();
     setState(() => _step = (_step + 1).clamp(0, _steps.length - 1).toInt());
   }
 
@@ -352,7 +346,7 @@ class _BookingScreenState extends State<BookingScreen> {
     if (_step == 0) return;
 
     // Neu quay lai tu buoc Medical Info, giai phong slot dang hold giong web.
-    if (_step == 4 && _selectedSlot != null) {
+    if (_step == 3 && _selectedSlot != null) {
       final start = _selectedSlot!.startTime;
       await _releaseHoldSilently();
       if (mounted) _markSlotAvailable(start);
@@ -364,20 +358,33 @@ class _BookingScreenState extends State<BookingScreen> {
 
   bool _validateCurrentStep() {
     if (_step == 0) {
-      if (_selectedSpecialty == null) return _warn('Please select a specialty.');
+      if (_selectedSpecialty == null) {
+        return _warn('Please select a specialty.');
+      }
     } else if (_step == 1) {
-      if (_selectedDoctor == null) return _warn('Please select a doctor.');
-      if (_doctorSchedules.isEmpty) return _warn('This doctor has no working schedule yet. Please choose another doctor.');
+      if (_selectedDoctor == null) {
+        return _warn('Please select a doctor.');
+      }
+
+      if (_doctorSchedules.isEmpty) {
+        return _warn(
+          'This doctor has no working schedule yet. Please choose another doctor.',
+        );
+      }
     } else if (_step == 2) {
-      if (_selectedType == null) return _warn('Please select a consultation type.');
+      if (_selectedSlot == null) {
+        return _warn('Please select an available time slot.');
+      }
     } else if (_step == 3) {
-      if (_selectedSlot == null) return _warn('Please select an available time slot.');
-    } else if (_step == 4) {
-      if (_symptomsCtrl.text.trim().isEmpty) return _warn('Please describe your symptoms.');
+      if (_symptomsCtrl.text.trim().isEmpty) {
+        return _warn('Please describe your symptoms.');
+      }
+
       if (_documents.any((item) => item.documentDate == null)) {
         return _warn('Please select Date Performed for all uploaded documents.');
       }
     }
+
     return true;
   }
 
@@ -411,7 +418,6 @@ class _BookingScreenState extends State<BookingScreen> {
   Future<void> _capturePendingPayPalPayment() async {
     if (_service == null ||
         _selectedDoctor == null ||
-        _selectedType == null ||
         _selectedSlot == null ||
         _pendingPayPalOrderId == null) {
       return;
@@ -435,7 +441,6 @@ class _BookingScreenState extends State<BookingScreen> {
         patientId: patientId,
         doctorId: _selectedDoctor!.doctorId,
         appointmentTime: appointmentTime,
-        consultationType: _selectedType!,
         symptoms: _symptomsCtrl.text.trim(),
         notes: _notesCtrl.text.trim(),
       );
@@ -512,7 +517,6 @@ class _BookingScreenState extends State<BookingScreen> {
   Future<void> _submit() async {
     if (_service == null ||
         _selectedDoctor == null ||
-        _selectedType == null ||
         _selectedSlot == null) {
       return;
     }
@@ -536,7 +540,6 @@ class _BookingScreenState extends State<BookingScreen> {
         patientId: patientId,
         doctorId: _selectedDoctor!.doctorId,
         appointmentTime: appointmentTime,
-        consultationType: _selectedType!,
         symptoms: _symptomsCtrl.text.trim(),
         notes: _notesCtrl.text.trim(),
       );
@@ -584,10 +587,10 @@ class _BookingScreenState extends State<BookingScreen> {
       _step = 0;
       _selectedSpecialty = null;
       _selectedDoctor = null;
-      _selectedType = null;
       _selectedDate = DateTime.now();
       _selectedSlot = null;
       _slots = [];
+      _weekIndex = 0;
       _symptomsCtrl.clear();
       _notesCtrl.clear();
       _documents.clear();
@@ -801,14 +804,12 @@ class _BookingScreenState extends State<BookingScreen> {
       case 1:
         return _doctorStep(colors);
       case 2:
-        return _typeStep(colors);
-      case 3:
         return _dateTimeStep(colors);
-      case 4:
+      case 3:
         return _medicalInfoStep(colors);
-      case 5:
+      case 4:
         return _confirmStep(colors);
-      case 6:
+      case 5:
         return _paymentStep(colors);
       default:
         return _specialtyStep(colors);
@@ -852,9 +853,10 @@ class _BookingScreenState extends State<BookingScreen> {
               setState(() {
                 _selectedSpecialty = name;
                 _selectedDoctor = null;
-                _selectedType = null;
+                _selectedDate = DateTime.now();
                 _selectedSlot = null;
                 _slots = [];
+                _weekIndex = 0;
               });
               await _loadDoctors(reset: true);
             },
@@ -943,10 +945,11 @@ class _BookingScreenState extends State<BookingScreen> {
           await _releaseHoldSilently();
           setState(() {
             _selectedDoctor = doctor;
-            _selectedType = null;
+            _selectedDate = DateTime.now();
             _selectedSlot = null;
             _slots = [];
             _doctorSchedules = [];
+            _weekIndex = 0;
           });
 
           try {
@@ -1041,103 +1044,39 @@ class _BookingScreenState extends State<BookingScreen> {
     );
   }
 
-  Widget _typeStep(ColorScheme colors) {
-    final types = _doctorSchedules
-        .where((item) => item.isBookable)
-        .map((item) => item.consultationType.trim())
-        .where((item) => item.isNotEmpty)
-        .toSet()
-        .toList()
-      ..sort();
-
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        _title(
-          'Choose consultation type',
-          'Pick how you want to meet your doctor.',
-        ),
-        const SizedBox(height: 16),
-        if (types.isEmpty)
-          _empty(
-            colors,
-            Icons.event_busy_outlined,
-            'This doctor has no working schedule yet.',
-          )
-        else
-          Wrap(
-            spacing: 12,
-            runSpacing: 12,
-            children: types.map((type) => _typeCard(colors, type)).toList(),
-          ),
-      ],
-    );
-  }
-
-  Widget _typeCard(ColorScheme colors, String type) {
-    final selected = _selectedType == type;
-    return SizedBox(
-      width: 170,
-      child: InkWell(
-        borderRadius: BorderRadius.circular(18),
-        onTap: () async {
-          await _releaseHoldSilently();
-          setState(() {
-            _selectedType = type;
-            _selectedSlot = null;
-            _slots = [];
-          });
-        },
-        child: Container(
-          padding: const EdgeInsets.all(16),
-          decoration: BoxDecoration(
-            color: selected
-                ? colors.primary.withValues(alpha: 0.08)
-                : colors.surfaceContainerLow,
-            borderRadius: BorderRadius.circular(18),
-            border: Border.all(
-              color: selected ? colors.primary : colors.outlineVariant,
-            ),
-          ),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Icon(
-                _typeIcon(type),
-                color: selected ? colors.primary : colors.outline,
-              ),
-              const SizedBox(height: 12),
-              Text(type, style: const TextStyle(fontWeight: FontWeight.w900)),
-            ],
-          ),
-        ),
-      ),
-    );
-  }
-
   Widget _dateTimeStep(ColorScheme colors) {
-    final allDays = List.generate(
-      _bookingWindowDays.clamp(7, 30).toInt(),
-          (i) => _dayStart(DateTime.now()).add(Duration(days: i)),
-    );
+    final today = _dayStart(DateTime.now());
+    final maxDate = today.add(Duration(days: _bookingWindowDays));
+
+    DateTime mondayOfWeek(DateTime value) {
+      final start = _dayStart(value);
+      return start.subtract(Duration(days: start.weekday - 1));
+    }
+
+    final weekStart = mondayOfWeek(today).add(Duration(days: _weekIndex * 7));
+    final weekEnd = weekStart.add(const Duration(days: 6));
 
     final workingDayNumbers = _doctorSchedules
-        .where((schedule) {
-      if (!schedule.isBookable) return false;
-      if (_selectedType == null) return false;
-
-      final scheduleType = schedule.consultationType.trim().toLowerCase();
-      final selectedType = _selectedType!.trim().toLowerCase();
-
-      return scheduleType == selectedType;
-    })
+        .where((schedule) => schedule.isBookable)
         .map((schedule) => schedule.dayOfWeek)
         .toSet();
 
-    final days = allDays.where((day) {
-      final backendDay = day.weekday % 7; // Sunday = 0, Monday = 1
+    final days = List.generate(7, (index) {
+      return weekStart.add(Duration(days: index));
+    }).where((day) {
+      if (day.isBefore(today)) return false;
+      if (day.isAfter(maxDate)) return false;
+
+      final backendDay = day.weekday % 7; // Sunday = 0
       return workingDayNumbers.contains(backendDay);
     }).toList();
+
+    final nextWeekStart = weekStart.add(const Duration(days: 7));
+    final canGoPreviousWeek = _weekIndex > 0;
+    final canGoNextWeek = !nextWeekStart.isAfter(maxDate);
+
+    final weekLabel =
+        'Week ${weekStart.day}/${weekStart.month} - ${weekEnd.day}/${weekEnd.month}';
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -1149,64 +1088,113 @@ class _BookingScreenState extends State<BookingScreen> {
 
         SizedBox(height: 16),
 
-        SizedBox(
-          height: 82,
-          child: ListView.separated(
-            scrollDirection: Axis.horizontal,
-            itemCount: days.length,
-            separatorBuilder: (_, __) => const SizedBox(width: 10),
-            itemBuilder: (_, index) {
-              final day = days[index];
-              final selected = _sameDay(day, _selectedDate);
-
-              return InkWell(
-                borderRadius: BorderRadius.circular(18),
-                onTap: () async {
-                  await _releaseHoldSilently();
+        Row(
+          children: [
+            Expanded(
+              child: OutlinedButton(
+                onPressed: canGoPreviousWeek
+                    ? () {
                   setState(() {
-                    _selectedDate = day;
+                    _weekIndex--;
                     _selectedSlot = null;
                     _slots = [];
                   });
-                  await _loadSlots();
-                },
-                child: Container(
-                  width: 96,
-                  padding: const EdgeInsets.all(12),
-                  decoration: BoxDecoration(
-                    color: selected
-                        ? colors.primary
-                        : colors.surfaceContainerHigh,
-                    borderRadius: BorderRadius.circular(18),
-                    border: Border.all(
-                      color: selected ? colors.primary : colors.outlineVariant,
+                }
+                    : null,
+                child: const Text('Previous'),
+              ),
+            ),
+            const SizedBox(width: 10),
+            Text(
+              weekLabel,
+              style: const TextStyle(fontWeight: FontWeight.w900),
+            ),
+            const SizedBox(width: 10),
+            Expanded(
+              child: OutlinedButton(
+                onPressed: canGoNextWeek
+                    ? () {
+                  setState(() {
+                    _weekIndex++;
+                    _selectedSlot = null;
+                    _slots = [];
+                  });
+                }
+                    : null,
+                child: const Text('Next'),
+              ),
+            ),
+          ],
+        ),
+
+        const SizedBox(height: 14),
+
+        if (days.isEmpty)
+          _empty(
+            colors,
+            Icons.event_busy_outlined,
+            'The doctor is not working this week.',
+          )
+        else
+          SizedBox(
+            height: 86,
+            child: ListView.separated(
+              scrollDirection: Axis.horizontal,
+              itemCount: days.length,
+              separatorBuilder: (_, __) => const SizedBox(width: 10),
+              itemBuilder: (_, index) {
+                final day = days[index];
+                final selected = _sameDay(day, _selectedDate);
+
+                return InkWell(
+                  borderRadius: BorderRadius.circular(18),
+                  onTap: () async {
+                    await _releaseHoldSilently();
+
+                    setState(() {
+                      _selectedDate = day;
+                      _selectedSlot = null;
+                      _slots = [];
+                    });
+
+                    await _loadSlots();
+                  },
+                  child: Container(
+                    width: 96,
+                    padding: const EdgeInsets.all(12),
+                    decoration: BoxDecoration(
+                      color: selected ? colors.primary : colors.surfaceContainerHigh,
+                      borderRadius: BorderRadius.circular(18),
+                      border: Border.all(
+                        color: selected ? colors.primary : colors.outlineVariant,
+                      ),
+                    ),
+                    child: Column(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        Text(
+                          _dayLabel(day),
+                          style: TextStyle(
+                            color: selected ? colors.onPrimary : colors.onSurface,
+                            fontWeight: FontWeight.w900,
+                          ),
+                        ),
+                        const SizedBox(height: 4),
+                        Text(
+                          '${day.day}/${day.month}',
+                          style: TextStyle(
+                            color: selected
+                                ? colors.onPrimary
+                                : colors.onSurfaceVariant,
+                          ),
+                        ),
+                      ],
                     ),
                   ),
-                  child: Column(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    children: [
-                      Text(
-                        _dayLabel(day),
-                        style: TextStyle(
-                          color: selected ? colors.onPrimary : colors.onSurface,
-                          fontWeight: FontWeight.w900,
-                        ),
-                      ),
-                      Text(
-                        '${day.day}/${day.month}',
-                        style: TextStyle(
-                          color: selected
-                              ? colors.onPrimary
-                              : colors.onSurfaceVariant,
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-              );
-            },
+                );
+              },
+            ),
           ),
-        ),
 
         const SizedBox(height: 22),
         Text(
@@ -1299,7 +1287,6 @@ class _BookingScreenState extends State<BookingScreen> {
           alignLabelWithHint: true,
         ),
       ),
-      const SizedBox(height: 14),
       const SizedBox(height: 14),
       OutlinedButton.icon(
         onPressed: _pickDocuments,
@@ -1402,7 +1389,6 @@ class _BookingScreenState extends State<BookingScreen> {
         'Specialty',
         _selectedDoctor?.specialtyName ?? _selectedSpecialty ?? '-',
       ),
-      _summary(colors, 'Consultation type', _selectedType ?? '-'),
       _summary(colors, 'Date', _friendlyDate(_selectedDate)),
       _summary(
         colors,
@@ -1439,7 +1425,6 @@ class _BookingScreenState extends State<BookingScreen> {
           'Specialty',
           _selectedDoctor?.specialtyName ?? _selectedSpecialty ?? '-',
         ),
-        _summary(colors, 'Consultation type', _selectedType ?? '-'),
         _summary(colors, 'Date', _friendlyDate(_selectedDate)),
         _summary(
           colors,
@@ -1644,21 +1629,6 @@ class _BookingScreenState extends State<BookingScreen> {
           ),
         ),
       );
-  }
-
-  IconData _typeIcon(String type) {
-    switch (type.toLowerCase()) {
-      case 'video':
-        return Icons.videocam_outlined;
-      case 'audio':
-        return Icons.call_outlined;
-      case 'chat':
-        return Icons.chat_bubble_outline;
-      case 'offline':
-        return Icons.local_hospital_outlined;
-      default:
-        return Icons.medical_services_outlined;
-    }
   }
 
   String _cleanError(Object error) {

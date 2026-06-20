@@ -10,7 +10,6 @@ import { healthRecordApi } from '../../api/healthRecordApi';
 import ScheduleStepper from '../schedule/ScheduleStepper';
 import SpecialtyStep from '../schedule/SpecialtyStep';
 import DoctorStep from '../schedule/DoctorStep';
-import ConsultationStep from '../schedule/ConsultationStep';
 import DateTimeStep from '../schedule/DateTimeStep';
 import DocumentsStep from '../schedule/DocumentsStep';
 import ConfirmStep from '../schedule/ConfirmStep';
@@ -45,7 +44,6 @@ const Schedule = () => {
   const [selectedSpecialty, setSelectedSpecialty] = useState('');
   const [selectedDoctorId, setSelectedDoctorId] = useState('');
 
-  const [consultationType, setConsultationType] = useState('');
   const [date, setDate] = useState(new Date().toISOString().split('T')[0]);
   const [slots, setSlots] = useState([]);
   const [selectedSlot, setSelectedSlot] = useState(null);
@@ -65,17 +63,15 @@ const Schedule = () => {
   });
 
   const stepConfig = hasPreselectedDoctor
-    ? [
-      { key: 'consultation', label: 'Consultation Type' },
+  ? [
       { key: 'datetime', label: 'Date & Time' },
       { key: 'documents', label: 'Medical information' },
       { key: 'confirm', label: 'Confirm' },
       { key: 'payment', label: 'Payment' },
     ]
-    : [
+  : [
       { key: 'specialty', label: 'Specialty' },
       { key: 'doctor', label: 'Doctor' },
-      { key: 'consultation', label: 'Consultation Type' },
       { key: 'datetime', label: 'Date & Time' },
       { key: 'documents', label: 'Medical information' },
       { key: 'confirm', label: 'Confirm' },
@@ -172,7 +168,7 @@ const Schedule = () => {
   }, [selectedDoctorId]);
 
   useEffect(() => {
-    if (!selectedDoctorId || !date || !consultationType) {
+    if (!selectedDoctorId || !date) {
       setSlots([]);
       setSelectedSlot(null);
       return;
@@ -184,8 +180,7 @@ const Schedule = () => {
       try {
         const data = await appointmentService.getAvailableSlots(
           selectedDoctorId,
-          date,
-          consultationType
+          date
         );
 
         setSlots(data.slots || []);
@@ -201,7 +196,7 @@ const Schedule = () => {
     }
 
     fetchSlots();
-  }, [selectedDoctorId, date, consultationType]);
+  }, [selectedDoctorId, date]);
 
   const specialties = useMemo(() => {
     return [...new Set(doctors.map((doctor) => doctor.specialtyName))]
@@ -262,7 +257,6 @@ const Schedule = () => {
         doctorId: selectedDoctorId,
         patientId,
         appointmentTime,
-        consultationType,
       });
 
       setSelectedSlot({
@@ -306,8 +300,7 @@ const Schedule = () => {
       try {
         const data = await appointmentService.getAvailableSlots(
           selectedDoctorId,
-          date,
-          consultationType
+          date
         );
 
         setSlots(data.slots || []);
@@ -377,11 +370,6 @@ const Schedule = () => {
       return;
     }
 
-    if (currentStepKey === 'consultation' && !consultationType) {
-      toast.warning('Please select a consultation type');
-      return;
-    }
-
     if (currentStepKey === 'datetime' && !selectedSlot) {
       toast.warning('Please select a date and time');
       return;
@@ -440,7 +428,7 @@ const Schedule = () => {
   };
 
   const handleSchedule = async () => {
-    if (!selectedDoctorId || !selectedSlot || !consultationType) {
+    if (!selectedDoctorId || !selectedSlot) {
       toast.warning('Booking information is not complete');
       return;
     }
@@ -458,7 +446,6 @@ const Schedule = () => {
         patientId,
         doctorId: selectedDoctorId,
         appointmentTime: selectedSlot.appointmentTime,
-        consultationType,
         symptoms,
         notes: '',
       };
@@ -603,27 +590,6 @@ const Schedule = () => {
                 />
               )}
 
-              {currentStepKey === 'consultation' && (
-                <ConsultationStep
-                  consultationType={consultationType}
-                  onSelectConsultation={async (nextType) => {
-                    if (nextType === consultationType) return;
-
-                    if (selectedSlot) {
-                      await releaseHoldSilently(selectedSlot.holdId);
-                      setSelectedSlot(null);
-                      setSlots([]);
-                    }
-
-                    setConsultationType(nextType);
-                  }}
-                  onBack={handleBack}
-                  onNext={handleNext}
-                  canGoBack={!hasPreselectedDoctor || step > 1}
-                  availableTypes={selectedDoctor?.availableTypes ?? []}
-                />
-              )}
-
               {currentStepKey === 'datetime' && (
                 <DateTimeStep
                   date={date}
@@ -637,7 +603,6 @@ const Schedule = () => {
                   onBack={handleBackFromDateTime}
                   onNext={handleNext}
                   doctorSchedules={doctorSchedules}
-                  consultationType={consultationType}
                   maxDate={maxDate}
                 />
               )}
@@ -657,7 +622,6 @@ const Schedule = () => {
                 <ConfirmStep
                   selectedDoctor={selectedDoctor}
                   selectedSpecialty={selectedSpecialty}
-                  consultationType={consultationType}
                   selectedSlot={selectedSlot}
                   symptoms={symptoms}
                   files={files}
