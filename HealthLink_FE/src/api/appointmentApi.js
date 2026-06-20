@@ -16,15 +16,20 @@ const getAuthConfig = () => {
 
 export const appointmentService = {
     getAvailableSlots: async (doctorId, date, consultationType) => {
+        const params = {
+            doctorId,
+            date,
+        };
+
+        if (consultationType) {
+            params.consultationType = consultationType;
+        }
+
         const response = await axios.get(
             `${API_URL}/appointments/available-slots`,
             {
                 ...getAuthConfig(),
-                params: {
-                    doctorId,
-                    date,
-                    consultationType,
-                },
+                params,
             }
         );
 

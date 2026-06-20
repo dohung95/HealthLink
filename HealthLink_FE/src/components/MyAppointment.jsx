@@ -548,7 +548,7 @@ const MyAppointments = () => {
                                                     )}
 
                                                     {/* thay isAppointmentJoinable = isScheduledAppointment */}
-                                                    {isVideoAppointment(item) && isAppointmentJoinable(item) && (
+                                                    {isVideoAppointment(item) && isScheduledAppointment(item) && (
                                                         <button
                                                             className="btn btn-sm btn-success"
                                                             onClick={() => openVitalsBeforeConsultation(item, 'video')}

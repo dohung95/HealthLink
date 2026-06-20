@@ -77,6 +77,9 @@ import java.util.stream.Collectors;
 @RequiredArgsConstructor
 public class FinanceServiceImpl implements FinanceService {
 
+    private static final String TYPE_ONLINE = "Online";
+    private static final String TYPE_OFFLINE = "Offline";
+
     // ── Các hằng trạng thái ─────────────────────────────────────────────────
     private static final String INVOICE_PAID = "PAID";
     private static final String INVOICE_REFUNDED = "REFUNDED";
@@ -124,7 +127,9 @@ public class FinanceServiceImpl implements FinanceService {
      */
     private final CommissionService commissionService;
 
-    /** Service xử lý tạo PDF hóa đơn */
+    /**
+     * Service xử lý tạo PDF hóa đơn
+     */
     private final InvoicePdfService invoicePdfService;
 
     // ========================================================================
@@ -160,6 +165,10 @@ public class FinanceServiceImpl implements FinanceService {
                 .orElseThrow(() -> new BadRequestException("Patient not found with ID: " + request.getPatientId()));
         Doctor doctor = doctorRepository.findById(request.getDoctorId())
                 .orElseThrow(() -> new BadRequestException("Doctor not found with ID: " + request.getDoctorId()));
+
+        request.setConsultationType(
+                normalizeConsultationTypeForBooking(request.getConsultationType())
+        );
 
         checkDoctorSupportsConsultationType(doctor, request.getConsultationType());
 
@@ -356,6 +365,12 @@ public class FinanceServiceImpl implements FinanceService {
 
         Doctor doctor = doctorRepository.findById(request.getDoctorId())
                 .orElseThrow(() -> new BadRequestException("Doctor not found with ID: " + request.getDoctorId()));
+
+        request.setConsultationType(
+                normalizeConsultationTypeForBooking(request.getConsultationType())
+        );
+        checkDoctorSupportsConsultationType(doctor, request.getConsultationType());
+
         BigDecimal expectedAmount = resolveDoctorConsultationFee(doctor);
 
         if (paymentRepository.findByTransactionId(request.getOrderId()).isPresent()) {
@@ -663,7 +678,6 @@ public class FinanceServiceImpl implements FinanceService {
     // ========================================================================
     // Invoice PDF generation
     // ========================================================================
-
     @Override
     @Transactional(readOnly = true)
     public byte[] generateInvoicePdf(Integer invoiceId) {
@@ -893,6 +907,23 @@ public class FinanceServiceImpl implements FinanceService {
         return appointmentRequest;
     }
 
+    private String normalizeConsultationTypeForBooking(String consultationType) {
+        if (consultationType == null || consultationType.isBlank()) {
+            return TYPE_ONLINE;
+        }
+
+        String value = consultationType.trim().toLowerCase();
+
+        return switch (value) {
+            case "video", "video call", "audio", "audio call", "chat", "online", "consultation" ->
+                TYPE_ONLINE;
+            case "offline", "in-person", "in person" ->
+                TYPE_OFFLINE;
+            default ->
+                TYPE_ONLINE;
+        };
+    }
+
     private BigDecimal resolveDoctorConsultationFee(Doctor doctor) {
         BigDecimal consultationFee = doctor.getConsultationFee();
         if (consultationFee == null || consultationFee.compareTo(BigDecimal.ZERO) <= 0) {
@@ -902,26 +933,24 @@ public class FinanceServiceImpl implements FinanceService {
     }
 
     private void checkDoctorSupportsConsultationType(Doctor doctor, String consultationType) {
-        if (consultationType == null || consultationType.isBlank()) {
-            throw new BadRequestException("Consultation type is required.");
-        }
+        String normalizedType = normalizeConsultationTypeForBooking(consultationType);
 
-        boolean supported = switch (consultationType.trim().toLowerCase()) {
-            case "video" ->
-                doctor.isAvailableForVideo();
-            case "audio" ->
-                doctor.isAvailableForAudio();
-            case "chat" ->
-                doctor.isAvailableForChat();
+        boolean supported = switch (normalizedType.toLowerCase()) {
+            case "online" ->
+                doctor.isAvailableForVideo()
+                || doctor.isAvailableForAudio()
+                || doctor.isAvailableForChat();
+
             case "offline" ->
                 doctor.isAvailableForOffline();
+
             default ->
-                false;
+                true;
         };
 
         if (!supported) {
             throw new BadRequestException(
-                    "Doctor does not support consultation type: " + consultationType);
+                    "Doctor does not support consultation type: " + normalizedType);
         }
     }
 
