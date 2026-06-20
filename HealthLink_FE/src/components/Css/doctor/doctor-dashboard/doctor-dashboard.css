@@ -2,6 +2,7 @@
 @import './doctor-bootstrap.css';
 @import './doctor-layout.css';
 @import './doctor-patients.css';
+@import './doctor-split-patients.css';
 @import './doctor-shared-records.css';
 
 /* Doctor components */

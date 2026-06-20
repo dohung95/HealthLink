@@ -15,11 +15,11 @@ const formatDate = (value) => {
 };
 
 const STATUS_STYLES = {
-  ACTIVE: { bg: '#d1fae5', text: '#10b981', dot: '#10b981' },
-  ISSUED: { bg: '#fef3c7', text: '#d97706', dot: '#d97706' },
-  EXPIRED: { bg: '#fef2f2', text: '#dc2626', dot: '#dc2626' },
+  ACTIVE: { bg: '#d1fae5', text: '#059669', dot: '#10b981', border: '#6ee7b7', pillBg: 'linear-gradient(135deg, #d1fae5 0%, #a7f3d0 100%)' },
+  ISSUED: { bg: '#fef3c7', text: '#b45309', dot: '#d97706', border: '#fcd34d', pillBg: 'linear-gradient(135deg, #fef3c7 0%, #fde68a 100%)' },
+  EXPIRED: { bg: '#f1f5f9', text: '#64748b', dot: '#94a3b8', border: '#cbd5e1', pillBg: 'linear-gradient(135deg, #f1f5f9 0%, #e2e8f0 100%)' },
 };
-const DEFAULT_STATUS = { bg: '#f1f5f9', text: '#64748b', dot: '#94a3b8' };
+const DEFAULT_STATUS = { bg: '#f1f5f9', text: '#64748b', dot: '#94a3b8', border: '#cbd5e1', pillBg: 'linear-gradient(135deg, #f1f5f9 0%, #e2e8f0 100%)' };
 const getStatusStyle = (status) => STATUS_STYLES[status] || DEFAULT_STATUS;
 
 export default function DoctorPrescriptionsView() {
@@ -119,6 +119,10 @@ export default function DoctorPrescriptionsView() {
           from { opacity: 0; transform: translateY(8px); }
           to { opacity: 1; transform: translateY(0); }
         }
+        @keyframes statusPulse {
+          0%, 100% { opacity: 1; transform: scale(1); }
+          50% { opacity: 0.5; transform: scale(0.8); }
+        }
       `}</style>
 
       {/* Search + Filter */}
@@ -213,8 +217,11 @@ export default function DoctorPrescriptionsView() {
                           {rxId}
                         </span>
                         <span aria-label={prescription.status || 'ISSUED'} style={{
-                          width: '8px', height: '8px', borderRadius: '50%',
-                          background: getStatusStyle(prescription.status).dot, display: 'inline-block', flexShrink: 0,
+                          width: '9px', height: '9px', borderRadius: '50%',
+                          background: getStatusStyle(prescription.status).dot,
+                          display: 'inline-block', flexShrink: 0,
+                          boxShadow: `0 0 0 2px ${getStatusStyle(prescription.status).bg}`,
+                          animation: prescription.status === 'ACTIVE' ? 'statusPulse 2s ease-in-out infinite' : 'none',
                         }} />
                       </div>
                       <p className="mb-0 small" style={{ color: 'var(--doctor-text-muted, #64748b)', marginTop: '0.0625rem', fontSize: '0.75rem' }}>
@@ -237,18 +244,28 @@ export default function DoctorPrescriptionsView() {
                     <div className="d-flex flex-column gap-3 overflow-y-auto pe-1" style={{ minHeight: 0 }}>
                       {/* Prescription Info */}
                       <div className="rounded-4 p-4" style={{ background: 'var(--doctor-primary-soft, #eaf2ff)', border: '1px solid var(--doctor-primary-border, #b8d4ff)', boxShadow: '0 1px 3px rgba(0,0,0,0.04)' }}>
-                        <span style={{ fontSize: '0.6875rem', color: 'var(--doctor-primary, #0052cc)', fontWeight: 600, display: 'block', lineHeight: 1.3 }}>
-                          {selected.issueDate ? formatDate(selected.issueDate) : ''}
-                        </span>
-                        <div className="d-flex align-items-center justify-content-between mt-1 mb-0">
+                        <div className="d-flex align-items-center justify-content-between">
                           <h5 className="fw-bold mb-0" style={{ color: 'var(--doctor-text, #0f172a)' }}>
                             RX-{String(selected.prescriptionHeaderId).padStart(4, '0')}
                           </h5>
-                          <span className="small fw-semibold d-inline-flex align-items-center gap-1 px-3 py-1 rounded-pill" style={{
-                            background: getStatusStyle(selected.status).bg,
+                          <span className="small fw-semibold d-inline-flex align-items-center px-3 py-1 rounded-pill" style={{
+                            columnGap: '0.375rem',
+                            background: getStatusStyle(selected.status).pillBg,
                             color: getStatusStyle(selected.status).text,
+                            border: `1px solid ${getStatusStyle(selected.status).border}`,
+                            fontSize: '0.6875rem',
+                            letterSpacing: '0.04em',
+                            textTransform: 'uppercase',
+                            userSelect: 'none',
+                            boxShadow: '0 1px 2px rgba(0,0,0,0.04)',
                           }}>
-                            <span style={{ width: '6px', height: '6px', borderRadius: '50%', background: getStatusStyle(selected.status).dot, display: 'inline-block' }} />
+                            <span style={{
+                              width: '7px', height: '7px', borderRadius: '50%',
+                              background: getStatusStyle(selected.status).dot,
+                              display: 'inline-block', flexShrink: 0,
+                              animation: selected.status === 'ACTIVE' ? 'statusPulse 2s ease-in-out infinite' : 'none',
+                              boxShadow: `0 0 0 2px ${getStatusStyle(selected.status).bg}`,
+                            }} />
                             {selected.status || 'ISSUED'}
                           </span>
                         </div>
@@ -261,7 +278,7 @@ export default function DoctorPrescriptionsView() {
                             <span className="material-symbols-outlined" style={{ fontSize: '0.8125rem', color: 'var(--doctor-text-muted, #64748b)' }}>biotech</span>
                             <span className="small fw-semibold" style={{ fontSize: '0.6875rem', textTransform: 'uppercase', letterSpacing: '0.06em', color: 'var(--doctor-text-muted, #64748b)' }}>Diagnosis</span>
                           </div>
-                          <div className="rounded-4 p-4" style={{ background: 'var(--doctor-surface, #ffffff)', boxShadow: '0 1px 3px rgba(0,0,0,0.04)' }}>
+                          <div className="rounded-4 p-4" style={{ background: 'var(--doctor-surface, #ffffff)', border: '1px solid var(--doctor-border, #e2e8f0)', boxShadow: '0 1px 3px rgba(0,0,0,0.04)' }}>
                             <p className="mb-0" style={{ fontSize: '0.875rem', fontWeight: 500, color: 'var(--doctor-text, #0f172a)', lineHeight: 1.5 }}>{selected.diagnosis}</p>
                           </div>
                         </div>
@@ -274,7 +291,7 @@ export default function DoctorPrescriptionsView() {
                             <span className="material-symbols-outlined" style={{ fontSize: '0.8125rem', color: 'var(--doctor-text-muted, #64748b)' }}>description</span>
                             <span className="small fw-semibold" style={{ fontSize: '0.6875rem', textTransform: 'uppercase', letterSpacing: '0.06em', color: 'var(--doctor-text-muted, #64748b)' }}>Doctor Notes</span>
                           </div>
-                          <div className="rounded-4 p-4" style={{ background: 'var(--doctor-surface, #ffffff)', boxShadow: '0 1px 3px rgba(0,0,0,0.04)' }}>
+                          <div className="rounded-4 p-4" style={{ background: 'var(--doctor-surface, #ffffff)', border: '1px solid var(--doctor-border, #e2e8f0)', boxShadow: '0 1px 3px rgba(0,0,0,0.04)' }}>
                             <p className="mb-0" style={{ fontSize: '0.875rem', lineHeight: 1.6, whiteSpace: 'pre-line', color: 'var(--doctor-text, #0f172a)' }}>{selected.notes}</p>
                           </div>
                         </div>
@@ -286,7 +303,7 @@ export default function DoctorPrescriptionsView() {
                           <span className="material-symbols-outlined" style={{ fontSize: '0.8125rem', color: 'var(--doctor-text-muted, #64748b)' }}>person</span>
                           <span className="small fw-semibold" style={{ fontSize: '0.6875rem', textTransform: 'uppercase', letterSpacing: '0.06em', color: 'var(--doctor-text-muted, #64748b)' }}>Patient Information</span>
                         </div>
-                        <div className="rounded-4 p-4" style={{ background: 'var(--doctor-surface, #ffffff)', boxShadow: '0 1px 3px rgba(0,0,0,0.04)' }}>
+                        <div className="rounded-4 p-4" style={{ background: 'var(--doctor-surface, #ffffff)', border: '1px solid var(--doctor-border, #e2e8f0)', boxShadow: '0 1px 3px rgba(0,0,0,0.04)' }}>
                           {profileLoading ? (
                             <div className="d-flex align-items-center gap-2 py-2">
                               <div className="spinner-border spinner-border-sm" role="status" style={{ color: 'var(--doctor-primary, #0052cc)' }} />
@@ -311,42 +328,30 @@ export default function DoctorPrescriptionsView() {
 
                               {/* Fields grid */}
                               <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.625rem' }}>
-                                {patientProfile?.email && (
-                                  <div className="d-flex align-items-center gap-2 px-1">
-                                    <span className="material-symbols-outlined flex-shrink-0" style={{ fontSize: '0.875rem', color: 'var(--doctor-text-muted, #64748b)' }}>mail</span>
-                                    <div style={{ overflow: 'hidden' }}>
-                                      <p className="mb-0" style={{ fontSize: '0.625rem', textTransform: 'uppercase', letterSpacing: '0.04em', color: 'var(--doctor-text-muted, #64748b)', lineHeight: 1.2 }}>Email</p>
+                                  {patientProfile?.email && (
+                                    <div className="d-flex align-items-center gap-2 px-1">
+                                      <span className="material-symbols-outlined flex-shrink-0" style={{ fontSize: '0.875rem', color: 'var(--doctor-text-muted, #64748b)' }}>mail</span>
                                       <p className="mb-0 text-truncate" style={{ fontSize: '0.8125rem', color: 'var(--doctor-text, #0f172a)', lineHeight: 1.3 }}>{patientProfile.email}</p>
                                     </div>
-                                  </div>
-                                )}
-                                {patientProfile?.phoneNumber && (
-                                  <div className="d-flex align-items-center gap-2 px-1">
-                                    <span className="material-symbols-outlined flex-shrink-0" style={{ fontSize: '0.875rem', color: 'var(--doctor-text-muted, #64748b)' }}>call</span>
-                                    <div>
-                                      <p className="mb-0" style={{ fontSize: '0.625rem', textTransform: 'uppercase', letterSpacing: '0.04em', color: 'var(--doctor-text-muted, #64748b)', lineHeight: 1.2 }}>Phone</p>
+                                  )}
+                                  {patientProfile?.phoneNumber && (
+                                    <div className="d-flex align-items-center gap-2 px-1">
+                                      <span className="material-symbols-outlined flex-shrink-0" style={{ fontSize: '0.875rem', color: 'var(--doctor-text-muted, #64748b)' }}>call</span>
                                       <p className="mb-0" style={{ fontSize: '0.8125rem', color: 'var(--doctor-text, #0f172a)', lineHeight: 1.3 }}>{patientProfile.phoneNumber}</p>
                                     </div>
-                                  </div>
-                                )}
-                                {patientProfile?.dateOfBirth && (
-                                  <div className="d-flex align-items-center gap-2 px-1">
-                                    <span className="material-symbols-outlined flex-shrink-0" style={{ fontSize: '0.875rem', color: 'var(--doctor-text-muted, #64748b)' }}>cake</span>
-                                    <div>
-                                      <p className="mb-0" style={{ fontSize: '0.625rem', textTransform: 'uppercase', letterSpacing: '0.04em', color: 'var(--doctor-text-muted, #64748b)', lineHeight: 1.2 }}>DOB</p>
+                                  )}
+                                  {patientProfile?.dateOfBirth && (
+                                    <div className="d-flex align-items-center gap-2 px-1">
+                                      <span className="material-symbols-outlined flex-shrink-0" style={{ fontSize: '0.875rem', color: 'var(--doctor-text-muted, #64748b)' }}>cake</span>
                                       <p className="mb-0" style={{ fontSize: '0.8125rem', color: 'var(--doctor-text, #0f172a)', lineHeight: 1.3 }}>{formatDate(patientProfile.dateOfBirth)}</p>
                                     </div>
-                                  </div>
-                                )}
-                                {patientProfile?.gender && (
-                                  <div className="d-flex align-items-center gap-2 px-1">
-                                    <span className="material-symbols-outlined flex-shrink-0" style={{ fontSize: '0.875rem', color: 'var(--doctor-text-muted, #64748b)' }}>wc</span>
-                                    <div>
-                                      <p className="mb-0" style={{ fontSize: '0.625rem', textTransform: 'uppercase', letterSpacing: '0.04em', color: 'var(--doctor-text-muted, #64748b)', lineHeight: 1.2 }}>Gender</p>
+                                  )}
+                                  {patientProfile?.gender && (
+                                    <div className="d-flex align-items-center gap-2 px-1">
+                                      <span className="material-symbols-outlined flex-shrink-0" style={{ fontSize: '0.875rem', color: 'var(--doctor-text-muted, #64748b)' }}>wc</span>
                                       <p className="mb-0" style={{ fontSize: '0.8125rem', color: 'var(--doctor-text, #0f172a)', lineHeight: 1.3 }}>{patientProfile.gender}</p>
                                     </div>
-                                  </div>
-                                )}
+                                  )}
                               </div>
                             </div>
                           )}
