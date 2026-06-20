@@ -20,7 +20,6 @@ import {
 } from '@utils/doctor/appointmentHelpers';
 
 const STATUS_FILTERS = [
-  { key: 'All', label: 'All', countKey: 'all' },
   { key: 'SCHEDULED', label: 'Scheduled', countKey: 'scheduled' },
   { key: 'IN_CONSULTATION', label: 'In Progress', countKey: 'inprogress' },
   { key: 'COMPLETED', label: 'Completed', countKey: 'completed' },
@@ -32,13 +31,12 @@ export default function DoctorAppointmentsView() {
   const { doctorId, appointmentsRefreshKey: refreshKey } = useOutletContext();
   const [appointments, setAppointments] = useState([]);
   const [counts, setCounts] = useState({
-    all: 0,
     scheduled: 0,
     completed: 0,
     cancelled: 0,
   });
   const [selectedDate, setSelectedDate] = useState(() => toDateInputValue(new Date()));
-  const [selectedStatus, setSelectedStatus] = useState('All');
+  const [selectedStatus, setSelectedStatus] = useState('SCHEDULED');
   const [searchTerm, setSearchTerm] = useState('');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
@@ -66,7 +64,6 @@ export default function DoctorAppointmentsView() {
           setError('Failed to load appointments');
           setAppointments([]);
           setCounts({
-            all: 0,
             scheduled: 0,
             completed: 0,
             cancelled: 0,
@@ -138,7 +135,7 @@ export default function DoctorAppointmentsView() {
   };
 
   return (
-    <div className="doctor-content-section pt-4">
+    <div className="doctor-content-section">
       <div className="doctor-stat-row mb-3">
         <div className="doctor-stat-card doctor-stat-card--primary">
           <span className="doctor-stat-card__value">{counts.scheduled || 0}</span>
@@ -175,9 +172,6 @@ export default function DoctorAppointmentsView() {
                       type="button"
                     >
                       {filter.label}
-                      {counts[filter.countKey] > 0 && (
-                        <span className="doctor-filter-chip__count">{counts[filter.countKey]}</span>
-                      )}
                     </button>
                   );
                 })}
@@ -197,17 +191,23 @@ export default function DoctorAppointmentsView() {
             </div>
 
             {loading ? (
-              <DoctorSkeletonList rows={4} />
+              <div style={{minHeight:'180px'}}>
+                <DoctorSkeletonList rows={4} />
+              </div>
             ) : error ? (
-              <DoctorErrorState message={error} />
+              <div style={{minHeight:'180px'}}>
+                <DoctorErrorState message={error} />
+              </div>
             ) : filteredAppointments.length === 0 ? (
-              <DoctorEmptyState
-                icon="calendar_today"
-                title="No appointments for this day"
-                description="Choose another date or status to review the schedule."
-              />
+              <div style={{minHeight:'180px'}}>
+                <DoctorEmptyState
+                  icon="calendar_today"
+                  title="No appointments for this day"
+                  description="Choose another date or status to review the schedule."
+                />
+              </div>
             ) : (
-              <div className="d-flex flex-column" style={{gap:'0.625rem'}}>
+              <div className="d-flex flex-column" style={{gap:'0.625rem',minHeight:'180px'}}>
                 {filteredAppointments.map((appointment, index) => (
                   <div key={appointment.appointmentID || appointment.appointmentId} className="doctor-stagger-item" style={{ '--stagger-index': index }}>
                     <AppointmentCard appointment={appointment} onView={handleView} />

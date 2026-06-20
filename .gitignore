@@ -59,7 +59,10 @@ lerna-debug.log*
 /.graphify_semantic.json
 /.claude
 /CLAUDE.md
-
+/HealthLink_FE/e2e
+/HealthLink_FE/.codex
+/HealthLink_FE/.opencode
+/HealthLink_FE/graphify-out
 
 
 # === Custom ignores cho file XML do IDE sinh ra ===

@@ -53,7 +53,7 @@
   --doctor-gap-card: 1.25rem;
 
   --doctor-padding-card: 1.25rem;
-  --doctor-padding-section: 1.5rem;
+  --doctor-padding-section: 3rem;
 
   --primary: var(--doctor-primary);
   --primary-hover: var(--doctor-primary-hover);
