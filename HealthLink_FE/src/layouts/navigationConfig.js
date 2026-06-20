@@ -2,10 +2,8 @@ export const NAV_ITEMS = [
   { key: 'appointments', label: 'Appointments', icon: 'calendar_today', wide: true },
   { key: 'patients',     label: 'Patients',     icon: 'groups',          wide: true },
   { key: 'prescriptions',label: 'Prescriptions', icon: 'medication',     wide: true },
-  { key: 'reviews',      label: 'Reviews',       icon: 'star',           wide: true },
   { key: 'schedule',     label: 'Schedule',      icon: 'event_note',     wide: true },
   { key: 'chat',         label: 'Chat',          icon: 'chat',           wide: true },
-{ key: 'wallet', label: 'Wallet', icon: 'account_balance_wallet', wide: false },
 ];
 
 export const APPOINTMENT_DETAIL_VIEW = 'appointmentDetail';

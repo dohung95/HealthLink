@@ -14,6 +14,7 @@ import DoctorErrorState from '@components/doctor/DoctorErrorState';
 import { useNotifications } from '@hooks/doctor/useNotifications';
 import { NAV_ITEMS, normalizeAppointmentDetail } from '@layouts/navigationConfig';
 import DoctorChangePasswordModal from '@components/doctor/DoctorChangePasswordModal';
+import DoctorProfilePage from '@pages/doctor/DoctorProfilePage';
 
 export function DoctorAppointmentDetailRoute() {
   const { appointmentId } = useParams();
@@ -115,10 +116,8 @@ const DoctorDashboardPage = () => {
     if (path === '/doctor' || path.startsWith('/doctor/appointments')) return NAV_ITEMS[0];
     if (path.startsWith('/doctor/patients')) return NAV_ITEMS[1];
     if (path.startsWith('/doctor/prescriptions')) return NAV_ITEMS[2];
-    if (path.startsWith('/doctor/reviews')) return NAV_ITEMS[3];
-    if (path.startsWith('/doctor/schedule')) return NAV_ITEMS[4];
-    if (path.startsWith('/doctor/chat')) return NAV_ITEMS[5];
-    if (path.startsWith('/doctor/wallet')) return NAV_ITEMS[6];
+    if (path.startsWith('/doctor/schedule')) return NAV_ITEMS[3];
+    if (path.startsWith('/doctor/chat')) return NAV_ITEMS[4];
     return NAV_ITEMS[0];
   }, [location.pathname]);
 
@@ -256,6 +255,14 @@ const DoctorDashboardPage = () => {
     }
   };
 
+  const handleNavigateToProfile = useCallback(() => {
+    navigate('/doctor/profile');
+  }, [navigate]);
+
+  const handleNavigateToWallet = useCallback(() => {
+    navigate('/doctor/wallet');
+  }, [navigate]);
+
   const contextValue = useMemo(() => ({
     doctorData,
     doctorId,
@@ -294,6 +301,8 @@ const DoctorDashboardPage = () => {
       onMarkAllRead={notificationsHook.handleMarkAllRead}
       onCloseAllNotifications={() => notificationsHook.setShowAllNotifications(true)}
       onChangePassword={handleChangePassword}
+      onNavigateToProfile={handleNavigateToProfile}
+      onNavigateToWallet={handleNavigateToWallet}
     >
       <section className={`doctor-content-section ${isDetailView || currentNavItem?.key === 'schedule' || currentNavItem?.key === 'appointments' || currentNavItem?.key === 'patients' || currentNavItem?.key === 'wallet' ? '' : 'card-section'}`}>
         <Outlet context={contextValue} />

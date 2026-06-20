@@ -25,6 +25,8 @@ const DoctorHeader = memo(({
   onCloseAllNotifications,
   onLogout,
   onChangePassword,
+  onNavigateToProfile,
+  onNavigateToWallet,
 }) => {
   const [showProfileDropdown, setShowProfileDropdown] = useState(false);
   const profileDropdownRef = useRef(null);
@@ -240,6 +242,17 @@ const DoctorHeader = memo(({
                 <div className="py-1">
                   <button
                     className="d-flex align-items-center gap-3 w-100 px-3 py-2 border-0 bg-transparent text-start"
+                    onClick={() => { setShowProfileDropdown(false); onNavigateToProfile(); }}
+                    type="button"
+                    style={{ fontSize: '0.8125rem', color: 'var(--text-primary)', transition: 'background 0.1s ease' }}
+                    onMouseEnter={(e) => { e.currentTarget.style.background = 'var(--surface-muted)'; }}
+                    onMouseLeave={(e) => { e.currentTarget.style.background = 'transparent'; }}
+                  >
+                    <span className="material-symbols-outlined" style={{ fontSize: '1.125rem', color: 'var(--text-muted)' }}>person</span>
+                    My Profile
+                  </button>
+                  <button
+                    className="d-flex align-items-center gap-3 w-100 px-3 py-2 border-0 bg-transparent text-start"
                     onClick={handleChangePassword}
                     type="button"
                     style={{ fontSize: '0.8125rem', color: 'var(--text-primary)', transition: 'background 0.1s ease' }}
@@ -248,6 +261,21 @@ const DoctorHeader = memo(({
                   >
                     <span className="material-symbols-outlined" style={{ fontSize: '1.125rem', color: 'var(--text-muted)' }}>lock</span>
                     Change Password
+                  </button>
+                </div>
+
+                {/* Wallet */}
+                <div style={{ borderTop: '1px solid var(--border)' }}>
+                  <button
+                    className="d-flex align-items-center gap-3 w-100 px-3 py-2 border-0 bg-transparent text-start"
+                    onClick={() => { setShowProfileDropdown(false); onNavigateToWallet(); }}
+                    type="button"
+                    style={{ fontSize: '0.8125rem', color: 'var(--text-primary)', transition: 'background 0.1s ease' }}
+                    onMouseEnter={(e) => { e.currentTarget.style.background = 'var(--surface-muted)'; }}
+                    onMouseLeave={(e) => { e.currentTarget.style.background = 'transparent'; }}
+                  >
+                    <span className="material-symbols-outlined" style={{ fontSize: '1.125rem', color: 'var(--text-muted)' }}>account_balance_wallet</span>
+                    Wallet
                   </button>
                 </div>
 

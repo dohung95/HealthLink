@@ -1,0 +1,9 @@
+﻿{
+    "port":  52341,
+    "state_dir":  "E:\\FAI\\Projects\\HealthLink\\.superpowers\\brainstorm\\11db56532d67-1781960747",
+    "sessionDir":  "E:\\FAI\\Projects\\HealthLink\\.superpowers\\brainstorm\\11db56532d67-1781960747",
+    "screen_dir":  "E:\\FAI\\Projects\\HealthLink\\.superpowers\\brainstorm\\11db56532d67-1781960747\\content",
+    "type":  "server-started",
+    "url":  "http://localhost:52341",
+    "pid":  5328
+}

@@ -21,6 +21,8 @@ const DoctorLayout = memo(({
   onMarkAllRead,
   onCloseAllNotifications,
   onChangePassword,
+  onNavigateToProfile,
+  onNavigateToWallet,
 }) => {
   useEffect(() => {
     document.body.style.overflow = isMobileMenuOpen || showAllNotifications ? 'hidden' : 'unset';
@@ -151,9 +153,11 @@ const DoctorLayout = memo(({
           onCloseAllNotifications={onCloseAllNotifications}
           onLogout={onLogout}
           onChangePassword={onChangePassword}
+          onNavigateToProfile={onNavigateToProfile}
+          onNavigateToWallet={onNavigateToWallet}
         />
         <main className="doctor-main-content p-3 pb-5 p-md-4">
-          <div className={`mx-auto ${isDetailView ? 'doctor-detail-wrapper' : ''}`} style={{ maxWidth: isDetailView ? '1400px' : currentNavItem?.wide ? '1400px' : '1120px' }}>
+          <div className={`w-100 ${isDetailView ? 'doctor-detail-wrapper' : ''}`}>
             {children}
           </div>
         </main>

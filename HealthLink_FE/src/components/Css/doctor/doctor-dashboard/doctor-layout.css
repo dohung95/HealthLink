@@ -359,10 +359,6 @@
 .notification-list > .notification-item:first-child {
   padding-top: 0;
 }
-.notification-list > .notification-item + .notification-item {
-  border-top: 1px solid var(--border-light);
-}
-
 .notification-item {
   transition: background-color 0.2s ease, box-shadow 0.2s ease, translate 0.2s ease;
   cursor: pointer;
@@ -490,11 +486,6 @@
 /* Material icons alignment fix for badges */
 .doctor-content-section .badge .material-symbols-outlined {
   vertical-align: middle;
-}
-
-/* Metric row background hover */
-.doctor-content-section [style*="background"]:hover {
-  filter: brightness(0.97);
 }
 
 /* Modal focus ring override */

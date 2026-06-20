@@ -96,7 +96,19 @@
 .doctor-detail-summary__patient {
   display: flex;
   flex-direction: column;
-  justify-content: center;
+  gap: 0.75rem;
+}
+
+.doctor-detail-summary__card {
+  background: var(--surface-muted);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  padding: 1rem;
+}
+
+.doctor-detail-summary__card--allergies {
+  background: rgba(220, 38, 38, 0.04);
+  border-color: rgba(220, 38, 38, 0.15);
 }
 
 .doctor-detail-summary__visit-header {
@@ -196,31 +208,41 @@
 /* ---- Allergies ── */
 .doctor-detail-summary__allergies {
   display: flex;
-  flex-direction: column;
-  gap: 0.25rem;
-  margin-top: 0.75rem;
-  padding: 0.625rem 0.75rem;
-  background: rgba(220, 38, 38, 0.06);
-  border: 1px solid rgba(220, 38, 38, 0.2);
-  border-radius: var(--radius-md);
+  flex-direction: row;
+  align-items: center;
+  gap: 0.5rem;
 }
 
 .doctor-detail-summary__allergies .doctor-detail-eyebrow {
   margin: 0;
   font-size: 0.75rem;
   color: #b91c1c;
+  white-space: nowrap;
 }
 
 .doctor-detail-summary__allergies .doctor-detail-eyebrow i {
   margin-right: 0.25rem;
   font-size: 0.8125rem;
+  color: #b91c1c;
 }
 
-.doctor-detail-summary__allergies-text {
-  font-size: 0.8125rem;
+.doctor-detail-summary__allergy-pills {
+  display: inline-flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.25rem;
+}
+
+.doctor-detail-summary__allergy-pill {
+  display: inline-flex;
+  align-items: center;
+  padding: 0.125rem 0.5rem;
+  font-size: 0.6875rem;
+  font-weight: 600;
   color: #b91c1c;
-  margin: 0;
-  line-height: 1.45;
+  background: rgba(220, 38, 38, 0.08);
+  border: 1px solid rgba(220, 38, 38, 0.2);
+  border-radius: 999px;
 }
 
 /* ---- Emergency contact ── */
@@ -228,7 +250,6 @@
   display: flex;
   flex-direction: column;
   gap: 0.375rem;
-  margin-top: 0.75rem;
 }
 
 .doctor-detail-summary__emergency .doctor-detail-eyebrow {
@@ -267,7 +288,7 @@
 .doctor-detail-summary__vitals {
   display: flex;
   flex-direction: column;
-  justify-content: center;
+  gap: 0.75rem;
 }
 
 .doctor-detail-summary__vitals-card {
@@ -278,13 +299,20 @@
 }
 
 .doctor-vital-strip--vertical {
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 0.5rem 1rem;
+  display: flex;
+  flex-direction: row;
+  gap: 0.75rem;
   margin-top: 0.75rem;
 }
 
-.doctor-vital-strip--vertical .doctor-vital-badge {
+.doctor-vital-strip__column {
+  display: flex;
+  flex-direction: column;
+  gap: 0.375rem;
+  flex: 1;
+}
+
+.doctor-vital-strip__column .doctor-vital-badge {
   justify-content: flex-start;
 }
 
@@ -292,17 +320,8 @@
 .doctor-detail-summary__body-metrics {
   display: flex;
   flex-wrap: wrap;
-  gap: 0.75rem;
-  margin-top: 0.75rem;
-  padding-top: 0.75rem;
-  border-top: 1px solid var(--border-light);
-  font-size: 0.8125rem;
-  color: var(--text-secondary);
-}
-
-.doctor-detail-summary__bmi {
-  font-weight: 600;
-  color: var(--text-primary);
+  gap: 0.375rem;
+  margin-top: 0.5rem;
 }
 
 /* ---- Reason for Visit ── */

@@ -269,3 +269,23 @@
     display: none;
   }
 }
+
+/* ============================================
+   NEXT APPOINTMENT EMPTY STATE
+   centered inside the unified card shell
+   ============================================ */
+.doctor-next-card__body--empty {
+  min-height: 200px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.doctor-next-card__empty {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+  gap: 0.25rem;
+}

@@ -146,6 +146,7 @@ export function normalizePrescription(prescription = {}) {
     appointmentID: prescription.appointmentID ?? prescription.appointmentId ?? null,
     patientId: prescription.patientId ?? prescription.patientID ?? null,
     patientID: prescription.patientID ?? prescription.patientId ?? null,
+    patientName: prescription.patientName ?? 'Unknown Patient',
     doctorId: prescription.doctorId ?? prescription.doctorID ?? null,
     doctorID: prescription.doctorID ?? prescription.doctorId ?? null,
     status: toUpperValue(prescription.status ?? prescription.Status ?? undefined) ?? prescription.status,
