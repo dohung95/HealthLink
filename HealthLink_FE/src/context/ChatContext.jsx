@@ -15,12 +15,7 @@ export const ChatProvider = ({ children }) => {
 
     const openChatWith = (partner) => {
         if (partner && partner.uid) {
-            // ✅ CRITICAL: Sanitize UID để đảm bảo không có dấu gạch ngang
-            const sanitizedPartner = {
-                ...partner,
-                uid: partner.uid.replace(/-/g, '')
-            };
-            setSelectedChatPartner(sanitizedPartner);
+            setSelectedChatPartner(partner);
         } else {
             setSelectedChatPartner(partner);
         }
@@ -30,11 +25,7 @@ export const ChatProvider = ({ children }) => {
     // ✅ FIX: Hàm riêng để set partner MÀ KHÔNG MỞ CHAT (dùng cho default setup)
     const setPartnerOnly = (partner) => {
         if (partner && partner.uid) {
-            const sanitizedPartner = {
-                ...partner,
-                uid: partner.uid.replace(/-/g, '')
-            };
-            setSelectedChatPartner(sanitizedPartner);
+            setSelectedChatPartner(partner);
         } else {
             setSelectedChatPartner(partner);
         }

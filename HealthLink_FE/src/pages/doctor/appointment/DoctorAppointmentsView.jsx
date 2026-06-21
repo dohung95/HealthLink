@@ -134,29 +134,16 @@ export default function DoctorAppointmentsView() {
     navigate(`/doctor/appointments/${appointment.appointmentID || appointment.appointmentId}`);
   };
 
+  const ITEMS_PER_PAGE = 5;
+  const [tabPage, setTabPage] = useState(1);
+
+  useEffect(() => { setTabPage(1); }, [selectedDate, selectedStatus, searchTerm]);
+
   return (
     <div className="doctor-content-section">
-      <div className="doctor-stat-row mb-3">
-        <div className="doctor-stat-card doctor-stat-card--primary">
-          <span className="doctor-stat-card__value">{counts.scheduled || 0}</span>
-          <span className="doctor-stat-card__label">Scheduled</span>
-        </div>
-        <div className="doctor-stat-card doctor-stat-card--success">
-          <span className="doctor-stat-card__value">{counts.completed || 0}</span>
-          <span className="doctor-stat-card__label">Completed</span>
-        </div>
-        <div className="doctor-stat-card doctor-stat-card--warning">
-          <span className="doctor-stat-card__value">{counts.cancelled || 0}</span>
-          <span className="doctor-stat-card__label">Cancelled</span>
-        </div>
-        <div className="doctor-stat-card">
-          <span className="doctor-stat-card__value">{selectedDateLabel.split(',')[0]}</span>
-          <span className="doctor-stat-card__label">Selected Date</span>
-        </div>
-      </div>
 
       <div className="doctor-asymmetric-grid">
-        <div className="d-flex flex-column gap-4">
+          <div className="d-flex flex-column gap-4">
           <NextAppointmentCard appointment={nextAppointment} onView={handleView} selectedDate={selectedDate} />
 
           <div className="d-flex flex-column gap-3">
@@ -207,13 +194,35 @@ export default function DoctorAppointmentsView() {
                 />
               </div>
             ) : (
-              <div className="d-flex flex-column" style={{gap:'0.625rem',minHeight:'180px'}}>
-                {filteredAppointments.map((appointment, index) => (
-                  <div key={appointment.appointmentID || appointment.appointmentId} className="doctor-stagger-item" style={{ '--stagger-index': index }}>
-                    <AppointmentCard appointment={appointment} onView={handleView} />
+              (() => {
+                const totalPages = Math.ceil(filteredAppointments.length / ITEMS_PER_PAGE);
+                const startIndex = (tabPage - 1) * ITEMS_PER_PAGE;
+                const pageItems = filteredAppointments.slice(startIndex, startIndex + ITEMS_PER_PAGE);
+                return (
+                  <div className="d-flex flex-column" style={{gap:'0.625rem',minHeight:'180px'}}>
+                    {pageItems.map((appointment, index) => (
+                      <div key={appointment.appointmentID || appointment.appointmentId} className="doctor-stagger-item" style={{ '--stagger-index': startIndex + index }}>
+                        <AppointmentCard appointment={appointment} onView={handleView} />
+                      </div>
+                    ))}
+                    {totalPages > 1 && (
+                      <div className="tab-pagination">
+                        <span className="tab-pagination__info">Page {tabPage} of {totalPages}</span>
+                        <div className="tab-pagination__nav">
+                          <button type="button" className="tab-pagination__btn" disabled={tabPage <= 1} onClick={() => setTabPage((p) => Math.max(1, p - 1))}>
+                            <span className="material-symbols-outlined" style={{ fontSize: '0.75rem' }}>chevron_left</span>
+                            Prev
+                          </button>
+                          <button type="button" className="tab-pagination__btn" disabled={tabPage >= totalPages} onClick={() => setTabPage((p) => Math.min(totalPages, p + 1))}>
+                            Next
+                            <span className="material-symbols-outlined" style={{ fontSize: '0.75rem' }}>chevron_right</span>
+                          </button>
+                        </div>
+                      </div>
+                    )}
                   </div>
-                ))}
-              </div>
+                );
+              })()
             )}
           </div>
         </div>

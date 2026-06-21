@@ -207,7 +207,6 @@ function AppContent() {
   && !is404Page
   && !isResetPasswordPage
   && !isPatientDashboard
-  && !isDoctorPage
   && !isPharmacyChatPage
   && <Chat />}
         <ScrollToTop />

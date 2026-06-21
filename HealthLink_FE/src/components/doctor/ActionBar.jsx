@@ -20,7 +20,6 @@ const ActionBar = ({
   handleVideoCall,
   joinDisabled,
   actionLabel,
-  getTypeIcon,
   currentAppointment,
   canEditClinical,
   completingAppointment,
@@ -95,7 +94,7 @@ const ActionBar = ({
           type="button"
           title={joinDisabled ? 'Cannot join: consultation not active or already completed.' : ''}
         >
-          <i className={`bi ${getTypeIcon(currentAppointment?.consultationType)} me-2`} />
+          <i className="bi bi-camera-video me-2" />
           {actionLabel}
         </button>
 

@@ -85,7 +85,6 @@
 .chat-float-wrapper {
   position: fixed;
   bottom: 80px;
-  /* Nhích lên một tý */
   right: 5px;
   /* Sát mép phải để thu vào mượt */
   z-index: 1000;
@@ -245,7 +244,7 @@
 /* ─── Chat Box ─── */
 .chat-box {
   position: fixed;
-  bottom: 80px;
+  bottom: 0;
   right: 45px;
   width: 380px;
   height: min(500px, 70dvh);

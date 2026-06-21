@@ -7,9 +7,9 @@ export function getPatientInitials(name) {
 
 export function getTypeIcon(type) {
   const icons = {
-    VIDEO: '🎥', AUDIO: '🎧', CHAT: '💬', OFFLINE: '🏥',
+    VIDEO: 'videocam', AUDIO: 'call', CHAT: 'chat', OFFLINE: 'local_hospital',
   };
-  return icons[type?.toUpperCase()] || '📋';
+  return icons[type?.toUpperCase()] || 'videocam';
 }
 
 export function getTypeColor(type) {

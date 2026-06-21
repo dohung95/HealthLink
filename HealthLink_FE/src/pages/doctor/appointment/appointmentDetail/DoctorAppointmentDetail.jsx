@@ -4,7 +4,7 @@ import 'react-calendar/dist/Calendar.css';
 import '@components/Css/doctor/doctor-dashboard/doctor-dashboard.css';
 import {
   formatDate, formatCompactDate, formatTime, formatDateTime,
-  getStatusClassName, getTypeClassName, getTypeIcon,
+  getStatusClassName, getTypeClassName,
   getPatientInitials, calculateAge, toLocalDateValue, buildFollowUpDateTime,
 } from '@utils/doctor/tabHelpers';
 import { useAppointmentDetail } from '@hooks/doctor/useAppointmentDetail';
@@ -109,7 +109,6 @@ const DoctorAppointmentDetail = memo(({ appointment, patient, doctorId, onBack, 
                 formatTime={formatTime}
                 formatDate={formatDate}
                 getStatusClassName={getStatusClassName}
-                getTypeIcon={getTypeIcon}
               />
             ) : null}
             {ctx.activeTab === 'shared' ? <SharedRecordsTab doctorId={ctx.effectiveDoctorId} patientId={ctx.patientId} appointmentId={ctx.currentAppointment?.appointmentId} /> : null}
@@ -149,7 +148,6 @@ const DoctorAppointmentDetail = memo(({ appointment, patient, doctorId, onBack, 
                 followUpAction={ctx.followUpAction}
                 onConfirmFollowUp={ctx.handleConfirmFollowUp}
                 currentAppointment={ctx.currentAppointment}
-                getTypeIcon={getTypeIcon}
                 followUpNotes={ctx.followUpNotes}
                 onFollowUpNotesChange={ctx.setFollowUpNotes}
                 renderEmptyState={(title, description) => <EmptyState title={title} description={description} />}
@@ -172,7 +170,6 @@ const DoctorAppointmentDetail = memo(({ appointment, patient, doctorId, onBack, 
             handleVideoCall={ctx.handleVideoCall}
             joinDisabled={ctx.joinDisabled}
             actionLabel={ctx.actionLabel}
-            getTypeIcon={getTypeIcon}
             currentAppointment={ctx.currentAppointment}
             canEditClinical={ctx.canEditClinical}
             completingAppointment={ctx.completingAppointment}

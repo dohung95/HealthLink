@@ -31,7 +31,6 @@ const FollowUpTab = ({
   followUpAction,
   onConfirmFollowUp,
   currentAppointment,
-  getTypeIcon,
   followUpNotes,
   onFollowUpNotesChange,
   renderEmptyState,
@@ -107,7 +106,7 @@ const FollowUpTab = ({
           <div className="fu-visit-card">
             <div className="fu-visit-row">
               <div className="fu-visit-item">
-                <i className={`bi ${getTypeIcon(currentAppointment?.consultationType)}`}></i>
+                <i className="bi bi-camera-video"></i>
                 <span>{currentAppointment?.consultationType || 'Consultation'}</span>
               </div>
               <div className="fu-visit-item">
