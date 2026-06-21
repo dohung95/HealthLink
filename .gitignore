@@ -64,6 +64,7 @@ lerna-debug.log*
 /HealthLink_FE/.opencode
 /HealthLink_FE/graphify-out
 /docs
+/.superpowers
 
 # === Custom ignores cho file XML do IDE sinh ra ===
 HealthLink/HealthLink_BE/HealthLink_BEynbactions.xml
