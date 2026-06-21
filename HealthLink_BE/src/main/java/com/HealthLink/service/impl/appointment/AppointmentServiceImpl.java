@@ -18,12 +18,14 @@ import com.HealthLink.entity.DoctorSchedule;
 import com.HealthLink.entity.DoctorScheduleException;
 import com.HealthLink.entity.Patient;
 import com.HealthLink.entity.User;
+import com.HealthLink.entity.HomeVisitDetails;
 import com.HealthLink.entity.enums.NotificationType;
 import com.HealthLink.entity.enums.ScheduleExceptionType;
 import com.HealthLink.exception.BusinessException;
 import com.HealthLink.exception.ResourceNotFoundException;
 import com.HealthLink.repository.appointment.AppointmentRepository;
 import com.HealthLink.repository.appointment.AppointmentSlotHoldRepository;
+import com.HealthLink.repository.appointment.HomeVisitDetailsRepository;
 import com.HealthLink.repository.admin.DoctorScheduleExceptionRepository;
 import com.HealthLink.repository.doctor.DoctorRepository;
 import com.HealthLink.repository.doctor.DoctorScheduleRepository;
@@ -66,6 +68,7 @@ public class AppointmentServiceImpl implements AppointmentService {
     private final DoctorScheduleRepository scheduleRepository;
     private final DoctorScheduleExceptionRepository exceptionRepository;
     private final AppointmentSlotHoldRepository appointmentSlotHoldRepository;
+    private final HomeVisitDetailsRepository homeVisitDetailsRepository;
     private final NotificationService notificationService;
 
     @Value("${booking.max-days-ahead}")
@@ -81,6 +84,7 @@ public class AppointmentServiceImpl implements AppointmentService {
         request.setConsultationType(
                 normalizeConsultationTypeForBooking(request.getConsultationType())
         );
+        validateHomeVisitRequest(request);
 
         Patient patient = patientRepository.findById(request.getPatientId())
                 .orElseThrow(() -> new ResourceNotFoundException(
@@ -158,6 +162,12 @@ public class AppointmentServiceImpl implements AppointmentService {
                 .build();
 
         Appointment saved = appointmentRepository.save(appointment);
+
+        if (TYPE_HOME_VISIT.equalsIgnoreCase(request.getConsultationType())) {
+            HomeVisitDetails homeVisitDetails = buildHomeVisitDetails(saved, request);
+            homeVisitDetailsRepository.save(homeVisitDetails);
+            saved.setHomeVisitDetails(homeVisitDetails);
+        }
 
         appointmentSlotHoldRepository
                 .findByDoctor_DoctorIdAndAppointmentTimeAndExpiresAtAfter(
@@ -703,6 +713,35 @@ public class AppointmentServiceImpl implements AppointmentService {
         }
     }
 
+    private void validateHomeVisitRequest(AppointmentRequest request) {
+        if (!TYPE_HOME_VISIT.equalsIgnoreCase(request.getConsultationType())) {
+            return;
+        }
+
+        requireText(request.getVisitAddress(), "Visit address is required for home visit");
+        requireText(request.getContactPhone(), "Contact phone is required for home visit");
+        requireText(request.getReasonForHomeVisit(), "Reason for home visit is required");
+
+        if (request.getIsForSelf() == null) {
+            throw new BusinessException("Please specify whether the visit is for yourself or someone else");
+        }
+
+        if (!request.getIsForSelf()) {
+            requireText(request.getReceiverName(), "Receiver name is required");
+            requireText(request.getReceiverRelationship(), "Receiver relationship is required");
+
+            if (request.getReceiverAge() == null || request.getReceiverAge() <= 0) {
+                throw new BusinessException("Receiver age must be greater than 0");
+            }
+        }
+    }
+
+    private void requireText(String value, String message) {
+        if (value == null || value.isBlank()) {
+            throw new BusinessException(message);
+        }
+    }
+
     private void checkConsultationTypeSupported(Doctor doctor, String consultationType) {
         String normalizedType = normalizeConsultationTypeForBooking(consultationType);
 
@@ -712,8 +751,8 @@ public class AppointmentServiceImpl implements AppointmentService {
                 || doctor.isAvailableForAudio()
                 || doctor.isAvailableForChat();
 
-            case "offline" ->
-                doctor.isAvailableForOffline();
+            case "homevisit" ->
+                true;
 
             default ->
                 true;
@@ -734,8 +773,8 @@ public class AppointmentServiceImpl implements AppointmentService {
             return isOnlineScheduleType(scheduleType);
         }
 
-        if (TYPE_OFFLINE.equalsIgnoreCase(normalizedType)) {
-            return isOfflineScheduleType(scheduleType);
+        if (TYPE_HOME_VISIT.equalsIgnoreCase(normalizedType)) {
+            return isHomeVisitScheduleType(scheduleType);
         }
 
         return true;
@@ -892,6 +931,8 @@ public class AppointmentServiceImpl implements AppointmentService {
 
     private AppointmentResponse toResponse(Appointment appointment) {
         Consultation consultation = appointment.getConsultation();
+        HomeVisitDetails homeVisit = appointment.getHomeVisitDetails();
+
         return AppointmentResponse.builder()
                 .appointmentId(appointment.getAppointmentId())
                 .patientId(appointment.getPatient().getPatientId())
@@ -915,6 +956,22 @@ public class AppointmentServiceImpl implements AppointmentService {
                 .followUpDate(consultation != null ? consultation.getFollowUpDate() : null)
                 .followUpAppointmentId(consultation != null ? consultation.getFollowUpAppointmentId() : null)
                 .followUpNotes(consultation != null ? consultation.getFollowUpNotes() : null)
+                .visitAddress(homeVisit != null ? homeVisit.getVisitAddress() : null)
+                .visitCity(homeVisit != null ? homeVisit.getVisitCity() : null)
+                .contactPhone(homeVisit != null ? homeVisit.getContactPhone() : null)
+                .reasonForHomeVisit(homeVisit != null ? homeVisit.getReasonForHomeVisit() : null)
+                .specialNotes(homeVisit != null ? homeVisit.getSpecialNotes() : null)
+                .isForSelf(homeVisit != null ? homeVisit.getIsForSelf() : null)
+                .receiverName(homeVisit != null ? homeVisit.getReceiverName() : null)
+                .receiverAge(homeVisit != null ? homeVisit.getReceiverAge() : null)
+                .receiverGender(homeVisit != null ? homeVisit.getReceiverGender() : null)
+                .receiverRelationship(homeVisit != null ? homeVisit.getReceiverRelationship() : null)
+                .receiverPhone(homeVisit != null ? homeVisit.getReceiverPhone() : null)
+                .distanceKm(homeVisit != null ? homeVisit.getDistanceKm() : null)
+                .estimatedTravelMinutes(homeVisit != null ? homeVisit.getEstimatedTravelMinutes() : null)
+                .visitDurationMinutes(homeVisit != null ? homeVisit.getVisitDurationMinutes() : null)
+                .travelBufferBeforeMinutes(homeVisit != null ? homeVisit.getTravelBufferBeforeMinutes() : null)
+                .travelBufferAfterMinutes(homeVisit != null ? homeVisit.getTravelBufferAfterMinutes() : null)
                 .build();
     }
 
@@ -946,7 +1003,7 @@ public class AppointmentServiceImpl implements AppointmentService {
     }
 
     private static final String TYPE_ONLINE = "Online";
-    private static final String TYPE_OFFLINE = "Offline";
+    private static final String TYPE_HOME_VISIT = "HomeVisit";
 
     private String normalizeConsultationTypeForBooking(String consultationType) {
         if (consultationType == null || consultationType.isBlank()) {
@@ -958,8 +1015,8 @@ public class AppointmentServiceImpl implements AppointmentService {
         return switch (value) {
             case "video", "video call", "audio", "audio call", "chat", "online", "consultation" ->
                 TYPE_ONLINE;
-            case "offline", "in-person", "in person" ->
-                TYPE_OFFLINE;
+            case "homevisit", "home visit", "home-visit", "family doctor", "home" ->
+                TYPE_HOME_VISIT;
             default ->
                 TYPE_ONLINE;
         };
@@ -991,5 +1048,41 @@ public class AppointmentServiceImpl implements AppointmentService {
         return type.equals("offline")
                 || type.equals("in-person")
                 || type.equals("in person");
+    }
+
+    private boolean isHomeVisitScheduleType(String value) {
+        if (value == null || value.isBlank()) {
+            return true;
+        }
+
+        String type = value.trim().toLowerCase();
+
+        return type.equals("homevisit")
+                || type.equals("home visit")
+                || type.equals("home-visit")
+                || type.equals("family doctor")
+                || type.equals("home");
+    }
+
+    private HomeVisitDetails buildHomeVisitDetails(Appointment appointment, AppointmentRequest request) {
+        return HomeVisitDetails.builder()
+                .appointment(appointment)
+                .visitAddress(request.getVisitAddress())
+                .visitCity(request.getVisitCity())
+                .contactPhone(request.getContactPhone())
+                .reasonForHomeVisit(request.getReasonForHomeVisit())
+                .specialNotes(request.getSpecialNotes())
+                .isForSelf(request.getIsForSelf())
+                .receiverName(request.getReceiverName())
+                .receiverAge(request.getReceiverAge())
+                .receiverGender(request.getReceiverGender())
+                .receiverRelationship(request.getReceiverRelationship())
+                .receiverPhone(request.getReceiverPhone())
+                .visitLatitude(request.getVisitLatitude())
+                .visitLongitude(request.getVisitLongitude())
+                .visitDurationMinutes(30)
+                .travelBufferBeforeMinutes(30)
+                .travelBufferAfterMinutes(30)
+                .build();
     }
 }

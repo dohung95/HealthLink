@@ -33,6 +33,24 @@ public class AppointmentPayPalCaptureRequest {
 
     private String notes;
 
+    // Home Visit fields
+    private String visitAddress;
+    private String visitCity;
+    private String contactPhone;
+    private String reasonForHomeVisit;
+    private String specialNotes;
+
+    private Boolean isForSelf;
+
+    private String receiverName;
+    private Integer receiverAge;
+    private String receiverGender;
+    private String receiverRelationship;
+    private String receiverPhone;
+
+    private Double visitLatitude;
+    private Double visitLongitude;
+
     private String paymentMethod = "EWallet";
 
     private String currency = "USD";

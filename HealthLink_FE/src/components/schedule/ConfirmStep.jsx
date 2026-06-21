@@ -2,6 +2,8 @@ const ConfirmStep = ({
     selectedDoctor,
     selectedSpecialty,
     selectedSlot,
+    consultationType,
+    homeVisitInfo,
     symptoms,
     files,
     onBack,
@@ -16,10 +18,27 @@ const ConfirmStep = ({
     const rows = [
         ['Doctor', selectedDoctor?.fullName || ''],
         ['Specialty', selectedSpecialty || selectedDoctor?.specialtyName || ''],
+        ['Visit Type', consultationType === 'HomeVisit' ? 'Home Visit' : 'Online consultation'],
         ['Date & Time', formattedDateTime],
         ['Symptoms', symptoms || 'None'],
         ['Attached files', files.length > 0 ? `${files.length} file` : 'None'],
     ];
+
+    if (consultationType === 'HomeVisit') {
+        rows.push(
+            ['Visit Address', homeVisitInfo?.visitAddress || ''],
+            ['Contact Phone', homeVisitInfo?.contactPhone || ''],
+            ['For', homeVisitInfo?.isForSelf ? 'Myself' : 'Someone else']
+        );
+
+        if (homeVisitInfo?.isForSelf === false) {
+            rows.push(
+                ['Receiver Name', homeVisitInfo?.receiverName || ''],
+                ['Receiver Age', homeVisitInfo?.receiverAge || ''],
+                ['Relationship', homeVisitInfo?.receiverRelationship || '']
+            );
+        }
+    }
     return (
         <div className="schedule-card">
             <h2>Confirm Booking</h2>

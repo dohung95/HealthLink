@@ -78,7 +78,7 @@ import java.util.stream.Collectors;
 public class FinanceServiceImpl implements FinanceService {
 
     private static final String TYPE_ONLINE = "Online";
-    private static final String TYPE_OFFLINE = "Offline";
+    private static final String TYPE_HOME_VISIT = "HomeVisit";
 
     // ── Các hằng trạng thái ─────────────────────────────────────────────────
     private static final String INVOICE_PAID = "PAID";
@@ -893,6 +893,22 @@ public class FinanceServiceImpl implements FinanceService {
         appointmentRequest.setConsultationType(request.getConsultationType());
         appointmentRequest.setSymptoms(request.getSymptoms());
         appointmentRequest.setNotes(request.getNotes());
+        appointmentRequest.setVisitAddress(request.getVisitAddress());
+        appointmentRequest.setVisitCity(request.getVisitCity());
+        appointmentRequest.setContactPhone(request.getContactPhone());
+        appointmentRequest.setReasonForHomeVisit(request.getReasonForHomeVisit());
+        appointmentRequest.setSpecialNotes(request.getSpecialNotes());
+
+        appointmentRequest.setIsForSelf(request.getIsForSelf());
+
+        appointmentRequest.setReceiverName(request.getReceiverName());
+        appointmentRequest.setReceiverAge(request.getReceiverAge());
+        appointmentRequest.setReceiverGender(request.getReceiverGender());
+        appointmentRequest.setReceiverRelationship(request.getReceiverRelationship());
+        appointmentRequest.setReceiverPhone(request.getReceiverPhone());
+
+        appointmentRequest.setVisitLatitude(request.getVisitLatitude());
+        appointmentRequest.setVisitLongitude(request.getVisitLongitude());
         return appointmentRequest;
     }
 
@@ -904,6 +920,22 @@ public class FinanceServiceImpl implements FinanceService {
         appointmentRequest.setConsultationType(request.getConsultationType());
         appointmentRequest.setSymptoms(request.getSymptoms());
         appointmentRequest.setNotes(request.getNotes());
+        appointmentRequest.setVisitAddress(request.getVisitAddress());
+        appointmentRequest.setVisitCity(request.getVisitCity());
+        appointmentRequest.setContactPhone(request.getContactPhone());
+        appointmentRequest.setReasonForHomeVisit(request.getReasonForHomeVisit());
+        appointmentRequest.setSpecialNotes(request.getSpecialNotes());
+
+        appointmentRequest.setIsForSelf(request.getIsForSelf());
+
+        appointmentRequest.setReceiverName(request.getReceiverName());
+        appointmentRequest.setReceiverAge(request.getReceiverAge());
+        appointmentRequest.setReceiverGender(request.getReceiverGender());
+        appointmentRequest.setReceiverRelationship(request.getReceiverRelationship());
+        appointmentRequest.setReceiverPhone(request.getReceiverPhone());
+
+        appointmentRequest.setVisitLatitude(request.getVisitLatitude());
+        appointmentRequest.setVisitLongitude(request.getVisitLongitude());
         return appointmentRequest;
     }
 
@@ -915,10 +947,10 @@ public class FinanceServiceImpl implements FinanceService {
         String value = consultationType.trim().toLowerCase();
 
         return switch (value) {
-            case "video", "video call", "audio", "audio call", "chat", "online", "consultation" ->
+            case "online", "video", "chat" ->
                 TYPE_ONLINE;
-            case "offline", "in-person", "in person" ->
-                TYPE_OFFLINE;
+            case "homevisit", "home visit", "home-visit", "home" ->
+                TYPE_HOME_VISIT;
             default ->
                 TYPE_ONLINE;
         };
@@ -941,16 +973,17 @@ public class FinanceServiceImpl implements FinanceService {
                 || doctor.isAvailableForAudio()
                 || doctor.isAvailableForChat();
 
-            case "offline" ->
-                doctor.isAvailableForOffline();
+            case "homevisit" ->
+                true;
 
             default ->
-                true;
+                false;
         };
 
         if (!supported) {
             throw new BadRequestException(
-                    "Doctor does not support consultation type: " + normalizedType);
+                    "Doctor does not support consultation type: " + normalizedType
+            );
         }
     }
 

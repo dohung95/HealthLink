@@ -13,8 +13,11 @@ const DateTimeStep = ({
   onNext,
   doctorSchedules = [],
   maxDate,
+  consultationType,
 }) => {
   const [weekIndex, setWeekIndex] = useState(0);
+  const isHomeVisit = consultationType === 'HomeVisit';
+
 
   const weekdayLabels = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
 
@@ -55,7 +58,8 @@ const DateTimeStep = ({
     );
   }, [doctorSchedules]);
 
-  const shouldFilterByDoctorSchedule = true;
+  const shouldFilterByDoctorSchedule = !isHomeVisit && workingDaySet.size > 0;
+
 
   const buildWeekOptions = (targetWeekIndex) => {
     const today = getStartOfToday();
@@ -194,66 +198,67 @@ const DateTimeStep = ({
           ))
         )}
       </div>
+      {!isHomeVisit && (
+        <div className="slot-section">
+          <h3>Available slots</h3>
 
-      <div className="slot-section">
-        <h3>Available slots</h3>
+          {!hasSelectableDate ? (
+            <div className="empty-block">
+              Please select an available working day first.
+            </div>
+          ) : loadingSlots ? (
+            <div className="empty-block">Loading slots...</div>
+          ) : slots.length === 0 ? (
+            <div className="empty-block">
+              No available slots on this day.
+            </div>
+          ) : (
+            <div className="slot-grid">
+              {slots.map((slot) => {
+                const isSelected =
+                  selectedSlot?.date === date &&
+                  selectedSlot?.startTime === slot.startTime;
 
-        {!hasSelectableDate ? (
-          <div className="empty-block">
-            Please select an available working day first.
-          </div>
-        ) : loadingSlots ? (
-          <div className="empty-block">Loading slots...</div>
-        ) : slots.length === 0 ? (
-          <div className="empty-block">
-            No available slots on this day.
-          </div>
-        ) : (
-          <div className="slot-grid">
-            {slots.map((slot) => {
-              const isSelected =
-                selectedSlot?.date === date &&
-                selectedSlot?.startTime === slot.startTime;
+                const statusClass = slot.status?.toLowerCase();
 
-              const statusClass = slot.status?.toLowerCase();
+                const slotDateTime = new Date(`${date}T${slot.startTime}`);
+                const isPastSlot = slotDateTime < new Date();
 
-              const slotDateTime = new Date(`${date}T${slot.startTime}`);
-              const isPastSlot = slotDateTime < new Date();
+                return (
+                  <button
+                    key={`${date}-${slot.startTime}`}
+                    type="button"
+                    className={`slot-button ${statusClass} ${isPastSlot ? 'past' : ''} ${isSelected ? 'selected' : ''}`}
+                    disabled={isPastSlot || (!slot.selectable && !isSelected)}
+                    onClick={() => {
+                      if (isPastSlot) return;
 
-              return (
-                <button
-                  key={`${date}-${slot.startTime}`}
-                  type="button"
-                  className={`slot-button ${statusClass} ${isPastSlot ? 'past' : ''} ${isSelected ? 'selected' : ''}`}
-                  disabled={isPastSlot || (!slot.selectable && !isSelected)}
-                  onClick={() => {
-                    if (isPastSlot) return;
-
-                    if (isSelected) {
-                      onClearSlot();
-                    } else {
-                      onSelectSlot(slot);
+                      if (isSelected) {
+                        onClearSlot();
+                      } else {
+                        onSelectSlot(slot);
+                      }
+                    }}
+                    title={
+                      isPastSlot
+                        ? 'Past time'
+                        : isSelected
+                          ? 'Click again to unselect'
+                          : slot.status === 'BOOKED'
+                            ? 'Booked'
+                            : slot.status === 'HELD'
+                              ? 'Held'
+                              : 'Available'
                     }
-                  }}
-                  title={
-                    isPastSlot
-                      ? 'Past time'
-                      : isSelected
-                        ? 'Click again to unselect'
-                        : slot.status === 'BOOKED'
-                          ? 'Booked'
-                          : slot.status === 'HELD'
-                            ? 'Held'
-                            : 'Available'
-                  }
-                >
-                  {slot.startTime}
-                </button>
-              );
-            })}
-          </div>
-        )}
-      </div>
+                  >
+                    {slot.startTime}
+                  </button>
+                );
+              })}
+            </div>
+          )}
+        </div>
+      )}
 
       <div className="schedule-actions datetime-actions">
         <button type="button" className="btn-outline-soft" onClick={onBack}>
@@ -264,10 +269,11 @@ const DateTimeStep = ({
           type="button"
           className="btn-primary-soft"
           onClick={onNext}
-          disabled={!hasSelectableDate || !selectedSlot}
+          disabled={!hasSelectableDate || (!isHomeVisit && !selectedSlot)}
         >
           Next
         </button>
+
       </div>
     </div>
   );
