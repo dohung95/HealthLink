@@ -62,6 +62,9 @@ const PatientSidebar = () => {
         };
 
         fetchProfile();
+
+        window.addEventListener('profile-updated', fetchProfile);
+        return () => window.removeEventListener('profile-updated', fetchProfile);
     }, [token]);
 
     const menuItems = [
