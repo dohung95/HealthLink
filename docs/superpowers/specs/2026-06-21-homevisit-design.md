@@ -1,29 +1,59 @@
 # Home Visit (Bác Sĩ Gia Đình) — Design Doc
 
 **Ngày:** 2026-06-21
-**Phiên bản:** 1.0
+**Phiên bản:** 2.0
 **Phạm vi:** Web (React) first; Mobile (Flutter) deferred
 
 ---
 
 ## 1. Mục Tiêu
 
-Thay thế hoàn toàn hình thức "Offline (khám tại phòng khám)" bằng "HomeVisit (khám tại nhà)". Bệnh nhân có thể đặt bác sĩ đến khám tại địa chỉ nhà riêng, với hệ thống lọc bác sĩ theo bán kính phục vụ và tính phí đi lại.
+Thay thế hoàn toàn hình thức "Offline (khám tại phòng khám)" bằng "HomeVisit (Bác Sĩ Gia Đình)". Bệnh nhân cao cấp có thể đặt bác sĩ đến khám tại nhà với gói phí cố định do platform quy định. Hệ thống dùng mô hình **session-based** (sáng 07-12, chiều 13-17) thay vì slot-based cho HomeVisit, giải quyết bài toán thời gian lấn giờ giữa các cuộc hẹn.
 
 ---
 
 ## 2. Non-Goals
 
-- Quản lý người thân / hồ sơ sức khỏe theo từng thành viên gia đình (`FamilyMembers`) — để ở phase sau
+- Quản lý người thân / hồ sơ sức khỏe theo từng thành viên gia đình (`FamilyMembers`) — phase sau
 - Mobile (Flutter) implementation — phase sau
 - Real-time tracking bác sĩ trên đường đi — phase sau
 - Tích hợp VNPay/Momo cho HomeVisit — phase sau
 
 ---
 
-## 3. Thay Đổi Database
+## 3. Mô Hình Session-Based
 
-### 3.1. Doctor — Thay thế field
+### 3.1. Session Cố Định
+
+| Session | Giờ | Độ dài |
+|---------|:---:|:------:|
+| Sáng (MORNING) | 07:00 - 12:00 | 5 tiếng |
+| Chiều (AFTERNOON) | 13:00 - 17:00 | 4 tiếng |
+
+- Mỗi bác sĩ tối đa **2 HomeVisit/ngày** (1 sáng, 1 chiều)
+- Online và HomeVisit **không share chung time range** trong `DoctorSchedule`
+- Bác sĩ dùng `WeeklyScheduleBuilder` để đánh dấu buổi nào dành cho HomeVisit
+- `homeVisitFee` do platform quy định, đồng giá cho mọi bác sĩ
+- Đã bao gồm phí di chuyển, không tính travelFee riêng
+
+### 3.2. Ví Dụ Lịch Bác Sĩ
+
+```
+Thứ 2: 07-12 [Video, Audio, Chat]     → Online
+Thứ 2: 13-17 [Video, Audio, Chat]     → Online
+Thứ 3: 07-12 [Video, Audio, Chat]     → Online  
+Thứ 3: 13-17 [HomeVisit]              → HomeVisit
+Thứ 4: 07-12 [HomeVisit]              → HomeVisit
+Thứ 4: 13-17 [Video, Audio, Chat]     → Online
+Thứ 5: 07-12 [Video, Audio, Chat]     → Online
+Thứ 5: 13-17 [Online]                 → Không dùng cho HomeVisit
+```
+
+---
+
+## 4. Thay Đổi Database
+
+### 4.1. Doctor — Thay thế field
 
 **Xóa (phase 2 cleanup — giữ nguyên trong phase 1 để migration an toàn):**
 - `availableForOffline` (boolean)
@@ -31,14 +61,11 @@ Thay thế hoàn toàn hình thức "Offline (khám tại phòng khám)" bằng 
 - `customCommissionRateOfflineEffectiveFrom` (LocalDateTime)
 - `customCommissionRateOfflineEffectiveTo` (LocalDateTime)
 
-**Phase 1:** Giữ các field `customCommissionRateOffline*` trong DB nhưng không dùng (reserved). HomeVisit dùng `CommissionConfig` global. Phase 2 sẽ xóa hoặc rename thành `customCommissionRateHomeVisit` nếu cần custom rate cho doctor.
-
 **Thêm:**
 - `availableForHomeVisit` boolean default false
-- `homeVisitFee` decimal(10,2) default 0 — phí dịch vụ khám tại nhà
 - `homeVisitRadiusKm` double default 10 — bán kính tối đa (km)
 
-### 3.2. ConsultationType Enum
+### 4.2. ConsultationType Enum
 
 ```
 OFFLINE → HOME_VISIT
@@ -46,36 +73,86 @@ OFFLINE → HOME_VISIT
 
 Bộ giá trị mới: `VIDEO, AUDIO, CHAT, HOME_VISIT`
 
-### 3.3. HomeVisitDetails (Bảng Mới)
+### 4.3. DoctorSchedule — Thêm ConsultationType
+
+Schedule có `consultationType` = `"HomeVisit"` → schedule đó dành riêng cho HomeVisit.
+
+Khi `getAvailableSlots` chạy với `consultationType=Online` → bỏ qua schedule có `"HomeVisit"`.
+
+### 4.4. HomeVisitDetails (Bảng Mới)
+
+Lưu thông tin khám tại nhà sau khi payment thành công.
 
 ```sql
 CREATE TABLE HomeVisitDetails (
     Id INT IDENTITY(1,1) PRIMARY KEY,
-    AppointmentId INT NOT NULL UNIQUE,  -- FK → Appointments
+    AppointmentId INT NOT NULL UNIQUE REFERENCES Appointments(AppointmentID),
     VisitAddress NVARCHAR(500) NOT NULL,
     VisitLatitude DECIMAL(10,7),
     VisitLongitude DECIMAL(10,7),
     ContactPhone NVARCHAR(20) NOT NULL,
     IsForSelf BIT NOT NULL DEFAULT 1,
-    ReceiverName NVARCHAR(100),        -- NULL if IsForSelf=1
+    ReceiverName NVARCHAR(100),
     ReceiverAge INT,
     ReceiverGender NVARCHAR(10),
     ReceiverRelationship NVARCHAR(50),
     ReasonForHomeVisit NVARCHAR(500),
     SpecialNotes NVARCHAR(500),
     HomeVisitFee DECIMAL(10,2) NOT NULL DEFAULT 0,
-    TravelFee DECIMAL(10,2) NOT NULL DEFAULT 0,
     CreatedAt DATETIME2 NOT NULL DEFAULT GETUTCDATE()
 );
 ```
 
-### 3.4. CommissionConfig — Service Type mới
+### 4.5. HomeVisitBookings (Bảng Mới)
+
+Track session nào đã bị khóa bởi HomeVisit.
+
+```sql
+CREATE TABLE HomeVisitBookings (
+    Id INT IDENTITY(1,1) PRIMARY KEY,
+    DoctorId NVARCHAR(450) NOT NULL,
+    ScheduleId INT NOT NULL REFERENCES DoctorSchedules(ScheduleID),
+    BookingDate DATE NOT NULL,
+    AppointmentId INT NOT NULL UNIQUE REFERENCES Appointments(AppointmentID),
+    CreatedAt DATETIME2 NOT NULL DEFAULT GETUTCDATE(),
+    CONSTRAINT UQ_Doctor_Session_Date UNIQUE (DoctorId, ScheduleId, BookingDate)
+);
+```
+
+### 4.6. HomeVisitDrafts (Bảng Mới)
+
+Lưu tạm thông tin HomeVisit trước khi payment (TTL 30 phút).
+
+```sql
+CREATE TABLE HomeVisitDrafts (
+    Id INT IDENTITY(1,1) PRIMARY KEY,
+    PatientId NVARCHAR(450) NOT NULL,
+    DoctorId NVARCHAR(450) NOT NULL,
+    AppointmentId INT NOT NULL REFERENCES Appointments(AppointmentID),
+    VisitAddress NVARCHAR(500) NOT NULL,
+    VisitLatitude DECIMAL(10,7),
+    VisitLongitude DECIMAL(10,7),
+    ContactPhone NVARCHAR(20) NOT NULL,
+    IsForSelf BIT NOT NULL DEFAULT 1,
+    ReceiverName NVARCHAR(100),
+    ReceiverAge INT,
+    ReceiverGender NVARCHAR(10),
+    ReceiverRelationship NVARCHAR(50),
+    ReasonForHomeVisit NVARCHAR(500),
+    SpecialNotes NVARCHAR(500),
+    CreatedAt DATETIME2 NOT NULL DEFAULT GETUTCDATE(),
+    ExpiresAt DATETIME2 NOT NULL
+);
+CREATE INDEX IX_HomeVisitDrafts_ExpiresAt ON HomeVisitDrafts(ExpiresAt);
+```
+
+### 4.7. CommissionConfig — Service Type mới
 
 Thêm: `CONSULTATION_HOME_VISIT` (rate mặc định: 0.1000 = 10%)
 
 Giữ nguyên: `CONSULTATION_ONLINE`, `PHARMACY_ORDER`
 
-### 3.5. Appointments — ConsultationType values
+### 4.8. Appointments — ConsultationType values
 
 ```
 "Online" → vẫn giữ
@@ -84,247 +161,309 @@ Giữ nguyên: `CONSULTATION_ONLINE`, `PHARMACY_ORDER`
 
 ---
 
-## 4. API Endpoints
+## 5. API Endpoints
 
-### 4.1. Backend Endpoints
+### 5.1. Backend Endpoints
 
 | Method | Path | Mô tả |
 |--------|------|-------|
 | **GET** | `/api/account/doctors?availableForHomeVisit=true&specialty=X` | Lọc bác sĩ hỗ trợ HomeVisit |
-| **POST** | `/api/home-visit/details` | Lưu thông tin HomeVisit tạm (trước payment) |
-| **GET** | `/api/home-visit/details/{holdId}` | Lấy thông tin HomeVisit đã nhập |
-| **POST** | `/api/appointments/calculate-fare` | Tính phí tạm |
-| **POST** | `/api/payment/appointments/paypal/create` | Sửa: nhận thêm homeVisitDetails object |
-| **POST** | `/api/payment/appointments/paypal/capture` | Sửa: tạo HomeVisitDetails cùng Appointment |
+| **GET** | `/api/doctors/{id}/home-visit-sessions` | Lấy danh sách session HomeVisit còn trống (trả về schedule + available dates) |
+| **POST** | `/api/consultations/{id}/propose-home-visit` | Bác sĩ đề xuất → tạo Appointment PENDINGPAYMENT + noti patient |
+| **POST** | `/api/consultations/{id}/confirm-home-visit` | Patient xác nhận → trả về danh sách session để chọn |
+| **POST** | `/api/consultations/{id}/reject-home-visit` | Patient từ chối → xóa proposal, noti doctor |
+| **POST** | `/api/home-visit/select-session` | Patient chọn buổi → lưu HomeVisitDraft |
+| **POST** | `/api/payment/home-visit/paypal/create` | Tạo PayPal order với homeVisitFee |
+| **POST** | `/api/payment/home-visit/paypal/capture` | Capture → tạo HomeVisitDetails + khóa session |
 | **GET** | `/api/appointments/{id}/home-visit-details` | Doctor xem chi tiết HomeVisit |
-| **PUT** | `/api/appointments/{id}/cancel` | Sửa: hoàn phí travel fee theo policy |
+| **GET** | `/api/home-visit/sessions?doctorId=X&date=Y` | Check trạng thái session (cho re-render UI) |
 
-### 4.2. Chi Tiết Endpoint Quan Trọng
+### 5.2. Chi Tiết Endpoint Quan Trọng
 
-#### POST `/api/home-visit/details`
+#### POST `/api/consultations/{id}/propose-home-visit`
 ```
-Request:
-{
-  "doctorId": "uuid",
-  "patientId": "uuid",
-  "visitAddress": "123 Main St, ...",
-  "visitLatitude": 10.762622,
-  "visitLongitude": 106.660172,
-  "contactPhone": "+84901234567",
-  "isForSelf": true,
-  "receiverName": null,
-  "receiverAge": null,
-  "receiverGender": null,
-  "receiverRelationship": null,
-  "reasonForHomeVisit": "Khó di chuyển",
-  "specialNotes": "Gọi trước 30 phút"
+Request: {} (doctor đang trong consultation)
+Response: { proposalId, message: "Đã gửi đề xuất đến bệnh nhân" }
+Backend: Tạo Appointment (status=PENDINGPAYMENT, consultationType=HomeVisit)
+         → Gửi WebSocket notification đến patient
+```
+
+#### POST `/api/consultations/{id}/confirm-home-visit`
+```
+Request: {} (patient click "Đồng ý")
+Response: { sessions: [{ scheduleId, dayOfWeek, sessionType, 
+           startTime, endTime, sessionLabel, availableDates[] }] }
+```
+
+#### POST `/api/home-visit/select-session`
+```
+Request: {
+  appointmentId, scheduleId, bookingDate,
+  visitAddress, visitLatitude, visitLongitude,
+  contactPhone, isForSelf, receiverName, ...,
+  reasonForHomeVisit, specialNotes
 }
-
-Cơ chế lưu tạm: Dùng bảng `HomeVisitDrafts` trong SQL Server với TTL 30 phút.
-- `Id` (INT PK), `PatientId`, `DoctorId`, `Data` (JSON/columns), `CreatedAt`, `ExpiresAt`
-- Cleanup job chạy định kỳ xóa draft hết hạn
-- Khi payment capture thành công → xóa draft
-
-Response: 200 OK `{ "holdId": "draft-uuid", "expiresAt": "2026-06-21T15:30:00Z" }`
+Response: { draftId, expiresAt }
 ```
 
-#### POST `/api/appointments/calculate-fare`
+#### POST `/api/payment/home-visit/paypal/create`
 ```
-Request:
-{
-  "doctorId": "uuid",
-  "patientLatitude": 10.762622,
-  "patientLongitude": 106.660172
-}
-
-Response:
-{
-  "consultationFee": 50.00,
-  "homeVisitFee": 20.00,
-  "travelFee": 15.50,
-  "total": 85.50,
-  "distanceKm": 5.2,
-  "withinRadius": true,
-  "doctorRadiusKm": 10
-}
+Request: { appointmentId, draftId }
+Backend: Tính amount = homeVisitFee (từ config), tạo PayPal order
+Response: { orderId }
 ```
 
-#### POST `/api/payment/appointments/paypal/create` (sửa)
+#### POST `/api/payment/home-visit/paypal/capture`
 ```
-Request (thêm so với cũ):
-{
-  ...existingFields,
-  "homeVisitDetails": { ... }   // only when consultationType = "HomeVisit"
-}
+Request: { appointmentId, draftId, orderId, paymentMethod }
+Backend: Capture PayPal → tạo HomeVisitDetails → tạo HomeVisitBooking (khóa session)
+         → Appointment status → SCHEDULED
+         → Invoice (amount=homeVisitFee, platformFee=homeVisitFee×rate)
+         → CommissionTransaction
+         → Xóa HomeVisitDraft
+Response: { invoice, appointmentId }
 ```
 
 ---
 
-## 5. Fee Calculation & Geocoding
+## 6. Luồng Bác Sĩ Đề Xuất HomeVisit (Chi Tiết)
 
-### 5.1. Travel Fee Formula
+### 6.1. Sequence Diagram
+
+```
+┌──────────┐          ┌──────────┐          ┌────────────┐
+│  DOCTOR  │          │  PATIENT │          │  BACKEND   │
+│   (FE)   │          │   (FE)   │          │            │
+└────┬─────┘          └────┬─────┘          └─────┬──────┘
+     │                     │                      │
+     │ Click "Đề xuất      │                      │
+     │ Bác sĩ Gia Đình"    │                      │
+     │────────────────────→│                      │
+     │  POST /propose-home-visit                   │
+     │─────────────────────────────────────────────→│
+     │                     │     App PENDINGPAYMENT │
+     │                     │     tạo trong DB       │
+     │                     │  WebSocket: proposal   │
+     │                     │←───────────────────────│
+     │  noti gửi thành công│                      │
+     │←────────────────────│                      │
+     │                     │  Modal: "Bác sĩ đề    │
+     │                     │  xuất HomeVisit"      │
+     │                     │  [Đồng ý] [Từ chối]   │
+     │                     │                      │
+     │                     │ Patient click "Đồng ý"│
+     │                     │──────────────────────→│
+     │                     │      POST /confirm     │
+     │                     │←──────────────────────│
+     │                     │  Trả về sessions trống │
+     │                     │                      │
+     │                     │ Patient chọn buổi     │
+     │                     │ + nhập địa chỉ         │
+     │                     │──────────────────────→│
+     │                     │   POST /select-session │
+     │                     │←──────────────────────│
+     │                     │  draftId + redirect    │
+     │                     │  đến payment           │
+     │                     │                      │
+     │                     │ Patient pay via PayPal │
+     │                     │──────────────────────→│
+     │                     │  POST /capture         │
+     │                     │←──────────────────────│
+     │  Noti: "Bệnh nhân   │  success: invoice      │
+     │  đã xác nhận"       │                      │
+     │←────────────────────│───────────────────────│
+```
+
+### 6.2. WebSocket Events
+
+| Event | Direction | Payload |
+|-------|-----------|---------|
+| `home-visit.proposed` | Backend → Patient | `{ appointmentId, doctorName, message }` |
+| `home-visit.confirmed` | Backend → Doctor | `{ appointmentId, patientName }` |
+| `home-visit.rejected` | Backend → Doctor | `{ appointmentId, reason? }` |
+| `home-visit.completed` | Backend → Both | `{ appointmentId, status: 'SCHEDULED' }` |
+
+### 6.3. Patient Từ Chối
+
+```
+Patient click "Từ chối" → POST /reject-home-visit
+  → Backend: xóa Appointment PENDINGPAYMENT
+  → WebSocket: home-visit.rejected → Doctor
+  → Online consultation tiếp tục bình thường
+```
+
+---
+
+## 7. Luồng Bệnh Nhân Tự Đặt HomeVisit
+
+```
+Patient chọn consultationType = HomeVisit
+  → HomeVisitForm: nhập địa chỉ, lat/lng, phone, người nhận (validate radius)
+  → SpecialtyStep
+  → DoctorStep (chỉ hiện bác sĩ availableForHomeVisit=true)
+  → SessionPicker (thay DateTimeStep): chỉ hiện 2 nút Sáng/Chiều
+    → Chỉ hiện session còn trống (không có HomeVisitBooking)
+  → ConfirmStep (hiển thị địa chỉ, session, phí)
+  → PaymentStep (PayPal, amount = homeVisitFee)
+  → Tạo Appointment + HomeVisitDetails + HomeVisitBooking (khóa session)
+```
+
+**Không có DocumentsStep** cho HomeVisit.
+
+---
+
+## 8. Fee & Commission
+
+### 8.1. HomeVisit Fee
+
+```properties
+homevisit.default-fee=150.00
+```
+
+- Platform quy định 1 giá chung cho mọi bác sĩ
+- Giá đã bao gồm phí di chuyển — không tính travel_fee riêng
+- Geocoding chỉ dùng để **validate radius**, không dùng để tính phí
+
+### 8.2. Commission
+
+```
+homeVisitFee = $150
+commissionRate = 10% (CONSULTATION_HOME_VISIT)
+platformFee = $150 × 10% = $15
+doctorEarning = $150 - $15 = $135
+```
+
+Patient pay $150 vào PayPal platform → platform giữ $15 → doctor pendingSettlement += $135
+
+### 8.3. Radius Validation
 
 ```
 distance = haversine(doctorLat, doctorLng, patientLat, patientLng)
-IF distance > doctor.homeVisitRadiusKm → throw InvalidHomeVisitRadiusException
-travelFee = distance × TRAVEL_COST_PER_KM
-
-Cấu hình qua `application.properties`:
-```properties
-homevisit.travel-cost-per-km=2.0
-```
+IF distance > doctor.homeVisitRadiusKm → "Địa chỉ ngoài vùng phục vụ của bác sĩ này"
 ```
 
-### 5.2. Geocoding Implementation
-
-- **Frontend:** Google Maps Autocomplete → lấy `lat/lng` từ địa chỉ đã chọn
-- **Backend Fallback:** Google Maps Geocoding API (nếu frontend không gửi được lat/lng)
-- **API Key:** Thêm `google.maps.api-key` vào `application.properties`
-
-### 5.3. Validation Flow
-
-```
-Patient nhập địa chỉ → Geocode → lat/lng
-→ Gọi GET /api/account/doctors?availableForHomeVisit=true
-→ Frontend filter: doctor.homeVisitRadiusKm >= calculated distance
-→ Chỉ hiển thị bác sĩ trong vùng phục vụ
-```
+Chỉ dùng để lọc bác sĩ hiển thị, không ảnh hưởng đến giá.
 
 ---
 
-## 6. Booking Wizard — Luồng Mới
+## 9. Session Availability Logic
 
-### 6.1. Step Flow
-
-```
-Online:    Specialty → Doctor → DateTime → Documents → Confirm → Payment
-HomeVisit: Address → Specialty → Doctor → DateTime → Documents → Confirm → Payment
-```
-
-### 6.2. Step Details
-
-| Bước | Component | Mô tả |
-|------|-----------|-------|
-| 0 | **HomeVisitForm** (mới) | Nhập địa chỉ, lat/lng, người nhận, lý do. Validate radius |
-| 1 | **SpecialtyStep** | Không đổi |
-| 2 | **DoctorStep** | Chỉ hiện bác sĩ `availableForHomeVisit=true` & trong radius. Hiển thị `homeVisitFee` |
-| 3 | **DateTimeStep** | `consultationType=HomeVisit` → chỉ lấy slot HomeVisit |
-| 4 | **DocumentsStep** | Không đổi |
-| 5 | **ConfirmStep** | Thêm dòng "Địa chỉ khám", "Người nhận", "Phí khám tại nhà", "Phí đi lại" |
-| 6 | **PaymentStep** | Breakdown fees. Hiển thị tổng |
-
-### 6.3. HomeVisitForm Component (Mới)
+### 9.1. Khi Patient Chọn Session
 
 ```
-Props: onAddressSubmit(addressData), onBack
-State: visitAddress, placeId, lat/lng, contactPhone,
-       isForSelf, receiverName/age/gender/relationship,
-       reasonForHomeVisit, specialNotes
-
-Behaviors:
-- Google Places Autocomplete cho địa chỉ
-- Khi chọn địa chỉ → tự động fill lat/lng
-- Validate khoảng cách so với bác sĩ
+GET /api/doctors/{id}/home-visit-sessions
+  → Lấy DoctorSchedule có consultationType='HomeVisit' AND available=true
+  → Với mỗi schedule, lọc dates:
+    - date >= today
+    - date không có HomeVisitBooking cho scheduleId+date
+    - date không có DoctorScheduleException DAY_OFF
+  → Trả về: [{ scheduleId, dayOfWeek, sessionType (MORNING/AFTERNOON),
+              startTime, endTime, availableDates: ["2026-06-25", ...] }]
 ```
+
+### 9.2. Khi getAvailableSlots Cho Online
+
+Thêm vào logic hiện tại: nếu schedule có `consultationType='HomeVisit'` → skip hoàn toàn khi gọi cho Online.
+
+### 9.3. Session Bị Khóa
+
+Khi `HomeVisitBooking` tồn tại cho `scheduleId + bookingDate`:
+- Session đó không hiển thị trong danh sách session trống
+- Schedule đó không generate Online slots (dù consultationType là Online)
 
 ---
 
-## 7. Payment Flow — Sửa Đổi
+## 10. Notification
 
-### 7.1. FeeCalculatorService (Backend)
+### 10.1. Notification Types
 
-```java
-FeeBreakdown calculateHomeVisitTotal(String doctorId, Double patientLat, Double patientLng):
-  doctor = getDoctor(doctorId)
-  distance = haversine(doctor.lat, doctor.lng, patientLat, patientLng)
-  if distance > doctor.homeVisitRadiusKm → throw
-  travelFee = distance * TRAVEL_COST_PER_KM (2.0 USD)
-  total = doctor.consultationFee + doctor.homeVisitFee + travelFee
-  return FeeBreakdown(total, doctor.consultationFee, doctor.homeVisitFee, travelFee, distance)
-```
+| Type | Recipient | Trigger |
+|------|-----------|---------|
+| `HOME_VISIT_PROPOSED` | Patient | Doctor click "Đề xuất" |
+| `HOME_VISIT_CONFIRMED` | Doctor | Patient click "Đồng ý" + chọn xong |
+| `HOME_VISIT_REJECTED` | Doctor | Patient click "Từ chối" |
+| `HOME_VISIT_REMINDER` | Patient | Trước buổi khám (cấu hình) |
 
-### 7.2. PaymentStep UI (Frontend)
+### 10.2. Nội Dung
 
-Hiển thị breakdown:
-```
-Consultation fee:     $50.00
-Home visit fee:      $20.00
-Travel fee (5.2km):   $15.50
---------------------------------
-Total:                $85.50
-```
+**Patient (PROPOSED):**
+> Bác sĩ [tên] đề xuất Bác sĩ Gia Đình cho bạn. Vui lòng xác nhận để chọn lịch phù hợp.
 
-### 7.3. Capture Payment — Tạo HomeVisitDetails
-
-Khi capture với `consultationType=HomeVisit`:
-
-```java
-Appointment appointment = createAppointment(data, "HomeVisit");
-HomeVisitDetails details = createHomeVisitDetails(data.getHomeVisitDetails(), appointment);
-Invoice invoice = createInvoice(appointment, breakdown);
-// Invoice tái sử dụng: consultationFee = phí khám, deliveryFee = travelFee
-```
-
-### 7.4. Commission
-
-`CONSULTATION_HOME_VISIT` rate mặc định 10%. Cấu hình qua `CommissionConfig` (giống cơ chế Online/Offline hiện tại).
-
----
-
-## 8. Notification
-
-### 8.1. Notification Types
-
-| Type | Recipient | Thời điểm |
-|------|-----------|-----------|
-| `HOME_VISIT_BOOKED` | Doctor | Khi có lịch HomeVisit mới |
-| `HOME_VISIT_REMINDER` | Patient | Trước giờ khám (cấu hình) |
-| `HOME_VISIT_CANCELLED` | Cả 2 | Khi hủy lịch |
-
-### 8.2. Nội dung
-
-**Doctor (BOOKED):**
-> Bạn có lịch khám tại nhà mới. Bệnh nhân: [tên]. Địa chỉ: [địa chỉ]. Thời gian: [giờ] [ngày]. Ghi chú: [specialNotes]
+**Doctor (CONFIRMED):**
+> Bệnh nhân [tên] đã xác nhận HomeVisit vào [Thứ 4 07-12]. Kiểm tra chi tiết trong danh sách lịch hẹn.
 
 **Patient (REMINDER):**
-> Bác sĩ [tên] sẽ đến khám tại nhà bạn lúc [giờ] ngày [ngày]. Địa chỉ: [địa chỉ]. Số liên hệ: [sđt bác sĩ]
+> Bác sĩ [tên] sẽ đến khám tại nhà bạn vào sáng mai (07-12). Địa chỉ: [địa chỉ].
 
 ---
 
-## 9. Error Handling
+## 11. Error Handling
 
 | Scenario | Xử lý |
 |----------|-------|
-| Địa chỉ ngoài bán kính | Block UI, hiển thị khoảng cách tối đa |
-| Geocoding thất bại | Cho nhập tay lat/lng, hoặc fallback text |
-| Bác sĩ hủy | Hoàn 100% (consultation + homeVisit + travel) |
-| Bệnh nhân hủy >24h | Hoàn 100% |
-| Bệnh nhân hủy ≤24h | Hoàn consultation, mất homeVisit + travel |
-| Tạo HomeVisitDetails thất bại | Rollback appointment + invoice (transactional) |
+| Địa chỉ ngoài bán kính bác sĩ | Chặn UI, không cho chọn bác sĩ đó |
+| Session đã có người đặt (race condition) | Trả lỗi "Buổi này đã có người đặt. Vui lòng chọn buổi khác" |
+| Patient không phản hồi đề xuất | Timeout 5 phút → tự động hủy proposal |
+| Patient reject | Hủy Appointment PENDINGPAYMENT, ko tính phí |
+| Payment timeout (người dùng không pay) | Appointment PENDINGPAYMENT bị cleanup job xóa sau 30 phút |
+| Bác sĩ hủy HomeVisit sau khi confirmed | Hoàn tiền 100% |
+| Bệnh nhân hủy > 24h | Hoàn 100% |
+| Bệnh nhân hủy ≤ 24h | Mất 100% (chính sách gói cao cấp) |
 
 ---
 
-## 10. Admin Management
+## 12. Admin Management
 
-- **Doctor list:** badge "Home Visit", hiển thị `homeVisitFee`, `homeVisitRadiusKm`
-- **Commission:** Tab `CONSULTATION_HOME_VISIT` trong Commission Config
-- **Báo cáo:** Filter HomeVisit trong doanh thu
+- **Doctor list:** badge "Home Visit", hiển thị `homeVisitRadiusKm`
+- **Commission:** Tab `CONSUMPTION_HOME_VISIT` trong Commission Config
+- **Config:** Form cập nhật `homeVisit.default-fee`
+- **Báo cáo:** Filter HomeVisit trong doanh thu riêng
 
 ---
 
-## 11. Migration Script
+## 13. Migration Script
 
 ```sql
 -- 1. Thêm HomeVisit fields cho Doctor
 ALTER TABLE Doctors ADD availableForHomeVisit BIT NOT NULL DEFAULT 0;
-ALTER TABLE Doctors ADD homeVisitFee DECIMAL(10,2) NOT NULL DEFAULT 0;
 ALTER TABLE Doctors ADD homeVisitRadiusKm DECIMAL(5,1) NOT NULL DEFAULT 10.0;
 
--- 1b. Bảng lưu tạm HomeVisit draft trước payment (TTL 30 phút)
+-- 2. Tạo HomeVisitDetails
+CREATE TABLE HomeVisitDetails (
+    Id INT IDENTITY(1,1) PRIMARY KEY,
+    AppointmentId INT NOT NULL UNIQUE REFERENCES Appointments(AppointmentID),
+    VisitAddress NVARCHAR(500) NOT NULL,
+    VisitLatitude DECIMAL(10,7),
+    VisitLongitude DECIMAL(10,7),
+    ContactPhone NVARCHAR(20) NOT NULL,
+    IsForSelf BIT NOT NULL DEFAULT 1,
+    ReceiverName NVARCHAR(100),
+    ReceiverAge INT,
+    ReceiverGender NVARCHAR(10),
+    ReceiverRelationship NVARCHAR(50),
+    ReasonForHomeVisit NVARCHAR(500),
+    SpecialNotes NVARCHAR(500),
+    HomeVisitFee DECIMAL(10,2) NOT NULL DEFAULT 0,
+    CreatedAt DATETIME2 NOT NULL DEFAULT GETUTCDATE()
+);
+
+-- 3. Tạo HomeVisitBookings (track session đã khóa)
+CREATE TABLE HomeVisitBookings (
+    Id INT IDENTITY(1,1) PRIMARY KEY,
+    DoctorId NVARCHAR(450) NOT NULL,
+    ScheduleId INT NOT NULL REFERENCES DoctorSchedules(ScheduleID),
+    BookingDate DATE NOT NULL,
+    AppointmentId INT NOT NULL UNIQUE REFERENCES Appointments(AppointmentID),
+    CreatedAt DATETIME2 NOT NULL DEFAULT GETUTCDATE(),
+    CONSTRAINT UQ_Doctor_Session_Date UNIQUE (DoctorId, ScheduleId, BookingDate)
+);
+
+-- 4. Tạo HomeVisitDrafts (lưu tạm trước payment)
 CREATE TABLE HomeVisitDrafts (
     Id INT IDENTITY(1,1) PRIMARY KEY,
     PatientId NVARCHAR(450) NOT NULL,
     DoctorId NVARCHAR(450) NOT NULL,
+    AppointmentId INT NOT NULL REFERENCES Appointments(AppointmentID),
     VisitAddress NVARCHAR(500) NOT NULL,
     VisitLatitude DECIMAL(10,7),
     VisitLongitude DECIMAL(10,7),
@@ -341,115 +480,104 @@ CREATE TABLE HomeVisitDrafts (
 );
 CREATE INDEX IX_HomeVisitDrafts_ExpiresAt ON HomeVisitDrafts(ExpiresAt);
 
--- 2. Tạo HomeVisitDetails
-    Id INT IDENTITY(1,1) PRIMARY KEY,
-    AppointmentId INT NOT NULL UNIQUE REFERENCES Appointments(AppointmentID),
-    VisitAddress NVARCHAR(500) NOT NULL,
-    VisitLatitude DECIMAL(10,7),
-    VisitLongitude DECIMAL(10,7),
-    ContactPhone NVARCHAR(20) NOT NULL,
-    IsForSelf BIT NOT NULL DEFAULT 1,
-    ReceiverName NVARCHAR(100),
-    ReceiverAge INT,
-    ReceiverGender NVARCHAR(10),
-    ReceiverRelationship NVARCHAR(50),
-    ReasonForHomeVisit NVARCHAR(500),
-    SpecialNotes NVARCHAR(500),
-    HomeVisitFee DECIMAL(10,2) NOT NULL DEFAULT 0,
-    TravelFee DECIMAL(10,2) NOT NULL DEFAULT 0,
-    CreatedAt DATETIME2 NOT NULL DEFAULT GETUTCDATE()
-);
-
--- 3. Cập nhật dữ liệu cũ
+-- 5. Cập nhật dữ liệu cũ
 UPDATE Appointments SET ConsultationType = 'HomeVisit' WHERE ConsultationType = 'Offline';
 UPDATE DoctorSchedules SET ConsultationType = 'HomeVisit' WHERE ConsultationType = 'Offline';
 
--- 4. Commission config
+-- 6. Commission config
 INSERT INTO CommissionConfig (ServiceType, CommissionRate, Description, EffectiveFrom)
 VALUES ('CONSULTATION_HOME_VISIT', 0.1000, 'Home Visit consultation', GETUTCDATE());
 ```
 
 ---
 
-## 12. Danh Sách File Cần Sửa/Tạo
+## 14. Danh Sách File Cần Sửa/Tạo
 
 ### Backend (Java)
 
 **Mới:**
-- `entity/HomeVisitDetails.java`
-- `entity/HomeVisitDraft.java`
-- `repository/HomeVisitDetailsRepository.java`
-- `repository/HomeVisitDraftRepository.java`
-- `dto/request/HomeVisitDetailsRequest.java`
-- `dto/request/FareCalculationRequest.java`
-- `dto/response/FareCalculationResponse.java`
-- `dto/response/HomeVisitDetailsResponse.java`
-- `exception/InvalidHomeVisitRadiusException.java`
-- `service/HomeVisitService.java` + `service/impl/HomeVisitServiceImpl.java`
-- `service/HomeVisitDraftService.java` + `service/impl/HomeVisitDraftServiceImpl.java`
-- `controller/HomeVisitController.java`
+| File | Mô tả |
+|------|-------|
+| `entity/HomeVisitDetails.java` | Entity lưu thông tin khám tại nhà |
+| `entity/HomeVisitBooking.java` | Entity track session đã khóa |
+| `entity/HomeVisitDraft.java` | Entity lưu tạm trước payment |
+| `repository/HomeVisitDetailsRepository.java` | |
+| `repository/HomeVisitBookingRepository.java` | |
+| `repository/HomeVisitDraftRepository.java` | |
+| `dto/request/ProposeHomeVisitRequest.java` | |
+| `dto/request/SelectSessionRequest.java` | |
+| `dto/request/HomeVisitDetailsRequest.java` | |
+| `dto/response/HomeVisitSessionResponse.java` | |
+| `dto/response/HomeVisitDetailsResponse.java` | |
+| `dto/response/ProposalResponse.java` | |
+| `service/consultation/ConsultationProposalService.java` | Interface |
+| `service/impl/consultation/ConsultationProposalServiceImpl.java` | Logic đề xuất + confirm |
+| `service/HomeVisitSessionService.java` | Interface |
+| `service/impl/HomeVisitSessionServiceImpl.java` | Logic session availability |
+| `service/HomeVisitBookingService.java` | |
+| `service/impl/HomeVisitBookingServiceImpl.java` | |
+| `controller/ConsultationProposalController.java` | WebSocket + endpoints |
+| `controller/PaymentController.java` (sửa) | Thêm payment cho HomeVisit |
 
 **Sửa:**
-- `entity/enums/ConsultationType.java`
-- `entity/Doctor.java`
-- `service/impl/appointment/AppointmentServiceImpl.java`
-- `service/impl/payment/FeeCalculatorServiceImpl.java`
-- `service/impl/payment/FinanceServiceImpl.java`
-- `service/impl/admin/AdminCommissionServiceImpl.java`
-- `service/impl/RegistrationServiceImpl.java`
-- `service/admin/AdminDoctorService.java`
-- `dto/response/DoctorResponse.java`, `DoctorProfileResponse.java`
-- `dto/commission/admin/AdminPartnerCommissionDto.java`
-- `dto/registration/DoctorRegistrationRequest.java`, `RegistrationRequestResponse.java`
-- `dto/admin/AdminDoctorDto.java`, `AdminDoctorDetailDto.java`
-- `controller/appointment/AppointmentController.java`
-- `data-seed.sql`
+| File | Mô tả |
+|------|-------|
+| `entity/enums/ConsultationType.java` | `OFFLINE → HOME_VISIT` |
+| `entity/Appointment.java` | Không cần sửa (dùng consultationType string) |
+| `entity/Doctor.java` | Thay `availableForOffline` → `availableForHomeVisit` + `homeVisitRadiusKm` |
+| `service/impl/appointment/AppointmentServiceImpl.java` | Sửa `getAvailableSlots` skip HomeVisit schedule |
+| `service/impl/payment/FeeCalculatorServiceImpl.java` | Thêm `CONSULTATION_HOME_VISIT` |
+| `service/impl/payment/FinanceServiceImpl.java` | Sửa normalize + thêm home-visit payment flow |
+| `service/impl/payment/CommissionServiceImpl.java` | Xử lý commission cho HomeVisit |
+| `service/impl/admin/AdminCommissionServiceImpl.java` | Thêm service type |
+| `service/impl/RegistrationServiceImpl.java` | Sửa field mapping |
+| `dto/response/DoctorResponse.java` | `availableForOffline → availableForHomeVisit` |
+| `dto/response/DoctorProfileResponse.java` | Tương tự |
+| `utility/DoctorServiceHelper.java` | `"offline" → "HomeVisit"` |
+| `controller/appointment/AppointmentController.java` | Thêm `home-visit-sessions` endpoint |
+| `data-seed.sql` | Update seed |
 
 ### Frontend (React)
 
 **Mới:**
-- `components/schedule/HomeVisitForm.jsx`
+| File | Mô tả |
+|------|-------|
+| `components/consultation/HomeVisitProposalModal.jsx` | Modal đề xuất HomeVisit trong consultation |
+| `components/schedule/SessionPicker.jsx` | Thay DateTimeStep cho HomeVisit (chỉ Sáng/Chiều) |
+| `components/schedule/HomeVisitForm.jsx` | Form nhập địa chỉ, người nhận |
 
 **Sửa:**
-- `components/schedule/ConsultationStep.jsx`
-- `components/schedule/ConfirmStep.jsx`
-- `components/schedule/DateTimeStep.jsx`
-- `components/schedule/PaymentStep.jsx`
-- `components/patient-dashboard/Schedule.jsx`
-- `components/doctor/ScheduleFormModal.jsx`
-- `components/doctor/WeeklyScheduleBuilder.jsx`
-- `api/appointmentApi.js`
-- `api/paymentApi.js`
-- `api/normalizers.js`
-- `components/Auth/DoctorRegistration.jsx`
-- `components/Admin/View/Doctors.jsx`
-- `components/Admin/View/CommissionManagement.jsx`
-- `components/Admin/View/Registrations.jsx`
-- `pages/doctor/appointment/appointmentDetail/tabs/FollowUpTab.jsx`
-- `hooks/doctor/useFollowUp.js`
+| File | Mô tả |
+|------|-------|
+| `components/patient-dashboard/Schedule.jsx` | Thêm HomeVisit flow (SessionPicker thay DateTimeStep) |
+| `components/schedule/ConsultationStep.jsx` | `"In-Person" → "HomeVisit"` |
+| `components/schedule/ConfirmStep.jsx` | Hiển thị session + phí HomeVisit |
+| `components/schedule/PaymentStep.jsx` | Hiển thị homeVisitFee |
+| `components/schedule/DateTimeStep.jsx` | Skip khi consultationType=HomeVisit |
+| `components/doctor/WeeklyScheduleBuilder.jsx` | Icon cho "HomeVisit" |
+| `components/doctor/ScheduleFormModal.jsx` | Thêm 'HomeVisit' vào CONSULTATION_TYPES |
+| `components/Auth/DoctorRegistration.jsx` | `availableForOffline → availableForHomeVisit` |
+| `components/Admin/View/Doctors.jsx` | Badge "Home Visit" |
+| `components/Admin/View/CommissionManagement.jsx` | `CONSULTATION_HOME_VISIT` |
+| `components/Admin/View/Registrations.jsx` | Sửa field |
+| `api/appointmentApi.js` | Thêm endpoints HomeVisit |
+| `api/paymentApi.js` | Thêm home-visit payment |
+| `api/normalizers.js` | Normalize "HomeVisit" |
+| `pages/doctor/appointment/appointmentDetail/tabs/FollowUpTab.jsx` | `Offline → HomeVisit` |
 
 ---
 
-## 13. Testing Strategy
+## 15. Implementation Order
 
-- **Unit:** `FeeCalculatorService` — haversine, travel fee, radius validation
-- **Unit:** `HomeVisitService` — CRUD, validation
-- **Integration:** Booking + Payment capture với HomeVisitDetails
-- **Frontend:** HomeVisitForm validation, fee breakdown display
-- **Migration:** Verify dữ liệu cũ Offline → HomeVisit đúng
-
----
-
-## 14. Implementation Order
-
-| Phase | Nội dung |
-|:-----:|----------|
-| 1 | Migration DB + Entity + Repository |
-| 2 | Backend: normalize + validation + fee calculation |
-| 3 | Backend: API endpoints + payment flow |
-| 4 | Backend: commission + admin |
-| 5 | Frontend: HomeVisitForm + Address step |
-| 6 | Frontend: Booking flow integration |
-| 7 | Frontend: Doctor dashboard + Admin |
-| 8 | Notification |
-| 9 | Testing + cleanup |
+| Phase | Nội dung | Files |
+|:-----:|----------|:-----:|
+| 1 | Migration DB + Entity + Repository | 7 mới, 2 sửa |
+| 2 | Backend: Session availability logic + getAvailableSlots sửa | 4 mới, 2 sửa |
+| 3 | Backend: Consultation proposal flow (WebSocket + endpoints) | 5 mới, 1 sửa |
+| 4 | Backend: HomeVisit payment + commission | 2 mới, 4 sửa |
+| 5 | Backend: Doctor + registration field mapping | 4 sửa |
+| 6 | Frontend: ConsultationProposalModal + SessionPicker | 2 mới |
+| 7 | Frontend: HomeVisitForm + ConfirmStep + PaymentStep | 1 mới, 3 sửa |
+| 8 | Frontend: Schedule Wizard + Admin | 6 sửa |
+| 9 | Notification + WebSocket events | 2 sửa |
+| 10 | Testing + data-seed cleanup | — |
