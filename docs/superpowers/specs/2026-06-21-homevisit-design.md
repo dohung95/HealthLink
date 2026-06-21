@@ -369,7 +369,8 @@ Thêm vào logic hiện tại: nếu schedule có `consultationType='HomeVisit'`
 
 Khi `HomeVisitBooking` tồn tại cho `scheduleId + bookingDate`:
 - Session đó không hiển thị trong danh sách session trống
-- Schedule đó không generate Online slots (dù consultationType là Online)
+- HomeVisit schedule đó không thể book thêm
+- Online schedules không bị ảnh hưởng (vì chúng có time range riêng)
 
 ---
 
@@ -567,7 +568,21 @@ VALUES ('CONSULTATION_HOME_VISIT', 0.1000, 'Home Visit consultation', GETUTCDATE
 
 ---
 
-## 15. Implementation Order
+## 15. Testing Strategy
+
+- **Unit:** `HomeVisitSessionService` — session availability logic, booking conflict detection
+- **Unit:** `ConsultationProposalService` — proposal lifecycle (create, confirm, reject, timeout)
+- **Unit:** `FeeCalculatorService` — homeVisitFee commission calculation
+- **Integration:** WebSocket proposal flow (doctor proposes → patient confirms → session picked)
+- **Integration:** Payment capture + HomeVisitDetails + HomeVisitBooking creation
+- **Integration:** `getAvailableSlots` with HomeVisit schedules excluded for Online queries
+- **Frontend:** `SessionPicker` — only shows available sessions, handles empty state
+- **Frontend:** `HomeVisitProposalModal` — confirm/reject flow, session selection after confirm
+- **Migration:** Verify Offline→HomeVisit data migration ran correctly
+
+---
+
+## 16. Implementation Order
 
 | Phase | Nội dung | Files |
 |:-----:|----------|:-----:|
