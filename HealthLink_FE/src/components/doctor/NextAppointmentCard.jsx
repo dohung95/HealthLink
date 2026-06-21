@@ -65,7 +65,7 @@ const NextAppointmentCard = ({ appointment, onView, selectedDate }) => {
                     {formatTimeFromDate(appointmentDate)}
                   </span>
                   <span className="doctor-next-card__info-item">
-                    <span className="material-symbols-outlined">{getTypeIcon(appointment.consultationType)}</span>
+                    <span className="material-symbols-outlined">videocam</span>
                     {appointment.consultationType || 'Consultation'}
                   </span>
                 </div>

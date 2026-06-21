@@ -100,6 +100,13 @@ export default function DoctorPatientsView() {
     setMobileDetailOpen(true);
   }, [navigate]);
 
+  // Auto-select first patient when list loads and nothing is selected
+  useEffect(() => {
+    if (patients.length > 0 && !selectedPatientId) {
+      handleSelectPatient(patients[0].patientId);
+    }
+  }, [patients, selectedPatientId]);
+
   // Fetch patient detail + history when selectedPatientId changes
   useEffect(() => {
     if (!selectedPatientId) return;

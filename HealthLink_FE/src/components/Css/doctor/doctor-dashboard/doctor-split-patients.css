@@ -396,6 +396,57 @@
   gap: 0.25rem;
 }
 
+/* ---- Tab pagination ---- */
+.tab-pagination {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding-top: 0.75rem;
+  border-top: 1px solid var(--doctor-border-light);
+  font-size: 0.75rem;
+}
+
+.tab-pagination__info {
+  color: var(--doctor-text-muted);
+  font-weight: 500;
+}
+
+.tab-pagination__nav {
+  display: flex;
+  gap: 0.25rem;
+}
+
+.tab-pagination__btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.25rem;
+  padding: 0.35rem 0.75rem;
+  border: 1px solid var(--doctor-border);
+  border-radius: var(--doctor-radius-md);
+  font-size: 0.75rem;
+  font-weight: 600;
+  color: var(--doctor-text-secondary);
+  background: var(--doctor-surface);
+  cursor: pointer;
+  transition: var(--doctor-transition);
+  font-family: inherit;
+}
+
+.tab-pagination__btn:hover:not(:disabled) {
+  border-color: var(--doctor-primary);
+  color: var(--doctor-primary);
+  background: var(--doctor-primary-subtle);
+}
+
+.tab-pagination__btn:active:not(:disabled) {
+  transform: scale(0.97);
+}
+
+.tab-pagination__btn:disabled {
+  opacity: 0.35;
+  cursor: not-allowed;
+}
+
 /* ---- Empty detail state ---- */
 .split-patients__empty-detail {
   display: flex;
@@ -508,19 +559,26 @@
   background: var(--doctor-surface);
   color: var(--doctor-text-secondary);
   cursor: pointer;
-  transition: var(--doctor-transition);
+  transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
 }
 
 .split-patients__detail-action-btn:hover {
   border-color: var(--doctor-primary);
   color: var(--doctor-primary);
   background: var(--doctor-primary-subtle);
-  box-shadow: 0 2px 8px rgba(0, 82, 204, 0.08);
+  box-shadow: 0 4px 12px rgba(0, 82, 204, 0.12);
   transform: translateY(-1px);
 }
 
 .split-patients__detail-action-btn:active {
   transform: scale(0.95);
+}
+
+.split-patients__detail-action-btn:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+  pointer-events: none;
+  transform: none;
 }
 
 /* ---- Tabs ---- */

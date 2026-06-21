@@ -1,5 +1,8 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { vitalSignApi } from '@api/vitalSignApi';
+import { useAuth } from '@context/AuthContext';
+import { useChat } from '@context/ChatContext';
+import { toast } from 'sonner';
 
 const formatDateTime = (value) => {
   if (!value) return 'N/A';
@@ -29,9 +32,15 @@ const InfoField = ({ label, value, larger }) => (
 );
 
 export default function DoctorPatientDetailView({ patient, history, onOpenAppointmentById }) {
+  const { initiateCall, isInCall, currentUserId, user: authUser } = useAuth();
+  const { openChatWith } = useChat();
   const [activeTab, setActiveTab] = useState('overview');
   const [vitalSigns, setVitalSigns] = useState(null);
   const [loadingVitals, setLoadingVitals] = useState(true);
+  const ITEMS_PER_PAGE = 5;
+  const [tabPage, setTabPage] = useState(1);
+
+  useEffect(() => { setTabPage(1); }, [activeTab]);
 
   useEffect(() => {
     const pid = patient?.id || patient?.patientId;
@@ -52,6 +61,37 @@ export default function DoctorPatientDetailView({ patient, history, onOpenAppoin
       });
     return () => { mounted = false; };
   }, [patient?.id, patient?.patientId]);
+
+  const handleChat = useCallback(() => {
+    const targetUserId = patient?.userId || patient?.patientId;
+    if (!targetUserId) {
+      toast.error('Unable to start chat: patient information is missing');
+      return;
+    }
+    openChatWith({
+      uid: targetUserId,
+      displayName: patient?.fullName || 'Patient',
+    });
+  }, [patient, openChatWith]);
+
+  const handleCall = useCallback(() => {
+    const targetUserId = patient?.userId || patient?.patientId;
+    if (!targetUserId) {
+      toast.error('Unable to start call: patient information is missing');
+      return;
+    }
+    if (isInCall) {
+      toast.warning('You are currently on another call. Please end the current call before making a new one.');
+      return;
+    }
+    const characters = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789';
+    let roomId = '';
+    for (let i = 0; i < 45; i++) {
+      roomId += characters.charAt(Math.floor(Math.random() * characters.length));
+    }
+    const callerName = authUser?.preferred_username || authUser?.name || authUser?.email || 'Doctor';
+    initiateCall(targetUserId, roomId, patient?.fullName || 'Patient', callerName);
+  }, [patient, isInCall, authUser, initiateCall]);
 
   if (!patient) return null;
 
@@ -333,55 +373,97 @@ export default function DoctorPatientDetailView({ patient, history, onOpenAppoin
     </div>
   );
 
-  const renderAppointments = () => (
-    <div style={{ display: 'flex', flexDirection: 'column', gap: '0.625rem' }}>
-      <p className="patient-section-title">Appointment History</p>
-      {history?.appointments?.length ? history.appointments.map((appt) => (
-        <div className="patient-timeline-item" key={appt.appointmentId}>
-          <div className="patient-timeline-item__info">
-            <p className="patient-timeline-item__title">{formatDateTime(appt.appointmentTime)}</p>
-            <p className="patient-timeline-item__subtitle">{appt.consultationType || 'Consultation'} &mdash; {appt.status}</p>
-            {appt.diagnosis && <p className="patient-timeline-item__diagnosis">Diagnosis: {appt.diagnosis}</p>}
-          </div>
-          <button
-            type="button"
-            className="patient-timeline-item__action"
-            onClick={() => onOpenAppointmentById?.(appt.appointmentId)}
-          >
-            Open
-          </button>
-        </div>
-      )) : (
-        <p style={{ fontSize: '0.8rem', color: 'var(--doctor-text-muted)' }}>No appointments found.</p>
-      )}
-    </div>
-  );
-
-  const renderPrescriptions = () => (
-    <div style={{ display: 'flex', flexDirection: 'column', gap: '0.625rem' }}>
-      <p className="patient-section-title">Prescriptions</p>
-      {history?.prescriptions?.length ? history.prescriptions.map((rx) => (
-        <div className="patient-timeline-item" key={rx.prescriptionHeaderId}>
-          <div className="patient-timeline-item__info">
-            <p className="patient-timeline-item__title">{formatDateTime(rx.issueDate)}</p>
-            <p className="patient-timeline-item__subtitle">{rx.diagnosis || 'No diagnosis'} &mdash; {rx.status || 'Issued'}</p>
-            <p className="patient-timeline-item__diagnosis">{rx.medications?.length || rx.items?.length || 0} medication(s)</p>
-          </div>
-          {rx.appointmentId && (
+  const renderAppointments = () => {
+    const items = history?.appointments || [];
+    const totalPages = Math.ceil(items.length / ITEMS_PER_PAGE);
+    const startIndex = (tabPage - 1) * ITEMS_PER_PAGE;
+    const pageItems = items.slice(startIndex, startIndex + ITEMS_PER_PAGE);
+    return (
+      <div style={{ display: 'flex', flexDirection: 'column', gap: '0.625rem' }}>
+        <p className="patient-section-title">Appointment History</p>
+        {pageItems.length ? pageItems.map((appt) => (
+          <div className="patient-timeline-item" key={appt.appointmentId}>
+            <div className="patient-timeline-item__info">
+              <p className="patient-timeline-item__title">{formatDateTime(appt.appointmentTime)}</p>
+              <p className="patient-timeline-item__subtitle">{appt.consultationType || 'Consultation'} &mdash; {appt.status}</p>
+              {appt.diagnosis && <p className="patient-timeline-item__diagnosis">Diagnosis: {appt.diagnosis}</p>}
+            </div>
             <button
               type="button"
               className="patient-timeline-item__action"
-              onClick={() => onOpenAppointmentById?.(rx.appointmentId)}
+              onClick={() => onOpenAppointmentById?.(appt.appointmentId)}
             >
-              Appointment
+              Open
             </button>
-          )}
-        </div>
-      )) : (
-        <p style={{ fontSize: '0.8rem', color: 'var(--doctor-text-muted)' }}>No prescriptions found.</p>
-      )}
-    </div>
-  );
+          </div>
+        )) : (
+          <p style={{ fontSize: '0.8rem', color: 'var(--doctor-text-muted)' }}>No appointments found.</p>
+        )}
+        {totalPages > 1 && (
+          <div className="tab-pagination">
+            <span className="tab-pagination__info">Page {tabPage} of {totalPages}</span>
+            <div className="tab-pagination__nav">
+              <button type="button" className="tab-pagination__btn" disabled={tabPage <= 1} onClick={() => setTabPage((p) => Math.max(1, p - 1))}>
+                <span className="material-symbols-outlined" style={{ fontSize: '0.75rem' }}>chevron_left</span>
+                Prev
+              </button>
+              <button type="button" className="tab-pagination__btn" disabled={tabPage >= totalPages} onClick={() => setTabPage((p) => Math.min(totalPages, p + 1))}>
+                Next
+                <span className="material-symbols-outlined" style={{ fontSize: '0.75rem' }}>chevron_right</span>
+              </button>
+            </div>
+          </div>
+        )}
+      </div>
+    );
+  };
+
+  const renderPrescriptions = () => {
+    const items = history?.prescriptions || [];
+    const totalPages = Math.ceil(items.length / ITEMS_PER_PAGE);
+    const startIndex = (tabPage - 1) * ITEMS_PER_PAGE;
+    const pageItems = items.slice(startIndex, startIndex + ITEMS_PER_PAGE);
+    return (
+      <div style={{ display: 'flex', flexDirection: 'column', gap: '0.625rem' }}>
+        <p className="patient-section-title">Prescriptions</p>
+        {pageItems.length ? pageItems.map((rx) => (
+          <div className="patient-timeline-item" key={rx.prescriptionHeaderId}>
+            <div className="patient-timeline-item__info">
+              <p className="patient-timeline-item__title">{formatDateTime(rx.issueDate)}</p>
+              <p className="patient-timeline-item__subtitle">{rx.diagnosis || 'No diagnosis'} &mdash; {rx.status || 'Issued'}</p>
+              <p className="patient-timeline-item__diagnosis">{rx.medications?.length || rx.items?.length || 0} medication(s)</p>
+            </div>
+            {rx.appointmentId && (
+              <button
+                type="button"
+                className="patient-timeline-item__action"
+                onClick={() => onOpenAppointmentById?.(rx.appointmentId)}
+              >
+                Appointment
+              </button>
+            )}
+          </div>
+        )) : (
+          <p style={{ fontSize: '0.8rem', color: 'var(--doctor-text-muted)' }}>No prescriptions found.</p>
+        )}
+        {totalPages > 1 && (
+          <div className="tab-pagination">
+            <span className="tab-pagination__info">Page {tabPage} of {totalPages}</span>
+            <div className="tab-pagination__nav">
+              <button type="button" className="tab-pagination__btn" disabled={tabPage <= 1} onClick={() => setTabPage((p) => Math.max(1, p - 1))}>
+                <span className="material-symbols-outlined" style={{ fontSize: '0.75rem' }}>chevron_left</span>
+                Prev
+              </button>
+              <button type="button" className="tab-pagination__btn" disabled={tabPage >= totalPages} onClick={() => setTabPage((p) => Math.min(totalPages, p + 1))}>
+                Next
+                <span className="material-symbols-outlined" style={{ fontSize: '0.75rem' }}>chevron_right</span>
+              </button>
+            </div>
+          </div>
+        )}
+      </div>
+    );
+  };
 
   const renderDocuments = () => (
     <div style={{ display: 'flex', flexDirection: 'column', gap: '0.625rem' }}>
@@ -425,14 +507,23 @@ export default function DoctorPatientDetailView({ patient, history, onOpenAppoin
             <p>{data.email || data.phoneNumber || 'No contact listed'}</p>
           </div>
           <div className="split-patients__detail-actions">
-            <button type="button" className="split-patients__detail-action-btn" title="Call">
+            <button
+              type="button"
+              className="split-patients__detail-action-btn"
+              title={!patient?.userId ? 'Unable to reach this patient' : isInCall ? 'You are currently in a call' : 'Call'}
+              disabled={!patient?.userId || isInCall}
+              onClick={handleCall}
+            >
               <span className="material-symbols-outlined">call</span>
             </button>
-            <button type="button" className="split-patients__detail-action-btn" title="Message">
+            <button
+              type="button"
+              className="split-patients__detail-action-btn"
+              title={!patient?.userId ? 'Unable to reach this patient' : 'Message'}
+              disabled={!patient?.userId}
+              onClick={handleChat}
+            >
               <span className="material-symbols-outlined">chat</span>
-            </button>
-            <button type="button" className="split-patients__detail-action-btn" title="Schedule Appointment">
-              <span className="material-symbols-outlined">calendar_add_on</span>
             </button>
           </div>
         </div>

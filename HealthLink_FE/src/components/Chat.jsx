@@ -499,22 +499,23 @@ export default function Chat() {
             .catch(() => { }); // Lỗi thì im lặng, không ảnh hưởng UX
     }, []);
 
-    // ── Hiệu ứng peek-and-shake mỗi 10 giây (khi icon đang đóng) ──────────────
+    // ── Peek-and-shake khi có tin nhắn mới chưa đọc ────────────────────────
+    const prevUnreadRef = useRef(0);
+    const totalUnread = roomList.reduce((acc, room) => acc + (room.unreadCount || 0), 0);
     useEffect(() => {
-        if (isChatBoxOpen) return; // Không cần khi chat đang mở
-        const timer = setInterval(() => {
-            // Bước 1: Trượt ra
+        if (isChatBoxOpen) return;
+        if (totalUnread > 0 && totalUnread > prevUnreadRef.current) {
             setIsIconHidden(false);
             setIsShaking(true);
-            // Bước 2: Sau 3 giây → thu vào lại
             const hideTimer = setTimeout(() => {
                 setIsShaking(false);
                 setIsIconHidden(true);
             }, 3000);
+            prevUnreadRef.current = totalUnread;
             return () => clearTimeout(hideTimer);
-        }, 10000);
-        return () => clearInterval(timer);
-    }, [isChatBoxOpen]);
+        }
+        prevUnreadRef.current = totalUnread;
+    }, [totalUnread, isChatBoxOpen]);
 
     // ── Khi popup chat đóng → thu icon vào phải lại ─────────────────────────
     useEffect(() => {
@@ -716,13 +717,13 @@ export default function Chat() {
     useEffect(() => {
         if (isGuest) {
             setChatPartner(BOT_USER);
-        } else if (isDoctor || isPharmacy) {
+        } else if ((isDoctor || isPharmacy) && !chatPartner) {
             setChatPartner(null);
             setCurrentRoom(null);
         } else if (isPatient && !chatPartner) {
             setChatPartner(BOT_USER);
         }
-    }, [isGuest, isDoctor, isPharmacy, isPatient]);
+    }, [isGuest, isDoctor, isPharmacy, isPatient, chatPartner]);
 
     // ── Gửi tin nhắn ────────────────────────────────────────────────────────
     const sendMsg = async (e) => {
@@ -988,7 +989,6 @@ export default function Chat() {
     const isBlocked = currentRoom && currentRoom.blockedBy;
     const isBlockedByMe = isBlocked && currentRoom.blockedBy === currentUserId;
     const showInput = ((isGuest && chatPartner) || (chatPartner && (isPatient || isDoctor || isPharmacy))) && !isBlocked;
-    const totalUnread = roomList.reduce((acc, room) => acc + (room.unreadCount || 0), 0);
 
     return (
         <>
