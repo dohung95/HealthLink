@@ -473,7 +473,7 @@ export default function ChatPage({ showBot = true }) {
     // Stomp connection
     useEffect(() => {
         if (!authUser) return;
-        
+
         const unsubPresence = stompChatService.subscribeToPresence((event) => {
             // event: { userId, isOnline }
             setRoomList(prevRooms => prevRooms.map(r => {
@@ -572,8 +572,8 @@ export default function ChatPage({ showBot = true }) {
             });
         });
         unsubscribeChat.current = unsub;
-        return () => { 
-            if (unsubscribeChat.current) unsubscribeChat.current(); 
+        return () => {
+            if (unsubscribeChat.current) unsubscribeChat.current();
             if (unsubPresence) unsubPresence();
         };
     }, [authUser, currentUserId]);
@@ -702,9 +702,9 @@ export default function ChatPage({ showBot = true }) {
         if (shouldScrollToBottomRef.current && scrollTo.current) {
             setTimeout(() => {
                 if (scrollTo.current) {
-                    scrollTo.current.scrollIntoView({ 
-                        behavior: pageRef.current === 0 ? 'auto' : 'smooth', 
-                        block: 'end' 
+                    scrollTo.current.scrollIntoView({
+                        behavior: pageRef.current === 0 ? 'auto' : 'smooth',
+                        block: 'end'
                     });
                 }
             }, 100);
@@ -982,6 +982,23 @@ export default function ChatPage({ showBot = true }) {
                         {currentRoom && (
                             <div className="d-flex align-items-center">
                                 {mutedRooms.includes(currentRoom.chatRoomId) && <i className="bi bi-bell-slash-fill text-danger me-3 fs-5"></i>}
+                                {!chatPartner?.isBot && (
+                                    <button 
+                                        className={`btn btn-light rounded-circle shadow-sm d-flex align-items-center justify-content-center me-2 ${isBlocked ? 'opacity-50' : ''}`}
+                                        style={{ width: 40, height: 40, padding: 0, cursor: isBlocked ? 'not-allowed' : 'pointer' }} 
+                                        onClick={(e) => {
+                                            if (isBlocked) {
+                                                e.preventDefault();
+                                                return;
+                                            }
+                                            handleVideoCallFromChat();
+                                        }}
+                                        disabled={isBlocked}
+                                        title={isBlocked ? "Cannot call when chat is blocked or appointment completed" : "Video Call"}
+                                    >
+                                        <i className={`bi bi-camera-video ${isBlocked ? 'text-muted' : 'text-primary'} fs-5`}></i>
+                                    </button>
+                                )}
                                 <button className="btn btn-light rounded-circle shadow-sm d-flex align-items-center justify-content-center" style={{ width: 40, height: 40, padding: 0 }} onClick={() => setShowChatDetails(true)}>
                                     <i className="bi bi-info-circle text-primary fs-5"></i>
                                 </button>

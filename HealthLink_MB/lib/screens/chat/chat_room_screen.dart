@@ -15,6 +15,8 @@ import 'package:url_launcher/url_launcher.dart';
 import '../../models/chat/chat_theme.dart';
 import 'profile_patient_normal_forChar_screen.dart';
 import 'profile_doctor_normal_forChat_screen.dart';
+import '../../providers/video_call_provider.dart';
+import '../video_audio/video_call_screen.dart';
 
 /// Màn hình Chat Room – hiển thị tin nhắn và cho phép gửi tin nhắn.
 class ChatRoomScreen extends StatefulWidget {
@@ -113,6 +115,45 @@ class _ChatRoomScreenState extends State<ChatRoomScreen> {
         );
       }
     });
+  }
+
+  void _handleVideoCall(BuildContext context, Conversation conv) {
+    if (conv.isSupport) return;
+    final auth = context.read<AuthProvider>();
+    final videoCallProvider = context.read<VideoCallProvider>();
+
+    if (auth.isAuthenticated && auth.userId != null) {
+      final success = videoCallProvider.sendCallRequest(
+        receiverId: conv.partnerId,
+        roomId: conv.id,
+        myId: auth.userId!,
+        myName: auth.displayName ?? 'User',
+      );
+
+      if (!success) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('You are already in a call!', style: TextStyle(color: Colors.white)), backgroundColor: Colors.red),
+        );
+        return;
+      }
+
+      Navigator.push(
+        context,
+        MaterialPageRoute(
+          settings: const RouteSettings(name: '/video_call'),
+          builder: (_) => VideoCallScreen(
+            partnerName: conv.partnerName,
+            partnerRole: conv.partnerSpecialty ?? 'User',
+            partnerId: conv.partnerId,
+            roomId: conv.id,
+          ),
+        ),
+      );
+    } else {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Cannot start video call, please login.', style: TextStyle(color: Colors.white)), backgroundColor: Colors.red),
+      );
+    }
   }
 
   /// Xoá đính kèm
@@ -629,6 +670,21 @@ class _ChatRoomScreenState extends State<ChatRoomScreen> {
 
           if (context.watch<ChatProvider>().isMuted(conv.id))
             Icon(Icons.notifications_off, color: colors.outline, size: 20),
+
+          if (!conv.isSupport)
+            IconButton(
+              icon: const Icon(Icons.videocam),
+              color: (context.watch<ChatProvider>().isBlocked(conv.id) || conv.appointmentStatus == 'COMPLETED') 
+                  ? colors.outline
+                  : chatTheme.primary,
+              onPressed: (context.watch<ChatProvider>().isBlocked(conv.id) || conv.appointmentStatus == 'COMPLETED') 
+                  ? () {
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        const SnackBar(content: Text('Cannot call when chat is blocked or appointment completed', style: TextStyle(color: Colors.white)), backgroundColor: Colors.orange),
+                      );
+                    }
+                  : () => _handleVideoCall(context, conv),
+            ),
             
           IconButton(
             icon: const Icon(Icons.info),

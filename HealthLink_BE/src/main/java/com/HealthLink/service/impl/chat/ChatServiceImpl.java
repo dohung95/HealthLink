@@ -47,6 +47,7 @@ public class ChatServiceImpl implements ChatService {
         // Kiểm tra phòng đã tồn tại chưa
         return chatRoomRepository
                 .findByUsers(request.getUser1Id(), request.getUser2Id())
+                .stream().findFirst()
                 .map(existingRoom -> {
                     if (request.getAppointmentId() != null) {
                         if (existingRoom.getAppointment() == null || 
@@ -121,8 +122,13 @@ public class ChatServiceImpl implements ChatService {
     @Override
     @Transactional(readOnly = true)
     public List<ChatRoomDTO> getRoomsByUser(String userId) {
+        java.util.Set<String> seenPartners = new java.util.HashSet<>();
         return chatRoomRepository.findAllByUserId(userId)
                 .stream()
+                .filter(room -> {
+                    String partnerId = room.getUser1Id().equals(userId) ? room.getUser2Id() : room.getUser1Id();
+                    return seenPartners.add(partnerId);
+                })
                 .map(room -> {
                     ChatRoomDTO dto = toRoomDTO(room, userId);
                     dto.setUnreadCount(messageRepository.countUnread(room.getChatRoomId(), userId));
