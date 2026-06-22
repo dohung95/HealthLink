@@ -255,8 +255,9 @@ function ChatMessage({ message, currentUserId, isNew = false, onImageClick, onNa
 
 // ─── Danh sách phòng chat ───────────────────────────────────────────────
 function RoomListItem({ room, currentUserId, onSelect, isActive, isMuted }) {
-    const name = room.user1Id === currentUserId ? room.user2DisplayName : room.user1DisplayName;
-    const photo = room.user1Id === currentUserId ? room.user2PhotoURL : room.user1PhotoURL;
+    const isUser1 = room.user1Id && room.user1Id.startsWith(currentUserId);
+    const name = isUser1 ? room.user2DisplayName : room.user1DisplayName;
+    const photo = isUser1 ? room.user2PhotoURL : room.user1PhotoURL;
     const isUnread = room.unreadCount > 0;
 
     return (
@@ -306,7 +307,7 @@ function RoomListItem({ room, currentUserId, onSelect, isActive, isMuted }) {
 export default function ChatPage({ showBot = true }) {
     const navigate = useNavigate();
     const location = useLocation();
-    const { user: authUser, currentUserId } = useAuth();
+    const { user: authUser, currentUserId, initiateCall, isInCall } = useAuth();
 
     // Check if we navigated here with a specific partner in state
     const initialStatePartner = location.state?.partnerId ? {
@@ -426,6 +427,27 @@ export default function ChatPage({ showBot = true }) {
         setMutedRooms(newMuted);
         localStorage.setItem('muted_rooms', JSON.stringify(newMuted));
         toast.success(newMuted.includes(roomId) ? 'Notifications muted' : 'Notifications unmuted');
+    };
+
+    const handleVideoCallFromChat = () => {
+        if (!chatPartner || isBlocked) return;
+        if (isInCall) {
+            toast.warning('You are currently on another call. Please end it before making a new one.');
+            return;
+        }
+
+        const targetUserId = chatPartner.userId || chatPartner.uid;
+        const targetUserName = chatPartner.displayName || chatPartner.fullName || 'User';
+        const callerName = authUser?.fullName || authUser?.preferred_username || authUser?.email || 'Doctor';
+
+        // Tạo random roomId 45 ký tự
+        const characters = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789';
+        let roomId = '';
+        for (let i = 0; i < 45; i++) {
+            roomId += characters.charAt(Math.floor(Math.random() * characters.length));
+        }
+
+        initiateCall(targetUserId, roomId, targetUserName, callerName);
     };
 
     const handleBlockToggle = async () => {
@@ -564,7 +586,7 @@ export default function ChatPage({ showBot = true }) {
                 if (!isRoomActive && newMsg.senderId !== currentUserId) {
                     const localMutedRooms = JSON.parse(localStorage.getItem('muted_rooms') || '[]');
                     if (!localMutedRooms.includes(newMsg.chatRoomId)) {
-                        toast.info(`New message from ${isNewRoom ? 'someone' : updated.find(r => r.chatRoomId === newMsg.chatRoomId)?.user1DisplayName || 'someone'}`);
+                        toast.info(`New message from ${isNewRoom ? 'someone' : (updated.find(r => r.chatRoomId === newMsg.chatRoomId)?.user1Id.startsWith(currentUserId) ? updated.find(r => r.chatRoomId === newMsg.chatRoomId)?.user2DisplayName : updated.find(r => r.chatRoomId === newMsg.chatRoomId)?.user1DisplayName) || 'someone'}`);
                     }
                 }
 
@@ -946,8 +968,9 @@ export default function ChatPage({ showBot = true }) {
                                     room={room}
                                     currentUserId={currentUserId}
                                     onSelect={(r) => {
-                                        const partnerId = r.user1Id === currentUserId ? r.user2Id : r.user1Id;
-                                        setChatPartner({ userId: partnerId, displayName: r.user1Id === currentUserId ? r.user2DisplayName : r.user1DisplayName });
+                                        const isUser1 = r.user1Id && r.user1Id.startsWith(currentUserId);
+                                        const partnerId = isUser1 ? r.user2Id : r.user1Id;
+                                        setChatPartner({ userId: partnerId, displayName: isUser1 ? r.user2DisplayName : r.user1DisplayName });
                                         setCurrentRoom(r);
                                     }}
                                     isActive={currentRoom?.chatRoomId === room.chatRoomId}
@@ -963,7 +986,7 @@ export default function ChatPage({ showBot = true }) {
                     {/* Header */}
                     <div className="p-3 border-bottom d-flex align-items-center bg-white shadow-sm z-index-1">
                         <img
-                            src={getFullUrl(chatPartner?.photoURL) || getFullUrl(currentRoom ? (currentRoom.user1Id === currentUserId ? currentRoom.user2PhotoURL : currentRoom.user1PhotoURL) : null) || `https://api.dicebear.com/9.x/initials/svg?seed=${chatPartner?.displayName}`}
+                            src={getFullUrl(chatPartner?.photoURL) || getFullUrl(currentRoom ? (currentRoom.user1Id.startsWith(currentUserId) ? currentRoom.user2PhotoURL : currentRoom.user1PhotoURL) : null) || `https://api.dicebear.com/9.x/initials/svg?seed=${chatPartner?.displayName}`}
                             alt="avatar"
                             onError={(e) => { e.target.onerror = null; e.target.src = `https://api.dicebear.com/9.x/initials/svg?seed=${chatPartner?.displayName || 'Chat'}`; }}
                             className="rounded-circle me-3 shadow-sm"
@@ -1155,10 +1178,10 @@ export default function ChatPage({ showBot = true }) {
                         </div>
                         <div className="offcanvas-body p-0">
                             <div className="text-center p-4 border-bottom bg-light">
-                                <img src={getFullUrl(currentRoom.user1Id === currentUserId ? currentRoom.user2PhotoURL : currentRoom.user1PhotoURL) || `https://api.dicebear.com/9.x/initials/svg?seed=${chatPartner?.displayName}`}
+                                <img src={getFullUrl(currentRoom.user1Id.startsWith(currentUserId) ? currentRoom.user2PhotoURL : currentRoom.user1PhotoURL) || `https://api.dicebear.com/9.x/initials/svg?seed=${chatPartner?.displayName}`}
                                     className="rounded-circle shadow-sm mb-3" style={{ width: 100, height: 100, objectFit: 'cover' }} alt="Avatar" onError={(e) => { e.target.onerror = null; e.target.src = `https://api.dicebear.com/9.x/initials/svg?seed=${chatPartner?.displayName}`; }} />
                                 <h4 className="fw-bold mb-1">{chatPartner?.displayName}</h4>
-                                <p className="text-muted small mb-3">{(currentRoom.user1Id === currentUserId ? currentRoom.user2Specialty : currentRoom.user1Specialty) || 'HealthLink User'}</p>
+                                <p className="text-muted small mb-3">{(currentRoom.user1Id.startsWith(currentUserId) ? currentRoom.user2Specialty : currentRoom.user1Specialty) || 'HealthLink User'}</p>
 
                                 <div className="d-flex justify-content-center gap-4 mt-2">
                                     <div className="text-center" style={{ cursor: 'pointer' }} onClick={handleProfileNavigation}>
