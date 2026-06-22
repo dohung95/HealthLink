@@ -212,9 +212,16 @@ const HomeVisitStep = ({
   const handleSelectAddressResult = (result) => {
     setHomeVisitInfo((prev) => ({
       ...prev,
-      visitAddress: result.displayName || prev.visitAddress,
+
+      // Không ghi đè địa chỉ user nhập, vì displayName có thể mất số nhà.
+      visitAddress: prev.visitAddress,
+
+      // Chỉ lấy tọa độ từ kết quả map.
       visitLatitude: result.latitude,
       visitLongitude: result.longitude,
+
+      // lưu tạm để hiển thị trên UI.
+      mapDisplayAddress: result.displayName,
     }));
 
     setAddressResults([]);
@@ -228,6 +235,12 @@ const HomeVisitStep = ({
       ...prev,
       visitLatitude: lat,
       visitLongitude: lng,
+      distanceKm: null,
+      estimatedTravelMinutes: null,
+      homeVisitFee: null,
+      travelFee: null,
+      totalFee: null,
+      serviceable: null,
     }));
 
     setEstimate(null);
@@ -269,6 +282,16 @@ const HomeVisitStep = ({
       });
 
       setEstimate(result);
+
+      setHomeVisitInfo((prev) => ({
+        ...prev,
+        distanceKm: result.distanceKm,
+        estimatedTravelMinutes: result.estimatedTravelMinutes,
+        homeVisitFee: result.homeVisitFee,
+        travelFee: result.travelFee,
+        totalFee: result.totalFee,
+        serviceable: result.serviceable,
+      }));
 
       if (result.serviceable) {
         toast.success('Travel fee estimated.');
@@ -470,7 +493,17 @@ const HomeVisitStep = ({
             <input
               value={homeVisitInfo.visitAddress || ''}
               onChange={(e) => {
-                updateField('visitAddress', e.target.value);
+                setHomeVisitInfo((prev) => ({
+                  ...prev,
+                  visitAddress: e.target.value,
+                  distanceKm: null,
+                  estimatedTravelMinutes: null,
+                  homeVisitFee: null,
+                  travelFee: null,
+                  totalFee: null,
+                  serviceable: null,
+                }));
+
                 setEstimate(null);
               }}
               placeholder="House number, street, ward, district..."
@@ -564,16 +597,6 @@ const HomeVisitStep = ({
                 <strong>Travel fee</strong>
                 <span>
                   {Number(estimate.travelFee || 0).toLocaleString('en-US', {
-                    style: 'currency',
-                    currency: 'USD',
-                  })}
-                </span>
-              </div>
-
-              <div>
-                <strong>Total fee</strong>
-                <span>
-                  {Number(estimate.totalFee || 0).toLocaleString('en-US', {
                     style: 'currency',
                     currency: 'USD',
                   })}
