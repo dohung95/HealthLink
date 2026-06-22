@@ -578,10 +578,8 @@ export default function Registrations() {
                     <div className="detail-section">
                       <h4><i className="bi bi-calendar-check"></i> Availability</h4>
                       <div className="availability-tags">
-                        {selectedRequest.availableForVideo && <span className="avail-tag"><i className="bi bi-camera-video"></i> Video</span>}
-                        {selectedRequest.availableForAudio && <span className="avail-tag"><i className="bi bi-telephone"></i> Audio</span>}
-                        {selectedRequest.availableForChat && <span className="avail-tag"><i className="bi bi-chat-dots"></i> Chat</span>}
-                        {selectedRequest.availableForOffline && <span className="avail-tag"><i className="bi bi-person-workspace"></i> In-Person</span>}
+                        <span className="avail-tag"><i className="bi bi-globe"></i> Online</span>
+                        <span className="avail-tag"><i className="bi bi-house-heart"></i> Home Visit</span>
                       </div>
                     </div>
                     {selectedRequest.bio && (

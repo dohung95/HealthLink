@@ -1,4 +1,5 @@
 import React, { memo, useEffect, useRef, useState } from 'react';
+import ServiceTogglePanel from './ServiceTogglePanel';
 
 const getInitials = (name) => {
   if (!name) return 'DR';
@@ -29,6 +30,7 @@ const DoctorHeader = memo(({
   onNavigateToWallet,
 }) => {
   const [showProfileDropdown, setShowProfileDropdown] = useState(false);
+  const [showServices, setShowServices] = useState(false);
   const profileDropdownRef = useRef(null);
 
   useEffect(() => {
@@ -203,7 +205,7 @@ const DoctorHeader = memo(({
               )}
             </button>
 
-            {showProfileDropdown && (
+            {(showProfileDropdown || showServices) && (
               <div
                 className="position-absolute end-0 mt-2 bg-white shadow-lg overflow-hidden"
                 style={{
@@ -214,6 +216,16 @@ const DoctorHeader = memo(({
                   animation: 'fadeIn 0.12s ease-out',
                 }}
               >
+                {showServices ? (
+                  <ServiceTogglePanel
+                    currentServices={{
+                      online: doctorData?.availableTypes?.includes('Online') ?? true,
+                      homeVisit: doctorData?.availableTypes?.includes('HomeVisit') ?? true,
+                    }}
+                    onClose={() => setShowServices(false)}
+                  />
+                ) : (
+                <>
                 {/* Profile Card */}
                 <div className="p-3 d-flex align-items-center gap-3" style={{ borderBottom: '1px solid var(--border)' }}>
                   <div
@@ -262,6 +274,17 @@ const DoctorHeader = memo(({
                     <span className="material-symbols-outlined" style={{ fontSize: '1.125rem', color: 'var(--text-muted)' }}>lock</span>
                     Change Password
                   </button>
+                  <button
+                    className="d-flex align-items-center gap-3 w-100 px-3 py-2 border-0 bg-transparent text-start"
+                    onClick={() => { setShowProfileDropdown(false); setShowServices(true); }}
+                    type="button"
+                    style={{ fontSize: '0.8125rem', color: 'var(--text-primary)', transition: 'background 0.1s ease' }}
+                    onMouseEnter={(e) => { e.currentTarget.style.background = 'var(--surface-muted)'; }}
+                    onMouseLeave={(e) => { e.currentTarget.style.background = 'transparent'; }}
+                  >
+                    <span className="material-symbols-outlined" style={{ fontSize: '1.125rem', color: 'var(--text-muted)' }}>tune</span>
+                    Dịch vụ
+                  </button>
                 </div>
 
                 {/* Wallet */}
@@ -293,6 +316,8 @@ const DoctorHeader = memo(({
                     Logout
                   </button>
                 </div>
+              </>
+              )}
               </div>
             )}
           </div>

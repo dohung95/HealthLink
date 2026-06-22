@@ -506,10 +506,8 @@ export default function Doctors() {
                     {/* Consultation Types */}
                     <div className="card-detail-item">
                       <div className="consultation-types">
-                        {doctor.availableForVideo && <span className="consult-badge video" title="Video"><i className="bi bi-camera-video-fill"></i></span>}
-                        {doctor.availableForAudio && <span className="consult-badge audio" title="Audio"><i className="bi bi-telephone-fill"></i></span>}
-                        {doctor.availableForChat && <span className="consult-badge chat" title="Chat"><i className="bi bi-chat-dots-fill"></i></span>}
-                        {doctor.availableForOffline && <span className="consult-badge offline" title="In-person"><i className="bi bi-person-fill"></i></span>}
+                        {doctor.services?.includes('ONLINE') && <span className="consult-badge online" title="Online"><i className="bi bi-globe"></i></span>}
+                        {doctor.services?.includes('HOME_VISIT') && <span className="consult-badge home-visit" title="Home Visit"><i className="bi bi-house-heart-fill"></i></span>}
                       </div>
                     </div>
                     {/* Rating */}
@@ -922,17 +920,11 @@ export default function Doctors() {
                           <i className="bi bi-headset"></i> Consultation Types
                         </h6>
                         <div className="d-flex flex-wrap gap-2">
-                          <span className={`badge ${selectedDoctor.availableForVideo ? 'bg-success' : 'bg-secondary'}`} style={{ fontSize: '12px' }}>
-                            <i className="bi bi-camera-video me-1"></i>Video
+                          <span className={`badge ${selectedDoctor.services?.includes('ONLINE') ? 'bg-success' : 'bg-secondary'}`} style={{ fontSize: '12px' }}>
+                            <i className="bi bi-globe me-1"></i>Online
                           </span>
-                          <span className={`badge ${selectedDoctor.availableForAudio ? 'bg-success' : 'bg-secondary'}`} style={{ fontSize: '12px' }}>
-                            <i className="bi bi-telephone me-1"></i>Audio
-                          </span>
-                          <span className={`badge ${selectedDoctor.availableForChat ? 'bg-success' : 'bg-secondary'}`} style={{ fontSize: '12px' }}>
-                            <i className="bi bi-chat-dots me-1"></i>Chat
-                          </span>
-                          <span className={`badge ${selectedDoctor.availableForOffline ? 'bg-success' : 'bg-secondary'}`} style={{ fontSize: '12px' }}>
-                            <i className="bi bi-person me-1"></i>In-person
+                          <span className={`badge ${selectedDoctor.services?.includes('HOME_VISIT') ? 'bg-success' : 'bg-secondary'}`} style={{ fontSize: '12px' }}>
+                            <i className="bi bi-house-heart me-1"></i>Home Visit
                           </span>
                         </div>
                         {(selectedDoctor.consultationHours || selectedDoctor.availableDays) && (
