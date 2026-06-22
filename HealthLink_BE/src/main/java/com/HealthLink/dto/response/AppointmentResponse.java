@@ -56,4 +56,7 @@ public class AppointmentResponse {
     private Integer visitDurationMinutes;
     private Integer travelBufferBeforeMinutes;
     private Integer travelBufferAfterMinutes;
+
+    private BigDecimal homeVisitFee;
+    private BigDecimal travelFee;
 }

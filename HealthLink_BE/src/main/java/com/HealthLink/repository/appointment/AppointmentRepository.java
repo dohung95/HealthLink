@@ -75,6 +75,36 @@ public interface AppointmentRepository extends JpaRepository<Appointment, Intege
     );
 
     @Query("""
+        SELECT COUNT(a) > 0 FROM Appointment a
+        WHERE a.doctor.doctorId = :doctorId
+          AND UPPER(a.status) <> UPPER(:cancelledStatus)
+          AND a.appointmentTime < :end
+          AND COALESCE(a.endTime, a.appointmentTime) > :start
+        """)
+    boolean existsDoctorAppointmentOverlap(
+            @Param("doctorId") String doctorId,
+            @Param("cancelledStatus") String cancelledStatus,
+            @Param("start") LocalDateTime start,
+            @Param("end") LocalDateTime end
+    );
+
+    @Query("""
+        SELECT COUNT(a) > 0 FROM Appointment a
+        WHERE a.doctor.doctorId = :doctorId
+          AND UPPER(a.status) <> UPPER(:cancelledStatus)
+          AND a.appointmentId <> :excludeAppointmentId
+          AND a.appointmentTime < :end
+          AND COALESCE(a.endTime, a.appointmentTime) > :start
+        """)
+    boolean existsDoctorAppointmentOverlapExcludingAppointment(
+            @Param("doctorId") String doctorId,
+            @Param("cancelledStatus") String cancelledStatus,
+            @Param("start") LocalDateTime start,
+            @Param("end") LocalDateTime end,
+            @Param("excludeAppointmentId") Integer excludeAppointmentId
+    );
+
+    @Query("""
             SELECT a FROM Appointment a
             WHERE a.doctor.doctorId = :doctorId
               AND UPPER(a.status) <> UPPER(:status)

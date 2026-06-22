@@ -50,15 +50,40 @@ const DateTimeStep = ({
     return date;
   };
 
-  const workingDaySet = useMemo(() => {
-    return new Set(
-      (doctorSchedules || [])
-        .filter((schedule) => schedule.available !== false)
-        .map((schedule) => Number(schedule.dayOfWeek))
-    );
-  }, [doctorSchedules]);
+  const isScheduleMatchingConsultationType = (schedule) => {
+  const type = String(schedule.consultationType || '').trim().toLowerCase();
 
-  const shouldFilterByDoctorSchedule = !isHomeVisit && workingDaySet.size > 0;
+  if (consultationType === 'HomeVisit') {
+    return (
+      type === 'homevisit' ||
+      type === 'home visit' ||
+      type === 'home-visit' ||
+      type === 'home'
+    );
+  }
+
+  return (
+    !type ||
+    type === 'online' ||
+    type === 'video' ||
+    type === 'video call' ||
+    type === 'audio' ||
+    type === 'audio call' ||
+    type === 'chat' ||
+    type === 'consultation'
+  );
+};
+
+const workingDaySet = useMemo(() => {
+  return new Set(
+    (doctorSchedules || [])
+      .filter((schedule) => schedule.available !== false)
+      .filter(isScheduleMatchingConsultationType)
+      .map((schedule) => Number(schedule.dayOfWeek))
+  );
+}, [doctorSchedules, consultationType]);
+
+const shouldFilterByDoctorSchedule = workingDaySet.size > 0;
 
 
   const buildWeekOptions = (targetWeekIndex) => {
@@ -198,67 +223,65 @@ const DateTimeStep = ({
           ))
         )}
       </div>
-      {!isHomeVisit && (
-        <div className="slot-section">
-          <h3>Available slots</h3>
+      <div className="slot-section">
+        <h3>Available slots</h3>
 
-          {!hasSelectableDate ? (
-            <div className="empty-block">
-              Please select an available working day first.
-            </div>
-          ) : loadingSlots ? (
-            <div className="empty-block">Loading slots...</div>
-          ) : slots.length === 0 ? (
-            <div className="empty-block">
-              No available slots on this day.
-            </div>
-          ) : (
-            <div className="slot-grid">
-              {slots.map((slot) => {
-                const isSelected =
-                  selectedSlot?.date === date &&
-                  selectedSlot?.startTime === slot.startTime;
+        {!hasSelectableDate ? (
+          <div className="empty-block">
+            Please select an available working day first.
+          </div>
+        ) : loadingSlots ? (
+          <div className="empty-block">Loading slots...</div>
+        ) : slots.length === 0 ? (
+          <div className="empty-block">
+            No available slots on this day.
+          </div>
+        ) : (
+          <div className="slot-grid">
+            {slots.map((slot) => {
+              const isSelected =
+                selectedSlot?.date === date &&
+                selectedSlot?.startTime === slot.startTime;
 
-                const statusClass = slot.status?.toLowerCase();
+              const statusClass = slot.status?.toLowerCase();
 
-                const slotDateTime = new Date(`${date}T${slot.startTime}`);
-                const isPastSlot = slotDateTime < new Date();
+              const slotDateTime = new Date(`${date}T${slot.startTime}`);
+              const isPastSlot = slotDateTime < new Date();
 
-                return (
-                  <button
-                    key={`${date}-${slot.startTime}`}
-                    type="button"
-                    className={`slot-button ${statusClass} ${isPastSlot ? 'past' : ''} ${isSelected ? 'selected' : ''}`}
-                    disabled={isPastSlot || (!slot.selectable && !isSelected)}
-                    onClick={() => {
-                      if (isPastSlot) return;
+              return (
+                <button
+                  key={`${date}-${slot.startTime}`}
+                  type="button"
+                  className={`slot-button ${statusClass} ${isPastSlot ? 'past' : ''} ${isSelected ? 'selected' : ''}`}
+                  disabled={isPastSlot || (!slot.selectable && !isSelected)}
+                  onClick={() => {
+                    if (isPastSlot) return;
 
-                      if (isSelected) {
-                        onClearSlot();
-                      } else {
-                        onSelectSlot(slot);
-                      }
-                    }}
-                    title={
-                      isPastSlot
-                        ? 'Past time'
-                        : isSelected
-                          ? 'Click again to unselect'
-                          : slot.status === 'BOOKED'
-                            ? 'Booked'
-                            : slot.status === 'HELD'
-                              ? 'Held'
-                              : 'Available'
+                    if (isSelected) {
+                      onClearSlot();
+                    } else {
+                      onSelectSlot(slot);
                     }
-                  >
-                    {slot.startTime}
-                  </button>
-                );
-              })}
-            </div>
-          )}
-        </div>
-      )}
+                  }}
+                  title={
+                    isPastSlot
+                      ? 'Past time'
+                      : isSelected
+                        ? 'Click again to unselect'
+                        : slot.status === 'BOOKED'
+                          ? 'Booked'
+                          : slot.status === 'HELD'
+                            ? 'Held'
+                            : 'Available'
+                  }
+                >
+                  {slot.startTime} - {slot.endTime}
+                </button>
+              );
+            })}
+          </div>
+        )}
+      </div>
 
       <div className="schedule-actions datetime-actions">
         <button type="button" className="btn-outline-soft" onClick={onBack}>
@@ -269,7 +292,7 @@ const DateTimeStep = ({
           type="button"
           className="btn-primary-soft"
           onClick={onNext}
-          disabled={!hasSelectableDate || (!isHomeVisit && !selectedSlot)}
+          disabled={!hasSelectableDate || !selectedSlot}
         >
           Next
         </button>

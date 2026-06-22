@@ -6,7 +6,10 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.multipart.MultipartFile;
-
+import com.HealthLink.dto.request.HomeVisitEstimateRequest;
+import com.HealthLink.dto.response.HomeVisitEstimateResponse;
+import com.HealthLink.dto.response.HomeVisitGeocodeResponse;
+import com.HealthLink.service.homevisit.HomeVisitLocationService;
 import java.util.Base64;
 import java.util.List;
 
@@ -16,6 +19,7 @@ import java.util.List;
 public class HomeVisitController {
 
     private final GeminiAIService geminiAIService;
+    private final HomeVisitLocationService homeVisitLocationService;
 
     @PostMapping("/scan-info")
     public ResponseEntity<HomeVisitInfoScanResponse> scanHomeVisitInfo(
@@ -61,6 +65,25 @@ public class HomeVisitController {
             );
         }
     }
+    
+    @GetMapping("/geocode")
+public ResponseEntity<List<HomeVisitGeocodeResponse>> geocode(
+        @RequestParam String address
+) {
+    return ResponseEntity.ok(homeVisitLocationService.geocode(address));
+}
+
+@PostMapping("/estimate")
+public ResponseEntity<HomeVisitEstimateResponse> estimate(
+        @RequestBody HomeVisitEstimateRequest request
+) {
+    return ResponseEntity.ok(
+            homeVisitLocationService.estimate(
+                    request.getVisitLatitude(),
+                    request.getVisitLongitude()
+            )
+    );
+}
 
     private boolean isSupportedFileType(String mimeType) {
         if (mimeType == null || mimeType.isBlank()) {

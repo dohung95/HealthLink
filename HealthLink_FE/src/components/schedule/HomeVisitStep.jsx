@@ -1,15 +1,109 @@
-import { useRef, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
+import L from 'leaflet';
+import { MapContainer, Marker, TileLayer, useMapEvents, useMap } from 'react-leaflet';
 import { toast } from 'sonner';
 import { homeVisitApi } from '../../api/homeVisitApi';
+
+import markerIcon2x from 'leaflet/dist/images/marker-icon-2x.png';
+import markerIcon from 'leaflet/dist/images/marker-icon.png';
+import markerShadow from 'leaflet/dist/images/marker-shadow.png';
+
+delete L.Icon.Default.prototype._getIconUrl;
+
+L.Icon.Default.mergeOptions({
+  iconRetinaUrl: markerIcon2x,
+  iconUrl: markerIcon,
+  shadowUrl: markerShadow,
+});
+
+const LocationPicker = ({ location, onPick }) => {
+  useMapEvents({
+    click(e) {
+      onPick(e.latlng.lat, e.latlng.lng);
+    },
+  });
+
+  if (!location?.lat || !location?.lng) return null;
+
+  return <Marker position={[location.lat, location.lng]} />;
+};
+
+const MapRecenter = ({ location }) => {
+  const map = useMap();
+
+  useEffect(() => {
+    if (location?.lat && location?.lng) {
+      map.setView([location.lat, location.lng], 16);
+    }
+  }, [location, map]);
+
+  return null;
+};
 
 const HomeVisitStep = ({
   homeVisitInfo,
   setHomeVisitInfo,
+  patientProfile,
   onBack,
   onNext,
 }) => {
   const fileRef = useRef(null);
   const [scanning, setScanning] = useState(false);
+  const [addressResults, setAddressResults] = useState([]);
+  const [searchingAddress, setSearchingAddress] = useState(false);
+  const [estimate, setEstimate] = useState(null);
+  const [estimating, setEstimating] = useState(false);
+
+  const selectedLocation =
+    homeVisitInfo.visitLatitude && homeVisitInfo.visitLongitude
+      ? {
+        lat: homeVisitInfo.visitLatitude,
+        lng: homeVisitInfo.visitLongitude,
+      }
+      : null;
+
+  const calculateAge = (dateOfBirth) => {
+    if (!dateOfBirth) return '';
+
+    const birthDate = new Date(dateOfBirth);
+    if (Number.isNaN(birthDate.getTime())) return '';
+
+    const today = new Date();
+    let age = today.getFullYear() - birthDate.getFullYear();
+
+    const hasNotHadBirthdayThisYear =
+      today.getMonth() < birthDate.getMonth() ||
+      (today.getMonth() === birthDate.getMonth() && today.getDate() < birthDate.getDate());
+
+    if (hasNotHadBirthdayThisYear) {
+      age -= 1;
+    }
+
+    return age > 0 ? age : '';
+  };
+
+  const buildSelfVisitInfo = () => {
+    if (!patientProfile) {
+      return {};
+    }
+
+    const phone =
+      patientProfile.phoneNumber ||
+      patientProfile.phone ||
+      patientProfile.user?.phoneNumber ||
+      '';
+
+    return {
+      receiverName: patientProfile.fullName || patientProfile.name || '',
+      receiverAge: calculateAge(patientProfile.dateOfBirth),
+      receiverGender: patientProfile.gender || '',
+      receiverRelationship: 'Self',
+      receiverPhone: phone,
+      contactPhone: phone,
+      visitAddress: patientProfile.address || '',
+      visitCity: patientProfile.city || patientProfile.province || '',
+    };
+  };
 
   const updateField = (field, value) => {
     setHomeVisitInfo((prev) => ({
@@ -17,6 +111,39 @@ const HomeVisitStep = ({
       [field]: value,
     }));
   };
+
+  const handleSelectForSelf = () => {
+    const selfInfo = buildSelfVisitInfo();
+
+    setHomeVisitInfo((prev) => ({
+      ...prev,
+      ...selfInfo,
+      isForSelf: true,
+    }));
+  };
+
+  const handleSelectForSomeoneElse = () => {
+    setHomeVisitInfo((prev) => ({
+      ...prev,
+      isForSelf: false,
+      receiverName: '',
+      receiverAge: '',
+      receiverGender: '',
+      receiverRelationship: '',
+      receiverPhone: '',
+    }));
+  };
+
+  useEffect(() => {
+    if (!homeVisitInfo.isForSelf) return;
+    if (!patientProfile) return;
+
+    setHomeVisitInfo((prev) => ({
+      ...prev,
+      ...buildSelfVisitInfo(),
+      isForSelf: true,
+    }));
+  }, [patientProfile, homeVisitInfo.isForSelf]);
 
   const handleScanFile = async (event) => {
     const file = event.target.files?.[0];
@@ -59,6 +186,102 @@ const HomeVisitStep = ({
     }
   };
 
+  const handleSearchAddress = async () => {
+    if (!homeVisitInfo.visitAddress?.trim()) {
+      toast.warning('Please enter a visit address first.');
+      return;
+    }
+
+    try {
+      setSearchingAddress(true);
+
+      const results = await homeVisitApi.geocodeAddress(homeVisitInfo.visitAddress);
+
+      setAddressResults(results);
+
+      if (!results.length) {
+        toast.warning('No matching address found. Please try a more detailed address.');
+      }
+    } catch (error) {
+      toast.error(error.response?.data?.message || 'Can not search this address.');
+    } finally {
+      setSearchingAddress(false);
+    }
+  };
+
+  const handleSelectAddressResult = (result) => {
+    setHomeVisitInfo((prev) => ({
+      ...prev,
+      visitAddress: result.displayName || prev.visitAddress,
+      visitLatitude: result.latitude,
+      visitLongitude: result.longitude,
+    }));
+
+    setAddressResults([]);
+    setEstimate(null);
+
+    toast.success('Location selected. Please verify the pin on the map.');
+  };
+
+  const handlePickLocation = (lat, lng) => {
+    setHomeVisitInfo((prev) => ({
+      ...prev,
+      visitLatitude: lat,
+      visitLongitude: lng,
+    }));
+
+    setEstimate(null);
+  };
+
+  const handleUseCurrentLocation = () => {
+    if (!navigator.geolocation) {
+      toast.warning('Your browser does not support location detection.');
+      return;
+    }
+
+    navigator.geolocation.getCurrentPosition(
+      (position) => {
+        handlePickLocation(position.coords.latitude, position.coords.longitude);
+        toast.success('Current location selected.');
+      },
+      () => {
+        toast.error('Unable to access your location.');
+      },
+      {
+        enableHighAccuracy: true,
+        timeout: 10000,
+      }
+    );
+  };
+
+  const handleEstimateFee = async () => {
+    if (!homeVisitInfo.visitLatitude || !homeVisitInfo.visitLongitude) {
+      toast.warning('Please select the visit location first.');
+      return;
+    }
+
+    try {
+      setEstimating(true);
+
+      const result = await homeVisitApi.estimateFee({
+        visitLatitude: homeVisitInfo.visitLatitude,
+        visitLongitude: homeVisitInfo.visitLongitude,
+      });
+
+      setEstimate(result);
+
+      if (result.serviceable) {
+        toast.success('Travel fee estimated.');
+      } else {
+        toast.warning(result.message || 'This address is outside our service area.');
+      }
+    } catch (error) {
+      toast.error(error.response?.data?.message || 'Can not estimate travel fee.');
+    } finally {
+      setEstimating(false);
+    }
+  };
+
   const handleNext = () => {
     if (!homeVisitInfo.visitAddress?.trim()) {
       toast.warning('Visit address is required.');
@@ -92,6 +315,21 @@ const HomeVisitStep = ({
       }
     }
 
+    if (!homeVisitInfo.visitLatitude || !homeVisitInfo.visitLongitude) {
+      toast.warning('Please select the visit location on the map.');
+      return;
+    }
+
+    if (!estimate) {
+      toast.warning('Please estimate the travel fee before continuing.');
+      return;
+    }
+
+    if (!estimate.serviceable) {
+      toast.warning('This address is outside our home visit service area.');
+      return;
+    }
+
     onNext();
   };
 
@@ -106,7 +344,7 @@ const HomeVisitStep = ({
         <button
           type="button"
           className={homeVisitInfo.isForSelf ? 'selected' : ''}
-          onClick={() => updateField('isForSelf', true)}
+          onClick={handleSelectForSelf}
         >
           For myself
         </button>
@@ -114,11 +352,35 @@ const HomeVisitStep = ({
         <button
           type="button"
           className={homeVisitInfo.isForSelf === false ? 'selected' : ''}
-          onClick={() => updateField('isForSelf', false)}
+          onClick={handleSelectForSomeoneElse}
         >
           For someone else
         </button>
       </div>
+
+      {homeVisitInfo.isForSelf && (
+        <div className="self-visit-summary">
+          <div>
+            <strong>Patient</strong>
+            <span>{homeVisitInfo.receiverName || 'Not available'}</span>
+          </div>
+
+          <div>
+            <strong>Age</strong>
+            <span>{homeVisitInfo.receiverAge || 'Not available'}</span>
+          </div>
+
+          <div>
+            <strong>Gender</strong>
+            <span>{homeVisitInfo.receiverGender || 'Not available'}</span>
+          </div>
+
+          <div>
+            <strong>Phone</strong>
+            <span>{homeVisitInfo.receiverPhone || homeVisitInfo.contactPhone || 'Not available'}</span>
+          </div>
+        </div>
+      )}
 
       {homeVisitInfo.isForSelf === false && (
         <>
@@ -173,7 +435,6 @@ const HomeVisitStep = ({
                 value={homeVisitInfo.receiverGender || ''}
                 onChange={(e) => updateField('receiverGender', e.target.value)}
               >
-                <option value="">Select gender</option>
                 <option value="Male">Male</option>
                 <option value="Female">Female</option>
                 <option value="Other">Other</option>
@@ -204,12 +465,125 @@ const HomeVisitStep = ({
       <div className="home-visit-grid">
         <label className="home-visit-full">
           Visit address <span>*</span>
-          <input
-            value={homeVisitInfo.visitAddress || ''}
-            onChange={(e) => updateField('visitAddress', e.target.value)}
-            placeholder="House number, street, ward, district..."
-          />
+
+          <div className="address-search-row">
+            <input
+              value={homeVisitInfo.visitAddress || ''}
+              onChange={(e) => {
+                updateField('visitAddress', e.target.value);
+                setEstimate(null);
+              }}
+              placeholder="House number, street, ward, district..."
+            />
+
+            <button
+              type="button"
+              className="btn-outline-soft"
+              onClick={handleSearchAddress}
+              disabled={searchingAddress}
+            >
+              {searchingAddress ? 'Searching...' : 'Search'}
+            </button>
+          </div>
         </label>
+
+        {addressResults.length > 0 && (
+          <div className="home-visit-full address-results">
+            {addressResults.map((item, index) => (
+              <button
+                key={`${item.latitude}-${item.longitude}-${index}`}
+                type="button"
+                onClick={() => handleSelectAddressResult(item)}
+              >
+                {item.displayName}
+              </button>
+            ))}
+          </div>
+        )}
+
+        <div className="home-visit-full">
+          <div className="map-actions">
+            <button
+              type="button"
+              className="btn-outline-soft"
+              onClick={handleUseCurrentLocation}
+            >
+              Use my current location
+            </button>
+
+            <button
+              type="button"
+              className="btn-outline-soft"
+              onClick={handleEstimateFee}
+              disabled={estimating}
+            >
+              {estimating ? 'Estimating...' : 'Estimate travel fee'}
+            </button>
+          </div>
+
+          <div className="home-visit-map">
+            <MapContainer
+              center={[
+                homeVisitInfo.visitLatitude || 10.7769,
+                homeVisitInfo.visitLongitude || 106.7009,
+              ]}
+              zoom={13}
+              style={{ height: '300px', width: '100%' }}
+            >
+              <TileLayer
+                attribution="&copy; OpenStreetMap contributors"
+                url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
+              />
+
+              <MapRecenter location={selectedLocation} />
+
+              <LocationPicker
+                location={selectedLocation}
+                onPick={handlePickLocation}
+              />
+            </MapContainer>
+          </div>
+
+          <small className="map-help-text">
+            Search your address, then verify the pin on the map. You can click the map to adjust the exact home entrance.
+          </small>
+
+          {estimate && (
+            <div className={`home-visit-estimate ${estimate.serviceable ? 'ok' : 'blocked'}`}>
+              <div>
+                <strong>Distance</strong>
+                <span>{estimate.distanceKm} km</span>
+              </div>
+
+              <div>
+                <strong>Travel time</strong>
+                <span>{estimate.estimatedTravelMinutes} min</span>
+              </div>
+
+              <div>
+                <strong>Travel fee</strong>
+                <span>
+                  {Number(estimate.travelFee || 0).toLocaleString('en-US', {
+                    style: 'currency',
+                    currency: 'USD',
+                  })}
+                </span>
+              </div>
+
+              <div>
+                <strong>Total fee</strong>
+                <span>
+                  {Number(estimate.totalFee || 0).toLocaleString('en-US', {
+                    style: 'currency',
+                    currency: 'USD',
+                  })}
+                </span>
+              </div>
+
+              <p>{estimate.message}</p>
+            </div>
+          )}
+        </div>
 
         <label>
           City / Province

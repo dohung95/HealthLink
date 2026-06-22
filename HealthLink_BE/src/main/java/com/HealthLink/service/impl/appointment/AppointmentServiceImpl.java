@@ -41,6 +41,8 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.transaction.support.TransactionSynchronization;
 import org.springframework.transaction.support.TransactionSynchronizationManager;
+import com.HealthLink.dto.response.HomeVisitEstimateResponse;
+import com.HealthLink.service.homevisit.HomeVisitLocationService;
 
 import java.time.LocalDate;
 import java.time.LocalDateTime;
@@ -70,12 +72,19 @@ public class AppointmentServiceImpl implements AppointmentService {
     private final AppointmentSlotHoldRepository appointmentSlotHoldRepository;
     private final HomeVisitDetailsRepository homeVisitDetailsRepository;
     private final NotificationService notificationService;
+    private final HomeVisitLocationService homeVisitLocationService;
 
     @Value("${booking.max-days-ahead}")
     private Integer maxDaysAhead;
 
     @Value("${booking.slot-hold-minutes}")
     private Integer slotHoldMinutes;
+
+    @Value("${booking.cancel-min-hours-online:2}")
+    private Integer cancelMinHoursOnline;
+
+    @Value("${booking.cancel-min-hours-home-visit:6}")
+    private Integer cancelMinHoursHomeVisit;
 
     @Override
     @Transactional
@@ -95,6 +104,19 @@ public class AppointmentServiceImpl implements AppointmentService {
                 "Bot found doctor ID: " + request.getDoctorId()));
 
         checkConsultationTypeSupported(doctor, request.getConsultationType());
+
+        HomeVisitEstimateResponse homeVisitEstimate = null;
+
+        if (TYPE_HOME_VISIT.equalsIgnoreCase(request.getConsultationType())) {
+            homeVisitEstimate = homeVisitLocationService.estimate(
+                    request.getVisitLatitude(),
+                    request.getVisitLongitude()
+            );
+
+            if (!Boolean.TRUE.equals(homeVisitEstimate.getServiceable())) {
+                throw new BusinessException(homeVisitEstimate.getMessage());
+            }
+        }
 
         LocalDateTime appointmentTime = request.getAppointmentTime();
         int dayOfWeek = appointmentTime.getDayOfWeek().getValue() % 7;
@@ -122,13 +144,12 @@ public class AppointmentServiceImpl implements AppointmentService {
         LocalDateTime slotStart = appointmentTime;
         LocalDateTime slotEnd = appointmentTime.plusMinutes(slotMinutes);
 
-        boolean hasConflict = appointmentRepository
-                .existsByDoctor_DoctorIdAndStatusNotAndAppointmentTimeBetween(
-                        doctor.getDoctorId(),
-                        STATUS_CANCELLED,
-                        slotStart,
-                        slotEnd.minusSeconds(1)
-                );
+        boolean hasConflict = appointmentRepository.existsDoctorAppointmentOverlap(
+                doctor.getDoctorId(),
+                STATUS_CANCELLED,
+                slotStart,
+                slotEnd
+        );
 
         if (hasConflict) {
             throw new BusinessException(
@@ -137,17 +158,19 @@ public class AppointmentServiceImpl implements AppointmentService {
 
         LocalDateTime now = LocalDateTime.now();
 
-        appointmentSlotHoldRepository
-                .findByDoctor_DoctorIdAndAppointmentTimeAndExpiresAtAfter(
+        List<AppointmentSlotHold> overlappingHolds
+                = appointmentSlotHoldRepository.findDoctorHoldOverlaps(
                         doctor.getDoctorId(),
-                        appointmentTime,
+                        slotStart,
+                        slotEnd,
                         now
-                )
-                .ifPresent(hold -> {
-                    if (!hold.getPatient().getPatientId().equals(patient.getPatientId())) {
-                        throw new BusinessException("This slot is currently being held by another patient");
-                    }
-                });
+                );
+
+        for (AppointmentSlotHold hold : overlappingHolds) {
+            if (!hold.getPatient().getPatientId().equals(patient.getPatientId())) {
+                throw new BusinessException("This slot is currently being held by another patient");
+            }
+        }
 
         Appointment appointment = Appointment.builder()
                 .patient(patient)
@@ -158,13 +181,13 @@ public class AppointmentServiceImpl implements AppointmentService {
                 .status(STATUS_SCHEDULED)
                 .symptoms(request.getSymptoms())
                 .notes(request.getNotes())
-                .fee(doctor.getConsultationFee())
+                .fee(homeVisitEstimate != null ? homeVisitEstimate.getTotalFee() : doctor.getConsultationFee())
                 .build();
 
         Appointment saved = appointmentRepository.save(appointment);
 
         if (TYPE_HOME_VISIT.equalsIgnoreCase(request.getConsultationType())) {
-            HomeVisitDetails homeVisitDetails = buildHomeVisitDetails(saved, request);
+            HomeVisitDetails homeVisitDetails = buildHomeVisitDetails(saved, request, homeVisitEstimate);
             homeVisitDetailsRepository.save(homeVisitDetails);
             saved.setHomeVisitDetails(homeVisitDetails);
         }
@@ -319,10 +342,18 @@ public class AppointmentServiceImpl implements AppointmentService {
             }
 
             boolean isBooked = bookedAppointments.stream()
-                    .anyMatch(appointment -> appointment.getAppointmentTime().equals(currentSlotStart));
+                    .anyMatch(appointment -> isAppointmentOverlappingSlot(
+                    appointment,
+                    currentSlotStart,
+                    currentSlotEnd
+            ));
 
             boolean isHeld = activeHolds.stream()
-                    .anyMatch(hold -> hold.getAppointmentTime().equals(currentSlotStart));
+                    .anyMatch(hold -> isHoldOverlappingSlot(
+                    hold,
+                    currentSlotStart,
+                    currentSlotEnd
+            ));
 
             String status;
             boolean selectable;
@@ -347,6 +378,38 @@ public class AppointmentServiceImpl implements AppointmentService {
 
             slotStart = currentSlotEnd;
         }
+    }
+
+    private boolean isAppointmentOverlappingSlot(
+            Appointment appointment,
+            LocalDateTime slotStart,
+            LocalDateTime slotEnd
+    ) {
+        LocalDateTime appointmentStart = appointment.getAppointmentTime();
+        LocalDateTime appointmentEnd = appointment.getEndTime();
+
+        if (appointmentEnd == null) {
+            appointmentEnd = appointmentStart.plusMinutes(30);
+        }
+
+        return appointmentStart.isBefore(slotEnd)
+                && appointmentEnd.isAfter(slotStart);
+    }
+
+    private boolean isHoldOverlappingSlot(
+            AppointmentSlotHold hold,
+            LocalDateTime slotStart,
+            LocalDateTime slotEnd
+    ) {
+        LocalDateTime holdStart = hold.getAppointmentTime();
+        LocalDateTime holdEnd = hold.getEndTime();
+
+        if (holdEnd == null) {
+            holdEnd = holdStart.plusMinutes(30);
+        }
+
+        return holdStart.isBefore(slotEnd)
+                && holdEnd.isAfter(slotStart);
     }
 
     @Override
@@ -398,13 +461,12 @@ public class AppointmentServiceImpl implements AppointmentService {
         int slotMinutes = Objects.requireNonNullElse(matchedSchedule.getSlotDuration(), 30);
         LocalDateTime slotEnd = appointmentTime.plusMinutes(slotMinutes);
 
-        boolean hasBookedConflict = appointmentRepository
-                .existsByDoctor_DoctorIdAndStatusNotAndAppointmentTimeBetween(
-                        doctor.getDoctorId(),
-                        STATUS_CANCELLED,
-                        appointmentTime,
-                        slotEnd.minusSeconds(1)
-                );
+        boolean hasBookedConflict = appointmentRepository.existsDoctorAppointmentOverlap(
+                doctor.getDoctorId(),
+                STATUS_CANCELLED,
+                appointmentTime,
+                slotEnd
+        );
 
         if (hasBookedConflict) {
             throw new BusinessException("This slot has already been booked");
@@ -412,12 +474,12 @@ public class AppointmentServiceImpl implements AppointmentService {
 
         LocalDateTime now = LocalDateTime.now();
 
-        boolean hasActiveHold = appointmentSlotHoldRepository
-                .existsByDoctor_DoctorIdAndAppointmentTimeAndExpiresAtAfter(
-                        doctor.getDoctorId(),
-                        appointmentTime,
-                        now
-                );
+        boolean hasActiveHold = appointmentSlotHoldRepository.existsDoctorHoldOverlap(
+                doctor.getDoctorId(),
+                appointmentTime,
+                slotEnd,
+                now
+        );
 
         if (hasActiveHold) {
             throw new BusinessException("This slot is currently being held by another patient");
@@ -427,6 +489,7 @@ public class AppointmentServiceImpl implements AppointmentService {
                 .doctor(doctor)
                 .patient(patient)
                 .appointmentTime(appointmentTime)
+                .endTime(slotEnd)
                 .consultationType(request.getConsultationType())
                 .expiresAt(now.plusMinutes(slotHoldMinutes))
                 .build();
@@ -596,9 +659,18 @@ public class AppointmentServiceImpl implements AppointmentService {
         if ("IN_CONSULTATION".equalsIgnoreCase(appointment.getStatus())) {
             throw new BusinessException("Cannot cancel an appointment that is in consultation");
         }
-        if (appointment.getAppointmentTime().isBefore(LocalDateTime.now().plusHours(2))) {
+        int cancelMinHours = getCancelMinHours(appointment.getConsultationType());
+
+        if (appointment.getAppointmentTime().isBefore(LocalDateTime.now().plusHours(cancelMinHours))) {
+            String appointmentType = normalizeConsultationTypeForBooking(appointment.getConsultationType());
+
             throw new BusinessException(
-                    "Cannot cancel an appointment less than 2 hours before the scheduled time");
+                    appointmentType.equalsIgnoreCase(TYPE_HOME_VISIT)
+                    ? "Home visit appointments can only be cancelled at least "
+                    + cancelMinHours + " hours before the scheduled time"
+                    : "Online appointments can only be cancelled at least "
+                    + cancelMinHours + " hours before the scheduled time"
+            );
         }
 
         appointment.setStatus(STATUS_CANCELLED);
@@ -665,14 +737,13 @@ public class AppointmentServiceImpl implements AppointmentService {
         LocalDateTime slotStart = newTime;
         LocalDateTime slotEnd = newTime.plusMinutes(slotMinutes);
 
-        boolean hasConflict = appointmentRepository
-                .existsByDoctor_DoctorIdAndStatusNotAndAppointmentTimeBetweenAndAppointmentIdNot(
-                        doctor.getDoctorId(),
-                        STATUS_CANCELLED,
-                        slotStart,
-                        slotEnd.minusSeconds(1),
-                        id
-                );
+        boolean hasConflict = appointmentRepository.existsDoctorAppointmentOverlapExcludingAppointment(
+                doctor.getDoctorId(),
+                STATUS_CANCELLED,
+                slotStart,
+                slotEnd,
+                id
+        );
 
         if (hasConflict) {
             throw new BusinessException(
@@ -972,6 +1043,8 @@ public class AppointmentServiceImpl implements AppointmentService {
                 .visitDurationMinutes(homeVisit != null ? homeVisit.getVisitDurationMinutes() : null)
                 .travelBufferBeforeMinutes(homeVisit != null ? homeVisit.getTravelBufferBeforeMinutes() : null)
                 .travelBufferAfterMinutes(homeVisit != null ? homeVisit.getTravelBufferAfterMinutes() : null)
+                .homeVisitFee(homeVisit != null ? homeVisit.getHomeVisitFee() : null)
+                .travelFee(homeVisit != null ? homeVisit.getTravelFee() : null)
                 .build();
     }
 
@@ -1004,6 +1077,16 @@ public class AppointmentServiceImpl implements AppointmentService {
 
     private static final String TYPE_ONLINE = "Online";
     private static final String TYPE_HOME_VISIT = "HomeVisit";
+
+    private int getCancelMinHours(String consultationType) {
+        String normalizedType = normalizeConsultationTypeForBooking(consultationType);
+
+        if (TYPE_HOME_VISIT.equalsIgnoreCase(normalizedType)) {
+            return Objects.requireNonNullElse(cancelMinHoursHomeVisit, 6);
+        }
+
+        return Objects.requireNonNullElse(cancelMinHoursOnline, 2);
+    }
 
     private String normalizeConsultationTypeForBooking(String consultationType) {
         if (consultationType == null || consultationType.isBlank()) {
@@ -1052,7 +1135,7 @@ public class AppointmentServiceImpl implements AppointmentService {
 
     private boolean isHomeVisitScheduleType(String value) {
         if (value == null || value.isBlank()) {
-            return true;
+            return false;
         }
 
         String type = value.trim().toLowerCase();
@@ -1060,11 +1143,14 @@ public class AppointmentServiceImpl implements AppointmentService {
         return type.equals("homevisit")
                 || type.equals("home visit")
                 || type.equals("home-visit")
-                || type.equals("family doctor")
                 || type.equals("home");
     }
 
-    private HomeVisitDetails buildHomeVisitDetails(Appointment appointment, AppointmentRequest request) {
+    private HomeVisitDetails buildHomeVisitDetails(
+            Appointment appointment,
+            AppointmentRequest request,
+            HomeVisitEstimateResponse estimate
+    ) {
         return HomeVisitDetails.builder()
                 .appointment(appointment)
                 .visitAddress(request.getVisitAddress())
@@ -1080,6 +1166,10 @@ public class AppointmentServiceImpl implements AppointmentService {
                 .receiverPhone(request.getReceiverPhone())
                 .visitLatitude(request.getVisitLatitude())
                 .visitLongitude(request.getVisitLongitude())
+                .distanceKm(estimate != null ? estimate.getDistanceKm() : null)
+                .estimatedTravelMinutes(estimate != null ? estimate.getEstimatedTravelMinutes() : null)
+                .homeVisitFee(estimate != null ? estimate.getHomeVisitFee() : null)
+                .travelFee(estimate != null ? estimate.getTravelFee() : null)
                 .visitDurationMinutes(30)
                 .travelBufferBeforeMinutes(30)
                 .travelBufferAfterMinutes(30)

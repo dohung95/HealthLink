@@ -55,6 +55,7 @@ const Schedule = () => {
   const [symptoms, setSymptoms] = useState('');
   const [files, setFiles] = useState([]);
   const [patientId, setPatientId] = useState('');
+  const [patientProfile, setPatientProfile] = useState(null);
   const [bookingSubmitting, setBookingSubmitting] = useState(false);
   const [paymentDraft, setPaymentDraft] = useState(null);
   const [homeVisitInfo, setHomeVisitInfo] = useState({
@@ -84,23 +85,24 @@ const Schedule = () => {
 
   const stepConfig = useMemo(() => {
     const baseSteps = hasPreselectedDoctor
-  ? [
-      { key: 'consultation', label: 'Visit Type' },
-      { key: 'datetime', label: 'Date & Time' },
-    ]
-  : [
-      { key: 'specialty', label: 'Specialty' },
-      { key: 'doctor', label: 'Doctor' },
-      { key: 'consultation', label: 'Visit Type' },
-      { key: 'datetime', label: 'Date & Time' },
-    ];
+      ? [
+        { key: 'consultation', label: 'Visit Type' },
+        { key: 'datetime', label: 'Date & Time' },
+      ]
+      : [
+        { key: 'specialty', label: 'Specialty' },
+        { key: 'doctor', label: 'Doctor' },
+        { key: 'consultation', label: 'Visit Type' },
+        { key: 'datetime', label: 'Date & Time' },
+      ];
 
     if (isHomeVisit) {
       baseSteps.push({ key: 'homevisit', label: 'Home Visit' });
+    } else {
+      baseSteps.push({ key: 'documents', label: 'Medical information' });
     }
 
     baseSteps.push(
-      { key: 'documents', label: 'Medical information' },
       { key: 'confirm', label: 'Confirm' },
       { key: 'payment', label: 'Payment' }
     );
@@ -117,6 +119,7 @@ const Schedule = () => {
       try {
         const profile = await getProfile(token);
         setPatientId(profile.userId);
+        setPatientProfile(profile);
       } catch (error) {
         console.error('Failed to load patient profile', error);
         toast.error('Can not load patient profile.');
@@ -412,7 +415,7 @@ const Schedule = () => {
         toast.warning('Please select a date');
         return;
       }
-      if (!isHomeVisit && !selectedSlot) {
+      if (!selectedSlot) {
         toast.warning('Please select a time slot');
         return;
       }
@@ -525,8 +528,8 @@ const Schedule = () => {
         doctorId: selectedDoctorId,
         appointmentTime: selectedSlot.appointmentTime,
         consultationType,
-        symptoms,
-        notes: '',
+        symptoms: isHomeVisit ? homeVisitInfo.reasonForHomeVisit : symptoms,
+        notes: isHomeVisit ? homeVisitInfo.specialNotes : '',
 
         ...(consultationType === 'HomeVisit'
           ? {
@@ -536,11 +539,11 @@ const Schedule = () => {
             reasonForHomeVisit: homeVisitInfo.reasonForHomeVisit,
             specialNotes: homeVisitInfo.specialNotes,
             isForSelf: homeVisitInfo.isForSelf,
-            receiverName: homeVisitInfo.isForSelf ? null : homeVisitInfo.receiverName,
-            receiverAge: homeVisitInfo.isForSelf ? null : Number(homeVisitInfo.receiverAge),
-            receiverGender: homeVisitInfo.isForSelf ? null : homeVisitInfo.receiverGender,
-            receiverRelationship: homeVisitInfo.isForSelf ? null : homeVisitInfo.receiverRelationship,
-            receiverPhone: homeVisitInfo.isForSelf ? null : homeVisitInfo.receiverPhone,
+            receiverName: homeVisitInfo.receiverName || null,
+            receiverAge: homeVisitInfo.receiverAge ? Number(homeVisitInfo.receiverAge) : null,
+            receiverGender: homeVisitInfo.receiverGender || null,
+            receiverRelationship: homeVisitInfo.receiverRelationship || (homeVisitInfo.isForSelf ? 'Self' : null),
+            receiverPhone: homeVisitInfo.receiverPhone || homeVisitInfo.contactPhone || null,
             visitLatitude: homeVisitInfo.visitLatitude,
             visitLongitude: homeVisitInfo.visitLongitude,
           }
@@ -731,6 +734,7 @@ const Schedule = () => {
                 <HomeVisitStep
                   homeVisitInfo={homeVisitInfo}
                   setHomeVisitInfo={setHomeVisitInfo}
+                  patientProfile={patientProfile}
                   onBack={handleBack}
                   onNext={handleNext}
                 />
@@ -754,7 +758,7 @@ const Schedule = () => {
                   selectedSlot={selectedSlot}
                   consultationType={consultationType}
                   homeVisitInfo={homeVisitInfo}
-                  symptoms={symptoms}
+                  symptoms={isHomeVisit ? homeVisitInfo.reasonForHomeVisit : symptoms}
                   files={files}
                   onBack={handleBack}
                   onConfirm={handleSchedule}
