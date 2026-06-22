@@ -55,6 +55,8 @@ import org.springframework.util.LinkedMultiValueMap;
 import org.springframework.util.MultiValueMap;
 import org.springframework.web.client.HttpStatusCodeException;
 import org.springframework.web.client.RestTemplate;
+import com.HealthLink.dto.response.HomeVisitEstimateResponse;
+import com.HealthLink.service.homevisit.HomeVisitLocationService;
 
 import java.math.BigDecimal;
 import java.math.RoundingMode;
@@ -121,6 +123,7 @@ public class FinanceServiceImpl implements FinanceService {
     private final UserRepository userRepository;
     private final NotificationService notificationService;
     private final DeviceTokenRepository deviceTokenRepository;
+    private final HomeVisitLocationService homeVisitLocationService;
 
     /**
      * Service xử lý logic chiết khấu sau khi thanh toán thành công
@@ -172,7 +175,12 @@ public class FinanceServiceImpl implements FinanceService {
 
         checkDoctorSupportsConsultationType(doctor, request.getConsultationType());
 
-        BigDecimal amount = resolveDoctorConsultationFee(doctor);
+        BigDecimal amount = resolveAppointmentCheckoutAmount(
+                doctor,
+                request.getConsultationType(),
+                request.getVisitLatitude(),
+                request.getVisitLongitude()
+        );
         String currency = request.getCurrency() != null ? request.getCurrency() : "USD";
         String amountStr = amount.setScale(2, RoundingMode.HALF_UP).toPlainString();
         String description = String.format(
@@ -371,7 +379,12 @@ public class FinanceServiceImpl implements FinanceService {
         );
         checkDoctorSupportsConsultationType(doctor, request.getConsultationType());
 
-        BigDecimal expectedAmount = resolveDoctorConsultationFee(doctor);
+        BigDecimal expectedAmount = resolveAppointmentCheckoutAmount(
+                doctor,
+                request.getConsultationType(),
+                request.getVisitLatitude(),
+                request.getVisitLongitude()
+        );
 
         if (paymentRepository.findByTransactionId(request.getOrderId()).isPresent()) {
             throw new BadRequestException("This PayPal transaction has already been processed: " + request.getOrderId());
@@ -962,6 +975,36 @@ public class FinanceServiceImpl implements FinanceService {
             throw new BadRequestException("Doctor consultation fee must be greater than zero.");
         }
         return consultationFee.setScale(2, RoundingMode.HALF_UP);
+    }
+
+    private BigDecimal resolveAppointmentCheckoutAmount(
+            Doctor doctor,
+            String consultationType,
+            Double visitLatitude,
+            Double visitLongitude
+    ) {
+        String normalizedType = normalizeConsultationTypeForBooking(consultationType);
+
+        if (TYPE_HOME_VISIT.equalsIgnoreCase(normalizedType)) {
+            HomeVisitEstimateResponse estimate = homeVisitLocationService.estimate(
+                    visitLatitude,
+                    visitLongitude
+            );
+
+            if (!Boolean.TRUE.equals(estimate.getServiceable())) {
+                throw new BadRequestException(estimate.getMessage());
+            }
+
+            BigDecimal consultationFee = resolveDoctorConsultationFee(doctor);
+            BigDecimal travelFee = estimate.getTravelFee() != null
+                    ? estimate.getTravelFee()
+                    : BigDecimal.ZERO;
+
+            return consultationFee.add(travelFee)
+                    .setScale(2, RoundingMode.HALF_UP);
+        }
+
+        return resolveDoctorConsultationFee(doctor);
     }
 
     private void checkDoctorSupportsConsultationType(Doctor doctor, String consultationType) {

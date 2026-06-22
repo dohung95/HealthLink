@@ -550,10 +550,24 @@ const Schedule = () => {
           : {}),
       };
 
+      const doctorFee = Number(selectedDoctor?.consultationFee ?? selectedDoctor?.fee ?? 0);
+      const travelFee = Number(homeVisitInfo.travelFee || 0);
+
       setPaymentDraft({
         ...bookingData,
         currency: 'USD',
-        amount: selectedDoctor?.consultationFee ?? selectedDoctor?.fee ?? 0,
+        amount: isHomeVisit
+          ? doctorFee + travelFee
+          : doctorFee,
+        homeVisitEstimate: isHomeVisit
+          ? {
+            distanceKm: homeVisitInfo.distanceKm,
+            estimatedTravelMinutes: homeVisitInfo.estimatedTravelMinutes,
+            homeVisitFee: doctorFee,
+            travelFee: travelFee,
+            totalFee: doctorFee + travelFee,
+          }
+          : null,
       });
       setStep(stepConfig.length);
       toast.info('Review completed. Please finish payment to confirm your appointment.');

@@ -43,6 +43,7 @@ import org.springframework.transaction.support.TransactionSynchronization;
 import org.springframework.transaction.support.TransactionSynchronizationManager;
 import com.HealthLink.dto.response.HomeVisitEstimateResponse;
 import com.HealthLink.service.homevisit.HomeVisitLocationService;
+import java.math.BigDecimal;
 
 import java.time.LocalDate;
 import java.time.LocalDateTime;
@@ -181,13 +182,24 @@ public class AppointmentServiceImpl implements AppointmentService {
                 .status(STATUS_SCHEDULED)
                 .symptoms(request.getSymptoms())
                 .notes(request.getNotes())
-                .fee(homeVisitEstimate != null ? homeVisitEstimate.getTotalFee() : doctor.getConsultationFee())
+                .fee(homeVisitEstimate != null
+                        ? doctor.getConsultationFee()
+                                .add(homeVisitEstimate.getTravelFee() != null
+                                        ? homeVisitEstimate.getTravelFee()
+                                        : BigDecimal.ZERO)
+                                .setScale(2, java.math.RoundingMode.HALF_UP)
+                        : doctor.getConsultationFee())
                 .build();
 
         Appointment saved = appointmentRepository.save(appointment);
 
         if (TYPE_HOME_VISIT.equalsIgnoreCase(request.getConsultationType())) {
-            HomeVisitDetails homeVisitDetails = buildHomeVisitDetails(saved, request, homeVisitEstimate);
+            HomeVisitDetails homeVisitDetails = buildHomeVisitDetails(
+                    saved,
+                    request,
+                    homeVisitEstimate,
+                    doctor.getConsultationFee()
+            );
             homeVisitDetailsRepository.save(homeVisitDetails);
             saved.setHomeVisitDetails(homeVisitDetails);
         }
@@ -1149,7 +1161,8 @@ public class AppointmentServiceImpl implements AppointmentService {
     private HomeVisitDetails buildHomeVisitDetails(
             Appointment appointment,
             AppointmentRequest request,
-            HomeVisitEstimateResponse estimate
+            HomeVisitEstimateResponse estimate,
+            BigDecimal doctorConsultationFee
     ) {
         return HomeVisitDetails.builder()
                 .appointment(appointment)
@@ -1168,7 +1181,7 @@ public class AppointmentServiceImpl implements AppointmentService {
                 .visitLongitude(request.getVisitLongitude())
                 .distanceKm(estimate != null ? estimate.getDistanceKm() : null)
                 .estimatedTravelMinutes(estimate != null ? estimate.getEstimatedTravelMinutes() : null)
-                .homeVisitFee(estimate != null ? estimate.getHomeVisitFee() : null)
+                .homeVisitFee(doctorConsultationFee)
                 .travelFee(estimate != null ? estimate.getTravelFee() : null)
                 .visitDurationMinutes(30)
                 .travelBufferBeforeMinutes(30)
