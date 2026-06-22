@@ -5,14 +5,17 @@ import jakarta.persistence.*;
 import lombok.*;
 
 @Entity
-@Table(name = "doctor_services")
-@Data
+@Table(name = "DoctorServices")
+@Getter @Setter
 @NoArgsConstructor
 @AllArgsConstructor
 @Builder
+@ToString
+@EqualsAndHashCode
 public class DoctorService {
 
     @EmbeddedId
+    @Setter(AccessLevel.NONE)
     private DoctorServiceId id;
 
     @ManyToOne(fetch = FetchType.LAZY)
