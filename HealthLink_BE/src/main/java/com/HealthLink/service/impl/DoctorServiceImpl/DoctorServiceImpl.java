@@ -296,9 +296,7 @@ public class DoctorServiceImpl implements DoctorService {
     }
 
     private DoctorProfileResponse buildDoctorProfileResponse(Doctor d) {
-        List<String> availableTypes = DoctorServiceHelper.buildAvailableTypes(
-                d.isAvailableForVideo(), d.isAvailableForAudio(),
-                d.isAvailableForChat(), d.isAvailableForOffline());
+        List<String> availableTypes = DoctorServiceHelper.buildAvailableTypes(d);
 
         String specialtyName = (d.getSpecialtyEntity() != null)
                 ? d.getSpecialtyEntity().getName()
@@ -658,9 +656,7 @@ public class DoctorServiceImpl implements DoctorService {
     }
 
     private DoctorResponse toResponse(Doctor d) {
-        List<String> availableTypes = DoctorServiceHelper.buildAvailableTypes(
-                d.isAvailableForVideo(), d.isAvailableForAudio(),
-                d.isAvailableForChat(), d.isAvailableForOffline());
+        List<String> availableTypes = DoctorServiceHelper.buildAvailableTypes(d);
 
         String specialtyName = (d.getSpecialtyEntity() != null)
                 ? d.getSpecialtyEntity().getName()

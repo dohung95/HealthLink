@@ -22,6 +22,7 @@ import com.HealthLink.entity.HomeVisitDetails;
 import com.HealthLink.entity.enums.NotificationType;
 import com.HealthLink.entity.enums.ScheduleExceptionType;
 import com.HealthLink.exception.BusinessException;
+import com.HealthLink.utility.DoctorServiceHelper;
 import com.HealthLink.exception.ResourceNotFoundException;
 import com.HealthLink.repository.appointment.AppointmentRepository;
 import com.HealthLink.repository.appointment.AppointmentSlotHoldRepository;
@@ -826,25 +827,10 @@ public class AppointmentServiceImpl implements AppointmentService {
     }
 
     private void checkConsultationTypeSupported(Doctor doctor, String consultationType) {
-        String normalizedType = normalizeConsultationTypeForBooking(consultationType);
-
-        boolean supported = switch (normalizedType.toLowerCase()) {
-            case "online" ->
-                doctor.isAvailableForVideo()
-                || doctor.isAvailableForAudio()
-                || doctor.isAvailableForChat();
-
-            case "homevisit" ->
-                true;
-
-            default ->
-                true;
-        };
-
-        if (!supported) {
+        if (!DoctorServiceHelper.isConsultationTypeSupported(doctor, consultationType)) {
             throw new BusinessException(
                     "Doctor " + doctor.getFullName()
-                    + " does not support consultation type: " + normalizedType);
+                    + " does not support consultation type: " + consultationType);
         }
     }
 
@@ -1101,20 +1087,7 @@ public class AppointmentServiceImpl implements AppointmentService {
     }
 
     private String normalizeConsultationTypeForBooking(String consultationType) {
-        if (consultationType == null || consultationType.isBlank()) {
-            return TYPE_ONLINE;
-        }
-
-        String value = consultationType.trim().toLowerCase();
-
-        return switch (value) {
-            case "video", "video call", "audio", "audio call", "chat", "online", "consultation" ->
-                TYPE_ONLINE;
-            case "homevisit", "home visit", "home-visit", "family doctor", "home" ->
-                TYPE_HOME_VISIT;
-            default ->
-                TYPE_ONLINE;
-        };
+        return DoctorServiceHelper.normalizeConsultationType(consultationType);
     }
 
     private boolean isOnlineScheduleType(String value) {

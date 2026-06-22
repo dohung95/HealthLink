@@ -9,6 +9,7 @@ import com.HealthLink.repository.doctor.SpecialtyRepository;
 import com.HealthLink.repository.auth.RoleRepository;
 import com.HealthLink.repository.auth.UserRepository;
 import com.HealthLink.repository.pharmacy.PharmacyRepository;
+import com.HealthLink.repository.DoctorServiceRepository;
 import com.HealthLink.repository.registration.RegistrationDocumentRepository;
 import com.HealthLink.repository.registration.RegistrationRequestRepository;
 
@@ -60,6 +61,7 @@ public class RegistrationServiceImpl implements RegistrationService {
     private final EmailService emailService;
     private final AdminNotificationHelper adminNotificationHelper;
     private final AdminAuditLogService auditLogService;
+    private final DoctorServiceRepository doctorServiceRepository;
 
     private static final String DEFAULT_PASSWORD = "HealthLink@123";
     private static final String TYPE_DOCTOR = "DOCTOR";
@@ -90,10 +92,6 @@ public class RegistrationServiceImpl implements RegistrationService {
                 .consultationFee(request.getConsultationFee())
                 .clinicName(request.getClinicName())
                 .clinicAddress(request.getClinicAddress())
-                .availableForVideo(request.getAvailableForVideo())
-                .availableForAudio(request.getAvailableForAudio())
-                .availableForChat(request.getAvailableForChat())
-                .availableForOffline(request.getAvailableForOffline())
                 .build();
 
         entity = registrationRequestRepository.save(entity);
@@ -325,17 +323,17 @@ public class RegistrationServiceImpl implements RegistrationService {
                 .consultationFee(request.getConsultationFee())
                 .clinicName(request.getClinicName())
                 .clinicAddress(request.getClinicAddress())
-                .availableForVideo(Boolean.TRUE.equals(request.getAvailableForVideo()))
-                .availableForAudio(Boolean.TRUE.equals(request.getAvailableForAudio()))
-                .availableForChat(Boolean.TRUE.equals(request.getAvailableForChat()))
-                .availableForOffline(Boolean.TRUE.equals(request.getAvailableForOffline()))
                 .avatarUrl(avatarUrl)
                 .verified(false)
                 .averageRating(0.0)
                 .totalReviews(0)
                 .build();
 
-        doctorRepository.save(doctor);
+        doctor = doctorRepository.save(doctor);
+
+        DoctorService online = new DoctorService(doctor, ServiceType.ONLINE, true);
+        DoctorService homeVisit = new DoctorService(doctor, ServiceType.HOME_VISIT, true);
+        doctorServiceRepository.saveAll(List.of(online, homeVisit));
     }
 
     private void createPharmacy(User user, RegistrationRequest request) {
@@ -522,10 +520,6 @@ public class RegistrationServiceImpl implements RegistrationService {
                 .consultationFee(entity.getConsultationFee())
                 .clinicName(entity.getClinicName())
                 .clinicAddress(entity.getClinicAddress())
-                .availableForVideo(entity.getAvailableForVideo())
-                .availableForAudio(entity.getAvailableForAudio())
-                .availableForChat(entity.getAvailableForChat())
-                .availableForOffline(entity.getAvailableForOffline())
                 .pharmacyName(entity.getPharmacyName())
                 .licenseNumber(entity.getLicenseNumber())
                 .address(entity.getAddress())

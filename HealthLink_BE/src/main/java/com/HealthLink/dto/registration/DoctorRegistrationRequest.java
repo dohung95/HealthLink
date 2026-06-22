@@ -49,12 +49,4 @@ public class DoctorRegistrationRequest {
     @NotBlank(message = "Clinic/Hospital address is required")
     private String clinicAddress;
 
-    @Builder.Default
-    private Boolean availableForVideo = true;
-    @Builder.Default
-    private Boolean availableForAudio = true;
-    @Builder.Default
-    private Boolean availableForChat = true;
-    @Builder.Default
-    private Boolean availableForOffline = true;
 }
