@@ -9,7 +9,7 @@ import com.HealthLink.repository.doctor.SpecialtyRepository;
 import com.HealthLink.repository.auth.RoleRepository;
 import com.HealthLink.repository.auth.UserRepository;
 import com.HealthLink.repository.pharmacy.PharmacyRepository;
-import com.HealthLink.repository.DoctorServiceRepository;
+import com.HealthLink.entity.enums.ServiceType;
 import com.HealthLink.repository.registration.RegistrationDocumentRepository;
 import com.HealthLink.repository.registration.RegistrationRequestRepository;
 
@@ -61,8 +61,6 @@ public class RegistrationServiceImpl implements RegistrationService {
     private final EmailService emailService;
     private final AdminNotificationHelper adminNotificationHelper;
     private final AdminAuditLogService auditLogService;
-    private final DoctorServiceRepository doctorServiceRepository;
-
     private static final String DEFAULT_PASSWORD = "HealthLink@123";
     private static final String TYPE_DOCTOR = "DOCTOR";
     private static final String TYPE_PHARMACY = "PHARMACY";
@@ -329,11 +327,9 @@ public class RegistrationServiceImpl implements RegistrationService {
                 .totalReviews(0)
                 .build();
 
+        doctor.getServices().add(new DoctorService(doctor, ServiceType.ONLINE, true));
+        doctor.getServices().add(new DoctorService(doctor, ServiceType.HOME_VISIT, true));
         doctor = doctorRepository.save(doctor);
-
-        DoctorService online = new DoctorService(doctor, ServiceType.ONLINE, true);
-        DoctorService homeVisit = new DoctorService(doctor, ServiceType.HOME_VISIT, true);
-        doctorServiceRepository.saveAll(List.of(online, homeVisit));
     }
 
     private void createPharmacy(User user, RegistrationRequest request) {

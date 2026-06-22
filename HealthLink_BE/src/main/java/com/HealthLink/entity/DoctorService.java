@@ -26,6 +26,7 @@ public class DoctorService {
     private Doctor doctor;
 
     @Builder.Default
+    @EqualsAndHashCode.Exclude
     private boolean available = true;
 
     public DoctorService(Doctor doctor, ServiceType type, boolean available) {

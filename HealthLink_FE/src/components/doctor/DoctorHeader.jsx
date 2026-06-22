@@ -34,15 +34,16 @@ const DoctorHeader = memo(({
   const profileDropdownRef = useRef(null);
 
   useEffect(() => {
-    if (!showProfileDropdown) return;
+    if (!showProfileDropdown && !showServices) return;
     const handleClick = (e) => {
       if (profileDropdownRef.current && !profileDropdownRef.current.contains(e.target)) {
         setShowProfileDropdown(false);
+        setShowServices(false);
       }
     };
     document.addEventListener('mousedown', handleClick);
     return () => document.removeEventListener('mousedown', handleClick);
-  }, [showProfileDropdown]);
+  }, [showProfileDropdown, showServices]);
 
   const handleLogout = () => {
     setShowProfileDropdown(false);

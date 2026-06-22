@@ -42,7 +42,6 @@ import org.springframework.security.crypto.password.PasswordEncoder;
 import com.HealthLink.entity.EmailVerificationToken;
 import com.HealthLink.exception.BadRequestException;
 import com.HealthLink.exception.BusinessException;
-import com.HealthLink.entity.DoctorService;
 import com.HealthLink.entity.DoctorServiceId;
 import com.HealthLink.entity.enums.ServiceType;
 import com.HealthLink.dto.doctor.DoctorServiceToggleRequest;
@@ -791,7 +790,7 @@ public class DoctorServiceImpl implements DoctorService {
     @Override
     @Transactional
     public Map<String, Boolean> updateServiceAvailability(String doctorId, DoctorServiceToggleRequest request) {
-        Doctor doctor = doctorRepo.findByDoctorId(doctorId)
+        Doctor doctor = doctorRepository.findById(doctorId)
                 .orElseThrow(() -> new ResourceNotFoundException("Doctor not found: " + doctorId));
 
         if (request.isAllDisabled()) {
@@ -814,8 +813,8 @@ public class DoctorServiceImpl implements DoctorService {
 
     private void updateService(Doctor doctor, ServiceType type, boolean available) {
         DoctorServiceId id = new DoctorServiceId(doctor.getDoctorId(), type);
-        DoctorService ds = doctorServiceRepository.findById(id)
-                .orElseGet(() -> new DoctorService(doctor, type, true));
+        com.HealthLink.entity.DoctorService ds = doctorServiceRepository.findById(id)
+                .orElseGet(() -> new com.HealthLink.entity.DoctorService(doctor, type, true));
         ds.setAvailable(available);
         doctorServiceRepository.save(ds);
     }

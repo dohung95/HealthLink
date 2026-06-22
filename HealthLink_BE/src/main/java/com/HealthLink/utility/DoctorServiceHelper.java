@@ -34,6 +34,7 @@ public class DoctorServiceHelper {
 
     /** Check if doctor supports a given consultation type */
     public static boolean isConsultationTypeSupported(Doctor doctor, String consultationType) {
+        if (doctor.getServices() == null) return true;
         Set<ServiceType> available = doctor.getServices().stream()
                 .filter(DoctorService::isAvailable)
                 .map(ds -> ds.getId().getServiceType())

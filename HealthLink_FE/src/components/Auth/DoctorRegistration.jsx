@@ -863,8 +863,6 @@ export function DoctorRegistration() {
                             </div>
                         </div>
 
-
-
                         {/* Terms and Conditions */}
                         <div className="form-section terms-section">
                             <h3><i className="bi bi-shield-check"></i> Terms and Conditions</h3>
