@@ -13,6 +13,7 @@ import RescheduleAppointmentModal from './RescheduleAppointmentModal';
 import PreConsultationVitalsModal from './PreConsultationVitalsModal';
 import ReviewForm from './patient-dashboard/ReviewForm';
 import { patientReviewApi } from '../api/reviewApi';
+import './Css/MyAppointment.css';
 
 const MyAppointments = () => {
     const APPOINTMENTS_PAGE_SIZE = 5;
@@ -42,6 +43,7 @@ const MyAppointments = () => {
     const [selectedReviewAppointment, setSelectedReviewAppointment] = useState(null);
     const [reviewableAppointments, setReviewableAppointments] = useState({});
     const [statusFilter, setStatusFilter] = useState('ALL');
+    const [expandedHomeVisitId, setExpandedHomeVisitId] = useState(null);
 
     useEffect(() => {
         if (!token) return;
@@ -281,6 +283,11 @@ const MyAppointments = () => {
 
         if (!appointment) return;
 
+        if (action === 'online') {
+            await handleVideoCall(appointment);
+            return;
+        }
+
         if (action === 'chat') {
             await handleChat(appointment);
             return;
@@ -297,13 +304,19 @@ const MyAppointments = () => {
         return normalizeText(appointment.status) === 'scheduled';
     };
 
-    const isChatAppointment = (appointment) => {
-        return normalizeText(appointment.consultationType) === 'chat';
+    const isHomeVisitAppointment = (appointment) => {
+        const type = normalizeText(appointment.consultationType);
+
+        return (
+            type === 'homevisit' ||
+            type === 'home visit' ||
+            type === 'home-visit' ||
+            type === 'home'
+        );
     };
 
-    const isVideoAppointment = (appointment) => {
-        const type = normalizeText(appointment.consultationType);
-        return type === 'video' || type === 'video call';
+    const isOnlineAppointment = (appointment) => {
+        return !isHomeVisitAppointment(appointment);
     };
 
     const getAppointmentStartTime = (appointment) => {
@@ -396,17 +409,42 @@ const MyAppointments = () => {
 
     const canReschedule = (appointment) => {
         const appointmentTime = new Date(appointment.appointmentTime);
-        const twoHoursFromNow = new Date(Date.now() + 2 * 60 * 60 * 1000);
+
+        const minimumHours = isHomeVisitAppointment(appointment) ? 6 : 2;
+        const cutoffTime = new Date(Date.now() + minimumHours * 60 * 60 * 1000);
 
         return (
             isScheduledAppointment(appointment) &&
-            appointmentTime > twoHoursFromNow
+            !isExpiredAppointment(appointment) &&
+            appointmentTime > cutoffTime
+        );
+    };
+
+    const getCancelMinimumHours = (appointment) => {
+        return isHomeVisitAppointment(appointment) ? 6 : 2;
+    };
+
+    const canCancel = (appointment) => {
+        const appointmentTime = new Date(appointment.appointmentTime);
+        const minimumHours = getCancelMinimumHours(appointment);
+        const cutoffTime = new Date(Date.now() + minimumHours * 60 * 60 * 1000);
+
+        return (
+            isScheduledAppointment(appointment) &&
+            !isExpiredAppointment(appointment) &&
+            appointmentTime > cutoffTime
         );
     };
 
     const handleRescheduleClick = (appointment) => {
         setSelectedRescheduleAppointment(appointment);
         setShowRescheduleModal(true);
+    };
+
+    const toggleHomeVisitDetails = (appointmentId) => {
+        setExpandedHomeVisitId((current) =>
+            current === appointmentId ? null : appointmentId
+        );
     };
 
     const handleCloseRescheduleModal = () => {
@@ -496,113 +534,200 @@ const MyAppointments = () => {
                                 </thead>
                                 <tbody>
                                     {appointments.map((item) => (
-                                        <tr key={item.appointmentId}>
-                                            <td>
-                                                {new Date(item.appointmentTime).toLocaleDateString()} <br />
-                                                <small className="text-muted">
-                                                    {new Date(item.appointmentTime).toLocaleTimeString([], {
-                                                        hour: '2-digit',
-                                                        minute: '2-digit',
-                                                    })}
-                                                </small>
-                                            </td>
+                                        <React.Fragment key={item.appointmentId}>
+                                            <tr>
+                                                <td>
+                                                    {new Date(item.appointmentTime).toLocaleDateString()} <br />
+                                                    <small className="text-muted">
+                                                        {new Date(item.appointmentTime).toLocaleTimeString([], {
+                                                            hour: '2-digit',
+                                                            minute: '2-digit',
+                                                        })}
+                                                        {item.consultationEndTime && (
+                                                            <>
+                                                                {' - '}
+                                                                {new Date(item.consultationEndTime).toLocaleTimeString([], {
+                                                                    hour: '2-digit',
+                                                                    minute: '2-digit',
+                                                                })}
+                                                            </>
+                                                        )}
+                                                    </small>
+                                                </td>
 
-                                            <td>
-                                                <strong>{item.doctorName || "Unknown Doctor"}</strong>
-                                                <br />
-                                                <small className="text-muted">{item.specialtyName || ''}</small>
-                                            </td>
+                                                <td>
+                                                    <strong>{item.doctorName || "Unknown Doctor"}</strong>
+                                                    <br />
+                                                    <small className="text-muted">{item.specialtyName || ''}</small>
+                                                </td>
 
-                                            <td>
-                                                <span className="text-capitalize">
-                                                    {item.patientName || 'Unknown Patient'}
-                                                </span>
-                                                <br />
-                                                <small className="text-muted">
-                                                    Patient ID: {item.patientId}
-                                                </small>
-                                            </td>
+                                                <td>
+                                                    {isHomeVisitAppointment(item) ? (
+                                                        <>
+                                                            <strong>
+                                                                {item.receiverName || item.patientName || 'Unknown Patient'}
+                                                            </strong>
 
-                                            <td>
-                                                <span className="text-capitalize">{item.consultationType}</span>
-                                            </td>
+                                                            <br />
 
-                                            <td>
-                                                <span className={`badge ${getStatusBadge(item)}`}>
-                                                    {formatStatusLabel(item)}
-                                                </span>
-                                            </td>
+                                                            <small className="text-muted">
+                                                                {item.isForSelf ? 'For myself' : `For ${item.receiverRelationship || 'someone else'}`}
+                                                            </small>
 
-                                            <td>
-                                                <div className="d-flex gap-2 flex-wrap">
-                                                    {/* thay isAppointmentJoinable = isScheduledAppointment */}
-                                                    {isChatAppointment(item) && isAppointmentJoinable(item) && (
-                                                        <button
-                                                            className="btn btn-sm btn-primary"
-                                                            onClick={() => openVitalsBeforeConsultation(item, 'chat')}
-                                                            title="Start chat"
-                                                        >
-                                                            <i className="bi bi-chat-dots me-1"></i>
-                                                            Chat
-                                                        </button>
+                                                            {(item.receiverAge || item.receiverGender) && (
+                                                                <>
+                                                                    <br />
+                                                                    <small className="text-muted">
+                                                                        {item.receiverAge ? `${item.receiverAge} years old` : ''}
+                                                                        {item.receiverAge && item.receiverGender ? ' · ' : ''}
+                                                                        {item.receiverGender || ''}
+                                                                    </small>
+                                                                </>
+                                                            )}
+
+                                                            {(item.receiverPhone || item.contactPhone) && (
+                                                                <>
+                                                                    <br />
+                                                                    <small className="text-muted">
+                                                                        Phone: {item.receiverPhone || item.contactPhone}
+                                                                    </small>
+                                                                </>
+                                                            )}
+                                                        </>
+                                                    ) : (
+                                                        <>
+                                                            <span className="text-capitalize">
+                                                                {item.patientName || 'Unknown Patient'}
+                                                            </span>
+                                                            <br />
+                                                            <small className="text-muted">
+                                                                Patient ID: {item.patientId}
+                                                            </small>
+                                                        </>
                                                     )}
+                                                </td>
 
-                                                    {/* thay isAppointmentJoinable = isScheduledAppointment */}
-                                                    {isVideoAppointment(item) && isScheduledAppointment(item) && (
-                                                        <button
-                                                            className="btn btn-sm btn-success"
-                                                            onClick={() => openVitalsBeforeConsultation(item, 'video')}
-                                                            title={
-                                                                new Date(item.appointmentTime) < new Date()
-                                                                    ? "Appointment time has passed"
-                                                                    : "Start video call"
-                                                            }
-                                                            disabled={new Date(item.appointmentTime) < new Date()}
-                                                        >
-                                                            <i className="bi bi-camera-video me-1"></i>
-                                                            Call Now
-                                                        </button>
+                                                <td>
+                                                    {isHomeVisitAppointment(item) ? (
+                                                        <span className="badge bg-info text-dark">
+                                                            <i className="bi bi-house-heart me-1"></i>
+                                                            Home Visit
+                                                        </span>
+                                                    ) : (
+                                                        <span className="badge bg-light text-dark border">
+                                                            <i className="bi bi-laptop me-1"></i>
+                                                            Online
+                                                        </span>
                                                     )}
+                                                </td>
 
-                                                    {canReschedule(item) && (
-                                                        <button
-                                                            className="btn btn-sm btn-outline-primary"
-                                                            onClick={() => handleRescheduleClick(item)}
-                                                        >
-                                                            Reschedule
-                                                        </button>
-                                                    )}
+                                                <td>
+                                                    <span className={`badge ${getStatusBadge(item)}`}>
+                                                        {formatStatusLabel(item)}
+                                                    </span>
+                                                </td>
 
-                                                    {isScheduledAppointment(item) && !isExpiredAppointment(item) && (
-                                                        <button
-                                                            className="btn btn-sm btn-outline-danger"
-                                                            onClick={() =>
-                                                                handleCancelClick(item.appointmentId)
-                                                            }
-                                                            title={
-                                                                new Date(item.appointmentTime) < new Date()
-                                                                    ? "Appointment time has passed"
-                                                                    : "Cancel appointment"
-                                                            }
-                                                        >
-                                                            Cancel
-                                                        </button>
-                                                    )}
+                                                <td>
+                                                    <div className="d-flex gap-2 flex-wrap">
+                                                        {/* thay isAppointmentJoinable = isScheduledAppointment */}
+                                                        {isOnlineAppointment(item) && isAppointmentJoinable(item) && (
+                                                            <button
+                                                                className="btn btn-sm btn-success"
+                                                                onClick={() => openVitalsBeforeConsultation(item, 'online')}
+                                                                title="Join online consultation room"
+                                                            >
+                                                                <i className="bi bi-camera-video me-1"></i>
+                                                                Join Room
+                                                            </button>
+                                                        )}
 
-                                                    {/* Rate button for completed appointments */}
-                                                    {item.status?.toUpperCase() === 'COMPLETED' && (
-                                                        <button
-                                                            className={`btn btn-sm ${reviewableAppointments[item.appointmentId] ? 'btn-warning' : 'btn-outline-secondary'}`}
-                                                            onClick={() => handleRateClick(item)}
-                                                            title={reviewableAppointments[item.appointmentId] ? 'Rate this appointment' : 'View your review'}
-                                                        >
-                                                            <i className={`bi ${reviewableAppointments[item.appointmentId] ? 'bi-star' : 'bi-star-fill'} me-1`}></i>
-                                                            {reviewableAppointments[item.appointmentId] ? 'Rate' : 'Reviewed'}
-                                                        </button>
-                                                    )}
-                                                </div>
-                                            </td>
-                                        </tr>
+                                                        {/* thay isAppointmentJoinable = isScheduledAppointment */}
+                                                        {isHomeVisitAppointment(item) && (
+                                                            <button
+                                                                className="btn btn-sm btn-outline-info"
+                                                                onClick={() => toggleHomeVisitDetails(item.appointmentId)}
+                                                            >
+                                                                <i className="bi bi-house-door me-1"></i>
+                                                                {expandedHomeVisitId === item.appointmentId ? 'Hide Details' : 'View Details'}
+                                                            </button>
+                                                        )}
+
+                                                        {canReschedule(item) && (
+                                                            <button
+                                                                className="btn btn-sm btn-outline-primary"
+                                                                onClick={() => handleRescheduleClick(item)}
+                                                            >
+                                                                Reschedule
+                                                            </button>
+                                                        )}
+
+                                                        {isScheduledAppointment(item) && !isExpiredAppointment(item) && (
+                                                            <button
+                                                                className="btn btn-sm btn-outline-danger"
+                                                                disabled={!canCancel(item)}
+                                                                onClick={() => handleCancelClick(item.appointmentId)}
+                                                                title={
+                                                                    canCancel(item)
+                                                                        ? 'Cancel appointment'
+                                                                        : `${isHomeVisitAppointment(item) ? 'Home visit' : 'Online'} appointments can only be cancelled at least ${getCancelMinimumHours(item)} hours before the scheduled time`
+                                                                }
+                                                            >
+                                                                Cancel
+                                                            </button>
+                                                        )}
+
+                                                        {/* Rate button for completed appointments */}
+                                                        {item.status?.toUpperCase() === 'COMPLETED' && (
+                                                            <button
+                                                                className={`btn btn-sm ${reviewableAppointments[item.appointmentId] ? 'btn-warning' : 'btn-outline-secondary'}`}
+                                                                onClick={() => handleRateClick(item)}
+                                                                title={reviewableAppointments[item.appointmentId] ? 'Rate this appointment' : 'View your review'}
+                                                            >
+                                                                <i className={`bi ${reviewableAppointments[item.appointmentId] ? 'bi-star' : 'bi-star-fill'} me-1`}></i>
+                                                                {reviewableAppointments[item.appointmentId] ? 'Rate' : 'Reviewed'}
+                                                            </button>
+                                                        )}
+                                                    </div>
+                                                </td>
+                                            </tr>
+
+                                            {isHomeVisitAppointment(item) && expandedHomeVisitId === item.appointmentId && (
+                                                <tr className="home-visit-detail-row">
+                                                    <td colSpan="6">
+                                                        <div className="home-visit-appointment-detail">
+                                                            <div>
+                                                                <strong>
+                                                                    <i className="bi bi-geo-alt me-1"></i>
+                                                                    Visit address
+                                                                </strong>
+                                                                <p>
+                                                                    {item.visitAddress || 'No address provided'}
+                                                                    {item.visitCity ? `, ${item.visitCity}` : ''}
+                                                                </p>
+                                                            </div>
+
+                                                            <div>
+                                                                <strong>
+                                                                    <i className="bi bi-clipboard2-pulse me-1"></i>
+                                                                    Reason
+                                                                </strong>
+                                                                <p>{item.reasonForHomeVisit || item.reason || 'No reason provided'}</p>
+                                                            </div>
+
+                                                            {item.specialNotes && (
+                                                                <div>
+                                                                    <strong>
+                                                                        <i className="bi bi-sticky me-1"></i>
+                                                                        Special notes
+                                                                    </strong>
+                                                                    <p>{item.specialNotes}</p>
+                                                                </div>
+                                                            )}
+                                                        </div>
+                                                    </td>
+                                                </tr>
+                                            )}
+                                        </React.Fragment>
                                     ))}
                                 </tbody>
                             </table>

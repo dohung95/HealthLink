@@ -163,19 +163,36 @@ INSERT INTO PharmacyInventory (InventoryID, PharmacyID, MedicineID, quantity, re
 (28, 'user-ph10', 3, 0, 0, 0.53, 'Capsule', '2026-09-30', 1, '2024-05-20 10:00:00', '2024-05-20 10:00:00', '2024-05-20 10:00:00');
 SET IDENTITY_INSERT PharmacyInventory OFF;
 
--- 10. DOCTOR_SCHEDULES (10 schedules)
+-- 10. DOCTOR_SCHEDULES
+-- Online schedules keep short slots. HomeVisit schedules use 3 shifts/day, 2 slots/shift, 120 minutes/slot.
 SET IDENTITY_INSERT DoctorSchedules ON;
-INSERT INTO DoctorSchedules (ScheduleID, DoctorId, dayOfWeek, startTime, endTime, SlotDuration, MaxPatients, Available, ScheduleStatus, consultationType, location, notes) VALUES
-(1, 'user-d01', 1, '08:00', '12:00', 30, 1, 1, 'APPROVED', 'Video', NULL, 'Monday morning video consultations'),
-(2, 'user-d01', 1, '14:00', '17:00', 30, 1, 1, 'APPROVED', 'Offline', 'Manhattan Health Clinic', 'Monday afternoon in-person'),
-(3, 'user-d02', 2, '08:00', '11:30', 20, 2, 1, 'APPROVED', 'Video', NULL, 'Pediatric online consultations'),
-(4, 'user-d03', 3, '09:00', '12:00', 45, 1, 1, 'APPROVED', 'Video', NULL, 'Cardiology consultations'),
-(5, 'user-d04', 4, '07:30', '11:30', 30, 1, 1, 'APPROVED', 'Offline', 'Chicago Medical Center', 'Surgery consultations'),
-(6, 'user-d05', 5, '08:00', '12:00', 30, 1, 1, 'APPROVED', 'Video', NULL, 'OB/GYN video consultations'),
-(7, 'user-d06', 6, '09:00', '12:00', 20, 2, 1, 'APPROVED', 'Video', NULL, 'Dermatology online sessions'),
-(8, 'user-d07', 1, '14:00', '18:00', 40, 1, 1, 'APPROVED', 'Offline', 'Boston Neuro Institute', 'Neurology appointments'),
-(9, 'user-d08', 2, '08:00', '11:00', 30, 1, 1, 'APPROVED', 'Offline', 'Philadelphia Eye Center', 'Eye examinations'),
-(10, 'user-d09', 3, '13:30', '17:00', 25, 2, 1, 'APPROVED', 'Video', NULL, 'ENT video consultations');
+INSERT INTO DoctorSchedules (ScheduleID, DoctorId, dayOfWeek, startTime, endTime, SlotDuration, MaxPatients, Available, ScheduleStatus, consultationType, ShiftType, location, notes) VALUES
+-- Existing online/offline test schedules
+(1, 'user-d01', 1, '08:00', '12:00', 30, 1, 1, 'APPROVED', 'Video', NULL, NULL, 'Monday morning video consultations'),
+(2, 'user-d01', 1, '14:00', '17:00', 30, 1, 1, 'APPROVED', 'Offline', NULL, 'Manhattan Health Clinic', 'Monday afternoon in-person'),
+(3, 'user-d02', 2, '08:00', '11:30', 20, 2, 1, 'APPROVED', 'Video', NULL, NULL, 'Pediatric online consultations'),
+(4, 'user-d03', 3, '09:00', '12:00', 45, 1, 1, 'APPROVED', 'Video', NULL, NULL, 'Cardiology consultations'),
+(5, 'user-d04', 4, '07:30', '11:30', 30, 1, 1, 'APPROVED', 'Offline', NULL, 'Chicago Medical Center', 'Surgery consultations'),
+(6, 'user-d05', 5, '08:00', '12:00', 30, 1, 1, 'APPROVED', 'Video', NULL, NULL, 'OB/GYN video consultations'),
+(7, 'user-d06', 6, '09:00', '12:00', 20, 2, 1, 'APPROVED', 'Video', NULL, NULL, 'Dermatology online sessions'),
+(8, 'user-d07', 1, '14:00', '18:00', 40, 1, 1, 'APPROVED', 'Offline', NULL, 'Boston Neuro Institute', 'Neurology appointments'),
+(9, 'user-d08', 2, '08:00', '11:00', 30, 1, 1, 'APPROVED', 'Offline', NULL, 'Philadelphia Eye Center', 'Eye examinations'),
+(10, 'user-d09', 3, '13:30', '17:00', 25, 2, 1, 'APPROVED', 'Video', NULL, NULL, 'ENT video consultations'),
+
+-- Home Visit test schedules for Dr. John Smith (user-d01), every Monday
+(11, 'user-d01', 1, '08:00', '12:00', 120, 1, 1, 'APPROVED', 'HomeVisit', 'Morning', 'Patient home', 'Home visit morning shift: 08:00-10:00, 10:00-12:00'),
+(12, 'user-d01', 1, '13:00', '17:00', 120, 1, 1, 'APPROVED', 'HomeVisit', 'Afternoon', 'Patient home', 'Home visit afternoon shift: 13:00-15:00, 15:00-17:00'),
+(13, 'user-d01', 1, '18:00', '22:00', 120, 1, 1, 'APPROVED', 'HomeVisit', 'Evening', 'Patient home', 'Home visit evening shift: 18:00-20:00, 20:00-22:00'),
+
+-- Home Visit test schedules for Dr. Michael Chen (user-d03), every Wednesday
+(14, 'user-d03', 3, '08:00', '12:00', 120, 1, 1, 'APPROVED', 'HomeVisit', 'Morning', 'Patient home', 'Home visit morning shift: 08:00-10:00, 10:00-12:00'),
+(15, 'user-d03', 3, '13:00', '17:00', 120, 1, 1, 'APPROVED', 'HomeVisit', 'Afternoon', 'Patient home', 'Home visit afternoon shift: 13:00-15:00, 15:00-17:00'),
+(16, 'user-d03', 3, '18:00', '22:00', 120, 1, 1, 'APPROVED', 'HomeVisit', 'Evening', 'Patient home', 'Home visit evening shift: 18:00-20:00, 20:00-22:00'),
+
+-- Home Visit test schedules for Dr. Sarah Johnson (user-d02), every Tuesday
+(17, 'user-d02', 2, '08:00', '12:00', 120, 1, 1, 'APPROVED', 'HomeVisit', 'Morning', 'Patient home', 'Home visit morning shift: 08:00-10:00, 10:00-12:00'),
+(18, 'user-d02', 2, '13:00', '17:00', 120, 1, 1, 'APPROVED', 'HomeVisit', 'Afternoon', 'Patient home', 'Home visit afternoon shift: 13:00-15:00, 15:00-17:00'),
+(19, 'user-d02', 2, '18:00', '22:00', 120, 1, 1, 'APPROVED', 'HomeVisit', 'Evening', 'Patient home', 'Home visit evening shift: 18:00-20:00, 20:00-22:00');
 SET IDENTITY_INSERT DoctorSchedules OFF;
 
 -- 11. DOCTOR_SCHEDULE_EXCEPTIONS (10 exceptions)
@@ -212,13 +229,13 @@ INSERT INTO DoctorScheduleCompliance (ComplianceID, DoctorId, ComplianceMonth, R
 (6, 'user-d07', '2026-06', 80, 72.00, 'IN_PROGRESS', 0, '2026-06-08 08:00:00', 0, 'Close to required monthly hours', NULL, NULL, NULL, '2026-06-01 08:00:00', '2026-06-08 08:00:00');
 SET IDENTITY_INSERT DoctorScheduleCompliance OFF;
 
--- 14. APPOINTMENT_SLOT_HOLDS (4 holds)
+-- 14. APPOINTMENT_SLOT_HOLDS (4 expired sample holds)
 SET IDENTITY_INSERT AppointmentSlotHolds ON;
-INSERT INTO AppointmentSlotHolds (HoldID, DoctorID, PatientID, AppointmentTime, ConsultationType, ExpiresAt, CreatedAt) VALUES
-(1, 'user-d01', 'user-p01', '2026-06-10 09:00:00', 'Video', '2026-06-09 09:05:00', '2026-06-09 09:00:00'),
-(2, 'user-d02', 'user-p02', '2026-06-10 10:00:00', 'Video', '2026-06-09 09:10:00', '2026-06-09 09:05:00'),
-(3, 'user-d07', 'user-p07', '2026-06-11 15:00:00', 'Offline', '2026-06-09 09:15:00', '2026-06-09 09:10:00'),
-(4, 'user-d08', 'user-p08', '2026-06-09 08:30:00', 'Offline', '2026-06-09 08:35:00', '2026-06-09 08:30:00');
+INSERT INTO AppointmentSlotHolds (HoldID, DoctorID, PatientID, AppointmentTime, EndTime, ConsultationType, ExpiresAt, CreatedAt) VALUES
+(1, 'user-d01', 'user-p01', '2026-06-10 09:00:00', '2026-06-10 09:30:00', 'Video', '2026-06-09 09:05:00', '2026-06-09 09:00:00'),
+(2, 'user-d02', 'user-p02', '2026-06-10 10:00:00', '2026-06-10 10:30:00', 'Video', '2026-06-09 09:10:00', '2026-06-09 09:05:00'),
+(3, 'user-d07', 'user-p07', '2026-06-11 15:00:00', '2026-06-11 15:30:00', 'Offline', '2026-06-09 09:15:00', '2026-06-09 09:10:00'),
+(4, 'user-d08', 'user-p08', '2026-06-09 08:30:00', '2026-06-09 09:00:00', 'Offline', '2026-06-09 08:35:00', '2026-06-09 08:30:00');
 SET IDENTITY_INSERT AppointmentSlotHolds OFF;
 
 -- 15. APPOINTMENTS (13 appointments)

@@ -15,6 +15,8 @@ import DocumentsStep from '../schedule/DocumentsStep';
 import ConfirmStep from '../schedule/ConfirmStep';
 import PaymentStep from '../schedule/PaymentStep';
 import DoctorSummaryCard from '../schedule/DoctorSummaryCard';
+import ConsultationStep from '../schedule/ConsultationStep';
+import HomeVisitStep from '../schedule/HomeVisitStep';
 
 import '../Css/ScheduleWizard.css';
 
@@ -43,6 +45,7 @@ const Schedule = () => {
   const [doctors, setDoctors] = useState([]);
   const [selectedSpecialty, setSelectedSpecialty] = useState('');
   const [selectedDoctorId, setSelectedDoctorId] = useState('');
+  const [consultationType, setConsultationType] = useState('');
 
   const [date, setDate] = useState(new Date().toISOString().split('T')[0]);
   const [slots, setSlots] = useState([]);
@@ -52,8 +55,24 @@ const Schedule = () => {
   const [symptoms, setSymptoms] = useState('');
   const [files, setFiles] = useState([]);
   const [patientId, setPatientId] = useState('');
+  const [patientProfile, setPatientProfile] = useState(null);
   const [bookingSubmitting, setBookingSubmitting] = useState(false);
   const [paymentDraft, setPaymentDraft] = useState(null);
+  const [homeVisitInfo, setHomeVisitInfo] = useState({
+    visitAddress: '',
+    visitCity: '',
+    contactPhone: '',
+    reasonForHomeVisit: '',
+    specialNotes: '',
+    isForSelf: true,
+    receiverName: '',
+    receiverAge: '',
+    receiverGender: '',
+    receiverRelationship: '',
+    receiverPhone: '',
+    visitLatitude: null,
+    visitLongitude: null,
+  });
 
 
   const [maxDate] = useState(() => {
@@ -62,21 +81,34 @@ const Schedule = () => {
     return max.toISOString().split('T')[0];
   });
 
-  const stepConfig = hasPreselectedDoctor
-  ? [
-      { key: 'datetime', label: 'Date & Time' },
-      { key: 'documents', label: 'Medical information' },
+  const isHomeVisit = consultationType === 'HomeVisit';
+
+  const stepConfig = useMemo(() => {
+    const baseSteps = hasPreselectedDoctor
+      ? [
+        { key: 'consultation', label: 'Visit Type' },
+        { key: 'datetime', label: 'Date & Time' },
+      ]
+      : [
+        { key: 'specialty', label: 'Specialty' },
+        { key: 'doctor', label: 'Doctor' },
+        { key: 'consultation', label: 'Visit Type' },
+        { key: 'datetime', label: 'Date & Time' },
+      ];
+
+    if (isHomeVisit) {
+      baseSteps.push({ key: 'homevisit', label: 'Home Visit' });
+    } else {
+      baseSteps.push({ key: 'documents', label: 'Medical information' });
+    }
+
+    baseSteps.push(
       { key: 'confirm', label: 'Confirm' },
-      { key: 'payment', label: 'Payment' },
-    ]
-  : [
-      { key: 'specialty', label: 'Specialty' },
-      { key: 'doctor', label: 'Doctor' },
-      { key: 'datetime', label: 'Date & Time' },
-      { key: 'documents', label: 'Medical information' },
-      { key: 'confirm', label: 'Confirm' },
-      { key: 'payment', label: 'Payment' },
-    ];
+      { key: 'payment', label: 'Payment' }
+    );
+
+    return baseSteps;
+  }, [hasPreselectedDoctor, isHomeVisit]);
 
   const currentStepKey = stepConfig[step - 1]?.key;
 
@@ -87,6 +119,7 @@ const Schedule = () => {
       try {
         const profile = await getProfile(token);
         setPatientId(profile.userId);
+        setPatientProfile(profile);
       } catch (error) {
         console.error('Failed to load patient profile', error);
         toast.error('Can not load patient profile.');
@@ -168,7 +201,7 @@ const Schedule = () => {
   }, [selectedDoctorId]);
 
   useEffect(() => {
-    if (!selectedDoctorId || !date) {
+    if (!selectedDoctorId || !date || !consultationType) {
       setSlots([]);
       setSelectedSlot(null);
       return;
@@ -180,7 +213,8 @@ const Schedule = () => {
       try {
         const data = await appointmentService.getAvailableSlots(
           selectedDoctorId,
-          date
+          date,
+          consultationType
         );
 
         setSlots(data.slots || []);
@@ -257,6 +291,7 @@ const Schedule = () => {
         doctorId: selectedDoctorId,
         patientId,
         appointmentTime,
+        consultationType,
       });
 
       setSelectedSlot({
@@ -370,9 +405,55 @@ const Schedule = () => {
       return;
     }
 
-    if (currentStepKey === 'datetime' && !selectedSlot) {
-      toast.warning('Please select a date and time');
+    if (currentStepKey === 'consultation' && !consultationType) {
+      toast.warning('Please select a visit type');
       return;
+    }
+
+    if (currentStepKey === 'datetime') {
+      if (!date) {
+        toast.warning('Please select a date');
+        return;
+      }
+      if (!selectedSlot) {
+        toast.warning('Please select a time slot');
+        return;
+      }
+    }
+
+
+    if (currentStepKey === 'homevisit') {
+      if (!homeVisitInfo.visitAddress?.trim()) {
+        toast.warning('Visit address is required.');
+        return;
+      }
+
+      if (!homeVisitInfo.contactPhone?.trim()) {
+        toast.warning('Contact phone is required.');
+        return;
+      }
+
+      if (!homeVisitInfo.reasonForHomeVisit?.trim()) {
+        toast.warning('Reason for home visit is required.');
+        return;
+      }
+
+      if (homeVisitInfo.isForSelf === false) {
+        if (!homeVisitInfo.receiverName?.trim()) {
+          toast.warning('Receiver name is required.');
+          return;
+        }
+
+        if (!homeVisitInfo.receiverRelationship?.trim()) {
+          toast.warning('Receiver relationship is required.');
+          return;
+        }
+
+        if (!homeVisitInfo.receiverAge || Number(homeVisitInfo.receiverAge) <= 0) {
+          toast.warning('Receiver age must be greater than 0.');
+          return;
+        }
+      }
     }
 
     setStep((prev) => Math.min(prev + 1, stepConfig.length));
@@ -446,8 +527,27 @@ const Schedule = () => {
         patientId,
         doctorId: selectedDoctorId,
         appointmentTime: selectedSlot.appointmentTime,
-        symptoms,
-        notes: '',
+        consultationType,
+        symptoms: isHomeVisit ? homeVisitInfo.reasonForHomeVisit : symptoms,
+        notes: isHomeVisit ? homeVisitInfo.specialNotes : '',
+
+        ...(consultationType === 'HomeVisit'
+          ? {
+            visitAddress: homeVisitInfo.visitAddress,
+            visitCity: homeVisitInfo.visitCity,
+            contactPhone: homeVisitInfo.contactPhone,
+            reasonForHomeVisit: homeVisitInfo.reasonForHomeVisit,
+            specialNotes: homeVisitInfo.specialNotes,
+            isForSelf: homeVisitInfo.isForSelf,
+            receiverName: homeVisitInfo.receiverName || null,
+            receiverAge: homeVisitInfo.receiverAge ? Number(homeVisitInfo.receiverAge) : null,
+            receiverGender: homeVisitInfo.receiverGender || null,
+            receiverRelationship: homeVisitInfo.receiverRelationship || (homeVisitInfo.isForSelf ? 'Self' : null),
+            receiverPhone: homeVisitInfo.receiverPhone || homeVisitInfo.contactPhone || null,
+            visitLatitude: homeVisitInfo.visitLatitude,
+            visitLongitude: homeVisitInfo.visitLongitude,
+          }
+          : {}),
       };
 
       setPaymentDraft({
@@ -575,6 +675,9 @@ const Schedule = () => {
                   onSelectSpecialty={(specialty) => {
                     setSelectedSpecialty(specialty);
                     setSelectedDoctorId('');
+                    setConsultationType('');
+                    setSelectedSlot(null);
+                    setSlots([]);
                   }}
                   onNext={handleNext}
                 />
@@ -584,9 +687,28 @@ const Schedule = () => {
                 <DoctorStep
                   doctors={filteredDoctors}
                   selectedDoctorId={selectedDoctorId}
-                  onSelectDoctor={setSelectedDoctorId}
+                  onSelectDoctor={(doctorId) => {
+                    setSelectedDoctorId(doctorId);
+                    setConsultationType('');
+                    setSelectedSlot(null);
+                    setSlots([]);
+                  }}
                   onBack={handleBack}
                   onNext={handleNext}
+                />
+              )}
+
+              {currentStepKey === 'consultation' && (
+                <ConsultationStep
+                  consultationType={consultationType}
+                  onSelectConsultation={(type) => {
+                    setConsultationType(type);
+                    setSelectedSlot(null);
+                    setSlots([]);
+                  }}
+                  onBack={handleBack}
+                  onNext={handleNext}
+                  canGoBack
                 />
               )}
 
@@ -604,6 +726,17 @@ const Schedule = () => {
                   onNext={handleNext}
                   doctorSchedules={doctorSchedules}
                   maxDate={maxDate}
+                  consultationType={consultationType}
+                />
+              )}
+
+              {currentStepKey === 'homevisit' && (
+                <HomeVisitStep
+                  homeVisitInfo={homeVisitInfo}
+                  setHomeVisitInfo={setHomeVisitInfo}
+                  patientProfile={patientProfile}
+                  onBack={handleBack}
+                  onNext={handleNext}
                 />
               )}
 
@@ -613,7 +746,7 @@ const Schedule = () => {
                   setSymptoms={setSymptoms}
                   files={files}
                   setFiles={setFiles}
-                  onBack={handleBackFromDocuments}
+                  onBack={isHomeVisit ? handleBack : handleBackFromDocuments}
                   onNext={handleNext}
                 />
               )}
@@ -623,7 +756,9 @@ const Schedule = () => {
                   selectedDoctor={selectedDoctor}
                   selectedSpecialty={selectedSpecialty}
                   selectedSlot={selectedSlot}
-                  symptoms={symptoms}
+                  consultationType={consultationType}
+                  homeVisitInfo={homeVisitInfo}
+                  symptoms={isHomeVisit ? homeVisitInfo.reasonForHomeVisit : symptoms}
                   files={files}
                   onBack={handleBack}
                   onConfirm={handleSchedule}

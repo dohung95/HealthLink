@@ -11,6 +11,7 @@ import lombok.*;
 @AllArgsConstructor
 @Builder
 public class AppointmentSlotHold {
+
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     @Column(name = "HoldID")
@@ -28,6 +29,9 @@ public class AppointmentSlotHold {
 
     @Column(name = "AppointmentTime", nullable = false)
     private LocalDateTime appointmentTime;
+
+    @Column(name = "EndTime")
+    private LocalDateTime endTime;
 
     @Column(name = "ConsultationType", nullable = false)
     private String consultationType;
