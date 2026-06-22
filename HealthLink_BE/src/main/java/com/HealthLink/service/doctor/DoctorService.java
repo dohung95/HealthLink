@@ -7,6 +7,8 @@ import com.HealthLink.dto.response.DoctorResponse;
 import com.HealthLink.dto.response.DoctorScheduleResponse;
 import java.util.List;
 import com.HealthLink.dto.response.PagedResponse;
+import com.HealthLink.dto.doctor.DoctorServiceToggleRequest;
+import java.util.Map;
 
 /**
  * Service interface cho các tính năng liên quan đến Bác sĩ.
@@ -82,4 +84,6 @@ public interface DoctorService {
     );
 
     List<String> getSpecialties();
+
+    Map<String, Boolean> updateServiceAvailability(String doctorId, DoctorServiceToggleRequest request);
 }

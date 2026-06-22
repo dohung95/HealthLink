@@ -1,6 +1,7 @@
 package com.HealthLink.controller.doctor;
 
 import com.HealthLink.dto.doctor.DoctorUpdateRequest;
+import com.HealthLink.dto.doctor.DoctorServiceToggleRequest;
 import com.HealthLink.dto.auth.ChangeEmailRequest;
 import com.HealthLink.dto.auth.VerifyEmailChangeRequest;
 import com.HealthLink.dto.auth.PasswordChangeVerifyRequest;
@@ -188,5 +189,15 @@ public class DoctorController {
     @GetMapping("/specialties")
     public ResponseEntity<List<String>> getSpecialties() {
         return ResponseEntity.ok(doctorService.getSpecialties());
+    }
+
+    @PatchMapping("/services")
+    @PreAuthorize("hasRole('DOCTOR')")
+    public ResponseEntity<Map<String, Boolean>> updateServices(
+            @RequestBody DoctorServiceToggleRequest request,
+            @AuthenticationPrincipal UserDetails userDetails) {
+        String doctorId = resolveUserId(userDetails);
+        Map<String, Boolean> result = doctorService.updateServiceAvailability(doctorId, request);
+        return ResponseEntity.ok(result);
     }
 }
