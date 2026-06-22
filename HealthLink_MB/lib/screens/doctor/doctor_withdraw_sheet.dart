@@ -1,17 +1,11 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:intl/intl.dart';
-import '../../config/doctor_theme.dart';
 import '../../services/doctor/doctor_wallet_service.dart';
+import '../../config/doctor_theme.dart';
 
-/// Bottom sheet for requesting withdrawal
 class DoctorWithdrawSheet extends StatefulWidget {
-  const DoctorWithdrawSheet({
-    super.key,
-    required this.walletService,
-    required this.maxAmount,
-    required this.onSuccess,
-  });
+  const DoctorWithdrawSheet({super.key, required this.walletService, required this.maxAmount, required this.onSuccess});
 
   final DoctorWalletService walletService;
   final double maxAmount;
@@ -22,378 +16,112 @@ class DoctorWithdrawSheet extends StatefulWidget {
 }
 
 class _DoctorWithdrawSheetState extends State<DoctorWithdrawSheet> {
-  final _formKey = GlobalKey<FormState>();
   final _amountController = TextEditingController();
   final _paypalEmailController = TextEditingController();
-  final _notesController = TextEditingController();
-
   bool _isLoading = false;
-  String? _error;
-  bool _withdrawAll = true;
 
-  @override
-  void initState() {
-    super.initState();
-    _amountController.text = widget.maxAmount.toStringAsFixed(2);
-  }
+  String _formatCurrency(double amount) => NumberFormat.currency(symbol: '\$', decimalDigits: 2).format(amount);
 
   @override
   void dispose() {
     _amountController.dispose();
     _paypalEmailController.dispose();
-    _notesController.dispose();
     super.dispose();
   }
 
   Future<void> _submitWithdrawal() async {
-    if (!_formKey.currentState!.validate()) return;
-
     final amount = double.tryParse(_amountController.text) ?? 0;
-    if (amount <= 0) {
-      setState(() => _error = 'Please enter a valid amount');
-      return;
-    }
 
-    if (amount > widget.maxAmount) {
-      setState(() => _error = 'Amount exceeds available balance');
-      return;
-    }
+    if (amount < 10) { _showError('Minimum withdrawal amount is \$10.00'); return; }
+    if (amount > widget.maxAmount) { _showError('Amount exceeds available balance'); return; }
 
-    setState(() {
-      _isLoading = true;
-      _error = null;
-    });
+    final paypal = _paypalEmailController.text.trim();
+    if (paypal.isNotEmpty && !paypal.contains('@')) { _showError('Enter a valid PayPal email'); return; }
+
+    setState(() => _isLoading = true);
 
     try {
-      await widget.walletService.requestWithdrawal(
-        amount: amount,
-        paypalEmail: _paypalEmailController.text.isNotEmpty
-            ? _paypalEmailController.text
-            : null,
-        notes: _notesController.text.isNotEmpty ? _notesController.text : null,
-      );
+      await widget.walletService.requestWithdrawal(amount: amount, paypalEmail: paypal.isNotEmpty ? paypal : null);
 
       if (mounted) {
         Navigator.pop(context);
         widget.onSuccess();
-
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text(
-              'Withdrawal request of \$${amount.toStringAsFixed(2)} submitted successfully',
-            ),
-            behavior: SnackBarBehavior.floating,
-            backgroundColor: Theme.of(context).colorScheme.primary,
-          ),
-        );
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Withdrawal of ${_formatCurrency(amount)} requested'), behavior: SnackBarBehavior.floating));
       }
     } catch (e) {
       if (mounted) {
-        setState(() {
-          _error = e.toString().replaceFirst('Exception: ', '');
-          _isLoading = false;
-        });
+        setState(() => _isLoading = false);
+        _showError(e.toString().replaceFirst('Exception: ', ''));
       }
     }
   }
 
+  void _showError(String message) {
+    ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(message), behavior: SnackBarBehavior.floating, backgroundColor: DS.destructive));
+  }
+
   @override
   Widget build(BuildContext context) {
-    final colors = context.doctorColors;
-    final currencyFormat =
-        NumberFormat.currency(symbol: '\$', decimalDigits: 2);
+    return Container(
+      margin: EdgeInsets.only(top: MediaQuery.of(context).padding.top + 100),
+      decoration: const BoxDecoration(color: DS.card, borderRadius: BorderRadius.vertical(top: Radius.circular(24))),
+      child: SingleChildScrollView(
+        padding: EdgeInsets.only(bottom: MediaQuery.of(context).viewInsets.bottom + 20),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            // Handle bar
+            Center(child: Padding(padding: const EdgeInsets.only(top: 12), child: Container(width: 40, height: 4, decoration: BoxDecoration(color: DS.cardBorder, borderRadius: BorderRadius.circular(2))))),
 
-    return SafeArea(
-      top: false,
-      child: Container(
-        constraints: BoxConstraints(
-          maxHeight: MediaQuery.of(context).size.height * 0.85,
-        ),
-        decoration: BoxDecoration(
-          color: Theme.of(context).colorScheme.surface,
-          borderRadius: const BorderRadius.vertical(
-            top: Radius.circular(26),
-          ),
-        ),
-        child: SingleChildScrollView(
-          padding: EdgeInsets.only(
-            bottom: MediaQuery.of(context).viewInsets.bottom,
-          ),
-          child: Padding(
-            padding: const EdgeInsets.all(20),
-            child: Form(
-              key: _formKey,
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  // Handle bar
-                  Center(
-                    child: Container(
-                      width: 42,
-                      height: 4,
-                      decoration: BoxDecoration(
-                        color: colors.divider,
-                        borderRadius: BorderRadius.circular(999),
-                      ),
-                    ),
-                  ),
-                  const SizedBox(height: 20),
+            // Header
+            Padding(
+              padding: const EdgeInsets.all(20),
+              child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                const Text('Withdraw Funds', style: TextStyle(fontSize: 18, fontWeight: FontWeight.w600, color: DS.foreground)),
+                const SizedBox(height: 4),
+                Text('Available balance: ${_formatCurrency(widget.maxAmount)}', style: const TextStyle(fontSize: 14, color: DS.mutedForeground)),
+              ]),
+            ),
 
-                  // Header
-                  Row(
-                    children: [
-                      Container(
-                        width: 48,
-                        height: 48,
-                        decoration: BoxDecoration(
-                          color: colors.primary.withOpacity(0.1),
-                          borderRadius: BorderRadius.circular(12),
-                        ),
-                        child: Icon(
-                          Icons.payments_outlined,
-                          color: colors.primary,
-                          size: 28,
-                        ),
-                      ),
-                      const SizedBox(width: 16),
-                      Expanded(
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            const Text(
-                              'Withdraw Funds',
-                              style: TextStyle(
-                                fontSize: 20,
-                                fontWeight: FontWeight.bold,
-                              ),
-                            ),
-                            Text(
-                              'Available: ${currencyFormat.format(widget.maxAmount)}',
-                              style: TextStyle(
-                                color: colors.money,
-                                fontWeight: FontWeight.w600,
-                              ),
-                            ),
-                          ],
-                        ),
-                      ),
-                      IconButton(
-                        onPressed: () => Navigator.pop(context),
-                        icon: const Icon(Icons.close),
-                      ),
-                    ],
-                  ),
-                  const SizedBox(height: 24),
+            // Form
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 20),
+              child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                const Text('Amount (min \$10.00)', style: TextStyle(fontSize: 14, fontWeight: FontWeight.w500, color: DS.foreground)),
+                const SizedBox(height: 8),
+                TextField(
+                  controller: _amountController,
+                  keyboardType: const TextInputType.numberWithOptions(decimal: true),
+                  inputFormatters: [FilteringTextInputFormatter.allow(RegExp(r'^\d+\.?\d{0,2}'))],
+                  decoration: DS.inputDecoration(hintText: '0.00'),
+                ),
+                const SizedBox(height: 16),
+                const Text('PayPal Email', style: TextStyle(fontSize: 14, fontWeight: FontWeight.w500, color: DS.foreground)),
+                const SizedBox(height: 8),
+                TextField(
+                  controller: _paypalEmailController,
+                  keyboardType: TextInputType.emailAddress,
+                  decoration: DS.inputDecoration(hintText: 'your@email.com'),
+                ),
+              ]),
+            ),
 
-                  // Error message
-                  if (_error != null) ...[
-                    Container(
-                      padding: const EdgeInsets.all(12),
-                      decoration: BoxDecoration(
-                        color: colors.errorBg,
-                        borderRadius: BorderRadius.circular(12),
-                        border: Border.all(color: colors.error.withOpacity(0.3)),
-                      ),
-                      child: Row(
-                        children: [
-                          Icon(Icons.error_outline,
-                              color: colors.error, size: 20),
-                          const SizedBox(width: 12),
-                          Expanded(
-                            child: Text(
-                              _error!,
-                              style: TextStyle(color: colors.error),
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
-                    const SizedBox(height: 16),
-                  ],
-
-                  // Withdraw all toggle
-                  Container(
-                    padding: const EdgeInsets.all(12),
-                    decoration: BoxDecoration(
-                      color: colors.surfaceContainer,
-                      borderRadius: BorderRadius.circular(12),
-                    ),
-                    child: Row(
-                      children: [
-                        Expanded(
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              const Text(
-                                'Withdraw All',
-                                style: TextStyle(fontWeight: FontWeight.w600),
-                              ),
-                              Text(
-                                'Withdraw your entire available balance',
-                                style: TextStyle(
-                                  fontSize: 12,
-                                  color: colors.onSurfaceVariant,
-                                ),
-                              ),
-                            ],
-                          ),
-                        ),
-                        Switch(
-                          value: _withdrawAll,
-                          onChanged: (v) {
-                            setState(() {
-                              _withdrawAll = v;
-                              if (v) {
-                                _amountController.text =
-                                    widget.maxAmount.toStringAsFixed(2);
-                              }
-                            });
-                          },
-                          activeColor: colors.primary,
-                        ),
-                      ],
-                    ),
-                  ),
-                  const SizedBox(height: 16),
-
-                  // Amount field
-                  TextFormField(
-                    controller: _amountController,
-                    enabled: !_withdrawAll,
-                    keyboardType:
-                        const TextInputType.numberWithOptions(decimal: true),
-                    inputFormatters: [
-                      FilteringTextInputFormatter.allow(
-                          RegExp(r'^\d+\.?\d{0,2}')),
-                    ],
-                    decoration: InputDecoration(
-                      labelText: 'Amount',
-                      prefixText: '\$ ',
-                      prefixIcon: const Icon(Icons.attach_money),
-                      border: OutlineInputBorder(
-                        borderRadius: BorderRadius.circular(12),
-                      ),
-                      helperText: 'Maximum: ${currencyFormat.format(widget.maxAmount)}',
-                    ),
-                    validator: (v) {
-                      if (v == null || v.isEmpty) {
-                        return 'Please enter an amount';
-                      }
-                      final amount = double.tryParse(v);
-                      if (amount == null || amount <= 0) {
-                        return 'Please enter a valid amount';
-                      }
-                      if (amount > widget.maxAmount) {
-                        return 'Amount exceeds available balance';
-                      }
-                      return null;
-                    },
-                  ),
-                  const SizedBox(height: 16),
-
-                  // PayPal email field
-                  TextFormField(
-                    controller: _paypalEmailController,
-                    keyboardType: TextInputType.emailAddress,
-                    decoration: InputDecoration(
-                      labelText: 'PayPal Email (Optional)',
-                      hintText: 'Uses your registered email if empty',
-                      prefixIcon: const Icon(Icons.email_outlined),
-                      border: OutlineInputBorder(
-                        borderRadius: BorderRadius.circular(12),
-                      ),
-                    ),
-                    validator: (v) {
-                      if (v != null && v.isNotEmpty && !v.contains('@')) {
-                        return 'Please enter a valid email';
-                      }
-                      return null;
-                    },
-                  ),
-                  const SizedBox(height: 16),
-
-                  // Notes field
-                  TextFormField(
-                    controller: _notesController,
-                    maxLines: 2,
-                    maxLength: 200,
-                    decoration: InputDecoration(
-                      labelText: 'Notes (Optional)',
-                      hintText: 'Add any notes for this withdrawal',
-                      prefixIcon: const Icon(Icons.note_outlined),
-                      border: OutlineInputBorder(
-                        borderRadius: BorderRadius.circular(12),
-                      ),
-                    ),
-                  ),
-                  const SizedBox(height: 24),
-
-                  // Summary
-                  Container(
-                    padding: const EdgeInsets.all(16),
-                    decoration: BoxDecoration(
-                      color: colors.infoBg,
-                      borderRadius: BorderRadius.circular(12),
-                      border: Border.all(color: colors.info.withOpacity(0.3)),
-                    ),
-                    child: Row(
-                      children: [
-                        Icon(Icons.info_outline, color: colors.info),
-                        const SizedBox(width: 12),
-                        Expanded(
-                          child: Text(
-                            'Withdrawals are typically processed within 3-5 business days. '
-                            'You will receive an email confirmation once processed.',
-                            style: TextStyle(
-                              color: colors.info,
-                              fontSize: 13,
-                            ),
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                  const SizedBox(height: 24),
-
-                  // Submit button
-                  SizedBox(
-                    width: double.infinity,
-                    child: ElevatedButton(
-                      onPressed: _isLoading ? null : _submitWithdrawal,
-                      style: ElevatedButton.styleFrom(
-                        padding: const EdgeInsets.symmetric(vertical: 16),
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(12),
-                        ),
-                      ),
-                      child: _isLoading
-                          ? const SizedBox(
-                              height: 20,
-                              width: 20,
-                              child: CircularProgressIndicator(strokeWidth: 2),
-                            )
-                          : Row(
-                              mainAxisAlignment: MainAxisAlignment.center,
-                              children: [
-                                const Icon(Icons.send),
-                                const SizedBox(width: 8),
-                                Text(
-                                  'Request Withdrawal',
-                                  style: const TextStyle(
-                                    fontSize: 16,
-                                    fontWeight: FontWeight.bold,
-                                  ),
-                                ),
-                              ],
-                            ),
-                    ),
-                  ),
-                  const SizedBox(height: 16),
-                ],
+            // Button
+            Padding(
+              padding: const EdgeInsets.all(20),
+              child: SizedBox(
+                width: double.infinity,
+                child: ElevatedButton(
+                  onPressed: _isLoading ? null : _submitWithdrawal,
+                  style: DS.primaryButtonStyle,
+                  child: _isLoading
+                      ? const SizedBox(height: 20, width: 20, child: CircularProgressIndicator(strokeWidth: 2, color: DS.primaryForeground))
+                      : const Text('Request Withdrawal', style: TextStyle(fontSize: 14, fontWeight: FontWeight.w500)),
+                ),
               ),
             ),
-          ),
+          ],
         ),
       ),
     );

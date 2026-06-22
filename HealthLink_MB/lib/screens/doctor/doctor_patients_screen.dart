@@ -6,9 +6,9 @@ import '../../services/doctor/doctor_service.dart';
 import '../../models/doctor/doctor_patient.dart';
 import '../../config/api_config.dart';
 import '../../config/doctor_theme.dart';
+import '../../widgets/doctor/doctor_widgets.dart';
 import 'doctor_patient_detail_screen.dart';
 
-/// Status filter options for patient list
 enum PatientStatusFilter { all, upcoming, recent }
 
 class DoctorPatientsScreen extends StatefulWidget {
@@ -46,8 +46,7 @@ class _DoctorPatientsScreenState extends State<DoctorPatientsScreen> {
   }
 
   void _onScroll() {
-    if (_scrollController.position.pixels >=
-        _scrollController.position.maxScrollExtent - 200) {
+    if (_scrollController.position.pixels >= _scrollController.position.maxScrollExtent - 200) {
       if (!_isLoadingMore && _hasMore) {
         _loadMorePatients();
       }
@@ -112,9 +111,7 @@ class _DoctorPatientsScreenState extends State<DoctorPatientsScreen> {
   Future<void> _loadMorePatients() async {
     if (_isLoadingMore || !_hasMore) return;
 
-    setState(() {
-      _isLoadingMore = true;
-    });
+    setState(() => _isLoadingMore = true);
 
     try {
       final auth = context.read<AuthProvider>();
@@ -138,281 +135,139 @@ class _DoctorPatientsScreenState extends State<DoctorPatientsScreen> {
         });
       }
     } catch (e) {
-      if (mounted) {
-        setState(() {
-          _isLoadingMore = false;
-        });
-      }
+      if (mounted) setState(() => _isLoadingMore = false);
     }
   }
 
   void _onSearch(String query) {
-    setState(() {
-      _searchQuery = query;
-    });
+    setState(() => _searchQuery = query);
     _loadPatients(refresh: true);
   }
 
   void _onFilterChanged(PatientStatusFilter filter) {
     if (_statusFilter == filter) return;
-    setState(() {
-      _statusFilter = filter;
-    });
+    setState(() => _statusFilter = filter);
     _loadPatients(refresh: true);
-  }
-
-  String _getPatientStatus(DoctorPatient patient) {
-    if (patient.nextAppointmentTime != null) return 'Upcoming';
-    if (patient.lastAppointmentTime != null) return 'Recent';
-    return 'Inactive';
   }
 
   @override
   Widget build(BuildContext context) {
-    final colors = context.doctorColors;
-
     return Scaffold(
-      backgroundColor: const Color(0xFFF5F7FA),
-      appBar: AppBar(
-        title: const Text('My Patients'),
-        backgroundColor: colors.primary,
-        foregroundColor: Colors.white,
-        elevation: 0,
-      ),
-      body: Column(
-        children: [
-          // Header section
-          Container(
-            decoration: BoxDecoration(
-              color: Colors.white,
-              boxShadow: [
-                BoxShadow(
-                  color: Colors.black.withValues(alpha: 0.05),
-                  blurRadius: 10,
-                  offset: const Offset(0, 2),
-                ),
-              ],
-            ),
-            child: Column(
-              children: [
-                // Search bar
-                Padding(
-                  padding: const EdgeInsets.all(16),
-                  child: Container(
-                    decoration: BoxDecoration(
-                      color: const Color(0xFFF5F7FA),
-                      borderRadius: BorderRadius.circular(12),
-                    ),
-                    child: TextField(
-                      controller: _searchController,
-                      decoration: InputDecoration(
-                        hintText: 'Search by name or email...',
-                        hintStyle: TextStyle(
-                          color: colors.onSurfaceVariant,
-                          fontSize: 14,
-                        ),
-                        prefixIcon: Icon(
-                          Icons.search,
-                          color: colors.onSurfaceVariant,
-                        ),
-                        suffixIcon: _searchQuery.isNotEmpty
-                            ? IconButton(
-                                icon: const Icon(Icons.clear, size: 20),
-                                onPressed: () {
-                                  _searchController.clear();
-                                  _onSearch('');
-                                },
-                              )
-                            : null,
-                        border: InputBorder.none,
-                        contentPadding: const EdgeInsets.symmetric(
-                          horizontal: 16,
-                          vertical: 14,
-                        ),
-                      ),
-                      onSubmitted: _onSearch,
-                      onChanged: (v) {
-                        Future.delayed(const Duration(milliseconds: 500), () {
-                          if (v == _searchController.text) {
-                            _onSearch(v);
-                          }
-                        });
-                      },
-                    ),
-                  ),
-                ),
-                // Filter chips
-                Padding(
-                  padding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
-                  child: Row(
-                    children: [
-                      _buildFilterChip('All', PatientStatusFilter.all,
-                          Icons.groups_outlined, colors),
-                      const SizedBox(width: 10),
-                      _buildFilterChip('Upcoming', PatientStatusFilter.upcoming,
-                          Icons.event_outlined, colors),
-                      const SizedBox(width: 10),
-                      _buildFilterChip('Recent', PatientStatusFilter.recent,
-                          Icons.history, colors),
-                    ],
-                  ),
-                ),
-              ],
-            ),
-          ),
-          // Results count
-          if (!_isLoading && _error == null && _patients.isNotEmpty)
+      backgroundColor: DS.background,
+      body: SafeArea(
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            // Header
             Padding(
-              padding: const EdgeInsets.fromLTRB(16, 16, 16, 8),
-              child: Row(
+              padding: const EdgeInsets.fromLTRB(20, 20, 20, 0),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: const [
+                  Text('Patients', style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold, color: DS.foreground)),
+                  SizedBox(height: 2),
+                  Text('View and manage your patients', style: TextStyle(fontSize: 14, color: DS.mutedForeground)),
+                ],
+              ),
+            ),
+            const SizedBox(height: 16),
+
+            // Search Bar
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 20),
+              child: Container(
+                decoration: DS.cardDecoration,
+                child: TextField(
+                  controller: _searchController,
+                  decoration: InputDecoration(
+                    hintText: 'Search patients...',
+                    hintStyle: const TextStyle(color: DS.mutedForeground, fontSize: 14),
+                    prefixIcon: const Icon(Icons.search, color: DS.mutedForeground, size: 20),
+                    suffixIcon: _searchQuery.isNotEmpty
+                        ? IconButton(
+                            icon: const Icon(Icons.clear, size: 18, color: DS.mutedForeground),
+                            onPressed: () {
+                              _searchController.clear();
+                              _onSearch('');
+                            },
+                          )
+                        : null,
+                    border: InputBorder.none,
+                    contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+                  ),
+                  onSubmitted: _onSearch,
+                  onChanged: (v) {
+                    Future.delayed(const Duration(milliseconds: 500), () {
+                      if (v == _searchController.text) _onSearch(v);
+                    });
+                  },
+                ),
+              ),
+            ),
+            const SizedBox(height: 12),
+
+            // Filter Chips
+            SizedBox(
+              height: 36,
+              child: ListView(
+                scrollDirection: Axis.horizontal,
+                padding: const EdgeInsets.symmetric(horizontal: 20),
                 children: [
-                  Text(
-                    '${_patients.length} patient${_patients.length != 1 ? 's' : ''}',
-                    style: TextStyle(
-                      color: colors.onSurfaceVariant,
-                      fontSize: 14,
-                      fontWeight: FontWeight.w500,
-                    ),
+                  DoctorFilterChip(
+                    label: 'All',
+                    icon: Icons.groups_outlined,
+                    selected: _statusFilter == PatientStatusFilter.all,
+                    onTap: () => _onFilterChanged(PatientStatusFilter.all),
+                  ),
+                  const SizedBox(width: 8),
+                  DoctorFilterChip(
+                    label: 'Upcoming',
+                    icon: Icons.event_outlined,
+                    selected: _statusFilter == PatientStatusFilter.upcoming,
+                    onTap: () => _onFilterChanged(PatientStatusFilter.upcoming),
+                  ),
+                  const SizedBox(width: 8),
+                  DoctorFilterChip(
+                    label: 'Recent',
+                    icon: Icons.history,
+                    selected: _statusFilter == PatientStatusFilter.recent,
+                    onTap: () => _onFilterChanged(PatientStatusFilter.recent),
                   ),
                 ],
               ),
             ),
-          // Patient list
-          Expanded(
-            child: _isLoading
-                ? Center(
-                    child: CircularProgressIndicator(color: colors.primary))
-                : _error != null
-                    ? _buildErrorWidget(colors)
-                    : _patients.isEmpty
-                        ? _buildEmptyState(colors)
-                        : RefreshIndicator(
-                            onRefresh: () => _loadPatients(refresh: true),
-                            color: colors.primary,
-                            child: ListView.builder(
-                              controller: _scrollController,
-                              padding: const EdgeInsets.fromLTRB(16, 8, 16, 24),
-                              itemCount:
-                                  _patients.length + (_isLoadingMore ? 1 : 0),
-                              itemBuilder: (context, index) {
-                                if (index == _patients.length) {
-                                  return const Padding(
-                                    padding: EdgeInsets.all(20),
-                                    child: Center(
-                                      child: CircularProgressIndicator(),
-                                    ),
-                                  );
-                                }
-                                return _buildPatientCard(
-                                    _patients[index], colors);
-                              },
-                            ),
-                          ),
-          ),
-        ],
-      ),
-    );
-  }
+            const SizedBox(height: 16),
 
-  Widget _buildFilterChip(
-    String label,
-    PatientStatusFilter filter,
-    IconData icon,
-    DoctorColors colors,
-  ) {
-    final isActive = _statusFilter == filter;
-    return Expanded(
-      child: GestureDetector(
-        onTap: () => _onFilterChanged(filter),
-        child: AnimatedContainer(
-          duration: const Duration(milliseconds: 200),
-          padding: const EdgeInsets.symmetric(vertical: 12),
-          decoration: BoxDecoration(
-            color: isActive ? colors.primary : Colors.white,
-            borderRadius: BorderRadius.circular(12),
-            border: Border.all(
-              color: isActive ? colors.primary : const Color(0xFFE5E7EB),
-              width: 1.5,
-            ),
-            boxShadow: isActive
-                ? [
-                    BoxShadow(
-                      color: colors.primary.withValues(alpha: 0.3),
-                      blurRadius: 8,
-                      offset: const Offset(0, 2),
-                    ),
-                  ]
-                : null,
-          ),
-          child: Row(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              Icon(
-                icon,
-                size: 18,
-                color: isActive ? Colors.white : colors.onSurfaceVariant,
-              ),
-              const SizedBox(width: 6),
-              Text(
-                label,
-                style: TextStyle(
-                  color: isActive ? Colors.white : colors.onSurfaceVariant,
-                  fontWeight: isActive ? FontWeight.w600 : FontWeight.w500,
-                  fontSize: 13,
-                ),
-              ),
-            ],
-          ),
-        ),
-      ),
-    );
-  }
-
-  Widget _buildErrorWidget(DoctorColors colors) {
-    return Center(
-      child: Padding(
-        padding: const EdgeInsets.all(32),
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            Container(
-              width: 80,
-              height: 80,
-              decoration: BoxDecoration(
-                color: colors.errorBg,
-                shape: BoxShape.circle,
-              ),
-              child: Icon(Icons.error_outline, size: 40, color: colors.error),
-            ),
-            const SizedBox(height: 24),
-            const Text(
-              'Something went wrong',
-              style: TextStyle(
-                fontSize: 18,
-                fontWeight: FontWeight.w600,
-              ),
-            ),
-            const SizedBox(height: 8),
-            Text(
-              _error ?? 'Please try again',
-              textAlign: TextAlign.center,
-              style: TextStyle(
-                fontSize: 14,
-                color: colors.onSurfaceVariant,
-              ),
-            ),
-            const SizedBox(height: 24),
-            ElevatedButton.icon(
-              onPressed: () => _loadPatients(refresh: true),
-              icon: const Icon(Icons.refresh),
-              label: const Text('Try Again'),
-              style: ElevatedButton.styleFrom(
-                padding:
-                    const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(12),
-                ),
-              ),
+            // Content
+            Expanded(
+              child: _isLoading
+                  ? const Center(child: CircularProgressIndicator(color: DS.primary))
+                  : _error != null
+                      ? _buildErrorState()
+                      : RefreshIndicator(
+                          color: DS.primary,
+                          onRefresh: () => _loadPatients(refresh: true),
+                          child: _patients.isEmpty
+                              ? _buildEmptyState()
+                              : ListView.separated(
+                                  controller: _scrollController,
+                                  padding: const EdgeInsets.fromLTRB(20, 0, 20, 20),
+                                  itemCount: _patients.length + (_isLoadingMore ? 1 : 0),
+                                  separatorBuilder: (_, __) => const SizedBox(height: 12),
+                                  itemBuilder: (context, index) {
+                                    if (index == _patients.length) {
+                                      return const Padding(
+                                        padding: EdgeInsets.all(20),
+                                        child: Center(child: CircularProgressIndicator(color: DS.primary)),
+                                      );
+                                    }
+                                    return _PatientCard(
+                                      patient: _patients[index],
+                                      onTap: () => _navigateToDetail(_patients[index]),
+                                    );
+                                  },
+                                ),
+                        ),
             ),
           ],
         ),
@@ -420,7 +275,35 @@ class _DoctorPatientsScreenState extends State<DoctorPatientsScreen> {
     );
   }
 
-  Widget _buildEmptyState(DoctorColors colors) {
+  Widget _buildErrorState() {
+    return Center(
+      child: Padding(
+        padding: const EdgeInsets.all(24),
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Container(
+              width: 64,
+              height: 64,
+              decoration: const BoxDecoration(color: DS.rose100, shape: BoxShape.circle),
+              child: const Icon(Icons.error_outline, size: 28, color: DS.rose700),
+            ),
+            const SizedBox(height: 16),
+            const Text('Failed to load patients', style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600, color: DS.foreground)),
+            const SizedBox(height: 24),
+            ElevatedButton.icon(
+              onPressed: () => _loadPatients(refresh: true),
+              style: DS.primaryButtonStyle,
+              icon: const Icon(Icons.refresh, size: 18),
+              label: const Text('Retry'),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildEmptyState() {
     IconData icon;
     String title;
     String subtitle;
@@ -443,382 +326,227 @@ class _DoctorPatientsScreenState extends State<DoctorPatientsScreen> {
       subtitle = 'Your patients will appear here after appointments';
     }
 
-    return Center(
-      child: Padding(
-        padding: const EdgeInsets.all(32),
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            Container(
-              width: 100,
-              height: 100,
-              decoration: BoxDecoration(
-                color: const Color(0xFFF0F4F8),
-                shape: BoxShape.circle,
-              ),
-              child: Icon(icon, size: 48, color: colors.onSurfaceVariant),
-            ),
-            const SizedBox(height: 24),
-            Text(
-              title,
-              style: const TextStyle(
-                fontSize: 20,
-                fontWeight: FontWeight.w600,
-              ),
-            ),
-            const SizedBox(height: 8),
-            Text(
-              subtitle,
-              textAlign: TextAlign.center,
-              style: TextStyle(
-                fontSize: 14,
-                color: colors.onSurfaceVariant,
-              ),
-            ),
-          ],
-        ),
-      ),
+    return SingleChildScrollView(
+      physics: const AlwaysScrollableScrollPhysics(),
+      child: DoctorEmptyState(icon: icon, title: title, subtitle: subtitle),
     );
   }
 
-  Widget _buildPatientCard(DoctorPatient patient, DoctorColors colors) {
-    final status = _getPatientStatus(patient);
+  void _navigateToDetail(DoctorPatient patient) {
+    Navigator.push(
+      context,
+      MaterialPageRoute(builder: (context) => DoctorPatientDetailScreen(patient: patient)),
+    );
+  }
+}
+
+class _PatientCard extends StatelessWidget {
+  final DoctorPatient patient;
+  final VoidCallback onTap;
+
+  const _PatientCard({required this.patient, required this.onTap});
+
+  String _getStatus() {
+    if (patient.nextAppointmentTime != null) return 'Upcoming';
+    if (patient.lastAppointmentTime != null) return 'Recent';
+    return 'Inactive';
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final status = _getStatus();
     final dateFormat = DateFormat('MMM d, yyyy');
 
-    // Status styling
-    Color statusColor;
     Color statusBg;
+    Color statusText;
     IconData statusIcon;
+
     switch (status) {
       case 'Upcoming':
-        statusColor = const Color(0xFF3B82F6);
-        statusBg = const Color(0xFFEFF6FF);
+        statusBg = DS.sky100;
+        statusText = DS.sky700;
         statusIcon = Icons.event;
         break;
       case 'Recent':
-        statusColor = const Color(0xFF10B981);
-        statusBg = const Color(0xFFECFDF5);
+        statusBg = DS.emerald100;
+        statusText = DS.emerald700;
         statusIcon = Icons.check_circle;
         break;
       default:
-        statusColor = const Color(0xFF6B7280);
-        statusBg = const Color(0xFFF3F4F6);
+        statusBg = DS.secondary;
+        statusText = DS.mutedForeground;
         statusIcon = Icons.schedule;
     }
 
-    return Container(
-      margin: const EdgeInsets.only(bottom: 12),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(16),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withValues(alpha: 0.04),
-            blurRadius: 10,
-            offset: const Offset(0, 2),
-          ),
-        ],
-      ),
-      child: Material(
-        color: Colors.transparent,
-        borderRadius: BorderRadius.circular(16),
-        child: InkWell(
-          onTap: () => _navigateToPatientDetail(patient),
+    return GestureDetector(
+      onTap: onTap,
+      child: Container(
+        decoration: BoxDecoration(
+          color: DS.card,
           borderRadius: BorderRadius.circular(16),
-          child: Padding(
-            padding: const EdgeInsets.all(16),
-            child: Column(
-              children: [
-                // Top row: Avatar, Name, Status
-                Row(
-                  children: [
-                    // Avatar
-                    _buildAvatar(patient, colors),
-                    const SizedBox(width: 14),
-                    // Name & Email
-                    Expanded(
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Text(
-                            patient.fullName ?? 'Unknown',
-                            style: const TextStyle(
-                              fontSize: 16,
-                              fontWeight: FontWeight.w600,
-                              color: Color(0xFF1F2937),
-                            ),
-                          ),
-                          const SizedBox(height: 4),
-                          Text(
-                            patient.email ?? patient.phoneNumber ?? 'No contact',
-                            style: const TextStyle(
-                              fontSize: 13,
-                              color: Color(0xFF6B7280),
-                            ),
-                            maxLines: 1,
-                            overflow: TextOverflow.ellipsis,
-                          ),
-                        ],
-                      ),
-                    ),
-                    // Status badge
-                    Container(
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: 10,
-                        vertical: 6,
-                      ),
-                      decoration: BoxDecoration(
-                        color: statusBg,
-                        borderRadius: BorderRadius.circular(20),
-                      ),
-                      child: Row(
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          Icon(statusIcon, size: 14, color: statusColor),
-                          const SizedBox(width: 4),
-                          Text(
-                            status,
-                            style: TextStyle(
-                              fontSize: 12,
-                              fontWeight: FontWeight.w600,
-                              color: statusColor,
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
-                  ],
-                ),
-                const SizedBox(height: 16),
-                // Stats row
-                Container(
-                  padding: const EdgeInsets.all(14),
-                  decoration: BoxDecoration(
-                    color: const Color(0xFFF9FAFB),
-                    borderRadius: BorderRadius.circular(12),
+          border: Border.all(color: DS.cardBorder),
+          boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.04), blurRadius: 4, offset: const Offset(0, 1))],
+        ),
+        child: Padding(
+          padding: const EdgeInsets.all(16),
+          child: Column(
+            children: [
+              // Top row
+              Row(
+                children: [
+                  DoctorPersonAvatar(
+                    name: patient.fullName ?? 'Patient',
+                    imageUrl: patient.avatarUrl != null ? ApiConfig.normalizeUrl(patient.avatarUrl!) : null,
+                    size: 48,
                   ),
-                  child: Row(
-                    children: [
-                      _buildStatItem(
-                        Icons.calendar_today,
-                        'Visits',
-                        '${patient.totalAppointments}',
-                        colors.primary,
-                      ),
-                      _buildDivider(),
-                      _buildStatItem(
-                        Icons.check_circle_outline,
-                        'Completed',
-                        '${patient.completedAppointments}',
-                        const Color(0xFF10B981),
-                      ),
-                      _buildDivider(),
-                      _buildStatItem(
-                        Icons.bloodtype_outlined,
-                        'Blood',
-                        patient.bloodType ?? '-',
-                        const Color(0xFFEF4444),
-                      ),
-                    ],
-                  ),
-                ),
-                const SizedBox(height: 14),
-                // Date row
-                Row(
-                  children: [
-                    Expanded(
-                      child: _buildDateItem(
-                        'Next Visit',
-                        patient.nextAppointmentTime != null
-                            ? dateFormat.format(patient.nextAppointmentTime!)
-                            : 'Not scheduled',
-                        Icons.event_available,
-                        patient.nextAppointmentTime != null,
-                      ),
-                    ),
-                    const SizedBox(width: 12),
-                    Expanded(
-                      child: _buildDateItem(
-                        'Last Visit',
-                        patient.lastAppointmentTime != null
-                            ? dateFormat.format(patient.lastAppointmentTime!)
-                            : 'Never',
-                        Icons.history,
-                        patient.lastAppointmentTime != null,
-                      ),
-                    ),
-                  ],
-                ),
-                const SizedBox(height: 14),
-                // View details button
-                SizedBox(
-                  width: double.infinity,
-                  child: TextButton(
-                    onPressed: () => _navigateToPatientDetail(patient),
-                    style: TextButton.styleFrom(
-                      backgroundColor:
-                          colors.primary.withValues(alpha: 0.08),
-                      foregroundColor: colors.primary,
-                      padding: const EdgeInsets.symmetric(vertical: 12),
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(10),
-                      ),
-                    ),
-                    child: const Row(
-                      mainAxisAlignment: MainAxisAlignment.center,
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        Text(
-                          'View Details',
-                          style: TextStyle(
-                            fontWeight: FontWeight.w600,
-                            fontSize: 14,
-                          ),
-                        ),
-                        SizedBox(width: 6),
-                        Icon(Icons.arrow_forward_ios, size: 14),
+                        Text(patient.fullName ?? 'Unknown', style: const TextStyle(fontSize: 15, fontWeight: FontWeight.w600, color: DS.foreground)),
+                        const SizedBox(height: 2),
+                        Text(patient.email ?? patient.phoneNumber ?? 'No contact', style: const TextStyle(fontSize: 13, color: DS.mutedForeground), maxLines: 1, overflow: TextOverflow.ellipsis),
                       ],
                     ),
                   ),
+                  Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                    decoration: BoxDecoration(color: statusBg, borderRadius: BorderRadius.circular(20)),
+                    child: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Icon(statusIcon, size: 12, color: statusText),
+                        const SizedBox(width: 4),
+                        Text(status, style: TextStyle(fontSize: 11, fontWeight: FontWeight.w600, color: statusText)),
+                      ],
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 12),
+
+              // Stats row
+              Container(
+                padding: const EdgeInsets.all(12),
+                decoration: BoxDecoration(color: DS.secondary.withOpacity(0.5), borderRadius: BorderRadius.circular(12)),
+                child: Row(
+                  children: [
+                    _StatItem(icon: Icons.calendar_today, label: 'Visits', value: '${patient.totalAppointments}', color: DS.primary),
+                    Container(width: 1, height: 36, color: DS.cardBorder),
+                    _StatItem(icon: Icons.check_circle_outline, label: 'Completed', value: '${patient.completedAppointments}', color: DS.emerald600),
+                    Container(width: 1, height: 36, color: DS.cardBorder),
+                    _StatItem(icon: Icons.bloodtype_outlined, label: 'Blood', value: patient.bloodType ?? '-', color: DS.rose500),
+                  ],
                 ),
-              ],
-            ),
+              ),
+              const SizedBox(height: 12),
+
+              // Date row
+              Row(
+                children: [
+                  Expanded(
+                    child: _DateItem(
+                      label: 'Next Visit',
+                      value: patient.nextAppointmentTime != null ? dateFormat.format(patient.nextAppointmentTime!) : 'Not scheduled',
+                      icon: Icons.event_available,
+                      hasValue: patient.nextAppointmentTime != null,
+                    ),
+                  ),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: _DateItem(
+                      label: 'Last Visit',
+                      value: patient.lastAppointmentTime != null ? dateFormat.format(patient.lastAppointmentTime!) : 'Never',
+                      icon: Icons.history,
+                      hasValue: patient.lastAppointmentTime != null,
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 12),
+
+              // View details button
+              SizedBox(
+                width: double.infinity,
+                child: TextButton(
+                  onPressed: onTap,
+                  style: TextButton.styleFrom(
+                    backgroundColor: DS.primary.withOpacity(0.08),
+                    foregroundColor: DS.primary,
+                    padding: const EdgeInsets.symmetric(vertical: 12),
+                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                  ),
+                  child: Row(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: const [
+                      Text('View Details', style: TextStyle(fontWeight: FontWeight.w600, fontSize: 14)),
+                      SizedBox(width: 6),
+                      Icon(Icons.arrow_forward_ios, size: 14),
+                    ],
+                  ),
+                ),
+              ),
+            ],
           ),
         ),
       ),
     );
   }
+}
 
-  Widget _buildAvatar(DoctorPatient patient, DoctorColors colors) {
-    return Container(
-      width: 54,
-      height: 54,
-      decoration: BoxDecoration(
-        gradient: LinearGradient(
-          begin: Alignment.topLeft,
-          end: Alignment.bottomRight,
-          colors: [
-            colors.primary,
-            colors.primary.withValues(alpha: 0.7),
-          ],
-        ),
-        borderRadius: BorderRadius.circular(14),
-      ),
-      child: patient.avatarUrl != null
-          ? ClipRRect(
-              borderRadius: BorderRadius.circular(14),
-              child: Image.network(
-                ApiConfig.normalizeUrl(patient.avatarUrl!) ?? '',
-                fit: BoxFit.cover,
-                errorBuilder: (_, __, ___) => _avatarPlaceholder(patient),
-              ),
-            )
-          : _avatarPlaceholder(patient),
-    );
-  }
+class _StatItem extends StatelessWidget {
+  final IconData icon;
+  final String label;
+  final String value;
+  final Color color;
 
-  Widget _avatarPlaceholder(DoctorPatient patient) {
-    return Center(
-      child: Text(
-        (patient.fullName ?? 'P').substring(0, 1).toUpperCase(),
-        style: const TextStyle(
-          color: Colors.white,
-          fontWeight: FontWeight.bold,
-          fontSize: 20,
-        ),
-      ),
-    );
-  }
+  const _StatItem({required this.icon, required this.label, required this.value, required this.color});
 
-  Widget _buildStatItem(
-      IconData icon, String label, String value, Color color) {
+  @override
+  Widget build(BuildContext context) {
     return Expanded(
       child: Column(
         children: [
-          Icon(icon, size: 20, color: color),
-          const SizedBox(height: 6),
-          Text(
-            value,
-            style: const TextStyle(
-              fontSize: 16,
-              fontWeight: FontWeight.bold,
-              color: Color(0xFF1F2937),
-            ),
-          ),
+          Icon(icon, size: 18, color: color),
+          const SizedBox(height: 4),
+          Text(value, style: const TextStyle(fontSize: 15, fontWeight: FontWeight.bold, color: DS.foreground)),
           const SizedBox(height: 2),
-          Text(
-            label,
-            style: const TextStyle(
-              fontSize: 11,
-              color: Color(0xFF6B7280),
-            ),
-          ),
+          Text(label, style: const TextStyle(fontSize: 10, color: DS.mutedForeground)),
         ],
       ),
     );
   }
+}
 
-  Widget _buildDivider() {
-    return Container(
-      width: 1,
-      height: 40,
-      color: const Color(0xFFE5E7EB),
-    );
-  }
+class _DateItem extends StatelessWidget {
+  final String label;
+  final String value;
+  final IconData icon;
+  final bool hasValue;
 
-  Widget _buildDateItem(
-      String label, String value, IconData icon, bool hasValue) {
+  const _DateItem({required this.label, required this.value, required this.icon, required this.hasValue});
+
+  @override
+  Widget build(BuildContext context) {
     return Container(
       padding: const EdgeInsets.all(12),
-      decoration: BoxDecoration(
-        border: Border.all(color: const Color(0xFFE5E7EB)),
-        borderRadius: BorderRadius.circular(10),
-      ),
+      decoration: BoxDecoration(border: Border.all(color: DS.cardBorder), borderRadius: BorderRadius.circular(10)),
       child: Row(
         children: [
-          Icon(
-            icon,
-            size: 18,
-            color: hasValue ? const Color(0xFF3B82F6) : const Color(0xFF9CA3AF),
-          ),
+          Icon(icon, size: 16, color: hasValue ? DS.sky600 : DS.mutedForeground.withOpacity(0.5)),
           const SizedBox(width: 8),
           Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text(
-                  label,
-                  style: const TextStyle(
-                    fontSize: 10,
-                    fontWeight: FontWeight.w500,
-                    color: Color(0xFF9CA3AF),
-                  ),
-                ),
+                Text(label, style: TextStyle(fontSize: 10, fontWeight: FontWeight.w500, color: DS.mutedForeground.withOpacity(0.7))),
                 const SizedBox(height: 2),
-                Text(
-                  value,
-                  style: TextStyle(
-                    fontSize: 12,
-                    fontWeight: FontWeight.w600,
-                    color: hasValue
-                        ? const Color(0xFF1F2937)
-                        : const Color(0xFF9CA3AF),
-                  ),
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                ),
+                Text(value, style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: hasValue ? DS.foreground : DS.mutedForeground.withOpacity(0.5)), maxLines: 1, overflow: TextOverflow.ellipsis),
               ],
             ),
           ),
         ],
-      ),
-    );
-  }
-
-  void _navigateToPatientDetail(DoctorPatient patient) {
-    Navigator.push(
-      context,
-      MaterialPageRoute(
-        builder: (context) => DoctorPatientDetailScreen(patient: patient),
       ),
     );
   }
