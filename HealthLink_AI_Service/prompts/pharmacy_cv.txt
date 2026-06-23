@@ -1,0 +1,19 @@
+Extract information from this document and return ONLY valid JSON.
+Do not include markdown formatting or code blocks.
+Use null for fields not found.
+
+Required JSON format:
+{
+  "pharmacyName": "string or null",
+  "email": "string or null",
+  "phoneNumber": "string or null",
+  "licenseNumber": "string or null",
+  "address": "string or null",
+  "city": "string or null",
+  "district": "string or null",
+  "ward": "string or null",
+  "description": "max 200 words or null"
+}
+
+DOCUMENT TEXT:
+{text}
