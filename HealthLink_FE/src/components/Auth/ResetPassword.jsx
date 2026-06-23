@@ -201,7 +201,7 @@ const styles = {
         boxShadow: '0 8px 32px rgba(0,176,154,0.12)',
         padding: '40px 36px',
         width: '100%',
-        maxWidth: '440px',
+        maxWidth: '480px',
         textAlign: 'center',
     },
     iconWrap: { marginBottom: '12px' },
