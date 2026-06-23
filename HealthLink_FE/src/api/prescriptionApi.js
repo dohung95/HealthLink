@@ -1,7 +1,7 @@
 import axiosInstance from './axiosConfig';
 import { normalizePrescription } from './normalizers';
 
-const getCurrentUserId = () => localStorage.getItem('userId');
+const getCurrentUserId = () => localStorage.getItem('userId') || sessionStorage.getItem('userId');
 
 export const prescriptionService = {
   createPrescription: async (prescriptionData) => {

@@ -235,7 +235,7 @@ const PatientPrescriptionView = () => {
                   <div className="mt-4 pt-3 border-top border-custom">
                     <button
                       className="btn btn-success px-4"
-                      onClick={() => navigate('/patient-dashboard/pharmacy')}
+                      onClick={() => navigate('/patient-dashboard/pharmacy', { state: { autoSelectPrescriptionId: selectedPrescription.prescriptionHeaderID } })}
                     >
                       <i className="bi bi-cart-plus me-2"></i>Order from pharmacy
                     </button>
