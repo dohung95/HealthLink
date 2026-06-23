@@ -13,7 +13,6 @@ const MedicalHistoryTab = ({
   formatTime,
   formatDate,
   getStatusClassName,
-  getTypeIcon,
 }) => {
   if (loadingHistory) {
     return (
@@ -99,7 +98,7 @@ const MedicalHistoryTab = ({
                   {selectedHistoryAppointment.doctorName || 'Doctor N/A'}
                 </span>
                 <span>
-                  <i className={`bi ${getTypeIcon(selectedHistoryAppointment.consultationType)}`}></i>
+                  <i className="bi bi-camera-video"></i>
                   {selectedHistoryAppointment.consultationType || 'Consultation'}
                 </span>
                 <span>

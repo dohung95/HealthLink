@@ -44,11 +44,15 @@
   width: 100%;
 }
 
+.doctor-notes-field .ck.ck-editor__main {
+  border-radius: 0;
+}
+
 .doctor-notes-field .ck.ck-editor__editable:not(.ck-editor__nested-editable) {
   min-height: 120px;
+  border-radius: 0 0 var(--radius-md) var(--radius-md);
   font-size: 0.875rem;
   line-height: 1.55;
-  border-radius: var(--radius-md);
   border: 1px solid var(--border);
 }
 

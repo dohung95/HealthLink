@@ -208,7 +208,7 @@ function AppContent() {
   && !isResetPasswordPage
   && !isPatientDashboard
   && !isDoctorPage
-  && !isPharmacyChatPage
+  && !isPharmacyDashboard
   && <Chat />}
         <ScrollToTop />
         {!hideLayout && <Navbar />}

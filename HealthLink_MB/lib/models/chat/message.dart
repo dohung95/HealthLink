@@ -25,6 +25,9 @@ class Message {
   /// URL file đính kèm (nếu có)
   final String? fileUrl;
 
+  /// URL audio đính kèm (nếu có)
+  final String? audioUrl;
+
   /// Vai trò người gửi (me / other) – xác định sau khi biết currentUserId
   final MessageSender sender;
 
@@ -45,6 +48,7 @@ class Message {
     this.imageUrl,
     this.videoUrl,
     this.fileUrl,
+    this.audioUrl,
     required this.sender,
     required this.sentAt,
     this.isRead = false,
@@ -65,6 +69,7 @@ class Message {
       imageUrl: json['imageUrl']?.toString(),
       videoUrl: json['videoUrl']?.toString(),
       fileUrl: json['fileUrl']?.toString(),
+      audioUrl: json['audioUrl']?.toString(),
       sender: sender,
       sentAt: json['timestamp'] != null
           ? DateTime.tryParse(json['timestamp'].toString()) ?? DateTime.now()

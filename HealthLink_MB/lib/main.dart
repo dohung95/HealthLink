@@ -38,6 +38,7 @@ Future<void> main() async {
         ),
         ChangeNotifierProvider<VideoCallProvider>(
           create: (_) => VideoCallProvider(),
+          lazy: false,
         ),
         ChangeNotifierProvider<PharmacyOrderProvider>(
           create: (_) => PharmacyOrderProvider(),

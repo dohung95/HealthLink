@@ -1,4 +1,10 @@
 import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
+import '../../providers/auth_provider.dart';
+import '../../providers/chat/chat_provider.dart';
+import '../../providers/video_call_provider.dart';
+import '../../services/video_audio/webrtc_stomp_service.dart';
+
 import 'doctor_home_screen.dart';
 import 'doctor_appointments_screen.dart';
 import 'doctor_patients_screen.dart';
@@ -30,6 +36,15 @@ class _DoctorMainLayoutState extends State<DoctorMainLayout> {
       const MessagesScreen(),
       const DoctorProfileScreen(),
     ];
+
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      final auth = context.read<AuthProvider>();
+      if (auth.isAuthenticated && auth.accessToken != null && auth.userId != null) {
+        context.read<ChatProvider>().loadConversations(auth.accessToken!, auth.userId!);
+        context.read<VideoCallProvider>().updateUserId(auth.userId);
+        WebrtcStompService.instance.connect(auth.accessToken!, auth.userId!);
+      }
+    });
   }
 
   @override

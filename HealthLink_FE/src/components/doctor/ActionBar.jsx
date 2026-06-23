@@ -20,7 +20,6 @@ const ActionBar = ({
   handleVideoCall,
   joinDisabled,
   actionLabel,
-  getTypeIcon,
   currentAppointment,
   canEditClinical,
   completingAppointment,
@@ -48,12 +47,8 @@ const ActionBar = ({
       if (typeof onLockedAction === 'function') onLockedAction();
       return;
     }
-    // Phân biệt loại cuộc hẹn: Chat → mở chat, còn lại → video call
-    if (currentAppointment?.consultationType === 'Chat') {
-      handleChat();
-      return;
-    }
-    handleVideoCall();
+    // Luồng mới: luôn mở Chat, trong Chat có tích hợp Video Call
+    handleChat();
   };
 
   /**
@@ -95,7 +90,7 @@ const ActionBar = ({
           type="button"
           title={joinDisabled ? 'Cannot join: consultation not active or already completed.' : ''}
         >
-          <i className={`bi ${getTypeIcon(currentAppointment?.consultationType)} me-2`} />
+          <i className="bi bi-chat-dots me-2" />
           {actionLabel}
         </button>
 
