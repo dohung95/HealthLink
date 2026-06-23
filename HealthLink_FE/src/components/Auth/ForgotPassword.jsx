@@ -86,7 +86,7 @@ export default function ForgotPassword() {
                 )}
 
                 <div className="forgot-password-footer">
-                    <Link to="/login" className="forgot-password-link">
+                    <Link to="/login" state={{ fromAuth: true }} className="forgot-password-link">
                         <i className="bi bi-arrow-left me-1"></i>Back to Login
                     </Link>
                 </div>

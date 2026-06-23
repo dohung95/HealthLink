@@ -65,7 +65,15 @@ export default function ResetPassword() {
 
     return (
         <div style={styles.container}>
-            <div style={styles.card}>
+            <style>
+                {`
+                    @keyframes smoothFadeInUp {
+                        0% { opacity: 0; transform: translateY(30px); }
+                        100% { opacity: 1; transform: translateY(0); }
+                    }
+                `}
+            </style>
+            <div style={{ ...styles.card, animation: 'smoothFadeInUp 0.6s cubic-bezier(0.16, 1, 0.3, 1)' }}>
                 <div style={styles.iconWrap}>
                     <i className="bi bi-lock-fill" style={{ fontSize: '2rem', color: '#00b09a' }}></i>
                 </div>
@@ -78,7 +86,7 @@ export default function ResetPassword() {
                         <p style={{ color: '#555', fontSize: '0.95rem' }}>
                             Redirecting to login page in a moment...
                         </p>
-                        <Link to="/login" style={styles.link}>Go to Login now</Link>
+                        <Link to="/login" state={{ fromAuth: true }} style={styles.link}>Go to Login now</Link>
                     </div>
                 ) : (
                     <>
@@ -173,11 +181,11 @@ export default function ResetPassword() {
                         )}
 
                         <div style={styles.footer}>
-                            <Link to="/forgot-password" style={styles.link}>
+                            <Link to="/forgot-password" state={{ fromAuth: true }} style={styles.link}>
                                 Request a new reset link
                             </Link>
                             {' · '}
-                            <Link to="/login" style={styles.link}>Back to Login</Link>
+                            <Link to="/login" state={{ fromAuth: true }} style={styles.link}>Back to Login</Link>
                         </div>
                     </>
                 )}

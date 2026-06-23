@@ -9,13 +9,14 @@ import '../Css/Sign_in.css';
 export function Sign_in() {
     const navigate = useNavigate();
     const location = useLocation();
+    const fromAuth = location.state?.fromAuth || false;
     const redirectTo = location.state?.redirectTo || sessionStorage.getItem('postLoginRedirect');
     const { login, token, roles } = useAuth();
     const [email, setEmail] = useState('');
     const [password, setPassword] = useState('');
     const [rememberMe, setRememberMe] = useState(false);
     const [error, setError] = useState('');
-    const [loading, setLoading] = useState(true); // Initial page loading
+    const [loading, setLoading] = useState(!fromAuth); // Initial page loading if not from auth
     const [submitting, setSubmitting] = useState(false); // Form submission loading
     const [showErrorModal, setShowErrorModal] = useState(false);
     const [errorModalMessage, setErrorModalMessage] = useState('');
@@ -26,14 +27,15 @@ export function Sign_in() {
     const [emailTouched, setEmailTouched] = useState(false);
     const [passwordTouched, setPasswordTouched] = useState(false);
 
-    // Initial loading effect (giống Home.jsx)
+    // Initial loading effect
     useEffect(() => {
-        const timer = setTimeout(() => {
-            setLoading(false);
-        }, 1000);
-
-        return () => clearTimeout(timer);
-    }, []);
+        if (!fromAuth) {
+            const timer = setTimeout(() => {
+                setLoading(false);
+            }, 1000);
+            return () => clearTimeout(timer);
+        }
+    }, [fromAuth]);
 
     // Custom validation functions
     const validateEmail = (value) => {
@@ -239,10 +241,10 @@ export function Sign_in() {
                             )}
                             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: '6px' }}>
                                 <div style={{ display: 'flex', alignItems: 'center' }}>
-                                    <input 
-                                        type="checkbox" 
-                                        id="rememberMe" 
-                                        checked={rememberMe} 
+                                    <input
+                                        type="checkbox"
+                                        id="rememberMe"
+                                        checked={rememberMe}
                                         onChange={(e) => setRememberMe(e.target.checked)}
                                         disabled={submitting}
                                         style={{ marginRight: '8px', cursor: 'pointer' }}
@@ -251,7 +253,7 @@ export function Sign_in() {
                                         Remember me
                                     </label>
                                 </div>
-                                <Link to="/forgot-password" style={{ fontSize: '0.85rem', color: '#00b09a', textDecoration: 'none' }}>
+                                <Link to="/forgot-password" state={{ fromAuth: true }} style={{ fontSize: '0.85rem', color: '#00b09a', textDecoration: 'none' }}>
                                     Forgot password?
                                 </Link>
                             </div>
@@ -261,7 +263,7 @@ export function Sign_in() {
                         </button>
                     </form>
                     <p>
-                        Don't have an account? <Link to="/register">Register</Link>
+                        Don't have an account? <Link to="/register" state={{ fromAuth: true }}>Register</Link>
                     </p>
                 </div>
             </div>
