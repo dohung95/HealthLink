@@ -1,21 +1,17 @@
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 import 'package:provider/provider.dart';
-import '../../config/doctor_theme.dart';
 import '../../providers/auth_provider.dart';
 import '../../models/doctor/wallet_balance.dart';
 import '../../models/doctor/commission_transaction.dart';
 import '../../models/doctor/settlement.dart';
 import '../../services/doctor/doctor_wallet_service.dart';
+import '../../config/doctor_theme.dart';
+import '../../widgets/doctor/doctor_widgets.dart';
 import 'doctor_withdraw_sheet.dart';
 
-/// Main wallet screen cho Doctor
-/// Hiển thị balance, transactions, và withdrawals
 class DoctorWalletScreen extends StatefulWidget {
-  const DoctorWalletScreen({
-    super.key,
-    required this.doctorId,
-  });
+  const DoctorWalletScreen({super.key, required this.doctorId});
 
   final String doctorId;
 
@@ -23,8 +19,7 @@ class DoctorWalletScreen extends StatefulWidget {
   State<DoctorWalletScreen> createState() => _DoctorWalletScreenState();
 }
 
-class _DoctorWalletScreenState extends State<DoctorWalletScreen>
-    with SingleTickerProviderStateMixin {
+class _DoctorWalletScreenState extends State<DoctorWalletScreen> with SingleTickerProviderStateMixin {
   late TabController _tabController;
   DoctorWalletService? _walletService;
 
@@ -51,26 +46,16 @@ class _DoctorWalletScreenState extends State<DoctorWalletScreen>
     final auth = context.read<AuthProvider>();
     final token = auth.accessToken;
     if (token != null) {
-      _walletService = DoctorWalletService(
-        accessToken: token,
-        doctorId: widget.doctorId,
-      );
+      _walletService = DoctorWalletService(accessToken: token, doctorId: widget.doctorId);
       _loadData();
     } else {
-      setState(() {
-        _error = 'Not authenticated';
-        _isLoading = false;
-      });
+      setState(() { _error = 'Not authenticated'; _isLoading = false; });
     }
   }
 
   Future<void> _loadData() async {
     if (_walletService == null) return;
-
-    setState(() {
-      _isLoading = true;
-      _error = null;
-    });
+    setState(() { _isLoading = true; _error = null; });
 
     try {
       final results = await Future.wait([
@@ -88,221 +73,123 @@ class _DoctorWalletScreenState extends State<DoctorWalletScreen>
         });
       }
     } catch (e) {
-      if (mounted) {
-        setState(() {
-          _error = e.toString().replaceFirst('Exception: ', '');
-          _isLoading = false;
-        });
-      }
+      if (mounted) setState(() { _error = e.toString().replaceFirst('Exception: ', ''); _isLoading = false; });
     }
   }
 
   void _showWithdrawSheet() {
     if (_walletService == null || _balance == null) return;
-
     showModalBottomSheet(
       context: context,
       isScrollControlled: true,
       backgroundColor: Colors.transparent,
-      builder: (context) => DoctorWithdrawSheet(
-        walletService: _walletService!,
-        maxAmount: _balance!.eligibleForWithdrawal,
-        onSuccess: _loadData,
-      ),
+      builder: (context) => DoctorWithdrawSheet(walletService: _walletService!, maxAmount: _balance!.eligibleForWithdrawal, onSuccess: _loadData),
     );
   }
+
+  String _formatCurrency(double amount) => NumberFormat.currency(symbol: '\$', decimalDigits: 2).format(amount);
+  String _formatDateTime(DateTime dt) => DateFormat('MMM d, yyyy · h:mm a').format(dt);
 
   @override
   Widget build(BuildContext context) {
-    final colors = context.doctorColors;
-
     return Scaffold(
-      appBar: AppBar(
-        title: const Text('Wallet & Earnings'),
-        backgroundColor: colors.primary,
-        foregroundColor: Colors.white,
-        actions: [
-          IconButton(
-            icon: const Icon(Icons.refresh),
-            onPressed: _loadData,
+      backgroundColor: DS.background,
+      body: Column(
+        children: [
+          DoctorBackHeader(title: 'Wallet & Earnings', onBack: () => Navigator.pop(context)),
+          Expanded(
+            child: _isLoading
+                ? const Center(child: CircularProgressIndicator(color: DS.primary))
+                : _error != null
+                    ? _buildErrorWidget()
+                    : RefreshIndicator(
+                        onRefresh: _loadData,
+                        color: DS.primary,
+                        child: SingleChildScrollView(
+                          physics: const AlwaysScrollableScrollPhysics(),
+                          child: Padding(
+                            padding: const EdgeInsets.all(20),
+                            child: Column(children: [_buildBalanceCard(), const SizedBox(height: 20), _buildTabs()]),
+                          ),
+                        ),
+                      ),
           ),
         ],
       ),
-      body: _isLoading
-          ? Center(child: CircularProgressIndicator(color: colors.primary))
-          : _error != null
-              ? _buildErrorWidget(colors)
-              : RefreshIndicator(
-                  onRefresh: _loadData,
-                  color: colors.primary,
-                  child: CustomScrollView(
-                    slivers: [
-                      SliverToBoxAdapter(
-                        child: Column(
-                          children: [
-                            _buildBalanceCard(colors),
-                            const SizedBox(height: 16),
-                          ],
-                        ),
-                      ),
-                      SliverPersistentHeader(
-                        pinned: true,
-                        delegate: _TabBarDelegate(
-                          tabController: _tabController,
-                          colors: colors,
-                        ),
-                      ),
-                      SliverFillRemaining(
-                        child: TabBarView(
-                          controller: _tabController,
-                          children: [
-                            _buildTransactionsList(colors),
-                            _buildSettlementsList(colors),
-                          ],
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
     );
   }
 
-  Widget _buildErrorWidget(DoctorColors colors) {
+  Widget _buildErrorWidget() {
     return Center(
       child: Padding(
         padding: const EdgeInsets.all(24),
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            Icon(Icons.error_outline, size: 64, color: colors.error),
+            Container(width: 64, height: 64, decoration: const BoxDecoration(color: DS.secondary, shape: BoxShape.circle), child: Icon(Icons.error_outline, size: 28, color: DS.mutedForeground.withOpacity(0.6))),
             const SizedBox(height: 16),
-            Text(
-              'Failed to load wallet',
-              style: TextStyle(fontSize: 18, color: colors.onSurfaceVariant),
-            ),
-            const SizedBox(height: 8),
-            Text(
-              _error ?? '',
-              textAlign: TextAlign.center,
-              style: TextStyle(
-                fontSize: 14,
-                color: colors.onSurfaceVariant.withOpacity(0.7),
-              ),
-            ),
+            const Text('Failed to load wallet', style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600, color: DS.foreground)),
+            const SizedBox(height: 4),
+            Text(_error ?? '', textAlign: TextAlign.center, style: const TextStyle(fontSize: 14, color: DS.mutedForeground)),
             const SizedBox(height: 24),
-            ElevatedButton.icon(
-              onPressed: _loadData,
-              icon: const Icon(Icons.refresh),
-              label: const Text('Retry'),
-            ),
+            ElevatedButton.icon(onPressed: _loadData, icon: const Icon(Icons.refresh, size: 18), label: const Text('Retry'), style: DS.primaryButtonStyle),
           ],
         ),
       ),
     );
   }
 
-  Widget _buildBalanceCard(DoctorColors colors) {
-    final currencyFormat = NumberFormat.currency(symbol: '\$', decimalDigits: 2);
-
+  Widget _buildBalanceCard() {
     return Container(
-      margin: const EdgeInsets.all(16),
+      width: double.infinity,
       padding: const EdgeInsets.all(20),
-      decoration: BoxDecoration(
-        gradient: LinearGradient(
-          begin: Alignment.topLeft,
-          end: Alignment.bottomRight,
-          colors: [
-            colors.primary,
-            colors.primary.withOpacity(0.8),
-          ],
-        ),
-        borderRadius: BorderRadius.circular(20),
-        boxShadow: [
-          BoxShadow(
-            color: colors.primary.withOpacity(0.3),
-            blurRadius: 15,
-            offset: const Offset(0, 8),
-          ),
-        ],
-      ),
+      decoration: BoxDecoration(color: DS.primary, borderRadius: BorderRadius.circular(12)),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Row(
-            children: [
-              const Icon(
-                Icons.account_balance_wallet,
-                color: Colors.white,
-                size: 28,
-              ),
-              const SizedBox(width: 12),
-              const Text(
-                'Your Earnings',
-                style: TextStyle(
-                  color: Colors.white70,
-                  fontSize: 16,
-                ),
-              ),
-            ],
-          ),
+          Row(children: [
+            Icon(Icons.account_balance_wallet_outlined, size: 16, color: DS.primaryForeground.withOpacity(0.8)),
+            const SizedBox(width: 8),
+            Text('Total Earnings', style: TextStyle(fontSize: 14, color: DS.primaryForeground.withOpacity(0.8))),
+          ]),
+          const SizedBox(height: 4),
+          Text(_formatCurrency(_balance?.totalBalance ?? 0), style: const TextStyle(fontSize: 30, fontWeight: FontWeight.bold, color: DS.primaryForeground)),
           const SizedBox(height: 20),
-          // Main balance
-          Text(
-            currencyFormat.format(_balance?.totalBalance ?? 0),
-            style: const TextStyle(
-              color: Colors.white,
-              fontSize: 36,
-              fontWeight: FontWeight.bold,
-            ),
-          ),
-          const SizedBox(height: 20),
-          // Breakdown
-          Row(
-            children: [
-              Expanded(
-                child: _buildBalanceItem(
-                  'Available',
-                  currencyFormat.format(_balance?.eligibleForWithdrawal ?? 0),
-                  Icons.check_circle_outline,
-                ),
-              ),
-              Container(
-                width: 1,
-                height: 40,
-                color: Colors.white24,
-              ),
-              Expanded(
-                child: _buildBalanceItem(
-                  'Pending',
-                  currencyFormat.format(_balance?.pendingBalance ?? 0),
-                  Icons.schedule,
-                ),
-              ),
-            ],
-          ),
-          const SizedBox(height: 20),
-          // Withdraw button
+          Row(children: [
+            Expanded(child: Container(
+              padding: const EdgeInsets.all(12),
+              decoration: BoxDecoration(color: Colors.white.withOpacity(0.15), borderRadius: BorderRadius.circular(12)),
+              child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                Text('Available', style: TextStyle(fontSize: 12, color: DS.primaryForeground.withOpacity(0.8))),
+                const SizedBox(height: 2),
+                Text(_formatCurrency(_balance?.eligibleForWithdrawal ?? 0), style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: DS.primaryForeground)),
+              ]),
+            )),
+            const SizedBox(width: 12),
+            Expanded(child: Container(
+              padding: const EdgeInsets.all(12),
+              decoration: BoxDecoration(color: Colors.white.withOpacity(0.15), borderRadius: BorderRadius.circular(12)),
+              child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                Text('Pending', style: TextStyle(fontSize: 12, color: DS.primaryForeground.withOpacity(0.8))),
+                const SizedBox(height: 2),
+                Text(_formatCurrency(_balance?.pendingBalance ?? 0), style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: DS.primaryForeground)),
+              ]),
+            )),
+          ]),
+          const SizedBox(height: 16),
           SizedBox(
             width: double.infinity,
             child: ElevatedButton.icon(
               onPressed: (_balance?.canWithdraw ?? false) ? _showWithdrawSheet : null,
+              icon: const Icon(Icons.download, size: 16),
+              label: const Text('Withdraw Funds'),
               style: ElevatedButton.styleFrom(
-                backgroundColor: Colors.white,
-                foregroundColor: colors.primary,
-                disabledBackgroundColor: Colors.white38,
-                disabledForegroundColor: Colors.white70,
-                padding: const EdgeInsets.symmetric(vertical: 14),
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(12),
-                ),
-              ),
-              icon: const Icon(Icons.payments_outlined),
-              label: Text(
-                (_balance?.canWithdraw ?? false) ? 'Withdraw Funds' : 'No Funds Available',
-                style: const TextStyle(
-                  fontWeight: FontWeight.bold,
-                  fontSize: 16,
-                ),
+                backgroundColor: DS.secondary,
+                foregroundColor: DS.foreground,
+                disabledBackgroundColor: DS.secondary.withOpacity(0.5),
+                disabledForegroundColor: DS.mutedForeground,
+                padding: const EdgeInsets.symmetric(vertical: 12),
+                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
               ),
             ),
           ),
@@ -311,509 +198,111 @@ class _DoctorWalletScreenState extends State<DoctorWalletScreen>
     );
   }
 
-  Widget _buildBalanceItem(String label, String value, IconData icon) {
-    return Column(
-      children: [
-        Icon(icon, color: Colors.white70, size: 20),
-        const SizedBox(height: 4),
-        Text(
-          value,
-          style: const TextStyle(
-            color: Colors.white,
-            fontSize: 18,
-            fontWeight: FontWeight.bold,
-          ),
+  Widget _buildTabs() {
+    return Column(children: [
+      Container(
+        decoration: BoxDecoration(color: DS.secondary, borderRadius: BorderRadius.circular(8)),
+        child: TabBar(
+          controller: _tabController,
+          indicator: BoxDecoration(color: DS.card, borderRadius: BorderRadius.circular(6), boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.05), blurRadius: 4, offset: const Offset(0, 1))]),
+          indicatorPadding: const EdgeInsets.all(4),
+          labelColor: DS.foreground,
+          unselectedLabelColor: DS.mutedForeground,
+          labelStyle: const TextStyle(fontSize: 14, fontWeight: FontWeight.w500),
+          dividerColor: Colors.transparent,
+          tabs: const [Tab(text: 'Transactions'), Tab(text: 'Withdrawals')],
         ),
-        Text(
-          label,
-          style: const TextStyle(
-            color: Colors.white70,
-            fontSize: 12,
-          ),
-        ),
-      ],
-    );
+      ),
+      const SizedBox(height: 16),
+      SizedBox(height: 500, child: TabBarView(controller: _tabController, children: [_buildTransactionsList(), _buildSettlementsList()])),
+    ]);
   }
 
-  Widget _buildTransactionsList(DoctorColors colors) {
-    if (_transactions.isEmpty) {
-      return _buildEmptyState(
-        colors,
-        icon: Icons.receipt_long_outlined,
-        title: 'No Transactions Yet',
-        subtitle: 'Your earnings from consultations will appear here',
-      );
-    }
-
+  Widget _buildTransactionsList() {
+    if (_transactions.isEmpty) return const DoctorEmptyState(icon: Icons.receipt_long_outlined, title: 'No transactions yet', subtitle: 'Your consultation earnings will appear here.');
     return ListView.separated(
-      padding: const EdgeInsets.all(16),
+      shrinkWrap: true,
+      physics: const NeverScrollableScrollPhysics(),
       itemCount: _transactions.length,
       separatorBuilder: (_, __) => const SizedBox(height: 12),
-      itemBuilder: (context, index) {
-        final tx = _transactions[index];
-        return _TransactionCard(transaction: tx, colors: colors);
-      },
+      itemBuilder: (context, index) => _TransactionCard(transaction: _transactions[index], formatCurrency: _formatCurrency, formatDateTime: _formatDateTime),
     );
   }
 
-  Widget _buildSettlementsList(DoctorColors colors) {
-    if (_settlements.isEmpty) {
-      return _buildEmptyState(
-        colors,
-        icon: Icons.payments_outlined,
-        title: 'No Withdrawals Yet',
-        subtitle: 'Your withdrawal history will appear here',
-      );
-    }
-
+  Widget _buildSettlementsList() {
+    if (_settlements.isEmpty) return const DoctorEmptyState(icon: Icons.download, title: 'No withdrawals', subtitle: 'Your withdrawal requests will appear here.');
     return ListView.separated(
-      padding: const EdgeInsets.all(16),
+      shrinkWrap: true,
+      physics: const NeverScrollableScrollPhysics(),
       itemCount: _settlements.length,
       separatorBuilder: (_, __) => const SizedBox(height: 12),
-      itemBuilder: (context, index) {
-        final settlement = _settlements[index];
-        return _SettlementCard(settlement: settlement, colors: colors);
-      },
+      itemBuilder: (context, index) => _SettlementCard(settlement: _settlements[index], formatCurrency: _formatCurrency, formatDateTime: _formatDateTime),
     );
   }
-
-  Widget _buildEmptyState(
-    DoctorColors colors, {
-    required IconData icon,
-    required String title,
-    required String subtitle,
-  }) {
-    return Center(
-      child: Padding(
-        padding: const EdgeInsets.all(32),
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            Icon(
-              icon,
-              size: 64,
-              color: colors.onSurfaceVariant.withOpacity(0.4),
-            ),
-            const SizedBox(height: 16),
-            Text(
-              title,
-              style: TextStyle(
-                fontSize: 18,
-                fontWeight: FontWeight.w600,
-                color: colors.onSurfaceVariant,
-              ),
-            ),
-            const SizedBox(height: 8),
-            Text(
-              subtitle,
-              textAlign: TextAlign.center,
-              style: TextStyle(
-                color: colors.onSurfaceVariant.withOpacity(0.7),
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-}
-
-class _TabBarDelegate extends SliverPersistentHeaderDelegate {
-  _TabBarDelegate({
-    required this.tabController,
-    required this.colors,
-  });
-
-  final TabController tabController;
-  final DoctorColors colors;
-
-  @override
-  Widget build(
-    BuildContext context,
-    double shrinkOffset,
-    bool overlapsContent,
-  ) {
-    return Container(
-      color: Theme.of(context).colorScheme.surface,
-      child: TabBar(
-        controller: tabController,
-        labelColor: colors.primary,
-        unselectedLabelColor: colors.onSurfaceVariant,
-        indicatorColor: colors.primary,
-        tabs: const [
-          Tab(text: 'Transactions', icon: Icon(Icons.receipt_long_outlined)),
-          Tab(text: 'Withdrawals', icon: Icon(Icons.payments_outlined)),
-        ],
-      ),
-    );
-  }
-
-  @override
-  double get maxExtent => 72;
-
-  @override
-  double get minExtent => 72;
-
-  @override
-  bool shouldRebuild(covariant SliverPersistentHeaderDelegate oldDelegate) =>
-      false;
 }
 
 class _TransactionCard extends StatelessWidget {
-  const _TransactionCard({
-    required this.transaction,
-    required this.colors,
-  });
-
   final CommissionTransaction transaction;
-  final DoctorColors colors;
+  final String Function(double) formatCurrency;
+  final String Function(DateTime) formatDateTime;
+
+  const _TransactionCard({required this.transaction, required this.formatCurrency, required this.formatDateTime});
 
   @override
   Widget build(BuildContext context) {
-    final currencyFormat = NumberFormat.currency(symbol: '\$', decimalDigits: 2);
-    final dateFormat = DateFormat('dd MMM yyyy, HH:mm');
-
-    Color statusColor;
-    switch (transaction.status) {
-      case 'COMPLETED':
-      case 'ELIGIBLE':
-        statusColor = colors.success;
-        break;
-      case 'PENDING':
-        statusColor = colors.warning;
-        break;
-      case 'WITHDRAWN':
-        statusColor = colors.info;
-        break;
-      default:
-        statusColor = colors.statusDefault;
-    }
-
     return Container(
       padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        color: Theme.of(context).colorScheme.surface,
-        borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: colors.cardBorder),
-        boxShadow: [
-          BoxShadow(
-            color: colors.cardShadow,
-            blurRadius: 8,
-            offset: const Offset(0, 2),
-          ),
-        ],
-      ),
+      decoration: DS.cardDecoration,
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Row(
-            children: [
-              Container(
-                width: 44,
-                height: 44,
-                decoration: BoxDecoration(
-                  color: colors.primary.withOpacity(0.1),
-                  borderRadius: BorderRadius.circular(12),
-                ),
-                child: Icon(
-                  Icons.person_outline,
-                  color: colors.primary,
-                ),
-              ),
-              const SizedBox(width: 12),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      transaction.patientName,
-                      style: const TextStyle(
-                        fontWeight: FontWeight.w600,
-                        fontSize: 15,
-                      ),
-                    ),
-                    Text(
-                      transaction.displayType,
-                      style: TextStyle(
-                        color: colors.onSurfaceVariant,
-                        fontSize: 13,
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-              Column(
-                crossAxisAlignment: CrossAxisAlignment.end,
-                children: [
-                  Text(
-                    '+${currencyFormat.format(transaction.netAmount)}',
-                    style: TextStyle(
-                      fontWeight: FontWeight.bold,
-                      fontSize: 16,
-                      color: colors.money,
-                    ),
-                  ),
-                  Container(
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: 8,
-                      vertical: 2,
-                    ),
-                    decoration: BoxDecoration(
-                      color: statusColor.withOpacity(0.1),
-                      borderRadius: BorderRadius.circular(8),
-                    ),
-                    child: Text(
-                      transaction.displayStatus,
-                      style: TextStyle(
-                        color: statusColor,
-                        fontSize: 11,
-                        fontWeight: FontWeight.w600,
-                      ),
-                    ),
-                  ),
-                ],
-              ),
-            ],
-          ),
-          const SizedBox(height: 12),
-          Container(
-            padding: const EdgeInsets.all(10),
-            decoration: BoxDecoration(
-              color: colors.surfaceContainer,
-              borderRadius: BorderRadius.circular(10),
-            ),
-            child: Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              children: [
-                _buildDetailItem('Gross', currencyFormat.format(transaction.grossAmount)),
-                _buildDetailItem('Commission', '-${transaction.commissionRatePercent}'),
-                _buildDetailItem('Net', currencyFormat.format(transaction.netAmount)),
-              ],
-            ),
-          ),
+          Row(children: [
+            Expanded(child: Text(transaction.patientName, style: const TextStyle(fontSize: 15, fontWeight: FontWeight.w600, color: DS.foreground))),
+            DoctorStatusBadge(status: transaction.status),
+          ]),
           const SizedBox(height: 8),
-          Text(
-            dateFormat.format(transaction.createdAt),
-            style: TextStyle(
-              color: colors.onSurfaceVariant.withOpacity(0.7),
-              fontSize: 12,
-            ),
-          ),
+          Row(mainAxisAlignment: MainAxisAlignment.spaceBetween, children: [
+            Text('${formatCurrency(transaction.grossAmount)} gross · ${transaction.commissionRatePercent} fee', style: const TextStyle(fontSize: 14, color: DS.mutedForeground)),
+            Text('+${formatCurrency(transaction.netAmount)}', style: const TextStyle(fontSize: 14, fontWeight: FontWeight.bold, color: DS.emerald600)),
+          ]),
+          const SizedBox(height: 4),
+          Text(formatDateTime(transaction.createdAt), style: const TextStyle(fontSize: 12, color: DS.mutedForeground)),
         ],
       ),
-    );
-  }
-
-  Widget _buildDetailItem(String label, String value) {
-    return Column(
-      children: [
-        Text(
-          label,
-          style: TextStyle(
-            color: colors.onSurfaceVariant,
-            fontSize: 11,
-          ),
-        ),
-        const SizedBox(height: 2),
-        Text(
-          value,
-          style: const TextStyle(
-            fontWeight: FontWeight.w600,
-            fontSize: 13,
-          ),
-        ),
-      ],
     );
   }
 }
 
 class _SettlementCard extends StatelessWidget {
-  const _SettlementCard({
-    required this.settlement,
-    required this.colors,
-  });
-
   final Settlement settlement;
-  final DoctorColors colors;
+  final String Function(double) formatCurrency;
+  final String Function(DateTime) formatDateTime;
+
+  const _SettlementCard({required this.settlement, required this.formatCurrency, required this.formatDateTime});
 
   @override
   Widget build(BuildContext context) {
-    final currencyFormat = NumberFormat.currency(symbol: '\$', decimalDigits: 2);
-    final dateFormat = DateFormat('dd MMM yyyy, HH:mm');
-
-    Color statusColor;
-    IconData statusIcon;
-    switch (settlement.status) {
-      case 'COMPLETED':
-        statusColor = colors.success;
-        statusIcon = Icons.check_circle;
-        break;
-      case 'PENDING':
-        statusColor = colors.warning;
-        statusIcon = Icons.schedule;
-        break;
-      case 'PROCESSING':
-        statusColor = colors.info;
-        statusIcon = Icons.sync;
-        break;
-      case 'REJECTED':
-      case 'CANCELLED':
-        statusColor = colors.error;
-        statusIcon = Icons.cancel;
-        break;
-      default:
-        statusColor = colors.statusDefault;
-        statusIcon = Icons.help_outline;
-    }
-
     return Container(
       padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        color: Theme.of(context).colorScheme.surface,
-        borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: colors.cardBorder),
-        boxShadow: [
-          BoxShadow(
-            color: colors.cardShadow,
-            blurRadius: 8,
-            offset: const Offset(0, 2),
-          ),
-        ],
-      ),
+      decoration: DS.cardDecoration,
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Row(
-            children: [
-              Container(
-                width: 44,
-                height: 44,
-                decoration: BoxDecoration(
-                  color: statusColor.withOpacity(0.1),
-                  borderRadius: BorderRadius.circular(12),
-                ),
-                child: Icon(statusIcon, color: statusColor),
-              ),
-              const SizedBox(width: 12),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      'Withdrawal Request',
-                      style: const TextStyle(
-                        fontWeight: FontWeight.w600,
-                        fontSize: 15,
-                      ),
-                    ),
-                    if (settlement.paypalEmail != null)
-                      Text(
-                        settlement.paypalEmail!,
-                        style: TextStyle(
-                          color: colors.onSurfaceVariant,
-                          fontSize: 13,
-                        ),
-                      ),
-                  ],
-                ),
-              ),
-              Column(
-                crossAxisAlignment: CrossAxisAlignment.end,
-                children: [
-                  Text(
-                    currencyFormat.format(settlement.amount),
-                    style: TextStyle(
-                      fontWeight: FontWeight.bold,
-                      fontSize: 18,
-                      color: settlement.isCompleted ? colors.success : colors.onSurface,
-                    ),
-                  ),
-                  Container(
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: 8,
-                      vertical: 2,
-                    ),
-                    decoration: BoxDecoration(
-                      color: statusColor.withOpacity(0.1),
-                      borderRadius: BorderRadius.circular(8),
-                    ),
-                    child: Text(
-                      settlement.displayStatus,
-                      style: TextStyle(
-                        color: statusColor,
-                        fontSize: 11,
-                        fontWeight: FontWeight.w600,
-                      ),
-                    ),
-                  ),
-                ],
-              ),
-            ],
-          ),
-          const SizedBox(height: 12),
-          Row(
-            children: [
-              Icon(Icons.access_time, size: 14, color: colors.onSurfaceVariant),
-              const SizedBox(width: 4),
-              Text(
-                dateFormat.format(settlement.createdAt),
-                style: TextStyle(
-                  color: colors.onSurfaceVariant,
-                  fontSize: 12,
-                ),
-              ),
-              if (settlement.processedAt != null) ...[
-                const SizedBox(width: 16),
-                Icon(Icons.check, size: 14, color: colors.success),
-                const SizedBox(width: 4),
-                Text(
-                  'Processed: ${dateFormat.format(settlement.processedAt!)}',
-                  style: TextStyle(
-                    color: colors.success,
-                    fontSize: 12,
-                  ),
-                ),
-              ],
-            ],
-          ),
-          if (settlement.notes != null && settlement.notes!.isNotEmpty) ...[
-            const SizedBox(height: 8),
-            Text(
-              'Note: ${settlement.notes}',
-              style: TextStyle(
-                color: colors.onSurfaceVariant,
-                fontSize: 13,
-                fontStyle: FontStyle.italic,
-              ),
-            ),
-          ],
+          Row(children: [
+            Expanded(child: Text(formatCurrency(settlement.amount), style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: DS.foreground))),
+            DoctorStatusBadge(status: settlement.status),
+          ]),
+          const SizedBox(height: 4),
+          if (settlement.paypalEmail != null) Text(settlement.paypalEmail!, style: const TextStyle(fontSize: 12, color: DS.mutedForeground)),
+          const SizedBox(height: 4),
+          Text('Requested ${formatDateTime(settlement.createdAt)}${settlement.processedAt != null ? ' · Processed ${formatDateTime(settlement.processedAt!)}' : ''}', style: const TextStyle(fontSize: 12, color: DS.mutedForeground)),
           if (settlement.adminNotes != null && settlement.adminNotes!.isNotEmpty) ...[
             const SizedBox(height: 8),
             Container(
-              padding: const EdgeInsets.all(10),
-              decoration: BoxDecoration(
-                color: settlement.isFailed ? colors.errorBg : colors.infoBg,
-                borderRadius: BorderRadius.circular(8),
-              ),
-              child: Row(
-                children: [
-                  Icon(
-                    settlement.isFailed ? Icons.error_outline : Icons.info_outline,
-                    size: 16,
-                    color: settlement.isFailed ? colors.error : colors.info,
-                  ),
-                  const SizedBox(width: 8),
-                  Expanded(
-                    child: Text(
-                      settlement.adminNotes!,
-                      style: TextStyle(
-                        color: settlement.isFailed ? colors.error : colors.info,
-                        fontSize: 13,
-                      ),
-                    ),
-                  ),
-                ],
-              ),
+              width: double.infinity,
+              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 6),
+              decoration: BoxDecoration(color: DS.secondary, borderRadius: BorderRadius.circular(6)),
+              child: Text(settlement.adminNotes!, style: const TextStyle(fontSize: 12, color: DS.secondaryForeground)),
             ),
           ],
         ],

@@ -1,6 +1,6 @@
 package com.HealthLink.service.ai;
 
-import com.HealthLink.config.GeminiConfig;
+import com.HealthLink.config.AIScreeningConfig;
 import com.HealthLink.dto.ai.DocumentScreeningResult;
 import com.HealthLink.dto.ai.ScreeningResult;
 import com.HealthLink.dto.ai.ScreeningStatus;
@@ -29,8 +29,8 @@ import java.util.List;
 @Slf4j
 public class AIScreeningServiceImpl implements AIScreeningService {
 
-    private final GeminiAIService geminiAIService;
-    private final GeminiConfig geminiConfig;
+    private final GeminiAIService geminiAIService;  // Will inject LocalAIServiceImpl when local AI is enabled
+    private final AIScreeningConfig aiScreeningConfig;
     private final RegistrationRequestRepository requestRepository;
     private final RegistrationDocumentRepository documentRepository;
     private final EmailService emailService;
@@ -116,7 +116,7 @@ public class AIScreeningServiceImpl implements AIScreeningService {
             overallScore = 0.0; // Force score to 0 for unsafe content
             allIssues.add(0, "⚠️ CRITICAL: Inappropriate content detected in uploaded files");
         } else {
-            status = ScreeningResult.calculateStatus(overallScore, geminiConfig.getAutoScreening().getRejectThreshold());
+            status = ScreeningResult.calculateStatus(overallScore, aiScreeningConfig.getRejectThreshold());
         }
 
         ScreeningResult result = ScreeningResult.builder()
@@ -138,7 +138,7 @@ public class AIScreeningServiceImpl implements AIScreeningService {
         }
 
         // Auto-reject if below threshold OR unsafe content detected
-        if ((status == ScreeningStatus.REJECTED || hasUnsafeContent) && geminiConfig.getAutoScreening().isEnabled()) {
+        if ((status == ScreeningStatus.REJECTED || hasUnsafeContent) && aiScreeningConfig.isEnabled()) {
             request.setStatus("AI_Rejected");
             if (hasUnsafeContent) {
                 request.setAiRejectionReason("Application rejected due to inappropriate content in uploaded files. " +

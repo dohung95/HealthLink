@@ -22,6 +22,11 @@ import java.util.*;
 @Service
 @RequiredArgsConstructor
 @Slf4j
+@org.springframework.boot.autoconfigure.condition.ConditionalOnProperty(
+    name = "ai.service.local.enabled",
+    havingValue = "false",
+    matchIfMissing = true
+)
 public class GeminiAIServiceImpl implements GeminiAIService {
 
     private final GeminiConfig geminiConfig;

@@ -1,13 +1,16 @@
 /**
- * CV Parser Service - Uses Gemini AI to extract information from CV files
+ * CV Parser Service - Uses AI to extract information from CV files
  * Supports PDF and DOCX formats
- * Uses the API key configured in the application
+ *
+ * Priority: Local AI Service (if available) > Gemini Cloud API
+ * Local AI: 100% private - no data leaves your network
  */
 
 import { GoogleGenerativeAI } from "@google/generative-ai";
 import * as pdfjsLib from 'pdfjs-dist';
 import mammoth from 'mammoth';
 import { GEMINI_API_KEY, CONFIG } from '../config';
+import * as localAI from './localAIService';
 
 // Set PDF.js worker - use unpkg which mirrors npm versions exactly
 pdfjsLib.GlobalWorkerOptions.workerSrc = `https://unpkg.com/pdfjs-dist@${pdfjsLib.version}/build/pdf.worker.min.mjs`;
@@ -166,18 +169,42 @@ async function fileToGenerativePart(file) {
 }
 
 /**
- * Parse CV/Resume using Gemini AI
+ * Parse CV/Resume using Local AI Service (100% private)
+ * Gemini Cloud API is disabled for privacy
  * @param {File} file - CV file (PDF, DOCX, or image)
  * @param {string} type - 'doctor' or 'pharmacy'
  * @returns {Promise<{success: boolean, data?: object, error?: string, confidence?: object}>}
  */
 export async function parseCV(file, type = 'doctor') {
+    // Use Local AI Service only (Gemini disabled for privacy)
+    try {
+        const localAvailable = await localAI.isLocalAIAvailable();
+        if (localAvailable) {
+            console.log('Using Local AI Service (private)');
+            return await localAI.parseCV(file, type);
+        } else {
+            return {
+                success: false,
+                error: 'Local AI Service is not running. Please start the AI service (port 8097).'
+            };
+        }
+    } catch (error) {
+        console.error('Local AI error:', error.message);
+        return {
+            success: false,
+            error: 'Local AI Service is not available. Please start the AI service.'
+        };
+    }
+
+    /* ========== GEMINI DISABLED FOR PRIVACY ==========
+    // Fallback to Gemini Cloud API (disabled)
     if (!GEMINI_API_KEY) {
         return {
             success: false,
-            error: 'Gemini AI is not configured. Please contact administrator.'
+            error: 'AI Service is not available. Please start the local AI service or configure Gemini API key.'
         };
     }
+    */
 
     if (!file) {
         return {
@@ -203,7 +230,7 @@ export async function parseCV(file, type = 'doctor') {
 
     try {
         const modelName = CONFIG.GEMINI_MODEL || "gemini-1.5-flash";
-        console.log('Using Gemini model:', modelName);
+        console.log('Using Gemini Cloud API:', modelName);
 
         const genAI = new GoogleGenerativeAI(GEMINI_API_KEY);
         const model = genAI.getGenerativeModel({ model: modelName });
@@ -476,8 +503,22 @@ function calculateConfidence(data, type) {
 }
 
 /**
+ * Check if AI Service is available (Local AI only - Gemini disabled)
+ * @returns {Promise<boolean>}
+ */
+export async function isAIAvailable() {
+    // Check Local AI only (Gemini disabled for privacy)
+    try {
+        return await localAI.isLocalAIAvailable();
+    } catch (e) {
+        return false;
+    }
+}
+
+/**
  * Check if Gemini AI is available (API key is configured)
  * @returns {boolean}
+ * @deprecated Use isAIAvailable() instead
  */
 export function isGeminiAvailable() {
     return !!GEMINI_API_KEY && GEMINI_API_KEY.length > 10;
@@ -501,6 +542,7 @@ export function getFileAcceptString() {
 
 export default {
     parseCV,
+    isAIAvailable,
     isGeminiAvailable,
     getSupportedFileTypes,
     getFileAcceptString

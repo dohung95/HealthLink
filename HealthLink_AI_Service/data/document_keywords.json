@@ -1,0 +1,38 @@
+{
+  "Medical Degree Certificate": {
+    "keywords": ["bachelor", "medicine", "medical", "doctor", "md", "mbbs", "degree", "certificate", "university", "graduate", "physician", "surgery", "diploma", "faculty", "college", "school"],
+    "required_count": 3,
+    "min_text_length": 50
+  },
+  "Practice License": {
+    "keywords": ["license", "practice", "registration", "medical council", "valid", "permit", "authorized", "certification", "registered", "professional", "health", "ministry", "department"],
+    "required_count": 2,
+    "min_text_length": 30
+  },
+  "ID Card / Passport": {
+    "keywords": ["identity", "id card", "national id", "citizen", "cmnd", "cccd", "passport", "date of birth", "identification", "personal", "republic", "socialist", "nationality", "sex", "gender"],
+    "required_count": 2,
+    "min_text_length": 20
+  },
+  "Owner ID Card / Passport": {
+    "keywords": ["identity", "id card", "national id", "citizen", "cmnd", "cccd", "passport", "date of birth", "identification", "personal", "republic", "socialist", "nationality", "sex", "gender"],
+    "required_count": 2,
+    "min_text_length": 20
+  },
+  "Business License": {
+    "keywords": ["business", "license", "registration", "company", "enterprise", "commerce", "gpkd", "certificate", "trade", "commercial", "tax", "establishment"],
+    "required_count": 2,
+    "min_text_length": 30
+  },
+  "Pharmacy License (GPP)": {
+    "keywords": ["pharmacy", "pharmaceutical", "drug", "medicine", "dispensing", "license", "pharmacist", "retail", "wholesale", "gdp", "gpp", "health", "ministry"],
+    "required_count": 2,
+    "min_text_length": 30
+  },
+  "Profile Photo": {
+    "keywords": [],
+    "use_face_detection": true,
+    "required_count": 0,
+    "min_text_length": 0
+  }
+}
