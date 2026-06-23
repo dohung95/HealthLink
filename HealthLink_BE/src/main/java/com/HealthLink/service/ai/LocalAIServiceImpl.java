@@ -2,6 +2,7 @@ package com.HealthLink.service.ai;
 
 import com.HealthLink.dto.ai.CVParseResult;
 import com.HealthLink.dto.ai.DocumentScreeningResult;
+import com.HealthLink.dto.response.HomeVisitInfoScanResponse;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import lombok.extern.slf4j.Slf4j;
@@ -305,5 +306,10 @@ public class LocalAIServiceImpl implements GeminiAIService {
             return defaultValue;
         }
         return fieldNode.asBoolean();
+    }
+
+    @Override
+    public HomeVisitInfoScanResponse parseHomeVisitInfo(String fileContent, String mimeType) {
+        throw new UnsupportedOperationException("Not supported yet."); // Generated from nbfs://nbhost/SystemFileSystem/Templates/Classes/Code/GeneratedMethodBody
     }
 }
