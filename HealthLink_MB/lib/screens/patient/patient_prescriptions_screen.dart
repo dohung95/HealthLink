@@ -1,5 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
+import 'dart:typed_data';
+import 'package:pdf/pdf.dart';
+import 'package:pdf/widgets.dart' as pw;
+import 'package:printing/printing.dart';
 import '../../providers/auth_provider.dart';
 import '../../services/patient_service.dart';
 
@@ -484,10 +488,19 @@ class _PrescriptionsScreenState extends State<PrescriptionsScreen> {
                       'Prescription Details',
                       style: TextStyle(fontFamily: 'Inter', fontSize: 18, fontWeight: FontWeight.w600, color: Theme.of(context).colorScheme.onBackground),
                     ),
-                    IconButton(
-                      icon: const Icon(Icons.close),
-                      color: Theme.of(context).colorScheme.onSurfaceVariant,
-                      onPressed: () => Navigator.pop(context),
+                    Row(
+                      children: [
+                        IconButton(
+                          icon: const Icon(Icons.print_outlined),
+                          color: Theme.of(context).colorScheme.onSurfaceVariant,
+                          onPressed: () => _printPrescription(prescription),
+                        ),
+                        IconButton(
+                          icon: const Icon(Icons.close),
+                          color: Theme.of(context).colorScheme.onSurfaceVariant,
+                          onPressed: () => Navigator.pop(context),
+                        ),
+                      ],
                     ),
                   ],
                 ),
@@ -666,6 +679,88 @@ class _PrescriptionsScreenState extends State<PrescriptionsScreen> {
           ),
         ],
       ),
+    );
+  }
+
+  // --- 6. Xử lý In Đơn thuốc ---
+  Future<void> _printPrescription(Map<String, dynamic> prescription) async {
+    final pdf = pw.Document();
+    final items = prescription['items'] as List<dynamic>? ?? [];
+
+    pdf.addPage(
+      pw.MultiPage(
+        pageFormat: PdfPageFormat.a4,
+        margin: const pw.EdgeInsets.all(40),
+        build: (pw.Context context) {
+          return [
+            // Header
+            pw.Container(
+              alignment: pw.Alignment.center,
+              padding: const pw.EdgeInsets.only(bottom: 16),
+              decoration: const pw.BoxDecoration(
+                border: pw.Border(bottom: pw.BorderSide(width: 2)),
+              ),
+              child: pw.Column(
+                children: [
+                  pw.Text('HEALTHLINK', style: pw.TextStyle(fontSize: 24, fontWeight: pw.FontWeight.bold)),
+                  pw.SizedBox(height: 4),
+                  pw.Text('21 bis Hau Giang, Tan Son Nhat Ward, Ho Chi Minh City.', style: const pw.TextStyle(fontSize: 10)),
+                  pw.Text('Phone: +(002) 0174-8812-598 | Email: HealthLink@gmail.com', style: const pw.TextStyle(fontSize: 10)),
+                  pw.Text('Website: https://www.healthlink.com', style: const pw.TextStyle(fontSize: 10)),
+                  pw.SizedBox(height: 16),
+                  pw.Text('MEDICAL PRESCRIPTION', style: pw.TextStyle(fontSize: 16, fontWeight: pw.FontWeight.bold, decoration: pw.TextDecoration.underline)),
+                ],
+              ),
+            ),
+            pw.SizedBox(height: 20),
+
+            // Prescription Info
+            pw.Text('Prescription from ${prescription['doctorName'] ?? 'Unknown Doctor'}', style: pw.TextStyle(fontSize: 14, fontWeight: pw.FontWeight.bold)),
+            pw.SizedBox(height: 4),
+            pw.Text('Date Issued: ${_formatDate(prescription['issueDate'])}', style: const pw.TextStyle(fontSize: 12)),
+            pw.Text('Diagnosis: ${prescription['diagnosis'] ?? 'N/A'}', style: const pw.TextStyle(fontSize: 12)),
+            pw.SizedBox(height: 20),
+
+            // Medication List
+            pw.Text('Medication Details', style: pw.TextStyle(fontSize: 14, fontWeight: pw.FontWeight.bold)),
+            pw.SizedBox(height: 10),
+            
+            pw.TableHelper.fromTextArray(
+              context: context,
+              headerStyle: pw.TextStyle(fontWeight: pw.FontWeight.bold, fontSize: 10),
+              cellStyle: const pw.TextStyle(fontSize: 10),
+              headerDecoration: const pw.BoxDecoration(color: PdfColors.grey200),
+              headers: ['Medication', 'Dosage', 'Instructions', 'Notes'],
+              data: items.map((item) => [
+                item['medicationName']?.toString() ?? '',
+                item['dosage']?.toString() ?? '',
+                item['instructions']?.toString() ?? '',
+                item['notes']?.toString() ?? '',
+              ]).toList(),
+            ),
+
+            // Doctor's Advice
+            if (prescription['notes'] != null && prescription['notes'].toString().isNotEmpty) ...[
+              pw.SizedBox(height: 20),
+              pw.Text('Doctor\'s Advice', style: pw.TextStyle(fontSize: 12, fontWeight: pw.FontWeight.bold)),
+              pw.SizedBox(height: 8),
+              pw.Container(
+                width: double.infinity,
+                padding: const pw.EdgeInsets.all(10),
+                decoration: pw.BoxDecoration(
+                  border: pw.Border.all(color: PdfColors.black, width: 1),
+                ),
+                child: pw.Text(prescription['notes'].toString(), style: const pw.TextStyle(fontSize: 10)),
+              ),
+            ]
+          ];
+        },
+      ),
+    );
+
+    await Printing.layoutPdf(
+      onLayout: (PdfPageFormat format) async => pdf.save(),
+      name: 'Prescription_${prescription['prescriptionHeaderID'] ?? 'Document'}.pdf',
     );
   }
 }
