@@ -117,7 +117,7 @@ const PatientSidebar = () => {
     ];
 
     return (
-        <aside className="patient-sidebar">
+        <aside className="patient-sidebar d-print-none">
             <div className="patient-sidebar-brand">
                 <div className="patient-sidebar-logo">+</div>
                 <div>

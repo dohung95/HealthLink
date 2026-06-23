@@ -43,9 +43,9 @@ const PatientPrescriptionView = () => {
       console.error('Error fetching prescriptions:', err);
       setError('Failed to load prescriptions');
     } finally {
-    //   setTimeout(() => {
+      //   setTimeout(() => {
       setLoading(false);
-    //   }, 1000);
+      //   }, 1000);
     }
   };
 
@@ -105,7 +105,7 @@ const PatientPrescriptionView = () => {
     <div className="Background_Doctors py-4">
       <div className="container" style={{ fontFamily: 'Inter, sans-serif' }}>
         {/* Page Heading */}
-        <div className="mb-4">
+        <div className="mb-4 d-print-none">
           <h2 className="text-gray-900 fs-3 fw-bold mb-1">Your Prescriptions</h2>
           <p className="text-gray-500 small">Review all your prescribed medications.</p>
         </div>
@@ -122,7 +122,7 @@ const PatientPrescriptionView = () => {
         ) : (
           <div className="row g-4 h-100 animate__animated animate__fadeIn">
             {/* Left Column: Prescription List */}
-            <div className="col-lg-4 d-flex flex-column bg-white-custom rounded-3 border border-custom">
+            <div className="col-lg-4 d-flex flex-column bg-white-custom rounded-3 border border-custom d-print-none">
               <div className="p-4 border-bottom border-custom">
                 {/* SearchBar */}
                 <div className="input-group search-input-group">
@@ -172,11 +172,20 @@ const PatientPrescriptionView = () => {
             </div>
 
             {/* Right Column: Prescription Details */}
-            <div className="col-lg-8 d-flex flex-column bg-white-custom rounded-3 border border-custom overflow-auto">
+            <div id="printable-prescription" className="col-lg-8 d-flex flex-column bg-white-custom rounded-3 border border-custom overflow-auto">
               {selectedPrescription ? (
                 <div className="p-4 p-md-4">
+                  {/* Print-only Clinic Header */}
+                  <div className="d-none d-print-block text-center mb-4 border-bottom border-dark pb-3">
+                    <h2 className="fw-bold mb-1" style={{ fontFamily: '"Times New Roman", serif', color: '#000' }}>HEALTHLINK</h2>
+                    <p className="mb-0 small text-black">21 bis Hau Giang, Tan Son Nhat Ward, Ho Chi Minh City.</p>
+                    <p className="mb-0 small text-black">Phone: +(002) 0174-8812-598 | Email: HealthLink@gmail.com</p>
+                    <p className="mb-0 small text-black">Website: https://www.healthlink.com</p>
+                    <h3 className="mt-4 mb-0 fw-bold text-decoration-underline" style={{ fontFamily: '"Times New Roman", serif', color: '#000' }}>MEDICAL PRESCRIPTION</h3>
+                  </div>
+
                   {/* Header Section */}
-                  <div className="pb-4 mb-4 border-bottom border-custom">
+                  <div className="pb-4 mb-4 border-bottom border-custom print-border-dark">
                     <div>
                       <p className="text-gray-900 fs-5 fw-bold mb-1">
                         Prescription from {selectedPrescription.doctorName || 'Dr. Unknown'}
@@ -232,12 +241,18 @@ const PatientPrescriptionView = () => {
                   )}
 
                   {/* Order from Pharmacy CTA */}
-                  <div className="mt-4 pt-3 border-top border-custom">
+                  <div className="mt-4 pt-3 border-top border-custom d-flex gap-2 d-print-none">
                     <button
                       className="btn btn-success px-4"
                       onClick={() => navigate('/patient-dashboard/pharmacy', { state: { autoSelectPrescriptionId: selectedPrescription.prescriptionHeaderID } })}
                     >
                       <i className="bi bi-cart-plus me-2"></i>Order from pharmacy
+                    </button>
+                    <button
+                      className="btn btn-outline-primary px-4"
+                      onClick={() => window.print()}
+                    >
+                      <i className="bi bi-printer me-2"></i>Print Prescription
                     </button>
                   </div>
                 </div>
