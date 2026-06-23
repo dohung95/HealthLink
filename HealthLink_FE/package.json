@@ -13,7 +13,6 @@
     "test:e2e:headed": "playwright test --headed"
   },
   "dependencies": {
-    "@ckeditor/ckeditor5-build-classic": "^41.4.2",
     "@ckeditor/ckeditor5-react": "9.2.0",
     "@google/generative-ai": "^0.24.1",
     "@stomp/stompjs": "^7.3.0",
@@ -21,6 +20,7 @@
     "@tensorflow/tfjs": "^4.22.0",
     "@zegocloud/zego-uikit-prebuilt": "^2.17.0",
     "axios": "^1.13.2",
+    "ckeditor5": "^48.2.0",
     "bootstrap": "^5.3.8",
     "bootstrap-icons": "^1.13.1",
     "date-fns": "^4.1.0",
