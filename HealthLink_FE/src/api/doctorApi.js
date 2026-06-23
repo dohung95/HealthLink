@@ -110,6 +110,9 @@ export const doctorService = {
     const response = await axiosInstance.get(`/api/account/patient/profile/${patientId}`);
     return response.data;
   },
+
+  updateServices: (toggles) =>
+    axiosInstance.patch('/api/account/doctors/services', toggles).then(r => r.data),
 };
 
 /**

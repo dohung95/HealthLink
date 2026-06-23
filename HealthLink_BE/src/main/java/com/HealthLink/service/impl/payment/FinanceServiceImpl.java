@@ -16,6 +16,7 @@ import com.HealthLink.entity.Patient;
 import com.HealthLink.entity.Payment;
 import com.HealthLink.entity.PharmacyOrder;
 import com.HealthLink.exception.BadRequestException;
+import com.HealthLink.utility.DoctorServiceHelper;
 import com.HealthLink.exception.InvoiceNotFoundException;
 import com.HealthLink.exception.PayPalIntegrationException;
 import com.HealthLink.repository.auth.UserRepository;
@@ -953,20 +954,7 @@ public class FinanceServiceImpl implements FinanceService {
     }
 
     private String normalizeConsultationTypeForBooking(String consultationType) {
-        if (consultationType == null || consultationType.isBlank()) {
-            return TYPE_ONLINE;
-        }
-
-        String value = consultationType.trim().toLowerCase();
-
-        return switch (value) {
-            case "online", "video", "chat" ->
-                TYPE_ONLINE;
-            case "homevisit", "home visit", "home-visit", "home" ->
-                TYPE_HOME_VISIT;
-            default ->
-                TYPE_ONLINE;
-        };
+        return DoctorServiceHelper.normalizeConsultationType(consultationType);
     }
 
     private BigDecimal resolveDoctorConsultationFee(Doctor doctor) {
@@ -1008,24 +996,9 @@ public class FinanceServiceImpl implements FinanceService {
     }
 
     private void checkDoctorSupportsConsultationType(Doctor doctor, String consultationType) {
-        String normalizedType = normalizeConsultationTypeForBooking(consultationType);
-
-        boolean supported = switch (normalizedType.toLowerCase()) {
-            case "online" ->
-                doctor.isAvailableForVideo()
-                || doctor.isAvailableForAudio()
-                || doctor.isAvailableForChat();
-
-            case "homevisit" ->
-                true;
-
-            default ->
-                false;
-        };
-
-        if (!supported) {
+        if (!DoctorServiceHelper.isConsultationTypeSupported(doctor, consultationType)) {
             throw new BadRequestException(
-                    "Doctor does not support consultation type: " + normalizedType
+                    "Doctor does not support consultation type: " + consultationType
             );
         }
     }
