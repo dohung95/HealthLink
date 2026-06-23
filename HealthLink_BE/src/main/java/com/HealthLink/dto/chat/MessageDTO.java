@@ -31,6 +31,7 @@ public class MessageDTO {
 
     private String videoUrl;
     private String fileUrl;
+    private String audioUrl;
 
     /** Đã đọc hay chưa. */
     private boolean read;

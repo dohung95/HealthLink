@@ -43,7 +43,9 @@ const getFullUrl = (url) => {
     if (!url || url === 'null' || url === 'undefined') return null;
     if (url.startsWith('/')) {
         const baseUrl = import.meta.env.VITE_API_BASE_URL || import.meta.env.VITE_SPRING_API_BASE_URL || 'http://localhost:8096';
-        return `${baseUrl}${url}`;
+        // Chỉ encode dấu cách thành %20, giữ lại các ký tự khác
+        const encodedUrl = url.replace(/ /g, '%20');
+        return `${baseUrl}${encodedUrl}`;
     }
     return url;
 };
@@ -159,6 +161,107 @@ function ImageLightbox({ src, onClose }) {
     );
 }
 
+// ─── Component Custom Audio Player ───────────────────────────────────────────
+function CustomAudioPlayer({ src, isOwn }) {
+    const audioRef = useRef(null);
+    const [isPlaying, setIsPlaying] = useState(false);
+    const [duration, setDuration] = useState(0);
+    const [currentTime, setCurrentTime] = useState(0);
+    const [error, setError] = useState(false);
+
+    const togglePlay = () => {
+        if (!audioRef.current || error) return;
+        if (isPlaying) {
+            audioRef.current.pause();
+        } else {
+            audioRef.current.play().catch(err => {
+                console.error("Audio play error:", err);
+                setError(true);
+            });
+        }
+    };
+
+    const handleTimeUpdate = () => {
+        if (audioRef.current) {
+            setCurrentTime(audioRef.current.currentTime);
+        }
+    };
+
+    const handleLoadedMetadata = () => {
+        if (audioRef.current) {
+            setDuration(audioRef.current.duration);
+        }
+    };
+
+    const handleEnded = () => {
+        setIsPlaying(false);
+        setCurrentTime(0);
+        if (audioRef.current) {
+            audioRef.current.currentTime = 0;
+        }
+    };
+
+    const formatDuration = (time) => {
+        if (isNaN(time) || !isFinite(time)) return '0:00';
+        const m = Math.floor(time / 60);
+        const s = Math.floor(time % 60);
+        return `${m}:${s.toString().padStart(2, '0')}`;
+    };
+
+    const progressPercent = duration > 0 ? (currentTime / duration) * 100 : 0;
+
+    return (
+        <div style={{
+            display: 'flex', alignItems: 'center', gap: '10px',
+            background: isOwn ? 'rgba(255,255,255,0.2)' : '#f8f9fa',
+            padding: '8px 12px', borderRadius: '12px', minWidth: '220px',
+            border: isOwn ? '1px solid rgba(255,255,255,0.3)' : '1px solid #dee2e6'
+        }}>
+            <button
+                onClick={togglePlay}
+                style={{
+                    width: '32px', height: '32px', borderRadius: '50%',
+                    border: 'none', display: 'flex', alignItems: 'center', justifyContent: 'center',
+                    background: isOwn ? '#fff' : '#0d6efd',
+                    color: isOwn ? '#0d6efd' : '#fff',
+                    cursor: error ? 'not-allowed' : 'pointer',
+                    flexShrink: 0, opacity: error ? 0.5 : 1
+                }}
+                disabled={error}
+            >
+                <i className={`bi ${error ? 'bi-exclamation-triangle-fill' : isPlaying ? 'bi-pause-fill' : 'bi-play-fill'}`} style={{ fontSize: '1.2rem', marginLeft: !isPlaying && !error ? '2px' : '0' }}></i>
+            </button>
+
+            <div style={{ flexGrow: 1, display: 'flex', flexDirection: 'column', gap: '4px' }}>
+                <div style={{ height: '4px', background: isOwn ? 'rgba(255,255,255,0.3)' : '#e9ecef', borderRadius: '2px', overflow: 'hidden', position: 'relative' }}>
+                    <div style={{
+                        position: 'absolute', top: 0, left: 0, height: '100%',
+                        width: `${progressPercent}%`,
+                        background: isOwn ? '#fff' : '#0d6efd',
+                        transition: 'width 0.1s linear'
+                    }} />
+                </div>
+                <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.7rem', color: isOwn ? 'rgba(255,255,255,0.8)' : '#6c757d', fontWeight: '500' }}>
+                    <span>{formatDuration(currentTime)}</span>
+                    <span>{formatDuration(duration)}</span>
+                </div>
+            </div>
+
+            <audio
+                ref={audioRef}
+                src={src}
+                onTimeUpdate={handleTimeUpdate}
+                onLoadedMetadata={handleLoadedMetadata}
+                onEnded={handleEnded}
+                onPlay={() => setIsPlaying(true)}
+                onPause={() => setIsPlaying(false)}
+                onError={() => setError(true)}
+                style={{ display: 'none' }}
+            />
+        </div>
+    );
+}
+
 // ─── Component tin nhắn ──────────────────────────────────────────────────────
 function ChatMessage({ message, currentUserId, isNew = false, onImageClick, onNavigate }) {
     const isOwn = message.senderId === currentUserId || message.uid === currentUserId;
@@ -188,12 +291,23 @@ function ChatMessage({ message, currentUserId, isNew = false, onImageClick, onNa
     const imageUrl = getFullUrl(message.imageUrl);
     const videoUrl = getFullUrl(message.videoUrl);
     const fileUrl = getFullUrl(message.fileUrl);
+    const audioSrc = getFullUrl(message.audioUrl);
+
+    // Debug: log audio messages to help diagnose display issues
+    if (message.audioUrl) {
+        console.log('[ChatMessage] Audio message:', { messageId: message.messageId, audioUrl: message.audioUrl, audioSrc, isOwn });
+    }
 
     return (
         <div className={`message d-flex mb-3 ${isOwn ? 'justify-content-end' : 'justify-content-start'}`} style={{ animation: 'msgFadeSlideIn 0.25s ease-out' }}>
             <div style={{ maxWidth: '78%' }}>
-                <div className={`p-3 rounded ${isOwn ? 'bg-primary text-white shadow-sm' : 'bg-white text-dark shadow-sm border'}`}
-                    style={{ borderRadius: imageUrl ? '12px' : '20px', padding: imageUrl ? '4px' : '12px 16px' }}>
+                <div className={`rounded ${isOwn ? 'bg-primary text-white shadow-sm' : 'bg-white text-dark shadow-sm border'}`}
+                    style={{
+                        borderRadius: imageUrl ? '12px' : '20px',
+                        padding: imageUrl ? '4px' : (audioSrc ? '10px 14px' : '12px 16px'),
+                        minWidth: audioSrc ? '260px' : 'auto',
+                        display: 'block',
+                    }}>
                     {imageUrl && (
                         <img src={imageUrl} alt="sent" style={{ maxWidth: '100%', maxHeight: '300px', borderRadius: '8px', cursor: 'zoom-in' }}
                             onClick={() => onImageClick?.(imageUrl)} title="Click để xem ảnh phóng to" />
@@ -218,8 +332,22 @@ function ChatMessage({ message, currentUserId, isNew = false, onImageClick, onNa
                             <span style={{ color: 'inherit', wordBreak: 'break-all' }}>{fileUrl.split('/').pop()}</span>
                         </div>
                     )}
+                    {/* ── Audio message player ── */}
+                    {audioSrc && (
+                        <div style={{ display: 'flex', flexDirection: 'column', gap: '6px', minWidth: '240px' }}>
+                            <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '2px' }}>
+                            </div>
+                            <CustomAudioPlayer src={audioSrc} isOwn={isOwn} />
+                        </div>
+                    )}
+                    {/* ── Fallback if audioUrl exists but getFullUrl returned null ── */}
+                    {message.audioUrl && !audioSrc && (
+                        <div style={{ padding: '8px 12px', background: isOwn ? 'rgba(255,255,255,0.15)' : '#fff3cd', border: `1px solid ${isOwn ? 'rgba(255,255,255,0.3)' : '#ffc107'}`, borderRadius: '8px', fontSize: '0.85rem', opacity: 0.85 }}>
+                            <i className="bi bi-exclamation-triangle me-2"></i>Audio unavailable
+                        </div>
+                    )}
                     {fullText && (
-                        <div style={{ marginTop: imageUrl || videoUrl || fileUrl ? '8px' : '0', whiteSpace: 'pre-wrap' }}>
+                        <div style={{ marginTop: imageUrl || videoUrl || fileUrl || audioSrc ? '8px' : '0', whiteSpace: 'pre-wrap' }}>
                             {displayText}
                             {isNew && !typewriterDone && <span style={{ display: 'inline-block', width: 2, height: '1em', background: 'currentColor', marginLeft: 2, animation: 'cursorBlink 0.7s steps(1) infinite' }} />}
                         </div>
@@ -255,8 +383,9 @@ function ChatMessage({ message, currentUserId, isNew = false, onImageClick, onNa
 
 // ─── Danh sách phòng chat ───────────────────────────────────────────────
 function RoomListItem({ room, currentUserId, onSelect, isActive, isMuted }) {
-    const name = room.user1Id === currentUserId ? room.user2DisplayName : room.user1DisplayName;
-    const photo = room.user1Id === currentUserId ? room.user2PhotoURL : room.user1PhotoURL;
+    const isUser1 = room.user1Id && room.user1Id.startsWith(currentUserId);
+    const name = isUser1 ? room.user2DisplayName : room.user1DisplayName;
+    const photo = isUser1 ? room.user2PhotoURL : room.user1PhotoURL;
     const isUnread = room.unreadCount > 0;
 
     return (
@@ -306,7 +435,7 @@ function RoomListItem({ room, currentUserId, onSelect, isActive, isMuted }) {
 export default function ChatPage({ showBot = true }) {
     const navigate = useNavigate();
     const location = useLocation();
-    const { user: authUser, currentUserId } = useAuth();
+    const { user: authUser, currentUserId, initiateCall, isInCall } = useAuth();
 
     // Check if we navigated here with a specific partner in state
     const initialStatePartner = location.state?.partnerId ? {
@@ -340,6 +469,14 @@ export default function ChatPage({ showBot = true }) {
 
     const [showScrollBottom, setShowScrollBottom] = useState(false);
     const [hasUnreadInView, setHasUnreadInView] = useState(false);
+
+    // Audio recording state
+    const [isRecording, setIsRecording] = useState(false);
+    const [recordingDuration, setRecordingDuration] = useState(0);
+    const [audioBlob, setAudioBlob] = useState(null);
+    const mediaRecorderRef = useRef(null);
+    const audioChunksRef = useRef([]);
+    const recordingTimerRef = useRef(null);
 
     const chatContainerRef = useRef(null);
     const shouldScrollToBottomRef = useRef(true);
@@ -417,6 +554,128 @@ export default function ChatPage({ showBot = true }) {
 
     useEffect(() => { currentRoomRef.current = currentRoom; }, [currentRoom]);
 
+    // ─── Micro audio recording ──────────────────────────────────────────────────────
+    const startRecording = async () => {
+        try {
+            const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+
+            // Check supported audio format
+            let mimeType = 'audio/webm';
+            if (!MediaRecorder.isTypeSupported(mimeType)) {
+                mimeType = 'audio/mp4';
+                if (!MediaRecorder.isTypeSupported(mimeType)) {
+                    mimeType = 'audio/wav';
+                    if (!MediaRecorder.isTypeSupported(mimeType)) {
+                        mimeType = ''; // browser sẽ chọn default
+                    }
+                }
+            }
+            console.log('📢 Using audio format:', mimeType || 'default');
+
+            const options = mimeType ? { mimeType } : {};
+            mediaRecorderRef.current = new MediaRecorder(stream, options);
+            audioChunksRef.current = [];
+
+            mediaRecorderRef.current.ondataavailable = (event) => {
+                console.log('📊 Audio chunk received:', event.data.size, 'bytes');
+                if (event.data.size > 0) {
+                    audioChunksRef.current.push(event.data);
+                }
+            };
+
+            mediaRecorderRef.current.onstop = () => {
+                const actualMimeType = mediaRecorderRef.current.mimeType || mimeType;
+                console.log('🎙️ Recording stopped, creating blob with type:', actualMimeType);
+                const blob = new Blob(audioChunksRef.current, { type: actualMimeType });
+                console.log('📦 Audio blob created:', blob.size, 'bytes, type:', blob.type);
+                setAudioBlob(blob);
+                stream.getTracks().forEach(track => track.stop());
+            };
+
+            mediaRecorderRef.current.start();
+            setIsRecording(true);
+            setRecordingDuration(0);
+
+            recordingTimerRef.current = setInterval(() => {
+                setRecordingDuration(prev => prev + 1);
+            }, 1000);
+        } catch (error) {
+            console.error("Error accessing microphone:", error);
+            toast.error("Microphone access denied or unavailable.");
+        }
+    };
+
+    const stopRecording = () => {
+        if (mediaRecorderRef.current && isRecording) {
+            mediaRecorderRef.current.stop();
+            setIsRecording(false);
+            clearInterval(recordingTimerRef.current);
+        }
+    };
+
+    const cancelRecording = () => {
+        if (mediaRecorderRef.current && isRecording) {
+            mediaRecorderRef.current.stop();
+            audioChunksRef.current = [];
+            setAudioBlob(null);
+            setIsRecording(false);
+            clearInterval(recordingTimerRef.current);
+        } else if (audioBlob) {
+            setAudioBlob(null);
+            setRecordingDuration(0);
+        }
+    };
+
+    const sendAudio = async () => {
+        if (!audioBlob || !currentRoom) return;
+        console.log('🎙️ Sending audio...', { blobSize: audioBlob.size, blobType: audioBlob.type });
+        setUploading(true);
+        shouldScrollToBottomRef.current = true;
+        try {
+            // Determine MIME type dựa vào blob type
+            const mimeType = audioBlob.type || 'audio/webm';
+            const extension = mimeType.includes('wav') ? 'wav' : mimeType.includes('mp4') ? 'mp4' : 'webm';
+            const file = new File([audioBlob], `audio_${Date.now()}.${extension}`, { type: mimeType });
+            console.log('📤 Uploading file:', { name: file.name, size: file.size, type: file.type });
+
+            let requestPayload = {
+                chatRoomId: currentRoom.chatRoomId,
+                receiverId: chatPartner.userId || chatPartner.uid
+            };
+            const response = await uploadMedia(currentRoom.chatRoomId, 'audio', file);
+            console.log('✅ Upload response:', response);
+            requestPayload.audioUrl = response.url;
+            console.log('📡 Sending message with audioUrl:', response.url);
+
+            const saved = await apiSendMessage(requestPayload);
+            console.log('💾 Message saved:', saved);
+            setMessages(prev => {
+                if (prev.some(m => m.messageId === saved.messageId)) return prev;
+                return [...prev, saved];
+            });
+            setRoomList(prevRooms => {
+                const updated = prevRooms.map(r => r.chatRoomId === currentRoom.chatRoomId
+                    ? { ...r, lastMessage: '[Audio]', lastMessageAt: saved.timestamp }
+                    : r);
+                updated.sort((a, b) => new Date(b.lastMessageAt || 0).getTime() - new Date(a.lastMessageAt || 0).getTime());
+                return updated;
+            });
+            setAudioBlob(null);
+            setRecordingDuration(0);
+        } catch (err) {
+            console.error('❌ Upload Audio failed:', err);
+            console.error('Error details:', {
+                message: err.message,
+                stack: err.stack,
+                response: err.response?.data
+            });
+            toast.error('Failed to send audio! Check console for details');
+        } finally {
+            setUploading(false);
+        }
+    };
+    // ────────────────────────────────────────────────────────────────────────────
+
     const handleToggleMute = () => {
         if (!currentRoom) return;
         const roomId = currentRoom.chatRoomId;
@@ -426,6 +685,27 @@ export default function ChatPage({ showBot = true }) {
         setMutedRooms(newMuted);
         localStorage.setItem('muted_rooms', JSON.stringify(newMuted));
         toast.success(newMuted.includes(roomId) ? 'Notifications muted' : 'Notifications unmuted');
+    };
+
+    const handleVideoCallFromChat = () => {
+        if (!chatPartner || isBlocked) return;
+        if (isInCall) {
+            toast.warning('You are currently on another call. Please end it before making a new one.');
+            return;
+        }
+
+        const targetUserId = chatPartner.userId || chatPartner.uid;
+        const targetUserName = chatPartner.displayName || chatPartner.fullName || 'User';
+        const callerName = authUser?.fullName || authUser?.preferred_username || authUser?.email || 'Doctor';
+
+        // Tạo random roomId 45 ký tự
+        const characters = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789';
+        let roomId = '';
+        for (let i = 0; i < 45; i++) {
+            roomId += characters.charAt(Math.floor(Math.random() * characters.length));
+        }
+
+        initiateCall(targetUserId, roomId, targetUserName, callerName);
     };
 
     const handleBlockToggle = async () => {
@@ -473,7 +753,7 @@ export default function ChatPage({ showBot = true }) {
     // Stomp connection
     useEffect(() => {
         if (!authUser) return;
-        
+
         const unsubPresence = stompChatService.subscribeToPresence((event) => {
             // event: { userId, isOnline }
             setRoomList(prevRooms => prevRooms.map(r => {
@@ -564,7 +844,7 @@ export default function ChatPage({ showBot = true }) {
                 if (!isRoomActive && newMsg.senderId !== currentUserId) {
                     const localMutedRooms = JSON.parse(localStorage.getItem('muted_rooms') || '[]');
                     if (!localMutedRooms.includes(newMsg.chatRoomId)) {
-                        toast.info(`New message from ${isNewRoom ? 'someone' : updated.find(r => r.chatRoomId === newMsg.chatRoomId)?.user1DisplayName || 'someone'}`);
+                        toast.info(`New message from ${isNewRoom ? 'someone' : (updated.find(r => r.chatRoomId === newMsg.chatRoomId)?.user1Id.startsWith(currentUserId) ? updated.find(r => r.chatRoomId === newMsg.chatRoomId)?.user2DisplayName : updated.find(r => r.chatRoomId === newMsg.chatRoomId)?.user1DisplayName) || 'someone'}`);
                     }
                 }
 
@@ -572,8 +852,8 @@ export default function ChatPage({ showBot = true }) {
             });
         });
         unsubscribeChat.current = unsub;
-        return () => { 
-            if (unsubscribeChat.current) unsubscribeChat.current(); 
+        return () => {
+            if (unsubscribeChat.current) unsubscribeChat.current();
             if (unsubPresence) unsubPresence();
         };
     }, [authUser, currentUserId]);
@@ -601,6 +881,11 @@ export default function ChatPage({ showBot = true }) {
         hasMoreRef.current = true;
         shouldScrollToBottomRef.current = true;
         getRoomMessages(currentRoom.chatRoomId, 0, 25).then(msgs => {
+            // Debug: log any audio messages to help diagnose rendering issues
+            const audioMsgs = msgs.filter(m => m.audioUrl);
+            if (audioMsgs.length > 0) {
+                console.log('[ChatPage] Loaded audio messages:', audioMsgs.map(m => ({ id: m.messageId, audioUrl: m.audioUrl })));
+            }
             setMessages(msgs);
             if (msgs.length < 25) {
                 setHasMore(false);
@@ -702,9 +987,9 @@ export default function ChatPage({ showBot = true }) {
         if (shouldScrollToBottomRef.current && scrollTo.current) {
             setTimeout(() => {
                 if (scrollTo.current) {
-                    scrollTo.current.scrollIntoView({ 
-                        behavior: pageRef.current === 0 ? 'auto' : 'smooth', 
-                        block: 'end' 
+                    scrollTo.current.scrollIntoView({
+                        behavior: pageRef.current === 0 ? 'auto' : 'smooth',
+                        block: 'end'
                     });
                 }
             }, 100);
@@ -946,8 +1231,9 @@ export default function ChatPage({ showBot = true }) {
                                     room={room}
                                     currentUserId={currentUserId}
                                     onSelect={(r) => {
-                                        const partnerId = r.user1Id === currentUserId ? r.user2Id : r.user1Id;
-                                        setChatPartner({ userId: partnerId, displayName: r.user1Id === currentUserId ? r.user2DisplayName : r.user1DisplayName });
+                                        const isUser1 = r.user1Id && r.user1Id.startsWith(currentUserId);
+                                        const partnerId = isUser1 ? r.user2Id : r.user1Id;
+                                        setChatPartner({ userId: partnerId, displayName: isUser1 ? r.user2DisplayName : r.user1DisplayName });
                                         setCurrentRoom(r);
                                     }}
                                     isActive={currentRoom?.chatRoomId === room.chatRoomId}
@@ -963,7 +1249,7 @@ export default function ChatPage({ showBot = true }) {
                     {/* Header */}
                     <div className="p-3 border-bottom d-flex align-items-center bg-white shadow-sm z-index-1">
                         <img
-                            src={getFullUrl(chatPartner?.photoURL) || getFullUrl(currentRoom ? (currentRoom.user1Id === currentUserId ? currentRoom.user2PhotoURL : currentRoom.user1PhotoURL) : null) || `https://api.dicebear.com/9.x/initials/svg?seed=${chatPartner?.displayName}`}
+                            src={getFullUrl(chatPartner?.photoURL) || getFullUrl(currentRoom ? (currentRoom.user1Id.startsWith(currentUserId) ? currentRoom.user2PhotoURL : currentRoom.user1PhotoURL) : null) || `https://api.dicebear.com/9.x/initials/svg?seed=${chatPartner?.displayName}`}
                             alt="avatar"
                             onError={(e) => { e.target.onerror = null; e.target.src = `https://api.dicebear.com/9.x/initials/svg?seed=${chatPartner?.displayName || 'Chat'}`; }}
                             className="rounded-circle me-3 shadow-sm"
@@ -982,6 +1268,23 @@ export default function ChatPage({ showBot = true }) {
                         {currentRoom && (
                             <div className="d-flex align-items-center">
                                 {mutedRooms.includes(currentRoom.chatRoomId) && <i className="bi bi-bell-slash-fill text-danger me-3 fs-5"></i>}
+                                {!chatPartner?.isBot && (
+                                    <button
+                                        className={`btn btn-light rounded-circle shadow-sm d-flex align-items-center justify-content-center me-2 ${isBlocked ? 'opacity-50' : ''}`}
+                                        style={{ width: 40, height: 40, padding: 0, cursor: isBlocked ? 'not-allowed' : 'pointer' }}
+                                        onClick={(e) => {
+                                            if (isBlocked) {
+                                                e.preventDefault();
+                                                return;
+                                            }
+                                            handleVideoCallFromChat();
+                                        }}
+                                        disabled={isBlocked}
+                                        title={isBlocked ? "Cannot call when chat is blocked or appointment completed" : "Video Call"}
+                                    >
+                                        <i className={`bi bi-camera-video ${isBlocked ? 'text-muted' : 'text-primary'} fs-5`}></i>
+                                    </button>
+                                )}
                                 <button className="btn btn-light rounded-circle shadow-sm d-flex align-items-center justify-content-center" style={{ width: 40, height: 40, padding: 0 }} onClick={() => setShowChatDetails(true)}>
                                     <i className="bi bi-info-circle text-primary fs-5"></i>
                                 </button>
@@ -1109,16 +1412,47 @@ export default function ChatPage({ showBot = true }) {
                                         onChange={e => setFormValue(e.target.value)}
                                         onPaste={handlePaste}
                                         placeholder={chatPartner?.isBot ? "Ask anything about your health..." : "Type a message..."}
-                                        disabled={uploading}
+                                        disabled={uploading || isRecording || audioBlob}
                                     />
                                 </div>
+
+                                {isRecording ? (
+                                    <div className="d-flex align-items-center bg-danger text-white rounded-pill px-3 py-2 shadow-sm me-2 animation-pulse" style={{ height: 45 }}>
+                                        <div className="spinner-grow spinner-grow-sm me-2" role="status"></div>
+                                        <span className="fw-bold">
+                                            {Math.floor(recordingDuration / 60)}:{(recordingDuration % 60).toString().padStart(2, '0')}
+                                        </span>
+                                        <button className="btn btn-sm btn-light ms-2 rounded-circle" style={{ width: 28, height: 28, padding: 0 }} onClick={stopRecording} type="button">
+                                            <i className="bi bi-stop-fill text-danger"></i>
+                                        </button>
+                                    </div>
+                                ) : audioBlob ? (
+                                    <div className="d-flex align-items-center bg-light border rounded-pill px-3 py-2 shadow-sm me-2" style={{ height: 45 }}>
+                                        <i className="bi bi-mic-fill text-primary me-2"></i>
+                                        <span className="fw-bold me-2 text-primary">
+                                            {Math.floor(recordingDuration / 60)}:{(recordingDuration % 60).toString().padStart(2, '0')}
+                                        </span>
+                                        <button className="btn btn-sm btn-outline-danger ms-2 rounded-circle" style={{ width: 28, height: 28, padding: 0 }} onClick={cancelRecording} type="button">
+                                            <i className="bi bi-x-lg"></i>
+                                        </button>
+                                    </div>
+                                ) : null}
+
                                 {selectedFile ? (
                                     <button className="btn btn-success rounded-circle shadow-sm d-flex align-items-center justify-content-center" style={{ width: 45, height: 45 }} type="button" onClick={sendMedia} disabled={uploading}>
                                         {uploading ? <div className="spinner-border spinner-border-sm text-white"></div> : <i className="bi bi-send-fill"></i>}
                                     </button>
-                                ) : (
-                                    <button className="btn btn-primary rounded-circle shadow-sm d-flex align-items-center justify-content-center" style={{ width: 45, height: 45 }} type="submit" disabled={!formValue.trim() || uploading}>
+                                ) : audioBlob ? (
+                                    <button className="btn btn-primary rounded-circle shadow-sm d-flex align-items-center justify-content-center" style={{ width: 45, height: 45 }} type="button" onClick={sendAudio} disabled={uploading}>
+                                        {uploading ? <div className="spinner-border spinner-border-sm text-white"></div> : <i className="bi bi-send-fill"></i>}
+                                    </button>
+                                ) : formValue.trim() ? (
+                                    <button className="btn btn-primary rounded-circle shadow-sm d-flex align-items-center justify-content-center" style={{ width: 45, height: 45 }} type="submit" disabled={uploading}>
                                         <i className="bi bi-send-fill"></i>
+                                    </button>
+                                ) : !chatPartner?.isBot && (
+                                    <button className="btn btn-light border rounded-circle shadow-sm d-flex align-items-center justify-content-center" style={{ width: 45, height: 45 }} type="button" onClick={startRecording} disabled={uploading}>
+                                        <i className="bi bi-mic-fill text-primary fs-5"></i>
                                     </button>
                                 )}
                             </form>
@@ -1138,10 +1472,10 @@ export default function ChatPage({ showBot = true }) {
                         </div>
                         <div className="offcanvas-body p-0">
                             <div className="text-center p-4 border-bottom bg-light">
-                                <img src={getFullUrl(currentRoom.user1Id === currentUserId ? currentRoom.user2PhotoURL : currentRoom.user1PhotoURL) || `https://api.dicebear.com/9.x/initials/svg?seed=${chatPartner?.displayName}`}
+                                <img src={getFullUrl(currentRoom.user1Id.startsWith(currentUserId) ? currentRoom.user2PhotoURL : currentRoom.user1PhotoURL) || `https://api.dicebear.com/9.x/initials/svg?seed=${chatPartner?.displayName}`}
                                     className="rounded-circle shadow-sm mb-3" style={{ width: 100, height: 100, objectFit: 'cover' }} alt="Avatar" onError={(e) => { e.target.onerror = null; e.target.src = `https://api.dicebear.com/9.x/initials/svg?seed=${chatPartner?.displayName}`; }} />
                                 <h4 className="fw-bold mb-1">{chatPartner?.displayName}</h4>
-                                <p className="text-muted small mb-3">{(currentRoom.user1Id === currentUserId ? currentRoom.user2Specialty : currentRoom.user1Specialty) || 'HealthLink User'}</p>
+                                <p className="text-muted small mb-3">{(currentRoom.user1Id.startsWith(currentUserId) ? currentRoom.user2Specialty : currentRoom.user1Specialty) || 'HealthLink User'}</p>
 
                                 <div className="d-flex justify-content-center gap-4 mt-2">
                                     <div className="text-center" style={{ cursor: 'pointer' }} onClick={handleProfileNavigation}>
@@ -1361,6 +1695,21 @@ export default function ChatPage({ showBot = true }) {
                                             )}
                                         </div>
                                     )) : <div className="col-12 text-muted fst-italic small">No media found in this conversation.</div>}
+                                </div>
+
+                                <h6 className="fw-bold mb-3 text-secondary border-top pt-4">Audio Messages</h6>
+                                <div className="list-group list-group-flush shadow-sm rounded-4 overflow-hidden mb-4">
+                                    {messages.filter(m => m.audioUrl && getFullUrl(m.audioUrl)).length > 0 ? messages.filter(m => m.audioUrl && getFullUrl(m.audioUrl)).map(msg => (
+                                        <div key={msg.messageId} className="list-group-item d-flex align-items-center p-3 border-0 border-bottom">
+                                            <div className="bg-info bg-opacity-10 rounded p-2 me-3 d-flex align-items-center justify-content-center" style={{ width: 45, height: 45 }}>
+                                                <i className="bi bi-music-note-beamed fs-4 text-info"></i>
+                                            </div>
+                                            <div className="flex-grow-1" style={{ minWidth: 0 }}>
+                                                <audio controls src={getFullUrl(msg.audioUrl)} style={{ width: '100%', height: '32px', display: 'block', minHeight: '32px' }} />
+                                                <small className="text-muted d-block mt-2" style={{ fontSize: '0.75rem' }}>{new Date(msg.timestamp || msg.createdAt).toLocaleDateString()} {new Date(msg.timestamp || msg.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</small>
+                                            </div>
+                                        </div>
+                                    )) : <div className="list-group-item text-muted fst-italic small bg-white border-0 py-4 text-center">No audio found in this conversation.</div>}
                                 </div>
 
                                 <h6 className="fw-bold mb-3 text-secondary border-top pt-4">Files & Documents</h6>

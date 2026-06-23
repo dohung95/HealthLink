@@ -47,6 +47,7 @@ public class ChatServiceImpl implements ChatService {
         // Kiểm tra phòng đã tồn tại chưa
         return chatRoomRepository
                 .findByUsers(request.getUser1Id(), request.getUser2Id())
+                .stream().findFirst()
                 .map(existingRoom -> {
                     if (request.getAppointmentId() != null) {
                         if (existingRoom.getAppointment() == null || 
@@ -121,8 +122,13 @@ public class ChatServiceImpl implements ChatService {
     @Override
     @Transactional(readOnly = true)
     public List<ChatRoomDTO> getRoomsByUser(String userId) {
+        java.util.Set<String> seenPartners = new java.util.HashSet<>();
         return chatRoomRepository.findAllByUserId(userId)
                 .stream()
+                .filter(room -> {
+                    String partnerId = room.getUser1Id().equals(userId) ? room.getUser2Id() : room.getUser1Id();
+                    return seenPartners.add(partnerId);
+                })
                 .map(room -> {
                     ChatRoomDTO dto = toRoomDTO(room, userId);
                     dto.setUnreadCount(messageRepository.countUnread(room.getChatRoomId(), userId));
@@ -173,6 +179,7 @@ public class ChatServiceImpl implements ChatService {
                 .imageUrl(request.getImageUrl())
                 .videoUrl(request.getVideoUrl())
                 .fileUrl(request.getFileUrl())
+                .audioUrl(request.getAudioUrl())
                 .read(false)
                 .timestamp(LocalDateTime.now())
                 .build();
@@ -187,6 +194,8 @@ public class ChatServiceImpl implements ChatService {
                     : request.getContent();
         } else if (request.getVideoUrl() != null && !request.getVideoUrl().isBlank()) {
             preview = "[Video]";
+        } else if (request.getAudioUrl() != null && !request.getAudioUrl().isBlank()) {
+            preview = "[Voice Message]";
         } else if (request.getFileUrl() != null && !request.getFileUrl().isBlank()) {
             preview = "[File]";
         } else {
@@ -403,6 +412,7 @@ public class ChatServiceImpl implements ChatService {
                 .imageUrl(msg.getImageUrl())
                 .videoUrl(msg.getVideoUrl())
                 .fileUrl(msg.getFileUrl())
+                .audioUrl(msg.getAudioUrl())
                 .read(msg.isRead())
                 .timestamp(msg.getTimestamp())
                 .build();

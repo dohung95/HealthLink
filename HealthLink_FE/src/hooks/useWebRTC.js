@@ -352,6 +352,10 @@ export const useWebRTC = (roomId, targetUserId) => {
         setRemoteStream(null);
         setCallStatus('disconnected');
 
+        // Đảm bảo cờ trong localStorage được xóa bỏ
+        const userIdKey = currentUserIdRef.current || localStorage.getItem('userId') || sessionStorage.getItem('userId') || 'guest';
+        localStorage.removeItem('healthlink_in_call_' + userIdKey);
+
         // Issue #3: Gửi HANGUP trước khi đóng tab để STOMP kịp flush
         if (sendHangup && targetUserIdRef.current && currentUserIdRef.current) {
             console.log('[WebRTC] Sending HANGUP to', targetUserIdRef.current);

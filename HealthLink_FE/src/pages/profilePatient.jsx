@@ -191,6 +191,7 @@ function GeneralInfoForm({ profile, token, onUpdate }) {
             setIsEditing(false);
             if (onUpdate) onUpdate();
             toast.success("Updated successfully!");
+            window.dispatchEvent(new Event('profile-updated'));
         } catch (error) {
             console.error(error);
             toast.error("Update error: " + (error.response?.data?.message || error.message));
