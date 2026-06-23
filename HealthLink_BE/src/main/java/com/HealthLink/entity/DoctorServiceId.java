@@ -1,6 +1,7 @@
 package com.HealthLink.entity;
 
 import com.HealthLink.entity.enums.ServiceType;
+import jakarta.persistence.Column;
 import jakarta.persistence.Embeddable;
 import jakarta.persistence.EnumType;
 import jakarta.persistence.Enumerated;
@@ -22,5 +23,6 @@ public class DoctorServiceId implements Serializable {
     private String doctorId;
 
     @Enumerated(EnumType.STRING)
+    @Column(name = "service_type")
     private ServiceType serviceType;
 }
