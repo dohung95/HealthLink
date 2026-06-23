@@ -179,6 +179,7 @@ public class ChatServiceImpl implements ChatService {
                 .imageUrl(request.getImageUrl())
                 .videoUrl(request.getVideoUrl())
                 .fileUrl(request.getFileUrl())
+                .audioUrl(request.getAudioUrl())
                 .read(false)
                 .timestamp(LocalDateTime.now())
                 .build();
@@ -193,6 +194,8 @@ public class ChatServiceImpl implements ChatService {
                     : request.getContent();
         } else if (request.getVideoUrl() != null && !request.getVideoUrl().isBlank()) {
             preview = "[Video]";
+        } else if (request.getAudioUrl() != null && !request.getAudioUrl().isBlank()) {
+            preview = "[Voice Message]";
         } else if (request.getFileUrl() != null && !request.getFileUrl().isBlank()) {
             preview = "[File]";
         } else {
@@ -409,6 +412,7 @@ public class ChatServiceImpl implements ChatService {
                 .imageUrl(msg.getImageUrl())
                 .videoUrl(msg.getVideoUrl())
                 .fileUrl(msg.getFileUrl())
+                .audioUrl(msg.getAudioUrl())
                 .read(msg.isRead())
                 .timestamp(msg.getTimestamp())
                 .build();
