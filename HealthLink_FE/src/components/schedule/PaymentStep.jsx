@@ -110,10 +110,10 @@ const PaymentStep = ({ bookingDraft, selectedDoctor, onBack, onPaymentComplete }
   const displayInvoice = paidInvoice || {
     invoiceNumber: 'Pending checkout',
     amount: bookingDraft?.amount ?? selectedDoctor?.consultationFee ?? 0,
-    consultationFee: isHomeVisit
-      ? homeVisitEstimate?.homeVisitFee
-      : bookingDraft?.amount ?? selectedDoctor?.consultationFee ?? 0,
+    consultationFee: bookingDraft?.doctorFee ?? selectedDoctor?.consultationFee ?? 0,
+    homeVisitBaseFee: homeVisitEstimate?.homeVisitFee,
     travelFee: homeVisitEstimate?.travelFee,
+    homeVisitTravelTotal: homeVisitEstimate?.totalFee,
     distanceKm: homeVisitEstimate?.distanceKm,
     estimatedTravelMinutes: homeVisitEstimate?.estimatedTravelMinutes,
     status: 'Pending',
@@ -142,22 +142,28 @@ const PaymentStep = ({ bookingDraft, selectedDoctor, onBack, onPaymentComplete }
         {isHomeVisit && (
           <>
             <div>
-              <span>Home visit fee</span>
+              <span>Doctor consultation fee</span>
               <strong>{formatCurrency(displayInvoice?.consultationFee)}</strong>
             </div>
 
             <div>
-              <span>Travel fee</span>
+              <span>Base home visit fee</span>
+              <strong>{formatCurrency(displayInvoice?.homeVisitBaseFee)}</strong>
+            </div>
+
+            <div>
+              <span>Additional distance fee</span>
               <strong>{formatCurrency(displayInvoice?.travelFee)}</strong>
             </div>
 
             <div>
+              <span>Home visit travel total</span>
+              <strong>{formatCurrency(displayInvoice?.homeVisitTravelTotal)}</strong>
+            </div>
+
+            <div>
               <span>Distance</span>
-              <strong>
-                {displayInvoice?.distanceKm
-                  ? `${displayInvoice.distanceKm} km`
-                  : 'Not estimated'}
-              </strong>
+              <strong>{displayInvoice?.distanceKm ?? 0} km</strong>
             </div>
           </>
         )}

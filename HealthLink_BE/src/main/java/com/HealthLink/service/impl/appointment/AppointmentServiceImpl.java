@@ -185,8 +185,8 @@ public class AppointmentServiceImpl implements AppointmentService {
                 .notes(request.getNotes())
                 .fee(homeVisitEstimate != null
                         ? doctor.getConsultationFee()
-                                .add(homeVisitEstimate.getTravelFee() != null
-                                        ? homeVisitEstimate.getTravelFee()
+                                .add(homeVisitEstimate.getTotalFee() != null
+                                        ? homeVisitEstimate.getTotalFee()
                                         : BigDecimal.ZERO)
                                 .setScale(2, java.math.RoundingMode.HALF_UP)
                         : doctor.getConsultationFee())

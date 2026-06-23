@@ -54,6 +54,12 @@ const HomeVisitStep = ({
   const [estimate, setEstimate] = useState(null);
   const [estimating, setEstimating] = useState(false);
 
+  const formatUsd = (value) =>
+    Number(value || 0).toLocaleString('en-US', {
+      style: 'currency',
+      currency: 'USD',
+    });
+
   const selectedLocation =
     homeVisitInfo.visitLatitude && homeVisitInfo.visitLongitude
       ? {
@@ -583,24 +589,29 @@ const HomeVisitStep = ({
 
           {estimate && (
             <div className={`home-visit-estimate ${estimate.serviceable ? 'ok' : 'blocked'}`}>
-              <div>
+              <div className="home-visit-estimate-item">
                 <strong>Distance</strong>
                 <span>{estimate.distanceKm} km</span>
               </div>
 
-              <div>
+              <div className="home-visit-estimate-item">
                 <strong>Travel time</strong>
                 <span>{estimate.estimatedTravelMinutes} min</span>
               </div>
 
-              <div>
-                <strong>Travel fee</strong>
-                <span>
-                  {Number(estimate.travelFee || 0).toLocaleString('en-US', {
-                    style: 'currency',
-                    currency: 'USD',
-                  })}
-                </span>
+              <div className="home-visit-estimate-item">
+                <strong>Base fee</strong>
+                <span>{formatUsd(estimate.homeVisitFee)}</span>
+              </div>
+
+              <div className="home-visit-estimate-item">
+                <strong>Extra distance fee</strong>
+                <span>{formatUsd(estimate.travelFee)}</span>
+              </div>
+
+              <div className="home-visit-estimate-item total">
+                <strong>Total travel fee</strong>
+                <span>{formatUsd(estimate.totalFee)}</span>
               </div>
 
               <p>{estimate.message}</p>
