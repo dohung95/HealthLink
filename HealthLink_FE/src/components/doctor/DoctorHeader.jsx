@@ -1,4 +1,5 @@
 import React, { memo, useEffect, useRef, useState } from 'react';
+import { toast } from 'sonner';
 import { doctorService as doctorApi } from '../../api/doctorApi';
 
 const getInitials = (name) => {
@@ -36,7 +37,6 @@ const DoctorHeader = memo(({
     homeVisit: doctorData?.availableTypes?.includes('HomeVisit') ?? false,
   });
   const [serviceLoading, setServiceLoading] = useState({});
-  const [serviceError, setServiceError] = useState(null);
   const profileDropdownRef = useRef(null);
 
   useEffect(() => {
@@ -79,17 +79,16 @@ const DoctorHeader = memo(({
     const otherKeys = Object.keys(services).filter(k => k !== key);
     const allOff = otherKeys.every(k => !services[k]) && !newValue;
     if (allOff) {
-      setServiceError('Phải có ít nhất 1 dịch vụ hoạt động');
+      toast.error('At least one service must be active');
       return;
     }
     setServiceLoading(prev => ({ ...prev, [key]: true }));
-    setServiceError(null);
     try {
       const result = await doctorApi.updateServices({ [key]: newValue });
       setServices(prev => ({ ...prev, ...result }));
     } catch (err) {
       setServices(prev => ({ ...prev, [key]: !newValue }));
-      setServiceError(err.response?.data?.message || 'Cập nhật thất bại');
+      toast.error(err.response?.data?.message || 'Update failed');
     } finally {
       setServiceLoading(prev => ({ ...prev, [key]: false }));
     }
@@ -326,9 +325,6 @@ const DoctorHeader = memo(({
                   {/* Nested Service Toggles */}
                   {servicesExpanded && (
                     <div style={{ animation: 'fadeIn 0.12s ease-out' }}>
-                      {serviceError && (
-                        <div className="alert alert-danger py-1 px-2 mx-3 mb-1" style={{ fontSize: '0.75rem' }}>{serviceError}</div>
-                      )}
                       <div
                         className="d-flex align-items-center gap-3 w-100 py-2 border-0 bg-transparent text-start"
                         style={{ paddingLeft: '4rem', paddingRight: '1rem', fontSize: '0.8125rem', color: 'var(--text-primary)', cursor: serviceLoading.online ? 'not-allowed' : 'pointer' }}

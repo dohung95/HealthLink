@@ -108,20 +108,22 @@ public class HomeVisitLocationService {
 
         boolean serviceable = roundedDistance <= maxDistanceKm;
 
-        double chargeableKm = Math.max(0, roundedDistance - freeDistanceKm);
+        double extraKm = Math.max(0, roundedDistance - freeDistanceKm);
+        double billedExtraKm = Math.ceil(extraKm);
 
-        BigDecimal travelFee = travelFeePerKm
-                .multiply(BigDecimal.valueOf(chargeableKm))
+        BigDecimal extraTravelFee = travelFeePerKm
+                .multiply(BigDecimal.valueOf(billedExtraKm))
                 .setScale(2, RoundingMode.HALF_UP);
 
-        BigDecimal totalFee = baseFee.add(travelFee)
+        BigDecimal totalFee = baseFee
+                .add(extraTravelFee)
                 .setScale(2, RoundingMode.HALF_UP);
 
         return HomeVisitEstimateResponse.builder()
                 .distanceKm(roundedDistance)
                 .estimatedTravelMinutes(estimatedMinutes)
                 .homeVisitFee(baseFee)
-                .travelFee(travelFee)
+                .travelFee(extraTravelFee)
                 .totalFee(totalFee)
                 .serviceable(serviceable)
                 .message(serviceable

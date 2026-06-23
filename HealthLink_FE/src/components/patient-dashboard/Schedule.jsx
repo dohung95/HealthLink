@@ -551,21 +551,28 @@ const Schedule = () => {
       };
 
       const doctorFee = Number(selectedDoctor?.consultationFee ?? selectedDoctor?.fee ?? 0);
-      const travelFee = Number(homeVisitInfo.travelFee || 0);
+
+      const homeVisitBaseFee = Number(homeVisitInfo.homeVisitFee || 0);
+      const extraTravelFee = Number(homeVisitInfo.travelFee || 0);
+      const homeVisitTravelTotal = Number(
+        homeVisitInfo.totalFee ?? homeVisitBaseFee + extraTravelFee
+      );
 
       setPaymentDraft({
         ...bookingData,
         currency: 'USD',
         amount: isHomeVisit
-          ? doctorFee + travelFee
+          ? doctorFee + homeVisitTravelTotal
           : doctorFee,
+        doctorFee,
         homeVisitEstimate: isHomeVisit
           ? {
             distanceKm: homeVisitInfo.distanceKm,
             estimatedTravelMinutes: homeVisitInfo.estimatedTravelMinutes,
-            homeVisitFee: doctorFee,
-            travelFee: travelFee,
-            totalFee: doctorFee + travelFee,
+            homeVisitFee: homeVisitBaseFee,
+            travelFee: extraTravelFee,
+            totalFee: homeVisitTravelTotal,
+            grandTotal: doctorFee + homeVisitTravelTotal,
           }
           : null,
       });

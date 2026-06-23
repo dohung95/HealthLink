@@ -404,10 +404,11 @@
 }
 
 .schedule-actions {
+  width: 100%;
   display: flex;
-  justify-content: flex-end;
+  align-items: center;
+  justify-content: space-between;
   gap: 12px;
-  margin-top: 24px;
 }
 
 .btn-outline-soft,
@@ -630,13 +631,24 @@
 }
 
 .datetime-actions {
+  width: 100%;
   margin-top: 28px;
+  display: flex;
+  align-items: center;
   justify-content: space-between;
 }
 
 .datetime-actions .btn-outline-soft,
 .datetime-actions .btn-primary-soft {
-  min-width: 150px;
+  min-width: 180px;
+}
+
+.datetime-actions .btn-outline-soft {
+  margin-right: auto;
+}
+
+.datetime-actions .btn-primary-soft {
+  margin-left: auto;
 }
 
 .slot-button.booked,
@@ -1014,8 +1026,9 @@
   padding: 16px;
   border-radius: 14px;
   display: grid;
-  grid-template-columns: repeat(4, minmax(0, 1fr));
+  grid-template-columns: repeat(5, minmax(0, 1fr));
   gap: 12px;
+  align-items: stretch;
 }
 
 .home-visit-estimate.ok {
@@ -1028,10 +1041,20 @@
   border: 1px solid #ffbcbc;
 }
 
-.home-visit-estimate div {
+.home-visit-estimate-item {
   display: flex;
   flex-direction: column;
-  gap: 4px;
+  justify-content: center;
+  gap: 6px;
+  min-height: 72px;
+  padding: 12px;
+  border-radius: 12px;
+  background: rgba(255, 255, 255, 0.55);
+}
+
+.home-visit-estimate-item.total {
+  background: #dff8ef;
+  border: 1px solid #8ee0c5;
 }
 
 .home-visit-estimate strong {

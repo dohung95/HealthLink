@@ -984,11 +984,13 @@ public class FinanceServiceImpl implements FinanceService {
             }
 
             BigDecimal consultationFee = resolveDoctorConsultationFee(doctor);
-            BigDecimal travelFee = estimate.getTravelFee() != null
-                    ? estimate.getTravelFee()
+
+            BigDecimal homeVisitTravelTotal = estimate.getTotalFee() != null
+                    ? estimate.getTotalFee()
                     : BigDecimal.ZERO;
 
-            return consultationFee.add(travelFee)
+            return consultationFee
+                    .add(homeVisitTravelTotal)
                     .setScale(2, RoundingMode.HALF_UP);
         }
 
