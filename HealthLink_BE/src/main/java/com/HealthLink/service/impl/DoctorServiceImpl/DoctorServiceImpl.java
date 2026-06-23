@@ -41,6 +41,12 @@ import com.HealthLink.utility.DoctorServiceHelper;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import com.HealthLink.entity.EmailVerificationToken;
 import com.HealthLink.exception.BadRequestException;
+import com.HealthLink.exception.BusinessException;
+import com.HealthLink.entity.DoctorServiceId;
+import com.HealthLink.entity.enums.ServiceType;
+import com.HealthLink.dto.doctor.DoctorServiceToggleRequest;
+import com.HealthLink.repository.DoctorServiceRepository;
+import java.util.HashMap;
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
@@ -86,6 +92,7 @@ public class DoctorServiceImpl implements DoctorService {
     private final EmailVerificationTokenRepository emailVerificationTokenRepository;
     private final EmailService emailService;
     private final PasswordEncoder passwordEncoder;
+    private final DoctorServiceRepository doctorServiceRepository;
 
     private static final String[] DAY_NAMES
             = {"Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"};
@@ -296,9 +303,7 @@ public class DoctorServiceImpl implements DoctorService {
     }
 
     private DoctorProfileResponse buildDoctorProfileResponse(Doctor d) {
-        List<String> availableTypes = DoctorServiceHelper.buildAvailableTypes(
-                d.isAvailableForVideo(), d.isAvailableForAudio(),
-                d.isAvailableForChat(), d.isAvailableForOffline());
+        List<String> availableTypes = DoctorServiceHelper.buildAvailableTypes(d);
 
         String specialtyName = (d.getSpecialtyEntity() != null)
                 ? d.getSpecialtyEntity().getName()
@@ -658,9 +663,7 @@ public class DoctorServiceImpl implements DoctorService {
     }
 
     private DoctorResponse toResponse(Doctor d) {
-        List<String> availableTypes = DoctorServiceHelper.buildAvailableTypes(
-                d.isAvailableForVideo(), d.isAvailableForAudio(),
-                d.isAvailableForChat(), d.isAvailableForOffline());
+        List<String> availableTypes = DoctorServiceHelper.buildAvailableTypes(d);
 
         String specialtyName = (d.getSpecialtyEntity() != null)
                 ? d.getSpecialtyEntity().getName()
@@ -782,5 +785,37 @@ public class DoctorServiceImpl implements DoctorService {
     @Override
     public List<String> getSpecialties() {
         return doctorRepository.findAllSpecialtyNames();
+    }
+
+    @Override
+    @Transactional
+    public Map<String, Boolean> updateServiceAvailability(String doctorId, DoctorServiceToggleRequest request) {
+        Doctor doctor = doctorRepository.findById(doctorId)
+                .orElseThrow(() -> new ResourceNotFoundException("Doctor not found: " + doctorId));
+
+        if (request.isAllDisabled()) {
+            throw new BusinessException("Phải có ít nhất 1 dịch vụ hoạt động");
+        }
+
+        Map<String, Boolean> result = new HashMap<>();
+
+        if (request.getOnline() != null) {
+            updateService(doctor, ServiceType.ONLINE, request.getOnline());
+            result.put("online", request.getOnline());
+        }
+        if (request.getHomeVisit() != null) {
+            updateService(doctor, ServiceType.HOME_VISIT, request.getHomeVisit());
+            result.put("homeVisit", request.getHomeVisit());
+        }
+
+        return result;
+    }
+
+    private void updateService(Doctor doctor, ServiceType type, boolean available) {
+        DoctorServiceId id = new DoctorServiceId(doctor.getDoctorId(), type);
+        com.HealthLink.entity.DoctorService ds = doctorServiceRepository.findById(id)
+                .orElseGet(() -> new com.HealthLink.entity.DoctorService(doctor, type, true));
+        ds.setAvailable(available);
+        doctorServiceRepository.save(ds);
     }
 }

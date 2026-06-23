@@ -40,6 +40,8 @@ lerna-debug.log*
 
 # DOC & Skills
 /doc
+/docs
+/docs/superpowers
 /skills
 /HealthLink_BE/doc/
 /.agents
@@ -63,7 +65,7 @@ lerna-debug.log*
 /HealthLink_FE/.codex
 /HealthLink_FE/.opencode
 /HealthLink_FE/graphify-out
-/docs
+
 /.superpowers
 
 # === Custom ignores cho file XML do IDE sinh ra ===

@@ -13,8 +13,11 @@ const DateTimeStep = ({
   onNext,
   doctorSchedules = [],
   maxDate,
+  consultationType,
 }) => {
   const [weekIndex, setWeekIndex] = useState(0);
+  const isHomeVisit = consultationType === 'HomeVisit';
+
 
   const weekdayLabels = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
 
@@ -47,15 +50,41 @@ const DateTimeStep = ({
     return date;
   };
 
-  const workingDaySet = useMemo(() => {
-    return new Set(
-      (doctorSchedules || [])
-        .filter((schedule) => schedule.available !== false)
-        .map((schedule) => Number(schedule.dayOfWeek))
-    );
-  }, [doctorSchedules]);
+  const isScheduleMatchingConsultationType = (schedule) => {
+  const type = String(schedule.consultationType || '').trim().toLowerCase();
 
-  const shouldFilterByDoctorSchedule = true;
+  if (consultationType === 'HomeVisit') {
+    return (
+      type === 'homevisit' ||
+      type === 'home visit' ||
+      type === 'home-visit' ||
+      type === 'home'
+    );
+  }
+
+  return (
+    !type ||
+    type === 'online' ||
+    type === 'video' ||
+    type === 'video call' ||
+    type === 'audio' ||
+    type === 'audio call' ||
+    type === 'chat' ||
+    type === 'consultation'
+  );
+};
+
+const workingDaySet = useMemo(() => {
+  return new Set(
+    (doctorSchedules || [])
+      .filter((schedule) => schedule.available !== false)
+      .filter(isScheduleMatchingConsultationType)
+      .map((schedule) => Number(schedule.dayOfWeek))
+  );
+}, [doctorSchedules, consultationType]);
+
+const shouldFilterByDoctorSchedule = workingDaySet.size > 0;
+
 
   const buildWeekOptions = (targetWeekIndex) => {
     const today = getStartOfToday();
@@ -194,7 +223,6 @@ const DateTimeStep = ({
           ))
         )}
       </div>
-
       <div className="slot-section">
         <h3>Available slots</h3>
 
@@ -247,7 +275,7 @@ const DateTimeStep = ({
                             : 'Available'
                   }
                 >
-                  {slot.startTime}
+                  {slot.startTime} - {slot.endTime}
                 </button>
               );
             })}
@@ -268,6 +296,7 @@ const DateTimeStep = ({
         >
           Next
         </button>
+
       </div>
     </div>
   );

@@ -77,17 +77,40 @@ INSERT INTO DeviceTokens (DeviceTokenID, UserId, Token, DeviceName, Platform, Ac
 SET IDENTITY_INSERT DeviceTokens OFF;
 
 -- 5. DOCTORS (10 doctors)
-INSERT INTO Doctors (DoctorID, FullName, qualifications, specialty, yearsOfExperience, languageSpoken, location, avatarUrl, bio, consultationFee, latitude, longitude, clinicName, clinicAddress, averageRating, totalReviews, verified, availableForVideo, availableForAudio, availableForChat, availableForOffline, specialtyId, totalEarnings, pendingSettlement, paypalEmail, scheduleStatus, bankAccount, bankName, customCommissionRateOnline, customCommissionRateOffline, customCommissionRateOnlineEffectiveFrom, customCommissionRateOnlineEffectiveTo, customCommissionRateOfflineEffectiveFrom, customCommissionRateOfflineEffectiveTo, commissionTier) VALUES
-('user-d01', 'Dr. John Smith', 'MD, PhD - Harvard Medical School', 'Internal Medicine', 15, 'English, Spanish', 'New York', '/avatars/doctor01.jpg', 'Internal medicine specialist with 15 years of experience', 150.00, 40.7128, -74.0060, 'Manhattan Health Clinic', '123 5th Avenue, New York, NY 10001', 4.8, 156, 1, 1, 1, 1, 1, 1, 500.00, 120.00, 'dr.john.smith@healthlink.com', 'APPROVED', '1234567890', 'Bank of America', NULL, NULL, NULL, NULL, NULL, NULL, 'STANDARD'),
-('user-d02', 'Dr. Sarah Johnson', 'MD - Johns Hopkins University', 'Pediatrics', 12, 'English', 'Los Angeles', '/avatars/doctor02.jpg', 'Dedicated pediatrician caring for children', 120.00, 34.0522, -118.2437, 'LA Children Hospital', '456 Sunset Blvd, Los Angeles, CA 90028', 4.9, 203, 1, 1, 1, 1, 1, 3, 320.00, 75.00, 'dr.sarah.johnson@healthlink.com', 'APPROVED', '1234567891', 'Wells Fargo', NULL, NULL, NULL, NULL, NULL, NULL, 'STANDARD'),
-('user-d03', 'Dr. Michael Chen', 'MD, FACC - Stanford University', 'Cardiology', 20, 'English, Mandarin, French', 'San Francisco', '/avatars/doctor03.jpg', 'Leading cardiologist and heart specialist', 250.00, 37.7749, -122.4194, 'Bay Area Heart Center', '789 Market Street, San Francisco, CA 94103', 4.95, 89, 1, 1, 0, 1, 1, 6, 640.00, 150.00, 'dr.michael.chen@healthlink.com', 'APPROVED', '1234567892', 'Chase', NULL, NULL, NULL, NULL, NULL, NULL, 'PREMIUM'),
-('user-d04', 'Dr. Emily Davis', 'MD, FACS - Mayo Clinic', 'Surgery', 10, 'English', 'Chicago', '/avatars/doctor04.jpg', 'Experienced general surgeon', 180.00, 41.8781, -87.6298, 'Chicago Medical Center', '321 Michigan Ave, Chicago, IL 60601', 4.7, 67, 1, 0, 0, 1, 1, 2, 280.00, 50.00, 'dr.emily.davis@healthlink.com', 'APPROVED', '1234567893', 'Citibank', NULL, NULL, NULL, NULL, NULL, NULL, 'STANDARD'),
-('user-d05', 'Dr. Jessica Williams', 'MD, FACOG - UCLA', 'Obstetrics & Gynecology', 8, 'English, Korean', 'Seattle', '/avatars/doctor05.jpg', 'Women health and pregnancy specialist', 140.00, 47.6062, -122.3321, 'Seattle Women Clinic', '555 Pine Street, Seattle, WA 98101', 4.85, 178, 1, 1, 1, 1, 1, 4, 410.00, 140.00, 'dr.jessica.williams@healthlink.com', 'APPROVED', '1234567894', 'US Bank', NULL, NULL, NULL, NULL, NULL, NULL, 'STANDARD'),
-('user-d06', 'Dr. Robert Brown', 'MD - NYU School of Medicine', 'Dermatology', 7, 'English, Italian', 'Miami', '/avatars/doctor06.jpg', 'Skin disease and cosmetic dermatology expert', 110.00, 25.7617, -80.1918, 'Miami Skin Center', '888 Ocean Drive, Miami, FL 33139', 4.6, 234, 1, 1, 1, 1, 0, 5, 220.00, 45.00, 'dr.robert.brown@healthlink.com', 'APPROVED', '1234567895', 'TD Bank', NULL, NULL, NULL, NULL, NULL, NULL, 'STANDARD'),
-('user-d07', 'Dr. David Wilson', 'MD, PhD - Columbia University', 'Neurology', 18, 'English, German', 'Boston', '/avatars/doctor07.jpg', 'Neurologist specializing in brain disorders', 220.00, 42.3601, -71.0589, 'Boston Neuro Institute', '100 Cambridge St, Boston, MA 02114', 4.75, 112, 1, 1, 1, 1, 1, 7, 520.00, 170.00, 'dr.david.wilson@healthlink.com', 'APPROVED', '1234567896', 'Bank of America', NULL, NULL, NULL, NULL, NULL, NULL, 'STANDARD'),
-('user-d08', 'Dr. Amanda Lee', 'MD - Wills Eye Hospital', 'Ophthalmology', 14, 'English, Japanese', 'Philadelphia', '/avatars/doctor08.jpg', 'Eye surgery and treatment specialist', 160.00, 39.9526, -75.1652, 'Philadelphia Eye Center', '200 Chestnut St, Philadelphia, PA 19106', 4.88, 145, 1, 1, 0, 1, 1, 8, 305.00, 80.00, 'dr.amanda.lee@healthlink.com', 'APPROVED', '1234567897', 'PNC Bank', NULL, NULL, NULL, NULL, NULL, NULL, 'STANDARD'),
-('user-d09', 'Dr. James Taylor', 'MD - Baylor College of Medicine', 'ENT', 11, 'English, Spanish', 'Houston', '/avatars/doctor09.jpg', 'Ear, nose, and throat specialist', 100.00, 29.7604, -95.3698, 'Houston ENT Clinic', '400 Main Street, Houston, TX 77002', 4.5, 89, 1, 1, 1, 1, 1, 9, 190.00, 30.00, 'dr.james.taylor@healthlink.com', 'APPROVED', '1234567898', 'Chase', NULL, NULL, NULL, NULL, NULL, NULL, 'STANDARD'),
-('user-d10', 'Dr. Jennifer Martinez', 'DDS - USC School of Dentistry', 'Dentistry', 9, 'English, Spanish', 'Phoenix', '/avatars/doctor10.jpg', 'Cosmetic and general dentistry', 90.00, 33.4484, -112.0740, 'Smile Dental Center', '600 Central Ave, Phoenix, AZ 85004', 4.92, 267, 1, 0, 0, 1, 1, 10, 150.00, 25.00, 'dr.jennifer.martinez@healthlink.com', 'APPROVED', '1234567899', 'Bank of the West', NULL, NULL, NULL, NULL, NULL, NULL, 'STANDARD');
+INSERT INTO Doctors (DoctorID, FullName, qualifications, specialty, yearsOfExperience, languageSpoken, location, avatarUrl, bio, consultationFee, latitude, longitude, clinicName, clinicAddress, averageRating, totalReviews, verified, specialtyId, totalEarnings, pendingSettlement, paypalEmail, scheduleStatus, bankAccount, bankName, customCommissionRateOnline, customCommissionRateOffline, customCommissionRateOnlineEffectiveFrom, customCommissionRateOnlineEffectiveTo, customCommissionRateOfflineEffectiveFrom, customCommissionRateOfflineEffectiveTo, commissionTier) VALUES
+('user-d01', 'Dr. John Smith', 'MD, PhD - Harvard Medical School', 'Internal Medicine', 15, 'English, Spanish', 'New York', '/avatars/doctor01.jpg', 'Internal medicine specialist with 15 years of experience', 150.00, 40.7128, -74.0060, 'Manhattan Health Clinic', '123 5th Avenue, New York, NY 10001', 4.8, 156, 1, 1, 500.00, 120.00, 'dr.john.smith@healthlink.com', 'APPROVED', '1234567890', 'Bank of America', NULL, NULL, NULL, NULL, NULL, NULL, 'STANDARD'),
+('user-d02', 'Dr. Sarah Johnson', 'MD - Johns Hopkins University', 'Pediatrics', 12, 'English', 'Los Angeles', '/avatars/doctor02.jpg', 'Dedicated pediatrician caring for children', 120.00, 34.0522, -118.2437, 'LA Children Hospital', '456 Sunset Blvd, Los Angeles, CA 90028', 4.9, 203, 1, 3, 320.00, 75.00, 'dr.sarah.johnson@healthlink.com', 'APPROVED', '1234567891', 'Wells Fargo', NULL, NULL, NULL, NULL, NULL, NULL, 'STANDARD'),
+('user-d03', 'Dr. Michael Chen', 'MD, FACC - Stanford University', 'Cardiology', 20, 'English, Mandarin, French', 'San Francisco', '/avatars/doctor03.jpg', 'Leading cardiologist and heart specialist', 250.00, 37.7749, -122.4194, 'Bay Area Heart Center', '789 Market Street, San Francisco, CA 94103', 4.95, 89, 1, 6, 640.00, 150.00, 'dr.michael.chen@healthlink.com', 'APPROVED', '1234567892', 'Chase', NULL, NULL, NULL, NULL, NULL, NULL, 'PREMIUM'),
+('user-d04', 'Dr. Emily Davis', 'MD, FACS - Mayo Clinic', 'Surgery', 10, 'English', 'Chicago', '/avatars/doctor04.jpg', 'Experienced general surgeon', 180.00, 41.8781, -87.6298, 'Chicago Medical Center', '321 Michigan Ave, Chicago, IL 60601', 4.7, 67, 1, 2, 280.00, 50.00, 'dr.emily.davis@healthlink.com', 'APPROVED', '1234567893', 'Citibank', NULL, NULL, NULL, NULL, NULL, NULL, 'STANDARD'),
+('user-d05', 'Dr. Jessica Williams', 'MD, FACOG - UCLA', 'Obstetrics & Gynecology', 8, 'English, Korean', 'Seattle', '/avatars/doctor05.jpg', 'Women health and pregnancy specialist', 140.00, 47.6062, -122.3321, 'Seattle Women Clinic', '555 Pine Street, Seattle, WA 98101', 4.85, 178, 1, 4, 410.00, 140.00, 'dr.jessica.williams@healthlink.com', 'APPROVED', '1234567894', 'US Bank', NULL, NULL, NULL, NULL, NULL, NULL, 'STANDARD'),
+('user-d06', 'Dr. Robert Brown', 'MD - NYU School of Medicine', 'Dermatology', 7, 'English, Italian', 'Miami', '/avatars/doctor06.jpg', 'Skin disease and cosmetic dermatology expert', 110.00, 25.7617, -80.1918, 'Miami Skin Center', '888 Ocean Drive, Miami, FL 33139', 4.6, 234, 1, 5, 220.00, 45.00, 'dr.robert.brown@healthlink.com', 'APPROVED', '1234567895', 'TD Bank', NULL, NULL, NULL, NULL, NULL, NULL, 'STANDARD'),
+('user-d07', 'Dr. David Wilson', 'MD, PhD - Columbia University', 'Neurology', 18, 'English, German', 'Boston', '/avatars/doctor07.jpg', 'Neurologist specializing in brain disorders', 220.00, 42.3601, -71.0589, 'Boston Neuro Institute', '100 Cambridge St, Boston, MA 02114', 4.75, 112, 1, 7, 520.00, 170.00, 'dr.david.wilson@healthlink.com', 'APPROVED', '1234567896', 'Bank of America', NULL, NULL, NULL, NULL, NULL, NULL, 'STANDARD'),
+('user-d08', 'Dr. Amanda Lee', 'MD - Wills Eye Hospital', 'Ophthalmology', 14, 'English, Japanese', 'Philadelphia', '/avatars/doctor08.jpg', 'Eye surgery and treatment specialist', 160.00, 39.9526, -75.1652, 'Philadelphia Eye Center', '200 Chestnut St, Philadelphia, PA 19106', 4.88, 145, 1, 8, 305.00, 80.00, 'dr.amanda.lee@healthlink.com', 'APPROVED', '1234567897', 'PNC Bank', NULL, NULL, NULL, NULL, NULL, NULL, 'STANDARD'),
+('user-d09', 'Dr. James Taylor', 'MD - Baylor College of Medicine', 'ENT', 11, 'English, Spanish', 'Houston', '/avatars/doctor09.jpg', 'Ear, nose, and throat specialist', 100.00, 29.7604, -95.3698, 'Houston ENT Clinic', '400 Main Street, Houston, TX 77002', 4.5, 89, 1, 9, 190.00, 30.00, 'dr.james.taylor@healthlink.com', 'APPROVED', '1234567898', 'Chase', NULL, NULL, NULL, NULL, NULL, NULL, 'STANDARD'),
+('user-d10', 'Dr. Jennifer Martinez', 'DDS - USC School of Dentistry', 'Dentistry', 9, 'English, Spanish', 'Phoenix', '/avatars/doctor10.jpg', 'Cosmetic and general dentistry', 90.00, 33.4484, -112.0740, 'Smile Dental Center', '600 Central Ave, Phoenix, AZ 85004', 4.92, 267, 1, 10, 150.00, 25.00, 'dr.jennifer.martinez@healthlink.com', 'APPROVED', '1234567899', 'Bank of the West', NULL, NULL, NULL, NULL, NULL, NULL, 'STANDARD');
+
+-- 5b. DOCTOR_SERVICES (2 rows per doctor, 20 total)
+INSERT INTO DoctorServices (doctor_id, service_type, available) VALUES
+('user-d01', 'ONLINE', 1),
+('user-d01', 'HOME_VISIT', 1),
+('user-d02', 'ONLINE', 1),
+('user-d02', 'HOME_VISIT', 1),
+('user-d03', 'ONLINE', 1),
+('user-d03', 'HOME_VISIT', 1),
+('user-d04', 'ONLINE', 1),
+('user-d04', 'HOME_VISIT', 1),
+('user-d05', 'ONLINE', 1),
+('user-d05', 'HOME_VISIT', 1),
+('user-d06', 'ONLINE', 1),
+('user-d06', 'HOME_VISIT', 1),
+('user-d07', 'ONLINE', 1),
+('user-d07', 'HOME_VISIT', 1),
+('user-d08', 'ONLINE', 1),
+('user-d08', 'HOME_VISIT', 1),
+('user-d09', 'ONLINE', 1),
+('user-d09', 'HOME_VISIT', 1),
+('user-d10', 'ONLINE', 1),
+('user-d10', 'HOME_VISIT', 1);
 
 -- 6. PATIENTS (10 patients)
 INSERT INTO Patients (PatientID, FullName, dateOfBirth, medicalHistorySummary, insuranceProvider, insurancePolicyNumber, gender, address, city, country, bloodType, emergencyContactName, emergencyContactPhone, emergencyContactRelationship, preferredLanguage, preferredContactMethod, occupation, avatarUrl, latitude, longitude, allergies, chronicConditions, currentMedications, heightCm, weightKg) VALUES
@@ -163,19 +186,36 @@ INSERT INTO PharmacyInventory (InventoryID, PharmacyID, MedicineID, quantity, re
 (28, 'user-ph10', 3, 0, 0, 0.53, 'Capsule', '2026-09-30', 1, '2024-05-20 10:00:00', '2024-05-20 10:00:00', '2024-05-20 10:00:00');
 SET IDENTITY_INSERT PharmacyInventory OFF;
 
--- 10. DOCTOR_SCHEDULES (10 schedules)
+-- 10. DOCTOR_SCHEDULES
+-- Online schedules keep short slots. HomeVisit schedules use 3 shifts/day, 2 slots/shift, 120 minutes/slot.
 SET IDENTITY_INSERT DoctorSchedules ON;
-INSERT INTO DoctorSchedules (ScheduleID, DoctorId, dayOfWeek, startTime, endTime, SlotDuration, MaxPatients, Available, ScheduleStatus, consultationType, location, notes) VALUES
-(1, 'user-d01', 1, '08:00', '12:00', 30, 1, 1, 'APPROVED', 'Video', NULL, 'Monday morning video consultations'),
-(2, 'user-d01', 1, '14:00', '17:00', 30, 1, 1, 'APPROVED', 'Offline', 'Manhattan Health Clinic', 'Monday afternoon in-person'),
-(3, 'user-d02', 2, '08:00', '11:30', 20, 2, 1, 'APPROVED', 'Video', NULL, 'Pediatric online consultations'),
-(4, 'user-d03', 3, '09:00', '12:00', 45, 1, 1, 'APPROVED', 'Video', NULL, 'Cardiology consultations'),
-(5, 'user-d04', 4, '07:30', '11:30', 30, 1, 1, 'APPROVED', 'Offline', 'Chicago Medical Center', 'Surgery consultations'),
-(6, 'user-d05', 5, '08:00', '12:00', 30, 1, 1, 'APPROVED', 'Video', NULL, 'OB/GYN video consultations'),
-(7, 'user-d06', 6, '09:00', '12:00', 20, 2, 1, 'APPROVED', 'Video', NULL, 'Dermatology online sessions'),
-(8, 'user-d07', 1, '14:00', '18:00', 40, 1, 1, 'APPROVED', 'Offline', 'Boston Neuro Institute', 'Neurology appointments'),
-(9, 'user-d08', 2, '08:00', '11:00', 30, 1, 1, 'APPROVED', 'Offline', 'Philadelphia Eye Center', 'Eye examinations'),
-(10, 'user-d09', 3, '13:30', '17:00', 25, 2, 1, 'APPROVED', 'Video', NULL, 'ENT video consultations');
+INSERT INTO DoctorSchedules (ScheduleID, DoctorId, dayOfWeek, startTime, endTime, SlotDuration, MaxPatients, Available, ScheduleStatus, consultationType, ShiftType, location, notes) VALUES
+-- Existing online/offline test schedules
+(1, 'user-d01', 1, '08:00', '12:00', 30, 1, 1, 'APPROVED', 'Video', NULL, NULL, 'Monday morning video consultations'),
+(2, 'user-d01', 1, '14:00', '17:00', 30, 1, 1, 'APPROVED', 'Offline', NULL, 'Manhattan Health Clinic', 'Monday afternoon in-person'),
+(3, 'user-d02', 2, '08:00', '11:30', 20, 2, 1, 'APPROVED', 'Video', NULL, NULL, 'Pediatric online consultations'),
+(4, 'user-d03', 3, '09:00', '12:00', 45, 1, 1, 'APPROVED', 'Video', NULL, NULL, 'Cardiology consultations'),
+(5, 'user-d04', 4, '07:30', '11:30', 30, 1, 1, 'APPROVED', 'Offline', NULL, 'Chicago Medical Center', 'Surgery consultations'),
+(6, 'user-d05', 5, '08:00', '12:00', 30, 1, 1, 'APPROVED', 'Video', NULL, NULL, 'OB/GYN video consultations'),
+(7, 'user-d06', 6, '09:00', '12:00', 20, 2, 1, 'APPROVED', 'Video', NULL, NULL, 'Dermatology online sessions'),
+(8, 'user-d07', 1, '14:00', '18:00', 40, 1, 1, 'APPROVED', 'Offline', NULL, 'Boston Neuro Institute', 'Neurology appointments'),
+(9, 'user-d08', 2, '08:00', '11:00', 30, 1, 1, 'APPROVED', 'Offline', NULL, 'Philadelphia Eye Center', 'Eye examinations'),
+(10, 'user-d09', 3, '13:30', '17:00', 25, 2, 1, 'APPROVED', 'Video', NULL, NULL, 'ENT video consultations'),
+
+-- Home Visit test schedules for Dr. John Smith (user-d01), every Monday
+(11, 'user-d01', 1, '08:00', '12:00', 120, 1, 1, 'APPROVED', 'HomeVisit', 'Morning', 'Patient home', 'Home visit morning shift: 08:00-10:00, 10:00-12:00'),
+(12, 'user-d01', 1, '13:00', '17:00', 120, 1, 1, 'APPROVED', 'HomeVisit', 'Afternoon', 'Patient home', 'Home visit afternoon shift: 13:00-15:00, 15:00-17:00'),
+(13, 'user-d01', 1, '18:00', '22:00', 120, 1, 1, 'APPROVED', 'HomeVisit', 'Evening', 'Patient home', 'Home visit evening shift: 18:00-20:00, 20:00-22:00'),
+
+-- Home Visit test schedules for Dr. Michael Chen (user-d03), every Wednesday
+(14, 'user-d03', 3, '08:00', '12:00', 120, 1, 1, 'APPROVED', 'HomeVisit', 'Morning', 'Patient home', 'Home visit morning shift: 08:00-10:00, 10:00-12:00'),
+(15, 'user-d03', 3, '13:00', '17:00', 120, 1, 1, 'APPROVED', 'HomeVisit', 'Afternoon', 'Patient home', 'Home visit afternoon shift: 13:00-15:00, 15:00-17:00'),
+(16, 'user-d03', 3, '18:00', '22:00', 120, 1, 1, 'APPROVED', 'HomeVisit', 'Evening', 'Patient home', 'Home visit evening shift: 18:00-20:00, 20:00-22:00'),
+
+-- Home Visit test schedules for Dr. Sarah Johnson (user-d02), every Tuesday
+(17, 'user-d02', 2, '08:00', '12:00', 120, 1, 1, 'APPROVED', 'HomeVisit', 'Morning', 'Patient home', 'Home visit morning shift: 08:00-10:00, 10:00-12:00'),
+(18, 'user-d02', 2, '13:00', '17:00', 120, 1, 1, 'APPROVED', 'HomeVisit', 'Afternoon', 'Patient home', 'Home visit afternoon shift: 13:00-15:00, 15:00-17:00'),
+(19, 'user-d02', 2, '18:00', '22:00', 120, 1, 1, 'APPROVED', 'HomeVisit', 'Evening', 'Patient home', 'Home visit evening shift: 18:00-20:00, 20:00-22:00');
 SET IDENTITY_INSERT DoctorSchedules OFF;
 
 -- 11. DOCTOR_SCHEDULE_EXCEPTIONS (10 exceptions)
@@ -212,13 +252,13 @@ INSERT INTO DoctorScheduleCompliance (ComplianceID, DoctorId, ComplianceMonth, R
 (6, 'user-d07', '2026-06', 80, 72.00, 'IN_PROGRESS', 0, '2026-06-08 08:00:00', 0, 'Close to required monthly hours', NULL, NULL, NULL, '2026-06-01 08:00:00', '2026-06-08 08:00:00');
 SET IDENTITY_INSERT DoctorScheduleCompliance OFF;
 
--- 14. APPOINTMENT_SLOT_HOLDS (4 holds)
+-- 14. APPOINTMENT_SLOT_HOLDS (4 expired sample holds)
 SET IDENTITY_INSERT AppointmentSlotHolds ON;
-INSERT INTO AppointmentSlotHolds (HoldID, DoctorID, PatientID, AppointmentTime, ConsultationType, ExpiresAt, CreatedAt) VALUES
-(1, 'user-d01', 'user-p01', '2026-06-10 09:00:00', 'Video', '2026-06-09 09:05:00', '2026-06-09 09:00:00'),
-(2, 'user-d02', 'user-p02', '2026-06-10 10:00:00', 'Video', '2026-06-09 09:10:00', '2026-06-09 09:05:00'),
-(3, 'user-d07', 'user-p07', '2026-06-11 15:00:00', 'Offline', '2026-06-09 09:15:00', '2026-06-09 09:10:00'),
-(4, 'user-d08', 'user-p08', '2026-06-09 08:30:00', 'Offline', '2026-06-09 08:35:00', '2026-06-09 08:30:00');
+INSERT INTO AppointmentSlotHolds (HoldID, DoctorID, PatientID, AppointmentTime, EndTime, ConsultationType, ExpiresAt, CreatedAt) VALUES
+(1, 'user-d01', 'user-p01', '2026-06-10 09:00:00', '2026-06-10 09:30:00', 'Video', '2026-06-09 09:05:00', '2026-06-09 09:00:00'),
+(2, 'user-d02', 'user-p02', '2026-06-10 10:00:00', '2026-06-10 10:30:00', 'Video', '2026-06-09 09:10:00', '2026-06-09 09:05:00'),
+(3, 'user-d07', 'user-p07', '2026-06-11 15:00:00', '2026-06-11 15:30:00', 'Offline', '2026-06-09 09:15:00', '2026-06-09 09:10:00'),
+(4, 'user-d08', 'user-p08', '2026-06-09 08:30:00', '2026-06-09 09:00:00', 'Offline', '2026-06-09 08:35:00', '2026-06-09 08:30:00');
 SET IDENTITY_INSERT AppointmentSlotHolds OFF;
 
 -- 15. APPOINTMENTS (13 appointments)

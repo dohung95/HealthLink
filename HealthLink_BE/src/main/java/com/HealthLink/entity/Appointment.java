@@ -1,4 +1,5 @@
 package com.HealthLink.entity;
+
 import jakarta.persistence.*;
 import lombok.*;
 import java.math.BigDecimal;
@@ -13,6 +14,7 @@ import java.util.List;
 @AllArgsConstructor
 @Builder
 public class Appointment {
+
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     @Column(name = "AppointmentID")
@@ -47,7 +49,7 @@ public class Appointment {
 
     @Builder.Default
     private Boolean doctorReminderSent = false;
-    
+
     private LocalDateTime confirmedAt;
 
     // --- Relationships ---
@@ -72,4 +74,8 @@ public class Appointment {
     @OneToMany(mappedBy = "appointment")
     @ToString.Exclude
     private List<PrescriptionHeader> prescriptionHeaders;
+
+    @OneToOne(mappedBy = "appointment", cascade = CascadeType.ALL, orphanRemoval = true)
+    @ToString.Exclude
+    private HomeVisitDetails homeVisitDetails;
 }

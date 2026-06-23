@@ -7,6 +7,7 @@ import com.HealthLink.dto.payment.PharmacyOrderPayPalCaptureRequest;
 import com.HealthLink.dto.pharmacy.PharmacyOrderResponse;
 import com.HealthLink.entity.Appointment;
 import com.HealthLink.entity.Doctor;
+import com.HealthLink.entity.DoctorService;
 import com.HealthLink.entity.Invoice;
 import com.HealthLink.entity.Patient;
 import com.HealthLink.entity.Payment;
@@ -15,6 +16,7 @@ import com.HealthLink.entity.PharmacyOrder;
 import com.HealthLink.entity.PrescriptionHeader;
 import com.HealthLink.entity.User;
 import com.HealthLink.entity.enums.NotificationType;
+import com.HealthLink.entity.enums.ServiceType;
 import com.HealthLink.exception.BadRequestException;
 import com.HealthLink.repository.auth.UserRepository;
 import com.HealthLink.repository.appointment.AppointmentRepository;
@@ -120,6 +122,8 @@ class FinanceServiceImplTest {
                 .user(doctorUser)
                 .consultationFee(new BigDecimal("100.00"))
                 .build();
+        doctor.getServices().add(new DoctorService(doctor, ServiceType.ONLINE, true));
+        doctor.getServices().add(new DoctorService(doctor, ServiceType.HOME_VISIT, true));
         Appointment appointment = Appointment.builder()
                 .appointmentId(33)
                 .status("PENDINGPAYMENT")

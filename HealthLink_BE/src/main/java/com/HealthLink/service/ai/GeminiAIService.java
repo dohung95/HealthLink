@@ -2,6 +2,7 @@ package com.HealthLink.service.ai;
 
 import com.HealthLink.dto.ai.CVParseResult;
 import com.HealthLink.dto.ai.DocumentScreeningResult;
+import com.HealthLink.dto.response.HomeVisitInfoScanResponse;
 
 /**
  * Service interface for Gemini AI operations
@@ -44,4 +45,6 @@ public interface GeminiAIService {
      * @return Extracted text
      */
     String extractTextFromDOCX(byte[] fileContent);
+    
+    HomeVisitInfoScanResponse parseHomeVisitInfo(String fileContent, String mimeType);
 }

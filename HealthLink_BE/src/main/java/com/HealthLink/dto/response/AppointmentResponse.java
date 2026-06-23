@@ -35,4 +35,28 @@ public class AppointmentResponse {
     private LocalDateTime followUpDate;
     private Integer followUpAppointmentId;
     private String followUpNotes;
+
+    // Home Visit fields
+    private String visitAddress;
+    private String visitCity;
+    private String contactPhone;
+    private String reasonForHomeVisit;
+    private String specialNotes;
+
+    private Boolean isForSelf;
+
+    private String receiverName;
+    private Integer receiverAge;
+    private String receiverGender;
+    private String receiverRelationship;
+    private String receiverPhone;
+
+    private Double distanceKm;
+    private Integer estimatedTravelMinutes;
+    private Integer visitDurationMinutes;
+    private Integer travelBufferBeforeMinutes;
+    private Integer travelBufferAfterMinutes;
+
+    private BigDecimal homeVisitFee;
+    private BigDecimal travelFee;
 }

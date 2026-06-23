@@ -29,6 +29,7 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Objects;
 import java.util.Optional;
+import java.util.Set;
 import java.util.stream.Collectors;
 
 @Service
@@ -351,10 +352,11 @@ public class AdminDoctorService {
             .totalConsultations(totalConsultations)
             .avatarUrl(doctor.getAvatarUrl())
             .verified(doctor.isVerified())
-            .availableForVideo(doctor.isAvailableForVideo())
-            .availableForAudio(doctor.isAvailableForAudio())
-            .availableForChat(doctor.isAvailableForChat())
-            .availableForOffline(doctor.isAvailableForOffline())
+            .services(doctor.getServices() != null
+                ? doctor.getServices().stream()
+                    .map(ds -> ds.getId().getServiceType().name())
+                    .collect(Collectors.toSet())
+                : Set.of())
             .createdAt(createdAt)
             .build();
     }

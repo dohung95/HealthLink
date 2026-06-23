@@ -18,12 +18,15 @@ import com.HealthLink.entity.DoctorSchedule;
 import com.HealthLink.entity.DoctorScheduleException;
 import com.HealthLink.entity.Patient;
 import com.HealthLink.entity.User;
+import com.HealthLink.entity.HomeVisitDetails;
 import com.HealthLink.entity.enums.NotificationType;
 import com.HealthLink.entity.enums.ScheduleExceptionType;
 import com.HealthLink.exception.BusinessException;
+import com.HealthLink.utility.DoctorServiceHelper;
 import com.HealthLink.exception.ResourceNotFoundException;
 import com.HealthLink.repository.appointment.AppointmentRepository;
 import com.HealthLink.repository.appointment.AppointmentSlotHoldRepository;
+import com.HealthLink.repository.appointment.HomeVisitDetailsRepository;
 import com.HealthLink.repository.admin.DoctorScheduleExceptionRepository;
 import com.HealthLink.repository.doctor.DoctorRepository;
 import com.HealthLink.repository.doctor.DoctorScheduleRepository;
@@ -39,6 +42,9 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.transaction.support.TransactionSynchronization;
 import org.springframework.transaction.support.TransactionSynchronizationManager;
+import com.HealthLink.dto.response.HomeVisitEstimateResponse;
+import com.HealthLink.service.homevisit.HomeVisitLocationService;
+import java.math.BigDecimal;
 
 import java.time.LocalDate;
 import java.time.LocalDateTime;
@@ -66,13 +72,21 @@ public class AppointmentServiceImpl implements AppointmentService {
     private final DoctorScheduleRepository scheduleRepository;
     private final DoctorScheduleExceptionRepository exceptionRepository;
     private final AppointmentSlotHoldRepository appointmentSlotHoldRepository;
+    private final HomeVisitDetailsRepository homeVisitDetailsRepository;
     private final NotificationService notificationService;
+    private final HomeVisitLocationService homeVisitLocationService;
 
     @Value("${booking.max-days-ahead}")
     private Integer maxDaysAhead;
 
     @Value("${booking.slot-hold-minutes}")
     private Integer slotHoldMinutes;
+
+    @Value("${booking.cancel-min-hours-online:2}")
+    private Integer cancelMinHoursOnline;
+
+    @Value("${booking.cancel-min-hours-home-visit:6}")
+    private Integer cancelMinHoursHomeVisit;
 
     @Override
     @Transactional
@@ -81,6 +95,7 @@ public class AppointmentServiceImpl implements AppointmentService {
         request.setConsultationType(
                 normalizeConsultationTypeForBooking(request.getConsultationType())
         );
+        validateHomeVisitRequest(request);
 
         Patient patient = patientRepository.findById(request.getPatientId())
                 .orElseThrow(() -> new ResourceNotFoundException(
@@ -91,6 +106,19 @@ public class AppointmentServiceImpl implements AppointmentService {
                 "Bot found doctor ID: " + request.getDoctorId()));
 
         checkConsultationTypeSupported(doctor, request.getConsultationType());
+
+        HomeVisitEstimateResponse homeVisitEstimate = null;
+
+        if (TYPE_HOME_VISIT.equalsIgnoreCase(request.getConsultationType())) {
+            homeVisitEstimate = homeVisitLocationService.estimate(
+                    request.getVisitLatitude(),
+                    request.getVisitLongitude()
+            );
+
+            if (!Boolean.TRUE.equals(homeVisitEstimate.getServiceable())) {
+                throw new BusinessException(homeVisitEstimate.getMessage());
+            }
+        }
 
         LocalDateTime appointmentTime = request.getAppointmentTime();
         int dayOfWeek = appointmentTime.getDayOfWeek().getValue() % 7;
@@ -118,13 +146,12 @@ public class AppointmentServiceImpl implements AppointmentService {
         LocalDateTime slotStart = appointmentTime;
         LocalDateTime slotEnd = appointmentTime.plusMinutes(slotMinutes);
 
-        boolean hasConflict = appointmentRepository
-                .existsByDoctor_DoctorIdAndStatusNotAndAppointmentTimeBetween(
-                        doctor.getDoctorId(),
-                        STATUS_CANCELLED,
-                        slotStart,
-                        slotEnd.minusSeconds(1)
-                );
+        boolean hasConflict = appointmentRepository.existsDoctorAppointmentOverlap(
+                doctor.getDoctorId(),
+                STATUS_CANCELLED,
+                slotStart,
+                slotEnd
+        );
 
         if (hasConflict) {
             throw new BusinessException(
@@ -133,17 +160,19 @@ public class AppointmentServiceImpl implements AppointmentService {
 
         LocalDateTime now = LocalDateTime.now();
 
-        appointmentSlotHoldRepository
-                .findByDoctor_DoctorIdAndAppointmentTimeAndExpiresAtAfter(
+        List<AppointmentSlotHold> overlappingHolds
+                = appointmentSlotHoldRepository.findDoctorHoldOverlaps(
                         doctor.getDoctorId(),
-                        appointmentTime,
+                        slotStart,
+                        slotEnd,
                         now
-                )
-                .ifPresent(hold -> {
-                    if (!hold.getPatient().getPatientId().equals(patient.getPatientId())) {
-                        throw new BusinessException("This slot is currently being held by another patient");
-                    }
-                });
+                );
+
+        for (AppointmentSlotHold hold : overlappingHolds) {
+            if (!hold.getPatient().getPatientId().equals(patient.getPatientId())) {
+                throw new BusinessException("This slot is currently being held by another patient");
+            }
+        }
 
         Appointment appointment = Appointment.builder()
                 .patient(patient)
@@ -154,10 +183,27 @@ public class AppointmentServiceImpl implements AppointmentService {
                 .status(STATUS_SCHEDULED)
                 .symptoms(request.getSymptoms())
                 .notes(request.getNotes())
-                .fee(doctor.getConsultationFee())
+                .fee(homeVisitEstimate != null
+                        ? doctor.getConsultationFee()
+                                .add(homeVisitEstimate.getTravelFee() != null
+                                        ? homeVisitEstimate.getTravelFee()
+                                        : BigDecimal.ZERO)
+                                .setScale(2, java.math.RoundingMode.HALF_UP)
+                        : doctor.getConsultationFee())
                 .build();
 
         Appointment saved = appointmentRepository.save(appointment);
+
+        if (TYPE_HOME_VISIT.equalsIgnoreCase(request.getConsultationType())) {
+            HomeVisitDetails homeVisitDetails = buildHomeVisitDetails(
+                    saved,
+                    request,
+                    homeVisitEstimate,
+                    doctor.getConsultationFee()
+            );
+            homeVisitDetailsRepository.save(homeVisitDetails);
+            saved.setHomeVisitDetails(homeVisitDetails);
+        }
 
         appointmentSlotHoldRepository
                 .findByDoctor_DoctorIdAndAppointmentTimeAndExpiresAtAfter(
@@ -309,10 +355,18 @@ public class AppointmentServiceImpl implements AppointmentService {
             }
 
             boolean isBooked = bookedAppointments.stream()
-                    .anyMatch(appointment -> appointment.getAppointmentTime().equals(currentSlotStart));
+                    .anyMatch(appointment -> isAppointmentOverlappingSlot(
+                    appointment,
+                    currentSlotStart,
+                    currentSlotEnd
+            ));
 
             boolean isHeld = activeHolds.stream()
-                    .anyMatch(hold -> hold.getAppointmentTime().equals(currentSlotStart));
+                    .anyMatch(hold -> isHoldOverlappingSlot(
+                    hold,
+                    currentSlotStart,
+                    currentSlotEnd
+            ));
 
             String status;
             boolean selectable;
@@ -337,6 +391,38 @@ public class AppointmentServiceImpl implements AppointmentService {
 
             slotStart = currentSlotEnd;
         }
+    }
+
+    private boolean isAppointmentOverlappingSlot(
+            Appointment appointment,
+            LocalDateTime slotStart,
+            LocalDateTime slotEnd
+    ) {
+        LocalDateTime appointmentStart = appointment.getAppointmentTime();
+        LocalDateTime appointmentEnd = appointment.getEndTime();
+
+        if (appointmentEnd == null) {
+            appointmentEnd = appointmentStart.plusMinutes(30);
+        }
+
+        return appointmentStart.isBefore(slotEnd)
+                && appointmentEnd.isAfter(slotStart);
+    }
+
+    private boolean isHoldOverlappingSlot(
+            AppointmentSlotHold hold,
+            LocalDateTime slotStart,
+            LocalDateTime slotEnd
+    ) {
+        LocalDateTime holdStart = hold.getAppointmentTime();
+        LocalDateTime holdEnd = hold.getEndTime();
+
+        if (holdEnd == null) {
+            holdEnd = holdStart.plusMinutes(30);
+        }
+
+        return holdStart.isBefore(slotEnd)
+                && holdEnd.isAfter(slotStart);
     }
 
     @Override
@@ -388,13 +474,12 @@ public class AppointmentServiceImpl implements AppointmentService {
         int slotMinutes = Objects.requireNonNullElse(matchedSchedule.getSlotDuration(), 30);
         LocalDateTime slotEnd = appointmentTime.plusMinutes(slotMinutes);
 
-        boolean hasBookedConflict = appointmentRepository
-                .existsByDoctor_DoctorIdAndStatusNotAndAppointmentTimeBetween(
-                        doctor.getDoctorId(),
-                        STATUS_CANCELLED,
-                        appointmentTime,
-                        slotEnd.minusSeconds(1)
-                );
+        boolean hasBookedConflict = appointmentRepository.existsDoctorAppointmentOverlap(
+                doctor.getDoctorId(),
+                STATUS_CANCELLED,
+                appointmentTime,
+                slotEnd
+        );
 
         if (hasBookedConflict) {
             throw new BusinessException("This slot has already been booked");
@@ -402,12 +487,12 @@ public class AppointmentServiceImpl implements AppointmentService {
 
         LocalDateTime now = LocalDateTime.now();
 
-        boolean hasActiveHold = appointmentSlotHoldRepository
-                .existsByDoctor_DoctorIdAndAppointmentTimeAndExpiresAtAfter(
-                        doctor.getDoctorId(),
-                        appointmentTime,
-                        now
-                );
+        boolean hasActiveHold = appointmentSlotHoldRepository.existsDoctorHoldOverlap(
+                doctor.getDoctorId(),
+                appointmentTime,
+                slotEnd,
+                now
+        );
 
         if (hasActiveHold) {
             throw new BusinessException("This slot is currently being held by another patient");
@@ -417,6 +502,7 @@ public class AppointmentServiceImpl implements AppointmentService {
                 .doctor(doctor)
                 .patient(patient)
                 .appointmentTime(appointmentTime)
+                .endTime(slotEnd)
                 .consultationType(request.getConsultationType())
                 .expiresAt(now.plusMinutes(slotHoldMinutes))
                 .build();
@@ -586,9 +672,18 @@ public class AppointmentServiceImpl implements AppointmentService {
         if ("IN_CONSULTATION".equalsIgnoreCase(appointment.getStatus())) {
             throw new BusinessException("Cannot cancel an appointment that is in consultation");
         }
-        if (appointment.getAppointmentTime().isBefore(LocalDateTime.now().plusHours(2))) {
+        int cancelMinHours = getCancelMinHours(appointment.getConsultationType());
+
+        if (appointment.getAppointmentTime().isBefore(LocalDateTime.now().plusHours(cancelMinHours))) {
+            String appointmentType = normalizeConsultationTypeForBooking(appointment.getConsultationType());
+
             throw new BusinessException(
-                    "Cannot cancel an appointment less than 2 hours before the scheduled time");
+                    appointmentType.equalsIgnoreCase(TYPE_HOME_VISIT)
+                    ? "Home visit appointments can only be cancelled at least "
+                    + cancelMinHours + " hours before the scheduled time"
+                    : "Online appointments can only be cancelled at least "
+                    + cancelMinHours + " hours before the scheduled time"
+            );
         }
 
         appointment.setStatus(STATUS_CANCELLED);
@@ -655,14 +750,13 @@ public class AppointmentServiceImpl implements AppointmentService {
         LocalDateTime slotStart = newTime;
         LocalDateTime slotEnd = newTime.plusMinutes(slotMinutes);
 
-        boolean hasConflict = appointmentRepository
-                .existsByDoctor_DoctorIdAndStatusNotAndAppointmentTimeBetweenAndAppointmentIdNot(
-                        doctor.getDoctorId(),
-                        STATUS_CANCELLED,
-                        slotStart,
-                        slotEnd.minusSeconds(1),
-                        id
-                );
+        boolean hasConflict = appointmentRepository.existsDoctorAppointmentOverlapExcludingAppointment(
+                doctor.getDoctorId(),
+                STATUS_CANCELLED,
+                slotStart,
+                slotEnd,
+                id
+        );
 
         if (hasConflict) {
             throw new BusinessException(
@@ -703,26 +797,40 @@ public class AppointmentServiceImpl implements AppointmentService {
         }
     }
 
+    private void validateHomeVisitRequest(AppointmentRequest request) {
+        if (!TYPE_HOME_VISIT.equalsIgnoreCase(request.getConsultationType())) {
+            return;
+        }
+
+        requireText(request.getVisitAddress(), "Visit address is required for home visit");
+        requireText(request.getContactPhone(), "Contact phone is required for home visit");
+        requireText(request.getReasonForHomeVisit(), "Reason for home visit is required");
+
+        if (request.getIsForSelf() == null) {
+            throw new BusinessException("Please specify whether the visit is for yourself or someone else");
+        }
+
+        if (!request.getIsForSelf()) {
+            requireText(request.getReceiverName(), "Receiver name is required");
+            requireText(request.getReceiverRelationship(), "Receiver relationship is required");
+
+            if (request.getReceiverAge() == null || request.getReceiverAge() <= 0) {
+                throw new BusinessException("Receiver age must be greater than 0");
+            }
+        }
+    }
+
+    private void requireText(String value, String message) {
+        if (value == null || value.isBlank()) {
+            throw new BusinessException(message);
+        }
+    }
+
     private void checkConsultationTypeSupported(Doctor doctor, String consultationType) {
-        String normalizedType = normalizeConsultationTypeForBooking(consultationType);
-
-        boolean supported = switch (normalizedType.toLowerCase()) {
-            case "online" ->
-                doctor.isAvailableForVideo()
-                || doctor.isAvailableForAudio()
-                || doctor.isAvailableForChat();
-
-            case "offline" ->
-                doctor.isAvailableForOffline();
-
-            default ->
-                true;
-        };
-
-        if (!supported) {
+        if (!DoctorServiceHelper.isConsultationTypeSupported(doctor, consultationType)) {
             throw new BusinessException(
                     "Doctor " + doctor.getFullName()
-                    + " does not support consultation type: " + normalizedType);
+                    + " does not support consultation type: " + consultationType);
         }
     }
 
@@ -734,8 +842,8 @@ public class AppointmentServiceImpl implements AppointmentService {
             return isOnlineScheduleType(scheduleType);
         }
 
-        if (TYPE_OFFLINE.equalsIgnoreCase(normalizedType)) {
-            return isOfflineScheduleType(scheduleType);
+        if (TYPE_HOME_VISIT.equalsIgnoreCase(normalizedType)) {
+            return isHomeVisitScheduleType(scheduleType);
         }
 
         return true;
@@ -892,6 +1000,8 @@ public class AppointmentServiceImpl implements AppointmentService {
 
     private AppointmentResponse toResponse(Appointment appointment) {
         Consultation consultation = appointment.getConsultation();
+        HomeVisitDetails homeVisit = appointment.getHomeVisitDetails();
+
         return AppointmentResponse.builder()
                 .appointmentId(appointment.getAppointmentId())
                 .patientId(appointment.getPatient().getPatientId())
@@ -915,6 +1025,24 @@ public class AppointmentServiceImpl implements AppointmentService {
                 .followUpDate(consultation != null ? consultation.getFollowUpDate() : null)
                 .followUpAppointmentId(consultation != null ? consultation.getFollowUpAppointmentId() : null)
                 .followUpNotes(consultation != null ? consultation.getFollowUpNotes() : null)
+                .visitAddress(homeVisit != null ? homeVisit.getVisitAddress() : null)
+                .visitCity(homeVisit != null ? homeVisit.getVisitCity() : null)
+                .contactPhone(homeVisit != null ? homeVisit.getContactPhone() : null)
+                .reasonForHomeVisit(homeVisit != null ? homeVisit.getReasonForHomeVisit() : null)
+                .specialNotes(homeVisit != null ? homeVisit.getSpecialNotes() : null)
+                .isForSelf(homeVisit != null ? homeVisit.getIsForSelf() : null)
+                .receiverName(homeVisit != null ? homeVisit.getReceiverName() : null)
+                .receiverAge(homeVisit != null ? homeVisit.getReceiverAge() : null)
+                .receiverGender(homeVisit != null ? homeVisit.getReceiverGender() : null)
+                .receiverRelationship(homeVisit != null ? homeVisit.getReceiverRelationship() : null)
+                .receiverPhone(homeVisit != null ? homeVisit.getReceiverPhone() : null)
+                .distanceKm(homeVisit != null ? homeVisit.getDistanceKm() : null)
+                .estimatedTravelMinutes(homeVisit != null ? homeVisit.getEstimatedTravelMinutes() : null)
+                .visitDurationMinutes(homeVisit != null ? homeVisit.getVisitDurationMinutes() : null)
+                .travelBufferBeforeMinutes(homeVisit != null ? homeVisit.getTravelBufferBeforeMinutes() : null)
+                .travelBufferAfterMinutes(homeVisit != null ? homeVisit.getTravelBufferAfterMinutes() : null)
+                .homeVisitFee(homeVisit != null ? homeVisit.getHomeVisitFee() : null)
+                .travelFee(homeVisit != null ? homeVisit.getTravelFee() : null)
                 .build();
     }
 
@@ -946,23 +1074,20 @@ public class AppointmentServiceImpl implements AppointmentService {
     }
 
     private static final String TYPE_ONLINE = "Online";
-    private static final String TYPE_OFFLINE = "Offline";
+    private static final String TYPE_HOME_VISIT = "HomeVisit";
 
-    private String normalizeConsultationTypeForBooking(String consultationType) {
-        if (consultationType == null || consultationType.isBlank()) {
-            return TYPE_ONLINE;
+    private int getCancelMinHours(String consultationType) {
+        String normalizedType = normalizeConsultationTypeForBooking(consultationType);
+
+        if (TYPE_HOME_VISIT.equalsIgnoreCase(normalizedType)) {
+            return Objects.requireNonNullElse(cancelMinHoursHomeVisit, 6);
         }
 
-        String value = consultationType.trim().toLowerCase();
+        return Objects.requireNonNullElse(cancelMinHoursOnline, 2);
+    }
 
-        return switch (value) {
-            case "video", "video call", "audio", "audio call", "chat", "online", "consultation" ->
-                TYPE_ONLINE;
-            case "offline", "in-person", "in person" ->
-                TYPE_OFFLINE;
-            default ->
-                TYPE_ONLINE;
-        };
+    private String normalizeConsultationTypeForBooking(String consultationType) {
+        return DoctorServiceHelper.normalizeConsultationType(consultationType);
     }
 
     private boolean isOnlineScheduleType(String value) {
@@ -991,5 +1116,49 @@ public class AppointmentServiceImpl implements AppointmentService {
         return type.equals("offline")
                 || type.equals("in-person")
                 || type.equals("in person");
+    }
+
+    private boolean isHomeVisitScheduleType(String value) {
+        if (value == null || value.isBlank()) {
+            return false;
+        }
+
+        String type = value.trim().toLowerCase();
+
+        return type.equals("homevisit")
+                || type.equals("home visit")
+                || type.equals("home-visit")
+                || type.equals("home");
+    }
+
+    private HomeVisitDetails buildHomeVisitDetails(
+            Appointment appointment,
+            AppointmentRequest request,
+            HomeVisitEstimateResponse estimate,
+            BigDecimal doctorConsultationFee
+    ) {
+        return HomeVisitDetails.builder()
+                .appointment(appointment)
+                .visitAddress(request.getVisitAddress())
+                .visitCity(request.getVisitCity())
+                .contactPhone(request.getContactPhone())
+                .reasonForHomeVisit(request.getReasonForHomeVisit())
+                .specialNotes(request.getSpecialNotes())
+                .isForSelf(request.getIsForSelf())
+                .receiverName(request.getReceiverName())
+                .receiverAge(request.getReceiverAge())
+                .receiverGender(request.getReceiverGender())
+                .receiverRelationship(request.getReceiverRelationship())
+                .receiverPhone(request.getReceiverPhone())
+                .visitLatitude(request.getVisitLatitude())
+                .visitLongitude(request.getVisitLongitude())
+                .distanceKm(estimate != null ? estimate.getDistanceKm() : null)
+                .estimatedTravelMinutes(estimate != null ? estimate.getEstimatedTravelMinutes() : null)
+                .homeVisitFee(doctorConsultationFee)
+                .travelFee(estimate != null ? estimate.getTravelFee() : null)
+                .visitDurationMinutes(30)
+                .travelBufferBeforeMinutes(30)
+                .travelBufferAfterMinutes(30)
+                .build();
     }
 }

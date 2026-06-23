@@ -33,11 +33,6 @@ public class RegistrationRequestResponse {
     private BigDecimal consultationFee;
     private String clinicName;
     private String clinicAddress;
-    private Boolean availableForVideo;
-    private Boolean availableForAudio;
-    private Boolean availableForChat;
-    private Boolean availableForOffline;
-
     // Pharmacy fields
     private String pharmacyName;
     private String licenseNumber;

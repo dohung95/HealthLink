@@ -79,22 +79,6 @@ public class RegistrationRequest {
     @Column(name = "ClinicAddress", length = 500)
     private String clinicAddress;
 
-    @Column(name = "AvailableForVideo")
-    @Builder.Default
-    private Boolean availableForVideo = true;
-
-    @Column(name = "AvailableForAudio")
-    @Builder.Default
-    private Boolean availableForAudio = true;
-
-    @Column(name = "AvailableForChat")
-    @Builder.Default
-    private Boolean availableForChat = true;
-
-    @Column(name = "AvailableForOffline")
-    @Builder.Default
-    private Boolean availableForOffline = true;
-
     // ============ Pharmacy Fields ============
     @Column(name = "PharmacyName", length = 200)
     private String pharmacyName;
