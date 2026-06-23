@@ -23,7 +23,7 @@ const AppointmentCard = ({ appointment, onView }) => {
   const statusTone = STATUS_TONES[statusKey] || STATUS_TONES.default;
 
   const actionConfig = {
-    inprogress: { label: 'Join Call', active: true },
+    inprogress: { label: 'Join Room', active: true },
     scheduled: { label: 'View Details', active: true },
     completed: { label: 'Notes', active: true },
     cancelled: { label: '', active: false },
