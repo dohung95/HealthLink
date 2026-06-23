@@ -15,7 +15,7 @@ import org.apache.poi.xwpf.usermodel.XWPFDocument;
 import org.springframework.http.*;
 import org.springframework.stereotype.Service;
 import org.springframework.web.client.RestTemplate;
-
+import com.HealthLink.dto.response.HomeVisitInfoScanResponse;
 import java.io.ByteArrayInputStream;
 import java.util.*;
 
@@ -175,6 +175,31 @@ public class GeminiAIServiceImpl implements GeminiAIService {
             }
             """;
 
+    private static final String HOME_VISIT_INFO_PROMPT = """
+        You are an information extraction assistant for a healthcare home visit booking system.
+
+        Analyze the uploaded image or document and extract patient/receiver information.
+        Return ONLY valid JSON, no markdown, no code block.
+
+        Important rules:
+        - Use null if a field is not found or uncertain.
+        - Do not invent information.
+        - This result is only for form auto-fill. The user must verify it manually.
+
+        Extract these fields:
+        {
+          "receiverName": "Full name of the person receiving care",
+          "receiverAge": number or null,
+          "receiverGender": "Male/Female/Other or null",
+          "receiverPhone": "Phone number if found",
+          "receiverRelationship": "Relationship to account owner if found, otherwise null",
+          "visitAddress": "Full address if found",
+          "visitCity": "City/province if found",
+          "confidence": 0.0-1.0,
+          "warnings": ["uncertain fields or missing information"]
+        }
+        """;
+
     @Override
     public boolean isAvailable() {
         return geminiConfig.isConfigured();
@@ -251,6 +276,68 @@ public class GeminiAIServiceImpl implements GeminiAIService {
     }
 
     @Override
+    public HomeVisitInfoScanResponse parseHomeVisitInfo(String fileContent, String mimeType) {
+        if (!isAvailable()) {
+            return HomeVisitInfoScanResponse.builder()
+                    .success(false)
+                    .errorMessage("Gemini AI is not configured")
+                    .warnings(List.of("AI service unavailable"))
+                    .build();
+        }
+
+        try {
+            String response;
+
+            if (mimeType != null && mimeType.startsWith("image/")) {
+                response = callGeminiWithImage(HOME_VISIT_INFO_PROMPT, fileContent, mimeType);
+            } else {
+                byte[] bytes = Base64.getDecoder().decode(fileContent);
+                String text;
+
+                if ("application/pdf".equalsIgnoreCase(mimeType)) {
+                    text = extractTextFromPDF(bytes);
+                } else if ("application/vnd.openxmlformats-officedocument.wordprocessingml.document"
+                        .equalsIgnoreCase(mimeType)) {
+                    text = extractTextFromDOCX(bytes);
+                } else {
+                    return HomeVisitInfoScanResponse.builder()
+                            .success(false)
+                            .errorMessage("Unsupported file type for home visit scan")
+                            .warnings(List.of("Please upload JPG, PNG, PDF, or DOCX"))
+                            .build();
+                }
+
+                response = callGeminiWithText(HOME_VISIT_INFO_PROMPT + "\n\nDocument content:\n" + text);
+            }
+
+            String cleanJson = cleanJsonResponse(response);
+            JsonNode jsonNode = objectMapper.readTree(cleanJson);
+
+            return HomeVisitInfoScanResponse.builder()
+                    .success(true)
+                    .receiverName(getTextValue(jsonNode, "receiverName"))
+                    .receiverAge(getIntValue(jsonNode, "receiverAge"))
+                    .receiverGender(getTextValue(jsonNode, "receiverGender"))
+                    .receiverPhone(getTextValue(jsonNode, "receiverPhone"))
+                    .receiverRelationship(getTextValue(jsonNode, "receiverRelationship"))
+                    .visitAddress(getTextValue(jsonNode, "visitAddress"))
+                    .visitCity(getTextValue(jsonNode, "visitCity"))
+                    .confidence(getDoubleValue(jsonNode, "confidence"))
+                    .warnings(getStringListValue(jsonNode, "warnings"))
+                    .build();
+
+        } catch (Exception e) {
+            log.error("Error parsing home visit info: {}", e.getMessage(), e);
+
+            return HomeVisitInfoScanResponse.builder()
+                    .success(false)
+                    .errorMessage("Failed to scan home visit information: " + e.getMessage())
+                    .warnings(List.of("Please fill the form manually"))
+                    .build();
+        }
+    }
+
+    @Override
     public DocumentScreeningResult verifyDocument(String fileContent, String mimeType, String expectedType) {
         if (!isAvailable()) {
             return DocumentScreeningResult.builder()
@@ -311,9 +398,15 @@ public class GeminiAIServiceImpl implements GeminiAIService {
             // If any unsafe content detected, immediately fail
             if (nsfwDetected || violenceDetected || hateContentDetected || !contentSafe) {
                 List<String> criticalIssues = new ArrayList<>();
-                if (nsfwDetected) criticalIssues.add("NSFW/inappropriate content detected");
-                if (violenceDetected) criticalIssues.add("Violence/gore content detected");
-                if (hateContentDetected) criticalIssues.add("Hate symbols/offensive content detected");
+                if (nsfwDetected) {
+                    criticalIssues.add("NSFW/inappropriate content detected");
+                }
+                if (violenceDetected) {
+                    criticalIssues.add("Violence/gore content detected");
+                }
+                if (hateContentDetected) {
+                    criticalIssues.add("Hate symbols/offensive content detected");
+                }
                 criticalIssues.addAll(safetyIssues);
 
                 return DocumentScreeningResult.builder()
@@ -350,10 +443,18 @@ public class GeminiAIServiceImpl implements GeminiAIService {
                 // Profile photo passes if: real person + face visible + appropriate
                 boolean passed = isRealPerson && hasFaceDetected && isAppropriatelyDressed && contentSafe;
 
-                if (!isRealPerson) issues.add("Not a photo of a real person");
-                if (!hasFaceDetected) issues.add("No face detected in photo");
-                if (!isProfessionalPhoto) issues.add("Photo is not professional-looking");
-                if (!isAppropriatelyDressed) issues.add("Inappropriate attire for a healthcare professional");
+                if (!isRealPerson) {
+                    issues.add("Not a photo of a real person");
+                }
+                if (!hasFaceDetected) {
+                    issues.add("No face detected in photo");
+                }
+                if (!isProfessionalPhoto) {
+                    issues.add("Photo is not professional-looking");
+                }
+                if (!isAppropriatelyDressed) {
+                    issues.add("Inappropriate attire for a healthcare professional");
+                }
 
                 return DocumentScreeningResult.builder()
                         .expectedType(expectedType)
@@ -442,8 +543,7 @@ public class GeminiAIServiceImpl implements GeminiAIService {
 
     @Override
     public String extractTextFromDOCX(byte[] fileContent) {
-        try (XWPFDocument document = new XWPFDocument(new ByteArrayInputStream(fileContent));
-             XWPFWordExtractor extractor = new XWPFWordExtractor(document)) {
+        try (XWPFDocument document = new XWPFDocument(new ByteArrayInputStream(fileContent)); XWPFWordExtractor extractor = new XWPFWordExtractor(document)) {
             return extractor.getText();
         } catch (Exception e) {
             log.error("Error extracting text from DOCX: {}", e.getMessage());
@@ -534,12 +634,26 @@ public class GeminiAIServiceImpl implements GeminiAIService {
         return fieldNode.asInt();
     }
 
-    private double getDoubleValue(JsonNode node, String field, double defaultValue) {
-        JsonNode fieldNode = node.get(field);
-        if (fieldNode == null || fieldNode.isNull()) {
-            return defaultValue;
+    private Double getDoubleValue(JsonNode node, String fieldName) {
+        JsonNode field = node.get(fieldName);
+        if (field == null || field.isNull()) {
+            return null;
         }
-        return fieldNode.asDouble();
+
+        if (field.isNumber()) {
+            return field.asDouble();
+        }
+
+        try {
+            return Double.parseDouble(field.asText());
+        } catch (NumberFormatException e) {
+            return null;
+        }
+    }
+
+    private double getDoubleValue(JsonNode node, String fieldName, double defaultValue) {
+        Double value = getDoubleValue(node, fieldName);
+        return value != null ? value : defaultValue;
     }
 
     private boolean getBooleanValue(JsonNode node, String field, boolean defaultValue) {
@@ -548,5 +662,21 @@ public class GeminiAIServiceImpl implements GeminiAIService {
             return defaultValue;
         }
         return fieldNode.asBoolean();
+    }
+
+    private List<String> getStringListValue(JsonNode node, String fieldName) {
+        JsonNode field = node.get(fieldName);
+        if (field == null || field.isNull() || !field.isArray()) {
+            return List.of();
+        }
+
+        List<String> values = new ArrayList<>();
+        field.forEach(item -> {
+            if (item != null && !item.isNull()) {
+                values.add(item.asText());
+            }
+        });
+
+        return values;
     }
 }

@@ -27,4 +27,5 @@ public class SendMessageRequest {
     
     private String videoUrl;
     private String fileUrl;
+    private String audioUrl;
 }

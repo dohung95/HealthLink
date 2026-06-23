@@ -344,7 +344,7 @@ export function AuthProvider({ children }) {
             const currentUserName = callerName || decodedUser.preferred_username || decodedUser.email || decodedUser.sub || "User";
 
             // ===== KIỂM TRA VÀ GỬI THÔNG BÁO CHO NGƯỜI NHẬN =====
-            if (!connection || !stompChatService.isConnected) {
+            if (!stompChatService.isConnected) {
                 console.error("Error: No STOMP connection");
                 toast.error("Error: Unable to send call notification. Please try again.");
                 return;
@@ -415,7 +415,7 @@ export function AuthProvider({ children }) {
         setIsInCall(true);
 
         // 1. Kiểm tra connection và cuộc gọi đến
-        if (!connection || !stompChatService.isConnected) {
+        if (!stompChatService.isConnected) {
             console.error("Error: No STOMP connection");
             toast.error("Error: Connection not established. Please try again.");
             return;
@@ -494,9 +494,9 @@ export function AuthProvider({ children }) {
         }
     };
 
-    // 3. Khi BẠN bấm "Từ chối" - TEMPORARILY DISABLED
+    // 3. Khi BẠN bấm "Từ chối"
     const declineCall = async () => {
-        if (connection && incomingCall) {
+        if (incomingCall) {
             // Báo cho server là bạn đã từ chối
             videoCallService.sendWebRTCSignal({
                 type: "CALL_DECLINED",

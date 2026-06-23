@@ -72,6 +72,8 @@ export function Sign_up() {
         setPreferredLanguage('');
         setPassword('');
         setConfirmPassword('');
+        // quay về trang login
+        navigate('/login');
     };
 
     const handleSubmit = async (e) => {

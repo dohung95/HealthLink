@@ -3,20 +3,15 @@
  * Nếu backend thêm loại mới, chỉ cần thêm ở đây.
  */
 const TYPE_META = {
-    Video: {
-        title: 'Video Call',
-        description: 'Consultation via live video',
-        icon: 'bi bi-camera-video',
+    Online: {
+        title: 'Online consultation',
+        description: 'Meet the doctor remotely through HealthLink.',
+        icon: 'bi bi-laptop',
     },
-    Chat: {
-        title: 'Chat',
-        description: 'Consultation via text message',
-        icon: 'bi bi-chat-dots',
-    },
-    'In-Person': {
-        title: 'In-Person',
-        description: 'Visit the clinic in person',
-        icon: 'bi bi-hospital',
+    HomeVisit: {
+        title: 'Home visit',
+        description: 'A family doctor visits you or your relative at home.',
+        icon: 'bi bi-house-heart',
     },
 };
 
@@ -36,9 +31,7 @@ const ConsultationStep = ({
     availableTypes = [],
 }) => {
     // Nếu DB không trả về availableTypes hoặc rỗng, fallback hiển thị tất cả type đã biết
-    const typesToShow = availableTypes.length > 0
-        ? availableTypes
-        : Object.keys(TYPE_META);
+    const typesToShow = ['Online', 'HomeVisit'];
 
     return (
         <div className="schedule-card">

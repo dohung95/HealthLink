@@ -29,10 +29,6 @@ export function DoctorRegistration() {
         consultationFee: '',
         clinicName: '',
         clinicAddress: '',
-        availableForVideo: true,
-        availableForAudio: true,
-        availableForChat: true,
-        availableForOffline: true
     });
 
     const [acceptedTerms, setAcceptedTerms] = useState(false);
@@ -864,57 +860,6 @@ export function DoctorRegistration() {
                                         required
                                     />
                                 </div>
-                            </div>
-                        </div>
-
-                        {/* Availability */}
-                        <div className="form-section">
-                            <h3><i className="bi bi-calendar-check"></i> Consultation Availability</h3>
-                            <div className="availability-grid">
-                                <label className="checkbox-label">
-                                    <input
-                                        type="checkbox"
-                                        name="availableForVideo"
-                                        checked={formData.availableForVideo}
-                                        onChange={handleChange}
-                                        disabled={submitting}
-                                    />
-                                    <span className="checkmark"></span>
-                                    <i className="bi bi-camera-video"></i> Video Consultation
-                                </label>
-                                <label className="checkbox-label">
-                                    <input
-                                        type="checkbox"
-                                        name="availableForAudio"
-                                        checked={formData.availableForAudio}
-                                        onChange={handleChange}
-                                        disabled={submitting}
-                                    />
-                                    <span className="checkmark"></span>
-                                    <i className="bi bi-telephone"></i> Audio Consultation
-                                </label>
-                                <label className="checkbox-label">
-                                    <input
-                                        type="checkbox"
-                                        name="availableForChat"
-                                        checked={formData.availableForChat}
-                                        onChange={handleChange}
-                                        disabled={submitting}
-                                    />
-                                    <span className="checkmark"></span>
-                                    <i className="bi bi-chat-dots"></i> Chat Consultation
-                                </label>
-                                <label className="checkbox-label">
-                                    <input
-                                        type="checkbox"
-                                        name="availableForOffline"
-                                        checked={formData.availableForOffline}
-                                        onChange={handleChange}
-                                        disabled={submitting}
-                                    />
-                                    <span className="checkmark"></span>
-                                    <i className="bi bi-person-workspace"></i> In-Person Visit
-                                </label>
                             </div>
                         </div>
 

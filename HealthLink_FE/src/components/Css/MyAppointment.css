@@ -1,0 +1,31 @@
+.home-visit-detail-row td {
+  background: rgba(15, 118, 110, 0.06);
+  border-top: 0;
+}
+
+.home-visit-appointment-detail {
+  display: grid;
+  grid-template-columns: 1.4fr 1fr 1fr;
+  gap: 16px;
+  padding: 14px 18px;
+  border-left: 4px solid #0f766e;
+}
+
+.home-visit-appointment-detail strong {
+  display: block;
+  color: #0f3d3a;
+  margin-bottom: 4px;
+  font-size: 14px;
+}
+
+.home-visit-appointment-detail p {
+  margin: 0;
+  color: #475569;
+  font-size: 14px;
+}
+
+@media (max-width: 992px) {
+  .home-visit-appointment-detail {
+    grid-template-columns: 1fr;
+  }
+}

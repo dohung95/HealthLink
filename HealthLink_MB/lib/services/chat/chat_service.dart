@@ -166,6 +166,7 @@ class ChatService {
     String? imageUrl,
     String? videoUrl,
     String? fileUrl,
+    String? audioUrl,
   }) async {
     final body = {
       'chatRoomId': chatRoomId,
@@ -174,6 +175,7 @@ class ChatService {
       if (imageUrl != null) 'imageUrl': imageUrl,
       if (videoUrl != null) 'videoUrl': videoUrl,
       if (fileUrl != null) 'fileUrl': fileUrl,
+      if (audioUrl != null) 'audioUrl': audioUrl,
     };
 
     final res = await http

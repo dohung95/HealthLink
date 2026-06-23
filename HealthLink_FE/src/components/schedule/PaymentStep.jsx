@@ -104,10 +104,18 @@ const PaymentStep = ({ bookingDraft, selectedDoctor, onBack, onPaymentComplete }
     };
   }, [bookingDraft, paidInvoice]);
 
+  const isHomeVisit = bookingDraft?.consultationType === 'HomeVisit';
+  const homeVisitEstimate = bookingDraft?.homeVisitEstimate;
+
   const displayInvoice = paidInvoice || {
     invoiceNumber: 'Pending checkout',
     amount: bookingDraft?.amount ?? selectedDoctor?.consultationFee ?? 0,
-    consultationFee: bookingDraft?.amount ?? selectedDoctor?.consultationFee ?? 0,
+    consultationFee: isHomeVisit
+      ? homeVisitEstimate?.homeVisitFee
+      : bookingDraft?.amount ?? selectedDoctor?.consultationFee ?? 0,
+    travelFee: homeVisitEstimate?.travelFee,
+    distanceKm: homeVisitEstimate?.distanceKm,
+    estimatedTravelMinutes: homeVisitEstimate?.estimatedTravelMinutes,
     status: 'Pending',
   };
 
@@ -131,6 +139,28 @@ const PaymentStep = ({ bookingDraft, selectedDoctor, onBack, onPaymentComplete }
           <span>Doctor</span>
           <strong>{selectedDoctor?.fullName || displayInvoice?.doctorName || 'Doctor'}</strong>
         </div>
+        {isHomeVisit && (
+          <>
+            <div>
+              <span>Home visit fee</span>
+              <strong>{formatCurrency(displayInvoice?.consultationFee)}</strong>
+            </div>
+
+            <div>
+              <span>Travel fee</span>
+              <strong>{formatCurrency(displayInvoice?.travelFee)}</strong>
+            </div>
+
+            <div>
+              <span>Distance</span>
+              <strong>
+                {displayInvoice?.distanceKm
+                  ? `${displayInvoice.distanceKm} km`
+                  : 'Not estimated'}
+              </strong>
+            </div>
+          </>
+        )}
         <div>
           <span>Total</span>
           <strong>{formatCurrency(displayInvoice?.amount)}</strong>

@@ -16,6 +16,7 @@ import com.HealthLink.entity.Patient;
 import com.HealthLink.entity.Payment;
 import com.HealthLink.entity.PharmacyOrder;
 import com.HealthLink.exception.BadRequestException;
+import com.HealthLink.utility.DoctorServiceHelper;
 import com.HealthLink.exception.InvoiceNotFoundException;
 import com.HealthLink.exception.PayPalIntegrationException;
 import com.HealthLink.repository.auth.UserRepository;
@@ -55,6 +56,8 @@ import org.springframework.util.LinkedMultiValueMap;
 import org.springframework.util.MultiValueMap;
 import org.springframework.web.client.HttpStatusCodeException;
 import org.springframework.web.client.RestTemplate;
+import com.HealthLink.dto.response.HomeVisitEstimateResponse;
+import com.HealthLink.service.homevisit.HomeVisitLocationService;
 
 import java.math.BigDecimal;
 import java.math.RoundingMode;
@@ -78,7 +81,7 @@ import java.util.stream.Collectors;
 public class FinanceServiceImpl implements FinanceService {
 
     private static final String TYPE_ONLINE = "Online";
-    private static final String TYPE_OFFLINE = "Offline";
+    private static final String TYPE_HOME_VISIT = "HomeVisit";
 
     // ── Các hằng trạng thái ─────────────────────────────────────────────────
     private static final String INVOICE_PAID = "PAID";
@@ -121,6 +124,7 @@ public class FinanceServiceImpl implements FinanceService {
     private final UserRepository userRepository;
     private final NotificationService notificationService;
     private final DeviceTokenRepository deviceTokenRepository;
+    private final HomeVisitLocationService homeVisitLocationService;
 
     /**
      * Service xử lý logic chiết khấu sau khi thanh toán thành công
@@ -172,7 +176,12 @@ public class FinanceServiceImpl implements FinanceService {
 
         checkDoctorSupportsConsultationType(doctor, request.getConsultationType());
 
-        BigDecimal amount = resolveDoctorConsultationFee(doctor);
+        BigDecimal amount = resolveAppointmentCheckoutAmount(
+                doctor,
+                request.getConsultationType(),
+                request.getVisitLatitude(),
+                request.getVisitLongitude()
+        );
         String currency = request.getCurrency() != null ? request.getCurrency() : "USD";
         String amountStr = amount.setScale(2, RoundingMode.HALF_UP).toPlainString();
         String description = String.format(
@@ -371,7 +380,12 @@ public class FinanceServiceImpl implements FinanceService {
         );
         checkDoctorSupportsConsultationType(doctor, request.getConsultationType());
 
-        BigDecimal expectedAmount = resolveDoctorConsultationFee(doctor);
+        BigDecimal expectedAmount = resolveAppointmentCheckoutAmount(
+                doctor,
+                request.getConsultationType(),
+                request.getVisitLatitude(),
+                request.getVisitLongitude()
+        );
 
         if (paymentRepository.findByTransactionId(request.getOrderId()).isPresent()) {
             throw new BadRequestException("This PayPal transaction has already been processed: " + request.getOrderId());
@@ -893,6 +907,22 @@ public class FinanceServiceImpl implements FinanceService {
         appointmentRequest.setConsultationType(request.getConsultationType());
         appointmentRequest.setSymptoms(request.getSymptoms());
         appointmentRequest.setNotes(request.getNotes());
+        appointmentRequest.setVisitAddress(request.getVisitAddress());
+        appointmentRequest.setVisitCity(request.getVisitCity());
+        appointmentRequest.setContactPhone(request.getContactPhone());
+        appointmentRequest.setReasonForHomeVisit(request.getReasonForHomeVisit());
+        appointmentRequest.setSpecialNotes(request.getSpecialNotes());
+
+        appointmentRequest.setIsForSelf(request.getIsForSelf());
+
+        appointmentRequest.setReceiverName(request.getReceiverName());
+        appointmentRequest.setReceiverAge(request.getReceiverAge());
+        appointmentRequest.setReceiverGender(request.getReceiverGender());
+        appointmentRequest.setReceiverRelationship(request.getReceiverRelationship());
+        appointmentRequest.setReceiverPhone(request.getReceiverPhone());
+
+        appointmentRequest.setVisitLatitude(request.getVisitLatitude());
+        appointmentRequest.setVisitLongitude(request.getVisitLongitude());
         return appointmentRequest;
     }
 
@@ -904,24 +934,27 @@ public class FinanceServiceImpl implements FinanceService {
         appointmentRequest.setConsultationType(request.getConsultationType());
         appointmentRequest.setSymptoms(request.getSymptoms());
         appointmentRequest.setNotes(request.getNotes());
+        appointmentRequest.setVisitAddress(request.getVisitAddress());
+        appointmentRequest.setVisitCity(request.getVisitCity());
+        appointmentRequest.setContactPhone(request.getContactPhone());
+        appointmentRequest.setReasonForHomeVisit(request.getReasonForHomeVisit());
+        appointmentRequest.setSpecialNotes(request.getSpecialNotes());
+
+        appointmentRequest.setIsForSelf(request.getIsForSelf());
+
+        appointmentRequest.setReceiverName(request.getReceiverName());
+        appointmentRequest.setReceiverAge(request.getReceiverAge());
+        appointmentRequest.setReceiverGender(request.getReceiverGender());
+        appointmentRequest.setReceiverRelationship(request.getReceiverRelationship());
+        appointmentRequest.setReceiverPhone(request.getReceiverPhone());
+
+        appointmentRequest.setVisitLatitude(request.getVisitLatitude());
+        appointmentRequest.setVisitLongitude(request.getVisitLongitude());
         return appointmentRequest;
     }
 
     private String normalizeConsultationTypeForBooking(String consultationType) {
-        if (consultationType == null || consultationType.isBlank()) {
-            return TYPE_ONLINE;
-        }
-
-        String value = consultationType.trim().toLowerCase();
-
-        return switch (value) {
-            case "video", "video call", "audio", "audio call", "chat", "online", "consultation" ->
-                TYPE_ONLINE;
-            case "offline", "in-person", "in person" ->
-                TYPE_OFFLINE;
-            default ->
-                TYPE_ONLINE;
-        };
+        return DoctorServiceHelper.normalizeConsultationType(consultationType);
     }
 
     private BigDecimal resolveDoctorConsultationFee(Doctor doctor) {
@@ -932,25 +965,41 @@ public class FinanceServiceImpl implements FinanceService {
         return consultationFee.setScale(2, RoundingMode.HALF_UP);
     }
 
-    private void checkDoctorSupportsConsultationType(Doctor doctor, String consultationType) {
+    private BigDecimal resolveAppointmentCheckoutAmount(
+            Doctor doctor,
+            String consultationType,
+            Double visitLatitude,
+            Double visitLongitude
+    ) {
         String normalizedType = normalizeConsultationTypeForBooking(consultationType);
 
-        boolean supported = switch (normalizedType.toLowerCase()) {
-            case "online" ->
-                doctor.isAvailableForVideo()
-                || doctor.isAvailableForAudio()
-                || doctor.isAvailableForChat();
+        if (TYPE_HOME_VISIT.equalsIgnoreCase(normalizedType)) {
+            HomeVisitEstimateResponse estimate = homeVisitLocationService.estimate(
+                    visitLatitude,
+                    visitLongitude
+            );
 
-            case "offline" ->
-                doctor.isAvailableForOffline();
+            if (!Boolean.TRUE.equals(estimate.getServiceable())) {
+                throw new BadRequestException(estimate.getMessage());
+            }
 
-            default ->
-                true;
-        };
+            BigDecimal consultationFee = resolveDoctorConsultationFee(doctor);
+            BigDecimal travelFee = estimate.getTravelFee() != null
+                    ? estimate.getTravelFee()
+                    : BigDecimal.ZERO;
 
-        if (!supported) {
+            return consultationFee.add(travelFee)
+                    .setScale(2, RoundingMode.HALF_UP);
+        }
+
+        return resolveDoctorConsultationFee(doctor);
+    }
+
+    private void checkDoctorSupportsConsultationType(Doctor doctor, String consultationType) {
+        if (!DoctorServiceHelper.isConsultationTypeSupported(doctor, consultationType)) {
             throw new BadRequestException(
-                    "Doctor does not support consultation type: " + normalizedType);
+                    "Doctor does not support consultation type: " + consultationType
+            );
         }
     }
 

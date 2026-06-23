@@ -7,6 +7,7 @@ import lombok.NoArgsConstructor;
 
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
+import java.util.Set;
 
 @Data
 @NoArgsConstructor
@@ -32,9 +33,6 @@ public class AdminDoctorDto {
     private Integer totalConsultations;
     private String avatarUrl;
     private boolean verified;
-    private boolean availableForVideo;
-    private boolean availableForAudio;
-    private boolean availableForChat;
-    private boolean availableForOffline;
+    private Set<String> services;
     private LocalDateTime createdAt;
 }

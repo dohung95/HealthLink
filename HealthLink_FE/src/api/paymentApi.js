@@ -9,6 +9,20 @@ const toAppointmentPaymentPayload = (bookingDraft, extra = {}) => {
     symptoms,
     notes,
     currency,
+
+    visitAddress,
+    visitCity,
+    contactPhone,
+    reasonForHomeVisit,
+    specialNotes,
+    isForSelf,
+    receiverName,
+    receiverAge,
+    receiverGender,
+    receiverRelationship,
+    receiverPhone,
+    visitLatitude,
+    visitLongitude,
   } = bookingDraft || {};
 
   return {
@@ -18,6 +32,21 @@ const toAppointmentPaymentPayload = (bookingDraft, extra = {}) => {
     consultationType,
     symptoms,
     notes,
+
+    visitAddress,
+    visitCity,
+    contactPhone,
+    reasonForHomeVisit,
+    specialNotes,
+    isForSelf,
+    receiverName,
+    receiverAge,
+    receiverGender,
+    receiverRelationship,
+    receiverPhone,
+    visitLatitude,
+    visitLongitude,
+
     currency: currency || 'USD',
     ...extra,
   };

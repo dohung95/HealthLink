@@ -40,6 +40,8 @@ lerna-debug.log*
 
 # DOC & Skills
 /doc
+/docs
+/docs/superpowers
 /skills
 /HealthLink_BE/doc/
 /.agents
@@ -64,6 +66,7 @@ lerna-debug.log*
 /HealthLink_FE/.opencode
 /HealthLink_FE/graphify-out
 
+/.superpowers
 
 # === Custom ignores cho file XML do IDE sinh ra ===
 HealthLink/HealthLink_BE/HealthLink_BEynbactions.xml
@@ -71,3 +74,4 @@ HealthLink/HealthLink_BE/HealthLink_BEynbactions.xml
 
 # Ignore tất cả file ynbactions.xml (an toàn)
 *ynbactions.xml
+/docs

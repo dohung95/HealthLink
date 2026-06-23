@@ -1,11 +1,10 @@
 package com.HealthLink.entity;
-import com.HealthLink.entity.enums.ConsultationType;
 import com.HealthLink.entity.enums.DoctorScheduleStatus;
 import jakarta.persistence.*;
 import lombok.*;
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
-import java.util.EnumSet;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
 
@@ -60,25 +59,12 @@ public class Doctor {
     // --- 3. DỊCH VỤ & CHI PHÍ KHÁM (Services & Fees) ---
     
     private BigDecimal consultationFee; // Phí khám/tư vấn mặc định cho mỗi lượt đặt lịch
-    
-    @Builder.Default
-    private boolean availableForVideo = true; // Cho phép bệnh nhân đặt lịch khám qua Video Call
-    
-    @Builder.Default
-    private boolean availableForAudio = true; // Cho phép bệnh nhân đặt lịch gọi điện thoại (Audio)
-    
-    @Builder.Default
-    private boolean availableForChat = true; // Cho phép bệnh nhân đặt lịch tư vấn qua nhắn tin
-    
-    @Builder.Default
-    private boolean availableForOffline = true; // Cho phép bệnh nhân đặt lịch đến khám trực tiếp tại phòng khám
 
-    @ElementCollection(targetClass = ConsultationType.class)
-    @Enumerated(EnumType.STRING)
-    @CollectionTable(name = "DoctorConsultationTypes", joinColumns = @JoinColumn(name = "doctorId"))
-    @Column(name = "consultationType")
+    @OneToMany(mappedBy = "doctor", cascade = CascadeType.ALL, orphanRemoval = true, fetch = FetchType.LAZY)
+    @ToString.Exclude
+    @EqualsAndHashCode.Exclude
     @Builder.Default
-    private Set<ConsultationType> consultationTypes = EnumSet.allOf(ConsultationType.class);
+    private Set<DoctorService> services = new HashSet<>();
 
     // --- 4. TRẠNG THÁI & ĐÁNH GIÁ (Status & Ratings) ---
 
