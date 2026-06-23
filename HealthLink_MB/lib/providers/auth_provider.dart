@@ -7,6 +7,7 @@ import '../models/auth/login_response.dart';
 import '../models/auth/register_request.dart';
 import '../services/auth/auth_service.dart';
 import '../services/chat/stomp_service.dart';
+import '../services/video_audio/webrtc_stomp_service.dart';
 import '../utils/auth/token_utils.dart';
 
 /// Enum mô tả trạng thái auth.
@@ -222,6 +223,7 @@ class AuthProvider extends ChangeNotifier {
   /// Xóa toàn bộ session.
   Future<void> _clearSession() async {
     StompService.instance.disconnect();
+    WebrtcStompService.instance.disconnect();
     _accessToken  = null;
     _refreshToken = null;
     _userId       = null;

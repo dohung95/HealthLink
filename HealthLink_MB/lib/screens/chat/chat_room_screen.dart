@@ -1,5 +1,9 @@
 import 'dart:convert';
 import 'dart:io';
+import 'dart:async';
+import 'package:record/record.dart';
+import 'package:path_provider/path_provider.dart';
+import 'package:audioplayers/audioplayers.dart';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:image_picker/image_picker.dart';
@@ -15,6 +19,8 @@ import 'package:url_launcher/url_launcher.dart';
 import '../../models/chat/chat_theme.dart';
 import 'profile_patient_normal_forChar_screen.dart';
 import 'profile_doctor_normal_forChat_screen.dart';
+import '../../providers/video_call_provider.dart';
+import '../video_audio/video_call_screen.dart';
 
 /// Màn hình Chat Room – hiển thị tin nhắn và cho phép gửi tin nhắn.
 class ChatRoomScreen extends StatefulWidget {
@@ -42,6 +48,13 @@ class _ChatRoomScreenState extends State<ChatRoomScreen> {
   File? _attachedVideo;
   File? _attachedFile;
   String? _attachedFileName;
+
+  // Recording state
+  final AudioRecorder _audioRecorder = AudioRecorder();
+  bool _isRecording = false;
+  int _recordingDuration = 0;
+  Timer? _recordingTimer;
+  String? _audioPath;
 
   ColorScheme _colors(BuildContext context) => Theme.of(context).colorScheme;
 
@@ -95,11 +108,86 @@ class _ChatRoomScreenState extends State<ChatRoomScreen> {
 
   @override
   void dispose() {
+    _recordingTimer?.cancel();
+    _audioRecorder.dispose();
     _messageController.dispose();
     _scrollController.dispose();
     // Xoá thông tin phòng chat hiện tại để nhận thông báo push top-down
     Future.microtask(() => _chatProvider.clearCurrentConversation());
     super.dispose();
+  }
+
+  Future<void> _startRecording() async {
+    try {
+      if (await _audioRecorder.hasPermission()) {
+        final dir = await getApplicationDocumentsDirectory();
+        final filePath = '${dir.path}/audio_${DateTime.now().millisecondsSinceEpoch}.m4a';
+        
+        await _audioRecorder.start(
+          const RecordConfig(encoder: AudioEncoder.aacLc),
+          path: filePath,
+        );
+
+        setState(() {
+          _isRecording = true;
+          _recordingDuration = 0;
+          _audioPath = filePath;
+        });
+
+        _recordingTimer = Timer.periodic(const Duration(seconds: 1), (Timer t) {
+          setState(() => _recordingDuration++);
+        });
+      }
+    } catch (e) {
+      debugPrint('Error starting recording: $e');
+    }
+  }
+
+  Future<void> _stopRecording() async {
+    try {
+      _recordingTimer?.cancel();
+      final path = await _audioRecorder.stop();
+      
+      setState(() {
+        _isRecording = false;
+        _recordingDuration = 0;
+      });
+
+      if (path != null) {
+        final auth = context.read<AuthProvider>();
+        if (auth.accessToken != null && auth.userId != null) {
+          await context.read<ChatProvider>().sendMessage(
+            auth.accessToken!,
+            auth.userId!,
+            '',
+            audioPath: path,
+          );
+          _scrollToBottom();
+        }
+      }
+    } catch (e) {
+      debugPrint('Error stopping recording: $e');
+    }
+  }
+
+  Future<void> _cancelRecording() async {
+    try {
+      _recordingTimer?.cancel();
+      await _audioRecorder.stop();
+      if (_audioPath != null) {
+        final file = File(_audioPath!);
+        if (await file.exists()) {
+          await file.delete();
+        }
+      }
+      setState(() {
+        _isRecording = false;
+        _recordingDuration = 0;
+        _audioPath = null;
+      });
+    } catch (e) {
+      debugPrint('Error canceling recording: $e');
+    }
   }
 
   /// Cuộn xuống tin nhắn mới nhất
@@ -113,6 +201,45 @@ class _ChatRoomScreenState extends State<ChatRoomScreen> {
         );
       }
     });
+  }
+
+  void _handleVideoCall(BuildContext context, Conversation conv) {
+    if (conv.isSupport) return;
+    final auth = context.read<AuthProvider>();
+    final videoCallProvider = context.read<VideoCallProvider>();
+
+    if (auth.isAuthenticated && auth.userId != null) {
+      final success = videoCallProvider.sendCallRequest(
+        receiverId: conv.partnerId,
+        roomId: conv.id,
+        myId: auth.userId!,
+        myName: auth.displayName ?? 'User',
+      );
+
+      if (!success) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('You are already in a call!', style: TextStyle(color: Colors.white)), backgroundColor: Colors.red),
+        );
+        return;
+      }
+
+      Navigator.push(
+        context,
+        MaterialPageRoute(
+          settings: const RouteSettings(name: '/video_call'),
+          builder: (_) => VideoCallScreen(
+            partnerName: conv.partnerName,
+            partnerRole: conv.partnerSpecialty ?? 'User',
+            partnerId: conv.partnerId,
+            roomId: conv.id,
+          ),
+        ),
+      );
+    } else {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Cannot start video call, please login.', style: TextStyle(color: Colors.white)), backgroundColor: Colors.red),
+      );
+    }
   }
 
   /// Xoá đính kèm
@@ -469,9 +596,9 @@ class _ChatRoomScreenState extends State<ChatRoomScreen> {
                         : ListView.separated(
                             reverse: true,
                             controller: _scrollController,
-                            padding: const EdgeInsets.fromLTRB(16, 24, 16, 80),
+                            padding: const EdgeInsets.fromLTRB(16, 10, 16, 10),
                             itemCount: chat.messages.length + (chat.isLoadingMoreMessages ? 1 : 0),
-                            separatorBuilder: (_, __) => const SizedBox(height: 16),
+                            separatorBuilder: (_, __) => const SizedBox(height: 8),
                             itemBuilder: (context, index) {
                               if (index == chat.messages.length) {
                                 return const Center(
@@ -629,6 +756,21 @@ class _ChatRoomScreenState extends State<ChatRoomScreen> {
 
           if (context.watch<ChatProvider>().isMuted(conv.id))
             Icon(Icons.notifications_off, color: colors.outline, size: 20),
+
+          if (!conv.isSupport)
+            IconButton(
+              icon: const Icon(Icons.videocam),
+              color: (context.watch<ChatProvider>().isBlocked(conv.id) || conv.appointmentStatus == 'COMPLETED') 
+                  ? colors.outline
+                  : chatTheme.primary,
+              onPressed: (context.watch<ChatProvider>().isBlocked(conv.id) || conv.appointmentStatus == 'COMPLETED') 
+                  ? () {
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        const SnackBar(content: Text('Cannot call when chat is blocked or appointment completed', style: TextStyle(color: Colors.white)), backgroundColor: Colors.orange),
+                      );
+                    }
+                  : () => _handleVideoCall(context, conv),
+            ),
             
           IconButton(
             icon: const Icon(Icons.info),
@@ -721,6 +863,8 @@ class _ChatRoomScreenState extends State<ChatRoomScreen> {
                 _buildVideoMessage(msg.videoUrl!, colors),
               if (msg.fileUrl != null && msg.fileUrl!.isNotEmpty)
                 _buildFileMessage(msg.fileUrl!, colors),
+              if (msg.audioUrl != null && msg.audioUrl!.isNotEmpty)
+                _buildAudioMessage(msg.audioUrl!, colors),
               if (msg.content.isNotEmpty)
                 Container(
                   padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
@@ -787,6 +931,8 @@ class _ChatRoomScreenState extends State<ChatRoomScreen> {
                       _buildVideoMessage(msg.videoUrl!, colors),
                     if (msg.fileUrl != null && msg.fileUrl!.isNotEmpty)
                       _buildFileMessage(msg.fileUrl!, colors),
+                    if (msg.audioUrl != null && msg.audioUrl!.isNotEmpty)
+                      _buildAudioMessage(msg.audioUrl!, colors),
                     if (msg.content.isNotEmpty)
                       Container(
                         padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
@@ -959,76 +1105,134 @@ class _ChatRoomScreenState extends State<ChatRoomScreen> {
           Row(
             crossAxisAlignment: CrossAxisAlignment.end,
             children: [
-              // Nút đính kèm
-              IconButton(
-                icon: const Icon(Icons.add),
-                color: chatTheme.primary,
-                onPressed: _showAttachmentMenu,
-              ),
-              // Nút Camera
-              IconButton(
-                icon: const Icon(Icons.camera_alt),
-                color: chatTheme.primary,
-                onPressed: _takePicture,
-              ),
-
-              // Ô nhập tin nhắn
-              Expanded(
-                child: Container(
-                  constraints: const BoxConstraints(maxHeight: 120),
-                  decoration: BoxDecoration(
-                    color: chatTheme.bubbleOther, // Nền ô chữ
-                    borderRadius: BorderRadius.circular(24),
-                    border: Border.all(color: chatTheme.primary.withValues(alpha: 0.2)),
+              if (_isRecording)
+                Expanded(
+                  child: Container(
+                    height: 48,
+                    decoration: BoxDecoration(
+                      color: Colors.red.shade50,
+                      borderRadius: BorderRadius.circular(24),
+                      border: Border.all(color: Colors.red.shade200),
+                    ),
+                    child: Row(
+                      children: [
+                        const SizedBox(width: 16),
+                        const SizedBox(
+                          width: 16,
+                          height: 16,
+                          child: CircularProgressIndicator(strokeWidth: 2, color: Colors.red),
+                        ),
+                        const SizedBox(width: 12),
+                        Text(
+                          'Recording... ${_recordingDuration ~/ 60}:${(_recordingDuration % 60).toString().padLeft(2, '0')}',
+                          style: const TextStyle(color: Colors.red, fontWeight: FontWeight.bold),
+                        ),
+                        const Spacer(),
+                        IconButton(
+                          icon: const Icon(Icons.cancel, color: Colors.red),
+                          onPressed: _cancelRecording,
+                        ),
+                      ],
+                    ),
                   ),
-                  child: TextField(
-                    controller: _messageController,
-                    maxLines: null,
-                    keyboardType: TextInputType.multiline,
-                    textInputAction: TextInputAction.newline,
-                    style: TextStyle(fontFamily: 'Inter', fontSize: 14, color: chatTheme.bubbleOtherText),
-                    decoration: InputDecoration(
-                      hintText: 'Type message...',
-                      hintStyle: TextStyle(color: chatTheme.bubbleOtherText.withValues(alpha: 0.5)),
-                      border: InputBorder.none,
-                      contentPadding: const EdgeInsets.symmetric(vertical: 10, horizontal: 16),
+                )
+              else ...[
+                // Nút đính kèm
+                IconButton(
+                  icon: const Icon(Icons.add),
+                  color: chatTheme.primary,
+                  onPressed: _showAttachmentMenu,
+                ),
+                // Nút Camera
+                IconButton(
+                  icon: const Icon(Icons.camera_alt),
+                  color: chatTheme.primary,
+                  onPressed: _takePicture,
+                ),
+
+                // Ô nhập tin nhắn
+                Expanded(
+                  child: Container(
+                    constraints: const BoxConstraints(maxHeight: 120),
+                    decoration: BoxDecoration(
+                      color: chatTheme.bubbleOther, // Nền ô chữ
+                      borderRadius: BorderRadius.circular(24),
+                      border: Border.all(color: chatTheme.primary.withValues(alpha: 0.2)),
+                    ),
+                    child: TextField(
+                      controller: _messageController,
+                      maxLines: null,
+                      keyboardType: TextInputType.multiline,
+                      textInputAction: TextInputAction.newline,
+                      style: TextStyle(fontFamily: 'Inter', fontSize: 14, color: chatTheme.bubbleOtherText),
+                      decoration: InputDecoration(
+                        hintText: 'Type message...',
+                        hintStyle: TextStyle(color: chatTheme.bubbleOtherText.withValues(alpha: 0.5)),
+                        border: InputBorder.none,
+                        contentPadding: const EdgeInsets.symmetric(vertical: 10, horizontal: 16),
+                      ),
                     ),
                   ),
                 ),
-              ),
+              ],
               const SizedBox(width: 8),
 
-              // Nút gửi (opacity thay vì scale)
-              AnimatedOpacity(
-                opacity: canSend ? 1.0 : 0.5,
-                duration: const Duration(milliseconds: 200),
-                child: Container(
-                  decoration: BoxDecoration(
-                    color: canSend ? chatTheme.primary : chatTheme.primary.withValues(alpha: 0.3),
+              // Nút gửi / ghi âm
+              if (_isRecording)
+                Container(
+                  decoration: const BoxDecoration(
+                    color: Colors.red,
                     shape: BoxShape.circle,
-                    boxShadow: canSend ? [
-                      BoxShadow(
-                        color: chatTheme.primary.withValues(alpha: 0.3),
-                        blurRadius: 8,
-                        offset: const Offset(0, 2),
-                      ),
-                    ] : null,
                   ),
-                  child: Consumer<ChatProvider>(
-                    builder: (context, chat, _) => IconButton(
-                      icon: chat.isSending
-                          ? SizedBox(
-                              width: 20,
-                              height: 20,
-                              child: CircularProgressIndicator(strokeWidth: 2, color: colors.onPrimary),
-                            )
-                          : const Icon(Icons.send, size: 20),
-                      color: canSend ? colors.onPrimary : colors.outline,
-                      onPressed: (canSend && !chat.isSending) ? _sendMessage : null,
+                  child: IconButton(
+                    icon: const Icon(Icons.send, size: 20),
+                    color: Colors.white,
+                    onPressed: _stopRecording,
+                  ),
+                )
+              else if (canSend)
+                AnimatedOpacity(
+                  opacity: 1.0,
+                  duration: const Duration(milliseconds: 200),
+                  child: Container(
+                    decoration: BoxDecoration(
+                      color: chatTheme.primary,
+                      shape: BoxShape.circle,
+                      boxShadow: [
+                        BoxShadow(
+                          color: chatTheme.primary.withValues(alpha: 0.3),
+                          blurRadius: 8,
+                          offset: const Offset(0, 2),
+                        ),
+                      ],
+                    ),
+                    child: Consumer<ChatProvider>(
+                      builder: (context, chat, _) => IconButton(
+                        icon: chat.isSending
+                            ? SizedBox(
+                                width: 20,
+                                height: 20,
+                                child: CircularProgressIndicator(strokeWidth: 2, color: colors.onPrimary),
+                              )
+                            : const Icon(Icons.send, size: 20),
+                        color: colors.onPrimary,
+                        onPressed: !chat.isSending ? _sendMessage : null,
+                      ),
                     ),
                   ),
+                )
+              else
+                Container(
+                  decoration: BoxDecoration(
+                    color: chatTheme.primary.withValues(alpha: 0.1),
+                    shape: BoxShape.circle,
+                  ),
+                  child: IconButton(
+                    icon: const Icon(Icons.mic, size: 24),
+                    color: chatTheme.primary,
+                    onPressed: _startRecording,
+                  ),
                 ),
-              ),
             ],
           ),
         ],
@@ -1306,6 +1510,10 @@ class _ChatRoomScreenState extends State<ChatRoomScreen> {
         ),
       ),
     );
+  }
+
+  Widget _buildAudioMessage(String audioUrl, ColorScheme colors) {
+    return AudioPlayerBubble(audioUrl: audioUrl, colors: colors);
   }
 
   // --- Bottom Sheet Phong cách Messenger ---
@@ -1757,3 +1965,156 @@ class _FullScreenImageViewerState extends State<FullScreenImageViewer> with Sing
     );
   }
 }
+
+/// Widget cho hiển thị và phát tin nhắn âm thanh
+class AudioPlayerBubble extends StatefulWidget {
+  final String audioUrl;
+  final ColorScheme colors;
+
+  const AudioPlayerBubble({
+    super.key,
+    required this.audioUrl,
+    required this.colors,
+  });
+
+  @override
+  State<AudioPlayerBubble> createState() => _AudioPlayerBubbleState();
+}
+
+class _AudioPlayerBubbleState extends State<AudioPlayerBubble> {
+  final AudioPlayer _audioPlayer = AudioPlayer();
+  bool _isPlaying = false;
+  Duration _duration = Duration.zero;
+  Duration _position = Duration.zero;
+  bool _isDisposed = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _setupAudioListeners();
+    _loadAudioSource(widget.audioUrl);
+  }
+
+  void _setupAudioListeners() {
+    _audioPlayer.onPlayerStateChanged.listen((state) {
+      if (!_isDisposed && mounted) {
+        setState(() {
+          _isPlaying = state == PlayerState.playing;
+        });
+      }
+    });
+
+    _audioPlayer.onDurationChanged.listen((newDuration) {
+      if (!_isDisposed && mounted) {
+        setState(() {
+          _duration = newDuration;
+        });
+      }
+    });
+
+    _audioPlayer.onPositionChanged.listen((newPosition) {
+      if (!_isDisposed && mounted) {
+        setState(() {
+          _position = newPosition;
+        });
+      }
+    });
+  }
+
+  Future<void> _loadAudioSource(String url) async {
+    if (url.isEmpty) return;
+    try {
+      bool isLocalFile = false;
+      if (url.startsWith('/')) {
+         isLocalFile = await File(url).exists();
+      }
+      if (_isDisposed) return;
+
+      if (isLocalFile) {
+         await _audioPlayer.setSourceDeviceFile(url);
+      } else {
+         final normalizedUrl = ApiConfig.normalizeUrl(url);
+         if (normalizedUrl != null && normalizedUrl.isNotEmpty) {
+            await _audioPlayer.setSourceUrl(normalizedUrl);
+         }
+      }
+    } catch (e) {
+      debugPrint("Error loading audio: $e");
+    }
+  }
+
+  @override
+  void didUpdateWidget(covariant AudioPlayerBubble oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.audioUrl != widget.audioUrl) {
+      _loadAudioSource(widget.audioUrl);
+    }
+  }
+
+  @override
+  void dispose() {
+    _isDisposed = true;
+    _audioPlayer.dispose();
+    super.dispose();
+  }
+
+  String _formatDuration(Duration d) {
+    final minutes = d.inMinutes;
+    final seconds = d.inSeconds % 60;
+    return '$minutes:${seconds.toString().padLeft(2, '0')}';
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      width: 250,
+      padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 4),
+      margin: const EdgeInsets.only(bottom: 0),
+      decoration: BoxDecoration(
+        color: widget.colors.surfaceContainerHigh,
+        borderRadius: BorderRadius.circular(24),
+        border: Border.all(color: widget.colors.surfaceContainerHighest),
+      ),
+      child: Row(
+        children: [
+          IconButton(
+            icon: Icon(
+              _isPlaying ? Icons.pause_circle_filled : Icons.play_circle_fill,
+              size: 32,
+              color: widget.colors.primary,
+            ),
+            onPressed: () async {
+              if (_isPlaying) {
+                await _audioPlayer.pause();
+              } else {
+                await _audioPlayer.resume();
+              }
+            },
+          ),
+          Expanded(
+            child: Slider(
+              value: _position.inSeconds.toDouble(),
+              max: _duration.inSeconds > 0 ? _duration.inSeconds.toDouble() : 1.0,
+              onChanged: (value) async {
+                final position = Duration(seconds: value.toInt());
+                await _audioPlayer.seek(position);
+              },
+              activeColor: widget.colors.primary,
+              inactiveColor: widget.colors.outlineVariant,
+            ),
+          ),
+          Text(
+            _formatDuration(_position.inSeconds > 0 ? _position : _duration),
+            style: TextStyle(
+              fontSize: 12,
+              color: widget.colors.onSurfaceVariant,
+              fontFamily: 'Inter',
+            ),
+          ),
+          const SizedBox(width: 12),
+        ],
+      ),
+    );
+  }
+}
+

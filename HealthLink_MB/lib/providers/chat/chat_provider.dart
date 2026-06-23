@@ -351,8 +351,9 @@ class ChatProvider extends ChangeNotifier {
     String? imagePath,
     String? videoPath,
     String? filePath,
+    String? audioPath,
   }) async {
-    if (_currentConversation == null || (content.trim().isEmpty && imagePath == null && videoPath == null && filePath == null)) return;
+    if (_currentConversation == null || (content.trim().isEmpty && imagePath == null && videoPath == null && filePath == null && audioPath == null)) return;
 
     final conv = _currentConversation!;
 
@@ -365,6 +366,7 @@ class ChatProvider extends ChangeNotifier {
       imageUrl: imagePath, // Tạm thời lưu path local để UI có thể (tuỳ chọn) hiển thị
       videoUrl: videoPath,
       fileUrl: filePath,
+      audioUrl: audioPath,
       sender: MessageSender.me,
       sentAt: DateTime.now(),
       isPending: true,
@@ -377,6 +379,7 @@ class ChatProvider extends ChangeNotifier {
       String? imageUrl;
       String? videoUrl;
       String? fileUrl;
+      String? audioUrl;
 
       // Upload media nếu có
       if (imagePath != null) {
@@ -385,6 +388,8 @@ class ChatProvider extends ChangeNotifier {
         videoUrl = await ChatService.uploadMedia(accessToken, conv.id, 'video', videoPath);
       } else if (filePath != null) {
         fileUrl = await ChatService.uploadMedia(accessToken, conv.id, 'file', filePath);
+      } else if (audioPath != null) {
+        audioUrl = await ChatService.uploadMedia(accessToken, conv.id, 'audio', audioPath);
       }
 
       final confirmed = await ChatService.sendMessage(
@@ -396,6 +401,7 @@ class ChatProvider extends ChangeNotifier {
         imageUrl: imageUrl,
         videoUrl: videoUrl,
         fileUrl: fileUrl,
+        audioUrl: audioUrl,
       );
 
       // Thay thế tin nhắn pending
@@ -407,6 +413,7 @@ class ChatProvider extends ChangeNotifier {
       if (preview.isEmpty) {
         if (imageUrl != null) preview = '[Image]';
         else if (videoUrl != null) preview = '[Video]';
+        else if (audioUrl != null) preview = '[Voice Message]';
         else if (fileUrl != null) preview = '[File]';
       }
       _updateLastMessage(conv.id, preview);

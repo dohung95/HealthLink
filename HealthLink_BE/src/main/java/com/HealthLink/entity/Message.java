@@ -48,6 +48,9 @@ public class Message {
     @Column(columnDefinition = "TEXT")
     private String fileUrl;
 
+    @Column(columnDefinition = "TEXT")
+    private String audioUrl;
+
     @Column(name = "IsRead")
     @Builder.Default
     private boolean read = false;

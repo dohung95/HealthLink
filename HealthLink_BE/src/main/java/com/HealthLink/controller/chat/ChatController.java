@@ -163,13 +163,18 @@ public class ChatController {
     @PostMapping("/upload")
     public ResponseEntity<Map<String, String>> uploadMedia(
             @RequestParam("chatRoomId") String chatRoomId,
-            @RequestParam("type") String type, // "image", "video", "file"
+            @RequestParam("type") String type, // "image", "video", "file", "audio"
             @RequestParam("file") org.springframework.web.multipart.MultipartFile file) {
         
         if (file.isEmpty()) {
             return ResponseEntity.badRequest().body(Map.of("error", "File is empty"));
         }
         try {
+            // Clean chatRoomId - remove spaces and invalid chars
+            String cleanedChatRoomId = chatRoomId
+                .replaceAll("[^a-zA-Z0-9._-]", "_")  // Replace invalid chars with _
+                .replaceAll("_+", "_");               // Merge multiple _
+            
             // Xác định thư mục lưu trữ
             String uploadDir = "uploads/chat/" + type + "/" + chatRoomId + "/";
             java.nio.file.Path uploadPath = java.nio.file.Paths.get(uploadDir);
@@ -183,10 +188,11 @@ public class ChatController {
                 original = "file";
             }
             String originalFileName = org.springframework.util.StringUtils.cleanPath(original);
-            // Loại bỏ ký tự không phải ASCII (ký tự tiếng Việt, etc.) để URL luôn hợp lệ
+            // Loại bỏ ký tự không phải ASCII (ký tự tiếng Việt, etc.) và dấu cách để URL luôn hợp lệ
             String safeFileName = originalFileName
-                .replaceAll("[^a-zA-Z0-9._-]", "_")  // chỉ giữ lại ký tự an toàn
-                .replaceAll("_+", "_");                // gộp nhiều _ thành 1
+                .replaceAll("[^a-zA-Z0-9._-]", "_")  // chỉ giữ lại ký tự an toàn (thay dấu cách thành _)
+                .replaceAll("_+", "_")                // gộp nhiều _ thành 1
+                .replaceAll("_+\\.", ".");            // xóa _ trước dấu chấm
             String fileName = System.currentTimeMillis() + "_" + safeFileName;
             
             java.nio.file.Path filePath = uploadPath.resolve(fileName);
