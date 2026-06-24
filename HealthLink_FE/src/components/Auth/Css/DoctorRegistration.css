@@ -1,7 +1,7 @@
 .doctor-registration-bg {
     background: linear-gradient(135deg, #f0fdf4 0%, #dcfce7 100%);
     min-height: 100vh;
-    padding: 200px 20px 40px;
+    padding: 240px 20px 40px;
 }
 
 .doctor-registration-container {
@@ -904,8 +904,13 @@
 }
 
 @keyframes fadeIn {
-    from { opacity: 0; }
-    to { opacity: 1; }
+    from {
+        opacity: 0;
+    }
+
+    to {
+        opacity: 1;
+    }
 }
 
 .submission-modal {
@@ -924,6 +929,7 @@
         opacity: 0;
         transform: translateY(30px);
     }
+
     to {
         opacity: 1;
         transform: translateY(0);
@@ -941,7 +947,9 @@
 }
 
 @keyframes spin {
-    to { transform: rotate(360deg); }
+    to {
+        transform: rotate(360deg);
+    }
 }
 
 .submission-modal h3 {
@@ -995,8 +1003,15 @@
 }
 
 @keyframes pulse {
-    0%, 100% { transform: scale(1); }
-    50% { transform: scale(1.08); }
+
+    0%,
+    100% {
+        transform: scale(1);
+    }
+
+    50% {
+        transform: scale(1.08);
+    }
 }
 
 .submission-steps .step.completed .step-icon {
