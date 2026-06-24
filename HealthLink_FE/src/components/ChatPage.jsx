@@ -556,6 +556,14 @@ export default function ChatPage({ showBot = true }) {
 
     // ─── Micro audio recording ──────────────────────────────────────────────────────
     const startRecording = async () => {
+        if (isRecording) return;
+        
+        // Ensure any previous timer is cleared before starting
+        if (recordingTimerRef.current) {
+            clearInterval(recordingTimerRef.current);
+            recordingTimerRef.current = null;
+        }
+
         try {
             const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
 
@@ -590,6 +598,12 @@ export default function ChatPage({ showBot = true }) {
                 console.log('📦 Audio blob created:', blob.size, 'bytes, type:', blob.type);
                 setAudioBlob(blob);
                 stream.getTracks().forEach(track => track.stop());
+                
+                // Safety cleanup
+                if (recordingTimerRef.current) {
+                    clearInterval(recordingTimerRef.current);
+                    recordingTimerRef.current = null;
+                }
             };
 
             mediaRecorderRef.current.start();
@@ -606,20 +620,26 @@ export default function ChatPage({ showBot = true }) {
     };
 
     const stopRecording = () => {
+        if (recordingTimerRef.current) {
+            clearInterval(recordingTimerRef.current);
+            recordingTimerRef.current = null;
+        }
         if (mediaRecorderRef.current && isRecording) {
             mediaRecorderRef.current.stop();
             setIsRecording(false);
-            clearInterval(recordingTimerRef.current);
         }
     };
 
     const cancelRecording = () => {
+        if (recordingTimerRef.current) {
+            clearInterval(recordingTimerRef.current);
+            recordingTimerRef.current = null;
+        }
         if (mediaRecorderRef.current && isRecording) {
             mediaRecorderRef.current.stop();
             audioChunksRef.current = [];
             setAudioBlob(null);
             setIsRecording(false);
-            clearInterval(recordingTimerRef.current);
         } else if (audioBlob) {
             setAudioBlob(null);
             setRecordingDuration(0);
@@ -1398,7 +1418,7 @@ export default function ChatPage({ showBot = true }) {
                                 {!chatPartner?.isBot && (
                                     <>
                                         <input type="file" ref={fileInputRef} accept="*/*" onChange={handleFileSelect} style={{ display: 'none' }} />
-                                        <button type="button" className="btn btn-light rounded-circle shadow-sm" style={{ width: 45, height: 45 }} onClick={() => fileInputRef.current?.click()} disabled={uploading} title="Attach file">
+                                        <button type="button" className="btn btn-light rounded-circle shadow-sm d-flex align-items-center justify-content-center" style={{ width: 45, height: 45 }} onClick={() => fileInputRef.current?.click()} disabled={uploading} title="Attach file">
                                             <i className="bi bi-paperclip fs-5 text-secondary"></i>
                                         </button>
                                     </>
@@ -1422,7 +1442,7 @@ export default function ChatPage({ showBot = true }) {
                                         <span className="fw-bold">
                                             {Math.floor(recordingDuration / 60)}:{(recordingDuration % 60).toString().padStart(2, '0')}
                                         </span>
-                                        <button className="btn btn-sm btn-light ms-2 rounded-circle" style={{ width: 28, height: 28, padding: 0 }} onClick={stopRecording} type="button">
+                                        <button className="btn btn-sm btn-light ms-2 rounded-circle d-flex align-items-center justify-content-center" style={{ width: 28, height: 28, padding: 0 }} onClick={stopRecording} type="button">
                                             <i className="bi bi-stop-fill text-danger"></i>
                                         </button>
                                     </div>
@@ -1432,7 +1452,7 @@ export default function ChatPage({ showBot = true }) {
                                         <span className="fw-bold me-2 text-primary">
                                             {Math.floor(recordingDuration / 60)}:{(recordingDuration % 60).toString().padStart(2, '0')}
                                         </span>
-                                        <button className="btn btn-sm btn-outline-danger ms-2 rounded-circle" style={{ width: 28, height: 28, padding: 0 }} onClick={cancelRecording} type="button">
+                                        <button className="btn btn-sm btn-outline-danger ms-2 rounded-circle d-flex align-items-center justify-content-center" style={{ width: 28, height: 28, padding: 0 }} onClick={cancelRecording} type="button">
                                             <i className="bi bi-x-lg"></i>
                                         </button>
                                     </div>
