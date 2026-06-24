@@ -6,10 +6,7 @@
     background-attachment: fixed;
     min-height: 100vh;
     position: relative;
-    display: flex;
-    justify-content: center;
-    align-items: center;
-    padding: 20px;
+    padding-top: 270px;
 }
 
 .Background_Sign_In::before {
@@ -49,6 +46,7 @@
         opacity: 0;
         transform: translateY(30px);
     }
+
     100% {
         opacity: 1;
         transform: translateY(0);

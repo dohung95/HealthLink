@@ -1,7 +1,7 @@
 .pharmacy-registration-bg {
     background: linear-gradient(135deg, #eef2ff 0%, #e0e7ff 100%);
     min-height: 100vh;
-    padding: 200px 20px 40px;
+    padding: 240px 20px 40px;
 }
 
 .pharmacy-registration-container {
@@ -230,12 +230,12 @@
 }
 
 /* Success Modal */
-.pharmacy-registration-container ~ .modal .modal-success-header {
+.pharmacy-registration-container~.modal .modal-success-header {
     background: linear-gradient(135deg, #eef2ff 0%, #e0e7ff 100%);
     border-bottom: 2px solid #6366f1;
 }
 
-.pharmacy-registration-container ~ .modal .modal-success-title {
+.pharmacy-registration-container~.modal .modal-success-title {
     color: #4f46e5;
     font-weight: 600;
     display: flex;
@@ -243,42 +243,42 @@
     gap: 10px;
 }
 
-.pharmacy-registration-container ~ .modal .modal-success-title i {
+.pharmacy-registration-container~.modal .modal-success-title i {
     font-size: 24px;
 }
 
-.pharmacy-registration-container ~ .modal .modal-success-body {
+.pharmacy-registration-container~.modal .modal-success-body {
     padding: 40px;
     text-align: center;
 }
 
-.pharmacy-registration-container ~ .modal .modal-success-content {
+.pharmacy-registration-container~.modal .modal-success-content {
     background: #eef2ff;
     border: 2px solid #a5b4fc;
     border-radius: 12px;
     padding: 30px;
 }
 
-.pharmacy-registration-container ~ .modal .modal-success-icon {
+.pharmacy-registration-container~.modal .modal-success-icon {
     font-size: 50px;
     color: #6366f1;
     margin-bottom: 20px;
 }
 
-.pharmacy-registration-container ~ .modal .modal-success-content h5 {
+.pharmacy-registration-container~.modal .modal-success-content h5 {
     color: #3730a3;
     font-weight: 600;
     margin-bottom: 15px;
 }
 
-.pharmacy-registration-container ~ .modal .modal-success-content p {
+.pharmacy-registration-container~.modal .modal-success-content p {
     color: #4b5563;
     font-size: 15px;
     line-height: 1.6;
     margin-bottom: 20px;
 }
 
-.pharmacy-registration-container ~ .modal .info-box {
+.pharmacy-registration-container~.modal .info-box {
     background: #fef3c7;
     border: 1px solid #fcd34d;
     border-radius: 8px;
@@ -292,67 +292,67 @@
     margin-bottom: 15px;
 }
 
-.pharmacy-registration-container ~ .modal .info-box:last-child {
+.pharmacy-registration-container~.modal .info-box:last-child {
     margin-bottom: 0;
 }
 
-.pharmacy-registration-container ~ .modal .info-box i {
+.pharmacy-registration-container~.modal .info-box i {
     font-size: 20px;
     flex-shrink: 0;
     margin-top: 2px;
 }
 
-.pharmacy-registration-container ~ .modal .info-box div {
+.pharmacy-registration-container~.modal .info-box div {
     display: flex;
     flex-direction: column;
     gap: 4px;
 }
 
-.pharmacy-registration-container ~ .modal .info-box div strong {
+.pharmacy-registration-container~.modal .info-box div strong {
     color: #78350f;
     font-size: 14px;
 }
 
-.pharmacy-registration-container ~ .modal .info-box div span {
+.pharmacy-registration-container~.modal .info-box div span {
     font-size: 13px;
     line-height: 1.5;
 }
 
-.pharmacy-registration-container ~ .modal .info-box.waiting {
+.pharmacy-registration-container~.modal .info-box.waiting {
     background: #eff6ff;
     border-color: #93c5fd;
     color: #1e40af;
 }
 
-.pharmacy-registration-container ~ .modal .info-box.waiting i {
+.pharmacy-registration-container~.modal .info-box.waiting i {
     color: #3b82f6;
 }
 
-.pharmacy-registration-container ~ .modal .info-box.waiting div strong {
+.pharmacy-registration-container~.modal .info-box.waiting div strong {
     color: #1e3a8a;
 }
 
-.pharmacy-registration-container ~ .modal .info-box.tips {
+.pharmacy-registration-container~.modal .info-box.tips {
     background: #f0fdf4;
     border-color: #86efac;
     color: #166534;
 }
 
-.pharmacy-registration-container ~ .modal .info-box.tips i {
+.pharmacy-registration-container~.modal .info-box.tips i {
     color: #22c55e;
 }
 
-.pharmacy-registration-container ~ .modal .info-box.tips div strong {
+.pharmacy-registration-container~.modal .info-box.tips div strong {
     color: #14532d;
 }
 
-.pharmacy-registration-container ~ .modal .modal-success-footer {
+.pharmacy-registration-container~.modal .modal-success-footer {
     justify-content: center;
     padding: 20px;
     background: #f8fafc;
 }
 
-.pharmacy-registration-container ~ .modal .modal-success-button {
+.pharmacy-registration-container~.modal .modal-success-button {
     background: linear-gradient(135deg, #6366f1 0%, #4f46e5 100%);
     border: none;
     padding: 12px 30px;
@@ -362,7 +362,7 @@
     gap: 8px;
 }
 
-.pharmacy-registration-container ~ .modal .modal-success-button:hover {
+.pharmacy-registration-container~.modal .modal-success-button:hover {
     background: linear-gradient(135deg, #4f46e5 0%, #3730a3 100%);
 }
 
@@ -908,8 +908,13 @@
 }
 
 @keyframes fadeIn {
-    from { opacity: 0; }
-    to { opacity: 1; }
+    from {
+        opacity: 0;
+    }
+
+    to {
+        opacity: 1;
+    }
 }
 
 .submission-modal {
@@ -928,6 +933,7 @@
         opacity: 0;
         transform: translateY(30px);
     }
+
     to {
         opacity: 1;
         transform: translateY(0);
@@ -945,7 +951,9 @@
 }
 
 @keyframes spin {
-    to { transform: rotate(360deg); }
+    to {
+        transform: rotate(360deg);
+    }
 }
 
 .submission-modal h3 {
@@ -999,8 +1007,15 @@
 }
 
 @keyframes pulse {
-    0%, 100% { transform: scale(1); }
-    50% { transform: scale(1.08); }
+
+    0%,
+    100% {
+        transform: scale(1);
+    }
+
+    50% {
+        transform: scale(1.08);
+    }
 }
 
 .submission-steps .step.completed .step-icon {

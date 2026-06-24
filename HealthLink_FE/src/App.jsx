@@ -159,11 +159,6 @@ function AppContent() {
   const is404Page = !isKnownPath;
 
   const isAuthPage = [
-    '/login',
-    '/register',
-    '/register-as',
-    '/register/doctor',
-    '/register/pharmacy',
     '/confirm-email',
     '/forgot-password',
     '/reset-password'
@@ -214,13 +209,13 @@ function AppContent() {
       {!isVideoCallPage && !isAdminPage && <AdminActionNotificationModal />}
       <div className="App">
         {!isVideoCallPage
-  && !isAdminPage
-  && !is404Page
-  && !isAuthPage
-  && !isPatientDashboard
-  && !isDoctorPage
-  && !isPharmacyDashboard
-  && <Chat />}
+          && !isAdminPage
+          && !is404Page
+          && !isAuthPage
+          && !isPatientDashboard
+          && !isDoctorPage
+          && !isPharmacyDashboard
+          && <Chat />}
         <ScrollToTop />
         {!hideLayout && <Navbar />}
 
