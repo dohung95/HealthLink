@@ -376,6 +376,8 @@ const MyAppointments = () => {
             case 'inconsultation':
             case 'in_progress':
                 return 'In Consultation';
+            case 'pendingpayment':
+                return 'Pending Payment';
             default:
                 return appointment.status || 'Unknown';
         }
@@ -401,6 +403,9 @@ const MyAppointments = () => {
             case 'inconsultation':
             case 'in_progress':
                 return 'bg-warning text-dark';
+
+            case 'pendingpayment':
+                return 'bg-info text-dark';
 
             default:
                 return 'bg-secondary';
@@ -505,6 +510,7 @@ const MyAppointments = () => {
                             <option value="COMPLETED">Completed</option>
                             <option value="CANCELLED">Cancelled</option>
                             <option value="IN_CONSULTATION">In consultation</option>
+                            <option value="PENDINGPAYMENT">Pending Payment</option>
                         </select>
                     </div>
                 </div>
@@ -649,6 +655,17 @@ const MyAppointments = () => {
                                                             >
                                                                 <i className="bi bi-house-door me-1"></i>
                                                                 {expandedHomeVisitId === item.appointmentId ? 'Hide Details' : 'View Details'}
+                                                            </button>
+                                                        )}
+
+                                                        {/* Pay Now button for PENDINGPAYMENT appointments */}
+                                                        {normalizeText(item.status) === 'pendingpayment' && (
+                                                            <button
+                                                                className="btn btn-sm btn-success"
+                                                                onClick={() => navigate(`/book/${item.doctorId}`)}
+                                                            >
+                                                                <i className="bi bi-credit-card me-1"></i>
+                                                                Complete Payment
                                                             </button>
                                                         )}
 

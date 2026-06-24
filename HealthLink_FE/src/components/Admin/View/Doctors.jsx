@@ -926,6 +926,11 @@ export default function Doctors() {
                           <span className={`badge ${selectedDoctor.services?.includes('HOME_VISIT') ? 'bg-success' : 'bg-secondary'}`} style={{ fontSize: '12px' }}>
                             <i className="bi bi-house-heart me-1"></i>Home Visit
                           </span>
+                          {selectedDoctor.services?.includes('HOME_VISIT') && selectedDoctor.homeVisitRadiusKm && (
+                            <div style={{ fontSize: '12px', color: '#475569', marginTop: '4px' }}>
+                              <i className="bi bi-geo-alt me-1"></i>Radius: {selectedDoctor.homeVisitRadiusKm} km
+                            </div>
+                          )}
                         </div>
                         {(selectedDoctor.consultationHours || selectedDoctor.availableDays) && (
                           <div className="mt-2 pt-2" style={{ borderTop: '1px solid #e2e8f0' }}>

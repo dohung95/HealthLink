@@ -18,6 +18,7 @@ import java.util.List;
 import com.HealthLink.service.email.EmailService;
 import com.HealthLink.service.admin.AdminNotificationHelper;
 import com.HealthLink.service.admin.AdminAuditLogService;
+import com.HealthLink.service.geocoding.GeocodingService;
 import com.HealthLink.service.registration.RegistrationService;
 
 import jakarta.persistence.criteria.Predicate;
@@ -61,6 +62,7 @@ public class RegistrationServiceImpl implements RegistrationService {
     private final EmailService emailService;
     private final AdminNotificationHelper adminNotificationHelper;
     private final AdminAuditLogService auditLogService;
+    private final GeocodingService geocodingService;
     private static final String DEFAULT_PASSWORD = "HealthLink@123";
     private static final String TYPE_DOCTOR = "DOCTOR";
     private static final String TYPE_PHARMACY = "PHARMACY";
@@ -330,6 +332,17 @@ public class RegistrationServiceImpl implements RegistrationService {
         doctor.getServices().add(new DoctorService(doctor, ServiceType.ONLINE, true));
         doctor.getServices().add(new DoctorService(doctor, ServiceType.HOME_VISIT, true));
         doctor = doctorRepository.save(doctor);
+
+        try {
+            if (request.getClinicAddress() != null && !request.getClinicAddress().isBlank()) {
+                var geo = geocodingService.geocode(request.getClinicAddress());
+                doctor.setLatitude(geo.getLatitude());
+                doctor.setLongitude(geo.getLongitude());
+                doctorRepository.save(doctor);
+            }
+        } catch (Exception e) {
+            System.err.println("Geocode failed for doctor " + doctor.getDoctorId() + ": " + e.getMessage());
+        }
     }
 
     private void createPharmacy(User user, RegistrationRequest request) {

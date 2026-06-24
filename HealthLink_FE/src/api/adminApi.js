@@ -495,6 +495,11 @@ export const scheduleApi = {
       params: { adminReason }
     });
     return response.data;
+  },
+
+  getHomeVisitConfig: async () => {
+    const response = await adminApi.get('/home-visit/config');
+    return response.data;
   }
 };
 

@@ -2,7 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { doctorScheduleService } from '@api/doctorApi';
 
 const DAYS = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
-const CONSULTATION_TYPES = ['Video', 'Audio', 'Chat', 'Offline'];
+const CONSULTATION_TYPES = ['Online', 'HomeVisit'];
 const SLOT_DURATIONS = [15, 20, 30, 45, 60];
 
 const formatTimeForInput = (time) => {

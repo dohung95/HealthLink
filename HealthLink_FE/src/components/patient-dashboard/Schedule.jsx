@@ -17,6 +17,7 @@ import PaymentStep from '../schedule/PaymentStep';
 import DoctorSummaryCard from '../schedule/DoctorSummaryCard';
 import ConsultationStep from '../schedule/ConsultationStep';
 import HomeVisitStep from '../schedule/HomeVisitStep';
+import SessionPicker from '../schedule/SessionPicker';
 
 import '../Css/ScheduleWizard.css';
 
@@ -36,16 +37,17 @@ const Schedule = () => {
   const { isAuthenticated, token } = useAuth();
 
   const hasPreselectedDoctor = !!doctorId;
+  const isFromProposal = searchParams.get('homeVisit') === 'true';
 
   const [loading, setLoading] = useState(true);
   const [loadingSlots, setLoadingSlots] = useState(false);
 
-  const [step, setStep] = useState(1);
+  const [step, setStep] = useState(isFromProposal ? 2 : 1);
 
   const [doctors, setDoctors] = useState([]);
   const [selectedSpecialty, setSelectedSpecialty] = useState('');
   const [selectedDoctorId, setSelectedDoctorId] = useState('');
-  const [consultationType, setConsultationType] = useState('');
+  const [consultationType, setConsultationType] = useState(isFromProposal ? 'HomeVisit' : '');
 
   const [date, setDate] = useState(new Date().toISOString().split('T')[0]);
   const [slots, setSlots] = useState([]);
@@ -58,6 +60,7 @@ const Schedule = () => {
   const [patientProfile, setPatientProfile] = useState(null);
   const [bookingSubmitting, setBookingSubmitting] = useState(false);
   const [paymentDraft, setPaymentDraft] = useState(null);
+  const [sessionDraftId, setSessionDraftId] = useState(null);
   const [homeVisitInfo, setHomeVisitInfo] = useState({
     visitAddress: '',
     visitCity: '',
@@ -87,18 +90,18 @@ const Schedule = () => {
     const baseSteps = hasPreselectedDoctor
       ? [
         { key: 'consultation', label: 'Visit Type' },
-        { key: 'datetime', label: 'Date & Time' },
       ]
       : [
         { key: 'specialty', label: 'Specialty' },
         { key: 'doctor', label: 'Doctor' },
         { key: 'consultation', label: 'Visit Type' },
-        { key: 'datetime', label: 'Date & Time' },
       ];
 
     if (isHomeVisit) {
       baseSteps.push({ key: 'homevisit', label: 'Home Visit' });
+      baseSteps.push({ key: 'session-picker', label: 'Choose Session' });
     } else {
+      baseSteps.push({ key: 'datetime', label: 'Date & Time' });
       baseSteps.push({ key: 'documents', label: 'Medical information' });
     }
 
@@ -145,13 +148,11 @@ const Schedule = () => {
     fetchDoctors();
   }, []);
 
-  // Tiếp nhận ?specialty=SpecialtyName từ URL (truyền bởi chatbot)
-  // Tự động pre-select chuyên khoa và skip bước 1 → chuyển thẳng sang bước chọn Bác sĩ
   useEffect(() => {
     const specialtyParam = searchParams.get('specialty');
-    if (!specialtyParam || doctorId) return; // Không áp dụng nếu đã có doctorId pre-selected
+    if (!specialtyParam || doctorId) return;
     setSelectedSpecialty(decodeURIComponent(specialtyParam));
-    setStep(2); // Nhảy thẳng sang bước 2 (chọn bác sĩ)
+    setStep(2);
   }, [searchParams, doctorId]);
 
   useEffect(() => {
@@ -165,8 +166,14 @@ const Schedule = () => {
     if (preselectedDoctor) {
       setSelectedSpecialty(preselectedDoctor.specialtyName || '');
       setSelectedDoctorId(preselectedDoctor.doctorId);
+
+      // Nếu từ home visit proposal: pre-set consultationType, skip Visit Type step
+      if (isFromProposal) {
+        setConsultationType('HomeVisit');
+        setStep(2);
+      }
     }
-  }, [doctorId, doctors]);
+  }, [doctorId, doctors, isFromProposal]);
 
   useEffect(() => {
     if (!selectedDoctorId) {
@@ -201,7 +208,7 @@ const Schedule = () => {
   }, [selectedDoctorId]);
 
   useEffect(() => {
-    if (!selectedDoctorId || !date || !consultationType) {
+    if (!selectedDoctorId || !date || !consultationType || isHomeVisit) {
       setSlots([]);
       setSelectedSlot(null);
       return;
@@ -279,7 +286,6 @@ const Schedule = () => {
     const appointmentTime = buildAppointmentDateTime(date, slot.startTime);
 
     try {
-      // Nếu trước đó đã chọn slot khác, giải phóng hold cũ trước
       if (
         previousSelectedSlot?.holdId &&
         previousSelectedSlot.startTime !== slot.startTime
@@ -303,25 +309,15 @@ const Schedule = () => {
 
       setSlots((prev) =>
         prev.map((item) => {
-          // Trả slot cũ về AVAILABLE
           if (
             previousSelectedSlot &&
             item.startTime === previousSelectedSlot.startTime
           ) {
-            return {
-              ...item,
-              status: 'AVAILABLE',
-              selectable: true,
-            };
+            return { ...item, status: 'AVAILABLE', selectable: true };
           }
 
-          // Chỉ slot mới được chọn chuyển sang HELD
           if (item.startTime === slot.startTime) {
-            return {
-              ...item,
-              status: 'HELD',
-              selectable: false,
-            };
+            return { ...item, status: 'HELD', selectable: false };
           }
 
           return item;
@@ -356,11 +352,7 @@ const Schedule = () => {
     setSlots((prev) =>
       prev.map((item) =>
         item.startTime === slotToClear.startTime
-          ? {
-            ...item,
-            status: 'AVAILABLE',
-            selectable: true,
-          }
+          ? { ...item, status: 'AVAILABLE', selectable: true }
           : item
       )
     );
@@ -421,41 +413,6 @@ const Schedule = () => {
       }
     }
 
-
-    if (currentStepKey === 'homevisit') {
-      if (!homeVisitInfo.visitAddress?.trim()) {
-        toast.warning('Visit address is required.');
-        return;
-      }
-
-      if (!homeVisitInfo.contactPhone?.trim()) {
-        toast.warning('Contact phone is required.');
-        return;
-      }
-
-      if (!homeVisitInfo.reasonForHomeVisit?.trim()) {
-        toast.warning('Reason for home visit is required.');
-        return;
-      }
-
-      if (homeVisitInfo.isForSelf === false) {
-        if (!homeVisitInfo.receiverName?.trim()) {
-          toast.warning('Receiver name is required.');
-          return;
-        }
-
-        if (!homeVisitInfo.receiverRelationship?.trim()) {
-          toast.warning('Receiver relationship is required.');
-          return;
-        }
-
-        if (!homeVisitInfo.receiverAge || Number(homeVisitInfo.receiverAge) <= 0) {
-          toast.warning('Receiver age must be greater than 0.');
-          return;
-        }
-      }
-    }
-
     setStep((prev) => Math.min(prev + 1, stepConfig.length));
   };
 
@@ -469,11 +426,7 @@ const Schedule = () => {
     setSlots((prev) =>
       prev.map((item) =>
         item.startTime === slotToClear.startTime
-          ? {
-            ...item,
-            status: 'AVAILABLE',
-            selectable: true,
-          }
+          ? { ...item, status: 'AVAILABLE', selectable: true }
           : item
       )
     );
@@ -509,7 +462,7 @@ const Schedule = () => {
   };
 
   const handleSchedule = async () => {
-    if (!selectedDoctorId || !selectedSlot) {
+    if (!selectedDoctorId || (!selectedSlot && !isHomeVisit)) {
       toast.warning('Booking information is not complete');
       return;
     }
@@ -523,10 +476,17 @@ const Schedule = () => {
     setBookingSubmitting(true);
 
     try {
+      const selectedSession = homeVisitInfo.selectedSession;
+      const bookingDate = isHomeVisit && selectedSession ? selectedSession.bookingDate : null;
+      const sessionTime = selectedSession?.startTime || '08:00';
+      const appointmentDate = isHomeVisit && bookingDate
+        ? `${bookingDate}T${sessionTime}:00`
+        : selectedSlot?.appointmentTime;
+
       const bookingData = {
         patientId,
         doctorId: selectedDoctorId,
-        appointmentTime: selectedSlot.appointmentTime,
+        appointmentTime: appointmentDate,
         consultationType,
         symptoms: isHomeVisit ? homeVisitInfo.reasonForHomeVisit : symptoms,
         notes: isHomeVisit ? homeVisitInfo.specialNotes : '',
@@ -550,24 +510,14 @@ const Schedule = () => {
           : {}),
       };
 
-      const doctorFee = Number(selectedDoctor?.consultationFee ?? selectedDoctor?.fee ?? 0);
-      const travelFee = Number(homeVisitInfo.travelFee || 0);
-
       setPaymentDraft({
         ...bookingData,
         currency: 'USD',
-        amount: isHomeVisit
-          ? doctorFee + travelFee
-          : doctorFee,
-        homeVisitEstimate: isHomeVisit
-          ? {
-            distanceKm: homeVisitInfo.distanceKm,
-            estimatedTravelMinutes: homeVisitInfo.estimatedTravelMinutes,
-            homeVisitFee: doctorFee,
-            travelFee: travelFee,
-            totalFee: doctorFee + travelFee,
-          }
-          : null,
+        amount: 150.00,
+        draftId: sessionDraftId,
+        scheduleId: homeVisitInfo.selectedSession?.scheduleId,
+        bookingDate: homeVisitInfo.selectedSession?.bookingDate,
+        selectedSession: homeVisitInfo.selectedSession,
       });
       setStep(stepConfig.length);
       toast.info('Review completed. Please finish payment to confirm your appointment.');
@@ -749,6 +699,19 @@ const Schedule = () => {
                   homeVisitInfo={homeVisitInfo}
                   setHomeVisitInfo={setHomeVisitInfo}
                   patientProfile={patientProfile}
+                  selectedDoctorId={selectedDoctorId}
+                  onBack={handleBack}
+                  onNext={handleNext}
+                />
+              )}
+
+              {currentStepKey === 'session-picker' && (
+                <SessionPicker
+                  doctorId={selectedDoctorId}
+                  homeVisitInfo={homeVisitInfo}
+                  setHomeVisitInfo={setHomeVisitInfo}
+                  sessionDraftId={sessionDraftId}
+                  setSessionDraftId={setSessionDraftId}
                   onBack={handleBack}
                   onNext={handleNext}
                 />
@@ -760,7 +723,7 @@ const Schedule = () => {
                   setSymptoms={setSymptoms}
                   files={files}
                   setFiles={setFiles}
-                  onBack={isHomeVisit ? handleBack : handleBackFromDocuments}
+                  onBack={handleBackFromDocuments}
                   onNext={handleNext}
                 />
               )}

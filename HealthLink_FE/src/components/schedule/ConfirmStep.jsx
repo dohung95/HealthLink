@@ -14,15 +14,28 @@ const ConfirmStep = ({
         ? new Date(selectedSlot.appointmentTime).toLocaleString('en-US')
         : '';
 
+    const selectedSession = homeVisitInfo?.selectedSession;
+    const formattedSession = selectedSession
+        ? `${selectedSession.sessionType === 'MORNING' ? 'Morning' : 'Afternoon'} — ${selectedSession.bookingDate}`
+        : '';
+
 
     const rows = [
         ['Doctor', selectedDoctor?.fullName || ''],
         ['Specialty', selectedSpecialty || selectedDoctor?.specialtyName || ''],
         ['Visit Type', consultationType === 'HomeVisit' ? 'Home Visit' : 'Online consultation'],
-        ['Date & Time', formattedDateTime],
+    ];
+
+    if (consultationType === 'HomeVisit') {
+        rows.push(['Session', formattedSession]);
+    } else {
+        rows.push(['Date & Time', formattedDateTime]);
+    }
+
+    rows.push(
         ['Symptoms', symptoms || 'None'],
         ['Attached files', files.length > 0 ? `${files.length} file` : 'None'],
-    ];
+    );
 
     if (consultationType === 'HomeVisit') {
         rows.push(
@@ -38,6 +51,8 @@ const ConfirmStep = ({
                 ['Relationship', homeVisitInfo?.receiverRelationship || '']
             );
         }
+
+        rows.push(['Fee', '$150.00']);
     }
     return (
         <div className="schedule-card">

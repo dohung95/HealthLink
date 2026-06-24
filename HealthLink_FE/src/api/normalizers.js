@@ -116,8 +116,8 @@ export function normalizeAppointment(appointment = {}) {
       fullName: appointment.doctorName ?? 'Unknown Doctor',
     },
     consultationType:
-      consultationType === 'Video' ? 'Video Call' :
-      consultationType === 'Audio' ? 'Audio Call' :
+      consultationType === 'Video' || consultationType === 'Audio' || consultationType === 'Chat' ? 'Online' :
+      consultationType === 'Offline' ? 'HomeVisit' :
       consultationType,
   };
 }

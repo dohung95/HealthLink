@@ -94,6 +94,8 @@ const PatientHeader = () => {
         const type = notification.type;
         if (type === 'PRESCRIPTION_ISSUED' || type === 'NEW_PRESCRIPTION') {
             navigate('/patient-dashboard/prescriptions');
+        } else if (type === 'HOME_VISIT_PROPOSED') {
+            navigate('/patient-dashboard/appointments');
         } else if (type === 'PHARMACY_REQUEST_STATUS') {
             extractRequestId(notification);
             navigate('/patient-dashboard/pharmacy/requests');

@@ -15,22 +15,30 @@ const DAYS = [
 
 const getTypeIcon = (type) => {
   switch ((type || '').toLowerCase()) {
+    case 'online':
     case 'video':
     case 'video call':
-      return 'videocam';
     case 'audio':
     case 'audio call':
-      return 'call';
     case 'chat':
-      return 'chat';
+      return 'laptop';
+    case 'homevisit':
+    case 'home visit':
+    case 'home-visit':
     case 'offline':
-      return 'local_hospital';
+      return 'home_health';
     default:
       return 'medical_services';
   }
 };
 
-const getTypeLabel = (type) => type || 'All Types';
+const getTypeLabel = (type) => {
+  if (!type) return 'All Types';
+  const lower = type.toLowerCase();
+  if (lower === 'homevisit' || lower === 'home visit' || lower === 'home-visit') return 'Home Visit';
+  if (lower === 'online') return 'Online';
+  return type;
+};
 
 const formatTime = (time) => {
   if (!time) return '';

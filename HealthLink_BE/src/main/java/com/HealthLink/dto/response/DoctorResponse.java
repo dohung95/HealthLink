@@ -28,4 +28,6 @@ public class DoctorResponse {
 
     /** Các loại tư vấn bác sĩ hỗ trợ: ["Video", "Chat", ...] */
     private List<String> availableTypes;
+    private Boolean availableForHomeVisit;
+    private Double homeVisitRadiusKm;
 }

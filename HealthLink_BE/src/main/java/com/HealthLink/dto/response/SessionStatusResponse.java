@@ -5,8 +5,8 @@ import lombok.Data;
 
 @Data
 @Builder
-public class HomeVisitEstimateResponse {
-    private Double distanceKm;
-    private Boolean serviceable;
+public class SessionStatusResponse {
+    private Integer scheduleId;
+    private boolean available;
     private String message;
 }
