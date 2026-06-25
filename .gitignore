@@ -18,6 +18,8 @@
 # Lờ các file build output
 /dist/
 /dist-ssr/
+/HealthLink_BE/graphify-out/
+/HealthLink_FE/graphify-out/
 
 # Lờ các file log của Node
 npm-debug.log*
@@ -34,22 +36,25 @@ lerna-debug.log*
 .vscode/*
 !.vscode/extensions.json
 !.vscode/settings.json
+/.github/copilot-instructions.md
 
 # Rider / IntelliJ
 .idea/
 
 # DOC & Skills
 /doc
-/docs
+/docs/*
 /docs/superpowers
 /skills
 /HealthLink_BE/doc/
 /.agents
 /knowledge.md
 /.opencode
-/graphify-out
+/graphify-out/
+/.continue/
+/.github/workflows/
+/.semgrepignore
 /AGENTS.md
-/.github
 /.codex
 /.graphify_cached.json
 /.graphify_uncached.txt
@@ -61,10 +66,14 @@ lerna-debug.log*
 /.graphify_semantic.json
 /.claude
 /CLAUDE.md
+/HealthLink_BE/.codex/
+/HealthLink_BE/AGENTS.md
+/HealthLink_BE/src/main/java/com/HealthLink/config/OpenApiConfig.java
+/HealthLink_BE/src/test/java/com/HealthLink/config/OpenApiDocumentationTest.java
 /HealthLink_FE/e2e
 /HealthLink_FE/.codex
+/HealthLink_FE/AGENTS.md
 /HealthLink_FE/.opencode
-/HealthLink_FE/graphify-out
 
 /.superpowers
 
@@ -74,4 +83,4 @@ HealthLink/HealthLink_BE/HealthLink_BEynbactions.xml
 
 # Ignore tất cả file ynbactions.xml (an toàn)
 *ynbactions.xml
-/docs
+/docs/*
