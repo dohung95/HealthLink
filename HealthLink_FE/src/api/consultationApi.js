@@ -89,6 +89,11 @@ export const consultationApi = {
     const response = await axiosInstance.post('/api/home-visit/proposals/reject', { consultationId });
     return response.data;
   },
+
+  getPendingHomeVisitProposal: async () => {
+    const response = await axiosInstance.get('/api/home-visit/proposals/pending');
+    return response.status === 204 ? null : (response.data || null);
+  },
 };
 
 export default consultationApi;

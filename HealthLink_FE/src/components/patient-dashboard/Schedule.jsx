@@ -38,6 +38,10 @@ const Schedule = () => {
 
   const hasPreselectedDoctor = !!doctorId;
   const isFromProposal = searchParams.get('homeVisit') === 'true';
+  const consultationIdParam = searchParams.get('consultationId');
+  const sourceConsultationId = consultationIdParam
+    ? Number.parseInt(consultationIdParam, 10)
+    : null;
 
   const [loading, setLoading] = useState(true);
   const [loadingSlots, setLoadingSlots] = useState(false);
@@ -514,6 +518,7 @@ const Schedule = () => {
         ...bookingData,
         currency: 'USD',
         amount: 150.00,
+        sourceConsultationId: Number.isNaN(sourceConsultationId) ? null : sourceConsultationId,
         draftId: sessionDraftId,
         scheduleId: homeVisitInfo.selectedSession?.scheduleId,
         bookingDate: homeVisitInfo.selectedSession?.bookingDate,

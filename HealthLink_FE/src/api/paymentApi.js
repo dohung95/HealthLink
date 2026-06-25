@@ -23,6 +23,7 @@ const toAppointmentPaymentPayload = (bookingDraft, extra = {}) => {
     receiverPhone,
     visitLatitude,
     visitLongitude,
+    sourceConsultationId,
   } = bookingDraft || {};
 
   return {
@@ -46,6 +47,7 @@ const toAppointmentPaymentPayload = (bookingDraft, extra = {}) => {
     receiverPhone,
     visitLatitude,
     visitLongitude,
+    sourceConsultationId,
 
     currency: currency || 'USD',
     ...extra,
