@@ -2,10 +2,15 @@ package com.HealthLink.service.impl.pharmacy;
 
 import com.HealthLink.dto.pharmacy.PharmacyRecommendationResponse;
 import com.HealthLink.dto.pharmacy.PrescriptionStockMatchItem;
+import com.HealthLink.dto.pharmacy.RetailCartItemRequest;
+import com.HealthLink.dto.pharmacy.RetailPharmacyAvailabilityRequest;
+import com.HealthLink.dto.pharmacy.RetailPharmacyRecommendationResponse;
+import com.HealthLink.dto.pharmacy.RetailStockMatchItemResponse;
 import com.HealthLink.entity.*;
 import com.HealthLink.exception.BadRequestException;
 import com.HealthLink.exception.ForbiddenException;
 import com.HealthLink.exception.ResourceNotFoundException;
+import com.HealthLink.repository.medicine.MedicineRepository;
 import com.HealthLink.repository.pharmacy.PharmacyInventoryRepository;
 import com.HealthLink.repository.pharmacy.PharmacyRepository;
 import com.HealthLink.repository.prescription.PrescriptionHeaderRepository;
@@ -16,6 +21,7 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.math.BigDecimal;
 import java.util.*;
 import java.util.stream.Collectors;
 
@@ -28,6 +34,7 @@ public class PharmacyRecommendationServiceImpl implements PharmacyRecommendation
     private final PharmacyRepository pharmacyRepository;
     private final PharmacyInventoryRepository inventoryRepository;
     private final PrescriptionHeaderRepository prescriptionHeaderRepository;
+    private final MedicineRepository medicineRepository;
 
     @Override
     public List<PharmacyRecommendationResponse> getRecommendations(
@@ -79,6 +86,70 @@ public class PharmacyRecommendationServiceImpl implements PharmacyRecommendation
             }
 
             // 4. Rating higher first
+            double aRating = a.getAverageRating() != null ? a.getAverageRating() : 0;
+            double bRating = b.getAverageRating() != null ? b.getAverageRating() : 0;
+            return Double.compare(bRating, aRating);
+        });
+
+        return results;
+    }
+
+    @Override
+    public List<RetailPharmacyRecommendationResponse> getRetailRecommendations(
+            RetailPharmacyAvailabilityRequest request,
+            String patientId) {
+
+        if (request == null || request.getItems() == null || request.getItems().isEmpty()) {
+            throw new BadRequestException("Cart must have at least 1 item");
+        }
+
+        List<Pharmacy> pharmacies = Boolean.TRUE.equals(request.getDeliveryOnly())
+                ? pharmacyRepository.findByActiveTrueAndVerifiedTrueAndDeliveryAvailableTrue()
+                : pharmacyRepository.findByActiveTrueAndVerifiedTrue();
+
+        Map<Integer, Integer> quantitiesByMedicineId = collapseRetailItems(request.getItems());
+        Map<Integer, Medicine> medicinesById = medicineRepository.findAllById(quantitiesByMedicineId.keySet())
+                .stream()
+                .collect(Collectors.toMap(Medicine::getMedicineId, medicine -> medicine));
+
+        for (Integer medicineId : quantitiesByMedicineId.keySet()) {
+            if (!medicinesById.containsKey(medicineId)) {
+                throw new ResourceNotFoundException("Medicine", "id", medicineId);
+            }
+        }
+
+        List<RetailPharmacyRecommendationResponse> results = pharmacies.stream()
+                .map(pharmacy -> buildRetailRecommendation(
+                        pharmacy,
+                        request.getLat(),
+                        request.getLng(),
+                        quantitiesByMedicineId,
+                        medicinesById
+                ))
+                .collect(Collectors.toList());
+
+        results.sort((a, b) -> {
+            boolean aHasDist = a.getDistanceKm() != null;
+            boolean bHasDist = b.getDistanceKm() != null;
+            if (aHasDist && !bHasDist) {
+                return -1;
+            }
+            if (!aHasDist && bHasDist) {
+                return 1;
+            }
+
+            if (aHasDist && bHasDist) {
+                int distCompare = Double.compare(a.getDistanceKm(), b.getDistanceKm());
+                if (distCompare != 0) {
+                    return distCompare;
+                }
+            }
+
+            int stockCompare = compareRetailStockStatus(a.getStockStatus(), b.getStockStatus());
+            if (stockCompare != 0) {
+                return stockCompare;
+            }
+
             double aRating = a.getAverageRating() != null ? a.getAverageRating() : 0;
             double bRating = b.getAverageRating() != null ? b.getAverageRating() : 0;
             return Double.compare(bRating, aRating);
@@ -193,6 +264,124 @@ public class PharmacyRecommendationServiceImpl implements PharmacyRecommendation
                 .build();
     }
 
+    private RetailPharmacyRecommendationResponse buildRetailRecommendation(
+            Pharmacy pharmacy,
+            Double patientLat,
+            Double patientLng,
+            Map<Integer, Integer> quantitiesByMedicineId,
+            Map<Integer, Medicine> medicinesById) {
+
+        Double distanceKm = null;
+        if (patientLat != null && patientLng != null
+                && pharmacy.getLatitude() != null && pharmacy.getLongitude() != null) {
+            distanceKm = PharmacyServiceHelper.calculateDistanceKm(
+                    pharmacy.getLatitude(),
+                    pharmacy.getLongitude(),
+                    patientLat,
+                    patientLng
+            );
+        }
+
+        Boolean withinDeliveryRadius = null;
+        if (distanceKm != null && pharmacy.getDeliveryRadius() != null) {
+            withinDeliveryRadius = distanceKm <= pharmacy.getDeliveryRadius();
+        }
+
+        List<PharmacyInventory> inventoryList = inventoryRepository
+                .findByPharmacy_PharmacyIdAndMedicine_MedicineIdIn(pharmacy.getPharmacyId(), quantitiesByMedicineId.keySet());
+        Map<Integer, PharmacyInventory> inventoryByMedicineId = inventoryList.stream()
+                .filter(inv -> Boolean.TRUE.equals(inv.getActive()))
+                .collect(Collectors.toMap(
+                        inv -> inv.getMedicine().getMedicineId(),
+                        inv -> inv,
+                        (left, right) -> left
+                ));
+
+        List<RetailStockMatchItemResponse> availableItems = new ArrayList<>();
+        List<RetailStockMatchItemResponse> missingItems = new ArrayList<>();
+        boolean anyMatched = false;
+        boolean anyPresent = false;
+        boolean allMatched = !quantitiesByMedicineId.isEmpty();
+        BigDecimal subtotal = BigDecimal.ZERO;
+
+        for (Map.Entry<Integer, Integer> entry : quantitiesByMedicineId.entrySet()) {
+            Integer medicineId = entry.getKey();
+            Integer requiredQuantity = entry.getValue();
+            Medicine medicine = medicinesById.get(medicineId);
+            PharmacyInventory inventory = inventoryByMedicineId.get(medicineId);
+            int availableQuantity = inventory != null ? inventory.getAvailableQuantity() : 0;
+            boolean matched = inventory != null && availableQuantity >= requiredQuantity;
+
+            BigDecimal unitPrice = inventory != null && inventory.getUnitPrice() != null
+                    ? inventory.getUnitPrice()
+                    : medicine.getPrice() != null ? medicine.getPrice() : BigDecimal.ZERO;
+            BigDecimal lineTotal = unitPrice.multiply(BigDecimal.valueOf(requiredQuantity));
+
+            RetailStockMatchItemResponse item = RetailStockMatchItemResponse.builder()
+                    .medicineId(medicineId)
+                    .medicineName(PharmacyServiceHelper.firstNonBlank(medicine.getBrandName(), medicine.getName()))
+                    .requiredQuantity(requiredQuantity)
+                    .availableQuantity(availableQuantity)
+                    .matched(matched)
+                    .reason(matched ? null : buildUnmatchedReason(inventory, availableQuantity, requiredQuantity))
+                    .unitPrice(unitPrice)
+                    .lineTotal(lineTotal)
+                    .build();
+
+            if (matched) {
+                anyMatched = true;
+                availableItems.add(item);
+            } else {
+                allMatched = false;
+                missingItems.add(item);
+            }
+            if (inventory != null && availableQuantity > 0) {
+                anyPresent = true;
+            }
+            subtotal = subtotal.add(lineTotal);
+        }
+
+        String stockStatus;
+        if (allMatched && !quantitiesByMedicineId.isEmpty()) {
+            stockStatus = "FULL";
+        } else if (anyMatched || anyPresent) {
+            stockStatus = "PARTIAL";
+        } else {
+            stockStatus = "UNKNOWN";
+        }
+
+        return RetailPharmacyRecommendationResponse.builder()
+                .pharmacyId(pharmacy.getPharmacyId())
+                .name(pharmacy.getName())
+                .address(pharmacy.getAddress())
+                .city(pharmacy.getCity())
+                .district(pharmacy.getDistrict())
+                .ward(pharmacy.getWard())
+                .phoneNumber(pharmacy.getPhoneNumber())
+                .email(pharmacy.getEmail())
+                .description(pharmacy.getDescription())
+                .avatarUrl(pharmacy.getAvatarUrl())
+                .latitude(pharmacy.getLatitude())
+                .longitude(pharmacy.getLongitude())
+                .openTime(pharmacy.getOpenTime())
+                .closeTime(pharmacy.getCloseTime())
+                .open24Hours(pharmacy.isOpen24Hours())
+                .workingDays(pharmacy.getWorkingDays())
+                .averageRating(pharmacy.getAverageRating())
+                .totalReviews(pharmacy.getTotalReviews())
+                .deliveryAvailable(pharmacy.isDeliveryAvailable())
+                .deliveryRadius(pharmacy.getDeliveryRadius())
+                .deliveryFee(pharmacy.getDeliveryFee())
+                .distanceKm(distanceKm)
+                .distanceLabel(formatDistance(distanceKm))
+                .withinDeliveryRadius(withinDeliveryRadius)
+                .stockStatus(stockStatus)
+                .medicineSubtotal(subtotal)
+                .availableItems(availableItems)
+                .missingItems(missingItems)
+                .build();
+    }
+
     private String buildUnmatchedReason(PharmacyInventory inv, int availableQty, int requiredQty) {
         if (inv == null) return "Medicine not in inventory";
         if (availableQty <= 0) return "Out of stock";
@@ -204,6 +393,24 @@ public class PharmacyRecommendationServiceImpl implements PharmacyRecommendation
         int aOrder = order.getOrDefault(a, 2);
         int bOrder = order.getOrDefault(b, 2);
         return Integer.compare(aOrder, bOrder);
+    }
+
+    private int compareRetailStockStatus(String a, String b) {
+        return compareStockStatus(a, b);
+    }
+
+    private Map<Integer, Integer> collapseRetailItems(List<RetailCartItemRequest> items) {
+        Map<Integer, Integer> quantities = new LinkedHashMap<>();
+        for (RetailCartItemRequest item : items) {
+            if (item.getMedicineId() == null) {
+                throw new BadRequestException("Medicine ID is required");
+            }
+            if (item.getQuantity() == null || item.getQuantity() < 1) {
+                throw new BadRequestException("Quantity must be >= 1");
+            }
+            quantities.merge(item.getMedicineId(), item.getQuantity(), Integer::sum);
+        }
+        return quantities;
     }
 
     public static String formatDistance(Double distanceKm) {

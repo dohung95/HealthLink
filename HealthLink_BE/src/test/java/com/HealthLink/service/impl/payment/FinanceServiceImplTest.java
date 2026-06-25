@@ -331,6 +331,36 @@ class FinanceServiceImplTest {
     }
 
     @Test
+    void createPharmacyOrderPayPalOrder_shouldRejectPendingRetailOrder() {
+        PharmacyOrder pharmacyOrder = PharmacyOrder.builder()
+                .orderId(77)
+                .orderNumber("ORD-20260520-0001")
+                .status("PENDING")
+                .paymentStatus("PENDING")
+                .totalAmount(new BigDecimal("35.50"))
+                .prescriptionHeader(null)
+                .consultationRequest(null)
+                .build();
+
+        var request = new com.HealthLink.dto.payment.PharmacyOrderPayPalOrderRequest();
+        request.setPharmacyOrderId(77);
+        request.setCurrency("USD");
+
+        when(pharmacyOrderRepository.findById(77)).thenReturn(Optional.of(pharmacyOrder));
+
+        assertThatThrownBy(() -> financeService.createPharmacyOrderPayPalOrder(request))
+                .isInstanceOf(BadRequestException.class)
+                .hasMessage("Retail order must be confirmed by the pharmacy before payment.");
+
+        verify(restTemplate, never()).exchange(
+                eq("https://paypal.example/v2/checkout/orders"),
+                eq(HttpMethod.POST),
+                any(HttpEntity.class),
+                eq(Map.class)
+        );
+    }
+
+    @Test
     void capturePharmacyOrderPayPalPayment_shouldNotifyDoctorWhenOrderAlreadyCompleted() throws Exception {
         User doctorUser = User.builder().id("doctor-user-1").build();
         User patientUser = User.builder().id("patient-user-1").build();

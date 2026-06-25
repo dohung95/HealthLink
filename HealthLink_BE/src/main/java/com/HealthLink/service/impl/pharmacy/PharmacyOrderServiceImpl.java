@@ -7,6 +7,8 @@ import com.HealthLink.dto.pharmacy.PharmacyOrderRequest;
 import com.HealthLink.dto.pharmacy.PharmacyOrderResponse;
 import com.HealthLink.dto.pharmacy.PharmacyOrderRevisionRequest;
 import com.HealthLink.dto.pharmacy.PharmacyOrderStatusRequest;
+import com.HealthLink.dto.pharmacy.RetailCartItemRequest;
+import com.HealthLink.dto.pharmacy.RetailOrderRequest;
 import com.HealthLink.entity.*;
 import com.HealthLink.entity.enums.NotificationPriority;
 import com.HealthLink.entity.enums.NotificationType;
@@ -17,7 +19,9 @@ import com.HealthLink.exception.InvalidStatusException;
 import com.HealthLink.exception.ResourceNotFoundException;
 import com.HealthLink.repository.medicine.MedicineRepository;
 import com.HealthLink.repository.notification.DeviceTokenRepository;
+import com.HealthLink.repository.patient.PatientRepository;
 import com.HealthLink.repository.pharmacy.PharmacyConsultationRequestRepository;
+import com.HealthLink.repository.pharmacy.PharmacyInventoryRepository;
 import com.HealthLink.repository.pharmacy.PharmacyOrderRepository;
 import com.HealthLink.repository.pharmacy.PharmacyRepository;
 import com.HealthLink.repository.prescription.PrescriptionHeaderRepository;
@@ -96,6 +100,8 @@ public class PharmacyOrderServiceImpl implements PharmacyOrderService {
     private final PharmacyRepository pharmacyRepository;
     private final PrescriptionHeaderRepository prescriptionHeaderRepository;
     private final MedicineRepository medicineRepository;
+    private final PatientRepository patientRepository;
+    private final PharmacyInventoryRepository inventoryRepository;
     private final NotificationService notificationService;
     private final DeviceTokenRepository deviceTokenRepository;
     private final AuditLogger audit = AuditLogger.pharmacy();
@@ -204,6 +210,70 @@ public class PharmacyOrderServiceImpl implements PharmacyOrderService {
 
         notifyPharmacyAboutNewOrderAfterCommit(saved);
 
+        return PharmacyOrderMapper.toResponse(saved);
+    }
+
+    @Override
+    @Transactional
+    public PharmacyOrderResponse createRetailOrder(RetailOrderRequest request, String patientId) {
+        Patient patient = patientRepository.findById(patientId)
+                .orElseThrow(() -> new ResourceNotFoundException("Patient", "id", patientId));
+
+        Pharmacy pharmacy = pharmacyRepository.findById(request.getPharmacyId())
+                .orElseThrow(() -> new ResourceNotFoundException("Pharmacy", "id", request.getPharmacyId()));
+        validatePharmacyCanReceiveOrders(pharmacy);
+
+        List<PharmacyOrderItem> orderItems = buildRetailOrderItems(pharmacy.getPharmacyId(), request.getItems());
+        BigDecimal medicineAmount = calculateMedicineAmount(orderItems);
+        String deliveryType = normalizeDeliveryType(request.getDeliveryType());
+        BigDecimal deliveryFee = BigDecimal.ZERO;
+
+        String deliveryAddress = PharmacyServiceHelper.firstNonBlank(
+                request.getDeliveryAddress(),
+                PharmacyServiceHelper.buildPatientAddress(patient)
+        );
+        Double deliveryLat = request.getDeliveryLatitude() != null ? request.getDeliveryLatitude() : patient.getLatitude();
+        Double deliveryLon = request.getDeliveryLongitude() != null ? request.getDeliveryLongitude() : patient.getLongitude();
+
+        if (DELIVERY_TYPE_DELIVERY.equals(deliveryType)) {
+            if (!pharmacy.isDeliveryAvailable()) {
+                throw new BadRequestException("Pharmacy does not support delivery");
+            }
+            if (deliveryAddress == null || deliveryAddress.isBlank()) {
+                throw new BadRequestException("Delivery address is required for delivery orders");
+            }
+            validateDeliveryRadius(pharmacy, deliveryLat, deliveryLon);
+            deliveryFee = pharmacy.getDeliveryFee() != null ? pharmacy.getDeliveryFee() : BigDecimal.ZERO;
+        }
+
+        PharmacyOrder order = PharmacyOrder.builder()
+                .orderNumber(generateOrderNumber())
+                .pharmacy(pharmacy)
+                .patient(patient)
+                .status(STATUS_PENDING)
+                .deliveryType(deliveryType)
+                .deliveryAddress(deliveryAddress)
+                .deliveryLatitude(deliveryLat)
+                .deliveryLongitude(deliveryLon)
+                .deliveryPhoneNumber(PharmacyServiceHelper.firstNonBlank(
+                        request.getDeliveryPhoneNumber(),
+                        patient.getUser() != null ? patient.getUser().getPhoneNumber() : null
+                ))
+                .deliveryAddressSource(PharmacyServiceHelper.normalizeDeliveryAddressSource(request.getDeliveryAddressSource()))
+                .deliveryFee(deliveryFee)
+                .medicineAmount(medicineAmount)
+                .totalAmount(medicineAmount.add(deliveryFee))
+                .orderItems(orderItems)
+                .paymentStatus(PAYMENT_STATUS_PENDING)
+                .paymentMethod(PharmacyServiceHelper.trimToNull(request.getPaymentMethod()))
+                .notes(PharmacyServiceHelper.trimToNull(request.getNotes()))
+                .createdAt(LocalDateTime.now())
+                .build();
+
+        attachOrderItems(order, orderItems);
+        applyCommission(order, pharmacy, medicineAmount);
+        PharmacyOrder saved = orderRepository.save(order);
+        notifyPharmacyAboutNewOrderAfterCommit(saved);
         return PharmacyOrderMapper.toResponse(saved);
     }
 
@@ -815,6 +885,79 @@ public class PharmacyOrderServiceImpl implements PharmacyOrderService {
                     .unitPrice(unitPrice)
                     .totalPrice(totalPrice)
                     .notes(prescriptionItem.getNotes())
+                    .build());
+        }
+
+        return items;
+    }
+
+    private List<PharmacyOrderItem> buildRetailOrderItems(
+            String pharmacyId,
+            List<RetailCartItemRequest> itemRequests
+    ) {
+        if (itemRequests == null || itemRequests.isEmpty()) {
+            throw new BadRequestException("Cart must have at least 1 item");
+        }
+
+        java.util.Map<Integer, Integer> quantitiesByMedicineId = new java.util.LinkedHashMap<>();
+        for (RetailCartItemRequest itemRequest : itemRequests) {
+            Integer medicineId = itemRequest.getMedicineId();
+            if (medicineId == null) {
+                throw new BadRequestException("Medicine ID is required");
+            }
+            Integer quantity = normalizePositive(itemRequest.getQuantity(), "Quantity");
+            quantitiesByMedicineId.merge(medicineId, quantity, Integer::sum);
+        }
+
+        List<Medicine> medicines = medicineRepository.findAllById(quantitiesByMedicineId.keySet());
+        java.util.Map<Integer, Medicine> medicinesById = medicines.stream()
+                .collect(Collectors.toMap(Medicine::getMedicineId, medicine -> medicine));
+        for (Integer medicineId : quantitiesByMedicineId.keySet()) {
+            if (!medicinesById.containsKey(medicineId)) {
+                throw new ResourceNotFoundException("Medicine", "id", medicineId);
+            }
+        }
+
+        java.util.Map<Integer, PharmacyInventory> inventoryByMedicineId = inventoryRepository
+                .findByPharmacy_PharmacyIdAndMedicine_MedicineIdIn(pharmacyId, quantitiesByMedicineId.keySet())
+                .stream()
+                .filter(inventory -> Boolean.TRUE.equals(inventory.getActive()))
+                .collect(Collectors.toMap(
+                        inventory -> inventory.getMedicine().getMedicineId(),
+                        inventory -> inventory,
+                        (left, right) -> left
+                ));
+
+        List<PharmacyOrderItem> items = new ArrayList<>();
+        for (java.util.Map.Entry<Integer, Integer> entry : quantitiesByMedicineId.entrySet()) {
+            Medicine medicine = medicinesById.get(entry.getKey());
+            if (!medicine.isActive()) {
+                throw new BadRequestException("Medicine " + medicine.getName() + " is inactive");
+            }
+            if (medicine.isPrescriptionRequired()) {
+                throw new BadRequestException("Medicine " + medicine.getName() + " requires a prescription");
+            }
+
+            PharmacyInventory inventory = inventoryByMedicineId.get(entry.getKey());
+            BigDecimal unitPrice = inventory != null && inventory.getUnitPrice() != null
+                    ? inventory.getUnitPrice()
+                    : normalizeUnitPrice(null, medicine.getPrice());
+            Integer quantity = entry.getValue();
+
+            items.add(PharmacyOrderItem.builder()
+                    .medicine(medicine)
+                    .sourcePrescriptionHeader(null)
+                    .sourcePrescriptionItem(null)
+                    .medicationName(safeValue(medicine.getName(), "Medication"))
+                    .totalSupplyDays(1)
+                    .quantity(quantity)
+                    .unit(PharmacyServiceHelper.firstNonBlank(medicine.getUnit(), "unit"))
+                    .frequency("As directed")
+                    .timing(null)
+                    .route(null)
+                    .unitPrice(unitPrice)
+                    .totalPrice(unitPrice.multiply(BigDecimal.valueOf(quantity)))
+                    .notes(null)
                     .build());
         }
 
