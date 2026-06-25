@@ -36,6 +36,7 @@ public class WeeklyScheduleResponse {
         private Integer slotDuration;
         private Integer maxPatients;
         private String consultationType;
+        private String shiftType;
         private String location;
         private String notes;
         private boolean available;

@@ -1,10 +1,25 @@
 .doctor-registration-bg {
-    background: linear-gradient(135deg, #f0fdf4 0%, #dcfce7 100%);
+    background-image: url('/public/Hung/Register.jpg');
+    background-size: cover;
+    background-position: center center;
+    background-repeat: no-repeat;
+    background-attachment: fixed;
     min-height: 100vh;
     padding: 240px 20px 40px;
+    position: relative;
+}
+
+.doctor-registration-bg::before {
+    content: '';
+    position: absolute;
+    inset: 0;
+    z-index: 0;
+    background: rgba(255, 255, 255, 0.1);
 }
 
 .doctor-registration-container {
+    position: relative;
+    z-index: 1;
     max-width: 900px;
     margin: 0 auto;
     background: white;

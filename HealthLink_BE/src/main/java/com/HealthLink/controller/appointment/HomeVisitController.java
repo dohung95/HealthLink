@@ -1,7 +1,7 @@
 package com.HealthLink.controller.appointment;
 
 import com.HealthLink.dto.response.HomeVisitInfoScanResponse;
-import com.HealthLink.service.ai.GeminiAIService;
+import com.HealthLink.service.ai.DocumentAiService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
@@ -18,7 +18,7 @@ import java.util.List;
 @RequiredArgsConstructor
 public class HomeVisitController {
 
-    private final GeminiAIService geminiAIService;
+    private final DocumentAiService documentAiService;
     private final HomeVisitLocationService homeVisitLocationService;
 
     @PostMapping("/scan-info")
@@ -51,7 +51,7 @@ public class HomeVisitController {
             String base64 = Base64.getEncoder().encodeToString(file.getBytes());
 
             HomeVisitInfoScanResponse result =
-                    geminiAIService.parseHomeVisitInfo(base64, mimeType);
+                    documentAiService.parseHomeVisitInfo(base64, mimeType);
 
             return ResponseEntity.ok(result);
 

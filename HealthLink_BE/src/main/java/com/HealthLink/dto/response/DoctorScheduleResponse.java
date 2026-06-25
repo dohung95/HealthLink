@@ -29,6 +29,9 @@ public class DoctorScheduleResponse {
     /** Loại tư vấn áp dụng cho ca này (null = tất cả) */
     private String consultationType;
 
+    /** Ca làm việc Home visit: MORNING / AFTERNOON / EVENING (null với lịch Online) */
+    private String shiftType;
+
     private boolean available;
 
     private com.HealthLink.entity.enums.DoctorScheduleStatus scheduleStatus;

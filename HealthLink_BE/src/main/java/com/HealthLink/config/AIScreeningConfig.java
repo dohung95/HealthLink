@@ -7,7 +7,7 @@ import org.springframework.context.annotation.Configuration;
 
 /**
  * Configuration for AI Screening feature
- * Works with both Local AI and Gemini (whichever is enabled)
+ * Works with the self-hosted Local AI service.
  */
 @Configuration
 @ConfigurationProperties(prefix = "ai.screening")

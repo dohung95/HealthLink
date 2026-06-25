@@ -12,8 +12,6 @@ import org.apache.pdfbox.text.PDFTextStripper;
 import org.apache.poi.xwpf.extractor.XWPFWordExtractor;
 import org.apache.poi.xwpf.usermodel.XWPFDocument;
 import org.springframework.beans.factory.annotation.Value;
-import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
-import org.springframework.context.annotation.Primary;
 import org.springframework.core.io.ByteArrayResource;
 import org.springframework.http.*;
 import org.springframework.stereotype.Service;
@@ -25,15 +23,13 @@ import java.io.ByteArrayInputStream;
 import java.util.*;
 
 /**
- * Local AI Service Implementation
- * Calls the local HealthLink_AI_Service (FastAPI) instead of Gemini Cloud
- * 100% private - no data leaves your network
+ * Local AI Service Implementation.
+ * Calls the self-hosted HealthLink_AI_Service (FastAPI: OCR + NudeNet + Ollama).
+ * 100% private - no data leaves your network.
  */
 @Service
-@Primary  // Prefer this over GeminiAIServiceImpl
-@ConditionalOnProperty(name = "ai.service.local.enabled", havingValue = "true", matchIfMissing = false)
 @Slf4j
-public class LocalAIServiceImpl implements GeminiAIService {
+public class LocalAIServiceImpl implements DocumentAiService {
 
     @Value("${ai.service.local.url:http://localhost:8097}")
     private String aiServiceUrl;
@@ -310,6 +306,73 @@ public class LocalAIServiceImpl implements GeminiAIService {
 
     @Override
     public HomeVisitInfoScanResponse parseHomeVisitInfo(String fileContent, String mimeType) {
-        throw new UnsupportedOperationException("Not supported yet."); // Generated from nbfs://nbhost/SystemFileSystem/Templates/Classes/Code/GeneratedMethodBody
+        try {
+            byte[] bytes = Base64.getDecoder().decode(fileContent);
+
+            // Prepare multipart request (same pattern as parseCV / verifyDocument)
+            MultiValueMap<String, Object> body = new LinkedMultiValueMap<>();
+            body.add("file", new ByteArrayResource(bytes) {
+                @Override
+                public String getFilename() {
+                    return getFilenameFromMimeType(mimeType);
+                }
+            });
+
+            HttpHeaders headers = new HttpHeaders();
+            headers.setContentType(MediaType.MULTIPART_FORM_DATA);
+
+            HttpEntity<MultiValueMap<String, Object>> requestEntity = new HttpEntity<>(body, headers);
+
+            ResponseEntity<JsonNode> response = restTemplate.exchange(
+                    aiServiceUrl + "/parse-home-visit",
+                    HttpMethod.POST,
+                    requestEntity,
+                    JsonNode.class
+            );
+
+            JsonNode jsonNode = response.getBody();
+
+            if (jsonNode == null || !getBooleanValue(jsonNode, "success", false)) {
+                String error = getTextValue(jsonNode, "error");
+                return HomeVisitInfoScanResponse.builder()
+                        .success(false)
+                        .errorMessage(error != null ? error : "Could not scan home visit information")
+                        .warnings(List.of("Please fill the form manually"))
+                        .build();
+            }
+
+            return HomeVisitInfoScanResponse.builder()
+                    .success(true)
+                    .receiverName(getTextValue(jsonNode, "receiverName"))
+                    .receiverAge(getIntValue(jsonNode, "receiverAge"))
+                    .receiverGender(getTextValue(jsonNode, "receiverGender"))
+                    .receiverPhone(getTextValue(jsonNode, "receiverPhone"))
+                    .receiverRelationship(getTextValue(jsonNode, "receiverRelationship"))
+                    .visitAddress(getTextValue(jsonNode, "visitAddress"))
+                    .visitCity(getTextValue(jsonNode, "visitCity"))
+                    .confidence(getDoubleValue(jsonNode, "confidence", 0.0))
+                    .warnings(getStringList(jsonNode, "warnings"))
+                    .build();
+
+        } catch (Exception e) {
+            log.error("Error parsing home visit info with Local AI: {}", e.getMessage(), e);
+            return HomeVisitInfoScanResponse.builder()
+                    .success(false)
+                    .errorMessage("Failed to scan home visit information: " + e.getMessage())
+                    .warnings(List.of("Please fill the form manually"))
+                    .build();
+        }
+    }
+
+    private List<String> getStringList(JsonNode node, String field) {
+        List<String> values = new ArrayList<>();
+        if (node == null) return values;
+        JsonNode fieldNode = node.get(field);
+        if (fieldNode != null && fieldNode.isArray()) {
+            for (JsonNode item : fieldNode) {
+                values.add(item.asText());
+            }
+        }
+        return values;
     }
 }

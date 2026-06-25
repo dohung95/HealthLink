@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { BarChart, Bar, LineChart, Line, AreaChart, Area, PieChart, Pie, Cell, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer, ComposedChart } from 'recharts';
-import { analyticsApi, financialApi, appointmentsApi, patientsApi } from '../../../api/adminApi';
+import { analyticsApi, financialApi } from '../../../api/adminApi';
 import '../Css/DashboardCharts.css';
 
 const DashboardCharts = () => {
@@ -13,9 +13,8 @@ const DashboardCharts = () => {
     const [monthlyAppointments, setMonthlyAppointments] = useState([]);
     const [revenueData, setRevenueData] = useState([]);
     const [financialOverview, setFinancialOverview] = useState(null);
-    const [appointmentStats, setAppointmentStats] = useState(null);
-    const [patientStats, setPatientStats] = useState(null);
     const [selectedYear, setSelectedYear] = useState(currentYear);
+    const [selectedWeekMonth, setSelectedWeekMonth] = useState(currentMonth);
 
     // Generate year options from 2024 to 2030
     const yearOptions = [];
@@ -23,34 +22,49 @@ const DashboardCharts = () => {
         yearOptions.push(year);
     }
 
+    const monthOptions = [
+        { value: 1, label: 'January' }, { value: 2, label: 'February' }, { value: 3, label: 'March' },
+        { value: 4, label: 'April' }, { value: 5, label: 'May' }, { value: 6, label: 'June' },
+        { value: 7, label: 'July' }, { value: 8, label: 'August' }, { value: 9, label: 'September' },
+        { value: 10, label: 'October' }, { value: 11, label: 'November' }, { value: 12, label: 'December' }
+    ];
+
     useEffect(() => {
         fetchAllData(selectedYear);
     }, [selectedYear]);
 
+    // Weekly chart is filtered by its own month selector, so fetch it separately.
+    useEffect(() => {
+        fetchWeeklyAppointments(selectedYear, selectedWeekMonth);
+    }, [selectedYear, selectedWeekMonth]);
+
     const fetchAllData = async (year) => {
         try {
             setLoading(true);
-            const [patients, weekly, monthly, revenue, overview, apptStats, patStats] = await Promise.all([
+            const [patients, monthly, revenue, overview] = await Promise.all([
                 analyticsApi.getPatientRegistrations(year),
-                analyticsApi.getAppointmentsByWeek(year, 0), // 0 = current month
                 analyticsApi.getAppointmentsByMonth(year),
                 analyticsApi.getRevenueByMonth(year),
-                financialApi.getOverview().catch(() => null),
-                appointmentsApi.getStats().catch(() => null),
-                patientsApi.getAll({ pageSize: 1 }).catch(() => null) // Just to get total count
+                financialApi.getOverview().catch(() => null)
             ]);
 
             setPatientData(patients.data || []);
-            setWeeklyAppointments(weekly.data || []);
             setMonthlyAppointments(monthly.data || []);
             setRevenueData(revenue.data || []);
             setFinancialOverview(overview);
-            setAppointmentStats(apptStats);
-            setPatientStats(patStats);
         } catch (error) {
             console.error('Error fetching analytics data:', error);
         } finally {
             setLoading(false);
+        }
+    };
+
+    const fetchWeeklyAppointments = async (year, month) => {
+        try {
+            const weekly = await analyticsApi.getAppointmentsByWeek(year, month);
+            setWeeklyAppointments(weekly.data || []);
+        } catch (error) {
+            console.error('Error fetching weekly appointments:', error);
         }
     };
 
@@ -216,7 +230,29 @@ const DashboardCharts = () => {
                                     <i className="bi bi-calendar-week me-2"></i>
                                     Appointments by Week
                                 </h5>
-                                <span className="chart-subtitle">Month {currentMonth}/{selectedYear}</span>
+                                <select
+                                    className="week-month-select"
+                                    value={selectedWeekMonth}
+                                    onChange={(e) => setSelectedWeekMonth(parseInt(e.target.value))}
+                                    title="Select month"
+                                    style={{
+                                        marginTop: '4px',
+                                        fontSize: '12px',
+                                        fontWeight: 600,
+                                        padding: '3px 10px',
+                                        borderRadius: '6px',
+                                        border: 'none',
+                                        background: '#fff',
+                                        color: '#1f2937',
+                                        cursor: 'pointer'
+                                    }}
+                                >
+                                    {monthOptions.map((mo) => (
+                                        <option key={mo.value} value={mo.value}>
+                                            {mo.label} {selectedYear}
+                                        </option>
+                                    ))}
+                                </select>
                             </div>
                             {weeklyChartStats && (
                                 <div className="chart-mini-stats">
