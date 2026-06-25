@@ -20,10 +20,10 @@ export function RegistrationChoice() {
 
     return (
         <div className="registration-choice-bg">
-            <div className="registration-choice-container" style={{paddingTop:"12%"}}>
+            <div className="registration-choice-container" style={{paddingTop:"13%"}}>
                 <div className="choice-cards">
                     <div
-                        className="choice-card doctor-card"
+                        className="choice-card reg-doctor-card"
                         onClick={() => navigate('/register/doctor')}
                     >
                         <div className="card-icon">
@@ -43,7 +43,7 @@ export function RegistrationChoice() {
                     </div>
 
                     <div
-                        className="choice-card pharmacy-card"
+                        className="choice-card reg-pharmacy-card"
                         onClick={() => navigate('/register/pharmacy')}
                     >
                         <div className="card-icon">
@@ -57,7 +57,7 @@ export function RegistrationChoice() {
                             <li><i className="bi bi-check-circle-fill"></i> Delivery services</li>
                             <li><i className="bi bi-check-circle-fill"></i> Customer reach</li>
                         </ul>
-                        <button className="choice-btn pharmacy-btn">
+                        <button className="choice-btn reg-pharmacy-btn">
                             Register as Pharmacy <i className="bi bi-arrow-right"></i>
                         </button>
                     </div>
@@ -65,7 +65,8 @@ export function RegistrationChoice() {
 
                 <div className="alternative-links">
                     <p>Already have an account? <Link to="/login">Sign In</Link></p>
-                    <p>Looking to register as a patient? <Link to="/signup">Patient Registration</Link></p>
+                    <p>Looking to register as a patient? <Link to="/register">Patient Registration</Link></p>
+                    <br/>
                 </div>
             </div>
         </div>

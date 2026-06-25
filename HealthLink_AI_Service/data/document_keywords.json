@@ -1,31 +1,31 @@
 {
   "Medical Degree Certificate": {
-    "keywords": ["bachelor", "medicine", "medical", "doctor", "md", "mbbs", "degree", "certificate", "university", "graduate", "physician", "surgery", "diploma", "faculty", "college", "school"],
+    "keywords": ["bachelor", "medicine", "medical", "doctor", "md", "mbbs", "degree", "certificate", "university", "graduate", "physician", "surgery", "diploma", "faculty", "college", "school", "bằng", "văn bằng", "cử nhân", "bác sĩ", "bác sỹ", "y khoa", "y học", "đại học", "tốt nghiệp", "chứng chỉ", "trường", "chuyên khoa"],
     "required_count": 3,
     "min_text_length": 50
   },
   "Practice License": {
-    "keywords": ["license", "practice", "registration", "medical council", "valid", "permit", "authorized", "certification", "registered", "professional", "health", "ministry", "department"],
+    "keywords": ["license", "practice", "registration", "medical council", "valid", "permit", "authorized", "certification", "registered", "professional", "health", "ministry", "department", "giấy phép", "chứng chỉ hành nghề", "hành nghề", "đăng ký", "y tế", "bộ y tế", "sở y tế", "chứng nhận", "được cấp", "khám bệnh", "chữa bệnh"],
     "required_count": 2,
     "min_text_length": 30
   },
   "ID Card / Passport": {
-    "keywords": ["identity", "id card", "national id", "citizen", "cmnd", "cccd", "passport", "date of birth", "identification", "personal", "republic", "socialist", "nationality", "sex", "gender"],
+    "keywords": ["identity", "id card", "national id", "citizen", "cmnd", "cccd", "passport", "date of birth", "identification", "personal", "republic", "socialist", "nationality", "sex", "gender", "căn cước", "căn cước công dân", "chứng minh nhân dân", "hộ chiếu", "công dân", "ngày sinh", "quốc tịch", "giới tính", "việt nam", "cộng hòa", "họ và tên"],
     "required_count": 2,
     "min_text_length": 20
   },
   "Owner ID Card / Passport": {
-    "keywords": ["identity", "id card", "national id", "citizen", "cmnd", "cccd", "passport", "date of birth", "identification", "personal", "republic", "socialist", "nationality", "sex", "gender"],
+    "keywords": ["identity", "id card", "national id", "citizen", "cmnd", "cccd", "passport", "date of birth", "identification", "personal", "republic", "socialist", "nationality", "sex", "gender", "căn cước", "căn cước công dân", "chứng minh nhân dân", "hộ chiếu", "công dân", "ngày sinh", "quốc tịch", "giới tính", "việt nam", "cộng hòa", "họ và tên"],
     "required_count": 2,
     "min_text_length": 20
   },
   "Business License": {
-    "keywords": ["business", "license", "registration", "company", "enterprise", "commerce", "gpkd", "certificate", "trade", "commercial", "tax", "establishment"],
+    "keywords": ["business", "license", "registration", "company", "enterprise", "commerce", "gpkd", "certificate", "trade", "commercial", "tax", "establishment", "kinh doanh", "giấy phép", "đăng ký kinh doanh", "đăng ký", "doanh nghiệp", "công ty", "giấy chứng nhận", "hộ kinh doanh", "thương mại", "mã số thuế", "thành lập"],
     "required_count": 2,
     "min_text_length": 30
   },
   "Pharmacy License (GPP)": {
-    "keywords": ["pharmacy", "pharmaceutical", "drug", "medicine", "dispensing", "license", "pharmacist", "retail", "wholesale", "gdp", "gpp", "health", "ministry"],
+    "keywords": ["pharmacy", "pharmaceutical", "drug", "medicine", "dispensing", "license", "pharmacist", "retail", "wholesale", "gdp", "gpp", "health", "ministry", "nhà thuốc", "dược", "dược phẩm", "thuốc", "dược sĩ", "dược sỹ", "giấy phép", "đủ điều kiện", "kinh doanh dược", "bán lẻ", "bộ y tế", "sở y tế", "chứng nhận"],
     "required_count": 2,
     "min_text_length": 30
   },

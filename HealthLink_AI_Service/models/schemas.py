@@ -64,6 +64,20 @@ class DocumentScreeningResult(BaseModel):
     isProfessionalPhoto: bool = True
 
 
+class HomeVisitScanResult(BaseModel):
+    success: bool
+    receiverName: Optional[str] = None
+    receiverAge: Optional[int] = None
+    receiverGender: Optional[str] = None
+    receiverPhone: Optional[str] = None
+    receiverRelationship: Optional[str] = None
+    visitAddress: Optional[str] = None
+    visitCity: Optional[str] = None
+    confidence: float = 0.0
+    warnings: List[str] = []
+    error: Optional[str] = None
+
+
 class HealthCheckResponse(BaseModel):
     status: str
     services: Dict[str, str]

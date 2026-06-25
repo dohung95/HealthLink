@@ -10,8 +10,8 @@ class Config:
     OLLAMA_TEMPERATURE = 0.1
     OLLAMA_NUM_PREDICT = 1024
 
-    # OCR
-    OCR_LANGUAGES = ["en"]
+    # OCR — Vietnamese + English (both Latin-based, compatible in EasyOCR)
+    OCR_LANGUAGES = ["vi", "en"]
     OCR_GPU = False
 
     # Moderation thresholds

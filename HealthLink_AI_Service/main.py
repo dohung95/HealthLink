@@ -18,7 +18,7 @@ from config import Config
 from models.schemas import (
     ModerationResult, OCRResult, CVParseResult,
     DocumentVerifyResult, ProfileVerifyResult, DocumentScreeningResult,
-    HealthCheckResponse
+    HomeVisitScanResult, HealthCheckResponse
 )
 
 # Lazy imports for services
@@ -258,22 +258,25 @@ async def screen_document(
     from services.ocr_service import extract_text
     from services.doc_verification_service import doc_verification_service
     from services.face_detection_service import face_detection_service
+    from services.document_service import get_file_type
 
     content = await file.read()
     filename = file.filename.lower() if file.filename else "document.jpg"
     is_profile_photo = expected_type.lower() in ["profile photo", "profile_photo", "profilephoto", "profile"]
+    is_image = get_file_type(filename) == "image"
 
-    # Step 1: NSFW Check
-    mod_result = moderate(content)
-    if not mod_result.safe:
-        return DocumentScreeningResult(
-            passed=False,
-            contentSafe=False,
-            nsfwDetected=True,
-            confidence=0.0,
-            issues=["NSFW/inappropriate content detected"],
-            safetyIssues=[d["class"] for d in mod_result.blockedDetections]
-        )
+    # Step 1: NSFW Check (only for raster images; PDFs/DOCX are validated by OCR below)
+    if is_image:
+        mod_result = moderate(content)
+        if not mod_result.safe:
+            return DocumentScreeningResult(
+                passed=False,
+                contentSafe=False,
+                nsfwDetected=True,
+                confidence=0.0,
+                issues=["NSFW/inappropriate content detected"],
+                safetyIssues=[d["class"] for d in mod_result.blockedDetections]
+            )
 
     # Step 2: Profile photo - use face detection
     if is_profile_photo:
@@ -341,6 +344,16 @@ async def screen_document(
         confidence=doc_result["confidence"],
         issues=issues
     )
+
+
+@app.post("/parse-home-visit", response_model=HomeVisitScanResult)
+async def parse_home_visit(file: UploadFile = File(...)):
+    """Extract home visit receiver info from a document/image for form auto-fill."""
+    from services.home_visit_parser_service import parse
+
+    content = await file.read()
+    filename = file.filename.lower() if file.filename else "document.jpg"
+    return parse(content, filename)
 
 
 # ============================================================================

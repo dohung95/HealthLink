@@ -41,6 +41,33 @@ def get_detector():
     return _detector
 
 
+def _is_readable_image(image_bytes: bytes) -> bool:
+    """True if the bytes decode to a raster image that OpenCV/NudeNet can process.
+
+    PDFs, DOCX and corrupt files decode to None; NudeNet would then crash with
+    'NoneType has no attribute shape'. We detect that here and skip NudeNet.
+    """
+    try:
+        import numpy as np
+        import cv2
+        arr = np.frombuffer(image_bytes, np.uint8)
+        return cv2.imdecode(arr, cv2.IMREAD_COLOR) is not None
+    except Exception:
+        return False
+
+
+def _not_analyzable(reason: str) -> ModerationResult:
+    """NSFW could not be evaluated (non-image / unreadable). Don't block here;
+    the document is still validated downstream by OCR + type verification."""
+    return ModerationResult(
+        safe=True,
+        needsReview=True,
+        reason=reason,
+        blockedDetections=[],
+        reviewDetections=[]
+    )
+
+
 def moderate(image_bytes: bytes) -> ModerationResult:
     """
     Check image for NSFW/inappropriate content.
@@ -52,6 +79,10 @@ def moderate(image_bytes: bytes) -> ModerationResult:
         - blockedDetections: List of blocked content detections
         - reviewDetections: List of content needing review
     """
+    # NudeNet/OpenCV only handle raster images; short-circuit anything else.
+    if not _is_readable_image(image_bytes):
+        return _not_analyzable("Content could not be analyzed for NSFW (not a readable image)")
+
     detector = get_detector()
 
     # NudeNet requires file path, so save temporarily
@@ -61,14 +92,18 @@ def moderate(image_bytes: bytes) -> ModerationResult:
 
     try:
         detections = detector.detect(tmp_path)
+    except Exception as e:
+        # Never let a detector failure bubble up as a 500
+        return _not_analyzable(f"Content could not be analyzed for NSFW: {e}")
     finally:
         # Clean up temp file
-        os.unlink(tmp_path)
+        if os.path.exists(tmp_path):
+            os.unlink(tmp_path)
 
     blocked = []
     review = []
 
-    for detection in detections:
+    for detection in (detections or []):
         class_name = detection.get('class', '')
         score = detection.get('score', 0.0)
 
