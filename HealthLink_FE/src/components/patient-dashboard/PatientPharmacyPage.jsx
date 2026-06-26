@@ -8,6 +8,7 @@ import { getProfile } from '../../api/account';
 import { paymentApi } from '../../api/paymentApi';
 import { loadPayPalSdk } from '../../utils/paypalSdk';
 import { titleCase } from '../../utils/pharmacy/pharmacyHelpers';
+import RetailPharmacyStore from './pharmacy-store/RetailPharmacyStore';
 import './PatientPharmacy.css';
 
 const TABS = [
@@ -66,7 +67,7 @@ export default function PatientPharmacyPage() {
       ) : activeTab === '/orders' ? (
         <OrdersView userId={userId} navigate={navigate} />
       ) : (
-        <PharmacyWizard userId={userId} navigate={navigate} location={location} />
+        <RetailPharmacyStore navigate={navigate} />
       )}
     </div>
   );
