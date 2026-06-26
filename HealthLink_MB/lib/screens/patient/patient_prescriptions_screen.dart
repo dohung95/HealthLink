@@ -6,6 +6,7 @@ import 'package:pdf/widgets.dart' as pw;
 import 'package:printing/printing.dart';
 import '../../providers/auth_provider.dart';
 import '../../services/patient_service.dart';
+import '../../l10n/app_localizations.dart';
 
 class PrescriptionsScreen extends StatefulWidget {
   const PrescriptionsScreen({super.key});
@@ -66,8 +67,8 @@ class _PrescriptionsScreenState extends State<PrescriptionsScreen> {
     }
   }
 
-  String _formatDate(dynamic issueDate) {
-    if (issueDate == null) return 'N/A';
+  String _formatDate(dynamic issueDate, BuildContext context) {
+    if (issueDate == null) return AppLocalizations.of(context)!.labelNA;
     if (issueDate is String) {
       try {
         final dt = DateTime.parse(issueDate);
@@ -108,7 +109,7 @@ class _PrescriptionsScreenState extends State<PrescriptionsScreen> {
                       children: [
                         // Tiêu đề trang
                         Text(
-                          'My Prescriptions',
+                          AppLocalizations.of(context)!.prescriptionsTitle,
                           style: TextStyle(
                             fontFamily: 'Inter',
                             fontSize: 32,
@@ -119,7 +120,7 @@ class _PrescriptionsScreenState extends State<PrescriptionsScreen> {
                         ),
                         const SizedBox(height: 4),
                         Text(
-                          'Manage prescription history and details',
+                          AppLocalizations.of(context)!.prescriptionsSubtitle,
                           style: TextStyle(
                             fontFamily: 'Inter',
                             fontSize: 16,
@@ -232,11 +233,20 @@ class _PrescriptionsScreenState extends State<PrescriptionsScreen> {
 
   // --- 2. Filter Chips ---
   Widget _buildFilterChips() {
+    final filtersLocal = [
+      AppLocalizations.of(context)!.filterAll,
+      AppLocalizations.of(context)!.filterActive,
+      AppLocalizations.of(context)!.filterCompleted
+    ];
+
     return SingleChildScrollView(
       scrollDirection: Axis.horizontal,
       child: Row(
-        children: _filters.map((filter) {
+        children: List.generate(_filters.length, (index) {
+          final filter = _filters[index];
+          final label = filtersLocal[index];
           final bool isSelected = _selectedFilter == filter;
+          
           return Padding(
             padding: const EdgeInsets.only(right: 12.0),
             child: InkWell(
@@ -256,7 +266,7 @@ class _PrescriptionsScreenState extends State<PrescriptionsScreen> {
                   ),
                 ),
                 child: Text(
-                  filter,
+                  label,
                   style: TextStyle(
                     fontFamily: 'Inter',
                     fontSize: 12,
@@ -267,7 +277,7 @@ class _PrescriptionsScreenState extends State<PrescriptionsScreen> {
               ),
             ),
           );
-        }).toList(),
+        }),
       ),
     );
   }
@@ -288,7 +298,7 @@ class _PrescriptionsScreenState extends State<PrescriptionsScreen> {
       ];
     }
     if (_prescriptions.isEmpty) {
-      return [const Center(child: Padding(padding: EdgeInsets.all(32.0), child: Text('No prescriptions found.')))];
+      return [Center(child: Padding(padding: const EdgeInsets.all(32.0), child: Text(AppLocalizations.of(context)!.prescriptionNoFound)))];
     }
 
     final filtered = _prescriptions.where((p) {
@@ -300,7 +310,7 @@ class _PrescriptionsScreenState extends State<PrescriptionsScreen> {
     }).toList();
 
     if (filtered.isEmpty) {
-      return [const Center(child: Padding(padding: EdgeInsets.all(32.0), child: Text('No prescriptions match the filter.')))];
+      return [Center(child: Padding(padding: const EdgeInsets.all(32.0), child: Text(AppLocalizations.of(context)!.prescriptionNoMatch)))];
     }
 
     return filtered.map((p) {
@@ -308,12 +318,17 @@ class _PrescriptionsScreenState extends State<PrescriptionsScreen> {
       final isActive = status == 'ACTIVE';
       final items = p['items'] as List<dynamic>? ?? [];
 
+      String displayStatus = status;
+      if (status == 'ISSUED') displayStatus = AppLocalizations.of(context)!.statusIssued;
+      else if (status == 'ACTIVE') displayStatus = AppLocalizations.of(context)!.filterActive;
+      else if (status == 'COMPLETED' || status == 'FINISHED') displayStatus = AppLocalizations.of(context)!.filterCompleted;
+
       return _buildPrescriptionCard(
         doctorName: p['doctorName']?.toString() ?? 'Unknown Doctor',
-        specialty: 'Prescription', // Not provided by API usually
-        status: status,
-        date: _formatDate(p['issueDate']),
-        condition: p['diagnosis']?.toString() ?? 'N/A',
+        specialty: AppLocalizations.of(context)!.prescriptionLabel, // Not provided by API usually
+        status: displayStatus,
+        date: _formatDate(p['issueDate'], context),
+        condition: p['diagnosis']?.toString() ?? AppLocalizations.of(context)!.labelNA,
         medCount: items.length,
         isActive: isActive,
         onTap: () => _showPrescriptionDetailsModal(context, p),
@@ -410,7 +425,7 @@ class _PrescriptionsScreenState extends State<PrescriptionsScreen> {
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        Text('Date Issued', style: TextStyle(fontFamily: 'Inter', fontSize: 11, fontWeight: FontWeight.w600, color: Theme.of(context).colorScheme.onSurfaceVariant)),
+                        Text(AppLocalizations.of(context)!.prescriptionDateIssued, style: TextStyle(fontFamily: 'Inter', fontSize: 11, fontWeight: FontWeight.w600, color: Theme.of(context).colorScheme.onSurfaceVariant)),
                         const SizedBox(height: 4),
                         Text(date, style: TextStyle(fontFamily: 'Inter', fontSize: 14, fontWeight: FontWeight.w500, color: Theme.of(context).colorScheme.onBackground)),
                       ],
@@ -420,7 +435,7 @@ class _PrescriptionsScreenState extends State<PrescriptionsScreen> {
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        Text('Condition', style: TextStyle(fontFamily: 'Inter', fontSize: 11, fontWeight: FontWeight.w600, color: Theme.of(context).colorScheme.onSurfaceVariant)),
+                        Text(AppLocalizations.of(context)!.prescriptionCondition, style: TextStyle(fontFamily: 'Inter', fontSize: 11, fontWeight: FontWeight.w600, color: Theme.of(context).colorScheme.onSurfaceVariant)),
                         const SizedBox(height: 4),
                         Text(condition, style: TextStyle(fontFamily: 'Inter', fontSize: 14, fontWeight: FontWeight.w500, color: Theme.of(context).colorScheme.onBackground)),
                       ],
@@ -436,13 +451,13 @@ class _PrescriptionsScreenState extends State<PrescriptionsScreen> {
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
                 Text(
-                  '$medCount medications',
+                  AppLocalizations.of(context)!.prescriptionMedicationsCount(medCount),
                   style: TextStyle(fontFamily: 'Inter', fontSize: 12, fontWeight: FontWeight.w500, color: isActive ? Theme.of(context).colorScheme.primary : Theme.of(context).colorScheme.onSurfaceVariant),
                 ),
                 Row(
                   children: [
                     Text(
-                      'View Details',
+                      AppLocalizations.of(context)!.btnViewDetails,
                       style: TextStyle(fontFamily: 'Inter', fontSize: 12, fontWeight: FontWeight.w500, color: isActive ? Theme.of(context).colorScheme.primary : Theme.of(context).colorScheme.onSurfaceVariant),
                     ),
                     Icon(Icons.chevron_right, size: 18, color: isActive ? Theme.of(context).colorScheme.primary : Theme.of(context).colorScheme.onSurfaceVariant),
@@ -458,9 +473,9 @@ class _PrescriptionsScreenState extends State<PrescriptionsScreen> {
 
   // --- 5. Modal Chi tiết Đơn thuốc (Bottom Sheet) ---
   void _showPrescriptionDetailsModal(BuildContext context, Map<String, dynamic> prescription) {
-    final status = (prescription['status']?.toString() ?? 'UNKNOWN').toUpperCase();
-    final isActive = status == 'ACTIVE';
-    final items = prescription['items'] as List<dynamic>? ?? [];
+      final status = (prescription['status']?.toString() ?? 'UNKNOWN').toUpperCase();
+      final isActive = status == 'ACTIVE';
+      final items = prescription['items'] as List<dynamic>? ?? [];
 
     showModalBottomSheet(
       context: context,
@@ -485,7 +500,7 @@ class _PrescriptionsScreenState extends State<PrescriptionsScreen> {
                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [
                     Text(
-                      'Prescription Details',
+                      AppLocalizations.of(context)!.prescriptionDetailsTitle,
                       style: TextStyle(fontFamily: 'Inter', fontSize: 18, fontWeight: FontWeight.w600, color: Theme.of(context).colorScheme.onBackground),
                     ),
                     Row(
@@ -531,19 +546,19 @@ class _PrescriptionsScreenState extends State<PrescriptionsScreen> {
                               ],
                             ),
                             const SizedBox(height: 12),
-                            Text('Doctor: ${prescription['doctorName'] ?? 'Unknown Doctor'}', style: TextStyle(fontFamily: 'Inter', fontSize: 14, color: Theme.of(context).colorScheme.onSurfaceVariant)),
+                            Text('${AppLocalizations.of(context)!.labelDoctor} ${prescription['doctorName'] ?? 'Unknown Doctor'}', style: TextStyle(fontFamily: 'Inter', fontSize: 14, color: Theme.of(context).colorScheme.onSurfaceVariant)),
                             const SizedBox(height: 4),
-                            Text('Date: ${_formatDate(prescription['issueDate'])}', style: TextStyle(fontFamily: 'Inter', fontSize: 14, color: Theme.of(context).colorScheme.onSurfaceVariant)),
+                            Text('${AppLocalizations.of(context)!.labelDate} ${_formatDate(prescription['issueDate'], context)}', style: TextStyle(fontFamily: 'Inter', fontSize: 14, color: Theme.of(context).colorScheme.onSurfaceVariant)),
                             if (prescription['notes'] != null && prescription['notes'].toString().isNotEmpty) ...[
                               const SizedBox(height: 12),
-                              Text('Notes: ${prescription['notes']}', style: TextStyle(fontFamily: 'Inter', fontSize: 14, color: Theme.of(context).colorScheme.onSurfaceVariant, fontStyle: FontStyle.italic)),
+                              Text(AppLocalizations.of(context)!.prescriptionNotes(prescription['notes'].toString()), style: TextStyle(fontFamily: 'Inter', fontSize: 14, color: Theme.of(context).colorScheme.onSurfaceVariant, fontStyle: FontStyle.italic)),
                             ]
                           ],
                         ),
                       ),
                       const SizedBox(height: 16),
 
-                      Text('Medication List (${items.length})', style: TextStyle(fontFamily: 'Inter', fontSize: 18, fontWeight: FontWeight.w600, color: Theme.of(context).colorScheme.onBackground)),
+                      Text(AppLocalizations.of(context)!.medicationListCount(items.length), style: TextStyle(fontFamily: 'Inter', fontSize: 18, fontWeight: FontWeight.w600, color: Theme.of(context).colorScheme.onBackground)),
                       const SizedBox(height: 12),
 
                       ...items.map((item) {
@@ -588,9 +603,9 @@ class _PrescriptionsScreenState extends State<PrescriptionsScreen> {
                         Navigator.pop(context);
                       },
                       icon: const Icon(Icons.alarm_add, size: 20),
-                      label: const Text(
-                        'Set Medication Reminder',
-                        style: TextStyle(fontFamily: 'Inter', fontSize: 16, fontWeight: FontWeight.w600),
+                      label: Text(
+                        AppLocalizations.of(context)!.prescriptionSetReminder,
+                        style: const TextStyle(fontFamily: 'Inter', fontSize: 16, fontWeight: FontWeight.w600),
                       ),
                     ),
                   ),
@@ -691,7 +706,7 @@ class _PrescriptionsScreenState extends State<PrescriptionsScreen> {
       pw.MultiPage(
         pageFormat: PdfPageFormat.a4,
         margin: const pw.EdgeInsets.all(40),
-        build: (pw.Context context) {
+        build: (pw.Context pwContext) {
           return [
             // Header
             pw.Container(
@@ -717,8 +732,8 @@ class _PrescriptionsScreenState extends State<PrescriptionsScreen> {
             // Prescription Info
             pw.Text('Prescription from ${prescription['doctorName'] ?? 'Unknown Doctor'}', style: pw.TextStyle(fontSize: 14, fontWeight: pw.FontWeight.bold)),
             pw.SizedBox(height: 4),
-            pw.Text('Date Issued: ${_formatDate(prescription['issueDate'])}', style: const pw.TextStyle(fontSize: 12)),
-            pw.Text('Diagnosis: ${prescription['diagnosis'] ?? 'N/A'}', style: const pw.TextStyle(fontSize: 12)),
+            pw.Text('${AppLocalizations.of(context)!.prescriptionDateIssued}: ${_formatDate(prescription['issueDate'], context)}', style: const pw.TextStyle(fontSize: 12)),
+            pw.Text('${AppLocalizations.of(context)!.prescriptionCondition}: ${prescription['diagnosis'] ?? 'N/A'}', style: const pw.TextStyle(fontSize: 12)),
             pw.SizedBox(height: 20),
 
             // Medication List
@@ -726,7 +741,7 @@ class _PrescriptionsScreenState extends State<PrescriptionsScreen> {
             pw.SizedBox(height: 10),
             
             pw.TableHelper.fromTextArray(
-              context: context,
+              context: pwContext,
               headerStyle: pw.TextStyle(fontWeight: pw.FontWeight.bold, fontSize: 10),
               cellStyle: const pw.TextStyle(fontSize: 10),
               headerDecoration: const pw.BoxDecoration(color: PdfColors.grey200),

@@ -7,6 +7,7 @@ import 'order_payment_screen.dart';
 import 'package:provider/provider.dart';
 import '../../../providers/auth_provider.dart';
 import '../../../services/patient_service.dart';
+import '../../../l10n/app_localizations.dart';
 
 class PharmacyConsultationScreen extends StatefulWidget {
   const PharmacyConsultationScreen({super.key});
@@ -88,7 +89,7 @@ class _PharmacyConsultationScreenState extends State<PharmacyConsultationScreen>
           onPressed: () => Navigator.pop(context),
         ),
         title: Text(
-          'Healthcare Portal',
+          AppLocalizations.of(context)!.pharmacyPortalTitle,
           style: textTheme.titleLarge?.copyWith(
             fontWeight: FontWeight.w600,
             color: colorScheme.primary,
@@ -109,15 +110,15 @@ class _PharmacyConsultationScreenState extends State<PharmacyConsultationScreen>
                   padding: const EdgeInsets.symmetric(horizontal: 16.0),
                   child: Row(
                     children: [
-                      _buildTopTab('Pharmacies', isActive: _selectedIndex == 0, colorScheme: colorScheme, textTheme: textTheme, onTap: () {
+                      _buildTopTab(AppLocalizations.of(context)!.pharmacyTabPharmacies, isActive: _selectedIndex == 0, colorScheme: colorScheme, textTheme: textTheme, onTap: () {
                         _pageController.animateToPage(0, duration: const Duration(milliseconds: 300), curve: Curves.easeInOut);
                       }),
                       const SizedBox(width: 32),
-                      _buildTopTab('Requests', isActive: _selectedIndex == 1, colorScheme: colorScheme, textTheme: textTheme, onTap: () {
+                      _buildTopTab(AppLocalizations.of(context)!.pharmacyTabRequests, isActive: _selectedIndex == 1, colorScheme: colorScheme, textTheme: textTheme, onTap: () {
                         _pageController.animateToPage(1, duration: const Duration(milliseconds: 300), curve: Curves.easeInOut);
                       }),
                       const SizedBox(width: 32),
-                      _buildTopTab('Orders', isActive: _selectedIndex == 2, colorScheme: colorScheme, textTheme: textTheme, onTap: () {
+                      _buildTopTab(AppLocalizations.of(context)!.pharmacyTabOrders, isActive: _selectedIndex == 2, colorScheme: colorScheme, textTheme: textTheme, onTap: () {
                         _pageController.animateToPage(2, duration: const Duration(milliseconds: 300), curve: Curves.easeInOut);
                       }),
                     ],
@@ -219,7 +220,7 @@ class _PharmacyConsultationScreenState extends State<PharmacyConsultationScreen>
 
                 // --- 2. Header Section ---
                 Text(
-                  'Do you have a prescription?',
+                  AppLocalizations.of(context)!.pharmacyAskPrescription,
                   textAlign: TextAlign.center,
                   style: textTheme.headlineMedium?.copyWith(
                     fontWeight: FontWeight.bold,
@@ -228,7 +229,7 @@ class _PharmacyConsultationScreenState extends State<PharmacyConsultationScreen>
                 ),
                 const SizedBox(height: 8),
                 Text(
-                  'Select an existing prescription or skip to browse pharmacies without one.',
+                  AppLocalizations.of(context)!.pharmacyAskPrescriptionDesc,
                   textAlign: TextAlign.center,
                   style: textTheme.bodyLarge?.copyWith(
                     color: colorScheme.onSurfaceVariant,
@@ -262,9 +263,9 @@ class _PharmacyConsultationScreenState extends State<PharmacyConsultationScreen>
                           borderRadius: BorderRadius.circular(12),
                           side: BorderSide(color: colorScheme.surfaceVariant),
                         ),
-                        title: Text(rx['doctorName'] ?? 'Doctor', style: const TextStyle(fontWeight: FontWeight.bold)),
+                        title: Text(rx['doctorName'] ?? AppLocalizations.of(context)!.labelDoctor, style: const TextStyle(fontWeight: FontWeight.bold)),
                         subtitle: Text(
-                          "${rx['issueDate'] != null ? DateTime.parse(rx['issueDate']).toLocal().toString().split(' ')[0] : ''} - ${rx['diagnosis'] ?? 'No diagnosis'}",
+                          "${rx['issueDate'] != null ? DateTime.parse(rx['issueDate']).toLocal().toString().split(' ')[0] : ''} - ${rx['diagnosis'] ?? AppLocalizations.of(context)!.labelNA}",
                           style: textTheme.bodySmall?.copyWith(color: colorScheme.onSurfaceVariant),
                         ),
                         trailing: Icon(Icons.chevron_right, color: colorScheme.outline),
@@ -302,7 +303,7 @@ class _PharmacyConsultationScreenState extends State<PharmacyConsultationScreen>
                         ),
                         const SizedBox(height: 24),
                         Text(
-                          'No prescriptions found',
+                          AppLocalizations.of(context)!.pharmacyNoPrescriptions,
                           style: textTheme.titleMedium?.copyWith(
                             fontWeight: FontWeight.w600,
                             color: colorScheme.onBackground,
@@ -310,7 +311,7 @@ class _PharmacyConsultationScreenState extends State<PharmacyConsultationScreen>
                         ),
                         const SizedBox(height: 8),
                         Text(
-                          "We couldn't find any recent prescriptions linked to your account.",
+                          AppLocalizations.of(context)!.pharmacyNoPrescriptionsDesc,
                           textAlign: TextAlign.center,
                           style: textTheme.bodyMedium?.copyWith(
                             color: colorScheme.onSurfaceVariant,
@@ -347,7 +348,7 @@ class _PharmacyConsultationScreenState extends State<PharmacyConsultationScreen>
                       mainAxisSize: MainAxisSize.min,
                       children: [
                         Text(
-                          "Skip, I don't have a prescription",
+                          AppLocalizations.of(context)!.pharmacySkipPrescription,
                           style: textTheme.titleMedium?.copyWith(
                             color: colorScheme.primary,
                             fontWeight: FontWeight.w600,
@@ -412,10 +413,10 @@ class _PharmacyConsultationScreenState extends State<PharmacyConsultationScreen>
         Row(
           mainAxisAlignment: MainAxisAlignment.spaceBetween,
           children: [
-            _buildStepperNode('1', 'Prescription', isCompleted: _currentWizardStep >= 0, isActive: _currentWizardStep == 0, colorScheme: colorScheme, textTheme: textTheme),
-            _buildStepperNode('2', 'Pharmacy', isCompleted: _currentWizardStep >= 1, isActive: _currentWizardStep == 1, colorScheme: colorScheme, textTheme: textTheme),
-            _buildStepperNode('3', 'Connect', isCompleted: _currentWizardStep >= 2, isActive: _currentWizardStep == 2, colorScheme: colorScheme, textTheme: textTheme),
-            _buildStepperNode('4', 'Payment', isCompleted: _currentWizardStep >= 3, isActive: _currentWizardStep == 3, colorScheme: colorScheme, textTheme: textTheme),
+            _buildStepperNode('1', AppLocalizations.of(context)!.pharmacyStepPrescription, isCompleted: _currentWizardStep >= 0, isActive: _currentWizardStep == 0, colorScheme: colorScheme, textTheme: textTheme),
+            _buildStepperNode('2', AppLocalizations.of(context)!.pharmacyStepPharmacy, isCompleted: _currentWizardStep >= 1, isActive: _currentWizardStep == 1, colorScheme: colorScheme, textTheme: textTheme),
+            _buildStepperNode('3', AppLocalizations.of(context)!.pharmacyStepConnect, isCompleted: _currentWizardStep >= 2, isActive: _currentWizardStep == 2, colorScheme: colorScheme, textTheme: textTheme),
+            _buildStepperNode('4', AppLocalizations.of(context)!.pharmacyStepPayment, isCompleted: _currentWizardStep >= 3, isActive: _currentWizardStep == 3, colorScheme: colorScheme, textTheme: textTheme),
           ],
         ),
       ],

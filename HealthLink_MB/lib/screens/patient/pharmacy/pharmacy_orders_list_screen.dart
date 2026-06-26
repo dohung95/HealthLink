@@ -3,6 +3,7 @@ import 'package:provider/provider.dart';
 import 'package:intl/intl.dart';
 import '../../../providers/auth_provider.dart';
 import '../../../services/patient_pharmacy/pharmacy_service.dart';
+import '../../../l10n/app_localizations.dart';
 
 class PharmacyOrdersListScreen extends StatefulWidget {
   const PharmacyOrdersListScreen({super.key});
@@ -85,7 +86,7 @@ class _PharmacyOrdersListScreenState extends State<PharmacyOrdersListScreen> wit
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
                           Text(
-                            'Pharmacy Orders',
+                            AppLocalizations.of(context)!.pharmacyOrdersTitle,
                             style: textTheme.headlineMedium?.copyWith(
                               fontWeight: FontWeight.bold,
                               color: colorScheme.onSurface,
@@ -93,7 +94,7 @@ class _PharmacyOrdersListScreenState extends State<PharmacyOrdersListScreen> wit
                           ),
                           const SizedBox(height: 4),
                           Text(
-                            'Track your recent prescription deliveries and history.',
+                            AppLocalizations.of(context)!.pharmacyOrdersSubtitle,
                             style: textTheme.bodyMedium?.copyWith(color: colorScheme.onSurfaceVariant),
                           ),
                         ],
@@ -112,14 +113,14 @@ class _PharmacyOrdersListScreenState extends State<PharmacyOrdersListScreen> wit
                           value: _currentFilter,
                           icon: const Icon(Icons.filter_list, size: 18),
                           isDense: true,
-                          items: const [
-                            DropdownMenuItem(value: 'ALL', child: Text('All')),
-                            DropdownMenuItem(value: 'PENDING', child: Text('Pending')),
-                            DropdownMenuItem(value: 'CONFIRMED', child: Text('Confirmed')),
-                            DropdownMenuItem(value: 'PREPARING', child: Text('Preparing')),
-                            DropdownMenuItem(value: 'SHIPPING', child: Text('Shipping')),
-                            DropdownMenuItem(value: 'DELIVERED', child: Text('Delivered')),
-                            DropdownMenuItem(value: 'CANCELLED', child: Text('Cancelled')),
+                          items: [
+                            DropdownMenuItem(value: 'ALL', child: Text(AppLocalizations.of(context)!.orderStatusAll)),
+                            DropdownMenuItem(value: 'PENDING', child: Text(AppLocalizations.of(context)!.orderStatusPending)),
+                            DropdownMenuItem(value: 'CONFIRMED', child: Text(AppLocalizations.of(context)!.orderStatusConfirmed)),
+                            DropdownMenuItem(value: 'PREPARING', child: Text(AppLocalizations.of(context)!.orderStatusPreparing)),
+                            DropdownMenuItem(value: 'SHIPPING', child: Text(AppLocalizations.of(context)!.orderStatusShipping)),
+                            DropdownMenuItem(value: 'DELIVERED', child: Text(AppLocalizations.of(context)!.orderStatusDelivered)),
+                            DropdownMenuItem(value: 'CANCELLED', child: Text(AppLocalizations.of(context)!.orderStatusCancelled)),
                           ],
                           onChanged: _onFilterChanged,
                         ),
@@ -142,7 +143,7 @@ class _PharmacyOrdersListScreenState extends State<PharmacyOrdersListScreen> wit
                                   SizedBox(height: MediaQuery.of(context).size.height * 0.2),
                                   Center(
                                     child: Text(
-                                      'No orders found.',
+                                      AppLocalizations.of(context)!.pharmacyNoOrdersFound,
                                       style: textTheme.bodyLarge?.copyWith(color: colorScheme.outline),
                                     ),
                                   ),

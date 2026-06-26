@@ -7,6 +7,9 @@ import 'dart:async';
 import 'package:app_links/app_links.dart';
 import 'package:url_launcher/url_launcher.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import '../../../l10n/app_localizations.dart';
+
+import '../../../utils/localization_utils.dart';
 
 class BookingScreen extends StatefulWidget {
   final String? initialDoctorId;
@@ -17,14 +20,17 @@ class BookingScreen extends StatefulWidget {
 }
 
 class _BookingScreenState extends State<BookingScreen> {
-  static const _steps = [
-    'Specialty',
-    'Doctor',
-    'Date & Time',
-    'Medical Info',
-    'Confirm',
-    'Payment',
-  ];
+  List<String> _getSteps(BuildContext context) {
+    final l10n = AppLocalizations.of(context)!;
+    return [
+      l10n.bookingStepSpecialty,
+      l10n.bookingStepDoctor,
+      l10n.bookingStepDateTime,
+      l10n.bookingStepMedicalInfo,
+      l10n.bookingStepConfirm,
+      l10n.bookingStepPayment,
+    ];
+  }
 
   final _searchCtrl = TextEditingController();
   final _symptomsCtrl = TextEditingController();
@@ -214,7 +220,7 @@ class _BookingScreenState extends State<BookingScreen> {
 
     if (patientId == null || patientId.isEmpty) {
       _snack(
-        'Can not find patient information. Please login again.',
+        AppLocalizations.of(context)!.bookingErrPatientNotFound,
         error: true,
       );
       return;
@@ -339,7 +345,7 @@ class _BookingScreenState extends State<BookingScreen> {
   Future<void> _next() async {
     if (!_validateCurrentStep()) return;
     if (_step == 1) await _loadSlots();
-    setState(() => _step = (_step + 1).clamp(0, _steps.length - 1).toInt());
+    setState(() => _step = (_step + 1).clamp(0, _getSteps(context).length - 1).toInt());
   }
 
   Future<void> _back() async {
@@ -353,35 +359,35 @@ class _BookingScreenState extends State<BookingScreen> {
     }
 
     if (mounted)
-      setState(() => _step = (_step - 1).clamp(0, _steps.length - 1).toInt());
+      setState(() => _step = (_step - 1).clamp(0, _getSteps(context).length - 1).toInt());
   }
 
   bool _validateCurrentStep() {
     if (_step == 0) {
       if (_selectedSpecialty == null) {
-        return _warn('Please select a specialty.');
+        return _warn(AppLocalizations.of(context)!.bookingErrSelectSpecialty);
       }
     } else if (_step == 1) {
       if (_selectedDoctor == null) {
-        return _warn('Please select a doctor.');
+        return _warn(AppLocalizations.of(context)!.bookingErrSelectDoctor);
       }
 
       if (_doctorSchedules.isEmpty) {
         return _warn(
-          'This doctor has no working schedule yet. Please choose another doctor.',
+          AppLocalizations.of(context)!.bookingNoSchedule,
         );
       }
     } else if (_step == 2) {
       if (_selectedSlot == null) {
-        return _warn('Please select an available time slot.');
+        return _warn(AppLocalizations.of(context)!.bookingErrSelectSlot);
       }
     } else if (_step == 3) {
       if (_symptomsCtrl.text.trim().isEmpty) {
-        return _warn('Please describe your symptoms.');
+        return _warn(AppLocalizations.of(context)!.bookingErrMissingSymptoms);
       }
 
       if (_documents.any((item) => item.documentDate == null)) {
-        return _warn('Please select Date Performed for all uploaded documents.');
+        return _warn(AppLocalizations.of(context)!.bookingErrMissingDocDate);
       }
     }
 
@@ -397,7 +403,7 @@ class _BookingScreenState extends State<BookingScreen> {
     if (uri.scheme != 'healthlink') return;
 
     if (uri.host == 'paypal-cancel') {
-      _snack('Payment was cancelled.');
+      _snack(AppLocalizations.of(context)!.bookingErrPaymentCancelled);
       setState(() {
         _pendingPayPalOrderId = null;
         _pendingAppointmentTime = null;
@@ -408,7 +414,7 @@ class _BookingScreenState extends State<BookingScreen> {
     if (uri.host != 'paypal-success') return;
 
     if (_pendingPayPalOrderId == null) {
-      _snack('Can not find pending PayPal order.', error: true);
+      _snack(AppLocalizations.of(context)!.bookingErrPendingOrderNotFound, error: true);
       return;
     }
 
@@ -426,7 +432,7 @@ class _BookingScreenState extends State<BookingScreen> {
     final patientId = context.read<AuthProvider>().userId;
 
     if (patientId == null || patientId.isEmpty) {
-      _snack('Can not find patient information. Please login again.', error: true);
+      _snack(AppLocalizations.of(context)!.bookingErrPatientNotFound, error: true);
       return;
     }
 
@@ -451,7 +457,7 @@ class _BookingScreenState extends State<BookingScreen> {
       final appointmentId = id is int ? id : int.tryParse(id?.toString() ?? '');
 
       if (appointmentId == null) {
-        throw Exception('Payment succeeded but appointment was not returned.');
+        throw Exception(AppLocalizations.of(context)!.bookingErrNoAppointmentReturned);
       }
 
       final rejectedDocuments = <String>[];
@@ -524,7 +530,7 @@ class _BookingScreenState extends State<BookingScreen> {
     final patientId = context.read<AuthProvider>().userId;
 
     if (patientId == null || patientId.isEmpty) {
-      _snack('Can not find patient information. Please login again.', error: true);
+      _snack(AppLocalizations.of(context)!.bookingErrPatientNotFound, error: true);
       return;
     }
 
@@ -547,12 +553,12 @@ class _BookingScreenState extends State<BookingScreen> {
       final orderId = order['orderId']?.toString();
       final approvalUrl = order['approvalUrl']?.toString();
 
-      if (orderId == null || orderId.isEmpty) {
-        throw Exception('Can not create PayPal order.');
+      if (order == null || order['orderId'] == null) {
+        throw Exception(AppLocalizations.of(context)!.bookingErrCannotCreatePayPalOrder);
       }
 
-      if (approvalUrl == null || approvalUrl.isEmpty) {
-        throw Exception('Can not open PayPal approval page.');
+      if (approvalUrl == null) {
+        throw Exception(AppLocalizations.of(context)!.bookingErrCannotOpenPayPalApproval);
       }
 
       setState(() {
@@ -561,17 +567,17 @@ class _BookingScreenState extends State<BookingScreen> {
       });
 
       await _savePendingPayPalPayment(
-        orderId: orderId,
+        orderId: orderId!,
         appointmentTime: appointmentTime,
       );
 
-      final opened = await launchUrl(
+      final launched = await launchUrl(
         Uri.parse(approvalUrl),
         mode: LaunchMode.inAppBrowserView,
       );
 
-      if (!opened) {
-        throw Exception('Can not open PayPal.');
+      if (!launched) {
+        throw Exception(AppLocalizations.of(context)!.bookingErrCannotOpenPayPal);
       }
     } catch (e) {
       _snack(_cleanError(e), error: true);
@@ -662,13 +668,13 @@ class _BookingScreenState extends State<BookingScreen> {
             children: [
               Icon(Icons.lock_outline, color: colors.primary, size: 48),
               const SizedBox(height: 12),
-              const Text(
-                'Login required',
-                style: TextStyle(fontSize: 20, fontWeight: FontWeight.w900),
+              Text(
+                AppLocalizations.of(context)!.bookingLoginRequiredTitle,
+                style: const TextStyle(fontSize: 20, fontWeight: FontWeight.w900),
               ),
               const SizedBox(height: 8),
               Text(
-                'Please login before booking an appointment.',
+                AppLocalizations.of(context)!.bookingLoginRequiredDesc,
                 style: TextStyle(color: colors.onSurfaceVariant),
               ),
             ],
@@ -689,14 +695,14 @@ class _BookingScreenState extends State<BookingScreen> {
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         Text(
-          'Book an appointment',
+          AppLocalizations.of(context)!.bookingTitle,
           style: Theme.of(
             context,
           ).textTheme.headlineSmall?.copyWith(fontWeight: FontWeight.w900),
         ),
         const SizedBox(height: 6),
         Text(
-          'Select a specialty, doctor and time that suits you.',
+          AppLocalizations.of(context)!.bookingSubtitle,
           style: TextStyle(color: colors.onSurfaceVariant),
         ),
       ],
@@ -707,7 +713,7 @@ class _BookingScreenState extends State<BookingScreen> {
     height: 76,
     child: ListView.separated(
       scrollDirection: Axis.horizontal,
-      itemCount: _steps.length,
+      itemCount: _getSteps(context).length,
       separatorBuilder: (_, __) => const SizedBox(width: 8),
       itemBuilder: (_, index) {
         final active = index == _step;
@@ -733,7 +739,7 @@ class _BookingScreenState extends State<BookingScreen> {
               ),
               const Spacer(),
               Text(
-                _steps[index],
+                _getSteps(context)[index],
                 maxLines: 1,
                 overflow: TextOverflow.ellipsis,
                 style: TextStyle(
@@ -770,7 +776,7 @@ class _BookingScreenState extends State<BookingScreen> {
               Expanded(
                 child: OutlinedButton(
                   onPressed: _step == 0 || _submitting ? null : _back,
-                  child: const Text('Back'),
+                  child: Text(AppLocalizations.of(context)!.btnBack),
                 ),
               ),
               const SizedBox(width: 12),
@@ -778,7 +784,7 @@ class _BookingScreenState extends State<BookingScreen> {
                 child: FilledButton(
                   onPressed: _submitting
                       ? null
-                      : (_step == _steps.length - 1 ? _submit : _next),
+                      : (_step == _getSteps(context).length - 1 ? _submit : _next),
                   child: _submitting
                       ? const SizedBox(
                           width: 18,
@@ -786,7 +792,7 @@ class _BookingScreenState extends State<BookingScreen> {
                           child: CircularProgressIndicator(strokeWidth: 2),
                         )
                       : Text(
-                          _step == _steps.length - 1 ? 'Pay & Confirm' : 'Next',
+                          _step == _getSteps(context).length - 1 ? AppLocalizations.of(context)!.bookingBtnPayConfirm : AppLocalizations.of(context)!.btnNext,
                         ),
                 ),
               ),
@@ -837,8 +843,8 @@ class _BookingScreenState extends State<BookingScreen> {
     crossAxisAlignment: CrossAxisAlignment.start,
     children: [
       _title(
-        'Choose a specialty',
-        'Start by selecting the care area you need.',
+        AppLocalizations.of(context)!.bookingChooseSpecialty,
+        AppLocalizations.of(context)!.bookingChooseSpecialtyDesc,
       ),
       const SizedBox(height: 16),
       Wrap(
@@ -846,7 +852,7 @@ class _BookingScreenState extends State<BookingScreen> {
         runSpacing: 10,
         children: _specialties.map((name) {
           return ChoiceChip(
-            label: Text(name),
+            label: Text(name.toLocalizedSpecialty(context)),
             selected: _selectedSpecialty == name,
             onSelected: (_) async {
               await _releaseHoldSilently();
@@ -870,14 +876,14 @@ class _BookingScreenState extends State<BookingScreen> {
     crossAxisAlignment: CrossAxisAlignment.start,
     children: [
       _title(
-        'Choose a doctor',
-        'Only doctors matching your selected specialty are shown.',
+        AppLocalizations.of(context)!.bookingChooseDoctor,
+        AppLocalizations.of(context)!.bookingChooseDoctorDesc,
       ),
       const SizedBox(height: 14),
       TextField(
         controller: _searchCtrl,
         decoration: InputDecoration(
-          hintText: 'Search doctor by name',
+          hintText: AppLocalizations.of(context)!.bookingSearchDoctor,
           prefixIcon: const Icon(Icons.search),
           suffixIcon: IconButton(
             icon: const Icon(Icons.tune),
@@ -899,7 +905,7 @@ class _BookingScreenState extends State<BookingScreen> {
         _empty(
           colors,
           Icons.person_search,
-          'No doctors found for this specialty.',
+          AppLocalizations.of(context)!.bookingNoDoctorsFound,
         )
       else
         Column(
@@ -920,7 +926,7 @@ class _BookingScreenState extends State<BookingScreen> {
                   : null,
               icon: const Icon(Icons.chevron_left),
             ),
-            Text('Page $_doctorPage of $_totalDoctorPages'),
+            Text(AppLocalizations.of(context)!.paginationPage('$_doctorPage', '$_totalDoctorPages')),
             IconButton(
               onPressed: _doctorPage < _totalDoctorPages
                   ? () {
@@ -1002,7 +1008,7 @@ class _BookingScreenState extends State<BookingScreen> {
                       ),
                     ),
                     Text(
-                      doctor.specialtyName,
+                      doctor.specialtyName.toLocalizedSpecialty(context),
                       style: TextStyle(
                         color: colors.primary,
                         fontWeight: FontWeight.w700,
@@ -1018,12 +1024,12 @@ class _BookingScreenState extends State<BookingScreen> {
                           Icons.star,
                           doctor.averageRating > 0
                               ? doctor.averageRating.toStringAsFixed(1)
-                              : 'New',
+                              : AppLocalizations.of(context)!.labelNew,
                         ),
                         _chip(
                           colors,
                           Icons.work_outline,
-                          '${doctor.yearsOfExperience} yrs',
+                          AppLocalizations.of(context)!.labelYearsExp(doctor.yearsOfExperience.toString()),
                         ),
                         if (doctor.location.isNotEmpty)
                           _chip(
@@ -1075,15 +1081,14 @@ class _BookingScreenState extends State<BookingScreen> {
     final canGoPreviousWeek = _weekIndex > 0;
     final canGoNextWeek = !nextWeekStart.isAfter(maxDate);
 
-    final weekLabel =
-        'Week ${weekStart.day}/${weekStart.month} - ${weekEnd.day}/${weekEnd.month}';
+    final weekLabel = AppLocalizations.of(context)!.labelWeek('${weekStart.day}/${weekStart.month} - ${weekEnd.day}/${weekEnd.month}');
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         _title(
-          'Choose date & time',
-          'Select one available slot. Tap again to cancel your selection.',
+          AppLocalizations.of(context)!.bookingChooseDateTime,
+          AppLocalizations.of(context)!.bookingChooseDateTimeDesc,
         ),
 
         SizedBox(height: 16),
@@ -1101,7 +1106,7 @@ class _BookingScreenState extends State<BookingScreen> {
                   });
                 }
                     : null,
-                child: const Text('Previous'),
+                child: Text(AppLocalizations.of(context)!.actionPrevious),
               ),
             ),
             const SizedBox(width: 10),
@@ -1121,7 +1126,7 @@ class _BookingScreenState extends State<BookingScreen> {
                   });
                 }
                     : null,
-                child: const Text('Next'),
+                child: Text(AppLocalizations.of(context)!.actionNext),
               ),
             ),
           ],
@@ -1133,7 +1138,7 @@ class _BookingScreenState extends State<BookingScreen> {
           _empty(
             colors,
             Icons.event_busy_outlined,
-            'The doctor is not working this week.',
+            AppLocalizations.of(context)!.bookingNoDoctorScheduleThisWeek,
           )
         else
           SizedBox(
@@ -1198,7 +1203,7 @@ class _BookingScreenState extends State<BookingScreen> {
 
         const SizedBox(height: 22),
         Text(
-          'Available slots',
+          AppLocalizations.of(context)!.bookingAvailableSlots,
           style: Theme.of(
             context,
           ).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w900),
@@ -1215,7 +1220,7 @@ class _BookingScreenState extends State<BookingScreen> {
           _empty(
             colors,
             Icons.event_busy_outlined,
-            'No available slots on this day.',
+            AppLocalizations.of(context)!.bookingNoSlotsOnThisDay,
           )
         else
           Wrap(
@@ -1260,8 +1265,8 @@ class _BookingScreenState extends State<BookingScreen> {
     crossAxisAlignment: CrossAxisAlignment.start,
     children: [
       _title(
-        'Symptoms & medical information',
-        'Describe your condition so the doctor can prepare better.',
+        AppLocalizations.of(context)!.bookingSymptomsTitle,
+        AppLocalizations.of(context)!.bookingSymptomsDesc,
       ),
       const SizedBox(height: 16),
       TextField(
@@ -1269,8 +1274,8 @@ class _BookingScreenState extends State<BookingScreen> {
         minLines: 5,
         maxLines: 8,
         decoration: InputDecoration(
-          labelText: 'Symptoms / reason for examination *',
-          hintText: 'Example: mild chest pain for the past 2 days...',
+          labelText: AppLocalizations.of(context)!.bookingSymptomsInput,
+          hintText: AppLocalizations.of(context)!.bookingSymptomsHint,
           border: OutlineInputBorder(borderRadius: BorderRadius.circular(18)),
           alignLabelWithHint: true,
         ),
@@ -1281,8 +1286,8 @@ class _BookingScreenState extends State<BookingScreen> {
         minLines: 3,
         maxLines: 5,
         decoration: InputDecoration(
-          labelText: 'Additional notes',
-          hintText: 'Anything else you want the doctor to know.',
+          labelText: AppLocalizations.of(context)!.bookingNotesInput,
+          hintText: AppLocalizations.of(context)!.bookingNotesHint,
           border: OutlineInputBorder(borderRadius: BorderRadius.circular(18)),
           alignLabelWithHint: true,
         ),
@@ -1291,7 +1296,7 @@ class _BookingScreenState extends State<BookingScreen> {
       OutlinedButton.icon(
         onPressed: _pickDocuments,
         icon: const Icon(Icons.attach_file),
-        label: const Text('Upload medical documents'),
+        label: Text(AppLocalizations.of(context)!.bookingUploadDocs),
       ),
 
       if (_documents.isNotEmpty) ...[
@@ -1335,7 +1340,7 @@ class _BookingScreenState extends State<BookingScreen> {
                   ),
                   const SizedBox(height: 10),
                   Text(
-                    'Date Performed *',
+                    AppLocalizations.of(context)!.bookingDatePerformed,
                     style: TextStyle(
                       color: colors.onSurface,
                       fontWeight: FontWeight.w800,
@@ -1360,7 +1365,7 @@ class _BookingScreenState extends State<BookingScreen> {
                     icon: const Icon(Icons.calendar_today_outlined),
                     label: Text(
                       item.documentDate == null
-                          ? 'Select date performed'
+                          ? AppLocalizations.of(context)!.bookingSelectDatePerformed
                           : _formatDate(item.documentDate!),
                     ),
                   ),
@@ -1373,7 +1378,7 @@ class _BookingScreenState extends State<BookingScreen> {
 
       _note(
         colors,
-        'Documents will be uploaded and shared with the doctor after the appointment is confirmed.',
+        AppLocalizations.of(context)!.bookingUploadDocNote,
       ),
     ],
   );
@@ -1381,23 +1386,23 @@ class _BookingScreenState extends State<BookingScreen> {
   Widget _confirmStep(ColorScheme colors) => Column(
     crossAxisAlignment: CrossAxisAlignment.start,
     children: [
-      _title('Confirm appointment', 'Review your booking before submitting.'),
+      _title(AppLocalizations.of(context)!.bookingConfirmTitle, AppLocalizations.of(context)!.bookingConfirmDesc),
       const SizedBox(height: 16),
-      _summary(colors, 'Doctor', _selectedDoctor?.fullName ?? '-'),
+      _summary(colors, AppLocalizations.of(context)!.bookingLabelDoctor, _selectedDoctor?.fullName ?? '-'),
       _summary(
         colors,
-        'Specialty',
-        _selectedDoctor?.specialtyName ?? _selectedSpecialty ?? '-',
+        AppLocalizations.of(context)!.bookingLabelSpecialty,
+        _selectedDoctor != null ? _selectedDoctor!.specialtyName.toLocalizedSpecialty(context) : (_selectedSpecialty?.toLocalizedSpecialty(context) ?? '-'),
       ),
-      _summary(colors, 'Date', _friendlyDate(_selectedDate)),
+      _summary(colors, AppLocalizations.of(context)!.bookingLabelDate, _friendlyDate(_selectedDate)),
       _summary(
         colors,
-        'Time',
+        AppLocalizations.of(context)!.bookingLabelTime,
         _selectedSlot == null ? '-' : _shortTime(_selectedSlot!.startTime),
       ),
       _summary(
         colors,
-        'Fee',
+        AppLocalizations.of(context)!.bookingLabelFee,
         _selectedDoctor == null
             ? '-'
             : '\$${_selectedDoctor!.consultationFee.toStringAsFixed(2)}',
@@ -1405,7 +1410,7 @@ class _BookingScreenState extends State<BookingScreen> {
       const SizedBox(height: 12),
       _note(
         colors,
-        'Payment note: mobile PayPal checkout still needs an approval URL/native SDK. This version confirms booking through the current appointment endpoint.',
+        AppLocalizations.of(context)!.bookingPaymentNote,
       ),
     ],
   );
@@ -1416,27 +1421,27 @@ class _BookingScreenState extends State<BookingScreen> {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        _title('Payment', 'Complete payment to confirm your appointment.'),
+        _title(AppLocalizations.of(context)!.bookingPaymentTitle, AppLocalizations.of(context)!.bookingPaymentDesc),
         const SizedBox(height: 16),
 
-        _summary(colors, 'Doctor', _selectedDoctor?.fullName ?? '-'),
+        _summary(colors, AppLocalizations.of(context)!.bookingLabelDoctor, _selectedDoctor?.fullName ?? '-'),
         _summary(
           colors,
-          'Specialty',
-          _selectedDoctor?.specialtyName ?? _selectedSpecialty ?? '-',
+          AppLocalizations.of(context)!.bookingLabelSpecialty,
+          _selectedDoctor != null ? _selectedDoctor!.specialtyName.toLocalizedSpecialty(context) : (_selectedSpecialty?.toLocalizedSpecialty(context) ?? '-'),
         ),
-        _summary(colors, 'Date', _friendlyDate(_selectedDate)),
+        _summary(colors, AppLocalizations.of(context)!.bookingLabelDate, _friendlyDate(_selectedDate)),
         _summary(
           colors,
-          'Time',
+          AppLocalizations.of(context)!.bookingLabelTime,
           _selectedSlot == null ? '-' : _shortTime(_selectedSlot!.startTime),
         ),
-        _summary(colors, 'Total amount', '\$${fee.toStringAsFixed(2)}'),
+        _summary(colors, AppLocalizations.of(context)!.bookingLabelTotalAmount, '\$${fee.toStringAsFixed(2)}'),
 
         const SizedBox(height: 12),
         _note(
           colors,
-          'Your appointment will only be created after payment is successful.',
+          AppLocalizations.of(context)!.bookingPaymentNote2,
         ),
       ],
     );
@@ -1541,12 +1546,12 @@ class _BookingScreenState extends State<BookingScreen> {
         color: Theme.of(context).colorScheme.primary,
         size: 48,
       ),
-      title: const Text('Booking successful'),
-      content: Text('Your appointment has been created.'),
+      title: Text(AppLocalizations.of(context)!.bookingSuccessTitle),
+      content: Text(AppLocalizations.of(context)!.bookingSuccessMsg),
       actions: [
         FilledButton(
           onPressed: () => Navigator.of(context).pop(),
-          child: const Text('Done'),
+          child: Text(AppLocalizations.of(context)!.actionDone),
         ),
       ],
     ),
@@ -1566,13 +1571,13 @@ class _BookingScreenState extends State<BookingScreen> {
             color: colors.error,
             size: 34,
           ),
-          title: const Text('Some documents were not uploaded'),
+          title: Text(AppLocalizations.of(context)!.bookingUploadWarnTitle),
           content: Column(
             mainAxisSize: MainAxisSize.min,
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              const Text(
-                'Your appointment was booked successfully, but some documents could not be uploaded:',
+              Text(
+                AppLocalizations.of(context)!.bookingUploadWarnDesc,
               ),
               const SizedBox(height: 12),
               ...messages.map(
@@ -1586,7 +1591,7 @@ class _BookingScreenState extends State<BookingScreen> {
           actions: [
             TextButton(
               onPressed: () => Navigator.pop(context),
-              child: const Text('Got it'),
+              child: Text(AppLocalizations.of(context)!.actionGotIt),
             ),
           ],
         );
@@ -1633,7 +1638,14 @@ class _BookingScreenState extends State<BookingScreen> {
 
   String _cleanError(Object error) {
     final raw = error.toString();
-    return raw.startsWith('Exception: ') ? raw.substring(11) : raw;
+    var cleaned = raw.startsWith('Exception: ') ? raw.substring(11) : raw;
+    
+    if (cleaned.startsWith('Doctor does not support consultation type: ')) {
+      final type = cleaned.substring('Doctor does not support consultation type: '.length).trim();
+      return AppLocalizations.of(context)!.bookingErrUnsupportedConsultationType(type.toLocalizedConsultationType(context));
+    }
+    
+    return cleaned;
   }
 
   bool _isImageModerationError(String message) {
@@ -1650,10 +1662,10 @@ class _BookingScreenState extends State<BookingScreen> {
     final message = _cleanError(error);
 
     if (_isImageModerationError(message)) {
-      return 'The file "$fileName" may contain sensitive content and cannot be uploaded.';
+      return AppLocalizations.of(context)!.bookingErrSensitiveContent(fileName);
     }
 
-    return 'Can not upload "$fileName". $message';
+    return AppLocalizations.of(context)!.bookingErrUploadFailed(fileName, message);
   }
 
   DateTime _dayStart(DateTime value) =>
@@ -1676,17 +1688,17 @@ class _BookingScreenState extends State<BookingScreen> {
       time.length >= 5 ? time.substring(0, 5) : time;
 
   String _dayLabel(DateTime date) {
-    if (_sameDay(date, DateTime.now())) return 'Today';
+    if (_sameDay(date, DateTime.now())) return AppLocalizations.of(context)!.labelToday;
     final tomorrow = _dayStart(DateTime.now()).add(const Duration(days: 1));
-    if (_sameDay(date, tomorrow)) return 'Tomorrow';
-    return const [
-      'Mon',
-      'Tue',
-      'Wed',
-      'Thu',
-      'Fri',
-      'Sat',
-      'Sun',
+    if (_sameDay(date, tomorrow)) return AppLocalizations.of(context)!.labelTomorrow;
+    return [
+      AppLocalizations.of(context)!.labelMon,
+      AppLocalizations.of(context)!.labelTue,
+      AppLocalizations.of(context)!.labelWed,
+      AppLocalizations.of(context)!.labelThu,
+      AppLocalizations.of(context)!.labelFri,
+      AppLocalizations.of(context)!.labelSat,
+      AppLocalizations.of(context)!.labelSun,
     ][date.weekday - 1];
   }
 

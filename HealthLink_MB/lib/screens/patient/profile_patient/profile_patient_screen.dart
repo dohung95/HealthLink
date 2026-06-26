@@ -4,6 +4,7 @@ import '../../../providers/auth_provider.dart';
 import '../../../config/api_config.dart';
 import '../../../models/patient_profile.dart';
 import 'edit_patient_profile_screen.dart';
+import '../../../l10n/app_localizations.dart';
 
 class PatientProfileScreen extends StatelessWidget {
   const PatientProfileScreen({super.key});
@@ -49,7 +50,7 @@ class PatientProfileScreen extends StatelessWidget {
             ),
             const SizedBox(width: 12),
             Text(
-              'My profile',
+              AppLocalizations.of(context)!.profileTitle,
               style: theme.textTheme.titleMedium?.copyWith(
                 color: colorScheme.primary,
                 fontWeight: FontWeight.bold,
@@ -220,7 +221,7 @@ class PatientProfileScreen extends StatelessWidget {
               Icon(Icons.verified, size: 16, color: colorScheme.primary),
               const SizedBox(width: 6),
               Text(
-                'VERIFIED IDENTITY',
+                AppLocalizations.of(context)!.profileVerifiedIdentity,
                 style: theme.textTheme.labelSmall?.copyWith(
                   color: colorScheme.primary,
                   fontWeight: FontWeight.bold,
@@ -243,11 +244,11 @@ class PatientProfileScreen extends StatelessWidget {
       builder: (context, constraints) {
         return Row(
           children: [
-            _buildStatCard(context, Icons.water_drop, bloodType, 'Blood Type'),
+            _buildStatCard(context, Icons.water_drop, bloodType, AppLocalizations.of(context)!.profileBloodType),
             const SizedBox(width: 12),
-            _buildStatCard(context, Icons.height, height, 'Height (cm)'),
+            _buildStatCard(context, Icons.height, height, AppLocalizations.of(context)!.profileHeight),
             const SizedBox(width: 12),
-            _buildStatCard(context, Icons.monitor_weight_outlined, weight, 'Weight (kg)'),
+            _buildStatCard(context, Icons.monitor_weight_outlined, weight, AppLocalizations.of(context)!.profileWeight),
           ],
         );
       },
@@ -301,7 +302,7 @@ class PatientProfileScreen extends StatelessWidget {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        _buildSectionHeader(context, Icons.badge_outlined, 'Identity Metrics'),
+        _buildSectionHeader(context, Icons.badge_outlined, AppLocalizations.of(context)!.profileIdentityMetrics),
         const SizedBox(height: 12),
         GridView.count(
           shrinkWrap: true,
@@ -311,10 +312,10 @@ class PatientProfileScreen extends StatelessWidget {
           mainAxisSpacing: 12,
           crossAxisSpacing: 12,
           children: [
-            _buildGridItem(context, Icons.wc, 'Gender', profile['gender']?.toString() ?? 'N/A'),
-            _buildGridItem(context, Icons.cake_outlined, 'DOB', dobStr),
-            _buildGridItem(context, Icons.work_outline, 'Occupation', profile['occupation']?.toString() ?? 'N/A'),
-            _buildGridItem(context, Icons.language, 'Language', profile['preferredLanguage']?.toString() ?? 'N/A'),
+            _buildGridItem(context, Icons.wc, AppLocalizations.of(context)!.profileGender, profile['gender']?.toString() ?? 'N/A'),
+            _buildGridItem(context, Icons.cake_outlined, AppLocalizations.of(context)!.profileDob, dobStr),
+            _buildGridItem(context, Icons.work_outline, AppLocalizations.of(context)!.profileOccupation, profile['occupation']?.toString() ?? 'N/A'),
+            _buildGridItem(context, Icons.language, AppLocalizations.of(context)!.profileLanguage, profile['preferredLanguage']?.toString() ?? 'N/A'),
           ],
         ),
       ],
@@ -392,7 +393,7 @@ class PatientProfileScreen extends StatelessWidget {
                 Icon(Icons.location_on_outlined, size: 16, color: colorScheme.primary),
                 const SizedBox(width: 8),
                 Text(
-                  'LOCATION DATA',
+                  AppLocalizations.of(context)!.profileLocationData,
                   style: theme.textTheme.labelSmall?.copyWith(fontWeight: FontWeight.bold),
                 ),
               ],
@@ -404,7 +405,7 @@ class PatientProfileScreen extends StatelessWidget {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(
-                  'PRIMARY ADDRESS',
+                  AppLocalizations.of(context)!.profilePrimaryAddress,
                   style: theme.textTheme.labelSmall?.copyWith(color: colorScheme.onSurfaceVariant, fontSize: 10),
                 ),
                 const SizedBox(height: 4),
@@ -420,7 +421,7 @@ class PatientProfileScreen extends StatelessWidget {
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
                         Text(
-                          'CONTACT NUMBER',
+                          AppLocalizations.of(context)!.profileContactNumber,
                           style: theme.textTheme.labelSmall?.copyWith(color: colorScheme.onSurfaceVariant, fontSize: 10),
                         ),
                         const SizedBox(height: 4),
@@ -454,8 +455,8 @@ class PatientProfileScreen extends StatelessWidget {
     final colorScheme = Theme.of(context).colorScheme;
     final theme = Theme.of(context);
 
-    final provider = profile['insuranceProvider']?.toString() ?? 'N/A';
-    final policyNum = profile['insurancePolicyNumber']?.toString() ?? 'N/A';
+    final provider = profile['insuranceProvider']?.toString() ?? AppLocalizations.of(context)!.labelNA;
+    final policyNum = profile['insurancePolicyNumber']?.toString() ?? AppLocalizations.of(context)!.labelNA;
 
     return Container(
       padding: const EdgeInsets.all(20),
@@ -485,7 +486,7 @@ class PatientProfileScreen extends StatelessWidget {
               ),
               const SizedBox(height: 24),
               Text(
-                'POLICY DESIGNATION',
+                AppLocalizations.of(context)!.profilePolicyDesignation,
                 style: theme.textTheme.labelSmall?.copyWith(
                   color: colorScheme.primaryContainer,
                   fontSize: 10,
@@ -521,15 +522,15 @@ class PatientProfileScreen extends StatelessWidget {
   Widget _buildMedicalDossier(BuildContext context, Map<String, dynamic> profile) {
     final colorScheme = Theme.of(context).colorScheme;
 
-    final conditions = profile['chronicConditions']?.toString() ?? 'None';
-    final allergies = profile['allergies']?.toString() ?? 'None';
-    final medications = profile['currentMedications']?.toString() ?? 'None';
-    final medicalSummary = profile['medicalHistorySummary']?.toString() ?? 'N/A';
+    final conditions = profile['chronicConditions']?.toString() ?? AppLocalizations.of(context)!.labelNone;
+    final allergies = profile['allergies']?.toString() ?? AppLocalizations.of(context)!.labelNone;
+    final medications = profile['currentMedications']?.toString() ?? AppLocalizations.of(context)!.labelNone;
+    final medicalSummary = profile['medicalHistorySummary']?.toString() ?? AppLocalizations.of(context)!.labelNA;
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        _buildSectionHeader(context, Icons.folder_shared_outlined, 'Medical Dossier'),
+        _buildSectionHeader(context, Icons.folder_shared_outlined, AppLocalizations.of(context)!.profileMedicalDossier),
         const SizedBox(height: 12),
         Container(
           decoration: BoxDecoration(
@@ -539,10 +540,10 @@ class PatientProfileScreen extends StatelessWidget {
           ),
           child: Column(
             children: [
-              _buildDossierTile(context, Icons.history, 'History Summary', medicalSummary.length > 20 ? '${medicalSummary.substring(0, 20)}...' : medicalSummary, null),
-              _buildDossierTile(context, Icons.coronavirus_outlined, 'Chronic Conditions', conditions, conditions != 'None' ? Colors.orange : null),
-              _buildDossierTile(context, Icons.vaccines_outlined, 'Allergies', allergies, allergies != 'None' ? colorScheme.error : null, isBadge: allergies != 'None'),
-              _buildDossierTile(context, Icons.medication_outlined, 'Current Medications', medications, null),
+              _buildDossierTile(context, Icons.history, AppLocalizations.of(context)!.profileHistorySummary, medicalSummary.length > 20 ? '${medicalSummary.substring(0, 20)}...' : medicalSummary, null),
+              _buildDossierTile(context, Icons.coronavirus_outlined, AppLocalizations.of(context)!.profileChronicConditions, conditions, conditions != AppLocalizations.of(context)!.labelNone ? Colors.orange : null),
+              _buildDossierTile(context, Icons.vaccines_outlined, AppLocalizations.of(context)!.profileAllergies, allergies, allergies != AppLocalizations.of(context)!.labelNone ? colorScheme.error : null, isBadge: allergies != AppLocalizations.of(context)!.labelNone),
+              _buildDossierTile(context, Icons.medication_outlined, AppLocalizations.of(context)!.profileCurrentMedications, medications, null),
             ],
           ),
         )
@@ -603,9 +604,9 @@ class PatientProfileScreen extends StatelessWidget {
     final colorScheme = Theme.of(context).colorScheme;
     final theme = Theme.of(context);
 
-    final ecName = profile['emergencyContactName']?.toString() ?? 'Not Provided';
-    final ecRel = profile['emergencyContactRelationship']?.toString() ?? 'N/A';
-    final ecPhone = profile['emergencyContactPhone']?.toString() ?? 'N/A';
+    final ecName = profile['emergencyContactName']?.toString() ?? AppLocalizations.of(context)!.labelNotProvided;
+    final ecRel = profile['emergencyContactRelationship']?.toString() ?? AppLocalizations.of(context)!.labelNA;
+    final ecPhone = profile['emergencyContactPhone']?.toString() ?? AppLocalizations.of(context)!.labelNA;
 
     return Container(
       padding: const EdgeInsets.all(16),
@@ -622,7 +623,7 @@ class PatientProfileScreen extends StatelessWidget {
               Icon(Icons.warning_amber_rounded, size: 16, color: colorScheme.error),
               const SizedBox(width: 6),
               Text(
-                'EMERGENCY CONTACT',
+                AppLocalizations.of(context)!.profileEmergencyContact,
                 style: theme.textTheme.labelSmall?.copyWith(color: colorScheme.error, fontWeight: FontWeight.bold, letterSpacing: 0.5),
               ),
             ],
@@ -642,7 +643,7 @@ class PatientProfileScreen extends StatelessWidget {
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Text(
-                      'PRIMARY PROXY',
+                      AppLocalizations.of(context)!.profilePrimaryProxy,
                       style: theme.textTheme.labelSmall?.copyWith(color: colorScheme.onSurfaceVariant, fontSize: 9),
                     ),
                     const SizedBox(height: 2),
