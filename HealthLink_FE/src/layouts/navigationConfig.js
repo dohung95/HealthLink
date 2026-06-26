@@ -40,6 +40,12 @@ export const formatNotificationTime = (value) => {
 
 export const getNotificationTone = (notification) => {
   const value = `${notification?.type || ''} ${notification?.message || ''}`.toLowerCase();
+  if (notification?.type === 'HOME_VISIT_CONFIRMED') {
+    return { icon: 'home_health', title: 'Home Visit Accepted', tone: 'success' };
+  }
+  if (notification?.type === 'HOME_VISIT_REJECTED') {
+    return { icon: 'home_health', title: 'Home Visit Declined', tone: 'warning' };
+  }
   if (value.includes('wallet') || value.includes('balance')) {
     return { icon: 'account_balance_wallet', title: 'Wallet Update', tone: 'success' };
   }

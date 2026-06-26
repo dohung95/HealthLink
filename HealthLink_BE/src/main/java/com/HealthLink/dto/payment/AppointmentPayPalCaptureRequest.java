@@ -58,6 +58,8 @@ public class AppointmentPayPalCaptureRequest {
 
     private LocalDate bookingDate;
 
+    private Integer sourceConsultationId;
+
     private String paymentMethod = "EWallet";
 
     private String currency = "USD";

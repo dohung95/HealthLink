@@ -55,6 +55,7 @@ import NotificationToastBridge from './components/notifications/NotificationToas
 import PrescriptionNotificationModal from './components/PrescriptionNotificationModal';
 import AdminActionNotificationModal from './components/AdminActionNotificationModal';
 import HomeVisitProposalModal from './components/consultation/HomeVisitProposalModal';
+import HomeVisitProposalResultModal from './components/consultation/HomeVisitProposalResultModal';
 import Navbar from './components/Navbar';
 import DoctorPublicProfilePage from './pages/doctor/DoctorPublicProfilePage';
 import PatientPrescriptionView from './components/PatientPrescriptionView';
@@ -203,6 +204,7 @@ function AppContent() {
       {!isVideoCallPage && !isAdminPage && <PrescriptionNotificationModal />}
       {!isVideoCallPage && !isAdminPage && <AdminActionNotificationModal />}
       {!isVideoCallPage && !isAdminPage && <HomeVisitProposalModal />}
+      {!isVideoCallPage && !isAdminPage && <HomeVisitProposalResultModal />}
       <div className="App">
         {!isVideoCallPage
   && !isAdminPage

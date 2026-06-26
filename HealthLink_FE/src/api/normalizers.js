@@ -10,6 +10,8 @@ const DOCTOR_NOTIFICATION_TYPES = new Set([
   'PHARMACY_REQUEST_STATUS',
   'ORDER_STATUS',
   'NEW_ORDER',
+  'HOME_VISIT_CONFIRMED',
+  'HOME_VISIT_REJECTED',
 ]);
 
 const toUpperValue = (value) => (value == null ? value : String(value).toUpperCase());
