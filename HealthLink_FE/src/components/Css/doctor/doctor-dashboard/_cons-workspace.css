@@ -346,10 +346,244 @@
   margin: 0 0 0.25rem;
 }
 
+/* ---- Sidebar + Workspace Layout ---- */
+.doctor-detail-with-sidebar {
+  display: flex;
+  gap: 0;
+  flex: 1;
+  min-height: 0;
+  overflow: hidden;
+}
+
+.doctor-detail-workspace-main {
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  min-height: 0;
+  min-width: 0;
+}
+
+/* ---- Patient Summary Sidebar ---- */
+.patient-sidebar {
+  width: 240px;
+  flex-shrink: 0;
+  overflow-y: auto;
+  border-right: 1px solid var(--border-light);
+  background: var(--surface-muted);
+  padding: 0.75rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+
+.patient-sidebar__section {
+  background: var(--surface);
+  border: 1px solid var(--border-light);
+  border-radius: var(--radius-md);
+  padding: 0.625rem 0.75rem;
+}
+
+.patient-sidebar__section--allergies {
+  border-color: rgba(251, 191, 36, 0.3);
+  background: rgba(251, 191, 36, 0.04);
+}
+
+.patient-sidebar__patient-row {
+  display: flex;
+  align-items: center;
+  gap: 0.625rem;
+}
+
+.patient-sidebar__avatar {
+  width: 2.5rem;
+  height: 2.5rem;
+  border-radius: 50%;
+  object-fit: cover;
+  flex-shrink: 0;
+}
+
+.patient-sidebar__avatar--fallback {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 1rem;
+  font-weight: 700;
+  color: var(--primary);
+  background: var(--primary-light);
+}
+
+.patient-sidebar__identity {
+  min-width: 0;
+}
+
+.patient-sidebar__name {
+  font-size: 0.875rem;
+  font-weight: 700;
+  color: var(--text-primary);
+  margin: 0;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.patient-sidebar__meta {
+  font-size: 0.6875rem;
+  color: var(--text-muted);
+  display: block;
+  margin-top: 0.125rem;
+}
+
+.patient-sidebar__label {
+  font-size: 0.625rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--text-muted);
+  margin: 0 0 0.25rem;
+  display: flex;
+  align-items: center;
+}
+
+.patient-sidebar__reason {
+  font-size: 0.8125rem;
+  color: var(--text-primary);
+  margin: 0;
+  line-height: 1.4;
+  word-break: break-word;
+}
+
+.patient-sidebar__reason--empty {
+  color: var(--text-muted);
+  font-style: italic;
+}
+
+.patient-sidebar__allergy-pills {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.25rem;
+}
+
+.patient-sidebar__allergy-pill {
+  font-size: 0.6875rem;
+  font-weight: 600;
+  color: var(--text-primary);
+  background: var(--surface-container);
+  padding: 0.125rem 0.5rem;
+  border-radius: 999px;
+}
+
+.patient-sidebar__vitals-grid {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.375rem;
+}
+
+.patient-sidebar-vital {
+  display: flex;
+  align-items: center;
+  gap: 0.25rem;
+  font-size: 0.75rem;
+  color: var(--text-primary);
+  background: var(--surface-muted);
+  padding: 0.25rem 0.5rem;
+  border-radius: var(--radius-sm);
+}
+
+.patient-sidebar-vital i {
+  font-size: 0.75rem;
+  color: var(--text-muted);
+}
+
+.patient-sidebar-vital__value {
+  font-weight: 700;
+}
+
+.patient-sidebar-vital__unit {
+  font-size: 0.625rem;
+  color: var(--text-muted);
+}
+
+.patient-sidebar__text {
+  font-size: 0.8125rem;
+  color: var(--text-primary);
+  margin: 0;
+}
+
+.patient-sidebar__text--small {
+  font-size: 0.75rem;
+  color: var(--text-muted);
+}
+
+.patient-sidebar__empty-text {
+  font-size: 0.75rem;
+  color: var(--text-muted);
+  font-style: italic;
+  margin: 0;
+}
+
+@media (max-width: 992px) {
+  .patient-sidebar {
+    display: none;
+  }
+}
+
 .doctor-detail-empty__description {
   font-size: 0.8125rem;
   color: var(--text-muted);
   margin: 0;
   max-width: 280px;
   line-height: 1.5;
+}
+
+/* ---- Unsaved Changes Bar ---- */
+.unsaved-changes-bar {
+  display: flex;
+  align-items: center;
+  padding: 0.5rem 1rem;
+  background: #fffbeb;
+  border: 1px solid #fde68a;
+  border-radius: var(--radius-md);
+  margin: 0 0.75rem 0.75rem;
+  flex-shrink: 0;
+}
+
+.unsaved-changes-bar__content {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  font-size: 0.8125rem;
+  color: #92400e;
+}
+
+.unsaved-changes-bar__icon {
+  font-size: 1.125rem;
+}
+
+.unsaved-changes-bar__time {
+  margin-left: auto;
+  font-size: 0.75rem;
+  opacity: 0.7;
+}
+
+.doctor-prescription-actions {
+  padding: 0.75rem 1rem;
+  border-top: 1px solid var(--border-light);
+  display: flex;
+  justify-content: flex-end;
+}
+
+/* ---- Action Bar Button Wrapper + Hint ---- */
+.doctor-actionbar-btn-wrapper {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.25rem;
+}
+
+.doctor-actionbar-hint {
+  font-size: 0.6875rem;
+  color: var(--text-muted);
+  white-space: nowrap;
+  max-width: 180px;
+  text-align: center;
 }

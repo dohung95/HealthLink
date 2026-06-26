@@ -1,4 +1,5 @@
 import React, { memo } from 'react';
+import { toast } from 'react-toastify';
 import 'bootstrap/dist/css/bootstrap.min.css';
 import 'react-calendar/dist/Calendar.css';
 import '@components/Css/doctor/doctor-dashboard/doctor-dashboard.css';
@@ -18,6 +19,9 @@ import AppointmentSummary from '@components/doctor/AppointmentSummary';
 import ActionBar from '@components/doctor/ActionBar';
 import CompleteConfirmModal from '@components/doctor/CompleteConfirmModal';
 import { consultationApi } from '@api/consultationApi';
+import UnsavedChangesBar from '@components/doctor/UnsavedChangesBar';
+import PatientSummarySidebar from '@components/doctor/PatientSummarySidebar';
+import useUnsavedChanges from '@hooks/doctor/useUnsavedChanges';
 
 const TABS = [
   { id: 'summary', label: 'Summary', icon: 'bi-card-text' },
@@ -30,6 +34,8 @@ const TABS = [
 
 const DoctorAppointmentDetail = memo(({ appointment, patient, doctorId, onBack, onOpenAppointmentById }) => {
   const ctx = useAppointmentDetail({ appointment, patient, doctorId, onBack, onOpenAppointmentById });
+
+  const unsaved = useUnsavedChanges();
 
   if (!appointment || !patient) {
     return (
@@ -51,6 +57,15 @@ const DoctorAppointmentDetail = memo(({ appointment, patient, doctorId, onBack, 
       </div>
 
       <section className="doctor-detail-card doctor-detail-workspace doctor-detail-workspace--full">
+        <div className="doctor-detail-with-sidebar">
+          <PatientSummarySidebar
+            patient={ctx.patient}
+            patientName={ctx.patientName}
+            visitReason={ctx.visitReason}
+            latestVitalSign={ctx.latestVitalSign}
+            loadingVitalSign={ctx.loadingVitalSign}
+          />
+          <div className="doctor-detail-workspace-main">
         <div className="doctor-detail-tabs" role="tablist" aria-label="Appointment detail tabs">
           {TABS.map((tab) => (
             <button
@@ -67,6 +82,11 @@ const DoctorAppointmentDetail = memo(({ appointment, patient, doctorId, onBack, 
           ))}
         </div>
 
+        <UnsavedChangesBar
+          dirtyFields={unsaved.dirtyFields}
+          isDirty={unsaved.isDirty}
+          lastSavedAt={unsaved.lastSavedAt}
+        />
         <div className="doctor-detail-tab-panel doctor-detail-tab-panel--workspace">
           {ctx.activeTab === 'summary' ? (
             <AppointmentSummary
@@ -95,6 +115,8 @@ const DoctorAppointmentDetail = memo(({ appointment, patient, doctorId, onBack, 
                 onNotesChange={ctx.handleNotesDraftChange}
                 onSaveNotes={ctx.handleSaveNotes}
                 onLockedAction={ctx.onLockedAction}
+                onMarkDirty={() => unsaved.markDirty('notes')}
+                onMarkClean={() => unsaved.markClean('notes')}
               />
             ) : null}
             {ctx.activeTab === 'history' ? (
@@ -124,6 +146,8 @@ const DoctorAppointmentDetail = memo(({ appointment, patient, doctorId, onBack, 
                 readOnly={ctx.isReadOnlyAppointment}
                 canEditPrescription={ctx.canEditPrescription}
                 onLockedAction={ctx.onLockedAction}
+                onMarkDirty={() => unsaved.markDirty('prescription')}
+                onMarkClean={() => unsaved.markClean('prescription')}
               />
             ) : null}
             {ctx.activeTab === 'followup' ? (
@@ -155,11 +179,15 @@ const DoctorAppointmentDetail = memo(({ appointment, patient, doctorId, onBack, 
                 followUpConsultationType={ctx.followUpConsultationType}
                 onFollowUpTypeChange={ctx.setFollowUpConsultationType}
                 onLockedAction={ctx.onLockedAction}
+                onMarkDirty={() => unsaved.markDirty('followup')}
+                onMarkClean={() => unsaved.markClean('followup')}
               />
             ) : null}
           </div>
+          </div>
+        </div>
 
-          {ctx.currentAppointment?.consultationType === 'Online' && (
+        {ctx.currentAppointment?.consultationType === 'Online' && (
             <div className="px-3 pb-2 d-flex gap-2">
               <button
                 className="btn btn-outline-primary btn-sm"
@@ -173,10 +201,10 @@ const DoctorAppointmentDetail = memo(({ appointment, patient, doctorId, onBack, 
                   try {
                     const result = await consultationApi.proposeHomeVisit(cId);
                     console.log('[Propose] Success:', result);
-                    alert('Proposal sent to patient successfully!');
+                    toast.success('Home visit proposal sent to patient successfully!');
                   } catch (err) {
                     console.error('[Propose] Failed:', err);
-                    alert('Failed: ' + (err?.response?.data?.message || err.message));
+                    toast.error(err?.response?.data?.message || err.message || 'Failed to propose home visit');
                   }
                 }}
                 type="button"
@@ -213,6 +241,9 @@ const DoctorAppointmentDetail = memo(({ appointment, patient, doctorId, onBack, 
         hasPendingFollowUp={ctx.hasPendingFollowUp}
         onClose={() => ctx.setShowCompleteConfirmModal(false)}
         onConfirm={ctx.handleCompleteAppointment}
+        notesSaved={Boolean(ctx.consultation?.doctorNotes || ctx.consultation?.diagnosis || ctx.consultation?.treatmentPlan)}
+        prescriptionReady={Boolean(ctx.prescription || (ctx.prescriptionDraft?.medicationRows?.length > 0))}
+        followUpConfigured={Boolean(ctx.hasPendingFollowUp || ctx.consultation?.followUpDate)}
       />
     </div>
   );

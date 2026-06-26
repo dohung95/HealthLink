@@ -27,6 +27,8 @@ const ConsultationNotesTab = ({
   onNotesChange,
   onSaveNotes,
   onLockedAction,
+  onMarkDirty,
+  onMarkClean,
 }) => {
   if (loadingAppointment) {
     return (
@@ -44,6 +46,20 @@ const ConsultationNotesTab = ({
     if (!canEditClinical && typeof onLockedAction === 'function') onLockedAction();
   };
 
+  const handleChange = (field, value) => {
+    onNotesChange(field, value);
+    if (typeof onMarkDirty === 'function') onMarkDirty();
+  };
+
+  const handleSave = () => {
+    if (!canEditClinical) {
+      if (typeof onLockedAction === 'function') onLockedAction();
+      return;
+    }
+    onSaveNotes();
+    if (typeof onMarkClean === 'function') onMarkClean();
+  };
+
   return (
     <div className="doctor-notes-workspace doctor-notes-workspace--consultation">
       <div className="doctor-notes-content">
@@ -53,7 +69,7 @@ const ConsultationNotesTab = ({
             <CKEditor
               editor={ClassicEditor}
               data={notesDraft.diagnosis}
-              onChange={(event, editor) => onNotesChange('diagnosis', editor.getData())}
+              onChange={(event, editor) => handleChange('diagnosis', editor.getData())}
               disabled={isDisabled}
               config={editorConfig}
             />
@@ -66,7 +82,7 @@ const ConsultationNotesTab = ({
             <CKEditor
               editor={ClassicEditor}
               data={notesDraft.doctorNotes}
-              onChange={(event, editor) => onNotesChange('doctorNotes', editor.getData())}
+              onChange={(event, editor) => handleChange('doctorNotes', editor.getData())}
               disabled={isDisabled}
               config={editorConfig}
             />
@@ -79,7 +95,7 @@ const ConsultationNotesTab = ({
             <CKEditor
               editor={ClassicEditor}
               data={notesDraft.treatmentPlan}
-              onChange={(event, editor) => onNotesChange('treatmentPlan', editor.getData())}
+              onChange={(event, editor) => handleChange('treatmentPlan', editor.getData())}
               disabled={isDisabled}
               config={editorConfig}
             />
@@ -90,13 +106,7 @@ const ConsultationNotesTab = ({
           <button
             className={`btn btn-primary ${isDisabled ? 'disabled' : ''}`}
             aria-disabled={isDisabled}
-            onClick={() => {
-              if (!canEditClinical) {
-                if (typeof onLockedAction === 'function') onLockedAction();
-                return;
-              }
-              onSaveNotes();
-            }}
+            onClick={handleSave}
             type="button"
           >
             <i className="bi bi-save me-2"></i>

@@ -108,6 +108,8 @@ const PrescriptionTab = ({
   readOnly = false,
   canEditPrescription = !readOnly,
   onLockedAction,
+  onMarkDirty,
+  onMarkClean,
 }) => {
   const workspaceAppointmentId = appointment?.appointmentID ?? appointment?.appointmentId ?? 'new';
   const isWorkspaceReadOnly = readOnly || !canEditPrescription;
@@ -206,6 +208,9 @@ const PrescriptionTab = ({
       appointmentId: workspaceAppointmentId,
       medicationRows,
     });
+    if (medicationRows.length > 0 && typeof onMarkDirty === 'function') {
+      onMarkDirty();
+    }
   }, [canEditPrescription, medicationRows, onDraftChange, prescription, workspaceAppointmentId]);
 
   useEffect(() => {
@@ -450,6 +455,23 @@ const PrescriptionTab = ({
                 onRowChange={handleRowChange}
                 onTimingToggle={handleRowTimingToggle}
               />
+              <div className="doctor-prescription-actions">
+                <button
+                  className="btn btn-outline-primary btn-sm"
+                  disabled={isWorkspaceReadOnly || medicationRows.length === 0}
+                  onClick={() => {
+                    if (isWorkspaceReadOnly) {
+                      if (typeof onLockedAction === 'function') onLockedAction();
+                      return;
+                    }
+                    toast.success('Prescription draft saved');
+                    if (typeof onMarkClean === 'function') onMarkClean();
+                  }}
+                  type="button"
+                >
+                  <i className="bi bi-save me-1"></i>Save Draft
+                </button>
+              </div>
             </div>
           </div>
       </div>
