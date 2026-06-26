@@ -80,6 +80,7 @@ lerna-debug.log*
 /HealthLink_BE/CLAUDE.md
 /.superpowers
 /plans
+/HealthLink_FE/.npm-cache
 
 # === Custom ignores cho file XML do IDE sinh ra ===
 HealthLink/HealthLink_BE/HealthLink_BEynbactions.xml
