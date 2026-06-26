@@ -35,8 +35,6 @@ const FollowUpTab = ({
   followUpConsultationType,
   onFollowUpTypeChange,
   onLockedAction,
-  onMarkDirty,
-  onMarkClean,
 }) => {
   const hasExistingFollowUp = Boolean(consultation.followUpDate || consultation.followUpNotes);
 
@@ -123,7 +121,6 @@ const FollowUpTab = ({
                 onClick={() => { if (!canEditFollowUp && typeof onLockedAction === 'function') onLockedAction(); }}
                 onChange={(event) => {
                   onFollowUpNotesChange(event.target.value);
-                  if (typeof onMarkDirty === 'function') onMarkDirty();
                 }}
                 placeholder="Add concise notes for the next appointment..."
                 rows="2"
@@ -256,7 +253,6 @@ const FollowUpTab = ({
                 return;
               }
               onConfirmFollowUp();
-              if (typeof onMarkClean === 'function') onMarkClean();
             }}
             type="button"
           >

@@ -1,10 +1,10 @@
 import React from 'react';
 
-const VitalBadge = ({ icon, value, unit }) => (
-  <div className="patient-sidebar-vital">
+const VitalBadge = ({ icon, value, unit, warning }) => (
+  <div className={`doctor-vital-badge${warning ? ' doctor-vital-badge--warning' : ''}`}>
     <i className={`bi ${icon}`}></i>
-    <span className="patient-sidebar-vital__value">{value}</span>
-    {unit && <span className="patient-sidebar-vital__unit">{unit}</span>}
+    <span className="doctor-vital-badge__value">{value}</span>
+    {unit && <span className="doctor-vital-badge__unit">{unit}</span>}
   </div>
 );
 
@@ -18,6 +18,10 @@ const PatientSummarySidebar = ({
   const allergies = patient?.allergies
     ? patient.allergies.split(',').map((a) => a.trim()).filter(Boolean)
     : [];
+
+  const bmi = patient?.heightCm && patient?.weightKg
+    ? (patient.weightKg / ((patient.heightCm / 100) ** 2)).toFixed(1)
+    : null;
 
   return (
     <aside className="patient-sidebar">
@@ -46,15 +50,24 @@ const PatientSummarySidebar = ({
         </p>
       </div>
 
+      <div className="patient-sidebar__section">
+        <p className="patient-sidebar__label">
+          <i className="bi bi-telephone me-1"></i>Phone
+        </p>
+        <p className="patient-sidebar__text">
+          {patient?.phoneNumber || 'N/A'}
+        </p>
+      </div>
+
       {allergies.length > 0 && (
         <div className="patient-sidebar__section patient-sidebar__section--allergies">
           <p className="patient-sidebar__label">
-            <i className="bi bi-exclamation-triangle-fill" style={{color:'var(--warning)',marginRight:'0.25rem'}}></i>
+            <i className="bi bi-exclamation-triangle-fill" style={{color:'var(--doctor-warning)',marginRight:'0.25rem'}}></i>
             Allergies
           </p>
           <div className="patient-sidebar__allergy-pills">
             {allergies.map((a, i) => (
-              <span key={i} className="patient-sidebar__allergy-pill">{a}</span>
+              <span key={i} className="patient-sidebar__allergy-pill"><i className="bi bi-dot"></i>{a}</span>
             ))}
           </div>
         </div>
@@ -86,9 +99,35 @@ const PatientSummarySidebar = ({
             {latestVitalSign.temperature && (
               <VitalBadge icon="bi-thermometer-half" value={latestVitalSign.temperature} unit="°C" />
             )}
+            {latestVitalSign.respiratoryRate && (
+              <VitalBadge icon="bi-wind" value={latestVitalSign.respiratoryRate} unit="br/pm" />
+            )}
+            {patient?.bloodType && (
+              <VitalBadge icon="bi-droplet" value={patient.bloodType} />
+            )}
           </div>
         ) : (
           <p className="patient-sidebar__empty-text">No vitals recorded</p>
+        )}
+
+        {(patient?.heightCm || patient?.weightKg) && (
+          <>
+            <div className="patient-sidebar__divider" />
+            <p className="patient-sidebar__label">
+              <i className="bi bi-graph-up me-1"></i>Body Metrics
+            </p>
+            <div className="patient-sidebar__vitals-grid">
+              {patient?.heightCm && (
+                <VitalBadge icon="bi-arrows-vertical" value={patient.heightCm} unit="cm" />
+              )}
+              {patient?.weightKg && (
+                <VitalBadge icon="bi-circle-fill" value={patient.weightKg} unit="kg" />
+              )}
+              {bmi && (
+                <VitalBadge icon="bi-calculator" value={bmi} />
+              )}
+            </div>
+          </>
         )}
       </div>
 

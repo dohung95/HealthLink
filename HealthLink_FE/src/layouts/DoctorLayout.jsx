@@ -137,7 +137,7 @@ const DoctorLayout = memo(({
       ) : null}
 
       {/* Main Area */}
-      <div className="doctor-main-area doctor-viewport" style={{ paddingLeft: '240px' }}>
+      <div className="doctor-main-area" style={{ paddingLeft: '240px' }}>
         <DoctorHeader
           doctorData={doctorData}
           isMobileMenuOpen={isMobileMenuOpen}

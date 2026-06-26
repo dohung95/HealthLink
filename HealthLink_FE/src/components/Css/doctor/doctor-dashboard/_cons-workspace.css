@@ -192,7 +192,8 @@
 /* ---- Tab Panel ---- */
 .doctor-detail-tab-panel {
   position: relative;
-  flex: 1;
+  flex: 1 1 0;
+  min-height: 0;
   display: flex;
   flex-direction: column;
   overflow-y: auto;
@@ -364,37 +365,43 @@
 }
 
 /* ---- Patient Summary Sidebar ---- */
-.patient-sidebar {
-  width: 240px;
+.doctor-detail-with-sidebar .patient-sidebar {
+  width: 280px;
   flex-shrink: 0;
+  height: auto;
+  min-height: 0;
+  max-height: 100%;
+  position: static;
+  top: auto;
+  align-self: stretch;
   overflow-y: auto;
-  border-right: 1px solid var(--border-light);
-  background: var(--surface-muted);
+  border-right: 1px solid var(--doctor-border-light);
+  background: var(--doctor-surface);
   padding: 0.75rem;
   display: flex;
   flex-direction: column;
-  gap: 0.75rem;
+  gap: 0.5rem;
 }
 
-.patient-sidebar__section {
-  background: var(--surface);
-  border: 1px solid var(--border-light);
-  border-radius: var(--radius-md);
+.doctor-detail-with-sidebar .patient-sidebar__section {
+  background: var(--doctor-surface-muted);
+  border: 1px solid var(--doctor-border-light);
+  border-radius: var(--doctor-radius-md);
   padding: 0.625rem 0.75rem;
 }
 
-.patient-sidebar__section--allergies {
+.doctor-detail-with-sidebar .patient-sidebar__section--allergies {
   border-color: rgba(251, 191, 36, 0.3);
   background: rgba(251, 191, 36, 0.04);
 }
 
-.patient-sidebar__patient-row {
+.doctor-detail-with-sidebar .patient-sidebar__patient-row {
   display: flex;
   align-items: center;
   gap: 0.625rem;
 }
 
-.patient-sidebar__avatar {
+.doctor-detail-with-sidebar .patient-sidebar__avatar {
   width: 2.5rem;
   height: 2.5rem;
   border-radius: 50%;
@@ -402,129 +409,144 @@
   flex-shrink: 0;
 }
 
-.patient-sidebar__avatar--fallback {
+.doctor-detail-with-sidebar .patient-sidebar__avatar--fallback {
   display: flex;
   align-items: center;
   justify-content: center;
   font-size: 1rem;
   font-weight: 700;
-  color: var(--primary);
-  background: var(--primary-light);
+  color: var(--doctor-primary);
+  background: var(--doctor-primary-soft);
 }
 
-.patient-sidebar__identity {
+.doctor-detail-with-sidebar .patient-sidebar__identity {
   min-width: 0;
 }
 
-.patient-sidebar__name {
+.doctor-detail-with-sidebar .patient-sidebar__name {
   font-size: 0.875rem;
   font-weight: 700;
-  color: var(--text-primary);
+  color: var(--doctor-text);
   margin: 0;
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
 }
 
-.patient-sidebar__meta {
+.doctor-detail-with-sidebar .patient-sidebar__meta {
   font-size: 0.6875rem;
-  color: var(--text-muted);
+  color: var(--doctor-text-muted);
   display: block;
   margin-top: 0.125rem;
 }
 
-.patient-sidebar__label {
+.doctor-detail-with-sidebar .patient-sidebar__label {
   font-size: 0.625rem;
   font-weight: 700;
   text-transform: uppercase;
   letter-spacing: 0.06em;
-  color: var(--text-muted);
+  color: var(--doctor-text-muted);
   margin: 0 0 0.25rem;
   display: flex;
   align-items: center;
 }
 
-.patient-sidebar__reason {
+.doctor-detail-with-sidebar .patient-sidebar__reason {
   font-size: 0.8125rem;
-  color: var(--text-primary);
+  color: var(--doctor-text);
   margin: 0;
   line-height: 1.4;
   word-break: break-word;
 }
 
-.patient-sidebar__reason--empty {
-  color: var(--text-muted);
+.doctor-detail-with-sidebar .patient-sidebar__reason--empty {
+  color: var(--doctor-text-muted);
   font-style: italic;
 }
 
-.patient-sidebar__allergy-pills {
+.doctor-detail-with-sidebar .patient-sidebar__allergy-pills {
   display: flex;
   flex-wrap: wrap;
   gap: 0.25rem;
 }
 
-.patient-sidebar__allergy-pill {
+.doctor-detail-with-sidebar .patient-sidebar__allergy-pill {
+  display: inline-flex;
+  align-items: center;
   font-size: 0.6875rem;
   font-weight: 600;
-  color: var(--text-primary);
-  background: var(--surface-container);
+  color: var(--doctor-warning);
+  background: rgba(217, 119, 6, 0.08);
+  border: 1px solid rgba(217, 119, 6, 0.2);
   padding: 0.125rem 0.5rem;
   border-radius: 999px;
 }
 
-.patient-sidebar__vitals-grid {
+.doctor-detail-with-sidebar .patient-sidebar__allergy-pill i {
+  font-size: 0.5rem;
+  margin-right: -0.125rem;
+}
+
+.doctor-detail-with-sidebar .patient-sidebar__vitals-grid {
   display: flex;
   flex-wrap: wrap;
   gap: 0.375rem;
 }
 
-.patient-sidebar-vital {
-  display: flex;
-  align-items: center;
-  gap: 0.25rem;
-  font-size: 0.75rem;
-  color: var(--text-primary);
-  background: var(--surface-muted);
-  padding: 0.25rem 0.5rem;
-  border-radius: var(--radius-sm);
+.doctor-vital-badge--warning {
+  background: linear-gradient(135deg, rgba(217, 119, 6, 0.08), rgba(217, 119, 6, 0.03));
+  border-color: rgba(217, 119, 6, 0.25);
+  color: var(--doctor-warning);
 }
 
-.patient-sidebar-vital i {
-  font-size: 0.75rem;
-  color: var(--text-muted);
+.doctor-vital-badge--warning i {
+  color: var(--doctor-warning);
+  opacity: 0.8;
 }
 
-.patient-sidebar-vital__value {
-  font-weight: 700;
-}
-
-.patient-sidebar-vital__unit {
-  font-size: 0.625rem;
-  color: var(--text-muted);
-}
-
-.patient-sidebar__text {
+.doctor-detail-with-sidebar .patient-sidebar__text {
   font-size: 0.8125rem;
-  color: var(--text-primary);
+  color: var(--doctor-text);
   margin: 0;
 }
 
-.patient-sidebar__text--small {
+.doctor-detail-with-sidebar .patient-sidebar__text--small {
   font-size: 0.75rem;
-  color: var(--text-muted);
+  color: var(--doctor-text-muted);
 }
 
-.patient-sidebar__empty-text {
+.doctor-detail-with-sidebar .patient-sidebar__empty-text {
   font-size: 0.75rem;
-  color: var(--text-muted);
+  color: var(--doctor-text-muted);
   font-style: italic;
   margin: 0;
 }
 
+.doctor-detail-with-sidebar .patient-sidebar__divider {
+  height: 1px;
+  background: var(--doctor-border-light);
+  margin: 0.5rem 0;
+}
+
 @media (max-width: 992px) {
-  .patient-sidebar {
+  .doctor-detail-with-sidebar .patient-sidebar {
     display: none;
   }
+}
+
+/* ---- Appointment Header (above tabs) ---- */
+.doctor-detail-appt-header {
+  padding: 0.75rem 1.25rem;
+  background: var(--doctor-surface-muted);
+  border-bottom: 1px solid var(--doctor-border-light);
+  flex-shrink: 0;
+}
+
+.doctor-detail-appt-header__main-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 0.5rem;
 }
 
 .doctor-detail-empty__description {
@@ -535,35 +557,6 @@
   line-height: 1.5;
 }
 
-/* ---- Unsaved Changes Bar ---- */
-.unsaved-changes-bar {
-  display: flex;
-  align-items: center;
-  padding: 0.5rem 1rem;
-  background: #fffbeb;
-  border: 1px solid #fde68a;
-  border-radius: var(--radius-md);
-  margin: 0 0.75rem 0.75rem;
-  flex-shrink: 0;
-}
-
-.unsaved-changes-bar__content {
-  display: flex;
-  align-items: center;
-  gap: 0.5rem;
-  font-size: 0.8125rem;
-  color: #92400e;
-}
-
-.unsaved-changes-bar__icon {
-  font-size: 1.125rem;
-}
-
-.unsaved-changes-bar__time {
-  margin-left: auto;
-  font-size: 0.75rem;
-  opacity: 0.7;
-}
 
 .doctor-prescription-actions {
   padding: 0.75rem 1rem;
