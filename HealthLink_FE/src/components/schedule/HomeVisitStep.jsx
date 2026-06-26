@@ -49,8 +49,6 @@ const HomeVisitStep = ({
 }) => {
   const fileRef = useRef(null);
   const [scanning, setScanning] = useState(false);
-  const [addressResults, setAddressResults] = useState([]);
-  const [searchingAddress, setSearchingAddress] = useState(false);
   const [estimate, setEstimate] = useState(null);
   const [estimating, setEstimating] = useState(false);
 
@@ -190,50 +188,6 @@ const HomeVisitStep = ({
     } finally {
       setScanning(false);
     }
-  };
-
-  const handleSearchAddress = async () => {
-    if (!homeVisitInfo.visitAddress?.trim()) {
-      toast.warning('Please enter a visit address first.');
-      return;
-    }
-
-    try {
-      setSearchingAddress(true);
-
-      const results = await homeVisitApi.geocodeAddress(homeVisitInfo.visitAddress);
-
-      setAddressResults(results);
-
-      if (!results.length) {
-        toast.warning('No matching address found. Please try a more detailed address.');
-      }
-    } catch (error) {
-      toast.error(error.response?.data?.message || 'Can not search this address.');
-    } finally {
-      setSearchingAddress(false);
-    }
-  };
-
-  const handleSelectAddressResult = (result) => {
-    setHomeVisitInfo((prev) => ({
-      ...prev,
-
-      // Không ghi đè địa chỉ user nhập, vì displayName có thể mất số nhà.
-      visitAddress: prev.visitAddress,
-
-      // Chỉ lấy tọa độ từ kết quả map.
-      visitLatitude: result.latitude,
-      visitLongitude: result.longitude,
-
-      // lưu tạm để hiển thị trên UI.
-      mapDisplayAddress: result.displayName,
-    }));
-
-    setAddressResults([]);
-    setEstimate(null);
-
-    toast.success('Location selected. Please verify the pin on the map.');
   };
 
   const handlePickLocation = (lat, lng) => {
@@ -495,50 +449,29 @@ const HomeVisitStep = ({
         <label className="home-visit-full">
           Visit address <span>*</span>
 
-          <div className="address-search-row">
-            <input
-              value={homeVisitInfo.visitAddress || ''}
-              onChange={(e) => {
-                setHomeVisitInfo((prev) => ({
-                  ...prev,
-                  visitAddress: e.target.value,
-                  distanceKm: null,
-                  estimatedTravelMinutes: null,
-                  homeVisitFee: null,
-                  travelFee: null,
-                  totalFee: null,
-                  serviceable: null,
-                }));
+          <input
+            value={homeVisitInfo.visitAddress || ''}
+            onChange={(e) => {
+              setHomeVisitInfo((prev) => ({
+                ...prev,
+                visitAddress: e.target.value,
+                distanceKm: null,
+                estimatedTravelMinutes: null,
+                homeVisitFee: null,
+                travelFee: null,
+                totalFee: null,
+                serviceable: null,
+              }));
 
-                setEstimate(null);
-              }}
-              placeholder="House number, street, ward, district..."
-            />
+              setEstimate(null);
+            }}
+            placeholder="House number, street, ward, district..."
+          />
 
-            <button
-              type="button"
-              className="btn-outline-soft"
-              onClick={handleSearchAddress}
-              disabled={searchingAddress}
-            >
-              {searchingAddress ? 'Searching...' : 'Search'}
-            </button>
-          </div>
+          <small className="field-help-text">
+            Enter the full address for the doctor, then click the map to pin the exact home entrance.
+          </small>
         </label>
-
-        {addressResults.length > 0 && (
-          <div className="home-visit-full address-results">
-            {addressResults.map((item, index) => (
-              <button
-                key={`${item.latitude}-${item.longitude}-${index}`}
-                type="button"
-                onClick={() => handleSelectAddressResult(item)}
-              >
-                {item.displayName}
-              </button>
-            ))}
-          </div>
-        )}
 
         <div className="home-visit-full">
           <div className="map-actions">
@@ -584,7 +517,7 @@ const HomeVisitStep = ({
           </div>
 
           <small className="map-help-text">
-            Search your address, then verify the pin on the map. You can click the map to adjust the exact home entrance.
+            Click on the map to select the exact home entrance, or use your current location. The travel fee will be calculated from this pin.
           </small>
 
           {estimate && (
