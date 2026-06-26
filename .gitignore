@@ -67,6 +67,11 @@ lerna-debug.log*
 /HealthLink_FE/.codex
 /HealthLink_FE/.opencode
 /HealthLink_FE/graphify-out
+/HealthLink_FE/AGENTS.md
+/HealthLink_BE/graphify-out
+/HealthLink_BE/AGENTS.md
+/.semgrepignore
+/.continue
 
 /.superpowers
 
