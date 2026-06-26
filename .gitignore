@@ -79,7 +79,6 @@ lerna-debug.log*
 /.superpowers
 /.github
 /tasks
-/docs
 
 # === Build artifacts ===
 HealthLink_FE/dist/
