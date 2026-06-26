@@ -44,7 +44,6 @@ const HomeVisitStep = ({
   homeVisitInfo,
   setHomeVisitInfo,
   patientProfile,
-  selectedDoctorId,
   onBack,
   onNext,
 }) => {
@@ -61,25 +60,43 @@ const HomeVisitStep = ({
 
   const selectedLocation =
     homeVisitInfo.visitLatitude && homeVisitInfo.visitLongitude
-      ? { lat: homeVisitInfo.visitLatitude, lng: homeVisitInfo.visitLongitude }
+      ? {
+        lat: homeVisitInfo.visitLatitude,
+        lng: homeVisitInfo.visitLongitude,
+      }
       : null;
 
   const calculateAge = (dateOfBirth) => {
     if (!dateOfBirth) return '';
+
     const birthDate = new Date(dateOfBirth);
     if (Number.isNaN(birthDate.getTime())) return '';
+
     const today = new Date();
     let age = today.getFullYear() - birthDate.getFullYear();
+
     const hasNotHadBirthdayThisYear =
       today.getMonth() < birthDate.getMonth() ||
       (today.getMonth() === birthDate.getMonth() && today.getDate() < birthDate.getDate());
-    if (hasNotHadBirthdayThisYear) age -= 1;
+
+    if (hasNotHadBirthdayThisYear) {
+      age -= 1;
+    }
+
     return age > 0 ? age : '';
   };
 
   const buildSelfVisitInfo = () => {
-    if (!patientProfile) return {};
-    const phone = patientProfile.phoneNumber || patientProfile.phone || patientProfile.user?.phoneNumber || '';
+    if (!patientProfile) {
+      return {};
+    }
+
+    const phone =
+      patientProfile.phoneNumber ||
+      patientProfile.phone ||
+      patientProfile.user?.phoneNumber ||
+      '';
+
     return {
       receiverName: patientProfile.fullName || patientProfile.name || '',
       receiverAge: calculateAge(patientProfile.dateOfBirth),
@@ -93,7 +110,10 @@ const HomeVisitStep = ({
   };
 
   const updateField = (field, value) => {
-    setHomeVisitInfo((prev) => ({ ...prev, [field]: value }));
+    setHomeVisitInfo((prev) => ({
+      ...prev,
+      [field]: value,
+    }));
   };
 
   const resetVisitEstimateFields = () => ({
@@ -108,7 +128,12 @@ const HomeVisitStep = ({
 
   const handleSelectForSelf = () => {
     const selfInfo = buildSelfVisitInfo();
-    setHomeVisitInfo((prev) => ({ ...prev, ...selfInfo, isForSelf: true }));
+
+    setHomeVisitInfo((prev) => ({
+      ...prev,
+      ...selfInfo,
+      isForSelf: true,
+    }));
   };
 
   const handleSelectForSomeoneElse = () => {
@@ -124,23 +149,33 @@ const HomeVisitStep = ({
   };
 
   useEffect(() => {
-    if (!homeVisitInfo.isForSelf || !patientProfile) return;
-    setHomeVisitInfo((prev) => ({ ...prev, ...buildSelfVisitInfo(), isForSelf: true }));
+    if (!homeVisitInfo.isForSelf) return;
+    if (!patientProfile) return;
+
+    setHomeVisitInfo((prev) => ({
+      ...prev,
+      ...buildSelfVisitInfo(),
+      isForSelf: true,
+    }));
   }, [patientProfile, homeVisitInfo.isForSelf]);
 
   const handleScanFile = async (event) => {
     const file = event.target.files?.[0];
     event.target.value = '';
+
     if (!file) return;
 
     try {
       setScanning(true);
       toast.info('Scanning document...');
+
       const result = await homeVisitApi.scanInfo(file);
+
       if (!result.success) {
-        toast.warning(result.errorMessage || 'Cannot scan this document. Please fill manually.');
+        toast.warning(result.errorMessage || 'Can not scan this document. Please fill manually.');
         return;
       }
+
       setHomeVisitInfo((prev) => ({
         ...prev,
         receiverName: result.receiverName || prev.receiverName,
@@ -151,11 +186,15 @@ const HomeVisitStep = ({
         visitAddress: result.visitAddress || prev.visitAddress,
         visitCity: result.visitCity || prev.visitCity,
       }));
+
       toast.success('Information scanned. Please verify before continuing.');
-      if (result.warnings?.length > 0) toast.warning(result.warnings.join(', '));
+
+      if (result.warnings?.length > 0) {
+        toast.warning(result.warnings.join(', '));
+      }
     } catch (error) {
       console.error('Home visit scan error:', error);
-      toast.error(error.response?.data?.message || 'Cannot scan document.');
+      toast.error(error.response?.data?.message || 'Can not scan document.');
     } finally {
       setScanning(false);
     }
@@ -167,7 +206,14 @@ const HomeVisitStep = ({
       ...resetVisitEstimateFields(),
       visitLatitude: lat,
       visitLongitude: lng,
+      distanceKm: null,
+      estimatedTravelMinutes: null,
+      homeVisitFee: null,
+      travelFee: null,
+      totalFee: null,
+      serviceable: null,
     }));
+
     setEstimate(null);
   };
 
@@ -176,13 +222,19 @@ const HomeVisitStep = ({
       toast.warning('Your browser does not support location detection.');
       return;
     }
+
     navigator.geolocation.getCurrentPosition(
       (position) => {
         handlePickLocation(position.coords.latitude, position.coords.longitude);
         toast.success('Current location selected.');
       },
-      () => { toast.error('Unable to access your location.'); },
-      { enableHighAccuracy: true, timeout: 10000 }
+      () => {
+        toast.error('Unable to access your location.');
+      },
+      {
+        enableHighAccuracy: true,
+        timeout: 10000,
+      }
     );
   };
 
@@ -191,19 +243,18 @@ const HomeVisitStep = ({
       toast.warning('Please select the visit location first.');
       return;
     }
-    if (!selectedDoctorId) {
-      toast.warning('Doctor information is missing.');
-      return;
-    }
 
     try {
       setEstimating(true);
+
       const result = await homeVisitApi.estimateFee({
-        doctorId: selectedDoctorId,
         visitLatitude: homeVisitInfo.visitLatitude,
         visitLongitude: homeVisitInfo.visitLongitude,
       });
+
       setEstimate(result);
+
+
       setHomeVisitInfo((prev) => ({
         ...prev,
         distanceKm: result.distanceKm,
@@ -214,10 +265,11 @@ const HomeVisitStep = ({
         serviceable: result.serviceable,
         serviceMessage: result.message,
       }));
+
       if (result.serviceable) {
         toast.success('Travel fee estimated.');
       } else {
-        toast.warning(result.message || 'This address is outside the service area.');
+        toast.warning(result.message || 'This address is outside our service area.');
       }
     } catch (error) {
       toast.error(error.response?.data?.message || 'Cannot estimate travel fee.');
@@ -228,27 +280,51 @@ const HomeVisitStep = ({
 
   const handleNext = () => {
     if (!homeVisitInfo.visitAddress?.trim()) {
-      toast.warning('Visit address is required.'); return;
+      toast.warning('Visit address is required.');
+      return;
     }
+
     if (!homeVisitInfo.contactPhone?.trim()) {
-      toast.warning('Contact phone is required.'); return;
+      toast.warning('Contact phone is required.');
+      return;
     }
+
     if (!homeVisitInfo.reasonForHomeVisit?.trim()) {
-      toast.warning('Reason for home visit is required.'); return;
+      toast.warning('Reason for home visit is required.');
+      return;
     }
+
     if (homeVisitInfo.isForSelf === false) {
-      if (!homeVisitInfo.receiverName?.trim()) { toast.warning('Receiver name is required.'); return; }
-      if (!homeVisitInfo.receiverRelationship?.trim()) { toast.warning('Receiver relationship is required.'); return; }
-      if (!homeVisitInfo.receiverAge || Number(homeVisitInfo.receiverAge) <= 0) { toast.warning('Receiver age must be greater than 0.'); return; }
+      if (!homeVisitInfo.receiverName?.trim()) {
+        toast.warning('Receiver name is required.');
+        return;
+      }
+
+      if (!homeVisitInfo.receiverRelationship?.trim()) {
+        toast.warning('Receiver relationship is required.');
+        return;
+      }
+
+      if (!homeVisitInfo.receiverAge || Number(homeVisitInfo.receiverAge) <= 0) {
+        toast.warning('Receiver age must be greater than 0.');
+        return;
+      }
     }
+
     if (!homeVisitInfo.visitLatitude || !homeVisitInfo.visitLongitude) {
-      toast.warning('Please select the visit location on the map.'); return;
+      toast.warning('Please select the visit location on the map.');
+      return;
     }
+
     if (!estimate) {
-      toast.warning('Please estimate the travel fee before continuing.'); return;
+      toast.warning('Please estimate the travel fee before continuing.');
+      return;
     }
+
     if (!estimate.serviceable) {
-      toast.warning('This address is outside our home visit service area.'); return;
+      toast.warning('This address is outside our home visit service area.');
+      return;
+
     }
 
     onNext();
@@ -262,50 +338,122 @@ const HomeVisitStep = ({
       </p>
 
       <div className="home-visit-toggle">
-        <button type="button" className={homeVisitInfo.isForSelf ? 'selected' : ''} onClick={handleSelectForSelf}>
+        <button
+          type="button"
+          className={homeVisitInfo.isForSelf ? 'selected' : ''}
+          onClick={handleSelectForSelf}
+        >
           For myself
         </button>
-        <button type="button" className={homeVisitInfo.isForSelf === false ? 'selected' : ''} onClick={handleSelectForSomeoneElse}>
+
+        <button
+          type="button"
+          className={homeVisitInfo.isForSelf === false ? 'selected' : ''}
+          onClick={handleSelectForSomeoneElse}
+        >
           For someone else
         </button>
       </div>
 
       {homeVisitInfo.isForSelf && (
         <div className="self-visit-summary">
-          <div><strong>Patient</strong><span>{homeVisitInfo.receiverName || 'Not available'}</span></div>
-          <div><strong>Age</strong><span>{homeVisitInfo.receiverAge || 'Not available'}</span></div>
-          <div><strong>Gender</strong><span>{homeVisitInfo.receiverGender || 'Not available'}</span></div>
-          <div><strong>Phone</strong><span>{homeVisitInfo.receiverPhone || homeVisitInfo.contactPhone || 'Not available'}</span></div>
+          <div>
+            <strong>Patient</strong>
+            <span>{homeVisitInfo.receiverName || 'Not available'}</span>
+          </div>
+
+          <div>
+            <strong>Age</strong>
+            <span>{homeVisitInfo.receiverAge || 'Not available'}</span>
+          </div>
+
+          <div>
+            <strong>Gender</strong>
+            <span>{homeVisitInfo.receiverGender || 'Not available'}</span>
+          </div>
+
+          <div>
+            <strong>Phone</strong>
+            <span>{homeVisitInfo.receiverPhone || homeVisitInfo.contactPhone || 'Not available'}</span>
+          </div>
         </div>
       )}
 
       {homeVisitInfo.isForSelf === false && (
         <>
           <div className="scan-box">
-            <input ref={fileRef} type="file" accept="image/*,.pdf,.docx" onChange={handleScanFile} style={{ display: 'none' }} />
-            <button type="button" className="btn-outline-soft" onClick={() => fileRef.current?.click()} disabled={scanning}>
-              <i className="bi bi-magic"></i>{scanning ? ' Scanning...' : ' Scan from document'}
+            <input
+              ref={fileRef}
+              type="file"
+              accept="image/*,.pdf,.docx"
+              onChange={handleScanFile}
+              style={{ display: 'none' }}
+            />
+
+            <button
+              type="button"
+              className="btn-outline-soft"
+              onClick={() => fileRef.current?.click()}
+              disabled={scanning}
+            >
+              <i className="bi bi-magic"></i>
+              {scanning ? ' Scanning...' : ' Scan from document'}
             </button>
-            <small>Upload an ID card, insurance card, or document to auto-fill receiver information.</small>
+
+            <small>
+              Upload an ID card, insurance card, or document to auto-fill receiver information.
+            </small>
           </div>
 
           <div className="home-visit-grid">
-            <label>Receiver name <span>*</span>
-              <input value={homeVisitInfo.receiverName || ''} onChange={(e) => updateField('receiverName', e.target.value)} placeholder="Full name" />
+            <label>
+              Receiver name <span>*</span>
+              <input
+                value={homeVisitInfo.receiverName || ''}
+                onChange={(e) => updateField('receiverName', e.target.value)}
+                placeholder="Full name"
+              />
             </label>
-            <label>Age <span>*</span>
-              <input type="number" min="1" value={homeVisitInfo.receiverAge || ''} onChange={(e) => updateField('receiverAge', e.target.value)} placeholder="Age" />
+
+            <label>
+              Age <span>*</span>
+              <input
+                type="number"
+                min="1"
+                value={homeVisitInfo.receiverAge || ''}
+                onChange={(e) => updateField('receiverAge', e.target.value)}
+                placeholder="Age"
+              />
             </label>
-            <label>Gender
-              <select value={homeVisitInfo.receiverGender || ''} onChange={(e) => updateField('receiverGender', e.target.value)}>
-                <option value="Male">Male</option><option value="Female">Female</option><option value="Other">Other</option>
+
+            <label>
+              Gender
+              <select
+                value={homeVisitInfo.receiverGender || ''}
+                onChange={(e) => updateField('receiverGender', e.target.value)}
+              >
+                <option value="Male">Male</option>
+                <option value="Female">Female</option>
+                <option value="Other">Other</option>
               </select>
             </label>
-            <label>Relationship <span>*</span>
-              <input value={homeVisitInfo.receiverRelationship || ''} onChange={(e) => updateField('receiverRelationship', e.target.value)} placeholder="Father, Mother, Child..." />
+
+            <label>
+              Relationship <span>*</span>
+              <input
+                value={homeVisitInfo.receiverRelationship || ''}
+                onChange={(e) => updateField('receiverRelationship', e.target.value)}
+                placeholder="Father, Mother, Child..."
+              />
             </label>
-            <label>Receiver phone
-              <input value={homeVisitInfo.receiverPhone || ''} onChange={(e) => updateField('receiverPhone', e.target.value)} placeholder="Optional" />
+
+            <label>
+              Receiver phone
+              <input
+                value={homeVisitInfo.receiverPhone || ''}
+                onChange={(e) => updateField('receiverPhone', e.target.value)}
+                placeholder="Optional"
+              />
             </label>
           </div>
         </>
@@ -314,6 +462,7 @@ const HomeVisitStep = ({
       <div className="home-visit-grid">
         <label className="home-visit-full">
           Visit address <span>*</span>
+
           <input
             value={homeVisitInfo.visitAddress || ''}
             onChange={(e) => {
@@ -334,22 +483,44 @@ const HomeVisitStep = ({
 
         <div className="home-visit-full">
           <div className="map-actions">
-            <button type="button" className="btn-outline-soft" onClick={handleUseCurrentLocation}>
+            <button
+              type="button"
+              className="btn-outline-soft"
+              onClick={handleUseCurrentLocation}
+            >
               Use my current location
             </button>
-            <button type="button" className="btn-outline-soft" onClick={handleEstimateFee} disabled={estimating}>
+
+            <button
+              type="button"
+              className="btn-outline-soft"
+              onClick={handleEstimateFee}
+              disabled={estimating}
+            >
               {estimating ? 'Estimating...' : 'Estimate travel fee'}
             </button>
           </div>
 
           <div className="home-visit-map">
             <MapContainer
-              center={[homeVisitInfo.visitLatitude || 10.7769, homeVisitInfo.visitLongitude || 106.7009]}
-              zoom={13} style={{ height: '300px', width: '100%' }}
+              center={[
+                homeVisitInfo.visitLatitude || 10.7769,
+                homeVisitInfo.visitLongitude || 106.7009,
+              ]}
+              zoom={13}
+              style={{ height: '300px', width: '100%' }}
             >
-              <TileLayer attribution="&copy; OpenStreetMap contributors" url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png" />
+              <TileLayer
+                attribution="&copy; OpenStreetMap contributors"
+                url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
+              />
+
               <MapRecenter location={selectedLocation} />
-              <LocationPicker location={selectedLocation} onPick={handlePickLocation} />
+
+              <LocationPicker
+                location={selectedLocation}
+                onPick={handlePickLocation}
+              />
             </MapContainer>
           </div>
 
@@ -391,30 +562,55 @@ const HomeVisitStep = ({
 
         <label>
           City / Province
-          <input value={homeVisitInfo.visitCity || ''} onChange={(e) => updateField('visitCity', e.target.value)} placeholder="City or province" />
+          <input
+            value={homeVisitInfo.visitCity || ''}
+            onChange={(e) => updateField('visitCity', e.target.value)}
+            placeholder="City or province"
+          />
         </label>
 
         <label>
           Contact phone <span>*</span>
-          <input value={homeVisitInfo.contactPhone || ''} onChange={(e) => updateField('contactPhone', e.target.value)} placeholder="Phone number for doctor contact" />
+          <input
+            value={homeVisitInfo.contactPhone || ''}
+            onChange={(e) => updateField('contactPhone', e.target.value)}
+            placeholder="Phone number for doctor contact"
+          />
         </label>
 
         <label className="home-visit-full">
           Reason for home visit <span>*</span>
-          <textarea rows={3} value={homeVisitInfo.reasonForHomeVisit || ''} onChange={(e) => updateField('reasonForHomeVisit', e.target.value)} placeholder="Example: elderly patient has difficulty walking..." />
+          <textarea
+            rows={3}
+            value={homeVisitInfo.reasonForHomeVisit || ''}
+            onChange={(e) => updateField('reasonForHomeVisit', e.target.value)}
+            placeholder="Example: elderly patient has difficulty walking..."
+          />
         </label>
 
         <label className="home-visit-full">
           Special notes
-          <textarea rows={2} value={homeVisitInfo.specialNotes || ''} onChange={(e) => updateField('specialNotes', e.target.value)} placeholder="Gate code, floor number, mobility issues..." />
+          <textarea
+            rows={2}
+            value={homeVisitInfo.specialNotes || ''}
+            onChange={(e) => updateField('specialNotes', e.target.value)}
+            placeholder="Gate code, floor number, mobility issues..."
+          />
         </label>
       </div>
 
-      <div className="documents-note">Please verify scanned information carefully before payment.</div>
+      <div className="documents-note">
+        Please verify scanned information carefully before payment.
+      </div>
 
       <div className="schedule-actions">
-        <button type="button" className="btn-outline-soft" onClick={onBack}>Back</button>
-        <button type="button" className="btn-primary-soft" onClick={handleNext}>Next</button>
+        <button type="button" className="btn-outline-soft" onClick={onBack}>
+          Back
+        </button>
+
+        <button type="button" className="btn-primary-soft" onClick={handleNext}>
+          Next
+        </button>
       </div>
     </div>
   );
