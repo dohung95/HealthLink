@@ -466,6 +466,9 @@ public class FinanceServiceImpl implements FinanceService {
             LocalDateTime paidAt = LocalDateTime.now();
             appointment.setStatus(APPT_SCHEDULED);
             appointment.setConfirmedAt(paidAt);
+            if (sourceConsultation != null) {
+                appointment.setFollowUpSourceAppointmentId(sourceConsultation.getAppointment().getAppointmentId());
+            }
             appointment = appointmentRepository.save(appointment);
             linkSourceConsultation(sourceConsultation, appointment);
 
