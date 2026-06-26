@@ -5,6 +5,7 @@ import '../../services/doctor/doctor_service.dart';
 import '../../models/doctor/doctor_profile.dart';
 import '../../config/api_config.dart';
 import '../../config/doctor_theme.dart';
+import '../../widgets/doctor/doctor_widgets.dart';
 import 'doctor_security_screen.dart';
 import 'doctor_wallet_screen.dart';
 
@@ -20,6 +21,7 @@ class _DoctorProfileScreenState extends State<DoctorProfileScreen> {
   String? _error;
   DoctorProfile? _profile;
   Map<String, dynamic> _reviewStats = {};
+  bool _available = true;
 
   @override
   void initState() {
@@ -62,70 +64,122 @@ class _DoctorProfileScreenState extends State<DoctorProfileScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final theme = Theme.of(context);
+    if (_isLoading) {
+      return const Scaffold(
+        backgroundColor: DS.background,
+        body: Center(child: CircularProgressIndicator(color: DS.primary)),
+      );
+    }
+
+    if (_error != null) {
+      return Scaffold(
+        backgroundColor: DS.background,
+        body: _buildErrorWidget(),
+      );
+    }
+
+    final p = _profile!;
 
     return Scaffold(
-      backgroundColor: theme.colorScheme.surface,
-      body: _isLoading
-          ? const Center(child: CircularProgressIndicator())
-          : _error != null
-              ? _buildErrorWidget()
-              : RefreshIndicator(
-                  onRefresh: _loadData,
-                  child: CustomScrollView(
-                    slivers: [
-                      _buildAppBar(theme),
-                      SliverToBoxAdapter(
-                        child: Padding(
-                          padding: const EdgeInsets.all(16),
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              _buildStatsSection(theme),
-                              const SizedBox(height: 24),
-                              _buildInfoSection(theme),
-                              const SizedBox(height: 24),
-                              _buildClinicSection(theme),
-                              const SizedBox(height: 24),
-                              _buildSettingsSection(theme),
-                              const SizedBox(height: 32),
-                              _buildLogoutButton(theme),
-                              const SizedBox(height: 32),
-                            ],
-                          ),
-                        ),
-                      ),
+      backgroundColor: DS.background,
+      body: RefreshIndicator(
+        onRefresh: _loadData,
+        color: DS.primary,
+        child: SingleChildScrollView(
+          physics: const AlwaysScrollableScrollPhysics(),
+          child: Column(
+            children: [
+              _buildHeader(p),
+              Padding(
+                padding: const EdgeInsets.all(20),
+                child: Column(
+                  children: [
+                    _buildStatsRow(p),
+                    const SizedBox(height: 20),
+                    _buildProfessionalInfo(p),
+                    const SizedBox(height: 20),
+                    if (p.clinicName != null) ...[
+                      _buildClinicCard(p),
+                      const SizedBox(height: 20),
                     ],
-                  ),
+                    _buildSettingsMenu(),
+                    const SizedBox(height: 20),
+                    _buildLogoutButton(),
+                    const SizedBox(height: 24),
+                  ],
                 ),
+              ),
+            ],
+          ),
+        ),
+      ),
     );
   }
 
   Widget _buildErrorWidget() {
-    final colors = context.doctorColors;
     return Center(
       child: Padding(
         padding: const EdgeInsets.all(24),
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            Icon(Icons.error_outline, size: 64, color: colors.error),
+            Container(
+              width: 64,
+              height: 64,
+              decoration: const BoxDecoration(color: DS.secondary, shape: BoxShape.circle),
+              child: Icon(Icons.error_outline, size: 28, color: DS.mutedForeground.withOpacity(0.6)),
+            ),
             const SizedBox(height: 16),
-            Text(
-              'Failed to load profile',
-              style: TextStyle(fontSize: 18, color: colors.onSurfaceVariant),
-            ),
-            const SizedBox(height: 8),
-            Text(
-              _error ?? '',
-              textAlign: TextAlign.center,
-              style: TextStyle(fontSize: 14, color: colors.onSurfaceVariant.withOpacity(0.7)),
-            ),
+            const Text('Failed to load profile', style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600, color: DS.foreground)),
+            const SizedBox(height: 4),
+            Text(_error ?? '', textAlign: TextAlign.center, style: const TextStyle(fontSize: 14, color: DS.mutedForeground)),
             const SizedBox(height: 24),
-            ElevatedButton.icon(
-              onPressed: _loadData,
-              icon: const Icon(Icons.refresh),
-              label: const Text('Retry'),
+            ElevatedButton.icon(onPressed: _loadData, icon: const Icon(Icons.refresh, size: 18), label: const Text('Retry'), style: DS.primaryButtonStyle),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildHeader(DoctorProfile p) {
+    return DoctorCurvedHeader(
+      child: Padding(
+        padding: const EdgeInsets.fromLTRB(20, 32, 20, 24),
+        child: Column(
+          children: [
+            Container(
+              decoration: BoxDecoration(shape: BoxShape.circle, border: Border.all(color: Colors.white.withOpacity(0.25), width: 4)),
+              child: DoctorPersonAvatar(
+                name: p.fullName ?? 'Doctor',
+                imageUrl: p.avatarUrl != null ? ApiConfig.normalizeUrl(p.avatarUrl!) : null,
+                size: 96,
+              ),
+            ),
+            const SizedBox(height: 12),
+            Row(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                Text(_formatDoctorName(p.fullName), style: const TextStyle(fontSize: 20, fontWeight: FontWeight.bold, color: DS.primaryForeground)),
+                if (p.verified == true) ...[const SizedBox(width: 6), const Icon(Icons.verified, size: 20, color: DS.primaryForeground)],
+              ],
+            ),
+            const SizedBox(height: 4),
+            Text(p.specialtyName ?? p.specialty ?? 'General Practitioner', style: TextStyle(fontSize: 14, color: DS.primaryForeground.withOpacity(0.8))),
+            const SizedBox(height: 12),
+            GestureDetector(
+              onTap: _showEditProfile,
+              child: Container(
+                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                decoration: BoxDecoration(color: DS.secondary, borderRadius: BorderRadius.circular(8)),
+                child: const Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Icon(Icons.edit, size: 16, color: DS.foreground),
+                    SizedBox(width: 8),
+                    Text('Edit Profile', style: TextStyle(fontSize: 14, fontWeight: FontWeight.w500, color: DS.foreground)),
+                  ],
+                ),
+              ),
             ),
           ],
         ),
@@ -133,316 +187,95 @@ class _DoctorProfileScreenState extends State<DoctorProfileScreen> {
     );
   }
 
-  Widget _buildAppBar(ThemeData theme) {
-    final colors = context.doctorColors;
-    final statusBarHeight = MediaQuery.of(context).padding.top;
+  Widget _buildStatsRow(DoctorProfile p) {
+    final rating = (_reviewStats['averageRating'] as num?)?.toDouble() ?? p.averageRating ?? 0.0;
+    final reviews = _reviewStats['totalReviews'] ?? p.totalReviews ?? 0;
+    final years = p.yearsOfExperience ?? 0;
 
-    return SliverAppBar(
-      expandedHeight: 280,
-      pinned: true,
-      backgroundColor: const Color(0xFF0D7681),
-      foregroundColor: Colors.white,
-      actions: [
-        IconButton(
-          icon: const Icon(Icons.edit),
-          onPressed: () => _showEditProfile(),
-        ),
-      ],
-      flexibleSpace: FlexibleSpaceBar(
-        background: Container(
-          width: double.infinity,
-          decoration: const BoxDecoration(
-            gradient: LinearGradient(
-              begin: Alignment.topCenter,
-              end: Alignment.bottomCenter,
-              colors: [
-                Color(0xFF0D7681),
-                Color(0xFF0C6872),
-              ],
-            ),
-          ),
-          child: SafeArea(
-            child: Column(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                const SizedBox(height: 40), // Space for AppBar
-                // Avatar with border
-                Container(
-                  decoration: BoxDecoration(
-                    shape: BoxShape.circle,
-                    border: Border.all(color: const Color(0xFFFFF8E7), width: 3),
-                    boxShadow: [
-                      BoxShadow(
-                        color: Colors.black.withOpacity(0.3),
-                        blurRadius: 10,
-                        offset: const Offset(0, 4),
-                      ),
-                    ],
-                  ),
-                  child: CircleAvatar(
-                    radius: 50,
-                    backgroundColor: Colors.white,
-                    backgroundImage: _profile?.avatarUrl != null
-                        ? NetworkImage(ApiConfig.normalizeUrl(_profile!.avatarUrl!) ?? '')
-                        : null,
-                    child: _profile?.avatarUrl == null
-                        ? Icon(Icons.person, size: 50, color: colors.primary)
-                        : null,
-                  ),
-                ),
-                const SizedBox(height: 16),
-                // Name
-                Text(
-                  _formatDoctorName(_profile?.fullName),
-                  style: const TextStyle(
-                    fontSize: 24,
-                    fontWeight: FontWeight.bold,
-                    color: Color(0xFFFFFFFF),
-                  ),
-                ),
-                const SizedBox(height: 4),
-                // Specialty
-                Text(
-                  _profile?.specialtyName ?? _profile?.specialty ?? 'General Practitioner',
-                  style: TextStyle(
-                    fontSize: 16,
-                    color: const Color(0xFFFFFFFF).withOpacity(0.9),
-                    fontWeight: FontWeight.w500,
-                  ),
-                ),
-                const SizedBox(height: 8),
-                // Verified badge
-                if (_profile?.verified == true)
-                  Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
-                    decoration: BoxDecoration(
-                      color: const Color(0xFFFFFFFF).withOpacity(0.2),
-                      borderRadius: BorderRadius.circular(16),
-                      border: Border.all(color: const Color(0xFFFFF8E7).withOpacity(0.5)),
-                    ),
-                    child: const Row(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        Icon(Icons.verified, size: 16, color: Color(0xFFFFF8E7)),
-                        SizedBox(width: 4),
-                        Text(
-                          'Verified',
-                          style: TextStyle(
-                            fontSize: 12,
-                            color: Color(0xFFFFF8E7),
-                            fontWeight: FontWeight.w600,
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-              ],
-            ),
-          ),
-        ),
-      ),
-    );
-  }
-
-  /// Format tên bác sĩ - luôn dùng prefix "Dr."
-  String _formatDoctorName(String? fullName) {
-    if (fullName == null || fullName.isEmpty) return 'Dr. Doctor';
-
-    String name = fullName.trim();
-    final lowerName = name.toLowerCase();
-
-    // Loại bỏ prefix cũ nếu có (BS., Dr., Bs., dr.)
-    if (lowerName.startsWith('bs.')) {
-      name = name.substring(3).trim();
-    } else if (lowerName.startsWith('bs ')) {
-      name = name.substring(2).trim();
-    } else if (lowerName.startsWith('dr.')) {
-      name = name.substring(3).trim();
-    } else if (lowerName.startsWith('dr ')) {
-      name = name.substring(2).trim();
-    }
-
-    return 'Dr. $name';
-  }
-
-  Widget _buildStatsSection(ThemeData theme) {
-    final colors = context.doctorColors;
     return Row(
       children: [
-        Expanded(
-          child: _buildStatCard(
-            theme,
-            icon: Icons.star,
-            value: (_reviewStats['averageRating'] as num?)?.toStringAsFixed(1) ??
-                _profile?.averageRating?.toStringAsFixed(1) ??
-                '0.0',
-            label: 'Rating',
-            color: colors.statRating,
-            bgColor: colors.statRatingBg,
-          ),
-        ),
+        Expanded(child: _StatCard(child: Column(children: [
+          Row(mainAxisAlignment: MainAxisAlignment.center, children: [
+            const Icon(Icons.star, size: 16, color: DS.amber400),
+            const SizedBox(width: 4),
+            Text(rating.toStringAsFixed(1), style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: DS.foreground)),
+          ]),
+          const SizedBox(height: 2),
+          const Text('Rating', style: TextStyle(fontSize: 11, color: DS.mutedForeground)),
+        ]))),
         const SizedBox(width: 12),
-        Expanded(
-          child: _buildStatCard(
-            theme,
-            icon: Icons.reviews,
-            value: '${_reviewStats['totalReviews'] ?? _profile?.totalReviews ?? 0}',
-            label: 'Reviews',
-            color: colors.statAppointments,
-            bgColor: colors.statAppointmentsBg,
-          ),
-        ),
+        Expanded(child: _StatCard(child: Column(children: [
+          Text('$reviews', style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: DS.foreground)),
+          const SizedBox(height: 2),
+          const Text('Reviews', style: TextStyle(fontSize: 11, color: DS.mutedForeground)),
+        ]))),
         const SizedBox(width: 12),
-        Expanded(
-          child: _buildStatCard(
-            theme,
-            icon: Icons.work_history,
-            value: '${_profile?.yearsOfExperience ?? 0}',
-            label: 'Years Exp.',
-            color: colors.statExperience,
-            bgColor: colors.statExperienceBg,
-          ),
-        ),
+        Expanded(child: _StatCard(child: Column(children: [
+          Text('$years', style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: DS.foreground)),
+          const SizedBox(height: 2),
+          const Text('Years Exp.', style: TextStyle(fontSize: 11, color: DS.mutedForeground)),
+        ]))),
       ],
     );
   }
 
-  Widget _buildStatCard(
-    ThemeData theme, {
-    required IconData icon,
-    required String value,
-    required String label,
-    required Color color,
-    required Color bgColor,
-  }) {
+  Widget _buildProfessionalInfo(DoctorProfile p) {
     return Container(
       padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        color: bgColor,
-        borderRadius: BorderRadius.circular(12),
-      ),
+      decoration: DS.cardDecoration,
       child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Icon(icon, color: color, size: 24),
-          const SizedBox(height: 8),
-          Text(
-            value,
-            style: TextStyle(
-              fontSize: 20,
-              fontWeight: FontWeight.bold,
-              color: color,
-            ),
-          ),
-          Text(
-            label,
-            style: TextStyle(
-              fontSize: 12,
-              color: theme.colorScheme.onSurfaceVariant,
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildInfoSection(ThemeData theme) {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Text(
-          'Professional Information',
-          style: theme.textTheme.titleMedium?.copyWith(fontWeight: FontWeight.bold),
-        ),
-        const SizedBox(height: 12),
-        _buildInfoTile(
-          theme,
-          icon: Icons.email,
-          label: 'Email',
-          value: _profile?.email ?? '-',
-        ),
-        _buildInfoTile(
-          theme,
-          icon: Icons.phone,
-          label: 'Phone',
-          value: _profile?.phoneNumber ?? '-',
-        ),
-        _buildInfoTile(
-          theme,
-          icon: Icons.school,
-          label: 'Qualifications',
-          value: _profile?.qualifications ?? '-',
-        ),
-        _buildInfoTile(
-          theme,
-          icon: Icons.attach_money,
-          label: 'Consultation Fee',
-          value: _profile?.consultationFee != null
-              ? '${_profile!.consultationFee!.toStringAsFixed(0)} USD'
-              : '-',
-        ),
-        if (_profile?.bio != null && _profile!.bio!.isNotEmpty) ...[
-          const SizedBox(height: 12),
-          const Text(
-            'About',
-            style: TextStyle(fontWeight: FontWeight.w600),
-          ),
-          const SizedBox(height: 8),
-          Container(
-            padding: const EdgeInsets.all(12),
-            decoration: BoxDecoration(
-              color: theme.colorScheme.surfaceContainerHighest.withOpacity(0.5),
-              borderRadius: BorderRadius.circular(8),
-            ),
-            child: Text(
-              _profile!.bio!,
-              style: TextStyle(
-                fontSize: 14,
-                color: theme.colorScheme.onSurfaceVariant,
+          const DoctorSectionLabel('Professional Information'),
+          const SizedBox(height: 4),
+          DoctorInfoRow(icon: Icons.email_outlined, label: 'Email', value: p.email ?? '-'),
+          const Divider(height: 1, color: DS.cardBorder),
+          DoctorInfoRow(icon: Icons.phone_outlined, label: 'Phone', value: p.phoneNumber ?? '-'),
+          const Divider(height: 1, color: DS.cardBorder),
+          DoctorInfoRow(icon: Icons.school_outlined, label: 'Qualifications', value: p.qualifications ?? '-'),
+          const Divider(height: 1, color: DS.cardBorder),
+          DoctorInfoRow(icon: Icons.account_balance_wallet_outlined, label: 'Consultation Fee', value: p.consultationFee != null ? '\$${p.consultationFee!.toStringAsFixed(0)}' : '-'),
+          if (p.bio != null && p.bio!.isNotEmpty) ...[
+            const SizedBox(height: 12),
+            Container(
+              width: double.infinity,
+              padding: const EdgeInsets.all(12),
+              decoration: BoxDecoration(color: DS.secondary.withOpacity(0.6), borderRadius: BorderRadius.circular(8)),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  const Text('Bio', style: TextStyle(fontSize: 12, fontWeight: FontWeight.w500, color: DS.mutedForeground)),
+                  const SizedBox(height: 4),
+                  Text(p.bio!, style: const TextStyle(fontSize: 14, height: 1.5, color: DS.foreground)),
+                ],
               ),
             ),
-          ),
+          ],
         ],
-      ],
+      ),
     );
   }
 
-  Widget _buildInfoTile(
-    ThemeData theme, {
-    required IconData icon,
-    required String label,
-    required String value,
-  }) {
-    return Padding(
-      padding: const EdgeInsets.symmetric(vertical: 8),
+  Widget _buildClinicCard(DoctorProfile p) {
+    return Container(
+      padding: const EdgeInsets.all(16),
+      decoration: DS.cardDecoration,
       child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Container(
-            padding: const EdgeInsets.all(8),
-            decoration: BoxDecoration(
-              color: theme.colorScheme.primary.withOpacity(0.1),
-              borderRadius: BorderRadius.circular(8),
-            ),
-            child: Icon(icon, size: 20, color: theme.colorScheme.primary),
+            width: 40,
+            height: 40,
+            decoration: BoxDecoration(color: DS.primary.withOpacity(0.15), borderRadius: BorderRadius.circular(8)),
+            child: const Icon(Icons.business, size: 20, color: DS.primary),
           ),
           const SizedBox(width: 12),
           Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text(
-                  label,
-                  style: TextStyle(
-                    fontSize: 12,
-                    color: theme.colorScheme.onSurfaceVariant,
-                  ),
-                ),
-                Text(
-                  value,
-                  style: const TextStyle(
-                    fontSize: 14,
-                    fontWeight: FontWeight.w500,
-                  ),
-                ),
+                Text(p.clinicName ?? '', style: const TextStyle(fontSize: 15, fontWeight: FontWeight.w600, color: DS.foreground)),
+                if (p.clinicAddress != null) ...[const SizedBox(height: 2), Text(p.clinicAddress!, style: const TextStyle(fontSize: 14, color: DS.mutedForeground))],
               ],
             ),
           ),
@@ -451,246 +284,120 @@ class _DoctorProfileScreenState extends State<DoctorProfileScreen> {
     );
   }
 
-  Widget _buildClinicSection(ThemeData theme) {
-    if (_profile?.clinicName == null && _profile?.clinicAddress == null) {
-      return const SizedBox.shrink();
-    }
-
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Text(
-          'Clinic Information',
-          style: theme.textTheme.titleMedium?.copyWith(fontWeight: FontWeight.bold),
-        ),
-        const SizedBox(height: 12),
-        Container(
-          padding: const EdgeInsets.all(16),
-          decoration: BoxDecoration(
-            color: theme.colorScheme.surfaceContainerHighest.withOpacity(0.5),
-            borderRadius: BorderRadius.circular(12),
-            border: Border.all(color: theme.colorScheme.outlineVariant),
-          ),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              if (_profile?.clinicName != null)
-                Row(
-                  children: [
-                    Icon(Icons.local_hospital, color: theme.colorScheme.primary),
-                    const SizedBox(width: 12),
-                    Expanded(
-                      child: Text(
-                        _profile!.clinicName!,
-                        style: const TextStyle(
-                          fontSize: 16,
-                          fontWeight: FontWeight.w600,
-                        ),
-                      ),
-                    ),
-                  ],
-                ),
-              if (_profile?.clinicAddress != null) ...[
-                const SizedBox(height: 8),
-                Row(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Icon(Icons.location_on, color: theme.colorScheme.onSurfaceVariant),
-                    const SizedBox(width: 12),
-                    Expanded(
-                      child: Text(
-                        _profile!.clinicAddress!,
-                        style: TextStyle(
-                          fontSize: 14,
-                          color: theme.colorScheme.onSurfaceVariant,
-                        ),
-                      ),
-                    ),
-                  ],
-                ),
-              ],
-            ],
-          ),
-        ),
-      ],
-    );
-  }
-
-  Widget _buildSettingsSection(ThemeData theme) {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Text(
-          'Settings',
-          style: theme.textTheme.titleMedium?.copyWith(fontWeight: FontWeight.bold),
-        ),
-        const SizedBox(height: 12),
-        _buildSettingsTile(
-          theme,
-          icon: Icons.schedule,
-          title: 'Schedule Status',
-          subtitle: _profile?.scheduleStatus ?? 'Not set',
-          onTap: () {},
-        ),
-        _buildSettingsTile(
-          theme,
-          icon: Icons.account_balance_wallet,
-          title: 'Wallet & Earnings',
-          subtitle: 'View earnings and withdraw funds',
-          onTap: () {
-            if (_profile != null) {
-              Navigator.push(
-                context,
-                MaterialPageRoute(
-                  builder: (context) => DoctorWalletScreen(
-                    doctorId: _profile!.doctorId,
+  Widget _buildSettingsMenu() {
+    return Container(
+      padding: const EdgeInsets.all(8),
+      decoration: DS.cardDecoration,
+      child: Column(
+        children: [
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
+            child: Row(
+              children: [
+                Container(width: 36, height: 36, decoration: BoxDecoration(color: DS.secondary, borderRadius: BorderRadius.circular(8)), child: const Icon(Icons.verified_outlined, size: 18, color: DS.mutedForeground)),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      const Text('Schedule Status', style: TextStyle(fontSize: 14, fontWeight: FontWeight.w500, color: DS.foreground)),
+                      Text(_available ? 'Available for consultations' : 'Unavailable', style: const TextStyle(fontSize: 12, color: DS.mutedForeground)),
+                    ],
                   ),
                 ),
-              );
-            }
-          },
-        ),
-        _buildSettingsTile(
-          theme,
-          icon: Icons.notifications,
-          title: 'Notifications',
-          subtitle: 'Manage notification settings',
-          onTap: () {},
-        ),
-        _buildSettingsTile(
-          theme,
-          icon: Icons.security,
-          title: 'Privacy & Security',
-          subtitle: 'Password, 2FA, account security',
-          onTap: () {
-            Navigator.push(
-              context,
-              MaterialPageRoute(
-                builder: (context) => const DoctorSecurityScreen(),
-              ),
-            );
-          },
-        ),
-        _buildSettingsTile(
-          theme,
-          icon: Icons.help,
-          title: 'Help & Support',
-          subtitle: 'Get help, FAQs',
-          onTap: () {},
-        ),
-      ],
-    );
-  }
-
-  Widget _buildSettingsTile(
-    ThemeData theme, {
-    required IconData icon,
-    required String title,
-    required String subtitle,
-    required VoidCallback onTap,
-  }) {
-    return Card(
-      margin: const EdgeInsets.only(bottom: 8),
-      child: ListTile(
-        leading: Container(
-          padding: const EdgeInsets.all(8),
-          decoration: BoxDecoration(
-            color: theme.colorScheme.primary.withOpacity(0.1),
-            borderRadius: BorderRadius.circular(8),
+                Switch(
+                  value: _available,
+                  onChanged: (v) {
+                    setState(() => _available = v);
+                    ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(v ? "You're now available" : 'Marked as unavailable'), behavior: SnackBarBehavior.floating));
+                  },
+                  activeColor: DS.primary,
+                ),
+              ],
+            ),
           ),
-          child: Icon(icon, color: theme.colorScheme.primary),
-        ),
-        title: Text(title),
-        subtitle: Text(subtitle),
-        trailing: const Icon(Icons.chevron_right),
-        onTap: onTap,
+          DoctorMenuItem(icon: Icons.account_balance_wallet_outlined, label: 'Wallet & Earnings', onTap: () {
+            if (_profile != null) Navigator.push(context, MaterialPageRoute(builder: (context) => DoctorWalletScreen(doctorId: _profile!.doctorId)));
+          }),
+          DoctorMenuItem(icon: Icons.notifications_outlined, label: 'Notifications', onTap: () {}),
+          DoctorMenuItem(icon: Icons.shield_outlined, label: 'Privacy & Security', onTap: () {
+            Navigator.push(context, MaterialPageRoute(builder: (context) => const DoctorSecurityScreen()));
+          }),
+          DoctorMenuItem(icon: Icons.help_outline, label: 'Help & Support', onTap: () {
+            ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Support: help@healthlink.io'), behavior: SnackBarBehavior.floating));
+          }),
+        ],
       ),
     );
   }
 
-  Widget _buildLogoutButton(ThemeData theme) {
-    final colors = context.doctorColors;
+  Widget _buildLogoutButton() {
     return SizedBox(
       width: double.infinity,
       child: OutlinedButton.icon(
         onPressed: _logout,
-        style: OutlinedButton.styleFrom(
-          foregroundColor: colors.error,
-          side: BorderSide(color: colors.error),
-          padding: const EdgeInsets.symmetric(vertical: 12),
-        ),
-        icon: const Icon(Icons.logout),
-        label: const Text('Logout'),
+        icon: const Icon(Icons.logout, size: 18),
+        label: const Text('Log Out'),
+        style: DS.destructiveButtonStyle,
       ),
     );
+  }
+
+  String _formatDoctorName(String? fullName) {
+    if (fullName == null || fullName.isEmpty) return 'Dr. Doctor';
+    String name = fullName.trim();
+    final lowerName = name.toLowerCase();
+    if (lowerName.startsWith('bs.')) name = name.substring(3).trim();
+    else if (lowerName.startsWith('bs ')) name = name.substring(2).trim();
+    else if (lowerName.startsWith('dr.')) name = name.substring(3).trim();
+    else if (lowerName.startsWith('dr ')) name = name.substring(2).trim();
+    return 'Dr. $name';
   }
 
   void _showEditProfile() {
     showModalBottomSheet(
       context: context,
       isScrollControlled: true,
-      shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
-      ),
-      builder: (context) => DraggableScrollableSheet(
-        initialChildSize: 0.9,
-        minChildSize: 0.5,
-        maxChildSize: 0.95,
-        expand: false,
-        builder: (context, scrollController) {
-          return _EditProfileSheet(
-            profile: _profile!,
-            scrollController: scrollController,
-            onSaved: () {
-              Navigator.pop(context);
-              _loadData();
-            },
-          );
-        },
-      ),
+      backgroundColor: Colors.transparent,
+      builder: (context) => _EditProfileSheet(profile: _profile!, onSaved: () { Navigator.pop(context); _loadData(); }),
     );
   }
 
   Future<void> _logout() async {
-    final colors = context.doctorColors;
     final confirm = await showDialog<bool>(
       context: context,
       builder: (context) => AlertDialog(
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
         title: const Text('Logout'),
         content: const Text('Are you sure you want to logout?'),
         actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context, false),
-            child: const Text('Cancel'),
-          ),
+          TextButton(onPressed: () => Navigator.pop(context, false), child: const Text('Cancel')),
           ElevatedButton(
             onPressed: () => Navigator.pop(context, true),
-            style: ElevatedButton.styleFrom(
-              backgroundColor: colors.error,
-              foregroundColor: Colors.white,
-            ),
+            style: ElevatedButton.styleFrom(backgroundColor: DS.destructive, foregroundColor: Colors.white),
             child: const Text('Logout'),
           ),
         ],
       ),
     );
+    if (confirm == true && mounted) await context.read<AuthProvider>().logout();
+  }
+}
 
-    if (confirm == true && mounted) {
-      await context.read<AuthProvider>().logout();
-    }
+class _StatCard extends StatelessWidget {
+  final Widget child;
+  const _StatCard({required this.child});
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(padding: const EdgeInsets.all(16), decoration: DS.cardDecoration, child: child);
   }
 }
 
 class _EditProfileSheet extends StatefulWidget {
   final DoctorProfile profile;
-  final ScrollController scrollController;
   final VoidCallback onSaved;
-
-  const _EditProfileSheet({
-    required this.profile,
-    required this.scrollController,
-    required this.onSaved,
-  });
+  const _EditProfileSheet({required this.profile, required this.onSaved});
 
   @override
   State<_EditProfileSheet> createState() => _EditProfileSheetState();
@@ -701,7 +408,6 @@ class _EditProfileSheetState extends State<_EditProfileSheet> {
   late TextEditingController _phoneController;
   late TextEditingController _bioController;
   late TextEditingController _paypalEmailController;
-
   bool _isSaving = false;
 
   @override
@@ -722,10 +428,7 @@ class _EditProfileSheetState extends State<_EditProfileSheet> {
 
   Future<void> _saveProfile() async {
     if (!_formKey.currentState!.validate()) return;
-
-    setState(() {
-      _isSaving = true;
-    });
+    setState(() => _isSaving = true);
 
     try {
       final auth = context.read<AuthProvider>();
@@ -739,118 +442,80 @@ class _EditProfileSheetState extends State<_EditProfileSheet> {
       });
 
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Profile updated successfully')),
-        );
+        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Profile updated'), behavior: SnackBarBehavior.floating));
         widget.onSaved();
       }
     } catch (e) {
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Error: $e')),
-        );
-      }
+      if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Error: $e'), behavior: SnackBarBehavior.floating));
     } finally {
-      if (mounted) {
-        setState(() {
-          _isSaving = false;
-        });
-      }
+      if (mounted) setState(() => _isSaving = false);
     }
   }
 
   @override
   Widget build(BuildContext context) {
-    final colors = context.doctorColors;
     return Container(
-      padding: const EdgeInsets.all(20),
-      child: Form(
-        key: _formKey,
-        child: ListView(
-          controller: widget.scrollController,
-          children: [
-            // Handle bar
-            Center(
-              child: Container(
-                width: 40,
-                height: 4,
-                decoration: BoxDecoration(
-                  color: colors.divider,
-                  borderRadius: BorderRadius.circular(2),
-                ),
-              ),
-            ),
-            const SizedBox(height: 20),
-            // Title
-            Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              children: [
-                const Text(
-                  'Edit Profile',
-                  style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
-                ),
-                TextButton(
-                  onPressed: () => Navigator.pop(context),
-                  child: const Text('Cancel'),
-                ),
+      margin: EdgeInsets.only(top: MediaQuery.of(context).padding.top + 40),
+      decoration: const BoxDecoration(color: DS.card, borderRadius: BorderRadius.vertical(top: Radius.circular(24))),
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Padding(padding: const EdgeInsets.only(top: 12), child: Container(width: 40, height: 4, decoration: BoxDecoration(color: DS.cardBorder, borderRadius: BorderRadius.circular(2)))),
+          Padding(
+            padding: const EdgeInsets.all(20),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: const [
+                Text('Edit Profile', style: TextStyle(fontSize: 18, fontWeight: FontWeight.w600, color: DS.foreground)),
+                SizedBox(height: 4),
+                Text('Update your contact details and payout email.', style: TextStyle(fontSize: 14, color: DS.mutedForeground)),
               ],
             ),
-            const SizedBox(height: 24),
-            // Form fields
-            TextFormField(
-              controller: _phoneController,
-              decoration: const InputDecoration(
-                labelText: 'Phone Number',
-                border: OutlineInputBorder(),
-                prefixIcon: Icon(Icons.phone),
+          ),
+          Flexible(
+            child: SingleChildScrollView(
+              padding: const EdgeInsets.symmetric(horizontal: 20),
+              child: Form(
+                key: _formKey,
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    const Text('Phone', style: TextStyle(fontSize: 14, fontWeight: FontWeight.w500, color: DS.foreground)),
+                    const SizedBox(height: 8),
+                    TextFormField(controller: _phoneController, keyboardType: TextInputType.phone, decoration: DS.inputDecoration(hintText: 'Enter phone number')),
+                    const SizedBox(height: 16),
+                    const Text('Bio', style: TextStyle(fontSize: 14, fontWeight: FontWeight.w500, color: DS.foreground)),
+                    const SizedBox(height: 8),
+                    TextFormField(controller: _bioController, maxLines: 4, decoration: DS.inputDecoration(hintText: 'Write about yourself...')),
+                    const SizedBox(height: 16),
+                    const Text('PayPal Email', style: TextStyle(fontSize: 14, fontWeight: FontWeight.w500, color: DS.foreground)),
+                    const SizedBox(height: 8),
+                    TextFormField(
+                      controller: _paypalEmailController,
+                      keyboardType: TextInputType.emailAddress,
+                      decoration: DS.inputDecoration(hintText: 'Email for receiving payments'),
+                      validator: (v) { if (v != null && v.isNotEmpty && !v.contains('@')) return 'Please enter a valid email'; return null; },
+                    ),
+                    const SizedBox(height: 24),
+                  ],
+                ),
               ),
-              keyboardType: TextInputType.phone,
             ),
-            const SizedBox(height: 16),
-            TextFormField(
-              controller: _bioController,
-              decoration: const InputDecoration(
-                labelText: 'Bio',
-                border: OutlineInputBorder(),
-                prefixIcon: Icon(Icons.person_outline),
-                hintText: 'Write a short introduction about yourself...',
-              ),
-              maxLines: 4,
-              maxLength: 500,
-            ),
-            const SizedBox(height: 16),
-            TextFormField(
-              controller: _paypalEmailController,
-              decoration: const InputDecoration(
-                labelText: 'PayPal Email',
-                border: OutlineInputBorder(),
-                prefixIcon: Icon(Icons.payment),
-                hintText: 'Email for receiving payments',
-              ),
-              keyboardType: TextInputType.emailAddress,
-              validator: (v) {
-                if (v != null && v.isNotEmpty && !v.contains('@')) {
-                  return 'Please enter a valid email';
-                }
-                return null;
-              },
-            ),
-            const SizedBox(height: 24),
-            SizedBox(
+          ),
+          Padding(
+            padding: EdgeInsets.fromLTRB(20, 16, 20, MediaQuery.of(context).padding.bottom + 20),
+            child: SizedBox(
               width: double.infinity,
               child: ElevatedButton(
                 onPressed: _isSaving ? null : _saveProfile,
+                style: DS.primaryButtonStyle,
                 child: _isSaving
-                    ? const SizedBox(
-                        height: 20,
-                        width: 20,
-                        child: CircularProgressIndicator(strokeWidth: 2),
-                      )
-                    : const Text('Save Changes'),
+                    ? const SizedBox(height: 20, width: 20, child: CircularProgressIndicator(strokeWidth: 2, color: DS.primaryForeground))
+                    : const Text('Save Changes', style: TextStyle(fontSize: 14, fontWeight: FontWeight.w500)),
               ),
             ),
-          ],
-        ),
+          ),
+        ],
       ),
     );
   }

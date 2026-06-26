@@ -1,0 +1,246 @@
+.registration-choice-bg {
+    background-image: url('/public/Hung/Register.jpg');
+    background-size: cover;
+    background-position: center center;
+    background-repeat: no-repeat;
+    background-attachment: fixed;
+    min-height: 100vh;
+    padding: 40px 20px;
+    position: relative;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.registration-choice-bg::before {
+    content: '';
+    position: absolute;
+    inset: 0;
+    z-index: 1;
+    background: rgba(255, 255, 255, 0.1);
+}
+
+.back-home-link {
+    position: absolute;
+    top: 24px;
+    left: 24px;
+    z-index: 3;
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    padding: 10px 18px;
+    background: rgba(255, 255, 255, 0.9);
+    color: #007a6a;
+    font-size: 14px;
+    font-weight: 600;
+    text-decoration: none;
+    border-radius: 30px;
+    box-shadow: 0 2px 10px rgba(0, 0, 0, 0.12);
+    transition: all 0.3s ease;
+}
+
+.back-home-link:hover {
+    background: #ffffff;
+    color: #00b09a;
+    transform: translateX(-3px);
+}
+
+.registration-choice-container {
+    position: relative;
+    z-index: 2;
+    max-width: 900px;
+    width: 100%;
+    text-align: center;
+}
+
+.registration-choice-container h2 {
+    color: #007a6a;
+    font-size: 36px;
+    font-weight: 700;
+    margin-bottom: 10px;
+}
+
+.registration-choice-container .subtitle {
+    color: #64748b;
+    font-size: 16px;
+    margin-bottom: 40px;
+}
+
+.choice-cards {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    align-items: stretch;
+    gap: 30px;
+    margin-bottom: 40px;
+}
+
+.choice-card {
+    background: white;
+    border-radius: 16px;
+    padding: 35px 30px;
+    box-shadow: 0 4px 20px rgba(0, 0, 0, 0.08);
+    cursor: pointer;
+    transition: all 0.3s ease;
+    border: 2px solid transparent;
+    text-align: left;
+    display: flex;
+    flex-direction: column;
+}
+
+.choice-card:hover {
+    transform: translateY(-8px);
+    box-shadow: 0 12px 40px rgba(0, 0, 0, 0.15);
+}
+
+.reg-doctor-card:hover {
+    border-color: #00b09a;
+}
+
+.reg-pharmacy-card:hover {
+    border-color: #6366f1;
+}
+
+.card-icon {
+    width: 70px;
+    height: 70px;
+    border-radius: 16px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    margin-bottom: 20px;
+}
+
+.reg-doctor-card .card-icon {
+    background: linear-gradient(135deg, #00b09a 0%, #007a6a 100%);
+}
+
+.reg-pharmacy-card .card-icon {
+    background: linear-gradient(135deg, #6366f1 0%, #4f46e5 100%);
+}
+
+.card-icon i {
+    font-size: 32px;
+    color: white;
+}
+
+.choice-card h3 {
+    font-size: 24px;
+    font-weight: 600;
+    color: #1e293b;
+    margin-bottom: 12px;
+}
+
+.choice-card > p {
+    color: #64748b;
+    font-size: 14px;
+    line-height: 1.6;
+    margin-bottom: 20px;
+    /* Cố định đúng 2 dòng để mô tả 2 card luôn bằng chiều cao,
+       mọi hàng bên dưới (benefit, nút) thẳng hàng tự nhiên */
+    min-height: 3.2em;
+    display: -webkit-box;
+    -webkit-line-clamp: 2;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+}
+
+.benefits-list {
+    list-style: none;
+    padding: 0;
+    margin: 0 0 25px 0;
+}
+
+.benefits-list li {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    color: #475569;
+    font-size: 14px;
+    margin-bottom: 10px;
+}
+
+.reg-doctor-card .benefits-list li i {
+    color: #00b09a;
+}
+
+.reg-pharmacy-card .benefits-list li i {
+    color: #6366f1;
+}
+
+.choice-btn {
+    width: 100%;
+    margin-top: auto;
+    padding: 14px 24px;
+    border: none;
+    border-radius: 10px;
+    font-size: 15px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.3s ease;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    background: linear-gradient(135deg, #00b09a 0%, #007a6a 100%);
+    color: white;
+}
+
+.choice-btn:hover {
+    transform: scale(1.02);
+    box-shadow: 0 4px 15px rgba(0, 176, 154, 0.4);
+}
+
+.reg-pharmacy-btn {
+    background: linear-gradient(135deg, #6366f1 0%, #4f46e5 100%);
+}
+
+.reg-pharmacy-btn:hover {
+    box-shadow: 0 4px 15px rgba(99, 102, 241, 0.4);
+}
+
+.alternative-links {
+    padding-top: 20px;
+    border-top: 1px solid #e2e8f0;
+    background: rgba(255, 255, 255, 0.753);
+}
+
+.alternative-links p {
+    color: #64748b;
+    font-size: 14px;
+    margin-bottom: 8px;
+}
+
+.alternative-links a {
+    color: #00b09a;
+    font-weight: 600;
+    text-decoration: none;
+    transition: color 0.3s ease;
+}
+
+.alternative-links a:hover {
+    color: #007a6a;
+    text-decoration: underline;
+}
+
+@media (max-width: 768px) {
+    .choice-cards {
+        grid-template-columns: 1fr;
+        gap: 20px;
+    }
+
+    .registration-choice-container h2 {
+        font-size: 28px;
+    }
+
+    .choice-card {
+        padding: 25px 20px;
+    }
+
+    /* 1 cột — không cần thẳng hàng, hiện đủ mô tả */
+    .choice-card > p {
+        min-height: 0;
+        -webkit-line-clamp: unset;
+        display: block;
+        overflow: visible;
+    }
+}

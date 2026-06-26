@@ -1,28 +1,20 @@
 import 'package:flutter/material.dart';
-
-import '../../config/doctor_theme.dart';
 import '../../models/notification/notification_item.dart';
 import '../../services/notification/notification_service.dart';
+import '../../config/doctor_theme.dart';
+import '../../widgets/doctor/doctor_widgets.dart';
 
-/// Bottom sheet hiển thị notifications cho Doctor
-/// Reuse logic từ Patient app với UI customize cho Doctor theme
 class DoctorNotificationCenterSheet extends StatefulWidget {
-  const DoctorNotificationCenterSheet({
-    super.key,
-    required this.service,
-    required this.onChanged,
-  });
+  const DoctorNotificationCenterSheet({super.key, required this.service, required this.onChanged});
 
   final NotificationService service;
   final VoidCallback onChanged;
 
   @override
-  State<DoctorNotificationCenterSheet> createState() =>
-      _DoctorNotificationCenterSheetState();
+  State<DoctorNotificationCenterSheet> createState() => _DoctorNotificationCenterSheetState();
 }
 
-class _DoctorNotificationCenterSheetState
-    extends State<DoctorNotificationCenterSheet> {
+class _DoctorNotificationCenterSheetState extends State<DoctorNotificationCenterSheet> {
   bool _loading = true;
   String? _error;
   List<NotificationItem> _items = [];
@@ -34,49 +26,28 @@ class _DoctorNotificationCenterSheetState
   }
 
   Future<void> _load() async {
-    setState(() {
-      _loading = true;
-      _error = null;
-    });
+    setState(() { _loading = true; _error = null; });
 
     try {
-      final result = await widget.service.getNotifications(
-        page: 0,
-        size: 20,
-      );
-
+      final result = await widget.service.getNotifications(page: 0, size: 50);
       if (!mounted) return;
-
-      setState(() {
-        _items = result.items;
-      });
+      setState(() { _items = result.items; });
     } catch (error) {
       if (!mounted) return;
-
-      setState(() {
-        _error = error.toString().replaceFirst('Exception: ', '');
-      });
+      setState(() { _error = error.toString().replaceFirst('Exception: ', ''); });
     } finally {
-      if (mounted) {
-        setState(() {
-          _loading = false;
-        });
-      }
+      if (mounted) setState(() { _loading = false; });
     }
   }
 
   Future<void> _markAsRead(NotificationItem item) async {
     if (item.read) return;
-
     try {
       await widget.service.markAsRead(item.notificationId);
       widget.onChanged();
       await _load();
     } catch (error) {
-      _showMessage(
-        error.toString().replaceFirst('Exception: ', ''),
-        isError: true,
-      );
+      _showMessage(error.toString().replaceFirst('Exception: ', ''), isError: true);
     }
   }
 
@@ -86,319 +57,195 @@ class _DoctorNotificationCenterSheetState
       widget.onChanged();
       await _load();
     } catch (error) {
-      _showMessage(
-        error.toString().replaceFirst('Exception: ', ''),
-        isError: true,
-      );
+      _showMessage(error.toString().replaceFirst('Exception: ', ''), isError: true);
     }
   }
 
   void _showMessage(String message, {bool isError = false}) {
     if (!mounted) return;
+    ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(message), behavior: SnackBarBehavior.floating, backgroundColor: isError ? Colors.red : null));
+  }
 
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text(message),
-        behavior: SnackBarBehavior.floating,
-        backgroundColor: isError ? Theme.of(context).colorScheme.error : null,
-      ),
-    );
+  String _groupOf(DateTime date) {
+    final now = DateTime.now();
+    final startToday = DateTime(now.year, now.month, now.day);
+    final startYesterday = startToday.subtract(const Duration(days: 1));
+    if (date.isAfter(startToday) || date.isAtSameMomentAs(startToday)) return 'Today';
+    if (date.isAfter(startYesterday) || date.isAtSameMomentAs(startYesterday)) return 'Yesterday';
+    return 'Earlier';
+  }
+
+  Map<String, List<NotificationItem>> _groupItems() {
+    final map = <String, List<NotificationItem>>{};
+    for (final item in _items) {
+      final group = _groupOf(item.createdAt);
+      (map[group] ??= []).add(item);
+    }
+    return map;
+  }
+
+  String _timeAgo(DateTime date) {
+    final diff = DateTime.now().difference(date);
+    if (diff.inMinutes < 1) return 'Just now';
+    if (diff.inMinutes < 60) return '${diff.inMinutes}m ago';
+    if (diff.inHours < 24) return '${diff.inHours}h ago';
+    if (diff.inDays < 7) return '${diff.inDays}d ago';
+    return '${diff.inDays ~/ 7}w ago';
   }
 
   @override
   Widget build(BuildContext context) {
-    final colors = context.doctorColors;
-    final scheme = Theme.of(context).colorScheme;
+    final hasUnread = _items.any((n) => !n.read);
 
-    return SafeArea(
-      top: false,
-      child: Container(
-        height: MediaQuery.of(context).size.height * 0.82,
-        decoration: BoxDecoration(
-          color: scheme.surface,
-          borderRadius: const BorderRadius.vertical(
-            top: Radius.circular(26),
-          ),
-        ),
-        child: Column(
-          children: [
-            const SizedBox(height: 10),
-            // Handle bar
-            Container(
-              width: 42,
-              height: 4,
-              decoration: BoxDecoration(
-                color: colors.divider,
-                borderRadius: BorderRadius.circular(999),
+    return Container(
+      height: MediaQuery.of(context).size.height * 0.85,
+      decoration: const BoxDecoration(color: DS.card, borderRadius: BorderRadius.vertical(top: Radius.circular(24))),
+      child: Column(children: [
+        Container(
+          padding: const EdgeInsets.fromLTRB(20, 16, 12, 12),
+          decoration: const BoxDecoration(border: Border(bottom: BorderSide(color: DS.border))),
+          child: Row(children: [
+            const Icon(Icons.notifications, size: 18, color: DS.primary),
+            const SizedBox(width: 8),
+            const Expanded(child: Text('Notifications', style: TextStyle(fontSize: 18, fontWeight: FontWeight.w600, color: DS.foreground))),
+            if (hasUnread)
+              TextButton.icon(
+                onPressed: _markAllAsRead,
+                icon: const Icon(Icons.done_all, size: 16),
+                label: const Text('Mark all read'),
+                style: TextButton.styleFrom(foregroundColor: DS.primary, textStyle: const TextStyle(fontSize: 14)),
               ),
-            ),
-            // Header
-            Padding(
-              padding: const EdgeInsets.fromLTRB(20, 18, 12, 10),
-              child: Row(
-                children: [
-                  Expanded(
-                    child: Text(
-                      'Notifications',
-                      style:
-                          Theme.of(context).textTheme.headlineSmall?.copyWith(
-                                fontWeight: FontWeight.bold,
-                                color: colors.primary,
-                              ),
-                    ),
-                  ),
-                  TextButton(
-                    onPressed: _items.isEmpty ? null : _markAllAsRead,
-                    child: const Text('Mark all read'),
-                  ),
-                  IconButton(
-                    onPressed: () => Navigator.pop(context),
-                    icon: const Icon(Icons.close),
-                  ),
-                ],
-              ),
-            ),
-            Divider(height: 1, color: colors.divider),
-            // Body
-            Expanded(
-              child: _buildBody(context),
-            ),
-          ],
+          ]),
         ),
-      ),
+        Expanded(child: _buildBody()),
+      ]),
     );
   }
 
-  Widget _buildBody(BuildContext context) {
-    final colors = context.doctorColors;
-
-    if (_loading) {
-      return Center(
-        child: CircularProgressIndicator(color: colors.primary),
-      );
-    }
+  Widget _buildBody() {
+    if (_loading) return const Center(child: CircularProgressIndicator(color: DS.primary));
 
     if (_error != null) {
       return Center(
         child: Padding(
           padding: const EdgeInsets.all(24),
-          child: Column(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              Icon(Icons.error_outline, size: 48, color: colors.error),
-              const SizedBox(height: 12),
-              Text(
-                _error!,
-                textAlign: TextAlign.center,
-                style: TextStyle(color: colors.onSurfaceVariant),
-              ),
-              const SizedBox(height: 16),
-              ElevatedButton.icon(
-                onPressed: _load,
-                icon: const Icon(Icons.refresh),
-                label: const Text('Retry'),
-              ),
-            ],
-          ),
+          child: Column(mainAxisAlignment: MainAxisAlignment.center, children: [
+            Container(width: 64, height: 64, decoration: const BoxDecoration(color: DS.secondary, shape: BoxShape.circle), child: Icon(Icons.error_outline, size: 28, color: DS.mutedForeground.withOpacity(0.6))),
+            const SizedBox(height: 16),
+            Text(_error!, textAlign: TextAlign.center, style: const TextStyle(fontSize: 14, color: DS.mutedForeground)),
+            const SizedBox(height: 16),
+            ElevatedButton.icon(onPressed: _load, icon: const Icon(Icons.refresh, size: 18), label: const Text('Retry'), style: DS.primaryButtonStyle),
+          ]),
         ),
       );
     }
 
-    if (_items.isEmpty) {
-      return Center(
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            Icon(
-              Icons.notifications_off_outlined,
-              size: 64,
-              color: colors.onSurfaceVariant.withOpacity(0.5),
-            ),
-            const SizedBox(height: 16),
-            Text(
-              'No notifications yet',
-              style: TextStyle(
-                fontSize: 16,
-                color: colors.onSurfaceVariant,
-              ),
-            ),
-          ],
-        ),
-      );
-    }
+    if (_items.isEmpty) return const DoctorEmptyState(icon: Icons.notifications_off_outlined, title: 'No notifications', subtitle: "You're all caught up. New alerts will show here.");
+
+    final grouped = _groupItems();
+    final order = ['Today', 'Yesterday', 'Earlier'];
 
     return RefreshIndicator(
       onRefresh: _load,
-      color: colors.primary,
-      child: ListView.separated(
+      color: DS.primary,
+      child: ListView(
         padding: const EdgeInsets.all(16),
-        itemCount: _items.length,
-        separatorBuilder: (_, __) => const SizedBox(height: 10),
-        itemBuilder: (context, index) {
-          final item = _items[index];
-
-          return _DoctorNotificationCard(
-            item: item,
-            onTap: () => _markAsRead(item),
-          );
-        },
+        children: [
+          for (final group in order)
+            if (grouped[group]?.isNotEmpty ?? false) ...[
+              Padding(
+                padding: const EdgeInsets.only(bottom: 8),
+                child: Text(group.toUpperCase(), style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w600, letterSpacing: 0.5, color: DS.mutedForeground)),
+              ),
+              ...grouped[group]!.map((item) => Padding(
+                padding: const EdgeInsets.only(bottom: 8),
+                child: _NotificationCard(item: item, timeAgo: _timeAgo(item.createdAt), onTap: () => _markAsRead(item)),
+              )),
+              const SizedBox(height: 12),
+            ],
+        ],
       ),
     );
   }
 }
 
-class _DoctorNotificationCard extends StatelessWidget {
-  const _DoctorNotificationCard({
-    required this.item,
-    required this.onTap,
-  });
-
+class _NotificationCard extends StatelessWidget {
   final NotificationItem item;
+  final String timeAgo;
   final VoidCallback onTap;
+
+  const _NotificationCard({required this.item, required this.timeAgo, required this.onTap});
 
   @override
   Widget build(BuildContext context) {
-    final colors = context.doctorColors;
-    final scheme = Theme.of(context).colorScheme;
+    final isRead = item.read;
 
     return InkWell(
       onTap: onTap,
-      borderRadius: BorderRadius.circular(16),
+      borderRadius: BorderRadius.circular(12),
       child: Container(
-        padding: const EdgeInsets.all(14),
+        padding: const EdgeInsets.all(12),
         decoration: BoxDecoration(
-          color: item.read
-              ? scheme.surfaceContainerLow
-              : colors.primary.withOpacity(0.08),
-          borderRadius: BorderRadius.circular(16),
-          border: Border.all(
-            color: item.read ? colors.cardBorder : colors.primary,
-            width: item.read ? 1 : 1.5,
+          color: isRead ? DS.card : DS.primary.withOpacity(0.05),
+          borderRadius: BorderRadius.circular(12),
+          border: Border.all(color: isRead ? DS.border : DS.primary.withOpacity(0.2)),
+        ),
+        child: Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
+          _buildIcon(),
+          const SizedBox(width: 12),
+          Expanded(
+            child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+              Row(children: [
+                Expanded(child: Text(item.title, style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w600, color: DS.foreground), overflow: TextOverflow.ellipsis)),
+                const SizedBox(width: 8),
+                Text(timeAgo, style: const TextStyle(fontSize: 11, color: DS.mutedForeground)),
+              ]),
+              const SizedBox(height: 2),
+              Text(item.message, style: const TextStyle(fontSize: 12, color: DS.mutedForeground)),
+            ]),
           ),
-        ),
-        child: Row(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            _buildIcon(context),
-            const SizedBox(width: 12),
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Row(
-                    children: [
-                      Expanded(
-                        child: Text(
-                          item.title,
-                          style: TextStyle(
-                            fontWeight:
-                                item.read ? FontWeight.w600 : FontWeight.bold,
-                            color: colors.onSurface,
-                          ),
-                        ),
-                      ),
-                      if (!item.read)
-                        Container(
-                          width: 8,
-                          height: 8,
-                          decoration: BoxDecoration(
-                            color: colors.error,
-                            shape: BoxShape.circle,
-                          ),
-                        ),
-                    ],
-                  ),
-                  const SizedBox(height: 6),
-                  Text(
-                    item.message,
-                    style: TextStyle(
-                      color: colors.onSurfaceVariant,
-                      height: 1.35,
-                    ),
-                  ),
-                  const SizedBox(height: 10),
-                  Row(
-                    children: [
-                      Container(
-                        padding: const EdgeInsets.symmetric(
-                          horizontal: 8,
-                          vertical: 2,
-                        ),
-                        decoration: BoxDecoration(
-                          color: colors.primary.withOpacity(0.1),
-                          borderRadius: BorderRadius.circular(8),
-                        ),
-                        child: Text(
-                          item.displayType,
-                          style: TextStyle(
-                            color: colors.primary,
-                            fontSize: 11,
-                            fontWeight: FontWeight.w700,
-                          ),
-                        ),
-                      ),
-                      const SizedBox(width: 8),
-                      Text(
-                        _formatTimeAgo(item.createdAt),
-                        style: TextStyle(
-                          color: colors.onSurfaceVariant.withOpacity(0.7),
-                          fontSize: 12,
-                        ),
-                      ),
-                    ],
-                  ),
-                ],
-              ),
-            ),
+          if (!isRead) ...[
+            const SizedBox(width: 8),
+            Container(width: 8, height: 8, margin: const EdgeInsets.only(top: 4), decoration: const BoxDecoration(color: DS.primary, shape: BoxShape.circle)),
           ],
-        ),
+        ]),
       ),
     );
   }
 
-  Widget _buildIcon(BuildContext context) {
-    final colors = context.doctorColors;
+  Widget _buildIcon() {
+    final type = item.type.toUpperCase();
+    Color bgColor;
+    Color iconColor;
+    IconData icon;
 
-    final icon = switch (item.type.toUpperCase()) {
-      'APPOINTMENT_REMINDER' => Icons.event_available_outlined,
-      'NEW_APPOINTMENT' => Icons.event_note_outlined,
-      'APPOINTMENT_CONFIRMED' => Icons.check_circle_outline,
-      'APPOINTMENT_CANCELLED' => Icons.cancel_outlined,
-      'PRESCRIPTION_ISSUED' => Icons.medication_outlined,
-      'NEW_PRESCRIPTION' => Icons.medication_outlined,
-      'INVOICE_PAID' => Icons.payments_outlined,
-      'NEW_REVIEW' => Icons.star_outline,
-      'NEW_MESSAGE' => Icons.chat_outlined,
-      _ => Icons.notifications_outlined,
-    };
+    switch (type) {
+      case 'APPOINTMENT_REMINDER':
+      case 'NEW_APPOINTMENT':
+      case 'APPOINTMENT_CONFIRMED':
+      case 'APPOINTMENT_CANCELLED':
+        bgColor = DS.primary.withOpacity(0.15);
+        iconColor = DS.primary;
+        icon = Icons.calendar_today_outlined;
+        break;
+      case 'INVOICE_PAID':
+      case 'PAYMENT':
+        bgColor = DS.emerald100;
+        iconColor = DS.emerald600;
+        icon = Icons.payment_outlined;
+        break;
+      case 'NEW_MESSAGE':
+      case 'CHAT':
+        bgColor = DS.sky100;
+        iconColor = DS.sky600;
+        icon = Icons.chat_bubble_outline;
+        break;
+      default:
+        bgColor = DS.secondary;
+        iconColor = DS.mutedForeground;
+        icon = Icons.info_outline;
+    }
 
-    final isHighPriority = item.isHighPriority;
-
-    return Container(
-      width: 42,
-      height: 42,
-      decoration: BoxDecoration(
-        color: isHighPriority ? colors.errorBg : colors.infoBg,
-        shape: BoxShape.circle,
-      ),
-      child: Icon(
-        icon,
-        color: isHighPriority ? colors.error : colors.info,
-      ),
-    );
-  }
-
-  String _formatTimeAgo(DateTime value) {
-    final diff = DateTime.now().difference(value);
-
-    if (diff.inMinutes < 1) return 'Just now';
-    if (diff.inMinutes < 60) return '${diff.inMinutes} min ago';
-    if (diff.inHours < 24) return '${diff.inHours} hours ago';
-    if (diff.inDays < 7) return '${diff.inDays} days ago';
-
-    final day = value.day.toString().padLeft(2, '0');
-    final month = value.month.toString().padLeft(2, '0');
-
-    return '$day/$month/${value.year}';
+    return Container(width: 36, height: 36, decoration: BoxDecoration(color: bgColor, borderRadius: BorderRadius.circular(8)), child: Icon(icon, size: 16, color: iconColor));
   }
 }

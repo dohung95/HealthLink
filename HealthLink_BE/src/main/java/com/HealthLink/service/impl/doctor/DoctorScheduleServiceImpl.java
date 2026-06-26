@@ -66,6 +66,20 @@ public class DoctorScheduleServiceImpl implements DoctorScheduleService {
     // Minimum required working hours per MONTH for APPROVED status
     private static final double MIN_MONTHLY_HOURS = 80.0;
 
+    // Allowed shift windows. Online schedules must fit within ONE of these;
+    // Home visit schedules use the whole window as a single bookable session.
+    private static final LocalTime MORNING_START = LocalTime.of(7, 0);
+    private static final LocalTime MORNING_END = LocalTime.of(10, 30);
+    private static final LocalTime AFTERNOON_START = LocalTime.of(13, 0);
+    private static final LocalTime AFTERNOON_END = LocalTime.of(17, 30);
+    private static final LocalTime EVENING_START = LocalTime.of(19, 0);
+    private static final LocalTime EVENING_END = LocalTime.of(21, 0);
+
+    private static final String SHIFT_MORNING = "MORNING";
+    private static final String SHIFT_AFTERNOON = "AFTERNOON";
+    private static final String SHIFT_EVENING = "EVENING";
+    private static final String TYPE_HOME_VISIT = "HomeVisit";
+
     @Override
     public WeeklyScheduleResponse getMySchedule(String doctorId) {
         Doctor doctor = findDoctor(doctorId);
@@ -90,6 +104,7 @@ public class DoctorScheduleServiceImpl implements DoctorScheduleService {
     public DoctorScheduleResponse createSchedule(String doctorId, DoctorScheduleRequest request) {
         Doctor doctor = findDoctor(doctorId);
         validateScheduleRequest(request);
+        validateNoOverlap(doctorId, request);
 
         DoctorSchedule schedule = DoctorSchedule.builder()
                 .doctor(doctor)
@@ -99,6 +114,7 @@ public class DoctorScheduleServiceImpl implements DoctorScheduleService {
                 .slotDuration(request.getSlotDuration() != null ? request.getSlotDuration() : 30)
                 .maxPatients(request.getMaxPatients() != null ? request.getMaxPatients() : 1)
                 .consultationType(request.getConsultationType())
+                .shiftType(request.getShiftType())
                 .location(request.getLocation())
                 .notes(request.getNotes())
                 .available(true)
@@ -240,12 +256,96 @@ public class DoctorScheduleServiceImpl implements DoctorScheduleService {
         return schedule;
     }
 
+    /**
+     * Validate (and for Home visit, normalize) the schedule request.
+     *
+     * - Home visit: lịch theo CA cố định (Sáng/Chiều/Tối). Server gán cứng giờ theo khung của ca,
+     *   để mỗi ca = đúng 1 slot đặt được (slotDuration = độ dài ca) và tối đa 1 bệnh nhân/ca.
+     * - Online: giờ nhập tự do nhưng phải nằm gọn trong MỘT khung cho phép
+     *   (Sáng 07:00–10:30, Chiều 13:00–17:30, Tối 19:00–21:00).
+     */
     private void validateScheduleRequest(DoctorScheduleRequest request) {
-        if (request.getStartTime().isAfter(request.getEndTime())) {
+        if (isHomeVisitType(request.getConsultationType())) {
+            LocalTime[] window = shiftWindow(request.getShiftType());
+            if (window == null) {
+                throw new BadRequestException("Home visit schedule requires a valid shift: MORNING, AFTERNOON or EVENING");
+            }
+            request.setShiftType(request.getShiftType().trim().toUpperCase());
+            request.setConsultationType(TYPE_HOME_VISIT);
+            request.setStartTime(window[0]);
+            request.setEndTime(window[1]);
+            request.setSlotDuration((int) Duration.between(window[0], window[1]).toMinutes());
+            request.setMaxPatients(1);
+            return;
+        }
+
+        // Online schedule
+        request.setShiftType(null);
+        LocalTime start = request.getStartTime();
+        LocalTime end = request.getEndTime();
+        if (!start.isBefore(end)) {
             throw new BadRequestException("Start time must be before end time");
+        }
+        boolean withinWindow =
+                (!start.isBefore(MORNING_START) && !end.isAfter(MORNING_END))
+                || (!start.isBefore(AFTERNOON_START) && !end.isAfter(AFTERNOON_END))
+                || (!start.isBefore(EVENING_START) && !end.isAfter(EVENING_END));
+        if (!withinWindow) {
+            throw new BadRequestException(
+                    "Online working hours must fit within one shift window: "
+                    + "Morning 07:00-10:30, Afternoon 13:00-17:30, or Evening 19:00-21:00");
         }
         if (request.getSlotDuration() != null && (request.getSlotDuration() < 10 || request.getSlotDuration() > 120)) {
             throw new BadRequestException("Slot duration must be between 10 and 120 minutes");
+        }
+    }
+
+    /**
+     * Chặn tạo lịch chồng giờ trong cùng một ngày. Áp dụng cho mọi loại:
+     * online vs online, home visit vs online, ... (home visit đã được gán giờ theo ca
+     * trước đó nên cũng so theo [startTime, endTime)).
+     */
+    private void validateNoOverlap(String doctorId, DoctorScheduleRequest request) {
+        LocalTime newStart = request.getStartTime();
+        LocalTime newEnd = request.getEndTime();
+
+        List<DoctorSchedule> sameDay = scheduleRepository.findByDoctor_DoctorId(doctorId).stream()
+                .filter(s -> request.getDayOfWeek().equals(s.getDayOfWeek()))
+                .collect(Collectors.toList());
+
+        for (DoctorSchedule existing : sameDay) {
+            // Hai khoảng [s1,e1) và [s2,e2) giao nhau khi s1 < e2 && s2 < e1
+            if (newStart.isBefore(existing.getEndTime()) && existing.getStartTime().isBefore(newEnd)) {
+                throw new BadRequestException(String.format(
+                        "This time range (%s-%s) overlaps an existing schedule (%s-%s) on %s. "
+                        + "Please choose a non-overlapping time.",
+                        newStart, newEnd, existing.getStartTime(), existing.getEndTime(),
+                        DAY_NAMES[request.getDayOfWeek()]));
+            }
+        }
+    }
+
+    private boolean isHomeVisitType(String type) {
+        if (type == null) {
+            return false;
+        }
+        String t = type.trim().toLowerCase();
+        return t.equals("homevisit") || t.equals("home visit") || t.equals("home-visit") || t.equals("home");
+    }
+
+    private LocalTime[] shiftWindow(String shiftType) {
+        if (shiftType == null) {
+            return null;
+        }
+        switch (shiftType.trim().toUpperCase()) {
+            case SHIFT_MORNING:
+                return new LocalTime[]{MORNING_START, MORNING_END};
+            case SHIFT_AFTERNOON:
+                return new LocalTime[]{AFTERNOON_START, AFTERNOON_END};
+            case SHIFT_EVENING:
+                return new LocalTime[]{EVENING_START, EVENING_END};
+            default:
+                return null;
         }
     }
 
@@ -423,6 +523,7 @@ public class DoctorScheduleServiceImpl implements DoctorScheduleService {
                 .slotDuration(schedule.getSlotDuration())
                 .maxPatients(schedule.getMaxPatients())
                 .consultationType(schedule.getConsultationType())
+                .shiftType(schedule.getShiftType())
                 .location(schedule.getLocation())
                 .notes(schedule.getNotes())
                 .available(schedule.isAvailable())
@@ -453,6 +554,7 @@ public class DoctorScheduleServiceImpl implements DoctorScheduleService {
                 .endTime(schedule.getEndTime())
                 .slotDuration(schedule.getSlotDuration())
                 .consultationType(schedule.getConsultationType())
+                .shiftType(schedule.getShiftType())
                 .available(schedule.isAvailable())
                 .scheduleStatus(schedule.getScheduleStatus())
                 .build();

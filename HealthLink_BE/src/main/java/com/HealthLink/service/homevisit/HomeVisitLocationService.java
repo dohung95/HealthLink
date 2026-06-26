@@ -9,6 +9,7 @@ import com.HealthLink.repository.doctor.DoctorRepository;
 import com.HealthLink.service.geocoding.GeocodingService;
 import com.fasterxml.jackson.databind.JsonNode;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.boot.web.client.RestTemplateBuilder;
 import org.springframework.http.HttpEntity;
 import org.springframework.http.HttpHeaders;
@@ -17,6 +18,8 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.stereotype.Service;
 import org.springframework.web.client.RestTemplate;
 
+import java.math.BigDecimal;
+import java.math.RoundingMode;
 import java.net.URLEncoder;
 import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
@@ -29,6 +32,21 @@ public class HomeVisitLocationService {
     private final RestTemplate restTemplate;
     private final DoctorRepository doctorRepository;
     private final GeocodingService geocodingService;
+
+    @Value("${home-visit.max-distance-km:15}")
+    private Double maxDistanceKm;
+
+    @Value("${home-visit.base-fee:300000}")
+    private BigDecimal baseFee;
+
+    @Value("${home-visit.free-distance-km:3}")
+    private Double freeDistanceKm;
+
+    @Value("${home-visit.travel-fee-per-km:12000}")
+    private BigDecimal travelFeePerKm;
+
+    @Value("${home-visit.average-speed-kmh:25}")
+    private Double averageSpeedKmh;
 
     public HomeVisitLocationService(RestTemplateBuilder builder, DoctorRepository doctorRepository, GeocodingService geocodingService) {
         this.restTemplate = builder.build();
@@ -125,11 +143,34 @@ public class HomeVisitLocationService {
             doctorRepository.save(doctor);
         }
 
-        double distance = calculateStraightDistanceKm(originLat, originLng, visitLatitude, visitLongitude);
-        boolean serviceable = distance <= doctor.getHomeVisitRadiusKm();
+        double distanceKm = calculateStraightDistanceKm(originLat, originLng, visitLatitude, visitLongitude);
+        double roundedDistance = Math.round(distanceKm * 10.0) / 10.0;
+        double maxServiceDistance = doctor.getHomeVisitRadiusKm() != null
+                ? doctor.getHomeVisitRadiusKm()
+                : maxDistanceKm;
+        boolean serviceable = roundedDistance <= maxServiceDistance;
+
+        double extraKm = Math.max(0, roundedDistance - freeDistanceKm);
+        double billedExtraKm = Math.ceil(extraKm);
+
+        BigDecimal extraTravelFee = travelFeePerKm
+                .multiply(BigDecimal.valueOf(billedExtraKm))
+                .setScale(2, RoundingMode.HALF_UP);
+
+        BigDecimal totalFee = baseFee
+                .add(extraTravelFee)
+                .setScale(2, RoundingMode.HALF_UP);
+
+        int estimatedMinutes = (averageSpeedKmh != null && averageSpeedKmh > 0)
+                ? (int) Math.ceil((roundedDistance / averageSpeedKmh) * 60)
+                : 0;
 
         return HomeVisitEstimateResponse.builder()
-                .distanceKm(Math.round(distance * 10.0) / 10.0)
+                .distanceKm(roundedDistance)
+                .estimatedTravelMinutes(estimatedMinutes)
+                .homeVisitFee(baseFee)
+                .travelFee(extraTravelFee)
+                .totalFee(totalFee)
                 .serviceable(serviceable)
                 .message(serviceable ? "Within service area" : "Outside service area")
                 .build();

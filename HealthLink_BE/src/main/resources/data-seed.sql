@@ -78,16 +78,16 @@ SET IDENTITY_INSERT DeviceTokens OFF;
 
 -- 5. DOCTORS (10 doctors)
 INSERT INTO Doctors (DoctorID, FullName, qualifications, specialty, yearsOfExperience, languageSpoken, location, avatarUrl, bio, consultationFee, latitude, longitude, clinicName, clinicAddress, averageRating, totalReviews, verified, specialtyId, totalEarnings, pendingSettlement, paypalEmail, scheduleStatus, bankAccount, bankName, customCommissionRateOnline, customCommissionRateOffline, customCommissionRateOnlineEffectiveFrom, customCommissionRateOnlineEffectiveTo, customCommissionRateOfflineEffectiveFrom, customCommissionRateOfflineEffectiveTo, commissionTier) VALUES
-('user-d01', 'Dr. John Smith', 'MD, PhD - Harvard Medical School', 'Internal Medicine', 15, 'English, Spanish', 'New York', '/avatars/doctor01.jpg', 'Internal medicine specialist with 15 years of experience', 150.00, 40.7128, -74.0060, 'Manhattan Health Clinic', '123 5th Avenue, New York, NY 10001', 4.8, 156, 1, 1, 500.00, 120.00, 'dr.john.smith@healthlink.com', 'APPROVED', '1234567890', 'Bank of America', NULL, NULL, NULL, NULL, NULL, NULL, 'STANDARD'),
-('user-d02', 'Dr. Sarah Johnson', 'MD - Johns Hopkins University', 'Pediatrics', 12, 'English', 'Los Angeles', '/avatars/doctor02.jpg', 'Dedicated pediatrician caring for children', 120.00, 34.0522, -118.2437, 'LA Children Hospital', '456 Sunset Blvd, Los Angeles, CA 90028', 4.9, 203, 1, 3, 320.00, 75.00, 'dr.sarah.johnson@healthlink.com', 'APPROVED', '1234567891', 'Wells Fargo', NULL, NULL, NULL, NULL, NULL, NULL, 'STANDARD'),
-('user-d03', 'Dr. Michael Chen', 'MD, FACC - Stanford University', 'Cardiology', 20, 'English, Mandarin, French', 'San Francisco', '/avatars/doctor03.jpg', 'Leading cardiologist and heart specialist', 250.00, 37.7749, -122.4194, 'Bay Area Heart Center', '789 Market Street, San Francisco, CA 94103', 4.95, 89, 1, 6, 640.00, 150.00, 'dr.michael.chen@healthlink.com', 'APPROVED', '1234567892', 'Chase', NULL, NULL, NULL, NULL, NULL, NULL, 'PREMIUM'),
-('user-d04', 'Dr. Emily Davis', 'MD, FACS - Mayo Clinic', 'Surgery', 10, 'English', 'Chicago', '/avatars/doctor04.jpg', 'Experienced general surgeon', 180.00, 41.8781, -87.6298, 'Chicago Medical Center', '321 Michigan Ave, Chicago, IL 60601', 4.7, 67, 1, 2, 280.00, 50.00, 'dr.emily.davis@healthlink.com', 'APPROVED', '1234567893', 'Citibank', NULL, NULL, NULL, NULL, NULL, NULL, 'STANDARD'),
-('user-d05', 'Dr. Jessica Williams', 'MD, FACOG - UCLA', 'Obstetrics & Gynecology', 8, 'English, Korean', 'Seattle', '/avatars/doctor05.jpg', 'Women health and pregnancy specialist', 140.00, 47.6062, -122.3321, 'Seattle Women Clinic', '555 Pine Street, Seattle, WA 98101', 4.85, 178, 1, 4, 410.00, 140.00, 'dr.jessica.williams@healthlink.com', 'APPROVED', '1234567894', 'US Bank', NULL, NULL, NULL, NULL, NULL, NULL, 'STANDARD'),
-('user-d06', 'Dr. Robert Brown', 'MD - NYU School of Medicine', 'Dermatology', 7, 'English, Italian', 'Miami', '/avatars/doctor06.jpg', 'Skin disease and cosmetic dermatology expert', 110.00, 25.7617, -80.1918, 'Miami Skin Center', '888 Ocean Drive, Miami, FL 33139', 4.6, 234, 1, 5, 220.00, 45.00, 'dr.robert.brown@healthlink.com', 'APPROVED', '1234567895', 'TD Bank', NULL, NULL, NULL, NULL, NULL, NULL, 'STANDARD'),
-('user-d07', 'Dr. David Wilson', 'MD, PhD - Columbia University', 'Neurology', 18, 'English, German', 'Boston', '/avatars/doctor07.jpg', 'Neurologist specializing in brain disorders', 220.00, 42.3601, -71.0589, 'Boston Neuro Institute', '100 Cambridge St, Boston, MA 02114', 4.75, 112, 1, 7, 520.00, 170.00, 'dr.david.wilson@healthlink.com', 'APPROVED', '1234567896', 'Bank of America', NULL, NULL, NULL, NULL, NULL, NULL, 'STANDARD'),
-('user-d08', 'Dr. Amanda Lee', 'MD - Wills Eye Hospital', 'Ophthalmology', 14, 'English, Japanese', 'Philadelphia', '/avatars/doctor08.jpg', 'Eye surgery and treatment specialist', 160.00, 39.9526, -75.1652, 'Philadelphia Eye Center', '200 Chestnut St, Philadelphia, PA 19106', 4.88, 145, 1, 8, 305.00, 80.00, 'dr.amanda.lee@healthlink.com', 'APPROVED', '1234567897', 'PNC Bank', NULL, NULL, NULL, NULL, NULL, NULL, 'STANDARD'),
-('user-d09', 'Dr. James Taylor', 'MD - Baylor College of Medicine', 'ENT', 11, 'English, Spanish', 'Houston', '/avatars/doctor09.jpg', 'Ear, nose, and throat specialist', 100.00, 29.7604, -95.3698, 'Houston ENT Clinic', '400 Main Street, Houston, TX 77002', 4.5, 89, 1, 9, 190.00, 30.00, 'dr.james.taylor@healthlink.com', 'APPROVED', '1234567898', 'Chase', NULL, NULL, NULL, NULL, NULL, NULL, 'STANDARD'),
-('user-d10', 'Dr. Jennifer Martinez', 'DDS - USC School of Dentistry', 'Dentistry', 9, 'English, Spanish', 'Phoenix', '/avatars/doctor10.jpg', 'Cosmetic and general dentistry', 90.00, 33.4484, -112.0740, 'Smile Dental Center', '600 Central Ave, Phoenix, AZ 85004', 4.92, 267, 1, 10, 150.00, 25.00, 'dr.jennifer.martinez@healthlink.com', 'APPROVED', '1234567899', 'Bank of the West', NULL, NULL, NULL, NULL, NULL, NULL, 'STANDARD');
+('user-d01', 'Dr. John Smith', 'MD, PhD - Harvard Medical School', 'Internal Medicine', 15, 'English, Spanish', 'New York', 'http://localhost:8096/uploads/avatars/doctors/bacsi_01.png', 'Internal medicine specialist with 15 years of experience', 150.00, 40.7128, -74.0060, 'Manhattan Health Clinic', '123 5th Avenue, New York, NY 10001', 4.8, 156, 1, 1, 500.00, 120.00, 'dr.john.smith@healthlink.com', 'APPROVED', '1234567890', 'Bank of America', NULL, NULL, NULL, NULL, NULL, NULL, 'STANDARD'),
+('user-d02', 'Dr. Sarah Johnson', 'MD - Johns Hopkins University', 'Pediatrics', 12, 'English', 'Los Angeles', 'http://localhost:8096/uploads/avatars/doctors/bacsi_02.png', 'Dedicated pediatrician caring for children', 120.00, 34.0522, -118.2437, 'LA Children Hospital', '456 Sunset Blvd, Los Angeles, CA 90028', 4.9, 203, 1, 3, 320.00, 75.00, 'dr.sarah.johnson@healthlink.com', 'APPROVED', '1234567891', 'Wells Fargo', NULL, NULL, NULL, NULL, NULL, NULL, 'STANDARD'),
+('user-d03', 'Dr. Michael Chen', 'MD, FACC - Stanford University', 'Cardiology', 20, 'English, Mandarin, French', 'San Francisco', 'http://localhost:8096/uploads/avatars/doctors/bacsi_03.png', 'Leading cardiologist and heart specialist', 250.00, 37.7749, -122.4194, 'Bay Area Heart Center', '789 Market Street, San Francisco, CA 94103', 4.95, 89, 1, 6, 640.00, 150.00, 'dr.michael.chen@healthlink.com', 'APPROVED', '1234567892', 'Chase', NULL, NULL, NULL, NULL, NULL, NULL, 'PREMIUM'),
+('user-d04', 'Dr. Emily Davis', 'MD, FACS - Mayo Clinic', 'Surgery', 10, 'English', 'Chicago', 'http://localhost:8096/uploads/avatars/doctors/bacsi_04.png', 'Experienced general surgeon', 180.00, 41.8781, -87.6298, 'Chicago Medical Center', '321 Michigan Ave, Chicago, IL 60601', 4.7, 67, 1, 2, 280.00, 50.00, 'dr.emily.davis@healthlink.com', 'APPROVED', '1234567893', 'Citibank', NULL, NULL, NULL, NULL, NULL, NULL, 'STANDARD'),
+('user-d05', 'Dr. Jessica Williams', 'MD, FACOG - UCLA', 'Obstetrics & Gynecology', 8, 'English, Korean', 'Seattle', 'http://localhost:8096/uploads/avatars/doctors/bacsi_05.png', 'Women health and pregnancy specialist', 140.00, 47.6062, -122.3321, 'Seattle Women Clinic', '555 Pine Street, Seattle, WA 98101', 4.85, 178, 1, 4, 410.00, 140.00, 'dr.jessica.williams@healthlink.com', 'APPROVED', '1234567894', 'US Bank', NULL, NULL, NULL, NULL, NULL, NULL, 'STANDARD'),
+('user-d06', 'Dr. Robert Brown', 'MD - NYU School of Medicine', 'Dermatology', 7, 'English, Italian', 'Miami', 'http://localhost:8096/uploads/avatars/doctors/bacsi_06.png', 'Skin disease and cosmetic dermatology expert', 110.00, 25.7617, -80.1918, 'Miami Skin Center', '888 Ocean Drive, Miami, FL 33139', 4.6, 234, 1, 5, 220.00, 45.00, 'dr.robert.brown@healthlink.com', 'APPROVED', '1234567895', 'TD Bank', NULL, NULL, NULL, NULL, NULL, NULL, 'STANDARD'),
+('user-d07', 'Dr. David Wilson', 'MD, PhD - Columbia University', 'Neurology', 18, 'English, German', 'Boston', 'http://localhost:8096/uploads/avatars/doctors/bacsi_07.png', 'Neurologist specializing in brain disorders', 220.00, 42.3601, -71.0589, 'Boston Neuro Institute', '100 Cambridge St, Boston, MA 02114', 4.75, 112, 1, 7, 520.00, 170.00, 'dr.david.wilson@healthlink.com', 'APPROVED', '1234567896', 'Bank of America', NULL, NULL, NULL, NULL, NULL, NULL, 'STANDARD'),
+('user-d08', 'Dr. Amanda Lee', 'MD - Wills Eye Hospital', 'Ophthalmology', 14, 'English, Japanese', 'Philadelphia', 'http://localhost:8096/uploads/avatars/doctors/bacsi_08.png', 'Eye surgery and treatment specialist', 160.00, 39.9526, -75.1652, 'Philadelphia Eye Center', '200 Chestnut St, Philadelphia, PA 19106', 4.88, 145, 1, 8, 305.00, 80.00, 'dr.amanda.lee@healthlink.com', 'APPROVED', '1234567897', 'PNC Bank', NULL, NULL, NULL, NULL, NULL, NULL, 'STANDARD'),
+('user-d09', 'Dr. James Taylor', 'MD - Baylor College of Medicine', 'ENT', 11, 'English, Spanish', 'Houston', 'http://localhost:8096/uploads/avatars/doctors/bacsi_09.png', 'Ear, nose, and throat specialist', 100.00, 29.7604, -95.3698, 'Houston ENT Clinic', '400 Main Street, Houston, TX 77002', 4.5, 89, 1, 9, 190.00, 30.00, 'dr.james.taylor@healthlink.com', 'APPROVED', '1234567898', 'Chase', NULL, NULL, NULL, NULL, NULL, NULL, 'STANDARD'),
+('user-d10', 'Dr. Jennifer Martinez', 'DDS - USC School of Dentistry', 'Dentistry', 9, 'English, Spanish', 'Phoenix', 'http://localhost:8096/uploads/avatars/doctors/bacsi_10.png', 'Cosmetic and general dentistry', 90.00, 33.4484, -112.0740, 'Smile Dental Center', '600 Central Ave, Phoenix, AZ 85004', 4.92, 267, 1, 10, 150.00, 25.00, 'dr.jennifer.martinez@healthlink.com', 'APPROVED', '1234567899', 'Bank of the West', NULL, NULL, NULL, NULL, NULL, NULL, 'STANDARD');
 
 -- 5b. DOCTOR_SERVICES (2 rows per doctor, 20 total)
 INSERT INTO DoctorServices (doctor_id, service_type, available) VALUES
@@ -114,29 +114,29 @@ INSERT INTO DoctorServices (doctor_id, service_type, available) VALUES
 
 -- 6. PATIENTS (10 patients)
 INSERT INTO Patients (PatientID, FullName, dateOfBirth, medicalHistorySummary, insuranceProvider, insurancePolicyNumber, gender, address, city, country, bloodType, emergencyContactName, emergencyContactPhone, emergencyContactRelationship, preferredLanguage, preferredContactMethod, occupation, avatarUrl, latitude, longitude, allergies, chronicConditions, currentMedications, heightCm, weightKg) VALUES
-('user-p01', 'Michael Anderson', '1990-05-15', 'No significant medical history', 'Blue Cross', 'BC-2024-001', 'Male', '12 Le Loi Street, District 1', 'Ho Chi Minh City', 'Vietnam', 'A+', 'Lisa Anderson', '0912345678', 'Wife', 'English', 'Phone', 'Software Engineer', '/avatars/patient01.jpg', 10.7769, 106.7009, 'Penicillin', NULL, NULL, 175, 70),
-('user-p02', 'Emma Thompson', '1985-08-22', 'History of gastritis', 'Aetna', 'AET-2024-002', 'Female', '123 Maple Avenue', 'Los Angeles', 'USA', 'B+', 'Tom Thompson', '0923456789', 'Husband', 'English', 'Email', 'Teacher', '/avatars/patient02.jpg', 34.0522, -118.2437, NULL, 'Chronic gastritis', 'Omeprazole 20mg', 165, 58),
-('user-p03', 'William Brown', '1978-12-01', 'Type 2 diabetes', 'United Healthcare', 'UHC-2024-003', 'Male', '78 Pine Road', 'Chicago', 'USA', 'O+', 'Mary Brown', '0934567890', 'Wife', 'English', 'Phone', 'Business Owner', '/avatars/patient03.jpg', 41.8781, -87.6298, NULL, 'Type 2 diabetes', 'Metformin 500mg', 178, 85),
-('user-p04', 'Sophia Garcia', '1995-03-10', 'No significant medical history', 'Cigna', 'CIG-2024-004', 'Female', '56 Cedar Lane', 'Houston', 'USA', 'AB+', 'Carlos Garcia', '0945678901', 'Father', 'English', 'Text', 'Student', '/avatars/patient04.jpg', 29.7604, -95.3698, 'Shellfish', NULL, NULL, 160, 52),
-('user-p05', 'James Wilson', '1982-07-25', 'Hypertension', 'Kaiser', 'KP-2024-005', 'Male', '234 Elm Street', 'San Francisco', 'USA', 'A-', 'Susan Wilson', '0956789012', 'Wife', 'English', 'Phone', 'Attorney', '/avatars/patient05.jpg', 37.7749, -122.4194, NULL, 'Hypertension', 'Amlodipine 5mg', 180, 78),
-('user-p06', 'Olivia Davis', '1992-11-18', 'Childhood asthma', 'Humana', 'HUM-2024-006', 'Female', '89 Birch Court', 'Seattle', 'USA', 'B-', 'Robert Davis', '0967890123', 'Father', 'English', 'Email', 'Office Manager', '/avatars/patient06.jpg', 47.6062, -122.3321, 'Dust, pollen', 'Asthma', 'Salbutamol inhaler', 163, 55),
-('user-p07', 'Daniel Miller', '1970-04-05', 'Gout, elevated uric acid', 'Medicare', 'MED-2024-007', 'Male', '12 Walnut Drive', 'Miami', 'USA', 'O-', 'Patricia Miller', '0978901234', 'Wife', 'English', 'Phone', 'Executive', '/avatars/patient07.jpg', 25.7617, -80.1918, NULL, 'Gout', 'Allopurinol 300mg', 172, 80),
-('user-p08', 'Isabella Moore', '1988-09-30', 'No significant medical history', 'Anthem', 'ANT-2024-008', 'Female', '67 Spruce Avenue', 'Boston', 'USA', 'A+', 'Mark Moore', '0989012345', 'Husband', 'English', 'Text', 'Nurse', '/avatars/patient08.jpg', 42.3601, -71.0589, NULL, NULL, NULL, 168, 60),
-('user-p09', 'Alexander Johnson', '1998-01-20', 'Chronic sinusitis', 'Tricare', 'TRI-2024-009', 'Male', '45 Redwood Street', 'Phoenix', 'USA', 'B+', 'Nancy Johnson', '0990123456', 'Mother', 'English', 'Phone', 'Developer', '/avatars/patient09.jpg', 33.4484, -112.0740, 'Aspirin', 'Sinusitis', NULL, 182, 75),
-('user-p10', 'Charlotte Taylor', '1975-06-12', 'Spinal degeneration', 'BCBS', 'BCBS-2024-010', 'Female', '90 Aspen Way', 'Philadelphia', 'USA', 'AB-', 'George Taylor', '0901234567', 'Husband', 'English', 'Phone', 'Homemaker', '/avatars/patient10.jpg', 39.9526, -75.1652, NULL, 'Spinal degeneration', 'Glucosamine', 158, 62);
+('user-p01', 'Michael Anderson', '1990-05-15', 'No significant medical history', 'Blue Cross', 'BC-2024-001', 'Male', '12 Le Loi Street, District 1', 'Ho Chi Minh City', 'Vietnam', 'A+', 'Lisa Anderson', '0912345678', 'Wife', 'English', 'Phone', 'Software Engineer', 'http://localhost:8096/uploads/avatars/patients/benhnhan_01.png', 10.7769, 106.7009, 'Penicillin', NULL, NULL, 175, 70),
+('user-p02', 'Emma Thompson', '1985-08-22', 'History of gastritis', 'Aetna', 'AET-2024-002', 'Female', '123 Maple Avenue', 'Los Angeles', 'USA', 'B+', 'Tom Thompson', '0923456789', 'Husband', 'English', 'Email', 'Teacher', 'http://localhost:8096/uploads/avatars/patients/benhnhan_02.png', 34.0522, -118.2437, NULL, 'Chronic gastritis', 'Omeprazole 20mg', 165, 58),
+('user-p03', 'William Brown', '1978-12-01', 'Type 2 diabetes', 'United Healthcare', 'UHC-2024-003', 'Male', '78 Pine Road', 'Chicago', 'USA', 'O+', 'Mary Brown', '0934567890', 'Wife', 'English', 'Phone', 'Business Owner', 'http://localhost:8096/uploads/avatars/patients/benhnhan_03.png', 41.8781, -87.6298, NULL, 'Type 2 diabetes', 'Metformin 500mg', 178, 85),
+('user-p04', 'Sophia Garcia', '1995-03-10', 'No significant medical history', 'Cigna', 'CIG-2024-004', 'Female', '56 Cedar Lane', 'Houston', 'USA', 'AB+', 'Carlos Garcia', '0945678901', 'Father', 'English', 'Text', 'Student', 'http://localhost:8096/uploads/avatars/patients/benhnhan_04.png', 29.7604, -95.3698, 'Shellfish', NULL, NULL, 160, 52),
+('user-p05', 'James Wilson', '1982-07-25', 'Hypertension', 'Kaiser', 'KP-2024-005', 'Male', '234 Elm Street', 'San Francisco', 'USA', 'A-', 'Susan Wilson', '0956789012', 'Wife', 'English', 'Phone', 'Attorney', 'http://localhost:8096/uploads/avatars/patients/benhnhan_05.png', 37.7749, -122.4194, NULL, 'Hypertension', 'Amlodipine 5mg', 180, 78),
+('user-p06', 'Olivia Davis', '1992-11-18', 'Childhood asthma', 'Humana', 'HUM-2024-006', 'Female', '89 Birch Court', 'Seattle', 'USA', 'B-', 'Robert Davis', '0967890123', 'Father', 'English', 'Email', 'Office Manager', 'http://localhost:8096/uploads/avatars/patients/benhnhan_06.png', 47.6062, -122.3321, 'Dust, pollen', 'Asthma', 'Salbutamol inhaler', 163, 55),
+('user-p07', 'Daniel Miller', '1970-04-05', 'Gout, elevated uric acid', 'Medicare', 'MED-2024-007', 'Male', '12 Walnut Drive', 'Miami', 'USA', 'O-', 'Patricia Miller', '0978901234', 'Wife', 'English', 'Phone', 'Executive', 'http://localhost:8096/uploads/avatars/patients/benhnhan_07.png', 25.7617, -80.1918, NULL, 'Gout', 'Allopurinol 300mg', 172, 80),
+('user-p08', 'Isabella Moore', '1988-09-30', 'No significant medical history', 'Anthem', 'ANT-2024-008', 'Female', '67 Spruce Avenue', 'Boston', 'USA', 'A+', 'Mark Moore', '0989012345', 'Husband', 'English', 'Text', 'Nurse', 'http://localhost:8096/uploads/avatars/patients/benhnhan_08.png', 42.3601, -71.0589, NULL, NULL, NULL, 168, 60),
+('user-p09', 'Alexander Johnson', '1998-01-20', 'Chronic sinusitis', 'Tricare', 'TRI-2024-009', 'Male', '45 Redwood Street', 'Phoenix', 'USA', 'B+', 'Nancy Johnson', '0990123456', 'Mother', 'English', 'Phone', 'Developer', 'http://localhost:8096/uploads/avatars/patients/benhnhan_09.png', 33.4484, -112.0740, 'Aspirin', 'Sinusitis', NULL, 182, 75),
+('user-p10', 'Charlotte Taylor', '1975-06-12', 'Spinal degeneration', 'BCBS', 'BCBS-2024-010', 'Female', '90 Aspen Way', 'Philadelphia', 'USA', 'AB-', 'George Taylor', '0901234567', 'Husband', 'English', 'Phone', 'Homemaker', 'http://localhost:8096/uploads/avatars/patients/benhnhan_10.png', 39.9526, -75.1652, NULL, 'Spinal degeneration', 'Glucosamine', 158, 62);
 
 -- 7. PHARMACIES (10 pharmacies)
 INSERT INTO Pharmacies (PharmacyID, name, licenseNumber, address, city, district, ward, latitude, longitude, phoneNumber, email, description, avatarUrl, openTime, closeTime, Open24Hours, workingDays, Verified, Active, AverageRating, TotalReviews, DeliveryAvailable, DeliveryRadius, DeliveryFee, CreatedAt, updatedAt, totalEarnings, pendingSettlement, paypalEmail) VALUES
-('user-ph01', 'HealthLink Pharmacy - Ben Thanh', 'PH-HCM-001', '22 Le Thanh Ton Street', 'Ho Chi Minh City', 'District 1', 'Ben Nghe', 10.7828, 106.7033, '0283001001', 'ben.thanh@pharmacy.com', 'Central District 1 pharmacy with fast delivery', '/pharmacy/cvs1.jpg', '07:00', '22:00', 0, 'Mon-Sun', 1, 1, 4.8, 523, 1, 5.0, 5.99, '2024-01-01', '2024-05-01', 700.00, 90.00, 'sb-mzkxc42229383@personal.example.com'),
-('user-ph02', 'An Khang Pharmacy - Nguyen Hue', 'PH-HCM-002', '68 Nguyen Hue Street', 'Ho Chi Minh City', 'District 1', 'Ben Nghe', 10.7950, 106.7050, '0283002002', 'nguyen.hue@pharmacy.com', 'Large pharmacy near the city center', '/pharmacy/walgreens1.jpg', '07:30', '22:30', 0, 'Mon-Sun', 1, 1, 4.7, 412, 1, 7.0, 6.99, '2024-01-15', '2024-05-02', 650.00, 75.00, 'walgreens.la@healthlink.com'),
-('user-ph03', 'Pharmacity - Thu Thiem', 'PH-HCM-003', '12 Tran Bach Dang Street', 'Ho Chi Minh City', 'Thu Duc City', 'Thu Thiem', 10.7760, 106.7228, '0283003003', 'thu.thiem@pharmacy.com', 'Nearby pharmacy intentionally seeded without inventory', '/pharmacy/riteaid.jpg', '06:30', '21:30', 0, 'Mon-Sat', 1, 1, 4.6, 187, 1, 4.0, 4.99, '2024-02-01', '2024-05-03', 420.00, 30.00, 'riteaid.chi@healthlink.com'),
-('user-ph04', 'CVS Pharmacy - SF', 'PH-CA-004', '789 Market Street', 'San Francisco', 'Financial', 'Downtown', 37.7879, -122.4074, '4153004004', 'cvs.sf@pharmacy.com', 'Tech-friendly pharmacy', '/pharmacy/cvs2.jpg', '07:00', '23:00', 0, 'Mon-Sun', 1, 1, 4.9, 678, 1, 6.0, 7.99, '2024-02-15', '2024-05-04', 840.00, 110.00, 'cvs.sf@healthlink.com'),
-('user-ph05', 'Walgreens - Boston', 'PH-MA-005', '23 Newbury Street', 'Boston', 'Back Bay', 'Central', 42.3505, -71.0762, '6173005005', 'walgreens.bos@pharmacy.com', 'Premium pharmacy services', '/pharmacy/walgreens2.jpg', '08:00', '20:00', 0, 'Mon-Sat', 1, 1, 4.5, 234, 1, 3.0, 5.49, '2024-03-01', '2024-05-05', 390.00, 20.00, 'walgreens.bos@healthlink.com'),
-('user-ph06', 'Hospital Pharmacy - NYC', 'PH-NY-006', '78 Hospital Drive', 'New York', 'Queens', 'Jamaica', 40.7282, -73.7949, '7183006006', 'hospital.nyc@pharmacy.com', 'Open 24/7', '/pharmacy/hospital.jpg', NULL, NULL, 1, 'Mon-Sun', 1, 1, 4.4, 892, 0, NULL, NULL, '2024-03-15', '2024-05-06', 510.00, 60.00, 'hospital.nyc@healthlink.com'),
-('user-ph07', 'MedExpress Pharmacy', 'PH-TX-007', '34 Main Plaza', 'Houston', 'Downtown', 'Central', 29.7589, -95.3677, '7133007007', 'medexpress@pharmacy.com', 'Fast and reliable service', '/pharmacy/medexpress.jpg', '07:00', '21:00', 0, 'Mon-Sun', 1, 1, 4.7, 156, 1, 8.0, 5.99, '2024-04-01', '2024-05-07', 280.00, 15.00, 'medexpress@healthlink.com'),
-('user-ph08', 'Community Pharmacy', 'PH-FL-008', '456 Ocean Drive', 'Miami', 'Beach', 'South Beach', 25.7825, -80.1340, '3053008008', 'community.miami@pharmacy.com', 'Family owned pharmacy', '/pharmacy/community.jpg', '06:00', '22:00', 0, 'Mon-Sun', 1, 1, 4.3, 345, 1, 5.0, 4.99, '2024-04-15', '2024-05-08', 330.00, 25.00, 'community.miami@healthlink.com'),
-('user-ph09', 'HealthMart Pharmacy', 'PH-WA-009', 'Pike Place Market', 'Seattle', 'Downtown', 'Pike Place', 47.6097, -122.3422, '2063009009', 'healthmart.sea@pharmacy.com', 'Natural and organic options', '/pharmacy/healthmart.jpg', '09:00', '22:00', 0, 'Mon-Sun', 1, 1, 4.6, 267, 1, 4.0, 6.99, '2024-05-01', '2024-05-09', 260.00, 18.00, 'healthmart.sea@healthlink.com'),
-('user-ph10', 'Express Scripts Pharmacy', 'PH-AZ-010', '90 Central Avenue', 'Phoenix', 'Downtown', 'Central', 33.4502, -112.0733, '6023010010', 'express.phx@pharmacy.com', 'Quick prescription service', '/pharmacy/express.jpg', '07:30', '21:00', 0, 'Mon-Sat', 1, 1, 4.8, 198, 1, 6.0, 5.49, '2024-05-05', '2024-05-10', 300.00, 22.00, 'express.phx@healthlink.com');
+('user-ph01', 'HealthLink Pharmacy - Ben Thanh', 'PH-HCM-001', '22 Le Thanh Ton Street', 'Ho Chi Minh City', 'District 1', 'Ben Nghe', 10.7828, 106.7033, '0283001001', 'ben.thanh@pharmacy.com', 'Central District 1 pharmacy with fast delivery', 'http://localhost:8096/uploads/avatars/pharmacies/nhathuoc_01.png', '07:00', '22:00', 0, 'Mon-Sun', 1, 1, 4.8, 523, 1, 5.0, 5.99, '2024-01-01', '2024-05-01', 700.00, 90.00, 'sb-mzkxc42229383@personal.example.com'),
+('user-ph02', 'An Khang Pharmacy - Nguyen Hue', 'PH-HCM-002', '68 Nguyen Hue Street', 'Ho Chi Minh City', 'District 1', 'Ben Nghe', 10.7950, 106.7050, '0283002002', 'nguyen.hue@pharmacy.com', 'Large pharmacy near the city center', 'http://localhost:8096/uploads/avatars/pharmacies/nhathuoc_02.png', '07:30', '22:30', 0, 'Mon-Sun', 1, 1, 4.7, 412, 1, 7.0, 6.99, '2024-01-15', '2024-05-02', 650.00, 75.00, 'walgreens.la@healthlink.com'),
+('user-ph03', 'Pharmacity - Thu Thiem', 'PH-HCM-003', '12 Tran Bach Dang Street', 'Ho Chi Minh City', 'Thu Duc City', 'Thu Thiem', 10.7760, 106.7228, '0283003003', 'thu.thiem@pharmacy.com', 'Nearby pharmacy intentionally seeded without inventory', 'http://localhost:8096/uploads/avatars/pharmacies/nhathuoc_03.png', '06:30', '21:30', 0, 'Mon-Sat', 1, 1, 4.6, 187, 1, 4.0, 4.99, '2024-02-01', '2024-05-03', 420.00, 30.00, 'riteaid.chi@healthlink.com'),
+('user-ph04', 'CVS Pharmacy - SF', 'PH-CA-004', '789 Market Street', 'San Francisco', 'Financial', 'Downtown', 37.7879, -122.4074, '4153004004', 'cvs.sf@pharmacy.com', 'Tech-friendly pharmacy', 'http://localhost:8096/uploads/avatars/pharmacies/nhathuoc_04.png', '07:00', '23:00', 0, 'Mon-Sun', 1, 1, 4.9, 678, 1, 6.0, 7.99, '2024-02-15', '2024-05-04', 840.00, 110.00, 'cvs.sf@healthlink.com'),
+('user-ph05', 'Walgreens - Boston', 'PH-MA-005', '23 Newbury Street', 'Boston', 'Back Bay', 'Central', 42.3505, -71.0762, '6173005005', 'walgreens.bos@pharmacy.com', 'Premium pharmacy services', 'http://localhost:8096/uploads/avatars/pharmacies/nhathuoc_05.png', '08:00', '20:00', 0, 'Mon-Sat', 1, 1, 4.5, 234, 1, 3.0, 5.49, '2024-03-01', '2024-05-05', 390.00, 20.00, 'walgreens.bos@healthlink.com'),
+('user-ph06', 'Hospital Pharmacy - NYC', 'PH-NY-006', '78 Hospital Drive', 'New York', 'Queens', 'Jamaica', 40.7282, -73.7949, '7183006006', 'hospital.nyc@pharmacy.com', 'Open 24/7', 'http://localhost:8096/uploads/avatars/pharmacies/nhathuoc_06.png', NULL, NULL, 1, 'Mon-Sun', 1, 1, 4.4, 892, 0, NULL, NULL, '2024-03-15', '2024-05-06', 510.00, 60.00, 'hospital.nyc@healthlink.com'),
+('user-ph07', 'MedExpress Pharmacy', 'PH-TX-007', '34 Main Plaza', 'Houston', 'Downtown', 'Central', 29.7589, -95.3677, '7133007007', 'medexpress@pharmacy.com', 'Fast and reliable service', 'http://localhost:8096/uploads/avatars/pharmacies/nhathuoc_07.png', '07:00', '21:00', 0, 'Mon-Sun', 1, 1, 4.7, 156, 1, 8.0, 5.99, '2024-04-01', '2024-05-07', 280.00, 15.00, 'medexpress@healthlink.com'),
+('user-ph08', 'Community Pharmacy', 'PH-FL-008', '456 Ocean Drive', 'Miami', 'Beach', 'South Beach', 25.7825, -80.1340, '3053008008', 'community.miami@pharmacy.com', 'Family owned pharmacy', 'http://localhost:8096/uploads/avatars/pharmacies/nhathuoc_08.png', '06:00', '22:00', 0, 'Mon-Sun', 1, 1, 4.3, 345, 1, 5.0, 4.99, '2024-04-15', '2024-05-08', 330.00, 25.00, 'community.miami@healthlink.com'),
+('user-ph09', 'HealthMart Pharmacy', 'PH-WA-009', 'Pike Place Market', 'Seattle', 'Downtown', 'Pike Place', 47.6097, -122.3422, '2063009009', 'healthmart.sea@pharmacy.com', 'Natural and organic options', 'http://localhost:8096/uploads/avatars/pharmacies/nhathuoc_09.png', '09:00', '22:00', 0, 'Mon-Sun', 1, 1, 4.6, 267, 1, 4.0, 6.99, '2024-05-01', '2024-05-09', 260.00, 18.00, 'healthmart.sea@healthlink.com'),
+('user-ph10', 'Express Scripts Pharmacy', 'PH-AZ-010', '90 Central Avenue', 'Phoenix', 'Downtown', 'Central', 33.4502, -112.0733, '6023010010', 'express.phx@pharmacy.com', 'Quick prescription service', 'http://localhost:8096/uploads/avatars/pharmacies/nhathuoc_10.png', '07:30', '21:00', 0, 'Mon-Sat', 1, 1, 4.8, 198, 1, 6.0, 5.49, '2024-05-05', '2024-05-10', 300.00, 22.00, 'express.phx@healthlink.com');
 
 -- 8. MEDICINES (10 medicines)
 SET IDENTITY_INSERT Medicines ON;
@@ -187,35 +187,38 @@ INSERT INTO PharmacyInventory (InventoryID, PharmacyID, MedicineID, quantity, re
 SET IDENTITY_INSERT PharmacyInventory OFF;
 
 -- 10. DOCTOR_SCHEDULES
--- Online schedules keep short slots. HomeVisit schedules use 3 shifts/day, 2 slots/shift, 120 minutes/slot.
+-- Shift windows: Morning 07:00-10:30, Afternoon 13:00-17:30, Evening 19:00-21:00.
+-- Online schedules must fit within ONE window. HomeVisit uses a full-window shift =
+-- exactly 1 bookable slot, 1 patient/shift (SlotDuration = window length: 210/270/120).
+-- No overlapping schedules on the same day for any doctor.
 SET IDENTITY_INSERT DoctorSchedules ON;
 INSERT INTO DoctorSchedules (ScheduleID, DoctorId, dayOfWeek, startTime, endTime, SlotDuration, MaxPatients, Available, ScheduleStatus, consultationType, ShiftType, location, notes) VALUES
--- Existing online/offline test schedules
-(1, 'user-d01', 1, '08:00', '12:00', 30, 1, 1, 'APPROVED', 'Video', NULL, NULL, 'Monday morning video consultations'),
-(2, 'user-d01', 1, '14:00', '17:00', 30, 1, 1, 'APPROVED', 'Offline', NULL, 'Manhattan Health Clinic', 'Monday afternoon in-person'),
-(3, 'user-d02', 2, '08:00', '11:30', 20, 2, 1, 'APPROVED', 'Video', NULL, NULL, 'Pediatric online consultations'),
-(4, 'user-d03', 3, '09:00', '12:00', 45, 1, 1, 'APPROVED', 'Video', NULL, NULL, 'Cardiology consultations'),
-(5, 'user-d04', 4, '07:30', '11:30', 30, 1, 1, 'APPROVED', 'Offline', NULL, 'Chicago Medical Center', 'Surgery consultations'),
-(6, 'user-d05', 5, '08:00', '12:00', 30, 1, 1, 'APPROVED', 'Video', NULL, NULL, 'OB/GYN video consultations'),
-(7, 'user-d06', 6, '09:00', '12:00', 20, 2, 1, 'APPROVED', 'Video', NULL, NULL, 'Dermatology online sessions'),
-(8, 'user-d07', 1, '14:00', '18:00', 40, 1, 1, 'APPROVED', 'Offline', NULL, 'Boston Neuro Institute', 'Neurology appointments'),
-(9, 'user-d08', 2, '08:00', '11:00', 30, 1, 1, 'APPROVED', 'Offline', NULL, 'Philadelphia Eye Center', 'Eye examinations'),
-(10, 'user-d09', 3, '13:30', '17:00', 25, 2, 1, 'APPROVED', 'Video', NULL, NULL, 'ENT video consultations'),
+-- Dr. John Smith (user-d01): Mon online morning + offline afternoon + home visit evening; Wed home visit morning + online afternoon
+(1, 'user-d01', 1, '07:00', '10:00', 30, 1, 1, 'APPROVED', 'Video', NULL, NULL, 'Monday morning video consultations'),
+(2, 'user-d01', 1, '13:30', '16:30', 30, 1, 1, 'APPROVED', 'Offline', NULL, 'Manhattan Health Clinic', 'Monday afternoon in-person'),
+(3, 'user-d01', 1, '19:00', '21:00', 120, 1, 1, 'APPROVED', 'HomeVisit', 'EVENING', 'Patient home', 'Monday evening home visit shift'),
+(4, 'user-d01', 3, '07:00', '10:30', 210, 1, 1, 'APPROVED', 'HomeVisit', 'MORNING', 'Patient home', 'Wednesday morning home visit shift'),
+(5, 'user-d01', 3, '14:00', '17:00', 30, 1, 1, 'APPROVED', 'Video', NULL, NULL, 'Wednesday afternoon video consultations'),
 
--- Home Visit test schedules for Dr. John Smith (user-d01), every Monday
-(11, 'user-d01', 1, '08:00', '12:00', 120, 1, 1, 'APPROVED', 'HomeVisit', 'Morning', 'Patient home', 'Home visit morning shift: 08:00-10:00, 10:00-12:00'),
-(12, 'user-d01', 1, '13:00', '17:00', 120, 1, 1, 'APPROVED', 'HomeVisit', 'Afternoon', 'Patient home', 'Home visit afternoon shift: 13:00-15:00, 15:00-17:00'),
-(13, 'user-d01', 1, '18:00', '22:00', 120, 1, 1, 'APPROVED', 'HomeVisit', 'Evening', 'Patient home', 'Home visit evening shift: 18:00-20:00, 20:00-22:00'),
+-- Dr. Sarah Johnson (user-d02): Tue online morning + home visit afternoon; Thu online morning
+(6, 'user-d02', 2, '08:00', '10:30', 20, 2, 1, 'APPROVED', 'Video', NULL, NULL, 'Tuesday morning pediatric consultations'),
+(7, 'user-d02', 2, '13:00', '17:30', 270, 1, 1, 'APPROVED', 'HomeVisit', 'AFTERNOON', 'Patient home', 'Tuesday afternoon home visit shift'),
+(8, 'user-d02', 4, '07:00', '10:00', 20, 2, 1, 'APPROVED', 'Video', NULL, NULL, 'Thursday morning pediatric consultations'),
 
--- Home Visit test schedules for Dr. Michael Chen (user-d03), every Wednesday
-(14, 'user-d03', 3, '08:00', '12:00', 120, 1, 1, 'APPROVED', 'HomeVisit', 'Morning', 'Patient home', 'Home visit morning shift: 08:00-10:00, 10:00-12:00'),
-(15, 'user-d03', 3, '13:00', '17:00', 120, 1, 1, 'APPROVED', 'HomeVisit', 'Afternoon', 'Patient home', 'Home visit afternoon shift: 13:00-15:00, 15:00-17:00'),
-(16, 'user-d03', 3, '18:00', '22:00', 120, 1, 1, 'APPROVED', 'HomeVisit', 'Evening', 'Patient home', 'Home visit evening shift: 18:00-20:00, 20:00-22:00'),
+-- Dr. Michael Chen (user-d03): Wed online morning + home visit afternoon + offline evening; Fri home visit morning
+(9, 'user-d03', 3, '09:00', '10:30', 45, 1, 1, 'APPROVED', 'Video', NULL, NULL, 'Cardiology consultations'),
+(10, 'user-d03', 3, '13:00', '17:30', 270, 1, 1, 'APPROVED', 'HomeVisit', 'AFTERNOON', 'Patient home', 'Wednesday afternoon home visit shift'),
+(11, 'user-d03', 3, '19:00', '21:00', 45, 1, 1, 'APPROVED', 'Offline', NULL, 'Bay Area Heart Center', 'Wednesday evening in-person'),
+(12, 'user-d03', 5, '07:00', '10:30', 210, 1, 1, 'APPROVED', 'HomeVisit', 'MORNING', 'Patient home', 'Friday morning home visit shift'),
 
--- Home Visit test schedules for Dr. Sarah Johnson (user-d02), every Tuesday
-(17, 'user-d02', 2, '08:00', '12:00', 120, 1, 1, 'APPROVED', 'HomeVisit', 'Morning', 'Patient home', 'Home visit morning shift: 08:00-10:00, 10:00-12:00'),
-(18, 'user-d02', 2, '13:00', '17:00', 120, 1, 1, 'APPROVED', 'HomeVisit', 'Afternoon', 'Patient home', 'Home visit afternoon shift: 13:00-15:00, 15:00-17:00'),
-(19, 'user-d02', 2, '18:00', '22:00', 120, 1, 1, 'APPROVED', 'HomeVisit', 'Evening', 'Patient home', 'Home visit evening shift: 18:00-20:00, 20:00-22:00');
+-- Other doctors: online-only schedules within valid windows
+(13, 'user-d04', 4, '07:30', '10:30', 30, 1, 1, 'APPROVED', 'Offline', NULL, 'Chicago Medical Center', 'Thursday morning in-person'),
+(14, 'user-d04', 4, '13:00', '16:00', 30, 1, 1, 'APPROVED', 'Offline', NULL, 'Chicago Medical Center', 'Thursday afternoon in-person'),
+(15, 'user-d05', 5, '08:00', '10:30', 30, 1, 1, 'APPROVED', 'Video', NULL, NULL, 'OB/GYN video consultations'),
+(16, 'user-d06', 6, '08:00', '10:30', 20, 2, 1, 'APPROVED', 'Video', NULL, NULL, 'Dermatology online sessions'),
+(17, 'user-d07', 1, '14:00', '17:30', 40, 1, 1, 'APPROVED', 'Offline', NULL, 'Boston Neuro Institute', 'Neurology appointments'),
+(18, 'user-d08', 2, '08:00', '10:30', 30, 1, 1, 'APPROVED', 'Offline', NULL, 'Philadelphia Eye Center', 'Eye examinations'),
+(19, 'user-d09', 3, '13:30', '17:00', 25, 2, 1, 'APPROVED', 'Video', NULL, NULL, 'ENT video consultations');
 SET IDENTITY_INSERT DoctorSchedules OFF;
 
 -- 11. DOCTOR_SCHEDULE_EXCEPTIONS (10 exceptions)
@@ -507,38 +510,38 @@ SET IDENTITY_INSERT Payments OFF;
 
 -- 32. CHAT_ROOMS (13 chat rooms)
 INSERT INTO ChatRooms (ChatRoomId, user1Id, user2Id, user1DisplayName, user1PhotoURL, user2DisplayName, user2PhotoURL, lastMessage, lastMessageAt, blockedBy, AppointmentId) VALUES
-('chat-001', 'user-p01', 'user-d01', 'Michael Anderson', '/avatars/patient01.jpg', 'Dr. John Smith', '/avatars/doctor01.jpg', 'Thank you, doctor!', '2024-05-10 09:35:00', NULL, 1),
-('chat-002', 'user-p02', 'user-d02', 'Emma Thompson', '/avatars/patient02.jpg', 'Dr. Sarah Johnson', '/avatars/doctor02.jpg', 'The fever has gone down', '2024-05-12 08:00:00', NULL, 2),
-('chat-003', 'user-p03', 'user-d03', 'William Brown', '/avatars/patient03.jpg', 'Dr. Michael Chen', '/avatars/doctor03.jpg', 'I will get the tests done right away', '2024-05-12 10:20:00', NULL, 3),
-('chat-004', 'user-p04', 'user-d04', 'Sophia Garcia', '/avatars/patient04.jpg', 'Dr. Emily Davis', '/avatars/doctor04.jpg', 'Yes, I understand', '2024-05-15 08:35:00', NULL, 4),
-('chat-005', 'user-p05', 'user-d05', 'James Wilson', '/avatars/patient05.jpg', 'Dr. Jessica Williams', '/avatars/doctor05.jpg', 'Great news about the baby!', '2024-05-16 14:40:00', NULL, 5),
-('chat-006', 'user-p06', 'user-d06', 'Olivia Davis', '/avatars/patient06.jpg', 'Dr. Robert Brown', '/avatars/doctor06.jpg', 'Hello doctor', '2024-05-17 16:00:00', NULL, 6),
-('chat-007', 'user-p07', 'user-d07', 'Daniel Miller', '/avatars/patient07.jpg', 'Dr. David Wilson', '/avatars/doctor07.jpg', 'I am waiting for the appointment', '2024-05-19 11:05:00', NULL, 7),
-('chat-008', 'user-p08', 'user-d08', 'Isabella Moore', '/avatars/patient08.jpg', 'Dr. Amanda Lee', '/avatars/doctor08.jpg', NULL, NULL, NULL, 8),
-('chat-009', 'user-p09', 'user-d09', 'Alexander Johnson', '/avatars/patient09.jpg', 'Dr. James Taylor', '/avatars/doctor09.jpg', 'Sorry I have to cancel', '2024-05-13 08:05:00', NULL, 9),
-('chat-010', 'user-p10', 'user-d10', 'Charlotte Taylor', '/avatars/patient10.jpg', 'Dr. Jennifer Martinez', '/avatars/doctor10.jpg', NULL, NULL, NULL, 10),
-('pharm-chat-002', 'user-p02', 'user-ph02', 'Emma Thompson', '/avatars/patient02.jpg', 'An Khang Pharmacy - Nguyen Hue', '/pharmacy/walgreens1.jpg', 'We are checking the child dosage now.', '2024-05-20 15:22:00', NULL, NULL),
-('pharm-chat-003', 'user-p03', 'user-ph04', 'William Brown', '/avatars/patient03.jpg', 'CVS Pharmacy - SF', '/pharmacy/cvs2.jpg', 'Amlodipine stock is short today.', '2024-05-20 15:44:00', NULL, NULL),
-('pharm-chat-004', 'user-p07', 'user-ph07', 'Daniel Miller', '/avatars/patient07.jpg', 'MedExpress Pharmacy', '/pharmacy/medexpress.jpg', 'Quote is ready with delivery ETA.', '2024-05-20 16:05:00', NULL, NULL);
+('chat-001', 'user-p01', 'user-d01', 'Michael Anderson', 'http://localhost:8096/uploads/avatars/patients/benhnhan_01.png', 'Dr. John Smith', 'http://localhost:8096/uploads/avatars/doctors/bacsi_01.png', 'Thank you, doctor!', '2024-05-10 09:35:00', NULL, 1),
+('chat-002', 'user-p02', 'user-d02', 'Emma Thompson', 'http://localhost:8096/uploads/avatars/patients/benhnhan_02.png', 'Dr. Sarah Johnson', 'http://localhost:8096/uploads/avatars/doctors/bacsi_02.png', 'The fever has gone down', '2024-05-12 08:00:00', NULL, 2),
+('chat-003', 'user-p03', 'user-d03', 'William Brown', 'http://localhost:8096/uploads/avatars/patients/benhnhan_03.png', 'Dr. Michael Chen', 'http://localhost:8096/uploads/avatars/doctors/bacsi_03.png', 'I will get the tests done right away', '2024-05-12 10:20:00', NULL, 3),
+('chat-004', 'user-p04', 'user-d04', 'Sophia Garcia', 'http://localhost:8096/uploads/avatars/patients/benhnhan_04.png', 'Dr. Emily Davis', 'http://localhost:8096/uploads/avatars/doctors/bacsi_04.png', 'Yes, I understand', '2024-05-15 08:35:00', NULL, 4),
+('chat-005', 'user-p05', 'user-d05', 'James Wilson', 'http://localhost:8096/uploads/avatars/patients/benhnhan_05.png', 'Dr. Jessica Williams', 'http://localhost:8096/uploads/avatars/doctors/bacsi_05.png', 'Great news about the baby!', '2024-05-16 14:40:00', NULL, 5),
+('chat-006', 'user-p06', 'user-d06', 'Olivia Davis', 'http://localhost:8096/uploads/avatars/patients/benhnhan_06.png', 'Dr. Robert Brown', 'http://localhost:8096/uploads/avatars/doctors/bacsi_06.png', 'Hello doctor', '2024-05-17 16:00:00', NULL, 6),
+('chat-007', 'user-p07', 'user-d07', 'Daniel Miller', 'http://localhost:8096/uploads/avatars/patients/benhnhan_07.png', 'Dr. David Wilson', 'http://localhost:8096/uploads/avatars/doctors/bacsi_07.png', 'I am waiting for the appointment', '2024-05-19 11:05:00', NULL, 7),
+('chat-008', 'user-p08', 'user-d08', 'Isabella Moore', 'http://localhost:8096/uploads/avatars/patients/benhnhan_08.png', 'Dr. Amanda Lee', 'http://localhost:8096/uploads/avatars/doctors/bacsi_08.png', NULL, NULL, NULL, 8),
+('chat-009', 'user-p09', 'user-d09', 'Alexander Johnson', 'http://localhost:8096/uploads/avatars/patients/benhnhan_09.png', 'Dr. James Taylor', 'http://localhost:8096/uploads/avatars/doctors/bacsi_09.png', 'Sorry I have to cancel', '2024-05-13 08:05:00', NULL, 9),
+('chat-010', 'user-p10', 'user-d10', 'Charlotte Taylor', 'http://localhost:8096/uploads/avatars/patients/benhnhan_10.png', 'Dr. Jennifer Martinez', 'http://localhost:8096/uploads/avatars/doctors/bacsi_10.png', NULL, NULL, NULL, 10),
+('pharm-chat-002', 'user-p02', 'user-ph02', 'Emma Thompson', 'http://localhost:8096/uploads/avatars/patients/benhnhan_02.png', 'An Khang Pharmacy - Nguyen Hue', 'http://localhost:8096/uploads/avatars/pharmacies/nhathuoc_02.png', 'We are checking the child dosage now.', '2024-05-20 15:22:00', NULL, NULL),
+('pharm-chat-003', 'user-p03', 'user-ph04', 'William Brown', 'http://localhost:8096/uploads/avatars/patients/benhnhan_03.png', 'CVS Pharmacy - SF', 'http://localhost:8096/uploads/avatars/pharmacies/nhathuoc_04.png', 'Amlodipine stock is short today.', '2024-05-20 15:44:00', NULL, NULL),
+('pharm-chat-004', 'user-p07', 'user-ph07', 'Daniel Miller', 'http://localhost:8096/uploads/avatars/patients/benhnhan_07.png', 'MedExpress Pharmacy', 'http://localhost:8096/uploads/avatars/pharmacies/nhathuoc_07.png', 'Quote is ready with delivery ETA.', '2024-05-20 16:05:00', NULL, NULL);
 
 -- 33. MESSAGES (16 messages)
 INSERT INTO ChatMessages (MessageID, ChatRoomId, SenderId, ReceiverId, content, photoURL, imageUrl, videoUrl, fileUrl, IsRead, SentAt) VALUES
-('11111111-1111-1111-1111-111111111111', 'chat-001', 'user-d01', 'user-p01', 'Hi Michael, can you describe your headache symptoms?', '/avatars/doctor01.jpg', NULL, NULL, NULL, 1, '2024-05-10 09:02:00'),
-('11111111-1111-1111-1111-111111111112', 'chat-001', 'user-p01', 'user-d01', 'I have been having a dull pain on the right side of my head for 3 days', '/avatars/patient01.jpg', NULL, NULL, NULL, 1, '2024-05-10 09:05:00'),
-('11111111-1111-1111-1111-111111111113', 'chat-001', 'user-d01', 'user-p01', 'Are you getting enough sleep? Any work-related stress?', '/avatars/doctor01.jpg', NULL, NULL, NULL, 1, '2024-05-10 09:08:00'),
-('11111111-1111-1111-1111-111111111114', 'chat-001', 'user-p01', 'user-d01', 'Actually, I have been working a lot lately and not sleeping well', '/avatars/patient01.jpg', NULL, NULL, NULL, 1, '2024-05-10 09:10:00'),
-('11111111-1111-1111-1111-111111111115', 'chat-001', 'user-p01', 'user-d01', 'Thank you, doctor!', '/avatars/patient01.jpg', NULL, NULL, NULL, 1, '2024-05-10 09:35:00'),
-('11111111-1111-1111-1111-111111111116', 'chat-002', 'user-d02', 'user-p02', 'How high is the fever and when did it start?', '/avatars/doctor02.jpg', NULL, NULL, NULL, 1, '2024-05-11 10:02:00'),
-('11111111-1111-1111-1111-111111111117', 'chat-002', 'user-p02', 'user-d02', 'The fever was 101.3F since last night, with dry cough', '/avatars/patient02.jpg', NULL, NULL, NULL, 1, '2024-05-11 10:05:00'),
-('11111111-1111-1111-1111-111111111118', 'chat-002', 'user-p02', 'user-d02', 'The fever has gone down', '/avatars/patient02.jpg', NULL, NULL, NULL, 1, '2024-05-12 08:00:00'),
-('11111111-1111-1111-1111-111111111119', 'chat-003', 'user-d03', 'user-p03', 'You need to get an ECG and cardiac enzyme test as soon as possible', '/avatars/doctor03.jpg', NULL, NULL, NULL, 1, '2024-05-12 10:15:00'),
-('11111111-1111-1111-1111-11111111111a', 'chat-003', 'user-p03', 'user-d03', 'I will get the tests done right away', '/avatars/patient03.jpg', NULL, NULL, NULL, 1, '2024-05-12 10:20:00'),
-('22222222-2222-2222-2222-222222222221', 'pharm-chat-002', 'user-ph02', 'user-p02', 'Hello Emma, we are checking the child dosage now.', '/pharmacy/walgreins1.jpg', NULL, NULL, NULL, 1, '2024-05-20 15:20:00'),
-('22222222-2222-2222-2222-222222222222', 'pharm-chat-002', 'user-p02', 'user-ph02', 'Thank you. Please prioritize delivery if stock is available.', '/avatars/patient02.jpg', NULL, NULL, NULL, 0, '2024-05-20 15:22:00'),
-('22222222-2222-2222-2222-222222222223', 'pharm-chat-003', 'user-ph04', 'user-p03', 'Amlodipine stock is short today. We can prepare the available items first.', '/pharmacy/cvs2.jpg', NULL, NULL, NULL, 1, '2024-05-20 15:40:00'),
-('22222222-2222-2222-2222-222222222224', 'pharm-chat-003', 'user-p03', 'user-ph04', 'Please keep the request open while I check with my doctor.', '/avatars/patient03.jpg', NULL, NULL, NULL, 0, '2024-05-20 15:44:00'),
-('22222222-2222-2222-2222-222222222225', 'pharm-chat-004', 'user-ph07', 'user-p07', 'Quote is ready with delivery ETA. Please review and confirm.', '/pharmacy/medexpress.jpg', NULL, NULL, NULL, 1, '2024-05-20 16:05:00'),
-('22222222-2222-2222-2222-222222222226', 'pharm-chat-004', 'user-p07', 'user-ph07', 'I will review the quote this afternoon.', '/avatars/patient07.jpg', NULL, NULL, NULL, 0, '2024-05-20 16:06:00');
+('11111111-1111-1111-1111-111111111111', 'chat-001', 'user-d01', 'user-p01', 'Hi Michael, can you describe your headache symptoms?', 'http://localhost:8096/uploads/avatars/doctors/bacsi_01.png', NULL, NULL, NULL, 1, '2024-05-10 09:02:00'),
+('11111111-1111-1111-1111-111111111112', 'chat-001', 'user-p01', 'user-d01', 'I have been having a dull pain on the right side of my head for 3 days', 'http://localhost:8096/uploads/avatars/patients/benhnhan_01.png', NULL, NULL, NULL, 1, '2024-05-10 09:05:00'),
+('11111111-1111-1111-1111-111111111113', 'chat-001', 'user-d01', 'user-p01', 'Are you getting enough sleep? Any work-related stress?', 'http://localhost:8096/uploads/avatars/doctors/bacsi_01.png', NULL, NULL, NULL, 1, '2024-05-10 09:08:00'),
+('11111111-1111-1111-1111-111111111114', 'chat-001', 'user-p01', 'user-d01', 'Actually, I have been working a lot lately and not sleeping well', 'http://localhost:8096/uploads/avatars/patients/benhnhan_01.png', NULL, NULL, NULL, 1, '2024-05-10 09:10:00'),
+('11111111-1111-1111-1111-111111111115', 'chat-001', 'user-p01', 'user-d01', 'Thank you, doctor!', 'http://localhost:8096/uploads/avatars/patients/benhnhan_01.png', NULL, NULL, NULL, 1, '2024-05-10 09:35:00'),
+('11111111-1111-1111-1111-111111111116', 'chat-002', 'user-d02', 'user-p02', 'How high is the fever and when did it start?', 'http://localhost:8096/uploads/avatars/doctors/bacsi_02.png', NULL, NULL, NULL, 1, '2024-05-11 10:02:00'),
+('11111111-1111-1111-1111-111111111117', 'chat-002', 'user-p02', 'user-d02', 'The fever was 101.3F since last night, with dry cough', 'http://localhost:8096/uploads/avatars/patients/benhnhan_02.png', NULL, NULL, NULL, 1, '2024-05-11 10:05:00'),
+('11111111-1111-1111-1111-111111111118', 'chat-002', 'user-p02', 'user-d02', 'The fever has gone down', 'http://localhost:8096/uploads/avatars/patients/benhnhan_02.png', NULL, NULL, NULL, 1, '2024-05-12 08:00:00'),
+('11111111-1111-1111-1111-111111111119', 'chat-003', 'user-d03', 'user-p03', 'You need to get an ECG and cardiac enzyme test as soon as possible', 'http://localhost:8096/uploads/avatars/doctors/bacsi_03.png', NULL, NULL, NULL, 1, '2024-05-12 10:15:00'),
+('11111111-1111-1111-1111-11111111111a', 'chat-003', 'user-p03', 'user-d03', 'I will get the tests done right away', 'http://localhost:8096/uploads/avatars/patients/benhnhan_03.png', NULL, NULL, NULL, 1, '2024-05-12 10:20:00'),
+('22222222-2222-2222-2222-222222222221', 'pharm-chat-002', 'user-ph02', 'user-p02', 'Hello Emma, we are checking the child dosage now.', 'http://localhost:8096/uploads/avatars/pharmacies/nhathuoc_02.png', NULL, NULL, NULL, 1, '2024-05-20 15:20:00'),
+('22222222-2222-2222-2222-222222222222', 'pharm-chat-002', 'user-p02', 'user-ph02', 'Thank you. Please prioritize delivery if stock is available.', 'http://localhost:8096/uploads/avatars/patients/benhnhan_02.png', NULL, NULL, NULL, 0, '2024-05-20 15:22:00'),
+('22222222-2222-2222-2222-222222222223', 'pharm-chat-003', 'user-ph04', 'user-p03', 'Amlodipine stock is short today. We can prepare the available items first.', 'http://localhost:8096/uploads/avatars/pharmacies/nhathuoc_04.png', NULL, NULL, NULL, 1, '2024-05-20 15:40:00'),
+('22222222-2222-2222-2222-222222222224', 'pharm-chat-003', 'user-p03', 'user-ph04', 'Please keep the request open while I check with my doctor.', 'http://localhost:8096/uploads/avatars/patients/benhnhan_03.png', NULL, NULL, NULL, 0, '2024-05-20 15:44:00'),
+('22222222-2222-2222-2222-222222222225', 'pharm-chat-004', 'user-ph07', 'user-p07', 'Quote is ready with delivery ETA. Please review and confirm.', 'http://localhost:8096/uploads/avatars/pharmacies/nhathuoc_07.png', NULL, NULL, NULL, 1, '2024-05-20 16:05:00'),
+('22222222-2222-2222-2222-222222222226', 'pharm-chat-004', 'user-p07', 'user-ph07', 'I will review the quote this afternoon.', 'http://localhost:8096/uploads/avatars/patients/benhnhan_07.png', NULL, NULL, NULL, 0, '2024-05-20 16:06:00');
 
 -- 34. NOTIFICATIONS (18 notifications)
 SET IDENTITY_INSERT Notifications ON;
@@ -625,17 +628,17 @@ SET IDENTITY_INSERT PasswordResetTokens OFF;
 
 -- 39. REGISTRATION_REQUESTS (10 requests)
 SET IDENTITY_INSERT RegistrationRequests ON;
-INSERT INTO RegistrationRequests (RequestID, RegistrationType, Email, PhoneNumber, Status, CreatedAt, ReviewedAt, ReviewedBy, RejectionReason, FullName, Qualifications, SpecialtyId, Specialty, YearsOfExperience, LanguageSpoken, Location, Bio, ConsultationFee, ClinicName, ClinicAddress, AvailableForVideo, AvailableForAudio, AvailableForChat, AvailableForOffline, PharmacyName, LicenseNumber, Address, City, District, Ward, OpenTime, CloseTime, Open24Hours, WorkingDays, DeliveryAvailable, DeliveryRadius, DeliveryFee, Description, AIScreeningStatus, AIScreeningResult, AIRejectionReason, AIScreenedAt) VALUES
-(1, 'DOCTOR', 'applicant1@healthlink.com', '0905000001', 'Pending', '2024-05-01 10:00:00', NULL, NULL, NULL, 'Dr. Applicant One', 'MD', 1, 'Internal Medicine', 8, 'English', 'New York', 'Doctor registration request', 100.00, 'Applicant Clinic 1', '1 Health St', 1, 1, 1, 1, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, 'PENDING', NULL, NULL, NULL),
-(2, 'DOCTOR', 'applicant2@healthlink.com', '0905000002', 'Approved', '2024-05-02 10:00:00', '2024-05-05 09:00:00', 'admin', NULL, 'Dr. Applicant Two', 'MD, PhD', 6, 'Cardiology', 12, 'English', 'Los Angeles', 'Approved doctor request', 180.00, 'Applicant Clinic 2', '2 Health St', 1, 1, 1, 0, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, 'APPROVED', '{"verified":true}', NULL, '2024-05-04 10:00:00'),
-(3, 'DOCTOR', 'applicant3@healthlink.com', '0905000003', 'Rejected', '2024-05-03 10:00:00', '2024-05-06 09:00:00', 'admin', 'Missing valid license', 'Dr. Applicant Three', 'MD', 5, 'Neurology', 6, 'English', 'Chicago', 'Rejected doctor request', 150.00, 'Applicant Clinic 3', '3 Health St', 1, 1, 1, 1, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, 'REJECTED', '{"verified":false}', 'Document appears altered', '2024-05-04 10:00:00'),
-(4, 'PHARMACY', 'pharmacyapp1@healthlink.com', '0915000001', 'Pending', '2024-05-04 11:00:00', NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, 'Pharmacy Applicant 1', 'LIC-001', '10 Main St', 'Houston', 'Downtown', 'Central', '07:00', '21:00', 0, 'Mon-Sun', 1, 5.0, 5.99, 'Pharmacy registration request', 'PENDING', NULL, NULL, NULL),
-(5, 'PHARMACY', 'pharmacyapp2@healthlink.com', '0915000002', 'Approved', '2024-05-05 11:00:00', '2024-05-08 09:00:00', 'admin', NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, 'Pharmacy Applicant 2', 'LIC-002', '20 Main St', 'Seattle', 'Center', 'Ward 1', '08:00', '20:00', 0, 'Mon-Sat', 1, 6.0, 6.99, 'Approved pharmacy request', 'APPROVED', '{"verified":true}', NULL, '2024-05-06 11:00:00'),
-(6, 'PHARMACY', 'pharmacyapp3@healthlink.com', '0915000003', 'Rejected', '2024-05-06 11:00:00', '2024-05-09 09:00:00', 'admin', 'Incomplete documents', NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, 'Pharmacy Applicant 3', 'LIC-003', '30 Main St', 'Miami', 'Beach', 'South', '06:00', '22:00', 0, 'Mon-Sun', 1, 4.0, 4.99, 'Rejected pharmacy request', 'REJECTED', '{"verified":false}', 'Business license not legible', '2024-05-07 11:00:00'),
-(7, 'DOCTOR', 'applicant4@healthlink.com', '0905000004', 'Pending', '2024-05-07 10:00:00', NULL, NULL, NULL, 'Dr. Applicant Four', 'DDS', 10, 'Dentistry', 4, 'English', 'Phoenix', 'Dentistry applicant', 90.00, 'Applicant Clinic 4', '4 Health St', 1, 1, 1, 1, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, 'PENDING', NULL, NULL, NULL),
-(8, 'PHARMACY', 'pharmacyapp4@healthlink.com', '0915000004', 'Pending', '2024-05-08 11:00:00', NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, 'Pharmacy Applicant 4', 'LIC-004', '40 Main St', 'Boston', 'Bay', 'North', '08:00', '22:00', 0, 'Mon-Sun', 0, 5.0, 5.49, 'Pharmacy applicant details', 'PENDING', NULL, NULL, NULL),
-(9, 'DOCTOR', 'applicant5@healthlink.com', '0905000005', 'Approved', '2024-05-09 10:00:00', '2024-05-10 09:00:00', 'admin', NULL, 'Dr. Applicant Five', 'MD', 3, 'Pediatrics', 9, 'English', 'Philadelphia', 'Pediatrics applicant', 130.00, 'Applicant Clinic 5', '5 Health St', 1, 1, 1, 0, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, 'APPROVED', '{"verified":true}', NULL, '2024-05-10 09:00:00'),
-(10, 'PHARMACY', 'pharmacyapp5@healthlink.com', '0915000005', 'Pending', '2024-05-10 11:00:00', NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, 'Pharmacy Applicant 5', 'LIC-005', '50 Main St', 'San Francisco', 'Market', 'West', '07:30', '21:30', 0, 'Mon-Sat', 1, 8.0, 7.99, 'Pending pharmacy application', 'PENDING', NULL, NULL, NULL);
+INSERT INTO RegistrationRequests (RequestID, RegistrationType, Email, PhoneNumber, Status, CreatedAt, ReviewedAt, ReviewedBy, RejectionReason, FullName, Qualifications, SpecialtyId, Specialty, YearsOfExperience, LanguageSpoken, Location, Bio, ConsultationFee, ClinicName, ClinicAddress, PharmacyName, LicenseNumber, Address, City, District, Ward, OpenTime, CloseTime, Open24Hours, WorkingDays, DeliveryAvailable, DeliveryRadius, DeliveryFee, Description, AIScreeningStatus, AIScreeningResult, AIRejectionReason, AIScreenedAt) VALUES
+(1, 'DOCTOR', 'applicant1@healthlink.com', '0905000001', 'Pending', '2024-05-01 10:00:00', NULL, NULL, NULL, 'Dr. Applicant One', 'MD', 1, 'Internal Medicine', 8, 'English', 'New York', 'Doctor registration request', 100.00, 'Applicant Clinic 1', '1 Health St', NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, 'PENDING', NULL, NULL, NULL),
+(2, 'DOCTOR', 'applicant2@healthlink.com', '0905000002', 'Approved', '2024-05-02 10:00:00', '2024-05-05 09:00:00', 'admin', NULL, 'Dr. Applicant Two', 'MD, PhD', 6, 'Cardiology', 12, 'English', 'Los Angeles', 'Approved doctor request', 180.00, 'Applicant Clinic 2', '2 Health St', NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, 'APPROVED', '{"verified":true}', NULL, '2024-05-04 10:00:00'),
+(3, 'DOCTOR', 'applicant3@healthlink.com', '0905000003', 'Rejected', '2024-05-03 10:00:00', '2024-05-06 09:00:00', 'admin', 'Missing valid license', 'Dr. Applicant Three', 'MD', 5, 'Neurology', 6, 'English', 'Chicago', 'Rejected doctor request', 150.00, 'Applicant Clinic 3', '3 Health St', NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, 'REJECTED', '{"verified":false}', 'Document appears altered', '2024-05-04 10:00:00'),
+(4, 'PHARMACY', 'pharmacyapp1@healthlink.com', '0915000001', 'Pending', '2024-05-04 11:00:00', NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, 'Pharmacy Applicant 1', 'LIC-001', '10 Main St', 'Houston', 'Downtown', 'Central', '07:00', '21:00', 0, 'Mon-Sun', 1, 5.0, 5.99, 'Pharmacy registration request', 'PENDING', NULL, NULL, NULL),
+(5, 'PHARMACY', 'pharmacyapp2@healthlink.com', '0915000002', 'Approved', '2024-05-05 11:00:00', '2024-05-08 09:00:00', 'admin', NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, 'Pharmacy Applicant 2', 'LIC-002', '20 Main St', 'Seattle', 'Center', 'Ward 1', '08:00', '20:00', 0, 'Mon-Sat', 1, 6.0, 6.99, 'Approved pharmacy request', 'APPROVED', '{"verified":true}', NULL, '2024-05-06 11:00:00'),
+(6, 'PHARMACY', 'pharmacyapp3@healthlink.com', '0915000003', 'Rejected', '2024-05-06 11:00:00', '2024-05-09 09:00:00', 'admin', 'Incomplete documents', NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, 'Pharmacy Applicant 3', 'LIC-003', '30 Main St', 'Miami', 'Beach', 'South', '06:00', '22:00', 0, 'Mon-Sun', 1, 4.0, 4.99, 'Rejected pharmacy request', 'REJECTED', '{"verified":false}', 'Business license not legible', '2024-05-07 11:00:00'),
+(7, 'DOCTOR', 'applicant4@healthlink.com', '0905000004', 'Pending', '2024-05-07 10:00:00', NULL, NULL, NULL, 'Dr. Applicant Four', 'DDS', 10, 'Dentistry', 4, 'English', 'Phoenix', 'Dentistry applicant', 90.00, 'Applicant Clinic 4', '4 Health St', NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, 'PENDING', NULL, NULL, NULL),
+(8, 'PHARMACY', 'pharmacyapp4@healthlink.com', '0915000004', 'Pending', '2024-05-08 11:00:00', NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, 'Pharmacy Applicant 4', 'LIC-004', '40 Main St', 'Boston', 'Bay', 'North', '08:00', '22:00', 0, 'Mon-Sun', 0, 5.0, 5.49, 'Pharmacy applicant details', 'PENDING', NULL, NULL, NULL),
+(9, 'DOCTOR', 'applicant5@healthlink.com', '0905000005', 'Approved', '2024-05-09 10:00:00', '2024-05-10 09:00:00', 'admin', NULL, 'Dr. Applicant Five', 'MD', 3, 'Pediatrics', 9, 'English', 'Philadelphia', 'Pediatrics applicant', 130.00, 'Applicant Clinic 5', '5 Health St', NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, 'APPROVED', '{"verified":true}', NULL, '2024-05-10 09:00:00'),
+(10, 'PHARMACY', 'pharmacyapp5@healthlink.com', '0915000005', 'Pending', '2024-05-10 11:00:00', NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, 'Pharmacy Applicant 5', 'LIC-005', '50 Main St', 'San Francisco', 'Market', 'West', '07:30', '21:30', 0, 'Mon-Sat', 1, 8.0, 7.99, 'Pending pharmacy application', 'PENDING', NULL, NULL, NULL);
 SET IDENTITY_INSERT RegistrationRequests OFF;
 
 -- 40. REGISTRATION_DOCUMENTS (10 documents)
@@ -719,8 +722,86 @@ INSERT INTO EmailVerificationTokens (Id, Token, UserId, NewEmail, ExpiryDate, Us
 SET IDENTITY_INSERT EmailVerificationTokens OFF;
 
 -- =====================================================
+-- 47. YEAR 2024 ANALYTICS SAMPLE DATA
+-- Feeds the 4 admin Dashboard charts + the Financial Reports chart for 2024:
+--   Patient Registrations -> Users.CreatedDate (joined to Patients)
+--   Appointments by Month / by Week -> Appointments.AppointmentTime
+--   Revenue by Month / by Day -> SUM(Appointments.Fee) WHERE Status = 'Completed'
+-- June 2024 is intentionally denser so the weekly + daily charts
+-- (which default to the current calendar month) render full.
+-- Idempotent: the whole block is skipped if already seeded.
+-- =====================================================
+IF NOT EXISTS (SELECT 1 FROM Users WHERE Id = 'u-p24-01-01')
+BEGIN
+    DECLARE @pwd NVARCHAR(255) = (SELECT TOP 1 PasswordHash FROM Users WHERE RoleId = 'patient');
+    DECLARE @m INT, @i INT, @cnt INT;
+    DECLARE @id NVARCHAR(50), @day INT, @created DATETIME;
+    DECLARE @docNum INT, @docId NVARCHAR(20), @patId NVARCHAR(20), @fee DECIMAL(10,2);
+    DECLARE @aday INT, @hour INT, @atime DATETIME;
+
+    -- Patients registered per month of 2024 (rising curve -> nice area chart)
+    DECLARE @pcounts TABLE (mo INT, cnt INT);
+    INSERT INTO @pcounts (mo, cnt) VALUES
+        (1,5),(2,7),(3,6),(4,9),(5,8),(6,12),(7,10),(8,9),(9,12),(10,11),(11,13),(12,15);
+
+    SET @m = 1;
+    WHILE @m <= 12
+    BEGIN
+        SELECT @cnt = cnt FROM @pcounts WHERE mo = @m;
+        SET @i = 1;
+        WHILE @i <= @cnt
+        BEGIN
+            SET @id = 'u-p24-' + RIGHT('0' + CAST(@m AS VARCHAR), 2) + '-' + RIGHT('0' + CAST(@i AS VARCHAR), 2);
+            SET @day = ((@i * 2) % 27) + 1;
+            SET @created = DATETIMEFROMPARTS(2024, @m, @day, 9, 0, 0, 0);
+            INSERT INTO Users (Id, UserName, Email, EmailConfirmed, PasswordHash, PhoneNumber, AccessFailedCount, CreatedDate, Status, LastLoginAt, RoleId)
+            VALUES (@id, @id, @id + '@seed.healthlink.com', 1, @pwd,
+                    '0924' + RIGHT('0' + CAST(@m AS VARCHAR), 2) + RIGHT('0' + CAST(@i AS VARCHAR), 2),
+                    0, @created, 'Active', NULL, 'patient');
+            INSERT INTO Patients (PatientID, FullName, dateOfBirth, gender, address, city, country, bloodType, preferredLanguage, occupation, avatarUrl, latitude, longitude, heightCm, weightKg)
+            VALUES (@id, 'Patient 2024 ' + RIGHT('0' + CAST(@m AS VARCHAR), 2) + '-' + RIGHT('0' + CAST(@i AS VARCHAR), 2),
+                    '1990-01-01', CASE WHEN @i % 2 = 0 THEN 'Male' ELSE 'Female' END,
+                    'Sample address', 'Ho Chi Minh City', 'Vietnam', 'O+', 'English', 'Sample',
+                    'http://localhost:8096/uploads/avatars/patients/benhnhan_01.png', 10.7769, 106.7009, 165, 60.0);
+            SET @i = @i + 1;
+        END
+        SET @m = @m + 1;
+    END
+
+    -- Completed appointments per month of 2024 (June denser for weekly/daily charts)
+    DECLARE @acounts TABLE (mo INT, cnt INT);
+    INSERT INTO @acounts (mo, cnt) VALUES
+        (1,9),(2,11),(3,10),(4,14),(5,12),(6,30),(7,15),(8,13),(9,17),(10,14),(11,16),(12,12);
+
+    SET @m = 1;
+    WHILE @m <= 12
+    BEGIN
+        SELECT @cnt = cnt FROM @acounts WHERE mo = @m;
+        SET @i = 1;
+        WHILE @i <= @cnt
+        BEGIN
+            SET @docNum = ((@i - 1) % 10) + 1;
+            SET @docId = 'user-d' + RIGHT('0' + CAST(@docNum AS VARCHAR), 2);
+            SET @patId = 'user-p' + RIGHT('0' + CAST(@docNum AS VARCHAR), 2);
+            SET @fee = (SELECT consultationFee FROM Doctors WHERE DoctorID = @docId);
+            SET @aday = CASE WHEN @m = 6 THEN ((@i - 1) % 30) + 1 ELSE ((@i * 3) % 27) + 1 END;
+            SET @hour = 8 + (@i % 8);
+            SET @atime = DATETIMEFROMPARTS(2024, @m, @aday, @hour, 0, 0, 0);
+            INSERT INTO Appointments (AppointmentTime, ConsultationType, Status, symptoms, notes, fee, endTime, doctorReminderSent, reminderSent, confirmedAt, PatientID, DoctorID)
+            VALUES (@atime, 'Online', 'Completed', 'Seeded 2024 consultation', 'Auto-seeded for analytics charts',
+                    @fee, DATEADD(MINUTE, 30, @atime), 1, 1, DATEADD(HOUR, -12, @atime), @patId, @docId);
+            SET @i = @i + 1;
+        END
+        SET @m = @m + 1;
+    END
+
+    PRINT 'Year 2024 analytics sample data seeded.';
+END
+GO
+
+-- =====================================================
 -- END SEED DATA
--- Total: 46 seed sections, mixed sample sizes
+-- Total: 47 seed sections, mixed sample sizes
 -- =====================================================
 PRINT 'Seed data completed successfully!';
 
