@@ -18,8 +18,9 @@ This is a monorepo with three modules: `HealthLink_BE` (Spring Boot 3.2, Java 21
 ## OpenAPI Source of Truth
 
 - The committed API contract is `docs/openapi/healthlink-openapi.json`.
-- Query it surgically with `rg` first by route fragment, HTTP method, controller/API keyword, DTO/schema name, `securitySchemes`, or `bearerAuth`.
-- Never read the full OpenAPI file into context.
+- Use BE/FE graph or source browsing first for understanding code. Only consult OpenAPI for contract-level questions.
+- Query OpenAPI surgically with `rg` first by route fragment, HTTP method, controller/API keyword, DTO/schema name, `securitySchemes`, or `bearerAuth`.
+- Never read the full OpenAPI file into context. Absolutely do not load the entire OpenAPI JSON.
 
 ## Security Scanning
 
