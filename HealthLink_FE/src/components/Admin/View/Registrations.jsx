@@ -1,0 +1,906 @@
+import React, { useState, useEffect } from "react";
+import NavbarAdmin from "./NavbarAdmin";
+import { registrationsApi } from "../../../api/adminApi";
+import Toast from "./Toast";
+import useToast from "../useToast";
+import ScreeningBadge from "./ScreeningBadge";
+import "bootstrap/dist/css/bootstrap.min.css";
+import "bootstrap-icons/font/bootstrap-icons.css";
+import "../Css/Admin.css";
+import "../Css/Registrations.css";
+
+export default function Registrations() {
+  const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
+  const [requests, setRequests] = useState([]);
+  const { toast, showToast, hideToast } = useToast();
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
+  const [pagination, setPagination] = useState({
+    pageNumber: 1,
+    pageSize: 10,
+    totalCount: 0,
+    totalPages: 0
+  });
+  const [filters, setFilters] = useState({
+    type: '',
+    status: '',
+    aiStatus: '',
+    sortBy: 'newest'
+  });
+
+  // Modal states
+  const [showViewModal, setShowViewModal] = useState(false);
+  const [showRejectModal, setShowRejectModal] = useState(false);
+  const [showPreviewModal, setShowPreviewModal] = useState(false);
+  const [selectedRequest, setSelectedRequest] = useState(null);
+  const [selectedDocument, setSelectedDocument] = useState(null);
+  const [rejectionReason, setRejectionReason] = useState('');
+  const [processing, setProcessing] = useState(false);
+
+  // Fetch registrations from API
+  const fetchRegistrations = async () => {
+    try {
+      setLoading(true);
+      setError(null);
+      const response = await registrationsApi.getAll({
+        pageNumber: pagination.pageNumber,
+        pageSize: pagination.pageSize,
+        ...filters
+      });
+
+      if (response) {
+        setRequests(response.requests || []);
+        setPagination({
+          pageNumber: response.pageNumber || 1,
+          pageSize: response.pageSize || 10,
+          totalCount: response.totalCount || 0,
+          totalPages: response.totalPages || 0
+        });
+      }
+    } catch (err) {
+      console.error('Error fetching registrations:', err);
+      const errorMsg = err?.response?.data?.message || err?.response?.data?.error || err?.message || 'Failed to fetch registration requests';
+      setError(errorMsg);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    fetchRegistrations();
+  }, [pagination.pageNumber, filters]);
+
+  // Handle type filter
+  const handleTypeFilter = (e) => {
+    setFilters({ ...filters, type: e.target.value });
+    setPagination({ ...pagination, pageNumber: 1 });
+  };
+
+  // Handle status filter
+  const handleStatusFilter = (e) => {
+    setFilters({ ...filters, status: e.target.value });
+    setPagination({ ...pagination, pageNumber: 1 });
+  };
+
+  // Handle sort
+  const handleSort = (e) => {
+    setFilters({ ...filters, sortBy: e.target.value });
+  };
+
+  // Handle pagination
+  const handlePageChange = (newPage) => {
+    setPagination({ ...pagination, pageNumber: newPage });
+  };
+
+  // Handle view request details
+  const handleViewRequest = (request) => {
+    setSelectedRequest(request);
+    setShowViewModal(true);
+  };
+
+  // Handle approve
+  const handleApprove = async (request) => {
+    if (!window.confirm(`Are you sure you want to approve this ${request.registrationType.toLowerCase()} registration?`)) {
+      return;
+    }
+
+    setProcessing(true);
+    try {
+      await registrationsApi.review(request.requestId, 'APPROVE');
+      showToast({
+        title: 'Success',
+        message: `${request.registrationType} registration approved successfully!`,
+        type: 'success'
+      });
+      fetchRegistrations();
+      setShowViewModal(false);
+    } catch (err) {
+      showToast({
+        title: 'Error',
+        message: err.response?.data?.message || 'Failed to approve registration',
+        type: 'error'
+      });
+    } finally {
+      setProcessing(false);
+    }
+  };
+
+  // Handle reject
+  const handleRejectClick = (request) => {
+    setSelectedRequest(request);
+    setRejectionReason('');
+    setShowRejectModal(true);
+  };
+
+  const handleRejectSubmit = async () => {
+    if (!rejectionReason.trim()) {
+      showToast({
+        title: 'Warning',
+        message: 'Please provide a rejection reason',
+        type: 'warning'
+      });
+      return;
+    }
+
+    setProcessing(true);
+    try {
+      await registrationsApi.review(selectedRequest.requestId, 'REJECT', rejectionReason);
+      showToast({
+        title: 'Success',
+        message: 'Registration request rejected',
+        type: 'success'
+      });
+      fetchRegistrations();
+      setShowRejectModal(false);
+      setShowViewModal(false);
+    } catch (err) {
+      showToast({
+        title: 'Error',
+        message: err.response?.data?.message || 'Failed to reject registration',
+        type: 'error'
+      });
+    } finally {
+      setProcessing(false);
+    }
+  };
+
+  // Format date
+  const formatDate = (dateString) => {
+    if (!dateString) return 'N/A';
+    return new Date(dateString).toLocaleDateString('en-US', {
+      year: 'numeric',
+      month: 'short',
+      day: 'numeric',
+      hour: '2-digit',
+      minute: '2-digit'
+    });
+  };
+
+  // Get status badge class
+  const getStatusBadgeClass = (status) => {
+    switch (status) {
+      case 'Pending': return 'status-badge pending';
+      case 'Approved': return 'status-badge approved';
+      case 'Rejected': return 'status-badge rejected';
+      case 'AI_Rejected': return 'status-badge ai-rejected';
+      default: return 'status-badge';
+    }
+  };
+
+  // Handle AI status filter
+  const handleAIStatusFilter = (e) => {
+    setFilters({ ...filters, aiStatus: e.target.value });
+    setPagination({ ...pagination, pageNumber: 1 });
+  };
+
+  // Filter requests by AI status (client-side since backend may not support this filter yet)
+  const filteredRequests = filters.aiStatus
+    ? requests.filter(r => r.aiScreeningStatus === filters.aiStatus)
+    : requests;
+
+  // Get type badge class
+  const getTypeBadgeClass = (type) => {
+    return type === 'DOCTOR' ? 'type-badge doctor' : 'type-badge pharmacy';
+  };
+
+  // Render page numbers
+  const renderPageNumbers = () => {
+    const pages = [];
+    const maxVisiblePages = 5;
+    let startPage = Math.max(1, pagination.pageNumber - Math.floor(maxVisiblePages / 2));
+    let endPage = Math.min(pagination.totalPages, startPage + maxVisiblePages - 1);
+
+    if (endPage - startPage + 1 < maxVisiblePages) {
+      startPage = Math.max(1, endPage - maxVisiblePages + 1);
+    }
+
+    for (let i = startPage; i <= endPage; i++) {
+      pages.push(
+        <button
+          key={i}
+          className={`page-btn ${pagination.pageNumber === i ? 'active' : ''}`}
+          onClick={() => handlePageChange(i)}
+        >
+          {i}
+        </button>
+      );
+    }
+    return pages;
+  };
+
+  // Get document icon based on mime type
+  const getDocumentIcon = (mimeType) => {
+    if (!mimeType) return 'bi-file-earmark';
+    if (mimeType.includes('pdf')) return 'bi-file-earmark-pdf';
+    if (mimeType.includes('image')) return 'bi-file-earmark-image';
+    if (mimeType.includes('word') || mimeType.includes('document')) return 'bi-file-earmark-word';
+    return 'bi-file-earmark';
+  };
+
+  // Format file size
+  const formatFileSize = (bytes) => {
+    if (!bytes) return 'N/A';
+    if (bytes < 1024) return bytes + ' B';
+    if (bytes < 1024 * 1024) return (bytes / 1024).toFixed(1) + ' KB';
+    return (bytes / (1024 * 1024)).toFixed(1) + ' MB';
+  };
+
+  // Check if file is previewable
+  const isPreviewable = (mimeType) => {
+    if (!mimeType) return false;
+    return mimeType.includes('image') || mimeType.includes('pdf');
+  };
+
+  // Handle document preview
+  const handlePreviewDocument = (doc) => {
+    setSelectedDocument(doc);
+    setShowPreviewModal(true);
+  };
+
+  // Get preview URL
+  const getPreviewUrl = (documentId) => {
+    return `http://localhost:8096/api/registration/documents/${documentId}/preview`;
+  };
+
+  return (
+    <NavbarAdmin
+      sidebarCollapsed={sidebarCollapsed}
+      onToggleSidebar={() => setSidebarCollapsed(!sidebarCollapsed)}
+    >
+      <main className="admin-content p-4">
+          {/* Header */}
+          <div className="page-header">
+            <div className="header-left">
+              <h1><i className="bi bi-person-plus"></i> Registration Requests</h1>
+              <p>Manage doctor and pharmacy registration requests</p>
+            </div>
+            <div className="header-stats">
+              <div className="stat-item">
+                <span className="stat-number">{pagination.totalCount}</span>
+                <span className="stat-label">Total Requests</span>
+              </div>
+            </div>
+          </div>
+
+          {/* Filters */}
+          <div className="filters-bar">
+            <div className="filter-group">
+              <select
+                className="filter-select"
+                value={filters.type}
+                onChange={handleTypeFilter}
+              >
+                <option value="">All Types</option>
+                <option value="DOCTOR">Doctor</option>
+                <option value="PHARMACY">Pharmacy</option>
+              </select>
+
+              <select
+                className="filter-select"
+                value={filters.status}
+                onChange={handleStatusFilter}
+              >
+                <option value="">All Status</option>
+                <option value="Pending">Pending</option>
+                <option value="Approved">Approved</option>
+                <option value="Rejected">Rejected</option>
+                <option value="AI_Rejected">AI Rejected</option>
+              </select>
+
+              <select
+                className="filter-select"
+                value={filters.aiStatus}
+                onChange={handleAIStatusFilter}
+              >
+                <option value="">All AI Status</option>
+                <option value="PENDING">AI Pending</option>
+                <option value="PASSED">AI Verified</option>
+                <option value="FLAGGED">Needs Review</option>
+                <option value="REJECTED">AI Rejected</option>
+              </select>
+
+              <select
+                className="filter-select"
+                value={filters.sortBy}
+                onChange={handleSort}
+              >
+                <option value="newest">Newest First</option>
+                <option value="oldest">Oldest First</option>
+              </select>
+
+              {/* Clear Filter Button */}
+              {(filters.type || filters.status || filters.aiStatus) && (
+                <button
+                  className="btn-clear-filter"
+                  onClick={() => {
+                    setFilters({ type: '', status: '', aiStatus: '', sortBy: 'newest' });
+                    setPagination({ ...pagination, pageNumber: 1 });
+                  }}
+                  title="Clear all filters"
+                >
+                  <i className="bi bi-x-circle"></i>
+                  Clear
+                </button>
+              )}
+            </div>
+          </div>
+
+          {/* Content */}
+          {loading ? (
+            <div className="loading-state">
+              <div className="spinner-border text-primary" role="status">
+                <span className="visually-hidden">Loading...</span>
+              </div>
+              <p>Loading registration requests...</p>
+            </div>
+          ) : error ? (
+            <div className="error-state">
+              <i className="bi bi-exclamation-triangle"></i>
+              <p>{error}</p>
+              <button className="btn btn-primary" onClick={fetchRegistrations}>
+                Retry
+              </button>
+            </div>
+          ) : requests.length === 0 ? (
+            <div className="empty-state">
+              <i className="bi bi-inbox"></i>
+              <p>No registration requests found</p>
+            </div>
+          ) : (
+            <>
+              {/* Table */}
+              <div className="table-container">
+                <table className="data-table">
+                  <thead>
+                    <tr>
+                      <th>Type</th>
+                      <th>Name/Email</th>
+                      <th>Phone</th>
+                      <th>Submitted</th>
+                      <th>Status</th>
+                      <th>AI Status</th>
+                      <th>Actions</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {filteredRequests.map((request) => (
+                      <tr key={request.requestId}>
+                        <td>
+                          <span className={getTypeBadgeClass(request.registrationType)}>
+                            <i className={`bi ${request.registrationType === 'DOCTOR' ? 'bi-person-badge' : 'bi-shop'}`}></i>
+                            {request.registrationType}
+                          </span>
+                        </td>
+                        <td>
+                          <div className="name-cell">
+                            <strong>{request.registrationType === 'DOCTOR' ? request.fullName : request.pharmacyName}</strong>
+                            <span className="email-text">{request.email}</span>
+                          </div>
+                        </td>
+                        <td>{request.phoneNumber}</td>
+                        <td>{formatDate(request.createdAt)}</td>
+                        <td>
+                          <span className={getStatusBadgeClass(request.status)}>
+                            {request.status === 'AI_Rejected' ? 'Auto-Rejected' : request.status}
+                          </span>
+                        </td>
+                        <td>
+                          <ScreeningBadge
+                            status={request.aiScreeningStatus}
+                            reason={request.aiRejectionReason}
+                          />
+                        </td>
+                        <td>
+                          <div className="action-buttons">
+                            <button
+                              className="btn-icon view"
+                              onClick={() => handleViewRequest(request)}
+                              title="View Details"
+                            >
+                              <i className="bi bi-eye"></i>
+                            </button>
+                            {request.status === 'Pending' && (
+                              <>
+                                <button
+                                  className="btn-icon approve"
+                                  onClick={() => handleApprove(request)}
+                                  disabled={processing}
+                                  title="Approve"
+                                >
+                                  <i className="bi bi-check-lg"></i>
+                                </button>
+                                <button
+                                  className="btn-icon reject"
+                                  onClick={() => handleRejectClick(request)}
+                                  disabled={processing}
+                                  title="Reject"
+                                >
+                                  <i className="bi bi-x-lg"></i>
+                                </button>
+                              </>
+                            )}
+                          </div>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+
+              {/* Pagination */}
+              {pagination.totalPages > 1 && (
+                <div className="pagination-container">
+                  <button
+                    className="page-btn nav"
+                    onClick={() => handlePageChange(pagination.pageNumber - 1)}
+                    disabled={pagination.pageNumber === 1}
+                  >
+                    <i className="bi bi-chevron-left"></i>
+                  </button>
+                  {renderPageNumbers()}
+                  <button
+                    className="page-btn nav"
+                    onClick={() => handlePageChange(pagination.pageNumber + 1)}
+                    disabled={pagination.pageNumber === pagination.totalPages}
+                  >
+                    <i className="bi bi-chevron-right"></i>
+                  </button>
+                </div>
+              )}
+            </>
+          )}
+      </main>
+
+      {/* View Modal */}
+      {showViewModal && selectedRequest && (
+        <div className="modal-overlay" onClick={() => setShowViewModal(false)}>
+          <div className="modal-content large" onClick={(e) => e.stopPropagation()}>
+            <div className="modal-header">
+              <h3>
+                <i className={`bi ${selectedRequest.registrationType === 'DOCTOR' ? 'bi-person-badge' : 'bi-shop'}`}></i>
+                {selectedRequest.registrationType === 'DOCTOR' ? 'Doctor' : 'Pharmacy'} Registration Details
+              </h3>
+              <button className="close-btn" onClick={() => setShowViewModal(false)}>
+                <i className="bi bi-x-lg"></i>
+              </button>
+            </div>
+            <div className="modal-body">
+              <div className="detail-grid">
+                {/* Common Info */}
+                <div className="detail-section">
+                  <h4><i className="bi bi-info-circle"></i> Basic Information</h4>
+                  <div className="detail-row">
+                    <span className="label">Email:</span>
+                    <span className="value">{selectedRequest.email}</span>
+                  </div>
+                  <div className="detail-row">
+                    <span className="label">Phone:</span>
+                    <span className="value">{selectedRequest.phoneNumber}</span>
+                  </div>
+                  <div className="detail-row">
+                    <span className="label">Status:</span>
+                    <span className={getStatusBadgeClass(selectedRequest.status)}>
+                      {selectedRequest.status}
+                    </span>
+                  </div>
+                  <div className="detail-row">
+                    <span className="label">Submitted:</span>
+                    <span className="value">{formatDate(selectedRequest.createdAt)}</span>
+                  </div>
+                  {selectedRequest.reviewedAt && (
+                    <div className="detail-row">
+                      <span className="label">Reviewed:</span>
+                      <span className="value">{formatDate(selectedRequest.reviewedAt)}</span>
+                    </div>
+                  )}
+                  {selectedRequest.rejectionReason && (
+                    <div className="detail-row rejection">
+                      <span className="label">Rejection Reason:</span>
+                      <span className="value">{selectedRequest.rejectionReason}</span>
+                    </div>
+                  )}
+                </div>
+
+                {/* Doctor Specific */}
+                {selectedRequest.registrationType === 'DOCTOR' && (
+                  <>
+                    <div className="detail-section">
+                      <h4><i className="bi bi-person"></i> Personal Information</h4>
+                      <div className="detail-row">
+                        <span className="label">Full Name:</span>
+                        <span className="value">{selectedRequest.fullName}</span>
+                      </div>
+                      <div className="detail-row">
+                        <span className="label">Location:</span>
+                        <span className="value">{selectedRequest.location}</span>
+                      </div>
+                    </div>
+                    <div className="detail-section">
+                      <h4><i className="bi bi-briefcase"></i> Professional Information</h4>
+                      <div className="detail-row">
+                        <span className="label">Qualifications:</span>
+                        <span className="value">{selectedRequest.qualifications}</span>
+                      </div>
+                      <div className="detail-row">
+                        <span className="label">Specialty:</span>
+                        <span className="value">{selectedRequest.specialty}</span>
+                      </div>
+                      <div className="detail-row">
+                        <span className="label">Experience:</span>
+                        <span className="value">
+                          {selectedRequest.yearsOfExperience != null ? `${selectedRequest.yearsOfExperience} year${selectedRequest.yearsOfExperience !== 1 ? 's' : ''}` : <span className="text-warning fst-italic">Not provided</span>}
+                        </span>
+                      </div>
+                      <div className="detail-row">
+                        <span className="label">Languages:</span>
+                        <span className="value">{selectedRequest.languageSpoken}</span>
+                      </div>
+                      <div className="detail-row">
+                        <span className="label">Consultation Fee:</span>
+                        <span className="value">${selectedRequest.consultationFee?.toLocaleString() || '0'}</span>
+                      </div>
+                    </div>
+                    <div className="detail-section">
+                      <h4><i className="bi bi-hospital"></i> Clinic/Hospital Information</h4>
+                      <div className="detail-row">
+                        <span className="label">Clinic/Hospital Name:</span>
+                        <span className="value">
+                          {selectedRequest.clinicName ? selectedRequest.clinicName : <span className="text-warning fst-italic">Not provided</span>}
+                        </span>
+                      </div>
+                      <div className="detail-row">
+                        <span className="label">Clinic/Hospital Address:</span>
+                        <span className="value">
+                          {selectedRequest.clinicAddress ? selectedRequest.clinicAddress : <span className="text-warning fst-italic">Not provided</span>}
+                        </span>
+                      </div>
+                    </div>
+                    <div className="detail-section">
+                      <h4><i className="bi bi-calendar-check"></i> Availability</h4>
+                      <div className="availability-tags">
+                        <span className="avail-tag"><i className="bi bi-globe"></i> Online</span>
+                        <span className="avail-tag"><i className="bi bi-house-heart"></i> Home Visit</span>
+                      </div>
+                    </div>
+                    {selectedRequest.bio && (
+                      <div className="detail-section full-width">
+                        <h4><i className="bi bi-card-text"></i> Bio</h4>
+                        <p className="bio-text">{selectedRequest.bio}</p>
+                      </div>
+                    )}
+                  </>
+                )}
+
+                {/* Pharmacy Specific */}
+                {selectedRequest.registrationType === 'PHARMACY' && (
+                  <>
+                    <div className="detail-section">
+                      <h4><i className="bi bi-shop"></i> Pharmacy Information</h4>
+                      <div className="detail-row">
+                        <span className="label">Pharmacy Name:</span>
+                        <span className="value">{selectedRequest.pharmacyName}</span>
+                      </div>
+                      <div className="detail-row">
+                        <span className="label">License Number:</span>
+                        <span className="value">{selectedRequest.licenseNumber}</span>
+                      </div>
+                    </div>
+                    <div className="detail-section">
+                      <h4><i className="bi bi-geo-alt"></i> Location</h4>
+                      <div className="detail-row">
+                        <span className="label">Address:</span>
+                        <span className="value">{selectedRequest.address}</span>
+                      </div>
+                      <div className="detail-row">
+                        <span className="label">City:</span>
+                        <span className="value">{selectedRequest.city || 'N/A'}</span>
+                      </div>
+                      <div className="detail-row">
+                        <span className="label">District:</span>
+                        <span className="value">{selectedRequest.district || 'N/A'}</span>
+                      </div>
+                      <div className="detail-row">
+                        <span className="label">Ward:</span>
+                        <span className="value">{selectedRequest.ward || 'N/A'}</span>
+                      </div>
+                    </div>
+                    <div className="detail-section">
+                      <h4><i className="bi bi-clock"></i> Business Hours</h4>
+                      <div className="detail-row">
+                        <span className="label">Open 24 Hours:</span>
+                        <span className="value">{selectedRequest.open24Hours ? 'Yes' : 'No'}</span>
+                      </div>
+                      {!selectedRequest.open24Hours && (
+                        <div className="detail-row">
+                          <span className="label">Hours:</span>
+                          <span className="value">{selectedRequest.openTime} - {selectedRequest.closeTime}</span>
+                        </div>
+                      )}
+                      <div className="detail-row">
+                        <span className="label">Working Days:</span>
+                        <span className="value">{selectedRequest.workingDays}</span>
+                      </div>
+                    </div>
+                    <div className="detail-section">
+                      <h4><i className="bi bi-truck"></i> Delivery</h4>
+                      <div className="detail-row">
+                        <span className="label">Delivery Available:</span>
+                        <span className="value">{selectedRequest.deliveryAvailable ? 'Yes' : 'No'}</span>
+                      </div>
+                      {selectedRequest.deliveryAvailable && (
+                        <>
+                          <div className="detail-row">
+                            <span className="label">Delivery Radius:</span>
+                            <span className="value">{selectedRequest.deliveryRadius} km</span>
+                          </div>
+                          <div className="detail-row">
+                            <span className="label">Delivery Fee:</span>
+                            <span className="value">{selectedRequest.deliveryFee?.toLocaleString()} VND</span>
+                          </div>
+                        </>
+                      )}
+                    </div>
+                    {selectedRequest.description && (
+                      <div className="detail-section full-width">
+                        <h4><i className="bi bi-card-text"></i> Description</h4>
+                        <p className="bio-text">{selectedRequest.description}</p>
+                      </div>
+                    )}
+                  </>
+                )}
+
+                {/* AI Screening Results */}
+                {selectedRequest.aiScreeningStatus && (
+                  <div className="detail-section full-width">
+                    <h4><i className="bi bi-robot"></i> AI Screening Results</h4>
+                    <div className="ai-screening-summary">
+                      <div className="screening-row">
+                        <span className="label">Status:</span>
+                        <ScreeningBadge
+                          status={selectedRequest.aiScreeningStatus}
+                          reason={selectedRequest.aiRejectionReason}
+                        />
+                      </div>
+                      {selectedRequest.aiScreenedAt && (
+                        <div className="screening-row">
+                          <span className="label">Screened At:</span>
+                          <span className="value">{formatDate(selectedRequest.aiScreenedAt)}</span>
+                        </div>
+                      )}
+                      {selectedRequest.aiRejectionReason && (
+                        <div className="screening-row rejection-reason">
+                          <span className="label">AI Notes:</span>
+                          <span className="value warning-text">{selectedRequest.aiRejectionReason}</span>
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                )}
+
+                {/* Uploaded Documents */}
+                {selectedRequest.documents && selectedRequest.documents.length > 0 && (
+                  <div className="detail-section full-width">
+                    <h4><i className="bi bi-file-earmark-medical"></i> Uploaded Documents ({selectedRequest.documents.length})</h4>
+                    <div className="documents-grid">
+                      {selectedRequest.documents.map((doc) => (
+                        <div
+                          key={doc.documentId}
+                          className={`document-card ${isPreviewable(doc.mimeType) ? 'previewable' : ''} ${doc.aiVerificationStatus === 'REJECTED_UNSAFE' ? 'unsafe-content' : ''}`}
+                          onClick={() => isPreviewable(doc.mimeType) && handlePreviewDocument(doc)}
+                        >
+                          <div className="document-icon">
+                            <i className={`bi ${getDocumentIcon(doc.mimeType)}`}></i>
+                          </div>
+                          <div className="document-info">
+                            <span className="document-type">{doc.documentType}</span>
+                            <span className="document-name">{doc.originalFileName}</span>
+                            <span className="document-size">{formatFileSize(doc.fileSize)}</span>
+                            {/* AI Verification Status */}
+                            {doc.aiVerificationStatus && (
+                              <div className="document-ai-status">
+                                <ScreeningBadge
+                                  status={doc.aiVerificationStatus}
+                                  isUnsafe={doc.aiVerificationStatus === 'REJECTED_UNSAFE'}
+                                />
+                                {doc.aiConfidenceScore != null && (
+                                  <span className="confidence-score" title="AI Confidence Score">
+                                    {Math.round(doc.aiConfidenceScore * 100)}%
+                                  </span>
+                                )}
+                              </div>
+                            )}
+                          </div>
+                          <div className="document-actions">
+                            {isPreviewable(doc.mimeType) && (
+                              <button
+                                className="document-btn preview"
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  handlePreviewDocument(doc);
+                                }}
+                                title="Preview"
+                              >
+                                <i className="bi bi-eye"></i>
+                              </button>
+                            )}
+                            <a
+                              href={`http://localhost:8096/api/registration/documents/${doc.documentId}/download`}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              className="document-btn download"
+                              title="Download"
+                              onClick={(e) => e.stopPropagation()}
+                            >
+                              <i className="bi bi-download"></i>
+                            </a>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
+              </div>
+            </div>
+            <div className="modal-footer">
+              {selectedRequest.status === 'Pending' && (
+                <>
+                  <button
+                    className="btn btn-success"
+                    onClick={() => handleApprove(selectedRequest)}
+                    disabled={processing}
+                  >
+                    <i className="bi bi-check-lg"></i> Approve
+                  </button>
+                  <button
+                    className="btn btn-danger"
+                    onClick={() => handleRejectClick(selectedRequest)}
+                    disabled={processing}
+                  >
+                    <i className="bi bi-x-lg"></i> Reject
+                  </button>
+                </>
+              )}
+              {selectedRequest.status === 'AI_Rejected' && (
+                <span className="ai-rejected-notice">
+                  <i className="bi bi-robot"></i> Auto-rejected by AI screening
+                </span>
+              )}
+              <button className="btn btn-secondary" onClick={() => setShowViewModal(false)}>
+                Close
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Reject Modal */}
+      {showRejectModal && selectedRequest && (
+        <div className="modal-overlay" onClick={() => setShowRejectModal(false)}>
+          <div className="modal-content small" onClick={(e) => e.stopPropagation()}>
+            <div className="modal-header danger">
+              <h3><i className="bi bi-x-circle"></i> Reject Registration</h3>
+              <button className="close-btn" onClick={() => setShowRejectModal(false)}>
+                <i className="bi bi-x-lg"></i>
+              </button>
+            </div>
+            <div className="modal-body">
+              <p className="confirm-text">
+                You are about to reject the registration for:
+                <strong>
+                  {selectedRequest.registrationType === 'DOCTOR'
+                    ? selectedRequest.fullName
+                    : selectedRequest.pharmacyName}
+                </strong>
+              </p>
+              <div className="form-group">
+                <label>Rejection Reason <span className="required">*</span></label>
+                <textarea
+                  value={rejectionReason}
+                  onChange={(e) => setRejectionReason(e.target.value)}
+                  placeholder="Please provide a reason for rejection..."
+                  rows="4"
+                />
+              </div>
+            </div>
+            <div className="modal-footer">
+              <button
+                className="btn btn-danger"
+                onClick={handleRejectSubmit}
+                disabled={processing || !rejectionReason.trim()}
+              >
+                {processing ? 'Processing...' : 'Confirm Rejection'}
+              </button>
+              <button className="btn btn-secondary" onClick={() => setShowRejectModal(false)}>
+                Cancel
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Document Preview Modal */}
+      {showPreviewModal && selectedDocument && (
+        <div className="modal-overlay preview-overlay" onClick={() => setShowPreviewModal(false)}>
+          <div className="modal-content preview-modal" onClick={(e) => e.stopPropagation()}>
+            <div className="modal-header">
+              <h3>
+                <i className={`bi ${getDocumentIcon(selectedDocument.mimeType)}`}></i>
+                {selectedDocument.documentType}
+              </h3>
+              <div className="preview-header-actions">
+                <a
+                  href={`http://localhost:8096/api/registration/documents/${selectedDocument.documentId}/download`}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="btn-download-header"
+                  title="Download"
+                >
+                  <i className="bi bi-download"></i> Download
+                </a>
+                <button className="close-btn" onClick={() => setShowPreviewModal(false)}>
+                  <i className="bi bi-x-lg"></i>
+                </button>
+              </div>
+            </div>
+            <div className="modal-body preview-body">
+              <div className="preview-info">
+                <span><i className="bi bi-file-earmark"></i> {selectedDocument.originalFileName}</span>
+                <span><i className="bi bi-hdd"></i> {formatFileSize(selectedDocument.fileSize)}</span>
+              </div>
+              <div className="preview-container">
+                {selectedDocument.mimeType?.includes('image') ? (
+                  <img
+                    src={getPreviewUrl(selectedDocument.documentId)}
+                    alt={selectedDocument.originalFileName}
+                    className="preview-image"
+                  />
+                ) : selectedDocument.mimeType?.includes('pdf') ? (
+                  <iframe
+                    src={getPreviewUrl(selectedDocument.documentId)}
+                    title={selectedDocument.originalFileName}
+                    className="preview-pdf"
+                  />
+                ) : (
+                  <div className="preview-unsupported">
+                    <i className="bi bi-file-earmark-x"></i>
+                    <p>Preview not available for this file type</p>
+                    <a
+                      href={`http://localhost:8096/api/registration/documents/${selectedDocument.documentId}/download`}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="btn btn-primary"
+                    >
+                      <i className="bi bi-download"></i> Download to view
+                    </a>
+                  </div>
+                )}
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      <Toast {...toast} onClose={hideToast} />
+    </NavbarAdmin>
+  );
+}

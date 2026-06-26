@@ -1,0 +1,151 @@
+import axios from 'axios';
+import axiosInstance from './axiosConfig';
+
+const API_URL = 'http://localhost:8096/api';
+
+const getAuthConfig = () => {
+    const token = localStorage.getItem('token') || sessionStorage.getItem('token');
+
+    return {
+        headers: {
+            Authorization: token ? `Bearer ${token}` : '',
+            'Content-Type': 'application/json',
+        },
+    };
+};
+
+export const appointmentService = {
+    getAvailableSlots: async (doctorId, date, consultationType) => {
+        const params = {
+            doctorId,
+            date,
+        };
+
+        if (consultationType) {
+            params.consultationType = consultationType;
+        }
+
+        const response = await axios.get(
+            `${API_URL}/appointments/available-slots`,
+            {
+                ...getAuthConfig(),
+                params,
+            }
+        );
+
+        return response.data;
+    },
+
+    holdSlot: async (data) => {
+        const response = await axios.post(
+            `${API_URL}/appointments/hold-slot`,
+            data,
+            getAuthConfig()
+        );
+
+        return response.data;
+    },
+
+    releaseHold: async (holdId) => {
+        await axios.delete(
+            `${API_URL}/appointments/hold-slot/${holdId}`,
+            getAuthConfig()
+        );
+    },
+
+    getAppointmentById: async (id) => {
+        const response = await axios.get(
+            `${API_URL}/appointments/${id}`,
+            getAuthConfig()
+        );
+
+        return response.data;
+    },
+
+    getFollowUpSlots: async (doctorId, date) => {
+        const response = await axiosInstance.get('/api/doctor/appointments/follow-up/slots', {
+            params: {
+                doctorId,
+                date,
+            },
+        });
+
+        return response.data;
+    },
+
+    getFollowUpCalendar: async (doctorId, month) => {
+        const response = await axiosInstance.get('/api/doctor/appointments/follow-up/calendar', {
+            params: {
+                doctorId,
+                month,
+            },
+        });
+
+        return response.data;
+    },
+
+    getAppointmentDetail: async (id) => {
+        const response = await axiosInstance.get(`/api/appointments/${id}`);
+        return response.data;
+    },
+
+    getPatientAppointments: async (patientId) => {
+        const response = await axios.get(
+            `${API_URL}/appointments/patient/${patientId}`,
+            getAuthConfig()
+        );
+
+        return response.data;
+    },
+
+    getPatientMedicalHistory: async (patientId) => {
+        const response = await axiosInstance.get(`/api/doctor/medicalrecords/patient/${patientId}/details`);
+        return response.data;
+    },
+
+    completeAppointment: async (id, body = {}) => {
+        const response = await axiosInstance.put(`/api/appointments/${id}/complete`, body);
+        return response.data;
+    },
+
+    getPatientAppointmentsPage: async (
+        patientId,
+        page = 1,
+        size = 5,
+        status = 'ALL'
+    ) => {
+        const response = await axios.get(
+            `${API_URL}/appointments/patient/${patientId}/page`,
+            {
+                ...getAuthConfig(),
+                params: {
+                    page,
+                    size,
+                    status,
+                },
+            }
+        );
+
+        return response.data;
+    },
+
+    cancelAppointment: async (id, data) => {
+        const response = await axios.put(
+            `${API_URL}/appointments/${id}/cancel`,
+            data,
+            getAuthConfig()
+        );
+
+        return response.data;
+    },
+
+    rescheduleAppointment: async (id, data) => {
+        const response = await axios.put(
+            `${API_URL}/appointments/${id}/reschedule`,
+            data,
+            getAuthConfig()
+        );
+
+        return response.data;
+    },
+};

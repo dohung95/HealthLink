@@ -1,0 +1,356 @@
+/* ============================================
+   CONSULTATION WORKSPACE (DoctorAppointmentDetail)
+   ============================================ */
+
+/* ---- Shell / Back Button ---- */
+.doctor-detail-shell {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+  padding: 0 0 0.75rem;
+  max-width: 1280px;
+  margin: 0 auto;
+  min-height: 0;
+  flex: 1;
+}
+
+.doctor-detail-back {
+  display: flex;
+  align-items: center;
+}
+
+.doctor-detail-back .btn-link {
+  font-size: 0.8125rem;
+  font-weight: 600;
+  color: var(--text-muted);
+  transition: all 0.15s ease;
+  display: inline-flex;
+  align-items: center;
+}
+
+.doctor-detail-back .btn-link:hover {
+  color: var(--primary);
+  gap: 0.25rem;
+}
+
+/* ---- Summary Tab ── */
+.doctor-detail-summary {
+  display: flex;
+  flex-direction: column;
+}
+
+.doctor-detail-summary__section {
+  padding: 1.25rem;
+  border-bottom: 1px solid var(--border-light);
+}
+
+.doctor-detail-summary__section:last-child {
+  border-bottom: none;
+}
+
+.doctor-detail-summary__header {
+  padding: 0.875rem 1.25rem;
+  background: var(--surface-muted);
+}
+
+.doctor-detail-summary__main-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 0.5rem;
+}
+
+.doctor-detail-appointment-id {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.375rem;
+  font-size: 0.75rem;
+  font-weight: 600;
+  color: var(--text-muted);
+  letter-spacing: 0.02em;
+}
+
+.doctor-detail-appointment-id i {
+  font-size: 0.8125rem;
+  color: var(--primary);
+}
+
+.doctor-detail-summary__chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.375rem;
+}
+
+.doctor-detail-summary__chips .doctor-detail-chip i {
+  margin-right: 0.25rem;
+  font-size: 0.6875rem;
+}
+
+/* ---- 2-column grid ── */
+.doctor-detail-summary__grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 1.5rem;
+}
+
+.doctor-detail-summary__patient {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+
+.doctor-detail-summary__card {
+  background: var(--surface-muted);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  padding: 1rem;
+}
+
+.doctor-detail-summary__card--allergies {
+  background: rgba(220, 38, 38, 0.04);
+  border-color: rgba(220, 38, 38, 0.15);
+}
+
+.doctor-detail-summary__visit-header {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+}
+
+.doctor-detail-avatar {
+  width: 3.5rem;
+  height: 3.5rem;
+  border-radius: 0.75rem;
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: 800;
+  font-size: 1.125rem;
+  overflow: hidden;
+}
+
+.doctor-detail-avatar--round {
+  border-radius: 50%;
+}
+
+.doctor-detail-avatar--fallback {
+  background: linear-gradient(135deg, var(--primary-light), var(--primary-subtle));
+  color: var(--primary);
+}
+
+.doctor-detail-avatar img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.doctor-detail-summary__identity {
+  flex: 1;
+  min-width: 0;
+}
+
+.doctor-detail-summary__title-row {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  margin-bottom: 0.125rem;
+}
+
+.doctor-detail-summary__title-row h2 {
+  font-size: 1rem;
+  font-weight: 700;
+  color: var(--text-primary);
+  margin: 0;
+  white-space: nowrap;
+}
+
+.doctor-detail-summary__email {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.3rem;
+  font-size: 0.75rem;
+  color: var(--text-muted);
+  font-weight: 500;
+}
+
+.doctor-detail-summary__email i {
+  font-size: 0.75rem;
+  color: var(--text-muted);
+}
+
+.doctor-detail-summary__meta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.25rem 0.75rem;
+  margin-top: 0.375rem;
+}
+
+.doctor-meta-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.3rem;
+  font-size: 0.75rem;
+  font-weight: 600;
+  color: var(--text-secondary);
+  transition: color 0.15s ease;
+}
+
+.doctor-meta-badge:hover {
+  color: var(--primary);
+}
+
+.doctor-meta-badge i {
+  font-size: 0.8125rem;
+  color: var(--primary);
+}
+
+/* ---- Allergies ── */
+.doctor-detail-summary__allergies {
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.doctor-detail-summary__allergies .doctor-detail-eyebrow {
+  margin: 0;
+  font-size: 0.75rem;
+  color: #b91c1c;
+  white-space: nowrap;
+}
+
+.doctor-detail-summary__allergies .doctor-detail-eyebrow i {
+  margin-right: 0.25rem;
+  font-size: 0.8125rem;
+  color: #b91c1c;
+}
+
+.doctor-detail-summary__allergy-pills {
+  display: inline-flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.25rem;
+}
+
+.doctor-detail-summary__allergy-pill {
+  display: inline-flex;
+  align-items: center;
+  padding: 0.125rem 0.5rem;
+  font-size: 0.6875rem;
+  font-weight: 600;
+  color: #b91c1c;
+  background: rgba(220, 38, 38, 0.08);
+  border: 1px solid rgba(220, 38, 38, 0.2);
+  border-radius: 999px;
+}
+
+/* ---- Emergency contact ── */
+.doctor-detail-summary__emergency {
+  display: flex;
+  flex-direction: column;
+  gap: 0.375rem;
+}
+
+.doctor-detail-summary__emergency .doctor-detail-eyebrow {
+  margin: 0 0 0.25rem;
+  font-size: 0.75rem;
+  color: var(--text-secondary);
+}
+
+.doctor-detail-summary__emergency .doctor-detail-eyebrow i {
+  margin-right: 0.25rem;
+  font-size: 0.8125rem;
+  color: var(--primary);
+}
+
+.doctor-detail-summary__emergency-row {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  font-size: 0.8125rem;
+  color: var(--text-secondary);
+}
+
+.doctor-detail-summary__emergency-row i {
+  font-size: 0.875rem;
+  color: var(--primary);
+  width: 1rem;
+  text-align: center;
+  flex-shrink: 0;
+}
+
+.doctor-detail-summary__emergency-rel {
+  color: var(--text-muted);
+}
+
+/* ---- Vital Signs card ── */
+.doctor-detail-summary__vitals {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+
+.doctor-detail-summary__vitals-card {
+  background: var(--surface-muted);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  padding: 1rem;
+}
+
+.doctor-vital-strip--vertical {
+  display: flex;
+  flex-direction: row;
+  gap: 0.75rem;
+  margin-top: 0.75rem;
+}
+
+.doctor-vital-strip__column {
+  display: flex;
+  flex-direction: column;
+  gap: 0.375rem;
+  flex: 1;
+}
+
+.doctor-vital-strip__column .doctor-vital-badge {
+  justify-content: flex-start;
+}
+
+/* ---- Body metrics ── */
+.doctor-detail-summary__body-metrics {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.375rem;
+  margin-top: 0.5rem;
+}
+
+/* ---- Reason for Visit ── */
+.doctor-detail-summary__reason-section {
+  padding: 1.25rem;
+}
+
+.doctor-detail-summary__reason {
+  font-size: 0.9375rem;
+  color: var(--text-primary);
+  font-weight: 500;
+  margin: 0.5rem 0 0;
+  padding: 0.75rem 1rem;
+  background: var(--surface);
+  border: 1px solid var(--border-light);
+  border-left: 3px solid var(--primary);
+  border-radius: var(--radius-md);
+  line-height: 1.55;
+}
+
+.doctor-detail-summary__reason--empty {
+  color: var(--text-muted);
+  font-style: italic;
+}
+
+/* ---- Responsive ── */
+@media (max-width: 768px) {
+  .doctor-detail-summary__grid {
+    grid-template-columns: 1fr;
+    gap: 1rem;
+  }
+}

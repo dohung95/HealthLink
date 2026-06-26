@@ -1,0 +1,32 @@
+.dashboard-embedded-page {
+    min-height: auto;
+    background: transparent;
+    padding: 0;
+    position: relative;
+}
+
+.dashboard-embedded-page .card {
+    backdrop-filter: blur(4px);
+}
+
+.dashboard-embedded-page .container,
+.dashboard-embedded-page .container-fluid {
+    max-width: 100%;
+}
+
+.dashboard-inline-loading {
+    min-height: 360px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+}
+
+.moderation-warning {
+    padding: 8px 10px;
+    border-radius: 10px;
+    background: #fff7ed;
+    color: #9a3412;
+    font-size: 13px;
+    border: 1px solid #fed7aa;
+}
