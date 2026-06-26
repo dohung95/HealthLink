@@ -309,6 +309,11 @@ public class FinanceServiceImpl implements FinanceService {
             throw new BadRequestException("This pharmacy order cannot be paid due to its current status.");
         }
 
+        if (isRetailDirectOrder(pharmacyOrder)
+                && PHARMACY_ORDER_PENDING.equalsIgnoreCase(safeValue(pharmacyOrder.getStatus(), ""))) {
+            throw new BadRequestException("Retail order must be confirmed by the pharmacy before payment.");
+        }
+
         if (pharmacyOrder.getTotalAmount() == null || pharmacyOrder.getTotalAmount().compareTo(java.math.BigDecimal.ZERO) <= 0) {
             throw new BadRequestException("Order total amount must be greater than zero.");
         }
@@ -556,6 +561,11 @@ public class FinanceServiceImpl implements FinanceService {
                 || "REFUNDED".equalsIgnoreCase(safeValue(pharmacyOrder.getStatus(), ""))
                 || "REVISION_REQUESTED".equalsIgnoreCase(safeValue(pharmacyOrder.getStatus(), ""))) {
             throw new BadRequestException("This pharmacy order cannot be paid due to its current status.");
+        }
+
+        if (isRetailDirectOrder(pharmacyOrder)
+                && PHARMACY_ORDER_PENDING.equalsIgnoreCase(safeValue(pharmacyOrder.getStatus(), ""))) {
+            throw new BadRequestException("Retail order must be confirmed by the pharmacy before payment.");
         }
 
         if (pharmacyOrder.getTotalAmount() == null || pharmacyOrder.getTotalAmount().compareTo(java.math.BigDecimal.ZERO) <= 0) {
@@ -1227,6 +1237,12 @@ public class FinanceServiceImpl implements FinanceService {
         }
 
         return user;
+    }
+
+    private boolean isRetailDirectOrder(PharmacyOrder pharmacyOrder) {
+        return pharmacyOrder != null
+                && pharmacyOrder.getConsultationRequest() == null
+                && pharmacyOrder.getPrescriptionHeader() == null;
     }
 
     private String safeValue(String value, String fallback) {

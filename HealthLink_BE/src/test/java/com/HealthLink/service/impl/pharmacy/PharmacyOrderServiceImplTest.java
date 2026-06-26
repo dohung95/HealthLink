@@ -7,6 +7,8 @@ import com.HealthLink.dto.pharmacy.PharmacyOrderRevisionRequest;
 import com.HealthLink.dto.pharmacy.PharmacyOrderRequest;
 import com.HealthLink.dto.pharmacy.PharmacyOrderResponse;
 import com.HealthLink.dto.pharmacy.PharmacyOrderStatusRequest;
+import com.HealthLink.dto.pharmacy.RetailCartItemRequest;
+import com.HealthLink.dto.pharmacy.RetailOrderRequest;
 import com.HealthLink.entity.Appointment;
 import com.HealthLink.entity.Doctor;
 import com.HealthLink.entity.Medicine;
@@ -14,6 +16,7 @@ import com.HealthLink.entity.Patient;
 import com.HealthLink.entity.Pharmacy;
 import com.HealthLink.entity.PharmacyConsultationRequest;
 import com.HealthLink.entity.PharmacyConsultationRequestPrescription;
+import com.HealthLink.entity.PharmacyInventory;
 import com.HealthLink.entity.PharmacyOrder;
 import com.HealthLink.entity.PrescriptionItem;
 import com.HealthLink.entity.PrescriptionHeader;
@@ -23,7 +26,9 @@ import com.HealthLink.exception.BadRequestException;
 import com.HealthLink.exception.ForbiddenException;
 import com.HealthLink.repository.medicine.MedicineRepository;
 import com.HealthLink.repository.notification.DeviceTokenRepository;
+import com.HealthLink.repository.patient.PatientRepository;
 import com.HealthLink.repository.pharmacy.PharmacyConsultationRequestRepository;
+import com.HealthLink.repository.pharmacy.PharmacyInventoryRepository;
 import com.HealthLink.repository.pharmacy.PharmacyOrderRepository;
 import com.HealthLink.repository.pharmacy.PharmacyRepository;
 import com.HealthLink.repository.prescription.PrescriptionHeaderRepository;
@@ -67,6 +72,12 @@ class PharmacyOrderServiceImplTest {
 
     @Mock
     private MedicineRepository medicineRepository;
+
+    @Mock
+    private PatientRepository patientRepository;
+
+    @Mock
+    private PharmacyInventoryRepository inventoryRepository;
 
     @Mock
     private NotificationService notificationService;
@@ -339,6 +350,145 @@ class PharmacyOrderServiceImplTest {
         assertThat(response.getItems()).hasSize(1);
         assertThat(response.getItems().get(0).getSourcePrescriptionHeaderId()).isEqualTo(10);
         assertThat(response.getItems().get(0).getSourcePrescriptionItemId()).isEqualTo(101);
+    }
+
+    @Test
+    void createRetailOrder_shouldRejectPrescriptionRequiredMedicine() {
+        User patientUser = User.builder().id("patient-user-1").phoneNumber("0900000000").build();
+        Patient patient = Patient.builder()
+                .patientId("patient-1")
+                .fullName("Patient One")
+                .address("123 Main St")
+                .city("New York")
+                .country("USA")
+                .latitude(40.7128)
+                .longitude(-74.0060)
+                .user(patientUser)
+                .build();
+        Pharmacy pharmacy = Pharmacy.builder()
+                .pharmacyId("pharmacy-1")
+                .name("Central Pharmacy")
+                .deliveryAvailable(true)
+                .deliveryRadius(10.0)
+                .latitude(40.7128)
+                .longitude(-74.0060)
+                .active(true)
+                .verified(true)
+                .build();
+        Medicine medicine = Medicine.builder()
+                .medicineId(1)
+                .name("Antibiotic")
+                .active(true)
+                .prescriptionRequired(true)
+                .price(new BigDecimal("10.00"))
+                .build();
+        RetailOrderRequest request = RetailOrderRequest.builder()
+                .pharmacyId("pharmacy-1")
+                .deliveryType("Delivery")
+                .deliveryAddress("123 Main St")
+                .deliveryLatitude(40.7128)
+                .deliveryLongitude(-74.0060)
+                .items(List.of(RetailCartItemRequest.builder().medicineId(1).quantity(1).build()))
+                .build();
+
+        when(patientRepository.findById("patient-1")).thenReturn(Optional.of(patient));
+        when(pharmacyRepository.findById("pharmacy-1")).thenReturn(Optional.of(pharmacy));
+        when(medicineRepository.findAllById(any())).thenReturn(List.of(medicine));
+        when(inventoryRepository.findByPharmacy_PharmacyIdAndMedicine_MedicineIdIn(eq("pharmacy-1"), any()))
+                .thenReturn(List.of());
+
+        assertThatThrownBy(() -> pharmacyOrderService.createRetailOrder(request, "patient-1"))
+                .isInstanceOf(BadRequestException.class)
+                .hasMessageContaining("requires a prescription");
+    }
+
+    @Test
+    void createRetailOrder_shouldCreatePendingDirectOrderWithInventoryPricing() {
+        User patientUser = User.builder().id("patient-user-1").phoneNumber("0900000000").build();
+        User pharmacyUser = User.builder().id("pharmacy-user-1").build();
+        Patient patient = Patient.builder()
+                .patientId("patient-1")
+                .fullName("Patient One")
+                .address("123 Main St")
+                .city("New York")
+                .country("USA")
+                .latitude(40.7128)
+                .longitude(-74.0060)
+                .user(patientUser)
+                .build();
+        Pharmacy pharmacy = Pharmacy.builder()
+                .pharmacyId("pharmacy-1")
+                .name("Central Pharmacy")
+                .deliveryAvailable(true)
+                .deliveryFee(new BigDecimal("5.00"))
+                .deliveryRadius(10.0)
+                .latitude(40.7128)
+                .longitude(-74.0060)
+                .active(true)
+                .verified(true)
+                .user(pharmacyUser)
+                .build();
+        Medicine medicine = Medicine.builder()
+                .medicineId(1)
+                .name("Vitamin C")
+                .unit("box")
+                .active(true)
+                .prescriptionRequired(false)
+                .price(new BigDecimal("12.00"))
+                .build();
+        PharmacyInventory inventory = PharmacyInventory.builder()
+                .pharmacy(pharmacy)
+                .medicine(medicine)
+                .quantity(10)
+                .reservedQuantity(0)
+                .active(true)
+                .unitPrice(new BigDecimal("9.50"))
+                .build();
+        RetailOrderRequest request = RetailOrderRequest.builder()
+                .pharmacyId("pharmacy-1")
+                .deliveryType("Delivery")
+                .deliveryAddress("123 Main St")
+                .deliveryLatitude(40.7128)
+                .deliveryLongitude(-74.0060)
+                .deliveryPhoneNumber("0900000000")
+                .deliveryAddressSource("PROFILE")
+                .paymentMethod("EWallet")
+                .notes("Please call before delivery.")
+                .items(List.of(RetailCartItemRequest.builder().medicineId(1).quantity(2).build()))
+                .build();
+
+        when(patientRepository.findById("patient-1")).thenReturn(Optional.of(patient));
+        when(pharmacyRepository.findById("pharmacy-1")).thenReturn(Optional.of(pharmacy));
+        when(medicineRepository.findAllById(any())).thenReturn(List.of(medicine));
+        when(inventoryRepository.findByPharmacy_PharmacyIdAndMedicine_MedicineIdIn(eq("pharmacy-1"), any()))
+                .thenReturn(List.of(inventory));
+        when(orderRepository.existsByOrderNumber(anyString())).thenReturn(false);
+        when(orderRepository.save(any(PharmacyOrder.class))).thenAnswer(invocation -> {
+            PharmacyOrder saved = invocation.getArgument(0);
+            saved.setOrderId(91);
+            return saved;
+        });
+
+        PharmacyOrderResponse response = pharmacyOrderService.createRetailOrder(request, "patient-1");
+
+        assertThat(response.getOrderId()).isEqualTo(91);
+        assertThat(response.getPrescriptionHeaderId()).isNull();
+        assertThat(response.getPharmacyRequestId()).isNull();
+        assertThat(response.getStatus()).isEqualTo("PENDING");
+        assertThat(response.getPaymentStatus()).isEqualTo("PENDING");
+        assertThat(response.getMedicineAmount()).isEqualByComparingTo("19.00");
+        assertThat(response.getDeliveryFee()).isEqualByComparingTo("5.00");
+        assertThat(response.getItems()).hasSize(1);
+        assertThat(response.getItems().get(0).getUnitPrice()).isEqualByComparingTo("9.50");
+
+        verify(notificationService).sendWebSocketNotification(
+                eq(pharmacyUser),
+                eq(NotificationType.NEW_ORDER),
+                eq("New pharmacy order"),
+                contains("Patient One"),
+                eq(91),
+                eq("/pharmacy-orders/91")
+        );
     }
 
     @Test

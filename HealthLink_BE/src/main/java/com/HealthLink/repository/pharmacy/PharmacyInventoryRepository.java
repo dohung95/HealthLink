@@ -8,6 +8,7 @@ import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 import org.springframework.stereotype.Repository;
 
+import java.util.Collection;
 import java.util.List;
 import java.util.Optional;
 
@@ -17,6 +18,11 @@ public interface PharmacyInventoryRepository extends JpaRepository<PharmacyInven
     List<PharmacyInventory> findByPharmacy_PharmacyId(String pharmacyId);
 
     Optional<PharmacyInventory> findByPharmacy_PharmacyIdAndMedicine_MedicineId(String pharmacyId, Integer medicineId);
+
+    List<PharmacyInventory> findByPharmacy_PharmacyIdAndMedicine_MedicineIdIn(
+            String pharmacyId,
+            Collection<Integer> medicineIds
+    );
 
     Page<PharmacyInventory> findByPharmacy_PharmacyId(String pharmacyId, Pageable pageable);
 

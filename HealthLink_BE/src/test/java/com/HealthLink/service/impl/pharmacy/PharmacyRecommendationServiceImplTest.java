@@ -1,9 +1,13 @@
 package com.HealthLink.service.impl.pharmacy;
 
 import com.HealthLink.dto.pharmacy.PharmacyRecommendationResponse;
+import com.HealthLink.dto.pharmacy.RetailPharmacyAvailabilityRequest;
+import com.HealthLink.dto.pharmacy.RetailPharmacyRecommendationResponse;
+import com.HealthLink.dto.pharmacy.RetailCartItemRequest;
 import com.HealthLink.entity.*;
 import com.HealthLink.exception.ForbiddenException;
 import com.HealthLink.exception.ResourceNotFoundException;
+import com.HealthLink.repository.medicine.MedicineRepository;
 import com.HealthLink.repository.pharmacy.PharmacyInventoryRepository;
 import com.HealthLink.repository.pharmacy.PharmacyRepository;
 import com.HealthLink.repository.prescription.PrescriptionHeaderRepository;
@@ -20,6 +24,8 @@ import java.util.Optional;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
+import static org.mockito.ArgumentMatchers.anyCollection;
+import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.Mockito.when;
 
@@ -36,6 +42,9 @@ class PharmacyRecommendationServiceImplTest {
 
     @Mock
     private PrescriptionHeaderRepository prescriptionHeaderRepository;
+
+    @Mock
+    private MedicineRepository medicineRepository;
 
     @InjectMocks
     private PharmacyRecommendationServiceImpl recommendationService;
@@ -397,6 +406,86 @@ class PharmacyRecommendationServiceImplTest {
         assertThat(results.get(0).getDeliveryFee()).isEqualByComparingTo("3.50");
     }
 
+    @Test
+    void getRetailRecommendations_shouldReturnFullWhenAllCartItemsAvailable() {
+        Pharmacy pharmacy = pharmacy("pharmacy-1", "Retail One", 40.7128, -74.0060);
+        Medicine med1 = Medicine.builder()
+                .medicineId(1)
+                .name("Paracetamol")
+                .price(new BigDecimal("2.00"))
+                .active(true)
+                .build();
+        Medicine med2 = Medicine.builder()
+                .medicineId(2)
+                .name("Vitamin C")
+                .price(new BigDecimal("3.00"))
+                .active(true)
+                .build();
+        when(pharmacyRepository.findByActiveTrueAndVerifiedTrue()).thenReturn(List.of(pharmacy));
+        when(medicineRepository.findAllById(anyCollection())).thenReturn(List.of(med1, med2));
+        when(inventoryRepository.findByPharmacy_PharmacyIdAndMedicine_MedicineIdIn(eq("pharmacy-1"), anyCollection()))
+                .thenReturn(List.of(
+                        inventory(pharmacy, med1, 10, true, new BigDecimal("2.50")),
+                        inventory(pharmacy, med2, 5, true, new BigDecimal("4.00"))
+                ));
+
+        List<RetailPharmacyRecommendationResponse> results = recommendationService.getRetailRecommendations(
+                RetailPharmacyAvailabilityRequest.builder()
+                        .items(List.of(
+                                RetailCartItemRequest.builder().medicineId(1).quantity(2).build(),
+                                RetailCartItemRequest.builder().medicineId(2).quantity(1).build()
+                        ))
+                        .build(),
+                "patient-1"
+        );
+
+        assertThat(results).hasSize(1);
+        RetailPharmacyRecommendationResponse result = results.get(0);
+        assertThat(result.getStockStatus()).isEqualTo("FULL");
+        assertThat(result.getAvailableItems()).hasSize(2);
+        assertThat(result.getMissingItems()).isEmpty();
+        assertThat(result.getMedicineSubtotal()).isEqualByComparingTo("9.00");
+    }
+
+    @Test
+    void getRetailRecommendations_shouldReturnPartialWithMissingReasons() {
+        Pharmacy pharmacy = pharmacy("pharmacy-1", "Retail One", 40.7128, -74.0060);
+        Medicine med1 = Medicine.builder()
+                .medicineId(1)
+                .name("Paracetamol")
+                .price(new BigDecimal("2.00"))
+                .active(true)
+                .build();
+        Medicine med2 = Medicine.builder()
+                .medicineId(2)
+                .name("Vitamin C")
+                .price(new BigDecimal("3.00"))
+                .active(true)
+                .build();
+        when(pharmacyRepository.findByActiveTrueAndVerifiedTrue()).thenReturn(List.of(pharmacy));
+        when(medicineRepository.findAllById(anyCollection())).thenReturn(List.of(med1, med2));
+        when(inventoryRepository.findByPharmacy_PharmacyIdAndMedicine_MedicineIdIn(eq("pharmacy-1"), anyCollection()))
+                .thenReturn(List.of(
+                        inventory(pharmacy, med1, 1, true, new BigDecimal("2.50"))
+                ));
+
+        List<RetailPharmacyRecommendationResponse> results = recommendationService.getRetailRecommendations(
+                RetailPharmacyAvailabilityRequest.builder()
+                        .items(List.of(
+                                RetailCartItemRequest.builder().medicineId(1).quantity(3).build(),
+                                RetailCartItemRequest.builder().medicineId(2).quantity(1).build()
+                        ))
+                        .build(),
+                "patient-1"
+        );
+
+        assertThat(results).hasSize(1);
+        RetailPharmacyRecommendationResponse result = results.get(0);
+        assertThat(result.getStockStatus()).isEqualTo("PARTIAL");
+        assertThat(result.getMissingItems()).extracting("reason")
+                .contains("Insufficient stock: 1 available, 3 required", "Medicine not in inventory");
+    }
+
     // --- Helpers ---
 
     private Pharmacy pharmacy(String id, String name, boolean active, boolean verified) {
@@ -427,13 +516,23 @@ class PharmacyRecommendationServiceImplTest {
     }
 
     private PharmacyInventory inventory(Pharmacy pharmacy, Medicine medicine, int quantity, boolean active) {
+        return inventory(pharmacy, medicine, quantity, active, new BigDecimal("1.00"));
+    }
+
+    private PharmacyInventory inventory(
+            Pharmacy pharmacy,
+            Medicine medicine,
+            int quantity,
+            boolean active,
+            BigDecimal unitPrice
+    ) {
         return PharmacyInventory.builder()
                 .pharmacy(pharmacy)
                 .medicine(medicine)
                 .quantity(quantity)
                 .reservedQuantity(0)
                 .active(active)
-                .unitPrice(new BigDecimal("1.00"))
+                .unitPrice(unitPrice)
                 .unit("tablet")
                 .build();
     }

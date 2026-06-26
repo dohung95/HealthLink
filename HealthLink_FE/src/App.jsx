@@ -381,6 +381,7 @@ function AppContent() {
               <Route path="share-records" element={<ShareHealthRecords embedded />} />
               <Route path="prescriptions" element={<PatientPrescriptionView />} />
               <Route path="pharmacy" element={<PatientPharmacyPage />} />
+              <Route path="pharmacy/consult" element={<PatientPharmacyPage />} />
               <Route path="pharmacy/requests" element={<PatientPharmacyPage />} />
               <Route path="pharmacy/orders" element={<PatientPharmacyPage />} />
               <Route path="pharmacy/orders/:orderId" element={<PatientPharmacyPage />} />

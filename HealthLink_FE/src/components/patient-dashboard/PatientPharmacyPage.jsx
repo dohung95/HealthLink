@@ -8,10 +8,12 @@ import { getProfile } from '../../api/account';
 import { paymentApi } from '../../api/paymentApi';
 import { loadPayPalSdk } from '../../utils/paypalSdk';
 import { titleCase } from '../../utils/pharmacy/pharmacyHelpers';
+import RetailPharmacyStore from './pharmacy-store/RetailPharmacyStore';
 import './PatientPharmacy.css';
 
 const TABS = [
-  { label: 'Pharmacies', icon: 'bi-shop', path: '' },
+  { label: 'Store', icon: 'bi-bag', path: '' },
+  { label: 'Consult', icon: 'bi-chat-square-text', path: '/consult' },
   { label: 'Requests', icon: 'bi-chat-square-text', path: '/requests' },
   { label: 'Orders', icon: 'bi-box-seam', path: '/orders' },
 ];
@@ -20,6 +22,7 @@ const WIZARD_STEPS = ['prescription', 'pharmacy', 'connect', 'payment'];
 
 function getActiveTab(location) {
   const p = location.pathname.replace(/\/+$/, '');
+  if (p.endsWith('/consult')) return '/consult';
   if (p.endsWith('/requests')) return '/requests';
   if (p.includes('/orders/')) return '/orders';
   if (p.endsWith('/orders')) return '/orders';
@@ -57,12 +60,14 @@ export default function PatientPharmacyPage() {
         ))}
       </ul>
 
-      {activeTab === '/requests' ? (
+      {activeTab === '/consult' ? (
+        <PharmacyWizard userId={userId} navigate={navigate} />
+      ) : activeTab === '/requests' ? (
         <RequestsView userId={userId} />
       ) : activeTab === '/orders' ? (
         <OrdersView userId={userId} navigate={navigate} />
       ) : (
-        <PharmacyWizard userId={userId} navigate={navigate} />
+        <RetailPharmacyStore userId={userId} navigate={navigate} />
       )}
     </div>
   );
@@ -1094,7 +1099,12 @@ function OrderDetailView({ orderId, userId, navigate }) {
 
   const isRevisionRequested = order.status === 'REVISION_REQUESTED';
   const isPaid = order.paymentStatus === 'PAID';
-  const needsPayment = !isPaid && !['CANCELLED', 'REFUNDED'].includes(order.status) && !isRevisionRequested;
+  const isRetailOrder = !order.prescriptionHeaderId && !order.pharmacyRequestId;
+  const retailAwaitingConfirmation = isRetailOrder && order.status === 'PENDING' && !isPaid;
+  const needsPayment = !isPaid
+    && !['CANCELLED', 'REFUNDED'].includes(order.status)
+    && !isRevisionRequested
+    && !retailAwaitingConfirmation;
   const canCancel = ['PENDING', 'CONFIRMED'].includes(order.status);
   const canRequestRevision = needsPayment && !isRevisionRequested;
   const showConfirmButton = needsPayment && !confirmedForPayment;
@@ -1122,6 +1132,13 @@ function OrderDetailView({ orderId, userId, navigate }) {
         <div className="alert alert-warning mb-3">
           <i className="bi bi-pencil-square me-2"></i>
           Change request sent. Waiting for pharmacy to update the order.
+        </div>
+      )}
+
+      {retailAwaitingConfirmation && (
+        <div className="alert alert-info mb-3">
+          <i className="bi bi-hourglass-split me-2"></i>
+          Waiting for the pharmacy to confirm stock and pricing before payment.
         </div>
       )}
 
