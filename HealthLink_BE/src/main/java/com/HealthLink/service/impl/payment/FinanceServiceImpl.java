@@ -43,7 +43,6 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Qualifier;
-import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.HttpEntity;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpMethod;
@@ -130,9 +129,6 @@ public class FinanceServiceImpl implements FinanceService {
     private final NotificationService notificationService;
     private final DeviceTokenRepository deviceTokenRepository;
     private final HomeVisitLocationService homeVisitLocationService;
-
-    @Value("${homevisit.default-fee}")
-    private BigDecimal homeVisitDefaultFee;
 
     /**
      * Service xử lý logic chiết khấu sau khi thanh toán thành công
@@ -470,9 +466,6 @@ public class FinanceServiceImpl implements FinanceService {
             LocalDateTime paidAt = LocalDateTime.now();
             appointment.setStatus(APPT_SCHEDULED);
             appointment.setConfirmedAt(paidAt);
-            if (TYPE_HOME_VISIT.equalsIgnoreCase(appointment.getConsultationType())) {
-                appointment.setFee(homeVisitDefaultFee);
-            }
             if (sourceConsultation != null) {
                 appointment.setFollowUpSourceAppointmentId(sourceConsultation.getAppointment().getAppointmentId());
             }
@@ -1056,11 +1049,15 @@ public class FinanceServiceImpl implements FinanceService {
                 throw new BadRequestException(estimate.getMessage());
             }
 
-            BigDecimal homeVisitFee = homeVisitDefaultFee != null
-                    ? homeVisitDefaultFee.setScale(2, RoundingMode.HALF_UP)
+            BigDecimal consultationFee = resolveDoctorConsultationFee(doctor);
+
+            BigDecimal homeVisitTravelTotal = estimate.getTotalFee() != null
+                    ? estimate.getTotalFee()
                     : BigDecimal.ZERO;
 
-            return homeVisitFee;
+            return consultationFee
+                    .add(homeVisitTravelTotal)
+                    .setScale(2, RoundingMode.HALF_UP);
         }
 
         return resolveDoctorConsultationFee(doctor);

@@ -72,10 +72,11 @@ lerna-debug.log*
 /HealthLink_BE/AGENTS.md
 /.semgrepignore
 /.continue
-
+/.codegraph
+/.continue
 /.superpowers
-
-
+/_ops
+/tasks
 
 # === Custom ignores cho file XML do IDE sinh ra ===
 HealthLink/HealthLink_BE/HealthLink_BEynbactions.xml
