@@ -8,7 +8,6 @@ import { getProfile } from '../../api/account';
 import { paymentApi } from '../../api/paymentApi';
 import { loadPayPalSdk } from '../../utils/paypalSdk';
 import { titleCase } from '../../utils/pharmacy/pharmacyHelpers';
-import RetailPharmacyStore from './pharmacy-store/RetailPharmacyStore';
 import './PatientPharmacy.css';
 
 const TABS = [
@@ -67,16 +66,17 @@ export default function PatientPharmacyPage() {
       ) : activeTab === '/orders' ? (
         <OrdersView userId={userId} navigate={navigate} />
       ) : (
-        <RetailPharmacyStore userId={userId} navigate={navigate} />
+        <PharmacyWizard userId={userId} navigate={navigate} location={location} />
       )}
     </div>
   );
 }
 
-function PharmacyWizard({ userId, navigate }) {
-  const [flowType, setFlowType] = useState(null);
-  const [step, setStep] = useState('mode');
-  const [prescriptionHeaderId, setPrescriptionHeaderId] = useState(null);
+function PharmacyWizard({ userId, navigate, location }) {
+  const autoSelectId = location?.state?.autoSelectPrescriptionId;
+  const [flowType, setFlowType] = useState('ORDER_REQUEST');
+  const [step, setStep] = useState(autoSelectId ? 'delivery' : 'prescription');
+  const [prescriptionHeaderId, setPrescriptionHeaderId] = useState(autoSelectId || null);
   const [prescriptions, setPrescriptions] = useState([]);
   const [selectedPharmacy, setSelectedPharmacy] = useState(null);
   const [request, setRequest] = useState(null);
@@ -84,9 +84,7 @@ function PharmacyWizard({ userId, navigate }) {
   const [geoTried, setGeoTried] = useState(false);
   const [patientProfile, setPatientProfile] = useState(null);
   const [deliveryContact, setDeliveryContact] = useState(null);
-  const steps = flowType === 'ORDER_REQUEST'
-    ? ['mode', 'prescription', 'delivery', 'pharmacy', 'submitted']
-    : ['mode', 'prescription', 'delivery', 'pharmacy', 'connect', 'payment'];
+  const steps = ['prescription', 'delivery', 'pharmacy', 'submitted'];
   const stepIndex = steps.indexOf(step);
 
   useEffect(() => {
@@ -115,10 +113,6 @@ function PharmacyWizard({ userId, navigate }) {
   };
 
   const handleSkipPrescription = () => {
-    if (flowType === 'ORDER_REQUEST') {
-      toast.error('Please choose a prescription to request an order.');
-      return;
-    }
     setPrescriptionHeaderId(null);
     setStep('delivery');
   };
@@ -132,9 +126,9 @@ function PharmacyWizard({ userId, navigate }) {
         pharmacyId: pharmacy.pharmacyId,
         requestType: flowType,
         symptoms: flowType === 'CONSULTATION' ? '' : undefined,
-        description: flowType === 'CONSULTATION'
-          ? 'Patient initiated pharmacy consultation'
-          : 'Patient requested an order from an existing prescription',
+        description: prescriptionHeaderId 
+          ? 'Patient requested an order from an existing prescription' 
+          : 'Patient requested an OTC order',
         allergies: '',
         additionalNotes: '',
         preferredDeliveryType: 'Delivery',
@@ -307,11 +301,9 @@ function PrescriptionStep({ mode, userId, onSelect, onSkip, prescriptions, setPr
         </div>
       )}
 
-      {mode !== 'ORDER_REQUEST' && (
-        <button className="btn btn-outline-secondary" onClick={onSkip}>
-          <i className="bi bi-skip-forward me-1"></i>Skip, I don't have a prescription
-        </button>
-      )}
+      <button className="btn btn-outline-secondary" onClick={onSkip}>
+        <i className="bi bi-skip-forward me-1"></i>Skip, I don't have a prescription
+      </button>
     </div>
   );
 }
@@ -421,7 +413,7 @@ function PharmacySelectionStep({ userId, geolocation, deliveryContact, prescript
                       </div>
                     )}
                     <button className="btn btn-sm btn-outline-primary w-100" onClick={() => onSelect(p)}>
-                      <i className="bi bi-chat-square-text me-1"></i>Consult
+                      <i className="bi bi-send me-1"></i>Send Order
                     </button>
                   </div>
                 </div>
@@ -534,31 +526,31 @@ function DeliveryContactStep({ profile, geolocation, geoTried, onBack, onContinu
           <p className="text-muted small mb-0">Choose where the pharmacy should send the order.</p>
         </div>
       </div>
-          <label className="form-label small">Receiver phone</label>
-          <input className="form-control mb-3" value={phone} onChange={(e) => setPhone(e.target.value)} />
+      <label className="form-label small">Receiver phone</label>
+      <input className="form-control mb-3" value={phone} onChange={(e) => setPhone(e.target.value)} />
 
-          <label className="form-label small">Delivery address</label>
-          <textarea className="form-control mb-2" rows="3" value={address} onChange={(e) => {
-            setAddress(e.target.value);
-            setLatitude(null);
-            setLongitude(null);
-            setSource('MANUAL');
-          }} />
+      <label className="form-label small">Delivery address</label>
+      <textarea className="form-control mb-2" rows="3" value={address} onChange={(e) => {
+        setAddress(e.target.value);
+        setLatitude(null);
+        setLongitude(null);
+        setSource('MANUAL');
+      }} />
 
-          <div className="d-flex flex-wrap gap-2 mb-3">
-            <button className="btn btn-outline-primary btn-sm" disabled={saving} onClick={useCurrentLocation} type="button">
-              <i className="bi bi-crosshair me-1"></i>Use current location
-            </button>
-            <button className="btn btn-outline-secondary btn-sm" disabled={saving || !address.trim()} onClick={geocodeManualAddress} type="button">
-              <i className="bi bi-geo-alt me-1"></i>Verify address
-            </button>
-          </div>
+      <div className="d-flex flex-wrap gap-2 mb-3">
+        <button className="btn btn-outline-primary btn-sm" disabled={saving} onClick={useCurrentLocation} type="button">
+          <i className="bi bi-crosshair me-1"></i>Use current location
+        </button>
+        <button className="btn btn-outline-secondary btn-sm" disabled={saving || !address.trim()} onClick={geocodeManualAddress} type="button">
+          <i className="bi bi-geo-alt me-1"></i>Verify address
+        </button>
+      </div>
 
-          {latitude != null && longitude != null && (
-            <p className="small text-success mb-3">
-              <i className="bi bi-check-circle me-1"></i>Location verified: {latitude.toFixed(5)}, {longitude.toFixed(5)}
-            </p>
-          )}
+      {latitude != null && longitude != null && (
+        <p className="small text-success mb-3">
+          <i className="bi bi-check-circle me-1"></i>Location verified: {latitude.toFixed(5)}, {longitude.toFixed(5)}
+        </p>
+      )}
 
       <div className="d-flex gap-2">
         <button className="btn btn-outline-secondary" onClick={onBack} type="button">Back</button>
@@ -675,7 +667,7 @@ function ConnectStep({ request, pharmacy, geolocation, userId, onRequestUpdated,
             <p className="small text-muted">Elapsed: {elapsed}</p>
           </div>
           <button className="btn btn-sm btn-outline-secondary" onClick={() => {
-            pharmacyApi.getConsultationRequestById(request.requestId).then(onRequestUpdated).catch(() => {});
+            pharmacyApi.getConsultationRequestById(request.requestId).then(onRequestUpdated).catch(() => { });
           }}>
             <i className="bi bi-arrow-clockwise me-1"></i>Refresh
           </button>

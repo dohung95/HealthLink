@@ -160,8 +160,14 @@ function AppContent() {
 
   const is404Page = !isKnownPath;
 
+  const isAuthPage = [
+    '/confirm-email',
+    '/forgot-password',
+    '/reset-password'
+  ].includes(location.pathname);
+
   // Don't show navbar/footer on video call, doctor page, admin page, login page, or 404 page
-  const hideLayout = isVideoCallPage || isDoctorPage || isAdminPage || isPatientDashboard || isPharmacyDashboard || isSchedulePage || isResetPasswordPage || is404Page;
+  const hideLayout = isVideoCallPage || isDoctorPage || isAdminPage || isPatientDashboard || isPharmacyDashboard || isSchedulePage || isAuthPage || is404Page;
 
   useEffect(() => {
     if (isAuthenticated && publicPaths.includes(location.pathname)) {
@@ -207,13 +213,13 @@ function AppContent() {
       {!isVideoCallPage && !isAdminPage && <HomeVisitProposalResultModal />}
       <div className="App">
         {!isVideoCallPage
-  && !isAdminPage
-  && !is404Page
-  && !isResetPasswordPage
-  && !isPatientDashboard
-  && !isDoctorPage
-  && !isPharmacyDashboard
-  && <Chat />}
+          && !isAdminPage
+          && !is404Page
+          && !isAuthPage
+          && !isPatientDashboard
+          && !isDoctorPage
+          && !isPharmacyDashboard
+          && <Chat />}
         <ScrollToTop />
         {!hideLayout && <Navbar />}
 

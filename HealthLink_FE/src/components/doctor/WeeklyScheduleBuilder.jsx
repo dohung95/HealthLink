@@ -13,7 +13,15 @@ const DAYS = [
   { index: 0, short: 'SUN', label: 'Sunday' },
 ];
 
+const isHomeVisitType = (type) => {
+  const t = String(type || '').trim().toLowerCase();
+  return t === 'homevisit' || t === 'home visit' || t === 'home-visit' || t === 'home';
+};
+
+const SHIFT_LABELS = { MORNING: 'Morning', AFTERNOON: 'Afternoon', EVENING: 'Evening' };
+
 const getTypeIcon = (type) => {
+  if (isHomeVisitType(type)) return 'home_health';
   switch ((type || '').toLowerCase()) {
     case 'online':
     case 'video':
@@ -26,18 +34,17 @@ const getTypeIcon = (type) => {
     case 'home visit':
     case 'home-visit':
     case 'offline':
-      return 'home_health';
+      return 'local_hospital';
+    case 'online':
+      return 'laptop_mac';
     default:
       return 'medical_services';
   }
 };
 
 const getTypeLabel = (type) => {
-  if (!type) return 'All Types';
-  const lower = type.toLowerCase();
-  if (lower === 'homevisit' || lower === 'home visit' || lower === 'home-visit') return 'Home Visit';
-  if (lower === 'online') return 'Online';
-  return type;
+  if (isHomeVisitType(type)) return 'Home visit';
+  return type || 'All Types';
 };
 
 const formatTime = (time) => {
@@ -56,7 +63,6 @@ const WeeklyScheduleBuilder = ({
   onRefresh,
   appointments = [],
   changeRequests = [],
-  onCreateChangeRequest,
   loadingRequests = false,
   onRefreshRequests,
 }) => {
@@ -99,19 +105,20 @@ const WeeklyScheduleBuilder = ({
     setShowModal(true);
   };
 
-  // Called when user creates a new schedule in modal
+  // Called when user creates schedule(s) in modal.
+  // Online returns a single-item array; Home visit can return multiple shifts.
   const handleScheduleCreated = (newScheduleData) => {
-    // Add to pending adds with a temporary ID
-    const pendingSchedule = {
-      ...newScheduleData,
+    const items = Array.isArray(newScheduleData) ? newScheduleData : [newScheduleData];
+    const pending = items.map((data) => ({
+      ...data,
       tempId: generateTempId(),
       isPending: true,
       scheduleStatus: 'PENDING',
-    };
-    setPendingAdds((prev) => [...prev, pendingSchedule]);
+    }));
+    setPendingAdds((prev) => [...prev, ...pending]);
     setShowModal(false);
     setEditingSchedule(null);
-    toast.info('Schedule added. Click "Save All" to confirm changes.');
+    toast.info(`${items.length} schedule(s) added. Click "Save All" to confirm changes.`);
   };
 
   const handleDelete = (schedule) => {
@@ -177,6 +184,7 @@ const WeeklyScheduleBuilder = ({
             slotDuration: schedule.slotDuration,
             maxPatients: schedule.maxPatients,
             consultationType: schedule.consultationType,
+            shiftType: schedule.shiftType,
             location: schedule.location,
             notes: schedule.notes,
           });
@@ -389,6 +397,9 @@ const WeeklyScheduleBuilder = ({
 
                           <div className="doctor-schedule-item__top">
                             <span className="doctor-schedule-item__time">
+                              {isHomeVisitType(schedule.consultationType) && schedule.shiftType
+                                ? `${SHIFT_LABELS[String(schedule.shiftType).toUpperCase()] || schedule.shiftType} · `
+                                : ''}
                               {formatTime(schedule.startTime)} - {formatTime(schedule.endTime)}
                             </span>
                           </div>
@@ -398,14 +409,23 @@ const WeeklyScheduleBuilder = ({
                               <span className="material-symbols-outlined">{getTypeIcon(schedule.consultationType)}</span>
                               {getTypeLabel(schedule.consultationType)}
                             </span>
-                            <span className="doctor-schedule-item__tag">
-                              <span className="material-symbols-outlined">schedule</span>
-                              {schedule.slotDuration || 30} min
-                            </span>
-                            <span className="doctor-schedule-item__tag">
-                              <span className="material-symbols-outlined">groups</span>
-                              {schedule.maxPatients || 1} pat/slot
-                            </span>
+                            {!isHomeVisitType(schedule.consultationType) ? (
+                              <>
+                                <span className="doctor-schedule-item__tag">
+                                  <span className="material-symbols-outlined">schedule</span>
+                                  {schedule.slotDuration || 30} min
+                                </span>
+                                <span className="doctor-schedule-item__tag">
+                                  <span className="material-symbols-outlined">groups</span>
+                                  {schedule.maxPatients || 1} pat/slot
+                                </span>
+                              </>
+                            ) : (
+                              <span className="doctor-schedule-item__tag">
+                                <span className="material-symbols-outlined">person</span>
+                                1 visit/shift
+                              </span>
+                            )}
                             {schedule.location ? (
                               <span className="doctor-schedule-item__tag">
                                 <span className="material-symbols-outlined">location_on</span>
@@ -766,6 +786,7 @@ const WeeklyScheduleBuilder = ({
         onSuccess={handleScheduleCreated}
         schedule={editingSchedule}
         batchMode={true}
+        daySchedules={editingSchedule ? getSchedulesForDay(editingSchedule.dayOfWeek) : []}
       />
 
       {/* Confirm Dialog */}

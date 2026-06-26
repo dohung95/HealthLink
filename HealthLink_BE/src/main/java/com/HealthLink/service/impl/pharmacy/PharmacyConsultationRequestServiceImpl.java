@@ -283,9 +283,7 @@ public class PharmacyConsultationRequestServiceImpl implements PharmacyConsultat
             List<PrescriptionHeader> prescriptions
     ) {
         if (REQUEST_TYPE_ORDER_REQUEST.equals(requestType)) {
-            if (prescriptions == null || prescriptions.isEmpty()) {
-                throw new BadRequestException("Prescription is required for an order request");
-            }
+            // Allow order requests without prescriptions (e.g. OTC or pharmacy will add items)
             return;
         }
 

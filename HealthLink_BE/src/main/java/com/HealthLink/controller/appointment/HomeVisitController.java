@@ -7,7 +7,7 @@ import com.HealthLink.entity.HomeVisitDraft;
 import com.HealthLink.exception.ResourceNotFoundException;
 import com.HealthLink.repository.appointment.HomeVisitDraftRepository;
 import com.HealthLink.repository.auth.UserRepository;
-import com.HealthLink.service.ai.GeminiAIService;
+import com.HealthLink.service.ai.DocumentAiService;
 import com.HealthLink.service.homevisit.HomeVisitLocationService;
 import com.HealthLink.service.homevisit.HomeVisitSessionService;
 import lombok.RequiredArgsConstructor;
@@ -26,7 +26,7 @@ import java.util.List;
 @RequiredArgsConstructor
 public class HomeVisitController {
 
-    private final GeminiAIService geminiAIService;
+    private final DocumentAiService documentAiService;
     private final HomeVisitLocationService homeVisitLocationService;
     private final HomeVisitSessionService homeVisitSessionService;
     private final HomeVisitDraftRepository homeVisitDraftRepository;
@@ -69,7 +69,7 @@ public class HomeVisitController {
             String base64 = Base64.getEncoder().encodeToString(file.getBytes());
 
             HomeVisitInfoScanResponse result =
-                    geminiAIService.parseHomeVisitInfo(base64, mimeType);
+                    documentAiService.parseHomeVisitInfo(base64, mimeType);
 
             return ResponseEntity.ok(result);
 

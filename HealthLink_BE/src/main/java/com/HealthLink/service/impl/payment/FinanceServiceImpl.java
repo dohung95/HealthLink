@@ -1056,7 +1056,15 @@ public class FinanceServiceImpl implements FinanceService {
                 throw new BadRequestException(estimate.getMessage());
             }
 
-            return homeVisitDefaultFee;
+            BigDecimal consultationFee = resolveDoctorConsultationFee(doctor);
+
+            BigDecimal homeVisitTravelTotal = estimate.getTotalFee() != null
+                    ? estimate.getTotalFee()
+                    : BigDecimal.ZERO;
+
+            return consultationFee
+                    .add(homeVisitTravelTotal)
+                    .setScale(2, RoundingMode.HALF_UP);
         }
 
         return resolveDoctorConsultationFee(doctor);

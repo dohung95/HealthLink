@@ -111,11 +111,17 @@ const PaymentStep = ({ bookingDraft, selectedDoctor, onBack, onPaymentComplete }
   }, [bookingDraft, paidInvoice]);
 
   const isHomeVisit = bookingDraft?.consultationType === 'HomeVisit';
+  const homeVisitEstimate = bookingDraft?.homeVisitEstimate;
 
   const displayInvoice = paidInvoice || {
     invoiceNumber: 'Pending checkout',
     amount: bookingDraft?.amount ?? selectedDoctor?.consultationFee ?? 0,
-    consultationFee: isHomeVisit ? 150.00 : (bookingDraft?.amount ?? selectedDoctor?.consultationFee ?? 0),
+    consultationFee: bookingDraft?.doctorFee ?? selectedDoctor?.consultationFee ?? 0,
+    homeVisitBaseFee: homeVisitEstimate?.homeVisitFee,
+    travelFee: homeVisitEstimate?.travelFee,
+    homeVisitTravelTotal: homeVisitEstimate?.totalFee,
+    distanceKm: homeVisitEstimate?.distanceKm,
+    estimatedTravelMinutes: homeVisitEstimate?.estimatedTravelMinutes,
     status: 'Pending',
   };
 
@@ -140,10 +146,32 @@ const PaymentStep = ({ bookingDraft, selectedDoctor, onBack, onPaymentComplete }
           <strong>{selectedDoctor?.fullName || displayInvoice?.doctorName || 'Doctor'}</strong>
         </div>
         {isHomeVisit && (
-          <div>
-            <span>Home visit fee</span>
-            <strong>{formatCurrency(displayInvoice?.consultationFee)}</strong>
-          </div>
+          <>
+            <div>
+              <span>Doctor consultation fee</span>
+              <strong>{formatCurrency(displayInvoice?.consultationFee)}</strong>
+            </div>
+
+            <div>
+              <span>Base home visit fee</span>
+              <strong>{formatCurrency(displayInvoice?.homeVisitBaseFee)}</strong>
+            </div>
+
+            <div>
+              <span>Additional distance fee</span>
+              <strong>{formatCurrency(displayInvoice?.travelFee)}</strong>
+            </div>
+
+            <div>
+              <span>Home visit travel total</span>
+              <strong>{formatCurrency(displayInvoice?.homeVisitTravelTotal)}</strong>
+            </div>
+
+            <div>
+              <span>Distance</span>
+              <strong>{displayInvoice?.distanceKm ?? 0} km</strong>
+            </div>
+          </>
         )}
         <div>
           <span>Total</span>

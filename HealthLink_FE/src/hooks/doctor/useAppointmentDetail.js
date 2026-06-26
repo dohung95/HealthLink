@@ -128,7 +128,7 @@ export function useAppointmentDetail({ appointment, patient, doctorId: currentDo
         : !hasStarted
           ? 'Start the consultation when the appointment time arrives to create a prescription.'
           : 'Prescription editing is not available for this appointment.';
-    const actionLabel = 'Join Online';
+    const actionLabel = 'Join Room';
     const visitReason = [
       currentAppointment?.reason, currentAppointment?.symptoms,
       appointmentData.appointmentDetail?.reason, appointmentData.appointmentDetail?.symptoms,

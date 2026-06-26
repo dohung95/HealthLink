@@ -1,0 +1,21 @@
+Extract information from this CV/resume and return ONLY valid JSON.
+Do not include markdown formatting or code blocks.
+Use null for fields not found.
+
+Required JSON format:
+{
+  "fullName": "string or null",
+  "email": "string or null",
+  "phoneNumber": "string or null",
+  "qualifications": "comma-separated string or null",
+  "specialty": "string or null",
+  "yearsOfExperience": number or null,
+  "languageSpoken": "comma-separated string or null",
+  "location": "string or null",
+  "bio": "max 200 words or null",
+  "clinicName": "string or null",
+  "clinicAddress": "string or null"
+}
+
+CV TEXT:
+{text}

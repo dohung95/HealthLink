@@ -127,9 +127,12 @@ public class HomeVisitLocationService {
 
         double distance = calculateStraightDistanceKm(originLat, originLng, visitLatitude, visitLongitude);
         boolean serviceable = distance <= doctor.getHomeVisitRadiusKm();
+        double roundedDistance = Math.round(distance * 10.0) / 10.0;
+        int estimatedMinutes = (int) Math.ceil((distance / 25.0) * 60);
 
         return HomeVisitEstimateResponse.builder()
-                .distanceKm(Math.round(distance * 10.0) / 10.0)
+                .distanceKm(roundedDistance)
+                .estimatedTravelMinutes(estimatedMinutes)
                 .serviceable(serviceable)
                 .message(serviceable ? "Within service area" : "Outside service area")
                 .build();

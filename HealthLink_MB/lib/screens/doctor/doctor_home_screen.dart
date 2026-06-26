@@ -11,6 +11,7 @@ import '../../models/doctor/doctor_profile.dart';
 import '../../models/notification/notification_item.dart';
 import '../../config/api_config.dart';
 import '../../config/doctor_theme.dart';
+import '../../widgets/doctor/doctor_widgets.dart';
 import 'doctor_notification_center_sheet.dart';
 
 class DoctorHomeScreen extends StatefulWidget {
@@ -29,7 +30,6 @@ class _DoctorHomeScreenState extends State<DoctorHomeScreen> {
   List<DoctorAppointment> _todayAppointments = [];
   Map<String, dynamic> _stats = {};
 
-  // Notification state
   int _unreadCount = 0;
   NotificationService? _notificationService;
   StreamSubscription<NotificationItem>? _notificationSubscription;
@@ -55,37 +55,23 @@ class _DoctorHomeScreenState extends State<DoctorHomeScreen> {
     _notificationService = NotificationService(accessToken: token);
     _loadUnreadCount();
 
-    // Connect to real-time notifications
     NotificationRealtimeService.instance.connect(token: token);
     _notificationSubscription =
         NotificationRealtimeService.instance.stream.listen((notification) {
-      // Khi nhận notification mới, tăng count
-      if (mounted) {
-        setState(() {
-          _unreadCount++;
-        });
-      }
+      if (mounted) setState(() => _unreadCount++);
     });
   }
 
   Future<void> _loadUnreadCount() async {
     if (_notificationService == null) return;
-
     try {
       final count = await _notificationService!.getUnreadCount();
-      if (mounted) {
-        setState(() {
-          _unreadCount = count;
-        });
-      }
-    } catch (_) {
-      // Ignore error - không quan trọng
-    }
+      if (mounted) setState(() => _unreadCount = count);
+    } catch (_) {}
   }
 
   void _showNotificationSheet() {
     if (_notificationService == null) return;
-
     showModalBottomSheet(
       context: context,
       isScrollControlled: true,
@@ -108,10 +94,7 @@ class _DoctorHomeScreenState extends State<DoctorHomeScreen> {
       final token = auth.accessToken;
       if (token == null) throw Exception('Not authenticated');
 
-      // Load profile
       final profile = await DoctorService.getProfile(token);
-
-      // Load dashboard stats
       final stats = await DoctorService.getDashboardStats(token, profile.doctorId);
 
       if (mounted) {
@@ -132,472 +115,325 @@ class _DoctorHomeScreenState extends State<DoctorHomeScreen> {
     }
   }
 
-  @override
-  Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-
-    return Scaffold(
-      backgroundColor: theme.colorScheme.surface,
-      body: SafeArea(
-        child: _isLoading
-            ? const Center(child: CircularProgressIndicator())
-            : _error != null
-                ? _buildErrorWidget()
-                : RefreshIndicator(
-                    onRefresh: _loadData,
-                    child: SingleChildScrollView(
-                      physics: const AlwaysScrollableScrollPhysics(),
-                      padding: const EdgeInsets.all(16),
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          _buildHeader(theme),
-                          const SizedBox(height: 24),
-                          _buildStatsCards(theme),
-                          const SizedBox(height: 24),
-                          _buildTodayAppointments(theme),
-                          const SizedBox(height: 16), // Bottom padding
-                        ],
-                      ),
-                    ),
-                  ),
-      ),
-    );
-  }
-
-  Widget _buildErrorWidget() {
-    final colors = context.doctorColors;
-    return Center(
-      child: Padding(
-        padding: const EdgeInsets.all(24),
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            Icon(Icons.error_outline, size: 64, color: colors.error),
-            const SizedBox(height: 16),
-            Text(
-              'Failed to load data',
-              style: TextStyle(fontSize: 18, color: colors.onSurfaceVariant),
-            ),
-            const SizedBox(height: 8),
-            Text(
-              _error ?? '',
-              textAlign: TextAlign.center,
-              style: TextStyle(fontSize: 14, color: colors.onSurfaceVariant.withOpacity(0.7)),
-            ),
-            const SizedBox(height: 24),
-            ElevatedButton.icon(
-              onPressed: _loadData,
-              icon: const Icon(Icons.refresh),
-              label: const Text('Retry'),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-
-  Widget _buildHeader(ThemeData theme) {
-    final greeting = _getGreeting();
-    final today = DateFormat('EEEE, d MMMM yyyy').format(DateTime.now());
-    final colors = context.doctorColors;
-
-    return Row(
-      children: [
-        // Avatar
-        CircleAvatar(
-          radius: 30,
-          backgroundColor: theme.colorScheme.primary.withOpacity(0.1),
-          backgroundImage: _profile?.avatarUrl != null
-              ? NetworkImage(ApiConfig.normalizeUrl(_profile!.avatarUrl!) ?? '')
-              : null,
-          child: _profile?.avatarUrl == null
-              ? Icon(Icons.person, size: 30, color: theme.colorScheme.primary)
-              : null,
-        ),
-        const SizedBox(width: 16),
-        Expanded(
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(
-                '$greeting,',
-                style: TextStyle(
-                  fontSize: 14,
-                  color: theme.colorScheme.onSurfaceVariant,
-                ),
-              ),
-              Text(
-                _formatDoctorName(_profile?.fullName),
-                style: theme.textTheme.headlineSmall?.copyWith(
-                  fontWeight: FontWeight.bold,
-                ),
-              ),
-              Text(
-                today,
-                style: TextStyle(
-                  fontSize: 13,
-                  color: theme.colorScheme.onSurfaceVariant,
-                ),
-              ),
-            ],
-          ),
-        ),
-        // Notification Bell
-        Stack(
-          children: [
-            IconButton(
-              onPressed: _showNotificationSheet,
-              icon: Icon(
-                Icons.notifications_outlined,
-                color: colors.primary,
-                size: 28,
-              ),
-              tooltip: 'Notifications',
-            ),
-            if (_unreadCount > 0)
-              Positioned(
-                right: 6,
-                top: 6,
-                child: Container(
-                  padding: const EdgeInsets.all(4),
-                  decoration: BoxDecoration(
-                    color: colors.error,
-                    shape: BoxShape.circle,
-                  ),
-                  constraints: const BoxConstraints(
-                    minWidth: 18,
-                    minHeight: 18,
-                  ),
-                  child: Text(
-                    _unreadCount > 99 ? '99+' : '$_unreadCount',
-                    style: const TextStyle(
-                      color: Colors.white,
-                      fontSize: 10,
-                      fontWeight: FontWeight.bold,
-                    ),
-                    textAlign: TextAlign.center,
-                  ),
-                ),
-              ),
-          ],
-        ),
-      ],
-    );
-  }
-
-  /// Format tên bác sĩ - luôn dùng prefix "Dr."
-  String _formatDoctorName(String? fullName) {
-    if (fullName == null || fullName.isEmpty) return 'Dr. Doctor';
-
-    String name = fullName.trim();
-    final lowerName = name.toLowerCase();
-
-    // Loại bỏ prefix cũ nếu có (BS., Dr., Bs., dr.)
-    if (lowerName.startsWith('bs.')) {
-      name = name.substring(3).trim();
-    } else if (lowerName.startsWith('bs ')) {
-      name = name.substring(2).trim();
-    } else if (lowerName.startsWith('dr.')) {
-      name = name.substring(3).trim();
-    } else if (lowerName.startsWith('dr ')) {
-      name = name.substring(2).trim();
-    }
-
-    return 'Dr. $name';
-  }
-
-  String _getGreeting() {
-    final hour = DateTime.now().hour;
-    if (hour < 12) return 'Good morning';
-    if (hour < 17) return 'Good afternoon';
+  String _greeting() {
+    final h = DateTime.now().hour;
+    if (h < 12) return 'Good morning';
+    if (h < 18) return 'Good afternoon';
     return 'Good evening';
   }
 
-  Widget _buildStatsCards(ThemeData theme) {
-    final colors = context.doctorColors;
-    return GridView.count(
-      shrinkWrap: true,
-      physics: const NeverScrollableScrollPhysics(),
-      crossAxisCount: 2,
-      mainAxisSpacing: 12,
-      crossAxisSpacing: 12,
-      childAspectRatio: 1.5,
-      children: [
-        _buildStatCard(
-          theme,
-          icon: Icons.calendar_today,
-          label: "Today's Appointments",
-          value: '${_stats['todayAppointments'] ?? 0}',
-          color: colors.statAppointments,
-          bgColor: colors.statAppointmentsBg,
-        ),
-        _buildStatCard(
-          theme,
-          icon: Icons.check_circle_outline,
-          label: 'Completed',
-          value: '${_stats['completedToday'] ?? 0}',
-          color: colors.statCompleted,
-          bgColor: colors.statCompletedBg,
-        ),
-        _buildStatCard(
-          theme,
-          icon: Icons.pending_actions,
-          label: 'Pending',
-          value: '${_stats['pendingToday'] ?? 0}',
-          color: colors.statPending,
-          bgColor: colors.statPendingBg,
-        ),
-        _buildStatCard(
-          theme,
-          icon: Icons.star,
-          label: 'Rating',
-          value: (_stats['averageRating'] as num?)?.toStringAsFixed(1) ?? '0.0',
-          subtitle: '${_stats['totalReviews'] ?? 0} reviews',
-          color: colors.statRating,
-          bgColor: colors.statRatingBg,
-        ),
-      ],
-    );
+  String _withDoctorPrefix(String? name) {
+    if (name == null || name.isEmpty) return 'Dr. Doctor';
+    final clean = name.replaceAll(RegExp(r'^\s*(dr\.?|bs\.?|bác sĩ)\s*', caseSensitive: false), '').trim();
+    return 'Dr. $clean';
   }
 
-  Widget _buildStatCard(
-    ThemeData theme, {
-    required IconData icon,
-    required String label,
-    required String value,
-    String? subtitle,
-    required Color color,
-    required Color bgColor,
-  }) {
-    return Container(
-      padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        color: bgColor,
-        borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: color.withOpacity(0.2)),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-        children: [
-          Row(
+  String _badgeCount(int n) => n > 99 ? '99+' : '$n';
+
+  String _formatDate(DateTime date) {
+    final weekdays = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
+    final months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+    return '${weekdays[date.weekday % 7]}, ${date.day} ${months[date.month - 1]} ${date.year}';
+  }
+
+  String _getInitials(String name) {
+    final clean = name.replaceAll(RegExp(r'^\s*(dr\.?|bs\.?)\s*', caseSensitive: false), '').trim();
+    final parts = clean.split(RegExp(r'\s+'));
+    final first = parts.isNotEmpty ? parts[0] : '';
+    final second = parts.length > 1 ? parts[1] : '';
+    return '${first.isNotEmpty ? first[0] : ''}${second.isNotEmpty ? second[0] : ''}'.toUpperCase();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    if (_isLoading) {
+      return const Scaffold(
+        backgroundColor: DS.background,
+        body: Center(child: CircularProgressIndicator(color: DS.primary)),
+      );
+    }
+
+    if (_error != null) {
+      return Scaffold(
+        backgroundColor: DS.background,
+        body: Center(
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
             children: [
-              Icon(icon, color: color, size: 24),
-              const Spacer(),
-              Text(
-                value,
-                style: TextStyle(
-                  fontSize: 24,
-                  fontWeight: FontWeight.bold,
-                  color: color,
-                ),
+              Container(
+                width: 64,
+                height: 64,
+                decoration: const BoxDecoration(color: DS.rose100, shape: BoxShape.circle),
+                child: const Icon(Icons.error_outline, size: 28, color: DS.rose700),
+              ),
+              const SizedBox(height: 16),
+              const Text('Failed to load data', style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600, color: DS.foreground)),
+              const SizedBox(height: 4),
+              Text(_error ?? '', style: const TextStyle(fontSize: 14, color: DS.mutedForeground), textAlign: TextAlign.center),
+              const SizedBox(height: 24),
+              ElevatedButton.icon(
+                onPressed: _loadData,
+                style: DS.primaryButtonStyle,
+                icon: const Icon(Icons.refresh, size: 18),
+                label: const Text('Retry'),
               ),
             ],
           ),
-          Column(
+        ),
+      );
+    }
+
+    return Scaffold(
+      backgroundColor: DS.background,
+      body: RefreshIndicator(
+        color: DS.primary,
+        onRefresh: _loadData,
+        child: SingleChildScrollView(
+          physics: const AlwaysScrollableScrollPhysics(),
+          child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Text(
-                label,
-                style: TextStyle(
-                  fontSize: 12,
-                  color: theme.colorScheme.onSurfaceVariant,
-                ),
-              ),
-              if (subtitle != null)
-                Text(
-                  subtitle,
-                  style: TextStyle(
-                    fontSize: 11,
-                    color: theme.colorScheme.onSurfaceVariant.withOpacity(0.7),
+              // === HEADER ===
+              DoctorCurvedHeader(
+                child: Padding(
+                  padding: const EdgeInsets.fromLTRB(20, 24, 20, 24),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Row(
+                        children: [
+                          Container(
+                            decoration: BoxDecoration(
+                              shape: BoxShape.circle,
+                              border: Border.all(color: Colors.white.withOpacity(0.3), width: 2),
+                            ),
+                            child: CircleAvatar(
+                              radius: 24,
+                              backgroundColor: Colors.white.withOpacity(0.2),
+                              backgroundImage: _profile?.avatarUrl != null
+                                  ? NetworkImage(ApiConfig.normalizeUrl(_profile!.avatarUrl!) ?? '')
+                                  : null,
+                              child: _profile?.avatarUrl == null
+                                  ? Text(
+                                      _getInitials(_profile?.fullName ?? 'D'),
+                                      style: const TextStyle(color: Colors.white, fontWeight: FontWeight.w600, fontSize: 16),
+                                    )
+                                  : null,
+                            ),
+                          ),
+                          const SizedBox(width: 12),
+                          Expanded(
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Text('${_greeting()},', style: TextStyle(fontSize: 14, color: Colors.white.withOpacity(0.8))),
+                                Text(_withDoctorPrefix(_profile?.fullName), style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: Colors.white)),
+                              ],
+                            ),
+                          ),
+                          _NotificationBell(
+                            unreadCount: _unreadCount,
+                            onTap: _showNotificationSheet,
+                            badgeCount: _badgeCount,
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: 16),
+                      Text(_formatDate(DateTime.now()), style: TextStyle(fontSize: 14, color: Colors.white.withOpacity(0.8))),
+                    ],
                   ),
                 ),
+              ),
+
+              // === MAIN CONTENT ===
+              Padding(
+                padding: const EdgeInsets.all(20),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    // Stats Grid
+                    GridView.count(
+                      shrinkWrap: true,
+                      physics: const NeverScrollableScrollPhysics(),
+                      crossAxisCount: 2,
+                      mainAxisSpacing: 12,
+                      crossAxisSpacing: 12,
+                      childAspectRatio: 1.45,
+                      children: [
+                        DoctorStatCard(
+                          icon: Icons.calendar_today,
+                          label: "Today's Appointments",
+                          value: '${_stats['todayAppointments'] ?? 0}',
+                          backgroundColor: DS.primary.withOpacity(0.15),
+                          iconColor: DS.primary,
+                        ),
+                        DoctorStatCard(
+                          icon: Icons.check_circle_outline,
+                          label: 'Completed',
+                          value: '${_stats['completedToday'] ?? 0}',
+                          backgroundColor: DS.emerald100,
+                          iconColor: DS.emerald600,
+                        ),
+                        DoctorStatCard(
+                          icon: Icons.schedule,
+                          label: 'Pending',
+                          value: '${_stats['pendingToday'] ?? 0}',
+                          backgroundColor: DS.amber100,
+                          iconColor: DS.amber600,
+                        ),
+                        DoctorStatCard(
+                          icon: Icons.star,
+                          label: 'Rating',
+                          value: (_stats['averageRating'] as num?)?.toStringAsFixed(1) ?? '0.0',
+                          backgroundColor: DS.sky100,
+                          iconColor: DS.sky600,
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 20),
+
+                    // Section header
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: [
+                        const DoctorSectionLabel("TODAY'S SCHEDULE"),
+                        if (_todayAppointments.isNotEmpty)
+                          GestureDetector(
+                            onTap: widget.onViewAllAppointments,
+                            child: const Row(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                Text('See all', style: TextStyle(fontSize: 14, color: DS.primary, fontWeight: FontWeight.w500)),
+                                Icon(Icons.chevron_right, size: 18, color: DS.primary),
+                              ],
+                            ),
+                          ),
+                      ],
+                    ),
+                    const SizedBox(height: 12),
+
+                    // Appointments list or empty state
+                    if (_todayAppointments.isEmpty)
+                      const DoctorEmptyState(
+                        icon: Icons.event_available,
+                        title: 'No appointments today',
+                        subtitle: 'Enjoy your day off or check upcoming appointments.',
+                      )
+                    else
+                      ...(_todayAppointments.take(5).map((a) => Padding(
+                            padding: const EdgeInsets.only(bottom: 12),
+                            child: _AppointmentCard(appointment: a),
+                          ))),
+                  ],
+                ),
+              ),
             ],
           ),
-        ],
+        ),
       ),
     );
   }
+}
 
-  Widget _buildTodayAppointments(ThemeData theme) {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Row(
-          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+// ============================================================================
+// PRIVATE WIDGETS (specific to this screen)
+// ============================================================================
+
+class _NotificationBell extends StatelessWidget {
+  final int unreadCount;
+  final VoidCallback onTap;
+  final String Function(int) badgeCount;
+
+  const _NotificationBell({required this.unreadCount, required this.onTap, required this.badgeCount});
+
+  @override
+  Widget build(BuildContext context) {
+    return GestureDetector(
+      onTap: onTap,
+      child: Container(
+        width: 40,
+        height: 40,
+        decoration: BoxDecoration(color: Colors.white.withOpacity(0.15), shape: BoxShape.circle),
+        child: Stack(
+          alignment: Alignment.center,
           children: [
-            Text(
-              "Today's Schedule",
-              style: theme.textTheme.titleMedium?.copyWith(
-                fontWeight: FontWeight.bold,
-              ),
-            ),
-            if (_todayAppointments.isNotEmpty)
-              TextButton(
-                onPressed: widget.onViewAllAppointments,
-                child: const Text('View All'),
+            const Icon(Icons.notifications_outlined, color: Colors.white, size: 20),
+            if (unreadCount > 0)
+              Positioned(
+                right: 4,
+                top: 4,
+                child: Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 4),
+                  constraints: const BoxConstraints(minWidth: 16, minHeight: 16),
+                  decoration: BoxDecoration(color: DS.destructive, borderRadius: BorderRadius.circular(8)),
+                  child: Center(
+                    child: Text(badgeCount(unreadCount), style: const TextStyle(color: Colors.white, fontSize: 10, fontWeight: FontWeight.bold)),
+                  ),
+                ),
               ),
           ],
         ),
-        const SizedBox(height: 12),
-        if (_todayAppointments.isEmpty)
-          _buildEmptyAppointments(theme)
-        else
-          ListView.separated(
-            shrinkWrap: true,
-            physics: const NeverScrollableScrollPhysics(),
-            itemCount: _todayAppointments.take(5).length,
-            separatorBuilder: (_, __) => const SizedBox(height: 12),
-            itemBuilder: (context, index) {
-              return _buildAppointmentCard(theme, _todayAppointments[index]);
-            },
-          ),
-      ],
-    );
-  }
-
-  Widget _buildEmptyAppointments(ThemeData theme) {
-    return Container(
-      padding: const EdgeInsets.all(32),
-      decoration: BoxDecoration(
-        color: theme.colorScheme.surfaceContainerHighest.withOpacity(0.3),
-        borderRadius: BorderRadius.circular(16),
-      ),
-      child: Column(
-        children: [
-          Icon(
-            Icons.event_available,
-            size: 48,
-            color: theme.colorScheme.onSurfaceVariant.withOpacity(0.5),
-          ),
-          const SizedBox(height: 12),
-          Text(
-            'No appointments today',
-            style: TextStyle(
-              fontSize: 16,
-              color: theme.colorScheme.onSurfaceVariant,
-            ),
-          ),
-          const SizedBox(height: 4),
-          Text(
-            'Enjoy your free time!',
-            style: TextStyle(
-              fontSize: 14,
-              color: theme.colorScheme.onSurfaceVariant.withOpacity(0.7),
-            ),
-          ),
-        ],
       ),
     );
   }
+}
 
-  Widget _buildAppointmentCard(ThemeData theme, DoctorAppointment appointment) {
-    final colors = context.doctorColors;
+class _AppointmentCard extends StatelessWidget {
+  final DoctorAppointment appointment;
+
+  const _AppointmentCard({required this.appointment});
+
+  @override
+  Widget build(BuildContext context) {
     final timeFormat = DateFormat('HH:mm');
-    final time = appointment.appointmentTime != null
-        ? timeFormat.format(appointment.appointmentTime!)
-        : '--:--';
-
-    final statusColor = colors.getStatusColor(appointment.status);
-    final statusBgColor = colors.getStatusBgColor(appointment.status);
-
-    IconData typeIcon;
-    switch (appointment.consultationType?.toUpperCase()) {
-      case 'VIDEO':
-        typeIcon = Icons.videocam;
-        break;
-      case 'AUDIO':
-        typeIcon = Icons.call;
-        break;
-      case 'CHAT':
-        typeIcon = Icons.chat;
-        break;
-      default:
-        typeIcon = Icons.person;
-    }
+    final time = appointment.appointmentTime != null ? timeFormat.format(appointment.appointmentTime!) : '--:--';
 
     return Container(
-      padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        color: theme.colorScheme.surface,
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: colors.cardBorder),
-        boxShadow: [
-          BoxShadow(
-            color: colors.cardShadow,
-            blurRadius: 10,
-            offset: const Offset(0, 2),
-          ),
-        ],
-      ),
-      child: Row(
-        children: [
-          // Time
-          Container(
-            width: 60,
-            padding: const EdgeInsets.symmetric(vertical: 8, horizontal: 4),
-            decoration: BoxDecoration(
-              color: colors.primary.withOpacity(0.1),
-              borderRadius: BorderRadius.circular(8),
-            ),
-            child: Column(
-              children: [
-                Text(
-                  time,
-                  style: TextStyle(
-                    fontSize: 16,
-                    fontWeight: FontWeight.bold,
-                    color: colors.primary,
-                  ),
-                ),
-                Icon(typeIcon, size: 20, color: colors.primary),
-              ],
-            ),
-          ),
-          const SizedBox(width: 16),
-          // Patient info
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  appointment.patientName ?? 'Unknown Patient',
-                  style: const TextStyle(
-                    fontSize: 16,
-                    fontWeight: FontWeight.w600,
-                  ),
-                ),
-                const SizedBox(height: 4),
-                Text(
-                  appointment.symptoms ?? 'No symptoms provided',
-                  style: TextStyle(
-                    fontSize: 13,
-                    color: colors.onSurfaceVariant,
-                  ),
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                ),
-              ],
-            ),
-          ),
-          // Status badge
-          Container(
-            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-            decoration: BoxDecoration(
-              color: statusBgColor,
-              borderRadius: BorderRadius.circular(12),
-            ),
-            child: Text(
-              appointment.status ?? 'PENDING',
-              style: TextStyle(
-                fontSize: 11,
-                fontWeight: FontWeight.w600,
-                color: statusColor,
+      decoration: DS.cardDecoration,
+      child: Padding(
+        padding: const EdgeInsets.all(16),
+        child: Row(
+          children: [
+            SizedBox(
+              width: 56,
+              child: Column(
+                children: [
+                  Text(time, style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: DS.foreground)),
+                  const SizedBox(height: 4),
+                  Icon(Icons.schedule, size: 12, color: DS.mutedForeground.withOpacity(0.6)),
+                ],
               ),
             ),
-          ),
-        ],
+            Container(width: 1, height: 40, color: DS.cardBorder, margin: const EdgeInsets.symmetric(horizontal: 12)),
+            DoctorPersonAvatar(
+              name: appointment.patientName ?? 'Patient',
+              imageUrl: appointment.patientAvatar != null ? ApiConfig.normalizeUrl(appointment.patientAvatar!) : null,
+              size: 44,
+            ),
+            const SizedBox(width: 12),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(appointment.patientName ?? 'Unknown Patient', style: const TextStyle(fontSize: 15, fontWeight: FontWeight.w600, color: DS.foreground), maxLines: 1, overflow: TextOverflow.ellipsis),
+                  if (appointment.symptoms != null && appointment.symptoms!.isNotEmpty)
+                    Padding(
+                      padding: const EdgeInsets.only(top: 2),
+                      child: Text(appointment.symptoms!, style: const TextStyle(fontSize: 12, color: DS.mutedForeground), maxLines: 1, overflow: TextOverflow.ellipsis),
+                    ),
+                  const SizedBox(height: 6),
+                  Row(
+                    children: [
+                      DoctorConsultationPill(type: appointment.consultationType ?? 'VIDEO'),
+                      const SizedBox(width: 8),
+                      DoctorStatusBadge(status: appointment.status ?? 'PENDING'),
+                    ],
+                  ),
+                ],
+              ),
+            ),
+          ],
+        ),
       ),
     );
   }

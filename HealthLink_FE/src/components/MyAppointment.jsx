@@ -206,42 +206,10 @@ const MyAppointments = () => {
             return;
         }
 
-        let firebaseID;
-        if (partnerID.includes('-')) {
-            firebaseID = partnerID.substring(0, partnerID.length - 4);
+        if (isDoctor) {
+            navigate('/doctor/chat', { state: { partnerId: partnerID, partnerName: partnerName, appointmentId: appointment.appointmentId } });
         } else {
-            firebaseID = partnerID.substring(0, partnerID.length - 5);
-        }
-
-        setActionLoading(true);
-        try {
-            const usersRef = collection(db, "users");
-
-            let q = query(usersRef, where("__name__", "==", firebaseID));
-            let querySnapshot = await getDocs(q);
-
-            if (!querySnapshot.empty) {
-                const partnerUser = { ...querySnapshot.docs[0].data(), uid: querySnapshot.docs[0].id };
-                openChatWith(partnerUser);
-                return;
-            }
-
-            q = query(usersRef, where("uid", "==", firebaseID));
-            querySnapshot = await getDocs(q);
-
-            if (!querySnapshot.empty) {
-                const partnerUser = { ...querySnapshot.docs[0].data(), uid: querySnapshot.docs[0].id };
-                openChatWith(partnerUser);
-                return;
-            }
-
-            console.warn(`[Chat] ✗ Could not find user with Firebase ID: ${firebaseID}`);
-            toast.error(`Could not find chat user. They may not have registered in the chat system yet.`);
-        } catch (error) {
-            console.error("[Chat] Error:", error);
-            toast.error("Error initiating chat.");
-        } finally {
-            setActionLoading(false);
+            navigate('/patient-dashboard/chat', { state: { partnerId: partnerID, partnerName: partnerName, appointmentId: appointment.appointmentId } });
         }
     };
 
@@ -639,10 +607,10 @@ const MyAppointments = () => {
                                                         {isOnlineAppointment(item) && isAppointmentJoinable(item) && (
                                                             <button
                                                                 className="btn btn-sm btn-success"
-                                                                onClick={() => openVitalsBeforeConsultation(item, 'online')}
+                                                                onClick={() => openVitalsBeforeConsultation(item, 'chat')}
                                                                 title="Join online consultation room"
                                                             >
-                                                                <i className="bi bi-camera-video me-1"></i>
+                                                                <i className="bi bi-chat-dots me-1"></i>
                                                                 Join Room
                                                             </button>
                                                         )}

@@ -55,6 +55,12 @@ const HomeVisitStep = ({
   const [validating, setValidating] = useState(false);
   const [radiusValid, setRadiusValid] = useState(null);
 
+  const formatUsd = (value) =>
+    Number(value || 0).toLocaleString('en-US', {
+      style: 'currency',
+      currency: 'USD',
+    });
+
   const selectedLocation =
     homeVisitInfo.visitLatitude && homeVisitInfo.visitLongitude
       ? { lat: homeVisitInfo.visitLatitude, lng: homeVisitInfo.visitLongitude }
@@ -222,7 +228,9 @@ const HomeVisitStep = ({
       setHomeVisitInfo((prev) => ({
         ...prev,
         distanceKm: result.distanceKm,
+        estimatedTravelMinutes: result.estimatedTravelMinutes,
         serviceable: result.serviceable,
+        serviceMessage: result.message,
       }));
       if (result.serviceable) {
         toast.success('Location is within service area.');
@@ -328,7 +336,13 @@ const HomeVisitStep = ({
             <input
               value={homeVisitInfo.visitAddress || ''}
               onChange={(e) => {
-                setHomeVisitInfo((prev) => ({ ...prev, visitAddress: e.target.value }));
+                setHomeVisitInfo((prev) => ({
+                  ...prev,
+                  visitAddress: e.target.value,
+                  distanceKm: null,
+                  estimatedTravelMinutes: null,
+                  serviceable: null,
+                }));
                 setRadiusValid(null);
               }}
               placeholder="House number, street, ward, district..."
@@ -337,17 +351,21 @@ const HomeVisitStep = ({
               {searchingAddress ? 'Searching...' : 'Search'}
             </button>
           </div>
-        </label>
 
-        {addressResults.length > 0 && (
-          <div className="home-visit-full address-results">
-            {addressResults.map((item, index) => (
-              <button key={`${item.latitude}-${item.longitude}-${index}`} type="button" onClick={() => handleSelectAddressResult(item)}>
-                {item.displayName}
-              </button>
-            ))}
-          </div>
-        )}
+          {addressResults.length > 0 && (
+            <div className="home-visit-full address-results">
+              {addressResults.map((item, index) => (
+                <button key={`${item.latitude}-${item.longitude}-${index}`} type="button" onClick={() => handleSelectAddressResult(item)}>
+                  {item.displayName}
+                </button>
+              ))}
+            </div>
+          )}
+
+          <small className="field-help-text">
+            Enter the full address for the doctor, then click the map to pin the exact home entrance.
+          </small>
+        </label>
 
         <div className="home-visit-full">
           <div className="map-actions">
@@ -371,13 +389,24 @@ const HomeVisitStep = ({
           </div>
 
           <small className="map-help-text">
-            Search your address, then verify the pin on the map. You can click the map to adjust the exact home entrance.
+            Click on the map to select the exact home entrance, or use your current location. The travel fee will be calculated from this pin.
           </small>
 
           {radiusValid !== null && (
             <div className={`home-visit-estimate ${radiusValid ? 'ok' : 'blocked'}`}>
-              <div><strong>Distance</strong><span>{homeVisitInfo.distanceKm} km</span></div>
-              <p>{radiusValid ? 'Within service area' : 'Outside service area'}</p>
+              <div className="home-visit-estimate-item">
+                <strong>Distance</strong>
+                <span>{homeVisitInfo.distanceKm} km</span>
+              </div>
+
+              {homeVisitInfo.estimatedTravelMinutes && (
+                <div className="home-visit-estimate-item">
+                  <strong>Travel time</strong>
+                  <span>{homeVisitInfo.estimatedTravelMinutes} min</span>
+                </div>
+              )}
+
+              <p>{radiusValid ? 'Within service area' : (homeVisitInfo.serviceMessage || 'Outside service area')}</p>
             </div>
           )}
         </div>

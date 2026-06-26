@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { useNavigate, Link } from 'react-router-dom';
+import { useNavigate, Link, useLocation } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
 import { Modal, Button } from 'react-bootstrap';
 import Loading from '../Loading'; // Import Loading component
@@ -7,6 +7,8 @@ import '../Css/Sign_up.css';
 
 export function Sign_up() {
     const navigate = useNavigate();
+    const location = useLocation();
+    const fromAuth = location.state?.fromAuth || false;
     const { register, token, roles } = useAuth();
     const [username, setUsername] = useState('');
     const [email, setEmail] = useState('');
@@ -19,19 +21,20 @@ export function Sign_up() {
     const [password, setPassword] = useState('');
     const [confirmPassword, setConfirmPassword] = useState('');
     const [error, setError] = useState('');
-    const [loading, setLoading] = useState(true);
+    const [loading, setLoading] = useState(!fromAuth); // Initial page loading if not from auth
     const [submitting, setSubmitting] = useState(false);
     const [showSuccessModal, setShowSuccessModal] = useState(false);
     const role = "Patient";
 
-    // Initial loading effect (giống Home.jsx)
+    // Initial loading effect
     useEffect(() => {
-        const timer = setTimeout(() => {
-            setLoading(false);
-        }, 1000);
-
-        return () => clearTimeout(timer);
-    }, []);
+        if (!fromAuth) {
+            const timer = setTimeout(() => {
+                setLoading(false);
+            }, 1000);
+            return () => clearTimeout(timer);
+        }
+    }, [fromAuth]);
 
     // Password validation checks
     const passwordRequirements = {
@@ -604,7 +607,7 @@ export function Sign_up() {
                         </button>
                     </form>
                     <p style={{ marginTop: '10px' }}>
-                        Already have an account? <Link to="/login">Login</Link>
+                        Already have an account? <Link to="/login" state={{ fromAuth: true }}>Login</Link>
                     </p>
                 </div >
             </div>

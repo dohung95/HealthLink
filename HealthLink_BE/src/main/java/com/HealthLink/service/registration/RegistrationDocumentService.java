@@ -5,17 +5,16 @@ import com.HealthLink.entity.RegistrationDocument;
 import com.HealthLink.entity.RegistrationRequest;
 import com.HealthLink.exception.BadRequestException;
 import com.HealthLink.exception.ResourceNotFoundException;
+import com.HealthLink.event.RegistrationDocumentsReadyEvent;
 import com.HealthLink.repository.registration.RegistrationDocumentRepository;
 import com.HealthLink.repository.registration.RegistrationRequestRepository;
-import com.HealthLink.service.ai.AIScreeningService;
 
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
-import org.springframework.context.annotation.Lazy;
+import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.core.io.Resource;
 import org.springframework.core.io.UrlResource;
-import org.springframework.scheduling.annotation.Async;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.util.StringUtils;
@@ -41,8 +40,7 @@ public class RegistrationDocumentService {
 
     private final RegistrationDocumentRepository documentRepository;
     private final RegistrationRequestRepository registrationRequestRepository;
-    @Lazy
-    private final AIScreeningService aiScreeningService;
+    private final ApplicationEventPublisher eventPublisher;
 
     @Value("${upload.dir:uploads}")
     private String uploadDir;
@@ -108,30 +106,19 @@ public class RegistrationDocumentService {
         if (documents.size() >= requiredDocs &&
             ("PENDING".equals(request.getAiScreeningStatus()) || request.getAiScreeningStatus() == null)) {
 
-            log.info("Triggering AI screening for registration {} ({} documents uploaded)",
+            log.info("Queueing AI screening for registration {} ({} documents uploaded)",
                     request.getRequestId(), documents.size());
 
-            // Trigger async screening
-            try {
-                triggerScreeningAsync(request.getRequestId());
-            } catch (Exception e) {
-                log.error("Failed to trigger AI screening for request {}: {}",
-                        request.getRequestId(), e.getMessage());
-            }
-        }
-    }
+            // Mark as processing inside this transaction so concurrent/later uploads
+            // don't queue screening a second time.
+            request.setAiScreeningStatus("PROCESSING");
+            registrationRequestRepository.save(request);
 
-    /**
-     * Async method to trigger AI screening (non-blocking)
-     */
-    @Async
-    public void triggerScreeningAsync(Long requestId) {
-        try {
-            log.info("Starting async AI screening for request {}", requestId);
-            aiScreeningService.screenRegistration(requestId);
-            log.info("Completed AI screening for request {}", requestId);
-        } catch (Exception e) {
-            log.error("Error during AI screening for request {}: {}", requestId, e.getMessage(), e);
+            // Run screening only AFTER this upload transaction commits, on a separate
+            // thread/transaction (see RegistrationScreeningEventListener). This keeps the
+            // slow AI call off the request thread and prevents a screening failure from
+            // rolling back the document upload (which previously surfaced as HTTP 500).
+            eventPublisher.publishEvent(new RegistrationDocumentsReadyEvent(request.getRequestId()));
         }
     }
 

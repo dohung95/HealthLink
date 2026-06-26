@@ -404,10 +404,11 @@
 }
 
 .schedule-actions {
+  width: 100%;
   display: flex;
+  align-items: center;
   justify-content: flex-end;
   gap: 12px;
-  margin-top: 24px;
 }
 
 .btn-outline-soft,
@@ -539,6 +540,7 @@
 }
 
 @media (max-width: 720px) {
+
   .specialty-grid,
   .consultation-grid,
   .slot-grid {
@@ -630,13 +632,24 @@
 }
 
 .datetime-actions {
+  width: 100%;
   margin-top: 28px;
+  display: flex;
+  align-items: center;
   justify-content: space-between;
 }
 
 .datetime-actions .btn-outline-soft,
 .datetime-actions .btn-primary-soft {
-  min-width: 150px;
+  min-width: 180px;
+}
+
+.datetime-actions .btn-outline-soft {
+  margin-right: auto;
+}
+
+.datetime-actions .btn-primary-soft {
+  margin-left: auto;
 }
 
 .slot-button.booked,
@@ -705,13 +718,13 @@
 }
 
 .schedule-inline-loading {
-    min-height: 420px;
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    justify-content: center;
-    gap: 14px;
-    color: #6f7f7b;
+  min-height: 420px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 14px;
+  color: #6f7f7b;
 }
 
 .slot-button.past {
@@ -826,6 +839,7 @@
 }
 
 @media (max-width: 720px) {
+
   .payment-summary div,
   .payment-receipt-list div {
     flex-direction: column;
@@ -956,39 +970,6 @@
   }
 }
 
-.address-search-row {
-  display: grid;
-  grid-template-columns: 1fr auto;
-  gap: 12px;
-  align-items: center;
-  margin-top: 8px;
-}
-
-.address-search-row input {
-  margin-top: 0;
-}
-
-.address-results {
-  display: flex;
-  flex-direction: column;
-  gap: 8px;
-}
-
-.address-results button {
-  text-align: left;
-  border: 1px solid #d7dfdd;
-  background: #ffffff;
-  border-radius: 12px;
-  padding: 10px 12px;
-  color: #203a37;
-  font-weight: 600;
-}
-
-.address-results button:hover {
-  border-color: #0f8b78;
-  background: #ecfdf7;
-}
-
 .map-actions {
   display: flex;
   gap: 12px;
@@ -1009,13 +990,22 @@
   color: #5d7470;
 }
 
+.field-help-text {
+  display: block;
+  margin-top: 8px;
+  color: #5d7470;
+  font-size: 14px;
+  font-weight: 400;
+}
+
 .home-visit-estimate {
   margin-top: 14px;
   padding: 16px;
   border-radius: 14px;
   display: grid;
-  grid-template-columns: repeat(4, minmax(0, 1fr));
+  grid-template-columns: repeat(5, minmax(0, 1fr));
   gap: 12px;
+  align-items: stretch;
 }
 
 .home-visit-estimate.ok {
@@ -1028,10 +1018,20 @@
   border: 1px solid #ffbcbc;
 }
 
-.home-visit-estimate div {
+.home-visit-estimate-item {
   display: flex;
   flex-direction: column;
-  gap: 4px;
+  justify-content: center;
+  gap: 6px;
+  min-height: 72px;
+  padding: 12px;
+  border-radius: 12px;
+  background: rgba(255, 255, 255, 0.55);
+}
+
+.home-visit-estimate-item.total {
+  background: #dff8ef;
+  border: 1px solid #8ee0c5;
 }
 
 .home-visit-estimate strong {
@@ -1051,10 +1051,6 @@
 }
 
 @media (max-width: 768px) {
-  .address-search-row {
-    grid-template-columns: 1fr;
-  }
-
   .home-visit-estimate {
     grid-template-columns: 1fr 1fr;
   }

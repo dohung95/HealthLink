@@ -514,15 +514,31 @@ const Schedule = () => {
           : {}),
       };
 
+      const doctorFee = Number(selectedDoctor?.consultationFee ?? selectedDoctor?.fee ?? 0);
+
+      const homeVisitBaseFee = Number(homeVisitInfo.homeVisitFee || 0);
+      const extraTravelFee = Number(homeVisitInfo.travelFee || 0);
+      const homeVisitTravelTotal = Number(
+        homeVisitInfo.totalFee ?? (homeVisitBaseFee + extraTravelFee || 0)
+      );
+
       setPaymentDraft({
         ...bookingData,
         currency: 'USD',
-        amount: 150.00,
-        sourceConsultationId: Number.isNaN(sourceConsultationId) ? null : sourceConsultationId,
-        draftId: sessionDraftId,
-        scheduleId: homeVisitInfo.selectedSession?.scheduleId,
-        bookingDate: homeVisitInfo.selectedSession?.bookingDate,
-        selectedSession: homeVisitInfo.selectedSession,
+        amount: isHomeVisit
+          ? doctorFee + homeVisitTravelTotal
+          : doctorFee,
+        doctorFee,
+        homeVisitEstimate: isHomeVisit
+          ? {
+            distanceKm: homeVisitInfo.distanceKm,
+            estimatedTravelMinutes: homeVisitInfo.estimatedTravelMinutes,
+            homeVisitFee: homeVisitBaseFee,
+            travelFee: extraTravelFee,
+            totalFee: homeVisitTravelTotal,
+            grandTotal: doctorFee + homeVisitTravelTotal,
+          }
+          : null,
       });
       setStep(stepConfig.length);
       toast.info('Review completed. Please finish payment to confirm your appointment.');
