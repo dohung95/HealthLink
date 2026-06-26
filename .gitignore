@@ -72,7 +72,8 @@ lerna-debug.log*
 /HealthLink_BE/AGENTS.md
 /.semgrepignore
 /.continue
-
+/.codegraph
+/.continue
 /.superpowers
 
 
