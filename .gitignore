@@ -49,27 +49,18 @@ lerna-debug.log*
 /.agents
 /knowledge.md
 /.opencode
-/graphify-out
 /AGENTS.md
 /.github
 /.codex
-/.graphify_cached.json
-/.graphify_uncached.txt
-/.graphify_analysis.json
-/.graphify_ast.json
-/.graphify_detect.json
-/.graphify_extract.json
-/.graphify_labels.json
-/.graphify_semantic.json
 /.claude
 /CLAUDE.md
 /HealthLink_FE/e2e
 /HealthLink_FE/.codex
 /HealthLink_FE/.opencode
-/HealthLink_FE/graphify-out
 /HealthLink_FE/AGENTS.md
-/HealthLink_BE/graphify-out
+/HealthLink_FE/.codegraph
 /HealthLink_BE/AGENTS.md
+/HealthLink_BE/.codegraph
 /.semgrepignore
 /.continue
 /.codegraph
@@ -77,6 +68,8 @@ lerna-debug.log*
 /.superpowers
 /_ops
 /tasks
+/.mcp.json
+/opencode.json
 
 # === Custom ignores cho file XML do IDE sinh ra ===
 HealthLink/HealthLink_BE/HealthLink_BEynbactions.xml
