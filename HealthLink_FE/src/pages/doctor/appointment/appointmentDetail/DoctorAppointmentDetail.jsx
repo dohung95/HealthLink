@@ -17,6 +17,7 @@ import EmptyState from '@components/doctor/EmptyState';
 import AppointmentSummary from '@components/doctor/AppointmentSummary';
 import ActionBar from '@components/doctor/ActionBar';
 import CompleteConfirmModal from '@components/doctor/CompleteConfirmModal';
+import { consultationApi } from '@api/consultationApi';
 
 const TABS = [
   { id: 'summary', label: 'Summary', icon: 'bi-card-text' },
@@ -158,6 +159,32 @@ const DoctorAppointmentDetail = memo(({ appointment, patient, doctorId, onBack, 
             ) : null}
           </div>
 
+          {ctx.currentAppointment?.consultationType === 'Online' && (
+            <div className="px-3 pb-2 d-flex gap-2">
+              <button
+                className="btn btn-outline-primary btn-sm"
+                onClick={async () => {
+                  const cId = ctx.consultation?.consultationId;
+                  console.log('[Propose] consultationId:', cId, 'consultation:', ctx.consultation);
+                  if (!cId) {
+                    console.warn('[Propose] No consultationId available');
+                    return;
+                  }
+                  try {
+                    const result = await consultationApi.proposeHomeVisit(cId);
+                    console.log('[Propose] Success:', result);
+                    alert('Proposal sent to patient successfully!');
+                  } catch (err) {
+                    console.error('[Propose] Failed:', err);
+                    alert('Failed: ' + (err?.response?.data?.message || err.message));
+                  }
+                }}
+                type="button"
+              >
+                <i className="bi bi-house-heart me-1"></i>Propose Home Visit
+              </button>
+            </div>
+          )}
           <ActionBar
             handleChat={ctx.handleChat}
             canStartConsultation={ctx.canStartConsultation}

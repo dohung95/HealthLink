@@ -10,7 +10,7 @@ import "../Css/Admin.css";
 // Service type mapping for display
 const SERVICE_TYPE_LABELS = {
   'CONSULTATION_ONLINE': 'Online Consultation',
-  'CONSULTATION_OFFLINE': 'Offline Consultation',
+  'CONSULTATION_HOME_VISIT': 'Home Visit Consultation',
   'PHARMACY_ORDER': 'Pharmacy Order'
 };
 
