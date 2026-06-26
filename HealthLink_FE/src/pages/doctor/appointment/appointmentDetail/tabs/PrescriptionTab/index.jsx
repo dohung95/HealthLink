@@ -1,5 +1,4 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
-import { toast } from 'react-toastify';
 import { medicineApi } from '@api/medicineApi';
 import AdminFormSection from './AdminFormSection';
 import MedicationForm from './MedicationForm';
@@ -108,6 +107,7 @@ const PrescriptionTab = ({
   readOnly = false,
   canEditPrescription = !readOnly,
   onLockedAction,
+  prescriptionDraft,
 }) => {
   const workspaceAppointmentId = appointment?.appointmentID ?? appointment?.appointmentId ?? 'new';
   const isWorkspaceReadOnly = readOnly || !canEditPrescription;
@@ -157,16 +157,25 @@ const PrescriptionTab = ({
 
     if (initializedAppointmentIdRef.current !== workspaceAppointmentId) {
       initializedAppointmentIdRef.current = workspaceAppointmentId;
-      setMedicationRows([]);
+
+      const draftRows = prescriptionDraft?.medicationRows;
+      if (Array.isArray(draftRows) && draftRows.length > 0) {
+        setMedicationRows(draftRows);
+        setRecentMedicineIds(
+          draftRows.map((r) => r.medicineId).filter(Boolean),
+        );
+      } else {
+        setMedicationRows([]);
+      }
+
       setHighlightedRowId(null);
-      setRecentMedicineIds([]);
       setLibraryQuery('');
       setShowLibraryFilters(false);
       setLibraryFilters(createEmptyFilterState());
       return;
     }
 
-  }, [prescription, workspaceAppointmentId]);
+  }, [prescription, workspaceAppointmentId, prescriptionDraft]);
 
   useEffect(() => {
     if (!medicineMap.size) {
@@ -197,7 +206,7 @@ const PrescriptionTab = ({
       return;
     }
 
-    if (prescription || !canEditPrescription) {
+    if (prescription || !canEditPrescription || medicationRows.length === 0) {
       onDraftChange(null);
       return;
     }
@@ -450,6 +459,7 @@ const PrescriptionTab = ({
                 onRowChange={handleRowChange}
                 onTimingToggle={handleRowTimingToggle}
               />
+              
             </div>
           </div>
       </div>

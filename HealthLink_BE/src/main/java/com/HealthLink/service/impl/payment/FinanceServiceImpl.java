@@ -466,9 +466,6 @@ public class FinanceServiceImpl implements FinanceService {
             LocalDateTime paidAt = LocalDateTime.now();
             appointment.setStatus(APPT_SCHEDULED);
             appointment.setConfirmedAt(paidAt);
-            if (sourceConsultation != null) {
-                appointment.setFollowUpSourceAppointmentId(sourceConsultation.getAppointment().getAppointmentId());
-            }
             appointment = appointmentRepository.save(appointment);
             linkSourceConsultation(sourceConsultation, appointment);
 
@@ -1040,7 +1037,6 @@ public class FinanceServiceImpl implements FinanceService {
 
         if (TYPE_HOME_VISIT.equalsIgnoreCase(normalizedType)) {
             HomeVisitEstimateResponse estimate = homeVisitLocationService.estimate(
-                    doctor.getDoctorId(),
                     visitLatitude,
                     visitLongitude
             );

@@ -132,9 +132,8 @@ public class AdminCommissionServiceImpl implements AdminCommissionService {
     @Override
     public AdminCommissionTransactionDto calculateAndRecordAppointment(Appointment appointment) {
         String consultationType = appointment.getConsultationType();
-        String serviceType = "HomeVisit".equalsIgnoreCase(consultationType)
-            ? "CONSULTATION_HOME_VISIT"
-            : (isOnlineConsultation(consultationType) ? "CONSULTATION_ONLINE" : "CONSULTATION_OFFLINE");
+        String serviceType = isOnlineConsultation(consultationType)
+            ? "CONSULTATION_ONLINE" : "CONSULTATION_OFFLINE";
 
         Doctor doctor = appointment.getDoctor();
         BigDecimal fee = appointment.getFee() == null ? BigDecimal.ZERO : appointment.getFee();
@@ -403,8 +402,7 @@ public class AdminCommissionServiceImpl implements AdminCommissionService {
                             now)) {
                         customRate = doctor.getCustomCommissionRateOnline();
                     }
-                } else if ("CONSULTATION_OFFLINE".equals(serviceType) ||
-                           "CONSULTATION_HOME_VISIT".equals(serviceType)) {
+                } else if ("CONSULTATION_OFFLINE".equals(serviceType)) {
                     if (doctor.getCustomCommissionRateOffline() != null &&
                         isCustomRateValid(
                             doctor.getCustomCommissionRateOfflineEffectiveFrom(),

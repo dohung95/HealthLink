@@ -18,6 +18,8 @@
 # Lờ các file build output
 /dist/
 /dist-ssr/
+/HealthLink_BE/graphify-out/
+/HealthLink_FE/graphify-out/
 
 # Lờ các file log của Node
 npm-debug.log*
@@ -34,6 +36,7 @@ lerna-debug.log*
 .vscode/*
 !.vscode/extensions.json
 !.vscode/settings.json
+/.github/copilot-instructions.md
 
 # Rider / IntelliJ
 .idea/
@@ -42,41 +45,42 @@ lerna-debug.log*
 /deploy
 /plans
 /doc
-/docs
+/docs/*
 /docs/superpowers
 /skills
 /HealthLink_BE/doc/
 /.agents
 /knowledge.md
 /.opencode
-/graphify-out
+/graphify-out/
+/.continue/
+/.github/workflows/
+/.semgrepignore
 /AGENTS.md
-/.github
 /.codex
-/.graphify_cached.json
-/.graphify_uncached.txt
-/.graphify_analysis.json
-/.graphify_ast.json
-/.graphify_detect.json
-/.graphify_extract.json
-/.graphify_labels.json
-/.graphify_semantic.json
 /.claude
 /CLAUDE.md
-/HealthLink_FE/e2e
-/HealthLink_FE/.codex
-/HealthLink_FE/.opencode
-/HealthLink_FE/graphify-out
-/HealthLink_FE/AGENTS.md
-/HealthLink_BE/graphify-out
+/HealthLink_BE/.codex/
 /HealthLink_BE/AGENTS.md
-/.semgrepignore
-/.continue
+/HealthLink_BE/src/main/java/com/HealthLink/config/OpenApiConfig.java
+/HealthLink_BE/src/test/java/com/HealthLink/config/OpenApiDocumentationTest.java
+/HealthLink_FE/e2e
+/HealthLink_FE/AGENTS.md
+/HealthLink_FE/.opencode
+/HealthLink_FE/.codegraph
+/HealthLink_BE/.codegraph
 /.codegraph
-/.continue
-/.superpowers
 /_ops
-/tasks
+/.mcp.json
+/opencode.json
+/.ai
+/HealthLink_BE/CLAUDE.md
+/HealthLink_FE/.npm-cache
+
+# === Build artifacts ===
+HealthLink_FE/dist/
+HealthLink_FE/.vite/
+HealthLink_FE/test-results/
 
 # === Custom ignores cho file XML do IDE sinh ra ===
 HealthLink/HealthLink_BE/HealthLink_BEynbactions.xml
@@ -84,4 +88,116 @@ HealthLink/HealthLink_BE/HealthLink_BEynbactions.xml
 
 # Ignore tất cả file ynbactions.xml (an toàn)
 *ynbactions.xml
-/docs
+# Project-specific
+artifacts/
+coverage/
+*.tar.gz
+*.tgz
+# External references
+_ref/
+.codegraph/
+# Local operations state
+_ops/
+# Environment
+.env
+.env.*
+!.env.example
+# OS metadata
+
+# BEGIN: claude-runtime-temp (managed by repo-harness)
+.claude/settings.local.json
+.claude/.atomic_pending
+.claude/.session-id
+.claude/.trace.jsonl
+.claude/.session-handoff.md
+.claude/.task-state.json
+.claude/.task-handoff.md
+.claude/.codegraph-state/
+.claude/*.tmp
+.claude/*.bak
+.claude/*.bak.*
+.claude/*.backup-*
+tasks/.current.md.tmp.*
+.ai/harness/checks/latest.json
+.ai/harness/checks/post-bash-latest.json
+.ai/harness/events.jsonl
+.ai/harness/archive/
+.ai/harness/failures/latest.jsonl
+.ai/harness/handoff/current.md
+.ai/harness/handoff/resume.md
+.ai/harness/capability-context/
+.ai/harness/security/*
+!.ai/harness/security/.gitkeep
+.ai/harness/planning/*
+!.ai/harness/planning/.gitkeep
+.ai/harness/delegation/*
+.ai/harness/architecture/events.jsonl
+.ai/harness/active-plan
+.ai/harness/active-worktree
+.ai/harness/sprint/
+.ai/harness/worktrees/
+.ai/harness/runs/
+.ai/harness/chatgpt/browser-lock.json
+.ai/harness/chatgpt/tmp/
+.ai/harness/chatgpt/sessions/
+.ai/harness/triage/*
+!.ai/harness/triage/.gitkeep
+.repo-harness/chatgpt-browser.local.json
+.repo-harness/chatgpt-browser.tokens.json
+.codex/*
+.claude/.active-plan
+.claude/.plan-state/
+# repo-harness generated helper wrappers
+scripts/new-spec.sh
+scripts/new-sprint.sh
+scripts/new-plan.sh
+scripts/capture-plan.sh
+scripts/plan-to-todo.sh
+scripts/contract-run.ts
+scripts/contract-worktree.sh
+scripts/ship-worktrees.sh
+scripts/archive-workflow.sh
+scripts/refresh-current-status.sh
+scripts/prepare-handoff.sh
+scripts/verify-contract.sh
+scripts/summarize-failures.sh
+scripts/verify-sprint.sh
+scripts/harness-trace-grade.sh
+scripts/sprint-backlog.sh
+scripts/check-task-sync.sh
+scripts/check-deploy-sql-order.sh
+scripts/check-architecture-sync.sh
+scripts/check-agent-tooling.sh
+scripts/check-context-files.sh
+scripts/check-brain-manifest.sh
+scripts/sync-brain-docs.sh
+scripts/check-skill-version.ts
+scripts/select-agent-context-blocks.sh
+scripts/ensure-task-workflow.sh
+scripts/check-task-workflow.sh
+scripts/maintenance-triage.sh
+scripts/heartbeat-triage.sh
+scripts/switch-plan.sh
+scripts/workflow-contract.ts
+scripts/inspect-project-state.ts
+scripts/migrate-workflow-docs.ts
+scripts/migrate-project-template.sh
+scripts/capability-resolver.ts
+scripts/architecture-event.ts
+scripts/capability-config.ts
+scripts/architecture-queue.sh
+scripts/archive-architecture-request.sh
+scripts/context-contract-sync.sh
+scripts/workstream-sync.sh
+scripts/prepare-codex-handoff.sh
+scripts/codex-handoff-resume.sh
+scripts/repo-harness/
+# END: claude-runtime-temp
+.repo-harness/mcp.local.json
+.repo-harness/mcp.tokens.json
+.repo-harness/mcp.oauth.json
+.repo-harness/mcp.oauth-tokens.json
+.ai/harness/mcp/audit.log
+.ai/harness/mcp/index-events.jsonl
+.ai/harness/mcp/metrics.jsonl
+.ai/harness/mcp/trace.jsonl
