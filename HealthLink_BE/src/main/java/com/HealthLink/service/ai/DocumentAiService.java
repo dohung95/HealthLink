@@ -5,12 +5,13 @@ import com.HealthLink.dto.ai.DocumentScreeningResult;
 import com.HealthLink.dto.response.HomeVisitInfoScanResponse;
 
 /**
- * Service interface for Gemini AI operations
+ * Service interface for AI document processing operations.
+ * Backed by the self-hosted local AI service (OCR + NudeNet + Ollama).
  */
-public interface GeminiAIService {
+public interface DocumentAiService {
 
     /**
-     * Check if Gemini AI is available and properly configured
+     * Check if the AI service is available and properly configured
      */
     boolean isAvailable();
 
@@ -45,6 +46,6 @@ public interface GeminiAIService {
      * @return Extracted text
      */
     String extractTextFromDOCX(byte[] fileContent);
-    
+
     HomeVisitInfoScanResponse parseHomeVisitInfo(String fileContent, String mimeType);
 }

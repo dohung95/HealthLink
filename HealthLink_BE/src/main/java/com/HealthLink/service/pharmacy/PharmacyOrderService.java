@@ -6,12 +6,15 @@ import com.HealthLink.dto.pharmacy.PharmacyOrderRequest;
 import com.HealthLink.dto.pharmacy.PharmacyOrderResponse;
 import com.HealthLink.dto.pharmacy.PharmacyOrderRevisionRequest;
 import com.HealthLink.dto.pharmacy.PharmacyOrderStatusRequest;
+import com.HealthLink.dto.pharmacy.RetailOrderRequest;
 
 import java.util.List;
 
 public interface PharmacyOrderService {
 
     PharmacyOrderResponse createOrderFromPrescription(PharmacyOrderRequest request, String patientId);
+
+    PharmacyOrderResponse createRetailOrder(RetailOrderRequest request, String patientId);
 
     PharmacyOrderResponse createOrderFromConsultationRequest(
             Integer requestId,

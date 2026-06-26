@@ -23,6 +23,7 @@ const toAppointmentPaymentPayload = (bookingDraft, extra = {}) => {
     receiverPhone,
     visitLatitude,
     visitLongitude,
+    sourceConsultationId,
   } = bookingDraft || {};
 
   return {
@@ -46,6 +47,7 @@ const toAppointmentPaymentPayload = (bookingDraft, extra = {}) => {
     receiverPhone,
     visitLatitude,
     visitLongitude,
+    sourceConsultationId,
 
     currency: currency || 'USD',
     ...extra,
@@ -85,6 +87,31 @@ export const paymentApi = {
   capturePharmacyOrderPayPalPayment: async (pharmacyOrderId, orderId, paymentMethod = 'EWallet') => {
     const response = await axiosInstance.post('/api/payment/pharmacy-orders/paypal/capture', {
       pharmacyOrderId,
+      orderId,
+      paymentMethod,
+    });
+    return response.data;
+  },
+
+  createHomeVisitPayPalOrder: async (bookingDraft) => {
+    const { draftId, scheduleId, bookingDate } = bookingDraft || {};
+    const response = await axiosInstance.post('/api/payment/home-visit/paypal/create', {
+      ...toAppointmentPaymentPayload(bookingDraft),
+      draftId,
+      scheduleId,
+      bookingDate,
+      amount: 150.00,
+    });
+    return response.data;
+  },
+
+  captureHomeVisitPayPalPayment: async (bookingDraft, orderId, paymentMethod = 'EWallet') => {
+    const { draftId, scheduleId, bookingDate } = bookingDraft || {};
+    const response = await axiosInstance.post('/api/payment/home-visit/paypal/capture', {
+      ...toAppointmentPaymentPayload(bookingDraft),
+      draftId,
+      scheduleId,
+      bookingDate,
       orderId,
       paymentMethod,
     });

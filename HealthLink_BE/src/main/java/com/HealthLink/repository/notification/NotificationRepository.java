@@ -1,6 +1,7 @@
 package com.HealthLink.repository.notification;
 
 import com.HealthLink.entity.Notification;
+import com.HealthLink.entity.enums.NotificationType;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
@@ -60,4 +61,19 @@ public interface NotificationRepository extends JpaRepository<Notification, Inte
     @Modifying
     @Query("DELETE FROM Notification n WHERE n.notificationId = :notificationId AND n.user.id = :userId")
     int deleteByNotificationIdAndUserId(@Param("notificationId") Integer notificationId, @Param("userId") String userId);
+
+    @Modifying
+    @Query("""
+            UPDATE Notification n
+               SET n.read = true
+             WHERE n.user.id = :userId
+               AND n.type = :type
+               AND n.relatedId = :relatedId
+               AND n.read = false
+            """)
+    int markAsReadByUserIdAndTypeAndRelatedId(
+            @Param("userId") String userId,
+            @Param("type") NotificationType type,
+            @Param("relatedId") Integer relatedId
+    );
 }

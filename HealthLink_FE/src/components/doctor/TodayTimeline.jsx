@@ -102,11 +102,10 @@ const TodayTimeline = ({ appointments, loading, selectedDate, onView, onDateChan
                     : day.isToday
                       ? 'doctor-timeline__calendar-day--today'
                       : day.isPast
-                        ? 'doctor-timeline__calendar-day--disabled'
+                        ? 'doctor-timeline__calendar-day--past'
                         : ''
                 }`}
                 key={`day-${day.day}`}
-                disabled={day.isPast}
                 onClick={() => {
                   const d = new Date(selectedDate + 'T00:00:00');
                   d.setDate(d.getDate() + (day.day - d.getDate()));
@@ -149,7 +148,7 @@ const TodayTimeline = ({ appointments, loading, selectedDate, onView, onDateChan
               <button
                 className={`doctor-timeline__item ${isCompleted ? 'doctor-timeline__item--completed' : ''}`}
                 key={`timeline-${appointment.appointmentID || appointment.appointmentId}`}
-                onClick={() => !isCompleted && onView(appointment)}
+                onClick={() => onView(appointment)}
                 type="button"
               >
                 <div className="doctor-timeline__item-time">

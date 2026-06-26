@@ -78,4 +78,13 @@
   font-size: 0.8125rem;
 }
 
+.ck.ck-button:focus,
+.ck.ck-button:active {
+  box-shadow: none !important;
+}
+
+.ck.ck-button.ck-on:focus {
+  background: var(--ck-color-button-on-background) !important;
+}
+
 

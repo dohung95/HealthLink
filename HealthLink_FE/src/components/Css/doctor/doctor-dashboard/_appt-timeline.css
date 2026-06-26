@@ -146,11 +146,14 @@
   background: var(--primary-hover) !important;
 }
 
-.doctor-timeline__calendar-day--disabled {
+.doctor-timeline__calendar-day--past {
   color: var(--text-muted);
-  opacity: 0.4;
-  cursor: not-allowed;
-  pointer-events: none;
+  opacity: 0.45;
+}
+
+.doctor-timeline__calendar-day--past:hover {
+  opacity: 0.75;
+  background: var(--surface-hover);
 }
 
 /* ============================================

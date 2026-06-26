@@ -45,7 +45,7 @@ import org.springframework.transaction.support.TransactionSynchronizationManager
 import com.HealthLink.dto.response.HomeVisitEstimateResponse;
 import com.HealthLink.service.homevisit.HomeVisitLocationService;
 import java.math.BigDecimal;
-
+import java.math.RoundingMode;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.LocalTime;
@@ -188,7 +188,7 @@ public class AppointmentServiceImpl implements AppointmentService {
                                 .add(homeVisitEstimate.getTotalFee() != null
                                         ? homeVisitEstimate.getTotalFee()
                                         : BigDecimal.ZERO)
-                                .setScale(2, java.math.RoundingMode.HALF_UP)
+                                .setScale(2, RoundingMode.HALF_UP)
                         : doctor.getConsultationFee())
                 .build();
 

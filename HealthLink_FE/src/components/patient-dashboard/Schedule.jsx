@@ -37,6 +37,7 @@ const Schedule = () => {
 
   const hasPreselectedDoctor = !!doctorId;
 
+
   const [loading, setLoading] = useState(true);
   const [loadingSlots, setLoadingSlots] = useState(false);
 
@@ -555,7 +556,7 @@ const Schedule = () => {
       const homeVisitBaseFee = Number(homeVisitInfo.homeVisitFee || 0);
       const extraTravelFee = Number(homeVisitInfo.travelFee || 0);
       const homeVisitTravelTotal = Number(
-        homeVisitInfo.totalFee ?? homeVisitBaseFee + extraTravelFee
+        homeVisitInfo.totalFee ?? (homeVisitBaseFee + extraTravelFee || 0)
       );
 
       setPaymentDraft({

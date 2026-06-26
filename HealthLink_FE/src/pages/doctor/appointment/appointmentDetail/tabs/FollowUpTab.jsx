@@ -3,10 +3,8 @@ import Calendar from 'react-calendar';
 import '@components/Css/doctor/doctor-dashboard/doctor-dashboard.css';
 
 const CONSULTATION_TYPES = [
-  { value: 'Video Call', label: 'Video Call', icon: 'bi-camera-video' },
-  { value: 'Audio Call', label: 'Audio Call', icon: 'bi-telephone' },
-  { value: 'Chat', label: 'Chat', icon: 'bi-chat-dots' },
-  { value: 'Offline', label: 'Offline', icon: 'bi-person-walking' },
+  { value: 'Online', label: 'Online', icon: 'bi-laptop' },
+  { value: 'HomeVisit', label: 'Home Visit', icon: 'bi-house-heart' },
 ];
 
 const FollowUpTab = ({
@@ -121,7 +119,9 @@ const FollowUpTab = ({
                 readOnly={!canEditFollowUp || savingFollowUp}
                 onFocus={() => { if (!canEditFollowUp && typeof onLockedAction === 'function') onLockedAction(); }}
                 onClick={() => { if (!canEditFollowUp && typeof onLockedAction === 'function') onLockedAction(); }}
-                onChange={(event) => onFollowUpNotesChange(event.target.value)}
+                onChange={(event) => {
+                  onFollowUpNotesChange(event.target.value);
+                }}
                 placeholder="Add concise notes for the next appointment..."
                 rows="2"
                 value={followUpNotes}

@@ -39,7 +39,6 @@ export function useConsultationNotes(appointmentId, appointment, appointmentDeta
         doctorNotes: notesDraft.doctorNotes,
         treatmentPlan: notesDraft.treatmentPlan,
       });
-      toast.success('Consultation notes saved');
     } catch (error) {
       console.error('Error saving consultation notes:', error);
       toast.error(error.response?.data?.message || 'Failed to save consultation notes');

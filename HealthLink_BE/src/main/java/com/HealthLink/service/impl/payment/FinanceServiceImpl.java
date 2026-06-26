@@ -10,6 +10,7 @@ import com.HealthLink.dto.pharmacy.PharmacyOrderResponse;
 import com.HealthLink.dto.request.AppointmentRequest;
 import com.HealthLink.dto.response.AppointmentResponse;
 import com.HealthLink.entity.Appointment;
+import com.HealthLink.entity.Consultation;
 import com.HealthLink.entity.Doctor;
 import com.HealthLink.entity.Invoice;
 import com.HealthLink.entity.Patient;
@@ -22,6 +23,7 @@ import com.HealthLink.exception.PayPalIntegrationException;
 import com.HealthLink.repository.auth.UserRepository;
 import com.HealthLink.repository.notification.DeviceTokenRepository;
 import com.HealthLink.repository.appointment.AppointmentRepository;
+import com.HealthLink.repository.consultation.ConsultationRepository;
 import com.HealthLink.repository.doctor.DoctorRepository;
 import com.HealthLink.repository.patient.PatientRepository;
 import com.HealthLink.repository.payment.InvoiceRepository;
@@ -34,6 +36,7 @@ import com.HealthLink.service.payment.FinanceService;
 import com.HealthLink.service.payment.InvoicePdfService;
 import com.HealthLink.entity.enums.NotificationPriority;
 import com.HealthLink.entity.enums.NotificationType;
+import com.HealthLink.entity.enums.HomeVisitProposalStatus;
 import com.HealthLink.entity.User;
 import com.HealthLink.utility.mapper.PharmacyOrderMapper;
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -115,6 +118,7 @@ public class FinanceServiceImpl implements FinanceService {
     private final ObjectMapper objectMapper;
 
     private final AppointmentRepository appointmentRepository;
+    private final ConsultationRepository consultationRepository;
     private final AppointmentService appointmentService;
     private final DoctorRepository doctorRepository;
     private final PatientRepository patientRepository;
@@ -301,6 +305,11 @@ public class FinanceServiceImpl implements FinanceService {
             throw new BadRequestException("This pharmacy order cannot be paid due to its current status.");
         }
 
+        if (isRetailDirectOrder(pharmacyOrder)
+                && PHARMACY_ORDER_PENDING.equalsIgnoreCase(safeValue(pharmacyOrder.getStatus(), ""))) {
+            throw new BadRequestException("Retail order must be confirmed by the pharmacy before payment.");
+        }
+
         if (pharmacyOrder.getTotalAmount() == null || pharmacyOrder.getTotalAmount().compareTo(java.math.BigDecimal.ZERO) <= 0) {
             throw new BadRequestException("Order total amount must be greater than zero.");
         }
@@ -428,6 +437,8 @@ public class FinanceServiceImpl implements FinanceService {
             String paymentMethod = METHOD_CARD.equalsIgnoreCase(request.getPaymentMethod())
                     ? METHOD_CARD : METHOD_EWALLET;
 
+            Consultation sourceConsultation = resolveSourceConsultation(request);
+
             if (!"COMPLETED".equals(paypalStatus)) {
                 Payment failedPayment = Payment.builder()
                         .amount(capturedAmount)
@@ -456,6 +467,7 @@ public class FinanceServiceImpl implements FinanceService {
             appointment.setStatus(APPT_SCHEDULED);
             appointment.setConfirmedAt(paidAt);
             appointment = appointmentRepository.save(appointment);
+            linkSourceConsultation(sourceConsultation, appointment);
 
             notifyDoctorAboutNewAppointmentAfterCommit(appointment);
 
@@ -539,6 +551,11 @@ public class FinanceServiceImpl implements FinanceService {
                 || "REFUNDED".equalsIgnoreCase(safeValue(pharmacyOrder.getStatus(), ""))
                 || "REVISION_REQUESTED".equalsIgnoreCase(safeValue(pharmacyOrder.getStatus(), ""))) {
             throw new BadRequestException("This pharmacy order cannot be paid due to its current status.");
+        }
+
+        if (isRetailDirectOrder(pharmacyOrder)
+                && PHARMACY_ORDER_PENDING.equalsIgnoreCase(safeValue(pharmacyOrder.getStatus(), ""))) {
+            throw new BadRequestException("Retail order must be confirmed by the pharmacy before payment.");
         }
 
         if (pharmacyOrder.getTotalAmount() == null || pharmacyOrder.getTotalAmount().compareTo(java.math.BigDecimal.ZERO) <= 0) {
@@ -953,6 +970,51 @@ public class FinanceServiceImpl implements FinanceService {
         return appointmentRequest;
     }
 
+    private Consultation resolveSourceConsultation(AppointmentPayPalCaptureRequest request) {
+        if (request.getSourceConsultationId() == null) {
+            return null;
+        }
+
+        Consultation consultation = consultationRepository.findById(request.getSourceConsultationId())
+                .orElseThrow(() -> new BadRequestException(
+                        "Consultation not found with ID: " + request.getSourceConsultationId()));
+
+        if (consultation.getAppointment() == null) {
+            throw new BadRequestException("Source consultation is missing its appointment");
+        }
+
+        if (!TYPE_HOME_VISIT.equalsIgnoreCase(request.getConsultationType())) {
+            throw new BadRequestException("sourceConsultationId is only supported for HomeVisit bookings");
+        }
+
+        if (consultation.getHomeVisitProposalStatus() != HomeVisitProposalStatus.ACCEPTED) {
+            throw new BadRequestException("Home visit proposal must be accepted before booking");
+        }
+
+        if (!request.getPatientId().equalsIgnoreCase(consultation.getAppointment().getPatient().getUser().getId())) {
+            throw new BadRequestException("Source consultation does not belong to the current patient");
+        }
+
+        if (!request.getDoctorId().equalsIgnoreCase(consultation.getAppointment().getDoctor().getDoctorId())) {
+            throw new BadRequestException("Source consultation doctor does not match this booking");
+        }
+
+        if (consultation.getFollowUpAppointmentId() != null) {
+            throw new BadRequestException("This consultation already has a linked follow-up appointment");
+        }
+
+        return consultation;
+    }
+
+    private void linkSourceConsultation(Consultation sourceConsultation, Appointment appointment) {
+        if (sourceConsultation == null) {
+            return;
+        }
+
+        sourceConsultation.setFollowUpAppointmentId(appointment.getAppointmentId());
+        consultationRepository.save(sourceConsultation);
+    }
+
     private String normalizeConsultationTypeForBooking(String consultationType) {
         return DoctorServiceHelper.normalizeConsultationType(consultationType);
     }
@@ -1172,6 +1234,12 @@ public class FinanceServiceImpl implements FinanceService {
         }
 
         return user;
+    }
+
+    private boolean isRetailDirectOrder(PharmacyOrder pharmacyOrder) {
+        return pharmacyOrder != null
+                && pharmacyOrder.getConsultationRequest() == null
+                && pharmacyOrder.getPrescriptionHeader() == null;
     }
 
     private String safeValue(String value, String fallback) {

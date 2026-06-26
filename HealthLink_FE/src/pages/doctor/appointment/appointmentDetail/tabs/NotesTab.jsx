@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useEffect, useRef } from 'react';
 import { CKEditor } from '@ckeditor/ckeditor5-react';
 import {
   ClassicEditor,
@@ -6,7 +6,6 @@ import {
   Paragraph,
   Bold,
   Italic,
-  Heading,
   List,
 } from 'ckeditor5';
 import 'ckeditor5/ckeditor5.css';
@@ -15,19 +14,42 @@ import '@components/Css/doctor/doctor-dashboard/doctor-dashboard.css';
 const editorConfig = {
   placeholder: 'Enter details...',
   licenseKey: 'GPL',
-  plugins: [Essentials, Paragraph, Bold, Italic, Heading, List],
-  toolbar: ['heading', '|', 'bold', 'italic', 'bulletedList', 'numberedList', '|', 'undo', 'redo'],
+  plugins: [Essentials, Paragraph, Bold, Italic, List],
+  toolbar: ['bulletedList', 'numberedList', '|', 'undo', 'redo', '|', 'bold', 'italic'],
 };
 
 const ConsultationNotesTab = ({
   loadingAppointment,
   canEditClinical,
-  savingNotes,
   notesDraft,
   onNotesChange,
   onSaveNotes,
   onLockedAction,
 }) => {
+  const isDisabled = !canEditClinical;
+  const latestRef = useRef(notesDraft);
+
+  useEffect(() => {
+    latestRef.current = notesDraft;
+  }, [notesDraft]);
+
+  useEffect(() => {
+    return () => {
+      const draft = latestRef.current;
+      if (draft.diagnosis || draft.doctorNotes || draft.treatmentPlan) {
+        onSaveNotes();
+      }
+    };
+  }, [onSaveNotes]);
+
+  const handleLockedAction = () => {
+    if (!canEditClinical && typeof onLockedAction === 'function') onLockedAction();
+  };
+
+  const handleChange = (field, value) => {
+    onNotesChange(field, value);
+  };
+
   if (loadingAppointment) {
     return (
       <div className="text-center py-5">
@@ -38,12 +60,6 @@ const ConsultationNotesTab = ({
     );
   }
 
-  const isDisabled = !canEditClinical || savingNotes;
-
-  const handleLockedAction = () => {
-    if (!canEditClinical && typeof onLockedAction === 'function') onLockedAction();
-  };
-
   return (
     <div className="doctor-notes-workspace doctor-notes-workspace--consultation">
       <div className="doctor-notes-content">
@@ -53,7 +69,7 @@ const ConsultationNotesTab = ({
             <CKEditor
               editor={ClassicEditor}
               data={notesDraft.diagnosis}
-              onChange={(event, editor) => onNotesChange('diagnosis', editor.getData())}
+              onChange={(event, editor) => handleChange('diagnosis', editor.getData())}
               disabled={isDisabled}
               config={editorConfig}
             />
@@ -66,7 +82,7 @@ const ConsultationNotesTab = ({
             <CKEditor
               editor={ClassicEditor}
               data={notesDraft.doctorNotes}
-              onChange={(event, editor) => onNotesChange('doctorNotes', editor.getData())}
+              onChange={(event, editor) => handleChange('doctorNotes', editor.getData())}
               disabled={isDisabled}
               config={editorConfig}
             />
@@ -79,30 +95,12 @@ const ConsultationNotesTab = ({
             <CKEditor
               editor={ClassicEditor}
               data={notesDraft.treatmentPlan}
-              onChange={(event, editor) => onNotesChange('treatmentPlan', editor.getData())}
+              onChange={(event, editor) => handleChange('treatmentPlan', editor.getData())}
               disabled={isDisabled}
               config={editorConfig}
             />
           </div>
         </label>
-
-        <div className="doctor-notes-actions">
-          <button
-            className={`btn btn-primary ${isDisabled ? 'disabled' : ''}`}
-            aria-disabled={isDisabled}
-            onClick={() => {
-              if (!canEditClinical) {
-                if (typeof onLockedAction === 'function') onLockedAction();
-                return;
-              }
-              onSaveNotes();
-            }}
-            type="button"
-          >
-            <i className="bi bi-save me-2"></i>
-            {savingNotes ? 'Saving...' : 'Save Notes'}
-          </button>
-        </div>
       </div>
     </div>
   );

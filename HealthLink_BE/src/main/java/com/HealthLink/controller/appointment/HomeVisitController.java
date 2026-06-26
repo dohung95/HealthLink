@@ -1,15 +1,21 @@
 package com.HealthLink.controller.appointment;
 
+import com.HealthLink.dto.request.HomeVisitEstimateRequest;
+import com.HealthLink.dto.request.SelectSessionRequest;
+import com.HealthLink.dto.response.HomeVisitEstimateResponse;
+import com.HealthLink.dto.response.HomeVisitGeocodeResponse;
 import com.HealthLink.dto.response.HomeVisitInfoScanResponse;
-import com.HealthLink.service.ai.GeminiAIService;
+import com.HealthLink.entity.HomeVisitDraft;
+import com.HealthLink.exception.ResourceNotFoundException;
+import com.HealthLink.repository.appointment.HomeVisitDraftRepository;
+import com.HealthLink.repository.auth.UserRepository;
+import com.HealthLink.service.ai.DocumentAiService;
+import com.HealthLink.service.homevisit.HomeVisitLocationService;
+import com.HealthLink.service.homevisit.HomeVisitSessionService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.multipart.MultipartFile;
-import com.HealthLink.dto.request.HomeVisitEstimateRequest;
-import com.HealthLink.dto.response.HomeVisitEstimateResponse;
-import com.HealthLink.dto.response.HomeVisitGeocodeResponse;
-import com.HealthLink.service.homevisit.HomeVisitLocationService;
 import java.util.Base64;
 import java.util.List;
 
@@ -18,7 +24,7 @@ import java.util.List;
 @RequiredArgsConstructor
 public class HomeVisitController {
 
-    private final GeminiAIService geminiAIService;
+    private final DocumentAiService documentAiService;
     private final HomeVisitLocationService homeVisitLocationService;
 
     @PostMapping("/scan-info")
@@ -51,7 +57,7 @@ public class HomeVisitController {
             String base64 = Base64.getEncoder().encodeToString(file.getBytes());
 
             HomeVisitInfoScanResponse result =
-                    geminiAIService.parseHomeVisitInfo(base64, mimeType);
+                    documentAiService.parseHomeVisitInfo(base64, mimeType);
 
             return ResponseEntity.ok(result);
 

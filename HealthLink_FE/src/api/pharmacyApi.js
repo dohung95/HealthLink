@@ -121,6 +121,16 @@ export const pharmacyApi = {
     return response.data || [];
   },
 
+  getRetailRecommendations: async (payload) => {
+    const response = await axiosInstance.post('/api/account/pharmacy/public/recommendations/cart', payload);
+    return response.data || [];
+  },
+
+  createRetailOrder: async (payload) => {
+    const response = await axiosInstance.post('/api/pharmacy-orders/retail', payload);
+    return response.data;
+  },
+
   // ======== Work Items API ========
   getWorkItemsByPharmacy: async (pharmacyId) => {
     const response = await axiosInstance.get(`/api/pharmacy-work-items/pharmacy/${pharmacyId}`);

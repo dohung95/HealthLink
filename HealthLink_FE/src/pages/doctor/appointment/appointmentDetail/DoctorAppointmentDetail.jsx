@@ -5,7 +5,7 @@ import '@components/Css/doctor/doctor-dashboard/doctor-dashboard.css';
 import {
   formatDate, formatCompactDate, formatTime, formatDateTime,
   getStatusClassName, getTypeClassName,
-  getPatientInitials, calculateAge, toLocalDateValue, buildFollowUpDateTime,
+  calculateAge, toLocalDateValue, buildFollowUpDateTime,
 } from '@utils/doctor/tabHelpers';
 import { useAppointmentDetail } from '@hooks/doctor/useAppointmentDetail';
 import NotesTab from './tabs/NotesTab';
@@ -14,12 +14,11 @@ import PrescriptionTab from './tabs/PrescriptionTab';
 import SharedRecordsTab from './tabs/SharedRecordsTab';
 import FollowUpTab from './tabs/FollowUpTab';
 import EmptyState from '@components/doctor/EmptyState';
-import AppointmentSummary from '@components/doctor/AppointmentSummary';
 import ActionBar from '@components/doctor/ActionBar';
 import CompleteConfirmModal from '@components/doctor/CompleteConfirmModal';
+import PatientSummarySidebar from '@components/doctor/PatientSummarySidebar';
 
 const TABS = [
-  { id: 'summary', label: 'Summary', icon: 'bi-card-text' },
   { id: 'notes', label: 'Consultation Notes', icon: 'bi-journal-text' },
   { id: 'history', label: 'Medical History', icon: 'bi-clock-history' },
   { id: 'shared', label: 'Shared Records', icon: 'bi-folder2-open' },
@@ -41,7 +40,7 @@ const DoctorAppointmentDetail = memo(({ appointment, patient, doctorId, onBack, 
   }
 
   return (
-    <div className="doctor-detail-layout doctor-detail-shell">
+    <div className="doctor-detail-layout">
       <div className="doctor-detail-back">
         <button className="btn btn-link p-0 text-decoration-none" onClick={() => ctx.onBack?.()} type="button">
           <i className="bi bi-arrow-left me-2"></i>
@@ -49,7 +48,41 @@ const DoctorAppointmentDetail = memo(({ appointment, patient, doctorId, onBack, 
         </button>
       </div>
 
+      <div className="doctor-detail-shell">
       <section className="doctor-detail-card doctor-detail-workspace doctor-detail-workspace--full">
+        <div className="doctor-detail-with-sidebar">
+          <PatientSummarySidebar
+            patient={ctx.patient}
+            patientName={ctx.patientName}
+            visitReason={ctx.visitReason}
+            latestVitalSign={ctx.latestVitalSign}
+            loadingVitalSign={ctx.loadingVitalSign}
+          />
+          <div className="doctor-detail-workspace-main">
+        <div className="doctor-detail-appt-header">
+          <div className="doctor-detail-appt-header__main-row">
+            <span className="doctor-detail-appointment-id">
+              <i className="bi bi-hash"></i>
+              {'Appointment ID: '}{ctx.currentAppointment?.appointmentID || ctx.currentAppointment?.appointmentId || 'N/A'}
+            </span>
+            <span className={getStatusClassName(ctx.currentAppointment?.status)}>
+              {ctx.currentAppointment?.status || 'Unknown'}
+            </span>
+          </div>
+          <div className="doctor-detail-summary__chips">
+            <span className={getTypeClassName(ctx.currentAppointment?.consultationType)}>
+              {ctx.currentAppointment?.consultationType || 'Consultation'}
+            </span>
+            <span className="doctor-detail-chip">
+              <i className="bi bi-calendar3"></i>
+              {formatCompactDate(ctx.currentAppointment?.appointmentTime)}
+            </span>
+            <span className="doctor-detail-chip">
+              <i className="bi bi-clock"></i>
+              {formatTime(ctx.currentAppointment?.appointmentTime)}
+            </span>
+          </div>
+        </div>
         <div className="doctor-detail-tabs" role="tablist" aria-label="Appointment detail tabs">
           {TABS.map((tab) => (
             <button
@@ -67,29 +100,10 @@ const DoctorAppointmentDetail = memo(({ appointment, patient, doctorId, onBack, 
         </div>
 
         <div className="doctor-detail-tab-panel doctor-detail-tab-panel--workspace">
-          {ctx.activeTab === 'summary' ? (
-            <AppointmentSummary
-              currentAppointment={ctx.currentAppointment}
-              patient={ctx.patient}
-              patientName={ctx.patientName}
-              patientEmail={ctx.patientEmail}
-              getStatusClassName={getStatusClassName}
-              getTypeClassName={getTypeClassName}
-              formatCompactDate={formatCompactDate}
-              formatTime={formatTime}
-              calculateAge={calculateAge}
-              getPatientInitials={getPatientInitials}
-              loadingVitalSign={ctx.loadingVitalSign}
-              latestVitalSign={ctx.latestVitalSign}
-              visitReason={ctx.visitReason}
-            />
-          ) : null}
           {ctx.activeTab === 'notes' ? (
               <NotesTab
                 loadingAppointment={ctx.loadingAppointment}
-                visitReason={ctx.visitReason}
                 canEditClinical={ctx.canEditClinical}
-                savingNotes={ctx.savingNotes}
                 notesDraft={ctx.notesDraft}
                 onNotesChange={ctx.handleNotesDraftChange}
                 onSaveNotes={ctx.handleSaveNotes}
@@ -118,6 +132,7 @@ const DoctorAppointmentDetail = memo(({ appointment, patient, doctorId, onBack, 
                 patient={ctx.patient}
                 consultation={ctx.consultation}
                 prescription={ctx.prescription}
+                prescriptionDraft={ctx.prescriptionDraft}
                 loadingPrescription={ctx.loadingPrescription}
                 onDraftChange={ctx.setPrescriptionDraft}
                 readOnly={ctx.isReadOnlyAppointment}
@@ -157,6 +172,8 @@ const DoctorAppointmentDetail = memo(({ appointment, patient, doctorId, onBack, 
               />
             ) : null}
           </div>
+          </div>
+        </div>
 
           <ActionBar
             handleChat={ctx.handleChat}
@@ -177,6 +194,7 @@ const DoctorAppointmentDetail = memo(({ appointment, patient, doctorId, onBack, 
             onLockedAction={ctx.onLockedAction}
           />
         </section>
+      </div>
 
       <CompleteConfirmModal
         show={ctx.showCompleteConfirmModal}
@@ -186,6 +204,9 @@ const DoctorAppointmentDetail = memo(({ appointment, patient, doctorId, onBack, 
         hasPendingFollowUp={ctx.hasPendingFollowUp}
         onClose={() => ctx.setShowCompleteConfirmModal(false)}
         onConfirm={ctx.handleCompleteAppointment}
+        notesSaved={Boolean(ctx.consultation?.doctorNotes || ctx.consultation?.diagnosis || ctx.consultation?.treatmentPlan)}
+        prescriptionReady={Boolean(ctx.prescription || (ctx.prescriptionDraft?.medicationRows?.length > 0))}
+        followUpConfigured={Boolean(ctx.hasPendingFollowUp || ctx.consultation?.followUpDate)}
       />
     </div>
   );

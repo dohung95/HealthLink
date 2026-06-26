@@ -44,6 +44,7 @@ public class PharmacyWorkItemServiceImpl implements PharmacyWorkItemService {
 
     private static final String SOURCE_CONSULTATION_REQUEST = "CONSULTATION_REQUEST";
     private static final String SOURCE_DIRECT_ORDER = "DIRECT_ORDER";
+    private static final String SOURCE_RETAIL_ORDER = "RETAIL_ORDER";
 
     private static final String ACTION_ACCEPT_REQUEST = "ACCEPT_REQUEST";
     private static final String ACTION_REJECT_REQUEST = "REJECT_REQUEST";
@@ -182,14 +183,17 @@ public class PharmacyWorkItemServiceImpl implements PharmacyWorkItemService {
 
     private PharmacyWorkItemResponse toDirectOrderWorkItem(PharmacyOrder order) {
         String caseId = "ORD-" + order.getOrderId();
-        String workflowStage = deriveOrderStage(order);
+        String workflowStage = deriveOrderStage(order, false);
         List<String> actions = deriveOrderActions(workflowStage, order);
+        boolean retailOrder = isRetailPendingDirectOrder(order);
+        String sourceType = retailOrder ? SOURCE_RETAIL_ORDER : SOURCE_DIRECT_ORDER;
+        String displayId = retailOrder ? "Retail Order #" + order.getOrderId() : "Order #" + order.getOrderId();
 
         return PharmacyWorkItemResponse.builder()
                 .caseId(caseId)
                 .workItemId(caseId)
-                .sourceType(SOURCE_DIRECT_ORDER)
-                .displayId("Order #" + order.getOrderId())
+                .sourceType(sourceType)
+                .displayId(displayId)
                 .workflowStage(workflowStage)
                 .availableActions(actions)
                 .sortAt(order.getCreatedAt())
@@ -236,10 +240,14 @@ public class PharmacyWorkItemServiceImpl implements PharmacyWorkItemService {
                 default -> STAGE_NEW_REQUEST;
             };
         }
-        return deriveOrderStage(order);
+        return deriveOrderStage(order, true);
     }
 
     private String deriveOrderStage(PharmacyOrder order) {
+        return deriveOrderStage(order, false);
+    }
+
+    private String deriveOrderStage(PharmacyOrder order, boolean linkedToConsultationRequest) {
         String orderStatus = normalize(order.getStatus());
 
         if ("CANCELLED".equals(orderStatus) || "REFUNDED".equals(orderStatus)) {
@@ -248,6 +256,10 @@ public class PharmacyWorkItemServiceImpl implements PharmacyWorkItemService {
 
         if ("REVISION_REQUESTED".equals(orderStatus)) {
             return STAGE_REVISION_REQUESTED;
+        }
+
+        if (!linkedToConsultationRequest && isRetailPendingDirectOrder(order)) {
+            return STAGE_NEW_REQUEST;
         }
 
         String paymentStatus = normalize(order.getPaymentStatus());
@@ -370,6 +382,9 @@ public class PharmacyWorkItemServiceImpl implements PharmacyWorkItemService {
 
     private List<String> deriveOrderActions(String stage, PharmacyOrder order) {
         return switch (stage) {
+            case STAGE_NEW_REQUEST -> isRetailPendingDirectOrder(order)
+                    ? List.of(ACTION_UPDATE_ORDER_STATUS, ACTION_CANCEL_ORDER)
+                    : List.of(ACTION_VIEW_ONLY);
             case STAGE_PREPARING -> cancellableOrderActions(order);
             case STAGE_READY -> cancellableOrderActions(order);
             case STAGE_SHIPPING -> List.of(ACTION_UPDATE_ORDER_STATUS);
@@ -382,5 +397,12 @@ public class PharmacyWorkItemServiceImpl implements PharmacyWorkItemService {
 
     private String normalize(String value) {
         return value == null ? "" : value.trim().toUpperCase();
+    }
+
+    private boolean isRetailPendingDirectOrder(PharmacyOrder order) {
+        return order != null
+                && order.getConsultationRequest() == null
+                && order.getPrescriptionHeader() == null
+                && "PENDING".equals(normalize(order.getStatus()));
     }
 }

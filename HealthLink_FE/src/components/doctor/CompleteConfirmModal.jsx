@@ -1,5 +1,32 @@
 import React, { useEffect, useRef } from 'react';
 
+const ChecklistItem = ({ icon, label, done, optional }) => (
+  <div style={{
+    display: 'flex',
+    alignItems: 'center',
+    gap: '0.625rem',
+    padding: '0.5rem 0.75rem',
+    borderRadius: 'var(--radius-sm)',
+    background: done ? 'rgba(16, 185, 129, 0.06)' : 'rgba(251, 191, 36, 0.06)',
+    border: `1px solid ${done ? 'rgba(16, 185, 129, 0.2)' : 'rgba(251, 191, 36, 0.2)'}`,
+  }}>
+    <i className={`bi ${icon}`} style={{
+      fontSize: '1rem',
+      color: done ? 'var(--success)' : 'var(--warning)',
+    }} />
+    <span style={{
+      flex: 1, fontSize: '0.8125rem',
+      fontWeight: 500, color: 'var(--text-primary)',
+    }}>{label}</span>
+    <span style={{
+      fontSize: '0.75rem', fontWeight: 600,
+      color: done ? 'var(--success)' : optional ? 'var(--text-muted)' : 'var(--warning)',
+    }}>
+      {done ? 'Ready' : optional ? 'Optional' : 'Not ready'}
+    </span>
+  </div>
+);
+
 const CompleteConfirmModal = ({
   show,
   completingAppointment,
@@ -8,6 +35,9 @@ const CompleteConfirmModal = ({
   hasPendingFollowUp,
   onClose,
   onConfirm,
+  notesSaved,
+  prescriptionReady,
+  followUpConfigured,
 }) => {
   const dialogRef = useRef(null);
 
@@ -152,6 +182,18 @@ const CompleteConfirmModal = ({
             >
               Mark this appointment as completed? The patient will be notified.
             </p>
+          </div>
+
+          {/* Readiness checklist */}
+          <div style={{
+            padding: '1rem 1.5rem 0',
+            animation: 'dialogStaggerIn 0.3s var(--doctor-ease) 0.18s both',
+          }}>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '0.375rem' }}>
+              <ChecklistItem icon="bi-journal-text" label="Consultation Notes" done={notesSaved} />
+              <ChecklistItem icon="bi-capsule-pill" label="Prescription" done={prescriptionReady || copyPrescription} />
+              <ChecklistItem icon="bi-calendar-check" label="Follow-up" done={followUpConfigured} optional />
+            </div>
           </div>
 
           {hasPendingFollowUp && (

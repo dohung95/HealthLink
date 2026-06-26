@@ -54,6 +54,7 @@ import IncomingCallModal from './components/IncomingCallModal';
 import NotificationToastBridge from './components/notifications/NotificationToastBridge';
 import PrescriptionNotificationModal from './components/PrescriptionNotificationModal';
 import AdminActionNotificationModal from './components/AdminActionNotificationModal';
+
 import Navbar from './components/Navbar';
 import DoctorPublicProfilePage from './pages/doctor/DoctorPublicProfilePage';
 import PatientPrescriptionView from './components/PatientPrescriptionView';
@@ -207,6 +208,7 @@ function AppContent() {
       {!isVideoCallPage && !isAdminPage && <IncomingCallModal />}
       {!isVideoCallPage && !isAdminPage && <PrescriptionNotificationModal />}
       {!isVideoCallPage && !isAdminPage && <AdminActionNotificationModal />}
+
       <div className="App">
         {!isVideoCallPage
           && !isAdminPage
@@ -383,6 +385,7 @@ function AppContent() {
               <Route path="share-records" element={<ShareHealthRecords embedded />} />
               <Route path="prescriptions" element={<PatientPrescriptionView />} />
               <Route path="pharmacy" element={<PatientPharmacyPage />} />
+              <Route path="pharmacy/consult" element={<PatientPharmacyPage />} />
               <Route path="pharmacy/requests" element={<PatientPharmacyPage />} />
               <Route path="pharmacy/orders" element={<PatientPharmacyPage />} />
               <Route path="pharmacy/orders/:orderId" element={<PatientPharmacyPage />} />

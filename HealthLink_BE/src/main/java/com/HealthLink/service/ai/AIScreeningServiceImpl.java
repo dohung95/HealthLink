@@ -29,13 +29,16 @@ import java.util.List;
 @Slf4j
 public class AIScreeningServiceImpl implements AIScreeningService {
 
-    private final GeminiAIService geminiAIService;  // Will inject LocalAIServiceImpl when local AI is enabled
+    private final DocumentAiService documentAiService;
     private final AIScreeningConfig aiScreeningConfig;
     private final RegistrationRequestRepository requestRepository;
     private final RegistrationDocumentRepository documentRepository;
     private final EmailService emailService;
     private final AdminAuditLogService auditLogService;
     private final ObjectMapper objectMapper;
+
+    /** Matches RegistrationRequest.AIRejectionReason column length. */
+    private static final int MAX_REJECTION_REASON_LENGTH = 500;
 
     @Override
     @Transactional
@@ -141,10 +144,10 @@ public class AIScreeningServiceImpl implements AIScreeningService {
         if ((status == ScreeningStatus.REJECTED || hasUnsafeContent) && aiScreeningConfig.isEnabled()) {
             request.setStatus("AI_Rejected");
             if (hasUnsafeContent) {
-                request.setAiRejectionReason("Application rejected due to inappropriate content in uploaded files. " +
-                        "This may include NSFW, violent, or otherwise unsuitable material for a healthcare platform.");
+                request.setAiRejectionReason(truncateReason("Application rejected due to inappropriate content in uploaded files. " +
+                        "This may include NSFW, violent, or otherwise unsuitable material for a healthcare platform."));
             } else {
-                request.setAiRejectionReason(result.buildRejectionReason());
+                request.setAiRejectionReason(truncateReason(result.buildRejectionReason()));
             }
             sendRejectionEmail(request, result);
 
@@ -167,7 +170,7 @@ public class AIScreeningServiceImpl implements AIScreeningService {
     }
 
     private DocumentScreeningResult screenSingleDocument(RegistrationDocument doc) {
-        if (!geminiAIService.isAvailable()) {
+        if (!documentAiService.isAvailable()) {
             return DocumentScreeningResult.builder()
                     .documentId(doc.getDocumentId())
                     .expectedType(doc.getDocumentType())
@@ -193,7 +196,7 @@ public class AIScreeningServiceImpl implements AIScreeningService {
             byte[] fileContent = Files.readAllBytes(file.toPath());
             String base64Content = Base64.getEncoder().encodeToString(fileContent);
 
-            DocumentScreeningResult result = geminiAIService.verifyDocument(
+            DocumentScreeningResult result = documentAiService.verifyDocument(
                     base64Content,
                     doc.getMimeType(),
                     doc.getDocumentType()
@@ -273,7 +276,7 @@ public class AIScreeningServiceImpl implements AIScreeningService {
         // Clear AI rejection and set back to pending for manual review
         request.setAiScreeningStatus("OVERRIDDEN");
         request.setStatus("Pending");
-        request.setAiRejectionReason("AI decision overridden by admin: " + adminId + ". Reason: " + overrideReason);
+        request.setAiRejectionReason(truncateReason("AI decision overridden by admin: " + adminId + ". Reason: " + overrideReason));
         request.setReviewedBy(adminId);
         request.setReviewedAt(LocalDateTime.now());
 
@@ -340,5 +343,16 @@ public class AIScreeningServiceImpl implements AIScreeningService {
             log.error("Failed to create AI rejection audit log for request {}: {}",
                     request.getRequestId(), e.getMessage());
         }
+    }
+
+    /**
+     * Trim a rejection reason to fit the RegistrationRequest.AIRejectionReason column (500 chars).
+     * The full, untruncated reason is still sent to the applicant by email.
+     */
+    private String truncateReason(String reason) {
+        if (reason == null || reason.length() <= MAX_REJECTION_REASON_LENGTH) {
+            return reason;
+        }
+        return reason.substring(0, MAX_REJECTION_REASON_LENGTH - 3) + "...";
     }
 }

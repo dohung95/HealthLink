@@ -35,6 +35,12 @@ public class DoctorScheduleRequest {
 
     private String consultationType;
 
+    /**
+     * Ca làm việc cho lịch Home visit: MORNING / AFTERNOON / EVENING.
+     * Bỏ trống với lịch Online (giờ nhập tự do trong khung cho phép).
+     */
+    private String shiftType;
+
     private String location;
 
     private String notes;

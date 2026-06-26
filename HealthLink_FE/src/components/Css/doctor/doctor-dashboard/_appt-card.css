@@ -87,3 +87,51 @@
   overflow: hidden;
   text-overflow: ellipsis;
 }
+
+/* ============================================
+   TODAY COCKPIT SECTIONS
+   ============================================ */
+.cockpit-section {
+  background: var(--surface);
+  border: 1px solid var(--border-light);
+  border-radius: var(--radius-lg);
+  overflow: hidden;
+}
+
+.cockpit-section__header {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.625rem 1rem;
+  background: var(--surface-muted);
+  border-bottom: 1px solid var(--border-light);
+}
+
+.cockpit-section__title {
+  font-size: 0.8125rem;
+  font-weight: 600;
+  color: var(--text-primary);
+  margin: 0;
+  flex: 1;
+}
+
+.cockpit-section__count {
+  font-size: 0.75rem;
+  font-weight: 700;
+  color: var(--text-muted);
+  background: var(--surface-container);
+  padding: 0.125rem 0.5rem;
+  border-radius: 999px;
+}
+
+.cockpit-section__empty {
+  padding: 1.5rem;
+  text-align: center;
+  color: var(--text-muted);
+  font-size: 0.8125rem;
+}
+
+.cockpit-section__list {
+  display: flex;
+  flex-direction: column;
+}

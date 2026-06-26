@@ -4,6 +4,7 @@ import com.HealthLink.dto.response.HomeVisitEstimateResponse;
 import com.HealthLink.dto.response.HomeVisitGeocodeResponse;
 import com.HealthLink.exception.BusinessException;
 import com.fasterxml.jackson.databind.JsonNode;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.boot.web.client.RestTemplateBuilder;
 import org.springframework.http.*;
@@ -110,11 +111,9 @@ public class HomeVisitLocationService {
 
         double extraKm = Math.max(0, roundedDistance - freeDistanceKm);
         double billedExtraKm = Math.ceil(extraKm);
-
         BigDecimal extraTravelFee = travelFeePerKm
                 .multiply(BigDecimal.valueOf(billedExtraKm))
                 .setScale(2, RoundingMode.HALF_UP);
-
         BigDecimal totalFee = baseFee
                 .add(extraTravelFee)
                 .setScale(2, RoundingMode.HALF_UP);

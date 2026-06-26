@@ -14,7 +14,7 @@ const ActionBar = ({
   canStartConsultation,
   hasStarted,
   isCancelledAppointment,
-  isReadOnlyAppointment,   // true khi appointment đã COMPLETED
+  isReadOnlyAppointment,
   startingConsultation,
   handleStartConsultation,
   handleVideoCall,
@@ -26,10 +26,6 @@ const ActionBar = ({
   onCompleteClick,
   onLockedAction,
 }) => {
-  /**
-   * Xử lý click nút "Start Consultation".
-   * Nếu không đủ điều kiện start → gọi onLockedAction để hiện toast hướng dẫn.
-   */
   const handleStartClick = () => {
     if (!canStartConsultation) {
       if (typeof onLockedAction === 'function') onLockedAction();
@@ -38,23 +34,14 @@ const ActionBar = ({
     handleStartConsultation();
   };
 
-  /**
-   * Xử lý click nút "Join Video" hoặc "Open Chat".
-   * Bị khóa khi: chưa start, đã complete, hoặc đã cancelled.
-   */
   const handleJoinClick = () => {
     if (!hasStarted || isReadOnlyAppointment || isCancelledAppointment) {
       if (typeof onLockedAction === 'function') onLockedAction();
       return;
     }
-    // Luồng mới: luôn mở Chat, trong Chat có tích hợp Video Call
     handleChat();
   };
 
-  /**
-   * Xử lý click nút "Complete Consultation".
-   * Chỉ active khi bác sĩ có quyền chỉnh sửa lâm sàng (canEditClinical).
-   */
   const handleCompleteClick = () => {
     if (!canEditClinical) {
       if (typeof onLockedAction === 'function') onLockedAction();
@@ -63,48 +50,74 @@ const ActionBar = ({
     onCompleteClick();
   };
 
+  const getStartHint = () => {
+    if (startingConsultation || hasStarted) return null;
+    if (!canStartConsultation) return 'Appointment time has not arrived yet';
+    return null;
+  };
 
+  const getJoinHint = () => {
+    if (isReadOnlyAppointment) return 'Appointment already completed';
+    if (isCancelledAppointment) return 'Appointment was cancelled';
+    if (!hasStarted) return 'Start consultation first';
+    return null;
+  };
+
+  const getCompleteHint = () => {
+    if (completingAppointment) return null;
+    if (isReadOnlyAppointment) return 'Already completed';
+    if (isCancelledAppointment) return 'Appointment was cancelled';
+    if (!canEditClinical) return 'Start consultation first';
+    return null;
+  };
 
   return (
     <div className="doctor-detail-actionbar doctor-detail-actionbar--workspace doctor-detail-actionbar--consultation">
-      {/* --- Nhóm nút bên phải: Start, Join, Complete --- */}
       <div className="doctor-detail-actionbar__group doctor-detail-actionbar__group--primary">
-        {/* Nút Start Consultation: chỉ active khi đến giờ và chưa start */}
-        <button
-          className={`btn btn-outline-success ${!canStartConsultation ? 'disabled' : ''}`}
-          disabled={!canStartConsultation}
-          aria-disabled={!canStartConsultation}
-          onClick={handleStartClick}
-          type="button"
-        >
-          <i className="bi bi-play-circle me-2" />
-          {startingConsultation ? 'Starting...' : hasStarted ? 'Started' : 'Start Consultation'}
-        </button>
+        <div className="doctor-actionbar-btn-wrapper">
+          <button
+            className={`btn btn-outline-success ${!canStartConsultation ? 'disabled' : ''}`}
+            aria-disabled={!canStartConsultation}
+            onClick={handleStartClick}
+            type="button"
+          >
+            <i className="bi bi-play-circle me-2" />
+            {startingConsultation ? 'Starting...' : hasStarted ? 'Started' : 'Start Consultation'}
+          </button>
+          {getStartHint() && (
+            <span className="doctor-actionbar-hint">{getStartHint()}</span>
+          )}
+        </div>
 
-        {/* Nút Join (Video/Chat): disabled khi chưa start, đã complete, hoặc cancelled */}
-        <button
-          className={`btn btn-primary ${joinDisabled ? 'disabled' : ''}`}
-          disabled={joinDisabled}
-          aria-disabled={joinDisabled}
-          onClick={handleJoinClick}
-          type="button"
-          title={joinDisabled ? 'Cannot join: consultation not active or already completed.' : ''}
-        >
-          <i className="bi bi-chat-dots me-2" />
-          {actionLabel}
-        </button>
+        <div className="doctor-actionbar-btn-wrapper">
+          <button
+            className={`btn btn-primary ${joinDisabled ? 'disabled' : ''}`}
+            aria-disabled={joinDisabled}
+            onClick={handleJoinClick}
+            type="button"
+          >
+            <i className="bi bi-chat-dots me-2" />
+            {actionLabel}
+          </button>
+          {getJoinHint() && (
+            <span className="doctor-actionbar-hint">{getJoinHint()}</span>
+          )}
+        </div>
 
-        {/* Nút Complete: disabled khi không có quyền chỉnh sửa lâm sàng hoặc đang xử lý */}
-        <button
-          className={`btn btn-success ${!canEditClinical || completingAppointment ? 'disabled' : ''}`}
-          disabled={!canEditClinical || completingAppointment}
-          aria-disabled={!canEditClinical || completingAppointment}
-          onClick={handleCompleteClick}
-          type="button"
-        >
-          <i className="bi bi-check-circle me-2" />
-          {completingAppointment ? 'Completing...' : 'Complete Consultation'}
-        </button>
+        <div className="doctor-actionbar-btn-wrapper">
+          <button
+            className={`btn btn-success ${!canEditClinical || completingAppointment ? 'disabled' : ''}`}
+            aria-disabled={!canEditClinical || completingAppointment}
+            onClick={handleCompleteClick}
+            type="button"
+          >
+            <i className="bi bi-check-circle me-2" />
+            {completingAppointment ? 'Completing...' : 'Complete Consultation'}
+          </button>
+          {getCompleteHint() && (
+            <span className="doctor-actionbar-hint">{getCompleteHint()}</span>
+          )}
+        </div>
       </div>
     </div>
   );

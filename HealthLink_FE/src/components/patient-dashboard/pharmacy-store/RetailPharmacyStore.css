@@ -1,0 +1,243 @@
+.retail-pharmacy-store {
+  display: grid;
+  gap: 16px;
+}
+
+.retail-store-layout {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 340px;
+  gap: 20px;
+  align-items: start;
+}
+
+.retail-product-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+  gap: 16px;
+}
+
+.retail-product-card {
+  border-radius: 8px;
+  overflow: hidden;
+}
+
+.retail-product-media {
+  aspect-ratio: 4 / 3;
+  background: #f8f9fa;
+  overflow: hidden;
+}
+
+.retail-product-media img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+}
+
+.retail-product-fallback {
+  width: 100%;
+  height: 100%;
+  min-height: 180px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: #f8f9fa;
+  color: #6c757d;
+  font-size: 36px;
+}
+
+.retail-cart-panel {
+  position: sticky;
+  top: 16px;
+  border-radius: 8px;
+}
+
+.retail-cart-total {
+  font-weight: 700;
+}
+
+.retail-cart-empty {
+  display: grid;
+  gap: 12px;
+  padding: 24px 8px;
+}
+
+.retail-cart-empty i {
+  font-size: 28px;
+}
+
+.retail-cart-items {
+  display: grid;
+  gap: 12px;
+  max-height: 420px;
+  overflow: auto;
+  padding-right: 4px;
+}
+
+.retail-cart-item {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  padding-bottom: 12px;
+  border-bottom: 1px solid #e9ecef;
+}
+
+.retail-cart-item-main {
+  min-width: 0;
+}
+
+.retail-cart-item-side {
+  display: grid;
+  justify-items: end;
+  gap: 8px;
+}
+
+.retail-qty-control {
+  display: inline-grid;
+  grid-template-columns: 32px 28px 32px;
+  align-items: center;
+  gap: 6px;
+}
+
+.retail-qty-control span {
+  text-align: center;
+  font-weight: 600;
+}
+
+.retail-cart-footer {
+  margin-top: 16px;
+  padding-top: 12px;
+  border-top: 1px solid #e9ecef;
+}
+
+.retail-checkout-backdrop,
+.retail-detail-backdrop {
+  position: fixed;
+  inset: 0;
+  background: rgba(15, 23, 42, 0.42);
+  z-index: 1050;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 20px;
+}
+
+.retail-checkout-shell,
+.retail-detail-modal {
+  width: min(960px, 100%);
+  max-height: calc(100vh - 40px);
+  overflow: auto;
+  background: #fff;
+  border-radius: 8px;
+  padding: 24px;
+}
+
+.retail-checkout-steps {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 12px;
+}
+
+.retail-checkout-step {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 12px;
+  border: 1px solid #dee2e6;
+  border-radius: 8px;
+  background: #fff;
+  color: #6c757d;
+}
+
+.retail-checkout-step span {
+  width: 24px;
+  height: 24px;
+  border-radius: 999px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  background: #e9ecef;
+  color: #495057;
+  font-size: 12px;
+  font-weight: 700;
+}
+
+.retail-checkout-step.active,
+.retail-checkout-step.completed {
+  border-color: #0d6efd;
+  color: #0d6efd;
+}
+
+.retail-checkout-step.active span,
+.retail-checkout-step.completed span {
+  background: #0d6efd;
+  color: #fff;
+}
+
+.retail-pharmacy-list {
+  display: grid;
+  gap: 12px;
+}
+
+.retail-pharmacy-option {
+  text-align: left;
+  border: 1px solid #dee2e6;
+  border-radius: 8px;
+  background: #fff;
+  padding: 14px 16px;
+}
+
+.retail-pharmacy-option:hover {
+  border-color: #0d6efd;
+}
+
+.retail-review-items {
+  display: grid;
+  gap: 12px;
+}
+
+.retail-review-summary {
+  display: grid;
+  gap: 10px;
+  padding: 16px;
+  border: 1px solid #dee2e6;
+  border-radius: 8px;
+  background: #f8f9fa;
+}
+
+.retail-review-total {
+  padding-top: 10px;
+  border-top: 1px solid #dee2e6;
+}
+
+.retail-skeleton-media {
+  min-height: 180px;
+  display: block;
+}
+
+.retail-detail-modal {
+  padding: 0;
+  overflow: hidden;
+}
+
+.retail-detail-modal .card-body {
+  padding: 20px;
+}
+
+.retail-detail-fallback {
+  border-radius: 8px;
+}
+
+@media (max-width: 900px) {
+  .retail-store-layout {
+    grid-template-columns: 1fr;
+  }
+
+  .retail-cart-panel {
+    position: static;
+  }
+
+  .retail-checkout-steps {
+    grid-template-columns: 1fr;
+  }
+}
