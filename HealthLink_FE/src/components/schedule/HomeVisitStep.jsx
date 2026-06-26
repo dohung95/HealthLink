@@ -50,10 +50,8 @@ const HomeVisitStep = ({
 }) => {
   const fileRef = useRef(null);
   const [scanning, setScanning] = useState(false);
-  const [addressResults, setAddressResults] = useState([]);
-  const [searchingAddress, setSearchingAddress] = useState(false);
-  const [validating, setValidating] = useState(false);
-  const [radiusValid, setRadiusValid] = useState(null);
+  const [estimate, setEstimate] = useState(null);
+  const [estimating, setEstimating] = useState(false);
 
   const formatUsd = (value) =>
     Number(value || 0).toLocaleString('en-US', {
@@ -97,6 +95,16 @@ const HomeVisitStep = ({
   const updateField = (field, value) => {
     setHomeVisitInfo((prev) => ({ ...prev, [field]: value }));
   };
+
+  const resetVisitEstimateFields = () => ({
+    distanceKm: null,
+    estimatedTravelMinutes: null,
+    homeVisitFee: null,
+    travelFee: null,
+    totalFee: null,
+    serviceable: null,
+    serviceMessage: null,
+  });
 
   const handleSelectForSelf = () => {
     const selfInfo = buildSelfVisitInfo();
@@ -153,43 +161,14 @@ const HomeVisitStep = ({
     }
   };
 
-  const handleSearchAddress = async () => {
-    if (!homeVisitInfo.visitAddress?.trim()) {
-      toast.warning('Please enter a visit address first.');
-      return;
-    }
-    try {
-      setSearchingAddress(true);
-      const results = await homeVisitApi.geocodeAddress(homeVisitInfo.visitAddress);
-      setAddressResults(results);
-      if (!results.length) toast.warning('No matching address found. Please try a more detailed address.');
-    } catch (error) {
-      toast.error(error.response?.data?.message || 'Cannot search this address.');
-    } finally {
-      setSearchingAddress(false);
-    }
-  };
-
-  const handleSelectAddressResult = (result) => {
-    setHomeVisitInfo((prev) => ({
-      ...prev,
-      visitAddress: prev.visitAddress,
-      visitLatitude: result.latitude,
-      visitLongitude: result.longitude,
-      mapDisplayAddress: result.displayName,
-    }));
-    setAddressResults([]);
-    setRadiusValid(null);
-    toast.success('Location selected. Please verify the pin on the map.');
-  };
-
   const handlePickLocation = (lat, lng) => {
     setHomeVisitInfo((prev) => ({
       ...prev,
+      ...resetVisitEstimateFields(),
       visitLatitude: lat,
       visitLongitude: lng,
     }));
-    setRadiusValid(null);
+    setEstimate(null);
   };
 
   const handleUseCurrentLocation = () => {
@@ -207,7 +186,7 @@ const HomeVisitStep = ({
     );
   };
 
-  const handleValidateRadius = async () => {
+  const handleEstimateFee = async () => {
     if (!homeVisitInfo.visitLatitude || !homeVisitInfo.visitLongitude) {
       toast.warning('Please select the visit location first.');
       return;
@@ -218,29 +197,32 @@ const HomeVisitStep = ({
     }
 
     try {
-      setValidating(true);
+      setEstimating(true);
       const result = await homeVisitApi.estimateFee({
         doctorId: selectedDoctorId,
         visitLatitude: homeVisitInfo.visitLatitude,
         visitLongitude: homeVisitInfo.visitLongitude,
       });
-      setRadiusValid(result.serviceable);
+      setEstimate(result);
       setHomeVisitInfo((prev) => ({
         ...prev,
         distanceKm: result.distanceKm,
         estimatedTravelMinutes: result.estimatedTravelMinutes,
+        homeVisitFee: result.homeVisitFee,
+        travelFee: result.travelFee,
+        totalFee: result.totalFee,
         serviceable: result.serviceable,
         serviceMessage: result.message,
       }));
       if (result.serviceable) {
-        toast.success('Location is within service area.');
+        toast.success('Travel fee estimated.');
       } else {
         toast.warning(result.message || 'This address is outside the service area.');
       }
     } catch (error) {
-      toast.error(error.response?.data?.message || 'Cannot validate location.');
+      toast.error(error.response?.data?.message || 'Cannot estimate travel fee.');
     } finally {
-      setValidating(false);
+      setEstimating(false);
     }
   };
 
@@ -262,10 +244,10 @@ const HomeVisitStep = ({
     if (!homeVisitInfo.visitLatitude || !homeVisitInfo.visitLongitude) {
       toast.warning('Please select the visit location on the map.'); return;
     }
-    if (radiusValid === null) {
-      toast.warning('Please validate that your address is within the service area.'); return;
+    if (!estimate) {
+      toast.warning('Please estimate the travel fee before continuing.'); return;
     }
-    if (!radiusValid) {
+    if (!estimate.serviceable) {
       toast.warning('This address is outside our home visit service area.'); return;
     }
 
@@ -332,35 +314,18 @@ const HomeVisitStep = ({
       <div className="home-visit-grid">
         <label className="home-visit-full">
           Visit address <span>*</span>
-          <div className="address-search-row">
-            <input
-              value={homeVisitInfo.visitAddress || ''}
-              onChange={(e) => {
-                setHomeVisitInfo((prev) => ({
-                  ...prev,
-                  visitAddress: e.target.value,
-                  distanceKm: null,
-                  estimatedTravelMinutes: null,
-                  serviceable: null,
-                }));
-                setRadiusValid(null);
-              }}
-              placeholder="House number, street, ward, district..."
-            />
-            <button type="button" className="btn-outline-soft" onClick={handleSearchAddress} disabled={searchingAddress}>
-              {searchingAddress ? 'Searching...' : 'Search'}
-            </button>
-          </div>
-
-          {addressResults.length > 0 && (
-            <div className="home-visit-full address-results">
-              {addressResults.map((item, index) => (
-                <button key={`${item.latitude}-${item.longitude}-${index}`} type="button" onClick={() => handleSelectAddressResult(item)}>
-                  {item.displayName}
-                </button>
-              ))}
-            </div>
-          )}
+          <input
+            value={homeVisitInfo.visitAddress || ''}
+            onChange={(e) => {
+              setHomeVisitInfo((prev) => ({
+                ...prev,
+                ...resetVisitEstimateFields(),
+                visitAddress: e.target.value,
+              }));
+              setEstimate(null);
+            }}
+            placeholder="House number, street, ward, district..."
+          />
 
           <small className="field-help-text">
             Enter the full address for the doctor, then click the map to pin the exact home entrance.
@@ -372,8 +337,8 @@ const HomeVisitStep = ({
             <button type="button" className="btn-outline-soft" onClick={handleUseCurrentLocation}>
               Use my current location
             </button>
-            <button type="button" className="btn-outline-soft" onClick={handleValidateRadius} disabled={validating}>
-              {validating ? 'Validating...' : 'Validate address'}
+            <button type="button" className="btn-outline-soft" onClick={handleEstimateFee} disabled={estimating}>
+              {estimating ? 'Estimating...' : 'Estimate travel fee'}
             </button>
           </div>
 
@@ -392,21 +357,34 @@ const HomeVisitStep = ({
             Click on the map to select the exact home entrance, or use your current location. The travel fee will be calculated from this pin.
           </small>
 
-          {radiusValid !== null && (
-            <div className={`home-visit-estimate ${radiusValid ? 'ok' : 'blocked'}`}>
+          {estimate && (
+            <div className={`home-visit-estimate ${estimate.serviceable ? 'ok' : 'blocked'}`}>
               <div className="home-visit-estimate-item">
                 <strong>Distance</strong>
-                <span>{homeVisitInfo.distanceKm} km</span>
+                <span>{estimate.distanceKm} km</span>
               </div>
 
-              {homeVisitInfo.estimatedTravelMinutes && (
-                <div className="home-visit-estimate-item">
-                  <strong>Travel time</strong>
-                  <span>{homeVisitInfo.estimatedTravelMinutes} min</span>
-                </div>
-              )}
+              <div className="home-visit-estimate-item">
+                <strong>Travel time</strong>
+                <span>{estimate.estimatedTravelMinutes} min</span>
+              </div>
 
-              <p>{radiusValid ? 'Within service area' : (homeVisitInfo.serviceMessage || 'Outside service area')}</p>
+              <div className="home-visit-estimate-item">
+                <strong>Base fee</strong>
+                <span>{formatUsd(estimate.homeVisitFee)}</span>
+              </div>
+
+              <div className="home-visit-estimate-item">
+                <strong>Extra distance fee</strong>
+                <span>{formatUsd(estimate.travelFee)}</span>
+              </div>
+
+              <div className="home-visit-estimate-item total">
+                <strong>Total travel fee</strong>
+                <span>{formatUsd(estimate.totalFee)}</span>
+              </div>
+
+              <p>{estimate.message}</p>
             </div>
           )}
         </div>

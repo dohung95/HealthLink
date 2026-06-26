@@ -16,7 +16,7 @@ import java.util.Map;
 @PreAuthorize("hasRole('ADMIN')")
 public class AdminHomeVisitConfigController {
 
-    @Value("${homevisit.default-fee}")
+    @Value("${home-visit.base-fee:100}")
     private BigDecimal defaultFee;
 
     @GetMapping("/config")

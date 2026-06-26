@@ -9,6 +9,7 @@ import com.HealthLink.repository.doctor.DoctorRepository;
 import com.HealthLink.service.geocoding.GeocodingService;
 import com.fasterxml.jackson.databind.JsonNode;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.boot.web.client.RestTemplateBuilder;
 import org.springframework.http.HttpEntity;
 import org.springframework.http.HttpHeaders;
@@ -17,6 +18,8 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.stereotype.Service;
 import org.springframework.web.client.RestTemplate;
 
+import java.math.BigDecimal;
+import java.math.RoundingMode;
 import java.net.URLEncoder;
 import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
@@ -29,6 +32,15 @@ public class HomeVisitLocationService {
     private final RestTemplate restTemplate;
     private final DoctorRepository doctorRepository;
     private final GeocodingService geocodingService;
+
+    @Value("${home-visit.base-fee:100}")
+    private BigDecimal homeVisitBaseFee;
+
+    @Value("${home-visit.free-distance-km:3}")
+    private Double freeDistanceKm;
+
+    @Value("${home-visit.travel-fee-per-km:5}")
+    private BigDecimal travelFeePerKm;
 
     public HomeVisitLocationService(RestTemplateBuilder builder, DoctorRepository doctorRepository, GeocodingService geocodingService) {
         this.restTemplate = builder.build();
@@ -130,11 +142,25 @@ public class HomeVisitLocationService {
         double roundedDistance = Math.round(distance * 10.0) / 10.0;
         int estimatedMinutes = (int) Math.ceil((distance / 25.0) * 60);
 
+        double extraKm = Math.max(0, roundedDistance - freeDistanceKm);
+        double billedExtraKm = Math.ceil(extraKm);
+        BigDecimal extraTravelFee = travelFeePerKm
+                .multiply(BigDecimal.valueOf(billedExtraKm))
+                .setScale(2, RoundingMode.HALF_UP);
+        BigDecimal totalFee = homeVisitBaseFee
+                .add(extraTravelFee)
+                .setScale(2, RoundingMode.HALF_UP);
+
         return HomeVisitEstimateResponse.builder()
                 .distanceKm(roundedDistance)
                 .estimatedTravelMinutes(estimatedMinutes)
+                .homeVisitFee(homeVisitBaseFee)
+                .travelFee(extraTravelFee)
+                .totalFee(totalFee)
                 .serviceable(serviceable)
-                .message(serviceable ? "Within service area" : "Outside service area")
+                .message(serviceable
+                        ? "This address is within our home visit service area."
+                        : "This address is outside our home visit service area.")
                 .build();
     }
 

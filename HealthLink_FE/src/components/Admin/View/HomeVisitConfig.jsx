@@ -52,7 +52,7 @@ export default function HomeVisitConfig() {
         <div className="card mt-4">
           <div className="card-body">
             <div className="mb-3">
-              <label className="form-label fw-bold">Default Fee (USD)</label>
+              <label className="form-label fw-bold">Base Home Visit Fee (USD)</label>
               <div className="input-group" style={{ maxWidth: '300px' }}>
                 <span className="input-group-text">$</span>
                 <input
@@ -62,7 +62,7 @@ export default function HomeVisitConfig() {
                   readOnly
                 />
               </div>
-              <div className="form-text">Flat fee charged for each home visit booking. Configure via <code>homevisit.default-fee</code> in application.properties.</div>
+              <div className="form-text">Base fee charged for each home visit booking. Configure via <code>home-visit.base-fee</code> in application.properties.</div>
             </div>
           </div>
         </div>

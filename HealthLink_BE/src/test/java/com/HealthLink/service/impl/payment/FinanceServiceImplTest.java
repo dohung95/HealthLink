@@ -46,7 +46,6 @@ import org.springframework.http.HttpEntity;
 import org.springframework.http.HttpMethod;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
-import org.springframework.test.util.ReflectionTestUtils;
 import org.springframework.web.client.RestTemplate;
 
 import java.math.BigDecimal;
@@ -221,8 +220,6 @@ class FinanceServiceImplTest {
 
     @Test
     void captureAppointmentPayPalPayment_shouldLinkAcceptedHomeVisitProposalToSourceConsultation() throws Exception {
-        ReflectionTestUtils.setField(financeService, "homeVisitDefaultFee", new BigDecimal("150.00"));
-
         User patientUser = User.builder().id("patient-user-1").build();
         User doctorUser = User.builder().id("doctor-user-1").build();
         Patient patient = Patient.builder()
@@ -257,7 +254,7 @@ class FinanceServiceImplTest {
                 .doctor(doctor)
                 .appointmentTime(LocalDateTime.now().plusDays(1))
                 .consultationType("HomeVisit")
-                .fee(new BigDecimal("150.00"))
+                .fee(new BigDecimal("200.00"))
                 .build();
 
         AppointmentPayPalCaptureRequest request = new AppointmentPayPalCaptureRequest();
@@ -279,7 +276,7 @@ class FinanceServiceImplTest {
                                 "captures", List.of(Map.of(
                                         "amount", Map.of(
                                                 "currency_code", "USD",
-                                                "value", "150.00"
+                                                "value", "200.00"
                                         )
                                 ))
                         )
@@ -305,7 +302,13 @@ class FinanceServiceImplTest {
         )).thenReturn(new ResponseEntity<>(captureBody, HttpStatus.OK));
         when(objectMapper.writeValueAsString(any())).thenReturn("{}");
         when(homeVisitLocationService.estimate("doctor-1", 10.0, 106.0))
-                .thenReturn(HomeVisitEstimateResponse.builder().serviceable(true).message("OK").build());
+                .thenReturn(HomeVisitEstimateResponse.builder()
+                        .serviceable(true)
+                        .homeVisitFee(new BigDecimal("100.00"))
+                        .travelFee(BigDecimal.ZERO)
+                        .totalFee(new BigDecimal("100.00"))
+                        .message("OK")
+                        .build());
         when(consultationRepository.findById(88)).thenReturn(Optional.of(sourceConsultation));
         when(appointmentService.createAppointment(any())).thenReturn(AppointmentResponse.builder()
                 .appointmentId(44)
