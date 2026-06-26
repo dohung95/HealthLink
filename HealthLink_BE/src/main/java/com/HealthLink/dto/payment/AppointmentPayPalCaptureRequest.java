@@ -7,7 +7,6 @@ import lombok.AllArgsConstructor;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 
-import java.time.LocalDate;
 import java.time.LocalDateTime;
 
 @Data
@@ -51,14 +50,6 @@ public class AppointmentPayPalCaptureRequest {
 
     private Double visitLatitude;
     private Double visitLongitude;
-
-    private Integer draftId;
-
-    private Integer scheduleId;
-
-    private LocalDate bookingDate;
-
-    private Integer sourceConsultationId;
 
     private String paymentMethod = "EWallet";
 

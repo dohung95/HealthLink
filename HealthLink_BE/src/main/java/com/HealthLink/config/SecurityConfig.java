@@ -76,7 +76,6 @@ public class SecurityConfig {
                 .requestMatchers("/api/auth/**").permitAll()
                 // Public: đăng ký Doctor/Pharmacy (chưa có tài khoản)
                 .requestMatchers("/api/registration/**").permitAll()
-                .requestMatchers("/v3/api-docs/**", "/swagger-ui/**", "/swagger-ui.html").permitAll()
                 // Public: xem ảnh upload (avatar, v.v.) — không cần xác thực
                 .requestMatchers(HttpMethod.GET, "/uploads/**").permitAll()
                 // Public: xem danh sách bác sĩ (cho bệnh nhân)

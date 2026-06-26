@@ -82,6 +82,11 @@ lerna-debug.log*
 /plans
 /HealthLink_FE/.npm-cache
 
+# === Build artifacts ===
+HealthLink_FE/dist/
+HealthLink_FE/.vite/
+HealthLink_FE/test-results/
+
 # === Custom ignores cho file XML do IDE sinh ra ===
 HealthLink/HealthLink_BE/HealthLink_BEynbactions.xml
 **/HealthLink_BEynbactions.xml

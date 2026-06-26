@@ -454,36 +454,6 @@ class PharmacyWorkItemServiceImplTest {
     }
 
     @Test
-    void getWorkItemsByPharmacy_shouldExposeRetailPendingOrderAsNewRequest() {
-        Pharmacy pharmacy = pharmacy("PH001");
-        Patient patient = patient("P002", "Retail Patient");
-        PharmacyOrder retailOrder = PharmacyOrder.builder()
-                .orderId(210)
-                .orderNumber("ORD-210")
-                .status("PENDING")
-                .paymentStatus("PENDING")
-                .patient(patient)
-                .pharmacy(pharmacy)
-                .consultationRequest(null)
-                .prescriptionHeader(null)
-                .createdAt(LocalDateTime.now())
-                .build();
-
-        when(requestRepository.findByPharmacy_PharmacyIdOrderByCreatedAtDesc("PH001"))
-                .thenReturn(Collections.emptyList());
-        when(orderRepository.findByPharmacy_PharmacyIdAndConsultationRequestIsNull("PH001"))
-                .thenReturn(List.of(retailOrder));
-
-        List<PharmacyWorkItemResponse> items = workItemService.getWorkItemsByPharmacy("PH001");
-
-        assertThat(items).hasSize(1);
-        PharmacyWorkItemResponse item = items.get(0);
-        assertThat(item.getSourceType()).isEqualTo("RETAIL_ORDER");
-        assertThat(item.getWorkflowStage()).isEqualTo("NEW_REQUEST");
-        assertThat(item.getAvailableActions()).containsExactly("UPDATE_ORDER_STATUS", "CANCEL_ORDER");
-    }
-
-    @Test
     void getWorkItemsByPharmacy_shouldNotDuplicateLinkedConsultationOrder() {
         Pharmacy p = pharmacy("PH001");
         Patient pat = patient("P001", "Kate");

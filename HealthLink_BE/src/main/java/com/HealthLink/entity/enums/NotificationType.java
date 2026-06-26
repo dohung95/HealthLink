@@ -16,9 +16,6 @@ public enum NotificationType {
     NEW_APPOINTMENT,
     RESCHEDULE_APPOINTMENT,
     CANCEL_APPOINTMENT,
-    HOME_VISIT_PROPOSED,   // → Patient
-    HOME_VISIT_CONFIRMED,  // → Doctor
-    HOME_VISIT_REJECTED,   // → Doctor
     CANCEL_ORDER,
     NEW_ORDER,
   

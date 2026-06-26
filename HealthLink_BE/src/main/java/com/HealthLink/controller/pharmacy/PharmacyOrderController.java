@@ -6,7 +6,6 @@ import com.HealthLink.dto.pharmacy.PharmacyOrderRequest;
 import com.HealthLink.dto.pharmacy.PharmacyOrderResponse;
 import com.HealthLink.dto.pharmacy.PharmacyOrderRevisionRequest;
 import com.HealthLink.dto.pharmacy.PharmacyOrderStatusRequest;
-import com.HealthLink.dto.pharmacy.RetailOrderRequest;
 import com.HealthLink.exception.UnauthorizedAccessException;
 import com.HealthLink.repository.auth.UserRepository;
 import com.HealthLink.service.pharmacy.PharmacyOrderService;
@@ -47,17 +46,6 @@ public class PharmacyOrderController {
 
         String patientId = resolveUserId(userDetails);
         PharmacyOrderResponse response = pharmacyOrderService.createOrderFromPrescription(request, patientId);
-        return ResponseEntity.status(HttpStatus.CREATED).body(response);
-    }
-
-    @PostMapping("/retail")
-    @PreAuthorize("hasRole('PATIENT')")
-    public ResponseEntity<PharmacyOrderResponse> createRetailOrder(
-            @Valid @RequestBody RetailOrderRequest request,
-            @AuthenticationPrincipal UserDetails userDetails) {
-
-        String patientId = resolveUserId(userDetails);
-        PharmacyOrderResponse response = pharmacyOrderService.createRetailOrder(request, patientId);
         return ResponseEntity.status(HttpStatus.CREATED).body(response);
     }
 

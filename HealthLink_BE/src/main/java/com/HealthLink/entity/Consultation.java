@@ -1,9 +1,6 @@
 package com.HealthLink.entity;
-
-import com.HealthLink.entity.enums.HomeVisitProposalStatus;
 import jakarta.persistence.*;
 import lombok.*;
-
 import java.time.LocalDateTime;
 
 @Entity
@@ -33,17 +30,6 @@ public class Consultation {
 
     private LocalDateTime followUpDate;
     private Integer followUpAppointmentId;
-
-    @Enumerated(EnumType.STRING)
-    @Column(name = "HomeVisitProposalStatus", length = 20)
-    @Builder.Default
-    private HomeVisitProposalStatus homeVisitProposalStatus = HomeVisitProposalStatus.NONE;
-
-    @Column(name = "HomeVisitProposedAt")
-    private LocalDateTime homeVisitProposedAt;
-
-    @Column(name = "HomeVisitRespondedAt")
-    private LocalDateTime homeVisitRespondedAt;
 
     @Column(length = 50)
     private String consultationType;

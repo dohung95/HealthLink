@@ -48,7 +48,5 @@ public class AppointmentPayPalOrderRequest {
     private Double visitLatitude;
     private Double visitLongitude;
 
-    private Integer sourceConsultationId;
-
     private String currency = "USD";
 }

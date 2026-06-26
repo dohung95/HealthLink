@@ -71,12 +71,6 @@ public class Doctor {
     @Builder.Default
     private boolean verified = false; // Trạng thái Admin đã kiểm duyệt bằng cấp, chứng chỉ hợp pháp hay chưa
 
-    @Builder.Default
-    private Boolean availableForHomeVisit = false;
-
-    @Builder.Default
-    private Double homeVisitRadiusKm = 10.0;
-
     // Trạng thái lịch làm việc tổng thể của bác sĩ (dùng để quyết định hiển thị trong booking)
     // PENDING: Bác sĩ mới chưa xếp lịch
     // APPROVED: Tổng giờ làm/tuần >= 80h, được hiển thị trong danh sách booking

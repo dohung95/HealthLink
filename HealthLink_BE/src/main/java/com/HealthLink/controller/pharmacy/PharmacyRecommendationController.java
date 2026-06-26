@@ -1,12 +1,9 @@
 package com.HealthLink.controller.pharmacy;
 
 import com.HealthLink.dto.pharmacy.PharmacyRecommendationResponse;
-import com.HealthLink.dto.pharmacy.RetailPharmacyAvailabilityRequest;
-import com.HealthLink.dto.pharmacy.RetailPharmacyRecommendationResponse;
 import com.HealthLink.exception.ResourceNotFoundException;
 import com.HealthLink.repository.auth.UserRepository;
 import com.HealthLink.service.pharmacy.PharmacyRecommendationService;
-import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
@@ -36,15 +33,6 @@ public class PharmacyRecommendationController {
         return ResponseEntity.ok(
                 recommendationService.getRecommendations(lat, lng, deliveryOnly,
                         prescriptionHeaderId, patientId));
-    }
-
-    @PostMapping("/cart")
-    @PreAuthorize("hasRole('PATIENT')")
-    public ResponseEntity<List<RetailPharmacyRecommendationResponse>> getRetailRecommendations(
-            @Valid @RequestBody RetailPharmacyAvailabilityRequest request,
-            @AuthenticationPrincipal UserDetails userDetails) {
-        String patientId = resolveUserId(userDetails);
-        return ResponseEntity.ok(recommendationService.getRetailRecommendations(request, patientId));
     }
 
     private String resolveUserId(UserDetails userDetails) {

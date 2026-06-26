@@ -24,10 +24,8 @@ public class MedicineController {
      */
     @GetMapping
     public ResponseEntity<List<MedicineResponse>> searchMedicines(
-            @RequestParam(required = false) String keyword,
-            @RequestParam(required = false) String category,
-            @RequestParam(required = false) String dosageForm) {
-        return ResponseEntity.ok(medicineService.searchMedicines(keyword, category, dosageForm));
+            @RequestParam(required = false) String keyword) {
+        return ResponseEntity.ok(medicineService.searchMedicines(keyword));
     }
 
     /**
