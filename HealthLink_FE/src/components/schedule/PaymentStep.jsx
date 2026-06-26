@@ -47,7 +47,10 @@ const PaymentStep = ({ bookingDraft, selectedDoctor, onBack, onPaymentComplete }
           },
           createOrder: async () => {
             try {
-              const order = await paymentApi.createAppointmentPayPalOrder(bookingDraft);
+              const createFn = isHomeVisit
+                ? paymentApi.createHomeVisitPayPalOrder
+                : paymentApi.createAppointmentPayPalOrder;
+              const order = await createFn(bookingDraft);
               return order.orderId;
             } catch (error) {
               console.error('Payment order creation failed', error);
@@ -59,7 +62,10 @@ const PaymentStep = ({ bookingDraft, selectedDoctor, onBack, onPaymentComplete }
           onApprove: async (data) => {
             setProcessing(true);
             try {
-              const capturedInvoice = await paymentApi.captureAppointmentPayPalPayment(
+              const captureFn = isHomeVisit
+                ? paymentApi.captureHomeVisitPayPalPayment
+                : paymentApi.captureAppointmentPayPalPayment;
+              const capturedInvoice = await captureFn(
                 bookingDraft,
                 data.orderID,
                 'EWallet'

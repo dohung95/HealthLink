@@ -308,7 +308,7 @@ class PharmacyConsultationRequestServiceImplTest {
     }
 
     @Test
-    void createRequest_shouldRejectOrderRequestWithoutPrescription() {
+    void createRequest_shouldAllowOrderRequestWithoutPrescription() {
         Patient patient = Patient.builder().patientId("patient-1").fullName("Patient One").build();
         Pharmacy pharmacy = Pharmacy.builder().pharmacyId("pharmacy-1").name("Central Pharmacy").build();
         PharmacyConsultationRequestCreateRequest request = new PharmacyConsultationRequestCreateRequest();
@@ -318,12 +318,26 @@ class PharmacyConsultationRequestServiceImplTest {
 
         when(patientRepository.findById("patient-1")).thenReturn(Optional.of(patient));
         when(pharmacyRepository.findById("pharmacy-1")).thenReturn(Optional.of(pharmacy));
+        when(consultationRequestRepository.save(any(PharmacyConsultationRequest.class)))
+                .thenAnswer(invocation -> {
+                    PharmacyConsultationRequest entity = invocation.getArgument(0);
+                    return PharmacyConsultationRequest.builder()
+                            .requestId(1)
+                            .patient(entity.getPatient())
+                            .pharmacy(entity.getPharmacy())
+                            .requestType(entity.getRequestType())
+                            .status(entity.getStatus())
+                            .build();
+                });
 
-        assertThatThrownBy(() -> consultationRequestService.createRequest(request))
-                .isInstanceOf(BadRequestException.class)
-                .hasMessage("Prescription is required for an order request");
+        var response = consultationRequestService.createRequest(request);
 
-        verify(consultationRequestRepository, never()).save(any(PharmacyConsultationRequest.class));
+        assertThat(response.getRequestId()).isEqualTo(1);
+        assertThat(response.getPatientName()).isEqualTo("Patient One");
+        assertThat(response.getPharmacyName()).isEqualTo("Central Pharmacy");
+        assertThat(response.getRequestType()).isEqualTo("ORDER_REQUEST");
+        assertThat(response.getStatus()).isEqualTo("PENDING");
+        verify(consultationRequestRepository).save(any(PharmacyConsultationRequest.class));
     }
 
     @Test

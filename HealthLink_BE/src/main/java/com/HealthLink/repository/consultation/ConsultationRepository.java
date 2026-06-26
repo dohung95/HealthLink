@@ -1,6 +1,7 @@
 package com.HealthLink.repository.consultation;
 
 import com.HealthLink.entity.Consultation;
+import com.HealthLink.entity.enums.HomeVisitProposalStatus;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
@@ -14,6 +15,11 @@ import java.util.Optional;
 public interface ConsultationRepository extends JpaRepository<Consultation, Integer> {
 
     Optional<Consultation> findByAppointment_AppointmentId(Integer appointmentId);
+
+    Optional<Consultation> findFirstByAppointment_Patient_User_IdAndHomeVisitProposalStatusOrderByHomeVisitProposedAtDesc(
+            String userId,
+            HomeVisitProposalStatus status
+    );
 
     /**
      * Tìm các Consultation có followUpDate rơi trong khoảng thời gian xác định.

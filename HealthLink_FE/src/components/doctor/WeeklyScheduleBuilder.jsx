@@ -23,14 +23,16 @@ const SHIFT_LABELS = { MORNING: 'Morning', AFTERNOON: 'Afternoon', EVENING: 'Eve
 const getTypeIcon = (type) => {
   if (isHomeVisitType(type)) return 'home_health';
   switch ((type || '').toLowerCase()) {
+    case 'online':
     case 'video':
     case 'video call':
-      return 'videocam';
     case 'audio':
     case 'audio call':
-      return 'call';
     case 'chat':
-      return 'chat';
+      return 'laptop';
+    case 'homevisit':
+    case 'home visit':
+    case 'home-visit':
     case 'offline':
       return 'local_hospital';
     case 'online':

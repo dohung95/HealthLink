@@ -2,6 +2,7 @@ import React, { useEffect, useMemo, useState } from 'react';
 import { doctorScheduleService } from '@api/doctorApi';
 
 const DAYS = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
+const CONSULTATION_TYPES = ['Online', 'HomeVisit'];
 const SLOT_DURATIONS = [15, 20, 30, 45, 60];
 
 // Phải khớp với khung giờ ở backend (DoctorScheduleServiceImpl)

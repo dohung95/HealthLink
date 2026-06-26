@@ -25,6 +25,7 @@ public class AppointmentResponse {
     private BigDecimal fee;
     private String symptoms;
     private String notes;
+    private Integer consultationId;
     private LocalDateTime consultationStartTime;
     private LocalDateTime consultationEndTime;
     private LocalDateTime cancelledAt;

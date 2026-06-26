@@ -29,4 +29,6 @@ public interface DoctorScheduleRepository extends JpaRepository<DoctorSchedule, 
     List<DoctorSchedule> findByDoctor_DoctorId(String doctorId);
 
     List<DoctorSchedule> findByDoctor_DoctorIdAndScheduleStatus(String doctorId, DoctorScheduleStatus scheduleStatus);
+
+    List<DoctorSchedule> findByDoctor_DoctorIdAndAvailableTrue(String doctorId);
 }

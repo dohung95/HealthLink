@@ -39,6 +39,8 @@ lerna-debug.log*
 .idea/
 
 # DOC & Skills
+/deploy
+/plans
 /doc
 /docs
 /docs/superpowers
@@ -65,8 +67,15 @@ lerna-debug.log*
 /HealthLink_FE/.codex
 /HealthLink_FE/.opencode
 /HealthLink_FE/graphify-out
+/HealthLink_FE/AGENTS.md
+/HealthLink_BE/graphify-out
+/HealthLink_BE/AGENTS.md
+/.semgrepignore
+/.continue
 
 /.superpowers
+
+
 
 # === Custom ignores cho file XML do IDE sinh ra ===
 HealthLink/HealthLink_BE/HealthLink_BEynbactions.xml

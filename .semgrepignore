@@ -1,0 +1,52 @@
+# Build outputs
+dist/
+dist-ssr/
+target/
+build/
+
+# Dependencies
+node_modules/
+HealthLink_FE/node_modules/
+**/node_modules/
+
+# Logs
+*.log
+HealthLink_BE/logs/
+HealthLink_BE/uploads/
+
+# AI/analysis artifacts (local only)
+graphify-out/
+**/graphify-out/
+.graphify_*
+
+# Test reports
+HealthLink_FE/e2e/
+**/test-results/
+**/allure-results/
+
+# IDE
+.idea/
+.vscode/
+*.suo
+*.user
+
+# Generated/config files
+HealthLink_BE/src/main/resources/application.properties
+HealthLink_BE/src/resources/application.properties
+HealthLink_FE/src/config.js
+
+# Documentation
+deploy/
+plans/
+doc/
+docs/
+skills/
+.agents/
+.opencode/
+.superpowers/
+.claude/
+.codex/
+
+# OS files
+.DS_Store
+Thumbs.db

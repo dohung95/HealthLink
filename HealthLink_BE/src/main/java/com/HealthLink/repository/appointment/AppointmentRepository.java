@@ -244,4 +244,12 @@ public interface AppointmentRepository extends JpaRepository<Appointment, Intege
     @Modifying
     @Query("UPDATE Appointment a SET a.doctorReminderSent = true WHERE a.appointmentId = :id")
     void markDoctorReminderSent(@Param("id") Integer appointmentId);
+
+    List<Appointment> findByStatusAndAppointmentTimeBefore(String status, LocalDateTime before);
+
+    List<Appointment> findByStatusAndFollowUpSourceAppointmentId(String status, Integer followUpSourceAppointmentId);
+
+    @Modifying
+    @Query("DELETE FROM Appointment a WHERE a.status = :status AND a.appointmentTime < :before")
+    int deleteByStatusAndAppointmentTimeBefore(@Param("status") String status, @Param("before") LocalDateTime before);
 }

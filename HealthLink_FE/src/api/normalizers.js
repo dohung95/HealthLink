@@ -10,6 +10,8 @@ const DOCTOR_NOTIFICATION_TYPES = new Set([
   'PHARMACY_REQUEST_STATUS',
   'ORDER_STATUS',
   'NEW_ORDER',
+  'HOME_VISIT_CONFIRMED',
+  'HOME_VISIT_REJECTED',
 ]);
 
 const toUpperValue = (value) => (value == null ? value : String(value).toUpperCase());
@@ -116,8 +118,8 @@ export function normalizeAppointment(appointment = {}) {
       fullName: appointment.doctorName ?? 'Unknown Doctor',
     },
     consultationType:
-      consultationType === 'Video' ? 'Video Call' :
-      consultationType === 'Audio' ? 'Audio Call' :
+      consultationType === 'Video' || consultationType === 'Audio' || consultationType === 'Chat' ? 'Online' :
+      consultationType === 'Offline' ? 'HomeVisit' :
       consultationType,
   };
 }

@@ -21,14 +21,12 @@ public class MedicineServiceImpl implements MedicineService {
     private final MedicineRepository medicineRepository;
 
     @Override
-    public List<MedicineResponse> searchMedicines(String keyword) {
-        List<Medicine> medicines;
-        if (keyword == null || keyword.isBlank()) {
-            medicines = medicineRepository.findByActiveTrue();
-        } else {
-            medicines = medicineRepository.findByNameContainingIgnoreCaseAndActiveTrue(keyword);
-        }
-        return medicines.stream()
+    public List<MedicineResponse> searchMedicines(String keyword, String category, String dosageForm) {
+        return medicineRepository.searchCatalog(
+                        normalizeFilter(keyword),
+                        normalizeFilter(category),
+                        normalizeFilter(dosageForm)
+                ).stream()
                 .map(this::toResponse)
                 .collect(Collectors.toList());
     }
@@ -142,5 +140,9 @@ public class MedicineServiceImpl implements MedicineService {
                 .active(r.isActive())
                 .imageUrl(r.getImageUrl())
                 .build();
+    }
+
+    private String normalizeFilter(String value) {
+        return value == null ? null : value.trim();
     }
 }
