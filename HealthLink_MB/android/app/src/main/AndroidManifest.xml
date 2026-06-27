@@ -1,6 +1,9 @@
 <manifest xmlns:android="http://schemas.android.com/apk/res/android">
     <!-- Quyền truy cập Internet -->
     <uses-permission android:name="android.permission.INTERNET" />
+    <!-- Quyền vị trí cho tính năng giao hàng / nhà thuốc -->
+    <uses-permission android:name="android.permission.ACCESS_FINE_LOCATION" />
+    <uses-permission android:name="android.permission.ACCESS_COARSE_LOCATION" />
     <!-- Cho phép HTTP cleartext trong môi trường development (127.0.0.1 qua ADB reverse) -->
     <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE" />
     <!-- Quyền truy cập Camera và Storage cho tính năng đính kèm -->

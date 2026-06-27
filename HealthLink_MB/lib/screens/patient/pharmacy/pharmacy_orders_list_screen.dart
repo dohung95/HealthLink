@@ -4,6 +4,7 @@ import 'package:intl/intl.dart';
 import '../../../providers/auth_provider.dart';
 import '../../../services/patient_pharmacy/pharmacy_service.dart';
 import '../../../l10n/app_localizations.dart';
+import 'pharmacy_order_detail_screen.dart';
 
 class PharmacyOrdersListScreen extends StatefulWidget {
   const PharmacyOrdersListScreen({super.key});
@@ -60,6 +61,18 @@ class _PharmacyOrdersListScreenState extends State<PharmacyOrdersListScreen> wit
     }
   }
 
+  String _getFilterLabel(String val, AppLocalizations l10n) {
+    switch (val) {
+      case 'PENDING': return l10n.orderStatusPending;
+      case 'CONFIRMED': return l10n.orderStatusConfirmed;
+      case 'PREPARING': return l10n.orderStatusPreparing;
+      case 'SHIPPING': return l10n.orderStatusShipping;
+      case 'DELIVERED': return l10n.orderStatusDelivered;
+      case 'CANCELLED': return l10n.orderStatusCancelled;
+      default: return l10n.orderStatusAll;
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     super.build(context);
@@ -101,28 +114,62 @@ class _PharmacyOrdersListScreenState extends State<PharmacyOrdersListScreen> wit
                       ),
                     ),
                     // Nút Filter
-                    Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 12),
-                      decoration: BoxDecoration(
-                        color: colorScheme.surfaceContainerHighest.withOpacity(0.3),
-                        border: Border.all(color: colorScheme.outlineVariant),
-                        borderRadius: BorderRadius.circular(8),
-                      ),
-                      child: DropdownButtonHideUnderline(
-                        child: DropdownButton<String>(
-                          value: _currentFilter,
-                          icon: const Icon(Icons.filter_list, size: 18),
-                          isDense: true,
-                          items: [
-                            DropdownMenuItem(value: 'ALL', child: Text(AppLocalizations.of(context)!.orderStatusAll)),
-                            DropdownMenuItem(value: 'PENDING', child: Text(AppLocalizations.of(context)!.orderStatusPending)),
-                            DropdownMenuItem(value: 'CONFIRMED', child: Text(AppLocalizations.of(context)!.orderStatusConfirmed)),
-                            DropdownMenuItem(value: 'PREPARING', child: Text(AppLocalizations.of(context)!.orderStatusPreparing)),
-                            DropdownMenuItem(value: 'SHIPPING', child: Text(AppLocalizations.of(context)!.orderStatusShipping)),
-                            DropdownMenuItem(value: 'DELIVERED', child: Text(AppLocalizations.of(context)!.orderStatusDelivered)),
-                            DropdownMenuItem(value: 'CANCELLED', child: Text(AppLocalizations.of(context)!.orderStatusCancelled)),
+                    PopupMenuButton<String>(
+                      initialValue: _currentFilter,
+                      onSelected: _onFilterChanged,
+                      color: colorScheme.surfaceContainerHigh,
+                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+                      elevation: 4,
+                      position: PopupMenuPosition.under,
+                      itemBuilder: (context) {
+                        final l10n = AppLocalizations.of(context)!;
+                        final options = [
+                          {'val': 'ALL', 'label': l10n.orderStatusAll},
+                          {'val': 'PENDING', 'label': l10n.orderStatusPending},
+                          {'val': 'CONFIRMED', 'label': l10n.orderStatusConfirmed},
+                          {'val': 'PREPARING', 'label': l10n.orderStatusPreparing},
+                          {'val': 'SHIPPING', 'label': l10n.orderStatusShipping},
+                          {'val': 'DELIVERED', 'label': l10n.orderStatusDelivered},
+                          {'val': 'CANCELLED', 'label': l10n.orderStatusCancelled},
+                        ];
+                        return options.map((opt) {
+                          final isSelected = _currentFilter == opt['val'];
+                          return PopupMenuItem<String>(
+                            value: opt['val'] as String,
+                            child: Text(
+                              opt['label'] as String,
+                              style: textTheme.labelLarge?.copyWith(
+                                color: isSelected ? colorScheme.primary : colorScheme.onSurface,
+                                fontWeight: isSelected ? FontWeight.bold : FontWeight.w500,
+                              ),
+                            ),
+                          );
+                        }).toList();
+                      },
+                      child: Container(
+                        width: 135, // Cố định chiều rộng để nút không bị thụt ra thụt vào
+                        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                        decoration: BoxDecoration(
+                          color: colorScheme.surfaceContainerLow,
+                          border: Border.all(color: colorScheme.outlineVariant.withOpacity(0.5)),
+                          borderRadius: BorderRadius.circular(12),
+                        ),
+                        child: Row(
+                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                          children: [
+                            Expanded(
+                              child: Text(
+                                _getFilterLabel(_currentFilter, AppLocalizations.of(context)!),
+                                style: textTheme.labelLarge?.copyWith(
+                                  color: colorScheme.onSurface,
+                                  fontWeight: FontWeight.w600,
+                                ),
+                                overflow: TextOverflow.ellipsis,
+                              ),
+                            ),
+                            const SizedBox(width: 4),
+                            Icon(Icons.keyboard_arrow_down, size: 20, color: colorScheme.primary),
                           ],
-                          onChanged: _onFilterChanged,
                         ),
                       ),
                     ),
@@ -171,7 +218,7 @@ class _PharmacyOrdersListScreenState extends State<PharmacyOrdersListScreen> wit
                                   Color status1Color;
                                   Color status1BgColor;
                                   IconData status1Icon;
-                                  String status1Text = status;
+                                  String status1Text = _getFilterLabel(status, AppLocalizations.of(context)!);
 
                                   if (status == 'DELIVERED' || status == 'COMPLETED') {
                                     status1Color = const Color(0xFF2E7D32);
@@ -198,7 +245,9 @@ class _PharmacyOrdersListScreenState extends State<PharmacyOrdersListScreen> wit
                                   // Setup Colors/Icons dựa trên Payment
                                   Color status2Color;
                                   Color status2BgColor;
-                                  String status2Text = paymentStatus;
+                                  String status2Text = paymentStatus == 'PAID' 
+                                      ? AppLocalizations.of(context)!.paymentStatusPaid 
+                                      : AppLocalizations.of(context)!.paymentStatusUnpaid;
                                   bool isUnpaid = paymentStatus != 'PAID';
 
                                   if (paymentStatus == 'PAID') {
@@ -225,6 +274,7 @@ class _PharmacyOrdersListScreenState extends State<PharmacyOrdersListScreen> wit
                                     isUnpaid: isUnpaid,
                                     colorScheme: colorScheme,
                                     textTheme: textTheme,
+                                    rawOrder: order,
                                   );
                                 },
                               ),
@@ -254,10 +304,16 @@ class _PharmacyOrdersListScreenState extends State<PharmacyOrdersListScreen> wit
         bool isUnpaid = false,
         required ColorScheme colorScheme,
         required TextTheme textTheme,
+        required Map<String, dynamic> rawOrder,
       }) {
     return InkWell(
       onTap: () {
-        // Điều hướng sang màn hình Chi tiết Đơn hàng
+        Navigator.push(
+          context,
+          MaterialPageRoute(
+            builder: (context) => PharmacyOrderDetailScreen(order: rawOrder),
+          ),
+        );
       },
       borderRadius: BorderRadius.circular(12),
       child: Container(

@@ -4,6 +4,7 @@ import 'consultation_requests.dart';
 import 'pharmacy_orders_list_screen.dart';
 import 'connecting_pharmacy_screen.dart';
 import 'order_payment_screen.dart';
+import 'retail_store_screen.dart';
 import 'package:provider/provider.dart';
 import '../../../providers/auth_provider.dart';
 import '../../../services/patient_service.dart';
@@ -110,16 +111,20 @@ class _PharmacyConsultationScreenState extends State<PharmacyConsultationScreen>
                   padding: const EdgeInsets.symmetric(horizontal: 16.0),
                   child: Row(
                     children: [
-                      _buildTopTab(AppLocalizations.of(context)!.pharmacyTabPharmacies, isActive: _selectedIndex == 0, colorScheme: colorScheme, textTheme: textTheme, onTap: () {
+                      _buildTopTab(AppLocalizations.of(context)!.pharmacyTabStore, isActive: _selectedIndex == 0, colorScheme: colorScheme, textTheme: textTheme, onTap: () {
                         _pageController.animateToPage(0, duration: const Duration(milliseconds: 300), curve: Curves.easeInOut);
                       }),
                       const SizedBox(width: 32),
-                      _buildTopTab(AppLocalizations.of(context)!.pharmacyTabRequests, isActive: _selectedIndex == 1, colorScheme: colorScheme, textTheme: textTheme, onTap: () {
+                      _buildTopTab(AppLocalizations.of(context)!.pharmacyTabPharmacies, isActive: _selectedIndex == 1, colorScheme: colorScheme, textTheme: textTheme, onTap: () {
                         _pageController.animateToPage(1, duration: const Duration(milliseconds: 300), curve: Curves.easeInOut);
                       }),
                       const SizedBox(width: 32),
-                      _buildTopTab(AppLocalizations.of(context)!.pharmacyTabOrders, isActive: _selectedIndex == 2, colorScheme: colorScheme, textTheme: textTheme, onTap: () {
+                      _buildTopTab(AppLocalizations.of(context)!.pharmacyTabRequests, isActive: _selectedIndex == 2, colorScheme: colorScheme, textTheme: textTheme, onTap: () {
                         _pageController.animateToPage(2, duration: const Duration(milliseconds: 300), curve: Curves.easeInOut);
+                      }),
+                      const SizedBox(width: 32),
+                      _buildTopTab(AppLocalizations.of(context)!.pharmacyTabOrders, isActive: _selectedIndex == 3, colorScheme: colorScheme, textTheme: textTheme, onTap: () {
+                        _pageController.animateToPage(3, duration: const Duration(milliseconds: 300), curve: Curves.easeInOut);
                       }),
                     ],
                   ),
@@ -139,6 +144,7 @@ class _PharmacyConsultationScreenState extends State<PharmacyConsultationScreen>
           });
         },
         children: [
+          const _KeepAlivePage(child: RetailStoreScreen()),
           _KeepAlivePage(child: _buildPharmacyWizard(context, colorScheme, textTheme)),
           const _KeepAlivePage(child: ConsultationRequestsScreen()),
           const _KeepAlivePage(child: PharmacyOrdersListScreen()),

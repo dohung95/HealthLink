@@ -1538,6 +1538,42 @@ abstract class AppLocalizations {
   /// **'Total'**
   String get orderTotal;
 
+  /// No description provided for @orderDetails.
+  ///
+  /// In en, this message translates to:
+  /// **'Order Details'**
+  String get orderDetails;
+
+  /// No description provided for @orderDeliveryType.
+  ///
+  /// In en, this message translates to:
+  /// **'Delivery Type'**
+  String get orderDeliveryType;
+
+  /// No description provided for @orderDeliveryTypeDelivery.
+  ///
+  /// In en, this message translates to:
+  /// **'Delivery'**
+  String get orderDeliveryTypeDelivery;
+
+  /// No description provided for @orderDeliveryTypePickup.
+  ///
+  /// In en, this message translates to:
+  /// **'Store Pickup'**
+  String get orderDeliveryTypePickup;
+
+  /// No description provided for @paymentStatusUnpaid.
+  ///
+  /// In en, this message translates to:
+  /// **'UNPAID'**
+  String get paymentStatusUnpaid;
+
+  /// No description provided for @paymentStatusPaid.
+  ///
+  /// In en, this message translates to:
+  /// **'PAID'**
+  String get paymentStatusPaid;
+
   /// No description provided for @orderRequestChangesOpt.
   ///
   /// In en, this message translates to:
@@ -2605,6 +2641,378 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Need to change delivery time or add instructions?'**
   String get paymentInstructionsHint;
+
+  /// No description provided for @pharmacyTabStore.
+  ///
+  /// In en, this message translates to:
+  /// **'Store'**
+  String get pharmacyTabStore;
+
+  /// No description provided for @storeTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Medicine Store'**
+  String get storeTitle;
+
+  /// No description provided for @storeSubtitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Browse over-the-counter medicines and place a retail pharmacy order.'**
+  String get storeSubtitle;
+
+  /// No description provided for @storeSearchHint.
+  ///
+  /// In en, this message translates to:
+  /// **'Name, brand, category, dosage...'**
+  String get storeSearchHint;
+
+  /// No description provided for @storeSearchLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'Search'**
+  String get storeSearchLabel;
+
+  /// No description provided for @storeCategoryLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'Category'**
+  String get storeCategoryLabel;
+
+  /// No description provided for @storeDosageFormLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'Dosage form'**
+  String get storeDosageFormLabel;
+
+  /// No description provided for @storeAllCategories.
+  ///
+  /// In en, this message translates to:
+  /// **'All categories'**
+  String get storeAllCategories;
+
+  /// No description provided for @storeAllForms.
+  ///
+  /// In en, this message translates to:
+  /// **'All forms'**
+  String get storeAllForms;
+
+  /// No description provided for @storeCart.
+  ///
+  /// In en, this message translates to:
+  /// **'Cart'**
+  String get storeCart;
+
+  /// No description provided for @storeItemsCount.
+  ///
+  /// In en, this message translates to:
+  /// **'{count} items'**
+  String storeItemsCount(int count);
+
+  /// No description provided for @storeAdd.
+  ///
+  /// In en, this message translates to:
+  /// **'Add'**
+  String get storeAdd;
+
+  /// No description provided for @storeInCart.
+  ///
+  /// In en, this message translates to:
+  /// **'In cart: {count}'**
+  String storeInCart(int count);
+
+  /// No description provided for @storeDetails.
+  ///
+  /// In en, this message translates to:
+  /// **'Details'**
+  String get storeDetails;
+
+  /// No description provided for @storeSubtotalLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'Subtotal'**
+  String get storeSubtotalLabel;
+
+  /// No description provided for @storeCheckout.
+  ///
+  /// In en, this message translates to:
+  /// **'Checkout'**
+  String get storeCheckout;
+
+  /// No description provided for @storePrescriptionRequired.
+  ///
+  /// In en, this message translates to:
+  /// **'Prescription'**
+  String get storePrescriptionRequired;
+
+  /// No description provided for @storePrescriptionRequiredMsg.
+  ///
+  /// In en, this message translates to:
+  /// **'This medicine requires a prescription.'**
+  String get storePrescriptionRequiredMsg;
+
+  /// No description provided for @storeNoResults.
+  ///
+  /// In en, this message translates to:
+  /// **'No medicines match your filters.'**
+  String get storeNoResults;
+
+  /// No description provided for @storeCartEmpty.
+  ///
+  /// In en, this message translates to:
+  /// **'Add over-the-counter medicines to start checkout.'**
+  String get storeCartEmpty;
+
+  /// No description provided for @storeEach.
+  ///
+  /// In en, this message translates to:
+  /// **'each'**
+  String get storeEach;
+
+  /// No description provided for @storeNoDescription.
+  ///
+  /// In en, this message translates to:
+  /// **'No description available.'**
+  String get storeNoDescription;
+
+  /// No description provided for @storeBrand.
+  ///
+  /// In en, this message translates to:
+  /// **'Brand'**
+  String get storeBrand;
+
+  /// No description provided for @storeGeneric.
+  ///
+  /// In en, this message translates to:
+  /// **'Generic'**
+  String get storeGeneric;
+
+  /// No description provided for @storeUnit.
+  ///
+  /// In en, this message translates to:
+  /// **'Unit'**
+  String get storeUnit;
+
+  /// No description provided for @storePrescriptionWarning.
+  ///
+  /// In en, this message translates to:
+  /// **'This medicine requires a prescription and cannot be added to the retail cart.'**
+  String get storePrescriptionWarning;
+
+  /// No description provided for @retailCheckoutTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Retail Checkout'**
+  String get retailCheckoutTitle;
+
+  /// No description provided for @retailCheckoutSubtitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Confirm delivery, compare pharmacies, then submit your order.'**
+  String get retailCheckoutSubtitle;
+
+  /// No description provided for @retailStepDelivery.
+  ///
+  /// In en, this message translates to:
+  /// **'Delivery'**
+  String get retailStepDelivery;
+
+  /// No description provided for @retailStepPharmacy.
+  ///
+  /// In en, this message translates to:
+  /// **'Pharmacy'**
+  String get retailStepPharmacy;
+
+  /// No description provided for @retailStepReview.
+  ///
+  /// In en, this message translates to:
+  /// **'Review'**
+  String get retailStepReview;
+
+  /// No description provided for @retailReceiverPhone.
+  ///
+  /// In en, this message translates to:
+  /// **'Receiver phone'**
+  String get retailReceiverPhone;
+
+  /// No description provided for @retailDeliveryAddress.
+  ///
+  /// In en, this message translates to:
+  /// **'Delivery address'**
+  String get retailDeliveryAddress;
+
+  /// No description provided for @retailUseCurrentLocation.
+  ///
+  /// In en, this message translates to:
+  /// **'Use current location'**
+  String get retailUseCurrentLocation;
+
+  /// No description provided for @retailVerifyAddress.
+  ///
+  /// In en, this message translates to:
+  /// **'Verify address'**
+  String get retailVerifyAddress;
+
+  /// No description provided for @retailLocationVerified.
+  ///
+  /// In en, this message translates to:
+  /// **'Location verified'**
+  String get retailLocationVerified;
+
+  /// No description provided for @retailContinue.
+  ///
+  /// In en, this message translates to:
+  /// **'Continue'**
+  String get retailContinue;
+
+  /// No description provided for @retailSortedByHint.
+  ///
+  /// In en, this message translates to:
+  /// **'Sorted by distance, stock status, and rating.'**
+  String get retailSortedByHint;
+
+  /// No description provided for @retailPharmacyNotFound.
+  ///
+  /// In en, this message translates to:
+  /// **'No pharmacies found for this cart and delivery location.'**
+  String get retailPharmacyNotFound;
+
+  /// No description provided for @retailStockFull.
+  ///
+  /// In en, this message translates to:
+  /// **'FULL'**
+  String get retailStockFull;
+
+  /// No description provided for @retailStockPartial.
+  ///
+  /// In en, this message translates to:
+  /// **'PARTIAL'**
+  String get retailStockPartial;
+
+  /// No description provided for @retailStockUnknown.
+  ///
+  /// In en, this message translates to:
+  /// **'UNKNOWN'**
+  String get retailStockUnknown;
+
+  /// No description provided for @retailDeliveryFeeLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'Delivery fee'**
+  String get retailDeliveryFeeLabel;
+
+  /// No description provided for @retailDistanceUnavailable.
+  ///
+  /// In en, this message translates to:
+  /// **'Distance unavailable'**
+  String get retailDistanceUnavailable;
+
+  /// No description provided for @retailMissingLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'Missing'**
+  String get retailMissingLabel;
+
+  /// No description provided for @retailStockWarning.
+  ///
+  /// In en, this message translates to:
+  /// **'This pharmacy may not have every item in your cart. The pharmacy can still confirm, revise, or cancel after review.'**
+  String get retailStockWarning;
+
+  /// No description provided for @retailMedicineSubtotal.
+  ///
+  /// In en, this message translates to:
+  /// **'Medicine subtotal'**
+  String get retailMedicineSubtotal;
+
+  /// No description provided for @retailTotal.
+  ///
+  /// In en, this message translates to:
+  /// **'Total'**
+  String get retailTotal;
+
+  /// No description provided for @retailQtyLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'Qty {count}'**
+  String retailQtyLabel(int count);
+
+  /// No description provided for @retailSubmitOrder.
+  ///
+  /// In en, this message translates to:
+  /// **'Submit Order'**
+  String get retailSubmitOrder;
+
+  /// No description provided for @retailSubmitting.
+  ///
+  /// In en, this message translates to:
+  /// **'Submitting...'**
+  String get retailSubmitting;
+
+  /// No description provided for @retailOrderCreated.
+  ///
+  /// In en, this message translates to:
+  /// **'Retail order created.'**
+  String get retailOrderCreated;
+
+  /// No description provided for @retailEnterPhone.
+  ///
+  /// In en, this message translates to:
+  /// **'Please enter a delivery phone number.'**
+  String get retailEnterPhone;
+
+  /// No description provided for @retailEnterAddress.
+  ///
+  /// In en, this message translates to:
+  /// **'Please enter a delivery address.'**
+  String get retailEnterAddress;
+
+  /// No description provided for @retailChoosePharmacy.
+  ///
+  /// In en, this message translates to:
+  /// **'Please choose a pharmacy.'**
+  String get retailChoosePharmacy;
+
+  /// No description provided for @retailAddressVerified.
+  ///
+  /// In en, this message translates to:
+  /// **'Delivery address verified.'**
+  String get retailAddressVerified;
+
+  /// No description provided for @retailAddressUpdated.
+  ///
+  /// In en, this message translates to:
+  /// **'Delivery address updated from current location.'**
+  String get retailAddressUpdated;
+
+  /// No description provided for @retailCannotAccessLocation.
+  ///
+  /// In en, this message translates to:
+  /// **'Cannot access your device location.'**
+  String get retailCannotAccessLocation;
+
+  /// No description provided for @retailTryingLocation.
+  ///
+  /// In en, this message translates to:
+  /// **'Still trying to access your location.'**
+  String get retailTryingLocation;
+
+  /// No description provided for @retailPartialStockConfirm.
+  ///
+  /// In en, this message translates to:
+  /// **'This pharmacy may not have every cart item. Continue?'**
+  String get retailPartialStockConfirm;
+
+  /// No description provided for @retailPharmacyLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'Pharmacy'**
+  String get retailPharmacyLabel;
+
+  /// No description provided for @retailDeliveryLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'Delivery'**
+  String get retailDeliveryLabel;
 }
 
 class _AppLocalizationsDelegate

@@ -772,6 +772,24 @@ class AppLocalizationsEn extends AppLocalizations {
   String get orderTotal => 'Total';
 
   @override
+  String get orderDetails => 'Order Details';
+
+  @override
+  String get orderDeliveryType => 'Delivery Type';
+
+  @override
+  String get orderDeliveryTypeDelivery => 'Delivery';
+
+  @override
+  String get orderDeliveryTypePickup => 'Store Pickup';
+
+  @override
+  String get paymentStatusUnpaid => 'UNPAID';
+
+  @override
+  String get paymentStatusPaid => 'PAID';
+
+  @override
   String get orderRequestChangesOpt => 'Request Changes (Optional)';
 
   @override
@@ -1354,4 +1372,207 @@ class AppLocalizationsEn extends AppLocalizations {
   @override
   String get paymentInstructionsHint =>
       'Need to change delivery time or add instructions?';
+
+  @override
+  String get pharmacyTabStore => 'Store';
+
+  @override
+  String get storeTitle => 'Medicine Store';
+
+  @override
+  String get storeSubtitle =>
+      'Browse over-the-counter medicines and place a retail pharmacy order.';
+
+  @override
+  String get storeSearchHint => 'Name, brand, category, dosage...';
+
+  @override
+  String get storeSearchLabel => 'Search';
+
+  @override
+  String get storeCategoryLabel => 'Category';
+
+  @override
+  String get storeDosageFormLabel => 'Dosage form';
+
+  @override
+  String get storeAllCategories => 'All categories';
+
+  @override
+  String get storeAllForms => 'All forms';
+
+  @override
+  String get storeCart => 'Cart';
+
+  @override
+  String storeItemsCount(int count) {
+    return '$count items';
+  }
+
+  @override
+  String get storeAdd => 'Add';
+
+  @override
+  String storeInCart(int count) {
+    return 'In cart: $count';
+  }
+
+  @override
+  String get storeDetails => 'Details';
+
+  @override
+  String get storeSubtotalLabel => 'Subtotal';
+
+  @override
+  String get storeCheckout => 'Checkout';
+
+  @override
+  String get storePrescriptionRequired => 'Prescription';
+
+  @override
+  String get storePrescriptionRequiredMsg =>
+      'This medicine requires a prescription.';
+
+  @override
+  String get storeNoResults => 'No medicines match your filters.';
+
+  @override
+  String get storeCartEmpty =>
+      'Add over-the-counter medicines to start checkout.';
+
+  @override
+  String get storeEach => 'each';
+
+  @override
+  String get storeNoDescription => 'No description available.';
+
+  @override
+  String get storeBrand => 'Brand';
+
+  @override
+  String get storeGeneric => 'Generic';
+
+  @override
+  String get storeUnit => 'Unit';
+
+  @override
+  String get storePrescriptionWarning =>
+      'This medicine requires a prescription and cannot be added to the retail cart.';
+
+  @override
+  String get retailCheckoutTitle => 'Retail Checkout';
+
+  @override
+  String get retailCheckoutSubtitle =>
+      'Confirm delivery, compare pharmacies, then submit your order.';
+
+  @override
+  String get retailStepDelivery => 'Delivery';
+
+  @override
+  String get retailStepPharmacy => 'Pharmacy';
+
+  @override
+  String get retailStepReview => 'Review';
+
+  @override
+  String get retailReceiverPhone => 'Receiver phone';
+
+  @override
+  String get retailDeliveryAddress => 'Delivery address';
+
+  @override
+  String get retailUseCurrentLocation => 'Use current location';
+
+  @override
+  String get retailVerifyAddress => 'Verify address';
+
+  @override
+  String get retailLocationVerified => 'Location verified';
+
+  @override
+  String get retailContinue => 'Continue';
+
+  @override
+  String get retailSortedByHint =>
+      'Sorted by distance, stock status, and rating.';
+
+  @override
+  String get retailPharmacyNotFound =>
+      'No pharmacies found for this cart and delivery location.';
+
+  @override
+  String get retailStockFull => 'FULL';
+
+  @override
+  String get retailStockPartial => 'PARTIAL';
+
+  @override
+  String get retailStockUnknown => 'UNKNOWN';
+
+  @override
+  String get retailDeliveryFeeLabel => 'Delivery fee';
+
+  @override
+  String get retailDistanceUnavailable => 'Distance unavailable';
+
+  @override
+  String get retailMissingLabel => 'Missing';
+
+  @override
+  String get retailStockWarning =>
+      'This pharmacy may not have every item in your cart. The pharmacy can still confirm, revise, or cancel after review.';
+
+  @override
+  String get retailMedicineSubtotal => 'Medicine subtotal';
+
+  @override
+  String get retailTotal => 'Total';
+
+  @override
+  String retailQtyLabel(int count) {
+    return 'Qty $count';
+  }
+
+  @override
+  String get retailSubmitOrder => 'Submit Order';
+
+  @override
+  String get retailSubmitting => 'Submitting...';
+
+  @override
+  String get retailOrderCreated => 'Retail order created.';
+
+  @override
+  String get retailEnterPhone => 'Please enter a delivery phone number.';
+
+  @override
+  String get retailEnterAddress => 'Please enter a delivery address.';
+
+  @override
+  String get retailChoosePharmacy => 'Please choose a pharmacy.';
+
+  @override
+  String get retailAddressVerified => 'Delivery address verified.';
+
+  @override
+  String get retailAddressUpdated =>
+      'Delivery address updated from current location.';
+
+  @override
+  String get retailCannotAccessLocation =>
+      'Cannot access your device location.';
+
+  @override
+  String get retailTryingLocation => 'Still trying to access your location.';
+
+  @override
+  String get retailPartialStockConfirm =>
+      'This pharmacy may not have every cart item. Continue?';
+
+  @override
+  String get retailPharmacyLabel => 'Pharmacy';
+
+  @override
+  String get retailDeliveryLabel => 'Delivery';
 }

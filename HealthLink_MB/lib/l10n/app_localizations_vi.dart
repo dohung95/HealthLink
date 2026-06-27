@@ -773,6 +773,24 @@ class AppLocalizationsVi extends AppLocalizations {
   String get orderTotal => 'Tổng cộng';
 
   @override
+  String get orderDetails => 'Chi tiết đơn hàng';
+
+  @override
+  String get orderDeliveryType => 'Phương thức nhận';
+
+  @override
+  String get orderDeliveryTypeDelivery => 'Giao hàng tận nơi';
+
+  @override
+  String get orderDeliveryTypePickup => 'Nhận tại cửa hàng';
+
+  @override
+  String get paymentStatusUnpaid => 'CHƯA THANH TOÁN';
+
+  @override
+  String get paymentStatusPaid => 'ĐÃ THANH TOÁN';
+
+  @override
   String get orderRequestChangesOpt => 'Yêu cầu thay đổi (Tùy chọn)';
 
   @override
@@ -1357,4 +1375,203 @@ class AppLocalizationsVi extends AppLocalizations {
   @override
   String get paymentInstructionsHint =>
       'Cần thay đổi thời gian giao hàng hoặc thêm ghi chú?';
+
+  @override
+  String get pharmacyTabStore => 'Cửa hàng';
+
+  @override
+  String get storeTitle => 'Cửa hàng thuốc';
+
+  @override
+  String get storeSubtitle => 'Duyệt thuốc không kê đơn và đặt hàng bán lẻ.';
+
+  @override
+  String get storeSearchHint => 'Tên, thương hiệu, danh mục, liều lượng...';
+
+  @override
+  String get storeSearchLabel => 'Tìm kiếm';
+
+  @override
+  String get storeCategoryLabel => 'Danh mục';
+
+  @override
+  String get storeDosageFormLabel => 'Dạng bào chế';
+
+  @override
+  String get storeAllCategories => 'Tất cả danh mục';
+
+  @override
+  String get storeAllForms => 'Tất cả dạng';
+
+  @override
+  String get storeCart => 'Giỏ hàng';
+
+  @override
+  String storeItemsCount(int count) {
+    return '$count sản phẩm';
+  }
+
+  @override
+  String get storeAdd => 'Thêm';
+
+  @override
+  String storeInCart(int count) {
+    return 'Trong giỏ: $count';
+  }
+
+  @override
+  String get storeDetails => 'Chi tiết';
+
+  @override
+  String get storeSubtotalLabel => 'Tạm tính';
+
+  @override
+  String get storeCheckout => 'Thanh toán';
+
+  @override
+  String get storePrescriptionRequired => 'Kê đơn';
+
+  @override
+  String get storePrescriptionRequiredMsg => 'Thuốc này cần kê đơn.';
+
+  @override
+  String get storeNoResults => 'Không tìm thấy thuốc phù hợp.';
+
+  @override
+  String get storeCartEmpty => 'Thêm thuốc không kê đơn để bắt đầu thanh toán.';
+
+  @override
+  String get storeEach => '/sản phẩm';
+
+  @override
+  String get storeNoDescription => 'Chưa có mô tả.';
+
+  @override
+  String get storeBrand => 'Thương hiệu';
+
+  @override
+  String get storeGeneric => 'Hoạt chất';
+
+  @override
+  String get storeUnit => 'Đơn vị';
+
+  @override
+  String get storePrescriptionWarning =>
+      'Thuốc này cần kê đơn và không thể thêm vào giỏ hàng bán lẻ.';
+
+  @override
+  String get retailCheckoutTitle => 'Thanh toán đơn bán lẻ';
+
+  @override
+  String get retailCheckoutSubtitle =>
+      'Xác nhận giao hàng, so sánh nhà thuốc, sau đó gửi đơn.';
+
+  @override
+  String get retailStepDelivery => 'Giao hàng';
+
+  @override
+  String get retailStepPharmacy => 'Nhà thuốc';
+
+  @override
+  String get retailStepReview => 'Xác nhận';
+
+  @override
+  String get retailReceiverPhone => 'Số điện thoại người nhận';
+
+  @override
+  String get retailDeliveryAddress => 'Địa chỉ giao hàng';
+
+  @override
+  String get retailUseCurrentLocation => 'Dùng vị trí hiện tại';
+
+  @override
+  String get retailVerifyAddress => 'Xác minh địa chỉ';
+
+  @override
+  String get retailLocationVerified => 'Đã xác minh vị trí';
+
+  @override
+  String get retailContinue => 'Tiếp tục';
+
+  @override
+  String get retailSortedByHint =>
+      'Sắp xếp theo khoảng cách, tồn kho và đánh giá.';
+
+  @override
+  String get retailPharmacyNotFound =>
+      'Không tìm thấy nhà thuốc nào cho giỏ hàng và vị trí này.';
+
+  @override
+  String get retailStockFull => 'ĐỦ HÀNG';
+
+  @override
+  String get retailStockPartial => 'THIẾU MỘT PHẦN';
+
+  @override
+  String get retailStockUnknown => 'CHƯA RÕ';
+
+  @override
+  String get retailDeliveryFeeLabel => 'Phí giao hàng';
+
+  @override
+  String get retailDistanceUnavailable => 'Không có thông tin khoảng cách';
+
+  @override
+  String get retailMissingLabel => 'Thiếu';
+
+  @override
+  String get retailStockWarning =>
+      'Nhà thuốc này có thể không có đủ mọi sản phẩm trong giỏ hàng. Nhà thuốc vẫn có thể xác nhận, điều chỉnh hoặc hủy sau khi xem xét.';
+
+  @override
+  String get retailMedicineSubtotal => 'Tạm tính thuốc';
+
+  @override
+  String get retailTotal => 'Tổng cộng';
+
+  @override
+  String retailQtyLabel(int count) {
+    return 'SL: $count';
+  }
+
+  @override
+  String get retailSubmitOrder => 'Gửi đơn hàng';
+
+  @override
+  String get retailSubmitting => 'Đang gửi...';
+
+  @override
+  String get retailOrderCreated => 'Đã tạo đơn hàng bán lẻ.';
+
+  @override
+  String get retailEnterPhone => 'Vui lòng nhập số điện thoại người nhận.';
+
+  @override
+  String get retailEnterAddress => 'Vui lòng nhập địa chỉ giao hàng.';
+
+  @override
+  String get retailChoosePharmacy => 'Vui lòng chọn nhà thuốc.';
+
+  @override
+  String get retailAddressVerified => 'Đã xác minh địa chỉ giao hàng.';
+
+  @override
+  String get retailAddressUpdated => 'Đã cập nhật địa chỉ từ vị trí hiện tại.';
+
+  @override
+  String get retailCannotAccessLocation =>
+      'Không thể truy cập vị trí thiết bị.';
+
+  @override
+  String get retailTryingLocation => 'Đang thử truy cập vị trí của bạn.';
+
+  @override
+  String get retailPartialStockConfirm =>
+      'Nhà thuốc này có thể không có đủ mọi sản phẩm. Tiếp tục?';
+
+  @override
+  String get retailPharmacyLabel => 'Nhà thuốc';
+
+  @override
+  String get retailDeliveryLabel => 'Giao hàng';
 }
