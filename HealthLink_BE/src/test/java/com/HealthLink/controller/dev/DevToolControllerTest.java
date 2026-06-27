@@ -47,17 +47,26 @@ class DevToolControllerTest {
     }
 
     @Test
-    void triggerNotificationJob_shouldRejectPrescriptionReminderWithoutTiming() {
+    void triggerNotificationJob_shouldDispatchMedicineReminder() {
+        NotificationDispatchSummary expected = NotificationDispatchSummary.builder()
+                .job("MEDICINE_REMINDER")
+                .sentCount(1)
+                .build();
+
+        when(notificationScheduler.sendMedicineReminders(any(LocalDateTime.class)))
+                .thenReturn(expected);
+
         var request = new DevToolController.NotificationTriggerRequest(
-                "PRESCRIPTION_REMINDER",
+                "MEDICINE_REMINDER",
                 null,
-                null
+                "2026-06-25T08:00:00"
         );
 
-        assertThatThrownBy(() -> devToolController.triggerNotificationJob(request))
-                .isInstanceOf(BadRequestException.class)
-                .hasMessage("Timing is required");
-        verifyNoInteractions(notificationScheduler);
+        var response = devToolController.triggerNotificationJob(request);
+
+        assertThat(response.getStatusCodeValue()).isEqualTo(200);
+        assertThat(response.getBody()).isNotNull();
+        assertThat(response.getBody().getSentCount()).isEqualTo(1);
     }
 
     @Test
