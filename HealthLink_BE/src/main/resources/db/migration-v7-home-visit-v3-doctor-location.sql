@@ -39,11 +39,11 @@ BEGIN
     CREATE INDEX IX_HomeVisitDrafts_ExpiresAt ON HomeVisitDrafts(ExpiresAt);
 END;
 
--- 3. CommissionConfig cho HomeVisit
-IF NOT EXISTS (SELECT 1 FROM CommissionConfig WHERE ServiceType = 'CONSULTATION_HOME_VISIT')
+-- 3. CommissionConfigs — row cho HomeVisit (bảng đã có sẵn nhờ JPA ddl-auto=update)
+IF NOT EXISTS (SELECT 1 FROM CommissionConfigs WHERE serviceType = 'CONSULTATION_HOME_VISIT')
 BEGIN
-    INSERT INTO CommissionConfig (ServiceType, CommissionRate, Description, EffectiveFrom)
-    VALUES ('CONSULTATION_HOME_VISIT', 0.1000, 'Home Visit consultation', GETUTCDATE());
+    INSERT INTO CommissionConfigs (serviceType, commissionRate, description, effectiveFrom, active)
+    VALUES ('CONSULTATION_HOME_VISIT', 0.1000, 'Home Visit consultation', GETUTCDATE(), 1);
 END;
 
 -- 4. Migration dữ liệu Offline → HomeVisit (trong 1 transaction)
