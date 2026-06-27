@@ -33,6 +33,10 @@ public class AdminDoctorDto {
     private Integer totalConsultations;
     private String avatarUrl;
     private boolean verified;
+    private Boolean availableForHomeVisit;
+    private Double homeVisitRadiusKm;
+    private Double latitude;
+    private Double longitude;
     private Set<String> services;
     private LocalDateTime createdAt;
 }

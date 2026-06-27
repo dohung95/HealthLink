@@ -44,6 +44,7 @@ const HomeVisitStep = ({
   homeVisitInfo,
   setHomeVisitInfo,
   patientProfile,
+  selectedDoctorId,
   onBack,
   onNext,
 }) => {
@@ -248,6 +249,7 @@ const HomeVisitStep = ({
       setEstimating(true);
 
       const result = await homeVisitApi.estimateFee({
+        doctorId: selectedDoctorId,
         visitLatitude: homeVisitInfo.visitLatitude,
         visitLongitude: homeVisitInfo.visitLongitude,
       });

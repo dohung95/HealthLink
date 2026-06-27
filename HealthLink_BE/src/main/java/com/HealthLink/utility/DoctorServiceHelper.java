@@ -45,7 +45,6 @@ public class DoctorServiceHelper {
         return switch (normalized.toLowerCase()) {
             case "online" -> available.contains(ServiceType.ONLINE);
             case "homevisit" -> available.contains(ServiceType.HOME_VISIT);
-            case "offline" -> false;
             default -> true;
         };
     }
@@ -61,10 +60,9 @@ public class DoctorServiceHelper {
         return switch (value) {
             case "video", "video call", "audio", "audio call", "chat", "online", "consultation" ->
                 "Online";
-            case "homevisit", "home visit", "home-visit", "family doctor", "home" ->
+            case "homevisit", "home visit", "home-visit", "family doctor", "home",
+                 "offline", "in-person", "in person" ->
                 "HomeVisit";
-            case "offline", "in-person", "in person" ->
-                "Offline";
             default ->
                 "Online";
         };

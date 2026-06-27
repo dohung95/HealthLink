@@ -1040,6 +1040,7 @@ public class FinanceServiceImpl implements FinanceService {
 
         if (TYPE_HOME_VISIT.equalsIgnoreCase(normalizedType)) {
             HomeVisitEstimateResponse estimate = homeVisitLocationService.estimate(
+                    doctor.getDoctorId(),
                     visitLatitude,
                     visitLongitude
             );

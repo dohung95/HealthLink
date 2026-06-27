@@ -44,6 +44,12 @@ public class AdminDoctorUpdateDto {
     @JsonProperty("clinicAddress")
     private String clinicAddress;
 
+    @JsonProperty("availableForHomeVisit")
+    private Boolean availableForHomeVisit;
+
+    @JsonProperty("homeVisitRadiusKm")
+    private Double homeVisitRadiusKm;
+
     @JsonProperty("status")
     private String status;
 }

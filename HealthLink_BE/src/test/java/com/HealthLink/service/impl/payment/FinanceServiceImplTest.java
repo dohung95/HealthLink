@@ -301,7 +301,7 @@ class FinanceServiceImplTest {
                 eq(Map.class)
         )).thenReturn(new ResponseEntity<>(captureBody, HttpStatus.OK));
         when(objectMapper.writeValueAsString(any())).thenReturn("{}");
-        when(homeVisitLocationService.estimate(10.0, 106.0))
+        when(homeVisitLocationService.estimate("doctor-1", 10.0, 106.0))
                 .thenReturn(HomeVisitEstimateResponse.builder()
                         .serviceable(true)
                         .homeVisitFee(new BigDecimal("100.00"))

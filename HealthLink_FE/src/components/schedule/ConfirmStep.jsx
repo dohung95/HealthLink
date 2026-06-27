@@ -14,23 +14,12 @@ const ConfirmStep = ({
         ? new Date(selectedSlot.appointmentTime).toLocaleString('en-US')
         : '';
 
-    const selectedSession = homeVisitInfo?.selectedSession;
-    const formattedSession = selectedSession
-        ? `${selectedSession.sessionType === 'MORNING' ? 'Morning' : 'Afternoon'} — ${selectedSession.bookingDate}`
-        : '';
-
-
     const rows = [
         ['Doctor', selectedDoctor?.fullName || ''],
         ['Specialty', selectedSpecialty || selectedDoctor?.specialtyName || ''],
         ['Visit Type', consultationType === 'HomeVisit' ? 'Home Visit' : 'Online consultation'],
+        ['Date & Time', formattedDateTime],
     ];
-
-    if (consultationType === 'HomeVisit') {
-        rows.push(['Session', formattedSession]);
-    } else {
-        rows.push(['Date & Time', formattedDateTime]);
-    }
 
     rows.push(
         ['Symptoms', symptoms || 'None'],
@@ -52,7 +41,16 @@ const ConfirmStep = ({
             );
         }
 
-        rows.push(['Fee', '$150.00']);
+        const hv = homeVisitInfo;
+        const formatUsd = (v) => Number(v || 0).toLocaleString('en-US', { style: 'currency', currency: 'USD' });
+
+        rows.push(
+            ['Distance', `${hv?.distanceKm ?? 0} km`],
+            ['Travel Time', `${hv?.estimatedTravelMinutes ?? 0} min`],
+            ['Base home visit fee', formatUsd(hv?.homeVisitFee)],
+            ['Extra distance fee', formatUsd(hv?.travelFee)],
+            ['Total travel fee', formatUsd(hv?.totalFee)],
+        );
     }
     return (
         <div className="schedule-card">

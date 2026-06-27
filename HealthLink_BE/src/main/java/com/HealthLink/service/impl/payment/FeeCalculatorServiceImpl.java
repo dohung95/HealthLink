@@ -43,14 +43,30 @@ public class FeeCalculatorServiceImpl implements FeeCalculatorService {
     );
 
     // ── ServiceType keys tra bảng CommissionConfigs ──────────────────────────
-    private static final String SERVICE_CONSULTATION_ONLINE  = "CONSULTATION_ONLINE";
-    private static final String SERVICE_CONSULTATION_OFFLINE = "CONSULTATION_OFFLINE";
-    private static final String SERVICE_PHARMACY_ORDER       = "PHARMACY_ORDER";
+    private static final String SERVICE_CONSULTATION_ONLINE       = "CONSULTATION_ONLINE";
+    private static final String SERVICE_CONSULTATION_OFFLINE      = "CONSULTATION_OFFLINE";
+    private static final String SERVICE_CONSULTATION_HOME_VISIT   = "CONSULTATION_HOME_VISIT";
+    private static final String SERVICE_PHARMACY_ORDER            = "PHARMACY_ORDER";
 
     // ── Tỷ lệ mặc định (fallback nếu DB chưa có cấu hình) ───────────────────
+    private static final Set<String> HOME_VISIT_TYPES = Set.of(
+            "HomeVisit", "HOME_VISIT", "homevisit", "Offline", "OFFLINE", "offline"
+    );
+
+    private String normalizeConsultationType(String type) {
+        if (type == null || type.isBlank()) return "Online";
+        String t = type.trim().toLowerCase();
+        if (ONLINE_TYPES.contains(type)) return "Online";
+        if (HOME_VISIT_TYPES.contains(type)) return "HomeVisit";
+        if (t.equals("homevisit") || t.equals("home visit") || t.equals("home-visit") || t.equals("home")
+                || t.equals("offline") || t.equals("in-person") || t.equals("in person")) return "HomeVisit";
+        return "Online";
+    }
+
     private static final BigDecimal DEFAULT_ONLINE_RATE   = new BigDecimal("0.1500");
     private static final BigDecimal DEFAULT_OFFLINE_RATE  = new BigDecimal("0.1000");
-    private static final BigDecimal DEFAULT_PHARMACY_RATE = new BigDecimal("0.1000");
+    private static final BigDecimal DEFAULT_HOME_VISIT_RATE   = new BigDecimal("0.1000");
+    private static final BigDecimal DEFAULT_PHARMACY_RATE     = new BigDecimal("0.1000");
 
     private final PaymentCommissionConfigRepository commissionConfigRepository;
 
@@ -60,10 +76,16 @@ public class FeeCalculatorServiceImpl implements FeeCalculatorService {
 
     @Override
     public FeeResult calculateConsultationFee(Appointment appointment) {
-        // Xác định loại hình tư vấn: ONLINE hay OFFLINE
+        // Xác định loại hình tư vấn: ONLINE, HOME_VISIT hay OFFLINE
         String consultationType = appointment.getConsultationType();
-        boolean isOnline = consultationType != null && ONLINE_TYPES.contains(consultationType);
-        String serviceType = isOnline ? SERVICE_CONSULTATION_ONLINE : SERVICE_CONSULTATION_OFFLINE;
+        String normalizedType = normalizeConsultationType(consultationType);
+        boolean isOnline = "Online".equalsIgnoreCase(normalizedType);
+        boolean isHomeVisit = "HomeVisit".equalsIgnoreCase(normalizedType);
+        String serviceType = isOnline
+                ? SERVICE_CONSULTATION_ONLINE
+                : isHomeVisit
+                ? SERVICE_CONSULTATION_HOME_VISIT
+                : SERVICE_CONSULTATION_OFFLINE;
 
         // Lấy phí tư vấn từ Doctor
         Doctor doctor = appointment.getDoctor();
@@ -148,7 +170,6 @@ public class FeeCalculatorServiceImpl implements FeeCalculatorService {
     private BigDecimal resolveConsultationRate(Doctor doctor, String serviceType, boolean isOnline) {
         if (doctor != null) {
             if (isOnline) {
-                // Ưu tiên 1: tỷ lệ riêng cho Online
                 if (doctor.getCustomCommissionRateOnline() != null
                         && doctor.getCustomCommissionRateOnline().compareTo(BigDecimal.ZERO) > 0
                         && isCustomRateValid(doctor.getCustomCommissionRateOnlineEffectiveFrom(),
@@ -158,7 +179,6 @@ public class FeeCalculatorServiceImpl implements FeeCalculatorService {
                     return doctor.getCustomCommissionRateOnline();
                 }
             } else {
-                // Ưu tiên 1: tỷ lệ riêng cho Offline
                 if (doctor.getCustomCommissionRateOffline() != null
                         && doctor.getCustomCommissionRateOffline().compareTo(BigDecimal.ZERO) > 0
                         && isCustomRateValid(doctor.getCustomCommissionRateOfflineEffectiveFrom(),
@@ -170,12 +190,12 @@ public class FeeCalculatorServiceImpl implements FeeCalculatorService {
             }
         }
 
-        // Ưu tiên 2: tra cứu DB
         return commissionConfigRepository.findByServiceTypeAndActiveTrue(serviceType)
                 .map(CommissionConfig::getCommissionRate)
                 .orElseGet(() -> {
-                    // Ưu tiên 3: fallback cứng
-                    BigDecimal defaultRate = isOnline ? DEFAULT_ONLINE_RATE : DEFAULT_OFFLINE_RATE;
+                    BigDecimal defaultRate = isOnline ? DEFAULT_ONLINE_RATE
+                            : SERVICE_CONSULTATION_HOME_VISIT.equals(serviceType) ? DEFAULT_HOME_VISIT_RATE
+                            : DEFAULT_OFFLINE_RATE;
                     log.warn("No active CommissionConfig found for serviceType={}, using default {}",
                             serviceType, defaultRate);
                     return defaultRate;
