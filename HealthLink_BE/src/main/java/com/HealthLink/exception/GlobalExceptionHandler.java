@@ -183,6 +183,12 @@ public class GlobalExceptionHandler {
         return ResponseEntity.badRequest().body(body);
     }
 
+    @ExceptionHandler(IllegalArgumentException.class)
+    public ResponseEntity<Map<String, Object>> handleIllegalArgument(IllegalArgumentException ex) {
+        log.warn("Invalid argument: {}", ex.getMessage());
+        return buildResponse(HttpStatus.BAD_REQUEST, ex.getMessage());
+    }
+
     @ExceptionHandler(HttpMessageNotReadableException.class)
     public ResponseEntity<Map<String, Object>> handleUnreadableRequestBody(HttpMessageNotReadableException ex) {
         log.warn("Invalid request body: {}", ex.getMessage());

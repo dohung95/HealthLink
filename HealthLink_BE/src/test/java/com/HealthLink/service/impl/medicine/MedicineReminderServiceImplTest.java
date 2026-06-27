@@ -28,6 +28,7 @@ import org.mockito.junit.jupiter.MockitoExtension;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.LocalTime;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
 
@@ -159,6 +160,7 @@ class MedicineReminderServiceImplTest {
     @Test
     void updateIntakeCheck_shouldRejectItemOutsidePatientPrescriptions() {
         LocalDateTime now = LocalDateTime.of(2026, 6, 25, 8, 0);
+        when(patientRepository.findById("patient-1")).thenReturn(Optional.of(patient("patient-1")));
         when(prescriptionHeaderRepository.findActiveByPatientWithItems("patient-1", now)).thenReturn(List.of());
 
         MedicineIntakeCheckRequest request = new MedicineIntakeCheckRequest();
@@ -219,12 +221,17 @@ class MedicineReminderServiceImplTest {
         when(patientRepository.findById("patient-1")).thenReturn(Optional.of(patient));
         when(settingRepository.findByPatient_PatientId("patient-1")).thenReturn(Optional.empty());
         when(prescriptionHeaderRepository.findActiveByPatientWithItems("patient-1", now)).thenReturn(List.of(prescription));
+        List<MedicineIntakeCheck> savedChecks = new ArrayList<>();
         when(intakeCheckRepository.findByPatient_PatientIdAndIntakeDateAndTiming(
                 "patient-1",
                 LocalDate.of(2026, 6, 25),
                 "MORNING"
-        )).thenReturn(List.of());
-        when(intakeCheckRepository.save(any(MedicineIntakeCheck.class))).thenAnswer(invocation -> invocation.getArgument(0));
+        )).thenAnswer(invocation -> new ArrayList<>(savedChecks));
+        when(intakeCheckRepository.save(any(MedicineIntakeCheck.class))).thenAnswer(invocation -> {
+            MedicineIntakeCheck check = invocation.getArgument(0);
+            savedChecks.add(check);
+            return check;
+        });
 
         MedicineReminderChecklistResponse response = service.completeTiming(
                 "patient-1",

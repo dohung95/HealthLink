@@ -7,17 +7,24 @@ import com.HealthLink.dto.medicine.MedicineReminderPrescriptionGroupResponse;
 import com.HealthLink.dto.medicine.MedicineReminderSettingRequest;
 import com.HealthLink.dto.medicine.MedicineReminderSettingResponse;
 import com.HealthLink.entity.MedicineIntakeCheck;
+import com.HealthLink.entity.MedicineReminderDispatchLog;
 import com.HealthLink.entity.MedicineReminderSetting;
 import com.HealthLink.entity.Patient;
 import com.HealthLink.entity.PrescriptionHeader;
 import com.HealthLink.entity.PrescriptionItem;
+import com.HealthLink.entity.User;
+import com.HealthLink.entity.enums.NotificationType;
+import com.HealthLink.entity.enums.PrescriptionTiming;
 import com.HealthLink.exception.BadRequestException;
 import com.HealthLink.exception.ResourceNotFoundException;
 import com.HealthLink.repository.medicine.MedicineIntakeCheckRepository;
+import com.HealthLink.repository.medicine.MedicineReminderDispatchLogRepository;
 import com.HealthLink.repository.medicine.MedicineReminderSettingRepository;
 import com.HealthLink.repository.patient.PatientRepository;
 import com.HealthLink.repository.prescription.PrescriptionHeaderRepository;
 import com.HealthLink.service.medicine.MedicineReminderService;
+import com.HealthLink.service.notification.NotificationService;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
@@ -27,10 +34,11 @@ import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.LocalTime;
 import java.util.ArrayList;
-import java.util.HashSet;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.Set;
+import java.util.Objects;
+import java.util.function.Function;
 import java.util.stream.Collectors;
 
 @Slf4j
@@ -39,49 +47,39 @@ import java.util.stream.Collectors;
 @RequiredArgsConstructor
 public class MedicineReminderServiceImpl implements MedicineReminderService {
 
+    public static final LocalTime DEFAULT_MORNING_TIME = LocalTime.of(8, 0);
+    public static final LocalTime DEFAULT_AFTERNOON_TIME = LocalTime.of(12, 0);
+    public static final LocalTime DEFAULT_EVENING_TIME = LocalTime.of(18, 0);
+    public static final java.time.Duration DISPATCH_WINDOW = java.time.Duration.ofMinutes(7);
+
     private final PatientRepository patientRepository;
     private final PrescriptionHeaderRepository prescriptionHeaderRepository;
     private final MedicineReminderSettingRepository settingRepository;
     private final MedicineIntakeCheckRepository intakeCheckRepository;
-
-    private static final LocalTime DEFAULT_MORNING = LocalTime.of(8, 0);
-    private static final LocalTime DEFAULT_AFTERNOON = LocalTime.of(12, 0);
-    private static final LocalTime DEFAULT_EVENING = LocalTime.of(18, 0);
+    private final MedicineReminderDispatchLogRepository dispatchLogRepository;
+    private final NotificationService notificationService;
+    private final ObjectMapper objectMapper;
 
     @Override
     @Transactional(readOnly = true)
     public MedicineReminderSettingResponse getSettings(String patientId) {
         return settingRepository.findByPatient_PatientId(patientId)
-                .map(setting -> MedicineReminderSettingResponse.builder()
-                        .morningTime(setting.getMorningTime())
-                        .afternoonTime(setting.getAfternoonTime())
-                        .eveningTime(setting.getEveningTime())
-                        .enabled(setting.getEnabled())
-                        .build())
-                .orElse(MedicineReminderSettingResponse.builder()
-                        .morningTime(DEFAULT_MORNING)
-                        .afternoonTime(DEFAULT_AFTERNOON)
-                        .eveningTime(DEFAULT_EVENING)
-                        .enabled(true)
-                        .build());
+                .map(this::toSettingsResponse)
+                .orElseGet(this::defaultSettingsResponse);
     }
 
     @Override
+    @Transactional
     public MedicineReminderSettingResponse updateSettings(String patientId, MedicineReminderSettingRequest request) {
-        Set<LocalTime> distinctTimes = new HashSet<>();
-        distinctTimes.add(request.getMorningTime());
-        distinctTimes.add(request.getAfternoonTime());
-        distinctTimes.add(request.getEveningTime());
-        if (distinctTimes.size() < 3) {
-            throw new BadRequestException("Reminder times must be distinct");
-        }
+        validateDistinctTimes(request.getMorningTime(), request.getAfternoonTime(), request.getEveningTime());
 
         Patient patient = patientRepository.findById(patientId)
-                .orElseThrow(() -> new ResourceNotFoundException("Patient", "patientId", patientId));
+                .orElseThrow(() -> new ResourceNotFoundException("Patient", "id", patientId));
 
         MedicineReminderSetting setting = settingRepository.findByPatient_PatientId(patientId)
-                .orElse(MedicineReminderSetting.builder()
+                .orElseGet(() -> MedicineReminderSetting.builder()
                         .patient(patient)
+                        .createdAt(LocalDateTime.now())
                         .build());
 
         setting.setMorningTime(request.getMorningTime());
@@ -90,237 +88,334 @@ public class MedicineReminderServiceImpl implements MedicineReminderService {
         setting.setEnabled(request.getEnabled());
         setting.setUpdatedAt(LocalDateTime.now());
 
-        settingRepository.save(setting);
-
-        return toSettingResponse(setting);
+        return toSettingsResponse(settingRepository.save(setting));
     }
 
     @Override
     @Transactional(readOnly = true)
     public MedicineReminderChecklistResponse getChecklist(String patientId, String timing, LocalDate date, LocalDateTime now) {
-        MedicineReminderSetting setting = settingRepository.findByPatient_PatientId(patientId)
-                .orElse(null);
-
-        LocalTime scheduledTime = resolveScheduledTime(timing, setting);
-
-        List<PrescriptionHeader> prescriptions = prescriptionHeaderRepository
-                .findActiveByPatientWithItems(patientId, now);
-
-        List<MedicineIntakeCheck> existingChecks = intakeCheckRepository
-                .findByPatient_PatientIdAndIntakeDateAndTiming(patientId, date, timing);
-
-        Set<Integer> checkedItemIds = existingChecks.stream()
-                .filter(MedicineIntakeCheck::getChecked)
-                .map(check -> check.getPrescriptionItem().getPrescriptionItemId())
-                .collect(Collectors.toSet());
-
-        Map<Integer, LocalDateTime> checkedAtMap = existingChecks.stream()
-                .filter(c -> c.getChecked() && c.getCheckedAt() != null)
-                .collect(Collectors.toMap(
-                        c -> c.getPrescriptionItem().getPrescriptionItemId(),
-                        MedicineIntakeCheck::getCheckedAt
-                ));
-
-        int totalCount = 0;
-        int checkedCount = 0;
-        List<MedicineReminderPrescriptionGroupResponse> grouped = new ArrayList<>();
-
-        for (PrescriptionHeader header : prescriptions) {
-            List<PrescriptionItem> matchedItems = header.getPrescriptionItems().stream()
-                    .filter(item -> item.getTiming() != null && item.getTiming().contains(timing))
-                    .toList();
-
-            if (matchedItems.isEmpty()) continue;
-
-            List<MedicineReminderItemResponse> itemResponses = new ArrayList<>();
-            for (PrescriptionItem item : matchedItems) {
-                Integer itemId = item.getPrescriptionItemId();
-                boolean isChecked = checkedItemIds.contains(itemId);
-                itemResponses.add(MedicineReminderItemResponse.builder()
-                        .prescriptionItemId(itemId)
-                        .medicationName(item.getMedicationName())
-                        .dosage(item.getDosage())
-                        .quantity(item.getQuantity())
-                        .unit(item.getUnit())
-                        .instructions(item.getInstructions())
-                        .notes(item.getNotes())
-                        .checked(isChecked)
-                        .checkedAt(checkedAtMap.get(itemId))
-                        .build());
-                totalCount++;
-                if (isChecked) checkedCount++;
-            }
-
-            grouped.add(MedicineReminderPrescriptionGroupResponse.builder()
-                    .prescriptionHeaderId(header.getPrescriptionHeaderId())
-                    .doctorName(header.getDoctor() != null ? header.getDoctor().getFullName() : null)
-                    .validUntil(header.getValidUntil())
-                    .items(itemResponses)
-                    .build());
-        }
-
-        return MedicineReminderChecklistResponse.builder()
-                .date(date)
-                .timing(timing)
-                .scheduledTime(scheduledTime)
-                .totalCount(totalCount)
-                .checkedCount(checkedCount)
-                .complete(totalCount > 0 && checkedCount == totalCount)
-                .prescriptions(grouped)
-                .build();
+        String normalizedTiming = PrescriptionTiming.normalize(timing);
+        List<PrescriptionHeader> activePrescriptions = prescriptionHeaderRepository.findActiveByPatientWithItems(patientId, now);
+        List<MedicineIntakeCheck> checks = intakeCheckRepository.findByPatient_PatientIdAndIntakeDateAndTiming(
+                patientId,
+                date,
+                normalizedTiming
+        );
+        return buildChecklist(patientId, normalizedTiming, date, now, activePrescriptions, checks);
     }
 
     @Override
-    public void updateIntakeCheck(String patientId, MedicineIntakeCheckRequest request, LocalDateTime now) {
-        List<PrescriptionHeader> activePrescriptions = prescriptionHeaderRepository
-                .findActiveByPatientWithItems(patientId, now);
-
-        boolean itemBelongsToPatient = activePrescriptions.stream()
-                .flatMap(h -> h.getPrescriptionItems().stream())
-                .anyMatch(item -> item.getPrescriptionItemId().equals(request.getPrescriptionItemId()));
-
-        if (!itemBelongsToPatient) {
-            throw new ResourceNotFoundException(
-                    "Prescription item not found for patient", "prescriptionItemId", request.getPrescriptionItemId()
-            );
-        }
-
+    @Transactional
+    public MedicineReminderChecklistResponse updateIntakeCheck(String patientId, MedicineIntakeCheckRequest request, LocalDateTime now) {
+        String normalizedTiming = PrescriptionTiming.normalize(request.getTiming());
         Patient patient = patientRepository.findById(patientId)
-                .orElseThrow(() -> new ResourceNotFoundException("Patient", "patientId", patientId));
+                .orElseThrow(() -> new ResourceNotFoundException("Patient", "id", patientId));
+
+        PrescriptionItem item = findOwnedActiveItem(patientId, request.getPrescriptionItemId(), normalizedTiming, now);
+        PrescriptionHeader prescription = item.getPrescriptionHeader();
 
         MedicineIntakeCheck check = intakeCheckRepository
                 .findByPatient_PatientIdAndPrescriptionItem_PrescriptionItemIdAndIntakeDateAndTiming(
-                        patientId, request.getPrescriptionItemId(), request.getIntakeDate(), request.getTiming())
-                .orElse(MedicineIntakeCheck.builder()
+                        patientId,
+                        request.getPrescriptionItemId(),
+                        request.getIntakeDate(),
+                        normalizedTiming
+                )
+                .orElseGet(() -> MedicineIntakeCheck.builder()
                         .patient(patient)
+                        .prescriptionHeader(prescription)
+                        .prescriptionItem(item)
                         .intakeDate(request.getIntakeDate())
-                        .timing(request.getTiming())
+                        .timing(normalizedTiming)
+                        .createdAt(now)
                         .build());
 
-        if (check.getPrescriptionItem() == null) {
-            PrescriptionItem item = activePrescriptions.stream()
-                    .flatMap(h -> h.getPrescriptionItems().stream())
-                    .filter(i -> i.getPrescriptionItemId().equals(request.getPrescriptionItemId()))
-                    .findFirst()
-                    .orElseThrow(() -> new ResourceNotFoundException("PrescriptionItem", "id", request.getPrescriptionItemId()));
-
-            check.setPrescriptionItem(item);
-            check.setPrescriptionHeader(item.getPrescriptionHeader());
-        }
-
         check.setChecked(request.getChecked());
-        check.setCheckedAt(request.getChecked() ? now : null);
-        check.setUpdatedAt(LocalDateTime.now());
-
+        check.setCheckedAt(Boolean.TRUE.equals(request.getChecked()) ? now : null);
+        check.setUpdatedAt(now);
         intakeCheckRepository.save(check);
+
+        return getChecklist(patientId, normalizedTiming, request.getIntakeDate(), now);
     }
 
     @Override
+    @Transactional
     public MedicineReminderChecklistResponse completeTiming(String patientId, String timing, LocalDate date, LocalDateTime now) {
+        String normalizedTiming = PrescriptionTiming.normalize(timing);
         Patient patient = patientRepository.findById(patientId)
-                .orElseThrow(() -> new ResourceNotFoundException("Patient", "patientId", patientId));
+                .orElseThrow(() -> new ResourceNotFoundException("Patient", "id", patientId));
+        List<PrescriptionHeader> activePrescriptions = prescriptionHeaderRepository.findActiveByPatientWithItems(patientId, now);
 
-        MedicineReminderSetting setting = settingRepository.findByPatient_PatientId(patientId)
-                .orElse(null);
+        Map<Integer, MedicineIntakeCheck> existing = intakeCheckRepository
+                .findByPatient_PatientIdAndIntakeDateAndTiming(patientId, date, normalizedTiming)
+                .stream()
+                .filter(check -> check.getPrescriptionItem() != null)
+                .collect(Collectors.toMap(
+                        check -> check.getPrescriptionItem().getPrescriptionItemId(),
+                        Function.identity(),
+                        (first, second) -> first
+                ));
 
-        LocalTime scheduledTime = resolveScheduledTime(timing, setting);
+        for (PrescriptionHeader prescription : activePrescriptions) {
+            List<PrescriptionItem> items = prescription.getPrescriptionItems() == null
+                    ? List.of()
+                    : prescription.getPrescriptionItems();
+            for (PrescriptionItem item : items) {
+                if (!supportsTiming(item, normalizedTiming)) {
+                    continue;
+                }
+                MedicineIntakeCheck check = existing.getOrDefault(
+                        item.getPrescriptionItemId(),
+                        MedicineIntakeCheck.builder()
+                                .patient(patient)
+                                .prescriptionHeader(prescription)
+                                .prescriptionItem(item)
+                                .intakeDate(date)
+                                .timing(normalizedTiming)
+                                .createdAt(now)
+                                .build()
+                );
+                check.setChecked(true);
+                check.setCheckedAt(now);
+                check.setUpdatedAt(now);
+                intakeCheckRepository.save(check);
+            }
+        }
 
-        List<PrescriptionHeader> prescriptions = prescriptionHeaderRepository
-                .findActiveByPatientWithItems(patientId, now);
+        return getChecklist(patientId, normalizedTiming, date, now);
+    }
 
-        List<MedicineIntakeCheck> existingChecks = intakeCheckRepository
-                .findByPatient_PatientIdAndIntakeDateAndTiming(patientId, date, timing);
+    @Override
+    @Transactional(readOnly = true)
+    public List<MedicineReminderSetting> getEnabledSettingsForDispatch() {
+        return settingRepository.findEnabledSettingsWithPatientAndUser();
+    }
 
-        Set<Integer> alreadyCheckedItemIds = existingChecks.stream()
-                .filter(MedicineIntakeCheck::getChecked)
-                .map(check -> check.getPrescriptionItem().getPrescriptionItemId())
-                .collect(Collectors.toSet());
+    @Override
+    @Transactional
+    public boolean dispatchReminderIfDue(MedicineReminderSetting setting, PrescriptionTiming timing, LocalDateTime now) {
+        Patient patient = setting.getPatient();
+        if (patient == null || patient.getPatientId() == null) {
+            return false;
+        }
 
+        LocalTime scheduledTime = scheduledTimeFor(setting, timing);
+        LocalTime currentTime = now.toLocalTime();
+        if (currentTime.isBefore(scheduledTime) || !currentTime.isBefore(scheduledTime.plus(DISPATCH_WINDOW))) {
+            return false;
+        }
+
+        LocalDate reminderDate = now.toLocalDate();
+        String timingName = timing.name();
+        if (dispatchLogRepository.existsByPatient_PatientIdAndReminderDateAndTiming(
+                patient.getPatientId(),
+                reminderDate,
+                timingName
+        )) {
+            return false;
+        }
+
+        MedicineReminderChecklistResponse checklist = getChecklist(patient.getPatientId(), timingName, reminderDate, now);
+        if (checklist.getTotalCount() == 0 || checklist.isComplete()) {
+            return false;
+        }
+
+        User user = patient.getUser();
+        if (user == null) {
+            log.warn("Skipping medicine reminder because patient {} has no user", patient.getPatientId());
+            return false;
+        }
+
+        String metadata = buildReminderMetadata(checklist);
+        notificationService.sendWebSocketNotification(
+                user,
+                NotificationType.NEW_PRESCRIPTION,
+                titleFor(timing),
+                messageFor(timing, checklist),
+                null,
+                "/patient-dashboard/reminders?timing=" + timingName,
+                metadata
+        );
+
+        dispatchLogRepository.save(MedicineReminderDispatchLog.builder()
+                .patient(patient)
+                .reminderDate(reminderDate)
+                .timing(timingName)
+                .scheduledTime(scheduledTime)
+                .sentAt(now)
+                .build());
+        return true;
+    }
+
+    private MedicineReminderChecklistResponse buildChecklist(
+            String patientId,
+            String timing,
+            LocalDate date,
+            LocalDateTime now,
+            List<PrescriptionHeader> activePrescriptions,
+            List<MedicineIntakeCheck> checks
+    ) {
+        Map<Integer, MedicineIntakeCheck> checksByItemId = checks.stream()
+                .filter(check -> check.getPrescriptionItem() != null)
+                .collect(Collectors.toMap(
+                        check -> check.getPrescriptionItem().getPrescriptionItemId(),
+                        Function.identity(),
+                        (first, second) -> first
+                ));
+
+        List<MedicineReminderPrescriptionGroupResponse> groups = new ArrayList<>();
         int totalCount = 0;
-        int checkedCount = alreadyCheckedItemIds.size();
-        List<MedicineReminderPrescriptionGroupResponse> grouped = new ArrayList<>();
+        int checkedCount = 0;
 
-        for (PrescriptionHeader header : prescriptions) {
-            List<PrescriptionItem> matchedItems = header.getPrescriptionItems().stream()
-                    .filter(item -> item.getTiming() != null && item.getTiming().contains(timing))
-                    .toList();
-
-            if (matchedItems.isEmpty()) continue;
+        for (PrescriptionHeader prescription : activePrescriptions) {
+            List<PrescriptionItem> items = prescription.getPrescriptionItems() == null
+                    ? List.of()
+                    : prescription.getPrescriptionItems();
 
             List<MedicineReminderItemResponse> itemResponses = new ArrayList<>();
-            for (PrescriptionItem item : matchedItems) {
-                Integer itemId = item.getPrescriptionItemId();
-
-                if (!alreadyCheckedItemIds.contains(itemId)) {
-                    MedicineIntakeCheck check = MedicineIntakeCheck.builder()
-                            .patient(patient)
-                            .prescriptionHeader(header)
-                            .prescriptionItem(item)
-                            .intakeDate(date)
-                            .timing(timing)
-                            .checked(true)
-                            .checkedAt(now)
-                            .build();
-                    intakeCheckRepository.save(check);
-                    checkedCount++;
+            for (PrescriptionItem item : items) {
+                if (!supportsTiming(item, timing)) {
+                    continue;
                 }
 
+                MedicineIntakeCheck check = checksByItemId.get(item.getPrescriptionItemId());
+                boolean checked = check != null && Boolean.TRUE.equals(check.getChecked());
+                if (checked) {
+                    checkedCount++;
+                }
+                totalCount++;
+
                 itemResponses.add(MedicineReminderItemResponse.builder()
-                        .prescriptionItemId(itemId)
+                        .prescriptionItemId(item.getPrescriptionItemId())
                         .medicationName(item.getMedicationName())
                         .dosage(item.getDosage())
                         .quantity(item.getQuantity())
                         .unit(item.getUnit())
                         .instructions(item.getInstructions())
                         .notes(item.getNotes())
-                        .checked(true)
-                        .checkedAt(now)
+                        .checked(checked)
+                        .checkedAt(check != null ? check.getCheckedAt() : null)
                         .build());
-                totalCount++;
             }
 
-            grouped.add(MedicineReminderPrescriptionGroupResponse.builder()
-                    .prescriptionHeaderId(header.getPrescriptionHeaderId())
-                    .doctorName(header.getDoctor() != null ? header.getDoctor().getFullName() : null)
-                    .validUntil(header.getValidUntil())
-                    .items(itemResponses)
-                    .build());
+            if (!itemResponses.isEmpty()) {
+                groups.add(MedicineReminderPrescriptionGroupResponse.builder()
+                        .prescriptionHeaderId(prescription.getPrescriptionHeaderId())
+                        .doctorName(prescription.getDoctor() != null ? prescription.getDoctor().getFullName() : null)
+                        .validUntil(prescription.getValidUntil())
+                        .items(itemResponses)
+                        .build());
+            }
         }
 
         return MedicineReminderChecklistResponse.builder()
                 .date(date)
                 .timing(timing)
-                .scheduledTime(scheduledTime)
-                .totalCount(totalCount)
+                .scheduledTime(scheduledTimeFor(patientId, timing))
                 .checkedCount(checkedCount)
-                .complete(true)
-                .prescriptions(grouped)
+                .totalCount(totalCount)
+                .complete(totalCount > 0 && checkedCount == totalCount)
+                .prescriptions(groups)
                 .build();
     }
 
-    private LocalTime resolveScheduledTime(String timing, MedicineReminderSetting setting) {
-        if (setting == null) {
-            return switch (timing) {
-                case "MORNING" -> DEFAULT_MORNING;
-                case "AFTERNOON" -> DEFAULT_AFTERNOON;
-                case "EVENING" -> DEFAULT_EVENING;
-                default -> LocalTime.NOON;
-            };
+    private boolean supportsTiming(PrescriptionItem item, String timing) {
+        if (item.getTiming() == null || item.getTiming().isBlank()) {
+            return false;
         }
-        return switch (timing) {
-            case "MORNING" -> setting.getMorningTime();
-            case "AFTERNOON" -> setting.getAfternoonTime();
-            case "EVENING" -> setting.getEveningTime();
-            default -> LocalTime.NOON;
+        try {
+            return PrescriptionTiming.containsTiming(item.getTiming(), timing);
+        } catch (IllegalArgumentException ex) {
+            log.warn("Skipping prescription item {} with invalid timing '{}'",
+                    item.getPrescriptionItemId(), item.getTiming());
+            return false;
+        }
+    }
+
+    private PrescriptionItem findOwnedActiveItem(String patientId, Integer prescriptionItemId, String timing, LocalDateTime now) {
+        return prescriptionHeaderRepository.findActiveByPatientWithItems(patientId, now)
+                .stream()
+                .flatMap(header -> header.getPrescriptionItems() == null
+                        ? List.<PrescriptionItem>of().stream()
+                        : header.getPrescriptionItems().stream())
+                .filter(item -> Objects.equals(item.getPrescriptionItemId(), prescriptionItemId))
+                .filter(item -> supportsTiming(item, timing))
+                .findFirst()
+                .orElseThrow(() -> new ResourceNotFoundException("PrescriptionItem", "id", prescriptionItemId));
+    }
+
+    private LocalTime scheduledTimeFor(String patientId, String timing) {
+        MedicineReminderSettingResponse settings = getSettings(patientId);
+        return switch (PrescriptionTiming.from(timing)) {
+            case MORNING -> settings.getMorningTime();
+            case AFTERNOON -> settings.getAfternoonTime();
+            case EVENING -> settings.getEveningTime();
         };
     }
 
-    private static MedicineReminderSettingResponse toSettingResponse(MedicineReminderSetting setting) {
+    private LocalTime scheduledTimeFor(MedicineReminderSetting setting, PrescriptionTiming timing) {
+        return switch (timing) {
+            case MORNING -> setting.getMorningTime();
+            case AFTERNOON -> setting.getAfternoonTime();
+            case EVENING -> setting.getEveningTime();
+        };
+    }
+
+    private String titleFor(PrescriptionTiming timing) {
+        return switch (timing) {
+            case MORNING -> "Morning medication reminder";
+            case AFTERNOON -> "Afternoon medication reminder";
+            case EVENING -> "Evening medication reminder";
+        };
+    }
+
+    private String messageFor(PrescriptionTiming timing, MedicineReminderChecklistResponse checklist) {
+        String label = timing.name().toLowerCase();
+        int prescriptionCount = checklist.getPrescriptions() == null ? 0 : checklist.getPrescriptions().size();
+        return "You have " + checklist.getTotalCount()
+                + " medicine(s) to take this " + label
+                + " from " + prescriptionCount + " active prescription(s).";
+    }
+
+    private String buildReminderMetadata(MedicineReminderChecklistResponse checklist) {
+        Map<String, Object> metadata = new LinkedHashMap<>();
+        metadata.put("timing", checklist.getTiming());
+        metadata.put("reminderDate", checklist.getDate());
+        metadata.put("scheduledTime", checklist.getScheduledTime());
+        metadata.put("prescriptionCount", checklist.getPrescriptions() == null ? 0 : checklist.getPrescriptions().size());
+        metadata.put("medicationCount", checklist.getTotalCount());
+        metadata.put("action", "OPEN_MEDICINE_REMINDER");
+        try {
+            return objectMapper.writeValueAsString(metadata);
+        } catch (Exception ex) {
+            log.warn("Failed to serialize medicine reminder metadata: {}", ex.getMessage());
+            return null;
+        }
+    }
+
+    private void validateDistinctTimes(LocalTime morningTime, LocalTime afternoonTime, LocalTime eveningTime) {
+        if (morningTime.equals(afternoonTime)
+                || morningTime.equals(eveningTime)
+                || afternoonTime.equals(eveningTime)) {
+            throw new BadRequestException("Reminder times must be distinct");
+        }
+    }
+
+    private MedicineReminderSettingResponse defaultSettingsResponse() {
+        return MedicineReminderSettingResponse.builder()
+                .morningTime(DEFAULT_MORNING_TIME)
+                .afternoonTime(DEFAULT_AFTERNOON_TIME)
+                .eveningTime(DEFAULT_EVENING_TIME)
+                .enabled(true)
+                .build();
+    }
+
+    private MedicineReminderSettingResponse toSettingsResponse(MedicineReminderSetting setting) {
         return MedicineReminderSettingResponse.builder()
                 .morningTime(setting.getMorningTime())
                 .afternoonTime(setting.getAfternoonTime())
                 .eveningTime(setting.getEveningTime())
-                .enabled(setting.getEnabled())
+                .enabled(Boolean.TRUE.equals(setting.getEnabled()))
                 .build();
     }
 }
