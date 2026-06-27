@@ -24,7 +24,6 @@ const ConsultationNotesTab = ({
   notesDraft,
   onNotesChange,
   onSaveNotes,
-  onLockedAction,
 }) => {
   const isDisabled = !canEditClinical;
   const latestRef = useRef(notesDraft);
@@ -41,10 +40,6 @@ const ConsultationNotesTab = ({
       }
     };
   }, [onSaveNotes]);
-
-  const handleLockedAction = () => {
-    if (!canEditClinical && typeof onLockedAction === 'function') onLockedAction();
-  };
 
   const handleChange = (field, value) => {
     onNotesChange(field, value);
@@ -65,7 +60,7 @@ const ConsultationNotesTab = ({
       <div className="doctor-notes-content">
         <label className="doctor-notes-field">
           <span>Diagnosis</span>
-          <div onClick={handleLockedAction} onFocus={handleLockedAction}>
+          <div>
             <CKEditor
               editor={ClassicEditor}
               data={notesDraft.diagnosis}
@@ -78,7 +73,7 @@ const ConsultationNotesTab = ({
 
         <label className="doctor-notes-field">
           <span>Doctor Notes</span>
-          <div onClick={handleLockedAction} onFocus={handleLockedAction}>
+          <div>
             <CKEditor
               editor={ClassicEditor}
               data={notesDraft.doctorNotes}
@@ -91,7 +86,7 @@ const ConsultationNotesTab = ({
 
         <label className="doctor-notes-field">
           <span>Treatment Plan</span>
-          <div onClick={handleLockedAction} onFocus={handleLockedAction}>
+          <div>
             <CKEditor
               editor={ClassicEditor}
               data={notesDraft.treatmentPlan}

@@ -1,6 +1,6 @@
 import React, { useEffect, useMemo, useState, useCallback } from 'react';
 import { useNavigate, useOutletContext } from 'react-router-dom';
-import { doctorService } from '@api/doctorApi';
+import { doctorService, doctorScheduleService } from '@api/doctorApi';
 import NextAppointmentCard from '@components/doctor/NextAppointmentCard';
 import AppointmentCard from '@components/doctor/AppointmentCard';
 import TodayTimeline from '@components/doctor/TodayTimeline';
@@ -39,6 +39,24 @@ export default function DoctorTodayCockpit() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
   const [pollTick, setPollTick] = useState(0);
+  const [calendarData, setCalendarData] = useState([]);
+
+  const getMonthRange = useCallback((dateStr) => {
+    const d = new Date(`${dateStr}T00:00:00`);
+    const start = new Date(d.getFullYear(), d.getMonth(), 1);
+    const end = new Date(d.getFullYear(), d.getMonth() + 1, 0);
+    return { start: toDateInputValue(start), end: toDateInputValue(end) };
+  }, []);
+
+  useEffect(() => {
+    if (!doctorId || !selectedDate) return;
+    let mounted = true;
+    const { start, end } = getMonthRange(selectedDate);
+    doctorScheduleService.getCalendarView(start, end)
+      .then((data) => { if (mounted) setCalendarData(data || []); })
+      .catch(() => { if (mounted) setCalendarData([]); });
+    return () => { mounted = false; };
+  }, [doctorId, selectedDate, getMonthRange]);
 
   const isToday = useMemo(() => {
     const d = new Date(`${selectedDate}T00:00:00`);
@@ -214,7 +232,7 @@ export default function DoctorTodayCockpit() {
         </div>
 
         <aside className="doctor-asymmetric-grid__divider">
-          <TodayTimeline appointments={sortedAppointments} loading={loading} selectedDate={selectedDate} onView={handleView} onDateChange={setSelectedDate} />
+          <TodayTimeline appointments={sortedAppointments} calendarData={calendarData} loading={loading} selectedDate={selectedDate} onView={handleView} onDateChange={setSelectedDate} />
         </aside>
       </div>
     </div>

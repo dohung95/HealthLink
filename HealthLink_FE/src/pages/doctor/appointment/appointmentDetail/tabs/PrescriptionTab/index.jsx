@@ -106,7 +106,6 @@ const PrescriptionTab = ({
   onDraftChange,
   readOnly = false,
   canEditPrescription = !readOnly,
-  onLockedAction,
   prescriptionDraft,
 }) => {
   const workspaceAppointmentId = appointment?.appointmentID ?? appointment?.appointmentId ?? 'new';
@@ -310,20 +309,14 @@ const PrescriptionTab = ({
   };
 
   const openMedicineLibrary = () => {
-    if (isWorkspaceReadOnly) {
-      if (typeof onLockedAction === 'function') onLockedAction();
-      return;
-    }
+    if (isWorkspaceReadOnly) return;
 
     setLibraryQuery('');
     setShowLibraryFilters(false);
   };
 
   const handleSelectMedicine = (medicine) => {
-    if (isWorkspaceReadOnly) {
-      if (typeof onLockedAction === 'function') onLockedAction();
-      return;
-    }
+    if (isWorkspaceReadOnly) return;
 
     setMedicationRows((currentRows) => {
       const existing = currentRows.find((r) => r.medicineId === medicine.medicineId);
@@ -345,7 +338,6 @@ const PrescriptionTab = ({
 
   const handleRemoveRow = (rowId) => {
     if (isWorkspaceReadOnly) {
-      if (typeof onLockedAction === 'function') onLockedAction();
       return;
     }
 
@@ -355,7 +347,6 @@ const PrescriptionTab = ({
 
   const handleRowChange = (rowId, field, value) => {
     if (isWorkspaceReadOnly) {
-      if (typeof onLockedAction === 'function') onLockedAction();
       return;
     }
 
@@ -373,7 +364,6 @@ const PrescriptionTab = ({
 
   const handleRowTimingToggle = (rowId, timingValue) => {
     if (isWorkspaceReadOnly) {
-      if (typeof onLockedAction === 'function') onLockedAction();
       return;
     }
 

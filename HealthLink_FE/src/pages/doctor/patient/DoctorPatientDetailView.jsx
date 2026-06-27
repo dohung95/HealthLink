@@ -3,6 +3,7 @@ import { vitalSignApi } from '@api/vitalSignApi';
 import { useAuth } from '@context/AuthContext';
 import { useChat } from '@context/ChatContext';
 import { toast } from 'sonner';
+import PrescriptionDetailModal from '@components/doctor/PrescriptionDetailModal';
 
 const formatDateTime = (value) => {
   if (!value) return 'N/A';
@@ -19,7 +20,6 @@ const formatDateTime = (value) => {
 
 const TABS = [
   { key: 'overview', label: 'Overview' },
-  { key: 'appointments', label: 'Appointments' },
   { key: 'prescriptions', label: 'Prescriptions' },
   { key: 'documents', label: 'Documents' },
 ];
@@ -31,7 +31,7 @@ const InfoField = ({ label, value, larger }) => (
   </div>
 );
 
-export default function DoctorPatientDetailView({ patient, history, onOpenAppointmentById }) {
+export default function DoctorPatientDetailView({ patient, history }) {
   const { initiateCall, isInCall, currentUserId, user: authUser } = useAuth();
   const { openChatWith } = useChat();
   const [activeTab, setActiveTab] = useState('overview');
@@ -39,6 +39,7 @@ export default function DoctorPatientDetailView({ patient, history, onOpenAppoin
   const [loadingVitals, setLoadingVitals] = useState(true);
   const ITEMS_PER_PAGE = 5;
   const [tabPage, setTabPage] = useState(1);
+  const [selectedPrescription, setSelectedPrescription] = useState(null);
 
   useEffect(() => { setTabPage(1); }, [activeTab]);
 
@@ -92,6 +93,10 @@ export default function DoctorPatientDetailView({ patient, history, onOpenAppoin
     const callerName = authUser?.preferred_username || authUser?.name || authUser?.email || 'Doctor';
     initiateCall(targetUserId, roomId, patient?.fullName || 'Patient', callerName);
   }, [patient, isInCall, authUser, initiateCall]);
+
+  const handleOpenPrescriptionDetail = useCallback((rx) => {
+    setSelectedPrescription(rx);
+  }, []);
 
   if (!patient) return null;
 
@@ -373,51 +378,6 @@ export default function DoctorPatientDetailView({ patient, history, onOpenAppoin
     </div>
   );
 
-  const renderAppointments = () => {
-    const items = history?.appointments || [];
-    const totalPages = Math.ceil(items.length / ITEMS_PER_PAGE);
-    const startIndex = (tabPage - 1) * ITEMS_PER_PAGE;
-    const pageItems = items.slice(startIndex, startIndex + ITEMS_PER_PAGE);
-    return (
-      <div style={{ display: 'flex', flexDirection: 'column', gap: '0.625rem' }}>
-        <p className="patient-section-title">Appointment History</p>
-        {pageItems.length ? pageItems.map((appt) => (
-          <div className="patient-timeline-item" key={appt.appointmentId}>
-            <div className="patient-timeline-item__info">
-              <p className="patient-timeline-item__title">{formatDateTime(appt.appointmentTime)}</p>
-              <p className="patient-timeline-item__subtitle">{appt.consultationType || 'Consultation'} &mdash; {appt.status}</p>
-              {appt.diagnosis && <p className="patient-timeline-item__diagnosis">Diagnosis: {appt.diagnosis}</p>}
-            </div>
-            <button
-              type="button"
-              className="patient-timeline-item__action"
-              onClick={() => onOpenAppointmentById?.(appt.appointmentId)}
-            >
-              Open
-            </button>
-          </div>
-        )) : (
-          <p style={{ fontSize: '0.8rem', color: 'var(--doctor-text-muted)' }}>No appointments found.</p>
-        )}
-        {totalPages > 1 && (
-          <div className="tab-pagination">
-            <span className="tab-pagination__info">Page {tabPage} of {totalPages}</span>
-            <div className="tab-pagination__nav">
-              <button type="button" className="tab-pagination__btn" disabled={tabPage <= 1} onClick={() => setTabPage((p) => Math.max(1, p - 1))}>
-                <span className="material-symbols-outlined" style={{ fontSize: '0.75rem' }}>chevron_left</span>
-                Prev
-              </button>
-              <button type="button" className="tab-pagination__btn" disabled={tabPage >= totalPages} onClick={() => setTabPage((p) => Math.min(totalPages, p + 1))}>
-                Next
-                <span className="material-symbols-outlined" style={{ fontSize: '0.75rem' }}>chevron_right</span>
-              </button>
-            </div>
-          </div>
-        )}
-      </div>
-    );
-  };
-
   const renderPrescriptions = () => {
     const items = history?.prescriptions || [];
     const totalPages = Math.ceil(items.length / ITEMS_PER_PAGE);
@@ -437,9 +397,9 @@ export default function DoctorPatientDetailView({ patient, history, onOpenAppoin
               <button
                 type="button"
                 className="patient-timeline-item__action"
-                onClick={() => onOpenAppointmentById?.(rx.appointmentId)}
+                onClick={() => handleOpenPrescriptionDetail(rx)}
               >
-                Appointment
+                Detail
               </button>
             )}
           </div>
@@ -484,14 +444,24 @@ export default function DoctorPatientDetailView({ patient, history, onOpenAppoin
   const renderTabContent = () => {
     switch (activeTab) {
       case 'overview': return renderOverview();
-      case 'appointments': return renderAppointments();
       case 'prescriptions': return renderPrescriptions();
       case 'documents': return renderDocuments();
       default: return renderOverview();
     }
   };
 
+  const renderModal = selectedPrescription && (
+    <PrescriptionDetailModal
+      show={!!selectedPrescription}
+      prescription={selectedPrescription}
+      appointments={history?.appointments}
+      patientName={patient?.fullName || 'Patient'}
+      onClose={() => setSelectedPrescription(null)}
+    />
+  );
+
   return (
+    <>
     <div style={{ display: 'flex', flexDirection: 'column', height: '100%' }}>
       <div className="split-patients__detail-header">
         <div className="split-patients__detail-hero">
@@ -547,5 +517,7 @@ export default function DoctorPatientDetailView({ patient, history, onOpenAppoin
         {renderTabContent()}
       </div>
     </div>
+    {renderModal}
+    </>
   );
 }

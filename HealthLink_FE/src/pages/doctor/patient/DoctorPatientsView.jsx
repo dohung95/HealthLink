@@ -306,7 +306,6 @@ export default function DoctorPatientsView() {
         <DoctorPatientDetailView
           patient={selectedPatient}
           history={history}
-          onOpenAppointmentById={(id) => navigate(`/doctor/appointments/${id}`)}
         />
       </>
     );
