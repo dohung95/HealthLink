@@ -757,6 +757,7 @@ const Schedule = () => {
                   homeVisitInfo={homeVisitInfo}
                   setHomeVisitInfo={setHomeVisitInfo}
                   patientProfile={patientProfile}
+                  selectedDoctorId={selectedDoctorId}
                   onBack={handleBack}
                   onNext={handleNext}
                 />

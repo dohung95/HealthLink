@@ -2,6 +2,7 @@ package com.HealthLink.entity;
 
 import jakarta.persistence.*;
 import lombok.*;
+import org.hibernate.annotations.Nationalized;
 
 import java.math.BigDecimal;
 
@@ -24,24 +25,29 @@ public class HomeVisitDetails {
     @ToString.Exclude
     private Appointment appointment;
 
+    @Nationalized
     @Column(name = "VisitAddress", nullable = false, length = 1000)
     private String visitAddress;
 
+    @Nationalized
     @Column(name = "VisitCity", length = 255)
     private String visitCity;
 
     @Column(name = "ContactPhone", nullable = false, length = 50)
     private String contactPhone;
 
+    @Nationalized
     @Column(name = "ReasonForHomeVisit", nullable = false, length = 2000)
     private String reasonForHomeVisit;
 
+    @Nationalized
     @Column(name = "SpecialNotes", length = 2000)
     private String specialNotes;
 
     @Column(name = "IsForSelf", nullable = false)
     private Boolean isForSelf;
 
+    @Nationalized
     @Column(name = "ReceiverName", length = 255)
     private String receiverName;
 

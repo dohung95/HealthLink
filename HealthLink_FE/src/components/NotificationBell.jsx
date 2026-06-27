@@ -16,6 +16,11 @@ const isMedicationReminder = (notification = {}) => {
   );
 };
 
+const isChecklistMedicineReminder = (notification = {}) => {
+  const metadata = getReminderMetadata(notification);
+  return metadata.action === 'OPEN_MEDICINE_REMINDER' && Boolean(metadata.timing);
+};
+
 function NotificationBell() {
   const navigate = useNavigate();
   const [dropdownOpen, setDropdownOpen] = useState(false);
@@ -261,11 +266,20 @@ function NotificationBell() {
   };
 
   const handleReminderClick = (reminder) => {
+    const metadata = getReminderMetadata(reminder);
+    if (isChecklistMedicineReminder(reminder)) {
+      window.dispatchEvent(new CustomEvent('open-medicine-reminder', {
+        detail: { timing: metadata.timing },
+      }));
+      setDropdownOpen(false);
+      return;
+    }
+
     // Extract prescription ID from message
     let prescriptionId =
       reminder.prescriptionHeaderId ||
       reminder.prescriptionId ||
-      reminder.metadata?.prescriptionHeaderId ||
+      metadata.prescriptionHeaderId ||
       null;
     
     // Try to extract from message like "You have a prescription #123"
@@ -346,6 +360,8 @@ function NotificationBell() {
         parsed.remainingDays,
       timing: metadata.timing || parsed.timing,
       medications,
+      action: metadata.action,
+      prescriptionCount: metadata.prescriptionCount,
     };
   };
 
@@ -391,7 +407,8 @@ function NotificationBell() {
                   </div>
                 ) : reminders.length > 0 ? (
                   reminders.map(reminder => {
-                    const { prescriptionId, medicationCount, remainingDays, timing, medications } = getReminderDisplay(reminder);
+                    const { prescriptionId, medicationCount, remainingDays, timing, medications, action, prescriptionCount } = getReminderDisplay(reminder);
+                    const isAggregateReminder = action === 'OPEN_MEDICINE_REMINDER';
                     return (
                       <div 
                         key={reminder.notificationID} 
@@ -406,11 +423,11 @@ function NotificationBell() {
                           <div className="prescription-reminder-header">
                             <h6 className="prescription-title">
                               <span className="material-symbols-outlined">description</span>
-                              Prescription #{prescriptionId}
+                              {isAggregateReminder ? `${timing} medicines` : `Prescription #${prescriptionId}`}
                             </h6>
                           </div>
                           <div className="prescription-info">
-                            {remainingDays > 0 && (
+                            {!isAggregateReminder && remainingDays > 0 && (
                               <div className="info-item remaining-time">
                                 <span className="material-symbols-outlined">schedule</span>
                                 <span className={`days-text ${remainingDays <= 3 ? 'urgent' : ''}`}>
@@ -422,6 +439,12 @@ function NotificationBell() {
                               <span className="material-symbols-outlined">medication</span>
                               <span>{medicationCount} medication(s)</span>
                             </div>
+                            {isAggregateReminder && prescriptionCount > 0 && (
+                              <div className="info-item">
+                                <span className="material-symbols-outlined">assignment</span>
+                                <span>{prescriptionCount} prescription(s)</span>
+                              </div>
+                            )}
                             {timing && (
                               <div className="info-item">
                                 <span className="material-symbols-outlined">wb_sunny</span>
@@ -444,7 +467,7 @@ function NotificationBell() {
                           <div className="notification-footer">
                             <span className="click-hint">
                               <span className="material-symbols-outlined">visibility</span>
-                              Click to view details
+                              {isAggregateReminder ? 'Click to open checklist' : 'Click to view details'}
                             </span>
                           </div>
                         </div>

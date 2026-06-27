@@ -1,6 +1,7 @@
 package com.HealthLink.entity;
 import jakarta.persistence.*;
 import lombok.*;
+import org.hibernate.annotations.Nationalized;
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
 import java.time.LocalTime;
@@ -21,6 +22,7 @@ public class Pharmacy {
     @JoinColumn(name = "PharmacyID")
     private User user;
 
+    @Nationalized
     @Column(nullable = false, length = 200)
     private String name;
 
@@ -29,15 +31,19 @@ public class Pharmacy {
     @Column(nullable = false, length = 100)
     private String licenseNumber; // Số giấy phép kinh doanh/hoạt động do Sở Y Tế cấp (Bắt buộc)
 
+    @Nationalized
     @Column(nullable = false, length = 500)
     private String address; // Địa chỉ chi tiết của nhà thuốc (Số nhà, tên đường) (Bắt buộc)
 
+    @Nationalized
     @Column(length = 100)
     private String city; // Thành phố / Tỉnh
     
+    @Nationalized
     @Column(length = 100)
     private String district; // Quận / Huyện
     
+    @Nationalized
     @Column(length = 100)
     private String ward; // Phường / Xã
 
@@ -51,6 +57,7 @@ public class Pharmacy {
     
     private String email; // Email liên hệ hỗ trợ
 
+    @Nationalized
     @Column(length = 1000)
     private String description; // Đoạn mô tả giới thiệu về quy mô, uy tín của nhà thuốc
     

@@ -1,4 +1,5 @@
-import React, { memo } from 'react';
+import React, { memo, useMemo } from 'react';
+import { toast } from 'react-toastify';
 import 'bootstrap/dist/css/bootstrap.min.css';
 import 'react-calendar/dist/Calendar.css';
 import '@components/Css/doctor/doctor-dashboard/doctor-dashboard.css';
@@ -29,6 +30,11 @@ const TABS = [
 const DoctorAppointmentDetail = memo(({ appointment, patient, doctorId, onBack, onOpenAppointmentById }) => {
   const ctx = useAppointmentDetail({ appointment, patient, doctorId, onBack, onOpenAppointmentById });
 
+  const showWorkspaceOverlay = useMemo(() =>
+    !ctx.hasAppointmentTimeArrived && !ctx.hasStarted && ctx.statusKey === 'scheduled',
+    [ctx.hasAppointmentTimeArrived, ctx.hasStarted, ctx.statusKey],
+  );
+
   if (!appointment || !patient) {
     return (
       <div className="text-center py-5">
@@ -58,7 +64,30 @@ const DoctorAppointmentDetail = memo(({ appointment, patient, doctorId, onBack, 
             latestVitalSign={ctx.latestVitalSign}
             loadingVitalSign={ctx.loadingVitalSign}
           />
-          <div className="doctor-detail-workspace-main">
+          <div className="doctor-detail-workspace-main" style={{ position: 'relative' }}>
+            {showWorkspaceOverlay && (
+              <div
+                className="doctor-detail-workspace-overlay"
+                onClick={() => toast.info('Appointment time has not arrived yet.', { toastId: 'appointment-time-locked' })}
+                role="button"
+                tabIndex={0}
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter' || e.key === ' ') {
+                    toast.info('Appointment time has not arrived yet.', { toastId: 'appointment-time-locked' });
+                  }
+                }}
+                aria-label="Workspace locked until appointment time"
+              >
+                <div className="doctor-detail-workspace-overlay__content">
+                  <span className="material-symbols-outlined" style={{ fontSize: '2.5rem', marginBottom: '0.75rem' }}>lock</span>
+                  <p className="doctor-detail-workspace-overlay__title">Appointment Not Yet Started</p>
+                  <p className="doctor-detail-workspace-overlay__desc">
+                    The consultation workspace will be available once the appointment time arrives.
+                    You can start the consultation from the action bar below when the time comes.
+                  </p>
+                </div>
+              </div>
+            )}
         <div className="doctor-detail-appt-header">
           <div className="doctor-detail-appt-header__main-row">
             <span className="doctor-detail-appointment-id">
@@ -107,7 +136,6 @@ const DoctorAppointmentDetail = memo(({ appointment, patient, doctorId, onBack, 
                 notesDraft={ctx.notesDraft}
                 onNotesChange={ctx.handleNotesDraftChange}
                 onSaveNotes={ctx.handleSaveNotes}
-                onLockedAction={ctx.onLockedAction}
               />
             ) : null}
             {ctx.activeTab === 'history' ? (
@@ -137,7 +165,6 @@ const DoctorAppointmentDetail = memo(({ appointment, patient, doctorId, onBack, 
                 onDraftChange={ctx.setPrescriptionDraft}
                 readOnly={ctx.isReadOnlyAppointment}
                 canEditPrescription={ctx.canEditPrescription}
-                onLockedAction={ctx.onLockedAction}
               />
             ) : null}
             {ctx.activeTab === 'followup' ? (
@@ -168,7 +195,6 @@ const DoctorAppointmentDetail = memo(({ appointment, patient, doctorId, onBack, 
                 renderEmptyState={(title, description) => <EmptyState title={title} description={description} />}
                 followUpConsultationType={ctx.followUpConsultationType}
                 onFollowUpTypeChange={ctx.setFollowUpConsultationType}
-                onLockedAction={ctx.onLockedAction}
               />
             ) : null}
           </div>
@@ -188,10 +214,8 @@ const DoctorAppointmentDetail = memo(({ appointment, patient, doctorId, onBack, 
             joinDisabled={ctx.joinDisabled}
             actionLabel={ctx.actionLabel}
             currentAppointment={ctx.currentAppointment}
-            canEditClinical={ctx.canEditClinical}
             completingAppointment={ctx.completingAppointment}
             onCompleteClick={() => ctx.setShowCompleteConfirmModal(true)}
-            onLockedAction={ctx.onLockedAction}
           />
         </section>
       </div>

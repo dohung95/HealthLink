@@ -100,6 +100,11 @@ const PatientSidebar = () => {
             path: '/patient-dashboard/prescriptions',
         },
         {
+            label: 'Medicine Reminder',
+            icon: 'bi bi-alarm-fill',
+            path: '/patient-dashboard/reminders',
+        },
+        {
             label: 'Pharmacy',
             icon: 'bi bi-shop',
             path: '/patient-dashboard/pharmacy',

@@ -76,6 +76,9 @@ lerna-debug.log*
 /.ai
 /HealthLink_BE/CLAUDE.md
 /HealthLink_FE/.npm-cache
+/.superpowers
+/.github
+/tasks
 
 # === Build artifacts ===
 HealthLink_FE/dist/
