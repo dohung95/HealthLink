@@ -279,7 +279,22 @@ export default function RetailPharmacyStore({ navigate }) {
               <div className="row g-3">
                 <div className="col-md-5">
                   {selectedMedicine.imageUrl ? (
-                    <img className="img-fluid rounded" src={selectedMedicine.imageUrl} alt={getMedicineDisplayName(selectedMedicine)} />
+                    <>
+                      <img 
+                        className="img-fluid rounded" 
+                        src={selectedMedicine.imageUrl} 
+                        alt={getMedicineDisplayName(selectedMedicine)} 
+                        onError={(e) => {
+                          e.target.style.display = 'none';
+                          if (e.target.nextElementSibling) {
+                            e.target.nextElementSibling.style.display = 'flex';
+                          }
+                        }}
+                      />
+                      <div className="retail-product-fallback retail-detail-fallback" style={{ display: 'none' }}>
+                        <i className="bi bi-capsule-pill"></i>
+                      </div>
+                    </>
                   ) : (
                     <div className="retail-product-fallback retail-detail-fallback">
                       <i className="bi bi-capsule-pill"></i>
