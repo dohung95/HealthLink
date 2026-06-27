@@ -36,13 +36,4 @@ export const homeVisitApi = {
     return response.data;
   },
 
-  getSessions: async (doctorId) => {
-    const response = await axiosInstance.get(`/api/doctors/${doctorId}/home-visit-sessions`);
-    return response.data || [];
-  },
-
-  selectSession: async (data) => {
-    const response = await axiosInstance.post('/api/home-visit/select-session', data);
-    return response.data;
-  },
 };

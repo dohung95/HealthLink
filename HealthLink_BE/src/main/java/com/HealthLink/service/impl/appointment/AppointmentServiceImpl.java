@@ -111,6 +111,7 @@ public class AppointmentServiceImpl implements AppointmentService {
 
         if (TYPE_HOME_VISIT.equalsIgnoreCase(request.getConsultationType())) {
             homeVisitEstimate = homeVisitLocationService.estimate(
+                    request.getDoctorId(),
                     request.getVisitLatitude(),
                     request.getVisitLongitude()
             );
@@ -1106,18 +1107,6 @@ public class AppointmentServiceImpl implements AppointmentService {
                 || type.equals("consultation");
     }
 
-    private boolean isOfflineScheduleType(String value) {
-        if (value == null || value.isBlank()) {
-            return true;
-        }
-
-        String type = value.trim().toLowerCase();
-
-        return type.equals("offline")
-                || type.equals("in-person")
-                || type.equals("in person");
-    }
-
     private boolean isHomeVisitScheduleType(String value) {
         if (value == null || value.isBlank()) {
             return false;
@@ -1128,7 +1117,10 @@ public class AppointmentServiceImpl implements AppointmentService {
         return type.equals("homevisit")
                 || type.equals("home visit")
                 || type.equals("home-visit")
-                || type.equals("home");
+                || type.equals("home")
+                || type.equals("offline")
+                || type.equals("in-person")
+                || type.equals("in person");
     }
 
     private HomeVisitDetails buildHomeVisitDetails(

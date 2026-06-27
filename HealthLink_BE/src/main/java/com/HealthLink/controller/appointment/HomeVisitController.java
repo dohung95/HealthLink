@@ -73,23 +73,24 @@ public class HomeVisitController {
     }
     
     @GetMapping("/geocode")
-public ResponseEntity<List<HomeVisitGeocodeResponse>> geocode(
-        @RequestParam String address
-) {
-    return ResponseEntity.ok(homeVisitLocationService.geocode(address));
-}
-
-@PostMapping("/estimate")
-public ResponseEntity<HomeVisitEstimateResponse> estimate(
-        @RequestBody HomeVisitEstimateRequest request
-) {
-    return ResponseEntity.ok(
-            homeVisitLocationService.estimate(
-                    request.getVisitLatitude(),
-                    request.getVisitLongitude()
-            )
-    );
-}
+	public ResponseEntity<List<HomeVisitGeocodeResponse>> geocode(
+	        @RequestParam String address
+	) {
+	    return ResponseEntity.ok(homeVisitLocationService.searchAddressByNominatim(address));
+	}
+	
+	@PostMapping("/estimate")
+	public ResponseEntity<HomeVisitEstimateResponse> estimate(
+	        @RequestBody HomeVisitEstimateRequest request
+	) {
+	    return ResponseEntity.ok(
+	            homeVisitLocationService.estimate(
+	                    request.getDoctorId(),
+	                    request.getVisitLatitude(),
+	                    request.getVisitLongitude()
+	            )
+	    );
+	}
 
     private boolean isSupportedFileType(String mimeType) {
         if (mimeType == null || mimeType.isBlank()) {
