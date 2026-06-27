@@ -56,6 +56,33 @@ public interface PrescriptionHeaderRepository extends JpaRepository<Prescription
             """)
     List<PrescriptionHeader> findActiveReminderCandidates(@Param("now") LocalDateTime now);
 
+    @Query("""
+            SELECT DISTINCT h
+            FROM PrescriptionHeader h
+            LEFT JOIN FETCH h.prescriptionItems i
+            LEFT JOIN FETCH h.doctor d
+            WHERE h.patient.patientId = :patientId
+              AND h.validUntil IS NOT NULL
+              AND h.validUntil >= :now
+            ORDER BY h.issueDate DESC, h.prescriptionHeaderId DESC
+            """)
+    List<PrescriptionHeader> findActiveByPatientWithItems(
+            @Param("patientId") String patientId,
+            @Param("now") LocalDateTime now
+    );
+
+    @Query("""
+            SELECT DISTINCT h
+            FROM PrescriptionHeader h
+            LEFT JOIN FETCH h.prescriptionItems i
+            LEFT JOIN FETCH h.patient p
+            LEFT JOIN FETCH p.user
+            LEFT JOIN FETCH h.doctor d
+            WHERE h.validUntil IS NOT NULL
+              AND h.validUntil >= :now
+            """)
+    List<PrescriptionHeader> findAllActiveWithPatientAndItems(@Param("now") LocalDateTime now);
+
     @Modifying(clearAutomatically = true, flushAutomatically = true)
     @Query("""
             UPDATE PrescriptionHeader h
