@@ -72,6 +72,11 @@ const TodayTimeline = ({ appointments, calendarData, loading, selectedDate, onVi
             onClick={() => {
               const d = new Date(selectedDate + 'T00:00:00');
               d.setMonth(d.getMonth() - 1);
+              const now = new Date();
+              d.setDate(
+                d.getFullYear() === now.getFullYear() && d.getMonth() === now.getMonth()
+                  ? now.getDate() : 1
+              );
               onDateChange(toDateInputValue(d));
             }}
             type="button"
@@ -87,6 +92,11 @@ const TodayTimeline = ({ appointments, calendarData, loading, selectedDate, onVi
             onClick={() => {
               const d = new Date(selectedDate + 'T00:00:00');
               d.setMonth(d.getMonth() + 1);
+              const now = new Date();
+              d.setDate(
+                d.getFullYear() === now.getFullYear() && d.getMonth() === now.getMonth()
+                  ? now.getDate() : 1
+              );
               onDateChange(toDateInputValue(d));
             }}
             type="button"

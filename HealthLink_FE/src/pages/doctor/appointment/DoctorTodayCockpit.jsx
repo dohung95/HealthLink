@@ -232,7 +232,7 @@ export default function DoctorTodayCockpit() {
         </div>
 
         <aside className="doctor-asymmetric-grid__divider">
-          <TodayTimeline appointments={sortedAppointments} calendarData={calendarData} loading={loading} selectedDate={selectedDate} onView={handleView} onDateChange={setSelectedDate} />
+          <TodayTimeline key={selectedDate.substring(0, 7)} appointments={sortedAppointments} calendarData={calendarData} loading={loading} selectedDate={selectedDate} onView={handleView} onDateChange={setSelectedDate} />
         </aside>
       </div>
     </div>

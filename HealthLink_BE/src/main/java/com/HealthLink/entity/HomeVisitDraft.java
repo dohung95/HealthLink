@@ -2,6 +2,7 @@ package com.HealthLink.entity;
 
 import jakarta.persistence.*;
 import lombok.*;
+import org.hibernate.annotations.Nationalized;
 
 import java.time.LocalDateTime;
 
@@ -29,6 +30,7 @@ public class HomeVisitDraft {
     @Column(name = "AppointmentId")
     private Integer appointmentId;
 
+    @Nationalized
     @Column(name = "VisitAddress", length = 500, nullable = false)
     private String visitAddress;
 
@@ -41,9 +43,11 @@ public class HomeVisitDraft {
     @Column(name = "ContactPhone", length = 20, nullable = false)
     private String contactPhone;
 
+    @Nationalized
     @Column(name = "ReasonForHomeVisit", length = 500)
     private String reasonForHomeVisit;
 
+    @Nationalized
     @Column(name = "SpecialNotes", length = 500)
     private String specialNotes;
 

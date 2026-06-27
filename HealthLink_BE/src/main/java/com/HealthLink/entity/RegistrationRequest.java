@@ -2,6 +2,7 @@ package com.HealthLink.entity;
 
 import jakarta.persistence.*;
 import lombok.*;
+import org.hibernate.annotations.Nationalized;
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
 import java.time.LocalTime;
@@ -42,59 +43,73 @@ public class RegistrationRequest {
     @Column(name = "ReviewedBy", length = 450)
     private String reviewedBy;
 
+    @Nationalized
     @Column(name = "RejectionReason", length = 1000)
     private String rejectionReason;
 
     // ============ Doctor Fields ============
+    @Nationalized
     @Column(name = "FullName", length = 200)
     private String fullName;
 
+    @Nationalized
     @Column(name = "Qualifications", length = 500)
     private String qualifications;
 
     @Column(name = "SpecialtyId")
     private Integer specialtyId;
 
+    @Nationalized
     @Column(name = "Specialty", length = 100)
     private String specialty;
 
     @Column(name = "YearsOfExperience")
     private Integer yearsOfExperience;
 
+    @Nationalized
     @Column(name = "LanguageSpoken", length = 200)
     private String languageSpoken;
 
+    @Nationalized
     @Column(name = "Location", length = 500)
     private String location;
 
+    @Nationalized
     @Column(name = "Bio", length = 2000)
     private String bio;
 
     @Column(name = "ConsultationFee")
     private BigDecimal consultationFee;
 
+    @Nationalized
     @Column(name = "ClinicName", length = 200)
     private String clinicName;
 
+    @Nationalized
     @Column(name = "ClinicAddress", length = 500)
     private String clinicAddress;
 
     // ============ Pharmacy Fields ============
+    @Nationalized
     @Column(name = "PharmacyName", length = 200)
     private String pharmacyName;
 
     @Column(name = "LicenseNumber", length = 100)
     private String licenseNumber;
 
+    @Nationalized
     @Column(name = "Address", length = 500)
     private String address;
 
+    @Nationalized
     @Column(name = "City", length = 100)
     private String city;
 
+    @Nationalized
     @Column(name = "District", length = 100)
     private String district;
 
+    @Nationalized
     @Column(name = "Ward", length = 100)
     private String ward;
 
@@ -121,6 +136,7 @@ public class RegistrationRequest {
     @Column(name = "DeliveryFee")
     private BigDecimal deliveryFee;
 
+    @Nationalized
     @Column(name = "Description", length = 1000)
     private String description;
 
@@ -132,6 +148,7 @@ public class RegistrationRequest {
     @Column(name = "AIScreeningResult", columnDefinition = "NVARCHAR(MAX)")
     private String aiScreeningResult;
 
+    @Nationalized
     @Column(name = "AIRejectionReason", length = 500)
     private String aiRejectionReason;
 

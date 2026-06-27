@@ -1,6 +1,7 @@
 package com.HealthLink.entity;
 import jakarta.persistence.*;
 import lombok.*;
+import org.hibernate.annotations.Nationalized;
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
 import java.util.ArrayList;
@@ -45,6 +46,7 @@ public class PharmacyOrder {
 
     @Column(length = 50)
     private String deliveryType;
+    @Nationalized
     private String deliveryAddress;
     private Double deliveryLatitude;
     private Double deliveryLongitude;
