@@ -46,7 +46,10 @@ BEGIN
     VALUES ('CONSULTATION_HOME_VISIT', 0.1000, 'Home Visit consultation', GETUTCDATE(), 1);
 END;
 
--- 4. Migration dữ liệu Offline → HomeVisit (trong 1 transaction)
+-- 4. Backfill null homeVisitRadiusKm cho doctors cũ (idempotent)
+UPDATE Doctors SET homeVisitRadiusKm = 10.0 WHERE homeVisitRadiusKm IS NULL;
+
+-- 5. Migration dữ liệu Offline → HomeVisit (trong 1 transaction)
 BEGIN TRANSACTION;
     UPDATE Appointments SET ConsultationType = 'HomeVisit' WHERE ConsultationType = 'Offline';
     UPDATE DoctorSchedules SET ConsultationType = 'HomeVisit' WHERE ConsultationType = 'Offline';

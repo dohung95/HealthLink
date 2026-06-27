@@ -42,6 +42,9 @@ public class HomeVisitLocationService {
     @Value("${home-visit.average-speed-kmh:25}")
     private Double averageSpeedKmh;
 
+    @Value("${home-visit.max-distance-km:10}")
+    private Double maxDistanceKm;
+
     public HomeVisitLocationService(RestTemplateBuilder builder,
                                     DoctorRepository doctorRepository,
                                     GeocodingService geocodingService) {
@@ -138,7 +141,7 @@ public class HomeVisitLocationService {
         }
 
         double straightDistance = calculateStraightDistanceKm(originLat, originLng, visitLatitude, visitLongitude);
-        boolean serviceable = straightDistance <= doctor.getHomeVisitRadiusKm();
+        boolean serviceable = straightDistance <= maxDistanceKm;
 
         if (!serviceable) {
             return HomeVisitEstimateResponse.builder()
