@@ -273,21 +273,6 @@ export function useAppointmentDetail({ appointment, patient, doctorId: currentDo
     ),
     [currentAppointment?.appointmentId, hasPendingFollowUp, consultation.followUpAppointmentId, rendered.canEditFollowUp]);
 
-  const getLockedActionMessage = useCallback(() => {
-    if (!rendered.hasAppointmentTimeArrived) return 'Appointment time has not arrived yet.';
-    if (!rendered.hasStarted) return 'Please start the consultation first.';
-    return null;
-  }, [rendered.hasAppointmentTimeArrived, rendered.hasStarted]);
-
-  const showLockedActionToast = useCallback(() => {
-    const message = getLockedActionMessage();
-    if (message) {
-      toast.info(message);
-      return true;
-    }
-    return false;
-  }, [getLockedActionMessage]);
-
   return {
     appointment,
     patient,
@@ -367,8 +352,5 @@ export function useAppointmentDetail({ appointment, patient, doctorId: currentDo
     handleCompleteAppointment,
     handleChat: chatVideo.handleChat,
     handleVideoCall: chatVideo.handleVideoCall,
-    getLockedActionMessage,
-    showLockedActionToast,
-    onLockedAction: showLockedActionToast,
   };
 }

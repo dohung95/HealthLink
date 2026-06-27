@@ -2,6 +2,7 @@ package com.HealthLink.entity;
 
 import jakarta.persistence.*;
 import lombok.*;
+import org.hibernate.annotations.Nationalized;
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
 import java.util.List;
@@ -30,9 +31,11 @@ public class Appointment {
     @Builder.Default
     private String status = "SCHEDULED";
 
+    @Nationalized
     @Column(length = 2000)
     private String symptoms;
 
+    @Nationalized
     @Column(length = 1000)
     private String notes;
 
