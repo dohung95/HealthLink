@@ -5,10 +5,11 @@ import lombok.*;
 
 import java.time.LocalDate;
 import java.time.LocalDateTime;
+import java.time.LocalTime;
 
 @Entity
 @Table(name = "HomeVisitBookings", uniqueConstraints = {
-    @UniqueConstraint(columnNames = {"DoctorId", "ScheduleId", "BookingDate"})
+    @UniqueConstraint(columnNames = {"DoctorId", "ScheduleId", "BookingDate", "StartTime", "EndTime"})
 })
 @Data
 @NoArgsConstructor
@@ -35,6 +36,12 @@ public class HomeVisitBooking {
 
     @Column(name = "CreatedAt", nullable = false)
     private LocalDateTime createdAt;
+
+    @Column(name = "StartTime", nullable = false)
+    private LocalTime startTime;
+
+    @Column(name = "EndTime", nullable = false)
+    private LocalTime endTime;
 
     @PrePersist
     protected void onCreate() {

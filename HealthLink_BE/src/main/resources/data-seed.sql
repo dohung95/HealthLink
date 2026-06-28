@@ -112,6 +112,25 @@ INSERT INTO DoctorServices (doctor_id, service_type, available) VALUES
 ('user-d10', 'ONLINE', 1),
 ('user-d10', 'HOME_VISIT', 1);
 
+-- 5c. HOME_VISIT_SERVICES
+-- Extra services selected by patients during Home Visit booking.
+SET IDENTITY_INSERT HomeVisitServices ON;
+INSERT INTO HomeVisitServices (ServiceID, ServiceName, Description, Price, Active, DurationMinutes) VALUES
+(1, 'Basic vital signs check', 'Measure pulse, blood pressure, temperature, SpO2 and breathing rate at home.', 5.00, 1, 15),
+(2, 'Blood glucose test', 'Quick capillary blood glucose test for diabetes screening or monitoring.', 8.00, 1, 10),
+(3, 'Injection support', 'Doctor provides injection support when medically appropriate.', 10.00, 1, 20),
+(4, 'Wound dressing', 'Clean and dress a minor wound during the home visit.', 12.00, 1, 30),
+(5, 'Medication review', 'Review current medications, usage schedule and basic interaction risks.', 6.00, 1, 15);
+SET IDENTITY_INSERT HomeVisitServices OFF;
+
+-- Align legacy doctor rows with the current Home Visit columns.
+UPDATE Doctors
+   SET availableForHomeVisit = 1,
+       homeVisitRadiusKm = CASE
+           WHEN DoctorID IN ('user-d01', 'user-d02', 'user-d03') THEN 12.0
+           ELSE 8.0
+       END;
+
 -- 6. PATIENTS (10 patients)
 INSERT INTO Patients (PatientID, FullName, dateOfBirth, medicalHistorySummary, insuranceProvider, insurancePolicyNumber, gender, address, city, country, bloodType, emergencyContactName, emergencyContactPhone, emergencyContactRelationship, preferredLanguage, preferredContactMethod, occupation, avatarUrl, latitude, longitude, allergies, chronicConditions, currentMedications, heightCm, weightKg) VALUES
 ('user-p01', 'Michael Anderson', '1990-05-15', 'No significant medical history', 'Blue Cross', 'BC-2024-001', 'Male', '12 Le Loi Street, District 1', 'Ho Chi Minh City', 'Vietnam', 'A+', 'Lisa Anderson', '0912345678', 'Wife', 'English', 'Phone', 'Software Engineer', 'http://localhost:8096/uploads/avatars/patients/benhnhan_01.png', 10.7769, 106.7009, 'Penicillin', NULL, NULL, 175, 70),
@@ -188,8 +207,9 @@ SET IDENTITY_INSERT PharmacyInventory OFF;
 
 -- 10. DOCTOR_SCHEDULES
 -- Shift windows: Morning 07:00-10:30, Afternoon 13:00-17:30, Evening 19:00-21:00.
--- Online schedules must fit within ONE window. HomeVisit uses a full-window shift =
--- exactly 1 bookable slot, 1 patient/shift (SlotDuration = window length: 210/270/120).
+-- Online/Offline use SlotDuration as the appointment step.
+-- HomeVisit uses the whole shift window, and runtime slot candidates are calculated from
+-- visit duration + selected service durations + round-trip travel time + buffer.
 -- No overlapping schedules on the same day for any doctor.
 SET IDENTITY_INSERT DoctorSchedules ON;
 INSERT INTO DoctorSchedules (ScheduleID, DoctorId, dayOfWeek, startTime, endTime, SlotDuration, MaxPatients, Available, ScheduleStatus, consultationType, ShiftType, location, notes) VALUES
@@ -264,7 +284,7 @@ INSERT INTO AppointmentSlotHolds (HoldID, DoctorID, PatientID, AppointmentTime, 
 (4, 'user-d08', 'user-p08', '2026-06-09 08:30:00', '2026-06-09 09:00:00', 'Offline', '2026-06-09 08:35:00', '2026-06-09 08:30:00');
 SET IDENTITY_INSERT AppointmentSlotHolds OFF;
 
--- 15. APPOINTMENTS (13 appointments)
+-- 15. APPOINTMENTS (14 appointments)
 SET IDENTITY_INSERT Appointments ON;
 INSERT INTO Appointments (AppointmentID, AppointmentTime, ConsultationType, Status, symptoms, notes, fee, endTime, cancelReason, cancelledBy, cancelledAt, rescheduledFrom, followUpSourceAppointmentId, doctorReminderSent, reminderSent, confirmedAt, PatientID, DoctorID) VALUES
 (1, '2024-05-10 09:00:00', 'Video', 'Completed', 'Headache and fatigue for 3 days', 'Patient needs follow-up', 150.00, '2024-05-10 09:30:00', NULL, NULL, NULL, NULL, NULL, 0, 1, '2024-05-09 15:00:00', 'user-p01', 'user-d01'),
@@ -279,8 +299,37 @@ INSERT INTO Appointments (AppointmentID, AppointmentTime, ConsultationType, Stat
 (10, '2024-05-25 10:00:00', 'Offline', 'Scheduled', 'Toothache and swollen gums', NULL, 90.00, NULL, NULL, NULL, NULL, NULL, NULL, 0, 0, NULL, 'user-p10', 'user-d10'),
 (11, '2024-05-24 16:00:00', 'Video', 'Completed', 'Follow-up after seasonal flu', 'Completed telehealth session for invoice generation test', 150.00, '2024-05-24 16:30:00', NULL, NULL, NULL, NULL, NULL, 0, 1, '2024-05-24 15:50:00', 'user-p01', 'user-d01'),
 (12, '2024-05-26 09:00:00', 'Video', 'Scheduled', 'Follow-up consultation', NULL, 150.00, NULL, NULL, NULL, NULL, NULL, NULL, 0, 0, NULL, 'user-p01', 'user-d01'),
-(13, '2024-05-26 10:00:00', 'Video', 'Scheduled', 'Follow-up consultation', NULL, 150.00, NULL, NULL, NULL, NULL, NULL, NULL, 0, 0, NULL, 'user-p01', 'user-d01');
+(13, '2024-05-26 10:00:00', 'Video', 'Scheduled', 'Follow-up consultation', NULL, 150.00, NULL, NULL, NULL, NULL, NULL, NULL, 0, 0, NULL, 'user-p01', 'user-d01'),
+(14, '2024-05-27 19:00:00', 'HomeVisit', 'Completed', 'Elderly patient has difficulty walking and needs home evaluation', 'Home visit completed with selected services', 173.00, '2024-05-27 20:40:00', NULL, NULL, NULL, NULL, NULL, 0, 1, '2024-05-27 18:30:00', 'user-p01', 'user-d01');
 SET IDENTITY_INSERT Appointments OFF;
+
+-- 15b. HOME_VISIT_DETAILS
+SET IDENTITY_INSERT HomeVisitDetails ON;
+INSERT INTO HomeVisitDetails (
+    HomeVisitDetailID, AppointmentID, VisitAddress, VisitCity, ContactPhone,
+    ReasonForHomeVisit, SpecialNotes, IsForSelf, ReceiverName, ReceiverAge,
+    ReceiverGender, ReceiverRelationship, ReceiverPhone, VisitLatitude,
+    VisitLongitude, DistanceKm, EstimatedTravelMinutes, VisitDurationMinutes,
+    TravelBufferBeforeMinutes, TravelBufferAfterMinutes, HomeVisitFee, TravelFee
+) VALUES
+(1, 14, '12 Le Loi Street, District 1, Ho Chi Minh City', 'Ho Chi Minh City', '0912000001',
+ 'Elderly patient has difficulty walking and needs home evaluation',
+ 'Apartment lobby entrance, call before arrival', 1, NULL, NULL, NULL, NULL, NULL,
+ 10.7769, 106.7009, 2.50, 10, 45, 10, 10, 10.00, 0.00);
+SET IDENTITY_INSERT HomeVisitDetails OFF;
+
+-- 15c. HOME_VISIT_BOOKINGS
+SET IDENTITY_INSERT HomeVisitBookings ON;
+INSERT INTO HomeVisitBookings (Id, DoctorId, ScheduleId, BookingDate, AppointmentId, CreatedAt, StartTime, EndTime) VALUES
+(1, 'user-d01', 3, '2024-05-27', 14, '2024-05-27 18:30:00', '19:00', '20:40');
+SET IDENTITY_INSERT HomeVisitBookings OFF;
+
+-- 15d. APPOINTMENT_HOME_VISIT_SERVICES
+SET IDENTITY_INSERT AppointmentHomeVisitServices ON;
+INSERT INTO AppointmentHomeVisitServices (ID, AppointmentID, ServiceID, ServiceName, Price) VALUES
+(1, 14, 1, 'Basic vital signs check', 5.00),
+(2, 14, 2, 'Blood glucose test', 8.00);
+SET IDENTITY_INSERT AppointmentHomeVisitServices OFF;
 
 -- 16. ADMIN_SCHEDULE_AUDIT_LOGS (4 logs)
 SET IDENTITY_INSERT AdminScheduleAuditLogs ON;
@@ -306,6 +355,16 @@ INSERT INTO Consultations (ConsultationID, AppointmentId, startTime, endTime, do
 (10, 10, NULL, NULL, NULL, NULL, NULL, NULL, 'Offline', NULL, NULL, NULL, NULL, 'Toothache', NULL, NULL),
 (11, 11, '2024-05-24 16:00:00', '2024-05-24 16:25:00', 'Stable condition, no new complaints', 'Recovered from seasonal flu, recommend rest and hydration', '2024-06-07', NULL, 'Video', 'room-011', 'https://meet.healthlink.com/room-011', NULL, 25, 'Follow-up visit after flu', 'Rest, hydration, vitamin C', 'Return if fever recurs');
 SET IDENTITY_INSERT Consultations OFF;
+
+UPDATE Consultations
+   SET HomeVisitProposalStatus = 'NONE'
+ WHERE HomeVisitProposalStatus IS NULL;
+
+UPDATE Consultations
+   SET HomeVisitProposalStatus = 'ACCEPTED',
+       HomeVisitProposedAt = '2024-05-24 16:10:00',
+       HomeVisitRespondedAt = '2024-05-24 16:20:00'
+ WHERE ConsultationID = 11;
 
 -- 18. HEALTH_RECORDS (10 health records)
 SET IDENTITY_INSERT HealthRecords ON;
@@ -352,7 +411,7 @@ INSERT INTO VitalSigns (VitalSignID, PatientID, AppointmentID, heartRate, bloodP
 (10, 'user-p10', NULL, 74, 130, 85, 98.9, 97, 17, NULL, 62.0, 158.0, 24.8, 'Slightly elevated BP', '2024-05-25 09:30:00', 'Manual', NULL, '2024-05-25 09:30:00');
 SET IDENTITY_INSERT VitalSigns OFF;
 
--- 21. INVOICES (10 invoices)
+-- 21. INVOICES (11 invoices)
 SET IDENTITY_INSERT Invoices ON;
 INSERT INTO Invoices (InvoiceID, AppointmentId, PatientID, amount, issueDate, status, invoiceNumber, consultationFee, medicineFee, deliveryFee, discount, tax, dueDate, paidAt, notes, platformFee, doctorEarning, commissionRate) VALUES
 (1, 1, 'user-p01', 175.00, '2024-05-10 09:30:00', 'Paid', 'INV-2024-0001', 150.00, 25.00, 0, 0, 0, '2024-05-17', '2024-05-10 09:35:00', 'Paid online', 22.50, 127.50, 0.1500),
@@ -364,10 +423,11 @@ INSERT INTO Invoices (InvoiceID, AppointmentId, PatientID, amount, issueDate, st
 (7, 7, 'user-p07', 220.00, '2024-05-20 15:00:00', 'Pending', 'INV-2024-0007', 220.00, 0, 0, 0, 0, '2024-05-27', NULL, '50% deposit paid', 26.40, 193.60, 0.1200),
 (8, 8, 'user-p08', 160.00, '2024-05-22 08:30:00', 'Pending', 'INV-2024-0008', 160.00, 0, 0, 0, 0, '2024-05-29', NULL, 'Not yet paid', NULL, NULL, NULL),
 (9, 9, 'user-p09', 0, '2024-05-13 14:00:00', 'Cancelled', 'INV-2024-0009', 100.00, 0, 0, 100.00, 0, '2024-05-20', NULL, 'Refunded due to cancellation', NULL, NULL, NULL),
-(10, 10, 'user-p10', 90.00, '2024-05-25 10:00:00', 'Pending', 'INV-2024-0010', 90.00, 0, 0, 0, 0, '2024-06-01', NULL, 'Pending consultation', NULL, NULL, NULL);
+(10, 10, 'user-p10', 90.00, '2024-05-25 10:00:00', 'Pending', 'INV-2024-0010', 90.00, 0, 0, 0, 0, '2024-06-01', NULL, 'Pending consultation', NULL, NULL, NULL),
+(11, 14, 'user-p01', 173.00, '2024-05-27 20:40:00', 'Paid', 'INV-2024-0011', 150.00, 0, 0, 0, 0, '2024-06-03', '2024-05-27 20:45:00', 'Paid Home Visit appointment via PayPal', 15.00, 158.00, 0.1000);
 SET IDENTITY_INSERT Invoices OFF;
 
--- 22. PAYMENTS (10 payments)
+-- 22. PAYMENTS (11 payments)
 SET IDENTITY_INSERT Payments ON;
 INSERT INTO Payments (PaymentID, InvoiceID, OrderID, amount, paymentMethod, paymentGateway, transactionId, status, paidAt, failureReason, refundedAmount, refundedAt, refundReason, metadata, CreatedAt) VALUES
 (1, 1, NULL, 175.00, 'Card', 'Stripe', 'STR20240510001', 'Completed', '2024-05-10 09:35:00', NULL, NULL, NULL, NULL, '{"cardLast4":"4242","cardBrand":"Visa"}', '2024-05-10 09:35:00'),
@@ -379,7 +439,8 @@ INSERT INTO Payments (PaymentID, InvoiceID, OrderID, amount, paymentMethod, paym
 (7, 7, NULL, 110.00, 'Card', 'Stripe', 'STR20240519001', 'Completed', '2024-05-19 11:00:00', NULL, NULL, NULL, NULL, '{"cardLast4":"9012","cardBrand":"Visa"}', '2024-05-19 11:00:00'),
 (8, 8, NULL, 160.00, 'Card', NULL, NULL, 'Pending', NULL, NULL, NULL, NULL, NULL, NULL, '2024-05-22 08:30:00'),
 (9, 9, NULL, 100.00, 'EWallet', 'PayPal', 'PP20240512002', 'Refunded', '2024-05-12 20:00:00', NULL, 100.00, '2024-05-13 09:00:00', 'Patient cancelled appointment', '{"refundId":"RF001"}', '2024-05-12 20:00:00'),
-(10, 10, NULL, 90.00, 'Cash', NULL, NULL, 'Pending', NULL, NULL, NULL, NULL, NULL, NULL, '2024-05-25 10:00:00');
+(10, 10, NULL, 90.00, 'Cash', NULL, NULL, 'Pending', NULL, NULL, NULL, NULL, NULL, NULL, '2024-05-25 10:00:00'),
+(11, 11, NULL, 173.00, 'EWallet', 'PayPal', 'PP20240527001', 'Completed', '2024-05-27 20:45:00', NULL, NULL, NULL, NULL, '{"payerId":"PAYPAL-HOME-VISIT","homeVisitServiceIds":[1,2]}', '2024-05-27 20:45:00');
 SET IDENTITY_INSERT Payments OFF;
 
 -- 23. PRESCRIPTION_HEADERS (10 prescriptions)
@@ -656,12 +717,13 @@ INSERT INTO RegistrationDocuments (DocumentID, RequestID, DocumentType, FileName
 (10, 10, 'Business License', 'req10-business.pdf', 'business.pdf', '/registrations/10/business.pdf', 305000, 'application/pdf', '2024-05-10 11:10:00', 'PENDING', NULL, 0, NULL);
 SET IDENTITY_INSERT RegistrationDocuments OFF;
 
--- 41. COMMISSION_CONFIGS (3 configs)
+-- 41. COMMISSION_CONFIGS (4 configs)
 SET IDENTITY_INSERT CommissionConfigs ON;
 INSERT INTO CommissionConfigs (ConfigId, serviceType, commissionRate, minCommission, maxCommission, description, active, effectiveFrom, effectiveTo, CreatedAt, UpdatedAt) VALUES
 (1, 'CONSULTATION_ONLINE', 0.1500, 0.50, 100.00, 'Online consultation commission rate', 1, '2024-01-01 00:00:00', NULL, '2024-01-01 00:00:00', NULL),
 (2, 'CONSULTATION_OFFLINE', 0.1200, 0.50, 150.00, 'Offline consultation commission rate', 1, '2024-01-01 00:00:00', NULL, '2024-01-01 00:00:00', NULL),
-(3, 'PHARMACY_ORDER', 0.0800, 0.50, 80.00, 'Pharmacy order commission rate', 1, '2024-01-01 00:00:00', NULL, '2024-01-01 00:00:00', NULL);
+(3, 'PHARMACY_ORDER', 0.0800, 0.50, 80.00, 'Pharmacy order commission rate', 1, '2024-01-01 00:00:00', NULL, '2024-01-01 00:00:00', NULL),
+(4, 'CONSULTATION_HOME_VISIT', 0.1000, 0.50, 120.00, 'Home visit consultation commission rate', 1, '2024-01-01 00:00:00', NULL, '2024-01-01 00:00:00', NULL);
 SET IDENTITY_INSERT CommissionConfigs OFF;
 
 -- 42. SETTLEMENTS (3 settlements)
@@ -672,7 +734,7 @@ INSERT INTO Settlements (SettlementId, settlementNumber, recipientType, recipien
 (3, 'STL-202405-00003', 'DOCTOR', 'user-d05', 'Dr. Jessica Williams', 450.00, 54.00, 396.00, 2, 'PROCESSING', 'PAYPAL', NULL, NULL, 'drjess@example.com', '2024-05-01 00:00:00', '2024-05-15 23:59:00', '2024-05-16 11:00:00', 'admin', NULL, 'Queued for payout', '2024-05-16 11:00:00');
 SET IDENTITY_INSERT Settlements OFF;
 
--- 43. COMMISSION_TRANSACTIONS (14 transactions)
+-- 43. COMMISSION_TRANSACTIONS (15 transactions)
 SET IDENTITY_INSERT CommissionTransactions ON;
 INSERT INTO CommissionTransactions (TransactionId, transactionNumber, sourceType, appointmentId, pharmacyOrderId, recipientType, recipientId, recipientName, serviceType, grossAmount, commissionRate, commissionAmount, netAmount, status, SettlementId, CreatedAt) VALUES
 (1, 'CTX-202405-00001', 'APPOINTMENT', 1, NULL, 'DOCTOR', 'user-d01', 'Dr. John Smith', 'CONSULTATION_ONLINE', 150.00, 0.1500, 22.50, 127.50, 'SETTLED', 1, '2024-05-10 10:00:00'),
@@ -688,7 +750,8 @@ INSERT INTO CommissionTransactions (TransactionId, transactionNumber, sourceType
 (11, 'CTX-202405-00011', 'PHARMACY_ORDER', NULL, 12, 'PHARMACY', 'user-ph01', 'HealthLink Pharmacy - Ben Thanh', 'PHARMACY_ORDER', 50.99, 0.0800, 4.08, 46.91, 'PENDING', NULL, '2024-05-20 17:05:00'),
 (12, 'CTX-202405-00012', 'PHARMACY_ORDER', NULL, 13, 'PHARMACY', 'user-ph02', 'An Khang Pharmacy - Nguyen Hue', 'PHARMACY_ORDER', 41.99, 0.0800, 3.36, 38.63, 'PENDING', NULL, '2024-05-21 14:35:00'),
 (13, 'CTX-202405-00013', 'PHARMACY_ORDER', NULL, 14, 'PHARMACY', 'user-ph04', 'CVS Pharmacy - SF', 'PHARMACY_ORDER', 82.99, 0.0800, 6.64, 76.35, 'REFUNDED', NULL, '2024-05-22 12:30:00'),
-(14, 'CTX-202405-00014', 'PHARMACY_ORDER', NULL, 15, 'PHARMACY', 'user-ph06', 'Hospital Pharmacy - NYC', 'PHARMACY_ORDER', 40.00, 0.0800, 3.20, 36.80, 'PENDING', NULL, '2024-05-23 09:10:00');
+(14, 'CTX-202405-00014', 'PHARMACY_ORDER', NULL, 15, 'PHARMACY', 'user-ph06', 'Hospital Pharmacy - NYC', 'PHARMACY_ORDER', 40.00, 0.0800, 3.20, 36.80, 'PENDING', NULL, '2024-05-23 09:10:00'),
+(15, 'CTX-202405-00015', 'APPOINTMENT', 14, NULL, 'DOCTOR', 'user-d01', 'Dr. John Smith', 'CONSULTATION_HOME_VISIT', 150.00, 0.1000, 15.00, 135.00, 'PENDING', NULL, '2024-05-27 20:45:00');
 SET IDENTITY_INSERT CommissionTransactions OFF;
 
 -- 44. DOCTOR_SCHEDULE_CHANGE_REQUESTS (5 requests)

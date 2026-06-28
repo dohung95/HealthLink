@@ -17,6 +17,9 @@ import PaymentStep from '../schedule/PaymentStep';
 import DoctorSummaryCard from '../schedule/DoctorSummaryCard';
 import ConsultationStep from '../schedule/ConsultationStep';
 import HomeVisitStep from '../schedule/HomeVisitStep';
+import SessionPicker from '../schedule/SessionPicker';
+import HomeVisitDoctorStep from '../schedule/HomeVisitDoctorStep';
+import HomeVisitServicesStep from '../schedule/HomeVisitServicesStep';
 
 import '../Css/ScheduleWizard.css';
 
@@ -27,6 +30,18 @@ const buildAppointmentDateTime = (dateValue, timeValue) => {
   const second = rawSecond.split('.')[0] || '00';
 
   return `${dateValue}T${hour.padStart(2, '0')}:${minute.padStart(2, '0')}:${second.padStart(2, '0')}`;
+};
+
+const buildHomeVisitAppointmentDateTime = (bookingDate, startTime) => {
+  if (!bookingDate) return null;
+
+  const [hour = '08', minute = '00', rawSecond = '00'] = String(startTime || '08:00')
+    .trim()
+    .split(':');
+
+  const second = rawSecond.split('.')[0] || '00';
+
+  return `${bookingDate}T${hour.padStart(2, '0')}:${minute.padStart(2, '0')}:${second.padStart(2, '0')}`;
 };
 
 const Schedule = () => {
@@ -75,6 +90,10 @@ const Schedule = () => {
     visitLongitude: null,
   });
 
+  const [homeVisitDoctorOptions, setHomeVisitDoctorOptions] = useState([]);
+  const [selectedHomeVisitDoctor, setSelectedHomeVisitDoctor] = useState(null);
+  const [selectedHomeVisitServices, setSelectedHomeVisitServices] = useState([]);
+
 
   const [maxDate] = useState(() => {
     const max = new Date();
@@ -92,14 +111,21 @@ const Schedule = () => {
       ]
       : [
         { key: 'specialty', label: 'Specialty' },
-        { key: 'doctor', label: 'Doctor' },
         { key: 'consultation', label: 'Visit Type' },
         { key: 'datetime', label: 'Date & Time' },
       ];
 
     if (isHomeVisit) {
-      baseSteps.push({ key: 'homevisit', label: 'Home Visit' });
+      baseSteps.push({ key: 'homevisit', label: 'Location' });
+      baseSteps.push({ key: 'homevisit-doctor', label: 'Doctor' });
+      baseSteps.push({ key: 'homevisit-services', label: 'Services' });
+      baseSteps.push({ key: 'session-picker', label: 'Choose Session' });
     } else {
+      if (!hasPreselectedDoctor) {
+        baseSteps.push({ key: 'doctor', label: 'Doctor' });
+      }
+
+      baseSteps.push({ key: 'datetime', label: 'Date & Time' });
       baseSteps.push({ key: 'documents', label: 'Medical information' });
     }
 
@@ -166,6 +192,13 @@ const Schedule = () => {
     if (preselectedDoctor) {
       setSelectedSpecialty(preselectedDoctor.specialtyName || '');
       setSelectedDoctorId(preselectedDoctor.doctorId);
+      setSelectedHomeVisitDoctor(preselectedDoctor);
+
+      // Nếu từ home visit proposal: pre-set consultationType, skip Visit Type step
+      if (isFromProposal) {
+        setConsultationType('HomeVisit');
+        setStep(2);
+      }
     }
   }, [doctorId, doctors]);
 
@@ -231,7 +264,7 @@ const Schedule = () => {
     }
 
     fetchSlots();
-  }, [selectedDoctorId, date]);
+  }, [selectedDoctorId, date, consultationType, isHomeVisit]);
 
   const specialties = useMemo(() => {
     return [...new Set(doctors.map((doctor) => doctor.specialtyName))]
@@ -249,6 +282,10 @@ const Schedule = () => {
   const selectedDoctor = useMemo(() => {
     return doctors.find((doctor) => doctor.doctorId === selectedDoctorId);
   }, [doctors, selectedDoctorId]);
+
+  const displayDoctor = useMemo(() => {
+    return isHomeVisit ? selectedHomeVisitDoctor : selectedDoctor;
+  }, [isHomeVisit, selectedHomeVisitDoctor, selectedDoctor]);
 
   const releaseHoldSilently = async (holdId) => {
     if (!holdId) return;
@@ -520,10 +557,27 @@ const Schedule = () => {
       return;
     }
 
+    if (isHomeVisit && !homeVisitInfo.selectedSession) {
+      toast.warning('Please select a home visit session.');
+      return;
+    }
+
+    if (isHomeVisit && !sessionDraftId) {
+      toast.warning('Home visit session draft is missing. Please select the session again.');
+      return;
+    }
+
 
     setBookingSubmitting(true);
 
     try {
+      const selectedSession = homeVisitInfo.selectedSession;
+      const bookingDate = isHomeVisit && selectedSession ? selectedSession.bookingDate : null;
+
+      const appointmentDate = isHomeVisit
+        ? buildHomeVisitAppointmentDateTime(bookingDate, selectedSession?.startTime)
+        : selectedSlot?.appointmentTime;
+
       const bookingData = {
         patientId,
         doctorId: selectedDoctorId,
@@ -531,9 +585,16 @@ const Schedule = () => {
         consultationType,
         symptoms: isHomeVisit ? homeVisitInfo.reasonForHomeVisit : symptoms,
         notes: isHomeVisit ? homeVisitInfo.specialNotes : '',
+        homeVisitServiceIds: selectedHomeVisitServices.map((item) => item.serviceId),
 
         ...(consultationType === 'HomeVisit'
           ? {
+            draftId: sessionDraftId,
+            scheduleId: selectedSession?.scheduleId,
+            bookingDate,
+            homeVisitStartTime: selectedSession?.startTime,
+            homeVisitEndTime: selectedSession?.endTime,
+
             visitAddress: homeVisitInfo.visitAddress,
             visitCity: homeVisitInfo.visitCity,
             contactPhone: homeVisitInfo.contactPhone,
@@ -547,35 +608,53 @@ const Schedule = () => {
             receiverPhone: homeVisitInfo.receiverPhone || homeVisitInfo.contactPhone || null,
             visitLatitude: homeVisitInfo.visitLatitude,
             visitLongitude: homeVisitInfo.visitLongitude,
+            selectedHomeVisitServices: isHomeVisit ? selectedHomeVisitServices : [],
+            homeVisitServiceIds: isHomeVisit
+              ? selectedHomeVisitServices.map((item) => item.serviceId).filter(Boolean)
+              : [],
           }
           : {}),
       };
 
-      const doctorFee = Number(selectedDoctor?.consultationFee ?? selectedDoctor?.fee ?? 0);
+      const doctorFee = isHomeVisit
+        ? Number(selectedHomeVisitDoctor?.consultationFee || 0)
+        : Number(selectedDoctor?.consultationFee ?? selectedDoctor?.fee ?? 0);
 
-      const homeVisitBaseFee = Number(homeVisitInfo.homeVisitFee || 0);
-      const extraTravelFee = Number(homeVisitInfo.travelFee || 0);
-      const homeVisitTravelTotal = Number(
-        homeVisitInfo.totalFee ?? (homeVisitBaseFee + extraTravelFee || 0)
-      );
+      const homeVisitTravelTotal = isHomeVisit
+        ? Number(selectedHomeVisitDoctor?.homeVisitTotal || 0)
+        : 0;
+
+      const servicesTotal = isHomeVisit
+        ? selectedHomeVisitServices.reduce(
+          (sum, item) => sum + Number(item.price || 0),
+          0
+        )
+        : 0;
+
+      const finalTotal = isHomeVisit
+        ? doctorFee + homeVisitTravelTotal + servicesTotal
+        : doctorFee;
 
       setPaymentDraft({
         ...bookingData,
         currency: 'USD',
-        amount: isHomeVisit
-          ? doctorFee + homeVisitTravelTotal
-          : doctorFee,
+        amount: finalTotal,
         doctorFee,
         homeVisitEstimate: isHomeVisit
           ? {
-            distanceKm: homeVisitInfo.distanceKm,
-            estimatedTravelMinutes: homeVisitInfo.estimatedTravelMinutes,
-            homeVisitFee: homeVisitBaseFee,
-            travelFee: extraTravelFee,
-            totalFee: homeVisitTravelTotal,
-            grandTotal: doctorFee + homeVisitTravelTotal,
+            distanceKm: selectedHomeVisitDoctor?.distanceKm,
+            estimatedTravelMinutes: selectedHomeVisitDoctor?.estimatedTravelMinutes,
+            homeVisitFee: selectedHomeVisitDoctor?.homeVisitFee,
+            travelFee: selectedHomeVisitDoctor?.travelFee,
+            totalFee: selectedHomeVisitDoctor?.homeVisitTotal,
+            servicesTotal,
+            grandTotal: finalTotal,
           }
           : null,
+        selectedHomeVisitServices: isHomeVisit ? selectedHomeVisitServices : [],
+        homeVisitServiceIds: isHomeVisit
+          ? selectedHomeVisitServices.map((item) => item.serviceId)
+          : [],
       });
       setStep(stepConfig.length);
       toast.info('Review completed. Please finish payment to confirm your appointment.');
@@ -711,7 +790,6 @@ const Schedule = () => {
                   selectedDoctorId={selectedDoctorId}
                   onSelectDoctor={(doctorId) => {
                     setSelectedDoctorId(doctorId);
-                    setConsultationType('');
                     setSelectedSlot(null);
                     setSlots([]);
                   }}
@@ -727,6 +805,15 @@ const Schedule = () => {
                     setConsultationType(type);
                     setSelectedSlot(null);
                     setSlots([]);
+
+                    setHomeVisitDoctorOptions([]);
+                    setSelectedHomeVisitDoctor(null);
+                    setSelectedHomeVisitServices([]);
+                    setSessionDraftId(null);
+
+                    if (type === 'HomeVisit' && !hasPreselectedDoctor) {
+                      setSelectedDoctorId('');
+                    }
                   }}
                   onBack={handleBack}
                   onNext={handleNext}
@@ -758,6 +845,50 @@ const Schedule = () => {
                   setHomeVisitInfo={setHomeVisitInfo}
                   patientProfile={patientProfile}
                   selectedDoctorId={selectedDoctorId}
+                  selectedSpecialty={selectedSpecialty}
+                  onDoctorsLoaded={setHomeVisitDoctorOptions}
+                  onBack={handleBack}
+                  onNext={handleNext}
+                />
+              )}
+
+              {currentStepKey === 'homevisit-doctor' && (
+                <HomeVisitDoctorStep
+                  doctors={homeVisitDoctorOptions}
+                  selectedDoctorId={selectedDoctorId}
+                  onSelectDoctor={(doctor) => {
+                    setSelectedDoctorId(doctor.doctorId);
+                    setSelectedHomeVisitDoctor(doctor);
+                    setSelectedSlot(null);
+                    setSlots([]);
+                    setSessionDraftId(null);
+                    setHomeVisitInfo((prev) => ({
+                      ...prev,
+                      selectedSession: null,
+                    }));
+                  }}
+                  onBack={handleBack}
+                  onNext={handleNext}
+                />
+              )}
+
+              {currentStepKey === 'homevisit-services' && (
+                <HomeVisitServicesStep
+                  selectedServices={selectedHomeVisitServices}
+                  setSelectedServices={setSelectedHomeVisitServices}
+                  onBack={handleBack}
+                  onNext={handleNext}
+                />
+              )}
+
+              {currentStepKey === 'session-picker' && (
+                <SessionPicker
+                  doctorId={selectedDoctorId}
+                  homeVisitInfo={homeVisitInfo}
+                  setHomeVisitInfo={setHomeVisitInfo}
+                  sessionDraftId={sessionDraftId}
+                  setSessionDraftId={setSessionDraftId}
+                  selectedHomeVisitServices={selectedHomeVisitServices}
                   onBack={handleBack}
                   onNext={handleNext}
                 />
@@ -776,13 +907,15 @@ const Schedule = () => {
 
               {currentStepKey === 'confirm' && (
                 <ConfirmStep
-                  selectedDoctor={selectedDoctor}
+                  selectedDoctor={displayDoctor}
                   selectedSpecialty={selectedSpecialty}
                   selectedSlot={selectedSlot}
                   consultationType={consultationType}
                   homeVisitInfo={homeVisitInfo}
                   symptoms={isHomeVisit ? homeVisitInfo.reasonForHomeVisit : symptoms}
                   files={files}
+                  selectedHomeVisitServices={selectedHomeVisitServices}
+                  homeVisitEstimate={isHomeVisit ? selectedHomeVisitDoctor : null}
                   onBack={handleBack}
                   onConfirm={handleSchedule}
                   confirming={bookingSubmitting}
@@ -792,7 +925,7 @@ const Schedule = () => {
               {currentStepKey === 'payment' && (
                 <PaymentStep
                   bookingDraft={paymentDraft}
-                  selectedDoctor={selectedDoctor}
+                  selectedDoctor={displayDoctor}
                   onBack={handleBackFromPayment}
                   onPaymentComplete={finalizeBookingAfterPayment}
                 />
@@ -800,7 +933,7 @@ const Schedule = () => {
             </section>
 
             <aside className="schedule-wizard-aside">
-              <DoctorSummaryCard doctor={selectedDoctor} />
+              <DoctorSummaryCard doctor={displayDoctor} />
             </aside>
           </div>
         </div>

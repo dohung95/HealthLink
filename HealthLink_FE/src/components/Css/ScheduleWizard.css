@@ -212,7 +212,32 @@
   color: #6b7b77;
 }
 
-.date-field,
+/* CSS for DocumentStep */
+.symptom-field {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.symptom-field label {
+  color: #4d6460;
+  font-weight: 600;
+}
+
+/* .symptom-field textarea {
+  border: 1.5px solid #d8dedd;
+  border-radius: 12px;
+  padding: 12px 14px;
+  font-size: 15px;
+  resize: vertical;
+} */
+
+/* CSS for DateTimeStep */
+.slot-section {
+  margin-top: 20px;
+}
+
+/* .date-field,
 .symptom-field {
   display: flex;
   flex-direction: column;
@@ -247,9 +272,9 @@
   margin: 0 0 14px;
   color: #0a2e2a;
   font-size: 16px;
-}
+} */
 
-.slot-button.selected {
+/* .slot-button.selected {
   background: #1f7a69;
   border-color: #1f7a69;
   color: #fff;
@@ -258,7 +283,7 @@
 .slot-button:disabled {
   opacity: 0.45;
   cursor: not-allowed;
-}
+} */
 
 .upload-box {
   margin-top: 18px;
@@ -401,6 +426,132 @@
 .confirm-row strong {
   color: #0a2e2a;
   text-align: right;
+}
+
+.confirm-service-total-value {
+  display: inline-flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 12px;
+  min-width: 0;
+}
+
+.confirm-service-total-value button {
+  border: 1px solid #b8d8d2;
+  background: #f3fbf9;
+  color: #155248;
+  border-radius: 999px;
+  padding: 6px 12px;
+  font-size: 13px;
+  font-weight: 800;
+  white-space: nowrap;
+}
+
+.confirm-service-total-value button:hover {
+  background: #e6f7f3;
+  border-color: #1f7a69;
+}
+
+.confirm-modal-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 1100;
+  background: rgba(10, 46, 42, 0.42);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 24px;
+}
+
+.confirm-service-modal {
+  width: min(560px, 100%);
+  max-height: min(680px, calc(100vh - 48px));
+  overflow: auto;
+  background: #fff;
+  border-radius: 18px;
+  padding: 22px;
+  border: 1px solid #d8dedd;
+  box-shadow: 0 24px 70px rgba(10, 46, 42, 0.24);
+}
+
+.confirm-service-modal-header {
+  display: flex;
+  justify-content: space-between;
+  gap: 18px;
+  align-items: flex-start;
+  margin-bottom: 18px;
+}
+
+.confirm-service-modal-header div {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.confirm-service-modal-header span {
+  color: #6b7b77;
+  font-weight: 700;
+}
+
+.confirm-service-modal-header strong {
+  color: #0a2e2a;
+  font-size: 24px;
+}
+
+.confirm-service-modal-header button {
+  width: 38px;
+  height: 38px;
+  border: none;
+  border-radius: 50%;
+  background: #eef3f2;
+  color: #49615d;
+  font-size: 24px;
+  line-height: 1;
+}
+
+.confirm-service-modal-list {
+  display: grid;
+  gap: 10px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.confirm-service-modal-list li {
+  display: flex;
+  justify-content: space-between;
+  gap: 16px;
+  padding: 12px 14px;
+  border: 1px solid #e3ebe9;
+  border-radius: 12px;
+  background: #f8fbfa;
+}
+
+.confirm-service-modal-list span {
+  color: #0a2e2a;
+  font-weight: 700;
+}
+
+.confirm-service-modal-list strong {
+  color: #0a2e2a;
+  white-space: nowrap;
+}
+
+.confirm-service-modal-action {
+  width: 100%;
+  margin-top: 18px;
+}
+
+@media (max-width: 720px) {
+  .confirm-service-total-value {
+    align-items: flex-start;
+    flex-direction: column;
+  }
+
+  .confirm-service-modal-list li {
+    flex-direction: column;
+    gap: 4px;
+  }
 }
 
 .schedule-actions {
@@ -636,20 +787,14 @@
   margin-top: 28px;
   display: flex;
   align-items: center;
-  justify-content: space-between;
+  justify-content: flex-end;
+  gap: 12px;
 }
 
 .datetime-actions .btn-outline-soft,
 .datetime-actions .btn-primary-soft {
   min-width: 180px;
-}
-
-.datetime-actions .btn-outline-soft {
-  margin-right: auto;
-}
-
-.datetime-actions .btn-primary-soft {
-  margin-left: auto;
+  margin: 0;
 }
 
 .slot-button.booked,
@@ -733,6 +878,8 @@
   background: rgba(255, 255, 255, 0.12);
   color: #9aa3a8;
 }
+
+/* CSS for PaymentStep */
 
 .payment-step-card {
   position: relative;
@@ -913,11 +1060,6 @@
   width: 100%;
   display: block;
   margin-top: 8px;
-}
-
-.home-visit-grid input,
-.home-visit-grid select,
-.home-visit-grid textarea {
   border: 1px solid #d7dfdd;
   border-radius: 12px;
   padding: 12px 14px;
@@ -934,6 +1076,19 @@
 
 .home-visit-full {
   grid-column: 1 / -1;
+}
+
+.home-visit-address-field {
+  margin-top: 10px;
+  padding-top: 18px;
+  border-top: 1px solid #edf2f1;
+}
+
+.home-visit-map-field {
+  padding: 14px;
+  border: 1px solid #dce7e5;
+  border-radius: 16px;
+  background: #f8fbfa;
 }
 
 .self-visit-summary {
@@ -974,14 +1129,14 @@
   display: flex;
   gap: 12px;
   flex-wrap: wrap;
-  margin: 12px 0;
+  margin: 0 0 12px;
 }
 
 .home-visit-map {
   overflow: hidden;
   border-radius: 16px;
   border: 1px solid #d7dfdd;
-  margin-top: 12px;
+  margin-top: 0;
 }
 
 .map-help-text {
@@ -1053,5 +1208,460 @@
 @media (max-width: 768px) {
   .home-visit-estimate {
     grid-template-columns: 1fr 1fr;
+  }
+}
+
+/* CSS for HomeVisitDoctorStep */
+.home-visit-doctor-card,
+.home-visit-services-card {
+  display: flex;
+  flex-direction: column;
+  gap: 18px;
+}
+
+.home-visit-doctor-list {
+  display: grid;
+  gap: 14px;
+}
+
+.home-visit-doctor-option {
+  width: 100%;
+  border: 1.5px solid #d8e1df;
+  background: #fff;
+  border-radius: 16px;
+  padding: 18px;
+  display: grid;
+  grid-template-columns: minmax(0, 1.15fr) auto minmax(210px, 0.85fr);
+  gap: 16px;
+  align-items: center;
+  text-align: left;
+  transition: border-color 0.18s ease, background 0.18s ease, box-shadow 0.18s ease;
+}
+
+.home-visit-doctor-option:hover {
+  border-color: #8ddecf;
+  background: #f7fbfa;
+}
+
+.home-visit-doctor-option.selected {
+  border-color: #1f7a69;
+  background: #edfaf7;
+  box-shadow: 0 12px 28px rgba(31, 122, 105, 0.1);
+}
+
+.home-visit-doctor-main {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  min-width: 0;
+}
+
+.home-visit-doctor-main strong {
+  color: #0a2e2a;
+  font-size: 17px;
+}
+
+.home-visit-doctor-main span {
+  color: #657773;
+  font-weight: 600;
+}
+
+.home-visit-doctor-meta {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+  justify-content: center;
+}
+
+.home-visit-doctor-meta span {
+  min-width: 76px;
+  padding: 8px 10px;
+  border-radius: 999px;
+  background: #eef7f5;
+  color: #155248;
+  font-size: 13px;
+  font-weight: 800;
+  text-align: center;
+}
+
+.home-visit-doctor-fees {
+  display: grid;
+  gap: 8px;
+  min-width: 0;
+}
+
+.home-visit-doctor-fees span {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  color: #60736f;
+  font-size: 14px;
+}
+
+.home-visit-doctor-fees b {
+  color: #0a2e2a;
+}
+
+.home-visit-doctor-fees .total {
+  margin-top: 2px;
+  padding-top: 8px;
+  border-top: 1px solid #e6eeec;
+  color: #0a2e2a;
+  font-weight: 800;
+}
+
+/* CCS for HomeVisitServicesStep */
+.service-list {
+  display: grid;
+  gap: 14px;
+}
+
+.service-option {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  gap: 14px;
+  align-items: center;
+  border: 1.5px solid #d8e1df;
+  border-radius: 16px;
+  padding: 16px;
+  background: #fff;
+  transition: border-color 0.18s ease, background 0.18s ease, box-shadow 0.18s ease;
+}
+
+.service-option:hover {
+  border-color: #8ddecf;
+  background: #f7fbfa;
+}
+
+.service-option:has(input:checked) {
+  border-color: #1f7a69;
+  background: #edfaf7;
+  box-shadow: 0 10px 24px rgba(31, 122, 105, 0.08);
+}
+
+.service-option input {
+  width: 18px;
+  height: 18px;
+  accent-color: #1f7a69;
+}
+
+.service-option span {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  min-width: 0;
+}
+
+.service-option strong {
+  color: #0a2e2a;
+  font-size: 16px;
+}
+
+.service-option small {
+  color: #667a76;
+  line-height: 1.45;
+}
+
+.service-option b {
+  color: #0a2e2a;
+  white-space: nowrap;
+}
+
+.home-visit-services-total {
+  display: flex;
+  justify-content: space-between;
+  gap: 18px;
+  align-items: center;
+  padding: 16px 18px;
+  border-radius: 16px;
+  border: 1px solid #9ee7d0;
+  background: #ecfdf7;
+}
+
+.home-visit-services-total strong {
+  color: #31524d;
+}
+
+.home-visit-services-total span {
+  color: #063f36;
+  font-size: 20px;
+  font-weight: 900;
+}
+
+@media (max-width: 860px) {
+  .home-visit-doctor-option {
+    grid-template-columns: 1fr;
+  }
+
+  .home-visit-doctor-meta {
+    justify-content: flex-start;
+  }
+}
+
+@media (max-width: 720px) {
+  .home-visit-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .home-visit-toggle {
+    grid-template-columns: 1fr;
+  }
+
+  .home-visit-map-field {
+    padding: 10px;
+  }
+
+  .map-actions button {
+    width: 100%;
+  }
+
+  .service-option {
+    grid-template-columns: auto minmax(0, 1fr);
+  }
+
+  .service-option>b {
+    grid-column: 2;
+    justify-self: start;
+  }
+
+  .home-visit-services-total {
+    align-items: flex-start;
+    flex-direction: column;
+  }
+}
+
+/* CSS for SessionPicker component */
+
+.home-visit-session-card {
+  display: flex;
+  flex-direction: column;
+  gap: 18px;
+}
+
+/* .home-visit-session-list {
+  display: grid;
+  gap: 16px;
+}
+
+.home-visit-session-group {
+  border: 1px solid #dce7e5;
+  border-radius: 16px;
+  padding: 18px;
+  background: #f8fbfa;
+}
+
+.home-visit-session-header {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  margin-bottom: 14px;
+}
+
+.home-visit-session-icon {
+  width: 44px;
+  height: 44px;
+  border-radius: 50%;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  background: #e6f7f3;
+  color: #155248;
+  font-size: 26px;
+  font-weight: 800;
+}
+
+.home-visit-session-header h3 {
+  margin: 0;
+  color: #0a2e2a;
+  font-size: 20px;
+  text-transform: capitalize;
+}
+
+.home-visit-session-header p {
+  margin: 3px 0 0;
+  color: #60736f;
+  font-weight: 600;
+}
+
+.home-visit-date-list {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+} */
+
+/* .home-visit-date-option {
+  border: 1px solid #d8e1df;
+  background: #fff;
+  color: #0a2e2a;
+  border-radius: 999px;
+  padding: 10px 14px;
+  font-weight: 800;
+  transition: 0.18s ease;
+}
+
+.home-visit-date-option:hover {
+  border-color: #8ddecf;
+  background: #f0fbf8;
+}
+
+.home-visit-date-option.selected {
+  border-color: #1f7a69;
+  background: #1f7a69;
+  color: #fff;
+} */
+
+/* @media (max-width: 720px) {
+  .home-visit-session-group {
+    padding: 14px;
+  }
+
+  .home-visit-session-header {
+    align-items: flex-start;
+  }
+
+  .home-visit-date-option {
+    width: 100%;
+  }
+} */
+
+.home-visit-slot-list {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  gap: 12px;
+}
+
+.home-visit-slot-option {
+  border: 1.5px solid #d8e1df;
+  border-radius: 16px;
+  background: #fff;
+  padding: 14px;
+  text-align: left;
+  display: grid;
+  gap: 6px;
+  transition: border-color 0.18s ease, background 0.18s ease, box-shadow 0.18s ease;
+}
+
+.home-visit-slot-option:hover {
+  border-color: #8ddecf;
+  background: #f7fbfa;
+}
+
+.home-visit-slot-option.selected {
+  border-color: #1f7a69;
+  background: #edfaf7;
+  box-shadow: 0 10px 24px rgba(31, 122, 105, 0.08);
+}
+
+.home-visit-slot-option strong {
+  color: #0a2e2a;
+}
+
+.home-visit-slot-option span {
+  color: #0a2e2a;
+  font-weight: 800;
+}
+
+.home-visit-slot-option small {
+  color: #60736f;
+  line-height: 1.35;
+}
+
+.home-visit-session-layout {
+  display: grid;
+  gap: 18px;
+}
+
+.home-visit-date-strip {
+  display: flex;
+  gap: 10px;
+  overflow-x: auto;
+  padding-bottom: 6px;
+}
+
+.home-visit-date-option {
+  min-width: 92px;
+  border: 1px solid #d7e4e1;
+  border-radius: 12px;
+  background: #fff;
+  padding: 12px 10px;
+  text-align: left;
+  cursor: pointer;
+}
+
+.home-visit-date-option strong,
+.home-visit-date-option span,
+.home-visit-date-option small {
+  display: block;
+}
+
+.home-visit-date-option strong {
+  color: #123b35;
+  font-size: 14px;
+}
+
+.home-visit-date-option span {
+  margin-top: 3px;
+  color: #0b2f2a;
+  font-weight: 800;
+}
+
+.home-visit-date-option small {
+  margin-top: 6px;
+  color: #6f817d;
+}
+
+.home-visit-date-option.selected {
+  border-color: #1f8a76;
+  background: #eaf8f5;
+  box-shadow: 0 8px 18px rgba(31, 138, 118, 0.12);
+}
+
+.home-visit-slot-list.compact {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px;
+}
+
+.home-visit-slot-option.compact {
+  display: grid;
+  gap: 8px;
+  text-align: left;
+  border: 1px solid #d7e4e1;
+  border-radius: 12px;
+  background: #fff;
+  padding: 14px;
+  cursor: pointer;
+}
+
+.home-visit-slot-option.compact:hover {
+  border-color: #8bd7c8;
+  background: #f7fcfb;
+}
+
+.home-visit-slot-option.compact.selected {
+  border-color: #1f8a76;
+  background: #eaf8f5;
+}
+
+.home-visit-slot-option.compact strong {
+  color: #072f2a;
+  font-size: 15px;
+}
+
+.home-visit-slot-option.compact span {
+  display: block;
+  margin-top: 3px;
+  color: #52706a;
+  font-size: 13px;
+}
+
+.home-visit-slot-option.compact small {
+  color: #6c7e7a;
+  line-height: 1.4;
+}
+
+@media (max-width: 720px) {
+  .home-visit-slot-list.compact {
+    grid-template-columns: 1fr;
   }
 }

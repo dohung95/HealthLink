@@ -37,7 +37,7 @@ public class HomeVisitPaymentController {
     private String resolveUserId(UserDetails userDetails) {
         return userRepository.findByEmail(userDetails.getUsername())
                 .orElseThrow(() -> new ResourceNotFoundException(
-                        "User", "email", userDetails.getUsername()))
+                "User", "email", userDetails.getUsername()))
                 .getId();
     }
 
@@ -74,8 +74,10 @@ public class HomeVisitPaymentController {
 
         HomeVisitBooking booking = HomeVisitBooking.builder()
                 .doctorId(draft.getDoctorId())
-                .scheduleId(request.getScheduleId())
-                .bookingDate(request.getBookingDate())
+                .scheduleId(draft.getScheduleId())
+                .bookingDate(draft.getBookingDate())
+                .startTime(draft.getStartTime())
+                .endTime(draft.getEndTime())
                 .appointmentId(appointmentId)
                 .build();
         homeVisitBookingRepository.save(booking);

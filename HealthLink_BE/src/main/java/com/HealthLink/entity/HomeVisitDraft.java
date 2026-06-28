@@ -1,10 +1,12 @@
 package com.HealthLink.entity;
 
 import jakarta.persistence.*;
+import java.time.LocalDate;
 import lombok.*;
 import org.hibernate.annotations.Nationalized;
 
 import java.time.LocalDateTime;
+import java.time.LocalTime;
 
 @Entity
 @Table(name = "HomeVisitDrafts", indexes = {
@@ -56,6 +58,18 @@ public class HomeVisitDraft {
 
     @Column(name = "ExpiresAt", nullable = false)
     private LocalDateTime expiresAt;
+
+    @Column(name = "ScheduleId")
+    private Integer scheduleId;
+
+    @Column(name = "BookingDate")
+    private LocalDate bookingDate;
+
+    @Column(name = "StartTime")
+    private LocalTime startTime;
+
+    @Column(name = "EndTime")
+    private LocalTime endTime;
 
     @PrePersist
     protected void onCreate() {

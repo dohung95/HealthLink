@@ -3,6 +3,7 @@ package com.HealthLink.dto.request;
 import lombok.Data;
 
 import java.time.LocalDateTime;
+import java.time.LocalTime;
 
 /**
  * Request body khi patient đặt lịch khám.
@@ -58,4 +59,7 @@ public class AppointmentRequest {
 
     private Double visitLatitude;
     private Double visitLongitude;
+
+    private LocalTime homeVisitStartTime;
+    private LocalTime homeVisitEndTime;
 }
