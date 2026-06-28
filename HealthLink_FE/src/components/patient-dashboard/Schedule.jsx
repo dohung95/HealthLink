@@ -51,6 +51,8 @@ const Schedule = () => {
   const { isAuthenticated, token } = useAuth();
 
   const hasPreselectedDoctor = !!doctorId;
+  const isFromProposal =
+    searchParams.get('homeVisit') === 'true' || searchParams.has('consultationId');
 
 
   const [loading, setLoading] = useState(true);
@@ -74,6 +76,7 @@ const Schedule = () => {
   const [patientProfile, setPatientProfile] = useState(null);
   const [bookingSubmitting, setBookingSubmitting] = useState(false);
   const [paymentDraft, setPaymentDraft] = useState(null);
+  const [sessionDraftId, setSessionDraftId] = useState(null);
   const [homeVisitInfo, setHomeVisitInfo] = useState({
     visitAddress: '',
     visitCity: '',
@@ -107,12 +110,10 @@ const Schedule = () => {
     const baseSteps = hasPreselectedDoctor
       ? [
         { key: 'consultation', label: 'Visit Type' },
-        { key: 'datetime', label: 'Date & Time' },
       ]
       : [
         { key: 'specialty', label: 'Specialty' },
         { key: 'consultation', label: 'Visit Type' },
-        { key: 'datetime', label: 'Date & Time' },
       ];
 
     if (isHomeVisit) {
@@ -200,7 +201,7 @@ const Schedule = () => {
         setStep(2);
       }
     }
-  }, [doctorId, doctors]);
+  }, [doctorId, doctors, isFromProposal]);
 
   useEffect(() => {
     if (!selectedDoctorId) {
@@ -547,13 +548,13 @@ const Schedule = () => {
   };
 
   const handleSchedule = async () => {
-    if (!selectedDoctorId || !selectedSlot) {
+    if (!selectedDoctorId) {
       toast.warning('Booking information is not complete');
       return;
     }
 
-    if (!patientId) {
-      toast.error('Can not find patient information in the current login session.');
+    if (!isHomeVisit && !selectedSlot) {
+      toast.warning('Booking information is not complete');
       return;
     }
 
@@ -564,6 +565,11 @@ const Schedule = () => {
 
     if (isHomeVisit && !sessionDraftId) {
       toast.warning('Home visit session draft is missing. Please select the session again.');
+      return;
+    }
+
+    if (!patientId) {
+      toast.error('Can not find patient information in the current login session.');
       return;
     }
 
@@ -581,7 +587,7 @@ const Schedule = () => {
       const bookingData = {
         patientId,
         doctorId: selectedDoctorId,
-        appointmentTime: selectedSlot.appointmentTime,
+        appointmentTime: appointmentDate,
         consultationType,
         symptoms: isHomeVisit ? homeVisitInfo.reasonForHomeVisit : symptoms,
         notes: isHomeVisit ? homeVisitInfo.specialNotes : '',

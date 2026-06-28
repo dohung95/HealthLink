@@ -6,6 +6,13 @@ const formatCurrency = (value) =>
         currency: 'USD',
     });
 
+const stripHtml = (html) => {
+    if (!html) return '';
+
+    const doc = new DOMParser().parseFromString(html, 'text/html');
+    return doc.body.textContent || '';
+};
+
 const ConfirmStep = ({
     selectedDoctor,
     selectedSpecialty,
@@ -22,9 +29,31 @@ const ConfirmStep = ({
 }) => {
     const [showServiceDetails, setShowServiceDetails] = useState(false);
 
-    const formattedDateTime = selectedSlot?.appointmentTime
-        ? new Date(selectedSlot.appointmentTime).toLocaleString('en-US')
-        : '';
+    const buildHomeVisitDateTime = (session) => {
+        if (!session?.bookingDate || !session?.startTime) return '';
+
+        const start = session.startTime?.slice(0, 5);
+        const end = session.endTime?.slice(0, 5);
+
+        const dateTime = new Date(`${session.bookingDate}T${start}:00`);
+        const dateLabel = Number.isNaN(dateTime.getTime())
+            ? session.bookingDate
+            : dateTime.toLocaleDateString('en-US', {
+                weekday: 'short',
+                month: 'short',
+                day: 'numeric',
+                year: 'numeric',
+            });
+
+        return end ? `${dateLabel}, ${start} - ${end}` : `${dateLabel}, ${start}`;
+    };
+
+    const formattedDateTime =
+    consultationType === 'HomeVisit'
+        ? buildHomeVisitDateTime(homeVisitInfo?.selectedSession)
+        : selectedSlot?.appointmentTime
+            ? new Date(selectedSlot.appointmentTime).toLocaleString('en-US')
+            : '';
 
     const rows = [
         ['Doctor', selectedDoctor?.fullName || ''],
@@ -34,7 +63,7 @@ const ConfirmStep = ({
     ];
 
     rows.push(
-        ['Symptoms', symptoms || 'None'],
+        ['Symptoms', stripHtml(symptoms) || 'None'],
         ['Attached files', files.length > 0 ? `${files.length} file` : 'None'],
     );
 

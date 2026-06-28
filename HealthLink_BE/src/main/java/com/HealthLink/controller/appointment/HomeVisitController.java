@@ -4,9 +4,15 @@ import com.HealthLink.dto.request.HomeVisitDoctorSearchRequest;
 import com.HealthLink.dto.request.HomeVisitEstimateRequest;
 import com.HealthLink.dto.request.HomeVisitSlotSearchRequest;
 import com.HealthLink.dto.request.SelectSessionRequest;
+import com.HealthLink.dto.response.AvailableSessionResponse;
+import com.HealthLink.dto.response.DraftResponse;
+import com.HealthLink.dto.response.HomeVisitDoctorOptionResponse;
 import com.HealthLink.dto.response.HomeVisitEstimateResponse;
 import com.HealthLink.dto.response.HomeVisitGeocodeResponse;
 import com.HealthLink.dto.response.HomeVisitInfoScanResponse;
+import com.HealthLink.dto.response.HomeVisitServiceResponse;
+import com.HealthLink.dto.response.HomeVisitSlotResponse;
+import com.HealthLink.dto.response.SessionStatusResponse;
 import com.HealthLink.entity.HomeVisitDraft;
 import com.HealthLink.exception.ResourceNotFoundException;
 import com.HealthLink.repository.appointment.HomeVisitDraftRepository;
@@ -16,12 +22,15 @@ import com.HealthLink.service.ai.DocumentAiService;
 import com.HealthLink.service.homevisit.HomeVisitDoctorSearchService;
 import com.HealthLink.service.homevisit.HomeVisitLocationService;
 import com.HealthLink.service.homevisit.HomeVisitSessionService;
+import java.time.LocalDateTime;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.multipart.MultipartFile;
 import java.util.Base64;
 import java.util.List;
+import org.springframework.security.core.annotation.AuthenticationPrincipal;
+import org.springframework.security.core.userdetails.UserDetails;
 
 @RestController
 @RequestMapping("/api/home-visit")
@@ -88,14 +97,14 @@ public class HomeVisitController {
         }
     }
 
-    @GetMapping("/home-visit/geocode")
+    @GetMapping("/geocode")
     public ResponseEntity<List<HomeVisitGeocodeResponse>> geocode(
             @RequestParam String address
     ) {
         return ResponseEntity.ok(homeVisitLocationService.geocodeByNominatim(address));
     }
 
-    @PostMapping("/home-visit/estimate")
+    @PostMapping("/estimate")
     public ResponseEntity<HomeVisitEstimateResponse> estimate(
             @RequestBody HomeVisitEstimateRequest request
     ) {
@@ -115,7 +124,7 @@ public class HomeVisitController {
         return ResponseEntity.ok(homeVisitSessionService.getAvailableSessions(doctorId));
     }
 
-    @PostMapping("/home-visit/select-session")
+    @PostMapping("/select-session")
     public ResponseEntity<DraftResponse> selectSession(
             @RequestBody SelectSessionRequest request,
             @AuthenticationPrincipal UserDetails userDetails
@@ -161,7 +170,7 @@ public class HomeVisitController {
                 .build());
     }
 
-    @GetMapping("/home-visit/sessions")
+    @GetMapping("/sessions")
     public ResponseEntity<SessionStatusResponse> checkSessionStatus(
             @RequestParam String doctorId,
             @RequestParam String date,
@@ -187,7 +196,7 @@ public class HomeVisitController {
                         .equalsIgnoreCase(mimeType);
     }
 
-    @GetMapping("/home-visit/services")
+    @GetMapping("/services")
     public ResponseEntity<List<HomeVisitServiceResponse>> getHomeVisitServices() {
         return ResponseEntity.ok(
                 homeVisitServiceRepository.findByActiveTrueOrderByServiceNameAsc()
@@ -218,7 +227,7 @@ public class HomeVisitController {
         );
     }
 
-    @PostMapping("/home-visit/doctors/search")
+    @PostMapping("/doctors/search")
     public ResponseEntity<List<HomeVisitDoctorOptionResponse>> searchHomeVisitDoctors(
             @RequestBody HomeVisitDoctorSearchRequest request
     ) {

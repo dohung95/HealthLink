@@ -37,7 +37,7 @@ export const homeVisitApi = {
   },
 
   getSessions: async (doctorId) => {
-    const response = await axiosInstance.get(`/api/doctors/${doctorId}/home-visit-sessions`);
+    const response = await axiosInstance.get(`/api/home-visit/doctors/${doctorId}/home-visit-sessions`);
     return response.data || [];
   },
 
@@ -68,7 +68,7 @@ export const homeVisitApi = {
     homeVisitServiceIds,
   }) => {
     const response = await axiosInstance.post(
-      `/api/doctors/${doctorId}/home-visit-slots`,
+      `/api/home-visit/doctors/${doctorId}/home-visit-slots`,
       {
         visitLatitude,
         visitLongitude,

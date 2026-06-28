@@ -70,6 +70,14 @@ public class HomeVisitLocationService {
         }
     }
 
+    public GeocodeResponse geocodeClinicAddressWithFallback(String address) {
+        if (address == null || address.isBlank()) {
+            throw new BusinessException("Clinic address is required");
+        }
+
+        return geocode(address);
+    }
+
     public List<HomeVisitGeocodeResponse> geocodeByNominatim(String address) {
         if (address == null || address.isBlank()) {
             throw new BusinessException("Address is required");
