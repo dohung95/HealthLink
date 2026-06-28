@@ -90,6 +90,21 @@ class ApiConfig {
   static String pharmacyOrdersByPatient(String patientId) => '$baseUrl/pharmacy-orders/patient/$patientId';
   static String cancelPharmacyOrder(String orderId) => '$baseUrl/pharmacy-orders/$orderId/cancel';
 
+  // ── Medicine Store (Retail) Endpoints ───────────────────────────────────
+  /// GET /api/medicines?keyword=&category=&dosageForm= – Tìm kiếm thuốc
+  static const String medicines = '$baseUrl/medicines';
+  /// POST /api/account/pharmacy/public/recommendations/cart – Gợi ý nhà thuốc theo giỏ hàng
+  static const String retailCartRecommendations = '$baseUrl/account/pharmacy/public/recommendations/cart';
+  /// POST /api/pharmacy-orders/retail – Tạo đơn bán lẻ
+  static const String retailOrders = '$baseUrl/pharmacy-orders/retail';
+
+  // ── Geocoding Endpoints ────────────────────────────────────────────────
+  /// POST /api/geocoding/geocode – Chuyển địa chỉ thành tọa độ
+  static const String geocode = '$baseUrl/geocoding/geocode';
+  /// POST /api/geocoding/reverse – Chuyển tọa độ thành địa chỉ
+  static const String reverseGeocode = '$baseUrl/geocoding/reverse';
+
+
   // Booking / Doctor Directory Endpoints
   static const String doctorSearch      = '$baseUrl/account/doctors/search';
   static const String doctorSpecialties = '$baseUrl/account/doctors/specialties';

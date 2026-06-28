@@ -135,4 +135,98 @@ class PharmacyService {
     }
     throw Exception('Failed to cancel order: ${res.body}');
   }
+
+  // ── Retail Store Methods ─────────────────────────────────────────────────
+
+  /// Lấy danh sách nhà thuốc gợi ý dựa trên giỏ hàng retail.
+  static Future<List<dynamic>> getRetailRecommendations(
+    String token,
+    Map<String, dynamic> payload,
+  ) async {
+    final res = await http.post(
+      Uri.parse(ApiConfig.retailCartRecommendations),
+      headers: {
+        'Content-Type': 'application/json',
+        'Accept': 'application/json',
+        'Authorization': 'Bearer $token',
+      },
+      body: jsonEncode(payload),
+    ).timeout(ApiConfig.connectTimeout);
+
+    if (res.statusCode == 200) {
+      final decoded = jsonDecode(utf8.decode(res.bodyBytes));
+      if (decoded is List) return decoded;
+      return [];
+    }
+    throw Exception('Failed to load retail recommendations: ${res.body}');
+  }
+
+  /// Tạo đơn hàng bán lẻ (retail order).
+  static Future<Map<String, dynamic>> createRetailOrder(
+    String token,
+    Map<String, dynamic> payload,
+  ) async {
+    final res = await http.post(
+      Uri.parse(ApiConfig.retailOrders),
+      headers: {
+        'Content-Type': 'application/json',
+        'Accept': 'application/json',
+        'Authorization': 'Bearer $token',
+      },
+      body: jsonEncode(payload),
+    ).timeout(ApiConfig.connectTimeout);
+
+    if (res.statusCode == 200 || res.statusCode == 201) {
+      return jsonDecode(utf8.decode(res.bodyBytes)) as Map<String, dynamic>;
+    }
+    throw Exception('Failed to create retail order: ${res.body}');
+  }
+
+  // ── Geocoding Methods ────────────────────────────────────────────────────
+
+  /// Chuyển đổi địa chỉ văn bản thành tọa độ.
+  static Future<Map<String, dynamic>> geocodeAddress(
+    String token,
+    String address,
+  ) async {
+    final res = await http.post(
+      Uri.parse(ApiConfig.geocode),
+      headers: {
+        'Content-Type': 'application/json',
+        'Accept': 'application/json',
+        'Authorization': 'Bearer $token',
+      },
+      body: jsonEncode({'address': address}),
+    ).timeout(ApiConfig.connectTimeout);
+
+    if (res.statusCode == 200) {
+      return jsonDecode(utf8.decode(res.bodyBytes)) as Map<String, dynamic>;
+    }
+    throw Exception('Failed to geocode address: ${res.body}');
+  }
+
+  /// Chuyển đổi tọa độ thành địa chỉ văn bản (reverse geocode).
+  static Future<Map<String, dynamic>> reverseGeocode(
+    String token, {
+    required double latitude,
+    required double longitude,
+  }) async {
+    final res = await http.post(
+      Uri.parse(ApiConfig.reverseGeocode),
+      headers: {
+        'Content-Type': 'application/json',
+        'Accept': 'application/json',
+        'Authorization': 'Bearer $token',
+      },
+      body: jsonEncode({
+        'latitude': latitude,
+        'longitude': longitude,
+      }),
+    ).timeout(ApiConfig.connectTimeout);
+
+    if (res.statusCode == 200) {
+      return jsonDecode(utf8.decode(res.bodyBytes)) as Map<String, dynamic>;
+    }
+    throw Exception('Failed to reverse geocode: ${res.body}');
+  }
 }

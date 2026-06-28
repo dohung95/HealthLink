@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../../../providers/auth_provider.dart';
 import '../../../services/patient_pharmacy/pharmacy_service.dart';
+import '../../../l10n/app_localizations.dart';
 
 class SelectPharmacyScreen extends StatefulWidget {
   final String? prescriptionHeaderId;
@@ -107,7 +108,7 @@ class _SelectPharmacyScreenState extends State<SelectPharmacyScreen> {
       if (mounted) {
         Navigator.pop(context);
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Failed to create consultation request: $e')),
+          SnackBar(content: Text(AppLocalizations.of(context)!.msgCreateRequestFail(e.toString()))),
         );
       }
     }
@@ -134,7 +135,7 @@ class _SelectPharmacyScreenState extends State<SelectPharmacyScreen> {
 
                 // --- 3. Pharmacy List ---
                 Text(
-                  'Nearby Pharmacies',
+                  AppLocalizations.of(context)!.pharmacyNearby,
                   style: textTheme.titleMedium?.copyWith(color: colorScheme.onSurface),
                 ),
                 const SizedBox(height: 16),
@@ -156,7 +157,7 @@ class _SelectPharmacyScreenState extends State<SelectPharmacyScreen> {
                       children: [
                         Icon(Icons.storefront_outlined, size: 48, color: colorScheme.outline),
                         const SizedBox(height: 16),
-                        Text('No pharmacies found.', style: textTheme.bodyLarge),
+                        Text(AppLocalizations.of(context)!.pharmacyNoPharmacies, style: textTheme.bodyLarge),
                       ],
                     ),
                   )
@@ -172,8 +173,8 @@ class _SelectPharmacyScreenState extends State<SelectPharmacyScreen> {
                     final missingItems = p['missingItems'] as List<dynamic>?;
                     String? warning;
                     if (widget.prescriptionHeaderId != null && missingItems != null && missingItems.isNotEmpty) {
-                      warning = 'Missing: ${missingItems.take(3).map((m) => m['medicationName']).join(', ')}';
-                      if (missingItems.length > 3) warning += ' +${missingItems.length - 3} more';
+                      warning = '${AppLocalizations.of(context)!.pharmacyMissingItems}: ${missingItems.take(3).map((m) => m['medicationName']).join(', ')}';
+                      if (missingItems.length > 3) warning += ' ${AppLocalizations.of(context)!.pharmacyMoreItems(missingItems.length - 3)}';
                     }
                     
                     return Column(
@@ -182,7 +183,7 @@ class _SelectPharmacyScreenState extends State<SelectPharmacyScreen> {
                           pharmacy: p,
                           name: p['name'] ?? 'Unknown',
                           address: p['address'] ?? '',
-                          distance: p['distanceLabel'] ?? '',
+                          distance: (p['distanceLabel'] != null && p['distanceLabel'] != 'No distance available' && p['distanceLabel'].toString().isNotEmpty) ? p['distanceLabel'] : AppLocalizations.of(context)!.pharmacyNoDistance,
                           rating: p['averageRating']?.toStringAsFixed(1) ?? 'N/A',
                           isFullyStocked: isFullyStocked,
                           isDeliveryAvailable: p['deliveryAvailable'] == true,
@@ -207,7 +208,7 @@ class _SelectPharmacyScreenState extends State<SelectPharmacyScreen> {
                     Expanded(
                       child: OutlinedButton(
                         onPressed: widget.onPreviousStep,
-                        child: const Text('Back'),
+                        child: Text(AppLocalizations.of(context)!.actionBack),
                       ),
                     ),
                   ],
@@ -240,7 +241,7 @@ class _SelectPharmacyScreenState extends State<SelectPharmacyScreen> {
               setState(() => _searchQuery = val);
             },
             decoration: InputDecoration(
-              hintText: 'Search pharmacies...',
+              hintText: AppLocalizations.of(context)!.pharmacySearchPlaceholder,
               hintStyle: textTheme.bodyLarge?.copyWith(color: colorScheme.outline),
               prefixIcon: Icon(Icons.search, color: colorScheme.outline),
               border: InputBorder.none,
@@ -268,7 +269,7 @@ class _SelectPharmacyScreenState extends State<SelectPharmacyScreen> {
                   Icon(Icons.local_shipping_outlined, color: colorScheme.primary),
                   const SizedBox(width: 8),
                   Text(
-                    'Delivery only',
+                    AppLocalizations.of(context)!.pharmacyDeliveryOnly,
                     style: textTheme.bodyMedium?.copyWith(fontWeight: FontWeight.w600, color: colorScheme.onSurface),
                   ),
                 ],
@@ -378,7 +379,7 @@ class _SelectPharmacyScreenState extends State<SelectPharmacyScreen> {
               if (isDeliveryAvailable)
                 _buildTagChip(
                   icon: Icons.check_circle_outline,
-                  label: 'Delivery Available',
+                  label: AppLocalizations.of(context)!.pharmacyDeliveryAvailable,
                   bgColor: colorScheme.primaryContainer,
                   textColor: colorScheme.onPrimaryContainer,
                   textTheme: textTheme,
@@ -386,7 +387,7 @@ class _SelectPharmacyScreenState extends State<SelectPharmacyScreen> {
               if (isFullyStocked)
                 _buildTagChip(
                   icon: Icons.inventory_2_outlined,
-                  label: 'Fully Stocked',
+                  label: AppLocalizations.of(context)!.pharmacyFullyStocked,
                   bgColor: colorScheme.primaryContainer,
                   textColor: colorScheme.onPrimaryContainer,
                   textTheme: textTheme,
@@ -394,7 +395,7 @@ class _SelectPharmacyScreenState extends State<SelectPharmacyScreen> {
               else
                 _buildTagChip(
                   icon: Icons.warning_amber_rounded,
-                  label: 'Partially Stocked',
+                  label: AppLocalizations.of(context)!.pharmacyPartiallyStocked,
                   bgColor: Colors.amber.shade100,
                   textColor: Colors.amber.shade900,
                   textTheme: textTheme,
@@ -453,7 +454,7 @@ class _SelectPharmacyScreenState extends State<SelectPharmacyScreen> {
                   _consultPharmacy(pharmacy);
                 },
                 child: Text(
-                  isFullyStocked ? 'Select' : 'Consult',
+                  isFullyStocked ? AppLocalizations.of(context)!.pharmacySelect : AppLocalizations.of(context)!.pharmacyConsult,
                   style: const TextStyle(fontWeight: FontWeight.w600),
                 ),
               ),
