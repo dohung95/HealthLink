@@ -5,8 +5,8 @@ import 'react-calendar/dist/Calendar.css';
 import '@components/Css/doctor/doctor-dashboard/doctor-dashboard.css';
 import {
   formatDate, formatCompactDate, formatTime, formatDateTime,
-  getStatusClassName, getTypeClassName,
-  calculateAge, toLocalDateValue, buildFollowUpDateTime,
+  getStatusClassName, getStatusLabel, getTypeClassName,
+  toLocalDateValue, buildFollowUpDateTime,
 } from '@utils/doctor/tabHelpers';
 import { useAppointmentDetail } from '@hooks/doctor/useAppointmentDetail';
 import NotesTab from './tabs/NotesTab';
@@ -27,12 +27,48 @@ const TABS = [
   { id: 'followup', label: 'Follow-up', icon: 'bi-calendar-check' },
 ];
 
+const getRowTimings = (row) => {
+  const source = Array.isArray(row?.timings) && row.timings.length > 0
+    ? row.timings
+    : String(row?.timing || '').split(',').map((v) => v.trim()).filter(Boolean);
+  return [...new Set(source.map((v) => String(v).toUpperCase()).filter(Boolean))];
+};
+
 const DoctorAppointmentDetail = memo(({ appointment, patient, doctorId, onBack, onOpenAppointmentById }) => {
   const ctx = useAppointmentDetail({ appointment, patient, doctorId, onBack, onOpenAppointmentById });
 
   const showWorkspaceOverlay = useMemo(() =>
     !ctx.hasStarted && ctx.statusKey === 'scheduled',
     [ctx.hasStarted, ctx.statusKey],
+  );
+
+  const prescriptionDraftRows = useMemo(() =>
+    Array.isArray(ctx.prescriptionDraft?.medicationRows)
+      ? ctx.prescriptionDraft.medicationRows.filter((row) => row?.medicineId)
+      : [],
+    [ctx.prescriptionDraft],
+  );
+
+  const incompletePrescriptionItems = useMemo(() => {
+    if (ctx.prescription) return [];
+    return prescriptionDraftRows
+      .map((row, idx) => {
+        const quantity = Number(row?.quantity);
+        const totalSupplyDays = Number(row?.totalSupplyDays);
+        const timings = getRowTimings(row);
+        const isComplete = Number.isFinite(quantity) && quantity >= 1 &&
+          Number.isFinite(totalSupplyDays) && totalSupplyDays >= 1 && timings.length > 0;
+        return isComplete ? null : {
+          index: idx + 1,
+          name: row.displayName || row.brandName || row.genericName || row.medicineQuery || `Item #${idx + 1}`,
+        };
+      })
+      .filter(Boolean);
+  }, [ctx.prescription, prescriptionDraftRows]);
+
+  const prescriptionReady = useMemo(() =>
+    Boolean(ctx.prescription || (prescriptionDraftRows.length > 0 && incompletePrescriptionItems.length === 0)),
+    [ctx.prescription, prescriptionDraftRows, incompletePrescriptionItems],
   );
 
   if (!appointment || !patient) {
@@ -108,7 +144,7 @@ const DoctorAppointmentDetail = memo(({ appointment, patient, doctorId, onBack, 
               {'Appointment ID: '}{ctx.currentAppointment?.appointmentID || ctx.currentAppointment?.appointmentId || 'N/A'}
             </span>
             <span className={getStatusClassName(ctx.currentAppointment?.status)}>
-              {ctx.currentAppointment?.status || 'Unknown'}
+              {getStatusLabel(ctx.currentAppointment?.status)}
             </span>
           </div>
           <div className="doctor-detail-summary__chips">
@@ -249,8 +285,13 @@ const DoctorAppointmentDetail = memo(({ appointment, patient, doctorId, onBack, 
           ctx.consultation?.diagnosis ||
           ctx.consultation?.treatmentPlan
         )}
-        prescriptionReady={Boolean(ctx.prescription || (ctx.prescriptionDraft?.medicationRows?.length > 0))}
-        followUpConfigured={Boolean(ctx.hasPendingFollowUp || ctx.consultation?.followUpDate)}
+        prescriptionReady={prescriptionReady}
+        prescriptionIncompleteItems={incompletePrescriptionItems}
+        followUpConfigured={Boolean(ctx.selectedFollowUpDateTime)}
+        followUpInfo={ctx.selectedFollowUpDateTime ? {
+          scheduleLabel: ctx.selectedScheduleLabel,
+          consultationType: ctx.followUpConsultationType,
+        } : null}
       />
     </div>
   );

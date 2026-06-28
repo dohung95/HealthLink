@@ -94,8 +94,8 @@ export function useAppointmentDetail({ appointment, patient, doctorId: currentDo
   const consultation = useMemo(() => buildConsultation(currentAppointment), [currentAppointment]);
 
   const hasPendingFollowUp = useMemo(() =>
-    Boolean(consultation.followUpDate || followUp.selectedFollowUpDateTime),
-    [consultation.followUpDate, followUp.selectedFollowUpDateTime]);
+    Boolean(followUp.selectedFollowUpDateTime),
+    [followUp.selectedFollowUpDateTime]);
 
   const rendered = useMemo(() => {
     const statusKey = normalizeStatus(currentAppointment?.status);
@@ -234,6 +234,10 @@ export function useAppointmentDetail({ appointment, patient, doctorId: currentDo
         appointmentData.refreshAppointmentData({ showToast: false });
       }
 
+      if (followUp.selectedFollowUpDateTime) {
+        await followUp.saveFollowUp(followUp.selectedFollowUpDateTime, followUp.followUpNotes, null);
+      }
+
       const completionResult = await appointmentService.completeAppointment(appointmentId, { copyPrescription });
       const followUpAppointmentId = completionResult?.followUpAppointment?.appointmentId ||
         completionResult?.followUpAppointment?.appointmentID || null;
@@ -263,7 +267,7 @@ export function useAppointmentDetail({ appointment, patient, doctorId: currentDo
     } finally {
       setCompletingAppointment(false);
     }
-  }, [appointmentId, appointment, appointmentData, notes, prescriptionDraft, onBack, onOpenAppointmentById]);
+  }, [appointmentId, appointment, appointmentData, notes, prescriptionDraft, followUp, onBack, onOpenAppointmentById]);
 
   const selectedHistoryConsultation = useMemo(
     () => buildConsultation(appointmentData.selectedHistoryAppointment),
@@ -329,6 +333,7 @@ export function useAppointmentDetail({ appointment, patient, doctorId: currentDo
     handleSelectFollowUpSlot: followUp.handleSelectFollowUpSlot,
     handleConfirmFollowUp: followUp.handleConfirmFollowUp,
     handleCancelFollowUp: followUp.handleCancelFollowUp,
+    saveFollowUp: followUp.saveFollowUp,
     setFollowUpNotes: followUp.setFollowUpNotes,
     setFollowUpConsultationType: followUp.setFollowUpConsultationType,
     statusKey: rendered.statusKey,

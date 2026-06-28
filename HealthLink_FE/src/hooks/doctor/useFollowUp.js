@@ -219,5 +219,6 @@ export function useFollowUp({ appointment, appointmentDetail, doctorId, onRefres
     handleCancelFollowUp,
     setFollowUpNotes,
     setFollowUpConsultationType,
+    saveFollowUp: savePendingFollowUp,
   };
 }

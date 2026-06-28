@@ -80,6 +80,7 @@ lerna-debug.log*
 /.superpowers
 /.github
 /tasks
+/cognee.py
 
 # === Build artifacts ===
 HealthLink_FE/dist/

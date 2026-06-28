@@ -83,10 +83,6 @@ const NextAppointmentCard = ({ appointment, onView, selectedDate }) => {
               <span className="material-symbols-outlined" style={{fontSize:'1rem'}}>open_in_new</span>
               Open Detail
             </button>
-            <button className="btn btn-outline-primary" onClick={() => onView(appointment)} type="button">
-              <span className="material-symbols-outlined" style={{fontSize:'1rem'}}>description</span>
-              Open Detail
-            </button>
           </div>
         </div>
       ) : (

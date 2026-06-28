@@ -106,7 +106,6 @@ export default function MedicineSearch({
           <div className="doctor-prescription-library__search-group">
             <i className="bi bi-search"></i>
             <input
-              autoFocus
               ref={inputRef}
               className="form-control doctor-prescription-input"
               placeholder="Search medicines, brands, or generics..."
