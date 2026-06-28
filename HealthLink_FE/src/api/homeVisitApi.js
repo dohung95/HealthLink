@@ -45,4 +45,37 @@ export const homeVisitApi = {
     const response = await axiosInstance.post('/api/home-visit/select-session', data);
     return response.data;
   },
+
+  searchDoctors: async ({ visitLatitude, visitLongitude, specialtyName }) => {
+    const response = await axiosInstance.post('/api/home-visit/doctors/search', {
+      visitLatitude,
+      visitLongitude,
+      specialtyName,
+    });
+
+    return response.data || [];
+  },
+
+  getServices: async () => {
+    const response = await axiosInstance.get('/api/home-visit/services');
+    return response.data || [];
+  },
+
+  getSlots: async ({
+    doctorId,
+    visitLatitude,
+    visitLongitude,
+    homeVisitServiceIds,
+  }) => {
+    const response = await axiosInstance.post(
+      `/api/doctors/${doctorId}/home-visit-slots`,
+      {
+        visitLatitude,
+        visitLongitude,
+        homeVisitServiceIds,
+      }
+    );
+
+    return response.data || [];
+  },
 };

@@ -24,7 +24,16 @@ const toAppointmentPaymentPayload = (bookingDraft, extra = {}) => {
     visitLatitude,
     visitLongitude,
     sourceConsultationId,
+    homeVisitServiceIds,
+    selectedHomeVisitServices,
+    homeVisitStartTime,
+    homeVisitEndTime,
   } = bookingDraft || {};
+
+  const resolvedHomeVisitServiceIds =
+    homeVisitServiceIds?.length > 0
+      ? homeVisitServiceIds
+      : selectedHomeVisitServices?.map((item) => item.serviceId).filter(Boolean) || [];
 
   return {
     patientId,
@@ -48,6 +57,9 @@ const toAppointmentPaymentPayload = (bookingDraft, extra = {}) => {
     visitLatitude,
     visitLongitude,
     sourceConsultationId,
+    homeVisitServiceIds: resolvedHomeVisitServiceIds,
+    homeVisitStartTime,
+    homeVisitEndTime,
 
     currency: currency || 'USD',
     ...extra,
@@ -100,7 +112,6 @@ export const paymentApi = {
       draftId,
       scheduleId,
       bookingDate,
-      amount: 150.00,
     });
     return response.data;
   },

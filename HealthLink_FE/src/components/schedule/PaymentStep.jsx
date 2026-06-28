@@ -113,17 +113,30 @@ const PaymentStep = ({ bookingDraft, selectedDoctor, onBack, onPaymentComplete }
   const isHomeVisit = bookingDraft?.consultationType === 'HomeVisit';
   const homeVisitEstimate = bookingDraft?.homeVisitEstimate;
 
-  const displayInvoice = paidInvoice || {
+  const draftInvoice = {
     invoiceNumber: 'Pending checkout',
     amount: bookingDraft?.amount ?? selectedDoctor?.consultationFee ?? 0,
     consultationFee: bookingDraft?.doctorFee ?? selectedDoctor?.consultationFee ?? 0,
     homeVisitBaseFee: homeVisitEstimate?.homeVisitFee,
     travelFee: homeVisitEstimate?.travelFee,
     homeVisitTravelTotal: homeVisitEstimate?.totalFee,
+    homeVisitServicesTotal: homeVisitEstimate?.servicesTotal ?? 0,
     distanceKm: homeVisitEstimate?.distanceKm,
     estimatedTravelMinutes: homeVisitEstimate?.estimatedTravelMinutes,
     status: 'Pending',
   };
+
+  const displayInvoice = paidInvoice
+    ? {
+      ...draftInvoice,
+      ...paidInvoice,
+      consultationFee: paidInvoice.consultationFee ?? draftInvoice.consultationFee,
+      homeVisitBaseFee: paidInvoice.homeVisitBaseFee ?? draftInvoice.homeVisitBaseFee,
+      travelFee: paidInvoice.travelFee ?? draftInvoice.travelFee,
+      homeVisitTravelTotal: paidInvoice.homeVisitTravelTotal ?? draftInvoice.homeVisitTravelTotal,
+      homeVisitServicesTotal: paidInvoice.homeVisitServicesTotal ?? draftInvoice.homeVisitServicesTotal,
+    }
+    : draftInvoice;
 
   return (
     <div className="schedule-card payment-step-card">
@@ -165,6 +178,11 @@ const PaymentStep = ({ bookingDraft, selectedDoctor, onBack, onPaymentComplete }
             <div>
               <span>Home visit travel total</span>
               <strong>{formatCurrency(displayInvoice?.homeVisitTravelTotal)}</strong>
+            </div>
+
+            <div>
+              <span>Selected services</span>
+              <strong>{formatCurrency(displayInvoice?.homeVisitServicesTotal)}</strong>
             </div>
 
             <div>
@@ -230,6 +248,31 @@ const PaymentStep = ({ bookingDraft, selectedDoctor, onBack, onPaymentComplete }
                 <span>Consultation fee</span>
                 <strong>{formatCurrency(paidInvoice.consultationFee)}</strong>
               </div>
+
+              {isHomeVisit && (
+                <>
+                  <div>
+                    <span>Base home visit fee</span>
+                    <strong>{formatCurrency(displayInvoice?.homeVisitBaseFee)}</strong>
+                  </div>
+
+                  <div>
+                    <span>Additional distance fee</span>
+                    <strong>{formatCurrency(displayInvoice?.travelFee)}</strong>
+                  </div>
+
+                  <div>
+                    <span>Home visit travel total</span>
+                    <strong>{formatCurrency(displayInvoice?.homeVisitTravelTotal)}</strong>
+                  </div>
+
+                  <div>
+                    <span>Selected services</span>
+                    <strong>{formatCurrency(displayInvoice?.homeVisitServicesTotal)}</strong>
+                  </div>
+                </>
+              )}
+
               <div>
                 <span>Total paid</span>
                 <strong>{formatCurrency(paidInvoice.amount)}</strong>

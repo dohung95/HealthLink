@@ -42,6 +42,9 @@ public class HomeVisitLocationService {
     @Value("${home-visit.travel-fee-per-km:5}")
     private BigDecimal travelFeePerKm;
 
+    @Value("${home-visit.average-speed-kmh}")
+    private double averageSpeedKmh;
+
     public HomeVisitLocationService(RestTemplateBuilder builder, DoctorRepository doctorRepository, GeocodingService geocodingService) {
         this.restTemplate = builder.build();
         this.doctorRepository = doctorRepository;
