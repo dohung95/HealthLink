@@ -24,11 +24,6 @@ const FollowUpTab = ({
   savingFollowUp,
   onSelectFollowUpSlot,
   selectedScheduleLabel,
-  canCancelFollowUp,
-  onCancelFollowUp,
-  followUpAction,
-  onConfirmFollowUp,
-  currentAppointment,
   followUpNotes,
   onFollowUpNotesChange,
   renderEmptyState,
@@ -101,18 +96,11 @@ const FollowUpTab = ({
           </div>
 
           <div className="fu-visit-card">
-            <div className="fu-visit-row">
-              <div className="fu-visit-item">
-                <i className="bi bi-camera-video"></i>
-                <span>{currentAppointment?.consultationType || 'Consultation'}</span>
-              </div>
-              <div className="fu-visit-item">
-                <i className="bi bi-clock"></i>
-                <span>30 mins</span>
-              </div>
-            </div>
-            <div className="fu-notes-group">
+            <div className="fu-visit-card__header">
+              <i className="bi bi-journal-check text-primary me-2"></i>
               <label className="fu-notes-label">Follow-up Notes</label>
+            </div>
+            <div className="fu-visit-card__body">
               <textarea
                 className="form-control fu-notes-input"
                 readOnly={!canEditFollowUp || savingFollowUp}
@@ -208,40 +196,14 @@ const FollowUpTab = ({
         </div>
       </div>
 
-      <div className="fu-footer">
-        <div className="fu-footer-info">
-          <span className="fu-footer-label">Selected Schedule</span>
-          <strong className="fu-footer-value">{selectedScheduleLabel}</strong>
+      {selectedFollowUpDateTime && (
+        <div className="fu-footer">
+          <div className="fu-footer-info">
+            <span className="fu-footer-label">Selected Schedule</span>
+            <strong className="fu-footer-value">{selectedScheduleLabel}</strong>
+          </div>
         </div>
-        <div className="fu-footer-actions">
-          {canCancelFollowUp && (
-            <button
-              className="btn btn-outline-danger btn-sm"
-              disabled={savingFollowUp}
-              onClick={onCancelFollowUp}
-              type="button"
-            >
-              {followUpAction === 'cancel' ? (
-                <><span className="spinner-border spinner-border-sm me-1" />Cancelling...</>
-              ) : (
-                <><i className="bi bi-x-circle me-1"></i>Cancel</>
-              )}
-            </button>
-          )}
-          <button
-            className={`btn btn-primary btn-sm ${!canEditFollowUp || savingFollowUp || !selectedFollowUpDateTime ? 'disabled' : ''}`}
-            disabled={!canEditFollowUp || savingFollowUp || !selectedFollowUpDateTime}
-            onClick={onConfirmFollowUp}
-            type="button"
-          >
-            {followUpAction === 'confirm' ? (
-              <><span className="spinner-border spinner-border-sm me-1" />Saving...</>
-            ) : (
-              <><i className="bi bi-check-lg me-1"></i>Confirm</>
-            )}
-          </button>
-        </div>
-      </div>
+      )}
     </div>
   );
 };
