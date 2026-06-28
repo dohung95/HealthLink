@@ -55,8 +55,6 @@ const initialOnlineData = {
   endTime: '10:00',
   slotDuration: 30,
   maxPatients: 1,
-  location: '',
-  notes: '',
 };
 
 const labelStyle = {
@@ -85,7 +83,7 @@ const ScheduleFormModal = ({ isOpen, onClose, schedule, onSuccess, batchMode = f
   const [scheduleKind, setScheduleKind] = useState('Online'); // 'Online' | 'HomeVisit'
   const [onlineData, setOnlineData] = useState(initialOnlineData);
   const [selectedShifts, setSelectedShifts] = useState([]);
-  const [homeVisitMeta, setHomeVisitMeta] = useState({ location: '', notes: '' });
+  const [homeVisitMeta, setHomeVisitMeta] = useState({});
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
 
@@ -108,11 +106,11 @@ const ScheduleFormModal = ({ isOpen, onClose, schedule, onSuccess, batchMode = f
       setScheduleKind('Online');
       setOnlineData(initialOnlineData);
       setSelectedShifts([]);
-      setHomeVisitMeta({ location: '', notes: '' });
+      setHomeVisitMeta({});
     } else if (isHomeVisitType(schedule.consultationType)) {
       setScheduleKind('HomeVisit');
       setSelectedShifts(schedule.shiftType ? [String(schedule.shiftType).toUpperCase()] : []);
-      setHomeVisitMeta({ location: schedule.location || '', notes: schedule.notes || '' });
+      setHomeVisitMeta({});
     } else {
       setScheduleKind('Online');
       setOnlineData({
@@ -120,8 +118,6 @@ const ScheduleFormModal = ({ isOpen, onClose, schedule, onSuccess, batchMode = f
         endTime: formatTimeForInput(schedule.endTime),
         slotDuration: schedule.slotDuration || 30,
         maxPatients: schedule.maxPatients || 1,
-        location: schedule.location || '',
-        notes: schedule.notes || '',
       });
     }
   }, [schedule]);
@@ -186,7 +182,7 @@ const ScheduleFormModal = ({ isOpen, onClose, schedule, onSuccess, batchMode = f
     }
 
     // Online
-    const { startTime, endTime, slotDuration, maxPatients, location, notes } = onlineData;
+    const { startTime, endTime, slotDuration, maxPatients } = onlineData;
     if (startTime >= endTime) {
       setError('Start time must be before end time');
       return null;
@@ -211,8 +207,6 @@ const ScheduleFormModal = ({ isOpen, onClose, schedule, onSuccess, batchMode = f
       endTime,
       slotDuration,
       maxPatients,
-      location,
-      notes,
     };
     const clash = findOverlap(onlinePayload);
     if (clash) {
@@ -469,16 +463,6 @@ const ScheduleFormModal = ({ isOpen, onClose, schedule, onSuccess, batchMode = f
                   </div>
                 </div>
 
-                <div style={{ marginBottom: '1.25rem' }}>
-                  <label style={labelStyle}>Notes</label>
-                  <textarea
-                    disabled={loading}
-                    value={homeVisitMeta.notes}
-                    onChange={(e) => setHomeVisitMeta((m) => ({ ...m, notes: e.target.value }))}
-                    placeholder="Any notes for these home visit shifts..."
-                    style={{ ...inputStyle, minHeight: '80px', resize: 'vertical', fontFamily: 'inherit' }}
-                  />
-                </div>
               </>
             ) : (
               <>
@@ -563,32 +547,6 @@ const ScheduleFormModal = ({ isOpen, onClose, schedule, onSuccess, batchMode = f
                   </div>
                 </div>
 
-                <div style={{ marginBottom: '1.25rem' }}>
-                  <label style={labelStyle}>Location</label>
-                  <input
-                    className="form-control"
-                    disabled={loading}
-                    name="location"
-                    onChange={handleOnlineChange}
-                    placeholder="Room number, clinic address..."
-                    type="text"
-                    value={onlineData.location}
-                    style={inputStyle}
-                  />
-                </div>
-
-                <div style={{ marginBottom: 0 }}>
-                  <label style={labelStyle}>Notes</label>
-                  <textarea
-                    className="form-control"
-                    disabled={loading}
-                    name="notes"
-                    onChange={handleOnlineChange}
-                    placeholder="Any additional notes..."
-                    value={onlineData.notes}
-                    style={{ ...inputStyle, minHeight: '90px', resize: 'vertical', fontFamily: 'inherit' }}
-                  />
-                </div>
               </>
             )}
           </div>

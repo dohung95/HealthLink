@@ -12,7 +12,6 @@ import '../../models/notification/notification_item.dart';
 import '../../config/api_config.dart';
 import '../../config/doctor_theme.dart';
 import '../../widgets/doctor/doctor_widgets.dart';
-import 'doctor_notification_center_sheet.dart';
 
 class DoctorHomeScreen extends StatefulWidget {
   final VoidCallback? onViewAllAppointments;
@@ -70,19 +69,6 @@ class _DoctorHomeScreenState extends State<DoctorHomeScreen> {
     } catch (_) {}
   }
 
-  void _showNotificationSheet() {
-    if (_notificationService == null) return;
-    showModalBottomSheet(
-      context: context,
-      isScrollControlled: true,
-      backgroundColor: Colors.transparent,
-      builder: (context) => DoctorNotificationCenterSheet(
-        service: _notificationService!,
-        onChanged: _loadUnreadCount,
-      ),
-    );
-  }
-
   Future<void> _loadData() async {
     setState(() {
       _isLoading = true;
@@ -113,35 +99,6 @@ class _DoctorHomeScreenState extends State<DoctorHomeScreen> {
         });
       }
     }
-  }
-
-  String _greeting() {
-    final h = DateTime.now().hour;
-    if (h < 12) return 'Good morning';
-    if (h < 18) return 'Good afternoon';
-    return 'Good evening';
-  }
-
-  String _withDoctorPrefix(String? name) {
-    if (name == null || name.isEmpty) return 'Dr. Doctor';
-    final clean = name.replaceAll(RegExp(r'^\s*(dr\.?|bs\.?|bác sĩ)\s*', caseSensitive: false), '').trim();
-    return 'Dr. $clean';
-  }
-
-  String _badgeCount(int n) => n > 99 ? '99+' : '$n';
-
-  String _formatDate(DateTime date) {
-    final weekdays = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
-    final months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
-    return '${weekdays[date.weekday % 7]}, ${date.day} ${months[date.month - 1]} ${date.year}';
-  }
-
-  String _getInitials(String name) {
-    final clean = name.replaceAll(RegExp(r'^\s*(dr\.?|bs\.?)\s*', caseSensitive: false), '').trim();
-    final parts = clean.split(RegExp(r'\s+'));
-    final first = parts.isNotEmpty ? parts[0] : '';
-    final second = parts.length > 1 ? parts[1] : '';
-    return '${first.isNotEmpty ? first[0] : ''}${second.isNotEmpty ? second[0] : ''}'.toUpperCase();
   }
 
   @override
@@ -193,137 +150,113 @@ class _DoctorHomeScreenState extends State<DoctorHomeScreen> {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              // === HEADER ===
-              DoctorCurvedHeader(
-                child: Padding(
-                  padding: const EdgeInsets.fromLTRB(20, 24, 20, 24),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Row(
-                        children: [
-                          Container(
-                            decoration: BoxDecoration(
-                              shape: BoxShape.circle,
-                              border: Border.all(color: Colors.white.withOpacity(0.3), width: 2),
-                            ),
-                            child: CircleAvatar(
-                              radius: 24,
-                              backgroundColor: Colors.white.withOpacity(0.2),
-                              backgroundImage: _profile?.avatarUrl != null
-                                  ? NetworkImage(ApiConfig.normalizeUrl(_profile!.avatarUrl!) ?? '')
-                                  : null,
-                              child: _profile?.avatarUrl == null
-                                  ? Text(
-                                      _getInitials(_profile?.fullName ?? 'D'),
-                                      style: const TextStyle(color: Colors.white, fontWeight: FontWeight.w600, fontSize: 16),
-                                    )
-                                  : null,
-                            ),
-                          ),
-                          const SizedBox(width: 12),
-                          Expanded(
-                            child: Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                Text('${_greeting()},', style: TextStyle(fontSize: 14, color: Colors.white.withOpacity(0.8))),
-                                Text(_withDoctorPrefix(_profile?.fullName), style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: Colors.white)),
-                              ],
-                            ),
-                          ),
-                          _NotificationBell(
-                            unreadCount: _unreadCount,
-                            onTap: _showNotificationSheet,
-                            badgeCount: _badgeCount,
-                          ),
-                        ],
-                      ),
-                      const SizedBox(height: 16),
-                      Text(_formatDate(DateTime.now()), style: TextStyle(fontSize: 14, color: Colors.white.withOpacity(0.8))),
-                    ],
-                  ),
-                ),
-              ),
-
               // === MAIN CONTENT ===
               Padding(
-                padding: const EdgeInsets.all(20),
+                padding: const EdgeInsets.all(12),
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     // Stats Grid
-                    GridView.count(
-                      shrinkWrap: true,
-                      physics: const NeverScrollableScrollPhysics(),
-                      crossAxisCount: 2,
-                      mainAxisSpacing: 12,
-                      crossAxisSpacing: 12,
-                      childAspectRatio: 1.45,
-                      children: [
-                        DoctorStatCard(
-                          icon: Icons.calendar_today,
-                          label: "Today's Appointments",
-                          value: '${_stats['todayAppointments'] ?? 0}',
-                          backgroundColor: DS.primary.withOpacity(0.15),
-                          iconColor: DS.primary,
-                        ),
-                        DoctorStatCard(
-                          icon: Icons.check_circle_outline,
-                          label: 'Completed',
-                          value: '${_stats['completedToday'] ?? 0}',
-                          backgroundColor: DS.emerald100,
-                          iconColor: DS.emerald600,
-                        ),
-                        DoctorStatCard(
-                          icon: Icons.schedule,
-                          label: 'Pending',
-                          value: '${_stats['pendingToday'] ?? 0}',
-                          backgroundColor: DS.amber100,
-                          iconColor: DS.amber600,
-                        ),
-                        DoctorStatCard(
-                          icon: Icons.star,
-                          label: 'Rating',
-                          value: (_stats['averageRating'] as num?)?.toStringAsFixed(1) ?? '0.0',
-                          backgroundColor: DS.sky100,
-                          iconColor: DS.sky600,
-                        ),
-                      ],
+                    Container(
+                      padding: const EdgeInsets.all(5),
+                      decoration: BoxDecoration(
+                        color: DS.card,
+                        borderRadius: BorderRadius.circular(16),
+                        boxShadow: [
+                          BoxShadow(
+                            color: Colors.black.withValues(alpha: 0.08),
+                            blurRadius: 12,
+                            offset: const Offset(0, 4),
+                          ),
+                          BoxShadow(
+                            color: Colors.black.withValues(alpha: 0.04),
+                            blurRadius: 4,
+                            offset: const Offset(0, 1),
+                          ),
+                        ],
+                      ),
+                      child: Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+                        children: [
+                          Expanded(child: _CompactStatCard(
+                            icon: Icons.calendar_today,
+                            label: 'Appointments',
+                            value: '${_stats['todayAppointments'] ?? 0}',
+                            bgColor: DS.primary.withValues(alpha: 0.15),
+                            iconColor: DS.primary,
+                          )),
+                          Expanded(child: _CompactStatCard(
+                            icon: Icons.check_circle_outline,
+                            label: 'Completed',
+                            value: '${_stats['completedToday'] ?? 0}',
+                            bgColor: DS.emerald100,
+                            iconColor: DS.emerald600,
+                          )),
+                          Expanded(child: _CompactStatCard(
+                            icon: Icons.schedule,
+                            label: 'Pending',
+                            value: '${_stats['pendingToday'] ?? 0}',
+                            bgColor: DS.amber100,
+                            iconColor: DS.amber600,
+                          )),
+                        ],
+                      ),
                     ),
                     const SizedBox(height: 20),
 
-                    // Section header
-                    Row(
-                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                      children: [
-                        const DoctorSectionLabel("TODAY'S SCHEDULE"),
-                        if (_todayAppointments.isNotEmpty)
-                          GestureDetector(
-                            onTap: widget.onViewAllAppointments,
-                            child: const Row(
-                              mainAxisSize: MainAxisSize.min,
-                              children: [
-                                Text('See all', style: TextStyle(fontSize: 14, color: DS.primary, fontWeight: FontWeight.w500)),
-                                Icon(Icons.chevron_right, size: 18, color: DS.primary),
-                              ],
-                            ),
+                    // Schedule section
+                    Container(
+                      padding: const EdgeInsets.all(14),
+                      decoration: BoxDecoration(
+                        color: DS.card,
+                        borderRadius: BorderRadius.circular(16),
+                        boxShadow: [
+                          BoxShadow(
+                            color: Colors.black.withValues(alpha: 0.08),
+                            blurRadius: 12,
+                            offset: const Offset(0, 4),
                           ),
-                      ],
+                          BoxShadow(
+                            color: Colors.black.withValues(alpha: 0.04),
+                            blurRadius: 4,
+                            offset: const Offset(0, 1),
+                          ),
+                        ],
+                      ),
+                      child: Column(
+                        children: [
+                          Row(
+                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                            children: [
+                              const DoctorSectionLabel("TODAY'S SCHEDULE"),
+                              if (_todayAppointments.isNotEmpty)
+                                GestureDetector(
+                                  onTap: widget.onViewAllAppointments,
+                                  child: const Row(
+                                    mainAxisSize: MainAxisSize.min,
+                                    children: [
+                                      Text('See all', style: TextStyle(fontSize: 14, color: DS.primary, fontWeight: FontWeight.w500)),
+                                      Icon(Icons.chevron_right, size: 18, color: DS.primary),
+                                    ],
+                                  ),
+                                ),
+                            ],
+                          ),
+                          const SizedBox(height: 12),
+                          if (_todayAppointments.isEmpty)
+                            const DoctorEmptyState(
+                              icon: Icons.event_available,
+                              title: 'No appointments today',
+                              subtitle: 'Enjoy your day off or check upcoming appointments.',
+                            )
+                          else
+                            ...(_todayAppointments.take(5).map((a) => Padding(
+                                  padding: const EdgeInsets.only(bottom: 12),
+                                  child: _AppointmentCard(appointment: a),
+                                ))),
+                        ],
+                      ),
                     ),
-                    const SizedBox(height: 12),
-
-                    // Appointments list or empty state
-                    if (_todayAppointments.isEmpty)
-                      const DoctorEmptyState(
-                        icon: Icons.event_available,
-                        title: 'No appointments today',
-                        subtitle: 'Enjoy your day off or check upcoming appointments.',
-                      )
-                    else
-                      ...(_todayAppointments.take(5).map((a) => Padding(
-                            padding: const EdgeInsets.only(bottom: 12),
-                            child: _AppointmentCard(appointment: a),
-                          ))),
                   ],
                 ),
               ),
@@ -338,45 +271,6 @@ class _DoctorHomeScreenState extends State<DoctorHomeScreen> {
 // ============================================================================
 // PRIVATE WIDGETS (specific to this screen)
 // ============================================================================
-
-class _NotificationBell extends StatelessWidget {
-  final int unreadCount;
-  final VoidCallback onTap;
-  final String Function(int) badgeCount;
-
-  const _NotificationBell({required this.unreadCount, required this.onTap, required this.badgeCount});
-
-  @override
-  Widget build(BuildContext context) {
-    return GestureDetector(
-      onTap: onTap,
-      child: Container(
-        width: 40,
-        height: 40,
-        decoration: BoxDecoration(color: Colors.white.withOpacity(0.15), shape: BoxShape.circle),
-        child: Stack(
-          alignment: Alignment.center,
-          children: [
-            const Icon(Icons.notifications_outlined, color: Colors.white, size: 20),
-            if (unreadCount > 0)
-              Positioned(
-                right: 4,
-                top: 4,
-                child: Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 4),
-                  constraints: const BoxConstraints(minWidth: 16, minHeight: 16),
-                  decoration: BoxDecoration(color: DS.destructive, borderRadius: BorderRadius.circular(8)),
-                  child: Center(
-                    child: Text(badgeCount(unreadCount), style: const TextStyle(color: Colors.white, fontSize: 10, fontWeight: FontWeight.bold)),
-                  ),
-                ),
-              ),
-          ],
-        ),
-      ),
-    );
-  }
-}
 
 class _AppointmentCard extends StatelessWidget {
   final DoctorAppointment appointment;
@@ -400,7 +294,7 @@ class _AppointmentCard extends StatelessWidget {
                 children: [
                   Text(time, style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: DS.foreground)),
                   const SizedBox(height: 4),
-                  Icon(Icons.schedule, size: 12, color: DS.mutedForeground.withOpacity(0.6)),
+                  Icon(Icons.schedule, size: 12, color: DS.mutedForeground.withValues(alpha: 0.6)),
                 ],
               ),
             ),
@@ -434,6 +328,47 @@ class _AppointmentCard extends StatelessWidget {
             ),
           ],
         ),
+      ),
+    );
+  }
+}
+
+class _CompactStatCard extends StatelessWidget {
+  final IconData icon;
+  final String label;
+  final String value;
+  final Color bgColor;
+  final Color iconColor;
+
+  const _CompactStatCard({
+    required this.icon,
+    required this.label,
+    required this.value,
+    required this.bgColor,
+    required this.iconColor,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.all(10),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.center,
+        children: [
+          Container(
+            width: 45,
+            height: 45,
+            decoration: BoxDecoration(
+              color: bgColor,
+              borderRadius: BorderRadius.circular(10),
+            ),
+            child: Icon(icon, size: 24, color: iconColor),
+          ),
+          const SizedBox(height: 8),
+          Text(value, style: const TextStyle(fontSize: 20, fontWeight: FontWeight.bold, color: DS.foreground)),
+          const SizedBox(height: 2),
+          Text(label, textAlign: TextAlign.center, style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w500, color: DS.foreground, letterSpacing: 0.2), overflow: TextOverflow.ellipsis),
+        ],
       ),
     );
   }

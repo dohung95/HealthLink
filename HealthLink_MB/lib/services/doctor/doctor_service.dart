@@ -498,4 +498,21 @@ class DoctorService {
       };
     }
   }
+
+  static Future<String> uploadAvatar(String token, String filePath) async {
+    final request = http.MultipartRequest('POST', Uri.parse(ApiConfig.doctorAvatar))
+      ..headers['Authorization'] = 'Bearer $token'
+      ..files.add(await http.MultipartFile.fromPath('file', filePath));
+
+    final streamed = await request.send().timeout(ApiConfig.connectTimeout);
+    final res = await http.Response.fromStream(streamed);
+    if (res.statusCode == 200) {
+      final data = jsonDecode(res.body);
+      if (data is Map<String, dynamic>) {
+        return data['avatarUrl'] as String? ?? data['url'] as String? ?? '';
+      }
+      return '';
+    }
+    throw Exception('Failed to upload avatar: ${res.statusCode}');
+  }
 }

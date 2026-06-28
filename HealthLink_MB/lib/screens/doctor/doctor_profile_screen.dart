@@ -1,13 +1,12 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
+import 'package:image_picker/image_picker.dart';
 import '../../providers/auth_provider.dart';
 import '../../services/doctor/doctor_service.dart';
 import '../../models/doctor/doctor_profile.dart';
 import '../../config/api_config.dart';
 import '../../config/doctor_theme.dart';
 import '../../widgets/doctor/doctor_widgets.dart';
-import 'doctor_security_screen.dart';
-import 'doctor_wallet_screen.dart';
 
 class DoctorProfileScreen extends StatefulWidget {
   const DoctorProfileScreen({super.key});
@@ -22,6 +21,7 @@ class _DoctorProfileScreenState extends State<DoctorProfileScreen> {
   DoctorProfile? _profile;
   Map<String, dynamic> _reviewStats = {};
   bool _available = true;
+  bool _uploadingAvatar = false;
 
   @override
   void initState() {
@@ -82,6 +82,15 @@ class _DoctorProfileScreenState extends State<DoctorProfileScreen> {
 
     return Scaffold(
       backgroundColor: DS.background,
+      appBar: AppBar(
+        backgroundColor: DS.primary,
+        foregroundColor: Colors.white,
+        elevation: 0,
+        leading: IconButton(
+          icon: const Icon(Icons.arrow_back_ios_new_rounded, size: 20),
+          onPressed: () => Navigator.pop(context),
+        ),
+      ),
       body: RefreshIndicator(
         onRefresh: _loadData,
         color: DS.primary,
@@ -103,8 +112,6 @@ class _DoctorProfileScreenState extends State<DoctorProfileScreen> {
                       const SizedBox(height: 20),
                     ],
                     _buildSettingsMenu(),
-                    const SizedBox(height: 20),
-                    _buildLogoutButton(),
                     const SizedBox(height: 24),
                   ],
                 ),
@@ -147,12 +154,38 @@ class _DoctorProfileScreenState extends State<DoctorProfileScreen> {
         padding: const EdgeInsets.fromLTRB(20, 32, 20, 24),
         child: Column(
           children: [
-            Container(
-              decoration: BoxDecoration(shape: BoxShape.circle, border: Border.all(color: Colors.white.withOpacity(0.25), width: 4)),
-              child: DoctorPersonAvatar(
-                name: p.fullName ?? 'Doctor',
-                imageUrl: p.avatarUrl != null ? ApiConfig.normalizeUrl(p.avatarUrl!) : null,
-                size: 96,
+            GestureDetector(
+              onTap: _uploadingAvatar ? null : _pickAndUploadAvatar,
+              child: Stack(
+                children: [
+                  Container(
+                    decoration: BoxDecoration(shape: BoxShape.circle, border: Border.all(color: Colors.white.withOpacity(0.25), width: 4)),
+                    child: DoctorPersonAvatar(
+                      name: p.fullName ?? 'Doctor',
+                      imageUrl: p.avatarUrl != null ? ApiConfig.normalizeUrl(p.avatarUrl!) : null,
+                      size: 96,
+                    ),
+                  ),
+                  if (_uploadingAvatar)
+                    Positioned.fill(
+                      child: Container(
+                        decoration: BoxDecoration(shape: BoxShape.circle, color: Colors.black.withValues(alpha: 0.45)),
+                        child: const Center(child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2.5)),
+                      ),
+                    ),
+                  Positioned(
+                    right: 2, bottom: 2,
+                    child: Container(
+                      width: 28, height: 28,
+                      decoration: BoxDecoration(
+                        color: DS.primary,
+                        shape: BoxShape.circle,
+                        border: Border.all(color: Colors.white, width: 2),
+                      ),
+                      child: const Icon(Icons.camera_alt_rounded, size: 14, color: Colors.white),
+                    ),
+                  ),
+                ],
               ),
             ),
             const SizedBox(height: 12),
@@ -316,29 +349,10 @@ class _DoctorProfileScreenState extends State<DoctorProfileScreen> {
               ],
             ),
           ),
-          DoctorMenuItem(icon: Icons.account_balance_wallet_outlined, label: 'Wallet & Earnings', onTap: () {
-            if (_profile != null) Navigator.push(context, MaterialPageRoute(builder: (context) => DoctorWalletScreen(doctorId: _profile!.doctorId)));
-          }),
-          DoctorMenuItem(icon: Icons.notifications_outlined, label: 'Notifications', onTap: () {}),
-          DoctorMenuItem(icon: Icons.shield_outlined, label: 'Privacy & Security', onTap: () {
-            Navigator.push(context, MaterialPageRoute(builder: (context) => const DoctorSecurityScreen()));
-          }),
           DoctorMenuItem(icon: Icons.help_outline, label: 'Help & Support', onTap: () {
             ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Support: help@healthlink.io'), behavior: SnackBarBehavior.floating));
           }),
         ],
-      ),
-    );
-  }
-
-  Widget _buildLogoutButton() {
-    return SizedBox(
-      width: double.infinity,
-      child: OutlinedButton.icon(
-        onPressed: _logout,
-        icon: const Icon(Icons.logout, size: 18),
-        label: const Text('Log Out'),
-        style: DS.destructiveButtonStyle,
       ),
     );
   }
@@ -354,6 +368,83 @@ class _DoctorProfileScreenState extends State<DoctorProfileScreen> {
     return 'Dr. $name';
   }
 
+  Future<void> _pickAndUploadAvatar() async {
+    final source = await showModalBottomSheet<ImageSource>(
+      context: context,
+      backgroundColor: Colors.transparent,
+      builder: (_) => Container(
+        margin: const EdgeInsets.all(12),
+        decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(16)),
+        child: Column(mainAxisSize: MainAxisSize.min, children: [
+          Container(width: 36, height: 4, margin: const EdgeInsets.symmetric(vertical: 10),
+              decoration: BoxDecoration(color: DS.border, borderRadius: BorderRadius.circular(2))),
+          const Padding(
+            padding: EdgeInsets.symmetric(horizontal: 20, vertical: 8),
+            child: Text('Change Avatar', style: TextStyle(fontSize: 15, fontWeight: FontWeight.w700, color: DS.foreground)),
+          ),
+          const Divider(height: 1),
+          ListTile(
+            leading: const Icon(Icons.photo_camera_outlined, color: DS.primary),
+            title: const Text('Take a photo'),
+            onTap: () => Navigator.pop(context, ImageSource.camera),
+          ),
+          ListTile(
+            leading: const Icon(Icons.photo_library_outlined, color: DS.primary),
+            title: const Text('Choose from gallery'),
+            onTap: () => Navigator.pop(context, ImageSource.gallery),
+          ),
+          const SizedBox(height: 8),
+        ]),
+      ),
+    );
+    if (source == null) return;
+
+    final picked = await ImagePicker().pickImage(source: source, imageQuality: 85, maxWidth: 800);
+    if (picked == null) return;
+
+    setState(() => _uploadingAvatar = true);
+    try {
+      final token = context.read<AuthProvider>().accessToken ?? '';
+      final newUrl = await DoctorService.uploadAvatar(token, picked.path);
+      await _loadData();
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
+          content: Text('Avatar updated successfully'),
+          backgroundColor: DS.primary,
+        ));
+        // Update local avatar immediately without waiting for full reload
+        if (_profile != null) {
+          setState(() => _profile = DoctorProfile(
+            doctorId: _profile!.doctorId, fullName: _profile!.fullName,
+            email: _profile!.email, phoneNumber: _profile!.phoneNumber,
+            specialty: _profile!.specialty, specialtyName: _profile!.specialtyName,
+            qualifications: _profile!.qualifications,
+            yearsOfExperience: _profile!.yearsOfExperience,
+            bio: _profile!.bio, clinicName: _profile!.clinicName,
+            clinicAddress: _profile!.clinicAddress, location: _profile!.location,
+            consultationFee: _profile!.consultationFee,
+            averageRating: _profile!.averageRating, totalReviews: _profile!.totalReviews,
+            avatarUrl: newUrl, verified: _profile!.verified,
+            scheduleStatus: _profile!.scheduleStatus,
+            bankAccount: _profile!.bankAccount, bankName: _profile!.bankName,
+            paypalEmail: _profile!.paypalEmail,
+            customCommissionRateOnline: _profile!.customCommissionRateOnline,
+            customCommissionRateOffline: _profile!.customCommissionRateOffline,
+          ));
+        }
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+          content: Text(e.toString().replaceAll('Exception: ', '')),
+          backgroundColor: DS.destructive,
+        ));
+      }
+    } finally {
+      if (mounted) setState(() => _uploadingAvatar = false);
+    }
+  }
+
   void _showEditProfile() {
     showModalBottomSheet(
       context: context,
@@ -363,25 +454,6 @@ class _DoctorProfileScreenState extends State<DoctorProfileScreen> {
     );
   }
 
-  Future<void> _logout() async {
-    final confirm = await showDialog<bool>(
-      context: context,
-      builder: (context) => AlertDialog(
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-        title: const Text('Logout'),
-        content: const Text('Are you sure you want to logout?'),
-        actions: [
-          TextButton(onPressed: () => Navigator.pop(context, false), child: const Text('Cancel')),
-          ElevatedButton(
-            onPressed: () => Navigator.pop(context, true),
-            style: ElevatedButton.styleFrom(backgroundColor: DS.destructive, foregroundColor: Colors.white),
-            child: const Text('Logout'),
-          ),
-        ],
-      ),
-    );
-    if (confirm == true && mounted) await context.read<AuthProvider>().logout();
-  }
 }
 
 class _StatCard extends StatelessWidget {

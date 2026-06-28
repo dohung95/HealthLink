@@ -21,7 +21,7 @@ class DoctorStyles {
   static const secondaryForeground = Color(0xFF374151); // gray-700
 
   static const muted = Color(0xFFF3F4F6); // gray-100
-  static const mutedForeground = Color(0xFF6B7280); // gray-500
+  static const mutedForeground = Color(0xFF30343C); // gray-500
 
   static const border = Color(0xFFE5E7EB); // gray-200
 
