@@ -1,5 +1,6 @@
 package com.HealthLink.service.impl;
 
+import com.HealthLink.dto.geocoding.GeocodeResponse;
 import com.HealthLink.dto.registration.*;
 import com.HealthLink.entity.*;
 import com.HealthLink.exception.BadRequestException;
@@ -18,11 +19,12 @@ import java.util.List;
 import com.HealthLink.service.email.EmailService;
 import com.HealthLink.service.admin.AdminNotificationHelper;
 import com.HealthLink.service.admin.AdminAuditLogService;
-import com.HealthLink.service.geocoding.GeocodingService;
+import com.HealthLink.service.homevisit.HomeVisitLocationService;
 import com.HealthLink.service.registration.RegistrationService;
 
 import jakarta.persistence.criteria.Predicate;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
@@ -43,6 +45,7 @@ import java.util.stream.Collectors;
 
 @Service
 @RequiredArgsConstructor
+@Slf4j
 @Transactional
 public class RegistrationServiceImpl implements RegistrationService {
 
@@ -62,7 +65,7 @@ public class RegistrationServiceImpl implements RegistrationService {
     private final EmailService emailService;
     private final AdminNotificationHelper adminNotificationHelper;
     private final AdminAuditLogService auditLogService;
-    private final GeocodingService geocodingService;
+    private final HomeVisitLocationService homeVisitLocationService;
     private static final String DEFAULT_PASSWORD = "HealthLink@123";
     private static final String TYPE_DOCTOR = "DOCTOR";
     private static final String TYPE_PHARMACY = "PHARMACY";
@@ -331,18 +334,16 @@ public class RegistrationServiceImpl implements RegistrationService {
 
         doctor.getServices().add(new DoctorService(doctor, ServiceType.ONLINE, true));
         doctor.getServices().add(new DoctorService(doctor, ServiceType.HOME_VISIT, true));
-        doctor = doctorRepository.save(doctor);
 
         try {
-            if (request.getClinicAddress() != null && !request.getClinicAddress().isBlank()) {
-                var geo = geocodingService.geocode(request.getClinicAddress());
-                doctor.setLatitude(geo.getLatitude());
-                doctor.setLongitude(geo.getLongitude());
-                doctorRepository.save(doctor);
-            }
+            GeocodeResponse geo = homeVisitLocationService.geocodeClinicAddressWithFallback(request.getClinicAddress());
+            doctor.setLatitude(geo.getLatitude());
+            doctor.setLongitude(geo.getLongitude());
         } catch (Exception e) {
-            System.err.println("Geocode failed for doctor " + doctor.getDoctorId() + ": " + e.getMessage());
+            log.warn("Geocode failed for doctor {}: {}", request.getFullName(), e.getMessage());
         }
+
+        doctor = doctorRepository.save(doctor);
     }
 
     private void createPharmacy(User user, RegistrationRequest request) {

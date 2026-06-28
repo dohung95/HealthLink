@@ -2,6 +2,7 @@ package com.HealthLink.entity;
 import com.HealthLink.entity.enums.DoctorScheduleStatus;
 import jakarta.persistence.*;
 import lombok.*;
+import org.hibernate.annotations.Nationalized;
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
 import java.util.HashSet;
@@ -47,13 +48,16 @@ public class Doctor {
 
     // --- 2. THÔNG TIN PHÒNG KHÁM & ĐỊA ĐIỂM (Location & Clinic) ---
 
+    @Nationalized
     @Column(nullable = false)
     private String location; // Tỉnh/Thành phố hoạt động chính (VD: "Hồ Chí Minh")
 
     private Double latitude; // Vĩ độ của phòng khám (Dùng để app gợi ý bác sĩ gần bệnh nhân nhất)
     private Double longitude; // Kinh độ của phòng khám
     
+    @Nationalized
     private String clinicName; // Tên phòng khám hoặc bệnh viện đang công tác (VD: "Bệnh viện Chợ Rẫy")
+    @Nationalized
     private String clinicAddress; // Địa chỉ cụ thể của phòng khám đó
 
     // --- 3. DỊCH VỤ & CHI PHÍ KHÁM (Services & Fees) ---

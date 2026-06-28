@@ -5,6 +5,7 @@ import '../../../config/api_config.dart';
 import '../../../providers/auth_provider.dart';
 import '../../../services/patient_service.dart';
 import '../../../models/patient_profile.dart';
+import '../../../l10n/app_localizations.dart';
 
 class EditPatientProfileScreen extends StatefulWidget {
   final PatientProfile currentProfile;
@@ -127,11 +128,11 @@ class _EditPatientProfileScreenState extends State<EditPatientProfileScreen> {
       });
       auth.fetchProfile(); 
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Avatar uploaded successfully')));
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(AppLocalizations.of(context)!.msgAvatarUploadSuccess)));
       }
     } catch (e) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Failed to upload avatar: $e')));
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(AppLocalizations.of(context)!.msgAvatarUploadFail(e.toString()))));
       }
     } finally {
       if (mounted) setState(() => _isLoading = false);
@@ -178,14 +179,14 @@ class _EditPatientProfileScreenState extends State<EditPatientProfileScreen> {
 
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Profile updated successfully!')),
+          SnackBar(content: Text(AppLocalizations.of(context)!.msgProfileUpdateSuccess)),
         );
         Navigator.pop(context, updatedProfile);
       }
     } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Failed to update profile: $e')),
+          SnackBar(content: Text(AppLocalizations.of(context)!.msgProfileUpdateFail(e.toString()))),
         );
       }
     } finally {
@@ -201,7 +202,7 @@ class _EditPatientProfileScreenState extends State<EditPatientProfileScreen> {
     return Scaffold(
       backgroundColor: colorScheme.surface,
       appBar: AppBar(
-        title: Text('Edit Profile', style: TextStyle(fontFamily: 'Inter', color: colorScheme.onSurface)),
+        title: Text(AppLocalizations.of(context)!.profileEditTitle, style: TextStyle(fontFamily: 'Inter', color: colorScheme.onSurface)),
         backgroundColor: colorScheme.surface,
         elevation: 0,
         actions: [
@@ -221,66 +222,66 @@ class _EditPatientProfileScreenState extends State<EditPatientProfileScreen> {
           children: [
             _buildAvatar(),
             const SizedBox(height: 24),
-            _buildSectionHeader('Basic Information', colorScheme, textTheme),
-            _buildTextField(_fullNameCtrl, 'Full Name', required: true),
+            _buildSectionHeader(AppLocalizations.of(context)!.editProfileBasicInfo, colorScheme, textTheme),
+            _buildTextField(_fullNameCtrl, AppLocalizations.of(context)!.editProfileFullName, required: true),
             const SizedBox(height: 12),
-            _buildDropdownField('Gender', _selectedGender, _genders, (v) => setState(() => _selectedGender = v)),
+            _buildDropdownField(AppLocalizations.of(context)!.editProfileGender, _selectedGender, _genders, (v) => setState(() => _selectedGender = v)),
             const SizedBox(height: 12),
-            _buildDateField('Date of Birth'),
+            _buildDateField(AppLocalizations.of(context)!.editProfileDob),
             const SizedBox(height: 12),
-            _buildTextField(_phoneCtrl, 'Phone Number'),
+            _buildTextField(_phoneCtrl, AppLocalizations.of(context)!.editProfilePhone),
             const SizedBox(height: 12),
-            _buildTextField(_occupationCtrl, 'Occupation'),
+            _buildTextField(_occupationCtrl, AppLocalizations.of(context)!.editProfileOccupation),
             const SizedBox(height: 12),
-            _buildTextField(_preferredLanguageCtrl, 'Preferred Language'),
+            _buildTextField(_preferredLanguageCtrl, AppLocalizations.of(context)!.editProfileLanguage),
             
             const SizedBox(height: 24),
-            _buildSectionHeader('Address', colorScheme, textTheme),
-            _buildTextField(_addressCtrl, 'Street Address'),
+            _buildSectionHeader(AppLocalizations.of(context)!.editProfileAddressTitle, colorScheme, textTheme),
+            _buildTextField(_addressCtrl, AppLocalizations.of(context)!.editProfileStreet),
             const SizedBox(height: 12),
             Row(
               children: [
-                Expanded(child: _buildTextField(_cityCtrl, 'City')),
+                Expanded(child: _buildTextField(_cityCtrl, AppLocalizations.of(context)!.editProfileCity)),
                 const SizedBox(width: 12),
-                Expanded(child: _buildTextField(_countryCtrl, 'Country')),
+                Expanded(child: _buildTextField(_countryCtrl, AppLocalizations.of(context)!.editProfileCountry)),
               ],
             ),
             
             const SizedBox(height: 24),
-            _buildSectionHeader('Physical Metrics', colorScheme, textTheme),
+            _buildSectionHeader(AppLocalizations.of(context)!.editProfilePhysicalTitle, colorScheme, textTheme),
             Row(
               children: [
-                Expanded(child: _buildTextField(_heightCtrl, 'Height (cm)', isNumber: true)),
+                Expanded(child: _buildTextField(_heightCtrl, AppLocalizations.of(context)!.editProfileHeight, isNumber: true)),
                 const SizedBox(width: 12),
-                Expanded(child: _buildTextField(_weightCtrl, 'Weight (kg)', isNumber: true)),
+                Expanded(child: _buildTextField(_weightCtrl, AppLocalizations.of(context)!.editProfileWeight, isNumber: true)),
               ],
             ),
             const SizedBox(height: 12),
-            _buildDropdownField('Blood Type', _selectedBloodType, _bloodTypes, (v) => setState(() => _selectedBloodType = v)),
+            _buildDropdownField(AppLocalizations.of(context)!.editProfileBloodType, _selectedBloodType, _bloodTypes, (v) => setState(() => _selectedBloodType = v)),
 
             const SizedBox(height: 24),
-            _buildSectionHeader('Medical Dossier', colorScheme, textTheme),
-            _buildTextField(_allergiesCtrl, 'Allergies', maxLines: 2),
+            _buildSectionHeader(AppLocalizations.of(context)!.editProfileMedicalTitle, colorScheme, textTheme),
+            _buildTextField(_allergiesCtrl, AppLocalizations.of(context)!.editProfileAllergies, maxLines: 2),
             const SizedBox(height: 12),
-            _buildTextField(_chronicConditionsCtrl, 'Chronic Conditions', maxLines: 2),
+            _buildTextField(_chronicConditionsCtrl, AppLocalizations.of(context)!.editProfileChronic, maxLines: 2),
             const SizedBox(height: 12),
-            _buildTextField(_currentMedicationsCtrl, 'Current Medications', maxLines: 2),
+            _buildTextField(_currentMedicationsCtrl, AppLocalizations.of(context)!.editProfileMedications, maxLines: 2),
             const SizedBox(height: 12),
-            _buildTextField(_medicalHistoryCtrl, 'Medical History Summary', maxLines: 3),
+            _buildTextField(_medicalHistoryCtrl, AppLocalizations.of(context)!.editProfileMedicalHistory, maxLines: 3),
 
             const SizedBox(height: 24),
-            _buildSectionHeader('Insurance Information', colorScheme, textTheme),
-            _buildTextField(_insuranceProviderCtrl, 'Insurance Provider'),
+            _buildSectionHeader(AppLocalizations.of(context)!.editProfileInsuranceTitle, colorScheme, textTheme),
+            _buildTextField(_insuranceProviderCtrl, AppLocalizations.of(context)!.editProfileInsuranceProvider),
             const SizedBox(height: 12),
-            _buildTextField(_insurancePolicyNumberCtrl, 'Policy Number'),
+            _buildTextField(_insurancePolicyNumberCtrl, AppLocalizations.of(context)!.editProfilePolicyNum),
 
             const SizedBox(height: 24),
-            _buildSectionHeader('Emergency Contact', colorScheme, textTheme),
-            _buildTextField(_emergencyNameCtrl, 'Contact Name'),
+            _buildSectionHeader(AppLocalizations.of(context)!.editProfileEmergencyTitle, colorScheme, textTheme),
+            _buildTextField(_emergencyNameCtrl, AppLocalizations.of(context)!.editProfileContactName),
             const SizedBox(height: 12),
-            _buildTextField(_emergencyRelationshipCtrl, 'Relationship'),
+            _buildTextField(_emergencyRelationshipCtrl, AppLocalizations.of(context)!.editProfileRelationship),
             const SizedBox(height: 12),
-            _buildTextField(_emergencyPhoneCtrl, 'Contact Phone'),
+            _buildTextField(_emergencyPhoneCtrl, AppLocalizations.of(context)!.editProfileContactPhone),
             
             const SizedBox(height: 48),
           ],
@@ -340,7 +341,7 @@ class _EditPatientProfileScreenState extends State<EditPatientProfileScreen> {
         contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
       ),
       validator: required
-          ? (value) => (value == null || value.trim().isEmpty) ? 'This field is required' : null
+          ? (value) => (value == null || value.trim().isEmpty) ? AppLocalizations.of(context)!.editProfileRequiredField : null
           : null,
     );
   }
@@ -376,7 +377,7 @@ class _EditPatientProfileScreenState extends State<EditPatientProfileScreen> {
             Text(
               _selectedDateOfBirth != null
                   ? '${_selectedDateOfBirth!.year}-${_selectedDateOfBirth!.month.toString().padLeft(2, '0')}-${_selectedDateOfBirth!.day.toString().padLeft(2, '0')}'
-                  : 'Select Date',
+                  : AppLocalizations.of(context)!.editProfileSelectDate,
             ),
             const Icon(Icons.calendar_today, size: 18),
           ],

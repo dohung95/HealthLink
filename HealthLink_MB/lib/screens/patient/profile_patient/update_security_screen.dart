@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../../../providers/auth_provider.dart';
 import '../../../services/patient_service.dart';
+import '../../../l10n/app_localizations.dart';
 
 class SecuritySettingsScreen extends StatefulWidget {
   const SecuritySettingsScreen({super.key});
@@ -190,7 +191,7 @@ class _SecuritySettingsScreenState extends State<SecuritySettingsScreen> {
           onPressed: () => Navigator.pop(context),
         ),
         title: Text(
-          'Security Settings',
+          AppLocalizations.of(context)!.securityTitle,
           style: textTheme.titleLarge?.copyWith(
             fontFamily: 'Inter',
             fontWeight: FontWeight.w600,
@@ -251,7 +252,7 @@ class _SecuritySettingsScreenState extends State<SecuritySettingsScreen> {
                 Icon(Icons.email_outlined, color: onSectionColor, size: 20),
                 const SizedBox(width: 8),
                 Text(
-                  'Change Email',
+                  AppLocalizations.of(context)!.securityChangeEmail,
                   style: textTheme.titleMedium?.copyWith(
                     color: onSectionColor,
                     fontWeight: FontWeight.w600,
@@ -279,7 +280,7 @@ class _SecuritySettingsScreenState extends State<SecuritySettingsScreen> {
                             const SizedBox(width: 8),
                             Expanded(
                               child: Text(
-                                'A verification code will be sent to your new email address.',
+                                AppLocalizations.of(context)!.securityChangeEmailDesc,
                                 style: textTheme.bodySmall?.copyWith(color: colorScheme.onSurface),
                               ),
                             ),
@@ -289,8 +290,8 @@ class _SecuritySettingsScreenState extends State<SecuritySettingsScreen> {
                       const SizedBox(height: 16),
                       _buildTextField(
                         controller: _emailNewController,
-                        label: 'New Email',
-                        hint: 'Enter new email',
+                        label: AppLocalizations.of(context)!.securityNewEmail,
+                        hint: AppLocalizations.of(context)!.securityEnterNewEmail,
                         icon: Icons.mail_outline,
                         colorScheme: colorScheme,
                         textTheme: textTheme,
@@ -298,8 +299,8 @@ class _SecuritySettingsScreenState extends State<SecuritySettingsScreen> {
                       const SizedBox(height: 16),
                       _buildPasswordField(
                         controller: _emailPasswordController,
-                        label: 'Current Password',
-                        hint: 'For verification',
+                        label: AppLocalizations.of(context)!.securityCurrentPassword,
+                        hint: AppLocalizations.of(context)!.securityForVerification,
                         obscureText: _obscureCurrentEmailPwd,
                         onToggleVisibility: () => setState(() => _obscureCurrentEmailPwd = !_obscureCurrentEmailPwd),
                         colorScheme: colorScheme,
@@ -320,7 +321,7 @@ class _SecuritySettingsScreenState extends State<SecuritySettingsScreen> {
                           icon: _changingEmail
                               ? SizedBox(width: 20, height: 20, child: CircularProgressIndicator(color: onSectionColor, strokeWidth: 2))
                               : const Icon(Icons.send, size: 18),
-                          label: Text(_changingEmail ? 'Sending...' : 'Send Verification Code'),
+                          label: Text(_changingEmail ? 'Sending...' : AppLocalizations.of(context)!.securitySendVerificationCode),
                         ),
                       ),
                     ],
@@ -341,7 +342,7 @@ class _SecuritySettingsScreenState extends State<SecuritySettingsScreen> {
                             const SizedBox(width: 8),
                             Expanded(
                               child: Text(
-                                'A 6-digit code has been sent to ${_emailNewController.text.trim()}. Please check your inbox.',
+                                AppLocalizations.of(context)!.securityEmailOtpSent(_emailNewController.text.trim()),
                                 style: textTheme.bodySmall?.copyWith(color: colorScheme.onSurface),
                               ),
                             ),
@@ -351,8 +352,8 @@ class _SecuritySettingsScreenState extends State<SecuritySettingsScreen> {
                       const SizedBox(height: 16),
                       _buildTextField(
                         controller: _otpController,
-                        label: 'Verification Code',
-                        hint: 'Enter 6-digit code',
+                        label: AppLocalizations.of(context)!.securityVerificationCode,
+                        hint: AppLocalizations.of(context)!.securityEnter6Digit,
                         icon: Icons.numbers,
                         maxLength: 6,
                         keyboardType: TextInputType.number,
@@ -378,7 +379,7 @@ class _SecuritySettingsScreenState extends State<SecuritySettingsScreen> {
                                 });
                               },
                               icon: const Icon(Icons.arrow_back, size: 18),
-                              label: const Text('Back'),
+                              label: Text(AppLocalizations.of(context)!.actionBack),
                             ),
                           ),
                           const SizedBox(width: 12),
@@ -396,7 +397,7 @@ class _SecuritySettingsScreenState extends State<SecuritySettingsScreen> {
                               icon: _changingEmail
                                   ? SizedBox(width: 20, height: 20, child: CircularProgressIndicator(color: onSectionColor, strokeWidth: 2))
                                   : const Icon(Icons.check_circle_outline, size: 18),
-                              label: Text(_changingEmail ? 'Verifying...' : 'Confirm Change'),
+                              label: Text(_changingEmail ? AppLocalizations.of(context)!.actionVerifying : AppLocalizations.of(context)!.actionConfirmChange),
                             ),
                           ),
                         ],
@@ -442,7 +443,7 @@ class _SecuritySettingsScreenState extends State<SecuritySettingsScreen> {
                 Icon(Icons.shield_outlined, color: onSectionColor, size: 20),
                 const SizedBox(width: 8),
                 Text(
-                  'Change Password',
+                  AppLocalizations.of(context)!.securityChangePassword,
                   style: textTheme.titleMedium?.copyWith(
                     color: onSectionColor,
                     fontWeight: FontWeight.w600,
@@ -469,7 +470,7 @@ class _SecuritySettingsScreenState extends State<SecuritySettingsScreen> {
                       const SizedBox(width: 8),
                       Expanded(
                         child: Text(
-                          'After changing your password, you will need to log in again.',
+                          AppLocalizations.of(context)!.securityChangePasswordDesc,
                           style: textTheme.bodySmall?.copyWith(color: colorScheme.onSurface),
                         ),
                       ),
@@ -479,8 +480,8 @@ class _SecuritySettingsScreenState extends State<SecuritySettingsScreen> {
                 const SizedBox(height: 24),
                 _buildPasswordField(
                   controller: _currentPasswordController,
-                  label: 'Current Password',
-                  hint: 'Enter current password',
+                  label: AppLocalizations.of(context)!.securityCurrentPassword,
+                  hint: AppLocalizations.of(context)!.securityEnterCurrentPassword,
                   obscureText: _obscureCurrentPwd,
                   onToggleVisibility: () => setState(() => _obscureCurrentPwd = !_obscureCurrentPwd),
                   colorScheme: colorScheme,
@@ -489,8 +490,8 @@ class _SecuritySettingsScreenState extends State<SecuritySettingsScreen> {
                 const SizedBox(height: 16),
                 _buildPasswordField(
                   controller: _newPasswordController,
-                  label: 'New Password',
-                  hint: 'Enter new password',
+                  label: AppLocalizations.of(context)!.securityNewPassword,
+                  hint: AppLocalizations.of(context)!.securityEnterNewPassword,
                   obscureText: _obscureNewPwd,
                   onToggleVisibility: () => setState(() => _obscureNewPwd = !_obscureNewPwd),
                   colorScheme: colorScheme,
@@ -499,8 +500,8 @@ class _SecuritySettingsScreenState extends State<SecuritySettingsScreen> {
                 const SizedBox(height: 16),
                 _buildPasswordField(
                   controller: _confirmNewPasswordController,
-                  label: 'Confirm New Password',
-                  hint: 'Confirm new password',
+                  label: AppLocalizations.of(context)!.securityConfirmNewPassword,
+                  hint: AppLocalizations.of(context)!.securityEnterConfirmNewPassword,
                   obscureText: _obscureConfirmPwd,
                   onToggleVisibility: () => setState(() => _obscureConfirmPwd = !_obscureConfirmPwd),
                   colorScheme: colorScheme,
@@ -518,32 +519,32 @@ class _SecuritySettingsScreenState extends State<SecuritySettingsScreen> {
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       Text(
-                        'Password Requirements:',
+                        AppLocalizations.of(context)!.securityPasswordRequirements,
                         style: textTheme.labelMedium?.copyWith(color: colorScheme.onSurface),
                       ),
                       const SizedBox(height: 8),
                       _buildRequirementItem(
-                          'At least 6 characters',
+                          AppLocalizations.of(context)!.securityReqLength,
                           _newPasswordController.text.length >= 6,
                           colorScheme,
                           textTheme),
                       _buildRequirementItem(
-                          'At least one number (0-9)',
+                          AppLocalizations.of(context)!.securityReqNumber,
                           RegExp(r'[0-9]').hasMatch(_newPasswordController.text),
                           colorScheme,
                           textTheme),
                       _buildRequirementItem(
-                          'At least one special character (!@#\$%^&*)',
+                          AppLocalizations.of(context)!.securityReqSpecial,
                           RegExp(r'[^a-zA-Z0-9\s]').hasMatch(_newPasswordController.text),
                           colorScheme,
                           textTheme),
                       _buildRequirementItem(
-                          'Upper and lowercase letters',
+                          AppLocalizations.of(context)!.securityReqUpperLower,
                           RegExp(r'[A-Z]').hasMatch(_newPasswordController.text) && RegExp(r'[a-z]').hasMatch(_newPasswordController.text),
                           colorScheme,
                           textTheme),
                       _buildRequirementItem(
-                          'Passwords match',
+                          AppLocalizations.of(context)!.securityReqMatch,
                           _newPasswordController.text.isNotEmpty && _newPasswordController.text == _confirmNewPasswordController.text,
                           colorScheme,
                           textTheme),
@@ -565,7 +566,7 @@ class _SecuritySettingsScreenState extends State<SecuritySettingsScreen> {
                     icon: _changingPassword
                         ? SizedBox(width: 20, height: 20, child: CircularProgressIndicator(color: onSectionColor, strokeWidth: 2))
                         : const Icon(Icons.shield_outlined, size: 18),
-                    label: Text(_changingPassword ? 'Processing...' : 'Change Password'),
+                    label: Text(_changingPassword ? AppLocalizations.of(context)!.actionVerifying : AppLocalizations.of(context)!.actionConfirmChange),
                   ),
                 ),
               ],
@@ -803,7 +804,7 @@ class _SuccessModalState extends State<_SuccessModal> {
                   _logoutAndRedirect();
                 },
                 icon: const Icon(Icons.exit_to_app, size: 20),
-                label: const Text('Back to Login', style: TextStyle(fontWeight: FontWeight.bold)),
+                label: Text(AppLocalizations.of(context)!.actionBackToLogin, style: const TextStyle(fontWeight: FontWeight.bold)),
               ),
             ),
           ],

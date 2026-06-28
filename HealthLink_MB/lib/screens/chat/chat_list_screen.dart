@@ -6,6 +6,7 @@ import '../../providers/chat/chat_provider.dart';
 import '../../config/api_config.dart';
 import 'chat_room_screen.dart';
 import './chatbot/chatbot_screen.dart';
+import '../../l10n/app_localizations.dart';
 
 class MessagesScreen extends StatefulWidget {
   const MessagesScreen({super.key});
@@ -74,7 +75,7 @@ class _MessagesScreenState extends State<MessagesScreen> {
                             chat.loadConversations(auth.accessToken!, auth.userId!);
                           }
                         },
-                        child: const Text('Try again'),
+                        child: Text(AppLocalizations.of(context)!.chatTryAgain),
                       ),
                     ],
                   ),
@@ -100,7 +101,7 @@ class _MessagesScreenState extends State<MessagesScreen> {
                       Icon(Icons.chat_bubble_outline, size: 64, color: Theme.of(context).colorScheme.outlineVariant),
                       const SizedBox(height: 16),
                       Text(
-                        _searchQuery.isEmpty ? 'No conversations yet.' : 'No results found.',
+                        _searchQuery.isEmpty ? AppLocalizations.of(context)!.chatNoConversations : AppLocalizations.of(context)!.chatNoResults,
                         style: TextStyle(color: Theme.of(context).colorScheme.onSurfaceVariant, fontSize: 16),
                       ),
                     ],
@@ -184,12 +185,12 @@ class _MessagesScreenState extends State<MessagesScreen> {
       context: context,
       builder: (context) {
         return AlertDialog(
-          title: const Text('Blocked users'),
+          title: Text(AppLocalizations.of(context)!.chatBlockedUsers),
           content: SizedBox(
             width: double.maxFinite,
             height: 300,
             child: blockedConvs.isEmpty
-                ? const Center(child: Text('No users are blocked.'))
+                ? Center(child: Text(AppLocalizations.of(context)!.chatNoBlockedUsers))
                 : ListView.builder(
                     itemCount: blockedConvs.length,
                     itemBuilder: (context, index) {
@@ -209,7 +210,7 @@ class _MessagesScreenState extends State<MessagesScreen> {
                               if (context.mounted) {
                                 Navigator.pop(context); // Đóng hộp thoại
                                 ScaffoldMessenger.of(context).showSnackBar(
-                                  const SnackBar(content: Text('Unblocked user successfully')),
+                                  SnackBar(content: Text(AppLocalizations.of(context)!.chatUnblockedSuccess)),
                                 );
                               }
                             } catch (e) {
@@ -220,7 +221,7 @@ class _MessagesScreenState extends State<MessagesScreen> {
                               }
                             }
                           },
-                          child: const Text('Unblock', style: TextStyle(color: Colors.green)),
+                          child: Text(AppLocalizations.of(context)!.chatUnblock, style: const TextStyle(color: Colors.green)),
                         ),
                       );
                     },
@@ -229,7 +230,7 @@ class _MessagesScreenState extends State<MessagesScreen> {
           actions: [
             TextButton(
               onPressed: () => Navigator.pop(context),
-              child: const Text('Close'),
+              child: Text(AppLocalizations.of(context)!.chatClose),
             ),
           ],
         );
@@ -307,7 +308,7 @@ class _MessagesScreenState extends State<MessagesScreen> {
                 _buildAvatarWidget(context, false),
                 const SizedBox(width: 12),
                 Text(
-                  'Messages',
+                  AppLocalizations.of(context)!.chatMessagesTitle,
                   style: TextStyle(
                     fontFamily: 'Inter',
                     fontSize: 24,
@@ -342,7 +343,7 @@ class _MessagesScreenState extends State<MessagesScreen> {
         onChanged: (value) => setState(() => _searchQuery = value),
         style: TextStyle(fontFamily: 'Inter', color: Theme.of(context).colorScheme.onSurface),
         decoration: InputDecoration(
-          hintText: 'Search doctor, specialty or message...',
+          hintText: AppLocalizations.of(context)!.chatSearchPrompt,
           hintStyle: TextStyle(color: Theme.of(context).colorScheme.onSurfaceVariant),
           prefixIcon: Padding(
             padding: const EdgeInsets.only(left: 8.0),
@@ -635,7 +636,7 @@ class _MessagesScreenState extends State<MessagesScreen> {
                   Row(
                     children: [
                       Text(
-                        'HealthLink AI',
+                        AppLocalizations.of(context)!.chatHealthLinkAI,
                         style: TextStyle(
                           fontFamily: 'Inter',
                           fontSize: 16,
@@ -666,7 +667,7 @@ class _MessagesScreenState extends State<MessagesScreen> {
                   ),
                   const SizedBox(height: 2),
                   Text(
-                    'Your intelligent health assistant',
+                    AppLocalizations.of(context)!.chatAIAssistantDesc,
                     style: TextStyle(
                       fontFamily: 'Inter',
                       fontSize: 12,
@@ -676,7 +677,7 @@ class _MessagesScreenState extends State<MessagesScreen> {
                   ),
                   const SizedBox(height: 4),
                   Text(
-                    'Ask about symptoms, book an appointment...',
+                    AppLocalizations.of(context)!.chatAIPrompt,
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
                     style: TextStyle(

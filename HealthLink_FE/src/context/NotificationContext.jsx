@@ -23,6 +23,10 @@ export const useNotifications = () => {
   return context;
 };
 
+const isMedicineReminderChecklistNotification = (notification) => (
+  notification?.metadata?.action === 'OPEN_MEDICINE_REMINDER' && Boolean(notification?.metadata?.timing)
+);
+
 const isPendingHomeVisitProposal = (payload) => {
   const status = String(
     payload?.metadata?.proposalStatus
@@ -107,10 +111,24 @@ export const NotificationProvider = ({ children }) => {
     setNotifications((prev) => [notification, ...prev]);
     setUnreadCount((prev) => prev + 1);
 
+    if (isMedicineReminderChecklistNotification(notification)) {
+      if ('Notification' in window && Notification.permission === 'granted') {
+        new Notification(notification.title || 'Medicine Reminder', {
+          body: notification.message,
+          icon: '/logo.png',
+          tag: `medicine-reminder-${notification.metadata.timing}-${notification.metadata.reminderDate || Date.now()}`,
+        });
+      }
+      return;
+    }
+
     if (
-      notification.eventType === 'PRESCRIPTION_CREATED'
-      || notification.type === 'NEW_PRESCRIPTION'
-      || notification.type === 'PRESCRIPTION_ISSUED'
+      !isMedicineReminderChecklistNotification(notification) &&
+      (
+        notification.eventType === 'PRESCRIPTION_CREATED'
+        || notification.type === 'NEW_PRESCRIPTION'
+        || notification.type === 'PRESCRIPTION_ISSUED'
+      )
     ) {
       setLatestPrescription({
         id: notification.prescriptionHeaderId || notification.relatedId,

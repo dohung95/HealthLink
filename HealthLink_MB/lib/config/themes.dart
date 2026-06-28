@@ -56,8 +56,7 @@ class HealthLinkTheme {
   // Lấy chính xác từ file cấu hình YAML Theme Dark
   // =========================================================
 
-  /*
-  // === BACKUP: CẤU HÌNH MÀU DARK THEME CŨ ===
+  // === THEME LÂM SÀNG (CLINICAL PRECISION) ===
   static const Color darkPrimary = Color(0xFF89D5C2);
   static const Color darkOnPrimary = Color(0xFF00382E);
   static const Color darkPrimaryContainer = Color(0xFF006051);
@@ -101,8 +100,25 @@ class HealthLinkTheme {
   static const Color darkSurfaceContainer = Color(0xFF0B2320);
   static const Color darkSurfaceContainerHigh = Color(0xFF162E2B);
   static const Color darkSurfaceContainerHighest = Color(0xFF213935);
-  */
 
+  // Nhóm màu Fixed (từ chuẩn Material 3 mở rộng)
+  static const Color darkPrimaryFixed = Color(0xFFA5F1DD);
+  static const Color darkPrimaryFixedDim = Color(0xFF89D5C2);
+  static const Color darkOnPrimaryFixed = Color(0xFF00201A);
+  static const Color darkOnPrimaryFixedVariant = Color(0xFF005144);
+  
+  static const Color darkSecondaryFixed = Color(0xFF9DF4CF);
+  static const Color darkSecondaryFixedDim = Color(0xFF82D7B4);
+  static const Color darkOnSecondaryFixed = Color(0xFF002116);
+  static const Color darkOnSecondaryFixedVariant = Color(0xFF00513B);
+  
+  static const Color darkTertiaryFixed = Color(0xFF95F4DC);
+  static const Color darkTertiaryFixedDim = Color(0xFF79D7C1);
+  static const Color darkOnTertiaryFixed = Color(0xFF00201A);
+  static const Color darkOnTertiaryFixedVariant = Color(0xFF005143);
+
+  /*
+  // === BACKUP: THEME NEON ===
   static const Color darkPrimary = Color(0xFFFF2D78); // Hot pink neon
   static const Color darkOnPrimary = Color(0xFFFFFFFF);
   static const Color darkPrimaryContainer = Color(0xFF4A0E22);
@@ -146,6 +162,7 @@ class HealthLinkTheme {
   static const Color darkSurfaceContainer = Color(0xFF121221);
   static const Color darkSurfaceContainerHigh = Color(0xFF17172B);
   static const Color darkSurfaceContainerHighest = Color(0xFF22223B);
+  */
 
 
   // =========================================================

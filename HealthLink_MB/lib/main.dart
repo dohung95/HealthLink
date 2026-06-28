@@ -8,6 +8,9 @@ import 'providers/video_call_provider.dart';
 import 'providers/theme_provider.dart';
 import 'providers/pharmacy/pharmacy_order_provider.dart';
 import 'providers/pharmacy/pharmacy_request_provider.dart';
+import 'package:flutter_localizations/flutter_localizations.dart';
+import 'l10n/app_localizations.dart';
+import 'providers/locale_provider.dart';
 import 'screens/welcome_screen.dart';
 import 'screens/patient/patient_main_layout.dart';
 import 'screens/doctor/doctor_main_layout.dart';
@@ -20,6 +23,7 @@ Future<void> main() async {
 
   final authProvider = AuthProvider();
   final themeProvider = ThemeProvider();
+  final localeProvider = LocaleProvider();
 
   runApp(
     MultiProvider(
@@ -29,6 +33,9 @@ Future<void> main() async {
         ),
         ChangeNotifierProvider<ThemeProvider>.value(
           value: themeProvider,
+        ),
+        ChangeNotifierProvider<LocaleProvider>.value(
+          value: localeProvider,
         ),
         ChangeNotifierProvider<ChatProvider>(
           create: (_) => ChatProvider(),
@@ -58,6 +65,7 @@ class HealthLinkApp extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final themeProvider = context.watch<ThemeProvider>();
+    final localeProvider = context.watch<LocaleProvider>();
     
     return MaterialApp(
       title: 'HealthLink',
@@ -65,6 +73,14 @@ class HealthLinkApp extends StatelessWidget {
       theme: HealthLinkTheme.lightTheme,
       darkTheme: HealthLinkTheme.darkTheme,
       themeMode: themeProvider.themeMode,
+      locale: localeProvider.locale,
+      localizationsDelegates: const [
+        AppLocalizations.delegate,
+        GlobalMaterialLocalizations.delegate,
+        GlobalWidgetsLocalizations.delegate,
+        GlobalCupertinoLocalizations.delegate,
+      ],
+      supportedLocales: AppLocalizations.supportedLocales,
       navigatorKey: navigatorKey,
       home: const _RootRouter(),
     );

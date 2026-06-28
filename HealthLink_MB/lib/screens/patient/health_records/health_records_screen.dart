@@ -5,6 +5,7 @@ import 'package:url_launcher/url_launcher.dart';
 
 import '../../../providers/auth_provider.dart';
 import '../../../services/health_records/health_records_service.dart';
+import '../../../l10n/app_localizations.dart';
 
 class HealthRecordsScreen extends StatefulWidget {
   const HealthRecordsScreen({super.key});
@@ -265,7 +266,7 @@ class _HealthRecordsScreenState extends State<HealthRecordsScreen> {
         centerTitle: false,
         toolbarHeight: 72,
         title: Text(
-          'Health Records',
+          AppLocalizations.of(context)!.healthRecordsTitle,
           style: Theme.of(context).textTheme.titleLarge?.copyWith(
             fontWeight: FontWeight.w900,
             color: colors.onSurface,
@@ -308,14 +309,14 @@ class _HealthRecordsScreenState extends State<HealthRecordsScreen> {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Text(
-            'Upload medical document',
+            AppLocalizations.of(context)!.healthRecordsUploadDoc,
             style: Theme.of(context).textTheme.titleMedium?.copyWith(
               fontWeight: FontWeight.w900,
             ),
           ),
           const SizedBox(height: 6),
           Text(
-            'Date Performed is required and cannot be in the future.',
+            AppLocalizations.of(context)!.healthRecordsDateRequired,
             style: TextStyle(
               color: colors.onSurfaceVariant,
               fontSize: 13,
@@ -325,14 +326,14 @@ class _HealthRecordsScreenState extends State<HealthRecordsScreen> {
 
           DropdownButtonFormField<String>(
             value: _category,
-            decoration: const InputDecoration(
-              labelText: 'Category',
-              border: OutlineInputBorder(),
+            decoration: InputDecoration(
+              labelText: AppLocalizations.of(context)!.healthRecordsCategory,
+              border: const OutlineInputBorder(),
             ),
             items: _categories.map((item) {
               return DropdownMenuItem(
                 value: item,
-                child: Text(item),
+                child: Text(item == 'Other' ? AppLocalizations.of(context)!.healthRecordsCategoryOther : item),
               );
             }).toList(),
             onChanged: (value) {
@@ -350,8 +351,8 @@ class _HealthRecordsScreenState extends State<HealthRecordsScreen> {
             icon: const Icon(Icons.calendar_month_outlined),
             label: Text(
               _documentDate == null
-                  ? 'Select Date Performed *'
-                  : 'Date Performed: ${_formatDate(_documentDate!)}',
+                  ? AppLocalizations.of(context)!.healthRecordsSelectDate
+                  : '${AppLocalizations.of(context)!.labelDate} ${_formatDate(_documentDate!)}',
             ),
           ),
 
@@ -361,10 +362,10 @@ class _HealthRecordsScreenState extends State<HealthRecordsScreen> {
             controller: _descriptionController,
             minLines: 2,
             maxLines: 4,
-            decoration: const InputDecoration(
-              labelText: 'Description',
-              hintText: 'Short note about this document...',
-              border: OutlineInputBorder(),
+            decoration: InputDecoration(
+              labelText: AppLocalizations.of(context)!.healthRecordsDescription,
+              hintText: '...',
+              border: const OutlineInputBorder(),
             ),
           ),
 
@@ -375,7 +376,7 @@ class _HealthRecordsScreenState extends State<HealthRecordsScreen> {
             icon: const Icon(Icons.attach_file),
             label: Text(
               _selectedFile == null
-                  ? 'Choose file *'
+                  ? AppLocalizations.of(context)!.healthRecordsChooseFile
                   : _selectedFile!.name,
               overflow: TextOverflow.ellipsis,
             ),
@@ -405,7 +406,7 @@ class _HealthRecordsScreenState extends State<HealthRecordsScreen> {
                 child: CircularProgressIndicator(strokeWidth: 2),
               )
                   : const Icon(Icons.cloud_upload_outlined),
-              label: Text(_uploading ? 'Uploading...' : 'Upload'),
+              label: Text(_uploading ? '...' : AppLocalizations.of(context)!.healthRecordsUpload),
             ),
           ),
         ],
@@ -434,8 +435,8 @@ class _HealthRecordsScreenState extends State<HealthRecordsScreen> {
       return _emptyState(
         colors,
         icon: Icons.folder_off_outlined,
-        title: 'No health records yet',
-        subtitle: 'Upload your first medical document to create a health record.',
+        title: AppLocalizations.of(context)!.healthRecordsNoRecords,
+        subtitle: AppLocalizations.of(context)!.healthRecordsNoRecordsDesc,
       );
     }
 

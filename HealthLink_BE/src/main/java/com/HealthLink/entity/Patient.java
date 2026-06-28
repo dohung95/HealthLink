@@ -1,6 +1,7 @@
 package com.HealthLink.entity;
 import jakarta.persistence.*;
 import lombok.*;
+import org.hibernate.annotations.Nationalized;
 import java.time.LocalDateTime;
 import java.util.List;
 
@@ -34,8 +35,11 @@ public class Patient {
     @Column(length = 10)
     private String gender; // Giới tính (Nam, Nữ, Khác)
     
+    @Nationalized
     private String address; // Địa chỉ chi tiết (số nhà, tên đường...)
+    @Nationalized
     private String city; // Thành phố / Tỉnh
+    @Nationalized
     private String country; // Quốc gia
     
     @Column(length = 10)

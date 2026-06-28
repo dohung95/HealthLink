@@ -4,7 +4,9 @@ import com.HealthLink.dto.request.HomeVisitDoctorSearchRequest;
 import com.HealthLink.dto.request.HomeVisitEstimateRequest;
 import com.HealthLink.dto.request.HomeVisitSlotSearchRequest;
 import com.HealthLink.dto.request.SelectSessionRequest;
-import com.HealthLink.dto.response.*;
+import com.HealthLink.dto.response.HomeVisitEstimateResponse;
+import com.HealthLink.dto.response.HomeVisitGeocodeResponse;
+import com.HealthLink.dto.response.HomeVisitInfoScanResponse;
 import com.HealthLink.entity.HomeVisitDraft;
 import com.HealthLink.exception.ResourceNotFoundException;
 import com.HealthLink.repository.appointment.HomeVisitDraftRepository;
@@ -16,17 +18,13 @@ import com.HealthLink.service.homevisit.HomeVisitLocationService;
 import com.HealthLink.service.homevisit.HomeVisitSessionService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
-import org.springframework.security.core.annotation.AuthenticationPrincipal;
-import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.multipart.MultipartFile;
-
-import java.time.LocalDateTime;
 import java.util.Base64;
 import java.util.List;
 
 @RestController
-@RequestMapping("/api")
+@RequestMapping("/api/home-visit")
 @RequiredArgsConstructor
 public class HomeVisitController {
 
@@ -45,7 +43,7 @@ public class HomeVisitController {
                 .getId();
     }
 
-    @PostMapping("/home-visit/scan-info")
+    @PostMapping("/scan-info")
     public ResponseEntity<HomeVisitInfoScanResponse> scanHomeVisitInfo(
             @RequestParam("file") MultipartFile file
     ) {

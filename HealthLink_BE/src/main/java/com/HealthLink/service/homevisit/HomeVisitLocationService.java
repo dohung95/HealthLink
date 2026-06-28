@@ -42,7 +42,7 @@ public class HomeVisitLocationService {
     @Value("${home-visit.travel-fee-per-km:5}")
     private BigDecimal travelFeePerKm;
 
-    @Value("${home-visit.average-speed-kmh}")
+    @Value("${home-visit.average-speed-kmh:25}")
     private double averageSpeedKmh;
 
     public HomeVisitLocationService(RestTemplateBuilder builder, DoctorRepository doctorRepository, GeocodingService geocodingService) {
@@ -143,7 +143,7 @@ public class HomeVisitLocationService {
         double distance = calculateStraightDistanceKm(originLat, originLng, visitLatitude, visitLongitude);
         boolean serviceable = distance <= doctor.getHomeVisitRadiusKm();
         double roundedDistance = Math.round(distance * 10.0) / 10.0;
-        int estimatedMinutes = (int) Math.ceil((distance / 25.0) * 60);
+        int estimatedMinutes = (int) Math.ceil((distance / averageSpeedKmh) * 60);
 
         double extraKm = Math.max(0, roundedDistance - freeDistanceKm);
         double billedExtraKm = Math.ceil(extraKm);

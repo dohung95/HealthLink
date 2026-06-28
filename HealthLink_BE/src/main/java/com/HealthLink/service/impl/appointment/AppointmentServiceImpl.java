@@ -228,7 +228,8 @@ public class AppointmentServiceImpl implements AppointmentService {
             HomeVisitDetails homeVisitDetails = buildHomeVisitDetails(
                     saved,
                     request,
-                    homeVisitEstimate
+                    homeVisitEstimate,
+                    doctor.getConsultationFee()
             );
             homeVisitDetailsRepository.save(homeVisitDetails);
             saved.setHomeVisitDetails(homeVisitDetails);
@@ -1033,7 +1034,6 @@ public class AppointmentServiceImpl implements AppointmentService {
 
         return AppointmentResponse.builder()
                 .appointmentId(appointment.getAppointmentId())
-                .consultationId(consultation != null ? consultation.getConsultationId() : null)
                 .patientId(appointment.getPatient().getPatientId())
                 .patientName(appointment.getPatient().getFullName())
                 .doctorId(appointment.getDoctor().getDoctorId())
@@ -1146,13 +1146,17 @@ public class AppointmentServiceImpl implements AppointmentService {
         return type.equals("homevisit")
                 || type.equals("home visit")
                 || type.equals("home-visit")
-                || type.equals("home");
+                || type.equals("home")
+                || type.equals("offline")
+                || type.equals("in-person")
+                || type.equals("in person");
     }
 
     private HomeVisitDetails buildHomeVisitDetails(
             Appointment appointment,
             AppointmentRequest request,
-            HomeVisitEstimateResponse estimate
+            HomeVisitEstimateResponse estimate,
+            BigDecimal doctorConsultationFee
     ) {
         return HomeVisitDetails.builder()
                 .appointment(appointment)
@@ -1170,9 +1174,12 @@ public class AppointmentServiceImpl implements AppointmentService {
                 .visitLatitude(request.getVisitLatitude())
                 .visitLongitude(request.getVisitLongitude())
                 .distanceKm(estimate != null ? estimate.getDistanceKm() : null)
-                .homeVisitFee(estimate != null ? estimate.getHomeVisitFee() : null)
+                .estimatedTravelMinutes(estimate != null ? estimate.getEstimatedTravelMinutes() : null)
+                .homeVisitFee(doctorConsultationFee)
                 .travelFee(estimate != null ? estimate.getTravelFee() : null)
                 .visitDurationMinutes(30)
+                .travelBufferBeforeMinutes(30)
+                .travelBufferAfterMinutes(30)
                 .build();
     }
 }

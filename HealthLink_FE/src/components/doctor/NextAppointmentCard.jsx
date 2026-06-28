@@ -34,10 +34,10 @@ const NextAppointmentCard = ({ appointment, onView, selectedDate }) => {
               In {diffMinutes < 60 ? `${diffMinutes} mins` : `${Math.round(diffMinutes / 60)} hrs`}
             </span>
           ) : (
-            <span className={STATUS_TONES[statusKey]?.badge || 'badge bg-surface-container text-text-main'} style={{fontSize:'0.625rem',letterSpacing:'0.05em'}}>{getDisplayStatus(appointment)}</span>
+            <span className={STATUS_TONES[statusKey]?.badge || 'badge bg-surface-container text-primary'} style={{fontSize:'0.625rem',letterSpacing:'0.05em'}}>{getDisplayStatus(appointment)}</span>
           )
         ) : (
-          <span className="badge bg-surface-container text-text-main" style={{fontSize:'0.625rem',letterSpacing:'0.05em'}}>No upcoming</span>
+          <span className="badge bg-surface-container text-primary" style={{fontSize:'0.625rem',letterSpacing:'0.05em'}}>No upcoming</span>
         )}
       </div>
 
@@ -85,7 +85,7 @@ const NextAppointmentCard = ({ appointment, onView, selectedDate }) => {
             </button>
             <button className="btn btn-outline-primary" onClick={() => onView(appointment)} type="button">
               <span className="material-symbols-outlined" style={{fontSize:'1rem'}}>description</span>
-              Medical History
+              Open Detail
             </button>
           </div>
         </div>

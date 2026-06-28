@@ -3,6 +3,7 @@ import 'dart:math' as math;
 
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
+import '../../../utils/localization_utils.dart';
 import '../../../services/booking/booking_service.dart';
 import '../../../providers/auth_provider.dart';
 import '../../../services/appointments/appointment_service.dart';
@@ -12,6 +13,7 @@ import '../../video_audio/video_call_screen.dart';
 import '../../../utils/notification_helper.dart';
 import '../../../providers/chat/chat_provider.dart';
 import '../../../providers/video_call_provider.dart';
+import '../../../l10n/app_localizations.dart';
 
 class AppointmentScreen extends StatefulWidget {
   const AppointmentScreen({super.key, this.onBookNew});
@@ -45,14 +47,17 @@ class _AppointmentScreenState extends State<AppointmentScreen> {
 
   String _statusFilter = 'ALL';
 
-  static const Map<String, String> _statusOptions = {
-    'ALL': 'All',
-    'UPCOMING': 'Upcoming',
-    'EXPIRED': 'Expired',
-    'COMPLETED': 'Completed',
-    'CANCELLED': 'Cancelled',
-    'IN_CONSULTATION': 'In consultation',
-  };
+  Map<String, String> _getStatusOptions(BuildContext context) {
+    final l10n = AppLocalizations.of(context)!;
+    return {
+      'ALL': l10n.filterAll,
+      'UPCOMING': l10n.filterUpcoming,
+      'EXPIRED': l10n.filterExpired,
+      'COMPLETED': l10n.filterCompleted,
+      'CANCELLED': l10n.filterCancelled,
+      'IN_CONSULTATION': l10n.filterInConsultation,
+    };
+  }
 
   @override
   void initState() {
@@ -159,18 +164,18 @@ class _AppointmentScreenState extends State<AppointmentScreen> {
       context: context,
       builder: (context) {
         return AlertDialog(
-          title: const Text('Cancel Appointment'),
-          content: const Text(
-            'Are you sure you want to cancel this appointment? This action cannot be undone.',
+          title: Text(AppLocalizations.of(context)!.cancelAppointmentDialogTitle),
+          content: Text(
+            AppLocalizations.of(context)!.cancelAppointmentDialogDesc,
           ),
           actions: [
             TextButton(
               onPressed: () => Navigator.of(context).pop(false),
-              child: const Text('No, Keep It'),
+              child: Text(AppLocalizations.of(context)!.btnKeepIt),
             ),
             FilledButton(
               onPressed: () => Navigator.of(context).pop(true),
-              child: const Text('Yes, Cancel'),
+              child: Text(AppLocalizations.of(context)!.btnYesCancel),
             ),
           ],
         );
@@ -196,7 +201,7 @@ class _AppointmentScreenState extends State<AppointmentScreen> {
 
       if (!mounted) return;
 
-      _showMessage('Appointment cancelled successfully.');
+      _showMessage(AppLocalizations.of(context)!.msgCancelSuccess);
       await _loadAppointments(page: _currentPage);
     } catch (e) {
       _showMessage(_cleanError(e), isError: true);
@@ -264,7 +269,7 @@ class _AppointmentScreenState extends State<AppointmentScreen> {
       );
 
       if (!success) {
-        _showMessage('You are already in a call!', isError: true);
+        _showMessage(AppLocalizations.of(context)!.msgAlreadyInCall, isError: true);
         return;
       }
 
@@ -281,7 +286,7 @@ class _AppointmentScreenState extends State<AppointmentScreen> {
         ),
       );
     } else {
-      _showMessage('Can not start video call, please login.', isError: true);
+      _showMessage(AppLocalizations.of(context)!.msgCannotStartVideoCall, isError: true);
     }
   }
 
@@ -358,14 +363,14 @@ class _AppointmentScreenState extends State<AppointmentScreen> {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(
-                  'My Appointments',
+                  AppLocalizations.of(context)!.myAppointmentsTitle,
                   style: Theme.of(context).textTheme.headlineSmall?.copyWith(
                     fontWeight: FontWeight.w900,
                   ),
                 ),
                 const SizedBox(height: 6),
                 Text(
-                  'View and manage your appointments',
+                  AppLocalizations.of(context)!.myAppointmentsSubtitle,
                   style: TextStyle(color: colors.onSurfaceVariant),
                 ),
               ],
@@ -374,7 +379,7 @@ class _AppointmentScreenState extends State<AppointmentScreen> {
           FilledButton.icon(
             onPressed: widget.onBookNew,
             icon: const Icon(Icons.add),
-            label: const Text('Book'),
+            label: Text(AppLocalizations.of(context)!.btnBook),
           ),
         ],
       ),
@@ -395,7 +400,7 @@ class _AppointmentScreenState extends State<AppointmentScreen> {
           value: _statusFilter,
           isExpanded: true,
           icon: const Icon(Icons.keyboard_arrow_down),
-          items: _statusOptions.entries.map((entry) {
+          items: _getStatusOptions(context).entries.map((entry) {
             return DropdownMenuItem<String>(
               value: entry.key,
               child: Row(
@@ -449,7 +454,7 @@ class _AppointmentScreenState extends State<AppointmentScreen> {
 
     if (_appointments.isEmpty) {
       final selectedLabel =
-          _statusOptions[_statusFilter] ?? 'selected';
+          _getStatusOptions(context)[_statusFilter] ?? 'selected';
 
       return Column(
         children: [
@@ -459,11 +464,11 @@ class _AppointmentScreenState extends State<AppointmentScreen> {
             colors,
             icon: Icons.event_busy_outlined,
             title: _statusFilter == 'ALL'
-                ? 'No appointments yet'
-                : 'No $selectedLabel appointments',
+                ? AppLocalizations.of(context)!.noAppointmentsYet
+                : AppLocalizations.of(context)!.noStatusAppointments(selectedLabel),
             subtitle: _statusFilter == 'ALL'
-                ? 'Book your first appointment to start consulting with a doctor.'
-                : 'No appointments match the selected status.',
+                ? AppLocalizations.of(context)!.noAppointmentsYetDesc
+                : AppLocalizations.of(context)!.noStatusAppointmentsDesc,
           ),
         ],
       );
@@ -537,7 +542,7 @@ class _AppointmentScreenState extends State<AppointmentScreen> {
                       ),
                       if (appointment.specialtyName.isNotEmpty)
                         Text(
-                          appointment.specialtyName,
+                          appointment.specialtyName.toLocalizedSpecialty(context),
                           style: TextStyle(color: colors.onSurfaceVariant),
                         ),
                     ],
@@ -556,7 +561,7 @@ class _AppointmentScreenState extends State<AppointmentScreen> {
             _infoRow(
               colors,
               Icons.medical_services_outlined,
-              appointment.consultationType,
+              appointment.consultationType.toLocalizedConsultationType(context),
             ),
             const SizedBox(height: 8),
             _infoRow(colors, Icons.person_outline, appointment.patientName),
@@ -569,25 +574,25 @@ class _AppointmentScreenState extends State<AppointmentScreen> {
                   FilledButton.icon(
                     onPressed: () => _handleChat(appointment),
                     icon: const Icon(Icons.chat_bubble_outline),
-                    label: const Text('Chat'),
+                    label: Text(AppLocalizations.of(context)!.btnChat),
                   ),
                 if (appointment.isVideo && joinable)
                   FilledButton.icon(
                     onPressed: () => _handleVideo(appointment),
                     icon: const Icon(Icons.videocam_outlined),
-                    label: const Text('Call Now'),
+                    label: Text(AppLocalizations.of(context)!.btnCallNow),
                   ),
                 if (canReschedule)
                   OutlinedButton.icon(
                     onPressed: () => _handleReschedule(appointment),
                     icon: const Icon(Icons.edit_calendar_outlined),
-                    label: const Text('Reschedule'),
+                    label: Text(AppLocalizations.of(context)!.btnReschedule),
                   ),
                 if (canCancel)
                   OutlinedButton.icon(
                     onPressed: () => _confirmCancel(appointment),
                     icon: const Icon(Icons.close),
-                    label: const Text('Cancel'),
+                    label: Text(AppLocalizations.of(context)!.btnCancel),
                   ),
               ],
             ),
@@ -619,23 +624,27 @@ class _AppointmentScreenState extends State<AppointmentScreen> {
     if (normalized == 'expired') {
       bg = colors.surfaceContainerHighest;
       fg = colors.onSurfaceVariant;
-      label = 'Expired';
+      label = AppLocalizations.of(context)!.statusExpired;
     } else if (normalized == 'scheduled') {
       bg = colors.primary.withValues(alpha: 0.12);
       fg = colors.primary;
-      label = 'Scheduled';
+      label = AppLocalizations.of(context)!.statusScheduled;
     } else if (normalized == 'confirmed') {
       bg = colors.tertiary.withValues(alpha: 0.12);
       fg = colors.tertiary;
-      label = 'Confirmed';
+      label = AppLocalizations.of(context)!.statusConfirmed;
     } else if (normalized == 'completed') {
       bg = colors.secondary.withValues(alpha: 0.12);
       fg = colors.secondary;
-      label = 'Completed';
+      label = AppLocalizations.of(context)!.statusCompleted;
     } else if (normalized == 'cancelled' || normalized == 'canceled') {
       bg = colors.errorContainer;
       fg = colors.onErrorContainer;
-      label = 'Cancelled';
+      label = AppLocalizations.of(context)!.statusCancelled;
+    } else if (normalized == 'in_consultation') {
+      bg = colors.primaryContainer;
+      fg = colors.onPrimaryContainer;
+      label = AppLocalizations.of(context)!.filterInConsultation;
     } else {
       bg = colors.surfaceContainerHighest;
       fg = colors.onSurfaceVariant;
@@ -658,7 +667,7 @@ class _AppointmentScreenState extends State<AppointmentScreen> {
   Widget _pagination(ColorScheme colors) {
     if (_totalPages <= 1) {
       return Text(
-        'Showing $_totalItems appointment(s)',
+        AppLocalizations.of(context)!.showingAppointmentsCount(_totalItems),
         style: TextStyle(color: colors.onSurfaceVariant),
       );
     }
@@ -667,7 +676,7 @@ class _AppointmentScreenState extends State<AppointmentScreen> {
       children: [
         Expanded(
           child: Text(
-            'Page $_currentPage of $_totalPages ($_totalItems appointments)',
+            AppLocalizations.of(context)!.paginationInfo(_currentPage, _totalPages, _totalItems),
             style: TextStyle(color: colors.onSurfaceVariant),
           ),
         ),
@@ -1142,7 +1151,7 @@ class _RescheduleAppointmentSheetState
                             Navigator.of(context).pop(false);
                           }
                         },
-                  child: const Text('Cancel'),
+                  child: Text(AppLocalizations.of(context)!.actionCancel),
                 ),
               ),
               const SizedBox(width: 12),
@@ -1155,7 +1164,7 @@ class _RescheduleAppointmentSheetState
                           height: 18,
                           child: CircularProgressIndicator(strokeWidth: 2),
                         )
-                      : const Text('Confirm'),
+                      : Text(AppLocalizations.of(context)!.actionConfirm),
                 ),
               ),
             ],

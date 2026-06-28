@@ -1,5 +1,5 @@
 // src/App.js
-import { useEffect } from 'react';
+import { useEffect, useState } from 'react';
 import { BrowserRouter as Router, Routes, Route, Navigate, useLocation, useNavigate, useParams } from 'react-router-dom';
 
 // ---------------------------------------------import file----------------------------------------------------------
@@ -53,13 +53,14 @@ import VideocallPage from './pages/video-calling';
 import IncomingCallModal from './components/IncomingCallModal';
 import NotificationToastBridge from './components/notifications/NotificationToastBridge';
 import PrescriptionNotificationModal from './components/PrescriptionNotificationModal';
+import MedicineReminderQuickModal from './components/patient-dashboard/MedicineReminderQuickModal';
 import AdminActionNotificationModal from './components/AdminActionNotificationModal';
-import HomeVisitProposalModal from './components/consultation/HomeVisitProposalModal';
-import HomeVisitProposalResultModal from './components/consultation/HomeVisitProposalResultModal';
+
 import Navbar from './components/Navbar';
 import DoctorPublicProfilePage from './pages/doctor/DoctorPublicProfilePage';
 import PatientPrescriptionView from './components/PatientPrescriptionView';
 import PatientPharmacyPage from './components/patient-dashboard/PatientPharmacyPage';
+import MedicineReminderPage from './components/patient-dashboard/MedicineReminderPage';
 
 import DoctorDashboardPage, {
   DoctorAppointmentDetailRoute,
@@ -158,6 +159,8 @@ function AppContent() {
     location.pathname === path || location.pathname.startsWith(path + '/')
   ) || location.pathname.startsWith('/book/');
 
+  const [medicineReminderModal, setMedicineReminderModal] = useState({ show: false, timing: null });
+
   const is404Page = !isKnownPath;
 
   const isAuthPage = [
@@ -168,6 +171,17 @@ function AppContent() {
 
   // Don't show navbar/footer on video call, doctor page, admin page, login page, or 404 page
   const hideLayout = isVideoCallPage || isDoctorPage || isAdminPage || isPatientDashboard || isPharmacyDashboard || isSchedulePage || isAuthPage || is404Page;
+
+  useEffect(() => {
+    const openMedicineReminder = (event) => {
+      setMedicineReminderModal({
+        show: true,
+        timing: event.detail?.timing || 'MORNING',
+      });
+    };
+    window.addEventListener('open-medicine-reminder', openMedicineReminder);
+    return () => window.removeEventListener('open-medicine-reminder', openMedicineReminder);
+  }, []);
 
   useEffect(() => {
     if (isAuthenticated && publicPaths.includes(location.pathname)) {
@@ -209,8 +223,14 @@ function AppContent() {
       {!isVideoCallPage && !isAdminPage && <IncomingCallModal />}
       {!isVideoCallPage && !isAdminPage && <PrescriptionNotificationModal />}
       {!isVideoCallPage && !isAdminPage && <AdminActionNotificationModal />}
-      {!isVideoCallPage && !isAdminPage && <HomeVisitProposalModal />}
-      {!isVideoCallPage && !isAdminPage && <HomeVisitProposalResultModal />}
+      {!isVideoCallPage && !isAdminPage && (
+        <MedicineReminderQuickModal
+          show={medicineReminderModal.show}
+          timing={medicineReminderModal.timing}
+          onClose={() => setMedicineReminderModal({ show: false, timing: null })}
+        />
+      )}
+
       <div className="App">
         {!isVideoCallPage
           && !isAdminPage
@@ -386,6 +406,7 @@ function AppContent() {
               <Route path="health-records" element={<HealthRecords embedded />} />
               <Route path="share-records" element={<ShareHealthRecords embedded />} />
               <Route path="prescriptions" element={<PatientPrescriptionView />} />
+              <Route path="reminders" element={<MedicineReminderPage />} />
               <Route path="pharmacy" element={<PatientPharmacyPage />} />
               <Route path="pharmacy/consult" element={<PatientPharmacyPage />} />
               <Route path="pharmacy/requests" element={<PatientPharmacyPage />} />

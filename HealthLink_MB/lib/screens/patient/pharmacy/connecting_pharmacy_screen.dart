@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../../../providers/auth_provider.dart';
 import '../../../services/patient_pharmacy/pharmacy_service.dart';
+import '../../../l10n/app_localizations.dart';
 
 class ConnectingPharmacyScreen extends StatefulWidget {
   final Map<String, dynamic>? currentRequest;
@@ -170,7 +171,7 @@ class _ConnectingPharmacyScreenState extends State<ConnectingPharmacyScreen> wit
                   children: [
                     Icon(Icons.near_me_outlined, size: 18, color: colorScheme.outline),
                     const SizedBox(width: 4),
-                    Text('1.2 km away', style: textTheme.labelMedium?.copyWith(color: colorScheme.onSurface)),
+                    Text(AppLocalizations.of(context)!.pharmacyDistance('1.2'), style: textTheme.labelMedium?.copyWith(color: colorScheme.onSurface)),
                   ],
                 ),
               ],
@@ -206,8 +207,8 @@ class _ConnectingPharmacyScreenState extends State<ConnectingPharmacyScreen> wit
                   icon: Icons.done_all,
                   iconBg: colorScheme.primaryContainer,
                   iconColor: colorScheme.primary,
-                  title: 'Request Sent',
-                  subtitle: 'Successfully transmitted to the pharmacy',
+                  title: AppLocalizations.of(context)!.pharmacyRequestSent,
+                  subtitle: AppLocalizations.of(context)!.pharmacyRequestSentDesc,
                   colorScheme: colorScheme,
                   textTheme: textTheme,
                 ),
@@ -234,7 +235,7 @@ class _ConnectingPharmacyScreenState extends State<ConnectingPharmacyScreen> wit
                           Row(
                             mainAxisAlignment: MainAxisAlignment.spaceBetween,
                             children: [
-                              Text('Waiting for acceptance', style: textTheme.labelMedium?.copyWith(color: colorScheme.onSurface, fontSize: 14)),
+                              Text(AppLocalizations.of(context)!.pharmacyWaitingAcceptance, style: textTheme.labelMedium?.copyWith(color: colorScheme.onSurface, fontSize: 14)),
                               Container(
                                 padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
                                 decoration: BoxDecoration(
@@ -246,7 +247,7 @@ class _ConnectingPharmacyScreenState extends State<ConnectingPharmacyScreen> wit
                             ],
                           ),
                           const SizedBox(height: 4),
-                          Text('A pharmacist is reviewing your prescription', style: textTheme.bodyMedium?.copyWith(color: colorScheme.onSurfaceVariant)),
+                          Text(AppLocalizations.of(context)!.pharmacyReviewing, style: textTheme.bodyMedium?.copyWith(color: colorScheme.onSurfaceVariant)),
                         ],
                       ),
                     ),
@@ -259,8 +260,8 @@ class _ConnectingPharmacyScreenState extends State<ConnectingPharmacyScreen> wit
                   icon: Icons.link,
                   iconBg: colorScheme.surfaceVariant.withOpacity(0.5),
                   iconColor: colorScheme.outline,
-                  title: 'Connected',
-                  subtitle: 'Direct channel established',
+                  title: AppLocalizations.of(context)!.pharmacyConnected,
+                  subtitle: AppLocalizations.of(context)!.pharmacyConnectedDesc,
                   titleColor: colorScheme.outline,
                   subtitleColor: colorScheme.outlineVariant,
                   colorScheme: colorScheme,
@@ -332,7 +333,7 @@ class _ConnectingPharmacyScreenState extends State<ConnectingPharmacyScreen> wit
               Padding(
                 padding: const EdgeInsets.symmetric(horizontal: 32.0),
                 child: Text(
-                  'Ensuring a secure and encrypted connection to your healthcare provider.',
+                  AppLocalizations.of(context)!.pharmacySecureConnection,
                   textAlign: TextAlign.center,
                   style: textTheme.bodyMedium?.copyWith(color: colorScheme.onSurfaceVariant),
                 ),
@@ -363,7 +364,7 @@ class _ConnectingPharmacyScreenState extends State<ConnectingPharmacyScreen> wit
               // Action làm mới (polling vẫn chạy ngầm)
             },
             icon: const Icon(Icons.refresh, size: 20),
-            label: const Text('Refresh', style: TextStyle(fontWeight: FontWeight.w600)),
+            label: Text(AppLocalizations.of(context)!.actionRefresh, style: const TextStyle(fontWeight: FontWeight.w600)),
           ),
         ),
         const SizedBox(height: 16),
@@ -372,7 +373,7 @@ class _ConnectingPharmacyScreenState extends State<ConnectingPharmacyScreen> wit
           height: 56,
           child: TextButton(
             onPressed: widget.onPreviousStep,
-            child: const Text('Cancel Request & Go Back', style: TextStyle(fontWeight: FontWeight.w600, color: Colors.redAccent)),
+            child: Text(AppLocalizations.of(context)!.actionCancelAndGoBack, style: const TextStyle(fontWeight: FontWeight.w600, color: Colors.redAccent)),
           ),
         ),
       ],

@@ -132,9 +132,7 @@ public class AdminCommissionServiceImpl implements AdminCommissionService {
     @Override
     public AdminCommissionTransactionDto calculateAndRecordAppointment(Appointment appointment) {
         String consultationType = appointment.getConsultationType();
-        String serviceType = "HomeVisit".equalsIgnoreCase(consultationType)
-            ? "CONSULTATION_HOME_VISIT"
-            : (isOnlineConsultation(consultationType) ? "CONSULTATION_ONLINE" : "CONSULTATION_OFFLINE");
+        String serviceType = resolveAppointmentServiceType(consultationType);
 
         Doctor doctor = appointment.getDoctor();
         BigDecimal fee = appointment.getFee() == null ? BigDecimal.ZERO : appointment.getFee();
@@ -403,8 +401,8 @@ public class AdminCommissionServiceImpl implements AdminCommissionService {
                             now)) {
                         customRate = doctor.getCustomCommissionRateOnline();
                     }
-                } else if ("CONSULTATION_OFFLINE".equals(serviceType) ||
-                           "CONSULTATION_HOME_VISIT".equals(serviceType)) {
+                } else if ("CONSULTATION_OFFLINE".equals(serviceType)
+                        || "CONSULTATION_HOME_VISIT".equals(serviceType)) {
                     if (doctor.getCustomCommissionRateOffline() != null &&
                         isCustomRateValid(
                             doctor.getCustomCommissionRateOfflineEffectiveFrom(),
@@ -433,6 +431,27 @@ public class AdminCommissionServiceImpl implements AdminCommissionService {
         return configRepo.findActiveConfigByServiceType(serviceType, now)
             .map(CommissionConfig::getCommissionRate)
             .orElse(new BigDecimal("0.10"));
+    }
+
+    private String resolveAppointmentServiceType(String consultationType) {
+        String normalized = normalizeConsultationType(consultationType);
+        if ("Online".equalsIgnoreCase(normalized)) {
+            return "CONSULTATION_ONLINE";
+        }
+        if ("HomeVisit".equalsIgnoreCase(normalized)) {
+            return "CONSULTATION_HOME_VISIT";
+        }
+        return "CONSULTATION_OFFLINE";
+    }
+
+    private String normalizeConsultationType(String type) {
+        if (type == null || type.isBlank()) return "Online";
+        String t = type.trim().toLowerCase();
+        return switch (t) {
+            case "video", "video call", "audio", "audio call", "chat", "online", "consultation" -> "Online";
+            case "homevisit", "home visit", "home-visit", "home", "offline", "in-person", "in person" -> "HomeVisit";
+            default -> "Online";
+        };
     }
 
     /**
@@ -839,14 +858,6 @@ public class AdminCommissionServiceImpl implements AdminCommissionService {
             }
         }
         return commission;
-    }
-
-    private boolean isOnlineConsultation(String type) {
-        if (type == null) {
-            return false;
-        }
-        String normalized = type.trim().toUpperCase(Locale.ROOT);
-        return normalized.contains("VIDEO") || normalized.contains("AUDIO") || normalized.contains("CHAT") || normalized.contains("ONLINE");
     }
 
     private String generateTransactionNumber() {

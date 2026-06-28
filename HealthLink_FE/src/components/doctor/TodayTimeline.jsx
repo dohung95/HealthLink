@@ -8,7 +8,7 @@ import {
   formatTimeFromDate,
 } from '@utils/doctor/appointmentHelpers';
 
-const WEEKDAYS = ['M', 'T', 'W', 'T', 'F', 'S', 'S'];
+const WEEKDAYS = ['MON', 'TUE', 'WED', 'THU', 'FRI', 'SAT', 'SUN'];
 
 const getCalendarDays = (dateStr) => {
   const date = new Date(`${dateStr}T00:00:00`);
@@ -37,7 +37,7 @@ const getCalendarDays = (dateStr) => {
   return days;
 };
 
-const TodayTimeline = ({ appointments, loading, selectedDate, onView, onDateChange }) => {
+const TodayTimeline = ({ appointments, calendarData, loading, selectedDate, onView, onDateChange }) => {
   const calendarDays = useMemo(() => getCalendarDays(selectedDate), [selectedDate]);
   const isCurrentMonth = useMemo(() => {
     const d = new Date(selectedDate + 'T00:00:00');
@@ -45,12 +45,25 @@ const TodayTimeline = ({ appointments, loading, selectedDate, onView, onDateChan
     return d.getFullYear() === now.getFullYear() && d.getMonth() === now.getMonth();
   }, [selectedDate]);
 
+  const dayStatusMap = useMemo(() => {
+    const map = {};
+    for (const day of calendarData || []) {
+      const booked = (day.slots || []).some(
+        (s) => s.status === 'BOOKED' || s.status === 'HELD',
+      );
+      map[day.date] = {
+        isScheduled: booked,
+        isDayOff: day.status === 'DAY_OFF' || day.status === 'NO_SCHEDULE',
+      };
+    }
+    return map;
+  }, [calendarData]);
+
   return (
     <section className="doctor-timeline">
       <div className="doctor-timeline__header">
         <h2 className="doctor-timeline__title">
-          <span className="doctor-timeline__title-dot" />
-          Today's Schedule
+          Calendar
         </h2>
         <div className="d-flex gap-1 align-items-center">
           <button
@@ -59,6 +72,11 @@ const TodayTimeline = ({ appointments, loading, selectedDate, onView, onDateChan
             onClick={() => {
               const d = new Date(selectedDate + 'T00:00:00');
               d.setMonth(d.getMonth() - 1);
+              const now = new Date();
+              d.setDate(
+                d.getFullYear() === now.getFullYear() && d.getMonth() === now.getMonth()
+                  ? now.getDate() : 1
+              );
               onDateChange(toDateInputValue(d));
             }}
             type="button"
@@ -74,6 +92,11 @@ const TodayTimeline = ({ appointments, loading, selectedDate, onView, onDateChan
             onClick={() => {
               const d = new Date(selectedDate + 'T00:00:00');
               d.setMonth(d.getMonth() + 1);
+              const now = new Date();
+              d.setDate(
+                d.getFullYear() === now.getFullYear() && d.getMonth() === now.getMonth()
+                  ? now.getDate() : 1
+              );
               onDateChange(toDateInputValue(d));
             }}
             type="button"
@@ -84,6 +107,27 @@ const TodayTimeline = ({ appointments, loading, selectedDate, onView, onDateChan
         </div>
       </div>
 
+      <div className="doctor-timeline__legend">
+        <div className="doctor-timeline__legend-items">
+          <div className="doctor-timeline__legend-item">
+            <span className="doctor-timeline__legend-dot doctor-timeline__legend-dot--today" />
+            <span>Today</span>
+          </div>
+          <div className="doctor-timeline__legend-item">
+            <span className="doctor-timeline__legend-dot doctor-timeline__legend-dot--scheduled" />
+            <span>Scheduled</span>
+          </div>
+          <div className="doctor-timeline__legend-item">
+            <span className="doctor-timeline__legend-dot doctor-timeline__legend-dot--dayoff" />
+            <span>Day Off</span>
+          </div>
+          <div className="doctor-timeline__legend-item">
+            <span className="doctor-timeline__legend-dot doctor-timeline__legend-dot--empty" />
+            <span>Empty</span>
+          </div>
+        </div>
+      </div>
+
       <div className="doctor-timeline__calendar">
         <div className="doctor-timeline__calendar-weekdays">
           {WEEKDAYS.map((day, idx) => (
@@ -91,10 +135,13 @@ const TodayTimeline = ({ appointments, loading, selectedDate, onView, onDateChan
           ))}
         </div>
         <div className="doctor-timeline__calendar-days">
-          {calendarDays.map((day, idx) => (
-            day.day === 0 ? (
-              <div key={`empty-${idx}`} />
-            ) : (
+          {calendarDays.map((day, idx) => {
+            if (day.day === 0) return <div key={`empty-${idx}`} />;
+            const monthDate = new Date(selectedDate + 'T00:00:00');
+            const dayDate = new Date(monthDate.getFullYear(), monthDate.getMonth(), day.day);
+            const dateStr = toDateInputValue(dayDate);
+            const ds = dayStatusMap[dateStr];
+            return (
               <button
                 className={`doctor-timeline__calendar-day ${
                   day.isSelected
@@ -102,11 +149,14 @@ const TodayTimeline = ({ appointments, loading, selectedDate, onView, onDateChan
                     : day.isToday
                       ? 'doctor-timeline__calendar-day--today'
                       : day.isPast
-                        ? 'doctor-timeline__calendar-day--disabled'
-                        : ''
+                        ? 'doctor-timeline__calendar-day--past'
+                        : ds?.isDayOff
+                          ? 'doctor-timeline__calendar-day--dayoff'
+                          : ds?.isScheduled
+                            ? 'doctor-timeline__calendar-day--scheduled'
+                            : ''
                 }`}
                 key={`day-${day.day}`}
-                disabled={day.isPast}
                 onClick={() => {
                   const d = new Date(selectedDate + 'T00:00:00');
                   d.setDate(d.getDate() + (day.day - d.getDate()));
@@ -116,8 +166,8 @@ const TodayTimeline = ({ appointments, loading, selectedDate, onView, onDateChan
               >
                 {day.label}
               </button>
-            )
-          ))}
+            );
+          })}
         </div>
       </div>
 
@@ -149,7 +199,7 @@ const TodayTimeline = ({ appointments, loading, selectedDate, onView, onDateChan
               <button
                 className={`doctor-timeline__item ${isCompleted ? 'doctor-timeline__item--completed' : ''}`}
                 key={`timeline-${appointment.appointmentID || appointment.appointmentId}`}
-                onClick={() => !isCompleted && onView(appointment)}
+                onClick={() => onView(appointment)}
                 type="button"
               >
                 <div className="doctor-timeline__item-time">

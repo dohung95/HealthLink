@@ -2,7 +2,6 @@ package com.HealthLink.controller.dev;
 
 import com.HealthLink.dto.consultation.ConsultationResponse;
 import com.HealthLink.dto.notification.NotificationDispatchSummary;
-import com.HealthLink.entity.enums.PrescriptionTiming;
 import com.HealthLink.exception.BadRequestException;
 import com.HealthLink.scheduler.NotificationScheduler;
 import com.HealthLink.service.consultation.ConsultationService;
@@ -70,9 +69,8 @@ public class DevToolController {
                 summary = notificationScheduler.sendFollowUpReminders(
                         effectiveNow != null ? effectiveNow : LocalDateTime.now());
             }
-            case PRESCRIPTION_REMINDER -> {
-                PrescriptionTiming timing = parseTiming(request.timing());
-                summary = notificationScheduler.sendPrescriptionRemindersForTiming(timing,
+            case MEDICINE_REMINDER -> {
+                summary = notificationScheduler.sendMedicineReminders(
                         effectiveNow != null ? effectiveNow : LocalDateTime.now().withNano(0));
             }
             default -> throw new BadRequestException("Unknown job: " + request.job());
@@ -102,15 +100,7 @@ public class DevToolController {
         } catch (IllegalArgumentException ex) {
             throw new BadRequestException(
                     "job must be one of DAILY_APPOINTMENT_DIGEST, PATIENT_APPOINTMENT_REMINDER, " +
-                            "DOCTOR_APPOINTMENT_REMINDER, FOLLOW_UP_REMINDER, PRESCRIPTION_REMINDER");
-        }
-    }
-
-    private PrescriptionTiming parseTiming(String value) {
-        try {
-            return PrescriptionTiming.from(value);
-        } catch (IllegalArgumentException ex) {
-            throw new BadRequestException(ex.getMessage());
+                            "DOCTOR_APPOINTMENT_REMINDER, FOLLOW_UP_REMINDER, MEDICINE_REMINDER");
         }
     }
 
@@ -129,6 +119,6 @@ public class DevToolController {
         PATIENT_APPOINTMENT_REMINDER,
         DOCTOR_APPOINTMENT_REMINDER,
         FOLLOW_UP_REMINDER,
-        PRESCRIPTION_REMINDER
+        MEDICINE_REMINDER
     }
 }

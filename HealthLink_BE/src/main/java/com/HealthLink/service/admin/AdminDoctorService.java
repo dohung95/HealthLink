@@ -1,6 +1,7 @@
 package com.HealthLink.service.admin;
 
 import com.HealthLink.dto.admin.*;
+import com.HealthLink.dto.geocoding.GeocodeResponse;
 import com.HealthLink.entity.AdminAuditLog;
 import com.HealthLink.entity.Doctor;
 import com.HealthLink.entity.DoctorSchedule;
@@ -11,10 +12,11 @@ import com.HealthLink.entity.enums.ScheduleExceptionType;
 import com.HealthLink.exception.BadRequestException;
 import com.HealthLink.exception.ResourceNotFoundException;
 import com.HealthLink.repository.admin.AdminDoctorRepository;
-import com.HealthLink.repository.admin.DoctorScheduleExceptionRepository;
+import com.HealthLink.repository.admin.AdminAuditLogRepository;
 import com.HealthLink.repository.doctor.DoctorScheduleRepository;
+import com.HealthLink.repository.admin.DoctorScheduleExceptionRepository;
 import com.HealthLink.repository.doctor.SpecialtyRepository;
-import com.HealthLink.service.geocoding.GeocodingService;
+import com.HealthLink.service.homevisit.HomeVisitLocationService;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
@@ -42,20 +44,20 @@ public class AdminDoctorService {
     private final DoctorScheduleRepository scheduleRepository;
     private final DoctorScheduleExceptionRepository exceptionRepository;
     private final SpecialtyRepository specialtyRepository;
-    private final GeocodingService geocodingService;
+    private final HomeVisitLocationService homeVisitLocationService;
 
     public AdminDoctorService(AdminDoctorRepository doctorRepository,
                               AdminAuditLogService auditLogService,
                               DoctorScheduleRepository scheduleRepository,
                               DoctorScheduleExceptionRepository exceptionRepository,
                               SpecialtyRepository specialtyRepository,
-                              GeocodingService geocodingService) {
+                              HomeVisitLocationService homeVisitLocationService) {
         this.doctorRepository = doctorRepository;
         this.auditLogService = auditLogService;
         this.scheduleRepository = scheduleRepository;
         this.exceptionRepository = exceptionRepository;
         this.specialtyRepository = specialtyRepository;
-        this.geocodingService = geocodingService;
+        this.homeVisitLocationService = homeVisitLocationService;
     }
 
     public AdminDoctorPageResponse getDoctors(int pageNumber, int pageSize, String searchTerm,
@@ -129,14 +131,19 @@ public class AdminDoctorService {
         if (updateDto.getClinicAddress() != null) {
             doctor.setClinicAddress(updateDto.getClinicAddress());
             try {
-                var geo = geocodingService.geocode(updateDto.getClinicAddress());
+                GeocodeResponse geo = homeVisitLocationService.geocodeClinicAddressWithFallback(updateDto.getClinicAddress());
                 doctor.setLatitude(geo.getLatitude());
                 doctor.setLongitude(geo.getLongitude());
             } catch (Exception e) {
                 doctor.setLatitude(null);
                 doctor.setLongitude(null);
-                System.err.println("Re-geocode failed for doctor " + doctorId + ": " + e.getMessage());
             }
+        }
+        if (updateDto.getAvailableForHomeVisit() != null) {
+            doctor.setAvailableForHomeVisit(updateDto.getAvailableForHomeVisit());
+        }
+        if (updateDto.getHomeVisitRadiusKm() != null) {
+            doctor.setHomeVisitRadiusKm(updateDto.getHomeVisitRadiusKm());
         }
 
         // Update user fields
@@ -365,6 +372,10 @@ public class AdminDoctorService {
             .totalConsultations(totalConsultations)
             .avatarUrl(doctor.getAvatarUrl())
             .verified(doctor.isVerified())
+            .availableForHomeVisit(doctor.getAvailableForHomeVisit())
+            .homeVisitRadiusKm(doctor.getHomeVisitRadiusKm())
+            .latitude(doctor.getLatitude())
+            .longitude(doctor.getLongitude())
             .services(doctor.getServices() != null
                 ? doctor.getServices().stream()
                     .map(ds -> ds.getId().getServiceType().name())

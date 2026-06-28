@@ -460,12 +460,12 @@ SET IDENTITY_INSERT PrescriptionHeaders OFF;
 
 -- 24. PRESCRIPTION_ITEMS (11 items)
 SET IDENTITY_INSERT PrescriptionItems ON;
-INSERT INTO PrescriptionItems (PrescriptionItemID, PrescriptionHeaderID, medicationName, dosage, instructions, totalSupplyDays, MedicineID, quantity, unit, frequency, timing, route, unitPrice, totalPrice, notes) VALUES
-(1, 1, 'Paracetamol 500mg', '500mg', 'Take when headache occurs, max 3 tablets per day', 7, 1, 21, 'Tablet', '3 times daily', 'As needed', 'Oral', 0.30, 6.30, NULL),
-(2, 1, 'Vitamin C 1000mg', '1000mg', 'Take 1 tablet in morning after breakfast', 14, 7, 14, 'Tablet', 'Once daily', 'MORNING', 'Oral', 0.93, 13.02, 'Immune support'),
-(3, 2, 'Paracetamol 500mg', '250mg', 'Take when fever exceeds 100.4F', 5, 1, 10, 'Tablet', 'As needed', 'When fever', 'Oral', 0.30, 3.00, 'Half tablet for child'),
-(4, 2, 'Cetirizine 10mg', '5mg', 'Take once before bedtime', 7, 6, 7, 'Tablet', 'Once daily', 'Night', 'Oral', 0.71, 4.97, 'Half tablet'),
-(5, 3, 'Amlodipine 5mg', '5mg', 'Take 1 tablet every morning', 30, 5, 30, 'Tablet', 'Once daily', 'MORNING', 'Oral', 0.63, 18.90, 'Maintain blood pressure'),
+INSERT INTO PrescriptionItems (PrescriptionItemID, PrescriptionHeaderID, medicationName, dosage, instructions, totalSupplyDays, MedicineID, quantity, unit, frequency, timing, route, notes) VALUES
+(1, 1, 'Paracetamol 500mg', '500mg', 'Take when headache occurs, max 3 tablets per day', 7, 1, 21, 'Tablet', '3 times daily', 'As needed', 'Oral', NULL),
+(2, 1, 'Vitamin C 1000mg', '1000mg', 'Take 1 tablet in morning after breakfast', 14, 7, 14, 'Tablet', 'Once daily', 'MORNING', 'Oral', 'Immune support'),
+(3, 2, 'Paracetamol 500mg', '250mg', 'Take when fever exceeds 100.4F', 5, 1, 10, 'Tablet', 'As needed', 'When fever', 'Oral', 'Half tablet for child'),
+(4, 2, 'Cetirizine 10mg', '5mg', 'Take once before bedtime', 7, 6, 7, 'Tablet', 'Once daily', 'Night', 'Oral', 'Half tablet'),
+(5, 3, 'Amlodipine 5mg', '5mg', 'Take 1 tablet every morning', 30, 5, 30, 'Tablet', 'Once daily', 'MORNING', 'Oral', 'Maintain blood pressure'),
 (6, 4, 'Ibuprofen 400mg', '400mg', 'Take after meals when in pain', 5, 8, 15, 'Tablet', '3 times daily', 'AFTERNOON', 'Oral', 0.53, 7.95, 'Do not take on empty stomach'),
 (7, 5, 'Prenatal Multivitamin', '1 tablet', 'Take 1 tablet daily after breakfast', 30, NULL, 30, 'Tablet', 'Once daily', 'MORNING', 'Oral', 1.83, 54.90, 'Prenatal vitamin'),
 (8, 8, 'Metformin 500mg', '500mg', 'Take after breakfast and dinner', 30, 4, 60, 'Tablet', 'Twice daily', 'MORNING', 'Oral', 0.30, 18.00, NULL),
@@ -527,28 +527,28 @@ SET IDENTITY_INSERT PharmacyOrders OFF;
 
 -- 29. PHARMACY_ORDER_ITEMS (21 items)
 SET IDENTITY_INSERT PharmacyOrderItems ON;
-INSERT INTO PharmacyOrderItems (OrderItemID, OrderID, MedicineID, SourcePrescriptionHeaderID, SourcePrescriptionItemID, medicationName, totalSupplyDays, quantity, unit, frequency, timing, route, unitPrice, totalPrice, notes) VALUES
-(1, 1, 1, 1, 1, 'Paracetamol 500mg', 7, 21, 'Tablet', '3 times daily', 'As needed', 'Oral', 0.30, 6.30, NULL),
-(2, 1, 7, 1, 2, 'Vitamin C 1000mg', 14, 14, 'Tablet', 'Once daily', 'MORNING', 'Oral', 0.93, 13.02, 'Immune support'),
-(3, 2, 1, 2, 3, 'Paracetamol 500mg', 5, 10, 'Tablet', 'As needed', 'When fever', 'Oral', 0.30, 3.00, 'Half tablet for child'),
-(4, 2, 6, 2, 4, 'Cetirizine 10mg', 7, 7, 'Tablet', 'Once daily', 'Night', 'Oral', 0.71, 4.97, 'Half tablet'),
-(5, 3, 5, 3, 5, 'Amlodipine 5mg', 30, 30, 'Tablet', 'Once daily', 'MORNING', 'Oral', 0.63, 18.90, 'Insufficient inventory demo'),
-(6, 3, 1, 3, 11, 'Paracetamol 500mg', 5, 10, 'Tablet', 'As needed', 'When pain', 'Oral', 0.30, 3.00, 'Available item for partial stock demo'),
-(7, 4, 8, 4, 6, 'Ibuprofen 400mg', 5, 15, 'Tablet', '3 times daily', 'AFTERNOON', 'Oral', 0.53, 7.95, NULL),
-(8, 5, NULL, 5, 7, 'Prenatal Multivitamin', 30, 30, 'Tablet', 'Once daily', 'MORNING', 'Oral', 1.83, 54.90, 'Manual medication item without catalog medicine'),
-(9, 6, 1, 6, NULL, 'Cold relief pack', 7, 1, 'Pack', 'As directed', 'As needed', 'Oral', 25.00, 25.00, 'Legacy order item without prescription item'),
-(10, 7, 3, 7, NULL, 'Omeprazole 20mg', 30, 30, 'Capsule', 'Once daily', 'MORNING', 'Oral', 0.53, 15.90, 'Legacy order item without prescription item'),
-(11, 8, 4, 8, 8, 'Metformin 500mg', 30, 60, 'Tablet', 'Twice daily', 'MORNING', 'Oral', 0.30, 18.00, NULL),
-(12, 9, 5, 9, 9, 'Amlodipine 5mg', 30, 30, 'Tablet', 'Once daily', 'MORNING', 'Oral', 0.63, 18.90, NULL),
-(13, 10, 10, 10, 10, 'Allopurinol 300mg', 30, 30, 'Tablet', 'Once daily', 'MORNING', 'Oral', 0.50, 15.00, NULL),
-(14, 11, 10, 10, 10, 'Allopurinol 300mg', 30, 30, 'Tablet', 'Once daily', 'MORNING', 'Oral', 0.50, 15.00, 'Quote item from pharmacy consultation request'),
-(15, 12, 1, 1, 1, 'Paracetamol 500mg', 7, 21, 'Tablet', '3 times daily', 'As needed', 'Oral', 0.30, 6.30, 'Patient confirmed quote'),
-(16, 12, 7, 1, 2, 'Vitamin C 1000mg', 14, 14, 'Tablet', 'Once daily', 'MORNING', 'Oral', 0.93, 13.02, 'Patient confirmed quote'),
-(17, 13, 1, 2, 3, 'Paracetamol 500mg', 5, 10, 'Tablet', 'As needed', 'When fever', 'Oral', 0.30, 3.00, 'Completed pharmacy order'),
-(18, 13, 6, 2, 4, 'Cetirizine 10mg', 7, 7, 'Tablet', 'Once daily', 'Night', 'Oral', 0.71, 4.97, 'Completed pharmacy order'),
-(19, 14, 5, 3, 5, 'Amlodipine 5mg', 30, 30, 'Tablet', 'Once daily', 'MORNING', 'Oral', 0.63, 18.90, 'Refunded partial stock case'),
-(20, 14, 1, 3, 11, 'Paracetamol 500mg', 5, 10, 'Tablet', 'As needed', 'When pain', 'Oral', 0.30, 3.00, 'Refunded partial stock case'),
-(21, 15, 8, 4, 6, 'Ibuprofen 400mg', 5, 15, 'Tablet', '3 times daily', 'AFTERNOON', 'Oral', 0.53, 7.95, 'Ready for pickup');
+INSERT INTO PharmacyOrderItems (OrderItemID, OrderID, MedicineID, SourcePrescriptionHeaderID, SourcePrescriptionItemID, medicationName, totalSupplyDays, quantity, unit, frequency, timing, route, totalPrice, notes) VALUES
+(1, 1, 1, 1, 1, 'Paracetamol 500mg', 7, 21, 'Tablet', '3 times daily', 'As needed', 'Oral', 6.30, NULL),
+(2, 1, 7, 1, 2, 'Vitamin C 1000mg', 14, 14, 'Tablet', 'Once daily', 'MORNING', 'Oral', 13.02, 'Immune support'),
+(3, 2, 1, 2, 3, 'Paracetamol 500mg', 5, 10, 'Tablet', 'As needed', 'When fever', 'Oral', 3.00, 'Half tablet for child'),
+(4, 2, 6, 2, 4, 'Cetirizine 10mg', 7, 7, 'Tablet', 'Once daily', 'Night', 'Oral', 4.97, 'Half tablet'),
+(5, 3, 5, 3, 5, 'Amlodipine 5mg', 30, 30, 'Tablet', 'Once daily', 'MORNING', 'Oral', 18.90, 'Insufficient inventory demo'),
+(6, 3, 1, 3, 11, 'Paracetamol 500mg', 5, 10, 'Tablet', 'As needed', 'When pain', 'Oral', 3.00, 'Available item for partial stock demo'),
+(7, 4, 8, 4, 6, 'Ibuprofen 400mg', 5, 15, 'Tablet', '3 times daily', 'AFTERNOON', 'Oral', 7.95, NULL),
+(8, 5, NULL, 5, 7, 'Prenatal Multivitamin', 30, 30, 'Tablet', 'Once daily', 'MORNING', 'Oral', 54.90, 'Manual medication item without catalog medicine'),
+(9, 6, 1, 6, NULL, 'Cold relief pack', 7, 1, 'Pack', 'As directed', 'As needed', 'Oral', 25.00, 'Legacy order item without prescription item'),
+(10, 7, 3, 7, NULL, 'Omeprazole 20mg', 30, 30, 'Capsule', 'Once daily', 'MORNING', 'Oral', 15.90, 'Legacy order item without prescription item'),
+(11, 8, 4, 8, 8, 'Metformin 500mg', 30, 60, 'Tablet', 'Twice daily', 'MORNING', 'Oral', 18.00, NULL),
+(12, 9, 5, 9, 9, 'Amlodipine 5mg', 30, 30, 'Tablet', 'Once daily', 'MORNING', 'Oral', 18.90, NULL),
+(13, 10, 10, 10, 10, 'Allopurinol 300mg', 30, 30, 'Tablet', 'Once daily', 'MORNING', 'Oral', 15.00, NULL),
+(14, 11, 10, 10, 10, 'Allopurinol 300mg', 30, 30, 'Tablet', 'Once daily', 'MORNING', 'Oral', 15.00, 'Quote item from pharmacy consultation request'),
+(15, 12, 1, 1, 1, 'Paracetamol 500mg', 7, 21, 'Tablet', '3 times daily', 'As needed', 'Oral', 6.30, 'Patient confirmed quote'),
+(16, 12, 7, 1, 2, 'Vitamin C 1000mg', 14, 14, 'Tablet', 'Once daily', 'MORNING', 'Oral', 13.02, 'Patient confirmed quote'),
+(17, 13, 1, 2, 3, 'Paracetamol 500mg', 5, 10, 'Tablet', 'As needed', 'When fever', 'Oral', 3.00, 'Completed pharmacy order'),
+(18, 13, 6, 2, 4, 'Cetirizine 10mg', 7, 7, 'Tablet', 'Once daily', 'Night', 'Oral', 4.97, 'Completed pharmacy order'),
+(19, 14, 5, 3, 5, 'Amlodipine 5mg', 30, 30, 'Tablet', 'Once daily', 'MORNING', 'Oral', 18.90, 'Refunded partial stock case'),
+(20, 14, 1, 3, 11, 'Paracetamol 500mg', 5, 10, 'Tablet', 'As needed', 'When pain', 'Oral', 3.00, 'Refunded partial stock case'),
+(21, 15, 8, 4, 6, 'Ibuprofen 400mg', 5, 15, 'Tablet', '3 times daily', 'AFTERNOON', 'Oral', 7.95, 'Ready for pickup');
 SET IDENTITY_INSERT PharmacyOrderItems OFF;
 
 -- 30. PHARMACY_ORDER_INVOICES (4 invoices)

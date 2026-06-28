@@ -1,11 +1,12 @@
-import React, { memo } from 'react';
+import React, { memo, useMemo } from 'react';
+import { toast } from 'react-toastify';
 import 'bootstrap/dist/css/bootstrap.min.css';
 import 'react-calendar/dist/Calendar.css';
 import '@components/Css/doctor/doctor-dashboard/doctor-dashboard.css';
 import {
   formatDate, formatCompactDate, formatTime, formatDateTime,
   getStatusClassName, getTypeClassName,
-  getPatientInitials, calculateAge, toLocalDateValue, buildFollowUpDateTime,
+  calculateAge, toLocalDateValue, buildFollowUpDateTime,
 } from '@utils/doctor/tabHelpers';
 import { useAppointmentDetail } from '@hooks/doctor/useAppointmentDetail';
 import NotesTab from './tabs/NotesTab';
@@ -14,13 +15,11 @@ import PrescriptionTab from './tabs/PrescriptionTab';
 import SharedRecordsTab from './tabs/SharedRecordsTab';
 import FollowUpTab from './tabs/FollowUpTab';
 import EmptyState from '@components/doctor/EmptyState';
-import AppointmentSummary from '@components/doctor/AppointmentSummary';
 import ActionBar from '@components/doctor/ActionBar';
 import CompleteConfirmModal from '@components/doctor/CompleteConfirmModal';
-import { consultationApi } from '@api/consultationApi';
+import PatientSummarySidebar from '@components/doctor/PatientSummarySidebar';
 
 const TABS = [
-  { id: 'summary', label: 'Summary', icon: 'bi-card-text' },
   { id: 'notes', label: 'Consultation Notes', icon: 'bi-journal-text' },
   { id: 'history', label: 'Medical History', icon: 'bi-clock-history' },
   { id: 'shared', label: 'Shared Records', icon: 'bi-folder2-open' },
@@ -30,6 +29,11 @@ const TABS = [
 
 const DoctorAppointmentDetail = memo(({ appointment, patient, doctorId, onBack, onOpenAppointmentById }) => {
   const ctx = useAppointmentDetail({ appointment, patient, doctorId, onBack, onOpenAppointmentById });
+
+  const showWorkspaceOverlay = useMemo(() =>
+    !ctx.hasAppointmentTimeArrived && !ctx.hasStarted && ctx.statusKey === 'scheduled',
+    [ctx.hasAppointmentTimeArrived, ctx.hasStarted, ctx.statusKey],
+  );
 
   if (!appointment || !patient) {
     return (
@@ -42,7 +46,7 @@ const DoctorAppointmentDetail = memo(({ appointment, patient, doctorId, onBack, 
   }
 
   return (
-    <div className="doctor-detail-layout doctor-detail-shell">
+    <div className="doctor-detail-layout">
       <div className="doctor-detail-back">
         <button className="btn btn-link p-0 text-decoration-none" onClick={() => ctx.onBack?.()} type="button">
           <i className="bi bi-arrow-left me-2"></i>
@@ -50,7 +54,64 @@ const DoctorAppointmentDetail = memo(({ appointment, patient, doctorId, onBack, 
         </button>
       </div>
 
+      <div className="doctor-detail-shell">
       <section className="doctor-detail-card doctor-detail-workspace doctor-detail-workspace--full">
+        <div className="doctor-detail-with-sidebar">
+          <PatientSummarySidebar
+            patient={ctx.patient}
+            patientName={ctx.patientName}
+            visitReason={ctx.visitReason}
+            latestVitalSign={ctx.latestVitalSign}
+            loadingVitalSign={ctx.loadingVitalSign}
+          />
+          <div className="doctor-detail-workspace-main" style={{ position: 'relative' }}>
+            {showWorkspaceOverlay && (
+              <div
+                className="doctor-detail-workspace-overlay"
+                onClick={() => toast.info('Appointment time has not arrived yet.', { toastId: 'appointment-time-locked' })}
+                role="button"
+                tabIndex={0}
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter' || e.key === ' ') {
+                    toast.info('Appointment time has not arrived yet.', { toastId: 'appointment-time-locked' });
+                  }
+                }}
+                aria-label="Workspace locked until appointment time"
+              >
+                <div className="doctor-detail-workspace-overlay__content">
+                  <span className="material-symbols-outlined" style={{ fontSize: '2.5rem', marginBottom: '0.75rem' }}>lock</span>
+                  <p className="doctor-detail-workspace-overlay__title">Appointment Not Yet Started</p>
+                  <p className="doctor-detail-workspace-overlay__desc">
+                    The consultation workspace will be available once the appointment time arrives.
+                    You can start the consultation from the action bar below when the time comes.
+                  </p>
+                </div>
+              </div>
+            )}
+        <div className="doctor-detail-appt-header">
+          <div className="doctor-detail-appt-header__main-row">
+            <span className="doctor-detail-appointment-id">
+              <i className="bi bi-hash"></i>
+              {'Appointment ID: '}{ctx.currentAppointment?.appointmentID || ctx.currentAppointment?.appointmentId || 'N/A'}
+            </span>
+            <span className={getStatusClassName(ctx.currentAppointment?.status)}>
+              {ctx.currentAppointment?.status || 'Unknown'}
+            </span>
+          </div>
+          <div className="doctor-detail-summary__chips">
+            <span className={getTypeClassName(ctx.currentAppointment?.consultationType)}>
+              {ctx.currentAppointment?.consultationType || 'Consultation'}
+            </span>
+            <span className="doctor-detail-chip">
+              <i className="bi bi-calendar3"></i>
+              {formatCompactDate(ctx.currentAppointment?.appointmentTime)}
+            </span>
+            <span className="doctor-detail-chip">
+              <i className="bi bi-clock"></i>
+              {formatTime(ctx.currentAppointment?.appointmentTime)}
+            </span>
+          </div>
+        </div>
         <div className="doctor-detail-tabs" role="tablist" aria-label="Appointment detail tabs">
           {TABS.map((tab) => (
             <button
@@ -68,33 +129,13 @@ const DoctorAppointmentDetail = memo(({ appointment, patient, doctorId, onBack, 
         </div>
 
         <div className="doctor-detail-tab-panel doctor-detail-tab-panel--workspace">
-          {ctx.activeTab === 'summary' ? (
-            <AppointmentSummary
-              currentAppointment={ctx.currentAppointment}
-              patient={ctx.patient}
-              patientName={ctx.patientName}
-              patientEmail={ctx.patientEmail}
-              getStatusClassName={getStatusClassName}
-              getTypeClassName={getTypeClassName}
-              formatCompactDate={formatCompactDate}
-              formatTime={formatTime}
-              calculateAge={calculateAge}
-              getPatientInitials={getPatientInitials}
-              loadingVitalSign={ctx.loadingVitalSign}
-              latestVitalSign={ctx.latestVitalSign}
-              visitReason={ctx.visitReason}
-            />
-          ) : null}
           {ctx.activeTab === 'notes' ? (
               <NotesTab
                 loadingAppointment={ctx.loadingAppointment}
-                visitReason={ctx.visitReason}
                 canEditClinical={ctx.canEditClinical}
-                savingNotes={ctx.savingNotes}
                 notesDraft={ctx.notesDraft}
                 onNotesChange={ctx.handleNotesDraftChange}
                 onSaveNotes={ctx.handleSaveNotes}
-                onLockedAction={ctx.onLockedAction}
               />
             ) : null}
             {ctx.activeTab === 'history' ? (
@@ -119,11 +160,11 @@ const DoctorAppointmentDetail = memo(({ appointment, patient, doctorId, onBack, 
                 patient={ctx.patient}
                 consultation={ctx.consultation}
                 prescription={ctx.prescription}
+                prescriptionDraft={ctx.prescriptionDraft}
                 loadingPrescription={ctx.loadingPrescription}
                 onDraftChange={ctx.setPrescriptionDraft}
                 readOnly={ctx.isReadOnlyAppointment}
                 canEditPrescription={ctx.canEditPrescription}
-                onLockedAction={ctx.onLockedAction}
               />
             ) : null}
             {ctx.activeTab === 'followup' ? (
@@ -154,37 +195,12 @@ const DoctorAppointmentDetail = memo(({ appointment, patient, doctorId, onBack, 
                 renderEmptyState={(title, description) => <EmptyState title={title} description={description} />}
                 followUpConsultationType={ctx.followUpConsultationType}
                 onFollowUpTypeChange={ctx.setFollowUpConsultationType}
-                onLockedAction={ctx.onLockedAction}
               />
             ) : null}
           </div>
+          </div>
+        </div>
 
-          {ctx.currentAppointment?.consultationType === 'Online' && (
-            <div className="px-3 pb-2 d-flex gap-2">
-              <button
-                className="btn btn-outline-primary btn-sm"
-                onClick={async () => {
-                  const cId = ctx.consultation?.consultationId;
-                  console.log('[Propose] consultationId:', cId, 'consultation:', ctx.consultation);
-                  if (!cId) {
-                    console.warn('[Propose] No consultationId available');
-                    return;
-                  }
-                  try {
-                    const result = await consultationApi.proposeHomeVisit(cId);
-                    console.log('[Propose] Success:', result);
-                    alert('Proposal sent to patient successfully!');
-                  } catch (err) {
-                    console.error('[Propose] Failed:', err);
-                    alert('Failed: ' + (err?.response?.data?.message || err.message));
-                  }
-                }}
-                type="button"
-              >
-                <i className="bi bi-house-heart me-1"></i>Propose Home Visit
-              </button>
-            </div>
-          )}
           <ActionBar
             handleChat={ctx.handleChat}
             canStartConsultation={ctx.canStartConsultation}
@@ -198,12 +214,11 @@ const DoctorAppointmentDetail = memo(({ appointment, patient, doctorId, onBack, 
             joinDisabled={ctx.joinDisabled}
             actionLabel={ctx.actionLabel}
             currentAppointment={ctx.currentAppointment}
-            canEditClinical={ctx.canEditClinical}
             completingAppointment={ctx.completingAppointment}
             onCompleteClick={() => ctx.setShowCompleteConfirmModal(true)}
-            onLockedAction={ctx.onLockedAction}
           />
         </section>
+      </div>
 
       <CompleteConfirmModal
         show={ctx.showCompleteConfirmModal}
@@ -213,6 +228,9 @@ const DoctorAppointmentDetail = memo(({ appointment, patient, doctorId, onBack, 
         hasPendingFollowUp={ctx.hasPendingFollowUp}
         onClose={() => ctx.setShowCompleteConfirmModal(false)}
         onConfirm={ctx.handleCompleteAppointment}
+        notesSaved={Boolean(ctx.consultation?.doctorNotes || ctx.consultation?.diagnosis || ctx.consultation?.treatmentPlan)}
+        prescriptionReady={Boolean(ctx.prescription || (ctx.prescriptionDraft?.medicationRows?.length > 0))}
+        followUpConfigured={Boolean(ctx.hasPendingFollowUp || ctx.consultation?.followUpDate)}
       />
     </div>
   );

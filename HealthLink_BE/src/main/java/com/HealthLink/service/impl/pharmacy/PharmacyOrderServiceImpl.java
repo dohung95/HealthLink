@@ -822,7 +822,7 @@ public class PharmacyOrderServiceImpl implements PharmacyOrderService {
             Medicine medicine = medicineRepository.findById(itemRequest.getMedicineId())
                     .orElseThrow(() -> new ResourceNotFoundException(
                             "Medicine", "id", itemRequest.getMedicineId()));
-            BigDecimal unitPrice = normalizeUnitPrice(itemRequest.getUnitPrice(), medicine.getPrice());
+            BigDecimal price = normalizeUnitPrice(medicine.getPrice());
             Integer quantity = normalizePositive(itemRequest.getQuantity(), "Quantity");
             Integer totalSupplyDays = normalizePositive(itemRequest.getTotalSupplyDays(), "Total supply days");
             PrescriptionHeader sourceHeader = resolveSourcePrescriptionHeader(
@@ -845,8 +845,7 @@ public class PharmacyOrderServiceImpl implements PharmacyOrderService {
                     .frequency(PharmacyServiceHelper.trimToNull(itemRequest.getFrequency()))
                     .timing(normalizeOptionalTiming(itemRequest.getTimings(), itemRequest.getTiming()))
                     .route(PharmacyServiceHelper.trimToNull(itemRequest.getRoute()))
-                    .unitPrice(unitPrice)
-                    .totalPrice(unitPrice.multiply(BigDecimal.valueOf(quantity)))
+                    .totalPrice(price.multiply(BigDecimal.valueOf(quantity)))
                     .notes(PharmacyServiceHelper.trimToNull(itemRequest.getNotes()))
                     .build());
         }
@@ -862,13 +861,11 @@ public class PharmacyOrderServiceImpl implements PharmacyOrderService {
         List<PharmacyOrderItem> items = new ArrayList<>();
         for (PrescriptionItem prescriptionItem : prescription.getPrescriptionItems()) {
             Medicine medicine = prescriptionItem.getMedicine();
-            BigDecimal unitPrice = normalizeUnitPrice(prescriptionItem.getUnitPrice(),
+            BigDecimal price = normalizeUnitPrice(
                     medicine != null ? medicine.getPrice() : null);
             Integer quantity = defaultPositive(prescriptionItem.getQuantity());
             Integer totalSupplyDays = defaultPositive(prescriptionItem.getTotalSupplyDays());
-            BigDecimal totalPrice = prescriptionItem.getTotalPrice() != null
-                    ? prescriptionItem.getTotalPrice()
-                    : unitPrice.multiply(BigDecimal.valueOf(quantity));
+            BigDecimal totalPrice = price.multiply(BigDecimal.valueOf(quantity));
 
             items.add(PharmacyOrderItem.builder()
                     .medicine(medicine)
@@ -882,7 +879,6 @@ public class PharmacyOrderServiceImpl implements PharmacyOrderService {
                     .frequency(prescriptionItem.getFrequency())
                     .timing(prescriptionItem.getTiming())
                     .route(prescriptionItem.getRoute())
-                    .unitPrice(unitPrice)
                     .totalPrice(totalPrice)
                     .notes(prescriptionItem.getNotes())
                     .build());
@@ -918,16 +914,6 @@ public class PharmacyOrderServiceImpl implements PharmacyOrderService {
             }
         }
 
-        java.util.Map<Integer, PharmacyInventory> inventoryByMedicineId = inventoryRepository
-                .findByPharmacy_PharmacyIdAndMedicine_MedicineIdIn(pharmacyId, quantitiesByMedicineId.keySet())
-                .stream()
-                .filter(inventory -> Boolean.TRUE.equals(inventory.getActive()))
-                .collect(Collectors.toMap(
-                        inventory -> inventory.getMedicine().getMedicineId(),
-                        inventory -> inventory,
-                        (left, right) -> left
-                ));
-
         List<PharmacyOrderItem> items = new ArrayList<>();
         for (java.util.Map.Entry<Integer, Integer> entry : quantitiesByMedicineId.entrySet()) {
             Medicine medicine = medicinesById.get(entry.getKey());
@@ -938,10 +924,7 @@ public class PharmacyOrderServiceImpl implements PharmacyOrderService {
                 throw new BadRequestException("Medicine " + medicine.getName() + " requires a prescription");
             }
 
-            PharmacyInventory inventory = inventoryByMedicineId.get(entry.getKey());
-            BigDecimal unitPrice = inventory != null && inventory.getUnitPrice() != null
-                    ? inventory.getUnitPrice()
-                    : normalizeUnitPrice(null, medicine.getPrice());
+            BigDecimal price = normalizeUnitPrice(medicine.getPrice());
             Integer quantity = entry.getValue();
 
             items.add(PharmacyOrderItem.builder()
@@ -955,8 +938,7 @@ public class PharmacyOrderServiceImpl implements PharmacyOrderService {
                     .frequency("As directed")
                     .timing(null)
                     .route(null)
-                    .unitPrice(unitPrice)
-                    .totalPrice(unitPrice.multiply(BigDecimal.valueOf(quantity)))
+                    .totalPrice(price.multiply(BigDecimal.valueOf(quantity)))
                     .notes(null)
                     .build());
         }
@@ -1039,15 +1021,14 @@ public class PharmacyOrderServiceImpl implements PharmacyOrderService {
         return value != null && value > 0 ? value : 1;
     }
 
-    private BigDecimal normalizeUnitPrice(BigDecimal requestedPrice, BigDecimal fallbackPrice) {
-        BigDecimal unitPrice = requestedPrice != null ? requestedPrice : fallbackPrice;
-        if (unitPrice == null) {
+    private BigDecimal normalizeUnitPrice(BigDecimal price) {
+        if (price == null) {
             return BigDecimal.ZERO;
         }
-        if (unitPrice.compareTo(BigDecimal.ZERO) < 0) {
+        if (price.compareTo(BigDecimal.ZERO) < 0) {
             throw new BadRequestException("Unit price must be greater than or equal to 0");
         }
-        return unitPrice;
+        return price;
     }
 
     private String normalizeOptionalTiming(List<String> timings, String timing) {

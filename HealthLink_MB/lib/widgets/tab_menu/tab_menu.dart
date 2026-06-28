@@ -1,4 +1,23 @@
 import 'package:flutter/material.dart';
+import '../../l10n/app_localizations.dart';
+
+String _getLocalizedTabLabel(BuildContext context, String label) {
+  final l10n = AppLocalizations.of(context)!;
+  switch (label) {
+    case 'Booking':
+      return l10n.tabBooking;
+    case 'Appointments':
+      return l10n.tabAppointments;
+    case 'Home':
+      return l10n.tabHome;
+    case 'Chat':
+      return l10n.tabChat;
+    case 'prescription':
+      return l10n.tabPrescriptions;
+    default:
+      return label;
+  }
+}
 
 /// Tab menu dùng cho cả Mobile (BottomNavigationBar) và Desktop (Sidebar)
 class TabMenu {
@@ -103,7 +122,7 @@ class MobileTabMenu extends StatelessWidget {
                       ),
                     const SizedBox(height: 4),
                     Text(
-                      item.label,
+                      _getLocalizedTabLabel(context, item.label),
                       style: TextStyle(
                         fontFamily: 'Inter',
                         fontSize: isHome ? 12 : 10,
@@ -140,7 +159,7 @@ class DesktopTabMenu extends StatelessWidget {
     required this.currentIndex,
     required this.onTabChanged,
     this.items = TabMenu.defaultItems,
-    this.title = 'Patient Home',
+    this.title = '',
     this.showProfile = true,
   }) : super(key: key);
 
@@ -160,18 +179,18 @@ class DesktopTabMenu extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 24.0, vertical: 16.0),
-            child: Text(
-              title,
-              style: TextStyle(
-                fontFamily: 'Inter',
-                fontSize: 24,
-                fontWeight: FontWeight.bold,
-                color: Theme.of(context).colorScheme.primary,
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 24.0, vertical: 16.0),
+              child: Text(
+                title.isEmpty ? AppLocalizations.of(context)!.tabHome : title,
+                style: TextStyle(
+                  fontFamily: 'Inter',
+                  fontSize: 24,
+                  fontWeight: FontWeight.bold,
+                  color: Theme.of(context).colorScheme.primary,
+                ),
               ),
             ),
-          ),
           const SizedBox(height: 24),
           Expanded(
             child: ListView.builder(
@@ -180,9 +199,10 @@ class DesktopTabMenu extends StatelessWidget {
               itemBuilder: (context, index) => _buildSideNavItem(
                 context,
                 items[index].icon,
-                items[index].label,
+                _getLocalizedTabLabel(context, items[index].label),
                 index == currentIndex,
                 index,
+                isHome: items[index].label == 'Home',
               ),
             ),
           ),
@@ -192,9 +212,10 @@ class DesktopTabMenu extends StatelessWidget {
               child: _buildSideNavItem(
                 context,
                 Icons.person_outline,
-                'Profile',
+                AppLocalizations.of(context)!.drawerMyProfile,
                 false,
                 -1,
+                isHome: false,
               ),
             ),
         ],
@@ -207,9 +228,9 @@ class DesktopTabMenu extends StatelessWidget {
     IconData icon,
     String title,
     bool isActive,
-    int index,
-  ) {
-    final bool isHome = title == 'Home';
+    int index, {
+    bool isHome = false,
+  }) {
     final colorScheme = Theme.of(context).colorScheme;
     return Container(
       margin: const EdgeInsets.symmetric(vertical: 4),
@@ -235,7 +256,7 @@ class DesktopTabMenu extends StatelessWidget {
           ),
         ),
         title: Text(
-          title,
+          _getLocalizedTabLabel(context, title),
           style: TextStyle(
             fontFamily: 'Inter',
             fontSize: 14,
