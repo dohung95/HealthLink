@@ -6,8 +6,10 @@ import stompChatService from '../services/stompChatService';
 import { getGeminiResponse } from '../services/geminiService';
 import { checkKeywordAndGetBotReply, checkSymptomAndGetSpecialty, getDoctorsBySpecialty } from '../AI_BOT/BotBrain';
 import { doctorService } from '../api/doctorApi';
+import { vitalSignApi } from '../api/vitalSignApi';
 import { toast } from 'sonner';
 import BasicProfileModal from './BasicProfileModal';
+import PreConsultationVitalsModal from './PreConsultationVitalsModal';
 
 // ─── Bot cố định ──────────────
 const BOT_USER = {
@@ -435,7 +437,8 @@ function RoomListItem({ room, currentUserId, onSelect, isActive, isMuted }) {
 export default function ChatPage({ showBot = true }) {
     const navigate = useNavigate();
     const location = useLocation();
-    const { user: authUser, currentUserId, initiateCall, isInCall } = useAuth();
+    const { user: authUser, currentUserId, initiateCall, isInCall, roles } = useAuth();
+    const isPatient = roles && roles.some(r => String(r).trim().toLowerCase() === 'patient');
 
     // Check if we navigated here with a specific partner in state
     const initialStatePartner = location.state?.partnerId ? {
@@ -457,6 +460,32 @@ export default function ChatPage({ showBot = true }) {
     const [isBotTyping, setIsBotTyping] = useState(false);
     const [latestBotMsgId, setLatestBotMsgId] = useState(null);
     const [lightboxImage, setLightboxImage] = useState(null);
+
+    const [hasFilledVitals, setHasFilledVitals] = useState(true);
+    const [showVitalsModal, setShowVitalsModal] = useState(false);
+
+    useEffect(() => {
+        if (currentRoom?.appointmentId && isPatient) {
+            vitalSignApi.getLatestAppointmentVitalSign(currentRoom.appointmentId)
+                .then(res => {
+                    if (res && res.vitalSignId) {
+                        setHasFilledVitals(true);
+                    } else {
+                        setHasFilledVitals(false);
+                    }
+                })
+                .catch(() => {
+                    setHasFilledVitals(false);
+                });
+        } else {
+            setHasFilledVitals(true);
+        }
+    }, [currentRoom?.appointmentId, isPatient]);
+
+    const handleVitalsSaved = () => {
+        setHasFilledVitals(true);
+        setShowVitalsModal(false);
+    };
 
     const [page, setPage] = useState(0);
     const [hasMore, setHasMore] = useState(true);
@@ -1203,7 +1232,7 @@ export default function ChatPage({ showBot = true }) {
         }
     };
 
-    const isAppointmentCompleted = currentRoom?.appointmentStatus === 'COMPLETED';
+    const isAppointmentCompleted = currentRoom?.appointmentStatus?.toUpperCase() === 'COMPLETED';
     const isBlocked = currentRoom?.blockedBy || isAppointmentCompleted;
     const isBlockedByMe = currentRoom?.blockedBy === currentUserId;
 
@@ -1389,7 +1418,17 @@ export default function ChatPage({ showBot = true }) {
                     </div>
 
                     {/* Input box */}
-                    {isBlocked ? (
+                    {(!hasFilledVitals && isPatient && !isAppointmentCompleted) ? (
+                        <div className="p-3 border-top bg-light text-center">
+                            <div className="text-warning mb-2 fw-semibold">
+                                <i className="bi bi-exclamation-triangle-fill me-2"></i>
+                                Please fill in your health information before starting the chat.
+                            </div>
+                            <button className="btn btn-primary btn-sm" onClick={() => setShowVitalsModal(true)}>
+                                Fill Health Info
+                            </button>
+                        </div>
+                    ) : isBlocked ? (
                         <div className="p-3 border-top bg-light text-center">
                             <span className="text-muted fst-italic">
                                 {isBlockedByMe
@@ -1758,6 +1797,15 @@ export default function ChatPage({ showBot = true }) {
                 onClose={() => setShowProfileModal(false)}
                 userId={currentRoom?.user1Id === currentUserId ? currentRoom?.user2Id : currentRoom?.user1Id}
                 role={(currentRoom?.user1Id === currentUserId ? currentRoom?.user2Specialty : currentRoom?.user1Specialty) || ''}
+            />
+
+            {/* --- PreConsultationVitals Modal --- */}
+            <PreConsultationVitalsModal
+                isOpen={showVitalsModal}
+                appointment={{ appointmentId: currentRoom?.appointmentId }}
+                patientId={currentUserId}
+                onClose={() => setShowVitalsModal(false)}
+                onSaved={handleVitalsSaved}
             />
         </div>
     );

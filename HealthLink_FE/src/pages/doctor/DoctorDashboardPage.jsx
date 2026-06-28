@@ -12,6 +12,8 @@ import { DoctorSkeletonPage } from '@components/doctor/DoctorSkeleton';
 import DoctorErrorState from '@components/doctor/DoctorErrorState';
 import { useNotifications } from '@hooks/doctor/useNotifications';
 import { NAV_ITEMS, normalizeAppointmentDetail } from '@layouts/navigationConfig';
+import { getMyRooms } from '@api/chatApi';
+import stompChatService from '@services/stompChatService';
 import DoctorChangePasswordModal from '@components/doctor/DoctorChangePasswordModal';
 import DoctorProfilePage from '@pages/doctor/DoctorProfilePage';
 
@@ -76,6 +78,8 @@ const DoctorDashboardPage = () => {
   const seenNotificationIds = useRef(new Set());
   const signalRRef = useRef(null);
 
+  const [chatUnreadCount, setChatUnreadCount] = useState(0);
+
   const doctorId = doctorData?.doctorID || doctorData?.doctorId;
 
   const currentNavItem = useMemo(() => {
@@ -136,9 +140,40 @@ const DoctorDashboardPage = () => {
     }
   };
 
+  const refreshChatUnreadCount = useCallback(async () => {
+    if (!isAuthenticated) return;
+    try {
+      const rooms = await getMyRooms();
+      const total = rooms.reduce((acc, r) => acc + (r.unreadCount || 0), 0);
+      setChatUnreadCount(total);
+    } catch (err) {
+      console.error('Failed to fetch chat unread count:', err);
+    }
+  }, [isAuthenticated]);
+
   useEffect(() => {
     fetchDoctorData();
   }, []);
+
+  useEffect(() => {
+    if (!isAuthenticated) return;
+
+    refreshChatUnreadCount();
+
+    const unsub = stompChatService.subscribeToChat(() => {
+      refreshChatUnreadCount();
+    });
+
+    const handleReadUpdate = () => {
+      refreshChatUnreadCount();
+    };
+    window.addEventListener('chat-read-updated', handleReadUpdate);
+
+    return () => {
+      unsub();
+      window.removeEventListener('chat-read-updated', handleReadUpdate);
+    };
+  }, [isAuthenticated, refreshChatUnreadCount]);
 
   useEffect(() => {
     if (!isAuthenticated) return;
@@ -258,6 +293,7 @@ const DoctorDashboardPage = () => {
       showAllNotifications={notificationsHook.showAllNotifications}
       notifications={notificationsHook.notifications}
       unreadCount={notificationsHook.unreadCount}
+      chatUnreadCount={chatUnreadCount}
       showNotificationDropdown={notificationsHook.showNotificationDropdown}
       notificationRef={notificationsHook.notificationRef}
       onNavigate={(key) => selectView(key)}

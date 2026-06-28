@@ -1,5 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { appointmentService } from '../api/appointmentApi';
+import { vitalSignApi } from '../api/vitalSignApi';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import { useChat } from '../context/ChatContext';
@@ -190,7 +191,22 @@ const MyAppointments = () => {
         setPendingAppointmentId(null);
     };
 
-    const openVitalsBeforeConsultation = (appointment, action) => {
+    const openVitalsBeforeConsultation = async (appointment, action) => {
+        try {
+            const vitals = await vitalSignApi.getLatestAppointmentVitalSign(appointment.appointmentId);
+            if (vitals && vitals.vitalSignId) {
+                if (action === 'chat') {
+                    await handleChat(appointment);
+                } else if (action === 'online' || action === 'video') {
+                    await handleVideoCall(appointment);
+                }
+                return;
+            }
+        } catch (error) {
+            // No vitals found or error, continue to show modal
+            console.log("No vitals found or error:", error);
+        }
+
         setPendingConsultationAppointment(appointment);
         setPendingConsultationAction(action);
         setShowVitalsModal(true);

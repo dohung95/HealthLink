@@ -11,6 +11,7 @@ const DoctorLayout = memo(({
   showAllNotifications,
   notifications,
   unreadCount,
+  chatUnreadCount = 0,
   showNotificationDropdown,
   notificationRef,
   onNavigate,
@@ -49,6 +50,11 @@ const DoctorLayout = memo(({
           >
             <span className="material-symbols-outlined">{item.icon}</span>
             <span>{item.label}</span>
+            {item.key === 'chat' && chatUnreadCount > 0 && (
+                <span className="badge bg-danger rounded-pill ms-auto" style={{ fontSize: '0.75rem' }}>
+                    {chatUnreadCount > 99 ? '99+' : chatUnreadCount}
+                </span>
+            )}
           </button>
         );
       })}
