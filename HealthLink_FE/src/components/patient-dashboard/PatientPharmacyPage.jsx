@@ -1173,8 +1173,8 @@ function OrderDetailView({ orderId, userId, navigate }) {
                         <tr key={i}>
                           <td>{item.medicationName || item.name}</td>
                           <td>{item.quantity}</td>
-                          <td>${Number(item.unitPrice || item.price || 0).toFixed(2)}</td>
-                          <td>${Number((item.unitPrice || item.price || 0) * (item.quantity || 1)).toFixed(2)}</td>
+                          <td>${Number((item.totalPrice || 0) / (item.quantity || 1)).toFixed(2)}</td>
+                          <td>${Number(item.totalPrice || 0).toFixed(2)}</td>
                         </tr>
                       ))}
                     </tbody>

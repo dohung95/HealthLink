@@ -444,8 +444,6 @@ class FollowUpAppointmentServiceImplTest {
                 .frequency("Once daily")
                 .timing("MORNING")
                 .route("Oral")
-                .unitPrice(new BigDecimal("1.00"))
-                .totalPrice(new BigDecimal("30.00"))
                 .build());
 
         return header;

@@ -257,8 +257,6 @@ public class AdminMedicalRecordService {
             .frequency(item.getFrequency())
             .timing(item.getTiming())
             .route(item.getRoute())
-            .unitPrice(item.getUnitPrice())
-            .totalPrice(item.getTotalPrice())
             .notes(item.getNotes())
             .build();
     }

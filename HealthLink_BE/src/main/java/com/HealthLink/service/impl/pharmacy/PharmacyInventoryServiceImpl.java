@@ -50,7 +50,7 @@ public class PharmacyInventoryServiceImpl implements PharmacyInventoryService {
 
     private static final String[] TEMPLATE_CSV_HEADERS = {
             "medicineId", "medicineName", "strength", "dosageForm", "unit",
-            "quantity", "reservedQuantity", "availableQuantity", "unitPrice", "expiryDate", "active"
+            "quantity", "reservedQuantity", "availableQuantity", "expiryDate", "active"
     };
 
     private final PharmacyInventoryRepository inventoryRepository;
@@ -102,9 +102,6 @@ public class PharmacyInventoryServiceImpl implements PharmacyInventoryService {
                 throw new BadRequestException("Reserved quantity must be >= 0");
             }
             inventory.setReservedQuantity(request.getReservedQuantity());
-        }
-        if (request.getUnitPrice() != null) {
-            inventory.setUnitPrice(request.getUnitPrice());
         }
         if (request.getUnit() != null) {
             inventory.setUnit(request.getUnit());
@@ -242,25 +239,6 @@ public class PharmacyInventoryServiceImpl implements PharmacyInventoryService {
             }
         }
 
-        String unitPriceStr = getCsvValue(record, "unitPrice");
-        BigDecimal unitPrice = null;
-        if (unitPriceStr != null && !unitPriceStr.isBlank()) {
-            try {
-                unitPrice = new BigDecimal(unitPriceStr);
-                if (unitPrice.compareTo(BigDecimal.ZERO) < 0) {
-                    throw new NumberFormatException("Negative");
-                }
-            } catch (NumberFormatException e) {
-                rowErrors.add(PharmacyInventoryRowError.builder()
-                        .rowNumber(rowIndex)
-                        .medicineId(medicineId)
-                        .medicineName(medicineName)
-                        .message("Invalid unitPrice: " + unitPriceStr)
-                        .build());
-                return null;
-            }
-        }
-
         LocalDate expiryDate = null;
         String expiryDateStr = getCsvValue(record, "expiryDate");
         if (expiryDateStr != null && !expiryDateStr.isBlank()) {
@@ -335,15 +313,10 @@ public class PharmacyInventoryServiceImpl implements PharmacyInventoryService {
             return null;
         }
 
-        if (unitPrice == null) {
-            unitPrice = medicine.getPrice() != null ? medicine.getPrice() : BigDecimal.ZERO;
-        }
-
         return ImportRowResult.builder()
                 .medicine(medicine)
                 .quantity(quantity)
                 .reservedQuantity(reservedQuantity)
-                .unitPrice(unitPrice)
                 .unit(unit)
                 .expiryDate(expiryDate)
                 .active(active)
@@ -369,7 +342,6 @@ public class PharmacyInventoryServiceImpl implements PharmacyInventoryService {
                 if (row.getReservedQuantity() != null) {
                     existing.setReservedQuantity(row.getReservedQuantity());
                 }
-                existing.setUnitPrice(row.getUnitPrice());
                 if (row.getUnit() != null) {
                     existing.setUnit(row.getUnit());
                 }
@@ -385,7 +357,6 @@ public class PharmacyInventoryServiceImpl implements PharmacyInventoryService {
                         .medicine(medicine)
                         .quantity(row.getQuantity())
                         .reservedQuantity(row.getReservedQuantity() != null ? row.getReservedQuantity() : 0)
-                        .unitPrice(row.getUnitPrice())
                         .unit(row.getUnit() != null ? row.getUnit() : medicine.getUnit())
                         .expiryDate(row.getExpiryDate())
                         .active(row.isActive())
@@ -435,7 +406,6 @@ public class PharmacyInventoryServiceImpl implements PharmacyInventoryService {
                             0,
                             0,
                             0,
-                            "0",
                             "",
                             "false");
                     continue;
@@ -452,7 +422,6 @@ public class PharmacyInventoryServiceImpl implements PharmacyInventoryService {
                         quantity,
                         reservedQuantity,
                         quantity - reservedQuantity,
-                        formatDecimal(inventory.getUnitPrice()),
                         formatDate(inventory.getExpiryDate()),
                         String.valueOf(Boolean.TRUE.equals(inventory.getActive())));
             }
@@ -501,7 +470,6 @@ public class PharmacyInventoryServiceImpl implements PharmacyInventoryService {
                 .quantity(inv.getQuantity())
                 .reservedQuantity(inv.getReservedQuantity())
                 .availableQuantity(inv.getAvailableQuantity())
-                .unitPrice(inv.getUnitPrice())
                 .expiryDate(inv.getExpiryDate())
                 .active(inv.getActive())
                 .lastImportedAt(inv.getLastImportedAt())
@@ -516,7 +484,6 @@ public class PharmacyInventoryServiceImpl implements PharmacyInventoryService {
         private Medicine medicine;
         private int quantity;
         private Integer reservedQuantity;
-        private BigDecimal unitPrice;
         private String unit;
         private LocalDate expiryDate;
         private boolean active;

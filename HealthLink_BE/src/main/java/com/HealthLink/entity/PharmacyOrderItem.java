@@ -73,7 +73,6 @@ public class PharmacyOrderItem {
     @Column(length = 50)
     private String route;
 
-    private BigDecimal unitPrice;
     private BigDecimal totalPrice;
 
     @Column(length = 500)

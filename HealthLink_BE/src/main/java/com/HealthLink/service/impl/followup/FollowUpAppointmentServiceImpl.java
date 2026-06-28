@@ -604,8 +604,6 @@ public class FollowUpAppointmentServiceImpl implements FollowUpAppointmentServic
                         .frequency(sourceItem.getFrequency())
                         .timing(sourceItem.getTiming())
                         .route(sourceItem.getRoute())
-                        .unitPrice(sourceItem.getUnitPrice())
-                        .totalPrice(sourceItem.getTotalPrice())
                         .notes(sourceItem.getNotes())
                         .build());
             }

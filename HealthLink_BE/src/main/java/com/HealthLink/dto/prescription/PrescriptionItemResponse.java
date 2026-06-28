@@ -3,7 +3,6 @@ package com.HealthLink.dto.prescription;
 import lombok.Builder;
 import lombok.Data;
 
-import java.math.BigDecimal;
 import java.util.List;
 
 @Data
@@ -21,7 +20,5 @@ public class PrescriptionItemResponse {
     private String timing;
     private List<String> timings;
     private String route;
-    private BigDecimal unitPrice;
-    private BigDecimal totalPrice;
     private String notes;
 }

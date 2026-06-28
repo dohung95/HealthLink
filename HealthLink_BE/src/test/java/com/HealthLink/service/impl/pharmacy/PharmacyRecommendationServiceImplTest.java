@@ -425,8 +425,8 @@ class PharmacyRecommendationServiceImplTest {
         when(medicineRepository.findAllById(anyCollection())).thenReturn(List.of(med1, med2));
         when(inventoryRepository.findByPharmacy_PharmacyIdAndMedicine_MedicineIdIn(eq("pharmacy-1"), anyCollection()))
                 .thenReturn(List.of(
-                        inventory(pharmacy, med1, 10, true, new BigDecimal("2.50")),
-                        inventory(pharmacy, med2, 5, true, new BigDecimal("4.00"))
+                        inventory(pharmacy, med1, 10, true),
+                        inventory(pharmacy, med2, 5, true)
                 ));
 
         List<RetailPharmacyRecommendationResponse> results = recommendationService.getRetailRecommendations(
@@ -444,7 +444,7 @@ class PharmacyRecommendationServiceImplTest {
         assertThat(result.getStockStatus()).isEqualTo("FULL");
         assertThat(result.getAvailableItems()).hasSize(2);
         assertThat(result.getMissingItems()).isEmpty();
-        assertThat(result.getMedicineSubtotal()).isEqualByComparingTo("9.00");
+        assertThat(result.getMedicineSubtotal()).isEqualByComparingTo("7.00");
     }
 
     @Test
@@ -466,7 +466,7 @@ class PharmacyRecommendationServiceImplTest {
         when(medicineRepository.findAllById(anyCollection())).thenReturn(List.of(med1, med2));
         when(inventoryRepository.findByPharmacy_PharmacyIdAndMedicine_MedicineIdIn(eq("pharmacy-1"), anyCollection()))
                 .thenReturn(List.of(
-                        inventory(pharmacy, med1, 1, true, new BigDecimal("2.50"))
+                        inventory(pharmacy, med1, 1, true)
                 ));
 
         List<RetailPharmacyRecommendationResponse> results = recommendationService.getRetailRecommendations(
@@ -516,23 +516,12 @@ class PharmacyRecommendationServiceImplTest {
     }
 
     private PharmacyInventory inventory(Pharmacy pharmacy, Medicine medicine, int quantity, boolean active) {
-        return inventory(pharmacy, medicine, quantity, active, new BigDecimal("1.00"));
-    }
-
-    private PharmacyInventory inventory(
-            Pharmacy pharmacy,
-            Medicine medicine,
-            int quantity,
-            boolean active,
-            BigDecimal unitPrice
-    ) {
         return PharmacyInventory.builder()
                 .pharmacy(pharmacy)
                 .medicine(medicine)
                 .quantity(quantity)
                 .reservedQuantity(0)
                 .active(active)
-                .unitPrice(unitPrice)
                 .unit("tablet")
                 .build();
     }

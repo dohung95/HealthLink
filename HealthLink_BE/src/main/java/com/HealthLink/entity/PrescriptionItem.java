@@ -1,7 +1,6 @@
 package com.HealthLink.entity;
 import jakarta.persistence.*;
 import lombok.*;
-import java.math.BigDecimal;
 
 @Entity
 @Table(name = "PrescriptionItems")
@@ -49,9 +48,6 @@ public class PrescriptionItem {
 
     @Column(length = 50)
     private String route;
-
-    private BigDecimal unitPrice;
-    private BigDecimal totalPrice;
 
     @Column(length = 500)
     private String notes;

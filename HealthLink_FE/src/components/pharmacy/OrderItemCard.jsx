@@ -22,7 +22,7 @@ const FREQUENCY_OPTIONS = [
 ];
 
 function lineTotal(item) {
-  return Number(item.quantity || 0) * Number(item.unitPrice || 0);
+  return Number(item.totalPrice || 0);
 }
 
 function getTimingLabel(value) {
@@ -40,9 +40,9 @@ export default function OrderItemCard({ item, onUpdate, onRemove, index, expande
         <div className="pharmacy-order-item-info">
           <span className="pharmacy-order-item-number">{index}</span>
           <strong className="pharmacy-order-item-name">{item.medicationName}</strong>
-          {!expanded && (
+            {!expanded && (
             <span className="pharmacy-order-item-meta">
-              {item.quantity} x {money(item.unitPrice)}
+              {item.quantity} x {money(item.totalPrice / (item.quantity || 1))}
               {item.frequency ? ` - ${item.frequency}` : ''}
               {item.timing ? ` - ${getTimingLabel(item.timing)}` : ''}
             </span>
@@ -75,10 +75,6 @@ export default function OrderItemCard({ item, onUpdate, onRemove, index, expande
             <div className="col-6 col-md-3">
               <label className="form-label">ROUTE</label>
               <input className="form-control form-control-sm" disabled value={item.route || 'Oral'} />
-            </div>
-            <div className="col-6 col-md-3">
-              <label className="form-label">UNIT PRICE</label>
-              <input className="form-control form-control-sm" disabled={!lockedMedication} value={item.unitPrice} onChange={(e) => onUpdate(item.localId, 'unitPrice', e.target.value)} />
             </div>
             <div className="col-4">
               <label className="form-label">UNIT</label>

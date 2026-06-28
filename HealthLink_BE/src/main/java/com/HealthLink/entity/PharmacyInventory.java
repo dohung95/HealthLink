@@ -3,7 +3,6 @@ package com.HealthLink.entity;
 import jakarta.persistence.*;
 import lombok.*;
 
-import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 
@@ -38,9 +37,6 @@ public class PharmacyInventory {
     @Builder.Default
     @Column(nullable = false)
     private Integer reservedQuantity = 0;
-
-    @Column(precision = 18, scale = 2)
-    private BigDecimal unitPrice;
 
     @Column(length = 50)
     private String unit;
