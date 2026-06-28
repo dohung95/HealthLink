@@ -147,7 +147,6 @@ class PharmacyInventoryServiceImplTest {
         PharmacyInventoryUpdateRequest request = new PharmacyInventoryUpdateRequest();
         request.setQuantity(80);
         request.setReservedQuantity(5);
-        request.setUnitPrice(new BigDecimal("1.50"));
         request.setUnit("bottle");
         request.setExpiryDate(LocalDate.of(2027, 12, 31));
         request.setActive(false);
@@ -156,7 +155,6 @@ class PharmacyInventoryServiceImplTest {
 
         assertThat(response.getQuantity()).isEqualTo(80);
         assertThat(response.getReservedQuantity()).isEqualTo(5);
-        assertThat(response.getUnitPrice()).isEqualByComparingTo("1.50");
         assertThat(response.getUnit()).isEqualTo("bottle");
         assertThat(response.getActive()).isFalse();
     }
@@ -208,9 +206,9 @@ class PharmacyInventoryServiceImplTest {
 
     @Test
     void importCsv_newItems() throws Exception {
-        String csv = "medicineId,medicineName,strength,dosageForm,quantity,unitPrice,unit,expiryDate,active\n" +
-                     "1,Paracetamol 500mg,500mg,Tablet,120,0.50,tablet,2027-12-31,true\n" +
-                     "2,Amoxicillin 250mg,250mg,Capsule,80,0.75,capsule,2026-06-30,true\n";
+        String csv = "medicineId,medicineName,strength,dosageForm,quantity,unit,expiryDate,active\n" +
+                     "1,Paracetamol 500mg,500mg,Tablet,120,tablet,2027-12-31,true\n" +
+                     "2,Amoxicillin 250mg,250mg,Capsule,80,capsule,2026-06-30,true\n";
 
         Pharmacy pharmacy = Pharmacy.builder().pharmacyId("pharmacy-1").name("Central Pharmacy").build();
         when(pharmacyRepository.findById("pharmacy-1")).thenReturn(Optional.of(pharmacy));
@@ -232,8 +230,8 @@ class PharmacyInventoryServiceImplTest {
 
     @Test
     void importCsv_existingItems() throws Exception {
-        String csv = "medicineId,medicineName,strength,dosageForm,quantity,unitPrice,unit,expiryDate,active\n" +
-                     "1,Paracetamol 500mg,500mg,Tablet,200,0.60,tablet,2028-01-01,true\n";
+        String csv = "medicineId,medicineName,strength,dosageForm,quantity,unit,expiryDate,active\n" +
+                     "1,Paracetamol 500mg,500mg,Tablet,200,tablet,2028-01-01,true\n";
 
         Pharmacy pharmacy = Pharmacy.builder().pharmacyId("pharmacy-1").name("Central Pharmacy").build();
         when(pharmacyRepository.findById("pharmacy-1")).thenReturn(Optional.of(pharmacy));
@@ -255,9 +253,9 @@ class PharmacyInventoryServiceImplTest {
 
     @Test
     void importCsv_duplicateMedicineRowsMerged() throws Exception {
-        String csv = "medicineId,medicineName,strength,dosageForm,quantity,unitPrice,unit,expiryDate,active\n" +
-                     "1,Paracetamol 500mg,500mg,Tablet,100,0.50,tablet,2027-12-31,true\n" +
-                     "1,Paracetamol 500mg,500mg,Tablet,250,0.55,tablet,2028-06-30,true\n";
+        String csv = "medicineId,medicineName,strength,dosageForm,quantity,unit,expiryDate,active\n" +
+                     "1,Paracetamol 500mg,500mg,Tablet,100,tablet,2027-12-31,true\n" +
+                     "1,Paracetamol 500mg,500mg,Tablet,250,tablet,2028-06-30,true\n";
 
         Pharmacy pharmacy = Pharmacy.builder().pharmacyId("pharmacy-1").name("Central Pharmacy").build();
         when(pharmacyRepository.findById("pharmacy-1")).thenReturn(Optional.of(pharmacy));
@@ -276,8 +274,8 @@ class PharmacyInventoryServiceImplTest {
 
     @Test
     void importCsv_invalidMedicineId() throws Exception {
-        String csv = "medicineId,medicineName,strength,dosageForm,quantity,unitPrice,unit,expiryDate,active\n" +
-                     "abc,Test Med,500mg,Tablet,100,0.50,tablet,2027-12-31,true\n";
+        String csv = "medicineId,medicineName,strength,dosageForm,quantity,unit,expiryDate,active\n" +
+                     "abc,Test Med,500mg,Tablet,100,tablet,2027-12-31,true\n";
 
         when(pharmacyRepository.findById("pharmacy-1")).thenReturn(Optional.of(Pharmacy.builder().pharmacyId("pharmacy-1").build()));
 
@@ -290,8 +288,8 @@ class PharmacyInventoryServiceImplTest {
 
     @Test
     void importCsv_medicineIdNotFound() throws Exception {
-        String csv = "medicineId,medicineName,strength,dosageForm,quantity,unitPrice,unit,expiryDate,active\n" +
-                     "999,Unknown Med,500mg,Tablet,100,0.50,tablet,2027-12-31,true\n";
+        String csv = "medicineId,medicineName,strength,dosageForm,quantity,unit,expiryDate,active\n" +
+                     "999,Unknown Med,500mg,Tablet,100,tablet,2027-12-31,true\n";
 
         when(pharmacyRepository.findById("pharmacy-1")).thenReturn(Optional.of(Pharmacy.builder().pharmacyId("pharmacy-1").build()));
         when(medicineRepository.findById(999)).thenReturn(Optional.empty());
@@ -305,8 +303,8 @@ class PharmacyInventoryServiceImplTest {
 
     @Test
     void importCsv_medicineNameMultipleMatches() throws Exception {
-        String csv = "medicineId,medicineName,strength,dosageForm,quantity,unitPrice,unit,expiryDate,active\n" +
-                     ",Para,500mg,Tablet,100,0.50,tablet,2027-12-31,true\n";
+        String csv = "medicineId,medicineName,strength,dosageForm,quantity,unit,expiryDate,active\n" +
+                     ",Para,500mg,Tablet,100,tablet,2027-12-31,true\n";
 
         when(pharmacyRepository.findById("pharmacy-1")).thenReturn(Optional.of(Pharmacy.builder().pharmacyId("pharmacy-1").build()));
         Medicine med1 = Medicine.builder().medicineId(1).name("Paracetamol 500mg").active(true).build();
@@ -322,8 +320,8 @@ class PharmacyInventoryServiceImplTest {
 
     @Test
     void importCsv_noMedicineIdOrName() throws Exception {
-        String csv = "medicineId,medicineName,strength,dosageForm,quantity,unitPrice,unit,expiryDate,active\n" +
-                     ",,500mg,Tablet,100,0.50,tablet,2027-12-31,true\n";
+        String csv = "medicineId,medicineName,strength,dosageForm,quantity,unit,expiryDate,active\n" +
+                     ",,500mg,Tablet,100,tablet,2027-12-31,true\n";
 
         when(pharmacyRepository.findById("pharmacy-1")).thenReturn(Optional.of(Pharmacy.builder().pharmacyId("pharmacy-1").build()));
 
@@ -336,8 +334,8 @@ class PharmacyInventoryServiceImplTest {
 
     @Test
     void importCsv_invalidQuantity() throws Exception {
-        String csv = "medicineId,medicineName,strength,dosageForm,quantity,unitPrice,unit,expiryDate,active\n" +
-                     "1,Paracetamol 500mg,500mg,Tablet,abc,0.50,tablet,2027-12-31,true\n";
+        String csv = "medicineId,medicineName,strength,dosageForm,quantity,unit,expiryDate,active\n" +
+                     "1,Paracetamol 500mg,500mg,Tablet,abc,tablet,2027-12-31,true\n";
 
         when(pharmacyRepository.findById("pharmacy-1")).thenReturn(Optional.of(Pharmacy.builder().pharmacyId("pharmacy-1").build()));
 
@@ -350,8 +348,8 @@ class PharmacyInventoryServiceImplTest {
 
     @Test
     void importCsv_negativeQuantity() throws Exception {
-        String csv = "medicineId,medicineName,strength,dosageForm,quantity,unitPrice,unit,expiryDate,active\n" +
-                     "1,Paracetamol 500mg,500mg,Tablet,-5,0.50,tablet,2027-12-31,true\n";
+        String csv = "medicineId,medicineName,strength,dosageForm,quantity,unit,expiryDate,active\n" +
+                     "1,Paracetamol 500mg,500mg,Tablet,-5,tablet,2027-12-31,true\n";
 
         when(pharmacyRepository.findById("pharmacy-1")).thenReturn(Optional.of(Pharmacy.builder().pharmacyId("pharmacy-1").build()));
 
@@ -364,8 +362,8 @@ class PharmacyInventoryServiceImplTest {
 
     @Test
     void importCsv_missingQuantity() throws Exception {
-        String csv = "medicineId,medicineName,strength,dosageForm,quantity,unitPrice,unit,expiryDate,active\n" +
-                     "1,Paracetamol 500mg,500mg,Tablet,,0.50,tablet,2027-12-31,true\n";
+        String csv = "medicineId,medicineName,strength,dosageForm,quantity,unit,expiryDate,active\n" +
+                     "1,Paracetamol 500mg,500mg,Tablet,,tablet,2027-12-31,true\n";
 
         when(pharmacyRepository.findById("pharmacy-1")).thenReturn(Optional.of(Pharmacy.builder().pharmacyId("pharmacy-1").build()));
 
@@ -377,37 +375,9 @@ class PharmacyInventoryServiceImplTest {
     }
 
     @Test
-    void importCsv_invalidUnitPrice() throws Exception {
-        String csv = "medicineId,medicineName,strength,dosageForm,quantity,unitPrice,unit,expiryDate,active\n" +
-                     "1,Paracetamol 500mg,500mg,Tablet,100,abc,tablet,2027-12-31,true\n";
-
-        when(pharmacyRepository.findById("pharmacy-1")).thenReturn(Optional.of(Pharmacy.builder().pharmacyId("pharmacy-1").build()));
-
-        MultipartFile file = mockCsvFile(csv);
-        PharmacyInventoryImportResult result = inventoryService.importCsv("pharmacy-1", file);
-
-        assertThat(result.getSkippedCount()).isEqualTo(1);
-        assertThat(result.getRowErrors()).anyMatch(e -> e.getMessage().contains("Invalid unitPrice"));
-    }
-
-    @Test
-    void importCsv_negativeUnitPrice() throws Exception {
-        String csv = "medicineId,medicineName,strength,dosageForm,quantity,unitPrice,unit,expiryDate,active\n" +
-                     "1,Paracetamol 500mg,500mg,Tablet,100,-0.50,tablet,2027-12-31,true\n";
-
-        when(pharmacyRepository.findById("pharmacy-1")).thenReturn(Optional.of(Pharmacy.builder().pharmacyId("pharmacy-1").build()));
-
-        MultipartFile file = mockCsvFile(csv);
-        PharmacyInventoryImportResult result = inventoryService.importCsv("pharmacy-1", file);
-
-        assertThat(result.getSkippedCount()).isEqualTo(1);
-        assertThat(result.getRowErrors()).anyMatch(e -> e.getMessage().contains("Invalid unitPrice"));
-    }
-
-    @Test
     void importCsv_invalidExpiryDate() throws Exception {
-        String csv = "medicineId,medicineName,strength,dosageForm,quantity,unitPrice,unit,expiryDate,active\n" +
-                     "1,Paracetamol 500mg,500mg,Tablet,100,0.50,tablet,not-a-date,true\n";
+        String csv = "medicineId,medicineName,strength,dosageForm,quantity,unit,expiryDate,active\n" +
+                     "1,Paracetamol 500mg,500mg,Tablet,100,tablet,not-a-date,true\n";
 
         when(pharmacyRepository.findById("pharmacy-1")).thenReturn(Optional.of(Pharmacy.builder().pharmacyId("pharmacy-1").build()));
 
@@ -447,8 +417,8 @@ class PharmacyInventoryServiceImplTest {
 
     @Test
     void importCsv_inactiveMedicine() throws Exception {
-        String csv = "medicineId,medicineName,strength,dosageForm,quantity,unitPrice,unit,expiryDate,active\n" +
-                     "1,Archived Med,500mg,Tablet,100,0.50,tablet,2027-12-31,true\n";
+        String csv = "medicineId,medicineName,strength,dosageForm,quantity,unit,expiryDate,active\n" +
+                     "1,Archived Med,500mg,Tablet,100,tablet,2027-12-31,true\n";
 
         when(pharmacyRepository.findById("pharmacy-1")).thenReturn(Optional.of(Pharmacy.builder().pharmacyId("pharmacy-1").build()));
         Medicine med = Medicine.builder().medicineId(1).name("Archived Med").active(false).build();
@@ -462,33 +432,9 @@ class PharmacyInventoryServiceImplTest {
     }
 
     @Test
-    void importCsv_usesMedicinePriceWhenUnitPriceEmpty() throws Exception {
-        String csv = "medicineId,medicineName,strength,dosageForm,quantity,unitPrice,unit,expiryDate,active\n" +
-                     "1,Paracetamol 500mg,500mg,Tablet,100,,tablet,2027-12-31,true\n";
-
-        Pharmacy pharmacy = Pharmacy.builder().pharmacyId("pharmacy-1").name("Central Pharmacy").build();
-        when(pharmacyRepository.findById("pharmacy-1")).thenReturn(Optional.of(pharmacy));
-
-        Medicine med = Medicine.builder().medicineId(1).name("Paracetamol 500mg").price(new BigDecimal("1.25")).unit("tablet").active(true).build();
-        when(medicineRepository.findById(1)).thenReturn(Optional.of(med));
-        when(inventoryRepository.findByPharmacy_PharmacyIdAndMedicine_MedicineId(anyString(), anyInt()))
-                .thenReturn(Optional.empty());
-
-        MultipartFile file = mockCsvFile(csv);
-        PharmacyInventoryImportResult result = inventoryService.importCsv("pharmacy-1", file);
-
-        assertThat(result.getImportedCount()).isEqualTo(1);
-        assertThat(result.getSkippedCount()).isEqualTo(0);
-
-        ArgumentCaptor<PharmacyInventory> captor = ArgumentCaptor.forClass(PharmacyInventory.class);
-        verify(inventoryRepository).save(captor.capture());
-        assertThat(captor.getValue().getUnitPrice()).isEqualByComparingTo("1.25");
-    }
-
-    @Test
     void importCsv_usesMedicineUnitWhenUnitEmpty() throws Exception {
-        String csv = "medicineId,medicineName,strength,dosageForm,quantity,unitPrice,unit,expiryDate,active\n" +
-                     "1,Paracetamol 500mg,500mg,Tablet,100,0.50,,2027-12-31,true\n";
+        String csv = "medicineId,medicineName,strength,dosageForm,quantity,unit,expiryDate,active\n" +
+                     "1,Paracetamol 500mg,500mg,Tablet,100,tablet,,true\n";
 
         Pharmacy pharmacy = Pharmacy.builder().pharmacyId("pharmacy-1").name("Central Pharmacy").build();
         when(pharmacyRepository.findById("pharmacy-1")).thenReturn(Optional.of(pharmacy));
@@ -526,7 +472,7 @@ class PharmacyInventoryServiceImplTest {
 
         byte[] template = inventoryService.generateCsvTemplate("pharmacy-1");
         String content = new String(template, StandardCharsets.UTF_8);
-        assertThat(content).startsWith("medicineId,medicineName,strength,dosageForm,unit,quantity,reservedQuantity,availableQuantity,unitPrice,expiryDate,active");
+        assertThat(content).startsWith("medicineId,medicineName,strength,dosageForm,unit,quantity,reservedQuantity,availableQuantity,expiryDate,active");
     }
 
     @Test
@@ -551,7 +497,6 @@ class PharmacyInventoryServiceImplTest {
         PharmacyInventory inventory = createInventory(1, "Paracetamol 500mg", 25);
         inventory.setMedicine(existingMedicine);
         inventory.setReservedQuantity(5);
-        inventory.setUnitPrice(new BigDecimal("1.20"));
         inventory.setExpiryDate(LocalDate.of(2027, 1, 31));
         inventory.setActive(true);
 
@@ -567,7 +512,6 @@ class PharmacyInventoryServiceImplTest {
         assertThat(existingRow.get("quantity")).isEqualTo("25");
         assertThat(existingRow.get("reservedQuantity")).isEqualTo("5");
         assertThat(existingRow.get("availableQuantity")).isEqualTo("20");
-        assertThat(existingRow.get("unitPrice")).isEqualTo("1.20");
         assertThat(existingRow.get("expiryDate")).isEqualTo("2027-01-31");
         assertThat(existingRow.get("active")).isEqualTo("true");
 
@@ -580,15 +524,14 @@ class PharmacyInventoryServiceImplTest {
         assertThat(defaultRow.get("quantity")).isEqualTo("0");
         assertThat(defaultRow.get("reservedQuantity")).isEqualTo("0");
         assertThat(defaultRow.get("availableQuantity")).isEqualTo("0");
-        assertThat(defaultRow.get("unitPrice")).isEqualTo("0");
         assertThat(defaultRow.get("expiryDate")).isBlank();
         assertThat(defaultRow.get("active")).isEqualTo("false");
     }
 
     @Test
     void importCsv_newTemplateCreatesInactiveZeroStockItem() throws Exception {
-        String csv = "medicineId,medicineName,strength,dosageForm,quantity,reservedQuantity,availableQuantity,unitPrice,expiryDate,active\n" +
-                     "1,Paracetamol 500mg,500mg,Tablet,0,0,0,0,,false\n";
+        String csv = "medicineId,medicineName,strength,dosageForm,unit,quantity,reservedQuantity,availableQuantity,expiryDate,active\n" +
+                     "1,Paracetamol 500mg,500mg,Tablet,Tablet,0,0,0,,false\n";
 
         Pharmacy pharmacy = Pharmacy.builder().pharmacyId("pharmacy-1").name("Central Pharmacy").build();
         when(pharmacyRepository.findById("pharmacy-1")).thenReturn(Optional.of(pharmacy));
@@ -614,7 +557,6 @@ class PharmacyInventoryServiceImplTest {
         assertThat(saved.getQuantity()).isZero();
         assertThat(saved.getReservedQuantity()).isZero();
         assertThat(saved.getAvailableQuantity()).isZero();
-        assertThat(saved.getUnitPrice()).isEqualByComparingTo("0");
         assertThat(saved.getExpiryDate()).isNull();
         assertThat(saved.getActive()).isFalse();
         assertThat(saved.getUnit()).isEqualTo("Tablet");
@@ -622,8 +564,8 @@ class PharmacyInventoryServiceImplTest {
 
     @Test
     void importCsv_newTemplateUpdatesReservedQuantityAndIgnoresAvailableQuantity() throws Exception {
-        String csv = "medicineId,medicineName,strength,dosageForm,quantity,reservedQuantity,availableQuantity,unitPrice,expiryDate,active\n" +
-                     "1,Paracetamol 500mg,500mg,Tablet,12,3,999,0.70,2028-02-02,true\n";
+        String csv = "medicineId,medicineName,strength,dosageForm,unit,quantity,reservedQuantity,availableQuantity,expiryDate,active\n" +
+                     "1,Paracetamol 500mg,500mg,Tablet,Existing Unit,12,3,999,2028-02-02,true\n";
 
         Pharmacy pharmacy = Pharmacy.builder().pharmacyId("pharmacy-1").name("Central Pharmacy").build();
         when(pharmacyRepository.findById("pharmacy-1")).thenReturn(Optional.of(pharmacy));
@@ -649,7 +591,6 @@ class PharmacyInventoryServiceImplTest {
         assertThat(existing.getQuantity()).isEqualTo(12);
         assertThat(existing.getReservedQuantity()).isEqualTo(3);
         assertThat(existing.getAvailableQuantity()).isEqualTo(9);
-        assertThat(existing.getUnitPrice()).isEqualByComparingTo("0.70");
         assertThat(existing.getExpiryDate()).isEqualTo(LocalDate.of(2028, 2, 2));
         assertThat(existing.getUnit()).isEqualTo("Existing Unit");
     }
@@ -683,7 +624,6 @@ class PharmacyInventoryServiceImplTest {
                 .medicine(medicine)
                 .quantity(quantity)
                 .reservedQuantity(0)
-                .unitPrice(new BigDecimal("1.00"))
                 .unit("tablet")
                 .active(true)
                 .build();

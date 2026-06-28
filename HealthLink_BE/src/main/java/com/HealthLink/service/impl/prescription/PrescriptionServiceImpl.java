@@ -90,14 +90,9 @@ public class PrescriptionServiceImpl implements PrescriptionService {
                     .orElseThrow(() -> new ResourceNotFoundException(
                             "Medicine", "id", itemReq.getMedicineId()));
 
-            BigDecimal unitPrice = itemReq.getUnitPrice();
-            if (unitPrice == null) {
-                unitPrice = medicine.getPrice();
-            }
-
-            BigDecimal totalPrice = BigDecimal.ZERO;
-            if (unitPrice != null && itemReq.getQuantity() != null) {
-                totalPrice = unitPrice.multiply(BigDecimal.valueOf(itemReq.getQuantity()));
+            BigDecimal itemTotal = BigDecimal.ZERO;
+            if (medicine.getPrice() != null && itemReq.getQuantity() != null) {
+                itemTotal = medicine.getPrice().multiply(BigDecimal.valueOf(itemReq.getQuantity()));
             }
 
             PrescriptionItem item = PrescriptionItem.builder()
@@ -112,13 +107,11 @@ public class PrescriptionServiceImpl implements PrescriptionService {
                     .frequency(itemReq.getFrequency())
                     .timing(normalizeTimingRequired(itemReq.getTimings(), itemReq.getTiming()))
                     .route(itemReq.getRoute())
-                    .unitPrice(unitPrice)
-                    .totalPrice(totalPrice)
                     .notes(itemReq.getNotes())
                     .build();
 
             items.add(item);
-            totalAmount = totalAmount.add(totalPrice);
+            totalAmount = totalAmount.add(itemTotal);
         }
 
         header.getPrescriptionItems().addAll(items);
@@ -283,8 +276,6 @@ public class PrescriptionServiceImpl implements PrescriptionService {
                 .timing(normalizeTimingForResponse(item.getTiming()))
                 .timings(timingsForResponse(item.getTiming()))
                 .route(item.getRoute())
-                .unitPrice(item.getUnitPrice())
-                .totalPrice(item.getTotalPrice())
                 .notes(item.getNotes())
                 .build();
     }

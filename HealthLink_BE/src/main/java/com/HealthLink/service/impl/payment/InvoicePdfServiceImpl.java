@@ -88,8 +88,8 @@ public class InvoicePdfServiceImpl implements InvoicePdfService {
             writeLine(cs, FONT_BOLD, FONT_SIZE_HEADER, MARGIN, y, "Order #: " + safe(order.getOrderNumber()));
             y -= 24;
 
-            float[] colWidths = {250, 60, 80, 100};
-            String[] headers = {"Medication", "Qty", "Unit Price", "Total"};
+            float[] colWidths = {250, 60, 180};
+            String[] headers = {"Medication", "Qty", "Total"};
             y = drawTableHeader(cs, y, colWidths, headers);
 
             List<PharmacyOrderItem> items = order.getOrderItems();
@@ -105,13 +105,11 @@ public class InvoicePdfServiceImpl implements InvoicePdfService {
                     }
                     String name = item.getMedicationName() != null ? item.getMedicationName() : "N/A";
                     String qty = String.valueOf(item.getQuantity() != null ? item.getQuantity() : 0);
-                    String unitPrice = "$" + fmt(item.getUnitPrice());
                     String total = "$" + fmt(item.getTotalPrice());
 
                     writeLine(cs, FONT, FONT_SIZE_NORMAL, MARGIN + 2, y - 14, trunc(name, 40));
                     writeLine(cs, FONT, FONT_SIZE_NORMAL, MARGIN + colWidths[0] + 2, y - 14, qty);
-                    writeLine(cs, FONT, FONT_SIZE_NORMAL, MARGIN + colWidths[0] + colWidths[1] + 2, y - 14, unitPrice);
-                    writeLine(cs, FONT, FONT_SIZE_NORMAL, MARGIN + colWidths[0] + colWidths[1] + colWidths[2] + 2, y - 14, total);
+                    writeLine(cs, FONT, FONT_SIZE_NORMAL, MARGIN + colWidths[0] + colWidths[1] + 2, y - 14, total);
 
                     cs.setStrokingColor(0.9f, 0.9f, 0.9f);
                     cs.moveTo(MARGIN, y - TABLE_ROW_HEIGHT);

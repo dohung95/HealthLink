@@ -312,10 +312,8 @@ public class PharmacyRecommendationServiceImpl implements PharmacyRecommendation
             int availableQuantity = inventory != null ? inventory.getAvailableQuantity() : 0;
             boolean matched = inventory != null && availableQuantity >= requiredQuantity;
 
-            BigDecimal unitPrice = inventory != null && inventory.getUnitPrice() != null
-                    ? inventory.getUnitPrice()
-                    : medicine.getPrice() != null ? medicine.getPrice() : BigDecimal.ZERO;
-            BigDecimal lineTotal = unitPrice.multiply(BigDecimal.valueOf(requiredQuantity));
+            BigDecimal price = medicine.getPrice() != null ? medicine.getPrice() : BigDecimal.ZERO;
+            BigDecimal lineTotal = price.multiply(BigDecimal.valueOf(requiredQuantity));
 
             RetailStockMatchItemResponse item = RetailStockMatchItemResponse.builder()
                     .medicineId(medicineId)
@@ -324,7 +322,6 @@ public class PharmacyRecommendationServiceImpl implements PharmacyRecommendation
                     .availableQuantity(availableQuantity)
                     .matched(matched)
                     .reason(matched ? null : buildUnmatchedReason(inventory, availableQuantity, requiredQuantity))
-                    .unitPrice(unitPrice)
                     .lineTotal(lineTotal)
                     .build();
 

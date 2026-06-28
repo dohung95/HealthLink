@@ -5,8 +5,6 @@ import lombok.Builder;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 
-import java.math.BigDecimal;
-
 @Data
 @NoArgsConstructor
 @AllArgsConstructor
@@ -22,7 +20,5 @@ public class AdminPrescriptionItemDto {
     private String frequency;
     private String timing;
     private String route;
-    private BigDecimal unitPrice;
-    private BigDecimal totalPrice;
     private String notes;
 }

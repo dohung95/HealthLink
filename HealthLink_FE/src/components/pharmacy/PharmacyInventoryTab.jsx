@@ -158,7 +158,6 @@ export default function PharmacyInventoryTab({ globalSearch }) {
                     <th className="is-number">Qty</th>
                     <th className="is-number">Reserved</th>
                     <th className="is-number">Available</th>
-                    <th className="is-number">Unit Price</th>
                     <th>Expiry</th>
                     <th className="is-center">Active</th>
                     <th className="is-action"></th>
@@ -177,7 +176,6 @@ export default function PharmacyInventoryTab({ globalSearch }) {
                         <td className={`is-number pharmacy-inventory-available-text is-${availableTone}`}>
                           {item.availableQuantity ?? 0}
                         </td>
-                        <td className="is-number">{item.unitPrice ? money(item.unitPrice) : '-'}</td>
                         <td>{formatInventoryDate(item.expiryDate)}</td>
                         <td className="is-center">
                           <span className={`pharmacy-inventory-status ${item.active ? 'is-active' : 'is-inactive'}`}>
@@ -285,7 +283,7 @@ function ImportModal({ onClose, onImported }) {
               <input type="file" className="form-control" accept=".csv"
                 onChange={(e) => setFile(e.target.files[0])} />
               <div className="form-text">
-                Columns: medicineId, medicineName, strength, dosageForm, quantity, unitPrice, unit, expiryDate, active.
+                Columns: medicineId, medicineName, strength, dosageForm, quantity, unit, expiryDate, active.
                 Max 5MB, 5000 rows.
               </div>
             </div>
@@ -344,7 +342,6 @@ function ImportModal({ onClose, onImported }) {
 function EditInventoryModal({ item, onClose, onSaved }) {
   const [form, setForm] = useState({
     quantity: item.quantity ?? '',
-    unitPrice: item.unitPrice ?? '',
     unit: item.unit ?? '',
     expiryDate: item.expiryDate ? item.expiryDate.substring(0, 10) : '',
     active: item.active ?? true,
@@ -356,7 +353,6 @@ function EditInventoryModal({ item, onClose, onSaved }) {
     try {
       const payload = {};
       if (form.quantity !== '') payload.quantity = Number(form.quantity);
-      if (form.unitPrice !== '') payload.unitPrice = Number(form.unitPrice);
       if (form.unit) payload.unit = form.unit;
       if (form.expiryDate) payload.expiryDate = form.expiryDate;
       payload.active = form.active;
@@ -378,11 +374,6 @@ function EditInventoryModal({ item, onClose, onSaved }) {
             <label className="form-label">Quantity</label>
             <input type="number" className="form-control" min="0"
               value={form.quantity} onChange={(e) => setForm({ ...form, quantity: e.target.value })} />
-          </div>
-          <div className="col-sm-6">
-            <label className="form-label">Unit Price ($)</label>
-            <input type="number" className="form-control" min="0" step="0.01"
-              value={form.unitPrice} onChange={(e) => setForm({ ...form, unitPrice: e.target.value })} />
           </div>
           <div className="col-sm-6">
             <label className="form-label">Unit</label>

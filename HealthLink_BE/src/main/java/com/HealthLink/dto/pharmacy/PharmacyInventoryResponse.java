@@ -5,7 +5,6 @@ import lombok.Builder;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 
-import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 
@@ -26,7 +25,6 @@ public class PharmacyInventoryResponse {
     private Integer quantity;
     private Integer reservedQuantity;
     private Integer availableQuantity;
-    private BigDecimal unitPrice;
     private LocalDate expiryDate;
     private Boolean active;
     private LocalDateTime lastImportedAt;

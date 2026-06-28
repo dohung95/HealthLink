@@ -219,7 +219,7 @@ class PharmacyOrderServiceImplTest {
                 .build();
 
         PharmacyConsultationOrderCreateRequest request = new PharmacyConsultationOrderCreateRequest();
-        request.setItems(List.of(orderItemRequest(1, 2, new BigDecimal("15.00"))));
+        request.setItems(List.of(orderItemRequest(1, 2)));
         // Explicitly set delivery fields on request (overrides consultation request defaults)
         request.setDeliveryAddress("12 Nguyen Trai, Hanoi");
         request.setDeliveryLatitude(40.7130);
@@ -325,7 +325,7 @@ class PharmacyOrderServiceImplTest {
                 .consultationRequest(consultationRequest)
                 .prescriptionHeader(prescription)
                 .build());
-        PharmacyOrderItemRequest itemRequest = orderItemRequest(1, 2, new BigDecimal("15.00"));
+        PharmacyOrderItemRequest itemRequest = orderItemRequest(1, 2);
         itemRequest.setSourcePrescriptionHeaderId(10);
         itemRequest.setSourcePrescriptionItemId(101);
         PharmacyConsultationOrderCreateRequest request = new PharmacyConsultationOrderCreateRequest();
@@ -394,8 +394,6 @@ class PharmacyOrderServiceImplTest {
         when(patientRepository.findById("patient-1")).thenReturn(Optional.of(patient));
         when(pharmacyRepository.findById("pharmacy-1")).thenReturn(Optional.of(pharmacy));
         when(medicineRepository.findAllById(any())).thenReturn(List.of(medicine));
-        when(inventoryRepository.findByPharmacy_PharmacyIdAndMedicine_MedicineIdIn(eq("pharmacy-1"), any()))
-                .thenReturn(List.of());
 
         assertThatThrownBy(() -> pharmacyOrderService.createRetailOrder(request, "patient-1"))
                 .isInstanceOf(BadRequestException.class)
@@ -442,7 +440,6 @@ class PharmacyOrderServiceImplTest {
                 .quantity(10)
                 .reservedQuantity(0)
                 .active(true)
-                .unitPrice(new BigDecimal("9.50"))
                 .build();
         RetailOrderRequest request = RetailOrderRequest.builder()
                 .pharmacyId("pharmacy-1")
@@ -460,8 +457,6 @@ class PharmacyOrderServiceImplTest {
         when(patientRepository.findById("patient-1")).thenReturn(Optional.of(patient));
         when(pharmacyRepository.findById("pharmacy-1")).thenReturn(Optional.of(pharmacy));
         when(medicineRepository.findAllById(any())).thenReturn(List.of(medicine));
-        when(inventoryRepository.findByPharmacy_PharmacyIdAndMedicine_MedicineIdIn(eq("pharmacy-1"), any()))
-                .thenReturn(List.of(inventory));
         when(orderRepository.existsByOrderNumber(anyString())).thenReturn(false);
         when(orderRepository.save(any(PharmacyOrder.class))).thenAnswer(invocation -> {
             PharmacyOrder saved = invocation.getArgument(0);
@@ -476,10 +471,9 @@ class PharmacyOrderServiceImplTest {
         assertThat(response.getPharmacyRequestId()).isNull();
         assertThat(response.getStatus()).isEqualTo("PENDING");
         assertThat(response.getPaymentStatus()).isEqualTo("PENDING");
-        assertThat(response.getMedicineAmount()).isEqualByComparingTo("19.00");
+        assertThat(response.getMedicineAmount()).isEqualByComparingTo("24.00");
         assertThat(response.getDeliveryFee()).isEqualByComparingTo("5.00");
         assertThat(response.getItems()).hasSize(1);
-        assertThat(response.getItems().get(0).getUnitPrice()).isEqualByComparingTo("9.50");
 
         verify(notificationService).sendWebSocketNotification(
                 eq(pharmacyUser),
@@ -506,7 +500,7 @@ class PharmacyOrderServiceImplTest {
                 .preferredDeliveryType("Pickup")
                 .status("IN_REVIEW")
                 .build();
-        PharmacyOrderItemRequest itemRequest = orderItemRequest(1, 2, new BigDecimal("15.00"));
+        PharmacyOrderItemRequest itemRequest = orderItemRequest(1, 2);
         itemRequest.setSourcePrescriptionHeaderId(10);
         itemRequest.setSourcePrescriptionItemId(101);
         PharmacyConsultationOrderCreateRequest request = new PharmacyConsultationOrderCreateRequest();
@@ -656,7 +650,7 @@ class PharmacyOrderServiceImplTest {
                 .build();
 
         PharmacyConsultationOrderCreateRequest request = new PharmacyConsultationOrderCreateRequest();
-        request.setItems(List.of(orderItemRequest(1, 2, new BigDecimal("15.00"))));
+        request.setItems(List.of(orderItemRequest(1, 2)));
         request.setEstimatedDeliveryMinutes(45);
         request.setPaymentMethod("COD");
 
@@ -716,7 +710,7 @@ class PharmacyOrderServiceImplTest {
                 .build();
 
         PharmacyConsultationOrderCreateRequest request = new PharmacyConsultationOrderCreateRequest();
-        request.setItems(List.of(orderItemRequest(1, 2, new BigDecimal("15.00"))));
+        request.setItems(List.of(orderItemRequest(1, 2)));
         request.setPaymentMethod("COD");
 
         when(consultationRequestRepository.findById(15)).thenReturn(Optional.of(consultationRequest));
@@ -767,7 +761,7 @@ class PharmacyOrderServiceImplTest {
                 .build();
 
         PharmacyConsultationOrderCreateRequest request = new PharmacyConsultationOrderCreateRequest();
-        request.setItems(List.of(orderItemRequest(1, 2, new BigDecimal("15.00"))));
+        request.setItems(List.of(orderItemRequest(1, 2)));
         request.setEstimatedDeliveryMinutes(1000);
         request.setPaymentMethod("COD");
 
@@ -819,7 +813,7 @@ class PharmacyOrderServiceImplTest {
                 .build();
 
         PharmacyConsultationOrderCreateRequest request = new PharmacyConsultationOrderCreateRequest();
-        request.setItems(List.of(orderItemRequest(1, 2, new BigDecimal("15.00"))));
+        request.setItems(List.of(orderItemRequest(1, 2)));
         request.setDeliveryFee(new BigDecimal("-1"));
         request.setEstimatedDeliveryMinutes(45);
         request.setPaymentMethod("COD");
@@ -964,7 +958,7 @@ class PharmacyOrderServiceImplTest {
         request.setEstimatedDeliveryTime(LocalDateTime.now().plusHours(2));
         request.setPaymentMethod("COD");
         request.setPharmacistNotes("Updated quote");
-        request.setItems(List.of(orderItemRequest(1, 3, new BigDecimal("12.00"))));
+        request.setItems(List.of(orderItemRequest(1, 3)));
 
         when(orderRepository.findById(77)).thenReturn(Optional.of(order));
         when(medicineRepository.findById(1)).thenReturn(Optional.of(medicine(1, "Amlodipine 5mg", "tablet")));
@@ -975,9 +969,9 @@ class PharmacyOrderServiceImplTest {
                 pharmacyOrderService.updateOrderQuote(77, request, "pharmacy-1");
 
         assertThat(response.getStatus()).isEqualTo("PENDING");
-        assertThat(response.getMedicineAmount()).isEqualByComparingTo("36.00");
+        assertThat(response.getMedicineAmount()).isEqualByComparingTo("45.00");
         assertThat(response.getDeliveryFee()).isEqualByComparingTo("4.50");
-        assertThat(response.getTotalAmount()).isEqualByComparingTo("40.50");
+        assertThat(response.getTotalAmount()).isEqualByComparingTo("49.50");
         assertThat(response.getPharmacistNotes()).isEqualTo("Updated quote");
         assertThat(order.getPatientConfirmedAt()).isNull();
         assertThat(order.getRevisionResolvedAt()).isNotNull();
@@ -1091,8 +1085,6 @@ class PharmacyOrderServiceImplTest {
                 .unit("tablet")
                 .frequency("Twice daily")
                 .timing("MORNING,EVENING")
-                .unitPrice(new BigDecimal("15.00"))
-                .totalPrice(new BigDecimal("30.00"))
                 .build();
         prescription.setPrescriptionItems(List.of(item));
 
@@ -1110,7 +1102,7 @@ class PharmacyOrderServiceImplTest {
                 .build());
 
         PharmacyConsultationOrderCreateRequest request = new PharmacyConsultationOrderCreateRequest();
-        PharmacyOrderItemRequest itemRequest = orderItemRequest(1, 2, new BigDecimal("15.00"));
+        PharmacyOrderItemRequest itemRequest = orderItemRequest(1, 2);
         itemRequest.setSourcePrescriptionHeaderId(10);
         itemRequest.setSourcePrescriptionItemId(101);
         request.setDeliveryType("Pickup");
@@ -1171,8 +1163,6 @@ class PharmacyOrderServiceImplTest {
                 .totalSupplyDays(7)
                 .quantity(2)
                 .unit("tablet")
-                .unitPrice(new BigDecimal("15.00"))
-                .totalPrice(new BigDecimal("30.00"))
                 .build();
         prescription.setPrescriptionItems(List.of(item));
 
@@ -1190,7 +1180,7 @@ class PharmacyOrderServiceImplTest {
                 .build());
 
         PharmacyConsultationOrderCreateRequest request = new PharmacyConsultationOrderCreateRequest();
-        PharmacyOrderItemRequest itemRequest = orderItemRequest(1, 2, new BigDecimal("15.00"));
+        PharmacyOrderItemRequest itemRequest = orderItemRequest(1, 2);
         itemRequest.setSourcePrescriptionHeaderId(null);
         itemRequest.setSourcePrescriptionItemId(null);
         request.setDeliveryType("Pickup");
@@ -1264,7 +1254,7 @@ class PharmacyOrderServiceImplTest {
         verify(orderRepository, never()).save(any(PharmacyOrder.class));
     }
 
-    private PharmacyOrderItemRequest orderItemRequest(Integer medicineId, Integer quantity, BigDecimal unitPrice) {
+    private PharmacyOrderItemRequest orderItemRequest(Integer medicineId, Integer quantity) {
         PharmacyOrderItemRequest request = new PharmacyOrderItemRequest();
         request.setMedicineId(medicineId);
         request.setQuantity(quantity);
@@ -1272,7 +1262,6 @@ class PharmacyOrderServiceImplTest {
         request.setUnit("tablet");
         request.setFrequency("Twice daily");
         request.setTiming("MORNING,EVENING");
-        request.setUnitPrice(unitPrice);
         return request;
     }
 
@@ -1318,8 +1307,6 @@ class PharmacyOrderServiceImplTest {
                 .unit("tablet")
                 .frequency("Twice daily")
                 .timing("MORNING,EVENING")
-                .unitPrice(new BigDecimal("15.00"))
-                .totalPrice(new BigDecimal("30.00"))
                 .build();
         header.setPrescriptionItems(List.of(item));
         return header;
