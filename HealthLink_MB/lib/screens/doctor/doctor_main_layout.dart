@@ -15,9 +15,6 @@ import 'doctor_home_screen.dart';
 import 'doctor_patients_screen.dart';
 import 'doctor_prescriptions_screen.dart';
 import 'doctor_schedule_screen.dart' hide DS;
-import 'doctor_wallet_screen.dart';
-import 'doctor_reviews_screen.dart';
-import 'doctor_security_screen.dart';
 import 'doctor_profile_screen.dart';
 import 'doctor_notification_center_sheet.dart';
 import 'doctor_chat_screen.dart';
@@ -164,27 +161,6 @@ class _DoctorMainLayoutState extends State<DoctorMainLayout> {
     );
   }
 
-  void _openProfileHub() {
-    final auth = context.read<AuthProvider>();
-    final doctorId =
-        auth.doctorProfile?['doctorId']?.toString() ?? '';
-    showModalBottomSheet(
-      context: context,
-      isScrollControlled: true,
-      backgroundColor: Colors.transparent,
-      builder: (_) =>
-          _ProfileHubSheet(onLogout: _handleLogout, doctorId: doctorId),
-    );
-  }
-
-  Future<void> _handleLogout() async {
-    Navigator.of(context).pop(); // close bottom sheet
-    await context.read<AuthProvider>().logout();
-    if (mounted) {
-      Navigator.of(context).pushNamedAndRemoveUntil('/', (route) => false);
-    }
-  }
-
   @override
   Widget build(BuildContext context) {
     final auth = context.watch<AuthProvider>();
@@ -199,7 +175,7 @@ class _DoctorMainLayoutState extends State<DoctorMainLayout> {
             rating: (auth.doctorProfile?['averageRating'] as num?)?.toDouble(),
             notifBadge: _notifUnread,
             compliance: _compliance,
-            onAvatarTap: _openProfileHub,
+            onAvatarTap: _openProfile,
             onNotifTap: _openNotifications,
             onSettingsTap: _openProfile,
             onGoToSchedule: () => setState(() => _currentIndex = 4),
@@ -338,8 +314,6 @@ class _DoctorAppBar extends StatelessWidget {
                       ],
                     ),
                     const SizedBox(width: 7),
-                    const Icon(Icons.keyboard_arrow_down,
-                        size: 22, color: Colors.white70),
                   ],
                 ),
               ),
@@ -570,197 +544,6 @@ class _BottomNav extends StatelessWidget {
               ),
             );
           }),
-        ),
-      ),
-    );
-  }
-}
-
-// ─── Profile Hub Bottom Sheet ──────────────────────────────────────────────────
-class _ProfileHubSheet extends StatelessWidget {
-  final Future<void> Function() onLogout;
-  final String doctorId;
-
-  const _ProfileHubSheet({required this.onLogout, required this.doctorId});
-
-  @override
-  Widget build(BuildContext context) {
-    final auth = context.read<AuthProvider>();
-    final avatarUrl = auth.avatarUrl;
-    final resolvedUrl =
-        avatarUrl != null ? ApiConfig.normalizeUrl(avatarUrl) : null;
-
-    return Container(
-      decoration: const BoxDecoration(
-        color: DoctorStyles.card,
-        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
-      ),
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          // Handle
-          Container(
-            width: 40,
-            height: 4,
-            margin: const EdgeInsets.only(top: 12, bottom: 20),
-            decoration: BoxDecoration(
-              color: DoctorStyles.cardBorder,
-              borderRadius: BorderRadius.circular(2),
-            ),
-          ),
-          // Avatar + name header
-          CircleAvatar(
-            radius: 36,
-            backgroundColor:
-                DoctorStyles.primary.withValues(alpha: 0.15),
-            backgroundImage:
-                resolvedUrl != null && resolvedUrl.isNotEmpty
-                    ? NetworkImage(resolvedUrl)
-                    : null,
-            child: resolvedUrl == null || resolvedUrl.isEmpty
-                ? const Icon(Icons.person,
-                    color: DoctorStyles.primary, size: 36)
-                : null,
-          ),
-          const SizedBox(height: 10),
-          Text(
-            auth.displayName ?? 'Doctor',
-            style: const TextStyle(
-              fontSize: 17,
-              fontWeight: FontWeight.w700,
-              color: DoctorStyles.foreground,
-            ),
-          ),
-          const SizedBox(height: 2),
-          Text(
-            auth.doctorProfile?['email']?.toString() ?? auth.doctorProfile?['contactEmail']?.toString() ?? '',
-            style: const TextStyle(
-                fontSize: 13, color: DoctorStyles.mutedForeground),
-          ),
-          const SizedBox(height: 20),
-          const Divider(height: 1, color: DoctorStyles.cardBorder),
-          // Grid 2x2
-          Padding(
-            padding: const EdgeInsets.all(16),
-            child: GridView.count(
-              crossAxisCount: 2,
-              shrinkWrap: true,
-              physics: const NeverScrollableScrollPhysics(),
-              crossAxisSpacing: 12,
-              mainAxisSpacing: 12,
-              childAspectRatio: 2.8,
-              children: [
-                _HubTile(
-                  icon: Icons.account_balance_wallet_outlined,
-                  label: 'Wallet',
-                  onTap: () {
-                    Navigator.pop(context);
-                    Navigator.push(
-                      context,
-                      MaterialPageRoute(
-                          builder: (_) =>
-                              DoctorWalletScreen(doctorId: doctorId)),
-                    );
-                  },
-                ),
-                _HubTile(
-                  icon: Icons.star_outline_rounded,
-                  label: 'Reviews',
-                  onTap: () {
-                    Navigator.pop(context);
-                    Navigator.push(
-                      context,
-                      MaterialPageRoute(
-                          builder: (_) => const DoctorReviewsScreen()),
-                    );
-                  },
-                ),
-                _HubTile(
-                  icon: Icons.lock_outline_rounded,
-                  label: 'Security',
-                  onTap: () {
-                    Navigator.pop(context);
-                    Navigator.push(
-                      context,
-                      MaterialPageRoute(
-                          builder: (_) => const DoctorSecurityScreen()),
-                    );
-                  },
-                ),
-              ],
-            ),
-          ),
-          const Divider(height: 1, color: DoctorStyles.cardBorder),
-          // Logout button
-          Padding(
-            padding: const EdgeInsets.fromLTRB(16, 12, 16, 24),
-            child: SizedBox(
-              width: double.infinity,
-              child: OutlinedButton.icon(
-                onPressed: onLogout,
-                icon: const Icon(Icons.logout_rounded,
-                    size: 18, color: DoctorStyles.destructive),
-                label: const Text(
-                  'Logout',
-                  style: TextStyle(
-                    fontWeight: FontWeight.w600,
-                    color: DoctorStyles.destructive,
-                  ),
-                ),
-                style: OutlinedButton.styleFrom(
-                  padding: const EdgeInsets.symmetric(vertical: 12),
-                  side: BorderSide(
-                      color: DoctorStyles.destructive.withValues(alpha: 0.4)),
-                  backgroundColor:
-                      DoctorStyles.destructive.withValues(alpha: 0.05),
-                  shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(10)),
-                ),
-              ),
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-}
-
-class _HubTile extends StatelessWidget {
-  final IconData icon;
-  final String label;
-  final VoidCallback onTap;
-
-  const _HubTile(
-      {required this.icon, required this.label, required this.onTap});
-
-  @override
-  Widget build(BuildContext context) {
-    return GestureDetector(
-      onTap: onTap,
-      child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-        decoration: BoxDecoration(
-          color: DoctorStyles.background,
-          borderRadius: BorderRadius.circular(10),
-          border: Border.all(color: DoctorStyles.cardBorder),
-        ),
-        child: Row(
-          children: [
-            Icon(icon, size: 20, color: DoctorStyles.primary),
-            const SizedBox(width: 8),
-            Expanded(
-              child: Text(
-                label,
-                style: const TextStyle(
-                  fontSize: 13,
-                  fontWeight: FontWeight.w600,
-                  color: DoctorStyles.foreground,
-                ),
-              ),
-            ),
-            const Icon(Icons.arrow_forward_ios,
-                size: 12, color: DoctorStyles.mutedForeground),
-          ],
         ),
       ),
     );

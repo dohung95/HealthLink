@@ -7,6 +7,9 @@ import '../../models/doctor/doctor_profile.dart';
 import '../../config/api_config.dart';
 import '../../config/doctor_theme.dart';
 import '../../widgets/doctor/doctor_widgets.dart';
+import 'doctor_reviews_screen.dart';
+import 'doctor_wallet_screen.dart';
+import 'doctor_security_screen.dart';
 
 class DoctorProfileScreen extends StatefulWidget {
   const DoctorProfileScreen({super.key});
@@ -90,6 +93,17 @@ class _DoctorProfileScreenState extends State<DoctorProfileScreen> {
           icon: const Icon(Icons.arrow_back_ios_new_rounded, size: 20),
           onPressed: () => Navigator.pop(context),
         ),
+        actions: [
+          // Chỉnh vị trí nút logout: dx < 0 = dịch sang TRÁI, dy > 0 = dịch XUỐNG
+          Transform.translate(
+            offset: const Offset(-10, 8),
+            child: IconButton(
+              icon: const Icon(Icons.power_settings_new, size: 35),
+              tooltip: 'Logout',
+              onPressed: _confirmLogout,
+            ),
+          ),
+        ],
       ),
       body: RefreshIndicator(
         onRefresh: _loadData,
@@ -104,6 +118,10 @@ class _DoctorProfileScreenState extends State<DoctorProfileScreen> {
                 child: Column(
                   children: [
                     _buildStatsRow(p),
+                    const SizedBox(height: 12),
+                    _buildQuickActions(p),
+                    const SizedBox(height: 12),
+                    _buildScheduleStatus(),
                     const SizedBox(height: 20),
                     _buildProfessionalInfo(p),
                     const SizedBox(height: 20),
@@ -196,24 +214,7 @@ class _DoctorProfileScreenState extends State<DoctorProfileScreen> {
                 if (p.verified == true) ...[const SizedBox(width: 6), const Icon(Icons.verified, size: 20, color: DS.primaryForeground)],
               ],
             ),
-            const SizedBox(height: 4),
             Text(p.specialtyName ?? p.specialty ?? 'General Practitioner', style: TextStyle(fontSize: 14, color: DS.primaryForeground.withOpacity(0.8))),
-            const SizedBox(height: 12),
-            GestureDetector(
-              onTap: _showEditProfile,
-              child: Container(
-                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-                decoration: BoxDecoration(color: DS.secondary, borderRadius: BorderRadius.circular(8)),
-                child: const Row(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    Icon(Icons.edit, size: 16, color: DS.foreground),
-                    SizedBox(width: 8),
-                    Text('Edit Profile', style: TextStyle(fontSize: 14, fontWeight: FontWeight.w500, color: DS.foreground)),
-                  ],
-                ),
-              ),
-            ),
           ],
         ),
       ),
@@ -237,17 +238,57 @@ class _DoctorProfileScreenState extends State<DoctorProfileScreen> {
           const Text('Rating', style: TextStyle(fontSize: 11, color: DS.mutedForeground)),
         ]))),
         const SizedBox(width: 12),
-        Expanded(child: _StatCard(child: Column(children: [
-          Text('$reviews', style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: DS.foreground)),
-          const SizedBox(height: 2),
-          const Text('Reviews', style: TextStyle(fontSize: 11, color: DS.mutedForeground)),
-        ]))),
+        Expanded(
+          child: GestureDetector(
+            onTap: () => Navigator.push(
+              context,
+              MaterialPageRoute(builder: (_) => const DoctorReviewsScreen()),
+            ),
+            child: _StatCard(child: Column(children: [
+              Row(mainAxisAlignment: MainAxisAlignment.center, children: [
+                Text('$reviews', style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: DS.foreground)),
+                const SizedBox(width: 4),
+                const Icon(Icons.chevron_right, size: 16, color: DS.mutedForeground),
+              ]),
+              const SizedBox(height: 2),
+              const Text('Reviews', style: TextStyle(fontSize: 11, color: DS.mutedForeground)),
+            ])),
+          ),
+        ),
         const SizedBox(width: 12),
         Expanded(child: _StatCard(child: Column(children: [
           Text('$years', style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: DS.foreground)),
           const SizedBox(height: 2),
           const Text('Years Exp.', style: TextStyle(fontSize: 11, color: DS.mutedForeground)),
         ]))),
+      ],
+    );
+  }
+
+  Widget _buildQuickActions(DoctorProfile p) {
+    return Row(
+      children: [
+        Expanded(
+          child: _ActionTile(
+            icon: Icons.account_balance_wallet_outlined,
+            label: 'Wallet',
+            onTap: () => Navigator.push(
+              context,
+              MaterialPageRoute(builder: (_) => DoctorWalletScreen(doctorId: p.doctorId)),
+            ),
+          ),
+        ),
+        const SizedBox(width: 12),
+        Expanded(
+          child: _ActionTile(
+            icon: Icons.lock_outline_rounded,
+            label: 'Security',
+            onTap: () => Navigator.push(
+              context,
+              MaterialPageRoute(builder: (_) => const DoctorSecurityScreen()),
+            ),
+          ),
+        ),
       ],
     );
   }
@@ -259,7 +300,16 @@ class _DoctorProfileScreenState extends State<DoctorProfileScreen> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          const DoctorSectionLabel('Professional Information'),
+          Row(
+            children: [
+              const Expanded(child: DoctorSectionLabel('Professional Information')),
+              GestureDetector(
+                onTap: _showEditProfile,
+                behavior: HitTestBehavior.opaque,
+                child: const Icon(Icons.edit_outlined, size: 23, color: DS.primary),
+              ),
+            ],
+          ),
           const SizedBox(height: 4),
           DoctorInfoRow(icon: Icons.email_outlined, label: 'Email', value: p.email ?? '-'),
           const Divider(height: 1, color: DS.cardBorder),
@@ -317,40 +367,47 @@ class _DoctorProfileScreenState extends State<DoctorProfileScreen> {
     );
   }
 
+  Widget _buildScheduleStatus() {
+    return Container(
+      padding: const EdgeInsets.all(8),
+      decoration: DS.cardDecoration,
+      child: Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
+        child: Row(
+          children: [
+            Container(width: 36, height: 36, decoration: BoxDecoration(color: DS.secondary, borderRadius: BorderRadius.circular(8)), child: const Icon(Icons.verified_outlined, size: 18, color: DS.mutedForeground)),
+            const SizedBox(width: 12),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  const Text('Schedule Status', style: TextStyle(fontSize: 14, fontWeight: FontWeight.w500, color: DS.foreground)),
+                  Text(_available ? 'Available for consultations' : 'Unavailable', style: const TextStyle(fontSize: 12, color: DS.mutedForeground)),
+                ],
+              ),
+            ),
+            Switch(
+              value: _available,
+              onChanged: (v) {
+                setState(() => _available = v);
+                ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(v ? "You're now available" : 'Marked as unavailable'), behavior: SnackBarBehavior.floating));
+              },
+              activeColor: DS.primary,
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
   Widget _buildSettingsMenu() {
     return Container(
       padding: const EdgeInsets.all(8),
       decoration: DS.cardDecoration,
       child: Column(
         children: [
-          Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
-            child: Row(
-              children: [
-                Container(width: 36, height: 36, decoration: BoxDecoration(color: DS.secondary, borderRadius: BorderRadius.circular(8)), child: const Icon(Icons.verified_outlined, size: 18, color: DS.mutedForeground)),
-                const SizedBox(width: 12),
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      const Text('Schedule Status', style: TextStyle(fontSize: 14, fontWeight: FontWeight.w500, color: DS.foreground)),
-                      Text(_available ? 'Available for consultations' : 'Unavailable', style: const TextStyle(fontSize: 12, color: DS.mutedForeground)),
-                    ],
-                  ),
-                ),
-                Switch(
-                  value: _available,
-                  onChanged: (v) {
-                    setState(() => _available = v);
-                    ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(v ? "You're now available" : 'Marked as unavailable'), behavior: SnackBarBehavior.floating));
-                  },
-                  activeColor: DS.primary,
-                ),
-              ],
-            ),
-          ),
           DoctorMenuItem(icon: Icons.help_outline, label: 'Help & Support', onTap: () {
-            ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Support: help@healthlink.io'), behavior: SnackBarBehavior.floating));
+            ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Support: support@healthlink.com'), behavior: SnackBarBehavior.floating));
           }),
         ],
       ),
@@ -454,6 +511,77 @@ class _DoctorProfileScreenState extends State<DoctorProfileScreen> {
     );
   }
 
+  Future<void> _confirmLogout() async {
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => Dialog(
+        backgroundColor: DS.card,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(35)),
+        child: Padding(
+          padding: const EdgeInsets.fromLTRB(24, 28, 24, 20),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Container(
+                width: 50,
+                height: 50,
+                decoration: BoxDecoration(
+                  color: const Color(0xFFFFBF33),
+                  shape: BoxShape.circle,
+                ),
+                child: const Icon(Icons.priority_high_rounded, size: 35, color: Colors.white  ),
+              ),
+              const SizedBox(height: 20),
+              const Text(
+                'Are you sure you want to log out of your account?',
+                textAlign: TextAlign.center,
+                style: TextStyle(fontSize: 16, height: 1.5, color: DS.mutedForeground),
+              ),
+              const SizedBox(height: 24),
+              Row(
+                children: [
+                  Expanded(
+                    child: OutlinedButton(
+                      onPressed: () => Navigator.pop(ctx, false),
+                      style: OutlinedButton.styleFrom(
+                        foregroundColor: DS.foreground,
+                        side: const BorderSide(color: DS.cardBorder),
+                        padding: const EdgeInsets.symmetric(vertical: 14),
+                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                      ),
+                      child: const Text('Cancel', style: TextStyle(fontSize: 15, fontWeight: FontWeight.w600, color: Color(0xFF1D9E75))),
+                    ),
+                  ),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: ElevatedButton(
+                      onPressed: () => Navigator.pop(ctx, true),
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: const Color(0xFF1D9E75),
+                        foregroundColor: Colors.white,
+                        elevation: 0,
+                        padding: const EdgeInsets.symmetric(vertical: 14),
+                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                      ),
+                      child: const Text('Log out', style: TextStyle(fontSize: 15, fontWeight: FontWeight.w700)),
+                    ),
+                  ),
+                ],
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+
+    if (confirmed != true) return;
+
+    await context.read<AuthProvider>().logout();
+    if (mounted) {
+      Navigator.of(context).pushNamedAndRemoveUntil('/', (route) => false);
+    }
+  }
+
 }
 
 class _StatCard extends StatelessWidget {
@@ -462,7 +590,41 @@ class _StatCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Container(padding: const EdgeInsets.all(16), decoration: DS.cardDecoration, child: child);
+    return Container(padding: const EdgeInsets.all(10), decoration: DS.cardDecoration, child: child);
+  }
+}
+
+class _ActionTile extends StatelessWidget {
+  final IconData icon;
+  final String label;
+  final VoidCallback onTap;
+  const _ActionTile({required this.icon, required this.label, required this.onTap});
+
+  @override
+  Widget build(BuildContext context) {
+    return GestureDetector(
+      onTap: onTap,
+      behavior: HitTestBehavior.opaque,
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 16),
+        decoration: DS.cardDecoration,
+        child: Row(
+          children: [
+            Container(
+              width: 38,
+              height: 38,
+              decoration: BoxDecoration(color: DS.primary.withOpacity(0.12), borderRadius: BorderRadius.circular(10)),
+              child: Icon(icon, size: 20, color: DS.primary),
+            ),
+            const SizedBox(width: 10),
+            Expanded(
+              child: Text(label, style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w600, color: DS.foreground)),
+            ),
+            const Icon(Icons.chevron_right, size: 18, color: DS.mutedForeground),
+          ],
+        ),
+      ),
+    );
   }
 }
 
