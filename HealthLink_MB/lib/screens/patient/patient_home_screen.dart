@@ -1,5 +1,6 @@
 import 'package:HealthLink/screens/patient/pharmacy/pharmacy_consultation_screen.dart';
 import 'package:flutter/material.dart';
+import '../../utils/localization_utils.dart';
 import 'package:provider/provider.dart';
 import '../../providers/auth_provider.dart';
 import '../../config/api_config.dart';
@@ -13,6 +14,7 @@ import '../../models/notification/notification_item.dart';
 import '../../services/notification/notification_service.dart';
 import '../../services/notification/notification_realtime_service.dart';
 import 'notifications/notification_center_sheet.dart';
+import '../../l10n/app_localizations.dart';
 
 class PatientHomeScreen extends StatefulWidget {
   const PatientHomeScreen({
@@ -549,7 +551,7 @@ class _PatientHomeScreenState extends State<PatientHomeScreen> {
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Text(
-                      _greeting(),
+                      _greeting(context),
                       style: TextStyle(
                         fontFamily: 'Inter',
                         fontSize: isDesktop ? 14 : 12,
@@ -656,11 +658,12 @@ class _PatientHomeScreenState extends State<PatientHomeScreen> {
   }
 
   // --- Helper: Lời chào theo giờ ---
-  String _greeting() {
+  String _greeting(BuildContext context) {
+    final l10n = AppLocalizations.of(context)!;
     final hour = DateTime.now().hour;
-    if (hour < 12) return 'Hello, Good Morning';
-    if (hour < 18) return 'Hi, Good Afternoon,';
-    return 'Have a good night';
+    if (hour < 12) return l10n.greetingMorning;
+    if (hour < 18) return l10n.greetingAfternoon;
+    return l10n.greetingEvening;
   }
 
   // --- 2. Hàng Thống Kê ---
@@ -674,21 +677,21 @@ class _PatientHomeScreenState extends State<PatientHomeScreen> {
             _buildStatItem(
               itemWidth,
               _loadingStats ? '...' : '$_upcomingCount',
-              'Upcoming',
+              AppLocalizations.of(context)!.statUpcoming,
               Theme.of(context).colorScheme.primary,
               false,
             ),
             _buildStatItem(
               itemWidth,
               _loadingStats ? '...' : '$_healthRecordCount',
-              'New Records',
+              AppLocalizations.of(context)!.statNewRecords,
               Theme.of(context).colorScheme.secondary,
               _healthRecordCount > 0,
             ),
             _buildStatItem(
               itemWidth,
               _loadingStats ? '...' : '$_prescriptionCount',
-              'Prescriptions',
+              AppLocalizations.of(context)!.statPrescriptions,
               Theme.of(context).colorScheme.secondary,
               false,
             ),
@@ -756,7 +759,7 @@ class _PatientHomeScreenState extends State<PatientHomeScreen> {
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         Text(
-          'Upcoming Appointments',
+          AppLocalizations.of(context)!.upcomingAppointmentsTitle,
           style: TextStyle(
             fontFamily: 'Inter',
             fontSize: 18,
@@ -813,7 +816,7 @@ class _PatientHomeScreenState extends State<PatientHomeScreen> {
                   ),
                   const SizedBox(height: 10),
                   Text(
-                    'No upcoming appointments',
+                    AppLocalizations.of(context)!.homeNoUpcomingAppointments,
                     style: TextStyle(
                       fontFamily: 'Inter',
                       fontSize: 16,
@@ -823,7 +826,7 @@ class _PatientHomeScreenState extends State<PatientHomeScreen> {
                   ),
                   const SizedBox(height: 4),
                   Text(
-                    'Book an appointment to start consulting with a doctor.',
+                    AppLocalizations.of(context)!.homeBookAppointmentPrompt,
                     textAlign: TextAlign.center,
                     style: TextStyle(
                       fontFamily: 'Inter',
@@ -900,8 +903,8 @@ class _PatientHomeScreenState extends State<PatientHomeScreen> {
                     const SizedBox(height: 2),
                     Text(
                       appointment.specialtyName.isEmpty
-                          ? appointment.consultationType
-                          : '${appointment.specialtyName} • ${appointment.consultationType}',
+                          ? appointment.consultationType.toLocalizedConsultationType(context)
+                          : '${appointment.specialtyName.toLocalizedSpecialty(context)} • ${appointment.consultationType.toLocalizedConsultationType(context)}',
                       style: TextStyle(
                         fontFamily: 'Inter',
                         fontSize: 13,
@@ -921,7 +924,9 @@ class _PatientHomeScreenState extends State<PatientHomeScreen> {
                   borderRadius: BorderRadius.circular(100),
                 ),
                 child: Text(
-                  isToday ? 'Today' : 'Upcoming',
+                  isToday 
+                      ? AppLocalizations.of(context)!.appointmentToday 
+                      : AppLocalizations.of(context)!.appointmentUpcoming,
                   style: TextStyle(
                     fontFamily: 'Inter',
                     fontSize: 11,
@@ -997,7 +1002,7 @@ class _PatientHomeScreenState extends State<PatientHomeScreen> {
                     widget.onOpenAppointments();
                   },
                   icon: const Icon(Icons.edit_calendar_outlined, size: 16),
-                  label: const Text('More'),
+                  label: Text(AppLocalizations.of(context)!.appointmentMore),
                 ),
               ),
 
@@ -1017,16 +1022,16 @@ class _PatientHomeScreenState extends State<PatientHomeScreen> {
                     onPressed: () {
                       if (appointment.isChat) {
                         ScaffoldMessenger.of(context).showSnackBar(
-                          const SnackBar(
-                            content: Text('Opening chat room...'),
+                          SnackBar(
+                            content: Text(AppLocalizations.of(context)!.openingChatRoom),
                           ),
                         );
 
                         // TODO: Navigate to chat room
                       } else {
                         ScaffoldMessenger.of(context).showSnackBar(
-                          const SnackBar(
-                            content: Text('Opening video room...'),
+                          SnackBar(
+                            content: Text(AppLocalizations.of(context)!.openingVideoRoom),
                           ),
                         );
 
@@ -1040,7 +1045,9 @@ class _PatientHomeScreenState extends State<PatientHomeScreen> {
                       size: 16,
                     ),
                     label: Text(
-                      appointment.isChat ? 'Chat' : 'Join Room',
+                      appointment.isChat 
+                          ? AppLocalizations.of(context)!.btnChat 
+                          : AppLocalizations.of(context)!.btnJoinRoom,
                     ),
                   ),
                 ),
@@ -1058,7 +1065,7 @@ class _PatientHomeScreenState extends State<PatientHomeScreen> {
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         Text(
-          'Quick Actions',
+          AppLocalizations.of(context)!.homeQuickActions,
           style: TextStyle(fontFamily: 'Inter', fontSize: 18, fontWeight: FontWeight.bold, color: Theme.of(context).colorScheme.onSurface),
         ),
         const SizedBox(height: 12),
@@ -1075,7 +1082,7 @@ class _PatientHomeScreenState extends State<PatientHomeScreen> {
               children: [
                 _buildQuickActionButton(
                   Icons.medical_information,
-                  'Health Records',
+                  AppLocalizations.of(context)!.homeHealthRecords,
                   Theme.of(context).colorScheme.secondary,
                   Theme.of(context).colorScheme.onSecondary,
                   onTap: () {
@@ -1088,7 +1095,7 @@ class _PatientHomeScreenState extends State<PatientHomeScreen> {
                 ),
                 _buildQuickActionButton(
                   Icons.share,
-                  'Share Records',
+                  AppLocalizations.of(context)!.homeShareRecords,
                   Theme.of(context).colorScheme.secondary.withOpacity(0.1),
                   Theme.of(context).colorScheme.secondary,
                   onTap: () {
@@ -1101,14 +1108,14 @@ class _PatientHomeScreenState extends State<PatientHomeScreen> {
                 ),
                 _buildQuickActionButton(
                   Icons.emoji_events_outlined,
-                  'Doctor Ranking',
+                  AppLocalizations.of(context)!.homeDoctorRanking,
                   Theme.of(context).colorScheme.surface,
                   Theme.of(context).colorScheme.primary,
                   onTap: _openDoctorRanking,
                 ),
                 _buildQuickActionButton(
                   Icons.local_pharmacy,
-                  'Pharmacy',
+                  AppLocalizations.of(context)!.homePharmacy,
                   Theme.of(context).colorScheme.surface,
                   Theme.of(context).colorScheme.primary,
                   onTap: () {
@@ -1204,7 +1211,7 @@ class _PatientHomeScreenState extends State<PatientHomeScreen> {
                         const SizedBox(width: 12),
                         Expanded(
                           child: Text(
-                            'Doctor Ranking',
+                            AppLocalizations.of(context)!.homeDoctorRanking,
                             style:
                             Theme.of(context).textTheme.titleLarge?.copyWith(
                               fontWeight: FontWeight.w900,
@@ -1220,7 +1227,7 @@ class _PatientHomeScreenState extends State<PatientHomeScreen> {
                       children: [
                         Expanded(
                           child: Text(
-                            '${_rankingDoctors.length} doctors',
+                            AppLocalizations.of(context)!.homeDoctorsCount(_rankingDoctors.length.toString()),
                             style: TextStyle(
                               color: colors.onSurfaceVariant,
                               fontWeight: FontWeight.w600,
@@ -1229,22 +1236,22 @@ class _PatientHomeScreenState extends State<PatientHomeScreen> {
                         ),
                         DropdownButton<String>(
                           value: _doctorRankingSort,
-                          items: const [
+                          items: [
                             DropdownMenuItem(
                               value: 'rating',
-                              child: Text('Highest rating'),
+                              child: Text(AppLocalizations.of(context)!.sortHighestRating),
                             ),
                             DropdownMenuItem(
                               value: 'reviews',
-                              child: Text('Most reviews'),
+                              child: Text(AppLocalizations.of(context)!.sortMostReviews),
                             ),
                             DropdownMenuItem(
                               value: 'experience',
-                              child: Text('Most experience'),
+                              child: Text(AppLocalizations.of(context)!.sortMostExperience),
                             ),
                             DropdownMenuItem(
                               value: 'name',
-                              child: Text('A-Z'),
+                              child: Text(AppLocalizations.of(context)!.sortAZ),
                             ),
                           ],
                           onChanged: (value) {
@@ -1369,7 +1376,7 @@ class _PatientHomeScreenState extends State<PatientHomeScreen> {
                 ),
                 if (doctor.specialtyName.isNotEmpty)
                   Text(
-                    doctor.specialtyName,
+                    doctor.specialtyName.toLocalizedSpecialty(context),
                     style: TextStyle(
                       color: colors.onSurfaceVariant,
                       fontSize: 12,
@@ -1387,14 +1394,14 @@ class _PatientHomeScreenState extends State<PatientHomeScreen> {
                     Text(
                       doctor.averageRating > 0
                           ? doctor.averageRating.toStringAsFixed(1)
-                          : 'New',
+                          : AppLocalizations.of(context)!.labelNew,
                       style: const TextStyle(
                         fontWeight: FontWeight.w700,
                       ),
                     ),
                     const SizedBox(width: 8),
                     Text(
-                      '${doctor.totalReviews} reviews',
+                      AppLocalizations.of(context)!.labelReviews(doctor.totalReviews.toString()),
                       style: TextStyle(
                         color: colors.onSurfaceVariant,
                         fontSize: 12,
@@ -1402,7 +1409,7 @@ class _PatientHomeScreenState extends State<PatientHomeScreen> {
                     ),
                     const SizedBox(width: 8),
                     Text(
-                      '${doctor.yearsOfExperience} yrs',
+                      AppLocalizations.of(context)!.labelYearsExp(doctor.yearsOfExperience.toString()),
                       style: TextStyle(
                         color: colors.onSurfaceVariant,
                         fontSize: 12,

@@ -11,6 +11,7 @@ import '../../providers/auth_provider.dart';
 import '../../providers/chat/chat_provider.dart';
 import '../../providers/video_call_provider.dart';
 import '../../services/video_audio/webrtc_stomp_service.dart';
+import '../../l10n/app_localizations.dart';
 
 class PatientMainLayout extends StatefulWidget {
   const PatientMainLayout({super.key});
@@ -90,7 +91,7 @@ class _MainLayoutState extends State<PatientMainLayout> {
         return Scaffold(
           body: Center(
             child: Text(
-              'The $label feature is under development...',
+              AppLocalizations.of(context)!.featureUnderDevelopment(label),
               style: const TextStyle(fontSize: 18, color: Colors.grey),
             ),
           ),

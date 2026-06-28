@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import '../../../l10n/app_localizations.dart';
 
 class OrderPaymentScreen extends StatelessWidget {
   final Map<String, dynamic>? currentOrder;
@@ -28,7 +29,7 @@ class OrderPaymentScreen extends StatelessWidget {
                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [
                     Text(
-                      currentOrder != null ? 'Order #${currentOrder!['orderNumber']}' : 'Order #ORD-9982',
+                      currentOrder != null ? '${AppLocalizations.of(context)!.orderLabel} #${currentOrder!['orderNumber']}' : '${AppLocalizations.of(context)!.orderLabel} #ORD-9982',
                       style: textTheme.headlineSmall?.copyWith(
                         fontWeight: FontWeight.w600,
                         color: colorScheme.onSurface,
@@ -43,7 +44,7 @@ class OrderPaymentScreen extends StatelessWidget {
                       ),
                       onPressed: () {},
                       icon: const Icon(Icons.picture_as_pdf_outlined, size: 20),
-                      label: const Text('Download PDF', style: TextStyle(fontWeight: FontWeight.w500)),
+                      label: Text(AppLocalizations.of(context)!.actionDownloadPdf, style: const TextStyle(fontWeight: FontWeight.w500)),
                     ),
                   ],
                 ),
@@ -63,7 +64,7 @@ class OrderPaymentScreen extends StatelessWidget {
                       ),
                       const SizedBox(width: 6),
                       Text(
-                        'Ready',
+                        AppLocalizations.of(context)!.orderStatusReady,
                         style: textTheme.labelSmall?.copyWith(color: colorScheme.onPrimaryContainer),
                       ),
                     ],
@@ -79,14 +80,14 @@ class OrderPaymentScreen extends StatelessWidget {
                     children: [
                       Row(
                         children: [
-                          Expanded(child: _buildDetailField('Pharmacy', 'City Central', colorScheme, textTheme)),
-                          Expanded(child: _buildDetailField('Delivery', 'Home Delivery', colorScheme, textTheme)),
+                          Expanded(child: _buildDetailField(AppLocalizations.of(context)!.pharmacyLabel, 'City Central', colorScheme, textTheme)),
+                          Expanded(child: _buildDetailField(AppLocalizations.of(context)!.deliveryLabel, AppLocalizations.of(context)!.deliveryHome, colorScheme, textTheme)),
                         ],
                       ),
                       const SizedBox(height: 24),
                       Row(
                         children: [
-                          Expanded(child: _buildDetailField('Address', '456 Patient Rd, Medical District, NY 10012', colorScheme, textTheme)),
+                          Expanded(child: _buildDetailField(AppLocalizations.of(context)!.addressLabel, '456 Patient Rd, Medical District, NY 10012', colorScheme, textTheme)),
                         ],
                       ),
                       const SizedBox(height: 24),
@@ -96,7 +97,7 @@ class OrderPaymentScreen extends StatelessWidget {
                             child: Column(
                               crossAxisAlignment: CrossAxisAlignment.start,
                               children: [
-                                Text('Est. Delivery'.toUpperCase(), style: textTheme.labelSmall?.copyWith(color: colorScheme.outline, letterSpacing: 1.0)),
+                                Text(AppLocalizations.of(context)!.orderEstDelivery.toUpperCase(), style: textTheme.labelSmall?.copyWith(color: colorScheme.outline, letterSpacing: 1.0)),
                                 const SizedBox(height: 4),
                                 Row(
                                   children: [
@@ -126,11 +127,11 @@ class OrderPaymentScreen extends StatelessWidget {
                         padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 16),
                         color: colorScheme.surfaceVariant.withOpacity(0.3), // bg-surface-container-low
                         width: double.infinity,
-                        child: Text('Order Items', style: textTheme.titleSmall?.copyWith(color: colorScheme.onSurface)),
+                        child: Text(AppLocalizations.of(context)!.orderItems, style: textTheme.titleSmall?.copyWith(color: colorScheme.onSurface)),
                       ),
-                      _buildOrderItem('Paracetamol 500mg', 'Quantity: x2', '\$10.00', colorScheme, textTheme),
+                      _buildOrderItem('Paracetamol 500mg', '${AppLocalizations.of(context)!.quantityLabel}: x2', '\$10.00', colorScheme, textTheme),
                       Divider(height: 1, color: colorScheme.outlineVariant.withOpacity(0.3)),
-                      _buildOrderItem('Vitamin C', 'Quantity: x1', '\$5.50', colorScheme, textTheme),
+                      _buildOrderItem('Vitamin C', '${AppLocalizations.of(context)!.quantityLabel}: x1', '\$5.50', colorScheme, textTheme),
 
                       // Price Breakdown
                       Container(
@@ -138,9 +139,9 @@ class OrderPaymentScreen extends StatelessWidget {
                         color: colorScheme.surfaceVariant.withOpacity(0.3),
                         child: Column(
                           children: [
-                            _buildPriceRow('Subtotal', '\$15.50', colorScheme, textTheme),
+                            _buildPriceRow(AppLocalizations.of(context)!.subtotalLabel, '\$15.50', colorScheme, textTheme),
                             const SizedBox(height: 8),
-                            _buildPriceRow('Delivery Fee', '\$2.00', colorScheme, textTheme),
+                            _buildPriceRow(AppLocalizations.of(context)!.deliveryFeeLabel, '\$2.00', colorScheme, textTheme),
                             Padding(
                               padding: const EdgeInsets.symmetric(vertical: 12),
                               child: Divider(height: 1, color: colorScheme.outlineVariant.withOpacity(0.5)),
@@ -148,7 +149,7 @@ class OrderPaymentScreen extends StatelessWidget {
                             Row(
                               mainAxisAlignment: MainAxisAlignment.spaceBetween,
                               children: [
-                                Text('Total', style: textTheme.titleMedium?.copyWith(color: colorScheme.onSurface)),
+                                Text(AppLocalizations.of(context)!.orderTotal, style: textTheme.titleMedium?.copyWith(color: colorScheme.onSurface)),
                                 Text('\$17.50', style: textTheme.titleMedium?.copyWith(color: colorScheme.onSurface, fontWeight: FontWeight.bold)),
                               ],
                             ),
@@ -161,13 +162,13 @@ class OrderPaymentScreen extends StatelessWidget {
                 const SizedBox(height: 24),
 
                 // --- 5. Request Changes Section ---
-                Text('Request Changes (Optional)', style: textTheme.titleSmall?.copyWith(color: colorScheme.onSurface)),
+                Text(AppLocalizations.of(context)!.orderRequestChangesOpt, style: textTheme.titleSmall?.copyWith(color: colorScheme.onSurface)),
                 const SizedBox(height: 8),
                 TextField(
                   maxLines: 3,
                   style: textTheme.bodyMedium?.copyWith(color: colorScheme.onSurface),
                   decoration: InputDecoration(
-                    hintText: 'Need to change delivery time or add instructions?',
+                    hintText: AppLocalizations.of(context)!.paymentInstructionsHint,
                     hintStyle: textTheme.bodyMedium?.copyWith(color: colorScheme.outlineVariant),
                     filled: true,
                     fillColor: colorScheme.surfaceVariant.withOpacity(0.3),
@@ -200,7 +201,7 @@ class OrderPaymentScreen extends StatelessWidget {
                       // Xử lý thanh toán
                     },
                     icon: const Icon(Icons.payment, size: 24), // Thay thế tạm icon payment
-                    label: const Text('Pay with PayPal', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
+                    label: Text(AppLocalizations.of(context)!.actionPayWithPayPal, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
                   ),
                 ),
                 const SizedBox(height: 16),
@@ -212,7 +213,7 @@ class OrderPaymentScreen extends StatelessWidget {
                   ),
                   onPressed: () {},
                   icon: const Icon(Icons.edit_note),
-                  label: const Text('Request Changes', style: TextStyle(fontWeight: FontWeight.w600)),
+                  label: Text(AppLocalizations.of(context)!.actionRequestChanges, style: const TextStyle(fontWeight: FontWeight.w600)),
                 ),
 
                 TextButton.icon(
@@ -222,7 +223,7 @@ class OrderPaymentScreen extends StatelessWidget {
                   ),
                   onPressed: () {},
                   icon: const Icon(Icons.cancel_outlined),
-                  label: const Text('Cancel Order', style: TextStyle(fontWeight: FontWeight.w600)),
+                  label: Text(AppLocalizations.of(context)!.actionCancelOrder, style: const TextStyle(fontWeight: FontWeight.w600)),
                 ),
 
                 const SizedBox(height: 8),
@@ -234,7 +235,7 @@ class OrderPaymentScreen extends StatelessWidget {
                   ),
                   onPressed: onPreviousStep,
                   icon: const Icon(Icons.arrow_back),
-                  label: const Text('Back to Connection', style: TextStyle(fontWeight: FontWeight.w600)),
+                  label: Text(AppLocalizations.of(context)!.actionBackToConnection, style: const TextStyle(fontWeight: FontWeight.w600)),
                 ),
 
                 const SizedBox(height: 48), // Spacing đáy

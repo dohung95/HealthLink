@@ -3,6 +3,7 @@ import 'package:provider/provider.dart';
 import 'package:intl/intl.dart';
 import '../../../providers/auth_provider.dart';
 import '../../../services/patient_pharmacy/pharmacy_service.dart';
+import '../../../l10n/app_localizations.dart';
 
 class ConsultationRequestsScreen extends StatefulWidget {
   const ConsultationRequestsScreen({super.key});
@@ -70,7 +71,7 @@ class _ConsultationRequestsScreenState extends State<ConsultationRequestsScreen>
                             SizedBox(height: MediaQuery.of(context).size.height * 0.3),
                             Center(
                               child: Text(
-                                'No consultation requests found.',
+                                AppLocalizations.of(context)!.pharmacyNoRequestsFound,
                                 style: textTheme.bodyLarge?.copyWith(color: colorScheme.outline),
                               ),
                             ),
@@ -83,18 +84,19 @@ class _ConsultationRequestsScreenState extends State<ConsultationRequestsScreen>
                           separatorBuilder: (context, index) => const SizedBox(height: 16),
                           itemBuilder: (context, index) {
                             final req = _requests[index];
-                            final pharmacyName = req['pharmacyName'] ?? 'Pharmacy';
+                            final pharmacyName = req['pharmacyName'] ?? AppLocalizations.of(context)!.pharmacyLabel;
                             
                             // Parse date
-                            String dateStr = 'Unknown date';
+                            String dateStr = AppLocalizations.of(context)!.labelNA;
                             if (req['createdAt'] != null) {
                               try {
                                 final dt = DateTime.parse(req['createdAt']).toLocal();
-                                dateStr = DateFormat('dd MMM yyyy, HH:mm').format(dt);
+                                final localeStr = Localizations.localeOf(context).languageCode;
+                                dateStr = DateFormat('dd MMM yyyy, HH:mm', localeStr).format(dt);
                               } catch (_) {}
                             }
 
-                            final description = req['notes'] ?? 'No additional notes provided.';
+                            final description = req['notes'] ?? AppLocalizations.of(context)!.pharmacyNoNotes;
                             final status = req['status'] ?? 'PENDING';
 
                             // Cấu hình UI theo status
@@ -124,12 +126,21 @@ class _ConsultationRequestsScreenState extends State<ConsultationRequestsScreen>
                             final isCancelled = (status == 'CANCELLED' || status == 'REJECTED');
                             final hasViewAction = (status == 'ORDER_CREATED');
 
+                            // Translated Status Text
+                            String displayStatusText = status;
+                            if (status == 'PENDING') displayStatusText = AppLocalizations.of(context)!.orderStatusPending;
+                            else if (status == 'ORDER_CREATED') displayStatusText = AppLocalizations.of(context)!.orderStatusCreated;
+                            else if (status == 'IN_REVIEW') displayStatusText = AppLocalizations.of(context)!.orderStatusInReview;
+                            else if (status == 'ACCEPTED') displayStatusText = AppLocalizations.of(context)!.orderStatusAccepted;
+                            else if (status == 'CANCELLED') displayStatusText = AppLocalizations.of(context)!.orderStatusCancelled;
+                            else if (status == 'REJECTED') displayStatusText = AppLocalizations.of(context)!.orderStatusRejected;
+
                             Widget card = _buildRequestCard(
                               context: context,
                               pharmacyName: pharmacyName,
                               date: dateStr,
                               description: description,
-                              statusText: status,
+                              statusText: displayStatusText,
                               statusIcon: statusIcon,
                               statusBgColor: statusBgColor,
                               statusTextColor: statusTextColor,
@@ -235,7 +246,7 @@ class _ConsultationRequestsScreenState extends State<ConsultationRequestsScreen>
                         border: Border.all(color: colorScheme.surfaceVariant.withOpacity(0.5)),
                       ),
                       child: Text(
-                        description.isNotEmpty ? description : 'No description',
+                        description.isNotEmpty ? description : AppLocalizations.of(context)!.labelNA,
                         maxLines: 2,
                         overflow: TextOverflow.ellipsis,
                         style: textTheme.bodyMedium?.copyWith(color: colorScheme.onSurfaceVariant),
@@ -279,7 +290,7 @@ class _ConsultationRequestsScreenState extends State<ConsultationRequestsScreen>
                                 mainAxisSize: MainAxisSize.min,
                                 children: [
                                   Text(
-                                    'View Order',
+                                    AppLocalizations.of(context)!.actionViewOrder,
                                     style: textTheme.labelMedium?.copyWith(color: colorScheme.primary, fontWeight: FontWeight.w600),
                                   ),
                                   const SizedBox(width: 4),

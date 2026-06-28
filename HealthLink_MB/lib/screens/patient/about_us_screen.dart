@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import '../../l10n/app_localizations.dart';
 
 class AboutUsScreen extends StatelessWidget {
   const AboutUsScreen({super.key});
@@ -11,7 +12,7 @@ class AboutUsScreen extends StatelessWidget {
     return Scaffold(
       backgroundColor: colorScheme.surface,
       appBar: AppBar(
-        title: const Text('About HealthLink'),
+        title: Text(AppLocalizations.of(context)!.aboutTitle),
         centerTitle: true,
         backgroundColor: Colors.transparent,
         elevation: 0,
@@ -61,7 +62,7 @@ class AboutUsScreen extends StatelessWidget {
                     ),
                   ),
                   Text(
-                    'Version 1.0.0',
+                    AppLocalizations.of(context)!.aboutVersion('1.0.0'),
                     style: textTheme.bodySmall?.copyWith(
                       color: colorScheme.outline,
                     ),
@@ -78,10 +79,10 @@ class AboutUsScreen extends StatelessWidget {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  _buildSectionTitle(context, 'Our Mission'),
+                  _buildSectionTitle(context, AppLocalizations.of(context)!.aboutMission),
                   const SizedBox(height: 12),
                   Text(
-                    'HealthLink was born with the goal of bridging the gap between patients and medical professionals. We leverage the power of technology to provide comprehensive, fast, and most effective healthcare solutions for everyone, every home.',
+                    AppLocalizations.of(context)!.aboutMissionDesc,
                     style: textTheme.bodyMedium?.copyWith(
                       height: 1.6,
                       color: colorScheme.onSurfaceVariant,
@@ -99,31 +100,31 @@ class AboutUsScreen extends StatelessWidget {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  _buildSectionTitle(context, 'Core Features'),
+                  _buildSectionTitle(context, AppLocalizations.of(context)!.aboutCoreFeatures),
                   const SizedBox(height: 16),
                   _buildFeatureItem(
                     context,
                     icon: Icons.videocam_outlined,
-                    title: 'Online Video Consultation',
-                    description: 'Connect directly with specialists from the comfort of your home.',
+                    title: AppLocalizations.of(context)!.aboutFeatVideo,
+                    description: AppLocalizations.of(context)!.aboutFeatVideoDesc,
                   ),
                   _buildFeatureItem(
                     context,
                     icon: Icons.description_outlined,
-                    title: 'Medical Record Management',
-                    description: 'Store and track medical history and prescriptions securely.',
+                    title: AppLocalizations.of(context)!.aboutFeatRecords,
+                    description: AppLocalizations.of(context)!.aboutFeatRecordsDesc,
                   ),
                   _buildFeatureItem(
                     context,
                     icon: Icons.smart_toy_outlined,
-                    title: 'Smart AI Assistant',
-                    description: '24/7 support for basic medical inquiries and guidance.',
+                    title: AppLocalizations.of(context)!.aboutFeatAI,
+                    description: AppLocalizations.of(context)!.aboutFeatAIDesc,
                   ),
                   _buildFeatureItem(
                     context,
                     icon: Icons.chat_bubble_outline,
-                    title: 'Instant Connection',
-                    description: 'Direct communication with doctors via our messaging system.',
+                    title: AppLocalizations.of(context)!.aboutFeatConnection,
+                    description: AppLocalizations.of(context)!.aboutFeatConnectionDesc,
                   ),
                 ],
               ),
@@ -144,7 +145,7 @@ class AboutUsScreen extends StatelessWidget {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  _buildSectionTitle(context, 'Contact Us'),
+                  _buildSectionTitle(context, AppLocalizations.of(context)!.aboutContactUs),
                   const SizedBox(height: 16),
                   _buildContactRow(context, Icons.mail_outline, 'HealthLink@gmail.com   support@healthlink.com'),
                   const SizedBox(height: 12),
@@ -161,7 +162,7 @@ class AboutUsScreen extends StatelessWidget {
             
             // Footer
             Text(
-              '© 2026 HealthLink Team. All rights reserved.',
+              AppLocalizations.of(context)!.aboutFooter,
               style: textTheme.labelSmall?.copyWith(
                 color: colorScheme.outline,
               ),

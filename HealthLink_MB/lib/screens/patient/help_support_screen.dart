@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:url_launcher/url_launcher.dart';
+import '../../l10n/app_localizations.dart';
 
 class HelpSupportScreen extends StatefulWidget {
   const HelpSupportScreen({super.key});
@@ -16,14 +17,17 @@ class _HelpSupportScreenState extends State<HelpSupportScreen> {
 
   static const String _supportEmail = 'support@healthlink.vn';
 
-  final List<String> _categories = const [
-    'All',
-    'Booking',
-    'Appointments',
-    'Health Records',
-    'Consultation',
-    'Account',
-  ];
+  List<String> _getCategories(BuildContext context) {
+    final l10n = AppLocalizations.of(context)!;
+    return [
+      l10n.helpCategoryAll,
+      l10n.helpCategoryBooking,
+      l10n.helpCategoryAppointments,
+      l10n.helpCategoryHealthRecords,
+      l10n.helpCategoryConsultation,
+      l10n.helpCategoryAccount,
+    ];
+  }
 
   final List<_FaqItem> _faqItems = const [
     _FaqItem(
@@ -124,12 +128,16 @@ class _HelpSupportScreenState extends State<HelpSupportScreen> {
     ),
   ];
 
-  List<_FaqItem> get _filteredFaqItems {
+  List<_FaqItem> _getFilteredFaqItems(BuildContext context) {
     final keyword = _searchKeyword.trim().toLowerCase();
+    final l10n = AppLocalizations.of(context)!;
+    final categories = _getCategories(context);
 
     return _faqItems.where((item) {
-      final matchesCategory = _selectedCategory == 'All' ||
-          item.category == _selectedCategory;
+      final isAll = _selectedCategory == 'All' || _selectedCategory == l10n.helpCategoryAll;
+      final mappedCategory = _mapCategoryToLocal(item.category, context);
+      
+      final matchesCategory = isAll || mappedCategory == _selectedCategory;
 
       final matchesKeyword = keyword.isEmpty ||
           item.question.toLowerCase().contains(keyword) ||
@@ -138,6 +146,18 @@ class _HelpSupportScreenState extends State<HelpSupportScreen> {
 
       return matchesCategory && matchesKeyword;
     }).toList();
+  }
+
+  String _mapCategoryToLocal(String original, BuildContext context) {
+    final l10n = AppLocalizations.of(context)!;
+    switch (original) {
+      case 'Booking': return l10n.helpCategoryBooking;
+      case 'Appointments': return l10n.helpCategoryAppointments;
+      case 'Health Records': return l10n.helpCategoryHealthRecords;
+      case 'Consultation': return l10n.helpCategoryConsultation;
+      case 'Account': return l10n.helpCategoryAccount;
+      default: return l10n.helpCategoryAll;
+    }
   }
 
   @override
@@ -216,7 +236,7 @@ Thank you.
     return Scaffold(
       backgroundColor: colors.surface,
       appBar: AppBar(
-        title: const Text('Help & Support'),
+        title: Text(AppLocalizations.of(context)!.drawerHelpSupport),
         centerTitle: true,
         backgroundColor: colors.surface,
         surfaceTintColor: Colors.transparent,
@@ -232,7 +252,7 @@ Thank you.
             const SizedBox(height: 24),
 
             Text(
-              'Frequently Asked Questions',
+              AppLocalizations.of(context)!.helpFAQ,
               style: Theme.of(context).textTheme.titleLarge?.copyWith(
                 fontWeight: FontWeight.bold,
               ),
@@ -247,7 +267,7 @@ Thank you.
                 });
               },
               decoration: InputDecoration(
-                hintText: 'Search for help...',
+                hintText: AppLocalizations.of(context)!.helpSearch,
                 prefixIcon: const Icon(Icons.search),
                 suffixIcon: _searchKeyword.isNotEmpty
                     ? IconButton(
@@ -283,11 +303,13 @@ Thank you.
               height: 42,
               child: ListView.separated(
                 scrollDirection: Axis.horizontal,
-                itemCount: _categories.length,
+                itemCount: _getCategories(context).length,
                 separatorBuilder: (_, __) => const SizedBox(width: 8),
                 itemBuilder: (context, index) {
-                  final category = _categories[index];
-                  final selected = category == _selectedCategory;
+                  final category = _getCategories(context)[index];
+                  // For default init state 'All' logic
+                  final isInitialAll = _selectedCategory == 'All' && index == 0;
+                  final selected = category == _selectedCategory || isInitialAll;
 
                   return ChoiceChip(
                     label: Text(category),
@@ -303,17 +325,17 @@ Thank you.
             ),
             const SizedBox(height: 16),
 
-            if (_filteredFaqItems.isEmpty)
+            if (_getFilteredFaqItems(context).isEmpty)
               _buildEmptyState(context)
             else
-              ..._filteredFaqItems.map(
+              ..._getFilteredFaqItems(context).map(
                     (item) => _buildFaqCard(context, item),
               ),
 
             const SizedBox(height: 24),
 
             Text(
-              'Contact Support',
+              AppLocalizations.of(context)!.helpContactSupport,
               style: Theme.of(context).textTheme.titleLarge?.copyWith(
                 fontWeight: FontWeight.bold,
               ),
@@ -323,7 +345,7 @@ Thank you.
             _buildContactCard(
               context,
               icon: Icons.email_outlined,
-              title: 'Email Support',
+              title: AppLocalizations.of(context)!.helpEmailSupport,
               subtitle: _supportEmail,
               onTap: _sendSupportEmail,
             ),
@@ -367,7 +389,7 @@ Thank you.
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(
-                  'How can we help?',
+                  AppLocalizations.of(context)!.helpHowCanWeHelp,
                   style: Theme.of(context).textTheme.titleLarge?.copyWith(
                     color: colors.onPrimary,
                     fontWeight: FontWeight.bold,
@@ -375,7 +397,7 @@ Thank you.
                 ),
                 const SizedBox(height: 4),
                 Text(
-                  'Find answers or contact the HealthLink support team.',
+                  AppLocalizations.of(context)!.helpFindAnswers,
                   style: Theme.of(context).textTheme.bodyMedium?.copyWith(
                     color: colors.onPrimary.withValues(alpha: 0.85),
                   ),
@@ -410,7 +432,7 @@ Thank you.
               const SizedBox(width: 10),
               Expanded(
                 child: Text(
-                  'Medical Emergency',
+                  AppLocalizations.of(context)!.helpMedicalEmergency,
                   style: Theme.of(context).textTheme.titleMedium?.copyWith(
                     color: colors.onErrorContainer,
                     fontWeight: FontWeight.bold,
@@ -421,8 +443,7 @@ Thank you.
           ),
           const SizedBox(height: 10),
           Text(
-            'HealthLink is not an emergency service. If you are experiencing '
-                'a medical emergency, contact emergency services immediately.',
+            AppLocalizations.of(context)!.helpEmergencyNotice,
             style: TextStyle(
               color: colors.onErrorContainer,
               height: 1.4,
@@ -436,7 +457,7 @@ Thank you.
               foregroundColor: colors.onError,
             ),
             icon: const Icon(Icons.call),
-            label: const Text('Call 115'),
+            label: Text(AppLocalizations.of(context)!.helpCall115),
           ),
         ],
       ),
@@ -470,7 +491,7 @@ Thank you.
           ),
         ),
         subtitle: Text(
-          item.category,
+          _mapCategoryToLocal(item.category, context),
           style: TextStyle(
             color: colors.primary,
             fontSize: 12,
@@ -571,13 +592,13 @@ Thank you.
             color: colors.outline,
           ),
           const SizedBox(height: 12),
-          const Text(
-            'No matching help topics found.',
-            style: TextStyle(fontWeight: FontWeight.w600),
+          Text(
+            AppLocalizations.of(context)!.helpNoMatch,
+            style: const TextStyle(fontWeight: FontWeight.w600),
           ),
           const SizedBox(height: 4),
           Text(
-            'Try another keyword or category.',
+            AppLocalizations.of(context)!.helpTryAnother,
             style: TextStyle(color: colors.onSurfaceVariant),
           ),
         ],
@@ -599,8 +620,7 @@ Thank you.
         const SizedBox(width: 10),
         Expanded(
           child: Text(
-            'Do not include passwords, payment credentials or unnecessary '
-                'medical information in your support email.',
+            AppLocalizations.of(context)!.helpPrivacyNotice,
             style: Theme.of(context).textTheme.bodySmall?.copyWith(
               color: colors.onSurfaceVariant,
               height: 1.4,

@@ -5,6 +5,7 @@ import '../../../providers/auth_provider.dart';
 import '../../../services/booking/booking_service.dart';
 import '../../../services/health_records/health_records_service.dart';
 import '../../../services/health_records/share_health_record_service.dart';
+import '../../../l10n/app_localizations.dart';
 
 class ShareHealthRecordsScreen extends StatefulWidget {
   const ShareHealthRecordsScreen({super.key});
@@ -346,18 +347,18 @@ class _ShareHealthRecordsScreenState extends State<ShareHealthRecordsScreen> {
       context: context,
       builder: (context) {
         return AlertDialog(
-          title: const Text('Revoke Access'),
+          title: Text(AppLocalizations.of(context)!.shareRecordsRevokeTitle),
           content: Text(
             'Revoke access for ${share.doctorName} to Record #${share.healthRecordId}?',
           ),
           actions: [
             TextButton(
               onPressed: () => Navigator.of(context).pop(false),
-              child: const Text('Cancel'),
+              child: Text(AppLocalizations.of(context)!.actionCancel),
             ),
             FilledButton(
               onPressed: () => Navigator.of(context).pop(true),
-              child: const Text('Revoke'),
+              child: Text(AppLocalizations.of(context)!.actionRevoke),
             ),
           ],
         );
@@ -426,7 +427,7 @@ class _ShareHealthRecordsScreenState extends State<ShareHealthRecordsScreen> {
         centerTitle: false,
         toolbarHeight: 72,
         title: Text(
-          'Share Health Records',
+          AppLocalizations.of(context)!.shareRecordsTitle,
           style: Theme.of(context).textTheme.titleLarge?.copyWith(
             fontWeight: FontWeight.w900,
             color: colors.onSurface,
@@ -485,23 +486,23 @@ class _ShareHealthRecordsScreenState extends State<ShareHealthRecordsScreen> {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Text(
-            'Grant New Access',
+            AppLocalizations.of(context)!.shareRecordsGrantAccess,
             style: Theme.of(context).textTheme.titleLarge?.copyWith(
               fontWeight: FontWeight.w900,
             ),
           ),
           const SizedBox(height: 4),
           Text(
-            'Select a health record, documents and doctor to share with.',
+            AppLocalizations.of(context)!.shareRecordsGrantAccessDesc,
             style: TextStyle(color: colors.onSurfaceVariant),
           ),
           const SizedBox(height: 16),
 
           DropdownButtonFormField<int>(
             value: _selectedRecordId,
-            decoration: const InputDecoration(
-              labelText: 'Health Record',
-              border: OutlineInputBorder(),
+            decoration: InputDecoration(
+              labelText: AppLocalizations.of(context)!.shareRecordsHealthRecord,
+              border: const OutlineInputBorder(),
             ),
             items: _records.map((record) {
               return DropdownMenuItem(
@@ -526,9 +527,9 @@ class _ShareHealthRecordsScreenState extends State<ShareHealthRecordsScreen> {
           DropdownButtonFormField<String>(
             value: _selectedSpecialty,
             isExpanded: true,
-            decoration: const InputDecoration(
-              labelText: 'Specialty',
-              border: OutlineInputBorder(),
+            decoration: InputDecoration(
+              labelText: AppLocalizations.of(context)!.shareRecordsSpecialty,
+              border: const OutlineInputBorder(),
             ),
             items: _specialties.map((specialty) {
               return DropdownMenuItem(
@@ -558,9 +559,9 @@ class _ShareHealthRecordsScreenState extends State<ShareHealthRecordsScreen> {
           DropdownButtonFormField<String>(
             value: _selectedDoctorId,
             isExpanded: true,
-            decoration: const InputDecoration(
-              labelText: 'Doctor',
-              border: OutlineInputBorder(),
+            decoration: InputDecoration(
+              labelText: AppLocalizations.of(context)!.shareRecordsDoctor,
+              border: const OutlineInputBorder(),
             ),
             selectedItemBuilder: (context) {
               return _doctors.map((doctor) {
@@ -613,9 +614,9 @@ class _ShareHealthRecordsScreenState extends State<ShareHealthRecordsScreen> {
           const SizedBox(height: 12),
 
           InputDecorator(
-            decoration: const InputDecoration(
-              labelText: 'Permission',
-              border: OutlineInputBorder(),
+            decoration: InputDecoration(
+              labelText: AppLocalizations.of(context)!.shareRecordsPermission,
+              border: const OutlineInputBorder(),
             ),
             child: Row(
               children: [
@@ -625,10 +626,10 @@ class _ShareHealthRecordsScreenState extends State<ShareHealthRecordsScreen> {
                   color: Theme.of(context).colorScheme.primary,
                 ),
                 const SizedBox(width: 10),
-                const Expanded(
+                Expanded(
                   child: Text(
-                    'View only',
-                    style: TextStyle(fontWeight: FontWeight.w700),
+                    AppLocalizations.of(context)!.shareRecordsViewOnly,
+                    style: const TextStyle(fontWeight: FontWeight.w700),
                   ),
                 ),
               ],
@@ -642,7 +643,7 @@ class _ShareHealthRecordsScreenState extends State<ShareHealthRecordsScreen> {
             icon: const Icon(Icons.event_outlined),
             label: Text(
               _expiryDate == null
-                  ? 'No expiry date'
+                  ? AppLocalizations.of(context)!.shareRecordsNoExpiry
                   : 'Expiry: ${_formatDate(_expiryDate!)}',
             ),
           ),
@@ -655,7 +656,7 @@ class _ShareHealthRecordsScreenState extends State<ShareHealthRecordsScreen> {
                 });
               },
               icon: const Icon(Icons.close),
-              label: const Text('Clear expiry date'),
+              label: Text(AppLocalizations.of(context)!.shareRecordsClearExpiry),
             ),
 
           const SizedBox(height: 16),
@@ -669,7 +670,7 @@ class _ShareHealthRecordsScreenState extends State<ShareHealthRecordsScreen> {
             child: FilledButton.icon(
               onPressed: _submitting ? null : _submitShare,
               icon: const Icon(Icons.ios_share_outlined),
-              label: Text(_submitting ? 'Sharing...' : 'Share Record'),
+              label: Text(_submitting ? '...' : AppLocalizations.of(context)!.shareRecordsShareBtn),
             ),
           ),
         ],
@@ -696,7 +697,7 @@ class _ShareHealthRecordsScreenState extends State<ShareHealthRecordsScreen> {
               'Share entire record',
               style: TextStyle(fontWeight: FontWeight.w800),
             ),
-            subtitle: const Text('Doctor can view all documents in this record.'),
+            subtitle: Text(AppLocalizations.of(context)!.shareRecordsViewAllDesc),
             onChanged: (value) {
               setState(() {
                 _shareEntireRecord = value;
@@ -759,14 +760,14 @@ class _ShareHealthRecordsScreenState extends State<ShareHealthRecordsScreen> {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Text(
-            'Active Shared Records',
+            AppLocalizations.of(context)!.shareRecordsActiveShared,
             style: Theme.of(context).textTheme.titleLarge?.copyWith(
               fontWeight: FontWeight.w900,
             ),
           ),
           const SizedBox(height: 4),
           Text(
-            'Records currently shared with doctors.',
+            AppLocalizations.of(context)!.shareRecordsActiveSharedDesc,
             style: TextStyle(color: colors.onSurfaceVariant),
           ),
           const SizedBox(height: 16),
@@ -775,8 +776,8 @@ class _ShareHealthRecordsScreenState extends State<ShareHealthRecordsScreen> {
             _emptyState(
               colors,
               icon: Icons.share_outlined,
-              title: 'No active shares',
-              subtitle: 'Shared records will appear here.',
+              title: AppLocalizations.of(context)!.shareRecordsNoActiveShares,
+              subtitle: AppLocalizations.of(context)!.shareRecordsNoActiveSharesDesc,
             )
           else ...[
             ..._shares.map((share) => _shareTile(colors, share)),

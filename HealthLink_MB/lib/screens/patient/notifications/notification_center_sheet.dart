@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 
 import '../../../models/notification/notification_item.dart';
 import '../../../services/notification/notification_service.dart';
+import '../../../l10n/app_localizations.dart';
 
 class NotificationCenterSheet extends StatefulWidget {
   const NotificationCenterSheet({
@@ -132,7 +133,7 @@ class _NotificationCenterSheetState extends State<NotificationCenterSheet> {
                 children: [
                   Expanded(
                     child: Text(
-                      'Notifications',
+                      AppLocalizations.of(context)!.notificationsTitle,
                       style: Theme.of(context).textTheme.headlineSmall?.copyWith(
                         fontWeight: FontWeight.bold,
                         color: colors.primary,
@@ -141,7 +142,7 @@ class _NotificationCenterSheetState extends State<NotificationCenterSheet> {
                   ),
                   TextButton(
                     onPressed: _items.isEmpty ? null : _markAllAsRead,
-                    child: const Text('Mark all read'),
+                    child: Text(AppLocalizations.of(context)!.notificationsMarkAllRead),
                   ),
                   IconButton(
                     onPressed: () => Navigator.pop(context),
@@ -180,8 +181,8 @@ class _NotificationCenterSheetState extends State<NotificationCenterSheet> {
     }
 
     if (_items.isEmpty) {
-      return const Center(
-        child: Text('No notifications yet.'),
+      return Center(
+        child: Text(AppLocalizations.of(context)!.notificationsEmpty),
       );
     }
 
