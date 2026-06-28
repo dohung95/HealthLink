@@ -31,8 +31,8 @@ const DoctorAppointmentDetail = memo(({ appointment, patient, doctorId, onBack, 
   const ctx = useAppointmentDetail({ appointment, patient, doctorId, onBack, onOpenAppointmentById });
 
   const showWorkspaceOverlay = useMemo(() =>
-    !ctx.hasAppointmentTimeArrived && !ctx.hasStarted && ctx.statusKey === 'scheduled',
-    [ctx.hasAppointmentTimeArrived, ctx.hasStarted, ctx.statusKey],
+    !ctx.hasStarted && ctx.statusKey === 'scheduled',
+    [ctx.hasStarted, ctx.statusKey],
   );
 
   if (!appointment || !patient) {
@@ -68,22 +68,35 @@ const DoctorAppointmentDetail = memo(({ appointment, patient, doctorId, onBack, 
             {showWorkspaceOverlay && (
               <div
                 className="doctor-detail-workspace-overlay"
-                onClick={() => toast.info('Appointment time has not arrived yet.', { toastId: 'appointment-time-locked' })}
+                onClick={() => {
+                  const msg = ctx.hasAppointmentTimeArrived
+                    ? 'Please start the consultation first.'
+                    : 'Appointment time has not arrived yet.';
+                  toast.info(msg, { toastId: 'workspace-locked' });
+                }}
                 role="button"
                 tabIndex={0}
                 onKeyDown={(e) => {
                   if (e.key === 'Enter' || e.key === ' ') {
-                    toast.info('Appointment time has not arrived yet.', { toastId: 'appointment-time-locked' });
+                    const msg = ctx.hasAppointmentTimeArrived
+                      ? 'Please start the consultation first.'
+                      : 'Appointment time has not arrived yet.';
+                    toast.info(msg, { toastId: 'workspace-locked' });
                   }
                 }}
                 aria-label="Workspace locked until appointment time"
               >
                 <div className="doctor-detail-workspace-overlay__content">
                   <span className="material-symbols-outlined" style={{ fontSize: '2.5rem', marginBottom: '0.75rem' }}>lock</span>
-                  <p className="doctor-detail-workspace-overlay__title">Appointment Not Yet Started</p>
+                  <p className="doctor-detail-workspace-overlay__title">
+                    {ctx.hasAppointmentTimeArrived ? 'Start Consultation First' : 'Appointment Not Yet Started'}
+                  </p>
                   <p className="doctor-detail-workspace-overlay__desc">
-                    The consultation workspace will be available once the appointment time arrives.
-                    You can start the consultation from the action bar below when the time comes.
+                    {ctx.hasAppointmentTimeArrived ? (
+                      'Click "Start Consultation" in the action bar below to begin.'
+                    ) : (
+                      'The consultation workspace will be available once the appointment time arrives. You can start the consultation from the action bar below when the time comes.'
+                    )}
                   </p>
                 </div>
               </div>
@@ -228,7 +241,14 @@ const DoctorAppointmentDetail = memo(({ appointment, patient, doctorId, onBack, 
         hasPendingFollowUp={ctx.hasPendingFollowUp}
         onClose={() => ctx.setShowCompleteConfirmModal(false)}
         onConfirm={ctx.handleCompleteAppointment}
-        notesSaved={Boolean(ctx.consultation?.doctorNotes || ctx.consultation?.diagnosis || ctx.consultation?.treatmentPlan)}
+        notesSaved={Boolean(
+          ctx.notesDraft?.diagnosis ||
+          ctx.notesDraft?.doctorNotes ||
+          ctx.notesDraft?.treatmentPlan ||
+          ctx.consultation?.doctorNotes ||
+          ctx.consultation?.diagnosis ||
+          ctx.consultation?.treatmentPlan
+        )}
         prescriptionReady={Boolean(ctx.prescription || (ctx.prescriptionDraft?.medicationRows?.length > 0))}
         followUpConfigured={Boolean(ctx.hasPendingFollowUp || ctx.consultation?.followUpDate)}
       />

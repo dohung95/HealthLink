@@ -219,6 +219,12 @@ export function useAppointmentDetail({ appointment, patient, doctorId: currentDo
       }
       : null;
 
+    if (notes.notesDraft?.diagnosis || notes.notesDraft?.doctorNotes || notes.notesDraft?.treatmentPlan) {
+      try {
+        await notes.handleSaveNotes();
+      } catch (_) {}
+    }
+
     setCompletingAppointment(true);
     setShowCompleteConfirmModal(false);
 
@@ -257,7 +263,7 @@ export function useAppointmentDetail({ appointment, patient, doctorId: currentDo
     } finally {
       setCompletingAppointment(false);
     }
-  }, [appointmentId, appointment, appointmentData, prescriptionDraft, onBack, onOpenAppointmentById]);
+  }, [appointmentId, appointment, appointmentData, notes, prescriptionDraft, onBack, onOpenAppointmentById]);
 
   const selectedHistoryConsultation = useMemo(
     () => buildConsultation(appointmentData.selectedHistoryAppointment),

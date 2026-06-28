@@ -1,31 +1,39 @@
 import React, { useEffect, useRef } from 'react';
 
-const ChecklistItem = ({ icon, label, done, optional }) => (
-  <div style={{
-    display: 'flex',
-    alignItems: 'center',
-    gap: '0.625rem',
-    padding: '0.5rem 0.75rem',
-    borderRadius: 'var(--radius-sm)',
-    background: done ? 'rgba(16, 185, 129, 0.06)' : 'rgba(251, 191, 36, 0.06)',
-    border: `1px solid ${done ? 'rgba(16, 185, 129, 0.2)' : 'rgba(251, 191, 36, 0.2)'}`,
-  }}>
-    <i className={`bi ${icon}`} style={{
-      fontSize: '1rem',
-      color: done ? 'var(--success)' : 'var(--warning)',
-    }} />
-    <span style={{
-      flex: 1, fontSize: '0.8125rem',
-      fontWeight: 500, color: 'var(--text-primary)',
-    }}>{label}</span>
-    <span style={{
-      fontSize: '0.75rem', fontWeight: 600,
-      color: done ? 'var(--success)' : optional ? 'var(--text-muted)' : 'var(--warning)',
+const ChecklistItem = ({ icon, label, done, optional }) => {
+  const colors = done
+    ? { bg: 'rgba(16, 185, 129, 0.06)', border: 'rgba(16, 185, 129, 0.2)', icon: 'var(--success)', text: 'var(--success)', label: 'Ready' }
+    : optional
+      ? { bg: 'rgba(251, 191, 36, 0.06)', border: 'rgba(251, 191, 36, 0.2)', icon: 'var(--warning)', text: 'var(--warning)', label: 'Optional' }
+      : { bg: 'rgba(239, 68, 68, 0.06)', border: 'rgba(239, 68, 68, 0.2)', icon: 'var(--error)', text: 'var(--error)', label: 'Not ready' };
+
+  return (
+    <div style={{
+      display: 'flex',
+      alignItems: 'center',
+      gap: '0.625rem',
+      padding: '0.5rem 0.75rem',
+      borderRadius: 'var(--radius-sm)',
+      background: colors.bg,
+      border: `1px solid ${colors.border}`,
     }}>
-      {done ? 'Ready' : optional ? 'Optional' : 'Not ready'}
-    </span>
-  </div>
-);
+      <i className={`bi ${icon}`} style={{
+        fontSize: '1rem',
+        color: colors.icon,
+      }} />
+      <span style={{
+        flex: 1, fontSize: '0.8125rem',
+        fontWeight: 500, color: 'var(--text-primary)',
+      }}>{label}</span>
+      <span style={{
+        fontSize: '0.75rem', fontWeight: 600,
+        color: colors.text,
+      }}>
+        {done ? 'Ready' : colors.label}
+      </span>
+    </div>
+  );
+};
 
 const CompleteConfirmModal = ({
   show,
@@ -40,6 +48,7 @@ const CompleteConfirmModal = ({
   followUpConfigured,
 }) => {
   const dialogRef = useRef(null);
+  const canComplete = notesSaved && prescriptionReady;
 
   useEffect(() => {
     if (!show) return;
@@ -140,7 +149,9 @@ const CompleteConfirmModal = ({
                 width: '56px',
                 height: '56px',
                 borderRadius: '50%',
-                background: 'rgba(16, 185, 129, 0.1)',
+                background: canComplete
+                  ? 'rgba(16, 185, 129, 0.1)'
+                  : 'rgba(239, 68, 68, 0.1)',
                 display: 'flex',
                 alignItems: 'center',
                 justifyContent: 'center',
@@ -148,8 +159,11 @@ const CompleteConfirmModal = ({
               }}
             >
               <i
-                className="bi bi-check-circle-fill"
-                style={{ fontSize: '1.75rem', color: 'var(--success)' }}
+                className={canComplete ? 'bi bi-check-circle-fill' : 'bi bi-x-circle-fill'}
+                style={{
+                  fontSize: '1.75rem',
+                  color: canComplete ? 'var(--success)' : 'var(--error)',
+                }}
               />
             </div>
           </div>
@@ -170,7 +184,7 @@ const CompleteConfirmModal = ({
                 letterSpacing: '-0.01em',
               }}
             >
-              Complete consultation
+              {canComplete ? 'Complete consultation' : 'Cannot complete yet'}
             </h5>
             <p
               style={{
@@ -180,7 +194,9 @@ const CompleteConfirmModal = ({
                 lineHeight: 1.5,
               }}
             >
-              Mark this appointment as completed? The patient will be notified.
+              {canComplete
+                ? 'Mark this appointment as completed? The patient will be notified.'
+                : 'Please complete all required fields below before confirming.'}
             </p>
           </div>
 
@@ -191,7 +207,7 @@ const CompleteConfirmModal = ({
           }}>
             <div style={{ display: 'flex', flexDirection: 'column', gap: '0.375rem' }}>
               <ChecklistItem icon="bi-journal-text" label="Consultation Notes" done={notesSaved} />
-              <ChecklistItem icon="bi-capsule-pill" label="Prescription" done={prescriptionReady || copyPrescription} />
+              <ChecklistItem icon="bi-capsule-pill" label="Prescription" done={prescriptionReady} />
               <ChecklistItem icon="bi-calendar-check" label="Follow-up" done={followUpConfigured} optional />
             </div>
           </div>
@@ -295,24 +311,30 @@ const CompleteConfirmModal = ({
             <button
               type="button"
               onClick={onConfirm}
-              disabled={completingAppointment}
+              disabled={completingAppointment || !canComplete}
               style={{
                 flex: 1,
                 padding: '0.625rem 1rem',
                 borderRadius: 'var(--radius-md)',
                 border: 'none',
-                background: 'var(--success)',
-                color: '#fff',
+                background: completingAppointment || !canComplete
+                  ? 'var(--border)'
+                  : 'var(--success)',
+                color: completingAppointment || !canComplete
+                  ? 'var(--text-muted)'
+                  : '#fff',
                 fontSize: '0.875rem',
                 fontWeight: 600,
-                cursor: completingAppointment ? 'not-allowed' : 'pointer',
+                cursor: completingAppointment || !canComplete ? 'not-allowed' : 'pointer',
                 transition: 'all 0.15s var(--doctor-ease)',
                 display: 'flex',
                 alignItems: 'center',
                 justifyContent: 'center',
                 gap: '0.5rem',
-                opacity: completingAppointment ? 0.7 : 1,
-                boxShadow: '0 4px 12px rgba(16, 185, 129, 0.3)',
+                opacity: completingAppointment || !canComplete ? 0.5 : 1,
+                boxShadow: completingAppointment || !canComplete
+                  ? 'none'
+                  : '0 4px 12px rgba(16, 185, 129, 0.3)',
               }}
               onMouseDown={(e) => {
                 if (!completingAppointment) e.currentTarget.style.transform = 'scale(0.97)';
