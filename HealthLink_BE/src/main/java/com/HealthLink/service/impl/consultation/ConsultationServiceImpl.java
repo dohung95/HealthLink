@@ -12,6 +12,9 @@ import com.HealthLink.exception.ResourceNotFoundException;
 import com.HealthLink.repository.appointment.AppointmentRepository;
 import com.HealthLink.repository.consultation.ConsultationRepository;
 import com.HealthLink.repository.payment.InvoiceRepository;
+import com.HealthLink.repository.chat.ChatRoomRepository;
+import com.HealthLink.dto.chat.MessageDTO;
+import org.springframework.messaging.simp.SimpMessagingTemplate;
 import com.HealthLink.service.consultation.ConsultationService;
 import com.HealthLink.service.followup.FollowUpAppointmentService;
 import lombok.RequiredArgsConstructor;
@@ -28,6 +31,8 @@ public class ConsultationServiceImpl implements ConsultationService {
     private final AppointmentRepository appointmentRepository;
     private final InvoiceRepository invoiceRepository;
     private final FollowUpAppointmentService followUpAppointmentService;
+    private final ChatRoomRepository chatRoomRepository;
+    private final SimpMessagingTemplate messagingTemplate;
 
     // -------------------------------------------------------------------------
     // Cập nhật ngày tái khám
@@ -107,6 +112,29 @@ public class ConsultationServiceImpl implements ConsultationService {
 
         Consultation saved = consultationRepository.save(consultation);
         appointment.setConsultation(saved);
+        
+        try {
+            String pId = appointment.getPatient().getPatientId();
+            String dId = appointment.getDoctor().getDoctorId();
+            chatRoomRepository.findByUsers(pId, dId).stream().findFirst().ifPresent(room -> {
+                if (room.getAppointment() == null || !room.getAppointment().getAppointmentId().equals(appointmentId)) {
+                    room.setAppointment(appointment);
+                    chatRoomRepository.save(room);
+                }
+                MessageDTO sysMsg = MessageDTO.builder()
+                        .messageId("sys_" + java.util.UUID.randomUUID().toString())
+                        .chatRoomId(room.getChatRoomId())
+                        .content("[SYSTEM_BLOCK_UPDATE]")
+                        .senderId("SYSTEM")
+                        .timestamp(LocalDateTime.now())
+                        .build();
+                messagingTemplate.convertAndSendToUser(room.getUser1Id(), "/queue/chat", sysMsg);
+                messagingTemplate.convertAndSendToUser(room.getUser2Id(), "/queue/chat", sysMsg);
+            });
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
+        
         return toConsultationResponse(saved);
     }
 

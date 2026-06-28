@@ -14,6 +14,7 @@ import RescheduleAppointmentModal from './RescheduleAppointmentModal';
 import PreConsultationVitalsModal from './PreConsultationVitalsModal';
 import ReviewForm from './patient-dashboard/ReviewForm';
 import { patientReviewApi } from '../api/reviewApi';
+import stompChatService from '../services/stompChatService';
 import './Css/MyAppointment.css';
 
 const MyAppointments = () => {
@@ -75,6 +76,21 @@ const MyAppointments = () => {
 
         return () => clearInterval(timer);
     }, []);
+
+    useEffect(() => {
+        if (!patientId) return;
+
+        const unsub = stompChatService.subscribeToChat((newMsg) => {
+            if (newMsg.content === '[SYSTEM_BLOCK_UPDATE]') {
+                toast.info('Status changed! Refreshing appointments...', { duration: 3000 });
+                loadAppointments(patientId, currentPage, statusFilter);
+            }
+        });
+
+        return () => {
+            if (unsub) unsub();
+        };
+    }, [patientId, currentPage, statusFilter]);
 
     const loadAppointments = async (
         currentPatientId = patientId,

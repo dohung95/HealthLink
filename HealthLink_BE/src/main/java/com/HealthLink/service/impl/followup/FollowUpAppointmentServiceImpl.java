@@ -8,6 +8,7 @@ import com.HealthLink.dto.response.FollowUpCalendarDayResponse;
 import com.HealthLink.dto.response.FollowUpCalendarResponse;
 import com.HealthLink.dto.response.FollowUpSlotResponse;
 import com.HealthLink.dto.response.FollowUpSlotsResponse;
+import com.HealthLink.dto.chat.MessageDTO;
 import com.HealthLink.entity.Appointment;
 import com.HealthLink.entity.Consultation;
 import com.HealthLink.entity.Doctor;
@@ -26,8 +27,10 @@ import com.HealthLink.repository.doctor.DoctorRepository;
 import com.HealthLink.repository.doctor.DoctorScheduleRepository;
 import com.HealthLink.repository.payment.InvoiceRepository;
 import com.HealthLink.repository.prescription.PrescriptionHeaderRepository;
+import com.HealthLink.repository.chat.ChatRoomRepository;
 import com.HealthLink.service.followup.FollowUpAppointmentService;
 import com.HealthLink.service.payment.CommissionService;
+import org.springframework.messaging.simp.SimpMessagingTemplate;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -56,6 +59,8 @@ public class FollowUpAppointmentServiceImpl implements FollowUpAppointmentServic
     private final InvoiceRepository invoiceRepository;
     private final PrescriptionHeaderRepository prescriptionHeaderRepository;
     private final CommissionService commissionService;
+    private final ChatRoomRepository chatRoomRepository;
+    private final SimpMessagingTemplate messagingTemplate;
 
     @Override
     @Transactional(readOnly = true)
@@ -354,6 +359,23 @@ public class FollowUpAppointmentServiceImpl implements FollowUpAppointmentServic
         }
         Appointment completedAppointment = appointmentRepository.save(appointment);
         commissionService.processConsultationCommission(invoice);
+
+        try {
+            chatRoomRepository.findByAppointment_AppointmentId(completedAppointment.getAppointmentId())
+                .ifPresent(room -> {
+                    MessageDTO sysMsg = MessageDTO.builder()
+                            .messageId("sys_" + java.util.UUID.randomUUID().toString())
+                            .chatRoomId(room.getChatRoomId())
+                            .content("[SYSTEM_BLOCK_UPDATE]")
+                            .senderId("SYSTEM")
+                            .timestamp(java.time.LocalDateTime.now())
+                            .build();
+                    messagingTemplate.convertAndSendToUser(room.getUser1Id(), "/queue/chat", sysMsg);
+                    messagingTemplate.convertAndSendToUser(room.getUser2Id(), "/queue/chat", sysMsg);
+                });
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
 
         Appointment followUpAppointment = null;
         Integer followUpPrescriptionHeaderId = null;
