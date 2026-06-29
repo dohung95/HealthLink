@@ -177,7 +177,7 @@ class AppLocalizationsVi extends AppLocalizations {
   String get homeShareRecords => 'Chia sẻ hồ sơ';
 
   @override
-  String get homeDoctorRanking => 'Bác sĩ tiêu biểu';
+  String get homeDoctorRanking => 'Xếp hạng bác sĩ';
 
   @override
   String get homePharmacy => 'Nhà thuốc';
@@ -454,7 +454,7 @@ class AppLocalizationsVi extends AppLocalizations {
   String get btnViewDetails => 'Xem chi tiết >';
 
   @override
-  String get statusIssued => 'Đã cấp';
+  String get statusIssued => 'ĐÃ KÊ ĐƠN';
 
   @override
   String get labelNA => 'Không có thông tin';
@@ -803,7 +803,7 @@ class AppLocalizationsVi extends AppLocalizations {
   String get actionCancelOrder => 'Hủy đơn hàng';
 
   @override
-  String get actionBackToConnection => 'Quay lại kết nối';
+  String get actionBackToConnection => 'Quay lại màn hình chờ';
 
   @override
   String get pharmacyWaitingAcceptance => 'Đang chờ chấp nhận';
@@ -1574,4 +1574,109 @@ class AppLocalizationsVi extends AppLocalizations {
 
   @override
   String get retailDeliveryLabel => 'Giao hàng';
+
+  @override
+  String get fillHealthInfoTitle => 'Thông tin sức khỏe';
+
+  @override
+  String get fillHealthInfoSubtitle =>
+      'Vui lòng nhập các chỉ số. (Tùy chọn nhưng khuyến nghị)';
+
+  @override
+  String get heartRate => 'Nhịp tim';
+
+  @override
+  String get bloodPressure => 'Huyết áp';
+
+  @override
+  String get bloodPressureSystolic => 'Tâm thu';
+
+  @override
+  String get bloodPressureDiastolic => 'Tâm trương';
+
+  @override
+  String get temperature => 'Nhiệt độ';
+
+  @override
+  String get respiratoryRate => 'Nhịp thở';
+
+  @override
+  String get spO2 => 'SpO2 (Oxy)';
+
+  @override
+  String get notes => 'Triệu chứng / Ghi chú';
+
+  @override
+  String get saveVitalsBtn => 'Lưu thông tin';
+
+  @override
+  String get chatBlockedVitalsWarning =>
+      'Vui lòng cung cấp thông tin sức khỏe của bạn trước khi bắt đầu chat.';
+
+  @override
+  String get fillHealthInfoBtn => 'Nhập thông tin sức khỏe';
+
+  @override
+  String get vitalsSavedSuccess => 'Đã lưu thông tin sức khỏe thành công.';
+
+  @override
+  String get vitalsInstructionsTitle => 'Hướng dẫn trước khi bắt đầu tư vấn';
+
+  @override
+  String get vitalsInstructions1 =>
+      'Nếu có máy đo huyết áp tại nhà, vui lòng nhập các chỉ số hiển thị trên máy: SYS, DIA và Nhịp tim (Pulse).';
+
+  @override
+  String get vitalsInstructions2 =>
+      'Nếu không có máy đo, bạn vẫn có thể tự đo nhịp tim: ngồi yên, đếm nhịp đập trong 30 giây rồi nhân đôi để ra số nhịp/phút.';
+
+  @override
+  String get vitalsInstructions3 =>
+      'SpO2 và Nhiệt độ là tùy chọn, chỉ nhập nếu bạn có thiết bị đo phù hợp.';
+
+  @override
+  String get vitalsInstructionsDisclaimer =>
+      'Các chỉ số này nhằm mục đích để bác sĩ tham khảo trước khi khám, không dùng để chẩn đoán.';
+
+  @override
+  String get measurementMethod => 'Phương pháp đo *';
+
+  @override
+  String get measuredByDevice => 'Đo bằng thiết bị tại nhà';
+
+  @override
+  String get measuredByDeviceHint =>
+      'Ví dụ: Máy đo huyết áp, máy SpO2, nhiệt kế, đồng hồ thông minh.';
+
+  @override
+  String get measuredManually => 'Đo thủ công';
+
+  @override
+  String get measuredManuallyHint =>
+      'Sử dụng khi không có máy. Tự đếm nhịp mạch trong 30 giây rồi nhân đôi.';
+
+  @override
+  String get deviceName => 'Tên thiết bị (nếu có)';
+
+  @override
+  String get deviceNameHint => 'Ví dụ: Máy đo huyết áp Omron';
+
+  @override
+  String get howToMeasurePulse => 'Cách tự đo nhịp tim thủ công?';
+
+  @override
+  String get whereToFindSysDia => 'Tìm chỉ số SYS/DIA/Nhịp tim ở đâu trên máy?';
+
+  @override
+  String get spo2Hint => 'Tùy chọn. Nhập nếu đo bằng máy SpO2 hoặc smartwatch.';
+
+  @override
+  String get tempHint => 'Tùy chọn. Nhập nếu đo bằng nhiệt kế.';
+
+  @override
+  String get respHint => 'Tùy chọn. Đếm nhịp thở trong 30 giây, sau đó nhân 2.';
+
+  @override
+  String get notesHint =>
+      'Ví dụ: đo sau khi nghỉ ngơi 5 phút, cảm thấy hơi chóng mặt, hơi tức ngực...';
 }

@@ -21,6 +21,9 @@ import 'profile_patient_normal_forChar_screen.dart';
 import 'profile_doctor_normal_forChat_screen.dart';
 import '../../providers/video_call_provider.dart';
 import '../video_audio/video_call_screen.dart';
+import '../../services/vitals/vital_sign_service.dart';
+import 'widgets/vitals_bottom_sheet.dart';
+import '../../l10n/app_localizations.dart';
 
 /// Màn hình Chat Room – hiển thị tin nhắn và cho phép gửi tin nhắn.
 class ChatRoomScreen extends StatefulWidget {
@@ -55,6 +58,11 @@ class _ChatRoomScreenState extends State<ChatRoomScreen> {
   int _recordingDuration = 0;
   Timer? _recordingTimer;
   String? _audioPath;
+
+  // Vitals state
+  bool _hasFilledVitals = false;
+  bool _checkingVitals = false;
+  int? _checkedAppointmentId;
 
   ColorScheme _colors(BuildContext context) => Theme.of(context).colorScheme;
 
@@ -102,6 +110,28 @@ class _ChatRoomScreenState extends State<ChatRoomScreen> {
         if (auth.accessToken != null && auth.userId != null) {
           chat.openConversation(auth.accessToken!, auth.userId!, widget.conversation);
         }
+      }
+    });
+  }
+
+  void _checkVitals(String token, int appointmentId) {
+    if (_checkingVitals) return;
+    setState(() => _checkingVitals = true);
+    
+    VitalSignService.getLatestAppointmentVitalSign(token, appointmentId)
+        .then((data) {
+      if (mounted) {
+        setState(() {
+          _hasFilledVitals = data != null && data['vitalSignId'] != null;
+          _checkingVitals = false;
+        });
+      }
+    }).catchError((e) {
+      if (mounted) {
+        setState(() {
+          _hasFilledVitals = false;
+          _checkingVitals = false;
+        });
       }
     });
   }
@@ -472,6 +502,23 @@ class _ChatRoomScreenState extends State<ChatRoomScreen> {
   Widget build(BuildContext context) {
     final colors = _colors(context);
     final chat = context.watch<ChatProvider>();
+    final auth = context.read<AuthProvider>();
+    
+    final conv = chat.currentConversation ?? widget.conversation;
+    
+    // Check vitals dynamically if appointmentId is present and hasn't been checked yet
+    if (auth.isPatient && 
+        conv.appointmentId != null && 
+        _checkedAppointmentId != conv.appointmentId && 
+        conv.appointmentStatus?.toUpperCase() != 'COMPLETED') {
+      _checkedAppointmentId = conv.appointmentId;
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (auth.accessToken != null) {
+          _checkVitals(auth.accessToken!, conv.appointmentId!);
+        }
+      });
+    }
+
     final chatTheme = getActiveChatTheme(context, chat.chatThemeIndex);
 
     // Phát hiện tin nhắn mới (phải kiểm tra .last thay vì .first vì tin cũ được chèn vào đầu mảng)
@@ -1008,6 +1055,7 @@ class _ChatRoomScreenState extends State<ChatRoomScreen> {
     final chatTheme = getActiveChatTheme(context, chat.chatThemeIndex);
     
     final auth = context.read<AuthProvider>();
+    final l10n = AppLocalizations.of(context)!;
     final blockedBy = chat.getBlockedBy(conv.id);
 
     // ── Ưu tiên 1: Kiểm tra cuộc hẹn đã COMPLETED chưa ─────────────────────
@@ -1040,6 +1088,61 @@ class _ChatRoomScreenState extends State<ChatRoomScreen> {
         message: isBlockedByMe
             ? 'You blocked this user.'
             : 'You cannot reply to this conversation.',
+      );
+    }
+
+    // Checking vitals in progress
+    if (_checkingVitals && auth.isPatient && !isAppointmentCompleted) {
+      return const Padding(
+        padding: EdgeInsets.all(16.0),
+        child: Center(child: CircularProgressIndicator()),
+      );
+    }
+
+    // Missing Vitals (Patient only)
+    if (auth.isPatient && !_hasFilledVitals && !isAppointmentCompleted) {
+      return Container(
+        padding: const EdgeInsets.all(16),
+        decoration: BoxDecoration(
+          color: Colors.orange.shade50,
+          border: Border(top: BorderSide(color: Colors.orange.shade200)),
+        ),
+        child: Column(
+          children: [
+            Row(
+              children: [
+                Icon(Icons.warning_amber_rounded, color: Colors.orange.shade700),
+                const SizedBox(width: 8),
+                Expanded(
+                  child: Text(
+                    l10n.chatBlockedVitalsWarning,
+                    style: TextStyle(color: Colors.orange.shade900, fontWeight: FontWeight.bold),
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 12),
+            ElevatedButton(
+              onPressed: () {
+                showModalBottomSheet(
+                  context: context,
+                  isScrollControlled: true,
+                  backgroundColor: colors.surface,
+                  shape: const RoundedRectangleBorder(
+                    borderRadius: BorderRadius.vertical(top: Radius.circular(16)),
+                  ),
+                  builder: (_) => VitalsBottomSheet(
+                    appointmentId: conv.appointmentId!,
+                    onSaved: () {
+                      setState(() => _hasFilledVitals = true);
+                    },
+                  ),
+                );
+              },
+              child: Text(l10n.fillHealthInfoBtn),
+            ),
+          ],
+        ),
       );
     }
 

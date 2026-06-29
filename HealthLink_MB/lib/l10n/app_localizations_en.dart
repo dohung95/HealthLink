@@ -1575,4 +1575,113 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get retailDeliveryLabel => 'Delivery';
+
+  @override
+  String get fillHealthInfoTitle => 'Pre-consultation Vitals';
+
+  @override
+  String get fillHealthInfoSubtitle =>
+      'Please fill in your vitals. These fields are optional but recommended.';
+
+  @override
+  String get heartRate => 'Heart Rate';
+
+  @override
+  String get bloodPressure => 'Blood Pressure';
+
+  @override
+  String get bloodPressureSystolic => 'Systolic';
+
+  @override
+  String get bloodPressureDiastolic => 'Diastolic';
+
+  @override
+  String get temperature => 'Temperature';
+
+  @override
+  String get respiratoryRate => 'Respiratory Rate';
+
+  @override
+  String get spO2 => 'SpO2 (Oxygen)';
+
+  @override
+  String get notes => 'Symptoms / Notes';
+
+  @override
+  String get saveVitalsBtn => 'Save Vitals';
+
+  @override
+  String get chatBlockedVitalsWarning =>
+      'Please provide your health information before starting the chat.';
+
+  @override
+  String get fillHealthInfoBtn => 'Fill Health Info';
+
+  @override
+  String get vitalsSavedSuccess =>
+      'Pre-consultation vitals saved successfully.';
+
+  @override
+  String get vitalsInstructionsTitle =>
+      'Instructions before starting the consultation';
+
+  @override
+  String get vitalsInstructions1 =>
+      'If you have a home blood pressure monitor, please enter the readings shown on the device: SYS, DIA and Pulse.';
+
+  @override
+  String get vitalsInstructions2 =>
+      'If you do not have a monitor, you can still measure your pulse manually: sit still, count your pulse for 30 seconds, then multiply by two to get beats/minute.';
+
+  @override
+  String get vitalsInstructions3 =>
+      'SpO2 and temperature are optional, only enter if you have a suitable measuring device.';
+
+  @override
+  String get vitalsInstructionsDisclaimer =>
+      'These readings are for the doctor\'s reference before the consultation, not a diagnosis.';
+
+  @override
+  String get measurementMethod => 'Measurement method *';
+
+  @override
+  String get measuredByDevice => 'Measured by home device';
+
+  @override
+  String get measuredByDeviceHint =>
+      'Example: blood pressure monitor, SpO2 monitor, thermometer, smartwatch/smartband.';
+
+  @override
+  String get measuredManually => 'Measured manually';
+
+  @override
+  String get measuredManuallyHint =>
+      'Use when you do not have a monitor. You can manually count your pulse for 30 seconds and then multiply by two.';
+
+  @override
+  String get deviceName => 'Device name, if any';
+
+  @override
+  String get deviceNameHint => 'Example: Omron blood pressure monitor, pulse';
+
+  @override
+  String get howToMeasurePulse => 'How to measure pulse manually?';
+
+  @override
+  String get whereToFindSysDia => 'Where can I find SYS/DIA/Pulse?';
+
+  @override
+  String get spo2Hint =>
+      'Optional. Enter if measured by pulse oximeter or smartwatch.';
+
+  @override
+  String get tempHint => 'Optional. Enter if measured by thermometer.';
+
+  @override
+  String get respHint =>
+      'Optional. Count breaths for 30 seconds, then multiply by 2.';
+
+  @override
+  String get notesHint =>
+      'Example: measured after resting for 5 minutes, felt dizzy, mild chest discomfort...';
 }

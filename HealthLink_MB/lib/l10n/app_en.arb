@@ -16,7 +16,6 @@
   "languageVietnamese": "Vietnamese",
   "languageEnglish": "English",
   "drawerEmailNotUpdated": "Email not updated",
-
   "tabBooking": "Booking",
   "tabAppointments": "Appointments",
   "tabHome": "Home",
@@ -30,7 +29,6 @@
       }
     }
   },
-
   "greetingMorning": "Hello, Good Morning",
   "greetingAfternoon": "Hi, Good Afternoon,",
   "greetingEvening": "Have a good night",
@@ -38,7 +36,6 @@
   "statNewRecords": "New Records",
   "statPrescriptions": "Prescriptions",
   "upcomingAppointmentsTitle": "Upcoming Appointments",
-
   "btnBack": "Back",
   "btnNext": "Next",
   "btnBook": "Book",
@@ -60,7 +57,6 @@
   "filterCompleted": "Completed",
   "filterCancelled": "Cancelled",
   "filterInConsultation": "In consultation",
-
   "homeNoUpcomingAppointments": "No upcoming appointments",
   "homeBookAppointmentPrompt": "Book an appointment to start consulting with a doctor.",
   "homeQuickActions": "Quick Actions",
@@ -73,7 +69,6 @@
   "appointmentMore": "More",
   "openingChatRoom": "Opening chat room...",
   "openingVideoRoom": "Opening video room...",
-
   "helpHowCanWeHelp": "How can we help?",
   "helpFindAnswers": "Find answers or contact the HealthLink support team.",
   "helpMedicalEmergency": "Medical Emergency",
@@ -92,10 +87,15 @@
   "helpCategoryHealthRecords": "Health Records",
   "helpCategoryConsultation": "Consultation",
   "helpCategoryAccount": "Account",
-
   "aboutTitle": "About HealthLink",
   "aboutVersion": "Version {version}",
-  "@aboutVersion": { "placeholders": { "version": { "type": "String" } } },
+  "@aboutVersion": {
+    "placeholders": {
+      "version": {
+        "type": "String"
+      }
+    }
+  },
   "aboutMission": "Our Mission",
   "aboutMissionDesc": "HealthLink was born with the goal of bridging the gap between patients and medical professionals. We leverage the power of technology to provide comprehensive, fast, and most effective healthcare solutions for everyone, every home.",
   "aboutCoreFeatures": "Core Features",
@@ -109,7 +109,6 @@
   "aboutFeatConnectionDesc": "Direct communication with doctors via our messaging system.",
   "aboutContactUs": "Contact Us",
   "aboutFooter": "© 2026 HealthLink Team. All rights reserved.",
-
   "bookingTitle": "Book an appointment",
   "bookingSubtitle": "Select a specialty, doctor and time that suits you.",
   "bookingStepSpecialty": "Specialty",
@@ -117,28 +116,49 @@
   "bookingStepDateTime": "Date & Time",
   "bookingChooseSpecialty": "Choose a specialty",
   "bookingChooseSpecialtyDesc": "Start by selecting the care area you need.",
-
   "myAppointmentsTitle": "My Appointments",
   "myAppointmentsSubtitle": "View and manage your appointments",
   "showingAppointmentsCount": "Showing {count} appointment(s)",
-  "@showingAppointmentsCount": { "placeholders": { "count": { "type": "int" } } },
+  "@showingAppointmentsCount": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
   "paginationInfo": "Page {current} of {total} ({items} appointments)",
-  "@paginationInfo": { "placeholders": { "current": { "type": "int" }, "total": { "type": "int" }, "items": { "type": "int" } } },
+  "@paginationInfo": {
+    "placeholders": {
+      "current": {
+        "type": "int"
+      },
+      "total": {
+        "type": "int"
+      },
+      "items": {
+        "type": "int"
+      }
+    }
+  },
   "noAppointmentsYet": "No appointments yet",
   "noAppointmentsYetDesc": "Book your first appointment to start consulting with a doctor.",
   "noStatusAppointments": "No {status} appointments",
-  "@noStatusAppointments": { "placeholders": { "status": { "type": "String" } } },
+  "@noStatusAppointments": {
+    "placeholders": {
+      "status": {
+        "type": "String"
+      }
+    }
+  },
   "noStatusAppointmentsDesc": "No appointments match the selected status.",
   "cancelAppointmentDialogTitle": "Cancel Appointment",
   "cancelAppointmentDialogDesc": "Are you sure you want to cancel this appointment? This action cannot be undone.",
   "msgCancelSuccess": "Appointment cancelled successfully.",
   "msgAlreadyInCall": "You are already in a call!",
   "msgCannotStartVideoCall": "Can not start video call, please login.",
-
   "bookingStepMedicalInfo": "Medical Info",
   "bookingStepConfirm": "Confirm",
   "bookingStepPayment": "Payment",
-
   "chatMessagesTitle": "Messages",
   "chatSearchPrompt": "Search doctor, specialty or message...",
   "chatHealthLinkAI": "HealthLink AI",
@@ -152,7 +172,6 @@
   "chatUnblockedSuccess": "Unblocked user successfully",
   "chatUnblock": "Unblock",
   "chatClose": "Close",
-
   "prescriptionsTitle": "My Prescriptions",
   "prescriptionsSubtitle": "Manage prescription history and details",
   "filterActive": "Active",
@@ -160,16 +179,27 @@
   "prescriptionDateIssued": "Date Issued",
   "prescriptionCondition": "Condition",
   "prescriptionMedicationsCount": "{count} medications",
-  "@prescriptionMedicationsCount": { "placeholders": { "count": { "type": "int" } } },
+  "@prescriptionMedicationsCount": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
   "btnViewDetails": "View Details >",
-  "statusIssued": "ISSUED",
+  "statusIssued": "Issued",
   "labelNA": "N/A",
   "prescriptionDetailsTitle": "Prescription Details",
   "labelDoctor": "Doctor:",
   "labelDate": "Date:",
   "medicationListCount": "Medication List ({count})",
-  "@medicationListCount": { "placeholders": { "count": { "type": "int" } } },
-
+  "@medicationListCount": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
   "profileTitle": "My profile",
   "profileVerifiedIdentity": "VERIFIED IDENTITY",
   "profileBloodType": "Blood Type",
@@ -195,7 +225,6 @@
   "labelNotProvided": "Not Provided",
   "actionBack": "Back",
   "actionBackToLogin": "Back to Login",
-
   "securityTitle": "Security Settings",
   "securityChangeEmail": "Change Email",
   "securityChangeEmailDesc": "A verification code will be sent to your new email address.",
@@ -211,11 +240,9 @@
   "securityEnterNewPassword": "Enter new password",
   "securityConfirmNewPassword": "Confirm New Password",
   "securityEnterConfirmNewPassword": "Confirm new password",
-
   "notificationsTitle": "Notifications",
   "notificationsMarkAllRead": "Mark all read",
   "notificationsEmpty": "No notifications yet.",
-
   "healthRecordsTitle": "Health Records",
   "healthRecordsUploadDoc": "Upload medical document",
   "healthRecordsDateRequired": "Date Performed is required and cannot be in the future.",
@@ -227,7 +254,6 @@
   "healthRecordsUpload": "Upload",
   "healthRecordsNoRecords": "No health records yet",
   "healthRecordsNoRecordsDesc": "Upload your first medical document to create a health record.",
-
   "shareRecordsTitle": "Share Health Records",
   "shareRecordsGrantAccess": "Grant New Access",
   "shareRecordsGrantAccessDesc": "Select a health record, documents and doctor to share with.",
@@ -251,16 +277,13 @@
   "sortMostReviews": "Most reviews",
   "sortMostExperience": "Most experience",
   "sortAZ": "A-Z",
-
   "profileEditTitle": "Edit Profile",
   "msgAvatarUploadSuccess": "Avatar uploaded successfully",
   "msgAvatarUploadFail": "Failed to upload avatar: {error}",
   "msgProfileUpdateSuccess": "Profile updated successfully!",
   "msgProfileUpdateFail": "Failed to update profile: {error}",
-
   "msgCreateRequestFail": "Failed to create consultation request: {error}",
   "pharmacyNoPharmacies": "No pharmacies found.",
-  
   "orderStatusAll": "All",
   "orderStatusPending": "Pending",
   "orderStatusConfirmed": "Confirmed",
@@ -268,9 +291,8 @@
   "orderStatusShipping": "Shipping",
   "orderStatusDelivered": "Delivered",
   "orderStatusCancelled": "Cancelled",
-
   "actionDownloadPdf": "Download PDF",
-  "orderEstDelivery": "EST. DELIVERY",
+  "orderEstDelivery": "Est. Delivery",
   "orderItems": "Order Items",
   "orderTotal": "Total",
   "orderDetails": "Order Details",
@@ -284,16 +306,13 @@
   "actionRequestChanges": "Request Changes",
   "actionCancelOrder": "Cancel Order",
   "actionBackToConnection": "Back to Connection",
-
   "pharmacyWaitingAcceptance": "Waiting for acceptance",
   "pharmacyReviewing": "A pharmacist is reviewing your prescription",
   "actionRefresh": "Refresh",
   "actionCancelAndGoBack": "Cancel Request & Go Back",
-
   "prescriptionNoFound": "No prescriptions found.",
   "prescriptionNoMatch": "No prescriptions match the filter.",
   "prescriptionNotes": "Notes: {notes}",
-
   "paginationPage": "Page {current} of {total}",
   "actionPrevious": "Previous",
   "actionNext": "Next",
@@ -304,7 +323,6 @@
   "bookingUploadWarnTitle": "Some documents were not uploaded",
   "actionGotIt": "Got it",
   "actionConfirm": "Confirm",
-
   "editProfileBasicInfo": "Basic Information",
   "editProfileFullName": "Full Name",
   "editProfileGender": "Gender",
@@ -347,18 +365,6 @@
   "pharmacyNoOrdersFound": "No orders found.",
   "pharmacyOrdersTitle": "Pharmacy Orders",
   "pharmacyOrdersSubtitle": "Track your recent prescription deliveries and history.",
-  "actionDownloadPdf": "Download PDF",
-  "orderEstDelivery": "Est. Delivery",
-  "orderItems": "Order Items",
-  "orderTotal": "Total",
-  "paymentStatusUnpaid": "UNPAID",
-  "paymentStatusPaid": "PAID",
-  "orderRequestChangesOpt": "Request Changes (Optional)",
-  "actionPayWithPayPal": "Pay with PayPal",
-  "actionRequestChanges": "Request Changes",
-  "actionCancelOrder": "Cancel Order",
-  "actionBackToConnection": "Back to Connection",
-  "homeDoctorRanking": "Doctor Ranking",
   "homeDoctorsCount": "{count} doctors",
   "@homeDoctorsCount": {
     "placeholders": {
@@ -424,7 +430,9 @@
   "pharmacyMoreItems": "+{count} more",
   "@pharmacyMoreItems": {
     "placeholders": {
-      "count": {"type": "int"}
+      "count": {
+        "type": "int"
+      }
     }
   },
   "pharmacyNoNotes": "No additional notes provided.",
@@ -455,7 +463,9 @@
   "labelWeek": "Week {weekRange}",
   "@labelWeek": {
     "placeholders": {
-      "weekRange": {"type": "String"}
+      "weekRange": {
+        "type": "String"
+      }
     }
   },
   "bookingNoDoctorScheduleThisWeek": "The doctor is not working this week.",
@@ -500,14 +510,20 @@
   "bookingErrSensitiveContent": "The file \"{fileName}\" may contain sensitive content and cannot be uploaded.",
   "@bookingErrSensitiveContent": {
     "placeholders": {
-      "fileName": {"type": "String"}
+      "fileName": {
+        "type": "String"
+      }
     }
   },
   "bookingErrUploadFailed": "Can not upload \"{fileName}\". {message}",
   "@bookingErrUploadFailed": {
     "placeholders": {
-      "fileName": {"type": "String"},
-      "message": {"type": "String"}
+      "fileName": {
+        "type": "String"
+      },
+      "message": {
+        "type": "String"
+      }
     }
   },
   "bookingErrNoAppointmentReturned": "Payment succeeded but appointment was not returned.",
@@ -520,10 +536,11 @@
   "bookingErrUnsupportedConsultationType": "Doctor does not support consultation type: {type}",
   "@bookingErrUnsupportedConsultationType": {
     "placeholders": {
-      "type": {"type": "String"}
+      "type": {
+        "type": "String"
+      }
     }
   },
-  "statusIssued": "Issued",
   "prescriptionSetReminder": "Set Medication Reminder",
   "orderLabel": "Order",
   "orderStatusReady": "Ready",
@@ -535,7 +552,6 @@
   "subtotalLabel": "Subtotal",
   "deliveryFeeLabel": "Delivery Fee",
   "paymentInstructionsHint": "Need to change delivery time or add instructions?",
-
   "pharmacyTabStore": "Store",
   "storeTitle": "Medicine Store",
   "storeSubtitle": "Browse over-the-counter medicines and place a retail pharmacy order.",
@@ -547,10 +563,22 @@
   "storeAllForms": "All forms",
   "storeCart": "Cart",
   "storeItemsCount": "{count} items",
-  "@storeItemsCount": { "placeholders": { "count": { "type": "int" } } },
+  "@storeItemsCount": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
   "storeAdd": "Add",
   "storeInCart": "In cart: {count}",
-  "@storeInCart": { "placeholders": { "count": { "type": "int" } } },
+  "@storeInCart": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
   "storeDetails": "Details",
   "storeSubtotalLabel": "Subtotal",
   "storeCheckout": "Checkout",
@@ -564,7 +592,6 @@
   "storeGeneric": "Generic",
   "storeUnit": "Unit",
   "storePrescriptionWarning": "This medicine requires a prescription and cannot be added to the retail cart.",
-
   "retailCheckoutTitle": "Retail Checkout",
   "retailCheckoutSubtitle": "Confirm delivery, compare pharmacies, then submit your order.",
   "retailStepDelivery": "Delivery",
@@ -588,7 +615,13 @@
   "retailMedicineSubtotal": "Medicine subtotal",
   "retailTotal": "Total",
   "retailQtyLabel": "Qty {count}",
-  "@retailQtyLabel": { "placeholders": { "count": { "type": "int" } } },
+  "@retailQtyLabel": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
   "retailSubmitOrder": "Submit Order",
   "retailSubmitting": "Submitting...",
   "retailOrderCreated": "Retail order created.",
@@ -601,5 +634,37 @@
   "retailTryingLocation": "Still trying to access your location.",
   "retailPartialStockConfirm": "This pharmacy may not have every cart item. Continue?",
   "retailPharmacyLabel": "Pharmacy",
-  "retailDeliveryLabel": "Delivery"
+  "retailDeliveryLabel": "Delivery",
+  "fillHealthInfoTitle": "Pre-consultation Vitals",
+  "fillHealthInfoSubtitle": "Please fill in your vitals. These fields are optional but recommended.",
+  "heartRate": "Heart Rate",
+  "bloodPressure": "Blood Pressure",
+  "bloodPressureSystolic": "Systolic",
+  "bloodPressureDiastolic": "Diastolic",
+  "temperature": "Temperature",
+  "respiratoryRate": "Respiratory Rate",
+  "spO2": "SpO2 (Oxygen)",
+  "notes": "Symptoms / Notes",
+  "saveVitalsBtn": "Save Vitals",
+  "chatBlockedVitalsWarning": "Please provide your health information before starting the chat.",
+  "fillHealthInfoBtn": "Fill Health Info",
+  "vitalsSavedSuccess": "Pre-consultation vitals saved successfully.",
+  "vitalsInstructionsTitle": "Instructions before starting the consultation",
+  "vitalsInstructions1": "If you have a home blood pressure monitor, please enter the readings shown on the device: SYS, DIA and Pulse.",
+  "vitalsInstructions2": "If you do not have a monitor, you can still measure your pulse manually: sit still, count your pulse for 30 seconds, then multiply by two to get beats/minute.",
+  "vitalsInstructions3": "SpO2 and temperature are optional, only enter if you have a suitable measuring device.",
+  "vitalsInstructionsDisclaimer": "These readings are for the doctor's reference before the consultation, not a diagnosis.",
+  "measurementMethod": "Measurement method *",
+  "measuredByDevice": "Measured by home device",
+  "measuredByDeviceHint": "Example: blood pressure monitor, SpO2 monitor, thermometer, smartwatch/smartband.",
+  "measuredManually": "Measured manually",
+  "measuredManuallyHint": "Use when you do not have a monitor. You can manually count your pulse for 30 seconds and then multiply by two.",
+  "deviceName": "Device name, if any",
+  "deviceNameHint": "Example: Omron blood pressure monitor, pulse",
+  "howToMeasurePulse": "How to measure pulse manually?",
+  "whereToFindSysDia": "Where can I find SYS/DIA/Pulse?",
+  "spo2Hint": "Optional. Enter if measured by pulse oximeter or smartwatch.",
+  "tempHint": "Optional. Enter if measured by thermometer.",
+  "respHint": "Optional. Count breaths for 30 seconds, then multiply by 2.",
+  "notesHint": "Example: measured after resting for 5 minutes, felt dizzy, mild chest discomfort..."
 }

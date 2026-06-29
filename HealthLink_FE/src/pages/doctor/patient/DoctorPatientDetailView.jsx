@@ -80,14 +80,7 @@ export default function DoctorPatientDetailView({ patient, history }) {
     ? (patientWeight / ((patientHeight / 100) ** 2)).toFixed(1)
     : null;
 
-  const vitalsDisplay = vitalSigns || {
-    heartRate: 76,
-    bloodPressureSystolic: 122,
-    bloodPressureDiastolic: 80,
-    oxygenSaturation: 98,
-    temperature: 36.8,
-    respiratoryRate: 16,
-  };
+  const vitalsDisplay = vitalSigns;
 
   const allergyCount = patient?.allergies
     ? patient.allergies.split(',').filter(Boolean).length
@@ -265,6 +258,8 @@ export default function DoctorPatientDetailView({ patient, history }) {
               <div className="doctor-vital-badge doctor-vital-badge--loading">
                 <span className="spinner-border spinner-border-sm" role="status" />
               </div>
+            ) : !vitalsDisplay ? (
+              <p className="patient-sidebar__empty-text text-center text-muted mt-3 mb-3">No vitals recorded</p>
             ) : (
               <>
                 <div className="doctor-vital-strip--vertical">

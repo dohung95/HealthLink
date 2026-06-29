@@ -3013,6 +3013,198 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Delivery'**
   String get retailDeliveryLabel;
+
+  /// No description provided for @fillHealthInfoTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Pre-consultation Vitals'**
+  String get fillHealthInfoTitle;
+
+  /// No description provided for @fillHealthInfoSubtitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Please fill in your vitals. These fields are optional but recommended.'**
+  String get fillHealthInfoSubtitle;
+
+  /// No description provided for @heartRate.
+  ///
+  /// In en, this message translates to:
+  /// **'Heart Rate'**
+  String get heartRate;
+
+  /// No description provided for @bloodPressure.
+  ///
+  /// In en, this message translates to:
+  /// **'Blood Pressure'**
+  String get bloodPressure;
+
+  /// No description provided for @bloodPressureSystolic.
+  ///
+  /// In en, this message translates to:
+  /// **'Systolic'**
+  String get bloodPressureSystolic;
+
+  /// No description provided for @bloodPressureDiastolic.
+  ///
+  /// In en, this message translates to:
+  /// **'Diastolic'**
+  String get bloodPressureDiastolic;
+
+  /// No description provided for @temperature.
+  ///
+  /// In en, this message translates to:
+  /// **'Temperature'**
+  String get temperature;
+
+  /// No description provided for @respiratoryRate.
+  ///
+  /// In en, this message translates to:
+  /// **'Respiratory Rate'**
+  String get respiratoryRate;
+
+  /// No description provided for @spO2.
+  ///
+  /// In en, this message translates to:
+  /// **'SpO2 (Oxygen)'**
+  String get spO2;
+
+  /// No description provided for @notes.
+  ///
+  /// In en, this message translates to:
+  /// **'Symptoms / Notes'**
+  String get notes;
+
+  /// No description provided for @saveVitalsBtn.
+  ///
+  /// In en, this message translates to:
+  /// **'Save Vitals'**
+  String get saveVitalsBtn;
+
+  /// No description provided for @chatBlockedVitalsWarning.
+  ///
+  /// In en, this message translates to:
+  /// **'Please provide your health information before starting the chat.'**
+  String get chatBlockedVitalsWarning;
+
+  /// No description provided for @fillHealthInfoBtn.
+  ///
+  /// In en, this message translates to:
+  /// **'Fill Health Info'**
+  String get fillHealthInfoBtn;
+
+  /// No description provided for @vitalsSavedSuccess.
+  ///
+  /// In en, this message translates to:
+  /// **'Pre-consultation vitals saved successfully.'**
+  String get vitalsSavedSuccess;
+
+  /// No description provided for @vitalsInstructionsTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Instructions before starting the consultation'**
+  String get vitalsInstructionsTitle;
+
+  /// No description provided for @vitalsInstructions1.
+  ///
+  /// In en, this message translates to:
+  /// **'If you have a home blood pressure monitor, please enter the readings shown on the device: SYS, DIA and Pulse.'**
+  String get vitalsInstructions1;
+
+  /// No description provided for @vitalsInstructions2.
+  ///
+  /// In en, this message translates to:
+  /// **'If you do not have a monitor, you can still measure your pulse manually: sit still, count your pulse for 30 seconds, then multiply by two to get beats/minute.'**
+  String get vitalsInstructions2;
+
+  /// No description provided for @vitalsInstructions3.
+  ///
+  /// In en, this message translates to:
+  /// **'SpO2 and temperature are optional, only enter if you have a suitable measuring device.'**
+  String get vitalsInstructions3;
+
+  /// No description provided for @vitalsInstructionsDisclaimer.
+  ///
+  /// In en, this message translates to:
+  /// **'These readings are for the doctor\'s reference before the consultation, not a diagnosis.'**
+  String get vitalsInstructionsDisclaimer;
+
+  /// No description provided for @measurementMethod.
+  ///
+  /// In en, this message translates to:
+  /// **'Measurement method *'**
+  String get measurementMethod;
+
+  /// No description provided for @measuredByDevice.
+  ///
+  /// In en, this message translates to:
+  /// **'Measured by home device'**
+  String get measuredByDevice;
+
+  /// No description provided for @measuredByDeviceHint.
+  ///
+  /// In en, this message translates to:
+  /// **'Example: blood pressure monitor, SpO2 monitor, thermometer, smartwatch/smartband.'**
+  String get measuredByDeviceHint;
+
+  /// No description provided for @measuredManually.
+  ///
+  /// In en, this message translates to:
+  /// **'Measured manually'**
+  String get measuredManually;
+
+  /// No description provided for @measuredManuallyHint.
+  ///
+  /// In en, this message translates to:
+  /// **'Use when you do not have a monitor. You can manually count your pulse for 30 seconds and then multiply by two.'**
+  String get measuredManuallyHint;
+
+  /// No description provided for @deviceName.
+  ///
+  /// In en, this message translates to:
+  /// **'Device name, if any'**
+  String get deviceName;
+
+  /// No description provided for @deviceNameHint.
+  ///
+  /// In en, this message translates to:
+  /// **'Example: Omron blood pressure monitor, pulse'**
+  String get deviceNameHint;
+
+  /// No description provided for @howToMeasurePulse.
+  ///
+  /// In en, this message translates to:
+  /// **'How to measure pulse manually?'**
+  String get howToMeasurePulse;
+
+  /// No description provided for @whereToFindSysDia.
+  ///
+  /// In en, this message translates to:
+  /// **'Where can I find SYS/DIA/Pulse?'**
+  String get whereToFindSysDia;
+
+  /// No description provided for @spo2Hint.
+  ///
+  /// In en, this message translates to:
+  /// **'Optional. Enter if measured by pulse oximeter or smartwatch.'**
+  String get spo2Hint;
+
+  /// No description provided for @tempHint.
+  ///
+  /// In en, this message translates to:
+  /// **'Optional. Enter if measured by thermometer.'**
+  String get tempHint;
+
+  /// No description provided for @respHint.
+  ///
+  /// In en, this message translates to:
+  /// **'Optional. Count breaths for 30 seconds, then multiply by 2.'**
+  String get respHint;
+
+  /// No description provided for @notesHint.
+  ///
+  /// In en, this message translates to:
+  /// **'Example: measured after resting for 5 minutes, felt dizzy, mild chest discomfort...'**
+  String get notesHint;
 }
 
 class _AppLocalizationsDelegate
