@@ -25,6 +25,25 @@ class PatientReviewService {
     }
   }
 
+  /// Get an existing review by appointment ID
+  static Future<Map<String, dynamic>?> getReviewByAppointment(String token, int appointmentId) async {
+    try {
+      final response = await http.get(
+        Uri.parse('$_baseUrl/appointment/$appointmentId'),
+        headers: {
+          'Authorization': 'Bearer $token',
+        },
+      );
+
+      if (response.statusCode == 200) {
+        return json.decode(response.body);
+      }
+      return null;
+    } catch (e) {
+      return null;
+    }
+  }
+
   /// Submit a new review
   static Future<Map<String, dynamic>> submitReview({
     required String token,

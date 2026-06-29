@@ -18,6 +18,7 @@ import '../../../services/vitals/vital_sign_service.dart';
 import '../../chat/widgets/vitals_bottom_sheet.dart';
 import '../../../services/patient/patient_review_service.dart';
 import '../../../widgets/patient/rate_doctor_modal.dart';
+import '../../../widgets/patient/view_doctor_rating_modal.dart';
 
 class AppointmentScreen extends StatefulWidget {
   const AppointmentScreen({super.key, this.onBookNew});
@@ -192,6 +193,15 @@ class _AppointmentScreenState extends State<AppointmentScreen> {
       // Just reload current page to update status
       _loadAppointments(page: _currentPage);
     }
+  }
+
+  void _handleViewRateClick(PatientAppointment appointment) {
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (_) => ViewDoctorRatingModal(appointment: appointment),
+    );
   }
 
   Future<void> _handleStatusChanged(String? status) async {
@@ -718,7 +728,7 @@ class _AppointmentScreenState extends State<AppointmentScreen> {
                     )
                   else if (_reviewableAppointments[appointment.appointmentId] == false)
                     OutlinedButton.icon(
-                      onPressed: () {},
+                      onPressed: () => _handleViewRateClick(appointment),
                       style: OutlinedButton.styleFrom(
                         foregroundColor: colors.onSurfaceVariant,
                       ),
