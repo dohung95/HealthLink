@@ -46,6 +46,7 @@ public interface FinanceService {
 
     Map<String, Object> createFollowUpPayPalOrder(Integer appointmentId);
     FollowUpResponse captureFollowUpPayPalPayment(String orderId, Integer appointmentId, String paymentMethod);
+    FollowUpResponse saveFollowUpLocation(Integer appointmentId, Map<String, Object> location);
 
     /**
      * Generate PDF for an invoice.

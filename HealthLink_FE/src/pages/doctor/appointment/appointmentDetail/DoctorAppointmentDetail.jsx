@@ -18,6 +18,7 @@ import EmptyState from '@components/doctor/EmptyState';
 import ActionBar from '@components/doctor/ActionBar';
 import CompleteConfirmModal from '@components/doctor/CompleteConfirmModal';
 import PatientSummarySidebar from '@components/doctor/PatientSummarySidebar';
+import ConsultationTimerStrip from '@components/doctor/ConsultationTimerStrip';
 
 const TABS = [
   { id: 'notes', label: 'Consultation Notes', icon: 'bi-journal-text' },
@@ -81,8 +82,17 @@ const DoctorAppointmentDetail = memo(({ appointment, patient, doctorId, onBack, 
     );
   }
 
+  const showTimer = ctx.statusKey === 'inconsultation' || ctx.statusKey === 'inprogress';
+
   return (
-    <div className="doctor-detail-layout">
+    <>
+      {(showTimer && appointment) && (
+        <ConsultationTimerStrip
+          appointmentTime={appointment.appointmentTime}
+          endTime={appointment.endTime}
+        />
+      )}
+      <div className="doctor-detail-layout">
       <div className="doctor-detail-back">
         <button className="btn btn-link p-0 text-decoration-none" onClick={() => ctx.onBack?.()} type="button">
           <i className="bi bi-arrow-left me-2"></i>
@@ -303,6 +313,7 @@ const DoctorAppointmentDetail = memo(({ appointment, patient, doctorId, onBack, 
         followUpPaymentStatus={ctx.followUpPaymentStatus}
       />
     </div>
+    </>
   );
 });
 

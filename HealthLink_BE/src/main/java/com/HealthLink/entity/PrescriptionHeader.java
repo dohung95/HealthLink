@@ -1,6 +1,7 @@
 package com.HealthLink.entity;
 import jakarta.persistence.*;
 import lombok.*;
+import org.hibernate.annotations.Nationalized;
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
 import java.util.List;
@@ -34,10 +35,12 @@ public class PrescriptionHeader {
     @Column(nullable = false)
     private LocalDateTime issueDate;
 
-    @Column(length = 1000)
+    @Nationalized
+    @Column(length = 2000)
     private String diagnosis;
 
-    @Column(length = 1000)
+    @Nationalized
+    @Column(length = 2000)
     private String notes;
 
     private LocalDateTime validUntil;

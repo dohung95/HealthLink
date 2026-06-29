@@ -258,8 +258,10 @@ const DoctorDashboardPage = () => {
       showAllNotifications={notificationsHook.showAllNotifications}
       notifications={notificationsHook.notifications}
       unreadCount={notificationsHook.unreadCount}
+      hasNewNotification={notificationsHook.hasNewNotification}
       showNotificationDropdown={notificationsHook.showNotificationDropdown}
       notificationRef={notificationsHook.notificationRef}
+      onClearNewNotification={() => notificationsHook.setHasNewNotification(false)}
       onNavigate={(key) => selectView(key)}
       onLogout={handleLogout}
       onToggleMobileMenu={() => setIsMobileMenuOpen((prev) => !prev)}

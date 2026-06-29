@@ -18,6 +18,7 @@ const DoctorHeader = memo(({
   showAllNotifications,
   notifications,
   unreadCount,
+  hasNewNotification,
   showNotificationDropdown,
   notificationRef,
   onToggleMobileMenu,
@@ -29,6 +30,7 @@ const DoctorHeader = memo(({
   onChangePassword,
   onNavigateToProfile,
   onNavigateToWallet,
+  onClearNewNotification,
 }) => {
   const [showProfileDropdown, setShowProfileDropdown] = useState(false);
   const [servicesExpanded, setServicesExpanded] = useState(false);
@@ -181,15 +183,24 @@ const DoctorHeader = memo(({
     </div>
   );
 
+  const handleToggleNotificationDropdown = () => {
+    if (hasNewNotification && typeof onClearNewNotification === 'function') {
+      onClearNewNotification();
+    }
+    onToggleNotificationDropdown();
+  };
+
   const renderNotificationBell = () => (
     <div className="position-relative" ref={notificationRef}>
       <button
         aria-label="Open notifications"
         className="notification-bell-btn"
-        onClick={() => onToggleNotificationDropdown()}
+        onClick={handleToggleNotificationDropdown}
         type="button"
       >
-        <span className="material-symbols-outlined">notifications</span>
+        <span className={`material-symbols-outlined ${unreadCount > 0 ? 'bell-ringing' : ''}`}>
+          {unreadCount > 0 ? 'notifications_active' : 'notifications'}
+        </span>
         {unreadCount > 0 ? <span className="notification-bell-dot" /> : null}
       </button>
       {showNotificationDropdown ? (

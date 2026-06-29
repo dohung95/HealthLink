@@ -1040,6 +1040,7 @@ public class AppointmentServiceImpl implements AppointmentService {
                 .doctorName(appointment.getDoctor().getFullName())
                 .doctorAvatar(appointment.getDoctor().getAvatarUrl())
                 .appointmentTime(appointment.getAppointmentTime())
+                .endTime(appointment.getEndTime())
                 .consultationType(appointment.getConsultationType())
                 .status(appointment.getStatus())
                 .fee(appointment.getFee())

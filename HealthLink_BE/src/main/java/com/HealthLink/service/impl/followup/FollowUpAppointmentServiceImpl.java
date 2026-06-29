@@ -306,6 +306,9 @@ public class FollowUpAppointmentServiceImpl implements FollowUpAppointmentServic
                 .followUpNotes(consultation.getFollowUpNotes())
                 .consultationType(consultation.getConsultationType())
                 .followUpAppointmentId(consultation.getFollowUpAppointmentId())
+                .homeVisitLatitude(consultation.getHomeVisitLatitude())
+                .doctorId(consultation.getAppointment() != null
+                        ? consultation.getAppointment().getDoctor().getDoctorId() : null)
                 .build();
     }
 
@@ -604,7 +607,7 @@ public class FollowUpAppointmentServiceImpl implements FollowUpAppointmentServic
                                 ? consultation.getConsultationType()
                                 : sourceAppointment.getConsultationType())
                 .status("SCHEDULED")
-                .symptoms(firstNonBlank(consultation.getSymptoms(), sourceAppointment.getSymptoms()))
+                .symptoms(sourceAppointment.getSymptoms())
                 .notes(firstNonBlank(consultation.getFollowUpNotes(), sourceAppointment.getNotes()))
                 .fee(sourceAppointment.getDoctor() != null ? sourceAppointment.getDoctor().getConsultationFee() : sourceAppointment.getFee())
                 .followUpSourceAppointmentId(sourceAppointment.getAppointmentId())
@@ -695,6 +698,9 @@ public class FollowUpAppointmentServiceImpl implements FollowUpAppointmentServic
                 .consultationType(c.getConsultationType())
                 .followUpStatus(c.getFollowUpStatus() != null
                         ? c.getFollowUpStatus().name() : null)
+                .homeVisitLatitude(c.getHomeVisitLatitude())
+                .homeVisitLongitude(c.getHomeVisitLongitude())
+                .homeVisitServiceIds(c.getHomeVisitServiceIds())
                 .build();
     }
 

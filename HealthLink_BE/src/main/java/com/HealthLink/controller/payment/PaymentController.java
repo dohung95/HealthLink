@@ -134,6 +134,13 @@ public class PaymentController {
         return ResponseEntity.ok(response);
     }
 
+    @PutMapping("/follow-up/{appointmentId}/location")
+    public ResponseEntity<FollowUpResponse> saveFollowUpLocation(
+            @PathVariable Integer appointmentId,
+            @RequestBody Map<String, Object> location) {
+        return ResponseEntity.ok(financeService.saveFollowUpLocation(appointmentId, location));
+    }
+
     // ──────────────────────────────────────────────────────────────────────
     // Hoàn tiền (Refund)
     // ──────────────────────────────────────────────────────────────────────

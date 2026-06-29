@@ -165,4 +165,9 @@ export const paymentApi = {
     });
     return response.data;
   },
+
+  saveFollowUpLocation: async (appointmentId, location) => {
+    const response = await axiosInstance.put(`/api/payment/follow-up/${appointmentId}/location`, location);
+    return response.data;
+  },
 };

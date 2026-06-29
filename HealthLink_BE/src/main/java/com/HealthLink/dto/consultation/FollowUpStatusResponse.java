@@ -12,4 +12,6 @@ public class FollowUpStatusResponse {
     private String followUpNotes;
     private String consultationType;
     private Integer followUpAppointmentId;
+    private Double homeVisitLatitude;
+    private String doctorId;
 }

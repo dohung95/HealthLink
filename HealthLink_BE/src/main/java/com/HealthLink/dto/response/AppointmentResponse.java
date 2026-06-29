@@ -20,6 +20,7 @@ public class AppointmentResponse {
     private String doctorName;
     private String doctorAvatar;
     private LocalDateTime appointmentTime;
+    private LocalDateTime endTime;
     private String consultationType;
     private String status;
     private BigDecimal fee;

@@ -18,4 +18,7 @@ public class FollowUpResponse {
     private String treatmentPlan;
     private String consultationType;
     private String followUpStatus;
+    private Double homeVisitLatitude;
+    private Double homeVisitLongitude;
+    private String homeVisitServiceIds;
 }

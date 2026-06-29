@@ -91,7 +91,10 @@ const DocumentsStep = ({
                 <label>Symptoms / reason for examination</label>
                 <RichTextEditor
                     value={symptoms}
-                    onChange={setSymptoms}
+                    onChange={(html) => {
+                        const doc = new DOMParser().parseFromString(html, 'text/html');
+                        setSymptoms(doc.body.textContent || '');
+                    }}
                     placeholder="Example: mild chest pain for the past 2 days, shortness of breath when exercising..."
                 />
             </div>

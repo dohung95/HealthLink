@@ -73,6 +73,7 @@ import java.math.RoundingMode;
 import java.nio.charset.StandardCharsets;
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
+import java.util.Arrays;
 import java.util.Base64;
 import java.util.Collections;
 import java.util.HashMap;
@@ -727,6 +728,49 @@ public class FinanceServiceImpl implements FinanceService {
     }
 
     @Override
+    @Transactional
+    public FollowUpResponse saveFollowUpLocation(Integer appointmentId, Map<String, Object> body) {
+        Consultation c = consultationRepository
+                .findByAppointment_AppointmentId(appointmentId)
+                .orElseThrow(() -> new BadRequestException("Consultation not found: " + appointmentId));
+        if (c.getFollowUpStatus() != FollowUpStatus.PENDING_PAYMENT)
+            throw new BadRequestException("Follow-up is not in PENDING_PAYMENT status");
+        if (!"HomeVisit".equalsIgnoreCase(c.getConsultationType()))
+            throw new BadRequestException("Only HomeVisit follow-up can set location");
+
+        Number latNum = (Number) body.get("visitLatitude");
+        Number lngNum = (Number) body.get("visitLongitude");
+        if (latNum == null || lngNum == null)
+            throw new BadRequestException("visitLatitude and visitLongitude are required");
+        c.setHomeVisitLatitude(latNum.doubleValue());
+        c.setHomeVisitLongitude(lngNum.doubleValue());
+
+        @SuppressWarnings("unchecked")
+        List<Integer> serviceIds = (List<Integer>) body.get("homeVisitServiceIds");
+        if (serviceIds != null && !serviceIds.isEmpty()) {
+            c.setHomeVisitServiceIds(
+                    serviceIds.stream().map(String::valueOf).collect(Collectors.joining(",")));
+        }
+
+        consultationRepository.save(c);
+
+        return FollowUpResponse.builder()
+                .consultationId(c.getConsultationId())
+                .appointmentId(c.getAppointment().getAppointmentId())
+                .followUpDate(c.getFollowUpDate())
+                .followUpNotes(c.getFollowUpNotes())
+                .diagnosis(c.getDiagnosis())
+                .doctorNotes(c.getDoctorNotes())
+                .treatmentPlan(c.getTreatmentPlan())
+                .consultationType(c.getConsultationType())
+                .followUpStatus(c.getFollowUpStatus() != null ? c.getFollowUpStatus().name() : null)
+                .homeVisitLatitude(c.getHomeVisitLatitude())
+                .homeVisitLongitude(c.getHomeVisitLongitude())
+                .homeVisitServiceIds(c.getHomeVisitServiceIds())
+                .build();
+    }
+
+    @Override
     @Transactional(readOnly = true)
     public Map<String, Object> createFollowUpPayPalOrder(Integer appointmentId) {
         Consultation consultation = consultationRepository
@@ -739,7 +783,8 @@ public class FinanceServiceImpl implements FinanceService {
 
         Appointment sourceAppointment = consultation.getAppointment();
         Doctor doctor = sourceAppointment.getDoctor();
-        BigDecimal amount = resolveAppointmentCheckoutAmount(doctor, consultation.getConsultationType(), null, null);
+        List<Integer> serviceIds = parseServiceIds(consultation.getHomeVisitServiceIds());
+        BigDecimal amount = resolveAppointmentCheckoutAmount(doctor, consultation.getConsultationType(), consultation.getHomeVisitLatitude(), consultation.getHomeVisitLongitude(), serviceIds);
         String currency = "USD";
         String amountStr = amount.setScale(2, RoundingMode.HALF_UP).toPlainString();
         String description = String.format(
@@ -833,7 +878,8 @@ public class FinanceServiceImpl implements FinanceService {
         Appointment sourceAppointment = consultation.getAppointment();
         Doctor doctor = sourceAppointment.getDoctor();
         Patient patient = sourceAppointment.getPatient();
-        BigDecimal expectedAmount = resolveAppointmentCheckoutAmount(doctor, consultation.getConsultationType(), null, null);
+        List<Integer> serviceIds = parseServiceIds(consultation.getHomeVisitServiceIds());
+        BigDecimal expectedAmount = resolveAppointmentCheckoutAmount(doctor, consultation.getConsultationType(), consultation.getHomeVisitLatitude(), consultation.getHomeVisitLongitude(), serviceIds);
 
         String accessToken = getPayPalAccessToken();
         HttpHeaders headers = new HttpHeaders();
@@ -881,6 +927,9 @@ public class FinanceServiceImpl implements FinanceService {
             }
             followUpAppointment.setFollowUpSourceAppointmentId(sourceAppointment.getAppointmentId());
             followUpAppointment = appointmentRepository.save(followUpAppointment);
+
+            List<Integer> svcIds = parseServiceIds(consultation.getHomeVisitServiceIds());
+            saveAppointmentHomeVisitServices(followUpAppointment, svcIds);
 
             consultation.setFollowUpAppointmentId(followUpAppointment.getAppointmentId());
             consultation.setFollowUpStatus(FollowUpStatus.PAID);
@@ -1715,6 +1764,15 @@ public class FinanceServiceImpl implements FinanceService {
                 .commissionRate(invoice.getCommissionRate())
                 .payments(paymentSummaries)
                 .build();
+    }
+
+    private List<Integer> parseServiceIds(String csv) {
+        if (csv == null || csv.isBlank()) return Collections.emptyList();
+        return Arrays.stream(csv.split(","))
+                .map(String::trim)
+                .filter(s -> !s.isEmpty())
+                .map(Integer::valueOf)
+                .toList();
     }
 
     private BigDecimal calculateHomeVisitServicesTotal(List<Integer> serviceIds) {
