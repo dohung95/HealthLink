@@ -62,6 +62,10 @@ import org.springframework.util.MultiValueMap;
 import org.springframework.web.client.HttpStatusCodeException;
 import org.springframework.web.client.RestTemplate;
 import com.HealthLink.dto.response.HomeVisitEstimateResponse;
+import com.HealthLink.entity.AppointmentHomeVisitService;
+import com.HealthLink.entity.HomeVisitService;
+import com.HealthLink.repository.appointment.AppointmentHomeVisitServiceRepository;
+import com.HealthLink.repository.appointment.HomeVisitServiceRepository;
 import com.HealthLink.service.homevisit.HomeVisitLocationService;
 
 import java.math.BigDecimal;
@@ -131,6 +135,8 @@ public class FinanceServiceImpl implements FinanceService {
     private final NotificationService notificationService;
     private final DeviceTokenRepository deviceTokenRepository;
     private final HomeVisitLocationService homeVisitLocationService;
+    private final HomeVisitServiceRepository homeVisitServiceRepository;
+    private final AppointmentHomeVisitServiceRepository appointmentHomeVisitServiceRepository;
 
     /**
      * Service xử lý logic chiết khấu sau khi thanh toán thành công
@@ -186,7 +192,8 @@ public class FinanceServiceImpl implements FinanceService {
                 doctor,
                 request.getConsultationType(),
                 request.getVisitLatitude(),
-                request.getVisitLongitude()
+                request.getVisitLongitude(),
+                request.getHomeVisitServiceIds()
         );
         String currency = request.getCurrency() != null ? request.getCurrency() : "USD";
         String amountStr = amount.setScale(2, RoundingMode.HALF_UP).toPlainString();
@@ -395,7 +402,8 @@ public class FinanceServiceImpl implements FinanceService {
                 doctor,
                 request.getConsultationType(),
                 request.getVisitLatitude(),
-                request.getVisitLongitude()
+                request.getVisitLongitude(),
+                request.getHomeVisitServiceIds()
         );
 
         if (paymentRepository.findByTransactionId(request.getOrderId()).isPresent()) {
@@ -472,14 +480,21 @@ public class FinanceServiceImpl implements FinanceService {
                 appointment.setFollowUpSourceAppointmentId(sourceConsultation.getAppointment().getAppointmentId());
             }
             appointment = appointmentRepository.save(appointment);
+
+            if (TYPE_HOME_VISIT.equalsIgnoreCase(appointment.getConsultationType())) {
+                saveAppointmentHomeVisitServices(appointment, request.getHomeVisitServiceIds());
+            }
+
             linkSourceConsultation(sourceConsultation, appointment);
 
             notifyDoctorAboutNewAppointmentAfterCommit(appointment);
 
             BigDecimal consultationFee = appointment.getFee() != null
                     ? appointment.getFee()
-                    : expectedAmount;
+                    : resolveDoctorConsultationFee(doctor);
             consultationFee = consultationFee.setScale(2, RoundingMode.HALF_UP);
+
+            BigDecimal invoiceAmount = expectedAmount.setScale(2, RoundingMode.HALF_UP);
 
             Invoice invoice = Invoice.builder()
                     .appointment(appointment)
@@ -490,7 +505,7 @@ public class FinanceServiceImpl implements FinanceService {
                     .deliveryFee(BigDecimal.ZERO)
                     .discount(BigDecimal.ZERO)
                     .tax(BigDecimal.ZERO)
-                    .amount(consultationFee)
+                    .amount(invoiceAmount)
                     .status(INVOICE_PAID)
                     .issueDate(paidAt)
                     .dueDate(paidAt)
@@ -1174,33 +1189,32 @@ public class FinanceServiceImpl implements FinanceService {
         }
     }
 
-    private AppointmentRequest toAppointmentRequest(AppointmentPayPalOrderRequest request) {
-        AppointmentRequest appointmentRequest = new AppointmentRequest();
-        appointmentRequest.setPatientId(request.getPatientId());
-        appointmentRequest.setDoctorId(request.getDoctorId());
-        appointmentRequest.setAppointmentTime(request.getAppointmentTime());
-        appointmentRequest.setConsultationType(request.getConsultationType());
-        appointmentRequest.setSymptoms(request.getSymptoms());
-        appointmentRequest.setNotes(request.getNotes());
-        appointmentRequest.setVisitAddress(request.getVisitAddress());
-        appointmentRequest.setVisitCity(request.getVisitCity());
-        appointmentRequest.setContactPhone(request.getContactPhone());
-        appointmentRequest.setReasonForHomeVisit(request.getReasonForHomeVisit());
-        appointmentRequest.setSpecialNotes(request.getSpecialNotes());
-
-        appointmentRequest.setIsForSelf(request.getIsForSelf());
-
-        appointmentRequest.setReceiverName(request.getReceiverName());
-        appointmentRequest.setReceiverAge(request.getReceiverAge());
-        appointmentRequest.setReceiverGender(request.getReceiverGender());
-        appointmentRequest.setReceiverRelationship(request.getReceiverRelationship());
-        appointmentRequest.setReceiverPhone(request.getReceiverPhone());
-
-        appointmentRequest.setVisitLatitude(request.getVisitLatitude());
-        appointmentRequest.setVisitLongitude(request.getVisitLongitude());
-        return appointmentRequest;
-    }
-
+//    private AppointmentRequest toAppointmentRequest(AppointmentPayPalOrderRequest request) {
+//        AppointmentRequest appointmentRequest = new AppointmentRequest();
+//        appointmentRequest.setPatientId(request.getPatientId());
+//        appointmentRequest.setDoctorId(request.getDoctorId());
+//        appointmentRequest.setAppointmentTime(request.getAppointmentTime());
+//        appointmentRequest.setConsultationType(request.getConsultationType());
+//        appointmentRequest.setSymptoms(request.getSymptoms());
+//        appointmentRequest.setNotes(request.getNotes());
+//        appointmentRequest.setVisitAddress(request.getVisitAddress());
+//        appointmentRequest.setVisitCity(request.getVisitCity());
+//        appointmentRequest.setContactPhone(request.getContactPhone());
+//        appointmentRequest.setReasonForHomeVisit(request.getReasonForHomeVisit());
+//        appointmentRequest.setSpecialNotes(request.getSpecialNotes());
+//
+//        appointmentRequest.setIsForSelf(request.getIsForSelf());
+//
+//        appointmentRequest.setReceiverName(request.getReceiverName());
+//        appointmentRequest.setReceiverAge(request.getReceiverAge());
+//        appointmentRequest.setReceiverGender(request.getReceiverGender());
+//        appointmentRequest.setReceiverRelationship(request.getReceiverRelationship());
+//        appointmentRequest.setReceiverPhone(request.getReceiverPhone());
+//
+//        appointmentRequest.setVisitLatitude(request.getVisitLatitude());
+//        appointmentRequest.setVisitLongitude(request.getVisitLongitude());
+//        return appointmentRequest;
+//    }
     private AppointmentRequest toAppointmentRequest(AppointmentPayPalCaptureRequest request) {
         AppointmentRequest appointmentRequest = new AppointmentRequest();
         appointmentRequest.setPatientId(request.getPatientId());
@@ -1225,6 +1239,9 @@ public class FinanceServiceImpl implements FinanceService {
 
         appointmentRequest.setVisitLatitude(request.getVisitLatitude());
         appointmentRequest.setVisitLongitude(request.getVisitLongitude());
+
+        appointmentRequest.setHomeVisitStartTime(request.getHomeVisitStartTime());
+        appointmentRequest.setHomeVisitEndTime(request.getHomeVisitEndTime());
         return appointmentRequest;
     }
 
@@ -1235,7 +1252,7 @@ public class FinanceServiceImpl implements FinanceService {
 
         Consultation consultation = consultationRepository.findById(request.getSourceConsultationId())
                 .orElseThrow(() -> new BadRequestException(
-                        "Consultation not found with ID: " + request.getSourceConsultationId()));
+                "Consultation not found with ID: " + request.getSourceConsultationId()));
 
         if (consultation.getAppointment() == null) {
             throw new BadRequestException("Source consultation is missing its appointment");
@@ -1289,7 +1306,8 @@ public class FinanceServiceImpl implements FinanceService {
             Doctor doctor,
             String consultationType,
             Double visitLatitude,
-            Double visitLongitude
+            Double visitLongitude,
+            List<Integer> homeVisitServiceIds
     ) {
         String normalizedType = normalizeConsultationTypeForBooking(consultationType);
 
@@ -1310,8 +1328,11 @@ public class FinanceServiceImpl implements FinanceService {
                     ? estimate.getTotalFee()
                     : BigDecimal.ZERO;
 
+            BigDecimal selectedServicesTotal = calculateHomeVisitServicesTotal(homeVisitServiceIds);
+
             return consultationFee
                     .add(homeVisitTravelTotal)
+                    .add(selectedServicesTotal)
                     .setScale(2, RoundingMode.HALF_UP);
         }
 
@@ -1694,5 +1715,42 @@ public class FinanceServiceImpl implements FinanceService {
                 .commissionRate(invoice.getCommissionRate())
                 .payments(paymentSummaries)
                 .build();
+    }
+
+    private BigDecimal calculateHomeVisitServicesTotal(List<Integer> serviceIds) {
+        if (serviceIds == null || serviceIds.isEmpty()) {
+            return BigDecimal.ZERO.setScale(2, RoundingMode.HALF_UP);
+        }
+
+        List<HomeVisitService> services = homeVisitServiceRepository.findAllById(serviceIds);
+
+        return services.stream()
+                .filter(service -> Boolean.TRUE.equals(service.getActive()))
+                .map(HomeVisitService::getPrice)
+                .filter(price -> price != null)
+                .reduce(BigDecimal.ZERO, BigDecimal::add)
+                .setScale(2, RoundingMode.HALF_UP);
+    }
+
+    private void saveAppointmentHomeVisitServices(Appointment appointment, List<Integer> serviceIds) {
+        if (serviceIds == null || serviceIds.isEmpty()) {
+            return;
+        }
+
+        List<HomeVisitService> services = homeVisitServiceRepository.findAllById(serviceIds)
+                .stream()
+                .filter(service -> Boolean.TRUE.equals(service.getActive()))
+                .toList();
+
+        List<AppointmentHomeVisitService> snapshots = services.stream()
+                .map(service -> AppointmentHomeVisitService.builder()
+                .appointment(appointment)
+                .serviceId(service.getServiceId())
+                .serviceName(service.getServiceName())
+                .price(service.getPrice())
+                .build())
+                .toList();
+
+        appointmentHomeVisitServiceRepository.saveAll(snapshots);
     }
 }

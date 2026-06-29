@@ -11,7 +11,10 @@ import com.fasterxml.jackson.databind.JsonNode;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.boot.web.client.RestTemplateBuilder;
-import org.springframework.http.*;
+import org.springframework.http.HttpEntity;
+import org.springframework.http.HttpHeaders;
+import org.springframework.http.HttpMethod;
+import org.springframework.http.ResponseEntity;
 import org.springframework.stereotype.Service;
 import org.springframework.web.client.RestTemplate;
 
@@ -30,30 +33,52 @@ public class HomeVisitLocationService {
     private final DoctorRepository doctorRepository;
     private final GeocodingService geocodingService;
 
-    @Value("${home-visit.base-fee:300000}")
-    private BigDecimal baseFee;
+    @Value("${home-visit.base-fee:100}")
+    private BigDecimal homeVisitBaseFee;
 
     @Value("${home-visit.free-distance-km:3}")
     private Double freeDistanceKm;
 
-    @Value("${home-visit.travel-fee-per-km:12000}")
+    @Value("${home-visit.travel-fee-per-km:5}")
     private BigDecimal travelFeePerKm;
 
     @Value("${home-visit.average-speed-kmh:25}")
-    private Double averageSpeedKmh;
+    private double averageSpeedKmh;
 
-    @Value("${home-visit.max-distance-km:10}")
-    private Double maxDistanceKm;
-
-    public HomeVisitLocationService(RestTemplateBuilder builder,
-                                    DoctorRepository doctorRepository,
-                                    GeocodingService geocodingService) {
+    public HomeVisitLocationService(RestTemplateBuilder builder, DoctorRepository doctorRepository, GeocodingService geocodingService) {
         this.restTemplate = builder.build();
         this.doctorRepository = doctorRepository;
         this.geocodingService = geocodingService;
     }
 
-    public List<HomeVisitGeocodeResponse> searchAddressByNominatim(String address) {
+    public GeocodeResponse geocode(String address) {
+        try {
+            return geocodingService.geocode(address);
+        } catch (Exception e) {
+            log.warn("Gogoduk geocode failed, falling back to Nominatim: {}", e.getMessage());
+            List<HomeVisitGeocodeResponse> results = geocodeByNominatim(address);
+            if (results.isEmpty()) {
+                throw new BusinessException("Cannot geocode address");
+            }
+            HomeVisitGeocodeResponse first = results.get(0);
+            return GeocodeResponse.builder()
+                    .latitude(first.getLatitude())
+                    .longitude(first.getLongitude())
+                    .formattedAddress(first.getDisplayName())
+                    .provider("NOMINATIM")
+                    .build();
+        }
+    }
+
+    public GeocodeResponse geocodeClinicAddressWithFallback(String address) {
+        if (address == null || address.isBlank()) {
+            throw new BusinessException("Clinic address is required");
+        }
+
+        return geocode(address);
+    }
+
+    public List<HomeVisitGeocodeResponse> geocodeByNominatim(String address) {
         if (address == null || address.isBlank()) {
             throw new BusinessException("Address is required");
         }
@@ -100,24 +125,6 @@ public class HomeVisitLocationService {
         return results;
     }
 
-    public GeocodeResponse geocodeClinicAddressWithFallback(String address) {
-        try {
-            return geocodingService.geocode(address);
-        } catch (Exception e) {
-            log.warn("Gogoduk geocode failed, falling back to Nominatim: {}", e.getMessage());
-            List<HomeVisitGeocodeResponse> results = searchAddressByNominatim(address);
-            if (results.isEmpty()) {
-                throw new BusinessException("Cannot geocode address: " + address);
-            }
-            HomeVisitGeocodeResponse first = results.get(0);
-            return GeocodeResponse.builder()
-                    .latitude(first.getLatitude())
-                    .longitude(first.getLongitude())
-                    .provider("NOMINATIM")
-                    .build();
-        }
-    }
-
     public HomeVisitEstimateResponse estimate(String doctorId, Double visitLatitude, Double visitLongitude) {
         if (visitLatitude == null || visitLongitude == null) {
             throw new BusinessException("Visit location is required");
@@ -128,11 +135,12 @@ public class HomeVisitLocationService {
 
         Double originLat = doctor.getLatitude();
         Double originLng = doctor.getLongitude();
+
         if (originLat == null || originLng == null) {
             if (doctor.getClinicAddress() == null || doctor.getClinicAddress().isBlank()) {
                 throw new BusinessException("Doctor has no clinic address");
             }
-            GeocodeResponse geo = geocodeClinicAddressWithFallback(doctor.getClinicAddress());
+            GeocodeResponse geo = geocode(doctor.getClinicAddress());
             originLat = geo.getLatitude();
             originLng = geo.getLongitude();
             doctor.setLatitude(originLat);
@@ -140,97 +148,34 @@ public class HomeVisitLocationService {
             doctorRepository.save(doctor);
         }
 
-        double straightDistance = calculateStraightDistanceKm(originLat, originLng, visitLatitude, visitLongitude);
-        boolean serviceable = straightDistance <= maxDistanceKm;
-
-        if (!serviceable) {
-            return HomeVisitEstimateResponse.builder()
-                    .distanceKm(0.0)
-                    .estimatedTravelMinutes(0)
-                    .homeVisitFee(baseFee)
-                    .travelFee(BigDecimal.ZERO)
-                    .totalFee(baseFee)
-                    .serviceable(false)
-                    .message("Outside service area")
-                    .build();
-        }
-
-        RouteDistance route = getRouteDistanceFromOsrm(originLat, originLng, visitLatitude, visitLongitude);
-
-        double roundedDistance = Math.round(route.distanceKm() * 10.0) / 10.0;
+        double distance = calculateStraightDistanceKm(originLat, originLng, visitLatitude, visitLongitude);
+        boolean serviceable = distance <= doctor.getHomeVisitRadiusKm();
+        double roundedDistance = Math.round(distance * 10.0) / 10.0;
+        int estimatedMinutes = (int) Math.ceil((distance / averageSpeedKmh) * 60);
 
         double extraKm = Math.max(0, roundedDistance - freeDistanceKm);
         double billedExtraKm = Math.ceil(extraKm);
         BigDecimal extraTravelFee = travelFeePerKm
                 .multiply(BigDecimal.valueOf(billedExtraKm))
                 .setScale(2, RoundingMode.HALF_UP);
-        BigDecimal totalFee = baseFee
+        BigDecimal totalFee = homeVisitBaseFee
                 .add(extraTravelFee)
                 .setScale(2, RoundingMode.HALF_UP);
 
         return HomeVisitEstimateResponse.builder()
                 .distanceKm(roundedDistance)
-                .estimatedTravelMinutes(route.durationMinutes())
-                .homeVisitFee(baseFee)
+                .estimatedTravelMinutes(estimatedMinutes)
+                .homeVisitFee(homeVisitBaseFee)
                 .travelFee(extraTravelFee)
                 .totalFee(totalFee)
-                .serviceable(true)
-                .message("Within service area")
+                .serviceable(serviceable)
+                .message(serviceable
+                        ? "This address is within our home visit service area."
+                        : "This address is outside our home visit service area.")
                 .build();
     }
 
-    private RouteDistance getRouteDistanceFromOsrm(Double originLat, Double originLng,
-                                                    Double visitLat, Double visitLng) {
-        try {
-            String url = "https://router.project-osrm.org/route/v1/driving/"
-                    + originLng + "," + originLat
-                    + ";"
-                    + visitLng + "," + visitLat
-                    + "?overview=false";
-
-            ResponseEntity<JsonNode> response = restTemplate.getForEntity(url, JsonNode.class);
-
-            JsonNode route = response.getBody()
-                    .path("routes")
-                    .path(0);
-
-            if (route.isMissingNode()) {
-                return getFallbackDistance(originLat, originLng, visitLat, visitLng);
-            }
-
-            double distanceMeters = route.path("distance").asDouble();
-            double durationSeconds = route.path("duration").asDouble();
-
-            return new RouteDistance(
-                    distanceMeters / 1000.0,
-                    (int) Math.ceil(durationSeconds / 60.0)
-            );
-
-        } catch (Exception e) {
-            return getFallbackDistance(originLat, originLng, visitLat, visitLng);
-        }
-    }
-
-    private RouteDistance getFallbackDistance(Double originLat, Double originLng,
-                                              Double visitLat, Double visitLng) {
-        double distanceKm = calculateStraightDistanceKm(
-                originLat,
-                originLng,
-                visitLat,
-                visitLng
-        );
-
-        int minutes = (int) Math.ceil((distanceKm / averageSpeedKmh) * 60);
-
-        return new RouteDistance(distanceKm, minutes);
-    }
-
-    private double calculateStraightDistanceKm(
-            double lat1,
-            double lon1,
-            double lat2,
-            double lon2
-    ) {
+    public double calculateStraightDistanceKm(double lat1, double lon1, double lat2, double lon2) {
         final int earthRadiusKm = 6371;
 
         double latDistance = Math.toRadians(lat2 - lat1);
@@ -253,9 +198,5 @@ public class HomeVisitLocationService {
         } catch (Exception e) {
             return null;
         }
-    }
-
-    private record RouteDistance(Double distanceKm, Integer durationMinutes) {
-
     }
 }

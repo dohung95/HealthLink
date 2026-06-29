@@ -89,7 +89,7 @@ ChatTheme getActiveChatTheme(BuildContext context, int index) {
       name: 'System Default',
       primary: colors.primary,
       secondary: colors.secondary,
-      background: colors.surfaceContainerHigh.withValues(alpha: 0.3),
+      background: colors.surface,
       bubbleUser: colors.primary,
       bubbleUserText: colors.onPrimary,
       bubbleOther: colors.surfaceContainerHigh,

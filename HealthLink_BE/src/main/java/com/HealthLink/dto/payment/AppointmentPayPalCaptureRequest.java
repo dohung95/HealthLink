@@ -9,6 +9,8 @@ import lombok.NoArgsConstructor;
 
 import java.time.LocalDate;
 import java.time.LocalDateTime;
+import java.time.LocalTime;
+import java.util.List;
 
 @Data
 @NoArgsConstructor
@@ -63,4 +65,9 @@ public class AppointmentPayPalCaptureRequest {
     private String paymentMethod = "EWallet";
 
     private String currency = "USD";
+
+    private List<Integer> homeVisitServiceIds;
+
+    private LocalTime homeVisitStartTime;
+    private LocalTime homeVisitEndTime;
 }

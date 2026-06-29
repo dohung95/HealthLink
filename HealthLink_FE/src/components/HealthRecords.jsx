@@ -7,6 +7,7 @@ import Loading from './Loading';
 import { getProfile } from '../api/account';
 import { useAuth } from '../context/AuthContext';
 import { moderateImageFile, isImageFile } from '../utils/imageModeration';
+import RichTextEditor from '../utils/ckeditor/RichTextEditor';
 
 const HealthRecords = ({ embedded = false }) => {
     const HEALTH_RECORD_PAGE_SIZE = 5;
@@ -396,13 +397,11 @@ const HealthRecords = ({ embedded = false }) => {
 
                                         <div className="mb-3">
                                             <label className="form-label small fw-bold text-muted text-uppercase">Description / Notes</label>
-                                            <textarea
-                                                className="form-control bg-light border-0"
-                                                rows="3"
+                                            <RichTextEditor
                                                 value={description}
-                                                onChange={e => setDescription(e.target.value)}
+                                                onChange={setDescription}
                                                 placeholder="E.g., Chest X-ray due to persistent cough..."
-                                            ></textarea>
+                                            />
                                         </div>
 
                                         <div className="d-flex justify-content-end gap-3 mt-4 pt-3 border-top">

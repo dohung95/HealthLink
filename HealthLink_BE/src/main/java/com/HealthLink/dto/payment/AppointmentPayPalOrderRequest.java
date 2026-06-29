@@ -3,11 +3,14 @@ package com.HealthLink.dto.payment;
 import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
+import java.time.LocalDate;
 import lombok.AllArgsConstructor;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 
 import java.time.LocalDateTime;
+import java.time.LocalTime;
+import java.util.List;
 
 @Data
 @NoArgsConstructor
@@ -51,4 +54,11 @@ public class AppointmentPayPalOrderRequest {
     private Integer sourceConsultationId;
 
     private String currency = "USD";
+
+    private List<Integer> homeVisitServiceIds;
+
+    private Integer scheduleId;
+    private LocalDate bookingDate;
+    private LocalTime homeVisitStartTime;
+    private LocalTime homeVisitEndTime;
 }

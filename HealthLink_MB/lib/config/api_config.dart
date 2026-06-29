@@ -15,7 +15,7 @@ class ApiConfig {
 
   // true = Android Emulator (dùng 10.0.2.2)
   // false = máy thật USB (dùng 127.0.0.1 + adb reverse)
-  static const bool isEmulator = false;
+  static const bool isEmulator = true;
 
   static const String baseUrl = isTeamConfig
       ? 'http://192.168.120.6:8096/api'
@@ -47,9 +47,17 @@ class ApiConfig {
   static const String verifyEmailChange = '$baseUrl/account/patient/auth/email/verify-change';
   static String doctorSchedules(String doctorId) => '$baseUrl/account/doctors/$doctorId/schedules';
 
+  // ── Doctor Schedule (self-management) ────────────────────────────────────
+  static const String mySchedule = '$baseUrl/doctors/schedule';
+  static String deleteSchedule(int id) => '$baseUrl/doctors/schedule/$id';
+  static const String scheduleCalendar = '$baseUrl/doctors/schedule/calendar';
+  static const String scheduleChangeRequests = '$baseUrl/doctors/schedule/change-requests';
+  static const String complianceStatus = '$baseUrl/doctors/compliance/status';
+
   // ── Doctor Profile Endpoints ───────────────────────────────────────────────
   /// GET /api/account/doctors/profile – Lấy profile của bác sĩ đang đăng nhập.
   static const String doctorProfile = '$baseUrl/account/doctors/profile';
+  static const String doctorAvatar  = '$baseUrl/account/doctors/avatar';
 
   // ── Doctor Auth Endpoints ────────────────────────────────────────────────
   /// POST /api/account/doctors/auth/password/request-change – Yêu cầu đổi mật khẩu (gửi OTP)

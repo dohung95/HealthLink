@@ -43,7 +43,8 @@ class _DoctorReviewsScreenState extends State<DoctorReviewsScreen> {
         setState(() {
           _stats = results[0];
           final reviewsData = results[1];
-          _reviews = reviewsData['content'] as List<dynamic>? ??
+          _reviews = reviewsData['reviews'] as List<dynamic>? ??
+              reviewsData['content'] as List<dynamic>? ??
               reviewsData['items'] as List<dynamic>? ??
               [];
           _isLoading = false;
@@ -251,7 +252,8 @@ class _DoctorReviewsScreenState extends State<DoctorReviewsScreen> {
     final patientName = review['patientName'] as String? ?? 'Anonymous';
     final rating = (review['rating'] as num?)?.toInt() ?? 0;
     final comment = review['comment'] as String? ?? '';
-    final createdAt = DateTime.tryParse(review['createdAt']?.toString() ?? '');
+    final createdAt = DateTime.tryParse(
+        (review['reviewDate'] ?? review['createdAt'])?.toString() ?? '');
     final dateFormat = DateFormat('dd MMM yyyy');
 
     return Container(

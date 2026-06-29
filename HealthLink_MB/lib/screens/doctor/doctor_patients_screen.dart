@@ -155,26 +155,14 @@ class _DoctorPatientsScreenState extends State<DoctorPatientsScreen> {
     return Scaffold(
       backgroundColor: DS.background,
       body: SafeArea(
+        top: false,
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            // Header
-            Padding(
-              padding: const EdgeInsets.fromLTRB(20, 20, 20, 0),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: const [
-                  Text('Patients', style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold, color: DS.foreground)),
-                  SizedBox(height: 2),
-                  Text('View and manage your patients', style: TextStyle(fontSize: 14, color: DS.mutedForeground)),
-                ],
-              ),
-            ),
-            const SizedBox(height: 16),
-
+            const SizedBox(height: 10),
             // Search Bar
             Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 20),
+              padding: const EdgeInsets.symmetric(horizontal: 12),
               child: Container(
                 decoration: DS.cardDecoration,
                 child: TextField(
@@ -384,8 +372,10 @@ class _PatientCard extends StatelessWidget {
         decoration: BoxDecoration(
           color: DS.card,
           borderRadius: BorderRadius.circular(16),
-          border: Border.all(color: DS.cardBorder),
-          boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.04), blurRadius: 4, offset: const Offset(0, 1))],
+          boxShadow: [
+            BoxShadow(color: Colors.black.withValues(alpha: 0.08), blurRadius: 12, offset: const Offset(0, 4)),
+            BoxShadow(color: Colors.black.withValues(alpha: 0.04), blurRadius: 4, offset: const Offset(0, 1)),
+          ],
         ),
         child: Padding(
           padding: const EdgeInsets.all(16),
@@ -429,7 +419,14 @@ class _PatientCard extends StatelessWidget {
               // Stats row
               Container(
                 padding: const EdgeInsets.all(12),
-                decoration: BoxDecoration(color: DS.secondary.withOpacity(0.5), borderRadius: BorderRadius.circular(12)),
+                decoration: BoxDecoration(
+          color: DS.secondary.withOpacity(0.5),
+          borderRadius: BorderRadius.circular(12),
+          boxShadow: [
+            BoxShadow(color: Colors.black.withValues(alpha: 0.06), blurRadius: 8, offset: const Offset(0, 3)),
+            BoxShadow(color: Colors.black.withValues(alpha: 0.03), blurRadius: 3, offset: const Offset(0, 1)),
+          ],
+        ),
                 child: Row(
                   children: [
                     _StatItem(icon: Icons.calendar_today, label: 'Visits', value: '${patient.totalAppointments}', color: DS.primary),

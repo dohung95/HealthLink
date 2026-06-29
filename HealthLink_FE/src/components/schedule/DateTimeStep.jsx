@@ -50,40 +50,33 @@ const DateTimeStep = ({
     return date;
   };
 
+  const normalizeType = (value) =>
+    String(value || '').trim().toLowerCase().replace(/[\s_-]/g, '');
+
   const isScheduleMatchingConsultationType = (schedule) => {
-  const type = String(schedule.consultationType || '').trim().toLowerCase();
+    const type = normalizeType(schedule.consultationType);
+    const selectedType = normalizeType(consultationType);
 
-  if (consultationType === 'HomeVisit') {
+    if (selectedType === 'homevisit') {
+      return ['homevisit', 'home'].includes(type);
+    }
+
     return (
-      type === 'homevisit' ||
-      type === 'home visit' ||
-      type === 'home-visit' ||
-      type === 'home'
+      !type ||
+      ['online', 'video', 'videocall', 'audio', 'audiocall', 'chat', 'consultation'].includes(type)
     );
-  }
+  };
 
-  return (
-    !type ||
-    type === 'online' ||
-    type === 'video' ||
-    type === 'video call' ||
-    type === 'audio' ||
-    type === 'audio call' ||
-    type === 'chat' ||
-    type === 'consultation'
-  );
-};
+  const workingDaySet = useMemo(() => {
+    return new Set(
+      (doctorSchedules || [])
+        .filter((schedule) => schedule.available !== false)
+        .filter(isScheduleMatchingConsultationType)
+        .map((schedule) => Number(schedule.dayOfWeek))
+    );
+  }, [doctorSchedules, consultationType]);
 
-const workingDaySet = useMemo(() => {
-  return new Set(
-    (doctorSchedules || [])
-      .filter((schedule) => schedule.available !== false)
-      .filter(isScheduleMatchingConsultationType)
-      .map((schedule) => Number(schedule.dayOfWeek))
-  );
-}, [doctorSchedules, consultationType]);
-
-const shouldFilterByDoctorSchedule = workingDaySet.size > 0;
+  const shouldFilterByDoctorSchedule = workingDaySet.size > 0;
 
 
   const buildWeekOptions = (targetWeekIndex) => {
