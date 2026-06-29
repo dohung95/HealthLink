@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import '../../l10n/app_localizations.dart';
+import '../../../l10n/app_localizations.dart';
 
 String _getLocalizedTabLabel(BuildContext context, String label) {
   final l10n = AppLocalizations.of(context)!;

@@ -1679,4 +1679,42 @@ class AppLocalizationsVi extends AppLocalizations {
   @override
   String get notesHint =>
       'Ví dụ: đo sau khi nghỉ ngơi 5 phút, cảm thấy hơi chóng mặt, hơi tức ngực...';
+
+  @override
+  String get btnRate => 'Đánh giá';
+
+  @override
+  String get btnReviewed => 'Đã đánh giá';
+
+  @override
+  String get rateExperienceTitle => 'Đánh giá Bác sĩ';
+
+  @override
+  String get ratingLabel => 'Số sao';
+
+  @override
+  String get selectRatingPrompt => 'Vui lòng chọn số sao';
+
+  @override
+  String get commentLabel => 'Nhận xét của bạn';
+
+  @override
+  String get commentHint =>
+      'Chia sẻ trải nghiệm của bạn với bác sĩ... (tối thiểu 10 ký tự)';
+
+  @override
+  String get commentTooShort => 'Nhận xét phải có ít nhất 10 ký tự';
+
+  @override
+  String get postAnonymously => 'Đánh giá ẩn danh';
+
+  @override
+  String get postAnonymouslyHint =>
+      'Tên của bạn sẽ được ẩn trên bài đánh giá công khai';
+
+  @override
+  String get submitReviewBtn => 'Gửi đánh giá';
+
+  @override
+  String get reviewSuccess => 'Gửi đánh giá thành công!';
 }

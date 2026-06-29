@@ -666,5 +666,17 @@
   "spo2Hint": "Optional. Enter if measured by pulse oximeter or smartwatch.",
   "tempHint": "Optional. Enter if measured by thermometer.",
   "respHint": "Optional. Count breaths for 30 seconds, then multiply by 2.",
-  "notesHint": "Example: measured after resting for 5 minutes, felt dizzy, mild chest discomfort..."
+  "notesHint": "Example: measured after resting for 5 minutes, felt dizzy, mild chest discomfort...",
+  "btnRate": "Rate",
+  "btnReviewed": "Reviewed",
+  "rateExperienceTitle": "Rate Your Experience",
+  "ratingLabel": "Your Rating",
+  "selectRatingPrompt": "Please select a rating",
+  "commentLabel": "Your Comment",
+  "commentHint": "Share your experience with this doctor... (minimum 10 characters)",
+  "commentTooShort": "Comment must be at least 10 characters",
+  "postAnonymously": "Post anonymously",
+  "postAnonymouslyHint": "Your name will be hidden from the public review",
+  "submitReviewBtn": "Submit Review",
+  "reviewSuccess": "Review submitted successfully!"
 }

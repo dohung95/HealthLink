@@ -1684,4 +1684,42 @@ class AppLocalizationsEn extends AppLocalizations {
   @override
   String get notesHint =>
       'Example: measured after resting for 5 minutes, felt dizzy, mild chest discomfort...';
+
+  @override
+  String get btnRate => 'Rate';
+
+  @override
+  String get btnReviewed => 'Reviewed';
+
+  @override
+  String get rateExperienceTitle => 'Rate Your Experience';
+
+  @override
+  String get ratingLabel => 'Your Rating';
+
+  @override
+  String get selectRatingPrompt => 'Please select a rating';
+
+  @override
+  String get commentLabel => 'Your Comment';
+
+  @override
+  String get commentHint =>
+      'Share your experience with this doctor... (minimum 10 characters)';
+
+  @override
+  String get commentTooShort => 'Comment must be at least 10 characters';
+
+  @override
+  String get postAnonymously => 'Post anonymously';
+
+  @override
+  String get postAnonymouslyHint =>
+      'Your name will be hidden from the public review';
+
+  @override
+  String get submitReviewBtn => 'Submit Review';
+
+  @override
+  String get reviewSuccess => 'Review submitted successfully!';
 }

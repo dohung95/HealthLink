@@ -84,6 +84,8 @@ const MyAppointments = () => {
             if (newMsg.content === '[SYSTEM_BLOCK_UPDATE]') {
                 toast.info('Status changed! Refreshing appointments...', { duration: 3000 });
                 loadAppointments(patientId, currentPage, statusFilter);
+            } else if (newMsg.content === '[SYSTEM_REVIEW_SUBMITTED]') {
+                loadAppointments(patientId, currentPage, statusFilter);
             }
         });
 

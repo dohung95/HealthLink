@@ -518,5 +518,17 @@
   "spo2Hint": "Tùy chọn. Nhập nếu đo bằng máy SpO2 hoặc smartwatch.",
   "tempHint": "Tùy chọn. Nhập nếu đo bằng nhiệt kế.",
   "respHint": "Tùy chọn. Đếm nhịp thở trong 30 giây, sau đó nhân 2.",
-  "notesHint": "Ví dụ: đo sau khi nghỉ ngơi 5 phút, cảm thấy hơi chóng mặt, hơi tức ngực..."
+  "notesHint": "Ví dụ: đo sau khi nghỉ ngơi 5 phút, cảm thấy hơi chóng mặt, hơi tức ngực...",
+  "btnRate": "Đánh giá",
+  "btnReviewed": "Đã đánh giá",
+  "rateExperienceTitle": "Đánh giá Bác sĩ",
+  "ratingLabel": "Số sao",
+  "selectRatingPrompt": "Vui lòng chọn số sao",
+  "commentLabel": "Nhận xét của bạn",
+  "commentHint": "Chia sẻ trải nghiệm của bạn với bác sĩ... (tối thiểu 10 ký tự)",
+  "commentTooShort": "Nhận xét phải có ít nhất 10 ký tự",
+  "postAnonymously": "Đánh giá ẩn danh",
+  "postAnonymouslyHint": "Tên của bạn sẽ được ẩn trên bài đánh giá công khai",
+  "submitReviewBtn": "Gửi đánh giá",
+  "reviewSuccess": "Gửi đánh giá thành công!"
 }

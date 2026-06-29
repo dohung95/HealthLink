@@ -3205,6 +3205,78 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Example: measured after resting for 5 minutes, felt dizzy, mild chest discomfort...'**
   String get notesHint;
+
+  /// No description provided for @btnRate.
+  ///
+  /// In en, this message translates to:
+  /// **'Rate'**
+  String get btnRate;
+
+  /// No description provided for @btnReviewed.
+  ///
+  /// In en, this message translates to:
+  /// **'Reviewed'**
+  String get btnReviewed;
+
+  /// No description provided for @rateExperienceTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Rate Your Experience'**
+  String get rateExperienceTitle;
+
+  /// No description provided for @ratingLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'Your Rating'**
+  String get ratingLabel;
+
+  /// No description provided for @selectRatingPrompt.
+  ///
+  /// In en, this message translates to:
+  /// **'Please select a rating'**
+  String get selectRatingPrompt;
+
+  /// No description provided for @commentLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'Your Comment'**
+  String get commentLabel;
+
+  /// No description provided for @commentHint.
+  ///
+  /// In en, this message translates to:
+  /// **'Share your experience with this doctor... (minimum 10 characters)'**
+  String get commentHint;
+
+  /// No description provided for @commentTooShort.
+  ///
+  /// In en, this message translates to:
+  /// **'Comment must be at least 10 characters'**
+  String get commentTooShort;
+
+  /// No description provided for @postAnonymously.
+  ///
+  /// In en, this message translates to:
+  /// **'Post anonymously'**
+  String get postAnonymously;
+
+  /// No description provided for @postAnonymouslyHint.
+  ///
+  /// In en, this message translates to:
+  /// **'Your name will be hidden from the public review'**
+  String get postAnonymouslyHint;
+
+  /// No description provided for @submitReviewBtn.
+  ///
+  /// In en, this message translates to:
+  /// **'Submit Review'**
+  String get submitReviewBtn;
+
+  /// No description provided for @reviewSuccess.
+  ///
+  /// In en, this message translates to:
+  /// **'Review submitted successfully!'**
+  String get reviewSuccess;
 }
 
 class _AppLocalizationsDelegate

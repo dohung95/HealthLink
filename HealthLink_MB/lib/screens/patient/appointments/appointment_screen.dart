@@ -16,6 +16,8 @@ import '../../../providers/video_call_provider.dart';
 import '../../../l10n/app_localizations.dart';
 import '../../../services/vitals/vital_sign_service.dart';
 import '../../chat/widgets/vitals_bottom_sheet.dart';
+import '../../../services/patient/patient_review_service.dart';
+import '../../../widgets/patient/rate_doctor_modal.dart';
 
 class AppointmentScreen extends StatefulWidget {
   const AppointmentScreen({super.key, this.onBookNew});
@@ -38,6 +40,9 @@ class _AppointmentScreenState extends State<AppointmentScreen> {
   String? _error;
   String? _patientId;
 
+  List<PatientAppointment> _appointments = [];
+  Map<int, bool> _reviewableAppointments = {};
+  
   int _currentPage = 1;
   int _totalPages = 1;
   int _totalItems = 0;
@@ -45,8 +50,6 @@ class _AppointmentScreenState extends State<AppointmentScreen> {
   DateTime _now = DateTime.now();
   Timer? _timer;
   StreamSubscription<void>? _systemUpdateSub;
-
-  List<PatientAppointment> _appointments = [];
 
   String _statusFilter = 'ALL';
 
@@ -141,6 +144,7 @@ class _AppointmentScreenState extends State<AppointmentScreen> {
         _totalPages = result.totalPages == 0 ? 1 : result.totalPages;
         _totalItems = result.totalItems;
       });
+      _checkReviewableStatus(result.items);
     } catch (e) {
       if (!mounted) return;
 
@@ -153,6 +157,40 @@ class _AppointmentScreenState extends State<AppointmentScreen> {
           _loading = false;
         });
       }
+    }
+  }
+
+  Future<void> _checkReviewableStatus(List<PatientAppointment> items) async {
+    final auth = context.read<AuthProvider>();
+    if (auth.accessToken == null) return;
+    
+    final completedApps = items.where((a) => a.status?.toUpperCase() == 'COMPLETED').toList();
+    if (completedApps.isEmpty) return;
+
+    final Map<int, bool> newStatus = {};
+    await Future.wait(completedApps.map((apt) async {
+      final canReview = await PatientReviewService.canReview(auth.accessToken!, apt.appointmentId);
+      newStatus[apt.appointmentId] = canReview;
+    }));
+    
+    if (mounted) {
+      setState(() {
+        _reviewableAppointments.addAll(newStatus);
+      });
+    }
+  }
+
+  void _handleRateClick(PatientAppointment appointment) async {
+    final result = await showModalBottomSheet<bool>(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (_) => RateDoctorModal(appointment: appointment),
+    );
+
+    if (result == true) {
+      // Just reload current page to update status
+      _loadAppointments(page: _currentPage);
     }
   }
 
@@ -658,6 +696,35 @@ class _AppointmentScreenState extends State<AppointmentScreen> {
                     icon: const Icon(Icons.close),
                     label: Text(AppLocalizations.of(context)!.btnCancel),
                   ),
+                if (appointment.status?.toUpperCase() == 'COMPLETED')
+                  if (_reviewableAppointments[appointment.appointmentId] == null)
+                    const Padding(
+                      padding: EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                      child: SizedBox(
+                        width: 20,
+                        height: 20,
+                        child: CircularProgressIndicator(strokeWidth: 2),
+                      ),
+                    )
+                  else if (_reviewableAppointments[appointment.appointmentId] == true)
+                    FilledButton.icon(
+                      onPressed: () => _handleRateClick(appointment),
+                      style: FilledButton.styleFrom(
+                        backgroundColor: Colors.amber.shade700,
+                        foregroundColor: Colors.white,
+                      ),
+                      icon: const Icon(Icons.star),
+                      label: Text(AppLocalizations.of(context)!.btnRate, style: const TextStyle(fontWeight: FontWeight.bold)),
+                    )
+                  else if (_reviewableAppointments[appointment.appointmentId] == false)
+                    OutlinedButton.icon(
+                      onPressed: () {},
+                      style: OutlinedButton.styleFrom(
+                        foregroundColor: colors.onSurfaceVariant,
+                      ),
+                      icon: const Icon(Icons.star),
+                      label: Text(AppLocalizations.of(context)!.btnReviewed),
+                    ),
               ],
             ),
           ],

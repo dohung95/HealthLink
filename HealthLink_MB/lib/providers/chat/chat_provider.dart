@@ -156,7 +156,9 @@ class ChatProvider extends ChangeNotifier {
 
   /// Xử lý tin nhắn nhận được từ STOMP
   void _onStompMessage(Message msg) {
-    if (msg.content == '[SYSTEM_BLOCK_UPDATE]' || msg.content == '[SYSTEM_CONSULTATION_STARTED]') {
+    if (msg.content == '[SYSTEM_BLOCK_UPDATE]' || 
+        msg.content == '[SYSTEM_CONSULTATION_STARTED]' ||
+        msg.content == '[SYSTEM_REVIEW_SUBMITTED]') {
       if (_lastToken != null && _lastUserId != null) {
         // Thêm delay nhỏ để đảm bảo backend transaction đã được commit trước khi fetch lại dữ liệu
         Future.delayed(const Duration(milliseconds: 500), () {
