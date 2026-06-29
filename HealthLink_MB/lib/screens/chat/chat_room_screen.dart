@@ -704,6 +704,7 @@ class _ChatRoomScreenState extends State<ChatRoomScreen> {
     final conv = chat.currentConversation ?? widget.conversation;
     final chatThemeIndex = chat.chatThemeIndex;
     final chatTheme = getActiveChatTheme(context, chatThemeIndex);
+    final auth = context.read<AuthProvider>();
 
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
@@ -805,18 +806,21 @@ class _ChatRoomScreenState extends State<ChatRoomScreen> {
             Icon(Icons.notifications_off, color: colors.outline, size: 20),
 
           if (!conv.isSupport)
-            IconButton(
-              icon: const Icon(Icons.videocam),
-              color: (context.watch<ChatProvider>().isBlocked(conv.id) || conv.appointmentStatus == 'COMPLETED') 
-                  ? colors.outline
-                  : chatTheme.primary,
-              onPressed: (context.watch<ChatProvider>().isBlocked(conv.id) || conv.appointmentStatus == 'COMPLETED') 
-                  ? () {
-                      ScaffoldMessenger.of(context).showSnackBar(
-                        const SnackBar(content: Text('Cannot call when chat is blocked or appointment completed', style: TextStyle(color: Colors.white)), backgroundColor: Colors.orange),
-                      );
-                    }
-                  : () => _handleVideoCall(context, conv),
+            Builder(
+              builder: (context) {
+                final isBlocked = context.watch<ChatProvider>().isBlocked(conv.id);
+                final isCompleted = conv.appointmentStatus == 'COMPLETED';
+                final isMissingVitals = auth.isPatient && !_hasFilledVitals && !isCompleted;
+                final isCallDisabled = isBlocked || isCompleted || isMissingVitals;
+                
+                return IconButton(
+                  icon: const Icon(Icons.videocam),
+                  color: isCallDisabled ? colors.outline : chatTheme.primary,
+                  onPressed: isCallDisabled
+                      ? null
+                      : () => _handleVideoCall(context, conv),
+                );
+              }
             ),
             
           IconButton(
@@ -873,6 +877,105 @@ class _ChatRoomScreenState extends State<ChatRoomScreen> {
     );
   }
 
+  Widget _buildCallHistoryBubble(BuildContext context, Message msg, bool isMe) {
+    final colors = _colors(context);
+    final chatTheme = getActiveChatTheme(context, context.watch<ChatProvider>().chatThemeIndex);
+    
+    int duration = 0;
+    String status = 'UNKNOWN';
+    try {
+      final parts = msg.content.substring('[CALL_HISTORY] '.length).split(' ');
+      for (var part in parts) {
+        final kv = part.split(':');
+        if (kv.length == 2) {
+          if (kv[0] == 'duration') duration = int.tryParse(kv[1]) ?? 0;
+          if (kv[0] == 'status') status = kv[1];
+        }
+      }
+    } catch (e) {
+      debugPrint('Error parsing call history: $e');
+    }
+
+    final isMissedOrDeclined = status == 'MISSED' || status == 'DECLINED';
+    final iconColor = isMissedOrDeclined ? Colors.red : (isMe ? chatTheme.bubbleUserText : chatTheme.bubbleOtherText);
+    final bgColor = isMe ? Colors.white.withValues(alpha: 0.2) : Colors.green.withValues(alpha: 0.1);
+    final iconData = isMissedOrDeclined ? Icons.phone_missed : Icons.videocam;
+    final titleText = isMissedOrDeclined ? 'Missed Call' : 'Video Call';
+    
+    String formatDuration(int seconds) {
+      if (seconds == 0 && !isMissedOrDeclined) return '0:00';
+      final m = seconds ~/ 60;
+      final s = seconds % 60;
+      return '$m:${s.toString().padLeft(2, '0')}';
+    }
+
+    return GestureDetector(
+      onTap: () {
+        if (isMissedOrDeclined) {
+          _handleVideoCall(context, widget.conversation);
+        }
+      },
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+        decoration: BoxDecoration(
+        color: isMe ? chatTheme.bubbleUser : chatTheme.bubbleOther,
+        borderRadius: BorderRadius.only(
+          topLeft: Radius.circular(isMe ? 16 : 4),
+          topRight: Radius.circular(isMe ? 4 : 16),
+          bottomLeft: const Radius.circular(16),
+          bottomRight: const Radius.circular(16),
+        ),
+        boxShadow: isMe ? [
+          BoxShadow(
+            color: chatTheme.bubbleUser.withValues(alpha: 0.2),
+            blurRadius: 4,
+            offset: const Offset(0, 2),
+          ),
+        ] : null,
+        border: isMe ? null : Border.all(color: colors.surfaceContainerHighest),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Container(
+            width: 40,
+            height: 40,
+            decoration: BoxDecoration(
+              shape: BoxShape.circle,
+              color: bgColor,
+            ),
+            child: Icon(iconData, color: iconColor, size: 20),
+          ),
+          const SizedBox(width: 12),
+          Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                titleText,
+                style: TextStyle(
+                  fontFamily: 'Inter',
+                  fontSize: 14,
+                  fontWeight: FontWeight.w600,
+                  color: isMissedOrDeclined ? (isMe ? Colors.red.shade100 : Colors.red) : (isMe ? chatTheme.bubbleUserText : chatTheme.bubbleOtherText),
+                ),
+              ),
+              const SizedBox(height: 2),
+              Text(
+                isMissedOrDeclined ? 'Tap icon to call back' : formatDuration(duration),
+                style: TextStyle(
+                  fontFamily: 'Inter',
+                  fontSize: 12,
+                  color: isMe ? chatTheme.bubbleUserText.withValues(alpha: 0.7) : chatTheme.bubbleOtherText.withValues(alpha: 0.7),
+                ),
+              ),
+            ],
+          ),
+        ],
+      ),
+      ),
+    );
+  }
+
   Widget _buildDoctorBubble(BuildContext context, Message msg) {
     final colors = _colors(context);
     final chat = context.watch<ChatProvider>();
@@ -912,7 +1015,9 @@ class _ChatRoomScreenState extends State<ChatRoomScreen> {
                 _buildFileMessage(msg.fileUrl!, colors),
               if (msg.audioUrl != null && msg.audioUrl!.isNotEmpty)
                 _buildAudioMessage(msg.audioUrl!, colors),
-              if (msg.content.isNotEmpty)
+              if (msg.content.startsWith('[CALL_HISTORY]'))
+                _buildCallHistoryBubble(context, msg, false)
+              else if (msg.content.isNotEmpty)
                 Container(
                   padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
                   decoration: BoxDecoration(
@@ -980,7 +1085,9 @@ class _ChatRoomScreenState extends State<ChatRoomScreen> {
                       _buildFileMessage(msg.fileUrl!, colors),
                     if (msg.audioUrl != null && msg.audioUrl!.isNotEmpty)
                       _buildAudioMessage(msg.audioUrl!, colors),
-                    if (msg.content.isNotEmpty)
+                    if (msg.content.startsWith('[CALL_HISTORY]'))
+                      _buildCallHistoryBubble(context, msg, true)
+                    else if (msg.content.isNotEmpty)
                       Container(
                         padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
                         decoration: BoxDecoration(

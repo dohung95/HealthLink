@@ -1,10 +1,12 @@
 import 'dart:convert';
+import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter_webrtc/flutter_webrtc.dart';
 import '../../main.dart';
 import '../../services/video_audio/webrtc_stomp_service.dart';
 import '../../services/video_audio/webrtc_service.dart';
 import '../../screens/video_audio/video_call_screen.dart';
+import '../services/chat/chat_service.dart';
 import '../providers/auth_provider.dart';
 import 'package:provider/provider.dart';
 import 'package:flutter_ringtone_player/flutter_ringtone_player.dart';
@@ -13,6 +15,16 @@ import 'package:wakelock_plus/wakelock_plus.dart';
 class VideoCallProvider extends ChangeNotifier {
   bool _isInCall = false;
   bool get isInCall => _isInCall;
+
+  Timer? _incomingCallTimer;
+  Timer? _outgoingCallTimer;
+
+  void _clearTimers() {
+    _incomingCallTimer?.cancel();
+    _outgoingCallTimer?.cancel();
+    _incomingCallTimer = null;
+    _outgoingCallTimer = null;
+  }
 
   String? _lastUserId;
   OverlayEntry? _pipOverlay;
@@ -32,6 +44,34 @@ class VideoCallProvider extends ChangeNotifier {
 
   void updateUserId(String? userId) {
     _lastUserId = userId;
+  }
+
+  void _sendCallHistory(String status) async {
+    if (!currentIsCaller || currentRoomId == null || currentPartnerId == null) return;
+    int duration = 0;
+    if (callStartTime != null) {
+      duration = DateTime.now().difference(callStartTime!).inSeconds;
+    }
+    
+    final context = navigatorKey.currentContext;
+    if (context == null) return;
+    
+    final auth = Provider.of<AuthProvider>(context, listen: false);
+    final token = auth.accessToken;
+    final userId = auth.userId;
+    if (token == null || userId == null) return;
+
+    try {
+      await ChatService.sendMessage(
+        token,
+        userId,
+        currentRoomId!,
+        currentPartnerId!,
+        '[CALL_HISTORY] duration:$duration status:$status',
+      );
+    } catch (e) {
+      debugPrint('[VideoCallProvider] Error sending call history: $e');
+    }
   }
 
   void _onWebRTCSignal(Map<String, dynamic> signal) async {
@@ -66,6 +106,30 @@ class VideoCallProvider extends ChangeNotifier {
       final context = navigatorKey.currentContext;
       
       if (context != null) {
+        _incomingCallTimer = Timer(const Duration(seconds: 30), () {
+          FlutterRingtonePlayer().stop();
+          final currentContext = navigatorKey.currentContext;
+          if (currentContext != null) {
+            Navigator.popUntil(currentContext, (route) => route.settings.name != '/incoming_call');
+            ScaffoldMessenger.of(currentContext).showSnackBar(
+              const SnackBar(content: Text('Incoming call timed out after 30 seconds.')),
+            );
+          }
+          WebrtcStompService.instance.sendWebRTCSignal({
+            'type': 'CALL_DECLINED',
+            'senderId': _lastUserId ?? '',
+            'senderName': 'Patient',
+            'receiverId': senderId,
+            'data': roomId,
+          });
+          WebrtcStompService.instance.sendWebRTCSignal({
+            'type': 'CALL_HANDLED_ELSEWHERE',
+            'senderId': _lastUserId ?? '',
+            'receiverId': _lastUserId ?? '',
+            'data': roomId,
+          });
+        });
+
         showDialog(
           context: context,
           barrierDismissible: false,
@@ -84,6 +148,7 @@ class VideoCallProvider extends ChangeNotifier {
               actions: [
                 TextButton(
                   onPressed: () {
+                    _clearTimers();
                     FlutterRingtonePlayer().stop();
                     Navigator.pop(dialogContext);
                     WebrtcStompService.instance.sendWebRTCSignal({
@@ -106,6 +171,7 @@ class VideoCallProvider extends ChangeNotifier {
                 ),
                 FilledButton(
                   onPressed: () {
+                    _clearTimers();
                     FlutterRingtonePlayer().stop();
                     Navigator.pop(dialogContext);
                     WebrtcStompService.instance.sendWebRTCSignal({
@@ -159,6 +225,7 @@ class VideoCallProvider extends ChangeNotifier {
       }
     } else if (type == 'HANGUP' || type == 'CALL_DECLINED' || type == 'CALL_HANDLED_ELSEWHERE') {
       debugPrint('[VideoCallProvider] 📞 Call ended/declined/handled elsewhere by $senderName');
+      _clearTimers();
       FlutterRingtonePlayer().stop();
 
       // Nếu là CALL_HANDLED_ELSEWHERE và thiết bị này ĐÃ VÀO CUỘC GỌI (chính nó vừa Accept)
@@ -168,11 +235,20 @@ class VideoCallProvider extends ChangeNotifier {
         return;
       }
 
+      String status = type == 'CALL_DECLINED' ? 'DECLINED' : (callStartTime != null ? 'COMPLETED' : 'MISSED');
+      _sendCallHistory(status);
+
       _isInCall = false;
       WakelockPlus.disable();
       callStartTime = null;
       isRemoteCameraOff = false;
       hidePiP();
+      
+      // Clear IDs so duplicate HANGUPs don't trigger MISSED call history again
+      currentRoomId = null;
+      currentPartnerId = null;
+      currentIsCaller = false;
+      
       notifyListeners();
       try {
         WebRTCService.instance.disposeCall();
@@ -314,16 +390,60 @@ class VideoCallProvider extends ChangeNotifier {
       'receiverId': receiverId,
       'data': roomId,
     });
-    
+
+    _outgoingCallTimer = Timer(const Duration(seconds: 30), () {
+      if (_isInCall && callStartTime == null && currentRoomId == roomId) {
+        debugPrint('[VideoCallProvider] Call timed out after 30 seconds');
+        _sendCallHistory('MISSED');
+        WebrtcStompService.instance.sendWebRTCSignal({
+          'type': 'HANGUP',
+          'senderId': myId,
+          'receiverId': receiverId,
+          'data': roomId,
+        });
+        
+        _clearTimers();
+        _isInCall = false;
+        WakelockPlus.disable();
+        currentRoomId = null;
+        currentPartnerId = null;
+        currentIsCaller = false;
+        notifyListeners();
+        
+        try {
+          WebRTCService.instance.disposeCall();
+        } catch (e) {
+          debugPrint('[VideoCallProvider] Error disposing call on timeout: $e');
+        }
+        
+        final context = navigatorKey.currentContext;
+        if (context != null) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text('No answer. Call timed out after 30 seconds.')),
+          );
+          Navigator.popUntil(context, (route) => route.settings.name != '/video_call');
+        }
+      }
+    });
+
     return true;
   }
 
-  void endCall() {
+  void endCall({String? overrideStatus}) {
+    String status = overrideStatus ?? (callStartTime != null ? 'COMPLETED' : 'MISSED');
+    _sendCallHistory(status);
+    _clearTimers();
     _isInCall = false;
     WakelockPlus.disable();
     callStartTime = null;
     isRemoteCameraOff = false;
     hidePiP();
+    
+    // Clear IDs so duplicate HANGUPs don't trigger MISSED call history again
+    currentRoomId = null;
+    currentPartnerId = null;
+    currentIsCaller = false;
+    
     notifyListeners();
     FlutterRingtonePlayer().stop();
     try {

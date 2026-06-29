@@ -213,21 +213,22 @@ function CustomAudioPlayer({ src, isOwn }) {
     const progressPercent = duration > 0 ? (currentTime / duration) * 100 : 0;
 
     return (
-        <div style={{
+        <div className={isOwn ? 'shadow-sm text-white' : 'shadow-sm text-dark'} style={{
             display: 'flex', alignItems: 'center', gap: '10px',
-            background: isOwn ? 'rgba(255,255,255,0.2)' : '#f8f9fa',
-            padding: '8px 12px', borderRadius: '12px', minWidth: '220px',
-            border: isOwn ? '1px solid rgba(255,255,255,0.3)' : '1px solid #dee2e6'
+            background: isOwn ? '#0d6efd' : '#fff',
+            padding: '10px 14px', borderRadius: '20px', minWidth: '220px',
+            border: isOwn ? 'none' : '1px solid #dee2e6'
         }}>
             <button
                 onClick={togglePlay}
                 style={{
-                    width: '32px', height: '32px', borderRadius: '50%',
+                    width: '36px', height: '36px', borderRadius: '50%',
                     border: 'none', display: 'flex', alignItems: 'center', justifyContent: 'center',
                     background: isOwn ? '#fff' : '#0d6efd',
                     color: isOwn ? '#0d6efd' : '#fff',
                     cursor: error ? 'not-allowed' : 'pointer',
-                    flexShrink: 0, opacity: error ? 0.5 : 1
+                    flexShrink: 0, opacity: error ? 0.5 : 1,
+                    boxShadow: '0 2px 5px rgba(0,0,0,0.1)'
                 }}
                 disabled={error}
             >
@@ -243,7 +244,7 @@ function CustomAudioPlayer({ src, isOwn }) {
                         transition: 'width 0.1s linear'
                     }} />
                 </div>
-                <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.7rem', color: isOwn ? 'rgba(255,255,255,0.8)' : '#6c757d', fontWeight: '500' }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.75rem', color: isOwn ? 'rgba(255,255,255,0.85)' : '#6c757d', fontWeight: '500' }}>
                     <span>{formatDuration(currentTime)}</span>
                     <span>{formatDuration(duration)}</span>
                 </div>
@@ -265,7 +266,7 @@ function CustomAudioPlayer({ src, isOwn }) {
 }
 
 // ─── Component tin nhắn ──────────────────────────────────────────────────────
-function ChatMessage({ message, currentUserId, isNew = false, onImageClick, onNavigate }) {
+function ChatMessage({ message, currentUserId, isNew = false, onImageClick, onNavigate, onCallClick }) {
     const isOwn = message.senderId === currentUserId || message.uid === currentUserId;
     const fullText = message.content || message.text || '';
     const [displayText, setDisplayText] = useState(isNew ? '' : fullText);
@@ -294,89 +295,157 @@ function ChatMessage({ message, currentUserId, isNew = false, onImageClick, onNa
     const videoUrl = getFullUrl(message.videoUrl);
     const fileUrl = getFullUrl(message.fileUrl);
     const audioSrc = getFullUrl(message.audioUrl);
-
-    // Debug: log audio messages to help diagnose display issues
-    if (message.audioUrl) {
-        console.log('[ChatMessage] Audio message:', { messageId: message.messageId, audioUrl: message.audioUrl, audioSrc, isOwn });
+    
+    // Parse call history
+    const isCallHistory = fullText.startsWith('[CALL_HISTORY]');
+    let callHistoryData = null;
+    if (isCallHistory) {
+        try {
+            const parts = fullText.substring('[CALL_HISTORY] '.length).split(' ');
+            callHistoryData = {};
+            parts.forEach(part => {
+                const [k, v] = part.split(':');
+                if (k && v) callHistoryData[k] = v;
+            });
+        } catch {
+            // ignore parse error
+        }
     }
+
+    const renderCallHistory = () => {
+        if (!callHistoryData) return null;
+        const status = callHistoryData.status || 'UNKNOWN';
+        const durationSec = parseInt(callHistoryData.duration) || 0;
+
+        const isMissedOrDeclined = status === 'MISSED' || status === 'DECLINED';
+        const iconColor = isMissedOrDeclined ? '#dc3545' : (isOwn ? '#fff' : '#198754');
+        const bgColor = isOwn ? 'rgba(255,255,255,0.2)' : 'rgba(25, 135, 84, 0.1)';
+        const iconClass = isMissedOrDeclined ? 'bi-telephone-x-fill' : 'bi-camera-video-fill';
+        const titleText = isMissedOrDeclined ? 'Missed Call' : 'Video Call';
+
+        const formatSecs = (s) => {
+            if (s === 0 && !isMissedOrDeclined) return '0:00';
+            const m = Math.floor(s / 60);
+            const r = s % 60;
+            return `${m}:${r.toString().padStart(2, '0')}`;
+        };
+
+        return (
+            <div 
+                className="d-flex align-items-center gap-3" 
+                style={{ minWidth: '180px', cursor: isMissedOrDeclined ? 'pointer' : 'default' }}
+                onClick={() => {
+                    if (isMissedOrDeclined && onCallClick) {
+                        onCallClick();
+                    }
+                }}
+            >
+                <div className="rounded-circle d-flex align-items-center justify-content-center shadow-sm" style={{ width: 40, height: 40, flexShrink: 0, backgroundColor: bgColor, color: iconColor }}>
+                    <i className={`bi ${iconClass} fs-5`}></i>
+                </div>
+                <div>
+                    <div className="fw-bold mb-1" style={{ color: isMissedOrDeclined ? (isOwn ? '#ffcccc' : '#dc3545') : 'inherit' }}>{titleText}</div>
+                    <div className="small opacity-75">
+                        {isMissedOrDeclined ? 'Tap icon to call back' : formatSecs(durationSec)}
+                    </div>
+                </div>
+            </div>
+        );
+    };
 
     return (
         <div className={`message d-flex mb-3 ${isOwn ? 'justify-content-end' : 'justify-content-start'}`} style={{ animation: 'msgFadeSlideIn 0.25s ease-out' }}>
-            <div style={{ maxWidth: '78%' }}>
-                <div className={`rounded ${isOwn ? 'bg-primary text-white shadow-sm' : 'bg-white text-dark shadow-sm border'}`}
-                    style={{
-                        borderRadius: imageUrl ? '12px' : '20px',
-                        padding: imageUrl ? '4px' : (audioSrc ? '10px 14px' : '12px 16px'),
-                        minWidth: audioSrc ? '260px' : 'auto',
-                        display: 'block',
-                    }}>
-                    {imageUrl && (
-                        <img src={imageUrl} alt="sent" style={{ maxWidth: '100%', maxHeight: '300px', borderRadius: '8px', cursor: 'zoom-in' }}
-                            onClick={() => onImageClick?.(imageUrl)} title="Click để xem ảnh phóng to" />
-                    )}
-                    {videoUrl && <video src={videoUrl} controls style={{ maxWidth: '100%', maxHeight: '300px', borderRadius: '8px' }} />}
-                    {fileUrl && (
-                        <div onClick={(e) => {
-                            e.preventDefault();
-                            const filename = fileUrl.split('/').pop();
-                            fetch(fileUrl).then(res => res.blob()).then(blob => {
-                                const url = window.URL.createObjectURL(blob);
-                                const a = document.createElement('a');
-                                a.style.display = 'none';
-                                a.href = url;
-                                a.download = filename;
-                                document.body.appendChild(a);
-                                a.click();
-                                window.URL.revokeObjectURL(url);
-                            }).catch(() => window.open(fileUrl, '_blank'));
-                        }} style={{ display: 'flex', alignItems: 'center', background: 'rgba(0,0,0,0.05)', padding: '8px 12px', borderRadius: '8px', cursor: 'pointer' }}>
-                            <i className="bi bi-file-earmark-arrow-down" style={{ fontSize: '24px', marginRight: '8px', color: isOwn ? '#fff' : '#0d6efd' }}></i>
-                            <span style={{ color: 'inherit', wordBreak: 'break-all' }}>{fileUrl.split('/').pop()}</span>
-                        </div>
-                    )}
-                    {/* ── Audio message player ── */}
-                    {audioSrc && (
-                        <div style={{ display: 'flex', flexDirection: 'column', gap: '6px', minWidth: '240px' }}>
-                            <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '2px' }}>
+            <div style={{ maxWidth: '78%', display: 'flex', flexDirection: 'column', alignItems: isOwn ? 'flex-end' : 'flex-start', gap: '4px' }}>
+                
+                {/* ── Standalone Media: Image ── */}
+                {imageUrl && (
+                    <img src={imageUrl} alt="sent" style={{ maxWidth: '100%', maxHeight: '300px', borderRadius: '16px', border: '1px solid #dee2e6', cursor: 'zoom-in', boxShadow: '0 2px 5px rgba(0,0,0,0.1)' }}
+                        onClick={() => onImageClick?.(imageUrl)} title="Click để xem ảnh phóng to" />
+                )}
+
+                {/* ── Standalone Media: Video ── */}
+                {videoUrl && (
+                    <video src={videoUrl} controls style={{ maxWidth: '100%', maxHeight: '300px', borderRadius: '16px', border: '1px solid #dee2e6', boxShadow: '0 2px 5px rgba(0,0,0,0.1)' }} />
+                )}
+
+                {/* ── Standalone Media: File ── */}
+                {fileUrl && (
+                    <div onClick={(e) => {
+                        e.preventDefault();
+                        const filename = fileUrl.split('/').pop();
+                        fetch(fileUrl).then(res => res.blob()).then(blob => {
+                            const url = window.URL.createObjectURL(blob);
+                            const a = document.createElement('a');
+                            a.style.display = 'none';
+                            a.href = url;
+                            a.download = filename;
+                            document.body.appendChild(a);
+                            a.click();
+                            window.URL.revokeObjectURL(url);
+                        }).catch(() => window.open(fileUrl, '_blank'));
+                    }} className={`shadow-sm ${isOwn ? 'bg-primary text-white' : 'bg-white text-dark border'}`} style={{ display: 'flex', alignItems: 'center', padding: '12px 16px', borderRadius: '20px', cursor: 'pointer' }}>
+                        <i className="bi bi-file-earmark-arrow-down" style={{ fontSize: '24px', marginRight: '12px' }}></i>
+                        <span style={{ color: 'inherit', wordBreak: 'break-all', fontWeight: '500' }}>{fileUrl.split('/').pop()}</span>
+                    </div>
+                )}
+
+                {/* ── Standalone Media: Audio player ── */}
+                {audioSrc && (
+                    <CustomAudioPlayer src={audioSrc} isOwn={isOwn} />
+                )}
+
+                {/* ── Fallback if audioUrl exists but getFullUrl returned null ── */}
+                {message.audioUrl && !audioSrc && (
+                    <div style={{ padding: '8px 12px', background: isOwn ? 'rgba(255,255,255,0.15)' : '#fff3cd', border: `1px solid ${isOwn ? 'rgba(255,255,255,0.3)' : '#ffc107'}`, borderRadius: '8px', fontSize: '0.85rem', opacity: 0.85 }}>
+                        <i className="bi bi-exclamation-triangle me-2"></i>Audio unavailable
+                    </div>
+                )}
+
+                {/* ── Call History OR Text Content ── */}
+                {(fullText || isCallHistory || (message.suggestedDoctors && message.suggestedDoctors.length > 0)) && (
+                    <div className={`rounded ${isOwn ? 'bg-primary text-white shadow-sm' : 'bg-white text-dark shadow-sm border'}`}
+                        style={{
+                            borderRadius: '20px',
+                            padding: '12px 16px',
+                        }}>
+                        
+                        {isCallHistory ? (
+                            <div style={{ marginTop: '0', cursor: 'pointer' }} onClick={() => {}}>
+                                {renderCallHistory()}
                             </div>
-                            <CustomAudioPlayer src={audioSrc} isOwn={isOwn} />
-                        </div>
-                    )}
-                    {/* ── Fallback if audioUrl exists but getFullUrl returned null ── */}
-                    {message.audioUrl && !audioSrc && (
-                        <div style={{ padding: '8px 12px', background: isOwn ? 'rgba(255,255,255,0.15)' : '#fff3cd', border: `1px solid ${isOwn ? 'rgba(255,255,255,0.3)' : '#ffc107'}`, borderRadius: '8px', fontSize: '0.85rem', opacity: 0.85 }}>
-                            <i className="bi bi-exclamation-triangle me-2"></i>Audio unavailable
-                        </div>
-                    )}
-                    {fullText && (
-                        <div style={{ marginTop: imageUrl || videoUrl || fileUrl || audioSrc ? '8px' : '0', whiteSpace: 'pre-wrap' }}>
-                            {displayText}
-                            {isNew && !typewriterDone && <span style={{ display: 'inline-block', width: 2, height: '1em', background: 'currentColor', marginLeft: 2, animation: 'cursorBlink 0.7s steps(1) infinite' }} />}
-                        </div>
-                    )}
-                    {typewriterDone && message.suggestedDoctors?.length > 0 && (
-                        <div style={{ marginTop: '10px', display: 'flex', flexDirection: 'column', gap: '8px' }}>
-                            {message.suggestedDoctors.map(doc => (
-                                <div key={doc.doctorId} onClick={() => onNavigate?.(`/patient-dashboard/book/${doc.doctorId}`)}
-                                    style={{ background: '#fff', border: '1px solid #dee2e6', borderRadius: '12px', padding: '8px 12px', display: 'flex', alignItems: 'center', gap: '10px', cursor: 'pointer', color: '#212529' }}>
-                                    <img src={getFullUrl(doc.avatarUrl) || `https://api.dicebear.com/9.x/initials/svg?seed=${doc.fullName}`} alt={doc.fullName} style={{ width: 38, height: 38, borderRadius: '50%', objectFit: 'cover' }} onError={(e) => { e.target.onerror = null; e.target.src = `https://api.dicebear.com/9.x/initials/svg?seed=${doc.fullName}`; }} />
-                                    <div style={{ minWidth: 0 }}>
-                                        <div style={{ fontWeight: 600, fontSize: '0.85rem', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{doc.fullName}</div>
-                                        <div style={{ fontSize: '0.75rem', color: '#6c757d' }}>⭐ {doc.averageRating?.toFixed(1) || 'N/A'} · {doc.specialtyName || doc.specialty}</div>
+                        ) : (fullText && (
+                            <div style={{ whiteSpace: 'pre-wrap' }}>
+                                {displayText}
+                                {isNew && !typewriterDone && <span style={{ display: 'inline-block', width: 2, height: '1em', background: 'currentColor', marginLeft: 2, animation: 'cursorBlink 0.7s steps(1) infinite' }} />}
+                            </div>
+                        ))}
+
+                        {typewriterDone && message.suggestedDoctors?.length > 0 && (
+                            <div style={{ marginTop: '10px', display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                                {message.suggestedDoctors.map(doc => (
+                                    <div key={doc.doctorId} onClick={() => onNavigate?.(`/patient-dashboard/book/${doc.doctorId}`)}
+                                        style={{ background: '#fff', border: '1px solid #dee2e6', borderRadius: '12px', padding: '8px 12px', display: 'flex', alignItems: 'center', gap: '10px', cursor: 'pointer', color: '#212529' }}>
+                                        <img src={getFullUrl(doc.avatarUrl) || `https://api.dicebear.com/9.x/initials/svg?seed=${doc.fullName}`} alt={doc.fullName} style={{ width: 38, height: 38, borderRadius: '50%', objectFit: 'cover' }} onError={(e) => { e.target.onerror = null; e.target.src = `https://api.dicebear.com/9.x/initials/svg?seed=${doc.fullName}`; }} />
+                                        <div style={{ minWidth: 0 }}>
+                                            <div style={{ fontWeight: 600, fontSize: '0.85rem', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{doc.fullName}</div>
+                                            <div style={{ fontSize: '0.75rem', color: '#6c757d' }}>⭐ {doc.averageRating?.toFixed(1) || 'N/A'} &nbsp;·&nbsp; {doc.specialtyName || doc.specialty}</div>
+                                        </div>
+                                        <i className="bi bi-chevron-right ms-auto text-muted" style={{ fontSize: '0.8rem' }} />
                                     </div>
-                                    <i className="bi bi-chevron-right ms-auto text-muted" style={{ fontSize: '0.8rem' }} />
-                                </div>
-                            ))}
-                        </div>
-                    )}
-                    {typewriterDone && message.actionUrl && message.actionLabel && (
-                        <div style={{ marginTop: '12px' }}>
-                            <button className="btn btn-sm btn-success rounded-pill px-3" onClick={() => onNavigate?.(message.actionUrl)}>
-                                {message.actionLabel}
-                            </button>
-                        </div>
-                    )}
-                </div>
+                                ))}
+                            </div>
+                        )}
+                        
+                        {typewriterDone && message.actionUrl && message.actionLabel && (
+                            <div style={{ marginTop: '12px' }}>
+                                <button className="btn btn-sm btn-success rounded-pill px-3" onClick={() => onNavigate?.(message.actionUrl)}>
+                                    {message.actionLabel}
+                                </button>
+                            </div>
+                        )}
+                    </div>
+                )}
+                
                 <div className={`small text-muted mt-1 ${isOwn ? 'text-end' : 'text-start'}`}>{timeStr}</div>
             </div>
         </div>
@@ -737,7 +806,10 @@ export default function ChatPage({ showBot = true }) {
     };
 
     const handleVideoCallFromChat = () => {
-        if (!chatPartner || isBlocked) return;
+        if (!chatPartner || isBlocked || !currentRoom || !currentRoom.chatRoomId) {
+            if (!currentRoom?.chatRoomId) toast.error('Please send a message first to establish a chat room before calling.');
+            return;
+        }
         if (isInCall) {
             toast.warning('You are currently on another call. Please end it before making a new one.');
             return;
@@ -746,13 +818,7 @@ export default function ChatPage({ showBot = true }) {
         const targetUserId = chatPartner.userId || chatPartner.uid;
         const targetUserName = chatPartner.displayName || chatPartner.fullName || 'User';
         const callerName = authUser?.fullName || authUser?.preferred_username || authUser?.email || 'Doctor';
-
-        // Tạo random roomId 45 ký tự
-        const characters = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789';
-        let roomId = '';
-        for (let i = 0; i < 45; i++) {
-            roomId += characters.charAt(Math.floor(Math.random() * characters.length));
-        }
+        const roomId = currentRoom.chatRoomId; // Use the actual chat room ID for saving call history
 
         initiateCall(targetUserId, roomId, targetUserName, callerName);
     };
@@ -1378,6 +1444,7 @@ export default function ChatPage({ showBot = true }) {
                                     isNew={msg.messageId === latestBotMsgId}
                                     onImageClick={setLightboxImage}
                                     onNavigate={handleBotNavigate}
+                                    onCallClick={handleVideoCallFromChat}
                                 />
                             </div>
                         ))}
