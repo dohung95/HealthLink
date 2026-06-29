@@ -1,5 +1,6 @@
 package com.HealthLink.entity;
 
+import com.HealthLink.entity.enums.FollowUpStatus;
 import com.HealthLink.entity.enums.HomeVisitProposalStatus;
 import jakarta.persistence.*;
 import lombok.*;
@@ -67,4 +68,9 @@ public class Consultation {
 
     @Column(length = 1000)
     private String followUpNotes;
+
+    @Enumerated(EnumType.STRING)
+    @Column(name = "follow_up_status", length = 20)
+    @Builder.Default
+    private FollowUpStatus followUpStatus = FollowUpStatus.NONE;
 }

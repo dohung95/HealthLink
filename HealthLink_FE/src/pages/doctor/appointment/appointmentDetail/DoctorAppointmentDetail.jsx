@@ -234,16 +234,24 @@ const DoctorAppointmentDetail = memo(({ appointment, patient, doctorId, onBack, 
                 savingFollowUp={ctx.savingFollowUp}
                 onSelectFollowUpSlot={ctx.handleSelectFollowUpSlot}
                 selectedScheduleLabel={ctx.selectedScheduleLabel}
-                canCancelFollowUp={ctx.canCancelFollowUp}
-                onCancelFollowUp={ctx.handleCancelFollowUp}
                 followUpAction={ctx.followUpAction}
                 onConfirmFollowUp={ctx.handleConfirmFollowUp}
+                followUpPaymentStatus={ctx.followUpPaymentStatus}
+                sendingPaymentRequest={ctx.sendingPaymentRequest}
+                handleSendPaymentRequest={ctx.handleSendPaymentRequest}
                 currentAppointment={ctx.currentAppointment}
                 followUpNotes={ctx.followUpNotes}
                 onFollowUpNotesChange={ctx.setFollowUpNotes}
                 renderEmptyState={(title, description) => <EmptyState title={title} description={description} />}
                 followUpConsultationType={ctx.followUpConsultationType}
                 onFollowUpTypeChange={ctx.setFollowUpConsultationType}
+                showRescheduleConfirm={ctx.showRescheduleConfirm}
+                isRescheduling={ctx.isRescheduling}
+                handleInitiateReschedule={ctx.handleInitiateReschedule}
+                handleConfirmRescheduleModal={ctx.handleConfirmRescheduleModal}
+                handleCancelRescheduleModal={ctx.handleCancelRescheduleModal}
+                handleSaveReschedule={ctx.handleSaveReschedule}
+                handleCancelReschedule={ctx.handleCancelReschedule}
               />
             ) : null}
           </div>
@@ -269,7 +277,7 @@ const DoctorAppointmentDetail = memo(({ appointment, patient, doctorId, onBack, 
         </section>
       </div>
 
-      <CompleteConfirmModal
+              <CompleteConfirmModal
         show={ctx.showCompleteConfirmModal}
         completingAppointment={ctx.completingAppointment}
         copyPrescription={ctx.copyPrescription}
@@ -292,6 +300,7 @@ const DoctorAppointmentDetail = memo(({ appointment, patient, doctorId, onBack, 
           scheduleLabel: ctx.selectedScheduleLabel,
           consultationType: ctx.followUpConsultationType,
         } : null}
+        followUpPaymentStatus={ctx.followUpPaymentStatus}
       />
     </div>
   );

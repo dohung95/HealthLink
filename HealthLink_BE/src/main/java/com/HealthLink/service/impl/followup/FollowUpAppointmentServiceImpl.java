@@ -2,6 +2,7 @@ package com.HealthLink.service.impl.followup;
 
 import com.HealthLink.dto.consultation.FollowUpRequest;
 import com.HealthLink.dto.consultation.FollowUpResponse;
+import com.HealthLink.dto.consultation.FollowUpStatusResponse;
 import com.HealthLink.dto.response.AppointmentResponse;
 import com.HealthLink.dto.response.CompleteAppointmentResponse;
 import com.HealthLink.dto.response.FollowUpCalendarDayResponse;
@@ -11,11 +12,14 @@ import com.HealthLink.dto.response.FollowUpSlotsResponse;
 import com.HealthLink.entity.Appointment;
 import com.HealthLink.entity.Consultation;
 import com.HealthLink.entity.Doctor;
+import com.HealthLink.entity.User;
 import com.HealthLink.entity.DoctorSchedule;
 import com.HealthLink.entity.DoctorScheduleException;
 import com.HealthLink.entity.Invoice;
 import com.HealthLink.entity.PrescriptionHeader;
 import com.HealthLink.entity.PrescriptionItem;
+import com.HealthLink.entity.enums.FollowUpStatus;
+import com.HealthLink.entity.enums.NotificationType;
 import com.HealthLink.entity.enums.ScheduleExceptionType;
 import com.HealthLink.exception.BadRequestException;
 import com.HealthLink.exception.ResourceNotFoundException;
@@ -27,6 +31,7 @@ import com.HealthLink.repository.doctor.DoctorScheduleRepository;
 import com.HealthLink.repository.payment.InvoiceRepository;
 import com.HealthLink.repository.prescription.PrescriptionHeaderRepository;
 import com.HealthLink.service.followup.FollowUpAppointmentService;
+import com.HealthLink.service.notification.NotificationService;
 import com.HealthLink.service.payment.CommissionService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
@@ -56,6 +61,7 @@ public class FollowUpAppointmentServiceImpl implements FollowUpAppointmentServic
     private final InvoiceRepository invoiceRepository;
     private final PrescriptionHeaderRepository prescriptionHeaderRepository;
     private final CommissionService commissionService;
+    private final NotificationService notificationService;
 
     @Override
     @Transactional(readOnly = true)
@@ -154,28 +160,13 @@ public class FollowUpAppointmentServiceImpl implements FollowUpAppointmentServic
     @Override
     @Transactional
     public FollowUpResponse scheduleFollowUpAppointment(Appointment sourceAppointment, FollowUpRequest request) {
-        if (sourceAppointment == null) {
-            throw new BadRequestException("Source appointment is required");
-        }
-        if ("COMPLETED".equalsIgnoreCase(sourceAppointment.getStatus())) {
-            throw new BadRequestException("Completed appointment cannot schedule follow-up");
-        }
-        if ("CANCELLED".equalsIgnoreCase(sourceAppointment.getStatus())) {
-            throw new BadRequestException("Cancelled appointment cannot schedule follow-up");
-        }
+        validateFollowUpSlot(sourceAppointment, request.getFollowUpDate());
+        Consultation consultation = consultationRepository
+                .findByAppointment_AppointmentId(sourceAppointment.getAppointmentId())
+                .orElseThrow(() -> new ResourceNotFoundException(
+                        "Consultation not found for appointment: " + sourceAppointment.getAppointmentId()));
 
-        LocalDateTime followUpDate = request.getFollowUpDate();
-        if (followUpDate == null) {
-            throw new BadRequestException("Follow-up date is required to schedule a follow-up appointment");
-        }
-
-        Consultation consultation = sourceAppointment.getConsultation();
-        if (consultation == null) {
-            consultation = consultationRepository.findByAppointment_AppointmentId(
-                    sourceAppointment.getAppointmentId()).orElse(null);
-        }
-
-        if (consultation != null && consultation.getFollowUpAppointmentId() != null) {
+        if (consultation.getFollowUpAppointmentId() != null) {
             Appointment existingFollowUp = appointmentRepository
                     .findById(consultation.getFollowUpAppointmentId()).orElse(null);
             if (existingFollowUp != null && !"CANCELLED".equalsIgnoreCase(existingFollowUp.getStatus())) {
@@ -183,52 +174,14 @@ public class FollowUpAppointmentServiceImpl implements FollowUpAppointmentServic
             }
         }
 
-        validateFollowUpSlot(sourceAppointment, followUpDate);
-
-        if (consultation == null) {
-            consultation = Consultation.builder()
-                    .appointment(sourceAppointment)
-                    .consultationType(
-                            request.getConsultationType() != null
-                                    ? request.getConsultationType()
-                                    : sourceAppointment.getConsultationType())
-                    .symptoms(sourceAppointment.getSymptoms())
-                    .build();
-        } else if (request.getConsultationType() != null) {
+        consultation.setFollowUpDate(request.getFollowUpDate());
+        consultation.setFollowUpNotes(request.getFollowUpNotes());
+        if (request.getConsultationType() != null) {
             consultation.setConsultationType(request.getConsultationType());
         }
+        consultationRepository.save(consultation);
 
-        int slotMinutes = resolveFollowUpSlotDuration(
-                sourceAppointment.getDoctor().getDoctorId(), followUpDate);
-
-        Appointment followUpAppointment = Appointment.builder()
-                .patient(sourceAppointment.getPatient())
-                .doctor(sourceAppointment.getDoctor())
-                .appointmentTime(followUpDate)
-                .endTime(followUpDate.plusMinutes(slotMinutes))
-                .consultationType(
-                        request.getConsultationType() != null
-                                ? request.getConsultationType()
-                                : sourceAppointment.getConsultationType())
-                .status("SCHEDULED")
-                .symptoms(sourceAppointment.getSymptoms())
-                .notes(request.getFollowUpNotes() != null ? request.getFollowUpNotes() : sourceAppointment.getNotes())
-                .fee(sourceAppointment.getDoctor() != null
-                        ? sourceAppointment.getDoctor().getConsultationFee()
-                        : sourceAppointment.getFee())
-                .followUpSourceAppointmentId(sourceAppointment.getAppointmentId())
-                .build();
-
-        Appointment savedFollowUp = appointmentRepository.save(followUpAppointment);
-
-        consultation.setFollowUpDate(followUpDate);
-        consultation.setFollowUpNotes(request.getFollowUpNotes());
-        consultation.setFollowUpAppointmentId(savedFollowUp.getAppointmentId());
-
-        Consultation savedConsultation = consultationRepository.save(consultation);
-        sourceAppointment.setConsultation(savedConsultation);
-
-        return toFollowUpResponse(savedConsultation);
+        return toFollowUpResponse(consultation);
     }
 
     private FollowUpResponse rescheduleExistingFollowUp(
@@ -309,6 +262,114 @@ public class FollowUpAppointmentServiceImpl implements FollowUpAppointmentServic
 
     @Override
     @Transactional
+    public FollowUpResponse sendPaymentRequest(Appointment sourceAppointment) {
+        Consultation consultation = consultationRepository
+                .findByAppointment_AppointmentId(sourceAppointment.getAppointmentId())
+                .orElseThrow(() -> new ResourceNotFoundException(
+                        "Consultation not found for appointment: " + sourceAppointment.getAppointmentId()));
+
+        if (consultation.getFollowUpDate() == null) {
+            throw new BadRequestException("Save follow-up data first via PUT /api/appointments/{id}/follow-up");
+        }
+
+        consultation.setFollowUpStatus(FollowUpStatus.PENDING_PAYMENT);
+        consultationRepository.save(consultation);
+
+        User patientUser = sourceAppointment.getPatient().getUser();
+        if (patientUser != null && patientUser.getId() != null) {
+            notificationService.sendWebSocketNotification(
+                    patientUser,
+                    NotificationType.FOLLOW_UP_PAYMENT_REQUEST,
+                    "Follow-up Payment Required",
+                    "Your doctor has scheduled a follow-up and a payment is required. Please review and pay.",
+                    sourceAppointment.getAppointmentId(),
+                    "/appointments/" + sourceAppointment.getAppointmentId()
+            );
+        }
+
+        return toFollowUpResponse(consultation);
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public FollowUpStatusResponse getFollowUpStatus(Integer appointmentId) {
+        Consultation consultation = consultationRepository
+                .findByAppointment_AppointmentId(appointmentId)
+                .orElseThrow(() -> new ResourceNotFoundException(
+                        "Consultation not found for appointment: " + appointmentId));
+
+        return FollowUpStatusResponse.builder()
+                .status(consultation.getFollowUpStatus() != null
+                        ? consultation.getFollowUpStatus().name()
+                        : FollowUpStatus.NONE.name())
+                .followUpDate(consultation.getFollowUpDate())
+                .followUpNotes(consultation.getFollowUpNotes())
+                .consultationType(consultation.getConsultationType())
+                .followUpAppointmentId(consultation.getFollowUpAppointmentId())
+                .build();
+    }
+
+    @Override
+    @Transactional
+    public void confirmFollowUp(Integer appointmentId) {
+        Consultation consultation = consultationRepository
+                .findByAppointment_AppointmentId(appointmentId)
+                .orElseThrow(() -> new ResourceNotFoundException(
+                        "Consultation not found for appointment: " + appointmentId));
+
+        if (consultation.getFollowUpStatus() != FollowUpStatus.PAID) {
+            throw new BadRequestException("Follow-up must be PAID before confirming");
+        }
+
+        consultation.setFollowUpStatus(FollowUpStatus.CONFIRMED);
+        consultationRepository.save(consultation);
+
+        User doctorUser = consultation.getAppointment().getDoctor().getUser();
+        if (doctorUser != null && doctorUser.getId() != null) {
+            notificationService.sendWebSocketNotification(
+                    doctorUser,
+                    NotificationType.FOLLOW_UP_CONFIRMED,
+                    "Follow-up Confirmed",
+                    "Your patient has confirmed the follow-up appointment. You can now complete the consultation.",
+                    appointmentId,
+                    "/appointments/" + appointmentId
+            );
+        }
+    }
+
+    @Override
+    @Transactional
+    public void denyFollowUp(Integer appointmentId) {
+        Consultation consultation = consultationRepository
+                .findByAppointment_AppointmentId(appointmentId)
+                .orElseThrow(() -> new ResourceNotFoundException(
+                        "Consultation not found for appointment: " + appointmentId));
+
+        if (consultation.getFollowUpStatus() != FollowUpStatus.PENDING_PAYMENT) {
+            throw new BadRequestException("Follow-up must be PENDING_PAYMENT to deny");
+        }
+
+        consultation.setFollowUpStatus(FollowUpStatus.NONE);
+        consultation.setFollowUpDate(null);
+        consultation.setFollowUpNotes(null);
+        consultation.setConsultationType(null);
+        consultationRepository.save(consultation);
+
+        User doctorUser = consultation.getAppointment().getDoctor().getUser();
+        if (doctorUser != null && doctorUser.getId() != null) {
+            notificationService.sendWebSocketNotification(
+                    doctorUser,
+                    NotificationType.FOLLOW_UP_DENIED,
+                    "Follow-up Denied",
+                    "Your patient has denied the follow-up request.",
+                    appointmentId,
+                    "/appointments/" + appointmentId
+            );
+        }
+    }
+
+    @Override
+    @Transactional
     public CompleteAppointmentResponse completeAppointment(Integer appointmentId, boolean copyPrescription) {
         Appointment appointment = appointmentRepository.findById(appointmentId)
                 .orElseThrow(() -> new ResourceNotFoundException("Appointment", "id", appointmentId));
@@ -316,6 +377,13 @@ public class FollowUpAppointmentServiceImpl implements FollowUpAppointmentServic
         Consultation consultation = appointment.getConsultation();
         if (consultation == null) {
             consultation = consultationRepository.findByAppointment_AppointmentId(appointmentId).orElse(null);
+        }
+
+        if (consultation != null
+                && consultation.getFollowUpStatus() == FollowUpStatus.PENDING_PAYMENT) {
+            throw new BadRequestException(
+                    "Cannot complete: follow-up payment is " + consultation.getFollowUpStatus()
+                    + ". Wait for patient to pay.");
         }
 
         if ("COMPLETED".equalsIgnoreCase(appointment.getStatus())) {
@@ -625,6 +693,8 @@ public class FollowUpAppointmentServiceImpl implements FollowUpAppointmentServic
                 .doctorNotes(c.getDoctorNotes())
                 .treatmentPlan(c.getTreatmentPlan())
                 .consultationType(c.getConsultationType())
+                .followUpStatus(c.getFollowUpStatus() != null
+                        ? c.getFollowUpStatus().name() : null)
                 .build();
     }
 

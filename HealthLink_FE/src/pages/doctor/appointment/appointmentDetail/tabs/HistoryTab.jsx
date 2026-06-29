@@ -63,11 +63,6 @@ const MedicalHistoryTab = ({
                     <i className="bi bi-clock"></i>
                     {formatTime(historyItem.appointmentTime)}
                   </span>
-                  {historyItem.diagnosis ? (
-                    <span className="doctor-history-encounter__diagnosis">
-                      {historyItem.diagnosis}
-                    </span>
-                  ) : null}
                 </button>
               );
             })}

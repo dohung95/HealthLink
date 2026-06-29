@@ -17,4 +17,5 @@ public class FollowUpResponse {
     private String doctorNotes;
     private String treatmentPlan;
     private String consultationType;
+    private String followUpStatus;
 }
