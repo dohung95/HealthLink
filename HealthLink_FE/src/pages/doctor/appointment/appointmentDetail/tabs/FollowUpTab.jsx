@@ -1,6 +1,8 @@
-import React from 'react';
+import React, { useCallback } from 'react';
 import Calendar from 'react-calendar';
+import { toast } from 'react-toastify';
 import '@components/Css/doctor/doctor-dashboard/doctor-dashboard.css';
+import FollowUpStatusBadge from '@components/doctor/FollowUpStatusBadge';
 
 const CONSULTATION_TYPES = [
   { value: 'Online', label: 'Online', icon: 'bi-laptop' },
@@ -29,33 +31,26 @@ const FollowUpTab = ({
   renderEmptyState,
   followUpConsultationType,
   onFollowUpTypeChange,
+  followUpPaymentStatus,
+  sendingPaymentRequest,
+  handleSendPaymentRequest,
+  showRescheduleConfirm,
+  isRescheduling,
+  handleInitiateReschedule,
+  handleConfirmRescheduleModal,
+  handleCancelRescheduleModal,
+  handleSaveReschedule,
+  handleCancelReschedule,
 }) => {
   const hasExistingFollowUp = Boolean(consultation.followUpDate || consultation.followUpNotes);
+  const isPaidLocked = followUpPaymentStatus === 'PAID' && !isRescheduling;
+
+  const handlePaidLockAction = useCallback(() => {
+    toast.info('Click "Reschedule" to change follow-up information');
+  }, []);
 
   return (
     <div className="fu-container">
-      {hasExistingFollowUp && (
-        <div className="fu-saved-banner">
-          <div className="fu-saved-banner__item">
-            <span className="fu-saved-banner__label">Saved Date</span>
-            <span className="fu-saved-banner__value">
-              {consultation.followUpDate ? formatDateTime(consultation.followUpDate) : 'Not scheduled'}
-            </span>
-          </div>
-          {consultation.followUpNotes && (
-            <div className="fu-saved-banner__divider" />
-          )}
-          {consultation.followUpNotes && (
-            <div className="fu-saved-banner__item">
-              <span className="fu-saved-banner__label">Notes</span>
-              <span className="fu-saved-banner__value fu-saved-banner__value--notes">
-                {consultation.followUpNotes}
-              </span>
-            </div>
-          )}
-        </div>
-      )}
-
       <div className="fu-body">
         <div className="fu-left">
           <div className="fu-calendar-card">
@@ -75,7 +70,7 @@ const FollowUpTab = ({
               minDate={new Date()}
               showNeighboringMonth={false}
               onActiveStartDateChange={onFollowUpMonthChange}
-              onChange={onFollowUpDateChange}
+              onChange={isPaidLocked ? handlePaidLockAction : onFollowUpDateChange}
               tileClassName={({ date, view }) => {
                 if (view !== 'month') return null;
                 const day = followUpCalendarDayMap.get(toLocalDateValue(date));
@@ -103,7 +98,8 @@ const FollowUpTab = ({
             <div className="fu-visit-card__body">
               <textarea
                 className="form-control fu-notes-input"
-                readOnly={!canEditFollowUp || savingFollowUp}
+                readOnly={!canEditFollowUp || savingFollowUp || isPaidLocked}
+                onClick={() => isPaidLocked && handlePaidLockAction()}
                 onChange={(event) => {
                   onFollowUpNotesChange(event.target.value);
                 }}
@@ -144,7 +140,10 @@ const FollowUpTab = ({
                         className={`fu-slot-btn ${slot.selectable ? 'fu-slot-btn--avail' : 'fu-slot-btn--disabled'} ${isSelected ? 'fu-slot-btn--selected' : ''}`}
                         disabled={!slot.selectable || savingFollowUp || !canEditFollowUp}
                         key={slot.startTime}
-                        onClick={() => onSelectFollowUpSlot(slot)}
+                        onClick={() => {
+                          if (isPaidLocked) { handlePaidLockAction(); return; }
+                          onSelectFollowUpSlot(slot);
+                        }}
                         title={slot.disabledReason || slot.label}
                         type="button"
                       >
@@ -171,41 +170,128 @@ const FollowUpTab = ({
             </div>
           </div>
 
-          <div className="fu-type-card">
-            <div className="fu-type-card__header">
-              <i className="bi bi-diagram-3 me-2"></i>Consultation Type
+          <div className="fu-status-type-container">
+            <div className="fu-type-card">
+              <div className="fu-type-card__header">
+                <i className="bi bi-diagram-3 me-2"></i>Consultation Type
+              </div>
+              <div className="fu-type-card__body">
+                {CONSULTATION_TYPES.map((type) => {
+                  const isActive = followUpConsultationType === type.value;
+                  return (
+                    <button
+                      key={type.value}
+                      className={`fu-type-btn ${isActive ? 'fu-type-btn--active' : ''} ${!canEditFollowUp ? 'disabled' : ''}`}
+                      disabled={!canEditFollowUp || savingFollowUp}
+                      onClick={() => {
+                        if (isPaidLocked) { handlePaidLockAction(); return; }
+                        onFollowUpTypeChange(type.value);
+                      }}
+                      type="button"
+                    >
+                      <i className={`bi ${type.icon}`}></i>
+                      <span className="fu-type-btn__label">{type.label}</span>
+                    </button>
+                  );
+                })}
+              </div>
             </div>
-            <div className="fu-type-card__body">
-              {CONSULTATION_TYPES.map((type) => {
-                const isActive = followUpConsultationType === type.value;
-                return (
-                  <button
-                    key={type.value}
-                    className={`fu-type-btn ${isActive ? 'fu-type-btn--active' : ''} ${!canEditFollowUp ? 'disabled' : ''}`}
-                    disabled={!canEditFollowUp || savingFollowUp}
-                    onClick={() => onFollowUpTypeChange(type.value)}
-                    type="button"
-                  >
-                    <i className={`bi ${type.icon}`}></i>
-                    <span className="fu-type-btn__label">{type.label}</span>
-                  </button>
-                );
-              })}
-            </div>
+
+            {(hasExistingFollowUp || selectedFollowUpDateTime) && (
+              <div className="fu-status-card">
+                <div className="fu-status-card__header">
+                  <i className="bi bi-credit-card me-2"></i>Payment Status
+                </div>
+                <div className="fu-status-card__body">
+                  {hasExistingFollowUp && (
+                    <div className="fu-saved-banner">
+                      <div className="fu-saved-banner__item">
+                        <span className="fu-saved-banner__label">Saved Date</span>
+                        <span className="fu-saved-banner__value">
+                          {consultation.followUpDate ? formatDateTime(consultation.followUpDate) : 'Not scheduled'}
+                        </span>
+                      </div>
+                      {consultation.followUpNotes && (
+                        <div className="fu-saved-banner__divider" />
+                      )}
+                      {consultation.followUpNotes && (
+                        <div className="fu-saved-banner__item">
+                          <span className="fu-saved-banner__label">Notes</span>
+                          <span className="fu-saved-banner__value fu-saved-banner__value--notes">
+                            {consultation.followUpNotes}
+                          </span>
+                        </div>
+                      )}
+                      {followUpPaymentStatus && followUpPaymentStatus !== 'NONE' && (
+                        <div className="fu-saved-banner__divider" />
+                      )}
+                      {followUpPaymentStatus && followUpPaymentStatus !== 'NONE' && (
+                        <div className="fu-saved-banner__item">
+                          <span className="fu-saved-banner__label">Status</span>
+                          <FollowUpStatusBadge status={followUpPaymentStatus} />
+                        </div>
+                      )}
+                      {selectedFollowUpDateTime && (followUpPaymentStatus === 'PENDING_PAYMENT' || followUpPaymentStatus === 'PAID') && (
+                        <div className="fu-saved-banner__divider" />
+                      )}
+                    </div>
+                  )}
+                  {selectedFollowUpDateTime && (!followUpPaymentStatus || followUpPaymentStatus === 'NONE') && (
+                    <button className="btn btn-primary" onClick={handleSendPaymentRequest} disabled={sendingPaymentRequest} style={{ width: '100%' }}>
+                      {sendingPaymentRequest ? (
+                        <>Sending...</>
+                      ) : (
+                        <><i className="bi bi-send me-1" /> Send payment request</>
+                      )}
+                    </button>
+                  )}
+                  {selectedFollowUpDateTime && followUpPaymentStatus === 'PENDING_PAYMENT' && (
+                    <button className="btn btn-secondary fu-status-card__btn" disabled style={{ width: '100%' }}>
+                      <i className="bi bi-hourglass-split me-1" />
+                      Waiting for patient payment...
+                    </button>
+                  )}
+                  {selectedFollowUpDateTime && followUpPaymentStatus === 'PAID' && !isRescheduling && (
+                    <div className="fu-status-actions">
+                      <button className="btn btn-primary fu-reschedule-btn" onClick={handleInitiateReschedule}>
+                        <i className="bi bi-arrow-clockwise me-1" /> Reschedule
+                      </button>
+                      <button className="btn btn-success" disabled>
+                        <i className="bi bi-check2-all me-1" /> Follow-up created
+                      </button>
+                    </div>
+                  )}
+
+                  {selectedFollowUpDateTime && followUpPaymentStatus === 'PAID' && isRescheduling && (
+                    <div className="fu-status-actions">
+                      <button className="btn btn-primary" onClick={handleSaveReschedule} disabled={savingFollowUp}>
+                        {savingFollowUp ? 'Saving...' : <><i className="bi bi-check-lg me-1" /> Confirm</>}
+                      </button>
+                      <button className="btn btn-outline-danger" onClick={handleCancelReschedule} disabled={savingFollowUp}>
+                        <i className="bi bi-x me-1" /> Cancel
+                      </button>
+                    </div>
+                  )}
+                </div>
+              </div>
+            )}
           </div>
         </div>
       </div>
 
-      {selectedFollowUpDateTime && (
-        <div className="fu-footer">
-          <div className="fu-footer-info">
-            <span className="fu-footer-label">Selected Schedule</span>
-            <strong className="fu-footer-value">{selectedScheduleLabel}</strong>
+      {showRescheduleConfirm && !isRescheduling && (
+        <div className="fu-modal-overlay" onClick={handleCancelRescheduleModal}>
+          <div className="fu-confirm-modal" onClick={(e) => e.stopPropagation()}>
+            <h5 className="fu-confirm-modal__title">Reschedule this follow-up?</h5>
+            <p className="fu-confirm-modal__desc">The follow-up appointment will be updated to the new date and time.</p>
+            <div className="fu-confirm-modal__actions">
+              <button className="btn btn-outline-danger" onClick={handleCancelRescheduleModal}>Cancel</button>
+              <button className="btn btn-primary" onClick={handleConfirmRescheduleModal}>Yes, reschedule</button>
+            </div>
           </div>
         </div>
       )}
     </div>
   );
 };
-
 export default FollowUpTab;

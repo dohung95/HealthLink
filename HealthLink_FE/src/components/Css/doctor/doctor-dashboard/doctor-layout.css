@@ -459,6 +459,23 @@
   50% { opacity: 0.6; }
 }
 
+@keyframes doctorBellShake {
+  0%, 70% { transform: rotate(0); }
+  73% { transform: rotate(-14deg); }
+  76% { transform: rotate(12deg); }
+  79% { transform: rotate(-10deg); }
+  82% { transform: rotate(8deg); }
+  85% { transform: rotate(-5deg); }
+  88% { transform: rotate(3deg); }
+  91%, 100% { transform: rotate(0); }
+}
+
+.notification-bell-btn .bell-ringing {
+  animation: doctorBellShake 6s ease-in-out infinite;
+  color: var(--doctor-primary);
+  font-variation-settings: 'FILL' 1, 'wght' 500, 'GRAD' 0, 'opsz' 24;
+}
+
 
 /* ============================================
    PROFILE & WALLET (merged from profile-wallet.css)

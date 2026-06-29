@@ -18,6 +18,7 @@ import EmptyState from '@components/doctor/EmptyState';
 import ActionBar from '@components/doctor/ActionBar';
 import CompleteConfirmModal from '@components/doctor/CompleteConfirmModal';
 import PatientSummarySidebar from '@components/doctor/PatientSummarySidebar';
+import ConsultationTimerStrip from '@components/doctor/ConsultationTimerStrip';
 
 const TABS = [
   { id: 'notes', label: 'Consultation Notes', icon: 'bi-journal-text' },
@@ -81,8 +82,17 @@ const DoctorAppointmentDetail = memo(({ appointment, patient, doctorId, onBack, 
     );
   }
 
+  const showTimer = ctx.statusKey === 'inconsultation' || ctx.statusKey === 'inprogress';
+
   return (
-    <div className="doctor-detail-layout">
+    <>
+      {(showTimer && appointment) && (
+        <ConsultationTimerStrip
+          appointmentTime={appointment.appointmentTime}
+          endTime={appointment.endTime}
+        />
+      )}
+      <div className="doctor-detail-layout">
       <div className="doctor-detail-back">
         <button className="btn btn-link p-0 text-decoration-none" onClick={() => ctx.onBack?.()} type="button">
           <i className="bi bi-arrow-left me-2"></i>
@@ -234,16 +244,24 @@ const DoctorAppointmentDetail = memo(({ appointment, patient, doctorId, onBack, 
                 savingFollowUp={ctx.savingFollowUp}
                 onSelectFollowUpSlot={ctx.handleSelectFollowUpSlot}
                 selectedScheduleLabel={ctx.selectedScheduleLabel}
-                canCancelFollowUp={ctx.canCancelFollowUp}
-                onCancelFollowUp={ctx.handleCancelFollowUp}
                 followUpAction={ctx.followUpAction}
                 onConfirmFollowUp={ctx.handleConfirmFollowUp}
+                followUpPaymentStatus={ctx.followUpPaymentStatus}
+                sendingPaymentRequest={ctx.sendingPaymentRequest}
+                handleSendPaymentRequest={ctx.handleSendPaymentRequest}
                 currentAppointment={ctx.currentAppointment}
                 followUpNotes={ctx.followUpNotes}
                 onFollowUpNotesChange={ctx.setFollowUpNotes}
                 renderEmptyState={(title, description) => <EmptyState title={title} description={description} />}
                 followUpConsultationType={ctx.followUpConsultationType}
                 onFollowUpTypeChange={ctx.setFollowUpConsultationType}
+                showRescheduleConfirm={ctx.showRescheduleConfirm}
+                isRescheduling={ctx.isRescheduling}
+                handleInitiateReschedule={ctx.handleInitiateReschedule}
+                handleConfirmRescheduleModal={ctx.handleConfirmRescheduleModal}
+                handleCancelRescheduleModal={ctx.handleCancelRescheduleModal}
+                handleSaveReschedule={ctx.handleSaveReschedule}
+                handleCancelReschedule={ctx.handleCancelReschedule}
               />
             ) : null}
           </div>
@@ -269,7 +287,7 @@ const DoctorAppointmentDetail = memo(({ appointment, patient, doctorId, onBack, 
         </section>
       </div>
 
-      <CompleteConfirmModal
+              <CompleteConfirmModal
         show={ctx.showCompleteConfirmModal}
         completingAppointment={ctx.completingAppointment}
         copyPrescription={ctx.copyPrescription}
@@ -292,8 +310,10 @@ const DoctorAppointmentDetail = memo(({ appointment, patient, doctorId, onBack, 
           scheduleLabel: ctx.selectedScheduleLabel,
           consultationType: ctx.followUpConsultationType,
         } : null}
+        followUpPaymentStatus={ctx.followUpPaymentStatus}
       />
     </div>
+    </>
   );
 });
 

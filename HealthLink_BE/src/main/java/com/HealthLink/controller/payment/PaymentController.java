@@ -1,5 +1,6 @@
 package com.HealthLink.controller.payment;
 
+import com.HealthLink.dto.consultation.FollowUpResponse;
 import com.HealthLink.dto.payment.InvoiceResponse;
 import com.HealthLink.dto.payment.AppointmentPayPalCaptureRequest;
 import com.HealthLink.dto.payment.AppointmentPayPalOrderRequest;
@@ -116,6 +117,28 @@ public class PaymentController {
     public ResponseEntity<PharmacyOrderResponse> capturePharmacyOrderPayPalPayment(
             @Valid @RequestBody PharmacyOrderPayPalCaptureRequest request) {
         return ResponseEntity.ok(financeService.capturePharmacyOrderPayPalPayment(request));
+    }
+
+    @PostMapping("/follow-up/{appointmentId}/create")
+    public ResponseEntity<Map<String, Object>> createFollowUpPayPalOrder(
+            @PathVariable Integer appointmentId) {
+        return ResponseEntity.ok(financeService.createFollowUpPayPalOrder(appointmentId));
+    }
+
+    @PostMapping("/follow-up/{appointmentId}/capture")
+    public ResponseEntity<FollowUpResponse> captureFollowUpPayPalPayment(
+            @PathVariable Integer appointmentId,
+            @RequestBody Map<String, String> request) {
+        FollowUpResponse response = financeService.captureFollowUpPayPalPayment(
+                request.get("orderId"), appointmentId, request.get("paymentMethod"));
+        return ResponseEntity.ok(response);
+    }
+
+    @PutMapping("/follow-up/{appointmentId}/location")
+    public ResponseEntity<FollowUpResponse> saveFollowUpLocation(
+            @PathVariable Integer appointmentId,
+            @RequestBody Map<String, Object> location) {
+        return ResponseEntity.ok(financeService.saveFollowUpLocation(appointmentId, location));
     }
 
     // ──────────────────────────────────────────────────────────────────────

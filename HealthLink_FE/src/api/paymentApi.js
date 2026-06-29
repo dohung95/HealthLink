@@ -152,4 +152,22 @@ export const paymentApi = {
     });
     return response.data;
   },
+
+  createFollowUpPayPalOrder: async (appointmentId) => {
+    const response = await axiosInstance.post(`/api/payment/follow-up/${appointmentId}/create`);
+    return response.data;
+  },
+
+  captureFollowUpPayPalOrder: async (appointmentId, orderId, paymentMethod = 'EWallet') => {
+    const response = await axiosInstance.post(`/api/payment/follow-up/${appointmentId}/capture`, {
+      orderId,
+      paymentMethod,
+    });
+    return response.data;
+  },
+
+  saveFollowUpLocation: async (appointmentId, location) => {
+    const response = await axiosInstance.put(`/api/payment/follow-up/${appointmentId}/location`, location);
+    return response.data;
+  },
 };

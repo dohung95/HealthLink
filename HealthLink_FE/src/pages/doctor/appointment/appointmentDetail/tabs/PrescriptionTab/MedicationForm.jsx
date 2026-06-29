@@ -213,7 +213,6 @@ export default function MedicationForm({
   highlightedRowId,
   isWorkspaceReadOnly,
   onRemove,
-  onAdd,
   rowRefs,
   onRowChange,
   onTimingToggle,
@@ -318,16 +317,6 @@ export default function MedicationForm({
           </article>
         );
       })}
-      {!isWorkspaceReadOnly ? (
-        <button
-          className="doctor-prescription-list__add-btn"
-          onClick={onAdd}
-          type="button"
-          title="Add medication"
-        >
-          <i className="bi bi-plus"></i>
-        </button>
-      ) : null}
     </div>
   ) : (
     <div className="doctor-prescription-empty-state">

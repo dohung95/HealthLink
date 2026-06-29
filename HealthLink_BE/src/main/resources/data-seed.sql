@@ -174,35 +174,35 @@ SET IDENTITY_INSERT Medicines OFF;
 
 -- 9. PHARMACY_INVENTORY (28 inventory rows)
 SET IDENTITY_INSERT PharmacyInventory ON;
-INSERT INTO PharmacyInventory (InventoryID, PharmacyID, MedicineID, quantity, reservedQuantity, unitPrice, unit, expiryDate, active, lastImportedAt, createdAt, updatedAt) VALUES
-(1, 'user-ph01', 1, 120, 10, 0.30, 'Tablet', '2026-12-31', 1, '2024-05-20 08:00:00', '2024-05-20 08:00:00', '2024-05-20 08:00:00'),
-(2, 'user-ph01', 7, 80, 5, 0.93, 'Tablet', '2026-12-31', 1, '2024-05-20 08:00:00', '2024-05-20 08:00:00', '2024-05-20 08:00:00'),
-(3, 'user-ph01', 5, 6, 0, 0.63, 'Tablet', '2026-08-31', 1, '2024-05-20 08:00:00', '2024-05-20 08:00:00', '2024-05-20 08:00:00'),
-(4, 'user-ph01', 8, 0, 0, 0.53, 'Tablet', '2026-07-31', 1, '2024-05-20 08:00:00', '2024-05-20 08:00:00', '2024-05-20 08:00:00'),
-(5, 'user-ph01', 2, 30, 0, 1.08, 'Capsule', '2026-05-31', 0, '2024-05-20 08:00:00', '2024-05-20 08:00:00', '2024-05-20 08:00:00'),
-(6, 'user-ph02', 1, 40, 0, 0.30, 'Tablet', '2026-12-31', 1, '2024-05-20 08:15:00', '2024-05-20 08:15:00', '2024-05-20 08:15:00'),
-(7, 'user-ph02', 6, 25, 0, 0.71, 'Tablet', '2026-11-30', 1, '2024-05-20 08:15:00', '2024-05-20 08:15:00', '2024-05-20 08:15:00'),
-(8, 'user-ph02', 3, 12, 0, 0.53, 'Capsule', '2026-09-30', 1, '2024-05-20 08:15:00', '2024-05-20 08:15:00', '2024-05-20 08:15:00'),
-(9, 'user-ph02', 5, 45, 5, 0.63, 'Tablet', '2026-08-31', 1, '2024-05-20 08:15:00', '2024-05-20 08:15:00', '2024-05-20 08:15:00'),
-(10, 'user-ph02', 7, 4, 0, 0.93, 'Tablet', '2026-12-31', 1, '2024-05-20 08:15:00', '2024-05-20 08:15:00', '2024-05-20 08:15:00'),
-(11, 'user-ph02', 10, 0, 0, 0.50, 'Tablet', '2026-10-31', 1, '2024-05-20 08:15:00', '2024-05-20 08:15:00', '2024-05-20 08:15:00'),
-(12, 'user-ph04', 1, 50, 0, 0.30, 'Tablet', '2026-12-31', 1, '2024-05-20 08:30:00', '2024-05-20 08:30:00', '2024-05-20 08:30:00'),
-(13, 'user-ph04', 5, 12, 0, 0.63, 'Tablet', '2026-08-31', 1, '2024-05-20 08:30:00', '2024-05-20 08:30:00', '2024-05-20 08:30:00'),
-(14, 'user-ph04', 8, 20, 0, 0.53, 'Tablet', '2026-07-31', 1, '2024-05-20 08:30:00', '2024-05-20 08:30:00', '2024-05-20 08:30:00'),
-(15, 'user-ph07', 10, 45, 5, 0.50, 'Tablet', '2026-10-31', 1, '2024-05-20 08:45:00', '2024-05-20 08:45:00', '2024-05-20 08:45:00'),
-(16, 'user-ph07', 1, 8, 0, 0.30, 'Tablet', '2026-12-31', 1, '2024-05-20 08:45:00', '2024-05-20 08:45:00', '2024-05-20 08:45:00'),
-(17, 'user-ph07', 6, 0, 0, 0.71, 'Tablet', '2026-11-30', 1, '2024-05-20 08:45:00', '2024-05-20 08:45:00', '2024-05-20 08:45:00'),
-(18, 'user-ph05', 4, 60, 0, 0.30, 'Tablet', '2026-06-30', 1, '2024-05-20 09:00:00', '2024-05-20 09:00:00', '2024-05-20 09:00:00'),
-(19, 'user-ph05', 8, 3, 0, 0.53, 'Tablet', '2026-07-31', 1, '2024-05-20 09:00:00', '2024-05-20 09:00:00', '2024-05-20 09:00:00'),
-(20, 'user-ph05', 9, 20, 2, 2.40, 'Inhaler', '2026-10-31', 1, '2024-05-20 09:00:00', '2024-05-20 09:00:00', '2024-05-20 09:00:00'),
-(21, 'user-ph06', 8, 20, 0, 0.53, 'Tablet', '2026-07-31', 1, '2024-05-20 09:15:00', '2024-05-20 09:15:00', '2024-05-20 09:15:00'),
-(22, 'user-ph06', 2, 20, 0, 1.08, 'Capsule', '2026-05-31', 1, '2024-05-20 09:15:00', '2024-05-20 09:15:00', '2024-05-20 09:15:00'),
-(23, 'user-ph08', 10, 5, 0, 0.50, 'Tablet', '2026-10-31', 1, '2024-05-20 09:30:00', '2024-05-20 09:30:00', '2024-05-20 09:30:00'),
-(24, 'user-ph08', 7, 20, 0, 0.93, 'Tablet', '2026-12-31', 1, '2024-05-20 09:30:00', '2024-05-20 09:30:00', '2024-05-20 09:30:00'),
-(25, 'user-ph09', 4, 60, 0, 0.30, 'Tablet', '2026-06-30', 1, '2024-05-20 09:45:00', '2024-05-20 09:45:00', '2024-05-20 09:45:00'),
-(26, 'user-ph09', 9, 15, 0, 2.40, 'Inhaler', '2026-10-31', 1, '2024-05-20 09:45:00', '2024-05-20 09:45:00', '2024-05-20 09:45:00'),
-(27, 'user-ph10', 8, 20, 0, 0.53, 'Tablet', '2026-07-31', 1, '2024-05-20 10:00:00', '2024-05-20 10:00:00', '2024-05-20 10:00:00'),
-(28, 'user-ph10', 3, 0, 0, 0.53, 'Capsule', '2026-09-30', 1, '2024-05-20 10:00:00', '2024-05-20 10:00:00', '2024-05-20 10:00:00');
+INSERT INTO PharmacyInventory (InventoryID, PharmacyID, MedicineID, quantity, reservedQuantity, unit, expiryDate, active, lastImportedAt, createdAt, updatedAt) VALUES
+(1, 'user-ph01', 1, 120, 10, 'Tablet', '2026-12-31', 1, '2024-05-20 08:00:00', '2024-05-20 08:00:00', '2024-05-20 08:00:00'),
+(2, 'user-ph01', 7, 80, 5, 'Tablet', '2026-12-31', 1, '2024-05-20 08:00:00', '2024-05-20 08:00:00', '2024-05-20 08:00:00'),
+(3, 'user-ph01', 5, 6, 0, 'Tablet', '2026-08-31', 1, '2024-05-20 08:00:00', '2024-05-20 08:00:00', '2024-05-20 08:00:00'),
+(4, 'user-ph01', 8, 0, 0, 'Tablet', '2026-07-31', 1, '2024-05-20 08:00:00', '2024-05-20 08:00:00', '2024-05-20 08:00:00'),
+(5, 'user-ph01', 2, 30, 0, 'Capsule', '2026-05-31', 0, '2024-05-20 08:00:00', '2024-05-20 08:00:00', '2024-05-20 08:00:00'),
+(6, 'user-ph02', 1, 40, 0, 'Tablet', '2026-12-31', 1, '2024-05-20 08:15:00', '2024-05-20 08:15:00', '2024-05-20 08:15:00'),
+(7, 'user-ph02', 6, 25, 0, 'Tablet', '2026-11-30', 1, '2024-05-20 08:15:00', '2024-05-20 08:15:00', '2024-05-20 08:15:00'),
+(8, 'user-ph02', 3, 12, 0, 'Capsule', '2026-09-30', 1, '2024-05-20 08:15:00', '2024-05-20 08:15:00', '2024-05-20 08:15:00'),
+(9, 'user-ph02', 5, 45, 5, 'Tablet', '2026-08-31', 1, '2024-05-20 08:15:00', '2024-05-20 08:15:00', '2024-05-20 08:15:00'),
+(10, 'user-ph02', 7, 4, 0, 'Tablet', '2026-12-31', 1, '2024-05-20 08:15:00', '2024-05-20 08:15:00', '2024-05-20 08:15:00'),
+(11, 'user-ph02', 10, 0, 0, 'Tablet', '2026-10-31', 1, '2024-05-20 08:15:00', '2024-05-20 08:15:00', '2024-05-20 08:15:00'),
+(12, 'user-ph04', 1, 50, 0, 'Tablet', '2026-12-31', 1, '2024-05-20 08:30:00', '2024-05-20 08:30:00', '2024-05-20 08:30:00'),
+(13, 'user-ph04', 5, 12, 0, 'Tablet', '2026-08-31', 1, '2024-05-20 08:30:00', '2024-05-20 08:30:00', '2024-05-20 08:30:00'),
+(14, 'user-ph04', 8, 20, 0, 'Tablet', '2026-07-31', 1, '2024-05-20 08:30:00', '2024-05-20 08:30:00', '2024-05-20 08:30:00'),
+(15, 'user-ph07', 10, 45, 5, 'Tablet', '2026-10-31', 1, '2024-05-20 08:45:00', '2024-05-20 08:45:00', '2024-05-20 08:45:00'),
+(16, 'user-ph07', 1, 8, 0, 'Tablet', '2026-12-31', 1, '2024-05-20 08:45:00', '2024-05-20 08:45:00', '2024-05-20 08:45:00'),
+(17, 'user-ph07', 6, 0, 0, 'Tablet', '2026-11-30', 1, '2024-05-20 08:45:00', '2024-05-20 08:45:00', '2024-05-20 08:45:00'),
+(18, 'user-ph05', 4, 60, 0, 'Tablet', '2026-06-30', 1, '2024-05-20 09:00:00', '2024-05-20 09:00:00', '2024-05-20 09:00:00'),
+(19, 'user-ph05', 8, 3, 0, 'Tablet', '2026-07-31', 1, '2024-05-20 09:00:00', '2024-05-20 09:00:00', '2024-05-20 09:00:00'),
+(20, 'user-ph05', 9, 20, 2, 'Inhaler', '2026-10-31', 1, '2024-05-20 09:00:00', '2024-05-20 09:00:00', '2024-05-20 09:00:00'),
+(21, 'user-ph06', 8, 20, 0, 'Tablet', '2026-07-31', 1, '2024-05-20 09:15:00', '2024-05-20 09:15:00', '2024-05-20 09:15:00'),
+(22, 'user-ph06', 2, 20, 0, 'Capsule', '2026-05-31', 1, '2024-05-20 09:15:00', '2024-05-20 09:15:00', '2024-05-20 09:15:00'),
+(23, 'user-ph08', 10, 5, 0, 'Tablet', '2026-10-31', 1, '2024-05-20 09:30:00', '2024-05-20 09:30:00', '2024-05-20 09:30:00'),
+(24, 'user-ph08', 7, 20, 0, 'Tablet', '2026-12-31', 1, '2024-05-20 09:30:00', '2024-05-20 09:30:00', '2024-05-20 09:30:00'),
+(25, 'user-ph09', 4, 60, 0, 'Tablet', '2026-06-30', 1, '2024-05-20 09:45:00', '2024-05-20 09:45:00', '2024-05-20 09:45:00'),
+(26, 'user-ph09', 9, 15, 0, 'Inhaler', '2026-10-31', 1, '2024-05-20 09:45:00', '2024-05-20 09:45:00', '2024-05-20 09:45:00'),
+(27, 'user-ph10', 8, 20, 0, 'Tablet', '2026-07-31', 1, '2024-05-20 10:00:00', '2024-05-20 10:00:00', '2024-05-20 10:00:00'),
+(28, 'user-ph10', 3, 0, 0, 'Capsule', '2026-09-30', 1, '2024-05-20 10:00:00', '2024-05-20 10:00:00', '2024-05-20 10:00:00');
 SET IDENTITY_INSERT PharmacyInventory OFF;
 
 -- 10. DOCTOR_SCHEDULES
@@ -342,18 +342,18 @@ SET IDENTITY_INSERT AdminScheduleAuditLogs OFF;
 
 -- 17. CONSULTATIONS (11 consultations)
 SET IDENTITY_INSERT Consultations ON;
-INSERT INTO Consultations (ConsultationID, AppointmentId, startTime, endTime, doctorNotes, diagnosis, followUpDate, followUpAppointmentId, consultationType, roomId, roomUrl, recordingUrl, duration, symptoms, treatmentPlan, followUpNotes) VALUES
-(1, 1, '2024-05-10 09:00:00', '2024-05-10 09:28:00', 'Patient shows signs of stress and sleep deprivation', 'Mild anxiety disorder, work-related stress', '2024-05-24', NULL, 'Video', 'room-001', 'https://meet.healthlink.com/room-001', NULL, 28, 'Headache, fatigue', 'Rest, stress management, medication as prescribed', 'Follow up in 2 weeks'),
-(2, 2, '2024-05-11 10:00:00', '2024-05-11 10:18:00', 'Child has viral infection, no serious symptoms', 'Upper respiratory tract infection - viral', '2024-05-18', NULL, 'Video', 'room-002', 'https://meet.healthlink.com/room-002', NULL, 18, 'Fever, dry cough', 'Fever medication, rest, fluid intake', 'Return if fever persists after 3 days'),
-(3, 3, '2024-05-12 09:30:00', '2024-05-12 10:10:00', 'Suspected coronary artery disease, needs ECG and echo', 'Chest pain - suspected myocardial ischemia', '2024-05-19', NULL, 'Video', 'room-003', 'https://meet.healthlink.com/room-003', 'https://storage.healthlink.com/rec-003.mp4', 40, 'Chest pain, shortness of breath', 'ECG, echocardiogram, cardiac enzymes test', 'Return with test results'),
-(4, 4, '2024-05-15 08:00:00', '2024-05-15 08:25:00', 'Acute appendicitis confirmed, surgery required', 'Acute appendicitis', '2024-05-22', NULL, 'Offline', NULL, NULL, NULL, 25, 'Abdominal pain', 'Hospital admission, surgery preparation', 'Post-surgery follow-up'),
-(5, 5, '2024-05-16 14:00:00', '2024-05-16 14:25:00', '20 weeks pregnant, fetal development normal, heartbeat regular', 'Normal pregnancy', '2024-06-16', NULL, 'Video', 'room-005', 'https://meet.healthlink.com/room-005', NULL, 25, 'Routine prenatal checkup', 'Continue prenatal vitamins, balanced diet', 'Next checkup in 4 weeks'),
-(6, 6, '2024-05-18 09:00:00', NULL, NULL, NULL, NULL, NULL, 'Video', 'room-006', 'https://meet.healthlink.com/room-006', NULL, NULL, 'Skin rash', NULL, NULL),
-(7, 7, '2024-05-20 15:00:00', NULL, NULL, NULL, NULL, NULL, 'Offline', NULL, NULL, NULL, NULL, 'Headache, dizziness', NULL, NULL),
-(8, 8, NULL, NULL, NULL, NULL, NULL, NULL, 'Offline', NULL, NULL, NULL, NULL, 'Blurry vision, eye pain', NULL, NULL),
-(9, 9, NULL, NULL, 'Patient cancelled appointment', NULL, NULL, NULL, 'Video', 'room-009', NULL, NULL, NULL, 'Sore throat', NULL, NULL),
-(10, 10, NULL, NULL, NULL, NULL, NULL, NULL, 'Offline', NULL, NULL, NULL, NULL, 'Toothache', NULL, NULL),
-(11, 11, '2024-05-24 16:00:00', '2024-05-24 16:25:00', 'Stable condition, no new complaints', 'Recovered from seasonal flu, recommend rest and hydration', '2024-06-07', NULL, 'Video', 'room-011', 'https://meet.healthlink.com/room-011', NULL, 25, 'Follow-up visit after flu', 'Rest, hydration, vitamin C', 'Return if fever recurs');
+INSERT INTO Consultations (ConsultationID, AppointmentId, startTime, endTime, doctorNotes, diagnosis, followUpDate, followUpAppointmentId, consultationType, roomId, roomUrl, recordingUrl, duration, treatmentPlan, followUpNotes) VALUES
+(1, 1, '2024-05-10 09:00:00', '2024-05-10 09:28:00', 'Patient shows signs of stress and sleep deprivation', 'Mild anxiety disorder, work-related stress', '2024-05-24', NULL, 'Video', 'room-001', 'https://meet.healthlink.com/room-001', NULL, 28, 'Rest, stress management, medication as prescribed', 'Follow up in 2 weeks'),
+(2, 2, '2024-05-11 10:00:00', '2024-05-11 10:18:00', 'Child has viral infection, no serious symptoms', 'Upper respiratory tract infection - viral', '2024-05-18', NULL, 'Video', 'room-002', 'https://meet.healthlink.com/room-002', NULL, 18, 'Fever medication, rest, fluid intake', 'Return if fever persists after 3 days'),
+(3, 3, '2024-05-12 09:30:00', '2024-05-12 10:10:00', 'Suspected coronary artery disease, needs ECG and echo', 'Chest pain - suspected myocardial ischemia', '2024-05-19', NULL, 'Video', 'room-003', 'https://meet.healthlink.com/room-003', 'https://storage.healthlink.com/rec-003.mp4', 40, 'ECG, echocardiogram, cardiac enzymes test', 'Return with test results'),
+(4, 4, '2024-05-15 08:00:00', '2024-05-15 08:25:00', 'Acute appendicitis confirmed, surgery required', 'Acute appendicitis', '2024-05-22', NULL, 'Offline', NULL, NULL, NULL, 25, 'Hospital admission, surgery preparation', 'Post-surgery follow-up'),
+(5, 5, '2024-05-16 14:00:00', '2024-05-16 14:25:00', '20 weeks pregnant, fetal development normal, heartbeat regular', 'Normal pregnancy', '2024-06-16', NULL, 'Video', 'room-005', 'https://meet.healthlink.com/room-005', NULL, 25, 'Continue prenatal vitamins, balanced diet', 'Next checkup in 4 weeks'),
+(6, 6, '2024-05-18 09:00:00', NULL, NULL, NULL, NULL, NULL, 'Video', 'room-006', 'https://meet.healthlink.com/room-006', NULL, NULL, NULL, NULL),
+(7, 7, '2024-05-20 15:00:00', NULL, NULL, NULL, NULL, NULL, 'Offline', NULL, NULL, NULL, NULL, NULL, NULL),
+(8, 8, NULL, NULL, NULL, NULL, NULL, NULL, 'Offline', NULL, NULL, NULL, NULL, NULL, NULL),
+(9, 9, NULL, NULL, 'Patient cancelled appointment', NULL, NULL, NULL, 'Video', 'room-009', NULL, NULL, NULL, NULL, NULL),
+(10, 10, NULL, NULL, NULL, NULL, NULL, NULL, 'Offline', NULL, NULL, NULL, NULL, NULL, NULL),
+(11, 11, '2024-05-24 16:00:00', '2024-05-24 16:25:00', 'Stable condition, no new complaints', 'Recovered from seasonal flu, recommend rest and hydration', '2024-06-07', NULL, 'Video', 'room-011', 'https://meet.healthlink.com/room-011', NULL, 25, 'Rest, hydration, vitamin C', 'Return if fever recurs');
 SET IDENTITY_INSERT Consultations OFF;
 
 UPDATE Consultations
@@ -466,12 +466,12 @@ INSERT INTO PrescriptionItems (PrescriptionItemID, PrescriptionHeaderID, medicat
 (3, 2, 'Paracetamol 500mg', '250mg', 'Take when fever exceeds 100.4F', 5, 1, 10, 'Tablet', 'As needed', 'When fever', 'Oral', 'Half tablet for child'),
 (4, 2, 'Cetirizine 10mg', '5mg', 'Take once before bedtime', 7, 6, 7, 'Tablet', 'Once daily', 'Night', 'Oral', 'Half tablet'),
 (5, 3, 'Amlodipine 5mg', '5mg', 'Take 1 tablet every morning', 30, 5, 30, 'Tablet', 'Once daily', 'MORNING', 'Oral', 'Maintain blood pressure'),
-(6, 4, 'Ibuprofen 400mg', '400mg', 'Take after meals when in pain', 5, 8, 15, 'Tablet', '3 times daily', 'AFTERNOON', 'Oral', 0.53, 7.95, 'Do not take on empty stomach'),
-(7, 5, 'Prenatal Multivitamin', '1 tablet', 'Take 1 tablet daily after breakfast', 30, NULL, 30, 'Tablet', 'Once daily', 'MORNING', 'Oral', 1.83, 54.90, 'Prenatal vitamin'),
-(8, 8, 'Metformin 500mg', '500mg', 'Take after breakfast and dinner', 30, 4, 60, 'Tablet', 'Twice daily', 'MORNING', 'Oral', 0.30, 18.00, NULL),
-(9, 9, 'Amlodipine 5mg', '5mg', 'Take every morning', 30, 5, 30, 'Tablet', 'Once daily', 'MORNING', 'Oral', 0.63, 18.90, NULL),
-(10, 10, 'Allopurinol 300mg', '300mg', 'Take after breakfast', 30, 10, 30, 'Tablet', 'Once daily', 'MORNING', 'Oral', 0.50, 15.00, 'Drink plenty of water'),
-(11, 3, 'Paracetamol 500mg', '500mg', 'Take when chest discomfort causes headache, max 2 tablets per day', 5, 1, 10, 'Tablet', 'As needed', 'When pain', 'Oral', 0.30, 3.00, 'Added to support partial pharmacy stock matching');
+(6, 4, 'Ibuprofen 400mg', '400mg', 'Take after meals when in pain', 5, 8, 15, 'Tablet', '3 times daily', 'AFTERNOON', 'Oral', 'Do not take on empty stomach'),
+(7, 5, 'Prenatal Multivitamin', '1 tablet', 'Take 1 tablet daily after breakfast', 30, NULL, 30, 'Tablet', 'Once daily', 'MORNING', 'Oral', 'Prenatal vitamin'),
+(8, 8, 'Metformin 500mg', '500mg', 'Take after breakfast and dinner', 30, 4, 60, 'Tablet', 'Twice daily', 'MORNING', 'Oral', NULL),
+(9, 9, 'Amlodipine 5mg', '5mg', 'Take every morning', 30, 5, 30, 'Tablet', 'Once daily', 'MORNING', 'Oral', NULL),
+(10, 10, 'Allopurinol 300mg', '300mg', 'Take after breakfast', 30, 10, 30, 'Tablet', 'Once daily', 'MORNING', 'Oral', 'Drink plenty of water'),
+(11, 3, 'Paracetamol 500mg', '500mg', 'Take when chest discomfort causes headache, max 2 tablets per day', 5, 1, 10, 'Tablet', 'As needed', 'When pain', 'Oral', 'Added to support partial pharmacy stock matching');
 SET IDENTITY_INSERT PrescriptionItems OFF;
 
 -- 25. PRESCRIPTION_REMINDER_LOGS (6 logs)
@@ -554,19 +554,19 @@ SET IDENTITY_INSERT PharmacyOrderItems OFF;
 -- 30. PHARMACY_ORDER_INVOICES (4 invoices)
 SET IDENTITY_INSERT Invoices ON;
 INSERT INTO Invoices (InvoiceID, AppointmentId, PharmacyOrderId, PatientID, amount, issueDate, status, invoiceNumber, consultationFee, medicineFee, deliveryFee, discount, tax, dueDate, paidAt, notes, platformFee, doctorEarning, commissionRate) VALUES
-(11, NULL, 13, 'user-p02', 41.99, '2024-05-21 14:30:00', 'PAID', 'INV-PH-2024-0011', 0, 35.00, 6.99, 0, 0, '2024-05-28', '2024-05-21 14:35:00', 'Paid pharmacy order invoice via PayPal', 3.36, NULL, 0.0800),
-(12, NULL, 12, 'user-p01', 50.99, '2024-05-20 17:05:00', 'PENDING', 'INV-PH-2024-0012', 0, 45.00, 5.99, 0, 0, '2024-05-27', NULL, 'Awaiting PayPal payment after patient confirmed quote', 4.08, NULL, 0.0800),
-(13, NULL, 14, 'user-p03', 82.99, '2024-05-22 11:05:00', 'REFUNDED', 'INV-PH-2024-0013', 0, 75.00, 7.99, 0, 0, '2024-05-29', '2024-05-22 11:10:00', 'Refunded pharmacy order invoice', 6.64, NULL, 0.0800),
-(14, NULL, 15, 'user-p04', 40.00, '2024-05-23 09:05:00', 'PAID', 'INV-PH-2024-0014', 0, 40.00, 0, 0, 0, '2024-05-30', '2024-05-23 09:10:00', 'Paid pickup pharmacy order invoice', 3.20, NULL, 0.0800);
+(12, NULL, 13, 'user-p02', 41.99, '2024-05-21 14:30:00', 'PAID', 'INV-PH-2024-0012', 0, 35.00, 6.99, 0, 0, '2024-05-28', '2024-05-21 14:35:00', 'Paid pharmacy order invoice via PayPal', 3.36, NULL, 0.0800),
+(13, NULL, 12, 'user-p01', 50.99, '2024-05-20 17:05:00', 'PENDING', 'INV-PH-2024-0013', 0, 45.00, 5.99, 0, 0, '2024-05-27', NULL, 'Awaiting PayPal payment after patient confirmed quote', 4.08, NULL, 0.0800),
+(14, NULL, 14, 'user-p03', 82.99, '2024-05-22 11:05:00', 'REFUNDED', 'INV-PH-2024-0014', 0, 75.00, 7.99, 0, 0, '2024-05-29', '2024-05-22 11:10:00', 'Refunded pharmacy order invoice', 6.64, NULL, 0.0800),
+(15, NULL, 15, 'user-p04', 40.00, '2024-05-23 09:05:00', 'PAID', 'INV-PH-2024-0015', 0, 40.00, 0, 0, 0, '2024-05-30', '2024-05-23 09:10:00', 'Paid pickup pharmacy order invoice', 3.20, NULL, 0.0800);
 SET IDENTITY_INSERT Invoices OFF;
 
 -- 31. PHARMACY_ORDER_PAYMENTS (4 payments)
 SET IDENTITY_INSERT Payments ON;
 INSERT INTO Payments (PaymentID, InvoiceID, OrderID, amount, paymentMethod, paymentGateway, transactionId, status, paidAt, failureReason, refundedAmount, refundedAt, refundReason, metadata, CreatedAt) VALUES
-(11, 11, 13, 41.99, 'EWallet', 'PayPal', 'PP-PH-20240521001', 'SUCCESS', '2024-05-21 14:35:00', NULL, NULL, NULL, NULL, '{"payerId":"PAYPAL-PH-002","orderType":"PHARMACY_ORDER"}', '2024-05-21 14:35:00'),
-(12, 12, 12, 50.99, 'EWallet', 'PayPal', 'PP-PH-20240520001', 'PENDING', NULL, NULL, NULL, NULL, NULL, '{"checkoutState":"CREATED","orderType":"PHARMACY_ORDER"}', '2024-05-20 17:05:00'),
-(13, 13, 14, 82.99, 'EWallet', 'PayPal', 'PP-PH-20240522001', 'REFUNDED', '2024-05-22 11:10:00', NULL, 82.99, '2024-05-22 12:30:00', 'Patient declined partial fulfillment', '{"refundId":"RF-PH-001","orderType":"PHARMACY_ORDER"}', '2024-05-22 11:10:00'),
-(14, 14, 15, 40.00, 'Cash', NULL, 'CASH-PH-20240523001', 'SUCCESS', '2024-05-23 09:10:00', NULL, NULL, NULL, NULL, '{"pickupCounter":"A1","orderType":"PHARMACY_ORDER"}', '2024-05-23 09:10:00');
+(12, 12, 13, 41.99, 'EWallet', 'PayPal', 'PP-PH-20240521001', 'SUCCESS', '2024-05-21 14:35:00', NULL, NULL, NULL, NULL, '{"payerId":"PAYPAL-PH-002","orderType":"PHARMACY_ORDER"}', '2024-05-21 14:35:00'),
+(13, 13, 12, 50.99, 'EWallet', 'PayPal', 'PP-PH-20240520001', 'PENDING', NULL, NULL, NULL, NULL, NULL, '{"checkoutState":"CREATED","orderType":"PHARMACY_ORDER"}', '2024-05-20 17:05:00'),
+(14, 14, 14, 82.99, 'EWallet', 'PayPal', 'PP-PH-20240522001', 'REFUNDED', '2024-05-22 11:10:00', NULL, 82.99, '2024-05-22 12:30:00', 'Patient declined partial fulfillment', '{"refundId":"RF-PH-001","orderType":"PHARMACY_ORDER"}', '2024-05-22 11:10:00'),
+(15, 15, 15, 40.00, 'Cash', NULL, 'CASH-PH-20240523001', 'SUCCESS', '2024-05-23 09:10:00', NULL, NULL, NULL, NULL, '{"pickupCounter":"A1","orderType":"PHARMACY_ORDER"}', '2024-05-23 09:10:00');
 SET IDENTITY_INSERT Payments OFF;
 
 -- 32. CHAT_ROOMS (13 chat rooms)

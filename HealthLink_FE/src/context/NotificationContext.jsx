@@ -12,6 +12,7 @@ import { useAuth } from './AuthContext';
 import { audioService } from '../utils/audioService';
 import { notificationApi } from '../api/notificationApi';
 import { consultationApi } from '../api/consultationApi';
+import FollowUpPaymentModal from '../components/patient/FollowUpPaymentModal';
 
 const NotificationContext = createContext();
 
@@ -65,6 +66,7 @@ export const NotificationProvider = ({ children }) => {
   const [adminActionNotification, setAdminActionNotification] = useState(null);
   const [homeVisitProposal, setHomeVisitProposal] = useState(null);
   const [homeVisitProposalResult, setHomeVisitProposalResult] = useState(null);
+  const [followUpPaymentModal, setFollowUpPaymentModal] = useState({ show: false, appointmentId: null });
   const lastNotificationIdRef = useRef(null);
 
   const userId = currentUserId || user?.sub || user?.userId;
@@ -202,6 +204,13 @@ export const NotificationProvider = ({ children }) => {
 
     if (notification.type === 'HOME_VISIT_CONFIRMED' || notification.type === 'HOME_VISIT_REJECTED') {
       setHomeVisitProposalResult(getHomeVisitResultState(notification));
+    }
+
+    if (notification.type === 'FOLLOW_UP_PAYMENT_REQUEST') {
+      setFollowUpPaymentModal({
+        show: true,
+        appointmentId: notification.relatedId,
+      });
     }
 
     playNotificationSound();
@@ -347,6 +356,12 @@ export const NotificationProvider = ({ children }) => {
   return (
     <NotificationContext.Provider value={value}>
       {children}
+      <FollowUpPaymentModal
+        show={followUpPaymentModal.show}
+        appointmentId={followUpPaymentModal.appointmentId}
+        onClose={() => setFollowUpPaymentModal({ show: false, appointmentId: null })}
+        onStatusChange={(newStatus) => {}}
+      />
     </NotificationContext.Provider>
   );
 };

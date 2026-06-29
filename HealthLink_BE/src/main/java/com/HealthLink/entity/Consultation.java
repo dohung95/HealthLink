@@ -1,8 +1,10 @@
 package com.HealthLink.entity;
 
+import com.HealthLink.entity.enums.FollowUpStatus;
 import com.HealthLink.entity.enums.HomeVisitProposalStatus;
 import jakarta.persistence.*;
 import lombok.*;
+import org.hibernate.annotations.Nationalized;
 
 import java.time.LocalDateTime;
 
@@ -25,10 +27,12 @@ public class Consultation {
     private LocalDateTime startTime;
     private LocalDateTime endTime;
 
-    @Column(columnDefinition = "TEXT")
+    @Nationalized
+    @Column(columnDefinition = "NVARCHAR(MAX)")
     private String doctorNotes;
 
-    @Column(columnDefinition = "TEXT")
+    @Nationalized
+    @Column(columnDefinition = "NVARCHAR(MAX)")
     private String diagnosis;
 
     private LocalDateTime followUpDate;
@@ -59,12 +63,24 @@ public class Consultation {
 
     private Integer duration;
 
-    @Column(length = 2000)
-    private String symptoms;
-
+    @Nationalized
     @Column(length = 2000)
     private String treatmentPlan;
 
     @Column(length = 1000)
     private String followUpNotes;
+
+    @Column(name = "HomeVisitLatitude")
+    private Double homeVisitLatitude;
+
+    @Column(name = "HomeVisitLongitude")
+    private Double homeVisitLongitude;
+
+    @Column(name = "HomeVisitServiceIds", length = 500)
+    private String homeVisitServiceIds;
+
+    @Enumerated(EnumType.STRING)
+    @Column(name = "follow_up_status", length = 20)
+    @Builder.Default
+    private FollowUpStatus followUpStatus = FollowUpStatus.NONE;
 }

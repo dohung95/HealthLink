@@ -11,6 +11,7 @@ const DoctorLayout = memo(({
   showAllNotifications,
   notifications,
   unreadCount,
+  hasNewNotification,
   showNotificationDropdown,
   notificationRef,
   onNavigate,
@@ -23,6 +24,7 @@ const DoctorLayout = memo(({
   onChangePassword,
   onNavigateToProfile,
   onNavigateToWallet,
+  onClearNewNotification,
 }) => {
   useEffect(() => {
     document.body.style.overflow = isMobileMenuOpen || showAllNotifications ? 'hidden' : 'unset';
@@ -144,6 +146,7 @@ const DoctorLayout = memo(({
           showAllNotifications={showAllNotifications}
           notifications={notifications}
           unreadCount={unreadCount}
+          hasNewNotification={hasNewNotification}
           showNotificationDropdown={showNotificationDropdown}
           notificationRef={notificationRef}
           onToggleMobileMenu={onToggleMobileMenu}
@@ -155,6 +158,7 @@ const DoctorLayout = memo(({
           onChangePassword={onChangePassword}
           onNavigateToProfile={onNavigateToProfile}
           onNavigateToWallet={onNavigateToWallet}
+          onClearNewNotification={onClearNewNotification}
         />
         <main className="doctor-main-content p-3 pb-5 p-md-4">
           <div className={`w-100 ${isDetailView ? 'doctor-detail-wrapper' : ''}`}>

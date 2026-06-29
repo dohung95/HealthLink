@@ -47,9 +47,11 @@ const CompleteConfirmModal = ({
   prescriptionIncompleteItems = [],
   followUpConfigured,
   followUpInfo,
+  followUpPaymentStatus,
 }) => {
   const dialogRef = useRef(null);
-  const canComplete = notesSaved && prescriptionReady;
+  const canComplete = notesSaved && prescriptionReady
+    && (!followUpPaymentStatus || followUpPaymentStatus === 'PAID' || followUpPaymentStatus === 'NONE');
 
   useEffect(() => {
     if (!show) return;
@@ -280,6 +282,17 @@ const CompleteConfirmModal = ({
             </div>
           </div>
 
+          {followUpPaymentStatus === 'PENDING_PAYMENT' && (
+            <div style={{
+              padding: '0.75rem 1rem', margin: '0.75rem 1.5rem 0',
+              borderRadius: 'var(--radius-md)', background: 'rgba(245, 158, 11, 0.08)',
+              border: '1px solid rgba(245, 158, 11, 0.2)',
+              fontSize: '0.8rem', color: 'var(--text-secondary)',
+            }}>
+              <i className="bi bi-exclamation-triangle me-1" style={{ color: 'var(--warning)' }} />
+              Follow-up payment pending. Waiting for patient to pay.
+            </div>
+          )}
           {followUpConfigured && followUpInfo && (
             <div
               style={{

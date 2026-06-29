@@ -6,14 +6,22 @@ export function useNotifications({ onNavigateToAppointment }) {
   const [unreadCount, setUnreadCount] = useState(0);
   const [showNotificationDropdown, setShowNotificationDropdown] = useState(false);
   const [showAllNotifications, setShowAllNotifications] = useState(false);
+  const [hasNewNotification, setHasNewNotification] = useState(false);
   const notificationRef = useRef(null);
   const seenNotificationIds = useRef(new Set());
+
+  const prevUnreadRef = useRef(0);
 
   const fetchNotifications = useCallback(async () => {
     try {
       const data = await notificationApi.getMyNotifications();
       setNotifications(data || []);
-      setUnreadCount(data?.filter((n) => !n.isRead).length || 0);
+      const newUnreadCount = data?.filter((n) => !n.isRead).length || 0;
+      setUnreadCount(newUnreadCount);
+      if (newUnreadCount > prevUnreadRef.current) {
+        setHasNewNotification(true);
+      }
+      prevUnreadRef.current = newUnreadCount;
     } catch (err) {
       console.error('Error fetching notifications:', err);
     }
@@ -60,9 +68,11 @@ export function useNotifications({ onNavigateToAppointment }) {
     unreadCount,
     showNotificationDropdown,
     showAllNotifications,
+    hasNewNotification,
     notificationRef,
     setShowNotificationDropdown,
     setShowAllNotifications,
+    setHasNewNotification,
     fetchNotifications,
     handleNotificationClick,
     handleMarkAllRead,

@@ -274,15 +274,6 @@ export function useAppointmentDetail({ appointment, patient, doctorId: currentDo
     [appointmentData.selectedHistoryAppointment],
   );
 
-  const canCancelFollowUp = useMemo(() =>
-    Boolean(
-      currentAppointment?.appointmentId &&
-      hasPendingFollowUp &&
-      !consultation.followUpAppointmentId &&
-      rendered.canEditFollowUp,
-    ),
-    [currentAppointment?.appointmentId, hasPendingFollowUp, consultation.followUpAppointmentId, rendered.canEditFollowUp]);
-
   return {
     appointment,
     patient,
@@ -332,10 +323,20 @@ export function useAppointmentDetail({ appointment, patient, doctorId: currentDo
     handleFollowUpMonthChange: followUp.handleFollowUpMonthChange,
     handleSelectFollowUpSlot: followUp.handleSelectFollowUpSlot,
     handleConfirmFollowUp: followUp.handleConfirmFollowUp,
-    handleCancelFollowUp: followUp.handleCancelFollowUp,
     saveFollowUp: followUp.saveFollowUp,
     setFollowUpNotes: followUp.setFollowUpNotes,
     setFollowUpConsultationType: followUp.setFollowUpConsultationType,
+    followUpPaymentStatus: followUp.followUpPaymentStatus,
+    sendingPaymentRequest: followUp.sendingPaymentRequest,
+    handleSendPaymentRequest: followUp.handleSendPaymentRequest,
+    setFollowUpPaymentStatus: followUp.setFollowUpPaymentStatus,
+    showRescheduleConfirm: followUp.showRescheduleConfirm,
+    isRescheduling: followUp.isRescheduling,
+    handleInitiateReschedule: followUp.handleInitiateReschedule,
+    handleConfirmRescheduleModal: followUp.handleConfirmRescheduleModal,
+    handleCancelRescheduleModal: followUp.handleCancelRescheduleModal,
+    handleSaveReschedule: followUp.handleSaveReschedule,
+    handleCancelReschedule: followUp.handleCancelReschedule,
     statusKey: rendered.statusKey,
     patientName: rendered.patientName,
     patientEmail: rendered.patientEmail,
@@ -353,7 +354,6 @@ export function useAppointmentDetail({ appointment, patient, doctorId: currentDo
     prescriptionLockReason: rendered.prescriptionLockReason,
     actionLabel: rendered.actionLabel,
     visitReason: rendered.visitReason,
-    canCancelFollowUp,
     hasPendingFollowUp,
     effectiveDoctorId,
     currentAppointment,

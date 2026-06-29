@@ -245,7 +245,6 @@ class FollowUpAppointmentServiceImplTest {
                 .startTime(LocalDateTime.now().minusMinutes(30))
                 .followUpDate(date.atTime(20, 0))
                 .followUpNotes("Return for review")
-                .symptoms("Cough")
                 .build();
         sourceAppointment.setConsultation(consultation);
 
