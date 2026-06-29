@@ -14,6 +14,7 @@ const PatientSummarySidebar = ({
   visitReason,
   latestVitalSign,
   loadingVitalSign,
+  highlightVitals,
 }) => {
   const allergies = patient?.allergies
     ? patient.allergies.split(',').map((a) => a.trim()).filter(Boolean)
@@ -73,7 +74,7 @@ const PatientSummarySidebar = ({
         </div>
       )}
 
-      <div className="patient-sidebar__section">
+      <div className={`patient-sidebar__section ${highlightVitals ? 'vitals-highlight-blink' : ''}`}>
         <p className="patient-sidebar__label">
           <i className="bi bi-activity me-1"></i>Vitals
         </p>

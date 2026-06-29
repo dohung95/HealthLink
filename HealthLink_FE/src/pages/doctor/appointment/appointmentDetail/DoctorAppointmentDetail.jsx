@@ -1,4 +1,4 @@
-import React, { memo, useMemo } from 'react';
+import React, { memo, useMemo, useState, useCallback } from 'react';
 import { toast } from 'react-toastify';
 import 'bootstrap/dist/css/bootstrap.min.css';
 import 'react-calendar/dist/Calendar.css';
@@ -35,6 +35,20 @@ const DoctorAppointmentDetail = memo(({ appointment, patient, doctorId, onBack, 
     [ctx.hasAppointmentTimeArrived, ctx.hasStarted, ctx.statusKey],
   );
 
+  const [highlightVitals, setHighlightVitals] = useState(false);
+
+  const checkVitalsAndExecute = useCallback((action) => {
+    if (!ctx.latestVitalSign && ctx.statusKey !== 'completed' && ctx.statusKey !== 'cancelled' && ctx.statusKey !== 'canceled') {
+      setHighlightVitals(true);
+      toast.warn('Please wait for patient vitals before joining the room.');
+      setTimeout(() => {
+        setHighlightVitals(false);
+      }, 4000);
+    } else {
+      action();
+    }
+  }, [ctx.latestVitalSign, ctx.statusKey]);
+
   if (!appointment || !patient) {
     return (
       <div className="text-center py-5">
@@ -54,6 +68,8 @@ const DoctorAppointmentDetail = memo(({ appointment, patient, doctorId, onBack, 
         </button>
       </div>
 
+      {highlightVitals && <div className="vitals-global-overlay" />}
+
       <div className="doctor-detail-shell">
       <section className="doctor-detail-card doctor-detail-workspace doctor-detail-workspace--full">
         <div className="doctor-detail-with-sidebar">
@@ -63,6 +79,7 @@ const DoctorAppointmentDetail = memo(({ appointment, patient, doctorId, onBack, 
             visitReason={ctx.visitReason}
             latestVitalSign={ctx.latestVitalSign}
             loadingVitalSign={ctx.loadingVitalSign}
+            highlightVitals={highlightVitals}
           />
           <div className="doctor-detail-workspace-main" style={{ position: 'relative' }}>
             {showWorkspaceOverlay && (
@@ -202,7 +219,7 @@ const DoctorAppointmentDetail = memo(({ appointment, patient, doctorId, onBack, 
         </div>
 
           <ActionBar
-            handleChat={ctx.handleChat}
+            handleChat={() => checkVitalsAndExecute(ctx.handleChat)}
             canStartConsultation={ctx.canStartConsultation}
             hasStarted={ctx.hasStarted}
             hasAppointmentTimeArrived={ctx.hasAppointmentTimeArrived}
@@ -210,7 +227,7 @@ const DoctorAppointmentDetail = memo(({ appointment, patient, doctorId, onBack, 
             isReadOnlyAppointment={ctx.isReadOnlyAppointment}
             startingConsultation={ctx.startingConsultation}
             handleStartConsultation={ctx.handleStartConsultation}
-            handleVideoCall={ctx.handleVideoCall}
+            handleVideoCall={() => checkVitalsAndExecute(ctx.handleVideoCall)}
             joinDisabled={ctx.joinDisabled}
             actionLabel={ctx.actionLabel}
             currentAppointment={ctx.currentAppointment}
