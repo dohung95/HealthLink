@@ -2,7 +2,7 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../../../providers/auth_provider.dart';
-import '../../../services/patient_service.dart';
+import '../../../services/patient/patient_service.dart';
 import '../../../l10n/app_localizations.dart';
 
 class SecuritySettingsScreen extends StatefulWidget {

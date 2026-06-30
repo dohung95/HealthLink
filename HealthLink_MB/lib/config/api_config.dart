@@ -217,4 +217,21 @@ class ApiConfig {
 
   static String deleteNotification(int notificationId) =>
       '$baseUrl/notifications/$notificationId';
+
+  // ── Medicine Reminder Endpoints ───────────────────────────────────────────
+  /// GET/PUT /api/medicine-reminders/settings – Lấy và cập nhật cài đặt giờ nhắc
+  static const String medicineReminderSettings =
+      '$baseUrl/medicine-reminders/settings';
+
+  /// GET /api/medicine-reminders/today?timing= – Lấy danh sách thuốc hôm nay theo buổi
+  static const String medicineReminderToday =
+      '$baseUrl/medicine-reminders/today';
+
+  /// PATCH /api/medicine-reminders/intake-checks – Tích/bỏ tích một thuốc
+  static const String medicineReminderIntakeCheck =
+      '$baseUrl/medicine-reminders/intake-checks';
+
+  /// PATCH /api/medicine-reminders/today/{timing}/complete – Đánh dấu đã uống hết cả buổi
+  static String medicineReminderComplete(String timing) =>
+      '$baseUrl/medicine-reminders/today/$timing/complete';
 }

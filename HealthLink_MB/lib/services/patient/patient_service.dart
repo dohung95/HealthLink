@@ -1,8 +1,8 @@
 import 'dart:convert';
 import 'package:http/http.dart' as http;
 import 'package:http_parser/http_parser.dart';
-import '../config/api_config.dart';
-import '../models/patient_profile.dart';
+import '../../config/api_config.dart';
+import '../../models/patient/patient_profile.dart';
 
 class PatientService {
   PatientService._();

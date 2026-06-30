@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:intl/intl.dart';
 import '../../../providers/auth_provider.dart';
-import '../../../services/patient_pharmacy/medicine_service.dart';
+import '../../../services/patient/patient_pharmacy/medicine_service.dart';
 import '../../../l10n/app_localizations.dart';
 import 'retail_checkout_screen.dart';
 

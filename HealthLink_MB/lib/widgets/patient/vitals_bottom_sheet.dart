@@ -1,8 +1,8 @@
 import 'package:flutter/material.dart';
-import '../../../l10n/app_localizations.dart';
+import '../../l10n/app_localizations.dart';
 import 'package:provider/provider.dart';
-import '../../../providers/auth_provider.dart';
-import '../../../services/vitals/vital_sign_service.dart';
+import '../../providers/auth_provider.dart';
+import '../../services/patient/vitals/vital_sign_service.dart';
 
 class VitalsBottomSheet extends StatefulWidget {
   final int appointmentId;

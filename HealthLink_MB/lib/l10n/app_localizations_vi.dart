@@ -1717,4 +1717,84 @@ class AppLocalizationsVi extends AppLocalizations {
 
   @override
   String get reviewSuccess => 'Gửi đánh giá thành công!';
+
+  @override
+  String get homeMedicineReminder => 'Nhắc thuốc';
+
+  @override
+  String get medicineReminderTitle => 'Nhắc uống thuốc';
+
+  @override
+  String get medicineReminderSubtitle =>
+      'Quản lý danh sách thuốc hôm nay theo buổi.';
+
+  @override
+  String get medicineReminderMorning => 'Buổi sáng';
+
+  @override
+  String get medicineReminderAfternoon => 'Buổi chiều';
+
+  @override
+  String get medicineReminderEvening => 'Buổi tối';
+
+  @override
+  String get medicineReminderToday => 'HÔM NAY';
+
+  @override
+  String medicineReminderMedicines(String timing) {
+    return 'Thuốc $timing';
+  }
+
+  @override
+  String get medicineReminderNoMedicines =>
+      'Không có thuốc nào được lên lịch cho buổi này.';
+
+  @override
+  String get medicineReminderMarkAllTaken => 'Đánh dấu đã uống tất cả';
+
+  @override
+  String medicineReminderAllTaken(String timing) {
+    return 'Đã uống hết thuốc $timing.';
+  }
+
+  @override
+  String get medicineReminderNotificationsOn => 'Thông báo bật';
+
+  @override
+  String get medicineReminderNotificationsOff => 'Thông báo tắt';
+
+  @override
+  String get medicineReminderSettings => 'Cài đặt nhắc nhở';
+
+  @override
+  String get medicineReminderSaveSettings => 'Lưu cài đặt';
+
+  @override
+  String get medicineReminderSaving => 'Đang lưu...';
+
+  @override
+  String get medicineReminderEnableNotifications => 'Bật thông báo';
+
+  @override
+  String medicineReminderProgress(int checked, int total) {
+    return '$checked/$total';
+  }
+
+  @override
+  String get medicineReminderErrLoad => 'Không thể tải danh sách nhắc thuốc.';
+
+  @override
+  String get medicineReminderErrCheck =>
+      'Không thể cập nhật thuốc này. Vui lòng thử lại.';
+
+  @override
+  String get medicineReminderErrComplete =>
+      'Không thể đánh dấu đã uống tất cả thuốc.';
+
+  @override
+  String get medicineReminderErrSettings =>
+      'Giờ nhắc phải hợp lệ và không trùng nhau.';
+
+  @override
+  String get medicineReminderSettingsSaved => 'Đã lưu cài đặt nhắc nhở.';
 }

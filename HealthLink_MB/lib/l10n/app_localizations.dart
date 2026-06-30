@@ -3277,6 +3277,144 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Review submitted successfully!'**
   String get reviewSuccess;
+
+  /// No description provided for @homeMedicineReminder.
+  ///
+  /// In en, this message translates to:
+  /// **'Medicine Reminder'**
+  String get homeMedicineReminder;
+
+  /// No description provided for @medicineReminderTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Medicine Reminder'**
+  String get medicineReminderTitle;
+
+  /// No description provided for @medicineReminderSubtitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Manage today\'s medicine checklist by timing.'**
+  String get medicineReminderSubtitle;
+
+  /// No description provided for @medicineReminderMorning.
+  ///
+  /// In en, this message translates to:
+  /// **'Morning'**
+  String get medicineReminderMorning;
+
+  /// No description provided for @medicineReminderAfternoon.
+  ///
+  /// In en, this message translates to:
+  /// **'Afternoon'**
+  String get medicineReminderAfternoon;
+
+  /// No description provided for @medicineReminderEvening.
+  ///
+  /// In en, this message translates to:
+  /// **'Evening'**
+  String get medicineReminderEvening;
+
+  /// No description provided for @medicineReminderToday.
+  ///
+  /// In en, this message translates to:
+  /// **'TODAY'**
+  String get medicineReminderToday;
+
+  /// No description provided for @medicineReminderMedicines.
+  ///
+  /// In en, this message translates to:
+  /// **'{timing} medicines'**
+  String medicineReminderMedicines(String timing);
+
+  /// No description provided for @medicineReminderNoMedicines.
+  ///
+  /// In en, this message translates to:
+  /// **'No medicines scheduled for this timing.'**
+  String get medicineReminderNoMedicines;
+
+  /// No description provided for @medicineReminderMarkAllTaken.
+  ///
+  /// In en, this message translates to:
+  /// **'Mark all as taken'**
+  String get medicineReminderMarkAllTaken;
+
+  /// No description provided for @medicineReminderAllTaken.
+  ///
+  /// In en, this message translates to:
+  /// **'All {timing} medicines are marked as taken.'**
+  String medicineReminderAllTaken(String timing);
+
+  /// No description provided for @medicineReminderNotificationsOn.
+  ///
+  /// In en, this message translates to:
+  /// **'Notifications on'**
+  String get medicineReminderNotificationsOn;
+
+  /// No description provided for @medicineReminderNotificationsOff.
+  ///
+  /// In en, this message translates to:
+  /// **'Notifications off'**
+  String get medicineReminderNotificationsOff;
+
+  /// No description provided for @medicineReminderSettings.
+  ///
+  /// In en, this message translates to:
+  /// **'Reminder settings'**
+  String get medicineReminderSettings;
+
+  /// No description provided for @medicineReminderSaveSettings.
+  ///
+  /// In en, this message translates to:
+  /// **'Save settings'**
+  String get medicineReminderSaveSettings;
+
+  /// No description provided for @medicineReminderSaving.
+  ///
+  /// In en, this message translates to:
+  /// **'Saving...'**
+  String get medicineReminderSaving;
+
+  /// No description provided for @medicineReminderEnableNotifications.
+  ///
+  /// In en, this message translates to:
+  /// **'Enable notifications'**
+  String get medicineReminderEnableNotifications;
+
+  /// No description provided for @medicineReminderProgress.
+  ///
+  /// In en, this message translates to:
+  /// **'{checked}/{total}'**
+  String medicineReminderProgress(int checked, int total);
+
+  /// No description provided for @medicineReminderErrLoad.
+  ///
+  /// In en, this message translates to:
+  /// **'Could not load medicine reminders.'**
+  String get medicineReminderErrLoad;
+
+  /// No description provided for @medicineReminderErrCheck.
+  ///
+  /// In en, this message translates to:
+  /// **'Could not update this medicine. Please try again.'**
+  String get medicineReminderErrCheck;
+
+  /// No description provided for @medicineReminderErrComplete.
+  ///
+  /// In en, this message translates to:
+  /// **'Could not mark all medicines as taken.'**
+  String get medicineReminderErrComplete;
+
+  /// No description provided for @medicineReminderErrSettings.
+  ///
+  /// In en, this message translates to:
+  /// **'Reminder times must be valid and distinct.'**
+  String get medicineReminderErrSettings;
+
+  /// No description provided for @medicineReminderSettingsSaved.
+  ///
+  /// In en, this message translates to:
+  /// **'Reminder settings saved.'**
+  String get medicineReminderSettingsSaved;
 }
 
 class _AppLocalizationsDelegate

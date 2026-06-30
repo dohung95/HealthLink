@@ -530,5 +530,44 @@
   "postAnonymously": "Đánh giá ẩn danh",
   "postAnonymouslyHint": "Tên của bạn sẽ được ẩn trên bài đánh giá công khai",
   "submitReviewBtn": "Gửi đánh giá",
-  "reviewSuccess": "Gửi đánh giá thành công!"
+  "reviewSuccess": "Gửi đánh giá thành công!",
+  "homeMedicineReminder": "Nhắc thuốc",
+  "medicineReminderTitle": "Nhắc uống thuốc",
+  "medicineReminderSubtitle": "Quản lý danh sách thuốc hôm nay theo buổi.",
+  "medicineReminderMorning": "Buổi sáng",
+  "medicineReminderAfternoon": "Buổi chiều",
+  "medicineReminderEvening": "Buổi tối",
+  "medicineReminderToday": "HÔM NAY",
+  "medicineReminderMedicines": "Thuốc {timing}",
+  "@medicineReminderMedicines": {
+    "placeholders": {
+      "timing": { "type": "String" }
+    }
+  },
+  "medicineReminderNoMedicines": "Không có thuốc nào được lên lịch cho buổi này.",
+  "medicineReminderMarkAllTaken": "Đánh dấu đã uống tất cả",
+  "medicineReminderAllTaken": "Đã uống hết thuốc {timing}.",
+  "@medicineReminderAllTaken": {
+    "placeholders": {
+      "timing": { "type": "String" }
+    }
+  },
+  "medicineReminderNotificationsOn": "Thông báo bật",
+  "medicineReminderNotificationsOff": "Thông báo tắt",
+  "medicineReminderSettings": "Cài đặt nhắc nhở",
+  "medicineReminderSaveSettings": "Lưu cài đặt",
+  "medicineReminderSaving": "Đang lưu...",
+  "medicineReminderEnableNotifications": "Bật thông báo",
+  "medicineReminderProgress": "{checked}/{total}",
+  "@medicineReminderProgress": {
+    "placeholders": {
+      "checked": { "type": "int" },
+      "total": { "type": "int" }
+    }
+  },
+  "medicineReminderErrLoad": "Không thể tải danh sách nhắc thuốc.",
+  "medicineReminderErrCheck": "Không thể cập nhật thuốc này. Vui lòng thử lại.",
+  "medicineReminderErrComplete": "Không thể đánh dấu đã uống tất cả thuốc.",
+  "medicineReminderErrSettings": "Giờ nhắc phải hợp lệ và không trùng nhau.",
+  "medicineReminderSettingsSaved": "Đã lưu cài đặt nhắc nhở."
 }

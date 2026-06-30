@@ -21,8 +21,8 @@ import 'profile_patient_normal_forChar_screen.dart';
 import 'profile_doctor_normal_forChat_screen.dart';
 import '../../providers/video_call_provider.dart';
 import '../video_audio/video_call_screen.dart';
-import '../../services/vitals/vital_sign_service.dart';
-import 'widgets/vitals_bottom_sheet.dart';
+import '../../services/patient/vitals/vital_sign_service.dart';
+import '../../widgets/patient/vitals_bottom_sheet.dart';
 import '../../l10n/app_localizations.dart';
 
 /// Màn hình Chat Room – hiển thị tin nhắn và cho phép gửi tin nhắn.

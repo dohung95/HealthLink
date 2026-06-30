@@ -1722,4 +1722,84 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get reviewSuccess => 'Review submitted successfully!';
+
+  @override
+  String get homeMedicineReminder => 'Medicine Reminder';
+
+  @override
+  String get medicineReminderTitle => 'Medicine Reminder';
+
+  @override
+  String get medicineReminderSubtitle =>
+      'Manage today\'s medicine checklist by timing.';
+
+  @override
+  String get medicineReminderMorning => 'Morning';
+
+  @override
+  String get medicineReminderAfternoon => 'Afternoon';
+
+  @override
+  String get medicineReminderEvening => 'Evening';
+
+  @override
+  String get medicineReminderToday => 'TODAY';
+
+  @override
+  String medicineReminderMedicines(String timing) {
+    return '$timing medicines';
+  }
+
+  @override
+  String get medicineReminderNoMedicines =>
+      'No medicines scheduled for this timing.';
+
+  @override
+  String get medicineReminderMarkAllTaken => 'Mark all as taken';
+
+  @override
+  String medicineReminderAllTaken(String timing) {
+    return 'All $timing medicines are marked as taken.';
+  }
+
+  @override
+  String get medicineReminderNotificationsOn => 'Notifications on';
+
+  @override
+  String get medicineReminderNotificationsOff => 'Notifications off';
+
+  @override
+  String get medicineReminderSettings => 'Reminder settings';
+
+  @override
+  String get medicineReminderSaveSettings => 'Save settings';
+
+  @override
+  String get medicineReminderSaving => 'Saving...';
+
+  @override
+  String get medicineReminderEnableNotifications => 'Enable notifications';
+
+  @override
+  String medicineReminderProgress(int checked, int total) {
+    return '$checked/$total';
+  }
+
+  @override
+  String get medicineReminderErrLoad => 'Could not load medicine reminders.';
+
+  @override
+  String get medicineReminderErrCheck =>
+      'Could not update this medicine. Please try again.';
+
+  @override
+  String get medicineReminderErrComplete =>
+      'Could not mark all medicines as taken.';
+
+  @override
+  String get medicineReminderErrSettings =>
+      'Reminder times must be valid and distinct.';
+
+  @override
+  String get medicineReminderSettingsSaved => 'Reminder settings saved.';
 }

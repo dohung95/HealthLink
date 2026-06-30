@@ -3,8 +3,8 @@ import 'package:provider/provider.dart';
 import 'package:image_picker/image_picker.dart';
 import '../../../config/api_config.dart';
 import '../../../providers/auth_provider.dart';
-import '../../../services/patient_service.dart';
-import '../../../models/patient_profile.dart';
+import '../../../services/patient/patient_service.dart';
+import '../../../models/patient/patient_profile.dart';
 import '../../../l10n/app_localizations.dart';
 
 class EditPatientProfileScreen extends StatefulWidget {

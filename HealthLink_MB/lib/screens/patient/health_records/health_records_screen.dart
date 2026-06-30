@@ -4,7 +4,7 @@ import 'package:provider/provider.dart';
 import 'package:url_launcher/url_launcher.dart';
 
 import '../../../providers/auth_provider.dart';
-import '../../../services/health_records/health_records_service.dart';
+import '../../../services/patient/health_records/health_records_service.dart';
 import '../../../l10n/app_localizations.dart';
 
 class HealthRecordsScreen extends StatefulWidget {

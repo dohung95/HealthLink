@@ -1,8 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../../providers/auth_provider.dart';
-import '../../services/patient_service.dart';
-import '../../models/patient_profile.dart';
+import '../../services/patient/patient_service.dart';
+import '../../models/patient/patient_profile.dart';
 import '../../config/api_config.dart';
 
 class PatientInfoScreen extends StatefulWidget {

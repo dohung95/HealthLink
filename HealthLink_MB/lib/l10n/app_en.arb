@@ -678,5 +678,44 @@
   "postAnonymously": "Post anonymously",
   "postAnonymouslyHint": "Your name will be hidden from the public review",
   "submitReviewBtn": "Submit Review",
-  "reviewSuccess": "Review submitted successfully!"
+  "reviewSuccess": "Review submitted successfully!",
+  "homeMedicineReminder": "Medicine Reminder",
+  "medicineReminderTitle": "Medicine Reminder",
+  "medicineReminderSubtitle": "Manage today's medicine checklist by timing.",
+  "medicineReminderMorning": "Morning",
+  "medicineReminderAfternoon": "Afternoon",
+  "medicineReminderEvening": "Evening",
+  "medicineReminderToday": "TODAY",
+  "medicineReminderMedicines": "{timing} medicines",
+  "@medicineReminderMedicines": {
+    "placeholders": {
+      "timing": { "type": "String" }
+    }
+  },
+  "medicineReminderNoMedicines": "No medicines scheduled for this timing.",
+  "medicineReminderMarkAllTaken": "Mark all as taken",
+  "medicineReminderAllTaken": "All {timing} medicines are marked as taken.",
+  "@medicineReminderAllTaken": {
+    "placeholders": {
+      "timing": { "type": "String" }
+    }
+  },
+  "medicineReminderNotificationsOn": "Notifications on",
+  "medicineReminderNotificationsOff": "Notifications off",
+  "medicineReminderSettings": "Reminder settings",
+  "medicineReminderSaveSettings": "Save settings",
+  "medicineReminderSaving": "Saving...",
+  "medicineReminderEnableNotifications": "Enable notifications",
+  "medicineReminderProgress": "{checked}/{total}",
+  "@medicineReminderProgress": {
+    "placeholders": {
+      "checked": { "type": "int" },
+      "total": { "type": "int" }
+    }
+  },
+  "medicineReminderErrLoad": "Could not load medicine reminders.",
+  "medicineReminderErrCheck": "Could not update this medicine. Please try again.",
+  "medicineReminderErrComplete": "Could not mark all medicines as taken.",
+  "medicineReminderErrSettings": "Reminder times must be valid and distinct.",
+  "medicineReminderSettingsSaved": "Reminder settings saved."
 }
