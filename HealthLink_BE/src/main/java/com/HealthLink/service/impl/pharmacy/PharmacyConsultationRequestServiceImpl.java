@@ -270,8 +270,6 @@ public class PharmacyConsultationRequestServiceImpl implements PharmacyConsultat
                 .timing(normalizeTimingForResponse(item.getTiming()))
                 .timings(PharmacyServiceHelper.timingsForResponse(item.getTiming()))
                 .route(item.getRoute())
-                .unitPrice(item.getUnitPrice())
-                .totalPrice(item.getTotalPrice())
                 .notes(item.getNotes())
                 .build();
     }

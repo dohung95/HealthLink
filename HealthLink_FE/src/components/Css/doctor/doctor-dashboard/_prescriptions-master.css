@@ -215,11 +215,7 @@
   flex-direction: column;
   gap: 0.5rem;
   min-height: 0;
-  overflow-y: auto;
-  max-height: calc(100dvh - 300px);
   padding-right: 0.25rem;
-  scrollbar-width: thin;
-  scrollbar-color: var(--border) transparent;
 }
 
 .doctor-prescription-list::-webkit-scrollbar {

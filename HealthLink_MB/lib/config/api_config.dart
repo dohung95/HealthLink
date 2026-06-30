@@ -47,9 +47,17 @@ class ApiConfig {
   static const String verifyEmailChange = '$baseUrl/account/patient/auth/email/verify-change';
   static String doctorSchedules(String doctorId) => '$baseUrl/account/doctors/$doctorId/schedules';
 
+  // ── Doctor Schedule (self-management) ────────────────────────────────────
+  static const String mySchedule = '$baseUrl/doctors/schedule';
+  static String deleteSchedule(int id) => '$baseUrl/doctors/schedule/$id';
+  static const String scheduleCalendar = '$baseUrl/doctors/schedule/calendar';
+  static const String scheduleChangeRequests = '$baseUrl/doctors/schedule/change-requests';
+  static const String complianceStatus = '$baseUrl/doctors/compliance/status';
+
   // ── Doctor Profile Endpoints ───────────────────────────────────────────────
   /// GET /api/account/doctors/profile – Lấy profile của bác sĩ đang đăng nhập.
   static const String doctorProfile = '$baseUrl/account/doctors/profile';
+  static const String doctorAvatar  = '$baseUrl/account/doctors/avatar';
 
   // ── Doctor Auth Endpoints ────────────────────────────────────────────────
   /// POST /api/account/doctors/auth/password/request-change – Yêu cầu đổi mật khẩu (gửi OTP)
@@ -118,6 +126,16 @@ class ApiConfig {
   static String rescheduleAppointment(int appointmentId) => '$appointments/$appointmentId/reschedule';
   static String releaseHold(int holdId) => '$baseUrl/appointments/hold-slot/$holdId';
   static String doctorPublicProfile(String doctorId) => '$baseUrl/account/doctors/public/$doctorId';
+
+  //Home Visit
+  static const String homeVisitDoctorSearch = '$baseUrl/home-visit/doctors/search';
+  static const String homeVisitServices = '$baseUrl/home-visit/services';
+  static String homeVisitSlots(String doctorId) => '$baseUrl/home-visit/doctors/$doctorId/home-visit-slots';
+  static const String homeVisitSelectSession = '$baseUrl/home-visit/select-session';
+  static const String createHomeVisitPayPalOrder = '$baseUrl/payment/home-visit/paypal/create';
+  static const String captureHomeVisitPayPalPayment = '$baseUrl/payment/home-visit/paypal/capture';
+  static const String homeVisitScanInfo = '$baseUrl/home-visit/scan-info';
+  static const String homeVisitGeocode = '$baseUrl/home-visit/geocode';
 
   //Upload medical records
   static const String healthRecordAutoDocument = '$baseUrl/health-records/documents/auto';

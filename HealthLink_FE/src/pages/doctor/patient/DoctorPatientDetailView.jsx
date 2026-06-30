@@ -3,6 +3,7 @@ import { vitalSignApi } from '@api/vitalSignApi';
 import { useAuth } from '@context/AuthContext';
 import { toast } from 'sonner';
 import PrescriptionDetailModal from '@components/doctor/PrescriptionDetailModal';
+import PrintPrescriptionModal from '@components/doctor/PrintPrescriptionModal';
 
 const formatDateTime = (value) => {
   if (!value) return 'N/A';
@@ -38,6 +39,7 @@ export default function DoctorPatientDetailView({ patient, history }) {
   const ITEMS_PER_PAGE = 5;
   const [tabPage, setTabPage] = useState(1);
   const [selectedPrescription, setSelectedPrescription] = useState(null);
+  const [prescriptionForPrint, setPrescriptionForPrint] = useState(null);
 
   useEffect(() => { setTabPage(1); }, [activeTab]);
 
@@ -64,6 +66,16 @@ export default function DoctorPatientDetailView({ patient, history }) {
   const handleOpenPrescriptionDetail = useCallback((rx) => {
     setSelectedPrescription(rx);
   }, []);
+
+  const handleOpenPrint = useCallback(() => {
+    setPrescriptionForPrint(selectedPrescription);
+    setSelectedPrescription(null);
+  }, [selectedPrescription]);
+
+  const handleClosePrint = useCallback(() => {
+    setSelectedPrescription(prescriptionForPrint);
+    setPrescriptionForPrint(null);
+  }, [prescriptionForPrint]);
 
   if (!patient) return null;
 
@@ -412,14 +424,23 @@ export default function DoctorPatientDetailView({ patient, history }) {
     }
   };
 
-  const renderModal = selectedPrescription && (
-    <PrescriptionDetailModal
-      show={!!selectedPrescription}
-      prescription={selectedPrescription}
-      appointments={history?.appointments}
-      patientName={patient?.fullName || 'Patient'}
-      onClose={() => setSelectedPrescription(null)}
-    />
+  const renderModal = (selectedPrescription || prescriptionForPrint) && (
+    <>
+      <PrescriptionDetailModal
+        show={!!selectedPrescription}
+        prescription={selectedPrescription}
+        appointments={history?.appointments}
+        patientName={patient?.fullName || 'Patient'}
+        onClose={() => setSelectedPrescription(null)}
+        onPrint={handleOpenPrint}
+      />
+      <PrintPrescriptionModal
+        show={!!prescriptionForPrint}
+        onHide={handleClosePrint}
+        prescription={prescriptionForPrint}
+        patientProfile={patient}
+      />
+    </>
   );
 
   return (

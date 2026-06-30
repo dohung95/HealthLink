@@ -95,7 +95,6 @@ public final class PharmacyOrderMapper {
                 .timing(item.getTiming())
                 .timings(PharmacyServiceHelper.timingsForResponse(item.getTiming()))
                 .route(item.getRoute())
-                .unitPrice(item.getUnitPrice())
                 .totalPrice(item.getTotalPrice())
                 .notes(item.getNotes())
                 .build();

@@ -1,3 +1,18 @@
+import { useState } from 'react';
+
+const formatCurrency = (value) =>
+    Number(value || 0).toLocaleString('en-US', {
+        style: 'currency',
+        currency: 'USD',
+    });
+
+const stripHtml = (html) => {
+    if (!html) return '';
+
+    const doc = new DOMParser().parseFromString(html, 'text/html');
+    return doc.body.textContent || '';
+};
+
 const ConfirmStep = ({
     selectedDoctor,
     selectedSpecialty,
@@ -6,13 +21,39 @@ const ConfirmStep = ({
     homeVisitInfo,
     symptoms,
     files,
+    selectedHomeVisitServices = [],
+    homeVisitEstimate,
     onBack,
     onConfirm,
     confirming = false,
 }) => {
-    const formattedDateTime = selectedSlot?.appointmentTime
-        ? new Date(selectedSlot.appointmentTime).toLocaleString('en-US')
-        : '';
+    const [showServiceDetails, setShowServiceDetails] = useState(false);
+
+    const buildHomeVisitDateTime = (session) => {
+        if (!session?.bookingDate || !session?.startTime) return '';
+
+        const start = session.startTime?.slice(0, 5);
+        const end = session.endTime?.slice(0, 5);
+
+        const dateTime = new Date(`${session.bookingDate}T${start}:00`);
+        const dateLabel = Number.isNaN(dateTime.getTime())
+            ? session.bookingDate
+            : dateTime.toLocaleDateString('en-US', {
+                weekday: 'short',
+                month: 'short',
+                day: 'numeric',
+                year: 'numeric',
+            });
+
+        return end ? `${dateLabel}, ${start} - ${end}` : `${dateLabel}, ${start}`;
+    };
+
+    const formattedDateTime =
+    consultationType === 'HomeVisit'
+        ? buildHomeVisitDateTime(homeVisitInfo?.selectedSession)
+        : selectedSlot?.appointmentTime
+            ? new Date(selectedSlot.appointmentTime).toLocaleString('en-US')
+            : '';
 
     const rows = [
         ['Doctor', selectedDoctor?.fullName || ''],
@@ -22,9 +63,31 @@ const ConfirmStep = ({
     ];
 
     rows.push(
-        ['Symptoms', symptoms || 'None'],
+        ['Symptoms', stripHtml(symptoms) || 'None'],
         ['Attached files', files.length > 0 ? `${files.length} file` : 'None'],
     );
+
+    if (consultationType !== 'HomeVisit') {
+        rows.push(
+            ['Consultation fee', formatCurrency(selectedDoctor?.consultationFee || 0)],
+            ['Total', formatCurrency(selectedDoctor?.consultationFee || 0)]
+        );
+    }
+
+    const doctorFee = Number(selectedDoctor?.consultationFee || 0);
+    const homeVisitBaseFee = Number(homeVisitEstimate?.homeVisitFee || 0);
+    const travelFee = Number(homeVisitEstimate?.travelFee || 0);
+    const homeVisitTotal = Number(homeVisitEstimate?.homeVisitTotal || 0);
+
+    const servicesTotal = selectedHomeVisitServices.reduce(
+        (sum, item) => sum + Number(item.price || 0),
+        0
+    );
+
+    const grandTotal =
+        consultationType === 'HomeVisit'
+            ? doctorFee + homeVisitTotal + servicesTotal
+            : doctorFee;
 
     if (consultationType === 'HomeVisit') {
         rows.push(
@@ -41,15 +104,13 @@ const ConfirmStep = ({
             );
         }
 
-        const hv = homeVisitInfo;
-        const formatUsd = (v) => Number(v || 0).toLocaleString('en-US', { style: 'currency', currency: 'USD' });
-
         rows.push(
-            ['Distance', `${hv?.distanceKm ?? 0} km`],
-            ['Travel Time', `${hv?.estimatedTravelMinutes ?? 0} min`],
-            ['Base home visit fee', formatUsd(hv?.homeVisitFee)],
-            ['Extra distance fee', formatUsd(hv?.travelFee)],
-            ['Total travel fee', formatUsd(hv?.totalFee)],
+            ['Doctor consultation fee', formatCurrency(doctorFee)],
+            ['Base home visit fee', formatCurrency(homeVisitBaseFee)],
+            ['Additional distance fee', formatCurrency(travelFee)],
+            ['Home visit travel total', formatCurrency(homeVisitTotal)],
+            ['Services total', formatCurrency(servicesTotal)],
+            ['Total', formatCurrency(grandTotal)]
         );
     }
     return (
@@ -63,10 +124,61 @@ const ConfirmStep = ({
                 {rows.map(([label, value]) => (
                     <div key={label} className="confirm-row">
                         <span>{label}</span>
-                        <strong>{value}</strong>
+
+                        {label === 'Services total' && selectedHomeVisitServices.length > 0 ? (
+                            <div className="confirm-service-total-value">
+                                <strong>{value}</strong>
+                                <button
+                                    type="button"
+                                    onClick={() => setShowServiceDetails(true)}
+                                >
+                                    View details
+                                </button>
+                            </div>
+                        ) : (
+                            <strong>{value}</strong>
+                        )}
                     </div>
                 ))}
             </div>
+
+            {showServiceDetails && (
+                <div className="confirm-modal-backdrop" role="dialog" aria-modal="true">
+                    <div className="confirm-service-modal">
+                        <div className="confirm-service-modal-header">
+                            <div>
+                                <span>Selected services</span>
+                                <strong>{formatCurrency(servicesTotal)}</strong>
+                            </div>
+
+                            <button
+                                type="button"
+                                aria-label="Close service details"
+                                onClick={() => setShowServiceDetails(false)}
+                            >
+                                ×
+                            </button>
+                        </div>
+
+                        <ul className="confirm-service-modal-list">
+                            {selectedHomeVisitServices.map((item) => (
+                                <li key={item.serviceId}>
+                                    <span>{item.serviceName}</span>
+                                    <strong>{formatCurrency(item.price)}</strong>
+                                </li>
+                            ))}
+                        </ul>
+
+                        <button
+                            type="button"
+                            className="btn-primary-soft confirm-service-modal-action"
+                            onClick={() => setShowServiceDetails(false)}
+                        >
+                            Done
+                        </button>
+                    </div>
+                </div>
+            )}
 
             <div className="schedule-actions">
                 <button type="button" className="btn-outline-soft" onClick={onBack}>

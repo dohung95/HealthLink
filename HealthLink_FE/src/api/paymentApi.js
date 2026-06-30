@@ -24,7 +24,16 @@ const toAppointmentPaymentPayload = (bookingDraft, extra = {}) => {
     visitLatitude,
     visitLongitude,
     sourceConsultationId,
+    homeVisitServiceIds,
+    selectedHomeVisitServices,
+    homeVisitStartTime,
+    homeVisitEndTime,
   } = bookingDraft || {};
+
+  const resolvedHomeVisitServiceIds =
+    homeVisitServiceIds?.length > 0
+      ? homeVisitServiceIds
+      : selectedHomeVisitServices?.map((item) => item.serviceId).filter(Boolean) || [];
 
   return {
     patientId,
@@ -48,6 +57,9 @@ const toAppointmentPaymentPayload = (bookingDraft, extra = {}) => {
     visitLatitude,
     visitLongitude,
     sourceConsultationId,
+    homeVisitServiceIds: resolvedHomeVisitServiceIds,
+    homeVisitStartTime,
+    homeVisitEndTime,
 
     currency: currency || 'USD',
     ...extra,
@@ -93,6 +105,30 @@ export const paymentApi = {
     return response.data;
   },
 
+  createHomeVisitPayPalOrder: async (bookingDraft) => {
+    const { draftId, scheduleId, bookingDate } = bookingDraft || {};
+    const response = await axiosInstance.post('/api/payment/home-visit/paypal/create', {
+      ...toAppointmentPaymentPayload(bookingDraft),
+      draftId,
+      scheduleId,
+      bookingDate,
+    });
+    return response.data;
+  },
+
+  captureHomeVisitPayPalPayment: async (bookingDraft, orderId, paymentMethod = 'EWallet') => {
+    const { draftId, scheduleId, bookingDate } = bookingDraft || {};
+    const response = await axiosInstance.post('/api/payment/home-visit/paypal/capture', {
+      ...toAppointmentPaymentPayload(bookingDraft),
+      draftId,
+      scheduleId,
+      bookingDate,
+      orderId,
+      paymentMethod,
+    });
+    return response.data;
+  },
+
   getPartnerBalance: async (partnerId, type = 'DOCTOR') => {
     const response = await axiosInstance.get(`/api/payment/partner/${partnerId}/balance`, {
       params: { type },
@@ -114,6 +150,24 @@ export const paymentApi = {
     const response = await axiosInstance.post(`/api/payment/partner/${partnerId}/settle`, payload, {
       params: { type },
     });
+    return response.data;
+  },
+
+  createFollowUpPayPalOrder: async (appointmentId) => {
+    const response = await axiosInstance.post(`/api/payment/follow-up/${appointmentId}/create`);
+    return response.data;
+  },
+
+  captureFollowUpPayPalOrder: async (appointmentId, orderId, paymentMethod = 'EWallet') => {
+    const response = await axiosInstance.post(`/api/payment/follow-up/${appointmentId}/capture`, {
+      orderId,
+      paymentMethod,
+    });
+    return response.data;
+  },
+
+  saveFollowUpLocation: async (appointmentId, location) => {
+    const response = await axiosInstance.put(`/api/payment/follow-up/${appointmentId}/location`, location);
     return response.data;
   },
 };

@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import { toast } from 'sonner';
 import { vitalSignApi } from '../api/vitalSignApi';
+import RichTextEditor from '../utils/ckeditor/RichTextEditor';
 
 const initialForm = {
     heartRate: '',
@@ -534,12 +535,10 @@ const PreConsultationVitalsModal = ({
                                     Notes
                                 </label>
 
-                                <textarea
-                                    className="form-control"
-                                    rows="3"
-                                    placeholder="Example: measured after resting for 5 minutes, felt dizzy, mild chest discomfort..."
+                                <RichTextEditor
                                     value={form.notes}
-                                    onChange={(e) => handleChange('notes', e.target.value)}
+                                    onChange={(value) => handleChange('notes', value)}
+                                    placeholder="Example: measured after resting for 5 minutes, felt dizzy, mild chest discomfort..."
                                 />
                             </div>
                         </div>

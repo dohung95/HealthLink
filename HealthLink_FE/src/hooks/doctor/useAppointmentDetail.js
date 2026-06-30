@@ -109,8 +109,8 @@ export function useAppointmentDetail({ appointment, patient, doctorId: currentDo
   const consultation = useMemo(() => buildConsultation(currentAppointment), [currentAppointment]);
 
   const hasPendingFollowUp = useMemo(() =>
-    Boolean(consultation.followUpDate || followUp.selectedFollowUpDateTime),
-    [consultation.followUpDate, followUp.selectedFollowUpDateTime]);
+    Boolean(followUp.selectedFollowUpDateTime),
+    [followUp.selectedFollowUpDateTime]);
 
   const rendered = useMemo(() => {
     const statusKey = normalizeStatus(currentAppointment?.status);
@@ -234,6 +234,12 @@ export function useAppointmentDetail({ appointment, patient, doctorId: currentDo
       }
       : null;
 
+    if (notes.notesDraft?.diagnosis || notes.notesDraft?.doctorNotes || notes.notesDraft?.treatmentPlan) {
+      try {
+        await notes.handleSaveNotes();
+      } catch (_) {}
+    }
+
     setCompletingAppointment(true);
     setShowCompleteConfirmModal(false);
 
@@ -241,6 +247,10 @@ export function useAppointmentDetail({ appointment, patient, doctorId: currentDo
       if (prescriptionPayload) {
         await prescriptionService.createPrescription(prescriptionPayload);
         appointmentData.refreshAppointmentData({ showToast: false });
+      }
+
+      if (followUp.selectedFollowUpDateTime) {
+        await followUp.saveFollowUp(followUp.selectedFollowUpDateTime, followUp.followUpNotes, null);
       }
 
       const completionResult = await appointmentService.completeAppointment(appointmentId, { copyPrescription });
@@ -289,21 +299,12 @@ export function useAppointmentDetail({ appointment, patient, doctorId: currentDo
     } finally {
       setCompletingAppointment(false);
     }
-  }, [appointmentId, appointment, appointmentData, prescriptionDraft, onBack, onOpenAppointmentById]);
+  }, [appointmentId, appointment, appointmentData, notes, prescriptionDraft, followUp, onBack, onOpenAppointmentById]);
 
   const selectedHistoryConsultation = useMemo(
     () => buildConsultation(appointmentData.selectedHistoryAppointment),
     [appointmentData.selectedHistoryAppointment],
   );
-
-  const canCancelFollowUp = useMemo(() =>
-    Boolean(
-      currentAppointment?.appointmentId &&
-      hasPendingFollowUp &&
-      !consultation.followUpAppointmentId &&
-      rendered.canEditFollowUp,
-    ),
-    [currentAppointment?.appointmentId, hasPendingFollowUp, consultation.followUpAppointmentId, rendered.canEditFollowUp]);
 
   return {
     appointment,
@@ -354,9 +355,20 @@ export function useAppointmentDetail({ appointment, patient, doctorId: currentDo
     handleFollowUpMonthChange: followUp.handleFollowUpMonthChange,
     handleSelectFollowUpSlot: followUp.handleSelectFollowUpSlot,
     handleConfirmFollowUp: followUp.handleConfirmFollowUp,
-    handleCancelFollowUp: followUp.handleCancelFollowUp,
+    saveFollowUp: followUp.saveFollowUp,
     setFollowUpNotes: followUp.setFollowUpNotes,
     setFollowUpConsultationType: followUp.setFollowUpConsultationType,
+    followUpPaymentStatus: followUp.followUpPaymentStatus,
+    sendingPaymentRequest: followUp.sendingPaymentRequest,
+    handleSendPaymentRequest: followUp.handleSendPaymentRequest,
+    setFollowUpPaymentStatus: followUp.setFollowUpPaymentStatus,
+    showRescheduleConfirm: followUp.showRescheduleConfirm,
+    isRescheduling: followUp.isRescheduling,
+    handleInitiateReschedule: followUp.handleInitiateReschedule,
+    handleConfirmRescheduleModal: followUp.handleConfirmRescheduleModal,
+    handleCancelRescheduleModal: followUp.handleCancelRescheduleModal,
+    handleSaveReschedule: followUp.handleSaveReschedule,
+    handleCancelReschedule: followUp.handleCancelReschedule,
     statusKey: rendered.statusKey,
     patientName: rendered.patientName,
     patientEmail: rendered.patientEmail,
@@ -374,7 +386,6 @@ export function useAppointmentDetail({ appointment, patient, doctorId: currentDo
     prescriptionLockReason: rendered.prescriptionLockReason,
     actionLabel: rendered.actionLabel,
     visitReason: rendered.visitReason,
-    canCancelFollowUp,
     hasPendingFollowUp,
     effectiveDoctorId,
     currentAppointment,

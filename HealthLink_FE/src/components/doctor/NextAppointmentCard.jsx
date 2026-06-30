@@ -65,7 +65,7 @@ const NextAppointmentCard = ({ appointment, onView, selectedDate }) => {
                     {formatTimeFromDate(appointmentDate)}
                   </span>
                   <span className="doctor-next-card__info-item">
-                    <span className="material-symbols-outlined">videocam</span>
+                    <span className="material-symbols-outlined">{getTypeIcon(appointment.consultationType)}</span>
                     {appointment.consultationType || 'Consultation'}
                   </span>
                 </div>
@@ -81,10 +81,6 @@ const NextAppointmentCard = ({ appointment, onView, selectedDate }) => {
           <div className="doctor-next-card__actions">
             <button className="btn btn-primary" onClick={() => onView(appointment)} type="button">
               <span className="material-symbols-outlined" style={{fontSize:'1rem'}}>open_in_new</span>
-              Open Detail
-            </button>
-            <button className="btn btn-outline-primary" onClick={() => onView(appointment)} type="button">
-              <span className="material-symbols-outlined" style={{fontSize:'1rem'}}>description</span>
               Open Detail
             </button>
           </div>

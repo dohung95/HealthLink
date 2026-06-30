@@ -196,6 +196,9 @@ public class ConsultationServiceImpl implements ConsultationService {
                 .doctorNotes(c.getDoctorNotes())
                 .treatmentPlan(c.getTreatmentPlan())
                 .consultationType(c.getConsultationType())
+                .homeVisitLatitude(c.getHomeVisitLatitude())
+                .homeVisitLongitude(c.getHomeVisitLongitude())
+                .homeVisitServiceIds(c.getHomeVisitServiceIds())
                 .build();
     }
 
@@ -223,7 +226,6 @@ public class ConsultationServiceImpl implements ConsultationService {
         return Consultation.builder()
                 .appointment(appointment)
                 .consultationType(appointment.getConsultationType())
-                .symptoms(appointment.getSymptoms())
                 .build();
     }
 

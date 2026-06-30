@@ -7,6 +7,7 @@
 # === Node.js (Cho React) ===
 # Lờ thư mục thư viện
 /HealthLink_FE/node_modules/
+/node_modules/
 /HealthLink_FE/obj/
 /HealthLink_FE/src/config.js
 # === Spring Boot ===
@@ -79,6 +80,7 @@ lerna-debug.log*
 /.superpowers
 /.github
 /tasks
+/cognee.py
 
 # === Build artifacts ===
 HealthLink_FE/dist/

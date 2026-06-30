@@ -75,6 +75,7 @@ public class AppointmentServiceImpl implements AppointmentService {
     private final HomeVisitDetailsRepository homeVisitDetailsRepository;
     private final NotificationService notificationService;
     private final HomeVisitLocationService homeVisitLocationService;
+    private LocalTime homeVisitEndTime;
 
     @Value("${booking.max-days-ahead}")
     private Integer maxDaysAhead;
@@ -87,6 +88,12 @@ public class AppointmentServiceImpl implements AppointmentService {
 
     @Value("${booking.cancel-min-hours-home-visit:6}")
     private Integer cancelMinHoursHomeVisit;
+
+    @Value("${home-visit.default-visit-duration-minutes:45}")
+    private int defaultVisitDurationMinutes;
+
+    @Value("${home-visit.travel-buffer-minutes:10}")
+    private int travelBufferMinutes;
 
     @Override
     @Transactional
@@ -135,9 +142,17 @@ public class AppointmentServiceImpl implements AppointmentService {
 
         DoctorSchedule matchedSchedule = schedulesOfDay.stream()
                 .filter(s -> isConsultationTypeMatch(s, request.getConsultationType()))
-                .filter(s -> !requestedTime.isBefore(s.getStartTime())
-                && requestedTime.isBefore(s.getEndTime()))
-                .filter(s -> isAlignedWithSlot(s, requestedTime))
+                .filter(s -> !requestedTime.isBefore(s.getStartTime()))
+                .filter(s -> {
+                    if (TYPE_HOME_VISIT.equalsIgnoreCase(request.getConsultationType())
+                            && request.getHomeVisitEndTime() != null) {
+                        return !request.getHomeVisitEndTime().isAfter(s.getEndTime());
+                    }
+
+                    return requestedTime.isBefore(s.getEndTime());
+                })
+                .filter(s -> TYPE_HOME_VISIT.equalsIgnoreCase(request.getConsultationType())
+                || isAlignedWithSlot(s, requestedTime))
                 .findFirst()
                 .orElseThrow(() -> new BusinessException(
                 "Doctor does not have a suitable working shift at "
@@ -145,7 +160,21 @@ public class AppointmentServiceImpl implements AppointmentService {
 
         int slotMinutes = Objects.requireNonNullElse(matchedSchedule.getSlotDuration(), 30);
         LocalDateTime slotStart = appointmentTime;
-        LocalDateTime slotEnd = appointmentTime.plusMinutes(slotMinutes);
+
+        LocalDateTime slotEnd;
+        if (TYPE_HOME_VISIT.equalsIgnoreCase(request.getConsultationType())
+                && request.getHomeVisitEndTime() != null) {
+            slotEnd = LocalDateTime.of(
+                    appointmentTime.toLocalDate(),
+                    request.getHomeVisitEndTime()
+            );
+        } else {
+            slotEnd = appointmentTime.plusMinutes(slotMinutes);
+        }
+
+        if (!slotEnd.isAfter(slotStart)) {
+            throw new BusinessException("Invalid home visit slot time");
+        }
 
         boolean hasConflict = appointmentRepository.existsDoctorAppointmentOverlap(
                 doctor.getDoctorId(),
@@ -179,7 +208,7 @@ public class AppointmentServiceImpl implements AppointmentService {
                 .patient(patient)
                 .doctor(doctor)
                 .appointmentTime(appointmentTime)
-                .endTime(appointmentTime.plusMinutes(slotMinutes))
+                .endTime(slotEnd)
                 .consultationType(request.getConsultationType())
                 .status(STATUS_SCHEDULED)
                 .symptoms(request.getSymptoms())
@@ -528,6 +557,7 @@ public class AppointmentServiceImpl implements AppointmentService {
     }
 
     @Override
+    @Transactional(readOnly = true)
     public List<AppointmentResponse> getPatientAppointments(String patientId) {
         patientRepository.findById(patientId)
                 .orElseThrow(() -> new ResourceNotFoundException(
@@ -541,6 +571,7 @@ public class AppointmentServiceImpl implements AppointmentService {
     }
 
     @Override
+    @Transactional(readOnly = true)
     public PagedResponse<AppointmentResponse> getPatientAppointmentsPaged(
             String patientId,
             int page,
@@ -1011,6 +1042,7 @@ public class AppointmentServiceImpl implements AppointmentService {
                 .doctorName(appointment.getDoctor().getFullName())
                 .doctorAvatar(appointment.getDoctor().getAvatarUrl())
                 .appointmentTime(appointment.getAppointmentTime())
+                .endTime(appointment.getEndTime())
                 .consultationType(appointment.getConsultationType())
                 .status(appointment.getStatus())
                 .fee(appointment.getFee())

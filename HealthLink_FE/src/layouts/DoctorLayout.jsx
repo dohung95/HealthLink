@@ -12,6 +12,7 @@ const DoctorLayout = memo(({
   notifications,
   unreadCount,
   chatUnreadCount = 0,
+  hasNewNotification,
   showNotificationDropdown,
   notificationRef,
   onNavigate,
@@ -24,6 +25,7 @@ const DoctorLayout = memo(({
   onChangePassword,
   onNavigateToProfile,
   onNavigateToWallet,
+  onClearNewNotification,
 }) => {
   useEffect(() => {
     document.body.style.overflow = isMobileMenuOpen || showAllNotifications ? 'hidden' : 'unset';
@@ -51,9 +53,9 @@ const DoctorLayout = memo(({
             <span className="material-symbols-outlined">{item.icon}</span>
             <span>{item.label}</span>
             {item.key === 'chat' && chatUnreadCount > 0 && (
-                <span className="badge bg-danger rounded-pill ms-auto" style={{ fontSize: '0.75rem' }}>
-                    {chatUnreadCount > 99 ? '99+' : chatUnreadCount}
-                </span>
+              <span className="badge bg-danger rounded-pill ms-auto" style={{ fontSize: '0.75rem' }}>
+                {chatUnreadCount > 99 ? '99+' : chatUnreadCount}
+              </span>
             )}
           </button>
         );
@@ -150,6 +152,7 @@ const DoctorLayout = memo(({
           showAllNotifications={showAllNotifications}
           notifications={notifications}
           unreadCount={unreadCount}
+          hasNewNotification={hasNewNotification}
           showNotificationDropdown={showNotificationDropdown}
           notificationRef={notificationRef}
           onToggleMobileMenu={onToggleMobileMenu}
@@ -161,6 +164,7 @@ const DoctorLayout = memo(({
           onChangePassword={onChangePassword}
           onNavigateToProfile={onNavigateToProfile}
           onNavigateToWallet={onNavigateToWallet}
+          onClearNewNotification={onClearNewNotification}
         />
         <main className="doctor-main-content p-3 pb-5 p-md-4">
           <div className={`w-100 ${isDetailView ? 'doctor-detail-wrapper' : ''}`}>

@@ -245,7 +245,6 @@ class FollowUpAppointmentServiceImplTest {
                 .startTime(LocalDateTime.now().minusMinutes(30))
                 .followUpDate(date.atTime(20, 0))
                 .followUpNotes("Return for review")
-                .symptoms("Cough")
                 .build();
         sourceAppointment.setConsultation(consultation);
 
@@ -444,8 +443,6 @@ class FollowUpAppointmentServiceImplTest {
                 .frequency("Once daily")
                 .timing("MORNING")
                 .route("Oral")
-                .unitPrice(new BigDecimal("1.00"))
-                .totalPrice(new BigDecimal("30.00"))
                 .build());
 
         return header;

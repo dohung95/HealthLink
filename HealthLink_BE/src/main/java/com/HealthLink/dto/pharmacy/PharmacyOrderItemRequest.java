@@ -1,6 +1,5 @@
 package com.HealthLink.dto.pharmacy;
 
-import jakarta.validation.constraints.DecimalMin;
 import jakarta.validation.constraints.Min;
 import jakarta.validation.constraints.NotNull;
 import lombok.Data;
@@ -27,9 +26,6 @@ public class PharmacyOrderItemRequest {
     private String timing;
     private List<String> timings;
     private String route;
-
-    @DecimalMin(value = "0.0", inclusive = true, message = "Unit price must be greater than or equal to 0")
-    private BigDecimal unitPrice;
 
     private String notes;
     private Integer sourcePrescriptionHeaderId;

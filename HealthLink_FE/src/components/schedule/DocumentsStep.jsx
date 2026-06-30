@@ -1,6 +1,7 @@
 import { useRef } from "react";
 import { toast } from 'sonner';
 import { moderateImageFile, isImageFile } from '../../utils/imageModeration';
+import RichTextEditor from '../../utils/ckeditor/RichTextEditor';
 
 const DocumentsStep = ({
     symptoms,
@@ -88,10 +89,12 @@ const DocumentsStep = ({
 
             <div className="symptom-field">
                 <label>Symptoms / reason for examination</label>
-                <textarea
-                    rows={5}
+                <RichTextEditor
                     value={symptoms}
-                    onChange={(e) => setSymptoms(e.target.value)}
+                    onChange={(html) => {
+                        const doc = new DOMParser().parseFromString(html, 'text/html');
+                        setSymptoms(doc.body.textContent || '');
+                    }}
                     placeholder="Example: mild chest pain for the past 2 days, shortness of breath when exercising..."
                 />
             </div>

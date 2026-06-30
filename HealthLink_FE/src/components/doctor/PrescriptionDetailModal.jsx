@@ -17,6 +17,7 @@ export default function PrescriptionDetailModal({
   appointments,
   patientName,
   onClose,
+  onPrint,
 }) {
   const dialogRef = useRef(null);
 
@@ -117,7 +118,19 @@ export default function PrescriptionDetailModal({
         <div ref={dialogRef} tabIndex={-1} role="dialog" aria-modal="true" aria-label="Prescription details" onClick={(e) => e.stopPropagation()} className="pd-modal">
           <div className="pd-modal__header">
             <h3>Prescription Details</h3>
-            <button type="button" className="pd-modal__close" onClick={onClose} aria-label="Close">&times;</button>
+            <div className="d-flex align-items-center gap-2">
+              <button
+                type="button"
+                className="btn btn-sm d-inline-flex align-items-center gap-1 rounded-pill px-3 py-1 border-0"
+                onClick={onPrint}
+                title="Print / Save as PDF"
+                style={{ background: '#0052cc', color: '#fff', fontWeight: 600, fontSize: '0.75rem' }}
+              >
+                <span className="material-symbols-outlined" style={{ fontSize: '0.875rem' }}>local_printshop</span>
+                Print
+              </button>
+              <button type="button" className="pd-modal__close" onClick={onClose} aria-label="Close">&times;</button>
+            </div>
           </div>
           <div className="pd-modal__body">
             <div className="pd-modal__left">

@@ -21,7 +21,6 @@ public class PharmacyOrderItemResponse {
     private String timing;
     private List<String> timings;
     private String route;
-    private BigDecimal unitPrice;
     private BigDecimal totalPrice;
     private String notes;
 }

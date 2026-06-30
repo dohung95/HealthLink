@@ -1,7 +1,7 @@
 package com.HealthLink.entity;
 import jakarta.persistence.*;
 import lombok.*;
-import java.math.BigDecimal;
+import org.hibernate.annotations.Nationalized;
 
 @Entity
 @Table(name = "PrescriptionItems")
@@ -25,6 +25,7 @@ public class PrescriptionItem {
     @Column(nullable = false, length = 100)
     private String dosage;
 
+    @Nationalized
     @Column(nullable = false, length = 500)
     private String instructions;
 
@@ -50,9 +51,7 @@ public class PrescriptionItem {
     @Column(length = 50)
     private String route;
 
-    private BigDecimal unitPrice;
-    private BigDecimal totalPrice;
-
+    @Nationalized
     @Column(length = 500)
     private String notes;
 }

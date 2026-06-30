@@ -44,7 +44,8 @@ const HomeVisitStep = ({
   homeVisitInfo,
   setHomeVisitInfo,
   patientProfile,
-  selectedDoctorId,
+  selectedSpecialty,
+  onDoctorsLoaded,
   onBack,
   onNext,
 }) => {
@@ -240,47 +241,6 @@ const HomeVisitStep = ({
   };
 
   const handleEstimateFee = async () => {
-    if (!homeVisitInfo.visitLatitude || !homeVisitInfo.visitLongitude) {
-      toast.warning('Please select the visit location first.');
-      return;
-    }
-
-    try {
-      setEstimating(true);
-
-      const result = await homeVisitApi.estimateFee({
-        doctorId: selectedDoctorId,
-        visitLatitude: homeVisitInfo.visitLatitude,
-        visitLongitude: homeVisitInfo.visitLongitude,
-      });
-
-      setEstimate(result);
-
-
-      setHomeVisitInfo((prev) => ({
-        ...prev,
-        distanceKm: result.distanceKm,
-        estimatedTravelMinutes: result.estimatedTravelMinutes,
-        homeVisitFee: result.homeVisitFee,
-        travelFee: result.travelFee,
-        totalFee: result.totalFee,
-        serviceable: result.serviceable,
-        serviceMessage: result.message,
-      }));
-
-      if (result.serviceable) {
-        toast.success('Travel fee estimated.');
-      } else {
-        toast.warning(result.message || 'This address is outside our service area.');
-      }
-    } catch (error) {
-      toast.error(error.response?.data?.message || 'Cannot estimate travel fee.');
-    } finally {
-      setEstimating(false);
-    }
-  };
-
-  const handleNext = () => {
     if (!homeVisitInfo.visitAddress?.trim()) {
       toast.warning('Visit address is required.');
       return;
@@ -318,18 +278,29 @@ const HomeVisitStep = ({
       return;
     }
 
-    if (!estimate) {
-      toast.warning('Please estimate the travel fee before continuing.');
-      return;
+    try {
+      setEstimating(true);
+
+      const doctors = await homeVisitApi.searchDoctors({
+        visitLatitude: homeVisitInfo.visitLatitude,
+        visitLongitude: homeVisitInfo.visitLongitude,
+        specialtyName: selectedSpecialty,
+      });
+
+      onDoctorsLoaded(doctors || []);
+
+      if (!doctors || doctors.length === 0) {
+        toast.warning('No home visit doctors are available for this location.');
+        return;
+      }
+
+      toast.success('Available home visit doctors found.');
+      onNext();
+    } catch (error) {
+      toast.error(error.response?.data?.message || 'Cannot find home visit doctors.');
+    } finally {
+      setEstimating(false);
     }
-
-    if (!estimate.serviceable) {
-      toast.warning('This address is outside our home visit service area.');
-      return;
-
-    }
-
-    onNext();
   };
 
   return (
@@ -462,7 +433,28 @@ const HomeVisitStep = ({
       )}
 
       <div className="home-visit-grid">
+
+        <label>
+          City / Province
+          <input value={homeVisitInfo.visitCity || ''} onChange={(e) => updateField('visitCity', e.target.value)} placeholder="City or province" />
+        </label>
+
+        <label>
+          Contact phone <span>*</span>
+          <input value={homeVisitInfo.contactPhone || ''} onChange={(e) => updateField('contactPhone', e.target.value)} placeholder="Phone number for doctor contact" />
+        </label>
+
         <label className="home-visit-full">
+          Reason for home visit <span>*</span>
+          <textarea rows={3} value={homeVisitInfo.reasonForHomeVisit || ''} onChange={(e) => updateField('reasonForHomeVisit', e.target.value)} placeholder="Example: elderly patient has difficulty walking..." />
+        </label>
+
+        <label className="home-visit-full">
+          Special notes
+          <textarea rows={2} value={homeVisitInfo.specialNotes || ''} onChange={(e) => updateField('specialNotes', e.target.value)} placeholder="Gate code, floor number, mobility issues..." />
+        </label>
+
+        <label className="home-visit-full home-visit-address-field">
           Visit address <span>*</span>
 
           <input
@@ -483,7 +475,7 @@ const HomeVisitStep = ({
           </small>
         </label>
 
-        <div className="home-visit-full">
+        <div className="home-visit-full home-visit-map-field">
           <div className="map-actions">
             <button
               type="button"
@@ -492,14 +484,8 @@ const HomeVisitStep = ({
             >
               Use my current location
             </button>
-
-            <button
-              type="button"
-              className="btn-outline-soft"
-              onClick={handleEstimateFee}
-              disabled={estimating}
-            >
-              {estimating ? 'Estimating...' : 'Estimate travel fee'}
+            <button type="button" className="btn-outline-soft" onClick={handleEstimateFee} disabled={estimating}>
+              {estimating ? 'Searching...' : 'Find available doctors'}
             </button>
           </div>
 
@@ -562,43 +548,8 @@ const HomeVisitStep = ({
           )}
         </div>
 
-        <label>
-          City / Province
-          <input
-            value={homeVisitInfo.visitCity || ''}
-            onChange={(e) => updateField('visitCity', e.target.value)}
-            placeholder="City or province"
-          />
-        </label>
 
-        <label>
-          Contact phone <span>*</span>
-          <input
-            value={homeVisitInfo.contactPhone || ''}
-            onChange={(e) => updateField('contactPhone', e.target.value)}
-            placeholder="Phone number for doctor contact"
-          />
-        </label>
 
-        <label className="home-visit-full">
-          Reason for home visit <span>*</span>
-          <textarea
-            rows={3}
-            value={homeVisitInfo.reasonForHomeVisit || ''}
-            onChange={(e) => updateField('reasonForHomeVisit', e.target.value)}
-            placeholder="Example: elderly patient has difficulty walking..."
-          />
-        </label>
-
-        <label className="home-visit-full">
-          Special notes
-          <textarea
-            rows={2}
-            value={homeVisitInfo.specialNotes || ''}
-            onChange={(e) => updateField('specialNotes', e.target.value)}
-            placeholder="Gate code, floor number, mobility issues..."
-          />
-        </label>
       </div>
 
       <div className="documents-note">
@@ -606,12 +557,14 @@ const HomeVisitStep = ({
       </div>
 
       <div className="schedule-actions">
-        <button type="button" className="btn-outline-soft" onClick={onBack}>
-          Back
-        </button>
-
-        <button type="button" className="btn-primary-soft" onClick={handleNext}>
-          Next
+        <button type="button" className="btn-outline-soft" onClick={onBack}>Back</button>
+        <button
+          type="button"
+          className="btn-primary-soft"
+          onClick={handleEstimateFee}
+          disabled={estimating}
+        >
+          {estimating ? 'Searching...' : 'Next'}
         </button>
       </div>
     </div>

@@ -135,7 +135,6 @@ class InvoicePdfServiceImplTest {
             PharmacyOrderItem item = PharmacyOrderItem.builder()
                     .medicationName("Medicine " + i)
                     .quantity(1)
-                    .unitPrice(new BigDecimal("10.00"))
                     .totalPrice(new BigDecimal("10.00"))
                     .build();
             order.getOrderItems().add(item);
@@ -210,7 +209,6 @@ class InvoicePdfServiceImplTest {
         PharmacyOrderItem item = PharmacyOrderItem.builder()
                 .medicationName("Amlodipine 5mg")
                 .quantity(30)
-                .unitPrice(new BigDecimal("0.50"))
                 .totalPrice(new BigDecimal("15.00"))
                 .build();
 

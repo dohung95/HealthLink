@@ -1,6 +1,7 @@
 package com.HealthLink.service.impl.payment;
 
 import com.HealthLink.config.PayPalConfig;
+import com.HealthLink.dto.consultation.FollowUpResponse;
 import com.HealthLink.dto.payment.AppointmentPayPalCaptureRequest;
 import com.HealthLink.dto.payment.AppointmentPayPalOrderRequest;
 import com.HealthLink.dto.payment.InvoiceResponse;
@@ -36,6 +37,7 @@ import com.HealthLink.service.payment.FinanceService;
 import com.HealthLink.service.payment.InvoicePdfService;
 import com.HealthLink.entity.enums.NotificationPriority;
 import com.HealthLink.entity.enums.NotificationType;
+import com.HealthLink.entity.enums.FollowUpStatus;
 import com.HealthLink.entity.enums.HomeVisitProposalStatus;
 import com.HealthLink.entity.User;
 import com.HealthLink.utility.mapper.PharmacyOrderMapper;
@@ -60,6 +62,10 @@ import org.springframework.util.MultiValueMap;
 import org.springframework.web.client.HttpStatusCodeException;
 import org.springframework.web.client.RestTemplate;
 import com.HealthLink.dto.response.HomeVisitEstimateResponse;
+import com.HealthLink.entity.AppointmentHomeVisitService;
+import com.HealthLink.entity.HomeVisitService;
+import com.HealthLink.repository.appointment.AppointmentHomeVisitServiceRepository;
+import com.HealthLink.repository.appointment.HomeVisitServiceRepository;
 import com.HealthLink.service.homevisit.HomeVisitLocationService;
 
 import java.math.BigDecimal;
@@ -67,6 +73,7 @@ import java.math.RoundingMode;
 import java.nio.charset.StandardCharsets;
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
+import java.util.Arrays;
 import java.util.Base64;
 import java.util.Collections;
 import java.util.HashMap;
@@ -129,6 +136,8 @@ public class FinanceServiceImpl implements FinanceService {
     private final NotificationService notificationService;
     private final DeviceTokenRepository deviceTokenRepository;
     private final HomeVisitLocationService homeVisitLocationService;
+    private final HomeVisitServiceRepository homeVisitServiceRepository;
+    private final AppointmentHomeVisitServiceRepository appointmentHomeVisitServiceRepository;
 
     /**
      * Service xử lý logic chiết khấu sau khi thanh toán thành công
@@ -184,7 +193,8 @@ public class FinanceServiceImpl implements FinanceService {
                 doctor,
                 request.getConsultationType(),
                 request.getVisitLatitude(),
-                request.getVisitLongitude()
+                request.getVisitLongitude(),
+                request.getHomeVisitServiceIds()
         );
         String currency = request.getCurrency() != null ? request.getCurrency() : "USD";
         String amountStr = amount.setScale(2, RoundingMode.HALF_UP).toPlainString();
@@ -393,7 +403,8 @@ public class FinanceServiceImpl implements FinanceService {
                 doctor,
                 request.getConsultationType(),
                 request.getVisitLatitude(),
-                request.getVisitLongitude()
+                request.getVisitLongitude(),
+                request.getHomeVisitServiceIds()
         );
 
         if (paymentRepository.findByTransactionId(request.getOrderId()).isPresent()) {
@@ -470,14 +481,21 @@ public class FinanceServiceImpl implements FinanceService {
                 appointment.setFollowUpSourceAppointmentId(sourceConsultation.getAppointment().getAppointmentId());
             }
             appointment = appointmentRepository.save(appointment);
+
+            if (TYPE_HOME_VISIT.equalsIgnoreCase(appointment.getConsultationType())) {
+                saveAppointmentHomeVisitServices(appointment, request.getHomeVisitServiceIds());
+            }
+
             linkSourceConsultation(sourceConsultation, appointment);
 
             notifyDoctorAboutNewAppointmentAfterCommit(appointment);
 
             BigDecimal consultationFee = appointment.getFee() != null
                     ? appointment.getFee()
-                    : expectedAmount;
+                    : resolveDoctorConsultationFee(doctor);
             consultationFee = consultationFee.setScale(2, RoundingMode.HALF_UP);
+
+            BigDecimal invoiceAmount = expectedAmount.setScale(2, RoundingMode.HALF_UP);
 
             Invoice invoice = Invoice.builder()
                     .appointment(appointment)
@@ -488,7 +506,7 @@ public class FinanceServiceImpl implements FinanceService {
                     .deliveryFee(BigDecimal.ZERO)
                     .discount(BigDecimal.ZERO)
                     .tax(BigDecimal.ZERO)
-                    .amount(consultationFee)
+                    .amount(invoiceAmount)
                     .status(INVOICE_PAID)
                     .issueDate(paidAt)
                     .dueDate(paidAt)
@@ -709,6 +727,288 @@ public class FinanceServiceImpl implements FinanceService {
         }
     }
 
+    @Override
+    @Transactional
+    public FollowUpResponse saveFollowUpLocation(Integer appointmentId, Map<String, Object> body) {
+        Consultation c = consultationRepository
+                .findByAppointment_AppointmentId(appointmentId)
+                .orElseThrow(() -> new BadRequestException("Consultation not found: " + appointmentId));
+        if (c.getFollowUpStatus() != FollowUpStatus.PENDING_PAYMENT)
+            throw new BadRequestException("Follow-up is not in PENDING_PAYMENT status");
+        if (!"HomeVisit".equalsIgnoreCase(c.getConsultationType()))
+            throw new BadRequestException("Only HomeVisit follow-up can set location");
+
+        Number latNum = (Number) body.get("visitLatitude");
+        Number lngNum = (Number) body.get("visitLongitude");
+        if (latNum == null || lngNum == null)
+            throw new BadRequestException("visitLatitude and visitLongitude are required");
+        c.setHomeVisitLatitude(latNum.doubleValue());
+        c.setHomeVisitLongitude(lngNum.doubleValue());
+
+        @SuppressWarnings("unchecked")
+        List<Integer> serviceIds = (List<Integer>) body.get("homeVisitServiceIds");
+        if (serviceIds != null && !serviceIds.isEmpty()) {
+            c.setHomeVisitServiceIds(
+                    serviceIds.stream().map(String::valueOf).collect(Collectors.joining(",")));
+        }
+
+        consultationRepository.save(c);
+
+        return FollowUpResponse.builder()
+                .consultationId(c.getConsultationId())
+                .appointmentId(c.getAppointment().getAppointmentId())
+                .followUpDate(c.getFollowUpDate())
+                .followUpNotes(c.getFollowUpNotes())
+                .diagnosis(c.getDiagnosis())
+                .doctorNotes(c.getDoctorNotes())
+                .treatmentPlan(c.getTreatmentPlan())
+                .consultationType(c.getConsultationType())
+                .followUpStatus(c.getFollowUpStatus() != null ? c.getFollowUpStatus().name() : null)
+                .homeVisitLatitude(c.getHomeVisitLatitude())
+                .homeVisitLongitude(c.getHomeVisitLongitude())
+                .homeVisitServiceIds(c.getHomeVisitServiceIds())
+                .build();
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public Map<String, Object> createFollowUpPayPalOrder(Integer appointmentId) {
+        Consultation consultation = consultationRepository
+                .findByAppointment_AppointmentId(appointmentId)
+                .orElseThrow(() -> new BadRequestException("Consultation not found for appointment: " + appointmentId));
+
+        if (consultation.getFollowUpStatus() != FollowUpStatus.PENDING_PAYMENT) {
+            throw new BadRequestException("Follow-up is not in PENDING_PAYMENT status");
+        }
+
+        Appointment sourceAppointment = consultation.getAppointment();
+        Doctor doctor = sourceAppointment.getDoctor();
+        List<Integer> serviceIds = parseServiceIds(consultation.getHomeVisitServiceIds());
+        BigDecimal amount = resolveAppointmentCheckoutAmount(doctor, consultation.getConsultationType(), consultation.getHomeVisitLatitude(), consultation.getHomeVisitLongitude(), serviceIds);
+        String currency = "USD";
+        String amountStr = amount.setScale(2, RoundingMode.HALF_UP).toPlainString();
+        String description = String.format(
+                "HealthLink Follow-up %s with %s",
+                consultation.getConsultationType(),
+                safeValue(doctor.getFullName(), "Doctor")
+        );
+
+        Map<String, Object> amountMap = Map.of("currency_code", currency, "value", amountStr);
+        Map<String, Object> purchaseUnit = Map.of(
+                "reference_id", "follow-up-" + appointmentId,
+                "description", description,
+                "custom_id", String.format("%s:%d", sourceAppointment.getPatient().getPatientId(), appointmentId),
+                "amount", amountMap
+        );
+        Map<String, Object> applicationContext = Map.of(
+                "return_url", "healthlink://paypal-success",
+                "cancel_url", "healthlink://paypal-cancel",
+                "user_action", "PAY_NOW",
+                "brand_name", "HealthLink"
+        );
+
+        Map<String, Object> payload = Map.of(
+                "intent", "CAPTURE",
+                "purchase_units", List.of(purchaseUnit),
+                "application_context", applicationContext
+        );
+
+        try {
+            String accessToken = getPayPalAccessToken();
+            HttpHeaders headers = new HttpHeaders();
+            headers.setBearerAuth(accessToken);
+            headers.setContentType(MediaType.APPLICATION_JSON);
+            HttpEntity<Map<String, Object>> entity = new HttpEntity<>(payload, headers);
+
+            ResponseEntity<Map> response = restTemplate.exchange(
+                    payPalConfig.getBaseUrl() + "/v2/checkout/orders",
+                    HttpMethod.POST, entity, Map.class);
+
+            Map<String, Object> responseBody = response.getBody();
+            if (responseBody == null) throw new PayPalIntegrationException("Empty PayPal response");
+
+            String orderId = (String) responseBody.get("id");
+            String approvalUrl = null;
+            Object linksObj = responseBody.get("links");
+            if (linksObj instanceof List<?> links) {
+                for (Object linkObj : links) {
+                    if (linkObj instanceof Map<?, ?> link) {
+                        if ("approve".equalsIgnoreCase(String.valueOf(link.get("rel")))) {
+                            approvalUrl = String.valueOf(link.get("href"));
+                            break;
+                        }
+                    }
+                }
+            }
+
+            log.info("PayPal follow-up order created: {} for appointmentId={}", orderId, appointmentId);
+
+            Map<String, Object> result = new HashMap<>();
+            result.put("orderId", orderId);
+            result.put("amount", amount);
+            result.put("currency", currency);
+            result.put("approvalUrl", approvalUrl);
+            result.put("links", responseBody.get("links"));
+            return result;
+
+        } catch (PayPalIntegrationException ex) {
+            throw ex;
+        } catch (HttpStatusCodeException ex) {
+            throw payPalApiException("PayPal follow-up order creation", ex);
+        } catch (Exception ex) {
+            throw new PayPalIntegrationException("Error creating PayPal follow-up order: " + ex.getMessage(), ex);
+        }
+    }
+
+    @Override
+    @Transactional
+    public FollowUpResponse captureFollowUpPayPalPayment(String orderId, Integer appointmentId, String paymentMethod) {
+        Consultation consultation = consultationRepository
+                .findByAppointment_AppointmentId(appointmentId)
+                .orElseThrow(() -> new BadRequestException("Consultation not found for appointment: " + appointmentId));
+
+        if (consultation.getFollowUpStatus() != FollowUpStatus.PENDING_PAYMENT) {
+            throw new BadRequestException("Follow-up is not in PENDING_PAYMENT status");
+        }
+
+        if (paymentRepository.findByTransactionId(orderId).isPresent()) {
+            throw new BadRequestException("PayPal transaction already processed: " + orderId);
+        }
+
+        Appointment sourceAppointment = consultation.getAppointment();
+        Doctor doctor = sourceAppointment.getDoctor();
+        Patient patient = sourceAppointment.getPatient();
+        List<Integer> serviceIds = parseServiceIds(consultation.getHomeVisitServiceIds());
+        BigDecimal expectedAmount = resolveAppointmentCheckoutAmount(doctor, consultation.getConsultationType(), consultation.getHomeVisitLatitude(), consultation.getHomeVisitLongitude(), serviceIds);
+
+        String accessToken = getPayPalAccessToken();
+        HttpHeaders headers = new HttpHeaders();
+        headers.setBearerAuth(accessToken);
+        headers.setContentType(MediaType.APPLICATION_JSON);
+
+        try {
+            ResponseEntity<Map> response = restTemplate.exchange(
+                    payPalConfig.getBaseUrl() + "/v2/checkout/orders/" + orderId + "/capture",
+                    HttpMethod.POST, new HttpEntity<>("{}", headers), Map.class);
+
+            Map<String, Object> responseBody = response.getBody();
+            if (responseBody == null) throw new PayPalIntegrationException("Empty PayPal capture response");
+
+            String paypalStatus = (String) responseBody.get("status");
+            String metadata = objectMapper.writeValueAsString(responseBody);
+            BigDecimal capturedAmount = extractCapturedAmount(responseBody, expectedAmount);
+            validatePayPalCaptureMatchesFollowUpCheckout(responseBody, expectedAmount, appointmentId);
+            String payMethod = "EWallet";
+
+            if (!"COMPLETED".equals(paypalStatus)) {
+                Payment failedPayment = Payment.builder()
+                        .amount(capturedAmount).paymentMethod(payMethod)
+                        .paymentGateway(GATEWAY_PAYPAL).transactionId(orderId)
+                        .status(PAYMENT_FAILED)
+                        .failureReason("PayPal status: " + paypalStatus)
+                        .metadata(metadata).build();
+                paymentRepository.save(failedPayment);
+                throw new PayPalIntegrationException("PayPal transaction failed, status: " + paypalStatus);
+            }
+
+            LocalDateTime followUpDate = consultation.getFollowUpDate();
+            if (followUpDate == null) throw new BadRequestException("Follow-up date not set on consultation");
+
+            Appointment followUpAppointment = new Appointment();
+            followUpAppointment.setPatient(patient);
+            followUpAppointment.setDoctor(doctor);
+            followUpAppointment.setAppointmentTime(followUpDate);
+            followUpAppointment.setStatus(APPT_SCHEDULED);
+            followUpAppointment.setConsultationType(consultation.getConsultationType());
+            followUpAppointment.setConfirmedAt(LocalDateTime.now());
+            followUpAppointment.setFee(expectedAmount);
+            if (consultation.getFollowUpNotes() != null) {
+                followUpAppointment.setNotes(consultation.getFollowUpNotes());
+            }
+            followUpAppointment.setFollowUpSourceAppointmentId(sourceAppointment.getAppointmentId());
+            followUpAppointment = appointmentRepository.save(followUpAppointment);
+
+            List<Integer> svcIds = parseServiceIds(consultation.getHomeVisitServiceIds());
+            saveAppointmentHomeVisitServices(followUpAppointment, svcIds);
+
+            consultation.setFollowUpAppointmentId(followUpAppointment.getAppointmentId());
+            consultation.setFollowUpStatus(FollowUpStatus.PAID);
+            consultationRepository.save(consultation);
+
+            Invoice invoice = Invoice.builder()
+                    .appointment(followUpAppointment)
+                    .patient(patient)
+                    .invoiceNumber(generateInvoiceNumber())
+                    .consultationFee(expectedAmount)
+                    .medicineFee(BigDecimal.ZERO)
+                    .deliveryFee(BigDecimal.ZERO)
+                    .discount(BigDecimal.ZERO)
+                    .tax(BigDecimal.ZERO)
+                    .amount(expectedAmount)
+                    .status(INVOICE_PAID)
+                    .issueDate(LocalDateTime.now())
+                    .dueDate(LocalDateTime.now())
+                    .paidAt(LocalDateTime.now())
+                    .build();
+            invoice = invoiceRepository.save(invoice);
+            followUpAppointment.setInvoice(invoice);
+            appointmentRepository.save(followUpAppointment);
+
+            Payment payment = Payment.builder()
+                    .invoice(invoice)
+                    .amount(capturedAmount)
+                    .paymentMethod(payMethod)
+                    .paymentGateway(GATEWAY_PAYPAL)
+                    .transactionId(orderId)
+                    .status(PAYMENT_SUCCESS)
+                    .paidAt(LocalDateTime.now())
+                    .metadata(metadata)
+                    .build();
+            paymentRepository.save(payment);
+
+            try {
+                commissionService.processConsultationCommission(invoice);
+            } catch (Exception ex) {
+                log.error("Commission processing failed for follow-up appointment {}: {}",
+                        followUpAppointment.getAppointmentId(), ex.getMessage(), ex);
+            }
+
+            try {
+                notificationService.sendWebSocketNotification(
+                        patient.getUser(),
+                        NotificationType.FOLLOW_UP_PAID,
+                        "Follow-up Payment Successful",
+                        "Your payment for the follow-up appointment has been processed successfully.",
+                        appointmentId,
+                        "/appointments/" + appointmentId
+                );
+            } catch (Exception ex) {
+                log.error("Failed to send FOLLOW_UP_PAID notification: {}", ex.getMessage());
+            }
+
+            log.info("Follow-up payment captured for appointmentId={}, followUpAppointmentId={}",
+                    appointmentId, followUpAppointment.getAppointmentId());
+
+            return FollowUpResponse.builder()
+                    .consultationId(consultation.getConsultationId())
+                    .appointmentId(consultation.getAppointment().getAppointmentId())
+                    .followUpAppointmentId(followUpAppointment.getAppointmentId())
+                    .followUpDate(consultation.getFollowUpDate())
+                    .followUpNotes(consultation.getFollowUpNotes())
+                    .diagnosis(consultation.getDiagnosis())
+                    .doctorNotes(consultation.getDoctorNotes())
+                    .treatmentPlan(consultation.getTreatmentPlan())
+                    .consultationType(consultation.getConsultationType())
+                    .followUpStatus(FollowUpStatus.PAID.name())
+                    .build();
+
+        } catch (PayPalIntegrationException | BadRequestException ex) {
+            throw ex;
+        } catch (Exception ex) {
+            throw new PayPalIntegrationException("Error capturing follow-up PayPal payment: " + ex.getMessage(), ex);
+        }
+    }
+
     // ========================================================================
     // Invoice PDF generation
     // ========================================================================
@@ -901,6 +1201,25 @@ public class FinanceServiceImpl implements FinanceService {
         }
     }
 
+    private void validatePayPalCaptureMatchesFollowUpCheckout(
+            Map<String, Object> responseBody,
+            BigDecimal expectedAmount,
+            Integer appointmentId
+    ) {
+        String actualReferenceId = extractReferenceId(responseBody);
+        String expectedReferenceId = "follow-up-" + appointmentId;
+        if (!expectedReferenceId.equals(actualReferenceId)) {
+            throw new PayPalIntegrationException(
+                    "PayPal capture reference does not match follow-up checkout.");
+        }
+        BigDecimal actualAmount = extractCapturedAmount(responseBody, null);
+        if (actualAmount == null
+                || actualAmount.compareTo(expectedAmount.setScale(2, RoundingMode.HALF_UP)) != 0) {
+            throw new PayPalIntegrationException(
+                    "PayPal captured amount does not match follow-up checkout amount.");
+        }
+    }
+
     private void validatePayPalCaptureMatchesAppointmentCheckout(
             Map<String, Object> responseBody,
             BigDecimal expectedAmount
@@ -919,33 +1238,32 @@ public class FinanceServiceImpl implements FinanceService {
         }
     }
 
-    private AppointmentRequest toAppointmentRequest(AppointmentPayPalOrderRequest request) {
-        AppointmentRequest appointmentRequest = new AppointmentRequest();
-        appointmentRequest.setPatientId(request.getPatientId());
-        appointmentRequest.setDoctorId(request.getDoctorId());
-        appointmentRequest.setAppointmentTime(request.getAppointmentTime());
-        appointmentRequest.setConsultationType(request.getConsultationType());
-        appointmentRequest.setSymptoms(request.getSymptoms());
-        appointmentRequest.setNotes(request.getNotes());
-        appointmentRequest.setVisitAddress(request.getVisitAddress());
-        appointmentRequest.setVisitCity(request.getVisitCity());
-        appointmentRequest.setContactPhone(request.getContactPhone());
-        appointmentRequest.setReasonForHomeVisit(request.getReasonForHomeVisit());
-        appointmentRequest.setSpecialNotes(request.getSpecialNotes());
-
-        appointmentRequest.setIsForSelf(request.getIsForSelf());
-
-        appointmentRequest.setReceiverName(request.getReceiverName());
-        appointmentRequest.setReceiverAge(request.getReceiverAge());
-        appointmentRequest.setReceiverGender(request.getReceiverGender());
-        appointmentRequest.setReceiverRelationship(request.getReceiverRelationship());
-        appointmentRequest.setReceiverPhone(request.getReceiverPhone());
-
-        appointmentRequest.setVisitLatitude(request.getVisitLatitude());
-        appointmentRequest.setVisitLongitude(request.getVisitLongitude());
-        return appointmentRequest;
-    }
-
+//    private AppointmentRequest toAppointmentRequest(AppointmentPayPalOrderRequest request) {
+//        AppointmentRequest appointmentRequest = new AppointmentRequest();
+//        appointmentRequest.setPatientId(request.getPatientId());
+//        appointmentRequest.setDoctorId(request.getDoctorId());
+//        appointmentRequest.setAppointmentTime(request.getAppointmentTime());
+//        appointmentRequest.setConsultationType(request.getConsultationType());
+//        appointmentRequest.setSymptoms(request.getSymptoms());
+//        appointmentRequest.setNotes(request.getNotes());
+//        appointmentRequest.setVisitAddress(request.getVisitAddress());
+//        appointmentRequest.setVisitCity(request.getVisitCity());
+//        appointmentRequest.setContactPhone(request.getContactPhone());
+//        appointmentRequest.setReasonForHomeVisit(request.getReasonForHomeVisit());
+//        appointmentRequest.setSpecialNotes(request.getSpecialNotes());
+//
+//        appointmentRequest.setIsForSelf(request.getIsForSelf());
+//
+//        appointmentRequest.setReceiverName(request.getReceiverName());
+//        appointmentRequest.setReceiverAge(request.getReceiverAge());
+//        appointmentRequest.setReceiverGender(request.getReceiverGender());
+//        appointmentRequest.setReceiverRelationship(request.getReceiverRelationship());
+//        appointmentRequest.setReceiverPhone(request.getReceiverPhone());
+//
+//        appointmentRequest.setVisitLatitude(request.getVisitLatitude());
+//        appointmentRequest.setVisitLongitude(request.getVisitLongitude());
+//        return appointmentRequest;
+//    }
     private AppointmentRequest toAppointmentRequest(AppointmentPayPalCaptureRequest request) {
         AppointmentRequest appointmentRequest = new AppointmentRequest();
         appointmentRequest.setPatientId(request.getPatientId());
@@ -970,6 +1288,9 @@ public class FinanceServiceImpl implements FinanceService {
 
         appointmentRequest.setVisitLatitude(request.getVisitLatitude());
         appointmentRequest.setVisitLongitude(request.getVisitLongitude());
+
+        appointmentRequest.setHomeVisitStartTime(request.getHomeVisitStartTime());
+        appointmentRequest.setHomeVisitEndTime(request.getHomeVisitEndTime());
         return appointmentRequest;
     }
 
@@ -980,7 +1301,7 @@ public class FinanceServiceImpl implements FinanceService {
 
         Consultation consultation = consultationRepository.findById(request.getSourceConsultationId())
                 .orElseThrow(() -> new BadRequestException(
-                        "Consultation not found with ID: " + request.getSourceConsultationId()));
+                "Consultation not found with ID: " + request.getSourceConsultationId()));
 
         if (consultation.getAppointment() == null) {
             throw new BadRequestException("Source consultation is missing its appointment");
@@ -1034,7 +1355,8 @@ public class FinanceServiceImpl implements FinanceService {
             Doctor doctor,
             String consultationType,
             Double visitLatitude,
-            Double visitLongitude
+            Double visitLongitude,
+            List<Integer> homeVisitServiceIds
     ) {
         String normalizedType = normalizeConsultationTypeForBooking(consultationType);
 
@@ -1055,8 +1377,11 @@ public class FinanceServiceImpl implements FinanceService {
                     ? estimate.getTotalFee()
                     : BigDecimal.ZERO;
 
+            BigDecimal selectedServicesTotal = calculateHomeVisitServicesTotal(homeVisitServiceIds);
+
             return consultationFee
                     .add(homeVisitTravelTotal)
+                    .add(selectedServicesTotal)
                     .setScale(2, RoundingMode.HALF_UP);
         }
 
@@ -1439,5 +1764,51 @@ public class FinanceServiceImpl implements FinanceService {
                 .commissionRate(invoice.getCommissionRate())
                 .payments(paymentSummaries)
                 .build();
+    }
+
+    private List<Integer> parseServiceIds(String csv) {
+        if (csv == null || csv.isBlank()) return Collections.emptyList();
+        return Arrays.stream(csv.split(","))
+                .map(String::trim)
+                .filter(s -> !s.isEmpty())
+                .map(Integer::valueOf)
+                .toList();
+    }
+
+    private BigDecimal calculateHomeVisitServicesTotal(List<Integer> serviceIds) {
+        if (serviceIds == null || serviceIds.isEmpty()) {
+            return BigDecimal.ZERO.setScale(2, RoundingMode.HALF_UP);
+        }
+
+        List<HomeVisitService> services = homeVisitServiceRepository.findAllById(serviceIds);
+
+        return services.stream()
+                .filter(service -> Boolean.TRUE.equals(service.getActive()))
+                .map(HomeVisitService::getPrice)
+                .filter(price -> price != null)
+                .reduce(BigDecimal.ZERO, BigDecimal::add)
+                .setScale(2, RoundingMode.HALF_UP);
+    }
+
+    private void saveAppointmentHomeVisitServices(Appointment appointment, List<Integer> serviceIds) {
+        if (serviceIds == null || serviceIds.isEmpty()) {
+            return;
+        }
+
+        List<HomeVisitService> services = homeVisitServiceRepository.findAllById(serviceIds)
+                .stream()
+                .filter(service -> Boolean.TRUE.equals(service.getActive()))
+                .toList();
+
+        List<AppointmentHomeVisitService> snapshots = services.stream()
+                .map(service -> AppointmentHomeVisitService.builder()
+                .appointment(appointment)
+                .serviceId(service.getServiceId())
+                .serviceName(service.getServiceName())
+                .price(service.getPrice())
+                .build())
+                .toList();
+
+        appointmentHomeVisitServiceRepository.saveAll(snapshots);
     }
 }

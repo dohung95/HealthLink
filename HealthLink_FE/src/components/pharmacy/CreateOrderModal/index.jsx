@@ -19,7 +19,7 @@ function normalizeTimingForPayload(rawTiming) {
 }
 
 function lineTotal(item) {
-  return Number(item.quantity || 0) * Number(item.unitPrice || 0);
+  return Number(item.totalPrice || 0);
 }
 
 function toOrderItemPayload(item) {
@@ -32,7 +32,6 @@ function toOrderItemPayload(item) {
     frequency: item.frequency || undefined,
     timing: timing || undefined,
     route: item.route || undefined,
-    unitPrice: Number(item.unitPrice || 0),
     notes: item.notes || undefined,
     sourcePrescriptionHeaderId: item.sourcePrescriptionHeaderId,
     sourcePrescriptionItemId: item.sourcePrescriptionItemId,
@@ -112,7 +111,7 @@ function mapPrescriptionToOrderItems(prescription) {
       frequency: item.frequency || '',
       timing,
       route: item.route || '',
-      unitPrice: Number(item.unitPrice || item.price || item.medicine?.price || 0),
+      totalPrice: Number(item.totalPrice || 0) || (Number(item.quantity || 1) * Number(item.medicine?.price || 0)),
       notes,
       sourcePrescriptionHeaderId: rawPrescriptionId,
       sourcePrescriptionItemId: originalItemId,
@@ -237,7 +236,7 @@ export default function CreateOrderModal({ request, profile, onClose, onCreated 
           frequency: 'As directed',
           timing: '',
           route: '',
-          unitPrice: Number(medicine.price || medicine.unitPrice || 0),
+          totalPrice: Number(medicine.price || 0),
           notes: '',
         },
       ];
@@ -246,9 +245,15 @@ export default function CreateOrderModal({ request, profile, onClose, onCreated 
   };
 
   const updateItem = (localId, field, value) => {
-    setOrderItems((current) => current.map((item) => (
-      item.localId === localId ? { ...item, [field]: value } : item
-    )));
+    setOrderItems((current) => current.map((item) => {
+      if (item.localId !== localId) return item;
+      const updated = { ...item, [field]: value };
+      if (field === 'quantity') {
+        const price = (item.totalPrice || 0) / (item.quantity || 1);
+        updated.totalPrice = price * Number(value);
+      }
+      return updated;
+    }));
   };
 
   const removeItem = (localId) => {

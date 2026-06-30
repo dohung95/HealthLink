@@ -19,6 +19,5 @@ public class RetailStockMatchItemResponse {
     private Integer availableQuantity;
     private Boolean matched;
     private String reason;
-    private BigDecimal unitPrice;
     private BigDecimal lineTotal;
 }

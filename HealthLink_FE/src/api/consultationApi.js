@@ -94,6 +94,26 @@ export const consultationApi = {
     const response = await axiosInstance.get('/api/home-visit/proposals/pending');
     return response.status === 204 ? null : (response.data || null);
   },
+
+  sendFollowUpPaymentRequest: async (appointmentId) => {
+    const response = await axiosInstance.post(`/api/follow-up/${appointmentId}/send-payment-request`);
+    return response.data;
+  },
+
+  getFollowUpStatus: async (appointmentId) => {
+    const response = await axiosInstance.get(`/api/follow-up/${appointmentId}/status`);
+    return response.data;
+  },
+
+  confirmFollowUp: async (appointmentId) => {
+    const response = await axiosInstance.post(`/api/follow-up/${appointmentId}/confirm`);
+    return response.data;
+  },
+
+  denyFollowUp: async (appointmentId) => {
+    const response = await axiosInstance.post(`/api/follow-up/${appointmentId}/deny`);
+    return response.data;
+  },
 };
 
 export default consultationApi;

@@ -87,6 +87,15 @@ export const calculateAge = (dateOfBirth) => {
   return age;
 };
 
+export const getStatusLabel = (status) => {
+  const key = normalizeStatus(status);
+  if (key === 'inprogress' || key === 'inconsultation') return 'In Progress';
+  if (key === 'scheduled') return 'Scheduled';
+  if (key === 'completed') return 'Completed';
+  if (key === 'cancelled' || key === 'canceled') return 'Cancelled';
+  return status || 'Unknown';
+};
+
 export const getStatusClassName = (status) => {
   const key = normalizeStatus(status);
   if (key === 'completed') return 'doctor-detail-status doctor-detail-status--completed';

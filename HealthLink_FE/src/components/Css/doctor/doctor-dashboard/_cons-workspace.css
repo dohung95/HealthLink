@@ -60,30 +60,12 @@
   font-size: 0.6875rem;
   font-weight: 700;
   letter-spacing: 0.04em;
-  text-transform: uppercase;
+  text-transform: none;
   padding: 0.2rem 0.625rem;
   border-radius: 999px;
   line-height: 1.4;
-}
-
-.doctor-detail-status--scheduled {
-  background: rgba(16, 185, 129, 0.1);
-  color: var(--success);
-}
-
-.doctor-detail-status--completed {
-  background: var(--primary-light);
   color: var(--primary);
-}
-
-.doctor-detail-status--cancelled {
-  background: rgba(239, 68, 68, 0.08);
-  color: var(--error);
-}
-
-.doctor-detail-status--inprogress {
-  background: rgba(245, 158, 11, 0.1);
-  color: var(--warning);
+  background: var(--primary-light);
 }
 
 /* ---- Eyebrow ---- */
@@ -143,11 +125,12 @@
   align-items: center;
   gap: 0.5rem;
   padding: 0.5rem 0.875rem;
-  border-radius: var(--radius-md);
+  border-radius: 0;
   font-size: 0.8125rem;
   font-weight: 600;
   color: var(--text-secondary);
   border: none;
+  border-bottom: 3px solid transparent;
   background: transparent;
   white-space: nowrap;
   transition: all 0.15s ease;
@@ -156,7 +139,7 @@
 
 .doctor-detail-tab:hover {
   color: var(--primary);
-  background: rgba(19, 127, 236, 0.06);
+  border-bottom-color: var(--primary);
 }
 
 .doctor-detail-tab i {
@@ -170,9 +153,11 @@
 }
 
 .doctor-detail-tab--active {
-  background: var(--surface);
   color: var(--primary);
-  box-shadow: 0 1px 3px rgba(11, 24, 43, 0.08);
+  border-bottom: 3px solid var(--primary);
+  border-radius: 0;
+  background: transparent;
+  box-shadow: none;
 }
 
 .doctor-detail-tab--active i {
@@ -373,7 +358,7 @@
   display: flex;
   align-items: center;
   justify-content: center;
-  cursor: pointer;
+  cursor: not-allowed;
   border-radius: var(--radius-md);
   transition: opacity 0.2s ease;
   animation: overlayFadeIn 0.3s ease;

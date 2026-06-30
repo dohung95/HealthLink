@@ -112,6 +112,25 @@ INSERT INTO DoctorServices (doctor_id, service_type, available) VALUES
 ('user-d10', 'ONLINE', 1),
 ('user-d10', 'HOME_VISIT', 1);
 
+-- 5c. HOME_VISIT_SERVICES
+-- Extra services selected by patients during Home Visit booking.
+SET IDENTITY_INSERT HomeVisitServices ON;
+INSERT INTO HomeVisitServices (ServiceID, ServiceName, Description, Price, Active, DurationMinutes) VALUES
+(1, 'Basic vital signs check', 'Measure pulse, blood pressure, temperature, SpO2 and breathing rate at home.', 5.00, 1, 15),
+(2, 'Blood glucose test', 'Quick capillary blood glucose test for diabetes screening or monitoring.', 8.00, 1, 10),
+(3, 'Injection support', 'Doctor provides injection support when medically appropriate.', 10.00, 1, 20),
+(4, 'Wound dressing', 'Clean and dress a minor wound during the home visit.', 12.00, 1, 30),
+(5, 'Medication review', 'Review current medications, usage schedule and basic interaction risks.', 6.00, 1, 15);
+SET IDENTITY_INSERT HomeVisitServices OFF;
+
+-- Align legacy doctor rows with the current Home Visit columns.
+UPDATE Doctors
+   SET availableForHomeVisit = 1,
+       homeVisitRadiusKm = CASE
+           WHEN DoctorID IN ('user-d01', 'user-d02', 'user-d03') THEN 12.0
+           ELSE 8.0
+       END;
+
 -- 6. PATIENTS (10 patients)
 INSERT INTO Patients (PatientID, FullName, dateOfBirth, medicalHistorySummary, insuranceProvider, insurancePolicyNumber, gender, address, city, country, bloodType, emergencyContactName, emergencyContactPhone, emergencyContactRelationship, preferredLanguage, preferredContactMethod, occupation, avatarUrl, latitude, longitude, allergies, chronicConditions, currentMedications, heightCm, weightKg) VALUES
 ('user-p01', 'Michael Anderson', '1990-05-15', 'No significant medical history', 'Blue Cross', 'BC-2024-001', 'Male', '12 Le Loi Street, District 1', 'Ho Chi Minh City', 'Vietnam', 'A+', 'Lisa Anderson', '0912345678', 'Wife', 'English', 'Phone', 'Software Engineer', 'http://localhost:8096/uploads/avatars/patients/benhnhan_01.png', 10.7769, 106.7009, 'Penicillin', NULL, NULL, 175, 70),
@@ -155,41 +174,42 @@ SET IDENTITY_INSERT Medicines OFF;
 
 -- 9. PHARMACY_INVENTORY (28 inventory rows)
 SET IDENTITY_INSERT PharmacyInventory ON;
-INSERT INTO PharmacyInventory (InventoryID, PharmacyID, MedicineID, quantity, reservedQuantity, unitPrice, unit, expiryDate, active, lastImportedAt, createdAt, updatedAt) VALUES
-(1, 'user-ph01', 1, 120, 10, 0.30, 'Tablet', '2026-12-31', 1, '2024-05-20 08:00:00', '2024-05-20 08:00:00', '2024-05-20 08:00:00'),
-(2, 'user-ph01', 7, 80, 5, 0.93, 'Tablet', '2026-12-31', 1, '2024-05-20 08:00:00', '2024-05-20 08:00:00', '2024-05-20 08:00:00'),
-(3, 'user-ph01', 5, 6, 0, 0.63, 'Tablet', '2026-08-31', 1, '2024-05-20 08:00:00', '2024-05-20 08:00:00', '2024-05-20 08:00:00'),
-(4, 'user-ph01', 8, 0, 0, 0.53, 'Tablet', '2026-07-31', 1, '2024-05-20 08:00:00', '2024-05-20 08:00:00', '2024-05-20 08:00:00'),
-(5, 'user-ph01', 2, 30, 0, 1.08, 'Capsule', '2026-05-31', 0, '2024-05-20 08:00:00', '2024-05-20 08:00:00', '2024-05-20 08:00:00'),
-(6, 'user-ph02', 1, 40, 0, 0.30, 'Tablet', '2026-12-31', 1, '2024-05-20 08:15:00', '2024-05-20 08:15:00', '2024-05-20 08:15:00'),
-(7, 'user-ph02', 6, 25, 0, 0.71, 'Tablet', '2026-11-30', 1, '2024-05-20 08:15:00', '2024-05-20 08:15:00', '2024-05-20 08:15:00'),
-(8, 'user-ph02', 3, 12, 0, 0.53, 'Capsule', '2026-09-30', 1, '2024-05-20 08:15:00', '2024-05-20 08:15:00', '2024-05-20 08:15:00'),
-(9, 'user-ph02', 5, 45, 5, 0.63, 'Tablet', '2026-08-31', 1, '2024-05-20 08:15:00', '2024-05-20 08:15:00', '2024-05-20 08:15:00'),
-(10, 'user-ph02', 7, 4, 0, 0.93, 'Tablet', '2026-12-31', 1, '2024-05-20 08:15:00', '2024-05-20 08:15:00', '2024-05-20 08:15:00'),
-(11, 'user-ph02', 10, 0, 0, 0.50, 'Tablet', '2026-10-31', 1, '2024-05-20 08:15:00', '2024-05-20 08:15:00', '2024-05-20 08:15:00'),
-(12, 'user-ph04', 1, 50, 0, 0.30, 'Tablet', '2026-12-31', 1, '2024-05-20 08:30:00', '2024-05-20 08:30:00', '2024-05-20 08:30:00'),
-(13, 'user-ph04', 5, 12, 0, 0.63, 'Tablet', '2026-08-31', 1, '2024-05-20 08:30:00', '2024-05-20 08:30:00', '2024-05-20 08:30:00'),
-(14, 'user-ph04', 8, 20, 0, 0.53, 'Tablet', '2026-07-31', 1, '2024-05-20 08:30:00', '2024-05-20 08:30:00', '2024-05-20 08:30:00'),
-(15, 'user-ph07', 10, 45, 5, 0.50, 'Tablet', '2026-10-31', 1, '2024-05-20 08:45:00', '2024-05-20 08:45:00', '2024-05-20 08:45:00'),
-(16, 'user-ph07', 1, 8, 0, 0.30, 'Tablet', '2026-12-31', 1, '2024-05-20 08:45:00', '2024-05-20 08:45:00', '2024-05-20 08:45:00'),
-(17, 'user-ph07', 6, 0, 0, 0.71, 'Tablet', '2026-11-30', 1, '2024-05-20 08:45:00', '2024-05-20 08:45:00', '2024-05-20 08:45:00'),
-(18, 'user-ph05', 4, 60, 0, 0.30, 'Tablet', '2026-06-30', 1, '2024-05-20 09:00:00', '2024-05-20 09:00:00', '2024-05-20 09:00:00'),
-(19, 'user-ph05', 8, 3, 0, 0.53, 'Tablet', '2026-07-31', 1, '2024-05-20 09:00:00', '2024-05-20 09:00:00', '2024-05-20 09:00:00'),
-(20, 'user-ph05', 9, 20, 2, 2.40, 'Inhaler', '2026-10-31', 1, '2024-05-20 09:00:00', '2024-05-20 09:00:00', '2024-05-20 09:00:00'),
-(21, 'user-ph06', 8, 20, 0, 0.53, 'Tablet', '2026-07-31', 1, '2024-05-20 09:15:00', '2024-05-20 09:15:00', '2024-05-20 09:15:00'),
-(22, 'user-ph06', 2, 20, 0, 1.08, 'Capsule', '2026-05-31', 1, '2024-05-20 09:15:00', '2024-05-20 09:15:00', '2024-05-20 09:15:00'),
-(23, 'user-ph08', 10, 5, 0, 0.50, 'Tablet', '2026-10-31', 1, '2024-05-20 09:30:00', '2024-05-20 09:30:00', '2024-05-20 09:30:00'),
-(24, 'user-ph08', 7, 20, 0, 0.93, 'Tablet', '2026-12-31', 1, '2024-05-20 09:30:00', '2024-05-20 09:30:00', '2024-05-20 09:30:00'),
-(25, 'user-ph09', 4, 60, 0, 0.30, 'Tablet', '2026-06-30', 1, '2024-05-20 09:45:00', '2024-05-20 09:45:00', '2024-05-20 09:45:00'),
-(26, 'user-ph09', 9, 15, 0, 2.40, 'Inhaler', '2026-10-31', 1, '2024-05-20 09:45:00', '2024-05-20 09:45:00', '2024-05-20 09:45:00'),
-(27, 'user-ph10', 8, 20, 0, 0.53, 'Tablet', '2026-07-31', 1, '2024-05-20 10:00:00', '2024-05-20 10:00:00', '2024-05-20 10:00:00'),
-(28, 'user-ph10', 3, 0, 0, 0.53, 'Capsule', '2026-09-30', 1, '2024-05-20 10:00:00', '2024-05-20 10:00:00', '2024-05-20 10:00:00');
+INSERT INTO PharmacyInventory (InventoryID, PharmacyID, MedicineID, quantity, reservedQuantity, unit, expiryDate, active, lastImportedAt, createdAt, updatedAt) VALUES
+(1, 'user-ph01', 1, 120, 10, 'Tablet', '2026-12-31', 1, '2024-05-20 08:00:00', '2024-05-20 08:00:00', '2024-05-20 08:00:00'),
+(2, 'user-ph01', 7, 80, 5, 'Tablet', '2026-12-31', 1, '2024-05-20 08:00:00', '2024-05-20 08:00:00', '2024-05-20 08:00:00'),
+(3, 'user-ph01', 5, 6, 0, 'Tablet', '2026-08-31', 1, '2024-05-20 08:00:00', '2024-05-20 08:00:00', '2024-05-20 08:00:00'),
+(4, 'user-ph01', 8, 0, 0, 'Tablet', '2026-07-31', 1, '2024-05-20 08:00:00', '2024-05-20 08:00:00', '2024-05-20 08:00:00'),
+(5, 'user-ph01', 2, 30, 0, 'Capsule', '2026-05-31', 0, '2024-05-20 08:00:00', '2024-05-20 08:00:00', '2024-05-20 08:00:00'),
+(6, 'user-ph02', 1, 40, 0, 'Tablet', '2026-12-31', 1, '2024-05-20 08:15:00', '2024-05-20 08:15:00', '2024-05-20 08:15:00'),
+(7, 'user-ph02', 6, 25, 0, 'Tablet', '2026-11-30', 1, '2024-05-20 08:15:00', '2024-05-20 08:15:00', '2024-05-20 08:15:00'),
+(8, 'user-ph02', 3, 12, 0, 'Capsule', '2026-09-30', 1, '2024-05-20 08:15:00', '2024-05-20 08:15:00', '2024-05-20 08:15:00'),
+(9, 'user-ph02', 5, 45, 5, 'Tablet', '2026-08-31', 1, '2024-05-20 08:15:00', '2024-05-20 08:15:00', '2024-05-20 08:15:00'),
+(10, 'user-ph02', 7, 4, 0, 'Tablet', '2026-12-31', 1, '2024-05-20 08:15:00', '2024-05-20 08:15:00', '2024-05-20 08:15:00'),
+(11, 'user-ph02', 10, 0, 0, 'Tablet', '2026-10-31', 1, '2024-05-20 08:15:00', '2024-05-20 08:15:00', '2024-05-20 08:15:00'),
+(12, 'user-ph04', 1, 50, 0, 'Tablet', '2026-12-31', 1, '2024-05-20 08:30:00', '2024-05-20 08:30:00', '2024-05-20 08:30:00'),
+(13, 'user-ph04', 5, 12, 0, 'Tablet', '2026-08-31', 1, '2024-05-20 08:30:00', '2024-05-20 08:30:00', '2024-05-20 08:30:00'),
+(14, 'user-ph04', 8, 20, 0, 'Tablet', '2026-07-31', 1, '2024-05-20 08:30:00', '2024-05-20 08:30:00', '2024-05-20 08:30:00'),
+(15, 'user-ph07', 10, 45, 5, 'Tablet', '2026-10-31', 1, '2024-05-20 08:45:00', '2024-05-20 08:45:00', '2024-05-20 08:45:00'),
+(16, 'user-ph07', 1, 8, 0, 'Tablet', '2026-12-31', 1, '2024-05-20 08:45:00', '2024-05-20 08:45:00', '2024-05-20 08:45:00'),
+(17, 'user-ph07', 6, 0, 0, 'Tablet', '2026-11-30', 1, '2024-05-20 08:45:00', '2024-05-20 08:45:00', '2024-05-20 08:45:00'),
+(18, 'user-ph05', 4, 60, 0, 'Tablet', '2026-06-30', 1, '2024-05-20 09:00:00', '2024-05-20 09:00:00', '2024-05-20 09:00:00'),
+(19, 'user-ph05', 8, 3, 0, 'Tablet', '2026-07-31', 1, '2024-05-20 09:00:00', '2024-05-20 09:00:00', '2024-05-20 09:00:00'),
+(20, 'user-ph05', 9, 20, 2, 'Inhaler', '2026-10-31', 1, '2024-05-20 09:00:00', '2024-05-20 09:00:00', '2024-05-20 09:00:00'),
+(21, 'user-ph06', 8, 20, 0, 'Tablet', '2026-07-31', 1, '2024-05-20 09:15:00', '2024-05-20 09:15:00', '2024-05-20 09:15:00'),
+(22, 'user-ph06', 2, 20, 0, 'Capsule', '2026-05-31', 1, '2024-05-20 09:15:00', '2024-05-20 09:15:00', '2024-05-20 09:15:00'),
+(23, 'user-ph08', 10, 5, 0, 'Tablet', '2026-10-31', 1, '2024-05-20 09:30:00', '2024-05-20 09:30:00', '2024-05-20 09:30:00'),
+(24, 'user-ph08', 7, 20, 0, 'Tablet', '2026-12-31', 1, '2024-05-20 09:30:00', '2024-05-20 09:30:00', '2024-05-20 09:30:00'),
+(25, 'user-ph09', 4, 60, 0, 'Tablet', '2026-06-30', 1, '2024-05-20 09:45:00', '2024-05-20 09:45:00', '2024-05-20 09:45:00'),
+(26, 'user-ph09', 9, 15, 0, 'Inhaler', '2026-10-31', 1, '2024-05-20 09:45:00', '2024-05-20 09:45:00', '2024-05-20 09:45:00'),
+(27, 'user-ph10', 8, 20, 0, 'Tablet', '2026-07-31', 1, '2024-05-20 10:00:00', '2024-05-20 10:00:00', '2024-05-20 10:00:00'),
+(28, 'user-ph10', 3, 0, 0, 'Capsule', '2026-09-30', 1, '2024-05-20 10:00:00', '2024-05-20 10:00:00', '2024-05-20 10:00:00');
 SET IDENTITY_INSERT PharmacyInventory OFF;
 
 -- 10. DOCTOR_SCHEDULES
 -- Shift windows: Morning 07:00-10:30, Afternoon 13:00-17:30, Evening 19:00-21:00.
--- Online schedules must fit within ONE window. HomeVisit uses a full-window shift =
--- exactly 1 bookable slot, 1 patient/shift (SlotDuration = window length: 210/270/120).
+-- Online/Offline use SlotDuration as the appointment step.
+-- HomeVisit uses the whole shift window, and runtime slot candidates are calculated from
+-- visit duration + selected service durations + round-trip travel time + buffer.
 -- No overlapping schedules on the same day for any doctor.
 SET IDENTITY_INSERT DoctorSchedules ON;
 INSERT INTO DoctorSchedules (ScheduleID, DoctorId, dayOfWeek, startTime, endTime, SlotDuration, MaxPatients, Available, ScheduleStatus, consultationType, ShiftType, location, notes) VALUES
@@ -264,7 +284,7 @@ INSERT INTO AppointmentSlotHolds (HoldID, DoctorID, PatientID, AppointmentTime, 
 (4, 'user-d08', 'user-p08', '2026-06-09 08:30:00', '2026-06-09 09:00:00', 'Offline', '2026-06-09 08:35:00', '2026-06-09 08:30:00');
 SET IDENTITY_INSERT AppointmentSlotHolds OFF;
 
--- 15. APPOINTMENTS (13 appointments)
+-- 15. APPOINTMENTS (14 appointments)
 SET IDENTITY_INSERT Appointments ON;
 INSERT INTO Appointments (AppointmentID, AppointmentTime, ConsultationType, Status, symptoms, notes, fee, endTime, cancelReason, cancelledBy, cancelledAt, rescheduledFrom, followUpSourceAppointmentId, doctorReminderSent, reminderSent, confirmedAt, PatientID, DoctorID) VALUES
 (1, '2024-05-10 09:00:00', 'Video', 'Completed', 'Headache and fatigue for 3 days', 'Patient needs follow-up', 150.00, '2024-05-10 09:30:00', NULL, NULL, NULL, NULL, NULL, 0, 1, '2024-05-09 15:00:00', 'user-p01', 'user-d01'),
@@ -279,8 +299,37 @@ INSERT INTO Appointments (AppointmentID, AppointmentTime, ConsultationType, Stat
 (10, '2024-05-25 10:00:00', 'Offline', 'Scheduled', 'Toothache and swollen gums', NULL, 90.00, NULL, NULL, NULL, NULL, NULL, NULL, 0, 0, NULL, 'user-p10', 'user-d10'),
 (11, '2024-05-24 16:00:00', 'Video', 'Completed', 'Follow-up after seasonal flu', 'Completed telehealth session for invoice generation test', 150.00, '2024-05-24 16:30:00', NULL, NULL, NULL, NULL, NULL, 0, 1, '2024-05-24 15:50:00', 'user-p01', 'user-d01'),
 (12, '2024-05-26 09:00:00', 'Video', 'Scheduled', 'Follow-up consultation', NULL, 150.00, NULL, NULL, NULL, NULL, NULL, NULL, 0, 0, NULL, 'user-p01', 'user-d01'),
-(13, '2024-05-26 10:00:00', 'Video', 'Scheduled', 'Follow-up consultation', NULL, 150.00, NULL, NULL, NULL, NULL, NULL, NULL, 0, 0, NULL, 'user-p01', 'user-d01');
+(13, '2024-05-26 10:00:00', 'Video', 'Scheduled', 'Follow-up consultation', NULL, 150.00, NULL, NULL, NULL, NULL, NULL, NULL, 0, 0, NULL, 'user-p01', 'user-d01'),
+(14, '2024-05-27 19:00:00', 'HomeVisit', 'Completed', 'Elderly patient has difficulty walking and needs home evaluation', 'Home visit completed with selected services', 173.00, '2024-05-27 20:40:00', NULL, NULL, NULL, NULL, NULL, 0, 1, '2024-05-27 18:30:00', 'user-p01', 'user-d01');
 SET IDENTITY_INSERT Appointments OFF;
+
+-- 15b. HOME_VISIT_DETAILS
+SET IDENTITY_INSERT HomeVisitDetails ON;
+INSERT INTO HomeVisitDetails (
+    HomeVisitDetailID, AppointmentID, VisitAddress, VisitCity, ContactPhone,
+    ReasonForHomeVisit, SpecialNotes, IsForSelf, ReceiverName, ReceiverAge,
+    ReceiverGender, ReceiverRelationship, ReceiverPhone, VisitLatitude,
+    VisitLongitude, DistanceKm, EstimatedTravelMinutes, VisitDurationMinutes,
+    TravelBufferBeforeMinutes, TravelBufferAfterMinutes, HomeVisitFee, TravelFee
+) VALUES
+(1, 14, '12 Le Loi Street, District 1, Ho Chi Minh City', 'Ho Chi Minh City', '0912000001',
+ 'Elderly patient has difficulty walking and needs home evaluation',
+ 'Apartment lobby entrance, call before arrival', 1, NULL, NULL, NULL, NULL, NULL,
+ 10.7769, 106.7009, 2.50, 10, 45, 10, 10, 10.00, 0.00);
+SET IDENTITY_INSERT HomeVisitDetails OFF;
+
+-- 15c. HOME_VISIT_BOOKINGS
+SET IDENTITY_INSERT HomeVisitBookings ON;
+INSERT INTO HomeVisitBookings (Id, DoctorId, ScheduleId, BookingDate, AppointmentId, CreatedAt, StartTime, EndTime) VALUES
+(1, 'user-d01', 3, '2024-05-27', 14, '2024-05-27 18:30:00', '19:00', '20:40');
+SET IDENTITY_INSERT HomeVisitBookings OFF;
+
+-- 15d. APPOINTMENT_HOME_VISIT_SERVICES
+SET IDENTITY_INSERT AppointmentHomeVisitServices ON;
+INSERT INTO AppointmentHomeVisitServices (ID, AppointmentID, ServiceID, ServiceName, Price) VALUES
+(1, 14, 1, 'Basic vital signs check', 5.00),
+(2, 14, 2, 'Blood glucose test', 8.00);
+SET IDENTITY_INSERT AppointmentHomeVisitServices OFF;
 
 -- 16. ADMIN_SCHEDULE_AUDIT_LOGS (4 logs)
 SET IDENTITY_INSERT AdminScheduleAuditLogs ON;
@@ -293,19 +342,29 @@ SET IDENTITY_INSERT AdminScheduleAuditLogs OFF;
 
 -- 17. CONSULTATIONS (11 consultations)
 SET IDENTITY_INSERT Consultations ON;
-INSERT INTO Consultations (ConsultationID, AppointmentId, startTime, endTime, doctorNotes, diagnosis, followUpDate, followUpAppointmentId, consultationType, roomId, roomUrl, recordingUrl, duration, symptoms, treatmentPlan, followUpNotes) VALUES
-(1, 1, '2024-05-10 09:00:00', '2024-05-10 09:28:00', 'Patient shows signs of stress and sleep deprivation', 'Mild anxiety disorder, work-related stress', '2024-05-24', NULL, 'Video', 'room-001', 'https://meet.healthlink.com/room-001', NULL, 28, 'Headache, fatigue', 'Rest, stress management, medication as prescribed', 'Follow up in 2 weeks'),
-(2, 2, '2024-05-11 10:00:00', '2024-05-11 10:18:00', 'Child has viral infection, no serious symptoms', 'Upper respiratory tract infection - viral', '2024-05-18', NULL, 'Video', 'room-002', 'https://meet.healthlink.com/room-002', NULL, 18, 'Fever, dry cough', 'Fever medication, rest, fluid intake', 'Return if fever persists after 3 days'),
-(3, 3, '2024-05-12 09:30:00', '2024-05-12 10:10:00', 'Suspected coronary artery disease, needs ECG and echo', 'Chest pain - suspected myocardial ischemia', '2024-05-19', NULL, 'Video', 'room-003', 'https://meet.healthlink.com/room-003', 'https://storage.healthlink.com/rec-003.mp4', 40, 'Chest pain, shortness of breath', 'ECG, echocardiogram, cardiac enzymes test', 'Return with test results'),
-(4, 4, '2024-05-15 08:00:00', '2024-05-15 08:25:00', 'Acute appendicitis confirmed, surgery required', 'Acute appendicitis', '2024-05-22', NULL, 'Offline', NULL, NULL, NULL, 25, 'Abdominal pain', 'Hospital admission, surgery preparation', 'Post-surgery follow-up'),
-(5, 5, '2024-05-16 14:00:00', '2024-05-16 14:25:00', '20 weeks pregnant, fetal development normal, heartbeat regular', 'Normal pregnancy', '2024-06-16', NULL, 'Video', 'room-005', 'https://meet.healthlink.com/room-005', NULL, 25, 'Routine prenatal checkup', 'Continue prenatal vitamins, balanced diet', 'Next checkup in 4 weeks'),
-(6, 6, '2024-05-18 09:00:00', NULL, NULL, NULL, NULL, NULL, 'Video', 'room-006', 'https://meet.healthlink.com/room-006', NULL, NULL, 'Skin rash', NULL, NULL),
-(7, 7, '2024-05-20 15:00:00', NULL, NULL, NULL, NULL, NULL, 'Offline', NULL, NULL, NULL, NULL, 'Headache, dizziness', NULL, NULL),
-(8, 8, NULL, NULL, NULL, NULL, NULL, NULL, 'Offline', NULL, NULL, NULL, NULL, 'Blurry vision, eye pain', NULL, NULL),
-(9, 9, NULL, NULL, 'Patient cancelled appointment', NULL, NULL, NULL, 'Video', 'room-009', NULL, NULL, NULL, 'Sore throat', NULL, NULL),
-(10, 10, NULL, NULL, NULL, NULL, NULL, NULL, 'Offline', NULL, NULL, NULL, NULL, 'Toothache', NULL, NULL),
-(11, 11, '2024-05-24 16:00:00', '2024-05-24 16:25:00', 'Stable condition, no new complaints', 'Recovered from seasonal flu, recommend rest and hydration', '2024-06-07', NULL, 'Video', 'room-011', 'https://meet.healthlink.com/room-011', NULL, 25, 'Follow-up visit after flu', 'Rest, hydration, vitamin C', 'Return if fever recurs');
+INSERT INTO Consultations (ConsultationID, AppointmentId, startTime, endTime, doctorNotes, diagnosis, followUpDate, followUpAppointmentId, consultationType, roomId, roomUrl, recordingUrl, duration, treatmentPlan, followUpNotes) VALUES
+(1, 1, '2024-05-10 09:00:00', '2024-05-10 09:28:00', 'Patient shows signs of stress and sleep deprivation', 'Mild anxiety disorder, work-related stress', '2024-05-24', NULL, 'Video', 'room-001', 'https://meet.healthlink.com/room-001', NULL, 28, 'Rest, stress management, medication as prescribed', 'Follow up in 2 weeks'),
+(2, 2, '2024-05-11 10:00:00', '2024-05-11 10:18:00', 'Child has viral infection, no serious symptoms', 'Upper respiratory tract infection - viral', '2024-05-18', NULL, 'Video', 'room-002', 'https://meet.healthlink.com/room-002', NULL, 18, 'Fever medication, rest, fluid intake', 'Return if fever persists after 3 days'),
+(3, 3, '2024-05-12 09:30:00', '2024-05-12 10:10:00', 'Suspected coronary artery disease, needs ECG and echo', 'Chest pain - suspected myocardial ischemia', '2024-05-19', NULL, 'Video', 'room-003', 'https://meet.healthlink.com/room-003', 'https://storage.healthlink.com/rec-003.mp4', 40, 'ECG, echocardiogram, cardiac enzymes test', 'Return with test results'),
+(4, 4, '2024-05-15 08:00:00', '2024-05-15 08:25:00', 'Acute appendicitis confirmed, surgery required', 'Acute appendicitis', '2024-05-22', NULL, 'Offline', NULL, NULL, NULL, 25, 'Hospital admission, surgery preparation', 'Post-surgery follow-up'),
+(5, 5, '2024-05-16 14:00:00', '2024-05-16 14:25:00', '20 weeks pregnant, fetal development normal, heartbeat regular', 'Normal pregnancy', '2024-06-16', NULL, 'Video', 'room-005', 'https://meet.healthlink.com/room-005', NULL, 25, 'Continue prenatal vitamins, balanced diet', 'Next checkup in 4 weeks'),
+(6, 6, '2024-05-18 09:00:00', NULL, NULL, NULL, NULL, NULL, 'Video', 'room-006', 'https://meet.healthlink.com/room-006', NULL, NULL, NULL, NULL),
+(7, 7, '2024-05-20 15:00:00', NULL, NULL, NULL, NULL, NULL, 'Offline', NULL, NULL, NULL, NULL, NULL, NULL),
+(8, 8, NULL, NULL, NULL, NULL, NULL, NULL, 'Offline', NULL, NULL, NULL, NULL, NULL, NULL),
+(9, 9, NULL, NULL, 'Patient cancelled appointment', NULL, NULL, NULL, 'Video', 'room-009', NULL, NULL, NULL, NULL, NULL),
+(10, 10, NULL, NULL, NULL, NULL, NULL, NULL, 'Offline', NULL, NULL, NULL, NULL, NULL, NULL),
+(11, 11, '2024-05-24 16:00:00', '2024-05-24 16:25:00', 'Stable condition, no new complaints', 'Recovered from seasonal flu, recommend rest and hydration', '2024-06-07', NULL, 'Video', 'room-011', 'https://meet.healthlink.com/room-011', NULL, 25, 'Rest, hydration, vitamin C', 'Return if fever recurs');
 SET IDENTITY_INSERT Consultations OFF;
+
+UPDATE Consultations
+   SET HomeVisitProposalStatus = 'NONE'
+ WHERE HomeVisitProposalStatus IS NULL;
+
+UPDATE Consultations
+   SET HomeVisitProposalStatus = 'ACCEPTED',
+       HomeVisitProposedAt = '2024-05-24 16:10:00',
+       HomeVisitRespondedAt = '2024-05-24 16:20:00'
+ WHERE ConsultationID = 11;
 
 -- 18. HEALTH_RECORDS (10 health records)
 SET IDENTITY_INSERT HealthRecords ON;
@@ -352,7 +411,7 @@ INSERT INTO VitalSigns (VitalSignID, PatientID, AppointmentID, heartRate, bloodP
 (10, 'user-p10', NULL, 74, 130, 85, 98.9, 97, 17, NULL, 62.0, 158.0, 24.8, 'Slightly elevated BP', '2024-05-25 09:30:00', 'Manual', NULL, '2024-05-25 09:30:00');
 SET IDENTITY_INSERT VitalSigns OFF;
 
--- 21. INVOICES (10 invoices)
+-- 21. INVOICES (11 invoices)
 SET IDENTITY_INSERT Invoices ON;
 INSERT INTO Invoices (InvoiceID, AppointmentId, PatientID, amount, issueDate, status, invoiceNumber, consultationFee, medicineFee, deliveryFee, discount, tax, dueDate, paidAt, notes, platformFee, doctorEarning, commissionRate) VALUES
 (1, 1, 'user-p01', 175.00, '2024-05-10 09:30:00', 'Paid', 'INV-2024-0001', 150.00, 25.00, 0, 0, 0, '2024-05-17', '2024-05-10 09:35:00', 'Paid online', 22.50, 127.50, 0.1500),
@@ -364,10 +423,11 @@ INSERT INTO Invoices (InvoiceID, AppointmentId, PatientID, amount, issueDate, st
 (7, 7, 'user-p07', 220.00, '2024-05-20 15:00:00', 'Pending', 'INV-2024-0007', 220.00, 0, 0, 0, 0, '2024-05-27', NULL, '50% deposit paid', 26.40, 193.60, 0.1200),
 (8, 8, 'user-p08', 160.00, '2024-05-22 08:30:00', 'Pending', 'INV-2024-0008', 160.00, 0, 0, 0, 0, '2024-05-29', NULL, 'Not yet paid', NULL, NULL, NULL),
 (9, 9, 'user-p09', 0, '2024-05-13 14:00:00', 'Cancelled', 'INV-2024-0009', 100.00, 0, 0, 100.00, 0, '2024-05-20', NULL, 'Refunded due to cancellation', NULL, NULL, NULL),
-(10, 10, 'user-p10', 90.00, '2024-05-25 10:00:00', 'Pending', 'INV-2024-0010', 90.00, 0, 0, 0, 0, '2024-06-01', NULL, 'Pending consultation', NULL, NULL, NULL);
+(10, 10, 'user-p10', 90.00, '2024-05-25 10:00:00', 'Pending', 'INV-2024-0010', 90.00, 0, 0, 0, 0, '2024-06-01', NULL, 'Pending consultation', NULL, NULL, NULL),
+(11, 14, 'user-p01', 173.00, '2024-05-27 20:40:00', 'Paid', 'INV-2024-0011', 150.00, 0, 0, 0, 0, '2024-06-03', '2024-05-27 20:45:00', 'Paid Home Visit appointment via PayPal', 15.00, 158.00, 0.1000);
 SET IDENTITY_INSERT Invoices OFF;
 
--- 22. PAYMENTS (10 payments)
+-- 22. PAYMENTS (11 payments)
 SET IDENTITY_INSERT Payments ON;
 INSERT INTO Payments (PaymentID, InvoiceID, OrderID, amount, paymentMethod, paymentGateway, transactionId, status, paidAt, failureReason, refundedAmount, refundedAt, refundReason, metadata, CreatedAt) VALUES
 (1, 1, NULL, 175.00, 'Card', 'Stripe', 'STR20240510001', 'Completed', '2024-05-10 09:35:00', NULL, NULL, NULL, NULL, '{"cardLast4":"4242","cardBrand":"Visa"}', '2024-05-10 09:35:00'),
@@ -379,7 +439,8 @@ INSERT INTO Payments (PaymentID, InvoiceID, OrderID, amount, paymentMethod, paym
 (7, 7, NULL, 110.00, 'Card', 'Stripe', 'STR20240519001', 'Completed', '2024-05-19 11:00:00', NULL, NULL, NULL, NULL, '{"cardLast4":"9012","cardBrand":"Visa"}', '2024-05-19 11:00:00'),
 (8, 8, NULL, 160.00, 'Card', NULL, NULL, 'Pending', NULL, NULL, NULL, NULL, NULL, NULL, '2024-05-22 08:30:00'),
 (9, 9, NULL, 100.00, 'EWallet', 'PayPal', 'PP20240512002', 'Refunded', '2024-05-12 20:00:00', NULL, 100.00, '2024-05-13 09:00:00', 'Patient cancelled appointment', '{"refundId":"RF001"}', '2024-05-12 20:00:00'),
-(10, 10, NULL, 90.00, 'Cash', NULL, NULL, 'Pending', NULL, NULL, NULL, NULL, NULL, NULL, '2024-05-25 10:00:00');
+(10, 10, NULL, 90.00, 'Cash', NULL, NULL, 'Pending', NULL, NULL, NULL, NULL, NULL, NULL, '2024-05-25 10:00:00'),
+(11, 11, NULL, 173.00, 'EWallet', 'PayPal', 'PP20240527001', 'Completed', '2024-05-27 20:45:00', NULL, NULL, NULL, NULL, '{"payerId":"PAYPAL-HOME-VISIT","homeVisitServiceIds":[1,2]}', '2024-05-27 20:45:00');
 SET IDENTITY_INSERT Payments OFF;
 
 -- 23. PRESCRIPTION_HEADERS (10 prescriptions)
@@ -399,18 +460,18 @@ SET IDENTITY_INSERT PrescriptionHeaders OFF;
 
 -- 24. PRESCRIPTION_ITEMS (11 items)
 SET IDENTITY_INSERT PrescriptionItems ON;
-INSERT INTO PrescriptionItems (PrescriptionItemID, PrescriptionHeaderID, medicationName, dosage, instructions, totalSupplyDays, MedicineID, quantity, unit, frequency, timing, route, unitPrice, totalPrice, notes) VALUES
-(1, 1, 'Paracetamol 500mg', '500mg', 'Take when headache occurs, max 3 tablets per day', 7, 1, 21, 'Tablet', '3 times daily', 'As needed', 'Oral', 0.30, 6.30, NULL),
-(2, 1, 'Vitamin C 1000mg', '1000mg', 'Take 1 tablet in morning after breakfast', 14, 7, 14, 'Tablet', 'Once daily', 'MORNING', 'Oral', 0.93, 13.02, 'Immune support'),
-(3, 2, 'Paracetamol 500mg', '250mg', 'Take when fever exceeds 100.4F', 5, 1, 10, 'Tablet', 'As needed', 'When fever', 'Oral', 0.30, 3.00, 'Half tablet for child'),
-(4, 2, 'Cetirizine 10mg', '5mg', 'Take once before bedtime', 7, 6, 7, 'Tablet', 'Once daily', 'Night', 'Oral', 0.71, 4.97, 'Half tablet'),
-(5, 3, 'Amlodipine 5mg', '5mg', 'Take 1 tablet every morning', 30, 5, 30, 'Tablet', 'Once daily', 'MORNING', 'Oral', 0.63, 18.90, 'Maintain blood pressure'),
-(6, 4, 'Ibuprofen 400mg', '400mg', 'Take after meals when in pain', 5, 8, 15, 'Tablet', '3 times daily', 'AFTERNOON', 'Oral', 0.53, 7.95, 'Do not take on empty stomach'),
-(7, 5, 'Prenatal Multivitamin', '1 tablet', 'Take 1 tablet daily after breakfast', 30, NULL, 30, 'Tablet', 'Once daily', 'MORNING', 'Oral', 1.83, 54.90, 'Prenatal vitamin'),
-(8, 8, 'Metformin 500mg', '500mg', 'Take after breakfast and dinner', 30, 4, 60, 'Tablet', 'Twice daily', 'MORNING', 'Oral', 0.30, 18.00, NULL),
-(9, 9, 'Amlodipine 5mg', '5mg', 'Take every morning', 30, 5, 30, 'Tablet', 'Once daily', 'MORNING', 'Oral', 0.63, 18.90, NULL),
-(10, 10, 'Allopurinol 300mg', '300mg', 'Take after breakfast', 30, 10, 30, 'Tablet', 'Once daily', 'MORNING', 'Oral', 0.50, 15.00, 'Drink plenty of water'),
-(11, 3, 'Paracetamol 500mg', '500mg', 'Take when chest discomfort causes headache, max 2 tablets per day', 5, 1, 10, 'Tablet', 'As needed', 'When pain', 'Oral', 0.30, 3.00, 'Added to support partial pharmacy stock matching');
+INSERT INTO PrescriptionItems (PrescriptionItemID, PrescriptionHeaderID, medicationName, dosage, instructions, totalSupplyDays, MedicineID, quantity, unit, frequency, timing, route, notes) VALUES
+(1, 1, 'Paracetamol 500mg', '500mg', 'Take when headache occurs, max 3 tablets per day', 7, 1, 21, 'Tablet', '3 times daily', 'As needed', 'Oral', NULL),
+(2, 1, 'Vitamin C 1000mg', '1000mg', 'Take 1 tablet in morning after breakfast', 14, 7, 14, 'Tablet', 'Once daily', 'MORNING', 'Oral', 'Immune support'),
+(3, 2, 'Paracetamol 500mg', '250mg', 'Take when fever exceeds 100.4F', 5, 1, 10, 'Tablet', 'As needed', 'When fever', 'Oral', 'Half tablet for child'),
+(4, 2, 'Cetirizine 10mg', '5mg', 'Take once before bedtime', 7, 6, 7, 'Tablet', 'Once daily', 'Night', 'Oral', 'Half tablet'),
+(5, 3, 'Amlodipine 5mg', '5mg', 'Take 1 tablet every morning', 30, 5, 30, 'Tablet', 'Once daily', 'MORNING', 'Oral', 'Maintain blood pressure'),
+(6, 4, 'Ibuprofen 400mg', '400mg', 'Take after meals when in pain', 5, 8, 15, 'Tablet', '3 times daily', 'AFTERNOON', 'Oral', 'Do not take on empty stomach'),
+(7, 5, 'Prenatal Multivitamin', '1 tablet', 'Take 1 tablet daily after breakfast', 30, NULL, 30, 'Tablet', 'Once daily', 'MORNING', 'Oral', 'Prenatal vitamin'),
+(8, 8, 'Metformin 500mg', '500mg', 'Take after breakfast and dinner', 30, 4, 60, 'Tablet', 'Twice daily', 'MORNING', 'Oral', NULL),
+(9, 9, 'Amlodipine 5mg', '5mg', 'Take every morning', 30, 5, 30, 'Tablet', 'Once daily', 'MORNING', 'Oral', NULL),
+(10, 10, 'Allopurinol 300mg', '300mg', 'Take after breakfast', 30, 10, 30, 'Tablet', 'Once daily', 'MORNING', 'Oral', 'Drink plenty of water'),
+(11, 3, 'Paracetamol 500mg', '500mg', 'Take when chest discomfort causes headache, max 2 tablets per day', 5, 1, 10, 'Tablet', 'As needed', 'When pain', 'Oral', 'Added to support partial pharmacy stock matching');
 SET IDENTITY_INSERT PrescriptionItems OFF;
 
 -- 25. PRESCRIPTION_REMINDER_LOGS (6 logs)
@@ -466,46 +527,46 @@ SET IDENTITY_INSERT PharmacyOrders OFF;
 
 -- 29. PHARMACY_ORDER_ITEMS (21 items)
 SET IDENTITY_INSERT PharmacyOrderItems ON;
-INSERT INTO PharmacyOrderItems (OrderItemID, OrderID, MedicineID, SourcePrescriptionHeaderID, SourcePrescriptionItemID, medicationName, totalSupplyDays, quantity, unit, frequency, timing, route, unitPrice, totalPrice, notes) VALUES
-(1, 1, 1, 1, 1, 'Paracetamol 500mg', 7, 21, 'Tablet', '3 times daily', 'As needed', 'Oral', 0.30, 6.30, NULL),
-(2, 1, 7, 1, 2, 'Vitamin C 1000mg', 14, 14, 'Tablet', 'Once daily', 'MORNING', 'Oral', 0.93, 13.02, 'Immune support'),
-(3, 2, 1, 2, 3, 'Paracetamol 500mg', 5, 10, 'Tablet', 'As needed', 'When fever', 'Oral', 0.30, 3.00, 'Half tablet for child'),
-(4, 2, 6, 2, 4, 'Cetirizine 10mg', 7, 7, 'Tablet', 'Once daily', 'Night', 'Oral', 0.71, 4.97, 'Half tablet'),
-(5, 3, 5, 3, 5, 'Amlodipine 5mg', 30, 30, 'Tablet', 'Once daily', 'MORNING', 'Oral', 0.63, 18.90, 'Insufficient inventory demo'),
-(6, 3, 1, 3, 11, 'Paracetamol 500mg', 5, 10, 'Tablet', 'As needed', 'When pain', 'Oral', 0.30, 3.00, 'Available item for partial stock demo'),
-(7, 4, 8, 4, 6, 'Ibuprofen 400mg', 5, 15, 'Tablet', '3 times daily', 'AFTERNOON', 'Oral', 0.53, 7.95, NULL),
-(8, 5, NULL, 5, 7, 'Prenatal Multivitamin', 30, 30, 'Tablet', 'Once daily', 'MORNING', 'Oral', 1.83, 54.90, 'Manual medication item without catalog medicine'),
-(9, 6, 1, 6, NULL, 'Cold relief pack', 7, 1, 'Pack', 'As directed', 'As needed', 'Oral', 25.00, 25.00, 'Legacy order item without prescription item'),
-(10, 7, 3, 7, NULL, 'Omeprazole 20mg', 30, 30, 'Capsule', 'Once daily', 'MORNING', 'Oral', 0.53, 15.90, 'Legacy order item without prescription item'),
-(11, 8, 4, 8, 8, 'Metformin 500mg', 30, 60, 'Tablet', 'Twice daily', 'MORNING', 'Oral', 0.30, 18.00, NULL),
-(12, 9, 5, 9, 9, 'Amlodipine 5mg', 30, 30, 'Tablet', 'Once daily', 'MORNING', 'Oral', 0.63, 18.90, NULL),
-(13, 10, 10, 10, 10, 'Allopurinol 300mg', 30, 30, 'Tablet', 'Once daily', 'MORNING', 'Oral', 0.50, 15.00, NULL),
-(14, 11, 10, 10, 10, 'Allopurinol 300mg', 30, 30, 'Tablet', 'Once daily', 'MORNING', 'Oral', 0.50, 15.00, 'Quote item from pharmacy consultation request'),
-(15, 12, 1, 1, 1, 'Paracetamol 500mg', 7, 21, 'Tablet', '3 times daily', 'As needed', 'Oral', 0.30, 6.30, 'Patient confirmed quote'),
-(16, 12, 7, 1, 2, 'Vitamin C 1000mg', 14, 14, 'Tablet', 'Once daily', 'MORNING', 'Oral', 0.93, 13.02, 'Patient confirmed quote'),
-(17, 13, 1, 2, 3, 'Paracetamol 500mg', 5, 10, 'Tablet', 'As needed', 'When fever', 'Oral', 0.30, 3.00, 'Completed pharmacy order'),
-(18, 13, 6, 2, 4, 'Cetirizine 10mg', 7, 7, 'Tablet', 'Once daily', 'Night', 'Oral', 0.71, 4.97, 'Completed pharmacy order'),
-(19, 14, 5, 3, 5, 'Amlodipine 5mg', 30, 30, 'Tablet', 'Once daily', 'MORNING', 'Oral', 0.63, 18.90, 'Refunded partial stock case'),
-(20, 14, 1, 3, 11, 'Paracetamol 500mg', 5, 10, 'Tablet', 'As needed', 'When pain', 'Oral', 0.30, 3.00, 'Refunded partial stock case'),
-(21, 15, 8, 4, 6, 'Ibuprofen 400mg', 5, 15, 'Tablet', '3 times daily', 'AFTERNOON', 'Oral', 0.53, 7.95, 'Ready for pickup');
+INSERT INTO PharmacyOrderItems (OrderItemID, OrderID, MedicineID, SourcePrescriptionHeaderID, SourcePrescriptionItemID, medicationName, totalSupplyDays, quantity, unit, frequency, timing, route, totalPrice, notes) VALUES
+(1, 1, 1, 1, 1, 'Paracetamol 500mg', 7, 21, 'Tablet', '3 times daily', 'As needed', 'Oral', 6.30, NULL),
+(2, 1, 7, 1, 2, 'Vitamin C 1000mg', 14, 14, 'Tablet', 'Once daily', 'MORNING', 'Oral', 13.02, 'Immune support'),
+(3, 2, 1, 2, 3, 'Paracetamol 500mg', 5, 10, 'Tablet', 'As needed', 'When fever', 'Oral', 3.00, 'Half tablet for child'),
+(4, 2, 6, 2, 4, 'Cetirizine 10mg', 7, 7, 'Tablet', 'Once daily', 'Night', 'Oral', 4.97, 'Half tablet'),
+(5, 3, 5, 3, 5, 'Amlodipine 5mg', 30, 30, 'Tablet', 'Once daily', 'MORNING', 'Oral', 18.90, 'Insufficient inventory demo'),
+(6, 3, 1, 3, 11, 'Paracetamol 500mg', 5, 10, 'Tablet', 'As needed', 'When pain', 'Oral', 3.00, 'Available item for partial stock demo'),
+(7, 4, 8, 4, 6, 'Ibuprofen 400mg', 5, 15, 'Tablet', '3 times daily', 'AFTERNOON', 'Oral', 7.95, NULL),
+(8, 5, NULL, 5, 7, 'Prenatal Multivitamin', 30, 30, 'Tablet', 'Once daily', 'MORNING', 'Oral', 54.90, 'Manual medication item without catalog medicine'),
+(9, 6, 1, 6, NULL, 'Cold relief pack', 7, 1, 'Pack', 'As directed', 'As needed', 'Oral', 25.00, 'Legacy order item without prescription item'),
+(10, 7, 3, 7, NULL, 'Omeprazole 20mg', 30, 30, 'Capsule', 'Once daily', 'MORNING', 'Oral', 15.90, 'Legacy order item without prescription item'),
+(11, 8, 4, 8, 8, 'Metformin 500mg', 30, 60, 'Tablet', 'Twice daily', 'MORNING', 'Oral', 18.00, NULL),
+(12, 9, 5, 9, 9, 'Amlodipine 5mg', 30, 30, 'Tablet', 'Once daily', 'MORNING', 'Oral', 18.90, NULL),
+(13, 10, 10, 10, 10, 'Allopurinol 300mg', 30, 30, 'Tablet', 'Once daily', 'MORNING', 'Oral', 15.00, NULL),
+(14, 11, 10, 10, 10, 'Allopurinol 300mg', 30, 30, 'Tablet', 'Once daily', 'MORNING', 'Oral', 15.00, 'Quote item from pharmacy consultation request'),
+(15, 12, 1, 1, 1, 'Paracetamol 500mg', 7, 21, 'Tablet', '3 times daily', 'As needed', 'Oral', 6.30, 'Patient confirmed quote'),
+(16, 12, 7, 1, 2, 'Vitamin C 1000mg', 14, 14, 'Tablet', 'Once daily', 'MORNING', 'Oral', 13.02, 'Patient confirmed quote'),
+(17, 13, 1, 2, 3, 'Paracetamol 500mg', 5, 10, 'Tablet', 'As needed', 'When fever', 'Oral', 3.00, 'Completed pharmacy order'),
+(18, 13, 6, 2, 4, 'Cetirizine 10mg', 7, 7, 'Tablet', 'Once daily', 'Night', 'Oral', 4.97, 'Completed pharmacy order'),
+(19, 14, 5, 3, 5, 'Amlodipine 5mg', 30, 30, 'Tablet', 'Once daily', 'MORNING', 'Oral', 18.90, 'Refunded partial stock case'),
+(20, 14, 1, 3, 11, 'Paracetamol 500mg', 5, 10, 'Tablet', 'As needed', 'When pain', 'Oral', 3.00, 'Refunded partial stock case'),
+(21, 15, 8, 4, 6, 'Ibuprofen 400mg', 5, 15, 'Tablet', '3 times daily', 'AFTERNOON', 'Oral', 7.95, 'Ready for pickup');
 SET IDENTITY_INSERT PharmacyOrderItems OFF;
 
 -- 30. PHARMACY_ORDER_INVOICES (4 invoices)
 SET IDENTITY_INSERT Invoices ON;
 INSERT INTO Invoices (InvoiceID, AppointmentId, PharmacyOrderId, PatientID, amount, issueDate, status, invoiceNumber, consultationFee, medicineFee, deliveryFee, discount, tax, dueDate, paidAt, notes, platformFee, doctorEarning, commissionRate) VALUES
-(11, NULL, 13, 'user-p02', 41.99, '2024-05-21 14:30:00', 'PAID', 'INV-PH-2024-0011', 0, 35.00, 6.99, 0, 0, '2024-05-28', '2024-05-21 14:35:00', 'Paid pharmacy order invoice via PayPal', 3.36, NULL, 0.0800),
-(12, NULL, 12, 'user-p01', 50.99, '2024-05-20 17:05:00', 'PENDING', 'INV-PH-2024-0012', 0, 45.00, 5.99, 0, 0, '2024-05-27', NULL, 'Awaiting PayPal payment after patient confirmed quote', 4.08, NULL, 0.0800),
-(13, NULL, 14, 'user-p03', 82.99, '2024-05-22 11:05:00', 'REFUNDED', 'INV-PH-2024-0013', 0, 75.00, 7.99, 0, 0, '2024-05-29', '2024-05-22 11:10:00', 'Refunded pharmacy order invoice', 6.64, NULL, 0.0800),
-(14, NULL, 15, 'user-p04', 40.00, '2024-05-23 09:05:00', 'PAID', 'INV-PH-2024-0014', 0, 40.00, 0, 0, 0, '2024-05-30', '2024-05-23 09:10:00', 'Paid pickup pharmacy order invoice', 3.20, NULL, 0.0800);
+(12, NULL, 13, 'user-p02', 41.99, '2024-05-21 14:30:00', 'PAID', 'INV-PH-2024-0012', 0, 35.00, 6.99, 0, 0, '2024-05-28', '2024-05-21 14:35:00', 'Paid pharmacy order invoice via PayPal', 3.36, NULL, 0.0800),
+(13, NULL, 12, 'user-p01', 50.99, '2024-05-20 17:05:00', 'PENDING', 'INV-PH-2024-0013', 0, 45.00, 5.99, 0, 0, '2024-05-27', NULL, 'Awaiting PayPal payment after patient confirmed quote', 4.08, NULL, 0.0800),
+(14, NULL, 14, 'user-p03', 82.99, '2024-05-22 11:05:00', 'REFUNDED', 'INV-PH-2024-0014', 0, 75.00, 7.99, 0, 0, '2024-05-29', '2024-05-22 11:10:00', 'Refunded pharmacy order invoice', 6.64, NULL, 0.0800),
+(15, NULL, 15, 'user-p04', 40.00, '2024-05-23 09:05:00', 'PAID', 'INV-PH-2024-0015', 0, 40.00, 0, 0, 0, '2024-05-30', '2024-05-23 09:10:00', 'Paid pickup pharmacy order invoice', 3.20, NULL, 0.0800);
 SET IDENTITY_INSERT Invoices OFF;
 
 -- 31. PHARMACY_ORDER_PAYMENTS (4 payments)
 SET IDENTITY_INSERT Payments ON;
 INSERT INTO Payments (PaymentID, InvoiceID, OrderID, amount, paymentMethod, paymentGateway, transactionId, status, paidAt, failureReason, refundedAmount, refundedAt, refundReason, metadata, CreatedAt) VALUES
-(11, 11, 13, 41.99, 'EWallet', 'PayPal', 'PP-PH-20240521001', 'SUCCESS', '2024-05-21 14:35:00', NULL, NULL, NULL, NULL, '{"payerId":"PAYPAL-PH-002","orderType":"PHARMACY_ORDER"}', '2024-05-21 14:35:00'),
-(12, 12, 12, 50.99, 'EWallet', 'PayPal', 'PP-PH-20240520001', 'PENDING', NULL, NULL, NULL, NULL, NULL, '{"checkoutState":"CREATED","orderType":"PHARMACY_ORDER"}', '2024-05-20 17:05:00'),
-(13, 13, 14, 82.99, 'EWallet', 'PayPal', 'PP-PH-20240522001', 'REFUNDED', '2024-05-22 11:10:00', NULL, 82.99, '2024-05-22 12:30:00', 'Patient declined partial fulfillment', '{"refundId":"RF-PH-001","orderType":"PHARMACY_ORDER"}', '2024-05-22 11:10:00'),
-(14, 14, 15, 40.00, 'Cash', NULL, 'CASH-PH-20240523001', 'SUCCESS', '2024-05-23 09:10:00', NULL, NULL, NULL, NULL, '{"pickupCounter":"A1","orderType":"PHARMACY_ORDER"}', '2024-05-23 09:10:00');
+(12, 12, 13, 41.99, 'EWallet', 'PayPal', 'PP-PH-20240521001', 'SUCCESS', '2024-05-21 14:35:00', NULL, NULL, NULL, NULL, '{"payerId":"PAYPAL-PH-002","orderType":"PHARMACY_ORDER"}', '2024-05-21 14:35:00'),
+(13, 13, 12, 50.99, 'EWallet', 'PayPal', 'PP-PH-20240520001', 'PENDING', NULL, NULL, NULL, NULL, NULL, '{"checkoutState":"CREATED","orderType":"PHARMACY_ORDER"}', '2024-05-20 17:05:00'),
+(14, 14, 14, 82.99, 'EWallet', 'PayPal', 'PP-PH-20240522001', 'REFUNDED', '2024-05-22 11:10:00', NULL, 82.99, '2024-05-22 12:30:00', 'Patient declined partial fulfillment', '{"refundId":"RF-PH-001","orderType":"PHARMACY_ORDER"}', '2024-05-22 11:10:00'),
+(15, 15, 15, 40.00, 'Cash', NULL, 'CASH-PH-20240523001', 'SUCCESS', '2024-05-23 09:10:00', NULL, NULL, NULL, NULL, '{"pickupCounter":"A1","orderType":"PHARMACY_ORDER"}', '2024-05-23 09:10:00');
 SET IDENTITY_INSERT Payments OFF;
 
 -- 32. CHAT_ROOMS (13 chat rooms)
@@ -656,12 +717,13 @@ INSERT INTO RegistrationDocuments (DocumentID, RequestID, DocumentType, FileName
 (10, 10, 'Business License', 'req10-business.pdf', 'business.pdf', '/registrations/10/business.pdf', 305000, 'application/pdf', '2024-05-10 11:10:00', 'PENDING', NULL, 0, NULL);
 SET IDENTITY_INSERT RegistrationDocuments OFF;
 
--- 41. COMMISSION_CONFIGS (3 configs)
+-- 41. COMMISSION_CONFIGS (4 configs)
 SET IDENTITY_INSERT CommissionConfigs ON;
 INSERT INTO CommissionConfigs (ConfigId, serviceType, commissionRate, minCommission, maxCommission, description, active, effectiveFrom, effectiveTo, CreatedAt, UpdatedAt) VALUES
 (1, 'CONSULTATION_ONLINE', 0.1500, 0.50, 100.00, 'Online consultation commission rate', 1, '2024-01-01 00:00:00', NULL, '2024-01-01 00:00:00', NULL),
 (2, 'CONSULTATION_OFFLINE', 0.1200, 0.50, 150.00, 'Offline consultation commission rate', 1, '2024-01-01 00:00:00', NULL, '2024-01-01 00:00:00', NULL),
-(3, 'PHARMACY_ORDER', 0.0800, 0.50, 80.00, 'Pharmacy order commission rate', 1, '2024-01-01 00:00:00', NULL, '2024-01-01 00:00:00', NULL);
+(3, 'PHARMACY_ORDER', 0.0800, 0.50, 80.00, 'Pharmacy order commission rate', 1, '2024-01-01 00:00:00', NULL, '2024-01-01 00:00:00', NULL),
+(4, 'CONSULTATION_HOME_VISIT', 0.1000, 0.50, 120.00, 'Home visit consultation commission rate', 1, '2024-01-01 00:00:00', NULL, '2024-01-01 00:00:00', NULL);
 SET IDENTITY_INSERT CommissionConfigs OFF;
 
 -- 42. SETTLEMENTS (3 settlements)
@@ -672,7 +734,7 @@ INSERT INTO Settlements (SettlementId, settlementNumber, recipientType, recipien
 (3, 'STL-202405-00003', 'DOCTOR', 'user-d05', 'Dr. Jessica Williams', 450.00, 54.00, 396.00, 2, 'PROCESSING', 'PAYPAL', NULL, NULL, 'drjess@example.com', '2024-05-01 00:00:00', '2024-05-15 23:59:00', '2024-05-16 11:00:00', 'admin', NULL, 'Queued for payout', '2024-05-16 11:00:00');
 SET IDENTITY_INSERT Settlements OFF;
 
--- 43. COMMISSION_TRANSACTIONS (14 transactions)
+-- 43. COMMISSION_TRANSACTIONS (15 transactions)
 SET IDENTITY_INSERT CommissionTransactions ON;
 INSERT INTO CommissionTransactions (TransactionId, transactionNumber, sourceType, appointmentId, pharmacyOrderId, recipientType, recipientId, recipientName, serviceType, grossAmount, commissionRate, commissionAmount, netAmount, status, SettlementId, CreatedAt) VALUES
 (1, 'CTX-202405-00001', 'APPOINTMENT', 1, NULL, 'DOCTOR', 'user-d01', 'Dr. John Smith', 'CONSULTATION_ONLINE', 150.00, 0.1500, 22.50, 127.50, 'SETTLED', 1, '2024-05-10 10:00:00'),
@@ -688,7 +750,8 @@ INSERT INTO CommissionTransactions (TransactionId, transactionNumber, sourceType
 (11, 'CTX-202405-00011', 'PHARMACY_ORDER', NULL, 12, 'PHARMACY', 'user-ph01', 'HealthLink Pharmacy - Ben Thanh', 'PHARMACY_ORDER', 50.99, 0.0800, 4.08, 46.91, 'PENDING', NULL, '2024-05-20 17:05:00'),
 (12, 'CTX-202405-00012', 'PHARMACY_ORDER', NULL, 13, 'PHARMACY', 'user-ph02', 'An Khang Pharmacy - Nguyen Hue', 'PHARMACY_ORDER', 41.99, 0.0800, 3.36, 38.63, 'PENDING', NULL, '2024-05-21 14:35:00'),
 (13, 'CTX-202405-00013', 'PHARMACY_ORDER', NULL, 14, 'PHARMACY', 'user-ph04', 'CVS Pharmacy - SF', 'PHARMACY_ORDER', 82.99, 0.0800, 6.64, 76.35, 'REFUNDED', NULL, '2024-05-22 12:30:00'),
-(14, 'CTX-202405-00014', 'PHARMACY_ORDER', NULL, 15, 'PHARMACY', 'user-ph06', 'Hospital Pharmacy - NYC', 'PHARMACY_ORDER', 40.00, 0.0800, 3.20, 36.80, 'PENDING', NULL, '2024-05-23 09:10:00');
+(14, 'CTX-202405-00014', 'PHARMACY_ORDER', NULL, 15, 'PHARMACY', 'user-ph06', 'Hospital Pharmacy - NYC', 'PHARMACY_ORDER', 40.00, 0.0800, 3.20, 36.80, 'PENDING', NULL, '2024-05-23 09:10:00'),
+(15, 'CTX-202405-00015', 'APPOINTMENT', 14, NULL, 'DOCTOR', 'user-d01', 'Dr. John Smith', 'CONSULTATION_HOME_VISIT', 150.00, 0.1000, 15.00, 135.00, 'PENDING', NULL, '2024-05-27 20:45:00');
 SET IDENTITY_INSERT CommissionTransactions OFF;
 
 -- 44. DOCTOR_SCHEDULE_CHANGE_REQUESTS (5 requests)
@@ -722,86 +785,570 @@ INSERT INTO EmailVerificationTokens (Id, Token, UserId, NewEmail, ExpiryDate, Us
 SET IDENTITY_INSERT EmailVerificationTokens OFF;
 
 -- =====================================================
--- 47. YEAR 2024 ANALYTICS SAMPLE DATA
--- Feeds the 4 admin Dashboard charts + the Financial Reports chart for 2024:
---   Patient Registrations -> Users.CreatedDate (joined to Patients)
---   Appointments by Month / by Week -> Appointments.AppointmentTime
---   Revenue by Month / by Day -> SUM(Appointments.Fee) WHERE Status = 'Completed'
--- June 2024 is intentionally denser so the weekly + daily charts
--- (which default to the current calendar month) render full.
--- Idempotent: the whole block is skipped if already seeded.
+-- 47. ADDITIONAL DOCTOR AND PATIENT SAMPLE DATA
+-- Adds 20 profile-ready users with the same ID convention as the base seed:
+--   Doctors:  user-d11 to user-d20
+--   Patients: user-p11 to user-p20
+-- Text literals use N'...' so SQL Server stores Unicode data cleanly in NVARCHAR columns.
 -- =====================================================
-IF NOT EXISTS (SELECT 1 FROM Users WHERE Id = 'u-p24-01-01')
+IF NOT EXISTS (SELECT 1 FROM Users WHERE Id = N'user-d11')
 BEGIN
-    DECLARE @pwd NVARCHAR(255) = (SELECT TOP 1 PasswordHash FROM Users WHERE RoleId = 'patient');
-    DECLARE @m INT, @i INT, @cnt INT;
-    DECLARE @id NVARCHAR(50), @day INT, @created DATETIME;
-    DECLARE @docNum INT, @docId NVARCHAR(20), @patId NVARCHAR(20), @fee DECIMAL(10,2);
-    DECLARE @aday INT, @hour INT, @atime DATETIME;
+    INSERT INTO Users (Id, UserName, Email, EmailConfirmed, PasswordHash, PhoneNumber, AccessFailedCount, CreatedDate, Status, LastLoginAt, RoleId) VALUES
+    (N'user-d11', N'doctor11', N'doctor11@healthlink.com', 1, N'$2a$10$hashedpassword31', N'0901000011', 0, '2024-01-11', N'Active', '2024-05-11', N'doctor'),
+    (N'user-d12', N'doctor12', N'doctor12@healthlink.com', 1, N'$2a$10$hashedpassword32', N'0901000012', 0, '2024-01-12', N'Active', '2024-05-12', N'doctor'),
+    (N'user-d13', N'doctor13', N'doctor13@healthlink.com', 1, N'$2a$10$hashedpassword33', N'0901000013', 0, '2024-01-13', N'Active', '2024-05-13', N'doctor'),
+    (N'user-d14', N'doctor14', N'doctor14@healthlink.com', 1, N'$2a$10$hashedpassword34', N'0901000014', 0, '2024-01-14', N'Active', '2024-05-14', N'doctor'),
+    (N'user-d15', N'doctor15', N'doctor15@healthlink.com', 1, N'$2a$10$hashedpassword35', N'0901000015', 0, '2024-01-15', N'Active', '2024-05-15', N'doctor'),
+    (N'user-d16', N'doctor16', N'doctor16@healthlink.com', 1, N'$2a$10$hashedpassword36', N'0901000016', 0, '2024-01-16', N'Active', '2024-05-16', N'doctor'),
+    (N'user-d17', N'doctor17', N'doctor17@healthlink.com', 1, N'$2a$10$hashedpassword37', N'0901000017', 0, '2024-01-17', N'Active', '2024-05-17', N'doctor'),
+    (N'user-d18', N'doctor18', N'doctor18@healthlink.com', 1, N'$2a$10$hashedpassword38', N'0901000018', 0, '2024-01-18', N'Active', '2024-05-18', N'doctor'),
+    (N'user-d19', N'doctor19', N'doctor19@healthlink.com', 1, N'$2a$10$hashedpassword39', N'0901000019', 0, '2024-01-19', N'Active', '2024-05-19', N'doctor'),
+    (N'user-d20', N'doctor20', N'doctor20@healthlink.com', 1, N'$2a$10$hashedpassword40', N'0901000020', 0, '2024-01-20', N'Active', '2024-05-20', N'doctor'),
+    (N'user-p11', N'patient11', N'patient11@gmail.com', 1, N'$2a$10$hashedpassword41', N'0912000011', 0, '2024-02-11', N'Active', '2024-05-11', N'patient'),
+    (N'user-p12', N'patient12', N'patient12@gmail.com', 1, N'$2a$10$hashedpassword42', N'0912000012', 0, '2024-02-12', N'Active', '2024-05-12', N'patient'),
+    (N'user-p13', N'patient13', N'patient13@gmail.com', 1, N'$2a$10$hashedpassword43', N'0912000013', 0, '2024-02-13', N'Active', '2024-05-13', N'patient'),
+    (N'user-p14', N'patient14', N'patient14@gmail.com', 1, N'$2a$10$hashedpassword44', N'0912000014', 0, '2024-02-14', N'Active', '2024-05-14', N'patient'),
+    (N'user-p15', N'patient15', N'patient15@gmail.com', 1, N'$2a$10$hashedpassword45', N'0912000015', 0, '2024-02-15', N'Active', '2024-05-15', N'patient'),
+    (N'user-p16', N'patient16', N'patient16@gmail.com', 1, N'$2a$10$hashedpassword46', N'0912000016', 0, '2024-02-16', N'Active', '2024-05-16', N'patient'),
+    (N'user-p17', N'patient17', N'patient17@gmail.com', 1, N'$2a$10$hashedpassword47', N'0912000017', 0, '2024-02-17', N'Active', '2024-05-17', N'patient'),
+    (N'user-p18', N'patient18', N'patient18@gmail.com', 1, N'$2a$10$hashedpassword48', N'0912000018', 0, '2024-02-18', N'Active', '2024-05-18', N'patient'),
+    (N'user-p19', N'patient19', N'patient19@gmail.com', 1, N'$2a$10$hashedpassword49', N'0912000019', 0, '2024-02-19', N'Active', '2024-05-19', N'patient'),
+    (N'user-p20', N'patient20', N'patient20@gmail.com', 1, N'$2a$10$hashedpassword50', N'0912000020', 0, '2024-02-20', N'Active', '2024-05-20', N'patient');
 
-    -- Patients registered per month of 2024 (rising curve -> nice area chart)
-    DECLARE @pcounts TABLE (mo INT, cnt INT);
-    INSERT INTO @pcounts (mo, cnt) VALUES
-        (1,5),(2,7),(3,6),(4,9),(5,8),(6,12),(7,10),(8,9),(9,12),(10,11),(11,13),(12,15);
+    INSERT INTO Doctors (DoctorID, FullName, qualifications, specialty, yearsOfExperience, languageSpoken, location, avatarUrl, bio, consultationFee, latitude, longitude, clinicName, clinicAddress, averageRating, totalReviews, verified, specialtyId, totalEarnings, pendingSettlement, paypalEmail, scheduleStatus, bankAccount, bankName, customCommissionRateOnline, customCommissionRateOffline, customCommissionRateOnlineEffectiveFrom, customCommissionRateOnlineEffectiveTo, customCommissionRateOfflineEffectiveFrom, customCommissionRateOfflineEffectiveTo, commissionTier) VALUES
+    (N'user-d11', N'Dr. Nguyen Minh Anh', N'MD - University of Medicine and Pharmacy HCMC', N'Internal Medicine', 9, N'Vietnamese, English', N'Ho Chi Minh City', N'http://localhost:8096/uploads/avatars/doctors/bacsi_11.png', N'General internal medicine doctor focused on chronic disease follow-up', 130.00, 10.7769, 106.7009, N'Saigon Family Clinic', N'45 Nguyen Thi Minh Khai, District 1, Ho Chi Minh City', 4.72, 64, 1, 1, 260.00, 40.00, N'dr.nguyen.minhanh@healthlink.com', N'APPROVED', N'2234567890', N'Vietcombank', NULL, NULL, NULL, NULL, NULL, NULL, N'STANDARD'),
+    (N'user-d12', N'Dr. Tran Quoc Bao', N'MD - Hanoi Medical University', N'Pediatrics', 11, N'Vietnamese, English', N'Ha Noi', N'http://localhost:8096/uploads/avatars/doctors/bacsi_12.png', N'Pediatrician experienced in fever, allergy, and nutrition counseling', 125.00, 21.0278, 105.8342, N'Hoan Kiem Children Clinic', N'18 Trang Thi, Hoan Kiem, Ha Noi', 4.81, 92, 1, 3, 310.00, 55.00, N'dr.tran.quocbao@healthlink.com', N'APPROVED', N'2234567891', N'Techcombank', NULL, NULL, NULL, NULL, NULL, NULL, N'STANDARD'),
+    (N'user-d13', N'Dr. Le Hoang Phuc', N'MD, MSc - Hue University of Medicine', N'Cardiology', 16, N'Vietnamese, English', N'Da Nang', N'http://localhost:8096/uploads/avatars/doctors/bacsi_13.png', N'Cardiologist for hypertension, arrhythmia, and follow-up care', 210.00, 16.0471, 108.2068, N'Da Nang Heart Clinic', N'72 Nguyen Van Linh, Hai Chau, Da Nang', 4.86, 118, 1, 6, 480.00, 90.00, N'dr.le.hoangphuc@healthlink.com', N'APPROVED', N'2234567892', N'ACB', NULL, NULL, NULL, NULL, NULL, NULL, N'PREMIUM'),
+    (N'user-d14', N'Dr. Pham Thu Ha', N'MD - University of Medicine Pham Ngoc Thach', N'Dermatology', 8, N'Vietnamese, English', N'Ho Chi Minh City', N'http://localhost:8096/uploads/avatars/doctors/bacsi_14.png', N'Dermatology doctor treating acne, dermatitis, and skin allergies', 115.00, 10.8015, 106.7148, N'Gia Dinh Skin Clinic', N'201 Phan Dang Luu, Binh Thanh, Ho Chi Minh City', 4.67, 73, 1, 5, 210.00, 35.00, N'dr.pham.thuha@healthlink.com', N'APPROVED', N'2234567893', N'MB Bank', NULL, NULL, NULL, NULL, NULL, NULL, N'STANDARD'),
+    (N'user-d15', N'Dr. Vo Gia Huy', N'MD, FACS - Cho Ray Hospital', N'Surgery', 13, N'Vietnamese, English', N'Ho Chi Minh City', N'http://localhost:8096/uploads/avatars/doctors/bacsi_15.png', N'General surgeon providing pre-op and post-op consultation', 185.00, 10.7553, 106.6606, N'Cho Ray Surgical Clinic', N'201B Nguyen Chi Thanh, District 5, Ho Chi Minh City', 4.79, 88, 1, 2, 390.00, 65.00, N'dr.vo.giahuy@healthlink.com', N'APPROVED', N'2234567894', N'BIDV', NULL, NULL, NULL, NULL, NULL, NULL, N'STANDARD'),
+    (N'user-d16', N'Dr. Bui Lan Chi', N'MD, FACOG - Tu Du Hospital', N'Obstetrics & Gynecology', 10, N'Vietnamese, English', N'Ho Chi Minh City', N'http://localhost:8096/uploads/avatars/doctors/bacsi_16.png', N'Women health doctor for prenatal care and gynecology counseling', 150.00, 10.7680, 106.6834, N'Tu Du Women Clinic', N'284 Cong Quynh, District 1, Ho Chi Minh City', 4.91, 141, 1, 4, 430.00, 80.00, N'dr.bui.lanchi@healthlink.com', N'APPROVED', N'2234567895', N'VietinBank', NULL, NULL, NULL, NULL, NULL, NULL, N'STANDARD'),
+    (N'user-d17', N'Dr. Dang Viet Khoa', N'MD, PhD - Bach Mai Hospital', N'Neurology', 18, N'Vietnamese, English, French', N'Ha Noi', N'http://localhost:8096/uploads/avatars/doctors/bacsi_17.png', N'Neurologist for headache, stroke follow-up, and nerve disorders', 225.00, 21.0002, 105.8412, N'Bach Mai Neurology Center', N'78 Giai Phong, Dong Da, Ha Noi', 4.84, 106, 1, 7, 520.00, 120.00, N'dr.dang.vietkhoa@healthlink.com', N'APPROVED', N'2234567896', N'Agribank', NULL, NULL, NULL, NULL, NULL, NULL, N'PREMIUM'),
+    (N'user-d18', N'Dr. Ho Thi Ngoc', N'MD - National Eye Hospital', N'Ophthalmology', 12, N'Vietnamese, English', N'Ha Noi', N'http://localhost:8096/uploads/avatars/doctors/bacsi_18.png', N'Ophthalmologist for eye exams, dry eyes, and vision screening', 155.00, 21.0227, 105.8461, N'Central Eye Clinic', N'85 Ba Trieu, Hai Ba Trung, Ha Noi', 4.76, 83, 1, 8, 300.00, 50.00, N'dr.ho.thingoc@healthlink.com', N'APPROVED', N'2234567897', N'Sacombank', NULL, NULL, NULL, NULL, NULL, NULL, N'STANDARD'),
+    (N'user-d19', N'Dr. Ngo Thanh Son', N'MD - Thai Binh University of Medicine', N'ENT', 7, N'Vietnamese, English', N'Can Tho', N'http://localhost:8096/uploads/avatars/doctors/bacsi_19.png', N'ENT doctor treating sinusitis, throat infection, and hearing concerns', 105.00, 10.0452, 105.7469, N'Can Tho ENT Clinic', N'16 Hoa Binh Avenue, Ninh Kieu, Can Tho', 4.58, 59, 1, 9, 180.00, 25.00, N'dr.ngo.thanhson@healthlink.com', N'APPROVED', N'2234567898', N'OCB', NULL, NULL, NULL, NULL, NULL, NULL, N'STANDARD'),
+    (N'user-d20', N'Dr. Do Mai Linh', N'DDS - Ho Chi Minh City Odonto-Stomatology University', N'Dentistry', 9, N'Vietnamese, English', N'Ho Chi Minh City', N'http://localhost:8096/uploads/avatars/doctors/bacsi_20.png', N'Dentist focused on preventive care, scaling, and cosmetic dentistry', 95.00, 10.7901, 106.6802, N'SmileCare Dental', N'90 Nguyen Dinh Chieu, District 3, Ho Chi Minh City', 4.88, 124, 1, 10, 240.00, 45.00, N'dr.do.mailinh@healthlink.com', N'APPROVED', N'2234567899', N'VPBank', NULL, NULL, NULL, NULL, NULL, NULL, N'STANDARD');
 
-    SET @m = 1;
-    WHILE @m <= 12
-    BEGIN
-        SELECT @cnt = cnt FROM @pcounts WHERE mo = @m;
-        SET @i = 1;
-        WHILE @i <= @cnt
-        BEGIN
-            SET @id = 'u-p24-' + RIGHT('0' + CAST(@m AS VARCHAR), 2) + '-' + RIGHT('0' + CAST(@i AS VARCHAR), 2);
-            SET @day = ((@i * 2) % 27) + 1;
-            SET @created = DATETIMEFROMPARTS(2024, @m, @day, 9, 0, 0, 0);
-            INSERT INTO Users (Id, UserName, Email, EmailConfirmed, PasswordHash, PhoneNumber, AccessFailedCount, CreatedDate, Status, LastLoginAt, RoleId)
-            VALUES (@id, @id, @id + '@seed.healthlink.com', 1, @pwd,
-                    '0924' + RIGHT('0' + CAST(@m AS VARCHAR), 2) + RIGHT('0' + CAST(@i AS VARCHAR), 2),
-                    0, @created, 'Active', NULL, 'patient');
-            INSERT INTO Patients (PatientID, FullName, dateOfBirth, gender, address, city, country, bloodType, preferredLanguage, occupation, avatarUrl, latitude, longitude, heightCm, weightKg)
-            VALUES (@id, 'Patient 2024 ' + RIGHT('0' + CAST(@m AS VARCHAR), 2) + '-' + RIGHT('0' + CAST(@i AS VARCHAR), 2),
-                    '1990-01-01', CASE WHEN @i % 2 = 0 THEN 'Male' ELSE 'Female' END,
-                    'Sample address', 'Ho Chi Minh City', 'Vietnam', 'O+', 'English', 'Sample',
-                    'http://localhost:8096/uploads/avatars/patients/benhnhan_01.png', 10.7769, 106.7009, 165, 60.0);
-            SET @i = @i + 1;
-        END
-        SET @m = @m + 1;
-    END
+    INSERT INTO DoctorServices (doctor_id, service_type, available) VALUES
+    (N'user-d11', N'ONLINE', 1), (N'user-d11', N'HOME_VISIT', 1),
+    (N'user-d12', N'ONLINE', 1), (N'user-d12', N'HOME_VISIT', 1),
+    (N'user-d13', N'ONLINE', 1), (N'user-d13', N'HOME_VISIT', 1),
+    (N'user-d14', N'ONLINE', 1), (N'user-d14', N'HOME_VISIT', 1),
+    (N'user-d15', N'ONLINE', 1), (N'user-d15', N'HOME_VISIT', 1),
+    (N'user-d16', N'ONLINE', 1), (N'user-d16', N'HOME_VISIT', 1),
+    (N'user-d17', N'ONLINE', 1), (N'user-d17', N'HOME_VISIT', 1),
+    (N'user-d18', N'ONLINE', 1), (N'user-d18', N'HOME_VISIT', 1),
+    (N'user-d19', N'ONLINE', 1), (N'user-d19', N'HOME_VISIT', 1),
+    (N'user-d20', N'ONLINE', 1), (N'user-d20', N'HOME_VISIT', 1);
 
-    -- Completed appointments per month of 2024 (June denser for weekly/daily charts)
-    DECLARE @acounts TABLE (mo INT, cnt INT);
-    INSERT INTO @acounts (mo, cnt) VALUES
-        (1,9),(2,11),(3,10),(4,14),(5,12),(6,30),(7,15),(8,13),(9,17),(10,14),(11,16),(12,12);
+    INSERT INTO Patients (PatientID, FullName, dateOfBirth, medicalHistorySummary, insuranceProvider, insurancePolicyNumber, gender, address, city, country, bloodType, emergencyContactName, emergencyContactPhone, emergencyContactRelationship, preferredLanguage, preferredContactMethod, occupation, avatarUrl, latitude, longitude, allergies, chronicConditions, currentMedications, heightCm, weightKg) VALUES
+    (N'user-p11', N'Nguyen Thanh Lam', '1991-04-12', N'Seasonal allergy history', N'Bao Viet', N'BV-2024-011', N'Male', N'25 Ly Tu Trong, District 1', N'Ho Chi Minh City', N'Vietnam', N'O+', N'Nguyen Minh Chau', N'0912345681', N'Wife', N'Vietnamese', N'Phone', N'Product Manager', N'http://localhost:8096/uploads/avatars/patients/benhnhan_11.png', 10.7799, 106.7019, N'Pollen', NULL, NULL, 172, 68),
+    (N'user-p12', N'Tran Mai Phuong', '1987-09-03', N'History of migraine', N'PVI', N'PVI-2024-012', N'Female', N'118 Nguyen Trai, Thanh Xuan', N'Ha Noi', N'Vietnam', N'A+', N'Tran Van Duc', N'0912345682', N'Father', N'Vietnamese', N'Email', N'Accountant', N'http://localhost:8096/uploads/avatars/patients/benhnhan_12.png', 21.0024, 105.8066, NULL, N'Migraine', N'Paracetamol 500mg as needed', 160, 52),
+    (N'user-p13', N'Le Minh Quan', '1979-11-21', N'Hypertension under control', N'Blue Cross', N'BC-2024-013', N'Male', N'9 Bach Dang Street', N'Da Nang', N'Vietnam', N'B+', N'Le Thu Trang', N'0912345683', N'Wife', N'Vietnamese', N'Phone', N'Hotel Manager', N'http://localhost:8096/uploads/avatars/patients/benhnhan_13.png', 16.0678, 108.2208, NULL, N'Hypertension', N'Amlodipine 5mg', 176, 76),
+    (N'user-p14', N'Pham Ngoc Han', '1996-02-18', N'No significant medical history', N'Aetna', N'AET-2024-014', N'Female', N'42 Nguyen Van Cu, Ninh Kieu', N'Can Tho', N'Vietnam', N'AB+', N'Pham Thi Hoa', N'0912345684', N'Mother', N'Vietnamese', N'Text', N'Graduate Student', N'http://localhost:8096/uploads/avatars/patients/benhnhan_14.png', 10.0359, 105.7805, N'Shellfish', NULL, NULL, 158, 50),
+    (N'user-p15', N'Vo Duc Anh', '1983-06-30', N'Gastritis follow-up', N'Cigna', N'CIG-2024-015', N'Male', N'77 Dien Bien Phu, Binh Thanh', N'Ho Chi Minh City', N'Vietnam', N'A-', N'Vo Kim Ngan', N'0912345685', N'Sister', N'Vietnamese', N'Phone', N'Architect', N'http://localhost:8096/uploads/avatars/patients/benhnhan_15.png', 10.8010, 106.7138, NULL, N'Chronic gastritis', N'Omeprazole 20mg', 174, 70),
+    (N'user-p16', N'Bui Thuy Linh', '1993-12-09', N'Childhood asthma, stable', N'Humana', N'HUM-2024-016', N'Female', N'31 Nguyen Hue Street', N'Ho Chi Minh City', N'Vietnam', N'B-', N'Bui Quang Hieu', N'0912345686', N'Brother', N'Vietnamese', N'Email', N'Marketing Specialist', N'http://localhost:8096/uploads/avatars/patients/benhnhan_16.png', 10.7747, 106.7043, N'Dust', N'Asthma', N'Salbutamol inhaler', 162, 54),
+    (N'user-p17', N'Dang Quoc Viet', '1972-08-14', N'Type 2 diabetes monitoring', N'Medicare', N'MED-2024-017', N'Male', N'5 Tran Hung Dao, Hoan Kiem', N'Ha Noi', N'Vietnam', N'O-', N'Dang Thi Kim', N'0912345687', N'Wife', N'Vietnamese', N'Phone', N'Business Owner', N'http://localhost:8096/uploads/avatars/patients/benhnhan_17.png', 21.0288, 105.8520, NULL, N'Type 2 diabetes', N'Metformin 500mg', 170, 73),
+    (N'user-p18', N'Ho Bao Ngoc', '1989-01-27', N'No significant medical history', N'Anthem', N'ANT-2024-018', N'Female', N'63 Le Duan Street', N'Da Nang', N'Vietnam', N'A+', N'Ho Van Thanh', N'0912345688', N'Father', N'Vietnamese', N'Text', N'Nurse', N'http://localhost:8096/uploads/avatars/patients/benhnhan_18.png', 16.0605, 108.2244, NULL, NULL, NULL, 166, 57),
+    (N'user-p19', N'Ngo Anh Tuan', '1999-07-19', N'Chronic sinusitis', N'Tricare', N'TRI-2024-019', N'Male', N'12 Nguyen Van Linh, Hai Chau', N'Da Nang', N'Vietnam', N'B+', N'Ngo Thi Loan', N'0912345689', N'Mother', N'Vietnamese', N'Phone', N'Software Developer', N'http://localhost:8096/uploads/avatars/patients/benhnhan_19.png', 16.0544, 108.2022, N'Aspirin', N'Sinusitis', NULL, 181, 74),
+    (N'user-p20', N'Do Khanh Vy', '1976-05-05', N'Osteoarthritis follow-up', N'BCBS', N'BCBS-2024-020', N'Female', N'29 Cach Mang Thang 8, District 3', N'Ho Chi Minh City', N'Vietnam', N'AB-', N'Do Minh Duc', N'0912345690', N'Husband', N'Vietnamese', N'Phone', N'Office Administrator', N'http://localhost:8096/uploads/avatars/patients/benhnhan_20.png', 10.7812, 106.6826, NULL, N'Osteoarthritis', N'Glucosamine', 159, 61);
 
-    SET @m = 1;
-    WHILE @m <= 12
-    BEGIN
-        SELECT @cnt = cnt FROM @acounts WHERE mo = @m;
-        SET @i = 1;
-        WHILE @i <= @cnt
-        BEGIN
-            SET @docNum = ((@i - 1) % 10) + 1;
-            SET @docId = 'user-d' + RIGHT('0' + CAST(@docNum AS VARCHAR), 2);
-            SET @patId = 'user-p' + RIGHT('0' + CAST(@docNum AS VARCHAR), 2);
-            SET @fee = (SELECT consultationFee FROM Doctors WHERE DoctorID = @docId);
-            SET @aday = CASE WHEN @m = 6 THEN ((@i - 1) % 30) + 1 ELSE ((@i * 3) % 27) + 1 END;
-            SET @hour = 8 + (@i % 8);
-            SET @atime = DATETIMEFROMPARTS(2024, @m, @aday, @hour, 0, 0, 0);
-            INSERT INTO Appointments (AppointmentTime, ConsultationType, Status, symptoms, notes, fee, endTime, doctorReminderSent, reminderSent, confirmedAt, PatientID, DoctorID)
-            VALUES (@atime, 'Online', 'Completed', 'Seeded 2024 consultation', 'Auto-seeded for analytics charts',
-                    @fee, DATEADD(MINUTE, 30, @atime), 1, 1, DATEADD(HOUR, -12, @atime), @patId, @docId);
-            SET @i = @i + 1;
-        END
-        SET @m = @m + 1;
-    END
-
-    PRINT 'Year 2024 analytics sample data seeded.';
+    PRINT N'Additional doctor and patient sample data seeded.';
 END
 GO
 
 -- =====================================================
+-- 48-51. ANALYTICS / CHARTS SEED DATA (2024)
+-- Adds fake-but-consistent data so Admin System Dashboard (4 charts)
+-- and Financial Reports chart show a full 2024 dataset.
+--   Analytics patients : user-pa001 .. user-pa090 (non-login, spread Created across 2024)
+--   Analytics appts     : AppointmentID 1000+ (Completed/Cancelled, spread over months/weeks)
+--   Reviews fixed        : remove invalid duplicates, every completed appt reviewed once
+--   Doctor schedules     : rebuilt as valid weekly schedules (new flow)
+-- Idempotent: safe to re-run. Text uses N'...' for Unicode.
+-- =====================================================
+
+-- Cleanup so this block can be re-run without duplicates
+DELETE FROM Reviews WHERE ReviewID >= 11;
+DELETE FROM Reviews WHERE ReviewID BETWEEN 6 AND 10;
+DELETE FROM AppointmentHomeVisitServices WHERE AppointmentID >= 1000;
+DELETE FROM HomeVisitDetails WHERE AppointmentID >= 1000;
+DELETE FROM Consultations WHERE AppointmentId >= 1000;
+DELETE FROM Appointments WHERE AppointmentID >= 1000;
+DELETE FROM Patients WHERE PatientID LIKE 'user-pa[0-9][0-9][0-9]';
+DELETE FROM Users WHERE Id LIKE 'user-pa[0-9][0-9][0-9]';
+GO
+
+-- 48. ANALYTICS PATIENTS (90 users, registrations spread across 2024)
+INSERT INTO Users (Id, UserName, Email, EmailConfirmed, PasswordHash, PhoneNumber, AccessFailedCount, CreatedDate, Status, LastLoginAt, RoleId) VALUES
+(N'user-pa001', N'patient_a001', N'patient.a001@analytics.healthlink.com', 1, N'$2a$10$analyticsSeedNoLoginHashXXXXXXXXXXXXXXXXXXXXXXXXXX', N'0930000001', 0, '2024-01-01 09:00:00', N'Active', NULL, N'patient'),
+(N'user-pa002', N'patient_a002', N'patient.a002@analytics.healthlink.com', 1, N'$2a$10$analyticsSeedNoLoginHashXXXXXXXXXXXXXXXXXXXXXXXXXX', N'0930000002', 0, '2024-01-04 09:00:00', N'Active', NULL, N'patient'),
+(N'user-pa003', N'patient_a003', N'patient.a003@analytics.healthlink.com', 1, N'$2a$10$analyticsSeedNoLoginHashXXXXXXXXXXXXXXXXXXXXXXXXXX', N'0930000003', 0, '2024-01-07 09:00:00', N'Active', NULL, N'patient'),
+(N'user-pa004', N'patient_a004', N'patient.a004@analytics.healthlink.com', 1, N'$2a$10$analyticsSeedNoLoginHashXXXXXXXXXXXXXXXXXXXXXXXXXX', N'0930000004', 0, '2024-01-10 09:00:00', N'Active', NULL, N'patient'),
+(N'user-pa005', N'patient_a005', N'patient.a005@analytics.healthlink.com', 1, N'$2a$10$analyticsSeedNoLoginHashXXXXXXXXXXXXXXXXXXXXXXXXXX', N'0930000005', 0, '2024-01-13 09:00:00', N'Active', NULL, N'patient'),
+(N'user-pa006', N'patient_a006', N'patient.a006@analytics.healthlink.com', 1, N'$2a$10$analyticsSeedNoLoginHashXXXXXXXXXXXXXXXXXXXXXXXXXX', N'0930000006', 0, '2024-02-01 09:00:00', N'Active', NULL, N'patient'),
+(N'user-pa007', N'patient_a007', N'patient.a007@analytics.healthlink.com', 1, N'$2a$10$analyticsSeedNoLoginHashXXXXXXXXXXXXXXXXXXXXXXXXXX', N'0930000007', 0, '2024-02-04 09:00:00', N'Active', NULL, N'patient'),
+(N'user-pa008', N'patient_a008', N'patient.a008@analytics.healthlink.com', 1, N'$2a$10$analyticsSeedNoLoginHashXXXXXXXXXXXXXXXXXXXXXXXXXX', N'0930000008', 0, '2024-02-07 09:00:00', N'Active', NULL, N'patient'),
+(N'user-pa009', N'patient_a009', N'patient.a009@analytics.healthlink.com', 1, N'$2a$10$analyticsSeedNoLoginHashXXXXXXXXXXXXXXXXXXXXXXXXXX', N'0930000009', 0, '2024-02-10 09:00:00', N'Active', NULL, N'patient'),
+(N'user-pa010', N'patient_a010', N'patient.a010@analytics.healthlink.com', 1, N'$2a$10$analyticsSeedNoLoginHashXXXXXXXXXXXXXXXXXXXXXXXXXX', N'0930000010', 0, '2024-02-13 09:00:00', N'Active', NULL, N'patient'),
+(N'user-pa011', N'patient_a011', N'patient.a011@analytics.healthlink.com', 1, N'$2a$10$analyticsSeedNoLoginHashXXXXXXXXXXXXXXXXXXXXXXXXXX', N'0930000011', 0, '2024-02-16 09:00:00', N'Active', NULL, N'patient'),
+(N'user-pa012', N'patient_a012', N'patient.a012@analytics.healthlink.com', 1, N'$2a$10$analyticsSeedNoLoginHashXXXXXXXXXXXXXXXXXXXXXXXXXX', N'0930000012', 0, '2024-02-19 09:00:00', N'Active', NULL, N'patient'),
+(N'user-pa013', N'patient_a013', N'patient.a013@analytics.healthlink.com', 1, N'$2a$10$analyticsSeedNoLoginHashXXXXXXXXXXXXXXXXXXXXXXXXXX', N'0930000013', 0, '2024-03-01 09:00:00', N'Active', NULL, N'patient'),
+(N'user-pa014', N'patient_a014', N'patient.a014@analytics.healthlink.com', 1, N'$2a$10$analyticsSeedNoLoginHashXXXXXXXXXXXXXXXXXXXXXXXXXX', N'0930000014', 0, '2024-03-04 09:00:00', N'Active', NULL, N'patient'),
+(N'user-pa015', N'patient_a015', N'patient.a015@analytics.healthlink.com', 1, N'$2a$10$analyticsSeedNoLoginHashXXXXXXXXXXXXXXXXXXXXXXXXXX', N'0930000015', 0, '2024-03-07 09:00:00', N'Active', NULL, N'patient'),
+(N'user-pa016', N'patient_a016', N'patient.a016@analytics.healthlink.com', 1, N'$2a$10$analyticsSeedNoLoginHashXXXXXXXXXXXXXXXXXXXXXXXXXX', N'0930000016', 0, '2024-03-10 09:00:00', N'Active', NULL, N'patient'),
+(N'user-pa017', N'patient_a017', N'patient.a017@analytics.healthlink.com', 1, N'$2a$10$analyticsSeedNoLoginHashXXXXXXXXXXXXXXXXXXXXXXXXXX', N'0930000017', 0, '2024-03-13 09:00:00', N'Active', NULL, N'patient'),
+(N'user-pa018', N'patient_a018', N'patient.a018@analytics.healthlink.com', 1, N'$2a$10$analyticsSeedNoLoginHashXXXXXXXXXXXXXXXXXXXXXXXXXX', N'0930000018', 0, '2024-03-16 09:00:00', N'Active', NULL, N'patient'),
+(N'user-pa019', N'patient_a019', N'patient.a019@analytics.healthlink.com', 1, N'$2a$10$analyticsSeedNoLoginHashXXXXXXXXXXXXXXXXXXXXXXXXXX', N'0930000019', 0, '2024-04-01 09:00:00', N'Active', NULL, N'patient'),
+(N'user-pa020', N'patient_a020', N'patient.a020@analytics.healthlink.com', 1, N'$2a$10$analyticsSeedNoLoginHashXXXXXXXXXXXXXXXXXXXXXXXXXX', N'0930000020', 0, '2024-04-04 09:00:00', N'Active', NULL, N'patient'),
+(N'user-pa021', N'patient_a021', N'patient.a021@analytics.healthlink.com', 1, N'$2a$10$analyticsSeedNoLoginHashXXXXXXXXXXXXXXXXXXXXXXXXXX', N'0930000021', 0, '2024-04-07 09:00:00', N'Active', NULL, N'patient'),
+(N'user-pa022', N'patient_a022', N'patient.a022@analytics.healthlink.com', 1, N'$2a$10$analyticsSeedNoLoginHashXXXXXXXXXXXXXXXXXXXXXXXXXX', N'0930000022', 0, '2024-04-10 09:00:00', N'Active', NULL, N'patient'),
+(N'user-pa023', N'patient_a023', N'patient.a023@analytics.healthlink.com', 1, N'$2a$10$analyticsSeedNoLoginHashXXXXXXXXXXXXXXXXXXXXXXXXXX', N'0930000023', 0, '2024-04-13 09:00:00', N'Active', NULL, N'patient'),
+(N'user-pa024', N'patient_a024', N'patient.a024@analytics.healthlink.com', 1, N'$2a$10$analyticsSeedNoLoginHashXXXXXXXXXXXXXXXXXXXXXXXXXX', N'0930000024', 0, '2024-04-16 09:00:00', N'Active', NULL, N'patient'),
+(N'user-pa025', N'patient_a025', N'patient.a025@analytics.healthlink.com', 1, N'$2a$10$analyticsSeedNoLoginHashXXXXXXXXXXXXXXXXXXXXXXXXXX', N'0930000025', 0, '2024-04-19 09:00:00', N'Active', NULL, N'patient'),
+(N'user-pa026', N'patient_a026', N'patient.a026@analytics.healthlink.com', 1, N'$2a$10$analyticsSeedNoLoginHashXXXXXXXXXXXXXXXXXXXXXXXXXX', N'0930000026', 0, '2024-04-22 09:00:00', N'Active', NULL, N'patient'),
+(N'user-pa027', N'patient_a027', N'patient.a027@analytics.healthlink.com', 1, N'$2a$10$analyticsSeedNoLoginHashXXXXXXXXXXXXXXXXXXXXXXXXXX', N'0930000027', 0, '2024-05-01 09:00:00', N'Active', NULL, N'patient'),
+(N'user-pa028', N'patient_a028', N'patient.a028@analytics.healthlink.com', 1, N'$2a$10$analyticsSeedNoLoginHashXXXXXXXXXXXXXXXXXXXXXXXXXX', N'0930000028', 0, '2024-05-04 09:00:00', N'Active', NULL, N'patient'),
+(N'user-pa029', N'patient_a029', N'patient.a029@analytics.healthlink.com', 1, N'$2a$10$analyticsSeedNoLoginHashXXXXXXXXXXXXXXXXXXXXXXXXXX', N'0930000029', 0, '2024-05-07 09:00:00', N'Active', NULL, N'patient'),
+(N'user-pa030', N'patient_a030', N'patient.a030@analytics.healthlink.com', 1, N'$2a$10$analyticsSeedNoLoginHashXXXXXXXXXXXXXXXXXXXXXXXXXX', N'0930000030', 0, '2024-05-10 09:00:00', N'Active', NULL, N'patient'),
+(N'user-pa031', N'patient_a031', N'patient.a031@analytics.healthlink.com', 1, N'$2a$10$analyticsSeedNoLoginHashXXXXXXXXXXXXXXXXXXXXXXXXXX', N'0930000031', 0, '2024-05-13 09:00:00', N'Active', NULL, N'patient'),
+(N'user-pa032', N'patient_a032', N'patient.a032@analytics.healthlink.com', 1, N'$2a$10$analyticsSeedNoLoginHashXXXXXXXXXXXXXXXXXXXXXXXXXX', N'0930000032', 0, '2024-05-16 09:00:00', N'Active', NULL, N'patient'),
+(N'user-pa033', N'patient_a033', N'patient.a033@analytics.healthlink.com', 1, N'$2a$10$analyticsSeedNoLoginHashXXXXXXXXXXXXXXXXXXXXXXXXXX', N'0930000033', 0, '2024-05-19 09:00:00', N'Active', NULL, N'patient'),
+(N'user-pa034', N'patient_a034', N'patient.a034@analytics.healthlink.com', 1, N'$2a$10$analyticsSeedNoLoginHashXXXXXXXXXXXXXXXXXXXXXXXXXX', N'0930000034', 0, '2024-05-22 09:00:00', N'Active', NULL, N'patient'),
+(N'user-pa035', N'patient_a035', N'patient.a035@analytics.healthlink.com', 1, N'$2a$10$analyticsSeedNoLoginHashXXXXXXXXXXXXXXXXXXXXXXXXXX', N'0930000035', 0, '2024-05-25 09:00:00', N'Active', NULL, N'patient'),
+(N'user-pa036', N'patient_a036', N'patient.a036@analytics.healthlink.com', 1, N'$2a$10$analyticsSeedNoLoginHashXXXXXXXXXXXXXXXXXXXXXXXXXX', N'0930000036', 0, '2024-06-01 09:00:00', N'Active', NULL, N'patient'),
+(N'user-pa037', N'patient_a037', N'patient.a037@analytics.healthlink.com', 1, N'$2a$10$analyticsSeedNoLoginHashXXXXXXXXXXXXXXXXXXXXXXXXXX', N'0930000037', 0, '2024-06-04 09:00:00', N'Active', NULL, N'patient'),
+(N'user-pa038', N'patient_a038', N'patient.a038@analytics.healthlink.com', 1, N'$2a$10$analyticsSeedNoLoginHashXXXXXXXXXXXXXXXXXXXXXXXXXX', N'0930000038', 0, '2024-06-07 09:00:00', N'Active', NULL, N'patient'),
+(N'user-pa039', N'patient_a039', N'patient.a039@analytics.healthlink.com', 1, N'$2a$10$analyticsSeedNoLoginHashXXXXXXXXXXXXXXXXXXXXXXXXXX', N'0930000039', 0, '2024-06-10 09:00:00', N'Active', NULL, N'patient'),
+(N'user-pa040', N'patient_a040', N'patient.a040@analytics.healthlink.com', 1, N'$2a$10$analyticsSeedNoLoginHashXXXXXXXXXXXXXXXXXXXXXXXXXX', N'0930000040', 0, '2024-06-13 09:00:00', N'Active', NULL, N'patient'),
+(N'user-pa041', N'patient_a041', N'patient.a041@analytics.healthlink.com', 1, N'$2a$10$analyticsSeedNoLoginHashXXXXXXXXXXXXXXXXXXXXXXXXXX', N'0930000041', 0, '2024-06-16 09:00:00', N'Active', NULL, N'patient'),
+(N'user-pa042', N'patient_a042', N'patient.a042@analytics.healthlink.com', 1, N'$2a$10$analyticsSeedNoLoginHashXXXXXXXXXXXXXXXXXXXXXXXXXX', N'0930000042', 0, '2024-06-19 09:00:00', N'Active', NULL, N'patient'),
+(N'user-pa043', N'patient_a043', N'patient.a043@analytics.healthlink.com', 1, N'$2a$10$analyticsSeedNoLoginHashXXXXXXXXXXXXXXXXXXXXXXXXXX', N'0930000043', 0, '2024-07-01 09:00:00', N'Active', NULL, N'patient'),
+(N'user-pa044', N'patient_a044', N'patient.a044@analytics.healthlink.com', 1, N'$2a$10$analyticsSeedNoLoginHashXXXXXXXXXXXXXXXXXXXXXXXXXX', N'0930000044', 0, '2024-07-04 09:00:00', N'Active', NULL, N'patient'),
+(N'user-pa045', N'patient_a045', N'patient.a045@analytics.healthlink.com', 1, N'$2a$10$analyticsSeedNoLoginHashXXXXXXXXXXXXXXXXXXXXXXXXXX', N'0930000045', 0, '2024-07-07 09:00:00', N'Active', NULL, N'patient'),
+(N'user-pa046', N'patient_a046', N'patient.a046@analytics.healthlink.com', 1, N'$2a$10$analyticsSeedNoLoginHashXXXXXXXXXXXXXXXXXXXXXXXXXX', N'0930000046', 0, '2024-07-10 09:00:00', N'Active', NULL, N'patient'),
+(N'user-pa047', N'patient_a047', N'patient.a047@analytics.healthlink.com', 1, N'$2a$10$analyticsSeedNoLoginHashXXXXXXXXXXXXXXXXXXXXXXXXXX', N'0930000047', 0, '2024-07-13 09:00:00', N'Active', NULL, N'patient'),
+(N'user-pa048', N'patient_a048', N'patient.a048@analytics.healthlink.com', 1, N'$2a$10$analyticsSeedNoLoginHashXXXXXXXXXXXXXXXXXXXXXXXXXX', N'0930000048', 0, '2024-07-16 09:00:00', N'Active', NULL, N'patient'),
+(N'user-pa049', N'patient_a049', N'patient.a049@analytics.healthlink.com', 1, N'$2a$10$analyticsSeedNoLoginHashXXXXXXXXXXXXXXXXXXXXXXXXXX', N'0930000049', 0, '2024-07-19 09:00:00', N'Active', NULL, N'patient'),
+(N'user-pa050', N'patient_a050', N'patient.a050@analytics.healthlink.com', 1, N'$2a$10$analyticsSeedNoLoginHashXXXXXXXXXXXXXXXXXXXXXXXXXX', N'0930000050', 0, '2024-07-22 09:00:00', N'Active', NULL, N'patient'),
+(N'user-pa051', N'patient_a051', N'patient.a051@analytics.healthlink.com', 1, N'$2a$10$analyticsSeedNoLoginHashXXXXXXXXXXXXXXXXXXXXXXXXXX', N'0930000051', 0, '2024-08-01 09:00:00', N'Active', NULL, N'patient'),
+(N'user-pa052', N'patient_a052', N'patient.a052@analytics.healthlink.com', 1, N'$2a$10$analyticsSeedNoLoginHashXXXXXXXXXXXXXXXXXXXXXXXXXX', N'0930000052', 0, '2024-08-04 09:00:00', N'Active', NULL, N'patient'),
+(N'user-pa053', N'patient_a053', N'patient.a053@analytics.healthlink.com', 1, N'$2a$10$analyticsSeedNoLoginHashXXXXXXXXXXXXXXXXXXXXXXXXXX', N'0930000053', 0, '2024-08-07 09:00:00', N'Active', NULL, N'patient'),
+(N'user-pa054', N'patient_a054', N'patient.a054@analytics.healthlink.com', 1, N'$2a$10$analyticsSeedNoLoginHashXXXXXXXXXXXXXXXXXXXXXXXXXX', N'0930000054', 0, '2024-08-10 09:00:00', N'Active', NULL, N'patient'),
+(N'user-pa055', N'patient_a055', N'patient.a055@analytics.healthlink.com', 1, N'$2a$10$analyticsSeedNoLoginHashXXXXXXXXXXXXXXXXXXXXXXXXXX', N'0930000055', 0, '2024-08-13 09:00:00', N'Active', NULL, N'patient'),
+(N'user-pa056', N'patient_a056', N'patient.a056@analytics.healthlink.com', 1, N'$2a$10$analyticsSeedNoLoginHashXXXXXXXXXXXXXXXXXXXXXXXXXX', N'0930000056', 0, '2024-08-16 09:00:00', N'Active', NULL, N'patient'),
+(N'user-pa057', N'patient_a057', N'patient.a057@analytics.healthlink.com', 1, N'$2a$10$analyticsSeedNoLoginHashXXXXXXXXXXXXXXXXXXXXXXXXXX', N'0930000057', 0, '2024-08-19 09:00:00', N'Active', NULL, N'patient'),
+(N'user-pa058', N'patient_a058', N'patient.a058@analytics.healthlink.com', 1, N'$2a$10$analyticsSeedNoLoginHashXXXXXXXXXXXXXXXXXXXXXXXXXX', N'0930000058', 0, '2024-08-22 09:00:00', N'Active', NULL, N'patient'),
+(N'user-pa059', N'patient_a059', N'patient.a059@analytics.healthlink.com', 1, N'$2a$10$analyticsSeedNoLoginHashXXXXXXXXXXXXXXXXXXXXXXXXXX', N'0930000059', 0, '2024-08-25 09:00:00', N'Active', NULL, N'patient'),
+(N'user-pa060', N'patient_a060', N'patient.a060@analytics.healthlink.com', 1, N'$2a$10$analyticsSeedNoLoginHashXXXXXXXXXXXXXXXXXXXXXXXXXX', N'0930000060', 0, '2024-08-02 09:00:00', N'Active', NULL, N'patient'),
+(N'user-pa061', N'patient_a061', N'patient.a061@analytics.healthlink.com', 1, N'$2a$10$analyticsSeedNoLoginHashXXXXXXXXXXXXXXXXXXXXXXXXXX', N'0930000061', 0, '2024-09-01 09:00:00', N'Active', NULL, N'patient'),
+(N'user-pa062', N'patient_a062', N'patient.a062@analytics.healthlink.com', 1, N'$2a$10$analyticsSeedNoLoginHashXXXXXXXXXXXXXXXXXXXXXXXXXX', N'0930000062', 0, '2024-09-04 09:00:00', N'Active', NULL, N'patient'),
+(N'user-pa063', N'patient_a063', N'patient.a063@analytics.healthlink.com', 1, N'$2a$10$analyticsSeedNoLoginHashXXXXXXXXXXXXXXXXXXXXXXXXXX', N'0930000063', 0, '2024-09-07 09:00:00', N'Active', NULL, N'patient'),
+(N'user-pa064', N'patient_a064', N'patient.a064@analytics.healthlink.com', 1, N'$2a$10$analyticsSeedNoLoginHashXXXXXXXXXXXXXXXXXXXXXXXXXX', N'0930000064', 0, '2024-09-10 09:00:00', N'Active', NULL, N'patient'),
+(N'user-pa065', N'patient_a065', N'patient.a065@analytics.healthlink.com', 1, N'$2a$10$analyticsSeedNoLoginHashXXXXXXXXXXXXXXXXXXXXXXXXXX', N'0930000065', 0, '2024-09-13 09:00:00', N'Active', NULL, N'patient'),
+(N'user-pa066', N'patient_a066', N'patient.a066@analytics.healthlink.com', 1, N'$2a$10$analyticsSeedNoLoginHashXXXXXXXXXXXXXXXXXXXXXXXXXX', N'0930000066', 0, '2024-09-16 09:00:00', N'Active', NULL, N'patient'),
+(N'user-pa067', N'patient_a067', N'patient.a067@analytics.healthlink.com', 1, N'$2a$10$analyticsSeedNoLoginHashXXXXXXXXXXXXXXXXXXXXXXXXXX', N'0930000067', 0, '2024-09-19 09:00:00', N'Active', NULL, N'patient'),
+(N'user-pa068', N'patient_a068', N'patient.a068@analytics.healthlink.com', 1, N'$2a$10$analyticsSeedNoLoginHashXXXXXXXXXXXXXXXXXXXXXXXXXX', N'0930000068', 0, '2024-09-22 09:00:00', N'Active', NULL, N'patient'),
+(N'user-pa069', N'patient_a069', N'patient.a069@analytics.healthlink.com', 1, N'$2a$10$analyticsSeedNoLoginHashXXXXXXXXXXXXXXXXXXXXXXXXXX', N'0930000069', 0, '2024-10-01 09:00:00', N'Active', NULL, N'patient'),
+(N'user-pa070', N'patient_a070', N'patient.a070@analytics.healthlink.com', 1, N'$2a$10$analyticsSeedNoLoginHashXXXXXXXXXXXXXXXXXXXXXXXXXX', N'0930000070', 0, '2024-10-04 09:00:00', N'Active', NULL, N'patient'),
+(N'user-pa071', N'patient_a071', N'patient.a071@analytics.healthlink.com', 1, N'$2a$10$analyticsSeedNoLoginHashXXXXXXXXXXXXXXXXXXXXXXXXXX', N'0930000071', 0, '2024-10-07 09:00:00', N'Active', NULL, N'patient'),
+(N'user-pa072', N'patient_a072', N'patient.a072@analytics.healthlink.com', 1, N'$2a$10$analyticsSeedNoLoginHashXXXXXXXXXXXXXXXXXXXXXXXXXX', N'0930000072', 0, '2024-10-10 09:00:00', N'Active', NULL, N'patient'),
+(N'user-pa073', N'patient_a073', N'patient.a073@analytics.healthlink.com', 1, N'$2a$10$analyticsSeedNoLoginHashXXXXXXXXXXXXXXXXXXXXXXXXXX', N'0930000073', 0, '2024-10-13 09:00:00', N'Active', NULL, N'patient'),
+(N'user-pa074', N'patient_a074', N'patient.a074@analytics.healthlink.com', 1, N'$2a$10$analyticsSeedNoLoginHashXXXXXXXXXXXXXXXXXXXXXXXXXX', N'0930000074', 0, '2024-10-16 09:00:00', N'Active', NULL, N'patient'),
+(N'user-pa075', N'patient_a075', N'patient.a075@analytics.healthlink.com', 1, N'$2a$10$analyticsSeedNoLoginHashXXXXXXXXXXXXXXXXXXXXXXXXXX', N'0930000075', 0, '2024-10-19 09:00:00', N'Active', NULL, N'patient'),
+(N'user-pa076', N'patient_a076', N'patient.a076@analytics.healthlink.com', 1, N'$2a$10$analyticsSeedNoLoginHashXXXXXXXXXXXXXXXXXXXXXXXXXX', N'0930000076', 0, '2024-10-22 09:00:00', N'Active', NULL, N'patient'),
+(N'user-pa077', N'patient_a077', N'patient.a077@analytics.healthlink.com', 1, N'$2a$10$analyticsSeedNoLoginHashXXXXXXXXXXXXXXXXXXXXXXXXXX', N'0930000077', 0, '2024-10-25 09:00:00', N'Active', NULL, N'patient'),
+(N'user-pa078', N'patient_a078', N'patient.a078@analytics.healthlink.com', 1, N'$2a$10$analyticsSeedNoLoginHashXXXXXXXXXXXXXXXXXXXXXXXXXX', N'0930000078', 0, '2024-11-01 09:00:00', N'Active', NULL, N'patient'),
+(N'user-pa079', N'patient_a079', N'patient.a079@analytics.healthlink.com', 1, N'$2a$10$analyticsSeedNoLoginHashXXXXXXXXXXXXXXXXXXXXXXXXXX', N'0930000079', 0, '2024-11-04 09:00:00', N'Active', NULL, N'patient'),
+(N'user-pa080', N'patient_a080', N'patient.a080@analytics.healthlink.com', 1, N'$2a$10$analyticsSeedNoLoginHashXXXXXXXXXXXXXXXXXXXXXXXXXX', N'0930000080', 0, '2024-11-07 09:00:00', N'Active', NULL, N'patient'),
+(N'user-pa081', N'patient_a081', N'patient.a081@analytics.healthlink.com', 1, N'$2a$10$analyticsSeedNoLoginHashXXXXXXXXXXXXXXXXXXXXXXXXXX', N'0930000081', 0, '2024-11-10 09:00:00', N'Active', NULL, N'patient'),
+(N'user-pa082', N'patient_a082', N'patient.a082@analytics.healthlink.com', 1, N'$2a$10$analyticsSeedNoLoginHashXXXXXXXXXXXXXXXXXXXXXXXXXX', N'0930000082', 0, '2024-11-13 09:00:00', N'Active', NULL, N'patient'),
+(N'user-pa083', N'patient_a083', N'patient.a083@analytics.healthlink.com', 1, N'$2a$10$analyticsSeedNoLoginHashXXXXXXXXXXXXXXXXXXXXXXXXXX', N'0930000083', 0, '2024-11-16 09:00:00', N'Active', NULL, N'patient'),
+(N'user-pa084', N'patient_a084', N'patient.a084@analytics.healthlink.com', 1, N'$2a$10$analyticsSeedNoLoginHashXXXXXXXXXXXXXXXXXXXXXXXXXX', N'0930000084', 0, '2024-11-19 09:00:00', N'Active', NULL, N'patient'),
+(N'user-pa085', N'patient_a085', N'patient.a085@analytics.healthlink.com', 1, N'$2a$10$analyticsSeedNoLoginHashXXXXXXXXXXXXXXXXXXXXXXXXXX', N'0930000085', 0, '2024-12-01 09:00:00', N'Active', NULL, N'patient'),
+(N'user-pa086', N'patient_a086', N'patient.a086@analytics.healthlink.com', 1, N'$2a$10$analyticsSeedNoLoginHashXXXXXXXXXXXXXXXXXXXXXXXXXX', N'0930000086', 0, '2024-12-04 09:00:00', N'Active', NULL, N'patient'),
+(N'user-pa087', N'patient_a087', N'patient.a087@analytics.healthlink.com', 1, N'$2a$10$analyticsSeedNoLoginHashXXXXXXXXXXXXXXXXXXXXXXXXXX', N'0930000087', 0, '2024-12-07 09:00:00', N'Active', NULL, N'patient'),
+(N'user-pa088', N'patient_a088', N'patient.a088@analytics.healthlink.com', 1, N'$2a$10$analyticsSeedNoLoginHashXXXXXXXXXXXXXXXXXXXXXXXXXX', N'0930000088', 0, '2024-12-10 09:00:00', N'Active', NULL, N'patient'),
+(N'user-pa089', N'patient_a089', N'patient.a089@analytics.healthlink.com', 1, N'$2a$10$analyticsSeedNoLoginHashXXXXXXXXXXXXXXXXXXXXXXXXXX', N'0930000089', 0, '2024-12-13 09:00:00', N'Active', NULL, N'patient'),
+(N'user-pa090', N'patient_a090', N'patient.a090@analytics.healthlink.com', 1, N'$2a$10$analyticsSeedNoLoginHashXXXXXXXXXXXXXXXXXXXXXXXXXX', N'0930000090', 0, '2024-12-16 09:00:00', N'Active', NULL, N'patient');
+
+INSERT INTO Patients (PatientID, FullName, dateOfBirth, gender, city, country, preferredLanguage) VALUES
+(N'user-pa001', N'Nguyen Van An', '1965-01-01', N'Male', N'Ho Chi Minh City', N'Vietnam', N'Vietnamese'),
+(N'user-pa002', N'Tran Quoc Ha', '1966-02-02', N'Female', N'Ha Noi', N'Vietnam', N'Vietnamese'),
+(N'user-pa003', N'Le Hoang Phong', '1967-03-03', N'Male', N'Da Nang', N'Vietnam', N'Vietnamese'),
+(N'user-pa004', N'Pham Hai Yen', '1968-04-04', N'Female', N'Can Tho', N'Vietnam', N'Vietnamese'),
+(N'user-pa005', N'Hoang Kim Chi', '1969-05-05', N'Male', N'Hai Phong', N'Vietnam', N'Vietnamese'),
+(N'user-pa006', N'Vo Huu Khanh', '1970-06-06', N'Female', N'Bien Hoa', N'Vietnam', N'Vietnamese'),
+(N'user-pa007', N'Dang Dinh Quynh', '1971-07-07', N'Male', N'Nha Trang', N'Vietnam', N'Vietnamese'),
+(N'user-pa008', N'Bui Thi Linh', '1972-08-08', N'Female', N'Hue', N'Vietnam', N'Vietnamese'),
+(N'user-pa009', N'Do Gia Em', '1973-09-09', N'Male', N'Vung Tau', N'Vietnam', N'Vietnamese'),
+(N'user-pa010', N'Ho Ngoc Mai', '1974-10-10', N'Female', N'Buon Ma Thuot', N'Vietnam', N'Vietnamese'),
+(N'user-pa011', N'Ngo Anh Tam', '1975-11-11', N'Male', N'Ho Chi Minh City', N'Vietnam', N'Vietnamese'),
+(N'user-pa012', N'Duong Phuong Trang', '1976-12-12', N'Female', N'Ha Noi', N'Vietnam', N'Vietnamese'),
+(N'user-pa013', N'Ly Xuan Giang', '1977-01-13', N'Male', N'Da Nang', N'Vietnam', N'Vietnamese'),
+(N'user-pa014', N'Phan Cong Oanh', '1978-02-14', N'Female', N'Can Tho', N'Vietnam', N'Vietnamese'),
+(N'user-pa015', N'Vu Minh Vy', '1979-03-15', N'Male', N'Hai Phong', N'Vietnam', N'Vietnamese'),
+(N'user-pa016', N'Dinh Thanh Binh', '1980-04-16', N'Female', N'Bien Hoa', N'Vietnam', N'Vietnamese'),
+(N'user-pa017', N'Truong Bao Hung', '1981-05-17', N'Male', N'Nha Trang', N'Vietnam', N'Vietnamese'),
+(N'user-pa018', N'Mai Duc Quan', '1982-06-18', N'Female', N'Hue', N'Vietnam', N'Vietnamese'),
+(N'user-pa019', N'Chu Tuan Long', '1983-07-19', N'Male', N'Vung Tau', N'Vietnam', N'Vietnamese'),
+(N'user-pa020', N'Ta Thu Dung', '1984-08-20', N'Female', N'Buon Ma Thuot', N'Vietnam', N'Vietnamese'),
+(N'user-pa021', N'Nguyen Van Lan', '1985-09-21', N'Male', N'Ho Chi Minh City', N'Vietnam', N'Vietnamese'),
+(N'user-pa022', N'Tran Quoc Son', '1986-10-22', N'Female', N'Ha Noi', N'Vietnam', N'Vietnamese'),
+(N'user-pa023', N'Le Hoang Tien', '1987-11-23', N'Male', N'Da Nang', N'Vietnam', N'Vietnamese'),
+(N'user-pa024', N'Pham Hai Phuc', '1988-12-24', N'Female', N'Can Tho', N'Vietnam', N'Vietnamese'),
+(N'user-pa025', N'Hoang Kim Nam', '1989-01-25', N'Male', N'Hai Phong', N'Vietnam', N'Vietnamese'),
+(N'user-pa026', N'Vo Huu Uyen', '1990-02-26', N'Female', N'Bien Hoa', N'Vietnam', N'Vietnamese'),
+(N'user-pa027', N'Dang Dinh An', '1991-03-27', N'Male', N'Nha Trang', N'Vietnam', N'Vietnamese'),
+(N'user-pa028', N'Bui Thi Ha', '1992-04-01', N'Female', N'Hue', N'Vietnam', N'Vietnamese'),
+(N'user-pa029', N'Do Gia Phong', '1993-05-02', N'Male', N'Vung Tau', N'Vietnam', N'Vietnamese'),
+(N'user-pa030', N'Ho Ngoc Yen', '1994-06-03', N'Female', N'Buon Ma Thuot', N'Vietnam', N'Vietnamese'),
+(N'user-pa031', N'Ngo Anh Chi', '1995-07-04', N'Male', N'Ho Chi Minh City', N'Vietnam', N'Vietnamese'),
+(N'user-pa032', N'Duong Phuong Khanh', '1996-08-05', N'Female', N'Ha Noi', N'Vietnam', N'Vietnamese'),
+(N'user-pa033', N'Ly Xuan Quynh', '1997-09-06', N'Male', N'Da Nang', N'Vietnam', N'Vietnamese'),
+(N'user-pa034', N'Phan Cong Linh', '1998-10-07', N'Female', N'Can Tho', N'Vietnam', N'Vietnamese'),
+(N'user-pa035', N'Vu Minh Em', '1999-11-08', N'Male', N'Hai Phong', N'Vietnam', N'Vietnamese'),
+(N'user-pa036', N'Dinh Thanh Mai', '2000-12-09', N'Female', N'Bien Hoa', N'Vietnam', N'Vietnamese'),
+(N'user-pa037', N'Truong Bao Tam', '2001-01-10', N'Male', N'Nha Trang', N'Vietnam', N'Vietnamese'),
+(N'user-pa038', N'Mai Duc Trang', '2002-02-11', N'Female', N'Hue', N'Vietnam', N'Vietnamese'),
+(N'user-pa039', N'Chu Tuan Giang', '2003-03-12', N'Male', N'Vung Tau', N'Vietnam', N'Vietnamese'),
+(N'user-pa040', N'Ta Thu Oanh', '2004-04-13', N'Female', N'Buon Ma Thuot', N'Vietnam', N'Vietnamese'),
+(N'user-pa041', N'Nguyen Van Vy', '1965-05-14', N'Male', N'Ho Chi Minh City', N'Vietnam', N'Vietnamese'),
+(N'user-pa042', N'Tran Quoc Binh', '1966-06-15', N'Female', N'Ha Noi', N'Vietnam', N'Vietnamese'),
+(N'user-pa043', N'Le Hoang Hung', '1967-07-16', N'Male', N'Da Nang', N'Vietnam', N'Vietnamese'),
+(N'user-pa044', N'Pham Hai Quan', '1968-08-17', N'Female', N'Can Tho', N'Vietnam', N'Vietnamese'),
+(N'user-pa045', N'Hoang Kim Long', '1969-09-18', N'Male', N'Hai Phong', N'Vietnam', N'Vietnamese'),
+(N'user-pa046', N'Vo Huu Dung', '1970-10-19', N'Female', N'Bien Hoa', N'Vietnam', N'Vietnamese'),
+(N'user-pa047', N'Dang Dinh Lan', '1971-11-20', N'Male', N'Nha Trang', N'Vietnam', N'Vietnamese'),
+(N'user-pa048', N'Bui Thi Son', '1972-12-21', N'Female', N'Hue', N'Vietnam', N'Vietnamese'),
+(N'user-pa049', N'Do Gia Tien', '1973-01-22', N'Male', N'Vung Tau', N'Vietnam', N'Vietnamese'),
+(N'user-pa050', N'Ho Ngoc Phuc', '1974-02-23', N'Female', N'Buon Ma Thuot', N'Vietnam', N'Vietnamese'),
+(N'user-pa051', N'Ngo Anh Nam', '1975-03-24', N'Male', N'Ho Chi Minh City', N'Vietnam', N'Vietnamese'),
+(N'user-pa052', N'Duong Phuong Uyen', '1976-04-25', N'Female', N'Ha Noi', N'Vietnam', N'Vietnamese'),
+(N'user-pa053', N'Ly Xuan An', '1977-05-26', N'Male', N'Da Nang', N'Vietnam', N'Vietnamese'),
+(N'user-pa054', N'Phan Cong Ha', '1978-06-27', N'Female', N'Can Tho', N'Vietnam', N'Vietnamese'),
+(N'user-pa055', N'Vu Minh Phong', '1979-07-01', N'Male', N'Hai Phong', N'Vietnam', N'Vietnamese'),
+(N'user-pa056', N'Dinh Thanh Yen', '1980-08-02', N'Female', N'Bien Hoa', N'Vietnam', N'Vietnamese'),
+(N'user-pa057', N'Truong Bao Chi', '1981-09-03', N'Male', N'Nha Trang', N'Vietnam', N'Vietnamese'),
+(N'user-pa058', N'Mai Duc Khanh', '1982-10-04', N'Female', N'Hue', N'Vietnam', N'Vietnamese'),
+(N'user-pa059', N'Chu Tuan Quynh', '1983-11-05', N'Male', N'Vung Tau', N'Vietnam', N'Vietnamese'),
+(N'user-pa060', N'Ta Thu Linh', '1984-12-06', N'Female', N'Buon Ma Thuot', N'Vietnam', N'Vietnamese'),
+(N'user-pa061', N'Nguyen Van Em', '1985-01-07', N'Male', N'Ho Chi Minh City', N'Vietnam', N'Vietnamese'),
+(N'user-pa062', N'Tran Quoc Mai', '1986-02-08', N'Female', N'Ha Noi', N'Vietnam', N'Vietnamese'),
+(N'user-pa063', N'Le Hoang Tam', '1987-03-09', N'Male', N'Da Nang', N'Vietnam', N'Vietnamese'),
+(N'user-pa064', N'Pham Hai Trang', '1988-04-10', N'Female', N'Can Tho', N'Vietnam', N'Vietnamese'),
+(N'user-pa065', N'Hoang Kim Giang', '1989-05-11', N'Male', N'Hai Phong', N'Vietnam', N'Vietnamese'),
+(N'user-pa066', N'Vo Huu Oanh', '1990-06-12', N'Female', N'Bien Hoa', N'Vietnam', N'Vietnamese'),
+(N'user-pa067', N'Dang Dinh Vy', '1991-07-13', N'Male', N'Nha Trang', N'Vietnam', N'Vietnamese'),
+(N'user-pa068', N'Bui Thi Binh', '1992-08-14', N'Female', N'Hue', N'Vietnam', N'Vietnamese'),
+(N'user-pa069', N'Do Gia Hung', '1993-09-15', N'Male', N'Vung Tau', N'Vietnam', N'Vietnamese'),
+(N'user-pa070', N'Ho Ngoc Quan', '1994-10-16', N'Female', N'Buon Ma Thuot', N'Vietnam', N'Vietnamese'),
+(N'user-pa071', N'Ngo Anh Long', '1995-11-17', N'Male', N'Ho Chi Minh City', N'Vietnam', N'Vietnamese'),
+(N'user-pa072', N'Duong Phuong Dung', '1996-12-18', N'Female', N'Ha Noi', N'Vietnam', N'Vietnamese'),
+(N'user-pa073', N'Ly Xuan Lan', '1997-01-19', N'Male', N'Da Nang', N'Vietnam', N'Vietnamese'),
+(N'user-pa074', N'Phan Cong Son', '1998-02-20', N'Female', N'Can Tho', N'Vietnam', N'Vietnamese'),
+(N'user-pa075', N'Vu Minh Tien', '1999-03-21', N'Male', N'Hai Phong', N'Vietnam', N'Vietnamese'),
+(N'user-pa076', N'Dinh Thanh Phuc', '2000-04-22', N'Female', N'Bien Hoa', N'Vietnam', N'Vietnamese'),
+(N'user-pa077', N'Truong Bao Nam', '2001-05-23', N'Male', N'Nha Trang', N'Vietnam', N'Vietnamese'),
+(N'user-pa078', N'Mai Duc Uyen', '2002-06-24', N'Female', N'Hue', N'Vietnam', N'Vietnamese'),
+(N'user-pa079', N'Chu Tuan An', '2003-07-25', N'Male', N'Vung Tau', N'Vietnam', N'Vietnamese'),
+(N'user-pa080', N'Ta Thu Ha', '2004-08-26', N'Female', N'Buon Ma Thuot', N'Vietnam', N'Vietnamese'),
+(N'user-pa081', N'Nguyen Van Phong', '1965-09-27', N'Male', N'Ho Chi Minh City', N'Vietnam', N'Vietnamese'),
+(N'user-pa082', N'Tran Quoc Yen', '1966-10-01', N'Female', N'Ha Noi', N'Vietnam', N'Vietnamese'),
+(N'user-pa083', N'Le Hoang Chi', '1967-11-02', N'Male', N'Da Nang', N'Vietnam', N'Vietnamese'),
+(N'user-pa084', N'Pham Hai Khanh', '1968-12-03', N'Female', N'Can Tho', N'Vietnam', N'Vietnamese'),
+(N'user-pa085', N'Hoang Kim Quynh', '1969-01-04', N'Male', N'Hai Phong', N'Vietnam', N'Vietnamese'),
+(N'user-pa086', N'Vo Huu Linh', '1970-02-05', N'Female', N'Bien Hoa', N'Vietnam', N'Vietnamese'),
+(N'user-pa087', N'Dang Dinh Em', '1971-03-06', N'Male', N'Nha Trang', N'Vietnam', N'Vietnamese'),
+(N'user-pa088', N'Bui Thi Mai', '1972-04-07', N'Female', N'Hue', N'Vietnam', N'Vietnamese'),
+(N'user-pa089', N'Do Gia Tam', '1973-05-08', N'Male', N'Vung Tau', N'Vietnam', N'Vietnamese'),
+(N'user-pa090', N'Ho Ngoc Trang', '1974-06-09', N'Female', N'Buon Ma Thuot', N'Vietnam', N'Vietnamese');
+GO
+
+-- 49. ANALYTICS APPOINTMENTS (Completed + some Cancelled, spread over 2024)
+SET IDENTITY_INSERT Appointments ON;
+INSERT INTO Appointments (AppointmentID, AppointmentTime, ConsultationType, Status, symptoms, notes, fee, endTime, doctorReminderSent, reminderSent, confirmedAt, PatientID, DoctorID) VALUES
+(1000, '2024-01-05 09:00:00', N'Online', N'Completed', N'Cough and mild fever', N'Completed consultation', 110.00, '2024-01-05 09:30:00', 0, 1, '2024-01-04 18:00:00', N'user-pa002', N'user-d02'),
+(1001, '2024-01-09 10:00:00', N'Online', N'Completed', N'Follow-up on chronic condition', N'Completed consultation', 120.00, '2024-01-09 10:30:00', 0, 1, '2024-01-08 18:00:00', N'user-pa003', N'user-d03'),
+(1002, '2024-01-12 13:00:00', N'Online', N'Completed', N'Skin rash evaluation', N'Completed consultation', 140.00, '2024-01-12 13:30:00', 0, 1, '2024-01-11 18:00:00', N'user-pa004', N'user-d04'),
+(1003, '2024-01-16 14:00:00', N'Online', N'Completed', N'Headache and fatigue', N'Completed consultation', 150.00, '2024-01-16 14:30:00', 0, 1, '2024-01-15 18:00:00', N'user-pa005', N'user-d05'),
+(1004, '2024-01-19 15:00:00', N'Online', N'Completed', N'Routine health screening', N'Completed consultation', 160.00, '2024-01-19 15:30:00', 0, 1, '2024-01-18 18:00:00', N'user-pa001', N'user-d06'),
+(1005, '2024-01-23 16:00:00', N'Online', N'Completed', N'Stomach discomfort', N'Completed consultation', 180.00, '2024-01-23 16:30:00', 0, 1, '2024-01-22 18:00:00', N'user-pa002', N'user-d07'),
+(1006, '2024-01-26 11:00:00', N'Online', N'Completed', N'Blood pressure review', N'Completed consultation', 210.00, '2024-01-26 11:30:00', 0, 1, '2024-01-25 18:00:00', N'user-pa003', N'user-d08'),
+(1007, '2024-01-28 17:00:00', N'Online', N'Cancelled', N'Allergy consultation', N'Auto-cancelled sample', NULL, NULL, 0, 0, '2024-01-27 18:00:00', N'user-pa004', N'user-d09'),
+(1008, '2024-01-30 08:00:00', N'Online', N'Completed', N'Back pain assessment', N'Completed consultation', 250.00, '2024-01-30 08:30:00', 0, 1, '2024-01-29 18:00:00', N'user-pa005', N'user-d10'),
+(1009, '2024-01-02 09:00:00', N'Online', N'Completed', N'General check-up and consultation', N'Completed consultation', 130.00, '2024-01-02 09:30:00', 0, 1, '2024-01-01 18:00:00', N'user-pa001', N'user-d11'),
+(1010, '2024-01-07 10:00:00', N'Online', N'Completed', N'Cough and mild fever', N'Completed consultation', 100.00, '2024-01-07 10:30:00', 0, 1, '2024-01-06 18:00:00', N'user-pa002', N'user-d12'),
+(1011, '2024-01-14 13:00:00', N'Online', N'Completed', N'Follow-up on chronic condition', N'Completed consultation', 185.00, '2024-01-14 13:30:00', 0, 1, '2024-01-13 18:00:00', N'user-pa003', N'user-d13'),
+(1012, '2024-02-21 14:00:00', N'Online', N'Completed', N'Skin rash evaluation', N'Completed consultation', 155.00, '2024-02-21 14:30:00', 0, 1, '2024-02-20 18:00:00', N'user-pa002', N'user-d14'),
+(1013, '2024-02-24 15:00:00', N'Online', N'Completed', N'Headache and fatigue', N'Completed consultation', 95.00, '2024-02-24 15:30:00', 0, 1, '2024-02-23 18:00:00', N'user-pa003', N'user-d15'),
+(1014, '2024-02-03 16:00:00', N'Online', N'Completed', N'Routine health screening', N'Completed consultation', 90.00, '2024-02-03 16:30:00', 0, 1, '2024-02-02 18:00:00', N'user-pa004', N'user-d16'),
+(1015, '2024-02-05 11:00:00', N'Online', N'Cancelled', N'Stomach discomfort', N'Auto-cancelled sample', NULL, NULL, 0, 0, '2024-02-04 18:00:00', N'user-pa005', N'user-d17'),
+(1016, '2024-02-09 17:00:00', N'Online', N'Completed', N'Blood pressure review', N'Completed consultation', 120.00, '2024-02-09 17:30:00', 0, 1, '2024-02-08 18:00:00', N'user-pa006', N'user-d18'),
+(1017, '2024-02-12 08:00:00', N'Online', N'Completed', N'Allergy consultation', N'Completed consultation', 140.00, '2024-02-12 08:30:00', 0, 1, '2024-02-11 18:00:00', N'user-pa007', N'user-d19'),
+(1018, '2024-02-16 09:00:00', N'Online', N'Completed', N'Back pain assessment', N'Completed consultation', 150.00, '2024-02-16 09:30:00', 0, 1, '2024-02-15 18:00:00', N'user-pa008', N'user-d20'),
+(1019, '2024-02-19 10:00:00', N'Online', N'Completed', N'General check-up and consultation', N'Completed consultation', 160.00, '2024-02-19 10:30:00', 0, 1, '2024-02-18 18:00:00', N'user-pa009', N'user-d01'),
+(1020, '2024-02-23 13:00:00', N'Online', N'Completed', N'Cough and mild fever', N'Completed consultation', 180.00, '2024-02-23 13:30:00', 0, 1, '2024-02-22 18:00:00', N'user-pa010', N'user-d02'),
+(1021, '2024-02-26 14:00:00', N'Online', N'Completed', N'Follow-up on chronic condition', N'Completed consultation', 210.00, '2024-02-26 14:30:00', 0, 1, '2024-02-25 18:00:00', N'user-pa011', N'user-d03'),
+(1022, '2024-02-28 15:00:00', N'Online', N'Completed', N'Skin rash evaluation', N'Completed consultation', 220.00, '2024-02-28 15:30:00', 0, 1, '2024-02-27 18:00:00', N'user-pa012', N'user-d04'),
+(1023, '2024-02-28 16:00:00', N'Online', N'Cancelled', N'Headache and fatigue', N'Auto-cancelled sample', NULL, NULL, 0, 0, '2024-02-27 18:00:00', N'user-pa001', N'user-d05'),
+(1024, '2024-02-02 11:00:00', N'Online', N'Completed', N'Routine health screening', N'Completed consultation', 130.00, '2024-02-02 11:30:00', 0, 1, '2024-02-01 18:00:00', N'user-pa002', N'user-d06'),
+(1025, '2024-02-07 17:00:00', N'Online', N'Completed', N'Stomach discomfort', N'Completed consultation', 100.00, '2024-02-07 17:30:00', 0, 1, '2024-02-06 18:00:00', N'user-pa003', N'user-d07'),
+(1026, '2024-03-14 08:00:00', N'Online', N'Completed', N'Blood pressure review', N'Completed consultation', 185.00, '2024-03-14 08:30:00', 0, 1, '2024-03-13 18:00:00', N'user-pa010', N'user-d08'),
+(1027, '2024-03-21 09:00:00', N'Online', N'Completed', N'Allergy consultation', N'Completed consultation', 155.00, '2024-03-21 09:30:00', 0, 1, '2024-03-20 18:00:00', N'user-pa011', N'user-d09'),
+(1028, '2024-03-24 10:00:00', N'Online', N'Completed', N'Back pain assessment', N'Completed consultation', 95.00, '2024-03-24 10:30:00', 0, 1, '2024-03-23 18:00:00', N'user-pa012', N'user-d10'),
+(1029, '2024-03-03 13:00:00', N'Online', N'Completed', N'General check-up and consultation', N'Completed consultation', 90.00, '2024-03-03 13:30:00', 0, 1, '2024-03-02 18:00:00', N'user-pa013', N'user-d11'),
+(1030, '2024-03-05 14:00:00', N'Online', N'Completed', N'Cough and mild fever', N'Completed consultation', 110.00, '2024-03-05 14:30:00', 0, 1, '2024-03-04 18:00:00', N'user-pa014', N'user-d12'),
+(1031, '2024-03-09 15:00:00', N'Online', N'Cancelled', N'Follow-up on chronic condition', N'Auto-cancelled sample', NULL, NULL, 0, 0, '2024-03-08 18:00:00', N'user-pa015', N'user-d13'),
+(1032, '2024-03-12 16:00:00', N'Online', N'Completed', N'Skin rash evaluation', N'Completed consultation', 140.00, '2024-03-12 16:30:00', 0, 1, '2024-03-11 18:00:00', N'user-pa016', N'user-d14'),
+(1033, '2024-03-16 11:00:00', N'Online', N'Completed', N'Headache and fatigue', N'Completed consultation', 150.00, '2024-03-16 11:30:00', 0, 1, '2024-03-15 18:00:00', N'user-pa017', N'user-d15'),
+(1034, '2024-03-19 17:00:00', N'Online', N'Completed', N'Routine health screening', N'Completed consultation', 160.00, '2024-03-19 17:30:00', 0, 1, '2024-03-18 18:00:00', N'user-pa018', N'user-d16'),
+(1035, '2024-03-23 08:00:00', N'Online', N'Completed', N'Stomach discomfort', N'Completed consultation', 180.00, '2024-03-23 08:30:00', 0, 1, '2024-03-22 18:00:00', N'user-pa001', N'user-d17'),
+(1036, '2024-03-26 09:00:00', N'Online', N'Completed', N'Blood pressure review', N'Completed consultation', 210.00, '2024-03-26 09:30:00', 0, 1, '2024-03-25 18:00:00', N'user-pa002', N'user-d18'),
+(1037, '2024-03-28 10:00:00', N'Online', N'Completed', N'Allergy consultation', N'Completed consultation', 220.00, '2024-03-28 10:30:00', 0, 1, '2024-03-27 18:00:00', N'user-pa003', N'user-d19'),
+(1038, '2024-03-30 13:00:00', N'Online', N'Completed', N'Back pain assessment', N'Completed consultation', 250.00, '2024-03-30 13:30:00', 0, 1, '2024-03-29 18:00:00', N'user-pa004', N'user-d20'),
+(1039, '2024-04-02 14:00:00', N'Online', N'Cancelled', N'General check-up and consultation', N'Auto-cancelled sample', NULL, NULL, 0, 0, '2024-04-01 18:00:00', N'user-pa015', N'user-d01'),
+(1040, '2024-04-07 15:00:00', N'Online', N'Completed', N'Cough and mild fever', N'Completed consultation', 100.00, '2024-04-07 15:30:00', 0, 1, '2024-04-06 18:00:00', N'user-pa016', N'user-d02'),
+(1041, '2024-04-14 16:00:00', N'Online', N'Completed', N'Follow-up on chronic condition', N'Completed consultation', 185.00, '2024-04-14 16:30:00', 0, 1, '2024-04-13 18:00:00', N'user-pa017', N'user-d03'),
+(1042, '2024-04-21 11:00:00', N'Online', N'Completed', N'Skin rash evaluation', N'Completed consultation', 155.00, '2024-04-21 11:30:00', 0, 1, '2024-04-20 18:00:00', N'user-pa018', N'user-d04'),
+(1043, '2024-04-24 17:00:00', N'Online', N'Completed', N'Headache and fatigue', N'Completed consultation', 95.00, '2024-04-24 17:30:00', 0, 1, '2024-04-23 18:00:00', N'user-pa019', N'user-d05'),
+(1044, '2024-04-03 08:00:00', N'Online', N'Completed', N'Routine health screening', N'Completed consultation', 90.00, '2024-04-03 08:30:00', 0, 1, '2024-04-02 18:00:00', N'user-pa020', N'user-d06'),
+(1045, '2024-04-05 09:00:00', N'Online', N'Completed', N'Stomach discomfort', N'Completed consultation', 110.00, '2024-04-05 09:30:00', 0, 1, '2024-04-04 18:00:00', N'user-pa021', N'user-d07'),
+(1046, '2024-04-09 10:00:00', N'Online', N'Completed', N'Blood pressure review', N'Completed consultation', 120.00, '2024-04-09 10:30:00', 0, 1, '2024-04-08 18:00:00', N'user-pa022', N'user-d08'),
+(1047, '2024-04-12 13:00:00', N'Online', N'Cancelled', N'Allergy consultation', N'Auto-cancelled sample', NULL, NULL, 0, 0, '2024-04-11 18:00:00', N'user-pa023', N'user-d09'),
+(1048, '2024-04-16 14:00:00', N'Online', N'Completed', N'Back pain assessment', N'Completed consultation', 150.00, '2024-04-16 14:30:00', 0, 1, '2024-04-15 18:00:00', N'user-pa024', N'user-d10'),
+(1049, '2024-04-19 15:00:00', N'Online', N'Completed', N'General check-up and consultation', N'Completed consultation', 160.00, '2024-04-19 15:30:00', 0, 1, '2024-04-18 18:00:00', N'user-pa025', N'user-d11'),
+(1050, '2024-04-23 16:00:00', N'Online', N'Completed', N'Cough and mild fever', N'Completed consultation', 180.00, '2024-04-23 16:30:00', 0, 1, '2024-04-22 18:00:00', N'user-pa026', N'user-d12'),
+(1051, '2024-04-26 11:00:00', N'Online', N'Completed', N'Follow-up on chronic condition', N'Completed consultation', 210.00, '2024-04-26 11:30:00', 0, 1, '2024-04-25 18:00:00', N'user-pa001', N'user-d13'),
+(1052, '2024-04-28 17:00:00', N'Online', N'Completed', N'Skin rash evaluation', N'Completed consultation', 220.00, '2024-04-28 17:30:00', 0, 1, '2024-04-27 18:00:00', N'user-pa002', N'user-d14'),
+(1053, '2024-04-30 08:00:00', N'Online', N'Completed', N'Headache and fatigue', N'Completed consultation', 250.00, '2024-04-30 08:30:00', 0, 1, '2024-04-29 18:00:00', N'user-pa003', N'user-d15'),
+(1054, '2024-05-02 09:00:00', N'Online', N'Completed', N'Routine health screening', N'Completed consultation', 130.00, '2024-05-02 09:30:00', 0, 1, '2024-05-01 18:00:00', N'user-pa021', N'user-d16'),
+(1055, '2024-05-07 10:00:00', N'Online', N'Cancelled', N'Stomach discomfort', N'Auto-cancelled sample', NULL, NULL, 0, 0, '2024-05-06 18:00:00', N'user-pa022', N'user-d17'),
+(1056, '2024-05-14 13:00:00', N'Online', N'Completed', N'Blood pressure review', N'Completed consultation', 185.00, '2024-05-14 13:30:00', 0, 1, '2024-05-13 18:00:00', N'user-pa023', N'user-d18'),
+(1057, '2024-05-21 14:00:00', N'Online', N'Completed', N'Allergy consultation', N'Completed consultation', 155.00, '2024-05-21 14:30:00', 0, 1, '2024-05-20 18:00:00', N'user-pa024', N'user-d19'),
+(1058, '2024-05-24 15:00:00', N'Online', N'Completed', N'Back pain assessment', N'Completed consultation', 95.00, '2024-05-24 15:30:00', 0, 1, '2024-05-23 18:00:00', N'user-pa025', N'user-d20'),
+(1059, '2024-05-03 16:00:00', N'Online', N'Completed', N'General check-up and consultation', N'Completed consultation', 90.00, '2024-05-03 16:30:00', 0, 1, '2024-05-02 18:00:00', N'user-pa026', N'user-d01'),
+(1060, '2024-05-05 11:00:00', N'Online', N'Completed', N'Cough and mild fever', N'Completed consultation', 110.00, '2024-05-05 11:30:00', 0, 1, '2024-05-04 18:00:00', N'user-pa027', N'user-d02'),
+(1061, '2024-05-09 17:00:00', N'Online', N'Completed', N'Follow-up on chronic condition', N'Completed consultation', 120.00, '2024-05-09 17:30:00', 0, 1, '2024-05-08 18:00:00', N'user-pa028', N'user-d03'),
+(1062, '2024-05-12 08:00:00', N'Online', N'Completed', N'Skin rash evaluation', N'Completed consultation', 140.00, '2024-05-12 08:30:00', 0, 1, '2024-05-11 18:00:00', N'user-pa029', N'user-d04'),
+(1063, '2024-05-16 09:00:00', N'Online', N'Cancelled', N'Headache and fatigue', N'Auto-cancelled sample', NULL, NULL, 0, 0, '2024-05-15 18:00:00', N'user-pa030', N'user-d05'),
+(1064, '2024-05-19 10:00:00', N'Online', N'Completed', N'Routine health screening', N'Completed consultation', 160.00, '2024-05-19 10:30:00', 0, 1, '2024-05-18 18:00:00', N'user-pa031', N'user-d06'),
+(1065, '2024-05-23 13:00:00', N'Online', N'Completed', N'Stomach discomfort', N'Completed consultation', 180.00, '2024-05-23 13:30:00', 0, 1, '2024-05-22 18:00:00', N'user-pa032', N'user-d07'),
+(1066, '2024-05-26 14:00:00', N'Online', N'Completed', N'Blood pressure review', N'Completed consultation', 210.00, '2024-05-26 14:30:00', 0, 1, '2024-05-25 18:00:00', N'user-pa033', N'user-d08'),
+(1067, '2024-05-28 15:00:00', N'Online', N'Completed', N'Allergy consultation', N'Completed consultation', 220.00, '2024-05-28 15:30:00', 0, 1, '2024-05-27 18:00:00', N'user-pa034', N'user-d09'),
+(1068, '2024-05-30 16:00:00', N'Online', N'Completed', N'Back pain assessment', N'Completed consultation', 250.00, '2024-05-30 16:30:00', 0, 1, '2024-05-29 18:00:00', N'user-pa035', N'user-d10'),
+(1069, '2024-05-02 11:00:00', N'Online', N'Completed', N'General check-up and consultation', N'Completed consultation', 130.00, '2024-05-02 11:30:00', 0, 1, '2024-05-01 18:00:00', N'user-pa001', N'user-d11'),
+(1070, '2024-06-07 17:00:00', N'Online', N'Completed', N'Cough and mild fever', N'Completed consultation', 100.00, '2024-06-07 17:30:00', 0, 1, '2024-06-06 18:00:00', N'user-pa030', N'user-d12'),
+(1071, '2024-06-14 08:00:00', N'Online', N'Cancelled', N'Follow-up on chronic condition', N'Auto-cancelled sample', NULL, NULL, 0, 0, '2024-06-13 18:00:00', N'user-pa031', N'user-d13'),
+(1072, '2024-06-21 09:00:00', N'Online', N'Completed', N'Skin rash evaluation', N'Completed consultation', 155.00, '2024-06-21 09:30:00', 0, 1, '2024-06-20 18:00:00', N'user-pa032', N'user-d14'),
+(1073, '2024-06-24 10:00:00', N'Online', N'Completed', N'Headache and fatigue', N'Completed consultation', 95.00, '2024-06-24 10:30:00', 0, 1, '2024-06-23 18:00:00', N'user-pa033', N'user-d15'),
+(1074, '2024-06-03 13:00:00', N'Online', N'Completed', N'Routine health screening', N'Completed consultation', 90.00, '2024-06-03 13:30:00', 0, 1, '2024-06-02 18:00:00', N'user-pa034', N'user-d16'),
+(1075, '2024-06-05 14:00:00', N'Online', N'Completed', N'Stomach discomfort', N'Completed consultation', 110.00, '2024-06-05 14:30:00', 0, 1, '2024-06-04 18:00:00', N'user-pa035', N'user-d17'),
+(1076, '2024-06-09 15:00:00', N'Online', N'Completed', N'Blood pressure review', N'Completed consultation', 120.00, '2024-06-09 15:30:00', 0, 1, '2024-06-08 18:00:00', N'user-pa036', N'user-d18'),
+(1077, '2024-06-12 16:00:00', N'Online', N'Completed', N'Allergy consultation', N'Completed consultation', 140.00, '2024-06-12 16:30:00', 0, 1, '2024-06-11 18:00:00', N'user-pa037', N'user-d19'),
+(1078, '2024-06-16 11:00:00', N'Online', N'Completed', N'Back pain assessment', N'Completed consultation', 150.00, '2024-06-16 11:30:00', 0, 1, '2024-06-15 18:00:00', N'user-pa038', N'user-d20'),
+(1079, '2024-06-19 17:00:00', N'Online', N'Cancelled', N'General check-up and consultation', N'Auto-cancelled sample', NULL, NULL, 0, 0, '2024-06-18 18:00:00', N'user-pa039', N'user-d01'),
+(1080, '2024-06-23 08:00:00', N'Online', N'Completed', N'Cough and mild fever', N'Completed consultation', 180.00, '2024-06-23 08:30:00', 0, 1, '2024-06-22 18:00:00', N'user-pa040', N'user-d02'),
+(1081, '2024-06-26 09:00:00', N'Online', N'Completed', N'Follow-up on chronic condition', N'Completed consultation', 210.00, '2024-06-26 09:30:00', 0, 1, '2024-06-25 18:00:00', N'user-pa041', N'user-d03'),
+(1082, '2024-06-28 10:00:00', N'Online', N'Completed', N'Skin rash evaluation', N'Completed consultation', 220.00, '2024-06-28 10:30:00', 0, 1, '2024-06-27 18:00:00', N'user-pa042', N'user-d04'),
+(1083, '2024-06-30 13:00:00', N'Online', N'Completed', N'Headache and fatigue', N'Completed consultation', 250.00, '2024-06-30 13:30:00', 0, 1, '2024-06-29 18:00:00', N'user-pa001', N'user-d05'),
+(1084, '2024-07-02 14:00:00', N'Online', N'Completed', N'Routine health screening', N'Completed consultation', 130.00, '2024-07-02 14:30:00', 0, 1, '2024-07-01 18:00:00', N'user-pa036', N'user-d06'),
+(1085, '2024-07-07 15:00:00', N'Online', N'Completed', N'Stomach discomfort', N'Completed consultation', 100.00, '2024-07-07 15:30:00', 0, 1, '2024-07-06 18:00:00', N'user-pa037', N'user-d07'),
+(1086, '2024-07-14 16:00:00', N'Online', N'Completed', N'Blood pressure review', N'Completed consultation', 185.00, '2024-07-14 16:30:00', 0, 1, '2024-07-13 18:00:00', N'user-pa038', N'user-d08'),
+(1087, '2024-07-21 11:00:00', N'Online', N'Cancelled', N'Allergy consultation', N'Auto-cancelled sample', NULL, NULL, 0, 0, '2024-07-20 18:00:00', N'user-pa039', N'user-d09'),
+(1088, '2024-07-24 17:00:00', N'Online', N'Completed', N'Back pain assessment', N'Completed consultation', 95.00, '2024-07-24 17:30:00', 0, 1, '2024-07-23 18:00:00', N'user-pa040', N'user-d10'),
+(1089, '2024-07-03 08:00:00', N'Online', N'Completed', N'General check-up and consultation', N'Completed consultation', 90.00, '2024-07-03 08:30:00', 0, 1, '2024-07-02 18:00:00', N'user-pa041', N'user-d11'),
+(1090, '2024-07-05 09:00:00', N'Online', N'Completed', N'Cough and mild fever', N'Completed consultation', 110.00, '2024-07-05 09:30:00', 0, 1, '2024-07-04 18:00:00', N'user-pa042', N'user-d12'),
+(1091, '2024-07-09 10:00:00', N'Online', N'Completed', N'Follow-up on chronic condition', N'Completed consultation', 120.00, '2024-07-09 10:30:00', 0, 1, '2024-07-08 18:00:00', N'user-pa043', N'user-d13'),
+(1092, '2024-07-12 13:00:00', N'Online', N'Completed', N'Skin rash evaluation', N'Completed consultation', 140.00, '2024-07-12 13:30:00', 0, 1, '2024-07-11 18:00:00', N'user-pa044', N'user-d14'),
+(1093, '2024-07-16 14:00:00', N'Online', N'Completed', N'Headache and fatigue', N'Completed consultation', 150.00, '2024-07-16 14:30:00', 0, 1, '2024-07-15 18:00:00', N'user-pa045', N'user-d15'),
+(1094, '2024-07-19 15:00:00', N'Online', N'Completed', N'Routine health screening', N'Completed consultation', 160.00, '2024-07-19 15:30:00', 0, 1, '2024-07-18 18:00:00', N'user-pa046', N'user-d16'),
+(1095, '2024-07-23 16:00:00', N'Online', N'Cancelled', N'Stomach discomfort', N'Auto-cancelled sample', NULL, NULL, 0, 0, '2024-07-22 18:00:00', N'user-pa047', N'user-d17'),
+(1096, '2024-07-26 11:00:00', N'Online', N'Completed', N'Blood pressure review', N'Completed consultation', 210.00, '2024-07-26 11:30:00', 0, 1, '2024-07-25 18:00:00', N'user-pa048', N'user-d18'),
+(1097, '2024-07-28 17:00:00', N'Online', N'Completed', N'Allergy consultation', N'Completed consultation', 220.00, '2024-07-28 17:30:00', 0, 1, '2024-07-27 18:00:00', N'user-pa049', N'user-d19'),
+(1098, '2024-07-30 08:00:00', N'Online', N'Completed', N'Back pain assessment', N'Completed consultation', 250.00, '2024-07-30 08:30:00', 0, 1, '2024-07-29 18:00:00', N'user-pa050', N'user-d20'),
+(1099, '2024-08-02 09:00:00', N'Online', N'Completed', N'General check-up and consultation', N'Completed consultation', 130.00, '2024-08-02 09:30:00', 0, 1, '2024-08-01 18:00:00', N'user-pa041', N'user-d01'),
+(1100, '2024-08-07 10:00:00', N'Online', N'Completed', N'Cough and mild fever', N'Completed consultation', 100.00, '2024-08-07 10:30:00', 0, 1, '2024-08-06 18:00:00', N'user-pa042', N'user-d02'),
+(1101, '2024-08-14 13:00:00', N'Online', N'Completed', N'Follow-up on chronic condition', N'Completed consultation', 185.00, '2024-08-14 13:30:00', 0, 1, '2024-08-13 18:00:00', N'user-pa043', N'user-d03'),
+(1102, '2024-08-21 14:00:00', N'Online', N'Completed', N'Skin rash evaluation', N'Completed consultation', 155.00, '2024-08-21 14:30:00', 0, 1, '2024-08-20 18:00:00', N'user-pa044', N'user-d04'),
+(1103, '2024-08-24 15:00:00', N'Online', N'Cancelled', N'Headache and fatigue', N'Auto-cancelled sample', NULL, NULL, 0, 0, '2024-08-23 18:00:00', N'user-pa045', N'user-d05'),
+(1104, '2024-08-03 16:00:00', N'Online', N'Completed', N'Routine health screening', N'Completed consultation', 90.00, '2024-08-03 16:30:00', 0, 1, '2024-08-02 18:00:00', N'user-pa046', N'user-d06'),
+(1105, '2024-08-05 11:00:00', N'Online', N'Completed', N'Stomach discomfort', N'Completed consultation', 110.00, '2024-08-05 11:30:00', 0, 1, '2024-08-04 18:00:00', N'user-pa047', N'user-d07'),
+(1106, '2024-08-09 17:00:00', N'Online', N'Completed', N'Blood pressure review', N'Completed consultation', 120.00, '2024-08-09 17:30:00', 0, 1, '2024-08-08 18:00:00', N'user-pa048', N'user-d08'),
+(1107, '2024-08-12 08:00:00', N'Online', N'Completed', N'Allergy consultation', N'Completed consultation', 140.00, '2024-08-12 08:30:00', 0, 1, '2024-08-11 18:00:00', N'user-pa049', N'user-d09'),
+(1108, '2024-08-16 09:00:00', N'Online', N'Completed', N'Back pain assessment', N'Completed consultation', 150.00, '2024-08-16 09:30:00', 0, 1, '2024-08-15 18:00:00', N'user-pa050', N'user-d10'),
+(1109, '2024-08-19 10:00:00', N'Online', N'Completed', N'General check-up and consultation', N'Completed consultation', 160.00, '2024-08-19 10:30:00', 0, 1, '2024-08-18 18:00:00', N'user-pa051', N'user-d11'),
+(1110, '2024-08-23 13:00:00', N'Online', N'Completed', N'Cough and mild fever', N'Completed consultation', 180.00, '2024-08-23 13:30:00', 0, 1, '2024-08-22 18:00:00', N'user-pa052', N'user-d12'),
+(1111, '2024-08-26 14:00:00', N'Online', N'Cancelled', N'Follow-up on chronic condition', N'Auto-cancelled sample', NULL, NULL, 0, 0, '2024-08-25 18:00:00', N'user-pa053', N'user-d13'),
+(1112, '2024-08-28 15:00:00', N'Online', N'Completed', N'Skin rash evaluation', N'Completed consultation', 220.00, '2024-08-28 15:30:00', 0, 1, '2024-08-27 18:00:00', N'user-pa054', N'user-d14'),
+(1113, '2024-08-30 16:00:00', N'Online', N'Completed', N'Headache and fatigue', N'Completed consultation', 250.00, '2024-08-30 16:30:00', 0, 1, '2024-08-29 18:00:00', N'user-pa055', N'user-d15'),
+(1114, '2024-08-02 11:00:00', N'Online', N'Completed', N'Routine health screening', N'Completed consultation', 130.00, '2024-08-02 11:30:00', 0, 1, '2024-08-01 18:00:00', N'user-pa056', N'user-d16'),
+(1115, '2024-08-07 17:00:00', N'Online', N'Completed', N'Stomach discomfort', N'Completed consultation', 100.00, '2024-08-07 17:30:00', 0, 1, '2024-08-06 18:00:00', N'user-pa057', N'user-d17'),
+(1116, '2024-09-14 08:00:00', N'Online', N'Completed', N'Blood pressure review', N'Completed consultation', 185.00, '2024-09-14 08:30:00', 0, 1, '2024-09-13 18:00:00', N'user-pa050', N'user-d18'),
+(1117, '2024-09-21 09:00:00', N'Online', N'Completed', N'Allergy consultation', N'Completed consultation', 155.00, '2024-09-21 09:30:00', 0, 1, '2024-09-20 18:00:00', N'user-pa051', N'user-d19'),
+(1118, '2024-09-24 10:00:00', N'Online', N'Completed', N'Back pain assessment', N'Completed consultation', 95.00, '2024-09-24 10:30:00', 0, 1, '2024-09-23 18:00:00', N'user-pa052', N'user-d20'),
+(1119, '2024-09-03 13:00:00', N'Online', N'Cancelled', N'General check-up and consultation', N'Auto-cancelled sample', NULL, NULL, 0, 0, '2024-09-02 18:00:00', N'user-pa053', N'user-d01'),
+(1120, '2024-09-05 14:00:00', N'Online', N'Completed', N'Cough and mild fever', N'Completed consultation', 110.00, '2024-09-05 14:30:00', 0, 1, '2024-09-04 18:00:00', N'user-pa054', N'user-d02'),
+(1121, '2024-09-09 15:00:00', N'Online', N'Completed', N'Follow-up on chronic condition', N'Completed consultation', 120.00, '2024-09-09 15:30:00', 0, 1, '2024-09-08 18:00:00', N'user-pa055', N'user-d03'),
+(1122, '2024-09-12 16:00:00', N'Online', N'Completed', N'Skin rash evaluation', N'Completed consultation', 140.00, '2024-09-12 16:30:00', 0, 1, '2024-09-11 18:00:00', N'user-pa056', N'user-d04'),
+(1123, '2024-09-16 11:00:00', N'Online', N'Completed', N'Headache and fatigue', N'Completed consultation', 150.00, '2024-09-16 11:30:00', 0, 1, '2024-09-15 18:00:00', N'user-pa057', N'user-d05'),
+(1124, '2024-09-19 17:00:00', N'Online', N'Completed', N'Routine health screening', N'Completed consultation', 160.00, '2024-09-19 17:30:00', 0, 1, '2024-09-18 18:00:00', N'user-pa058', N'user-d06'),
+(1125, '2024-09-23 08:00:00', N'Online', N'Completed', N'Stomach discomfort', N'Completed consultation', 180.00, '2024-09-23 08:30:00', 0, 1, '2024-09-22 18:00:00', N'user-pa059', N'user-d07'),
+(1126, '2024-09-26 09:00:00', N'Online', N'Completed', N'Blood pressure review', N'Completed consultation', 210.00, '2024-09-26 09:30:00', 0, 1, '2024-09-25 18:00:00', N'user-pa060', N'user-d08'),
+(1127, '2024-09-28 10:00:00', N'Online', N'Cancelled', N'Allergy consultation', N'Auto-cancelled sample', NULL, NULL, 0, 0, '2024-09-27 18:00:00', N'user-pa061', N'user-d09'),
+(1128, '2024-09-30 13:00:00', N'Online', N'Completed', N'Back pain assessment', N'Completed consultation', 250.00, '2024-09-30 13:30:00', 0, 1, '2024-09-29 18:00:00', N'user-pa062', N'user-d10'),
+(1129, '2024-09-02 14:00:00', N'Online', N'Completed', N'General check-up and consultation', N'Completed consultation', 130.00, '2024-09-02 14:30:00', 0, 1, '2024-09-01 18:00:00', N'user-pa063', N'user-d11'),
+(1130, '2024-10-07 15:00:00', N'Online', N'Completed', N'Cough and mild fever', N'Completed consultation', 100.00, '2024-10-07 15:30:00', 0, 1, '2024-10-06 18:00:00', N'user-pa055', N'user-d12'),
+(1131, '2024-10-14 16:00:00', N'Online', N'Completed', N'Follow-up on chronic condition', N'Completed consultation', 185.00, '2024-10-14 16:30:00', 0, 1, '2024-10-13 18:00:00', N'user-pa056', N'user-d13'),
+(1132, '2024-10-21 11:00:00', N'Online', N'Completed', N'Skin rash evaluation', N'Completed consultation', 155.00, '2024-10-21 11:30:00', 0, 1, '2024-10-20 18:00:00', N'user-pa057', N'user-d14'),
+(1133, '2024-10-24 17:00:00', N'Online', N'Completed', N'Headache and fatigue', N'Completed consultation', 95.00, '2024-10-24 17:30:00', 0, 1, '2024-10-23 18:00:00', N'user-pa058', N'user-d15'),
+(1134, '2024-10-03 08:00:00', N'Online', N'Completed', N'Routine health screening', N'Completed consultation', 90.00, '2024-10-03 08:30:00', 0, 1, '2024-10-02 18:00:00', N'user-pa059', N'user-d16'),
+(1135, '2024-10-05 09:00:00', N'Online', N'Cancelled', N'Stomach discomfort', N'Auto-cancelled sample', NULL, NULL, 0, 0, '2024-10-04 18:00:00', N'user-pa060', N'user-d17'),
+(1136, '2024-10-09 10:00:00', N'Online', N'Completed', N'Blood pressure review', N'Completed consultation', 120.00, '2024-10-09 10:30:00', 0, 1, '2024-10-08 18:00:00', N'user-pa061', N'user-d18'),
+(1137, '2024-10-12 13:00:00', N'Online', N'Completed', N'Allergy consultation', N'Completed consultation', 140.00, '2024-10-12 13:30:00', 0, 1, '2024-10-11 18:00:00', N'user-pa062', N'user-d19'),
+(1138, '2024-10-16 14:00:00', N'Online', N'Completed', N'Back pain assessment', N'Completed consultation', 150.00, '2024-10-16 14:30:00', 0, 1, '2024-10-15 18:00:00', N'user-pa063', N'user-d20'),
+(1139, '2024-10-19 15:00:00', N'Online', N'Completed', N'General check-up and consultation', N'Completed consultation', 160.00, '2024-10-19 15:30:00', 0, 1, '2024-10-18 18:00:00', N'user-pa064', N'user-d01'),
+(1140, '2024-10-23 16:00:00', N'Online', N'Completed', N'Cough and mild fever', N'Completed consultation', 180.00, '2024-10-23 16:30:00', 0, 1, '2024-10-22 18:00:00', N'user-pa065', N'user-d02'),
+(1141, '2024-10-26 11:00:00', N'Online', N'Completed', N'Follow-up on chronic condition', N'Completed consultation', 210.00, '2024-10-26 11:30:00', 0, 1, '2024-10-25 18:00:00', N'user-pa066', N'user-d03'),
+(1142, '2024-10-28 17:00:00', N'Online', N'Completed', N'Skin rash evaluation', N'Completed consultation', 220.00, '2024-10-28 17:30:00', 0, 1, '2024-10-27 18:00:00', N'user-pa067', N'user-d04'),
+(1143, '2024-10-30 08:00:00', N'Online', N'Cancelled', N'Headache and fatigue', N'Auto-cancelled sample', NULL, NULL, 0, 0, '2024-10-29 18:00:00', N'user-pa068', N'user-d05'),
+(1144, '2024-10-02 09:00:00', N'Online', N'Completed', N'Routine health screening', N'Completed consultation', 130.00, '2024-10-02 09:30:00', 0, 1, '2024-10-01 18:00:00', N'user-pa069', N'user-d06'),
+(1145, '2024-10-07 10:00:00', N'Online', N'Completed', N'Stomach discomfort', N'Completed consultation', 100.00, '2024-10-07 10:30:00', 0, 1, '2024-10-06 18:00:00', N'user-pa070', N'user-d07'),
+(1146, '2024-11-14 13:00:00', N'Online', N'Completed', N'Blood pressure review', N'Completed consultation', 185.00, '2024-11-14 13:30:00', 0, 1, '2024-11-13 18:00:00', N'user-pa064', N'user-d08'),
+(1147, '2024-11-21 14:00:00', N'Online', N'Completed', N'Allergy consultation', N'Completed consultation', 155.00, '2024-11-21 14:30:00', 0, 1, '2024-11-20 18:00:00', N'user-pa065', N'user-d09'),
+(1148, '2024-11-24 15:00:00', N'Online', N'Completed', N'Back pain assessment', N'Completed consultation', 95.00, '2024-11-24 15:30:00', 0, 1, '2024-11-23 18:00:00', N'user-pa066', N'user-d10'),
+(1149, '2024-11-03 16:00:00', N'Online', N'Completed', N'General check-up and consultation', N'Completed consultation', 90.00, '2024-11-03 16:30:00', 0, 1, '2024-11-02 18:00:00', N'user-pa067', N'user-d11'),
+(1150, '2024-11-05 11:00:00', N'Online', N'Completed', N'Cough and mild fever', N'Completed consultation', 110.00, '2024-11-05 11:30:00', 0, 1, '2024-11-04 18:00:00', N'user-pa068', N'user-d12'),
+(1151, '2024-11-09 17:00:00', N'Online', N'Cancelled', N'Follow-up on chronic condition', N'Auto-cancelled sample', NULL, NULL, 0, 0, '2024-11-08 18:00:00', N'user-pa069', N'user-d13'),
+(1152, '2024-11-12 08:00:00', N'Online', N'Completed', N'Skin rash evaluation', N'Completed consultation', 140.00, '2024-11-12 08:30:00', 0, 1, '2024-11-11 18:00:00', N'user-pa070', N'user-d14'),
+(1153, '2024-11-16 09:00:00', N'Online', N'Completed', N'Headache and fatigue', N'Completed consultation', 150.00, '2024-11-16 09:30:00', 0, 1, '2024-11-15 18:00:00', N'user-pa071', N'user-d15'),
+(1154, '2024-11-19 10:00:00', N'Online', N'Completed', N'Routine health screening', N'Completed consultation', 160.00, '2024-11-19 10:30:00', 0, 1, '2024-11-18 18:00:00', N'user-pa072', N'user-d16'),
+(1155, '2024-11-23 13:00:00', N'Online', N'Completed', N'Stomach discomfort', N'Completed consultation', 180.00, '2024-11-23 13:30:00', 0, 1, '2024-11-22 18:00:00', N'user-pa073', N'user-d17'),
+(1156, '2024-11-26 14:00:00', N'Online', N'Completed', N'Blood pressure review', N'Completed consultation', 210.00, '2024-11-26 14:30:00', 0, 1, '2024-11-25 18:00:00', N'user-pa074', N'user-d18'),
+(1157, '2024-11-28 15:00:00', N'Online', N'Completed', N'Allergy consultation', N'Completed consultation', 220.00, '2024-11-28 15:30:00', 0, 1, '2024-11-27 18:00:00', N'user-pa075', N'user-d19'),
+(1158, '2024-11-30 16:00:00', N'Online', N'Completed', N'Back pain assessment', N'Completed consultation', 250.00, '2024-11-30 16:30:00', 0, 1, '2024-11-29 18:00:00', N'user-pa076', N'user-d20'),
+(1159, '2024-12-02 11:00:00', N'Online', N'Cancelled', N'General check-up and consultation', N'Auto-cancelled sample', NULL, NULL, 0, 0, '2024-12-01 18:00:00', N'user-pa071', N'user-d01'),
+(1160, '2024-12-07 17:00:00', N'Online', N'Completed', N'Cough and mild fever', N'Completed consultation', 100.00, '2024-12-07 17:30:00', 0, 1, '2024-12-06 18:00:00', N'user-pa072', N'user-d02'),
+(1161, '2024-12-14 08:00:00', N'Online', N'Completed', N'Follow-up on chronic condition', N'Completed consultation', 185.00, '2024-12-14 08:30:00', 0, 1, '2024-12-13 18:00:00', N'user-pa073', N'user-d03'),
+(1162, '2024-12-21 09:00:00', N'Online', N'Completed', N'Skin rash evaluation', N'Completed consultation', 155.00, '2024-12-21 09:30:00', 0, 1, '2024-12-20 18:00:00', N'user-pa074', N'user-d04'),
+(1163, '2024-12-24 10:00:00', N'Online', N'Completed', N'Headache and fatigue', N'Completed consultation', 95.00, '2024-12-24 10:30:00', 0, 1, '2024-12-23 18:00:00', N'user-pa075', N'user-d05'),
+(1164, '2024-12-03 13:00:00', N'Online', N'Completed', N'Routine health screening', N'Completed consultation', 90.00, '2024-12-03 13:30:00', 0, 1, '2024-12-02 18:00:00', N'user-pa076', N'user-d06'),
+(1165, '2024-12-05 14:00:00', N'Online', N'Completed', N'Stomach discomfort', N'Completed consultation', 110.00, '2024-12-05 14:30:00', 0, 1, '2024-12-04 18:00:00', N'user-pa077', N'user-d07'),
+(1166, '2024-12-09 15:00:00', N'Online', N'Completed', N'Blood pressure review', N'Completed consultation', 120.00, '2024-12-09 15:30:00', 0, 1, '2024-12-08 18:00:00', N'user-pa078', N'user-d08'),
+(1167, '2024-12-12 16:00:00', N'Online', N'Cancelled', N'Allergy consultation', N'Auto-cancelled sample', NULL, NULL, 0, 0, '2024-12-11 18:00:00', N'user-pa079', N'user-d09'),
+(1168, '2024-12-16 11:00:00', N'Online', N'Completed', N'Back pain assessment', N'Completed consultation', 150.00, '2024-12-16 11:30:00', 0, 1, '2024-12-15 18:00:00', N'user-pa080', N'user-d10'),
+(1169, '2024-12-19 17:00:00', N'Online', N'Completed', N'General check-up and consultation', N'Completed consultation', 160.00, '2024-12-19 17:30:00', 0, 1, '2024-12-18 18:00:00', N'user-pa081', N'user-d11'),
+(1170, '2024-12-23 08:00:00', N'Online', N'Completed', N'Cough and mild fever', N'Completed consultation', 180.00, '2024-12-23 08:30:00', 0, 1, '2024-12-22 18:00:00', N'user-pa082', N'user-d12'),
+(1171, '2024-12-26 09:00:00', N'Online', N'Completed', N'Follow-up on chronic condition', N'Completed consultation', 210.00, '2024-12-26 09:30:00', 0, 1, '2024-12-25 18:00:00', N'user-pa083', N'user-d13'),
+(1172, '2024-12-28 10:00:00', N'Online', N'Completed', N'Skin rash evaluation', N'Completed consultation', 220.00, '2024-12-28 10:30:00', 0, 1, '2024-12-27 18:00:00', N'user-pa084', N'user-d14'),
+(1173, '2024-12-30 13:00:00', N'Online', N'Completed', N'Headache and fatigue', N'Completed consultation', 250.00, '2024-12-30 13:30:00', 0, 1, '2024-12-29 18:00:00', N'user-pa085', N'user-d15');
+SET IDENTITY_INSERT Appointments OFF;
+GO
+
+-- 50. REVIEWS - demo completed appts fully reviewed + analytics reviews
+SET IDENTITY_INSERT Reviews ON;
+INSERT INTO Reviews (ReviewID, PatientID, DoctorID, rating, comment, reviewDate, AppointmentId, Anonymous, doctorReply, doctorReplyDate, Visible, HelpfulCount, AdminReply, AdminReplyDate) VALUES
+(11, N'user-p01', N'user-d01', 5, N'Follow-up consultation was smooth and helpful. Felt much better afterwards.', '2024-05-24 18:00:00', 11, 0, NULL, NULL, 1, 4, NULL, NULL),
+(12, N'user-p01', N'user-d01', 5, N'The home visit was very professional and convenient for my elderly relative.', '2024-05-28 09:00:00', 14, 0, N'Thank you! Wishing a speedy recovery.', '2024-05-28 12:00:00', 1, 9, NULL, NULL),
+(1000, N'user-pa002', N'user-d02', 4, N'Very attentive and professional doctor.', '2024-01-05 10:00:00', 1000, 1, NULL, NULL, 1, 0, NULL, NULL),
+(1001, N'user-pa002', N'user-d07', 5, N'Listened carefully to my concerns.', '2024-01-23 17:00:00', 1005, 0, NULL, NULL, 1, 5, NULL, NULL),
+(1002, N'user-pa003', N'user-d13', 5, N'Quick and helpful consultation.', '2024-01-14 14:00:00', 1011, 0, NULL, NULL, 1, 10, NULL, NULL),
+(1003, N'user-pa007', N'user-d19', 4, N'Smooth online session, no issues.', '2024-02-12 09:00:00', 1017, 0, NULL, NULL, 1, 0, NULL, NULL),
+(1004, N'user-pa012', N'user-d04', 5, N'Great experience overall, thank you.', '2024-02-28 16:00:00', 1022, 0, NULL, NULL, 1, 5, NULL, NULL),
+(1005, N'user-pa012', N'user-d10', 5, N'Clear explanation, felt reassured.', '2024-03-24 11:00:00', 1028, 0, NULL, NULL, 1, 10, NULL, NULL),
+(1006, N'user-pa018', N'user-d16', 4, N'Accurate diagnosis and good advice.', '2024-03-19 18:00:00', 1034, 0, NULL, NULL, 1, 0, NULL, NULL),
+(1007, N'user-pa016', N'user-d02', 5, N'Friendly and knowledgeable. Recommended.', '2024-04-07 16:00:00', 1040, 1, NULL, NULL, 1, 5, NULL, NULL),
+(1008, N'user-pa021', N'user-d07', 5, N'Very attentive and professional doctor.', '2024-04-05 10:00:00', 1045, 0, NULL, NULL, 1, 10, NULL, NULL),
+(1009, N'user-pa001', N'user-d13', 4, N'Listened carefully to my concerns.', '2024-04-26 12:00:00', 1051, 0, NULL, NULL, 1, 0, NULL, NULL),
+(1010, N'user-pa024', N'user-d19', 5, N'Quick and helpful consultation.', '2024-05-21 15:00:00', 1057, 0, NULL, NULL, 1, 5, NULL, NULL),
+(1011, N'user-pa029', N'user-d04', 5, N'Smooth online session, no issues.', '2024-05-12 09:00:00', 1062, 0, NULL, NULL, 1, 10, NULL, NULL),
+(1012, N'user-pa035', N'user-d10', 4, N'Great experience overall, thank you.', '2024-05-30 17:00:00', 1068, 0, NULL, NULL, 1, 0, NULL, NULL),
+(1013, N'user-pa034', N'user-d16', 5, N'Clear explanation, felt reassured.', '2024-06-03 14:00:00', 1074, 0, NULL, NULL, 1, 5, NULL, NULL),
+(1014, N'user-pa040', N'user-d02', 5, N'Accurate diagnosis and good advice.', '2024-06-23 09:00:00', 1080, 1, NULL, NULL, 1, 10, NULL, NULL),
+(1015, N'user-pa037', N'user-d07', 4, N'Friendly and knowledgeable. Recommended.', '2024-07-07 16:00:00', 1085, 0, NULL, NULL, 1, 0, NULL, NULL),
+(1016, N'user-pa043', N'user-d13', 5, N'Very attentive and professional doctor.', '2024-07-09 11:00:00', 1091, 0, NULL, NULL, 1, 5, NULL, NULL),
+(1017, N'user-pa049', N'user-d19', 5, N'Listened carefully to my concerns.', '2024-07-28 18:00:00', 1097, 0, NULL, NULL, 1, 10, NULL, NULL),
+(1018, N'user-pa044', N'user-d04', 4, N'Quick and helpful consultation.', '2024-08-21 15:00:00', 1102, 0, NULL, NULL, 1, 0, NULL, NULL),
+(1019, N'user-pa050', N'user-d10', 5, N'Smooth online session, no issues.', '2024-08-16 10:00:00', 1108, 0, NULL, NULL, 1, 5, NULL, NULL),
+(1020, N'user-pa056', N'user-d16', 5, N'Great experience overall, thank you.', '2024-08-02 12:00:00', 1114, 0, NULL, NULL, 1, 10, NULL, NULL),
+(1021, N'user-pa054', N'user-d02', 4, N'Clear explanation, felt reassured.', '2024-09-05 15:00:00', 1120, 1, NULL, NULL, 1, 0, NULL, NULL),
+(1022, N'user-pa059', N'user-d07', 5, N'Accurate diagnosis and good advice.', '2024-09-23 09:00:00', 1125, 0, NULL, NULL, 1, 5, NULL, NULL),
+(1023, N'user-pa056', N'user-d13', 5, N'Friendly and knowledgeable. Recommended.', '2024-10-14 17:00:00', 1131, 0, NULL, NULL, 1, 10, NULL, NULL),
+(1024, N'user-pa062', N'user-d19', 4, N'Very attentive and professional doctor.', '2024-10-12 14:00:00', 1137, 0, NULL, NULL, 1, 0, NULL, NULL),
+(1025, N'user-pa067', N'user-d04', 5, N'Listened carefully to my concerns.', '2024-10-28 18:00:00', 1142, 0, NULL, NULL, 1, 5, NULL, NULL),
+(1026, N'user-pa066', N'user-d10', 5, N'Quick and helpful consultation.', '2024-11-24 16:00:00', 1148, 0, NULL, NULL, 1, 10, NULL, NULL),
+(1027, N'user-pa072', N'user-d16', 4, N'Smooth online session, no issues.', '2024-11-19 11:00:00', 1154, 0, NULL, NULL, 1, 0, NULL, NULL),
+(1028, N'user-pa072', N'user-d02', 5, N'Great experience overall, thank you.', '2024-12-07 18:00:00', 1160, 1, NULL, NULL, 1, 5, NULL, NULL),
+(1029, N'user-pa077', N'user-d07', 5, N'Clear explanation, felt reassured.', '2024-12-05 15:00:00', 1165, 0, NULL, NULL, 1, 10, NULL, NULL),
+(1030, N'user-pa083', N'user-d13', 4, N'Accurate diagnosis and good advice.', '2024-12-26 10:00:00', 1171, 0, NULL, NULL, 1, 0, NULL, NULL);
+SET IDENTITY_INSERT Reviews OFF;
+GO
+
+-- 51. DOCTOR SCHEDULES - delete old, rebuild valid weekly schedules (NEW FLOW)
+-- New flow consultationType is ONLY 'Online' or 'HomeVisit' (see ScheduleFormModal.jsx).
+-- Old 'Video'/'Offline' rows are removed. Shift windows: Morning 07:00-10:30,
+-- Afternoon 13:00-17:30, Evening 19:00-21:00. Online fits ONE window (shiftType NULL);
+-- HomeVisit spans whole shift (shiftType set). No same-day overlap per doctor.
+DELETE FROM DoctorSchedules;
+GO
+SET IDENTITY_INSERT DoctorSchedules ON;
+INSERT INTO DoctorSchedules (ScheduleID, DoctorId, dayOfWeek, startTime, endTime, SlotDuration, MaxPatients, Available, ScheduleStatus, consultationType, ShiftType, location, notes) VALUES
+(1, N'user-d01', 1, '07:00', '10:00', 30, 2, 1, 'APPROVED', N'Online', NULL, NULL, N'Monday morning online'),
+(2, N'user-d01', 3, '14:00', '17:00', 30, 2, 1, 'APPROVED', N'Online', NULL, NULL, N'Wednesday afternoon online'),
+(3, N'user-d01', 1, '19:00', '21:00', 120, 1, 1, 'APPROVED', N'HomeVisit', 'EVENING', N'Patient home', N'Monday evening home visit'),
+(4, N'user-d02', 2, '08:00', '10:30', 30, 2, 1, 'APPROVED', N'Online', NULL, NULL, N'Tuesday morning online'),
+(5, N'user-d02', 2, '13:00', '17:30', 270, 1, 1, 'APPROVED', N'HomeVisit', 'AFTERNOON', N'Patient home', N'Tuesday afternoon home visit'),
+(6, N'user-d02', 4, '07:00', '10:00', 30, 2, 1, 'APPROVED', N'Online', NULL, NULL, N'Thursday morning online'),
+(7, N'user-d03', 3, '07:00', '10:00', 30, 2, 1, 'APPROVED', N'Online', NULL, NULL, N'Wednesday morning online'),
+(8, N'user-d03', 3, '13:00', '17:30', 270, 1, 1, 'APPROVED', N'HomeVisit', 'AFTERNOON', N'Patient home', N'Wednesday afternoon home visit'),
+(9, N'user-d03', 5, '08:00', '10:30', 30, 2, 1, 'APPROVED', N'Online', NULL, NULL, N'Friday morning online'),
+(10, N'user-d04', 4, '08:00', '10:30', 30, 2, 1, 'APPROVED', N'Online', NULL, NULL, N'Thursday morning online'),
+(11, N'user-d04', 4, '13:30', '16:30', 30, 2, 1, 'APPROVED', N'Online', NULL, NULL, N'Thursday afternoon online'),
+(12, N'user-d05', 5, '08:00', '10:30', 30, 2, 1, 'APPROVED', N'Online', NULL, NULL, N'Friday morning online'),
+(13, N'user-d05', 2, '07:00', '10:30', 210, 1, 1, 'APPROVED', N'HomeVisit', 'MORNING', N'Patient home', N'Tuesday morning home visit'),
+(14, N'user-d06', 6, '08:00', '10:30', 30, 2, 1, 'APPROVED', N'Online', NULL, NULL, N'Saturday morning online'),
+(15, N'user-d06', 3, '13:30', '16:30', 30, 2, 1, 'APPROVED', N'Online', NULL, NULL, N'Wednesday afternoon online'),
+(16, N'user-d07', 1, '14:00', '17:00', 30, 2, 1, 'APPROVED', N'Online', NULL, NULL, N'Monday afternoon online'),
+(17, N'user-d07', 4, '07:00', '10:30', 210, 1, 1, 'APPROVED', N'HomeVisit', 'MORNING', N'Patient home', N'Thursday morning home visit'),
+(18, N'user-d08', 2, '08:00', '10:30', 30, 2, 1, 'APPROVED', N'Online', NULL, NULL, N'Tuesday morning online'),
+(19, N'user-d08', 5, '13:30', '16:30', 30, 2, 1, 'APPROVED', N'Online', NULL, NULL, N'Friday afternoon online'),
+(20, N'user-d09', 3, '13:30', '16:30', 30, 2, 1, 'APPROVED', N'Online', NULL, NULL, N'Wednesday afternoon online'),
+(21, N'user-d09', 5, '19:00', '21:00', 120, 1, 1, 'APPROVED', N'HomeVisit', 'EVENING', N'Patient home', N'Friday evening home visit'),
+(22, N'user-d10', 1, '07:00', '10:00', 30, 2, 1, 'APPROVED', N'Online', NULL, NULL, N'Monday morning online'),
+(23, N'user-d10', 3, '13:30', '16:30', 30, 2, 1, 'APPROVED', N'Online', NULL, NULL, N'Wednesday afternoon online'),
+(24, N'user-d10', 5, '07:00', '10:30', 210, 1, 1, 'APPROVED', N'HomeVisit', 'MORNING', N'Patient home', N'Friday morning home visit'),
+(25, N'user-d11', 2, '07:00', '10:00', 30, 2, 1, 'APPROVED', N'Online', NULL, NULL, N'Tuesday morning online'),
+(26, N'user-d11', 4, '13:00', '17:30', 270, 1, 1, 'APPROVED', N'HomeVisit', 'AFTERNOON', N'Patient home', N'Thursday afternoon home visit'),
+(27, N'user-d12', 1, '07:00', '10:00', 30, 2, 1, 'APPROVED', N'Online', NULL, NULL, N'Monday morning online'),
+(28, N'user-d12', 3, '14:00', '17:00', 30, 2, 1, 'APPROVED', N'Online', NULL, NULL, N'Wednesday afternoon online'),
+(29, N'user-d12', 6, '07:00', '10:30', 210, 1, 1, 'APPROVED', N'HomeVisit', 'MORNING', N'Patient home', N'Saturday morning home visit'),
+(30, N'user-d13', 2, '08:00', '10:30', 30, 2, 1, 'APPROVED', N'Online', NULL, NULL, N'Tuesday morning online'),
+(31, N'user-d13', 4, '13:30', '16:30', 30, 2, 1, 'APPROVED', N'Online', NULL, NULL, N'Thursday afternoon online'),
+(32, N'user-d13', 5, '19:00', '21:00', 120, 1, 1, 'APPROVED', N'HomeVisit', 'EVENING', N'Patient home', N'Friday evening home visit'),
+(33, N'user-d14', 1, '13:30', '16:30', 30, 2, 1, 'APPROVED', N'Online', NULL, NULL, N'Monday afternoon online'),
+(34, N'user-d14', 3, '07:00', '10:30', 210, 1, 1, 'APPROVED', N'HomeVisit', 'MORNING', N'Patient home', N'Wednesday morning home visit'),
+(35, N'user-d15', 2, '08:00', '10:30', 30, 2, 1, 'APPROVED', N'Online', NULL, NULL, N'Tuesday morning online'),
+(36, N'user-d15', 4, '14:00', '17:00', 30, 2, 1, 'APPROVED', N'Online', NULL, NULL, N'Thursday afternoon online'),
+(37, N'user-d15', 6, '13:00', '17:30', 270, 1, 1, 'APPROVED', N'HomeVisit', 'AFTERNOON', N'Patient home', N'Saturday afternoon home visit'),
+(38, N'user-d16', 3, '07:00', '10:00', 30, 2, 1, 'APPROVED', N'Online', NULL, NULL, N'Wednesday morning online'),
+(39, N'user-d16', 5, '13:00', '17:30', 270, 1, 1, 'APPROVED', N'HomeVisit', 'AFTERNOON', N'Patient home', N'Friday afternoon home visit'),
+(40, N'user-d17', 1, '13:30', '16:30', 30, 2, 1, 'APPROVED', N'Online', NULL, NULL, N'Monday afternoon online'),
+(41, N'user-d17', 4, '07:00', '10:00', 30, 2, 1, 'APPROVED', N'Online', NULL, NULL, N'Thursday morning online'),
+(42, N'user-d18', 2, '08:00', '10:30', 30, 2, 1, 'APPROVED', N'Online', NULL, NULL, N'Tuesday morning online'),
+(43, N'user-d18', 5, '13:30', '16:30', 30, 2, 1, 'APPROVED', N'Online', NULL, NULL, N'Friday afternoon online'),
+(44, N'user-d18', 6, '07:00', '10:30', 210, 1, 1, 'APPROVED', N'HomeVisit', 'MORNING', N'Patient home', N'Saturday morning home visit'),
+(45, N'user-d19', 3, '14:00', '17:00', 30, 2, 1, 'APPROVED', N'Online', NULL, NULL, N'Wednesday afternoon online'),
+(46, N'user-d19', 5, '19:00', '21:00', 120, 1, 1, 'APPROVED', N'HomeVisit', 'EVENING', N'Patient home', N'Friday evening home visit'),
+(47, N'user-d20', 1, '07:00', '10:00', 30, 2, 1, 'APPROVED', N'Online', NULL, NULL, N'Monday morning online'),
+(48, N'user-d20', 2, '13:30', '16:30', 30, 2, 1, 'APPROVED', N'Online', NULL, NULL, N'Tuesday afternoon online'),
+(49, N'user-d20', 4, '07:00', '10:30', 210, 1, 1, 'APPROVED', N'HomeVisit', 'MORNING', N'Patient home', N'Thursday morning home visit');
+SET IDENTITY_INSERT DoctorSchedules OFF;
+GO
+
+PRINT 'Analytics / charts seed (2024) completed successfully!';
+
+
+-- =====================================================
 -- END SEED DATA
--- Total: 47 seed sections, mixed sample sizes
+-- Total: 51 seed sections, mixed sample sizes
 -- =====================================================
 PRINT 'Seed data completed successfully!';
 

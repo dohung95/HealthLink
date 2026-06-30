@@ -310,30 +310,32 @@ const DoctorDashboardPage = () => {
   return (
     <>
       <DoctorLayout
-      doctorData={doctorData}
-      currentNavItem={currentNavItem}
-      isDetailView={isDetailView}
-      isMobileMenuOpen={isMobileMenuOpen}
-      showAllNotifications={notificationsHook.showAllNotifications}
-      notifications={notificationsHook.notifications}
-      unreadCount={notificationsHook.unreadCount}
-      chatUnreadCount={chatUnreadCount}
-      showNotificationDropdown={notificationsHook.showNotificationDropdown}
-      notificationRef={notificationsHook.notificationRef}
-      onNavigate={(key) => selectView(key)}
-      onLogout={handleLogout}
-      onToggleMobileMenu={() => setIsMobileMenuOpen((prev) => !prev)}
-      onToggleNotificationDropdown={() => notificationsHook.setShowNotificationDropdown((prev) => !prev)}
-      onNotificationClick={notificationsHook.handleNotificationClick}
-      onMarkAllRead={notificationsHook.handleMarkAllRead}
-      onCloseAllNotifications={() => notificationsHook.setShowAllNotifications(true)}
-      onChangePassword={handleChangePassword}
-      onNavigateToProfile={handleNavigateToProfile}
-      onNavigateToWallet={handleNavigateToWallet}
-    >
-      <section className={`doctor-content-section ${isDetailView || currentNavItem?.key === 'schedule' || currentNavItem?.key === 'appointments' || currentNavItem?.key === 'patients' || currentNavItem?.key === 'wallet' ? '' : 'card-section'}`}>
-        <Outlet context={contextValue} />
-      </section>
+        doctorData={doctorData}
+        currentNavItem={currentNavItem}
+        isDetailView={isDetailView}
+        isMobileMenuOpen={isMobileMenuOpen}
+        showAllNotifications={notificationsHook.showAllNotifications}
+        notifications={notificationsHook.notifications}
+        unreadCount={notificationsHook.unreadCount}
+        chatUnreadCount={chatUnreadCount}
+        hasNewNotification={notificationsHook.hasNewNotification}
+        showNotificationDropdown={notificationsHook.showNotificationDropdown}
+        notificationRef={notificationsHook.notificationRef}
+        onClearNewNotification={() => notificationsHook.setHasNewNotification(false)}
+        onNavigate={(key) => selectView(key)}
+        onLogout={handleLogout}
+        onToggleMobileMenu={() => setIsMobileMenuOpen((prev) => !prev)}
+        onToggleNotificationDropdown={() => notificationsHook.setShowNotificationDropdown((prev) => !prev)}
+        onNotificationClick={notificationsHook.handleNotificationClick}
+        onMarkAllRead={notificationsHook.handleMarkAllRead}
+        onCloseAllNotifications={() => notificationsHook.setShowAllNotifications(true)}
+        onChangePassword={handleChangePassword}
+        onNavigateToProfile={handleNavigateToProfile}
+        onNavigateToWallet={handleNavigateToWallet}
+      >
+        <section className={`doctor-content-section ${isDetailView || currentNavItem?.key === 'schedule' || currentNavItem?.key === 'appointments' || currentNavItem?.key === 'patients' || currentNavItem?.key === 'wallet' ? '' : 'card-section'}`}>
+          <Outlet context={contextValue} />
+        </section>
       </DoctorLayout>
       {showChangePassword && (
         <DoctorChangePasswordModal onClose={() => setShowChangePassword(false)} />
