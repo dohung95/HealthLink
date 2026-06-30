@@ -142,6 +142,16 @@ public class ChatController {
     }
 
     /**
+     * GET /api/chat/rooms/{chatRoomId}/media
+     * Lấy tất cả tin nhắn chứa media (hình ảnh, video, tệp, âm thanh) trong phòng.
+     */
+    @GetMapping("/rooms/{chatRoomId}/media")
+    public ResponseEntity<List<MessageDTO>> getRoomMedia(
+            @PathVariable String chatRoomId) {
+        return ResponseEntity.ok(chatService.getMediaMessages(chatRoomId));
+    }
+
+    /**
      * PATCH /api/chat/rooms/{chatRoomId}/read
      * Đánh dấu tất cả tin nhắn chưa đọc là đã đọc.
      * userId lấy tự động từ JWT token.

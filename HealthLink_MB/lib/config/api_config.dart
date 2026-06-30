@@ -144,6 +144,9 @@ class ApiConfig {
   /// GET /api/chat/rooms/{id}/messages/search – Tìm kiếm tin nhắn
   static String chatMessagesSearch(String id, String query) => '$baseUrl/chat/rooms/$id/messages/search?query=${Uri.encodeQueryComponent(query)}';
 
+  /// GET /api/chat/rooms/{id}/media – Lấy tất cả tin nhắn media.
+  static String chatMedia(String id) => '$baseUrl/chat/rooms/$id/media';
+
   /// POST /api/chat/messages – Gửi tin nhắn mới.
   static const String chatSendMessage   = '$baseUrl/chat/messages';
 

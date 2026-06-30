@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
-import { getOrCreateRoom, getMyRooms, getRoomMessages, sendMessage as apiSendMessage, markAsRead, uploadMedia, toggleBlock } from '../api/chatApi';
+import { getOrCreateRoom, getMyRooms, getRoomMessages, getRoomMedia, sendMessage as apiSendMessage, markAsRead, uploadMedia, toggleBlock } from '../api/chatApi';
 import stompChatService from '../services/stompChatService';
 import { getGeminiResponse } from '../services/geminiService';
 import { checkKeywordAndGetBotReply, checkSymptomAndGetSpecialty, getDoctorsBySpecialty } from '../AI_BOT/BotBrain';
@@ -603,6 +603,7 @@ export default function ChatPage({ showBot = true }) {
     const [searchResults, setSearchResults] = useState([]);
     const [isSearching, setIsSearching] = useState(false);
     const [showMediaModal, setShowMediaModal] = useState(false);
+    const [roomMedia, setRoomMedia] = useState([]);
     const [showBlockConfirmModal, setShowBlockConfirmModal] = useState(false);
     const [showBlockedUsersModal, setShowBlockedUsersModal] = useState(false);
     const [showProfileModal, setShowProfileModal] = useState(false);
@@ -613,6 +614,32 @@ export default function ChatPage({ showBot = true }) {
     const scrollTo = useRef(null);
     const fileInputRef = useRef(null);
     const unsubscribeChat = useRef(null);
+    const [messagesState, setMessagesState] = useState([]); // Temporary fix if needed
+
+    useEffect(() => {
+        if (showMediaModal && currentRoom) {
+            getRoomMedia(currentRoom.chatRoomId).then(data => {
+                setRoomMedia(data || []);
+            }).catch(err => {
+                console.error("Failed to fetch room media", err);
+                toast.error("Không thể tải hình ảnh/video");
+            });
+        }
+    }, [showMediaModal, currentRoom]);
+
+    const allMediaMessages = React.useMemo(() => {
+        // Combine current messages and historical media, removing duplicates, sorted newest first
+        const combined = [...roomMedia, ...messages];
+        const unique = [];
+        const seen = new Set();
+        for (const m of combined) {
+            if (!seen.has(m.messageId)) {
+                seen.add(m.messageId);
+                unique.push(m);
+            }
+        }
+        return unique.sort((a, b) => new Date(b.timestamp || b.createdAt) - new Date(a.timestamp || a.createdAt));
+    }, [roomMedia, messages]);
     const currentRoomRef = useRef(currentRoom);
 
     // Search Effect
@@ -1841,9 +1868,9 @@ export default function ChatPage({ showBot = true }) {
                             <div className="modal-body p-4 bg-light">
                                 <h6 className="fw-bold mb-3 text-secondary">Images & Videos</h6>
                                 <div className="row g-3 mb-4">
-                                    {messages.filter(m => m.imageUrl || m.videoUrl).length > 0 ? messages.filter(m => m.imageUrl || m.videoUrl).map(msg => (
+                                    {allMediaMessages.filter(m => getFullUrl(m.imageUrl) || getFullUrl(m.videoUrl)).length > 0 ? allMediaMessages.filter(m => getFullUrl(m.imageUrl) || getFullUrl(m.videoUrl)).map(msg => (
                                         <div key={msg.messageId} className="col-6 col-sm-4 col-md-3">
-                                            {msg.imageUrl ? (
+                                            {getFullUrl(msg.imageUrl) ? (
                                                 <img src={getFullUrl(msg.imageUrl)} alt="Media" className="img-fluid rounded-3 border shadow-sm w-100" style={{ height: '100px', objectFit: 'cover', cursor: 'zoom-in' }} onClick={() => setLightboxImage(getFullUrl(msg.imageUrl))} />
                                             ) : (
                                                 <div className="bg-dark rounded-3 border shadow-sm w-100 d-flex align-items-center justify-content-center position-relative" style={{ height: '100px', cursor: 'pointer', overflow: 'hidden' }} onClick={() => window.open(getFullUrl(msg.videoUrl), '_blank')}>
@@ -1857,7 +1884,7 @@ export default function ChatPage({ showBot = true }) {
 
                                 <h6 className="fw-bold mb-3 text-secondary border-top pt-4">Audio Messages</h6>
                                 <div className="list-group list-group-flush shadow-sm rounded-4 overflow-hidden mb-4">
-                                    {messages.filter(m => m.audioUrl && getFullUrl(m.audioUrl)).length > 0 ? messages.filter(m => m.audioUrl && getFullUrl(m.audioUrl)).map(msg => (
+                                    {allMediaMessages.filter(m => getFullUrl(m.audioUrl)).length > 0 ? allMediaMessages.filter(m => getFullUrl(m.audioUrl)).map(msg => (
                                         <div key={msg.messageId} className="list-group-item d-flex align-items-center p-3 border-0 border-bottom">
                                             <div className="bg-info bg-opacity-10 rounded p-2 me-3 d-flex align-items-center justify-content-center" style={{ width: 45, height: 45 }}>
                                                 <i className="bi bi-music-note-beamed fs-4 text-info"></i>
@@ -1872,13 +1899,13 @@ export default function ChatPage({ showBot = true }) {
 
                                 <h6 className="fw-bold mb-3 text-secondary border-top pt-4">Files & Documents</h6>
                                 <div className="list-group list-group-flush shadow-sm rounded-4 overflow-hidden">
-                                    {messages.filter(m => m.fileUrl).length > 0 ? messages.filter(m => m.fileUrl).map(msg => (
+                                    {allMediaMessages.filter(m => getFullUrl(m.fileUrl)).length > 0 ? allMediaMessages.filter(m => getFullUrl(m.fileUrl)).map(msg => (
                                         <a key={msg.messageId} href={getFullUrl(msg.fileUrl)} target="_blank" rel="noopener noreferrer" className="list-group-item list-group-item-action d-flex align-items-center p-3 border-0 border-bottom">
                                             <div className="bg-primary bg-opacity-10 rounded p-2 me-3 d-flex align-items-center justify-content-center" style={{ width: 45, height: 45 }}>
                                                 <i className="bi bi-file-earmark-text fs-4 text-primary"></i>
                                             </div>
                                             <div className="flex-grow-1 text-truncate">
-                                                <div className="fw-medium text-dark text-truncate mb-1">{msg.fileUrl.split('/').pop()}</div>
+                                                <div className="fw-medium text-dark text-truncate mb-1">{getFullUrl(msg.fileUrl).split('/').pop()}</div>
                                                 <small className="text-muted" style={{ fontSize: '0.75rem' }}>{new Date(msg.timestamp || msg.createdAt).toLocaleDateString()} {new Date(msg.timestamp || msg.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</small>
                                             </div>
                                         </a>

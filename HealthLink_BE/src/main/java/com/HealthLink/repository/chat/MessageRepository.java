@@ -48,4 +48,13 @@ public interface MessageRepository extends JpaRepository<Message, String> {
      */
     long countByChatRoom_ChatRoomIdAndTimestampAfter(String chatRoomId, LocalDateTime after);
 
+    /**
+     * Lấy tất cả tin nhắn có chứa media (ảnh, video, audio, file) trong một phòng chat.
+     */
+    @Query("SELECT m FROM Message m WHERE m.chatRoom.chatRoomId = :roomId " +
+           "AND (m.imageUrl IS NOT NULL OR m.videoUrl IS NOT NULL " +
+           "OR m.audioUrl IS NOT NULL OR m.fileUrl IS NOT NULL) " +
+           "ORDER BY m.timestamp DESC")
+    List<Message> findMediaMessagesByRoom(@Param("roomId") String roomId);
+
 }
