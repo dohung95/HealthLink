@@ -52,7 +52,7 @@ class PharmacyRecommendationServiceImplTest {
     @Test
     void getRecommendations_noPrescriptionNoCoords() {
         Pharmacy pharm = pharmacy("pharmacy-1", "Central Pharmacy", true, true);
-        when(pharmacyRepository.findByActiveTrueAndVerifiedTrue()).thenReturn(List.of(pharm));
+        when(pharmacyRepository.findByActiveTrueAndVerifiedTrueAndIsOnlineTrue()).thenReturn(List.of(pharm));
 
         List<PharmacyRecommendationResponse> results =
                 recommendationService.getRecommendations(null, null, null, null, "patient-1");
@@ -65,7 +65,7 @@ class PharmacyRecommendationServiceImplTest {
     @Test
     void getRecommendations_deliveryOnly() {
         Pharmacy pharm = pharmacy("pharmacy-1", "Central Pharmacy", true, true);
-        when(pharmacyRepository.findByActiveTrueAndVerifiedTrueAndDeliveryAvailableTrue())
+        when(pharmacyRepository.findByActiveTrueAndVerifiedTrueAndIsOnlineTrueAndDeliveryAvailableTrue())
                 .thenReturn(List.of(pharm));
 
         List<PharmacyRecommendationResponse> results =
@@ -77,7 +77,7 @@ class PharmacyRecommendationServiceImplTest {
     @Test
     void getRecommendations_deliveryOnlyFalse() {
         Pharmacy pharm = pharmacy("pharmacy-1", "Central Pharmacy", true, true);
-        when(pharmacyRepository.findByActiveTrueAndVerifiedTrue()).thenReturn(List.of(pharm));
+        when(pharmacyRepository.findByActiveTrueAndVerifiedTrueAndIsOnlineTrue()).thenReturn(List.of(pharm));
 
         List<PharmacyRecommendationResponse> results =
                 recommendationService.getRecommendations(null, null, false, null, "patient-1");
@@ -90,7 +90,7 @@ class PharmacyRecommendationServiceImplTest {
         Pharmacy pharm1 = pharmacy("pharmacy-1", "Near", 40.7128, -74.0060);
         Pharmacy pharm2 = pharmacy("pharmacy-2", "Medium", 40.7200, -74.0100);
         Pharmacy pharm3 = pharmacy("pharmacy-3", "Far", 40.7500, -74.0200);
-        when(pharmacyRepository.findByActiveTrueAndVerifiedTrue()).thenReturn(List.of(pharm3, pharm1, pharm2));
+        when(pharmacyRepository.findByActiveTrueAndVerifiedTrueAndIsOnlineTrue()).thenReturn(List.of(pharm3, pharm1, pharm2));
 
         List<PharmacyRecommendationResponse> results =
                 recommendationService.getRecommendations(40.7580, -73.9855, null, null, "patient-1");
@@ -114,7 +114,7 @@ class PharmacyRecommendationServiceImplTest {
                 item(102, med2, "Metformin 500mg", 10)
         ));
         when(prescriptionHeaderRepository.findById(10)).thenReturn(Optional.of(prescription));
-        when(pharmacyRepository.findByActiveTrueAndVerifiedTrue()).thenReturn(List.of(pharm2, pharm1));
+        when(pharmacyRepository.findByActiveTrueAndVerifiedTrueAndIsOnlineTrue()).thenReturn(List.of(pharm2, pharm1));
         // pharm1: both items fully in stock -> FULL
         when(inventoryRepository.findByPharmacy_PharmacyId("pharmacy-1"))
                 .thenReturn(List.of(inventory(pharm1, med1, 100, true), inventory(pharm1, med2, 200, true)));
@@ -134,7 +134,7 @@ class PharmacyRecommendationServiceImplTest {
     void getRecommendations_sameDistanceAndStockSortedByRating() {
         Pharmacy pharm1 = pharmacy("pharmacy-1", "High Rated", 40.7128, -74.0060, 4.8);
         Pharmacy pharm2 = pharmacy("pharmacy-2", "Low Rated", 40.7128, -74.0060, 3.2);
-        when(pharmacyRepository.findByActiveTrueAndVerifiedTrue()).thenReturn(List.of(pharm2, pharm1));
+        when(pharmacyRepository.findByActiveTrueAndVerifiedTrueAndIsOnlineTrue()).thenReturn(List.of(pharm2, pharm1));
 
         List<PharmacyRecommendationResponse> results =
                 recommendationService.getRecommendations(40.7580, -73.9855, null, null, "patient-1");
@@ -150,7 +150,7 @@ class PharmacyRecommendationServiceImplTest {
         Medicine med = Medicine.builder().medicineId(1).name("Amlodipine 5mg").active(true).build();
         PrescriptionHeader prescription = prescription(patient, med);
 
-        when(pharmacyRepository.findByActiveTrueAndVerifiedTrue()).thenReturn(List.of(pharm));
+        when(pharmacyRepository.findByActiveTrueAndVerifiedTrueAndIsOnlineTrue()).thenReturn(List.of(pharm));
         when(prescriptionHeaderRepository.findById(10)).thenReturn(Optional.of(prescription));
         when(inventoryRepository.findByPharmacy_PharmacyId("pharmacy-1"))
                 .thenReturn(List.of(inventory(pharm, med, 50, true)));
@@ -176,7 +176,7 @@ class PharmacyRecommendationServiceImplTest {
                 item(102, med2, "Metformin 500mg", 60)
         ));
 
-        when(pharmacyRepository.findByActiveTrueAndVerifiedTrue()).thenReturn(List.of(pharm));
+        when(pharmacyRepository.findByActiveTrueAndVerifiedTrueAndIsOnlineTrue()).thenReturn(List.of(pharm));
         when(prescriptionHeaderRepository.findById(10)).thenReturn(Optional.of(prescription));
         when(inventoryRepository.findByPharmacy_PharmacyId("pharmacy-1"))
                 .thenReturn(List.of(inventory(pharm, med1, 50, true)));
@@ -197,7 +197,7 @@ class PharmacyRecommendationServiceImplTest {
         Medicine med = Medicine.builder().medicineId(1).name("Amlodipine 5mg").active(true).build();
         PrescriptionHeader prescription = prescription(patient, med);
 
-        when(pharmacyRepository.findByActiveTrueAndVerifiedTrue()).thenReturn(List.of(pharm));
+        when(pharmacyRepository.findByActiveTrueAndVerifiedTrueAndIsOnlineTrue()).thenReturn(List.of(pharm));
         when(prescriptionHeaderRepository.findById(10)).thenReturn(Optional.of(prescription));
         when(inventoryRepository.findByPharmacy_PharmacyId("pharmacy-1")).thenReturn(List.of());
 
@@ -232,7 +232,7 @@ class PharmacyRecommendationServiceImplTest {
     void getRecommendations_distanceCalculated() {
         // NYC coordinates: pharmacy near Central Park, patient near Times Square
         Pharmacy pharm = pharmacy("pharmacy-1", "NYC Pharmacy", 40.7829, -73.9654);
-        when(pharmacyRepository.findByActiveTrueAndVerifiedTrue()).thenReturn(List.of(pharm));
+        when(pharmacyRepository.findByActiveTrueAndVerifiedTrueAndIsOnlineTrue()).thenReturn(List.of(pharm));
 
         List<PharmacyRecommendationResponse> results =
                 recommendationService.getRecommendations(40.7580, -73.9855, null, null, "patient-1");
@@ -245,7 +245,7 @@ class PharmacyRecommendationServiceImplTest {
     void getRecommendations_distanceLabelUnder1km() {
         // Same location → 0 distance
         Pharmacy pharm = pharmacy("pharmacy-1", "Same Location", 40.7580, -73.9855);
-        when(pharmacyRepository.findByActiveTrueAndVerifiedTrue()).thenReturn(List.of(pharm));
+        when(pharmacyRepository.findByActiveTrueAndVerifiedTrueAndIsOnlineTrue()).thenReturn(List.of(pharm));
 
         List<PharmacyRecommendationResponse> results =
                 recommendationService.getRecommendations(40.7580, -73.9855, null, null, "patient-1");
@@ -256,7 +256,7 @@ class PharmacyRecommendationServiceImplTest {
     @Test
     void getRecommendations_distanceLabelInKm() {
         Pharmacy pharm = pharmacy("pharmacy-1", "Far Pharmacy", 40.8000, -73.9500);
-        when(pharmacyRepository.findByActiveTrueAndVerifiedTrue()).thenReturn(List.of(pharm));
+        when(pharmacyRepository.findByActiveTrueAndVerifiedTrueAndIsOnlineTrue()).thenReturn(List.of(pharm));
 
         List<PharmacyRecommendationResponse> results =
                 recommendationService.getRecommendations(40.7580, -73.9855, null, null, "patient-1");
@@ -268,7 +268,7 @@ class PharmacyRecommendationServiceImplTest {
     void getRecommendations_withinDeliveryRadius() {
         Pharmacy pharm = pharmacy("pharmacy-1", "Nearby", 40.7600, -73.9800);
         pharm.setDeliveryRadius(10.0);
-        when(pharmacyRepository.findByActiveTrueAndVerifiedTrue()).thenReturn(List.of(pharm));
+        when(pharmacyRepository.findByActiveTrueAndVerifiedTrueAndIsOnlineTrue()).thenReturn(List.of(pharm));
 
         List<PharmacyRecommendationResponse> results =
                 recommendationService.getRecommendations(40.7580, -73.9855, null, null, "patient-1");
@@ -280,7 +280,7 @@ class PharmacyRecommendationServiceImplTest {
     void getRecommendations_outsideDeliveryRadius() {
         Pharmacy pharm = pharmacy("pharmacy-1", "Far Away", 40.9000, -73.9000);
         pharm.setDeliveryRadius(5.0);
-        when(pharmacyRepository.findByActiveTrueAndVerifiedTrue()).thenReturn(List.of(pharm));
+        when(pharmacyRepository.findByActiveTrueAndVerifiedTrueAndIsOnlineTrue()).thenReturn(List.of(pharm));
 
         List<PharmacyRecommendationResponse> results =
                 recommendationService.getRecommendations(40.7580, -73.9855, null, null, "patient-1");
@@ -292,7 +292,7 @@ class PharmacyRecommendationServiceImplTest {
     void getRecommendations_noDeliveryRadius() {
         Pharmacy pharm = pharmacy("pharmacy-1", "No Radius", 40.7600, -73.9800);
         pharm.setDeliveryRadius(null);
-        when(pharmacyRepository.findByActiveTrueAndVerifiedTrue()).thenReturn(List.of(pharm));
+        when(pharmacyRepository.findByActiveTrueAndVerifiedTrueAndIsOnlineTrue()).thenReturn(List.of(pharm));
 
         List<PharmacyRecommendationResponse> results =
                 recommendationService.getRecommendations(40.7580, -73.9855, null, null, "patient-1");
@@ -307,7 +307,7 @@ class PharmacyRecommendationServiceImplTest {
         Medicine med = Medicine.builder().medicineId(1).name("Amlodipine 5mg").active(true).build();
         PrescriptionHeader prescription = prescription(patient, med);
 
-        when(pharmacyRepository.findByActiveTrueAndVerifiedTrue()).thenReturn(List.of(pharm));
+        when(pharmacyRepository.findByActiveTrueAndVerifiedTrueAndIsOnlineTrue()).thenReturn(List.of(pharm));
         when(prescriptionHeaderRepository.findById(10)).thenReturn(Optional.of(prescription));
         // Inventory record exists but active = false
         PharmacyInventory inv = inventory(pharm, med, 100, false);
@@ -328,7 +328,7 @@ class PharmacyRecommendationServiceImplTest {
         Medicine med = Medicine.builder().medicineId(1).name("Amlodipine 5mg").active(true).build();
         PrescriptionHeader prescription = prescription(patient, med);
 
-        when(pharmacyRepository.findByActiveTrueAndVerifiedTrue()).thenReturn(List.of(pharm));
+        when(pharmacyRepository.findByActiveTrueAndVerifiedTrueAndIsOnlineTrue()).thenReturn(List.of(pharm));
         when(prescriptionHeaderRepository.findById(10)).thenReturn(Optional.of(prescription));
         when(inventoryRepository.findByPharmacy_PharmacyId("pharmacy-1"))
                 .thenReturn(List.of(inventory(pharm, med, 2, true)));
@@ -348,7 +348,7 @@ class PharmacyRecommendationServiceImplTest {
         Medicine med = Medicine.builder().medicineId(1).name("Amlodipine 5mg").active(true).build();
         PrescriptionHeader prescription = prescription(patient, med);
 
-        when(pharmacyRepository.findByActiveTrueAndVerifiedTrue()).thenReturn(List.of(pharm));
+        when(pharmacyRepository.findByActiveTrueAndVerifiedTrueAndIsOnlineTrue()).thenReturn(List.of(pharm));
         when(prescriptionHeaderRepository.findById(10)).thenReturn(Optional.of(prescription));
         when(inventoryRepository.findByPharmacy_PharmacyId("pharmacy-1")).thenReturn(List.of());
 
@@ -367,7 +367,7 @@ class PharmacyRecommendationServiceImplTest {
         Medicine med = Medicine.builder().medicineId(1).name("Amlodipine 5mg").active(true).build();
         PrescriptionHeader prescription = prescription(patient, med);
 
-        when(pharmacyRepository.findByActiveTrueAndVerifiedTrue()).thenReturn(List.of(pharm));
+        when(pharmacyRepository.findByActiveTrueAndVerifiedTrueAndIsOnlineTrue()).thenReturn(List.of(pharm));
         when(prescriptionHeaderRepository.findById(10)).thenReturn(Optional.of(prescription));
         when(inventoryRepository.findByPharmacy_PharmacyId("pharmacy-1"))
                 .thenReturn(List.of(inventory(pharm, med, 0, true)));
@@ -384,7 +384,7 @@ class PharmacyRecommendationServiceImplTest {
     void getRecommendations_open24HoursFlag() {
         Pharmacy pharm = pharmacy("pharmacy-1", "24hr Pharmacy", 40.7128, -74.0060);
         pharm.setOpen24Hours(true);
-        when(pharmacyRepository.findByActiveTrueAndVerifiedTrue()).thenReturn(List.of(pharm));
+        when(pharmacyRepository.findByActiveTrueAndVerifiedTrueAndIsOnlineTrue()).thenReturn(List.of(pharm));
 
         List<PharmacyRecommendationResponse> results =
                 recommendationService.getRecommendations(null, null, null, null, "patient-1");
@@ -397,7 +397,7 @@ class PharmacyRecommendationServiceImplTest {
         Pharmacy pharm = pharmacy("pharmacy-1", "Delivery Pharmacy", 40.7128, -74.0060);
         pharm.setDeliveryAvailable(true);
         pharm.setDeliveryFee(new BigDecimal("3.50"));
-        when(pharmacyRepository.findByActiveTrueAndVerifiedTrue()).thenReturn(List.of(pharm));
+        when(pharmacyRepository.findByActiveTrueAndVerifiedTrueAndIsOnlineTrue()).thenReturn(List.of(pharm));
 
         List<PharmacyRecommendationResponse> results =
                 recommendationService.getRecommendations(null, null, null, null, "patient-1");
@@ -421,7 +421,7 @@ class PharmacyRecommendationServiceImplTest {
                 .price(new BigDecimal("3.00"))
                 .active(true)
                 .build();
-        when(pharmacyRepository.findByActiveTrueAndVerifiedTrue()).thenReturn(List.of(pharmacy));
+        when(pharmacyRepository.findByActiveTrueAndVerifiedTrueAndIsOnlineTrue()).thenReturn(List.of(pharmacy));
         when(medicineRepository.findAllById(anyCollection())).thenReturn(List.of(med1, med2));
         when(inventoryRepository.findByPharmacy_PharmacyIdAndMedicine_MedicineIdIn(eq("pharmacy-1"), anyCollection()))
                 .thenReturn(List.of(
@@ -462,7 +462,7 @@ class PharmacyRecommendationServiceImplTest {
                 .price(new BigDecimal("3.00"))
                 .active(true)
                 .build();
-        when(pharmacyRepository.findByActiveTrueAndVerifiedTrue()).thenReturn(List.of(pharmacy));
+        when(pharmacyRepository.findByActiveTrueAndVerifiedTrueAndIsOnlineTrue()).thenReturn(List.of(pharmacy));
         when(medicineRepository.findAllById(anyCollection())).thenReturn(List.of(med1, med2));
         when(inventoryRepository.findByPharmacy_PharmacyIdAndMedicine_MedicineIdIn(eq("pharmacy-1"), anyCollection()))
                 .thenReturn(List.of(
@@ -494,6 +494,7 @@ class PharmacyRecommendationServiceImplTest {
                 .name(name)
                 .active(active)
                 .verified(verified)
+                .isOnline(true)
                 .build();
     }
 
@@ -503,6 +504,7 @@ class PharmacyRecommendationServiceImplTest {
                 .name(name)
                 .active(true)
                 .verified(true)
+                .isOnline(true)
                 .latitude(lat)
                 .longitude(lng)
                 .build();

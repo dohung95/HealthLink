@@ -322,6 +322,67 @@ public class PrescriptionServiceImpl implements PrescriptionService {
         }
     }
 
+    @Override
+    @Transactional
+    public PrescriptionResponse requestRefill(String patientId, Integer prescriptionHeaderId) {
+        PrescriptionHeader original = headerRepository.findById(prescriptionHeaderId)
+                .orElseThrow(() -> new ResourceNotFoundException("PrescriptionHeader", "id", prescriptionHeaderId));
+
+        if (original.getPatient() == null || !patientId.equals(original.getPatient().getPatientId())) {
+            throw new com.HealthLink.exception.ForbiddenException("Prescription does not belong to this patient");
+        }
+
+        if (!"ISSUED".equalsIgnoreCase(original.getStatus())) {
+            throw new com.HealthLink.exception.BadRequestException("Only ISSUED prescriptions can be refilled");
+        }
+
+        if (original.getValidUntil() != null && original.getValidUntil().isBefore(LocalDateTime.now())) {
+            throw new com.HealthLink.exception.BadRequestException("Prescription has expired and cannot be refilled");
+        }
+
+        PrescriptionHeader refill = PrescriptionHeader.builder()
+                .patient(original.getPatient())
+                .doctor(original.getDoctor())
+                .issueDate(LocalDateTime.now())
+                .diagnosis(original.getDiagnosis())
+                .notes(original.getNotes())
+                .validUntil(original.getValidUntil())
+                .status("ISSUED")
+                .sourceAppointmentId(original.getSourceAppointmentId())
+                .sourcePrescriptionHeaderId(original.getPrescriptionHeaderId())
+                .totalAmount(original.getTotalAmount())
+                .prescriptionItems(new ArrayList<>())
+                .build();
+
+        List<PrescriptionItem> items = new ArrayList<>();
+        if (original.getPrescriptionItems() != null) {
+            for (PrescriptionItem item : original.getPrescriptionItems()) {
+                PrescriptionItem copy = PrescriptionItem.builder()
+                        .prescriptionHeader(refill)
+                        .medicine(item.getMedicine())
+                        .medicationName(item.getMedicationName())
+                        .dosage(item.getDosage())
+                        .instructions(item.getInstructions())
+                        .totalSupplyDays(item.getTotalSupplyDays())
+                        .quantity(item.getQuantity())
+                        .unit(item.getUnit())
+                        .frequency(item.getFrequency())
+                        .timing(item.getTiming())
+                        .route(item.getRoute())
+                        .notes(item.getNotes())
+                        .build();
+                items.add(copy);
+            }
+        }
+        refill.getPrescriptionItems().addAll(items);
+
+        PrescriptionHeader saved = headerRepository.save(refill);
+        notifyPatientAboutNewPrescription(saved);
+
+        log.info("Prescription {} refilled as new prescription {}", prescriptionHeaderId, saved.getPrescriptionHeaderId());
+        return toResponse(saved, null);
+    }
+
     private String buildDosage(Medicine medicine) {
         if (medicine.getStrength() == null && medicine.getUnit() == null) {
             return medicine.getName();

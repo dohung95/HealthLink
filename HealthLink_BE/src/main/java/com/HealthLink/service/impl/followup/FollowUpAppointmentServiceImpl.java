@@ -424,7 +424,7 @@ public class FollowUpAppointmentServiceImpl implements FollowUpAppointmentServic
             consultationRepository.save(consultation);
         }
         Appointment completedAppointment = appointmentRepository.save(appointment);
-        commissionService.processConsultationCommission(invoice);
+        commissionService.vestConsultationCommission(appointmentId);
 
         Appointment followUpAppointment = null;
         Integer followUpPrescriptionHeaderId = null;

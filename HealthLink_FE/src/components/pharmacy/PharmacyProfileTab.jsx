@@ -4,6 +4,7 @@ import { toast } from 'sonner';
 import {
   requestPharmacyPasswordChangeOtp,
   requestPharmacyPaypalOtp,
+  togglePharmacyOnline,
   uploadPharmacyAvatar,
   verifyPharmacyPasswordChangeOtp,
   verifyPharmacyPaypalOtp,
@@ -46,6 +47,7 @@ export default function PharmacyProfileTab({ token, profile, reload, logout }) {
   const [passwordOtp, setPasswordOtp] = useState('');
   const [passwordStep, setPasswordStep] = useState('form');
   const [savingPassword, setSavingPassword] = useState(false);
+  const [togglingOnline, setTogglingOnline] = useState(false);
 
   useEffect(() => {
     setForm({ avatarUrl: profile?.avatarUrl || '' });
@@ -65,6 +67,18 @@ export default function PharmacyProfileTab({ token, profile, reload, logout }) {
       await reload();
     } catch (error) {
       toast.error(error.response?.data?.message || 'Unable to upload avatar.');
+    }
+  };
+
+  const handleToggleOnline = async () => {
+    setTogglingOnline(true);
+    try {
+      await togglePharmacyOnline(token);
+      await reload();
+    } catch (error) {
+      toast.error(error.response?.data?.message || 'Unable to toggle status.');
+    } finally {
+      setTogglingOnline(false);
     }
   };
 
@@ -194,6 +208,29 @@ export default function PharmacyProfileTab({ token, profile, reload, logout }) {
               <span className="profile-display-label">Phone Number</span>
               <span className="profile-display-value">{profile?.phoneNumber || '-'}</span>
             </div>
+          </div>
+        </section>
+
+        {/* ── CARD: Online Status Toggle ── */}
+        <section className="pharmacy-card">
+          <div className="profile-section-header">
+            <span className="material-symbols-outlined">power_settings_new</span>
+            <h2>Online Status</h2>
+          </div>
+          <div className="profile-online-toggle">
+            <div className="profile-online-toggle-info">
+              <strong>{profile?.isOnline ? 'Receiving Orders' : 'Not Receiving Orders'}</strong>
+              <span>{profile?.isOnline ? 'Your pharmacy is visible to patients' : 'Patients cannot find your pharmacy'}</span>
+            </div>
+            <button
+              className={`profile-toggle-switch ${profile?.isOnline ? 'is-on' : 'is-off'}`}
+              disabled={togglingOnline}
+              onClick={handleToggleOnline}
+              type="button"
+              aria-label="Toggle online status"
+            >
+              <span className="profile-toggle-knob" />
+            </button>
           </div>
         </section>
 

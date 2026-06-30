@@ -1,5 +1,6 @@
 package com.HealthLink.service.impl.pharmacy;
 
+import com.HealthLink.audit.AuditLogger;
 import com.HealthLink.dto.auth.ChangeEmailRequest;
 import com.HealthLink.dto.auth.ChangePasswordRequest;
 import com.HealthLink.dto.auth.VerifyEmailChangeRequest;
@@ -269,6 +270,7 @@ public class PharmacyProfileServiceImpl implements PharmacyProfileService {
                 .deliveryRadius(p.getDeliveryRadius())
                 .verified(p.isVerified())
                 .active(p.isActive())
+                .isOnline(p.isOnline())
                 .averageRating(p.getAverageRating())
                 .totalReviews(p.getTotalReviews())
                 .totalEarnings(p.getTotalEarnings())
@@ -334,12 +336,33 @@ public class PharmacyProfileServiceImpl implements PharmacyProfileService {
     public List<PharmacyProfileResponse> getActiveVerifiedPharmacies(Boolean deliveryOnly) {
         List<Pharmacy> pharmacies;
         if (Boolean.TRUE.equals(deliveryOnly)) {
-            pharmacies = pharmacyRepository.findByActiveTrueAndVerifiedTrueAndDeliveryAvailableTrue();
+            pharmacies = pharmacyRepository.findByActiveTrueAndVerifiedTrueAndIsOnlineTrueAndDeliveryAvailableTrue();
         } else {
-            pharmacies = pharmacyRepository.findByActiveTrueAndVerifiedTrue();
+            pharmacies = pharmacyRepository.findByActiveTrueAndVerifiedTrueAndIsOnlineTrue();
         }
         return pharmacies.stream()
                 .map(this::toResponse)
                 .collect(Collectors.toList());
+    }
+
+    @Override
+    @Transactional
+    public PharmacyProfileResponse toggleOnline(String pharmacyId) {
+        Pharmacy pharmacy = pharmacyRepository.findById(pharmacyId)
+                .orElseThrow(() -> new ResourceNotFoundException("Pharmacy", "id", pharmacyId));
+
+        boolean newStatus = !pharmacy.isOnline();
+        pharmacy.setOnline(newStatus);
+        pharmacy.setUpdatedAt(LocalDateTime.now());
+        Pharmacy saved = pharmacyRepository.save(pharmacy);
+
+        AuditLogger.pharmacy().log(
+                newStatus ? "TOGGLE_ONLINE" : "TOGGLE_OFFLINE",
+                pharmacyId,
+                pharmacyId
+        );
+
+        log.info("Pharmacy {} is now {}", pharmacyId, newStatus ? "ONLINE" : "OFFLINE");
+        return toResponse(saved);
     }
 }

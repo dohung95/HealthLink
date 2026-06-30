@@ -11,4 +11,5 @@ public class PharmacyInventoryUpdateRequest {
     private String unit;
     private LocalDate expiryDate;
     private Boolean active;
+    private Integer minStockLevel;
 }

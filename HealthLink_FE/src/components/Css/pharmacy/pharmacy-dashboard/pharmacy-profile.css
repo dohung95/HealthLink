@@ -335,6 +335,74 @@
   font-size: 14px;
 }
 
+/* Online Toggle
+   ─────────────────────────── */
+
+.profile-online-toggle {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.profile-online-toggle-info {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.profile-online-toggle-info strong {
+  font-size: 14px;
+  font-weight: 700;
+  color: var(--pharmacy-text);
+}
+
+.profile-online-toggle-info span {
+  font-size: 11px;
+  color: var(--pharmacy-muted);
+}
+
+.profile-toggle-switch {
+  flex-shrink: 0;
+  width: 48px;
+  height: 26px;
+  border-radius: 999px;
+  border: 0;
+  cursor: pointer;
+  position: relative;
+  transition: background 0.2s ease;
+  padding: 0;
+}
+
+.profile-toggle-switch.is-on {
+  background: #059669;
+}
+
+.profile-toggle-switch.is-off {
+  background: #cbd5e1;
+}
+
+.profile-toggle-switch:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.profile-toggle-knob {
+  position: absolute;
+  top: 3px;
+  left: 3px;
+  width: 20px;
+  height: 20px;
+  border-radius: 50%;
+  background: white;
+  box-shadow: 0 1px 3px rgba(0,0,0,0.2);
+  transition: transform 0.2s ease;
+}
+
+.profile-toggle-switch.is-on .profile-toggle-knob {
+  transform: translateX(22px);
+}
+
 /* Password Strength
    ─────────────────────────── */
 

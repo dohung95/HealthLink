@@ -116,6 +116,14 @@ public class PharmacyController {
         return ResponseEntity.noContent().build();
     }
 
+    @PutMapping("/profile/toggle-online")
+    @PreAuthorize("hasRole('PHARMACY')")
+    public ResponseEntity<PharmacyProfileResponse> toggleOnline(
+            @AuthenticationPrincipal UserDetails userDetails) {
+        String pharmacyId = resolveUserId(userDetails);
+        return ResponseEntity.ok(pharmacyProfileService.toggleOnline(pharmacyId));
+    }
+
     @PostMapping("/avatar")
     @PreAuthorize("hasRole('PHARMACY')")
     public ResponseEntity<?> uploadAvatar(

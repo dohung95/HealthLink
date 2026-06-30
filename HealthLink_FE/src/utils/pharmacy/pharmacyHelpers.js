@@ -42,6 +42,7 @@ export const routeByTab = {
   wallet: '/pharmacy-page/wallet',
   chat: '/pharmacy-page/chat',
   profile: '/pharmacy-page/profile',
+  analytics: '/pharmacy-page/analytics',
 };
 
 export const navItems = [
@@ -49,6 +50,7 @@ export const navItems = [
   { key: 'inventory', label: 'Inventory', icon: 'inventory_2', path: routeByTab.inventory },
   { key: 'orders', label: 'Orders', icon: 'receipt_long', path: routeByTab.orders },
   { key: 'wallet', label: 'Wallet / Settlement', icon: 'account_balance_wallet', path: routeByTab.wallet },
+  { key: 'analytics', label: 'Analytics', icon: 'analytics', path: routeByTab.analytics },
   { key: 'profile', label: 'Profile & Security', icon: 'shield_person', path: routeByTab.profile },
 ];
 

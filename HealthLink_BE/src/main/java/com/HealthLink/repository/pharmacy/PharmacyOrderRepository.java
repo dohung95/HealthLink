@@ -7,6 +7,7 @@ import org.springframework.data.repository.query.Param;
 import org.springframework.stereotype.Repository;
 
 import java.math.BigDecimal;
+import java.time.LocalDateTime;
 import java.util.List;
 
 @Repository
@@ -75,4 +76,35 @@ public interface PharmacyOrderRepository extends JpaRepository<PharmacyOrder, In
     BigDecimal sumTotalAmountByPharmacyAndStatuses(
         @Param("pharmacyId") String pharmacyId,
         @Param("statuses") List<String> statuses);
+
+    // ========== Pharmacy Demand Analytics ==========
+
+    @Query("""
+            SELECT oi.medicationName,
+                   SUM(oi.quantity),
+                   COUNT(DISTINCT oi.pharmacyOrder.orderId),
+                   COALESCE(SUM(oi.totalPrice), 0)
+            FROM PharmacyOrderItem oi
+            WHERE oi.pharmacyOrder.pharmacy.pharmacyId = :pharmacyId
+              AND oi.pharmacyOrder.createdAt >= :since
+            GROUP BY oi.medicationName
+            ORDER BY SUM(oi.quantity) DESC
+            """)
+    List<Object[]> findDemandByPharmacySince(
+            @Param("pharmacyId") String pharmacyId,
+            @Param("since") LocalDateTime since);
+
+    @Query("""
+            SELECT CAST(o.createdAt AS LocalDate),
+                   COUNT(o),
+                   COALESCE(SUM(o.totalAmount), 0)
+            FROM PharmacyOrder o
+            WHERE o.pharmacy.pharmacyId = :pharmacyId
+              AND o.createdAt >= :since
+            GROUP BY CAST(o.createdAt AS LocalDate)
+            ORDER BY CAST(o.createdAt AS LocalDate)
+            """)
+    List<Object[]> findDailyTrendByPharmacySince(
+            @Param("pharmacyId") String pharmacyId,
+            @Param("since") LocalDateTime since);
 }

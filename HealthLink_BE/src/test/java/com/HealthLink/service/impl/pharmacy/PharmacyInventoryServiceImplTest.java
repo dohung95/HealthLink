@@ -65,7 +65,7 @@ class PharmacyInventoryServiceImplTest {
                 .thenReturn(new PageImpl<>(List.of(createInventory(1, "Paracetamol 500mg", 100))));
 
         Page<com.HealthLink.dto.pharmacy.PharmacyInventoryResponse> result =
-                inventoryService.getInventory("pharmacy-1", null, null, null, 0, 10);
+                inventoryService.getInventory("pharmacy-1", null, null, null, null, 0, 10);
 
         assertThat(result.getContent()).hasSize(1);
         assertThat(result.getContent().get(0).getMedicineName()).isEqualTo("Paracetamol 500mg");
@@ -77,7 +77,7 @@ class PharmacyInventoryServiceImplTest {
                 .thenReturn(new PageImpl<>(List.of()));
 
         Page<com.HealthLink.dto.pharmacy.PharmacyInventoryResponse> result =
-                inventoryService.getInventory("pharmacy-1", "paracetamol", null, null, 0, 10);
+                inventoryService.getInventory("pharmacy-1", "paracetamol", null, null, null, 0, 10);
 
         assertThat(result.getContent()).isEmpty();
     }
@@ -88,7 +88,7 @@ class PharmacyInventoryServiceImplTest {
                 .thenReturn(new PageImpl<>(List.of(createInventory(1, "Low Stock Med", 3))));
 
         Page<com.HealthLink.dto.pharmacy.PharmacyInventoryResponse> result =
-                inventoryService.getInventory("pharmacy-1", null, true, null, 0, 10);
+                inventoryService.getInventory("pharmacy-1", null, true, null, null, 0, 10);
 
         assertThat(result.getContent()).hasSize(1);
         assertThat(result.getContent().get(0).getQuantity()).isEqualTo(3);
@@ -99,7 +99,7 @@ class PharmacyInventoryServiceImplTest {
         when(inventoryRepository.findByPharmacyIdAndActive(eq("pharmacy-1"), eq(true), any(PageRequest.class)))
                 .thenReturn(new PageImpl<>(List.of()));
 
-        inventoryService.getInventory("pharmacy-1", null, null, true, 0, 10);
+        inventoryService.getInventory("pharmacy-1", null, null, true, null, 0, 10);
     }
 
     @Test
@@ -107,7 +107,7 @@ class PharmacyInventoryServiceImplTest {
         when(inventoryRepository.findByPharmacyIdAndActive(eq("pharmacy-1"), eq(false), any(PageRequest.class)))
                 .thenReturn(new PageImpl<>(List.of()));
 
-        inventoryService.getInventory("pharmacy-1", null, null, false, 0, 10);
+        inventoryService.getInventory("pharmacy-1", null, null, false, null, 0, 10);
     }
 
     @Test

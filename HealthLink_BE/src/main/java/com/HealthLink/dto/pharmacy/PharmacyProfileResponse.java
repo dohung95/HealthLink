@@ -44,6 +44,7 @@ public class PharmacyProfileResponse {
     // Trạng thái & đánh giá
     private boolean verified;
     private boolean active;
+    private boolean isOnline;
     private Double averageRating;
     private Integer totalReviews;
 

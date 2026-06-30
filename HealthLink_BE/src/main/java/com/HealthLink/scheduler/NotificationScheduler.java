@@ -4,6 +4,8 @@ import com.HealthLink.dto.notification.NotificationDispatchSummary;
 import com.HealthLink.entity.Appointment;
 import com.HealthLink.entity.Consultation;
 import com.HealthLink.entity.MedicineReminderSetting;
+import com.HealthLink.entity.Pharmacy;
+import com.HealthLink.entity.PharmacyInventory;
 import com.HealthLink.entity.User;
 import com.HealthLink.entity.enums.NotificationPriority;
 import com.HealthLink.entity.enums.NotificationType;
@@ -12,6 +14,8 @@ import com.HealthLink.exception.BadRequestException;
 import com.HealthLink.exception.ResourceNotFoundException;
 import com.HealthLink.repository.appointment.AppointmentRepository;
 import com.HealthLink.repository.consultation.ConsultationRepository;
+import com.HealthLink.repository.pharmacy.PharmacyInventoryRepository;
+import com.HealthLink.repository.pharmacy.PharmacyRepository;
 import com.HealthLink.service.medicine.MedicineReminderService;
 import com.HealthLink.service.notification.NotificationService;
 import lombok.RequiredArgsConstructor;
@@ -35,10 +39,14 @@ import java.util.stream.Collectors;
 @EnableScheduling
 public class NotificationScheduler {
 
+    private static final int LOW_STOCK_THRESHOLD = 10;
+
     private final AppointmentRepository appointmentRepository;
     private final ConsultationRepository consultationRepository;
     private final NotificationService notificationService;
     private final MedicineReminderService medicineReminderService;
+    private final PharmacyRepository pharmacyRepository;
+    private final PharmacyInventoryRepository inventoryRepository;
 
     @Scheduled(cron = "0 0/5 * * * *")
     @Transactional
@@ -355,6 +363,52 @@ public class NotificationScheduler {
         }
 
         return buildSummary("MEDICINE_REMINDER", now, candidateCount, sentCount, skippedCount, failedCount);
+    }
+
+    @Scheduled(cron = "0 0 8 * * *")
+    @Transactional
+    public void sendLowStockWarnings() {
+        List<Pharmacy> activePharmacies = pharmacyRepository.findByActiveTrueAndVerifiedTrue();
+        for (Pharmacy pharmacy : activePharmacies) {
+            User user = pharmacy.getUser();
+            if (user == null) continue;
+            List<PharmacyInventory> lowStockItems = inventoryRepository
+                .findActiveLowStock(pharmacy.getPharmacyId(), LOW_STOCK_THRESHOLD);
+            if (lowStockItems.isEmpty()) continue;
+            String itemNames = lowStockItems.stream()
+                .map(i -> i.getMedicine().getName() + " (" + (i.getQuantity() - i.getReservedQuantity()) + ")")
+                .collect(Collectors.joining(", "));
+            notificationService.sendWebSocketNotification(user, NotificationType.LOW_STOCK_WARNING,
+                "Low stock alert", "Items low: " + itemNames,
+                null, "/pharmacy-page/inventory?filter=lowStock");
+        }
+        log.info("Low stock warnings sent");
+    }
+
+    @Scheduled(cron = "0 30 8 * * *")
+    @Transactional
+    public void sendExpiryWarnings() {
+        LocalDate warningDate = LocalDate.now().plusDays(30);
+        List<Pharmacy> activePharmacies = pharmacyRepository.findByActiveTrueAndVerifiedTrue();
+        for (Pharmacy pharmacy : activePharmacies) {
+            User user = pharmacy.getUser();
+            if (user == null) continue;
+            List<PharmacyInventory> expiring = inventoryRepository
+                .findByPharmacy_PharmacyId(pharmacy.getPharmacyId())
+                .stream()
+                .filter(i -> i.getActive() && i.getExpiryDate() != null
+                    && !i.getExpiryDate().isBefore(LocalDate.now())
+                    && i.getExpiryDate().isBefore(warningDate))
+                .collect(Collectors.toList());
+            if (expiring.isEmpty()) continue;
+            String items = expiring.stream()
+                .map(i -> i.getMedicine().getName() + " (exp " + i.getExpiryDate() + ")")
+                .collect(Collectors.joining(", "));
+            notificationService.sendWebSocketNotification(user, NotificationType.MEDICINE_EXPIRY_WARNING,
+                "Medicine expiry alert", "Expiring within 30 days: " + items,
+                null, "/pharmacy-page/inventory");
+        }
+        log.info("Expiry warnings sent");
     }
 
     @Scheduled(cron = "0 0 7 * * *")

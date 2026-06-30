@@ -7,6 +7,9 @@ import com.HealthLink.dto.payment.AppointmentPayPalOrderRequest;
 import com.HealthLink.dto.payment.PharmacyOrderPayPalCaptureRequest;
 import com.HealthLink.dto.payment.PharmacyOrderPayPalOrderRequest;
 import com.HealthLink.dto.pharmacy.PharmacyOrderResponse;
+import com.HealthLink.entity.RefundRequest;
+import com.HealthLink.exception.BadRequestException;
+import com.HealthLink.repository.payment.RefundRequestRepository;
 import com.HealthLink.service.payment.FinanceService;
 import com.HealthLink.service.payment.InvoicePdfService;
 import jakarta.validation.Valid;
@@ -15,6 +18,8 @@ import org.springframework.http.HttpHeaders;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
+import org.springframework.security.core.annotation.AuthenticationPrincipal;
+import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.web.bind.annotation.*;
 
 
@@ -39,6 +44,7 @@ public class PaymentController {
 
     private final FinanceService financeService;
     private final InvoicePdfService invoicePdfService;
+    private final RefundRequestRepository refundRequestRepository;
 
     // ──────────────────────────────────────────────────────────────────────
     // Các endpoint hóa đơn
@@ -165,5 +171,20 @@ public class PaymentController {
             @RequestParam(required = false) String refundReason) {
         InvoiceResponse response = financeService.processRefund(paymentId, refundReason);
         return ResponseEntity.ok(response);
+    }
+
+    @PostMapping("/refund/requests")
+    @PreAuthorize("hasRole('PATIENT')")
+    public ResponseEntity<Map<String, Object>> requestRefund(
+            @RequestBody Map<String, String> body,
+            @AuthenticationPrincipal UserDetails userDetails) {
+        String paymentId = body.get("paymentId");
+        String reason = body.get("reason");
+        if (paymentId == null || paymentId.isBlank())
+            throw new BadRequestException("paymentId is required");
+        RefundRequest request = RefundRequest.builder()
+                .paymentId(paymentId).patientId(userDetails.getUsername()).reason(reason).build();
+        refundRequestRepository.save(request);
+        return ResponseEntity.ok(Map.of("id", request.getId(), "status", "PENDING"));
     }
 }

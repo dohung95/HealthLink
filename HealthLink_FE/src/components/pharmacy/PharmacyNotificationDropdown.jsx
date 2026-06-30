@@ -32,6 +32,18 @@ function targetForNotification(notification) {
     return '/pharmacy-page/orders?group=NEW_REQUESTS';
   }
 
+  if (notification.type === 'CANCEL_ORDER') {
+    return '/pharmacy-page/orders?group=HISTORY';
+  }
+
+  if (notification.type === 'LOW_STOCK_WARNING') {
+    return '/pharmacy-page/inventory?filter=lowStock';
+  }
+
+  if (notification.type === 'MEDICINE_EXPIRY_WARNING') {
+    return '/pharmacy-page/inventory';
+  }
+
   return '/pharmacy-page/orders';
 }
 
@@ -40,6 +52,9 @@ function iconForType(type) {
   if (type === 'INVOICE_PAID') return 'payments';
   if (type === 'NEW_ORDER') return 'receipt_long';
   if (type === 'ORDER_STATUS') return 'sync_alt';
+  if (type === 'CANCEL_ORDER') return 'cancel';
+  if (type === 'LOW_STOCK_WARNING') return 'inventory_2';
+  if (type === 'MEDICINE_EXPIRY_WARNING') return 'calendar_month';
   return 'notifications';
 }
 
@@ -61,6 +76,9 @@ export default function PharmacyNotificationDropdown() {
       'NEW_ORDER',
       'ORDER_STATUS',
       'PAYMENT_REQUIRED',
+      'CANCEL_ORDER',
+      'LOW_STOCK_WARNING',
+      'MEDICINE_EXPIRY_WARNING',
     ].includes(notification.type)),
     [notifications],
   );

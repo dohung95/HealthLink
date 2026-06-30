@@ -60,8 +60,9 @@ public class PharmacyInventoryServiceImpl implements PharmacyInventoryService {
     @Override
     @Transactional(readOnly = true)
     public Page<PharmacyInventoryResponse> getInventory(String pharmacyId, String query,
-                                                         Boolean lowStock, Boolean active,
-                                                         int page, int size) {
+                                                          Boolean lowStock, Boolean active,
+                                                          Boolean expiringSoon,
+                                                          int page, int size) {
         PageRequest pageRequest = PageRequest.of(page, size, Sort.by("createdAt").descending());
         Page<PharmacyInventory> inventoryPage;
 
@@ -69,6 +70,9 @@ public class PharmacyInventoryServiceImpl implements PharmacyInventoryService {
             inventoryPage = inventoryRepository.searchByPharmacyId(pharmacyId, query, pageRequest);
         } else if (Boolean.TRUE.equals(lowStock)) {
             inventoryPage = inventoryRepository.findLowStockByPharmacyId(pharmacyId, LOW_STOCK_THRESHOLD, pageRequest);
+        } else if (Boolean.TRUE.equals(expiringSoon)) {
+            LocalDate today = LocalDate.now();
+            inventoryPage = inventoryRepository.findExpiringSoon(pharmacyId, today, today.plusDays(30), pageRequest);
         } else if (Boolean.TRUE.equals(active)) {
             inventoryPage = inventoryRepository.findByPharmacyIdAndActive(pharmacyId, true, pageRequest);
         } else if (Boolean.FALSE.equals(active)) {
@@ -111,6 +115,9 @@ public class PharmacyInventoryServiceImpl implements PharmacyInventoryService {
         }
         if (request.getActive() != null) {
             inventory.setActive(request.getActive());
+        }
+        if (request.getMinStockLevel() != null) {
+            inventory.setMinStockLevel(request.getMinStockLevel());
         }
 
         inventory.setUpdatedAt(LocalDateTime.now());
@@ -472,10 +479,18 @@ public class PharmacyInventoryServiceImpl implements PharmacyInventoryService {
                 .availableQuantity(inv.getAvailableQuantity())
                 .expiryDate(inv.getExpiryDate())
                 .active(inv.getActive())
+                .minStockLevel(inv.getMinStockLevel())
+                .expiringSoon(computeExpiringSoon(inv))
                 .lastImportedAt(inv.getLastImportedAt())
                 .createdAt(inv.getCreatedAt())
                 .updatedAt(inv.getUpdatedAt())
                 .build();
+    }
+
+    private boolean computeExpiringSoon(PharmacyInventory inv) {
+        if (inv.getExpiryDate() == null) return false;
+        LocalDate today = LocalDate.now();
+        return !inv.getExpiryDate().isBefore(today) && inv.getExpiryDate().isBefore(today.plusDays(30));
     }
 
     @lombok.Builder

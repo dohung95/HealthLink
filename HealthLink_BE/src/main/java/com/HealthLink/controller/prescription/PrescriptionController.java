@@ -58,6 +58,14 @@ public class PrescriptionController {
         return ResponseEntity.ok(prescriptionService.getPrescriptionsByDoctor(doctorId));
     }
 
+    @PostMapping("/{id}/refill")
+    public ResponseEntity<PrescriptionResponse> requestRefill(
+            @PathVariable Integer id,
+            @AuthenticationPrincipal UserDetails userDetails) {
+        String patientId = resolveUserId(userDetails);
+        return ResponseEntity.ok(prescriptionService.requestRefill(patientId, id));
+    }
+
     private String resolveUserId(UserDetails userDetails) {
         return userRepository.findByEmail(userDetails.getUsername())
                 .orElseThrow(() -> new ResourceNotFoundException(

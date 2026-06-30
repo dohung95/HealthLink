@@ -12,6 +12,7 @@ const FILTER_OPTIONS = [
   { key: 'active', label: 'Active' },
   { key: 'inactive', label: 'Inactive' },
   { key: 'lowStock', label: 'Low Stock' },
+  { key: 'expiringSoon', label: 'Expiring Soon' },
 ];
 
 function getAvailableTone(value) {
@@ -76,6 +77,7 @@ export default function PharmacyInventoryTab({ globalSearch }) {
     if (filter === 'active') params.active = true;
     else if (filter === 'inactive') params.active = false;
     else if (filter === 'lowStock') params.lowStock = true;
+    else if (filter === 'expiringSoon') params.expiringSoon = true;
     loadInventory(params, filter === 'lowStock');
   }, [page, filter, deferredSearch, loadInventory]);
 
@@ -158,6 +160,7 @@ export default function PharmacyInventoryTab({ globalSearch }) {
                     <th className="is-number">Qty</th>
                     <th className="is-number">Reserved</th>
                     <th className="is-number">Available</th>
+                    <th className="is-number">Min Stock</th>
                     <th>Expiry</th>
                     <th className="is-center">Active</th>
                     <th className="is-action"></th>
@@ -168,7 +171,14 @@ export default function PharmacyInventoryTab({ globalSearch }) {
                     const availableTone = getAvailableTone(item.availableQuantity);
                     return (
                       <tr className={getRowStockClass(item.availableQuantity)} key={item.inventoryId}>
-                        <td className="pharmacy-inventory-medicine">{item.medicineName || '-'}</td>
+                        <td className="pharmacy-inventory-medicine">
+                          {item.medicineName || '-'}
+                          {item.expiringSoon ? (
+                            <span className="pharmacy-inventory-expiring-badge" title="Expiring within 30 days">
+                              <span className="material-symbols-outlined">warning</span> Expiring
+                            </span>
+                          ) : null}
+                        </td>
                         <td>{item.strength || '-'}</td>
                         <td>{item.dosageForm || '-'}</td>
                         <td className="is-number">{item.quantity ?? 0}</td>
@@ -176,6 +186,7 @@ export default function PharmacyInventoryTab({ globalSearch }) {
                         <td className={`is-number pharmacy-inventory-available-text is-${availableTone}`}>
                           {item.availableQuantity ?? 0}
                         </td>
+                        <td className="is-number">{item.minStockLevel ?? '-'}</td>
                         <td>{formatInventoryDate(item.expiryDate)}</td>
                         <td className="is-center">
                           <span className={`pharmacy-inventory-status ${item.active ? 'is-active' : 'is-inactive'}`}>
@@ -345,6 +356,7 @@ function EditInventoryModal({ item, onClose, onSaved }) {
     unit: item.unit ?? '',
     expiryDate: item.expiryDate ? item.expiryDate.substring(0, 10) : '',
     active: item.active ?? true,
+    minStockLevel: item.minStockLevel ?? '',
   });
   const [saving, setSaving] = useState(false);
 
@@ -355,6 +367,7 @@ function EditInventoryModal({ item, onClose, onSaved }) {
       if (form.quantity !== '') payload.quantity = Number(form.quantity);
       if (form.unit) payload.unit = form.unit;
       if (form.expiryDate) payload.expiryDate = form.expiryDate;
+      if (form.minStockLevel !== '') payload.minStockLevel = Number(form.minStockLevel);
       payload.active = form.active;
       await pharmacyApi.updateInventory(item.inventoryId, payload);
       toast.success('Inventory item updated.');
@@ -384,6 +397,12 @@ function EditInventoryModal({ item, onClose, onSaved }) {
             <label className="form-label">Expiry Date</label>
             <input type="date" className="form-control"
               value={form.expiryDate} onChange={(e) => setForm({ ...form, expiryDate: e.target.value })} />
+          </div>
+          <div className="col-sm-6">
+            <label className="form-label">Min Stock Level</label>
+            <input type="number" className="form-control" min="0"
+              value={form.minStockLevel} onChange={(e) => setForm({ ...form, minStockLevel: e.target.value })} />
+            <div className="form-text">Leave empty for default threshold (10).</div>
           </div>
           <div className="col-12">
             <div className="form-check form-switch">

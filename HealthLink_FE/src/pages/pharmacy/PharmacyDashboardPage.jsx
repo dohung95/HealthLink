@@ -15,6 +15,7 @@ import PharmacyNotificationDropdown from '../../components/pharmacy/PharmacyNoti
 import PharmacyOrdersTab from '../../components/pharmacy/PharmacyOrdersTab';
 import PharmacyProfileTab from '../../components/pharmacy/PharmacyProfileTab';
 import PharmacyWalletTab from '../../components/pharmacy/PharmacyWalletTab';
+import PharmacyAnalyticsTab from '../../components/pharmacy/PharmacyAnalyticsTab';
 import ChatPage from '../../components/ChatPage';
 
 export default function PharmacyDashboardPage() {
@@ -43,6 +44,7 @@ export default function PharmacyDashboardPage() {
     if (location.pathname.includes('/wallet')) return 'wallet';
     if (location.pathname.includes('/chat')) return 'chat';
     if (location.pathname.includes('/profile')) return 'profile';
+    if (location.pathname.includes('/analytics')) return 'analytics';
     return 'overview';
   }, [location.pathname]);
 
@@ -205,6 +207,7 @@ export default function PharmacyDashboardPage() {
               {activeTab === 'wallet' && <PharmacyWalletTab {...shellProps} />}
               {activeTab === 'chat' && <ChatPage showBot={false} />}
               {activeTab === 'profile' && <PharmacyProfileTab token={token} logout={logout} {...shellProps} />}
+              {activeTab === 'analytics' && <PharmacyAnalyticsTab token={token} profile={profile} />}
             </>
           )}
         </main>
