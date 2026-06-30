@@ -4,12 +4,12 @@ import { toast } from 'sonner';
 import {
   requestPharmacyPasswordChangeOtp,
   requestPharmacyPaypalOtp,
-  togglePharmacyOnline,
   uploadPharmacyAvatar,
   verifyPharmacyPasswordChangeOtp,
   verifyPharmacyPaypalOtp,
 } from '../../api/account';
 import { Avatar, getProfileName } from './PharmacyShared';
+import PharmacyOnlineToggle from './PharmacyOnlineToggle';
 
 function getPasswordStrength(password) {
   if (!password) return 0;
@@ -47,7 +47,6 @@ export default function PharmacyProfileTab({ token, profile, reload, logout }) {
   const [passwordOtp, setPasswordOtp] = useState('');
   const [passwordStep, setPasswordStep] = useState('form');
   const [savingPassword, setSavingPassword] = useState(false);
-  const [togglingOnline, setTogglingOnline] = useState(false);
 
   useEffect(() => {
     setForm({ avatarUrl: profile?.avatarUrl || '' });
@@ -67,18 +66,6 @@ export default function PharmacyProfileTab({ token, profile, reload, logout }) {
       await reload();
     } catch (error) {
       toast.error(error.response?.data?.message || 'Unable to upload avatar.');
-    }
-  };
-
-  const handleToggleOnline = async () => {
-    setTogglingOnline(true);
-    try {
-      await togglePharmacyOnline(token);
-      await reload();
-    } catch (error) {
-      toast.error(error.response?.data?.message || 'Unable to toggle status.');
-    } finally {
-      setTogglingOnline(false);
     }
   };
 
@@ -222,15 +209,12 @@ export default function PharmacyProfileTab({ token, profile, reload, logout }) {
               <strong>{profile?.isOnline ? 'Receiving Orders' : 'Not Receiving Orders'}</strong>
               <span>{profile?.isOnline ? 'Your pharmacy is visible to patients' : 'Patients cannot find your pharmacy'}</span>
             </div>
-            <button
-              className={`profile-toggle-switch ${profile?.isOnline ? 'is-on' : 'is-off'}`}
-              disabled={togglingOnline}
-              onClick={handleToggleOnline}
-              type="button"
-              aria-label="Toggle online status"
-            >
-              <span className="profile-toggle-knob" />
-            </button>
+            <PharmacyOnlineToggle
+              token={token}
+              profile={profile}
+              onProfileUpdated={reload}
+              variant="profile"
+            />
           </div>
         </section>
 

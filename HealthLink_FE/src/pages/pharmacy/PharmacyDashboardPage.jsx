@@ -1,6 +1,5 @@
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { NavLink, useLocation, useNavigate } from 'react-router-dom';
-import { toast } from 'sonner';
 
 import '../../components/Css/pharmacy/pharmacy-dashboard/pharmacy-dashboard.css';
 import { getPharmacyProfile } from '../../api/account';
@@ -16,6 +15,7 @@ import PharmacyOrdersTab from '../../components/pharmacy/PharmacyOrdersTab';
 import PharmacyProfileTab from '../../components/pharmacy/PharmacyProfileTab';
 import PharmacyWalletTab from '../../components/pharmacy/PharmacyWalletTab';
 import PharmacyAnalyticsTab from '../../components/pharmacy/PharmacyAnalyticsTab';
+import PharmacyOnlineToggle from '../../components/pharmacy/PharmacyOnlineToggle';
 import ChatPage from '../../components/ChatPage';
 
 export default function PharmacyDashboardPage() {
@@ -23,8 +23,10 @@ export default function PharmacyDashboardPage() {
   const { notifications } = useNotifications();
   const navigate = useNavigate();
   const location = useLocation();
+  const profileDropdownRef = useRef(null);
   const [mobileOpen, setMobileOpen] = useState(false);
   const [globalSearch, setGlobalSearch] = useState('');
+  const [showProfileDropdown, setShowProfileDropdown] = useState(false);
 
   const [profile, setProfile] = useState(null);
   const [orders, setOrders] = useState([]);
@@ -39,12 +41,12 @@ export default function PharmacyDashboardPage() {
   const pharmacyId = profile?.pharmacyId || currentUserId;
 
   const activeTab = useMemo(() => {
+    if (location.pathname.includes('/inventory/analytics')) return 'inventoryAnalytics';
     if (location.pathname.includes('/inventory')) return 'inventory';
     if (location.pathname.includes('/orders')) return 'orders';
     if (location.pathname.includes('/wallet')) return 'wallet';
     if (location.pathname.includes('/chat')) return 'chat';
     if (location.pathname.includes('/profile')) return 'profile';
-    if (location.pathname.includes('/analytics')) return 'analytics';
     return 'overview';
   }, [location.pathname]);
 
@@ -107,7 +109,31 @@ export default function PharmacyDashboardPage() {
     loadDashboardData();
   }, [notifications, lastHandledWorkflowNotificationId]);
 
+  useEffect(() => {
+    if (!showProfileDropdown) return;
+
+    const handleClickOutside = (event) => {
+      if (profileDropdownRef.current && !profileDropdownRef.current.contains(event.target)) {
+        setShowProfileDropdown(false);
+      }
+    };
+
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, [showProfileDropdown]);
+
   const closeMobile = () => setMobileOpen(false);
+  const closeProfileDropdown = () => setShowProfileDropdown(false);
+
+  const handleNavigateFromDropdown = (path) => {
+    closeProfileDropdown();
+    navigate(path);
+  };
+
+  const handleLogout = () => {
+    closeProfileDropdown();
+    logout();
+  };
 
   const shellProps = {
     profile,
@@ -142,32 +168,35 @@ export default function PharmacyDashboardPage() {
 
         <nav className="pharmacy-nav">
           {navItems.map((item) => (
-            <NavLink
-              className={({ isActive }) => `pharmacy-nav-link ${isActive ? 'active' : ''}`}
-              end={item.end}
-              key={item.key}
-              onClick={closeMobile}
-              to={item.path}
-            >
-              <span className="material-symbols-outlined">{item.icon}</span>
-              <span>{item.label}</span>
-            </NavLink>
+            <div className="pharmacy-nav-group" key={item.key}>
+              <NavLink
+                className={({ isActive }) => `pharmacy-nav-link ${isActive ? 'active' : ''}`}
+                end={item.end}
+                onClick={closeMobile}
+                to={item.path}
+              >
+                <span className="material-symbols-outlined">{item.icon}</span>
+                <span>{item.label}</span>
+              </NavLink>
+
+              {item.children?.length ? (
+                <div className="pharmacy-nav-children">
+                  {item.children.map((child) => (
+                    <NavLink
+                      className={({ isActive }) => `pharmacy-nav-child ${isActive ? 'active' : ''}`}
+                      end={child.end}
+                      key={child.key}
+                      onClick={closeMobile}
+                      to={child.path}
+                    >
+                      {child.label}
+                    </NavLink>
+                  ))}
+                </div>
+              ) : null}
+            </div>
           ))}
         </nav>
-
-        <div className="pharmacy-sidebar-footer">
-          <div className="pharmacy-user-card">
-            <Avatar profile={profile} />
-            <div>
-              <strong>{getProfileName(profile)}</strong>
-              <span>{profile?.email || 'Pharmacy account'}</span>
-            </div>
-          </div>
-          <button className="pharmacy-logout" onClick={logout} type="button">
-            <span className="material-symbols-outlined">logout</span>
-            Logout
-          </button>
-        </div>
       </aside>
 
       <div className="pharmacy-main-shell">
@@ -181,15 +210,61 @@ export default function PharmacyDashboardPage() {
             />
           </div>
           <div className="pharmacy-topbar-actions">
-            <span className="pharmacy-online-pill">
-              <span />
-              Online
-            </span>
             <PharmacyNotificationDropdown />
-            <button onClick={() => navigate(routeByTab.profile)} type="button" title="Settings">
-              <span className="material-symbols-outlined">settings</span>
-            </button>
-            <Avatar profile={profile} compact />
+            <div className="pharmacy-avatar-menu" ref={profileDropdownRef}>
+              <button
+                aria-expanded={showProfileDropdown}
+                aria-label="Profile menu"
+                className="pharmacy-avatar-trigger"
+                onClick={() => setShowProfileDropdown((value) => !value)}
+                type="button"
+              >
+                <Avatar profile={profile} compact />
+              </button>
+
+                {showProfileDropdown ? (
+                  <div className="pharmacy-avatar-dropdown">
+                    <div className="pharmacy-avatar-dropdown-card">
+                      <Avatar profile={profile} compact />
+                      <div className="pharmacy-avatar-dropdown-copy">
+                        <strong>{getProfileName(profile)}</strong>
+                        <PharmacyOnlineToggle
+                          token={token}
+                          profile={profile}
+                          onProfileUpdated={setProfile}
+                        />
+                      </div>
+                    </div>
+
+                    <div className="pharmacy-avatar-dropdown-actions">
+                    <button
+                      className="pharmacy-avatar-dropdown-item"
+                      onClick={() => handleNavigateFromDropdown(routeByTab.profile)}
+                      type="button"
+                    >
+                      <span className="material-symbols-outlined">person</span>
+                      Profile &amp; Security
+                    </button>
+                    <button
+                      className="pharmacy-avatar-dropdown-item"
+                      onClick={() => handleNavigateFromDropdown(routeByTab.wallet)}
+                      type="button"
+                    >
+                      <span className="material-symbols-outlined">account_balance_wallet</span>
+                      Wallet / Settlement
+                    </button>
+                    <button
+                      className="pharmacy-avatar-dropdown-item is-danger"
+                      onClick={handleLogout}
+                      type="button"
+                    >
+                      <span className="material-symbols-outlined">logout</span>
+                      Logout
+                    </button>
+                  </div>
+                </div>
+              ) : null}
+            </div>
           </div>
         </header>
 
@@ -203,11 +278,11 @@ export default function PharmacyDashboardPage() {
             <>
               {activeTab === 'overview' && <PharmacyOverviewTab {...shellProps} />}
               {activeTab === 'inventory' && <PharmacyInventoryTab {...shellProps} />}
+              {activeTab === 'inventoryAnalytics' && <PharmacyAnalyticsTab token={token} profile={profile} />}
               {activeTab === 'orders' && <PharmacyOrdersTab {...shellProps} />}
               {activeTab === 'wallet' && <PharmacyWalletTab {...shellProps} />}
               {activeTab === 'chat' && <ChatPage showBot={false} />}
               {activeTab === 'profile' && <PharmacyProfileTab token={token} logout={logout} {...shellProps} />}
-              {activeTab === 'analytics' && <PharmacyAnalyticsTab token={token} profile={profile} />}
             </>
           )}
         </main>

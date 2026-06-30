@@ -38,20 +38,26 @@ export function stageClass(stage) {
 export const routeByTab = {
   overview: '/pharmacy-page',
   inventory: '/pharmacy-page/inventory',
+  inventoryAnalytics: '/pharmacy-page/inventory/analytics',
   orders: '/pharmacy-page/orders',
   wallet: '/pharmacy-page/wallet',
   chat: '/pharmacy-page/chat',
   profile: '/pharmacy-page/profile',
-  analytics: '/pharmacy-page/analytics',
 };
 
 export const navItems = [
   { key: 'overview', label: 'Overview', icon: 'dashboard', path: routeByTab.overview, end: true },
-  { key: 'inventory', label: 'Inventory', icon: 'inventory_2', path: routeByTab.inventory },
+  {
+    key: 'inventory',
+    label: 'Inventory',
+    icon: 'inventory_2',
+    path: routeByTab.inventory,
+    children: [
+      { key: 'inventoryManage', label: 'Manage Inventory', path: routeByTab.inventory, end: true },
+      { key: 'inventoryAnalytics', label: 'Analytics', path: routeByTab.inventoryAnalytics },
+    ],
+  },
   { key: 'orders', label: 'Orders', icon: 'receipt_long', path: routeByTab.orders },
-  { key: 'wallet', label: 'Wallet / Settlement', icon: 'account_balance_wallet', path: routeByTab.wallet },
-  { key: 'analytics', label: 'Analytics', icon: 'analytics', path: routeByTab.analytics },
-  { key: 'profile', label: 'Profile & Security', icon: 'shield_person', path: routeByTab.profile },
 ];
 
 export const money = (value) => new Intl.NumberFormat('en-US', {

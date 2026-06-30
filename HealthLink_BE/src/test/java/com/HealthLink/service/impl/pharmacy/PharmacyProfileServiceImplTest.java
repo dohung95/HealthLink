@@ -1,6 +1,8 @@
 package com.HealthLink.service.impl.pharmacy;
 
 import com.HealthLink.dto.pharmacy.PharmacyProfileResponse;
+import com.fasterxml.jackson.databind.JsonNode;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import com.HealthLink.entity.Pharmacy;
 import com.HealthLink.entity.User;
 import com.HealthLink.repository.auth.EmailVerificationTokenRepository;
@@ -85,5 +87,20 @@ class PharmacyProfileServiceImplTest {
         List<PharmacyProfileResponse> result = pharmacyProfileService.getActiveVerifiedPharmacies(false);
 
         assertThat(result).isEmpty();
+    }
+
+    @Test
+    void pharmacyProfileResponse_shouldSerializeOnlineStatusAsIsOnlineOnly() throws Exception {
+        ObjectMapper objectMapper = new ObjectMapper();
+        PharmacyProfileResponse response = PharmacyProfileResponse.builder()
+                .pharmacyId("pharmacy-1")
+                .name("Pharmacy pharmacy-1")
+                .isOnline(true)
+                .build();
+
+        JsonNode json = objectMapper.readTree(objectMapper.writeValueAsString(response));
+
+        assertThat(json.path("isOnline").asBoolean()).isTrue();
+        assertThat(json.has("online")).isFalse();
     }
 }
