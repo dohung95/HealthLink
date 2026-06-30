@@ -127,6 +127,16 @@ class ApiConfig {
   static String releaseHold(int holdId) => '$baseUrl/appointments/hold-slot/$holdId';
   static String doctorPublicProfile(String doctorId) => '$baseUrl/account/doctors/public/$doctorId';
 
+  //Home Visit
+  static const String homeVisitDoctorSearch = '$baseUrl/home-visit/doctors/search';
+  static const String homeVisitServices = '$baseUrl/home-visit/services';
+  static String homeVisitSlots(String doctorId) => '$baseUrl/home-visit/doctors/$doctorId/home-visit-slots';
+  static const String homeVisitSelectSession = '$baseUrl/home-visit/select-session';
+  static const String createHomeVisitPayPalOrder = '$baseUrl/payment/home-visit/paypal/create';
+  static const String captureHomeVisitPayPalPayment = '$baseUrl/payment/home-visit/paypal/capture';
+  static const String homeVisitScanInfo = '$baseUrl/home-visit/scan-info';
+  static const String homeVisitGeocode = '$baseUrl/home-visit/geocode';
+
   //Upload medical records
   static const String healthRecordAutoDocument = '$baseUrl/health-records/documents/auto';
   static const String myHealthRecords = '$baseUrl/health-records/my';

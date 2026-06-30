@@ -785,80 +785,73 @@ INSERT INTO EmailVerificationTokens (Id, Token, UserId, NewEmail, ExpiryDate, Us
 SET IDENTITY_INSERT EmailVerificationTokens OFF;
 
 -- =====================================================
--- 47. YEAR 2024 ANALYTICS SAMPLE DATA
--- Feeds the 4 admin Dashboard charts + the Financial Reports chart for 2024:
---   Patient Registrations -> Users.CreatedDate (joined to Patients)
---   Appointments by Month / by Week -> Appointments.AppointmentTime
---   Revenue by Month / by Day -> SUM(Appointments.Fee) WHERE Status = 'Completed'
--- June 2024 is intentionally denser so the weekly + daily charts
--- (which default to the current calendar month) render full.
--- Idempotent: the whole block is skipped if already seeded.
+-- 47. ADDITIONAL DOCTOR AND PATIENT SAMPLE DATA
+-- Adds 20 profile-ready users with the same ID convention as the base seed:
+--   Doctors:  user-d11 to user-d20
+--   Patients: user-p11 to user-p20
+-- Text literals use N'...' so SQL Server stores Unicode data cleanly in NVARCHAR columns.
 -- =====================================================
-IF NOT EXISTS (SELECT 1 FROM Users WHERE Id = 'u-p24-01-01')
+IF NOT EXISTS (SELECT 1 FROM Users WHERE Id = N'user-d11')
 BEGIN
-    DECLARE @pwd NVARCHAR(255) = (SELECT TOP 1 PasswordHash FROM Users WHERE RoleId = 'patient');
-    DECLARE @m INT, @i INT, @cnt INT;
-    DECLARE @id NVARCHAR(50), @day INT, @created DATETIME;
-    DECLARE @docNum INT, @docId NVARCHAR(20), @patId NVARCHAR(20), @fee DECIMAL(10,2);
-    DECLARE @aday INT, @hour INT, @atime DATETIME;
+    INSERT INTO Users (Id, UserName, Email, EmailConfirmed, PasswordHash, PhoneNumber, AccessFailedCount, CreatedDate, Status, LastLoginAt, RoleId) VALUES
+    (N'user-d11', N'doctor11', N'doctor11@healthlink.com', 1, N'$2a$10$hashedpassword31', N'0901000011', 0, '2024-01-11', N'Active', '2024-05-11', N'doctor'),
+    (N'user-d12', N'doctor12', N'doctor12@healthlink.com', 1, N'$2a$10$hashedpassword32', N'0901000012', 0, '2024-01-12', N'Active', '2024-05-12', N'doctor'),
+    (N'user-d13', N'doctor13', N'doctor13@healthlink.com', 1, N'$2a$10$hashedpassword33', N'0901000013', 0, '2024-01-13', N'Active', '2024-05-13', N'doctor'),
+    (N'user-d14', N'doctor14', N'doctor14@healthlink.com', 1, N'$2a$10$hashedpassword34', N'0901000014', 0, '2024-01-14', N'Active', '2024-05-14', N'doctor'),
+    (N'user-d15', N'doctor15', N'doctor15@healthlink.com', 1, N'$2a$10$hashedpassword35', N'0901000015', 0, '2024-01-15', N'Active', '2024-05-15', N'doctor'),
+    (N'user-d16', N'doctor16', N'doctor16@healthlink.com', 1, N'$2a$10$hashedpassword36', N'0901000016', 0, '2024-01-16', N'Active', '2024-05-16', N'doctor'),
+    (N'user-d17', N'doctor17', N'doctor17@healthlink.com', 1, N'$2a$10$hashedpassword37', N'0901000017', 0, '2024-01-17', N'Active', '2024-05-17', N'doctor'),
+    (N'user-d18', N'doctor18', N'doctor18@healthlink.com', 1, N'$2a$10$hashedpassword38', N'0901000018', 0, '2024-01-18', N'Active', '2024-05-18', N'doctor'),
+    (N'user-d19', N'doctor19', N'doctor19@healthlink.com', 1, N'$2a$10$hashedpassword39', N'0901000019', 0, '2024-01-19', N'Active', '2024-05-19', N'doctor'),
+    (N'user-d20', N'doctor20', N'doctor20@healthlink.com', 1, N'$2a$10$hashedpassword40', N'0901000020', 0, '2024-01-20', N'Active', '2024-05-20', N'doctor'),
+    (N'user-p11', N'patient11', N'patient11@gmail.com', 1, N'$2a$10$hashedpassword41', N'0912000011', 0, '2024-02-11', N'Active', '2024-05-11', N'patient'),
+    (N'user-p12', N'patient12', N'patient12@gmail.com', 1, N'$2a$10$hashedpassword42', N'0912000012', 0, '2024-02-12', N'Active', '2024-05-12', N'patient'),
+    (N'user-p13', N'patient13', N'patient13@gmail.com', 1, N'$2a$10$hashedpassword43', N'0912000013', 0, '2024-02-13', N'Active', '2024-05-13', N'patient'),
+    (N'user-p14', N'patient14', N'patient14@gmail.com', 1, N'$2a$10$hashedpassword44', N'0912000014', 0, '2024-02-14', N'Active', '2024-05-14', N'patient'),
+    (N'user-p15', N'patient15', N'patient15@gmail.com', 1, N'$2a$10$hashedpassword45', N'0912000015', 0, '2024-02-15', N'Active', '2024-05-15', N'patient'),
+    (N'user-p16', N'patient16', N'patient16@gmail.com', 1, N'$2a$10$hashedpassword46', N'0912000016', 0, '2024-02-16', N'Active', '2024-05-16', N'patient'),
+    (N'user-p17', N'patient17', N'patient17@gmail.com', 1, N'$2a$10$hashedpassword47', N'0912000017', 0, '2024-02-17', N'Active', '2024-05-17', N'patient'),
+    (N'user-p18', N'patient18', N'patient18@gmail.com', 1, N'$2a$10$hashedpassword48', N'0912000018', 0, '2024-02-18', N'Active', '2024-05-18', N'patient'),
+    (N'user-p19', N'patient19', N'patient19@gmail.com', 1, N'$2a$10$hashedpassword49', N'0912000019', 0, '2024-02-19', N'Active', '2024-05-19', N'patient'),
+    (N'user-p20', N'patient20', N'patient20@gmail.com', 1, N'$2a$10$hashedpassword50', N'0912000020', 0, '2024-02-20', N'Active', '2024-05-20', N'patient');
 
-    -- Patients registered per month of 2024 (rising curve -> nice area chart)
-    DECLARE @pcounts TABLE (mo INT, cnt INT);
-    INSERT INTO @pcounts (mo, cnt) VALUES
-        (1,5),(2,7),(3,6),(4,9),(5,8),(6,12),(7,10),(8,9),(9,12),(10,11),(11,13),(12,15);
+    INSERT INTO Doctors (DoctorID, FullName, qualifications, specialty, yearsOfExperience, languageSpoken, location, avatarUrl, bio, consultationFee, latitude, longitude, clinicName, clinicAddress, averageRating, totalReviews, verified, specialtyId, totalEarnings, pendingSettlement, paypalEmail, scheduleStatus, bankAccount, bankName, customCommissionRateOnline, customCommissionRateOffline, customCommissionRateOnlineEffectiveFrom, customCommissionRateOnlineEffectiveTo, customCommissionRateOfflineEffectiveFrom, customCommissionRateOfflineEffectiveTo, commissionTier) VALUES
+    (N'user-d11', N'Dr. Nguyen Minh Anh', N'MD - University of Medicine and Pharmacy HCMC', N'Internal Medicine', 9, N'Vietnamese, English', N'Ho Chi Minh City', N'http://localhost:8096/uploads/avatars/doctors/bacsi_11.png', N'General internal medicine doctor focused on chronic disease follow-up', 130.00, 10.7769, 106.7009, N'Saigon Family Clinic', N'45 Nguyen Thi Minh Khai, District 1, Ho Chi Minh City', 4.72, 64, 1, 1, 260.00, 40.00, N'dr.nguyen.minhanh@healthlink.com', N'APPROVED', N'2234567890', N'Vietcombank', NULL, NULL, NULL, NULL, NULL, NULL, N'STANDARD'),
+    (N'user-d12', N'Dr. Tran Quoc Bao', N'MD - Hanoi Medical University', N'Pediatrics', 11, N'Vietnamese, English', N'Ha Noi', N'http://localhost:8096/uploads/avatars/doctors/bacsi_12.png', N'Pediatrician experienced in fever, allergy, and nutrition counseling', 125.00, 21.0278, 105.8342, N'Hoan Kiem Children Clinic', N'18 Trang Thi, Hoan Kiem, Ha Noi', 4.81, 92, 1, 3, 310.00, 55.00, N'dr.tran.quocbao@healthlink.com', N'APPROVED', N'2234567891', N'Techcombank', NULL, NULL, NULL, NULL, NULL, NULL, N'STANDARD'),
+    (N'user-d13', N'Dr. Le Hoang Phuc', N'MD, MSc - Hue University of Medicine', N'Cardiology', 16, N'Vietnamese, English', N'Da Nang', N'http://localhost:8096/uploads/avatars/doctors/bacsi_13.png', N'Cardiologist for hypertension, arrhythmia, and follow-up care', 210.00, 16.0471, 108.2068, N'Da Nang Heart Clinic', N'72 Nguyen Van Linh, Hai Chau, Da Nang', 4.86, 118, 1, 6, 480.00, 90.00, N'dr.le.hoangphuc@healthlink.com', N'APPROVED', N'2234567892', N'ACB', NULL, NULL, NULL, NULL, NULL, NULL, N'PREMIUM'),
+    (N'user-d14', N'Dr. Pham Thu Ha', N'MD - University of Medicine Pham Ngoc Thach', N'Dermatology', 8, N'Vietnamese, English', N'Ho Chi Minh City', N'http://localhost:8096/uploads/avatars/doctors/bacsi_14.png', N'Dermatology doctor treating acne, dermatitis, and skin allergies', 115.00, 10.8015, 106.7148, N'Gia Dinh Skin Clinic', N'201 Phan Dang Luu, Binh Thanh, Ho Chi Minh City', 4.67, 73, 1, 5, 210.00, 35.00, N'dr.pham.thuha@healthlink.com', N'APPROVED', N'2234567893', N'MB Bank', NULL, NULL, NULL, NULL, NULL, NULL, N'STANDARD'),
+    (N'user-d15', N'Dr. Vo Gia Huy', N'MD, FACS - Cho Ray Hospital', N'Surgery', 13, N'Vietnamese, English', N'Ho Chi Minh City', N'http://localhost:8096/uploads/avatars/doctors/bacsi_15.png', N'General surgeon providing pre-op and post-op consultation', 185.00, 10.7553, 106.6606, N'Cho Ray Surgical Clinic', N'201B Nguyen Chi Thanh, District 5, Ho Chi Minh City', 4.79, 88, 1, 2, 390.00, 65.00, N'dr.vo.giahuy@healthlink.com', N'APPROVED', N'2234567894', N'BIDV', NULL, NULL, NULL, NULL, NULL, NULL, N'STANDARD'),
+    (N'user-d16', N'Dr. Bui Lan Chi', N'MD, FACOG - Tu Du Hospital', N'Obstetrics & Gynecology', 10, N'Vietnamese, English', N'Ho Chi Minh City', N'http://localhost:8096/uploads/avatars/doctors/bacsi_16.png', N'Women health doctor for prenatal care and gynecology counseling', 150.00, 10.7680, 106.6834, N'Tu Du Women Clinic', N'284 Cong Quynh, District 1, Ho Chi Minh City', 4.91, 141, 1, 4, 430.00, 80.00, N'dr.bui.lanchi@healthlink.com', N'APPROVED', N'2234567895', N'VietinBank', NULL, NULL, NULL, NULL, NULL, NULL, N'STANDARD'),
+    (N'user-d17', N'Dr. Dang Viet Khoa', N'MD, PhD - Bach Mai Hospital', N'Neurology', 18, N'Vietnamese, English, French', N'Ha Noi', N'http://localhost:8096/uploads/avatars/doctors/bacsi_17.png', N'Neurologist for headache, stroke follow-up, and nerve disorders', 225.00, 21.0002, 105.8412, N'Bach Mai Neurology Center', N'78 Giai Phong, Dong Da, Ha Noi', 4.84, 106, 1, 7, 520.00, 120.00, N'dr.dang.vietkhoa@healthlink.com', N'APPROVED', N'2234567896', N'Agribank', NULL, NULL, NULL, NULL, NULL, NULL, N'PREMIUM'),
+    (N'user-d18', N'Dr. Ho Thi Ngoc', N'MD - National Eye Hospital', N'Ophthalmology', 12, N'Vietnamese, English', N'Ha Noi', N'http://localhost:8096/uploads/avatars/doctors/bacsi_18.png', N'Ophthalmologist for eye exams, dry eyes, and vision screening', 155.00, 21.0227, 105.8461, N'Central Eye Clinic', N'85 Ba Trieu, Hai Ba Trung, Ha Noi', 4.76, 83, 1, 8, 300.00, 50.00, N'dr.ho.thingoc@healthlink.com', N'APPROVED', N'2234567897', N'Sacombank', NULL, NULL, NULL, NULL, NULL, NULL, N'STANDARD'),
+    (N'user-d19', N'Dr. Ngo Thanh Son', N'MD - Thai Binh University of Medicine', N'ENT', 7, N'Vietnamese, English', N'Can Tho', N'http://localhost:8096/uploads/avatars/doctors/bacsi_19.png', N'ENT doctor treating sinusitis, throat infection, and hearing concerns', 105.00, 10.0452, 105.7469, N'Can Tho ENT Clinic', N'16 Hoa Binh Avenue, Ninh Kieu, Can Tho', 4.58, 59, 1, 9, 180.00, 25.00, N'dr.ngo.thanhson@healthlink.com', N'APPROVED', N'2234567898', N'OCB', NULL, NULL, NULL, NULL, NULL, NULL, N'STANDARD'),
+    (N'user-d20', N'Dr. Do Mai Linh', N'DDS - Ho Chi Minh City Odonto-Stomatology University', N'Dentistry', 9, N'Vietnamese, English', N'Ho Chi Minh City', N'http://localhost:8096/uploads/avatars/doctors/bacsi_20.png', N'Dentist focused on preventive care, scaling, and cosmetic dentistry', 95.00, 10.7901, 106.6802, N'SmileCare Dental', N'90 Nguyen Dinh Chieu, District 3, Ho Chi Minh City', 4.88, 124, 1, 10, 240.00, 45.00, N'dr.do.mailinh@healthlink.com', N'APPROVED', N'2234567899', N'VPBank', NULL, NULL, NULL, NULL, NULL, NULL, N'STANDARD');
 
-    SET @m = 1;
-    WHILE @m <= 12
-    BEGIN
-        SELECT @cnt = cnt FROM @pcounts WHERE mo = @m;
-        SET @i = 1;
-        WHILE @i <= @cnt
-        BEGIN
-            SET @id = 'u-p24-' + RIGHT('0' + CAST(@m AS VARCHAR), 2) + '-' + RIGHT('0' + CAST(@i AS VARCHAR), 2);
-            SET @day = ((@i * 2) % 27) + 1;
-            SET @created = DATETIMEFROMPARTS(2024, @m, @day, 9, 0, 0, 0);
-            INSERT INTO Users (Id, UserName, Email, EmailConfirmed, PasswordHash, PhoneNumber, AccessFailedCount, CreatedDate, Status, LastLoginAt, RoleId)
-            VALUES (@id, @id, @id + '@seed.healthlink.com', 1, @pwd,
-                    '0924' + RIGHT('0' + CAST(@m AS VARCHAR), 2) + RIGHT('0' + CAST(@i AS VARCHAR), 2),
-                    0, @created, 'Active', NULL, 'patient');
-            INSERT INTO Patients (PatientID, FullName, dateOfBirth, gender, address, city, country, bloodType, preferredLanguage, occupation, avatarUrl, latitude, longitude, heightCm, weightKg)
-            VALUES (@id, 'Patient 2024 ' + RIGHT('0' + CAST(@m AS VARCHAR), 2) + '-' + RIGHT('0' + CAST(@i AS VARCHAR), 2),
-                    '1990-01-01', CASE WHEN @i % 2 = 0 THEN 'Male' ELSE 'Female' END,
-                    'Sample address', 'Ho Chi Minh City', 'Vietnam', 'O+', 'English', 'Sample',
-                    'http://localhost:8096/uploads/avatars/patients/benhnhan_01.png', 10.7769, 106.7009, 165, 60.0);
-            SET @i = @i + 1;
-        END
-        SET @m = @m + 1;
-    END
+    INSERT INTO DoctorServices (doctor_id, service_type, available) VALUES
+    (N'user-d11', N'ONLINE', 1), (N'user-d11', N'HOME_VISIT', 1),
+    (N'user-d12', N'ONLINE', 1), (N'user-d12', N'HOME_VISIT', 1),
+    (N'user-d13', N'ONLINE', 1), (N'user-d13', N'HOME_VISIT', 1),
+    (N'user-d14', N'ONLINE', 1), (N'user-d14', N'HOME_VISIT', 1),
+    (N'user-d15', N'ONLINE', 1), (N'user-d15', N'HOME_VISIT', 1),
+    (N'user-d16', N'ONLINE', 1), (N'user-d16', N'HOME_VISIT', 1),
+    (N'user-d17', N'ONLINE', 1), (N'user-d17', N'HOME_VISIT', 1),
+    (N'user-d18', N'ONLINE', 1), (N'user-d18', N'HOME_VISIT', 1),
+    (N'user-d19', N'ONLINE', 1), (N'user-d19', N'HOME_VISIT', 1),
+    (N'user-d20', N'ONLINE', 1), (N'user-d20', N'HOME_VISIT', 1);
 
-    -- Completed appointments per month of 2024 (June denser for weekly/daily charts)
-    DECLARE @acounts TABLE (mo INT, cnt INT);
-    INSERT INTO @acounts (mo, cnt) VALUES
-        (1,9),(2,11),(3,10),(4,14),(5,12),(6,30),(7,15),(8,13),(9,17),(10,14),(11,16),(12,12);
+    INSERT INTO Patients (PatientID, FullName, dateOfBirth, medicalHistorySummary, insuranceProvider, insurancePolicyNumber, gender, address, city, country, bloodType, emergencyContactName, emergencyContactPhone, emergencyContactRelationship, preferredLanguage, preferredContactMethod, occupation, avatarUrl, latitude, longitude, allergies, chronicConditions, currentMedications, heightCm, weightKg) VALUES
+    (N'user-p11', N'Nguyen Thanh Lam', '1991-04-12', N'Seasonal allergy history', N'Bao Viet', N'BV-2024-011', N'Male', N'25 Ly Tu Trong, District 1', N'Ho Chi Minh City', N'Vietnam', N'O+', N'Nguyen Minh Chau', N'0912345681', N'Wife', N'Vietnamese', N'Phone', N'Product Manager', N'http://localhost:8096/uploads/avatars/patients/benhnhan_11.png', 10.7799, 106.7019, N'Pollen', NULL, NULL, 172, 68),
+    (N'user-p12', N'Tran Mai Phuong', '1987-09-03', N'History of migraine', N'PVI', N'PVI-2024-012', N'Female', N'118 Nguyen Trai, Thanh Xuan', N'Ha Noi', N'Vietnam', N'A+', N'Tran Van Duc', N'0912345682', N'Father', N'Vietnamese', N'Email', N'Accountant', N'http://localhost:8096/uploads/avatars/patients/benhnhan_12.png', 21.0024, 105.8066, NULL, N'Migraine', N'Paracetamol 500mg as needed', 160, 52),
+    (N'user-p13', N'Le Minh Quan', '1979-11-21', N'Hypertension under control', N'Blue Cross', N'BC-2024-013', N'Male', N'9 Bach Dang Street', N'Da Nang', N'Vietnam', N'B+', N'Le Thu Trang', N'0912345683', N'Wife', N'Vietnamese', N'Phone', N'Hotel Manager', N'http://localhost:8096/uploads/avatars/patients/benhnhan_13.png', 16.0678, 108.2208, NULL, N'Hypertension', N'Amlodipine 5mg', 176, 76),
+    (N'user-p14', N'Pham Ngoc Han', '1996-02-18', N'No significant medical history', N'Aetna', N'AET-2024-014', N'Female', N'42 Nguyen Van Cu, Ninh Kieu', N'Can Tho', N'Vietnam', N'AB+', N'Pham Thi Hoa', N'0912345684', N'Mother', N'Vietnamese', N'Text', N'Graduate Student', N'http://localhost:8096/uploads/avatars/patients/benhnhan_14.png', 10.0359, 105.7805, N'Shellfish', NULL, NULL, 158, 50),
+    (N'user-p15', N'Vo Duc Anh', '1983-06-30', N'Gastritis follow-up', N'Cigna', N'CIG-2024-015', N'Male', N'77 Dien Bien Phu, Binh Thanh', N'Ho Chi Minh City', N'Vietnam', N'A-', N'Vo Kim Ngan', N'0912345685', N'Sister', N'Vietnamese', N'Phone', N'Architect', N'http://localhost:8096/uploads/avatars/patients/benhnhan_15.png', 10.8010, 106.7138, NULL, N'Chronic gastritis', N'Omeprazole 20mg', 174, 70),
+    (N'user-p16', N'Bui Thuy Linh', '1993-12-09', N'Childhood asthma, stable', N'Humana', N'HUM-2024-016', N'Female', N'31 Nguyen Hue Street', N'Ho Chi Minh City', N'Vietnam', N'B-', N'Bui Quang Hieu', N'0912345686', N'Brother', N'Vietnamese', N'Email', N'Marketing Specialist', N'http://localhost:8096/uploads/avatars/patients/benhnhan_16.png', 10.7747, 106.7043, N'Dust', N'Asthma', N'Salbutamol inhaler', 162, 54),
+    (N'user-p17', N'Dang Quoc Viet', '1972-08-14', N'Type 2 diabetes monitoring', N'Medicare', N'MED-2024-017', N'Male', N'5 Tran Hung Dao, Hoan Kiem', N'Ha Noi', N'Vietnam', N'O-', N'Dang Thi Kim', N'0912345687', N'Wife', N'Vietnamese', N'Phone', N'Business Owner', N'http://localhost:8096/uploads/avatars/patients/benhnhan_17.png', 21.0288, 105.8520, NULL, N'Type 2 diabetes', N'Metformin 500mg', 170, 73),
+    (N'user-p18', N'Ho Bao Ngoc', '1989-01-27', N'No significant medical history', N'Anthem', N'ANT-2024-018', N'Female', N'63 Le Duan Street', N'Da Nang', N'Vietnam', N'A+', N'Ho Van Thanh', N'0912345688', N'Father', N'Vietnamese', N'Text', N'Nurse', N'http://localhost:8096/uploads/avatars/patients/benhnhan_18.png', 16.0605, 108.2244, NULL, NULL, NULL, 166, 57),
+    (N'user-p19', N'Ngo Anh Tuan', '1999-07-19', N'Chronic sinusitis', N'Tricare', N'TRI-2024-019', N'Male', N'12 Nguyen Van Linh, Hai Chau', N'Da Nang', N'Vietnam', N'B+', N'Ngo Thi Loan', N'0912345689', N'Mother', N'Vietnamese', N'Phone', N'Software Developer', N'http://localhost:8096/uploads/avatars/patients/benhnhan_19.png', 16.0544, 108.2022, N'Aspirin', N'Sinusitis', NULL, 181, 74),
+    (N'user-p20', N'Do Khanh Vy', '1976-05-05', N'Osteoarthritis follow-up', N'BCBS', N'BCBS-2024-020', N'Female', N'29 Cach Mang Thang 8, District 3', N'Ho Chi Minh City', N'Vietnam', N'AB-', N'Do Minh Duc', N'0912345690', N'Husband', N'Vietnamese', N'Phone', N'Office Administrator', N'http://localhost:8096/uploads/avatars/patients/benhnhan_20.png', 10.7812, 106.6826, NULL, N'Osteoarthritis', N'Glucosamine', 159, 61);
 
-    SET @m = 1;
-    WHILE @m <= 12
-    BEGIN
-        SELECT @cnt = cnt FROM @acounts WHERE mo = @m;
-        SET @i = 1;
-        WHILE @i <= @cnt
-        BEGIN
-            SET @docNum = ((@i - 1) % 10) + 1;
-            SET @docId = 'user-d' + RIGHT('0' + CAST(@docNum AS VARCHAR), 2);
-            SET @patId = 'user-p' + RIGHT('0' + CAST(@docNum AS VARCHAR), 2);
-            SET @fee = (SELECT consultationFee FROM Doctors WHERE DoctorID = @docId);
-            SET @aday = CASE WHEN @m = 6 THEN ((@i - 1) % 30) + 1 ELSE ((@i * 3) % 27) + 1 END;
-            SET @hour = 8 + (@i % 8);
-            SET @atime = DATETIMEFROMPARTS(2024, @m, @aday, @hour, 0, 0, 0);
-            INSERT INTO Appointments (AppointmentTime, ConsultationType, Status, symptoms, notes, fee, endTime, doctorReminderSent, reminderSent, confirmedAt, PatientID, DoctorID)
-            VALUES (@atime, 'Online', 'Completed', 'Seeded 2024 consultation', 'Auto-seeded for analytics charts',
-                    @fee, DATEADD(MINUTE, 30, @atime), 1, 1, DATEADD(HOUR, -12, @atime), @patId, @docId);
-            SET @i = @i + 1;
-        END
-        SET @m = @m + 1;
-    END
-
-    PRINT 'Year 2024 analytics sample data seeded.';
+    PRINT N'Additional doctor and patient sample data seeded.';
 END
 GO
 
