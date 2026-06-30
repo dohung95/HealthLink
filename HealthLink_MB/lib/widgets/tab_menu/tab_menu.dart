@@ -23,9 +23,9 @@ String _getLocalizedTabLabel(BuildContext context, String label) {
 class TabMenu {
   /// Danh sách các tab mặc định
   static const List<TabMenuItem> defaultItems = [
-    TabMenuItem(icon: Icons.add_circle_outline, label: 'Booking'),
-    TabMenuItem(icon: Icons.calendar_today, label: 'Appointments'),
     TabMenuItem(icon: Icons.home, label: 'Home'),
+    TabMenuItem(icon: Icons.calendar_today, label: 'Appointments'),
+    TabMenuItem(icon: Icons.add_circle_outline, label: 'Booking'),
     TabMenuItem(icon: Icons.chat_bubble_outline, label: 'Chat'),
     TabMenuItem(icon: Icons.description_outlined, label: 'prescription'),
   ];
@@ -77,7 +77,7 @@ class MobileTabMenu extends StatelessWidget {
             final index = entry.key;
             final item = entry.value;
             final isActive = index == currentIndex;
-            final bool isHome = item.label == 'Home';
+            final bool isBooking = item.label == 'Booking';
             return Expanded(
               child: GestureDetector(
                 onTap: () => onTabChanged(index),
@@ -86,7 +86,7 @@ class MobileTabMenu extends StatelessWidget {
                   mainAxisSize: MainAxisSize.min,
                   mainAxisAlignment: MainAxisAlignment.center,
                   children: [
-                    if (isHome)
+                    if (isBooking)
                       Container(
                         width: 62,
                         height: 62,
@@ -125,8 +125,8 @@ class MobileTabMenu extends StatelessWidget {
                       _getLocalizedTabLabel(context, item.label),
                       style: TextStyle(
                         fontFamily: 'Inter',
-                        fontSize: isHome ? 12 : 10,
-                        fontWeight: isHome ? FontWeight.w700 : FontWeight.normal,
+                        fontSize: isBooking ? 12 : 10,
+                        fontWeight: isBooking ? FontWeight.w700 : FontWeight.normal,
                         color: isActive
                             ? Theme.of(context).colorScheme.primary
                             : Theme.of(context).colorScheme.onSurfaceVariant,
