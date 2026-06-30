@@ -7,6 +7,7 @@ import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 import org.springframework.stereotype.Repository;
 
+import java.time.LocalDateTime;
 import java.util.List;
 
 import java.util.UUID;
@@ -40,5 +41,11 @@ public interface MessageRepository extends JpaRepository<Message, String> {
     @Query("UPDATE Message m SET m.read = true WHERE m.chatRoom.chatRoomId = :roomId " +
            "AND m.receiver.id = :userId AND m.read = false")
     int markAllAsRead(@Param("roomId") String roomId, @Param("userId") String userId);
+
+    /**
+     * Đếm số tin nhắn trong phòng chat được gửi SAU một thời điểm cụ thể.
+     * Dùng để kiểm tra xem có trao đổi nào diễn ra trong buổi khám hay không.
+     */
+    long countByChatRoom_ChatRoomIdAndTimestampAfter(String chatRoomId, LocalDateTime after);
 
 }
