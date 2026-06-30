@@ -14,7 +14,7 @@ import { useFollowUp } from './useFollowUp';
 import { getOrCreateRoom } from '@api/chatApi';
 import stompChatService from '@services/stompChatService';
 
-export function useAppointmentDetail({ appointment, patient, doctorId: currentDoctorId, onBack, onOpenAppointmentById }) {
+export function useAppointmentDetail({ appointment, patient, doctorId: currentDoctorId, activeMiniChatAppt, setActiveMiniChatAppt, onBack, onOpenAppointmentById }) {
   const { roles, initiateCall } = useAuth();
   const { openChatWith } = useChat();
 
@@ -40,6 +40,19 @@ export function useAppointmentDetail({ appointment, patient, doctorId: currentDo
   const [prescriptionDraft, setPrescriptionDraft] = useState(null);
   const [copyPrescription, setCopyPrescription] = useState(true);
   const [nowTick, setNowTick] = useState(Date.now());
+
+  const showMiniChat = activeMiniChatAppt?.appointmentId === appointmentId;
+  const setShowMiniChat = (val) => {
+    if (val) {
+      setActiveMiniChatAppt({
+        appointmentId,
+        patientId,
+        patientName: rendered.patientName,
+      });
+    } else {
+      setActiveMiniChatAppt(null);
+    }
+  };
 
   const appointmentData = useAppointmentData(appointmentId, patientId, doctorId);
 
@@ -231,6 +244,9 @@ export function useAppointmentDetail({ appointment, patient, doctorId: currentDo
       }
 
       const completionResult = await appointmentService.completeAppointment(appointmentId, { copyPrescription });
+      if (activeMiniChatAppt?.appointmentId === appointmentId) {
+        setActiveMiniChatAppt(null);
+      }
       const followUpAppointmentId = completionResult?.followUpAppointment?.appointmentId ||
         completionResult?.followUpAppointment?.appointmentID || null;
 
@@ -366,7 +382,11 @@ export function useAppointmentDetail({ appointment, patient, doctorId: currentDo
     selectedHistoryConsultation,
     handleStartConsultation,
     handleCompleteAppointment,
-    handleChat: chatVideo.handleChat,
+    handleChat: () => {
+      setShowMiniChat(true); // Enable mini-chat tracking
+    },
     handleVideoCall: chatVideo.handleVideoCall,
+    showMiniChat,
+    setShowMiniChat,
   };
 }

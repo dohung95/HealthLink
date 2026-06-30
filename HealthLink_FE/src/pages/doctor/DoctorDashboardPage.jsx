@@ -16,12 +16,14 @@ import { getMyRooms } from '@api/chatApi';
 import stompChatService from '@services/stompChatService';
 import DoctorChangePasswordModal from '@components/doctor/DoctorChangePasswordModal';
 import DoctorProfilePage from '@pages/doctor/DoctorProfilePage';
+import DoctorMiniChat from '@components/DoctorMiniChat';
+import { createPortal } from 'react-dom';
 
 export function DoctorAppointmentDetailRoute() {
   const { appointmentId } = useParams();
   const navigate = useNavigate();
   const location = useLocation();
-  const { doctorId } = useOutletContext();
+  const { doctorId, activeMiniChatAppt, setActiveMiniChatAppt } = useOutletContext();
   const [appointment, setAppointment] = useState(null);
   const [patient, setPatient] = useState(null);
   const [loading, setLoading] = useState(true);
@@ -58,6 +60,8 @@ export function DoctorAppointmentDetailRoute() {
       appointment={appointment}
       patient={patient}
       doctorId={doctorId}
+      activeMiniChatAppt={activeMiniChatAppt}
+      setActiveMiniChatAppt={setActiveMiniChatAppt}
       onBack={() => navigate('/doctor')}
       onOpenAppointmentById={(id) => navigate(`/doctor/appointments/${id}`)}
     />
@@ -79,6 +83,24 @@ const DoctorDashboardPage = () => {
   const signalRRef = useRef(null);
 
   const [chatUnreadCount, setChatUnreadCount] = useState(0);
+
+  const [activeMiniChatAppt, setActiveMiniChatAppt] = useState(() => {
+    try {
+      const stored = sessionStorage.getItem('active_minichat_appt');
+      return stored ? JSON.parse(stored) : null;
+    } catch {
+      return null;
+    }
+  });
+
+  const updateActiveMiniChatAppt = (appt) => {
+    setActiveMiniChatAppt(appt);
+    if (appt) {
+      sessionStorage.setItem('active_minichat_appt', JSON.stringify(appt));
+    } else {
+      sessionStorage.removeItem('active_minichat_appt');
+    }
+  };
 
   const doctorId = doctorData?.doctorID || doctorData?.doctorId;
 
@@ -269,7 +291,9 @@ const DoctorDashboardPage = () => {
     doctorData,
     doctorId,
     appointmentsRefreshKey,
-  }), [doctorData, doctorId, appointmentsRefreshKey]);
+    activeMiniChatAppt,
+    setActiveMiniChatAppt: updateActiveMiniChatAppt,
+  }), [doctorData, doctorId, appointmentsRefreshKey, activeMiniChatAppt]);
 
   if (loading) {
     return <DoctorSkeletonPage />;
@@ -313,6 +337,17 @@ const DoctorDashboardPage = () => {
       </DoctorLayout>
       {showChangePassword && (
         <DoctorChangePasswordModal onClose={() => setShowChangePassword(false)} />
+      )}
+      {currentNavItem?.key !== 'chat' && activeMiniChatAppt && document.body && createPortal(
+        <DoctorMiniChat
+          doctorId={doctorId}
+          patientId={activeMiniChatAppt.patientId}
+          patientName={activeMiniChatAppt.patientName}
+          appointmentId={activeMiniChatAppt.appointmentId}
+          isFullTab={false}
+          onClose={() => updateActiveMiniChatAppt(null)}
+        />,
+        document.body
       )}
     </>
   );

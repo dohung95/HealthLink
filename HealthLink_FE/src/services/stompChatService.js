@@ -11,9 +11,9 @@ import SockJS from 'sockjs-client';
  */
 
 const API_BASE_URL =
-  import.meta.env.VITE_API_BASE_URL
-  || import.meta.env.VITE_SPRING_API_BASE_URL
-  || 'http://localhost:8096';
+    import.meta.env.VITE_API_BASE_URL
+    || import.meta.env.VITE_SPRING_API_BASE_URL
+    || 'http://localhost:8096';
 
 const BACKEND_WS_URL = `${API_BASE_URL.replace(/\/$/, '')}/ws`;
 
@@ -130,8 +130,6 @@ class StompChatService {
             console.error(`[STOMP] Cannot publish to ${destination}, not connected.`);
         }
     }
-
-
 
     /**
      * Ngắt kết nối WebSocket.
