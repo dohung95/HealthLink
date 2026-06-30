@@ -266,7 +266,7 @@ function CustomAudioPlayer({ src, isOwn }) {
 }
 
 // ─── Component tin nhắn ──────────────────────────────────────────────────────
-function ChatMessage({ message, currentUserId, isNew = false, onImageClick, onNavigate, onCallClick }) {
+function ChatMessage({ message, currentUserId, isNew = false, onImageClick, onNavigate, onCallClick, isBlocked, hasFilledVitals }) {
     const isOwn = message.senderId === currentUserId || message.uid === currentUserId;
     const fullText = message.content || message.text || '';
     const [displayText, setDisplayText] = useState(isNew ? '' : fullText);
@@ -295,7 +295,7 @@ function ChatMessage({ message, currentUserId, isNew = false, onImageClick, onNa
     const videoUrl = getFullUrl(message.videoUrl);
     const fileUrl = getFullUrl(message.fileUrl);
     const audioSrc = getFullUrl(message.audioUrl);
-    
+
     // Parse call history
     const isCallHistory = fullText.startsWith('[CALL_HISTORY]');
     let callHistoryData = null;
@@ -331,11 +331,11 @@ function ChatMessage({ message, currentUserId, isNew = false, onImageClick, onNa
         };
 
         return (
-            <div 
-                className="d-flex align-items-center gap-3" 
+            <div
+                className="d-flex align-items-center gap-3"
                 style={{ minWidth: '180px', cursor: isMissedOrDeclined ? 'pointer' : 'default' }}
                 onClick={() => {
-                    if (isMissedOrDeclined && onCallClick) {
+                    if (isMissedOrDeclined && onCallClick && !isBlocked && hasFilledVitals) {
                         onCallClick();
                     }
                 }}
@@ -356,7 +356,7 @@ function ChatMessage({ message, currentUserId, isNew = false, onImageClick, onNa
     return (
         <div className={`message d-flex mb-3 ${isOwn ? 'justify-content-end' : 'justify-content-start'}`} style={{ animation: 'msgFadeSlideIn 0.25s ease-out' }}>
             <div style={{ maxWidth: '78%', display: 'flex', flexDirection: 'column', alignItems: isOwn ? 'flex-end' : 'flex-start', gap: '4px' }}>
-                
+
                 {/* ── Standalone Media: Image ── */}
                 {imageUrl && (
                     <img src={imageUrl} alt="sent" style={{ maxWidth: '100%', maxHeight: '300px', borderRadius: '16px', border: '1px solid #dee2e6', cursor: 'zoom-in', boxShadow: '0 2px 5px rgba(0,0,0,0.1)' }}
@@ -408,9 +408,9 @@ function ChatMessage({ message, currentUserId, isNew = false, onImageClick, onNa
                             borderRadius: '20px',
                             padding: '12px 16px',
                         }}>
-                        
+
                         {isCallHistory ? (
-                            <div style={{ marginTop: '0', cursor: 'pointer' }} onClick={() => {}}>
+                            <div style={{ marginTop: '0', cursor: 'pointer' }} onClick={() => { }}>
                                 {renderCallHistory()}
                             </div>
                         ) : (fullText && (
@@ -435,7 +435,7 @@ function ChatMessage({ message, currentUserId, isNew = false, onImageClick, onNa
                                 ))}
                             </div>
                         )}
-                        
+
                         {typewriterDone && message.actionUrl && message.actionLabel && (
                             <div style={{ marginTop: '12px' }}>
                                 <button className="btn btn-sm btn-success rounded-pill px-3" onClick={() => onNavigate?.(message.actionUrl)}>
@@ -445,7 +445,7 @@ function ChatMessage({ message, currentUserId, isNew = false, onImageClick, onNa
                         )}
                     </div>
                 )}
-                
+
                 <div className={`small text-muted mt-1 ${isOwn ? 'text-end' : 'text-start'}`}>{timeStr}</div>
             </div>
         </div>
@@ -534,7 +534,7 @@ export default function ChatPage({ showBot = true }) {
     const [showVitalsModal, setShowVitalsModal] = useState(false);
 
     useEffect(() => {
-        if (currentRoom?.appointmentId && isPatient) {
+        if (currentRoom?.appointmentId) {
             vitalSignApi.getLatestAppointmentVitalSign(currentRoom.appointmentId)
                 .then(res => {
                     if (res && res.vitalSignId) {
@@ -549,7 +549,24 @@ export default function ChatPage({ showBot = true }) {
         } else {
             setHasFilledVitals(true);
         }
-    }, [currentRoom?.appointmentId, isPatient]);
+    }, [currentRoom?.appointmentId]);
+
+    // Poll vitals every 5s if not filled
+    useEffect(() => {
+        let interval;
+        if (!hasFilledVitals && currentRoom?.appointmentId) {
+            interval = setInterval(() => {
+                vitalSignApi.getLatestAppointmentVitalSign(currentRoom.appointmentId)
+                    .then(res => {
+                        if (res && res.vitalSignId) {
+                            setHasFilledVitals(true);
+                        }
+                    })
+                    .catch(() => { });
+            }, 2000);
+        }
+        return () => { if (interval) clearInterval(interval); };
+    }, [hasFilledVitals, currentRoom?.appointmentId]);
 
     const handleVitalsSaved = () => {
         setHasFilledVitals(true);
@@ -655,7 +672,7 @@ export default function ChatPage({ showBot = true }) {
     // ─── Micro audio recording ──────────────────────────────────────────────────────
     const startRecording = async () => {
         if (isRecording) return;
-        
+
         // Ensure any previous timer is cleared before starting
         if (recordingTimerRef.current) {
             clearInterval(recordingTimerRef.current);
@@ -696,7 +713,7 @@ export default function ChatPage({ showBot = true }) {
                 console.log('📦 Audio blob created:', blob.size, 'bytes, type:', blob.type);
                 setAudioBlob(blob);
                 stream.getTracks().forEach(track => track.stop());
-                
+
                 // Safety cleanup
                 if (recordingTimerRef.current) {
                     clearInterval(recordingTimerRef.current);
@@ -806,6 +823,10 @@ export default function ChatPage({ showBot = true }) {
     };
 
     const handleVideoCallFromChat = () => {
+        if (!hasFilledVitals) {
+            toast.warning('Patient has not filled out their vital signs yet.');
+            return;
+        }
         if (!chatPartner || isBlocked || !currentRoom || !currentRoom.chatRoomId) {
             if (!currentRoom?.chatRoomId) toast.error('Please send a message first to establish a chat room before calling.');
             return;
@@ -1385,19 +1406,19 @@ export default function ChatPage({ showBot = true }) {
                                 {mutedRooms.includes(currentRoom.chatRoomId) && <i className="bi bi-bell-slash-fill text-danger me-3 fs-5"></i>}
                                 {!chatPartner?.isBot && (
                                     <button
-                                        className={`btn btn-light rounded-circle shadow-sm d-flex align-items-center justify-content-center me-2 ${isBlocked ? 'opacity-50' : ''}`}
-                                        style={{ width: 40, height: 40, padding: 0, cursor: isBlocked ? 'not-allowed' : 'pointer' }}
+                                        className={`btn btn-light rounded-circle shadow-sm d-flex align-items-center justify-content-center me-2 ${(isBlocked || !hasFilledVitals) ? 'opacity-50' : ''}`}
+                                        style={{ width: 40, height: 40, padding: 0, cursor: (isBlocked || !hasFilledVitals) ? 'not-allowed' : 'pointer' }}
                                         onClick={(e) => {
-                                            if (isBlocked) {
+                                            if (isBlocked || !hasFilledVitals) {
                                                 e.preventDefault();
                                                 return;
                                             }
                                             handleVideoCallFromChat();
                                         }}
-                                        disabled={isBlocked}
-                                        title={isBlocked ? "Cannot call when chat is blocked or appointment completed" : "Video Call"}
+                                        disabled={isBlocked || !hasFilledVitals}
+                                        title={isBlocked ? "Cannot call when chat is blocked or appointment completed" : (!hasFilledVitals ? "Cannot call until patient fills vital signs" : "Video Call")}
                                     >
-                                        <i className={`bi bi-camera-video ${isBlocked ? 'text-muted' : 'text-primary'} fs-5`}></i>
+                                        <i className={`bi bi-camera-video ${(isBlocked || !hasFilledVitals) ? 'text-muted' : 'text-primary'} fs-5`}></i>
                                     </button>
                                 )}
                                 <button className="btn btn-light rounded-circle shadow-sm d-flex align-items-center justify-content-center" style={{ width: 40, height: 40, padding: 0 }} onClick={() => setShowChatDetails(true)}>
@@ -1445,6 +1466,8 @@ export default function ChatPage({ showBot = true }) {
                                     onImageClick={setLightboxImage}
                                     onNavigate={handleBotNavigate}
                                     onCallClick={handleVideoCallFromChat}
+                                    isBlocked={isBlocked}
+                                    hasFilledVitals={hasFilledVitals}
                                 />
                             </div>
                         ))}
@@ -1485,16 +1508,25 @@ export default function ChatPage({ showBot = true }) {
                     </div>
 
                     {/* Input box */}
-                    {(!hasFilledVitals && isPatient && !isAppointmentCompleted) ? (
-                        <div className="p-3 border-top bg-light text-center">
-                            <div className="text-warning mb-2 fw-semibold">
-                                <i className="bi bi-exclamation-triangle-fill me-2"></i>
-                                Please fill in your health information before starting the chat.
+                    {(!hasFilledVitals && !isAppointmentCompleted && currentRoom?.appointmentId) ? (
+                        isPatient ? (
+                            <div className="p-3 border-top bg-light text-center">
+                                <div className="text-warning mb-2 fw-semibold">
+                                    <i className="bi bi-exclamation-triangle-fill me-2"></i>
+                                    Please fill in your health information before starting the chat.
+                                </div>
+                                <button className="btn btn-primary btn-sm" onClick={() => setShowVitalsModal(true)}>
+                                    Fill Health Info
+                                </button>
                             </div>
-                            <button className="btn btn-primary btn-sm" onClick={() => setShowVitalsModal(true)}>
-                                Fill Health Info
-                            </button>
-                        </div>
+                        ) : (
+                            <div className="p-3 border-top bg-light text-center">
+                                <p className="mb-0 fw-semibold text-warning" style={{ fontSize: '0.9rem' }}>
+                                    <i className="bi bi-hourglass-split me-2"></i>
+                                    Waiting for patient to fill out vital signs...
+                                </p>
+                            </div>
+                        )
                     ) : isBlocked ? (
                         <div className="p-3 border-top bg-light text-center">
                             <span className="text-muted fst-italic">
