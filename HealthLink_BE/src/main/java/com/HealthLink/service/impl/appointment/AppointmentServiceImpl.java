@@ -557,6 +557,7 @@ public class AppointmentServiceImpl implements AppointmentService {
     }
 
     @Override
+    @Transactional(readOnly = true)
     public List<AppointmentResponse> getPatientAppointments(String patientId) {
         patientRepository.findById(patientId)
                 .orElseThrow(() -> new ResourceNotFoundException(
@@ -570,6 +571,7 @@ public class AppointmentServiceImpl implements AppointmentService {
     }
 
     @Override
+    @Transactional(readOnly = true)
     public PagedResponse<AppointmentResponse> getPatientAppointmentsPaged(
             String patientId,
             int page,
