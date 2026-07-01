@@ -3,14 +3,17 @@ package com.HealthLink.service.impl.medicine;
 import com.HealthLink.dto.medicine.MedicineRequest;
 import com.HealthLink.dto.medicine.MedicineResponse;
 import com.HealthLink.entity.Medicine;
+import com.HealthLink.entity.MedicineCategory;
 import com.HealthLink.exception.ResourceNotFoundException;
 import com.HealthLink.repository.medicine.MedicineRepository;
+import com.HealthLink.service.medicine.MedicineCategoryService;
 import com.HealthLink.service.medicine.MedicineService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.util.List;
+import java.util.Set;
 import java.util.stream.Collectors;
 
 @Service
@@ -19,14 +22,31 @@ import java.util.stream.Collectors;
 public class MedicineServiceImpl implements MedicineService {
 
     private final MedicineRepository medicineRepository;
+    private final MedicineCategoryService categoryService;
 
     @Override
-    public List<MedicineResponse> searchMedicines(String keyword, String category, String dosageForm) {
-        return medicineRepository.searchCatalog(
-                        normalizeFilter(keyword),
-                        normalizeFilter(category),
-                        normalizeFilter(dosageForm)
-                ).stream()
+    public List<MedicineResponse> searchMedicines(String keyword, String category, String dosageForm, Integer categoryId) {
+        String keywordFilter = normalizeFilter(keyword);
+        String categoryFilter = normalizeFilter(category);
+        String dosageFormFilter = normalizeFilter(dosageForm);
+
+        List<Medicine> medicines;
+        if (categoryId != null) {
+            Set<Integer> categoryIds = categoryService.getActiveCategoryAndDescendantIds(categoryId);
+            if (categoryIds.isEmpty()) {
+                return List.of();
+            }
+            medicines = medicineRepository.searchCatalogByCategoryIds(
+                    keywordFilter,
+                    categoryFilter,
+                    dosageFormFilter,
+                    categoryIds
+            );
+        } else {
+            medicines = medicineRepository.searchCatalog(keywordFilter, categoryFilter, dosageFormFilter);
+        }
+
+        return medicines.stream()
                 .map(this::toResponse)
                 .collect(Collectors.toList());
     }
@@ -55,6 +75,7 @@ public class MedicineServiceImpl implements MedicineService {
         existing.setGenericName(medicine.getGenericName());
         existing.setBrandName(medicine.getBrandName());
         existing.setCategory(medicine.getCategory());
+        existing.setCategoryNode(resolveCategory(medicine.getCategoryId()));
         existing.setDosageForm(medicine.getDosageForm());
         existing.setStrength(medicine.getStrength());
         existing.setUnit(medicine.getUnit());
@@ -95,6 +116,10 @@ public class MedicineServiceImpl implements MedicineService {
                 .genericName(m.getGenericName())
                 .brandName(m.getBrandName())
                 .category(m.getCategory())
+                .categoryId(m.getCategoryNode() != null ? m.getCategoryNode().getCategoryId() : null)
+                .categoryCode(m.getCategoryNode() != null ? m.getCategoryNode().getCode() : null)
+                .categoryName(m.getCategoryNode() != null ? m.getCategoryNode().getName() : null)
+                .categoryPath(categoryService.buildCategoryPath(m.getCategoryNode()))
                 .dosageForm(m.getDosageForm())
                 .strength(m.getStrength())
                 .unit(m.getUnit())
@@ -122,6 +147,7 @@ public class MedicineServiceImpl implements MedicineService {
                 .genericName(r.getGenericName())
                 .brandName(r.getBrandName())
                 .category(r.getCategory())
+                .categoryNode(resolveCategory(r.getCategoryId()))
                 .dosageForm(r.getDosageForm())
                 .strength(r.getStrength())
                 .unit(r.getUnit())
@@ -144,5 +170,9 @@ public class MedicineServiceImpl implements MedicineService {
 
     private String normalizeFilter(String value) {
         return value == null ? null : value.trim();
+    }
+
+    private MedicineCategory resolveCategory(Integer categoryId) {
+        return categoryService.getActiveCategory(categoryId).orElse(null);
     }
 }

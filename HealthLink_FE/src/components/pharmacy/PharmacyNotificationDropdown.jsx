@@ -2,6 +2,7 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { notificationApi } from '../../api/notificationApi';
 import { useNotifications } from '../../context/NotificationContext';
+import { getPharmacyNotificationTarget } from './workflow/pharmacyWorkflow';
 
 function formatTime(value) {
   if (!value) return '';
@@ -16,35 +17,7 @@ function formatTime(value) {
 }
 
 function targetForNotification(notification) {
-  if (notification.type === 'NEW_PHARMACY_REQUEST') {
-    return '/pharmacy-page/orders?group=NEW_REQUESTS';
-  }
-
-  if (notification.type === 'INVOICE_PAID') {
-    return '/pharmacy-page/orders?group=PAYMENT_DUE';
-  }
-
-  if (notification.type === 'ORDER_STATUS') {
-    return '/pharmacy-page/orders?group=CONSULTING';
-  }
-
-  if (notification.type === 'NEW_ORDER') {
-    return '/pharmacy-page/orders?group=NEW_REQUESTS';
-  }
-
-  if (notification.type === 'CANCEL_ORDER') {
-    return '/pharmacy-page/orders?group=HISTORY';
-  }
-
-  if (notification.type === 'LOW_STOCK_WARNING') {
-    return '/pharmacy-page/inventory?filter=lowStock';
-  }
-
-  if (notification.type === 'MEDICINE_EXPIRY_WARNING') {
-    return '/pharmacy-page/inventory';
-  }
-
-  return '/pharmacy-page/orders';
+  return getPharmacyNotificationTarget(notification);
 }
 
 function iconForType(type) {

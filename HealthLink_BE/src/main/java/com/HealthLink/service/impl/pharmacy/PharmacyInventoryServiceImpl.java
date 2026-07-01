@@ -10,6 +10,7 @@ import com.HealthLink.exception.ResourceNotFoundException;
 import com.HealthLink.repository.medicine.MedicineRepository;
 import com.HealthLink.repository.pharmacy.PharmacyInventoryRepository;
 import com.HealthLink.repository.pharmacy.PharmacyRepository;
+import com.HealthLink.service.medicine.MedicineCategoryService;
 import com.HealthLink.service.pharmacy.PharmacyInventoryService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -27,6 +28,7 @@ import org.springframework.web.multipart.MultipartFile;
 import java.io.ByteArrayOutputStream;
 import java.io.InputStreamReader;
 import java.io.OutputStreamWriter;
+import java.util.Set;
 import java.math.BigDecimal;
 import java.nio.charset.StandardCharsets;
 import java.time.LocalDate;
@@ -56,17 +58,25 @@ public class PharmacyInventoryServiceImpl implements PharmacyInventoryService {
     private final PharmacyInventoryRepository inventoryRepository;
     private final PharmacyRepository pharmacyRepository;
     private final MedicineRepository medicineRepository;
+    private final MedicineCategoryService categoryService;
 
     @Override
     @Transactional(readOnly = true)
     public Page<PharmacyInventoryResponse> getInventory(String pharmacyId, String query,
                                                           Boolean lowStock, Boolean active,
                                                           Boolean expiringSoon,
+                                                          Integer categoryId,
                                                           int page, int size) {
         PageRequest pageRequest = PageRequest.of(page, size, Sort.by("createdAt").descending());
         Page<PharmacyInventory> inventoryPage;
 
-        if (query != null && !query.isBlank()) {
+        if (categoryId != null) {
+            Set<Integer> categoryIds = categoryService.getActiveCategoryAndDescendantIds(categoryId);
+            if (categoryIds.isEmpty()) {
+                return Page.empty(pageRequest);
+            }
+            inventoryPage = inventoryRepository.findByPharmacyIdAndCategoryIds(pharmacyId, categoryIds, pageRequest);
+        } else if (query != null && !query.isBlank()) {
             inventoryPage = inventoryRepository.searchByPharmacyId(pharmacyId, query, pageRequest);
         } else if (Boolean.TRUE.equals(lowStock)) {
             inventoryPage = inventoryRepository.findLowStockByPharmacyId(pharmacyId, LOW_STOCK_THRESHOLD, pageRequest);

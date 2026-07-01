@@ -1,7 +1,9 @@
 import { useState, useEffect, useCallback, useMemo } from 'react';
 import { toast } from 'sonner';
 import pharmacyApi from '../../api/pharmacyApi';
+import { medicineApi } from '../../api/medicineApi';
 import { money, useDebouncedValue, Modal } from './PharmacyShared';
+import { flattenCategoryTree } from './workflow/inventoryCategoryTree';
 
 const PAGE_SIZE = 5;
 const LOW_STOCK_THRESHOLD = 10;
@@ -52,6 +54,8 @@ export default function PharmacyInventoryTab({ globalSearch }) {
   const [filter, setFilter] = useState('');
   const [showImportModal, setShowImportModal] = useState(false);
   const [editItem, setEditItem] = useState(null);
+  const [selectedCategoryId, setSelectedCategoryId] = useState(null);
+  const [categoryTree, setCategoryTree] = useState([]);
   const deferredSearch = useDebouncedValue(globalSearch);
 
   const loadInventory = useCallback(async (params, shouldFetchLowStock) => {
@@ -72,14 +76,19 @@ export default function PharmacyInventoryTab({ globalSearch }) {
   }, []);
 
   useEffect(() => {
+    medicineApi.getMedicineCategoryTree().then(setCategoryTree).catch(() => {});
+  }, []);
+
+  useEffect(() => {
     const params = { page, size: PAGE_SIZE };
     if (deferredSearch) params.query = deferredSearch;
     if (filter === 'active') params.active = true;
     else if (filter === 'inactive') params.active = false;
     else if (filter === 'lowStock') params.lowStock = true;
     else if (filter === 'expiringSoon') params.expiringSoon = true;
+    if (selectedCategoryId) params.categoryId = selectedCategoryId;
     loadInventory(params, filter === 'lowStock');
-  }, [page, filter, deferredSearch, loadInventory]);
+  }, [page, filter, deferredSearch, selectedCategoryId, loadInventory]);
 
   const handleImportClick = () => setShowImportModal(true);
   const handleDownloadTemplate = () => pharmacyApi.downloadInventoryTemplate();
@@ -91,6 +100,8 @@ export default function PharmacyInventoryTab({ globalSearch }) {
   const startEntry = totalElements > 0 ? page * PAGE_SIZE + 1 : 0;
   const endEntry = totalElements > 0 ? Math.min(page * PAGE_SIZE + items.length, totalElements) : 0;
   const visiblePageNumbers = useMemo(() => getVisiblePageNumbers(totalPages, page), [totalPages, page]);
+
+  const categories = useMemo(() => flattenCategoryTree(categoryTree), [categoryTree]);
 
   const handleFilterChange = (nextFilter) => {
     setFilter(nextFilter);
@@ -116,6 +127,31 @@ export default function PharmacyInventoryTab({ globalSearch }) {
           </button>
         </div>
       </div>
+
+      <div className="pharmacy-inventory-layout">
+        {categories.length > 0 && (
+          <aside className="pharmacy-inventory-sidebar">
+            <strong className="pharmacy-inventory-sidebar-title">Categories</strong>
+            <button
+              className={`pharmacy-inventory-category ${selectedCategoryId === null ? 'is-active' : ''}`}
+              onClick={() => { setSelectedCategoryId(null); setPage(0); }}
+              type="button"
+            >
+              All Categories
+            </button>
+            {categories.map((cat) => (
+              <button
+                className={`pharmacy-inventory-category ${selectedCategoryId === cat.categoryId ? 'is-active' : ''}`}
+                key={cat.categoryId}
+                onClick={() => { setSelectedCategoryId(cat.categoryId); setPage(0); }}
+                style={{ paddingLeft: 12 + cat.depth * 16 }}
+                type="button"
+              >
+                {cat.name}
+              </button>
+            ))}
+          </aside>
+        )}
 
       <section className="pharmacy-inventory-card">
         <div className="pharmacy-inventory-tabs" role="tablist" aria-label="Inventory filters">
@@ -246,6 +282,7 @@ export default function PharmacyInventoryTab({ globalSearch }) {
           </>
         )}
       </section>
+      </div>
 
       {showImportModal && (
         <ImportModal

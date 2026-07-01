@@ -4,6 +4,7 @@ import com.HealthLink.dto.pharmacy.PharmacyInventoryImportResult;
 import com.HealthLink.dto.pharmacy.PharmacyInventoryRowError;
 import com.HealthLink.dto.pharmacy.PharmacyInventoryUpdateRequest;
 import com.HealthLink.entity.Medicine;
+import com.HealthLink.entity.MedicineCategory;
 import com.HealthLink.entity.Pharmacy;
 import com.HealthLink.entity.PharmacyInventory;
 import com.HealthLink.exception.BadRequestException;
@@ -12,6 +13,7 @@ import com.HealthLink.exception.ResourceNotFoundException;
 import com.HealthLink.repository.medicine.MedicineRepository;
 import com.HealthLink.repository.pharmacy.PharmacyInventoryRepository;
 import com.HealthLink.repository.pharmacy.PharmacyRepository;
+import com.HealthLink.service.medicine.MedicineCategoryService;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.ArgumentCaptor;
@@ -33,6 +35,7 @@ import java.nio.charset.StandardCharsets;
 import java.time.LocalDate;
 import java.util.List;
 import java.util.Optional;
+import java.util.Set;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
@@ -56,6 +59,9 @@ class PharmacyInventoryServiceImplTest {
     @Mock
     private MedicineRepository medicineRepository;
 
+    @Mock
+    private MedicineCategoryService categoryService;
+
     @InjectMocks
     private PharmacyInventoryServiceImpl inventoryService;
 
@@ -65,7 +71,7 @@ class PharmacyInventoryServiceImplTest {
                 .thenReturn(new PageImpl<>(List.of(createInventory(1, "Paracetamol 500mg", 100))));
 
         Page<com.HealthLink.dto.pharmacy.PharmacyInventoryResponse> result =
-                inventoryService.getInventory("pharmacy-1", null, null, null, null, 0, 10);
+                inventoryService.getInventory("pharmacy-1", null, null, null, null, null, 0, 10);
 
         assertThat(result.getContent()).hasSize(1);
         assertThat(result.getContent().get(0).getMedicineName()).isEqualTo("Paracetamol 500mg");
@@ -77,7 +83,7 @@ class PharmacyInventoryServiceImplTest {
                 .thenReturn(new PageImpl<>(List.of()));
 
         Page<com.HealthLink.dto.pharmacy.PharmacyInventoryResponse> result =
-                inventoryService.getInventory("pharmacy-1", "paracetamol", null, null, null, 0, 10);
+                inventoryService.getInventory("pharmacy-1", "paracetamol", null, null, null, null, 0, 10);
 
         assertThat(result.getContent()).isEmpty();
     }
@@ -88,7 +94,7 @@ class PharmacyInventoryServiceImplTest {
                 .thenReturn(new PageImpl<>(List.of(createInventory(1, "Low Stock Med", 3))));
 
         Page<com.HealthLink.dto.pharmacy.PharmacyInventoryResponse> result =
-                inventoryService.getInventory("pharmacy-1", null, true, null, null, 0, 10);
+                inventoryService.getInventory("pharmacy-1", null, true, null, null, null, 0, 10);
 
         assertThat(result.getContent()).hasSize(1);
         assertThat(result.getContent().get(0).getQuantity()).isEqualTo(3);
@@ -99,7 +105,7 @@ class PharmacyInventoryServiceImplTest {
         when(inventoryRepository.findByPharmacyIdAndActive(eq("pharmacy-1"), eq(true), any(PageRequest.class)))
                 .thenReturn(new PageImpl<>(List.of()));
 
-        inventoryService.getInventory("pharmacy-1", null, null, true, null, 0, 10);
+        inventoryService.getInventory("pharmacy-1", null, null, true, null, null, 0, 10);
     }
 
     @Test
@@ -107,7 +113,30 @@ class PharmacyInventoryServiceImplTest {
         when(inventoryRepository.findByPharmacyIdAndActive(eq("pharmacy-1"), eq(false), any(PageRequest.class)))
                 .thenReturn(new PageImpl<>(List.of()));
 
-        inventoryService.getInventory("pharmacy-1", null, null, false, null, 0, 10);
+        inventoryService.getInventory("pharmacy-1", null, null, false, null, null, 0, 10);
+    }
+
+    @Test
+    void getInventory_filterByCategoryId() {
+        when(categoryService.getActiveCategoryAndDescendantIds(5)).thenReturn(Set.of(5, 10));
+        when(inventoryRepository.findByPharmacyIdAndCategoryIds(eq("pharmacy-1"), eq(Set.of(5, 10)), any(PageRequest.class)))
+                .thenReturn(new PageImpl<>(List.of(createInventory(1, "Categorized Med", 50))));
+
+        Page<com.HealthLink.dto.pharmacy.PharmacyInventoryResponse> result =
+                inventoryService.getInventory("pharmacy-1", null, null, null, null, 5, 0, 10);
+
+        assertThat(result.getContent()).hasSize(1);
+        assertThat(result.getContent().get(0).getMedicineName()).isEqualTo("Categorized Med");
+    }
+
+    @Test
+    void getInventory_filterByCategoryId_noMatchingIds() {
+        when(categoryService.getActiveCategoryAndDescendantIds(99)).thenReturn(Set.of());
+
+        Page<com.HealthLink.dto.pharmacy.PharmacyInventoryResponse> result =
+                inventoryService.getInventory("pharmacy-1", null, null, null, null, 99, 0, 10);
+
+        assertThat(result).isEmpty();
     }
 
     @Test

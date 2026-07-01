@@ -28,6 +28,11 @@ public class Medicine {
     @Column(length = 100)
     private String category;
 
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "CategoryID")
+    @ToString.Exclude
+    private MedicineCategory categoryNode;
+
     @Column(length = 50)
     private String dosageForm; // Tablet, Capsule, Syrup...
 

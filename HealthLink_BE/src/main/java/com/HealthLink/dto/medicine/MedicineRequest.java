@@ -17,6 +17,7 @@ public class MedicineRequest {
     private String genericName;
     private String brandName;
     private String category;
+    private Integer categoryId;
     private String dosageForm;
     private String strength;
     private String unit;

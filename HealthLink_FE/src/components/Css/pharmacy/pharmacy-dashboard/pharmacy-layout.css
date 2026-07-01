@@ -581,3 +581,70 @@
     flex-direction: column;
   }
 }
+
+.pharmacy-topbar-primary {
+  flex: 1 1 auto;
+  min-width: 0;
+  display: flex;
+  align-items: center;
+}
+
+.pharmacy-topbar-placeholder {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+  color: var(--pharmacy-muted);
+  font-size: 13px;
+  font-weight: 700;
+}
+
+.pharmacy-topbar-placeholder span:last-child {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.pharmacy-announcement-bar {
+  flex: 0 1 auto;
+  min-width: 0;
+  max-width: 400px;
+  overflow: hidden;
+  position: relative;
+  height: 32px;
+  display: flex;
+  align-items: center;
+}
+
+.pharmacy-announcement-bar__slide {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 0 8px;
+  white-space: nowrap;
+  transition: opacity 0.25s ease, transform 0.25s ease;
+}
+
+.pharmacy-announcement-bar__slide.is-enter {
+  opacity: 1;
+  transform: translateY(0);
+}
+
+.pharmacy-announcement-bar__slide.is-leaving {
+  opacity: 0;
+  transform: translateY(-4px);
+}
+
+.pharmacy-announcement-bar__icon {
+  font-size: 16px;
+  color: var(--pharmacy-primary);
+  flex: 0 0 auto;
+  font-variation-settings: 'FILL' 1, 'wght' 500, 'GRAD' 0, 'opsz' 20;
+}
+
+.pharmacy-announcement-bar__text {
+  font-size: 12px;
+  color: var(--pharmacy-muted);
+  overflow: hidden;
+  text-overflow: ellipsis;
+}

@@ -11,12 +11,15 @@ import PharmacyInventoryTab from '../../components/pharmacy/PharmacyInventoryTab
 import PharmacyOverviewTab from '../../components/pharmacy/PharmacyOverviewTab';
 import { Avatar, getProfileName, navItems, routeByTab } from '../../components/pharmacy/PharmacyShared';
 import PharmacyNotificationDropdown from '../../components/pharmacy/PharmacyNotificationDropdown';
-import PharmacyOrdersTab from '../../components/pharmacy/PharmacyOrdersTab';
 import PharmacyProfileTab from '../../components/pharmacy/PharmacyProfileTab';
 import PharmacyWalletTab from '../../components/pharmacy/PharmacyWalletTab';
 import PharmacyAnalyticsTab from '../../components/pharmacy/PharmacyAnalyticsTab';
 import PharmacyOnlineToggle from '../../components/pharmacy/PharmacyOnlineToggle';
 import ChatPage from '../../components/ChatPage';
+import PharmacyAnnouncementBar from '../../components/pharmacy/PharmacyAnnouncementBar';
+import PharmacyRequestsPage from '../../components/pharmacy/PharmacyRequestsPage';
+import PharmacyKanbanOrdersPage from '../../components/pharmacy/PharmacyKanbanOrdersPage';
+import PharmacyOrderListPage from '../../components/pharmacy/PharmacyOrderListPage';
 
 export default function PharmacyDashboardPage() {
   const { token, currentUserId, logout } = useAuth();
@@ -25,7 +28,7 @@ export default function PharmacyDashboardPage() {
   const location = useLocation();
   const profileDropdownRef = useRef(null);
   const [mobileOpen, setMobileOpen] = useState(false);
-  const [globalSearch, setGlobalSearch] = useState('');
+
   const [showProfileDropdown, setShowProfileDropdown] = useState(false);
 
   const [profile, setProfile] = useState(null);
@@ -43,6 +46,8 @@ export default function PharmacyDashboardPage() {
   const activeTab = useMemo(() => {
     if (location.pathname.includes('/inventory/analytics')) return 'inventoryAnalytics';
     if (location.pathname.includes('/inventory')) return 'inventory';
+    if (location.pathname.includes('/requests')) return 'requests';
+    if (location.pathname.includes('/order-list')) return 'orderList';
     if (location.pathname.includes('/orders')) return 'orders';
     if (location.pathname.includes('/wallet')) return 'wallet';
     if (location.pathname.includes('/chat')) return 'chat';
@@ -144,7 +149,6 @@ export default function PharmacyDashboardPage() {
     transactions,
     settlements,
     pharmacyId,
-    globalSearch,
     loading,
     reload: loadDashboardData,
     navigate,
@@ -201,13 +205,12 @@ export default function PharmacyDashboardPage() {
 
       <div className="pharmacy-main-shell">
         <header className="pharmacy-topbar">
-          <div className="pharmacy-search">
-            <span className="material-symbols-outlined">search</span>
-            <input
-              onChange={(event) => setGlobalSearch(event.target.value)}
-              placeholder="Search orders, patients, requests..."
-              value={globalSearch}
-            />
+          <div className="pharmacy-topbar-primary">
+            <PharmacyAnnouncementBar />
+            <div className="pharmacy-topbar-placeholder">
+              <span className="material-symbols-outlined">local_pharmacy</span>
+              <span>{getProfileName(profile)}</span>
+            </div>
           </div>
           <div className="pharmacy-topbar-actions">
             <PharmacyNotificationDropdown />
@@ -279,7 +282,9 @@ export default function PharmacyDashboardPage() {
               {activeTab === 'overview' && <PharmacyOverviewTab {...shellProps} />}
               {activeTab === 'inventory' && <PharmacyInventoryTab {...shellProps} />}
               {activeTab === 'inventoryAnalytics' && <PharmacyAnalyticsTab token={token} profile={profile} />}
-              {activeTab === 'orders' && <PharmacyOrdersTab {...shellProps} />}
+              {activeTab === 'requests' && <PharmacyRequestsPage {...shellProps} />}
+              {activeTab === 'orders' && <PharmacyKanbanOrdersPage {...shellProps} />}
+              {activeTab === 'orderList' && <PharmacyOrderListPage {...shellProps} />}
               {activeTab === 'wallet' && <PharmacyWalletTab {...shellProps} />}
               {activeTab === 'chat' && <ChatPage showBot={false} />}
               {activeTab === 'profile' && <PharmacyProfileTab token={token} logout={logout} {...shellProps} />}

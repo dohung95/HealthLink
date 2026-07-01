@@ -10,9 +10,9 @@ export default function MedicineSearchPanel({ onSelect, selectedIds = new Set() 
   useEffect(() => { return () => { aliveRef.current = false; }; }, []);
 
   useEffect(() => {
-    if (!query.trim()) { setMedicines([]); return; }
+    const keyword = query.trim();
     setLoading(true);
-    medicineApi.searchMedicines(query)
+    medicineApi.searchMedicines(keyword)
       .then(data => { if (aliveRef.current) setMedicines(Array.isArray(data) ? data : []); })
       .catch(() => { if (aliveRef.current) setMedicines([]); })
       .finally(() => { if (aliveRef.current) setLoading(false); });
@@ -46,6 +46,13 @@ export default function MedicineSearchPanel({ onSelect, selectedIds = new Set() 
           </div>
         ))}
       </div>
+      {!loading && medicines.length === 0 && (
+        <div className="pharmacy-empty compact">
+          <span className="material-symbols-outlined">medication</span>
+          <h3>No medicines found</h3>
+          <p>Try another medicine name or category.</p>
+        </div>
+      )}
     </div>
   );
 }

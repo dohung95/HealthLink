@@ -6,6 +6,7 @@ import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 import org.springframework.stereotype.Repository;
 
+import java.util.Collection;
 import java.util.List;
 
 @Repository
@@ -37,5 +38,27 @@ public interface MedicineRepository extends JpaRepository<Medicine, Integer> {
             @Param("keyword") String keyword,
             @Param("category") String category,
             @Param("dosageForm") String dosageForm
+    );
+
+    @Query("""
+            SELECT m FROM Medicine m
+            WHERE m.active = true
+              AND (:keyword IS NULL OR :keyword = ''
+                OR LOWER(m.name) LIKE LOWER(CONCAT('%', :keyword, '%'))
+                OR LOWER(m.genericName) LIKE LOWER(CONCAT('%', :keyword, '%'))
+                OR LOWER(m.brandName) LIKE LOWER(CONCAT('%', :keyword, '%'))
+                OR LOWER(m.category) LIKE LOWER(CONCAT('%', :keyword, '%'))
+                OR LOWER(m.dosageForm) LIKE LOWER(CONCAT('%', :keyword, '%'))
+                OR LOWER(m.description) LIKE LOWER(CONCAT('%', :keyword, '%')))
+              AND (:category IS NULL OR :category = '' OR LOWER(m.category) = LOWER(:category))
+              AND (:dosageForm IS NULL OR :dosageForm = '' OR LOWER(m.dosageForm) = LOWER(:dosageForm))
+              AND m.categoryNode.categoryId IN :categoryIds
+            ORDER BY m.name ASC
+            """)
+    List<Medicine> searchCatalogByCategoryIds(
+            @Param("keyword") String keyword,
+            @Param("category") String category,
+            @Param("dosageForm") String dosageForm,
+            @Param("categoryIds") Collection<Integer> categoryIds
     );
 }

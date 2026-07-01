@@ -41,6 +41,12 @@ public interface PharmacyInventoryRepository extends JpaRepository<PharmacyInven
                                                        Pageable pageable);
 
     @Query("SELECT i FROM PharmacyInventory i WHERE i.pharmacy.pharmacyId = :pharmacyId " +
+           "AND i.medicine.categoryNode.categoryId IN :categoryIds")
+    Page<PharmacyInventory> findByPharmacyIdAndCategoryIds(@Param("pharmacyId") String pharmacyId,
+                                                            @Param("categoryIds") Collection<Integer> categoryIds,
+                                                            Pageable pageable);
+
+    @Query("SELECT i FROM PharmacyInventory i WHERE i.pharmacy.pharmacyId = :pharmacyId " +
            "AND (i.quantity - i.reservedQuantity) < COALESCE(i.minStockLevel, :defaultThreshold)")
     Page<PharmacyInventory> findLowStockByPharmacyId(@Param("pharmacyId") String pharmacyId,
                                                        @Param("defaultThreshold") int defaultThreshold,

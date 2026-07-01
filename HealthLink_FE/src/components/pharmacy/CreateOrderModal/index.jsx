@@ -1,6 +1,6 @@
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { toast } from 'sonner';
-import medicineApi from '../../../api/medicineApi';
+import { medicineApi } from '../../../api/medicineApi';
 import pharmacyApi from '../../../api/pharmacyApi';
 import { money } from '../../../utils/pharmacy/pharmacyHelpers';
 import OrderItemCard from '../OrderItemCard';
@@ -94,24 +94,26 @@ function normalizeTimingWithNotesFallback(item) {
   };
 }
 
-function mapPrescriptionToOrderItems(prescription) {
+function mapPrescriptionToOrderItems(prescription, priceLookup = new Map()) {
   const rawPrescriptionId = prescription.prescriptionHeaderId || prescription.prescriptionHeaderID || prescription.id || null;
   const prescriptionId = rawPrescriptionId || 'unknown';
   return getPrescriptionItems(prescription).map((item, index) => {
     const originalItemId = item.prescriptionItemId || item.prescriptionItemID || item.id || null;
-    const medicineId = item.medicineId || item.medicineID || item.medicine?.medicineId || item.medicine?.id;
+    const medicineId = getMedicineId(item);
+    const quantity = Number(item.quantity || 1);
+    const unitPrice = getMedicinePrice(item, priceLookup);
     const { timing, notes } = normalizeTimingWithNotesFallback(item);
     return {
       localId: `rx-${Date.now()}-${prescriptionId}-${originalItemId || medicineId || index}`,
       medicineId,
       medicationName: getPrescriptionMedicationName(item),
       totalSupplyDays: Number(item.totalSupplyDays || 1),
-      quantity: Number(item.quantity || 1),
+      quantity,
       unit: item.unit || item.medicine?.unit || 'unit',
       frequency: item.frequency || '',
       timing,
       route: item.route || '',
-      totalPrice: Number(item.totalPrice || 0) || (Number(item.quantity || 1) * Number(item.medicine?.price || 0)),
+      totalPrice: Number(item.totalPrice || 0) || (quantity * unitPrice),
       notes,
       sourcePrescriptionHeaderId: rawPrescriptionId,
       sourcePrescriptionItemId: originalItemId,
@@ -129,6 +131,27 @@ function getMedicineDisplayName(medicine = {}) {
   return brandName || genericName || `Medicine #${medicine.medicineId || medicine.id || 'N/A'}`;
 }
 
+function getMedicineId(value) {
+  return value?.medicineId || value?.medicineID || value?.id || value?.medicine?.medicineId || value?.medicine?.id;
+}
+
+function getMedicinePrice(value, priceLookup = new Map()) {
+  const direct = Number(
+    value?.price
+    ?? value?.unitPrice
+    ?? value?.medicinePrice
+    ?? value?.medicine?.price
+    ?? value?.medicine?.unitPrice
+    ?? 0,
+  );
+  if (Number.isFinite(direct) && direct > 0) return direct;
+  const medicineId = getMedicineId(value);
+  if (medicineId && priceLookup.has(Number(medicineId))) {
+    return Number(priceLookup.get(Number(medicineId)) || 0);
+  }
+  return 0;
+}
+
 function normalizeDelivery(value) {
   return String(value || '').trim().toUpperCase() === 'DELIVERY';
 }
@@ -144,6 +167,7 @@ export default function CreateOrderModal({ request, profile, onClose, onCreated 
   const [expandedItemId, setExpandedItemId] = useState(null);
   const [deliveryMinuteDigits, setDeliveryMinuteDigits] = useState([0, 4, 5]);
   const [creatingOrder, setCreatingOrder] = useState(false);
+  const [medicineCatalog, setMedicineCatalog] = useState([]);
 
   useEffect(() => {
     const preferredDelivery = normalizeDelivery(request?.preferredDeliveryType);
@@ -166,9 +190,21 @@ export default function CreateOrderModal({ request, profile, onClose, onCreated 
     if (!isOrderRequest || loadingPrescriptions || prescriptions.length === 0) return;
     setOrderItems(prev => {
       if (prev.length > 0) return prev;
-      return prescriptions.flatMap(mapPrescriptionToOrderItems);
+      return prescriptions.flatMap((p) => mapPrescriptionToOrderItems(p, medicinePriceLookup));
     });
-  }, [isOrderRequest, loadingPrescriptions, prescriptions]);
+  }, [isOrderRequest, loadingPrescriptions, prescriptions, medicinePriceLookup]);
+
+  useEffect(() => {
+    let alive = true;
+    medicineApi.searchMedicines('')
+      .then((data) => {
+        if (alive) setMedicineCatalog(Array.isArray(data) ? data : []);
+      })
+      .catch(() => {
+        if (alive) setMedicineCatalog([]);
+      });
+    return () => { alive = false; };
+  }, []);
 
   useEffect(() => {
     const previousOverflow = document.body.style.overflow;
@@ -192,6 +228,15 @@ export default function CreateOrderModal({ request, profile, onClose, onCreated 
     () => new Set(orderItems.map((oi) => oi.medicineId).filter(Boolean)),
     [orderItems],
   );
+
+  const medicinePriceLookup = useMemo(() => {
+    const lookup = new Map();
+    medicineCatalog.forEach((med) => {
+      const medId = getMedicineId(med);
+      if (medId) lookup.set(Number(medId), Number(med.price || 0));
+    });
+    return lookup;
+  }, [medicineCatalog]);
 
   const medicationSubtotal = orderItems.reduce((sum, item) => sum + lineTotal(item), 0);
   const deliveryFeeAmount = deliveryEnabled ? Number(deliveryFee || 0) : 0;
@@ -368,7 +413,7 @@ export default function CreateOrderModal({ request, profile, onClose, onCreated 
                     <div className="pharmacy-prescription-list">
                       {prescriptions.map((prescription) => {
                         const items = getPrescriptionItems(prescription);
-                        const importableItems = mapPrescriptionToOrderItems(prescription).filter(
+                        const importableItems = mapPrescriptionToOrderItems(prescription, medicinePriceLookup).filter(
                           (pItem) => !pItem.sourcePrescriptionItemKey || !importedItemKeys.has(pItem.sourcePrescriptionItemKey),
                         );
                         const fullyImported = items.length > 0 && importableItems.length === 0;
@@ -383,7 +428,7 @@ export default function CreateOrderModal({ request, profile, onClose, onCreated 
                                 <button
                                   className={`btn btn-sm ${fullyImported ? 'btn-outline-secondary' : 'btn-outline-primary'}`}
                                   disabled={fullyImported || !items.length}
-                                  onClick={() => importOrderItems(mapPrescriptionToOrderItems(prescription))}
+                                  onClick={() => importOrderItems(mapPrescriptionToOrderItems(prescription, medicinePriceLookup))}
                                   type="button"
                                 >
                                   <i className={`bi ${fullyImported ? 'bi-check2' : 'bi-box-arrow-in-down'} me-1`}></i>

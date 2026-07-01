@@ -58,6 +58,11 @@ export default function DeliveryDurationPicker({ digits, onChange }) {
   };
 
   const labels = ['hundreds', 'tens', 'ones'];
+  const minutes = Number(digits.join(''));
+  const eta = new Date(Date.now() + minutes * 60000).toLocaleTimeString([], {
+    hour: '2-digit',
+    minute: '2-digit',
+  });
 
   return (
     <div className="pharmacy-duration-picker">
@@ -79,10 +84,10 @@ export default function DeliveryDurationPicker({ digits, onChange }) {
         ))}
       </div>
       <div className="pharmacy-duration-picker__summary">
-        <span className="pharmacy-duration-picker__summary-value">{String(Number(digits.join(''))).padStart(3, '0')} min</span>
-        <span className="pharmacy-duration-picker__eta">
-          Est. arrival: ~{new Date(Date.now() + Number(digits.join('')) * 60000).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+        <span className="pharmacy-duration-picker__summary-value">
+          {String(Number(digits.join(''))).padStart(3, '0')} <strong>MIN</strong>
         </span>
+        <span className="pharmacy-duration-picker__eta">ETA: {eta}</span>
       </div>
     </div>
   );
