@@ -18,6 +18,7 @@ class DoctorProfile {
   final String? avatarUrl;
   final bool? verified;
   final String? scheduleStatus;
+  final List<String> availableTypes;
   final String? bankAccount;
   final String? bankName;
   final String? paypalEmail;
@@ -43,6 +44,7 @@ class DoctorProfile {
     this.avatarUrl,
     this.verified,
     this.scheduleStatus,
+    this.availableTypes = const [],
     this.bankAccount,
     this.bankName,
     this.paypalEmail,
@@ -70,6 +72,10 @@ class DoctorProfile {
       avatarUrl: json['avatarUrl'] as String?,
       verified: json['verified'] as bool?,
       scheduleStatus: json['scheduleStatus'] as String?,
+      availableTypes: (json['availableTypes'] as List<dynamic>?)
+              ?.map((e) => e.toString())
+              .toList() ??
+          const [],
       bankAccount: json['bankAccount'] as String?,
       bankName: json['bankName'] as String?,
       paypalEmail: json['paypalEmail'] as String?,
@@ -98,6 +104,7 @@ class DoctorProfile {
       'avatarUrl': avatarUrl,
       'verified': verified,
       'scheduleStatus': scheduleStatus,
+      'availableTypes': availableTypes,
       'bankAccount': bankAccount,
       'bankName': bankName,
       'paypalEmail': paypalEmail,

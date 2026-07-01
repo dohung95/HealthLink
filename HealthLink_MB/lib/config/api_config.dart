@@ -68,6 +68,14 @@ class ApiConfig {
   static const String doctorChangePassword =
       '$baseUrl/account/doctors/auth/password/change';
 
+  /// POST /api/account/doctors/auth/email/request-change – Yêu cầu đổi email (gửi OTP về email mới)
+  static const String doctorRequestEmailChange =
+      '$baseUrl/account/doctors/auth/email/request-change';
+
+  /// POST /api/account/doctors/auth/email/verify-change – Xác nhận OTP và đổi email
+  static const String doctorVerifyEmailChange =
+      '$baseUrl/account/doctors/auth/email/verify-change';
+
   // ── Doctor Wallet Endpoints ──────────────────────────────────────────────
   /// GET /api/payment/partner/{doctorId}/balance?type=DOCTOR – Lấy số dư ví
   static String doctorWalletBalance(String doctorId) =>
