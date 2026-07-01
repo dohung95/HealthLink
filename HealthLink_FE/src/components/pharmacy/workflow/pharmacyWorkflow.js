@@ -22,23 +22,36 @@ export const ORDER_LIST_TABS = [
   { key: 'CANCELLED_REFUNDED', label: 'Cancelled/Refunded', stages: ['CANCELLED', 'REFUNDED'] },
 ];
 
-export const PHARMACY_WORKFLOW_NOTIFICATION_TYPES = new Set([
+export const PHARMACY_SOUND_TOAST_TYPES = new Set([
   'NEW_PHARMACY_REQUEST',
   'NEW_ORDER',
 ]);
 
-export const ANNOUNCEMENT_TYPES = new Set([
+export const PHARMACY_ANNOUNCEMENT_TYPES = new Set([
+  'NEW_PHARMACY_REQUEST',
+  'NEW_ORDER',
+  'INVOICE_PAID',
+  'CANCEL_ORDER',
   'LOW_STOCK_WARNING',
   'MEDICINE_EXPIRY_WARNING',
-  'SYSTEM_ANNOUNCEMENT',
 ]);
 
+export const PHARMACY_WORKFLOW_NOTIFICATION_TYPES = PHARMACY_SOUND_TOAST_TYPES;
+
+export function isPharmacyAnnouncementType(type) {
+  return PHARMACY_ANNOUNCEMENT_TYPES.has(type);
+}
+
+export function isPharmacySoundToastType(type) {
+  return PHARMACY_SOUND_TOAST_TYPES.has(type);
+}
+
 export function isAnnouncementType(type) {
-  return ANNOUNCEMENT_TYPES.has(type);
+  return isPharmacyAnnouncementType(type);
 }
 
 export function isActionableNotification(type) {
-  return !isAnnouncementType(type);
+  return !isPharmacyAnnouncementType(type);
 }
 
 export function getWorkflowStage(item) {
@@ -105,13 +118,89 @@ export function matchesPharmacyWorkflowSearch(item, query) {
 }
 
 export function getPharmacyNotificationTarget(notification) {
-  if (!notification) return '/pharmacy-page/requests?group=NEW_REQUESTS';
-  if (notification.type === 'INVOICE_PAID') return '/pharmacy-page/orders';
-  if (notification.type === 'ORDER_STATUS') return '/pharmacy-page/orders';
-  if (notification.type === 'CANCEL_ORDER') return '/pharmacy-page/order-list?tab=CANCELLED_REFUNDED';
-  if (notification.type === 'LOW_STOCK_WARNING') return '/pharmacy-page/inventory?filter=lowStock';
-  if (notification.type === 'MEDICINE_EXPIRY_WARNING') return '/pharmacy-page/inventory';
+  const type = notification?.type;
+  if (type === 'NEW_PHARMACY_REQUEST') return '/pharmacy-page/requests?group=NEW_REQUESTS';
+  if (type === 'NEW_ORDER') return '/pharmacy-page/orders';
+  if (type === 'INVOICE_PAID') return '/pharmacy-page/orders';
+  if (type === 'CANCEL_ORDER') return '/pharmacy-page/order-list?tab=CANCELLED_REFUNDED';
+  if (type === 'LOW_STOCK_WARNING') return '/pharmacy-page/inventory?filter=lowStock';
+  if (type === 'MEDICINE_EXPIRY_WARNING') return '/pharmacy-page/inventory?filter=expiringSoon';
+  if (type === 'ORDER_STATUS') return '/pharmacy-page/orders';
   return '/pharmacy-page/requests?group=NEW_REQUESTS';
+}
+
+export function getPharmacyAnnouncementCopy(notification) {
+  const type = notification?.type;
+
+  if (type === 'NEW_PHARMACY_REQUEST') {
+    return { icon: 'notifications_active', text: 'New request waiting for intake' };
+  }
+
+  if (type === 'NEW_ORDER') {
+    return { icon: 'receipt_long', text: 'New order received' };
+  }
+
+  if (type === 'INVOICE_PAID') {
+    return { icon: 'payments', text: 'Payment confirmed, order ready to prepare' };
+  }
+
+  if (type === 'CANCEL_ORDER') {
+    return { icon: 'cancel', text: 'Order cancelled/refunded' };
+  }
+
+  if (type === 'LOW_STOCK_WARNING') {
+    return { icon: 'inventory_2', text: 'Low stock items need attention' };
+  }
+
+  if (type === 'MEDICINE_EXPIRY_WARNING') {
+    return { icon: 'calendar_month', text: 'Expiring medicines need review' };
+  }
+
+  return { icon: 'campaign', text: 'Pharmacy workflow is up to date' };
+}
+
+export const PHARMACY_IDLE_ANNOUNCEMENTS = [
+  {
+    key: 'waiting-requests',
+    icon: 'tips_and_updates',
+    text: 'Review waiting requests before intake slows down',
+    target: '/pharmacy-page/requests?group=NEW_REQUESTS',
+  },
+  {
+    key: 'paid-orders',
+    icon: 'tips_and_updates',
+    text: 'Paid orders are ready for preparing',
+    target: '/pharmacy-page/orders',
+  },
+  {
+    key: 'ready-handoff',
+    icon: 'tips_and_updates',
+    text: 'Keep ready orders moving to handoff',
+    target: '/pharmacy-page/orders',
+  },
+  {
+    key: 'low-stock',
+    icon: 'tips_and_updates',
+    text: 'Check low-stock medicines before peak hours',
+    target: '/pharmacy-page/inventory?filter=lowStock',
+  },
+  {
+    key: 'expiry-review',
+    icon: 'tips_and_updates',
+    text: 'Review expiring medicines during quiet periods',
+    target: '/pharmacy-page/inventory?filter=expiringSoon',
+  },
+  {
+    key: 'order-list',
+    icon: 'tips_and_updates',
+    text: 'Completed and refunded records are in Order List',
+    target: '/pharmacy-page/order-list?tab=ALL',
+  },
+];
+
+export function getPharmacyIdleAnnouncement(index = 0) {
+  const safeIndex = Number.isFinite(index) ? Math.abs(index) : 0;
+  return PHARMACY_IDLE_ANNOUNCEMENTS[safeIndex % PHARMACY_IDLE_ANNOUNCEMENTS.length];
 }
 
 export function paymentStatusTone(status) {
@@ -141,14 +230,11 @@ export function compactCardClass(item) {
 }
 
 export function compactCardSubtitle(item) {
-  if (item?.patientName) return item.patientName;
-  if (item?.deliveryPhoneNumber) return item.deliveryPhoneNumber;
-  return null;
+  return item?.deliveryPhoneNumber || null;
 }
 
 export function compactCardMeta(item) {
   const parts = [];
-  if (item?.deliveryType) parts.push(item.deliveryType);
   if (item?.items?.length) parts.push(`${item.items.length} item${item.items.length > 1 ? 's' : ''}`);
   if (item?.totalAmount != null) parts.push(money(item.totalAmount));
   return parts.join(' · ');

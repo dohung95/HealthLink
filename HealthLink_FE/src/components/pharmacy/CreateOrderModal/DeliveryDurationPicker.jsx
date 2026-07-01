@@ -84,9 +84,7 @@ export default function DeliveryDurationPicker({ digits, onChange }) {
         ))}
       </div>
       <div className="pharmacy-duration-picker__summary">
-        <span className="pharmacy-duration-picker__summary-value">
-          {String(Number(digits.join(''))).padStart(3, '0')} <strong>MIN</strong>
-        </span>
+        <span className="pharmacy-duration-picker__summary-value">MIN</span>
         <span className="pharmacy-duration-picker__eta">ETA: {eta}</span>
       </div>
     </div>

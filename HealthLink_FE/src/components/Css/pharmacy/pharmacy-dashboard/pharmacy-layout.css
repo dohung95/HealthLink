@@ -110,10 +110,15 @@
   transition: 0.18s ease;
 }
 
-.pharmacy-nav-child:hover,
+.pharmacy-nav-child:hover {
+  color: var(--pharmacy-primary);
+  background: #eff4ff;
+}
+
 .pharmacy-nav-child.active {
   color: var(--pharmacy-primary);
   background: #eff4ff;
+  text-decoration: underline;
 }
 
 .pharmacy-secondary-action,
@@ -589,62 +594,121 @@
   align-items: center;
 }
 
-.pharmacy-topbar-placeholder {
-  display: inline-flex;
-  align-items: center;
-  gap: 8px;
-  min-width: 0;
-  color: var(--pharmacy-muted);
-  font-size: 13px;
-  font-weight: 700;
-}
-
-.pharmacy-topbar-placeholder span:last-child {
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
 .pharmacy-announcement-bar {
-  flex: 0 1 auto;
-  min-width: 0;
-  max-width: 400px;
+  align-items: center;
+  border: none;
+  border-radius: 8px;
+  background: transparent;
+  color: var(--pharmacy-primary);
+  cursor: pointer;
+  display: grid;
+  grid-template-columns: 22px minmax(0, 1fr);
+  gap: 10px;
+  height: 40px;
+  max-width: min(560px, 52vw);
+  min-width: 280px;
   overflow: hidden;
-  position: relative;
-  height: 32px;
-  display: flex;
-  align-items: center;
+  padding: 0 12px;
+  text-align: left;
+  box-shadow: none;
+  transition: opacity 520ms ease, transform 520ms ease;
 }
 
-.pharmacy-announcement-bar__slide {
-  display: inline-flex;
-  align-items: center;
-  gap: 6px;
-  padding: 0 8px;
-  white-space: nowrap;
-  transition: opacity 0.25s ease, transform 0.25s ease;
+.pharmacy-announcement-bar:disabled {
+  cursor: default;
+  opacity: 0.92;
 }
 
-.pharmacy-announcement-bar__slide.is-enter {
-  opacity: 1;
-  transform: translateY(0);
+.pharmacy-announcement-bar:not(:disabled):hover {
+  box-shadow: none;
+  background: rgba(0, 0, 0, 0.03);
 }
 
-.pharmacy-announcement-bar__slide.is-leaving {
-  opacity: 0;
-  transform: translateY(-4px);
+.pharmacy-announcement-bar.is-leaving {
+  opacity: 0.25;
+  transform: translateY(3px);
 }
 
 .pharmacy-announcement-bar__icon {
-  font-size: 16px;
   color: var(--pharmacy-primary);
   flex: 0 0 auto;
+  font-size: 20px;
   font-variation-settings: 'FILL' 1, 'wght' 500, 'GRAD' 0, 'opsz' 20;
+  transform-origin: 50% 8%;
+}
+
+.pharmacy-announcement-bar.is-alert .pharmacy-announcement-bar__icon {
+  animation: pharmacyAnnouncementBellShake 0.9s ease-in-out infinite;
+}
+
+.pharmacy-announcement-bar.is-idle .pharmacy-announcement-bar__icon {
+  animation: none;
+}
+
+.pharmacy-announcement-bar__viewport {
+  min-width: 0;
+  overflow: hidden;
 }
 
 .pharmacy-announcement-bar__text {
-  font-size: 12px;
-  color: var(--pharmacy-muted);
-  overflow: hidden;
-  text-overflow: ellipsis;
+  color: var(--pharmacy-primary);
+  display: inline-block;
+  font-size: 0.86rem;
+  font-weight: 800;
+  line-height: 1;
+  white-space: nowrap;
+}
+
+.pharmacy-announcement-bar.is-long .pharmacy-announcement-bar__text {
+  animation: pharmacyAnnouncementScroll 18s linear infinite;
+  padding-right: 48px;
+}
+
+@keyframes pharmacyAnnouncementScroll {
+  0%,
+  22% {
+    transform: translateX(0);
+  }
+  100% {
+    transform: translateX(-38%);
+  }
+}
+
+@keyframes pharmacyAnnouncementBellShake {
+  0%,
+  100% {
+    transform: rotate(0deg);
+  }
+  15% {
+    transform: rotate(-16deg);
+  }
+  30% {
+    transform: rotate(13deg);
+  }
+  45% {
+    transform: rotate(-10deg);
+  }
+  60% {
+    transform: rotate(7deg);
+  }
+  75% {
+    transform: rotate(-4deg);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .pharmacy-announcement-bar,
+  .pharmacy-announcement-bar__icon,
+  .pharmacy-announcement-bar__text {
+    animation: none;
+    transition: none;
+  }
+}
+
+@media (max-width: 900px) {
+  .pharmacy-announcement-bar {
+    max-width: 100%;
+    min-width: 0;
+    width: 100%;
+  }
 }

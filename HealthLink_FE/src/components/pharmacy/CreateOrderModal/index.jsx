@@ -6,6 +6,7 @@ import { money } from '../../../utils/pharmacy/pharmacyHelpers';
 import OrderItemCard from '../OrderItemCard';
 import DeliveryDurationPicker from './DeliveryDurationPicker';
 import MedicineLibraryPanel from './MedicineLibraryPanel';
+import RequestSummaryPanel from './RequestSummaryPanel';
 
 const VALID_TIMINGS = new Set(['MORNING', 'AFTERNOON', 'EVENING']);
 
@@ -156,9 +157,18 @@ function normalizeDelivery(value) {
   return String(value || '').trim().toUpperCase() === 'DELIVERY';
 }
 
-export default function CreateOrderModal({ request, profile, onClose, onCreated }) {
+export default function CreateOrderModal({
+  request,
+  profile,
+  onClose,
+  onCreated,
+  variant = 'default',
+  onChatRequest,
+  onVideoCallRequest,
+}) {
+  const isConsultMode = variant === 'consult';
   const isOrderRequest = request?.requestType === 'ORDER_REQUEST' || request?.sourceType === 'ORDER_REQUEST';
-  const [leftTab, setLeftTab] = useState('prescriptions');
+  const [leftTab, setLeftTab] = useState(isConsultMode ? 'summary' : 'prescriptions');
   const [orderItems, setOrderItems] = useState([]);
   const [prescriptions, setPrescriptions] = useState([]);
   const [loadingPrescriptions, setLoadingPrescriptions] = useState(false);
@@ -186,6 +196,25 @@ export default function CreateOrderModal({ request, profile, onClose, onCreated 
     return () => { alive = false; };
   }, [request?.requestId]);
 
+  const medicinePriceLookup = useMemo(() => {
+    const lookup = new Map();
+    medicineCatalog.forEach((med) => {
+      const medId = getMedicineId(med);
+      if (medId) lookup.set(Number(medId), Number(med.price || 0));
+    });
+    return lookup;
+  }, [medicineCatalog]);
+
+  const importedItemKeys = useMemo(
+    () => new Set(orderItems.map((oi) => oi.sourcePrescriptionItemKey).filter(Boolean)),
+    [orderItems],
+  );
+
+  const selectedMedicineIds = useMemo(
+    () => new Set(orderItems.map((oi) => oi.medicineId).filter(Boolean)),
+    [orderItems],
+  );
+
   useEffect(() => {
     if (!isOrderRequest || loadingPrescriptions || prescriptions.length === 0) return;
     setOrderItems(prev => {
@@ -209,7 +238,7 @@ export default function CreateOrderModal({ request, profile, onClose, onCreated 
   useEffect(() => {
     const previousOverflow = document.body.style.overflow;
     const handleEscape = (event) => {
-      if (event.key === 'Escape') onClose();
+      if (!isConsultMode && event.key === 'Escape') onClose();
     };
     document.body.style.overflow = 'hidden';
     window.addEventListener('keydown', handleEscape);
@@ -217,26 +246,7 @@ export default function CreateOrderModal({ request, profile, onClose, onCreated 
       document.body.style.overflow = previousOverflow;
       window.removeEventListener('keydown', handleEscape);
     };
-  }, [onClose]);
-
-  const importedItemKeys = useMemo(
-    () => new Set(orderItems.map((oi) => oi.sourcePrescriptionItemKey).filter(Boolean)),
-    [orderItems],
-  );
-
-  const selectedMedicineIds = useMemo(
-    () => new Set(orderItems.map((oi) => oi.medicineId).filter(Boolean)),
-    [orderItems],
-  );
-
-  const medicinePriceLookup = useMemo(() => {
-    const lookup = new Map();
-    medicineCatalog.forEach((med) => {
-      const medId = getMedicineId(med);
-      if (medId) lookup.set(Number(medId), Number(med.price || 0));
-    });
-    return lookup;
-  }, [medicineCatalog]);
+  }, [isConsultMode, onClose]);
 
   const medicationSubtotal = orderItems.reduce((sum, item) => sum + lineTotal(item), 0);
   const deliveryFeeAmount = deliveryEnabled ? Number(deliveryFee || 0) : 0;
@@ -356,22 +366,70 @@ export default function CreateOrderModal({ request, profile, onClose, onCreated 
 
   return (
     <div className="pharmacy-create-order-modal">
-      <button className="pharmacy-create-order-backdrop" onClick={onClose} type="button" aria-label="Close" />
+      <button
+        className="pharmacy-create-order-backdrop"
+        onClick={isConsultMode ? undefined : onClose}
+        type="button"
+        aria-label={isConsultMode ? 'Consult workflow backdrop' : 'Close'}
+        tabIndex={isConsultMode ? -1 : 0}
+      />
       <div className="pharmacy-create-order-dialog" role="dialog" aria-modal="true">
         <div className="pharmacy-create-order-header">
-          <h2>
-            <i className="bi bi-bag-plus me-2"></i>
-            Create Order
-          </h2>
-          <span className="text-muted small">{request?.displayId || `Request #${request?.requestId}`}</span>
-          <button className="btn btn-light btn-sm ms-auto" onClick={onClose} type="button" aria-label="Close">
-            <i className="bi bi-x-lg"></i>
-          </button>
+          {isConsultMode ? (
+            <>
+              <div className="pharmacy-create-order-header__identity">
+                <div className="pharmacy-create-order-header__title-row">
+                  <h2>
+                    <i className="bi bi-bag-plus me-2"></i>
+                    Consult &amp; Order
+                  </h2>
+                  <span className="text-muted small">{request?.displayId || `Request #${request?.requestId}`}</span>
+                </div>
+                <strong>{request?.patientName || 'Unknown Patient'}</strong>
+                <span>{request?.deliveryPhoneNumber || 'No phone shared'}</span>
+              </div>
+              <div className="pharmacy-create-order-header__actions">
+                {request?.availableActions?.includes('VIDEO_CALL') && (
+                  <button className="btn btn-outline-primary btn-sm" onClick={() => onVideoCallRequest?.(request)} type="button">
+                    <i className="bi bi-camera-video me-1"></i>
+                    Video Call
+                  </button>
+                )}
+                {request?.availableActions?.includes('CHAT') && (
+                  <button className="btn btn-outline-secondary btn-sm" onClick={() => onChatRequest?.(request)} type="button">
+                    <i className="bi bi-chat-dots me-1"></i>
+                    Chat
+                  </button>
+                )}
+              </div>
+            </>
+          ) : (
+            <>
+              <h2>
+                <i className="bi bi-bag-plus me-2"></i>
+                Create Order
+              </h2>
+              <span className="text-muted small">{request?.displayId || `Request #${request?.requestId}`}</span>
+              <button className="btn btn-light btn-sm ms-auto" onClick={onClose} type="button" aria-label="Close">
+                <i className="bi bi-x-lg"></i>
+              </button>
+            </>
+          )}
         </div>
 
         <div className="pharmacy-create-order-layout">
           <div className="pharmacy-create-order-left">
             <div className="pharmacy-create-order-tabs">
+              {isConsultMode && (
+                <button
+                  className={`pharmacy-tab-btn ${leftTab === 'summary' ? 'is-active' : ''}`}
+                  onClick={() => setLeftTab('summary')}
+                  type="button"
+                >
+                  <i className="bi bi-clipboard2-pulse me-1"></i>
+                  Summary
+                </button>
+              )}
               <button
                 className={`pharmacy-tab-btn ${leftTab === 'prescriptions' ? 'is-active' : ''}`}
                 onClick={() => setLeftTab('prescriptions')}
@@ -393,7 +451,9 @@ export default function CreateOrderModal({ request, profile, onClose, onCreated 
             </div>
 
             <div className="pharmacy-create-order-left-content">
-              {(leftTab === 'prescriptions' || isOrderRequest) ? (
+              {leftTab === 'summary' && isConsultMode ? (
+                <RequestSummaryPanel request={request} />
+              ) : (leftTab === 'prescriptions' || isOrderRequest) ? (
                 loadingPrescriptions ? (
                   <div className="pharmacy-bootstrap-loading">
                     <div className="spinner-border text-primary" role="status"><span className="visually-hidden">Loading...</span></div>

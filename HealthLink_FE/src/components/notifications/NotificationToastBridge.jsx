@@ -2,7 +2,7 @@ import { useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { toast } from 'sonner';
 import { useNotifications } from '../../context/NotificationContext';
-import { PHARMACY_WORKFLOW_NOTIFICATION_TYPES, getPharmacyNotificationTarget, isAnnouncementType } from '../pharmacy/workflow/pharmacyWorkflow';
+import { PHARMACY_WORKFLOW_NOTIFICATION_TYPES, getPharmacyNotificationTarget } from '../pharmacy/workflow/pharmacyWorkflow';
 import { audioService } from '../../utils/audioService';
 
 const WORKFLOW_TYPES = new Set([
@@ -64,7 +64,6 @@ export default function NotificationToastBridge() {
     const key = getNotificationKey(notification);
     if (!notification || !key || lastShownKeyRef.current === key) return;
     if (!WORKFLOW_TYPES.has(notification.type)) return;
-    if (isAnnouncementType(notification.type)) return;
 
     lastShownKeyRef.current = key;
 

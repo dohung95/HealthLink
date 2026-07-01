@@ -74,11 +74,11 @@ export default function PharmacyOrderListPage({ workItems, orders }) {
   };
 
   return (
-    <div className="pharmacy-workflow-page">
+    <>
       <div className="pharmacy-workflow-header">
         <div className="pharmacy-workflow-title">
+          <span className="material-symbols-outlined">receipt_long</span>
           <h1>Order List</h1>
-          <p>{allItems.length} total orders</p>
         </div>
         <div className="pharmacy-workflow-search">
           <span className="material-symbols-outlined">search</span>
@@ -89,6 +89,7 @@ export default function PharmacyOrderListPage({ workItems, orders }) {
           />
         </div>
       </div>
+      <div className="pharmacy-workflow-page">
 
       <div className="pharmacy-order-tabs">
         {ORDER_LIST_TABS.map((tab) => (
@@ -200,6 +201,7 @@ export default function PharmacyOrderListPage({ workItems, orders }) {
         />
       )}
     </div>
+    </>
   );
 }
 

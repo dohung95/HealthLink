@@ -59,11 +59,11 @@ export default function PharmacyKanbanOrdersPage({ workItems, reload }) {
   };
 
   return (
-    <div className="pharmacy-workflow-page">
+    <>
       <div className="pharmacy-workflow-header">
         <div className="pharmacy-workflow-title">
+          <span className="material-symbols-outlined">view_column</span>
           <h1>Kanban Orders</h1>
-          <p>{activeItems.length} active orders</p>
         </div>
         <div className="pharmacy-workflow-search">
           <span className="material-symbols-outlined">search</span>
@@ -74,6 +74,7 @@ export default function PharmacyKanbanOrdersPage({ workItems, reload }) {
           />
         </div>
       </div>
+      <div className="pharmacy-workflow-page">
 
       <div className="pharmacy-kanban-board">
         {columns.map((column) => (
@@ -136,6 +137,7 @@ export default function PharmacyKanbanOrdersPage({ workItems, reload }) {
         />
       )}
     </div>
+    </>
   );
 }
 

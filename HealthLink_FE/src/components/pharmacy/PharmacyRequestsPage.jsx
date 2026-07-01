@@ -9,9 +9,12 @@ import {
   isRequestWorkItem,
   matchesPharmacyWorkflowSearch,
 } from './workflow/pharmacyWorkflow';
+import { useChat } from '../../context/ChatContext';
 import CreateOrderModal from './CreateOrderModal/index';
+import StartConsultationConfirmModal from './StartConsultationConfirmModal';
 
 export default function PharmacyRequestsPage({ workItems, profile, reload, navigate: nav }) {
+  const { openChatWith } = useChat();
   const [searchParams, setSearchParams] = useSearchParams();
   const hookNavigate = useNavigate();
   const navigate = nav || hookNavigate;
@@ -20,6 +23,7 @@ export default function PharmacyRequestsPage({ workItems, profile, reload, navig
   const [query, setQuery] = useState('');
   const [pendingAction, setPendingAction] = useState(null);
   const [createOrderRequest, setCreateOrderRequest] = useState(null);
+  const [pendingConsultationRequest, setPendingConsultationRequest] = useState(null);
   const [savingId, setSavingId] = useState(null);
 
   const requestItems = useMemo(
@@ -30,9 +34,13 @@ export default function PharmacyRequestsPage({ workItems, profile, reload, navig
   const visibleItems = useMemo(() => {
     const group = REQUEST_STAGE_GROUPS.find((entry) => entry.key === activeGroup);
     const stages = group?.stages || [];
-    return requestItems.filter((item) => (
-      stages.includes(getWorkflowStage(item)) && matchesPharmacyWorkflowSearch(item, query)
-    ));
+    return requestItems
+      .filter((item) => stages.includes(getWorkflowStage(item)) && matchesPharmacyWorkflowSearch(item, query))
+      .sort((a, b) => {
+        const ta = a.createdAt ? new Date(a.createdAt).getTime() : 0;
+        const tb = b.createdAt ? new Date(b.createdAt).getTime() : 0;
+        return ta - tb;
+      });
   }, [activeGroup, query, requestItems]);
 
   const stageCounts = useMemo(() => {
@@ -80,14 +88,45 @@ export default function PharmacyRequestsPage({ workItems, profile, reload, navig
 
   const stageConfig = REQUEST_STAGE_GROUPS.find((g) => g.key === activeGroup);
 
+  const beginConsultation = (item) => {
+    setPendingConsultationRequest(item);
+  };
+
+  const cancelConsultationStart = () => {
+    setPendingConsultationRequest(null);
+  };
+
+  const confirmConsultationStart = () => {
+    setCreateOrderRequest(pendingConsultationRequest);
+    setPendingConsultationRequest(null);
+  };
+
+  const openRequestChat = (item) => {
+    if (!item?.chatRoomId) {
+      toast.info('Chat is not available for this request yet.');
+      return;
+    }
+    openChatWith({
+      chatRoomId: item.chatRoomId,
+      displayName: item.patientName || 'Patient',
+      patientId: item.patientId,
+    });
+  };
+
+  const openRequestVideoCall = (item) => {
+    if (!item?.availableActions?.includes('VIDEO_CALL') || !item?.chatRoomId) {
+      toast.info('Video call is not available for this request yet.');
+      return;
+    }
+    toast.info('Open chat to start a video call for this request.');
+  };
+
   return (
-    <div className="pharmacy-workflow-page">
+    <>
       <div className="pharmacy-workflow-header">
         <div className="pharmacy-workflow-title">
+          <span className="material-symbols-outlined">assignment</span>
           <h1>Requests</h1>
-          <p>
-            {stageCounts.NEW_REQUESTS || 0} new, {stageCounts.CONSULTING || 0} consulting
-          </p>
         </div>
         <div className="pharmacy-workflow-search">
           <span className="material-symbols-outlined">search</span>
@@ -98,6 +137,7 @@ export default function PharmacyRequestsPage({ workItems, profile, reload, navig
           />
         </div>
       </div>
+      <div className="pharmacy-workflow-page">
 
       <div className="pharmacy-order-tabs">
         {REQUEST_STAGE_GROUPS.map((group) => (
@@ -121,7 +161,7 @@ export default function PharmacyRequestsPage({ workItems, profile, reload, navig
             <p>No work items match the current filter.</p>
           </div>
         ) : (
-          visibleItems.map((item) => {
+          visibleItems.map((item, index) => {
             const stage = getWorkflowStage(item);
             const isNewRequest = stage === 'NEW_REQUEST';
             const isConsulting = stage === 'CONSULTING' || stage === 'REVISION_REQUESTED';
@@ -129,7 +169,20 @@ export default function PharmacyRequestsPage({ workItems, profile, reload, navig
             const isSaving = savingId === itemId;
 
             return (
-              <div className="pharmacy-request-card" key={itemId}>
+              <div
+                className={`pharmacy-request-card ${isConsulting ? 'is-consulting' : ''}`}
+                key={itemId}
+                onClick={isConsulting ? () => beginConsultation(item) : undefined}
+                role={isConsulting ? 'button' : undefined}
+                tabIndex={isConsulting ? 0 : undefined}
+                onKeyDown={isConsulting ? (event) => {
+                  if (event.key === 'Enter' || event.key === ' ') {
+                    event.preventDefault();
+                    beginConsultation(item);
+                  }
+                } : undefined}
+              >
+                <span className="pharmacy-fifo-badge">{index + 1}</span>
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: 8 }}>
                   <span className={`pharmacy-status ${statusClass(stage)}`}>
                     {stage}
@@ -169,7 +222,7 @@ export default function PharmacyRequestsPage({ workItems, profile, reload, navig
                       <button
                         className="btn btn-sm btn-primary"
                         disabled={isSaving}
-                        onClick={() => handleAction(item, 'accept')}
+                        onClick={(e) => { e.stopPropagation(); handleAction(item, 'accept'); }}
                         type="button"
                       >
                         {isSaving && pendingAction === 'accept' ? 'Accepting...' : 'Accept'}
@@ -177,26 +230,12 @@ export default function PharmacyRequestsPage({ workItems, profile, reload, navig
                       <button
                         className="btn btn-sm btn-outline-danger"
                         disabled={isSaving}
-                        onClick={() => handleAction(item, 'reject')}
+                        onClick={(e) => { e.stopPropagation(); handleAction(item, 'reject'); }}
                         type="button"
                       >
                         {isSaving && pendingAction === 'reject' ? 'Rejecting...' : 'Reject'}
                       </button>
                     </>
-                  )}
-                  {isConsulting && (
-                    <button
-                      className="btn btn-sm btn-primary"
-                      onClick={() => setCreateOrderRequest(item)}
-                      type="button"
-                    >
-                      Create Order
-                    </button>
-                  )}
-                  {item.availableActions?.includes('CHAT') && (
-                    <button className="btn btn-sm btn-outline-secondary" type="button">
-                      <i className="bi bi-chat-dots"></i> Chat
-                    </button>
                   )}
                 </div>
               </div>
@@ -205,10 +244,21 @@ export default function PharmacyRequestsPage({ workItems, profile, reload, navig
         )}
       </div>
 
+      {pendingConsultationRequest && (
+        <StartConsultationConfirmModal
+          request={pendingConsultationRequest}
+          onCancel={cancelConsultationStart}
+          onStart={confirmConsultationStart}
+        />
+      )}
+
       {createOrderRequest && (
         <CreateOrderModal
           request={createOrderRequest}
           profile={profile}
+          variant="consult"
+          onChatRequest={openRequestChat}
+          onVideoCallRequest={openRequestVideoCall}
           onClose={() => setCreateOrderRequest(null)}
           onCreated={async () => {
             await reload();
@@ -218,5 +268,6 @@ export default function PharmacyRequestsPage({ workItems, profile, reload, navig
         />
       )}
     </div>
+    </>
   );
 }

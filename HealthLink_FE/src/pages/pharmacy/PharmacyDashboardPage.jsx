@@ -17,13 +17,14 @@ import PharmacyAnalyticsTab from '../../components/pharmacy/PharmacyAnalyticsTab
 import PharmacyOnlineToggle from '../../components/pharmacy/PharmacyOnlineToggle';
 import ChatPage from '../../components/ChatPage';
 import PharmacyAnnouncementBar from '../../components/pharmacy/PharmacyAnnouncementBar';
+import { isPharmacyAnnouncementType } from '../../components/pharmacy/workflow/pharmacyWorkflow';
 import PharmacyRequestsPage from '../../components/pharmacy/PharmacyRequestsPage';
 import PharmacyKanbanOrdersPage from '../../components/pharmacy/PharmacyKanbanOrdersPage';
 import PharmacyOrderListPage from '../../components/pharmacy/PharmacyOrderListPage';
 
 export default function PharmacyDashboardPage() {
   const { token, currentUserId, logout } = useAuth();
-  const { notifications } = useNotifications();
+  const { notifications, latestRealtimeNotification } = useNotifications();
   const navigate = useNavigate();
   const location = useLocation();
   const profileDropdownRef = useRef(null);
@@ -92,12 +93,7 @@ export default function PharmacyDashboardPage() {
 
   useEffect(() => {
     const latest = notifications?.[0];
-    if (!latest || ![
-      'NEW_PHARMACY_REQUEST',
-      'INVOICE_PAID',
-      'NEW_ORDER',
-      'ORDER_STATUS',
-    ].includes(latest.type)) return;
+    if (!latest || !isPharmacyAnnouncementType(latest.type)) return;
 
     const notificationKey = latest.notificationId || `${latest.type}-${latest.relatedId}-${latest.createdAt || latest.timestamp || ''}`;
     if (!notificationKey || notificationKey === lastHandledWorkflowNotificationId) return;
@@ -139,6 +135,12 @@ export default function PharmacyDashboardPage() {
     closeProfileDropdown();
     logout();
   };
+
+  const latestAnnouncement = useMemo(() => (
+    isPharmacyAnnouncementType(latestRealtimeNotification?.type)
+      ? latestRealtimeNotification
+      : null
+  ), [latestRealtimeNotification]);
 
   const shellProps = {
     profile,
@@ -206,11 +208,7 @@ export default function PharmacyDashboardPage() {
       <div className="pharmacy-main-shell">
         <header className="pharmacy-topbar">
           <div className="pharmacy-topbar-primary">
-            <PharmacyAnnouncementBar />
-            <div className="pharmacy-topbar-placeholder">
-              <span className="material-symbols-outlined">local_pharmacy</span>
-              <span>{getProfileName(profile)}</span>
-            </div>
+            <PharmacyAnnouncementBar notification={latestAnnouncement} />
           </div>
           <div className="pharmacy-topbar-actions">
             <PharmacyNotificationDropdown />
