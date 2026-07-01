@@ -732,8 +732,8 @@ class _PrescriptionsScreenState extends State<PrescriptionsScreen> {
             // Prescription Info
             pw.Text('Prescription from ${prescription['doctorName'] ?? 'Unknown Doctor'}', style: pw.TextStyle(fontSize: 14, fontWeight: pw.FontWeight.bold)),
             pw.SizedBox(height: 4),
-            pw.Text('${AppLocalizations.of(context)!.prescriptionDateIssued}: ${_formatDate(prescription['issueDate'], context)}', style: const pw.TextStyle(fontSize: 12)),
-            pw.Text('${AppLocalizations.of(context)!.prescriptionCondition}: ${prescription['diagnosis'] ?? 'N/A'}', style: const pw.TextStyle(fontSize: 12)),
+            pw.Text('Date Issued: ${_formatDate(prescription['issueDate'], context)}', style: const pw.TextStyle(fontSize: 12)),
+            pw.Text('Condition: ${prescription['diagnosis'] ?? 'N/A'}', style: const pw.TextStyle(fontSize: 12)),
             pw.SizedBox(height: 20),
 
             // Medication List
