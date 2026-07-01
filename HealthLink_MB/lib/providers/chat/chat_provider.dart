@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import '../../main.dart';
@@ -12,6 +13,9 @@ import 'package:shared_preferences/shared_preferences.dart';
 
 /// Provider quản lý toàn bộ state của màn hình Chat.
 class ChatProvider extends ChangeNotifier {
+  final _systemUpdateController = StreamController<void>.broadcast();
+  Stream<void> get onSystemUpdate => _systemUpdateController.stream;
+
   // ── State: Chat Room List ──────────────────────────────────────────────────
 
   List<Conversation> _conversations = [];
@@ -125,6 +129,15 @@ class ChatProvider extends ChangeNotifier {
       // Sắp xếp mới nhất lên đầu
       _conversations.sort((a, b) => b.lastMessageTime.compareTo(a.lastMessageTime));
 
+      // Cập nhật lại _currentConversation nếu đang mở phòng chat
+      if (_currentConversation != null) {
+        try {
+          _currentConversation = _conversations.firstWhere(
+            (c) => c.id == _currentConversation!.id,
+          );
+        } catch (_) {}
+      }
+
       // Bắt đầu kết nối STOMP WebSocket
       StompService.instance.connect(
         accessToken, 
@@ -143,10 +156,18 @@ class ChatProvider extends ChangeNotifier {
 
   /// Xử lý tin nhắn nhận được từ STOMP
   void _onStompMessage(Message msg) {
-    if (msg.content == '[SYSTEM_BLOCK_UPDATE]') {
+    if (msg.content == '[SYSTEM_BLOCK_UPDATE]' || 
+        msg.content == '[SYSTEM_CONSULTATION_STARTED]' ||
+        msg.content == '[SYSTEM_REVIEW_SUBMITTED]') {
       if (_lastToken != null && _lastUserId != null) {
-        loadConversations(_lastToken!, _lastUserId!);
+        // Thêm delay nhỏ để đảm bảo backend transaction đã được commit trước khi fetch lại dữ liệu
+        Future.delayed(const Duration(milliseconds: 500), () {
+          if (_lastToken != null && _lastUserId != null) {
+            loadConversations(_lastToken!, _lastUserId!);
+          }
+        });
       }
+      _systemUpdateController.add(null);
       return;
     }
 
@@ -491,4 +512,10 @@ class ChatProvider extends ChangeNotifier {
 
   String _clean(String raw) =>
       raw.startsWith('Exception: ') ? raw.substring(11) : raw;
+
+  @override
+  void dispose() {
+    _systemUpdateController.close();
+    super.dispose();
+  }
 }

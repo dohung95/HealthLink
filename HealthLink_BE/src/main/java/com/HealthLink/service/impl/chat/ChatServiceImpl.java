@@ -276,6 +276,23 @@ public class ChatServiceImpl implements ChatService {
     }
 
     // -------------------------------------------------------------------------
+    // Lấy Media
+    // -------------------------------------------------------------------------
+    @Override
+    @Transactional(readOnly = true)
+    public List<MessageDTO> getMediaMessages(String chatRoomId) {
+        if (!chatRoomRepository.existsById(chatRoomId)) {
+            throw new ResourceNotFoundException("ChatRoom", "id", chatRoomId);
+        }
+        
+        List<Message> mediaMessages = messageRepository.findMediaMessagesByRoom(chatRoomId);
+        
+        return mediaMessages.stream()
+                .map(this::toMessageDTO)
+                .collect(Collectors.toList());
+    }
+
+    // -------------------------------------------------------------------------
     // Đánh dấu đã đọc
     // -------------------------------------------------------------------------
     @Override

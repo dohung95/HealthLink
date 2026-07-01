@@ -32,7 +32,7 @@ const ActionBar = ({
     if (completingAppointment) return null;
     if (isReadOnlyAppointment) return 'Already completed';
     if (isCancelledAppointment) return 'Appointment was cancelled';
-    if (!canStartConsultation && !hasStarted) return 'Start consultation first';
+    if (!hasStarted) return 'Start consultation first';
     return null;
   };
 
@@ -71,8 +71,8 @@ const ActionBar = ({
 
         <div className="doctor-actionbar-btn-wrapper">
           <button
-            className={`btn btn-success ${(isReadOnlyAppointment || isCancelledAppointment || (!hasStarted && !canStartConsultation) || completingAppointment) ? 'disabled' : ''}`}
-            disabled={isReadOnlyAppointment || isCancelledAppointment || (!hasStarted && !canStartConsultation) || completingAppointment}
+            className={`btn btn-success ${(isReadOnlyAppointment || isCancelledAppointment || !hasStarted || completingAppointment) ? 'disabled' : ''}`}
+            disabled={isReadOnlyAppointment || isCancelledAppointment || !hasStarted || completingAppointment}
             onClick={onCompleteClick}
             type="button"
           >

@@ -154,6 +154,30 @@ class ChatService {
     throw Exception(_parseError(res, 'Can not search messages.'));
   }
 
+  /// GET /api/chat/rooms/{chatRoomId}/media
+  /// Lấy toàn bộ media trong phòng (không phân trang).
+  static Future<List<Message>> getMediaMessages(
+    String token,
+    String currentUserId,
+    String chatRoomId,
+  ) async {
+    final res = await http
+        .get(
+          Uri.parse(ApiConfig.chatMedia(chatRoomId)),
+          headers: _headers(token),
+        )
+        .timeout(ApiConfig.connectTimeout);
+
+    if (res.statusCode == 200) {
+      final List<dynamic> data = jsonDecode(res.body) as List<dynamic>;
+      return data
+          .map((e) => Message.fromJson(e as Map<String, dynamic>, currentUserId))
+          .toList();
+    }
+
+    throw Exception(_parseError(res, 'Can not fetch media messages.'));
+  }
+
   /// POST /api/chat/messages
   /// Gửi tin nhắn mới.
   /// Backend yêu cầu: chatRoomId, receiverId, content.

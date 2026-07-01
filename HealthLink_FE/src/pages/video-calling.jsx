@@ -4,6 +4,7 @@ import { useWebRTC } from '../hooks/useWebRTC';
 import { useAuth } from '../context/AuthContext';
 import { Container, Row, Col, Button } from 'react-bootstrap';
 import { toast } from 'sonner';
+import { sendMessage as apiSendMessage } from '../api/chatApi';
 
 /**
  * Trang Video Call — giao diện cuộc gọi WebRTC.
@@ -30,6 +31,22 @@ export default function VideoCallPage() {
 
     const { setCallActive } = useAuth();
 
+    const historySentRef = useRef(false);
+
+    const sendCallHistory = useCallback(async (status) => {
+        if (!isCaller || historySentRef.current) return;
+        historySentRef.current = true;
+        try {
+            await apiSendMessage({
+                chatRoomId: roomID,
+                receiverId: targetUserId,
+                content: `[CALL_HISTORY] duration:${callDuration} status:${status}`
+            });
+        } catch (e) {
+            console.error('[VideoCall] Failed to send history:', e);
+        }
+    }, [isCaller, roomID, targetUserId, callDuration]);
+
     const {
         localStream,
         remoteStream,
@@ -44,7 +61,18 @@ export default function VideoCallPage() {
         isCallAccepted,
         setIsCallAccepted,
         isRemoteCameraOff
-    } = useWebRTC(roomID, targetUserId);
+    } = useWebRTC(roomID, targetUserId, {
+        onRemoteDecline: async () => {
+            await sendCallHistory('DECLINED');
+            if (setCallActive) setCallActive(false);
+            setTimeout(() => window.close(), 500);
+        },
+        onRemoteHangup: async () => {
+            await sendCallHistory('COMPLETED');
+            if (setCallActive) setCallActive(false);
+            setTimeout(() => window.close(), 500);
+        }
+    });
 
     // Bắt đầu local stream và khởi tạo cuộc gọi khi mount
     useEffect(() => {
@@ -56,8 +84,9 @@ export default function VideoCallPage() {
         const initCall = async () => {
             try {
                 await startLocalStream();
-            } catch (error) {
+            } catch (err) {
                 toast.error('Could not access Camera/Microphone! You can still watch the other person.');
+                console.error(err);
             }
 
             // Người nhận đã accept khi click popup
@@ -70,6 +99,22 @@ export default function VideoCallPage() {
         // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [targetUserId, isCaller]);
 
+    // Timeout cuộc gọi (30 giây) dành cho Caller
+    useEffect(() => {
+        if (isCaller && !isCallAccepted) {
+            const timeout = setTimeout(() => {
+                toast.warning('No answer. Call timed out after 30 seconds.');
+                // Gửi lịch sử là MISSED và kết thúc cuộc gọi
+                sendCallHistory('MISSED').then(() => {
+                    endCall(true); // Gửi HANGUP
+                    if (setCallActive) setCallActive(false);
+                    setTimeout(() => window.close(), 500);
+                });
+            }, 30000);
+            return () => clearTimeout(timeout);
+        }
+    }, [isCaller, isCallAccepted, sendCallHistory, endCall, setCallActive]);
+
     // Cleanup khi rời trang
     useEffect(() => {
         /**
@@ -77,6 +122,7 @@ export default function VideoCallPage() {
          * sendBeacon vẫn gửi được sau khi tab bắt đầu unload.
          */
         const handleBeforeUnload = () => {
+            // Không gửi HANGUP ở đây nếu đã ended, endCall sẽ tự check callStatusRef
             endCall(true);
         };
 
@@ -85,14 +131,14 @@ export default function VideoCallPage() {
         return () => {
             // Issue #5: Clear isInCall flag khi trang unmount
             if (setCallActive) setCallActive(false);
-            // Không gửi HANGUP ở đây (StrictMode sẽ unmount rồi mount lại)
             endCall(false);
             window.removeEventListener('beforeunload', handleBeforeUnload);
             // Dừng timer
             if (callTimerRef.current) clearInterval(callTimerRef.current);
         };
-        // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, []);
+        // LƯU Ý: Loại bỏ dependency array rỗng để endCall luôn lấy bản mới nhất,
+        // hoặc dùng ref cho endCall bên trong hooks.
+    }, [endCall, setCallActive]);
 
     // Gửi Offer khi cuộc gọi được chấp nhận (Caller side)
     useEffect(() => {
@@ -149,7 +195,7 @@ export default function VideoCallPage() {
         if (!videoEl || !remoteStream) return;
 
         videoEl.srcObject = remoteStream;
-        videoEl.play().catch(() => {});
+        videoEl.play().catch(() => { });
     }, [remoteStream, isRemoteCameraOff]);
 
     /**
@@ -166,14 +212,19 @@ export default function VideoCallPage() {
     /**
      * Issue #3: Kết thúc cuộc gọi và đóng tab sau khi STOMP kịp flush.
      */
-    const handleEndCall = useCallback(() => {
+    const handleEndCall = useCallback(async () => {
+        const finalStatus = callStatus === 'connected' ? 'COMPLETED' : 'MISSED';
+        
         endCall(true); // Gửi HANGUP
         if (setCallActive) setCallActive(false);
-        // Delay 300ms để STOMP WebSocket frame kịp gửi
+        
+        // Wait for history to be sent before closing
+        await sendCallHistory(finalStatus);
+
         setTimeout(() => {
             window.close();
-        }, 300);
-    }, [endCall, setCallActive]);
+        }, 100);
+    }, [endCall, setCallActive, callStatus, sendCallHistory]);
 
     // =========================================================================
     // UI: Màn hình chờ (Caller chờ người kia nhấc máy)

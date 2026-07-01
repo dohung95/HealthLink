@@ -12,14 +12,18 @@ import { DoctorSkeletonPage } from '@components/doctor/DoctorSkeleton';
 import DoctorErrorState from '@components/doctor/DoctorErrorState';
 import { useNotifications } from '@hooks/doctor/useNotifications';
 import { NAV_ITEMS, normalizeAppointmentDetail } from '@layouts/navigationConfig';
+import { getMyRooms } from '@api/chatApi';
+import stompChatService from '@services/stompChatService';
 import DoctorChangePasswordModal from '@components/doctor/DoctorChangePasswordModal';
 import DoctorProfilePage from '@pages/doctor/DoctorProfilePage';
+import DoctorMiniChat from '@components/DoctorMiniChat';
+import { createPortal } from 'react-dom';
 
 export function DoctorAppointmentDetailRoute() {
   const { appointmentId } = useParams();
   const navigate = useNavigate();
   const location = useLocation();
-  const { doctorId } = useOutletContext();
+  const { doctorId, activeMiniChatAppt, setActiveMiniChatAppt } = useOutletContext();
   const [appointment, setAppointment] = useState(null);
   const [patient, setPatient] = useState(null);
   const [loading, setLoading] = useState(true);
@@ -56,6 +60,8 @@ export function DoctorAppointmentDetailRoute() {
       appointment={appointment}
       patient={patient}
       doctorId={doctorId}
+      activeMiniChatAppt={activeMiniChatAppt}
+      setActiveMiniChatAppt={setActiveMiniChatAppt}
       onBack={() => navigate('/doctor')}
       onOpenAppointmentById={(id) => navigate(`/doctor/appointments/${id}`)}
     />
@@ -75,6 +81,26 @@ const DoctorDashboardPage = () => {
   const [showChangePassword, setShowChangePassword] = useState(false);
   const seenNotificationIds = useRef(new Set());
   const signalRRef = useRef(null);
+
+  const [chatUnreadCount, setChatUnreadCount] = useState(0);
+
+  const [activeMiniChatAppt, setActiveMiniChatAppt] = useState(() => {
+    try {
+      const stored = sessionStorage.getItem('active_minichat_appt');
+      return stored ? JSON.parse(stored) : null;
+    } catch {
+      return null;
+    }
+  });
+
+  const updateActiveMiniChatAppt = (appt) => {
+    setActiveMiniChatAppt(appt);
+    if (appt) {
+      sessionStorage.setItem('active_minichat_appt', JSON.stringify(appt));
+    } else {
+      sessionStorage.removeItem('active_minichat_appt');
+    }
+  };
 
   const doctorId = doctorData?.doctorID || doctorData?.doctorId;
 
@@ -136,9 +162,40 @@ const DoctorDashboardPage = () => {
     }
   };
 
+  const refreshChatUnreadCount = useCallback(async () => {
+    if (!isAuthenticated) return;
+    try {
+      const rooms = await getMyRooms();
+      const total = rooms.reduce((acc, r) => acc + (r.unreadCount || 0), 0);
+      setChatUnreadCount(total);
+    } catch (err) {
+      console.error('Failed to fetch chat unread count:', err);
+    }
+  }, [isAuthenticated]);
+
   useEffect(() => {
     fetchDoctorData();
   }, []);
+
+  useEffect(() => {
+    if (!isAuthenticated) return;
+
+    refreshChatUnreadCount();
+
+    const unsub = stompChatService.subscribeToChat(() => {
+      refreshChatUnreadCount();
+    });
+
+    const handleReadUpdate = () => {
+      refreshChatUnreadCount();
+    };
+    window.addEventListener('chat-read-updated', handleReadUpdate);
+
+    return () => {
+      unsub();
+      window.removeEventListener('chat-read-updated', handleReadUpdate);
+    };
+  }, [isAuthenticated, refreshChatUnreadCount]);
 
   useEffect(() => {
     if (!isAuthenticated) return;
@@ -234,7 +291,9 @@ const DoctorDashboardPage = () => {
     doctorData,
     doctorId,
     appointmentsRefreshKey,
-  }), [doctorData, doctorId, appointmentsRefreshKey]);
+    activeMiniChatAppt,
+    setActiveMiniChatAppt: updateActiveMiniChatAppt,
+  }), [doctorData, doctorId, appointmentsRefreshKey, activeMiniChatAppt]);
 
   if (loading) {
     return <DoctorSkeletonPage />;
@@ -251,34 +310,46 @@ const DoctorDashboardPage = () => {
   return (
     <>
       <DoctorLayout
-      doctorData={doctorData}
-      currentNavItem={currentNavItem}
-      isDetailView={isDetailView}
-      isMobileMenuOpen={isMobileMenuOpen}
-      showAllNotifications={notificationsHook.showAllNotifications}
-      notifications={notificationsHook.notifications}
-      unreadCount={notificationsHook.unreadCount}
-      hasNewNotification={notificationsHook.hasNewNotification}
-      showNotificationDropdown={notificationsHook.showNotificationDropdown}
-      notificationRef={notificationsHook.notificationRef}
-      onClearNewNotification={() => notificationsHook.setHasNewNotification(false)}
-      onNavigate={(key) => selectView(key)}
-      onLogout={handleLogout}
-      onToggleMobileMenu={() => setIsMobileMenuOpen((prev) => !prev)}
-      onToggleNotificationDropdown={() => notificationsHook.setShowNotificationDropdown((prev) => !prev)}
-      onNotificationClick={notificationsHook.handleNotificationClick}
-      onMarkAllRead={notificationsHook.handleMarkAllRead}
-      onCloseAllNotifications={() => notificationsHook.setShowAllNotifications(true)}
-      onChangePassword={handleChangePassword}
-      onNavigateToProfile={handleNavigateToProfile}
-      onNavigateToWallet={handleNavigateToWallet}
-    >
-      <section className={`doctor-content-section ${isDetailView || currentNavItem?.key === 'schedule' || currentNavItem?.key === 'appointments' || currentNavItem?.key === 'patients' || currentNavItem?.key === 'wallet' ? '' : 'card-section'}`}>
-        <Outlet context={contextValue} />
-      </section>
+        doctorData={doctorData}
+        currentNavItem={currentNavItem}
+        isDetailView={isDetailView}
+        isMobileMenuOpen={isMobileMenuOpen}
+        showAllNotifications={notificationsHook.showAllNotifications}
+        notifications={notificationsHook.notifications}
+        unreadCount={notificationsHook.unreadCount}
+        chatUnreadCount={chatUnreadCount}
+        hasNewNotification={notificationsHook.hasNewNotification}
+        showNotificationDropdown={notificationsHook.showNotificationDropdown}
+        notificationRef={notificationsHook.notificationRef}
+        onClearNewNotification={() => notificationsHook.setHasNewNotification(false)}
+        onNavigate={(key) => selectView(key)}
+        onLogout={handleLogout}
+        onToggleMobileMenu={() => setIsMobileMenuOpen((prev) => !prev)}
+        onToggleNotificationDropdown={() => notificationsHook.setShowNotificationDropdown((prev) => !prev)}
+        onNotificationClick={notificationsHook.handleNotificationClick}
+        onMarkAllRead={notificationsHook.handleMarkAllRead}
+        onCloseAllNotifications={() => notificationsHook.setShowAllNotifications(true)}
+        onChangePassword={handleChangePassword}
+        onNavigateToProfile={handleNavigateToProfile}
+        onNavigateToWallet={handleNavigateToWallet}
+      >
+        <section className={`doctor-content-section ${isDetailView || currentNavItem?.key === 'schedule' || currentNavItem?.key === 'appointments' || currentNavItem?.key === 'patients' || currentNavItem?.key === 'wallet' ? '' : 'card-section'}`}>
+          <Outlet context={contextValue} />
+        </section>
       </DoctorLayout>
       {showChangePassword && (
         <DoctorChangePasswordModal onClose={() => setShowChangePassword(false)} />
+      )}
+      {currentNavItem?.key !== 'chat' && activeMiniChatAppt && document.body && createPortal(
+        <DoctorMiniChat
+          doctorId={doctorId}
+          patientId={activeMiniChatAppt.patientId}
+          patientName={activeMiniChatAppt.patientName}
+          appointmentId={activeMiniChatAppt.appointmentId}
+          isFullTab={false}
+          onClose={() => updateActiveMiniChatAppt(null)}
+        />,
+        document.body
       )}
     </>
   );

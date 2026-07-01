@@ -3,7 +3,7 @@ import 'package:provider/provider.dart';
 import 'package:intl/intl.dart';
 import 'package:geolocator/geolocator.dart';
 import '../../../providers/auth_provider.dart';
-import '../../../services/patient_pharmacy/pharmacy_service.dart';
+import '../../../services/patient/patient_pharmacy/pharmacy_service.dart';
 import '../../../l10n/app_localizations.dart';
 import '../../../config/api_config.dart';
 import 'dart:convert';

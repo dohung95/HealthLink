@@ -9,25 +9,28 @@ import { useAuth } from '../context/AuthContext';
  *  Caller: startLocalStream() → isCallAccepted=true → createOffer() → handleReceiveAnswer()
  *  Callee: startLocalStream() → handleReceiveOffer() → handleReceiveAnswer implicit via ANSWER
  */
-export const useWebRTC = (roomId, targetUserId) => {
+export const useWebRTC = (roomId, targetUserId, options = {}) => {
     const { currentUserId } = useAuth();
+    const { onRemoteDecline, onRemoteHangup } = options;
     const [localStream, setLocalStream] = useState(null);
     const [remoteStream, setRemoteStream] = useState(null);
     const [isMicMuted, setIsMicMuted] = useState(false);
     const [isCameraOff, setIsCameraOff] = useState(false);
     const [isRemoteCameraOff, setIsRemoteCameraOff] = useState(false);
-    // connecting | ringing | connected | disconnected
+    // connecting | ringing | connected | disconnected | ended | declined
     const [callStatus, setCallStatus] = useState('connecting');
     const [isCallAccepted, setIsCallAccepted] = useState(false);
 
+    const callStatusRef = useRef(callStatus);
     const peerConnection = useRef(null);
     const localStreamRef = useRef(null);
     const pendingCandidates = useRef([]);
-    const isStreamStartingRef = useRef(false);
+    const streamPromiseRef = useRef(null);
     // Lưu refs cho các giá trị mới nhất để tránh stale closure trong callback
     const targetUserIdRef = useRef(targetUserId);
     const currentUserIdRef = useRef(currentUserId);
 
+    useEffect(() => { callStatusRef.current = callStatus; }, [callStatus]);
     useEffect(() => { targetUserIdRef.current = targetUserId; }, [targetUserId]);
     useEffect(() => { currentUserIdRef.current = currentUserId; }, [currentUserId]);
 
@@ -123,73 +126,79 @@ export const useWebRTC = (roomId, targetUserId) => {
      * Mở camera & mic, thêm tracks vào PeerConnection.
      * Gọi TRƯỚC createOffer/createAnswer.
      */
-    const startLocalStream = useCallback(async () => {
-        if (isStreamStartingRef.current || localStreamRef.current) {
-            console.log('[WebRTC] Local stream is already starting or started, skipping...');
-            return localStreamRef.current;
+    const startLocalStream = useCallback(() => {
+        if (localStreamRef.current) {
+            return Promise.resolve(localStreamRef.current);
         }
-        isStreamStartingRef.current = true;
+        if (streamPromiseRef.current) {
+            console.log('[WebRTC] Local stream is already starting, waiting for it to finish...');
+            return streamPromiseRef.current;
+        }
 
-        try {
-            let stream = null;
+        streamPromiseRef.current = (async () => {
             try {
-                // Thử lấy cả video lẫn audio
-                stream = await navigator.mediaDevices.getUserMedia({ video: true, audio: true });
-            } catch (err) {
-                console.warn('[WebRTC] Video+Audio failed, trying audio only:', err);
+                let stream = null;
                 try {
-                    stream = await navigator.mediaDevices.getUserMedia({ video: false, audio: true });
-                } catch (err2) {
-                    console.warn('[WebRTC] Audio also failed, no local media:', err2);
-                    stream = null;
+                    // Thử lấy cả video lẫn audio
+                    stream = await navigator.mediaDevices.getUserMedia({ video: true, audio: true });
+                } catch (err) {
+                    console.warn('[WebRTC] Video+Audio failed, trying audio only:', err);
+                    try {
+                        stream = await navigator.mediaDevices.getUserMedia({ video: false, audio: true });
+                    } catch (err2) {
+                        console.warn('[WebRTC] Audio also failed, no local media:', err2);
+                        stream = null;
+                    }
                 }
-            }
 
-            // Mấu chốt chặn StrictMode: Nếu đã lấy camera xong ở 1 luồng khác, đóng luồng này lại!
-            if (localStreamRef.current) {
-                console.log('[WebRTC] Duplicate stream detected due to StrictMode, stopping new tracks...');
+                // Mấu chốt chặn StrictMode: Nếu đã lấy camera xong ở 1 luồng khác, đóng luồng này lại!
+                if (localStreamRef.current) {
+                    console.log('[WebRTC] Duplicate stream detected due to StrictMode, stopping new tracks...');
+                    if (stream) {
+                        stream.getTracks().forEach(t => t.stop());
+                    }
+                    return localStreamRef.current;
+                }
+
+                const pc = initializePeerConnection();
+
                 if (stream) {
-                    stream.getTracks().forEach(t => t.stop());
+                    localStreamRef.current = stream;
+                    setLocalStream(stream);
+
+                    // Thêm từng track vào PC
+                    stream.getTracks().forEach((track) => {
+                        console.log('[WebRTC] Adding local track:', track.kind, 'readyState:', track.readyState);
+                        pc.addTrack(track, stream);
+
+                        // Issue #7: Lắng nghe khi track unmute (camera active) để re-trigger UI
+                        track.onunmute = () => {
+                            console.log('[WebRTC] Track unmuted:', track.kind);
+                            // Force re-render bằng cách set stream mới (same object, different ref)
+                            setLocalStream((prev) => prev);
+                        };
+
+                        track.onended = () => {
+                            console.warn('[WebRTC] Track ended unexpectedly:', track.kind);
+                        };
+                    });
+                } else {
+                    // Không có media cục bộ, chỉ nhận từ đối phương
+                    pc.addTransceiver('video', { direction: 'recvonly' });
+                    pc.addTransceiver('audio', { direction: 'recvonly' });
                 }
-                isStreamStartingRef.current = false;
-                return localStreamRef.current;
+
+                return stream;
+            } catch (error) {
+                console.error('[WebRTC] Critical error in startLocalStream:', error);
+                setCallStatus('disconnected');
+                throw error;
+            } finally {
+                streamPromiseRef.current = null;
             }
+        })();
 
-            const pc = initializePeerConnection();
-
-            if (stream) {
-                localStreamRef.current = stream;
-                setLocalStream(stream);
-
-                // Thêm từng track vào PC
-                stream.getTracks().forEach((track) => {
-                    console.log('[WebRTC] Adding local track:', track.kind, 'readyState:', track.readyState);
-                    pc.addTrack(track, stream);
-
-                    // Issue #7: Lắng nghe khi track unmute (camera active) để re-trigger UI
-                    track.onunmute = () => {
-                        console.log('[WebRTC] Track unmuted:', track.kind);
-                        // Force re-render bằng cách set stream mới (same object, different ref)
-                        setLocalStream((prev) => prev);
-                    };
-
-                    track.onended = () => {
-                        console.warn('[WebRTC] Track ended unexpectedly:', track.kind);
-                    };
-                });
-            } else {
-                // Không có media cục bộ, chỉ nhận từ đối phương
-                pc.addTransceiver('video', { direction: 'recvonly' });
-                pc.addTransceiver('audio', { direction: 'recvonly' });
-            }
-
-            return stream;
-        } catch (error) {
-            console.error('[WebRTC] Critical error in startLocalStream:', error);
-            setCallStatus('disconnected');
-            isStreamStartingRef.current = false;
-            throw error;
-        }
+        return streamPromiseRef.current;
     }, [initializePeerConnection]);
 
     /**
@@ -292,20 +301,42 @@ export const useWebRTC = (roomId, targetUserId) => {
     /**
      * Toggle mic on/off.
      */
-    const toggleMic = useCallback(() => {
+    const toggleMic = useCallback(async () => {
+        if (!localStreamRef.current) {
+            console.log('[WebRTC] Local stream is missing, attempting to restart...');
+            try {
+                await startLocalStream();
+            } catch (err) {
+                console.error('[WebRTC] Failed to restart stream:', err);
+                return;
+            }
+        }
+        
         if (localStreamRef.current) {
             const audioTrack = localStreamRef.current.getAudioTracks()[0];
             if (audioTrack) {
                 audioTrack.enabled = !audioTrack.enabled;
                 setIsMicMuted(!audioTrack.enabled);
+            } else {
+                console.warn('[WebRTC] No audio track available to toggle.');
             }
         }
-    }, []);
+    }, [startLocalStream]);
 
     /**
      * Toggle camera on/off.
      */
-    const toggleCamera = useCallback(() => {
+    const toggleCamera = useCallback(async () => {
+        if (!localStreamRef.current) {
+            console.log('[WebRTC] Local stream is missing, attempting to restart...');
+            try {
+                await startLocalStream();
+            } catch (err) {
+                console.error('[WebRTC] Failed to restart stream:', err);
+                return;
+            }
+        }
+
         if (localStreamRef.current) {
             const videoTrack = localStreamRef.current.getVideoTracks()[0];
             if (videoTrack) {
@@ -321,9 +352,11 @@ export const useWebRTC = (roomId, targetUserId) => {
                         data: (!videoTrack.enabled).toString()
                     });
                 }
+            } else {
+                console.warn('[WebRTC] No video track available to toggle. The camera might be physically blocked or in use.');
             }
         }
-    }, []);
+    }, [startLocalStream]);
 
     /**
      * Kết thúc cuộc gọi: dừng tracks, đóng PC, tùy chọn gửi HANGUP.
@@ -334,7 +367,18 @@ export const useWebRTC = (roomId, targetUserId) => {
     const endCall = useCallback((sendHangup = true) => {
         console.log('[WebRTC] Disposing call...');
         
-        isStreamStartingRef.current = false;
+        
+
+        // Issue #3: Gửi HANGUP trước khi đóng tab để STOMP kịp flush
+        if (sendHangup && callStatusRef.current !== 'disconnected' && callStatusRef.current !== 'ended' && targetUserIdRef.current && currentUserIdRef.current) {
+            console.log('[WebRTC] Sending HANGUP to', targetUserIdRef.current);
+            videoCallService.sendWebRTCSignal({
+                type: 'HANGUP',
+                senderId: currentUserIdRef.current,
+                receiverId: targetUserIdRef.current,
+                data: roomId
+            });
+        }
 
         // Dừng local media tracks
         if (localStreamRef.current) {
@@ -350,29 +394,18 @@ export const useWebRTC = (roomId, targetUserId) => {
 
         setLocalStream(null);
         setRemoteStream(null);
-        setCallStatus('disconnected');
+        setCallStatus('ended');
 
         // Đảm bảo cờ trong localStorage được xóa bỏ
         const userIdKey = currentUserIdRef.current || localStorage.getItem('userId') || sessionStorage.getItem('userId') || 'guest';
         localStorage.removeItem('healthlink_in_call_' + userIdKey);
-
-        // Issue #3: Gửi HANGUP trước khi đóng tab để STOMP kịp flush
-        if (sendHangup && targetUserIdRef.current && currentUserIdRef.current) {
-            console.log('[WebRTC] Sending HANGUP to', targetUserIdRef.current);
-            videoCallService.sendWebRTCSignal({
-                type: 'HANGUP',
-                senderId: currentUserIdRef.current,
-                receiverId: targetUserIdRef.current,
-                data: roomId
-            });
-        }
     }, [roomId]);
 
     // =========================================================================
     // STOMP Listener: lắng nghe tín hiệu WebRTC realtime từ backend
     // =========================================================================
     useEffect(() => {
-        const unsubscribe = videoCallService.subscribeToWebRTC((signal) => {
+        const unsubscribe = videoCallService.subscribeToWebRTC(async (signal) => {
             const { type, senderId, data } = signal;
 
             // Chỉ xử lý tín hiệu từ đúng targetUserId
@@ -405,6 +438,7 @@ export const useWebRTC = (roomId, targetUserId) => {
                     }
                     console.log('[WebRTC] Call declined by remote user');
                     setCallStatus('disconnected');
+                    if (onRemoteDecline) await onRemoteDecline();
                     // Issue #6: Không dùng alert, tự đóng tab
                     endCall(false);
                     setTimeout(() => {
@@ -418,7 +452,8 @@ export const useWebRTC = (roomId, targetUserId) => {
                         break;
                     }
                     console.log('[WebRTC] Remote user hung up.');
-                    // Issue #6: Xóa alert, chỉ endCall và đóng tab
+                    if (onRemoteHangup) await onRemoteHangup();
+                    // Issue #6: Không dùng alert, tự đóng tab
                     endCall(false);
                     setTimeout(() => {
                         window.close();
@@ -426,7 +461,7 @@ export const useWebRTC = (roomId, targetUserId) => {
                     }, 100);
                     break;
                 default:
-                    break;
+                    console.warn('[WebRTC] Unknown signal type:', type);
             }
         });
 
@@ -443,7 +478,7 @@ export const useWebRTC = (roomId, targetUserId) => {
          * Xử lý signal nhận từ localStorage (cross-tab communication).
          * @param {Object|null} signalObj
          */
-        const handleStorageSignal = (signalObj) => {
+        const handleStorageSignal = async (signalObj) => {
             if (!signalObj) return;
             const { type, senderId, roomId: signalRoomId, timestamp } = signalObj;
             if (senderId !== targetUserId) return;
@@ -458,6 +493,7 @@ export const useWebRTC = (roomId, targetUserId) => {
                 setCallStatus('connected');
             } else if (type === 'CALL_DECLINED') {
                 setCallStatus('disconnected');
+                if (onRemoteDecline) await onRemoteDecline();
                 endCall(false);
                 setTimeout(() => {
                     window.close();
@@ -466,6 +502,7 @@ export const useWebRTC = (roomId, targetUserId) => {
             } else if (type === 'HANGUP') {
                 // Issue #6: Không alert, tự đóng
                 setCallStatus('disconnected');
+                if (onRemoteHangup) await onRemoteHangup();
                 endCall(false);
                 setTimeout(() => {
                     window.close();
@@ -494,7 +531,7 @@ export const useWebRTC = (roomId, targetUserId) => {
 
         window.addEventListener('storage', handleStorageChange);
         return () => window.removeEventListener('storage', handleStorageChange);
-    }, [targetUserId, roomId, endCall]);
+    }, [targetUserId, roomId, endCall, onRemoteDecline, onRemoteHangup]);
 
     return {
         localStream,
@@ -512,3 +549,5 @@ export const useWebRTC = (roomId, targetUserId) => {
         endCall
     };
 };
+
+

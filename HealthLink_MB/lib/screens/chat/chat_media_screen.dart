@@ -7,6 +7,8 @@ import '../../config/api_config.dart';
 import 'dart:convert';
 import 'package:url_launcher/url_launcher.dart';
 import 'chat_room_screen.dart'; // for FullScreenImageViewer
+import '../../providers/auth_provider.dart';
+import '../../services/chat/chat_service.dart';
 
 /// Màn hình xem toàn bộ phương tiện (ảnh, video, file) được chia sẻ trong phòng chat.
 class ChatMediaScreen extends StatefulWidget {
@@ -21,11 +23,39 @@ class ChatMediaScreen extends StatefulWidget {
 class _ChatMediaScreenState extends State<ChatMediaScreen>
     with SingleTickerProviderStateMixin {
   late TabController _tabController;
+  List<Message> _roomMedia = [];
+  bool _isLoading = true;
 
   @override
   void initState() {
     super.initState();
     _tabController = TabController(length: 3, vsync: this);
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      _fetchMedia();
+    });
+  }
+
+  Future<void> _fetchMedia() async {
+    try {
+      final auth = context.read<AuthProvider>();
+      if (auth.accessToken != null && auth.userId != null) {
+        final data = await ChatService.getMediaMessages(
+          auth.accessToken!,
+          auth.userId!,
+          widget.conversation.id,
+        );
+        if (mounted) {
+          setState(() {
+            _roomMedia = data;
+            _isLoading = false;
+          });
+        }
+      }
+    } catch (e) {
+      if (mounted) {
+        setState(() => _isLoading = false);
+      }
+    }
   }
 
   @override
@@ -38,18 +68,26 @@ class _ChatMediaScreenState extends State<ChatMediaScreen>
   Widget build(BuildContext context) {
     final colors = Theme.of(context).colorScheme;
     final chat = context.watch<ChatProvider>();
-    final messages = chat.messages;
+    
+    // Gộp media lịch sử với tin nhắn hiện tại (để lấy realtime updates)
+    final combined = [..._roomMedia, ...chat.messages];
+    final unique = <String, Message>{};
+    for (var m in combined) {
+      unique[m.id] = m;
+    }
+    final allMediaMessages = unique.values.toList()
+      ..sort((a, b) => b.sentAt.compareTo(a.sentAt));
 
-    final imageMessages = messages.where(
+    final imageMessages = allMediaMessages.where(
       (m) => (m.imageUrl != null && m.imageUrl!.isNotEmpty) ||
              m.content.startsWith('data:image'),
     ).toList();
 
-    final videoMessages = messages.where(
+    final videoMessages = allMediaMessages.where(
       (m) => m.videoUrl != null && m.videoUrl!.isNotEmpty,
     ).toList();
 
-    final fileMessages = messages.where(
+    final fileMessages = allMediaMessages.where(
       (m) => m.fileUrl != null && m.fileUrl!.isNotEmpty,
     ).toList();
 
@@ -78,14 +116,16 @@ class _ChatMediaScreenState extends State<ChatMediaScreen>
           ],
         ),
       ),
-      body: TabBarView(
-        controller: _tabController,
-        children: [
-          _buildImageGrid(context, colors, imageMessages),
-          _buildVideoGrid(context, colors, videoMessages),
-          _buildFileList(context, colors, fileMessages),
-        ],
-      ),
+      body: _isLoading 
+        ? const Center(child: CircularProgressIndicator())
+        : TabBarView(
+            controller: _tabController,
+            children: [
+              _buildImageGrid(context, colors, imageMessages),
+              _buildVideoGrid(context, colors, videoMessages),
+              _buildFileList(context, colors, fileMessages),
+            ],
+          ),
     );
   }
 

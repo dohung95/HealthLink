@@ -3013,6 +3013,408 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Delivery'**
   String get retailDeliveryLabel;
+
+  /// No description provided for @fillHealthInfoTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Pre-consultation Vitals'**
+  String get fillHealthInfoTitle;
+
+  /// No description provided for @fillHealthInfoSubtitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Please fill in your vitals. These fields are optional but recommended.'**
+  String get fillHealthInfoSubtitle;
+
+  /// No description provided for @heartRate.
+  ///
+  /// In en, this message translates to:
+  /// **'Heart Rate'**
+  String get heartRate;
+
+  /// No description provided for @bloodPressure.
+  ///
+  /// In en, this message translates to:
+  /// **'Blood Pressure'**
+  String get bloodPressure;
+
+  /// No description provided for @bloodPressureSystolic.
+  ///
+  /// In en, this message translates to:
+  /// **'Systolic'**
+  String get bloodPressureSystolic;
+
+  /// No description provided for @bloodPressureDiastolic.
+  ///
+  /// In en, this message translates to:
+  /// **'Diastolic'**
+  String get bloodPressureDiastolic;
+
+  /// No description provided for @temperature.
+  ///
+  /// In en, this message translates to:
+  /// **'Temperature'**
+  String get temperature;
+
+  /// No description provided for @respiratoryRate.
+  ///
+  /// In en, this message translates to:
+  /// **'Respiratory Rate'**
+  String get respiratoryRate;
+
+  /// No description provided for @spO2.
+  ///
+  /// In en, this message translates to:
+  /// **'SpO2 (Oxygen)'**
+  String get spO2;
+
+  /// No description provided for @notes.
+  ///
+  /// In en, this message translates to:
+  /// **'Symptoms / Notes'**
+  String get notes;
+
+  /// No description provided for @saveVitalsBtn.
+  ///
+  /// In en, this message translates to:
+  /// **'Save Vitals'**
+  String get saveVitalsBtn;
+
+  /// No description provided for @chatBlockedVitalsWarning.
+  ///
+  /// In en, this message translates to:
+  /// **'Please provide your health information before starting the chat.'**
+  String get chatBlockedVitalsWarning;
+
+  /// No description provided for @fillHealthInfoBtn.
+  ///
+  /// In en, this message translates to:
+  /// **'Fill Health Info'**
+  String get fillHealthInfoBtn;
+
+  /// No description provided for @vitalsSavedSuccess.
+  ///
+  /// In en, this message translates to:
+  /// **'Pre-consultation vitals saved successfully.'**
+  String get vitalsSavedSuccess;
+
+  /// No description provided for @vitalsInstructionsTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Instructions before starting the consultation'**
+  String get vitalsInstructionsTitle;
+
+  /// No description provided for @vitalsInstructions1.
+  ///
+  /// In en, this message translates to:
+  /// **'If you have a home blood pressure monitor, please enter the readings shown on the device: SYS, DIA and Pulse.'**
+  String get vitalsInstructions1;
+
+  /// No description provided for @vitalsInstructions2.
+  ///
+  /// In en, this message translates to:
+  /// **'If you do not have a monitor, you can still measure your pulse manually: sit still, count your pulse for 30 seconds, then multiply by two to get beats/minute.'**
+  String get vitalsInstructions2;
+
+  /// No description provided for @vitalsInstructions3.
+  ///
+  /// In en, this message translates to:
+  /// **'SpO2 and temperature are optional, only enter if you have a suitable measuring device.'**
+  String get vitalsInstructions3;
+
+  /// No description provided for @vitalsInstructionsDisclaimer.
+  ///
+  /// In en, this message translates to:
+  /// **'These readings are for the doctor\'s reference before the consultation, not a diagnosis.'**
+  String get vitalsInstructionsDisclaimer;
+
+  /// No description provided for @measurementMethod.
+  ///
+  /// In en, this message translates to:
+  /// **'Measurement method *'**
+  String get measurementMethod;
+
+  /// No description provided for @measuredByDevice.
+  ///
+  /// In en, this message translates to:
+  /// **'Measured by home device'**
+  String get measuredByDevice;
+
+  /// No description provided for @measuredByDeviceHint.
+  ///
+  /// In en, this message translates to:
+  /// **'Example: blood pressure monitor, SpO2 monitor, thermometer, smartwatch/smartband.'**
+  String get measuredByDeviceHint;
+
+  /// No description provided for @measuredManually.
+  ///
+  /// In en, this message translates to:
+  /// **'Measured manually'**
+  String get measuredManually;
+
+  /// No description provided for @measuredManuallyHint.
+  ///
+  /// In en, this message translates to:
+  /// **'Use when you do not have a monitor. You can manually count your pulse for 30 seconds and then multiply by two.'**
+  String get measuredManuallyHint;
+
+  /// No description provided for @deviceName.
+  ///
+  /// In en, this message translates to:
+  /// **'Device name, if any'**
+  String get deviceName;
+
+  /// No description provided for @deviceNameHint.
+  ///
+  /// In en, this message translates to:
+  /// **'Example: Omron blood pressure monitor, pulse'**
+  String get deviceNameHint;
+
+  /// No description provided for @howToMeasurePulse.
+  ///
+  /// In en, this message translates to:
+  /// **'How to measure pulse manually?'**
+  String get howToMeasurePulse;
+
+  /// No description provided for @whereToFindSysDia.
+  ///
+  /// In en, this message translates to:
+  /// **'Where can I find SYS/DIA/Pulse?'**
+  String get whereToFindSysDia;
+
+  /// No description provided for @spo2Hint.
+  ///
+  /// In en, this message translates to:
+  /// **'Optional. Enter if measured by pulse oximeter or smartwatch.'**
+  String get spo2Hint;
+
+  /// No description provided for @tempHint.
+  ///
+  /// In en, this message translates to:
+  /// **'Optional. Enter if measured by thermometer.'**
+  String get tempHint;
+
+  /// No description provided for @respHint.
+  ///
+  /// In en, this message translates to:
+  /// **'Optional. Count breaths for 30 seconds, then multiply by 2.'**
+  String get respHint;
+
+  /// No description provided for @notesHint.
+  ///
+  /// In en, this message translates to:
+  /// **'Example: measured after resting for 5 minutes, felt dizzy, mild chest discomfort...'**
+  String get notesHint;
+
+  /// No description provided for @btnRate.
+  ///
+  /// In en, this message translates to:
+  /// **'Rate'**
+  String get btnRate;
+
+  /// No description provided for @btnReviewed.
+  ///
+  /// In en, this message translates to:
+  /// **'Reviewed'**
+  String get btnReviewed;
+
+  /// No description provided for @rateExperienceTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Rate Your Experience'**
+  String get rateExperienceTitle;
+
+  /// No description provided for @ratingLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'Your Rating'**
+  String get ratingLabel;
+
+  /// No description provided for @selectRatingPrompt.
+  ///
+  /// In en, this message translates to:
+  /// **'Please select a rating'**
+  String get selectRatingPrompt;
+
+  /// No description provided for @commentLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'Your Comment'**
+  String get commentLabel;
+
+  /// No description provided for @commentHint.
+  ///
+  /// In en, this message translates to:
+  /// **'Share your experience with this doctor... (minimum 10 characters)'**
+  String get commentHint;
+
+  /// No description provided for @commentTooShort.
+  ///
+  /// In en, this message translates to:
+  /// **'Comment must be at least 10 characters'**
+  String get commentTooShort;
+
+  /// No description provided for @postAnonymously.
+  ///
+  /// In en, this message translates to:
+  /// **'Post anonymously'**
+  String get postAnonymously;
+
+  /// No description provided for @postAnonymouslyHint.
+  ///
+  /// In en, this message translates to:
+  /// **'Your name will be hidden from the public review'**
+  String get postAnonymouslyHint;
+
+  /// No description provided for @submitReviewBtn.
+  ///
+  /// In en, this message translates to:
+  /// **'Submit Review'**
+  String get submitReviewBtn;
+
+  /// No description provided for @reviewSuccess.
+  ///
+  /// In en, this message translates to:
+  /// **'Review submitted successfully!'**
+  String get reviewSuccess;
+
+  /// No description provided for @homeMedicineReminder.
+  ///
+  /// In en, this message translates to:
+  /// **'Medicine Reminder'**
+  String get homeMedicineReminder;
+
+  /// No description provided for @medicineReminderTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Medicine Reminder'**
+  String get medicineReminderTitle;
+
+  /// No description provided for @medicineReminderSubtitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Manage today\'s medicine checklist by timing.'**
+  String get medicineReminderSubtitle;
+
+  /// No description provided for @medicineReminderMorning.
+  ///
+  /// In en, this message translates to:
+  /// **'Morning'**
+  String get medicineReminderMorning;
+
+  /// No description provided for @medicineReminderAfternoon.
+  ///
+  /// In en, this message translates to:
+  /// **'Afternoon'**
+  String get medicineReminderAfternoon;
+
+  /// No description provided for @medicineReminderEvening.
+  ///
+  /// In en, this message translates to:
+  /// **'Evening'**
+  String get medicineReminderEvening;
+
+  /// No description provided for @medicineReminderToday.
+  ///
+  /// In en, this message translates to:
+  /// **'TODAY'**
+  String get medicineReminderToday;
+
+  /// No description provided for @medicineReminderMedicines.
+  ///
+  /// In en, this message translates to:
+  /// **'{timing} medicines'**
+  String medicineReminderMedicines(String timing);
+
+  /// No description provided for @medicineReminderNoMedicines.
+  ///
+  /// In en, this message translates to:
+  /// **'No medicines scheduled for this timing.'**
+  String get medicineReminderNoMedicines;
+
+  /// No description provided for @medicineReminderMarkAllTaken.
+  ///
+  /// In en, this message translates to:
+  /// **'Mark all as taken'**
+  String get medicineReminderMarkAllTaken;
+
+  /// No description provided for @medicineReminderAllTaken.
+  ///
+  /// In en, this message translates to:
+  /// **'All {timing} medicines are marked as taken.'**
+  String medicineReminderAllTaken(String timing);
+
+  /// No description provided for @medicineReminderNotificationsOn.
+  ///
+  /// In en, this message translates to:
+  /// **'Notifications on'**
+  String get medicineReminderNotificationsOn;
+
+  /// No description provided for @medicineReminderNotificationsOff.
+  ///
+  /// In en, this message translates to:
+  /// **'Notifications off'**
+  String get medicineReminderNotificationsOff;
+
+  /// No description provided for @medicineReminderSettings.
+  ///
+  /// In en, this message translates to:
+  /// **'Reminder settings'**
+  String get medicineReminderSettings;
+
+  /// No description provided for @medicineReminderSaveSettings.
+  ///
+  /// In en, this message translates to:
+  /// **'Save settings'**
+  String get medicineReminderSaveSettings;
+
+  /// No description provided for @medicineReminderSaving.
+  ///
+  /// In en, this message translates to:
+  /// **'Saving...'**
+  String get medicineReminderSaving;
+
+  /// No description provided for @medicineReminderEnableNotifications.
+  ///
+  /// In en, this message translates to:
+  /// **'Enable notifications'**
+  String get medicineReminderEnableNotifications;
+
+  /// No description provided for @medicineReminderProgress.
+  ///
+  /// In en, this message translates to:
+  /// **'{checked}/{total}'**
+  String medicineReminderProgress(int checked, int total);
+
+  /// No description provided for @medicineReminderErrLoad.
+  ///
+  /// In en, this message translates to:
+  /// **'Could not load medicine reminders.'**
+  String get medicineReminderErrLoad;
+
+  /// No description provided for @medicineReminderErrCheck.
+  ///
+  /// In en, this message translates to:
+  /// **'Could not update this medicine. Please try again.'**
+  String get medicineReminderErrCheck;
+
+  /// No description provided for @medicineReminderErrComplete.
+  ///
+  /// In en, this message translates to:
+  /// **'Could not mark all medicines as taken.'**
+  String get medicineReminderErrComplete;
+
+  /// No description provided for @medicineReminderErrSettings.
+  ///
+  /// In en, this message translates to:
+  /// **'Reminder times must be valid and distinct.'**
+  String get medicineReminderErrSettings;
+
+  /// No description provided for @medicineReminderSettingsSaved.
+  ///
+  /// In en, this message translates to:
+  /// **'Reminder settings saved.'**
+  String get medicineReminderSettingsSaved;
 }
 
 class _AppLocalizationsDelegate

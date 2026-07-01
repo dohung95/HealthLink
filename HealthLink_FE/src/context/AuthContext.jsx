@@ -327,6 +327,9 @@ export function AuthProvider({ children }) {
         localStorage.setItem(getInCallKey(), 'true');
         setIsInCall(true);
 
+        // Clear any stale STOMP WebRTC signals from previous calls to prevent auto-hangup
+        localStorage.removeItem('webrtc_signal');
+
         try {
             // Lấy token và decode để lấy thông tin người gọi
             const currentToken = localStorage.getItem('token') || sessionStorage.getItem('token');
@@ -515,6 +518,20 @@ export function AuthProvider({ children }) {
             setIncomingCall(null); // Đóng pop-up
         }
     };
+
+    // Timeout cho người nhận: Tự động từ chối sau 30s nếu không bắt máy
+    useEffect(() => {
+        let timeoutId;
+        if (incomingCall) {
+            timeoutId = setTimeout(() => {
+                toast.warning('Incoming call timed out after 30 seconds.');
+                declineCall();
+            }, 30000);
+        }
+        return () => {
+            if (timeoutId) clearTimeout(timeoutId);
+        };
+    }, [incomingCall]);
 
     const value = {
         user,

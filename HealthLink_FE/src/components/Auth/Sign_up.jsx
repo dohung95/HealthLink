@@ -24,6 +24,7 @@ export function Sign_up() {
     const [loading, setLoading] = useState(!fromAuth); // Initial page loading if not from auth
     const [submitting, setSubmitting] = useState(false);
     const [showSuccessModal, setShowSuccessModal] = useState(false);
+    const [countdown, setCountdown] = useState(10);
     const role = "Patient";
 
     // Initial loading effect
@@ -78,6 +79,27 @@ export function Sign_up() {
         // quay về trang login
         navigate('/login');
     };
+
+    // Countdown and auto redirect to login page after 10 seconds
+    useEffect(() => {
+        let timer;
+        if (showSuccessModal) {
+            setCountdown(10);
+            timer = setInterval(() => {
+                setCountdown((prev) => {
+                    if (prev <= 1) {
+                        clearInterval(timer);
+                        handleCloseSuccessModal();
+                        return 0;
+                    }
+                    return prev - 1;
+                });
+            }, 1000);
+        }
+        return () => {
+            if (timer) clearInterval(timer);
+        };
+    }, [showSuccessModal]);
 
     const handleSubmit = async (e) => {
         e.preventDefault();
@@ -644,6 +666,9 @@ export function Sign_up() {
                         <p className="modal-success-message">
                             Your account has been created. An activation email has been sent to your registered email. Please confirm to log in.
                         </p>
+                        <p className="redirect-countdown-text" style={{ color: '#00b09a', fontWeight: '500', marginTop: '15px', fontSize: '15px' }}>
+                            <i className="bi bi-clock-history"></i> Automatically redirecting to login page in {countdown} seconds...
+                        </p>
                     </div>
                     <div className="modal-support-text">
                         <i className="bi bi-envelope"></i> Please contact our support team if you need assistance
@@ -656,7 +681,7 @@ export function Sign_up() {
                         className="modal-success-button"
                     >
                         <i className="bi bi-check-circle"></i>
-                        I Understand
+                        I Understand ({countdown}s)
                     </Button>
                 </Modal.Footer>
             </Modal>

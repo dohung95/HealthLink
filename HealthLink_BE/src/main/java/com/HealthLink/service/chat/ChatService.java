@@ -54,5 +54,10 @@ public interface ChatService {
      * Tìm kiếm tin nhắn.
      */
     List<MessageDTO> searchMessages(String chatRoomId, String query);
+
+    /**
+     * Lấy tất cả tin nhắn có chứa media (ảnh, video, audio, file).
+     */
+    List<MessageDTO> getMediaMessages(String chatRoomId);
 }
 
