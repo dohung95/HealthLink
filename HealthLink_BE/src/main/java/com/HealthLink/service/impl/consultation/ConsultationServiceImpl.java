@@ -124,7 +124,7 @@ public class ConsultationServiceImpl implements ConsultationService {
                 MessageDTO sysMsg = MessageDTO.builder()
                         .messageId("sys_" + java.util.UUID.randomUUID().toString())
                         .chatRoomId(room.getChatRoomId())
-                        .content("[SYSTEM_BLOCK_UPDATE]")
+                        .content("[SYSTEM_CONSULTATION_STARTED]")
                         .senderId("SYSTEM")
                         .timestamp(LocalDateTime.now())
                         .build();

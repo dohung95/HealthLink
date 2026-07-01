@@ -948,15 +948,17 @@ export default function ChatPage({ showBot = true }) {
                 return;
             }
 
-            if (newMsg.content === "[SYSTEM_BLOCK_UPDATE]") {
-                getMyRooms().then(rooms => {
-                    setRoomList(rooms);
-                    const activeRoomId = currentRoomRef.current?.chatRoomId;
-                    if (activeRoomId === newMsg.chatRoomId) {
-                        const updatedRoom = rooms.find(r => r.chatRoomId === activeRoomId);
-                        if (updatedRoom) setCurrentRoom(updatedRoom);
-                    }
-                }).catch(err => console.error(err));
+            if (newMsg.content === "[SYSTEM_BLOCK_UPDATE]" || newMsg.content === "[SYSTEM_CONSULTATION_STARTED]") {
+                setTimeout(() => {
+                    getMyRooms().then(rooms => {
+                        setRoomList(rooms);
+                        const activeRoomId = currentRoomRef.current?.chatRoomId;
+                        if (activeRoomId === newMsg.chatRoomId) {
+                            const updatedRoom = rooms.find(r => r.chatRoomId === activeRoomId);
+                            if (updatedRoom) setCurrentRoom(updatedRoom);
+                        }
+                    }).catch(err => console.error(err));
+                }, 500);
                 return;
             }
 

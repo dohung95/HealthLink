@@ -57,6 +57,7 @@ class _ChatRoomScreenState extends State<ChatRoomScreen> {
   bool _isRecording = false;
   int _recordingDuration = 0;
   Timer? _recordingTimer;
+  Timer? _vitalsTimer;
   String? _audioPath;
 
   // Vitals state
@@ -125,6 +126,23 @@ class _ChatRoomScreenState extends State<ChatRoomScreen> {
           _hasFilledVitals = data != null && data['vitalSignId'] != null;
           _checkingVitals = false;
         });
+
+        // Start polling if not filled yet (like web logic)
+        if (!_hasFilledVitals && _vitalsTimer == null) {
+          _vitalsTimer = Timer.periodic(const Duration(milliseconds: 500), (_) {
+            VitalSignService.getLatestAppointmentVitalSign(token, appointmentId)
+                .then((pollData) {
+              if (mounted && pollData != null && pollData['vitalSignId'] != null) {
+                setState(() => _hasFilledVitals = true);
+                _vitalsTimer?.cancel();
+                _vitalsTimer = null;
+              }
+            }).catchError((_) {});
+          });
+        } else if (_hasFilledVitals) {
+          _vitalsTimer?.cancel();
+          _vitalsTimer = null;
+        }
       }
     }).catchError((e) {
       if (mounted) {
@@ -139,6 +157,7 @@ class _ChatRoomScreenState extends State<ChatRoomScreen> {
   @override
   void dispose() {
     _recordingTimer?.cancel();
+    _vitalsTimer?.cancel();
     _audioRecorder.dispose();
     _messageController.dispose();
     _scrollController.dispose();
@@ -507,8 +526,7 @@ class _ChatRoomScreenState extends State<ChatRoomScreen> {
     final conv = chat.currentConversation ?? widget.conversation;
     
     // Check vitals dynamically if appointmentId is present and hasn't been checked yet
-    if (auth.isPatient && 
-        conv.appointmentId != null && 
+    if (conv.appointmentId != null && 
         _checkedAppointmentId != conv.appointmentId && 
         conv.appointmentStatus?.toUpperCase() != 'COMPLETED') {
       _checkedAppointmentId = conv.appointmentId;
@@ -909,10 +927,17 @@ class _ChatRoomScreenState extends State<ChatRoomScreen> {
       return '$m:${s.toString().padLeft(2, '0')}';
     }
 
+    final chat = context.read<ChatProvider>();
+    final conv = chat.currentConversation ?? widget.conversation;
+    final isBlocked = chat.isBlocked(conv.id);
+    final isCompleted = conv.appointmentStatus == 'COMPLETED';
+    final isMissingVitals = !_hasFilledVitals && !isCompleted;
+    final isCallDisabled = isBlocked || isCompleted || isMissingVitals;
+
     return GestureDetector(
       onTap: () {
-        if (isMissedOrDeclined) {
-          _handleVideoCall(context, widget.conversation);
+        if (isMissedOrDeclined && !isCallDisabled) {
+          _handleVideoCall(context, conv);
         }
       },
       child: Container(
@@ -1199,16 +1224,17 @@ class _ChatRoomScreenState extends State<ChatRoomScreen> {
     }
 
     // Checking vitals in progress
-    if (_checkingVitals && auth.isPatient && !isAppointmentCompleted) {
+    if (_checkingVitals && !isAppointmentCompleted) {
       return const Padding(
         padding: EdgeInsets.all(16.0),
         child: Center(child: CircularProgressIndicator()),
       );
     }
 
-    // Missing Vitals (Patient only)
-    if (auth.isPatient && !_hasFilledVitals && !isAppointmentCompleted) {
-      return Container(
+    // Missing Vitals (Patient & Doctor)
+    if (!_hasFilledVitals && !isAppointmentCompleted) {
+      if (auth.isPatient) {
+        return Container(
         padding: const EdgeInsets.all(16),
         decoration: BoxDecoration(
           color: Colors.orange.shade50,
@@ -1251,6 +1277,15 @@ class _ChatRoomScreenState extends State<ChatRoomScreen> {
           ],
         ),
       );
+      } else {
+        // Missing Vitals (Doctor)
+        return _buildReadOnlyBanner(
+          colors: colors,
+          chatTheme: chatTheme,
+          icon: Icons.hourglass_empty,
+          message: 'Waiting for patient to fill medical information...',
+        );
+      }
     }
 
     // ── Trường hợp bình thường: hiển thị input area đầy đủ ─────────────────

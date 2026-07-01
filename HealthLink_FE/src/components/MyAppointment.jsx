@@ -81,9 +81,11 @@ const MyAppointments = () => {
         if (!patientId) return;
 
         const unsub = stompChatService.subscribeToChat((newMsg) => {
-            if (newMsg.content === '[SYSTEM_BLOCK_UPDATE]') {
+            if (newMsg.content === '[SYSTEM_BLOCK_UPDATE]' || newMsg.content === '[SYSTEM_CONSULTATION_STARTED]') {
                 toast.info('Status changed! Refreshing appointments...', { duration: 3000 });
-                loadAppointments(patientId, currentPage, statusFilter);
+                setTimeout(() => {
+                    loadAppointments(patientId, currentPage, statusFilter);
+                }, 500);
             } else if (newMsg.content === '[SYSTEM_REVIEW_SUBMITTED]') {
                 loadAppointments(patientId, currentPage, statusFilter);
             }

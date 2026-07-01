@@ -333,6 +333,7 @@ const DoctorAppointmentDetail = memo(({ appointment, patient, doctorId, activeMi
             consultationType: ctx.followUpConsultationType,
           } : null}
           followUpPaymentStatus={ctx.followUpPaymentStatus}
+          vitalsSubmitted={Boolean(ctx.latestVitalSign)}
         />
       </div>
     </>

@@ -148,10 +148,15 @@ export default function DoctorMiniChat({ doctorId, patientId, patientName, appoi
 
       // Bỏ qua tin nhắn hệ thống
       if (msg.messageId === 'ROOM_CREATED') return;
-      if (msg.content === '[SYSTEM_BLOCK_UPDATE]') return;
 
       const isRoomActive = String(msg.chatRoomId) === String(room.chatRoomId);
       if (!isRoomActive) return;
+
+      if (msg.content === '[SYSTEM_BLOCK_UPDATE]') {
+        if (onClose) onClose();
+        return;
+      }
+      if (msg.content === '[SYSTEM_CONSULTATION_STARTED]') return;
 
       setMessages(prev => {
         if (prev.some(m => m.messageId === msg.messageId)) return prev;

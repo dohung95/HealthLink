@@ -11,7 +11,7 @@ import { useVitalSigns } from './useVitalSigns';
 import { useConsultationNotes } from './useConsultationNotes';
 import { useChatVideo } from './useChatVideo';
 import { useFollowUp } from './useFollowUp';
-import { getOrCreateRoom } from '@api/chatApi';
+import { getOrCreateRoom, getRoomMessages } from '@api/chatApi';
 import stompChatService from '@services/stompChatService';
 
 export function useAppointmentDetail({ appointment, patient, doctorId: currentDoctorId, activeMiniChatAppt, setActiveMiniChatAppt, onBack, onOpenAppointmentById }) {
@@ -170,7 +170,7 @@ export function useAppointmentDetail({ appointment, patient, doctorId: currentDo
     } finally {
       setStartingConsultation(false);
     }
-  }, [appointmentId, startingConsultation, appointmentData.refreshAppointmentData]);
+  }, [appointmentId, startingConsultation, appointmentData, effectiveDoctorId, doctorId, patientId]);
 
   const handleCompleteAppointment = useCallback(async () => {
     if (!appointmentId) return;
@@ -234,6 +234,34 @@ export function useAppointmentDetail({ appointment, patient, doctorId: currentDo
       }
       : null;
 
+
+    const consType = appointmentToComplete?.consultationType?.toUpperCase();
+    if (['VIDEO', 'AUDIO', 'CHAT', 'ONLINE'].includes(consType)) {
+      try {
+        setCompletingAppointment(true);
+        const room = await getOrCreateRoom(patientId, appointmentId);
+        if (room && room.chatRoomId) {
+          const msgs = await getRoomMessages(room.chatRoomId);
+          const startTime = appointmentToComplete?.consultation?.startTime || appointmentToComplete?.appointmentTime;
+          const startTimestamp = new Date(startTime).getTime();
+          
+          const hasCommunication = msgs.some(m => new Date(m.timestamp || m.sentAt).getTime() >= startTimestamp);
+          
+          if (!hasCommunication) {
+            toast.error("Cannot complete appointment: The doctor must exchange information (messages or calls) with the patient first.");
+            setCompletingAppointment(false);
+            setShowCompleteConfirmModal(false);
+            return;
+          }
+        }
+      } catch (err) {
+        console.error('Error checking communication:', err);
+      } finally {
+        // Reset spinner if we passed the check, as it will be set again below
+        setCompletingAppointment(false);
+      }
+    }
+
     if (notes.notesDraft?.diagnosis || notes.notesDraft?.doctorNotes || notes.notesDraft?.treatmentPlan) {
       try {
         await notes.handleSaveNotes();
@@ -254,9 +282,11 @@ export function useAppointmentDetail({ appointment, patient, doctorId: currentDo
       }
 
       const completionResult = await appointmentService.completeAppointment(appointmentId, { copyPrescription });
-      if (activeMiniChatAppt?.appointmentId === appointmentId) {
-        setActiveMiniChatAppt(null);
-      }
+
+      
+      // Refresh local data to change status immediately
+      await appointmentData.refreshAppointmentData({ showToast: false });
+
       const followUpAppointmentId = completionResult?.followUpAppointment?.appointmentId ||
         completionResult?.followUpAppointment?.appointmentID || null;
 

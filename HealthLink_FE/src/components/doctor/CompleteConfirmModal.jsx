@@ -48,9 +48,10 @@ const CompleteConfirmModal = ({
   followUpConfigured,
   followUpInfo,
   followUpPaymentStatus,
+  vitalsSubmitted,
 }) => {
   const dialogRef = useRef(null);
-  const canComplete = notesSaved && prescriptionReady
+  const canComplete = vitalsSubmitted !== false && notesSaved && prescriptionReady
     && (!followUpPaymentStatus || followUpPaymentStatus === 'PAID' || followUpPaymentStatus === 'NONE');
 
   useEffect(() => {
@@ -209,6 +210,7 @@ const CompleteConfirmModal = ({
             animation: 'dialogStaggerIn 0.3s var(--doctor-ease) 0.18s both',
           }}>
             <div style={{ display: 'flex', flexDirection: 'column', gap: '0.375rem' }}>
+              <ChecklistItem icon="bi-activity" label="Patient Vitals" done={vitalsSubmitted} />
               <ChecklistItem icon="bi-journal-text" label="Consultation Notes" done={notesSaved} />
               <ChecklistItem icon="bi-capsule-pill" label="Prescription" done={prescriptionReady} />
               {!prescriptionReady && prescriptionIncompleteItems.length > 0 && (
