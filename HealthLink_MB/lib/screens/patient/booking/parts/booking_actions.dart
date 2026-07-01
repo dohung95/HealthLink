@@ -1,7 +1,6 @@
 part of '../booking_screen.dart';
 
 extension _BookingActions on _BookingScreenState {
-
   Future<void> _loadInitialData() async {
     final auth = context.read<AuthProvider>();
     if (!auth.isAuthenticated || auth.accessToken == null) {
@@ -13,6 +12,10 @@ extension _BookingActions on _BookingScreenState {
     _homeVisitService = HomeVisitService(accessToken: auth.accessToken!);
 
     try {
+      if (auth.patientProfile == null) {
+        await auth.fetchProfile();
+      }
+
       final specialties = await _service!.getSpecialties();
       if (!mounted) return;
       setState(() {
@@ -253,13 +256,13 @@ extension _BookingActions on _BookingScreenState {
       _slots = _slots
           .map(
             (item) => item.startTime == startTime
-            ? item.copyWith(
-          status: 'AVAILABLE',
-          selectable: true,
-          clearHold: true,
-        )
-            : item,
-      )
+                ? item.copyWith(
+                    status: 'AVAILABLE',
+                    selectable: true,
+                    clearHold: true,
+                  )
+                : item,
+          )
           .toList();
       _selectedSlot = null;
     });
@@ -300,9 +303,9 @@ extension _BookingActions on _BookingScreenState {
 
     final shouldReleaseNormalHold =
         !_isHomeVisit &&
-            _selectedSlot != null &&
-            (_currentStepKey == BookingStepKey.dateTime ||
-                _currentStepKey == BookingStepKey.medicalInfo);
+        _selectedSlot != null &&
+        (_currentStepKey == BookingStepKey.dateTime ||
+            _currentStepKey == BookingStepKey.medicalInfo);
 
     if (shouldReleaseNormalHold) {
       final start = _selectedSlot!.startTime;
@@ -418,5 +421,4 @@ extension _BookingActions on _BookingScreenState {
     });
     _loadDoctors(reset: true);
   }
-
 }

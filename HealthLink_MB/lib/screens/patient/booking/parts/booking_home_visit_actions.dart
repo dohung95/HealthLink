@@ -201,4 +201,44 @@ extension _BookingHomeVisitActions on _BookingScreenState {
     return '${slot.bookingDate}T$time';
   }
 
+  void _prefillHomeVisitFromPatientProfile() {
+    final profile = context.read<AuthProvider>().patientProfile;
+    if (profile == null) return;
+
+    final fullName = (profile['fullName'] ?? profile['name'] ?? '').toString();
+    final phone = (
+        profile['phoneNumber'] ??
+            profile['phone'] ??
+            profile['user']?['phoneNumber'] ??
+            ''
+    ).toString();
+
+    final address = (profile['address'] ?? '').toString();
+    final city = (profile['city'] ?? profile['province'] ?? '').toString();
+    final gender = (profile['gender'] ?? '').toString();
+    final age = _ageFromDateOfBirth(profile['dateOfBirth']);
+
+    setState(() {
+      _homeVisitDraft = _homeVisitDraft.copyWith(
+        isForSelf: true,
+        receiverName: fullName,
+        receiverAge: age,
+        receiverGender: gender,
+        receiverRelationship: 'Self',
+        receiverPhone: phone,
+        contactPhone: phone,
+        visitAddress: address,
+        visitCity: city,
+        doctorOptions: const [],
+        clearSelectedDoctor: true,
+        availableSlots: const [],
+        clearSelectedSlot: true,
+        clearSessionDraftId: true,
+      );
+
+      _visitAddressCtrl.text = address;
+      _contactPhoneCtrl.text = phone;
+    });
+  }
+
 }

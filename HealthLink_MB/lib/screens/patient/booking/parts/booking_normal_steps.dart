@@ -51,9 +51,16 @@ extension _BookingNormalSteps on _BookingScreenState {
             _doctorSchedules = [];
             _weekIndex = 0;
             _homeVisitDraft = const HomeVisitBookingDraft();
+
+            _visitAddressCtrl.clear();
+            _contactPhoneCtrl.clear();
+            _reasonCtrl.clear();
+            _specialNotesCtrl.clear();
           });
 
-          if (type != 'HomeVisit') {
+          if (type == 'HomeVisit') {
+            _prefillHomeVisitFromPatientProfile();
+          } else {
             await _loadDoctors(reset: true);
           }
         },
