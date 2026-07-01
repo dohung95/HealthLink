@@ -12,6 +12,7 @@ import org.springframework.stereotype.Service;
 import java.math.BigDecimal;
 import java.math.RoundingMode;
 import java.util.List;
+import org.springframework.transaction.annotation.Transactional;
 
 @Service
 @RequiredArgsConstructor
@@ -21,6 +22,7 @@ public class HomeVisitDoctorSearchService {
     private final HomeVisitLocationService homeVisitLocationService;
     private final HomeVisitSessionService homeVisitSessionService;
 
+    @Transactional(readOnly = true)
     public List<HomeVisitDoctorOptionResponse> search(HomeVisitDoctorSearchRequest request) {
         if (request.getVisitLatitude() == null || request.getVisitLongitude() == null) {
             throw new IllegalArgumentException("Visit location is required");

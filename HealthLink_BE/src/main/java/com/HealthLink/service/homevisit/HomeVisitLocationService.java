@@ -149,7 +149,9 @@ public class HomeVisitLocationService {
         }
 
         double distance = calculateStraightDistanceKm(originLat, originLng, visitLatitude, visitLongitude);
-        boolean serviceable = distance <= doctor.getHomeVisitRadiusKm();
+        double radiusKm = doctor.getHomeVisitRadiusKm() != null ? doctor.getHomeVisitRadiusKm() : 10.0;
+        boolean serviceable = distance <= radiusKm;
+
         double roundedDistance = Math.round(distance * 10.0) / 10.0;
         int estimatedMinutes = (int) Math.ceil((distance / averageSpeedKmh) * 60);
 

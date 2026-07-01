@@ -15,7 +15,7 @@ class ApiConfig {
 
   // true = Android Emulator (dùng 10.0.2.2)
   // false = máy thật USB (dùng 127.0.0.1 + adb reverse)
-  static const bool isEmulator = true;
+  static const bool isEmulator = false;
 
   static const String baseUrl = isTeamConfig
       ? 'http://192.168.120.6:8096/api'
@@ -126,6 +126,16 @@ class ApiConfig {
   static String rescheduleAppointment(int appointmentId) => '$appointments/$appointmentId/reschedule';
   static String releaseHold(int holdId) => '$baseUrl/appointments/hold-slot/$holdId';
   static String doctorPublicProfile(String doctorId) => '$baseUrl/account/doctors/public/$doctorId';
+
+  //Home Visit
+  static const String homeVisitDoctorSearch = '$baseUrl/home-visit/doctors/search';
+  static const String homeVisitServices = '$baseUrl/home-visit/services';
+  static String homeVisitSlots(String doctorId) => '$baseUrl/home-visit/doctors/$doctorId/home-visit-slots';
+  static const String homeVisitSelectSession = '$baseUrl/home-visit/select-session';
+  static const String createHomeVisitPayPalOrder = '$baseUrl/payment/home-visit/paypal/create';
+  static const String captureHomeVisitPayPalPayment = '$baseUrl/payment/home-visit/paypal/capture';
+  static const String homeVisitScanInfo = '$baseUrl/home-visit/scan-info';
+  static const String homeVisitGeocode = '$baseUrl/home-visit/geocode';
 
   //Upload medical records
   static const String healthRecordAutoDocument = '$baseUrl/health-records/documents/auto';
