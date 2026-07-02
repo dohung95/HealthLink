@@ -19,9 +19,16 @@ import com.HealthLink.repository.consultation.ConsultationRepository;
 import com.HealthLink.repository.doctor.DoctorRepository;
 import com.HealthLink.repository.doctor.DoctorScheduleRepository;
 import com.HealthLink.repository.payment.InvoiceRepository;
+import com.HealthLink.repository.chat.ChatRoomRepository;
+import com.HealthLink.repository.chat.MessageRepository;
 import com.HealthLink.repository.prescription.PrescriptionHeaderRepository;
+import com.HealthLink.repository.vitalsign.VitalSignRepository;
+import com.HealthLink.entity.ChatRoom;
+import com.HealthLink.entity.VitalSign;
+import com.HealthLink.service.notification.NotificationService;
 import com.HealthLink.service.payment.CommissionService;
 import org.junit.jupiter.api.Test;
+import org.springframework.messaging.simp.SimpMessagingTemplate;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.ArgumentCaptor;
 import org.mockito.InjectMocks;
@@ -71,6 +78,21 @@ class FollowUpAppointmentServiceImplTest {
 
     @Mock
     private CommissionService commissionService;
+
+    @Mock
+    private VitalSignRepository vitalSignRepository;
+
+    @Mock
+    private ChatRoomRepository chatRoomRepository;
+
+    @Mock
+    private MessageRepository messageRepository;
+
+    @Mock
+    private SimpMessagingTemplate messagingTemplate;
+
+    @Mock
+    private NotificationService notificationService;
 
     @InjectMocks
     private FollowUpAppointmentServiceImpl followUpAppointmentService;
@@ -265,6 +287,12 @@ class FollowUpAppointmentServiceImplTest {
             }
             return saved;
         });
+        when(vitalSignRepository.findByAppointment_AppointmentIdOrderByMeasuredAtDesc(10))
+                .thenReturn(List.of(VitalSign.builder().vitalSignId(1).heartRate(72).build()));
+        when(chatRoomRepository.findByAppointment_AppointmentId(10))
+                .thenReturn(Optional.of(ChatRoom.builder().chatRoomId("room-1").build()));
+        when(messageRepository.countByChatRoom_ChatRoomIdAndTimestampAfter(any(), any()))
+                .thenReturn(1L);
         when(consultationRepository.save(any(Consultation.class))).thenAnswer(invocation -> invocation.getArgument(0));
         when(prescriptionHeaderRepository.findByAppointment_AppointmentIdOrderByIssueDateDescPrescriptionHeaderIdDesc(10))
                 .thenReturn(List.of(sourcePrescription));
@@ -307,6 +335,12 @@ class FollowUpAppointmentServiceImplTest {
         sourceAppointment.setConsultation(consultation);
 
         when(appointmentRepository.findById(10)).thenReturn(Optional.of(sourceAppointment));
+        when(vitalSignRepository.findByAppointment_AppointmentIdOrderByMeasuredAtDesc(10))
+                .thenReturn(List.of(VitalSign.builder().vitalSignId(1).heartRate(72).build()));
+        when(chatRoomRepository.findByAppointment_AppointmentId(10))
+                .thenReturn(Optional.of(ChatRoom.builder().chatRoomId("room-1").build()));
+        when(messageRepository.countByChatRoom_ChatRoomIdAndTimestampAfter(any(), any()))
+                .thenReturn(1L);
         when(appointmentRepository.save(any(Appointment.class))).thenAnswer(invocation -> invocation.getArgument(0));
 
         CompleteAppointmentResponse response = followUpAppointmentService.completeAppointment(10, false);
@@ -360,6 +394,12 @@ class FollowUpAppointmentServiceImplTest {
                 .build());
 
         when(appointmentRepository.findById(10)).thenReturn(Optional.of(sourceAppointment));
+        when(vitalSignRepository.findByAppointment_AppointmentIdOrderByMeasuredAtDesc(10))
+                .thenReturn(List.of(VitalSign.builder().vitalSignId(1).heartRate(72).build()));
+        when(chatRoomRepository.findByAppointment_AppointmentId(10))
+                .thenReturn(Optional.of(ChatRoom.builder().chatRoomId("room-1").build()));
+        when(messageRepository.countByChatRoom_ChatRoomIdAndTimestampAfter(any(), any()))
+                .thenReturn(1L);
 
         assertThatThrownBy(() -> followUpAppointmentService.completeAppointment(10, true))
                 .isInstanceOf(BadRequestException.class)
