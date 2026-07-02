@@ -92,6 +92,22 @@ public class EmailService {
         sendHtmlEmail(toEmail, subject, content);
     }
 
+    public void sendAppointmentReminderEmail(String toEmail, String recipientName,
+                                              String doctorName, String appointmentTime,
+                                              String consultationType, int minutesBeforeStart) {
+        log.info("sendAppointmentReminderEmail called - to: {}, minutesBeforeStart: {}",
+                toEmail, minutesBeforeStart);
+        String subject = appName + " - Appointment starts " + formatReminderTiming(minutesBeforeStart);
+        String content = buildAppointmentReminderEmailContent(
+                recipientName,
+                doctorName,
+                appointmentTime,
+                consultationType,
+                minutesBeforeStart
+        );
+        sendHtmlEmail(toEmail, subject, content);
+    }
+
     // gửi email văn bản đơn giản (OTP, thông báo nhanh)
     public void sendSimpleMessage(String to, String subject, String text) {
         log.info("sendSimpleMessage called - to: {}", to);
@@ -452,6 +468,73 @@ public class EmailService {
             </body>
             </html>
             """, recipientName, newEmail, verificationCode);
+    }
+
+    private String buildAppointmentReminderEmailContent(String recipientName, String doctorName,
+                                                        String appointmentTime, String consultationType,
+                                                        int minutesBeforeStart) {
+        String timingText = formatReminderTiming(minutesBeforeStart);
+        String appointmentsLink = frontendUrl + "/patient-dashboard/appointments";
+        String safeConsultationType = consultationType == null || consultationType.isBlank()
+                ? "Consultation"
+                : consultationType;
+
+        return """
+            <!DOCTYPE html>
+            <html>
+            <head>
+                <meta charset="UTF-8">
+                <style>
+                    body { font-family: Arial, sans-serif; line-height: 1.6; color: #1f2937; background: #f6f8fb; margin: 0; padding: 24px; }
+                    .container { max-width: 600px; margin: 0 auto; background: #ffffff; border: 1px solid #e5e7eb; border-radius: 10px; overflow: hidden; }
+                    .header { background: #00b09a; color: #ffffff; padding: 24px; text-align: center; }
+                    .content { padding: 24px; }
+                    .details { background: #f0fdfa; border: 1px solid #99f6e4; border-radius: 8px; padding: 16px; margin: 18px 0; }
+                    .button { display: inline-block; padding: 12px 20px; background: #00b09a; color: #ffffff !important; text-decoration: none; border-radius: 8px; font-weight: 600; }
+                    .footer { padding: 16px 24px; color: #6b7280; font-size: 13px; border-top: 1px solid #e5e7eb; }
+                </style>
+            </head>
+            <body>
+                <div class="container">
+                    <div class="header">
+                        <h1>Appointment Reminder</h1>
+                    </div>
+                    <div class="content">
+                        <p>Hello <strong>%s</strong>,</p>
+                        <p>Your appointment starts <strong>%s</strong>. Please be ready for your consultation.</p>
+                        <div class="details">
+                            <p><strong>Doctor:</strong> Dr. %s</p>
+                            <p><strong>Time:</strong> %s</p>
+                            <p><strong>Consultation type:</strong> %s</p>
+                        </div>
+                        <p>
+                            <a href="%s" class="button">Open Appointments</a>
+                        </p>
+                        <p>If the button does not work, copy this link into your browser:</p>
+                        <p style="word-break: break-all; color: #4b5563;">%s</p>
+                    </div>
+                    <div class="footer">
+                        <p>This is an automated message from HealthLink.</p>
+                    </div>
+                </div>
+            </body>
+            </html>
+            """.formatted(
+                recipientName,
+                timingText,
+                doctorName,
+                appointmentTime,
+                safeConsultationType,
+                appointmentsLink,
+                appointmentsLink
+        );
+    }
+
+    private String formatReminderTiming(int minutesBeforeStart) {
+        if (minutesBeforeStart == 60) {
+            return "in 1 hour";
+        }
+        return "in " + minutesBeforeStart + " minutes";
     }
 
     // ==================================== END BUILD EMAIL CONTENT ===================================
