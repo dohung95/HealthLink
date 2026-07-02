@@ -1,113 +1,115 @@
 import { useMemo } from 'react';
-import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, Cell } from 'recharts';
+import { Bar, BarChart, ResponsiveContainer, Tooltip, XAxis, YAxis } from 'recharts';
 import { money } from '../../utils/pharmacy/pharmacyHelpers';
+import {
+  buildInventoryRiskData,
+  buildRevenueTrend,
+  buildWorkflowQueueData,
+  summarizePaymentOrders,
+} from '../../utils/pharmacy/pharmacyOverviewMetrics';
 
-const STATUS_COLORS = {
-  AWAITING_PAYMENT: '#f59e0b',
-  PREPARING: '#3b82f6',
-  READY: '#10b981',
-  SHIPPING: '#8b5cf6',
-  DELIVERED: '#06b6d4',
-  COMPLETED: '#059669',
-  CANCELLED: '#ef4444',
-  REFUNDED: '#f97316',
-};
+export default function PharmacyOverviewReports({ workItems, orders, inventorySummary }) {
+  const workflowQueueData = useMemo(() => buildWorkflowQueueData(workItems), [workItems]);
+  const paymentSummary = useMemo(() => summarizePaymentOrders(orders), [orders]);
+  const revenueTrend = useMemo(() => buildRevenueTrend(orders), [orders]);
+  const inventoryRiskData = useMemo(() => buildInventoryRiskData(inventorySummary), [inventorySummary]);
 
-export default function PharmacyOverviewReports({ workItems, orders }) {
-  const orderStatusData = useMemo(() => {
-    const counts = {};
-    const items = Array.isArray(workItems) ? workItems : [];
-    items.forEach((item) => {
-      const stage = (item.workflowStage || item.status || 'UNKNOWN').toUpperCase();
-      counts[stage] = (counts[stage] || 0) + 1;
-    });
-    return Object.entries(counts)
-      .filter(([, count]) => count > 0)
-      .map(([stage, count]) => ({
-        stage,
-        count,
-        fill: STATUS_COLORS[stage] || '#94a3b8',
-      }))
-      .sort((a, b) => b.count - a.count)
-      .slice(0, 10);
-  }, [workItems]);
+  const hasAnyData = workflowQueueData.some((r) => r.count > 0)
+    || paymentSummary.paidOrders.length > 0
+    || paymentSummary.paymentDueOrders.length > 0
+    || inventoryRiskData.length > 0;
 
-  const opsMetrics = useMemo(() => {
-    const items = Array.isArray(workItems) ? workItems : [];
-    const orderItems = Array.isArray(orders) ? orders : [];
-    const totalRequests = items.filter((i) => i.workflowStage === 'NEW_REQUEST').length;
-    const totalOrders = items.filter((i) => i.hasOrder).length;
-    const completed = items.filter((i) => i.workflowStage === 'COMPLETED' || i.workflowStage === 'DELIVERED').length;
-    const cancelled = items.filter((i) => i.workflowStage === 'CANCELLED').length;
-    const paidOrders = orderItems.filter((o) => (o.paymentStatus || '').toUpperCase() === 'PAID');
-    const totalRevenue = paidOrders.reduce((sum, o) => sum + Number(o.totalAmount || o.totalPrice || 0), 0);
-
-    return {
-      totalRequests,
-      totalOrders,
-      conversionRate: totalRequests > 0 ? Math.round((totalOrders / totalRequests) * 100) : 0,
-      completionRate: totalOrders > 0 ? Math.round((completed / totalOrders) * 100) : 0,
-      cancellationRate: totalOrders > 0 ? Math.round((cancelled / totalOrders) * 100) : 0,
-      averageOrderValue: paidOrders.length > 0 ? totalRevenue / paidOrders.length : 0,
-      revenue: totalRevenue,
-      paidOrderCount: paidOrders.length,
-    };
-  }, [workItems, orders]);
-
-  if (orderStatusData.length === 0 && opsMetrics.totalOrders === 0) return null;
+  if (!hasAnyData) {
+    return (
+      <div className="pharmacy-overview-reports">
+        <div className="pharmacy-empty compact">
+          <span className="material-symbols-outlined">analytics</span>
+          <h3>No overview report data yet</h3>
+          <p>Requests, paid orders, and inventory risk will appear here when available.</p>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="pharmacy-overview-reports">
-      <div className="pharmacy-ops-metrics">
-        <div className="pharmacy-ops-card">
-          <span className="pharmacy-ops-label">Conversion</span>
-          <span className="pharmacy-ops-value">{opsMetrics.conversionRate}%</span>
-          <span className="pharmacy-ops-hint">{opsMetrics.totalOrders} orders / {opsMetrics.totalRequests} requests</span>
-        </div>
-        <div className="pharmacy-ops-card">
-          <span className="pharmacy-ops-label">Completion</span>
-          <span className="pharmacy-ops-value">{opsMetrics.completionRate}%</span>
-          <span className="pharmacy-ops-hint">of orders fulfilled</span>
-        </div>
-        <div className="pharmacy-ops-card">
-          <span className="pharmacy-ops-label">Avg Order Value</span>
-          <span className="pharmacy-ops-value">{money(opsMetrics.averageOrderValue)}</span>
-          <span className="pharmacy-ops-hint">{opsMetrics.paidOrderCount} paid orders</span>
-        </div>
-        <div className="pharmacy-ops-card">
-          <span className="pharmacy-ops-label">Cancellation</span>
-          <span className="pharmacy-ops-value is-danger">{opsMetrics.cancellationRate}%</span>
-          <span className="pharmacy-ops-hint">of total orders</span>
-        </div>
-      </div>
-
-      {orderStatusData.length > 0 && (
-        <section className="pharmacy-card pharmacy-card-chart">
-          <div className="pharmacy-card-header">
-            <div>
-              <h2>Orders by Status</h2>
-              <p>Active work items grouped by workflow stage.</p>
-            </div>
+      <section className="pharmacy-card pharmacy-overview-report-card">
+        <div className="pharmacy-card-header">
+          <div>
+            <h2>Workflow Queue</h2>
+            <p>Current workload that still needs pharmacy action.</p>
           </div>
+        </div>
+        <div className="pharmacy-workflow-queue-chart">
+          {workflowQueueData.map((row) => (
+            <div className="pharmacy-workflow-queue-row" key={row.key}>
+              <span>{row.label}</span>
+              <div className="pharmacy-workflow-queue-track">
+                <i className={`tone-${row.tone}`} style={{ width: `${row.percent}%` }} />
+              </div>
+              <strong>{row.count}</strong>
+            </div>
+          ))}
+        </div>
+      </section>
+
+      <section className="pharmacy-card pharmacy-overview-report-card">
+        <div className="pharmacy-card-header">
+          <div>
+            <h2>Revenue &amp; Payment</h2>
+            <p>{revenueTrend.hasTrend ? 'Paid revenue in the last 30 days.' : 'Current payment snapshot from available orders.'}</p>
+          </div>
+        </div>
+
+        {revenueTrend.hasTrend ? (
           <div className="pharmacy-chart-wrap">
             <ResponsiveContainer width="100%" height={220}>
-              <BarChart data={orderStatusData} margin={{ top: 8, right: 8, bottom: 4, left: -8 }}>
-                <XAxis dataKey="stage" tick={{ fontSize: 11 }} axisLine={false} tickLine={false} />
-                <YAxis allowDecimals={false} tick={{ fontSize: 11 }} axisLine={false} tickLine={false} />
-                <Tooltip
-                  contentStyle={{ borderRadius: 8, border: '1px solid #e2e8f0', boxShadow: '0 4px 12px rgba(0,0,0,0.08)' }}
-                  formatter={(value) => [value, 'Orders']}
-                />
-                <Bar dataKey="count" radius={[4, 4, 0, 0]} maxBarSize={40}>
-                  {orderStatusData.map((entry, idx) => (
-                    <Cell key={idx} fill={entry.fill} />
-                  ))}
-                </Bar>
+              <BarChart data={revenueTrend.trend} margin={{ top: 8, right: 8, bottom: 4, left: -8 }}>
+                <XAxis dataKey="label" tick={{ fontSize: 11 }} axisLine={false} tickLine={false} />
+                <YAxis tick={{ fontSize: 11 }} axisLine={false} tickLine={false} tickFormatter={(value) => `${Math.round(value / 1000)}K`} />
+                <Tooltip formatter={(value) => [money(value), 'Paid revenue']} />
+                <Bar dataKey="revenue" fill="#0f52ba" radius={[4, 4, 0, 0]} maxBarSize={34} />
               </BarChart>
             </ResponsiveContainer>
           </div>
-        </section>
-      )}
+        ) : (
+          <div className="pharmacy-overview-empty-chart">Order date fields are unavailable. Showing current payment totals instead.</div>
+        )}
+
+        <div className="pharmacy-overview-summary-row">
+          <span>Paid orders <b>{paymentSummary.paidOrders.length}</b></span>
+          <span>Unpaid value <b>{money(paymentSummary.unpaidValue)}</b></span>
+          <span>Avg order value <b>{money(paymentSummary.averageOrderValue)}</b></span>
+        </div>
+      </section>
+
+      <section className="pharmacy-card pharmacy-overview-report-card">
+        <div className="pharmacy-card-header">
+          <div>
+            <h2>Inventory Risk</h2>
+            <p>Stock and expiry signals that need review.</p>
+          </div>
+        </div>
+        <div className="pharmacy-inventory-risk-chart">
+          {inventoryRiskData.map((row) => (
+            <div className="pharmacy-inventory-risk-row" key={row.key}>
+              <span>{row.label}</span>
+              <strong className={row.className}>{row.count}</strong>
+            </div>
+          ))}
+        </div>
+        {inventorySummary.attentionItems && inventorySummary.attentionItems.length > 0 && (
+          <div className="pharmacy-inventory-attention-list">
+            <p>Top attention</p>
+            {inventorySummary.attentionItems.map((item) => (
+              <span key={item.key}>
+                <b>{item.name}</b>
+                <small>{item.reason}</small>
+              </span>
+            ))}
+          </div>
+        )}
+      </section>
     </div>
   );
 }

@@ -137,7 +137,7 @@ export default function PharmacyRequestsPage({ workItems, profile, reload, navig
           />
         </div>
       </div>
-      <div className="pharmacy-workflow-page">
+      <div className="pharmacy-workflow-page pharmacy-workflow-surface">
 
       <div className="pharmacy-order-tabs">
         {REQUEST_STAGE_GROUPS.map((group) => (

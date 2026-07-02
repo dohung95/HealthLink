@@ -373,7 +373,7 @@ public class PharmacyOrderServiceImpl implements PharmacyOrderService {
                 .deliveryLongitude(deliveryLon)
                 .deliveryFee(actualDeliveryFee)
                 .deliveryPhoneNumber(deliveryPhoneNumber)
-                .deliveryAddressSource(PharmacyServiceHelper.normalizeDeliveryAddressSource(deliveryAddressSource))
+                .deliveryAddressSource(PharmacyServiceHelper.normalizeDeliveryAddressSourceSafely(deliveryAddressSource))
                 .medicineAmount(medicineAmount)
                 .totalAmount(totalAmount)
                 .estimatedDeliveryTime(estimatedDeliveryTime)

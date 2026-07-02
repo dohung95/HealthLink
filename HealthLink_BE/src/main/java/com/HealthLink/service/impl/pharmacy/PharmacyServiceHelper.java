@@ -36,6 +36,14 @@ public class PharmacyServiceHelper {
         return upper;
     }
 
+    public static String normalizeDeliveryAddressSourceSafely(String source) {
+        try {
+            return normalizeDeliveryAddressSource(source);
+        } catch (IllegalArgumentException e) {
+            return null;
+        }
+    }
+
     public static double calculateDistanceKm(
             double startLat, double startLon, double endLat, double endLon) {
         double latDistance = Math.toRadians(endLat - startLat);

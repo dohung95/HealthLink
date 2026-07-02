@@ -74,7 +74,7 @@ export default function PharmacyKanbanOrdersPage({ workItems, reload }) {
           />
         </div>
       </div>
-      <div className="pharmacy-workflow-page">
+      <div className="pharmacy-workflow-page pharmacy-workflow-surface">
 
       <div className="pharmacy-kanban-board">
         {columns.map((column) => (
@@ -118,6 +118,10 @@ export default function PharmacyKanbanOrdersPage({ workItems, reload }) {
                       {meta && (
                         <span className="pharmacy-kanban-card__meta">{meta}</span>
                       )}
+                      <span className="pharmacy-kanban-card__detail">
+                        Detail
+                        <span className="material-symbols-outlined">chevron_right</span>
+                      </span>
                     </div>
                   );
                 })

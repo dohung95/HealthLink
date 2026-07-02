@@ -9,7 +9,7 @@ import {
 
 const SWAP_MS = 520;
 const TARGET_SETTLE_MS = 3000;
-const IDLE_ROTATE_MS = 30000;
+const IDLE_ROTATE_MS = 5000;
 
 function getAnnouncementKey(notification) {
   if (!notification) return null;

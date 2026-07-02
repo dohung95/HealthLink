@@ -177,6 +177,72 @@
 .pharmacy-metric-card.tone-warning > span { color: var(--pharmacy-warning); background: white; }
 .pharmacy-metric-card.tone-info > span { color: var(--pharmacy-info); background: white; }
 .pharmacy-metric-card.tone-success > span { color: var(--pharmacy-success); background: white; }
+.pharmacy-metric-card.tone-danger > span { color: var(--pharmacy-danger); background: white; }
+
+.pharmacy-metrics-grid.is-overview-dashboard {
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+}
+
+.pharmacy-metric-rate {
+  display: inline-flex;
+  align-items: center;
+  font-size: 13px;
+  font-weight: 900;
+  line-height: 1.25;
+  white-space: normal;
+}
+
+.pharmacy-metric-rate.is-success {
+  color: var(--pharmacy-success);
+}
+
+.pharmacy-metric-rate.is-danger {
+  color: var(--pharmacy-danger);
+  margin-top: 8px;
+}
+
+.pharmacy-metric-stock-list {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px 10px;
+  margin: 10px 0 0;
+  padding: 0;
+  list-style: none;
+  color: var(--pharmacy-muted);
+  font-size: 12px;
+  line-height: 1.35;
+}
+
+.pharmacy-metric-stock-list li {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  white-space: nowrap;
+}
+
+.pharmacy-metric-stock-list i {
+  width: 8px;
+  height: 8px;
+  border-radius: 999px;
+  flex: 0 0 auto;
+}
+
+.pharmacy-metric-stock-list b {
+  color: var(--pharmacy-text);
+  font-weight: 900;
+}
+
+.pharmacy-metric-stock-list .is-available i {
+  background: var(--pharmacy-success);
+}
+
+.pharmacy-metric-stock-list .is-low i {
+  background: var(--pharmacy-warning);
+}
+
+.pharmacy-metric-stock-list .is-out i {
+  background: var(--pharmacy-danger);
+}
 
 .pharmacy-overview-grid {
   display: grid;

@@ -9,7 +9,7 @@ import {
 } from './workflow/pharmacyWorkflow';
 import PharmacyOrderDetailModal from './PharmacyOrderDetailModal';
 
-const PAGE_SIZE = 15;
+const PAGE_SIZE = 6;
 
 export default function PharmacyOrderListPage({ workItems, orders }) {
   const [searchParams, setSearchParams] = useSearchParams();
@@ -89,7 +89,7 @@ export default function PharmacyOrderListPage({ workItems, orders }) {
           />
         </div>
       </div>
-      <div className="pharmacy-workflow-page">
+      <div className="pharmacy-workflow-page pharmacy-workflow-surface">
 
       <div className="pharmacy-order-tabs">
         {ORDER_LIST_TABS.map((tab) => (

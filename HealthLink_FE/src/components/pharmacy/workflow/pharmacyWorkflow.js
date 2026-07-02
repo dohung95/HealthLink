@@ -230,12 +230,12 @@ export function compactCardClass(item) {
 }
 
 export function compactCardSubtitle(item) {
-  return item?.deliveryPhoneNumber || null;
+  return item?.deliveryPhoneNumber || item?.patientPhone || item?.phone || null;
 }
 
 export function compactCardMeta(item) {
   const parts = [];
   if (item?.items?.length) parts.push(`${item.items.length} item${item.items.length > 1 ? 's' : ''}`);
   if (item?.totalAmount != null) parts.push(money(item.totalAmount));
-  return parts.join(' · ');
+  return parts.join(' | ');
 }

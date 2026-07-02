@@ -169,6 +169,8 @@ export default function CreateOrderModal({
   const isConsultMode = variant === 'consult';
   const isOrderRequest = request?.requestType === 'ORDER_REQUEST' || request?.sourceType === 'ORDER_REQUEST';
   const [leftTab, setLeftTab] = useState(isConsultMode ? 'summary' : 'prescriptions');
+  const isSummaryTab = isConsultMode && leftTab === 'summary';
+  const isMedicinesTab = !isOrderRequest && leftTab === 'medicine';
   const [orderItems, setOrderItems] = useState([]);
   const [prescriptions, setPrescriptions] = useState([]);
   const [loadingPrescriptions, setLoadingPrescriptions] = useState(false);
@@ -377,26 +379,27 @@ export default function CreateOrderModal({
         <div className="pharmacy-create-order-header">
           {isConsultMode ? (
             <>
-              <div className="pharmacy-create-order-header__identity">
-                <div className="pharmacy-create-order-header__title-row">
-                  <h2>
-                    <i className="bi bi-bag-plus me-2"></i>
-                    Consult &amp; Order
-                  </h2>
-                  <span className="text-muted small">{request?.displayId || `Request #${request?.requestId}`}</span>
-                </div>
-                <strong>{request?.patientName || 'Unknown Patient'}</strong>
-                <span>{request?.deliveryPhoneNumber || 'No phone shared'}</span>
-              </div>
+              <h2>
+                <i className="bi bi-bag-plus me-2"></i>
+                Consult &amp; Order
+              </h2>
               <div className="pharmacy-create-order-header__actions">
                 {request?.availableActions?.includes('VIDEO_CALL') && (
-                  <button className="btn btn-outline-primary btn-sm" onClick={() => onVideoCallRequest?.(request)} type="button">
+                  <button
+                    className="btn btn-outline-primary btn-sm"
+                    onClick={() => onVideoCallRequest?.(request)}
+                    type="button"
+                  >
                     <i className="bi bi-camera-video me-1"></i>
                     Video Call
                   </button>
                 )}
                 {request?.availableActions?.includes('CHAT') && (
-                  <button className="btn btn-outline-secondary btn-sm" onClick={() => onChatRequest?.(request)} type="button">
+                  <button
+                    className="btn btn-outline-secondary btn-sm"
+                    onClick={() => onChatRequest?.(request)}
+                    type="button"
+                  >
                     <i className="bi bi-chat-dots me-1"></i>
                     Chat
                   </button>
@@ -445,12 +448,17 @@ export default function CreateOrderModal({
                   type="button"
                 >
                   <i className="bi bi-capsule me-1"></i>
-                  Medicine Library
+                  Medicines
                 </button>
               )}
             </div>
 
-            <div className="pharmacy-create-order-left-content">
+            <div
+              className={[
+                'pharmacy-create-order-left-content',
+                isSummaryTab ? 'is-summary' : '',
+                isMedicinesTab ? 'is-medicines' : '',
+              ].filter(Boolean).join(' ')}>
               {leftTab === 'summary' && isConsultMode ? (
                 <RequestSummaryPanel request={request} />
               ) : (leftTab === 'prescriptions' || isOrderRequest) ? (
