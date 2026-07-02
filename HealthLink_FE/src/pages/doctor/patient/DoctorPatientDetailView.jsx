@@ -44,7 +44,7 @@ export default function DoctorPatientDetailView({ patient, history }) {
   useEffect(() => { setTabPage(1); }, [activeTab]);
 
   useEffect(() => {
-    const pid = patient?.id || patient?.patientId;
+    const pid = patient?.id || patient?.patientId || patient?.patientID || patient?.userId;
     if (!pid) return;
     let mounted = true;
     setLoadingVitals(true);

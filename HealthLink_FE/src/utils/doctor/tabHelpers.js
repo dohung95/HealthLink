@@ -101,7 +101,7 @@ export const getStatusClassName = (status) => {
   if (key === 'completed') return 'doctor-detail-status doctor-detail-status--completed';
   if (key === 'scheduled') return 'doctor-detail-status doctor-detail-status--scheduled';
   if (key === 'cancelled' || key === 'canceled') return 'doctor-detail-status doctor-detail-status--cancelled';
-  if (key === 'inprogress') return 'doctor-detail-status doctor-detail-status--progress';
+  if (key === 'inprogress' || key === 'inconsultation') return 'doctor-detail-status doctor-detail-status--progress';
   return 'doctor-detail-status';
 };
 

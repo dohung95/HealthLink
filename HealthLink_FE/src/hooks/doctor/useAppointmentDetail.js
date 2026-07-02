@@ -1,10 +1,12 @@
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useMemo, useState } from 'react';
 import { toast } from 'react-toastify';
 import { useAuth } from '@context/AuthContext';
 import { useChat } from '@context/ChatContext';
 import { appointmentService } from '@api/appointmentApi';
 import { consultationApi } from '@api/consultationApi';
+import { vitalSignApi } from '@api/vitalSignApi';
 import { prescriptionService } from '@api/prescriptionApi';
+import { buildDoctorVitalsPayload } from '@utils/doctor/vitalsFormModel';
 import { buildConsultation, normalizeStatus } from '@utils/doctor/tabHelpers';
 import { useAppointmentData } from './useAppointmentData';
 import { useVitalSigns } from './useVitalSigns';
@@ -35,11 +37,10 @@ export function useAppointmentDetail({ appointment, patient, doctorId: currentDo
 
   const [activeTab, setActiveTab] = useState('notes');
   const [showCompleteConfirmModal, setShowCompleteConfirmModal] = useState(false);
-  const [startingConsultation, setStartingConsultation] = useState(false);
+  const [savingEntryVitals, setSavingEntryVitals] = useState(false);
   const [completingAppointment, setCompletingAppointment] = useState(false);
   const [prescriptionDraft, setPrescriptionDraft] = useState(null);
   const [copyPrescription, setCopyPrescription] = useState(true);
-  const [nowTick, setNowTick] = useState(Date.now());
 
   const showMiniChat = activeMiniChatAppt?.appointmentId === appointmentId;
   const setShowMiniChat = (val) => {
@@ -55,25 +56,6 @@ export function useAppointmentDetail({ appointment, patient, doctorId: currentDo
   };
 
   const appointmentData = useAppointmentData(appointmentId, patientId, doctorId);
-
-  useEffect(() => {
-    const appointmentTime = appointment?.appointmentTime
-      ? new Date(appointment.appointmentTime).getTime()
-      : null;
-    if (!appointmentTime || appointmentTime <= Date.now()) return;
-
-    const msUntilArrival = appointmentTime - Date.now();
-    if (msUntilArrival <= 0) {
-      setNowTick(Date.now());
-      return;
-    }
-
-    const timer = setTimeout(() => {
-      setNowTick(Date.now());
-    }, msUntilArrival + 100);
-
-    return () => clearTimeout(timer);
-  }, [appointment?.appointmentTime]);
   const vitals = useVitalSigns(appointmentId);
   const notes = useConsultationNotes(appointmentId, appointment, appointmentData.appointmentDetail);
 
@@ -120,14 +102,11 @@ export function useAppointmentDetail({ appointment, patient, doctorId: currentDo
       (item) => normalizeStatus(item.status) === 'completed',
     ) || [];
     const appointmentTime = currentAppointment?.appointmentTime ? new Date(currentAppointment.appointmentTime) : null;
-    const hasAppointmentTimeArrived = appointmentTime ? appointmentTime <= new Date(nowTick) : false;
     const hasStarted = Boolean(consultation.startTime || currentAppointment?.consultationStartTime);
     const isScheduledAppointment = statusKey === 'scheduled';
     const isInConsultationAppointment = statusKey === 'inconsultation' || statusKey === 'inprogress';
     const isReadOnlyAppointment = statusKey === 'completed';
     const isCancelledAppointment = statusKey === 'cancelled' || statusKey === 'canceled';
-    const canStartConsultation =
-      isScheduledAppointment && hasAppointmentTimeArrived && !hasStarted && !startingConsultation;
     const canEditClinical =
       (isScheduledAppointment || isInConsultationAppointment) &&
       hasStarted &&
@@ -135,7 +114,7 @@ export function useAppointmentDetail({ appointment, patient, doctorId: currentDo
       !isCancelledAppointment;
     const canEditPrescription = canEditClinical;
     const canEditFollowUp = canEditClinical && !isReadOnlyAppointment && !isCancelledAppointment;
-    const joinDisabled = !hasStarted || isReadOnlyAppointment || isCancelledAppointment;
+    const joinDisabled = isReadOnlyAppointment || isCancelledAppointment;
     const prescriptionLockReason = isReadOnlyAppointment
       ? 'This appointment is completed. Prescription editing is no longer available.'
       : isCancelledAppointment
@@ -151,26 +130,45 @@ export function useAppointmentDetail({ appointment, patient, doctorId: currentDo
 
     return {
       statusKey, patientName, patientEmail, completedHistory, appointmentTime,
-      hasAppointmentTimeArrived, hasStarted, isReadOnlyAppointment, isCancelledAppointment,
-      canStartConsultation, canEditClinical, canEditPrescription, canEditFollowUp,
+      hasStarted, isReadOnlyAppointment, isCancelledAppointment,
+      canEditClinical, canEditPrescription, canEditFollowUp,
       joinDisabled, prescriptionLockReason, actionLabel, visitReason,
     };
-  }, [currentAppointment, patient, appointmentData.medicalHistory, appointmentData.appointmentDetail, consultation, startingConsultation, nowTick]);
+  }, [currentAppointment, patient, appointmentData.medicalHistory, appointmentData.appointmentDetail, consultation]);
 
-  const handleStartConsultation = useCallback(async () => {
-    if (!appointmentId || startingConsultation) return;
-    setStartingConsultation(true);
-    try {
-      await consultationApi.startAppointmentConsultation(appointmentId);
-      toast.success('Consultation started');
-      await appointmentData.refreshAppointmentData({ showToast: false });
-    } catch (error) {
-      console.error('Error starting consultation:', error);
-      toast.error(error.response?.data?.message || 'Failed to start consultation');
-    } finally {
-      setStartingConsultation(false);
+  const handleSaveVitalsAndEnterWorkspace = useCallback(async (form) => {
+    if (!appointmentId || !patientId) {
+      toast.error('Appointment or patient information is missing. Please refresh and try again.');
+      return false;
     }
-  }, [appointmentId, startingConsultation, appointmentData, effectiveDoctorId, doctorId, patientId]);
+
+    setSavingEntryVitals(true);
+
+    try {
+      const payload = buildDoctorVitalsPayload({ form, patientId, appointmentId });
+      const savedVitalSign = await vitalSignApi.createVitalSign(payload);
+      vitals.setLatestVitalSign(savedVitalSign);
+
+      if (!rendered.hasStarted) {
+        await consultationApi.startAppointmentConsultation(appointmentId);
+      }
+
+      await appointmentData.refreshAppointmentData({ showToast: false });
+      toast.success('Vitals saved. Consultation workspace is ready.');
+      return true;
+    } catch (error) {
+      console.error('Error saving consultation vitals:', error);
+      toast.error(
+        error.response?.data?.message ||
+        error.response?.data ||
+        error.message ||
+        'Failed to save vitals and open workspace.'
+      );
+      return false;
+    } finally {
+      setSavingEntryVitals(false);
+    }
+  }, [appointmentId, patientId, rendered.hasStarted, vitals, appointmentData]);
 
   const handleCompleteAppointment = useCallback(async () => {
     if (!appointmentId) return;
@@ -364,6 +362,8 @@ export function useAppointmentDetail({ appointment, patient, doctorId: currentDo
     refreshAppointmentData: appointmentData.refreshAppointmentData,
     latestVitalSign: vitals.latestVitalSign,
     loadingVitalSign: vitals.loadingVitalSign,
+    savingEntryVitals,
+    handleSaveVitalsAndEnterWorkspace,
     notesDraft: notes.notesDraft,
     savingNotes: notes.savingNotes,
     handleNotesDraftChange: notes.handleNotesDraftChange,
@@ -404,11 +404,9 @@ export function useAppointmentDetail({ appointment, patient, doctorId: currentDo
     patientEmail: rendered.patientEmail,
     completedHistory: rendered.completedHistory,
     appointmentTime: rendered.appointmentTime,
-    hasAppointmentTimeArrived: rendered.hasAppointmentTimeArrived,
     hasStarted: rendered.hasStarted,
     isReadOnlyAppointment: rendered.isReadOnlyAppointment,
     isCancelledAppointment: rendered.isCancelledAppointment,
-    canStartConsultation: rendered.canStartConsultation,
     canEditClinical: rendered.canEditClinical,
     canEditPrescription: rendered.canEditPrescription,
     canEditFollowUp: rendered.canEditFollowUp,
@@ -421,7 +419,6 @@ export function useAppointmentDetail({ appointment, patient, doctorId: currentDo
     currentAppointment,
     consultation,
     selectedHistoryConsultation,
-    handleStartConsultation,
     handleCompleteAppointment,
     handleChat: () => {
       setShowMiniChat(true); // Enable mini-chat tracking

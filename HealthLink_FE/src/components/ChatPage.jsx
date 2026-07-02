@@ -850,8 +850,8 @@ export default function ChatPage({ showBot = true }) {
     };
 
     const handleVideoCallFromChat = () => {
-        if (!hasFilledVitals) {
-            toast.warning('Patient has not filled out their vital signs yet.');
+        if (isPatient && !hasFilledVitals) {
+            toast.warning('Please fill out your vital signs before starting the call.');
             return;
         }
         if (!chatPartner || isBlocked || !currentRoom || !currentRoom.chatRoomId) {
@@ -1351,6 +1351,9 @@ export default function ChatPage({ showBot = true }) {
     const isAppointmentCompleted = currentRoom?.appointmentStatus?.toUpperCase() === 'COMPLETED';
     const isBlocked = currentRoom?.blockedBy || isAppointmentCompleted;
     const isBlockedByMe = currentRoom?.blockedBy === currentUserId;
+    const shouldBlockForPatientVitals =
+      Boolean(isPatient && !hasFilledVitals && !isAppointmentCompleted && currentRoom?.appointmentId);
+    const videoCallDisabled = isBlocked || (isPatient && !hasFilledVitals);
 
     console.log('[DEBUG ChatPage] currentRoom:', currentRoom);
     console.log('[DEBUG ChatPage] isAppointmentCompleted:', isAppointmentCompleted);
@@ -1435,19 +1438,25 @@ export default function ChatPage({ showBot = true }) {
                                 {mutedRooms.includes(currentRoom.chatRoomId) && <i className="bi bi-bell-slash-fill text-danger me-3 fs-5"></i>}
                                 {!chatPartner?.isBot && (
                                     <button
-                                        className={`btn btn-light rounded-circle shadow-sm d-flex align-items-center justify-content-center me-2 ${(isBlocked || !hasFilledVitals) ? 'opacity-50' : ''}`}
-                                        style={{ width: 40, height: 40, padding: 0, cursor: (isBlocked || !hasFilledVitals) ? 'not-allowed' : 'pointer' }}
+                                        className={`btn btn-light rounded-circle shadow-sm d-flex align-items-center justify-content-center me-2 ${videoCallDisabled ? 'opacity-50' : ''}`}
+                                        style={{ width: 40, height: 40, padding: 0, cursor: videoCallDisabled ? 'not-allowed' : 'pointer' }}
                                         onClick={(e) => {
-                                            if (isBlocked || !hasFilledVitals) {
+                                            if (videoCallDisabled) {
                                                 e.preventDefault();
                                                 return;
                                             }
                                             handleVideoCallFromChat();
                                         }}
-                                        disabled={isBlocked || !hasFilledVitals}
-                                        title={isBlocked ? "Cannot call when chat is blocked or appointment completed" : (!hasFilledVitals ? "Cannot call until patient fills vital signs" : "Video Call")}
+                                        disabled={videoCallDisabled}
+                                        title={
+                                          isBlocked
+                                            ? 'Cannot call when chat is blocked or appointment completed'
+                                            : isPatient && !hasFilledVitals
+                                              ? 'Fill vital signs before calling'
+                                              : 'Video Call'
+                                        }
                                     >
-                                        <i className={`bi bi-camera-video ${(isBlocked || !hasFilledVitals) ? 'text-muted' : 'text-primary'} fs-5`}></i>
+                                        <i className={`bi bi-camera-video ${videoCallDisabled ? 'text-muted' : 'text-primary'} fs-5`}></i>
                                     </button>
                                 )}
                                 <button className="btn btn-light rounded-circle shadow-sm d-flex align-items-center justify-content-center" style={{ width: 40, height: 40, padding: 0 }} onClick={() => setShowChatDetails(true)}>
@@ -1496,7 +1505,7 @@ export default function ChatPage({ showBot = true }) {
                                     onNavigate={handleBotNavigate}
                                     onCallClick={handleVideoCallFromChat}
                                     isBlocked={isBlocked}
-                                    hasFilledVitals={hasFilledVitals}
+                                    hasFilledVitals={!isPatient || hasFilledVitals}
                                 />
                             </div>
                         ))}
@@ -1537,25 +1546,16 @@ export default function ChatPage({ showBot = true }) {
                     </div>
 
                     {/* Input box */}
-                    {(!hasFilledVitals && !isAppointmentCompleted && currentRoom?.appointmentId) ? (
-                        isPatient ? (
-                            <div className="p-3 border-top bg-light text-center">
-                                <div className="text-warning mb-2 fw-semibold">
-                                    <i className="bi bi-exclamation-triangle-fill me-2"></i>
-                                    Please fill in your health information before starting the chat.
-                                </div>
-                                <button className="btn btn-primary btn-sm" onClick={() => setShowVitalsModal(true)}>
-                                    Fill Health Info
-                                </button>
+                    {shouldBlockForPatientVitals ? (
+                        <div className="p-3 border-top bg-light text-center">
+                            <div className="text-warning mb-2 fw-semibold">
+                                <i className="bi bi-exclamation-triangle-fill me-2"></i>
+                                Please fill in your health information before starting the chat.
                             </div>
-                        ) : (
-                            <div className="p-3 border-top bg-light text-center">
-                                <p className="mb-0 fw-semibold text-warning" style={{ fontSize: '0.9rem' }}>
-                                    <i className="bi bi-hourglass-split me-2"></i>
-                                    Waiting for patient to fill out vital signs...
-                                </p>
-                            </div>
-                        )
+                            <button className="btn btn-primary btn-sm" onClick={() => setShowVitalsModal(true)}>
+                                Fill Health Info
+                            </button>
+                        </div>
                     ) : isBlocked ? (
                         <div className="p-3 border-top bg-light text-center">
                             <span className="text-muted fst-italic">

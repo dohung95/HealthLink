@@ -1,6 +1,4 @@
-import React, { memo, useMemo, useState, useCallback } from 'react';
-import { createPortal } from 'react-dom';
-import { toast } from 'react-toastify';
+import React, { memo, useMemo } from 'react';
 import 'bootstrap/dist/css/bootstrap.min.css';
 import 'react-calendar/dist/Calendar.css';
 import '@components/Css/doctor/doctor-dashboard/doctor-dashboard.css';
@@ -19,7 +17,7 @@ import EmptyState from '@components/doctor/EmptyState';
 import ActionBar from '@components/doctor/ActionBar';
 import CompleteConfirmModal from '@components/doctor/CompleteConfirmModal';
 import PatientSummarySidebar from '@components/doctor/PatientSummarySidebar';
-import DoctorMiniChat from '@components/DoctorMiniChat';
+import DoctorVitalsGate from '@components/doctor/DoctorVitalsGate';
 import ConsultationTimerStrip from '@components/doctor/ConsultationTimerStrip';
 
 const TABS = [
@@ -40,7 +38,7 @@ const DoctorAppointmentDetail = memo(({ appointment, patient, doctorId, activeMi
     return [...new Set(source.map((v) => String(v).toUpperCase()).filter(Boolean))];
   };
 
-  const showWorkspaceOverlay = useMemo(() =>
+  const showVitalsGate = useMemo(() =>
     !ctx.hasStarted && ctx.statusKey === 'scheduled',
     [ctx.hasStarted, ctx.statusKey],
   );
@@ -69,24 +67,11 @@ const DoctorAppointmentDetail = memo(({ appointment, patient, doctorId, activeMi
       .filter(Boolean);
   }, [ctx.prescription, prescriptionDraftRows]);
 
-  const prescriptionReady = useMemo(() =>
-    Boolean(ctx.prescription || (prescriptionDraftRows.length > 0 && incompletePrescriptionItems.length === 0)),
-    [ctx.prescription, prescriptionDraftRows, incompletePrescriptionItems],
-  );
-
-  const [highlightVitals, setHighlightVitals] = useState(false);
-
-  const checkVitalsAndExecute = useCallback((action) => {
-    if (!ctx.latestVitalSign && ctx.statusKey !== 'completed' && ctx.statusKey !== 'cancelled' && ctx.statusKey !== 'canceled') {
-      setHighlightVitals(true);
-      toast.warn('Please wait for patient vitals before joining the room.');
-      setTimeout(() => {
-        setHighlightVitals(false);
-      }, 4000);
-    } else {
-      action();
-    }
-  }, [ctx.latestVitalSign, ctx.statusKey]);
+  const prescriptionReady = useMemo(() => {
+    if (ctx.prescription) return true;
+    if (prescriptionDraftRows.length === 0) return true;
+    return incompletePrescriptionItems.length === 0;
+  }, [ctx.prescription, prescriptionDraftRows, incompletePrescriptionItems]);
 
   if (!appointment || !patient) {
     return (
@@ -116,8 +101,6 @@ const DoctorAppointmentDetail = memo(({ appointment, patient, doctorId, activeMi
           </button>
         </div>
 
-        {highlightVitals && <div className="vitals-global-overlay" />}
-
         <div className="doctor-detail-shell">
           <section className="doctor-detail-card doctor-detail-workspace doctor-detail-workspace--full">
             <div className="doctor-detail-with-sidebar">
@@ -127,42 +110,16 @@ const DoctorAppointmentDetail = memo(({ appointment, patient, doctorId, activeMi
                 visitReason={ctx.visitReason}
                 latestVitalSign={ctx.latestVitalSign}
                 loadingVitalSign={ctx.loadingVitalSign}
-                highlightVitals={highlightVitals}
               />
               <div className="doctor-detail-workspace-main" style={{ position: 'relative' }}>
-                {showWorkspaceOverlay && (
-                  <div
-                    className="doctor-detail-workspace-overlay"
-                    onClick={() => {
-                      const msg = ctx.hasAppointmentTimeArrived
-                        ? 'Please start the consultation first.'
-                        : 'Appointment time has not arrived yet.';
-                      toast.info(msg, { toastId: 'workspace-locked' });
-                    }}
-                    role="button"
-                    tabIndex={0}
-                    onKeyDown={(e) => {
-                      if (e.key === 'Enter' || e.key === ' ') {
-                        const msg = ctx.hasAppointmentTimeArrived
-                          ? 'Please start the consultation first.'
-                          : 'Appointment time has not arrived yet.';
-                        toast.info(msg, { toastId: 'workspace-locked' });
-                      }
-                    }}
-                    aria-label="Workspace locked until appointment time"
-                  >
-                    <div className="doctor-detail-workspace-overlay__content">
-                      <span className="material-symbols-outlined" style={{ fontSize: '2.5rem', marginBottom: '0.75rem' }}>lock</span>
-                      <p className="doctor-detail-workspace-overlay__title">{ctx.hasAppointmentTimeArrived ? 'Start Consultation First' : 'Appointment Not Yet Started'}</p>
-                      <p className="doctor-detail-workspace-overlay__desc">
-                        {ctx.hasAppointmentTimeArrived ? (
-                          'Click "Start Consultation" in the action bar below to begin.'
-                        ) : (
-                          'The consultation workspace will be available once the appointment time arrives. You can start the consultation from the action bar below when the time comes.'
-                        )}
-                      </p>
-                    </div>
-                  </div>
+                {showVitalsGate && (
+                  <DoctorVitalsGate
+                    patientName={ctx.patientName}
+                    appointmentTime={ctx.currentAppointment?.appointmentTime}
+                    latestVitalSign={ctx.latestVitalSign}
+                    saving={ctx.savingEntryVitals}
+                    onSave={ctx.handleSaveVitalsAndEnterWorkspace}
+                  />
                 )}
 
                 <div className="doctor-detail-appt-header">
@@ -173,7 +130,6 @@ const DoctorAppointmentDetail = memo(({ appointment, patient, doctorId, activeMi
                     </span>
                     <span className={getStatusClassName(ctx.currentAppointment?.status)}>
                       {getStatusLabel(ctx.currentAppointment?.status)}
-                      {ctx.currentAppointment?.status || 'Unknown'}
                     </span>
                   </div>
                   <div className="doctor-detail-summary__chips">
@@ -291,15 +247,10 @@ const DoctorAppointmentDetail = memo(({ appointment, patient, doctorId, activeMi
             </div>
 
             <ActionBar
-              handleChat={() => checkVitalsAndExecute(ctx.handleChat)}
-              canStartConsultation={ctx.canStartConsultation}
+              handleChat={ctx.handleChat}
               hasStarted={ctx.hasStarted}
-              hasAppointmentTimeArrived={ctx.hasAppointmentTimeArrived}
               isCancelledAppointment={ctx.isCancelledAppointment}
               isReadOnlyAppointment={ctx.isReadOnlyAppointment}
-              startingConsultation={ctx.startingConsultation}
-              handleStartConsultation={ctx.handleStartConsultation}
-              handleVideoCall={() => checkVitalsAndExecute(ctx.handleVideoCall)}
               joinDisabled={ctx.joinDisabled}
               actionLabel={ctx.actionLabel}
               currentAppointment={ctx.currentAppointment}

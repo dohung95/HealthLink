@@ -59,5 +59,10 @@ export function useVitalSigns(appointmentId) {
     };
   }, [loadLatestVitalSign]);
 
-  return { latestVitalSign, loadingVitalSign };
+  return {
+    latestVitalSign,
+    loadingVitalSign,
+    setLatestVitalSign,
+    refreshLatestVitalSign: loadLatestVitalSign,
+  };
 }
