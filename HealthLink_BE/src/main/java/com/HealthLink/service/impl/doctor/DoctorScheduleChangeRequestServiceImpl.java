@@ -12,6 +12,7 @@ import com.HealthLink.repository.admin.DoctorScheduleChangeRequestRepository;
 import com.HealthLink.repository.appointment.AppointmentRepository;
 import com.HealthLink.entity.enums.NotificationType;
 import com.HealthLink.repository.doctor.DoctorRepository;
+import com.HealthLink.service.admin.AdminNotificationService;
 import com.HealthLink.service.doctor.DoctorScheduleChangeRequestService;
 import com.HealthLink.service.notification.NotificationService;
 import org.springframework.transaction.annotation.Transactional;
@@ -30,17 +31,20 @@ public class DoctorScheduleChangeRequestServiceImpl implements DoctorScheduleCha
     private final DoctorScheduleChangeRequestRepository changeRequestRepository;
     private final AdminScheduleAuditLogRepository auditLogRepository;
     private final NotificationService notificationService;
+    private final AdminNotificationService adminNotificationService;
 
     public DoctorScheduleChangeRequestServiceImpl(DoctorRepository doctorRepository,
                                                   AppointmentRepository appointmentRepository,
                                                   DoctorScheduleChangeRequestRepository changeRequestRepository,
                                                   AdminScheduleAuditLogRepository auditLogRepository,
-                                                  NotificationService notificationService) {
+                                                  NotificationService notificationService,
+                                                  AdminNotificationService adminNotificationService) {
         this.doctorRepository = doctorRepository;
         this.appointmentRepository = appointmentRepository;
         this.changeRequestRepository = changeRequestRepository;
         this.auditLogRepository = auditLogRepository;
         this.notificationService = notificationService;
+        this.adminNotificationService = adminNotificationService;
     }
 
     @Override
@@ -77,6 +81,8 @@ public class DoctorScheduleChangeRequestServiceImpl implements DoctorScheduleCha
         DoctorScheduleChangeRequest saved = changeRequestRepository.save(entity);
         logDoctorScheduleChangeRequest(doctor, appointment, saved, "REQUEST_CREATED");
         notifyDoctorRequestCreated(doctor, saved);
+        adminNotificationService.notifyDoctorScheduleChangeRequest(
+                doctor.getFullName(), appointment.getAppointmentId(), saved.getRequestId());
         return mapResponse(saved);
     }
 
@@ -153,18 +159,18 @@ public class DoctorScheduleChangeRequestServiceImpl implements DoctorScheduleCha
         notificationService.sendWebSocketNotification(
                 doctor.getUser(),
                 NotificationType.ADMIN_SCHEDULE_CHANGE,
-                "Yêu cầu đổi lịch đã gửi",
-                "Yêu cầu đổi lịch cho cuộc hẹn " + request.getAppointment().getAppointmentId() + " đã được gửi đến admin.",
+                "Schedule change request sent",
+                "Your schedule change request for appointment #" + request.getAppointment().getAppointmentId() + " has been sent to the admin.",
                 request.getAppointment().getAppointmentId(),
                 "/appointments/" + request.getAppointment().getAppointmentId()
         );
     }
 
     private void notifyDoctorRequestResult(Doctor doctor, DoctorScheduleChangeRequest request) {
-        String title = request.getStatus() == ChangeRequestStatus.APPROVED ? "Yêu cầu đổi lịch đã được duyệt" : "Yêu cầu đổi lịch bị từ chối";
-        String message = "Trạng thái yêu cầu đổi lịch: " + request.getStatus() + ".";
+        String title = request.getStatus() == ChangeRequestStatus.APPROVED ? "Schedule change request approved" : "Schedule change request rejected";
+        String message = "Schedule change request status: " + request.getStatus() + ".";
         if (request.getAdminReason() != null) {
-            message += " Lý do: " + request.getAdminReason();
+            message += " Reason: " + request.getAdminReason();
         }
         notificationService.sendWebSocketNotification(
                 doctor.getUser(),

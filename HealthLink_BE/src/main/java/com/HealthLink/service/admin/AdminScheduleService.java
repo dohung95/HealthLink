@@ -373,6 +373,7 @@ public class AdminScheduleService {
             case "MODIFY_SCHEDULE": return "Modify schedule";
             case "CANCEL_APPOINTMENT": return "Cancel appointment";
             case "REASSIGN_APPOINTMENT": return "Reassign appointment";
+            case "CREATE_DAY_OFF": return "Doctor registered day off";
             default: return actionType;
         }
     }

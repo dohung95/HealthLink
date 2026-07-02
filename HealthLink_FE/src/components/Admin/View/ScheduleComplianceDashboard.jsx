@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useMemo, useRef } from "react";
+import { useSearchParams } from "react-router-dom";
 import NavbarAdmin from "./NavbarAdmin";
 import { adminComplianceService } from "../../../api/complianceApi";
 import { scheduleApi } from "../../../api/adminApi";
@@ -16,7 +17,10 @@ export default function ScheduleComplianceDashboard() {
   const { toast, showToast, hideToast } = useToast();
 
   // Active tab: 'compliance' or 'change-requests'
-  const [activeTab, setActiveTab] = useState('compliance');
+  const [searchParams] = useSearchParams();
+  const [activeTab, setActiveTab] = useState(
+    searchParams.get('tab') === 'change-requests' ? 'change-requests' : 'compliance'
+  );
 
   // Month selection
   const [selectedMonth, setSelectedMonth] = useState(() => {
@@ -60,6 +64,13 @@ export default function ScheduleComplianceDashboard() {
 
   // Day names for schedule display
   const dayNames = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
+
+  // Keep tab in sync if navigated here again with a different ?tab= query (e.g. from a notification)
+  useEffect(() => {
+    if (searchParams.get('tab') === 'change-requests') {
+      setActiveTab('change-requests');
+    }
+  }, [searchParams]);
 
   // Fetch compliance data when filters change
   useEffect(() => {

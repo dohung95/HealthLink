@@ -53,6 +53,7 @@ class ApiConfig {
   static const String scheduleCalendar = '$baseUrl/doctors/schedule/calendar';
   static const String scheduleChangeRequests = '$baseUrl/doctors/schedule/change-requests';
   static const String complianceStatus = '$baseUrl/doctors/compliance/status';
+  static const String scheduleDayOff = '$baseUrl/doctors/schedule/day-off';
 
   // ── Doctor Profile Endpoints ───────────────────────────────────────────────
   /// GET /api/account/doctors/profile – Lấy profile của bác sĩ đang đăng nhập.

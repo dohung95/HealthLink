@@ -1,6 +1,7 @@
 package com.HealthLink.controller.doctor;
 
 import com.HealthLink.dto.doctor.schedule.CalendarDayResponse;
+import com.HealthLink.dto.doctor.schedule.DoctorDayOffRequest;
 import com.HealthLink.dto.doctor.schedule.DoctorScheduleChangeRequestRequest;
 import com.HealthLink.dto.doctor.schedule.DoctorScheduleChangeRequestResponse;
 import com.HealthLink.dto.doctor.schedule.DoctorScheduleRequest;
@@ -127,6 +128,17 @@ public class DoctorScheduleController {
         String doctorId = resolveDoctorId(userDetails);
         scheduleService.deleteException(doctorId, exceptionId);
         return ResponseEntity.ok(Map.of("message", "Exception deleted successfully"));
+    }
+
+    /**
+     * Doctor self-registers a day off on a future date that already has a working schedule.
+     */
+    @PostMapping("/day-off")
+    public ResponseEntity<WeeklyScheduleResponse.ExceptionItem> createDayOff(
+            @Valid @RequestBody DoctorDayOffRequest request,
+            @AuthenticationPrincipal UserDetails userDetails) {
+        String doctorId = resolveDoctorId(userDetails);
+        return ResponseEntity.ok(scheduleService.createDayOff(doctorId, request));
     }
 
     // ========== Calendar View ==========
