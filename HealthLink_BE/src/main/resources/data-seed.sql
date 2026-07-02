@@ -307,21 +307,21 @@ SET IDENTITY_INSERT AppointmentSlotHolds OFF;
 
 -- 15. APPOINTMENTS (14 appointments)
 SET IDENTITY_INSERT Appointments ON;
-INSERT INTO Appointments (AppointmentID, AppointmentTime, ConsultationType, Status, symptoms, notes, fee, endTime, cancelReason, cancelledBy, cancelledAt, rescheduledFrom, followUpSourceAppointmentId, doctorReminderSent, reminderSent, confirmedAt, PatientID, DoctorID) VALUES
-(1, '2024-05-10 09:00:00', 'Video', 'Completed', 'Headache and fatigue for 3 days', 'Patient needs follow-up', 150.00, '2024-05-10 09:30:00', NULL, NULL, NULL, NULL, NULL, 0, 1, '2024-05-09 15:00:00', 'user-p01', 'user-d01'),
-(2, '2024-05-11 10:00:00', 'Video', 'Completed', 'Child has fever and dry cough', 'Prescription provided', 120.00, '2024-05-11 10:20:00', NULL, NULL, NULL, NULL, NULL, 0, 1, '2024-05-10 18:00:00', 'user-p02', 'user-d02'),
-(3, '2024-05-12 09:30:00', 'Video', 'Completed', 'Chest pain and shortness of breath', 'Additional tests required', 250.00, '2024-05-12 10:15:00', NULL, NULL, NULL, NULL, NULL, 0, 1, '2024-05-11 14:00:00', 'user-p03', 'user-d03'),
-(4, '2024-05-15 08:00:00', 'Offline', 'Completed', 'Abdominal pain in upper region', 'Surgery consultation', 180.00, '2024-05-15 08:30:00', NULL, NULL, NULL, NULL, NULL, 0, 1, '2024-05-14 10:00:00', 'user-p04', 'user-d04'),
-(5, '2024-05-16 14:00:00', 'Video', 'Completed', 'Routine prenatal checkup', 'Baby developing normally', 140.00, '2024-05-16 14:30:00', NULL, NULL, NULL, NULL, NULL, 0, 1, '2024-05-15 09:00:00', 'user-p05', 'user-d05'),
-(6, '2024-05-18 09:00:00', 'Video', 'Scheduled', 'Skin rash all over body', NULL, 110.00, NULL, NULL, NULL, NULL, NULL, NULL, 0, 1, '2024-05-17 16:00:00', 'user-p06', 'user-d06'),
-(7, '2024-05-20 15:00:00', 'Offline', 'Confirmed', 'Severe headache and dizziness', NULL, 220.00, NULL, NULL, NULL, NULL, NULL, NULL, 0, 1, '2024-05-19 11:00:00', 'user-p07', 'user-d07'),
-(8, '2024-05-22 08:30:00', 'Offline', 'Scheduled', 'Blurry vision and eye pain', NULL, 160.00, NULL, NULL, NULL, NULL, NULL, NULL, 0, 0, NULL, 'user-p08', 'user-d08'),
-(9, '2024-05-13 14:00:00', 'Video', 'Cancelled', 'Sore throat, difficulty swallowing', 'Patient cancelled', NULL, NULL, 'Unexpected work commitment', 'Patient', '2024-05-13 08:00:00', NULL, NULL, 0, 1, '2024-05-12 20:00:00', 'user-p09', 'user-d09'),
-(10, '2024-05-25 10:00:00', 'Offline', 'Scheduled', 'Toothache and swollen gums', NULL, 90.00, NULL, NULL, NULL, NULL, NULL, NULL, 0, 0, NULL, 'user-p10', 'user-d10'),
-(11, '2024-05-24 16:00:00', 'Video', 'Completed', 'Follow-up after seasonal flu', 'Completed telehealth session for invoice generation test', 150.00, '2024-05-24 16:30:00', NULL, NULL, NULL, NULL, NULL, 0, 1, '2024-05-24 15:50:00', 'user-p01', 'user-d01'),
-(12, '2024-05-26 09:00:00', 'Video', 'Scheduled', 'Follow-up consultation', NULL, 150.00, NULL, NULL, NULL, NULL, NULL, NULL, 0, 0, NULL, 'user-p01', 'user-d01'),
-(13, '2024-05-26 10:00:00', 'Video', 'Scheduled', 'Follow-up consultation', NULL, 150.00, NULL, NULL, NULL, NULL, NULL, NULL, 0, 0, NULL, 'user-p01', 'user-d01'),
-(14, '2024-05-27 19:00:00', 'HomeVisit', 'Completed', 'Elderly patient has difficulty walking and needs home evaluation', 'Home visit completed with selected services', 173.00, '2024-05-27 20:40:00', NULL, NULL, NULL, NULL, NULL, 0, 1, '2024-05-27 18:30:00', 'user-p01', 'user-d01');
+INSERT INTO Appointments (AppointmentID, AppointmentTime, ConsultationType, Status, symptoms, notes, fee, endTime, cancelReason, cancelledBy, cancelledAt, rescheduledFrom, followUpSourceAppointmentId, doctorReminderSent, reminderSent, patientFifteenMinuteReminderSent, confirmedAt, PatientID, DoctorID) VALUES
+(1, '2024-05-10 09:00:00', 'Video', 'Completed', 'Headache and fatigue for 3 days', 'Patient needs follow-up', 150.00, '2024-05-10 09:30:00', NULL, NULL, NULL, NULL, NULL, 0, 1, 0, '2024-05-09 15:00:00', 'user-p01', 'user-d01'),
+(2, '2024-05-11 10:00:00', 'Video', 'Completed', 'Child has fever and dry cough', 'Prescription provided', 120.00, '2024-05-11 10:20:00', NULL, NULL, NULL, NULL, NULL, 0, 1, 0, '2024-05-10 18:00:00', 'user-p02', 'user-d02'),
+(3, '2024-05-12 09:30:00', 'Video', 'Completed', 'Chest pain and shortness of breath', 'Additional tests required', 250.00, '2024-05-12 10:15:00', NULL, NULL, NULL, NULL, NULL, 0, 1, 0, '2024-05-11 14:00:00', 'user-p03', 'user-d03'),
+(4, '2024-05-15 08:00:00', 'Offline', 'Completed', 'Abdominal pain in upper region', 'Surgery consultation', 180.00, '2024-05-15 08:30:00', NULL, NULL, NULL, NULL, NULL, 0, 1, 0, '2024-05-14 10:00:00', 'user-p04', 'user-d04'),
+(5, '2024-05-16 14:00:00', 'Video', 'Completed', 'Routine prenatal checkup', 'Baby developing normally', 140.00, '2024-05-16 14:30:00', NULL, NULL, NULL, NULL, NULL, 0, 1, 0, '2024-05-15 09:00:00', 'user-p05', 'user-d05'),
+(6, '2024-05-18 09:00:00', 'Video', 'Scheduled', 'Skin rash all over body', NULL, 110.00, NULL, NULL, NULL, NULL, NULL, NULL, 0, 1, 0, '2024-05-17 16:00:00', 'user-p06', 'user-d06'),
+(7, '2024-05-20 15:00:00', 'Offline', 'Confirmed', 'Severe headache and dizziness', NULL, 220.00, NULL, NULL, NULL, NULL, NULL, NULL, 0, 1, 0, '2024-05-19 11:00:00', 'user-p07', 'user-d07'),
+(8, '2024-05-22 08:30:00', 'Offline', 'Scheduled', 'Blurry vision and eye pain', NULL, 160.00, NULL, NULL, NULL, NULL, NULL, NULL, 0, 0, 0, NULL, 'user-p08', 'user-d08'),
+(9, '2024-05-13 14:00:00', 'Video', 'Cancelled', 'Sore throat, difficulty swallowing', 'Patient cancelled', NULL, NULL, 'Unexpected work commitment', 'Patient', '2024-05-13 08:00:00', NULL, NULL, 0, 1, 0, '2024-05-12 20:00:00', 'user-p09', 'user-d09'),
+(10, '2024-05-25 10:00:00', 'Offline', 'Scheduled', 'Toothache and swollen gums', NULL, 90.00, NULL, NULL, NULL, NULL, NULL, NULL, 0, 0, 0, NULL, 'user-p10', 'user-d10'),
+(11, '2024-05-24 16:00:00', 'Video', 'Completed', 'Follow-up after seasonal flu', 'Completed telehealth session for invoice generation test', 150.00, '2024-05-24 16:30:00', NULL, NULL, NULL, NULL, NULL, 0, 1, 0, '2024-05-24 15:50:00', 'user-p01', 'user-d01'),
+(12, '2024-05-26 09:00:00', 'Video', 'Scheduled', 'Follow-up consultation', NULL, 150.00, NULL, NULL, NULL, NULL, NULL, NULL, 0, 0, 0, NULL, 'user-p01', 'user-d01'),
+(13, '2024-05-26 10:00:00', 'Video', 'Scheduled', 'Follow-up consultation', NULL, 150.00, NULL, NULL, NULL, NULL, NULL, NULL, 0, 0, 0, NULL, 'user-p01', 'user-d01'),
+(14, '2024-05-27 19:00:00', 'HomeVisit', 'Completed', 'Elderly patient has difficulty walking and needs home evaluation', 'Home visit completed with selected services', 173.00, '2024-05-27 20:40:00', NULL, NULL, NULL, NULL, NULL, 0, 1, 0, '2024-05-27 18:30:00', 'user-p01', 'user-d01');
 SET IDENTITY_INSERT Appointments OFF;
 
 -- 15b. HOME_VISIT_DETAILS
