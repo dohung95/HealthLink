@@ -8,6 +8,7 @@ import '../../models/doctor/doctor_profile.dart';
 import '../../config/api_config.dart';
 import '../../config/doctor_theme.dart';
 import '../../widgets/doctor/doctor_widgets.dart';
+import '../../widgets/doctor/complete_appointment_sheet.dart';
 
 class DoctorAppointmentsScreen extends StatefulWidget {
   const DoctorAppointmentsScreen({super.key});
@@ -211,6 +212,7 @@ class _DoctorAppointmentsScreenState extends State<DoctorAppointmentsScreen> {
                                     appointment: _filteredAppointments[index],
                                     onUpdateStatus: _updateStatus,
                                     onStartCall: _startCall,
+                                    onComplete: _openCompleteSheet,
                                   ),
                                 ),
                         ),
@@ -271,14 +273,12 @@ class _DoctorAppointmentsScreenState extends State<DoctorAppointmentsScreen> {
 
       if (newStatus == 'IN_PROGRESS') {
         await DoctorService.startConsultation(token, appointmentId);
-      } else if (newStatus == 'COMPLETED') {
-        await DoctorService.completeAppointment(token, appointmentId);
       }
 
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text(newStatus == 'IN_PROGRESS' ? 'Consultation started' : newStatus == 'COMPLETED' ? 'Consultation completed' : 'Appointment updated'),
+            content: Text(newStatus == 'IN_PROGRESS' ? 'Consultation started' : 'Appointment updated'),
             behavior: SnackBarBehavior.floating,
           ),
         );
@@ -291,6 +291,19 @@ class _DoctorAppointmentsScreenState extends State<DoctorAppointmentsScreen> {
         );
       }
     }
+  }
+
+  void _openCompleteSheet(DoctorAppointment appointment) {
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (_) => CompleteAppointmentSheet(
+        appointmentId: appointment.appointmentId,
+        patientName: appointment.patientName,
+        onCompleted: _loadData,
+      ),
+    );
   }
 
   void _startCall(String id) {
@@ -313,8 +326,9 @@ class _AppointmentCard extends StatelessWidget {
   final DoctorAppointment appointment;
   final Function(String id, String status) onUpdateStatus;
   final Function(String id) onStartCall;
+  final Function(DoctorAppointment appointment) onComplete;
 
-  const _AppointmentCard({required this.appointment, required this.onUpdateStatus, required this.onStartCall});
+  const _AppointmentCard({required this.appointment, required this.onUpdateStatus, required this.onStartCall, required this.onComplete});
 
   @override
   Widget build(BuildContext context) {
@@ -378,7 +392,7 @@ class _AppointmentCard extends StatelessWidget {
               child: Row(
                 children: [
                   if (status == 'IN_PROGRESS') ...[
-                    Expanded(child: _ActionButton(label: 'Complete', icon: Icons.check_circle_outline, color: DS.emerald600, filled: true, onTap: () => onUpdateStatus(appointment.appointmentId.toString(), 'COMPLETED'))),
+                    Expanded(child: _ActionButton(label: 'Complete', icon: Icons.check_circle_outline, color: DS.emerald600, filled: true, onTap: () => onComplete(appointment))),
                     if (appointment.consultationType?.toUpperCase() != 'CHAT') ...[
                       const SizedBox(width: 8),
                       _ActionButton(label: appointment.consultationType?.toUpperCase() == 'VIDEO' ? 'Video' : 'Audio', icon: appointment.consultationType?.toUpperCase() == 'VIDEO' ? Icons.videocam : Icons.phone, color: DS.primary, filled: false, onTap: () => onStartCall(appointment.appointmentId.toString())),
