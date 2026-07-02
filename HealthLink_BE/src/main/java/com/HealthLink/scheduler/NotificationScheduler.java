@@ -16,6 +16,7 @@ import com.HealthLink.repository.appointment.AppointmentRepository;
 import com.HealthLink.repository.consultation.ConsultationRepository;
 import com.HealthLink.repository.pharmacy.PharmacyInventoryRepository;
 import com.HealthLink.repository.pharmacy.PharmacyRepository;
+import com.HealthLink.service.email.EmailService;
 import com.HealthLink.service.medicine.MedicineReminderService;
 import com.HealthLink.service.notification.NotificationService;
 import lombok.RequiredArgsConstructor;
@@ -40,11 +41,16 @@ import java.util.stream.Collectors;
 public class NotificationScheduler {
 
     private static final int LOW_STOCK_THRESHOLD = 10;
+    private static final int PATIENT_ONE_HOUR_REMINDER_MINUTES = 60;
+    private static final int PATIENT_FIFTEEN_MINUTE_REMINDER_MINUTES = 15;
+    private static final DateTimeFormatter PATIENT_REMINDER_EMAIL_TIME_FORMATTER =
+            DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm");
 
     private final AppointmentRepository appointmentRepository;
     private final ConsultationRepository consultationRepository;
     private final NotificationService notificationService;
     private final MedicineReminderService medicineReminderService;
+    private final EmailService emailService;
     private final PharmacyRepository pharmacyRepository;
     private final PharmacyInventoryRepository inventoryRepository;
 
@@ -56,8 +62,8 @@ public class NotificationScheduler {
 
     @Transactional
     public NotificationDispatchSummary sendAppointmentReminders(LocalDateTime now) {
-        LocalDateTime from = now.plusHours(1);
-        LocalDateTime to = now.plusHours(1).plusMinutes(5);
+        LocalDateTime from = now.plusMinutes(PATIENT_ONE_HOUR_REMINDER_MINUTES);
+        LocalDateTime to = from.plusMinutes(5);
 
         List<Appointment> upcomingAppointments =
                 appointmentRepository.findUpcomingAndReminderNotSent(from, to);
@@ -83,20 +89,17 @@ public class NotificationScheduler {
                 }
 
                 String title = "Upcoming Appointment Reminder";
-                String message = String.format(
-                        "You have an appointment with Dr. %s at %s. Please be ready.",
-                        appointment.getDoctor().getFullName(),
-                        appointment.getAppointmentTime().toLocalTime()
+                String message = buildPatientAppointmentReminderMessage(
+                        appointment,
+                        PATIENT_ONE_HOUR_REMINDER_MINUTES
                 );
 
-                notificationService.sendWebSocketAndMobilePushNotification(
+                sendPatientAppointmentReminder(
+                        appointment,
                         patientUser,
-                        NotificationType.APPOINTMENT_REMINDER,
                         title,
                         message,
-                        NotificationPriority.HIGH,
-                        appointment.getAppointmentId(),
-                        "/appointments/" + appointment.getAppointmentId()
+                        PATIENT_ONE_HOUR_REMINDER_MINUTES
                 );
 
                 appointmentRepository.markReminderSent(appointment.getAppointmentId());
@@ -113,6 +116,70 @@ public class NotificationScheduler {
         }
 
         return buildSummary("PATIENT_APPOINTMENT_REMINDER", now, candidateCount, sentCount, skippedCount, failedCount);
+    }
+
+    @Scheduled(cron = "0 0/5 * * * *")
+    @Transactional
+    public void sendPatientFifteenMinuteAppointmentReminders() {
+        sendPatientFifteenMinuteAppointmentReminders(LocalDateTime.now());
+    }
+
+    @Transactional
+    public NotificationDispatchSummary sendPatientFifteenMinuteAppointmentReminders(LocalDateTime now) {
+        LocalDateTime from = now.plusMinutes(PATIENT_FIFTEEN_MINUTE_REMINDER_MINUTES);
+        LocalDateTime to = from.plusMinutes(5);
+
+        List<Appointment> upcomingAppointments =
+                appointmentRepository.findUpcomingPatientFifteenMinuteReminderCandidates(from, to);
+
+        int candidateCount = upcomingAppointments.size();
+        int sentCount = 0;
+        int skippedCount = 0;
+        int failedCount = 0;
+
+        if (upcomingAppointments.isEmpty()) {
+            log.debug("15-minute appointment reminder job: no upcoming appointments in window [{} - {}]", from, to);
+            return buildSummary("PATIENT_APPOINTMENT_REMINDER_15_MINUTES", now, candidateCount, sentCount, skippedCount, failedCount);
+        }
+
+        log.info("15-minute appointment reminder job: found {} appointments to remind", candidateCount);
+
+        for (Appointment appointment : upcomingAppointments) {
+            try {
+                User patientUser = appointment.getPatient().getUser();
+                if (patientUser == null || patientUser.getId() == null || patientUser.getId().isBlank()) {
+                    skippedCount++;
+                    continue;
+                }
+
+                String title = "Appointment starts in 15 minutes";
+                String message = buildPatientAppointmentReminderMessage(
+                        appointment,
+                        PATIENT_FIFTEEN_MINUTE_REMINDER_MINUTES
+                );
+
+                sendPatientAppointmentReminder(
+                        appointment,
+                        patientUser,
+                        title,
+                        message,
+                        PATIENT_FIFTEEN_MINUTE_REMINDER_MINUTES
+                );
+
+                appointmentRepository.markPatientFifteenMinuteReminderSent(appointment.getAppointmentId());
+                sentCount++;
+
+                log.info("15-minute reminder sent for appointmentId={}, patientId={}",
+                        appointment.getAppointmentId(), patientUser.getId());
+
+            } catch (Exception ex) {
+                failedCount++;
+                log.error("Failed to send 15-minute reminder for appointmentId={}: {}",
+                        appointment.getAppointmentId(), ex.getMessage());
+            }
+        }
+
+        return buildSummary("PATIENT_APPOINTMENT_REMINDER_15_MINUTES", now, candidateCount, sentCount, skippedCount, failedCount);
     }
 
     @Scheduled(cron = "0 0/5 * * * *")
@@ -485,6 +552,103 @@ public class NotificationScheduler {
         }
 
         return buildSummary("DAILY_APPOINTMENT_DIGEST", today.atStartOfDay(), candidateCount, sentCount, skippedCount, failedCount);
+    }
+
+    private void sendPatientAppointmentReminder(Appointment appointment, User patientUser,
+                                                String title, String message,
+                                                int minutesBeforeStart) {
+        notificationService.sendWebSocketAndMobilePushNotification(
+                patientUser,
+                NotificationType.APPOINTMENT_REMINDER,
+                title,
+                message,
+                NotificationPriority.HIGH,
+                appointment.getAppointmentId(),
+                "/appointments/" + appointment.getAppointmentId()
+        );
+
+        sendPatientAppointmentReminderEmail(appointment, patientUser, minutesBeforeStart);
+    }
+
+    private void sendPatientAppointmentReminderEmail(Appointment appointment, User patientUser,
+                                                     int minutesBeforeStart) {
+        if (patientUser.getEmail() == null || patientUser.getEmail().isBlank()) {
+            log.warn("Skipping appointment reminder email for appointmentId={} because patient email is missing",
+                    appointment.getAppointmentId());
+            return;
+        }
+
+        try {
+            emailService.sendAppointmentReminderEmail(
+                    patientUser.getEmail(),
+                    resolvePatientName(appointment, patientUser),
+                    resolveDoctorName(appointment),
+                    formatPatientAppointmentTime(appointment),
+                    resolveConsultationType(appointment),
+                    minutesBeforeStart
+            );
+        } catch (Exception ex) {
+            log.error("Failed to send appointment reminder email for appointmentId={}, email={}: {}",
+                    appointment.getAppointmentId(), patientUser.getEmail(), ex.getMessage());
+        }
+    }
+
+    private String buildPatientAppointmentReminderMessage(Appointment appointment, int minutesBeforeStart) {
+        String doctorName = resolveDoctorName(appointment);
+        String doctorLabel = "your doctor".equals(doctorName) ? doctorName : "Dr. " + doctorName;
+        String appointmentTime = appointment.getAppointmentTime() != null
+                ? appointment.getAppointmentTime().toLocalTime().toString()
+                : "your scheduled time";
+
+        if (minutesBeforeStart == PATIENT_ONE_HOUR_REMINDER_MINUTES) {
+            return String.format(
+                    "You have an appointment with %s at %s. Please be ready.",
+                    doctorLabel,
+                    appointmentTime
+            );
+        }
+
+        return String.format(
+                "Your appointment with %s starts in %d minutes at %s. Please be ready.",
+                doctorLabel,
+                minutesBeforeStart,
+                appointmentTime
+        );
+    }
+
+    private String resolvePatientName(Appointment appointment, User patientUser) {
+        if (appointment.getPatient() != null
+                && appointment.getPatient().getFullName() != null
+                && !appointment.getPatient().getFullName().isBlank()) {
+            return appointment.getPatient().getFullName();
+        }
+        if (patientUser.getUsername() != null && !patientUser.getUsername().isBlank()) {
+            return patientUser.getUsername();
+        }
+        return "Patient";
+    }
+
+    private String resolveDoctorName(Appointment appointment) {
+        if (appointment.getDoctor() != null
+                && appointment.getDoctor().getFullName() != null
+                && !appointment.getDoctor().getFullName().isBlank()) {
+            return appointment.getDoctor().getFullName();
+        }
+        return "your doctor";
+    }
+
+    private String formatPatientAppointmentTime(Appointment appointment) {
+        if (appointment.getAppointmentTime() == null) {
+            return "your scheduled time";
+        }
+        return appointment.getAppointmentTime().format(PATIENT_REMINDER_EMAIL_TIME_FORMATTER);
+    }
+
+    private String resolveConsultationType(Appointment appointment) {
+        if (appointment.getConsultationType() == null || appointment.getConsultationType().isBlank()) {
+            return "Consultation";
+        }
+        return appointment.getConsultationType();
     }
 
     private NotificationDispatchSummary buildSummary(String job, LocalDateTime effectiveNow, int candidateCount, int sentCount, int skippedCount, int failedCount) {
