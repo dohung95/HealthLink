@@ -14,6 +14,11 @@ import '../../../utils/notification_helper.dart';
 import '../../../providers/chat/chat_provider.dart';
 import '../../../providers/video_call_provider.dart';
 import '../../../l10n/app_localizations.dart';
+import '../../../services/patient/vitals/vital_sign_service.dart';
+import '../../../widgets/patient/vitals_bottom_sheet.dart';
+import '../../../services/patient/patient_review_service.dart';
+import '../../../widgets/patient/rate_doctor_modal.dart';
+import '../../../widgets/patient/view_doctor_rating_modal.dart';
 
 class AppointmentScreen extends StatefulWidget {
   const AppointmentScreen({super.key, this.onBookNew});
@@ -36,14 +41,16 @@ class _AppointmentScreenState extends State<AppointmentScreen> {
   String? _error;
   String? _patientId;
 
+  List<PatientAppointment> _appointments = [];
+  Map<int, bool> _reviewableAppointments = {};
+  
   int _currentPage = 1;
   int _totalPages = 1;
   int _totalItems = 0;
 
   DateTime _now = DateTime.now();
   Timer? _timer;
-
-  List<PatientAppointment> _appointments = [];
+  StreamSubscription<void>? _systemUpdateSub;
 
   String _statusFilter = 'ALL';
 
@@ -67,6 +74,11 @@ class _AppointmentScreenState extends State<AppointmentScreen> {
       _initialize();
     });
 
+    final chatProvider = context.read<ChatProvider>();
+    _systemUpdateSub = chatProvider.onSystemUpdate.listen((_) {
+      if (mounted) _loadAppointments(page: _currentPage);
+    });
+
     _timer = Timer.periodic(const Duration(seconds: 30), (_) {
       if (mounted) {
         setState(() {
@@ -79,6 +91,7 @@ class _AppointmentScreenState extends State<AppointmentScreen> {
   @override
   void dispose() {
     _timer?.cancel();
+    _systemUpdateSub?.cancel();
     super.dispose();
   }
 
@@ -132,6 +145,7 @@ class _AppointmentScreenState extends State<AppointmentScreen> {
         _totalPages = result.totalPages == 0 ? 1 : result.totalPages;
         _totalItems = result.totalItems;
       });
+      _checkReviewableStatus(result.items);
     } catch (e) {
       if (!mounted) return;
 
@@ -145,6 +159,49 @@ class _AppointmentScreenState extends State<AppointmentScreen> {
         });
       }
     }
+  }
+
+  Future<void> _checkReviewableStatus(List<PatientAppointment> items) async {
+    final auth = context.read<AuthProvider>();
+    if (auth.accessToken == null) return;
+    
+    final completedApps = items.where((a) => a.status?.toUpperCase() == 'COMPLETED').toList();
+    if (completedApps.isEmpty) return;
+
+    final Map<int, bool> newStatus = {};
+    await Future.wait(completedApps.map((apt) async {
+      final canReview = await PatientReviewService.canReview(auth.accessToken!, apt.appointmentId);
+      newStatus[apt.appointmentId] = canReview;
+    }));
+    
+    if (mounted) {
+      setState(() {
+        _reviewableAppointments.addAll(newStatus);
+      });
+    }
+  }
+
+  void _handleRateClick(PatientAppointment appointment) async {
+    final result = await showModalBottomSheet<bool>(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (_) => RateDoctorModal(appointment: appointment),
+    );
+
+    if (result == true) {
+      // Just reload current page to update status
+      _loadAppointments(page: _currentPage);
+    }
+  }
+
+  void _handleViewRateClick(PatientAppointment appointment) {
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (_) => ViewDoctorRatingModal(appointment: appointment),
+    );
   }
 
   Future<void> _handleStatusChanged(String? status) async {
@@ -164,7 +221,9 @@ class _AppointmentScreenState extends State<AppointmentScreen> {
       context: context,
       builder: (context) {
         return AlertDialog(
-          title: Text(AppLocalizations.of(context)!.cancelAppointmentDialogTitle),
+          title: Text(
+            AppLocalizations.of(context)!.cancelAppointmentDialogTitle,
+          ),
           content: Text(
             AppLocalizations.of(context)!.cancelAppointmentDialogDesc,
           ),
@@ -210,6 +269,55 @@ class _AppointmentScreenState extends State<AppointmentScreen> {
         setState(() {
           _actionLoading = false;
         });
+      }
+    }
+  }
+
+  void _handleJoinRoom(PatientAppointment appointment) async {
+    final auth = context.read<AuthProvider>();
+    if (!auth.isAuthenticated || auth.accessToken == null || _patientId == null) return;
+
+    setState(() => _actionLoading = true);
+    try {
+      final vitals = await VitalSignService.getLatestAppointmentVitalSign(
+        auth.accessToken!, appointment.appointmentId);
+      
+      if (vitals == null || vitals['vitalSignId'] == null) {
+        if (!mounted) return;
+        setState(() => _actionLoading = false);
+        
+        showModalBottomSheet(
+          context: context,
+          isScrollControlled: true,
+          backgroundColor: Theme.of(context).colorScheme.surface,
+          shape: const RoundedRectangleBorder(
+            borderRadius: BorderRadius.vertical(top: Radius.circular(16)),
+          ),
+          builder: (_) => VitalsBottomSheet(
+            appointmentId: appointment.appointmentId,
+            onSaved: () {
+              if (appointment.isVideo) {
+                _handleVideo(appointment);
+              } else {
+                _handleChat(appointment);
+              }
+            },
+          ),
+        );
+        return;
+      }
+
+      if (appointment.isVideo) {
+        _handleVideo(appointment);
+      } else {
+        _handleChat(appointment);
+      }
+    } catch (e) {
+      if (!mounted) return;
+      _showMessage(_cleanError(e), isError: true);
+    } finally {
+      if (mounted) {
+        setState(() => _actionLoading = false);
       }
     }
   }
@@ -269,7 +377,10 @@ class _AppointmentScreenState extends State<AppointmentScreen> {
       );
 
       if (!success) {
-        _showMessage(AppLocalizations.of(context)!.msgAlreadyInCall, isError: true);
+        _showMessage(
+          AppLocalizations.of(context)!.msgAlreadyInCall,
+          isError: true,
+        );
         return;
       }
 
@@ -286,7 +397,10 @@ class _AppointmentScreenState extends State<AppointmentScreen> {
         ),
       );
     } else {
-      _showMessage(AppLocalizations.of(context)!.msgCannotStartVideoCall, isError: true);
+      _showMessage(
+        AppLocalizations.of(context)!.msgCannotStartVideoCall,
+        isError: true,
+      );
     }
   }
 
@@ -465,7 +579,9 @@ class _AppointmentScreenState extends State<AppointmentScreen> {
             icon: Icons.event_busy_outlined,
             title: _statusFilter == 'ALL'
                 ? AppLocalizations.of(context)!.noAppointmentsYet
-                : AppLocalizations.of(context)!.noStatusAppointments(selectedLabel),
+                : AppLocalizations.of(
+                    context,
+                  )!.noStatusAppointments(selectedLabel),
             subtitle: _statusFilter == 'ALL'
                 ? AppLocalizations.of(context)!.noAppointmentsYetDesc
                 : AppLocalizations.of(context)!.noStatusAppointmentsDesc,
@@ -542,7 +658,9 @@ class _AppointmentScreenState extends State<AppointmentScreen> {
                       ),
                       if (appointment.specialtyName.isNotEmpty)
                         Text(
-                          appointment.specialtyName.toLocalizedSpecialty(context),
+                          appointment.specialtyName.toLocalizedSpecialty(
+                            context,
+                          ),
                           style: TextStyle(color: colors.onSurfaceVariant),
                         ),
                     ],
@@ -570,17 +688,11 @@ class _AppointmentScreenState extends State<AppointmentScreen> {
               spacing: 10,
               runSpacing: 10,
               children: [
-                if (appointment.isChat && joinable)
+                if (joinable)
                   FilledButton.icon(
-                    onPressed: () => _handleChat(appointment),
-                    icon: const Icon(Icons.chat_bubble_outline),
-                    label: Text(AppLocalizations.of(context)!.btnChat),
-                  ),
-                if (appointment.isVideo && joinable)
-                  FilledButton.icon(
-                    onPressed: () => _handleVideo(appointment),
-                    icon: const Icon(Icons.videocam_outlined),
-                    label: Text(AppLocalizations.of(context)!.btnCallNow),
+                    onPressed: () => _handleJoinRoom(appointment),
+                    icon: const Icon(Icons.login),
+                    label: Text(AppLocalizations.of(context)!.btnJoinRoom),
                   ),
                 if (canReschedule)
                   OutlinedButton.icon(
@@ -594,6 +706,35 @@ class _AppointmentScreenState extends State<AppointmentScreen> {
                     icon: const Icon(Icons.close),
                     label: Text(AppLocalizations.of(context)!.btnCancel),
                   ),
+                if (appointment.status?.toUpperCase() == 'COMPLETED')
+                  if (_reviewableAppointments[appointment.appointmentId] == null)
+                    const Padding(
+                      padding: EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                      child: SizedBox(
+                        width: 20,
+                        height: 20,
+                        child: CircularProgressIndicator(strokeWidth: 2),
+                      ),
+                    )
+                  else if (_reviewableAppointments[appointment.appointmentId] == true)
+                    FilledButton.icon(
+                      onPressed: () => _handleRateClick(appointment),
+                      style: FilledButton.styleFrom(
+                        backgroundColor: Colors.amber.shade700,
+                        foregroundColor: Colors.white,
+                      ),
+                      icon: const Icon(Icons.star),
+                      label: Text(AppLocalizations.of(context)!.btnRate, style: const TextStyle(fontWeight: FontWeight.bold)),
+                    )
+                  else if (_reviewableAppointments[appointment.appointmentId] == false)
+                    OutlinedButton.icon(
+                      onPressed: () => _handleViewRateClick(appointment),
+                      style: OutlinedButton.styleFrom(
+                        foregroundColor: colors.onSurfaceVariant,
+                      ),
+                      icon: const Icon(Icons.star),
+                      label: Text(AppLocalizations.of(context)!.btnReviewed),
+                    ),
               ],
             ),
           ],
@@ -676,7 +817,9 @@ class _AppointmentScreenState extends State<AppointmentScreen> {
       children: [
         Expanded(
           child: Text(
-            AppLocalizations.of(context)!.paginationInfo(_currentPage, _totalPages, _totalItems),
+            AppLocalizations.of(
+              context,
+            )!.paginationInfo(_currentPage, _totalPages, _totalItems),
             style: TextStyle(color: colors.onSurfaceVariant),
           ),
         ),

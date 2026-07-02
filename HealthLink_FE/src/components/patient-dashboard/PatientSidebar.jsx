@@ -4,6 +4,7 @@ import { useEffect, useState, useCallback } from 'react';
 import { getProfile } from '../../api/account';
 import { getMyRooms } from '../../api/chatApi';
 import stompChatService from '../../services/stompChatService';
+import Swal from 'sweetalert2';
 
 /**
  * PatientSidebar - Thanh điều hướng bên trái cho bệnh nhân.
@@ -66,6 +67,23 @@ const PatientSidebar = () => {
         window.addEventListener('profile-updated', fetchProfile);
         return () => window.removeEventListener('profile-updated', fetchProfile);
     }, [token]);
+
+    const handleLogout = () => {
+        Swal.fire({
+            title: 'Logout?',
+            text: "Are you sure you want to logout from the system?",
+            icon: 'warning',
+            showCancelButton: true,
+            confirmButtonColor: '#e8604c',
+            cancelButtonColor: '#6f7f7b',
+            confirmButtonText: 'Yes, Logout',
+            cancelButtonText: 'No, Cancel'
+        }).then((result) => {
+            if (result.isConfirmed) {
+                logout();
+            }
+        });
+    };
 
     const menuItems = [
         { isHeader: true, label: 'Consultation' },
@@ -180,7 +198,11 @@ const PatientSidebar = () => {
                     </div>
                 </div>
 
-                <button className="patient-logout-btn" onClick={logout}>
+                <button
+                    className="patient-logout-btn"
+                    onClick={handleLogout}
+                    title="Logout from system"
+                >
                     <i className="bi bi-box-arrow-right"></i>
                     Logout
                 </button>

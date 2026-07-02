@@ -71,6 +71,20 @@
   gap: 8px;
   margin-top: 24px;
   flex: 1;
+  overflow-y: auto;
+  min-height: 0; /* Important for flex child scrolling */
+}
+
+/* Tùy chỉnh thanh cuộn cho đẹp mắt */
+.patient-sidebar-nav::-webkit-scrollbar {
+  width: 4px;
+}
+.patient-sidebar-nav::-webkit-scrollbar-track {
+  background: transparent;
+}
+.patient-sidebar-nav::-webkit-scrollbar-thumb {
+  background: rgba(255, 255, 255, 0.2);
+  border-radius: 4px;
 }
 
 .patient-sidebar-link {
@@ -155,6 +169,13 @@
   justify-content: center;
   gap: 8px;
   cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.patient-logout-btn:hover {
+  background: #e8604c;
+  color: #ffffff;
+  border-color: #e8604c;
 }
 
 

@@ -1,5 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { appointmentService } from '../api/appointmentApi';
+import { vitalSignApi } from '../api/vitalSignApi';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import { useChat } from '../context/ChatContext';
@@ -13,6 +14,7 @@ import RescheduleAppointmentModal from './RescheduleAppointmentModal';
 import PreConsultationVitalsModal from './PreConsultationVitalsModal';
 import ReviewForm from './patient-dashboard/ReviewForm';
 import { patientReviewApi } from '../api/reviewApi';
+import stompChatService from '../services/stompChatService';
 import './Css/MyAppointment.css';
 
 const MyAppointments = () => {
@@ -74,6 +76,25 @@ const MyAppointments = () => {
 
         return () => clearInterval(timer);
     }, []);
+
+    useEffect(() => {
+        if (!patientId) return;
+
+        const unsub = stompChatService.subscribeToChat((newMsg) => {
+            if (newMsg.content === '[SYSTEM_BLOCK_UPDATE]' || newMsg.content === '[SYSTEM_CONSULTATION_STARTED]') {
+                toast.info('Status changed! Refreshing appointments...', { duration: 3000 });
+                setTimeout(() => {
+                    loadAppointments(patientId, currentPage, statusFilter);
+                }, 500);
+            } else if (newMsg.content === '[SYSTEM_REVIEW_SUBMITTED]') {
+                loadAppointments(patientId, currentPage, statusFilter);
+            }
+        });
+
+        return () => {
+            if (unsub) unsub();
+        };
+    }, [patientId, currentPage, statusFilter]);
 
     const loadAppointments = async (
         currentPatientId = patientId,
@@ -190,7 +211,22 @@ const MyAppointments = () => {
         setPendingAppointmentId(null);
     };
 
-    const openVitalsBeforeConsultation = (appointment, action) => {
+    const openVitalsBeforeConsultation = async (appointment, action) => {
+        try {
+            const vitals = await vitalSignApi.getLatestAppointmentVitalSign(appointment.appointmentId);
+            if (vitals && vitals.vitalSignId) {
+                if (action === 'chat') {
+                    await handleChat(appointment);
+                } else if (action === 'online' || action === 'video') {
+                    await handleVideoCall(appointment);
+                }
+                return;
+            }
+        } catch (error) {
+            // No vitals found or error, continue to show modal
+            console.log("No vitals found or error:", error);
+        }
+
         setPendingConsultationAppointment(appointment);
         setPendingConsultationAction(action);
         setShowVitalsModal(true);

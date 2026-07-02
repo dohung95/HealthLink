@@ -9,6 +9,7 @@ import com.HealthLink.dto.response.FollowUpCalendarDayResponse;
 import com.HealthLink.dto.response.FollowUpCalendarResponse;
 import com.HealthLink.dto.response.FollowUpSlotResponse;
 import com.HealthLink.dto.response.FollowUpSlotsResponse;
+import com.HealthLink.dto.chat.MessageDTO;
 import com.HealthLink.entity.Appointment;
 import com.HealthLink.entity.Consultation;
 import com.HealthLink.entity.Doctor;
@@ -30,9 +31,16 @@ import com.HealthLink.repository.doctor.DoctorRepository;
 import com.HealthLink.repository.doctor.DoctorScheduleRepository;
 import com.HealthLink.repository.payment.InvoiceRepository;
 import com.HealthLink.repository.prescription.PrescriptionHeaderRepository;
+import com.HealthLink.repository.chat.ChatRoomRepository;
+import com.HealthLink.repository.chat.MessageRepository;
+import com.HealthLink.repository.vitalsign.VitalSignRepository;
+import com.HealthLink.entity.ChatRoom;
+import com.HealthLink.entity.Message;
+import com.HealthLink.entity.VitalSign;
 import com.HealthLink.service.followup.FollowUpAppointmentService;
 import com.HealthLink.service.notification.NotificationService;
 import com.HealthLink.service.payment.CommissionService;
+import org.springframework.messaging.simp.SimpMessagingTemplate;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -61,6 +69,10 @@ public class FollowUpAppointmentServiceImpl implements FollowUpAppointmentServic
     private final InvoiceRepository invoiceRepository;
     private final PrescriptionHeaderRepository prescriptionHeaderRepository;
     private final CommissionService commissionService;
+    private final ChatRoomRepository chatRoomRepository;
+    private final MessageRepository messageRepository;
+    private final VitalSignRepository vitalSignRepository;
+    private final SimpMessagingTemplate messagingTemplate;
     private final NotificationService notificationService;
 
     @Override
@@ -408,6 +420,39 @@ public class FollowUpAppointmentServiceImpl implements FollowUpAppointmentServic
             throw new BadRequestException("Consultation must be started before appointment can be completed");
         }
 
+        // Kiem tra rule: Patient phai nhap thong tin y te (VitalSigns)
+        List<VitalSign> vitals = vitalSignRepository.findByAppointment_AppointmentIdOrderByMeasuredAtDesc(appointmentId);
+        if (vitals == null || vitals.isEmpty()) {
+            throw new BadRequestException("Cannot complete appointment: Patient has not submitted medical information (vitals)");
+        }
+
+        // Kiem tra rule: Neu la cuoc hen truc tuyen (VIDEO, AUDIO, CHAT, ONLINE) thi phai co trao doi
+        // Logic: tim phong chat cua cuoc hen, kiem tra co tin nhan nao duoc gui sau thoi diem bat dau buoi kham khong
+        // Neu khong co → bac si chua trao doi voi benh nhan → chan ket thuc buoi hen
+        String consType = appointment.getConsultationType();
+        if ("VIDEO".equalsIgnoreCase(consType) || "AUDIO".equalsIgnoreCase(consType)
+                || "CHAT".equalsIgnoreCase(consType) || "ONLINE".equalsIgnoreCase(consType)) {
+
+            // Moc thoi gian de so sanh: uu tien lay thoi gian bat dau consultation,
+            // neu khong co thi lay thoi gian hen ban dau
+            LocalDateTime consultationStartTime = (consultation != null && consultation.getStartTime() != null)
+                    ? consultation.getStartTime()
+                    : appointment.getAppointmentTime();
+
+            ChatRoom chatRoom = chatRoomRepository.findByAppointment_AppointmentId(appointmentId).orElse(null);
+
+            // Neu khong co phong chat hoac khong co tin nhan nao sau thoi diem bat dau → chan
+            long messagesAfterStart = (chatRoom != null)
+                    ? messageRepository.countByChatRoom_ChatRoomIdAndTimestampAfter(
+                            chatRoom.getChatRoomId(), consultationStartTime)
+                    : 0L;
+
+            if (messagesAfterStart == 0) {
+                throw new BadRequestException(
+                        "Cannot complete appointment: No communication has taken place during this consultation session");
+            }
+        }
+
         Invoice invoice = appointment.getInvoice();
         if (invoice == null) {
             invoice = invoiceRepository.findByAppointment_AppointmentId(appointmentId)
@@ -425,6 +470,23 @@ public class FollowUpAppointmentServiceImpl implements FollowUpAppointmentServic
         }
         Appointment completedAppointment = appointmentRepository.save(appointment);
         commissionService.vestConsultationCommission(appointmentId);
+
+        try {
+            chatRoomRepository.findByAppointment_AppointmentId(completedAppointment.getAppointmentId())
+                .ifPresent(room -> {
+                    MessageDTO sysMsg = MessageDTO.builder()
+                            .messageId("sys_" + java.util.UUID.randomUUID().toString())
+                            .chatRoomId(room.getChatRoomId())
+                            .content("[SYSTEM_BLOCK_UPDATE]")
+                            .senderId("SYSTEM")
+                            .timestamp(java.time.LocalDateTime.now())
+                            .build();
+                    messagingTemplate.convertAndSendToUser(room.getUser1Id(), "/queue/chat", sysMsg);
+                    messagingTemplate.convertAndSendToUser(room.getUser2Id(), "/queue/chat", sysMsg);
+                });
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
 
         Appointment followUpAppointment = null;
         Integer followUpPrescriptionHeaderId = null;

@@ -3,8 +3,8 @@ import 'package:provider/provider.dart';
 
 import '../../../providers/auth_provider.dart';
 import '../../../services/booking/booking_service.dart';
-import '../../../services/health_records/health_records_service.dart';
-import '../../../services/health_records/share_health_record_service.dart';
+import '../../../services/patient/health_records/health_records_service.dart';
+import '../../../services/patient/health_records/share_health_record_service.dart';
 import '../../../l10n/app_localizations.dart';
 
 class ShareHealthRecordsScreen extends StatefulWidget {

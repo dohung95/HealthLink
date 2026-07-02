@@ -68,6 +68,21 @@ export async function getRoomMessages(chatRoomId, page = 0, size = 25) {
 }
 
 /**
+ * Lấy tất cả tin nhắn có chứa media trong một phòng chat.
+ *
+ * @param {string} chatRoomId - ID phòng chat
+ * @returns {Promise<MessageDTO[]>}
+ */
+export async function getRoomMedia(chatRoomId) {
+    const token = getToken();
+    const res = await fetch(`${BASE}/rooms/${chatRoomId}/media`, {
+        headers: { 'Authorization': `Bearer ${token}` },
+    });
+    if (!res.ok) throw new Error(`getRoomMedia failed: ${res.status}`);
+    return res.json();
+}
+
+/**
  * Tìm kiếm tin nhắn trong phòng theo từ khóa.
  *
  * @param {string} chatRoomId - ID phòng chat

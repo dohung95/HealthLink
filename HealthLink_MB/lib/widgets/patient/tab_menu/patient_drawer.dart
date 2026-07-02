@@ -1,18 +1,18 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
-import '../../providers/auth_provider.dart';
-import '../../providers/theme_provider.dart';
-import '../../providers/locale_provider.dart';
-import '../../config/api_config.dart';
-import '../../l10n/app_localizations.dart';
-import '../../screens/patient/profile_patient/profile_patient_screen.dart';
-import '../../screens/patient/profile_patient/update_security_screen.dart';
-import '../../screens/patient/health_records/health_records_screen.dart';
-import '../../screens/patient/appointments/appointment_screen.dart';
-import '../../screens/patient/patient_prescriptions_screen.dart';
-import '../../screens/chat/chat_list_screen.dart';
-import '../../screens/patient/about_us_screen.dart';
-import '../../screens/patient/help_support_screen.dart';
+import '../../../providers/auth_provider.dart';
+import '../../../providers/theme_provider.dart';
+import '../../../providers/locale_provider.dart';
+import '../../../config/api_config.dart';
+import '../../../l10n/app_localizations.dart';
+import '../../../screens/patient/profile_patient/profile_patient_screen.dart';
+import '../../../screens/patient/profile_patient/update_security_screen.dart';
+import '../../../screens/patient/health_records/health_records_screen.dart';
+import '../../../screens/patient/appointments/appointment_screen.dart';
+import '../../../screens/patient/patient_prescriptions_screen.dart';
+import '../../../screens/chat/chat_list_screen.dart';
+import '../../../screens/patient/about_us_screen.dart';
+import '../../../screens/patient/help_support_screen.dart';
 
 class PatientDrawer extends StatelessWidget {
   const PatientDrawer({super.key});

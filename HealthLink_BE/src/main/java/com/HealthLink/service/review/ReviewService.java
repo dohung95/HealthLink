@@ -9,6 +9,8 @@ import com.HealthLink.repository.doctor.DoctorRepository;
 import com.HealthLink.repository.patient.PatientRepository;
 import com.HealthLink.repository.review.ReviewRepository;
 import com.HealthLink.service.notification.NotificationService;
+import com.HealthLink.dto.chat.MessageDTO;
+import org.springframework.messaging.simp.SimpMessagingTemplate;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.data.domain.Page;
@@ -35,6 +37,7 @@ public class ReviewService {
     private final PatientRepository patientRepository;
     private final DoctorRepository doctorRepository;
     private final NotificationService notificationService;
+    private final SimpMessagingTemplate messagingTemplate;
 
     // =========================================================================
     // PATIENT METHODS
@@ -104,6 +107,18 @@ public class ReviewService {
         review = reviewRepository.save(review);
         log.info("Review created: id={}, appointmentId={}, doctorId={}",
                 review.getReviewId(), dto.getAppointmentId(), appointment.getDoctor().getDoctorId());
+
+        try {
+            MessageDTO sysMsg = MessageDTO.builder()
+                    .messageId("sys_" + java.util.UUID.randomUUID().toString())
+                    .content("[SYSTEM_REVIEW_SUBMITTED]")
+                    .senderId("SYSTEM")
+                    .timestamp(LocalDateTime.now())
+                    .build();
+            messagingTemplate.convertAndSendToUser(patientId, "/queue/chat", sysMsg);
+        } catch (Exception e) {
+            log.error("Failed to send STOMP message for review submission", e);
+        }
 
         // Update doctor's average rating
         updateDoctorRating(appointment.getDoctor().getDoctorId());

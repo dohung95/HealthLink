@@ -255,6 +255,21 @@ public class AdminNotificationService {
     }
 
     /**
+     * Thông báo bác sĩ gửi yêu cầu đổi lịch hẹn.
+     */
+    public void notifyDoctorScheduleChangeRequest(String doctorName, Integer appointmentId,
+                                                    Integer requestId) {
+        String title = "Doctor Schedule Change Request";
+        String message = String.format(
+                "Dr. %s has requested a schedule change for appointment #%d. Please review.",
+                doctorName, appointmentId);
+        String actionUrl = "/admin/compliance?tab=change-requests";
+
+        notifyAllAdmins(NotificationType.DOCTOR_SCHEDULE_CHANGE_REQUEST, title, message,
+                NotificationPriority.HIGH, requestId, actionUrl);
+    }
+
+    /**
      * Thông báo có thanh toán mới.
      */
     public void notifyPaymentReceived(Double amount, String payerName,

@@ -1,9 +1,9 @@
 import 'package:HealthLink/screens/patient/patient_prescriptions_screen.dart';
 import 'package:flutter/material.dart';
-import '../../widgets/tab_menu/tab_menu.dart';
+import '../../widgets/patient/tab_menu/tab_menu.dart';
 import 'patient_home_screen.dart';
 import '../chat/chat_list_screen.dart';
-import '../../widgets/tab_menu/patient_drawer.dart';
+import '../../widgets/patient/tab_menu/patient_drawer.dart';
 import 'booking/booking_screen.dart';
 import 'appointments/appointment_screen.dart';
 import 'package:provider/provider.dart';

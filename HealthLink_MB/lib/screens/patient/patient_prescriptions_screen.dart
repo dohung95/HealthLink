@@ -5,7 +5,7 @@ import 'package:pdf/pdf.dart';
 import 'package:pdf/widgets.dart' as pw;
 import 'package:printing/printing.dart';
 import '../../providers/auth_provider.dart';
-import '../../services/patient_service.dart';
+import '../../services/patient/patient_service.dart';
 import '../../l10n/app_localizations.dart';
 
 class PrescriptionsScreen extends StatefulWidget {
@@ -732,8 +732,8 @@ class _PrescriptionsScreenState extends State<PrescriptionsScreen> {
             // Prescription Info
             pw.Text('Prescription from ${prescription['doctorName'] ?? 'Unknown Doctor'}', style: pw.TextStyle(fontSize: 14, fontWeight: pw.FontWeight.bold)),
             pw.SizedBox(height: 4),
-            pw.Text('${AppLocalizations.of(context)!.prescriptionDateIssued}: ${_formatDate(prescription['issueDate'], context)}', style: const pw.TextStyle(fontSize: 12)),
-            pw.Text('${AppLocalizations.of(context)!.prescriptionCondition}: ${prescription['diagnosis'] ?? 'N/A'}', style: const pw.TextStyle(fontSize: 12)),
+            pw.Text('Date Issued: ${_formatDate(prescription['issueDate'], context)}', style: const pw.TextStyle(fontSize: 12)),
+            pw.Text('Condition: ${prescription['diagnosis'] ?? 'N/A'}', style: const pw.TextStyle(fontSize: 12)),
             pw.SizedBox(height: 20),
 
             // Medication List

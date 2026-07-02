@@ -1,6 +1,7 @@
 package com.HealthLink.service.doctor;
 
 import com.HealthLink.dto.doctor.schedule.CalendarDayResponse;
+import com.HealthLink.dto.doctor.schedule.DoctorDayOffRequest;
 import com.HealthLink.dto.doctor.schedule.DoctorScheduleRequest;
 import com.HealthLink.dto.doctor.schedule.WeeklyScheduleResponse;
 import com.HealthLink.dto.response.DoctorScheduleResponse;
@@ -37,6 +38,11 @@ public interface DoctorScheduleService {
      * Delete an exception. Cannot delete admin-created exceptions.
      */
     void deleteException(String doctorId, Integer exceptionId);
+
+    /**
+     * Doctor self-registers a day off on a future date that already has a working schedule.
+     */
+    WeeklyScheduleResponse.ExceptionItem createDayOff(String doctorId, DoctorDayOffRequest request);
 
     /**
      * Get calendar view with slot statuses for a date range.

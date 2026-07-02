@@ -32,6 +32,7 @@ public enum NotificationType {
     ADMIN_SCHEDULE_CHANGE,      // Admin block/mở slot của bác sĩ
     ADMIN_APPOINTMENT_CANCEL,   // Admin hủy lịch hẹn
     ADMIN_APPOINTMENT_REASSIGN, // Admin chuyển bác sĩ
+    DOCTOR_SCHEDULE_CHANGE_REQUEST, // Admin: Bác sĩ gửi yêu cầu đổi lịch
 
     // Schedule compliance notifications
     SCHEDULE_COMPLIANCE_WARNING,    // Doctor: Chưa đủ giờ làm việc

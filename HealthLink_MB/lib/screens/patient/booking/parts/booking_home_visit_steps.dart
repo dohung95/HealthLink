@@ -157,9 +157,25 @@ extension _BookingHomeVisitSteps on _BookingScreenState {
           ],
           selected: {d.isForSelf},
           onSelectionChanged: (value) {
+            final isForSelf = value.first;
+
             setState(() {
-              _homeVisitDraft = d.copyWith(isForSelf: value.first);
+              _homeVisitDraft = d.copyWith(isForSelf: isForSelf);
             });
+
+            if (isForSelf) {
+              _prefillHomeVisitFromPatientProfile();
+            } else {
+              setState(() {
+                _homeVisitDraft = _homeVisitDraft.copyWith(
+                  receiverName: '',
+                  receiverAge: '',
+                  receiverGender: '',
+                  receiverRelationship: '',
+                  receiverPhone: '',
+                );
+              });
+            }
           },
         ),
 

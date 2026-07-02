@@ -61,8 +61,18 @@ public class PatientReviewController {
             @Valid @RequestBody ReviewCreateDto dto,
             @AuthenticationPrincipal UserDetails userDetails) {
         String patientId = resolvePatientId(userDetails);
-        ReviewResponseDto review = reviewService.createReview(patientId, dto);
-        return ResponseEntity.ok(review);
+        try {
+            ReviewResponseDto review = reviewService.createReview(patientId, dto);
+            return ResponseEntity.ok(review);
+        } catch (IllegalStateException e) {
+            // UX Trick: If already reviewed, just return the existing review silently
+            if ("Appointment has already been reviewed".equals(e.getMessage())) {
+                log.info("Duplicate review submission detected for appointment {}, returning existing.", dto.getAppointmentId());
+                ReviewResponseDto existing = reviewService.getReviewByAppointment(patientId, dto.getAppointmentId());
+                return ResponseEntity.ok(existing);
+            }
+            throw e;
+        }
     }
 
     /**

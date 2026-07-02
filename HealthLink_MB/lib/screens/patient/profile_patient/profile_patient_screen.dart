@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../../../providers/auth_provider.dart';
 import '../../../config/api_config.dart';
-import '../../../models/patient_profile.dart';
+import '../../../models/patient/patient_profile.dart';
 import 'edit_patient_profile_screen.dart';
 import '../../../l10n/app_localizations.dart';
 

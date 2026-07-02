@@ -132,6 +132,8 @@ public class AppointmentServiceImpl implements AppointmentService {
         int dayOfWeek = appointmentTime.getDayOfWeek().getValue() % 7;
         LocalTime requestedTime = appointmentTime.toLocalTime();
 
+        assertNotDayOff(doctor.getDoctorId(), appointmentTime.toLocalDate());
+
         List<DoctorSchedule> schedulesOfDay = scheduleRepository
                 .findByDoctor_DoctorIdAndDayOfWeekAndAvailableTrueAndScheduleStatus(
                         doctor.getDoctorId(), dayOfWeek, com.HealthLink.entity.enums.DoctorScheduleStatus.APPROVED);
@@ -485,6 +487,8 @@ public class AppointmentServiceImpl implements AppointmentService {
         int dayOfWeek = appointmentTime.getDayOfWeek().getValue() % 7;
         LocalTime requestedTime = appointmentTime.toLocalTime();
 
+        assertNotDayOff(doctor.getDoctorId(), appointmentTime.toLocalDate());
+
         List<DoctorSchedule> schedulesOfDay = scheduleRepository
                 .findByDoctor_DoctorIdAndDayOfWeekAndAvailableTrueAndScheduleStatus(
                         doctor.getDoctorId(),
@@ -760,6 +764,8 @@ public class AppointmentServiceImpl implements AppointmentService {
         Doctor doctor = appointment.getDoctor();
         int newDayOfWeek = newTime.getDayOfWeek().getValue() % 7;
         LocalTime newRequestedTime = newTime.toLocalTime();
+
+        assertNotDayOff(doctor.getDoctorId(), newTime.toLocalDate());
 
         List<DoctorSchedule> schedulesOfDay = scheduleRepository
                 .findByDoctor_DoctorIdAndDayOfWeekAndAvailableTrue(doctor.getDoctorId(), newDayOfWeek);
@@ -1099,6 +1105,18 @@ public class AppointmentServiceImpl implements AppointmentService {
             throw new BusinessException(
                     "Appointments can only be booked within the next " + maxDaysAhead + " days");
         }
+    }
+
+    /**
+     * Rejects the booking write path if the doctor has a DAY_OFF exception on the given date,
+     * even though the recurring weekly schedule would otherwise match.
+     */
+    private void assertNotDayOff(String doctorId, LocalDate date) {
+        exceptionRepository.findByDoctor_DoctorIdAndExceptionDate(doctorId, date)
+                .filter(exception -> exception.getExceptionType() == ScheduleExceptionType.DAY_OFF)
+                .ifPresent(exception -> {
+                    throw new BusinessException("Doctor is not available on this date (day off)");
+                });
     }
 
     private String getDayName(int dayOfWeek) {

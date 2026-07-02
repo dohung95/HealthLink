@@ -1,13 +1,15 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
-import { getOrCreateRoom, getMyRooms, getRoomMessages, sendMessage as apiSendMessage, markAsRead, uploadMedia, toggleBlock } from '../api/chatApi';
+import { getOrCreateRoom, getMyRooms, getRoomMessages, getRoomMedia, sendMessage as apiSendMessage, markAsRead, uploadMedia, toggleBlock } from '../api/chatApi';
 import stompChatService from '../services/stompChatService';
 import { getGeminiResponse } from '../services/geminiService';
 import { checkKeywordAndGetBotReply, checkSymptomAndGetSpecialty, getDoctorsBySpecialty } from '../AI_BOT/BotBrain';
 import { doctorService } from '../api/doctorApi';
+import { vitalSignApi } from '../api/vitalSignApi';
 import { toast } from 'sonner';
 import BasicProfileModal from './BasicProfileModal';
+import PreConsultationVitalsModal from './PreConsultationVitalsModal';
 
 // ─── Bot cố định ──────────────
 const BOT_USER = {
@@ -211,21 +213,22 @@ function CustomAudioPlayer({ src, isOwn }) {
     const progressPercent = duration > 0 ? (currentTime / duration) * 100 : 0;
 
     return (
-        <div style={{
+        <div className={isOwn ? 'shadow-sm text-white' : 'shadow-sm text-dark'} style={{
             display: 'flex', alignItems: 'center', gap: '10px',
-            background: isOwn ? 'rgba(255,255,255,0.2)' : '#f8f9fa',
-            padding: '8px 12px', borderRadius: '12px', minWidth: '220px',
-            border: isOwn ? '1px solid rgba(255,255,255,0.3)' : '1px solid #dee2e6'
+            background: isOwn ? '#0d6efd' : '#fff',
+            padding: '10px 14px', borderRadius: '20px', minWidth: '220px',
+            border: isOwn ? 'none' : '1px solid #dee2e6'
         }}>
             <button
                 onClick={togglePlay}
                 style={{
-                    width: '32px', height: '32px', borderRadius: '50%',
+                    width: '36px', height: '36px', borderRadius: '50%',
                     border: 'none', display: 'flex', alignItems: 'center', justifyContent: 'center',
                     background: isOwn ? '#fff' : '#0d6efd',
                     color: isOwn ? '#0d6efd' : '#fff',
                     cursor: error ? 'not-allowed' : 'pointer',
-                    flexShrink: 0, opacity: error ? 0.5 : 1
+                    flexShrink: 0, opacity: error ? 0.5 : 1,
+                    boxShadow: '0 2px 5px rgba(0,0,0,0.1)'
                 }}
                 disabled={error}
             >
@@ -241,7 +244,7 @@ function CustomAudioPlayer({ src, isOwn }) {
                         transition: 'width 0.1s linear'
                     }} />
                 </div>
-                <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.7rem', color: isOwn ? 'rgba(255,255,255,0.8)' : '#6c757d', fontWeight: '500' }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.75rem', color: isOwn ? 'rgba(255,255,255,0.85)' : '#6c757d', fontWeight: '500' }}>
                     <span>{formatDuration(currentTime)}</span>
                     <span>{formatDuration(duration)}</span>
                 </div>
@@ -263,7 +266,7 @@ function CustomAudioPlayer({ src, isOwn }) {
 }
 
 // ─── Component tin nhắn ──────────────────────────────────────────────────────
-function ChatMessage({ message, currentUserId, isNew = false, onImageClick, onNavigate }) {
+function ChatMessage({ message, currentUserId, isNew = false, onImageClick, onNavigate, onCallClick, isBlocked, hasFilledVitals }) {
     const isOwn = message.senderId === currentUserId || message.uid === currentUserId;
     const fullText = message.content || message.text || '';
     const [displayText, setDisplayText] = useState(isNew ? '' : fullText);
@@ -293,88 +296,156 @@ function ChatMessage({ message, currentUserId, isNew = false, onImageClick, onNa
     const fileUrl = getFullUrl(message.fileUrl);
     const audioSrc = getFullUrl(message.audioUrl);
 
-    // Debug: log audio messages to help diagnose display issues
-    if (message.audioUrl) {
-        console.log('[ChatMessage] Audio message:', { messageId: message.messageId, audioUrl: message.audioUrl, audioSrc, isOwn });
+    // Parse call history
+    const isCallHistory = fullText.startsWith('[CALL_HISTORY]');
+    let callHistoryData = null;
+    if (isCallHistory) {
+        try {
+            const parts = fullText.substring('[CALL_HISTORY] '.length).split(' ');
+            callHistoryData = {};
+            parts.forEach(part => {
+                const [k, v] = part.split(':');
+                if (k && v) callHistoryData[k] = v;
+            });
+        } catch {
+            // ignore parse error
+        }
     }
+
+    const renderCallHistory = () => {
+        if (!callHistoryData) return null;
+        const status = callHistoryData.status || 'UNKNOWN';
+        const durationSec = parseInt(callHistoryData.duration) || 0;
+
+        const isMissedOrDeclined = status === 'MISSED' || status === 'DECLINED';
+        const iconColor = isMissedOrDeclined ? '#dc3545' : (isOwn ? '#fff' : '#198754');
+        const bgColor = isOwn ? 'rgba(255,255,255,0.2)' : 'rgba(25, 135, 84, 0.1)';
+        const iconClass = isMissedOrDeclined ? 'bi-telephone-x-fill' : 'bi-camera-video-fill';
+        const titleText = isMissedOrDeclined ? 'Missed Call' : 'Video Call';
+
+        const formatSecs = (s) => {
+            if (s === 0 && !isMissedOrDeclined) return '0:00';
+            const m = Math.floor(s / 60);
+            const r = s % 60;
+            return `${m}:${r.toString().padStart(2, '0')}`;
+        };
+
+        return (
+            <div
+                className="d-flex align-items-center gap-3"
+                style={{ minWidth: '180px', cursor: isMissedOrDeclined ? 'pointer' : 'default' }}
+                onClick={() => {
+                    if (isMissedOrDeclined && onCallClick && !isBlocked && hasFilledVitals) {
+                        onCallClick();
+                    }
+                }}
+            >
+                <div className="rounded-circle d-flex align-items-center justify-content-center shadow-sm" style={{ width: 40, height: 40, flexShrink: 0, backgroundColor: bgColor, color: iconColor }}>
+                    <i className={`bi ${iconClass} fs-5`}></i>
+                </div>
+                <div>
+                    <div className="fw-bold mb-1" style={{ color: isMissedOrDeclined ? (isOwn ? '#ffcccc' : '#dc3545') : 'inherit' }}>{titleText}</div>
+                    <div className="small opacity-75">
+                        {isMissedOrDeclined ? 'Tap icon to call back' : formatSecs(durationSec)}
+                    </div>
+                </div>
+            </div>
+        );
+    };
 
     return (
         <div className={`message d-flex mb-3 ${isOwn ? 'justify-content-end' : 'justify-content-start'}`} style={{ animation: 'msgFadeSlideIn 0.25s ease-out' }}>
-            <div style={{ maxWidth: '78%' }}>
-                <div className={`rounded ${isOwn ? 'bg-primary text-white shadow-sm' : 'bg-white text-dark shadow-sm border'}`}
-                    style={{
-                        borderRadius: imageUrl ? '12px' : '20px',
-                        padding: imageUrl ? '4px' : (audioSrc ? '10px 14px' : '12px 16px'),
-                        minWidth: audioSrc ? '260px' : 'auto',
-                        display: 'block',
-                    }}>
-                    {imageUrl && (
-                        <img src={imageUrl} alt="sent" style={{ maxWidth: '100%', maxHeight: '300px', borderRadius: '8px', cursor: 'zoom-in' }}
-                            onClick={() => onImageClick?.(imageUrl)} title="Click để xem ảnh phóng to" />
-                    )}
-                    {videoUrl && <video src={videoUrl} controls style={{ maxWidth: '100%', maxHeight: '300px', borderRadius: '8px' }} />}
-                    {fileUrl && (
-                        <div onClick={(e) => {
-                            e.preventDefault();
-                            const filename = fileUrl.split('/').pop();
-                            fetch(fileUrl).then(res => res.blob()).then(blob => {
-                                const url = window.URL.createObjectURL(blob);
-                                const a = document.createElement('a');
-                                a.style.display = 'none';
-                                a.href = url;
-                                a.download = filename;
-                                document.body.appendChild(a);
-                                a.click();
-                                window.URL.revokeObjectURL(url);
-                            }).catch(() => window.open(fileUrl, '_blank'));
-                        }} style={{ display: 'flex', alignItems: 'center', background: 'rgba(0,0,0,0.05)', padding: '8px 12px', borderRadius: '8px', cursor: 'pointer' }}>
-                            <i className="bi bi-file-earmark-arrow-down" style={{ fontSize: '24px', marginRight: '8px', color: isOwn ? '#fff' : '#0d6efd' }}></i>
-                            <span style={{ color: 'inherit', wordBreak: 'break-all' }}>{fileUrl.split('/').pop()}</span>
-                        </div>
-                    )}
-                    {/* ── Audio message player ── */}
-                    {audioSrc && (
-                        <div style={{ display: 'flex', flexDirection: 'column', gap: '6px', minWidth: '240px' }}>
-                            <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '2px' }}>
+            <div style={{ maxWidth: '78%', display: 'flex', flexDirection: 'column', alignItems: isOwn ? 'flex-end' : 'flex-start', gap: '4px' }}>
+
+                {/* ── Standalone Media: Image ── */}
+                {imageUrl && (
+                    <img src={imageUrl} alt="sent" style={{ maxWidth: '100%', maxHeight: '300px', borderRadius: '16px', border: '1px solid #dee2e6', cursor: 'zoom-in', boxShadow: '0 2px 5px rgba(0,0,0,0.1)' }}
+                        onClick={() => onImageClick?.(imageUrl)} title="Click để xem ảnh phóng to" />
+                )}
+
+                {/* ── Standalone Media: Video ── */}
+                {videoUrl && (
+                    <video src={videoUrl} controls style={{ maxWidth: '100%', maxHeight: '300px', borderRadius: '16px', border: '1px solid #dee2e6', boxShadow: '0 2px 5px rgba(0,0,0,0.1)' }} />
+                )}
+
+                {/* ── Standalone Media: File ── */}
+                {fileUrl && (
+                    <div onClick={(e) => {
+                        e.preventDefault();
+                        const filename = fileUrl.split('/').pop();
+                        fetch(fileUrl).then(res => res.blob()).then(blob => {
+                            const url = window.URL.createObjectURL(blob);
+                            const a = document.createElement('a');
+                            a.style.display = 'none';
+                            a.href = url;
+                            a.download = filename;
+                            document.body.appendChild(a);
+                            a.click();
+                            window.URL.revokeObjectURL(url);
+                        }).catch(() => window.open(fileUrl, '_blank'));
+                    }} className={`shadow-sm ${isOwn ? 'bg-primary text-white' : 'bg-white text-dark border'}`} style={{ display: 'flex', alignItems: 'center', padding: '12px 16px', borderRadius: '20px', cursor: 'pointer' }}>
+                        <i className="bi bi-file-earmark-arrow-down" style={{ fontSize: '24px', marginRight: '12px' }}></i>
+                        <span style={{ color: 'inherit', wordBreak: 'break-all', fontWeight: '500' }}>{fileUrl.split('/').pop()}</span>
+                    </div>
+                )}
+
+                {/* ── Standalone Media: Audio player ── */}
+                {audioSrc && (
+                    <CustomAudioPlayer src={audioSrc} isOwn={isOwn} />
+                )}
+
+                {/* ── Fallback if audioUrl exists but getFullUrl returned null ── */}
+                {message.audioUrl && !audioSrc && (
+                    <div style={{ padding: '8px 12px', background: isOwn ? 'rgba(255,255,255,0.15)' : '#fff3cd', border: `1px solid ${isOwn ? 'rgba(255,255,255,0.3)' : '#ffc107'}`, borderRadius: '8px', fontSize: '0.85rem', opacity: 0.85 }}>
+                        <i className="bi bi-exclamation-triangle me-2"></i>Audio unavailable
+                    </div>
+                )}
+
+                {/* ── Call History OR Text Content ── */}
+                {(fullText || isCallHistory || (message.suggestedDoctors && message.suggestedDoctors.length > 0)) && (
+                    <div className={`rounded ${isOwn ? 'bg-primary text-white shadow-sm' : 'bg-white text-dark shadow-sm border'}`}
+                        style={{
+                            borderRadius: '20px',
+                            padding: '12px 16px',
+                        }}>
+
+                        {isCallHistory ? (
+                            <div style={{ marginTop: '0', cursor: 'pointer' }} onClick={() => { }}>
+                                {renderCallHistory()}
                             </div>
-                            <CustomAudioPlayer src={audioSrc} isOwn={isOwn} />
-                        </div>
-                    )}
-                    {/* ── Fallback if audioUrl exists but getFullUrl returned null ── */}
-                    {message.audioUrl && !audioSrc && (
-                        <div style={{ padding: '8px 12px', background: isOwn ? 'rgba(255,255,255,0.15)' : '#fff3cd', border: `1px solid ${isOwn ? 'rgba(255,255,255,0.3)' : '#ffc107'}`, borderRadius: '8px', fontSize: '0.85rem', opacity: 0.85 }}>
-                            <i className="bi bi-exclamation-triangle me-2"></i>Audio unavailable
-                        </div>
-                    )}
-                    {fullText && (
-                        <div style={{ marginTop: imageUrl || videoUrl || fileUrl || audioSrc ? '8px' : '0', whiteSpace: 'pre-wrap' }}>
-                            {displayText}
-                            {isNew && !typewriterDone && <span style={{ display: 'inline-block', width: 2, height: '1em', background: 'currentColor', marginLeft: 2, animation: 'cursorBlink 0.7s steps(1) infinite' }} />}
-                        </div>
-                    )}
-                    {typewriterDone && message.suggestedDoctors?.length > 0 && (
-                        <div style={{ marginTop: '10px', display: 'flex', flexDirection: 'column', gap: '8px' }}>
-                            {message.suggestedDoctors.map(doc => (
-                                <div key={doc.doctorId} onClick={() => onNavigate?.(`/patient-dashboard/book/${doc.doctorId}`)}
-                                    style={{ background: '#fff', border: '1px solid #dee2e6', borderRadius: '12px', padding: '8px 12px', display: 'flex', alignItems: 'center', gap: '10px', cursor: 'pointer', color: '#212529' }}>
-                                    <img src={getFullUrl(doc.avatarUrl) || `https://api.dicebear.com/9.x/initials/svg?seed=${doc.fullName}`} alt={doc.fullName} style={{ width: 38, height: 38, borderRadius: '50%', objectFit: 'cover' }} onError={(e) => { e.target.onerror = null; e.target.src = `https://api.dicebear.com/9.x/initials/svg?seed=${doc.fullName}`; }} />
-                                    <div style={{ minWidth: 0 }}>
-                                        <div style={{ fontWeight: 600, fontSize: '0.85rem', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{doc.fullName}</div>
-                                        <div style={{ fontSize: '0.75rem', color: '#6c757d' }}>⭐ {doc.averageRating?.toFixed(1) || 'N/A'} · {doc.specialtyName || doc.specialty}</div>
+                        ) : (fullText && (
+                            <div style={{ whiteSpace: 'pre-wrap' }}>
+                                {displayText}
+                                {isNew && !typewriterDone && <span style={{ display: 'inline-block', width: 2, height: '1em', background: 'currentColor', marginLeft: 2, animation: 'cursorBlink 0.7s steps(1) infinite' }} />}
+                            </div>
+                        ))}
+
+                        {typewriterDone && message.suggestedDoctors?.length > 0 && (
+                            <div style={{ marginTop: '10px', display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                                {message.suggestedDoctors.map(doc => (
+                                    <div key={doc.doctorId} onClick={() => onNavigate?.(`/patient-dashboard/book/${doc.doctorId}`)}
+                                        style={{ background: '#fff', border: '1px solid #dee2e6', borderRadius: '12px', padding: '8px 12px', display: 'flex', alignItems: 'center', gap: '10px', cursor: 'pointer', color: '#212529' }}>
+                                        <img src={getFullUrl(doc.avatarUrl) || `https://api.dicebear.com/9.x/initials/svg?seed=${doc.fullName}`} alt={doc.fullName} style={{ width: 38, height: 38, borderRadius: '50%', objectFit: 'cover' }} onError={(e) => { e.target.onerror = null; e.target.src = `https://api.dicebear.com/9.x/initials/svg?seed=${doc.fullName}`; }} />
+                                        <div style={{ minWidth: 0 }}>
+                                            <div style={{ fontWeight: 600, fontSize: '0.85rem', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{doc.fullName}</div>
+                                            <div style={{ fontSize: '0.75rem', color: '#6c757d' }}>⭐ {doc.averageRating?.toFixed(1) || 'N/A'} &nbsp;·&nbsp; {doc.specialtyName || doc.specialty}</div>
+                                        </div>
+                                        <i className="bi bi-chevron-right ms-auto text-muted" style={{ fontSize: '0.8rem' }} />
                                     </div>
-                                    <i className="bi bi-chevron-right ms-auto text-muted" style={{ fontSize: '0.8rem' }} />
-                                </div>
-                            ))}
-                        </div>
-                    )}
-                    {typewriterDone && message.actionUrl && message.actionLabel && (
-                        <div style={{ marginTop: '12px' }}>
-                            <button className="btn btn-sm btn-success rounded-pill px-3" onClick={() => onNavigate?.(message.actionUrl)}>
-                                {message.actionLabel}
-                            </button>
-                        </div>
-                    )}
-                </div>
+                                ))}
+                            </div>
+                        )}
+
+                        {typewriterDone && message.actionUrl && message.actionLabel && (
+                            <div style={{ marginTop: '12px' }}>
+                                <button className="btn btn-sm btn-success rounded-pill px-3" onClick={() => onNavigate?.(message.actionUrl)}>
+                                    {message.actionLabel}
+                                </button>
+                            </div>
+                        )}
+                    </div>
+                )}
+
                 <div className={`small text-muted mt-1 ${isOwn ? 'text-end' : 'text-start'}`}>{timeStr}</div>
             </div>
         </div>
@@ -435,7 +506,8 @@ function RoomListItem({ room, currentUserId, onSelect, isActive, isMuted }) {
 export default function ChatPage({ showBot = true }) {
     const navigate = useNavigate();
     const location = useLocation();
-    const { user: authUser, currentUserId, initiateCall, isInCall } = useAuth();
+    const { user: authUser, currentUserId, initiateCall, isInCall, roles } = useAuth();
+    const isPatient = roles && roles.some(r => String(r).trim().toLowerCase() === 'patient');
 
     // Check if we navigated here with a specific partner in state
     const initialStatePartner = location.state?.partnerId ? {
@@ -457,6 +529,49 @@ export default function ChatPage({ showBot = true }) {
     const [isBotTyping, setIsBotTyping] = useState(false);
     const [latestBotMsgId, setLatestBotMsgId] = useState(null);
     const [lightboxImage, setLightboxImage] = useState(null);
+
+    const [hasFilledVitals, setHasFilledVitals] = useState(true);
+    const [showVitalsModal, setShowVitalsModal] = useState(false);
+
+    useEffect(() => {
+        if (currentRoom?.appointmentId) {
+            vitalSignApi.getLatestAppointmentVitalSign(currentRoom.appointmentId)
+                .then(res => {
+                    if (res && res.vitalSignId) {
+                        setHasFilledVitals(true);
+                    } else {
+                        setHasFilledVitals(false);
+                    }
+                })
+                .catch(() => {
+                    setHasFilledVitals(false);
+                });
+        } else {
+            setHasFilledVitals(true);
+        }
+    }, [currentRoom?.appointmentId]);
+
+    // Poll vitals every 5s if not filled
+    useEffect(() => {
+        let interval;
+        if (!hasFilledVitals && currentRoom?.appointmentId) {
+            interval = setInterval(() => {
+                vitalSignApi.getLatestAppointmentVitalSign(currentRoom.appointmentId)
+                    .then(res => {
+                        if (res && res.vitalSignId) {
+                            setHasFilledVitals(true);
+                        }
+                    })
+                    .catch(() => { });
+            }, 2000);
+        }
+        return () => { if (interval) clearInterval(interval); };
+    }, [hasFilledVitals, currentRoom?.appointmentId]);
+
+    const handleVitalsSaved = () => {
+        setHasFilledVitals(true);
+        setShowVitalsModal(false);
+    };
 
     const [page, setPage] = useState(0);
     const [hasMore, setHasMore] = useState(true);
@@ -488,6 +603,7 @@ export default function ChatPage({ showBot = true }) {
     const [searchResults, setSearchResults] = useState([]);
     const [isSearching, setIsSearching] = useState(false);
     const [showMediaModal, setShowMediaModal] = useState(false);
+    const [roomMedia, setRoomMedia] = useState([]);
     const [showBlockConfirmModal, setShowBlockConfirmModal] = useState(false);
     const [showBlockedUsersModal, setShowBlockedUsersModal] = useState(false);
     const [showProfileModal, setShowProfileModal] = useState(false);
@@ -498,6 +614,32 @@ export default function ChatPage({ showBot = true }) {
     const scrollTo = useRef(null);
     const fileInputRef = useRef(null);
     const unsubscribeChat = useRef(null);
+    const [messagesState, setMessagesState] = useState([]); // Temporary fix if needed
+
+    useEffect(() => {
+        if (showMediaModal && currentRoom) {
+            getRoomMedia(currentRoom.chatRoomId).then(data => {
+                setRoomMedia(data || []);
+            }).catch(err => {
+                console.error("Failed to fetch room media", err);
+                toast.error("Không thể tải hình ảnh/video");
+            });
+        }
+    }, [showMediaModal, currentRoom]);
+
+    const allMediaMessages = React.useMemo(() => {
+        // Combine current messages and historical media, removing duplicates, sorted newest first
+        const combined = [...roomMedia, ...messages];
+        const unique = [];
+        const seen = new Set();
+        for (const m of combined) {
+            if (!seen.has(m.messageId)) {
+                seen.add(m.messageId);
+                unique.push(m);
+            }
+        }
+        return unique.sort((a, b) => new Date(b.timestamp || b.createdAt) - new Date(a.timestamp || a.createdAt));
+    }, [roomMedia, messages]);
     const currentRoomRef = useRef(currentRoom);
 
     // Search Effect
@@ -557,7 +699,7 @@ export default function ChatPage({ showBot = true }) {
     // ─── Micro audio recording ──────────────────────────────────────────────────────
     const startRecording = async () => {
         if (isRecording) return;
-        
+
         // Ensure any previous timer is cleared before starting
         if (recordingTimerRef.current) {
             clearInterval(recordingTimerRef.current);
@@ -598,7 +740,7 @@ export default function ChatPage({ showBot = true }) {
                 console.log('📦 Audio blob created:', blob.size, 'bytes, type:', blob.type);
                 setAudioBlob(blob);
                 stream.getTracks().forEach(track => track.stop());
-                
+
                 // Safety cleanup
                 if (recordingTimerRef.current) {
                     clearInterval(recordingTimerRef.current);
@@ -708,7 +850,14 @@ export default function ChatPage({ showBot = true }) {
     };
 
     const handleVideoCallFromChat = () => {
-        if (!chatPartner || isBlocked) return;
+        if (!hasFilledVitals) {
+            toast.warning('Patient has not filled out their vital signs yet.');
+            return;
+        }
+        if (!chatPartner || isBlocked || !currentRoom || !currentRoom.chatRoomId) {
+            if (!currentRoom?.chatRoomId) toast.error('Please send a message first to establish a chat room before calling.');
+            return;
+        }
         if (isInCall) {
             toast.warning('You are currently on another call. Please end it before making a new one.');
             return;
@@ -717,13 +866,7 @@ export default function ChatPage({ showBot = true }) {
         const targetUserId = chatPartner.userId || chatPartner.uid;
         const targetUserName = chatPartner.displayName || chatPartner.fullName || 'User';
         const callerName = authUser?.fullName || authUser?.preferred_username || authUser?.email || 'Doctor';
-
-        // Tạo random roomId 45 ký tự
-        const characters = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789';
-        let roomId = '';
-        for (let i = 0; i < 45; i++) {
-            roomId += characters.charAt(Math.floor(Math.random() * characters.length));
-        }
+        const roomId = currentRoom.chatRoomId; // Use the actual chat room ID for saving call history
 
         initiateCall(targetUserId, roomId, targetUserName, callerName);
     };
@@ -805,15 +948,17 @@ export default function ChatPage({ showBot = true }) {
                 return;
             }
 
-            if (newMsg.content === "[SYSTEM_BLOCK_UPDATE]") {
-                getMyRooms().then(rooms => {
-                    setRoomList(rooms);
-                    const activeRoomId = currentRoomRef.current?.chatRoomId;
-                    if (activeRoomId === newMsg.chatRoomId) {
-                        const updatedRoom = rooms.find(r => r.chatRoomId === activeRoomId);
-                        if (updatedRoom) setCurrentRoom(updatedRoom);
-                    }
-                }).catch(err => console.error(err));
+            if (newMsg.content === "[SYSTEM_BLOCK_UPDATE]" || newMsg.content === "[SYSTEM_CONSULTATION_STARTED]") {
+                setTimeout(() => {
+                    getMyRooms().then(rooms => {
+                        setRoomList(rooms);
+                        const activeRoomId = currentRoomRef.current?.chatRoomId;
+                        if (activeRoomId === newMsg.chatRoomId) {
+                            const updatedRoom = rooms.find(r => r.chatRoomId === activeRoomId);
+                            if (updatedRoom) setCurrentRoom(updatedRoom);
+                        }
+                    }).catch(err => console.error(err));
+                }, 500);
                 return;
             }
 
@@ -1203,7 +1348,7 @@ export default function ChatPage({ showBot = true }) {
         }
     };
 
-    const isAppointmentCompleted = currentRoom?.appointmentStatus === 'COMPLETED';
+    const isAppointmentCompleted = currentRoom?.appointmentStatus?.toUpperCase() === 'COMPLETED';
     const isBlocked = currentRoom?.blockedBy || isAppointmentCompleted;
     const isBlockedByMe = currentRoom?.blockedBy === currentUserId;
 
@@ -1290,19 +1435,19 @@ export default function ChatPage({ showBot = true }) {
                                 {mutedRooms.includes(currentRoom.chatRoomId) && <i className="bi bi-bell-slash-fill text-danger me-3 fs-5"></i>}
                                 {!chatPartner?.isBot && (
                                     <button
-                                        className={`btn btn-light rounded-circle shadow-sm d-flex align-items-center justify-content-center me-2 ${isBlocked ? 'opacity-50' : ''}`}
-                                        style={{ width: 40, height: 40, padding: 0, cursor: isBlocked ? 'not-allowed' : 'pointer' }}
+                                        className={`btn btn-light rounded-circle shadow-sm d-flex align-items-center justify-content-center me-2 ${(isBlocked || !hasFilledVitals) ? 'opacity-50' : ''}`}
+                                        style={{ width: 40, height: 40, padding: 0, cursor: (isBlocked || !hasFilledVitals) ? 'not-allowed' : 'pointer' }}
                                         onClick={(e) => {
-                                            if (isBlocked) {
+                                            if (isBlocked || !hasFilledVitals) {
                                                 e.preventDefault();
                                                 return;
                                             }
                                             handleVideoCallFromChat();
                                         }}
-                                        disabled={isBlocked}
-                                        title={isBlocked ? "Cannot call when chat is blocked or appointment completed" : "Video Call"}
+                                        disabled={isBlocked || !hasFilledVitals}
+                                        title={isBlocked ? "Cannot call when chat is blocked or appointment completed" : (!hasFilledVitals ? "Cannot call until patient fills vital signs" : "Video Call")}
                                     >
-                                        <i className={`bi bi-camera-video ${isBlocked ? 'text-muted' : 'text-primary'} fs-5`}></i>
+                                        <i className={`bi bi-camera-video ${(isBlocked || !hasFilledVitals) ? 'text-muted' : 'text-primary'} fs-5`}></i>
                                     </button>
                                 )}
                                 <button className="btn btn-light rounded-circle shadow-sm d-flex align-items-center justify-content-center" style={{ width: 40, height: 40, padding: 0 }} onClick={() => setShowChatDetails(true)}>
@@ -1349,6 +1494,9 @@ export default function ChatPage({ showBot = true }) {
                                     isNew={msg.messageId === latestBotMsgId}
                                     onImageClick={setLightboxImage}
                                     onNavigate={handleBotNavigate}
+                                    onCallClick={handleVideoCallFromChat}
+                                    isBlocked={isBlocked}
+                                    hasFilledVitals={hasFilledVitals}
                                 />
                             </div>
                         ))}
@@ -1389,7 +1537,26 @@ export default function ChatPage({ showBot = true }) {
                     </div>
 
                     {/* Input box */}
-                    {isBlocked ? (
+                    {(!hasFilledVitals && !isAppointmentCompleted && currentRoom?.appointmentId) ? (
+                        isPatient ? (
+                            <div className="p-3 border-top bg-light text-center">
+                                <div className="text-warning mb-2 fw-semibold">
+                                    <i className="bi bi-exclamation-triangle-fill me-2"></i>
+                                    Please fill in your health information before starting the chat.
+                                </div>
+                                <button className="btn btn-primary btn-sm" onClick={() => setShowVitalsModal(true)}>
+                                    Fill Health Info
+                                </button>
+                            </div>
+                        ) : (
+                            <div className="p-3 border-top bg-light text-center">
+                                <p className="mb-0 fw-semibold text-warning" style={{ fontSize: '0.9rem' }}>
+                                    <i className="bi bi-hourglass-split me-2"></i>
+                                    Waiting for patient to fill out vital signs...
+                                </p>
+                            </div>
+                        )
+                    ) : isBlocked ? (
                         <div className="p-3 border-top bg-light text-center">
                             <span className="text-muted fst-italic">
                                 {isBlockedByMe
@@ -1703,9 +1870,9 @@ export default function ChatPage({ showBot = true }) {
                             <div className="modal-body p-4 bg-light">
                                 <h6 className="fw-bold mb-3 text-secondary">Images & Videos</h6>
                                 <div className="row g-3 mb-4">
-                                    {messages.filter(m => m.imageUrl || m.videoUrl).length > 0 ? messages.filter(m => m.imageUrl || m.videoUrl).map(msg => (
+                                    {allMediaMessages.filter(m => getFullUrl(m.imageUrl) || getFullUrl(m.videoUrl)).length > 0 ? allMediaMessages.filter(m => getFullUrl(m.imageUrl) || getFullUrl(m.videoUrl)).map(msg => (
                                         <div key={msg.messageId} className="col-6 col-sm-4 col-md-3">
-                                            {msg.imageUrl ? (
+                                            {getFullUrl(msg.imageUrl) ? (
                                                 <img src={getFullUrl(msg.imageUrl)} alt="Media" className="img-fluid rounded-3 border shadow-sm w-100" style={{ height: '100px', objectFit: 'cover', cursor: 'zoom-in' }} onClick={() => setLightboxImage(getFullUrl(msg.imageUrl))} />
                                             ) : (
                                                 <div className="bg-dark rounded-3 border shadow-sm w-100 d-flex align-items-center justify-content-center position-relative" style={{ height: '100px', cursor: 'pointer', overflow: 'hidden' }} onClick={() => window.open(getFullUrl(msg.videoUrl), '_blank')}>
@@ -1719,7 +1886,7 @@ export default function ChatPage({ showBot = true }) {
 
                                 <h6 className="fw-bold mb-3 text-secondary border-top pt-4">Audio Messages</h6>
                                 <div className="list-group list-group-flush shadow-sm rounded-4 overflow-hidden mb-4">
-                                    {messages.filter(m => m.audioUrl && getFullUrl(m.audioUrl)).length > 0 ? messages.filter(m => m.audioUrl && getFullUrl(m.audioUrl)).map(msg => (
+                                    {allMediaMessages.filter(m => getFullUrl(m.audioUrl)).length > 0 ? allMediaMessages.filter(m => getFullUrl(m.audioUrl)).map(msg => (
                                         <div key={msg.messageId} className="list-group-item d-flex align-items-center p-3 border-0 border-bottom">
                                             <div className="bg-info bg-opacity-10 rounded p-2 me-3 d-flex align-items-center justify-content-center" style={{ width: 45, height: 45 }}>
                                                 <i className="bi bi-music-note-beamed fs-4 text-info"></i>
@@ -1734,13 +1901,13 @@ export default function ChatPage({ showBot = true }) {
 
                                 <h6 className="fw-bold mb-3 text-secondary border-top pt-4">Files & Documents</h6>
                                 <div className="list-group list-group-flush shadow-sm rounded-4 overflow-hidden">
-                                    {messages.filter(m => m.fileUrl).length > 0 ? messages.filter(m => m.fileUrl).map(msg => (
+                                    {allMediaMessages.filter(m => getFullUrl(m.fileUrl)).length > 0 ? allMediaMessages.filter(m => getFullUrl(m.fileUrl)).map(msg => (
                                         <a key={msg.messageId} href={getFullUrl(msg.fileUrl)} target="_blank" rel="noopener noreferrer" className="list-group-item list-group-item-action d-flex align-items-center p-3 border-0 border-bottom">
                                             <div className="bg-primary bg-opacity-10 rounded p-2 me-3 d-flex align-items-center justify-content-center" style={{ width: 45, height: 45 }}>
                                                 <i className="bi bi-file-earmark-text fs-4 text-primary"></i>
                                             </div>
                                             <div className="flex-grow-1 text-truncate">
-                                                <div className="fw-medium text-dark text-truncate mb-1">{msg.fileUrl.split('/').pop()}</div>
+                                                <div className="fw-medium text-dark text-truncate mb-1">{getFullUrl(msg.fileUrl).split('/').pop()}</div>
                                                 <small className="text-muted" style={{ fontSize: '0.75rem' }}>{new Date(msg.timestamp || msg.createdAt).toLocaleDateString()} {new Date(msg.timestamp || msg.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</small>
                                             </div>
                                         </a>
@@ -1758,6 +1925,15 @@ export default function ChatPage({ showBot = true }) {
                 onClose={() => setShowProfileModal(false)}
                 userId={currentRoom?.user1Id === currentUserId ? currentRoom?.user2Id : currentRoom?.user1Id}
                 role={(currentRoom?.user1Id === currentUserId ? currentRoom?.user2Specialty : currentRoom?.user1Specialty) || ''}
+            />
+
+            {/* --- PreConsultationVitals Modal --- */}
+            <PreConsultationVitalsModal
+                isOpen={showVitalsModal}
+                appointment={{ appointmentId: currentRoom?.appointmentId }}
+                patientId={currentUserId}
+                onClose={() => setShowVitalsModal(false)}
+                onSaved={handleVitalsSaved}
             />
         </div>
     );

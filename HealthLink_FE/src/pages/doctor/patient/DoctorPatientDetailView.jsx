@@ -1,7 +1,6 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { vitalSignApi } from '@api/vitalSignApi';
 import { useAuth } from '@context/AuthContext';
-import { useChat } from '@context/ChatContext';
 import { toast } from 'sonner';
 import PrescriptionDetailModal from '@components/doctor/PrescriptionDetailModal';
 import PrintPrescriptionModal from '@components/doctor/PrintPrescriptionModal';
@@ -33,8 +32,7 @@ const InfoField = ({ label, value, larger }) => (
 );
 
 export default function DoctorPatientDetailView({ patient, history }) {
-  const { initiateCall, isInCall, currentUserId, user: authUser } = useAuth();
-  const { openChatWith } = useChat();
+  const { currentUserId, user: authUser } = useAuth();
   const [activeTab, setActiveTab] = useState('overview');
   const [vitalSigns, setVitalSigns] = useState(null);
   const [loadingVitals, setLoadingVitals] = useState(true);
@@ -65,37 +63,6 @@ export default function DoctorPatientDetailView({ patient, history }) {
     return () => { mounted = false; };
   }, [patient?.id, patient?.patientId]);
 
-  const handleChat = useCallback(() => {
-    const targetUserId = patient?.userId || patient?.patientId;
-    if (!targetUserId) {
-      toast.error('Unable to start chat: patient information is missing');
-      return;
-    }
-    openChatWith({
-      uid: targetUserId,
-      displayName: patient?.fullName || 'Patient',
-    });
-  }, [patient, openChatWith]);
-
-  const handleCall = useCallback(() => {
-    const targetUserId = patient?.userId || patient?.patientId;
-    if (!targetUserId) {
-      toast.error('Unable to start call: patient information is missing');
-      return;
-    }
-    if (isInCall) {
-      toast.warning('You are currently on another call. Please end the current call before making a new one.');
-      return;
-    }
-    const characters = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789';
-    let roomId = '';
-    for (let i = 0; i < 45; i++) {
-      roomId += characters.charAt(Math.floor(Math.random() * characters.length));
-    }
-    const callerName = authUser?.preferred_username || authUser?.name || authUser?.email || 'Doctor';
-    initiateCall(targetUserId, roomId, patient?.fullName || 'Patient', callerName);
-  }, [patient, isInCall, authUser, initiateCall]);
-
   const handleOpenPrescriptionDetail = useCallback((rx) => {
     setSelectedPrescription(rx);
   }, []);
@@ -125,14 +92,7 @@ export default function DoctorPatientDetailView({ patient, history }) {
     ? (patientWeight / ((patientHeight / 100) ** 2)).toFixed(1)
     : null;
 
-  const vitalsDisplay = vitalSigns || {
-    heartRate: 76,
-    bloodPressureSystolic: 122,
-    bloodPressureDiastolic: 80,
-    oxygenSaturation: 98,
-    temperature: 36.8,
-    respiratoryRate: 16,
-  };
+  const vitalsDisplay = vitalSigns;
 
   const allergyCount = patient?.allergies
     ? patient.allergies.split(',').filter(Boolean).length
@@ -310,6 +270,8 @@ export default function DoctorPatientDetailView({ patient, history }) {
               <div className="doctor-vital-badge doctor-vital-badge--loading">
                 <span className="spinner-border spinner-border-sm" role="status" />
               </div>
+            ) : !vitalsDisplay ? (
+              <p className="patient-sidebar__empty-text text-center text-muted mt-3 mb-3">No vitals recorded</p>
             ) : (
               <>
                 <div className="doctor-vital-strip--vertical">
@@ -496,26 +458,6 @@ export default function DoctorPatientDetailView({ patient, history }) {
           <div className="split-patients__detail-hero-info">
             <h2>{data.fullName}</h2>
             <p>{data.email || data.phoneNumber || 'No contact listed'}</p>
-          </div>
-          <div className="split-patients__detail-actions">
-            <button
-              type="button"
-              className="split-patients__detail-action-btn"
-              title={!patient?.userId ? 'Unable to reach this patient' : isInCall ? 'You are currently in a call' : 'Call'}
-              disabled={!patient?.userId || isInCall}
-              onClick={handleCall}
-            >
-              <span className="material-symbols-outlined">call</span>
-            </button>
-            <button
-              type="button"
-              className="split-patients__detail-action-btn"
-              title={!patient?.userId ? 'Unable to reach this patient' : 'Message'}
-              disabled={!patient?.userId}
-              onClick={handleChat}
-            >
-              <span className="material-symbols-outlined">chat</span>
-            </button>
           </div>
         </div>
 

@@ -1,4 +1,5 @@
-import React, { memo, useMemo } from 'react';
+import React, { memo, useMemo, useState, useCallback } from 'react';
+import { createPortal } from 'react-dom';
 import { toast } from 'react-toastify';
 import 'bootstrap/dist/css/bootstrap.min.css';
 import 'react-calendar/dist/Calendar.css';
@@ -18,6 +19,7 @@ import EmptyState from '@components/doctor/EmptyState';
 import ActionBar from '@components/doctor/ActionBar';
 import CompleteConfirmModal from '@components/doctor/CompleteConfirmModal';
 import PatientSummarySidebar from '@components/doctor/PatientSummarySidebar';
+import DoctorMiniChat from '@components/DoctorMiniChat';
 import ConsultationTimerStrip from '@components/doctor/ConsultationTimerStrip';
 
 const TABS = [
@@ -28,15 +30,15 @@ const TABS = [
   { id: 'followup', label: 'Follow-up', icon: 'bi-calendar-check' },
 ];
 
-const getRowTimings = (row) => {
-  const source = Array.isArray(row?.timings) && row.timings.length > 0
-    ? row.timings
-    : String(row?.timing || '').split(',').map((v) => v.trim()).filter(Boolean);
-  return [...new Set(source.map((v) => String(v).toUpperCase()).filter(Boolean))];
-};
+const DoctorAppointmentDetail = memo(({ appointment, patient, doctorId, activeMiniChatAppt, setActiveMiniChatAppt, onBack, onOpenAppointmentById }) => {
+  const ctx = useAppointmentDetail({ appointment, patient, doctorId, activeMiniChatAppt, setActiveMiniChatAppt, onBack, onOpenAppointmentById });
 
-const DoctorAppointmentDetail = memo(({ appointment, patient, doctorId, onBack, onOpenAppointmentById }) => {
-  const ctx = useAppointmentDetail({ appointment, patient, doctorId, onBack, onOpenAppointmentById });
+  const getRowTimings = (row) => {
+    const source = Array.isArray(row?.timings) && row.timings.length > 0
+      ? row.timings
+      : String(row?.timing || '').split(',').map((v) => v.trim()).filter(Boolean);
+    return [...new Set(source.map((v) => String(v).toUpperCase()).filter(Boolean))];
+  };
 
   const showWorkspaceOverlay = useMemo(() =>
     !ctx.hasStarted && ctx.statusKey === 'scheduled',
@@ -72,6 +74,20 @@ const DoctorAppointmentDetail = memo(({ appointment, patient, doctorId, onBack, 
     [ctx.prescription, prescriptionDraftRows, incompletePrescriptionItems],
   );
 
+  const [highlightVitals, setHighlightVitals] = useState(false);
+
+  const checkVitalsAndExecute = useCallback((action) => {
+    if (!ctx.latestVitalSign && ctx.statusKey !== 'completed' && ctx.statusKey !== 'cancelled' && ctx.statusKey !== 'canceled') {
+      setHighlightVitals(true);
+      toast.warn('Please wait for patient vitals before joining the room.');
+      setTimeout(() => {
+        setHighlightVitals(false);
+      }, 4000);
+    } else {
+      action();
+    }
+  }, [ctx.latestVitalSign, ctx.statusKey]);
+
   if (!appointment || !patient) {
     return (
       <div className="text-center py-5">
@@ -93,230 +109,236 @@ const DoctorAppointmentDetail = memo(({ appointment, patient, doctorId, onBack, 
         />
       )}
       <div className="doctor-detail-layout">
-      <div className="doctor-detail-back">
-        <button className="btn btn-link p-0 text-decoration-none" onClick={() => ctx.onBack?.()} type="button">
-          <i className="bi bi-arrow-left me-2"></i>
-          Back to appointments
-        </button>
-      </div>
+        <div className="doctor-detail-back">
+          <button className="btn btn-link p-0 text-decoration-none" onClick={() => ctx.onBack?.()} type="button">
+            <i className="bi bi-arrow-left me-2"></i>
+            Back to appointments
+          </button>
+        </div>
 
-      <div className="doctor-detail-shell">
-      <section className="doctor-detail-card doctor-detail-workspace doctor-detail-workspace--full">
-        <div className="doctor-detail-with-sidebar">
-          <PatientSummarySidebar
-            patient={ctx.patient}
-            patientName={ctx.patientName}
-            visitReason={ctx.visitReason}
-            latestVitalSign={ctx.latestVitalSign}
-            loadingVitalSign={ctx.loadingVitalSign}
-          />
-          <div className="doctor-detail-workspace-main" style={{ position: 'relative' }}>
-            {showWorkspaceOverlay && (
-              <div
-                className="doctor-detail-workspace-overlay"
-                onClick={() => {
-                  const msg = ctx.hasAppointmentTimeArrived
-                    ? 'Please start the consultation first.'
-                    : 'Appointment time has not arrived yet.';
-                  toast.info(msg, { toastId: 'workspace-locked' });
-                }}
-                role="button"
-                tabIndex={0}
-                onKeyDown={(e) => {
-                  if (e.key === 'Enter' || e.key === ' ') {
-                    const msg = ctx.hasAppointmentTimeArrived
-                      ? 'Please start the consultation first.'
-                      : 'Appointment time has not arrived yet.';
-                    toast.info(msg, { toastId: 'workspace-locked' });
-                  }
-                }}
-                aria-label="Workspace locked until appointment time"
-              >
-                <div className="doctor-detail-workspace-overlay__content">
-                  <span className="material-symbols-outlined" style={{ fontSize: '2.5rem', marginBottom: '0.75rem' }}>lock</span>
-                  <p className="doctor-detail-workspace-overlay__title">
-                    {ctx.hasAppointmentTimeArrived ? 'Start Consultation First' : 'Appointment Not Yet Started'}
-                  </p>
-                  <p className="doctor-detail-workspace-overlay__desc">
-                    {ctx.hasAppointmentTimeArrived ? (
-                      'Click "Start Consultation" in the action bar below to begin.'
-                    ) : (
-                      'The consultation workspace will be available once the appointment time arrives. You can start the consultation from the action bar below when the time comes.'
-                    )}
-                  </p>
+        {highlightVitals && <div className="vitals-global-overlay" />}
+
+        <div className="doctor-detail-shell">
+          <section className="doctor-detail-card doctor-detail-workspace doctor-detail-workspace--full">
+            <div className="doctor-detail-with-sidebar">
+              <PatientSummarySidebar
+                patient={ctx.patient}
+                patientName={ctx.patientName}
+                visitReason={ctx.visitReason}
+                latestVitalSign={ctx.latestVitalSign}
+                loadingVitalSign={ctx.loadingVitalSign}
+                highlightVitals={highlightVitals}
+              />
+              <div className="doctor-detail-workspace-main" style={{ position: 'relative' }}>
+                {showWorkspaceOverlay && (
+                  <div
+                    className="doctor-detail-workspace-overlay"
+                    onClick={() => {
+                      const msg = ctx.hasAppointmentTimeArrived
+                        ? 'Please start the consultation first.'
+                        : 'Appointment time has not arrived yet.';
+                      toast.info(msg, { toastId: 'workspace-locked' });
+                    }}
+                    role="button"
+                    tabIndex={0}
+                    onKeyDown={(e) => {
+                      if (e.key === 'Enter' || e.key === ' ') {
+                        const msg = ctx.hasAppointmentTimeArrived
+                          ? 'Please start the consultation first.'
+                          : 'Appointment time has not arrived yet.';
+                        toast.info(msg, { toastId: 'workspace-locked' });
+                      }
+                    }}
+                    aria-label="Workspace locked until appointment time"
+                  >
+                    <div className="doctor-detail-workspace-overlay__content">
+                      <span className="material-symbols-outlined" style={{ fontSize: '2.5rem', marginBottom: '0.75rem' }}>lock</span>
+                      <p className="doctor-detail-workspace-overlay__title">{ctx.hasAppointmentTimeArrived ? 'Start Consultation First' : 'Appointment Not Yet Started'}</p>
+                      <p className="doctor-detail-workspace-overlay__desc">
+                        {ctx.hasAppointmentTimeArrived ? (
+                          'Click "Start Consultation" in the action bar below to begin.'
+                        ) : (
+                          'The consultation workspace will be available once the appointment time arrives. You can start the consultation from the action bar below when the time comes.'
+                        )}
+                      </p>
+                    </div>
+                  </div>
+                )}
+
+                <div className="doctor-detail-appt-header">
+                  <div className="doctor-detail-appt-header__main-row">
+                    <span className="doctor-detail-appointment-id">
+                      <i className="bi bi-hash"></i>
+                      {'Appointment ID: '}{ctx.currentAppointment?.appointmentID || ctx.currentAppointment?.appointmentId || 'N/A'}
+                    </span>
+                    <span className={getStatusClassName(ctx.currentAppointment?.status)}>
+                      {getStatusLabel(ctx.currentAppointment?.status)}
+                      {ctx.currentAppointment?.status || 'Unknown'}
+                    </span>
+                  </div>
+                  <div className="doctor-detail-summary__chips">
+                    <span className={getTypeClassName(ctx.currentAppointment?.consultationType)}>
+                      {ctx.currentAppointment?.consultationType || 'Consultation'}
+                    </span>
+                    <span className="doctor-detail-chip">
+                      <i className="bi bi-calendar3"></i>
+                      {formatCompactDate(ctx.currentAppointment?.appointmentTime)}
+                    </span>
+                    <span className="doctor-detail-chip">
+                      <i className="bi bi-clock"></i>
+                      {formatTime(ctx.currentAppointment?.appointmentTime)}
+                    </span>
+                  </div>
+                </div>
+
+                <div className="doctor-detail-tabs" role="tablist" aria-label="Appointment detail tabs">
+                  {TABS.map((tab) => (
+                    <button
+                      key={tab.id}
+                      className={`doctor-detail-tab ${ctx.activeTab === tab.id ? 'doctor-detail-tab--active' : ''}`}
+                      onClick={() => ctx.setActiveTab(tab.id)}
+                      type="button"
+                      title={tab.label}
+                      aria-label={tab.label}
+                    >
+                      <i className={`bi ${tab.icon}`}></i>
+                      <span className="doctor-detail-tab__label">{tab.label}</span>
+                    </button>
+                  ))}
+                </div>
+
+                <div className="doctor-detail-tab-panel doctor-detail-tab-panel--workspace">
+                  {ctx.activeTab === 'notes' ? (
+                    <NotesTab
+                      loadingAppointment={ctx.loadingAppointment}
+                      canEditClinical={ctx.canEditClinical}
+                      notesDraft={ctx.notesDraft}
+                      onNotesChange={ctx.handleNotesDraftChange}
+                      onSaveNotes={ctx.handleSaveNotes}
+                    />
+                  ) : null}
+                  {ctx.activeTab === 'history' ? (
+                    <HistoryTab
+                      loadingHistory={ctx.loadingHistory}
+                      completedHistory={ctx.completedHistory}
+                      selectedHistoryAppointment={ctx.selectedHistoryAppointment}
+                      loadingHistorySnapshot={ctx.loadingHistorySnapshot}
+                      selectedHistoryConsultation={ctx.selectedHistoryConsultation}
+                      onViewAppointmentDetail={ctx.handleViewAppointmentDetail}
+                      renderEmptyState={(title, description) => <EmptyState title={title} description={description} />}
+                      formatCompactDate={formatCompactDate}
+                      formatTime={formatTime}
+                      formatDate={formatDate}
+                      getStatusClassName={getStatusClassName}
+                    />
+                  ) : null}
+                  {ctx.activeTab === 'shared' ? <SharedRecordsTab doctorId={ctx.effectiveDoctorId} patientId={ctx.patientId} appointmentId={ctx.currentAppointment?.appointmentId} /> : null}
+                  {ctx.activeTab === 'prescription' ? (
+                    <PrescriptionTab
+                      appointment={ctx.currentAppointment}
+                      patient={ctx.patient}
+                      consultation={ctx.consultation}
+                      prescription={ctx.prescription}
+                      prescriptionDraft={ctx.prescriptionDraft}
+                      loadingPrescription={ctx.loadingPrescription}
+                      onDraftChange={ctx.setPrescriptionDraft}
+                      readOnly={ctx.isReadOnlyAppointment}
+                      canEditPrescription={ctx.canEditPrescription}
+                    />
+                  ) : null}
+                  {ctx.activeTab === 'followup' ? (
+                    <FollowUpTab
+                      canEditFollowUp={ctx.canEditFollowUp}
+                      consultation={ctx.consultation}
+                      formatDateTime={formatDateTime}
+                      loadingFollowUpCalendar={ctx.loadingFollowUpCalendar}
+                      followUpCalendarDayMap={ctx.followUpCalendarDayMap}
+                      followUpSelectedDate={ctx.followUpSelectedDate}
+                      toLocalDateValue={toLocalDateValue}
+                      onFollowUpMonthChange={ctx.handleFollowUpMonthChange}
+                      onFollowUpDateChange={ctx.handleFollowUpDateChange}
+                      loadingFollowUpSlots={ctx.loadingFollowUpSlots}
+                      followUpSlots={ctx.followUpSlots}
+                      buildFollowUpDateTime={buildFollowUpDateTime}
+                      selectedFollowUpDateTime={ctx.selectedFollowUpDateTime}
+                      savingFollowUp={ctx.savingFollowUp}
+                      onSelectFollowUpSlot={ctx.handleSelectFollowUpSlot}
+                      selectedScheduleLabel={ctx.selectedScheduleLabel}
+                      canCancelFollowUp={ctx.canCancelFollowUp}
+                      onCancelFollowUp={ctx.handleCancelFollowUp}
+                      followUpAction={ctx.followUpAction}
+                      onConfirmFollowUp={ctx.handleConfirmFollowUp}
+                      currentAppointment={ctx.currentAppointment}
+                      followUpNotes={ctx.followUpNotes}
+                      onFollowUpNotesChange={ctx.setFollowUpNotes}
+                      renderEmptyState={(title, description) => <EmptyState title={title} description={description} />}
+                      followUpConsultationType={ctx.followUpConsultationType}
+                      onFollowUpTypeChange={ctx.setFollowUpConsultationType}
+                      followUpPaymentStatus={ctx.followUpPaymentStatus}
+                      sendingPaymentRequest={ctx.sendingPaymentRequest}
+                      handleSendPaymentRequest={ctx.handleSendPaymentRequest}
+                      showRescheduleConfirm={ctx.showRescheduleConfirm}
+                      isRescheduling={ctx.isRescheduling}
+                      handleInitiateReschedule={ctx.handleInitiateReschedule}
+                      handleConfirmRescheduleModal={ctx.handleConfirmRescheduleModal}
+                      handleCancelRescheduleModal={ctx.handleCancelRescheduleModal}
+                      handleSaveReschedule={ctx.handleSaveReschedule}
+                      handleCancelReschedule={ctx.handleCancelReschedule}
+                    />
+                  ) : null}
                 </div>
               </div>
-            )}
-        <div className="doctor-detail-appt-header">
-          <div className="doctor-detail-appt-header__main-row">
-            <span className="doctor-detail-appointment-id">
-              <i className="bi bi-hash"></i>
-              {'Appointment ID: '}{ctx.currentAppointment?.appointmentID || ctx.currentAppointment?.appointmentId || 'N/A'}
-            </span>
-            <span className={getStatusClassName(ctx.currentAppointment?.status)}>
-              {getStatusLabel(ctx.currentAppointment?.status)}
-            </span>
-          </div>
-          <div className="doctor-detail-summary__chips">
-            <span className={getTypeClassName(ctx.currentAppointment?.consultationType)}>
-              {ctx.currentAppointment?.consultationType || 'Consultation'}
-            </span>
-            <span className="doctor-detail-chip">
-              <i className="bi bi-calendar3"></i>
-              {formatCompactDate(ctx.currentAppointment?.appointmentTime)}
-            </span>
-            <span className="doctor-detail-chip">
-              <i className="bi bi-clock"></i>
-              {formatTime(ctx.currentAppointment?.appointmentTime)}
-            </span>
-          </div>
-        </div>
-        <div className="doctor-detail-tabs" role="tablist" aria-label="Appointment detail tabs">
-          {TABS.map((tab) => (
-            <button
-              key={tab.id}
-              className={`doctor-detail-tab ${ctx.activeTab === tab.id ? 'doctor-detail-tab--active' : ''}`}
-              onClick={() => ctx.setActiveTab(tab.id)}
-              type="button"
-              title={tab.label}
-              aria-label={tab.label}
-            >
-              <i className={`bi ${tab.icon}`}></i>
-              <span className="doctor-detail-tab__label">{tab.label}</span>
-            </button>
-          ))}
+            </div>
+
+            <ActionBar
+              handleChat={() => checkVitalsAndExecute(ctx.handleChat)}
+              canStartConsultation={ctx.canStartConsultation}
+              hasStarted={ctx.hasStarted}
+              hasAppointmentTimeArrived={ctx.hasAppointmentTimeArrived}
+              isCancelledAppointment={ctx.isCancelledAppointment}
+              isReadOnlyAppointment={ctx.isReadOnlyAppointment}
+              startingConsultation={ctx.startingConsultation}
+              handleStartConsultation={ctx.handleStartConsultation}
+              handleVideoCall={() => checkVitalsAndExecute(ctx.handleVideoCall)}
+              joinDisabled={ctx.joinDisabled}
+              actionLabel={ctx.actionLabel}
+              currentAppointment={ctx.currentAppointment}
+              completingAppointment={ctx.completingAppointment}
+              onCompleteClick={() => ctx.setShowCompleteConfirmModal(true)}
+            />
+          </section>
         </div>
 
-        <div className="doctor-detail-tab-panel doctor-detail-tab-panel--workspace">
-          {ctx.activeTab === 'notes' ? (
-              <NotesTab
-                loadingAppointment={ctx.loadingAppointment}
-                canEditClinical={ctx.canEditClinical}
-                notesDraft={ctx.notesDraft}
-                onNotesChange={ctx.handleNotesDraftChange}
-                onSaveNotes={ctx.handleSaveNotes}
-              />
-            ) : null}
-            {ctx.activeTab === 'history' ? (
-              <HistoryTab
-                loadingHistory={ctx.loadingHistory}
-                completedHistory={ctx.completedHistory}
-                selectedHistoryAppointment={ctx.selectedHistoryAppointment}
-                loadingHistorySnapshot={ctx.loadingHistorySnapshot}
-                selectedHistoryConsultation={ctx.selectedHistoryConsultation}
-                onViewAppointmentDetail={ctx.handleViewAppointmentDetail}
-                renderEmptyState={(title, description) => <EmptyState title={title} description={description} />}
-                formatCompactDate={formatCompactDate}
-                formatTime={formatTime}
-                formatDate={formatDate}
-                getStatusClassName={getStatusClassName}
-              />
-            ) : null}
-            {ctx.activeTab === 'shared' ? <SharedRecordsTab doctorId={ctx.effectiveDoctorId} patientId={ctx.patientId} appointmentId={ctx.currentAppointment?.appointmentId} /> : null}
-            {ctx.activeTab === 'prescription' ? (
-              <PrescriptionTab
-                appointment={ctx.currentAppointment}
-                patient={ctx.patient}
-                consultation={ctx.consultation}
-                prescription={ctx.prescription}
-                prescriptionDraft={ctx.prescriptionDraft}
-                loadingPrescription={ctx.loadingPrescription}
-                onDraftChange={ctx.setPrescriptionDraft}
-                readOnly={ctx.isReadOnlyAppointment}
-                canEditPrescription={ctx.canEditPrescription}
-              />
-            ) : null}
-            {ctx.activeTab === 'followup' ? (
-              <FollowUpTab
-                canEditFollowUp={ctx.canEditFollowUp}
-                consultation={ctx.consultation}
-                formatDateTime={formatDateTime}
-                loadingFollowUpCalendar={ctx.loadingFollowUpCalendar}
-                followUpCalendarDayMap={ctx.followUpCalendarDayMap}
-                followUpSelectedDate={ctx.followUpSelectedDate}
-                toLocalDateValue={toLocalDateValue}
-                onFollowUpMonthChange={ctx.handleFollowUpMonthChange}
-                onFollowUpDateChange={ctx.handleFollowUpDateChange}
-                loadingFollowUpSlots={ctx.loadingFollowUpSlots}
-                followUpSlots={ctx.followUpSlots}
-                buildFollowUpDateTime={buildFollowUpDateTime}
-                selectedFollowUpDateTime={ctx.selectedFollowUpDateTime}
-                savingFollowUp={ctx.savingFollowUp}
-                onSelectFollowUpSlot={ctx.handleSelectFollowUpSlot}
-                selectedScheduleLabel={ctx.selectedScheduleLabel}
-                followUpAction={ctx.followUpAction}
-                onConfirmFollowUp={ctx.handleConfirmFollowUp}
-                followUpPaymentStatus={ctx.followUpPaymentStatus}
-                sendingPaymentRequest={ctx.sendingPaymentRequest}
-                handleSendPaymentRequest={ctx.handleSendPaymentRequest}
-                currentAppointment={ctx.currentAppointment}
-                followUpNotes={ctx.followUpNotes}
-                onFollowUpNotesChange={ctx.setFollowUpNotes}
-                renderEmptyState={(title, description) => <EmptyState title={title} description={description} />}
-                followUpConsultationType={ctx.followUpConsultationType}
-                onFollowUpTypeChange={ctx.setFollowUpConsultationType}
-                showRescheduleConfirm={ctx.showRescheduleConfirm}
-                isRescheduling={ctx.isRescheduling}
-                handleInitiateReschedule={ctx.handleInitiateReschedule}
-                handleConfirmRescheduleModal={ctx.handleConfirmRescheduleModal}
-                handleCancelRescheduleModal={ctx.handleCancelRescheduleModal}
-                handleSaveReschedule={ctx.handleSaveReschedule}
-                handleCancelReschedule={ctx.handleCancelReschedule}
-              />
-            ) : null}
-          </div>
-          </div>
-        </div>
-
-          <ActionBar
-            handleChat={ctx.handleChat}
-            canStartConsultation={ctx.canStartConsultation}
-            hasStarted={ctx.hasStarted}
-            hasAppointmentTimeArrived={ctx.hasAppointmentTimeArrived}
-            isCancelledAppointment={ctx.isCancelledAppointment}
-            isReadOnlyAppointment={ctx.isReadOnlyAppointment}
-            startingConsultation={ctx.startingConsultation}
-            handleStartConsultation={ctx.handleStartConsultation}
-            handleVideoCall={ctx.handleVideoCall}
-            joinDisabled={ctx.joinDisabled}
-            actionLabel={ctx.actionLabel}
-            currentAppointment={ctx.currentAppointment}
-            completingAppointment={ctx.completingAppointment}
-            onCompleteClick={() => ctx.setShowCompleteConfirmModal(true)}
-          />
-        </section>
+        <CompleteConfirmModal
+          show={ctx.showCompleteConfirmModal}
+          completingAppointment={ctx.completingAppointment}
+          copyPrescription={ctx.copyPrescription}
+          onCopyPrescriptionChange={ctx.setCopyPrescription}
+          hasPendingFollowUp={ctx.hasPendingFollowUp}
+          onClose={() => ctx.setShowCompleteConfirmModal(false)}
+          onConfirm={ctx.handleCompleteAppointment}
+          notesSaved={Boolean(
+            ctx.notesDraft?.diagnosis ||
+            ctx.notesDraft?.doctorNotes ||
+            ctx.notesDraft?.treatmentPlan ||
+            ctx.consultation?.doctorNotes ||
+            ctx.consultation?.diagnosis ||
+            ctx.consultation?.treatmentPlan
+          )}
+          prescriptionReady={prescriptionReady}
+          prescriptionIncompleteItems={incompletePrescriptionItems}
+          followUpConfigured={Boolean(ctx.selectedFollowUpDateTime)}
+          followUpInfo={ctx.selectedFollowUpDateTime ? {
+            scheduleLabel: ctx.selectedScheduleLabel,
+            consultationType: ctx.followUpConsultationType,
+          } : null}
+          followUpPaymentStatus={ctx.followUpPaymentStatus}
+          vitalsSubmitted={Boolean(ctx.latestVitalSign)}
+        />
       </div>
-
-              <CompleteConfirmModal
-        show={ctx.showCompleteConfirmModal}
-        completingAppointment={ctx.completingAppointment}
-        copyPrescription={ctx.copyPrescription}
-        onCopyPrescriptionChange={ctx.setCopyPrescription}
-        hasPendingFollowUp={ctx.hasPendingFollowUp}
-        onClose={() => ctx.setShowCompleteConfirmModal(false)}
-        onConfirm={ctx.handleCompleteAppointment}
-        notesSaved={Boolean(
-          ctx.notesDraft?.diagnosis ||
-          ctx.notesDraft?.doctorNotes ||
-          ctx.notesDraft?.treatmentPlan ||
-          ctx.consultation?.doctorNotes ||
-          ctx.consultation?.diagnosis ||
-          ctx.consultation?.treatmentPlan
-        )}
-        prescriptionReady={prescriptionReady}
-        prescriptionIncompleteItems={incompletePrescriptionItems}
-        followUpConfigured={Boolean(ctx.selectedFollowUpDateTime)}
-        followUpInfo={ctx.selectedFollowUpDateTime ? {
-          scheduleLabel: ctx.selectedScheduleLabel,
-          consultationType: ctx.followUpConsultationType,
-        } : null}
-        followUpPaymentStatus={ctx.followUpPaymentStatus}
-      />
-    </div>
     </>
   );
 });
 
 DoctorAppointmentDetail.displayName = 'DoctorAppointmentDetail';
-
 export default DoctorAppointmentDetail;

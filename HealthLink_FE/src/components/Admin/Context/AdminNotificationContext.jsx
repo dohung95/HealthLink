@@ -72,6 +72,13 @@ const NOTIFICATION_CONFIG = {
         actionUrl: '/admin',
         sound: false
     },
+    DOCTOR_SCHEDULE_CHANGE_REQUEST: {
+        icon: 'bi-calendar-event-fill',
+        color: '#fd7e14',
+        bgColor: 'rgba(253, 126, 20, 0.1)',
+        actionUrl: '/admin/compliance?tab=change-requests',
+        sound: true
+    },
     DEFAULT: {
         icon: 'bi-bell-fill',
         color: '#6c757d',

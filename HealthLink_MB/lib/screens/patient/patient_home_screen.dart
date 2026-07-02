@@ -5,7 +5,7 @@ import 'package:provider/provider.dart';
 import '../../providers/auth_provider.dart';
 import '../../config/api_config.dart';
 import '../../services/appointments/appointment_service.dart';
-import '../../services/patient_service.dart';
+import '../../services/patient/patient_service.dart';
 import '../../services/booking/booking_service.dart';
 import '../patient/health_records/health_records_screen.dart';
 import '../patient/health_records/share_health_records_screen.dart';
@@ -15,6 +15,7 @@ import '../../services/notification/notification_service.dart';
 import '../../services/notification/notification_realtime_service.dart';
 import 'notifications/notification_center_sheet.dart';
 import '../../l10n/app_localizations.dart';
+import 'medicine_reminder/medicine_reminder_screen.dart';
 
 class PatientHomeScreen extends StatefulWidget {
   const PatientHomeScreen({
@@ -1122,6 +1123,19 @@ class _PatientHomeScreenState extends State<PatientHomeScreen> {
                     Navigator.of(context).push(
                       MaterialPageRoute(
                         builder: (context) => const PharmacyConsultationScreen(),
+                      ),
+                    );
+                  },
+                ),
+                _buildQuickActionButton(
+                  Icons.medication_outlined,
+                  AppLocalizations.of(context)!.homeMedicineReminder,
+                  Theme.of(context).colorScheme.tertiary.withOpacity(0.12),
+                  Theme.of(context).colorScheme.tertiary,
+                  onTap: () {
+                    Navigator.of(context).push(
+                      MaterialPageRoute(
+                        builder: (_) => const MedicineReminderScreen(),
                       ),
                     );
                   },

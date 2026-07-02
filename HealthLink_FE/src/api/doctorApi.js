@@ -166,6 +166,14 @@ export const doctorScheduleService = {
     return response.data;
   },
 
+  /**
+   * Self-register a day off on a future date that already has a working schedule
+   */
+  createDayOff: async ({ exceptionDate, reason }) => {
+    const response = await axiosInstance.post('/api/doctors/schedule/day-off', { exceptionDate, reason });
+    return response.data;
+  },
+
   // ========== Calendar View ==========
 
   /**
