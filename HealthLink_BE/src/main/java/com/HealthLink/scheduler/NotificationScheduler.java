@@ -62,8 +62,8 @@ public class NotificationScheduler {
 
     @Transactional
     public NotificationDispatchSummary sendAppointmentReminders(LocalDateTime now) {
-        LocalDateTime from = now.plusMinutes(PATIENT_ONE_HOUR_REMINDER_MINUTES);
-        LocalDateTime to = from.plusMinutes(5);
+        LocalDateTime from = now.plusMinutes(PATIENT_ONE_HOUR_REMINDER_MINUTES - 5);
+        LocalDateTime to = from.plusMinutes(10);
 
         List<Appointment> upcomingAppointments =
                 appointmentRepository.findUpcomingAndReminderNotSent(from, to);
@@ -126,8 +126,8 @@ public class NotificationScheduler {
 
     @Transactional
     public NotificationDispatchSummary sendPatientFifteenMinuteAppointmentReminders(LocalDateTime now) {
-        LocalDateTime from = now.plusMinutes(PATIENT_FIFTEEN_MINUTE_REMINDER_MINUTES);
-        LocalDateTime to = from.plusMinutes(5);
+        LocalDateTime from = now;
+        LocalDateTime to = now.plusMinutes(PATIENT_FIFTEEN_MINUTE_REMINDER_MINUTES + 5);
 
         List<Appointment> upcomingAppointments =
                 appointmentRepository.findUpcomingPatientFifteenMinuteReminderCandidates(from, to);
@@ -190,7 +190,7 @@ public class NotificationScheduler {
 
     @Transactional
     public NotificationDispatchSummary sendDoctorAppointmentReminders(LocalDateTime now) {
-        LocalDateTime from = now.plusMinutes(30);
+        LocalDateTime from = now.plusMinutes(25);
         LocalDateTime to = now.plusMinutes(35);
 
         List<Appointment> upcomingAppointments =

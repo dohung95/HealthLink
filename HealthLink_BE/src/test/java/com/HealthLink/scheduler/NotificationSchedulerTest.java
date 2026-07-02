@@ -87,8 +87,8 @@ class NotificationSchedulerTest {
                 .build();
 
         when(appointmentRepository.findUpcomingAndReminderNotSent(
-                now.plusHours(1),
-                now.plusHours(1).plusMinutes(5)
+                now.plusMinutes(55),
+                now.plusMinutes(65)
         )).thenReturn(List.of(appointment));
 
         notificationScheduler.sendAppointmentReminders(now);
@@ -138,7 +138,7 @@ class NotificationSchedulerTest {
                 .build();
 
         when(appointmentRepository.findUpcomingPatientFifteenMinuteReminderCandidates(
-                now.plusMinutes(15),
+                now,
                 now.plusMinutes(20)
         )).thenReturn(List.of(appointment));
 
@@ -194,7 +194,7 @@ class NotificationSchedulerTest {
                 .build();
 
         when(appointmentRepository.findUpcomingPatientFifteenMinuteReminderCandidates(
-                now.plusMinutes(15),
+                now,
                 now.plusMinutes(20)
         )).thenReturn(List.of(appointment));
 
@@ -239,7 +239,7 @@ class NotificationSchedulerTest {
                 .build();
 
         when(appointmentRepository.findUpcomingDoctorReminderCandidates(
-                now.plusMinutes(30),
+                now.plusMinutes(25),
                 now.plusMinutes(35)
         ))
                 .thenReturn(List.of(appointment));
