@@ -80,6 +80,20 @@ class DoctorScheduleService {
     }
   }
 
+  /// Self-register a day off on a future date that already has a working schedule.
+  static Future<void> createDayOff(
+      String token, String exceptionDate, String reason) async {
+    final res = await http
+        .post(Uri.parse(ApiConfig.scheduleDayOff),
+            headers: _headers(token),
+            body: jsonEncode({'exceptionDate': exceptionDate, 'reason': reason}))
+        .timeout(ApiConfig.connectTimeout);
+    if (res.statusCode != 200 && res.statusCode != 201) {
+      final msg = _errorMsg(res.body);
+      throw Exception(msg);
+    }
+  }
+
   static Future<ComplianceStatus> getComplianceStatus(String token) async {
     final res = await http
         .get(Uri.parse(ApiConfig.complianceStatus), headers: _headers(token))

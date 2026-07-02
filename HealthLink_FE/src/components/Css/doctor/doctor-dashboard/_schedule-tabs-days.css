@@ -313,3 +313,11 @@
   color: var(--text-muted);
   margin: 0;
 }
+
+/* ============================================
+   SPIN (refresh icon loading state)
+   ============================================ */
+@keyframes spin {
+  from { transform: rotate(0deg); }
+  to { transform: rotate(360deg); }
+}

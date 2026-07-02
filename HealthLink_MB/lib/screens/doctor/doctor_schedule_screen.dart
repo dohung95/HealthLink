@@ -273,6 +273,14 @@ class _DoctorScheduleScreenState extends State<DoctorScheduleScreen>
               setState(() => _calendarMonth = m);
               _loadCalendar();
             },
+            token: _token,
+            onSnack: _showSnack,
+            onDayOffCreated: () {
+              _loadCalendar();
+              _loadAll();
+              _loadCompliance();
+              widget.onScheduleSaved?.call();
+            },
           ),
           _RequestsTab(
             loading: _loadingRequests,
@@ -1038,17 +1046,29 @@ class _CalendarTab extends StatelessWidget {
   final List<CalendarDay> days;
   final DateTime month;
   final void Function(DateTime) onMonthChanged;
+  final String token;
+  final void Function(String, {bool success}) onSnack;
+  final VoidCallback onDayOffCreated;
 
   const _CalendarTab({
     required this.loading,
     required this.days,
     required this.month,
     required this.onMonthChanged,
+    required this.token,
+    required this.onSnack,
+    required this.onDayOffCreated,
   });
 
   CalendarDay? _dayData(DateTime date) {
     final key = DateFormat('yyyy-MM-dd').format(date);
     try { return days.firstWhere((d) => d.date == key); } catch (_) { return null; }
+  }
+
+  bool _isFutureDate(DateTime date) {
+    final today = DateTime.now();
+    final todayMidnight = DateTime(today.year, today.month, today.day);
+    return date.isAfter(todayMidnight);
   }
 
   Color _statusColor(String? status) {
@@ -1219,9 +1239,111 @@ class _CalendarTab extends StatelessWidget {
                         style: const TextStyle(color: DS.mutedForeground, fontSize: 12)),
                   ]),
                 )),
+          if (data.status == 'WORKING' && _isFutureDate(date)) ...[
+            const SizedBox(height: 16),
+            SizedBox(
+              width: double.infinity,
+              height: 44,
+              child: OutlinedButton.icon(
+                style: OutlinedButton.styleFrom(
+                    foregroundColor: DS.destructive,
+                    side: const BorderSide(color: DS.destructive),
+                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10))),
+                onPressed: () => _handleMarkDayOff(context, date),
+                icon: const Icon(Icons.block, size: 18),
+                label: const Text('Mark as Day Off', style: TextStyle(fontWeight: FontWeight.w600)),
+              ),
+            ),
+            const SizedBox(height: 8),
+            const Text(
+              'Only blocks new bookings from now on — it will not cancel appointments patients already booked for this date.',
+              style: TextStyle(fontSize: 11, color: DS.mutedForeground, height: 1.4),
+            ),
+          ],
           const SizedBox(height: 8),
         ]),
       ),
+    );
+  }
+
+  Future<void> _handleMarkDayOff(BuildContext context, DateTime date) async {
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (_) => AlertDialog(
+        title: const Text('Mark as Day Off'),
+        content: const Text(
+          'Marking this date as a day off only blocks NEW bookings from now on.\n\n'
+          'It will NOT cancel appointments patients already booked for this date — '
+          'you still need to see them, or cancel/reschedule those appointments yourself.\n\n'
+          'Continue?',
+        ),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(context, false), child: const Text('Cancel')),
+          TextButton(onPressed: () => Navigator.pop(context, true), child: const Text('Continue')),
+        ],
+      ),
+    );
+    if (confirmed != true || !context.mounted) return;
+
+    final reason = await showDialog<String>(
+      context: context,
+      builder: (_) => const _DayOffReasonDialog(),
+    );
+    if (reason == null) return; // user cancelled
+    if (reason.trim().isEmpty) {
+      onSnack('A reason is required to register a day off');
+      return;
+    }
+    if (!context.mounted) return;
+
+    try {
+      final fmt = DateFormat('yyyy-MM-dd');
+      await DoctorScheduleService.createDayOff(token, fmt.format(date), reason.trim());
+      if (context.mounted) Navigator.of(context).pop(); // close day-detail sheet
+      onSnack('Day off registered successfully', success: true);
+      onDayOffCreated();
+    } catch (e) {
+      onSnack(e.toString().replaceAll('Exception: ', ''));
+    }
+  }
+}
+
+class _DayOffReasonDialog extends StatefulWidget {
+  const _DayOffReasonDialog();
+
+  @override
+  State<_DayOffReasonDialog> createState() => _DayOffReasonDialogState();
+}
+
+class _DayOffReasonDialogState extends State<_DayOffReasonDialog> {
+  final _ctrl = TextEditingController();
+
+  @override
+  void dispose() {
+    _ctrl.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return AlertDialog(
+      title: const Text('Reason for this day off'),
+      content: TextField(
+        controller: _ctrl,
+        autofocus: true,
+        maxLines: 3,
+        decoration: const InputDecoration(
+          hintText: 'e.g. Personal leave, conference, sick leave...',
+          border: OutlineInputBorder(),
+        ),
+      ),
+      actions: [
+        TextButton(onPressed: () => Navigator.pop(context), child: const Text('Cancel')),
+        TextButton(
+          onPressed: () => Navigator.pop(context, _ctrl.text),
+          child: const Text('Confirm'),
+        ),
+      ],
     );
   }
 }

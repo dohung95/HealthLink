@@ -1,6 +1,7 @@
 package com.HealthLink.service.impl.doctor;
 
 import com.HealthLink.dto.doctor.schedule.CalendarDayResponse;
+import com.HealthLink.dto.doctor.schedule.DoctorDayOffRequest;
 import com.HealthLink.dto.doctor.schedule.DoctorScheduleRequest;
 import com.HealthLink.dto.doctor.schedule.WeeklyScheduleResponse;
 import com.HealthLink.dto.response.DoctorScheduleResponse;
@@ -217,6 +218,70 @@ public class DoctorScheduleServiceImpl implements DoctorScheduleService {
 
         exceptionRepository.delete(exception);
         log.info("Doctor {} deleted exception {}", doctorId, exceptionId);
+    }
+
+    @Override
+    public WeeklyScheduleResponse.ExceptionItem createDayOff(String doctorId, DoctorDayOffRequest request) {
+        Doctor doctor = findDoctor(doctorId);
+
+        LocalDate date = request.getExceptionDate();
+        if (!date.isAfter(LocalDate.now())) {
+            throw new BadRequestException("Day off date must be in the future");
+        }
+
+        int dayOfWeek = DoctorServiceHelper.dayOfWeekIndex(date.getDayOfWeek());
+        boolean hasScheduleThatDay = !scheduleRepository
+                .findByDoctor_DoctorIdAndDayOfWeekAndAvailableTrue(doctorId, dayOfWeek)
+                .isEmpty();
+        if (!hasScheduleThatDay) {
+            throw new BadRequestException("You don't have a working schedule on this date, so a day off is not needed.");
+        }
+
+        exceptionRepository.findByDoctor_DoctorIdAndExceptionDate(doctorId, date)
+                .ifPresent(existing -> {
+                    throw new BadRequestException("An exception already exists for this date. Delete it first.");
+                });
+
+        DoctorScheduleException exception = DoctorScheduleException.builder()
+                .doctor(doctor)
+                .exceptionDate(date)
+                .exceptionType(ScheduleExceptionType.DAY_OFF)
+                .reason(request.getReason())
+                .recurring(false)
+                .build();
+
+        DoctorScheduleException saved = exceptionRepository.save(exception);
+        log.info("Doctor {} created day off on {}", doctorId, date);
+
+        audit.log("DAY_OFF_CREATED", String.valueOf(saved.getExceptionId()), doctorId,
+                java.util.Map.of("exceptionDate", String.valueOf(date)));
+        logDoctorDayOffCreation(saved);
+
+        // Day off reduces scheduled hours for the month; keep compliance and schedule status in sync
+        updateComplianceAsync(doctorId);
+        updateDoctorScheduleStatus(doctorId);
+
+        return mapExceptionToItem(saved);
+    }
+
+    private void logDoctorDayOffCreation(DoctorScheduleException exception) {
+        if (exception.getDoctor() != null && exception.getDoctor().getUser() != null) {
+            auditLogRepository.save(
+                    com.HealthLink.entity.AdminScheduleAuditLog.builder()
+                            .adminUser(exception.getDoctor().getUser())
+                            .actionType("CREATE_DAY_OFF")
+                            .targetDoctorId(exception.getDoctor().getDoctorId())
+                            .targetAppointmentId(null)
+                            .targetPatientId(null)
+                            .description("Doctor registered a day off on " + exception.getExceptionDate())
+                            .oldValue(null)
+                            .newValue("{\"exceptionId\":" + exception.getExceptionId() + ",\"exceptionDate\":\"" + exception.getExceptionDate() + "\"}")
+                            .reason(exception.getReason())
+                            .ipAddress(null)
+                            .createdAt(LocalDateTime.now())
+                            .build()
+            );
+        }
     }
 
     @Override

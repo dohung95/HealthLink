@@ -366,5 +366,5 @@ if __name__ == "__main__":
         "main:app",
         host=Config.HOST,
         port=Config.PORT,
-        reload=True
+        reload=False
     )

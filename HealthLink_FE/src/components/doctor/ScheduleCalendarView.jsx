@@ -41,6 +41,7 @@ const ScheduleCalendarView = ({ exceptions, onRefresh }) => {
   const [calendarData, setCalendarData] = useState([]);
   const [loading, setLoading] = useState(false);
   const [deletingId, setDeletingId] = useState(null);
+  const [markingDayOff, setMarkingDayOff] = useState(false);
   const [viewRange, setViewRange] = useState(() => getMonthRange(new Date()));
 
   const fetchCalendarData = useCallback(async () => {
@@ -118,6 +119,41 @@ const ScheduleCalendarView = ({ exceptions, onRefresh }) => {
       setDeletingId(null);
     }
   };
+
+  const handleMarkDayOff = async () => {
+    const confirmed = window.confirm(
+      'Marking this date as a day off only blocks NEW bookings from now on.\n\n' +
+      'It will NOT cancel appointments patients already booked for this date — ' +
+      'you still need to see them, or cancel/reschedule those appointments yourself.\n\n' +
+      'Continue?'
+    );
+    if (!confirmed) return;
+
+    const reason = window.prompt('Reason for this day off:');
+    if (reason === null) return;
+    if (!reason.trim()) {
+      toast.error('A reason is required to register a day off');
+      return;
+    }
+
+    try {
+      setMarkingDayOff(true);
+      await doctorScheduleService.createDayOff({
+        exceptionDate: toDateValue(selectedDate),
+        reason: reason.trim(),
+      });
+      toast.success('Day off registered successfully');
+      onRefresh();
+      fetchCalendarData();
+    } catch (err) {
+      console.error('Create day off error:', err);
+      toast.error(err.response?.data?.message || 'Failed to register day off');
+    } finally {
+      setMarkingDayOff(false);
+    }
+  };
+
+  const isFutureDate = (date) => date > new Date(new Date().toDateString());
 
   const upcomingExceptions = exceptions
     .filter((exception) => new Date(exception.exceptionDate) >= new Date())
@@ -204,8 +240,28 @@ const ScheduleCalendarView = ({ exceptions, onRefresh }) => {
                     {selectedDayData.slots.length} slot{selectedDayData.slots.length > 1 ? 's' : ''}
                   </span>
                 )}
+                {selectedDayData.status === 'WORKING' && isFutureDate(selectedDate) && (
+                  <button
+                    className="btn btn-outline-danger btn-sm ms-auto d-flex align-items-center gap-1"
+                    onClick={handleMarkDayOff}
+                    disabled={markingDayOff}
+                    type="button"
+                  >
+                    <span className="material-symbols-outlined" style={{ fontSize: '0.875rem' }}>
+                      {markingDayOff ? 'progress_activity' : 'block'}
+                    </span>
+                    Mark as Day Off
+                  </button>
+                )}
               </div>
             ) : null}
+
+            {selectedDayData?.status === 'WORKING' && isFutureDate(selectedDate) && (
+              <p className="selected-day-bar__note">
+                <span className="material-symbols-outlined" style={{ fontSize: '0.875rem' }}>info</span>
+                Marking a day off only blocks new bookings from now on — it will not cancel appointments patients already booked for this date.
+              </p>
+            )}
           </div>
         </div>
 
@@ -226,11 +282,6 @@ const ScheduleCalendarView = ({ exceptions, onRefresh }) => {
                   <span className="calendar-legend__dot calendar-legend__dot--dayoff" />
                   <span className="calendar-legend__label">Day Off</span>
                   <span className="material-symbols-outlined calendar-legend__icon">block</span>
-                </div>
-                <div className="calendar-legend__item">
-                  <span className="calendar-legend__dot calendar-legend__dot--modified" />
-                  <span className="calendar-legend__label">Modified</span>
-                  <span className="material-symbols-outlined calendar-legend__icon">schedule</span>
                 </div>
                 <div className="calendar-legend__item">
                   <span className="calendar-legend__dot calendar-legend__dot--noschedule" />

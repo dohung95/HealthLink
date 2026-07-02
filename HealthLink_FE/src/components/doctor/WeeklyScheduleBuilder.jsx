@@ -487,6 +487,7 @@ const WeeklyScheduleBuilder = ({
             </div>
             {onRefreshRequests && (
               <button
+                type="button"
                 onClick={onRefreshRequests}
                 disabled={loadingRequests}
                 style={{
@@ -499,11 +500,20 @@ const WeeklyScheduleBuilder = ({
                   background: '#fff',
                   color: '#64748b',
                   fontSize: '0.75rem',
-                  cursor: 'pointer',
+                  cursor: loadingRequests ? 'not-allowed' : 'pointer',
+                  opacity: loadingRequests ? 0.6 : 1,
                 }}
               >
-                <span className="material-symbols-outlined" style={{ fontSize: '0.875rem' }}>refresh</span>
-                Refresh
+                <span
+                  className="material-symbols-outlined"
+                  style={{
+                    fontSize: '0.875rem',
+                    animation: loadingRequests ? 'spin 0.8s linear infinite' : 'none',
+                  }}
+                >
+                  refresh
+                </span>
+                {loadingRequests ? 'Refreshing...' : 'Refresh'}
               </button>
             )}
           </div>
