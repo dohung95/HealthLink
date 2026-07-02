@@ -420,10 +420,15 @@ public class FollowUpAppointmentServiceImpl implements FollowUpAppointmentServic
             throw new BadRequestException("Consultation must be started before appointment can be completed");
         }
 
-        // Kiem tra rule: Patient phai nhap thong tin y te (VitalSigns)
-        List<VitalSign> vitals = vitalSignRepository.findByAppointment_AppointmentIdOrderByMeasuredAtDesc(appointmentId);
-        if (vitals == null || vitals.isEmpty()) {
-            throw new BadRequestException("Cannot complete appointment: Patient has not submitted medical information (vitals)");
+        // Kiem tra rule: Patient phai nhap thong tin y te (VitalSigns) - ngoai tru HomeVisit
+        boolean isHomeVisit = appointment.getConsultationType() != null &&
+                appointment.getConsultationType().toLowerCase().contains("home");
+
+        if (!isHomeVisit) {
+            List<VitalSign> vitals = vitalSignRepository.findByAppointment_AppointmentIdOrderByMeasuredAtDesc(appointmentId);
+            if (vitals == null || vitals.isEmpty()) {
+                throw new BadRequestException("Cannot complete appointment: Patient has not submitted medical information (vitals)");
+            }
         }
 
         // Kiem tra rule: Neu la cuoc hen truc tuyen (VIDEO, AUDIO, CHAT, ONLINE) thi phai co trao doi
