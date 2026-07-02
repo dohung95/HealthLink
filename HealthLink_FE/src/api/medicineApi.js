@@ -8,12 +8,18 @@ export const medicineApi = {
           keyword: input?.keyword || undefined,
           category: input?.category || undefined,
           dosageForm: input?.dosageForm || undefined,
+          categoryId: input?.categoryId || undefined,
         };
 
     const response = await axiosInstance.get('/api/medicines', {
       params,
     });
 
+    return response.data || [];
+  },
+
+  getMedicineCategoryTree: async () => {
+    const response = await axiosInstance.get('/api/medicine-categories/tree');
     return response.data || [];
   },
 };

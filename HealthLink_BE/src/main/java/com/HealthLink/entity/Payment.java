@@ -37,6 +37,9 @@ public class Payment {
     @Column(length = 100)
     private String transactionId;
 
+    @Column(length = 100)
+    private String gatewayCaptureId;
+
     @Column(nullable = false, length = 50)
     private String status;
 

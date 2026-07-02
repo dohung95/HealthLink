@@ -11,6 +11,8 @@ public enum NotificationType {
     PAYMENT_REQUIRED,
     INVOICE_PAID,
     WALLET_BALANCE_CHANGED,
+    LOW_STOCK_WARNING,
+    MEDICINE_EXPIRY_WARNING,
 
     // Doctor/Pharmacy notifications
     NEW_APPOINTMENT,

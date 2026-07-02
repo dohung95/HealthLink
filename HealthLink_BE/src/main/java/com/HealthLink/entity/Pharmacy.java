@@ -84,7 +84,11 @@ public class Pharmacy {
     
     @Column(name = "Active")
     @Builder.Default
-    private boolean active = true; // Trạng thái đang hoạt động (Tắt đi nếu nhà thuốc tạm nghỉ)
+    private boolean active = true; // Admin tắt = nhà thuốc ngừng hoạt động
+
+    @Column(name = "IsOnline")
+    @Builder.Default
+    private boolean isOnline = true; // Nhà thuốc tự bật/tắt trạng thái nhận đơn
     
     @Column(name = "AverageRating")
     private Double averageRating; // Điểm đánh giá trung bình từ khách hàng (VD: 4.8 sao)

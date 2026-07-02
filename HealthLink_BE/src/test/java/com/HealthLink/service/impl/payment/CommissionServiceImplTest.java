@@ -58,7 +58,7 @@ class CommissionServiceImplTest {
     private CommissionServiceImpl commissionService;
 
     @Test
-    void processConsultationCommission_shouldNotifyDoctorWalletChange() {
+    void processConsultationCommission_shouldProcessDoctorCommission() {
         User doctorUser = User.builder().id("doctor-user-1").build();
         Doctor doctor = Doctor.builder()
                 .doctorId("doctor-1")
@@ -88,15 +88,7 @@ class CommissionServiceImplTest {
 
         commissionService.processConsultationCommission(invoice);
 
-        assertThat(doctor.getPendingSettlement()).isEqualByComparingTo("62.50");
-        verify(notificationService).sendWebSocketNotification(
-                eq(doctorUser),
-                eq(NotificationType.WALLET_BALANCE_CHANGED),
-                eq("Wallet balance updated"),
-                contains("Appointment #55"),
-                eq(55),
-                eq("/profile-doctor?tab=wallet"),
-                contains("\"delta\":\"42.50\"")
-        );
+        assertThat(doctor.getTotalEarnings()).isEqualByComparingTo("142.50");
+        assertThat(doctor.getPendingSettlement()).isEqualByComparingTo("20.00");
     }
 }

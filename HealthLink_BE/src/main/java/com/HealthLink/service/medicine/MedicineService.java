@@ -11,7 +11,7 @@ public interface MedicineService {
      * Tìm kiếm thuốc theo tên (không phân biệt hoa thường).
      * Nếu keyword rỗng, trả về toàn bộ thuốc đang hoạt động.
      */
-    List<MedicineResponse> searchMedicines(String keyword, String category, String dosageForm);
+    List<MedicineResponse> searchMedicines(String keyword, String category, String dosageForm, Integer categoryId);
 
     /**
      * Lấy thông tin thuốc theo ID.

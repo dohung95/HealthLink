@@ -1,11 +1,12 @@
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { toast } from 'sonner';
-import medicineApi from '../../../api/medicineApi';
+import { medicineApi } from '../../../api/medicineApi';
 import pharmacyApi from '../../../api/pharmacyApi';
 import { money } from '../../../utils/pharmacy/pharmacyHelpers';
 import OrderItemCard from '../OrderItemCard';
 import DeliveryDurationPicker from './DeliveryDurationPicker';
 import MedicineLibraryPanel from './MedicineLibraryPanel';
+import RequestSummaryPanel from './RequestSummaryPanel';
 
 const VALID_TIMINGS = new Set(['MORNING', 'AFTERNOON', 'EVENING']);
 
@@ -94,24 +95,26 @@ function normalizeTimingWithNotesFallback(item) {
   };
 }
 
-function mapPrescriptionToOrderItems(prescription) {
+function mapPrescriptionToOrderItems(prescription, priceLookup = new Map()) {
   const rawPrescriptionId = prescription.prescriptionHeaderId || prescription.prescriptionHeaderID || prescription.id || null;
   const prescriptionId = rawPrescriptionId || 'unknown';
   return getPrescriptionItems(prescription).map((item, index) => {
     const originalItemId = item.prescriptionItemId || item.prescriptionItemID || item.id || null;
-    const medicineId = item.medicineId || item.medicineID || item.medicine?.medicineId || item.medicine?.id;
+    const medicineId = getMedicineId(item);
+    const quantity = Number(item.quantity || 1);
+    const unitPrice = getMedicinePrice(item, priceLookup);
     const { timing, notes } = normalizeTimingWithNotesFallback(item);
     return {
       localId: `rx-${Date.now()}-${prescriptionId}-${originalItemId || medicineId || index}`,
       medicineId,
       medicationName: getPrescriptionMedicationName(item),
       totalSupplyDays: Number(item.totalSupplyDays || 1),
-      quantity: Number(item.quantity || 1),
+      quantity,
       unit: item.unit || item.medicine?.unit || 'unit',
       frequency: item.frequency || '',
       timing,
       route: item.route || '',
-      totalPrice: Number(item.totalPrice || 0) || (Number(item.quantity || 1) * Number(item.medicine?.price || 0)),
+      totalPrice: Number(item.totalPrice || 0) || (quantity * unitPrice),
       notes,
       sourcePrescriptionHeaderId: rawPrescriptionId,
       sourcePrescriptionItemId: originalItemId,
@@ -129,13 +132,45 @@ function getMedicineDisplayName(medicine = {}) {
   return brandName || genericName || `Medicine #${medicine.medicineId || medicine.id || 'N/A'}`;
 }
 
+function getMedicineId(value) {
+  return value?.medicineId || value?.medicineID || value?.id || value?.medicine?.medicineId || value?.medicine?.id;
+}
+
+function getMedicinePrice(value, priceLookup = new Map()) {
+  const direct = Number(
+    value?.price
+    ?? value?.unitPrice
+    ?? value?.medicinePrice
+    ?? value?.medicine?.price
+    ?? value?.medicine?.unitPrice
+    ?? 0,
+  );
+  if (Number.isFinite(direct) && direct > 0) return direct;
+  const medicineId = getMedicineId(value);
+  if (medicineId && priceLookup.has(Number(medicineId))) {
+    return Number(priceLookup.get(Number(medicineId)) || 0);
+  }
+  return 0;
+}
+
 function normalizeDelivery(value) {
   return String(value || '').trim().toUpperCase() === 'DELIVERY';
 }
 
-export default function CreateOrderModal({ request, profile, onClose, onCreated }) {
+export default function CreateOrderModal({
+  request,
+  profile,
+  onClose,
+  onCreated,
+  variant = 'default',
+  onChatRequest,
+  onVideoCallRequest,
+}) {
+  const isConsultMode = variant === 'consult';
   const isOrderRequest = request?.requestType === 'ORDER_REQUEST' || request?.sourceType === 'ORDER_REQUEST';
-  const [leftTab, setLeftTab] = useState('prescriptions');
+  const [leftTab, setLeftTab] = useState(isConsultMode ? 'summary' : 'prescriptions');
+  const isSummaryTab = isConsultMode && leftTab === 'summary';
+  const isMedicinesTab = !isOrderRequest && leftTab === 'medicine';
   const [orderItems, setOrderItems] = useState([]);
   const [prescriptions, setPrescriptions] = useState([]);
   const [loadingPrescriptions, setLoadingPrescriptions] = useState(false);
@@ -144,6 +179,7 @@ export default function CreateOrderModal({ request, profile, onClose, onCreated 
   const [expandedItemId, setExpandedItemId] = useState(null);
   const [deliveryMinuteDigits, setDeliveryMinuteDigits] = useState([0, 4, 5]);
   const [creatingOrder, setCreatingOrder] = useState(false);
+  const [medicineCatalog, setMedicineCatalog] = useState([]);
 
   useEffect(() => {
     const preferredDelivery = normalizeDelivery(request?.preferredDeliveryType);
@@ -162,26 +198,14 @@ export default function CreateOrderModal({ request, profile, onClose, onCreated 
     return () => { alive = false; };
   }, [request?.requestId]);
 
-  useEffect(() => {
-    if (!isOrderRequest || loadingPrescriptions || prescriptions.length === 0) return;
-    setOrderItems(prev => {
-      if (prev.length > 0) return prev;
-      return prescriptions.flatMap(mapPrescriptionToOrderItems);
+  const medicinePriceLookup = useMemo(() => {
+    const lookup = new Map();
+    medicineCatalog.forEach((med) => {
+      const medId = getMedicineId(med);
+      if (medId) lookup.set(Number(medId), Number(med.price || 0));
     });
-  }, [isOrderRequest, loadingPrescriptions, prescriptions]);
-
-  useEffect(() => {
-    const previousOverflow = document.body.style.overflow;
-    const handleEscape = (event) => {
-      if (event.key === 'Escape') onClose();
-    };
-    document.body.style.overflow = 'hidden';
-    window.addEventListener('keydown', handleEscape);
-    return () => {
-      document.body.style.overflow = previousOverflow;
-      window.removeEventListener('keydown', handleEscape);
-    };
-  }, [onClose]);
+    return lookup;
+  }, [medicineCatalog]);
 
   const importedItemKeys = useMemo(
     () => new Set(orderItems.map((oi) => oi.sourcePrescriptionItemKey).filter(Boolean)),
@@ -192,6 +216,39 @@ export default function CreateOrderModal({ request, profile, onClose, onCreated 
     () => new Set(orderItems.map((oi) => oi.medicineId).filter(Boolean)),
     [orderItems],
   );
+
+  useEffect(() => {
+    if (!isOrderRequest || loadingPrescriptions || prescriptions.length === 0) return;
+    setOrderItems(prev => {
+      if (prev.length > 0) return prev;
+      return prescriptions.flatMap((p) => mapPrescriptionToOrderItems(p, medicinePriceLookup));
+    });
+  }, [isOrderRequest, loadingPrescriptions, prescriptions, medicinePriceLookup]);
+
+  useEffect(() => {
+    let alive = true;
+    medicineApi.searchMedicines('')
+      .then((data) => {
+        if (alive) setMedicineCatalog(Array.isArray(data) ? data : []);
+      })
+      .catch(() => {
+        if (alive) setMedicineCatalog([]);
+      });
+    return () => { alive = false; };
+  }, []);
+
+  useEffect(() => {
+    const previousOverflow = document.body.style.overflow;
+    const handleEscape = (event) => {
+      if (!isConsultMode && event.key === 'Escape') onClose();
+    };
+    document.body.style.overflow = 'hidden';
+    window.addEventListener('keydown', handleEscape);
+    return () => {
+      document.body.style.overflow = previousOverflow;
+      window.removeEventListener('keydown', handleEscape);
+    };
+  }, [isConsultMode, onClose]);
 
   const medicationSubtotal = orderItems.reduce((sum, item) => sum + lineTotal(item), 0);
   const deliveryFeeAmount = deliveryEnabled ? Number(deliveryFee || 0) : 0;
@@ -311,22 +368,71 @@ export default function CreateOrderModal({ request, profile, onClose, onCreated 
 
   return (
     <div className="pharmacy-create-order-modal">
-      <button className="pharmacy-create-order-backdrop" onClick={onClose} type="button" aria-label="Close" />
+      <button
+        className="pharmacy-create-order-backdrop"
+        onClick={isConsultMode ? undefined : onClose}
+        type="button"
+        aria-label={isConsultMode ? 'Consult workflow backdrop' : 'Close'}
+        tabIndex={isConsultMode ? -1 : 0}
+      />
       <div className="pharmacy-create-order-dialog" role="dialog" aria-modal="true">
         <div className="pharmacy-create-order-header">
-          <h2>
-            <i className="bi bi-bag-plus me-2"></i>
-            Create Order
-          </h2>
-          <span className="text-muted small">{request?.displayId || `Request #${request?.requestId}`}</span>
-          <button className="btn btn-light btn-sm ms-auto" onClick={onClose} type="button" aria-label="Close">
-            <i className="bi bi-x-lg"></i>
-          </button>
+          {isConsultMode ? (
+            <>
+              <h2>
+                <i className="bi bi-bag-plus me-2"></i>
+                Consult &amp; Order
+              </h2>
+              <div className="pharmacy-create-order-header__actions">
+                {request?.availableActions?.includes('VIDEO_CALL') && (
+                  <button
+                    className="btn btn-outline-primary btn-sm"
+                    onClick={() => onVideoCallRequest?.(request)}
+                    type="button"
+                  >
+                    <i className="bi bi-camera-video me-1"></i>
+                    Video Call
+                  </button>
+                )}
+                {request?.availableActions?.includes('CHAT') && (
+                  <button
+                    className="btn btn-outline-secondary btn-sm"
+                    onClick={() => onChatRequest?.(request)}
+                    type="button"
+                  >
+                    <i className="bi bi-chat-dots me-1"></i>
+                    Chat
+                  </button>
+                )}
+              </div>
+            </>
+          ) : (
+            <>
+              <h2>
+                <i className="bi bi-bag-plus me-2"></i>
+                Create Order
+              </h2>
+              <span className="text-muted small">{request?.displayId || `Request #${request?.requestId}`}</span>
+              <button className="btn btn-light btn-sm ms-auto" onClick={onClose} type="button" aria-label="Close">
+                <i className="bi bi-x-lg"></i>
+              </button>
+            </>
+          )}
         </div>
 
         <div className="pharmacy-create-order-layout">
           <div className="pharmacy-create-order-left">
             <div className="pharmacy-create-order-tabs">
+              {isConsultMode && (
+                <button
+                  className={`pharmacy-tab-btn ${leftTab === 'summary' ? 'is-active' : ''}`}
+                  onClick={() => setLeftTab('summary')}
+                  type="button"
+                >
+                  <i className="bi bi-clipboard2-pulse me-1"></i>
+                  Summary
+                </button>
+              )}
               <button
                 className={`pharmacy-tab-btn ${leftTab === 'prescriptions' ? 'is-active' : ''}`}
                 onClick={() => setLeftTab('prescriptions')}
@@ -342,13 +448,20 @@ export default function CreateOrderModal({ request, profile, onClose, onCreated 
                   type="button"
                 >
                   <i className="bi bi-capsule me-1"></i>
-                  Medicine Library
+                  Medicines
                 </button>
               )}
             </div>
 
-            <div className="pharmacy-create-order-left-content">
-              {(leftTab === 'prescriptions' || isOrderRequest) ? (
+            <div
+              className={[
+                'pharmacy-create-order-left-content',
+                isSummaryTab ? 'is-summary' : '',
+                isMedicinesTab ? 'is-medicines' : '',
+              ].filter(Boolean).join(' ')}>
+              {leftTab === 'summary' && isConsultMode ? (
+                <RequestSummaryPanel request={request} />
+              ) : (leftTab === 'prescriptions' || isOrderRequest) ? (
                 loadingPrescriptions ? (
                   <div className="pharmacy-bootstrap-loading">
                     <div className="spinner-border text-primary" role="status"><span className="visually-hidden">Loading...</span></div>
@@ -368,7 +481,7 @@ export default function CreateOrderModal({ request, profile, onClose, onCreated 
                     <div className="pharmacy-prescription-list">
                       {prescriptions.map((prescription) => {
                         const items = getPrescriptionItems(prescription);
-                        const importableItems = mapPrescriptionToOrderItems(prescription).filter(
+                        const importableItems = mapPrescriptionToOrderItems(prescription, medicinePriceLookup).filter(
                           (pItem) => !pItem.sourcePrescriptionItemKey || !importedItemKeys.has(pItem.sourcePrescriptionItemKey),
                         );
                         const fullyImported = items.length > 0 && importableItems.length === 0;
@@ -383,7 +496,7 @@ export default function CreateOrderModal({ request, profile, onClose, onCreated 
                                 <button
                                   className={`btn btn-sm ${fullyImported ? 'btn-outline-secondary' : 'btn-outline-primary'}`}
                                   disabled={fullyImported || !items.length}
-                                  onClick={() => importOrderItems(mapPrescriptionToOrderItems(prescription))}
+                                  onClick={() => importOrderItems(mapPrescriptionToOrderItems(prescription, medicinePriceLookup))}
                                   type="button"
                                 >
                                   <i className={`bi ${fullyImported ? 'bi-check2' : 'bi-box-arrow-in-down'} me-1`}></i>

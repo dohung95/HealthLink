@@ -17,4 +17,6 @@ public interface PrescriptionService {
     List<PrescriptionResponse> getPrescriptionsByDoctor(String doctorId);
 
     PrescriptionOpenedResponse markPrescriptionAsOpened(Integer prescriptionHeaderId, String patientId);
+
+    PrescriptionResponse requestRefill(String patientId, Integer prescriptionHeaderId);
 }

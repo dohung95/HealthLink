@@ -99,14 +99,14 @@ export default function OrderItemCard({ item, onUpdate, onRemove, index, expande
             </div>
             <div className="col-12">
               {showNoteInput ? (
-                <div>
-                  <div className="d-flex align-items-center justify-content-between mb-1">
+                <div className="pharmacy-note-card">
+                  <div className="pharmacy-note-card__header">
                     <label className="form-label mb-0">PHARMACIST NOTE</label>
                     <button
-                      className="btn btn-sm btn-link text-secondary text-decoration-none p-0"
+                      className="pharmacy-note-card__close"
                       onClick={() => { setShowNoteInput(false); onUpdate(item.localId, 'notes', ''); }}
                       type="button"
-                      aria-label="Remove note"
+                      aria-label="Remove pharmacist note"
                     >
                       <i className="bi bi-x-lg"></i>
                     </button>
@@ -126,11 +126,6 @@ export default function OrderItemCard({ item, onUpdate, onRemove, index, expande
                 </button>
               )}
             </div>
-            {!showNoteInput && item.notes && (
-              <div className="col-12">
-                <div className="pharmacy-order-item-note-display">{item.notes}</div>
-              </div>
-            )}
           </div>
         </div>
       )}

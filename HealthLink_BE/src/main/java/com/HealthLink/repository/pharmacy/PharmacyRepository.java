@@ -14,6 +14,12 @@ public interface PharmacyRepository extends JpaRepository<Pharmacy, String> {
     // Tìm nhà thuốc đang hoạt động và đã xác minh
     List<Pharmacy> findByActiveTrueAndVerifiedTrue();
 
+    // Tìm nhà thuốc đang hoạt động, đã xác minh và đang online
+    List<Pharmacy> findByActiveTrueAndVerifiedTrueAndIsOnlineTrue();
+
+    // Tìm nhà thuốc đang hoạt động, đã xác minh, đang online và có giao hàng
+    List<Pharmacy> findByActiveTrueAndVerifiedTrueAndIsOnlineTrueAndDeliveryAvailableTrue();
+
     // Tìm nhà thuốc đang hoạt động và đã xác minh và có giao hàng
     List<Pharmacy> findByActiveTrueAndVerifiedTrueAndDeliveryAvailableTrue();
 

@@ -50,6 +50,7 @@ public class CommissionServiceImpl implements CommissionService {
 
     // ── Hằng trạng thái ──────────────────────────────────────────────────────
     private static final String TX_STATUS_PENDING  = "PENDING";
+    private static final String TX_STATUS_VESTED   = "VESTED";
     private static final String RECIPIENT_DOCTOR   = "DOCTOR";
     private static final String RECIPIENT_PHARMACY = "PHARMACY";
     private static final String SOURCE_APPOINTMENT = "APPOINTMENT";
@@ -116,22 +117,12 @@ public class CommissionServiceImpl implements CommissionService {
                 .build();
         commissionTransactionRepository.save(tx);
 
-        // 3. Cộng dồn thu nhập vào Doctor
+        // 3. Cộng dồn thu nhập vào Doctor (chỉ totalEarnings, pendingSettlement khi VEST)
         BigDecimal currentEarnings = doctor.getTotalEarnings() != null
                 ? doctor.getTotalEarnings() : BigDecimal.ZERO;
-        BigDecimal currentPending = doctor.getPendingSettlement() != null
-                ? doctor.getPendingSettlement() : BigDecimal.ZERO;
 
         doctor.setTotalEarnings(currentEarnings.add(result.partnerEarning()));
-        doctor.setPendingSettlement(currentPending.add(result.partnerEarning()));
         doctorRepository.save(doctor);
-        notifyDoctorWalletChange(
-                doctor,
-                result.partnerEarning(),
-                doctor.getPendingSettlement(),
-                "Appointment #" + appointment.getAppointmentId() + " earnings were added to your wallet.",
-                appointment.getAppointmentId()
-        );
 
         // 4. Ghi snapshot vào Invoice
         invoice.setPlatformFee(result.platformFee());
@@ -189,14 +180,11 @@ public class CommissionServiceImpl implements CommissionService {
                 .build();
         commissionTransactionRepository.save(tx);
 
-        // 3. Cộng dồn thu nhập vào Pharmacy
+        // 3. Cộng dồn thu nhập vào Pharmacy (chỉ totalEarnings)
         BigDecimal currentEarnings = pharmacy.getTotalEarnings() != null
                 ? pharmacy.getTotalEarnings() : BigDecimal.ZERO;
-        BigDecimal currentPending = pharmacy.getPendingSettlement() != null
-                ? pharmacy.getPendingSettlement() : BigDecimal.ZERO;
 
         pharmacy.setTotalEarnings(currentEarnings.add(result.partnerEarning()));
-        pharmacy.setPendingSettlement(currentPending.add(result.partnerEarning()));
         pharmacyRepository.save(pharmacy);
 
         // 4. Ghi snapshot vào PharmacyOrder
@@ -223,6 +211,56 @@ public class CommissionServiceImpl implements CommissionService {
                 .stream()
                 .map(this::toResponse)
                 .collect(Collectors.toList());
+    }
+
+    // ========================================================================
+    // Vesting
+    // ========================================================================
+
+    @Override
+    @Transactional
+    public void vestConsultationCommission(Integer appointmentId) {
+        List<CommissionTransaction> txs = commissionTransactionRepository
+                .findByAppointmentId(appointmentId);
+        for (CommissionTransaction tx : txs) {
+            if (!TX_STATUS_PENDING.equals(tx.getStatus())
+                    || !RECIPIENT_DOCTOR.equals(tx.getRecipientType()))
+                continue;
+            tx.setStatus(TX_STATUS_VESTED);
+            tx.setVestedAt(LocalDateTime.now());
+            commissionTransactionRepository.save(tx);
+            Doctor doctor = doctorRepository.findById(tx.getRecipientId()).orElse(null);
+            if (doctor == null) continue;
+            BigDecimal p = doctor.getPendingSettlement() != null
+                    ? doctor.getPendingSettlement() : BigDecimal.ZERO;
+            doctor.setPendingSettlement(p.add(tx.getNetAmount()));
+            doctorRepository.save(doctor);
+            notifyDoctorWalletChange(doctor, tx.getNetAmount(), doctor.getPendingSettlement(),
+                    "Appointment #" + appointmentId + " completed — earnings available.", appointmentId);
+        }
+    }
+
+    @Override
+    @Transactional
+    public void vestPharmacyCommission(Integer orderId) {
+        List<CommissionTransaction> txs = commissionTransactionRepository
+                .findByPharmacyOrderId(orderId);
+        for (CommissionTransaction tx : txs) {
+            if (!TX_STATUS_PENDING.equals(tx.getStatus())
+                    || !RECIPIENT_PHARMACY.equals(tx.getRecipientType()))
+                continue;
+            tx.setStatus(TX_STATUS_VESTED);
+            tx.setVestedAt(LocalDateTime.now());
+            commissionTransactionRepository.save(tx);
+            Pharmacy pharmacy = pharmacyRepository.findById(tx.getRecipientId()).orElse(null);
+            if (pharmacy == null) continue;
+            BigDecimal p = pharmacy.getPendingSettlement() != null
+                    ? pharmacy.getPendingSettlement() : BigDecimal.ZERO;
+            pharmacy.setPendingSettlement(p.add(tx.getNetAmount()));
+            pharmacyRepository.save(pharmacy);
+            notifyPharmacyWalletChange(pharmacy, tx.getNetAmount(), pharmacy.getPendingSettlement(),
+                    "Order #" + orderId + " delivered — earnings available.", orderId);
+        }
     }
 
     // ========================================================================
@@ -264,25 +302,22 @@ public class CommissionServiceImpl implements CommissionService {
             tx.setStatus("REFUNDED");
             commissionTransactionRepository.save(tx);
 
-            // Trừ lại netAmount khỏi pendingSettlement của Doctor
-            Doctor doctor = doctorRepository.findById(tx.getRecipientId()).orElse(null);
-            if (doctor != null) {
-                BigDecimal currentPending = doctor.getPendingSettlement() != null
-                        ? doctor.getPendingSettlement() : BigDecimal.ZERO;
-                BigDecimal reversed = currentPending.subtract(tx.getNetAmount())
-                        .max(BigDecimal.ZERO);   // không để âm
-                doctor.setPendingSettlement(reversed);
-                doctorRepository.save(doctor);
-                notifyDoctorWalletChange(
-                        doctor,
-                        tx.getNetAmount().negate(),
-                        reversed,
-                        "Appointment #" + appointment.getAppointmentId() + " earnings were reversed after refund.",
-                        appointment.getAppointmentId()
-                );
-                log.info("Refund: doctor {} pendingSettlement reduced by {} (tx={}, prev={})",
-                        doctor.getDoctorId(), tx.getNetAmount(), tx.getTransactionNumber(), previousStatus);
+            if (previousStatus.equals(TX_STATUS_VESTED)) {
+                Doctor doctor = doctorRepository.findById(tx.getRecipientId()).orElse(null);
+                if (doctor != null) {
+                    BigDecimal p = doctor.getPendingSettlement() != null
+                            ? doctor.getPendingSettlement() : BigDecimal.ZERO;
+                    doctor.setPendingSettlement(p.subtract(tx.getNetAmount()));
+                    doctorRepository.save(doctor);
+                    notifyDoctorWalletChange(doctor, tx.getNetAmount().negate(),
+                            doctor.getPendingSettlement(),
+                            "Appointment #" + appointment.getAppointmentId() + " earnings reversed.",
+                            appointment.getAppointmentId());
+                }
             }
+            log.info("Refund: doctor {} pendingSettlement {} (tx={}, prev={})",
+                    tx.getRecipientId(), previousStatus.equals(TX_STATUS_VESTED) ? "reduced" : "no-op",
+                    tx.getTransactionNumber(), previousStatus);
         }
 
         // --- 2. Hoàn tiền commission cho Nhà thuốc ---
@@ -311,17 +346,18 @@ public class CommissionServiceImpl implements CommissionService {
                 tx.setStatus("REFUNDED");
                 commissionTransactionRepository.save(tx);
 
-                // Trừ lại netAmount khỏi pendingSettlement của Pharmacy
-                Pharmacy pharmacy = pharmacyRepository.findById(tx.getRecipientId()).orElse(null);
-                if (pharmacy != null) {
-                    BigDecimal currentPending = pharmacy.getPendingSettlement() != null
-                            ? pharmacy.getPendingSettlement() : BigDecimal.ZERO;
-                    BigDecimal reversed = currentPending.subtract(tx.getNetAmount())
-                            .max(BigDecimal.ZERO);
-                    pharmacy.setPendingSettlement(reversed);
-                    pharmacyRepository.save(pharmacy);
-                    log.info("Refund: pharmacy {} pendingSettlement reduced by {} (tx={}, prev={})",
-                            pharmacy.getPharmacyId(), tx.getNetAmount(), tx.getTransactionNumber(), previousStatus);
+                if (previousStatus.equals(TX_STATUS_VESTED)) {
+                    Pharmacy pharmacy = pharmacyRepository.findById(tx.getRecipientId()).orElse(null);
+                    if (pharmacy != null) {
+                        BigDecimal p = pharmacy.getPendingSettlement() != null
+                                ? pharmacy.getPendingSettlement() : BigDecimal.ZERO;
+                        pharmacy.setPendingSettlement(p.subtract(tx.getNetAmount()));
+                        pharmacyRepository.save(pharmacy);
+                        notifyPharmacyWalletChange(pharmacy, tx.getNetAmount().negate(),
+                                pharmacy.getPendingSettlement(),
+                                "Order #" + order.getOrderNumber() + " earnings reversed.",
+                                order.getOrderId());
+                    }
                 }
             }
         }
@@ -378,22 +414,59 @@ public class CommissionServiceImpl implements CommissionService {
         }
     }
 
+    private void notifyPharmacyWalletChange(
+            Pharmacy pharmacy,
+            BigDecimal delta,
+            BigDecimal balance,
+            String message,
+            Integer orderId
+    ) {
+        if (pharmacy == null || pharmacy.getUser() == null) {
+            return;
+        }
+
+        try {
+            String metadata = String.format(
+                    "{\"delta\":\"%s\",\"balance\":\"%s\",\"orderId\":%s}",
+                    delta != null ? delta.toPlainString() : "0",
+                    balance != null ? balance.toPlainString() : "0",
+                    orderId != null ? orderId.toString() : "null"
+            );
+
+            notificationService.sendWebSocketNotification(
+                    pharmacy.getUser(),
+                    NotificationType.WALLET_BALANCE_CHANGED,
+                    "Wallet balance updated",
+                    message,
+                    orderId,
+                    "/pharmacy-page/wallet",
+                    metadata
+            );
+        } catch (Exception ex) {
+            log.warn("Failed to send wallet notification for pharmacy {}: {}",
+                    pharmacy.getPharmacyId(), ex.getMessage());
+        }
+    }
+
     private void refundPharmacyOrderCommissions(PharmacyOrder pharmacyOrder) {
         List<CommissionTransaction> pharmacyTxs = commissionTransactionRepository
                 .findByPharmacyOrderId(pharmacyOrder.getOrderId());
         for (CommissionTransaction tx : pharmacyTxs) {
             if ("REFUNDED".equals(tx.getStatus())) continue;
+            String previousStatus = tx.getStatus();
             tx.setStatus("REFUNDED");
             commissionTransactionRepository.save(tx);
-            Pharmacy pharmacy = pharmacyRepository.findById(tx.getRecipientId()).orElse(null);
-            if (pharmacy != null) {
-                BigDecimal currentPending = pharmacy.getPendingSettlement() != null
-                        ? pharmacy.getPendingSettlement() : BigDecimal.ZERO;
-                BigDecimal reversed = currentPending.subtract(tx.getNetAmount()).max(BigDecimal.ZERO);
-                pharmacy.setPendingSettlement(reversed);
-                pharmacyRepository.save(pharmacy);
-                log.info("Refund: pharmacy {} pendingSettlement reduced by {} (tx={})",
-                        pharmacy.getPharmacyId(), tx.getNetAmount(), tx.getTransactionNumber());
+            if (previousStatus.equals(TX_STATUS_VESTED)) {
+                Pharmacy pharmacy = pharmacyRepository.findById(tx.getRecipientId()).orElse(null);
+                if (pharmacy != null) {
+                    BigDecimal p = pharmacy.getPendingSettlement() != null
+                            ? pharmacy.getPendingSettlement() : BigDecimal.ZERO;
+                    pharmacy.setPendingSettlement(p.subtract(tx.getNetAmount()));
+                    pharmacyRepository.save(pharmacy);
+                    notifyPharmacyWalletChange(pharmacy, tx.getNetAmount().negate(),
+                            pharmacy.getPendingSettlement(),
+                            "Earnings reversed after refund.", null);
+                }
             }
         }
         log.info("Pharmacy order commission refund complete for order {}", pharmacyOrder.getOrderId());

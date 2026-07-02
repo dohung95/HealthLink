@@ -1,6 +1,8 @@
 package com.HealthLink.service.impl.pharmacy;
 
 import com.HealthLink.dto.pharmacy.PharmacyProfileResponse;
+import com.fasterxml.jackson.databind.JsonNode;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import com.HealthLink.entity.Pharmacy;
 import com.HealthLink.entity.User;
 import com.HealthLink.repository.auth.EmailVerificationTokenRepository;
@@ -46,6 +48,7 @@ class PharmacyProfileServiceImplTest {
                 .name("Pharmacy " + id)
                 .active(active)
                 .verified(verified)
+                .isOnline(true)
                 .deliveryAvailable(deliveryAvailable)
                 .user(User.builder().id(id).email(id + "@test.com").build())
                 .build();
@@ -56,7 +59,7 @@ class PharmacyProfileServiceImplTest {
         Pharmacy activeVerified = pharmacy("p1", true, true, false);
         Pharmacy inactive = pharmacy("p2", false, true, false);
         Pharmacy unverified = pharmacy("p3", true, false, false);
-        when(pharmacyRepository.findByActiveTrueAndVerifiedTrue())
+        when(pharmacyRepository.findByActiveTrueAndVerifiedTrueAndIsOnlineTrue())
                 .thenReturn(List.of(activeVerified));
 
         List<PharmacyProfileResponse> result = pharmacyProfileService.getActiveVerifiedPharmacies(false);
@@ -69,7 +72,7 @@ class PharmacyProfileServiceImplTest {
     void getActiveVerifiedPharmacies_withDeliveryOnly_shouldFilterByDelivery() {
         Pharmacy withDelivery = pharmacy("p1", true, true, true);
         Pharmacy noDelivery = pharmacy("p2", true, true, false);
-        when(pharmacyRepository.findByActiveTrueAndVerifiedTrueAndDeliveryAvailableTrue())
+        when(pharmacyRepository.findByActiveTrueAndVerifiedTrueAndIsOnlineTrueAndDeliveryAvailableTrue())
                 .thenReturn(List.of(withDelivery));
 
         List<PharmacyProfileResponse> result = pharmacyProfileService.getActiveVerifiedPharmacies(true);
@@ -81,11 +84,23 @@ class PharmacyProfileServiceImplTest {
 
     @Test
     void getActiveVerifiedPharmacies_whenNone_shouldReturnEmpty() {
-        when(pharmacyRepository.findByActiveTrueAndVerifiedTrue())
-                .thenReturn(List.of());
-
         List<PharmacyProfileResponse> result = pharmacyProfileService.getActiveVerifiedPharmacies(false);
 
         assertThat(result).isEmpty();
+    }
+
+    @Test
+    void pharmacyProfileResponse_shouldSerializeOnlineStatusAsIsOnlineOnly() throws Exception {
+        ObjectMapper objectMapper = new ObjectMapper();
+        PharmacyProfileResponse response = PharmacyProfileResponse.builder()
+                .pharmacyId("pharmacy-1")
+                .name("Pharmacy pharmacy-1")
+                .isOnline(true)
+                .build();
+
+        JsonNode json = objectMapper.readTree(objectMapper.writeValueAsString(response));
+
+        assertThat(json.path("isOnline").asBoolean()).isTrue();
+        assertThat(json.has("online")).isFalse();
     }
 }

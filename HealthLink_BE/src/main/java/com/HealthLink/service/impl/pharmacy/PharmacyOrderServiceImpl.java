@@ -29,6 +29,7 @@ import com.HealthLink.audit.AuditLogger;
 import com.HealthLink.service.impl.pharmacy.PharmacyServiceHelper;
 import com.HealthLink.service.pharmacy.PharmacyOrderService;
 import com.HealthLink.service.notification.NotificationService;
+import com.HealthLink.service.payment.CommissionService;
 import com.HealthLink.utility.mapper.PharmacyOrderMapper;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -103,6 +104,7 @@ public class PharmacyOrderServiceImpl implements PharmacyOrderService {
     private final PatientRepository patientRepository;
     private final PharmacyInventoryRepository inventoryRepository;
     private final NotificationService notificationService;
+    private final CommissionService commissionService;
     private final DeviceTokenRepository deviceTokenRepository;
     private final AuditLogger audit = AuditLogger.pharmacy();
 
@@ -371,7 +373,7 @@ public class PharmacyOrderServiceImpl implements PharmacyOrderService {
                 .deliveryLongitude(deliveryLon)
                 .deliveryFee(actualDeliveryFee)
                 .deliveryPhoneNumber(deliveryPhoneNumber)
-                .deliveryAddressSource(PharmacyServiceHelper.normalizeDeliveryAddressSource(deliveryAddressSource))
+                .deliveryAddressSource(PharmacyServiceHelper.normalizeDeliveryAddressSourceSafely(deliveryAddressSource))
                 .medicineAmount(medicineAmount)
                 .totalAmount(totalAmount)
                 .estimatedDeliveryTime(estimatedDeliveryTime)
@@ -433,7 +435,10 @@ public class PharmacyOrderServiceImpl implements PharmacyOrderService {
         // Ghi nhận thời điểm tương ứng
         LocalDateTime now = LocalDateTime.now();
         switch (targetStatus) {
-            case STATUS_CONFIRMED -> order.setConfirmedAt(now);
+            case STATUS_CONFIRMED -> {
+                order.setConfirmedAt(now);
+                deductStock(order);
+            }
             case STATUS_PREPARING -> order.setPreparingAt(now);
             case STATUS_SHIPPING  -> {
                 order.setShippedAt(now);
@@ -444,12 +449,14 @@ public class PharmacyOrderServiceImpl implements PharmacyOrderService {
             case STATUS_DELIVERED -> {
                 order.setDeliveredAt(now);
                 order.setActualDeliveryTime(now);
+                releaseReservedStock(order);
             }
             case STATUS_CANCELLED -> {
                 order.setCancelledAt(now);
                 order.setCancelReason(request.getCancelReason());
                 order.setCancelledBy(request.getCancelledBy() != null
                         ? request.getCancelledBy() : "Pharmacy");
+                restoreStock(order);
             }
         }
 
@@ -465,10 +472,18 @@ public class PharmacyOrderServiceImpl implements PharmacyOrderService {
         }
         PharmacyOrder updated = orderRepository.save(order);
 
+        if (STATUS_DELIVERED.equals(targetStatus)) {
+            try { commissionService.vestPharmacyCommission(orderId); }
+            catch (Exception ex) { log.error("Vest failed for order {}: {}", orderId, ex.getMessage()); }
+        }
+
         audit.log("ORDER_STATUS_CHANGED", String.valueOf(orderId), null,
                 java.util.Map.of("from", currentStatus, "to", targetStatus));
 
         notifyPatientAboutOrderStatusAfterCommit(updated, currentStatus, targetStatus);
+        if (STATUS_CANCELLED.equals(targetStatus)) {
+            notifyPharmacyAboutCancelledOrder(updated);
+        }
         if (notifyDoctorAboutCompletedPaidOrder) {
             notifyDoctorAboutCompletedAndPaidOrderAfterCommit(updated);
         }
@@ -502,6 +517,7 @@ public class PharmacyOrderServiceImpl implements PharmacyOrderService {
         order.setCancelledAt(LocalDateTime.now());
         order.setCancelledBy("Patient");
         order.setCancelReason(PharmacyServiceHelper.trimToNull(request.getCancelReason()));
+        restoreStock(order);
 
         PharmacyOrder updated = orderRepository.save(order);
 
@@ -509,6 +525,7 @@ public class PharmacyOrderServiceImpl implements PharmacyOrderService {
                 java.util.Map.of("cancelReason", request.getCancelReason()));
 
         notifyPatientAboutOrderStatusAfterCommit(updated, currentStatus, STATUS_CANCELLED);
+        notifyPharmacyAboutCancelledOrder(updated);
 
         return PharmacyOrderMapper.toResponse(updated);
     }
@@ -1136,6 +1153,41 @@ public class PharmacyOrderServiceImpl implements PharmacyOrderService {
         return orderNumber;
     }
 
+    private void notifyPharmacyAboutCancelledOrder(PharmacyOrder order) {
+        User pharmacyUser = resolvePharmacyUser(order, NotificationType.CANCEL_ORDER);
+        if (pharmacyUser == null) {
+            return;
+        }
+
+        String orderNumber = safeValue(order.getOrderNumber(), "unknown order");
+        String patientName = order.getPatient() != null
+                ? safeValue(order.getPatient().getFullName(), "Unknown patient")
+                : "Unknown patient";
+        Integer orderId = order.getOrderId();
+        String actionUrl = "/pharmacy-orders/" + orderId;
+        String cancelledBy = safeValue(order.getCancelledBy(), "Unknown");
+        String title = "Order cancelled";
+        String message = String.format(
+                "Order %s for %s was cancelled by %s.",
+                orderNumber,
+                patientName,
+                cancelledBy
+        );
+
+        runAfterCommit("cancelled order notification orderId=" + orderId, () -> {
+            notificationService.sendWebSocketNotification(
+                    pharmacyUser,
+                    NotificationType.CANCEL_ORDER,
+                    title,
+                    message,
+                    orderId,
+                    actionUrl
+            );
+            log.info("Cancel notification sent to pharmacyUserId={}, orderId={}",
+                    pharmacyUser.getId(), orderId);
+        });
+    }
+
     private void notifyPharmacyAboutRevisionRequestAfterCommit(PharmacyOrder order) {
         User pharmacyUser = resolvePharmacyUser(order, NotificationType.ORDER_STATUS);
         if (pharmacyUser == null) {
@@ -1354,10 +1406,13 @@ public class PharmacyOrderServiceImpl implements PharmacyOrderService {
                 break;
         }
 
+        boolean isCancelled = STATUS_CANCELLED.equals(newStatus);
+        NotificationType patientType = isCancelled ? NotificationType.CANCEL_ORDER : NotificationType.ORDER_STATUS;
+
         runAfterCommit("order status notification orderId=" + orderId, () -> {
             notificationService.sendWebSocketNotification(
                     patientUser,
-                    NotificationType.ORDER_STATUS,
+                    patientType,
                     title,
                     message,
                     orderId,
@@ -1510,5 +1565,55 @@ public class PharmacyOrderServiceImpl implements PharmacyOrderService {
 
     private String safeValue(String value, String fallback) {
         return value == null || value.isBlank() ? fallback : value;
+    }
+
+    // ── Inventory helpers ───────────────────────────────────────────────────
+    // ponytail: skip items without inventory entry — pharmacy may sell OTC outside system
+
+    private void deductStock(PharmacyOrder order) {
+        if (order.getPharmacy() == null || order.getOrderItems() == null) return;
+        String pharmacyId = order.getPharmacy().getPharmacyId();
+        for (PharmacyOrderItem item : order.getOrderItems()) {
+            if (item.getMedicine() == null || item.getQuantity() == null) continue;
+            inventoryRepository
+                .findByPharmacy_PharmacyIdAndMedicine_MedicineId(pharmacyId, item.getMedicine().getMedicineId())
+                .ifPresent(inv -> {
+                    int qty = item.getQuantity();
+                    inv.setQuantity(Math.max(0, inv.getQuantity() - qty));
+                    inv.setReservedQuantity(inv.getReservedQuantity() + qty);
+                    inventoryRepository.save(inv);
+                });
+        }
+    }
+
+    private void releaseReservedStock(PharmacyOrder order) {
+        if (order.getPharmacy() == null || order.getOrderItems() == null) return;
+        String pharmacyId = order.getPharmacy().getPharmacyId();
+        for (PharmacyOrderItem item : order.getOrderItems()) {
+            if (item.getMedicine() == null || item.getQuantity() == null) continue;
+            inventoryRepository
+                .findByPharmacy_PharmacyIdAndMedicine_MedicineId(pharmacyId, item.getMedicine().getMedicineId())
+                .ifPresent(inv -> {
+                    int qty = item.getQuantity();
+                    inv.setReservedQuantity(Math.max(0, inv.getReservedQuantity() - qty));
+                    inventoryRepository.save(inv);
+                });
+        }
+    }
+
+    private void restoreStock(PharmacyOrder order) {
+        if (order.getPharmacy() == null || order.getOrderItems() == null) return;
+        String pharmacyId = order.getPharmacy().getPharmacyId();
+        for (PharmacyOrderItem item : order.getOrderItems()) {
+            if (item.getMedicine() == null || item.getQuantity() == null) continue;
+            inventoryRepository
+                .findByPharmacy_PharmacyIdAndMedicine_MedicineId(pharmacyId, item.getMedicine().getMedicineId())
+                .ifPresent(inv -> {
+                    int qty = item.getQuantity();
+                    inv.setQuantity(inv.getQuantity() + qty);
+                    inv.setReservedQuantity(Math.max(0, inv.getReservedQuantity() - qty));
+                    inventoryRepository.save(inv);
+                });
+        }
     }
 }

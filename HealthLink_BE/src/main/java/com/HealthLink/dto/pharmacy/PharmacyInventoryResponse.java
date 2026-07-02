@@ -27,6 +27,8 @@ public class PharmacyInventoryResponse {
     private Integer availableQuantity;
     private LocalDate expiryDate;
     private Boolean active;
+    private Integer minStockLevel;
+    private boolean expiringSoon;
     private LocalDateTime lastImportedAt;
     private LocalDateTime createdAt;
     private LocalDateTime updatedAt;

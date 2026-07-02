@@ -194,3 +194,9 @@ export const verifyPharmacyPasswordChangeOtp = async (token, data) => {
     const res = await axios.put(`${BASE}/pharmacy/auth/password/change`, payload, authConfig(token));
     return res.data;
 };
+
+/** PUT /api/account/pharmacy/profile/toggle-online — Bật/tắt trạng thái nhận đơn */
+export const togglePharmacyOnline = async (token) => {
+    const res = await axios.put(`${BASE}/pharmacy/profile/toggle-online`, {}, authConfig(token));
+    return res.data;
+};

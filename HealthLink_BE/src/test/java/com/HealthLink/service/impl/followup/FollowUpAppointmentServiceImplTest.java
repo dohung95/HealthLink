@@ -283,7 +283,7 @@ class FollowUpAppointmentServiceImplTest {
 
         ArgumentCaptor<PrescriptionHeader> prescriptionCaptor = ArgumentCaptor.forClass(PrescriptionHeader.class);
         verify(prescriptionHeaderRepository).save(prescriptionCaptor.capture());
-        verify(commissionService).processConsultationCommission(sourceAppointment.getInvoice());
+        verify(commissionService).vestConsultationCommission(10);
         PrescriptionHeader copiedPrescription = prescriptionCaptor.getValue();
 
         assertThat(copiedPrescription.getSourceAppointmentId()).isEqualTo(10);
@@ -315,7 +315,7 @@ class FollowUpAppointmentServiceImplTest {
         assertThat(response.getFollowUpAppointment()).isNull();
         assertThat(sourceAppointment.getStatus()).isEqualTo("COMPLETED");
         verify(appointmentRepository).save(sourceAppointment);
-        verify(commissionService).processConsultationCommission(sourceAppointment.getInvoice());
+        verify(commissionService).vestConsultationCommission(10);
         verify(consultationRepository).save(consultation);
         verify(prescriptionHeaderRepository, never())
                 .findByAppointment_AppointmentIdOrderByIssueDateDescPrescriptionHeaderIdDesc(any());

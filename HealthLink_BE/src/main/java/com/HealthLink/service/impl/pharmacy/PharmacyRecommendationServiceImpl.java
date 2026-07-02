@@ -43,9 +43,9 @@ public class PharmacyRecommendationServiceImpl implements PharmacyRecommendation
 
         List<Pharmacy> pharmacies;
         if (Boolean.TRUE.equals(deliveryOnly)) {
-            pharmacies = pharmacyRepository.findByActiveTrueAndVerifiedTrueAndDeliveryAvailableTrue();
+            pharmacies = pharmacyRepository.findByActiveTrueAndVerifiedTrueAndIsOnlineTrueAndDeliveryAvailableTrue();
         } else {
-            pharmacies = pharmacyRepository.findByActiveTrueAndVerifiedTrue();
+            pharmacies = pharmacyRepository.findByActiveTrueAndVerifiedTrueAndIsOnlineTrue();
         }
 
         PrescriptionHeader prescription = null;
@@ -104,8 +104,8 @@ public class PharmacyRecommendationServiceImpl implements PharmacyRecommendation
         }
 
         List<Pharmacy> pharmacies = Boolean.TRUE.equals(request.getDeliveryOnly())
-                ? pharmacyRepository.findByActiveTrueAndVerifiedTrueAndDeliveryAvailableTrue()
-                : pharmacyRepository.findByActiveTrueAndVerifiedTrue();
+                ? pharmacyRepository.findByActiveTrueAndVerifiedTrueAndIsOnlineTrueAndDeliveryAvailableTrue()
+                : pharmacyRepository.findByActiveTrueAndVerifiedTrueAndIsOnlineTrue();
 
         Map<Integer, Integer> quantitiesByMedicineId = collapseRetailItems(request.getItems());
         Map<Integer, Medicine> medicinesById = medicineRepository.findAllById(quantitiesByMedicineId.keySet())

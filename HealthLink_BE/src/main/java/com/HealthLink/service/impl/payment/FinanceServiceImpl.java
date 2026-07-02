@@ -525,6 +525,7 @@ public class FinanceServiceImpl implements FinanceService {
                     .paidAt(paidAt)
                     .metadata(metadata)
                     .build();
+            payment.setGatewayCaptureId(extractGatewayCaptureId(responseBody));
             paymentRepository.save(payment);
 
             // Xử lý commission cho bác sĩ (tính theo tỷ lệ Online/Offline tương ứng)
@@ -659,6 +660,7 @@ public class FinanceServiceImpl implements FinanceService {
                         .paidAt(paidAt)
                         .metadata(metadata)
                         .build();
+                payment.setGatewayCaptureId(extractGatewayCaptureId(responseBody));
                 paymentRepository.save(payment);
 
                 pharmacyOrder.setPaymentStatus(INVOICE_PAID);
@@ -1047,13 +1049,34 @@ public class FinanceServiceImpl implements FinanceService {
                     "Only successful payments can be refunded. Current status: " + payment.getStatus());
         }
 
-        // 3. Lấy Invoice liên kết
+        // 3. Gọi PayPal Refund API nếu có gatewayCaptureId
+        String captureId = payment.getGatewayCaptureId();
+        if (captureId != null && !captureId.isBlank()) {
+            try {
+                String token = getPayPalAccessToken();
+                HttpHeaders h = new HttpHeaders();
+                h.setBearerAuth(token);
+                h.setContentType(MediaType.APPLICATION_JSON);
+                String val = payment.getAmount().setScale(2, RoundingMode.HALF_UP).toPlainString();
+                Map<String, Object> payload = Map.of(
+                        "amount", Map.of("currency_code", "USD", "value", val));
+                restTemplate.exchange(
+                        payPalConfig.getBaseUrl() + "/v2/payments/captures/" + captureId + "/refund",
+                        HttpMethod.POST, new HttpEntity<>(payload, h), Map.class);
+                log.info("PayPal refund success for capture {}", captureId);
+            } catch (Exception ex) {
+                log.error("PayPal refund failed for capture {}: {}", captureId, ex.getMessage());
+                throw new PayPalIntegrationException("PayPal refund failed: " + ex.getMessage(), ex);
+            }
+        }
+
+        // 4. Lấy Invoice liên kết
         Invoice invoice = payment.getInvoice();
         if (invoice == null) {
             throw new BadRequestException("Payment " + paymentId + " has no associated invoice.");
         }
 
-        // 4. Cập nhật Payment → REFUNDED
+        // 5. Cập nhật Payment → REFUNDED
         payment.setStatus(PAYMENT_REFUNDED);
         payment.setRefundedAmount(payment.getAmount());
         payment.setRefundedAt(LocalDateTime.now());
@@ -1173,6 +1196,19 @@ public class FinanceServiceImpl implements FinanceService {
             // trả về giá trị dự phòng
         }
         return fallback;
+    }
+
+    @SuppressWarnings("unchecked")
+    private String extractGatewayCaptureId(Map<String, Object> body) {
+        try {
+            List<Map<String, Object>> units = (List<Map<String, Object>>) body.get("purchase_units");
+            if (units == null || units.isEmpty()) return null;
+            Map<String, Object> payments = (Map<String, Object>) units.get(0).get("payments");
+            if (payments == null) return null;
+            List<Map<String, Object>> captures = (List<Map<String, Object>>) payments.get("captures");
+            if (captures == null || captures.isEmpty()) return null;
+            return (String) captures.get(0).get("id");
+        } catch (Exception ignored) { return null; }
     }
 
     @SuppressWarnings("unchecked")

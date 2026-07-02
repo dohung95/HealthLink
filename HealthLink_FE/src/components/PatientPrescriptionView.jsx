@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { toast } from 'sonner';
 import { prescriptionService } from '../api/prescriptionApi';
 import { useAuth } from '../context/AuthContext';
 import 'bootstrap/dist/css/bootstrap.min.css';
@@ -240,7 +241,7 @@ const PatientPrescriptionView = () => {
                     </div>
                   )}
 
-                  {/* Order from Pharmacy CTA */}
+                  {/* Order / Refill CTA */}
                   <div className="mt-4 pt-3 border-top border-custom d-flex gap-2 d-print-none">
                     <button
                       className="btn btn-success px-4"
@@ -248,6 +249,23 @@ const PatientPrescriptionView = () => {
                     >
                       <i className="bi bi-cart-plus me-2"></i>Order from pharmacy
                     </button>
+                    {getStatus(selectedPrescription.issueDate) !== 'Expired' && (
+                      <button
+                        className="btn btn-outline-success px-4"
+                        onClick={async () => {
+                          try {
+                            const newRx = await prescriptionService.requestRefill(selectedPrescription.prescriptionHeaderID);
+                            toast.success('Refill prescription created');
+                            await fetchPrescriptions();
+                            setSelectedPrescription(newRx);
+                          } catch (err) {
+                            toast.error(err.response?.data?.message || 'Unable to refill prescription');
+                          }
+                        }}
+                      >
+                        <i className="bi bi-arrow-repeat me-2"></i>Refill
+                      </button>
+                    )}
                     <button
                       className="btn btn-outline-primary px-4"
                       onClick={() => window.print()}

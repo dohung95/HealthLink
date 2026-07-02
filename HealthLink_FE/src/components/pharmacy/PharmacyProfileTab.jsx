@@ -9,6 +9,7 @@ import {
   verifyPharmacyPaypalOtp,
 } from '../../api/account';
 import { Avatar, getProfileName } from './PharmacyShared';
+import PharmacyOnlineToggle from './PharmacyOnlineToggle';
 
 function getPasswordStrength(password) {
   if (!password) return 0;
@@ -194,6 +195,26 @@ export default function PharmacyProfileTab({ token, profile, reload, logout }) {
               <span className="profile-display-label">Phone Number</span>
               <span className="profile-display-value">{profile?.phoneNumber || '-'}</span>
             </div>
+          </div>
+        </section>
+
+        {/* ── CARD: Online Status Toggle ── */}
+        <section className="pharmacy-card">
+          <div className="profile-section-header">
+            <span className="material-symbols-outlined">power_settings_new</span>
+            <h2>Online Status</h2>
+          </div>
+          <div className="profile-online-toggle">
+            <div className="profile-online-toggle-info">
+              <strong>{profile?.isOnline ? 'Receiving Orders' : 'Not Receiving Orders'}</strong>
+              <span>{profile?.isOnline ? 'Your pharmacy is visible to patients' : 'Patients cannot find your pharmacy'}</span>
+            </div>
+            <PharmacyOnlineToggle
+              token={token}
+              profile={profile}
+              onProfileUpdated={reload}
+              variant="profile"
+            />
           </div>
         </section>
 

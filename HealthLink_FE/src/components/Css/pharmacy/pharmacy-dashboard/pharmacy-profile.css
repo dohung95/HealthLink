@@ -335,6 +335,34 @@
   font-size: 14px;
 }
 
+/* Online Toggle
+   ─────────────────────────── */
+
+.profile-online-toggle {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.profile-online-toggle-info {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.profile-online-toggle-info strong {
+  font-size: 14px;
+  font-weight: 700;
+  color: var(--pharmacy-text);
+}
+
+.profile-online-toggle-info span {
+  font-size: 11px;
+  color: var(--pharmacy-muted);
+}
+
+
 /* Password Strength
    ─────────────────────────── */
 

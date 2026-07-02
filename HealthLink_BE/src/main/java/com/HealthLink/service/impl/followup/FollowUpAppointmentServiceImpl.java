@@ -469,7 +469,7 @@ public class FollowUpAppointmentServiceImpl implements FollowUpAppointmentServic
             consultationRepository.save(consultation);
         }
         Appointment completedAppointment = appointmentRepository.save(appointment);
-        commissionService.processConsultationCommission(invoice);
+        commissionService.vestConsultationCommission(appointmentId);
 
         try {
             chatRoomRepository.findByAppointment_AppointmentId(completedAppointment.getAppointmentId())

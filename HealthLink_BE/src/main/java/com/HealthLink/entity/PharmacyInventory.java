@@ -43,6 +43,9 @@ public class PharmacyInventory {
 
     private LocalDate expiryDate;
 
+    @Column(name = "MinStockLevel")
+    private Integer minStockLevel;
+
     @Builder.Default
     @Column(nullable = false)
     private Boolean active = true;

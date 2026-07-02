@@ -137,6 +137,12 @@ export const pharmacyApi = {
     return response.data || [];
   },
 
+  // ======== Analytics API ========
+  getDemandAnalytics: async (params = {}) => {
+    const response = await axiosInstance.get('/api/account/pharmacy/analytics/demand', { params });
+    return response.data;
+  },
+
   // ======== Geocoding API ========
   geocodeAddress: async (address) => {
     const response = await axiosInstance.post('/api/geocoding/geocode', { address });

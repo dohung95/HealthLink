@@ -35,4 +35,7 @@ public interface PharmacyProfileService {
 
     /** Lấy danh sách nhà thuốc đang hoạt động và đã xác minh. */
     java.util.List<PharmacyProfileResponse> getActiveVerifiedPharmacies(Boolean deliveryOnly);
+
+    /** Bật/tắt trạng thái online (nhận đơn) của nhà thuốc. */
+    PharmacyProfileResponse toggleOnline(String pharmacyId);
 }

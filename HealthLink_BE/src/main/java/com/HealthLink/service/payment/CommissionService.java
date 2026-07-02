@@ -43,6 +43,17 @@ public interface CommissionService {
     List<CommissionTransactionResponse> getTransactionsByRecipient(String recipientId);
 
     /**
+     * Vest commission cho bác sĩ khi appointment chuyển sang COMPLETED.
+     * Chuyển PENDING → VESTED, cộng vào pendingSettlement.
+     */
+    void vestConsultationCommission(Integer appointmentId);
+
+    /**
+     * Vest commission cho nhà thuốc khi order chuyển sang DELIVERED.
+     */
+    void vestPharmacyCommission(Integer orderId);
+
+    /**
      * Xử lý hoàn tiền (Refund) cho hóa đơn.
      * Khi một Payment được chuyển sang REFUNDED:
      * <ul>

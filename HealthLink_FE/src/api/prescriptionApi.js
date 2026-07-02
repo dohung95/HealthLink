@@ -57,6 +57,10 @@ export const prescriptionService = {
     return null;
   },
 
+  requestRefill: async (prescriptionId) => {
+    const response = await axiosInstance.post(`/api/prescriptions/${prescriptionId}/refill`);
+    return normalizePrescription(response.data);
+  },
 };
-
+  
 export default prescriptionService;

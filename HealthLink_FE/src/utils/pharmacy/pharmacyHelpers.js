@@ -38,7 +38,10 @@ export function stageClass(stage) {
 export const routeByTab = {
   overview: '/pharmacy-page',
   inventory: '/pharmacy-page/inventory',
+  inventoryAnalytics: '/pharmacy-page/inventory/analytics',
+  requests: '/pharmacy-page/requests',
   orders: '/pharmacy-page/orders',
+  orderList: '/pharmacy-page/order-list',
   wallet: '/pharmacy-page/wallet',
   chat: '/pharmacy-page/chat',
   profile: '/pharmacy-page/profile',
@@ -46,10 +49,19 @@ export const routeByTab = {
 
 export const navItems = [
   { key: 'overview', label: 'Overview', icon: 'dashboard', path: routeByTab.overview, end: true },
-  { key: 'inventory', label: 'Inventory', icon: 'inventory_2', path: routeByTab.inventory },
-  { key: 'orders', label: 'Orders', icon: 'receipt_long', path: routeByTab.orders },
-  { key: 'wallet', label: 'Wallet / Settlement', icon: 'account_balance_wallet', path: routeByTab.wallet },
-  { key: 'profile', label: 'Profile & Security', icon: 'shield_person', path: routeByTab.profile },
+  {
+    key: 'inventory',
+    label: 'Inventory',
+    icon: 'inventory_2',
+    path: routeByTab.inventory,
+    children: [
+      { key: 'inventoryManage', label: 'Manage Inventory', path: routeByTab.inventory, end: true },
+      { key: 'inventoryAnalytics', label: 'Analytics', path: routeByTab.inventoryAnalytics },
+    ],
+  },
+  { key: 'requests', label: 'Requests', icon: 'mark_unread_chat_alt', path: routeByTab.requests },
+  { key: 'orders', label: 'Orders', icon: 'view_kanban', path: routeByTab.orders },
+  { key: 'orderList', label: 'Order List', icon: 'receipt_long', path: routeByTab.orderList },
 ];
 
 export const money = (value) => new Intl.NumberFormat('en-US', {

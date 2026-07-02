@@ -11,6 +11,7 @@ import websocketService from '../services/websocketService';
 import { useAuth } from './AuthContext';
 import { audioService } from '../utils/audioService';
 import { notificationApi } from '../api/notificationApi';
+import { PHARMACY_ANNOUNCEMENT_TYPES } from '../components/pharmacy/workflow/pharmacyWorkflow';
 import { consultationApi } from '../api/consultationApi';
 import FollowUpPaymentModal from '../components/patient/FollowUpPaymentModal';
 
@@ -213,7 +214,9 @@ export const NotificationProvider = ({ children }) => {
       });
     }
 
-    playNotificationSound();
+    if (!PHARMACY_ANNOUNCEMENT_TYPES.has(notification.type)) {
+      playNotificationSound();
+    }
   }, [playNotificationSound]);
 
   useEffect(() => {

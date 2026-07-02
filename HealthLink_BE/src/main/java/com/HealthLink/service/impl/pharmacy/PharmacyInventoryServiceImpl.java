@@ -10,6 +10,7 @@ import com.HealthLink.exception.ResourceNotFoundException;
 import com.HealthLink.repository.medicine.MedicineRepository;
 import com.HealthLink.repository.pharmacy.PharmacyInventoryRepository;
 import com.HealthLink.repository.pharmacy.PharmacyRepository;
+import com.HealthLink.service.medicine.MedicineCategoryService;
 import com.HealthLink.service.pharmacy.PharmacyInventoryService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -27,6 +28,7 @@ import org.springframework.web.multipart.MultipartFile;
 import java.io.ByteArrayOutputStream;
 import java.io.InputStreamReader;
 import java.io.OutputStreamWriter;
+import java.util.Set;
 import java.math.BigDecimal;
 import java.nio.charset.StandardCharsets;
 import java.time.LocalDate;
@@ -56,19 +58,31 @@ public class PharmacyInventoryServiceImpl implements PharmacyInventoryService {
     private final PharmacyInventoryRepository inventoryRepository;
     private final PharmacyRepository pharmacyRepository;
     private final MedicineRepository medicineRepository;
+    private final MedicineCategoryService categoryService;
 
     @Override
     @Transactional(readOnly = true)
     public Page<PharmacyInventoryResponse> getInventory(String pharmacyId, String query,
-                                                         Boolean lowStock, Boolean active,
-                                                         int page, int size) {
+                                                          Boolean lowStock, Boolean active,
+                                                          Boolean expiringSoon,
+                                                          Integer categoryId,
+                                                          int page, int size) {
         PageRequest pageRequest = PageRequest.of(page, size, Sort.by("createdAt").descending());
         Page<PharmacyInventory> inventoryPage;
 
-        if (query != null && !query.isBlank()) {
+        if (categoryId != null) {
+            Set<Integer> categoryIds = categoryService.getActiveCategoryAndDescendantIds(categoryId);
+            if (categoryIds.isEmpty()) {
+                return Page.empty(pageRequest);
+            }
+            inventoryPage = inventoryRepository.findByPharmacyIdAndCategoryIds(pharmacyId, categoryIds, pageRequest);
+        } else if (query != null && !query.isBlank()) {
             inventoryPage = inventoryRepository.searchByPharmacyId(pharmacyId, query, pageRequest);
         } else if (Boolean.TRUE.equals(lowStock)) {
             inventoryPage = inventoryRepository.findLowStockByPharmacyId(pharmacyId, LOW_STOCK_THRESHOLD, pageRequest);
+        } else if (Boolean.TRUE.equals(expiringSoon)) {
+            LocalDate today = LocalDate.now();
+            inventoryPage = inventoryRepository.findExpiringSoon(pharmacyId, today, today.plusDays(30), pageRequest);
         } else if (Boolean.TRUE.equals(active)) {
             inventoryPage = inventoryRepository.findByPharmacyIdAndActive(pharmacyId, true, pageRequest);
         } else if (Boolean.FALSE.equals(active)) {
@@ -111,6 +125,9 @@ public class PharmacyInventoryServiceImpl implements PharmacyInventoryService {
         }
         if (request.getActive() != null) {
             inventory.setActive(request.getActive());
+        }
+        if (request.getMinStockLevel() != null) {
+            inventory.setMinStockLevel(request.getMinStockLevel());
         }
 
         inventory.setUpdatedAt(LocalDateTime.now());
@@ -472,10 +489,18 @@ public class PharmacyInventoryServiceImpl implements PharmacyInventoryService {
                 .availableQuantity(inv.getAvailableQuantity())
                 .expiryDate(inv.getExpiryDate())
                 .active(inv.getActive())
+                .minStockLevel(inv.getMinStockLevel())
+                .expiringSoon(computeExpiringSoon(inv))
                 .lastImportedAt(inv.getLastImportedAt())
                 .createdAt(inv.getCreatedAt())
                 .updatedAt(inv.getUpdatedAt())
                 .build();
+    }
+
+    private boolean computeExpiringSoon(PharmacyInventory inv) {
+        if (inv.getExpiryDate() == null) return false;
+        LocalDate today = LocalDate.now();
+        return !inv.getExpiryDate().isBefore(today) && inv.getExpiryDate().isBefore(today.plusDays(30));
     }
 
     @lombok.Builder

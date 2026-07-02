@@ -2,6 +2,7 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { notificationApi } from '../../api/notificationApi';
 import { useNotifications } from '../../context/NotificationContext';
+import { getPharmacyNotificationTarget } from './workflow/pharmacyWorkflow';
 
 function formatTime(value) {
   if (!value) return '';
@@ -16,23 +17,7 @@ function formatTime(value) {
 }
 
 function targetForNotification(notification) {
-  if (notification.type === 'NEW_PHARMACY_REQUEST') {
-    return '/pharmacy-page/orders?group=NEW_REQUESTS';
-  }
-
-  if (notification.type === 'INVOICE_PAID') {
-    return '/pharmacy-page/orders?group=PAYMENT_DUE';
-  }
-
-  if (notification.type === 'ORDER_STATUS') {
-    return '/pharmacy-page/orders?group=CONSULTING';
-  }
-
-  if (notification.type === 'NEW_ORDER') {
-    return '/pharmacy-page/orders?group=NEW_REQUESTS';
-  }
-
-  return '/pharmacy-page/orders';
+  return getPharmacyNotificationTarget(notification);
 }
 
 function iconForType(type) {
@@ -40,6 +25,9 @@ function iconForType(type) {
   if (type === 'INVOICE_PAID') return 'payments';
   if (type === 'NEW_ORDER') return 'receipt_long';
   if (type === 'ORDER_STATUS') return 'sync_alt';
+  if (type === 'CANCEL_ORDER') return 'cancel';
+  if (type === 'LOW_STOCK_WARNING') return 'inventory_2';
+  if (type === 'MEDICINE_EXPIRY_WARNING') return 'calendar_month';
   return 'notifications';
 }
 
@@ -61,6 +49,9 @@ export default function PharmacyNotificationDropdown() {
       'NEW_ORDER',
       'ORDER_STATUS',
       'PAYMENT_REQUIRED',
+      'CANCEL_ORDER',
+      'LOW_STOCK_WARNING',
+      'MEDICINE_EXPIRY_WARNING',
     ].includes(notification.type)),
     [notifications],
   );

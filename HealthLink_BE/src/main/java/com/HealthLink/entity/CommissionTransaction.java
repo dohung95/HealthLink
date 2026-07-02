@@ -55,7 +55,10 @@ public class CommissionTransaction {
 
     @Column(nullable = false, length = 50)
     @Builder.Default
-    private String status = "PENDING";  // PENDING, SETTLED, REFUNDED
+    private String status = "PENDING";  // PENDING, VESTED, SETTLED, REFUNDED
+
+    @Column(name = "VestedAt")
+    private LocalDateTime vestedAt;
 
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "SettlementId")

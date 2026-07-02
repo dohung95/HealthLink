@@ -1,5 +1,6 @@
 package com.HealthLink.dto.pharmacy;
 
+import com.fasterxml.jackson.annotation.JsonProperty;
 import lombok.*;
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
@@ -44,6 +45,7 @@ public class PharmacyProfileResponse {
     // Trạng thái & đánh giá
     private boolean verified;
     private boolean active;
+    private boolean isOnline;
     private Double averageRating;
     private Integer totalReviews;
 
@@ -55,4 +57,14 @@ public class PharmacyProfileResponse {
 
     private LocalDateTime createdAt;
     private LocalDateTime updatedAt;
+
+    @JsonProperty("isOnline")
+    public boolean isOnline() {
+        return isOnline;
+    }
+
+    @JsonProperty("isOnline")
+    public void setOnline(boolean online) {
+        this.isOnline = online;
+    }
 }

@@ -2,6 +2,8 @@ import { useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { toast } from 'sonner';
 import { useNotifications } from '../../context/NotificationContext';
+import { PHARMACY_WORKFLOW_NOTIFICATION_TYPES, getPharmacyNotificationTarget } from '../pharmacy/workflow/pharmacyWorkflow';
+import { audioService } from '../../utils/audioService';
 
 const WORKFLOW_TYPES = new Set([
   'NEW_PHARMACY_REQUEST',
@@ -64,6 +66,41 @@ export default function NotificationToastBridge() {
     if (!WORKFLOW_TYPES.has(notification.type)) return;
 
     lastShownKeyRef.current = key;
+
+    if (PHARMACY_WORKFLOW_NOTIFICATION_TYPES.has(notification.type)) {
+      const targetPath = getPharmacyNotificationTarget(notification);
+      audioService.playNotification();
+
+      const toastId = `pharmacy-workflow-${key}`;
+      toast.custom((toastItem) => (
+        <button
+          className="pharmacy-workflow-toast"
+          onClick={() => {
+            toast.dismiss(toastItem.id);
+            navigate(targetPath);
+          }}
+          type="button"
+        >
+          <span className="material-symbols-outlined pharmacy-workflow-toast__bell">
+            notifications_active
+          </span>
+          <span className="pharmacy-workflow-toast__copy">
+            <strong>{notification.title || 'New pharmacy request'}</strong>
+            <small>{notification.message || 'A patient request is waiting for intake.'}</small>
+          </span>
+        </button>
+      ), {
+        id: toastId,
+        duration: Infinity,
+      });
+
+      const dismissOnScreenClick = () => toast.dismiss(toastId);
+      window.setTimeout(() => {
+        document.addEventListener('pointerdown', dismissOnScreenClick, { once: true });
+      }, 0);
+      return;
+    }
+
     const targetPath = getTargetPath(notification);
     const toastPayload = {
       description: notification.message,

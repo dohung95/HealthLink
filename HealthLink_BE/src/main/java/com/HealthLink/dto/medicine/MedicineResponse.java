@@ -17,6 +17,10 @@ public class MedicineResponse {
     private String genericName;
     private String brandName;
     private String category;
+    private Integer categoryId;
+    private String categoryCode;
+    private String categoryName;
+    private String categoryPath;
     private String dosageForm;
     private String strength;
     private String unit;
