@@ -38,6 +38,22 @@ class VitalSignService {
         _parseError(response, 'Failed to get latest vital signs'));
   }
 
+  /// GET /api/vital-signs/patient/{patientId}
+  static Future<List<dynamic>> getPatientVitalSigns(
+      String token, String patientId) async {
+    final uri = Uri.parse('${ApiConfig.baseUrl}/vital-signs/patient/$patientId');
+    final response = await http.get(uri, headers: _headers(token));
+
+    if (response.statusCode == 200) {
+      if (response.body.trim().isEmpty) return [];
+      final decoded = json.decode(utf8.decode(response.bodyBytes));
+      return decoded is List ? decoded : [];
+    } else if (response.statusCode == 404) {
+      return [];
+    }
+    throw Exception(_parseError(response, 'Failed to get patient vital signs'));
+  }
+
   /// POST /api/vital-signs
   static Future<Map<String, dynamic>> createVitalSign(
       String token, Map<String, dynamic> payload) async {
