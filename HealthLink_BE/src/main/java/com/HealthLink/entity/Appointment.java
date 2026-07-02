@@ -53,6 +53,9 @@ public class Appointment {
     @Builder.Default
     private Boolean doctorReminderSent = false;
 
+    @Builder.Default
+    private Boolean patientFifteenMinuteReminderSent = false;
+
     private LocalDateTime confirmedAt;
 
     // --- Relationships ---

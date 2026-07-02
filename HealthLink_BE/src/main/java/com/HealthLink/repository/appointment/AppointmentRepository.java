@@ -9,6 +9,7 @@ import org.springframework.data.jpa.repository.Modifying;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 import org.springframework.stereotype.Repository;
+import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDateTime;
 import java.util.List;
@@ -231,6 +232,18 @@ public interface AppointmentRepository extends JpaRepository<Appointment, Intege
     List<Appointment> findUpcomingDoctorReminderCandidates(
             @Param("from") LocalDateTime from,
             @Param("to") LocalDateTime to);
+
+    @Query("SELECT a FROM Appointment a WHERE a.appointmentTime BETWEEN :from AND :to "
+            + "AND (a.patientFifteenMinuteReminderSent IS NULL OR a.patientFifteenMinuteReminderSent = false) "
+            + "AND UPPER(a.status) = 'SCHEDULED'")
+    List<Appointment> findUpcomingPatientFifteenMinuteReminderCandidates(
+            @Param("from") LocalDateTime from,
+            @Param("to") LocalDateTime to);
+
+    @Modifying
+    @Transactional
+    @Query("UPDATE Appointment a SET a.patientFifteenMinuteReminderSent = true WHERE a.appointmentId = :id")
+    void markPatientFifteenMinuteReminderSent(@Param("id") Integer appointmentId);
 
     /**
      * Đánh dấu đã gửi reminder cho một appointment.
