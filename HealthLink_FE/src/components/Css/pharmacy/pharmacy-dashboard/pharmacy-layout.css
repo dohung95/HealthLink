@@ -608,7 +608,7 @@
   border: 0;
   border-radius: 8px;
   background: transparent;
-  color: var(--pharmacy-text);
+  color: var(--pharmacy-primary);
   cursor: pointer;
   display: grid;
   grid-template-columns: 22px minmax(0, 1fr);
@@ -644,7 +644,7 @@
 }
 
 .pharmacy-announcement-bar__icon {
-  color: var(--pharmacy-text);
+  color: var(--pharmacy-primary);
   flex: 0 0 auto;
   font-size: 20px;
   font-variation-settings: 'FILL' 1, 'wght' 500, 'GRAD' 0, 'opsz' 20;
@@ -665,7 +665,7 @@
 }
 
 .pharmacy-announcement-bar__text {
-  color: var(--pharmacy-text);
+  color: var(--pharmacy-primary);
   display: inline-block;
   font-size: 0.86rem;
   font-weight: 800;
