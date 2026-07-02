@@ -14,6 +14,7 @@ import com.HealthLink.repository.consultation.ConsultationRepository;
 import com.HealthLink.dto.notification.NotificationDispatchSummary;
 import com.HealthLink.exception.BadRequestException;
 import com.HealthLink.service.medicine.MedicineReminderService;
+import com.HealthLink.service.email.EmailService;
 import com.HealthLink.service.notification.NotificationService;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -29,6 +30,8 @@ import java.util.List;
 import java.util.Optional;
 
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyInt;
+import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.ArgumentMatchers.contains;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.ArgumentMatchers.isNull;
@@ -53,22 +56,31 @@ class NotificationSchedulerTest {
     @Mock
     private MedicineReminderService medicineReminderService;
 
+    @Mock
+    private EmailService emailService;
+
     @InjectMocks
     private NotificationScheduler notificationScheduler;
 
     @Test
-    void sendAppointmentReminders_shouldUseProvidedNowWindow() {
+    void sendAppointmentReminders_shouldUseProvidedNowWindowAndSendEmail() {
         LocalDateTime now = LocalDateTime.of(2026, 5, 20, 14, 25);
-        User patientUser = User.builder().id("patient-user-1").build();
+        User patientUser = User.builder()
+                .id("patient-user-1")
+                .email("patient@example.com")
+                .username("patient@example.com")
+                .build();
         Appointment appointment = Appointment.builder()
                 .appointmentId(44)
                 .appointmentTime(LocalDateTime.of(2026, 5, 20, 15, 30))
+                .consultationType("Video")
                 .doctor(Doctor.builder()
                         .doctorId("doctor-1")
                         .fullName("Doctor One")
                         .build())
                 .patient(Patient.builder()
                         .patientId("patient-1")
+                        .fullName("Patient One")
                         .user(patientUser)
                         .build())
                 .status("SCHEDULED")
@@ -90,7 +102,122 @@ class NotificationSchedulerTest {
                 eq(44),
                 eq("/appointments/44")
         );
+        verify(emailService).sendAppointmentReminderEmail(
+                eq("patient@example.com"),
+                eq("Patient One"),
+                eq("Doctor One"),
+                eq("2026-05-20 15:30"),
+                eq("Video"),
+                eq(60)
+        );
         verify(appointmentRepository).markReminderSent(44);
+    }
+
+    @Test
+    void sendPatientFifteenMinuteAppointmentReminders_shouldNotifyEmailAndMarkAppointment() {
+        LocalDateTime now = LocalDateTime.of(2026, 5, 20, 15, 10);
+        User patientUser = User.builder()
+                .id("patient-user-15")
+                .email("patient15@example.com")
+                .username("patient15@example.com")
+                .build();
+        Appointment appointment = Appointment.builder()
+                .appointmentId(45)
+                .appointmentTime(LocalDateTime.of(2026, 5, 20, 15, 25))
+                .consultationType("Chat")
+                .doctor(Doctor.builder()
+                        .doctorId("doctor-2")
+                        .fullName("Doctor Two")
+                        .build())
+                .patient(Patient.builder()
+                        .patientId("patient-15")
+                        .fullName("Patient Fifteen")
+                        .user(patientUser)
+                        .build())
+                .status("SCHEDULED")
+                .build();
+
+        when(appointmentRepository.findUpcomingPatientFifteenMinuteReminderCandidates(
+                now.plusMinutes(15),
+                now.plusMinutes(20)
+        )).thenReturn(List.of(appointment));
+
+        NotificationDispatchSummary summary =
+                notificationScheduler.sendPatientFifteenMinuteAppointmentReminders(now);
+
+        verify(notificationService).sendWebSocketAndMobilePushNotification(
+                eq(patientUser),
+                eq(NotificationType.APPOINTMENT_REMINDER),
+                eq("Appointment starts in 15 minutes"),
+                contains("Doctor Two"),
+                eq(NotificationPriority.HIGH),
+                eq(45),
+                eq("/appointments/45")
+        );
+        verify(emailService).sendAppointmentReminderEmail(
+                eq("patient15@example.com"),
+                eq("Patient Fifteen"),
+                eq("Doctor Two"),
+                eq("2026-05-20 15:25"),
+                eq("Chat"),
+                eq(15)
+        );
+        verify(appointmentRepository).markPatientFifteenMinuteReminderSent(45);
+        assertThat(summary.getCandidateCount()).isEqualTo(1);
+        assertThat(summary.getSentCount()).isEqualTo(1);
+        assertThat(summary.getSkippedCount()).isZero();
+        assertThat(summary.getFailedCount()).isZero();
+    }
+
+    @Test
+    void sendPatientFifteenMinuteAppointmentReminders_shouldStillNotifyAndMarkWhenEmailMissing() {
+        LocalDateTime now = LocalDateTime.of(2026, 5, 20, 15, 10);
+        User patientUser = User.builder()
+                .id("patient-user-no-email")
+                .email(" ")
+                .username("patient-no-email")
+                .build();
+        Appointment appointment = Appointment.builder()
+                .appointmentId(46)
+                .appointmentTime(LocalDateTime.of(2026, 5, 20, 15, 25))
+                .consultationType("Video")
+                .doctor(Doctor.builder()
+                        .doctorId("doctor-3")
+                        .fullName("Doctor Three")
+                        .build())
+                .patient(Patient.builder()
+                        .patientId("patient-no-email")
+                        .fullName("Patient No Email")
+                        .user(patientUser)
+                        .build())
+                .status("SCHEDULED")
+                .build();
+
+        when(appointmentRepository.findUpcomingPatientFifteenMinuteReminderCandidates(
+                now.plusMinutes(15),
+                now.plusMinutes(20)
+        )).thenReturn(List.of(appointment));
+
+        notificationScheduler.sendPatientFifteenMinuteAppointmentReminders(now);
+
+        verify(notificationService).sendWebSocketAndMobilePushNotification(
+                eq(patientUser),
+                eq(NotificationType.APPOINTMENT_REMINDER),
+                eq("Appointment starts in 15 minutes"),
+                contains("Doctor Three"),
+                eq(NotificationPriority.HIGH),
+                eq(46),
+                eq("/appointments/46")
+        );
+        verify(emailService, never()).sendAppointmentReminderEmail(
+                anyString(),
+                anyString(),
+                anyString(),
+                anyString(),
+                anyString(),
+                anyInt()
+        );
+        verify(appointmentRepository).markPatientFifteenMinuteReminderSent(46);
     }
 
     @Test
