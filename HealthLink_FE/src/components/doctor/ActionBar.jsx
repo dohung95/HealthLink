@@ -14,6 +14,7 @@ const ActionBar = ({
   currentAppointment,
   completingAppointment,
   onCompleteClick,
+  isHomeVisit,
 }) => {
   const getStartHint = () => {
     if (startingConsultation || hasStarted) return null;
@@ -54,20 +55,22 @@ const ActionBar = ({
           )}
         </div>
 
-        <div className="doctor-actionbar-btn-wrapper">
-          <button
-            className={`btn btn-primary ${joinDisabled ? 'disabled' : ''}`}
-            disabled={joinDisabled}
-            onClick={handleChat}
-            type="button"
-          >
-            <i className="bi bi-chat-dots me-2" />
-            {actionLabel}
-          </button>
-          {getJoinHint() && (
-            <span className="doctor-actionbar-hint">{getJoinHint()}</span>
-          )}
-        </div>
+        {!isHomeVisit && (
+          <div className="doctor-actionbar-btn-wrapper">
+            <button
+              className={`btn btn-primary ${joinDisabled ? 'disabled' : ''}`}
+              disabled={joinDisabled}
+              onClick={handleChat}
+              type="button"
+            >
+              <i className="bi bi-chat-dots me-2" />
+              {actionLabel}
+            </button>
+            {getJoinHint() && (
+              <span className="doctor-actionbar-hint">{getJoinHint()}</span>
+            )}
+          </div>
+        )}
 
         <div className="doctor-actionbar-btn-wrapper">
           <button
