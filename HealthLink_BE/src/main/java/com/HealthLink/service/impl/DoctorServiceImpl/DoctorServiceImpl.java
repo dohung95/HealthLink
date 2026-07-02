@@ -370,8 +370,18 @@ public class DoctorServiceImpl implements DoctorService {
 
         emailVerificationTokenRepository.save(token);
 
-        // Gửi email xác nhận
+        // Gửi email xác nhận về email mới
         emailService.sendVerificationEmail(request.getNewEmail(), user.getUsername(), verificationCode);
+
+        // Cảnh báo bảo mật về email CŨ, để chủ tài khoản biết nếu không phải họ yêu cầu
+        emailService.sendSimpleMessage(
+                user.getEmail(),
+                "Security Alert: Email Change Requested",
+                "We received a request to change the email on your HealthLink account from " +
+                        user.getEmail() + " to " + request.getNewEmail() + ".\n\n" +
+                        "If you did not request this, please change your password immediately and contact support.\n\n" +
+                        "This change will only take effect after the new email is verified."
+        );
 
         log.info("Email change requested for doctorId: {} to email: {}", doctorId, request.getNewEmail());
         return "Verification code sent to " + request.getNewEmail() + ". Please check your email.";

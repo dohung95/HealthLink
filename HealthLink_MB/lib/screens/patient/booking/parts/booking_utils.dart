@@ -94,4 +94,21 @@ extension _BookingUtils on _BookingScreenState {
   String _friendlyDate(DateTime date) =>
       '${_dayLabel(date)}, ${date.day}/${date.month}/${date.year}';
 
+  String _ageFromDateOfBirth(dynamic value) {
+    if (value == null) return '';
+
+    final dob = DateTime.tryParse(value.toString());
+    if (dob == null) return '';
+
+    final today = DateTime.now();
+    var age = today.year - dob.year;
+
+    final birthdayThisYear = DateTime(today.year, dob.month, dob.day);
+    if (today.isBefore(birthdayThisYear)) {
+      age--;
+    }
+
+    return age > 0 ? age.toString() : '';
+  }
+
 }

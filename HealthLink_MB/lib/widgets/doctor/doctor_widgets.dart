@@ -2,6 +2,68 @@ import 'package:flutter/material.dart';
 import '../../config/doctor_theme.dart';
 
 // ============================================
+// CENTER NOTICE DIALOG
+// ============================================
+
+/// Hiện dialog thông báo ở giữa màn hình (icon + message + nút "OK"),
+/// dùng chung cho các thông báo thành công/lỗi trong khu vực doctor.
+Future<void> showDoctorNotice(
+  BuildContext context,
+  String message, {
+  bool isError = false,
+}) {
+  return showDialog<void>(
+    context: context,
+    builder: (ctx) => Dialog(
+      backgroundColor: DS.card,
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(28)),
+      child: Padding(
+        padding: const EdgeInsets.fromLTRB(24, 28, 24, 20),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Container(
+              width: 50,
+              height: 50,
+              decoration: BoxDecoration(
+                color: isError ? DS.destructive : const Color(0xFF1D9E75),
+                shape: BoxShape.circle,
+              ),
+              child: Icon(
+                isError ? Icons.priority_high_rounded : Icons.check_rounded,
+                size: 28,
+                color: Colors.white,
+              ),
+            ),
+            const SizedBox(height: 20),
+            Text(
+              message,
+              textAlign: TextAlign.center,
+              style: const TextStyle(fontSize: 16, height: 1.5, color: DS.mutedForeground),
+            ),
+            const SizedBox(height: 24),
+            SizedBox(
+              width: double.infinity,
+              child: ElevatedButton(
+                onPressed: () => Navigator.pop(ctx),
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: const Color(0xFF1D9E75),
+                  foregroundColor: Colors.white,
+                  elevation: 0,
+                  padding: const EdgeInsets.symmetric(vertical: 14),
+                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                ),
+                child: const Text('OK', style: TextStyle(fontSize: 15, fontWeight: FontWeight.w700)),
+              ),
+            ),
+          ],
+        ),
+      ),
+    ),
+  );
+}
+
+// ============================================
 // BACK HEADER
 // ============================================
 
@@ -334,12 +396,16 @@ class DoctorInfoRow extends StatelessWidget {
   final IconData icon;
   final String label;
   final String value;
+  final double boxSize;
+  final double iconSize;
 
   const DoctorInfoRow({
     super.key,
     required this.icon,
     required this.label,
     required this.value,
+    this.boxSize = 36,
+    this.iconSize = 16,
   });
 
   @override
@@ -349,13 +415,13 @@ class DoctorInfoRow extends StatelessWidget {
       child: Row(
         children: [
           Container(
-            width: 36,
-            height: 36,
+            width: boxSize,
+            height: boxSize,
             decoration: BoxDecoration(
               color: DS.secondary,
               borderRadius: BorderRadius.circular(8),
             ),
-            child: Icon(icon, size: 16, color: DS.mutedForeground),
+            child: Icon(icon, size: iconSize, color: DS.mutedForeground),
           ),
           const SizedBox(width: 12),
           Expanded(

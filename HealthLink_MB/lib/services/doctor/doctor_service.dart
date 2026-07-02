@@ -59,6 +59,36 @@ class DoctorService {
     throw Exception('Failed to update profile: ${res.statusCode}');
   }
 
+  /// Bật/tắt loại hình dịch vụ (Online / HomeVisit) mà bác sĩ nhận khám.
+  /// Trả về map các field vừa cập nhật, vd: {'online': false}
+  static Future<Map<String, bool>> updateServices(
+    String token,
+    Map<String, bool> toggles,
+  ) async {
+    final res = await http
+        .patch(
+          Uri.parse('${ApiConfig.baseUrl}/account/doctors/services'),
+          headers: _authHeaders(token),
+          body: jsonEncode(toggles),
+        )
+        .timeout(ApiConfig.connectTimeout);
+
+    if (res.statusCode == 200) {
+      final data = jsonDecode(res.body) as Map<String, dynamic>;
+      return data.map((key, value) => MapEntry(key, value as bool));
+    }
+
+    try {
+      final data = jsonDecode(res.body);
+      if (data is Map<String, dynamic>) {
+        throw Exception(data['message'] ?? 'Update failed');
+      }
+    } catch (e) {
+      if (e is Exception) rethrow;
+    }
+    throw Exception('Failed to update services: ${res.statusCode}');
+  }
+
   // ══════════════════════════════════════════════════════════════════════════
   // APPOINTMENTS
   // ══════════════════════════════════════════════════════════════════════════
@@ -397,11 +427,16 @@ class DoctorService {
         .timeout(ApiConfig.connectTimeout);
 
     if (res.statusCode == 200) {
-      final data = jsonDecode(res.body);
-      if (data is Map<String, dynamic>) {
-        return data['message']?.toString() ?? 'Verification code sent';
-      }
-      return 'Verification code sent';
+      // BE trả về plain text (không phải JSON) cho endpoint này, nên thử
+      // decode JSON trước nhưng luôn có fallback dùng thẳng raw body.
+      try {
+        final data = jsonDecode(res.body);
+        if (data is Map<String, dynamic>) {
+          return data['message']?.toString() ?? 'Verification code sent';
+        }
+        if (data is String && data.isNotEmpty) return data;
+      } catch (_) {}
+      return res.body.isNotEmpty ? res.body : 'Verification code sent';
     }
 
     // Parse error
@@ -410,7 +445,9 @@ class DoctorService {
       if (data is Map<String, dynamic>) {
         throw Exception(data['message'] ?? data['error'] ?? 'Request failed');
       }
-    } catch (_) {}
+    } catch (e) {
+      if (e is Exception) rethrow;
+    }
 
     throw Exception('Failed to request password change: ${res.statusCode}');
   }
@@ -450,6 +487,76 @@ class DoctorService {
     }
 
     throw Exception('Failed to change password: ${res.statusCode}');
+  }
+
+  // ══════════════════════════════════════════════════════════════════════════
+  // EMAIL CHANGE (2-step OTP)
+  // ══════════════════════════════════════════════════════════════════════════
+
+  /// Step 1: Yêu cầu đổi email - xác minh mật khẩu, gửi OTP về email mới
+  static Future<String> requestEmailChange(
+    String token, {
+    required String newEmail,
+    required String password,
+  }) async {
+    final res = await http
+        .post(
+          Uri.parse(ApiConfig.doctorRequestEmailChange),
+          headers: _authHeaders(token),
+          body: jsonEncode({'newEmail': newEmail, 'password': password}),
+        )
+        .timeout(ApiConfig.connectTimeout);
+
+    if (res.statusCode == 200) {
+      // BE trả về plain text (không phải JSON) cho endpoint này.
+      try {
+        final data = jsonDecode(res.body);
+        if (data is Map<String, dynamic>) {
+          return data['message']?.toString() ?? 'Verification code sent';
+        }
+        if (data is String && data.isNotEmpty) return data;
+      } catch (_) {}
+      return res.body.isNotEmpty ? res.body : 'Verification code sent';
+    }
+
+    try {
+      final data = jsonDecode(res.body);
+      if (data is Map<String, dynamic>) {
+        throw Exception(data['message'] ?? data['error'] ?? 'Request failed');
+      }
+    } catch (e) {
+      if (e is Exception) rethrow;
+    }
+
+    throw Exception('Failed to request email change: ${res.statusCode}');
+  }
+
+  /// Step 2: Xác nhận OTP để hoàn tất đổi email
+  static Future<void> verifyEmailChange(
+    String token, {
+    required String newEmail,
+    required String verificationCode,
+  }) async {
+    final res = await http
+        .post(
+          Uri.parse(ApiConfig.doctorVerifyEmailChange),
+          headers: _authHeaders(token),
+          body: jsonEncode({'newEmail': newEmail, 'verificationCode': verificationCode}),
+        )
+        .timeout(ApiConfig.connectTimeout);
+
+    if (res.statusCode == 200) return;
+
+    try {
+      final data = jsonDecode(res.body);
+      if (data is Map<String, dynamic>) {
+        throw Exception(data['message'] ?? data['error'] ?? 'Verification failed');
+      }
+    } catch (e) {
+      if (e is Exception) rethrow;
+    }
+
+    throw Exception('Failed to verify email change: ${res.statusCode}');
   }
 
   // ══════════════════════════════════════════════════════════════════════════

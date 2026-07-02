@@ -23,8 +23,9 @@ class _DoctorProfileScreenState extends State<DoctorProfileScreen> {
   String? _error;
   DoctorProfile? _profile;
   Map<String, dynamic> _reviewStats = {};
-  bool _available = true;
   bool _uploadingAvatar = false;
+  Map<String, bool> _services = {'online': false, 'homeVisit': false};
+  final Map<String, bool> _serviceLoading = {};
 
   @override
   void initState() {
@@ -49,9 +50,14 @@ class _DoctorProfileScreenState extends State<DoctorProfileScreen> {
       ]);
 
       if (mounted) {
+        final profile = results[0] as DoctorProfile;
         setState(() {
-          _profile = results[0] as DoctorProfile;
+          _profile = profile;
           _reviewStats = results[1] as Map<String, dynamic>;
+          _services = {
+            'online': profile.availableTypes.contains('Online'),
+            'homeVisit': profile.availableTypes.contains('HomeVisit'),
+          };
           _isLoading = false;
         });
       }
@@ -121,7 +127,7 @@ class _DoctorProfileScreenState extends State<DoctorProfileScreen> {
                     const SizedBox(height: 12),
                     _buildQuickActions(p),
                     const SizedBox(height: 12),
-                    _buildScheduleStatus(),
+                    _buildServicesCard(),
                     const SizedBox(height: 20),
                     _buildProfessionalInfo(p),
                     const SizedBox(height: 20),
@@ -300,24 +306,15 @@ class _DoctorProfileScreenState extends State<DoctorProfileScreen> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Row(
-            children: [
-              const Expanded(child: DoctorSectionLabel('Professional Information')),
-              GestureDetector(
-                onTap: _showEditProfile,
-                behavior: HitTestBehavior.opaque,
-                child: const Icon(Icons.edit_outlined, size: 23, color: DS.primary),
-              ),
-            ],
-          ),
+          const DoctorSectionLabel('Professional Information'),
           const SizedBox(height: 4),
-          DoctorInfoRow(icon: Icons.email_outlined, label: 'Email', value: p.email ?? '-'),
+          DoctorInfoRow(icon: Icons.email_outlined, label: 'Email', value: p.email ?? '-', boxSize: 40, iconSize: 22),
           const Divider(height: 1, color: DS.cardBorder),
-          DoctorInfoRow(icon: Icons.phone_outlined, label: 'Phone', value: p.phoneNumber ?? '-'),
+          DoctorInfoRow(icon: Icons.phone_outlined, label: 'Phone', value: p.phoneNumber ?? '-', boxSize: 40, iconSize: 22),
           const Divider(height: 1, color: DS.cardBorder),
-          DoctorInfoRow(icon: Icons.school_outlined, label: 'Qualifications', value: p.qualifications ?? '-'),
+          DoctorInfoRow(icon: Icons.school_outlined, label: 'Qualifications', value: p.qualifications ?? '-', boxSize: 40, iconSize: 22),
           const Divider(height: 1, color: DS.cardBorder),
-          DoctorInfoRow(icon: Icons.account_balance_wallet_outlined, label: 'Consultation Fee', value: p.consultationFee != null ? '\$${p.consultationFee!.toStringAsFixed(0)}' : '-'),
+          DoctorInfoRow(icon: Icons.account_balance_wallet_outlined, label: 'Consultation Fee', value: p.consultationFee != null ? '\$${p.consultationFee!.toStringAsFixed(0)}' : '-', boxSize: 40, iconSize: 22),
           if (p.bio != null && p.bio!.isNotEmpty) ...[
             const SizedBox(height: 12),
             Container(
@@ -367,37 +364,82 @@ class _DoctorProfileScreenState extends State<DoctorProfileScreen> {
     );
   }
 
-  Widget _buildScheduleStatus() {
+  Widget _buildServicesCard() {
     return Container(
-      padding: const EdgeInsets.all(8),
+      padding: const EdgeInsets.symmetric(vertical: 4),
       decoration: DS.cardDecoration,
-      child: Padding(
-        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
-        child: Row(
-          children: [
-            Container(width: 36, height: 36, decoration: BoxDecoration(color: DS.secondary, borderRadius: BorderRadius.circular(8)), child: const Icon(Icons.verified_outlined, size: 18, color: DS.mutedForeground)),
-            const SizedBox(width: 12),
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  const Text('Schedule Status', style: TextStyle(fontSize: 14, fontWeight: FontWeight.w500, color: DS.foreground)),
-                  Text(_available ? 'Available for consultations' : 'Unavailable', style: const TextStyle(fontSize: 12, color: DS.mutedForeground)),
-                ],
-              ),
-            ),
-            Switch(
-              value: _available,
-              onChanged: (v) {
-                setState(() => _available = v);
-                ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(v ? "You're now available" : 'Marked as unavailable'), behavior: SnackBarBehavior.floating));
-              },
-              activeColor: DS.primary,
-            ),
-          ],
-        ),
+      child: Column(
+        children: [
+          _buildServiceRow(icon: Icons.public, label: 'Online', serviceKey: 'online'),
+          const Divider(height: 1, color: DS.cardBorder, indent: 12, endIndent: 12),
+          _buildServiceRow(icon: Icons.home_outlined, label: 'Home Visit', serviceKey: 'homeVisit'),
+        ],
       ),
     );
+  }
+
+  Widget _buildServiceRow({required IconData icon, required String label, required String serviceKey}) {
+    final value = _services[serviceKey] ?? false;
+    final loading = _serviceLoading[serviceKey] ?? false;
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+      child: Row(
+        children: [
+          Container(
+            width: 40, height: 40,
+            decoration: BoxDecoration(color: DS.secondary, borderRadius: BorderRadius.circular(8)),
+            child: Icon(icon, size: 25, color: value ? DS.primary : DS.mutedForeground),
+          ),
+          const SizedBox(width: 12),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(label, style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w500, color: DS.foreground)),
+                Text(value ? 'Accepting new bookings' : 'Not accepting bookings', style: const TextStyle(fontSize: 12, color: DS.mutedForeground)),
+              ],
+            ),
+          ),
+          loading
+              ? const SizedBox(
+                  width: 20, height: 20,
+                  child: CircularProgressIndicator(strokeWidth: 2, color: DS.primary),
+                )
+              : Switch(
+                  value: value,
+                  onChanged: (_) => _toggleService(serviceKey),
+                  activeColor: DS.primary,
+                ),
+        ],
+      ),
+    );
+  }
+
+  Future<void> _toggleService(String serviceKey) async {
+    final newValue = !(_services[serviceKey] ?? false);
+    final otherKeysAllOff = _services.keys
+        .where((k) => k != serviceKey)
+        .every((k) => !(_services[k] ?? false));
+
+    if (otherKeysAllOff && !newValue) {
+      showDoctorNotice(context, 'At least one service must be active', isError: true);
+      return;
+    }
+
+    setState(() => _serviceLoading[serviceKey] = true);
+    try {
+      final token = context.read<AuthProvider>().accessToken ?? '';
+      final result = await DoctorService.updateServices(token, {serviceKey: newValue});
+      if (mounted) {
+        setState(() => _services = {..._services, ...result});
+      }
+    } catch (e) {
+      if (mounted) {
+        showDoctorNotice(context, e.toString().replaceAll('Exception: ', ''), isError: true);
+      }
+    } finally {
+      if (mounted) setState(() => _serviceLoading[serviceKey] = false);
+    }
   }
 
   Widget _buildSettingsMenu() {
@@ -483,6 +525,7 @@ class _DoctorProfileScreenState extends State<DoctorProfileScreen> {
             averageRating: _profile!.averageRating, totalReviews: _profile!.totalReviews,
             avatarUrl: newUrl, verified: _profile!.verified,
             scheduleStatus: _profile!.scheduleStatus,
+            availableTypes: _profile!.availableTypes,
             bankAccount: _profile!.bankAccount, bankName: _profile!.bankName,
             paypalEmail: _profile!.paypalEmail,
             customCommissionRateOnline: _profile!.customCommissionRateOnline,
@@ -500,15 +543,6 @@ class _DoctorProfileScreenState extends State<DoctorProfileScreen> {
     } finally {
       if (mounted) setState(() => _uploadingAvatar = false);
     }
-  }
-
-  void _showEditProfile() {
-    showModalBottomSheet(
-      context: context,
-      isScrollControlled: true,
-      backgroundColor: Colors.transparent,
-      builder: (context) => _EditProfileSheet(profile: _profile!, onSaved: () { Navigator.pop(context); _loadData(); }),
-    );
   }
 
   Future<void> _confirmLogout() async {
@@ -623,133 +657,6 @@ class _ActionTile extends StatelessWidget {
             const Icon(Icons.chevron_right, size: 18, color: DS.mutedForeground),
           ],
         ),
-      ),
-    );
-  }
-}
-
-class _EditProfileSheet extends StatefulWidget {
-  final DoctorProfile profile;
-  final VoidCallback onSaved;
-  const _EditProfileSheet({required this.profile, required this.onSaved});
-
-  @override
-  State<_EditProfileSheet> createState() => _EditProfileSheetState();
-}
-
-class _EditProfileSheetState extends State<_EditProfileSheet> {
-  final _formKey = GlobalKey<FormState>();
-  late TextEditingController _phoneController;
-  late TextEditingController _bioController;
-  late TextEditingController _paypalEmailController;
-  bool _isSaving = false;
-
-  @override
-  void initState() {
-    super.initState();
-    _phoneController = TextEditingController(text: widget.profile.phoneNumber);
-    _bioController = TextEditingController(text: widget.profile.bio);
-    _paypalEmailController = TextEditingController(text: widget.profile.paypalEmail);
-  }
-
-  @override
-  void dispose() {
-    _phoneController.dispose();
-    _bioController.dispose();
-    _paypalEmailController.dispose();
-    super.dispose();
-  }
-
-  Future<void> _saveProfile() async {
-    if (!_formKey.currentState!.validate()) return;
-    setState(() => _isSaving = true);
-
-    try {
-      final auth = context.read<AuthProvider>();
-      final token = auth.accessToken;
-      if (token == null) throw Exception('Not authenticated');
-
-      await DoctorService.updateProfile(token, {
-        'phoneNumber': _phoneController.text,
-        'bio': _bioController.text,
-        'paypalEmail': _paypalEmailController.text,
-      });
-
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Profile updated'), behavior: SnackBarBehavior.floating));
-        widget.onSaved();
-      }
-    } catch (e) {
-      if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Error: $e'), behavior: SnackBarBehavior.floating));
-    } finally {
-      if (mounted) setState(() => _isSaving = false);
-    }
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      margin: EdgeInsets.only(top: MediaQuery.of(context).padding.top + 40),
-      decoration: const BoxDecoration(color: DS.card, borderRadius: BorderRadius.vertical(top: Radius.circular(24))),
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Padding(padding: const EdgeInsets.only(top: 12), child: Container(width: 40, height: 4, decoration: BoxDecoration(color: DS.cardBorder, borderRadius: BorderRadius.circular(2)))),
-          Padding(
-            padding: const EdgeInsets.all(20),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: const [
-                Text('Edit Profile', style: TextStyle(fontSize: 18, fontWeight: FontWeight.w600, color: DS.foreground)),
-                SizedBox(height: 4),
-                Text('Update your contact details and payout email.', style: TextStyle(fontSize: 14, color: DS.mutedForeground)),
-              ],
-            ),
-          ),
-          Flexible(
-            child: SingleChildScrollView(
-              padding: const EdgeInsets.symmetric(horizontal: 20),
-              child: Form(
-                key: _formKey,
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    const Text('Phone', style: TextStyle(fontSize: 14, fontWeight: FontWeight.w500, color: DS.foreground)),
-                    const SizedBox(height: 8),
-                    TextFormField(controller: _phoneController, keyboardType: TextInputType.phone, decoration: DS.inputDecoration(hintText: 'Enter phone number')),
-                    const SizedBox(height: 16),
-                    const Text('Bio', style: TextStyle(fontSize: 14, fontWeight: FontWeight.w500, color: DS.foreground)),
-                    const SizedBox(height: 8),
-                    TextFormField(controller: _bioController, maxLines: 4, decoration: DS.inputDecoration(hintText: 'Write about yourself...')),
-                    const SizedBox(height: 16),
-                    const Text('PayPal Email', style: TextStyle(fontSize: 14, fontWeight: FontWeight.w500, color: DS.foreground)),
-                    const SizedBox(height: 8),
-                    TextFormField(
-                      controller: _paypalEmailController,
-                      keyboardType: TextInputType.emailAddress,
-                      decoration: DS.inputDecoration(hintText: 'Email for receiving payments'),
-                      validator: (v) { if (v != null && v.isNotEmpty && !v.contains('@')) return 'Please enter a valid email'; return null; },
-                    ),
-                    const SizedBox(height: 24),
-                  ],
-                ),
-              ),
-            ),
-          ),
-          Padding(
-            padding: EdgeInsets.fromLTRB(20, 16, 20, MediaQuery.of(context).padding.bottom + 20),
-            child: SizedBox(
-              width: double.infinity,
-              child: ElevatedButton(
-                onPressed: _isSaving ? null : _saveProfile,
-                style: DS.primaryButtonStyle,
-                child: _isSaving
-                    ? const SizedBox(height: 20, width: 20, child: CircularProgressIndicator(strokeWidth: 2, color: DS.primaryForeground))
-                    : const Text('Save Changes', style: TextStyle(fontSize: 14, fontWeight: FontWeight.w500)),
-              ),
-            ),
-          ),
-        ],
       ),
     );
   }
