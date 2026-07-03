@@ -18,7 +18,7 @@ from config import Config
 from models.schemas import (
     ModerationResult, OCRResult, CVParseResult,
     DocumentVerifyResult, ProfileVerifyResult, DocumentScreeningResult,
-    HomeVisitScanResult, HealthCheckResponse
+    HomeVisitScanResult, ClinicalResultScanResult, HealthCheckResponse
 )
 
 # Lazy imports for services
@@ -61,14 +61,20 @@ async def lifespan(app: FastAPI):
     print("HealthLink AI Service - Starting...")
     print("=" * 50)
 
-    # Pre-load models
+    # Pre-load models (skip gracefully if not installed)
     print("[1/3] Loading EasyOCR...")
-    init_easyocr()
-    print("      EasyOCR loaded")
+    try:
+        init_easyocr()
+        print("      EasyOCR loaded")
+    except ImportError:
+        print("      EasyOCR not available (install easyocr + torch for PDF/image OCR)")
 
     print("[2/3] Loading NudeNet...")
-    init_nudenet()
-    print("      NudeNet loaded")
+    try:
+        init_nudenet()
+        print("      NudeNet loaded")
+    except ImportError:
+        print("      NudeNet not available (install nudenet for NSFW detection)")
 
     print("[3/3] Checking Ollama connection...")
     try:
@@ -113,30 +119,41 @@ app.add_middleware(
 
 @app.get("/health", response_model=HealthCheckResponse)
 async def health_check():
-    """Check service health and component status"""
-    ollama_status = "disconnected"
-    ollama_model = None
+    """Health check with truthful dependency status."""
+    from services.ollama_service import check_ollama_connection
+
+    dependencies = {}
 
     try:
-        client = init_ollama()
-        models = client.list()
-        ollama_status = "connected"
-        model_names = [m.get('name', m.get('model', '')) for m in models.get('models', [])]
-        if any(Config.OLLAMA_MODEL in name for name in model_names):
-            ollama_model = Config.OLLAMA_MODEL
-    except Exception:
-        pass
+        import easyocr  # noqa: F401
+        dependencies["easyocr"] = {"available": True, "error": None}
+    except Exception as exc:
+        dependencies["easyocr"] = {"available": False, "error": str(exc)}
 
-    return HealthCheckResponse(
-        status="healthy",
-        services={
-            "easyocr": "ready",
-            "nudenet": "ready",
-            "opencv": "ready",
-            "ollama": ollama_status,
-            "ollama_model": ollama_model or "not loaded"
-        }
-    )
+    try:
+        import pytesseract
+        version = str(pytesseract.get_tesseract_version())
+        dependencies["tesseract"] = {"available": True, "version": version, "error": None}
+    except Exception as exc:
+        dependencies["tesseract"] = {"available": False, "version": None, "error": str(exc)}
+
+    ollama_connected, model_available, ollama_error = check_ollama_connection()
+    dependencies["ollama"] = {
+        "available": ollama_connected,
+        "modelAvailable": model_available,
+        "model": Config.OLLAMA_MODEL,
+        "error": ollama_error,
+    }
+
+    ocr_available = dependencies["easyocr"]["available"] or dependencies["tesseract"]["available"]
+
+    return {
+        "status": "healthy" if ocr_available else "degraded",
+        "service": "HealthLink Local AI Service",
+        "version": "1.0.0",
+        "clinicalResultReady": ocr_available,
+        "dependencies": dependencies,
+    }
 
 
 @app.post("/moderate-image", response_model=ModerationResult)
@@ -354,6 +371,23 @@ async def parse_home_visit(file: UploadFile = File(...)):
     content = await file.read()
     filename = file.filename.lower() if file.filename else "document.jpg"
     return parse(content, filename)
+
+
+@app.post("/parse-clinical-result", response_model=ClinicalResultScanResult)
+async def parse_clinical_result(
+    file: UploadFile = File(...),
+    appointmentId: str = Form(default=""),
+    patientName: str = Form(default=""),
+    patientId: str = Form(default=""),
+    appointmentTime: str = Form(default=""),
+    consultationType: str = Form(default=""),
+):
+    """Extract structured test results and clinical data from a lab report image/document."""
+    from services.clinical_result_parser_service import parse
+
+    content = await file.read()
+    filename = file.filename.lower() if file.filename else "document.jpg"
+    return parse(content, filename, patient_name=patientName if patientName else None)
 
 
 # ============================================================================

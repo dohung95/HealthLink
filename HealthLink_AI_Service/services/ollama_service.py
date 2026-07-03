@@ -41,7 +41,7 @@ def check_ollama_connection() -> tuple:
         return False, False, str(e)
 
 
-def generate(prompt: str, system_prompt: str = None) -> str:
+def generate(prompt: str, system_prompt: str = None, json_mode: bool = False) -> str:
     """
     Generate text using Ollama.
     Returns the generated text or empty string on error.
@@ -54,19 +54,38 @@ def generate(prompt: str, system_prompt: str = None) -> str:
             messages.append({"role": "system", "content": system_prompt})
         messages.append({"role": "user", "content": prompt})
 
-        response = client.chat(
-            model=Config.OLLAMA_MODEL,
-            messages=messages,
-            options={
+        kwargs = {
+            "model": Config.OLLAMA_MODEL,
+            "messages": messages,
+            "options": {
                 "temperature": Config.OLLAMA_TEMPERATURE,
-                "num_predict": Config.OLLAMA_NUM_PREDICT
-            }
-        )
+                "num_predict": Config.OLLAMA_NUM_PREDICT,
+            },
+        }
+        if json_mode:
+            kwargs["format"] = "json"
 
-        return response['message']['content']
+        response = client.chat(**kwargs)
+        return response["message"]["content"]
+    except TypeError:
+        return generate(prompt, system_prompt, json_mode=False)
     except Exception as e:
         print(f"Ollama error: {e}")
         return ""
+
+
+def _merge_on_dup_keys(pairs):
+    """Merge duplicate keys: accumulate list values, keep last for non-lists."""
+    result = {}
+    for key, val in pairs:
+        if key in result:
+            if isinstance(result[key], list) and isinstance(val, list):
+                result[key].extend(val)
+            else:
+                result[key] = val
+        else:
+            result[key] = val
+    return result
 
 
 def generate_json(prompt: str, system_prompt: str = None) -> dict:
@@ -78,33 +97,40 @@ def generate_json(prompt: str, system_prompt: str = None) -> dict:
     import json
     import re
 
-    response = generate(prompt, system_prompt)
+    response = generate(prompt, system_prompt, json_mode=True)
 
     if not response:
         return {}
 
-    # Try to extract JSON from response
-    try:
-        # First, try direct parsing
-        return json.loads(response)
-    except json.JSONDecodeError:
-        pass
+    def _try_parse(text):
+        for parse_fn in [
+            lambda t: json.loads(t, object_pairs_hook=_merge_on_dup_keys),
+            lambda t: json.loads(t),
+        ]:
+            try:
+                return parse_fn(text)
+            except json.JSONDecodeError:
+                continue
+        return None
+
+    # Try direct parsing
+    result = _try_parse(response)
+    if result:
+        return result
 
     # Try to find JSON in markdown code blocks
     json_match = re.search(r'```(?:json)?\s*([\s\S]*?)\s*```', response)
     if json_match:
-        try:
-            return json.loads(json_match.group(1))
-        except json.JSONDecodeError:
-            pass
+        result = _try_parse(json_match.group(1))
+        if result:
+            return result
 
     # Try to find JSON object in response
     json_match = re.search(r'\{[\s\S]*\}', response)
     if json_match:
-        try:
-            return json.loads(json_match.group(0))
-        except json.JSONDecodeError:
-            pass
+        result = _try_parse(json_match.group(0))
+        if result:
+            return result
 
     return {}
 

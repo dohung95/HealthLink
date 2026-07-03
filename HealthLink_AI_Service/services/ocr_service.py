@@ -27,44 +27,68 @@ def get_ocr_reader():
     return _ocr_reader
 
 
+def _ocr_with_tesseract(image_bytes: bytes) -> tuple:
+    """OCR fallback for environments where EasyOCR is unavailable."""
+    import io
+    from PIL import Image
+    import pytesseract
+
+    pytesseract.pytesseract.tesseract_cmd = getattr(
+        Config,
+        "TESSERACT_CMD",
+        r"C:\Program Files\Tesseract-OCR\tesseract.exe",
+    )
+
+    image = Image.open(io.BytesIO(image_bytes))
+
+    try:
+        text = pytesseract.image_to_string(image, lang="eng+vie")
+    except Exception:
+        text = pytesseract.image_to_string(image, lang="eng")
+
+    return text.strip(), 0.75 if text.strip() else 0.0
+
+
 def ocr_image(image_bytes: bytes, preprocess: bool = True) -> tuple:
     """
     Perform OCR on image.
     Returns: (text, confidence)
     """
-    reader = get_ocr_reader()
+    try:
+        reader = get_ocr_reader()
 
-    if preprocess:
-        try:
-            # Preprocess image for better accuracy
-            processed = preprocess_for_ocr(image_bytes)
-            results = reader.readtext(processed)
-        except Exception:
-            # Fallback to original image if preprocessing fails
+        if preprocess:
+            try:
+                processed = preprocess_for_ocr(image_bytes)
+                results = reader.readtext(processed)
+            except Exception:
+                img = bytes_to_cv2(image_bytes)
+                results = reader.readtext(img)
+        else:
             img = bytes_to_cv2(image_bytes)
             results = reader.readtext(img)
-    else:
-        img = bytes_to_cv2(image_bytes)
-        results = reader.readtext(img)
 
-    if not results:
-        return "", 0.0
+        if not results:
+            return "", 0.0
 
-    # Extract text and calculate average confidence
-    texts = []
-    confidences = []
+        texts = []
+        confidences = []
 
-    for detection in results:
-        # Each detection: (bbox, text, confidence)
-        text = detection[1]
-        conf = detection[2]
-        texts.append(text)
-        confidences.append(conf)
+        for detection in results:
+            text = detection[1]
+            conf = detection[2]
+            texts.append(text)
+            confidences.append(conf)
 
-    full_text = " ".join(texts)
-    avg_confidence = sum(confidences) / len(confidences) if confidences else 0.0
+        full_text = " ".join(texts)
+        avg_confidence = sum(confidences) / len(confidences) if confidences else 0.0
 
-    return full_text, avg_confidence
+        return full_text, avg_confidence
+    except Exception as easyocr_error:
+        text, confidence = _ocr_with_tesseract(image_bytes)
+        if text:
+            return text, confidence
+        raise easyocr_error
 
 
 def extract_text(content: bytes, filename: str) -> OCRResult:
@@ -92,11 +116,11 @@ def extract_text(content: bytes, filename: str) -> OCRResult:
                 doc = fitz.open(stream=content, filetype="pdf")
                 all_text = []
                 total_conf = 0.0
+                page_count = len(doc)
 
-                for page_num in range(len(doc)):
+                for page_num in range(page_count):
                     page = doc[page_num]
-                    # Convert page to image
-                    pix = page.get_pixmap(matrix=fitz.Matrix(2, 2))  # 2x zoom for better OCR
+                    pix = page.get_pixmap(matrix=fitz.Matrix(2, 2))
                     img_bytes = pix.tobytes("png")
 
                     page_text, page_conf = ocr_image(img_bytes)
@@ -105,7 +129,7 @@ def extract_text(content: bytes, filename: str) -> OCRResult:
 
                 doc.close()
 
-                avg_conf = total_conf / max(len(doc), 1)
+                avg_conf = total_conf / max(page_count, 1)
                 return OCRResult(
                     success=True,
                     text="\n".join(all_text),
