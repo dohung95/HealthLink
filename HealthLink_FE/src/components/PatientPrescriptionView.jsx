@@ -70,6 +70,31 @@ const PatientPrescriptionView = () => {
     return date.toLocaleDateString('vi-VN', { day: '2-digit', month: '2-digit', year: 'numeric' });
   };
 
+  const stripHtml = (html) => {
+    if (!html) return '';
+    const doc = new DOMParser().parseFromString(html, 'text/html');
+    return doc.body.textContent || "";
+  };
+
+  const removeVietnameseTones = (str) => {
+    if (!str) return '';
+    str = str.replace(/à|á|ạ|ả|ã|â|ầ|ấ|ậ|ẩ|ẫ|ă|ằ|ắ|ặ|ẳ|ẵ/g, "a");
+    str = str.replace(/è|é|ẹ|ẻ|ẽ|ê|ề|ế|ệ|ể|ễ/g, "e");
+    str = str.replace(/ì|í|ị|ỉ|ĩ/g, "i");
+    str = str.replace(/ò|ó|ọ|ỏ|õ|ô|ồ|ố|ộ|ổ|ỗ|ơ|ờ|ớ|ợ|ở|ỡ/g, "o");
+    str = str.replace(/ù|ú|ụ|ủ|ũ|ư|ừ|ứ|ự|ử|ữ/g, "u");
+    str = str.replace(/ỳ|ý|ỵ|ỷ|ỹ/g, "y");
+    str = str.replace(/đ/g, "d");
+    str = str.replace(/À|Á|Ạ|Ả|Ã|Â|Ầ|Ấ|Ậ|Ẩ|Ẫ|Ă|Ằ|Ắ|Ặ|Ẳ|Ẵ/g, "A");
+    str = str.replace(/È|É|Ẹ|Ẻ|Ẽ|Ê|Ề|Ế|Ệ|Ể|Ễ/g, "E");
+    str = str.replace(/Ì|Í|Ị|Ỉ|Ĩ/g, "I");
+    str = str.replace(/Ò|Ó|Ọ|Ỏ|Õ|Ô|Ồ|Ố|Ộ|Ổ|Ỗ|Ơ|Ờ|Ớ|Ợ|Ở|Ỡ/g, "O");
+    str = str.replace(/Ù|Ú|Ụ|Ủ|Ũ|Ư|Ừ|Ứ|Ự|Ử|Ữ/g, "U");
+    str = str.replace(/Ỳ|Ý|Ỵ|Ỷ|Ỹ/g, "Y");
+    str = str.replace(/Đ/g, "D");
+    return str;
+  };
+
   const getStatus = (issueDate) => {
     const daysSinceIssue = Math.floor((new Date() - new Date(issueDate)) / (1000 * 60 * 60 * 24));
     if (daysSinceIssue <= 7) return 'New';
@@ -175,14 +200,21 @@ const PatientPrescriptionView = () => {
             {/* Right Column: Prescription Details */}
             <div id="printable-prescription" className="col-lg-8 d-flex flex-column bg-white-custom rounded-3 border border-custom overflow-auto">
               {selectedPrescription ? (
-                <div className="p-4 p-md-4">
-                  {/* Print-only Clinic Header */}
-                  <div className="d-none d-print-block text-center mb-4 border-bottom border-dark pb-3">
-                    <h2 className="fw-bold mb-1" style={{ fontFamily: '"Times New Roman", serif', color: '#000' }}>HEALTHLINK</h2>
-                    <p className="mb-0 small text-black">21 bis Hau Giang, Tan Son Nhat Ward, Ho Chi Minh City.</p>
-                    <p className="mb-0 small text-black">Phone: +(002) 0174-8812-598 | Email: HealthLink@gmail.com</p>
-                    <p className="mb-0 small text-black">Website: https://www.healthlink.com</p>
-                    <h3 className="mt-4 mb-0 fw-bold text-decoration-underline" style={{ fontFamily: '"Times New Roman", serif', color: '#000' }}>MEDICAL PRESCRIPTION</h3>
+                <div className="p-4 p-md-4 position-relative">
+                  {/* Watermark (Print only) */}
+                  <div className="prescription-watermark d-none d-print-block">HEALTHLINK</div>
+
+                  {/* Print-only Clinic Header (Classic & Elegant) */}
+                  <div className="d-none d-print-block mb-4">
+                    <div className="text-center pb-3" style={{ borderBottom: '2px solid #111827' }}>
+                      <h1 className="fw-bolder mb-1" style={{ color: '#111827', letterSpacing: '2px', fontSize: '2.5rem' }}>HEALTHLINK</h1>
+                      <p className="mb-1 text-dark" style={{ fontSize: '1rem' }}>21 bis Hau Giang, Tan Son Nhat Ward, Ho Chi Minh City</p>
+                      <p className="mb-1 text-dark" style={{ fontSize: '0.9rem' }}>Phone: +(002) 0174-8812-598 | Email: contact@healthlink.com</p>
+                    </div>
+                    <div className="mt-4 text-center">
+                      <h3 className="fw-bold text-dark" style={{ letterSpacing: '1.5px', textDecoration: 'underline' }}>MEDICAL PRESCRIPTION</h3>
+                      <p className="text-muted mt-1">RX-{selectedPrescription.prescriptionHeaderID?.toString().padStart(4, '0')}</p>
+                    </div>
                   </div>
 
                   {/* Header Section */}
@@ -192,6 +224,7 @@ const PatientPrescriptionView = () => {
                         Prescription from {selectedPrescription.doctorName || 'Dr. Unknown'}
                       </p>
                       <p className="text-gray-500 small mb-1">Specialty: {selectedPrescription.specialty || 'Not specified'}</p>
+                      <p className="text-gray-500 small mb-1">Diagnosis: {stripHtml(selectedPrescription.diagnosis) || 'Not specified'}</p>
                       <p className="text-gray-500 small mb-0">Issued: {formatDate(selectedPrescription.issueDate)}</p>
                     </div>
                   </div>
@@ -206,7 +239,8 @@ const PatientPrescriptionView = () => {
                             <th className="p-3 small fw-semibold text-gray-600 rounded-start-lg">Medication Name</th>
                             <th className="p-3 small fw-semibold text-gray-600">Dosage</th>
                             <th className="p-3 small fw-semibold text-gray-600">Supply Days</th>
-                            <th className="p-3 small fw-semibold text-gray-600 rounded-end-lg">Instructions</th>
+                            <th className="p-3 small fw-semibold text-gray-600">Instructions</th>
+                            <th className="p-3 small fw-semibold text-gray-600 rounded-end-lg">Notes</th>
                           </tr>
                         </thead>
                         <tbody>
@@ -217,11 +251,12 @@ const PatientPrescriptionView = () => {
                                 <td className="p-3 text-gray-500">{med.dosage}</td>
                                 <td className="p-3 text-gray-500">{med.totalSupplyDays} days</td>
                                 <td className="p-3 text-gray-500">{med.instructions}</td>
+                                <td className="p-3 text-gray-500 fst-italic">{med.notes}</td>
                               </tr>
                             ))
                           ) : (
                             <tr>
-                              <td colSpan="4" className="p-3 text-center text-gray-500">
+                              <td colSpan="5" className="p-3 text-center text-gray-500">
                                 No medication information
                               </td>
                             </tr>
@@ -232,14 +267,42 @@ const PatientPrescriptionView = () => {
                   </div>
 
                   {/* Doctor's Notes Section */}
-                  {selectedPrescription.notes && (
+                  {selectedPrescription.notes && stripHtml(selectedPrescription.notes).trim() !== '' && (
                     <div className="mt-5">
                       <p className="text-gray-900 fs-6 fw-semibold mb-3">Doctor's Advice</p>
                       <div className="notes-box">
-                        <p className="text-gray-600 small mb-0">{selectedPrescription.notes}</p>
+                        <p className="text-gray-600 small mb-0">{stripHtml(selectedPrescription.notes)}</p>
                       </div>
                     </div>
                   )}
+
+                  {/* Doctor Signature (Print only) */}
+                  <div className="d-none d-print-flex justify-content-end mt-5 pt-4 position-relative">
+                    {/* Authorized Stamp */}
+                    <div className="clinic-stamp">AUTHORIZED</div>
+
+                    <div className="text-center" style={{ width: '250px' }}>
+                      <p className="mb-2 text-dark fw-bold">Doctor's Signature</p>
+                      <div style={{ height: '60px', display: 'flex', alignItems: 'center', justifyContent: 'center', overflow: 'hidden' }}>
+                        <span style={{
+                          fontFamily: '"Sacramento", "Dancing Script", "Great Vibes", "Brush Script MT", "Lucida Handwriting", cursive',
+                          fontSize: '2.5rem',
+                          color: '#0f172a',
+                          whiteSpace: 'nowrap'
+                        }}>
+                          {removeVietnameseTones(selectedPrescription.doctorName || 'Dr. Unknown')}
+                        </span>
+                      </div>
+                      <p className="text-dark small mt-1 mb-0">{selectedPrescription.specialty || 'General Practitioner'}</p>
+                    </div>
+                  </div>
+
+                  {/* System Footer (Print only) */}
+                  <div className="d-none d-print-block mt-5 pt-3 text-center border-top border-dark border-opacity-25">
+                    <p className="text-muted mb-0" style={{ fontSize: '0.75rem' }}>
+                      Generated securely by HealthLink System | Timestamp: {new Date().toLocaleString()}
+                    </p>
+                  </div>
 
                   {/* Order / Refill CTA */}
                   <div className="mt-4 pt-3 border-top border-custom d-flex gap-2 d-print-none">

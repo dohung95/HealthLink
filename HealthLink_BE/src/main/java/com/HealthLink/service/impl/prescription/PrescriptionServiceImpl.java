@@ -70,13 +70,23 @@ public class PrescriptionServiceImpl implements PrescriptionService {
             throw new BadRequestException("A prescription already exists for this appointment");
         }
 
+        String diagnosis = request.getDiagnosis();
+        if (diagnosis == null || diagnosis.isBlank()) {
+            diagnosis = consultation != null ? consultation.getDiagnosis() : null;
+        }
+
+        String notes = request.getNotes();
+        if (notes == null || notes.isBlank()) {
+            notes = consultation != null ? consultation.getDoctorNotes() : null;
+        }
+
         PrescriptionHeader header = PrescriptionHeader.builder()
                 .appointment(appointment)
                 .patient(appointment.getPatient())
                 .doctor(appointment.getDoctor())
                 .issueDate(LocalDateTime.now())
-                .diagnosis(request.getDiagnosis())
-                .notes(request.getNotes())
+                .diagnosis(diagnosis)
+                .notes(notes)
                 .validUntil(request.getValidUntil())
                 .status("ISSUED")
                 .prescriptionItems(new ArrayList<>())
@@ -240,6 +250,7 @@ public class PrescriptionServiceImpl implements PrescriptionService {
                 .patientName(header.getPatient() != null ? header.getPatient().getFullName() : null)
                 .doctorId(header.getDoctor() != null ? header.getDoctor().getDoctorId() : null)
                 .doctorName(header.getDoctor() != null ? header.getDoctor().getFullName() : null)
+                .specialty(header.getDoctor() != null ? header.getDoctor().getSpecialty() : null)
                 .pharmacyId(null)
                 .pharmacyName(null)
                 .issueDate(header.getIssueDate())
