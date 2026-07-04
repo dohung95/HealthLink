@@ -1,5 +1,4 @@
 import React from 'react';
-import ClinicalResultAiPanel from './ClinicalResultAiPanel';
 
 const CATEGORY_OPTIONS = [
   'Blood Test',
@@ -18,15 +17,6 @@ const FLAG_OPTIONS = [
   { value: 'CRITICAL', label: 'Critical' },
 ];
 
-const CLINICAL_STATUS_OPTIONS = [
-  { value: 'COLLECTED', label: 'Collected' },
-  { value: 'SENT_TO_LAB', label: 'Sent to lab' },
-  { value: 'PENDING_RESULT', label: 'Pending result' },
-  { value: 'RESULT_READY', label: 'Result ready' },
-  { value: 'PUBLISHED', label: 'Published' },
-  { value: 'CANCELLED', label: 'Cancelled' },
-];
-
 function emptyRow() {
   return { testName: '', resultValue: '', unit: '', referenceRange: '', flag: 'UNKNOWN', confidence: null };
 }
@@ -41,10 +31,6 @@ export default function ClinicalResultFormPane({
   appointmentId,
   file,
   onFileSelect,
-  aiState,
-  aiResult,
-  aiApplied,
-  onAnalyze,
 }) {
   const rows = form.structuredResultsJson
     ? (() => { try { return JSON.parse(form.structuredResultsJson); } catch { return []; } })()
@@ -70,18 +56,23 @@ export default function ClinicalResultFormPane({
   const hasFile = file || form.existingFileLocation;
   const hasStructuredRow = rows.some((r) => r.testName && r.resultValue);
   const hasAssessment = form.doctorAssessment?.trim();
-  const canPublish = hasFile || hasStructuredRow || hasAssessment;
+  const isValid = form.category?.trim() && form.testName?.trim();
+  const canPublish = isValid && (hasFile || hasStructuredRow || hasAssessment);
 
   return (
     <div className="cr-form-pane">
       <div className="cr-form-pane__scroll">
-        <ClinicalResultAiPanel
-          aiState={aiState}
-          aiResult={aiResult}
-          aiApplied={aiApplied}
-          onAnalyze={onAnalyze}
-          disabled={!file}
-        />
+        <div className="cr-manual-helper">
+          <div className="cr-manual-helper__icon">
+            <i className="bi bi-clipboard2-pulse"></i>
+          </div>
+          <div>
+            <div className="cr-manual-helper__title">Manual result entry</div>
+            <p className="cr-manual-helper__text">
+              Enter key values from the uploaded report. Patients only see results after you publish them.
+            </p>
+          </div>
+        </div>
 
         <div className="cr-form-group">
           <label className="cr-form-label">Category</label>
@@ -179,19 +170,6 @@ export default function ClinicalResultFormPane({
         </div>
 
         <div className="cr-form-group">
-          <label className="cr-form-label">Clinical status</label>
-          <select
-            className="cr-form-select"
-            value={form.clinicalStatus || 'PENDING_RESULT'}
-            onChange={(e) => setForm('clinicalStatus', e.target.value)}
-          >
-            {CLINICAL_STATUS_OPTIONS.map((o) => (
-              <option key={o.value} value={o.value}>{o.label}</option>
-            ))}
-          </select>
-        </div>
-
-        <div className="cr-form-group">
           <label className="cr-form-label">Doctor assessment</label>
           <textarea
             className="cr-form-textarea"
@@ -216,16 +194,14 @@ export default function ClinicalResultFormPane({
       </div>
 
       <div className="cr-form-pane__footer">
-        {!editingId || form._dirty ? (
-          <button
-            type="button"
-            className="cr-btn-secondary"
-            onClick={() => onSaveDraft(false)}
-            disabled={saving}
-          >
-            {saving ? 'Saving...' : 'Save draft'}
-          </button>
-        ) : null}
+        <button
+          type="button"
+          className="cr-btn-secondary"
+          onClick={() => onSaveDraft(false)}
+          disabled={saving || !isValid}
+        >
+          {saving ? 'Saving...' : 'Save draft'}
+        </button>
         <button
           type="button"
           className="cr-btn-primary"
