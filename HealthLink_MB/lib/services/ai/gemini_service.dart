@@ -1,5 +1,6 @@
 import 'package:flutter/foundation.dart';
 import 'package:google_generative_ai/google_generative_ai.dart';
+import 'package:flutter_dotenv/flutter_dotenv.dart';
 
 class GeminiResponse {
   final String text;
@@ -11,7 +12,7 @@ class GeminiResponse {
 
 /// Wrapper gọi Gemini AI — fallback khi offline bot không khớp.
 class GeminiService {
-  static const String _apiKey = ''; // TODO: Move to .env file
+  static String get _apiKey => dotenv.env['GEMINI_API_KEY'] ?? '';
   static const String _modelName = 'gemini-3.5-flash';
 
   static const String _systemPrompt = '''
