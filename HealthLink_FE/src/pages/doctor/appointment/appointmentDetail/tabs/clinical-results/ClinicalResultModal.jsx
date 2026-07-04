@@ -9,14 +9,12 @@ function buildInitialForm(result) {
     return {
       category: '',
       testName: '',
-      clinicalStatus: 'PENDING_RESULT',
+      clinicalStatus: 'DRAFT',
       documentDate: new Date().toISOString().slice(0, 10),
       labFacilityName: '',
       structuredResultsJson: JSON.stringify([]),
       doctorAssessment: '',
       patientSummary: '',
-      aiConfidence: null,
-      aiWarningsJson: null,
       existingFileLocation: null,
     };
   }
@@ -29,8 +27,6 @@ function buildInitialForm(result) {
     structuredResultsJson: result.structuredResultsJson || JSON.stringify([]),
     doctorAssessment: result.doctorAssessment || '',
     patientSummary: result.patientSummary || '',
-    aiConfidence: result.aiConfidence || null,
-    aiWarningsJson: result.aiWarningsJson || null,
     existingFileLocation: result.fileLocation || null,
   };
 }
@@ -53,10 +49,6 @@ export default function ClinicalResultModal({
   const [saving, setSaving] = useState(false);
   const [discardConfirm, setDiscardConfirm] = useState(false);
 
-  const [aiState, setAiState] = useState('idle');
-  const [aiResult, setAiResult] = useState(null);
-  const [aiApplied, setAiApplied] = useState(false);
-
   const handleChange = useCallback((updated) => {
     setForm(updated);
   }, []);
@@ -64,40 +56,6 @@ export default function ClinicalResultModal({
   const handleFileSelect = useCallback((f) => {
     setFile(f);
   }, []);
-
-  const handleAnalyze = useCallback(async () => {
-    if (!file) return;
-    setAiState('analyzing');
-    setAiResult(null);
-    setAiApplied(false);
-    try {
-      const result = await doctorClinicalResultApi.analyzeFile(appointmentId, file);
-      setAiResult(result);
-      if (result.success) {
-        const currentRows = (() => { try { return JSON.parse(form.structuredResultsJson); } catch { return []; } })();
-        const aiRows = result.tests || [];
-        const mergedRows = aiRows.length > 0 ? aiRows : currentRows;
-
-        setForm((prev) => ({
-          ...prev,
-          category: result.category || prev.category,
-          labFacilityName: result.labFacilityName || prev.labFacilityName,
-          structuredResultsJson: JSON.stringify(mergedRows),
-          doctorAssessment: result.doctorAssessmentDraft || prev.doctorAssessment,
-          patientSummary: result.patientSummaryDraft || prev.patientSummary,
-          aiConfidence: result.confidence,
-          aiWarningsJson: JSON.stringify(result.warnings || []),
-        }));
-        setAiApplied(true);
-        setAiState('ready');
-      } else {
-        setAiState('failed');
-      }
-    } catch (err) {
-      console.error('AI analysis failed:', err);
-      setAiState('failed');
-    }
-  }, [file, appointmentId, form.structuredResultsJson]);
 
   const handleClose = useCallback(() => {
     const currentClean = buildInitialForm(selectedResult);
@@ -127,14 +85,11 @@ export default function ClinicalResultModal({
         file: file || undefined,
         publishNow: false,
       };
-      if (editingId) {
-        await doctorClinicalResultApi.updateResult(editingId, payload);
-        toast.success('Clinical result updated');
-      } else {
-        await doctorClinicalResultApi.createResult(appointmentId, payload);
-        toast.success('Clinical result saved as draft');
-      }
-      onSaved();
+      const saved = editingId
+        ? await doctorClinicalResultApi.updateResult(editingId, payload)
+        : await doctorClinicalResultApi.createResult(appointmentId, payload);
+      toast.success(editingId ? 'Clinical result updated' : 'Clinical result saved as draft');
+      onSaved(saved);
       onClose();
     } catch (err) {
       console.error('Failed to save:', err);
@@ -159,11 +114,12 @@ export default function ClinicalResultModal({
       } else {
         await doctorClinicalResultApi.updateResult(editingId, payload);
       }
+      let published = null;
       if (docId) {
-        await doctorClinicalResultApi.publishResult(docId);
+        published = await doctorClinicalResultApi.publishResult(docId);
         toast.success('Clinical result published');
       }
-      onSaved();
+      onSaved(published);
       onClose();
     } catch (err) {
       console.error('Failed to publish:', err);
@@ -218,10 +174,6 @@ export default function ClinicalResultModal({
                 appointmentId={appointmentId}
                 file={file}
                 onFileSelect={handleFileSelect}
-                aiState={aiState}
-                aiResult={aiResult}
-                aiApplied={aiApplied}
-                onAnalyze={handleAnalyze}
               />
             </div>
           </div>
