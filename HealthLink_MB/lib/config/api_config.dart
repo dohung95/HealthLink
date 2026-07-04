@@ -135,6 +135,7 @@ class ApiConfig {
   static String rescheduleAppointment(int appointmentId) => '$appointments/$appointmentId/reschedule';
   static String releaseHold(int holdId) => '$baseUrl/appointments/hold-slot/$holdId';
   static String doctorPublicProfile(String doctorId) => '$baseUrl/account/doctors/public/$doctorId';
+  static const String recommendDoctor = '$baseUrl/appointments/doctor-assignment/recommend';
 
   //Home Visit
   static const String homeVisitDoctorSearch = '$baseUrl/home-visit/doctors/search';

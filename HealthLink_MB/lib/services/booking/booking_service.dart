@@ -3,6 +3,7 @@
 import 'package:http/http.dart' as http;
 import 'package:file_picker/file_picker.dart';
 import '../../config/api_config.dart';
+import '../../models/booking/recommended_doctor.dart';
 
 class BookingService {
   BookingService({required this.accessToken});
@@ -141,6 +142,35 @@ class BookingService {
     }
 
     return PagedDoctors.empty();
+  }
+
+  Future<RecommendedDoctor> recommendDoctor({
+    required String specialty,
+    String consultationType = 'Online',
+  }) async {
+    final response = await http
+        .post(
+          Uri.parse(ApiConfig.recommendDoctor),
+          headers: _headers,
+          body: jsonEncode({
+            'specialty': specialty,
+            'consultationType': consultationType,
+          }),
+        )
+        .timeout(ApiConfig.connectTimeout);
+
+    if (response.statusCode != 200) {
+      throw Exception(
+        parseError(
+          response,
+          'Can not recommend doctor. Status: ${response.statusCode}. Body: ${response.body}',
+        ),
+      );
+    }
+
+    return RecommendedDoctor.fromJson(
+      jsonDecode(response.body) as Map<String, dynamic>,
+    );
   }
 
   Future<AvailableSlotsResult> getAvailableSlots({
@@ -334,6 +364,8 @@ class BookingService {
     required String symptoms,
     String notes = '',
     String currency = 'USD',
+    String doctorSelectionMode = 'AUTO_ASSIGNED',
+    double manualSelectionFee = 0,
   }) async {
     final response = await http
         .post(
@@ -347,6 +379,8 @@ class BookingService {
               'consultationType': consultationType,
             'symptoms': symptoms,
             'notes': notes,
+            'doctorSelectionMode': doctorSelectionMode,
+            'manualSelectionFee': manualSelectionFee,
             'currency': currency,
           }),
         )
@@ -369,6 +403,8 @@ class BookingService {
     String notes = '',
     String paymentMethod = 'EWallet',
     String currency = 'USD',
+    String doctorSelectionMode = 'AUTO_ASSIGNED',
+    double manualSelectionFee = 0,
   }) async {
     final response = await http
         .post(
@@ -383,6 +419,8 @@ class BookingService {
               'consultationType': consultationType,
             'symptoms': symptoms,
             'notes': notes,
+            'doctorSelectionMode': doctorSelectionMode,
+            'manualSelectionFee': manualSelectionFee,
             'paymentMethod': paymentMethod,
             'currency': currency,
           }),

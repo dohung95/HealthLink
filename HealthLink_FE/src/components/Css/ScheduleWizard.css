@@ -1665,3 +1665,95 @@
     grid-template-columns: 1fr;
   }
 }
+
+.visit-type-grid {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 14px;
+  margin-top: 22px;
+}
+
+.visit-type-card {
+  min-height: 180px;
+  padding: 18px;
+  border: 1.5px solid #d8dedd;
+  border-radius: 14px;
+  background: #fff;
+  color: #0a2e2a;
+  text-align: left;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  cursor: pointer;
+  transition: 0.18s ease;
+}
+
+.visit-type-card:hover {
+  border-color: #8ddecf;
+  background: #f7fbfa;
+}
+
+.visit-type-card.active {
+  border-color: #1f7a69;
+  background: #edfaf7;
+}
+
+.visit-type-card i {
+  width: 42px;
+  height: 42px;
+  border-radius: 12px;
+  background: #edfaf7;
+  color: #1f7a69;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 20px;
+}
+
+.visit-type-card strong {
+  color: #0a2e2a;
+  font-size: 1rem;
+  font-weight: 700;
+}
+
+.visit-type-card span {
+  color: #6b7b77;
+  font-size: 0.92rem;
+  line-height: 1.45;
+}
+
+.visit-type-card small {
+  margin-top: auto;
+  color: #1f7a69;
+  font-weight: 700;
+}
+
+.recommended-doctor-box {
+  margin: 18px 0;
+  padding: 16px;
+  border: 1.5px solid #d8dedd;
+  border-radius: 14px;
+  background: #f7fbfa;
+  color: #0a2e2a;
+}
+
+.recommended-doctor-box strong {
+  display: block;
+  color: #0a2e2a;
+  margin-bottom: 6px;
+}
+
+.recommended-doctor-box p {
+  margin: 0;
+  color: #6b7b77;
+}
+
+@media (max-width: 720px) {
+  .visit-type-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .visit-type-card {
+    min-height: 150px;
+  }
+}

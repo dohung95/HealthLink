@@ -164,6 +164,8 @@ extension _BookingSharedWidgets on _BookingScreenState {
         return _specialtyStep(colors);
       case BookingStepKey.visitType:
         return _visitTypeStep(colors);
+      case BookingStepKey.doctorOption:
+        return _doctorOptionStep(colors);
       case BookingStepKey.doctor:
         return _doctorStep(colors);
       case BookingStepKey.dateTime:

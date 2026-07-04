@@ -1,5 +1,6 @@
 package com.HealthLink.dto.request;
 
+import java.math.BigDecimal;
 import lombok.Data;
 
 import java.time.LocalDateTime;
@@ -41,6 +42,9 @@ public class AppointmentRequest {
      * Ghi chú thêm
      */
     private String notes;
+
+    private String doctorSelectionMode;
+    private BigDecimal manualSelectionFee;
 
     // Home Visit fields
     private String visitAddress;

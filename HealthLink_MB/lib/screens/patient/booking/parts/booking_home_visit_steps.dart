@@ -1,7 +1,6 @@
 part of '../booking_screen.dart';
 
 extension _BookingHomeVisitSteps on _BookingScreenState {
-
   Widget _homeVisitMapPicker(ColorScheme colors) {
     final selectedPoint = _homeVisitSelectedPoint;
     final hasPinnedLocation = _homeVisitDraft.hasLocation;
@@ -33,7 +32,7 @@ extension _BookingHomeVisitSteps on _BookingScreenState {
                   children: [
                     TileLayer(
                       urlTemplate:
-                      'https://tile.openstreetmap.org/{z}/{x}/{y}.png',
+                          'https://tile.openstreetmap.org/{z}/{x}/{y}.png',
                       userAgentPackageName: 'fpt.HealthLink.mobile',
                     ),
 
@@ -100,7 +99,7 @@ extension _BookingHomeVisitSteps on _BookingScreenState {
           const SizedBox(height: 6),
           Text(
             'Pinned: ${_homeVisitDraft.visitLatitude!.toStringAsFixed(5)}, '
-                '${_homeVisitDraft.visitLongitude!.toStringAsFixed(5)}',
+            '${_homeVisitDraft.visitLongitude!.toStringAsFixed(5)}',
             style: TextStyle(
               color: colors.primary,
               fontWeight: FontWeight.w800,
@@ -184,31 +183,31 @@ extension _BookingHomeVisitSteps on _BookingScreenState {
         if (!d.isForSelf) ...[
           _textInput('Recipient Name', d.receiverName, (v) {
             setState(
-                  () => _homeVisitDraft = _homeVisitDraft.copyWith(receiverName: v),
+              () => _homeVisitDraft = _homeVisitDraft.copyWith(receiverName: v),
             );
           }),
           _textInput('Age', d.receiverAge, (v) {
             setState(
-                  () => _homeVisitDraft = _homeVisitDraft.copyWith(receiverAge: v),
+              () => _homeVisitDraft = _homeVisitDraft.copyWith(receiverAge: v),
             );
           }, keyboardType: TextInputType.number),
           _textInput('Gender', d.receiverGender, (v) {
             setState(
-                  () =>
-              _homeVisitDraft = _homeVisitDraft.copyWith(receiverGender: v),
+              () =>
+                  _homeVisitDraft = _homeVisitDraft.copyWith(receiverGender: v),
             );
           }),
           _textInput('Relationship', d.receiverRelationship, (v) {
             setState(
-                  () => _homeVisitDraft = _homeVisitDraft.copyWith(
+              () => _homeVisitDraft = _homeVisitDraft.copyWith(
                 receiverRelationship: v,
               ),
             );
           }),
           _textInput('Recipient Phone', d.receiverPhone, (v) {
             setState(
-                  () =>
-              _homeVisitDraft = _homeVisitDraft.copyWith(receiverPhone: v),
+              () =>
+                  _homeVisitDraft = _homeVisitDraft.copyWith(receiverPhone: v),
             );
           }, keyboardType: TextInputType.phone),
         ],
@@ -239,7 +238,7 @@ extension _BookingHomeVisitSteps on _BookingScreenState {
         ),
         _textInput('City', d.visitCity, (v) {
           setState(
-                () => _homeVisitDraft = _homeVisitDraft.copyWith(visitCity: v),
+            () => _homeVisitDraft = _homeVisitDraft.copyWith(visitCity: v),
           );
         }),
         Padding(
@@ -331,12 +330,12 @@ extension _BookingHomeVisitSteps on _BookingScreenState {
   }
 
   Widget _textInput(
-      String label,
-      String value,
-      ValueChanged<String> onChanged, {
-        int maxLines = 1,
-        TextInputType? keyboardType,
-      }) {
+    String label,
+    String value,
+    ValueChanged<String> onChanged, {
+    int maxLines = 1,
+    TextInputType? keyboardType,
+  }) {
     return Padding(
       padding: const EdgeInsets.only(bottom: 12),
       child: TextField(
@@ -375,9 +374,9 @@ extension _BookingHomeVisitSteps on _BookingScreenState {
   }
 
   Widget _homeVisitDoctorCard(
-      ColorScheme colors,
-      HomeVisitDoctorOption doctor,
-      ) {
+    ColorScheme colors,
+    HomeVisitDoctorOption doctor,
+  ) {
     final selected =
         _homeVisitDraft.selectedDoctor?.doctorId == doctor.doctorId;
 
@@ -485,7 +484,7 @@ extension _BookingHomeVisitSteps on _BookingScreenState {
                 final next = [..._homeVisitDraft.selectedServices];
                 if (selected) {
                   next.removeWhere(
-                        (item) => item.serviceId == service.serviceId,
+                    (item) => item.serviceId == service.serviceId,
                   );
                 } else {
                   next.add(service);
@@ -525,6 +524,11 @@ extension _BookingHomeVisitSteps on _BookingScreenState {
     final weekEnd = weekStart.add(const Duration(days: 6));
 
     final days = _homeVisitAvailableDaysForWeek(weekStart);
+
+    final selectedDateIsInThisWeek = days.any(
+      (day) => _sameDay(day, _selectedDate),
+    );
+
     final slotsForDay = _homeVisitSlotsForSelectedDate();
 
     final nextWeekStart = weekStart.add(const Duration(days: 7));
@@ -558,165 +562,172 @@ extension _BookingHomeVisitSteps on _BookingScreenState {
             'No suitable sessions available.',
           )
         else ...[
-            Row(
-              children: [
-                Expanded(
-                  child: OutlinedButton(
-                    onPressed: canGoPreviousWeek
-                        ? () {
-                      final targetWeekStart = weekStart.subtract(const Duration(days: 7));
-                      final targetDays = _homeVisitAvailableDaysForWeek(targetWeekStart);
-
-                      setState(() {
-                        _weekIndex--;
-
-                        if (targetDays.isNotEmpty) {
-                          _selectedDate = targetDays.first;
-                        }
-
-                        _homeVisitDraft = _homeVisitDraft.copyWith(
-                          clearSelectedSlot: true,
-                          clearSessionDraftId: true,
-                        );
-                      });
-                    }
-                        : null,
-                    child: Text(AppLocalizations.of(context)!.actionPrevious),
-                  ),
-                ),
-                const SizedBox(width: 10),
-                Text(
-                  weekLabel,
-                  style: const TextStyle(fontWeight: FontWeight.w900),
-                ),
-                const SizedBox(width: 10),
-                Expanded(
-                  child: OutlinedButton(
-                    onPressed: canGoNextWeek
-                        ? () {
-                      final targetWeekStart = weekStart.add(const Duration(days: 7));
-                      final targetDays = _homeVisitAvailableDaysForWeek(targetWeekStart);
-
-                      setState(() {
-                        _weekIndex++;
-
-                        if (targetDays.isNotEmpty) {
-                          _selectedDate = targetDays.first;
-                        }
-
-                        _homeVisitDraft = _homeVisitDraft.copyWith(
-                          clearSelectedSlot: true,
-                          clearSessionDraftId: true,
-                        );
-                      });
-                    }
-                        : null,
-                    child: Text(AppLocalizations.of(context)!.actionNext),
-                  ),
-                ),
-              ],
-            ),
-
-            const SizedBox(height: 14),
-
-            if (days.isEmpty)
-              _empty(
-                colors,
-                Icons.event_busy_outlined,
-                AppLocalizations.of(context)!.bookingNoDoctorScheduleThisWeek,
-              )
-            else
-              SizedBox(
-                height: 86,
-                child: ListView.separated(
-                  scrollDirection: Axis.horizontal,
-                  itemCount: days.length,
-                  separatorBuilder: (_, __) => const SizedBox(width: 10),
-                  itemBuilder: (_, index) {
-                    final day = days[index];
-                    final selected = _sameDay(day, _selectedDate);
-
-                    return InkWell(
-                      borderRadius: BorderRadius.circular(18),
-                      onTap: () {
-                        setState(() {
-                          _selectedDate = day;
-                          _homeVisitDraft = _homeVisitDraft.copyWith(
-                            clearSelectedSlot: true,
-                            clearSessionDraftId: true,
+          Row(
+            children: [
+              Expanded(
+                child: OutlinedButton(
+                  onPressed: canGoPreviousWeek
+                      ? () {
+                          final targetWeekStart = weekStart.subtract(
+                            const Duration(days: 7),
                           );
-                        });
-                      },
-                      child: Container(
-                        width: 96,
-                        padding: const EdgeInsets.all(12),
-                        decoration: BoxDecoration(
+                          final targetDays = _homeVisitAvailableDaysForWeek(
+                            targetWeekStart,
+                          );
+
+                          setState(() {
+                            _weekIndex--;
+
+                            _selectedDate = targetDays.isNotEmpty
+                                ? targetDays.first
+                                : targetWeekStart;
+
+                            _homeVisitDraft = _homeVisitDraft.copyWith(
+                              clearSelectedSlot: true,
+                              clearSessionDraftId: true,
+                            );
+                          });
+                        }
+                      : null,
+                  child: Text(AppLocalizations.of(context)!.actionPrevious),
+                ),
+              ),
+              const SizedBox(width: 10),
+              Text(
+                weekLabel,
+                style: const TextStyle(fontWeight: FontWeight.w900),
+              ),
+              const SizedBox(width: 10),
+              Expanded(
+                child: OutlinedButton(
+                  onPressed: canGoNextWeek
+                      ? () {
+                          final targetWeekStart = weekStart.add(
+                            const Duration(days: 7),
+                          );
+                          final targetDays = _homeVisitAvailableDaysForWeek(
+                            targetWeekStart,
+                          );
+
+                          setState(() {
+                            _weekIndex++;
+
+                            _selectedDate = targetDays.isNotEmpty
+                                ? targetDays.first
+                                : targetWeekStart;
+
+                            _homeVisitDraft = _homeVisitDraft.copyWith(
+                              clearSelectedSlot: true,
+                              clearSessionDraftId: true,
+                            );
+                          });
+                        }
+                      : null,
+                  child: Text(AppLocalizations.of(context)!.actionNext),
+                ),
+              ),
+            ],
+          ),
+
+          const SizedBox(height: 14),
+
+          if (days.isEmpty)
+            _empty(
+              colors,
+              Icons.event_busy_outlined,
+              AppLocalizations.of(context)!.bookingNoDoctorScheduleThisWeek,
+            )
+          else
+            SizedBox(
+              height: 86,
+              child: ListView.separated(
+                scrollDirection: Axis.horizontal,
+                itemCount: days.length,
+                separatorBuilder: (_, __) => const SizedBox(width: 10),
+                itemBuilder: (_, index) {
+                  final day = days[index];
+                  final selected = _sameDay(day, _selectedDate);
+
+                  return InkWell(
+                    borderRadius: BorderRadius.circular(18),
+                    onTap: () {
+                      setState(() {
+                        _selectedDate = day;
+                        _homeVisitDraft = _homeVisitDraft.copyWith(
+                          clearSelectedSlot: true,
+                          clearSessionDraftId: true,
+                        );
+                      });
+                    },
+                    child: Container(
+                      width: 96,
+                      padding: const EdgeInsets.all(12),
+                      decoration: BoxDecoration(
+                        color: selected
+                            ? colors.primary
+                            : colors.surfaceContainerHigh,
+                        borderRadius: BorderRadius.circular(18),
+                        border: Border.all(
                           color: selected
                               ? colors.primary
-                              : colors.surfaceContainerHigh,
-                          borderRadius: BorderRadius.circular(18),
-                          border: Border.all(
-                            color: selected
-                                ? colors.primary
-                                : colors.outlineVariant,
-                          ),
-                        ),
-                        child: Column(
-                          mainAxisAlignment: MainAxisAlignment.center,
-                          children: [
-                            Text(
-                              _dayLabel(day),
-                              style: TextStyle(
-                                color: selected
-                                    ? colors.onPrimary
-                                    : colors.onSurface,
-                                fontWeight: FontWeight.w900,
-                              ),
-                            ),
-                            const SizedBox(height: 4),
-                            Text(
-                              '${day.day}/${day.month}',
-                              style: TextStyle(
-                                color: selected
-                                    ? colors.onPrimary
-                                    : colors.onSurfaceVariant,
-                              ),
-                            ),
-                          ],
+                              : colors.outlineVariant,
                         ),
                       ),
-                    );
-                  },
-                ),
+                      child: Column(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          Text(
+                            _dayLabel(day),
+                            style: TextStyle(
+                              color: selected
+                                  ? colors.onPrimary
+                                  : colors.onSurface,
+                              fontWeight: FontWeight.w900,
+                            ),
+                          ),
+                          const SizedBox(height: 4),
+                          Text(
+                            '${day.day}/${day.month}',
+                            style: TextStyle(
+                              color: selected
+                                  ? colors.onPrimary
+                                  : colors.onSurfaceVariant,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  );
+                },
               ),
-
-            const SizedBox(height: 22),
-
-            Text(
-              'Available Home Visit Sessions',
-              style: Theme.of(context)
-                  .textTheme
-                  .titleMedium
-                  ?.copyWith(fontWeight: FontWeight.w900),
             ),
 
-            const SizedBox(height: 12),
+          const SizedBox(height: 22),
 
-            if (slotsForDay.isEmpty)
-              _empty(
-                colors,
-                Icons.event_busy_outlined,
-                AppLocalizations.of(context)!.bookingNoSlotsOnThisDay,
-              )
-            else
-              Wrap(
-                spacing: 10,
-                runSpacing: 10,
-                children: slotsForDay
-                    .map((slot) => _homeVisitSlotButton(colors, slot))
-                    .toList(),
-              ),
-          ],
+          Text(
+            'Available Home Visit Sessions',
+            style: Theme.of(
+              context,
+            ).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w900),
+          ),
+
+          const SizedBox(height: 12),
+
+          if (slotsForDay.isEmpty)
+            _empty(
+              colors,
+              Icons.event_busy_outlined,
+              AppLocalizations.of(context)!.bookingNoSlotsOnThisDay,
+            )
+          else
+            Wrap(
+              spacing: 10,
+              runSpacing: 10,
+              children: slotsForDay
+                  .map((slot) => _homeVisitSlotButton(colors, slot))
+                  .toList(),
+            ),
+        ],
       ],
     );
   }
@@ -725,15 +736,16 @@ extension _BookingHomeVisitSteps on _BookingScreenState {
     final today = _dayStart(DateTime.now());
     final maxDate = today.add(Duration(days: _bookingWindowDays));
 
-    final uniqueDates = _homeVisitDraft.availableSlots
-        .map((slot) => DateTime.tryParse(slot.bookingDate))
-        .whereType<DateTime>()
-        .map(_dayStart)
-        .where((date) => !date.isBefore(today))
-        .where((date) => !date.isAfter(maxDate))
-        .toSet()
-        .toList()
-      ..sort();
+    final uniqueDates =
+        _homeVisitDraft.availableSlots
+            .map((slot) => DateTime.tryParse(slot.bookingDate))
+            .whereType<DateTime>()
+            .map(_dayStart)
+            .where((date) => !date.isBefore(today))
+            .where((date) => !date.isAfter(maxDate))
+            .toSet()
+            .toList()
+          ..sort();
 
     final weekEnd = weekStart.add(const Duration(days: 6));
 
@@ -821,8 +833,8 @@ extension _BookingHomeVisitSteps on _BookingScreenState {
   Widget _homeVisitSlotButton(ColorScheme colors, HomeVisitSessionSlot slot) {
     final selected =
         _homeVisitDraft.selectedSlot?.scheduleId == slot.scheduleId &&
-            _homeVisitDraft.selectedSlot?.bookingDate == slot.bookingDate &&
-            _homeVisitDraft.selectedSlot?.startTime == slot.startTime;
+        _homeVisitDraft.selectedSlot?.bookingDate == slot.bookingDate &&
+        _homeVisitDraft.selectedSlot?.startTime == slot.startTime;
 
     return SizedBox(
       width: 132,
@@ -870,5 +882,4 @@ extension _BookingHomeVisitSteps on _BookingScreenState {
       ),
     );
   }
-
 }
