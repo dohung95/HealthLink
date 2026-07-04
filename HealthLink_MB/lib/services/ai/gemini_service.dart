@@ -11,8 +11,8 @@ class GeminiResponse {
 
 /// Wrapper gọi Gemini AI — fallback khi offline bot không khớp.
 class GeminiService {
-  static const String _apiKey = 'AIzaSyBkymQHaCzhnAyc5dKp0BJhRvlusVSux4E';
-  static const String _modelName = 'gemini-2.5-flash';
+  static const String _apiKey = ''; // TODO: Move to .env file
+  static const String _modelName = 'gemini-3.5-flash';
 
   static const String _systemPrompt = '''
 You are HealthLink AI — a warm, empathetic, and professional medical assistant for a telemedicine platform.

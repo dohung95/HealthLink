@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react';
+import { useSearchParams } from 'react-router-dom';
 import { doctorService } from '../api/doctorApi';
 import './Css/DoctorDirectory.css';
 
@@ -13,9 +14,11 @@ const DoctorDirectoryContent = ({
     const [doctors, setDoctors] = useState([]);
     const [specialties, setSpecialties] = useState([]);
 
+    const [searchParams] = useSearchParams();
+
     const [filters, setFilters] = useState({
         name: '',
-        specialty: '',
+        specialty: searchParams.get('specialty') ? decodeURIComponent(searchParams.get('specialty')) : '',
         location: ''
     });
 
