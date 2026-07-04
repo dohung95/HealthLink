@@ -432,6 +432,9 @@
   justify-content: space-between;
   font-size: 0.9375rem;
   color: var(--text-primary);
+  padding-bottom: 0.75rem;
+  border-bottom: 1px solid var(--border-light);
+  margin-bottom: 0.5rem;
 }
 
 .cr-toolbar strong {
@@ -537,15 +540,9 @@
 
 /* ── Card Grid ── */
 .cr-card-grid {
-  display: grid;
-  grid-template-columns: 1fr;
+  display: flex;
+  flex-direction: column;
   gap: 0.75rem;
-}
-
-@media (min-width: 640px) {
-  .cr-card-grid {
-    grid-template-columns: 1fr 1fr;
-  }
 }
 
 /* ── Result Card ── */
@@ -631,6 +628,16 @@
   color: #15803d;
   background: #f0fdf4;
   border-color: #15803d;
+}
+
+.cr-btn-icon--danger {
+  color: var(--error);
+}
+
+.cr-btn-icon--danger:hover {
+  color: var(--error);
+  background: #fef2f2;
+  border-color: var(--error);
 }
 
 .cr-result-card__title {
@@ -1452,6 +1459,28 @@
   color: var(--text-muted);
 }
 
+.cr-detail-panel__card {
+  background: var(--surface);
+  border: 1px solid var(--border-light);
+  border-radius: var(--radius-md);
+  margin-top: 0.75rem;
+  overflow: hidden;
+}
+
+.cr-detail-panel__card-header {
+  padding: 0.625rem 1rem;
+  border-bottom: 1px solid var(--border-light);
+  background: var(--surface-muted);
+}
+
+.cr-detail-panel__card-header .cr-detail-panel__section-label {
+  margin-bottom: 0;
+}
+
+.cr-detail-panel__card-body {
+  padding: 0.75rem 1rem;
+}
+
 .cr-detail-panel__divider {
   height: 1px;
   background: var(--border-light);
@@ -1501,6 +1530,22 @@
 
 .cr-detail-panel__file {
   margin-top: 0.25rem;
+}
+
+.cr-detail-panel__image-preview {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  align-items: flex-start;
+}
+
+.cr-detail-panel__image-preview img {
+  max-width: 100%;
+  max-height: 200px;
+  border-radius: var(--radius-sm);
+  border: 1px solid var(--border);
+  object-fit: contain;
+  cursor: pointer;
 }
 
 /* ── Metrics Table ── */

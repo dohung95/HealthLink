@@ -89,12 +89,23 @@ export default function ClinicalResultsTab({ appointmentId, canManageClinicalRes
     setModalOpen(true);
   }, []);
 
-  const handleCloseModal = useCallback(() => {
-    setModalOpen(false);
-  }, []);
+  const handleDelete = useCallback(async (result) => {
+    try {
+      await doctorClinicalResultApi.deleteResult(result.documentId);
+      toast.success('Clinical result deleted');
+      if (selectedResult?.documentId === result.documentId) {
+        setSelectedResult(null);
+      }
+      loadResults();
+    } catch (err) {
+      toast.error(err.response?.data?.message || 'Failed to delete clinical result');
+    }
+  }, [selectedResult, loadResults]);
 
-  const handleModalSaved = useCallback(() => {
-    setSelectedResult(null);
+  const handleModalSaved = useCallback((savedResult) => {
+    if (savedResult) {
+      setSelectedResult(savedResult);
+    }
     loadResults();
   }, [loadResults]);
 
@@ -209,6 +220,7 @@ export default function ClinicalResultsTab({ appointmentId, canManageClinicalRes
           result={selectedResult}
           canManage={canManageClinicalResults}
           onEdit={handleEdit}
+          onDelete={handleDelete}
         />
       </div>
     </div>

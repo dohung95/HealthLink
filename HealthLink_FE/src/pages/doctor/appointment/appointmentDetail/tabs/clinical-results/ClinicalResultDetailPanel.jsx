@@ -1,4 +1,5 @@
-import React from 'react';
+import React, { useState } from 'react';
+import DocumentViewerModal from '@components/DocumentViewerModal';
 
 const FLAG_COLORS = {
   CRITICAL: { bg: '#fce4ec', text: '#c62828' },
@@ -15,7 +16,13 @@ function getFileUrl(fileLocation) {
   return `${base}${fileLocation}`;
 }
 
-export default function ClinicalResultDetailPanel({ result, canManage, onEdit }) {
+function isImageFile(fileLocation) {
+  return /\.(jpg|jpeg|png|gif|bmp|webp)$/i.test(fileLocation);
+}
+
+export default function ClinicalResultDetailPanel({ result, canManage, onEdit, onDelete }) {
+  const [viewerOpen, setViewerOpen] = useState(false);
+
   if (!result) {
     return (
       <div className="cr-detail-panel cr-detail-panel--empty">
@@ -43,6 +50,9 @@ export default function ClinicalResultDetailPanel({ result, canManage, onEdit })
     (r) => r.flag === 'LOW' || r.flag === 'HIGH' || r.flag === 'CRITICAL'
   ).length;
 
+  const fileUrl = getFileUrl(result.fileLocation);
+  const showImageInline = result.fileLocation && isImageFile(result.fileLocation);
+
   return (
     <div className="cr-detail-panel">
       <div className="cr-detail-panel__header">
@@ -63,6 +73,20 @@ export default function ClinicalResultDetailPanel({ result, canManage, onEdit })
             onClick={() => onEdit(result)}
           >
             <i className="bi bi-pencil"></i>
+          </button>
+        )}
+        {result.clinicalStatus !== 'PUBLISHED' && canManage && (
+          <button
+            type="button"
+            className="cr-btn-icon cr-btn-icon--danger"
+            title="Delete"
+            onClick={() => {
+              if (window.confirm('Delete this draft? This cannot be undone.')) {
+                onDelete?.(result);
+              }
+            }}
+          >
+            <i className="bi bi-trash3"></i>
           </button>
         )}
       </div>
@@ -88,8 +112,8 @@ export default function ClinicalResultDetailPanel({ result, canManage, onEdit })
               <tr>
                 <th>Test</th>
                 <th>Value</th>
-                <th>Unit</th>
                 <th>Ref range</th>
+                <th>Unit</th>
                 <th>Flag</th>
               </tr>
             </thead>
@@ -99,9 +123,9 @@ export default function ClinicalResultDetailPanel({ result, canManage, onEdit })
                 return (
                   <tr key={i} className={row.flag === 'CRITICAL' || row.flag === 'HIGH' ? 'cr-metrics-table__row--alert' : ''}>
                     <td>{row.testName || `Test ${i + 1}`}</td>
-                    <td className="cr-metrics-table__value"><strong>{row.resultValue}</strong></td>
-                    <td className="cr-metrics-table__unit">{row.unit || '-'}</td>
+                    <td className="cr-metrics-table__value" style={{ color: flagStyle.text }}><strong>{row.resultValue}</strong></td>
                     <td className="cr-metrics-table__ref">{row.referenceRange || '-'}</td>
+                    <td className="cr-metrics-table__unit">{row.unit || '-'}</td>
                     <td>
                       <span
                         className="cr-flag-chip"
@@ -134,28 +158,60 @@ export default function ClinicalResultDetailPanel({ result, canManage, onEdit })
       <div className="cr-detail-panel__divider" />
 
       {result.doctorAssessment && (
-        <div className="cr-detail-panel__section">
-          <div className="cr-detail-panel__section-label">Assessment</div>
-          <p className="cr-detail-panel__text">{result.doctorAssessment}</p>
+        <div className="cr-detail-panel__card">
+          <div className="cr-detail-panel__card-header">
+            <div className="cr-detail-panel__section-label">Assessment</div>
+          </div>
+          <div className="cr-detail-panel__card-body">
+            <p className="cr-detail-panel__text">{result.doctorAssessment}</p>
+          </div>
         </div>
       )}
       {result.patientSummary && (
-        <div className="cr-detail-panel__section cr-detail-panel__section--muted">
-          <div className="cr-detail-panel__section-label">Patient summary</div>
-          <p className="cr-detail-panel__text cr-detail-panel__text--sm">{result.patientSummary}</p>
+        <div className="cr-detail-panel__card">
+          <div className="cr-detail-panel__card-header">
+            <div className="cr-detail-panel__section-label">Patient summary</div>
+          </div>
+          <div className="cr-detail-panel__card-body">
+            <p className="cr-detail-panel__text cr-detail-panel__text--sm">{result.patientSummary}</p>
+          </div>
         </div>
       )}
 
       {result.fileLocation && (
-        <div className="cr-detail-panel__file">
-          <a
-            href={getFileUrl(result.fileLocation)}
-            target="_blank"
-            rel="noopener noreferrer"
-            className="cr-link"
-          >
-            <i className="bi bi-eye"></i> View file
-          </a>
+        <div className="cr-detail-panel__card">
+          <div className="cr-detail-panel__card-header">
+            <div className="cr-detail-panel__section-label">Documents</div>
+          </div>
+          <div className="cr-detail-panel__card-body">
+            <div className="cr-detail-panel__file">
+              {showImageInline ? (
+                <div className="cr-detail-panel__image-preview">
+                  <img
+                    src={fileUrl}
+                    alt="Result attachment"
+                    onClick={() => setViewerOpen(true)}
+                  />
+                  {viewerOpen && (
+                    <DocumentViewerModal
+                      show={viewerOpen}
+                      onHide={() => setViewerOpen(false)}
+                      document={result}
+                    />
+                  )}
+                </div>
+              ) : (
+                <a
+                  href={fileUrl}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="cr-link"
+                >
+                  <i className="bi bi-eye"></i> View file
+                </a>
+              )}
+            </div>
+          </div>
         </div>
       )}
     </div>
