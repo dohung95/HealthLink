@@ -13,12 +13,7 @@ export default function ClinicalResultCompactCard({ result, isSelected, onSelect
   })();
 
   const statusColors = {
-    COLLECTED: { bg: '#e0f2fe', text: '#0369a1' },
-    SENT_TO_LAB: { bg: '#ede9fe', text: '#6d28d9' },
-    PENDING_RESULT: { bg: '#fef3c7', text: '#b45309' },
-    RESULT_READY: { bg: '#d1fae5', text: '#047857' },
     PUBLISHED: { bg: '#bbf7d0', text: '#15803d' },
-    CANCELLED: { bg: '#fce4ec', text: '#c62828' },
     DRAFT: { bg: '#f1f5f9', text: '#475569' },
   };
   const statusStyle = statusColors[result.clinicalStatus] || statusColors.DRAFT;
