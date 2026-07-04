@@ -186,6 +186,27 @@ public class DoctorClinicalResultServiceImpl implements DoctorClinicalResultServ
         return toDocumentResponse(document);
     }
 
+    @Override
+    @Transactional
+    public void deleteResult(Integer documentId, String doctorId) {
+        MedicalDocument document = medicalDocumentRepository.findById(documentId)
+                .orElseThrow(() -> new ResourceNotFoundException("Clinical result", "id", documentId));
+
+        if (document.getDoctor() == null || !doctorId.equals(document.getDoctor().getDoctorId())) {
+            throw new ForbiddenException("You are not allowed to delete this clinical result");
+        }
+
+        if ("PUBLISHED".equalsIgnoreCase(document.getClinicalStatus())) {
+            throw new BadRequestException("Cannot delete a published clinical result");
+        }
+
+        if (document.getFileLocation() != null) {
+            fileStorageService.deleteFile(document.getFileLocation());
+        }
+
+        medicalDocumentRepository.delete(document);
+    }
+
     private Appointment getOwnedAppointment(Integer appointmentId, String doctorId) {
         Appointment appointment = appointmentRepository.findById(appointmentId)
                 .orElseThrow(() -> new ResourceNotFoundException("Appointment", "id", appointmentId));
