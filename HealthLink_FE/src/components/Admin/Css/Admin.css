@@ -140,6 +140,13 @@
   background: linear-gradient(90deg, transparent 0%, var(--admin-primary) 50%, transparent 100%);
 }
 
+.admin-logo-img {
+  max-width: 100%;
+  height: 70px;
+  width: auto;
+  object-fit: contain;
+}
+
 .admin-logo-icon {
   width: 36px;
   height: 36px;
@@ -150,24 +157,8 @@
   justify-content: center;
   color: white;
   font-size: 18px;
+  flex-shrink: 0;
   box-shadow: 0 3px 10px rgba(0, 160, 139, 0.3);
-  animation: pulse-glow 3s ease-in-out infinite;
-}
-
-@keyframes pulse-glow {
-
-  0%,
-  100% {
-    box-shadow: 0 4px 12px rgba(0, 160, 139, 0.3);
-  }
-
-  50% {
-    box-shadow: 0 4px 16px rgba(0, 160, 139, 0.5);
-  }
-}
-
-.admin-logo-text {
-  color: var(--admin-text);
 }
 
 /* Navigation Items */
@@ -192,20 +183,20 @@
 }
 
 .admin-active {
-  background: linear-gradient(90deg, var(--admin-medical-soft) 0%, var(--admin-medical-light) 100%) !important;
-  color: var(--admin-primary) !important;
-  border-left: 3px solid var(--admin-primary);
-  font-weight: 600;
-  box-shadow: inset 0 1px 3px rgba(0, 160, 139, 0.1);
+  background: linear-gradient(90deg, rgba(0, 160, 139, 0.18) 0%, rgba(0, 160, 139, 0.07) 100%) !important;
+  color: var(--admin-primary-dark) !important;
+  border-left: 4px solid var(--admin-primary);
+  font-weight: 700;
+  box-shadow: inset 0 1px 4px rgba(0, 160, 139, 0.22), 0 1px 8px rgba(0, 160, 139, 0.18);
 }
 
 /* Active Indicator Dot */
 .admin-active-dot {
-  width: 6px;
-  height: 6px;
+  width: 8px;
+  height: 8px;
   border-radius: 50%;
   background: var(--admin-primary);
-  box-shadow: 0 0 6px var(--admin-primary);
+  box-shadow: 0 0 9px var(--admin-primary);
   animation: pulse-dot 2s ease-in-out infinite;
 }
 
@@ -347,6 +338,7 @@
   border-bottom: 2px solid var(--admin-border);
   box-shadow: 0 2px 8px rgba(0, 160, 139, 0.06);
   backdrop-filter: blur(12px);
+  height: 92px;
 }
 
 /* Topbar Toggle Button */
@@ -412,19 +404,18 @@
 
 /* User Display */
 .admin-user-display {
-  padding: 4px 10px;
-  border: 1px solid var(--admin-border);
-  border-radius: var(--radius-md);
+  padding: 4px 15px;
+  border-left: 1px solid #079989;
   background: linear-gradient(135deg, white 0%, var(--admin-medical-light) 100%);
 }
 
 /* User Avatar */
 .admin-avatar-img {
-  width: 30px;
-  height: 30px;
+  width: 40px;
+  height: 40px;
   border-radius: 50%;
   overflow: hidden;
-  border: 2px solid var(--admin-primary);
+  border: 1px solid var(--admin-primary);
   box-shadow: 0 2px 6px rgba(0, 160, 139, 0.2);
 }
 
@@ -3989,71 +3980,6 @@
    Blue/Indigo Theme
    ============================================ */
 
-/* Dashboard Header Container */
-.admin-page-header-dashboard {
-  background: linear-gradient(135deg, #eff6ff 0%, #dbeafe 100%);
-  border: 1px solid #bfdbfe;
-  border-radius: 8px;
-  padding: 14px 16px;
-  box-shadow: 0 2px 8px rgba(59, 130, 246, 0.04);
-  position: relative;
-  overflow: hidden;
-}
-
-.admin-page-header-dashboard::before {
-  content: '';
-  position: absolute;
-  top: 0;
-  left: 0;
-  right: 0;
-  height: 2px;
-  background: linear-gradient(90deg, #3b82f6 0%, #60a5fa 100%);
-}
-
-/* Dashboard Icon */
-.admin-page-icon-dashboard {
-  width: 40px;
-  height: 40px;
-  border-radius: 10px;
-  background: linear-gradient(135deg, #3b82f6 0%, #60a5fa 100%);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  color: white;
-  font-size: 20px;
-  box-shadow: 0 3px 10px rgba(59, 130, 246, 0.15);
-  flex-shrink: 0;
-}
-
-/* Dashboard Badge */
-.admin-page-badge-dashboard {
-  display: inline-flex;
-  align-items: center;
-  padding: 3px 10px;
-  background: rgba(59, 130, 246, 0.08);
-  border: 1px solid rgba(59, 130, 246, 0.2);
-  border-radius: 12px;
-  color: #1e40af;
-  font-size: 10px;
-  font-weight: 600;
-  text-transform: uppercase;
-  letter-spacing: 0.3px;
-}
-
-.admin-page-badge-dashboard i {
-  font-size: 11px;
-}
-
-/* Dashboard Subtitle */
-.admin-page-subtitle-dashboard {
-  color: #64748b;
-  font-size: 12px;
-  line-height: 1.5;
-  margin-top: 4px;
-  padding-left: 52px;
-  font-style: italic;
-}
-
 /* Dashboard Stats Inline */
 .dashboard-stats-inline {
   display: flex;
@@ -4432,19 +4358,8 @@
       padding: 8px 10px !important;
     }
 
-    .admin-logo-icon {
-      width: 30px !important;
-      height: 30px !important;
-      font-size: 14px !important;
-    }
-
-    .admin-logo-text h5,
-    .admin-logo-text h6 {
-      font-size: 13px !important;
-    }
-
-    .admin-logo-text small {
-      font-size: 8px !important;
+    .admin-logo-img {
+      height: 32px !important;
     }
 
     /* Compact Menu Items */
@@ -4453,7 +4368,7 @@
     }
 
     .admin-menu-label {
-      font-size: 11px !important;
+      font-size: 13.2px !important;
     }
 
     .admin-nav-link i {

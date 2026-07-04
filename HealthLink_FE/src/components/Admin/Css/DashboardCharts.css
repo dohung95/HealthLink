@@ -1,48 +1,9 @@
 /* Dashboard Charts Styles */
 .dashboard-charts {
-    margin-top: 1rem;
+    
 }
 
 /* Year Selector Styles - Admin Theme */
-.year-selector-container {
-    background: linear-gradient(135deg, #1e40af 0%, #3b82f6 100%);
-    border-radius: 8px;
-    padding: 14px 18px;
-    margin-bottom: 16px;
-    box-shadow: 0 3px 10px rgba(30, 64, 175, 0.2);
-    border: 1px solid rgba(255, 255, 255, 0.1);
-}
-
-.year-selector-header {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    flex-wrap: wrap;
-    gap: 16px;
-}
-
-.year-selector-title {
-    color: white;
-    font-size: 13px;
-    font-weight: 600;
-    margin: 0;
-    display: flex;
-    align-items: center;
-    text-transform: uppercase;
-    letter-spacing: 0.5px;
-}
-
-.year-selector-title i {
-    font-size: 16px;
-    opacity: 0.95;
-}
-
-.year-selector-controls {
-    display: flex;
-    align-items: center;
-    gap: 12px;
-}
-
 .year-select-wrapper {
     position: relative;
     display: inline-block;
@@ -91,9 +52,9 @@
 }
 
 .btn-current-year {
-    background: rgba(255, 255, 255, 0.95);
-    color: #1e40af;
-    border: 1px solid rgba(255, 255, 255, 0.3);
+    background: white;
+    color: var(--admin-primary, #00a08b);
+    border: 1px solid var(--admin-primary, #00a08b);
     border-radius: 6px;
     padding: 6px 12px;
     font-size: 12px;
@@ -107,18 +68,16 @@
 }
 
 .btn-current-year:hover {
-    background: white;
-    transform: translateY(-1px);
-    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
-    border-color: white;
+    background: var(--admin-primary, #00a08b);
+    color: white;
 }
 
 .btn-current-year:active {
-    transform: translateY(0);
+    transform: translateY(1px);
 }
 
 .btn-current-year i {
-    font-size: 14px;
+    font-size: 13px;
 }
 
 .dashboard-charts-loading {
@@ -130,95 +89,24 @@
     color: var(--admin-text-light, #6b7280);
 }
 
-.chart-card {
+.admin-card.chart-card {
     height: 100%;
-    transition: transform 0.2s, box-shadow 0.2s;
+    background: rgba(255, 255, 255, 0.06);
+    border: none;
+    box-shadow: none;
+    transition: background 0.2s ease;
 }
 
-.chart-card:hover {
-    transform: translateY(-2px);
-    box-shadow: 0 8px 16px rgba(0, 0, 0, 0.1);
+.admin-card.chart-card:hover {
+    background: rgba(255, 255, 255, 0.12);
+    box-shadow: none;
+    border-color: transparent;
 }
 
 .chart-header {
     padding: 12px 16px;
     border-bottom: 1px solid var(--admin-border, #e5e7eb);
     background: linear-gradient(135deg, #f9fafb 0%, #ffffff 100%);
-}
-
-/* Stats Header - Common styles for all charts */
-.chart-header.stats-header {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    gap: 10px;
-    flex-wrap: nowrap;
-    padding: 10px 14px;
-}
-
-.chart-mini-stats {
-    flex-shrink: 0;
-}
-
-.header-title {
-    flex-shrink: 0;
-}
-
-.header-title .chart-title {
-    font-size: 13px;
-    margin-bottom: 1px;
-}
-
-.header-title .chart-title i {
-    font-size: 14px;
-}
-
-.header-title .chart-subtitle {
-    font-size: 10px;
-}
-
-/* Mini Stats - Common */
-.chart-mini-stats {
-    display: flex;
-    gap: 4px;
-}
-
-.chart-mini-stats .mini-stat {
-    background: rgba(255, 255, 255, 0.15);
-    backdrop-filter: blur(4px);
-    border-radius: 5px;
-    padding: 4px 6px;
-    text-align: center;
-    min-width: 38px;
-    border: 1px solid rgba(255, 255, 255, 0.2);
-    cursor: help;
-    transition: all 0.2s ease;
-}
-
-.chart-mini-stats .mini-stat:hover {
-    background: rgba(255, 255, 255, 0.3);
-    transform: translateY(-1px);
-}
-
-.chart-mini-stats .mini-stat-value {
-    display: block;
-    font-size: 11px;
-    font-weight: 700;
-    color: white;
-    line-height: 1.2;
-}
-
-.chart-mini-stats .mini-stat-label {
-    display: block;
-    font-size: 8px;
-    color: rgba(255, 255, 255, 0.8);
-    text-transform: uppercase;
-    letter-spacing: 0.3px;
-    margin-top: 1px;
-}
-
-.chart-mini-stats .mini-stat.highlight {
-    background: rgba(255, 255, 255, 0.3);
 }
 
 .chart-title {
@@ -243,7 +131,50 @@
 }
 
 .chart-container {
-    padding: 16px;
+}
+
+/* Footer stats - shown below the chart instead of in the header */
+.chart-footer-stats {
+    display: flex;
+    justify-content: center;
+    gap: 28px;
+    padding: 8px 16px;
+    border-top: 1px solid var(--admin-border, #e5e7eb);
+    flex-wrap: wrap;
+}
+
+.footer-stat {
+    text-align: center;
+}
+
+.footer-stat-main {
+    display: flex;
+    align-items: baseline;
+    justify-content: center;
+    gap: 4px;
+}
+
+.footer-stat-value {
+    font-size: 14px;
+    font-weight: 700;
+    color: var(--admin-text, #1f2937);
+    line-height: 1.2;
+}
+
+.footer-stat-label {
+    font-size: 10px;
+    font-weight: 600;
+    color: var(--admin-text-light, #6b7280);
+    text-transform: uppercase;
+    letter-spacing: 0.3px;
+}
+
+.footer-stat-desc {
+    display: block;
+    font-size: 10px;
+    color: var(--admin-text-lighter, #94a3b8);
+    margin-top: 1px;
+    white-space: nowrap;
 }
 
 /* Recharts customization */
@@ -371,7 +302,6 @@
    Patient Chart - Teal/Cyan Theme
    ======================================== */
 .patient-chart {
-    background: linear-gradient(135deg, #f0fdfa 0%, #ffffff 100%);
     height: 100%;
 }
 
@@ -395,7 +325,6 @@
    Weekly Appointments Chart - Emerald Theme
    ======================================== */
 .weekly-chart {
-    background: linear-gradient(135deg, #ecfdf5 0%, #ffffff 100%);
     height: 100%;
 }
 
@@ -419,12 +348,11 @@
    Monthly Appointments Chart - Indigo Theme
    ======================================== */
 .monthly-chart {
-    background: linear-gradient(135deg, #eef2ff 0%, #ffffff 100%);
     height: 100%;
 }
 
 .monthly-chart .chart-header.monthly-header {
-    background: linear-gradient(135deg, #6366f1 0%, #4f46e5 100%);
+    background: linear-gradient(135deg, #6366f1 0%, #9995ef 100%);
 }
 
 .monthly-chart .chart-title {
@@ -439,26 +367,165 @@
     color: rgba(255, 255, 255, 0.75);
 }
 
+/* Chart + side stats layout (used when a chart spans full width) */
+.chart-body-with-stats {
+    display: flex;
+    align-items: stretch;
+    gap: 0;
+}
+
+.chart-body-with-stats .chart-container {
+    min-width: 0;
+}
+
+.chart-side-stats {
+    display: flex;
+    flex-direction: column;
+    width: 220px;
+    flex-shrink: 0;
+    padding: 18px 20px 18px 4px;
+    border-right: 1px solid var(--admin-border, #eef0f2);
+    margin-right: 8px;
+}
+
+.side-stat {
+    display: flex;
+    align-items: flex-start;
+    gap: 8px;
+    padding: 12px 0;
+}
+
+.side-stat + .side-stat {
+    border-top: 1px solid var(--admin-border, #eef0f2);
+}
+
+.side-stat-dot {
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    margin-top: 6px;
+    flex-shrink: 0;
+    background: #94a3b8;
+}
+
+.side-stat.total .side-stat-dot {
+    background: #64748b;
+}
+
+.side-stat.online .side-stat-dot {
+    background: #6366f1;
+}
+
+.side-stat.homevisit .side-stat-dot {
+    background: #f59e0b;
+}
+
+.side-stat-text {
+    display: flex;
+    flex-direction: column;
+    min-width: 0;
+}
+
+.side-stat-label {
+    font-size: 10.5px;
+    font-weight: 600;
+    color: var(--admin-text-light, #6b7280);
+    text-transform: uppercase;
+    letter-spacing: 0.4px;
+}
+
+.side-stat-value {
+    font-size: 22px;
+    font-weight: 600;
+    color: var(--admin-text, #1f2937);
+    line-height: 1.3;
+}
+
+.side-stat-desc {
+    font-size: 11px;
+    color: var(--admin-text-lighter, #94a3b8);
+    margin: 2px 0 0;
+    line-height: 1.45;
+}
+
+.side-stat-donut {
+    padding-top: 8px;
+    border-top: 1px solid var(--admin-border, #eef0f2);
+}
+
+.donut-legend {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    margin-top: 4px;
+}
+
+.donut-legend-item {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    font-size: 11px;
+    color: var(--admin-text-light, #6b7280);
+}
+
+.donut-legend-dot {
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    flex-shrink: 0;
+}
+
+.donut-legend-dot.online {
+    background: #6366f1;
+}
+
+.donut-legend-dot.homevisit {
+    background: #f59e0b;
+}
+
+.donut-legend-dot.revenue-online {
+    background: #10b981;
+}
+
+.donut-legend-dot.revenue-homevisit {
+    background: #0369a1;
+}
+
+@media (max-width: 992px) {
+    .chart-body-with-stats {
+        flex-direction: column;
+    }
+
+    .chart-side-stats {
+        width: 100%;
+        flex-direction: row;
+        flex-wrap: wrap;
+        border-right: none;
+        border-bottom: 1px solid var(--admin-border, #eef0f2);
+        padding: 0 0 12px;
+        margin-right: 0;
+        margin-bottom: 12px;
+    }
+
+    .side-stat {
+        flex: 1;
+        min-width: 160px;
+    }
+
+    .side-stat + .side-stat {
+        border-top: none;
+    }
+}
+
 /* ========================================
    Revenue Chart - Green Theme
    ======================================== */
 .revenue-chart {
-    background: linear-gradient(135deg, #f0fdf4 0%, #ffffff 100%);
     height: 100%;
 }
 
 .revenue-chart .chart-header.revenue-header {
     background: linear-gradient(135deg, #10b981 0%, #059669 100%);
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    gap: 10px;
-    flex-wrap: nowrap;
-    padding: 10px 14px;
-}
-
-.revenue-header-title {
-    flex-shrink: 0;
 }
 
 .revenue-chart .chart-title {
@@ -473,61 +540,104 @@
     color: rgba(255, 255, 255, 0.75);
 }
 
-/* Revenue Mini Stats */
-.revenue-mini-stats {
-    display: flex;
-    gap: 4px;
-    flex-shrink: 0;
+/* ========================================
+   Booking Hours Chart - Violet Theme
+   ======================================== */
+.booking-hours-chart {
+    height: 100%;
 }
 
-.revenue-mini-stats .mini-stat {
-    background: rgba(255, 255, 255, 0.15);
-    backdrop-filter: blur(4px);
-    border-radius: 5px;
-    padding: 4px 6px;
-    text-align: center;
-    min-width: 38px;
-    border: 1px solid rgba(255, 255, 255, 0.2);
-    cursor: help;
-    transition: all 0.2s ease;
+.booking-hours-chart .chart-header.booking-hours-header {
+    background: linear-gradient(135deg, #7c3aed 0%, #a855f7 100%);
 }
 
-.revenue-mini-stats .mini-stat:hover {
-    background: rgba(255, 255, 255, 0.3);
-    transform: translateY(-1px);
-}
-
-.revenue-mini-stats .mini-stat-value {
-    display: block;
-    font-size: 11px;
-    font-weight: 700;
+.booking-hours-chart .chart-title {
     color: white;
+}
+
+.booking-hours-chart .chart-title i {
+    color: rgba(255, 255, 255, 0.9);
+}
+
+.booking-hours-chart .chart-subtitle {
+    color: rgba(255, 255, 255, 0.75);
+}
+
+/* ========================================
+   System Overview Stats (reserved left column)
+   ======================================== */
+.overview-stat-circle-wrap {
+    position: relative;
+    width: 400px;
+    height: 380px;
+    margin: 20px auto;
+}
+
+.overview-stat-circle {
+    position: absolute;
+    width: 110px;
+    height: 110px;
+    border-radius: 50%;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    text-align: center;
+    padding: 8px;
+    background: #fff;
+    border: 1.5px solid transparent;
+    box-shadow:
+        0 6px 14px rgba(0, 0, 0, 0.08),
+        inset 0 2px 3px rgba(255, 255, 255, 0.9),
+        inset 0 -3px 5px rgba(0, 0, 0, 0.04);
+}
+
+.overview-stat-label {
+    font-size: 10px;
     line-height: 1.2;
+    color: var(--admin-text-light, #6b7280);
+    margin-bottom: 4px;
 }
 
-.revenue-mini-stats .mini-stat-label {
-    display: block;
-    font-size: 8px;
-    color: rgba(255, 255, 255, 0.8);
-    text-transform: uppercase;
-    letter-spacing: 0.3px;
-    margin-top: 1px;
+.overview-stat-value {
+    font-size: 16px;
+    font-weight: 700;
+    color: var(--admin-text, #1f2937);
 }
 
-.revenue-mini-stats .mini-stat.total {
-    background: rgba(255, 255, 255, 0.25);
+.circle-appointments {
+    border-color: #a5b4fc;
+}
+.circle-appointments .overview-stat-value {
+    color: #4338ca;
 }
 
-.revenue-mini-stats .mini-stat.month {
-    background: rgba(59, 130, 246, 0.4);
+.circle-revenue {
+    border-color: #6ee7b7;
+}
+.circle-revenue .overview-stat-value {
+    color: #047857;
 }
 
-.revenue-mini-stats .mini-stat.platform {
-    background: rgba(139, 92, 246, 0.4);
+.circle-patients {
+    border-color: #5eead4;
+}
+.circle-patients .overview-stat-value {
+    color: #045e52;
 }
 
-.revenue-mini-stats .mini-stat.doctor {
-    background: rgba(245, 158, 11, 0.4);
+.circle-doctors {
+    border-color: #6ee7b7;
+}
+.circle-doctors .overview-stat-value {
+    color: #065f46;
+}
+
+.circle-pharmacies {
+    border-color: #c4b5fd;
+}
+.circle-pharmacies .overview-stat-value {
+    color: #6d28d9;
 }
 
 /* Responsive */
@@ -545,33 +655,9 @@
     .chart-header {
         padding: 16px 20px;
     }
-
-    .year-selector-container {
-        padding: 18px 20px;
-    }
-
-    .year-selector-title {
-        font-size: 15px;
-    }
-
-    .year-selector-title i {
-        font-size: 18px;
-    }
 }
 
 @media (max-width: 768px) {
-    .year-selector-header {
-        flex-direction: column;
-        align-items: flex-start;
-        gap: 12px;
-    }
-
-    .year-selector-controls {
-        width: 100%;
-        flex-direction: row;
-        flex-wrap: wrap;
-    }
-
     .year-select-wrapper {
         flex: 1;
         min-width: 140px;
@@ -579,10 +665,6 @@
 
     .year-select {
         width: 100%;
-    }
-
-    .btn-current-year {
-        flex-shrink: 0;
     }
 
     .revenue-overview-cards {
@@ -607,46 +689,9 @@
         font-size: 18px;
     }
 
-    /* Mini stats responsive - All charts */
-    .chart-header.stats-header,
-    .revenue-chart .chart-header.revenue-header {
-        flex-direction: column;
-        align-items: flex-start;
-        padding: 14px 16px;
-    }
-
-    .chart-mini-stats,
-    .revenue-mini-stats {
-        width: 100%;
-        justify-content: space-between;
-        margin-top: 10px;
-    }
-
-    .chart-mini-stats .mini-stat,
-    .revenue-mini-stats .mini-stat {
-        flex: 1;
-        min-width: 0;
-        padding: 5px 6px;
-    }
-
-    .chart-mini-stats .mini-stat-value,
-    .revenue-mini-stats .mini-stat-value {
-        font-size: 12px;
-    }
-
-    .chart-mini-stats .mini-stat-label,
-    .revenue-mini-stats .mini-stat-label {
-        font-size: 8px;
-    }
-
-    .header-title .chart-title,
-    .revenue-header-title .chart-title {
-        font-size: 13px;
-    }
-
-    .header-title .chart-subtitle,
-    .revenue-header-title .chart-subtitle {
-        font-size: 10px;
+    /* Footer stats responsive - All charts */
+    .chart-footer-stats {
+        gap: 12px;
     }
 }
 
@@ -657,26 +702,6 @@
 
     .chart-container {
         padding: 12px;
-    }
-
-    .year-selector-container {
-        padding: 16px 18px;
-        margin-bottom: 20px;
-        border-radius: 8px;
-    }
-
-    .year-selector-title {
-        font-size: 14px;
-        letter-spacing: 0.3px;
-    }
-
-    .year-selector-title i {
-        font-size: 16px;
-    }
-
-    .year-selector-controls {
-        flex-direction: column;
-        gap: 10px;
     }
 
     .year-select-wrapper {
@@ -693,16 +718,5 @@
         font-size: 13px;
         min-width: 100%;
         background-position: right 10px center;
-    }
-
-    .btn-current-year {
-        width: 100%;
-        justify-content: center;
-        padding: 7px 14px;
-        font-size: 12px;
-    }
-
-    .btn-current-year i {
-        font-size: 13px;
     }
 }
