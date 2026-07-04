@@ -61,9 +61,6 @@ export default function ClinicalResultDetailPanel({ result, canManage, onEdit, o
             <span className="cr-badge cr-badge--category">{result.category}</span>
           )}
           <span className="cr-badge cr-badge--status">{result.clinicalStatus || 'DRAFT'}</span>
-          {result.visibilityStatus === 'DRAFT' && (
-            <span className="cr-badge cr-badge--draft">Draft</span>
-          )}
         </div>
         {canManage && (
           <button

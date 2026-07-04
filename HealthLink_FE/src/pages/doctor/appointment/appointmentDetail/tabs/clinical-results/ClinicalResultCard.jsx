@@ -62,9 +62,6 @@ export default function ClinicalResultCard({ result, onEdit, onPublish, canManag
           >
             {result.clinicalStatus || 'DRAFT'}
           </span>
-          {result.visibilityStatus === 'DRAFT' && (
-            <span className="cr-badge cr-badge--draft">Draft</span>
-          )}
         </div>
         {canManage && (
           <div className="cr-result-card__actions">

@@ -37,9 +37,6 @@ export default function ClinicalResultCompactCard({ result, isSelected, onSelect
           >
             {result.clinicalStatus || 'DRAFT'}
           </span>
-          {result.visibilityStatus === 'DRAFT' && (
-            <span className="cr-badge cr-badge--draft">Draft</span>
-          )}
         </div>
       </div>
 
