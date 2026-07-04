@@ -89,6 +89,10 @@ export default function ClinicalResultsTab({ appointmentId, canManageClinicalRes
     setModalOpen(true);
   }, []);
 
+  const handleCloseModal = useCallback(() => {
+    setModalOpen(false);
+  }, []);
+
   const handleDelete = useCallback(async (result) => {
     try {
       await doctorClinicalResultApi.deleteResult(result.documentId);
