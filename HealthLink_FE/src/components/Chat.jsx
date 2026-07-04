@@ -2,7 +2,7 @@ import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useChat } from '../context/ChatContext';
 import { getGeminiResponse } from '../services/geminiService';
-import { checkKeywordAndGetBotReply, checkSymptomAndGetSpecialty, getDoctorsBySpecialty } from '../AI_BOT/BotBrain';
+import getBotResponse, { checkKeywordAndGetBotReply, checkSymptomAndGetSpecialty, getDoctorsBySpecialty } from '../AI_BOT/BotBrain';
 import { doctorService } from '../api/doctorApi';
 
 // ─── Bot cố định (chỉ dùng Gemini AI ở frontend) ──────────────
@@ -243,79 +243,91 @@ export default function Chat() {
         setMessages(prev => [...prev, optimistic]);
         setIsBotTyping(true);
 
-        // 1. Kiểm tra keyword
-        const keywordMatch = checkKeywordAndGetBotReply(text);
-        if (keywordMatch) {
-            await new Promise(r => setTimeout(r, 600));
-            setIsBotTyping(false);
-            const newMsgId = `bot_kw_${Date.now()}`;
-            setLatestBotMsgId(newMsgId);
-            setMessages(prev => [...prev, {
-                messageId: newMsgId,
-                senderId: BOT_USER.userId,
-                content: keywordMatch.reply,
-                actionUrl: keywordMatch.actionUrl,
-                actionLabel: keywordMatch.actionLabel,
-                timestamp: new Date().toISOString(),
-            }]);
-            return;
-        } 
-        
-        // 2. Kiểm tra triệu chứng
-        const specialtyMatch = checkSymptomAndGetSpecialty(text);
-        if (specialtyMatch) {
-            const suggestedDoctors = getDoctorsBySpecialty(allDoctors, specialtyMatch.specialty, 3);
-            const hasVI = /[àáảãạăằắẳẵặâầấẩẫậèéẻẽẹêềếểễệìíỉĩịòóỏõọôồốổỗộơờớởỡợùúủũụưừứửữựỳýỷỹỵđ]/i.test(text);
-            const hasID = /saya|aku|sakit|demam|batuk|pusing|dokter/i.test(text.toLowerCase());
-            const lang = hasVI ? 'vi' : hasID ? 'id' : 'en';
+        let replyText = null;
+        let finalActionUrl = null;
+        let finalActionLabel = null;
+        let suggestedDoctors = [];
 
-            const specialtyName = specialtyMatch.label[lang] || specialtyMatch.label.en;
-            const replyText = lang === 'vi'
-                ? `${specialtyMatch.icon} Dựa trên triệu chứng bạn mô tả, mình gợi ý bạn nên khám chuyên khoa **${specialtyName}**! Dưới đây là một số bác sĩ phù hợp:`
-                : lang === 'id'
-                    ? `${specialtyMatch.icon} Berdasarkan gejala yang kamu ceritakan, aku sarankan periksa ke spesialis **${specialtyName}**! Berikut beberapa dokter yang bisa membantu:`
-                    : `${specialtyMatch.icon} Based on your symptoms, I recommend seeing a **${specialtyName}** specialist! Here are some available doctors:`;
+        const hasVI = /[àáảãạăằắẳẵặâầấẩẫậèéẻẽẹêềếểễệìíỉĩịòóỏõọôồốổỗộơờớởỡợùúủũụưừứửữựỳýỷỹỵđ]/i.test(text);
+        const hasID = /saya|aku|sakit|demam|batuk|pusing|dokter/i.test(text.toLowerCase());
+        const lang = hasVI ? 'vi' : hasID ? 'id' : 'en';
 
-            await new Promise(r => setTimeout(r, 700));
-            setIsBotTyping(false);
-            const newMsgId = `bot_sp_${Date.now()}`;
-            setLatestBotMsgId(newMsgId);
-            setMessages(prev => [...prev, {
-                messageId: newMsgId,
-                senderId: BOT_USER.userId,
-                content: replyText,
-                suggestedDoctors: suggestedDoctors,
-                actionUrl: `/schedule?specialty=${encodeURIComponent(specialtyMatch.specialty)}`,
-                actionLabel: lang === 'vi' ? `📅 Xem tất cả bác sĩ ${specialtyName}` : lang === 'id' ? `📅 Lihat semua dokter ${specialtyName}` : `📅 View all ${specialtyName} doctors`,
-                timestamp: new Date().toISOString(),
-            }]);
-            return;
-        }
-
-        // 3. Gemini AI
+        // 1. Luôn ưu tiên gọi Gemini AI trước để hiểu ngữ cảnh tự nhiên
         try {
-            const { text: aiText, actionUrl, actionLabel } = await getGeminiResponse(text, []);
-            setIsBotTyping(false);
-            const newMsgId = `bot_ai_${Date.now()}`;
-            setLatestBotMsgId(newMsgId);
-            setMessages(prev => [...prev, {
-                messageId: newMsgId,
-                senderId: BOT_USER.userId,
-                content: aiText,
-                actionUrl: actionUrl ?? null,
-                actionLabel: actionLabel ?? null,
-                timestamp: new Date().toISOString(),
-            }]);
+            const aiRes = await getGeminiResponse(text, []);
+            // Nếu Gemini không khả dụng, getGeminiResponse sẽ trả về getBotResponse(text).
+            // Ta ưu tiên dùng reply của AI nếu nó thực sự là phản hồi từ AI.
+            if (aiRes && aiRes.text && aiRes.text !== getBotResponse(text)) {
+                replyText = aiRes.text;
+                finalActionUrl = aiRes.actionUrl;
+                finalActionLabel = aiRes.actionLabel;
+            }
         } catch (error) {
-            console.error(error);
-            setIsBotTyping(false);
-            setMessages(prev => [...prev, {
-                messageId: `bot_err_${Date.now()}`,
-                senderId: BOT_USER.userId,
-                content: "Xin lỗi, tôi đang gặp sự cố kết nối. Vui lòng thử lại sau!",
-                timestamp: new Date().toISOString(),
-            }]);
+            console.error("Gemini call failed:", error);
         }
+
+        // 2. Fallback offline nếu AI không trả lời (lỗi hoặc hết quota)
+        if (!replyText) {
+            const keywordMatch = checkKeywordAndGetBotReply(text);
+            if (keywordMatch) {
+                replyText = keywordMatch.reply;
+                finalActionUrl = keywordMatch.actionUrl;
+                finalActionLabel = keywordMatch.actionLabel;
+            } else {
+                const specialtyMatch = checkSymptomAndGetSpecialty(text);
+                if (specialtyMatch) {
+                    const specialtyName = specialtyMatch.label[lang] || specialtyMatch.label.en;
+                    replyText = lang === 'vi'
+                        ? `${specialtyMatch.icon} Dựa trên triệu chứng bạn mô tả, mình gợi ý bạn nên khám chuyên khoa **${specialtyName}**! Dưới đây là một số bác sĩ phù hợp:`
+                        : lang === 'id'
+                            ? `${specialtyMatch.icon} Berdasarkan gejala yang kamu ceritakan, aku sarankan periksa ke spesialis **${specialtyName}**! Berikut beberapa dokter yang bisa membantu:`
+                            : `${specialtyMatch.icon} Based on your symptoms, I recommend seeing a **${specialtyName}** specialist! Here are some available doctors:`;
+
+                    finalActionUrl = `/doctors?specialty=${encodeURIComponent(specialtyMatch.specialty)}`;
+                    finalActionLabel = lang === 'vi' ? `📅 Xem tất cả bác sĩ ${specialtyName}` : lang === 'id' ? `📅 Lihat semua dokter ${specialtyName}` : `📅 View all ${specialtyName} doctors`;
+                    suggestedDoctors = getDoctorsBySpecialty(allDoctors, specialtyMatch.specialty, 3);
+                } else {
+                    replyText = getBotResponse(text);
+                }
+            }
+        }
+
+        // 3. Suy luận nút bấm (Action) nếu AI trả lời nhưng chưa gắn thẻ action
+        if (replyText && !finalActionUrl) {
+            const keywordMatch = checkKeywordAndGetBotReply(text);
+            if (keywordMatch) {
+                finalActionUrl = keywordMatch.actionUrl;
+                finalActionLabel = keywordMatch.actionLabel;
+            }
+        }
+
+        // 4. Nếu có link điều hướng tới bác sĩ chuyên khoa hoặc danh sách bác sĩ, tự động hiển thị vài bác sĩ inline
+        if (finalActionUrl) {
+            if (finalActionUrl.includes('specialty=')) {
+                const specialtyParam = new URLSearchParams(finalActionUrl.split('?')[1]).get('specialty');
+                if (specialtyParam) {
+                    suggestedDoctors = getDoctorsBySpecialty(allDoctors, specialtyParam, 3);
+                }
+            } else if (finalActionUrl.includes('/doctors')) {
+                // Lấy 3 bác sĩ đầu tiên có đánh giá cao
+                suggestedDoctors = [...allDoctors]
+                    .sort((a, b) => (b.averageRating || 0) - (a.averageRating || 0))
+                    .slice(0, 3);
+            }
+        }
+
+        setIsBotTyping(false);
+        const newMsgId = `bot_msg_${Date.now()}`;
+        setLatestBotMsgId(newMsgId);
+        setMessages(prev => [...prev, {
+            messageId: newMsgId,
+            senderId: BOT_USER.userId,
+            content: replyText || "Xin lỗi, tôi đang gặp sự cố. Vui lòng thử lại sau!",
+            suggestedDoctors: suggestedDoctors.length > 0 ? suggestedDoctors : undefined,
+            actionUrl: finalActionUrl ?? null,
+            actionLabel: finalActionLabel ?? null,
+            timestamp: new Date().toISOString(),
+        }]);
     };
 
     return (

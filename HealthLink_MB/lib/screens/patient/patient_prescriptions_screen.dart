@@ -7,6 +7,7 @@ import 'package:printing/printing.dart';
 import '../../providers/auth_provider.dart';
 import '../../services/patient/patient_service.dart';
 import '../../l10n/app_localizations.dart';
+import '../../utils/localization_utils.dart';
 
 class PrescriptionsScreen extends StatefulWidget {
   const PrescriptionsScreen({super.key});
@@ -65,6 +66,30 @@ class _PrescriptionsScreenState extends State<PrescriptionsScreen> {
         });
       }
     }
+  }
+
+  String _stripHtml(String? htmlString) {
+    if (htmlString == null) return '';
+    final RegExp exp = RegExp(r"<[^>]*>", multiLine: true, caseSensitive: true);
+    return htmlString.replaceAll(exp, '').trim();
+  }
+
+  String _removeVietnameseTones(String str) {
+    str = str.replaceAll(RegExp(r'[àáạảãâầấậẩẫăằắặẳẵ]'), 'a');
+    str = str.replaceAll(RegExp(r'[èéẹẻẽêềếệểễ]'), 'e');
+    str = str.replaceAll(RegExp(r'[ìíịỉĩ]'), 'i');
+    str = str.replaceAll(RegExp(r'[òóọỏõôồốộổỗơờớợởỡ]'), 'o');
+    str = str.replaceAll(RegExp(r'[ùúụủũưừứựửữ]'), 'u');
+    str = str.replaceAll(RegExp(r'[ỳýỵỷỹ]'), 'y');
+    str = str.replaceAll(RegExp(r'đ'), 'd');
+    str = str.replaceAll(RegExp(r'[ÀÁẠẢÃÂẦẤẬẨẪĂẰẮẶẲẴ]'), 'A');
+    str = str.replaceAll(RegExp(r'[ÈÉẸẺẼÊỀẾỆỂỄ]'), 'E');
+    str = str.replaceAll(RegExp(r'[ÌÍỊỈĨ]'), 'I');
+    str = str.replaceAll(RegExp(r'[ÒÓỌỎÕÔỒỐỘỔỖƠỜỚỢỞỠ]'), 'O');
+    str = str.replaceAll(RegExp(r'[ÙÚỤỦŨƯỪỨỰỬỮ]'), 'U');
+    str = str.replaceAll(RegExp(r'[ỲÝỴỶỸ]'), 'Y');
+    str = str.replaceAll(RegExp(r'Đ'), 'D');
+    return str;
   }
 
   String _formatDate(dynamic issueDate, BuildContext context) {
@@ -325,10 +350,10 @@ class _PrescriptionsScreenState extends State<PrescriptionsScreen> {
 
       return _buildPrescriptionCard(
         doctorName: p['doctorName']?.toString() ?? 'Unknown Doctor',
-        specialty: AppLocalizations.of(context)!.prescriptionLabel, // Not provided by API usually
+        specialty: (p['specialty']?.toString() ?? AppLocalizations.of(context)!.prescriptionLabel).toLocalizedSpecialty(context),
         status: displayStatus,
         date: _formatDate(p['issueDate'], context),
-        condition: p['diagnosis']?.toString() ?? AppLocalizations.of(context)!.labelNA,
+        condition: _stripHtml(p['diagnosis']?.toString()) == '' ? AppLocalizations.of(context)!.labelNA : _stripHtml(p['diagnosis']?.toString()),
         medCount: items.length,
         isActive: isActive,
         onTap: () => _showPrescriptionDetailsModal(context, p),
@@ -542,16 +567,16 @@ class _PrescriptionsScreenState extends State<PrescriptionsScreen> {
                               children: [
                                 Icon(Icons.local_hospital, color: Theme.of(context).colorScheme.primary),
                                 const SizedBox(width: 8),
-                                Expanded(child: Text(prescription['diagnosis']?.toString() ?? 'N/A', style: TextStyle(fontFamily: 'Inter', fontSize: 18, fontWeight: FontWeight.w600, color: Theme.of(context).colorScheme.onBackground))),
+                                Expanded(child: Text(_stripHtml(prescription['diagnosis']?.toString()) == '' ? 'N/A' : _stripHtml(prescription['diagnosis']?.toString()), style: TextStyle(fontFamily: 'Inter', fontSize: 18, fontWeight: FontWeight.w600, color: Theme.of(context).colorScheme.onBackground))),
                               ],
                             ),
                             const SizedBox(height: 12),
                             Text('${AppLocalizations.of(context)!.labelDoctor} ${prescription['doctorName'] ?? 'Unknown Doctor'}', style: TextStyle(fontFamily: 'Inter', fontSize: 14, color: Theme.of(context).colorScheme.onSurfaceVariant)),
                             const SizedBox(height: 4),
                             Text('${AppLocalizations.of(context)!.labelDate} ${_formatDate(prescription['issueDate'], context)}', style: TextStyle(fontFamily: 'Inter', fontSize: 14, color: Theme.of(context).colorScheme.onSurfaceVariant)),
-                            if (prescription['notes'] != null && prescription['notes'].toString().isNotEmpty) ...[
+                            if (prescription['notes'] != null && _stripHtml(prescription['notes'].toString()).isNotEmpty) ...[
                               const SizedBox(height: 12),
-                              Text(AppLocalizations.of(context)!.prescriptionNotes(prescription['notes'].toString()), style: TextStyle(fontFamily: 'Inter', fontSize: 14, color: Theme.of(context).colorScheme.onSurfaceVariant, fontStyle: FontStyle.italic)),
+                              Text(AppLocalizations.of(context)!.prescriptionNotes(_stripHtml(prescription['notes'].toString())), style: TextStyle(fontFamily: 'Inter', fontSize: 14, color: Theme.of(context).colorScheme.onSurfaceVariant, fontStyle: FontStyle.italic)),
                             ]
                           ],
                         ),
@@ -699,83 +724,214 @@ class _PrescriptionsScreenState extends State<PrescriptionsScreen> {
 
   // --- 6. Xử lý In Đơn thuốc ---
   Future<void> _printPrescription(Map<String, dynamic> prescription) async {
-    final pdf = pw.Document();
-    final items = prescription['items'] as List<dynamic>? ?? [];
+    try {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Generating PDF, please wait...'), duration: Duration(seconds: 2)),
+        );
+      }
 
-    pdf.addPage(
-      pw.MultiPage(
-        pageFormat: PdfPageFormat.a4,
-        margin: const pw.EdgeInsets.all(40),
-        build: (pw.Context pwContext) {
-          return [
-            // Header
-            pw.Container(
+      final pdf = pw.Document();
+      final items = prescription['items'] as List<dynamic>? ?? [];
+      
+      // Load fonts for Vietnamese support and signature
+      final baseFont = await PdfGoogleFonts.robotoRegular();
+      final boldFont = await PdfGoogleFonts.robotoBold();
+      final italicFont = await PdfGoogleFonts.robotoItalic();
+      final signatureFont = await PdfGoogleFonts.sacramentoRegular();
+
+      pdf.addPage(
+        pw.MultiPage(
+          pageTheme: pw.PageTheme(
+            theme: pw.ThemeData.withFont(
+              base: baseFont,
+              bold: boldFont,
+              italic: italicFont,
+            ),
+            pageFormat: PdfPageFormat.a4,
+            margin: const pw.EdgeInsets.all(40),
+            buildBackground: (pw.Context context) {
+              return pw.FullPage(
+                ignoreMargins: true,
+                child: pw.Watermark(
+                  child: pw.Transform.rotate(
+                    angle: -0.5,
+                    child: pw.Text(
+                      'HEALTHLINK',
+                      style: pw.TextStyle(
+                        fontSize: 80,
+                        fontWeight: pw.FontWeight.bold,
+                        color: PdfColors.grey200,
+                      ),
+                    ),
+                  ),
+                ),
+              );
+            },
+          ),
+          footer: (pw.Context context) {
+            return pw.Container(
               alignment: pw.Alignment.center,
-              padding: const pw.EdgeInsets.only(bottom: 16),
+              margin: const pw.EdgeInsets.only(top: 20),
+              padding: const pw.EdgeInsets.only(top: 10),
               decoration: const pw.BoxDecoration(
-                border: pw.Border(bottom: pw.BorderSide(width: 2)),
+                border: pw.Border(top: pw.BorderSide(color: PdfColors.grey400, width: 0.5)),
               ),
-              child: pw.Column(
+              child: pw.Text(
+                'Generated securely by HealthLink System | Timestamp: ${DateTime.now().toString().split('.')[0]}',
+                style: const pw.TextStyle(fontSize: 8, color: PdfColors.grey600),
+              ),
+            );
+          },
+          build: (pw.Context pwContext) {
+            return [
+              // Header
+              pw.Container(
+                alignment: pw.Alignment.center,
+                padding: const pw.EdgeInsets.only(bottom: 16),
+                decoration: const pw.BoxDecoration(
+                  border: pw.Border(bottom: pw.BorderSide(width: 2)),
+                ),
+                child: pw.Column(
+                  children: [
+                    pw.Text('HEALTHLINK', style: pw.TextStyle(fontSize: 24, fontWeight: pw.FontWeight.bold)),
+                    pw.SizedBox(height: 4),
+                    pw.Text('21 bis Hau Giang, Tan Son Nhat Ward, Ho Chi Minh City.', style: const pw.TextStyle(fontSize: 10)),
+                    pw.Text('Phone: +(002) 0174-8812-598 | Email: HealthLink@gmail.com', style: const pw.TextStyle(fontSize: 10)),
+                    pw.Text('Website: https://www.healthlink.com', style: const pw.TextStyle(fontSize: 10)),
+                    pw.SizedBox(height: 16),
+                    pw.Text('MEDICAL PRESCRIPTION', style: pw.TextStyle(fontSize: 16, fontWeight: pw.FontWeight.bold, decoration: pw.TextDecoration.underline)),
+                  ],
+                ),
+              ),
+              pw.SizedBox(height: 20),
+
+              // Prescription Info
+              pw.Text('Prescription from ${prescription['doctorName'] ?? 'Unknown Doctor'}', style: pw.TextStyle(fontSize: 14, fontWeight: pw.FontWeight.bold)),
+              pw.SizedBox(height: 4),
+              pw.Text('Date Issued: ${_formatDate(prescription['issueDate'], context)}', style: const pw.TextStyle(fontSize: 12)),
+              pw.Text('Condition: ${_stripHtml(prescription['diagnosis']?.toString()) == '' ? 'N/A' : _stripHtml(prescription['diagnosis']?.toString())}', style: const pw.TextStyle(fontSize: 12)),
+              pw.SizedBox(height: 20),
+
+              // Medication List
+              pw.Text('Medication Details', style: pw.TextStyle(fontSize: 14, fontWeight: pw.FontWeight.bold)),
+              pw.SizedBox(height: 10),
+              
+              pw.TableHelper.fromTextArray(
+                context: pwContext,
+                headerStyle: pw.TextStyle(fontWeight: pw.FontWeight.bold, fontSize: 10),
+                cellStyle: const pw.TextStyle(fontSize: 10),
+                headerDecoration: const pw.BoxDecoration(color: PdfColors.grey200),
+                headers: ['Medication', 'Dosage', 'Instructions', 'Notes'],
+                data: items.map((item) => [
+                  item['medicationName']?.toString() ?? '',
+                  item['dosage']?.toString() ?? '',
+                  item['instructions']?.toString() ?? '',
+                  item['notes']?.toString() ?? '',
+                ]).toList(),
+              ),
+
+              // Doctor's Advice
+              if (prescription['notes'] != null && _stripHtml(prescription['notes'].toString()).isNotEmpty) ...[
+                pw.SizedBox(height: 20),
+                pw.Text('Doctor\'s Advice', style: pw.TextStyle(fontSize: 12, fontWeight: pw.FontWeight.bold)),
+                pw.SizedBox(height: 8),
+                pw.Container(
+                  width: double.infinity,
+                  padding: const pw.EdgeInsets.all(10),
+                  decoration: pw.BoxDecoration(
+                    border: pw.Border.all(color: PdfColors.black, width: 1),
+                  ),
+                  child: pw.Text(_stripHtml(prescription['notes'].toString()), style: const pw.TextStyle(fontSize: 10)),
+                ),
+              ],
+
+              pw.SizedBox(height: 50),
+              pw.Row(
+                mainAxisAlignment: pw.MainAxisAlignment.end,
                 children: [
-                  pw.Text('HEALTHLINK', style: pw.TextStyle(fontSize: 24, fontWeight: pw.FontWeight.bold)),
-                  pw.SizedBox(height: 4),
-                  pw.Text('21 bis Hau Giang, Tan Son Nhat Ward, Ho Chi Minh City.', style: const pw.TextStyle(fontSize: 10)),
-                  pw.Text('Phone: +(002) 0174-8812-598 | Email: HealthLink@gmail.com', style: const pw.TextStyle(fontSize: 10)),
-                  pw.Text('Website: https://www.healthlink.com', style: const pw.TextStyle(fontSize: 10)),
-                  pw.SizedBox(height: 16),
-                  pw.Text('MEDICAL PRESCRIPTION', style: pw.TextStyle(fontSize: 16, fontWeight: pw.FontWeight.bold, decoration: pw.TextDecoration.underline)),
+                  pw.Stack(
+                    alignment: pw.Alignment.center,
+                    children: [
+                      // Base container that defines the Stack's size and holds the signature
+                      pw.Container(
+                        width: 250,
+                        height: 110, // Explicit height prevents the 80x80 stamp from clipping at the bottom
+                        padding: const pw.EdgeInsets.only(right: 30), // Shift signature to the left
+                        alignment: pw.Alignment.centerRight,
+                        child: pw.Column(
+                          mainAxisAlignment: pw.MainAxisAlignment.center, // Center vertically within the 110 height
+                          crossAxisAlignment: pw.CrossAxisAlignment.center,
+                          children: [
+                            pw.Text('Doctor\'s Signature', style: pw.TextStyle(fontSize: 12, fontWeight: pw.FontWeight.bold)),
+                            pw.SizedBox(height: 15),
+                            pw.Text(
+                              _removeVietnameseTones(prescription['doctorName'] ?? 'Unknown Doctor'),
+                              style: pw.TextStyle(
+                                font: signatureFont,
+                                fontSize: 28,
+                                color: const PdfColor.fromInt(0xff0f172a),
+                              ),
+                              maxLines: 1, // Prevent wrapping
+                            ),
+                            pw.SizedBox(height: 4),
+                            pw.Text((prescription['specialty']?.toString() ?? 'General Practitioner').toLocalizedSpecialty(context), style: const pw.TextStyle(fontSize: 10, color: PdfColors.grey700)),
+                          ],
+                        ),
+                      ),
+                      // AUTHORIZED Stamp overlapping on the left side of the stack
+                      pw.Positioned(
+                        left: 10,
+                        top: 20,
+                        child: pw.Transform.rotate(
+                          angle: -0.2,
+                          child: pw.Container(
+                            width: 80,
+                            height: 80,
+                            alignment: pw.Alignment.center,
+                            decoration: pw.BoxDecoration(
+                              shape: pw.BoxShape.circle,
+                              border: pw.Border.all(color: PdfColors.red, width: 2),
+                            ),
+                            child: pw.Container(
+                              width: 72,
+                              height: 72,
+                              alignment: pw.Alignment.center,
+                              decoration: pw.BoxDecoration(
+                                shape: pw.BoxShape.circle,
+                                border: pw.Border.all(color: PdfColors.red, width: 1),
+                              ),
+                              child: pw.Text(
+                                'AUTHORIZED',
+                                style: pw.TextStyle(color: PdfColors.red, fontSize: 10, fontWeight: pw.FontWeight.bold),
+                              ),
+                            ),
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
                 ],
               ),
-            ),
-            pw.SizedBox(height: 20),
+            ];
+          },
+        ),
+      );
 
-            // Prescription Info
-            pw.Text('Prescription from ${prescription['doctorName'] ?? 'Unknown Doctor'}', style: pw.TextStyle(fontSize: 14, fontWeight: pw.FontWeight.bold)),
-            pw.SizedBox(height: 4),
-            pw.Text('Date Issued: ${_formatDate(prescription['issueDate'], context)}', style: const pw.TextStyle(fontSize: 12)),
-            pw.Text('Condition: ${prescription['diagnosis'] ?? 'N/A'}', style: const pw.TextStyle(fontSize: 12)),
-            pw.SizedBox(height: 20),
-
-            // Medication List
-            pw.Text('Medication Details', style: pw.TextStyle(fontSize: 14, fontWeight: pw.FontWeight.bold)),
-            pw.SizedBox(height: 10),
-            
-            pw.TableHelper.fromTextArray(
-              context: pwContext,
-              headerStyle: pw.TextStyle(fontWeight: pw.FontWeight.bold, fontSize: 10),
-              cellStyle: const pw.TextStyle(fontSize: 10),
-              headerDecoration: const pw.BoxDecoration(color: PdfColors.grey200),
-              headers: ['Medication', 'Dosage', 'Instructions', 'Notes'],
-              data: items.map((item) => [
-                item['medicationName']?.toString() ?? '',
-                item['dosage']?.toString() ?? '',
-                item['instructions']?.toString() ?? '',
-                item['notes']?.toString() ?? '',
-              ]).toList(),
-            ),
-
-            // Doctor's Advice
-            if (prescription['notes'] != null && prescription['notes'].toString().isNotEmpty) ...[
-              pw.SizedBox(height: 20),
-              pw.Text('Doctor\'s Advice', style: pw.TextStyle(fontSize: 12, fontWeight: pw.FontWeight.bold)),
-              pw.SizedBox(height: 8),
-              pw.Container(
-                width: double.infinity,
-                padding: const pw.EdgeInsets.all(10),
-                decoration: pw.BoxDecoration(
-                  border: pw.Border.all(color: PdfColors.black, width: 1),
-                ),
-                child: pw.Text(prescription['notes'].toString(), style: const pw.TextStyle(fontSize: 10)),
-              ),
-            ]
-          ];
-        },
-      ),
-    );
-
-    await Printing.layoutPdf(
-      onLayout: (PdfPageFormat format) async => pdf.save(),
-      name: 'Prescription_${prescription['prescriptionHeaderID'] ?? 'Document'}.pdf',
-    );
+      await Printing.layoutPdf(
+        onLayout: (PdfPageFormat format) async => pdf.save(),
+        name: 'Prescription_${prescription['prescriptionHeaderID'] ?? 'Document'}.pdf',
+      );
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Error generating PDF: $e'),
+            backgroundColor: Colors.red,
+            duration: const Duration(seconds: 4),
+          ),
+        );
+      }
+    }
   }
 }

@@ -275,6 +275,13 @@ class BotBrain {
           'Biaya konsultasi tiap dokter beda. Cek profil dokter untuk detailnya ya!');
     }
 
+    // Đặt lịch
+    if (has(['đặt lịch', 'book', 'booking', 'lịch khám', 'đặt bác sĩ', 'đặt khám', 'muốn khám', 'đặt chỗ', 'lịch hẹn', 'appointment', 'schedule', 'janji dokter', 'buat janji'])) {
+      return t('Want to see a doctor? Navigate to Schedule or Doctor List to choose your doctor & available slot! Super easy 😊',
+          'Muốn khám hả? Vào Lịch hẹn hoặc Danh sách bác sĩ → chọn bác sĩ + giờ trống là xong liền nha, dễ lắm luôn! 😍',
+          'Mau ketemu dokter? Buka Jadwal atau Daftar Dokter → pilih dokter & jam kosong aja, gampang banget!');
+    }
+
     return null; // Không khớp → nhường Gemini
   }
 }

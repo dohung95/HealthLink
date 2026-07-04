@@ -16,10 +16,13 @@ import 'screens/patient/patient_main_layout.dart';
 import 'screens/doctor/doctor_main_layout.dart';
 import 'screens/pharmacy/pharmacy_main_layout.dart';
 
+import 'package:flutter_dotenv/flutter_dotenv.dart';
+
 final GlobalKey<NavigatorState> navigatorKey = GlobalKey<NavigatorState>();
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
+  await dotenv.load(fileName: ".env");
 
   final authProvider = AuthProvider();
   final themeProvider = ThemeProvider();
