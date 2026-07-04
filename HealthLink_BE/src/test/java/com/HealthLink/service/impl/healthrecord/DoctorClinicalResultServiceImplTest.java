@@ -169,4 +169,43 @@ class DoctorClinicalResultServiceImplTest {
                 .uploadedAt(LocalDateTime.now())
                 .build();
     }
+
+    @Test
+    void deleteResult_shouldDeleteDraft() {
+        MedicalDocument draft = doctorDocument(44, "doctor-1", "patient-1", "DRAFT");
+        draft.setFileLocation("uploads/test.pdf");
+
+        when(medicalDocumentRepository.findById(44)).thenReturn(Optional.of(draft));
+
+        service.deleteResult(44, "doctor-1");
+
+        verify(fileStorageService).deleteFile("uploads/test.pdf");
+        verify(medicalDocumentRepository).delete(draft);
+    }
+
+    @Test
+    void deleteResult_shouldRejectPublishedResult() {
+        MedicalDocument published = doctorDocument(44, "doctor-1", "patient-1", "PUBLISHED");
+
+        when(medicalDocumentRepository.findById(44)).thenReturn(Optional.of(published));
+
+        assertThatThrownBy(() -> service.deleteResult(44, "doctor-1"))
+                .isInstanceOf(BadRequestException.class)
+                .hasMessageContaining("Cannot delete a published clinical result");
+
+        verify(medicalDocumentRepository, never()).delete(any());
+    }
+
+    @Test
+    void deleteResult_shouldRejectResultOwnedByAnotherDoctor() {
+        MedicalDocument draft = doctorDocument(44, "doctor-2", "patient-1", "DRAFT");
+
+        when(medicalDocumentRepository.findById(44)).thenReturn(Optional.of(draft));
+
+        assertThatThrownBy(() -> service.deleteResult(44, "doctor-1"))
+                .isInstanceOf(ForbiddenException.class)
+                .hasMessageContaining("not allowed");
+
+        verify(medicalDocumentRepository, never()).delete(any());
+    }
 }
