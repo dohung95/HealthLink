@@ -65,6 +65,7 @@ import DoctorDashboardPage, {
   DoctorAppointmentDetailRoute,
 } from './pages/doctor/DoctorDashboardPage';
 import DoctorAppointmentsView from './pages/doctor/appointment/DoctorAppointmentsView';
+import DoctorAppointmentHistory from './pages/doctor/appointment/DoctorAppointmentHistory';
 import DoctorPatientsView from './pages/doctor/patient/DoctorPatientsView';
 import DoctorPrescriptionsView from './pages/doctor/prescription/DoctorPrescriptionsView';
 import DoctorScheduleView from './pages/doctor/schedule/DoctorScheduleView';
@@ -274,6 +275,7 @@ function AppContent() {
             }>
               <Route index element={<DoctorAppointmentsView />} />
               <Route path="appointments" element={<DoctorAppointmentsView />} />
+              <Route path="appointments/history" element={<DoctorAppointmentHistory />} />
               <Route path="appointments/:appointmentId" element={<DoctorAppointmentDetailRoute />} />
               <Route path="patients">
                 <Route index element={<DoctorPatientsView />} />

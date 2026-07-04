@@ -162,6 +162,11 @@ export default function DoctorTodayCockpit() {
     <div className="doctor-content-section">
       <div className="doctor-asymmetric-grid">
         <div className="d-flex flex-column gap-4">
+          <div className="d-flex gap-1 bg-surface-container-lowest border border-surface-border rounded-4 p-1 align-self-start">
+            <button className="btn btn-sm px-3 py-1 btn-primary" type="button">Today</button>
+            <button className="btn btn-sm px-3 py-1 btn-outline-secondary" onClick={() => navigate('/doctor/appointments/history')} type="button">History</button>
+          </div>
+
           <NextAppointmentCard appointment={nextAppointment} onView={handleView} selectedDate={selectedDate} />
 
           {isToday && groups.inProgress.length > 0 && (

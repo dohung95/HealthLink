@@ -32,6 +32,8 @@ export const TYPE_TONES = {
   video: 'badge bg-primary text-white',
   audio: 'badge bg-surface-container text-text-main',
   chat: 'badge bg-surface-container-highest text-text-main',
+  online: 'badge bg-primary text-white',
+  homevisit: 'badge bg-warning text-dark',
   offline: 'badge bg-surface-container text-text-main',
   default: 'badge bg-surface-container text-text-main',
 };
@@ -95,6 +97,8 @@ export const getTypeKey = (type) => {
   if (value.includes('audio') || value.includes('call')) return 'audio';
   if (value.includes('chat')) return 'chat';
   if (value.includes('offline') || value.includes('room') || value.includes('clinic')) return 'offline';
+  if (value.includes('online')) return 'online';
+  if (value.includes('homevisit') || value.includes('home')) return 'homevisit';
   return 'default';
 };
 

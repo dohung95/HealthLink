@@ -115,7 +115,7 @@ const DoctorDashboardPage = () => {
   }, [location.pathname]);
 
   const isDetailView = useMemo(() => {
-    return /\/doctor\/(appointments|patients)\/[\w-]+/.test(location.pathname);
+    return /\/doctor\/(appointments|patients)\/(?!history$)[\w-]+/.test(location.pathname);
   }, [location.pathname]);
 
   const resolveAppointmentId = (notification) => {

@@ -36,6 +36,10 @@ const AppointmentCard = ({ appointment, onView, contextLabel }) => {
       <div className={`doctor-appointment-card__rail ${statusTone.railClass}`} />
 
       <div className="doctor-appointment-card__time">
+        <span className={`d-inline-flex align-items-center gap-1 mb-1 ${TYPE_TONES[typeKey] || TYPE_TONES.default}`} style={{fontSize:'0.6875rem',padding:'0.125rem 0.375rem'}}>
+          <span className="material-symbols-outlined" style={{fontSize:'10px'}}>{getTypeIcon(appointment.consultationType)}</span>
+          {appointment.consultationType || 'Consultation'}
+        </span>
         <div className="doctor-appointment-card__time-value">{formatTimeFromDate(appointmentDate)}</div>
         <div className="doctor-appointment-card__time-duration">{getDurationLabel(appointment)}</div>
       </div>
@@ -53,18 +57,12 @@ const AppointmentCard = ({ appointment, onView, contextLabel }) => {
         </div>
       </div>
 
-      <div className="d-flex align-items-center gap-2">
-        <span className={`d-inline-flex align-items-center gap-1 ${TYPE_TONES[typeKey] || TYPE_TONES.default}`}>
-          <span className="material-symbols-outlined" style={{fontSize:'12px'}}>{getTypeIcon(appointment.consultationType)}</span>
-          {appointment.consultationType || 'Consultation'}
-        </span>
+      <div className="d-flex align-items-center gap-2 flex-shrink-0">
         <span className={`d-inline-flex align-items-center gap-1 ${statusTone.badge}`}>
           {statusKey === 'inprogress' ? <span className="d-inline-block rounded-circle bg-white" style={{width:'0.375rem',height:'0.375rem',opacity:0.9}} /> : null}
           {getDisplayStatus(appointment)}
         </span>
-      </div>
 
-      <div className="flex-shrink-0">
         {action.active ? (
           <button className={`btn btn-sm ${statusKey === 'inprogress' ? 'btn-primary' : statusKey === 'scheduled' ? 'btn-outline-primary' : 'btn-link text-decoration-none'} d-flex align-items-center gap-1`} onClick={() => onView(appointment)} type="button">
             {action.label}
