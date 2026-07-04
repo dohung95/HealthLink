@@ -27,28 +27,6 @@ def get_ocr_reader():
     return _ocr_reader
 
 
-def _ocr_with_tesseract(image_bytes: bytes) -> tuple:
-    """OCR fallback for environments where EasyOCR is unavailable."""
-    import io
-    from PIL import Image
-    import pytesseract
-
-    pytesseract.pytesseract.tesseract_cmd = getattr(
-        Config,
-        "TESSERACT_CMD",
-        r"C:\Program Files\Tesseract-OCR\tesseract.exe",
-    )
-
-    image = Image.open(io.BytesIO(image_bytes))
-
-    try:
-        text = pytesseract.image_to_string(image, lang="eng+vie")
-    except Exception:
-        text = pytesseract.image_to_string(image, lang="eng")
-
-    return text.strip(), 0.75 if text.strip() else 0.0
-
-
 def ocr_image(image_bytes: bytes, preprocess: bool = True) -> tuple:
     """
     Perform OCR on image.
@@ -84,11 +62,8 @@ def ocr_image(image_bytes: bytes, preprocess: bool = True) -> tuple:
         avg_confidence = sum(confidences) / len(confidences) if confidences else 0.0
 
         return full_text, avg_confidence
-    except Exception as easyocr_error:
-        text, confidence = _ocr_with_tesseract(image_bytes)
-        if text:
-            return text, confidence
-        raise easyocr_error
+    except Exception:
+        return "", 0.0
 
 
 def extract_text(content: bytes, filename: str) -> OCRResult:

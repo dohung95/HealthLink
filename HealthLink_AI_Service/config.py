@@ -8,7 +8,7 @@ class Config:
     OLLAMA_HOST = os.getenv("OLLAMA_HOST", "http://localhost:11434")
     OLLAMA_MODEL = os.getenv("OLLAMA_MODEL", "llama3.2:3b")
     OLLAMA_TEMPERATURE = 0.1
-    OLLAMA_NUM_PREDICT = 1024
+    OLLAMA_NUM_PREDICT = 2048
 
     # OCR — Vietnamese + English (both Latin-based, compatible in EasyOCR)
     OCR_LANGUAGES = ["vi", "en"]

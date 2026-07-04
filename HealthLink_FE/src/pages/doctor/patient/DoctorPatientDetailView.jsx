@@ -20,6 +20,8 @@ const formatDateTime = (value) => {
 
 const TABS = [
   { key: 'overview', label: 'Overview' },
+  { key: 'timeline', label: 'Timeline' },
+  { key: 'clinical-results', label: 'Clinical Results' },
   { key: 'prescriptions', label: 'Prescriptions' },
   { key: 'documents', label: 'Documents' },
 ];
@@ -415,9 +417,132 @@ export default function DoctorPatientDetailView({ patient, history }) {
     </div>
   );
 
+  const clinicalResults = history?.clinicalResults || [];
+
+  const timelineItems = [
+    ...(history?.appointments || []).map((item) => ({
+      type: 'Encounter',
+      date: item.appointmentTime,
+      title: item.diagnosis || item.symptoms || 'Consultation',
+      subtitle: `${item.consultationType || 'Consultation'} - ${item.status || 'Unknown'}`,
+      status: item.status,
+    })),
+    ...(history?.prescriptions || []).map((item) => ({
+      type: 'Prescription',
+      date: item.issueDate,
+      title: item.diagnosis || 'Prescription',
+      subtitle: `${item.items?.length || 0} medication(s)`,
+      status: item.status || 'ISSUED',
+    })),
+    ...clinicalResults.map((item) => {
+      let structuredCount = 0;
+      try { const p = JSON.parse(item.structuredResultsJson); if (Array.isArray(p)) structuredCount = p.length; } catch {}
+      const parts = [item.testResults, item.resultUnit, item.referenceRange].filter(Boolean);
+      if (structuredCount > 0) parts.push(`${structuredCount} result(s)`);
+      if (item.doctorAssessment) parts.push('Has assessment');
+      return {
+        type: 'Clinical Result',
+        date: item.documentDate || item.uploadedAt,
+        title: item.testName || item.documentName || 'Clinical result',
+        subtitle: parts.join(' '),
+        status: item.clinicalStatus || item.visibilityStatus,
+      };
+    }),
+  ].sort((left, right) => new Date(right.date || 0) - new Date(left.date || 0));
+
+  const renderTimeline = () => (
+    <div style={{ display: 'flex', flexDirection: 'column', gap: '0.625rem' }}>
+      <p className="patient-section-title">Timeline</p>
+      {timelineItems.length === 0 ? (
+        <p style={{ fontSize: '0.8rem', color: 'var(--doctor-text-muted)' }}>No history yet.</p>
+      ) : (
+        timelineItems.map((item, idx) => (
+          <div className="patient-timeline-item" key={idx}>
+            <div className="patient-timeline-item__info">
+              <p className="patient-timeline-item__title">{formatDateTime(item.date)}</p>
+              <p className="patient-timeline-item__subtitle">{item.title}</p>
+              <p className="patient-timeline-item__diagnosis">{item.subtitle}</p>
+            </div>
+            <span className={`patient-timeline-item__type patient-timeline-item__type--${item.type === 'Encounter' ? 'encounter' : item.type === 'Prescription' ? 'prescription' : 'result'}`}>
+              {item.type}
+            </span>
+          </div>
+        ))
+      )}
+    </div>
+  );
+
+  const renderClinicalResults = () => (
+    <div style={{ display: 'flex', flexDirection: 'column', gap: '0.625rem' }}>
+      <p className="patient-section-title">Clinical Results</p>
+      {clinicalResults.length === 0 ? (
+        <p style={{ fontSize: '0.8rem', color: 'var(--doctor-text-muted)' }}>No clinical results found.</p>
+      ) : (
+        clinicalResults.map((r) => {
+          let rows = [];
+          try { const p = JSON.parse(r.structuredResultsJson); if (Array.isArray(p)) rows = p; } catch {}
+          let warnings = [];
+          try { const p = JSON.parse(r.aiWarningsJson); if (Array.isArray(p)) warnings = p; } catch {}
+          return (
+            <div className="patient-timeline-item" key={r.documentID || r.documentId}>
+              <div className="patient-timeline-item__info">
+                <p className="patient-timeline-item__title">{r.testName || r.documentName || 'Clinical result'}</p>
+                {rows.length > 0 && (
+                  <div style={{ margin: '0.375rem 0', fontSize: '0.75rem' }}>
+                    {rows.slice(0, 3).map((row, i) => (
+                      <div key={i} style={{ display: 'flex', gap: '0.5rem' }}>
+                        <span style={{ fontWeight: 500, color: '#334155' }}>{row.testName}</span>
+                        <span style={{ color: '#0f766e' }}><strong>{row.resultValue}</strong>{row.unit ? ` ${row.unit}` : ''}</span>
+                      </div>
+                    ))}
+                    {rows.length > 3 && <span style={{ color: '#94a3b8', fontSize: '0.6875rem' }}>+{rows.length - 3} more</span>}
+                  </div>
+                )}
+                <p className="patient-timeline-item__subtitle">
+                  {[r.testResults, r.resultUnit].filter(Boolean).join(' ')}
+                  {r.referenceRange ? ` (Ref: ${r.referenceRange})` : ''}
+                </p>
+                {r.doctorAssessment && (
+                  <p style={{ fontSize: '0.75rem', color: '#475569', fontStyle: 'italic', margin: '0.25rem 0' }}>
+                    {r.doctorAssessment.length > 120 ? r.doctorAssessment.slice(0, 120) + '…' : r.doctorAssessment}
+                  </p>
+                )}
+                {r.patientSummary && (
+                  <p style={{ fontSize: '0.6875rem', color: '#64748b', margin: '0.125rem 0' }}>
+                    <span style={{ fontWeight: 600 }}>Patient:</span> {r.patientSummary.length > 100 ? r.patientSummary.slice(0, 100) + '…' : r.patientSummary}
+                  </p>
+                )}
+                <div className="patient-result-badges">
+                  {r.clinicalStatus && <span className="patient-result-badge">{r.clinicalStatus}</span>}
+                  {r.visibilityStatus === 'DRAFT' && <span className="patient-result-badge">DRAFT</span>}
+                  {r.labFacilityName && <span className="patient-result-badge">Lab: {r.labFacilityName}</span>}
+                  {r.documentDate && <span className="patient-result-badge">{new Date(r.documentDate).toLocaleDateString()}</span>}
+                  {r.aiConfidence != null && (
+                    <span className={`patient-result-badge ${Number(r.aiConfidence) < 0.6 ? 'patient-result-badge--warn' : 'patient-result-badge--ok'}`}>
+                      AI {Math.round(Number(r.aiConfidence) * 100)}%
+                    </span>
+                  )}
+                </div>
+                {warnings.length > 0 && (
+                  <div style={{ margin: '0.25rem 0 0', fontSize: '0.6875rem', color: '#b45309' }}>
+                    {warnings.map((w, i) => (
+                      <div key={i}><i className="bi bi-exclamation-circle" style={{ marginRight: '0.25rem' }}></i>{w}</div>
+                    ))}
+                  </div>
+                )}
+              </div>
+            </div>
+          );
+        })
+      )}
+    </div>
+  );
+
   const renderTabContent = () => {
     switch (activeTab) {
       case 'overview': return renderOverview();
+      case 'timeline': return renderTimeline();
+      case 'clinical-results': return renderClinicalResults();
       case 'prescriptions': return renderPrescriptions();
       case 'documents': return renderDocuments();
       default: return renderOverview();

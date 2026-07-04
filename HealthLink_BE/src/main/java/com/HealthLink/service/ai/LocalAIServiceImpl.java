@@ -1,9 +1,6 @@
 package com.HealthLink.service.ai;
 
 import com.HealthLink.dto.ai.CVParseResult;
-import com.HealthLink.dto.ai.ClinicalResultAiAnalysisResponse;
-import com.HealthLink.dto.ai.ClinicalResultAiContext;
-import com.HealthLink.dto.ai.ClinicalResultAiTestItem;
 import com.HealthLink.dto.ai.DocumentScreeningResult;
 import com.HealthLink.dto.response.HomeVisitInfoScanResponse;
 import com.fasterxml.jackson.databind.JsonNode;
@@ -24,7 +21,6 @@ import org.springframework.util.MultiValueMap;
 import org.springframework.web.client.RestTemplate;
 
 import java.io.ByteArrayInputStream;
-import java.time.LocalDate;
 import java.util.*;
 
 /**
@@ -376,102 +372,6 @@ public class LocalAIServiceImpl implements DocumentAiService {
                     .success(false)
                     .errorMessage("Failed to scan home visit information: " + e.getMessage())
                     .warnings(List.of("Please fill the form manually"))
-                    .build();
-        }
-    }
-
-    @Override
-    public ClinicalResultAiAnalysisResponse analyzeClinicalResult(
-            String fileContent,
-            String mimeType,
-            ClinicalResultAiContext context
-    ) {
-        try {
-            byte[] bytes = Base64.getDecoder().decode(fileContent);
-
-            MultiValueMap<String, Object> body = new LinkedMultiValueMap<>();
-            body.add("file", new ByteArrayResource(bytes) {
-                @Override
-                public String getFilename() {
-                    return getFilenameFromMimeType(mimeType);
-                }
-            });
-            body.add("appointmentId", String.valueOf(context.getAppointmentId()));
-            body.add("patientName", context.getPatientName());
-            body.add("patientId", context.getPatientId());
-            body.add("appointmentTime", context.getAppointmentTime() != null ? context.getAppointmentTime().toString() : "");
-            body.add("consultationType", context.getConsultationType());
-
-            HttpHeaders headers = new HttpHeaders();
-            headers.setContentType(MediaType.MULTIPART_FORM_DATA);
-
-            HttpEntity<MultiValueMap<String, Object>> requestEntity = new HttpEntity<>(body, headers);
-
-            ResponseEntity<JsonNode> response = restTemplate.exchange(
-                    aiServiceUrl + "/parse-clinical-result",
-                    HttpMethod.POST,
-                    requestEntity,
-                    JsonNode.class
-            );
-
-            JsonNode jsonNode = response.getBody();
-
-            if (jsonNode == null || !getBooleanValue(jsonNode, "success", false)) {
-                String error = getTextValue(jsonNode, "error");
-                return ClinicalResultAiAnalysisResponse.builder()
-                        .success(false)
-                        .errorMessage(error != null ? error : "Could not analyze clinical result")
-                        .warnings(List.of("Please enter the result manually"))
-                        .confidence(0.0)
-                        .build();
-            }
-
-            List<ClinicalResultAiTestItem> tests = new ArrayList<>();
-            JsonNode testsNode = jsonNode.get("tests");
-            if (testsNode != null && testsNode.isArray()) {
-                for (JsonNode t : testsNode) {
-                    tests.add(ClinicalResultAiTestItem.builder()
-                            .testName(getTextValue(t, "testName"))
-                            .resultValue(getTextValue(t, "resultValue"))
-                            .unit(getTextValue(t, "unit"))
-                            .referenceRange(getTextValue(t, "referenceRange"))
-                            .flag(getTextValue(t, "flag"))
-                            .confidence(getDoubleValue(t, "confidence", 0.0))
-                            .build());
-                }
-            }
-
-            LocalDate documentDate = null;
-            String docDateStr = getTextValue(jsonNode, "documentDate");
-            if (docDateStr != null) {
-                try {
-                    documentDate = LocalDate.parse(docDateStr);
-                } catch (Exception ignored) {}
-            }
-
-            return ClinicalResultAiAnalysisResponse.builder()
-                    .success(true)
-                    .category(getTextValue(jsonNode, "category"))
-                    .labFacilityName(getTextValue(jsonNode, "labFacilityName"))
-                    .documentDate(documentDate)
-                    .detectedPatientName(getTextValue(jsonNode, "detectedPatientName"))
-                    .patientMatched(jsonNode.has("patientMatched") && !jsonNode.get("patientMatched").isNull()
-                            ? jsonNode.get("patientMatched").asBoolean() : null)
-                    .tests(tests)
-                    .abnormalSummary(getTextValue(jsonNode, "abnormalSummary"))
-                    .doctorAssessmentDraft(getTextValue(jsonNode, "doctorAssessmentDraft"))
-                    .patientSummaryDraft(getTextValue(jsonNode, "patientSummaryDraft"))
-                    .warnings(getStringList(jsonNode, "warnings"))
-                    .confidence(getDoubleValue(jsonNode, "confidence", 0.0))
-                    .build();
-
-        } catch (Exception e) {
-            log.error("Error analyzing clinical result with Local AI: {}", e.getMessage(), e);
-            return ClinicalResultAiAnalysisResponse.builder()
-                    .success(false)
-                    .errorMessage("Failed to analyze clinical result: " + e.getMessage())
-                    .warnings(List.of("Please enter the result manually"))
-                    .confidence(0.0)
                     .build();
         }
     }

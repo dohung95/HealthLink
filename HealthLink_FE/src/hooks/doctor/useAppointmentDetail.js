@@ -128,13 +128,19 @@ export function useAppointmentDetail({ appointment, patient, doctorId: currentDo
       appointmentData.appointmentDetail?.reason, appointmentData.appointmentDetail?.symptoms,
     ].find((v) => typeof v === 'string' && v.trim()) || '';
 
+    const canManageClinicalResults =
+      !isCancelledAppointment &&
+      Boolean(appointmentId && patientId && effectiveDoctorId) &&
+      (hasStarted || isInConsultationAppointment || isReadOnlyAppointment);
+
     return {
       statusKey, patientName, patientEmail, completedHistory, appointmentTime,
       hasStarted, isReadOnlyAppointment, isCancelledAppointment,
       canEditClinical, canEditPrescription, canEditFollowUp,
+      canManageClinicalResults,
       joinDisabled, prescriptionLockReason, actionLabel, visitReason,
     };
-  }, [currentAppointment, patient, appointmentData.medicalHistory, appointmentData.appointmentDetail, consultation]);
+  }, [currentAppointment, patient, appointmentData.medicalHistory, appointmentData.appointmentDetail, consultation, appointmentId, patientId, effectiveDoctorId]);
 
   const handleSaveVitalsAndEnterWorkspace = useCallback(async (form) => {
     if (!appointmentId || !patientId) {
@@ -410,6 +416,7 @@ export function useAppointmentDetail({ appointment, patient, doctorId: currentDo
     canEditClinical: rendered.canEditClinical,
     canEditPrescription: rendered.canEditPrescription,
     canEditFollowUp: rendered.canEditFollowUp,
+    canManageClinicalResults: rendered.canManageClinicalResults,
     joinDisabled: rendered.joinDisabled,
     prescriptionLockReason: rendered.prescriptionLockReason,
     actionLabel: rendered.actionLabel,

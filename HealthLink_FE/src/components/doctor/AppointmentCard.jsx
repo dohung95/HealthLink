@@ -14,7 +14,7 @@ import {
   getDurationLabel,
 } from '@utils/doctor/appointmentHelpers';
 
-const AppointmentCard = ({ appointment, onView }) => {
+const AppointmentCard = ({ appointment, onView, contextLabel }) => {
   const patientName = getPatientName(appointment);
   const reason = getVisitReason(appointment);
   const appointmentDate = parseAppointmentDate(appointment);
@@ -47,6 +47,9 @@ const AppointmentCard = ({ appointment, onView }) => {
         <div className="doctor-appointment-card__patient-info">
           <p className="doctor-appointment-card__patient-name">{patientName}</p>
           <p className="doctor-appointment-card__patient-reason">{reason || 'Appointment'}</p>
+          {contextLabel ? (
+            <p className="small text-muted mb-0" style={{ fontSize: '0.6875rem', lineHeight: 1.2 }}>{contextLabel}</p>
+          ) : null}
         </div>
       </div>
 

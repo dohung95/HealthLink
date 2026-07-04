@@ -25,7 +25,7 @@ public class MedicalDocument {
     @Column(nullable = false)
     private String documentType;
 
-    @Column(nullable = false)
+    @Column(nullable = true)
     private String fileLocation;
 
     private String category;
@@ -38,7 +38,35 @@ public class MedicalDocument {
     private String testStatus;
     private LocalDateTime documentDate;
     private String performedBy;
-    
+
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "AppointmentID")
+    @ToString.Exclude
+    private Appointment appointment;
+
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "DoctorID")
+    @ToString.Exclude
+    private Doctor doctor;
+
+    @Column(length = 20)
+    @Builder.Default
+    private String sourceType = "PATIENT";
+
+    @Column(length = 20)
+    @Builder.Default
+    private String visibilityStatus = "PUBLISHED";
+
+    private LocalDateTime publishedAt;
+    private String labFacilityName;
+    private LocalDateTime sentToLabAt;
+    private LocalDateTime resultReceivedAt;
+    private String testName;
+    private String resultUnit;
+
+    @Column(length = 30)
+    private String clinicalStatus;
+
     @Column(name = "UploadedAt", nullable = false)
     @Builder.Default
     private LocalDateTime uploadedAt = LocalDateTime.now();
@@ -51,4 +79,20 @@ public class MedicalDocument {
     
     @Column(length = 500)
     private String thumbnailUrl;
+
+    @Column(columnDefinition = "NVARCHAR(MAX)")
+    private String structuredResultsJson;
+
+    @Column(columnDefinition = "NVARCHAR(MAX)")
+    private String doctorAssessment;
+
+    @Column(columnDefinition = "NVARCHAR(MAX)")
+    private String patientSummary;
+
+    private Double aiConfidence;
+
+    @Column(columnDefinition = "NVARCHAR(MAX)")
+    private String aiWarningsJson;
+
+    private LocalDateTime aiProcessedAt;
 }

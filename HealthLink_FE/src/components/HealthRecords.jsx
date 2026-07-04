@@ -554,35 +554,49 @@ const HealthRecords = ({ embedded = false }) => {
                                                                                 <i className="bi bi-file-earmark-medical"></i>
                                                                             </div>
 
-                                                                            <div>
-                                                                                <div className="d-flex align-items-center gap-2 flex-wrap">
-                                                                                    <span className="badge bg-info-subtle text-info-emphasis">
-                                                                                        {doc.category || 'Other'}
-                                                                                    </span>
+                                                                             <div>
+                                                                                 <div className="d-flex align-items-center gap-2 flex-wrap">
+                                                                                     <span className="badge bg-info-subtle text-info-emphasis">
+                                                                                         {doc.category || 'Other'}
+                                                                                     </span>
 
-                                                                                    <span className="fw-semibold text-dark">
-                                                                                        {doc.documentName}
-                                                                                    </span>
-                                                                                </div>
+                                                                                     <span className="fw-semibold text-dark">
+                                                                                         {doc.documentName}
+                                                                                     </span>
+                                                                                 </div>
 
-                                                                                <div className="text-muted small mt-1">
-                                                                                    <i className="bi bi-calendar3 me-1"></i>
-                                                                                    Date Performed:{' '}
-                                                                                    {doc.documentDate
-                                                                                        ? formatRecordDate(doc.documentDate)
-                                                                                        : 'Not provided'}
-                                                                                </div>
-                                                                            </div>
-                                                                        </div>
+                                                                                 <div className="text-muted small mt-1">
+                                                                                     <i className="bi bi-calendar3 me-1"></i>
+                                                                                     Date Performed:{' '}
+                                                                                     {doc.documentDate
+                                                                                         ? formatRecordDate(doc.documentDate)
+                                                                                         : 'Not provided'}
+                                                                                 </div>
 
-                                                                        <button
-                                                                            type="button"
-                                                                            className="btn btn-primary btn-sm rounded-pill px-3"
-                                                                            onClick={() => handleViewDocument(doc)}
-                                                                        >
-                                                                            <i className="bi bi-eye me-1"></i>
-                                                                            View
-                                                                        </button>
+                                                                                  {(doc.testName || doc.testResults || doc.resultUnit || doc.referenceRange || doc.testStatus || doc.labFacilityName || doc.structuredResultsJson || doc.patientSummary) && (
+                                                                                      <div className="health-record-result-meta">
+                                                                                          {doc.testName && <span>{doc.testName}</span>}
+                                                                                          {doc.testResults && <strong>{doc.testResults}{doc.resultUnit ? ` ${doc.resultUnit}` : ''}</strong>}
+                                                                                          {doc.referenceRange && <span>Reference: {doc.referenceRange}</span>}
+                                                                                          {doc.testStatus && <span>Status: {doc.testStatus}</span>}
+                                                                                          {doc.labFacilityName && <span>Lab: {doc.labFacilityName}</span>}
+                                                                                          {(() => { try { const r = JSON.parse(doc.structuredResultsJson); if (Array.isArray(r) && r.length) { return r.map((row, i) => <div key={i} style={{fontSize:'0.75rem',display:'flex',gap:'0.5rem',margin:'0.125rem 0'}}><span style={{fontWeight:500}}>{row.testName}</span><span style={{color:'#0f766e'}}>{row.resultValue}{row.unit ? ` ${row.unit}` : ''}</span></div>); } } catch {} return null; })()}
+                                                                                          {doc.patientSummary && <div style={{marginTop:'0.25rem',fontSize:'0.75rem',color:'#475569',fontStyle:'italic',borderLeft:'2px solid #0d9488',paddingLeft:'0.5rem'}}>{doc.patientSummary}</div>}
+                                                                                      </div>
+                                                                                  )}
+                                                                             </div>
+                                                                         </div>
+
+                                                                         {doc.fileLocation ? (
+                                                                             <button
+                                                                                 type="button"
+                                                                                 className="btn btn-primary btn-sm rounded-pill px-3"
+                                                                                 onClick={() => handleViewDocument(doc)}
+                                                                             >
+                                                                                 <i className="bi bi-eye me-1"></i>
+                                                                                 View
+                                                                             </button>
+                                                                         ) : null}
                                                                     </div>
                                                                 ))}
                                                             </div>

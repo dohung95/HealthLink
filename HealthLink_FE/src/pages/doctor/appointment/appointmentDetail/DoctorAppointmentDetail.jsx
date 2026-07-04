@@ -13,6 +13,7 @@ import HistoryTab from './tabs/HistoryTab';
 import PrescriptionTab from './tabs/PrescriptionTab';
 import SharedRecordsTab from './tabs/SharedRecordsTab';
 import FollowUpTab from './tabs/FollowUpTab';
+import ClinicalResultsTab from './tabs/ClinicalResultsTab';
 import EmptyState from '@components/doctor/EmptyState';
 import ActionBar from '@components/doctor/ActionBar';
 import CompleteConfirmModal from '@components/doctor/CompleteConfirmModal';
@@ -24,6 +25,7 @@ const TABS = [
   { id: 'notes', label: 'Consultation Notes', icon: 'bi-journal-text' },
   { id: 'history', label: 'Medical History', icon: 'bi-clock-history' },
   { id: 'shared', label: 'Shared Records', icon: 'bi-folder2-open' },
+  { id: 'clinical-results', label: 'Clinical Results', icon: 'bi-clipboard2-pulse' },
   { id: 'prescription', label: 'Prescription', icon: 'bi-capsule-pill' },
   { id: 'followup', label: 'Follow-up', icon: 'bi-calendar-check' },
 ];
@@ -189,6 +191,14 @@ const DoctorAppointmentDetail = memo(({ appointment, patient, doctorId, activeMi
                     />
                   ) : null}
                   {ctx.activeTab === 'shared' ? <SharedRecordsTab doctorId={ctx.effectiveDoctorId} patientId={ctx.patientId} appointmentId={ctx.currentAppointment?.appointmentId} /> : null}
+                  {ctx.activeTab === 'clinical-results' ? (
+                    <ClinicalResultsTab
+                      appointmentId={ctx.currentAppointment?.appointmentId}
+                      patientId={ctx.patientId}
+                      canManageClinicalResults={ctx.canManageClinicalResults}
+                      isCancelledAppointment={ctx.isCancelledAppointment}
+                    />
+                  ) : null}
                   {ctx.activeTab === 'prescription' ? (
                     <PrescriptionTab
                       appointment={ctx.currentAppointment}

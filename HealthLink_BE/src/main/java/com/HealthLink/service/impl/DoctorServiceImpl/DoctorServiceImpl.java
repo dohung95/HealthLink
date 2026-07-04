@@ -30,6 +30,7 @@ import com.HealthLink.exception.ForbiddenException;
 import com.HealthLink.exception.ResourceNotFoundException;
 import com.HealthLink.repository.appointment.AppointmentRepository;
 import com.HealthLink.repository.auth.UserRepository;
+import com.HealthLink.repository.healthrecord.MedicalDocumentRepository;
 import com.HealthLink.repository.auth.EmailVerificationTokenRepository;
 import com.HealthLink.repository.doctor.DoctorRepository;
 import com.HealthLink.repository.doctor.DoctorScheduleRepository;
@@ -93,6 +94,7 @@ public class DoctorServiceImpl implements DoctorService {
     private final EmailService emailService;
     private final PasswordEncoder passwordEncoder;
     private final DoctorServiceRepository doctorServiceRepository;
+    private final MedicalDocumentRepository medicalDocumentRepository;
 
     private static final String[] DAY_NAMES
             = {"Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"};
@@ -255,6 +257,7 @@ public class DoctorServiceImpl implements DoctorService {
                 .appointments(appointments)
                 .documentsByCategory(getDocumentsByCategory(patient))
                 .prescriptions(prescriptions)
+                .clinicalResults(getClinicalResultsForDoctor(patient, doctorId))
                 .build();
     }
 
@@ -607,7 +610,30 @@ public class DoctorServiceImpl implements DoctorService {
                 .collect(Collectors.toList());
     }
 
+    private List<AdminMedicalDocumentDto> getClinicalResultsForDoctor(Patient patient, String doctorId) {
+        return medicalDocumentRepository
+                .findByHealthRecord_Patient_PatientIdAndSourceTypeOrderByUploadedAtDesc(
+                        patient.getPatientId(),
+                        "DOCTOR"
+                )
+                .stream()
+                .filter(document -> "PUBLISHED".equalsIgnoreCase(document.getVisibilityStatus())
+                        || (document.getDoctor() != null && doctorId.equals(document.getDoctor().getDoctorId())))
+                .map(this::toDocumentDto)
+                .sorted((left, right) -> {
+                    LocalDateTime leftDate = left.getDocumentDate() != null ? left.getDocumentDate() : left.getUploadedAt();
+                    LocalDateTime rightDate = right.getDocumentDate() != null ? right.getDocumentDate() : right.getUploadedAt();
+                    if (leftDate == null && rightDate == null) return 0;
+                    if (leftDate == null) return 1;
+                    if (rightDate == null) return -1;
+                    return rightDate.compareTo(leftDate);
+                })
+                .collect(Collectors.toList());
+    }
+
     private AdminMedicalDocumentDto toDocumentDto(MedicalDocument document) {
+        Doctor doctor = document.getDoctor();
+        Appointment appointment = document.getAppointment();
         return AdminMedicalDocumentDto.builder()
                 .documentID(document.getDocumentId())
                 .documentName(document.getDocumentName())
@@ -622,6 +648,24 @@ public class DoctorServiceImpl implements DoctorService {
                 .uploadedAt(document.getUploadedAt())
                 .fileSize(document.getFileSize())
                 .mimeType(document.getMimeType())
+                .appointmentId(appointment != null ? appointment.getAppointmentId() : null)
+                .doctorId(doctor != null ? doctor.getDoctorId() : null)
+                .doctorName(doctor != null ? doctor.getFullName() : null)
+                .sourceType(document.getSourceType())
+                .visibilityStatus(document.getVisibilityStatus())
+                .publishedAt(document.getPublishedAt())
+                .labFacilityName(document.getLabFacilityName())
+                .sentToLabAt(document.getSentToLabAt())
+                .resultReceivedAt(document.getResultReceivedAt())
+                .testName(document.getTestName())
+                .resultUnit(document.getResultUnit())
+                .clinicalStatus(document.getClinicalStatus())
+                .structuredResultsJson(document.getStructuredResultsJson())
+                .doctorAssessment(document.getDoctorAssessment())
+                .patientSummary(document.getPatientSummary())
+                .aiConfidence(document.getAiConfidence())
+                .aiWarningsJson(document.getAiWarningsJson())
+                .aiProcessedAt(document.getAiProcessedAt())
                 .build();
     }
 

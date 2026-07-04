@@ -80,4 +80,6 @@ class HomeVisitScanResult(BaseModel):
 
 class HealthCheckResponse(BaseModel):
     status: str
-    services: Dict[str, str]
+    service: str
+    version: str
+    dependencies: Dict[str, Any]

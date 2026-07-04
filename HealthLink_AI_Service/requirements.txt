@@ -1,7 +1,10 @@
 # CPU-only PyTorch wheels. This service only runs on CPU (see main.py) — installing
 # the default CUDA build here causes intermittent DLL init failures (WinError 1114)
 # on machines with an NVIDIA GPU/driver present but not matched to the CUDA build.
---extra-index-url https://download.pytorch.org/whl/cpu
+--index-url https://download.pytorch.org/whl/cpu
+torch
+torchvision
+--extra-index-url https://pypi.org/simple
 
 # Core
 fastapi==0.115.0
@@ -13,9 +16,7 @@ pydantic==2.8.0
 opencv-python==4.10.0.84
 
 # OCR
-easyocr==1.7.1
-torch==2.12.1+cpu
-torchvision==0.27.1+cpu
+easyocr==1.7.2
 
 # Document processing
 PyMuPDF==1.24.5

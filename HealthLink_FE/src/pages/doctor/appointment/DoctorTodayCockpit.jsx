@@ -224,7 +224,12 @@ export default function DoctorTodayCockpit() {
             ) : (
               <div className="d-flex flex-column" style={{gap:'0.625rem',minHeight:'180px'}}>
                 {displayAppointments.map((appt) => (
-                  <AppointmentCard key={appt.appointmentID || appt.appointmentId} appointment={appt} onView={handleView} />
+                  <AppointmentCard
+                    key={appt.appointmentID || appt.appointmentId}
+                    appointment={appt}
+                    onView={handleView}
+                    contextLabel={selectedStatus === 'COMPLETED' ? 'Clinical results available from detail' : null}
+                  />
                 ))}
               </div>
             )}

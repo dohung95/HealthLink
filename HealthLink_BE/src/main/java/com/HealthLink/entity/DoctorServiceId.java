@@ -20,7 +20,7 @@ public class DoctorServiceId implements Serializable {
 
     @Serial
     private static final long serialVersionUID = 1L;
-    @Column(length = 450)
+    @Column(name = "doctor_id", length = 450, nullable = false, columnDefinition = "VARCHAR(450)")
     private String doctorId;
 
     @Enumerated(EnumType.STRING)

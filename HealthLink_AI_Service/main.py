@@ -18,7 +18,7 @@ from config import Config
 from models.schemas import (
     ModerationResult, OCRResult, CVParseResult,
     DocumentVerifyResult, ProfileVerifyResult, DocumentScreeningResult,
-    HomeVisitScanResult, ClinicalResultScanResult, HealthCheckResponse
+    HomeVisitScanResult, HealthCheckResponse
 )
 
 # Lazy imports for services
@@ -125,7 +125,8 @@ async def health_check():
     dependencies = {}
 
     try:
-        import easyocr  # noqa: F401
+        import easyocr
+        reader = easyocr.Reader(['en'], gpu=False)
         dependencies["easyocr"] = {"available": True, "error": None}
     except Exception as exc:
         dependencies["easyocr"] = {"available": False, "error": str(exc)}
@@ -145,13 +146,10 @@ async def health_check():
         "error": ollama_error,
     }
 
-    ocr_available = dependencies["easyocr"]["available"] or dependencies["tesseract"]["available"]
-
     return {
-        "status": "healthy" if ocr_available else "degraded",
+        "status": "healthy",
         "service": "HealthLink Local AI Service",
         "version": "1.0.0",
-        "clinicalResultReady": ocr_available,
         "dependencies": dependencies,
     }
 
@@ -371,23 +369,6 @@ async def parse_home_visit(file: UploadFile = File(...)):
     content = await file.read()
     filename = file.filename.lower() if file.filename else "document.jpg"
     return parse(content, filename)
-
-
-@app.post("/parse-clinical-result", response_model=ClinicalResultScanResult)
-async def parse_clinical_result(
-    file: UploadFile = File(...),
-    appointmentId: str = Form(default=""),
-    patientName: str = Form(default=""),
-    patientId: str = Form(default=""),
-    appointmentTime: str = Form(default=""),
-    consultationType: str = Form(default=""),
-):
-    """Extract structured test results and clinical data from a lab report image/document."""
-    from services.clinical_result_parser_service import parse
-
-    content = await file.read()
-    filename = file.filename.lower() if file.filename else "document.jpg"
-    return parse(content, filename, patient_name=patientName if patientName else None)
 
 
 # ============================================================================
