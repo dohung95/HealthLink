@@ -2,9 +2,9 @@ export { getPatientInitials, getTypeIcon } from './sharedHelpers';
 
 export const STATUS_TONES = {
   scheduled: {
-    badge: 'badge bg-surface-container-highest text-text-muted',
+    badge: 'badge bg-primary text-white',
     railClass: 'doctor-appointment-card__rail--scheduled',
-    dot: 'bg-surface-variant',
+    dot: 'bg-primary',
   },
   completed: {
     badge: 'badge bg-success text-white',
@@ -12,7 +12,7 @@ export const STATUS_TONES = {
     dot: 'bg-success',
   },
   cancelled: {
-    badge: 'badge bg-critical text-white',
+    badge: 'badge bg-danger text-white',
     railClass: 'doctor-appointment-card__rail--cancelled',
     dot: 'bg-critical',
   },
@@ -33,7 +33,7 @@ export const TYPE_TONES = {
   audio: 'badge bg-surface-container text-text-main',
   chat: 'badge bg-surface-container-highest text-text-main',
   online: 'badge bg-primary text-white',
-  homevisit: 'badge bg-warning text-dark',
+  homevisit: 'badge bg-primary text-white',
   offline: 'badge bg-surface-container text-text-main',
   default: 'badge bg-surface-container text-text-main',
 };
@@ -86,6 +86,12 @@ export const getPatientAvatar = (appointment) =>
   appointment?.patientAvatar ||
   appointment?.avatarUrl ||
   '';
+
+export const getPatientPhone = (appointment) =>
+  appointment?.patientPhoneNumber
+  || appointment?.patient?.phoneNumber
+  || appointment?.patientPhone
+  || '';
 
 export const getVisitReason = (appointment) =>
   [appointment?.reason, appointment?.symptoms, appointment?.chiefComplaint]

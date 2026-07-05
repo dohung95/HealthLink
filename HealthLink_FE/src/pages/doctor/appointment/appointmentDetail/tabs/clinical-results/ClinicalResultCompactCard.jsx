@@ -1,6 +1,6 @@
 import React from 'react';
 
-export default function ClinicalResultCompactCard({ result, isSelected, onSelect }) {
+export default function ClinicalResultCompactCard({ result, isSelected, onSelect, order }) {
   const abnormalCount = (() => {
     try {
       const rows = JSON.parse(result.structuredResultsJson || '[]');
@@ -26,7 +26,16 @@ export default function ClinicalResultCompactCard({ result, isSelected, onSelect
       tabIndex={0}
       onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') onSelect(result); }}
     >
+      {order != null && (
+        <div className="cr-compact-card__order-badge">{order}</div>
+      )}
       <div className="cr-compact-card__top">
+        <div className="cr-compact-card__meta">
+          {result.labFacilityName && <span>{result.labFacilityName}</span>}
+          {result.documentDate && (
+            <span>{new Date(result.documentDate).toLocaleDateString()}</span>
+          )}
+        </div>
         <div className="cr-compact-card__badges">
           {result.category && (
             <span className="cr-badge cr-badge--category">{result.category}</span>
@@ -40,20 +49,14 @@ export default function ClinicalResultCompactCard({ result, isSelected, onSelect
         </div>
       </div>
 
-      <div className="cr-compact-card__title">
-        {result.testName || result.documentName || 'Clinical Result'}
-      </div>
-
-      {abnormalCount > 0 && (
-        <div className="cr-compact-card__abnormal">
-          <i className="bi bi-exclamation-triangle"></i> {abnormalCount} abnormal value{abnormalCount > 1 ? 's' : ''}
+      <div className="cr-compact-card__title-row">
+        <div className="cr-compact-card__title">
+          {result.testName || result.documentName || 'Clinical Result'}
         </div>
-      )}
-
-      <div className="cr-compact-card__meta">
-        {result.labFacilityName && <span>{result.labFacilityName}</span>}
-        {result.documentDate && (
-          <span>{new Date(result.documentDate).toLocaleDateString()}</span>
+        {abnormalCount > 0 && (
+          <div className="cr-compact-card__abnormal">
+            <i className="bi bi-exclamation-triangle"></i> {abnormalCount} abnormal value{abnormalCount > 1 ? 's' : ''}
+          </div>
         )}
       </div>
 

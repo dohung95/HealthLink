@@ -33,7 +33,7 @@
 
 .nav-item-custom:hover {
   background: var(--surface-hover);
-  color: var(--text-primary);
+  color: var(--primary);
 }
 
 .nav-item-custom .material-symbols-outlined {
@@ -46,8 +46,7 @@
   color: var(--primary);
 }
 
-/* Active state: left accent bar + subtle highlight */
-.nav-item-custom--active {
+/* Active state: left accent bar + subtle highlight */.nav-item-custom--active {
   background: var(--primary-light);
   color: var(--primary);
   font-weight: 600;
@@ -68,6 +67,78 @@
 .nav-item-custom--active .material-symbols-outlined {
   color: var(--primary);
   font-variation-settings: 'FILL' 1, 'wght' 500, 'GRAD' 0, 'opsz' 24;
+}
+
+.nav-group-custom {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+}
+
+.nav-item-custom--parent {
+  padding-right: 0.625rem;
+}
+
+.nav-item-custom__chevron {
+  margin-left: auto;
+  font-size: 1rem !important;
+  color: var(--text-muted);
+  transition: transform 0.15s ease, color 0.15s ease;
+}
+
+.nav-item-custom--parent[aria-expanded="true"] .nav-item-custom__chevron {
+  transform: rotate(180deg);
+  color: var(--primary);
+}
+
+.nav-subitems {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+  margin: 0.125rem 0 0.375rem 2.125rem;
+  padding-left: 0.75rem;
+  border-left: 1px solid var(--border-light);
+}
+
+.nav-subitem-custom {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  width: 100%;
+  border: none;
+  background: transparent;
+  color: var(--text-muted);
+  border-radius: var(--radius-md);
+  padding: 0.45rem 0.625rem;
+  font-size: 0.8125rem;
+  font-weight: 500;
+  line-height: 1.2;
+  text-align: left;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.nav-subitem-custom:hover {
+  background: var(--surface-hover);
+  color: var(--primary);
+}
+
+.nav-subitem-custom .material-symbols-outlined {
+  font-size: 1rem;
+  color: currentColor;
+}.nav-subitem-custom--active {
+  background: transparent;
+  color: var(--doctor-primary);
+  font-weight: 650;
+}
+
+.nav-subitem-custom--active .material-symbols-outlined {
+  font-variation-settings: 'FILL' 1, 'wght' 500, 'GRAD' 0, 'opsz' 20;
+}
+
+.nav-subitem-custom--active .nav-subitem-custom__label {
+  text-decoration: underline;
+  text-underline-offset: 4px;
 }
 
 /* ============================================

@@ -253,10 +253,14 @@ const DoctorDashboardPage = () => {
     };
   }, [notificationsHook.fetchNotifications]);
 
-  const selectView = (key) => {
+  const selectView = (key, path) => {
     setIsMobileMenuOpen(false);
+    if (path) {
+      navigate(path);
+      return;
+    }
     if (key === 'appointments') {
-      navigate('/doctor');
+      navigate('/doctor/appointments');
     } else {
       navigate(`/doctor/${key}`);
     }
@@ -311,6 +315,7 @@ const DoctorDashboardPage = () => {
     <>
       <DoctorLayout
         doctorData={doctorData}
+        currentPath={location.pathname}
         currentNavItem={currentNavItem}
         isDetailView={isDetailView}
         isMobileMenuOpen={isMobileMenuOpen}
@@ -322,7 +327,7 @@ const DoctorDashboardPage = () => {
         showNotificationDropdown={notificationsHook.showNotificationDropdown}
         notificationRef={notificationsHook.notificationRef}
         onClearNewNotification={() => notificationsHook.setHasNewNotification(false)}
-        onNavigate={(key) => selectView(key)}
+        onNavigate={(key, path) => selectView(key, path)}
         onLogout={handleLogout}
         onToggleMobileMenu={() => setIsMobileMenuOpen((prev) => !prev)}
         onToggleNotificationDropdown={() => notificationsHook.setShowNotificationDropdown((prev) => !prev)}

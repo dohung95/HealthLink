@@ -64,7 +64,7 @@ import MedicineReminderPage from './components/patient-dashboard/MedicineReminde
 import DoctorDashboardPage, {
   DoctorAppointmentDetailRoute,
 } from './pages/doctor/DoctorDashboardPage';
-import DoctorAppointmentsView from './pages/doctor/appointment/DoctorAppointmentsView';
+import DoctorTodayCockpit from './pages/doctor/appointment/DoctorTodayCockpit';
 import DoctorAppointmentHistory from './pages/doctor/appointment/DoctorAppointmentHistory';
 import DoctorPatientsView from './pages/doctor/patient/DoctorPatientsView';
 import DoctorPrescriptionsView from './pages/doctor/prescription/DoctorPrescriptionsView';
@@ -273,8 +273,8 @@ function AppContent() {
                 <DoctorDashboardPage />
               </ProtectedRoute>
             }>
-              <Route index element={<DoctorAppointmentsView />} />
-              <Route path="appointments" element={<DoctorAppointmentsView />} />
+              <Route index element={<DoctorTodayCockpit />} />
+              <Route path="appointments" element={<DoctorTodayCockpit />} />
               <Route path="appointments/history" element={<DoctorAppointmentHistory />} />
               <Route path="appointments/:appointmentId" element={<DoctorAppointmentDetailRoute />} />
               <Route path="patients">

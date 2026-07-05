@@ -221,6 +221,7 @@ export function useAppointmentDetail({ appointment, patient, doctorId: currentDo
           appointmentData.appointmentDetail?.diagnosis || null,
         notes: appointmentData.appointmentDetail?.consultation?.doctorNotes ||
           appointmentData.appointmentDetail?.doctorNotes || null,
+        validUntil: new Date(Date.now() + Math.max(...draftRows.map((r) => Number(r.totalSupplyDays || 0)), 1) * 24 * 60 * 60 * 1000).toISOString(),
         items: draftRows.map((row) => {
           const timings = getRowTimings(row);
           return {

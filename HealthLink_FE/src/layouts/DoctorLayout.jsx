@@ -6,6 +6,7 @@ const DoctorLayout = memo(({
   children,
   doctorData,
   currentNavItem,
+  currentPath,
   isDetailView,
   isMobileMenuOpen,
   showAllNotifications,
@@ -32,32 +33,82 @@ const DoctorLayout = memo(({
     return () => { document.body.style.overflow = 'unset'; };
   }, [isMobileMenuOpen, showAllNotifications]);
 
+  const normalizePath = (value = '') => value.replace(/\/+$/, '') || '/';
+  const activePath = normalizePath(currentPath || '');
+  const isAppointmentDetailPath = /^\/doctor\/appointments\/(?!history$)[\w-]+$/.test(activePath);
+
+  const isSubItemActive = (subItem) => {
+    if (subItem.key === 'appointmentsScheduled') {
+      return activePath === '/doctor' || activePath === '/doctor/appointments' || isAppointmentDetailPath;
+    }
+    if (subItem.key === 'appointmentsHistory') {
+      return activePath === '/doctor/appointments/history';
+    }
+    return activePath === normalizePath(subItem.path);
+  };
+
+  const isItemActive = (item) => (
+    currentNavItem?.key === item.key ||
+    (item.key === 'appointments' && currentNavItem?.key === APPOINTMENT_DETAIL_VIEW) ||
+    (item.key === 'patients' && currentNavItem?.key === PATIENT_DETAIL_VIEW) ||
+    item.children?.some(isSubItemActive)
+  );
+
+  const renderChatBadge = () => (
+    chatUnreadCount > 0 ? (
+      <span className="badge bg-danger rounded-pill ms-auto" style={{ fontSize: '0.75rem' }}>
+        {chatUnreadCount > 99 ? '99+' : chatUnreadCount}
+      </span>
+    ) : null
+  );
+
+  const renderNavButton = (item, isActive, mobile = false, subItem = false) => (
+    <button
+      aria-current={isActive ? 'page' : undefined}
+      className={
+        mobile
+          ? `nav-item-mobile ${isActive ? 'nav-item-mobile--active' : ''}`
+          : subItem
+            ? `nav-subitem-custom ${isActive ? 'nav-subitem-custom--active' : ''}`
+            : `nav-item-custom ${isActive ? 'nav-item-custom--active' : ''}`
+      }
+      key={item.key}
+      onClick={() => onNavigate(item.key, item.path)}
+      type="button"
+    >
+      <span className="material-symbols-outlined">{item.icon}</span>
+      <span className={subItem ? 'nav-subitem-custom__label' : ''}>{item.label}</span>
+      {item.key === 'chat' ? renderChatBadge() : null}
+    </button>
+  );
+
   const renderNavLinks = (mobile = false) => (
     <div className={mobile ? 'd-flex gap-1 justify-content-around' : 'd-flex flex-column gap-1'}>
       {NAV_ITEMS.map((item) => {
-        const isActive =
-          currentNavItem?.key === item.key ||
-          (item.key === 'appointments' && currentNavItem?.key === APPOINTMENT_DETAIL_VIEW) ||
-          (item.key === 'patients' && currentNavItem?.key === PATIENT_DETAIL_VIEW);
+        const isActive = isItemActive(item);
+        const hasChildren = Array.isArray(item.children) && item.children.length > 0;
+
+        if (mobile || !hasChildren) {
+          return renderNavButton(item, isActive, mobile);
+        }
+
         return (
-          <button
-            className={
-              mobile
-                ? `nav-item-mobile ${isActive ? 'nav-item-mobile--active' : ''}`
-                : `nav-item-custom ${isActive ? 'nav-item-custom--active' : ''}`
-            }
-            key={item.key}
-            onClick={() => onNavigate(item.key)}
-            type="button"
-          >
-            <span className="material-symbols-outlined">{item.icon}</span>
-            <span>{item.label}</span>
-            {item.key === 'chat' && chatUnreadCount > 0 && (
-              <span className="badge bg-danger rounded-pill ms-auto" style={{ fontSize: '0.75rem' }}>
-                {chatUnreadCount > 99 ? '99+' : chatUnreadCount}
-              </span>
-            )}
-          </button>
+          <div className="nav-group-custom" key={item.key}>
+            <button
+              aria-current={isActive ? 'page' : undefined}
+              aria-expanded={isActive}
+              className={`nav-item-custom nav-item-custom--parent ${isActive ? 'nav-item-custom--active' : ''}`}
+              onClick={() => onNavigate(item.key, item.path)}
+              type="button"
+            >
+              <span className="material-symbols-outlined">{item.icon}</span>
+              <span>{item.label}</span>
+              <span className="material-symbols-outlined nav-item-custom__chevron">expand_more</span>
+            </button>
+            <div className="nav-subitems" role="group" aria-label={`${item.label} sections`}>
+              {item.children.map((subItem) => renderNavButton(subItem, isSubItemActive(subItem), false, true))}
+            </div>
+          </div>
         );
       })}
     </div>

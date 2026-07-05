@@ -250,6 +250,7 @@ export default function MedicationForm({
               }
             }}
           >
+            <div className="doctor-prescription-item-card__order-badge">{index + 1}</div>
             <div className="doctor-prescription-item-card__summary">
               {row.quantity ? (
                 <span className="doctor-prescription-chip doctor-prescription-chip--success doctor-prescription-item-card__quantity">
@@ -261,7 +262,6 @@ export default function MedicationForm({
                 className={`doctor-prescription-item-card__content ${row.quantity ? 'doctor-prescription-item-card__content--with-quantity' : ''}`}
               >
                 <div className="doctor-prescription-item-card__title-row">
-                  <span className="doctor-prescription-item-card__index">{index + 1}</span>
                   <h4>{row.displayName || row.medicineQuery || 'Selected medication'}</h4>
                   {row.strength ? (
                     <span className="doctor-prescription-chip">{row.strength}</span>

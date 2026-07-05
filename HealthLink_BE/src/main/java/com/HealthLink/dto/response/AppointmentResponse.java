@@ -16,6 +16,7 @@ public class AppointmentResponse {
     private Integer appointmentId;
     private String patientId;
     private String patientName;
+    private String patientPhoneNumber;
     private String doctorId;
     private String doctorName;
     private String doctorAvatar;
