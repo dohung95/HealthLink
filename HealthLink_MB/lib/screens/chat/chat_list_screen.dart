@@ -7,6 +7,7 @@ import '../../config/api_config.dart';
 import 'chat_room_screen.dart';
 import './chatbot/chatbot_screen.dart';
 import '../../l10n/app_localizations.dart';
+import '../../utils/localization_utils.dart';
 
 class MessagesScreen extends StatefulWidget {
   const MessagesScreen({super.key});
@@ -88,7 +89,7 @@ class _MessagesScreenState extends State<MessagesScreen> {
                   : chat.conversations.where((c) {
                       final q = _searchQuery.toLowerCase();
                       return c.partnerName.toLowerCase().contains(q) ||
-                          (c.partnerSpecialty ?? '').toLowerCase().contains(q) ||
+                          (c.partnerSpecialty ?? '').toLocalizedSpecialty(context).toLowerCase().contains(q) ||
                           c.lastMessage.toLowerCase().contains(q);
                     }).toList();
 
@@ -509,7 +510,7 @@ class _MessagesScreenState extends State<MessagesScreen> {
                     if (conversation.partnerSpecialty != null) ...[
                       const SizedBox(height: 2),
                       Text(
-                        conversation.partnerSpecialty!,
+                        conversation.partnerSpecialty!.toLocalizedSpecialty(context),
                         maxLines: 1,
                         overflow: TextOverflow.ellipsis,
                         style: TextStyle(

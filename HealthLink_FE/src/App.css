@@ -244,7 +244,7 @@
 /* ─── Chat Box ─── */
 .chat-box {
   position: fixed;
-  bottom: 0;
+  bottom: 30px;
   right: 45px;
   width: 380px;
   height: min(500px, 70dvh);

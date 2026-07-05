@@ -19,6 +19,7 @@ import 'package:url_launcher/url_launcher.dart';
 import '../../models/chat/chat_theme.dart';
 import 'profile_patient_normal_forChar_screen.dart';
 import 'profile_doctor_normal_forChat_screen.dart';
+import '../../utils/localization_utils.dart';
 import '../../providers/video_call_provider.dart';
 import '../video_audio/video_call_screen.dart';
 import '../../services/patient/vitals/vital_sign_service.dart';
@@ -278,7 +279,7 @@ class _ChatRoomScreenState extends State<ChatRoomScreen> {
           settings: const RouteSettings(name: '/video_call'),
           builder: (_) => VideoCallScreen(
             partnerName: conv.partnerName,
-            partnerRole: conv.partnerSpecialty ?? 'User',
+            partnerRole: conv.partnerSpecialty?.toLocalizedSpecialty(context) ?? 'User',
             partnerId: conv.partnerId,
             roomId: conv.id,
           ),
@@ -807,7 +808,7 @@ class _ChatRoomScreenState extends State<ChatRoomScreen> {
                 ),
                 Text(
                   [
-                    if (conv.partnerSpecialty != null) conv.partnerSpecialty!,
+                    if (conv.partnerSpecialty != null) conv.partnerSpecialty!.toLocalizedSpecialty(context),
                     if (conv.isOnline) 'Online' else 'Offline',
                   ].join(' • '),
                   style: TextStyle(
@@ -1813,7 +1814,7 @@ class _ChatRoomScreenState extends State<ChatRoomScreen> {
                 const SizedBox(height: 8),
                 Center(
                   child: Text(
-                    conv.partnerSpecialty ?? 'HealthLink User',
+                    conv.partnerSpecialty?.toLocalizedSpecialty(context) ?? 'HealthLink User',
                     style: TextStyle(fontSize: 14, color: colors.outline),
                   ),
                 ),

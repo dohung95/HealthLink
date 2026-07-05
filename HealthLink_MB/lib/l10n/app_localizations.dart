@@ -3415,6 +3415,258 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Reminder settings saved.'**
   String get medicineReminderSettingsSaved;
+
+  /// No description provided for @bookingSelectExamType.
+  ///
+  /// In en, this message translates to:
+  /// **'Select Examination Type'**
+  String get bookingSelectExamType;
+
+  /// No description provided for @bookingSelectExamTypeDesc.
+  ///
+  /// In en, this message translates to:
+  /// **'Choose how you want to consult with a doctor.'**
+  String get bookingSelectExamTypeDesc;
+
+  /// No description provided for @bookingOnlineConsultation.
+  ///
+  /// In en, this message translates to:
+  /// **'Online Consultation'**
+  String get bookingOnlineConsultation;
+
+  /// No description provided for @bookingDoctorVisitsHome.
+  ///
+  /// In en, this message translates to:
+  /// **'Doctor Visits Home'**
+  String get bookingDoctorVisitsHome;
+
+  /// No description provided for @bookingVisitType.
+  ///
+  /// In en, this message translates to:
+  /// **'Visit Type'**
+  String get bookingVisitType;
+
+  /// No description provided for @bookingHomeVisitInfo.
+  ///
+  /// In en, this message translates to:
+  /// **'Home Visit Information'**
+  String get bookingHomeVisitInfo;
+
+  /// No description provided for @bookingHomeVisitInfoDesc.
+  ///
+  /// In en, this message translates to:
+  /// **'Enter address and recipient information.'**
+  String get bookingHomeVisitInfoDesc;
+
+  /// No description provided for @bookingForMe.
+  ///
+  /// In en, this message translates to:
+  /// **'For Me'**
+  String get bookingForMe;
+
+  /// No description provided for @bookingSomeoneElse.
+  ///
+  /// In en, this message translates to:
+  /// **'Someone Else'**
+  String get bookingSomeoneElse;
+
+  /// No description provided for @bookingRecipientName.
+  ///
+  /// In en, this message translates to:
+  /// **'Recipient Name'**
+  String get bookingRecipientName;
+
+  /// No description provided for @bookingAge.
+  ///
+  /// In en, this message translates to:
+  /// **'Age'**
+  String get bookingAge;
+
+  /// No description provided for @bookingGender.
+  ///
+  /// In en, this message translates to:
+  /// **'Gender'**
+  String get bookingGender;
+
+  /// No description provided for @bookingRelationship.
+  ///
+  /// In en, this message translates to:
+  /// **'Relationship'**
+  String get bookingRelationship;
+
+  /// No description provided for @bookingRecipientPhone.
+  ///
+  /// In en, this message translates to:
+  /// **'Recipient Phone'**
+  String get bookingRecipientPhone;
+
+  /// No description provided for @bookingAddressStar.
+  ///
+  /// In en, this message translates to:
+  /// **'Address *'**
+  String get bookingAddressStar;
+
+  /// No description provided for @bookingCity.
+  ///
+  /// In en, this message translates to:
+  /// **'City'**
+  String get bookingCity;
+
+  /// No description provided for @bookingContactPhoneStar.
+  ///
+  /// In en, this message translates to:
+  /// **'Contact Phone *'**
+  String get bookingContactPhoneStar;
+
+  /// No description provided for @bookingReasonForHomeVisitStar.
+  ///
+  /// In en, this message translates to:
+  /// **'Reason for Home Visit *'**
+  String get bookingReasonForHomeVisitStar;
+
+  /// No description provided for @bookingNotesOpt.
+  ///
+  /// In en, this message translates to:
+  /// **'Notes'**
+  String get bookingNotesOpt;
+
+  /// No description provided for @bookingUseCurrentLocation.
+  ///
+  /// In en, this message translates to:
+  /// **'Use Current Location'**
+  String get bookingUseCurrentLocation;
+
+  /// No description provided for @bookingTapMapToPin.
+  ///
+  /// In en, this message translates to:
+  /// **'Tap on the map to pin the exact home entrance.'**
+  String get bookingTapMapToPin;
+
+  /// No description provided for @bookingPinnedLocation.
+  ///
+  /// In en, this message translates to:
+  /// **'Pinned: {lat}, {lng}'**
+  String bookingPinnedLocation(String lat, String lng);
+
+  /// No description provided for @bookingSelectHomeVisitDoctor.
+  ///
+  /// In en, this message translates to:
+  /// **'Select Home Visit Doctor'**
+  String get bookingSelectHomeVisitDoctor;
+
+  /// No description provided for @bookingSelectHomeVisitDoctorDesc.
+  ///
+  /// In en, this message translates to:
+  /// **'Doctors available at your location.'**
+  String get bookingSelectHomeVisitDoctorDesc;
+
+  /// No description provided for @bookingNoSuitableDoctors.
+  ///
+  /// In en, this message translates to:
+  /// **'No suitable doctors found.'**
+  String get bookingNoSuitableDoctors;
+
+  /// No description provided for @bookingHomeVisitDoctor.
+  ///
+  /// In en, this message translates to:
+  /// **'Home Visit Doctor'**
+  String get bookingHomeVisitDoctor;
+
+  /// No description provided for @bookingAdditionalServices.
+  ///
+  /// In en, this message translates to:
+  /// **'Additional Services'**
+  String get bookingAdditionalServices;
+
+  /// No description provided for @bookingAdditionalServicesDesc.
+  ///
+  /// In en, this message translates to:
+  /// **'Select services for doctor to perform at home if needed.'**
+  String get bookingAdditionalServicesDesc;
+
+  /// No description provided for @bookingNoAdditionalServices.
+  ///
+  /// In en, this message translates to:
+  /// **'No additional services available.'**
+  String get bookingNoAdditionalServices;
+
+  /// No description provided for @bookingTotalServices.
+  ///
+  /// In en, this message translates to:
+  /// **'Total Services'**
+  String get bookingTotalServices;
+
+  /// No description provided for @bookingSelectHomeVisitSession.
+  ///
+  /// In en, this message translates to:
+  /// **'Select Home Visit Session'**
+  String get bookingSelectHomeVisitSession;
+
+  /// No description provided for @bookingSelectHomeVisitSessionDesc.
+  ///
+  /// In en, this message translates to:
+  /// **'Choose a date and session for the doctor to visit.'**
+  String get bookingSelectHomeVisitSessionDesc;
+
+  /// No description provided for @bookingSelectSession.
+  ///
+  /// In en, this message translates to:
+  /// **'Select Session'**
+  String get bookingSelectSession;
+
+  /// No description provided for @bookingNoSuitableSessions.
+  ///
+  /// In en, this message translates to:
+  /// **'No suitable sessions available.'**
+  String get bookingNoSuitableSessions;
+
+  /// No description provided for @bookingAvailableHomeVisitSessions.
+  ///
+  /// In en, this message translates to:
+  /// **'Available Home Visit Sessions'**
+  String get bookingAvailableHomeVisitSessions;
+
+  /// No description provided for @bookingConfirmHomeVisit.
+  ///
+  /// In en, this message translates to:
+  /// **'Confirm Home Visit'**
+  String get bookingConfirmHomeVisit;
+
+  /// No description provided for @bookingConfirmHomeVisitDesc.
+  ///
+  /// In en, this message translates to:
+  /// **'Review information before payment.'**
+  String get bookingConfirmHomeVisitDesc;
+
+  /// No description provided for @bookingRecipient.
+  ///
+  /// In en, this message translates to:
+  /// **'Recipient'**
+  String get bookingRecipient;
+
+  /// No description provided for @bookingReasonForVisit.
+  ///
+  /// In en, this message translates to:
+  /// **'Reason for Visit'**
+  String get bookingReasonForVisit;
+
+  /// No description provided for @bookingDoctorFee.
+  ///
+  /// In en, this message translates to:
+  /// **'Doctor Fee'**
+  String get bookingDoctorFee;
+
+  /// No description provided for @bookingHomeVisitFee.
+  ///
+  /// In en, this message translates to:
+  /// **'Home Visit Fee'**
+  String get bookingHomeVisitFee;
+
+  /// No description provided for @bookingTotalAmount.
+  ///
+  /// In en, this message translates to:
+  /// **'Total Amount'**
+  String get bookingTotalAmount;
 }
 
 class _AppLocalizationsDelegate

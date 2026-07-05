@@ -7,21 +7,21 @@ extension _BookingNormalSteps on _BookingScreenState {
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         _title(
-          'Select Examination Type',
-          'Choose how you want to consult with a doctor.',
+          AppLocalizations.of(context)!.bookingSelectExamType,
+          AppLocalizations.of(context)!.bookingSelectExamTypeDesc,
         ),
         const SizedBox(height: 16),
         _visitTypeCard(
           colors,
           'Online',
           Icons.video_call_outlined,
-          'Online Consultation',
+          AppLocalizations.of(context)!.bookingOnlineConsultation,
         ),
         _visitTypeCard(
           colors,
           'HomeVisit',
           Icons.home_work_outlined,
-          'Doctor Visits Home',
+          AppLocalizations.of(context)!.bookingDoctorVisitsHome,
         ),
       ],
     );
