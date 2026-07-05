@@ -175,6 +175,10 @@ export default function Chat() {
     const [isBotTyping, setIsBotTyping] = useState(false);
     const [latestBotMsgId, setLatestBotMsgId] = useState(null);
 
+    // ── States cho hiệu ứng icon thu/hiện ──────────────────────────────────────
+    const [isIconHidden, setIsIconHidden] = useState(true);   // true = icon đang thu vào phải
+    const [isShaking, setIsShaking] = useState(false);         // true = đang chạy animation lắc
+
     const scrollTo = useRef(null);
 
     const handleBotNavigate = useCallback((url) => {
@@ -182,6 +186,31 @@ export default function Chat() {
         setIsChatBoxOpen(false);
         navigate(url);
     }, [navigate, setIsChatBoxOpen]);
+
+    // ── Hẹn giờ: Cứ 10 giây icon thò ra ngoài 3 giây rồi lại thu vào ──────────
+    useEffect(() => {
+        if (isChatBoxOpen) return; // Không cần khi chat đang mở
+        const timer = setInterval(() => {
+            // Bước 1: Trượt ra
+            setIsIconHidden(false);
+            setIsShaking(true);
+            // Bước 2: Sau 3 giây → thu vào lại
+            const hideTimer = setTimeout(() => {
+                setIsShaking(false);
+                setIsIconHidden(true);
+            }, 3000);
+            return () => clearTimeout(hideTimer);
+        }, 10000);
+        return () => clearInterval(timer);
+    }, [isChatBoxOpen]);
+
+    // ── Khi popup chat đóng → thu icon vào phải lại ─────────────────────────
+    useEffect(() => {
+        if (!isChatBoxOpen) {
+            setIsIconHidden(true);
+            setIsShaking(false);
+        }
+    }, [isChatBoxOpen]);
 
     // Lắng nghe sự kiện mở chat từ component khác (ví dụ: nút trên Home page)
     useEffect(() => {
@@ -333,10 +362,19 @@ export default function Chat() {
     return (
         <>
             {/* Floating chat button */}
-            <div className="chat-float-wrapper">
+            <div className={`chat-float-wrapper ${isIconHidden && !isChatBoxOpen ? 'chat-float-wrapper--retracted' : ''}`}>
+                {!isChatBoxOpen && isIconHidden && (
+                    <button
+                        className="chat-float-toggle"
+                        onClick={() => { setIsChatBoxOpen(true); setIsIconHidden(false); setIsShaking(false); }}
+                        title="Open chat"
+                    >
+                        <i className="bi bi-chevron-left" />
+                    </button>
+                )}
                 <button
-                    className={`chat-float-button ${isChatBoxOpen ? 'chat-float-button--hidden' : ''} ${!isChatBoxOpen ? 'chat-float-button--pulsing' : ''}`}
-                    onClick={() => setIsChatBoxOpen(prev => !prev)}
+                    className={`chat-float-button ${!isChatBoxOpen && isShaking ? 'chat-float-button--shaking' : ''} ${isChatBoxOpen ? 'chat-float-button--hidden' : ''} ${!isChatBoxOpen && !isShaking ? 'chat-float-button--pulsing' : ''}`}
+                    onClick={() => { setIsChatBoxOpen(prev => !prev); setIsIconHidden(false); setIsShaking(false); }}
                     title={isChatBoxOpen ? 'Close chat' : 'Open chat'}
                 >
                     <i className={`bi ${isChatBoxOpen ? 'bi-x-lg' : 'bi-robot'}`} style={{ fontSize: '1.4rem' }} />
