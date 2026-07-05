@@ -444,7 +444,7 @@ public class FollowUpAppointmentServiceImpl implements FollowUpAppointmentServic
                     ? consultation.getStartTime()
                     : appointment.getAppointmentTime();
 
-            ChatRoom chatRoom = chatRoomRepository.findByAppointment_AppointmentId(appointmentId).orElse(null);
+            ChatRoom chatRoom = chatRoomRepository.findFirstByAppointment_AppointmentId(appointmentId).orElse(null);
 
             // Neu khong co phong chat hoac khong co tin nhan nao sau thoi diem bat dau → chan
             long messagesAfterStart = (chatRoom != null)
@@ -477,7 +477,7 @@ public class FollowUpAppointmentServiceImpl implements FollowUpAppointmentServic
         commissionService.vestConsultationCommission(appointmentId);
 
         try {
-            chatRoomRepository.findByAppointment_AppointmentId(completedAppointment.getAppointmentId())
+            chatRoomRepository.findFirstByAppointment_AppointmentId(completedAppointment.getAppointmentId())
                 .ifPresent(room -> {
                     MessageDTO sysMsg = MessageDTO.builder()
                             .messageId("sys_" + java.util.UUID.randomUUID().toString())

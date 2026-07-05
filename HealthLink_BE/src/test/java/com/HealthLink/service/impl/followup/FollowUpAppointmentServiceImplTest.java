@@ -289,7 +289,7 @@ class FollowUpAppointmentServiceImplTest {
         });
         when(vitalSignRepository.findByAppointment_AppointmentIdOrderByMeasuredAtDesc(10))
                 .thenReturn(List.of(VitalSign.builder().vitalSignId(1).heartRate(72).build()));
-        when(chatRoomRepository.findByAppointment_AppointmentId(10))
+        when(chatRoomRepository.findFirstByAppointment_AppointmentId(10))
                 .thenReturn(Optional.of(ChatRoom.builder().chatRoomId("room-1").build()));
         when(messageRepository.countByChatRoom_ChatRoomIdAndTimestampAfter(any(), any()))
                 .thenReturn(1L);
@@ -337,7 +337,7 @@ class FollowUpAppointmentServiceImplTest {
         when(appointmentRepository.findById(10)).thenReturn(Optional.of(sourceAppointment));
         when(vitalSignRepository.findByAppointment_AppointmentIdOrderByMeasuredAtDesc(10))
                 .thenReturn(List.of(VitalSign.builder().vitalSignId(1).heartRate(72).build()));
-        when(chatRoomRepository.findByAppointment_AppointmentId(10))
+        when(chatRoomRepository.findFirstByAppointment_AppointmentId(10))
                 .thenReturn(Optional.of(ChatRoom.builder().chatRoomId("room-1").build()));
         when(messageRepository.countByChatRoom_ChatRoomIdAndTimestampAfter(any(), any()))
                 .thenReturn(1L);
@@ -396,7 +396,7 @@ class FollowUpAppointmentServiceImplTest {
         when(appointmentRepository.findById(10)).thenReturn(Optional.of(sourceAppointment));
         when(vitalSignRepository.findByAppointment_AppointmentIdOrderByMeasuredAtDesc(10))
                 .thenReturn(List.of(VitalSign.builder().vitalSignId(1).heartRate(72).build()));
-        when(chatRoomRepository.findByAppointment_AppointmentId(10))
+        when(chatRoomRepository.findFirstByAppointment_AppointmentId(10))
                 .thenReturn(Optional.of(ChatRoom.builder().chatRoomId("room-1").build()));
         when(messageRepository.countByChatRoom_ChatRoomIdAndTimestampAfter(any(), any()))
                 .thenReturn(1L);

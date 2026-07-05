@@ -281,9 +281,9 @@ const PatientPrescriptionView = () => {
                     {/* Authorized Stamp */}
                     <div className="clinic-stamp">AUTHORIZED</div>
 
-                    <div className="text-center" style={{ width: '250px' }}>
+                    <div className="text-center" style={{ width: '300px' }}>
                       <p className="mb-2 text-dark fw-bold">Doctor's Signature</p>
-                      <div style={{ height: '60px', display: 'flex', alignItems: 'center', justifyContent: 'center', overflow: 'hidden' }}>
+                      <div style={{ height: '60px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
                         <span style={{
                           fontFamily: '"Sacramento", "Dancing Script", "Great Vibes", "Brush Script MT", "Lucida Handwriting", cursive',
                           fontSize: '2.5rem',
