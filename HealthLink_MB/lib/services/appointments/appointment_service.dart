@@ -51,7 +51,7 @@ class AppointmentService {
       ApiConfig.receiveTimeout,
       onTimeout: () {
         throw Exception(
-          'Request timed out. Please check backend connection.',
+          'connection refused, please try again later',
         );
       },
     );

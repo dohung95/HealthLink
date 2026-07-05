@@ -93,23 +93,6 @@ class _MessagesScreenState extends State<MessagesScreen> {
                           c.lastMessage.toLowerCase().contains(q);
                     }).toList();
 
-              // Empty state
-              if (filtered.isEmpty) {
-                return Center(
-                  child: Column(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    children: [
-                      Icon(Icons.chat_bubble_outline, size: 64, color: Theme.of(context).colorScheme.outlineVariant),
-                      const SizedBox(height: 16),
-                      Text(
-                        _searchQuery.isEmpty ? AppLocalizations.of(context)!.chatNoConversations : AppLocalizations.of(context)!.chatNoResults,
-                        style: TextStyle(color: Theme.of(context).colorScheme.onSurfaceVariant, fontSize: 16),
-                      ),
-                    ],
-                  ),
-                );
-              }
-
               // Danh sách conversation
               return RefreshIndicator(
                 color: Theme.of(context).colorScheme.primary,
@@ -138,13 +121,31 @@ class _MessagesScreenState extends State<MessagesScreen> {
                             _buildBotItem(),
                             const SizedBox(height: 8),
                           ],
-                          ...filtered.map((conv) => Padding(
-                            padding: const EdgeInsets.only(bottom: 12),
-                            child: _buildChatListItem(
-                              conversation: conv,
-                              onTap: () => _openChatRoom(conv),
-                            ),
-                          )),
+                          if (filtered.isEmpty)
+                            Padding(
+                              padding: const EdgeInsets.only(top: 64.0),
+                              child: Center(
+                                child: Column(
+                                  mainAxisAlignment: MainAxisAlignment.center,
+                                  children: [
+                                    Icon(Icons.chat_bubble_outline, size: 64, color: Theme.of(context).colorScheme.outlineVariant),
+                                    const SizedBox(height: 16),
+                                    Text(
+                                      _searchQuery.isEmpty ? AppLocalizations.of(context)!.chatNoConversations : AppLocalizations.of(context)!.chatNoResults,
+                                      style: TextStyle(color: Theme.of(context).colorScheme.onSurfaceVariant, fontSize: 16),
+                                    ),
+                                  ],
+                                ),
+                              ),
+                            )
+                          else
+                            ...filtered.map((conv) => Padding(
+                              padding: const EdgeInsets.only(bottom: 12),
+                              child: _buildChatListItem(
+                                conversation: conv,
+                                onTap: () => _openChatRoom(conv),
+                              ),
+                            )),
                         ],
                       ),
                     ),
