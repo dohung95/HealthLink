@@ -31,5 +31,5 @@ public interface ChatRoomRepository extends JpaRepository<ChatRoom, String> {
     /**
      * Tìm phòng chat theo appointmentId.
      */
-    Optional<ChatRoom> findByAppointment_AppointmentId(Integer appointmentId);
+    Optional<ChatRoom> findFirstByAppointment_AppointmentId(Integer appointmentId);
 }

@@ -70,22 +70,27 @@ class HealthLinkApp extends StatelessWidget {
     final themeProvider = context.watch<ThemeProvider>();
     final localeProvider = context.watch<LocaleProvider>();
     
-    return MaterialApp(
-      title: 'HealthLink',
-      debugShowCheckedModeBanner: false,
-      theme: HealthLinkTheme.lightTheme,
-      darkTheme: HealthLinkTheme.darkTheme,
-      themeMode: themeProvider.themeMode,
-      locale: localeProvider.locale,
-      localizationsDelegates: const [
-        AppLocalizations.delegate,
-        GlobalMaterialLocalizations.delegate,
-        GlobalWidgetsLocalizations.delegate,
-        GlobalCupertinoLocalizations.delegate,
-      ],
-      supportedLocales: AppLocalizations.supportedLocales,
-      navigatorKey: navigatorKey,
-      home: const _RootRouter(),
+    return GestureDetector(
+      onTap: () {
+        FocusManager.instance.primaryFocus?.unfocus();
+      },
+      child: MaterialApp(
+        title: 'HealthLink',
+        debugShowCheckedModeBanner: false,
+        theme: HealthLinkTheme.lightTheme,
+        darkTheme: HealthLinkTheme.darkTheme,
+        themeMode: themeProvider.themeMode,
+        locale: localeProvider.locale,
+        localizationsDelegates: const [
+          AppLocalizations.delegate,
+          GlobalMaterialLocalizations.delegate,
+          GlobalWidgetsLocalizations.delegate,
+          GlobalCupertinoLocalizations.delegate,
+        ],
+        supportedLocales: AppLocalizations.supportedLocales,
+        navigatorKey: navigatorKey,
+        home: const _RootRouter(),
+      ),
     );
   }
 }

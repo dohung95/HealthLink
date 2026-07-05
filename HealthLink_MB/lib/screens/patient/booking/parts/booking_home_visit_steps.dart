@@ -478,10 +478,10 @@ extension _BookingHomeVisitSteps on _BookingScreenState {
             return CheckboxListTile(
               value: selected,
               title: Text(
-                service.serviceName,
+                service.serviceName.toLocalizedServiceName(context),
                 style: const TextStyle(fontWeight: FontWeight.w800),
               ),
-              subtitle: Text(service.description),
+              subtitle: Text(service.description.toLocalizedServiceDescription(context)),
               secondary: Text('\$${service.price.toStringAsFixed(2)}'),
               onChanged: (_) {
                 final next = [..._homeVisitDraft.selectedServices];
