@@ -3,6 +3,22 @@ import { toast } from 'react-toastify';
 import { consultationApi } from '@api/consultationApi';
 import { buildConsultation } from '@utils/doctor/tabHelpers';
 
+const stripHtml = (str) => {
+  if (!str) return '';
+  return str
+    .replace(/<br\s*\/?>/gi, '\n')
+    .replace(/<\/p>/gi, '\n')
+    .replace(/<[^>]*>/g, '')
+    .replace(/&nbsp;/g, ' ')
+    .replace(/&amp;/g, '&')
+    .replace(/&lt;/g, '<')
+    .replace(/&gt;/g, '>')
+    .replace(/&quot;/g, '"')
+    .replace(/&#39;/g, "'")
+    .replace(/\n{3,}/g, '\n\n')
+    .trim();
+};
+
 export function useConsultationNotes(appointmentId, appointment, appointmentDetail) {
   const [notesDraft, setNotesDraft] = useState({ diagnosis: '', doctorNotes: '', treatmentPlan: '' });
   const [savingNotes, setSavingNotes] = useState(false);
@@ -35,9 +51,9 @@ export function useConsultationNotes(appointmentId, appointment, appointmentDeta
     setSavingNotes(true);
     try {
       await consultationApi.updateAppointmentNotes(appointmentId, {
-        diagnosis: notesDraft.diagnosis,
-        doctorNotes: notesDraft.doctorNotes,
-        treatmentPlan: notesDraft.treatmentPlan,
+        diagnosis: stripHtml(notesDraft.diagnosis),
+        doctorNotes: stripHtml(notesDraft.doctorNotes),
+        treatmentPlan: stripHtml(notesDraft.treatmentPlan),
       });
     } catch (error) {
       console.error('Error saving consultation notes:', error);
