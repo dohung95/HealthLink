@@ -96,7 +96,7 @@ public class DoctorScheduleServiceImpl implements DoctorScheduleService {
                 .doctorScheduleStatus(doctor.getScheduleStatus())
                 .totalMonthlyHours(monthlyHours)
                 .requiredMonthlyHours(MIN_MONTHLY_HOURS)
-                .needsScheduleReconfirmation(doctor.isNeedsScheduleReconfirmation())
+                .needsScheduleReconfirmation(Boolean.TRUE.equals(doctor.getNeedsScheduleReconfirmation()))
                 .schedules(schedules.stream().map(this::mapScheduleToItem).collect(Collectors.toList()))
                 .exceptions(exceptions.stream().map(this::mapExceptionToItem).collect(Collectors.toList()))
                 .build();
@@ -106,7 +106,7 @@ public class DoctorScheduleServiceImpl implements DoctorScheduleService {
     public void confirmMonthlySchedule(String doctorId) {
         Doctor doctor = findDoctor(doctorId);
 
-        if (!doctor.isNeedsScheduleReconfirmation()) {
+        if (!Boolean.TRUE.equals(doctor.getNeedsScheduleReconfirmation())) {
             throw new BadRequestException("No schedule reconfirmation is currently pending.");
         }
 
@@ -830,7 +830,7 @@ public class DoctorScheduleServiceImpl implements DoctorScheduleService {
         List<DoctorSchedule> schedules = scheduleRepository.findByDoctor_DoctorId(doctorId);
 
         DoctorScheduleStatus oldStatus = doctor.getScheduleStatus();
-        boolean wasNeedingReconfirmation = doctor.isNeedsScheduleReconfirmation();
+        boolean wasNeedingReconfirmation = Boolean.TRUE.equals(doctor.getNeedsScheduleReconfirmation());
         DoctorScheduleStatus newStatus;
 
         if (schedules.isEmpty() || schedules.stream().noneMatch(DoctorSchedule::isAvailable)) {
