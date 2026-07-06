@@ -1,10 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { vitalSignApi } from '@api/vitalSignApi';
-import { shareApi } from '@api/shareRecordApi';
 import { useAuth } from '@context/AuthContext';
-import { toast } from 'sonner';
-import DocumentPreviewModal from '@components/doctor/DocumentPreviewModal';
 
 const formatDateTime = (value) => {
   if (!value) return 'N/A';
@@ -22,7 +19,6 @@ const formatDateTime = (value) => {
 const TABS = [
   { key: 'overview', label: 'Overview' },
   { key: 'timeline', label: 'Timeline' },
-  { key: 'documents', label: 'Documents' },
 ];
 
 const InfoField = ({ label, value, larger }) => (
@@ -32,10 +28,13 @@ const InfoField = ({ label, value, larger }) => (
   </div>
 );
 
+const TIMELINE_PAGE_SIZE = 7;
+
 export default function DoctorPatientDetailView({ patient, history, doctorId }) {
   const navigate = useNavigate();
   const { currentUserId, user: authUser } = useAuth();
   const [activeTab, setActiveTab] = useState('overview');
+  const [timelinePage, setTimelinePage] = useState(1);
   const [vitalSigns, setVitalSigns] = useState(null);
   const [loadingVitals, setLoadingVitals] = useState(true);
   useEffect(() => {
@@ -57,34 +56,6 @@ export default function DoctorPatientDetailView({ patient, history, doctorId }) 
       });
     return () => { mounted = false; };
   }, [patient?.id, patient?.patientId]);
-
-  const patientId = patient?.id || patient?.patientId || patient?.patientID || patient?.userId;
-  const [documents, setDocuments] = useState([]);
-  const [loadingDocuments, setLoadingDocuments] = useState(false);
-  const [previewDoc, setPreviewDoc] = useState(null);
-
-  useEffect(() => {
-    if (!doctorId || !patientId) return;
-    let mounted = true;
-    setLoadingDocuments(true);
-    shareApi.getSharedWithMe(doctorId)
-      .then((data) => {
-        if (!mounted) return;
-        const all = Array.isArray(data) ? data : data?.records || data?.items || [];
-        const filtered = all.filter((doc) => {
-          const pid = doc.patientId || doc.patientID || doc.patient?.patientId || doc.patient?.patientID;
-          return pid == patientId;
-        });
-        setDocuments(filtered);
-      })
-      .catch(() => {
-        if (mounted) setDocuments([]);
-      })
-      .finally(() => {
-        if (mounted) setLoadingDocuments(false);
-      });
-    return () => { mounted = false; };
-  }, [doctorId, patientId]);
 
   if (!patient) return null;
 
@@ -361,112 +332,87 @@ export default function DoctorPatientDetailView({ patient, history, doctorId }) 
     </div>
   );
 
-  const timelineItems = (history?.appointments || [])
+  const allTimelineItems = (history?.appointments || [])
     .filter((item) => String(item.status || '').toLowerCase() === 'completed')
     .map((item) => ({
-      type: 'Encounter',
       date: item.appointmentTime,
-      title: item.diagnosis || item.symptoms || 'Consultation',
-      subtitle: `${item.consultationType || 'Consultation'}`,
-      status: item.status,
+      consultationType: item.consultationType || 'Consultation',
       appointmentId: item.appointmentId,
     }))
     .sort((left, right) => new Date(right.date || 0) - new Date(left.date || 0));
 
+  const timelineTotalPages = Math.max(1, Math.ceil(allTimelineItems.length / TIMELINE_PAGE_SIZE));
+  const safeTimelinePage = Math.min(timelinePage, timelineTotalPages);
+  const timelineItems = allTimelineItems.slice(
+    (safeTimelinePage - 1) * TIMELINE_PAGE_SIZE,
+    safeTimelinePage * TIMELINE_PAGE_SIZE
+  );
+
+  const renderTimelinePagination = () => (
+    timelineTotalPages > 1 ? (
+      <div className="d-flex align-items-center justify-content-center gap-2 pt-2" style={{ borderTop: '1px solid var(--doctor-border-light)' }}>
+        <button
+          type="button"
+          className="btn btn-sm btn-outline-primary tl-page-btn"
+          style={{ padding: '0.2rem 0.5rem', fontSize: '0.7rem', background: 'transparent' }}
+          disabled={safeTimelinePage <= 1}
+          onClick={() => setTimelinePage((p) => Math.max(1, p - 1))}
+        >
+          <span className="material-symbols-outlined" style={{ fontSize: '0.75rem' }}>chevron_left</span>
+          Prev
+        </button>
+        <span style={{ fontSize: '0.75rem', color: 'var(--doctor-text-muted)', whiteSpace: 'nowrap' }}>
+          {safeTimelinePage} / {timelineTotalPages}
+        </span>
+        <button
+          type="button"
+          className="btn btn-sm btn-outline-primary tl-page-btn"
+          style={{ padding: '0.2rem 0.5rem', fontSize: '0.7rem', background: 'transparent' }}
+          disabled={safeTimelinePage >= timelineTotalPages}
+          onClick={() => setTimelinePage((p) => Math.min(timelineTotalPages, p + 1))}
+        >
+          Next
+          <span className="material-symbols-outlined" style={{ fontSize: '0.75rem' }}>chevron_right</span>
+        </button>
+      </div>
+    ) : null
+  );
+
   const renderTimeline = () => (
     <div style={{ display: 'flex', flexDirection: 'column', gap: '0.625rem' }}>
-      <p className="patient-section-title">Timeline</p>
-      {timelineItems.length === 0 ? (
+      <p className="patient-section-title" style={{ margin: 0 }}>Timeline</p>
+      {allTimelineItems.length === 0 ? (
         <p style={{ fontSize: '0.8rem', color: 'var(--doctor-text-muted)' }}>No completed appointments yet.</p>
       ) : (
-        timelineItems.map((item, idx) => (
-          <div
-            className="patient-timeline-item"
-            key={idx}
-            onClick={() => navigate('/doctor/appointments/history', { state: { selectedAppointmentId: item.appointmentId } })}
-            style={{ cursor: 'pointer' }}
-          >
-            <div className="patient-timeline-item__info">
-              <p className="patient-timeline-item__title">{formatDateTime(item.date)}</p>
-              <p className="patient-timeline-item__subtitle">{item.title}</p>
-              <p className="patient-timeline-item__diagnosis">{item.subtitle}</p>
-            </div>
-            <span className="patient-timeline-item__type patient-timeline-item__type--encounter">
-              {item.type}
-            </span>
-          </div>
-        ))
-      )}
-    </div>
-  );
-
-  const formatFileSize = (bytes) => {
-    if (!bytes) return '';
-    const kb = bytes / 1024;
-    if (kb < 1024) return `${kb.toFixed(1)} KB`;
-    return `${(kb / 1024).toFixed(1)} MB`;
-  };
-
-  const isImage = (doc) => {
-    const mime = (doc.mimeType || doc.fileType || '').toLowerCase();
-    return mime.startsWith('image/');
-  };
-
-  const renderDocuments = () => (
-    <div style={{ display: 'flex', flexDirection: 'column', gap: '0.625rem' }}>
-      <p className="patient-section-title">Shared Documents</p>
-      {loadingDocuments ? (
-        <p style={{ fontSize: '0.8rem', color: 'var(--doctor-text-muted)' }}>Loading documents...</p>
-      ) : documents.length === 0 ? (
-        <p style={{ fontSize: '0.8rem', color: 'var(--doctor-text-muted)' }}>No shared documents.</p>
-      ) : (
-        <div className="patient-documents-grid" style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '0.75rem' }}>
-          {documents.map((doc, idx) => {
-            const isImg = isImage(doc);
-            return (
-              <div
-                key={doc.recordId || doc.shareId || doc.id || idx}
-                className="patient-document-card"
-                onClick={() => setPreviewDoc(doc)}
-                style={{ cursor: 'pointer', border: '1px solid var(--doctor-border)', borderRadius: '8px', overflow: 'hidden', background: '#fff' }}
+        <>
+          {timelineItems.map((item, idx) => (
+            <div className="patient-timeline-item" key={idx}>
+              <span className="patient-timeline-item__title">{formatDateTime(item.date)}</span>
+              <span className="patient-timeline-item__type patient-timeline-item__type--pill">
+                {item.consultationType}
+              </span>
+              <span className="patient-timeline-item__encounter-label badge bg-success text-white" style={{fontSize:'0.7rem',fontWeight:600}}>Completed</span>
+              <button
+                className="patient-timeline-item__action"
+                onClick={() => navigate('/doctor/appointments/history', { state: { selectedAppointmentId: item.appointmentId } })}
+                type="button"
               >
-                {isImg ? (
-                  <div style={{ width: '100%', height: '100px', overflow: 'hidden', background: '#f5f5f5' }}>
-                    <img
-                      src={doc.fileUrl || doc.url || doc.documentUrl}
-                      alt={doc.documentName || doc.fileName || 'Document'}
-                      style={{ width: '100%', height: '100%', objectFit: 'cover' }}
-                    />
-                  </div>
-                ) : (
-                  <div style={{ width: '100%', height: '100px', display: 'flex', alignItems: 'center', justifyContent: 'center', background: '#f5f5f5', color: 'var(--doctor-text-muted)' }}>
-                    <i className="bi bi-file-text" style={{ fontSize: '2rem' }} />
-                  </div>
-                )}
-                <div style={{ padding: '0.5rem' }}>
-                  <p style={{ margin: 0, fontSize: '0.75rem', fontWeight: 600, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                    {doc.documentName || doc.fileName || 'Document'}
-                  </p>
-                  <p style={{ margin: '0.25rem 0 0', fontSize: '0.65rem', color: 'var(--doctor-text-muted)' }}>
-                    {doc.documentType || doc.category || doc.fileType || ''}{doc.fileSize ? ` • ${formatFileSize(doc.fileSize)}` : ''}
-                  </p>
-                </div>
-              </div>
-            );
-          })}
-        </div>
-      )}
-      {previewDoc && (
-        <DocumentPreviewModal document={previewDoc} onClose={() => setPreviewDoc(null)} />
+                View
+              </button>
+            </div>
+          ))}
+          {renderTimelinePagination()}
+        </>
       )}
     </div>
   );
+
+
 
   const renderTabContent = () => {
     switch (activeTab) {
       case 'overview': return renderOverview();
       case 'timeline': return renderTimeline();
-      case 'documents': return renderDocuments();
       default: return renderOverview();
     }
   };

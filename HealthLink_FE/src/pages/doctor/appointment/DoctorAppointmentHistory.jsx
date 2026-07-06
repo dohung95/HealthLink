@@ -250,10 +250,31 @@ export default function DoctorAppointmentHistory() {
     return [];
   };
 
-  const clinicalResults = useMemo(
-    () => patientHistory?.clinicalResults || [],
-    [patientHistory]
-  );
+  const [appointmentClinicalResults, setAppointmentClinicalResults] = useState([]);
+  const [loadingClinicalResults, setLoadingClinicalResults] = useState(false);
+  const [clinicalResultsRefreshKey, setClinicalResultsRefreshKey] = useState(0);
+
+  useEffect(() => {
+    if (!selectedAppointmentId) {
+      setAppointmentClinicalResults([]);
+      return;
+    }
+    let mounted = true;
+    setLoadingClinicalResults(true);
+    doctorClinicalResultApi.getAppointmentResults(selectedAppointmentId)
+      .then((data) => {
+        if (mounted) setAppointmentClinicalResults(data || []);
+      })
+      .catch(() => {
+        if (mounted) setAppointmentClinicalResults([]);
+      })
+      .finally(() => {
+        if (mounted) setLoadingClinicalResults(false);
+      });
+    return () => { mounted = false; };
+  }, [selectedAppointmentId, clinicalResultsRefreshKey]);
+
+  const clinicalResults = appointmentClinicalResults;
 
   const prescriptions = useMemo(
     () => patientHistory?.prescriptions || [],
@@ -262,6 +283,7 @@ export default function DoctorAppointmentHistory() {
 
   useEffect(() => {
     setSelectedClinicalResultId((current) => {
+      if (!clinicalResults.length) return null;
       if (clinicalResults.some((item) => getClinicalResultId(item) === current)) return current;
       return getClinicalResultId(clinicalResults[0]) ?? null;
     });
@@ -306,19 +328,31 @@ export default function DoctorAppointmentHistory() {
 
   const renderPagination = () => {
     if (totalPages <= 1) return null;
-    const pages = [];
-    const startPage = Math.max(1, safePage - 2);
-    const endPage = Math.min(totalPages, safePage + 2);
-    for (let i = startPage; i <= endPage; i++) pages.push(i);
     return (
-      <div className="d-flex align-items-center justify-content-center gap-2 mt-3">
-        <button className="btn btn-sm btn-outline-secondary" disabled={safePage <= 1} onClick={() => setCurrentPage(safePage - 1)} type="button">Prev</button>
-        {startPage > 1 && <span className="small text-muted">…</span>}
-        {pages.map((p) => (
-          <button key={p} className={`btn btn-sm ${p === safePage ? 'btn-primary' : 'btn-outline-secondary'}`} onClick={() => setCurrentPage(p)} type="button">{p}</button>
-        ))}
-        {endPage < totalPages && <span className="small text-muted">…</span>}
-        <button className="btn btn-sm btn-outline-secondary" disabled={safePage >= totalPages} onClick={() => setCurrentPage(safePage + 1)} type="button">Next</button>
+      <div className="d-flex align-items-center justify-content-center gap-2 pt-2" style={{ borderTop: '1px solid var(--doctor-border-light)' }}>
+        <button
+          type="button"
+          className="btn btn-sm btn-outline-primary tl-page-btn"
+          style={{ padding: '0.2rem 0.5rem', fontSize: '0.7rem', background: 'transparent' }}
+          disabled={safePage <= 1}
+          onClick={() => setCurrentPage((p) => Math.max(1, p - 1))}
+        >
+          <span className="material-symbols-outlined" style={{ fontSize: '0.75rem' }}>chevron_left</span>
+          Prev
+        </button>
+        <span style={{ fontSize: '0.75rem', color: 'var(--doctor-text-muted)', whiteSpace: 'nowrap' }}>
+          {safePage} / {totalPages}
+        </span>
+        <button
+          type="button"
+          className="btn btn-sm btn-outline-primary tl-page-btn"
+          style={{ padding: '0.2rem 0.5rem', fontSize: '0.7rem', background: 'transparent' }}
+          disabled={safePage >= totalPages}
+          onClick={() => setCurrentPage((p) => Math.min(totalPages, p + 1))}
+        >
+          Next
+          <span className="material-symbols-outlined" style={{ fontSize: '0.75rem' }}>chevron_right</span>
+        </button>
       </div>
     );
   };
@@ -446,11 +480,7 @@ export default function DoctorAppointmentHistory() {
               const docId = r.documentId ?? r.documentID;
               await doctorClinicalResultApi.publishResult(docId);
               toast.success('Clinical result published');
-              const pid = appointmentDetail?.patientId || appointmentDetail?.patientID;
-              if (pid) {
-                const h = await doctorService.getMyDoctorPatientHistory(pid);
-                if (h) setPatientHistory(h);
-              }
+              setClinicalResultsRefreshKey((k) => k + 1);
             } catch (err) {
               toast.error(err.response?.data?.message || 'Failed to publish clinical result');
             }
@@ -844,12 +874,7 @@ export default function DoctorAppointmentHistory() {
             onClose={() => setEditModalOpen(false)}
             onSaved={(savedResult) => {
               setEditModalOpen(false);
-              const pid = appointmentDetail?.patientId || appointmentDetail?.patientID;
-              if (pid) {
-                doctorService.getMyDoctorPatientHistory(pid).then((h) => {
-                  if (h) setPatientHistory(h);
-                });
-              }
+              setClinicalResultsRefreshKey((k) => k + 1);
             }}
             canManageClinicalResults={true}
           />

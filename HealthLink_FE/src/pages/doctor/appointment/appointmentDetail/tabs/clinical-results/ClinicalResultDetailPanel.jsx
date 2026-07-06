@@ -229,36 +229,48 @@ export default function ClinicalResultDetailPanel({ result, canManage, onEdit, o
       {result.fileLocation && (
         <div className="cr-detail-panel__card">
           <div className="cr-detail-panel__card-header">
-            <div className="cr-detail-panel__section-label">Documents</div>
+            <div className="cr-detail-panel__section-label">Attachment</div>
           </div>
           <div className="cr-detail-panel__card-body">
-            <div className="cr-detail-panel__file">
-              {showImageInline ? (
-                <div className="cr-detail-panel__image-preview">
-                  <img
-                    src={fileUrl}
-                    alt="Result attachment"
-                    onClick={() => setViewerOpen(true)}
+            {showImageInline ? (
+              <div className="cr-detail-panel__image-preview">
+                <img
+                  src={fileUrl}
+                  alt={result.documentName || result.testName || 'Attachment'}
+                  onClick={() => setViewerOpen(true)}
+                />
+                {viewerOpen && (
+                  <DocumentViewerModal
+                    show={viewerOpen}
+                    onHide={() => setViewerOpen(false)}
+                    document={result}
                   />
-                  {viewerOpen && (
-                    <DocumentViewerModal
-                      show={viewerOpen}
-                      onHide={() => setViewerOpen(false)}
-                      document={result}
-                    />
-                  )}
+                )}
+                <div className="cr-attach-credit">
+                  <i className="bi bi-arrows-angle-expand"></i>
+                  <span>{result.documentName || result.fileLocation?.split('/').pop() || 'View full size'}</span>
                 </div>
-              ) : (
-                <a
-                  href={fileUrl}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="cr-link"
-                >
-                  <i className="bi bi-eye"></i> View file
-                </a>
-              )}
-            </div>
+              </div>
+            ) : (
+              <a
+                href={fileUrl}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="cr-attach-link"
+              >
+                <span className="cr-attach-link__icon">
+                  <i className="bi bi-file-earmark-text"></i>
+                </span>
+                <span className="cr-attach-link__info">
+                  <span className="cr-attach-link__name">
+                    {result.documentName || result.fileLocation?.split('/').pop() || 'View file'}
+                  </span>
+                  <span className="cr-attach-link__hint">
+                    <i className="bi bi-box-arrow-up-right"></i> Open in new tab
+                  </span>
+                </span>
+              </a>
+            )}
           </div>
         </div>
       )}

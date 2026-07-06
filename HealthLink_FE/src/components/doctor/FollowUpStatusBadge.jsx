@@ -1,8 +1,8 @@
 import React from 'react';
 
 const STATUS_CONFIG = {
-  PENDING_PAYMENT: { label: 'Payment Pending', icon: 'bi-hourglass-split', className: 'bg-warning text-dark' },
-  PAID: { label: 'Payment Received', icon: 'bi-check-circle', className: 'bg-info text-dark' },
+  PENDING_PAYMENT: { label: 'Payment Pending', icon: 'bi-hourglass-split', className: 'bg-warning text-white' },
+  PAID: { label: 'Payment Received', icon: 'bi-check-circle', className: 'bg-success text-white' },
   CONFIRMED: { label: 'Confirmed', icon: 'bi-check2-all', className: 'bg-success' },
   NONE: { label: 'No Follow-up', icon: 'bi-x-circle', className: 'bg-secondary' },
 };

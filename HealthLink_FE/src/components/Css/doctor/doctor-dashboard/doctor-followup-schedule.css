@@ -690,6 +690,89 @@
   margin: 0;
 }
 
+/* ---- Pending Payment State (two buttons side-by-side) ---- */
+.fu-status-card__pending {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 0.5rem;
+}
+
+.fu-status-card__pending .fu-status-waiting-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.4rem;
+  padding: 0.5rem 0.75rem;
+  border: 1px solid var(--doctor-border, #e2e8f0);
+  border-radius: var(--radius-md);
+  background: var(--doctor-surface-muted, #f8fafc);
+  color: var(--doctor-text-muted, #64748b);
+  font-size: 0.75rem;
+  font-weight: 600;
+  cursor: default;
+  transition: all 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+  line-height: 1.3;
+  white-space: nowrap;
+}
+
+.fu-status-card__pending .fu-status-waiting-btn i {
+  font-size: 0.875rem;
+  color: var(--doctor-warning, #f59e0b);
+}
+
+.fu-status-card__pending .fu-status-waiting-btn .fu-pulse-dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: var(--doctor-warning, #f59e0b);
+  animation: fuPulse 1.5s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+  flex-shrink: 0;
+}
+
+@keyframes fuPulse {
+  0%, 100% { opacity: 1; transform: scale(1); }
+  50% { opacity: 0.5; transform: scale(0.85); }
+}
+
+.fu-status-card__pending .fu-status-cancel-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0.5rem 0.75rem;
+  border: none;
+  border-radius: var(--radius-md);
+  background: var(--doctor-danger, #dc2626);
+  color: #ffffff;
+  font-size: 0.75rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+  line-height: 1.3;
+  white-space: nowrap;
+  font-family: inherit;
+}
+
+.fu-status-card__pending .fu-status-cancel-btn:hover:not(:disabled) {
+  background: #b91c1c;
+  box-shadow: 0 2px 8px rgba(220, 38, 38, 0.25);
+}
+
+.fu-status-card__pending .fu-status-cancel-btn:active:not(:disabled) {
+  transform: scale(0.97);
+}
+
+.fu-status-card__pending .fu-status-cancel-btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+  background: var(--doctor-text-muted, #64748b);
+}
+
+@media (max-width: 576px) {
+  .fu-status-card__pending {
+    grid-template-columns: 1fr;
+  }
+}
+
 .fu-type-btn {
   display: flex;
   align-items: center;

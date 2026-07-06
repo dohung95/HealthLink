@@ -10,7 +10,6 @@ import {
 import { useAppointmentDetail } from '@hooks/doctor/useAppointmentDetail';
 import NotesTab from './tabs/NotesTab';
 import HistoryTab from './tabs/HistoryTab';
-import PrescriptionTab from './tabs/PrescriptionTab';
 import SharedRecordsTab from './tabs/SharedRecordsTab';
 import FollowUpTab from './tabs/FollowUpTab';
 import ClinicalResultsTab from './tabs/ClinicalResultsTab';
@@ -26,7 +25,6 @@ const TABS = [
   { id: 'history', label: 'Medical History', icon: 'bi-clock-history' },
   { id: 'shared', label: 'Shared Records', icon: 'bi-folder2-open' },
   { id: 'clinical-results', label: 'Clinical Results', icon: 'bi-clipboard2-pulse' },
-  { id: 'prescription', label: 'Prescription', icon: 'bi-capsule-pill' },
   { id: 'followup', label: 'Follow-up', icon: 'bi-calendar-check' },
 ];
 
@@ -199,19 +197,7 @@ const DoctorAppointmentDetail = memo(({ appointment, patient, doctorId, activeMi
                       isCancelledAppointment={ctx.isCancelledAppointment}
                     />
                   ) : null}
-                  {ctx.activeTab === 'prescription' ? (
-                    <PrescriptionTab
-                      appointment={ctx.currentAppointment}
-                      patient={ctx.patient}
-                      consultation={ctx.consultation}
-                      prescription={ctx.prescription}
-                      prescriptionDraft={ctx.prescriptionDraft}
-                      loadingPrescription={ctx.loadingPrescription}
-                      onDraftChange={ctx.setPrescriptionDraft}
-                      readOnly={ctx.isReadOnlyAppointment}
-                      canEditPrescription={ctx.canEditPrescription}
-                    />
-                  ) : null}
+
                   {ctx.activeTab === 'followup' ? (
                     <FollowUpTab
                       canEditFollowUp={ctx.canEditFollowUp}
@@ -243,7 +229,6 @@ const DoctorAppointmentDetail = memo(({ appointment, patient, doctorId, activeMi
                       followUpPaymentStatus={ctx.followUpPaymentStatus}
                       sendingPaymentRequest={ctx.sendingPaymentRequest}
                       handleSendPaymentRequest={ctx.handleSendPaymentRequest}
-                      pendingPaymentCountdown={ctx.pendingPaymentCountdown}
                       canCancelPendingPayment={ctx.canCancelPendingPayment}
                       cancelingPaymentRequest={ctx.cancelingPaymentRequest}
                       handleCancelPendingPayment={ctx.handleCancelPendingPayment}

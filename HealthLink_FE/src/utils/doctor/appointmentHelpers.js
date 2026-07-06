@@ -21,6 +21,11 @@ export const STATUS_TONES = {
     railClass: 'doctor-appointment-card__rail--inprogress',
     dot: 'bg-warning',
   },
+  inconsultation: {
+    badge: 'badge bg-primary text-white',
+    railClass: 'doctor-appointment-card__rail--inprogress',
+    dot: 'bg-primary',
+  },
   default: {
     badge: 'badge bg-surface-container text-text-main',
     railClass: '',
@@ -115,12 +120,17 @@ export const getDisplayStatus = (appointment) => {
 
   if (normalized.includes('cancel')) return 'Cancelled';
   if (normalized.includes('complete')) return 'Completed';
-  if (normalized.includes('progress') || (hasStarted && normalized.includes('scheduled'))) return 'In Progress';
+  if (normalized.includes('consultation') || normalized.includes('progress') || (hasStarted && normalized.includes('scheduled'))) return 'In Progress';
   if (normalized.includes('scheduled')) return 'Scheduled';
   return status;
 };
 
-export const getStatusKey = (appointment) => getDisplayStatus(appointment).toLowerCase().replace(/[\s_-]/g, '');
+export const getStatusKey = (appointment) => {
+  const status = String(appointment?.status || 'Scheduled');
+  const normalized = status.toLowerCase().replace(/[\s_-]/g, '');
+  if (normalized.includes('consultation')) return 'inconsultation';
+  return getDisplayStatus(appointment).toLowerCase().replace(/[\s_-]/g, '');
+};
 
 export const getDurationLabel = (appointment) => {
   const start = appointment?.consultationStartTime ? new Date(appointment.consultationStartTime) : null;

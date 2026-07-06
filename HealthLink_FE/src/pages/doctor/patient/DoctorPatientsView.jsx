@@ -72,7 +72,7 @@ export default function DoctorPatientsView() {
           search,
           status: statusFilter,
           page,
-          pageSize: 12,
+          pageSize: 10,
         });
         if (!mounted) return;
         setPatients(data.patients || []);

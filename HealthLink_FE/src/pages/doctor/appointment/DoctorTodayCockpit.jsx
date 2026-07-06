@@ -1,9 +1,10 @@
-import React, { useEffect, useMemo, useState, useCallback } from 'react';
+import React, { useEffect, useMemo, useState, useCallback, useRef } from 'react';
 import { useNavigate, useOutletContext } from 'react-router-dom';
 import { doctorService, doctorScheduleService } from '@api/doctorApi';
 import NextAppointmentCard from '@components/doctor/NextAppointmentCard';
 import AppointmentCard from '@components/doctor/AppointmentCard';
 import TodayTimeline from '@components/doctor/TodayTimeline';
+import { toast } from 'sonner';
 import { DoctorSkeletonList } from '@components/doctor/DoctorSkeleton';
 import DoctorEmptyState from '@components/doctor/DoctorEmptyState';
 import DoctorErrorState from '@components/doctor/DoctorErrorState';
@@ -29,6 +30,7 @@ export default function DoctorTodayCockpit() {
   const [error, setError] = useState(null);
   const [pollTick, setPollTick] = useState(0);
   const [calendarData, setCalendarData] = useState([]);
+  const knownAppointmentIdsRef = useRef(new Set());
 
   const isToday = useMemo(() => {
     const d = new Date(`${selectedDate}T00:00:00`);
@@ -68,7 +70,18 @@ export default function DoctorTodayCockpit() {
         // Always fetch all appointments, filter client-side
         const data = await doctorService.getDoctorDailyAppointments(doctorId, selectedDate, 'All');
         if (mounted) {
-          setAllAppointments(data.appointments || []);
+          const appointments = data.appointments || [];
+          const newIds = new Set(appointments.map((a) => a.appointmentID || a.appointmentId));
+          if (knownAppointmentIdsRef.current.size > 0) {
+            for (const appt of appointments) {
+              const id = appt.appointmentID || appt.appointmentId;
+              if (!knownAppointmentIdsRef.current.has(id)) {
+                toast.info(`New appointment: ${getPatientName(appt)}`);
+              }
+            }
+          }
+          knownAppointmentIdsRef.current = newIds;
+          setAllAppointments(appointments);
         }
       } catch (err) {
         console.error('Error fetching daily appointments:', err);
