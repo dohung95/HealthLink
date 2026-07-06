@@ -287,35 +287,41 @@ public class HealthRecordServiceImpl implements HealthRecordService {
         if (existingShareOpt.isPresent()) {
             HealthRecordShare existingShare = existingShareOpt.get();
 
-            boolean allowMerge = Boolean.TRUE.equals(request.getAllowMerge());
+            boolean sameAppointment = request.getAppointmentId() != null
+                    && existingShare.getAppointmentId() != null
+                    && request.getAppointmentId().equals(existingShare.getAppointmentId());
 
-            if (!allowMerge) {
-                throw new BusinessException(
-                        "This record is already shared with this doctor. Please revoke the existing share before sharing again."
+            if (sameAppointment) {
+                boolean allowMerge = Boolean.TRUE.equals(request.getAllowMerge());
+
+                if (!allowMerge) {
+                    throw new BusinessException(
+                            "This record is already shared with this doctor. Please revoke the existing share before sharing again."
+                    );
+                }
+
+                String mergedDocumentIds = mergeDocumentIds(
+                        existingShare.getSharedDocumentIds(),
+                        request.getSharedDocumentIds()
                 );
+
+                if (existingShare.getSharedDocumentIds() != null
+                        && existingShare.getSharedDocumentIds().equals(mergedDocumentIds)) {
+                    throw new BusinessException("These documents are already shared with this doctor.");
+                }
+
+                existingShare.setSharedDocumentIds(mergedDocumentIds);
+
+                if (request.getPermissionLevel() != null && !request.getPermissionLevel().isBlank()) {
+                    existingShare.setPermissionLevel(request.getPermissionLevel());
+                }
+
+                if (request.getExpiryDate() != null) {
+                    existingShare.setExpiryDate(request.getExpiryDate());
+                }
+
+                return toShareResponse(healthRecordShareRepository.save(existingShare));
             }
-
-            String mergedDocumentIds = mergeDocumentIds(
-                    existingShare.getSharedDocumentIds(),
-                    request.getSharedDocumentIds()
-            );
-
-            if (existingShare.getSharedDocumentIds() != null
-                    && existingShare.getSharedDocumentIds().equals(mergedDocumentIds)) {
-                throw new BusinessException("These documents are already shared with this doctor.");
-            }
-
-            existingShare.setSharedDocumentIds(mergedDocumentIds);
-
-            if (request.getPermissionLevel() != null && !request.getPermissionLevel().isBlank()) {
-                existingShare.setPermissionLevel(request.getPermissionLevel());
-            }
-
-            if (request.getExpiryDate() != null) {
-                existingShare.setExpiryDate(request.getExpiryDate());
-            }
-
-            return toShareResponse(healthRecordShareRepository.save(existingShare));
         }
 
         String docIds = null;
