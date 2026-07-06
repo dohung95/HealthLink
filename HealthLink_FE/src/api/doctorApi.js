@@ -131,6 +131,14 @@ export const doctorScheduleService = {
   },
 
   /**
+   * Confirm the carried-over schedule for the new month (clears reconfirmation prompt)
+   */
+  confirmMonthlySchedule: async () => {
+    const response = await axiosInstance.post('/api/doctors/schedule/confirm-monthly');
+    return response.data;
+  },
+
+  /**
    * Create a new weekly schedule entry
    */
   createSchedule: async (data) => {

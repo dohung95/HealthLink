@@ -68,6 +68,7 @@ const WeeklyScheduleBuilder = ({
   const [editingSchedule, setEditingSchedule] = useState(null);
   const [saving, setSaving] = useState(false);
   const [showConfirmDialog, setShowConfirmDialog] = useState(false);
+  const [confirmingSchedule, setConfirmingSchedule] = useState(false);
 
   // Change request modal state
   const [showChangeRequestModal, setShowChangeRequestModal] = useState(false);
@@ -213,6 +214,21 @@ const WeeklyScheduleBuilder = ({
   const totalHours = scheduleData?.totalMonthlyHours || 0;
   const requiredHours = scheduleData?.requiredMonthlyHours || 80;
   const doctorStatus = scheduleData?.doctorScheduleStatus || 'PENDING';
+  const needsReconfirmation = !!scheduleData?.needsScheduleReconfirmation;
+
+  const handleConfirmMonthlySchedule = async () => {
+    try {
+      setConfirmingSchedule(true);
+      await doctorScheduleService.confirmMonthlySchedule();
+      toast.success('Schedule confirmed for this month.');
+      onRefresh();
+    } catch (err) {
+      console.error('Error confirming monthly schedule:', err);
+      toast.error(err.response?.data?.message || 'Failed to confirm schedule.');
+    } finally {
+      setConfirmingSchedule(false);
+    }
+  };
 
   return (
     <div>
@@ -244,30 +260,62 @@ const WeeklyScheduleBuilder = ({
                 doctorStatus === 'REJECTED' ? 'Schedule Not Approved' : 'Schedule Pending'}
             </div>
             <div style={{ fontSize: '0.875rem', color: doctorStatus === 'APPROVED' ? '#15803d' : doctorStatus === 'REJECTED' ? '#b91c1c' : '#a16207' }}>
-              {totalHours.toFixed(1)}h / {requiredHours}h per month
-              {doctorStatus !== 'APPROVED' && ` (need ${(requiredHours - totalHours).toFixed(1)}h more)`}
+              {needsReconfirmation
+                ? `Your schedule from last month carries over and still meets the ${requiredHours}h/month requirement — please reconfirm to stay visible to patients.`
+                : <>
+                    {totalHours.toFixed(1)}h / {requiredHours}h per month
+                    {doctorStatus !== 'APPROVED' && ` (need ${(requiredHours - totalHours).toFixed(1)}h more)`}
+                  </>}
             </div>
           </div>
         </div>
-        <span
-          className={`doctor-status-badge ${
-            doctorStatus === 'APPROVED' ? 'doctor-status-badge--compliant' :
-              doctorStatus === 'REJECTED' ? 'doctor-status-badge--non-compliant' :
-                'doctor-status-badge--pending'
-          }`}
-          style={{ fontSize: '0.6875rem', padding: '0.25rem 0.625rem', gap: '0.375rem' }}
-        >
+        <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
           <span
-            style={{
-              width: '6px',
-              height: '6px',
-              borderRadius: '50%',
-              background: 'currentColor',
-              flexShrink: 0,
-            }}
-          />
-          {doctorStatus}
-        </span>
+            className={`doctor-status-badge ${
+              doctorStatus === 'APPROVED' ? 'doctor-status-badge--compliant' :
+                doctorStatus === 'REJECTED' ? 'doctor-status-badge--non-compliant' :
+                  'doctor-status-badge--pending'
+            }`}
+            style={{ fontSize: '0.6875rem', padding: '0.25rem 0.625rem', gap: '0.375rem' }}
+          >
+            <span
+              style={{
+                width: '6px',
+                height: '6px',
+                borderRadius: '50%',
+                background: 'currentColor',
+                flexShrink: 0,
+              }}
+            />
+            {doctorStatus}
+          </span>
+          {needsReconfirmation && (
+            <button
+              type="button"
+              onClick={handleConfirmMonthlySchedule}
+              disabled={confirmingSchedule}
+              style={{
+                display: 'flex',
+                alignItems: 'center',
+                gap: '0.375rem',
+                padding: '0.375rem 0.75rem',
+                borderRadius: 'var(--radius-md, 0.5rem)',
+                border: 'none',
+                background: 'linear-gradient(135deg, #0052cc 0%, #0047b3 100%)',
+                color: '#fff',
+                fontSize: '0.75rem',
+                fontWeight: 600,
+                cursor: confirmingSchedule ? 'not-allowed' : 'pointer',
+                opacity: confirmingSchedule ? 0.7 : 1,
+              }}
+            >
+              <span className="material-symbols-outlined" style={{ fontSize: '1rem' }}>
+                {confirmingSchedule ? 'progress_activity' : 'check_circle'}
+              </span>
+              {confirmingSchedule ? 'Confirming...' : 'Update Schedule'}
+            </button>
+          )}
+        </div>
       </div>
 
       {/* Action Bar */}

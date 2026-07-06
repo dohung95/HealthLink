@@ -90,6 +90,12 @@ public class Doctor {
     @Builder.Default
     private DoctorScheduleStatus scheduleStatus = DoctorScheduleStatus.PENDING;
 
+    // true khi lịch làm việc của bác sĩ đã kéo qua tháng mới và cần bác sĩ xác nhận lại
+    // (được set bởi job đầu tháng, xóa khi bác sĩ bấm xác nhận hoặc chỉnh sửa lịch)
+    @Column(name = "NeedsScheduleReconfirmation")
+    @Builder.Default
+    private boolean needsScheduleReconfirmation = false;
+
     private Double averageRating; // Điểm đánh giá trung bình từ các bệnh nhân cũ (VD: 4.8/5 sao)
     private Integer totalReviews; // Tổng số lượt bệnh nhân đã để lại đánh giá cho bác sĩ này
 
