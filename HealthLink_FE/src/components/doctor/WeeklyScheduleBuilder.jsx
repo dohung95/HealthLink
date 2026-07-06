@@ -249,18 +249,25 @@ const WeeklyScheduleBuilder = ({
             </div>
           </div>
         </div>
-        <div style={{
-          padding: '0.375rem 0.75rem',
-          borderRadius: 'var(--radius-md, 0.5rem)',
-          fontSize: '0.75rem',
-          fontWeight: 600,
-          textTransform: 'uppercase',
-          letterSpacing: '0.05em',
-          background: doctorStatus === 'APPROVED' ? '#16a34a' : doctorStatus === 'REJECTED' ? '#dc2626' : '#ca8a04',
-          color: '#fff',
-        }}>
+        <span
+          className={`doctor-status-badge ${
+            doctorStatus === 'APPROVED' ? 'doctor-status-badge--compliant' :
+              doctorStatus === 'REJECTED' ? 'doctor-status-badge--non-compliant' :
+                'doctor-status-badge--pending'
+          }`}
+          style={{ fontSize: '0.6875rem', padding: '0.25rem 0.625rem', gap: '0.375rem' }}
+        >
+          <span
+            style={{
+              width: '6px',
+              height: '6px',
+              borderRadius: '50%',
+              background: 'currentColor',
+              flexShrink: 0,
+            }}
+          />
           {doctorStatus}
-        </div>
+        </span>
       </div>
 
       {/* Action Bar */}

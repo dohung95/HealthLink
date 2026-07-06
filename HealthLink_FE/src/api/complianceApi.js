@@ -1,40 +1,6 @@
 import axiosInstance from './axiosConfig';
 
 /**
- * Doctor Compliance API Service
- * For doctors to check their schedule compliance status
- */
-export const doctorComplianceService = {
-  /**
-   * Get compliance status for current month and next month
-   */
-  getComplianceStatus: async () => {
-    const response = await axiosInstance.get('/api/doctors/compliance/status');
-    return response.data;
-  },
-
-  /**
-   * Check compliance for a specific month
-   * @param {string} month - Format: YYYY-MM
-   */
-  checkCompliance: async (month) => {
-    const response = await axiosInstance.get('/api/doctors/compliance/check', {
-      params: { month }
-    });
-    return response.data;
-  },
-
-  /**
-   * Validate current schedule and get compliance warnings
-   * @param {Object} request - Optional { targetMonth: 'YYYY-MM' }
-   */
-  validateSchedule: async (request = {}) => {
-    const response = await axiosInstance.post('/api/doctors/compliance/validate', request);
-    return response.data;
-  },
-};
-
-/**
  * Admin Compliance API Service
  * For admin to manage and monitor doctor compliance
  */
@@ -127,6 +93,5 @@ export const adminComplianceService = {
 };
 
 export default {
-  doctor: doctorComplianceService,
   admin: adminComplianceService,
 };
