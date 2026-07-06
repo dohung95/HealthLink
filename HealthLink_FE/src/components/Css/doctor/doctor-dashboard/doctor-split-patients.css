@@ -1584,3 +1584,32 @@
     grid-template-columns: 1fr;
   }
 }
+
+.document-preview-detail {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.document-preview-detail__label {
+  font-size: 0.75rem;
+  color: var(--doctor-text-muted);
+  min-width: 80px;
+  flex-shrink: 0;
+}
+
+.document-preview-detail__value {
+  font-size: 0.85rem;
+  color: var(--doctor-text);
+  font-weight: 500;
+}
+
+.patient-document-card:hover {
+  box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+}
+
+@media (max-width: 767.98px) {
+  .patient-documents-grid {
+    grid-template-columns: repeat(2, 1fr) !important;
+  }
+}

@@ -1,8 +1,10 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { vitalSignApi } from '@api/vitalSignApi';
+import { shareApi } from '@api/shareRecordApi';
 import { useAuth } from '@context/AuthContext';
 import { toast } from 'sonner';
+import DocumentPreviewModal from '@components/doctor/DocumentPreviewModal';
 
 const formatDateTime = (value) => {
   if (!value) return 'N/A';
@@ -20,6 +22,7 @@ const formatDateTime = (value) => {
 const TABS = [
   { key: 'overview', label: 'Overview' },
   { key: 'timeline', label: 'Timeline' },
+  { key: 'documents', label: 'Documents' },
 ];
 
 const InfoField = ({ label, value, larger }) => (
@@ -54,6 +57,34 @@ export default function DoctorPatientDetailView({ patient, history, doctorId }) 
       });
     return () => { mounted = false; };
   }, [patient?.id, patient?.patientId]);
+
+  const patientId = patient?.id || patient?.patientId || patient?.patientID || patient?.userId;
+  const [documents, setDocuments] = useState([]);
+  const [loadingDocuments, setLoadingDocuments] = useState(false);
+  const [previewDoc, setPreviewDoc] = useState(null);
+
+  useEffect(() => {
+    if (!doctorId || !patientId) return;
+    let mounted = true;
+    setLoadingDocuments(true);
+    shareApi.getSharedWithMe(doctorId)
+      .then((data) => {
+        if (!mounted) return;
+        const all = Array.isArray(data) ? data : data?.records || data?.items || [];
+        const filtered = all.filter((doc) => {
+          const pid = doc.patientId || doc.patientID || doc.patient?.patientId || doc.patient?.patientID;
+          return pid == patientId;
+        });
+        setDocuments(filtered);
+      })
+      .catch(() => {
+        if (mounted) setDocuments([]);
+      })
+      .finally(() => {
+        if (mounted) setLoadingDocuments(false);
+      });
+    return () => { mounted = false; };
+  }, [doctorId, patientId]);
 
   if (!patient) return null;
 
@@ -369,10 +400,73 @@ export default function DoctorPatientDetailView({ patient, history, doctorId }) 
     </div>
   );
 
+  const formatFileSize = (bytes) => {
+    if (!bytes) return '';
+    const kb = bytes / 1024;
+    if (kb < 1024) return `${kb.toFixed(1)} KB`;
+    return `${(kb / 1024).toFixed(1)} MB`;
+  };
+
+  const isImage = (doc) => {
+    const mime = (doc.mimeType || doc.fileType || '').toLowerCase();
+    return mime.startsWith('image/');
+  };
+
+  const renderDocuments = () => (
+    <div style={{ display: 'flex', flexDirection: 'column', gap: '0.625rem' }}>
+      <p className="patient-section-title">Shared Documents</p>
+      {loadingDocuments ? (
+        <p style={{ fontSize: '0.8rem', color: 'var(--doctor-text-muted)' }}>Loading documents...</p>
+      ) : documents.length === 0 ? (
+        <p style={{ fontSize: '0.8rem', color: 'var(--doctor-text-muted)' }}>No shared documents.</p>
+      ) : (
+        <div className="patient-documents-grid" style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '0.75rem' }}>
+          {documents.map((doc, idx) => {
+            const isImg = isImage(doc);
+            return (
+              <div
+                key={doc.recordId || doc.shareId || doc.id || idx}
+                className="patient-document-card"
+                onClick={() => setPreviewDoc(doc)}
+                style={{ cursor: 'pointer', border: '1px solid var(--doctor-border)', borderRadius: '8px', overflow: 'hidden', background: '#fff' }}
+              >
+                {isImg ? (
+                  <div style={{ width: '100%', height: '100px', overflow: 'hidden', background: '#f5f5f5' }}>
+                    <img
+                      src={doc.fileUrl || doc.url || doc.documentUrl}
+                      alt={doc.documentName || doc.fileName || 'Document'}
+                      style={{ width: '100%', height: '100%', objectFit: 'cover' }}
+                    />
+                  </div>
+                ) : (
+                  <div style={{ width: '100%', height: '100px', display: 'flex', alignItems: 'center', justifyContent: 'center', background: '#f5f5f5', color: 'var(--doctor-text-muted)' }}>
+                    <i className="bi bi-file-text" style={{ fontSize: '2rem' }} />
+                  </div>
+                )}
+                <div style={{ padding: '0.5rem' }}>
+                  <p style={{ margin: 0, fontSize: '0.75rem', fontWeight: 600, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                    {doc.documentName || doc.fileName || 'Document'}
+                  </p>
+                  <p style={{ margin: '0.25rem 0 0', fontSize: '0.65rem', color: 'var(--doctor-text-muted)' }}>
+                    {doc.documentType || doc.category || doc.fileType || ''}{doc.fileSize ? ` • ${formatFileSize(doc.fileSize)}` : ''}
+                  </p>
+                </div>
+              </div>
+            );
+          })}
+        </div>
+      )}
+      {previewDoc && (
+        <DocumentPreviewModal document={previewDoc} onClose={() => setPreviewDoc(null)} />
+      )}
+    </div>
+  );
+
   const renderTabContent = () => {
     switch (activeTab) {
       case 'overview': return renderOverview();
       case 'timeline': return renderTimeline();
+      case 'documents': return renderDocuments();
       default: return renderOverview();
     }
   };
