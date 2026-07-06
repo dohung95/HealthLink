@@ -420,9 +420,9 @@ public class DoctorScheduleServiceImpl implements DoctorScheduleService {
      * Validate (and for Home visit, normalize) the schedule request.
      *
      * - Home visit: lịch theo CA cố định (Sáng/Chiều/Tối). Server gán cứng giờ theo khung của ca,
-     *   để mỗi ca = đúng 1 slot đặt được (slotDuration = độ dài ca) và tối đa 1 bệnh nhân/ca.
+     *   để mỗi ca = đúng 1 slot đặt được (slotDuration = độ dài ca) và tối đa 2 bệnh nhân/ca.
      * - Online: giờ nhập tự do nhưng phải nằm gọn trong MỘT khung cho phép
-     *   (Sáng 07:00–10:30, Chiều 13:00–17:30, Tối 19:00–21:00).
+     *   (Sáng 07:00–10:30, Chiều 13:00–17:30, Tối 19:00–21:00), tối đa 1 bệnh nhân/slot.
      */
     private void validateScheduleRequest(DoctorScheduleRequest request) {
         if (isHomeVisitType(request.getConsultationType())) {
@@ -435,7 +435,11 @@ public class DoctorScheduleServiceImpl implements DoctorScheduleService {
             request.setStartTime(window[0]);
             request.setEndTime(window[1]);
             request.setSlotDuration((int) Duration.between(window[0], window[1]).toMinutes());
-            request.setMaxPatients(1);
+            int homeVisitMaxPatients = request.getMaxPatients() != null ? request.getMaxPatients() : 1;
+            if (homeVisitMaxPatients < 1 || homeVisitMaxPatients > 2) {
+                throw new BadRequestException("Home visit max patients per slot must be between 1 and 2");
+            }
+            request.setMaxPatients(homeVisitMaxPatients);
             return;
         }
 
@@ -458,6 +462,11 @@ public class DoctorScheduleServiceImpl implements DoctorScheduleService {
         if (request.getSlotDuration() != null && (request.getSlotDuration() < 10 || request.getSlotDuration() > 120)) {
             throw new BadRequestException("Slot duration must be between 10 and 120 minutes");
         }
+        int onlineMaxPatients = request.getMaxPatients() != null ? request.getMaxPatients() : 1;
+        if (onlineMaxPatients != 1) {
+            throw new BadRequestException("Online max patients per slot is limited to 1");
+        }
+        request.setMaxPatients(onlineMaxPatients);
     }
 
     /**
@@ -561,12 +570,21 @@ public class DoctorScheduleServiceImpl implements DoctorScheduleService {
 
         String status;
         List<CalendarDayResponse.SlotInfo> slots = new ArrayList<>();
+        List<CalendarDayResponse.ScheduleBlock> scheduleBlocks = new ArrayList<>();
+        boolean hasOnline = false;
+        boolean hasHomeVisit = false;
 
         if (exception != null && exception.getExceptionType() == ScheduleExceptionType.DAY_OFF) {
             status = "DAY_OFF";
         } else if (exception != null && exception.getExceptionType() == ScheduleExceptionType.MODIFIED) {
             status = "MODIFIED";
             slots = generateSlots(doctor.getDoctorId(), date, exception.getStartTime(), exception.getEndTime(), 30, now);
+            hasOnline = true; // exception overrides are plain time ranges, not home-visit shifts
+            scheduleBlocks.add(CalendarDayResponse.ScheduleBlock.builder()
+                    .startTime(exception.getStartTime())
+                    .endTime(exception.getEndTime())
+                    .consultationType("Online")
+                    .build());
         } else {
             // Normal schedules
             List<DoctorSchedule> daySchedules = schedules.stream()
@@ -580,12 +598,29 @@ public class DoctorScheduleServiceImpl implements DoctorScheduleService {
                 for (DoctorSchedule schedule : daySchedules) {
                     int slotDuration = schedule.getSlotDuration() != null ? schedule.getSlotDuration() : 30;
                     slots.addAll(generateSlots(doctor.getDoctorId(), date, schedule.getStartTime(), schedule.getEndTime(), slotDuration, now));
+                    if (isHomeVisitType(schedule.getConsultationType())) {
+                        hasHomeVisit = true;
+                    } else {
+                        hasOnline = true;
+                    }
+                    scheduleBlocks.add(CalendarDayResponse.ScheduleBlock.builder()
+                            .startTime(schedule.getStartTime())
+                            .endTime(schedule.getEndTime())
+                            .consultationType(schedule.getConsultationType())
+                            .shiftType(schedule.getShiftType())
+                            .build());
                 }
             }
 
             // AddSlot exception adds extra slots
             if (exception != null && exception.getExceptionType() == ScheduleExceptionType.ADD_SLOT) {
                 slots.addAll(generateSlots(doctor.getDoctorId(), date, exception.getStartTime(), exception.getEndTime(), 30, now));
+                hasOnline = true;
+                scheduleBlocks.add(CalendarDayResponse.ScheduleBlock.builder()
+                        .startTime(exception.getStartTime())
+                        .endTime(exception.getEndTime())
+                        .consultationType("Online")
+                        .build());
                 if ("NO_SCHEDULE".equals(status)) {
                     status = "WORKING";
                 }
@@ -594,11 +629,15 @@ public class DoctorScheduleServiceImpl implements DoctorScheduleService {
 
         // Sort slots by start time
         slots.sort((a, b) -> a.getStartTime().compareTo(b.getStartTime()));
+        scheduleBlocks.sort((a, b) -> a.getStartTime().compareTo(b.getStartTime()));
 
         return CalendarDayResponse.builder()
                 .date(date)
                 .dayName(dayName)
                 .status(status)
+                .scheduleBlocks(scheduleBlocks)
+                .hasOnline(hasOnline)
+                .hasHomeVisit(hasHomeVisit)
                 .slots(slots)
                 .build();
     }

@@ -19,7 +19,24 @@ public class CalendarDayResponse {
     private String dayName;
     private String status; // WORKING, DAY_OFF, MODIFIED, NO_SCHEDULE
 
+    private boolean hasOnline;
+    private boolean hasHomeVisit;
+
+    // The actual working-hour windows for this day (e.g. "Online 09:00-10:00", "Home Visit - Morning 07:00-10:30")
+    private List<ScheduleBlock> scheduleBlocks;
+
     private List<SlotInfo> slots;
+
+    @Data
+    @Builder
+    @NoArgsConstructor
+    @AllArgsConstructor
+    public static class ScheduleBlock {
+        private LocalTime startTime;
+        private LocalTime endTime;
+        private String consultationType;
+        private String shiftType; // MORNING / AFTERNOON / EVENING for Home Visit, null for Online
+    }
 
     @Data
     @Builder
