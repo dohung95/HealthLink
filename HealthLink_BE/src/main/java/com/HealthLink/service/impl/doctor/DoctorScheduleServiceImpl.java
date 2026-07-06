@@ -12,6 +12,7 @@ import com.HealthLink.entity.DoctorSchedule;
 import com.HealthLink.entity.DoctorScheduleException;
 import com.HealthLink.entity.User;
 import com.HealthLink.entity.enums.DoctorScheduleStatus;
+import com.HealthLink.entity.enums.NotificationPriority;
 import com.HealthLink.entity.enums.NotificationType;
 import com.HealthLink.entity.enums.ScheduleExceptionType;
 import com.HealthLink.exception.BadRequestException;
@@ -22,6 +23,7 @@ import com.HealthLink.repository.appointment.AppointmentRepository;
 import com.HealthLink.repository.appointment.AppointmentSlotHoldRepository;
 import com.HealthLink.repository.doctor.DoctorRepository;
 import com.HealthLink.repository.doctor.DoctorScheduleRepository;
+import com.HealthLink.service.admin.AdminNotificationService;
 import com.HealthLink.service.compliance.ScheduleComplianceService;
 import com.HealthLink.service.doctor.DoctorScheduleService;
 import com.HealthLink.audit.AuditLogger;
@@ -58,6 +60,7 @@ public class DoctorScheduleServiceImpl implements DoctorScheduleService {
     private final AppointmentRepository appointmentRepository;
     private final AppointmentSlotHoldRepository appointmentSlotHoldRepository;
     private final NotificationService notificationService;
+    private final AdminNotificationService adminNotificationService;
     private final AdminScheduleAuditLogRepository auditLogRepository;
     private final @Lazy ScheduleComplianceService complianceService;
     private final AuditLogger audit = AuditLogger.doctor();
@@ -66,6 +69,9 @@ public class DoctorScheduleServiceImpl implements DoctorScheduleService {
 
     // Minimum required working hours per MONTH for APPROVED status
     private static final double MIN_MONTHLY_HOURS = 80.0;
+
+    // Số tháng không đạt chỉ tiêu trong CÙNG MỘT NĂM trước khi tự động ban tài khoản
+    private static final int NON_COMPLIANT_MONTHS_BEFORE_BAN = 3;
 
     // Allowed shift windows. Online schedules must fit within ONE of these;
     // Home visit schedules use the whole window as a single bookable session.
@@ -134,6 +140,7 @@ public class DoctorScheduleServiceImpl implements DoctorScheduleService {
 
         int reconfirmCount = 0;
         int reminderCount = 0;
+        int bannedCount = 0;
 
         for (Doctor doctor : doctors) {
             try {
@@ -171,13 +178,24 @@ public class DoctorScheduleServiceImpl implements DoctorScheduleService {
                     updateDoctorScheduleStatus(doctor.getDoctorId());
                     reminderCount++;
 
-                    if (doctor.getUser() != null) {
+                    int failedMonths = registerNonCompliantMonth(doctor, currentMonth.getYear());
+
+                    if (failedMonths >= NON_COMPLIANT_MONTHS_BEFORE_BAN) {
+                        banDoctorForNonCompliance(doctor, currentMonth.getYear(), currentMonthLabel, failedMonths);
+                        bannedCount++;
+                    } else if (doctor.getUser() != null) {
+                        String message = failedMonths == NON_COMPLIANT_MONTHS_BEFORE_BAN - 1
+                                ? String.format("You did not meet the %.0fh/month requirement last month — that is %d month(s) missed in %d. "
+                                        + "If you miss the requirement one more time this year, your account will be automatically banned.",
+                                        MIN_MONTHLY_HOURS, failedMonths, currentMonth.getYear())
+                                : String.format("You did not meet the %.0fh/month requirement last month. Please add more working hours for %s so patients can book with you.",
+                                        MIN_MONTHLY_HOURS, currentMonthLabel);
+
                         notificationService.sendWebSocketNotification(
                                 doctor.getUser(),
                                 NotificationType.SCHEDULE_COMPLIANCE_WARNING,
                                 "Add More Working Hours",
-                                String.format("You did not meet the %.0fh/month requirement last month. Please add more working hours for %s so patients can book with you.",
-                                        MIN_MONTHLY_HOURS, currentMonthLabel),
+                                message,
                                 null,
                                 "/doctor/schedule"
                         );
@@ -192,8 +210,65 @@ public class DoctorScheduleServiceImpl implements DoctorScheduleService {
             }
         }
 
-        log.info("Monthly reconfirmation check completed: {} doctor(s) need reconfirmation, {} doctor(s) reminded to add hours",
-                reconfirmCount, reminderCount);
+        log.info("Monthly reconfirmation check completed: {} doctor(s) need reconfirmation, {} doctor(s) reminded to add hours, {} doctor(s) auto-banned",
+                reconfirmCount, reminderCount, bannedCount);
+    }
+
+    /**
+     * Ghi nhận thêm 1 tháng không đạt chỉ tiêu cho bác sĩ trong năm hiện tại.
+     * Reset về 0 nếu bộ đếm đang thuộc về một năm khác (mỗi năm reset số tháng chưa đạt chỉ tiêu).
+     *
+     * @return tổng số tháng không đạt chỉ tiêu trong năm hiện tại, sau khi cộng thêm tháng vừa trượt.
+     */
+    private int registerNonCompliantMonth(Doctor doctor, int currentYear) {
+        if (doctor.getComplianceTrackingYear() == null || doctor.getComplianceTrackingYear() != currentYear) {
+            doctor.setComplianceTrackingYear(currentYear);
+            doctor.setNonCompliantMonthsThisYear(0);
+        }
+        int failedMonths = (doctor.getNonCompliantMonthsThisYear() == null ? 0 : doctor.getNonCompliantMonthsThisYear()) + 1;
+        doctor.setNonCompliantMonthsThisYear(failedMonths);
+        doctorRepository.save(doctor);
+        return failedMonths;
+    }
+
+    /**
+     * Tự động ban tài khoản (giống Admin ban thủ công trong trang quản lý bác sĩ) khi bác sĩ
+     * không đạt chỉ tiêu giờ làm việc {@value #NON_COMPLIANT_MONTHS_BEFORE_BAN} tháng trong cùng một năm.
+     */
+    private void banDoctorForNonCompliance(Doctor doctor, int year, String currentMonthLabel, int failedMonths) {
+        User user = doctor.getUser();
+        if (user == null) {
+            return;
+        }
+
+        String oldStatus = user.getStatus();
+        user.setStatus("Banned");
+        doctorRepository.save(doctor);
+
+        audit.log("DOCTOR_AUTO_BANNED_NON_COMPLIANCE", doctor.getDoctorId(), "SYSTEM",
+                Map.of("year", String.valueOf(year), "nonCompliantMonths", String.valueOf(failedMonths), "oldStatus", String.valueOf(oldStatus)));
+
+        notificationService.sendWebSocketNotification(
+                user,
+                NotificationType.DOCTOR_ACCOUNT_BANNED_NON_COMPLIANCE,
+                "Account Banned",
+                String.format("Your account has been automatically banned for not meeting the %.0fh/month working-hours requirement in %d months of %d (as of %s).",
+                        MIN_MONTHLY_HOURS, failedMonths, year, currentMonthLabel),
+                null,
+                "/doctor/schedule"
+        );
+
+        adminNotificationService.notifyAllAdmins(
+                NotificationType.DOCTOR_ACCOUNT_BANNED_NON_COMPLIANCE,
+                "Doctor Auto-Banned: " + doctor.getFullName(),
+                String.format("Dr. %s (%s) was automatically banned after failing to meet the %.0fh/month requirement for %d months in %d. Review in Doctor Management if needed.",
+                        doctor.getFullName(), doctor.getDoctorId(), MIN_MONTHLY_HOURS, failedMonths, year),
+                NotificationPriority.HIGH,
+                null,
+                "/admin/doctors?doctorId=" + doctor.getDoctorId()
+        );
+
+        log.warn("Doctor {} auto-banned for non-compliance: {} failed month(s) in {}", doctor.getDoctorId(), failedMonths, year);
     }
 
     @Override
