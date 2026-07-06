@@ -716,6 +716,7 @@ const Schedule = () => {
           expiryDate: null,
           sharedDocumentIds: documentIds,
           allowMerge: true,
+          appointmentId: paidInvoice?.appointmentId,
         });
       }
 
