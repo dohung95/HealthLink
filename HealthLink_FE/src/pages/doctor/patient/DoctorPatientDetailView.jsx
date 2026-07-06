@@ -1,4 +1,5 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { vitalSignApi } from '@api/vitalSignApi';
 import { useAuth } from '@context/AuthContext';
 import { toast } from 'sonner';
@@ -29,6 +30,7 @@ const InfoField = ({ label, value, larger }) => (
 );
 
 export default function DoctorPatientDetailView({ patient, history }) {
+  const navigate = useNavigate();
   const { currentUserId, user: authUser } = useAuth();
   const [activeTab, setActiveTab] = useState('overview');
   const [vitalSigns, setVitalSigns] = useState(null);
@@ -328,53 +330,37 @@ export default function DoctorPatientDetailView({ patient, history }) {
     </div>
   );
 
-  const clinicalResults = history?.clinicalResults || [];
-
-  const timelineItems = [
-    ...(history?.appointments || []).map((item) => ({
+  const timelineItems = (history?.appointments || [])
+    .filter((item) => String(item.status || '').toLowerCase() === 'completed')
+    .map((item) => ({
       type: 'Encounter',
       date: item.appointmentTime,
       title: item.diagnosis || item.symptoms || 'Consultation',
-      subtitle: `${item.consultationType || 'Consultation'} - ${item.status || 'Unknown'}`,
+      subtitle: `${item.consultationType || 'Consultation'}`,
       status: item.status,
-    })),
-    ...(history?.prescriptions || []).map((item) => ({
-      type: 'Prescription',
-      date: item.issueDate,
-      title: item.diagnosis || 'Prescription',
-      subtitle: `${item.items?.length || 0} medication(s)`,
-      status: item.status || 'ISSUED',
-    })),
-    ...clinicalResults.map((item) => {
-      let structuredCount = 0;
-      try { const p = JSON.parse(item.structuredResultsJson); if (Array.isArray(p)) structuredCount = p.length; } catch {}
-      const parts = [item.testResults, item.resultUnit, item.referenceRange].filter(Boolean);
-      if (structuredCount > 0) parts.push(`${structuredCount} result(s)`);
-      if (item.doctorAssessment) parts.push('Has assessment');
-      return {
-        type: 'Clinical Result',
-        date: item.documentDate || item.uploadedAt,
-        title: item.testName || item.documentName || 'Clinical result',
-        subtitle: parts.join(' '),
-        status: item.clinicalStatus || item.visibilityStatus,
-      };
-    }),
-  ].sort((left, right) => new Date(right.date || 0) - new Date(left.date || 0));
+      appointmentId: item.appointmentId,
+    }))
+    .sort((left, right) => new Date(right.date || 0) - new Date(left.date || 0));
 
   const renderTimeline = () => (
     <div style={{ display: 'flex', flexDirection: 'column', gap: '0.625rem' }}>
       <p className="patient-section-title">Timeline</p>
       {timelineItems.length === 0 ? (
-        <p style={{ fontSize: '0.8rem', color: 'var(--doctor-text-muted)' }}>No history yet.</p>
+        <p style={{ fontSize: '0.8rem', color: 'var(--doctor-text-muted)' }}>No completed appointments yet.</p>
       ) : (
         timelineItems.map((item, idx) => (
-          <div className="patient-timeline-item" key={idx}>
+          <div
+            className="patient-timeline-item"
+            key={idx}
+            onClick={() => navigate('/doctor/appointments/history', { state: { selectedAppointmentId: item.appointmentId } })}
+            style={{ cursor: 'pointer' }}
+          >
             <div className="patient-timeline-item__info">
               <p className="patient-timeline-item__title">{formatDateTime(item.date)}</p>
               <p className="patient-timeline-item__subtitle">{item.title}</p>
               <p className="patient-timeline-item__diagnosis">{item.subtitle}</p>
             </div>
-            <span className={`patient-timeline-item__type patient-timeline-item__type--${item.type === 'Encounter' ? 'encounter' : item.type === 'Prescription' ? 'prescription' : 'result'}`}>
+            <span className="patient-timeline-item__type patient-timeline-item__type--encounter">
               {item.type}
             </span>
           </div>
