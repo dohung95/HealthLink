@@ -302,6 +302,24 @@
   flex-shrink: 0;
 }
 
+.compliance-doctor-avatar--initials,
+.schedule-detail-avatar--initials {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: #e2e8f0;
+  color: #475569;
+  font-weight: 700;
+}
+
+.compliance-doctor-avatar--initials {
+  font-size: 12px;
+}
+
+.schedule-detail-avatar--initials {
+  font-size: 16px;
+}
+
 .compliance-doctor-name {
   font-weight: 600;
   font-size: 12px;
