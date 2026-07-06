@@ -1,6 +1,6 @@
 import React, { useEffect, useMemo, useState, useCallback, forwardRef } from 'react';
 import { toast } from 'react-toastify';
-import { useNavigate, useOutletContext } from 'react-router-dom';
+import { useNavigate, useOutletContext, useLocation } from 'react-router-dom';
 import { doctorService } from '@api/doctorApi';
 import { appointmentService } from '@api/appointmentApi';
 import DatePicker from 'react-datepicker';
@@ -47,6 +47,7 @@ const STATUS_CHIPS = [
 
 export default function DoctorAppointmentHistory() {
   const navigate = useNavigate();
+  const location = useLocation();
   const { doctorId } = useOutletContext();
 
   const [allAppointments, setAllAppointments] = useState([]);
@@ -86,6 +87,20 @@ export default function DoctorAppointmentHistory() {
     fetchAll();
     return () => { mounted = false; };
   }, [doctorId]);
+
+  useEffect(() => {
+    const preselectedId = location.state?.selectedAppointmentId;
+    if (!preselectedId) return;
+    if (!allAppointments.length) return;
+    const match = allAppointments.find(
+      (a) => (a.appointmentId || a.appointmentID) == preselectedId
+    );
+    if (match) {
+      setSelectedAppointmentId(preselectedId);
+      setActiveTab('clinical-results');
+      navigate(location.pathname, { replace: true });
+    }
+  }, [location, allAppointments, navigate]);
 
   useEffect(() => {
     if (!selectedAppointmentId) {
