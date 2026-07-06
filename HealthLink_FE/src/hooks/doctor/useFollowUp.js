@@ -20,6 +20,9 @@ export function useFollowUp({ appointment, appointmentDetail, doctorId, onRefres
   const [sendingPaymentRequest, setSendingPaymentRequest] = useState(false);
   const [showRescheduleConfirm, setShowRescheduleConfirm] = useState(false);
   const [isRescheduling, setIsRescheduling] = useState(false);
+  const [pendingPaymentCancelAt, setPendingPaymentCancelAt] = useState(null);
+  const [cancelingPaymentRequest, setCancelingPaymentRequest] = useState(false);
+  const [pendingPaymentCountdown, setPendingPaymentCountdown] = useState(0);
 
   const source = appointmentDetail || appointment;
   const consultation = useMemo(() => buildConsultation(source), [source]);
@@ -227,6 +230,7 @@ export function useFollowUp({ appointment, appointmentDetail, doctorId, onRefres
 
       toast.success('Payment request sent to patient');
       setFollowUpPaymentStatus('PENDING_PAYMENT');
+      setPendingPaymentCancelAt(Date.now() + 30000);
       if (onRefreshAppointment) await onRefreshAppointment();
       await loadFollowUpSlots();
       await loadFollowUpCalendar();
@@ -238,6 +242,25 @@ export function useFollowUp({ appointment, appointmentDetail, doctorId, onRefres
     }
   }, [appointmentId, selectedFollowUpDateTime, followUpNotes, followUpConsultationType,
       loadFollowUpCalendar, loadFollowUpSlots, onRefreshAppointment]);
+
+  const handleCancelPendingPayment = useCallback(async () => {
+    const targetAppointmentId = appointmentId;
+    if (!targetAppointmentId) return;
+    setCancelingPaymentRequest(true);
+    try {
+      await consultationApi.denyFollowUp(targetAppointmentId);
+      setFollowUpPaymentStatus('NONE');
+      setPendingPaymentCancelAt(null);
+      setPendingPaymentCountdown(0);
+      toast.info('Payment request cancelled');
+      if (onRefreshAppointment) await onRefreshAppointment();
+    } catch (error) {
+      console.error('Error cancelling payment request:', error);
+      toast.error(error.response?.data?.message || 'Failed to cancel payment request');
+    } finally {
+      setCancelingPaymentRequest(false);
+    }
+  }, [appointmentId, onRefreshAppointment]);
 
   const handleInitiateReschedule = useCallback(() => {
     setShowRescheduleConfirm(true);
@@ -283,6 +306,11 @@ export function useFollowUp({ appointment, appointmentDetail, doctorId, onRefres
         .then((data) => {
           if (data?.status && data.status !== 'NONE') {
             setFollowUpPaymentStatus(data.status);
+            if (data.status === 'PENDING_PAYMENT') {
+              setPendingPaymentCancelAt(Date.now() + 30000);
+            } else {
+              setPendingPaymentCancelAt(null);
+            }
           }
         })
         .catch(() => {});
@@ -298,6 +326,10 @@ export function useFollowUp({ appointment, appointmentDetail, doctorId, onRefres
         const newStatus = statusData?.status;
         if (newStatus && newStatus !== followUpPaymentStatus) {
           setFollowUpPaymentStatus(newStatus);
+          if (newStatus !== 'PENDING_PAYMENT') {
+            setPendingPaymentCancelAt(null);
+            setPendingPaymentCountdown(0);
+          }
           if (newStatus === 'PAID') {
             toast.info('Patient has paid. Follow-up created.');
           } else if (newStatus === 'NONE') {
@@ -312,6 +344,21 @@ export function useFollowUp({ appointment, appointmentDetail, doctorId, onRefres
 
     return () => clearInterval(interval);
   }, [appointmentId, followUpPaymentStatus, onRefreshAppointment]);
+
+  useEffect(() => {
+    if (followUpPaymentStatus !== 'PENDING_PAYMENT' || !pendingPaymentCancelAt) {
+      setPendingPaymentCountdown(0);
+      return;
+    }
+    const tick = () => {
+      const remaining = Math.max(0, Math.floor((pendingPaymentCancelAt - Date.now()) / 1000));
+      setPendingPaymentCountdown(remaining);
+      if (remaining <= 0) return;
+    };
+    tick();
+    const id = setInterval(tick, 1000);
+    return () => clearInterval(id);
+  }, [followUpPaymentStatus, pendingPaymentCancelAt]);
 
   return {
     followUpSelectedDate,
@@ -345,5 +392,9 @@ export function useFollowUp({ appointment, appointmentDetail, doctorId, onRefres
     handleCancelRescheduleModal,
     handleSaveReschedule,
     handleCancelReschedule,
+    pendingPaymentCountdown,
+    canCancelPendingPayment: pendingPaymentCountdown <= 0 && followUpPaymentStatus === 'PENDING_PAYMENT',
+    cancelingPaymentRequest,
+    handleCancelPendingPayment,
   };
 }
