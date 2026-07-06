@@ -41,6 +41,10 @@ const FollowUpTab = ({
   handleCancelRescheduleModal,
   handleSaveReschedule,
   handleCancelReschedule,
+  pendingPaymentCountdown,
+  canCancelPendingPayment,
+  cancelingPaymentRequest,
+  handleCancelPendingPayment,
 }) => {
   const hasExistingFollowUp = Boolean(consultation.followUpDate || consultation.followUpNotes);
   const isPaidLocked = followUpPaymentStatus === 'PAID' && !isRescheduling;
@@ -246,10 +250,31 @@ const FollowUpTab = ({
                     </button>
                   )}
                   {selectedFollowUpDateTime && followUpPaymentStatus === 'PENDING_PAYMENT' && (
-                    <button className="btn btn-secondary fu-status-card__btn" disabled style={{ width: '100%' }}>
-                      <i className="bi bi-hourglass-split me-1" />
-                      Waiting for patient payment...
-                    </button>
+                    <div className="fu-status-card__pending">
+                      <button className="btn btn-secondary fu-status-card__btn" disabled style={{ width: '100%' }}>
+                        <i className="bi bi-hourglass-split me-1" />
+                        Waiting for patient payment...
+                      </button>
+                      {pendingPaymentCountdown > 0 && (
+                        <span className="fu-status-card__countdown" style={{ display: 'block', textAlign: 'center', fontSize: '0.75rem', color: 'var(--doctor-text-muted)', marginTop: '0.375rem' }}>
+                          Cancel available in {pendingPaymentCountdown}s
+                        </span>
+                      )}
+                      {canCancelPendingPayment && (
+                        <button
+                          className="btn btn-outline-danger fu-status-card__btn"
+                          onClick={handleCancelPendingPayment}
+                          disabled={cancelingPaymentRequest}
+                          style={{ width: '100%', marginTop: '0.5rem' }}
+                        >
+                          {cancelingPaymentRequest ? (
+                            <>Cancelling...</>
+                          ) : (
+                            <><i className="bi bi-x-circle me-1" /> Cancel payment request</>
+                          )}
+                        </button>
+                      )}
+                    </div>
                   )}
                   {selectedFollowUpDateTime && followUpPaymentStatus === 'PAID' && !isRescheduling && (
                     <div className="fu-status-actions">
