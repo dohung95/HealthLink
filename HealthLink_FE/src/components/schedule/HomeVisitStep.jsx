@@ -118,6 +118,18 @@ const HomeVisitStep = ({
     }));
   };
 
+  const normalizeAgeInput = (value) => {
+    const digits = String(value || '').replace(/\D/g, '').slice(0, 3);
+
+    if (!digits) return '';
+
+    const age = Number(digits);
+
+    if (age > 120) return '120';
+
+    return digits;
+  };
+
   const resetVisitEstimateFields = () => ({
     distanceKm: null,
     estimatedTravelMinutes: null,
@@ -267,8 +279,15 @@ const HomeVisitStep = ({
         return;
       }
 
-      if (!homeVisitInfo.receiverAge || Number(homeVisitInfo.receiverAge) <= 0) {
-        toast.warning('Receiver age must be greater than 0.');
+      const receiverAge = Number(homeVisitInfo.receiverAge);
+
+      if (
+        !homeVisitInfo.receiverAge ||
+        Number.isNaN(receiverAge) ||
+        receiverAge < 1 ||
+        receiverAge > 120
+      ) {
+        toast.warning('Receiver age must be a number between 1 and 120.');
         return;
       }
     }
@@ -391,10 +410,12 @@ const HomeVisitStep = ({
             <label>
               Age <span>*</span>
               <input
-                type="number"
-                min="1"
+                type="text"
+                inputMode="numeric"
+                pattern="[0-9]*"
+                maxLength={3}
                 value={homeVisitInfo.receiverAge || ''}
-                onChange={(e) => updateField('receiverAge', e.target.value)}
+                onChange={(e) => updateField('receiverAge', normalizeAgeInput(e.target.value))}
                 placeholder="Age"
               />
             </label>

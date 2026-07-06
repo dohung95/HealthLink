@@ -461,6 +461,12 @@ extension _BookingNormalSteps on _BookingScreenState {
           return workingDayNumbers.contains(backendDay);
         }).toList();
 
+    final selectedDateIsVisible = days.any(
+          (day) => _sameDay(day, _selectedDate),
+    );
+
+    final visibleSlots = selectedDateIsVisible ? _slots : <BookingSlot>[];
+
     final nextWeekStart = weekStart.add(const Duration(days: 7));
     final canGoPreviousWeek = _weekIndex > 0;
     final canGoNextWeek = !nextWeekStart.isAfter(maxDate);
@@ -548,7 +554,7 @@ extension _BookingNormalSteps on _BookingScreenState {
                       _slots = [];
                     });
 
-                    await _loadSlots();
+                    await _loadSlots(jumpToFirstAvailable: false);
                   },
                   child: Container(
                     width: 96,
@@ -608,7 +614,7 @@ extension _BookingNormalSteps on _BookingScreenState {
               child: CircularProgressIndicator(),
             ),
           )
-        else if (_slots.isEmpty)
+        else if (visibleSlots.isEmpty)
           _empty(
             colors,
             Icons.event_busy_outlined,
@@ -618,7 +624,7 @@ extension _BookingNormalSteps on _BookingScreenState {
           Wrap(
             spacing: 10,
             runSpacing: 10,
-            children: _slots.map((slot) => _slotButton(colors, slot)).toList(),
+            children: visibleSlots.map((slot) => _slotButton(colors, slot)).toList(),
           ),
       ],
     );

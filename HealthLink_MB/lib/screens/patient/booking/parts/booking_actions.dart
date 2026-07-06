@@ -94,7 +94,21 @@ extension _BookingActions on _BookingScreenState {
     }
   }
 
-  Future<void> _loadSlots() async {
+  Future<AvailableSlotsResult?> _fetchSlotsForDate(DateTime date) async {
+    if (_service == null || _selectedDoctor == null) return null;
+
+    return _service!.getAvailableSlots(
+      doctorId: _selectedDoctor!.doctorId,
+      date: _formatDate(date),
+      consultationType: _consultationType ?? 'Online',
+    );
+  }
+
+  bool _hasSelectableSlots(List<BookingSlot> slots) {
+    return slots.any((slot) => slot.selectable);
+  }
+
+  Future<void> _loadSlots({bool jumpToFirstAvailable = true}) async {
     if (_service == null || _selectedDoctor == null) return;
 
     setState(() {
@@ -105,15 +119,38 @@ extension _BookingActions on _BookingScreenState {
     });
 
     try {
-      final result = await _service!.getAvailableSlots(
-        doctorId: _selectedDoctor!.doctorId,
-        date: _formatDate(_selectedDate),
-        consultationType: _consultationType ?? 'Online',
-      );
+      final startDate = _dayStart(_selectedDate);
+      final firstResult = await _fetchSlotsForDate(startDate);
+      if (!mounted || firstResult == null) return;
+
+      var targetDate = startDate;
+      var targetResult = firstResult;
+
+      if (jumpToFirstAvailable && !_hasSelectableSlots(firstResult.slots)) {
+        final maxDays = firstResult.bookingWindowDays;
+
+        for (var offset = 1; offset <= maxDays; offset++) {
+          final candidateDate = startDate.add(Duration(days: offset));
+          final candidateResult = await _fetchSlotsForDate(candidateDate);
+
+          if (!mounted || candidateResult == null) return;
+
+          if (_hasSelectableSlots(candidateResult.slots)) {
+            targetDate = candidateDate;
+            targetResult = candidateResult;
+            break;
+          }
+        }
+      }
+
       if (!mounted) return;
+
       setState(() {
-        _bookingWindowDays = result.bookingWindowDays;
-        _slots = result.slots;
+        _bookingWindowDays = targetResult.bookingWindowDays;
+        _selectedDate = targetDate;
+        _weekIndex = _weekIndexForDate(targetDate);
+        _slots = targetResult.slots;
+        _selectedSlot = null;
       });
     } catch (e) {
       if (mounted) setState(() => _error = _cleanError(e));
@@ -477,13 +514,20 @@ extension _BookingActions on _BookingScreenState {
 
       final doctor = _recommendedToBookingDoctor(result);
 
+      List<DoctorWorkingSchedule> schedules = [];
+      try {
+        schedules = await _service!.getDoctorSchedules(doctor.doctorId);
+      } catch (_) {
+        schedules = [];
+      }
+
       if (!mounted) return false;
 
       setState(() {
         _recommendedDoctor = result;
         _manualSelectionFee = result.manualSelectionFee;
         _selectedDoctor = doctor;
-        _doctorSchedules = [];
+        _doctorSchedules = schedules;
         _selectedDate = DateTime.now();
         _selectedSlot = null;
         _slots = [];
