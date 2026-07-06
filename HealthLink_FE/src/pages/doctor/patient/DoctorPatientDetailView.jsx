@@ -29,7 +29,7 @@ const InfoField = ({ label, value, larger }) => (
   </div>
 );
 
-export default function DoctorPatientDetailView({ patient, history }) {
+export default function DoctorPatientDetailView({ patient, history, doctorId }) {
   const navigate = useNavigate();
   const { currentUserId, user: authUser } = useAuth();
   const [activeTab, setActiveTab] = useState('overview');
