@@ -71,6 +71,18 @@ export default function DoctorAppointmentHistory() {
   const [sharedDocs, setSharedDocs] = useState([]);
   const [loadingSharedDocs, setLoadingSharedDocs] = useState(false);
   const [previewDoc, setPreviewDoc] = useState(null);
+  const apiBaseUrl = import.meta.env.VITE_API_BASE_URL || 'http://localhost:8096';
+
+  const allDocs = useMemo(() => {
+    const docs = [];
+    if (Array.isArray(sharedDocs)) {
+      sharedDocs.forEach((share) => {
+        const documents = Array.isArray(share.documents) ? share.documents : [];
+        documents.forEach((doc) => docs.push(doc));
+      });
+    }
+    return docs;
+  }, [sharedDocs]);
 
   useEffect(() => {
     if (!doctorId) return;
@@ -668,6 +680,21 @@ export default function DoctorAppointmentHistory() {
     return mime.startsWith('image/');
   };
 
+  const getFileIcon = (doc) => {
+    const loc = doc.fileLocation || doc.documentName || '';
+    const ext = loc.split('.').pop()?.toLowerCase() || '';
+    const map = {
+      pdf: 'bi-filetype-pdf',
+      doc: 'bi-filetype-docx',
+      docx: 'bi-filetype-docx',
+      xls: 'bi-filetype-xlsx',
+      xlsx: 'bi-filetype-xlsx',
+      ppt: 'bi-filetype-pptx',
+      pptx: 'bi-filetype-pptx',
+    };
+    return map[ext] || 'bi-file-text';
+  };
+
   const renderDocuments = () => {
     if (!appointmentDetail || String(appointmentDetail.status || '').toLowerCase() === 'cancelled') {
       return <DoctorEmptyState icon="cancel" title="Appointment Cancelled" description="Documents are not available for cancelled appointments." />;
@@ -677,30 +704,33 @@ export default function DoctorAppointmentHistory() {
         <p className="patient-section-title">Shared Documents</p>
         {loadingSharedDocs ? (
           <p style={{ fontSize: '0.8rem', color: 'var(--doctor-text-muted)' }}>Loading documents...</p>
-        ) : sharedDocs.length === 0 ? (
+        ) : allDocs.length === 0 ? (
           <p style={{ fontSize: '0.8rem', color: 'var(--doctor-text-muted)' }}>No shared documents for this appointment.</p>
         ) : (
           <div className="patient-documents-grid" style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '0.75rem' }}>
-            {sharedDocs.map((doc, idx) => {
+            {allDocs.map((doc, idx) => {
               const isImg = isImage(doc);
+              const docSrc = doc.fileLocation
+                ? (doc.fileLocation.startsWith('http') ? doc.fileLocation : `${apiBaseUrl}${doc.fileLocation}`)
+                : '';
               return (
                 <div
-                  key={doc.recordId || doc.shareId || doc.id || idx}
+                  key={doc.documentId || idx}
                   className="patient-document-card"
                   onClick={() => setPreviewDoc(doc)}
                   style={{ cursor: 'pointer', border: '1px solid var(--doctor-border)', borderRadius: '8px', overflow: 'hidden', background: '#fff' }}
                 >
-                  {isImg ? (
+                  {isImg && docSrc ? (
                     <div style={{ width: '100%', height: '100px', overflow: 'hidden', background: '#f5f5f5' }}>
                       <img
-                        src={doc.fileUrl || doc.url || doc.documentUrl}
+                        src={docSrc}
                         alt={doc.documentName || doc.fileName || 'Document'}
                         style={{ width: '100%', height: '100%', objectFit: 'cover' }}
                       />
                     </div>
                   ) : (
                     <div style={{ width: '100%', height: '100px', display: 'flex', alignItems: 'center', justifyContent: 'center', background: '#f5f5f5', color: 'var(--doctor-text-muted)' }}>
-                      <i className="bi bi-file-text" style={{ fontSize: '2rem' }} />
+                      <i className={getFileIcon(doc)} style={{ fontSize: '2rem' }} />
                     </div>
                   )}
                   <div style={{ padding: '0.5rem' }}>

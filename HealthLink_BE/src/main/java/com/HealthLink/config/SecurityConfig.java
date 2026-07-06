@@ -94,7 +94,9 @@ public class SecurityConfig {
                 // Thêm JWT filter trước UsernamePasswordAuthenticationFilter
                 .addFilterBefore(jwtAuthenticationFilter, UsernamePasswordAuthenticationFilter.class)
                 // Correlation ID filter (MDC) chạy trước JWT filter
-                .addFilterBefore(correlationIdFilter, JwtAuthenticationFilter.class);
+                .addFilterBefore(correlationIdFilter, JwtAuthenticationFilter.class)
+                // Cho phép nhúng file (PDF, Office) trong iframe/embed để preview
+                .headers(headers -> headers.frameOptions().disable());
 
         return http.build();
     }
