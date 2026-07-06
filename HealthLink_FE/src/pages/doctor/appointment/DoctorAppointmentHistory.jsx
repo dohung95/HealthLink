@@ -13,6 +13,8 @@ import ClinicalResultModal from './appointmentDetail/tabs/clinical-results/Clini
 import ClinicalResultCompactCard from './appointmentDetail/tabs/clinical-results/ClinicalResultCompactCard';
 import ClinicalResultDetailPanel from './appointmentDetail/tabs/clinical-results/ClinicalResultDetailPanel';
 import { doctorClinicalResultApi } from '@api/doctorClinicalResultApi';
+import { shareApi } from '@api/shareRecordApi';
+import DocumentPreviewModal from '@components/doctor/DocumentPreviewModal';
 import {
   getPatientName,
   getVisitReason,
@@ -66,7 +68,9 @@ export default function DoctorAppointmentHistory() {
   const [editModalOpen, setEditModalOpen] = useState(false);
 
   const [selectedClinicalResultId, setSelectedClinicalResultId] = useState(null);
-  const [selectedDocumentId, setSelectedDocumentId] = useState(null);
+  const [sharedDocs, setSharedDocs] = useState([]);
+  const [loadingSharedDocs, setLoadingSharedDocs] = useState(false);
+  const [previewDoc, setPreviewDoc] = useState(null);
 
   useEffect(() => {
     if (!doctorId) return;
@@ -134,6 +138,21 @@ export default function DoctorAppointmentHistory() {
     fetchDetail();
     return () => { mounted = false; };
   }, [selectedAppointmentId, allAppointments]);
+
+  useEffect(() => {
+    if (!doctorId || !selectedAppointmentId) return;
+    let mounted = true;
+    setLoadingSharedDocs(true);
+    shareApi.getSharedWithMe(doctorId, selectedAppointmentId)
+      .then((data) => {
+        if (!mounted) return;
+        const all = Array.isArray(data) ? data : data?.records || data?.items || [];
+        setSharedDocs(all);
+      })
+      .catch(() => { if (mounted) setSharedDocs([]); })
+      .finally(() => { if (mounted) setLoadingSharedDocs(false); });
+    return () => { mounted = false; };
+  }, [doctorId, selectedAppointmentId]);
 
   useEffect(() => {
     setCurrentPage(1);
@@ -213,12 +232,6 @@ export default function DoctorAppointmentHistory() {
   const getClinicalResultId = (item) =>
     item?.documentID ?? item?.documentId ?? item?.id ?? null;
 
-  const getDocumentId = (item) =>
-    item?.documentID ??
-    item?.documentId ??
-    item?.id ??
-    `${item?.category || 'document'}-${item?.documentName || item?.documentDate || item?.uploadedAt || ''}`;
-
   const getPrescriptionItems = (prescription) => {
     if (Array.isArray(prescription?.items)) return prescription.items;
     if (Array.isArray(prescription?.medications)) return prescription.medications;
@@ -235,29 +248,12 @@ export default function DoctorAppointmentHistory() {
     [patientHistory]
   );
 
-  const historyDocuments = useMemo(() => {
-    const categories = patientHistory?.documentsByCategory || [];
-    return categories.flatMap((category) =>
-      (category?.documents || []).map((document) => ({
-        ...document,
-        category: document?.category || category?.category,
-      }))
-    );
-  }, [patientHistory]);
-
   useEffect(() => {
     setSelectedClinicalResultId((current) => {
       if (clinicalResults.some((item) => getClinicalResultId(item) === current)) return current;
       return getClinicalResultId(clinicalResults[0]) ?? null;
     });
   }, [clinicalResults]);
-
-  useEffect(() => {
-    setSelectedDocumentId((current) => {
-      if (historyDocuments.some((item) => getDocumentId(item) === current)) return current;
-      return getDocumentId(historyDocuments[0]) ?? null;
-    });
-  }, [historyDocuments]);
 
   const selectedClinicalResult = useMemo(
     () => clinicalResults.find((item) => getClinicalResultId(item) === selectedClinicalResultId) || null,
@@ -273,11 +269,6 @@ export default function DoctorAppointmentHistory() {
     const appts = patientHistory?.appointments || [];
     return appts.find((a) => (a.appointmentID ?? a.appointmentId) === selectedAppointmentId) || null;
   }, [patientHistory, selectedAppointmentId]);
-
-  const selectedDocument = useMemo(
-    () => historyDocuments.find((item) => getDocumentId(item) === selectedDocumentId) || null,
-    [historyDocuments, selectedDocumentId]
-  );
 
   const renderHistoryMasterDetail = ({ title, count, action, emptyMessage, list, detail }) => (
     <div className="history-md">
@@ -665,136 +656,71 @@ export default function DoctorAppointmentHistory() {
     );
   };
 
+  const formatFileSize = (bytes) => {
+    if (!bytes) return '';
+    const kb = bytes / 1024;
+    if (kb < 1024) return `${kb.toFixed(1)} KB`;
+    return `${(kb / 1024).toFixed(1)} MB`;
+  };
+
+  const isImage = (doc) => {
+    const mime = (doc.mimeType || doc.fileType || '').toLowerCase();
+    return mime.startsWith('image/');
+  };
+
   const renderDocuments = () => {
     if (!appointmentDetail || String(appointmentDetail.status || '').toLowerCase() === 'cancelled') {
       return <DoctorEmptyState icon="cancel" title="Appointment Cancelled" description="Documents are not available for cancelled appointments." />;
     }
-    const docList = historyDocuments;
-    return renderHistoryMasterDetail({
-      title: 'Documents',
-      count: docList.length,
-      emptyMessage: 'No documents found.',
-      list: docList.map((d) => {
-        const id = getDocumentId(d);
-        return (
-          <button
-            key={id}
-            type="button"
-            className={`history-md__item ${selectedDocumentId === id ? 'history-md__item--active' : ''}`}
-            onClick={() => setSelectedDocumentId(id)}
-          >
-            <p className="history-md__title">{d.documentName || d.category || 'Document'}</p>
-            <p className="history-md__meta">{d.category || ''}{d.documentDate ? ` \u00b7 ${formatHistoryDate(d.documentDate)}` : d.uploadedAt ? ` \u00b7 ${formatHistoryDate(d.uploadedAt)}` : ''}</p>
-          </button>
-        );
-      }),
-      detail: selectedDocument ? (
-        <div className="history-md__detail-panel">
-          <div className="history-md__detail-header">
-            <div>
-              <h5 className="history-md__detail-title">{selectedDocument.documentName || selectedDocument.category || 'Document'}</h5>
-              <p className="history-md__detail-meta">{selectedDocument.category || ''}{selectedDocument.documentType ? ` \u00b7 ${selectedDocument.documentType}` : ''}</p>
-            </div>
+    return (
+      <div style={{ display: 'flex', flexDirection: 'column', gap: '0.625rem' }}>
+        <p className="patient-section-title">Shared Documents</p>
+        {loadingSharedDocs ? (
+          <p style={{ fontSize: '0.8rem', color: 'var(--doctor-text-muted)' }}>Loading documents...</p>
+        ) : sharedDocs.length === 0 ? (
+          <p style={{ fontSize: '0.8rem', color: 'var(--doctor-text-muted)' }}>No shared documents for this appointment.</p>
+        ) : (
+          <div className="patient-documents-grid" style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '0.75rem' }}>
+            {sharedDocs.map((doc, idx) => {
+              const isImg = isImage(doc);
+              return (
+                <div
+                  key={doc.recordId || doc.shareId || doc.id || idx}
+                  className="patient-document-card"
+                  onClick={() => setPreviewDoc(doc)}
+                  style={{ cursor: 'pointer', border: '1px solid var(--doctor-border)', borderRadius: '8px', overflow: 'hidden', background: '#fff' }}
+                >
+                  {isImg ? (
+                    <div style={{ width: '100%', height: '100px', overflow: 'hidden', background: '#f5f5f5' }}>
+                      <img
+                        src={doc.fileUrl || doc.url || doc.documentUrl}
+                        alt={doc.documentName || doc.fileName || 'Document'}
+                        style={{ width: '100%', height: '100%', objectFit: 'cover' }}
+                      />
+                    </div>
+                  ) : (
+                    <div style={{ width: '100%', height: '100px', display: 'flex', alignItems: 'center', justifyContent: 'center', background: '#f5f5f5', color: 'var(--doctor-text-muted)' }}>
+                      <i className="bi bi-file-text" style={{ fontSize: '2rem' }} />
+                    </div>
+                  )}
+                  <div style={{ padding: '0.5rem' }}>
+                    <p style={{ margin: 0, fontSize: '0.75rem', fontWeight: 600, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                      {doc.documentName || doc.fileName || 'Document'}
+                    </p>
+                    <p style={{ margin: '0.25rem 0 0', fontSize: '0.65rem', color: 'var(--doctor-text-muted)' }}>
+                      {doc.documentType || doc.category || doc.fileType || ''}{doc.fileSize ? ` • ${formatFileSize(doc.fileSize)}` : ''}
+                    </p>
+                  </div>
+                </div>
+              );
+            })}
           </div>
-          <div className="history-md__section">
-            <div className="history-md__field-grid">
-              {selectedDocument.documentDate && (
-                <div className="history-md__field">
-                  <span>Document Date</span>
-                  <strong>{formatHistoryDate(selectedDocument.documentDate)}</strong>
-                </div>
-              )}
-              {selectedDocument.uploadedAt && (
-                <div className="history-md__field">
-                  <span>Uploaded</span>
-                  <strong>{formatHistoryDate(selectedDocument.uploadedAt)}</strong>
-                </div>
-              )}
-              {selectedDocument.mimeType && (
-                <div className="history-md__field">
-                  <span>Type</span>
-                  <strong>{selectedDocument.mimeType}</strong>
-                </div>
-              )}
-              {selectedDocument.fileSize != null && (
-                <div className="history-md__field">
-                  <span>Size</span>
-                  <strong>{selectedDocument.fileSize > 1024 * 1024 ? `${(selectedDocument.fileSize / (1024 * 1024)).toFixed(1)} MB` : `${(selectedDocument.fileSize / 1024).toFixed(1)} KB`}</strong>
-                </div>
-              )}
-              {selectedDocument.testResults && (
-                <div className="history-md__field">
-                  <span>Test Results</span>
-                  <strong>{selectedDocument.testResults}</strong>
-                </div>
-              )}
-              {selectedDocument.referenceRange && (
-                <div className="history-md__field">
-                  <span>Reference Range</span>
-                  <strong>{selectedDocument.referenceRange}</strong>
-                </div>
-              )}
-              {selectedDocument.resultUnit && (
-                <div className="history-md__field">
-                  <span>Result Unit</span>
-                  <strong>{selectedDocument.resultUnit}</strong>
-                </div>
-              )}
-              {selectedDocument.clinicalStatus && (
-                <div className="history-md__field">
-                  <span>Status</span>
-                  <strong>{selectedDocument.clinicalStatus}</strong>
-                </div>
-              )}
-              {selectedDocument.sourceType && (
-                <div className="history-md__field">
-                  <span>Source</span>
-                  <strong>{selectedDocument.sourceType}</strong>
-                </div>
-              )}
-              {selectedDocument.visibilityStatus && (
-                <div className="history-md__field">
-                  <span>Visibility</span>
-                  <strong>{selectedDocument.visibilityStatus}</strong>
-                </div>
-              )}
-              {selectedDocument.labFacilityName && (
-                <div className="history-md__field">
-                  <span>Facility</span>
-                  <strong>{selectedDocument.labFacilityName}</strong>
-                </div>
-              )}
-              {selectedDocument.doctorName && (
-                <div className="history-md__field">
-                  <span>Doctor</span>
-                  <strong>{selectedDocument.doctorName}</strong>
-                </div>
-              )}
-            </div>
-          </div>
-          {selectedDocument.description && (
-            <div className="history-md__section">
-              <h5>Description</h5>
-              <p style={{ fontSize: '0.875rem', color: '#334155', margin: 0 }}>{selectedDocument.description}</p>
-            </div>
-          )}
-          {selectedDocument.doctorAssessment && (
-            <div className="history-md__section">
-              <h5>Doctor's Assessment</h5>
-              <p style={{ fontSize: '0.875rem', color: '#334155', margin: 0 }}>{selectedDocument.doctorAssessment}</p>
-            </div>
-          )}
-          {selectedDocument.patientSummary && (
-            <div className="history-md__section">
-              <h5>Patient Summary</h5>
-              <p style={{ fontSize: '0.875rem', color: '#334155', margin: 0 }}>{selectedDocument.patientSummary}</p>
-            </div>
-          )}
-        </div>
-      ) : (
-        <div className="history-md__empty">Select a document to view details.</div>
-      ),
-    });
+        )}
+        {previewDoc && (
+          <DocumentPreviewModal document={previewDoc} onClose={() => setPreviewDoc(null)} />
+        )}
+      </div>
+    );
   };
 
   const TABS = [
