@@ -51,7 +51,7 @@ class AppointmentService {
       ApiConfig.receiveTimeout,
       onTimeout: () {
         throw Exception(
-          'Request timed out. Please check backend connection.',
+          'connection refused, please try again later',
         );
       },
     );
@@ -217,6 +217,11 @@ class PatientAppointment {
     return value == 'video' || value == 'video call';
   }
 
+  bool get isHomeVisit {
+    final value = consultationType.trim().toLowerCase();
+    return value.contains('home');
+  }
+
   DateTime get effectiveEndTime {
     return consultationEndTime ?? appointmentTime.add(const Duration(minutes: 30));
   }
@@ -236,6 +241,7 @@ class PatientAppointment {
   }
 
   bool isJoinable(DateTime now) {
+    if (isHomeVisit) return false;
     final s = status.trim().toLowerCase();
     return s == 'in_consultation' || s == 'inconsultation' || s == 'in_progress';
 //     return isActive &&

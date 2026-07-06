@@ -1802,4 +1802,140 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get medicineReminderSettingsSaved => 'Reminder settings saved.';
+
+  @override
+  String get bookingSelectExamType => 'Select Examination Type';
+
+  @override
+  String get bookingSelectExamTypeDesc =>
+      'Choose how you want to consult with a doctor.';
+
+  @override
+  String get bookingOnlineConsultation => 'Online Consultation';
+
+  @override
+  String get bookingDoctorVisitsHome => 'Doctor Visits Home';
+
+  @override
+  String get bookingVisitType => 'Visit Type';
+
+  @override
+  String get bookingHomeVisitInfo => 'Home Visit Information';
+
+  @override
+  String get bookingHomeVisitInfoDesc =>
+      'Enter address and recipient information.';
+
+  @override
+  String get bookingForMe => 'For Me';
+
+  @override
+  String get bookingSomeoneElse => 'Someone Else';
+
+  @override
+  String get bookingRecipientName => 'Recipient Name';
+
+  @override
+  String get bookingAge => 'Age';
+
+  @override
+  String get bookingGender => 'Gender';
+
+  @override
+  String get bookingRelationship => 'Relationship';
+
+  @override
+  String get bookingRecipientPhone => 'Recipient Phone';
+
+  @override
+  String get bookingAddressStar => 'Address *';
+
+  @override
+  String get bookingCity => 'City';
+
+  @override
+  String get bookingContactPhoneStar => 'Contact Phone *';
+
+  @override
+  String get bookingReasonForHomeVisitStar => 'Reason for Home Visit *';
+
+  @override
+  String get bookingNotesOpt => 'Notes';
+
+  @override
+  String get bookingUseCurrentLocation => 'Use Current Location';
+
+  @override
+  String get bookingTapMapToPin =>
+      'Tap on the map to pin the exact home entrance.';
+
+  @override
+  String bookingPinnedLocation(String lat, String lng) {
+    return 'Pinned: $lat, $lng';
+  }
+
+  @override
+  String get bookingSelectHomeVisitDoctor => 'Select Home Visit Doctor';
+
+  @override
+  String get bookingSelectHomeVisitDoctorDesc =>
+      'Doctors available at your location.';
+
+  @override
+  String get bookingNoSuitableDoctors => 'No suitable doctors found.';
+
+  @override
+  String get bookingHomeVisitDoctor => 'Home Visit Doctor';
+
+  @override
+  String get bookingAdditionalServices => 'Additional Services';
+
+  @override
+  String get bookingAdditionalServicesDesc =>
+      'Select services for doctor to perform at home if needed.';
+
+  @override
+  String get bookingNoAdditionalServices => 'No additional services available.';
+
+  @override
+  String get bookingTotalServices => 'Total Services';
+
+  @override
+  String get bookingSelectHomeVisitSession => 'Select Home Visit Session';
+
+  @override
+  String get bookingSelectHomeVisitSessionDesc =>
+      'Choose a date and session for the doctor to visit.';
+
+  @override
+  String get bookingSelectSession => 'Select Session';
+
+  @override
+  String get bookingNoSuitableSessions => 'No suitable sessions available.';
+
+  @override
+  String get bookingAvailableHomeVisitSessions =>
+      'Available Home Visit Sessions';
+
+  @override
+  String get bookingConfirmHomeVisit => 'Confirm Home Visit';
+
+  @override
+  String get bookingConfirmHomeVisitDesc =>
+      'Review information before payment.';
+
+  @override
+  String get bookingRecipient => 'Recipient';
+
+  @override
+  String get bookingReasonForVisit => 'Reason for Visit';
+
+  @override
+  String get bookingDoctorFee => 'Doctor Fee';
+
+  @override
+  String get bookingHomeVisitFee => 'Home Visit Fee';
+
+  @override
+  String get bookingTotalAmount => 'Total Amount';
 }

@@ -1,13 +1,13 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
-import 'package:intl/intl.dart';
 import '../../providers/auth_provider.dart';
 import '../../services/doctor/doctor_service.dart';
 import '../../models/doctor/doctor_appointment.dart';
 import '../../models/doctor/doctor_profile.dart';
-import '../../config/api_config.dart';
 import '../../config/doctor_theme.dart';
 import '../../widgets/doctor/doctor_widgets.dart';
+import '../../widgets/doctor/complete_appointment_sheet.dart';
+import 'doctor_appointment_detail_screen.dart';
 
 class DoctorAppointmentsScreen extends StatefulWidget {
   const DoctorAppointmentsScreen({super.key});
@@ -207,11 +207,18 @@ class _DoctorAppointmentsScreenState extends State<DoctorAppointmentsScreen> {
                                   padding: const EdgeInsets.fromLTRB(20, 0, 20, 20),
                                   itemCount: _filteredAppointments.length,
                                   separatorBuilder: (_, __) => const SizedBox(height: 12),
-                                  itemBuilder: (context, index) => _AppointmentCard(
-                                    appointment: _filteredAppointments[index],
-                                    onUpdateStatus: _updateStatus,
-                                    onStartCall: _startCall,
-                                  ),
+                                  itemBuilder: (context, index) {
+                                    final appt = _filteredAppointments[index];
+                                    final id = appt.appointmentId.toString();
+                                    return DoctorAppointmentActionCard(
+                                      appointment: appt,
+                                      onStart: () => _updateStatus(id, 'IN_PROGRESS'),
+                                      onCancel: () => _updateStatus(id, 'CANCELLED'),
+                                      onComplete: () => _openCompleteSheet(appt),
+                                      onCall: () => _startCall(id),
+                                      onTap: () => _openDetail(appt),
+                                    );
+                                  },
                                 ),
                         ),
             ),
@@ -271,14 +278,12 @@ class _DoctorAppointmentsScreenState extends State<DoctorAppointmentsScreen> {
 
       if (newStatus == 'IN_PROGRESS') {
         await DoctorService.startConsultation(token, appointmentId);
-      } else if (newStatus == 'COMPLETED') {
-        await DoctorService.completeAppointment(token, appointmentId);
       }
 
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text(newStatus == 'IN_PROGRESS' ? 'Consultation started' : newStatus == 'COMPLETED' ? 'Consultation completed' : 'Appointment updated'),
+            content: Text(newStatus == 'IN_PROGRESS' ? 'Consultation started' : 'Appointment updated'),
             behavior: SnackBarBehavior.floating,
           ),
         );
@@ -291,6 +296,26 @@ class _DoctorAppointmentsScreenState extends State<DoctorAppointmentsScreen> {
         );
       }
     }
+  }
+
+  void _openCompleteSheet(DoctorAppointment appointment) {
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (_) => CompleteAppointmentSheet(
+        appointmentId: appointment.appointmentId,
+        patientName: appointment.patientName,
+        onCompleted: _loadData,
+      ),
+    );
+  }
+
+  void _openDetail(DoctorAppointment appointment) {
+    Navigator.push(
+      context,
+      MaterialPageRoute(builder: (_) => DoctorAppointmentDetailScreen(appointment: appointment)),
+    ).then((_) => _loadData());
   }
 
   void _startCall(String id) {
@@ -307,120 +332,4 @@ class _DateItemData {
   final int day;
   final bool isToday;
   _DateItemData({required this.date, required this.label, required this.day, required this.isToday});
-}
-
-class _AppointmentCard extends StatelessWidget {
-  final DoctorAppointment appointment;
-  final Function(String id, String status) onUpdateStatus;
-  final Function(String id) onStartCall;
-
-  const _AppointmentCard({required this.appointment, required this.onUpdateStatus, required this.onStartCall});
-
-  @override
-  Widget build(BuildContext context) {
-    final timeFormat = DateFormat('HH:mm');
-    final time = appointment.appointmentTime != null ? timeFormat.format(appointment.appointmentTime!) : '--:--';
-    final status = appointment.status?.toUpperCase() ?? 'PENDING';
-    final showActions = status == 'CONFIRMED' || status == 'PENDING' || status == 'IN_PROGRESS';
-
-    return Container(
-      decoration: DS.cardDecoration,
-      child: Column(
-        children: [
-          Padding(
-            padding: const EdgeInsets.all(16),
-            child: Row(
-              children: [
-                SizedBox(
-                  width: 56,
-                  child: Column(
-                    children: [
-                      Text(time, style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: DS.foreground)),
-                      const SizedBox(height: 4),
-                      Icon(Icons.schedule, size: 12, color: DS.mutedForeground.withOpacity(0.6)),
-                    ],
-                  ),
-                ),
-                Container(width: 1, height: 40, color: DS.cardBorder, margin: const EdgeInsets.symmetric(horizontal: 12)),
-                DoctorPersonAvatar(
-                  name: appointment.patientName ?? 'Patient',
-                  imageUrl: appointment.patientAvatar != null ? ApiConfig.normalizeUrl(appointment.patientAvatar!) : null,
-                  size: 44,
-                ),
-                const SizedBox(width: 12),
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(appointment.patientName ?? 'Unknown Patient', style: const TextStyle(fontSize: 15, fontWeight: FontWeight.w600, color: DS.foreground), maxLines: 1, overflow: TextOverflow.ellipsis),
-                      if (appointment.symptoms != null && appointment.symptoms!.isNotEmpty)
-                        Padding(padding: const EdgeInsets.only(top: 2), child: Text(appointment.symptoms!, style: const TextStyle(fontSize: 12, color: DS.mutedForeground), maxLines: 1, overflow: TextOverflow.ellipsis)),
-                      const SizedBox(height: 6),
-                      Row(children: [
-                        DoctorConsultationPill(type: appointment.consultationType ?? 'VIDEO'),
-                        const SizedBox(width: 8),
-                        DoctorStatusBadge(status: status),
-                      ]),
-                    ],
-                  ),
-                ),
-              ],
-            ),
-          ),
-          if (showActions)
-            Container(
-              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
-              decoration: BoxDecoration(
-                color: DS.secondary.withOpacity(0.5),
-                borderRadius: const BorderRadius.only(bottomLeft: Radius.circular(12), bottomRight: Radius.circular(12)),
-                border: const Border(top: BorderSide(color: DS.cardBorder)),
-              ),
-              child: Row(
-                children: [
-                  if (status == 'IN_PROGRESS') ...[
-                    Expanded(child: _ActionButton(label: 'Complete', icon: Icons.check_circle_outline, color: DS.emerald600, filled: true, onTap: () => onUpdateStatus(appointment.appointmentId.toString(), 'COMPLETED'))),
-                    if (appointment.consultationType?.toUpperCase() != 'CHAT') ...[
-                      const SizedBox(width: 8),
-                      _ActionButton(label: appointment.consultationType?.toUpperCase() == 'VIDEO' ? 'Video' : 'Audio', icon: appointment.consultationType?.toUpperCase() == 'VIDEO' ? Icons.videocam : Icons.phone, color: DS.primary, filled: false, onTap: () => onStartCall(appointment.appointmentId.toString())),
-                    ],
-                  ] else ...[
-                    Expanded(child: _ActionButton(label: 'Start', icon: Icons.play_circle_outline, color: DS.primary, filled: true, onTap: () => onUpdateStatus(appointment.appointmentId.toString(), 'IN_PROGRESS'))),
-                    const SizedBox(width: 8),
-                    _ActionButton(label: 'Cancel', icon: Icons.close, color: DS.rose700, filled: false, onTap: () => onUpdateStatus(appointment.appointmentId.toString(), 'CANCELLED')),
-                  ],
-                ],
-              ),
-            ),
-        ],
-      ),
-    );
-  }
-}
-
-class _ActionButton extends StatelessWidget {
-  final String label;
-  final IconData icon;
-  final Color color;
-  final bool filled;
-  final VoidCallback onTap;
-
-  const _ActionButton({required this.label, required this.icon, required this.color, required this.filled, required this.onTap});
-
-  @override
-  Widget build(BuildContext context) {
-    if (filled) {
-      return ElevatedButton.icon(
-        onPressed: onTap,
-        style: ElevatedButton.styleFrom(backgroundColor: color, foregroundColor: Colors.white, shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)), padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10)),
-        icon: Icon(icon, size: 16),
-        label: Text(label, style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w600)),
-      );
-    }
-    return OutlinedButton.icon(
-      onPressed: onTap,
-      style: OutlinedButton.styleFrom(foregroundColor: color, side: BorderSide(color: color), shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)), padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10)),
-      icon: Icon(icon, size: 16),
-      label: Text(label, style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w600)),
-    );
-  }
 }

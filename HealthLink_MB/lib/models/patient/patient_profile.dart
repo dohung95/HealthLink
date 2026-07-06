@@ -1,6 +1,7 @@
 class PatientProfile {
   final String userId;
   final String fullName;
+  final String? email;
   final DateTime? dateOfBirth;
   final String? gender;
   final String? occupation;
@@ -27,6 +28,7 @@ class PatientProfile {
   PatientProfile({
     required this.userId,
     required this.fullName,
+    this.email,
     this.dateOfBirth,
     this.gender,
     this.occupation,
@@ -55,6 +57,7 @@ class PatientProfile {
     return PatientProfile(
       userId: json['userId'] ?? '',
       fullName: json['fullName'] ?? 'Unknown',
+      email: json['email'],
       dateOfBirth: json['dateOfBirth'] != null ? DateTime.tryParse(json['dateOfBirth']) : null,
       gender: json['gender'],
       occupation: json['occupation'],

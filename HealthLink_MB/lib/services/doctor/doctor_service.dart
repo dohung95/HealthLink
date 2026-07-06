@@ -213,23 +213,29 @@ class DoctorService {
   static Future<void> completeAppointment(
     String token,
     int appointmentId, {
-    String? diagnosis,
-    String? notes,
+    bool copyPrescription = false,
   }) async {
     final res = await http
         .put(
           Uri.parse('${ApiConfig.baseUrl}/appointments/$appointmentId/complete'),
           headers: _authHeaders(token),
-          body: jsonEncode({
-            if (diagnosis != null) 'diagnosis': diagnosis,
-            if (notes != null) 'notes': notes,
-          }),
+          body: jsonEncode({'copyPrescription': copyPrescription}),
         )
         .timeout(ApiConfig.connectTimeout);
 
     if (res.statusCode != 200) {
-      throw Exception('Failed to complete appointment: ${res.statusCode}');
+      throw Exception(_extractErrorMessage(res.body) ?? 'Failed to complete appointment: ${res.statusCode}');
     }
+  }
+
+  static String? _extractErrorMessage(String body) {
+    try {
+      final decoded = jsonDecode(body);
+      if (decoded is Map<String, dynamic>) {
+        return decoded['message']?.toString() ?? decoded['error']?.toString();
+      }
+    } catch (_) {}
+    return null;
   }
 
   /// Cập nhật ghi chú tư vấn
@@ -251,7 +257,7 @@ class DoctorService {
         .timeout(ApiConfig.connectTimeout);
 
     if (res.statusCode != 200) {
-      throw Exception('Failed to update notes: ${res.statusCode}');
+      throw Exception(_extractErrorMessage(res.body) ?? 'Failed to update notes: ${res.statusCode}');
     }
   }
 
@@ -366,7 +372,7 @@ class DoctorService {
       return jsonDecode(res.body) as Map<String, dynamic>;
     }
 
-    throw Exception('Failed to create prescription: ${res.statusCode}');
+    throw Exception(_extractErrorMessage(res.body) ?? 'Failed to create prescription: ${res.statusCode}');
   }
 
   // ══════════════════════════════════════════════════════════════════════════

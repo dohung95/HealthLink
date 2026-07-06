@@ -1797,4 +1797,139 @@ class AppLocalizationsVi extends AppLocalizations {
 
   @override
   String get medicineReminderSettingsSaved => 'Đã lưu cài đặt nhắc nhở.';
+
+  @override
+  String get bookingSelectExamType => 'Chọn loại khám';
+
+  @override
+  String get bookingSelectExamTypeDesc =>
+      'Chọn cách bạn muốn tư vấn với bác sĩ.';
+
+  @override
+  String get bookingOnlineConsultation => 'Tư vấn trực tuyến';
+
+  @override
+  String get bookingDoctorVisitsHome => 'Bác sĩ khám tại nhà';
+
+  @override
+  String get bookingVisitType => 'Loại hình khám';
+
+  @override
+  String get bookingHomeVisitInfo => 'Thông tin khám tại nhà';
+
+  @override
+  String get bookingHomeVisitInfoDesc =>
+      'Nhập địa chỉ và thông tin người nhận.';
+
+  @override
+  String get bookingForMe => 'Cho tôi';
+
+  @override
+  String get bookingSomeoneElse => 'Người khác';
+
+  @override
+  String get bookingRecipientName => 'Tên người nhận';
+
+  @override
+  String get bookingAge => 'Tuổi';
+
+  @override
+  String get bookingGender => 'Giới tính';
+
+  @override
+  String get bookingRelationship => 'Mối quan hệ';
+
+  @override
+  String get bookingRecipientPhone => 'Số điện thoại người nhận';
+
+  @override
+  String get bookingAddressStar => 'Địa chỉ *';
+
+  @override
+  String get bookingCity => 'Thành phố';
+
+  @override
+  String get bookingContactPhoneStar => 'Điện thoại liên hệ *';
+
+  @override
+  String get bookingReasonForHomeVisitStar => 'Lý do khám tại nhà *';
+
+  @override
+  String get bookingNotesOpt => 'Ghi chú';
+
+  @override
+  String get bookingUseCurrentLocation => 'Sử dụng vị trí hiện tại';
+
+  @override
+  String get bookingTapMapToPin => 'Chạm vào bản đồ để ghim chính xác vị trí.';
+
+  @override
+  String bookingPinnedLocation(String lat, String lng) {
+    return 'Đã ghim: $lat, $lng';
+  }
+
+  @override
+  String get bookingSelectHomeVisitDoctor => 'Chọn bác sĩ khám tại nhà';
+
+  @override
+  String get bookingSelectHomeVisitDoctorDesc =>
+      'Các bác sĩ có sẵn tại vị trí của bạn.';
+
+  @override
+  String get bookingNoSuitableDoctors => 'Không tìm thấy bác sĩ phù hợp.';
+
+  @override
+  String get bookingHomeVisitDoctor => 'Bác sĩ khám tại nhà';
+
+  @override
+  String get bookingAdditionalServices => 'Dịch vụ thêm';
+
+  @override
+  String get bookingAdditionalServicesDesc =>
+      'Chọn các dịch vụ để bác sĩ thực hiện tại nhà nếu cần.';
+
+  @override
+  String get bookingNoAdditionalServices => 'Không có dịch vụ thêm nào.';
+
+  @override
+  String get bookingTotalServices => 'Tổng phí dịch vụ';
+
+  @override
+  String get bookingSelectHomeVisitSession => 'Chọn phiên khám tại nhà';
+
+  @override
+  String get bookingSelectHomeVisitSessionDesc =>
+      'Chọn ngày và phiên để bác sĩ đến khám.';
+
+  @override
+  String get bookingSelectSession => 'Chọn phiên khám';
+
+  @override
+  String get bookingNoSuitableSessions => 'Không có phiên khám nào phù hợp.';
+
+  @override
+  String get bookingAvailableHomeVisitSessions =>
+      'Các phiên khám tại nhà có sẵn';
+
+  @override
+  String get bookingConfirmHomeVisit => 'Xác nhận khám tại nhà';
+
+  @override
+  String get bookingConfirmHomeVisitDesc =>
+      'Kiểm tra thông tin trước khi thanh toán.';
+
+  @override
+  String get bookingRecipient => 'Người nhận';
+
+  @override
+  String get bookingReasonForVisit => 'Lý do khám';
+
+  @override
+  String get bookingDoctorFee => 'Phí bác sĩ';
+
+  @override
+  String get bookingHomeVisitFee => 'Phí khám tại nhà';
+
+  @override
+  String get bookingTotalAmount => 'Tổng cộng';
 }

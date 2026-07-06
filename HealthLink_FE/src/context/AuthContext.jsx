@@ -30,6 +30,10 @@ export function AuthProvider({ children }) {
     // Setup axios interceptors on mount
     useEffect(() => {
         setupAxiosInterceptors();
+        // Clear stuck call flag on app load to prevent permanent locks
+        const userId = localStorage.getItem('userId') || sessionStorage.getItem('userId') || 'guest';
+        localStorage.removeItem('healthlink_in_call_' + userId);
+        setIsInCall(false);
     }, []);
 
     // Update user and roles when token changes
@@ -152,9 +156,11 @@ export function AuthProvider({ children }) {
             setUser(null);
             setRoles([]);
             setTokenExpiry(null);
+            localStorage.removeItem(getInCallKey());
             localStorage.removeItem('token');
             localStorage.removeItem('refreshToken');
             localStorage.removeItem('userId');
+            sessionStorage.removeItem(getInCallKey());
             sessionStorage.removeItem('token');
             sessionStorage.removeItem('refreshToken');
             sessionStorage.removeItem('userId');
@@ -166,18 +172,24 @@ export function AuthProvider({ children }) {
 
     ///=>> Spring Boot logout
     const logout = async () => {
-        await logoutAPI();
+        try {
+            await logoutAPI();
+        } catch (e) {
+            console.error('Logout API call failed:', e);
+        }
+        localStorage.removeItem(getInCallKey());
+        localStorage.removeItem('token');
+        localStorage.removeItem('refreshToken');
+        localStorage.removeItem('userId');
+        sessionStorage.removeItem(getInCallKey());
+        sessionStorage.removeItem('token');
+        sessionStorage.removeItem('refreshToken');
+        sessionStorage.removeItem('userId');
         setToken(null);
         setRefreshToken(null);
         setUser(null);
         setRoles([]);
         setTokenExpiry(null);
-        localStorage.removeItem('token');
-        localStorage.removeItem('refreshToken');
-        localStorage.removeItem('userId');
-        sessionStorage.removeItem('token');
-        sessionStorage.removeItem('refreshToken');
-        sessionStorage.removeItem('userId');
         setCurrentUserId(null);
         window.location.href = '/';
     };
@@ -395,6 +407,9 @@ export function AuthProvider({ children }) {
                         });
                     }
                 }, 1000);
+            } else {
+                toast.error("Pop-up blocked! Please allow pop-ups for this website to make video calls.");
+                setCallActive(false);
             }
 
         } catch (error) {
@@ -487,6 +502,9 @@ export function AuthProvider({ children }) {
                         });
                     }
                 }, 1000);
+            } else {
+                toast.error("Pop-up blocked! Please allow pop-ups for this website to answer video calls.");
+                setCallActive(false);
             }
 
             setIncomingCall(null); // Đóng pop-up

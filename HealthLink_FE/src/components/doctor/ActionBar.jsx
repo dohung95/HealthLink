@@ -9,6 +9,7 @@ const ActionBar = ({
   actionLabel,
   completingAppointment,
   onCompleteClick,
+  isHomeVisit,
 }) => {
   const getJoinHint = () => {
     if (isReadOnlyAppointment) return 'Appointment already completed';

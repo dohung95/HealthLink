@@ -1,5 +1,8 @@
 import 'package:flutter/material.dart';
+import 'package:intl/intl.dart';
 import '../../config/doctor_theme.dart';
+import '../../config/api_config.dart';
+import '../../models/doctor/doctor_appointment.dart';
 
 // ============================================
 // CENTER NOTICE DIALOG
@@ -712,6 +715,293 @@ class DoctorDateItem extends StatelessWidget {
           ],
         ),
       ),
+    );
+  }
+}
+
+// ============================================
+// APPOINTMENT ACTION CARD
+// ============================================
+
+/// Card lịch hẹn có action-row đổi theo status (Start/Cancel, Complete/Call).
+/// Dùng chung giữa Appointments tab và Home "next up"/schedule preview.
+class DoctorAppointmentActionCard extends StatelessWidget {
+  final DoctorAppointment appointment;
+  final VoidCallback? onStart;
+  final VoidCallback? onCancel;
+  final VoidCallback? onComplete;
+  final VoidCallback? onCall;
+
+  /// Mở màn chi tiết khi tap vào phần thông tin bệnh nhân (không phải action-row).
+  final VoidCallback? onTap;
+
+  /// Tô viền + nhãn nổi bật khi dùng làm lịch hẹn "kế tiếp" trên Home.
+  final bool highlighted;
+
+  const DoctorAppointmentActionCard({
+    super.key,
+    required this.appointment,
+    this.onStart,
+    this.onCancel,
+    this.onComplete,
+    this.onCall,
+    this.onTap,
+    this.highlighted = false,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final timeFormat = DateFormat('HH:mm');
+    final time = appointment.appointmentTime != null
+        ? timeFormat.format(appointment.appointmentTime!)
+        : '--:--';
+    final status = appointment.status?.toUpperCase() ?? 'PENDING';
+    final showActions =
+        status == 'CONFIRMED' || status == 'PENDING' || status == 'IN_PROGRESS';
+    final isInProgress = status == 'IN_PROGRESS';
+
+    return Container(
+      decoration: highlighted
+          ? DS.cardDecoration.copyWith(
+              border: Border.all(color: DS.primary, width: 1.5),
+            )
+          : DS.cardDecoration,
+      child: Column(
+        children: [
+          if (highlighted)
+            Container(
+              width: double.infinity,
+              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+              decoration: BoxDecoration(
+                color: DS.primary.withOpacity(0.08),
+                borderRadius:
+                    const BorderRadius.only(topLeft: Radius.circular(12), topRight: Radius.circular(12)),
+              ),
+              child: Row(
+                children: [
+                  Icon(isInProgress ? Icons.play_circle_fill : Icons.bolt_rounded,
+                      size: 14, color: DS.primary),
+                  const SizedBox(width: 6),
+                  Text(
+                    isInProgress ? 'IN PROGRESS' : 'NEXT UP',
+                    style: const TextStyle(
+                      fontSize: 11,
+                      fontWeight: FontWeight.w700,
+                      color: DS.primary,
+                      letterSpacing: 0.5,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          GestureDetector(
+            onTap: onTap,
+            behavior: HitTestBehavior.opaque,
+            child: Padding(
+              padding: const EdgeInsets.all(16),
+              child: Row(
+                children: [
+                  SizedBox(
+                    width: 56,
+                    child: Column(
+                      children: [
+                        Text(time,
+                            style: const TextStyle(
+                                fontSize: 16, fontWeight: FontWeight.bold, color: DS.foreground)),
+                        const SizedBox(height: 4),
+                        Icon(Icons.schedule, size: 12, color: DS.mutedForeground.withOpacity(0.6)),
+                      ],
+                    ),
+                  ),
+                  Container(
+                      width: 1,
+                      height: 40,
+                      color: DS.cardBorder,
+                      margin: const EdgeInsets.symmetric(horizontal: 12)),
+                  DoctorPersonAvatar(
+                    name: appointment.patientName ?? 'Patient',
+                    imageUrl: appointment.patientAvatar != null
+                        ? ApiConfig.normalizeUrl(appointment.patientAvatar!)
+                        : null,
+                    size: 44,
+                  ),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          appointment.patientName ?? 'Unknown Patient',
+                          style: const TextStyle(
+                              fontSize: 15, fontWeight: FontWeight.w600, color: DS.foreground),
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                        if (appointment.symptoms != null && appointment.symptoms!.isNotEmpty)
+                          Padding(
+                            padding: const EdgeInsets.only(top: 2),
+                            child: Text(
+                              appointment.symptoms!,
+                              style: const TextStyle(fontSize: 12, color: DS.mutedForeground),
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                            ),
+                          ),
+                        const SizedBox(height: 6),
+                        Row(children: [
+                          DoctorConsultationPill(type: appointment.consultationType ?? 'VIDEO'),
+                          const SizedBox(width: 8),
+                          DoctorStatusBadge(status: status),
+                        ]),
+                      ],
+                    ),
+                  ),
+                  if (onTap != null)
+                    Icon(Icons.chevron_right, size: 20, color: DS.mutedForeground.withOpacity(0.6)),
+                ],
+              ),
+            ),
+          ),
+          if (showActions)
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+              decoration: BoxDecoration(
+                color: DS.secondary.withOpacity(0.5),
+                borderRadius:
+                    const BorderRadius.only(bottomLeft: Radius.circular(12), bottomRight: Radius.circular(12)),
+                border: const Border(top: BorderSide(color: DS.cardBorder)),
+              ),
+              child: Row(
+                children: [
+                  if (isInProgress) ...[
+                    Expanded(
+                      child: DoctorActionButton(
+                        label: 'Complete',
+                        icon: Icons.check_circle_outline,
+                        color: DS.emerald600,
+                        filled: true,
+                        onTap: onComplete ?? () {},
+                      ),
+                    ),
+                    if (appointment.consultationType?.toUpperCase() != 'CHAT') ...[
+                      const SizedBox(width: 8),
+                      DoctorActionButton(
+                        label: appointment.consultationType?.toUpperCase() == 'VIDEO' ? 'Video' : 'Audio',
+                        icon: appointment.consultationType?.toUpperCase() == 'VIDEO'
+                            ? Icons.videocam
+                            : Icons.phone,
+                        color: DS.primary,
+                        filled: false,
+                        onTap: onCall ?? () {},
+                      ),
+                    ],
+                  ] else ...[
+                    Expanded(
+                      child: DoctorActionButton(
+                        label: 'Start',
+                        icon: Icons.play_circle_outline,
+                        color: DS.primary,
+                        filled: true,
+                        onTap: onStart ?? () {},
+                      ),
+                    ),
+                    const SizedBox(width: 8),
+                    DoctorActionButton(
+                      label: 'Cancel',
+                      icon: Icons.close,
+                      color: DS.rose700,
+                      filled: false,
+                      onTap: onCancel ?? () {},
+                    ),
+                  ],
+                ],
+              ),
+            ),
+        ],
+      ),
+    );
+  }
+}
+
+// ============================================
+// ACTION BUTTON (Start / Cancel / Complete / Call)
+// ============================================
+
+class DoctorActionButton extends StatelessWidget {
+  final String label;
+  final IconData icon;
+  final Color color;
+  final bool filled;
+  final VoidCallback onTap;
+
+  const DoctorActionButton({
+    super.key,
+    required this.label,
+    required this.icon,
+    required this.color,
+    required this.filled,
+    required this.onTap,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    if (filled) {
+      return ElevatedButton.icon(
+        onPressed: onTap,
+        style: ElevatedButton.styleFrom(
+          backgroundColor: color,
+          foregroundColor: Colors.white,
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+        ),
+        icon: Icon(icon, size: 16),
+        label: Text(label, style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w600)),
+      );
+    }
+    return OutlinedButton.icon(
+      onPressed: onTap,
+      style: OutlinedButton.styleFrom(
+        foregroundColor: color,
+        side: BorderSide(color: color),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+      ),
+      icon: Icon(icon, size: 16),
+      label: Text(label, style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w600)),
+    );
+  }
+}
+
+// ============================================
+// VITAL BADGE (heart rate / blood pressure / height / weight / BMI...)
+// ============================================
+
+class DoctorVitalBadge extends StatelessWidget {
+  final IconData icon;
+  final String value;
+  final String? unit;
+
+  const DoctorVitalBadge({
+    super.key,
+    required this.icon,
+    required this.value,
+    this.unit,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+      decoration: BoxDecoration(color: DS.secondary, borderRadius: BorderRadius.circular(8)),
+      child: Row(mainAxisSize: MainAxisSize.min, children: [
+        Icon(icon, size: 14, color: DS.primary),
+        const SizedBox(width: 4),
+        Text(value, style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w700, color: DS.foreground)),
+        if (unit != null) ...[
+          const SizedBox(width: 2),
+          Text(unit!, style: const TextStyle(fontSize: 10, color: DS.mutedForeground)),
+        ],
+      ]),
     );
   }
 }
