@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
+import 'package:flutter/services.dart';
 import 'package:file_picker/file_picker.dart';
 import '../../../providers/auth_provider.dart';
 import '../../../services/booking/booking_service.dart';
@@ -17,6 +18,7 @@ import '../../../services/booking/home_visit_service.dart';
 import '../../../utils/localization_utils.dart';
 import 'package:flutter_map/flutter_map.dart';
 import 'package:latlong2/latlong.dart';
+import '../../../models/booking/recommended_doctor.dart';
 part 'parts/booking_actions.dart';
 part 'parts/booking_home_visit_actions.dart';
 part 'parts/booking_home_visit_steps.dart';
@@ -31,6 +33,7 @@ const String _pendingPayPalAppointmentTimeKey = 'pending_paypal_appointment_time
 enum BookingStepKey {
   specialty,
   visitType,
+  doctorOption,
   doctor,
   dateTime,
   medicalInfo,
@@ -65,15 +68,24 @@ class _BookingScreenState extends State<BookingScreen> {
       ];
     }
 
-    return const [
+    final normalSteps = <BookingStepKey>[
       BookingStepKey.specialty,
       BookingStepKey.visitType,
-      BookingStepKey.doctor,
+      BookingStepKey.doctorOption,
+    ];
+
+    if (_doctorSelectionMode == 'MANUAL_SELECTED') {
+      normalSteps.add(BookingStepKey.doctor);
+    }
+
+    normalSteps.addAll([
       BookingStepKey.dateTime,
       BookingStepKey.medicalInfo,
       BookingStepKey.confirm,
       BookingStepKey.payment,
-    ];
+    ]);
+
+    return normalSteps;
   }
 
   BookingStepKey get _currentStepKey => _stepKeys[_step];
@@ -86,7 +98,9 @@ class _BookingScreenState extends State<BookingScreen> {
         case BookingStepKey.specialty:
           return l10n.bookingStepSpecialty;
         case BookingStepKey.visitType:
-          return l10n.bookingVisitType;
+          return 'Visit Type';
+        case BookingStepKey.doctorOption:
+          return 'Doctor Option';
         case BookingStepKey.doctor:
           return l10n.bookingStepDoctor;
         case BookingStepKey.dateTime:
@@ -150,6 +164,10 @@ class _BookingScreenState extends State<BookingScreen> {
 
   //Home Visit
   String? _consultationType; // Online, HomeVisit
+  String _doctorSelectionMode = ''; // AUTO_ASSIGNED, MANUAL_SELECTED
+  RecommendedDoctor? _recommendedDoctor;
+  double _manualSelectionFee = 0;
+  bool _loadingRecommendedDoctor = false;
   HomeVisitBookingDraft _homeVisitDraft = const HomeVisitBookingDraft();
   HomeVisitService? _homeVisitService;
 

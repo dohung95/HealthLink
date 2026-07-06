@@ -9,6 +9,8 @@ const toAppointmentPaymentPayload = (bookingDraft, extra = {}) => {
     symptoms,
     notes,
     currency,
+    doctorSelectionMode,
+    manualSelectionFee,
 
     visitAddress,
     visitCity,
@@ -42,6 +44,8 @@ const toAppointmentPaymentPayload = (bookingDraft, extra = {}) => {
     consultationType,
     symptoms,
     notes,
+    doctorSelectionMode,
+    manualSelectionFee,
 
     visitAddress,
     visitCity,

@@ -196,6 +196,11 @@ public class FinanceServiceImpl implements FinanceService {
                 request.getVisitLongitude(),
                 request.getHomeVisitServiceIds()
         );
+
+        if (!TYPE_HOME_VISIT.equalsIgnoreCase(request.getConsultationType())
+                && "MANUAL_SELECTED".equalsIgnoreCase(request.getDoctorSelectionMode())) {
+            amount = amount.add(resolveManualSelectionFee(request.getManualSelectionFee()));
+        }
         String currency = request.getCurrency() != null ? request.getCurrency() : "USD";
         String amountStr = amount.setScale(2, RoundingMode.HALF_UP).toPlainString();
         String description = String.format(
@@ -406,6 +411,11 @@ public class FinanceServiceImpl implements FinanceService {
                 request.getVisitLongitude(),
                 request.getHomeVisitServiceIds()
         );
+
+        if (!TYPE_HOME_VISIT.equalsIgnoreCase(request.getConsultationType())
+                && "MANUAL_SELECTED".equalsIgnoreCase(request.getDoctorSelectionMode())) {
+            expectedAmount = expectedAmount.add(resolveManualSelectionFee(request.getManualSelectionFee()));
+        }
 
         if (paymentRepository.findByTransactionId(request.getOrderId()).isPresent()) {
             throw new BadRequestException("This PayPal transaction has already been processed: " + request.getOrderId());
@@ -735,15 +745,18 @@ public class FinanceServiceImpl implements FinanceService {
         Consultation c = consultationRepository
                 .findByAppointment_AppointmentId(appointmentId)
                 .orElseThrow(() -> new BadRequestException("Consultation not found: " + appointmentId));
-        if (c.getFollowUpStatus() != FollowUpStatus.PENDING_PAYMENT)
+        if (c.getFollowUpStatus() != FollowUpStatus.PENDING_PAYMENT) {
             throw new BadRequestException("Follow-up is not in PENDING_PAYMENT status");
-        if (!"HomeVisit".equalsIgnoreCase(c.getConsultationType()))
+        }
+        if (!"HomeVisit".equalsIgnoreCase(c.getConsultationType())) {
             throw new BadRequestException("Only HomeVisit follow-up can set location");
+        }
 
         Number latNum = (Number) body.get("visitLatitude");
         Number lngNum = (Number) body.get("visitLongitude");
-        if (latNum == null || lngNum == null)
+        if (latNum == null || lngNum == null) {
             throw new BadRequestException("visitLatitude and visitLongitude are required");
+        }
         c.setHomeVisitLatitude(latNum.doubleValue());
         c.setHomeVisitLongitude(lngNum.doubleValue());
 
@@ -827,7 +840,9 @@ public class FinanceServiceImpl implements FinanceService {
                     HttpMethod.POST, entity, Map.class);
 
             Map<String, Object> responseBody = response.getBody();
-            if (responseBody == null) throw new PayPalIntegrationException("Empty PayPal response");
+            if (responseBody == null) {
+                throw new PayPalIntegrationException("Empty PayPal response");
+            }
 
             String orderId = (String) responseBody.get("id");
             String approvalUrl = null;
@@ -894,7 +909,9 @@ public class FinanceServiceImpl implements FinanceService {
                     HttpMethod.POST, new HttpEntity<>("{}", headers), Map.class);
 
             Map<String, Object> responseBody = response.getBody();
-            if (responseBody == null) throw new PayPalIntegrationException("Empty PayPal capture response");
+            if (responseBody == null) {
+                throw new PayPalIntegrationException("Empty PayPal capture response");
+            }
 
             String paypalStatus = (String) responseBody.get("status");
             String metadata = objectMapper.writeValueAsString(responseBody);
@@ -914,7 +931,9 @@ public class FinanceServiceImpl implements FinanceService {
             }
 
             LocalDateTime followUpDate = consultation.getFollowUpDate();
-            if (followUpDate == null) throw new BadRequestException("Follow-up date not set on consultation");
+            if (followUpDate == null) {
+                throw new BadRequestException("Follow-up date not set on consultation");
+            }
 
             Appointment followUpAppointment = new Appointment();
             followUpAppointment.setPatient(patient);
@@ -1202,13 +1221,21 @@ public class FinanceServiceImpl implements FinanceService {
     private String extractGatewayCaptureId(Map<String, Object> body) {
         try {
             List<Map<String, Object>> units = (List<Map<String, Object>>) body.get("purchase_units");
-            if (units == null || units.isEmpty()) return null;
+            if (units == null || units.isEmpty()) {
+                return null;
+            }
             Map<String, Object> payments = (Map<String, Object>) units.get(0).get("payments");
-            if (payments == null) return null;
+            if (payments == null) {
+                return null;
+            }
             List<Map<String, Object>> captures = (List<Map<String, Object>>) payments.get("captures");
-            if (captures == null || captures.isEmpty()) return null;
+            if (captures == null || captures.isEmpty()) {
+                return null;
+            }
             return (String) captures.get(0).get("id");
-        } catch (Exception ignored) { return null; }
+        } catch (Exception ignored) {
+            return null;
+        }
     }
 
     @SuppressWarnings("unchecked")
@@ -1308,6 +1335,16 @@ public class FinanceServiceImpl implements FinanceService {
         appointmentRequest.setConsultationType(request.getConsultationType());
         appointmentRequest.setSymptoms(request.getSymptoms());
         appointmentRequest.setNotes(request.getNotes());
+        appointmentRequest.setDoctorSelectionMode(
+                request.getDoctorSelectionMode() != null
+                ? request.getDoctorSelectionMode()
+                : "AUTO_ASSIGNED"
+        );
+        appointmentRequest.setManualSelectionFee(
+                request.getManualSelectionFee() != null
+                ? request.getManualSelectionFee()
+                : BigDecimal.ZERO
+        );
         appointmentRequest.setVisitAddress(request.getVisitAddress());
         appointmentRequest.setVisitCity(request.getVisitCity());
         appointmentRequest.setContactPhone(request.getContactPhone());
@@ -1385,6 +1422,14 @@ public class FinanceServiceImpl implements FinanceService {
             throw new BadRequestException("Doctor consultation fee must be greater than zero.");
         }
         return consultationFee.setScale(2, RoundingMode.HALF_UP);
+    }
+
+    private BigDecimal resolveManualSelectionFee(BigDecimal fee) {
+        if (fee == null || fee.compareTo(BigDecimal.ZERO) < 0) {
+            return BigDecimal.ZERO;
+        }
+
+        return fee.setScale(2, RoundingMode.HALF_UP);
     }
 
     private BigDecimal resolveAppointmentCheckoutAmount(
@@ -1803,7 +1848,9 @@ public class FinanceServiceImpl implements FinanceService {
     }
 
     private List<Integer> parseServiceIds(String csv) {
-        if (csv == null || csv.isBlank()) return Collections.emptyList();
+        if (csv == null || csv.isBlank()) {
+            return Collections.emptyList();
+        }
         return Arrays.stream(csv.split(","))
                 .map(String::trim)
                 .filter(s -> !s.isEmpty())

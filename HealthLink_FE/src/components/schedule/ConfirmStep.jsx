@@ -23,6 +23,11 @@ const ConfirmStep = ({
     files,
     selectedHomeVisitServices = [],
     homeVisitEstimate,
+    doctorSelectionMode = 'AUTO_ASSIGNED',
+    manualSelectionFee = 0,
+    recommendedDoctor,
+    wantsManualDoctor = false,
+    onToggleManualDoctor,
     onBack,
     onConfirm,
     confirming = false,
@@ -49,11 +54,11 @@ const ConfirmStep = ({
     };
 
     const formattedDateTime =
-    consultationType === 'HomeVisit'
-        ? buildHomeVisitDateTime(homeVisitInfo?.selectedSession)
-        : selectedSlot?.appointmentTime
-            ? new Date(selectedSlot.appointmentTime).toLocaleString('en-US')
-            : '';
+        consultationType === 'HomeVisit'
+            ? buildHomeVisitDateTime(homeVisitInfo?.selectedSession)
+            : selectedSlot?.appointmentTime
+                ? new Date(selectedSlot.appointmentTime).toLocaleString('en-US')
+                : '';
 
     const rows = [
         ['Doctor', selectedDoctor?.fullName || ''],
@@ -68,10 +73,23 @@ const ConfirmStep = ({
     );
 
     if (consultationType !== 'HomeVisit') {
+        const onlineDoctorFee = Number(selectedDoctor?.consultationFee || 0);
+        const manualFee = doctorSelectionMode === 'MANUAL_SELECTED'
+            ? Number(manualSelectionFee || 0)
+            : 0;
+
         rows.push(
-            ['Consultation fee', formatCurrency(selectedDoctor?.consultationFee || 0)],
-            ['Total', formatCurrency(selectedDoctor?.consultationFee || 0)]
+            ['Doctor selection', doctorSelectionMode === 'MANUAL_SELECTED'
+                ? 'Manual selected'
+                : 'System recommended'],
+            ['Consultation fee', formatCurrency(onlineDoctorFee)]
         );
+
+        if (manualFee > 0) {
+            rows.push(['Manual selection fee', formatCurrency(manualFee)]);
+        }
+
+        rows.push(['Total', formatCurrency(onlineDoctorFee + manualFee)]);
     }
 
     const doctorFee = Number(selectedDoctor?.consultationFee || 0);
@@ -119,6 +137,17 @@ const ConfirmStep = ({
             <p className="schedule-card-subtitle">
                 Check the information carefully before confirming your appointment.
             </p>
+
+            {consultationType !== 'HomeVisit' && recommendedDoctor && (
+                <div className="recommended-doctor-box">
+                    <strong>
+                        {doctorSelectionMode === 'MANUAL_SELECTED'
+                            ? 'Manual selected doctor'
+                            : 'System recommended doctor'}
+                    </strong>
+                    <p>Dr. {selectedDoctor?.fullName || recommendedDoctor.doctorName}</p>
+                </div>
+            )}
 
             <div className="confirm-list">
                 {rows.map(([label, value]) => (

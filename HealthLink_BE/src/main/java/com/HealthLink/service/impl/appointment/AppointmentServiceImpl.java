@@ -215,6 +215,16 @@ public class AppointmentServiceImpl implements AppointmentService {
                 .status(STATUS_SCHEDULED)
                 .symptoms(request.getSymptoms())
                 .notes(request.getNotes())
+                .doctorSelectionMode(
+                        request.getDoctorSelectionMode() != null
+                        ? request.getDoctorSelectionMode()
+                        : "AUTO_ASSIGNED"
+                )
+                .manualSelectionFee(
+                        request.getManualSelectionFee() != null
+                        ? request.getManualSelectionFee()
+                        : BigDecimal.ZERO
+                )
                 .fee(homeVisitEstimate != null
                         ? doctor.getConsultationFee()
                                 .add(homeVisitEstimate.getTotalFee() != null
@@ -1108,8 +1118,9 @@ public class AppointmentServiceImpl implements AppointmentService {
     }
 
     /**
-     * Rejects the booking write path if the doctor has a DAY_OFF exception on the given date,
-     * even though the recurring weekly schedule would otherwise match.
+     * Rejects the booking write path if the doctor has a DAY_OFF exception on
+     * the given date, even though the recurring weekly schedule would otherwise
+     * match.
      */
     private void assertNotDayOff(String doctorId, LocalDate date) {
         exceptionRepository.findByDoctor_DoctorIdAndExceptionDate(doctorId, date)

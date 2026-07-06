@@ -265,4 +265,19 @@ public interface AppointmentRepository extends JpaRepository<Appointment, Intege
     @Modifying
     @Query("DELETE FROM Appointment a WHERE a.status = :status AND a.appointmentTime < :before")
     int deleteByStatusAndAppointmentTimeBefore(@Param("status") String status, @Param("before") LocalDateTime before);
+
+    // đếm số appointment để chọn default bác sĩ cho online
+    @Query("""
+        SELECT COUNT(a)
+        FROM Appointment a
+        WHERE a.doctor.doctorId = :doctorId
+          AND a.appointmentTime >= :from
+          AND a.appointmentTime < :to
+          AND UPPER(COALESCE(a.status, '')) NOT IN ('CANCELLED', 'CANCELED', 'EXPIRED', 'FAILED')
+        """)
+    long countDoctorAppointmentsInRange(
+            @Param("doctorId") String doctorId,
+            @Param("from") LocalDateTime from,
+            @Param("to") LocalDateTime to
+    );
 }

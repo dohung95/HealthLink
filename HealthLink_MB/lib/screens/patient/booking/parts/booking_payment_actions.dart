@@ -62,8 +62,13 @@ extension _BookingPaymentActions on _BookingScreenState {
         patientId: patientId,
         doctorId: _selectedDoctor!.doctorId,
         appointmentTime: appointmentTime,
+        consultationType: 'Online',
         symptoms: _symptomsCtrl.text.trim(),
         notes: _notesCtrl.text.trim(),
+        doctorSelectionMode: _doctorSelectionMode,
+        manualSelectionFee: _doctorSelectionMode == 'MANUAL_SELECTED'
+            ? _manualSelectionFee
+            : 0,
       );
 
       if (!mounted) return;
@@ -246,8 +251,13 @@ extension _BookingPaymentActions on _BookingScreenState {
         patientId: patientId,
         doctorId: _selectedDoctor!.doctorId,
         appointmentTime: appointmentTime,
+        consultationType: 'Online',
         symptoms: _symptomsCtrl.text.trim(),
         notes: _notesCtrl.text.trim(),
+        doctorSelectionMode: _doctorSelectionMode,
+        manualSelectionFee: _doctorSelectionMode == 'MANUAL_SELECTED'
+            ? _manualSelectionFee
+            : 0,
       );
 
       final orderId = order['orderId']?.toString();
