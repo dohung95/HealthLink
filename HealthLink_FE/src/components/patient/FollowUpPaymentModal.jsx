@@ -23,6 +23,7 @@ const FollowUpPaymentModal = ({ show, appointmentId, onClose, onStatusChange }) 
   const [selectedServiceIds, setSelectedServiceIds] = useState([]);
   const [estimate, setEstimate] = useState(null);
   const [estimating, setEstimating] = useState(false);
+  const [declining, setDeclining] = useState(false);
   const buttonRef = useRef(null);
 
   const fetchStatus = useCallback(async () => {
@@ -180,15 +181,33 @@ const FollowUpPaymentModal = ({ show, appointmentId, onClose, onStatusChange }) 
     }
   };
 
+  const handleDecline = async () => {
+    setDeclining(true);
+    try {
+      await consultationApi.denyFollowUp(appointmentId);
+      toast.info('Follow-up payment request declined.');
+      onClose();
+    } catch (error) {
+      toast.error(error.response?.data?.message || 'Failed to decline payment request');
+    } finally {
+      setDeclining(false);
+    }
+  };
+
   if (!show) return null;
 
   const rightCol = () => {
     switch (step) {
       case STEP_INFO:
         return (
-          <button className="btn btn-primary" onClick={handleProceedToPay} style={{ padding: '0.75rem' }}>
-            <i className="bi bi-credit-card me-1" /> Proceed to Payment
-          </button>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
+            <button className="btn btn-primary" onClick={handleProceedToPay} style={{ padding: '0.75rem' }}>
+              <i className="bi bi-credit-card me-1" /> Proceed to Payment
+            </button>
+            <button className="btn btn-outline-danger" onClick={handleDecline} disabled={declining} style={{ padding: '0.5rem' }}>
+              {declining ? 'Declining...' : <><i className="bi bi-x-circle me-1" /> Decline & Close</>}
+            </button>
+          </div>
         );
       case STEP_LOCATION:
         return (
@@ -229,6 +248,9 @@ const FollowUpPaymentModal = ({ show, appointmentId, onClose, onStatusChange }) 
             <button className="btn btn-primary" onClick={handleSaveLocation} disabled={processing}>
               {processing ? 'Saving...' : <><i className="bi bi-check-lg" /> Save & Continue</>}
             </button>
+            <button className="btn btn-outline-secondary btn-sm" onClick={() => setStep(STEP_INFO)} style={{ marginTop: '0.25rem' }}>
+              <i className="bi bi-arrow-left me-1" /> Back
+            </button>
           </div>
         );
       case STEP_PAY:
@@ -251,7 +273,7 @@ const FollowUpPaymentModal = ({ show, appointmentId, onClose, onStatusChange }) 
   };
 
   return createPortal(
-    <div className="modal-overlay" onClick={onClose}>
+    <div className="modal-overlay">
       <div className="modal-content" onClick={(e) => e.stopPropagation()}
         style={{ maxWidth: '650px', padding: '2rem', position: 'relative' }}>
         <div style={{ display: 'flex', gap: '2rem' }}>
@@ -270,14 +292,6 @@ const FollowUpPaymentModal = ({ show, appointmentId, onClose, onStatusChange }) 
             {rightCol()}
           </div>
         </div>
-        {step !== STEP_LOCATION && (
-          <button className="btn-close" onClick={onClose}
-            style={{ position: 'absolute', top: '1rem', right: '1rem', border: 'none', background: 'none', fontSize: '1.5rem', cursor: 'pointer' }}>×</button>
-        )}
-        {step === STEP_LOCATION && (
-          <button className="btn-close" onClick={() => setStep(STEP_INFO)}
-            style={{ position: 'absolute', top: '1rem', right: '1rem', border: 'none', background: 'none', fontSize: '1.5rem', cursor: 'pointer' }}>← Back</button>
-        )}
       </div>
     </div>,
     document.body
