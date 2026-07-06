@@ -17,6 +17,7 @@ public class PrescriptionResponse {
     private String patientName;
     private String doctorId;
     private String doctorName;
+    private String specialty;
     private String pharmacyId;
     private String pharmacyName;
     private LocalDateTime issueDate;

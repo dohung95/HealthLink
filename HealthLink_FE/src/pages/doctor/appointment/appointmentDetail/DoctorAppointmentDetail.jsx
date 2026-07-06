@@ -76,8 +76,10 @@ const DoctorAppointmentDetail = memo(({ appointment, patient, doctorId, activeMi
 
   const [highlightVitals, setHighlightVitals] = useState(false);
 
+  const isHomeVisit = appointment?.consultationType && appointment.consultationType.toLowerCase().includes('homevisit');
+
   const checkVitalsAndExecute = useCallback((action) => {
-    if (!ctx.latestVitalSign && ctx.statusKey !== 'completed' && ctx.statusKey !== 'cancelled' && ctx.statusKey !== 'canceled') {
+    if (!isHomeVisit && !ctx.latestVitalSign && ctx.statusKey !== 'completed' && ctx.statusKey !== 'cancelled' && ctx.statusKey !== 'canceled') {
       setHighlightVitals(true);
       toast.warn('Please wait for patient vitals before joining the room.');
       setTimeout(() => {
@@ -86,7 +88,7 @@ const DoctorAppointmentDetail = memo(({ appointment, patient, doctorId, activeMi
     } else {
       action();
     }
-  }, [ctx.latestVitalSign, ctx.statusKey]);
+  }, [ctx.latestVitalSign, ctx.statusKey, isHomeVisit]);
 
   if (!appointment || !patient) {
     return (
@@ -98,7 +100,7 @@ const DoctorAppointmentDetail = memo(({ appointment, patient, doctorId, activeMi
     );
   }
 
-  const showTimer = ctx.statusKey === 'inconsultation' || ctx.statusKey === 'inprogress';
+  const showTimer = (ctx.statusKey === 'inconsultation' || ctx.statusKey === 'inprogress') && !isHomeVisit;
 
   return (
     <>
@@ -305,6 +307,7 @@ const DoctorAppointmentDetail = memo(({ appointment, patient, doctorId, activeMi
               currentAppointment={ctx.currentAppointment}
               completingAppointment={ctx.completingAppointment}
               onCompleteClick={() => ctx.setShowCompleteConfirmModal(true)}
+              isHomeVisit={isHomeVisit}
             />
           </section>
         </div>
@@ -333,7 +336,7 @@ const DoctorAppointmentDetail = memo(({ appointment, patient, doctorId, activeMi
             consultationType: ctx.followUpConsultationType,
           } : null}
           followUpPaymentStatus={ctx.followUpPaymentStatus}
-          vitalsSubmitted={Boolean(ctx.latestVitalSign)}
+          vitalsSubmitted={isHomeVisit || Boolean(ctx.latestVitalSign)}
         />
       </div>
     </>

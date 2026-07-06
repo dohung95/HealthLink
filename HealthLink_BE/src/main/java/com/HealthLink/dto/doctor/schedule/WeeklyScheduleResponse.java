@@ -20,6 +20,7 @@ public class WeeklyScheduleResponse {
     private com.HealthLink.entity.enums.DoctorScheduleStatus doctorScheduleStatus; // Overall doctor schedule status
     private Double totalMonthlyHours; // Total working hours per month
     private Double requiredMonthlyHours; // Minimum required hours per month (80h)
+    private boolean needsScheduleReconfirmation; // true: lịch kéo qua tháng mới, cần bác sĩ xác nhận lại
     private List<ScheduleItem> schedules;
     private List<ExceptionItem> exceptions;
 

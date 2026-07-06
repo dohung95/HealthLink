@@ -11,6 +11,15 @@ export default function NavbarAdmin({ sidebarCollapsed, onToggleSidebar, childre
   const location = useLocation();
   const { logout } = useAuth();
 
+  const getGreeting = () => {
+    const hour = new Date().getHours();
+    if (hour < 5) return "Good evening!";
+    if (hour < 11) return "Good morning!";
+    if (hour < 13) return "Good noon!";
+    if (hour < 18) return "Good afternoon!";
+    return "Good evening!";
+  };
+
   const handleLogout = async () => {
     try {
       localStorage.setItem('isLoggingOut', 'true');
@@ -66,16 +75,12 @@ export default function NavbarAdmin({ sidebarCollapsed, onToggleSidebar, childre
         {/* Logo */}
         <div className={`admin-logo ${sidebarCollapsed ? 'p-2' : ''} transition-all`}>
           <div className="d-flex align-items-center justify-content-center">
-            <div className="admin-logo-icon">
-              <i className="bi bi-heart-pulse-fill"></i>
-            </div>
-            {!sidebarCollapsed && (
-              <div className="admin-logo-text ms-2" style={{ whiteSpace: 'nowrap', overflow: 'hidden' }}>
-                <h6 className="mb-0" style={{ fontWeight: '700', letterSpacing: '-0.5px', fontSize: '14px' }}>
-                  HealthLink
-                </h6>
-                <small style={{ fontSize: '9px', opacity: 0.8 }}>Admin Dashboard</small>
+            {sidebarCollapsed ? (
+              <div className="admin-logo-icon">
+                <i className="bi bi-heart-pulse-fill"></i>
               </div>
+            ) : (
+              <img src="/logo_nav_admin.png" alt="HealthLink" className="admin-logo-img" />
             )}
           </div>
         </div>
@@ -107,7 +112,7 @@ export default function NavbarAdmin({ sidebarCollapsed, onToggleSidebar, childre
                     title={sidebarCollapsed ? item.label : undefined}
                   >
                     <i className={`bi ${item.icon} ${sidebarCollapsed ? "" : "me-2"}`} style={{ fontSize: '15px', minWidth: '18px', textAlign: 'center' }}></i>
-                    <span className="admin-menu-label" style={{ fontSize: '12px', fontWeight: '500' }}>{item.label}</span>
+                    <span className="admin-menu-label" style={{ fontSize: '14.4px', fontWeight: '600' }}>{item.label}</span>
                     {location.pathname === item.path && !sidebarCollapsed && (
                       <span className="ms-auto admin-active-dot"></span>
                     )}
@@ -145,10 +150,10 @@ export default function NavbarAdmin({ sidebarCollapsed, onToggleSidebar, childre
               <i className={`bi ${sidebarCollapsed ? 'bi-layout-sidebar-inset' : 'bi-layout-sidebar'}`}></i>
             </button>
             <div className="d-none d-md-block">
-              <h6 className="mb-0" style={{ fontSize: '14px', fontWeight: '600', color: 'var(--admin-text)' }}>
-                Admin Dashboard
-              </h6>
-              <small style={{ fontSize: '11px', color: 'var(--admin-text-light)' }}>
+              <h5 className="mb-0" style={{ fontSize: '20px', fontWeight: '600', color: 'var(--admin-text)' }}>
+                {getGreeting()}
+              </h5>
+              <small style={{ fontSize: '14px', color: 'var(--admin-text-light)' }}>
                 {new Date().toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric', year: 'numeric' })}
               </small>
             </div>
@@ -166,7 +171,7 @@ export default function NavbarAdmin({ sidebarCollapsed, onToggleSidebar, childre
                   alt="Admin"
                 />
               </div>
-              <span className="d-none d-md-inline" style={{ fontSize: '12px', fontWeight: '600', color: 'var(--admin-text)' }}>
+              <span className="d-none d-md-inline" style={{ fontSize: '15px', fontWeight: '600', color: 'var(--admin-text)' }}>
                 Admin
               </span>
             </div>

@@ -89,7 +89,7 @@ extension _BookingHomeVisitSteps on _BookingScreenState {
         ),
         const SizedBox(height: 8),
         Text(
-          'Tap on the map to pin the exact home entrance.',
+          AppLocalizations.of(context)!.bookingTapMapToPin,
           style: TextStyle(
             color: colors.onSurfaceVariant,
             fontWeight: FontWeight.w600,
@@ -136,22 +136,22 @@ extension _BookingHomeVisitSteps on _BookingScreenState {
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         _title(
-          'Home Visit Information',
-          'Enter address and recipient information.',
+          AppLocalizations.of(context)!.bookingHomeVisitInfo,
+          AppLocalizations.of(context)!.bookingHomeVisitInfoDesc,
         ),
         const SizedBox(height: 16),
 
         SegmentedButton<bool>(
-          segments: const [
+          segments: [
             ButtonSegment(
               value: true,
-              label: Text('For Me'),
-              icon: Icon(Icons.person),
+              label: Text(AppLocalizations.of(context)!.bookingForMe),
+              icon: const Icon(Icons.person),
             ),
             ButtonSegment(
               value: false,
-              label: Text('Someone Else'),
-              icon: Icon(Icons.group),
+              label: Text(AppLocalizations.of(context)!.bookingSomeoneElse),
+              icon: const Icon(Icons.group),
             ),
           ],
           selected: {d.isForSelf},
@@ -181,30 +181,30 @@ extension _BookingHomeVisitSteps on _BookingScreenState {
         const SizedBox(height: 14),
 
         if (!d.isForSelf) ...[
-          _textInput('Recipient Name', d.receiverName, (v) {
+          _textInput(AppLocalizations.of(context)!.bookingRecipientName, d.receiverName, (v) {
             setState(
               () => _homeVisitDraft = _homeVisitDraft.copyWith(receiverName: v),
             );
           }),
-          _textInput('Age', d.receiverAge, (v) {
+          _textInput(AppLocalizations.of(context)!.bookingAge, d.receiverAge, (v) {
             setState(
               () => _homeVisitDraft = _homeVisitDraft.copyWith(receiverAge: v),
             );
           }, keyboardType: TextInputType.number),
-          _textInput('Gender', d.receiverGender, (v) {
+          _textInput(AppLocalizations.of(context)!.bookingGender, d.receiverGender, (v) {
             setState(
               () =>
                   _homeVisitDraft = _homeVisitDraft.copyWith(receiverGender: v),
             );
           }),
-          _textInput('Relationship', d.receiverRelationship, (v) {
+          _textInput(AppLocalizations.of(context)!.bookingRelationship, d.receiverRelationship, (v) {
             setState(
               () => _homeVisitDraft = _homeVisitDraft.copyWith(
                 receiverRelationship: v,
               ),
             );
           }),
-          _textInput('Recipient Phone', d.receiverPhone, (v) {
+          _textInput(AppLocalizations.of(context)!.bookingRecipientPhone, d.receiverPhone, (v) {
             setState(
               () =>
                   _homeVisitDraft = _homeVisitDraft.copyWith(receiverPhone: v),
@@ -229,14 +229,14 @@ extension _BookingHomeVisitSteps on _BookingScreenState {
               });
             },
             decoration: InputDecoration(
-              labelText: 'Address *',
+              labelText: AppLocalizations.of(context)!.bookingAddressStar,
               border: OutlineInputBorder(
                 borderRadius: BorderRadius.circular(18),
               ),
             ),
           ),
         ),
-        _textInput('City', d.visitCity, (v) {
+        _textInput(AppLocalizations.of(context)!.bookingCity, d.visitCity, (v) {
           setState(
             () => _homeVisitDraft = _homeVisitDraft.copyWith(visitCity: v),
           );
@@ -259,7 +259,7 @@ extension _BookingHomeVisitSteps on _BookingScreenState {
               });
             },
             decoration: InputDecoration(
-              labelText: 'Contact Phone *',
+              labelText: AppLocalizations.of(context)!.bookingContactPhoneStar,
               border: OutlineInputBorder(
                 borderRadius: BorderRadius.circular(18),
               ),
@@ -286,7 +286,7 @@ extension _BookingHomeVisitSteps on _BookingScreenState {
               });
             },
             decoration: InputDecoration(
-              labelText: 'Reason for Home Visit *',
+              labelText: AppLocalizations.of(context)!.bookingReasonForHomeVisitStar,
               alignLabelWithHint: true,
               border: OutlineInputBorder(
                 borderRadius: BorderRadius.circular(18),
@@ -307,7 +307,7 @@ extension _BookingHomeVisitSteps on _BookingScreenState {
               });
             },
             decoration: InputDecoration(
-              labelText: 'Notes',
+              labelText: AppLocalizations.of(context)!.bookingNotesOpt,
               alignLabelWithHint: true,
               border: OutlineInputBorder(
                 borderRadius: BorderRadius.circular(18),
@@ -320,7 +320,7 @@ extension _BookingHomeVisitSteps on _BookingScreenState {
         OutlinedButton.icon(
           onPressed: _useCurrentHomeVisitLocation,
           icon: const Icon(Icons.my_location),
-          label: const Text('Use Current Location'),
+          label: Text(AppLocalizations.of(context)!.bookingUseCurrentLocation),
         ),
 
         const SizedBox(height: 12),
@@ -359,14 +359,14 @@ extension _BookingHomeVisitSteps on _BookingScreenState {
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         _title(
-          'Select Home Visit Doctor',
-          'Doctors available at your location.',
+          AppLocalizations.of(context)!.bookingSelectHomeVisitDoctor,
+          AppLocalizations.of(context)!.bookingSelectHomeVisitDoctorDesc,
         ),
         const SizedBox(height: 16),
         if (_loadingHomeVisitDoctors)
           const Center(child: CircularProgressIndicator())
         else if (doctors.isEmpty)
-          _empty(colors, Icons.person_search, 'No suitable doctors found.')
+          _empty(colors, Icons.person_search, AppLocalizations.of(context)!.bookingNoSuitableDoctors)
         else
           ...doctors.map((doctor) => _homeVisitDoctorCard(colors, doctor)),
       ],
@@ -457,8 +457,8 @@ extension _BookingHomeVisitSteps on _BookingScreenState {
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         _title(
-          'Additional Services',
-          'Select services for doctor to perform at home if needed.',
+          AppLocalizations.of(context)!.bookingAdditionalServices,
+          AppLocalizations.of(context)!.bookingAdditionalServicesDesc,
         ),
         const SizedBox(height: 16),
         if (_loadingHomeVisitServices)
@@ -467,7 +467,7 @@ extension _BookingHomeVisitSteps on _BookingScreenState {
           _empty(
             colors,
             Icons.medical_services_outlined,
-            'No additional services available.',
+            AppLocalizations.of(context)!.bookingNoAdditionalServices,
           )
         else
           ...services.map((service) {
@@ -475,10 +475,10 @@ extension _BookingHomeVisitSteps on _BookingScreenState {
             return CheckboxListTile(
               value: selected,
               title: Text(
-                service.serviceName,
+                service.serviceName.toLocalizedServiceName(context),
                 style: const TextStyle(fontWeight: FontWeight.w800),
               ),
-              subtitle: Text(service.description),
+              subtitle: Text(service.description.toLocalizedServiceDescription(context)),
               secondary: Text('\$${service.price.toStringAsFixed(2)}'),
               onChanged: (_) {
                 final next = [..._homeVisitDraft.selectedServices];
@@ -504,7 +504,7 @@ extension _BookingHomeVisitSteps on _BookingScreenState {
         const SizedBox(height: 8),
         _summary(
           colors,
-          'Total Services',
+          AppLocalizations.of(context)!.bookingTotalServices,
           '\$${_homeVisitDraft.servicesTotal.toStringAsFixed(2)}',
         ),
       ],
@@ -543,8 +543,8 @@ extension _BookingHomeVisitSteps on _BookingScreenState {
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         _title(
-          'Select Home Visit Session',
-          'Choose a date and session for the doctor to visit.',
+          AppLocalizations.of(context)!.bookingSelectHomeVisitSession,
+          AppLocalizations.of(context)!.bookingSelectHomeVisitSessionDesc,
         ),
         const SizedBox(height: 16),
 
@@ -559,7 +559,7 @@ extension _BookingHomeVisitSteps on _BookingScreenState {
           _empty(
             colors,
             Icons.event_busy_outlined,
-            'No suitable sessions available.',
+            AppLocalizations.of(context)!.bookingNoSuitableSessions,
           )
         else ...[
           Row(
@@ -770,41 +770,44 @@ extension _BookingHomeVisitSteps on _BookingScreenState {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        _title('Confirm Home Visit', 'Review information before payment.'),
+        _title(
+          AppLocalizations.of(context)!.bookingConfirmHomeVisit,
+          AppLocalizations.of(context)!.bookingConfirmHomeVisitDesc,
+        ),
         const SizedBox(height: 16),
-        _summary(colors, 'Doctor', doctor?.fullName ?? '-'),
+        _summary(colors, AppLocalizations.of(context)!.bookingLabelDoctor, doctor?.fullName ?? '-'),
         _summary(
           colors,
-          'Specialty',
+          AppLocalizations.of(context)!.bookingLabelSpecialty,
           doctor?.specialtyName.toLocalizedSpecialty(context) ??
               (_selectedSpecialty ?? '-'),
         ),
-        _summary(colors, 'Address', d.visitAddress),
-        _summary(colors, 'Recipient', d.isForSelf ? 'Self' : d.receiverName),
-        _summary(colors, 'Contact Phone', d.contactPhone),
-        _summary(colors, 'Reason for Visit', d.reasonForHomeVisit),
-        _summary(colors, 'Date', slot?.bookingDate ?? '-'),
+        _summary(colors, AppLocalizations.of(context)!.bookingAddressStar.replaceAll(' *', ''), d.visitAddress),
+        _summary(colors, AppLocalizations.of(context)!.bookingRecipient, d.isForSelf ? AppLocalizations.of(context)!.bookingForMe : d.receiverName),
+        _summary(colors, AppLocalizations.of(context)!.bookingContactPhoneStar.replaceAll(' *', ''), d.contactPhone),
+        _summary(colors, AppLocalizations.of(context)!.bookingReasonForVisit, d.reasonForHomeVisit),
+        _summary(colors, AppLocalizations.of(context)!.bookingLabelDate, slot?.bookingDate ?? '-'),
         _summary(
           colors,
-          'Time',
+          AppLocalizations.of(context)!.bookingLabelTime,
           slot == null
               ? '-'
               : '${_shortTime(slot.startTime)} - ${_shortTime(slot.endTime)}',
         ),
-        _summary(colors, 'Doctor Fee', '\$${d.doctorFee.toStringAsFixed(2)}'),
+        _summary(colors, AppLocalizations.of(context)!.bookingDoctorFee, '\$${d.doctorFee.toStringAsFixed(2)}'),
         _summary(
           colors,
-          'Home Visit Fee',
+          AppLocalizations.of(context)!.bookingHomeVisitFee,
           '\$${d.homeVisitFee.toStringAsFixed(2)}',
         ),
         _summary(
           colors,
-          'Additional Services',
+          AppLocalizations.of(context)!.bookingAdditionalServices,
           '\$${d.servicesTotal.toStringAsFixed(2)}',
         ),
         _summary(
           colors,
-          'Total Amount',
+          AppLocalizations.of(context)!.bookingTotalAmount,
           '\$${d.grandTotal.toStringAsFixed(2)}',
         ),
       ],

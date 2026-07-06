@@ -160,7 +160,7 @@ class PatientService {
     ).timeout(
       ApiConfig.receiveTimeout,
       onTimeout: () {
-        throw Exception('Request timed out while loading health records.');
+        throw Exception('connection refused, please try again later');
       },
     );
 

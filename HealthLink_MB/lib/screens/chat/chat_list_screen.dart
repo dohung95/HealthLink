@@ -7,6 +7,7 @@ import '../../config/api_config.dart';
 import 'chat_room_screen.dart';
 import './chatbot/chatbot_screen.dart';
 import '../../l10n/app_localizations.dart';
+import '../../utils/localization_utils.dart';
 
 class MessagesScreen extends StatefulWidget {
   const MessagesScreen({super.key});
@@ -88,26 +89,9 @@ class _MessagesScreenState extends State<MessagesScreen> {
                   : chat.conversations.where((c) {
                       final q = _searchQuery.toLowerCase();
                       return c.partnerName.toLowerCase().contains(q) ||
-                          (c.partnerSpecialty ?? '').toLowerCase().contains(q) ||
+                          (c.partnerSpecialty ?? '').toLocalizedSpecialty(context).toLowerCase().contains(q) ||
                           c.lastMessage.toLowerCase().contains(q);
                     }).toList();
-
-              // Empty state
-              if (filtered.isEmpty) {
-                return Center(
-                  child: Column(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    children: [
-                      Icon(Icons.chat_bubble_outline, size: 64, color: Theme.of(context).colorScheme.outlineVariant),
-                      const SizedBox(height: 16),
-                      Text(
-                        _searchQuery.isEmpty ? AppLocalizations.of(context)!.chatNoConversations : AppLocalizations.of(context)!.chatNoResults,
-                        style: TextStyle(color: Theme.of(context).colorScheme.onSurfaceVariant, fontSize: 16),
-                      ),
-                    ],
-                  ),
-                );
-              }
 
               // Danh sách conversation
               return RefreshIndicator(
@@ -137,13 +121,31 @@ class _MessagesScreenState extends State<MessagesScreen> {
                             _buildBotItem(),
                             const SizedBox(height: 8),
                           ],
-                          ...filtered.map((conv) => Padding(
-                            padding: const EdgeInsets.only(bottom: 12),
-                            child: _buildChatListItem(
-                              conversation: conv,
-                              onTap: () => _openChatRoom(conv),
-                            ),
-                          )),
+                          if (filtered.isEmpty)
+                            Padding(
+                              padding: const EdgeInsets.only(top: 64.0),
+                              child: Center(
+                                child: Column(
+                                  mainAxisAlignment: MainAxisAlignment.center,
+                                  children: [
+                                    Icon(Icons.chat_bubble_outline, size: 64, color: Theme.of(context).colorScheme.outlineVariant),
+                                    const SizedBox(height: 16),
+                                    Text(
+                                      _searchQuery.isEmpty ? AppLocalizations.of(context)!.chatNoConversations : AppLocalizations.of(context)!.chatNoResults,
+                                      style: TextStyle(color: Theme.of(context).colorScheme.onSurfaceVariant, fontSize: 16),
+                                    ),
+                                  ],
+                                ),
+                              ),
+                            )
+                          else
+                            ...filtered.map((conv) => Padding(
+                              padding: const EdgeInsets.only(bottom: 12),
+                              child: _buildChatListItem(
+                                conversation: conv,
+                                onTap: () => _openChatRoom(conv),
+                              ),
+                            )),
                         ],
                       ),
                     ),
@@ -509,7 +511,7 @@ class _MessagesScreenState extends State<MessagesScreen> {
                     if (conversation.partnerSpecialty != null) ...[
                       const SizedBox(height: 2),
                       Text(
-                        conversation.partnerSpecialty!,
+                        conversation.partnerSpecialty!.toLocalizedSpecialty(context),
                         maxLines: 1,
                         overflow: TextOverflow.ellipsis,
                         style: TextStyle(

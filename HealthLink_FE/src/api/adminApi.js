@@ -242,6 +242,67 @@ export const analyticsApi = {
       params: { year }
     });
     return response.data;
+  },
+
+  getAppointmentsByMonthSplit: async (year = 0) => {
+    const response = await adminApi.get('/analytics/appointments-by-month-split', {
+      params: { year }
+    });
+    return response.data;
+  },
+
+  getRevenueByMonthSplit: async (year = 0) => {
+    const response = await adminApi.get('/analytics/revenue-by-month-split', {
+      params: { year }
+    });
+    return response.data;
+  },
+
+  getRegistrationsByRole: async (year = 0) => {
+    const response = await adminApi.get('/analytics/registrations-by-role', {
+      params: { year }
+    });
+    return response.data;
+  },
+
+  getPatientRegistrationsByWeek: async (year = 0, month = 0) => {
+    const response = await adminApi.get('/analytics/patient-registrations-by-week', {
+      params: { year, month }
+    });
+    return response.data;
+  },
+
+  getAppointmentsByWeekSplit: async (year = 0, month = 0) => {
+    const response = await adminApi.get('/analytics/appointments-by-week-split', {
+      params: { year, month }
+    });
+    return response.data;
+  },
+
+  getRevenueByWeekSplit: async (year = 0, month = 0) => {
+    const response = await adminApi.get('/analytics/revenue-by-week-split', {
+      params: { year, month }
+    });
+    return response.data;
+  },
+
+  getRegistrationsByWeekRole: async (year = 0, month = 0) => {
+    const response = await adminApi.get('/analytics/registrations-by-week-role', {
+      params: { year, month }
+    });
+    return response.data;
+  },
+
+  getAppointmentsByHourSplit: async (year = 0, month = 0) => {
+    const response = await adminApi.get('/analytics/appointments-by-hour-split', {
+      params: { year, month }
+    });
+    return response.data;
+  },
+
+  getOverviewStats: async () => {
+    const response = await adminApi.get('/analytics/overview-stats');
+    return response.data;
   }
 };
 

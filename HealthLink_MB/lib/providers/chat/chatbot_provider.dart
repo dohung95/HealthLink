@@ -111,10 +111,7 @@ class ChatbotProvider extends ChangeNotifier {
       actionRoute = keywordResult['actionRoute'];
     }
 
-    // 2. Thử offline symptom matching (0 token)
-    reply ??= BotBrain.getBotResponse(text);
-
-    // 3. Fallback: gọi Gemini AI
+    // 2. Gọi Gemini AI
     if (reply == null) {
       final geminiRes = await _gemini.sendMessage(text);
       if (geminiRes != null) {
@@ -124,7 +121,10 @@ class ChatbotProvider extends ChangeNotifier {
       }
     }
 
-    // 4. Fallback cuối cùng nếu Gemini cũng lỗi
+    // 3. Fallback: offline symptom matching nếu Gemini lỗi
+    reply ??= BotBrain.getBotResponse(text);
+
+    // 4. Fallback cuối cùng nếu cả Gemini và offline đều không có kết quả
     reply ??=
         "I don't understand yet 😅 Could you describe your symptoms more clearly or ask in English?";
 

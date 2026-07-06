@@ -96,9 +96,104 @@ public class DoctorScheduleServiceImpl implements DoctorScheduleService {
                 .doctorScheduleStatus(doctor.getScheduleStatus())
                 .totalMonthlyHours(monthlyHours)
                 .requiredMonthlyHours(MIN_MONTHLY_HOURS)
+                .needsScheduleReconfirmation(Boolean.TRUE.equals(doctor.getNeedsScheduleReconfirmation()))
                 .schedules(schedules.stream().map(this::mapScheduleToItem).collect(Collectors.toList()))
                 .exceptions(exceptions.stream().map(this::mapExceptionToItem).collect(Collectors.toList()))
                 .build();
+    }
+
+    @Override
+    public void confirmMonthlySchedule(String doctorId) {
+        Doctor doctor = findDoctor(doctorId);
+
+        if (!Boolean.TRUE.equals(doctor.getNeedsScheduleReconfirmation())) {
+            throw new BadRequestException("No schedule reconfirmation is currently pending.");
+        }
+
+        double monthlyHours = calculateMonthlyHours(doctorId);
+        if (monthlyHours < MIN_MONTHLY_HOURS) {
+            throw new BadRequestException("Your schedule no longer meets the minimum required hours. Please add more working hours instead.");
+        }
+
+        doctor.setScheduleStatus(DoctorScheduleStatus.APPROVED);
+        doctor.setNeedsScheduleReconfirmation(false);
+        doctorRepository.save(doctor);
+
+        audit.log("SCHEDULE_MONTHLY_RECONFIRMED", doctorId, doctorId,
+                Map.of("monthlyHours", String.format("%.1f", monthlyHours)));
+        log.info("Doctor {} confirmed monthly schedule ({}h)", doctorId, String.format("%.1f", monthlyHours));
+    }
+
+    @Override
+    public void runMonthlyReconfirmationCheck() {
+        YearMonth previousMonth = YearMonth.now().minusMonths(1);
+        YearMonth currentMonth = YearMonth.now();
+        String currentMonthLabel = currentMonth.getMonth().getDisplayName(TextStyle.FULL, Locale.ENGLISH) + " " + currentMonth.getYear();
+
+        List<Doctor> doctors = doctorRepository.findByUser_Status("Active");
+
+        int reconfirmCount = 0;
+        int reminderCount = 0;
+
+        for (Doctor doctor : doctors) {
+            try {
+                List<DoctorSchedule> schedules = scheduleRepository.findByDoctor_DoctorId(doctor.getDoctorId());
+                if (schedules.isEmpty() || schedules.stream().noneMatch(DoctorSchedule::isAvailable)) {
+                    continue; // No schedule to carry over
+                }
+
+                double previousMonthHours = calculateHoursForMonth(doctor.getDoctorId(), previousMonth);
+                double currentMonthHours = calculateHoursForMonth(doctor.getDoctorId(), currentMonth);
+
+                boolean metQuotaLastMonth = previousMonthHours >= MIN_MONTHLY_HOURS;
+                boolean carriesOverAndQualifies = currentMonthHours >= MIN_MONTHLY_HOURS;
+
+                if (metQuotaLastMonth && carriesOverAndQualifies) {
+                    // Schedule carried over and still qualifies: force reconfirmation instead of auto-approving
+                    doctor.setScheduleStatus(DoctorScheduleStatus.PENDING);
+                    doctor.setNeedsScheduleReconfirmation(true);
+                    doctorRepository.save(doctor);
+                    reconfirmCount++;
+
+                    if (doctor.getUser() != null) {
+                        notificationService.sendWebSocketNotification(
+                                doctor.getUser(),
+                                NotificationType.SCHEDULE_MONTHLY_RECONFIRM_REQUIRED,
+                                "Please Reconfirm Your Schedule",
+                                String.format("Your working schedule carries over into %s and still meets the %.0fh/month requirement. Please reconfirm to keep it active for patient bookings.",
+                                        currentMonthLabel, MIN_MONTHLY_HOURS),
+                                null,
+                                "/doctor/schedule"
+                        );
+                    }
+                } else if (!metQuotaLastMonth) {
+                    // Didn't meet quota last month: refresh real status for the new month and remind to add hours
+                    updateDoctorScheduleStatus(doctor.getDoctorId());
+                    reminderCount++;
+
+                    if (doctor.getUser() != null) {
+                        notificationService.sendWebSocketNotification(
+                                doctor.getUser(),
+                                NotificationType.SCHEDULE_COMPLIANCE_WARNING,
+                                "Add More Working Hours",
+                                String.format("You did not meet the %.0fh/month requirement last month. Please add more working hours for %s so patients can book with you.",
+                                        MIN_MONTHLY_HOURS, currentMonthLabel),
+                                null,
+                                "/doctor/schedule"
+                        );
+                    }
+                } else {
+                    // Met quota last month but schedule no longer covers the new month: just refresh status
+                    updateDoctorScheduleStatus(doctor.getDoctorId());
+                }
+            } catch (Exception e) {
+                log.error("Error running monthly reconfirmation check for doctor {}: {}",
+                        doctor.getDoctorId(), e.getMessage(), e);
+            }
+        }
+
+        log.info("Monthly reconfirmation check completed: {} doctor(s) need reconfirmation, {} doctor(s) reminded to add hours",
+                reconfirmCount, reminderCount);
     }
 
     @Override
@@ -639,18 +734,28 @@ public class DoctorScheduleServiceImpl implements DoctorScheduleService {
     }
 
     /**
-     * Calculate total working hours for the current month by iterating through each day.
-     * This accounts for:
-     * - Regular schedules for each day of week
-     * - Exceptions (DayOff, Modified, AddSlot)
+     * Calculate total working hours for the current month.
      *
      * @param doctorId the doctor ID
      * @return total hours for the current month
      */
     private double calculateMonthlyHours(String doctorId) {
-        YearMonth currentMonth = YearMonth.now();
-        LocalDate startDate = currentMonth.atDay(1);
-        LocalDate endDate = currentMonth.atEndOfMonth();
+        return calculateHoursForMonth(doctorId, YearMonth.now());
+    }
+
+    /**
+     * Calculate total working hours for an arbitrary month by iterating through each day.
+     * This accounts for:
+     * - Regular schedules for each day of week
+     * - Exceptions (DayOff, Modified, AddSlot)
+     *
+     * @param doctorId    the doctor ID
+     * @param targetMonth the month to calculate hours for
+     * @return total hours for the target month
+     */
+    private double calculateHoursForMonth(String doctorId, YearMonth targetMonth) {
+        LocalDate startDate = targetMonth.atDay(1);
+        LocalDate endDate = targetMonth.atEndOfMonth();
 
         // Get all schedules for the doctor
         List<DoctorSchedule> schedules = scheduleRepository.findByDoctor_DoctorId(doctorId);
@@ -725,6 +830,7 @@ public class DoctorScheduleServiceImpl implements DoctorScheduleService {
         List<DoctorSchedule> schedules = scheduleRepository.findByDoctor_DoctorId(doctorId);
 
         DoctorScheduleStatus oldStatus = doctor.getScheduleStatus();
+        boolean wasNeedingReconfirmation = Boolean.TRUE.equals(doctor.getNeedsScheduleReconfirmation());
         DoctorScheduleStatus newStatus;
 
         if (schedules.isEmpty() || schedules.stream().noneMatch(DoctorSchedule::isAvailable)) {
@@ -741,13 +847,17 @@ public class DoctorScheduleServiceImpl implements DoctorScheduleService {
                     doctorId, String.format("%.1f", monthlyHours), MIN_MONTHLY_HOURS, newStatus);
         }
 
-        if (oldStatus != newStatus) {
+        // Any manual schedule edit resolves a pending monthly reconfirmation prompt
+        if (oldStatus != newStatus || wasNeedingReconfirmation) {
             doctor.setScheduleStatus(newStatus);
+            doctor.setNeedsScheduleReconfirmation(false);
             doctorRepository.save(doctor);
             log.info("Doctor {} schedule status changed: {} -> {}", doctorId, oldStatus, newStatus);
 
-            // Notify doctor about status change
-            notifyDoctorScheduleStatusChange(doctor, oldStatus, newStatus);
+            if (oldStatus != newStatus) {
+                // Notify doctor about status change
+                notifyDoctorScheduleStatusChange(doctor, oldStatus, newStatus);
+            }
         }
     }
 

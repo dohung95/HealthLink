@@ -108,13 +108,13 @@ class _BookingScreenState extends State<BookingScreen> {
         case BookingStepKey.medicalInfo:
           return l10n.bookingStepMedicalInfo;
         case BookingStepKey.homeVisitLocation:
-          return 'Home Visit Information';
+          return l10n.bookingHomeVisitInfo;
         case BookingStepKey.homeVisitDoctor:
-          return 'Home Visit Doctor';
+          return l10n.bookingHomeVisitDoctor;
         case BookingStepKey.homeVisitServices:
-          return 'Additional Services';
+          return l10n.bookingAdditionalServices;
         case BookingStepKey.homeVisitSession:
-          return 'Select Session';
+          return l10n.bookingSelectSession;
         case BookingStepKey.confirm:
           return l10n.bookingStepConfirm;
         case BookingStepKey.payment:
