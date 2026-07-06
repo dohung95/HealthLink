@@ -46,7 +46,7 @@ export default function DoctorPatientDetailView({ patient, history, doctorId }) 
     vitalSignApi.getPatientVitalSigns(pid)
       .then((res) => {
         if (!mounted) return;
-        const latest = Array.isArray(res) ? res[res.length - 1] : res;
+        const latest = Array.isArray(res) ? res[0] : res;
         setVitalSigns(latest);
       })
       .catch(() => {
