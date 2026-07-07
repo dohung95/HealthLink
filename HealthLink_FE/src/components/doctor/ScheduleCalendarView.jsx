@@ -23,6 +23,21 @@ const formatTime = (time) => {
   return `${parts[0]}:${parts[1]}`;
 };
 
+const isHomeVisitType = (type) => {
+  const t = String(type || '').trim().toLowerCase();
+  return t === 'homevisit' || t === 'home visit' || t === 'home-visit' || t === 'home';
+};
+
+const SHIFT_LABELS = { MORNING: 'Morning', AFTERNOON: 'Afternoon', EVENING: 'Evening' };
+
+const formatScheduleBlock = (block) => {
+  const homeVisit = isHomeVisitType(block.consultationType);
+  const shiftPrefix = homeVisit && block.shiftType
+    ? `${SHIFT_LABELS[String(block.shiftType).toUpperCase()] || block.shiftType} · `
+    : '';
+  return `${shiftPrefix}${formatTime(block.startTime)} - ${formatTime(block.endTime)}`;
+};
+
 const getStatusMeta = (status) => {
   switch (status) {
     case 'WORKING':
@@ -34,6 +49,23 @@ const getStatusMeta = (status) => {
     default:
       return { cls: 'noschedule', label: 'No Schedule', icon: 'calendar_today' };
   }
+};
+
+// Màu ô lịch theo loại khám (Online / Home Visit) — chỉ áp dụng cho ngày có lịch làm.
+const getVisitTypeClass = (dayData) => {
+  if (!dayData || dayData.status === 'DAY_OFF' || dayData.status === 'NO_SCHEDULE') return '';
+  if (dayData.hasOnline && dayData.hasHomeVisit) return 'mixed';
+  if (dayData.hasHomeVisit) return 'homevisit';
+  if (dayData.hasOnline) return 'online';
+  return '';
+};
+
+const getVisitTypeLabel = (dayData) => {
+  const type = getVisitTypeClass(dayData);
+  if (type === 'mixed') return 'Online + Home Visit';
+  if (type === 'homevisit') return 'Home Visit';
+  if (type === 'online') return 'Online';
+  return '';
 };
 
 const ScheduleCalendarView = ({ exceptions, onRefresh }) => {
@@ -77,20 +109,9 @@ const ScheduleCalendarView = ({ exceptions, onRefresh }) => {
     if (view !== 'month') return '';
     const dayData = getDayData(date);
     if (!dayData) return '';
-    return `calendar-day-status calendar-day-status--${dayData.status ? 'has' : 'no'}-data`;
-  };
-
-  const tileContent = ({ date, view }) => {
-    if (view !== 'month') return null;
-    const dayData = getDayData(date);
-    if (!dayData) return null;
-
-    const meta = getStatusMeta(dayData.status);
-    const dotCls = meta.cls === 'noschedule' ? 'noschedule' : meta.cls;
-
-    return (
-      <span className={`calendar-day-indicator calendar-day-indicator--${dotCls}`} />
-    );
+    if (dayData.status === 'DAY_OFF') return 'calendar-day-tile calendar-day-tile--dayoff';
+    const visitType = getVisitTypeClass(dayData);
+    return visitType ? `calendar-day-tile calendar-day-tile--${visitType}` : 'calendar-day-tile';
   };
 
   const handleActiveStartDateChange = ({ activeStartDate, view }) => {
@@ -217,7 +238,6 @@ const ScheduleCalendarView = ({ exceptions, onRefresh }) => {
                 value={selectedDate}
                 onChange={handleDateClick}
                 tileClassName={tileClassName}
-                tileContent={tileContent}
                 onActiveStartDateChange={handleActiveStartDateChange}
                 className="calendar-modern w-100 border-0"
                 locale="en-US"
@@ -235,6 +255,11 @@ const ScheduleCalendarView = ({ exceptions, onRefresh }) => {
                   <span className="material-symbols-outlined" style={{ fontSize: '0.8125rem' }}>{selectedMeta.icon}</span>
                   {selectedMeta.label}
                 </span>
+                {getVisitTypeLabel(selectedDayData) && (
+                  <span className={`selected-day-bar__visit-type selected-day-bar__visit-type--${getVisitTypeClass(selectedDayData)}`}>
+                    {getVisitTypeLabel(selectedDayData)}
+                  </span>
+                )}
                 {selectedDayData.slots?.length > 0 && (
                   <span className="selected-day-bar__slot-count">
                     {selectedDayData.slots.length} slot{selectedDayData.slots.length > 1 ? 's' : ''}
@@ -256,6 +281,23 @@ const ScheduleCalendarView = ({ exceptions, onRefresh }) => {
               </div>
             ) : null}
 
+            {selectedDayData?.scheduleBlocks?.length > 0 && (
+              <div className="selected-day-blocks">
+                {selectedDayData.scheduleBlocks.map((block, index) => {
+                  const homeVisit = isHomeVisitType(block.consultationType);
+                  return (
+                    <span
+                      key={`${block.startTime}-${index}`}
+                      className={`selected-day-blocks__item selected-day-blocks__item--${homeVisit ? 'homevisit' : 'online'}`}
+                    >
+                      <span className="material-symbols-outlined">{homeVisit ? 'home_health' : 'laptop_mac'}</span>
+                      {formatScheduleBlock(block)}
+                    </span>
+                  );
+                })}
+              </div>
+            )}
+
             {selectedDayData?.status === 'WORKING' && isFutureDate(selectedDate) && (
               <p className="selected-day-bar__note">
                 <span className="material-symbols-outlined" style={{ fontSize: '0.875rem' }}>info</span>
@@ -274,17 +316,27 @@ const ScheduleCalendarView = ({ exceptions, onRefresh }) => {
             <div className="calendar-panel__body">
               <div className="calendar-legend">
                 <div className="calendar-legend__item">
-                  <span className="calendar-legend__dot calendar-legend__dot--working" />
-                  <span className="calendar-legend__label">Working</span>
-                  <span className="material-symbols-outlined calendar-legend__icon">check_circle</span>
+                  <span className="calendar-legend__swatch calendar-legend__swatch--online" />
+                  <span className="calendar-legend__label">Online</span>
+                  <span className="material-symbols-outlined calendar-legend__icon">laptop_mac</span>
                 </div>
                 <div className="calendar-legend__item">
-                  <span className="calendar-legend__dot calendar-legend__dot--dayoff" />
+                  <span className="calendar-legend__swatch calendar-legend__swatch--homevisit" />
+                  <span className="calendar-legend__label">Home Visit</span>
+                  <span className="material-symbols-outlined calendar-legend__icon">home_health</span>
+                </div>
+                <div className="calendar-legend__item">
+                  <span className="calendar-legend__swatch calendar-legend__swatch--mixed" />
+                  <span className="calendar-legend__label">Online + Home Visit</span>
+                  <span className="material-symbols-outlined calendar-legend__icon">stacked_line_chart</span>
+                </div>
+                <div className="calendar-legend__item">
+                  <span className="calendar-legend__swatch calendar-legend__swatch--dayoff" />
                   <span className="calendar-legend__label">Day Off</span>
                   <span className="material-symbols-outlined calendar-legend__icon">block</span>
                 </div>
                 <div className="calendar-legend__item">
-                  <span className="calendar-legend__dot calendar-legend__dot--noschedule" />
+                  <span className="calendar-legend__swatch calendar-legend__swatch--noschedule" />
                   <span className="calendar-legend__label">No Schedule</span>
                   <span className="material-symbols-outlined calendar-legend__icon">calendar_today</span>
                 </div>

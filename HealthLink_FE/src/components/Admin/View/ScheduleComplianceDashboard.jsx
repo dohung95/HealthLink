@@ -59,6 +59,7 @@ export default function ScheduleComplianceDashboard() {
   const [complianceData, setComplianceData] = useState(null);
   const [statistics, setStatistics] = useState(null);
   const [loading, setLoading] = useState(true);
+  const fetchRequestIdRef = useRef(0);
 
   // Pagination
   const [pageNumber, setPageNumber] = useState(1);
@@ -153,6 +154,9 @@ export default function ScheduleComplianceDashboard() {
   };
 
   const fetchData = async () => {
+    // Guard against out-of-order responses: if the user changes filters again before
+    // this request resolves, only the latest request is allowed to update state.
+    const requestId = ++fetchRequestIdRef.current;
     try {
       setLoading(true);
       const [complianceRes, statsRes] = await Promise.all([
@@ -164,13 +168,17 @@ export default function ScheduleComplianceDashboard() {
         }),
         adminComplianceService.getStatistics(selectedMonth),
       ]);
+      if (requestId !== fetchRequestIdRef.current) return;
       setComplianceData(complianceRes);
       setStatistics(statsRes);
     } catch (err) {
+      if (requestId !== fetchRequestIdRef.current) return;
       console.error('Error fetching compliance data:', err);
       showToast({ title: 'Error', message: 'Failed to load compliance data', type: 'error' });
     } finally {
-      setLoading(false);
+      if (requestId === fetchRequestIdRef.current) {
+        setLoading(false);
+      }
     }
   };
 

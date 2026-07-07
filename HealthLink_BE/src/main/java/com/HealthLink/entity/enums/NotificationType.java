@@ -39,6 +39,7 @@ public enum NotificationType {
     DOCTOR_SCHEDULE_NON_COMPLIANT,  // Admin: Bác sĩ không đạt chuẩn số giờ
     SCHEDULE_COMPLIANCE_ACHIEVED,   // Doctor: Đã đạt đủ giờ làm việc
     SCHEDULE_MONTHLY_RECONFIRM_REQUIRED, // Doctor: Lịch kéo qua tháng mới, cần xác nhận lại
+    DOCTOR_ACCOUNT_BANNED_NON_COMPLIANCE, // Doctor + Admin: Tài khoản bị khóa tự động do 3 tháng trong năm không đạt chỉ tiêu giờ làm
 
     // Review notifications
     NEW_REVIEW,                     // Doctor: Có review mới

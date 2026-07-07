@@ -80,6 +80,13 @@ public interface ScheduleComplianceService {
     void checkDailyCompliance();
 
     /**
+     * Create a PENDING compliance record for every active doctor who doesn't have
+     * one yet for the given month, so they show up in the admin compliance list
+     * even if they never touched their schedule.
+     */
+    void initializeMissingComplianceRecords(String month);
+
+    /**
      * Send end-of-month warnings (called by scheduler)
      */
     void sendMonthEndWarnings();

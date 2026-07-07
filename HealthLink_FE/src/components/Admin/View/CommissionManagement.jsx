@@ -699,7 +699,7 @@ export default function CommissionManagement() {
                             {partnerType === 'DOCTOR' ? (
                               <>
                                 <th>Online Rate</th>
-                                <th>Offline Rate</th>
+                                <th>Home Visit Rate</th>
                               </>
                             ) : (
                               <th>Commission Rate</th>
@@ -858,12 +858,12 @@ export default function CommissionManagement() {
                                               </div>
                                             </div>
                                           </div>
-                                          {/* Offline Appointments Breakdown */}
+                                          {/* Home Visit Appointments Breakdown */}
                                           <div className="col-md-6">
                                             <div className="card border-0 shadow-sm h-100">
                                               <div className="card-header bg-info bg-opacity-10 py-2">
                                                 <h6 className="mb-0 text-info">
-                                                  <i className="bi bi-building me-2"></i>Offline Consultations
+                                                  <i className="bi bi-building me-2"></i>Home Visit Consultations
                                                 </h6>
                                               </div>
                                               <div className="card-body py-2">
@@ -1440,7 +1440,6 @@ export default function CommissionManagement() {
                               <div className="d-flex align-items-center">
                                 <i className="bi bi-camera-video text-primary me-2"></i>
                                 <span className="fw-semibold">Online Consultation</span>
-                                <span className="text-muted ms-2" style={{ fontSize: '0.8rem' }}>(Video, Audio, Chat)</span>
                               </div>
                               <div>
                                 <span className="text-muted me-1">Current:</span>
@@ -1500,13 +1499,12 @@ export default function CommissionManagement() {
                             </div>
                           </div>
 
-                          {/* Offline Consultation Rate */}
+                          {/* Home Visit Consultation Rate */}
                           <div className="border rounded overflow-hidden">
                             <div className="d-flex align-items-center justify-content-between px-3 py-2 bg-info bg-opacity-10 border-bottom">
                               <div className="d-flex align-items-center">
                                 <i className="bi bi-building text-info me-2"></i>
-                                <span className="fw-semibold">Offline Consultation</span>
-                                <span className="text-muted ms-2" style={{ fontSize: '0.8rem' }}>(In-person visit)</span>
+                                <span className="fw-semibold">Home Visit Consultation</span>
                               </div>
                               <div>
                                 <span className="text-muted me-1">Current:</span>
