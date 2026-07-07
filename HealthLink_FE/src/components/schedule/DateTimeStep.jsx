@@ -81,8 +81,6 @@ const DateTimeStep = ({
 
   const buildWeekOptions = (targetWeekIndex) => {
     const today = getStartOfToday();
-    const tomorrow = new Date(today);
-    tomorrow.setDate(today.getDate() + 1);
 
     const max = maxDate ? new Date(`${maxDate}T00:00:00`) : new Date(today);
     if (!maxDate) {
@@ -112,15 +110,7 @@ const DateTimeStep = ({
 
       const value = toDateValue(current);
 
-      let label;
-
-      if (isSameDate(current, today)) {
-        label = 'Today';
-      } else if (isSameDate(current, tomorrow)) {
-        label = 'Tomorrow';
-      } else {
-        label = `${weekdayLabels[dayOfWeek]}, ${current.getDate()}/${current.getMonth() + 1}`;
-      }
+      const label = `${weekdayLabels[dayOfWeek]}, ${current.getDate()}/${current.getMonth() + 1}`;
 
       result.push({
         value,
@@ -156,16 +146,24 @@ const DateTimeStep = ({
   }, [weekIndex]);
 
   useEffect(() => {
+    if (!date) return;
+
+    const selected = new Date(`${date}T00:00:00`);
+    const currentWeek = getMondayOfWeek(getStartOfToday());
+    const selectedWeek = getMondayOfWeek(selected);
+
+    const diffDays = Math.floor((selectedWeek - currentWeek) / 86400000);
+    const nextWeekIndex = Math.max(0, Math.floor(diffDays / 7));
+
+    setWeekIndex(nextWeekIndex);
+  }, [date]);
+
+  useEffect(() => {
     if (dateOptions.length === 0) {
-      if (date) {
-        setDate('');
-      }
       return;
     }
 
-    const currentDateStillVisible = dateOptions.some((item) => item.value === date);
-
-    if (!currentDateStillVisible) {
+    if (!date) {
       setDate(dateOptions[0].value);
     }
   }, [dateOptions, date, setDate]);

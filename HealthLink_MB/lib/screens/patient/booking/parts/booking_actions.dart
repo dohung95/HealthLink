@@ -312,6 +312,10 @@ extension _BookingActions on _BookingScreenState {
 
     final key = _currentStepKey;
 
+    if (key == BookingStepKey.visitType && _consultationType == 'Online') {
+      await _ensureManualSelectionFeeLoaded();
+    }
+
     if (key == BookingStepKey.doctorOption &&
         _doctorSelectionMode == 'AUTO_ASSIGNED') {
       if (_selectedDoctor == null) {
@@ -385,6 +389,10 @@ extension _BookingActions on _BookingScreenState {
       case BookingStepKey.doctorOption:
         if (_doctorSelectionMode.isEmpty) {
           return _warn('Please choose doctor option.');
+        }
+
+        if (_doctorSelectionMode == 'MANUAL_SELECTED' && _manualSelectionFee <= 0) {
+          return _warn('Manual selection fee is still loading. Please try again.');
         }
 
         return true;
@@ -564,5 +572,10 @@ extension _BookingActions on _BookingScreenState {
         _snack(_cleanError(e), error: true);
       }
     }
+  }
+
+  Future<void> _ensureManualSelectionFeeLoaded() async {
+    if (_manualSelectionFee > 0) return;
+    await _loadManualSelectionFee();
   }
 }

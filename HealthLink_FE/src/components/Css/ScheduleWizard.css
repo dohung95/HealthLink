@@ -25,62 +25,106 @@
   color: #6b7b77;
 }
 
-.schedule-stepper {
-  display: flex;
-  align-items: center;
+.schedule-stepper-compact {
   margin-bottom: 26px;
-  overflow-x: auto;
+  padding: 16px 18px;
+  border-radius: 22px;
+  background: rgba(255, 255, 255, 0.68);
+  border: 1px solid rgba(15, 82, 72, 0.12);
+  backdrop-filter: blur(10px);
 }
 
-.schedule-stepper-item {
+.schedule-stepper-compact-head {
   display: flex;
   align-items: center;
-  min-width: max-content;
+  justify-content: space-between;
+  gap: 16px;
+  margin-bottom: 14px;
 }
 
-.schedule-step-circle {
-  width: 34px;
-  height: 34px;
+.schedule-stepper-current {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  min-width: 0;
+}
+
+.schedule-stepper-current > span {
+  width: 42px;
+  height: 42px;
+  flex: 0 0 42px;
   border-radius: 50%;
-  background: #e6ecea;
-  color: #6b7b77;
+  background: #0f766e;
+  color: #fff;
+  display: grid;
+  place-items: center;
+  font-weight: 900;
+  box-shadow: 0 8px 18px rgba(15, 118, 110, 0.26);
+}
+
+.schedule-stepper-current strong {
+  display: block;
+  color: #063f38;
+  font-size: 17px;
+  font-weight: 900;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.schedule-stepper-current small {
+  display: block;
+  margin-top: 2px;
+  color: #6f8580;
+  font-weight: 700;
+}
+
+.schedule-stepper-percent {
+  color: #0f766e;
+  font-weight: 900;
+}
+
+.schedule-stepper-track {
+  height: 8px;
+  border-radius: 999px;
+  background: rgba(15, 82, 72, 0.12);
+  overflow: hidden;
+}
+
+.schedule-stepper-fill {
+  height: 100%;
+  border-radius: inherit;
+  background: linear-gradient(90deg, #27a48c, #0f766e);
+  transition: width 0.25s ease;
+}
+
+.schedule-stepper-mini {
   display: flex;
-  align-items: center;
-  justify-content: center;
-  font-weight: 700;
+  justify-content: space-between;
+  gap: 8px;
+  margin-top: 12px;
 }
 
-.schedule-step-circle.active {
-  background: #1f7a69;
+.schedule-stepper-dot {
+  width: 30px;
+  height: 30px;
+  border-radius: 999px;
+  background: #e8f0ee;
+  color: #6b7b77;
+  display: grid;
+  place-items: center;
+  font-size: 12px;
+  font-weight: 900;
+}
+
+.schedule-stepper-dot.completed {
+  background: #27a48c;
   color: #fff;
 }
 
-.schedule-step-circle.completed {
-  background: #279e88;
+.schedule-stepper-dot.active {
+  background: #0f766e;
   color: #fff;
-}
-
-.schedule-step-label {
-  margin-left: 10px;
-  color: #8a9895;
-  font-size: 14px;
-  font-weight: 500;
-}
-
-.schedule-step-label.active {
-  color: #155248;
-  font-weight: 700;
-}
-
-.schedule-step-line {
-  width: 56px;
-  height: 2px;
-  margin: 0 16px;
-  background: #d8dedd;
-}
-
-.schedule-step-line.completed {
-  background: #279e88;
 }
 
 .schedule-wizard-layout {
