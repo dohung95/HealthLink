@@ -14,7 +14,6 @@ import { useConsultationNotes } from './useConsultationNotes';
 import { useChatVideo } from './useChatVideo';
 import { useFollowUp } from './useFollowUp';
 import { getOrCreateRoom, getRoomMessages } from '@api/chatApi';
-import stompChatService from '@services/stompChatService';
 
 export function useAppointmentDetail({ appointment, patient, doctorId: currentDoctorId, activeMiniChatAppt, setActiveMiniChatAppt, onBack, onOpenAppointmentById }) {
   const { roles, initiateCall } = useAuth();
@@ -178,13 +177,19 @@ export function useAppointmentDetail({ appointment, patient, doctorId: currentDo
 
   const handleCompleteAppointment = useCallback(async () => {
     if (!appointmentId) return;
+
+    try {
+      const latest = await appointmentService.getAppointmentDetail(appointmentId);
+      if (latest?.status === 'COMPLETED') {
+        await appointmentData.refreshAppointmentData({ showToast: false });
+        setShowCompleteConfirmModal(false);
+        toast.info('This appointment is already completed');
+        return;
+      }
+    } catch (_) { _.message; }
+
     const appointmentToComplete = appointmentData.appointmentDetail || appointment;
-    console.log('--- DEBUG COMPLETE ---');
-    console.log('Appointment ID:', appointmentId);
-    console.log('Status:', appointmentToComplete?.status);
-    console.log('Consultation Start Time:', appointmentToComplete?.consultationStartTime);
     const currentConsultation = buildConsultation(appointmentToComplete);
-    console.log('Current Consultation:', currentConsultation);
     
     if (!currentConsultation.startTime) {
       toast.error('Start the consultation before completing it.');
@@ -268,9 +273,12 @@ export function useAppointmentDetail({ appointment, patient, doctorId: currentDo
     }
 
     if (notes.notesDraft?.diagnosis || notes.notesDraft?.doctorNotes || notes.notesDraft?.treatmentPlan) {
-      try {
-        await notes.handleSaveNotes();
-      } catch (_) {}
+      const saved = await notes.handleSaveNotes();
+      if (!saved) {
+        setCompletingAppointment(false);
+        setShowCompleteConfirmModal(false);
+        return;
+      }
     }
 
     setCompletingAppointment(true);
@@ -294,20 +302,6 @@ export function useAppointmentDetail({ appointment, patient, doctorId: currentDo
 
       const followUpAppointmentId = completionResult?.followUpAppointment?.appointmentId ||
         completionResult?.followUpAppointment?.appointmentID || null;
-
-      try {
-        const room = await getOrCreateRoom(appointmentToComplete.patient.patientId, appointmentId);
-        if (room && room.chatRoomId) {
-          stompChatService.sendMessage(
-            room.chatRoomId,
-            appointmentToComplete.doctor.doctorId,
-            appointmentToComplete.patient.patientId,
-            "[SYSTEM_BLOCK_UPDATE]"
-          );
-        }
-      } catch (err) {
-        console.error('Failed to send STOMP block signal:', err);
-      }
 
       if (followUpAppointmentId) {
         toast.success(completionResult?.createdFollowUp

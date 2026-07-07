@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { toast } from 'react-toastify';
 import { consultationApi } from '@api/consultationApi';
 import { buildConsultation } from '@utils/doctor/tabHelpers';
@@ -22,6 +22,7 @@ const stripHtml = (str) => {
 export function useConsultationNotes(appointmentId, appointment, appointmentDetail) {
   const [notesDraft, setNotesDraft] = useState({ diagnosis: '', doctorNotes: '', treatmentPlan: '' });
   const [savingNotes, setSavingNotes] = useState(false);
+  const savingLockRef = useRef(false);
 
   useEffect(() => {
     const consultation = buildConsultation(appointmentDetail || appointment);
@@ -46,8 +47,9 @@ export function useConsultationNotes(appointmentId, appointment, appointmentDeta
   }, []);
 
   const handleSaveNotes = useCallback(async () => {
-    if (!appointmentId || savingNotes) return;
+    if (!appointmentId || savingLockRef.current) return false;
 
+    savingLockRef.current = true;
     setSavingNotes(true);
     try {
       await consultationApi.updateAppointmentNotes(appointmentId, {
@@ -55,13 +57,15 @@ export function useConsultationNotes(appointmentId, appointment, appointmentDeta
         doctorNotes: stripHtml(notesDraft.doctorNotes),
         treatmentPlan: stripHtml(notesDraft.treatmentPlan),
       });
+      return true;
     } catch (error) {
-      console.error('Error saving consultation notes:', error);
       toast.error(error.response?.data?.message || 'Failed to save consultation notes');
+      return false;
     } finally {
+      savingLockRef.current = false;
       setSavingNotes(false);
     }
-  }, [appointmentId, notesDraft, savingNotes]);
+  }, [appointmentId, notesDraft]);
 
   return { notesDraft, savingNotes, handleNotesDraftChange, handleSaveNotes };
 }

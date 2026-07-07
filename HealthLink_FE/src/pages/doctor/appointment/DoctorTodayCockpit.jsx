@@ -55,6 +55,10 @@ export default function DoctorTodayCockpit() {
   }, [doctorId, selectedDate, getMonthRange]);
 
   useEffect(() => {
+    knownAppointmentIdsRef.current = new Set();
+  }, [selectedDate]);
+
+  useEffect(() => {
     if (!isToday) return;
     const timer = setInterval(() => setPollTick((t) => t + 1), POLL_INTERVAL_MS);
     return () => clearInterval(timer);

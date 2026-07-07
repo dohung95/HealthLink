@@ -37,6 +37,10 @@ import com.HealthLink.repository.vitalsign.VitalSignRepository;
 import com.HealthLink.entity.ChatRoom;
 import com.HealthLink.entity.Message;
 import com.HealthLink.entity.VitalSign;
+import com.HealthLink.entity.HomeVisitBooking;
+import com.HealthLink.entity.AppointmentSlotHold;
+import com.HealthLink.repository.appointment.HomeVisitBookingRepository;
+import com.HealthLink.repository.appointment.AppointmentSlotHoldRepository;
 import com.HealthLink.service.followup.FollowUpAppointmentService;
 import com.HealthLink.service.notification.NotificationService;
 import com.HealthLink.service.payment.CommissionService;
@@ -72,6 +76,8 @@ public class FollowUpAppointmentServiceImpl implements FollowUpAppointmentServic
     private final ChatRoomRepository chatRoomRepository;
     private final MessageRepository messageRepository;
     private final VitalSignRepository vitalSignRepository;
+    private final HomeVisitBookingRepository homeVisitBookingRepository;
+    private final AppointmentSlotHoldRepository appointmentSlotHoldRepository;
     private final SimpMessagingTemplate messagingTemplate;
     private final NotificationService notificationService;
 
@@ -535,7 +541,7 @@ public class FollowUpAppointmentServiceImpl implements FollowUpAppointmentServic
         }
 
         int dayOfWeek = date.getDayOfWeek().getValue() % 7;
-        List<DoctorSchedule> schedules = scheduleRepository
+        List<DoctorSchedule> allSchedules = scheduleRepository
                 .findByDoctor_DoctorIdAndDayOfWeekAndAvailableTrue(doctorId, dayOfWeek);
 
         LocalDateTime dayStart = date.atStartOfDay();
@@ -544,26 +550,69 @@ public class FollowUpAppointmentServiceImpl implements FollowUpAppointmentServic
                 .findByDoctor_DoctorIdAndStatusNotAndAppointmentTimeBetween(
                         doctorId, "CANCELLED", dayStart, dayEnd);
 
+        List<AppointmentSlotHold> activeHolds = appointmentSlotHoldRepository
+                .findByDoctor_DoctorIdAndAppointmentTimeBetweenAndExpiresAtAfter(
+                        doctorId, dayStart, dayEnd, now);
+
+        List<HomeVisitBooking> homeVisitBookings = homeVisitBookingRepository
+                .findByDoctorIdAndBookingDate(doctorId, date);
+
+        java.util.Map<Integer, DoctorSchedule> homeVisitScheduleMap = allSchedules.stream()
+                .filter(s -> "HomeVisit".equalsIgnoreCase(s.getConsultationType()))
+                .collect(java.util.stream.Collectors.toMap(
+                        DoctorSchedule::getScheduleId, s -> s, (a, b) -> a));
+
+        java.util.Set<Integer> bookedHomeVisitScheduleIds = homeVisitBookings.stream()
+                .map(HomeVisitBooking::getScheduleId)
+                .collect(java.util.stream.Collectors.toSet());
+
+        List<DoctorSchedule> onlineSchedules = allSchedules.stream()
+                .filter(s -> !"HomeVisit".equalsIgnoreCase(s.getConsultationType()))
+                .collect(java.util.stream.Collectors.toList());
+
         List<FollowUpSlotResponse> slots = new ArrayList<>();
 
         if (exception != null && exception.getExceptionType() == ScheduleExceptionType.MODIFIED) {
-            int slotMinutes = resolveSlotDuration(schedules);
-            generateFollowUpSlotsForTimeRange(
-                    slots, date, exception.getStartTime(), exception.getEndTime(),
-                    slotMinutes, bookedAppointments, now);
+            int slotMinutes = resolveSlotDuration(onlineSchedules);
+            if (!onlineSchedules.isEmpty()) {
+                boolean blockedByHomeVisit = isTimeRangeBlockedByHomeVisit(
+                        exception.getStartTime(), exception.getEndTime(),
+                        bookedHomeVisitScheduleIds, homeVisitScheduleMap);
+                if (!blockedByHomeVisit) {
+                    generateFollowUpSlotsForTimeRange(
+                            slots, date, exception.getStartTime(), exception.getEndTime(),
+                            slotMinutes, bookedAppointments, activeHolds, now);
+                }
+            }
         } else {
-            for (DoctorSchedule schedule : schedules) {
+            for (DoctorSchedule schedule : onlineSchedules) {
+                boolean blockedByHomeVisit = isTimeRangeBlockedByHomeVisit(
+                        schedule.getStartTime(), schedule.getEndTime(),
+                        bookedHomeVisitScheduleIds, homeVisitScheduleMap);
+
+                if (blockedByHomeVisit) {
+                    addBlockedSlots(slots, date, schedule.getStartTime(),
+                            schedule.getEndTime(), schedule.getSlotDuration() != null
+                                    ? schedule.getSlotDuration() : 30);
+                    continue;
+                }
+
                 int slotMinutes = schedule.getSlotDuration() != null ? schedule.getSlotDuration() : 30;
                 generateFollowUpSlotsForTimeRange(
                         slots, date, schedule.getStartTime(), schedule.getEndTime(),
-                        slotMinutes, bookedAppointments, now);
+                        slotMinutes, bookedAppointments, activeHolds, now);
             }
 
             if (exception != null && exception.getExceptionType() == ScheduleExceptionType.ADD_SLOT) {
-                int slotMinutes = resolveSlotDuration(schedules);
-                generateFollowUpSlotsForTimeRange(
-                        slots, date, exception.getStartTime(), exception.getEndTime(),
-                        slotMinutes, bookedAppointments, now);
+                int slotMinutes = resolveSlotDuration(onlineSchedules);
+                boolean blockedByHomeVisit = isTimeRangeBlockedByHomeVisit(
+                        exception.getStartTime(), exception.getEndTime(),
+                        bookedHomeVisitScheduleIds, homeVisitScheduleMap);
+                if (!blockedByHomeVisit) {
+                    generateFollowUpSlotsForTimeRange(
+                            slots, date, exception.getStartTime(), exception.getEndTime(),
+                            slotMinutes, bookedAppointments, activeHolds, now);
+                }
             }
         }
 
@@ -578,6 +627,7 @@ public class FollowUpAppointmentServiceImpl implements FollowUpAppointmentServic
             LocalTime endTime,
             int slotMinutes,
             List<Appointment> bookedAppointments,
+            List<AppointmentSlotHold> activeHolds,
             LocalDateTime now) {
 
         LocalDateTime slotStart = LocalDateTime.of(date, startTime);
@@ -597,8 +647,11 @@ public class FollowUpAppointmentServiceImpl implements FollowUpAppointmentServic
                     .findFirst()
                     .orElse(null);
 
-            String status = bookedAppointment != null ? "BOOKED" : "AVAILABLE";
-            boolean selectable = bookedAppointment == null;
+            boolean hasHold = activeHolds.stream()
+                    .anyMatch(h -> holdOverlaps(h, currentSlotStart, currentSlotEnd));
+
+            String status = (bookedAppointment != null || hasHold) ? "BOOKED" : "AVAILABLE";
+            boolean selectable = bookedAppointment == null && !hasHold;
 
             String startLabel = currentSlotStart.toLocalTime().format(SLOT_TIME_FORMATTER);
             String endLabel = currentSlotEnd.toLocalTime().format(SLOT_TIME_FORMATTER);
@@ -612,7 +665,8 @@ public class FollowUpAppointmentServiceImpl implements FollowUpAppointmentServic
                     .consultationId(bookedAppointment != null && bookedAppointment.getConsultation() != null
                             ? bookedAppointment.getConsultation().getConsultationId() : null)
                     .label(startLabel + " - " + endLabel)
-                    .disabledReason(bookedAppointment != null ? "Slot already booked" : null)
+                    .disabledReason(bookedAppointment != null ? "Slot already booked"
+                            : hasHold ? "Slot is being booked by another patient" : null)
                     .build());
 
             slotStart = currentSlotEnd;
@@ -636,6 +690,61 @@ public class FollowUpAppointmentServiceImpl implements FollowUpAppointmentServic
                 ? appointment.getEndTime()
                 : appointmentStart.plusMinutes(30);
         return appointmentStart.isBefore(slotEnd) && appointmentEnd.isAfter(slotStart);
+    }
+
+    private boolean holdOverlaps(AppointmentSlotHold hold, LocalDateTime slotStart, LocalDateTime slotEnd) {
+        if (hold == null || hold.getAppointmentTime() == null) {
+            return false;
+        }
+        LocalDateTime holdStart = hold.getAppointmentTime();
+        LocalDateTime holdEnd = hold.getEndTime() != null
+                ? hold.getEndTime()
+                : holdStart.plusMinutes(30);
+        return holdStart.isBefore(slotEnd) && holdEnd.isAfter(slotStart);
+    }
+
+    private boolean isTimeRangeBlockedByHomeVisit(
+            LocalTime rangeStart, LocalTime rangeEnd,
+            java.util.Set<Integer> bookedHomeVisitScheduleIds,
+            java.util.Map<Integer, DoctorSchedule> homeVisitScheduleMap) {
+
+        return bookedHomeVisitScheduleIds.stream()
+                .map(homeVisitScheduleMap::get)
+                .filter(s -> s != null)
+                .anyMatch(hvSchedule ->
+                    rangeStart.isBefore(hvSchedule.getEndTime())
+                    && hvSchedule.getStartTime().isBefore(rangeEnd)
+                );
+    }
+
+    private void addBlockedSlots(
+            List<FollowUpSlotResponse> slots,
+            LocalDate date,
+            LocalTime startTime,
+            LocalTime endTime,
+            int slotMinutes) {
+
+        LocalDateTime slotStart = LocalDateTime.of(date, startTime);
+        LocalDateTime rangeEnd = LocalDateTime.of(date, endTime);
+
+        while (!slotStart.plusMinutes(slotMinutes).isAfter(rangeEnd)) {
+            LocalDateTime currentSlotStart = slotStart;
+            LocalDateTime currentSlotEnd = slotStart.plusMinutes(slotMinutes);
+
+            String startLabel = currentSlotStart.toLocalTime().format(SLOT_TIME_FORMATTER);
+            String endLabel = currentSlotEnd.toLocalTime().format(SLOT_TIME_FORMATTER);
+
+            slots.add(FollowUpSlotResponse.builder()
+                    .startTime(startLabel)
+                    .endTime(endLabel)
+                    .status("BOOKED")
+                    .selectable(false)
+                    .label(startLabel + " - " + endLabel)
+                    .disabledReason("Slot blocked by home visit booking")
+                    .build());
+
+            slotStart = currentSlotEnd;
+        }
     }
 
     // =========================================================================

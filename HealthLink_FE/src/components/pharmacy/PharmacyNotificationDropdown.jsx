@@ -90,7 +90,7 @@ export default function PharmacyNotificationDropdown() {
         <span className={`material-symbols-outlined ${pharmacyUnreadCount > 0 ? 'pharmacy-bell-ring' : ''}`}>
           {pharmacyUnreadCount > 0 ? 'notifications_active' : 'notifications'}
         </span>
-        {pharmacyUnreadCount > 0 ? <span className="pharmacy-notification-dot" /> : null}
+        {pharmacyUnreadCount > 0 ? <span className="pharmacy-notification-badge">{pharmacyUnreadCount > 99 ? '99+' : pharmacyUnreadCount}</span> : null}
       </button>
 
       {open ? (

@@ -218,23 +218,16 @@ export function useFollowUp({ appointment, appointmentDetail, doctorId, onRefres
 
     setSendingPaymentRequest(true);
     try {
-      console.log('[FU_PAY] Step 1: Saving follow-up, appointmentId:', targetAppointmentId, 'dateTime:', selectedFollowUpDateTime);
-      // Bước 1: Lưu follow-up data (date, notes, consultationType) trước
       await consultationApi.updateAppointmentFollowUp(targetAppointmentId, {
         followUpDate: selectedFollowUpDateTime,
         followUpNotes: followUpNotes?.trim() || null,
         consultationType: followUpConsultationType,
       });
-      console.log('[FU_PAY] Step 1 OK');
 
-      // Bước 2: Gửi payment request
-      console.log('[FU_PAY] Step 2: Sending payment request...');
       await consultationApi.sendFollowUpPaymentRequest(targetAppointmentId);
-      console.log('[FU_PAY] Step 2 OK');
 
       toast.success('Payment request sent to patient');
       setFollowUpPaymentStatus('PENDING_PAYMENT');
-      console.log('[FU_PAY] Cancel available immediately');
       if (onRefreshAppointment) await onRefreshAppointment();
       await loadFollowUpSlots();
       await loadFollowUpCalendar();
@@ -304,39 +297,25 @@ export function useFollowUp({ appointment, appointmentDetail, doctorId, onRefres
   useEffect(() => {
     if (!appointmentId) return;
     if (consultation.followUpAppointmentId || consultation.followUpDate) {
-      console.log('[FU_INIT] Fetching follow-up status for appt:', appointmentId);
       consultationApi.getFollowUpStatus(appointmentId)
         .then((data) => {
-          console.log('[FU_INIT] Response:', data);
           if (data?.status && data.status !== 'NONE') {
-            console.log('[FU_INIT] Setting followUpPaymentStatus to:', data.status);
             setFollowUpPaymentStatus(data.status);
-            if (data.status === 'PENDING_PAYMENT') {
-              console.log('[FU_INIT] Cancel available immediately');
-            }
-          } else {
-            console.log('[FU_INIT] Status=NONE or empty, not overriding');
           }
         })
-        .catch((err) => {
-          console.log('[FU_INIT] Fetch failed:', err);
-        });
+        .catch(() => {});
     }
   }, [appointmentId, consultation.followUpAppointmentId, consultation.followUpDate]);
 
   useEffect(() => {
     if (!appointmentId || followUpPaymentStatus !== 'PENDING_PAYMENT') {
-      console.log('[FU_POLL] Skipping — status:', followUpPaymentStatus);
       return;
     }
-    console.log('[FU_POLL] Starting 5s poll');
     const interval = setInterval(async () => {
       try {
         const statusData = await consultationApi.getFollowUpStatus(appointmentId);
         const newStatus = statusData?.status;
-        console.log('[FU_POLL] Result:', { newStatus, current: followUpPaymentStatus });
         if (newStatus && newStatus !== followUpPaymentStatus) {
-          console.log('[FU_POLL] Status changed:', followUpPaymentStatus, '->', newStatus);
           setFollowUpPaymentStatus(newStatus);
           // No countdown delay — cancel available immediately
           if (newStatus === 'PAID') {
@@ -382,13 +361,10 @@ export function useFollowUp({ appointment, appointmentDetail, doctorId, onRefres
 
       if (!isFollowUpPaymentEvent) return;
 
-      console.log('[FU_WS] Follow-up notification received:', notification.type);
       consultationApi.getFollowUpStatus(appointmentId).then((data) => {
         const newStatus = data?.status;
         const currentStatus = followUpPaymentStatusRef.current;
-        console.log('[FU_WS] Status check:', { newStatus, current: currentStatus });
         if (newStatus && newStatus !== currentStatus) {
-          console.log('[FU_WS] Status changed:', currentStatus, '->', newStatus);
           setFollowUpPaymentStatus(newStatus);
           if (newStatus === 'PAID') {
             toast.info('Patient has paid. Follow-up created.');

@@ -201,7 +201,7 @@ const DoctorHeader = memo(({
         <span className={`material-symbols-outlined ${unreadCount > 0 ? 'bell-ringing' : ''}`}>
           {unreadCount > 0 ? 'notifications_active' : 'notifications'}
         </span>
-        {unreadCount > 0 ? <span className="notification-bell-dot" /> : null}
+        {unreadCount > 0 ? <span className="notification-bell-badge">{unreadCount > 99 ? '99+' : unreadCount}</span> : null}
       </button>
       {showNotificationDropdown ? (
         <div className="notification-dropdown-desktop d-none d-md-block">

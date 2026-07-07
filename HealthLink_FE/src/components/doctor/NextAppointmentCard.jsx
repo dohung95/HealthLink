@@ -103,9 +103,13 @@ const NextAppointmentCard = ({ appointment, priority, onView, onViewPatient }) =
           </div>
         </div>
 
+        <div className="doctor-next-card__divider" />
+
         {isUpcoming ? (
           <div className="doctor-next-card__actions">
-            <small className="text-text-muted">Click to view patient profile</small>
+            <button className="btn btn-primary" onClick={(e) => { e.stopPropagation(); handleClick(); }} type="button">
+              View Profile
+            </button>
           </div>
         ) : (
           <div className="doctor-next-card__actions">

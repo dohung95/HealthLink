@@ -573,22 +573,26 @@
 .pharmacy-success-text { color: var(--pharmacy-success); }
 .pharmacy-danger-text { color: var(--pharmacy-danger); }
 
-.pharmacy-notification-dot {
+.pharmacy-notification-badge {
   position: absolute;
-  top: 8px;
-  right: 8px;
-  width: 9px;
-  height: 9px;
+  top: 4px;
+  right: 4px;
+  min-width: 18px;
+  height: 18px;
   border-radius: 999px;
   background: #ef4444;
+  color: #fff;
+  font-size: 0.625rem;
+  font-weight: 700;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0 4px;
   border: 2px solid #fff;
-  animation: pharmacy-dot-pulse 2s ease-in-out infinite;
+  line-height: 1;
 }
 
-@keyframes pharmacy-dot-pulse {
-  0%, 100% { transform: scale(1); opacity: 1; }
-  50% { transform: scale(1.35); opacity: 0.85; }
-}
+
 
 @keyframes pharmacy-bell-shake {
   0%, 70% { transform: rotate(0); }

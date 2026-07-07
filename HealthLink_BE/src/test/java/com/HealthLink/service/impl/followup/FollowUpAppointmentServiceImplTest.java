@@ -25,6 +25,10 @@ import com.HealthLink.repository.prescription.PrescriptionHeaderRepository;
 import com.HealthLink.repository.vitalsign.VitalSignRepository;
 import com.HealthLink.entity.ChatRoom;
 import com.HealthLink.entity.VitalSign;
+import com.HealthLink.entity.HomeVisitBooking;
+import com.HealthLink.entity.AppointmentSlotHold;
+import com.HealthLink.repository.appointment.HomeVisitBookingRepository;
+import com.HealthLink.repository.appointment.AppointmentSlotHoldRepository;
 import com.HealthLink.service.notification.NotificationService;
 import com.HealthLink.service.payment.CommissionService;
 import org.junit.jupiter.api.Test;
@@ -94,6 +98,12 @@ class FollowUpAppointmentServiceImplTest {
     @Mock
     private NotificationService notificationService;
 
+    @Mock
+    private HomeVisitBookingRepository homeVisitBookingRepository;
+
+    @Mock
+    private AppointmentSlotHoldRepository appointmentSlotHoldRepository;
+
     @InjectMocks
     private FollowUpAppointmentServiceImpl followUpAppointmentService;
 
@@ -119,6 +129,11 @@ class FollowUpAppointmentServiceImplTest {
                 .thenReturn(List.of(schedule));
         when(appointmentRepository.findByDoctor_DoctorIdAndStatusNotAndAppointmentTimeBetween(
                 eq("doctor-1"), eq("CANCELLED"), any(), any()))
+                .thenReturn(List.of());
+        when(homeVisitBookingRepository.findByDoctorIdAndBookingDate(any(), any()))
+                .thenReturn(List.of());
+        when(appointmentSlotHoldRepository.findByDoctor_DoctorIdAndAppointmentTimeBetweenAndExpiresAtAfter(
+                any(), any(), any(), any()))
                 .thenReturn(List.of());
 
         FollowUpSlotsResponse response = followUpAppointmentService.getSlots("doctor-1", date);
@@ -175,6 +190,11 @@ class FollowUpAppointmentServiceImplTest {
         when(appointmentRepository.findByDoctor_DoctorIdAndStatusNotAndAppointmentTimeBetween(
                 eq("doctor-1"), eq("CANCELLED"), any(), any()))
                 .thenReturn(List.of(booked));
+        when(homeVisitBookingRepository.findByDoctorIdAndBookingDate(any(), any()))
+                .thenReturn(List.of());
+        when(appointmentSlotHoldRepository.findByDoctor_DoctorIdAndAppointmentTimeBetweenAndExpiresAtAfter(
+                any(), any(), any(), any()))
+                .thenReturn(List.of());
 
         FollowUpSlotsResponse response = followUpAppointmentService.getSlots("doctor-1", date);
 
@@ -208,6 +228,11 @@ class FollowUpAppointmentServiceImplTest {
         when(appointmentRepository.findByDoctor_DoctorIdAndStatusNotAndAppointmentTimeBetween(
                 eq("doctor-1"), eq("CANCELLED"), any(), any()))
                 .thenReturn(List.of());
+        when(homeVisitBookingRepository.findByDoctorIdAndBookingDate(any(), any()))
+                .thenReturn(List.of());
+        when(appointmentSlotHoldRepository.findByDoctor_DoctorIdAndAppointmentTimeBetweenAndExpiresAtAfter(
+                any(), any(), any(), any()))
+                .thenReturn(List.of());
 
         assertThatCode(() -> followUpAppointmentService.validateFollowUpSlot(appointment, date.atTime(20, 0)))
                 .doesNotThrowAnyException();
@@ -237,6 +262,11 @@ class FollowUpAppointmentServiceImplTest {
                 .thenReturn(List.of(schedule));
         when(appointmentRepository.findByDoctor_DoctorIdAndStatusNotAndAppointmentTimeBetween(
                 eq("doctor-1"), eq("CANCELLED"), any(), any()))
+                .thenReturn(List.of());
+        when(homeVisitBookingRepository.findByDoctorIdAndBookingDate(any(), any()))
+                .thenReturn(List.of());
+        when(appointmentSlotHoldRepository.findByDoctor_DoctorIdAndAppointmentTimeBetweenAndExpiresAtAfter(
+                any(), any(), any(), any()))
                 .thenReturn(List.of());
 
         assertThatThrownBy(() -> followUpAppointmentService.validateFollowUpSlot(appointment, date.atTime(21, 0)))
@@ -279,6 +309,11 @@ class FollowUpAppointmentServiceImplTest {
                 .thenReturn(List.of(schedule));
         when(appointmentRepository.findByDoctor_DoctorIdAndStatusNotAndAppointmentTimeBetween(
                 eq("doctor-1"), eq("CANCELLED"), any(), any()))
+                .thenReturn(List.of());
+        when(homeVisitBookingRepository.findByDoctorIdAndBookingDate(any(), any()))
+                .thenReturn(List.of());
+        when(appointmentSlotHoldRepository.findByDoctor_DoctorIdAndAppointmentTimeBetweenAndExpiresAtAfter(
+                any(), any(), any(), any()))
                 .thenReturn(List.of());
         when(appointmentRepository.save(any(Appointment.class))).thenAnswer(invocation -> {
             Appointment saved = invocation.getArgument(0);
@@ -421,6 +456,254 @@ class FollowUpAppointmentServiceImplTest {
                 .hasMessage("Consultation must be started before appointment can be completed");
         verify(appointmentRepository, never()).save(any(Appointment.class));
         verify(commissionService, never()).processConsultationCommission(any(Invoice.class));
+    }
+
+    @Test
+    void getSlots_shouldBlockOnlineSlotsWhenHomeVisitBookingExistsInOverlappingShift() {
+        LocalDate date = LocalDate.now().plusDays(2);
+        int dayOfWeek = date.getDayOfWeek().getValue() % 7;
+        Doctor doctor = doctor();
+
+        DoctorSchedule onlineSchedule = DoctorSchedule.builder()
+                .scheduleId(1)
+                .doctor(doctor)
+                .dayOfWeek(dayOfWeek)
+                .startTime(LocalTime.of(13, 0))
+                .endTime(LocalTime.of(17, 30))
+                .slotDuration(30)
+                .consultationType("Consultation")
+                .available(true)
+                .build();
+
+        DoctorSchedule homeVisitSchedule = DoctorSchedule.builder()
+                .scheduleId(2)
+                .doctor(doctor)
+                .dayOfWeek(dayOfWeek)
+                .startTime(LocalTime.of(13, 0))
+                .endTime(LocalTime.of(17, 30))
+                .slotDuration(270)
+                .consultationType("HomeVisit")
+                .shiftType("AFTERNOON")
+                .available(true)
+                .build();
+
+        HomeVisitBooking hvBooking = HomeVisitBooking.builder()
+                .id(1)
+                .doctorId("doctor-1")
+                .scheduleId(2)
+                .bookingDate(date)
+                .appointmentId(100)
+                .startTime(LocalTime.of(13, 0))
+                .endTime(LocalTime.of(17, 30))
+                .build();
+
+        when(doctorRepository.findById("doctor-1")).thenReturn(Optional.of(doctor));
+        when(exceptionRepository.findByDoctor_DoctorIdAndExceptionDate("doctor-1", date))
+                .thenReturn(Optional.empty());
+        when(scheduleRepository.findByDoctor_DoctorIdAndDayOfWeekAndAvailableTrue("doctor-1", dayOfWeek))
+                .thenReturn(List.of(onlineSchedule, homeVisitSchedule));
+        when(appointmentRepository.findByDoctor_DoctorIdAndStatusNotAndAppointmentTimeBetween(
+                eq("doctor-1"), eq("CANCELLED"), any(), any()))
+                .thenReturn(List.of());
+        when(homeVisitBookingRepository.findByDoctorIdAndBookingDate("doctor-1", date))
+                .thenReturn(List.of(hvBooking));
+        when(appointmentSlotHoldRepository.findByDoctor_DoctorIdAndAppointmentTimeBetweenAndExpiresAtAfter(
+                any(), any(), any(), any()))
+                .thenReturn(List.of());
+
+        FollowUpSlotsResponse response = followUpAppointmentService.getSlots("doctor-1", date);
+
+        assertThat(response.getSlots())
+                .allMatch(slot -> "BOOKED".equals(slot.getStatus()) && !slot.isSelectable());
+        assertThat(response.getSlots()).hasSize(9);
+    }
+
+    @Test
+    void getSlots_shouldBlockOnlineSlotsWhenHomeVisitBookingExistsWithoutStartEndTime() {
+        LocalDate date = LocalDate.now().plusDays(2);
+        int dayOfWeek = date.getDayOfWeek().getValue() % 7;
+        Doctor doctor = doctor();
+
+        DoctorSchedule onlineSchedule = DoctorSchedule.builder()
+                .scheduleId(1)
+                .doctor(doctor)
+                .dayOfWeek(dayOfWeek)
+                .startTime(LocalTime.of(7, 0))
+                .endTime(LocalTime.of(10, 30))
+                .slotDuration(30)
+                .consultationType("Consultation")
+                .available(true)
+                .build();
+
+        DoctorSchedule homeVisitSchedule = DoctorSchedule.builder()
+                .scheduleId(2)
+                .doctor(doctor)
+                .dayOfWeek(dayOfWeek)
+                .startTime(LocalTime.of(7, 0))
+                .endTime(LocalTime.of(10, 30))
+                .slotDuration(210)
+                .consultationType("HomeVisit")
+                .shiftType("MORNING")
+                .available(true)
+                .build();
+
+        HomeVisitBooking hvBooking = HomeVisitBooking.builder()
+                .id(2)
+                .doctorId("doctor-1")
+                .scheduleId(2)
+                .bookingDate(date)
+                .appointmentId(101)
+                .build();
+
+        when(doctorRepository.findById("doctor-1")).thenReturn(Optional.of(doctor));
+        when(exceptionRepository.findByDoctor_DoctorIdAndExceptionDate("doctor-1", date))
+                .thenReturn(Optional.empty());
+        when(scheduleRepository.findByDoctor_DoctorIdAndDayOfWeekAndAvailableTrue("doctor-1", dayOfWeek))
+                .thenReturn(List.of(onlineSchedule, homeVisitSchedule));
+        when(appointmentRepository.findByDoctor_DoctorIdAndStatusNotAndAppointmentTimeBetween(
+                eq("doctor-1"), eq("CANCELLED"), any(), any()))
+                .thenReturn(List.of());
+        when(homeVisitBookingRepository.findByDoctorIdAndBookingDate("doctor-1", date))
+                .thenReturn(List.of(hvBooking));
+        when(appointmentSlotHoldRepository.findByDoctor_DoctorIdAndAppointmentTimeBetweenAndExpiresAtAfter(
+                any(), any(), any(), any()))
+                .thenReturn(List.of());
+
+        FollowUpSlotsResponse response = followUpAppointmentService.getSlots("doctor-1", date);
+
+        assertThat(response.getSlots())
+                .allMatch(slot -> "BOOKED".equals(slot.getStatus()) && !slot.isSelectable());
+    }
+
+    @Test
+    void getSlots_shouldBlockSlotWhenActiveHoldExists() {
+        LocalDate date = LocalDate.now().plusDays(2);
+        int dayOfWeek = date.getDayOfWeek().getValue() % 7;
+        Doctor doctor = doctor();
+
+        DoctorSchedule schedule = DoctorSchedule.builder()
+                .scheduleId(1)
+                .doctor(doctor)
+                .dayOfWeek(dayOfWeek)
+                .startTime(LocalTime.of(9, 0))
+                .endTime(LocalTime.of(12, 0))
+                .slotDuration(30)
+                .consultationType("Consultation")
+                .available(true)
+                .build();
+
+        AppointmentSlotHold hold = AppointmentSlotHold.builder()
+                .holdId(1)
+                .doctor(doctor)
+                .appointmentTime(date.atTime(10, 0))
+                .endTime(date.atTime(10, 30))
+                .expiresAt(LocalDateTime.now().plusMinutes(5))
+                .consultationType("Video")
+                .build();
+
+        when(doctorRepository.findById("doctor-1")).thenReturn(Optional.of(doctor));
+        when(exceptionRepository.findByDoctor_DoctorIdAndExceptionDate("doctor-1", date))
+                .thenReturn(Optional.empty());
+        when(scheduleRepository.findByDoctor_DoctorIdAndDayOfWeekAndAvailableTrue("doctor-1", dayOfWeek))
+                .thenReturn(List.of(schedule));
+        when(appointmentRepository.findByDoctor_DoctorIdAndStatusNotAndAppointmentTimeBetween(
+                eq("doctor-1"), eq("CANCELLED"), any(), any()))
+                .thenReturn(List.of());
+        when(homeVisitBookingRepository.findByDoctorIdAndBookingDate("doctor-1", date))
+                .thenReturn(List.of());
+        when(appointmentSlotHoldRepository.findByDoctor_DoctorIdAndAppointmentTimeBetweenAndExpiresAtAfter(
+                any(), any(), any(), any()))
+                .thenReturn(List.of(hold));
+
+        FollowUpSlotsResponse response = followUpAppointmentService.getSlots("doctor-1", date);
+
+        assertThat(response.getSlots())
+                .filteredOn(slot -> "10:00".equals(slot.getStartTime()))
+                .allMatch(slot -> "BOOKED".equals(slot.getStatus()) && !slot.isSelectable());
+        assertThat(response.getSlots())
+                .filteredOn(slot -> "09:30".equals(slot.getStartTime()) || "10:30".equals(slot.getStartTime()))
+                .allMatch(slot -> "AVAILABLE".equals(slot.getStatus()) && slot.isSelectable());
+    }
+
+    @Test
+    void getSlots_shouldNotBlockOnlineSlotsWhenHomeVisitIsInDifferentShift() {
+        LocalDate date = LocalDate.now().plusDays(2);
+        int dayOfWeek = date.getDayOfWeek().getValue() % 7;
+        Doctor doctor = doctor();
+
+        DoctorSchedule morningOnline = DoctorSchedule.builder()
+                .scheduleId(1)
+                .doctor(doctor)
+                .dayOfWeek(dayOfWeek)
+                .startTime(LocalTime.of(7, 0))
+                .endTime(LocalTime.of(10, 30))
+                .slotDuration(30)
+                .consultationType("Consultation")
+                .available(true)
+                .build();
+
+        DoctorSchedule afternoonOnline = DoctorSchedule.builder()
+                .scheduleId(2)
+                .doctor(doctor)
+                .dayOfWeek(dayOfWeek)
+                .startTime(LocalTime.of(13, 0))
+                .endTime(LocalTime.of(17, 30))
+                .slotDuration(30)
+                .consultationType("Consultation")
+                .available(true)
+                .build();
+
+        DoctorSchedule homeVisitSchedule = DoctorSchedule.builder()
+                .scheduleId(3)
+                .doctor(doctor)
+                .dayOfWeek(dayOfWeek)
+                .startTime(LocalTime.of(13, 0))
+                .endTime(LocalTime.of(17, 30))
+                .slotDuration(270)
+                .consultationType("HomeVisit")
+                .shiftType("AFTERNOON")
+                .available(true)
+                .build();
+
+        HomeVisitBooking hvBooking = HomeVisitBooking.builder()
+                .id(3)
+                .doctorId("doctor-1")
+                .scheduleId(3)
+                .bookingDate(date)
+                .appointmentId(102)
+                .startTime(LocalTime.of(13, 0))
+                .endTime(LocalTime.of(17, 30))
+                .build();
+
+        when(doctorRepository.findById("doctor-1")).thenReturn(Optional.of(doctor));
+        when(exceptionRepository.findByDoctor_DoctorIdAndExceptionDate("doctor-1", date))
+                .thenReturn(Optional.empty());
+        when(scheduleRepository.findByDoctor_DoctorIdAndDayOfWeekAndAvailableTrue("doctor-1", dayOfWeek))
+                .thenReturn(List.of(morningOnline, afternoonOnline, homeVisitSchedule));
+        when(appointmentRepository.findByDoctor_DoctorIdAndStatusNotAndAppointmentTimeBetween(
+                eq("doctor-1"), eq("CANCELLED"), any(), any()))
+                .thenReturn(List.of());
+        when(homeVisitBookingRepository.findByDoctorIdAndBookingDate("doctor-1", date))
+                .thenReturn(List.of(hvBooking));
+        when(appointmentSlotHoldRepository.findByDoctor_DoctorIdAndAppointmentTimeBetweenAndExpiresAtAfter(
+                any(), any(), any(), any()))
+                .thenReturn(List.of());
+
+        FollowUpSlotsResponse response = followUpAppointmentService.getSlots("doctor-1", date);
+
+        var morningSlots = response.getSlots().stream()
+                .filter(slot -> slot.getStartTime().compareTo("12:59") < 0)
+                .toList();
+        assertThat(morningSlots).isNotEmpty();
+        assertThat(morningSlots)
+                .allMatch(slot -> "AVAILABLE".equals(slot.getStatus()) && slot.isSelectable());
+
+        var afternoonSlots = response.getSlots().stream()
+                .filter(slot -> slot.getStartTime().compareTo("13:00") >= 0)
+                .toList();
+        assertThat(afternoonSlots).isNotEmpty();
+        assertThat(afternoonSlots)
+                .allMatch(slot -> "BOOKED".equals(slot.getStatus()) && !slot.isSelectable());
     }
 
     private Appointment appointment(Integer id, LocalDateTime appointmentTime, String status) {

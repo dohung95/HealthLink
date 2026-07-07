@@ -27,19 +27,24 @@ const ConsultationNotesTab = ({
 }) => {
   const isDisabled = !canEditClinical;
   const latestRef = useRef(notesDraft);
+  const onSaveRef = useRef(onSaveNotes);
 
   useEffect(() => {
     latestRef.current = notesDraft;
   }, [notesDraft]);
 
   useEffect(() => {
+    onSaveRef.current = onSaveNotes;
+  }, [onSaveNotes]);
+
+  useEffect(() => {
     return () => {
       const draft = latestRef.current;
       if (draft.diagnosis || draft.doctorNotes || draft.treatmentPlan) {
-        onSaveNotes();
+        onSaveRef.current();
       }
     };
-  }, [onSaveNotes]);
+  }, []);
 
   const handleChange = (field, value) => {
     onNotesChange(field, value);
