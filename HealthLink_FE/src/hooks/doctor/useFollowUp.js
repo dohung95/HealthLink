@@ -1,7 +1,8 @@
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { toast } from 'react-toastify';
 import { appointmentService } from '@api/appointmentApi';
 import { consultationApi } from '@api/consultationApi';
+import websocketService from '@services/websocketService';
 import { buildConsultation, toLocalDateValue, toMonthValue, buildFollowUpDateTime, formatDateTime } from '@utils/doctor/tabHelpers';
 
 export function useFollowUp({ appointment, appointmentDetail, doctorId, onRefreshAppointment }) {
@@ -20,6 +21,8 @@ export function useFollowUp({ appointment, appointmentDetail, doctorId, onRefres
   const [sendingPaymentRequest, setSendingPaymentRequest] = useState(false);
   const [showRescheduleConfirm, setShowRescheduleConfirm] = useState(false);
   const [isRescheduling, setIsRescheduling] = useState(false);
+  const [cancelingPaymentRequest, setCancelingPaymentRequest] = useState(false);
+  const followUpPaymentStatusRef = useRef(followUpPaymentStatus);
 
   const source = appointmentDetail || appointment;
   const consultation = useMemo(() => buildConsultation(source), [source]);
@@ -43,7 +46,7 @@ export function useFollowUp({ appointment, appointmentDetail, doctorId, onRefres
     const followUp = buildConsultation(source);
     setFollowUpNotes(followUp.followUpNotes || '');
     setFollowUpConsultationType(
-      source?.consultationType || followUp.followUpConsultationType || 'Consultation',
+      followUp.followUpConsultationType || source?.consultationType || 'Consultation',
     );
 
     if (followUp.followUpDate) {
@@ -74,7 +77,7 @@ export function useFollowUp({ appointment, appointmentDetail, doctorId, onRefres
 
     setLoadingFollowUpSlots(true);
     try {
-      const data = await appointmentService.getFollowUpSlots(effectiveDoctorId, followUpSelectedDateValue);
+      const data = await appointmentService.getFollowUpSlots(effectiveDoctorId, followUpSelectedDateValue, followUpConsultationType);
       setFollowUpSlots(Array.isArray(data?.slots) ? data.slots : []);
     } catch (error) {
       console.error('Error loading follow-up slots:', error);
@@ -83,14 +86,14 @@ export function useFollowUp({ appointment, appointmentDetail, doctorId, onRefres
     } finally {
       setLoadingFollowUpSlots(false);
     }
-  }, [effectiveDoctorId, followUpSelectedDateValue]);
+  }, [effectiveDoctorId, followUpSelectedDateValue, followUpConsultationType]);
 
   const loadFollowUpCalendar = useCallback(async () => {
     if (!effectiveDoctorId || !followUpCalendarMonth) return;
 
     setLoadingFollowUpCalendar(true);
     try {
-      const data = await appointmentService.getFollowUpCalendar(effectiveDoctorId, followUpCalendarMonth);
+      const data = await appointmentService.getFollowUpCalendar(effectiveDoctorId, followUpCalendarMonth, followUpConsultationType);
       setFollowUpCalendarDays(Array.isArray(data?.days) ? data.days : []);
     } catch (error) {
       console.error('Error loading follow-up calendar:', error);
@@ -98,7 +101,7 @@ export function useFollowUp({ appointment, appointmentDetail, doctorId, onRefres
     } finally {
       setLoadingFollowUpCalendar(false);
     }
-  }, [effectiveDoctorId, followUpCalendarMonth]);
+  }, [effectiveDoctorId, followUpCalendarMonth, followUpConsultationType]);
 
   useEffect(() => {
     loadFollowUpSlots();
@@ -215,14 +218,12 @@ export function useFollowUp({ appointment, appointmentDetail, doctorId, onRefres
 
     setSendingPaymentRequest(true);
     try {
-      // Bước 1: Lưu follow-up data (date, notes, consultationType) trước
       await consultationApi.updateAppointmentFollowUp(targetAppointmentId, {
         followUpDate: selectedFollowUpDateTime,
         followUpNotes: followUpNotes?.trim() || null,
         consultationType: followUpConsultationType,
       });
 
-      // Bước 2: Gửi payment request
       await consultationApi.sendFollowUpPaymentRequest(targetAppointmentId);
 
       toast.success('Payment request sent to patient');
@@ -238,6 +239,23 @@ export function useFollowUp({ appointment, appointmentDetail, doctorId, onRefres
     }
   }, [appointmentId, selectedFollowUpDateTime, followUpNotes, followUpConsultationType,
       loadFollowUpCalendar, loadFollowUpSlots, onRefreshAppointment]);
+
+  const handleCancelPendingPayment = useCallback(async () => {
+    const targetAppointmentId = appointmentId;
+    if (!targetAppointmentId) return;
+    setCancelingPaymentRequest(true);
+    try {
+      await consultationApi.denyFollowUp(targetAppointmentId);
+      setFollowUpPaymentStatus('NONE');
+      toast.info('Payment request cancelled');
+      if (onRefreshAppointment) await onRefreshAppointment();
+    } catch (error) {
+      console.error('Error cancelling payment request:', error);
+      toast.error(error.response?.data?.message || 'Failed to cancel payment request');
+    } finally {
+      setCancelingPaymentRequest(false);
+    }
+  }, [appointmentId, onRefreshAppointment]);
 
   const handleInitiateReschedule = useCallback(() => {
     setShowRescheduleConfirm(true);
@@ -259,6 +277,11 @@ export function useFollowUp({ appointment, appointmentDetail, doctorId, onRefres
     }
   }, [selectedFollowUpDateTime, followUpNotes, savePendingFollowUp]);
 
+  const handleFollowUpTypeChange = useCallback((nextType) => {
+    setFollowUpConsultationType(nextType);
+    setSelectedFollowUpDateTime(null);
+  }, []);
+
   const handleCancelReschedule = useCallback(() => {
     const followUp = buildConsultation(source);
     setIsRescheduling(false);
@@ -273,7 +296,7 @@ export function useFollowUp({ appointment, appointmentDetail, doctorId, onRefres
       }
     }
     setFollowUpNotes(followUp.followUpNotes || '');
-    setFollowUpConsultationType(source?.consultationType || followUp.followUpConsultationType || 'Consultation');
+    setFollowUpConsultationType(followUp.followUpConsultationType || source?.consultationType || 'Consultation');
   }, [source]);
 
   useEffect(() => {
@@ -290,14 +313,16 @@ export function useFollowUp({ appointment, appointmentDetail, doctorId, onRefres
   }, [appointmentId, consultation.followUpAppointmentId, consultation.followUpDate]);
 
   useEffect(() => {
-    if (!appointmentId || followUpPaymentStatus !== 'PENDING_PAYMENT') return;
-
+    if (!appointmentId || followUpPaymentStatus !== 'PENDING_PAYMENT') {
+      return;
+    }
     const interval = setInterval(async () => {
       try {
         const statusData = await consultationApi.getFollowUpStatus(appointmentId);
         const newStatus = statusData?.status;
         if (newStatus && newStatus !== followUpPaymentStatus) {
           setFollowUpPaymentStatus(newStatus);
+          // No countdown delay — cancel available immediately
           if (newStatus === 'PAID') {
             toast.info('Patient has paid. Follow-up created.');
           } else if (newStatus === 'NONE') {
@@ -308,10 +333,56 @@ export function useFollowUp({ appointment, appointmentDetail, doctorId, onRefres
       } catch (error) {
         console.error('Error polling follow-up status:', error);
       }
-    }, 5000);
+    }, 1500);
 
     return () => clearInterval(interval);
   }, [appointmentId, followUpPaymentStatus, onRefreshAppointment]);
+
+  // No countdown effect — cancel is available immediately
+
+  // Keep ref in sync for use in WebSocket callback
+  useEffect(() => {
+    followUpPaymentStatusRef.current = followUpPaymentStatus;
+  }, [followUpPaymentStatus]);
+
+  // WebSocket listener: immediately re-check status when patient denies/cancels payment
+  useEffect(() => {
+    if (!appointmentId) return;
+
+    const unsubscribe = websocketService.subscribeToNotifications((notification) => {
+      // Check if notification is related to this appointment's follow-up payment
+      const isRelated = notification.relatedId === appointmentId ||
+        notification.appointmentId === appointmentId ||
+        notification.appointmentID === appointmentId;
+
+      if (!isRelated) return;
+
+      const isFollowUpPaymentEvent = notification.type && (
+        notification.type === 'FOLLOW_UP_PAYMENT_DENIED' ||
+        notification.type === 'FOLLOW_UP_PAYMENT_STATUS_CHANGED' ||
+        notification.type === 'FOLLOW_UP_PAYMENT_CANCELLED' ||
+        notification.type?.startsWith('FOLLOW_UP_PAYMENT')
+      );
+
+      if (!isFollowUpPaymentEvent) return;
+
+      consultationApi.getFollowUpStatus(appointmentId).then((data) => {
+        const newStatus = data?.status;
+        const currentStatus = followUpPaymentStatusRef.current;
+        if (newStatus && newStatus !== currentStatus) {
+          setFollowUpPaymentStatus(newStatus);
+          if (newStatus === 'PAID') {
+            toast.info('Patient has paid. Follow-up created.');
+          } else if (newStatus === 'NONE') {
+            toast.info('Follow-up request was denied by patient');
+          }
+          if (onRefreshAppointment) onRefreshAppointment();
+        }
+      }).catch(() => {});
+    });
+
+    return () => { unsubscribe(); };
+  }, [appointmentId, onRefreshAppointment]);
 
   return {
     followUpSelectedDate,
@@ -332,7 +403,7 @@ export function useFollowUp({ appointment, appointmentDetail, doctorId, onRefres
     handleSelectFollowUpSlot,
     handleConfirmFollowUp,
     setFollowUpNotes,
-    setFollowUpConsultationType,
+    setFollowUpConsultationType: handleFollowUpTypeChange,
     saveFollowUp: savePendingFollowUp,
     followUpPaymentStatus,
     sendingPaymentRequest,
@@ -345,5 +416,8 @@ export function useFollowUp({ appointment, appointmentDetail, doctorId, onRefres
     handleCancelRescheduleModal,
     handleSaveReschedule,
     handleCancelReschedule,
+    canCancelPendingPayment: followUpPaymentStatus === 'PENDING_PAYMENT',
+    cancelingPaymentRequest,
+    handleCancelPendingPayment,
   };
 }

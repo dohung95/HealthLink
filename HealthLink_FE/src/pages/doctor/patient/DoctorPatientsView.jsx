@@ -1,5 +1,5 @@
 import React, { useEffect, useMemo, useRef, useState, useCallback } from 'react';
-import { useNavigate, useParams } from 'react-router-dom';
+import { useNavigate, useParams, useOutletContext } from 'react-router-dom';
 import { doctorService } from '@api/doctorApi';
 import PatientCompactRow from '@components/doctor/PatientCompactRow';
 import DoctorPatientDetailView from '@pages/doctor/patient/DoctorPatientDetailView';
@@ -16,6 +16,7 @@ const STATUS_FILTERS = [
 export default function DoctorPatientsView() {
   const navigate = useNavigate();
   const { patientId } = useParams();
+  const { doctorId } = useOutletContext();
 
   // List state
   const [patients, setPatients] = useState([]);
@@ -71,7 +72,7 @@ export default function DoctorPatientsView() {
           search,
           status: statusFilter,
           page,
-          pageSize: 12,
+          pageSize: 10,
         });
         if (!mounted) return;
         setPatients(data.patients || []);
@@ -306,6 +307,7 @@ export default function DoctorPatientsView() {
         <DoctorPatientDetailView
           patient={selectedPatient}
           history={history}
+          doctorId={doctorId}
         />
       </>
     );

@@ -101,7 +101,7 @@ export const getStatusClassName = (status) => {
   if (key === 'completed') return 'doctor-detail-status doctor-detail-status--completed';
   if (key === 'scheduled') return 'doctor-detail-status doctor-detail-status--scheduled';
   if (key === 'cancelled' || key === 'canceled') return 'doctor-detail-status doctor-detail-status--cancelled';
-  if (key === 'inprogress') return 'doctor-detail-status doctor-detail-status--progress';
+  if (key === 'inprogress' || key === 'inconsultation') return 'doctor-detail-status doctor-detail-status--progress';
   return 'doctor-detail-status';
 };
 
@@ -131,5 +131,10 @@ export const buildConsultation = (source) => {
     followUpDate: consultation.followUpDate ?? source?.followUpDate ?? null,
     followUpAppointmentId: consultation.followUpAppointmentId ?? source?.followUpAppointmentId ?? null,
     followUpNotes: consultation.followUpNotes ?? source?.followUpNotes ?? null,
+    followUpConsultationType:
+      consultation.consultationType
+      ?? source?.followUpConsultationType
+      ?? source?.followUpType
+      ?? null,
   };
 };

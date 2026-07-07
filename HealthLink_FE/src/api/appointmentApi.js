@@ -72,25 +72,21 @@ export const appointmentService = {
         return response.data;
     },
 
-    getFollowUpSlots: async (doctorId, date) => {
-        const response = await axiosInstance.get('/api/doctor/appointments/follow-up/slots', {
-            params: {
-                doctorId,
-                date,
-            },
-        });
-
+    getFollowUpSlots: async (doctorId, date, consultationType) => {
+        const params = { doctorId, date };
+        if (consultationType) {
+            params.consultationType = consultationType;
+        }
+        const response = await axiosInstance.get('/api/doctor/appointments/follow-up/slots', { params });
         return response.data;
     },
 
-    getFollowUpCalendar: async (doctorId, month) => {
-        const response = await axiosInstance.get('/api/doctor/appointments/follow-up/calendar', {
-            params: {
-                doctorId,
-                month,
-            },
-        });
-
+    getFollowUpCalendar: async (doctorId, month, consultationType) => {
+        const params = { doctorId, month };
+        if (consultationType) {
+            params.consultationType = consultationType;
+        }
+        const response = await axiosInstance.get('/api/doctor/appointments/follow-up/calendar', { params });
         return response.data;
     },
 

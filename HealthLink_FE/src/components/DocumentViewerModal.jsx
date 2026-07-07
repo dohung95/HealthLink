@@ -15,15 +15,29 @@ const DocumentViewerModal = ({
   }, [show, onHide]);
 
   const fileExt = useMemo(() => {
+    // Ưu tiên fileLocation (có extension thật) hơn documentName (tên hiển thị không extension)
+    const loc = doc?.fileLocation || '';
+    const ext = loc.split('.').pop()?.toLowerCase();
+    if (ext) return ext;
     const name = doc?.documentName || doc?.fileName || '';
     return name.split('.').pop()?.toLowerCase() || '';
   }, [doc]);
 
   const fileType = useMemo(() => {
+    // Ưu tiên mimeType từ server nếu có
+    const mime = (doc?.mimeType || '').toLowerCase();
+    if (mime.startsWith('image/')) return 'image';
+    if (mime === 'application/pdf') return 'pdf';
+    // Fallback: detect từ fileLocation
+    const loc = doc?.fileLocation || '';
+    const locExt = loc.split('.').pop()?.toLowerCase() || '';
+    if (['pdf'].includes(locExt)) return 'pdf';
+    if (['jpg', 'jpeg', 'png', 'gif', 'bmp', 'webp'].includes(locExt)) return 'image';
+    // Cuối cùng: fallback từ fileExt (documentName cũ)
     if (['pdf'].includes(fileExt)) return 'pdf';
     if (['jpg', 'jpeg', 'png', 'gif', 'bmp', 'webp'].includes(fileExt)) return 'image';
     return 'unknown';
-  }, [fileExt]);
+  }, [fileExt, doc]);
 
   const viewUrl = useMemo(() => {
     if (!doc?.fileLocation) return '';
@@ -34,6 +48,36 @@ const DocumentViewerModal = ({
   const docName = doc?.documentName || doc?.fileName || 'Document';
 
   if (!doc) return null;
+
+  const hasFile = Boolean(doc?.fileLocation);
+
+  if (!hasFile) {
+    return (
+      <Modal show={show} onHide={onHide} size="md" centered className="document-viewer-modal">
+        <div className="dv-header">
+          <div className="dv-header__icon dv-header__icon--unknown">
+            <i className="bi bi-file-earmark-medical" />
+          </div>
+          <h3 className="dv-header__title">{docName}</h3>
+          <div className="dv-header__actions">
+            <button className="dv-btn dv-btn--close" onClick={onHide} type="button">Close</button>
+          </div>
+        </div>
+        <div className="dv-body">
+          <div className="dv-unsupported">
+            <div className="dv-unsupported__icon"><i className="bi bi-clipboard2-data" /></div>
+            <h4 className="dv-unsupported__title">Structured result</h4>
+            <p className="dv-unsupported__desc">
+              {doc.testName && <><strong>{doc.testName}</strong><br /></>}
+              {doc.testResults && <>Result: {doc.testResults}{doc.resultUnit ? ` ${doc.resultUnit}` : ''}<br /></>}
+              {doc.referenceRange && <>Reference: {doc.referenceRange}<br /></>}
+              {doc.labFacilityName && <>Lab: {doc.labFacilityName}</>}
+            </p>
+          </div>
+        </div>
+      </Modal>
+    );
+  }
 
   return (
     <>

@@ -1,6 +1,7 @@
 package com.HealthLink.controller.payment;
 
 import com.HealthLink.dto.consultation.FollowUpResponse;
+import com.HealthLink.dto.payment.FollowUpHomeVisitDetailsRequest;
 import com.HealthLink.dto.payment.InvoiceResponse;
 import com.HealthLink.dto.payment.AppointmentPayPalCaptureRequest;
 import com.HealthLink.dto.payment.AppointmentPayPalOrderRequest;
@@ -143,8 +144,8 @@ public class PaymentController {
     @PutMapping("/follow-up/{appointmentId}/location")
     public ResponseEntity<FollowUpResponse> saveFollowUpLocation(
             @PathVariable Integer appointmentId,
-            @RequestBody Map<String, Object> location) {
-        return ResponseEntity.ok(financeService.saveFollowUpLocation(appointmentId, location));
+            @RequestBody FollowUpHomeVisitDetailsRequest request) {
+        return ResponseEntity.ok(financeService.saveFollowUpLocation(appointmentId, request));
     }
 
     // ──────────────────────────────────────────────────────────────────────

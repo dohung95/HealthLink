@@ -1,9 +1,29 @@
 export const NAV_ITEMS = [
-  { key: 'appointments', label: 'Appointments', icon: 'calendar_today', wide: true },
-  { key: 'patients',     label: 'Patients',     icon: 'groups',          wide: true },
-  { key: 'prescriptions',label: 'Prescriptions', icon: 'medication',     wide: true },
-  { key: 'schedule',     label: 'Schedule',      icon: 'event_note',     wide: true },
-  { key: 'chat',         label: 'Chat',          icon: 'chat',           wide: true },
+  {
+    key: 'appointments',
+    label: 'Appointments',
+    icon: 'calendar_today',
+    wide: true,
+    path: '/doctor/appointments',
+    children: [
+      {
+        key: 'appointmentsScheduled',
+        label: 'Scheduled',
+        icon: 'event_available',
+        path: '/doctor/appointments',
+      },
+      {
+        key: 'appointmentsHistory',
+        label: 'History',
+        icon: 'history',
+        path: '/doctor/appointments/history',
+      },
+    ],
+  },
+  { key: 'patients',      label: 'Patients',      icon: 'groups',     wide: true, path: '/doctor/patients' },
+  { key: 'prescriptions', label: 'Prescriptions', icon: 'medication', wide: true, path: '/doctor/prescriptions' },
+  { key: 'schedule',      label: 'Schedule',      icon: 'event_note',  wide: true, path: '/doctor/schedule' },
+  { key: 'chat',          label: 'Chat',          icon: 'chat',        wide: true, path: '/doctor/chat' },
 ];
 
 export const APPOINTMENT_DETAIL_VIEW = 'appointmentDetail';

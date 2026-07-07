@@ -1,4 +1,4 @@
-import React, { useCallback } from 'react';
+import React, { useCallback, useState } from 'react';
 import Calendar from 'react-calendar';
 import { toast } from 'react-toastify';
 import '@components/Css/doctor/doctor-dashboard/doctor-dashboard.css';
@@ -41,12 +41,29 @@ const FollowUpTab = ({
   handleCancelRescheduleModal,
   handleSaveReschedule,
   handleCancelReschedule,
+  canCancelPendingPayment,
+  cancelingPaymentRequest,
+  handleCancelPendingPayment,
 }) => {
+  const [showCancelConfirm, setShowCancelConfirm] = useState(false);
   const hasExistingFollowUp = Boolean(consultation.followUpDate || consultation.followUpNotes);
   const isPaidLocked = followUpPaymentStatus === 'PAID' && !isRescheduling;
 
   const handlePaidLockAction = useCallback(() => {
     toast.info('Click "Reschedule" to change follow-up information');
+  }, []);
+
+  const handleCancelClick = useCallback(() => {
+    setShowCancelConfirm(true);
+  }, []);
+
+  const handleConfirmCancel = useCallback(() => {
+    setShowCancelConfirm(false);
+    handleCancelPendingPayment();
+  }, [handleCancelPendingPayment]);
+
+  const handleDismissCancel = useCallback(() => {
+    setShowCancelConfirm(false);
   }, []);
 
   return (
@@ -75,10 +92,19 @@ const FollowUpTab = ({
                 if (view !== 'month') return null;
                 const day = followUpCalendarDayMap.get(toLocalDateValue(date));
                 if (!day) return null;
+                const status = String(day.status || '').toUpperCase();
+                const isDayOff = status === 'DAY_OFF' || status === 'NO_SCHEDULE';
                 return [
                   day.hasAppointments ? 'fu-cal-tile--busy' : '',
-                  day.availableSlots === 0 ? 'fu-cal-tile--full' : '',
+                  isDayOff ? 'fu-cal-tile--day-off' : '',
+                  !isDayOff && (status === 'FULL' || day.availableSlots === 0) ? 'fu-cal-tile--full' : '',
                 ].filter(Boolean).join(' ');
+              }}
+              tileDisabled={({ date, view }) => {
+                if (view !== 'month') return false;
+                const day = followUpCalendarDayMap.get(toLocalDateValue(date));
+                const status = String(day?.status || '').toUpperCase();
+                return status === 'DAY_OFF' || status === 'NO_SCHEDULE' || status === 'DISABLED';
               }}
               tileContent={({ date, view }) => {
                 if (view !== 'month') return null;
@@ -206,33 +232,16 @@ const FollowUpTab = ({
                   {hasExistingFollowUp && (
                     <div className="fu-saved-banner">
                       <div className="fu-saved-banner__item">
-                        <span className="fu-saved-banner__label">Saved Date</span>
+                        <span className="fu-saved-banner__label">Date</span>
                         <span className="fu-saved-banner__value">
                           {consultation.followUpDate ? formatDateTime(consultation.followUpDate) : 'Not scheduled'}
                         </span>
                       </div>
-                      {consultation.followUpNotes && (
-                        <div className="fu-saved-banner__divider" />
-                      )}
-                      {consultation.followUpNotes && (
-                        <div className="fu-saved-banner__item">
-                          <span className="fu-saved-banner__label">Notes</span>
-                          <span className="fu-saved-banner__value fu-saved-banner__value--notes">
-                            {consultation.followUpNotes}
-                          </span>
-                        </div>
-                      )}
-                      {followUpPaymentStatus && followUpPaymentStatus !== 'NONE' && (
-                        <div className="fu-saved-banner__divider" />
-                      )}
                       {followUpPaymentStatus && followUpPaymentStatus !== 'NONE' && (
                         <div className="fu-saved-banner__item">
                           <span className="fu-saved-banner__label">Status</span>
                           <FollowUpStatusBadge status={followUpPaymentStatus} />
                         </div>
-                      )}
-                      {selectedFollowUpDateTime && (followUpPaymentStatus === 'PENDING_PAYMENT' || followUpPaymentStatus === 'PAID') && (
-                        <div className="fu-saved-banner__divider" />
                       )}
                     </div>
                   )}
@@ -246,10 +255,19 @@ const FollowUpTab = ({
                     </button>
                   )}
                   {selectedFollowUpDateTime && followUpPaymentStatus === 'PENDING_PAYMENT' && (
-                    <button className="btn btn-secondary fu-status-card__btn" disabled style={{ width: '100%' }}>
-                      <i className="bi bi-hourglass-split me-1" />
-                      Waiting for patient payment...
-                    </button>
+                    <div className="fu-status-card__pending">
+                      <div className="fu-status-waiting-btn">
+                        <span className="fu-pulse-dot"></span>
+                        Waiting for patient...
+                      </div>
+                      <button
+                        className="fu-status-cancel-btn"
+                        onClick={handleCancelClick}
+                        disabled={cancelingPaymentRequest}
+                      >
+                        {cancelingPaymentRequest ? 'Cancelling...' : 'Cancel'}
+                      </button>
+                    </div>
                   )}
                   {selectedFollowUpDateTime && followUpPaymentStatus === 'PAID' && !isRescheduling && (
                     <div className="fu-status-actions">
@@ -279,6 +297,18 @@ const FollowUpTab = ({
         </div>
       </div>
 
+      {showCancelConfirm && (
+        <div className="fu-modal-overlay" onClick={handleDismissCancel}>
+          <div className="fu-confirm-modal" onClick={(e) => e.stopPropagation()}>
+            <h5 className="fu-confirm-modal__title">Cancel payment request?</h5>
+            <p className="fu-confirm-modal__desc">This will cancel the payment request sent to the patient and reset the follow-up status.</p>
+            <div className="fu-confirm-modal__actions">
+              <button className="btn btn-outline-secondary" onClick={handleDismissCancel}>Keep request</button>
+              <button className="fu-status-cancel-btn" onClick={handleConfirmCancel} style={{ flex: 1, border: 'none', borderRadius: 'var(--radius-md, 8px)' }}>Yes, cancel</button>
+            </div>
+          </div>
+        </div>
+      )}
       {showRescheduleConfirm && !isRescheduling && (
         <div className="fu-modal-overlay" onClick={handleCancelRescheduleModal}>
           <div className="fu-confirm-modal" onClick={(e) => e.stopPropagation()}>

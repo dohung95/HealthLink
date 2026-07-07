@@ -2,6 +2,7 @@ package com.HealthLink.dto.response;
 
 import com.HealthLink.dto.admin.AdminAppointmentSummaryDto;
 import com.HealthLink.dto.admin.AdminDocumentCategoryDto;
+import com.HealthLink.dto.admin.AdminMedicalDocumentDto;
 import com.HealthLink.dto.prescription.PrescriptionResponse;
 import lombok.Builder;
 import lombok.Data;
@@ -32,4 +33,5 @@ public class DoctorPatientHistoryResponse {
     private List<AdminAppointmentSummaryDto> appointments;
     private List<AdminDocumentCategoryDto> documentsByCategory;
     private List<PrescriptionResponse> prescriptions;
+    private List<AdminMedicalDocumentDto> clinicalResults;
 }

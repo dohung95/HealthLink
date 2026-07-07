@@ -76,3 +76,49 @@
   margin-right: 0.25rem;
   font-size: 0.6875rem;
 }
+
+/* ---- Vitals card (matches patient-info__card) ---- */
+.doctor-detail-summary__vitals-card {
+  background: var(--doctor-surface);
+  border: 1px solid var(--doctor-border);
+  border-radius: var(--doctor-radius-lg);
+  padding: 1rem 1.25rem 1.25rem;
+  transition: var(--doctor-transition);
+}
+
+.doctor-detail-summary__vitals-card:hover {
+  border-color: var(--doctor-border);
+  box-shadow: var(--doctor-shadow-md);
+}
+
+.doctor-detail-summary__vitals-card .doctor-vital-section__header {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0 0 0.75rem;
+  margin-bottom: 0.875rem;
+  border-bottom: 1px solid var(--doctor-border-light);
+  font-size: 0.6rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: var(--doctor-text-muted);
+}
+
+.doctor-detail-summary__vitals-card .doctor-vital-strip--vertical {
+  display: flex;
+  gap: 1rem;
+}
+
+.doctor-detail-summary__vitals-card .doctor-vital-strip__column {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  flex: 1;
+}
+
+.doctor-detail-summary__vitals-card .doctor-detail-summary__body-metrics {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.375rem;
+}

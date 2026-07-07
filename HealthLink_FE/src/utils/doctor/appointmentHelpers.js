@@ -2,9 +2,9 @@ export { getPatientInitials, getTypeIcon } from './sharedHelpers';
 
 export const STATUS_TONES = {
   scheduled: {
-    badge: 'badge bg-surface-container-highest text-text-muted',
+    badge: 'badge bg-primary text-white',
     railClass: 'doctor-appointment-card__rail--scheduled',
-    dot: 'bg-surface-variant',
+    dot: 'bg-primary',
   },
   completed: {
     badge: 'badge bg-success text-white',
@@ -12,7 +12,7 @@ export const STATUS_TONES = {
     dot: 'bg-success',
   },
   cancelled: {
-    badge: 'badge bg-critical text-white',
+    badge: 'badge bg-danger text-white',
     railClass: 'doctor-appointment-card__rail--cancelled',
     dot: 'bg-critical',
   },
@@ -20,6 +20,11 @@ export const STATUS_TONES = {
     badge: 'badge bg-warning text-white',
     railClass: 'doctor-appointment-card__rail--inprogress',
     dot: 'bg-warning',
+  },
+  inconsultation: {
+    badge: 'badge bg-primary text-white',
+    railClass: 'doctor-appointment-card__rail--inprogress',
+    dot: 'bg-primary',
   },
   default: {
     badge: 'badge bg-surface-container text-text-main',
@@ -32,6 +37,8 @@ export const TYPE_TONES = {
   video: 'badge bg-primary text-white',
   audio: 'badge bg-surface-container text-text-main',
   chat: 'badge bg-surface-container-highest text-text-main',
+  online: 'badge bg-primary text-white',
+  homevisit: 'badge bg-primary text-white',
   offline: 'badge bg-surface-container text-text-main',
   default: 'badge bg-surface-container text-text-main',
 };
@@ -85,6 +92,12 @@ export const getPatientAvatar = (appointment) =>
   appointment?.avatarUrl ||
   '';
 
+export const getPatientPhone = (appointment) =>
+  appointment?.patientPhoneNumber
+  || appointment?.patient?.phoneNumber
+  || appointment?.patientPhone
+  || '';
+
 export const getVisitReason = (appointment) =>
   [appointment?.reason, appointment?.symptoms, appointment?.chiefComplaint]
     .find((value) => typeof value === 'string' && value.trim()) || '';
@@ -95,6 +108,8 @@ export const getTypeKey = (type) => {
   if (value.includes('audio') || value.includes('call')) return 'audio';
   if (value.includes('chat')) return 'chat';
   if (value.includes('offline') || value.includes('room') || value.includes('clinic')) return 'offline';
+  if (value.includes('online')) return 'online';
+  if (value.includes('homevisit') || value.includes('home')) return 'homevisit';
   return 'default';
 };
 
@@ -105,12 +120,17 @@ export const getDisplayStatus = (appointment) => {
 
   if (normalized.includes('cancel')) return 'Cancelled';
   if (normalized.includes('complete')) return 'Completed';
-  if (normalized.includes('progress') || (hasStarted && normalized.includes('scheduled'))) return 'In Progress';
+  if (normalized.includes('consultation') || normalized.includes('progress') || (hasStarted && normalized.includes('scheduled'))) return 'In Progress';
   if (normalized.includes('scheduled')) return 'Scheduled';
   return status;
 };
 
-export const getStatusKey = (appointment) => getDisplayStatus(appointment).toLowerCase().replace(/[\s_-]/g, '');
+export const getStatusKey = (appointment) => {
+  const status = String(appointment?.status || 'Scheduled');
+  const normalized = status.toLowerCase().replace(/[\s_-]/g, '');
+  if (normalized.includes('consultation')) return 'inconsultation';
+  return getDisplayStatus(appointment).toLowerCase().replace(/[\s_-]/g, '');
+};
 
 export const getDurationLabel = (appointment) => {
   const start = appointment?.consultationStartTime ? new Date(appointment.consultationStartTime) : null;

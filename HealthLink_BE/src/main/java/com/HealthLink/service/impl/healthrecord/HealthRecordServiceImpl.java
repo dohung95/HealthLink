@@ -23,6 +23,7 @@ import org.springframework.web.multipart.MultipartFile;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.List;
+import java.util.Map;
 import java.util.stream.Collectors;
 import com.HealthLink.dto.response.PagedResponse;
 import java.util.Arrays;
@@ -107,13 +108,15 @@ public class HealthRecordServiceImpl implements HealthRecordService {
                         pageRequest
                 );
 
+        List<HealthRecordResponse> visibleItems = recordPage.getContent()
+                .stream()
+                .map(record -> Map.entry(record, toRecordResponse(record)))
+                .filter(entry -> shouldExposeRecordToPatient(entry.getKey(), entry.getValue()))
+                .map(Map.Entry::getValue)
+                .collect(Collectors.toList());
+
         return PagedResponse.<HealthRecordResponse>builder()
-                .items(
-                        recordPage.getContent()
-                                .stream()
-                                .map(this::toRecordResponse)
-                                .collect(Collectors.toList())
-                )
+                .items(visibleItems)
                 .page(safePage)
                 .pageSize(safeSize)
                 .totalItems(recordPage.getTotalElements())
@@ -284,35 +287,41 @@ public class HealthRecordServiceImpl implements HealthRecordService {
         if (existingShareOpt.isPresent()) {
             HealthRecordShare existingShare = existingShareOpt.get();
 
-            boolean allowMerge = Boolean.TRUE.equals(request.getAllowMerge());
+            boolean sameAppointment = request.getAppointmentId() != null
+                    && existingShare.getAppointmentId() != null
+                    && request.getAppointmentId().equals(existingShare.getAppointmentId());
 
-            if (!allowMerge) {
-                throw new BusinessException(
-                        "This record is already shared with this doctor. Please revoke the existing share before sharing again."
+            if (sameAppointment) {
+                boolean allowMerge = Boolean.TRUE.equals(request.getAllowMerge());
+
+                if (!allowMerge) {
+                    throw new BusinessException(
+                            "This record is already shared with this doctor. Please revoke the existing share before sharing again."
+                    );
+                }
+
+                String mergedDocumentIds = mergeDocumentIds(
+                        existingShare.getSharedDocumentIds(),
+                        request.getSharedDocumentIds()
                 );
+
+                if (existingShare.getSharedDocumentIds() != null
+                        && existingShare.getSharedDocumentIds().equals(mergedDocumentIds)) {
+                    throw new BusinessException("These documents are already shared with this doctor.");
+                }
+
+                existingShare.setSharedDocumentIds(mergedDocumentIds);
+
+                if (request.getPermissionLevel() != null && !request.getPermissionLevel().isBlank()) {
+                    existingShare.setPermissionLevel(request.getPermissionLevel());
+                }
+
+                if (request.getExpiryDate() != null) {
+                    existingShare.setExpiryDate(request.getExpiryDate());
+                }
+
+                return toShareResponse(healthRecordShareRepository.save(existingShare));
             }
-
-            String mergedDocumentIds = mergeDocumentIds(
-                    existingShare.getSharedDocumentIds(),
-                    request.getSharedDocumentIds()
-            );
-
-            if (existingShare.getSharedDocumentIds() != null
-                    && existingShare.getSharedDocumentIds().equals(mergedDocumentIds)) {
-                throw new BusinessException("These documents are already shared with this doctor.");
-            }
-
-            existingShare.setSharedDocumentIds(mergedDocumentIds);
-
-            if (request.getPermissionLevel() != null && !request.getPermissionLevel().isBlank()) {
-                existingShare.setPermissionLevel(request.getPermissionLevel());
-            }
-
-            if (request.getExpiryDate() != null) {
-                existingShare.setExpiryDate(request.getExpiryDate());
-            }
-
-            return toShareResponse(healthRecordShareRepository.save(existingShare));
         }
 
         String docIds = null;
@@ -412,11 +421,28 @@ public class HealthRecordServiceImpl implements HealthRecordService {
         return toShareResponse(share);
     }
 
+    private boolean isVisibleToPatient(MedicalDocument doc) {
+        if (!"DOCTOR".equalsIgnoreCase(doc.getSourceType())) {
+            return true;
+        }
+        return "PUBLISHED".equalsIgnoreCase(doc.getVisibilityStatus());
+    }
+
+    private boolean shouldExposeRecordToPatient(HealthRecord record, HealthRecordResponse response) {
+        if (record.getMedicalDocuments() == null || record.getMedicalDocuments().isEmpty()) {
+            return true;
+        }
+        return response.getDocuments() != null && !response.getDocuments().isEmpty();
+    }
+
     // Mappers
     private HealthRecordResponse toRecordResponse(HealthRecord record) {
         List<MedicalDocumentResponse> docs = null;
         if (record.getMedicalDocuments() != null) {
-            docs = record.getMedicalDocuments().stream().map(this::toDocumentResponse).collect(Collectors.toList());
+            docs = record.getMedicalDocuments().stream()
+                    .filter(this::isVisibleToPatient)
+                    .map(this::toDocumentResponse)
+                    .collect(Collectors.toList());
         }
 
         return HealthRecordResponse.builder()
@@ -434,6 +460,8 @@ public class HealthRecordServiceImpl implements HealthRecordService {
     }
 
     private MedicalDocumentResponse toDocumentResponse(MedicalDocument doc) {
+        Doctor doctor = doc.getDoctor();
+        Appointment appointment = doc.getAppointment();
         return MedicalDocumentResponse.builder()
                 .documentId(doc.getDocumentId())
                 .healthRecordId(doc.getHealthRecord().getHealthRecordId())
@@ -450,24 +478,46 @@ public class HealthRecordServiceImpl implements HealthRecordService {
                 .fileSize(doc.getFileSize())
                 .mimeType(doc.getMimeType())
                 .thumbnailUrl(doc.getThumbnailUrl())
+                .appointmentId(appointment != null ? appointment.getAppointmentId() : null)
+                .doctorId(doctor != null ? doctor.getDoctorId() : null)
+                .doctorName(doctor != null ? doctor.getFullName() : null)
+                .sourceType(doc.getSourceType())
+                .visibilityStatus(doc.getVisibilityStatus())
+                .publishedAt(doc.getPublishedAt())
+                .labFacilityName(doc.getLabFacilityName())
+                .sentToLabAt(doc.getSentToLabAt())
+                .resultReceivedAt(doc.getResultReceivedAt())
+                .testName(doc.getTestName())
+                .resultUnit(doc.getResultUnit())
+                .clinicalStatus(doc.getClinicalStatus())
+                .structuredResultsJson(doc.getStructuredResultsJson())
+                .doctorAssessment(doc.getDoctorAssessment())
+                .patientSummary(doc.getPatientSummary())
+                .aiConfidence(doc.getAiConfidence())
+                .aiWarningsJson(doc.getAiWarningsJson())
+                .aiProcessedAt(doc.getAiProcessedAt())
                 .build();
     }
 
     private HealthRecordShareResponse toShareResponse(HealthRecordShare share) {
         List<MedicalDocumentResponse> docs = null;
         if (share.getHealthRecord().getMedicalDocuments() != null) {
-            docs = share.getHealthRecord().getMedicalDocuments().stream().filter(d -> {
-                if (share.getSharedDocumentIds() == null || share.getSharedDocumentIds().isEmpty()) {
-                    return true;
-                }
-                String[] ids = share.getSharedDocumentIds().split(",");
-                for (String id : ids) {
-                    if (id.trim().equals(d.getDocumentId().toString())) {
-                        return true;
-                    }
-                }
-                return false;
-            }).map(this::toDocumentResponse).collect(Collectors.toList());
+            docs = share.getHealthRecord().getMedicalDocuments().stream()
+                    .filter(this::isVisibleToPatient)
+                    .filter(d -> {
+                        if (share.getSharedDocumentIds() == null || share.getSharedDocumentIds().isEmpty()) {
+                            return true;
+                        }
+                        String[] ids = share.getSharedDocumentIds().split(",");
+                        for (String id : ids) {
+                            if (id.trim().equals(d.getDocumentId().toString())) {
+                                return true;
+                            }
+                        }
+                        return false;
+                    })
+                    .map(this::toDocumentResponse)
+                    .collect(Collectors.toList());
         }
 
         return HealthRecordShareResponse.builder()

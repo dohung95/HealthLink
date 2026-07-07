@@ -3,7 +3,7 @@
     <include resource="org/springframework/boot/logging/logback/defaults.xml"/>
 
     <!-- ================================================================== -->
-    <!-- CONSOLE (dev) — colored, human-friendly                             -->
+    <!-- CONSOLE (dev) — coloured, human-friendly                             -->
     <!-- ================================================================== -->
     <appender name="CONSOLE" class="ch.qos.logback.core.ConsoleAppender">
         <encoder>
@@ -29,7 +29,7 @@
     </appender>
 
     <!-- ================================================================== -->
-    <!-- AUDIT FILES (prod) — separate files per business domain             -->
+    <!-- AUDIT FILES — separate files per business domain                    -->
     <!-- ================================================================== -->
     <appender name="AUDIT_DOCTOR_FILE" class="ch.qos.logback.core.rolling.RollingFileAppender">
         <file>logs/audit-doctor.log</file>
@@ -80,10 +80,20 @@
         <root level="INFO">
             <appender-ref ref="CONSOLE"/>
         </root>
-        <!-- Audit logs inherit root → console in dev -->
-        <logger name="audit.doctor" level="INFO" additivity="true"/>
-        <logger name="audit.pharmacy" level="INFO" additivity="true"/>
-        <logger name="audit.notification" level="INFO" additivity="true"/>
+
+        <!-- Audit → file + console, so devs see them in both places -->
+        <logger name="audit.doctor" level="INFO" additivity="false">
+            <appender-ref ref="AUDIT_DOCTOR_FILE"/>
+            <appender-ref ref="CONSOLE"/>
+        </logger>
+        <logger name="audit.pharmacy" level="INFO" additivity="false">
+            <appender-ref ref="AUDIT_PHARMACY_FILE"/>
+            <appender-ref ref="CONSOLE"/>
+        </logger>
+        <logger name="audit.notification" level="INFO" additivity="false">
+            <appender-ref ref="AUDIT_NOTIFICATION_FILE"/>
+            <appender-ref ref="CONSOLE"/>
+        </logger>
     </springProfile>
 
     <!-- ================================================================== -->
@@ -105,7 +115,7 @@
     </springProfile>
 
     <!-- ================================================================== -->
-    <!-- HIBERNATE NOISE REDUCTION (both profiles)                           -->
+    <!-- HIBERNATE & SPRING NOISE REDUCTION (both profiles)                  -->
     <!-- ================================================================== -->
     <logger name="org.hibernate.SQL" level="WARN"/>
     <logger name="org.hibernate.type.descriptor.sql" level="WARN"/>

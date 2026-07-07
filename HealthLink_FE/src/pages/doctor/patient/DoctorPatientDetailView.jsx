@@ -1,9 +1,7 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { vitalSignApi } from '@api/vitalSignApi';
 import { useAuth } from '@context/AuthContext';
-import { toast } from 'sonner';
-import PrescriptionDetailModal from '@components/doctor/PrescriptionDetailModal';
-import PrintPrescriptionModal from '@components/doctor/PrintPrescriptionModal';
 
 const formatDateTime = (value) => {
   if (!value) return 'N/A';
@@ -20,8 +18,7 @@ const formatDateTime = (value) => {
 
 const TABS = [
   { key: 'overview', label: 'Overview' },
-  { key: 'prescriptions', label: 'Prescriptions' },
-  { key: 'documents', label: 'Documents' },
+  { key: 'timeline', label: 'Timeline' },
 ];
 
 const InfoField = ({ label, value, larger }) => (
@@ -31,27 +28,24 @@ const InfoField = ({ label, value, larger }) => (
   </div>
 );
 
-export default function DoctorPatientDetailView({ patient, history }) {
+const TIMELINE_PAGE_SIZE = 7;
+
+export default function DoctorPatientDetailView({ patient, history, doctorId }) {
+  const navigate = useNavigate();
   const { currentUserId, user: authUser } = useAuth();
   const [activeTab, setActiveTab] = useState('overview');
+  const [timelinePage, setTimelinePage] = useState(1);
   const [vitalSigns, setVitalSigns] = useState(null);
   const [loadingVitals, setLoadingVitals] = useState(true);
-  const ITEMS_PER_PAGE = 5;
-  const [tabPage, setTabPage] = useState(1);
-  const [selectedPrescription, setSelectedPrescription] = useState(null);
-  const [prescriptionForPrint, setPrescriptionForPrint] = useState(null);
-
-  useEffect(() => { setTabPage(1); }, [activeTab]);
-
   useEffect(() => {
-    const pid = patient?.id || patient?.patientId;
+    const pid = patient?.id || patient?.patientId || patient?.patientID || patient?.userId;
     if (!pid) return;
     let mounted = true;
     setLoadingVitals(true);
     vitalSignApi.getPatientVitalSigns(pid)
       .then((res) => {
         if (!mounted) return;
-        const latest = Array.isArray(res) ? res[res.length - 1] : res;
+        const latest = Array.isArray(res) ? res[0] : res;
         setVitalSigns(latest);
       })
       .catch(() => {
@@ -62,20 +56,6 @@ export default function DoctorPatientDetailView({ patient, history }) {
       });
     return () => { mounted = false; };
   }, [patient?.id, patient?.patientId]);
-
-  const handleOpenPrescriptionDetail = useCallback((rx) => {
-    setSelectedPrescription(rx);
-  }, []);
-
-  const handleOpenPrint = useCallback(() => {
-    setPrescriptionForPrint(selectedPrescription);
-    setSelectedPrescription(null);
-  }, [selectedPrescription]);
-
-  const handleClosePrint = useCallback(() => {
-    setSelectedPrescription(prescriptionForPrint);
-    setPrescriptionForPrint(null);
-  }, [prescriptionForPrint]);
 
   if (!patient) return null;
 
@@ -352,96 +332,90 @@ export default function DoctorPatientDetailView({ patient, history }) {
     </div>
   );
 
-  const renderPrescriptions = () => {
-    const items = history?.prescriptions || [];
-    const totalPages = Math.ceil(items.length / ITEMS_PER_PAGE);
-    const startIndex = (tabPage - 1) * ITEMS_PER_PAGE;
-    const pageItems = items.slice(startIndex, startIndex + ITEMS_PER_PAGE);
-    return (
-      <div style={{ display: 'flex', flexDirection: 'column', gap: '0.625rem' }}>
-        <p className="patient-section-title">Prescriptions</p>
-        {pageItems.length ? pageItems.map((rx) => (
-          <div className="patient-timeline-item" key={rx.prescriptionHeaderId}>
-            <div className="patient-timeline-item__info">
-              <p className="patient-timeline-item__title">{formatDateTime(rx.issueDate)}</p>
-              <p className="patient-timeline-item__subtitle">{rx.diagnosis || 'No diagnosis'} &mdash; {rx.status || 'Issued'}</p>
-              <p className="patient-timeline-item__diagnosis">{rx.medications?.length || rx.items?.length || 0} medication(s)</p>
-            </div>
-            {rx.appointmentId && (
-              <button
-                type="button"
-                className="patient-timeline-item__action"
-                onClick={() => handleOpenPrescriptionDetail(rx)}
-              >
-                Detail
-              </button>
-            )}
-          </div>
-        )) : (
-          <p style={{ fontSize: '0.8rem', color: 'var(--doctor-text-muted)' }}>No prescriptions found.</p>
-        )}
-        {totalPages > 1 && (
-          <div className="tab-pagination">
-            <span className="tab-pagination__info">Page {tabPage} of {totalPages}</span>
-            <div className="tab-pagination__nav">
-              <button type="button" className="tab-pagination__btn" disabled={tabPage <= 1} onClick={() => setTabPage((p) => Math.max(1, p - 1))}>
-                <span className="material-symbols-outlined" style={{ fontSize: '0.75rem' }}>chevron_left</span>
-                Prev
-              </button>
-              <button type="button" className="tab-pagination__btn" disabled={tabPage >= totalPages} onClick={() => setTabPage((p) => Math.min(totalPages, p + 1))}>
-                Next
-                <span className="material-symbols-outlined" style={{ fontSize: '0.75rem' }}>chevron_right</span>
-              </button>
-            </div>
-          </div>
-        )}
-      </div>
-    );
-  };
+  const allTimelineItems = (history?.appointments || [])
+    .filter((item) => String(item.status || '').toLowerCase() === 'completed')
+    .map((item) => ({
+      date: item.appointmentTime,
+      consultationType: item.consultationType || 'Consultation',
+      appointmentId: item.appointmentId,
+    }))
+    .sort((left, right) => new Date(right.date || 0) - new Date(left.date || 0));
 
-  const renderDocuments = () => (
+  const timelineTotalPages = Math.max(1, Math.ceil(allTimelineItems.length / TIMELINE_PAGE_SIZE));
+  const safeTimelinePage = Math.min(timelinePage, timelineTotalPages);
+  const timelineItems = allTimelineItems.slice(
+    (safeTimelinePage - 1) * TIMELINE_PAGE_SIZE,
+    safeTimelinePage * TIMELINE_PAGE_SIZE
+  );
+
+  const renderTimelinePagination = () => (
+    timelineTotalPages > 1 ? (
+      <div className="d-flex align-items-center justify-content-center gap-2 pt-2" style={{ borderTop: '1px solid var(--doctor-border-light)' }}>
+        <button
+          type="button"
+          className="btn btn-sm btn-outline-primary tl-page-btn"
+          style={{ padding: '0.2rem 0.5rem', fontSize: '0.7rem', background: 'transparent' }}
+          disabled={safeTimelinePage <= 1}
+          onClick={() => setTimelinePage((p) => Math.max(1, p - 1))}
+        >
+          <span className="material-symbols-outlined" style={{ fontSize: '0.75rem' }}>chevron_left</span>
+          Prev
+        </button>
+        <span style={{ fontSize: '0.75rem', color: 'var(--doctor-text-muted)', whiteSpace: 'nowrap' }}>
+          {safeTimelinePage} / {timelineTotalPages}
+        </span>
+        <button
+          type="button"
+          className="btn btn-sm btn-outline-primary tl-page-btn"
+          style={{ padding: '0.2rem 0.5rem', fontSize: '0.7rem', background: 'transparent' }}
+          disabled={safeTimelinePage >= timelineTotalPages}
+          onClick={() => setTimelinePage((p) => Math.min(timelineTotalPages, p + 1))}
+        >
+          Next
+          <span className="material-symbols-outlined" style={{ fontSize: '0.75rem' }}>chevron_right</span>
+        </button>
+      </div>
+    ) : null
+  );
+
+  const renderTimeline = () => (
     <div style={{ display: 'flex', flexDirection: 'column', gap: '0.625rem' }}>
-      <p className="patient-section-title">Documents</p>
-      {history?.documentsByCategory?.length ? history.documentsByCategory.map((cat) => (
-        <div className="patient-timeline-item" key={cat.category}>
-          <div className="patient-timeline-item__info">
-            <p className="patient-timeline-item__title">{cat.category}</p>
-            <p className="patient-timeline-item__subtitle">{cat.documentCount} document(s)</p>
-          </div>
-        </div>
-      )) : (
-        <p style={{ fontSize: '0.8rem', color: 'var(--doctor-text-muted)' }}>No documents found.</p>
+      <p className="patient-section-title" style={{ margin: 0 }}>Timeline</p>
+      {allTimelineItems.length === 0 ? (
+        <p style={{ fontSize: '0.8rem', color: 'var(--doctor-text-muted)' }}>No completed appointments yet.</p>
+      ) : (
+        <>
+          {timelineItems.map((item, idx) => (
+            <div className="patient-timeline-item" key={idx}>
+              <span className="patient-timeline-item__title">{formatDateTime(item.date)}</span>
+              <span className="patient-timeline-item__type patient-timeline-item__type--pill">
+                {item.consultationType}
+              </span>
+              <span className="patient-timeline-item__encounter-label badge bg-success text-white" style={{fontSize:'0.7rem',fontWeight:600}}>Completed</span>
+              <button
+                className="patient-timeline-item__action"
+                onClick={() => navigate('/doctor/appointments/history', { state: { selectedAppointmentId: item.appointmentId } })}
+                type="button"
+              >
+                View
+              </button>
+            </div>
+          ))}
+          {renderTimelinePagination()}
+        </>
       )}
     </div>
   );
 
+
+
   const renderTabContent = () => {
     switch (activeTab) {
       case 'overview': return renderOverview();
-      case 'prescriptions': return renderPrescriptions();
-      case 'documents': return renderDocuments();
+      case 'timeline': return renderTimeline();
       default: return renderOverview();
     }
   };
-
-  const renderModal = (selectedPrescription || prescriptionForPrint) && (
-    <>
-      <PrescriptionDetailModal
-        show={!!selectedPrescription}
-        prescription={selectedPrescription}
-        appointments={history?.appointments}
-        patientName={patient?.fullName || 'Patient'}
-        onClose={() => setSelectedPrescription(null)}
-        onPrint={handleOpenPrint}
-      />
-      <PrintPrescriptionModal
-        show={!!prescriptionForPrint}
-        onHide={handleClosePrint}
-        prescription={prescriptionForPrint}
-        patientProfile={patient}
-      />
-    </>
-  );
 
   return (
     <>
@@ -480,7 +454,6 @@ export default function DoctorPatientDetailView({ patient, history }) {
         {renderTabContent()}
       </div>
     </div>
-    {renderModal}
     </>
   );
 }

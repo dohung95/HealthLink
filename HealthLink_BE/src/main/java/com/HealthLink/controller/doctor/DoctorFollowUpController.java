@@ -29,16 +29,18 @@ public class DoctorFollowUpController {
     @GetMapping("/slots")
     public ResponseEntity<FollowUpSlotsResponse> getSlots(
             @AuthenticationPrincipal UserDetails userDetails,
-            @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate date) {
+            @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate date,
+            @RequestParam(required = false) String consultationType) {
         String doctorId = securityUtils.resolveDoctor(userDetails).getDoctorId();
-        return ResponseEntity.ok(followUpAppointmentService.getSlots(doctorId, date));
+        return ResponseEntity.ok(followUpAppointmentService.getSlots(doctorId, date, consultationType));
     }
 
     @GetMapping("/calendar")
     public ResponseEntity<FollowUpCalendarResponse> getCalendar(
             @AuthenticationPrincipal UserDetails userDetails,
-            @RequestParam String month) {
+            @RequestParam String month,
+            @RequestParam(required = false) String consultationType) {
         String doctorId = securityUtils.resolveDoctor(userDetails).getDoctorId();
-        return ResponseEntity.ok(followUpAppointmentService.getCalendar(doctorId, month));
+        return ResponseEntity.ok(followUpAppointmentService.getCalendar(doctorId, month, consultationType));
     }
 }

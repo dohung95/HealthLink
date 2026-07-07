@@ -20,7 +20,7 @@ public class DoctorService {
 
     @ManyToOne(fetch = FetchType.LAZY)
     @MapsId("doctorId")
-    @JoinColumn(name = "doctor_id")
+    @JoinColumn(name = "doctor_id", referencedColumnName = "DoctorID", nullable = false, columnDefinition = "VARCHAR(450)")
     @ToString.Exclude
     @EqualsAndHashCode.Exclude
     private Doctor doctor;

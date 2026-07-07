@@ -45,6 +45,8 @@ public enum NotificationType {
     NEW_REVIEW,                     // Doctor: Có review mới
     REVIEW_REPLY,                    // Patient: Doctor/Admin đã phản hồi review
 
+    CLINICAL_RESULT_PUBLISHED,   // Patient: doctor published a lab/clinical result
+
     // Follow-up payment notifications
     FOLLOW_UP_PAYMENT_REQUEST,  // → Patient: doctor sent a payment request
     FOLLOW_UP_PAID,             // → Doctor: patient paid

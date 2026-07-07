@@ -7,7 +7,9 @@ import com.HealthLink.entity.Appointment;
 import com.HealthLink.entity.Consultation;
 import com.HealthLink.entity.Doctor;
 import com.HealthLink.entity.Invoice;
+import com.HealthLink.entity.Patient;
 import com.HealthLink.exception.BadRequestException;
+import com.HealthLink.repository.chat.ChatRoomRepository;
 import com.HealthLink.repository.appointment.AppointmentRepository;
 import com.HealthLink.repository.consultation.ConsultationRepository;
 import com.HealthLink.repository.payment.InvoiceRepository;
@@ -42,6 +44,12 @@ class ConsultationServiceImplTest {
 
     @Mock
     private FollowUpAppointmentService followUpAppointmentService;
+
+    @Mock
+    private ChatRoomRepository chatRoomRepository;
+
+    @Mock
+    private org.springframework.messaging.simp.SimpMessagingTemplate messagingTemplate;
 
     @InjectMocks
     private ConsultationServiceImpl consultationService;
@@ -375,6 +383,7 @@ class ConsultationServiceImplTest {
                 .consultationType("Video")
                 .status(status)
                 .doctor(Doctor.builder().doctorId("doctor-1").build())
+                .patient(Patient.builder().patientId("patient-1").build())
                 .build();
     }
 

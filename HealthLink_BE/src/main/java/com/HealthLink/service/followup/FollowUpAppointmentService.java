@@ -13,11 +13,11 @@ import java.time.LocalDateTime;
 
 public interface FollowUpAppointmentService {
 
-    FollowUpSlotsResponse getSlots(String doctorId, LocalDate date);
+    FollowUpSlotsResponse getSlots(String doctorId, LocalDate date, String consultationType);
 
-    FollowUpCalendarResponse getCalendar(String doctorId, String month);
+    FollowUpCalendarResponse getCalendar(String doctorId, String month, String consultationType);
 
-    void validateFollowUpSlot(Appointment appointment, LocalDateTime followUpDate);
+    void validateFollowUpSlot(Appointment appointment, LocalDateTime followUpDate, String consultationType);
 
     FollowUpResponse scheduleFollowUpAppointment(Appointment sourceAppointment, FollowUpRequest request);
 

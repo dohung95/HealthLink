@@ -35,6 +35,18 @@ export function DoctorAppointmentDetailRoute() {
         setLoading(true);
         const detail = await appointmentService.getAppointmentDetail(appointmentId);
         const normalized = normalizeAppointmentDetail(detail, appointmentId);
+        
+        const isCompletedStatus = (status) =>
+          String(status || '').toLowerCase().replace(/[\s_-]/g, '') === 'completed';
+        if (isCompletedStatus(normalized.status)) {
+          const normalizedId = normalized.appointmentID || normalized.appointmentId || appointmentId;
+          navigate('/doctor/appointments/history', {
+            replace: true,
+            state: { selectedAppointmentId: normalizedId },
+          });
+          return;
+        }
+        
         const patientId = normalized.patient?.patientID || normalized.patientId;
         const patientData = patientId ? await doctorService.getPatientById(patientId) : null;
         if (mounted) {
@@ -62,7 +74,7 @@ export function DoctorAppointmentDetailRoute() {
       doctorId={doctorId}
       activeMiniChatAppt={activeMiniChatAppt}
       setActiveMiniChatAppt={setActiveMiniChatAppt}
-      onBack={() => navigate('/doctor')}
+      onBack={() => navigate('/doctor/appointments')}
       onOpenAppointmentById={(id) => navigate(`/doctor/appointments/${id}`)}
     />
   );
@@ -115,7 +127,7 @@ const DoctorDashboardPage = () => {
   }, [location.pathname]);
 
   const isDetailView = useMemo(() => {
-    return /\/doctor\/(appointments|patients)\/[\w-]+/.test(location.pathname);
+    return /\/doctor\/(appointments|patients)\/(?!history$)[\w-]+/.test(location.pathname);
   }, [location.pathname]);
 
   const resolveAppointmentId = (notification) => {
@@ -253,10 +265,14 @@ const DoctorDashboardPage = () => {
     };
   }, [notificationsHook.fetchNotifications]);
 
-  const selectView = (key) => {
+  const selectView = (key, path) => {
     setIsMobileMenuOpen(false);
+    if (path) {
+      navigate(path);
+      return;
+    }
     if (key === 'appointments') {
-      navigate('/doctor');
+      navigate('/doctor/appointments');
     } else {
       navigate(`/doctor/${key}`);
     }
@@ -311,6 +327,7 @@ const DoctorDashboardPage = () => {
     <>
       <DoctorLayout
         doctorData={doctorData}
+        currentPath={location.pathname}
         currentNavItem={currentNavItem}
         isDetailView={isDetailView}
         isMobileMenuOpen={isMobileMenuOpen}
@@ -322,7 +339,7 @@ const DoctorDashboardPage = () => {
         showNotificationDropdown={notificationsHook.showNotificationDropdown}
         notificationRef={notificationsHook.notificationRef}
         onClearNewNotification={() => notificationsHook.setHasNewNotification(false)}
-        onNavigate={(key) => selectView(key)}
+        onNavigate={(key, path) => selectView(key, path)}
         onLogout={handleLogout}
         onToggleMobileMenu={() => setIsMobileMenuOpen((prev) => !prev)}
         onToggleNotificationDropdown={() => notificationsHook.setShowNotificationDropdown((prev) => !prev)}

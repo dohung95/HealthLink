@@ -72,7 +72,7 @@ function MiniAudioPlayer({ src, isOwn }) {
 }
 
 export default function DoctorMiniChat({ doctorId, patientId, patientName, appointmentId, isFullTab, onClose }) {
-  const { user: authUser, currentUserId } = useAuth();
+  const { user: authUser, currentUserId, initiateCall, isInCall } = useAuth();
   const [messages, setMessages] = useState([]);
   const [formValue, setFormValue] = useState('');
   const [currentRoom, setCurrentRoom] = useState(null);
@@ -329,6 +329,32 @@ export default function DoctorMiniChat({ doctorId, patientId, patientName, appoi
   };
 
   // ── Paste ──
+  const handleVideoCall = () => {
+    if (!patientId) {
+      toast.error('Patient information is missing. Please refresh and try again.');
+      return;
+    }
+
+    const room = currentRoomRef.current;
+    if (!room?.chatRoomId) {
+      toast.error('Chat room is still loading. Please try again in a moment.');
+      return;
+    }
+
+    if (isInCall) {
+      toast.warning('You are currently on another call. Please end it before making a new one.');
+      return;
+    }
+
+    const callerName =
+      authUser?.fullName ||
+      authUser?.preferred_username ||
+      authUser?.email ||
+      'Doctor';
+
+    initiateCall(patientId, room.chatRoomId, patientName || 'Patient', callerName);
+  };
+
   const handlePaste = (e) => {
     const items = e.clipboardData?.items;
     if (!items) return;
@@ -509,6 +535,17 @@ export default function DoctorMiniChat({ doctorId, patientId, patientName, appoi
           <span>{patientName}</span>
         </div>
         <div className="d-flex gap-2">
+          <button
+            type="button"
+            className="btn btn-sm btn-link text-white p-0 border-0"
+            title="Video Call"
+            onClick={(event) => {
+              event.stopPropagation();
+              handleVideoCall();
+            }}
+          >
+            <i className="bi bi-camera-video" />
+          </button>
           <button type="button" className="btn btn-sm btn-link text-white p-0 border-0" onClick={(e) => { e.stopPropagation(); setIsExpanded(v => !v); }}>
             <i className={`bi ${isExpanded ? 'bi-dash-lg' : 'bi-chevron-up'}`} />
           </button>

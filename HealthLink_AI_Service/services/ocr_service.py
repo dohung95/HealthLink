@@ -32,39 +32,38 @@ def ocr_image(image_bytes: bytes, preprocess: bool = True) -> tuple:
     Perform OCR on image.
     Returns: (text, confidence)
     """
-    reader = get_ocr_reader()
+    try:
+        reader = get_ocr_reader()
 
-    if preprocess:
-        try:
-            # Preprocess image for better accuracy
-            processed = preprocess_for_ocr(image_bytes)
-            results = reader.readtext(processed)
-        except Exception:
-            # Fallback to original image if preprocessing fails
+        if preprocess:
+            try:
+                processed = preprocess_for_ocr(image_bytes)
+                results = reader.readtext(processed)
+            except Exception:
+                img = bytes_to_cv2(image_bytes)
+                results = reader.readtext(img)
+        else:
             img = bytes_to_cv2(image_bytes)
             results = reader.readtext(img)
-    else:
-        img = bytes_to_cv2(image_bytes)
-        results = reader.readtext(img)
 
-    if not results:
+        if not results:
+            return "", 0.0
+
+        texts = []
+        confidences = []
+
+        for detection in results:
+            text = detection[1]
+            conf = detection[2]
+            texts.append(text)
+            confidences.append(conf)
+
+        full_text = " ".join(texts)
+        avg_confidence = sum(confidences) / len(confidences) if confidences else 0.0
+
+        return full_text, avg_confidence
+    except Exception:
         return "", 0.0
-
-    # Extract text and calculate average confidence
-    texts = []
-    confidences = []
-
-    for detection in results:
-        # Each detection: (bbox, text, confidence)
-        text = detection[1]
-        conf = detection[2]
-        texts.append(text)
-        confidences.append(conf)
-
-    full_text = " ".join(texts)
-    avg_confidence = sum(confidences) / len(confidences) if confidences else 0.0
-
-    return full_text, avg_confidence
 
 
 def extract_text(content: bytes, filename: str) -> OCRResult:
@@ -92,11 +91,11 @@ def extract_text(content: bytes, filename: str) -> OCRResult:
                 doc = fitz.open(stream=content, filetype="pdf")
                 all_text = []
                 total_conf = 0.0
+                page_count = len(doc)
 
-                for page_num in range(len(doc)):
+                for page_num in range(page_count):
                     page = doc[page_num]
-                    # Convert page to image
-                    pix = page.get_pixmap(matrix=fitz.Matrix(2, 2))  # 2x zoom for better OCR
+                    pix = page.get_pixmap(matrix=fitz.Matrix(2, 2))
                     img_bytes = pix.tobytes("png")
 
                     page_text, page_conf = ocr_image(img_bytes)
@@ -105,7 +104,7 @@ def extract_text(content: bytes, filename: str) -> OCRResult:
 
                 doc.close()
 
-                avg_conf = total_conf / max(len(doc), 1)
+                avg_conf = total_conf / max(page_count, 1)
                 return OCRResult(
                     success=True,
                     text="\n".join(all_text),

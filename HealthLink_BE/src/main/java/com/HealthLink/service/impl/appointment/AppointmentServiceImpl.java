@@ -1050,10 +1050,16 @@ public class AppointmentServiceImpl implements AppointmentService {
         Consultation consultation = appointment.getConsultation();
         HomeVisitDetails homeVisit = appointment.getHomeVisitDetails();
 
+        String patientPhone = appointment.getPatient() != null
+                && appointment.getPatient().getUser() != null
+                ? appointment.getPatient().getUser().getPhoneNumber()
+                : null;
+
         return AppointmentResponse.builder()
                 .appointmentId(appointment.getAppointmentId())
                 .patientId(appointment.getPatient().getPatientId())
                 .patientName(appointment.getPatient().getFullName())
+                .patientPhoneNumber(patientPhone)
                 .doctorId(appointment.getDoctor().getDoctorId())
                 .doctorName(appointment.getDoctor().getFullName())
                 .doctorAvatar(appointment.getDoctor().getAvatarUrl())

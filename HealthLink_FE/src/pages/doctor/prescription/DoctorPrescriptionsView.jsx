@@ -420,9 +420,9 @@ export default function DoctorPrescriptionsView() {
                                       {item.frequency}
                                     </span>
                                   )}
-                                  {item.duration && (
+                                  {item.totalSupplyDays && (
                                     <span className="small rounded-pill" style={{ background: 'var(--doctor-surface-muted, #f8fafc)', border: '1px solid var(--doctor-border, #e2e8f0)', color: 'var(--doctor-text-secondary, #475569)', padding: '0.125rem 0.5rem', fontSize: '0.75rem' }}>
-                                      {item.duration}
+                                      {item.totalSupplyDays} day{item.totalSupplyDays > 1 ? 's' : ''}
                                     </span>
                                   )}
                                 </div>

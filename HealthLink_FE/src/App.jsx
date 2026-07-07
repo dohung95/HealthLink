@@ -54,6 +54,7 @@ import NotificationToastBridge from './components/notifications/NotificationToas
 import PrescriptionNotificationModal from './components/PrescriptionNotificationModal';
 import MedicineReminderQuickModal from './components/patient-dashboard/MedicineReminderQuickModal';
 import AdminActionNotificationModal from './components/AdminActionNotificationModal';
+import FollowUpHomeVisitBookingPage from './components/patient/FollowUpHomeVisitBookingPage';
 
 import Navbar from './components/Navbar';
 import DoctorPublicProfilePage from './pages/doctor/DoctorPublicProfilePage';
@@ -64,7 +65,8 @@ import MedicineReminderPage from './components/patient-dashboard/MedicineReminde
 import DoctorDashboardPage, {
   DoctorAppointmentDetailRoute,
 } from './pages/doctor/DoctorDashboardPage';
-import DoctorAppointmentsView from './pages/doctor/appointment/DoctorAppointmentsView';
+import DoctorTodayCockpit from './pages/doctor/appointment/DoctorTodayCockpit';
+import DoctorAppointmentHistory from './pages/doctor/appointment/DoctorAppointmentHistory';
 import DoctorPatientsView from './pages/doctor/patient/DoctorPatientsView';
 import DoctorPrescriptionsView from './pages/doctor/prescription/DoctorPrescriptionsView';
 import DoctorScheduleView from './pages/doctor/schedule/DoctorScheduleView';
@@ -88,11 +90,11 @@ import ChatPage from './components/ChatPage';
 function App() {
   return (
     <ChatProvider>
-      <NotificationProvider>
-        <Router>
+      <Router>
+        <NotificationProvider>
           <AppContent />
-        </Router>
-      </NotificationProvider>
+        </NotificationProvider>
+      </Router>
     </ChatProvider>
   );
 }
@@ -272,8 +274,9 @@ function AppContent() {
                 <DoctorDashboardPage />
               </ProtectedRoute>
             }>
-              <Route index element={<DoctorAppointmentsView />} />
-              <Route path="appointments" element={<DoctorAppointmentsView />} />
+              <Route index element={<DoctorTodayCockpit />} />
+              <Route path="appointments" element={<DoctorTodayCockpit />} />
+              <Route path="appointments/history" element={<DoctorAppointmentHistory />} />
               <Route path="appointments/:appointmentId" element={<DoctorAppointmentDetailRoute />} />
               <Route path="patients">
                 <Route index element={<DoctorPatientsView />} />
@@ -396,6 +399,7 @@ function AppContent() {
               <Route index element={<PatientDashboardHome />} />
               <Route path="booking" element={<Schedule />} />
               <Route path="book/:doctorId" element={<Schedule />} />
+              <Route path="follow-up-homevisit/:appointmentId" element={<FollowUpHomeVisitBookingPage />} />
               <Route path="appointments" element={<MyAppointments />} />
               <Route path="health-records" element={<HealthRecords embedded />} />
               <Route path="share-records" element={<ShareHealthRecords embedded />} />

@@ -234,6 +234,22 @@
   transform: translateY(0);
 }
 
+/* ---- Divider between patient section and actions ---- */
+.doctor-next-card__divider {
+  width: 100%;
+  height: 1px;
+  background: var(--border-light);
+  margin: 0;
+}
+
+@media (min-width: 768px) {
+  .doctor-next-card__divider {
+    width: 1px;
+    height: auto;
+    align-self: stretch;
+  }
+}
+
 /* ============================================
    ASYMMETRIC GRID LAYOUT (Phase 5 — DESIGN_VARIANCE=8)
    ============================================ */
