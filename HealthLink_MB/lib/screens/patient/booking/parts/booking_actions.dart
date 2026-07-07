@@ -94,7 +94,21 @@ extension _BookingActions on _BookingScreenState {
     }
   }
 
-  Future<void> _loadSlots() async {
+  Future<AvailableSlotsResult?> _fetchSlotsForDate(DateTime date) async {
+    if (_service == null || _selectedDoctor == null) return null;
+
+    return _service!.getAvailableSlots(
+      doctorId: _selectedDoctor!.doctorId,
+      date: _formatDate(date),
+      consultationType: _consultationType ?? 'Online',
+    );
+  }
+
+  bool _hasSelectableSlots(List<BookingSlot> slots) {
+    return slots.any((slot) => slot.selectable);
+  }
+
+  Future<void> _loadSlots({bool jumpToFirstAvailable = true}) async {
     if (_service == null || _selectedDoctor == null) return;
 
     setState(() {
@@ -105,14 +119,38 @@ extension _BookingActions on _BookingScreenState {
     });
 
     try {
-      final result = await _service!.getAvailableSlots(
-        doctorId: _selectedDoctor!.doctorId,
-        date: _formatDate(_selectedDate),
-      );
+      final startDate = _dayStart(_selectedDate);
+      final firstResult = await _fetchSlotsForDate(startDate);
+      if (!mounted || firstResult == null) return;
+
+      var targetDate = startDate;
+      var targetResult = firstResult;
+
+      if (jumpToFirstAvailable && !_hasSelectableSlots(firstResult.slots)) {
+        final maxDays = firstResult.bookingWindowDays;
+
+        for (var offset = 1; offset <= maxDays; offset++) {
+          final candidateDate = startDate.add(Duration(days: offset));
+          final candidateResult = await _fetchSlotsForDate(candidateDate);
+
+          if (!mounted || candidateResult == null) return;
+
+          if (_hasSelectableSlots(candidateResult.slots)) {
+            targetDate = candidateDate;
+            targetResult = candidateResult;
+            break;
+          }
+        }
+      }
+
       if (!mounted) return;
+
       setState(() {
-        _bookingWindowDays = result.bookingWindowDays;
-        _slots = result.slots;
+        _bookingWindowDays = targetResult.bookingWindowDays;
+        _selectedDate = targetDate;
+        _weekIndex = _weekIndexForDate(targetDate);
+        _slots = targetResult.slots;
+        _selectedSlot = null;
       });
     } catch (e) {
       if (mounted) setState(() => _error = _cleanError(e));
@@ -188,6 +226,7 @@ extension _BookingActions on _BookingScreenState {
         doctorId: _selectedDoctor!.doctorId,
         patientId: patientId,
         appointmentTime: _appointmentDateTime(_selectedDate, slot.startTime),
+        consultationType: _consultationType ?? 'Online',
       );
 
       if (!mounted) return;
@@ -273,6 +312,16 @@ extension _BookingActions on _BookingScreenState {
 
     final key = _currentStepKey;
 
+    if (key == BookingStepKey.doctorOption &&
+        _doctorSelectionMode == 'AUTO_ASSIGNED') {
+      if (_selectedDoctor == null) {
+        final loaded = await _loadRecommendedDoctor();
+        if (!loaded || _selectedDoctor == null) return;
+      }
+
+      await _loadSlots();
+    }
+
     if (key == BookingStepKey.doctor) {
       await _loadSlots();
     }
@@ -331,6 +380,13 @@ extension _BookingActions on _BookingScreenState {
         if (_consultationType == null) {
           return _warn('Please select examination type.');
         }
+        return true;
+
+      case BookingStepKey.doctorOption:
+        if (_doctorSelectionMode.isEmpty) {
+          return _warn('Please choose doctor option.');
+        }
+
         return true;
 
       case BookingStepKey.doctor:
@@ -412,6 +468,9 @@ extension _BookingActions on _BookingScreenState {
       _selectedDate = DateTime.now();
       _selectedSlot = null;
       _slots = [];
+      _doctorSelectionMode = '';
+      _recommendedDoctor = null;
+      _manualSelectionFee = 0;
       _weekIndex = 0;
       _symptomsCtrl.clear();
       _notesCtrl.clear();
@@ -420,5 +479,90 @@ extension _BookingActions on _BookingScreenState {
       _homeVisitDraft = const HomeVisitBookingDraft();
     });
     _loadDoctors(reset: true);
+  }
+
+  BookingDoctor _recommendedToBookingDoctor(RecommendedDoctor doctor) {
+    return BookingDoctor(
+      doctorId: doctor.doctorId,
+      fullName: doctor.doctorName,
+      specialtyName: doctor.specialty,
+      yearsOfExperience: 0,
+      languageSpoken: '',
+      location: '',
+      avatarUrl: doctor.avatarUrl ?? '',
+      bio: doctor.reason ?? '',
+      consultationFee: doctor.consultationFee,
+      averageRating: 0,
+      totalReviews: 0,
+      availableTypes: const ['Online'],
+    );
+  }
+
+  Future<bool> _loadRecommendedDoctor() async {
+    if (_service == null || _selectedSpecialty == null) return false;
+
+    setState(() {
+      _loadingRecommendedDoctor = true;
+      _error = null;
+    });
+
+    try {
+      final result = await _service!.recommendDoctor(
+        specialty: _selectedSpecialty!,
+        consultationType: 'Online',
+      );
+
+      final doctor = _recommendedToBookingDoctor(result);
+
+      List<DoctorWorkingSchedule> schedules = [];
+      try {
+        schedules = await _service!.getDoctorSchedules(doctor.doctorId);
+      } catch (_) {
+        schedules = [];
+      }
+
+      if (!mounted) return false;
+
+      setState(() {
+        _recommendedDoctor = result;
+        _manualSelectionFee = result.manualSelectionFee;
+        _selectedDoctor = doctor;
+        _doctorSchedules = schedules;
+        _selectedDate = DateTime.now();
+        _selectedSlot = null;
+        _slots = [];
+        _weekIndex = 0;
+      });
+
+      return true;
+    } catch (e) {
+      if (mounted) _snack(_cleanError(e), error: true);
+      return false;
+    } finally {
+      if (mounted) {
+        setState(() => _loadingRecommendedDoctor = false);
+      }
+    }
+  }
+
+  Future<void> _loadManualSelectionFee() async {
+    if (_service == null || _selectedSpecialty == null) return;
+
+    try {
+      final result = await _service!.recommendDoctor(
+        specialty: _selectedSpecialty!,
+        consultationType: 'Online',
+      );
+
+      if (!mounted) return;
+
+      setState(() {
+        _manualSelectionFee = result.manualSelectionFee;
+      });
+    } catch (e) {
+      if (mounted) {
+        _snack(_cleanError(e), error: true);
+      }
+    }
   }
 }

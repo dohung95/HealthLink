@@ -67,6 +67,17 @@ public class DoctorScheduleController {
     }
 
     /**
+     * Confirm the carried-over schedule for the new month (clears the reconfirmation prompt).
+     */
+    @PostMapping("/confirm-monthly")
+    public ResponseEntity<WeeklyScheduleResponse> confirmMonthlySchedule(
+            @AuthenticationPrincipal UserDetails userDetails) {
+        String doctorId = resolveDoctorId(userDetails);
+        scheduleService.confirmMonthlySchedule(doctorId);
+        return ResponseEntity.ok(scheduleService.getMySchedule(doctorId));
+    }
+
+    /**
      * Create a new weekly schedule entry.
      */
     @PostMapping

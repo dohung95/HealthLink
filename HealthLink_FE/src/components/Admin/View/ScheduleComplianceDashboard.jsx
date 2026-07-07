@@ -6,11 +6,34 @@ import { scheduleApi } from "../../../api/adminApi";
 import Toast from "./Toast";
 import useToast from "../useToast";
 import { getAvatarUrl } from "../../../utils/avatarHelper";
+import { getPatientInitials } from "../../../utils/doctor/sharedHelpers";
 import "bootstrap/dist/css/bootstrap.min.css";
 import "bootstrap-icons/font/bootstrap-icons.css";
 import "../Css/Admin.css";
 import "../Css/ScheduleCompliance.css";
 import "../Css/DoctorSchedule.css";
+
+function DoctorAvatar({ avatarUrl, name, className }) {
+  const [failed, setFailed] = useState(false);
+  const src = getAvatarUrl(avatarUrl);
+
+  if (src && !failed) {
+    return (
+      <img
+        src={src}
+        alt={name}
+        className={className}
+        onError={() => setFailed(true)}
+      />
+    );
+  }
+
+  return (
+    <div className={`${className} ${className}--initials`}>
+      {getPatientInitials(name)}
+    </div>
+  );
+}
 
 export default function ScheduleComplianceDashboard() {
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
@@ -36,6 +59,7 @@ export default function ScheduleComplianceDashboard() {
   const [complianceData, setComplianceData] = useState(null);
   const [statistics, setStatistics] = useState(null);
   const [loading, setLoading] = useState(true);
+  const fetchRequestIdRef = useRef(0);
 
   // Pagination
   const [pageNumber, setPageNumber] = useState(1);
@@ -130,6 +154,9 @@ export default function ScheduleComplianceDashboard() {
   };
 
   const fetchData = async () => {
+    // Guard against out-of-order responses: if the user changes filters again before
+    // this request resolves, only the latest request is allowed to update state.
+    const requestId = ++fetchRequestIdRef.current;
     try {
       setLoading(true);
       const [complianceRes, statsRes] = await Promise.all([
@@ -141,13 +168,17 @@ export default function ScheduleComplianceDashboard() {
         }),
         adminComplianceService.getStatistics(selectedMonth),
       ]);
+      if (requestId !== fetchRequestIdRef.current) return;
       setComplianceData(complianceRes);
       setStatistics(statsRes);
     } catch (err) {
+      if (requestId !== fetchRequestIdRef.current) return;
       console.error('Error fetching compliance data:', err);
       showToast({ title: 'Error', message: 'Failed to load compliance data', type: 'error' });
     } finally {
-      setLoading(false);
+      if (requestId === fetchRequestIdRef.current) {
+        setLoading(false);
+      }
     }
   };
 
@@ -532,11 +563,10 @@ export default function ScheduleComplianceDashboard() {
                       >
                         <td>
                           <div className="compliance-doctor-info">
-                            <img
-                              src={getAvatarUrl(item.avatarUrl) || '/default-avatar.png'}
-                              alt={item.doctorName}
+                            <DoctorAvatar
+                              avatarUrl={item.avatarUrl}
+                              name={item.doctorName}
                               className="compliance-doctor-avatar"
-                              onError={(e) => { e.target.src = '/default-avatar.png'; }}
                             />
                             <div>
                               <div className="compliance-doctor-name">{item.doctorName}</div>
@@ -632,11 +662,10 @@ export default function ScheduleComplianceDashboard() {
             <div ref={scheduleDetailRef} className="schedule-detail-section mt-4">
               <div className="schedule-detail-header">
                 <div className="d-flex align-items-center gap-3">
-                  <img
-                    src={getAvatarUrl(selectedDoctor.avatarUrl) || '/default-avatar.png'}
-                    alt={selectedDoctor.doctorName}
+                  <DoctorAvatar
+                    avatarUrl={selectedDoctor.avatarUrl}
+                    name={selectedDoctor.doctorName}
                     className="schedule-detail-avatar"
-                    onError={(e) => { e.target.src = '/default-avatar.png'; }}
                   />
                   <div>
                     <h5 className="schedule-detail-name">{selectedDoctor.doctorName}</h5>

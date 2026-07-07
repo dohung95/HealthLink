@@ -1,7 +1,6 @@
 part of '../booking_screen.dart';
 
 extension _BookingNormalSteps on _BookingScreenState {
-
   Widget _visitTypeStep(ColorScheme colors) {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -27,12 +26,127 @@ extension _BookingNormalSteps on _BookingScreenState {
     );
   }
 
+  Widget _doctorOptionStep(ColorScheme colors) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        _title(
+          'Choose Doctor Option',
+          'Let the system choose a suitable doctor, or select one manually with an extra fee.',
+        ),
+        const SizedBox(height: 16),
+
+        _doctorOptionCard(
+          colors,
+          mode: 'AUTO_ASSIGNED',
+          icon: Icons.auto_awesome,
+          title: 'System chooses doctor',
+          subtitle: _recommendedDoctor == null
+              ? 'The fastest way to book. Instantly assigned to a qualified specialist on duty.'
+              : 'Recommended: Dr. ${_recommendedDoctor!.doctorName}',
+        ),
+
+        _doctorOptionCard(
+          colors,
+          mode: 'MANUAL_SELECTED',
+          icon: Icons.person_search,
+          title: 'I choose doctor myself',
+          subtitle:
+              'Browse doctors and choose manually. Extra fee: \$${_manualSelectionFee.toStringAsFixed(2)}',
+        ),
+
+        if (_loadingRecommendedDoctor)
+          const Padding(
+            padding: EdgeInsets.only(top: 12),
+            child: LinearProgressIndicator(),
+          ),
+      ],
+    );
+  }
+
+  Widget _doctorOptionCard(
+    ColorScheme colors, {
+    required String mode,
+    required IconData icon,
+    required String title,
+    required String subtitle,
+  }) {
+    final selected = _doctorSelectionMode == mode;
+
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 12),
+      child: InkWell(
+        borderRadius: BorderRadius.circular(18),
+        onTap: () async {
+          await _releaseHoldSilently();
+
+          setState(() {
+            _doctorSelectionMode = mode;
+            _selectedDoctor = null;
+            _selectedDate = DateTime.now();
+            _selectedSlot = null;
+            _slots = [];
+            _doctorSchedules = [];
+            _weekIndex = 0;
+          });
+
+          if (mode == 'AUTO_ASSIGNED') {
+            await _loadRecommendedDoctor();
+          } else {
+            setState(() {
+              _recommendedDoctor = null;
+            });
+
+            await _loadManualSelectionFee();
+            await _loadDoctors(reset: true);
+          }
+        },
+        child: Container(
+          padding: const EdgeInsets.all(16),
+          decoration: BoxDecoration(
+            color: selected
+                ? colors.primary.withValues(alpha: 0.08)
+                : colors.surfaceContainerLow,
+            borderRadius: BorderRadius.circular(18),
+            border: Border.all(
+              color: selected ? colors.primary : colors.outlineVariant,
+              width: selected ? 1.8 : 1,
+            ),
+          ),
+          child: Row(
+            children: [
+              Icon(icon, color: selected ? colors.primary : colors.outline),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      title,
+                      style: const TextStyle(fontWeight: FontWeight.w900),
+                    ),
+                    const SizedBox(height: 4),
+                    Text(
+                      subtitle,
+                      style: TextStyle(color: colors.onSurfaceVariant),
+                    ),
+                  ],
+                ),
+              ),
+              if (selected) Icon(Icons.check_circle, color: colors.primary),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
   Widget _visitTypeCard(
-      ColorScheme colors,
-      String type,
-      IconData icon,
-      String title,
-      ) {
+    ColorScheme colors,
+    String type,
+    IconData icon,
+    String title,
+  ) {
     final selected = _consultationType == type;
 
     return Padding(
@@ -48,6 +162,10 @@ extension _BookingNormalSteps on _BookingScreenState {
             _selectedDate = DateTime.now();
             _selectedSlot = null;
             _slots = [];
+            _doctorSelectionMode = '';
+            _recommendedDoctor = null;
+            _manualSelectionFee = 0;
+            _loadingRecommendedDoctor = false;
             _doctorSchedules = [];
             _weekIndex = 0;
             _homeVisitDraft = const HomeVisitBookingDraft();
@@ -117,6 +235,9 @@ extension _BookingNormalSteps on _BookingScreenState {
                 _selectedSlot = null;
                 _slots = [];
                 _weekIndex = 0;
+                _doctorSelectionMode = '';
+                _recommendedDoctor = null;
+                _manualSelectionFee = 0;
               });
               await _loadDoctors(reset: true);
             },
@@ -174,9 +295,9 @@ extension _BookingNormalSteps on _BookingScreenState {
             IconButton(
               onPressed: _doctorPage > 1
                   ? () {
-                _doctorPage--;
-                _loadDoctors();
-              }
+                      _doctorPage--;
+                      _loadDoctors();
+                    }
                   : null,
               icon: const Icon(Icons.chevron_left),
             ),
@@ -188,9 +309,9 @@ extension _BookingNormalSteps on _BookingScreenState {
             IconButton(
               onPressed: _doctorPage < _totalDoctorPages
                   ? () {
-                _doctorPage++;
-                _loadDoctors();
-              }
+                      _doctorPage++;
+                      _loadDoctors();
+                    }
                   : null,
               icon: const Icon(Icons.chevron_right),
             ),
@@ -330,15 +451,21 @@ extension _BookingNormalSteps on _BookingScreenState {
         .toSet();
 
     final days =
-    List.generate(7, (index) {
-      return weekStart.add(Duration(days: index));
-    }).where((day) {
-      if (day.isBefore(today)) return false;
-      if (day.isAfter(maxDate)) return false;
+        List.generate(7, (index) {
+          return weekStart.add(Duration(days: index));
+        }).where((day) {
+          if (day.isBefore(today)) return false;
+          if (day.isAfter(maxDate)) return false;
 
-      final backendDay = day.weekday % 7; // Sunday = 0
-      return workingDayNumbers.contains(backendDay);
-    }).toList();
+          final backendDay = day.weekday % 7; // Sunday = 0
+          return workingDayNumbers.contains(backendDay);
+        }).toList();
+
+    final selectedDateIsVisible = days.any(
+          (day) => _sameDay(day, _selectedDate),
+    );
+
+    final visibleSlots = selectedDateIsVisible ? _slots : <BookingSlot>[];
 
     final nextWeekStart = weekStart.add(const Duration(days: 7));
     final canGoPreviousWeek = _weekIndex > 0;
@@ -364,12 +491,12 @@ extension _BookingNormalSteps on _BookingScreenState {
               child: OutlinedButton(
                 onPressed: canGoPreviousWeek
                     ? () {
-                  setState(() {
-                    _weekIndex--;
-                    _selectedSlot = null;
-                    _slots = [];
-                  });
-                }
+                        setState(() {
+                          _weekIndex--;
+                          _selectedSlot = null;
+                          _slots = [];
+                        });
+                      }
                     : null,
                 child: Text(AppLocalizations.of(context)!.actionPrevious),
               ),
@@ -384,12 +511,12 @@ extension _BookingNormalSteps on _BookingScreenState {
               child: OutlinedButton(
                 onPressed: canGoNextWeek
                     ? () {
-                  setState(() {
-                    _weekIndex++;
-                    _selectedSlot = null;
-                    _slots = [];
-                  });
-                }
+                        setState(() {
+                          _weekIndex++;
+                          _selectedSlot = null;
+                          _slots = [];
+                        });
+                      }
                     : null,
                 child: Text(AppLocalizations.of(context)!.actionNext),
               ),
@@ -427,7 +554,7 @@ extension _BookingNormalSteps on _BookingScreenState {
                       _slots = [];
                     });
 
-                    await _loadSlots();
+                    await _loadSlots(jumpToFirstAvailable: false);
                   },
                   child: Container(
                     width: 96,
@@ -487,7 +614,7 @@ extension _BookingNormalSteps on _BookingScreenState {
               child: CircularProgressIndicator(),
             ),
           )
-        else if (_slots.isEmpty)
+        else if (visibleSlots.isEmpty)
           _empty(
             colors,
             Icons.event_busy_outlined,
@@ -497,7 +624,7 @@ extension _BookingNormalSteps on _BookingScreenState {
           Wrap(
             spacing: 10,
             runSpacing: 10,
-            children: _slots.map((slot) => _slotButton(colors, slot)).toList(),
+            children: visibleSlots.map((slot) => _slotButton(colors, slot)).toList(),
           ),
       ],
     );
@@ -514,8 +641,8 @@ extension _BookingNormalSteps on _BookingScreenState {
           backgroundColor: selected
               ? const Color(0xFFFFE6A3)
               : (enabled
-              ? colors.inverseSurface
-              : colors.surfaceContainerHighest),
+                    ? colors.inverseSurface
+                    : colors.surfaceContainerHighest),
           foregroundColor: selected
               ? const Color(0xFF003B35)
               : (enabled ? colors.onInverseSurface : colors.outline),
@@ -637,8 +764,8 @@ extension _BookingNormalSteps on _BookingScreenState {
                     label: Text(
                       item.documentDate == null
                           ? AppLocalizations.of(
-                        context,
-                      )!.bookingSelectDatePerformed
+                              context,
+                            )!.bookingSelectDatePerformed
                           : _formatDate(item.documentDate!),
                     ),
                   ),
@@ -690,13 +817,30 @@ extension _BookingNormalSteps on _BookingScreenState {
             ? '-'
             : '\$${_selectedDoctor!.consultationFee.toStringAsFixed(2)}',
       ),
+      _summary(
+        colors,
+        'Doctor selection',
+        _doctorSelectionMode == 'MANUAL_SELECTED'
+            ? 'Manual selected'
+            : 'System recommended',
+      ),
+      if (_doctorSelectionMode == 'MANUAL_SELECTED')
+        _summary(
+          colors,
+          'Manual selection fee',
+          '\$${_manualSelectionFee.toStringAsFixed(2)}',
+        ),
       const SizedBox(height: 12),
       _note(colors, AppLocalizations.of(context)!.bookingPaymentNote),
     ],
   );
 
   Widget _paymentStep(ColorScheme colors) {
-    final fee = _selectedDoctor?.consultationFee ?? 0;
+    final baseFee = _selectedDoctor?.consultationFee ?? 0;
+    final manualFee = _doctorSelectionMode == 'MANUAL_SELECTED'
+        ? _manualSelectionFee
+        : 0;
+    final fee = baseFee + manualFee;
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -740,5 +884,4 @@ extension _BookingNormalSteps on _BookingScreenState {
       ],
     );
   }
-
 }

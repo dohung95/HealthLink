@@ -85,6 +85,7 @@ const ScheduleFormModal = ({ isOpen, onClose, schedule, onSuccess, batchMode = f
   const [onlineData, setOnlineData] = useState(initialOnlineData);
   const [selectedShifts, setSelectedShifts] = useState([]);
   const [homeVisitMeta, setHomeVisitMeta] = useState({});
+  const [homeVisitMaxPatients, setHomeVisitMaxPatients] = useState(1);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
 
@@ -108,17 +109,19 @@ const ScheduleFormModal = ({ isOpen, onClose, schedule, onSuccess, batchMode = f
       setOnlineData(initialOnlineData);
       setSelectedShifts([]);
       setHomeVisitMeta({});
+      setHomeVisitMaxPatients(1);
     } else if (isHomeVisitType(schedule.consultationType)) {
       setScheduleKind('HomeVisit');
       setSelectedShifts(schedule.shiftType ? [String(schedule.shiftType).toUpperCase()] : []);
       setHomeVisitMeta({});
+      setHomeVisitMaxPatients(Math.min(Math.max(schedule.maxPatients || 1, 1), 2));
     } else {
       setScheduleKind('Online');
       setOnlineData({
         startTime: formatTimeForInput(schedule.startTime),
         endTime: formatTimeForInput(schedule.endTime),
         slotDuration: schedule.slotDuration || 30,
-        maxPatients: schedule.maxPatients || 1,
+        maxPatients: 1,
       });
     }
   }, [schedule]);
@@ -129,6 +132,11 @@ const ScheduleFormModal = ({ isOpen, onClose, schedule, onSuccess, batchMode = f
       ...current,
       [name]: ['slotDuration', 'maxPatients'].includes(name) ? parseInt(value, 10) : value,
     }));
+  };
+
+  const handleHomeVisitMaxPatientsChange = (event) => {
+    const value = parseInt(event.target.value, 10);
+    setHomeVisitMaxPatients(Number.isNaN(value) ? 1 : value);
   };
 
   const toggleShift = (shiftKey) => {
@@ -155,6 +163,10 @@ const ScheduleFormModal = ({ isOpen, onClose, schedule, onSuccess, batchMode = f
         setError('Please select at least one shift (Morning / Afternoon / Evening).');
         return null;
       }
+      if (homeVisitMaxPatients < 1 || homeVisitMaxPatients > 2) {
+        setError('Max patients per slot for home visit must be between 1 and 2.');
+        return null;
+      }
       const payloads = SHIFT_ORDER
         .filter((key) => selectedShifts.includes(key))
         .map((key) => {
@@ -166,7 +178,7 @@ const ScheduleFormModal = ({ isOpen, onClose, schedule, onSuccess, batchMode = f
             startTime: w.start,
             endTime: w.end,
             slotDuration: minutesBetween(w.start, w.end),
-            maxPatients: 1,
+            maxPatients: homeVisitMaxPatients,
             location: homeVisitMeta.location,
             notes: homeVisitMeta.notes,
           };
@@ -196,8 +208,8 @@ const ScheduleFormModal = ({ isOpen, onClose, schedule, onSuccess, batchMode = f
       setError('Slot duration must be between 10 and 120 minutes');
       return null;
     }
-    if (maxPatients < 1 || maxPatients > 10) {
-      setError('Max patients must be between 1 and 10');
+    if (maxPatients < 1 || maxPatients > 1) {
+      setError('Max patients per slot for online consultation is limited to 1');
       return null;
     }
     const onlinePayload = {
@@ -464,6 +476,22 @@ const ScheduleFormModal = ({ isOpen, onClose, schedule, onSuccess, batchMode = f
                   </div>
                 </div>
 
+                <div style={{ marginBottom: '1.25rem' }}>
+                  <label style={labelStyle}>Max Patients per Slot</label>
+                  <input
+                    className="form-control"
+                    disabled={loading}
+                    max="2"
+                    min="1"
+                    name="homeVisitMaxPatients"
+                    onChange={handleHomeVisitMaxPatientsChange}
+                    type="number"
+                    value={homeVisitMaxPatients}
+                    style={{ ...inputStyle, maxWidth: '160px' }}
+                    title="Home visit slots allow a maximum of 2 patients"
+                  />
+                </div>
+
               </>
             ) : (
               <>
@@ -536,14 +564,14 @@ const ScheduleFormModal = ({ isOpen, onClose, schedule, onSuccess, batchMode = f
                     <label style={labelStyle}>Max Patients per Slot</label>
                     <input
                       className="form-control"
-                      disabled={loading}
-                      max="10"
+                      disabled
+                      max="1"
                       min="1"
                       name="maxPatients"
-                      onChange={handleOnlineChange}
                       type="number"
                       value={onlineData.maxPatients}
-                      style={inputStyle}
+                      style={{ ...inputStyle, background: '#f1f5f9', cursor: 'not-allowed' }}
+                      title="Online consultations are limited to 1 patient per slot"
                     />
                   </div>
                 </div>

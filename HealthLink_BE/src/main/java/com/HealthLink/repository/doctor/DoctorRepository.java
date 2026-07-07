@@ -90,14 +90,38 @@ public interface DoctorRepository extends JpaRepository<Doctor, String> {
     Optional<Doctor> findByUser_Id(String userId);
 
     /**
-     * Find all doctors with active user accounts.
-     * Used for compliance checking.
+     * Find all doctors with active user accounts. Used for compliance checking.
      */
     List<Doctor> findByUser_Status(String status);
 
     /**
-     * Find doctors by name (case-insensitive search)
-     * Used for commission management
+     * Find doctors by name (case-insensitive search) Used for commission
+     * management
      */
     Page<Doctor> findByFullNameContainingIgnoreCase(String fullName, Pageable pageable);
+
+    @Query("""
+    SELECT DISTINCT d
+    FROM Doctor d
+    JOIN FETCH d.user u
+    JOIN d.schedules schedule
+    LEFT JOIN FETCH d.specialtyEntity se
+    WHERE LOWER(u.status) = 'active'
+      AND schedule.available = true
+      AND schedule.scheduleStatus = com.HealthLink.entity.enums.DoctorScheduleStatus.APPROVED
+      AND d.scheduleStatus = com.HealthLink.entity.enums.DoctorScheduleStatus.APPROVED
+      AND (
+          :specialty IS NULL
+          OR LOWER(se.name) LIKE LOWER(CONCAT('%', :specialty, '%'))
+          OR LOWER(d.specialty) LIKE LOWER(CONCAT('%', :specialty, '%'))
+      )
+      AND (
+          :consultationType IS NULL
+          OR LOWER(schedule.consultationType) IN ('online', 'video', 'audio', 'chat', 'consultation')
+      )
+    """)
+    List<Doctor> findAutoAssignableDoctorsBySpecialty(
+            @Param("specialty") String specialty,
+            @Param("consultationType") String consultationType
+    );
 }

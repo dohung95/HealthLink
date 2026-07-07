@@ -20,6 +20,7 @@ import HomeVisitStep from '../schedule/HomeVisitStep';
 import SessionPicker from '../schedule/SessionPicker';
 import HomeVisitDoctorStep from '../schedule/HomeVisitDoctorStep';
 import HomeVisitServicesStep from '../schedule/HomeVisitServicesStep';
+import DoctorSelectionModeStep from '../schedule/DoctorSelectionModeStep';
 
 import '../Css/ScheduleWizard.css';
 
@@ -64,6 +65,12 @@ const Schedule = () => {
   const [selectedSpecialty, setSelectedSpecialty] = useState('');
   const [selectedDoctorId, setSelectedDoctorId] = useState('');
   const [consultationType, setConsultationType] = useState('');
+
+  const [doctorSelectionMode, setDoctorSelectionMode] = useState('');
+  const [recommendedDoctor, setRecommendedDoctor] = useState(null);
+  const [manualSelectionFee, setManualSelectionFee] = useState(0);
+  const [loadingRecommendedDoctor, setLoadingRecommendedDoctor] = useState(false);
+  const [wantsManualDoctor, setWantsManualDoctor] = useState(false);
 
   const [date, setDate] = useState(new Date().toISOString().split('T')[0]);
   const [slots, setSlots] = useState([]);
@@ -123,7 +130,11 @@ const Schedule = () => {
       baseSteps.push({ key: 'session-picker', label: 'Choose Session' });
     } else {
       if (!hasPreselectedDoctor) {
-        baseSteps.push({ key: 'doctor', label: 'Doctor' });
+        baseSteps.push({ key: 'doctor-selection-mode', label: 'Doctor Option' });
+
+        if (doctorSelectionMode === 'MANUAL_SELECTED') {
+          baseSteps.push({ key: 'doctor', label: 'Doctor' });
+        }
       }
 
       baseSteps.push({ key: 'datetime', label: 'Date & Time' });
@@ -136,7 +147,7 @@ const Schedule = () => {
     );
 
     return baseSteps;
-  }, [hasPreselectedDoctor, isHomeVisit]);
+  }, [hasPreselectedDoctor, isHomeVisit, doctorSelectionMode]);
 
   const currentStepKey = stepConfig[step - 1]?.key;
 
@@ -433,7 +444,7 @@ const Schedule = () => {
     }
   };
 
-  const handleNext = () => {
+  const handleNext = async () => {
     if (currentStepKey === 'specialty' && !selectedSpecialty) {
       toast.warning('Please select a specialty');
       return;
@@ -449,17 +460,21 @@ const Schedule = () => {
       return;
     }
 
-    if (currentStepKey === 'datetime') {
-      if (!date) {
-        toast.warning('Please select a date');
+    if (currentStepKey === 'doctor-selection-mode') {
+      if (!doctorSelectionMode) {
+        toast.warning('Please choose doctor selection option.');
         return;
       }
-      if (!selectedSlot) {
-        toast.warning('Please select a time slot');
-        return;
+
+      if (doctorSelectionMode === 'AUTO_ASSIGNED' && !selectedDoctorId) {
+        const result = await loadRecommendedDoctor();
+
+        if (!result?.doctorId) {
+          toast.error('Can not find a recommended doctor.');
+          return;
+        }
       }
     }
-
 
     if (currentStepKey === 'homevisit') {
       if (!homeVisitInfo.visitAddress?.trim()) {
@@ -496,6 +511,21 @@ const Schedule = () => {
     }
 
     setStep((prev) => Math.min(prev + 1, stepConfig.length));
+  };
+
+  const handleManualDoctorToggle = (checked) => {
+    setWantsManualDoctor(checked);
+
+    if (checked) {
+      setDoctorSelectionMode('MANUAL_SELECTED');
+      setSelectedDoctorId('');
+    } else {
+      setDoctorSelectionMode('AUTO_ASSIGNED');
+      setSelectedDoctorId(recommendedDoctor?.doctorId || '');
+    }
+
+    setSelectedSlot(null);
+    setSlots([]);
   };
 
   const handleBack = () => {
@@ -547,6 +577,41 @@ const Schedule = () => {
     handleBack();
   };
 
+  const loadRecommendedDoctor = async () => {
+    if (!selectedSpecialty || consultationType !== 'Online') return null;
+
+    setLoadingRecommendedDoctor(true);
+
+    try {
+      const result = await appointmentService.recommendDoctor({
+        specialty: selectedSpecialty,
+        consultationType: 'Online',
+      });
+
+      setRecommendedDoctor(result);
+      setManualSelectionFee(Number(result.manualSelectionFee || 0));
+      setSelectedDoctorId(result.doctorId);
+
+      return result;
+    } finally {
+      setLoadingRecommendedDoctor(false);
+    }
+  };
+
+  const handleSelectDoctorSelectionMode = async (mode) => {
+    setDoctorSelectionMode(mode);
+    setSelectedSlot(null);
+    setSlots([]);
+
+    if (mode === 'AUTO_ASSIGNED') {
+      await loadRecommendedDoctor();
+      return;
+    }
+
+    setRecommendedDoctor(null);
+    setSelectedDoctorId('');
+  };
+
   const handleSchedule = async () => {
     if (!selectedDoctorId) {
       toast.warning('Booking information is not complete');
@@ -591,6 +656,11 @@ const Schedule = () => {
         consultationType,
         symptoms: isHomeVisit ? homeVisitInfo.reasonForHomeVisit : symptoms,
         notes: isHomeVisit ? homeVisitInfo.specialNotes : '',
+        doctorSelectionMode: isHomeVisit ? null : doctorSelectionMode,
+        manualSelectionFee:
+          !isHomeVisit && doctorSelectionMode === 'MANUAL_SELECTED'
+            ? manualSelectionFee
+            : 0,
         homeVisitServiceIds: selectedHomeVisitServices.map((item) => item.serviceId),
 
         ...(consultationType === 'HomeVisit'
@@ -637,9 +707,14 @@ const Schedule = () => {
         )
         : 0;
 
+      const manualFee =
+        !isHomeVisit && doctorSelectionMode === 'MANUAL_SELECTED'
+          ? manualSelectionFee
+          : 0;
+
       const finalTotal = isHomeVisit
         ? doctorFee + homeVisitTravelTotal + servicesTotal
-        : doctorFee;
+        : doctorFee + manualFee;
 
       setPaymentDraft({
         ...bookingData,
@@ -812,6 +887,9 @@ const Schedule = () => {
                     setConsultationType(type);
                     setSelectedSlot(null);
                     setSlots([]);
+                    setDoctorSelectionMode('');
+                    setRecommendedDoctor(null);
+                    setManualSelectionFee(0);
 
                     setHomeVisitDoctorOptions([]);
                     setSelectedHomeVisitDoctor(null);
@@ -825,6 +903,18 @@ const Schedule = () => {
                   onBack={handleBack}
                   onNext={handleNext}
                   canGoBack
+                />
+              )}
+
+              {currentStepKey === 'doctor-selection-mode' && (
+                <DoctorSelectionModeStep
+                  mode={doctorSelectionMode}
+                  manualSelectionFee={manualSelectionFee}
+                  recommendedDoctor={recommendedDoctor}
+                  loadingRecommendedDoctor={loadingRecommendedDoctor}
+                  onSelectMode={handleSelectDoctorSelectionMode}
+                  onBack={handleBack}
+                  onNext={handleNext}
                 />
               )}
 
@@ -923,6 +1013,9 @@ const Schedule = () => {
                   files={files}
                   selectedHomeVisitServices={selectedHomeVisitServices}
                   homeVisitEstimate={isHomeVisit ? selectedHomeVisitDoctor : null}
+                  doctorSelectionMode={doctorSelectionMode}
+                  manualSelectionFee={manualSelectionFee}
+                  recommendedDoctor={recommendedDoctor}
                   onBack={handleBack}
                   onConfirm={handleSchedule}
                   confirming={bookingSubmitting}

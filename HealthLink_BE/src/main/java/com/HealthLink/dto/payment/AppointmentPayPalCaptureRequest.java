@@ -3,6 +3,7 @@ package com.HealthLink.dto.payment;
 import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
+import java.math.BigDecimal;
 import lombok.AllArgsConstructor;
 import lombok.Data;
 import lombok.NoArgsConstructor;
@@ -65,6 +66,9 @@ public class AppointmentPayPalCaptureRequest {
     private String paymentMethod = "EWallet";
 
     private String currency = "USD";
+        
+    private String doctorSelectionMode;
+    private BigDecimal manualSelectionFee;
 
     private List<Integer> homeVisitServiceIds;
 

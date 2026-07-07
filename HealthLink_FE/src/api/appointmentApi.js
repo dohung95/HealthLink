@@ -36,6 +36,16 @@ export const appointmentService = {
         return response.data;
     },
 
+    recommendDoctor: async (data) => {
+        const response = await axios.post(
+            `${API_URL}/appointments/doctor-assignment/recommend`,
+            data,
+            getAuthConfig()
+        );
+
+        return response.data;
+    },
+
     holdSlot: async (data) => {
         const response = await axios.post(
             `${API_URL}/appointments/hold-slot`,

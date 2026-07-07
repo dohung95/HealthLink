@@ -48,4 +48,18 @@ public interface DoctorScheduleService {
      * Get calendar view with slot statuses for a date range.
      */
     List<CalendarDayResponse> getCalendarView(String doctorId, LocalDate startDate, LocalDate endDate);
+
+    /**
+     * Doctor confirms their schedule for the new month after being prompted to reconfirm
+     * (schedule carried over from a compliant previous month). Sets status back to APPROVED
+     * and clears the reconfirmation flag.
+     */
+    void confirmMonthlySchedule(String doctorId);
+
+    /**
+     * Scheduled job entry point (runs on the 1st of each month): for every doctor whose schedule
+     * carries into the new month, check last month's compliance and either require reconfirmation
+     * (met quota) or send a reminder to add more hours (didn't meet quota).
+     */
+    void runMonthlyReconfirmationCheck();
 }

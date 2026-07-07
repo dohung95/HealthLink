@@ -58,6 +58,13 @@ public class Appointment {
 
     private LocalDateTime confirmedAt;
 
+    @Column(name = "DoctorSelectionMode", length = 50)
+    private String doctorSelectionMode;
+
+    @Column(name = "ManualSelectionFee", precision = 18, scale = 2)
+    @Builder.Default
+    private BigDecimal manualSelectionFee = BigDecimal.ZERO;
+
     // --- Relationships ---
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "PatientID", nullable = false)

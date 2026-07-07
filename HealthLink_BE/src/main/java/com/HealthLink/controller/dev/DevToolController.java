@@ -5,6 +5,7 @@ import com.HealthLink.dto.notification.NotificationDispatchSummary;
 import com.HealthLink.exception.BadRequestException;
 import com.HealthLink.scheduler.NotificationScheduler;
 import com.HealthLink.service.consultation.ConsultationService;
+import com.HealthLink.service.doctor.DoctorScheduleService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.context.annotation.Profile;
 import org.springframework.http.ResponseEntity;
@@ -28,6 +29,7 @@ public class DevToolController {
 
     private final ConsultationService consultationService;
     private final NotificationScheduler notificationScheduler;
+    private final DoctorScheduleService doctorScheduleService;
 
     @PostMapping("/appointments/{appointmentId}/unclock-reminder")
     public ResponseEntity<NotificationDispatchSummary> unclockAppointmentReminder(
@@ -43,6 +45,12 @@ public class DevToolController {
     public ResponseEntity<ConsultationResponse> startConsultationForTesting(
             @PathVariable Integer appointmentId) {
         return ResponseEntity.ok(consultationService.startByAppointmentForTesting(appointmentId));
+    }
+
+    @PostMapping("/doctor-schedule/monthly-reconfirmation-check")
+    public ResponseEntity<Void> triggerMonthlyReconfirmationCheck() {
+        doctorScheduleService.runMonthlyReconfirmationCheck();
+        return ResponseEntity.ok().build();
     }
 
     @PostMapping("/notifications/trigger")

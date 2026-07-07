@@ -162,9 +162,12 @@ public class ScheduleComplianceServiceImpl implements ScheduleComplianceService 
     // ========== Admin APIs ==========
 
     @Override
-    @Transactional(readOnly = true)
     public CompliancePageResponse getAllCompliance(String month, String status, Integer specialtyId, Pageable pageable) {
         validateMonthFormat(month);
+
+        // Backfill missing records so every active doctor shows up in the list, not just
+        // the ones who already touched their schedule (see initializeMissingComplianceRecords).
+        initializeMissingComplianceRecords(month);
 
         ComplianceStatus statusEnum = null;
         if (status != null && !status.isEmpty()) {
@@ -194,9 +197,9 @@ public class ScheduleComplianceServiceImpl implements ScheduleComplianceService 
     }
 
     @Override
-    @Transactional(readOnly = true)
     public ComplianceStatisticsResponse getStatistics(String month) {
         validateMonthFormat(month);
+        initializeMissingComplianceRecords(month);
 
         List<Object[]> statusCounts = complianceRepository.countByStatusForMonth(month);
 
@@ -425,11 +428,43 @@ public class ScheduleComplianceServiceImpl implements ScheduleComplianceService 
     public DoctorScheduleCompliance updateComplianceAfterScheduleChange(String doctorId) {
         Doctor doctor = findDoctor(doctorId);
         String currentMonth = LocalDate.now().format(MONTH_FORMATTER);
+        return syncCompliance(doctor, currentMonth);
+    }
 
-        int requiredHours = getRequiredHoursForDoctor(doctor, currentMonth);
-        BigDecimal scheduledHours = calculateScheduledHours(doctorId, currentMonth);
+    @Override
+    public void initializeMissingComplianceRecords(String month) {
+        validateMonthFormat(month);
 
-        DoctorScheduleCompliance compliance = getOrCreateCompliance(doctor, currentMonth, requiredHours);
+        List<Doctor> activeDoctors = doctorRepository.findByUser_Status("Active");
+        int createdCount = 0;
+
+        for (Doctor doctor : activeDoctors) {
+            if (complianceRepository.existsByDoctor_DoctorIdAndComplianceMonth(doctor.getDoctorId(), month)) {
+                continue;
+            }
+            try {
+                syncCompliance(doctor, month);
+                createdCount++;
+            } catch (Exception e) {
+                log.error("Error initializing compliance record for doctor {} ({}): {}",
+                        doctor.getDoctorId(), month, e.getMessage());
+            }
+        }
+
+        log.info("Initialized {} missing compliance record(s) for {} (out of {} active doctors)",
+                createdCount, month, activeDoctors.size());
+    }
+
+    /**
+     * Tính lại và lưu compliance của 1 doctor cho 1 tháng bất kỳ.
+     * Dùng chung cho cả sự kiện đổi lịch (tháng hiện tại) lẫn khởi tạo hàng loạt (tháng bất kỳ).
+     */
+    private DoctorScheduleCompliance syncCompliance(Doctor doctor, String month) {
+        String doctorId = doctor.getDoctorId();
+        int requiredHours = getRequiredHoursForDoctor(doctor, month);
+        BigDecimal scheduledHours = calculateScheduledHours(doctorId, month);
+
+        DoctorScheduleCompliance compliance = getOrCreateCompliance(doctor, month, requiredHours);
         compliance.setScheduledHours(scheduledHours);
 
         double percentage = requiredHours > 0
@@ -449,7 +484,7 @@ public class ScheduleComplianceServiceImpl implements ScheduleComplianceService 
                                 NotificationType.SCHEDULE_COMPLIANCE_ACHIEVED,
                                 "Schedule Compliance Achieved",
                                 String.format("Congratulations! You have scheduled %.1f hours for %s, meeting the %d-hour requirement.",
-                                        scheduledHours.doubleValue(), currentMonth, requiredHours),
+                                        scheduledHours.doubleValue(), month, requiredHours),
                                 null,
                                 "/schedule"
                         );
@@ -464,8 +499,8 @@ public class ScheduleComplianceServiceImpl implements ScheduleComplianceService 
         }
 
         DoctorScheduleCompliance saved = complianceRepository.save(compliance);
-        log.info("Updated compliance for doctor {}: {}h/{} h ({}%)",
-                doctorId, scheduledHours, requiredHours, Math.round(percentage));
+        log.info("Synced compliance for doctor {} ({}): {}h/{}h ({}%)",
+                doctorId, month, scheduledHours, requiredHours, Math.round(percentage));
 
         return saved;
     }
@@ -474,6 +509,10 @@ public class ScheduleComplianceServiceImpl implements ScheduleComplianceService 
     public void checkDailyCompliance() {
         String currentMonth = LocalDate.now().format(MONTH_FORMATTER);
         log.info("Running daily compliance check for {}", currentMonth);
+
+        // Backfill records for doctors who became active / never touched their schedule,
+        // so they show up in the admin compliance list instead of being invisible.
+        initializeMissingComplianceRecords(currentMonth);
 
         List<DoctorScheduleCompliance> needingCheck = complianceRepository.findNeedingDailyCheck(currentMonth);
 
@@ -495,6 +534,7 @@ public class ScheduleComplianceServiceImpl implements ScheduleComplianceService 
         log.info("Sending month-end warnings for {}", nextMonth);
 
         // Initialize compliance records for all active doctors
+        initializeMissingComplianceRecords(nextMonth);
         List<Doctor> doctors = doctorRepository.findByUser_Status("Active");
 
         int warningsSent = 0;

@@ -12,6 +12,7 @@ import com.HealthLink.entity.DoctorSchedule;
 import com.HealthLink.entity.DoctorScheduleException;
 import com.HealthLink.entity.User;
 import com.HealthLink.entity.enums.DoctorScheduleStatus;
+import com.HealthLink.entity.enums.NotificationPriority;
 import com.HealthLink.entity.enums.NotificationType;
 import com.HealthLink.entity.enums.ScheduleExceptionType;
 import com.HealthLink.exception.BadRequestException;
@@ -22,6 +23,7 @@ import com.HealthLink.repository.appointment.AppointmentRepository;
 import com.HealthLink.repository.appointment.AppointmentSlotHoldRepository;
 import com.HealthLink.repository.doctor.DoctorRepository;
 import com.HealthLink.repository.doctor.DoctorScheduleRepository;
+import com.HealthLink.service.admin.AdminNotificationService;
 import com.HealthLink.service.compliance.ScheduleComplianceService;
 import com.HealthLink.service.doctor.DoctorScheduleService;
 import com.HealthLink.audit.AuditLogger;
@@ -58,6 +60,7 @@ public class DoctorScheduleServiceImpl implements DoctorScheduleService {
     private final AppointmentRepository appointmentRepository;
     private final AppointmentSlotHoldRepository appointmentSlotHoldRepository;
     private final NotificationService notificationService;
+    private final AdminNotificationService adminNotificationService;
     private final AdminScheduleAuditLogRepository auditLogRepository;
     private final @Lazy ScheduleComplianceService complianceService;
     private final AuditLogger audit = AuditLogger.doctor();
@@ -66,6 +69,9 @@ public class DoctorScheduleServiceImpl implements DoctorScheduleService {
 
     // Minimum required working hours per MONTH for APPROVED status
     private static final double MIN_MONTHLY_HOURS = 80.0;
+
+    // Số tháng không đạt chỉ tiêu trong CÙNG MỘT NĂM trước khi tự động ban tài khoản
+    private static final int NON_COMPLIANT_MONTHS_BEFORE_BAN = 3;
 
     // Allowed shift windows. Online schedules must fit within ONE of these;
     // Home visit schedules use the whole window as a single bookable session.
@@ -96,9 +102,173 @@ public class DoctorScheduleServiceImpl implements DoctorScheduleService {
                 .doctorScheduleStatus(doctor.getScheduleStatus())
                 .totalMonthlyHours(monthlyHours)
                 .requiredMonthlyHours(MIN_MONTHLY_HOURS)
+                .needsScheduleReconfirmation(Boolean.TRUE.equals(doctor.getNeedsScheduleReconfirmation()))
                 .schedules(schedules.stream().map(this::mapScheduleToItem).collect(Collectors.toList()))
                 .exceptions(exceptions.stream().map(this::mapExceptionToItem).collect(Collectors.toList()))
                 .build();
+    }
+
+    @Override
+    public void confirmMonthlySchedule(String doctorId) {
+        Doctor doctor = findDoctor(doctorId);
+
+        if (!Boolean.TRUE.equals(doctor.getNeedsScheduleReconfirmation())) {
+            throw new BadRequestException("No schedule reconfirmation is currently pending.");
+        }
+
+        double monthlyHours = calculateMonthlyHours(doctorId);
+        if (monthlyHours < MIN_MONTHLY_HOURS) {
+            throw new BadRequestException("Your schedule no longer meets the minimum required hours. Please add more working hours instead.");
+        }
+
+        doctor.setScheduleStatus(DoctorScheduleStatus.APPROVED);
+        doctor.setNeedsScheduleReconfirmation(false);
+        doctorRepository.save(doctor);
+
+        audit.log("SCHEDULE_MONTHLY_RECONFIRMED", doctorId, doctorId,
+                Map.of("monthlyHours", String.format("%.1f", monthlyHours)));
+        log.info("Doctor {} confirmed monthly schedule ({}h)", doctorId, String.format("%.1f", monthlyHours));
+    }
+
+    @Override
+    public void runMonthlyReconfirmationCheck() {
+        YearMonth previousMonth = YearMonth.now().minusMonths(1);
+        YearMonth currentMonth = YearMonth.now();
+        String currentMonthLabel = currentMonth.getMonth().getDisplayName(TextStyle.FULL, Locale.ENGLISH) + " " + currentMonth.getYear();
+
+        List<Doctor> doctors = doctorRepository.findByUser_Status("Active");
+
+        int reconfirmCount = 0;
+        int reminderCount = 0;
+        int bannedCount = 0;
+
+        for (Doctor doctor : doctors) {
+            try {
+                List<DoctorSchedule> schedules = scheduleRepository.findByDoctor_DoctorId(doctor.getDoctorId());
+                if (schedules.isEmpty() || schedules.stream().noneMatch(DoctorSchedule::isAvailable)) {
+                    continue; // No schedule to carry over
+                }
+
+                double previousMonthHours = calculateHoursForMonth(doctor.getDoctorId(), previousMonth);
+                double currentMonthHours = calculateHoursForMonth(doctor.getDoctorId(), currentMonth);
+
+                boolean metQuotaLastMonth = previousMonthHours >= MIN_MONTHLY_HOURS;
+                boolean carriesOverAndQualifies = currentMonthHours >= MIN_MONTHLY_HOURS;
+
+                if (metQuotaLastMonth && carriesOverAndQualifies) {
+                    // Schedule carried over and still qualifies: force reconfirmation instead of auto-approving
+                    doctor.setScheduleStatus(DoctorScheduleStatus.PENDING);
+                    doctor.setNeedsScheduleReconfirmation(true);
+                    doctorRepository.save(doctor);
+                    reconfirmCount++;
+
+                    if (doctor.getUser() != null) {
+                        notificationService.sendWebSocketNotification(
+                                doctor.getUser(),
+                                NotificationType.SCHEDULE_MONTHLY_RECONFIRM_REQUIRED,
+                                "Please Reconfirm Your Schedule",
+                                String.format("Your working schedule carries over into %s and still meets the %.0fh/month requirement. Please reconfirm to keep it active for patient bookings.",
+                                        currentMonthLabel, MIN_MONTHLY_HOURS),
+                                null,
+                                "/doctor/schedule"
+                        );
+                    }
+                } else if (!metQuotaLastMonth) {
+                    // Didn't meet quota last month: refresh real status for the new month and remind to add hours
+                    updateDoctorScheduleStatus(doctor.getDoctorId());
+                    reminderCount++;
+
+                    int failedMonths = registerNonCompliantMonth(doctor, currentMonth.getYear());
+
+                    if (failedMonths >= NON_COMPLIANT_MONTHS_BEFORE_BAN) {
+                        banDoctorForNonCompliance(doctor, currentMonth.getYear(), currentMonthLabel, failedMonths);
+                        bannedCount++;
+                    } else if (doctor.getUser() != null) {
+                        String message = failedMonths == NON_COMPLIANT_MONTHS_BEFORE_BAN - 1
+                                ? String.format("You did not meet the %.0fh/month requirement last month — that is %d month(s) missed in %d. "
+                                        + "If you miss the requirement one more time this year, your account will be automatically banned.",
+                                        MIN_MONTHLY_HOURS, failedMonths, currentMonth.getYear())
+                                : String.format("You did not meet the %.0fh/month requirement last month. Please add more working hours for %s so patients can book with you.",
+                                        MIN_MONTHLY_HOURS, currentMonthLabel);
+
+                        notificationService.sendWebSocketNotification(
+                                doctor.getUser(),
+                                NotificationType.SCHEDULE_COMPLIANCE_WARNING,
+                                "Add More Working Hours",
+                                message,
+                                null,
+                                "/doctor/schedule"
+                        );
+                    }
+                } else {
+                    // Met quota last month but schedule no longer covers the new month: just refresh status
+                    updateDoctorScheduleStatus(doctor.getDoctorId());
+                }
+            } catch (Exception e) {
+                log.error("Error running monthly reconfirmation check for doctor {}: {}",
+                        doctor.getDoctorId(), e.getMessage(), e);
+            }
+        }
+
+        log.info("Monthly reconfirmation check completed: {} doctor(s) need reconfirmation, {} doctor(s) reminded to add hours, {} doctor(s) auto-banned",
+                reconfirmCount, reminderCount, bannedCount);
+    }
+
+    /**
+     * Ghi nhận thêm 1 tháng không đạt chỉ tiêu cho bác sĩ trong năm hiện tại.
+     * Reset về 0 nếu bộ đếm đang thuộc về một năm khác (mỗi năm reset số tháng chưa đạt chỉ tiêu).
+     *
+     * @return tổng số tháng không đạt chỉ tiêu trong năm hiện tại, sau khi cộng thêm tháng vừa trượt.
+     */
+    private int registerNonCompliantMonth(Doctor doctor, int currentYear) {
+        if (doctor.getComplianceTrackingYear() == null || doctor.getComplianceTrackingYear() != currentYear) {
+            doctor.setComplianceTrackingYear(currentYear);
+            doctor.setNonCompliantMonthsThisYear(0);
+        }
+        int failedMonths = (doctor.getNonCompliantMonthsThisYear() == null ? 0 : doctor.getNonCompliantMonthsThisYear()) + 1;
+        doctor.setNonCompliantMonthsThisYear(failedMonths);
+        doctorRepository.save(doctor);
+        return failedMonths;
+    }
+
+    /**
+     * Tự động ban tài khoản (giống Admin ban thủ công trong trang quản lý bác sĩ) khi bác sĩ
+     * không đạt chỉ tiêu giờ làm việc {@value #NON_COMPLIANT_MONTHS_BEFORE_BAN} tháng trong cùng một năm.
+     */
+    private void banDoctorForNonCompliance(Doctor doctor, int year, String currentMonthLabel, int failedMonths) {
+        User user = doctor.getUser();
+        if (user == null) {
+            return;
+        }
+
+        String oldStatus = user.getStatus();
+        user.setStatus("Banned");
+        doctorRepository.save(doctor);
+
+        audit.log("DOCTOR_AUTO_BANNED_NON_COMPLIANCE", doctor.getDoctorId(), "SYSTEM",
+                Map.of("year", String.valueOf(year), "nonCompliantMonths", String.valueOf(failedMonths), "oldStatus", String.valueOf(oldStatus)));
+
+        notificationService.sendWebSocketNotification(
+                user,
+                NotificationType.DOCTOR_ACCOUNT_BANNED_NON_COMPLIANCE,
+                "Account Banned",
+                String.format("Your account has been automatically banned for not meeting the %.0fh/month working-hours requirement in %d months of %d (as of %s).",
+                        MIN_MONTHLY_HOURS, failedMonths, year, currentMonthLabel),
+                null,
+                "/doctor/schedule"
+        );
+
+        adminNotificationService.notifyAllAdmins(
+                NotificationType.DOCTOR_ACCOUNT_BANNED_NON_COMPLIANCE,
+                "Doctor Auto-Banned: " + doctor.getFullName(),
+                String.format("Dr. %s (%s) was automatically banned after failing to meet the %.0fh/month requirement for %d months in %d. Review in Doctor Management if needed.",
+                        doctor.getFullName(), doctor.getDoctorId(), MIN_MONTHLY_HOURS, failedMonths, year),
+                NotificationPriority.HIGH,
+                null,
+                "/admin/doctors?doctorId=" + doctor.getDoctorId()
+        );
+
+        log.warn("Doctor {} auto-banned for non-compliance: {} failed month(s) in {}", doctor.getDoctorId(), failedMonths, year);
     }
 
     @Override
@@ -325,9 +495,9 @@ public class DoctorScheduleServiceImpl implements DoctorScheduleService {
      * Validate (and for Home visit, normalize) the schedule request.
      *
      * - Home visit: lịch theo CA cố định (Sáng/Chiều/Tối). Server gán cứng giờ theo khung của ca,
-     *   để mỗi ca = đúng 1 slot đặt được (slotDuration = độ dài ca) và tối đa 1 bệnh nhân/ca.
+     *   để mỗi ca = đúng 1 slot đặt được (slotDuration = độ dài ca) và tối đa 2 bệnh nhân/ca.
      * - Online: giờ nhập tự do nhưng phải nằm gọn trong MỘT khung cho phép
-     *   (Sáng 07:00–10:30, Chiều 13:00–17:30, Tối 19:00–21:00).
+     *   (Sáng 07:00–10:30, Chiều 13:00–17:30, Tối 19:00–21:00), tối đa 1 bệnh nhân/slot.
      */
     private void validateScheduleRequest(DoctorScheduleRequest request) {
         if (isHomeVisitType(request.getConsultationType())) {
@@ -340,7 +510,11 @@ public class DoctorScheduleServiceImpl implements DoctorScheduleService {
             request.setStartTime(window[0]);
             request.setEndTime(window[1]);
             request.setSlotDuration((int) Duration.between(window[0], window[1]).toMinutes());
-            request.setMaxPatients(1);
+            int homeVisitMaxPatients = request.getMaxPatients() != null ? request.getMaxPatients() : 1;
+            if (homeVisitMaxPatients < 1 || homeVisitMaxPatients > 2) {
+                throw new BadRequestException("Home visit max patients per slot must be between 1 and 2");
+            }
+            request.setMaxPatients(homeVisitMaxPatients);
             return;
         }
 
@@ -363,6 +537,11 @@ public class DoctorScheduleServiceImpl implements DoctorScheduleService {
         if (request.getSlotDuration() != null && (request.getSlotDuration() < 10 || request.getSlotDuration() > 120)) {
             throw new BadRequestException("Slot duration must be between 10 and 120 minutes");
         }
+        int onlineMaxPatients = request.getMaxPatients() != null ? request.getMaxPatients() : 1;
+        if (onlineMaxPatients != 1) {
+            throw new BadRequestException("Online max patients per slot is limited to 1");
+        }
+        request.setMaxPatients(onlineMaxPatients);
     }
 
     /**
@@ -466,12 +645,21 @@ public class DoctorScheduleServiceImpl implements DoctorScheduleService {
 
         String status;
         List<CalendarDayResponse.SlotInfo> slots = new ArrayList<>();
+        List<CalendarDayResponse.ScheduleBlock> scheduleBlocks = new ArrayList<>();
+        boolean hasOnline = false;
+        boolean hasHomeVisit = false;
 
         if (exception != null && exception.getExceptionType() == ScheduleExceptionType.DAY_OFF) {
             status = "DAY_OFF";
         } else if (exception != null && exception.getExceptionType() == ScheduleExceptionType.MODIFIED) {
             status = "MODIFIED";
             slots = generateSlots(doctor.getDoctorId(), date, exception.getStartTime(), exception.getEndTime(), 30, now);
+            hasOnline = true; // exception overrides are plain time ranges, not home-visit shifts
+            scheduleBlocks.add(CalendarDayResponse.ScheduleBlock.builder()
+                    .startTime(exception.getStartTime())
+                    .endTime(exception.getEndTime())
+                    .consultationType("Online")
+                    .build());
         } else {
             // Normal schedules
             List<DoctorSchedule> daySchedules = schedules.stream()
@@ -485,12 +673,29 @@ public class DoctorScheduleServiceImpl implements DoctorScheduleService {
                 for (DoctorSchedule schedule : daySchedules) {
                     int slotDuration = schedule.getSlotDuration() != null ? schedule.getSlotDuration() : 30;
                     slots.addAll(generateSlots(doctor.getDoctorId(), date, schedule.getStartTime(), schedule.getEndTime(), slotDuration, now));
+                    if (isHomeVisitType(schedule.getConsultationType())) {
+                        hasHomeVisit = true;
+                    } else {
+                        hasOnline = true;
+                    }
+                    scheduleBlocks.add(CalendarDayResponse.ScheduleBlock.builder()
+                            .startTime(schedule.getStartTime())
+                            .endTime(schedule.getEndTime())
+                            .consultationType(schedule.getConsultationType())
+                            .shiftType(schedule.getShiftType())
+                            .build());
                 }
             }
 
             // AddSlot exception adds extra slots
             if (exception != null && exception.getExceptionType() == ScheduleExceptionType.ADD_SLOT) {
                 slots.addAll(generateSlots(doctor.getDoctorId(), date, exception.getStartTime(), exception.getEndTime(), 30, now));
+                hasOnline = true;
+                scheduleBlocks.add(CalendarDayResponse.ScheduleBlock.builder()
+                        .startTime(exception.getStartTime())
+                        .endTime(exception.getEndTime())
+                        .consultationType("Online")
+                        .build());
                 if ("NO_SCHEDULE".equals(status)) {
                     status = "WORKING";
                 }
@@ -499,11 +704,15 @@ public class DoctorScheduleServiceImpl implements DoctorScheduleService {
 
         // Sort slots by start time
         slots.sort((a, b) -> a.getStartTime().compareTo(b.getStartTime()));
+        scheduleBlocks.sort((a, b) -> a.getStartTime().compareTo(b.getStartTime()));
 
         return CalendarDayResponse.builder()
                 .date(date)
                 .dayName(dayName)
                 .status(status)
+                .scheduleBlocks(scheduleBlocks)
+                .hasOnline(hasOnline)
+                .hasHomeVisit(hasHomeVisit)
                 .slots(slots)
                 .build();
     }
@@ -639,18 +848,28 @@ public class DoctorScheduleServiceImpl implements DoctorScheduleService {
     }
 
     /**
-     * Calculate total working hours for the current month by iterating through each day.
-     * This accounts for:
-     * - Regular schedules for each day of week
-     * - Exceptions (DayOff, Modified, AddSlot)
+     * Calculate total working hours for the current month.
      *
      * @param doctorId the doctor ID
      * @return total hours for the current month
      */
     private double calculateMonthlyHours(String doctorId) {
-        YearMonth currentMonth = YearMonth.now();
-        LocalDate startDate = currentMonth.atDay(1);
-        LocalDate endDate = currentMonth.atEndOfMonth();
+        return calculateHoursForMonth(doctorId, YearMonth.now());
+    }
+
+    /**
+     * Calculate total working hours for an arbitrary month by iterating through each day.
+     * This accounts for:
+     * - Regular schedules for each day of week
+     * - Exceptions (DayOff, Modified, AddSlot)
+     *
+     * @param doctorId    the doctor ID
+     * @param targetMonth the month to calculate hours for
+     * @return total hours for the target month
+     */
+    private double calculateHoursForMonth(String doctorId, YearMonth targetMonth) {
+        LocalDate startDate = targetMonth.atDay(1);
+        LocalDate endDate = targetMonth.atEndOfMonth();
 
         // Get all schedules for the doctor
         List<DoctorSchedule> schedules = scheduleRepository.findByDoctor_DoctorId(doctorId);
@@ -725,6 +944,7 @@ public class DoctorScheduleServiceImpl implements DoctorScheduleService {
         List<DoctorSchedule> schedules = scheduleRepository.findByDoctor_DoctorId(doctorId);
 
         DoctorScheduleStatus oldStatus = doctor.getScheduleStatus();
+        boolean wasNeedingReconfirmation = Boolean.TRUE.equals(doctor.getNeedsScheduleReconfirmation());
         DoctorScheduleStatus newStatus;
 
         if (schedules.isEmpty() || schedules.stream().noneMatch(DoctorSchedule::isAvailable)) {
@@ -741,13 +961,17 @@ public class DoctorScheduleServiceImpl implements DoctorScheduleService {
                     doctorId, String.format("%.1f", monthlyHours), MIN_MONTHLY_HOURS, newStatus);
         }
 
-        if (oldStatus != newStatus) {
+        // Any manual schedule edit resolves a pending monthly reconfirmation prompt
+        if (oldStatus != newStatus || wasNeedingReconfirmation) {
             doctor.setScheduleStatus(newStatus);
+            doctor.setNeedsScheduleReconfirmation(false);
             doctorRepository.save(doctor);
             log.info("Doctor {} schedule status changed: {} -> {}", doctorId, oldStatus, newStatus);
 
-            // Notify doctor about status change
-            notifyDoctorScheduleStatusChange(doctor, oldStatus, newStatus);
+            if (oldStatus != newStatus) {
+                // Notify doctor about status change
+                notifyDoctorScheduleStatusChange(doctor, oldStatus, newStatus);
+            }
         }
     }
 

@@ -3,6 +3,7 @@ package com.HealthLink.dto.payment;
 import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
+import java.math.BigDecimal;
 import java.time.LocalDate;
 import lombok.AllArgsConstructor;
 import lombok.Data;
@@ -54,6 +55,9 @@ public class AppointmentPayPalOrderRequest {
     private Integer sourceConsultationId;
 
     private String currency = "USD";
+    
+    private String doctorSelectionMode;
+    private BigDecimal manualSelectionFee;
 
     private List<Integer> homeVisitServiceIds;
 

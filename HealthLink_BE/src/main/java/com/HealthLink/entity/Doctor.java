@@ -90,6 +90,26 @@ public class Doctor {
     @Builder.Default
     private DoctorScheduleStatus scheduleStatus = DoctorScheduleStatus.PENDING;
 
+    // true khi lịch làm việc của bác sĩ đã kéo qua tháng mới và cần bác sĩ xác nhận lại
+    // (được set bởi job đầu tháng, xóa khi bác sĩ bấm xác nhận hoặc chỉnh sửa lịch)
+    // Dùng Boolean (nullable) thay vì boolean nguyên thủy: cột mới thêm vào bảng Doctors đã có
+    // sẵn dữ liệu — ddl-auto=update sẽ ALTER TABLE ADD COLUMN, và SQL Server từ chối cột NOT NULL
+    // không có DEFAULT trên bảng không rỗng. Boolean map sang cột nullable nên luôn an toàn.
+    @Column(name = "NeedsScheduleReconfirmation")
+    @Builder.Default
+    private Boolean needsScheduleReconfirmation = false;
+
+    // Số tháng trong năm (complianceTrackingYear) mà bác sĩ không đạt MIN_MONTHLY_HOURS.
+    // Tăng dần mỗi lần trượt tháng, KHÔNG reset khi đạt lại — chỉ reset khi sang năm mới
+    // (lazy: reset xảy ra ở lần trượt tháng tiếp theo của năm mới, xem runMonthlyReconfirmationCheck).
+    // Đạt 3 -> tự động chuyển User.status = "Banned". Nullable vì cột mới thêm vào bảng đã có dữ liệu.
+    @Column(name = "NonCompliantMonthsThisYear")
+    private Integer nonCompliantMonthsThisYear;
+
+    // Năm mà nonCompliantMonthsThisYear đang áp dụng, dùng để phát hiện sang năm mới cần reset.
+    @Column(name = "ComplianceTrackingYear")
+    private Integer complianceTrackingYear;
+
     private Double averageRating; // Điểm đánh giá trung bình từ các bệnh nhân cũ (VD: 4.8/5 sao)
     private Integer totalReviews; // Tổng số lượt bệnh nhân đã để lại đánh giá cho bác sĩ này
 
