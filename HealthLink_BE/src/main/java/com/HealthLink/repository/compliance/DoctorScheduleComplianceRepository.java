@@ -51,7 +51,7 @@ public interface DoctorScheduleComplianceRepository extends JpaRepository<Doctor
            "WHERE c.complianceMonth = :month " +
            "AND (:status IS NULL OR c.status = :status) " +
            "AND (:specialtyId IS NULL OR c.doctor.specialtyEntity.specialtyId = :specialtyId) " +
-           "ORDER BY c.scheduledHours ASC")
+           "ORDER BY c.scheduleActive DESC, c.scheduledHours ASC")
     Page<DoctorScheduleCompliance> findWithFilters(@Param("month") String month,
                                                     @Param("status") ComplianceStatus status,
                                                     @Param("specialtyId") Integer specialtyId,

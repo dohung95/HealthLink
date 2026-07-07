@@ -48,9 +48,10 @@ public class AdminCommissionServiceImpl implements AdminCommissionService {
     private static final List<String> COMPLETED_STATUSES = Arrays.asList("COMPLETED");
     private static final List<String> CANCELLED_STATUSES = Arrays.asList("CANCELLED", "NO_SHOW", "REFUNDED");
 
-    // Consultation types
+    // Consultation types — luồng mới chỉ lưu 'Online'/'HomeVisit' (xem DoctorServiceHelper.normalizeConsultationType);
+    // các giá trị VIDEO/AUDIO/CHAT/OFFLINE/IN_PERSON/CLINIC là dữ liệu cũ chưa migrate, giữ lại để tương thích ngược.
     private static final List<String> ONLINE_TYPES = Arrays.asList("VIDEO", "AUDIO", "CHAT", "ONLINE");
-    private static final List<String> OFFLINE_TYPES = Arrays.asList("OFFLINE", "IN_PERSON", "CLINIC");
+    private static final List<String> OFFLINE_TYPES = Arrays.asList("HOMEVISIT", "HOME_VISIT", "OFFLINE", "IN_PERSON", "CLINIC");
 
     // Pharmacy order statuses
     private static final List<String> PHARMACY_PENDING_STATUSES = Arrays.asList("PENDING", "CONFIRMED", "PREPARING", "READY", "SHIPPING");
@@ -59,7 +60,11 @@ public class AdminCommissionServiceImpl implements AdminCommissionService {
 
     @Override
     public List<AdminCommissionConfigDto> getAllConfigs() {
+        // CONSULTATION_OFFLINE là serviceType của luồng cũ — appointment giờ chỉ normalize ra Online/HomeVisit
+        // (xem resolveAppointmentServiceType, FeeCalculatorServiceImpl) nên config này không còn áp dụng cho ai,
+        // ẩn khỏi danh sách để admin không chỉnh nhầm một rate vô tác dụng.
         return configRepo.findAllByOrderByServiceTypeAsc().stream()
+            .filter(c -> !"CONSULTATION_OFFLINE".equals(c.getServiceType()))
             .map(this::toConfigDto)
             .toList();
     }
@@ -708,7 +713,9 @@ public class AdminCommissionServiceImpl implements AdminCommissionService {
             .map(CommissionConfig::getCommissionRate)
             .orElse(new BigDecimal("0.15"));
 
-        BigDecimal defaultOfflineRate = configRepo.findActiveConfigByServiceType("CONSULTATION_OFFLINE", now)
+        // Rate thực tế được áp dụng cho appointment HomeVisit (xem getCommissionRate()) đọc từ config CONSULTATION_HOME_VISIT,
+        // không phải CONSULTATION_OFFLINE (config cũ, không còn appointment nào dùng trong luồng mới).
+        BigDecimal defaultOfflineRate = configRepo.findActiveConfigByServiceType("CONSULTATION_HOME_VISIT", now)
             .map(CommissionConfig::getCommissionRate)
             .orElse(new BigDecimal("0.10"));
 
