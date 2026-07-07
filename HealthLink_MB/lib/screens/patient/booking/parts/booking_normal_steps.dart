@@ -97,7 +97,7 @@ extension _BookingNormalSteps on _BookingScreenState {
               _recommendedDoctor = null;
             });
 
-            await _loadManualSelectionFee();
+            await _ensureManualSelectionFeeLoaded();
             await _loadDoctors(reset: true);
           }
         },
@@ -672,7 +672,7 @@ extension _BookingNormalSteps on _BookingScreenState {
         minLines: 5,
         maxLines: 8,
         decoration: InputDecoration(
-          labelText: AppLocalizations.of(context)!.bookingSymptomsInput,
+          label: _requiredLabel(AppLocalizations.of(context)!.bookingSymptomsInput),
           hintText: AppLocalizations.of(context)!.bookingSymptomsHint,
           border: OutlineInputBorder(borderRadius: BorderRadius.circular(18)),
           alignLabelWithHint: true,
