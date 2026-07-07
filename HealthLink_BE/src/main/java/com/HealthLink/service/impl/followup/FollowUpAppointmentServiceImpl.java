@@ -1,5 +1,6 @@
 package com.HealthLink.service.impl.followup;
 
+import com.HealthLink.dto.consultation.FollowUpHomeVisitDetailsDto;
 import com.HealthLink.dto.consultation.FollowUpRequest;
 import com.HealthLink.dto.consultation.FollowUpResponse;
 import com.HealthLink.dto.consultation.FollowUpStatusResponse;
@@ -13,6 +14,7 @@ import com.HealthLink.dto.chat.MessageDTO;
 import com.HealthLink.entity.Appointment;
 import com.HealthLink.entity.Consultation;
 import com.HealthLink.entity.Doctor;
+import com.HealthLink.entity.HomeVisitDetails;
 import com.HealthLink.entity.User;
 import com.HealthLink.entity.DoctorSchedule;
 import com.HealthLink.entity.DoctorScheduleException;
@@ -64,6 +66,11 @@ import java.util.Objects;
 public class FollowUpAppointmentServiceImpl implements FollowUpAppointmentService {
 
     private static final DateTimeFormatter SLOT_TIME_FORMATTER = DateTimeFormatter.ofPattern("HH:mm");
+    private static final String TYPE_HOME_VISIT = "HomeVisit";
+    private static final String STATUS_CANCELLED = "CANCELLED";
+    private static final String STATUS_AVAILABLE = "AVAILABLE";
+    private static final String STATUS_BOOKED = "BOOKED";
+    private static final int DEFAULT_SLOT_MINUTES = 30;
 
     private final AppointmentRepository appointmentRepository;
     private final ConsultationRepository consultationRepository;
@@ -83,7 +90,7 @@ public class FollowUpAppointmentServiceImpl implements FollowUpAppointmentServic
 
     @Override
     @Transactional(readOnly = true)
-    public FollowUpSlotsResponse getSlots(String doctorId, LocalDate date) {
+    public FollowUpSlotsResponse getSlots(String doctorId, LocalDate date, String consultationType) {
         if (doctorId == null || doctorId.isBlank()) {
             throw new BadRequestException("Doctor ID is required");
         }
@@ -97,13 +104,13 @@ public class FollowUpAppointmentServiceImpl implements FollowUpAppointmentServic
         return FollowUpSlotsResponse.builder()
                 .doctorId(doctorId)
                 .date(date)
-                .slots(generateFollowUpSlotsForDay(doctorId, date, LocalDateTime.now()))
+                .slots(generateFollowUpSlotsForDay(doctorId, date, LocalDateTime.now(), consultationType, null))
                 .build();
     }
 
     @Override
     @Transactional(readOnly = true)
-    public FollowUpCalendarResponse getCalendar(String doctorId, String month) {
+    public FollowUpCalendarResponse getCalendar(String doctorId, String month, String consultationType) {
         if (doctorId == null || doctorId.isBlank()) {
             throw new BadRequestException("Doctor ID is required");
         }
@@ -117,7 +124,9 @@ public class FollowUpAppointmentServiceImpl implements FollowUpAppointmentServic
         List<FollowUpCalendarDayResponse> days = new ArrayList<>();
         for (int day = 1; day <= yearMonth.lengthOfMonth(); day++) {
             LocalDate date = yearMonth.atDay(day);
-            List<FollowUpSlotResponse> slots = generateFollowUpSlotsForDay(doctorId, date, now);
+            FollowUpDayAvailability availability =
+                    buildFollowUpDayAvailability(doctorId, date, now, consultationType, null);
+            List<FollowUpSlotResponse> slots = availability.slots();
             int totalSlots = slots.size();
             int bookedSlots = (int) slots.stream()
                     .filter(slot -> "BOOKED".equals(slot.getStatus()))
@@ -132,7 +141,11 @@ public class FollowUpAppointmentServiceImpl implements FollowUpAppointmentServic
                     .bookedSlots(bookedSlots)
                     .availableSlots(availableSlots)
                     .hasAppointments(bookedSlots > 0)
-                    .status(resolveDayStatus(date, availableSlots))
+                    .status(resolveDayStatus(
+                            date,
+                            availability.exceptionType(),
+                            availability.hasTargetSchedules(),
+                            availableSlots))
                     .build());
         }
 
@@ -145,7 +158,11 @@ public class FollowUpAppointmentServiceImpl implements FollowUpAppointmentServic
 
     @Override
     @Transactional(readOnly = true)
-    public void validateFollowUpSlot(Appointment appointment, LocalDateTime followUpDate) {
+    public void validateFollowUpSlot(Appointment appointment, LocalDateTime followUpDate, String consultationType) {
+        validateFollowUpSlot(appointment, followUpDate, consultationType, null);
+    }
+
+    private void validateFollowUpSlot(Appointment appointment, LocalDateTime followUpDate, String consultationType, Integer ignoredAppointmentId) {
         if (appointment == null || appointment.getDoctor() == null) {
             throw new BadRequestException("Consultation appointment is required");
         }
@@ -159,7 +176,7 @@ public class FollowUpAppointmentServiceImpl implements FollowUpAppointmentServic
 
         String doctorId = appointment.getDoctor().getDoctorId();
         List<FollowUpSlotResponse> slots = generateFollowUpSlotsForDay(
-                doctorId, followUpDate.toLocalDate(), LocalDateTime.now());
+                doctorId, followUpDate.toLocalDate(), LocalDateTime.now(), consultationType, ignoredAppointmentId);
 
         boolean isAvailable = slots.stream()
                 .anyMatch(slot -> "AVAILABLE".equals(slot.getStatus())
@@ -178,19 +195,34 @@ public class FollowUpAppointmentServiceImpl implements FollowUpAppointmentServic
     @Override
     @Transactional
     public FollowUpResponse scheduleFollowUpAppointment(Appointment sourceAppointment, FollowUpRequest request) {
-        validateFollowUpSlot(sourceAppointment, request.getFollowUpDate());
         Consultation consultation = consultationRepository
                 .findByAppointment_AppointmentId(sourceAppointment.getAppointmentId())
                 .orElseThrow(() -> new ResourceNotFoundException(
                         "Consultation not found for appointment: " + sourceAppointment.getAppointmentId()));
 
+        String requestedType = request.getConsultationType() != null
+                ? request.getConsultationType()
+                : sourceAppointment.getConsultationType();
+
         if (consultation.getFollowUpAppointmentId() != null) {
             Appointment existingFollowUp = appointmentRepository
                     .findById(consultation.getFollowUpAppointmentId()).orElse(null);
-            if (existingFollowUp != null && !"CANCELLED".equalsIgnoreCase(existingFollowUp.getStatus())) {
+
+            if (existingFollowUp != null && !STATUS_CANCELLED.equalsIgnoreCase(existingFollowUp.getStatus())) {
+                if (request.getFollowUpDate().equals(existingFollowUp.getAppointmentTime())
+                        && sameConsultationType(requestedType, existingFollowUp.getConsultationType())) {
+                    consultation.setFollowUpDate(request.getFollowUpDate());
+                    consultation.setFollowUpNotes(request.getFollowUpNotes());
+                    if (request.getConsultationType() != null) {
+                        consultation.setConsultationType(request.getConsultationType());
+                    }
+                    return toFollowUpResponse(consultationRepository.save(consultation));
+                }
                 return rescheduleExistingFollowUp(sourceAppointment, consultation, existingFollowUp, request);
             }
         }
+
+        validateFollowUpSlot(sourceAppointment, request.getFollowUpDate(), requestedType);
 
         consultation.setFollowUpDate(request.getFollowUpDate());
         consultation.setFollowUpNotes(request.getFollowUpNotes());
@@ -202,6 +234,12 @@ public class FollowUpAppointmentServiceImpl implements FollowUpAppointmentServic
         return toFollowUpResponse(consultation);
     }
 
+    private boolean sameConsultationType(String left, String right) {
+        String l = left == null ? "" : left.trim().replaceAll("[\\s_-]", "").toLowerCase();
+        String r = right == null ? "" : right.trim().replaceAll("[\\s_-]", "").toLowerCase();
+        return l.equals(r);
+    }
+
     private FollowUpResponse rescheduleExistingFollowUp(
             Appointment sourceAppointment,
             Consultation consultation,
@@ -209,22 +247,18 @@ public class FollowUpAppointmentServiceImpl implements FollowUpAppointmentServic
             FollowUpRequest request) {
 
         LocalDateTime newDate = request.getFollowUpDate();
+        String requestedType = request.getConsultationType() != null
+                ? request.getConsultationType()
+                : existingFollowUp.getConsultationType();
 
-        List<FollowUpSlotResponse> slots = generateFollowUpSlotsForDay(
-                sourceAppointment.getDoctor().getDoctorId(),
-                newDate.toLocalDate(),
-                LocalDateTime.now());
-
-        boolean isAvailable = slots.stream()
-                .anyMatch(slot -> "AVAILABLE".equals(slot.getStatus())
-                        && slot.getStartTime().equals(newDate.format(SLOT_TIME_FORMATTER)));
-
-        if (!isAvailable) {
-            throw new BadRequestException("The selected follow-up slot is not available for rescheduling");
-        }
+        validateFollowUpSlot(
+                sourceAppointment,
+                newDate,
+                requestedType,
+                existingFollowUp.getAppointmentId());
 
         int slotMinutes = resolveFollowUpSlotDuration(
-                sourceAppointment.getDoctor().getDoctorId(), newDate);
+                sourceAppointment.getDoctor().getDoctorId(), newDate, requestedType);
 
         existingFollowUp.setAppointmentTime(newDate);
         existingFollowUp.setEndTime(newDate.plusMinutes(slotMinutes));
@@ -316,17 +350,30 @@ public class FollowUpAppointmentServiceImpl implements FollowUpAppointmentServic
                 .orElseThrow(() -> new ResourceNotFoundException(
                         "Consultation not found for appointment: " + appointmentId));
 
+        Appointment source = consultation.getAppointment();
+        HomeVisitDetails sourceDetails = source != null ? source.getHomeVisitDetails() : null;
+
         return FollowUpStatusResponse.builder()
                 .status(consultation.getFollowUpStatus() != null
                         ? consultation.getFollowUpStatus().name()
                         : FollowUpStatus.NONE.name())
+                .consultationId(consultation.getConsultationId())
+                .sourceAppointmentId(source != null ? source.getAppointmentId() : null)
+                .sourceAppointmentType(source != null ? source.getConsultationType() : null)
                 .followUpDate(consultation.getFollowUpDate())
                 .followUpNotes(consultation.getFollowUpNotes())
                 .consultationType(consultation.getConsultationType())
                 .followUpAppointmentId(consultation.getFollowUpAppointmentId())
                 .homeVisitLatitude(consultation.getHomeVisitLatitude())
-                .doctorId(consultation.getAppointment() != null
-                        ? consultation.getAppointment().getDoctor().getDoctorId() : null)
+                .homeVisitLongitude(consultation.getHomeVisitLongitude())
+                .doctorId(source != null && source.getDoctor() != null
+                        ? source.getDoctor().getDoctorId() : null)
+                .patientId(source != null && source.getPatient() != null
+                        ? source.getPatient().getPatientId() : null)
+                .hasSourceHomeVisitDetails(sourceDetails != null
+                        && sourceDetails.getVisitLatitude() != null
+                        && sourceDetails.getVisitLongitude() != null)
+                .sourceHomeVisitDetails(toFollowUpHomeVisitDetailsDto(sourceDetails))
                 .build();
     }
 
@@ -508,7 +555,7 @@ public class FollowUpAppointmentServiceImpl implements FollowUpAppointmentServic
         }
 
         if (followUpAppointment == null && consultation != null && consultation.getFollowUpDate() != null) {
-            validateFollowUpSlot(completedAppointment, consultation.getFollowUpDate());
+            validateFollowUpSlot(completedAppointment, consultation.getFollowUpDate(), consultation.getConsultationType());
             followUpAppointment = createFollowUpAppointment(completedAppointment, consultation);
             consultation.setFollowUpAppointmentId(followUpAppointment.getAppointmentId());
             consultationRepository.save(consultation);
@@ -530,14 +577,36 @@ public class FollowUpAppointmentServiceImpl implements FollowUpAppointmentServic
     // Slot generation based on doctor's actual schedule
     // =========================================================================
 
+    private boolean isHomeVisitType(String value) {
+        return value != null
+                && TYPE_HOME_VISIT.equalsIgnoreCase(value.trim().replaceAll("[\\s_-]", ""));
+    }
+
+    private boolean isRequestedHomeVisit(String consultationType) {
+        return isHomeVisitType(consultationType);
+    }
+
     private List<FollowUpSlotResponse> generateFollowUpSlotsForDay(
-            String doctorId, LocalDate date, LocalDateTime now) {
+            String doctorId, LocalDate date, LocalDateTime now,
+            String consultationType, Integer ignoredAppointmentId) {
+        return buildFollowUpDayAvailability(doctorId, date, now, consultationType, ignoredAppointmentId).slots();
+    }
+
+    private record FollowUpDayAvailability(
+            List<FollowUpSlotResponse> slots,
+            ScheduleExceptionType exceptionType,
+            boolean hasTargetSchedules) {
+    }
+
+    private FollowUpDayAvailability buildFollowUpDayAvailability(
+            String doctorId, LocalDate date, LocalDateTime now,
+            String consultationType, Integer ignoredAppointmentId) {
 
         DoctorScheduleException exception = exceptionRepository
                 .findByDoctor_DoctorIdAndExceptionDate(doctorId, date).orElse(null);
 
         if (exception != null && exception.getExceptionType() == ScheduleExceptionType.DAY_OFF) {
-            return List.of();
+            return new FollowUpDayAvailability(List.of(), ScheduleExceptionType.DAY_OFF, false);
         }
 
         int dayOfWeek = date.getDayOfWeek().getValue() % 7;
@@ -548,7 +617,11 @@ public class FollowUpAppointmentServiceImpl implements FollowUpAppointmentServic
         LocalDateTime dayEnd = date.plusDays(1).atStartOfDay().minusNanos(1);
         List<Appointment> bookedAppointments = appointmentRepository
                 .findByDoctor_DoctorIdAndStatusNotAndAppointmentTimeBetween(
-                        doctorId, "CANCELLED", dayStart, dayEnd);
+                        doctorId, STATUS_CANCELLED, dayStart, dayEnd)
+                .stream()
+                .filter(appointment -> ignoredAppointmentId == null
+                        || !ignoredAppointmentId.equals(appointment.getAppointmentId()))
+                .toList();
 
         List<AppointmentSlotHold> activeHolds = appointmentSlotHoldRepository
                 .findByDoctor_DoctorIdAndAppointmentTimeBetweenAndExpiresAtAfter(
@@ -558,66 +631,40 @@ public class FollowUpAppointmentServiceImpl implements FollowUpAppointmentServic
                 .findByDoctorIdAndBookingDate(doctorId, date);
 
         java.util.Map<Integer, DoctorSchedule> homeVisitScheduleMap = allSchedules.stream()
-                .filter(s -> "HomeVisit".equalsIgnoreCase(s.getConsultationType()))
+                .filter(s -> isHomeVisitType(s.getConsultationType()))
                 .collect(java.util.stream.Collectors.toMap(
                         DoctorSchedule::getScheduleId, s -> s, (a, b) -> a));
 
-        java.util.Set<Integer> bookedHomeVisitScheduleIds = homeVisitBookings.stream()
-                .map(HomeVisitBooking::getScheduleId)
-                .collect(java.util.stream.Collectors.toSet());
-
-        List<DoctorSchedule> onlineSchedules = allSchedules.stream()
-                .filter(s -> !"HomeVisit".equalsIgnoreCase(s.getConsultationType()))
-                .collect(java.util.stream.Collectors.toList());
+        List<DoctorSchedule> targetSchedules = filterSchedulesForConsultationType(allSchedules, consultationType);
+        List<BlockedRange> homeVisitBlockedRanges = buildHomeVisitBookingRanges(homeVisitBookings, homeVisitScheduleMap);
 
         List<FollowUpSlotResponse> slots = new ArrayList<>();
 
         if (exception != null && exception.getExceptionType() == ScheduleExceptionType.MODIFIED) {
-            int slotMinutes = resolveSlotDuration(onlineSchedules);
-            if (!onlineSchedules.isEmpty()) {
-                boolean blockedByHomeVisit = isTimeRangeBlockedByHomeVisit(
-                        exception.getStartTime(), exception.getEndTime(),
-                        bookedHomeVisitScheduleIds, homeVisitScheduleMap);
-                if (!blockedByHomeVisit) {
-                    generateFollowUpSlotsForTimeRange(
-                            slots, date, exception.getStartTime(), exception.getEndTime(),
-                            slotMinutes, bookedAppointments, activeHolds, now);
-                }
+            int slotMinutes = resolveSlotDuration(targetSchedules);
+            if (!targetSchedules.isEmpty()) {
+                generateFollowUpSlotsForTimeRange(
+                        slots, date, exception.getStartTime(), exception.getEndTime(),
+                        slotMinutes, bookedAppointments, activeHolds, homeVisitBlockedRanges, now);
             }
         } else {
-            for (DoctorSchedule schedule : onlineSchedules) {
-                boolean blockedByHomeVisit = isTimeRangeBlockedByHomeVisit(
-                        schedule.getStartTime(), schedule.getEndTime(),
-                        bookedHomeVisitScheduleIds, homeVisitScheduleMap);
-
-                if (blockedByHomeVisit) {
-                    addBlockedSlots(slots, date, schedule.getStartTime(),
-                            schedule.getEndTime(), schedule.getSlotDuration() != null
-                                    ? schedule.getSlotDuration() : 30);
-                    continue;
-                }
-
-                int slotMinutes = schedule.getSlotDuration() != null ? schedule.getSlotDuration() : 30;
+            for (DoctorSchedule schedule : targetSchedules) {
+                int slotMinutes = schedule.getSlotDuration() != null ? schedule.getSlotDuration() : DEFAULT_SLOT_MINUTES;
                 generateFollowUpSlotsForTimeRange(
                         slots, date, schedule.getStartTime(), schedule.getEndTime(),
-                        slotMinutes, bookedAppointments, activeHolds, now);
+                        slotMinutes, bookedAppointments, activeHolds, homeVisitBlockedRanges, now);
             }
 
             if (exception != null && exception.getExceptionType() == ScheduleExceptionType.ADD_SLOT) {
-                int slotMinutes = resolveSlotDuration(onlineSchedules);
-                boolean blockedByHomeVisit = isTimeRangeBlockedByHomeVisit(
-                        exception.getStartTime(), exception.getEndTime(),
-                        bookedHomeVisitScheduleIds, homeVisitScheduleMap);
-                if (!blockedByHomeVisit) {
-                    generateFollowUpSlotsForTimeRange(
-                            slots, date, exception.getStartTime(), exception.getEndTime(),
-                            slotMinutes, bookedAppointments, activeHolds, now);
-                }
+                int slotMinutes = resolveSlotDuration(targetSchedules);
+                generateFollowUpSlotsForTimeRange(
+                        slots, date, exception.getStartTime(), exception.getEndTime(),
+                        slotMinutes, bookedAppointments, activeHolds, homeVisitBlockedRanges, now);
             }
         }
 
         slots.sort((a, b) -> a.getStartTime().compareTo(b.getStartTime()));
-        return slots;
+        return new FollowUpDayAvailability(slots, null, !targetSchedules.isEmpty());
     }
 
     private void generateFollowUpSlotsForTimeRange(
@@ -628,6 +675,7 @@ public class FollowUpAppointmentServiceImpl implements FollowUpAppointmentServic
             int slotMinutes,
             List<Appointment> bookedAppointments,
             List<AppointmentSlotHold> activeHolds,
+            List<BlockedRange> blockedRanges,
             LocalDateTime now) {
 
         LocalDateTime slotStart = LocalDateTime.of(date, startTime);
@@ -650,8 +698,18 @@ public class FollowUpAppointmentServiceImpl implements FollowUpAppointmentServic
             boolean hasHold = activeHolds.stream()
                     .anyMatch(h -> holdOverlaps(h, currentSlotStart, currentSlotEnd));
 
-            String status = (bookedAppointment != null || hasHold) ? "BOOKED" : "AVAILABLE";
-            boolean selectable = bookedAppointment == null && !hasHold;
+            BlockedRange blockedRange = blockedRanges.stream()
+                    .filter(range -> range.overlaps(currentSlotStart.toLocalTime(), currentSlotEnd.toLocalTime()))
+                    .findFirst()
+                    .orElse(null);
+
+            String status = (bookedAppointment != null || hasHold || blockedRange != null) ? "BOOKED" : "AVAILABLE";
+            boolean selectable = bookedAppointment == null && !hasHold && blockedRange == null;
+            String disabledReason = bookedAppointment != null
+                    ? "Slot already booked"
+                    : hasHold
+                            ? "Slot is being booked by another patient"
+                            : blockedRange != null ? blockedRange.reason() : null;
 
             String startLabel = currentSlotStart.toLocalTime().format(SLOT_TIME_FORMATTER);
             String endLabel = currentSlotEnd.toLocalTime().format(SLOT_TIME_FORMATTER);
@@ -665,8 +723,7 @@ public class FollowUpAppointmentServiceImpl implements FollowUpAppointmentServic
                     .consultationId(bookedAppointment != null && bookedAppointment.getConsultation() != null
                             ? bookedAppointment.getConsultation().getConsultationId() : null)
                     .label(startLabel + " - " + endLabel)
-                    .disabledReason(bookedAppointment != null ? "Slot already booked"
-                            : hasHold ? "Slot is being booked by another patient" : null)
+                    .disabledReason(disabledReason)
                     .build());
 
             slotStart = currentSlotEnd;
@@ -703,53 +760,48 @@ public class FollowUpAppointmentServiceImpl implements FollowUpAppointmentServic
         return holdStart.isBefore(slotEnd) && holdEnd.isAfter(slotStart);
     }
 
-    private boolean isTimeRangeBlockedByHomeVisit(
-            LocalTime rangeStart, LocalTime rangeEnd,
-            java.util.Set<Integer> bookedHomeVisitScheduleIds,
-            java.util.Map<Integer, DoctorSchedule> homeVisitScheduleMap) {
-
-        return bookedHomeVisitScheduleIds.stream()
-                .map(homeVisitScheduleMap::get)
-                .filter(s -> s != null)
-                .anyMatch(hvSchedule ->
-                    rangeStart.isBefore(hvSchedule.getEndTime())
-                    && hvSchedule.getStartTime().isBefore(rangeEnd)
-                );
-    }
-
-    private void addBlockedSlots(
-            List<FollowUpSlotResponse> slots,
-            LocalDate date,
-            LocalTime startTime,
-            LocalTime endTime,
-            int slotMinutes) {
-
-        LocalDateTime slotStart = LocalDateTime.of(date, startTime);
-        LocalDateTime rangeEnd = LocalDateTime.of(date, endTime);
-
-        while (!slotStart.plusMinutes(slotMinutes).isAfter(rangeEnd)) {
-            LocalDateTime currentSlotStart = slotStart;
-            LocalDateTime currentSlotEnd = slotStart.plusMinutes(slotMinutes);
-
-            String startLabel = currentSlotStart.toLocalTime().format(SLOT_TIME_FORMATTER);
-            String endLabel = currentSlotEnd.toLocalTime().format(SLOT_TIME_FORMATTER);
-
-            slots.add(FollowUpSlotResponse.builder()
-                    .startTime(startLabel)
-                    .endTime(endLabel)
-                    .status("BOOKED")
-                    .selectable(false)
-                    .label(startLabel + " - " + endLabel)
-                    .disabledReason("Slot blocked by home visit booking")
-                    .build());
-
-            slotStart = currentSlotEnd;
-        }
-    }
-
     // =========================================================================
     // Helpers
     // =========================================================================
+
+    private record BlockedRange(LocalTime startTime, LocalTime endTime, String reason) {
+        boolean overlaps(LocalTime start, LocalTime end) {
+            return start.isBefore(endTime) && startTime.isBefore(end);
+        }
+    }
+
+    private List<DoctorSchedule> filterSchedulesForConsultationType(
+            List<DoctorSchedule> schedules, String consultationType) {
+        boolean homeVisitRequested = isRequestedHomeVisit(consultationType);
+        return schedules.stream()
+                .filter(schedule -> homeVisitRequested
+                        ? isHomeVisitType(schedule.getConsultationType())
+                        : !isHomeVisitType(schedule.getConsultationType()))
+                .toList();
+    }
+
+    private List<BlockedRange> buildHomeVisitBookingRanges(
+            List<HomeVisitBooking> bookings,
+            java.util.Map<Integer, DoctorSchedule> homeVisitScheduleMap) {
+        return bookings.stream()
+                .map(booking -> {
+                    LocalTime start = booking.getStartTime();
+                    LocalTime end = booking.getEndTime();
+                    if ((start == null || end == null) && booking.getScheduleId() != null) {
+                        DoctorSchedule schedule = homeVisitScheduleMap.get(booking.getScheduleId());
+                        if (schedule != null) {
+                            start = schedule.getStartTime();
+                            end = schedule.getEndTime();
+                        }
+                    }
+                    if (start == null || end == null || !start.isBefore(end)) {
+                        return null;
+                    }
+                    return new BlockedRange(start, end, "Slot blocked by home visit booking");
+                })
+                .filter(Objects::nonNull)
+                .toList();
+    }
 
     private YearMonth parseMonth(String month) {
         if (month == null || month.isBlank()) {
@@ -762,16 +814,30 @@ public class FollowUpAppointmentServiceImpl implements FollowUpAppointmentServic
         }
     }
 
-    private String resolveDayStatus(LocalDate date, int availableSlots) {
+    private String resolveDayStatus(
+            LocalDate date,
+            ScheduleExceptionType exceptionType,
+            boolean hasTargetSchedules,
+            int availableSlots) {
         if (date.isBefore(LocalDate.now())) {
             return "DISABLED";
+        }
+        if (exceptionType == ScheduleExceptionType.DAY_OFF) {
+            return "DAY_OFF";
+        }
+        if (!hasTargetSchedules) {
+            return "NO_SCHEDULE";
         }
         return availableSlots > 0 ? "AVAILABLE" : "FULL";
     }
 
     private Appointment createFollowUpAppointment(Appointment sourceAppointment, Consultation consultation) {
         LocalDateTime followUpDate = consultation.getFollowUpDate();
-        int slotMinutes = resolveFollowUpSlotDuration(sourceAppointment.getDoctor().getDoctorId(), followUpDate);
+        String followUpType = consultation.getConsultationType() != null
+                ? consultation.getConsultationType()
+                : sourceAppointment.getConsultationType();
+        int slotMinutes = resolveFollowUpSlotDuration(
+                sourceAppointment.getDoctor().getDoctorId(), followUpDate, followUpType);
 
         Appointment followUpAppointment = Appointment.builder()
                 .patient(sourceAppointment.getPatient())
@@ -792,16 +858,21 @@ public class FollowUpAppointmentServiceImpl implements FollowUpAppointmentServic
         return appointmentRepository.save(followUpAppointment);
     }
 
-    private int resolveFollowUpSlotDuration(String doctorId, LocalDateTime dateTime) {
+    private int resolveFollowUpSlotDuration(
+            String doctorId,
+            LocalDateTime dateTime,
+            String consultationType) {
         int dayOfWeek = dateTime.getDayOfWeek().getValue() % 7;
         LocalTime requestedTime = dateTime.toLocalTime();
 
         return scheduleRepository
                 .findByDoctor_DoctorIdAndDayOfWeekAndAvailableTrue(doctorId, dayOfWeek)
                 .stream()
-                .filter(s -> !requestedTime.isBefore(s.getStartTime()) && requestedTime.isBefore(s.getEndTime()))
+                .filter(schedule -> sameConsultationType(schedule.getConsultationType(), consultationType))
+                .filter(schedule -> !requestedTime.isBefore(schedule.getStartTime())
+                        && requestedTime.isBefore(schedule.getEndTime()))
                 .findFirst()
-                .map(s -> s.getSlotDuration() != null ? s.getSlotDuration() : 30)
+                .map(schedule -> schedule.getSlotDuration() != null ? schedule.getSlotDuration() : 30)
                 .orElse(30);
     }
 
@@ -858,6 +929,27 @@ public class FollowUpAppointmentServiceImpl implements FollowUpAppointmentServic
 
         PrescriptionHeader saved = prescriptionHeaderRepository.save(copy);
         return saved.getPrescriptionHeaderId();
+    }
+
+    private FollowUpHomeVisitDetailsDto toFollowUpHomeVisitDetailsDto(HomeVisitDetails details) {
+        if (details == null) {
+            return null;
+        }
+        return FollowUpHomeVisitDetailsDto.builder()
+                .visitAddress(details.getVisitAddress())
+                .visitCity(details.getVisitCity())
+                .contactPhone(details.getContactPhone())
+                .reasonForHomeVisit(details.getReasonForHomeVisit())
+                .specialNotes(details.getSpecialNotes())
+                .isForSelf(details.getIsForSelf())
+                .receiverName(details.getReceiverName())
+                .receiverAge(details.getReceiverAge())
+                .receiverGender(details.getReceiverGender())
+                .receiverRelationship(details.getReceiverRelationship())
+                .receiverPhone(details.getReceiverPhone())
+                .visitLatitude(details.getVisitLatitude())
+                .visitLongitude(details.getVisitLongitude())
+                .build();
     }
 
     private FollowUpResponse toFollowUpResponse(Consultation c) {

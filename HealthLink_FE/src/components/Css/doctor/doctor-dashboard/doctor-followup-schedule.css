@@ -96,6 +96,26 @@
    Colors follow doctor-color-pattern.md tokens.
    ============================================ */
 
+.fu-calendar-card .react-calendar__month-view__days__day--weekend {
+  color: inherit;
+}
+
+.fu-calendar-card .react-calendar__tile.fu-cal-tile--day-off {
+  background: #fef2f2;
+  color: #b91c1c;
+  opacity: 1;
+}
+
+.fu-calendar-card .react-calendar__tile.fu-cal-tile--day-off:disabled {
+  background: #fef2f2;
+  color: #b91c1c;
+}
+
+.fu-calendar-card .react-calendar__tile--active.fu-cal-tile--day-off {
+  background: var(--doctor-primary, #0052cc) !important;
+  color: #fff !important;
+}
+
 /* ---- Root Container ---- */
 .fu-container {
   display: flex;

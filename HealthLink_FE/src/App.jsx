@@ -54,6 +54,7 @@ import NotificationToastBridge from './components/notifications/NotificationToas
 import PrescriptionNotificationModal from './components/PrescriptionNotificationModal';
 import MedicineReminderQuickModal from './components/patient-dashboard/MedicineReminderQuickModal';
 import AdminActionNotificationModal from './components/AdminActionNotificationModal';
+import FollowUpHomeVisitBookingPage from './components/patient/FollowUpHomeVisitBookingPage';
 
 import Navbar from './components/Navbar';
 import DoctorPublicProfilePage from './pages/doctor/DoctorPublicProfilePage';
@@ -89,11 +90,11 @@ import ChatPage from './components/ChatPage';
 function App() {
   return (
     <ChatProvider>
-      <NotificationProvider>
-        <Router>
+      <Router>
+        <NotificationProvider>
           <AppContent />
-        </Router>
-      </NotificationProvider>
+        </NotificationProvider>
+      </Router>
     </ChatProvider>
   );
 }
@@ -398,6 +399,7 @@ function AppContent() {
               <Route index element={<PatientDashboardHome />} />
               <Route path="booking" element={<Schedule />} />
               <Route path="book/:doctorId" element={<Schedule />} />
+              <Route path="follow-up-homevisit/:appointmentId" element={<FollowUpHomeVisitBookingPage />} />
               <Route path="appointments" element={<MyAppointments />} />
               <Route path="health-records" element={<HealthRecords embedded />} />
               <Route path="share-records" element={<ShareHealthRecords embedded />} />

@@ -131,5 +131,10 @@ export const buildConsultation = (source) => {
     followUpDate: consultation.followUpDate ?? source?.followUpDate ?? null,
     followUpAppointmentId: consultation.followUpAppointmentId ?? source?.followUpAppointmentId ?? null,
     followUpNotes: consultation.followUpNotes ?? source?.followUpNotes ?? null,
+    followUpConsultationType:
+      consultation.consultationType
+      ?? source?.followUpConsultationType
+      ?? source?.followUpType
+      ?? null,
   };
 };

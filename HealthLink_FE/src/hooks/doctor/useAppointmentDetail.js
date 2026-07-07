@@ -290,7 +290,7 @@ export function useAppointmentDetail({ appointment, patient, doctorId: currentDo
         appointmentData.refreshAppointmentData({ showToast: false });
       }
 
-      if (followUp.selectedFollowUpDateTime) {
+      if (!consultation?.followUpAppointmentId && followUp.selectedFollowUpDateTime) {
         await followUp.saveFollowUp(followUp.selectedFollowUpDateTime, followUp.followUpNotes, null);
       }
 
@@ -307,10 +307,6 @@ export function useAppointmentDetail({ appointment, patient, doctorId: currentDo
         toast.success(completionResult?.createdFollowUp
           ? 'Appointment completed and follow-up scheduled'
           : 'Appointment completed. Follow-up appointment is scheduled.');
-        if (typeof onOpenAppointmentById === 'function') {
-          await onOpenAppointmentById(followUpAppointmentId);
-          return;
-        }
       } else {
         toast.success('Appointment marked as completed successfully');
       }

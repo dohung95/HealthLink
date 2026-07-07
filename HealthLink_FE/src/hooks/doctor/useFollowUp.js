@@ -46,7 +46,7 @@ export function useFollowUp({ appointment, appointmentDetail, doctorId, onRefres
     const followUp = buildConsultation(source);
     setFollowUpNotes(followUp.followUpNotes || '');
     setFollowUpConsultationType(
-      source?.consultationType || followUp.followUpConsultationType || 'Consultation',
+      followUp.followUpConsultationType || source?.consultationType || 'Consultation',
     );
 
     if (followUp.followUpDate) {
@@ -77,7 +77,7 @@ export function useFollowUp({ appointment, appointmentDetail, doctorId, onRefres
 
     setLoadingFollowUpSlots(true);
     try {
-      const data = await appointmentService.getFollowUpSlots(effectiveDoctorId, followUpSelectedDateValue);
+      const data = await appointmentService.getFollowUpSlots(effectiveDoctorId, followUpSelectedDateValue, followUpConsultationType);
       setFollowUpSlots(Array.isArray(data?.slots) ? data.slots : []);
     } catch (error) {
       console.error('Error loading follow-up slots:', error);
@@ -86,14 +86,14 @@ export function useFollowUp({ appointment, appointmentDetail, doctorId, onRefres
     } finally {
       setLoadingFollowUpSlots(false);
     }
-  }, [effectiveDoctorId, followUpSelectedDateValue]);
+  }, [effectiveDoctorId, followUpSelectedDateValue, followUpConsultationType]);
 
   const loadFollowUpCalendar = useCallback(async () => {
     if (!effectiveDoctorId || !followUpCalendarMonth) return;
 
     setLoadingFollowUpCalendar(true);
     try {
-      const data = await appointmentService.getFollowUpCalendar(effectiveDoctorId, followUpCalendarMonth);
+      const data = await appointmentService.getFollowUpCalendar(effectiveDoctorId, followUpCalendarMonth, followUpConsultationType);
       setFollowUpCalendarDays(Array.isArray(data?.days) ? data.days : []);
     } catch (error) {
       console.error('Error loading follow-up calendar:', error);
@@ -101,7 +101,7 @@ export function useFollowUp({ appointment, appointmentDetail, doctorId, onRefres
     } finally {
       setLoadingFollowUpCalendar(false);
     }
-  }, [effectiveDoctorId, followUpCalendarMonth]);
+  }, [effectiveDoctorId, followUpCalendarMonth, followUpConsultationType]);
 
   useEffect(() => {
     loadFollowUpSlots();
@@ -277,6 +277,11 @@ export function useFollowUp({ appointment, appointmentDetail, doctorId, onRefres
     }
   }, [selectedFollowUpDateTime, followUpNotes, savePendingFollowUp]);
 
+  const handleFollowUpTypeChange = useCallback((nextType) => {
+    setFollowUpConsultationType(nextType);
+    setSelectedFollowUpDateTime(null);
+  }, []);
+
   const handleCancelReschedule = useCallback(() => {
     const followUp = buildConsultation(source);
     setIsRescheduling(false);
@@ -291,7 +296,7 @@ export function useFollowUp({ appointment, appointmentDetail, doctorId, onRefres
       }
     }
     setFollowUpNotes(followUp.followUpNotes || '');
-    setFollowUpConsultationType(source?.consultationType || followUp.followUpConsultationType || 'Consultation');
+    setFollowUpConsultationType(followUp.followUpConsultationType || source?.consultationType || 'Consultation');
   }, [source]);
 
   useEffect(() => {
@@ -398,7 +403,7 @@ export function useFollowUp({ appointment, appointmentDetail, doctorId, onRefres
     handleSelectFollowUpSlot,
     handleConfirmFollowUp,
     setFollowUpNotes,
-    setFollowUpConsultationType,
+    setFollowUpConsultationType: handleFollowUpTypeChange,
     saveFollowUp: savePendingFollowUp,
     followUpPaymentStatus,
     sendingPaymentRequest,

@@ -35,6 +35,18 @@ export function DoctorAppointmentDetailRoute() {
         setLoading(true);
         const detail = await appointmentService.getAppointmentDetail(appointmentId);
         const normalized = normalizeAppointmentDetail(detail, appointmentId);
+        
+        const isCompletedStatus = (status) =>
+          String(status || '').toLowerCase().replace(/[\s_-]/g, '') === 'completed';
+        if (isCompletedStatus(normalized.status)) {
+          const normalizedId = normalized.appointmentID || normalized.appointmentId || appointmentId;
+          navigate('/doctor/appointments/history', {
+            replace: true,
+            state: { selectedAppointmentId: normalizedId },
+          });
+          return;
+        }
+        
         const patientId = normalized.patient?.patientID || normalized.patientId;
         const patientData = patientId ? await doctorService.getPatientById(patientId) : null;
         if (mounted) {
@@ -62,7 +74,7 @@ export function DoctorAppointmentDetailRoute() {
       doctorId={doctorId}
       activeMiniChatAppt={activeMiniChatAppt}
       setActiveMiniChatAppt={setActiveMiniChatAppt}
-      onBack={() => navigate('/doctor')}
+      onBack={() => navigate('/doctor/appointments')}
       onOpenAppointmentById={(id) => navigate(`/doctor/appointments/${id}`)}
     />
   );

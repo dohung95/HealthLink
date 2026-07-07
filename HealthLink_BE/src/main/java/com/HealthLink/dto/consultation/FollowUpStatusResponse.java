@@ -13,5 +13,12 @@ public class FollowUpStatusResponse {
     private String consultationType;
     private Integer followUpAppointmentId;
     private Double homeVisitLatitude;
+    private Double homeVisitLongitude;
     private String doctorId;
+    private Integer consultationId;
+    private Integer sourceAppointmentId;
+    private String sourceAppointmentType;
+    private String patientId;
+    private Boolean hasSourceHomeVisitDetails;
+    private FollowUpHomeVisitDetailsDto sourceHomeVisitDetails;
 }

@@ -2,6 +2,7 @@ package com.HealthLink.service.impl.payment;
 
 import com.HealthLink.config.PayPalConfig;
 import com.HealthLink.dto.payment.AppointmentPayPalCaptureRequest;
+import com.HealthLink.dto.payment.FollowUpHomeVisitDetailsRequest;
 import com.HealthLink.dto.response.HomeVisitEstimateResponse;
 import com.HealthLink.dto.response.AppointmentResponse;
 import com.HealthLink.dto.payment.PharmacyOrderPayPalCaptureRequest;
@@ -9,7 +10,10 @@ import com.HealthLink.dto.pharmacy.PharmacyOrderResponse;
 import com.HealthLink.entity.Appointment;
 import com.HealthLink.entity.Consultation;
 import com.HealthLink.entity.Doctor;
+import com.HealthLink.entity.DoctorSchedule;
 import com.HealthLink.entity.DoctorService;
+import com.HealthLink.entity.HomeVisitDetails;
+import com.HealthLink.entity.enums.FollowUpStatus;
 import com.HealthLink.entity.Invoice;
 import com.HealthLink.entity.Patient;
 import com.HealthLink.entity.Payment;
@@ -25,6 +29,7 @@ import com.HealthLink.repository.auth.UserRepository;
 import com.HealthLink.repository.appointment.AppointmentRepository;
 import com.HealthLink.repository.consultation.ConsultationRepository;
 import com.HealthLink.repository.doctor.DoctorRepository;
+import com.HealthLink.repository.doctor.DoctorScheduleRepository;
 import com.HealthLink.repository.notification.DeviceTokenRepository;
 import com.HealthLink.repository.patient.PatientRepository;
 import com.HealthLink.repository.payment.InvoiceRepository;
@@ -32,6 +37,7 @@ import com.HealthLink.repository.payment.PaymentRepository;
 import com.HealthLink.repository.pharmacy.PharmacyOrderRepository;
 import com.HealthLink.repository.prescription.PrescriptionHeaderRepository;
 import com.HealthLink.service.appointment.AppointmentService;
+import com.HealthLink.service.followup.FollowUpAppointmentService;
 import com.HealthLink.service.homevisit.HomeVisitLocationService;
 import com.HealthLink.service.notification.NotificationService;
 import com.HealthLink.service.payment.CommissionService;
@@ -50,6 +56,7 @@ import org.springframework.web.client.RestTemplate;
 
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
+import java.time.LocalTime;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
@@ -57,8 +64,11 @@ import java.util.Optional;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.ArgumentMatchers.contains;
+import static org.mockito.Mockito.atLeastOnce;
+import static org.mockito.Mockito.doThrow;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.when;
@@ -115,7 +125,13 @@ class FinanceServiceImplTest {
     private HomeVisitLocationService homeVisitLocationService;
 
     @Mock
+    private DoctorScheduleRepository doctorScheduleRepository;
+
+    @Mock
     private CommissionService commissionService;
+
+    @Mock
+    private FollowUpAppointmentService followUpAppointmentService;
 
     @InjectMocks
     private FinanceServiceImpl financeService;
@@ -486,5 +502,274 @@ class FinanceServiceImplTest {
         PharmacyOrderResponse response = financeService.capturePharmacyOrderPayPalPayment(request);
 
         assertThat(response.getPaymentStatus()).isEqualTo("PAID");
+    }
+
+    @Test
+    void saveFollowUpLocation_shouldCopySourceHomeVisitDetailsWhenSourceIsHomeVisit() {
+        Doctor doctor = Doctor.builder()
+                .doctorId("doctor-1")
+                .fullName("Doctor One")
+                .consultationFee(new BigDecimal("100.00"))
+                .build();
+        Patient patient = Patient.builder().patientId("patient-1").build();
+        Appointment sourceAppointment = Appointment.builder()
+                .appointmentId(51)
+                .doctor(doctor)
+                .patient(patient)
+                .consultationType("HomeVisit")
+                .appointmentTime(LocalDateTime.now().minusDays(1))
+                .build();
+        sourceAppointment.setHomeVisitDetails(HomeVisitDetails.builder()
+                .appointment(sourceAppointment)
+                .visitAddress("12 Nguyen Trai, District 1")
+                .contactPhone("0900000000")
+                .reasonForHomeVisit("Follow-up at home")
+                .isForSelf(true)
+                .visitLatitude(10.762622)
+                .visitLongitude(106.660172)
+                .build());
+        Consultation consultation = Consultation.builder()
+                .consultationId(9)
+                .appointment(sourceAppointment)
+                .followUpDate(LocalDateTime.now().plusDays(2))
+                .consultationType("HomeVisit")
+                .followUpStatus(FollowUpStatus.PENDING_PAYMENT)
+                .build();
+
+        when(consultationRepository.findByAppointment_AppointmentId(51))
+                .thenReturn(Optional.of(consultation));
+        when(consultationRepository.save(any(Consultation.class)))
+                .thenAnswer(invocation -> invocation.getArgument(0));
+
+        FollowUpHomeVisitDetailsRequest request = new FollowUpHomeVisitDetailsRequest();
+        request.setHomeVisitServiceIds(List.of(3, 4));
+
+        var response = financeService.saveFollowUpLocation(51, request);
+
+        assertThat(response.getHomeVisitLatitude()).isEqualTo(10.762622);
+        assertThat(response.getHomeVisitLongitude()).isEqualTo(106.660172);
+        assertThat(response.getHomeVisitServiceIds()).isEqualTo("3,4");
+        assertThat(consultation.getFollowUpVisitAddress()).isEqualTo("12 Nguyen Trai, District 1");
+        assertThat(consultation.getHomeVisitLatitude()).isEqualTo(10.762622);
+        assertThat(consultation.getHomeVisitLongitude()).isEqualTo(106.660172);
+    }
+
+    @Test
+    void saveFollowUpLocation_shouldPersistPatientProvidedHomeVisitDetailsForOnlineSource() {
+        Doctor doctor = Doctor.builder()
+                .doctorId("doctor-1")
+                .fullName("Doctor One")
+                .build();
+        Patient patient = Patient.builder().patientId("patient-1").build();
+        Appointment sourceAppointment = Appointment.builder()
+                .appointmentId(55)
+                .doctor(doctor)
+                .patient(patient)
+                .consultationType("Online")
+                .appointmentTime(LocalDateTime.now().minusDays(1))
+                .build();
+        Consultation consultation = Consultation.builder()
+                .consultationId(11)
+                .appointment(sourceAppointment)
+                .followUpDate(LocalDateTime.now().plusDays(2))
+                .consultationType("HomeVisit")
+                .followUpStatus(FollowUpStatus.PENDING_PAYMENT)
+                .build();
+
+        when(consultationRepository.findByAppointment_AppointmentId(55))
+                .thenReturn(Optional.of(consultation));
+        when(consultationRepository.save(any(Consultation.class)))
+                .thenAnswer(invocation -> invocation.getArgument(0));
+
+        FollowUpHomeVisitDetailsRequest request = new FollowUpHomeVisitDetailsRequest();
+        request.setVisitAddress("12 Le Loi Street");
+        request.setContactPhone("0900000000");
+        request.setReasonForHomeVisit("Follow-up at home");
+        request.setIsForSelf(true);
+        request.setVisitLatitude(10.7769);
+        request.setVisitLongitude(106.7009);
+        request.setHomeVisitServiceIds(List.of(1, 2));
+
+        var response = financeService.saveFollowUpLocation(55, request);
+
+        assertThat(response.getHomeVisitLatitude()).isEqualTo(10.7769);
+        assertThat(response.getHomeVisitLongitude()).isEqualTo(106.7009);
+        assertThat(response.getHomeVisitServiceIds()).isEqualTo("1,2");
+        assertThat(consultation.getFollowUpVisitAddress()).isEqualTo("12 Le Loi Street");
+        assertThat(consultation.getFollowUpContactPhone()).isEqualTo("0900000000");
+        assertThat(consultation.getFollowUpReasonForHomeVisit()).isEqualTo("Follow-up at home");
+        assertThat(consultation.getHomeVisitLatitude()).isEqualTo(10.7769);
+        assertThat(consultation.getHomeVisitLongitude()).isEqualTo(106.7009);
+    }
+
+    @Test
+    void saveFollowUpLocation_shouldRejectOnlineSourceWhenLocationPayloadIsMissing() {
+        Doctor doctor = Doctor.builder()
+                .doctorId("doctor-1")
+                .fullName("Doctor One")
+                .build();
+        Patient patient = Patient.builder().patientId("patient-1").build();
+        Appointment sourceAppointment = Appointment.builder()
+                .appointmentId(56)
+                .doctor(doctor)
+                .patient(patient)
+                .consultationType("Online")
+                .appointmentTime(LocalDateTime.now().minusDays(1))
+                .build();
+        Consultation consultation = Consultation.builder()
+                .consultationId(12)
+                .appointment(sourceAppointment)
+                .followUpDate(LocalDateTime.now().plusDays(2))
+                .consultationType("HomeVisit")
+                .followUpStatus(FollowUpStatus.PENDING_PAYMENT)
+                .build();
+
+        when(consultationRepository.findByAppointment_AppointmentId(56))
+                .thenReturn(Optional.of(consultation));
+
+        FollowUpHomeVisitDetailsRequest request = new FollowUpHomeVisitDetailsRequest();
+        request.setHomeVisitServiceIds(List.of(1));
+
+        assertThatThrownBy(() -> financeService.saveFollowUpLocation(56, request))
+                .isInstanceOf(BadRequestException.class)
+                .hasMessageContaining("Home visit location is required");
+    }
+
+    @Test
+    void createFollowUpPayPalOrder_shouldRejectOnlineSourceHomeVisitWhenDetailsWereNotSaved() {
+        Doctor doctor = Doctor.builder()
+                .doctorId("doctor-1")
+                .fullName("Doctor One")
+                .build();
+        Patient patient = Patient.builder().patientId("patient-1").build();
+        Appointment sourceAppointment = Appointment.builder()
+                .appointmentId(57)
+                .doctor(doctor)
+                .patient(patient)
+                .consultationType("Online")
+                .appointmentTime(LocalDateTime.now().minusDays(1))
+                .build();
+        Consultation consultation = Consultation.builder()
+                .consultationId(13)
+                .appointment(sourceAppointment)
+                .followUpDate(LocalDateTime.now().plusDays(2))
+                .consultationType("HomeVisit")
+                .followUpStatus(FollowUpStatus.PENDING_PAYMENT)
+                .build();
+
+        when(consultationRepository.findByAppointment_AppointmentId(57))
+                .thenReturn(Optional.of(consultation));
+
+        assertThatThrownBy(() -> financeService.createFollowUpPayPalOrder(57))
+                .isInstanceOf(BadRequestException.class)
+                .hasMessageContaining("Home visit location is required");
+    }
+
+    @Test
+    void createFollowUpPayPalOrder_shouldSucceedWhenHomeVisitDetailsAreSaved() {
+        Doctor doctor = Doctor.builder()
+                .doctorId("doctor-1")
+                .fullName("Doctor One")
+                .consultationFee(new BigDecimal("100.00"))
+                .build();
+        doctor.getServices().add(new DoctorService(doctor, ServiceType.HOME_VISIT, true));
+        Patient patient = Patient.builder().patientId("patient-1").build();
+        Appointment sourceAppointment = Appointment.builder()
+                .appointmentId(52)
+                .doctor(doctor)
+                .patient(patient)
+                .consultationType("Online")
+                .appointmentTime(LocalDateTime.now().minusDays(1))
+                .build();
+        Consultation consultation = Consultation.builder()
+                .consultationId(10)
+                .appointment(sourceAppointment)
+                .followUpDate(LocalDateTime.now().plusDays(2))
+                .consultationType("HomeVisit")
+                .followUpStatus(FollowUpStatus.PENDING_PAYMENT)
+                .homeVisitLatitude(10.762622)
+                .homeVisitLongitude(106.660172)
+                .build();
+
+        Map<String, Object> paypalBody = Map.of(
+                "id", "paypal-order-52",
+                "links", List.of(Map.of("rel", "approve", "href", "https://paypal.example/approve"))
+        );
+
+        when(consultationRepository.findByAppointment_AppointmentId(52))
+                .thenReturn(Optional.of(consultation));
+        when(homeVisitLocationService.estimate("doctor-1", 10.762622, 106.660172))
+                .thenReturn(HomeVisitEstimateResponse.builder()
+                        .serviceable(true)
+                        .totalFee(new BigDecimal("20.00"))
+                        .build());
+        when(payPalConfig.getClientId()).thenReturn("client-id");
+        when(payPalConfig.getClientSecret()).thenReturn("client-secret");
+        when(payPalConfig.getBaseUrl()).thenReturn("https://paypal.example");
+        when(restTemplate.exchange(
+                eq("https://paypal.example/v1/oauth2/token"),
+                eq(HttpMethod.POST),
+                any(HttpEntity.class),
+                eq(Map.class)
+        )).thenReturn(new ResponseEntity<>(Map.of("access_token", "token-1"), HttpStatus.OK));
+        when(restTemplate.exchange(
+                eq("https://paypal.example/v2/checkout/orders"),
+                eq(HttpMethod.POST),
+                any(HttpEntity.class),
+                eq(Map.class)
+        )).thenReturn(new ResponseEntity<>(paypalBody, HttpStatus.OK));
+
+        var response = financeService.createFollowUpPayPalOrder(52);
+
+        assertThat(response.get("orderId")).isEqualTo("paypal-order-52");
+        assertThat(response.get("amount")).isEqualTo(new BigDecimal("120.00"));
+        assertThat(consultation.getHomeVisitLatitude()).isEqualTo(10.762622);
+        assertThat(consultation.getHomeVisitLongitude()).isEqualTo(106.660172);
+        verify(homeVisitLocationService).estimate("doctor-1", 10.762622, 106.660172);
+    }
+
+    @Test
+    void captureFollowUpPayPalPayment_shouldRejectWhenFollowUpSlotIsNoLongerAvailable() {
+        Integer sourceAppointmentId = 1179;
+        String orderId = "paypal-order-1";
+        Doctor doctor = Doctor.builder()
+                .doctorId("doctor-1")
+                .consultationFee(new BigDecimal("100.00"))
+                .build();
+        Patient patient = Patient.builder()
+                .patientId("patient-1")
+                .user(User.builder().id("patient-user").build())
+                .build();
+        Appointment source = Appointment.builder()
+                .appointmentId(sourceAppointmentId)
+                .doctor(doctor)
+                .patient(patient)
+                .consultationType("Online")
+                .build();
+        Consultation consultation = Consultation.builder()
+                .consultationId(16)
+                .appointment(source)
+                .followUpDate(LocalDateTime.now().plusDays(3).withHour(14).withMinute(0).withSecond(0).withNano(0))
+                .consultationType("HomeVisit")
+                .followUpStatus(FollowUpStatus.PENDING_PAYMENT)
+                .homeVisitLatitude(10.0)
+                .homeVisitLongitude(106.0)
+                .build();
+
+        when(consultationRepository.findByAppointment_AppointmentId(sourceAppointmentId))
+                .thenReturn(Optional.of(consultation));
+        when(paymentRepository.findByTransactionId(orderId)).thenReturn(Optional.empty());
+        doThrow(new BadRequestException("The selected follow-up slot is not available. Slot is outside doctor's working hours"))
+                .when(followUpAppointmentService)
+                .validateFollowUpSlot(source, consultation.getFollowUpDate(), "HomeVisit");
+
+        assertThatThrownBy(() ->
+                financeService.captureFollowUpPayPalPayment(orderId, sourceAppointmentId, "EWallet"))
+                .isInstanceOf(BadRequestException.class)
+                .hasMessageContaining("selected follow-up slot is not available");
+
+        verify(restTemplate, never()).exchange(anyString(), any(), any(), eq(Map.class));
+        verify(appointmentRepository, never()).save(any(Appointment.class));
+        verify(paymentRepository, never()).save(any());
     }
 }

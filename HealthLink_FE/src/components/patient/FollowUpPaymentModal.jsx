@@ -3,11 +3,9 @@ import { createPortal } from 'react-dom';
 import { toast } from 'react-toastify';
 import { consultationApi } from '../../api/consultationApi';
 import { paymentApi } from '../../api/paymentApi';
-import { homeVisitApi } from '../../api/homeVisitApi';
 import { loadPayPalSdk } from '../../utils/paypalSdk';
 
 const STEP_INFO = 'info';
-const STEP_LOCATION = 'location';
 const STEP_PAY = 'pay';
 const STEP_DONE = 'done';
 
@@ -15,14 +13,6 @@ const FollowUpPaymentModal = ({ show, appointmentId, onClose, onStatusChange }) 
   const [step, setStep] = useState(STEP_INFO);
   const [statusData, setStatusData] = useState(null);
   const [processing, setProcessing] = useState(false);
-  const [visitLat, setVisitLat] = useState('');
-  const [visitLng, setVisitLng] = useState('');
-  const [address, setAddress] = useState('');
-  const [geocoding, setGeocoding] = useState(false);
-  const [services, setServices] = useState([]);
-  const [selectedServiceIds, setSelectedServiceIds] = useState([]);
-  const [estimate, setEstimate] = useState(null);
-  const [estimating, setEstimating] = useState(false);
   const [declining, setDeclining] = useState(false);
   const buttonRef = useRef(null);
 
@@ -42,19 +32,9 @@ const FollowUpPaymentModal = ({ show, appointmentId, onClose, onStatusChange }) 
   useEffect(() => {
     if (show) {
       setStep(STEP_INFO);
-      setVisitLat('');
-      setVisitLng('');
-      setAddress('');
-      setSelectedServiceIds([]);
-      setEstimate(null);
       fetchStatus();
     }
   }, [show, fetchStatus]);
-
-  useEffect(() => {
-    if (!show || step !== STEP_LOCATION) return;
-    homeVisitApi.getServices().then(setServices).catch(() => {});
-  }, [show, step]);
 
   useEffect(() => {
     if (!show || step !== STEP_PAY || !buttonRef.current) return;
@@ -114,71 +94,8 @@ const FollowUpPaymentModal = ({ show, appointmentId, onClose, onStatusChange }) 
     };
   }, [show, appointmentId, step, onStatusChange]);
 
-  const toggleService = (id) => {
-    setSelectedServiceIds((prev) =>
-      prev.includes(id) ? prev.filter((s) => s !== id) : [...prev, id]
-    );
-  };
-
-  const handleGeocode = async () => {
-    if (!address.trim()) return;
-    setGeocoding(true);
-    try {
-      const results = await homeVisitApi.geocodeAddress(address);
-      if (results?.length > 0) {
-        setVisitLat(String(results[0].lat));
-        setVisitLng(String(results[0].lng));
-      } else {
-        toast.warning('No results found for this address');
-      }
-    } catch {
-      toast.error('Geocoding failed');
-    } finally {
-      setGeocoding(false);
-    }
-  };
-
-  const handleEstimate = async () => {
-    if (!visitLat || !visitLng) { toast.warning('Enter location first'); return; }
-    setEstimating(true);
-    try {
-      const est = await homeVisitApi.estimateFee({
-        doctorId: statusData?.doctorId,
-        visitLatitude: parseFloat(visitLat),
-        visitLongitude: parseFloat(visitLng),
-      });
-      setEstimate(est);
-    } catch {
-      toast.error('Failed to get estimate');
-    } finally {
-      setEstimating(false);
-    }
-  };
-
-  const handleSaveLocation = async () => {
-    if (!visitLat || !visitLng) { toast.warning('Enter location'); return; }
-    setProcessing(true);
-    try {
-      await paymentApi.saveFollowUpLocation(appointmentId, {
-        visitLatitude: parseFloat(visitLat),
-        visitLongitude: parseFloat(visitLng),
-        homeVisitServiceIds: selectedServiceIds,
-      });
-      toast.success('Location saved');
-      setStep(STEP_PAY);
-    } catch (error) {
-      toast.error(error.response?.data?.message || 'Failed to save location');
-    } finally {
-      setProcessing(false);
-    }
-  };
-
-  const handleProceedToPay = () => {
-    if (statusData?.consultationType === 'HomeVisit') {
-      setStep(STEP_LOCATION);
-    } else {
-      setStep(STEP_PAY);
-    }
+  const handleAccept = async () => {
+    setStep(STEP_PAY);
   };
 
   const handleDecline = async () => {
@@ -201,55 +118,11 @@ const FollowUpPaymentModal = ({ show, appointmentId, onClose, onStatusChange }) 
       case STEP_INFO:
         return (
           <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
-            <button className="btn btn-primary" onClick={handleProceedToPay} style={{ padding: '0.75rem' }}>
-              <i className="bi bi-credit-card me-1" /> Proceed to Payment
+            <button className="btn btn-primary" onClick={handleAccept} disabled={processing} style={{ padding: '0.75rem' }}>
+              {processing ? 'Processing...' : <><i className="bi bi-check-lg me-1" /> Accept &amp; Continue</>}
             </button>
             <button className="btn btn-outline-danger" onClick={handleDecline} disabled={declining} style={{ padding: '0.5rem' }}>
-              {declining ? 'Declining...' : <><i className="bi bi-x-circle me-1" /> Decline & Close</>}
-            </button>
-          </div>
-        );
-      case STEP_LOCATION:
-        return (
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
-            <input className="form-control" placeholder="Enter address" value={address}
-              onChange={(e) => setAddress(e.target.value)} />
-            <button className="btn btn-outline-secondary btn-sm" onClick={handleGeocode} disabled={geocoding}>
-              {geocoding ? 'Geocoding...' : <><i className="bi bi-geo-alt" /> Find coordinates</>}
-            </button>
-            <input className="form-control" placeholder="Latitude" type="number" step="any" value={visitLat}
-              onChange={(e) => setVisitLat(e.target.value)} />
-            <input className="form-control" placeholder="Longitude" type="number" step="any" value={visitLng}
-              onChange={(e) => setVisitLng(e.target.value)} />
-            <button className="btn btn-outline-secondary btn-sm" onClick={handleEstimate} disabled={estimating}>
-              {estimating ? 'Estimating...' : 'Get estimate'}
-            </button>
-            {estimate && (
-              <div style={{ fontSize: '0.85rem', background: '#f5f5f5', padding: '0.5rem', borderRadius: '4px' }}>
-                <p style={{ margin: '0 0 0.25rem' }}>Base fee: <strong>${estimate.baseFee}</strong></p>
-                <p style={{ margin: '0 0 0.25rem' }}>Distance fee: <strong>${estimate.distanceFee}</strong></p>
-                {estimate.servicesTotal > 0 && (
-                  <p style={{ margin: '0 0 0.25rem' }}>Services: <strong>${estimate.servicesTotal}</strong></p>
-                )}
-                <p style={{ margin: 0, fontWeight: 600 }}>Total: <strong>${estimate.total}</strong></p>
-              </div>
-            )}
-            {services.length > 0 && (
-              <div style={{ maxHeight: '120px', overflowY: 'auto', border: '1px solid #ddd', borderRadius: '4px', padding: '0.25rem' }}>
-                {services.map((svc) => (
-                  <label key={svc.serviceId} style={{ display: 'flex', alignItems: 'center', gap: '0.25rem', fontSize: '0.8rem', cursor: 'pointer' }}>
-                    <input type="checkbox" checked={selectedServiceIds.includes(svc.serviceId)}
-                      onChange={() => toggleService(svc.serviceId)} />
-                    {svc.serviceName} (${svc.price})
-                  </label>
-                ))}
-              </div>
-            )}
-            <button className="btn btn-primary" onClick={handleSaveLocation} disabled={processing}>
-              {processing ? 'Saving...' : <><i className="bi bi-check-lg" /> Save & Continue</>}
-            </button>
-            <button className="btn btn-outline-secondary btn-sm" onClick={() => setStep(STEP_INFO)} style={{ marginTop: '0.25rem' }}>
-              <i className="bi bi-arrow-left me-1" /> Back
+              {declining ? 'Declining...' : <><i className="bi bi-x-circle me-1" /> Decline &amp; Close</>}
             </button>
           </div>
         );
@@ -284,7 +157,11 @@ const FollowUpPaymentModal = ({ show, appointmentId, onClose, onStatusChange }) 
                 <p><strong>Date:</strong> {statusData.followUpDate ? new Date(statusData.followUpDate).toLocaleString() : 'N/A'}</p>
                 <p><strong>Notes:</strong> {statusData.followUpNotes || 'N/A'}</p>
                 <p><strong>Type:</strong> {statusData.consultationType || 'N/A'}</p>
-                {step === STEP_LOCATION && <p style={{ color: '#856404', margin: '0.5rem 0 0', fontSize: '0.85rem' }}>Set your location for the home visit</p>}
+                {step === STEP_INFO && (
+                  <p style={{ margin: '0.75rem 0 0', fontSize: '0.9rem' }}>
+                    Your doctor has suggested a follow-up appointment. Would you like to accept?
+                  </p>
+                )}
               </div>
             )}
           </div>

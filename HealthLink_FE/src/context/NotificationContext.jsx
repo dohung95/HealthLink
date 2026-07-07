@@ -7,6 +7,7 @@ import React, {
   useRef,
   useState,
 } from 'react';
+import { useNavigate } from 'react-router-dom';
 import websocketService from '../services/websocketService';
 import { useAuth } from './AuthContext';
 import { audioService } from '../utils/audioService';
@@ -14,6 +15,8 @@ import { notificationApi } from '../api/notificationApi';
 import { PHARMACY_ANNOUNCEMENT_TYPES } from '../components/pharmacy/workflow/pharmacyWorkflow';
 import { consultationApi } from '../api/consultationApi';
 import FollowUpPaymentModal from '../components/patient/FollowUpPaymentModal';
+import FollowUpHomeVisitConfirmModal from '../components/patient/FollowUpHomeVisitConfirmModal';
+import { grantFollowUpHomeVisitAccess } from '../utils/followUpHomeVisitAccess';
 
 const NotificationContext = createContext();
 
@@ -58,6 +61,7 @@ const getHomeVisitResultState = (notification) => {
 
 export const NotificationProvider = ({ children }) => {
   const { user, currentUserId, token, roles } = useAuth();
+  const navigate = useNavigate();
   const [notifications, setNotifications] = useState([]);
   const [unreadCount, setUnreadCount] = useState(0);
   const [showPrescriptionModal, setShowPrescriptionModal] = useState(false);
@@ -67,7 +71,8 @@ export const NotificationProvider = ({ children }) => {
   const [adminActionNotification, setAdminActionNotification] = useState(null);
   const [homeVisitProposal, setHomeVisitProposal] = useState(null);
   const [homeVisitProposalResult, setHomeVisitProposalResult] = useState(null);
-  const [followUpPaymentModal, setFollowUpPaymentModal] = useState({ show: false, appointmentId: null });
+  const [followUpReviewModal, setFollowUpReviewModal] = useState({ show: false, appointmentId: null });
+  const [legacyFollowUpPaymentModal, setLegacyFollowUpPaymentModal] = useState({ show: false, appointmentId: null });
   const lastNotificationIdRef = useRef(null);
 
   const userId = currentUserId || user?.sub || user?.userId;
@@ -208,7 +213,7 @@ export const NotificationProvider = ({ children }) => {
     }
 
     if (notification.type === 'FOLLOW_UP_PAYMENT_REQUEST') {
-      setFollowUpPaymentModal({
+      setFollowUpReviewModal({
         show: true,
         appointmentId: notification.relatedId,
       });
@@ -334,6 +339,34 @@ export const NotificationProvider = ({ children }) => {
     setHomeVisitProposalResult(null);
   };
 
+  const closeFollowUpReviewModal = useCallback(() => {
+    setFollowUpReviewModal({ show: false, appointmentId: null });
+  }, []);
+
+  const closeLegacyFollowUpPaymentModal = useCallback(() => {
+    setLegacyFollowUpPaymentModal({ show: false, appointmentId: null });
+  }, []);
+
+  const continueHomeVisitFollowUp = useCallback((appointmentId, statusData) => {
+    grantFollowUpHomeVisitAccess(appointmentId, {
+      consultationId: statusData?.consultationId ?? null,
+      sourceAppointmentId: statusData?.sourceAppointmentId ?? appointmentId,
+    });
+
+    setFollowUpReviewModal({ show: false, appointmentId: null });
+    navigate(`/patient-dashboard/follow-up-homevisit/${appointmentId}`, {
+      state: {
+        fromFollowUpConfirm: true,
+        appointmentId,
+      },
+    });
+  }, [navigate]);
+
+  const continueLegacyFollowUpPayment = useCallback((appointmentId) => {
+    setFollowUpReviewModal({ show: false, appointmentId: null });
+    setLegacyFollowUpPaymentModal({ show: true, appointmentId });
+  }, []);
+
   const value = {
     notifications,
     unreadCount,
@@ -359,11 +392,19 @@ export const NotificationProvider = ({ children }) => {
   return (
     <NotificationContext.Provider value={value}>
       {children}
+      <FollowUpHomeVisitConfirmModal
+        show={followUpReviewModal.show}
+        appointmentId={followUpReviewModal.appointmentId}
+        onClose={closeFollowUpReviewModal}
+        onContinueHomeVisit={continueHomeVisitFollowUp}
+        onContinueLegacyPayment={continueLegacyFollowUpPayment}
+      />
+
       <FollowUpPaymentModal
-        show={followUpPaymentModal.show}
-        appointmentId={followUpPaymentModal.appointmentId}
-        onClose={() => setFollowUpPaymentModal({ show: false, appointmentId: null })}
-        onStatusChange={(newStatus) => {}}
+        show={legacyFollowUpPaymentModal.show}
+        appointmentId={legacyFollowUpPaymentModal.appointmentId}
+        onClose={closeLegacyFollowUpPaymentModal}
+        onStatusChange={() => {}}
       />
     </NotificationContext.Provider>
   );

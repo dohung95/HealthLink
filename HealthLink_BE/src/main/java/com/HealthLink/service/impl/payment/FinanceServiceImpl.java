@@ -2,6 +2,7 @@ package com.HealthLink.service.impl.payment;
 
 import com.HealthLink.config.PayPalConfig;
 import com.HealthLink.dto.consultation.FollowUpResponse;
+import com.HealthLink.dto.payment.FollowUpHomeVisitDetailsRequest;
 import com.HealthLink.dto.payment.AppointmentPayPalCaptureRequest;
 import com.HealthLink.dto.payment.AppointmentPayPalOrderRequest;
 import com.HealthLink.dto.payment.InvoiceResponse;
@@ -13,9 +14,11 @@ import com.HealthLink.dto.response.AppointmentResponse;
 import com.HealthLink.entity.Appointment;
 import com.HealthLink.entity.Consultation;
 import com.HealthLink.entity.Doctor;
+import com.HealthLink.entity.DoctorSchedule;
 import com.HealthLink.entity.Invoice;
 import com.HealthLink.entity.Patient;
 import com.HealthLink.entity.Payment;
+import com.HealthLink.entity.HomeVisitDetails;
 import com.HealthLink.entity.PharmacyOrder;
 import com.HealthLink.exception.BadRequestException;
 import com.HealthLink.utility.DoctorServiceHelper;
@@ -26,11 +29,13 @@ import com.HealthLink.repository.notification.DeviceTokenRepository;
 import com.HealthLink.repository.appointment.AppointmentRepository;
 import com.HealthLink.repository.consultation.ConsultationRepository;
 import com.HealthLink.repository.doctor.DoctorRepository;
+import com.HealthLink.repository.doctor.DoctorScheduleRepository;
 import com.HealthLink.repository.patient.PatientRepository;
 import com.HealthLink.repository.payment.InvoiceRepository;
 import com.HealthLink.repository.payment.PaymentRepository;
 import com.HealthLink.repository.pharmacy.PharmacyOrderRepository;
 import com.HealthLink.service.appointment.AppointmentService;
+import com.HealthLink.service.followup.FollowUpAppointmentService;
 import com.HealthLink.service.notification.NotificationService;
 import com.HealthLink.service.payment.CommissionService;
 import com.HealthLink.service.payment.FinanceService;
@@ -79,6 +84,7 @@ import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 import java.util.Set;
 import java.util.stream.Collectors;
 
@@ -138,6 +144,9 @@ public class FinanceServiceImpl implements FinanceService {
     private final HomeVisitLocationService homeVisitLocationService;
     private final HomeVisitServiceRepository homeVisitServiceRepository;
     private final AppointmentHomeVisitServiceRepository appointmentHomeVisitServiceRepository;
+    private final DoctorScheduleRepository doctorScheduleRepository;
+
+    private final FollowUpAppointmentService followUpAppointmentService;
 
     /**
      * Service xử lý logic chiết khấu sau khi thanh toán thành công
@@ -731,49 +740,35 @@ public class FinanceServiceImpl implements FinanceService {
 
     @Override
     @Transactional
-    public FollowUpResponse saveFollowUpLocation(Integer appointmentId, Map<String, Object> body) {
-        Consultation c = consultationRepository
+    public FollowUpResponse saveFollowUpLocation(Integer appointmentId, FollowUpHomeVisitDetailsRequest request) {
+        Consultation consultation = consultationRepository
                 .findByAppointment_AppointmentId(appointmentId)
                 .orElseThrow(() -> new BadRequestException("Consultation not found: " + appointmentId));
-        if (c.getFollowUpStatus() != FollowUpStatus.PENDING_PAYMENT)
+
+        if (consultation.getFollowUpStatus() != FollowUpStatus.PENDING_PAYMENT) {
             throw new BadRequestException("Follow-up is not in PENDING_PAYMENT status");
-        if (!"HomeVisit".equalsIgnoreCase(c.getConsultationType()))
+        }
+        if (!TYPE_HOME_VISIT.equalsIgnoreCase(normalizeConsultationTypeForBooking(consultation.getConsultationType()))) {
             throw new BadRequestException("Only HomeVisit follow-up can set location");
-
-        Number latNum = (Number) body.get("visitLatitude");
-        Number lngNum = (Number) body.get("visitLongitude");
-        if (latNum == null || lngNum == null)
-            throw new BadRequestException("visitLatitude and visitLongitude are required");
-        c.setHomeVisitLatitude(latNum.doubleValue());
-        c.setHomeVisitLongitude(lngNum.doubleValue());
-
-        @SuppressWarnings("unchecked")
-        List<Integer> serviceIds = (List<Integer>) body.get("homeVisitServiceIds");
-        if (serviceIds != null && !serviceIds.isEmpty()) {
-            c.setHomeVisitServiceIds(
-                    serviceIds.stream().map(String::valueOf).collect(Collectors.joining(",")));
         }
 
-        consultationRepository.save(c);
+        Appointment source = consultation.getAppointment();
+        HomeVisitDetails sourceDetails = source != null ? source.getHomeVisitDetails() : null;
+        if (hasUsableHomeVisitDetails(sourceDetails)) {
+            copySourceDetailsToConsultation(consultation, sourceDetails);
+        } else {
+            validateAndApplyPatientDetails(consultation, request);
+        }
 
-        return FollowUpResponse.builder()
-                .consultationId(c.getConsultationId())
-                .appointmentId(c.getAppointment().getAppointmentId())
-                .followUpDate(c.getFollowUpDate())
-                .followUpNotes(c.getFollowUpNotes())
-                .diagnosis(c.getDiagnosis())
-                .doctorNotes(c.getDoctorNotes())
-                .treatmentPlan(c.getTreatmentPlan())
-                .consultationType(c.getConsultationType())
-                .followUpStatus(c.getFollowUpStatus() != null ? c.getFollowUpStatus().name() : null)
-                .homeVisitLatitude(c.getHomeVisitLatitude())
-                .homeVisitLongitude(c.getHomeVisitLongitude())
-                .homeVisitServiceIds(c.getHomeVisitServiceIds())
-                .build();
+        List<Integer> serviceIds = request != null ? request.getHomeVisitServiceIds() : null;
+        consultation.setHomeVisitServiceIds(toServiceIdCsv(serviceIds));
+        consultationRepository.save(consultation);
+
+        return toFollowUpPaymentResponse(consultation);
     }
 
     @Override
-    @Transactional(readOnly = true)
+    @Transactional
     public Map<String, Object> createFollowUpPayPalOrder(Integer appointmentId) {
         Consultation consultation = consultationRepository
                 .findByAppointment_AppointmentId(appointmentId)
@@ -782,6 +777,8 @@ public class FinanceServiceImpl implements FinanceService {
         if (consultation.getFollowUpStatus() != FollowUpStatus.PENDING_PAYMENT) {
             throw new BadRequestException("Follow-up is not in PENDING_PAYMENT status");
         }
+
+        ensureFollowUpHomeVisitLocation(consultation);
 
         Appointment sourceAppointment = consultation.getAppointment();
         Doctor doctor = sourceAppointment.getDoctor();
@@ -877,7 +874,20 @@ public class FinanceServiceImpl implements FinanceService {
             throw new BadRequestException("PayPal transaction already processed: " + orderId);
         }
 
+        ensureFollowUpHomeVisitLocation(consultation);
+
         Appointment sourceAppointment = consultation.getAppointment();
+
+        LocalDateTime followUpDate = consultation.getFollowUpDate();
+        if (followUpDate == null) {
+            throw new BadRequestException("Follow-up date not set on consultation");
+        }
+
+        followUpAppointmentService.validateFollowUpSlot(
+                sourceAppointment,
+                followUpDate,
+                consultation.getConsultationType());
+
         Doctor doctor = sourceAppointment.getDoctor();
         Patient patient = sourceAppointment.getPatient();
         List<Integer> serviceIds = parseServiceIds(consultation.getHomeVisitServiceIds());
@@ -913,13 +923,15 @@ public class FinanceServiceImpl implements FinanceService {
                 throw new PayPalIntegrationException("PayPal transaction failed, status: " + paypalStatus);
             }
 
-            LocalDateTime followUpDate = consultation.getFollowUpDate();
-            if (followUpDate == null) throw new BadRequestException("Follow-up date not set on consultation");
-
             Appointment followUpAppointment = new Appointment();
             followUpAppointment.setPatient(patient);
             followUpAppointment.setDoctor(doctor);
             followUpAppointment.setAppointmentTime(followUpDate);
+            int followUpSlotMinutes = resolveFollowUpPaymentSlotDuration(
+                    doctor.getDoctorId(),
+                    followUpDate,
+                    consultation.getConsultationType());
+            followUpAppointment.setEndTime(followUpDate.plusMinutes(followUpSlotMinutes));
             followUpAppointment.setStatus(APPT_SCHEDULED);
             followUpAppointment.setConsultationType(consultation.getConsultationType());
             followUpAppointment.setConfirmedAt(LocalDateTime.now());
@@ -929,6 +941,26 @@ public class FinanceServiceImpl implements FinanceService {
             }
             followUpAppointment.setFollowUpSourceAppointmentId(sourceAppointment.getAppointmentId());
             followUpAppointment = appointmentRepository.save(followUpAppointment);
+
+            if (TYPE_HOME_VISIT.equalsIgnoreCase(normalizeConsultationTypeForBooking(consultation.getConsultationType()))) {
+                HomeVisitEstimateResponse homeVisitEstimate = null;
+                try {
+                    homeVisitEstimate = homeVisitLocationService.estimate(
+                            doctor.getDoctorId(),
+                            consultation.getHomeVisitLatitude(),
+                            consultation.getHomeVisitLongitude()
+                    );
+                    if (!Boolean.TRUE.equals(homeVisitEstimate.getServiceable())) {
+                        throw new BadRequestException(homeVisitEstimate.getMessage());
+                    }
+                } catch (Exception ex) {
+                    throw new BadRequestException("Failed to estimate home visit: " + ex.getMessage());
+                }
+                followUpAppointment.setHomeVisitDetails(
+                        buildFollowUpHomeVisitDetails(consultation, followUpAppointment, homeVisitEstimate)
+                );
+                followUpAppointment = appointmentRepository.save(followUpAppointment);
+            }
 
             List<Integer> svcIds = parseServiceIds(consultation.getHomeVisitServiceIds());
             saveAppointmentHomeVisitServices(followUpAppointment, svcIds);
@@ -1375,8 +1407,160 @@ public class FinanceServiceImpl implements FinanceService {
         consultationRepository.save(sourceConsultation);
     }
 
+    private void ensureFollowUpHomeVisitLocation(Consultation consultation) {
+        String normalizedType = normalizeConsultationTypeForBooking(consultation.getConsultationType());
+        if (!TYPE_HOME_VISIT.equalsIgnoreCase(normalizedType)) {
+            return;
+        }
+        if (consultation.getHomeVisitLatitude() == null || consultation.getHomeVisitLongitude() == null) {
+            throw new BadRequestException("Home visit location is required for follow-up HomeVisit payment");
+        }
+    }
+
+    private HomeVisitDetails buildFollowUpHomeVisitDetails(
+            Consultation consultation,
+            Appointment followUpAppointment,
+            HomeVisitEstimateResponse estimate) {
+        return HomeVisitDetails.builder()
+                .appointment(followUpAppointment)
+                .visitAddress(consultation.getFollowUpVisitAddress())
+                .visitCity(consultation.getFollowUpVisitCity())
+                .contactPhone(consultation.getFollowUpContactPhone())
+                .reasonForHomeVisit(consultation.getFollowUpReasonForHomeVisit())
+                .specialNotes(consultation.getFollowUpSpecialNotes())
+                .isForSelf(consultation.getFollowUpIsForSelf() == null ? Boolean.TRUE : consultation.getFollowUpIsForSelf())
+                .receiverName(consultation.getFollowUpReceiverName())
+                .receiverAge(consultation.getFollowUpReceiverAge())
+                .receiverGender(consultation.getFollowUpReceiverGender())
+                .receiverRelationship(consultation.getFollowUpReceiverRelationship())
+                .receiverPhone(consultation.getFollowUpReceiverPhone())
+                .visitLatitude(consultation.getHomeVisitLatitude())
+                .visitLongitude(consultation.getHomeVisitLongitude())
+                .distanceKm(estimate != null ? estimate.getDistanceKm() : null)
+                .estimatedTravelMinutes(estimate != null ? estimate.getEstimatedTravelMinutes() : null)
+                .homeVisitFee(estimate != null ? estimate.getHomeVisitFee() : null)
+                .travelFee(estimate != null ? estimate.getTravelFee() : null)
+                .build();
+    }
+
+    private boolean hasUsableHomeVisitDetails(HomeVisitDetails details) {
+        return details != null
+                && details.getVisitLatitude() != null
+                && details.getVisitLongitude() != null
+                && !isBlank(details.getVisitAddress())
+                && !isBlank(details.getContactPhone())
+                && !isBlank(details.getReasonForHomeVisit());
+    }
+
+    private boolean isBlank(String value) {
+        return value == null || value.isBlank();
+    }
+
+    private void copySourceDetailsToConsultation(Consultation consultation, HomeVisitDetails details) {
+        consultation.setFollowUpVisitAddress(details.getVisitAddress());
+        consultation.setFollowUpVisitCity(details.getVisitCity());
+        consultation.setFollowUpContactPhone(details.getContactPhone());
+        consultation.setFollowUpReasonForHomeVisit(details.getReasonForHomeVisit());
+        consultation.setFollowUpSpecialNotes(details.getSpecialNotes());
+        consultation.setFollowUpIsForSelf(details.getIsForSelf());
+        consultation.setFollowUpReceiverName(details.getReceiverName());
+        consultation.setFollowUpReceiverAge(details.getReceiverAge());
+        consultation.setFollowUpReceiverGender(details.getReceiverGender());
+        consultation.setFollowUpReceiverRelationship(details.getReceiverRelationship());
+        consultation.setFollowUpReceiverPhone(details.getReceiverPhone());
+        consultation.setHomeVisitLatitude(details.getVisitLatitude());
+        consultation.setHomeVisitLongitude(details.getVisitLongitude());
+    }
+
+    private void validateAndApplyPatientDetails(Consultation consultation, FollowUpHomeVisitDetailsRequest request) {
+        if (request == null
+                || isBlank(request.getVisitAddress())
+                || isBlank(request.getContactPhone())
+                || isBlank(request.getReasonForHomeVisit())
+                || request.getVisitLatitude() == null
+                || request.getVisitLongitude() == null) {
+            throw new BadRequestException("Home visit location is required for follow-up HomeVisit payment");
+        }
+
+        Boolean isForSelf = request.getIsForSelf() == null ? Boolean.TRUE : request.getIsForSelf();
+        if (!Boolean.TRUE.equals(isForSelf)
+                && (isBlank(request.getReceiverName())
+                || request.getReceiverAge() == null
+                || isBlank(request.getReceiverGender())
+                || isBlank(request.getReceiverRelationship())
+                || isBlank(request.getReceiverPhone()))) {
+            throw new BadRequestException("Receiver details are required when the home visit is not for the patient");
+        }
+
+        consultation.setFollowUpVisitAddress(request.getVisitAddress());
+        consultation.setFollowUpVisitCity(request.getVisitCity());
+        consultation.setFollowUpContactPhone(request.getContactPhone());
+        consultation.setFollowUpReasonForHomeVisit(request.getReasonForHomeVisit());
+        consultation.setFollowUpSpecialNotes(request.getSpecialNotes());
+        consultation.setFollowUpIsForSelf(isForSelf);
+        consultation.setFollowUpReceiverName(request.getReceiverName());
+        consultation.setFollowUpReceiverAge(request.getReceiverAge());
+        consultation.setFollowUpReceiverGender(request.getReceiverGender());
+        consultation.setFollowUpReceiverRelationship(request.getReceiverRelationship());
+        consultation.setFollowUpReceiverPhone(request.getReceiverPhone());
+        consultation.setHomeVisitLatitude(request.getVisitLatitude());
+        consultation.setHomeVisitLongitude(request.getVisitLongitude());
+    }
+
+    private String toServiceIdCsv(List<Integer> serviceIds) {
+        if (serviceIds == null || serviceIds.isEmpty()) {
+            return null;
+        }
+        return serviceIds.stream()
+                .filter(Objects::nonNull)
+                .map(String::valueOf)
+                .collect(Collectors.joining(","));
+    }
+
+    private FollowUpResponse toFollowUpPaymentResponse(Consultation c) {
+        return FollowUpResponse.builder()
+                .consultationId(c.getConsultationId())
+                .appointmentId(c.getAppointment() != null
+                        ? c.getAppointment().getAppointmentId() : null)
+                .followUpAppointmentId(c.getFollowUpAppointmentId())
+                .followUpDate(c.getFollowUpDate())
+                .followUpNotes(c.getFollowUpNotes())
+                .diagnosis(c.getDiagnosis())
+                .doctorNotes(c.getDoctorNotes())
+                .treatmentPlan(c.getTreatmentPlan())
+                .consultationType(c.getConsultationType())
+                .followUpStatus(c.getFollowUpStatus() != null
+                        ? c.getFollowUpStatus().name() : null)
+                .homeVisitLatitude(c.getHomeVisitLatitude())
+                .homeVisitLongitude(c.getHomeVisitLongitude())
+                .homeVisitServiceIds(c.getHomeVisitServiceIds())
+                .build();
+    }
+
     private String normalizeConsultationTypeForBooking(String consultationType) {
         return DoctorServiceHelper.normalizeConsultationType(consultationType);
+    }
+
+    private int resolveFollowUpPaymentSlotDuration(String doctorId, LocalDateTime followUpDate, String consultationType) {
+        if (doctorId == null || followUpDate == null) {
+            return 30;
+        }
+
+        int dayOfWeek = followUpDate.getDayOfWeek().getValue() % 7;
+        return doctorScheduleRepository.findByDoctor_DoctorIdAndDayOfWeekAndAvailableTrue(doctorId, dayOfWeek)
+                .stream()
+                .filter(schedule -> sameBookingType(schedule.getConsultationType(), consultationType))
+                .filter(schedule -> !followUpDate.toLocalTime().isBefore(schedule.getStartTime())
+                        && followUpDate.toLocalTime().isBefore(schedule.getEndTime()))
+                .findFirst()
+                .map(DoctorSchedule::getSlotDuration)
+                .filter(minutes -> minutes != null && minutes > 0)
+                .orElse(30);
+    }
+
+    private boolean sameBookingType(String left, String right) {
+        return normalizeConsultationTypeForBooking(left)
+                .equalsIgnoreCase(normalizeConsultationTypeForBooking(right));
     }
 
     private BigDecimal resolveDoctorConsultationFee(Doctor doctor) {

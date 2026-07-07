@@ -83,4 +83,43 @@ public class Consultation {
     @Column(name = "follow_up_status", length = 20)
     @Builder.Default
     private FollowUpStatus followUpStatus = FollowUpStatus.NONE;
+
+    @Nationalized
+    @Column(name = "FollowUpVisitAddress", length = 1000)
+    private String followUpVisitAddress;
+
+    @Nationalized
+    @Column(name = "FollowUpVisitCity", length = 255)
+    private String followUpVisitCity;
+
+    @Column(name = "FollowUpContactPhone", length = 50)
+    private String followUpContactPhone;
+
+    @Nationalized
+    @Column(name = "FollowUpReasonForHomeVisit", length = 2000)
+    private String followUpReasonForHomeVisit;
+
+    @Nationalized
+    @Column(name = "FollowUpSpecialNotes", length = 2000)
+    private String followUpSpecialNotes;
+
+    @Column(name = "FollowUpIsForSelf")
+    private Boolean followUpIsForSelf;
+
+    @Nationalized
+    @Column(name = "FollowUpReceiverName", length = 255)
+    private String followUpReceiverName;
+
+    @Column(name = "FollowUpReceiverAge")
+    private Integer followUpReceiverAge;
+
+    @Column(name = "FollowUpReceiverGender", length = 20)
+    private String followUpReceiverGender;
+
+    @Nationalized
+    @Column(name = "FollowUpReceiverRelationship", length = 100)
+    private String followUpReceiverRelationship;
+
+    @Column(name = "FollowUpReceiverPhone", length = 50)
+    private String followUpReceiverPhone;
 }

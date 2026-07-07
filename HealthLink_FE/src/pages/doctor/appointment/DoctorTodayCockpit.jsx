@@ -154,6 +154,12 @@ export default function DoctorTodayCockpit() {
     return [...groups.inProgress, ...groups.readyNow, ...groups.upcoming];
   }, [groups]);
 
+  // Timeline: active-only appointments
+  const timelineAppointments = useMemo(
+    () => sortedAppointments.filter(isActionableAppointment),
+    [sortedAppointments],
+  );
+
   // Apply search filter to today's appointments
   const displayAppointments = useMemo(() => {
     const query = searchTerm.trim().toLowerCase();
@@ -166,7 +172,14 @@ export default function DoctorTodayCockpit() {
   }, [todayAppointments, searchTerm]);
 
   const handleView = useCallback((appt) => {
-    navigate(`/doctor/appointments/${appt.appointmentID || appt.appointmentId}`);
+    const id = appt.appointmentID || appt.appointmentId;
+    if (!isActionableAppointment(appt)) {
+      navigate('/doctor/appointments/history', {
+        state: { selectedAppointmentId: id },
+      });
+      return;
+    }
+    navigate(`/doctor/appointments/${id}`);
   }, [navigate]);
 
   const handleViewPatient = useCallback((patientId) => {
@@ -223,7 +236,7 @@ export default function DoctorTodayCockpit() {
         </div>
 
         <aside className="doctor-asymmetric-grid__divider">
-          <TodayTimeline key={selectedDate.substring(0, 7)} appointments={sortedAppointments} calendarData={calendarData} loading={loading} selectedDate={selectedDate} onView={handleView} onDateChange={setSelectedDate} />
+          <TodayTimeline key={selectedDate.substring(0, 7)} appointments={timelineAppointments} calendarData={calendarData} loading={loading} selectedDate={selectedDate} onView={handleView} onDateChange={setSelectedDate} />
         </aside>
       </div>
     </div>

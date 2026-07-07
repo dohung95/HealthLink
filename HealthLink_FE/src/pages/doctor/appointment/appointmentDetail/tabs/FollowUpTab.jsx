@@ -92,10 +92,19 @@ const FollowUpTab = ({
                 if (view !== 'month') return null;
                 const day = followUpCalendarDayMap.get(toLocalDateValue(date));
                 if (!day) return null;
+                const status = String(day.status || '').toUpperCase();
+                const isDayOff = status === 'DAY_OFF' || status === 'NO_SCHEDULE';
                 return [
                   day.hasAppointments ? 'fu-cal-tile--busy' : '',
-                  day.availableSlots === 0 ? 'fu-cal-tile--full' : '',
+                  isDayOff ? 'fu-cal-tile--day-off' : '',
+                  !isDayOff && (status === 'FULL' || day.availableSlots === 0) ? 'fu-cal-tile--full' : '',
                 ].filter(Boolean).join(' ');
+              }}
+              tileDisabled={({ date, view }) => {
+                if (view !== 'month') return false;
+                const day = followUpCalendarDayMap.get(toLocalDateValue(date));
+                const status = String(day?.status || '').toUpperCase();
+                return status === 'DAY_OFF' || status === 'NO_SCHEDULE' || status === 'DISABLED';
               }}
               tileContent={({ date, view }) => {
                 if (view !== 'month') return null;
