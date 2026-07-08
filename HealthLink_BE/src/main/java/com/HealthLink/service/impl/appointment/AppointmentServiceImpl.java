@@ -227,6 +227,7 @@ public class AppointmentServiceImpl implements AppointmentService {
                 )
                 .fee(homeVisitEstimate != null
                         ? doctor.getConsultationFee()
+                                .multiply(BigDecimal.valueOf(1.5))
                                 .add(homeVisitEstimate.getTotalFee() != null
                                         ? homeVisitEstimate.getTotalFee()
                                         : BigDecimal.ZERO)
