@@ -381,6 +381,8 @@ public class AdminDoctorService {
                     .map(ds -> ds.getId().getServiceType().name())
                     .collect(Collectors.toSet())
                 : Set.of())
+            .totalEarnings(doctor.getTotalEarnings())
+            .pendingSettlement(doctor.getPendingSettlement())
             .createdAt(createdAt)
             .build();
     }

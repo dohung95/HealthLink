@@ -579,6 +579,28 @@ export default function Registrations() {
                           {selectedRequest.clinicAddress ? selectedRequest.clinicAddress : <span className="text-warning fst-italic">Not provided</span>}
                         </span>
                       </div>
+                      <div className="detail-row">
+                        <span className="label">Clinic Location Pin:</span>
+                        <span className="value">
+                          {selectedRequest.latitude != null && selectedRequest.longitude != null ? (
+                            <a
+                              href={`https://www.google.com/maps?q=${selectedRequest.latitude},${selectedRequest.longitude}`}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                            >
+                              {selectedRequest.latitude.toFixed(6)}, {selectedRequest.longitude.toFixed(6)} <i className="bi bi-box-arrow-up-right"></i>
+                            </a>
+                          ) : (
+                            <span className="text-warning fst-italic">Not provided</span>
+                          )}
+                        </span>
+                      </div>
+                      <div className="detail-row">
+                        <span className="label">Home Visit Radius:</span>
+                        <span className="value">
+                          {selectedRequest.homeVisitRadiusKm != null ? `${selectedRequest.homeVisitRadiusKm} km` : <span className="text-warning fst-italic">Not provided</span>}
+                        </span>
+                      </div>
                     </div>
                     <div className="detail-section">
                       <h4><i className="bi bi-calendar-check"></i> Availability</h4>
