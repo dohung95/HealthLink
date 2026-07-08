@@ -1640,7 +1640,10 @@ public class FinanceServiceImpl implements FinanceService {
                 throw new BadRequestException(estimate.getMessage());
             }
 
-            BigDecimal consultationFee = resolveDoctorConsultationFee(doctor);
+            // Home visit: phí khám tính x1.5 (consultationFee x1.5) so với Online,
+            // cộng thêm phí di chuyển theo khoảng cách và dịch vụ phụ đã chọn.
+            BigDecimal consultationFee = resolveDoctorConsultationFee(doctor)
+                    .multiply(BigDecimal.valueOf(1.5));
 
             BigDecimal homeVisitTravelTotal = estimate.getTotalFee() != null
                     ? estimate.getTotalFee()

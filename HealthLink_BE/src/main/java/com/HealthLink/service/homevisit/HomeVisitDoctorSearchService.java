@@ -77,7 +77,9 @@ public class HomeVisitDoctorSearchService {
                 .homeVisitFee(estimate.getHomeVisitFee())
                 .travelFee(estimate.getTravelFee())
                 .homeVisitTotal(homeVisitTotal)
-                .temporaryTotal(doctorFee.add(homeVisitTotal).setScale(2, RoundingMode.HALF_UP))
+                // Home visit tính phí khám x1.5, khớp với FinanceServiceImpl
+                // khi chốt thanh toán thật, để không lệch với số hiển thị lúc tìm bác sĩ.
+                .temporaryTotal(doctorFee.multiply(BigDecimal.valueOf(1.5)).add(homeVisitTotal).setScale(2, RoundingMode.HALF_UP))
                 .build();
     }
 

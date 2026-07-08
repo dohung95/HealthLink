@@ -110,6 +110,10 @@ public class FeeCalculatorServiceImpl implements FeeCalculatorService {
         BigDecimal servicesTotal = BigDecimal.ZERO;
 
         if (isHomeVisit) {
+            // Home visit: phí khám tính x1.5 (consultationFee x1.5), khớp với
+            // FinanceServiceImpl.resolveAppointmentCheckoutAmount() lúc tính tiền charge.
+            baseConsultationFee = baseConsultationFee.multiply(BigDecimal.valueOf(1.5));
+
             HomeVisitDetails details = appointment.getHomeVisitDetails();
             BigDecimal extraTravelFee = (details != null && details.getTravelFee() != null)
                     ? details.getTravelFee()
