@@ -39,7 +39,9 @@ const HomeVisitDoctorStep = ({
               </div>
 
               <div className="home-visit-doctor-fees">
-                <span>Doctor fee <b>{formatUsd(doctor.consultationFee)}</b></span>
+                <span>
+                  Doctor fee <b>{formatUsd(doctor.homeVisitConsultationFee ?? doctor.consultationFee)}</b>
+                </span>
                 <span>Home visit <b>{formatUsd(doctor.homeVisitTotal)}</b></span>
                 <span className="total">
                   Temporary total <b>{formatUsd(doctor.temporaryTotal)}</b>
