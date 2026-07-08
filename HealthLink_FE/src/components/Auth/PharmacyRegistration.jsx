@@ -12,7 +12,44 @@ export function PharmacyRegistration() {
     const [loading, setLoading] = useState(true);
     const [submitting, setSubmitting] = useState(false);
     const [error, setError] = useState('');
+    const [fieldErrors, setFieldErrors] = useState({});
     const [showSuccessModal, setShowSuccessModal] = useState(false);
+
+    const setFieldError = (field, message) => {
+        setFieldErrors(prev => ({ ...prev, [field]: message }));
+    };
+
+    const clearFieldError = (field) => {
+        setFieldErrors(prev => {
+            if (!(field in prev)) return prev;
+            const next = { ...prev };
+            delete next[field];
+            return next;
+        });
+    };
+
+    const fieldSelectors = {
+        name: 'input[name="name"]',
+        licenseNumber: 'input[name="licenseNumber"]',
+        email: 'input[name="email"]',
+        phoneNumber: 'input[name="phoneNumber"]',
+        avatar: '#avatarUpload',
+        address: 'input[name="address"]',
+        businessLicense: '#businessLicense',
+        pharmacyLicense: '#pharmacyLicense',
+        ownerIdCard: '#ownerIdCard',
+        acceptedTerms: '#acceptedTermsCheckbox',
+    };
+
+    const focusAndScrollToField = (fieldKey) => {
+        const selector = fieldSelectors[fieldKey];
+        const el = selector && document.querySelector(selector);
+        if (!el) return;
+        el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        if (typeof el.focus === 'function') {
+            setTimeout(() => el.focus({ preventScroll: true }), 300);
+        }
+    };
 
     const [formData, setFormData] = useState({
         name: '',  // Pharmacy name - consistent with Pharmacy entity
@@ -42,6 +79,14 @@ export function PharmacyRegistration() {
         ownerIdCard: null,
         otherDocuments: []
     });
+
+    // Preview URLs for uploaded documents that are images
+    const [documentPreviews, setDocumentPreviews] = useState({
+        businessLicense: null,
+        pharmacyLicense: null,
+        ownerIdCard: null,
+    });
+    const [otherDocumentPreviews, setOtherDocumentPreviews] = useState([]);
 
     // Avatar state
     const [avatar, setAvatar] = useState(null);
@@ -83,6 +128,7 @@ export function PharmacyRegistration() {
 
     const handleChange = (e) => {
         const { name, value, type, checked } = e.target;
+        clearFieldError(name);
         setFormData(prev => ({
             ...prev,
             [name]: type === 'checkbox' ? checked : value
@@ -94,13 +140,13 @@ export function PharmacyRegistration() {
         if (file) {
             // Validate file size (max 5MB for avatar)
             if (file.size > 5 * 1024 * 1024) {
-                setError('Avatar size must be less than 5MB');
+                setFieldError('avatar', 'Avatar size must be less than 5MB');
                 return;
             }
             // Validate file type (images only)
             const allowedTypes = ['image/jpeg', 'image/png', 'image/jpg', 'image/webp'];
             if (!allowedTypes.includes(file.type)) {
-                setError('Please upload an image file (JPG, PNG, or WebP)');
+                setFieldError('avatar', 'Please upload an image file (JPG, PNG, or WebP)');
                 return;
             }
 
@@ -109,7 +155,7 @@ export function PharmacyRegistration() {
             try {
                 const result = await quickContentCheck(file);
                 if (!result.safe) {
-                    setError(result.reason || 'This image contains inappropriate content and cannot be uploaded.');
+                    setFieldError('avatar', result.reason || 'This image contains inappropriate content and cannot be uploaded.');
                     e.target.value = '';
                     setModeratingFile(null);
                     return;
@@ -122,7 +168,7 @@ export function PharmacyRegistration() {
 
             setAvatar(file);
             setAvatarPreview(URL.createObjectURL(file));
-            setError('');
+            clearFieldError('avatar');
         }
     };
 
@@ -138,24 +184,24 @@ export function PharmacyRegistration() {
         const file = e.target.files[0];
         if (file) {
             if (file.size > 10 * 1024 * 1024) {
-                setError('File size must be less than 10MB');
+                setFieldError(documentType, 'File size must be less than 10MB');
                 return;
             }
             const allowedTypes = ['application/pdf', 'image/jpeg', 'image/png', 'image/jpg',
                                   'application/msword', 'application/vnd.openxmlformats-officedocument.wordprocessingml.document'];
             if (!allowedTypes.includes(file.type)) {
-                setError('File type not allowed. Please upload PDF, JPG, PNG, DOC, or DOCX files.');
+                setFieldError(documentType, 'File type not allowed. Please upload PDF, JPG, PNG, DOC, or DOCX files.');
                 return;
             }
 
             // Content moderation for images
             if (file.type.startsWith('image/')) {
                 setModeratingFile(documentType);
-                setError('');
+                clearFieldError(documentType);
                 try {
                     const result = await quickContentCheck(file);
                     if (!result.safe) {
-                        setError(result.reason || 'This image contains inappropriate content and cannot be uploaded.');
+                        setFieldError(documentType, result.reason || 'This image contains inappropriate content and cannot be uploaded.');
                         e.target.value = '';
                         setModeratingFile(null);
                         return;
@@ -174,7 +220,16 @@ export function PharmacyRegistration() {
                 ...prev,
                 [documentType]: file
             }));
-            setError('');
+            setDocumentPreviews(prev => {
+                if (prev[documentType]) {
+                    URL.revokeObjectURL(prev[documentType]);
+                }
+                return {
+                    ...prev,
+                    [documentType]: file.type.startsWith('image/') ? URL.createObjectURL(file) : null
+                };
+            });
+            clearFieldError(documentType);
         }
     };
 
@@ -200,6 +255,10 @@ export function PharmacyRegistration() {
             ...prev,
             otherDocuments: [...prev.otherDocuments, ...validFiles]
         }));
+        setOtherDocumentPreviews(prev => [
+            ...prev,
+            ...validFiles.map(file => file.type.startsWith('image/') ? URL.createObjectURL(file) : null)
+        ]);
         setError('');
     };
 
@@ -209,11 +268,26 @@ export function PharmacyRegistration() {
                 ...prev,
                 otherDocuments: prev.otherDocuments.filter((_, i) => i !== index)
             }));
+            setOtherDocumentPreviews(prev => {
+                if (prev[index]) {
+                    URL.revokeObjectURL(prev[index]);
+                }
+                return prev.filter((_, i) => i !== index);
+            });
         } else {
             setDocuments(prev => ({
                 ...prev,
                 [documentType]: null
             }));
+            setDocumentPreviews(prev => {
+                if (prev[documentType]) {
+                    URL.revokeObjectURL(prev[documentType]);
+                }
+                return {
+                    ...prev,
+                    [documentType]: null
+                };
+            });
         }
     };
 
@@ -251,27 +325,62 @@ export function PharmacyRegistration() {
         e.preventDefault();
         setError('');
 
-        // Validation
-        if (!formData.name || !formData.email || !formData.phoneNumber) {
-            setError('Please fill in all required fields');
-            return;
+        const errors = {};
+
+        if (!formData.name?.trim()) {
+            errors.name = 'Pharmacy name is required';
         }
 
-        if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(formData.email)) {
-            setError('Please enter a valid email address');
-            return;
+        if (!formData.licenseNumber?.trim()) {
+            errors.licenseNumber = 'License number is required';
         }
 
-        if (!formData.licenseNumber || !formData.address) {
-            setError('Please fill in license number and address');
-            return;
+        if (!formData.email?.trim()) {
+            errors.email = 'Email is required';
+        } else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(formData.email)) {
+            errors.email = 'Please enter a valid email address';
+        }
+
+        if (!formData.phoneNumber?.trim()) {
+            errors.phoneNumber = 'Phone number is required';
+        }
+
+        if (!avatar) {
+            errors.avatar = 'Profile photo is required';
+        }
+
+        if (!formData.address?.trim()) {
+            errors.address = 'Address is required';
+        }
+
+        if (!documents.businessLicense) {
+            errors.businessLicense = 'Business License is required';
+        }
+
+        if (!documents.pharmacyLicense) {
+            errors.pharmacyLicense = 'Pharmacy License (GPP) is required';
+        }
+
+        if (!documents.ownerIdCard) {
+            errors.ownerIdCard = 'Owner ID Card / Passport is required';
         }
 
         if (!acceptedTerms) {
-            setError('You must accept the Terms and Conditions to proceed');
+            errors.acceptedTerms = 'You must accept the Terms and Conditions to proceed';
+        }
+
+        if (Object.keys(errors).length > 0) {
+            setFieldErrors(prev => ({ ...prev, ...errors }));
+            const fieldOrder = [
+                'name', 'licenseNumber', 'email', 'phoneNumber', 'avatar', 'address',
+                'businessLicense', 'pharmacyLicense', 'ownerIdCard', 'acceptedTerms',
+            ];
+            const firstField = fieldOrder.find(f => errors[f]);
+            focusAndScrollToField(firstField);
             return;
         }
 
+        setFieldErrors({});
         setSubmitting(true);
         setSubmissionStep('submitting');
 
@@ -324,6 +433,14 @@ export function PharmacyRegistration() {
     if (loading) {
         return <Loading />;
     }
+
+    const FieldError = ({ field }) => (
+        fieldErrors[field] ? (
+            <p className="field-error-text">
+                <i className="bi bi-exclamation-circle-fill"></i> {fieldErrors[field]}
+            </p>
+        ) : null
+    );
 
     return (
         <>
@@ -392,6 +509,16 @@ export function PharmacyRegistration() {
                         <Link to="/register-as" className="back-link">
                             <i className="bi bi-arrow-left"></i> Back
                         </Link>
+                        <button
+                            type="button"
+                            className="quick-fill-corner-btn"
+                            onClick={() => setShowCVImportModal(true)}
+                            disabled={submitting}
+                            title="Upload documents to auto-fill the form (PDF, DOCX, or image)"
+                        >
+                            <i className="bi bi-magic"></i>
+                            Quick Fill
+                        </button>
                         <h2>Pharmacy Registration</h2>
                         <p>Complete the form below to register your pharmacy</p>
                     </div>
@@ -404,109 +531,107 @@ export function PharmacyRegistration() {
                     )}
 
                     <form onSubmit={handleSubmit} noValidate>
-                        {/* Document Import Section */}
-                        <div className="form-section cv-import-section">
-                            <h3><i className="bi bi-file-text"></i> Quick Fill</h3>
-                            <p className="section-description">
-                                Upload documents to auto-fill the form (PDF, DOCX, or image)
-                            </p>
-                            <button
-                                type="button"
-                                className="cv-import-btn"
-                                onClick={() => setShowCVImportModal(true)}
-                                disabled={submitting}
-                            >
-                                <i className="bi bi-upload"></i>
-                                Upload Document
-                            </button>
-                        </div>
-
-                        {/* Profile Photo */}
-                        <div className="form-section">
-                            <h3><i className="bi bi-image"></i> Profile Photo</h3>
-                            <p className="section-description">Upload your pharmacy's logo or storefront photo (Optional - JPG, PNG, WebP - Max 5MB)</p>
-                            <div className="avatar-upload-wrapper">
-                                <div className="avatar-preview">
-                                    {avatarPreview ? (
-                                        <img src={avatarPreview} alt="Avatar preview" />
-                                    ) : (
-                                        <div className="avatar-placeholder">
-                                            <i className="bi bi-shop"></i>
-                                        </div>
-                                    )}
+                        {/* Basic Information + Profile Photo */}
+                        <div className="form-section profile-basic-row">
+                            <div className="basic-info-col">
+                                <h3><i className="bi bi-shop"></i> Basic Information</h3>
+                                <div className="form-row">
+                                    <div className="form-group">
+                                        <label>Pharmacy Name <span className="required">*</span></label>
+                                        <input
+                                            type="text"
+                                            name="name"
+                                            value={formData.name}
+                                            onChange={handleChange}
+                                            placeholder="HealthLink Pharmacy"
+                                            disabled={submitting}
+                                            className={fieldErrors.name ? 'input-error' : undefined}
+                                        />
+                                        <FieldError field="name" />
+                                    </div>
+                                    <div className="form-group">
+                                        <label>License Number <span className="required">*</span></label>
+                                        <input
+                                            type="text"
+                                            name="licenseNumber"
+                                            value={formData.licenseNumber}
+                                            onChange={handleChange}
+                                            placeholder="GPP-2024-001"
+                                            disabled={submitting}
+                                            className={fieldErrors.licenseNumber ? 'input-error' : undefined}
+                                        />
+                                        <FieldError field="licenseNumber" />
+                                    </div>
                                 </div>
-                                <div className="avatar-controls">
-                                    <input
-                                        type="file"
-                                        id="avatarUpload"
-                                        accept="image/jpeg,image/png,image/jpg,image/webp"
-                                        onChange={handleAvatarChange}
-                                        disabled={submitting}
-                                        className="file-input"
-                                    />
-                                    <label htmlFor="avatarUpload" className="avatar-upload-btn">
-                                        <i className="bi bi-cloud-upload"></i>
-                                        {avatar ? 'Change Photo' : 'Upload Photo'}
-                                    </label>
-                                    {avatar && (
-                                        <button type="button" className="avatar-remove-btn" onClick={removeAvatar}>
-                                            <i className="bi bi-trash"></i> Remove
-                                        </button>
-                                    )}
-                                </div>
-                            </div>
-                        </div>
-
-                        {/* Basic Information */}
-                        <div className="form-section">
-                            <h3><i className="bi bi-shop"></i> Basic Information</h3>
-                            <div className="form-row">
-                                <div className="form-group">
-                                    <label>Pharmacy Name <span className="required">*</span></label>
-                                    <input
-                                        type="text"
-                                        name="name"
-                                        value={formData.name}
-                                        onChange={handleChange}
-                                        placeholder="HealthLink Pharmacy"
-                                        disabled={submitting}
-                                    />
-                                </div>
-                                <div className="form-group">
-                                    <label>License Number <span className="required">*</span></label>
-                                    <input
-                                        type="text"
-                                        name="licenseNumber"
-                                        value={formData.licenseNumber}
-                                        onChange={handleChange}
-                                        placeholder="GPP-2024-001"
-                                        disabled={submitting}
-                                    />
+                                <div className="form-row">
+                                    <div className="form-group">
+                                        <label>Email <span className="required">*</span></label>
+                                        <input
+                                            type="email"
+                                            name="email"
+                                            value={formData.email}
+                                            onChange={handleChange}
+                                            placeholder="pharmacy@example.com"
+                                            disabled={submitting}
+                                            className={fieldErrors.email ? 'input-error' : undefined}
+                                        />
+                                        <FieldError field="email" />
+                                    </div>
+                                    <div className="form-group">
+                                        <label>Phone Number <span className="required">*</span></label>
+                                        <input
+                                            type="tel"
+                                            name="phoneNumber"
+                                            value={formData.phoneNumber}
+                                            onChange={handleChange}
+                                            placeholder="0901234567"
+                                            disabled={submitting}
+                                            className={fieldErrors.phoneNumber ? 'input-error' : undefined}
+                                        />
+                                        <FieldError field="phoneNumber" />
+                                    </div>
                                 </div>
                             </div>
-                            <div className="form-row">
-                                <div className="form-group">
-                                    <label>Email <span className="required">*</span></label>
-                                    <input
-                                        type="email"
-                                        name="email"
-                                        value={formData.email}
-                                        onChange={handleChange}
-                                        placeholder="pharmacy@example.com"
-                                        disabled={submitting}
-                                    />
+                            <div className="profile-photo-col">
+                                <h3><i className="bi bi-image"></i> Profile Photo <span className="required">*</span></h3>
+                                <div className={`avatar-upload-wrapper${avatarPreview ? ' has-avatar' : ''}`}>
+                                    <div className="avatar-preview">
+                                        {avatarPreview ? (
+                                            <>
+                                                <img src={avatarPreview} alt="Avatar preview" />
+                                                <button
+                                                    type="button"
+                                                    className="avatar-remove-btn"
+                                                    onClick={removeAvatar}
+                                                    title="Remove photo"
+                                                    aria-label="Remove photo"
+                                                >
+                                                    <i className="bi bi-trash"></i>
+                                                </button>
+                                            </>
+                                        ) : (
+                                            <div className="avatar-placeholder">
+                                                <i className="bi bi-shop"></i>
+                                            </div>
+                                        )}
+                                    </div>
+                                    <div className="avatar-controls">
+                                        <input
+                                            type="file"
+                                            id="avatarUpload"
+                                            accept="image/jpeg,image/png,image/jpg,image/webp"
+                                            onChange={handleAvatarChange}
+                                            disabled={submitting}
+                                            className="file-input"
+                                        />
+                                        <label htmlFor="avatarUpload" className="avatar-upload-btn">
+                                            <i className="bi bi-cloud-upload"></i>
+                                            {avatar ? 'Change Photo' : 'Upload Photo'}
+                                        </label>
+                                        <p className="photo-format-hint">Logo or storefront photo (JPG, PNG - Max 5MB)</p>
+                                    </div>
                                 </div>
-                                <div className="form-group">
-                                    <label>Phone Number <span className="required">*</span></label>
-                                    <input
-                                        type="tel"
-                                        name="phoneNumber"
-                                        value={formData.phoneNumber}
-                                        onChange={handleChange}
-                                        placeholder="0901234567"
-                                        disabled={submitting}
-                                    />
-                                </div>
+                                <FieldError field="avatar" />
                             </div>
                         </div>
 
@@ -522,7 +647,9 @@ export function PharmacyRegistration() {
                                     onChange={handleChange}
                                     placeholder="123 Main Street"
                                     disabled={submitting}
+                                    className={fieldErrors.address ? 'input-error' : undefined}
                                 />
+                                <FieldError field="address" />
                             </div>
                             <div className="form-row three-cols">
                                 <div className="form-group">
@@ -681,7 +808,11 @@ export function PharmacyRegistration() {
                                             className="file-input"
                                         />
                                         <label htmlFor="businessLicense" className="file-upload-label">
-                                            <i className="bi bi-cloud-upload"></i>
+                                            {documentPreviews.businessLicense ? (
+                                                <img src={documentPreviews.businessLicense} alt="Business License preview" className="file-preview-thumb" />
+                                            ) : (
+                                                <i className="bi bi-cloud-upload"></i>
+                                            )}
                                             <span>{documents.businessLicense ? documents.businessLicense.name : 'Choose file...'}</span>
                                         </label>
                                         {documents.businessLicense && (
@@ -690,6 +821,7 @@ export function PharmacyRegistration() {
                                             </button>
                                         )}
                                     </div>
+                                    <FieldError field="businessLicense" />
                                 </div>
                                 <div className="form-group">
                                     <label>Pharmacy License (GPP) <span className="required">*</span></label>
@@ -703,7 +835,11 @@ export function PharmacyRegistration() {
                                             className="file-input"
                                         />
                                         <label htmlFor="pharmacyLicense" className="file-upload-label">
-                                            <i className="bi bi-cloud-upload"></i>
+                                            {documentPreviews.pharmacyLicense ? (
+                                                <img src={documentPreviews.pharmacyLicense} alt="Pharmacy License preview" className="file-preview-thumb" />
+                                            ) : (
+                                                <i className="bi bi-cloud-upload"></i>
+                                            )}
                                             <span>{documents.pharmacyLicense ? documents.pharmacyLicense.name : 'Choose file...'}</span>
                                         </label>
                                         {documents.pharmacyLicense && (
@@ -712,6 +848,7 @@ export function PharmacyRegistration() {
                                             </button>
                                         )}
                                     </div>
+                                    <FieldError field="pharmacyLicense" />
                                 </div>
                             </div>
 
@@ -728,7 +865,11 @@ export function PharmacyRegistration() {
                                             className="file-input"
                                         />
                                         <label htmlFor="ownerIdCard" className="file-upload-label">
-                                            <i className="bi bi-cloud-upload"></i>
+                                            {documentPreviews.ownerIdCard ? (
+                                                <img src={documentPreviews.ownerIdCard} alt="Owner ID Card preview" className="file-preview-thumb" />
+                                            ) : (
+                                                <i className="bi bi-cloud-upload"></i>
+                                            )}
                                             <span>{documents.ownerIdCard ? documents.ownerIdCard.name : 'Choose file...'}</span>
                                         </label>
                                         {documents.ownerIdCard && (
@@ -737,6 +878,7 @@ export function PharmacyRegistration() {
                                             </button>
                                         )}
                                     </div>
+                                    <FieldError field="ownerIdCard" />
                                 </div>
                                 <div className="form-group">
                                     <label>Other Documents (Optional)</label>
@@ -759,7 +901,11 @@ export function PharmacyRegistration() {
                                         <div className="uploaded-files-list">
                                             {documents.otherDocuments.map((file, index) => (
                                                 <div key={index} className="uploaded-file-item">
-                                                    <i className="bi bi-file-earmark"></i>
+                                                    {otherDocumentPreviews[index] ? (
+                                                        <img src={otherDocumentPreviews[index]} alt={`${file.name} preview`} className="file-preview-thumb-sm" />
+                                                    ) : (
+                                                        <i className="bi bi-file-earmark"></i>
+                                                    )}
                                                     <span>{file.name}</span>
                                                     <button type="button" onClick={() => removeFile('otherDocuments', index)}>
                                                         <i className="bi bi-x"></i>
@@ -795,8 +941,12 @@ export function PharmacyRegistration() {
                                 <label className="terms-checkbox-label">
                                     <input
                                         type="checkbox"
+                                        id="acceptedTermsCheckbox"
                                         checked={acceptedTerms}
-                                        onChange={(e) => setAcceptedTerms(e.target.checked)}
+                                        onChange={(e) => {
+                                            setAcceptedTerms(e.target.checked);
+                                            clearFieldError('acceptedTerms');
+                                        }}
                                         disabled={submitting}
                                     />
                                     <span className="terms-checkmark"></span>
@@ -820,6 +970,7 @@ export function PharmacyRegistration() {
                                         {' '}of HealthLink platform.
                                     </span>
                                 </label>
+                                <FieldError field="acceptedTerms" />
                             </div>
                         </div>
 
@@ -891,21 +1042,21 @@ export function PharmacyRegistration() {
                 onHide={() => setShowTermsModal(false)}
                 centered
                 size="lg"
-                className="terms-modal"
+                className="pharmacy-terms-modal"
             >
                 <Modal.Header closeButton>
                     <Modal.Title>
                         <i className="bi bi-file-earmark-text"></i> Terms and Conditions
                     </Modal.Title>
                 </Modal.Header>
-                <Modal.Body className="terms-modal-body">
-                    <div className="terms-content">
+                <Modal.Body className="pharmacy-terms-modal-body">
+                    <div className="pharmacy-terms-content">
                         <h4>HealthLink Pharmacy Partner Agreement</h4>
-                        <p className="terms-intro">
+                        <p className="pharmacy-terms-intro">
                             By registering as a pharmacy partner on the HealthLink platform, you agree to the following terms and conditions:
                         </p>
 
-                        <div className="terms-section-item">
+                        <div className="pharmacy-terms-section-item">
                             <h5><i className="bi bi-1-circle"></i> Legal Compliance</h5>
                             <ul>
                                 <li>You confirm that your pharmacy is legally registered and licensed to operate.</li>
@@ -915,7 +1066,7 @@ export function PharmacyRegistration() {
                             </ul>
                         </div>
 
-                        <div className="terms-section-item">
+                        <div className="pharmacy-terms-section-item">
                             <h5><i className="bi bi-2-circle"></i> Product Quality and Safety</h5>
                             <ul>
                                 <li>You guarantee that all medications sold are authentic and sourced from authorized distributors.</li>
@@ -925,7 +1076,7 @@ export function PharmacyRegistration() {
                             </ul>
                         </div>
 
-                        <div className="terms-section-item">
+                        <div className="pharmacy-terms-section-item">
                             <h5><i className="bi bi-3-circle"></i> Prescription Handling</h5>
                             <ul>
                                 <li>You will verify all prescriptions before dispensing prescription medications.</li>
@@ -935,7 +1086,7 @@ export function PharmacyRegistration() {
                             </ul>
                         </div>
 
-                        <div className="terms-section-item">
+                        <div className="pharmacy-terms-section-item">
                             <h5><i className="bi bi-4-circle"></i> Platform Usage</h5>
                             <ul>
                                 <li>You will maintain accurate inventory and pricing information.</li>
@@ -945,7 +1096,7 @@ export function PharmacyRegistration() {
                             </ul>
                         </div>
 
-                        <div className="terms-section-item">
+                        <div className="pharmacy-terms-section-item">
                             <h5><i className="bi bi-5-circle"></i> Data Privacy</h5>
                             <ul>
                                 <li>You will protect all customer and patient data in compliance with privacy laws.</li>
@@ -954,7 +1105,7 @@ export function PharmacyRegistration() {
                             </ul>
                         </div>
 
-                        <div className="terms-section-item">
+                        <div className="pharmacy-terms-section-item">
                             <h5><i className="bi bi-6-circle"></i> Account Termination</h5>
                             <ul>
                                 <li>HealthLink reserves the right to suspend accounts that violate these terms.</li>
@@ -963,7 +1114,7 @@ export function PharmacyRegistration() {
                             </ul>
                         </div>
 
-                        <div className="terms-footer-note">
+                        <div className="pharmacy-terms-footer-note">
                             <i className="bi bi-info-circle"></i>
                             <p>
                                 By accepting these terms, you acknowledge that you have read, understood, and agree to be bound by this agreement.

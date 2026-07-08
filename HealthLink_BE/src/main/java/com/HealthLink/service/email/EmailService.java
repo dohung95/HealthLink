@@ -153,6 +153,15 @@ public class EmailService {
     private String buildApprovalEmailContent(String recipientName, String registrationType, String email, String password) {
         String roleDisplay = "DOCTOR".equals(registrationType) ? "Doctor" : "Pharmacy Partner";
 
+        String doctorScheduleReminder = "DOCTOR".equals(registrationType)
+                ? """
+                    <div class="warning-box">
+                        <span>&#128197;</span>
+                        <span><strong>Set up your work schedule now:</strong> your account has no schedule yet, so patients cannot find or book you (Online or Home Visit) until you add one. Please log in and go to <strong>Schedule</strong> to set your working hours right away.</span>
+                    </div>
+                    """
+                : "";
+
         // Note: Use %% to escape % in CSS (linear-gradient percentages)
         return """
             <!DOCTYPE html>
@@ -213,6 +222,7 @@ public class EmailService {
                             <span>&#9888;</span>
                             <span><strong>Important:</strong> For security reasons, please change your password immediately after your first login.</span>
                         </div>
+                        %s
                         <a href="%s/login" class="cta-button">Login to Your Account</a>
                     </div>
                     <div class="footer">
@@ -223,7 +233,7 @@ public class EmailService {
                 </div>
             </body>
             </html>
-            """.formatted(appName, recipientName, roleDisplay, email, password, frontendUrl, appName, appName);
+            """.formatted(appName, recipientName, roleDisplay, email, password, doctorScheduleReminder, frontendUrl, appName, appName);
     }
 
     // build email khi bị từ chối

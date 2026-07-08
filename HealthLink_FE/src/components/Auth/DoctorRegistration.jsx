@@ -1,19 +1,102 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import { Modal, Button } from 'react-bootstrap';
+import L from 'leaflet';
+import { MapContainer, Marker, TileLayer, useMapEvents, useMap } from 'react-leaflet';
 import Loading from '../Loading';
 import registrationService from '../../api/registrationApi';
 import CVImportModal from './CVImportModal';
 import { quickContentCheck } from '../../utils/documentModeration';
 import './Css/DoctorRegistration.css';
 
+import markerIcon2x from 'leaflet/dist/images/marker-icon-2x.png';
+import markerIcon from 'leaflet/dist/images/marker-icon.png';
+import markerShadow from 'leaflet/dist/images/marker-shadow.png';
+
+delete L.Icon.Default.prototype._getIconUrl;
+
+L.Icon.Default.mergeOptions({
+    iconRetinaUrl: markerIcon2x,
+    iconUrl: markerIcon,
+    shadowUrl: markerShadow,
+});
+
+const LocationPicker = ({ location, onPick }) => {
+    useMapEvents({
+        click(e) {
+            onPick(e.latlng.lat, e.latlng.lng);
+        },
+    });
+
+    if (!location?.lat || !location?.lng) return null;
+
+    return <Marker position={[location.lat, location.lng]} />;
+};
+
+const MapRecenter = ({ location }) => {
+    const map = useMap();
+
+    useEffect(() => {
+        if (location?.lat && location?.lng) {
+            map.setView([location.lat, location.lng], 16);
+        }
+    }, [location, map]);
+
+    return null;
+};
+
 export function DoctorRegistration() {
     const navigate = useNavigate();
     const [loading, setLoading] = useState(true);
     const [submitting, setSubmitting] = useState(false);
+    const [locatingClinic, setLocatingClinic] = useState(false);
     const [error, setError] = useState('');
+    const [fieldErrors, setFieldErrors] = useState({});
     const [showSuccessModal, setShowSuccessModal] = useState(false);
     const [specialties, setSpecialties] = useState([]);
+
+    const setFieldError = (field, message) => {
+        setFieldErrors(prev => ({ ...prev, [field]: message }));
+    };
+
+    const clearFieldError = (field) => {
+        setFieldErrors(prev => {
+            if (!(field in prev)) return prev;
+            const next = { ...prev };
+            delete next[field];
+            return next;
+        });
+    };
+
+    const fieldSelectors = {
+        fullName: 'input[name="fullName"]',
+        email: 'input[name="email"]',
+        phoneNumber: 'input[name="phoneNumber"]',
+        location: 'input[name="location"]',
+        avatar: '#avatarUpload',
+        qualifications: 'input[name="qualifications"]',
+        specialtyId: 'select[name="specialtyId"]',
+        yearsOfExperience: 'input[name="yearsOfExperience"]',
+        languageSpoken: 'input[name="languageSpoken"]',
+        clinicName: 'input[name="clinicName"]',
+        clinicAddress: 'input[name="clinicAddress"]',
+        clinicMap: '#clinicMapGroup',
+        homeVisitRadiusKm: 'input[name="homeVisitRadiusKm"]',
+        medicalDegree: '#medicalDegree',
+        practiceLicense: '#practiceLicense',
+        idCard: '#idCard',
+        acceptedTerms: '#acceptedTermsCheckbox',
+    };
+
+    const focusAndScrollToField = (fieldKey) => {
+        const selector = fieldSelectors[fieldKey];
+        const el = selector && document.querySelector(selector);
+        if (!el) return;
+        el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        if (typeof el.focus === 'function') {
+            setTimeout(() => el.focus({ preventScroll: true }), 300);
+        }
+    };
 
     const [formData, setFormData] = useState({
         fullName: '',
@@ -26,9 +109,11 @@ export function DoctorRegistration() {
         languageSpoken: '',
         location: '',
         bio: '',
-        consultationFee: '',
         clinicName: '',
         clinicAddress: '',
+        latitude: null,
+        longitude: null,
+        homeVisitRadiusKm: 10,
     });
 
     const [acceptedTerms, setAcceptedTerms] = useState(false);
@@ -40,6 +125,14 @@ export function DoctorRegistration() {
         idCard: null,
         otherCertificates: []
     });
+
+    // Preview URLs for uploaded documents that are images
+    const [documentPreviews, setDocumentPreviews] = useState({
+        medicalDegree: null,
+        practiceLicense: null,
+        idCard: null,
+    });
+    const [otherCertificatePreviews, setOtherCertificatePreviews] = useState([]);
 
     // Avatar state
     const [avatar, setAvatar] = useState(null);
@@ -112,6 +205,7 @@ export function DoctorRegistration() {
 
     const handleChange = (e) => {
         const { name, value, type, checked } = e.target;
+        clearFieldError(name);
         if (name === 'specialtyId') {
             const selectedSpecialty = Array.isArray(specialties)
                 ? specialties.find(s => s.specialtyId === parseInt(value))
@@ -129,18 +223,52 @@ export function DoctorRegistration() {
         }
     };
 
+    const handlePickLocation = (lat, lng) => {
+        setFormData(prev => ({
+            ...prev,
+            latitude: lat,
+            longitude: lng
+        }));
+        clearFieldError('clinicMap');
+    };
+
+    const handleUseCurrentLocation = () => {
+        if (!navigator.geolocation) {
+            setError('Your browser does not support location detection.');
+            return;
+        }
+
+        setError('');
+        setLocatingClinic(true);
+
+        navigator.geolocation.getCurrentPosition(
+            (position) => {
+                handlePickLocation(position.coords.latitude, position.coords.longitude);
+                setLocatingClinic(false);
+            },
+            () => {
+                setError('Unable to access your location.');
+                setLocatingClinic(false);
+            },
+            {
+                enableHighAccuracy: true,
+                timeout: 10000,
+            }
+        );
+    };
+
     const handleAvatarChange = async (e) => {
         const file = e.target.files[0];
         if (file) {
             // Validate file size (max 5MB for avatar)
             if (file.size > 5 * 1024 * 1024) {
-                setError('Avatar size must be less than 5MB');
+                setFieldError('avatar', 'Avatar size must be less than 5MB');
                 return;
             }
             // Validate file type (images only)
             const allowedTypes = ['image/jpeg', 'image/png', 'image/jpg', 'image/webp'];
             if (!allowedTypes.includes(file.type)) {
-                setError('Please upload an image file (JPG, PNG, or WebP)');
+                setFieldError('avatar', 'Please upload an image file (JPG, PNG, or WebP)');
                 return;
             }
 
@@ -149,7 +277,7 @@ export function DoctorRegistration() {
             try {
                 const result = await quickContentCheck(file);
                 if (!result.safe) {
-                    setError(result.reason || 'This image contains inappropriate content and cannot be uploaded.');
+                    setFieldError('avatar', result.reason || 'This image contains inappropriate content and cannot be uploaded.');
                     e.target.value = '';
                     setModeratingFile(null);
                     return;
@@ -162,7 +290,7 @@ export function DoctorRegistration() {
 
             setAvatar(file);
             setAvatarPreview(URL.createObjectURL(file));
-            setError('');
+            clearFieldError('avatar');
         }
     };
 
@@ -179,25 +307,25 @@ export function DoctorRegistration() {
         if (file) {
             // Validate file size (max 10MB)
             if (file.size > 10 * 1024 * 1024) {
-                setError('File size must be less than 10MB');
+                setFieldError(documentType, 'File size must be less than 10MB');
                 return;
             }
             // Validate file type
             const allowedTypes = ['application/pdf', 'image/jpeg', 'image/png', 'image/jpg',
                                   'application/msword', 'application/vnd.openxmlformats-officedocument.wordprocessingml.document'];
             if (!allowedTypes.includes(file.type)) {
-                setError('File type not allowed. Please upload PDF, JPG, PNG, DOC, or DOCX files.');
+                setFieldError(documentType, 'File type not allowed. Please upload PDF, JPG, PNG, DOC, or DOCX files.');
                 return;
             }
 
             // Content moderation for images
             if (file.type.startsWith('image/')) {
                 setModeratingFile(documentType);
-                setError('');
+                clearFieldError(documentType);
                 try {
                     const result = await quickContentCheck(file);
                     if (!result.safe) {
-                        setError(result.reason || 'This image contains inappropriate content and cannot be uploaded.');
+                        setFieldError(documentType, result.reason || 'This image contains inappropriate content and cannot be uploaded.');
                         e.target.value = '';
                         setModeratingFile(null);
                         return;
@@ -218,7 +346,16 @@ export function DoctorRegistration() {
                 ...prev,
                 [documentType]: file
             }));
-            setError('');
+            setDocumentPreviews(prev => {
+                if (prev[documentType]) {
+                    URL.revokeObjectURL(prev[documentType]);
+                }
+                return {
+                    ...prev,
+                    [documentType]: file.type.startsWith('image/') ? URL.createObjectURL(file) : null
+                };
+            });
+            clearFieldError(documentType);
         }
     };
 
@@ -244,6 +381,10 @@ export function DoctorRegistration() {
             ...prev,
             otherCertificates: [...prev.otherCertificates, ...validFiles]
         }));
+        setOtherCertificatePreviews(prev => [
+            ...prev,
+            ...validFiles.map(file => file.type.startsWith('image/') ? URL.createObjectURL(file) : null)
+        ]);
         setError('');
     };
 
@@ -253,11 +394,26 @@ export function DoctorRegistration() {
                 ...prev,
                 otherCertificates: prev.otherCertificates.filter((_, i) => i !== index)
             }));
+            setOtherCertificatePreviews(prev => {
+                if (prev[index]) {
+                    URL.revokeObjectURL(prev[index]);
+                }
+                return prev.filter((_, i) => i !== index);
+            });
         } else {
             setDocuments(prev => ({
                 ...prev,
                 [documentType]: null
             }));
+            setDocumentPreviews(prev => {
+                if (prev[documentType]) {
+                    URL.revokeObjectURL(prev[documentType]);
+                }
+                return {
+                    ...prev,
+                    [documentType]: null
+                };
+            });
         }
     };
 
@@ -295,97 +451,98 @@ export function DoctorRegistration() {
         e.preventDefault();
         setError('');
 
+        const errors = {};
+
         // Validation - Personal Information
         if (!formData.fullName?.trim()) {
-            setError('Full name is required');
-            return;
+            errors.fullName = 'Full name is required';
         }
 
         if (!formData.email?.trim()) {
-            setError('Email is required');
-            return;
-        }
-
-        if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(formData.email)) {
-            setError('Please enter a valid email address');
-            return;
+            errors.email = 'Email is required';
+        } else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(formData.email)) {
+            errors.email = 'Please enter a valid email address';
         }
 
         if (!formData.phoneNumber?.trim()) {
-            setError('Phone number is required');
-            return;
-        }
-
-        // Validate phone number format (10-11 digits)
-        const phoneRegex = /^[0-9]{10,11}$/;
-        if (!phoneRegex.test(formData.phoneNumber.replace(/[\s-]/g, ''))) {
-            setError('Phone number must be 10-11 digits');
-            return;
+            errors.phoneNumber = 'Phone number is required';
+        } else if (!/^[0-9]{10,11}$/.test(formData.phoneNumber.replace(/[\s-]/g, ''))) {
+            errors.phoneNumber = 'Phone number must be 10-11 digits';
         }
 
         if (!formData.location?.trim()) {
-            setError('Location is required');
-            return;
+            errors.location = 'Location is required';
+        }
+
+        if (!avatar) {
+            errors.avatar = 'Profile photo is required';
         }
 
         // Validation - Professional Information
         if (!formData.qualifications?.trim()) {
-            setError('Qualifications are required');
-            return;
+            errors.qualifications = 'Qualifications are required';
         }
 
         if (!formData.specialtyId) {
-            setError('Please select a specialty');
-            return;
+            errors.specialtyId = 'Please select a specialty';
         }
 
         if (!formData.yearsOfExperience || parseInt(formData.yearsOfExperience) < 0) {
-            setError('Years of experience is required and must be non-negative');
-            return;
+            errors.yearsOfExperience = 'Years of experience is required and must be non-negative';
         }
 
         if (!formData.languageSpoken?.trim()) {
-            setError('Languages spoken is required');
-            return;
-        }
-
-        if (!formData.consultationFee || parseFloat(formData.consultationFee) < 1) {
-            setError('Consultation fee is required and must be at least 1');
-            return;
+            errors.languageSpoken = 'Languages spoken is required';
         }
 
         // Validation - Clinic Information (required for profile display)
         if (!formData.clinicName?.trim()) {
-            setError('Clinic/Hospital name is required');
-            return;
+            errors.clinicName = 'Clinic/Hospital name is required';
         }
 
         if (!formData.clinicAddress?.trim()) {
-            setError('Clinic/Hospital address is required');
-            return;
+            errors.clinicAddress = 'Clinic/Hospital address is required';
+        }
+
+        if (!formData.latitude || !formData.longitude) {
+            errors.clinicMap = 'Please pin your clinic location on the map';
+        }
+
+        if (formData.homeVisitRadiusKm && parseFloat(formData.homeVisitRadiusKm) > 25) {
+            errors.homeVisitRadiusKm = 'Home visit service radius cannot exceed 25km';
         }
 
         // Validation - Required Documents
         if (!documents.medicalDegree) {
-            setError('Medical Degree Certificate is required');
-            return;
+            errors.medicalDegree = 'Medical Degree Certificate is required';
         }
 
         if (!documents.practiceLicense) {
-            setError('Practice License is required');
-            return;
+            errors.practiceLicense = 'Practice License is required';
         }
 
         if (!documents.idCard) {
-            setError('ID Card / Passport is required');
-            return;
+            errors.idCard = 'ID Card / Passport is required';
         }
 
         if (!acceptedTerms) {
-            setError('You must accept the Terms and Conditions to proceed');
+            errors.acceptedTerms = 'You must accept the Terms and Conditions to proceed';
+        }
+
+        if (Object.keys(errors).length > 0) {
+            setFieldErrors(prev => ({ ...prev, ...errors }));
+            const fieldOrder = [
+                'fullName', 'email', 'phoneNumber', 'location', 'avatar',
+                'qualifications', 'specialtyId', 'yearsOfExperience', 'languageSpoken',
+                'clinicName', 'clinicAddress', 'clinicMap', 'homeVisitRadiusKm',
+                'medicalDegree', 'practiceLicense', 'idCard', 'acceptedTerms',
+            ];
+            const firstField = fieldOrder.find(f => errors[f]);
+            focusAndScrollToField(firstField);
             return;
         }
 
+        setFieldErrors({});
         setSubmitting(true);
         setSubmissionStep('submitting');
 
@@ -403,7 +560,9 @@ export function DoctorRegistration() {
                 clinicAddress: formData.clinicAddress.trim(),
                 specialtyId: parseInt(formData.specialtyId),
                 yearsOfExperience: parseInt(formData.yearsOfExperience),
-                consultationFee: parseFloat(formData.consultationFee)
+                latitude: formData.latitude,
+                longitude: formData.longitude,
+                homeVisitRadiusKm: formData.homeVisitRadiusKm ? parseFloat(formData.homeVisitRadiusKm) : 10
             };
 
             const response = await registrationService.submitDoctorRegistration(submitData);
@@ -448,6 +607,14 @@ export function DoctorRegistration() {
     if (loading) {
         return <Loading />;
     }
+
+    const FieldError = ({ field }) => (
+        fieldErrors[field] ? (
+            <p className="field-error-text">
+                <i className="bi bi-exclamation-circle-fill"></i> {fieldErrors[field]}
+            </p>
+        ) : null
+    );
 
     return (
         <>
@@ -516,6 +683,16 @@ export function DoctorRegistration() {
                         <Link to="/register-as" className="back-link">
                             <i className="bi bi-arrow-left"></i> Back
                         </Link>
+                        <button
+                            type="button"
+                            className="quick-fill-corner-btn"
+                            onClick={() => setShowCVImportModal(true)}
+                            disabled={submitting}
+                            title="Upload your CV to auto-fill the form (PDF, DOCX, or image)"
+                        >
+                            <i className="bi bi-magic"></i>
+                            Quick Fill
+                        </button>
                         <h2>Doctor Registration</h2>
                         <p>Complete the form below to register as a healthcare professional</p>
                     </div>
@@ -528,109 +705,114 @@ export function DoctorRegistration() {
                     )}
 
                     <form onSubmit={handleSubmit} noValidate>
-                        {/* CV Import Section */}
-                        <div className="form-section cv-import-section">
-                            <h3><i className="bi bi-file-text"></i> Quick Fill</h3>
-                            <p className="section-description">
-                                Upload your CV to auto-fill the form (PDF, DOCX, or image)
-                            </p>
-                            <button
-                                type="button"
-                                className="cv-import-btn"
-                                onClick={() => setShowCVImportModal(true)}
-                                disabled={submitting}
-                            >
-                                <i className="bi bi-upload"></i>
-                                Upload CV
-                            </button>
-                        </div>
-
-                        {/* Profile Photo */}
-                        <div className="form-section">
-                            <h3><i className="bi bi-person-circle"></i> Profile Photo</h3>
-                            <p className="section-description">Upload your professional photo (Optional - JPG, PNG, WebP - Max 5MB)</p>
-                            <div className="avatar-upload-wrapper">
-                                <div className="avatar-preview">
-                                    {avatarPreview ? (
-                                        <img src={avatarPreview} alt="Avatar preview" />
-                                    ) : (
-                                        <div className="avatar-placeholder">
-                                            <i className="bi bi-person"></i>
-                                        </div>
-                                    )}
+                        {/* Personal Information + Profile Photo */}
+                        <div className="form-section profile-personal-row">
+                            <div className="personal-info-col">
+                                <h3><i className="bi bi-person"></i> Personal Information</h3>
+                                <div className="form-row">
+                                    <div className="form-group">
+                                        <label>Full Name <span className="required">*</span></label>
+                                        <input
+                                            type="text"
+                                            name="fullName"
+                                            value={formData.fullName}
+                                            onChange={handleChange}
+                                            placeholder="Dr. John Smith"
+                                            disabled={submitting}
+                                            className={fieldErrors.fullName ? 'input-error' : undefined}
+                                        />
+                                        <FieldError field="fullName" />
+                                    </div>
+                                    <div className="form-group">
+                                        <label>Email <span className="required">*</span></label>
+                                        <input
+                                            type="email"
+                                            name="email"
+                                            value={formData.email}
+                                            onChange={handleChange}
+                                            placeholder="doctor@example.com"
+                                            disabled={submitting}
+                                            className={fieldErrors.email ? 'input-error' : undefined}
+                                        />
+                                        <FieldError field="email" />
+                                    </div>
                                 </div>
-                                <div className="avatar-controls">
-                                    <input
-                                        type="file"
-                                        id="avatarUpload"
-                                        accept="image/jpeg,image/png,image/jpg,image/webp"
-                                        onChange={handleAvatarChange}
-                                        disabled={submitting}
-                                        className="file-input"
-                                    />
-                                    <label htmlFor="avatarUpload" className="avatar-upload-btn">
-                                        <i className="bi bi-cloud-upload"></i>
-                                        {avatar ? 'Change Photo' : 'Upload Photo'}
-                                    </label>
-                                    {avatar && (
-                                        <button type="button" className="avatar-remove-btn" onClick={removeAvatar}>
-                                            <i className="bi bi-trash"></i> Remove
-                                        </button>
-                                    )}
-                                </div>
-                            </div>
-                        </div>
-
-                        {/* Personal Information */}
-                        <div className="form-section">
-                            <h3><i className="bi bi-person"></i> Personal Information</h3>
-                            <div className="form-row">
-                                <div className="form-group">
-                                    <label>Full Name <span className="required">*</span></label>
-                                    <input
-                                        type="text"
-                                        name="fullName"
-                                        value={formData.fullName}
-                                        onChange={handleChange}
-                                        placeholder="Dr. John Smith"
-                                        disabled={submitting}
-                                    />
-                                </div>
-                                <div className="form-group">
-                                    <label>Email <span className="required">*</span></label>
-                                    <input
-                                        type="email"
-                                        name="email"
-                                        value={formData.email}
-                                        onChange={handleChange}
-                                        placeholder="doctor@example.com"
-                                        disabled={submitting}
-                                    />
+                                <div className="form-row">
+                                    <div className="form-group">
+                                        <label>Phone Number <span className="required">*</span></label>
+                                        <input
+                                            type="tel"
+                                            name="phoneNumber"
+                                            value={formData.phoneNumber}
+                                            onChange={handleChange}
+                                            placeholder="0901234567"
+                                            disabled={submitting}
+                                            className={fieldErrors.phoneNumber ? 'input-error' : undefined}
+                                        />
+                                        <FieldError field="phoneNumber" />
+                                    </div>
+                                    <div className="form-group">
+                                        <label>Location <span className="required">*</span></label>
+                                        <input
+                                            type="text"
+                                            name="location"
+                                            value={formData.location}
+                                            onChange={handleChange}
+                                            placeholder="Ho Chi Minh City"
+                                            disabled={submitting}
+                                            className={fieldErrors.location ? 'input-error' : undefined}
+                                        />
+                                        <FieldError field="location" />
+                                        <small className="form-text text-muted">
+                                            Main city/province you operate in — shown publicly on your profile and used by patients to filter by area (different from the detailed clinic address below).
+                                        </small>
+                                    </div>
                                 </div>
                             </div>
-                            <div className="form-row">
-                                <div className="form-group">
-                                    <label>Phone Number <span className="required">*</span></label>
-                                    <input
-                                        type="tel"
-                                        name="phoneNumber"
-                                        value={formData.phoneNumber}
-                                        onChange={handleChange}
-                                        placeholder="0901234567"
-                                        disabled={submitting}
-                                    />
+                            <div className="profile-photo-col">
+                                <h3><i className="bi bi-person-circle"></i> Profile Photo <span className="required">*</span></h3>
+                                <div className={`avatar-upload-wrapper${avatarPreview ? ' has-avatar' : ''}`}>
+                                    <div className="avatar-preview">
+                                        {avatarPreview ? (
+                                            <>
+                                                <img src={avatarPreview} alt="Avatar preview" />
+                                                <button
+                                                    type="button"
+                                                    className="avatar-remove-btn"
+                                                    onClick={removeAvatar}
+                                                    title="Remove photo"
+                                                    aria-label="Remove photo"
+                                                >
+                                                    <i className="bi bi-trash"></i>
+                                                </button>
+                                            </>
+                                        ) : (
+                                            <div className="avatar-placeholder">
+                                                <i className="bi bi-person"></i>
+                                            </div>
+                                        )}
+                                    </div>
+                                    <div className="avatar-controls">
+                                        <input
+                                            type="file"
+                                            id="avatarUpload"
+                                            accept="image/jpeg,image/png,image/jpg,image/webp"
+                                            onChange={handleAvatarChange}
+                                            disabled={submitting}
+                                            className="file-input"
+                                        />
+                                        <label htmlFor="avatarUpload" className="avatar-upload-btn">
+                                            <i className="bi bi-cloud-upload"></i>
+                                            {avatar ? 'Change Photo' : 'Upload Photo'}
+                                        </label>
+                                        <p className="photo-format-hint">Your professional photo (JPG, PNG - Max 5MB)</p>
+                                    </div>
                                 </div>
-                                <div className="form-group">
-                                    <label>Location <span className="required">*</span></label>
-                                    <input
-                                        type="text"
-                                        name="location"
-                                        value={formData.location}
-                                        onChange={handleChange}
-                                        placeholder="Ho Chi Minh City"
-                                        disabled={submitting}
-                                    />
-                                </div>
+                                <FieldError field="avatar" />
+                                <p className="photo-warning-note">
+                                    <i className="bi bi-exclamation-triangle"></i>
+                                    Please choose a clear, appropriate photo for patients to see — an invalid or unsuitable photo will result in your application being rejected.
+                                </p>
                             </div>
                         </div>
 
@@ -647,7 +829,12 @@ export function DoctorRegistration() {
                                         onChange={handleChange}
                                         placeholder="MD, PhD - Medical University"
                                         disabled={submitting}
+                                        className={fieldErrors.qualifications ? 'input-error' : undefined}
                                     />
+                                    <FieldError field="qualifications" />
+                                    <small className="form-text text-muted">
+                                        Your degrees/certifications, e.g. MD, PhD, BS CKI — shown publicly so patients can assess your qualifications.
+                                    </small>
                                 </div>
                                 <div className="form-group">
                                     <label>Specialty <span className="required">*</span></label>
@@ -656,6 +843,7 @@ export function DoctorRegistration() {
                                         value={formData.specialtyId}
                                         onChange={handleChange}
                                         disabled={submitting}
+                                        className={fieldErrors.specialtyId ? 'input-error' : undefined}
                                     >
                                         <option value="">Select Specialty</option>
                                         {Array.isArray(specialties) && specialties.map(specialty => (
@@ -664,6 +852,10 @@ export function DoctorRegistration() {
                                             </option>
                                         ))}
                                     </select>
+                                    <FieldError field="specialtyId" />
+                                    <small className="form-text text-muted">
+                                        Your main specialty — patients search and filter doctors by this field.
+                                    </small>
                                 </div>
                             </div>
                             <div className="form-row">
@@ -678,7 +870,12 @@ export function DoctorRegistration() {
                                         min="0"
                                         disabled={submitting}
                                         required
+                                        className={fieldErrors.yearsOfExperience ? 'input-error' : undefined}
                                     />
+                                    <FieldError field="yearsOfExperience" />
+                                    <small className="form-text text-muted">
+                                        Actual years of practice — shown publicly on your profile.
+                                    </small>
                                 </div>
                                 <div className="form-group">
                                     <label>Languages Spoken <span className="required">*</span></label>
@@ -689,25 +886,15 @@ export function DoctorRegistration() {
                                         onChange={handleChange}
                                         placeholder="Vietnamese, English"
                                         disabled={submitting}
+                                        className={fieldErrors.languageSpoken ? 'input-error' : undefined}
                                     />
+                                    <FieldError field="languageSpoken" />
+                                    <small className="form-text text-muted">
+                                        Languages you can use to communicate with patients, e.g. Vietnamese, English.
+                                    </small>
                                 </div>
                             </div>
                             <div className="form-row">
-                                <div className="form-group">
-                                    <label>Consultation Fee (USD) <span className="required">*</span></label>
-                                    <input
-                                        type="number"
-                                        name="consultationFee"
-                                        value={formData.consultationFee}
-                                        onChange={handleChange}
-                                        placeholder="50"
-                                        min="1"
-                                        step="0.01"
-                                        disabled={submitting}
-                                        required
-                                    />
-                                    <small className="form-text text-muted">Minimum fee: $1.00</small>
-                                </div>
                                 <div className="form-group">
                                     <label>Bio</label>
                                     <textarea
@@ -718,6 +905,9 @@ export function DoctorRegistration() {
                                         rows="3"
                                         disabled={submitting}
                                     />
+                                    <small className="form-text text-muted">
+                                        A short introduction about your experience/approach to care — shown on your public profile page.
+                                    </small>
                                 </div>
                             </div>
                         </div>
@@ -740,7 +930,11 @@ export function DoctorRegistration() {
                                             className="file-input"
                                         />
                                         <label htmlFor="medicalDegree" className="file-upload-label">
-                                            <i className="bi bi-cloud-upload"></i>
+                                            {documentPreviews.medicalDegree ? (
+                                                <img src={documentPreviews.medicalDegree} alt="Medical Degree Certificate preview" className="file-preview-thumb" />
+                                            ) : (
+                                                <i className="bi bi-cloud-upload"></i>
+                                            )}
                                             <span>{documents.medicalDegree ? documents.medicalDegree.name : 'Choose file...'}</span>
                                         </label>
                                         {documents.medicalDegree && (
@@ -749,6 +943,7 @@ export function DoctorRegistration() {
                                             </button>
                                         )}
                                     </div>
+                                    <FieldError field="medicalDegree" />
                                 </div>
                                 <div className="form-group">
                                     <label>Practice License <span className="required">*</span></label>
@@ -762,7 +957,11 @@ export function DoctorRegistration() {
                                             className="file-input"
                                         />
                                         <label htmlFor="practiceLicense" className="file-upload-label">
-                                            <i className="bi bi-cloud-upload"></i>
+                                            {documentPreviews.practiceLicense ? (
+                                                <img src={documentPreviews.practiceLicense} alt="Practice License preview" className="file-preview-thumb" />
+                                            ) : (
+                                                <i className="bi bi-cloud-upload"></i>
+                                            )}
                                             <span>{documents.practiceLicense ? documents.practiceLicense.name : 'Choose file...'}</span>
                                         </label>
                                         {documents.practiceLicense && (
@@ -771,6 +970,7 @@ export function DoctorRegistration() {
                                             </button>
                                         )}
                                     </div>
+                                    <FieldError field="practiceLicense" />
                                 </div>
                             </div>
 
@@ -787,7 +987,11 @@ export function DoctorRegistration() {
                                             className="file-input"
                                         />
                                         <label htmlFor="idCard" className="file-upload-label">
-                                            <i className="bi bi-cloud-upload"></i>
+                                            {documentPreviews.idCard ? (
+                                                <img src={documentPreviews.idCard} alt="ID Card / Passport preview" className="file-preview-thumb" />
+                                            ) : (
+                                                <i className="bi bi-cloud-upload"></i>
+                                            )}
                                             <span>{documents.idCard ? documents.idCard.name : 'Choose file...'}</span>
                                         </label>
                                         {documents.idCard && (
@@ -796,6 +1000,7 @@ export function DoctorRegistration() {
                                             </button>
                                         )}
                                     </div>
+                                    <FieldError field="idCard" />
                                 </div>
                                 <div className="form-group">
                                     <label>Other Certificates (Optional)</label>
@@ -818,7 +1023,11 @@ export function DoctorRegistration() {
                                         <div className="uploaded-files-list">
                                             {documents.otherCertificates.map((file, index) => (
                                                 <div key={index} className="uploaded-file-item">
-                                                    <i className="bi bi-file-earmark"></i>
+                                                    {otherCertificatePreviews[index] ? (
+                                                        <img src={otherCertificatePreviews[index]} alt={`${file.name} preview`} className="file-preview-thumb-sm" />
+                                                    ) : (
+                                                        <i className="bi bi-file-earmark"></i>
+                                                    )}
                                                     <span>{file.name}</span>
                                                     <button type="button" onClick={() => removeFile('otherCertificates', index)}>
                                                         <i className="bi bi-x"></i>
@@ -846,7 +1055,12 @@ export function DoctorRegistration() {
                                         placeholder="HealthLink Medical Center"
                                         disabled={submitting}
                                         required
+                                        className={fieldErrors.clinicName ? 'input-error' : undefined}
                                     />
+                                    <FieldError field="clinicName" />
+                                    <small className="form-text text-muted">
+                                        Name of the clinic/hospital you currently work at — shown publicly on your profile.
+                                    </small>
                                 </div>
                                 <div className="form-group">
                                     <label>Clinic/Hospital Address <span className="required">*</span></label>
@@ -858,7 +1072,94 @@ export function DoctorRegistration() {
                                         placeholder="123 Main Street, District 1, Ho Chi Minh City"
                                         disabled={submitting}
                                         required
+                                        className={fieldErrors.clinicAddress ? 'input-error' : undefined}
                                     />
+                                    <FieldError field="clinicAddress" />
+                                    <small className="form-text text-muted">
+                                        Full street address — shown publicly and used as your contact point if a Home Visit patient needs to verify your clinic.
+                                    </small>
+                                </div>
+                            </div>
+                            <div className="form-row">
+                                <div className="form-group clinic-map-group" id="clinicMapGroup">
+                                    <label>Pin Clinic Location on Map <span className="required">*</span></label>
+                                    <small className="form-text text-muted">
+                                        Click on the map to mark the exact location of your clinic/hospital. This pin determines whether you show up when patients search for nearby doctors (Home Visit).
+                                    </small>
+                                    <FieldError field="clinicMap" />
+                                    <div className="clinic-map-actions">
+                                        <button
+                                            type="button"
+                                            className="clinic-map-location-btn"
+                                            onClick={handleUseCurrentLocation}
+                                            disabled={submitting || locatingClinic}
+                                        >
+                                            {locatingClinic ? (
+                                                <>
+                                                    <span className="clinic-map-location-spinner"></span>
+                                                    Detecting your location...
+                                                </>
+                                            ) : (
+                                                'Use my current location'
+                                            )}
+                                        </button>
+                                        {locatingClinic && (
+                                            <small className="clinic-map-location-status">
+                                                Please wait, requesting your current location from the browser...
+                                            </small>
+                                        )}
+                                    </div>
+                                    <MapContainer
+                                        center={[
+                                            formData.latitude || 13.5,
+                                            formData.longitude || 106.0,
+                                        ]}
+                                        zoom={formData.latitude && formData.longitude ? 15 : 4}
+                                        style={{ height: '300px', width: '100%' }}
+                                    >
+                                        <TileLayer
+                                            attribution="&copy; OpenStreetMap contributors"
+                                            url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
+                                        />
+
+                                        <MapRecenter
+                                            location={
+                                                formData.latitude && formData.longitude
+                                                    ? { lat: formData.latitude, lng: formData.longitude }
+                                                    : null
+                                            }
+                                        />
+
+                                        <LocationPicker
+                                            location={
+                                                formData.latitude && formData.longitude
+                                                    ? { lat: formData.latitude, lng: formData.longitude }
+                                                    : null
+                                            }
+                                            onPick={handlePickLocation}
+                                        />
+                                    </MapContainer>
+                                </div>
+                            </div>
+                            <div className="form-row">
+                                <div className="form-group">
+                                    <label>Home Visit Service Radius (km)</label>
+                                    <input
+                                        type="number"
+                                        name="homeVisitRadiusKm"
+                                        value={formData.homeVisitRadiusKm}
+                                        onChange={handleChange}
+                                        placeholder="10"
+                                        min="1"
+                                        max="25"
+                                        step="1"
+                                        disabled={submitting}
+                                        className={fieldErrors.homeVisitRadiusKm ? 'input-error' : undefined}
+                                    />
+                                    <FieldError field="homeVisitRadiusKm" />
+                                    <small className="form-text text-muted">
+                                        How far (in km) you're willing to travel to a patient's home, measured from the pin above. Maximum 25km. Patients outside this radius won't see you in Home Visit search results. You can change this later after logging in.
+                                    </small>
                                 </div>
                             </div>
                         </div>
@@ -870,8 +1171,12 @@ export function DoctorRegistration() {
                                 <label className="terms-checkbox-label">
                                     <input
                                         type="checkbox"
+                                        id="acceptedTermsCheckbox"
                                         checked={acceptedTerms}
-                                        onChange={(e) => setAcceptedTerms(e.target.checked)}
+                                        onChange={(e) => {
+                                            setAcceptedTerms(e.target.checked);
+                                            clearFieldError('acceptedTerms');
+                                        }}
                                         disabled={submitting}
                                     />
                                     <span className="terms-checkmark"></span>
@@ -895,6 +1200,7 @@ export function DoctorRegistration() {
                                         {' '}of HealthLink platform.
                                     </span>
                                 </label>
+                                <FieldError field="acceptedTerms" />
                             </div>
                         </div>
 
@@ -966,21 +1272,21 @@ export function DoctorRegistration() {
                 onHide={() => setShowTermsModal(false)}
                 centered
                 size="lg"
-                className="terms-modal"
+                className="doctor-terms-modal"
             >
                 <Modal.Header closeButton>
                     <Modal.Title>
                         <i className="bi bi-file-earmark-text"></i> Terms and Conditions
                     </Modal.Title>
                 </Modal.Header>
-                <Modal.Body className="terms-modal-body">
-                    <div className="terms-content">
+                <Modal.Body className="doctor-terms-modal-body">
+                    <div className="doctor-terms-content">
                         <h4>HealthLink Healthcare Provider Agreement</h4>
-                        <p className="terms-intro">
+                        <p className="doctor-terms-intro">
                             By registering as a healthcare provider on the HealthLink platform, you agree to the following terms and conditions:
                         </p>
 
-                        <div className="terms-section-item">
+                        <div className="doctor-terms-section-item">
                             <h5><i className="bi bi-1-circle"></i> Professional Qualifications</h5>
                             <ul>
                                 <li>You confirm that all information provided during registration is accurate and complete.</li>
@@ -990,7 +1296,7 @@ export function DoctorRegistration() {
                             </ul>
                         </div>
 
-                        <div className="terms-section-item">
+                        <div className="doctor-terms-section-item">
                             <h5><i className="bi bi-2-circle"></i> Patient Care Standards</h5>
                             <ul>
                                 <li>You commit to providing professional, ethical, and evidence-based medical advice.</li>
@@ -1000,7 +1306,7 @@ export function DoctorRegistration() {
                             </ul>
                         </div>
 
-                        <div className="terms-section-item">
+                        <div className="doctor-terms-section-item">
                             <h5><i className="bi bi-3-circle"></i> Platform Usage</h5>
                             <ul>
                                 <li>You will respond to patient consultations in a timely and professional manner.</li>
@@ -1010,7 +1316,7 @@ export function DoctorRegistration() {
                             </ul>
                         </div>
 
-                        <div className="terms-section-item">
+                        <div className="doctor-terms-section-item">
                             <h5><i className="bi bi-4-circle"></i> Data Privacy and Security</h5>
                             <ul>
                                 <li>You will handle all patient data in compliance with applicable privacy laws.</li>
@@ -1019,7 +1325,7 @@ export function DoctorRegistration() {
                             </ul>
                         </div>
 
-                        <div className="terms-section-item">
+                        <div className="doctor-terms-section-item">
                             <h5><i className="bi bi-5-circle"></i> Liability and Insurance</h5>
                             <ul>
                                 <li>You maintain adequate professional liability insurance coverage.</li>
@@ -1028,7 +1334,7 @@ export function DoctorRegistration() {
                             </ul>
                         </div>
 
-                        <div className="terms-section-item">
+                        <div className="doctor-terms-section-item">
                             <h5><i className="bi bi-6-circle"></i> Account Termination</h5>
                             <ul>
                                 <li>HealthLink reserves the right to suspend or terminate accounts that violate these terms.</li>
@@ -1037,7 +1343,7 @@ export function DoctorRegistration() {
                             </ul>
                         </div>
 
-                        <div className="terms-footer-note">
+                        <div className="doctor-terms-footer-note">
                             <i className="bi bi-info-circle"></i>
                             <p>
                                 By accepting these terms, you acknowledge that you have read, understood, and agree to be bound by this agreement.

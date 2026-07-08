@@ -288,6 +288,10 @@
   background: linear-gradient(135deg, #fef2f2 0%, #fee2e2 100%);
 }
 
+.modal-header.success {
+  background: linear-gradient(135deg, #f0fdf4 0%, #dcfce7 100%);
+}
+
 .modal-header h3 {
   margin: 0;
   font-size: 18px;
@@ -304,6 +308,10 @@
 
 .modal-header.danger h3 i {
   color: #dc2626;
+}
+
+.modal-header.success h3 i {
+  color: #22c55e;
 }
 
 .close-btn {
@@ -500,12 +508,12 @@
 }
 
 .btn-success {
-  background: #22c55e;
+  background: #16a34a;
   color: white;
 }
 
 .btn-success:hover {
-  background: #16a34a;
+  background: #15803d;
 }
 
 .btn-danger {

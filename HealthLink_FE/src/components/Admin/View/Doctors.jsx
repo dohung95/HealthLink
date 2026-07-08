@@ -840,7 +840,7 @@ export default function Doctors() {
 
                   {/* Quick Stats Row */}
                   <div className="row g-2 mb-3">
-                    <div className="col-3">
+                    <div className="col-4">
                       <div className="text-center p-2" style={{ background: '#f0fdf4', borderRadius: '8px' }}>
                         <div style={{ fontSize: '18px', fontWeight: '700', color: '#16a34a' }}>
                           {selectedDoctor.yearsOfExperience || 0}
@@ -848,7 +848,7 @@ export default function Doctors() {
                         <div style={{ fontSize: '11px', color: '#64748b' }}>Years Exp.</div>
                       </div>
                     </div>
-                    <div className="col-3">
+                    <div className="col-4">
                       <div className="text-center p-2" style={{ background: '#eff6ff', borderRadius: '8px' }}>
                         <div style={{ fontSize: '18px', fontWeight: '700', color: '#2563eb' }}>
                           {selectedDoctor.totalConsultations || 0}
@@ -856,20 +856,12 @@ export default function Doctors() {
                         <div style={{ fontSize: '11px', color: '#64748b' }}>Consults</div>
                       </div>
                     </div>
-                    <div className="col-3">
+                    <div className="col-4">
                       <div className="text-center p-2" style={{ background: '#fef3c7', borderRadius: '8px' }}>
                         <div style={{ fontSize: '18px', fontWeight: '700', color: '#d97706' }}>
                           {selectedDoctor.totalReviews || 0}
                         </div>
                         <div style={{ fontSize: '11px', color: '#64748b' }}>Reviews</div>
-                      </div>
-                    </div>
-                    <div className="col-3">
-                      <div className="text-center p-2" style={{ background: '#f0fdf9', borderRadius: '8px' }}>
-                        <div style={{ fontSize: '18px', fontWeight: '700', color: '#00a08b' }}>
-                          ${Number(selectedDoctor.consultationFee || 0).toFixed(0)}
-                        </div>
-                        <div style={{ fontSize: '11px', color: '#64748b' }}>Fee</div>
                       </div>
                     </div>
                   </div>

@@ -35,6 +35,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.io.IOException;
+import java.math.BigDecimal;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
@@ -67,6 +68,7 @@ public class RegistrationServiceImpl implements RegistrationService {
     private final AdminAuditLogService auditLogService;
     private final HomeVisitLocationService homeVisitLocationService;
     private static final String DEFAULT_PASSWORD = "HealthLink@123";
+    private static final BigDecimal FIXED_DOCTOR_CONSULTATION_FEE = new BigDecimal("50.00");
     private static final String TYPE_DOCTOR = "DOCTOR";
     private static final String TYPE_PHARMACY = "PHARMACY";
     private static final String STATUS_PENDING = "Pending";
@@ -92,9 +94,12 @@ public class RegistrationServiceImpl implements RegistrationService {
                 .languageSpoken(request.getLanguageSpoken())
                 .location(request.getLocation())
                 .bio(request.getBio())
-                .consultationFee(request.getConsultationFee())
+                .consultationFee(FIXED_DOCTOR_CONSULTATION_FEE)
                 .clinicName(request.getClinicName())
                 .clinicAddress(request.getClinicAddress())
+                .latitude(request.getLatitude())
+                .longitude(request.getLongitude())
+                .homeVisitRadiusKm(request.getHomeVisitRadiusKm())
                 .build();
 
         entity = registrationRequestRepository.save(entity);
@@ -328,6 +333,8 @@ public class RegistrationServiceImpl implements RegistrationService {
                 .clinicAddress(request.getClinicAddress())
                 .avatarUrl(avatarUrl)
                 .verified(false)
+                .availableForHomeVisit(true)
+                .homeVisitRadiusKm(request.getHomeVisitRadiusKm() != null ? request.getHomeVisitRadiusKm() : 10.0)
                 .averageRating(0.0)
                 .totalReviews(0)
                 .build();
@@ -335,12 +342,18 @@ public class RegistrationServiceImpl implements RegistrationService {
         doctor.getServices().add(new DoctorService(doctor, ServiceType.ONLINE, true));
         doctor.getServices().add(new DoctorService(doctor, ServiceType.HOME_VISIT, true));
 
-        try {
-            GeocodeResponse geo = homeVisitLocationService.geocodeClinicAddressWithFallback(request.getClinicAddress());
-            doctor.setLatitude(geo.getLatitude());
-            doctor.setLongitude(geo.getLongitude());
-        } catch (Exception e) {
-            log.warn("Geocode failed for doctor {}: {}", request.getFullName(), e.getMessage());
+        if (request.getLatitude() != null && request.getLongitude() != null) {
+            doctor.setLatitude(request.getLatitude());
+            doctor.setLongitude(request.getLongitude());
+        } else {
+            // Fallback for registration requests submitted before the map-pin field existed
+            try {
+                GeocodeResponse geo = homeVisitLocationService.geocodeClinicAddressWithFallback(request.getClinicAddress());
+                doctor.setLatitude(geo.getLatitude());
+                doctor.setLongitude(geo.getLongitude());
+            } catch (Exception e) {
+                log.warn("Geocode failed for doctor {}: {}", request.getFullName(), e.getMessage());
+            }
         }
 
         doctor = doctorRepository.save(doctor);
@@ -530,6 +543,9 @@ public class RegistrationServiceImpl implements RegistrationService {
                 .consultationFee(entity.getConsultationFee())
                 .clinicName(entity.getClinicName())
                 .clinicAddress(entity.getClinicAddress())
+                .latitude(entity.getLatitude())
+                .longitude(entity.getLongitude())
+                .homeVisitRadiusKm(entity.getHomeVisitRadiusKm())
                 .pharmacyName(entity.getPharmacyName())
                 .licenseNumber(entity.getLicenseNumber())
                 .address(entity.getAddress())

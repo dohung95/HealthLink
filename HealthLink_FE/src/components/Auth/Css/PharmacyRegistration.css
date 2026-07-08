@@ -5,7 +5,7 @@
     background-repeat: no-repeat;
     background-attachment: fixed;
     min-height: 100vh;
-    padding: 240px 20px 40px;
+    padding: 40px 20px 40px;
     position: relative;
 }
 
@@ -38,17 +38,88 @@
     position: absolute;
     left: 0;
     top: 0;
-    color: #64748b;
-    text-decoration: none;
-    display: flex;
+    display: inline-flex;
     align-items: center;
     gap: 6px;
-    font-size: 14px;
-    transition: color 0.3s ease;
+    padding: 8px 14px;
+    background: #eef2ff;
+    color: #4f46e5;
+    border: 1px solid #c7d2fe;
+    border-radius: 20px;
+    text-decoration: none;
+    font-size: 13px;
+    font-weight: 600;
+    transition: all 0.3s ease;
 }
 
 .pharmacy-registration-container .back-link:hover {
-    color: #6366f1;
+    background: #6366f1;
+    color: #fff;
+    border-color: #6366f1;
+}
+
+/* Quick Fill corner button */
+@keyframes pharmacyQuickFillGlow {
+    0%, 100% {
+        box-shadow: 0 0 0 0 rgba(99, 102, 241, 0.35);
+    }
+    50% {
+        box-shadow: 0 0 0 6px rgba(99, 102, 241, 0);
+    }
+}
+
+@keyframes pharmacyQuickFillIconPulse {
+    0%, 100% {
+        transform: scale(1) rotate(0deg);
+    }
+    50% {
+        transform: scale(1.15) rotate(-8deg);
+    }
+}
+
+.pharmacy-registration-container .quick-fill-corner-btn {
+    position: absolute;
+    right: 0;
+    top: 0;
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    padding: 8px 14px;
+    background: #fff;
+    color: #4f46e5;
+    border: 1px solid #6366f1;
+    border-radius: 20px;
+    font-size: 13px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    white-space: nowrap;
+    animation: pharmacyQuickFillGlow 2.6s ease-in-out infinite;
+}
+
+.pharmacy-registration-container .quick-fill-corner-btn:hover:not(:disabled) {
+    background: #6366f1;
+    color: #fff;
+    animation: none;
+}
+
+.pharmacy-registration-container .quick-fill-corner-btn:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+    animation: none;
+}
+
+.pharmacy-registration-container .quick-fill-corner-btn i {
+    font-size: 14px;
+    display: inline-block;
+    animation: pharmacyQuickFillIconPulse 2.6s ease-in-out infinite;
+}
+
+@media (max-width: 768px) {
+    .pharmacy-registration-container .quick-fill-corner-btn {
+        position: static;
+        margin-bottom: 15px;
+    }
 }
 
 .pharmacy-registration-container .form-header h2 {
@@ -123,10 +194,10 @@
 }
 
 .pharmacy-registration-container .form-group label {
-    color: #374151;
+    color: #4f46e5;
     font-size: 14px;
-    font-weight: 500;
-    margin-bottom: 8px;
+    font-weight: 700;
+    margin-bottom: 6px;
 }
 
 .pharmacy-registration-container .required {
@@ -138,12 +209,31 @@
 .pharmacy-registration-container .form-group select,
 .pharmacy-registration-container .form-group textarea {
     width: 100%;
-    padding: 12px 16px;
-    border: 2px solid #e2e8f0;
+    padding: 8px 12px;
+    border: 1px solid #94a3b8;
     border-radius: 8px;
-    font-size: 14px;
+    font-size: 13px;
     transition: all 0.3s ease;
     background-color: #fff;
+}
+
+.pharmacy-registration-container .form-group input.input-error,
+.pharmacy-registration-container .form-group select.input-error,
+.pharmacy-registration-container .form-group textarea.input-error {
+    border-color: #dc2626;
+}
+
+.pharmacy-registration-container .field-error-text {
+    display: flex;
+    align-items: center;
+    gap: 5px;
+    margin: 4px 0 0;
+    color: #dc2626;
+    font-size: 12px;
+}
+
+.pharmacy-registration-container .field-error-text i {
+    font-size: 13px;
 }
 
 .pharmacy-registration-container .form-group input:focus,
@@ -202,26 +292,27 @@
 }
 
 .pharmacy-registration-container .submit-btn {
-    width: 100%;
-    padding: 16px 24px;
+    width: fit-content;
+    margin: 24px auto 0;
+    padding: 10px 32px;
     background: linear-gradient(135deg, #6366f1 0%, #4f46e5 100%);
     color: white;
     border: none;
-    border-radius: 10px;
-    font-size: 16px;
+    border-radius: 24px;
+    font-size: 14px;
     font-weight: 600;
     cursor: pointer;
     transition: all 0.3s ease;
     display: flex;
     align-items: center;
     justify-content: center;
-    gap: 10px;
-    margin-top: 20px;
+    gap: 8px;
+    box-shadow: 0 2px 8px rgba(99, 102, 241, 0.25);
 }
 
 .pharmacy-registration-container .submit-btn:hover:not(:disabled) {
-    transform: translateY(-2px);
-    box-shadow: 0 6px 20px rgba(99, 102, 241, 0.4);
+    transform: translateY(-1px);
+    box-shadow: 0 4px 14px rgba(99, 102, 241, 0.35);
 }
 
 .pharmacy-registration-container .submit-btn:disabled {
@@ -230,8 +321,8 @@
 }
 
 .pharmacy-registration-container .spinner {
-    width: 18px;
-    height: 18px;
+    width: 15px;
+    height: 15px;
     border: 2px solid rgba(255, 255, 255, 0.3);
     border-top-color: white;
     border-radius: 50%;
@@ -466,6 +557,15 @@
     color: #6366f1;
 }
 
+.pharmacy-registration-container .file-preview-thumb {
+    width: 36px;
+    height: 36px;
+    object-fit: cover;
+    border-radius: 6px;
+    border: 1px solid #cbd5e1;
+    flex-shrink: 0;
+}
+
 .pharmacy-registration-container .file-upload-label span {
     white-space: nowrap;
     overflow: hidden;
@@ -514,6 +614,15 @@
     color: #6366f1;
 }
 
+.pharmacy-registration-container .file-preview-thumb-sm {
+    width: 24px;
+    height: 24px;
+    object-fit: cover;
+    border-radius: 4px;
+    border: 1px solid #c7d2fe;
+    flex-shrink: 0;
+}
+
 .pharmacy-registration-container .uploaded-file-item span {
     flex: 1;
     white-space: nowrap;
@@ -537,35 +646,34 @@
 
 /* Terms and Conditions Section */
 .pharmacy-registration-container .terms-section {
-    background: linear-gradient(135deg, #fdf4ff 0%, #fae8ff 100%);
-    border: 2px solid #e879f9;
-    border-radius: 12px;
-    padding: 25px !important;
-    margin-top: 10px;
+    background: transparent;
+    border: none;
+    padding: 0 !important;
+    margin-top: 4px;
 }
 
 .pharmacy-registration-container .terms-section h3 i {
-    color: #a855f7;
+    color: #6366f1;
 }
 
 .pharmacy-registration-container .terms-agreement {
-    margin-top: 10px;
+    margin-top: 8px;
 }
 
 .pharmacy-registration-container .terms-checkbox-label {
     display: flex;
     align-items: flex-start;
-    gap: 12px;
+    gap: 10px;
     cursor: pointer;
-    padding: 10px 0;
+    padding: 6px 0;
 }
 
 .pharmacy-registration-container .terms-checkbox-label input[type="checkbox"] {
-    width: 20px;
-    height: 20px;
-    accent-color: #a855f7;
+    width: 16px;
+    height: 16px;
+    accent-color: #6366f1;
     flex-shrink: 0;
-    margin-top: 2px;
+    margin-top: 3px;
 }
 
 .pharmacy-registration-container .terms-checkmark {
@@ -573,15 +681,15 @@
 }
 
 .pharmacy-registration-container .terms-text {
-    font-size: 14px;
-    color: #374151;
-    line-height: 1.6;
+    font-size: 13px;
+    color: #64748b;
+    line-height: 1.5;
 }
 
 .pharmacy-registration-container .terms-link {
     background: none;
     border: none;
-    color: #a855f7;
+    color: #4f46e5;
     font-weight: 600;
     cursor: pointer;
     text-decoration: underline;
@@ -590,148 +698,221 @@
 }
 
 .pharmacy-registration-container .terms-link:hover {
-    color: #7c3aed;
+    color: #6366f1;
 }
 
-/* Terms Modal */
-.terms-modal .modal-header {
-    background: linear-gradient(135deg, #fdf4ff 0%, #fae8ff 100%);
-    border-bottom: 2px solid #a855f7;
-}
-
-.terms-modal .modal-title {
-    color: #7c3aed;
-    display: flex;
-    align-items: center;
-    gap: 10px;
-    font-weight: 600;
-}
-
-.terms-modal .modal-title i {
-    font-size: 24px;
-}
-
-.terms-modal-body {
-    max-height: 60vh;
-    overflow-y: auto;
-    padding: 25px 30px;
-}
-
-.terms-content h4 {
-    color: #7c3aed;
-    font-size: 20px;
-    font-weight: 700;
-    margin-bottom: 15px;
-    text-align: center;
-}
-
-.terms-intro {
-    color: #475569;
-    font-size: 14px;
-    line-height: 1.6;
-    margin-bottom: 25px;
-    padding: 15px;
-    background: #f8fafc;
-    border-radius: 8px;
-    border-left: 4px solid #a855f7;
-}
-
-.terms-section-item {
-    margin-bottom: 25px;
-    padding-bottom: 20px;
+/* Terms Modal — scoped with pharmacy- prefix to avoid clashing with
+   DoctorRegistration.css, which defines the same unscoped .terms-modal
+   class names with a different (teal) theme */
+.pharmacy-terms-modal .modal-header {
+    background: #fff;
     border-bottom: 1px solid #e2e8f0;
 }
 
-.terms-section-item:last-of-type {
-    border-bottom: none;
-    margin-bottom: 15px;
+/* Some other unscoped `.modal-header .btn-close` rule elsewhere forces the
+   close icon to invert to white — reset it so it stays visible here. */
+.pharmacy-terms-modal .modal-header .btn-close {
+    filter: none;
 }
 
-.terms-section-item h5 {
+.pharmacy-terms-modal .modal-title {
     color: #1e293b;
-    font-size: 16px;
-    font-weight: 600;
-    margin-bottom: 15px;
     display: flex;
     align-items: center;
-    gap: 10px;
+    gap: 8px;
+    font-weight: 600;
+    font-size: 17px;
 }
 
-.terms-section-item h5 i {
-    color: #a855f7;
-    font-size: 20px;
+.pharmacy-terms-modal .modal-title i {
+    color: #6366f1;
+    font-size: 18px;
 }
 
-.terms-section-item ul {
-    margin: 0;
-    padding-left: 20px;
+.pharmacy-terms-modal-body {
+    max-height: 60vh;
+    overflow-y: auto;
+    padding: 20px 25px;
+    scrollbar-width: thin;
+    scrollbar-color: #6366f1 #f1f5f9;
 }
 
-.terms-section-item li {
-    color: #475569;
+.pharmacy-terms-modal-body::-webkit-scrollbar {
+    width: 8px;
+}
+
+.pharmacy-terms-modal-body::-webkit-scrollbar-track {
+    background: #f1f5f9;
+    border-radius: 4px;
+}
+
+.pharmacy-terms-modal-body::-webkit-scrollbar-thumb {
+    background: #6366f1;
+    border-radius: 4px;
+}
+
+.pharmacy-terms-modal-body::-webkit-scrollbar-thumb:hover {
+    background: #4f46e5;
+}
+
+.pharmacy-terms-modal .btn-close:focus,
+.pharmacy-terms-modal .btn:focus,
+.pharmacy-terms-modal .btn:focus-visible {
+    box-shadow: 0 0 0 0.2rem rgba(99, 102, 241, 0.25) !important;
+}
+
+.pharmacy-terms-content h4 {
+    color: #1e293b;
+    font-size: 17px;
+    font-weight: 600;
+    margin-bottom: 12px;
+    text-align: center;
+}
+
+.pharmacy-terms-intro {
+    color: #64748b;
+    font-size: 13px;
+    line-height: 1.6;
+    margin-bottom: 20px;
+    padding: 12px 14px;
+    background: #f8fafc;
+    border-radius: 8px;
+}
+
+.pharmacy-terms-section-item {
+    margin-bottom: 20px;
+    padding-bottom: 16px;
+    border-bottom: 1px solid #f1f5f9;
+}
+
+.pharmacy-terms-section-item:last-of-type {
+    border-bottom: none;
+    margin-bottom: 10px;
+}
+
+.pharmacy-terms-section-item h5 {
+    color: #1e293b;
     font-size: 14px;
-    line-height: 1.7;
-    margin-bottom: 8px;
+    font-weight: 600;
+    margin-bottom: 10px;
+    display: flex;
+    align-items: center;
+    gap: 8px;
 }
 
-.terms-section-item li:last-child {
+.pharmacy-terms-section-item h5 i {
+    color: #6366f1;
+    font-size: 16px;
+}
+
+.pharmacy-terms-section-item ul {
+    margin: 0;
+    padding-left: 18px;
+}
+
+.pharmacy-terms-section-item li {
+    color: #64748b;
+    font-size: 13px;
+    line-height: 1.6;
+    margin-bottom: 6px;
+}
+
+.pharmacy-terms-section-item li:last-child {
     margin-bottom: 0;
 }
 
-.terms-footer-note {
-    background: linear-gradient(135deg, #fef3c7 0%, #fde68a 100%);
-    border: 1px solid #f59e0b;
+.pharmacy-terms-footer-note {
+    background: #fffbeb;
+    border: 1px solid #fde68a;
     border-radius: 8px;
-    padding: 15px 20px;
+    padding: 12px 14px;
     display: flex;
     align-items: flex-start;
-    gap: 12px;
-    margin-top: 20px;
+    gap: 10px;
+    margin-top: 16px;
 }
 
-.terms-footer-note i {
+.pharmacy-terms-footer-note i {
     color: #d97706;
-    font-size: 20px;
+    font-size: 15px;
     flex-shrink: 0;
 }
 
-.terms-footer-note p {
+.pharmacy-terms-footer-note p {
     margin: 0;
     color: #92400e;
-    font-size: 13px;
+    font-size: 12px;
     line-height: 1.5;
 }
 
-.terms-modal .modal-footer {
-    background: #f8fafc;
+.pharmacy-terms-modal .modal-footer {
+    background: #fff;
     border-top: 1px solid #e2e8f0;
-    padding: 15px 25px;
+    padding: 12px 20px;
 }
 
-.terms-modal .modal-footer .btn-primary {
-    background: linear-gradient(135deg, #a855f7 0%, #7c3aed 100%);
+.pharmacy-terms-modal .modal-footer .btn-primary {
+    background: linear-gradient(135deg, #6366f1 0%, #4f46e5 100%);
     border: none;
+    border-radius: 20px;
     font-weight: 600;
+    font-size: 13px;
+    padding: 8px 20px;
     display: flex;
     align-items: center;
     gap: 6px;
 }
 
-.terms-modal .modal-footer .btn-primary:hover {
-    background: linear-gradient(135deg, #7c3aed 0%, #6d28d9 100%);
+.pharmacy-terms-modal .modal-footer .btn-primary:hover {
+    background: linear-gradient(135deg, #4f46e5 0%, #4338ca 100%);
 }
 
-.terms-modal .modal-footer .btn-secondary {
-    background: #64748b;
-    border: none;
+.pharmacy-terms-modal .modal-footer .btn-secondary {
+    background: #fff !important;
+    color: #475569 !important;
+    border: 1px solid #cbd5e1 !important;
+    border-radius: 20px;
+    font-size: 13px;
+    font-weight: 600;
+    padding: 8px 20px;
+}
+
+.pharmacy-terms-modal .modal-footer .btn-secondary:hover {
+    background: #f1f5f9 !important;
+    border-color: #94a3b8 !important;
+    color: #1e293b !important;
+}
+
+/* Basic Information + Profile Photo two-column row */
+.pharmacy-registration-container .profile-basic-row {
+    display: flex;
+    align-items: flex-start;
+    gap: 30px;
+}
+
+.pharmacy-registration-container .basic-info-col {
+    flex: 1 1 0;
+    min-width: 0;
+}
+
+.pharmacy-registration-container .profile-photo-col {
+    flex: 1 1 0;
+    min-width: 0;
+}
+
+@media (max-width: 768px) {
+    .pharmacy-registration-container .profile-basic-row {
+        flex-direction: column;
+        gap: 25px;
+    }
 }
 
 /* Avatar Upload Styles */
 .pharmacy-registration-container .avatar-upload-wrapper {
     display: flex;
     align-items: center;
-    gap: 25px;
-    padding: 20px;
+    gap: 16px;
+    padding: 14px;
     background: #f8fafc;
     border: 2px dashed #cbd5e1;
     border-radius: 12px;
@@ -743,20 +924,37 @@
     background: #eef2ff;
 }
 
+.pharmacy-registration-container .avatar-upload-wrapper.has-avatar {
+    flex-direction: column;
+    align-items: center;
+    width: fit-content;
+    max-width: 100%;
+    padding: 10px;
+    margin: 0 auto;
+}
+
 .pharmacy-registration-container .avatar-preview {
-    width: 120px;
-    height: 120px;
-    border-radius: 12px;
+    position: relative;
+    width: 88px;
+    height: 88px;
+    border-radius: 50%;
     overflow: hidden;
     flex-shrink: 0;
     border: 3px solid #e2e8f0;
     background: white;
 }
 
+.pharmacy-registration-container .avatar-upload-wrapper.has-avatar .avatar-preview {
+    width: 165px;
+    height: 220px;
+    border-radius: 10px;
+    margin: 0 auto;
+}
+
 .pharmacy-registration-container .avatar-preview img {
     width: 100%;
     height: 100%;
-    object-fit: cover;
+    object-fit: contain;
 }
 
 .pharmacy-registration-container .avatar-placeholder {
@@ -770,14 +968,26 @@
 }
 
 .pharmacy-registration-container .avatar-placeholder i {
-    font-size: 50px;
+    font-size: 38px;
 }
 
 .pharmacy-registration-container .avatar-controls {
     display: flex;
     flex-direction: column;
-    gap: 10px;
+    gap: 4px;
     position: relative;
+}
+
+.pharmacy-registration-container .avatar-upload-wrapper.has-avatar .avatar-controls {
+    align-items: center;
+    margin-top: 12px;
+}
+
+.pharmacy-registration-container .photo-format-hint {
+    margin: 2px 0 0;
+    color: #94a3b8;
+    font-size: 11px;
+    text-align: center;
 }
 
 /* Hide avatar file input properly - don't use position absolute */
@@ -808,6 +1018,11 @@
     transition: all 0.3s ease;
 }
 
+.pharmacy-registration-container .avatar-upload-wrapper.has-avatar .avatar-upload-btn {
+    padding: 6px 12px;
+    font-size: 12px;
+}
+
 .pharmacy-registration-container .avatar-upload-btn:hover {
     transform: translateY(-2px);
     box-shadow: 0 4px 12px rgba(99, 102, 241, 0.4);
@@ -817,28 +1032,35 @@
     font-size: 16px;
 }
 
+.pharmacy-registration-container .avatar-upload-wrapper.has-avatar .avatar-upload-btn i {
+    font-size: 13px;
+}
+
 .pharmacy-registration-container .avatar-remove-btn {
+    position: absolute;
+    top: 6px;
+    right: 6px;
     display: inline-flex;
     align-items: center;
-    gap: 6px;
-    padding: 8px 16px;
-    background: #fee2e2;
-    color: #dc2626;
-    border: 1px solid #fecaca;
-    border-radius: 8px;
-    font-size: 13px;
-    font-weight: 500;
+    justify-content: center;
+    width: 26px;
+    height: 26px;
+    padding: 0;
+    background: rgba(220, 38, 38, 0.85);
+    color: #fff;
+    border: none;
+    border-radius: 50%;
     cursor: pointer;
     transition: all 0.3s ease;
+    box-shadow: 0 1px 4px rgba(0, 0, 0, 0.3);
 }
 
 .pharmacy-registration-container .avatar-remove-btn:hover {
-    background: #fecaca;
-    border-color: #f87171;
+    background: #dc2626;
 }
 
 .pharmacy-registration-container .avatar-remove-btn i {
-    font-size: 14px;
+    font-size: 12px;
 }
 
 @media (max-width: 576px) {
@@ -850,60 +1072,6 @@
     .pharmacy-registration-container .avatar-controls {
         align-items: center;
     }
-}
-
-/* CV Import Section Styles */
-.pharmacy-registration-container .cv-import-section {
-    background: #f8fafb;
-    border: 1px solid #e2e8f0;
-    border-radius: 8px;
-    padding: 16px 20px !important;
-}
-
-.pharmacy-registration-container .cv-import-section h3 {
-    color: #374151;
-    font-size: 15px;
-    margin-bottom: 8px;
-}
-
-.pharmacy-registration-container .cv-import-section h3 i {
-    color: #6b7280;
-}
-
-.pharmacy-registration-container .cv-import-section .section-description {
-    color: #6b7280;
-    font-size: 13px;
-    margin-bottom: 12px;
-}
-
-.pharmacy-registration-container .cv-import-btn {
-    display: inline-flex;
-    align-items: center;
-    gap: 8px;
-    padding: 10px 18px;
-    background: #fff;
-    color: #374151;
-    border: 1px solid #d1d5db;
-    border-radius: 6px;
-    font-size: 13px;
-    font-weight: 500;
-    cursor: pointer;
-    transition: all 0.2s ease;
-}
-
-.pharmacy-registration-container .cv-import-btn:hover:not(:disabled) {
-    background: #f9fafb;
-    border-color: #9ca3af;
-}
-
-.pharmacy-registration-container .cv-import-btn:disabled {
-    opacity: 0.5;
-    cursor: not-allowed;
-}
-
-.pharmacy-registration-container .cv-import-btn i {
-    font-size: 15px;
-    color: #6b7280;
 }
 
 /* ==================== Submission Loading Overlay ==================== */

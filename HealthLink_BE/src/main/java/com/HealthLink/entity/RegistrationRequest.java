@@ -89,6 +89,15 @@ public class RegistrationRequest {
     @Column(name = "ClinicAddress", length = 500)
     private String clinicAddress;
 
+    @Column(name = "Latitude")
+    private Double latitude;
+
+    @Column(name = "Longitude")
+    private Double longitude;
+
+    @Column(name = "HomeVisitRadiusKm")
+    private Double homeVisitRadiusKm;
+
     // ============ Pharmacy Fields ============
     @Nationalized
     @Column(name = "PharmacyName", length = 200)

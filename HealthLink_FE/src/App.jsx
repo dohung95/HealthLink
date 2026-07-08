@@ -119,6 +119,7 @@ function AppContent() {
   const isPharmacyChatPage = location.pathname === '/pharmacy-page/chat';
   const isSchedulePage = location.pathname === '/schedule' || location.pathname.startsWith('/book/');
   const isResetPasswordPage = location.pathname === '/reset-password';
+  const isRegistrationFormPage = location.pathname === '/register/doctor' || location.pathname === '/register/pharmacy';
 
   // list trang bị chặn sau khi login
   const publicPaths = [
@@ -170,8 +171,8 @@ function AppContent() {
     '/reset-password'
   ].includes(location.pathname);
 
-  // Don't show navbar/footer on video call, doctor page, admin page, login page, or 404 page
-  const hideLayout = isVideoCallPage || isDoctorPage || isAdminPage || isPatientDashboard || isPharmacyDashboard || isSchedulePage || isAuthPage || is404Page;
+  // Don't show navbar/footer on video call, doctor page, admin page, login page, registration form pages, or 404 page
+  const hideLayout = isVideoCallPage || isDoctorPage || isAdminPage || isPatientDashboard || isPharmacyDashboard || isSchedulePage || isAuthPage || isRegistrationFormPage || is404Page;
 
   useEffect(() => {
     const openMedicineReminder = (event) => {
