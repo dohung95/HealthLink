@@ -64,10 +64,12 @@ public class AdminAppointmentService {
     }
 
     public AdminAppointmentPageResponse getAppointments(int pageNumber, int pageSize, String searchTerm,
-                                                         String date, String status, String department) {
+                                                         String date, String startDate, String endDate,
+                                                         String status, String department) {
         Pageable pageable = PageRequest.of(Math.max(pageNumber - 1, 0), Math.max(pageSize, 1),
             Sort.by(Sort.Direction.DESC, "appointmentTime"));
-        Specification<Appointment> specification = buildSpecification(searchTerm, date, status, department);
+        Specification<Appointment> specification = buildSpecification(
+                searchTerm, date, startDate, endDate, status, department);
         Page<Appointment> page = appointmentRepository.findAll(specification, pageable);
 
         List<AdminAppointmentDto> appointments = page.stream()
@@ -125,7 +127,9 @@ public class AdminAppointmentService {
         return mapToDto(savedAppointment);
     }
 
-    private Specification<Appointment> buildSpecification(String searchTerm, String date, String status, String department) {
+    private Specification<Appointment> buildSpecification(String searchTerm, String date,
+                                                            String startDate, String endDate,
+                                                            String status, String department) {
         return (root, query, cb) -> {
             var predicates = new ArrayList<jakarta.persistence.criteria.Predicate>();
             var patientJoin = root.join("patient", jakarta.persistence.criteria.JoinType.LEFT);
@@ -140,7 +144,28 @@ public class AdminAppointmentService {
                 ));
             }
 
-            if (StringUtils.hasText(date)) {
+            // Ưu tiên khoảng ngày (startDate/endDate, dùng cho calendar theo tháng) nếu có,
+            // nếu không mới xét lọc theo đúng 1 ngày (date, dùng cho filter list view)
+            if (StringUtils.hasText(startDate) || StringUtils.hasText(endDate)) {
+                try {
+                    LocalDateTime rangeStart = StringUtils.hasText(startDate)
+                            ? LocalDate.parse(startDate).atStartOfDay()
+                            : null;
+                    LocalDateTime rangeEnd = StringUtils.hasText(endDate)
+                            ? LocalDate.parse(endDate).atTime(LocalTime.MAX)
+                            : null;
+
+                    if (rangeStart != null && rangeEnd != null) {
+                        predicates.add(cb.between(root.get("appointmentTime"), rangeStart, rangeEnd));
+                    } else if (rangeStart != null) {
+                        predicates.add(cb.greaterThanOrEqualTo(root.get("appointmentTime"), rangeStart));
+                    } else {
+                        predicates.add(cb.lessThanOrEqualTo(root.get("appointmentTime"), rangeEnd));
+                    }
+                } catch (Exception e) {
+                    // Invalid date format, ignore filter
+                }
+            } else if (StringUtils.hasText(date)) {
                 try {
                     LocalDate filterDate = LocalDate.parse(date);
                     LocalDateTime startOfDay = filterDate.atStartOfDay();

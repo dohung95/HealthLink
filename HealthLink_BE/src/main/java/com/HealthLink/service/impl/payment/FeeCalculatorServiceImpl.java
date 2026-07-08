@@ -3,12 +3,15 @@ package com.HealthLink.service.impl.payment;
 import com.HealthLink.entity.Appointment;
 import com.HealthLink.entity.CommissionConfig;
 import com.HealthLink.entity.Doctor;
+import com.HealthLink.entity.HomeVisitDetails;
 import com.HealthLink.entity.PharmacyOrder;
 import com.HealthLink.exception.BadRequestException;
+import com.HealthLink.repository.appointment.AppointmentHomeVisitServiceRepository;
 import com.HealthLink.repository.payment.PaymentCommissionConfigRepository;
 import com.HealthLink.service.payment.FeeCalculatorService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 
 import java.math.BigDecimal;
@@ -69,6 +72,13 @@ public class FeeCalculatorServiceImpl implements FeeCalculatorService {
     private static final BigDecimal DEFAULT_PHARMACY_RATE     = new BigDecimal("0.1000");
 
     private final PaymentCommissionConfigRepository commissionConfigRepository;
+    private final AppointmentHomeVisitServiceRepository appointmentHomeVisitServiceRepository;
+
+    // Phí home-visit cơ bản (KHÔNG dùng HomeVisitDetails.homeVisitFee — field đó đang bị
+    // AppointmentServiceImpl.buildHomeVisitDetails() gán nhầm bằng phí khám của bác sĩ
+    // thay vì phí home-visit cơ bản thật). Đọc thẳng từ config, giống HomeVisitLocationService.
+    @Value("${home-visit.base-fee:10.00}")
+    private BigDecimal homeVisitBaseFee;
 
     // ========================================================================
     // Tính phí cho Bác sĩ (Consultation)
@@ -87,13 +97,34 @@ public class FeeCalculatorServiceImpl implements FeeCalculatorService {
                 ? SERVICE_CONSULTATION_HOME_VISIT
                 : SERVICE_CONSULTATION_OFFLINE;
 
-        // Lấy phí tư vấn từ Doctor
+        // Chỉ phần phí khám gốc + tiền dịch vụ home-visit phụ mới bị chia hoa hồng.
+        // Phí di chuyển home-visit (base fee + travelFee) cho bác sĩ hưởng 100%, không qua rate.
+        // Phí tự chọn bác sĩ (manualSelectionFee) hoàn toàn không xuất hiện ở đây — mặc định
+        // thuộc về hệ thống (không tính vào commissionableAmount lẫn travelTotal).
         Doctor doctor = appointment.getDoctor();
-        BigDecimal consultationFee = (doctor != null && doctor.getConsultationFee() != null)
+        BigDecimal baseConsultationFee = (doctor != null && doctor.getConsultationFee() != null)
                 ? doctor.getConsultationFee()
                 : BigDecimal.ZERO;
 
-        if (consultationFee.compareTo(BigDecimal.ZERO) == 0) {
+        BigDecimal travelTotal = BigDecimal.ZERO;
+        BigDecimal servicesTotal = BigDecimal.ZERO;
+
+        if (isHomeVisit) {
+            HomeVisitDetails details = appointment.getHomeVisitDetails();
+            BigDecimal extraTravelFee = (details != null && details.getTravelFee() != null)
+                    ? details.getTravelFee()
+                    : BigDecimal.ZERO;
+            travelTotal = homeVisitBaseFee.add(extraTravelFee).setScale(2, RoundingMode.HALF_UP);
+
+            BigDecimal sum = appointmentHomeVisitServiceRepository
+                    .sumPriceByAppointmentId(appointment.getAppointmentId());
+            servicesTotal = (sum != null ? sum : BigDecimal.ZERO).setScale(2, RoundingMode.HALF_UP);
+        }
+
+        BigDecimal commissionableAmount = baseConsultationFee.add(servicesTotal);
+
+        if (commissionableAmount.compareTo(BigDecimal.ZERO) == 0
+                && travelTotal.compareTo(BigDecimal.ZERO) == 0) {
             log.warn("Consultation fee is zero for appointment {}, no commission calculated",
                     appointment.getAppointmentId());
             return new FeeResult(BigDecimal.ZERO, BigDecimal.ZERO, BigDecimal.ZERO, serviceType);
@@ -102,14 +133,16 @@ public class FeeCalculatorServiceImpl implements FeeCalculatorService {
         // Xác định tỷ lệ chiết khấu theo thứ tự ưu tiên
         BigDecimal rate = resolveConsultationRate(doctor, serviceType, isOnline);
 
-        // Công thức: PlatformFee = Fee × Rate; DoctorEarning = Fee - PlatformFee
-        BigDecimal platformFee = consultationFee
+        // Công thức: PlatformFee = (Khám + Dịch vụ phụ) × Rate;
+        //            DoctorEarning = (Khám + Dịch vụ phụ) - PlatformFee + TravelTotal (100%)
+        BigDecimal platformFee = commissionableAmount
                 .multiply(rate)
                 .setScale(2, RoundingMode.HALF_UP);
-        BigDecimal partnerEarning = consultationFee.subtract(platformFee);
+        BigDecimal partnerEarning = commissionableAmount.subtract(platformFee).add(travelTotal);
 
-        log.debug("Consultation fee calculated: fee={}, rate={}, platformFee={}, doctorEarning={}",
-                consultationFee, rate, platformFee, partnerEarning);
+        log.debug("Consultation fee calculated: baseFee={}, servicesTotal={}, travelTotal={}, rate={}, "
+                        + "platformFee={}, doctorEarning={}",
+                baseConsultationFee, servicesTotal, travelTotal, rate, platformFee, partnerEarning);
 
         return new FeeResult(rate, platformFee, partnerEarning, serviceType);
     }

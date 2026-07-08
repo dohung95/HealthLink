@@ -37,9 +37,12 @@ public class AdminAppointmentController {
             @RequestParam(defaultValue = "10") int pageSize,
             @RequestParam(required = false) String searchTerm,
             @RequestParam(required = false) String date,
+            @RequestParam(required = false) String startDate,
+            @RequestParam(required = false) String endDate,
             @RequestParam(required = false) String status,
             @RequestParam(required = false) String department) {
-        return ResponseEntity.ok(appointmentService.getAppointments(pageNumber, pageSize, searchTerm, date, status, department));
+        return ResponseEntity.ok(appointmentService.getAppointments(
+                pageNumber, pageSize, searchTerm, date, startDate, endDate, status, department));
     }
 
     @GetMapping("/{id}")

@@ -103,13 +103,30 @@ export default function Appointments() {
     return date.toLocaleDateString('en-US', { month: 'long', year: 'numeric' });
   };
 
+  // Lấy ngày theo giờ local (không dùng toISOString() vì nó quy đổi sang UTC,
+  // gây lệch 1 ngày ở múi giờ UTC+7 khi so sánh với ngày lưu trong DB)
+  const toLocalDateStr = (date) => {
+    const year = date.getFullYear();
+    const month = String(date.getMonth() + 1).padStart(2, '0');
+    const day = String(date.getDate()).padStart(2, '0');
+    return `${year}-${month}-${day}`;
+  };
+
   const getAppointmentsForDate = (date) => {
-    const dateStr = date.toISOString().split('T')[0];
+    const dateStr = toLocalDateStr(date);
     return calendarAppointments.filter(appt => {
       const apptDate = appt.rawDate || (appt.appointmentTime ? appt.appointmentTime.split('T')[0] : '');
       return apptDate === dateStr;
     });
   };
+
+  const todaysAppointments = useMemo(() => {
+    const todayStr = toLocalDateStr(new Date());
+    return calendarAppointments.filter(appt => {
+      const apptDate = appt.rawDate || (appt.appointmentTime ? appt.appointmentTime.split('T')[0] : '');
+      return apptDate === todayStr;
+    });
+  }, [calendarAppointments]);
 
   const navigateCalendar = (direction) => {
     setCalendarDate(prev => {
@@ -131,8 +148,8 @@ export default function Appointments() {
       const month = calendarDate.getMonth();
 
       // Get first and last day of the month for filtering
-      const startDate = new Date(year, month, 1).toISOString().split('T')[0];
-      const endDate = new Date(year, month + 1, 0).toISOString().split('T')[0];
+      const startDate = toLocalDateStr(new Date(year, month, 1));
+      const endDate = toLocalDateStr(new Date(year, month + 1, 0));
 
       const response = await appointmentsApi.getAll({
         pageNumber: 1,
@@ -692,20 +709,11 @@ export default function Appointments() {
                 Today's Appointments
               </h6>
               <span className="admin-badge admin-badge-primary">
-                {calendarAppointments.filter(appt => {
-                  const today = new Date().toISOString().split('T')[0];
-                  const apptDate = appt.rawDate || (appt.appointmentTime ? appt.appointmentTime.split('T')[0] : '');
-                  return apptDate === today;
-                }).length} appointments
+                {todaysAppointments.length} appointments
               </span>
             </div>
             <div className="todays-appointments-list">
-              {calendarAppointments
-                .filter(appt => {
-                  const today = new Date().toISOString().split('T')[0];
-                  const apptDate = appt.rawDate || (appt.appointmentTime ? appt.appointmentTime.split('T')[0] : '');
-                  return apptDate === today;
-                })
+              {todaysAppointments
                 .slice(0, 5)
                 .map((appt, index) => (
                   <div key={index} className="todays-appt-item" onClick={() => handleViewAppointment(appt)}>
@@ -732,11 +740,7 @@ export default function Appointments() {
                     </div>
                   </div>
                 ))}
-              {calendarAppointments.filter(appt => {
-                const today = new Date().toISOString().split('T')[0];
-                const apptDate = appt.rawDate || (appt.appointmentTime ? appt.appointmentTime.split('T')[0] : '');
-                return apptDate === today;
-              }).length === 0 && (
+              {todaysAppointments.length === 0 && (
                 <div className="text-center text-muted py-4">
                   <i className="bi bi-calendar-x d-block mb-2" style={{ fontSize: '32px' }}></i>
                   No appointments scheduled for today
