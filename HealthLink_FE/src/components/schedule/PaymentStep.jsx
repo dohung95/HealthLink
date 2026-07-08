@@ -132,6 +132,15 @@ const PaymentStep = ({ bookingDraft, selectedDoctor, onBack, onPaymentComplete }
     }
     : draftInvoice;
 
+  const homeVisitDoctorFee = isHomeVisit
+    ? Math.max(
+      0,
+      Number(displayInvoice?.amount || 0) -
+      Number(displayInvoice?.homeVisitTravelTotal || 0) -
+      Number(displayInvoice?.homeVisitServicesTotal || 0)
+    )
+    : Number(displayInvoice?.consultationFee || 0);
+
   return (
     <div className="schedule-card payment-step-card">
       <h2>Payment</h2>
@@ -155,18 +164,8 @@ const PaymentStep = ({ bookingDraft, selectedDoctor, onBack, onPaymentComplete }
         {isHomeVisit && (
           <>
             <div>
-              <span>Doctor consultation fee</span>
-              <strong>{formatCurrency(displayInvoice?.consultationFee)}</strong>
-            </div>
-
-            <div>
-              <span>Base home visit fee</span>
-              <strong>{formatCurrency(displayInvoice?.homeVisitBaseFee)}</strong>
-            </div>
-
-            <div>
-              <span>Additional distance fee</span>
-              <strong>{formatCurrency(displayInvoice?.travelFee)}</strong>
+              <span>Doctor fee</span>
+              <strong>{formatCurrency(homeVisitDoctorFee)}</strong>
             </div>
 
             <div>
@@ -239,31 +238,25 @@ const PaymentStep = ({ bookingDraft, selectedDoctor, onBack, onPaymentComplete }
                 <strong>{paidInvoice.paidAt ? new Date(paidInvoice.paidAt).toLocaleString('en-US') : '-'}</strong>
               </div>
               <div>
-                <span>Consultation fee</span>
-                <strong>{formatCurrency(paidInvoice.consultationFee)}</strong>
+                <span>{isHomeVisit ? 'Doctor fee' : 'Consultation fee'}</span>
+                <strong>
+                  {formatCurrency(isHomeVisit ? homeVisitDoctorFee : displayInvoice?.consultationFee)}
+                </strong>
               </div>
 
               {isHomeVisit && (
                 <>
                   <div>
-                    <span>Base home visit fee</span>
-                    <strong>{formatCurrency(displayInvoice?.homeVisitBaseFee)}</strong>
-                  </div>
-
-                  <div>
-                    <span>Additional distance fee</span>
-                    <strong>{formatCurrency(displayInvoice?.travelFee)}</strong>
-                  </div>
-
-                  <div>
                     <span>Home visit travel total</span>
                     <strong>{formatCurrency(displayInvoice?.homeVisitTravelTotal)}</strong>
                   </div>
 
-                  <div>
-                    <span>Selected services</span>
-                    <strong>{formatCurrency(displayInvoice?.homeVisitServicesTotal)}</strong>
-                  </div>
+                  {Number(displayInvoice?.homeVisitServicesTotal || 0) > 0 && (
+                    <div>
+                      <span>Selected services</span>
+                      <strong>{formatCurrency(displayInvoice?.homeVisitServicesTotal)}</strong>
+                    </div>
+                  )}
                 </>
               )}
 

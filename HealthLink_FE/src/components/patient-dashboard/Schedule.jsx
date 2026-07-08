@@ -774,7 +774,11 @@ const Schedule = () => {
       };
 
       const doctorFee = isHomeVisit
-        ? Number(selectedHomeVisitDoctor?.consultationFee || 0)
+        ? Number(
+          selectedHomeVisitDoctor?.homeVisitConsultationFee ??
+          selectedHomeVisitDoctor?.consultationFee ??
+          0
+        )
         : Number(selectedDoctor?.consultationFee ?? selectedDoctor?.fee ?? 0);
 
       const homeVisitTravelTotal = isHomeVisit
