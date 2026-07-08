@@ -3,7 +3,7 @@ import { toast } from 'sonner';
 import pharmacyApi from '../../../api/pharmacyApi';
 import { cartSubtotal, getMedicineDisplayName, money, toCartPayload } from './retailStoreUtils';
 
-const STEPS = ['delivery', 'pharmacy', 'review'];
+const STEPS = ['fulfillment', 'pharmacy', 'review'];
 
 export default function RetailCheckoutWizard({
   items,
@@ -13,14 +13,20 @@ export default function RetailCheckoutWizard({
   onClose,
   onCreated,
 }) {
-  const [step, setStep] = useState('delivery');
+  const [step, setStep] = useState('fulfillment');
+  const [fulfillmentType, setFulfillmentType] = useState('Delivery');
   const [deliveryContact, setDeliveryContact] = useState({
-    deliveryType: 'Delivery',
     deliveryAddress: '',
     deliveryLatitude: null,
     deliveryLongitude: null,
     deliveryPhoneNumber: '',
     deliveryAddressSource: 'PROFILE',
+  });
+  const [pickupContact, setPickupContact] = useState({
+    phoneNumber: '',
+    areaText: '',
+    latitude: null,
+    longitude: null,
   });
   const [pharmacies, setPharmacies] = useState([]);
   const [selectedPharmacy, setSelectedPharmacy] = useState(null);
@@ -41,6 +47,11 @@ export default function RetailCheckoutWizard({
       deliveryPhoneNumber: current.deliveryPhoneNumber || patientProfile?.phoneNumber || '',
       deliveryAddressSource: current.deliveryAddressSource || 'PROFILE',
     }));
+
+    setPickupContact((current) => ({
+      ...current,
+      phoneNumber: current.phoneNumber || patientProfile?.phoneNumber || '',
+    }));
   }, [patientProfile]);
 
   useEffect(() => {
@@ -51,10 +62,13 @@ export default function RetailCheckoutWizard({
     const loadPharmacies = async () => {
       setLoadingPharmacies(true);
       try {
+        const lat = fulfillmentType === 'Delivery' ? deliveryContact.deliveryLatitude : pickupContact.latitude;
+        const lng = fulfillmentType === 'Delivery' ? deliveryContact.deliveryLongitude : pickupContact.longitude;
         const result = await pharmacyApi.getRetailRecommendations({
-          lat: deliveryContact.deliveryLatitude,
-          lng: deliveryContact.deliveryLongitude,
-          deliveryOnly: true,
+          lat,
+          lng,
+          deliveryOnly: fulfillmentType === 'Delivery',
+          fulfillmentType,
           items: toCartPayload(items),
         });
         setPharmacies(Array.isArray(result) ? result : []);
@@ -66,15 +80,24 @@ export default function RetailCheckoutWizard({
       }
     };
 
-    if (deliveryContact.deliveryLatitude != null && deliveryContact.deliveryLongitude != null) {
+    const lat = fulfillmentType === 'Delivery' ? deliveryContact.deliveryLatitude : pickupContact.latitude;
+    const lng = fulfillmentType === 'Delivery' ? deliveryContact.deliveryLongitude : pickupContact.longitude;
+    if (lat != null && lng != null) {
       loadPharmacies();
     }
 
     return undefined;
-  }, [deliveryContact.deliveryLatitude, deliveryContact.deliveryLongitude, items, step]);
+  }, [
+    fulfillmentType,
+    deliveryContact.deliveryLatitude,
+    deliveryContact.deliveryLongitude,
+    pickupContact.latitude,
+    pickupContact.longitude,
+    items,
+    step,
+  ]);
 
   const subtotal = useMemo(() => cartSubtotal(items), [items]);
-  const reviewTotal = Number(selectedPharmacy?.medicineSubtotal ?? subtotal) + Number(selectedPharmacy?.deliveryFee ?? 0);
 
   const verifyManualAddress = async () => {
     if (!deliveryContact.deliveryAddress.trim()) {
@@ -96,6 +119,32 @@ export default function RetailCheckoutWizard({
       return true;
     } catch (error) {
       const message = error.response?.data?.message || 'Unable to verify this address.';
+      toast.error(message);
+      return false;
+    } finally {
+      setSavingAddress(false);
+    }
+  };
+
+  const verifyPickupArea = async () => {
+    if (!pickupContact.areaText.trim()) {
+      toast.error('Please enter a pickup area or location.');
+      return false;
+    }
+
+    setSavingAddress(true);
+    try {
+      const result = await pharmacyApi.geocodeAddress(pickupContact.areaText.trim());
+      setPickupContact((current) => ({
+        ...current,
+        areaText: result.formattedAddress || current.areaText.trim(),
+        latitude: result.latitude,
+        longitude: result.longitude,
+      }));
+      toast.success('Pickup area verified.');
+      return true;
+    } catch (error) {
+      const message = error.response?.data?.message || 'Unable to verify this area.';
       toast.error(message);
       return false;
     } finally {
@@ -131,19 +180,31 @@ export default function RetailCheckoutWizard({
   };
 
   const goToPharmacyStep = async () => {
-    if (!deliveryContact.deliveryPhoneNumber.trim()) {
-      toast.error('Please enter a delivery phone number.');
-      return;
-    }
-    if (!deliveryContact.deliveryAddress.trim()) {
-      toast.error('Please enter a delivery address.');
-      return;
-    }
-
-    if (deliveryContact.deliveryLatitude == null || deliveryContact.deliveryLongitude == null) {
-      const verified = await verifyManualAddress();
-      if (!verified) {
+    if (fulfillmentType === 'Delivery') {
+      if (!deliveryContact.deliveryPhoneNumber.trim()) {
+        toast.error('Please enter a delivery phone number.');
         return;
+      }
+      if (!deliveryContact.deliveryAddress.trim()) {
+        toast.error('Please enter a delivery address.');
+        return;
+      }
+      if (deliveryContact.deliveryLatitude == null || deliveryContact.deliveryLongitude == null) {
+        const verified = await verifyManualAddress();
+        if (!verified) {
+          return;
+        }
+      }
+    } else {
+      if (!pickupContact.phoneNumber.trim()) {
+        toast.error('Please enter a phone number.');
+        return;
+      }
+      if (pickupContact.latitude == null || pickupContact.longitude == null) {
+        const verified = await verifyPickupArea();
+        if (!verified) {
+          return;
+        }
       }
     }
 
@@ -170,18 +231,34 @@ export default function RetailCheckoutWizard({
 
     setSubmitting(true);
     try {
-      const order = await pharmacyApi.createRetailOrder({
+      const payload = {
         pharmacyId: selectedPharmacy.pharmacyId,
-        deliveryType: deliveryContact.deliveryType,
-        deliveryAddress: deliveryContact.deliveryAddress,
-        deliveryLatitude: deliveryContact.deliveryLatitude,
-        deliveryLongitude: deliveryContact.deliveryLongitude,
-        deliveryPhoneNumber: deliveryContact.deliveryPhoneNumber,
-        deliveryAddressSource: deliveryContact.deliveryAddressSource,
+        deliveryType: fulfillmentType,
+        deliveryPhoneNumber: fulfillmentType === 'Delivery' ? deliveryContact.deliveryPhoneNumber : pickupContact.phoneNumber,
         paymentMethod: 'EWallet',
         items: toCartPayload(items),
-      });
-      toast.success('Retail order created.');
+      };
+
+      if (fulfillmentType === 'Delivery') {
+        payload.deliveryAddress = deliveryContact.deliveryAddress;
+        payload.deliveryLatitude = deliveryContact.deliveryLatitude;
+        payload.deliveryLongitude = deliveryContact.deliveryLongitude;
+        payload.deliveryAddressSource = deliveryContact.deliveryAddressSource;
+      }
+
+      const order = await pharmacyApi.createRetailOrder(payload);
+
+      const isPending = order.requiresPatientConfirmation || (fulfillmentType === 'Delivery' && order.status === 'PENDING');
+      const isConfirmed = fulfillmentType === 'Pickup' && order.status === 'CONFIRMED';
+
+      if (isPending) {
+        toast.success('Order submitted. Awaiting pharmacy quote confirmation.');
+      } else if (isConfirmed) {
+        toast.success('Order confirmed! Ready for pickup.');
+      } else {
+        toast.success('Retail order created.');
+      }
+
       onCreated(order);
     } catch (error) {
       toast.error(error.response?.data?.message || 'Unable to create retail order.');
@@ -189,6 +266,10 @@ export default function RetailCheckoutWizard({
       setSubmitting(false);
     }
   };
+
+  const phoneNumber = fulfillmentType === 'Delivery' ? deliveryContact.deliveryPhoneNumber : pickupContact.phoneNumber;
+  const locationLat = fulfillmentType === 'Delivery' ? deliveryContact.deliveryLatitude : pickupContact.latitude;
+  const locationLng = fulfillmentType === 'Delivery' ? deliveryContact.deliveryLongitude : pickupContact.longitude;
 
   return (
     <div className="retail-checkout-backdrop">
@@ -216,45 +297,96 @@ export default function RetailCheckoutWizard({
           })}
         </div>
 
-        {step === 'delivery' && (
+        {step === 'fulfillment' && (
           <div>
-            <label className="form-label small">Receiver phone</label>
-            <input
-              className="form-control mb-3"
-              value={deliveryContact.deliveryPhoneNumber}
-              onChange={(event) => setDeliveryContact((current) => ({
-                ...current,
-                deliveryPhoneNumber: event.target.value,
-              }))}
-            />
-
-            <label className="form-label small">Delivery address</label>
-            <textarea
-              className="form-control mb-2"
-              rows="3"
-              value={deliveryContact.deliveryAddress}
-              onChange={(event) => setDeliveryContact((current) => ({
-                ...current,
-                deliveryAddress: event.target.value,
-                deliveryLatitude: null,
-                deliveryLongitude: null,
-                deliveryAddressSource: 'MANUAL',
-              }))}
-            />
-
-            <div className="d-flex flex-wrap gap-2 mb-3">
-              <button className="btn btn-outline-primary btn-sm" type="button" disabled={savingAddress} onClick={useCurrentLocation}>
-                <i className="bi bi-crosshair me-1"></i>Use current location
-              </button>
-              <button className="btn btn-outline-secondary btn-sm" type="button" disabled={savingAddress} onClick={verifyManualAddress}>
-                <i className="bi bi-geo-alt me-1"></i>Verify address
-              </button>
+            <div className="mb-3">
+              <label className="form-label small">Fulfillment type</label>
+              <div className="d-flex gap-2">
+                <button
+                  className={`btn btn-sm ${fulfillmentType === 'Delivery' ? 'btn-primary' : 'btn-outline-primary'}`}
+                  type="button"
+                  onClick={() => setFulfillmentType('Delivery')}
+                >
+                  <i className="bi bi-truck me-1"></i>Delivery
+                </button>
+                <button
+                  className={`btn btn-sm ${fulfillmentType === 'Pickup' ? 'btn-primary' : 'btn-outline-primary'}`}
+                  type="button"
+                  onClick={() => setFulfillmentType('Pickup')}
+                >
+                  <i className="bi bi-shop me-1"></i>Pickup
+                </button>
+              </div>
             </div>
 
-            {deliveryContact.deliveryLatitude != null && deliveryContact.deliveryLongitude != null && (
+            <label className="form-label small">Contact phone</label>
+            <input
+              className="form-control mb-3"
+              value={phoneNumber}
+              onChange={(event) => {
+                const value = event.target.value;
+                if (fulfillmentType === 'Delivery') {
+                  setDeliveryContact((current) => ({ ...current, deliveryPhoneNumber: value }));
+                } else {
+                  setPickupContact((current) => ({ ...current, phoneNumber: value }));
+                }
+              }}
+            />
+
+            {fulfillmentType === 'Delivery' && (
+              <>
+                <label className="form-label small">Delivery address</label>
+                <textarea
+                  className="form-control mb-2"
+                  rows="3"
+                  value={deliveryContact.deliveryAddress}
+                  onChange={(event) => setDeliveryContact((current) => ({
+                    ...current,
+                    deliveryAddress: event.target.value,
+                    deliveryLatitude: null,
+                    deliveryLongitude: null,
+                    deliveryAddressSource: 'MANUAL',
+                  }))}
+                />
+
+                <div className="d-flex flex-wrap gap-2 mb-3">
+                  <button className="btn btn-outline-primary btn-sm" type="button" disabled={savingAddress} onClick={useCurrentLocation}>
+                    <i className="bi bi-crosshair me-1"></i>Use current location
+                  </button>
+                  <button className="btn btn-outline-secondary btn-sm" type="button" disabled={savingAddress} onClick={verifyManualAddress}>
+                    <i className="bi bi-geo-alt me-1"></i>Verify address
+                  </button>
+                </div>
+              </>
+            )}
+
+            {fulfillmentType === 'Pickup' && (
+              <>
+                <label className="form-label small">Pickup area / location</label>
+                <input
+                  className="form-control mb-2"
+                  value={pickupContact.areaText}
+                  onChange={(event) => setPickupContact((current) => ({
+                    ...current,
+                    areaText: event.target.value,
+                    latitude: null,
+                    longitude: null,
+                  }))}
+                  placeholder="Enter a city, district, or area"
+                />
+
+                <div className="d-flex flex-wrap gap-2 mb-3">
+                  <button className="btn btn-outline-secondary btn-sm" type="button" disabled={savingAddress} onClick={verifyPickupArea}>
+                    <i className="bi bi-geo-alt me-1"></i>Verify area
+                  </button>
+                </div>
+              </>
+            )}
+
+            {locationLat != null && locationLng != null && (
               <div className="alert alert-success small py-2">
                 <i className="bi bi-check-circle me-1"></i>
-                Location verified: {deliveryContact.deliveryLatitude.toFixed(5)}, {deliveryContact.deliveryLongitude.toFixed(5)}
+                Location verified: {locationLat.toFixed(5)}, {locationLng.toFixed(5)}
               </div>
             )}
 
@@ -271,7 +403,7 @@ export default function RetailCheckoutWizard({
           <div>
             <div className="d-flex justify-content-between align-items-center mb-3">
               <div className="small text-muted">Sorted by distance, stock status, and rating.</div>
-              <button className="btn btn-outline-secondary btn-sm" type="button" onClick={() => setStep('delivery')}>
+              <button className="btn btn-outline-secondary btn-sm" type="button" onClick={() => setStep('fulfillment')}>
                 Back
               </button>
             </div>
@@ -353,9 +485,11 @@ export default function RetailCheckoutWizard({
               <div className="col-md-6">
                 <div className="card h-100">
                   <div className="card-body">
-                    <h6 className="fw-semibold">Delivery</h6>
-                    <div>{deliveryContact.deliveryPhoneNumber}</div>
-                    <div className="small text-muted">{deliveryContact.deliveryAddress}</div>
+                    <h6 className="fw-semibold">{fulfillmentType === 'Delivery' ? 'Delivery' : 'Pickup location'}</h6>
+                    <div>{phoneNumber}</div>
+                    <div className="small text-muted">
+                      {fulfillmentType === 'Delivery' ? deliveryContact.deliveryAddress : pickupContact.areaText}
+                    </div>
                   </div>
                 </div>
               </div>
@@ -385,11 +519,15 @@ export default function RetailCheckoutWizard({
               </div>
               <div className="d-flex justify-content-between">
                 <span>Delivery fee</span>
-                <strong>{money(selectedPharmacy.deliveryFee)}</strong>
+                <strong>
+                  {fulfillmentType === 'Delivery'
+                    ? 'To be confirmed by pharmacy'
+                    : money(0)}
+                </strong>
               </div>
               <div className="d-flex justify-content-between retail-review-total">
                 <span>Total</span>
-                <strong>{money(reviewTotal)}</strong>
+                <strong>{money(selectedPharmacy.medicineSubtotal ?? subtotal)}</strong>
               </div>
             </div>
 

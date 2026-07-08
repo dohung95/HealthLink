@@ -81,6 +81,13 @@ public class PharmacyOrder {
     private LocalDateTime actualDeliveryTime;
     private LocalDateTime confirmedAt;
     private LocalDateTime patientConfirmedAt;
+
+    @Column(name = "PatientConfirmationRequestedAt")
+    private LocalDateTime patientConfirmationRequestedAt;
+
+    @Column(name = "PatientConfirmationReason", length = 50)
+    private String patientConfirmationReason;
+
     private LocalDateTime preparingAt;
     private LocalDateTime shippedAt;
     private LocalDateTime deliveredAt;

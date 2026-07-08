@@ -88,7 +88,11 @@ export default function PharmacyOrderDetailModal({ item, onClose, onStatusUpdate
         </div>
 
         <div className="pharmacy-order-detail-footer">
-          {nextStatus && onStatusUpdate && (
+          {item.requiresPatientConfirmation ? (
+            <span className="btn btn-secondary" style={{ fontSize: 12 }} disabled>
+              Awaiting patient confirmation
+            </span>
+          ) : nextStatus && onStatusUpdate ? (
             <button
               className="btn btn-primary"
               disabled={isSaving}
@@ -97,7 +101,7 @@ export default function PharmacyOrderDetailModal({ item, onClose, onStatusUpdate
             >
               {isSaving ? 'Updating...' : `Mark ${titleCase(nextStatus)}`}
             </button>
-          )}
+          ) : null}
           {item.availableActions?.includes('CHAT') && onChat && (
             <button className="btn btn-outline-secondary" onClick={() => onChat(item)} type="button">
               <i className="bi bi-chat-dots" /> Chat

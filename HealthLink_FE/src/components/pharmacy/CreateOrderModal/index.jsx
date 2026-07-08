@@ -163,8 +163,8 @@ export default function CreateOrderModal({
   onClose,
   onCreated,
   variant = 'default',
-  onChatRequest,
-  onVideoCallRequest,
+  mode = 'createFromRequest',
+  orderId,
 }) {
   const isConsultMode = variant === 'consult';
   const isOrderRequest = request?.requestType === 'ORDER_REQUEST' || request?.sourceType === 'ORDER_REQUEST';
@@ -180,12 +180,67 @@ export default function CreateOrderModal({
   const [deliveryMinuteDigits, setDeliveryMinuteDigits] = useState([0, 4, 5]);
   const [creatingOrder, setCreatingOrder] = useState(false);
   const [medicineCatalog, setMedicineCatalog] = useState([]);
+  const [existingOrder, setExistingOrder] = useState(null);
 
   useEffect(() => {
+    if (mode !== 'updateQuote' || !orderId) return;
+    let alive = true;
+    pharmacyApi.getOrderById(orderId)
+      .then((data) => {
+        if (!alive) return;
+        setExistingOrder(data);
+      })
+      .catch(() => {
+        if (!alive) return;
+        toast.error('Failed to load order for revision.');
+      });
+    return () => { alive = false; };
+  }, [mode, orderId]);
+
+  useEffect(() => {
+    if (!existingOrder) return;
+    setOrderItems(
+      existingOrder.orderItems?.map((item, index) => ({
+        localId: `existing-${Date.now()}-${index}`,
+        medicineId: item.medicineId,
+        medicationName: item.medicationName,
+        totalSupplyDays: Number(item.totalSupplyDays || 1),
+        quantity: Number(item.quantity || 1),
+        unit: item.unit || 'unit',
+        frequency: item.frequency || '',
+        timing: item.timing || '',
+        route: item.route || '',
+        totalPrice: Number(item.totalPrice || 0),
+        notes: item.notes || '',
+        sourcePrescriptionHeaderId: item.sourcePrescriptionHeaderId,
+        sourcePrescriptionItemId: item.sourcePrescriptionItemId,
+      })) || [],
+    );
+    setDeliveryEnabled(normalizeDelivery(existingOrder.deliveryType));
+    setDeliveryFee(existingOrder.deliveryFee != null ? String(existingOrder.deliveryFee) : '');
+    if (existingOrder.estimatedDeliveryMinutes != null) {
+      const str = String(existingOrder.estimatedDeliveryMinutes).padStart(3, '0');
+      setDeliveryMinuteDigits(str.split('').map(Number));
+    }
+  }, [existingOrder]);
+
+  useEffect(() => {
+    if (mode !== 'updateQuote' || !existingOrder) return;
+    const hasPrescriptionSource = existingOrder.orderItems?.some(
+      (item) => item.sourcePrescriptionItemId || item.sourcePrescriptionHeaderId,
+    );
+    if (hasPrescriptionSource) {
+      toast.error('Cannot update quote for prescription-based orders.');
+      onClose();
+    }
+  }, [mode, existingOrder, onClose]);
+
+  useEffect(() => {
+    if (mode === 'updateQuote' && existingOrder) return;
     const preferredDelivery = normalizeDelivery(request?.preferredDeliveryType);
     setDeliveryEnabled(preferredDelivery);
-    setDeliveryFee(preferredDelivery ? String(profile?.deliveryFee ?? 0) : '');
-  }, [profile?.deliveryFee, request?.preferredDeliveryType, request?.requestId]);
+    setDeliveryFee(preferredDelivery ? String(profile?.deliveryFee ?? 0) : '0');
+  }, [profile?.deliveryFee, request?.preferredDeliveryType, request?.requestId, mode, existingOrder]);
 
   useEffect(() => {
     if (!request?.requestId) return;
@@ -354,13 +409,18 @@ export default function CreateOrderModal({
       payload.deliveryLongitude = request.deliveryLongitude;
       payload.deliveryPhoneNumber = request.deliveryPhoneNumber;
       payload.deliveryAddressSource = request.deliveryAddressSource;
-      await pharmacyApi.createOrderFromRequest(request.requestId, payload);
-      toast.success('Order created from request.');
+      if (mode === 'updateQuote') {
+        await pharmacyApi.updateOrderQuote(orderId, payload);
+        toast.success('Quote updated successfully.');
+      } else {
+        await pharmacyApi.createOrderFromRequest(request.requestId, payload);
+        toast.success(deliveryEnabled ? 'Quote sent to patient for confirmation.' : 'Order created from request.');
+      }
       setOrderItems([]);
       await onCreated();
       onClose();
     } catch (error) {
-      toast.error(error.response?.data?.message || 'Unable to create order.');
+      toast.error(error.response?.data?.message || (mode === 'updateQuote' ? 'Unable to update quote.' : 'Unable to create order.'));
     } finally {
       setCreatingOrder(false);
     }
@@ -383,34 +443,12 @@ export default function CreateOrderModal({
                 <i className="bi bi-bag-plus me-2"></i>
                 Consult &amp; Order
               </h2>
-              <div className="pharmacy-create-order-header__actions">
-                {request?.availableActions?.includes('VIDEO_CALL') && (
-                  <button
-                    className="btn btn-outline-primary btn-sm"
-                    onClick={() => onVideoCallRequest?.(request)}
-                    type="button"
-                  >
-                    <i className="bi bi-camera-video me-1"></i>
-                    Video Call
-                  </button>
-                )}
-                {request?.availableActions?.includes('CHAT') && (
-                  <button
-                    className="btn btn-outline-secondary btn-sm"
-                    onClick={() => onChatRequest?.(request)}
-                    type="button"
-                  >
-                    <i className="bi bi-chat-dots me-1"></i>
-                    Chat
-                  </button>
-                )}
-              </div>
             </>
           ) : (
             <>
               <h2>
                 <i className="bi bi-bag-plus me-2"></i>
-                Create Order
+                {mode === 'updateQuote' ? 'Update Quote' : 'Create Quote'}
               </h2>
               <span className="text-muted small">{request?.displayId || `Request #${request?.requestId}`}</span>
               <button className="btn btn-light btn-sm ms-auto" onClick={onClose} type="button" aria-label="Close">
@@ -584,25 +622,27 @@ export default function CreateOrderModal({
 
               <div className="pharmacy-invoice-divider"></div>
 
-              <div className="form-check form-switch mb-2">
-                <input
-                  checked={deliveryEnabled}
-                  className="form-check-input"
-                  id="pharmacy-modal-delivery"
-                  onChange={(e) => {
-                    setDeliveryEnabled(e.target.checked);
-                    if (e.target.checked) {
-                      setDeliveryFee((current) => current || String(profile?.deliveryFee ?? 0));
-                    } else {
-                      setDeliveryFee('');
-                    }
-                  }}
-                  type="checkbox"
-                />
-                <label className="form-check-label small" htmlFor="pharmacy-modal-delivery">
-                  Home delivery
-                </label>
-              </div>
+              {!isConsultMode && (
+                <div className="form-check form-switch mb-2">
+                  <input
+                    checked={deliveryEnabled}
+                    className="form-check-input"
+                    id="pharmacy-modal-delivery"
+                    onChange={(e) => {
+                      setDeliveryEnabled(e.target.checked);
+                      if (e.target.checked) {
+                        setDeliveryFee((current) => current || String(profile?.deliveryFee ?? 0));
+                      } else {
+                        setDeliveryFee('');
+                      }
+                    }}
+                    type="checkbox"
+                  />
+                  <label className="form-check-label small" htmlFor="pharmacy-modal-delivery">
+                    Home delivery
+                  </label>
+                </div>
+              )}
 
               {deliveryEnabled && (
                 <div className="pharmacy-invoice-delivery-fields">
@@ -614,6 +654,7 @@ export default function CreateOrderModal({
                         className="form-control"
                         min="0"
                         onChange={(e) => setDeliveryFee(e.target.value)}
+                        required={isConsultMode && deliveryEnabled}
                         step="0.01"
                         type="number"
                         value={deliveryFee}
@@ -653,12 +694,12 @@ export default function CreateOrderModal({
                 {creatingOrder ? (
                   <>
                     <span className="spinner-border spinner-border-sm me-2" aria-hidden="true" />
-                    Creating...
+                    {mode === 'updateQuote' ? 'Updating Quote...' : 'Creating...'}
                   </>
                 ) : (
                   <>
                     <i className="bi bi-bag-check me-2"></i>
-                    Create Order - {money(orderTotal)}
+                    {mode === 'updateQuote' ? 'Update Quote' : 'Create Quote'} - {money(orderTotal)}
                   </>
                 )}
               </button>

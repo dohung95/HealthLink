@@ -58,37 +58,43 @@ export default function PharmacyInventoryTab({ globalSearch }) {
   const [categoryTree, setCategoryTree] = useState([]);
   const deferredSearch = useDebouncedValue(globalSearch);
 
-  const loadInventory = useCallback(async (params, shouldFetchLowStock) => {
+  const loadInventory = useCallback(async (overrides = {}) => {
     setLoading(true);
     try {
+      const params = { page: overrides.page ?? page, size: PAGE_SIZE };
+      const q = overrides.query ?? deferredSearch;
+      if (q) params.query = q;
+      const f = overrides.filter ?? filter;
+      if (f === 'active') params.active = true;
+      else if (f === 'inactive') params.active = false;
+      else if (f === 'lowStock') params.lowStock = true;
+      else if (f === 'expiringSoon') params.expiringSoon = true;
+      const cid = overrides.categoryId ?? selectedCategoryId;
+      if (cid) params.categoryId = cid;
+
       const data = await pharmacyApi.getInventory(params);
       setInventory(data);
 
-      if (shouldFetchLowStock) {
+      if ((overrides.filter ?? filter) === 'lowStock') {
         const lowStockData = await pharmacyApi.getInventory({ page: 0, size: 1, lowStock: true });
         setLowStockCount(Number(lowStockData?.totalElements ?? 0));
       }
+
+      return data;
     } catch {
       toast.error('Unable to load inventory.');
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [page, filter, deferredSearch, selectedCategoryId]);
 
   useEffect(() => {
     medicineApi.getMedicineCategoryTree().then(setCategoryTree).catch(() => {});
   }, []);
 
   useEffect(() => {
-    const params = { page, size: PAGE_SIZE };
-    if (deferredSearch) params.query = deferredSearch;
-    if (filter === 'active') params.active = true;
-    else if (filter === 'inactive') params.active = false;
-    else if (filter === 'lowStock') params.lowStock = true;
-    else if (filter === 'expiringSoon') params.expiringSoon = true;
-    if (selectedCategoryId) params.categoryId = selectedCategoryId;
-    loadInventory(params, filter === 'lowStock');
-  }, [page, filter, deferredSearch, selectedCategoryId, loadInventory]);
+    loadInventory();
+  }, [loadInventory]);
 
   const handleImportClick = () => setShowImportModal(true);
   const handleDownloadTemplate = () => pharmacyApi.downloadInventoryTemplate();
@@ -287,7 +293,13 @@ export default function PharmacyInventoryTab({ globalSearch }) {
       {showImportModal && (
         <ImportModal
           onClose={() => setShowImportModal(false)}
-          onImported={() => { setShowImportModal(false); loadInventory(); }}
+          onImported={async () => {
+            setShowImportModal(false);
+            const data = await loadInventory();
+            if (data?.content?.length === 0 && page > 0) {
+              setPage(0);
+            }
+          }}
         />
       )}
 
@@ -295,7 +307,10 @@ export default function PharmacyInventoryTab({ globalSearch }) {
         <EditInventoryModal
           item={editItem}
           onClose={() => setEditItem(null)}
-          onSaved={() => { setEditItem(null); loadInventory(); }}
+          onSaved={async () => {
+            setEditItem(null);
+            await loadInventory({ page });
+          }}
         />
       )}
     </div>

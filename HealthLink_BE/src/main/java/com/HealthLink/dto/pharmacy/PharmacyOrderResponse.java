@@ -63,6 +63,11 @@ public class PharmacyOrderResponse {
     // --- Medication items ---
     private List<PharmacyOrderItemResponse> items;
 
+    // --- Patient confirmation ---
+    private Boolean requiresPatientConfirmation;
+    private LocalDateTime patientConfirmationRequestedAt;
+    private String patientConfirmationReason;
+
     // --- Timestamps ---
     private LocalDateTime estimatedDeliveryTime;
     private LocalDateTime actualDeliveryTime;
@@ -88,4 +93,9 @@ public class PharmacyOrderResponse {
 
     /** Snapshot tỷ lệ chiết khấu đã áp dụng (ví dụ: 0.1000 = 10%) */
     private BigDecimal commissionRate;
+
+    // --- Delivery contact change request ---
+    private Integer deliveryContactChangeRequestId;
+    private String deliveryContactChangeStatus;
+    private LocalDateTime deliveryContactChangeRequestedAt;
 }

@@ -164,6 +164,31 @@ export const pharmacyApi = {
     const response = await axiosInstance.put(`/api/pharmacy-orders/${orderId}/quote`, payload);
     return response.data;
   },
+
+  updateOrderDeliveryContact: async (orderId, payload) => {
+    const response = await axiosInstance.patch(`/api/pharmacy-orders/${orderId}/delivery-contact`, payload);
+    return response.data;
+  },
+
+  requestDeliveryContactChange: async (orderId, payload) => {
+    const response = await axiosInstance.post(`/api/pharmacy-orders/${orderId}/delivery-contact-change-requests`, payload);
+    return response.data;
+  },
+
+  reviewDeliveryContactChange: async (requestId, payload) => {
+    const response = await axiosInstance.patch(`/api/pharmacy-orders/delivery-contact-change-requests/${requestId}/status`, payload);
+    return response.data;
+  },
+
+  submitDeliveryQuote: async (orderId, payload) => {
+    const response = await axiosInstance.patch(`/api/pharmacy-orders/${orderId}/delivery-quote`, payload);
+    return response.data;
+  },
+
+  confirmOrderTotalByPatient: async (orderId) => {
+    const response = await axiosInstance.post(`/api/pharmacy-orders/${orderId}/patient-confirm`);
+    return response.data;
+  },
 };
 
 export default pharmacyApi;

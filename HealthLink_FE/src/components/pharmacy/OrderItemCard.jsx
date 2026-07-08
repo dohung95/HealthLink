@@ -98,32 +98,43 @@ export default function OrderItemCard({ item, onUpdate, onRemove, index, expande
               </select>
             </div>
             <div className="col-12">
-              {showNoteInput ? (
-                <div className="pharmacy-note-card">
-                  <div className="pharmacy-note-card__header">
-                    <label className="form-label mb-0">PHARMACIST NOTE</label>
-                    <button
-                      className="pharmacy-note-card__close"
-                      onClick={() => { setShowNoteInput(false); onUpdate(item.localId, 'notes', ''); }}
-                      type="button"
-                      aria-label="Remove pharmacist note"
-                    >
-                      <i className="bi bi-x-lg"></i>
-                    </button>
+              {lockedMedication ? (
+                item.notes ? (
+                  <div className="pharmacy-note-card pharmacy-note-card--readonly">
+                    <div className="pharmacy-note-card__header">
+                      <label className="form-label mb-0">DOCTOR NOTE</label>
+                    </div>
+                    <p className="mb-0 small" style={{ whiteSpace: 'pre-wrap' }}>{item.notes}</p>
                   </div>
-                  <textarea
-                    className="form-control form-control-sm"
-                    onChange={(e) => onUpdate(item.localId, 'notes', e.target.value)}
-                    placeholder="Add instructions for the patient..."
-                    rows={2}
-                    value={item.notes}
-                  />
-                </div>
+                ) : null
               ) : (
-                <button className="btn btn-sm btn-link text-decoration-none p-0 text-primary fw-semibold" onClick={() => setShowNoteInput(true)} type="button">
-                  <i className="bi bi-plus-circle me-1"></i>
-                  Add Pharmacist Note
-                </button>
+                showNoteInput ? (
+                  <div className="pharmacy-note-card">
+                    <div className="pharmacy-note-card__header">
+                      <label className="form-label mb-0">PHARMACIST NOTE</label>
+                      <button
+                        className="pharmacy-note-card__close"
+                        onClick={() => { setShowNoteInput(false); onUpdate(item.localId, 'notes', ''); }}
+                        type="button"
+                        aria-label="Remove pharmacist note"
+                      >
+                        <i className="bi bi-x-lg"></i>
+                      </button>
+                    </div>
+                    <textarea
+                      className="form-control form-control-sm"
+                      onChange={(e) => onUpdate(item.localId, 'notes', e.target.value)}
+                      placeholder="Add instructions for the patient..."
+                      rows={2}
+                      value={item.notes}
+                    />
+                  </div>
+                ) : (
+                  <button className="btn btn-sm btn-link text-decoration-none p-0 text-primary fw-semibold" onClick={() => setShowNoteInput(true)} type="button">
+                    <i className="bi bi-plus-circle me-1"></i>
+                    Add Pharmacist Note
+                  </button>
+                )
               )}
             </div>
           </div>

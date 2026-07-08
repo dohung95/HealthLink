@@ -6,6 +6,7 @@ import {
   getWorkflowStage,
   isOrderListWorkItem,
   matchesPharmacyWorkflowSearch,
+  mergeWorkflowItemsWithOrders,
 } from './workflow/pharmacyWorkflow';
 import PharmacyOrderDetailModal from './PharmacyOrderDetailModal';
 
@@ -20,21 +21,9 @@ export default function PharmacyOrderListPage({ workItems, orders }) {
   const [query, setQuery] = useState('');
   const [page, setPage] = useState(1);
   const [detailItem, setDetailItem] = useState(null);
-  const allItems = useMemo(() => {
-    const workItemList = Array.isArray(workItems) ? workItems : [];
-    const orderList = Array.isArray(orders) ? orders : [];
-    const seenOrderIds = new Set(workItemList.map((item) => item.orderId).filter(Boolean));
-    const extraOrders = orderList
-      .filter((order) => order.orderId && !seenOrderIds.has(order.orderId))
-      .map((order) => ({
-        ...order,
-        workflowStage: order.status || 'UNKNOWN',
-        orderStatus: order.status,
-        hasOrder: true,
-        displayId: order.orderNumber || `#${order.orderId}`,
-      }));
-    return [...workItemList, ...extraOrders].filter(isOrderListWorkItem);
-  }, [orders, workItems]);
+  const allItems = useMemo(() => (
+    mergeWorkflowItemsWithOrders(workItems, orders).filter(isOrderListWorkItem)
+  ), [orders, workItems]);
 
   const visibleItems = useMemo(() => {
     const tab = ORDER_LIST_TABS.find((t) => t.key === activeTab);
@@ -153,6 +142,11 @@ export default function PharmacyOrderListPage({ workItems, orders }) {
                       <span className={`pharmacy-status ${paymentStatusTone(getWorkflowStage(item))}`}>
                         {getWorkflowStage(item)}
                       </span>
+                      {item.requiresPatientConfirmation && (
+                        <span className="pharmacy-status is-warning" style={{ fontSize: 10, marginLeft: 4 }}>
+                          Awaiting patient confirmation
+                        </span>
+                      )}
                     </td>
                     <td>
                       <span className={`pharmacy-status ${paymentStatusTone(item.paymentStatus)}`} style={{ fontSize: 10 }}>
@@ -197,16 +191,11 @@ export default function PharmacyOrderListPage({ workItems, orders }) {
         <PharmacyOrderDetailModal
           item={detailItem}
           onClose={() => setDetailItem(null)}
-          onChat={handleChat}
         />
       )}
     </div>
     </>
   );
-}
-
-function handleChat() {
-  // no-op placeholder
 }
 
 function paymentStatusTone(status) {

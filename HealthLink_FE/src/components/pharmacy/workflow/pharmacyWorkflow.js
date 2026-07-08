@@ -58,6 +58,44 @@ export function getWorkflowStage(item) {
   return normalize(item?.workflowStage || item?.orderStatus || item?.status);
 }
 
+export function getOrderWorkflowStage(order) {
+  const status = normalize(order?.workflowStage || order?.orderStatus || order?.status);
+
+  if (status === 'CONFIRMED') return 'AWAITING_PAYMENT';
+
+  if (status === 'PENDING') {
+    if (order?.requiresPatientConfirmation || order?.patientConfirmationRequestedAt || order?.deliveryFee != null) {
+      return 'AWAITING_PAYMENT';
+    }
+    return 'NEW_REQUEST';
+  }
+
+  return status || 'UNKNOWN';
+}
+
+export function mapOrderToWorkflowItem(order) {
+  if (!order?.orderId) return null;
+  const workflowStage = getOrderWorkflowStage(order);
+  return {
+    ...order,
+    workflowStage,
+    orderStatus: order.status || order.orderStatus,
+    hasOrder: true,
+    displayId: order.orderNumber || `#${order.orderId}`,
+  };
+}
+
+export function mergeWorkflowItemsWithOrders(workItems, orders) {
+  const workItemList = Array.isArray(workItems) ? workItems : [];
+  const orderList = Array.isArray(orders) ? orders : [];
+  const seenOrderIds = new Set(workItemList.map((item) => item.orderId).filter(Boolean));
+  const mappedOrders = orderList
+    .filter((order) => order?.orderId && !seenOrderIds.has(order.orderId))
+    .map(mapOrderToWorkflowItem)
+    .filter(Boolean);
+  return [...workItemList, ...mappedOrders];
+}
+
 export function isRequestWorkItem(item) {
   return REQUEST_STAGE_GROUPS.some((group) => group.stages.includes(getWorkflowStage(item)));
 }
@@ -72,6 +110,15 @@ export function isOrderListWorkItem(item) {
 
 export function isDeliveryOrder(item) {
   return normalize(item?.deliveryType) === 'DELIVERY';
+}
+
+export function isDeliveryOrderRequest(item) {
+  const requestType = normalize(item?.requestType || item?.sourceType);
+  const sourceType = normalize(item?.sourceType);
+  const deliveryType = normalize(item?.preferredDeliveryType || item?.deliveryType);
+  return (requestType === 'ORDER_REQUEST' || sourceType === 'ORDER_REQUEST')
+    && deliveryType === 'DELIVERY'
+    && !item?.orderId;
 }
 
 export function getNextOrderStatus(item) {
@@ -99,6 +146,33 @@ export function getItemDisplayId(item) {
   if (item?.orderId) return `#${item.orderId}`;
   if (item?.requestId) return `Request #${item.requestId}`;
   return '-';
+}
+
+export function getWorkItemKind(item) {
+  if (!item) return 'order';
+  if (item.sourceType === 'CONSULTATION_REQUEST' && item.requestType === 'CONSULTATION') return 'consultation';
+  if (isDeliveryOrderRequest(item)) return 'deliveryOrderRequest';
+  if (item.sourceType === 'ORDER_REQUEST' || item.requestType === 'ORDER_REQUEST') return 'orderRequest';
+  if (item.sourceType === 'RETAIL_ORDER') return 'retailReview';
+  if (item.sourceType === 'DELIVERY_QUOTE_REQUEST') return 'deliveryQuote';
+  if (item.sourceType === 'PICKUP_ORDER_REVIEW') return 'pickupReview';
+  if (item.sourceType === 'DELIVERY_CONTACT_CHANGE_REQUEST') return 'deliveryContactChange';
+  if (item.workflowStage === 'REVISION_REQUESTED' || item.availableActions?.includes('UPDATE_QUOTE')) return 'revision';
+  return 'order';
+}
+
+export const ACTION_LABELS = {
+  SEND_DELIVERY_QUOTE: { label: 'Send quote', className: 'btn btn-sm btn-primary' },
+  APPROVE_DELIVERY_CONTACT_CHANGE: { label: 'Approve', className: 'btn btn-sm btn-success' },
+  REJECT_DELIVERY_CONTACT_CHANGE: { label: 'Reject', className: 'btn btn-sm btn-outline-danger' },
+};
+
+export function canUseRequestChat(item) {
+  if (!item) return false;
+  if (getWorkItemKind(item) !== 'consultation') return false;
+  const stage = (item.workflowStage || '').toUpperCase();
+  if (stage !== 'CONSULTING' && stage !== 'IN_REVIEW') return false;
+  return !!item.chatRoomId;
 }
 
 export function matchesPharmacyWorkflowSearch(item, query) {
