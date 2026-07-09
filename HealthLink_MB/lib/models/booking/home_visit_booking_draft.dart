@@ -63,7 +63,7 @@ class HomeVisitBookingDraft {
         (sum, item) => sum + item.price,
   );
 
-  double get doctorFee => selectedDoctor?.consultationFee ?? 0;
+  double get doctorFee => selectedDoctor?.displayDoctorFee ?? 0;
 
   double get homeVisitFee => selectedDoctor?.homeVisitTotal ?? 0;
 
