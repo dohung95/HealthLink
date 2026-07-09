@@ -13,6 +13,11 @@ import { useAuth } from './AuthContext';
 import { audioService } from '../utils/audioService';
 import { notificationApi } from '../api/notificationApi';
 import { PHARMACY_ANNOUNCEMENT_TYPES } from '../components/pharmacy/workflow/pharmacyWorkflow';
+import {
+  WORKFLOW_NOTIFICATION_TYPES,
+  getNotificationSurfaceKey,
+  shouldShowNativeWorkflowNotification,
+} from '../utils/notificationToastPolicy';
 import { consultationApi } from '../api/consultationApi';
 import FollowUpPaymentModal from '../components/patient/FollowUpPaymentModal';
 import FollowUpHomeVisitConfirmModal from '../components/patient/FollowUpHomeVisitConfirmModal';
@@ -155,13 +160,24 @@ export const NotificationProvider = ({ children }) => {
     }
 
     const showBrowserNotification = (payload, fallbackTitle, tagPrefix) => {
-      if ('Notification' in window && Notification.permission === 'granted') {
-        new Notification(payload.title || fallbackTitle, {
-          body: payload.message,
-          icon: '/logo.png',
-          tag: `${tagPrefix}-${payload.relatedId || payload.notificationId || Date.now()}`,
-        });
+      if (!('Notification' in window) || Notification.permission !== 'granted') {
+        return;
       }
+
+      const type = String(payload?.type || '').toUpperCase();
+      const isWorkflowNotification = WORKFLOW_NOTIFICATION_TYPES.has(type);
+
+      if (isWorkflowNotification && !shouldShowNativeWorkflowNotification(payload, document)) {
+        return;
+      }
+
+      new Notification(payload.title || fallbackTitle, {
+        body: payload.message,
+        icon: '/logo.png',
+        tag: isWorkflowNotification
+          ? getNotificationSurfaceKey(payload)
+          : `${tagPrefix}-${payload.relatedId || payload.notificationId || Date.now()}`,
+      });
     };
 
     if (notification.type === 'NEW_PHARMACY_REQUEST') {

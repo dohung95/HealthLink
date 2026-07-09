@@ -8,12 +8,34 @@ import { getProfile } from '../../api/account';
 import { paymentApi } from '../../api/paymentApi';
 import { loadPayPalSdk } from '../../utils/paypalSdk';
 import { titleCase } from '../../utils/pharmacy/pharmacyHelpers';
+import {
+  clearWorkflowToastSuppression,
+  getWorkflowToastId,
+  suppressWorkflowToast,
+} from '../../utils/notificationToastPolicy';
+import ConfirmModal from '../ConfirmModal';
 import RetailPharmacyStore from './pharmacy-store/RetailPharmacyStore';
 import './PatientPharmacy.css';
 
 function isPrescriptionBasedOrder(order) {
   return Boolean(order?.prescriptionHeaderId)
     || (order?.items || []).some((item) => item?.sourcePrescriptionItemId);
+}
+
+function shouldShowPaymentBadge(order) {
+  if (!order?.paymentStatus) return false;
+  const status = String(order.status || '').toUpperCase();
+  const paymentStatus = String(order.paymentStatus || '').toUpperCase();
+  if (status === 'CANCELLED' && paymentStatus === 'CANCELLED') return false;
+  if (status === 'REFUNDED' && paymentStatus === 'REFUNDED') return false;
+  return true;
+}
+
+function paymentBadgeClass(paymentStatus) {
+  const normalized = String(paymentStatus || '').toUpperCase();
+  if (normalized === 'PAID') return 'bg-success';
+  if (normalized === 'CANCELLED' || normalized === 'FAILED' || normalized === 'REFUNDED') return 'bg-secondary';
+  return 'bg-warning';
 }
 
 const TABS = [
@@ -43,7 +65,7 @@ export default function PatientPharmacyPage() {
   const orderId = isOrderDetail ? location.pathname.match(/\/orders\/([^/]+)$/)[1] : null;
 
   if (orderId) {
-    return <OrderDetailView orderId={orderId} userId={userId} navigate={navigate} />;
+    return <OrderDetailView orderId={orderId} navigate={navigate} />;
   }
 
   return (
@@ -896,8 +918,8 @@ function OrdersView({ userId, navigate }) {
             </div>
             <div className="text-end">
               <span className={`badge ${statusBadge(o.status)} me-1`}>{titleCase(o.status)}</span>
-              {o.paymentStatus && (
-                <span className={`badge ${o.paymentStatus === 'PAID' ? 'bg-success' : 'bg-warning'}`}>{o.paymentStatus}</span>
+              {shouldShowPaymentBadge(o) && (
+                <span className={`badge ${paymentBadgeClass(o.paymentStatus)}`}>{o.paymentStatus}</span>
               )}
             </div>
           </div>
@@ -963,7 +985,9 @@ function PharmacyPayPalButton({ order, onPaid, onCancel, onError, onFail }) {
                 data.orderID,
                 'EWallet'
               );
-              toast.success('Payment successful!');
+              toast.success('Payment successful!', {
+                id: getWorkflowToastId({ type: 'INVOICE_PAID', relatedId: order.orderId }),
+              });
               onPaid(updatedOrder);
             } catch (error) {
               toast.error(error.response?.data?.message || 'Payment could not be captured.');
@@ -1020,7 +1044,7 @@ function PharmacyPayPalButton({ order, onPaid, onCancel, onError, onFail }) {
   );
 }
 
-function OrderDetailView({ orderId, userId, navigate }) {
+function OrderDetailView({ orderId, navigate }) {
   const [order, setOrder] = useState(null);
   const [loading, setLoading] = useState(true);
   const [cancelling, setCancelling] = useState(false);
@@ -1029,6 +1053,7 @@ function OrderDetailView({ orderId, userId, navigate }) {
   const [requestingRevision, setRequestingRevision] = useState(false);
   const [showRevisionForm, setShowRevisionForm] = useState(false);
   const [showDeliveryContactEditor, setShowDeliveryContactEditor] = useState(false);
+  const [showCancelConfirm, setShowCancelConfirm] = useState(false);
   const [newDeliveryAddress, setNewDeliveryAddress] = useState('');
   const [newDeliveryPhone, setNewDeliveryPhone] = useState('');
   const [deliveryContactReason, setDeliveryContactReason] = useState('');
@@ -1058,13 +1083,33 @@ function OrderDetailView({ orderId, userId, navigate }) {
     return () => window.removeEventListener('offline', handleOffline);
   }, []);
 
-  const handleCancel = async () => {
+  const handleCancelClick = () => {
+    setShowCancelConfirm(true);
+  };
+
+  const handleCloseCancelConfirm = () => {
+    if (!cancelling) {
+      setShowCancelConfirm(false);
+    }
+  };
+
+  const handleConfirmCancel = async () => {
+    if (!order?.orderId) return;
+    const cancelToastId = getWorkflowToastId({ type: 'CANCEL_ORDER', relatedId: order.orderId });
+    suppressWorkflowToast(cancelToastId);
     setCancelling(true);
     try {
-      await pharmacyApi.cancelOrder(order.orderId, { cancelReason: 'Patient requested cancellation' });
-      toast.success('Order cancelled.');
-      await loadOrder();
+      const updatedOrder = await pharmacyApi.cancelOrder(order.orderId, {
+        cancelReason: 'Patient requested cancellation',
+      });
+      setOrder(updatedOrder);
+      setConfirmedForPayment(false);
+      setShowCancelConfirm(false);
+      toast.success('Order cancelled.', {
+        id: `patient-order-cancel:${order.orderId}`,
+      });
     } catch (err) {
+      clearWorkflowToastSuppression(cancelToastId);
       toast.error(err.response?.data?.message || 'Unable to cancel order.');
     } finally {
       setCancelling(false);
@@ -1078,9 +1123,10 @@ function OrderDetailView({ orderId, userId, navigate }) {
 
   const handlePatientConfirmTotal = async () => {
     try {
-      await pharmacyApi.confirmOrderTotalByPatient(order.orderId);
+      const updatedOrder = await pharmacyApi.confirmOrderTotalByPatient(order.orderId);
+      setOrder(updatedOrder);
+      setConfirmedForPayment(true);
       toast.success('Total confirmed! You can now proceed to payment.');
-      await loadOrder();
     } catch (err) {
       toast.error(err.response?.data?.message || 'Unable to confirm total.');
     }
@@ -1225,19 +1271,27 @@ function OrderDetailView({ orderId, userId, navigate }) {
     );
   }
 
-  const isRevisionRequested = order.status === 'REVISION_REQUESTED';
+  const status = order.status;
+  const isRevisionRequested = status === 'REVISION_REQUESTED';
   const isPaid = order.paymentStatus === 'PAID';
+  const isTerminal = ['CANCELLED', 'REFUNDED', 'SHIPPING', 'DELIVERED', 'COMPLETED'].includes(status);
   const isRetailOrder = !order.prescriptionHeaderId && !order.pharmacyRequestId;
-  const retailAwaitingConfirmation = isRetailOrder && order.status === 'PENDING' && !isPaid;
+  const retailAwaitingConfirmation = isRetailOrder && status === 'PENDING' && !isPaid;
+  const pendingPatientConfirmation = Boolean(order.requiresPatientConfirmation);
   const needsPayment = !isPaid
-    && !['CANCELLED', 'REFUNDED'].includes(order.status)
+    && !isTerminal
     && !isRevisionRequested
     && !retailAwaitingConfirmation
-    && !order.requiresPatientConfirmation;
-  const canCancel = ['PENDING', 'CONFIRMED'].includes(order.status);
+    && !pendingPatientConfirmation;
+  const canCancel = ['PENDING', 'CONFIRMED'].includes(status) && !isPaid;
   const canRequestRevision = needsPayment && !isRevisionRequested;
-  const showConfirmButton = needsPayment && !confirmedForPayment;
-  const showPayPal = needsPayment && confirmedForPayment;
+  const showPaymentAction = needsPayment;
+  const showContinueToPayment = showPaymentAction && !confirmedForPayment;
+  const showStandaloneCancel = canCancel
+    && !pendingPatientConfirmation
+    && !showPaymentAction
+    && !showRevisionForm
+    && !showDeliveryContactEditor;
 
   return (
     <div>
@@ -1247,8 +1301,8 @@ function OrderDetailView({ orderId, userId, navigate }) {
         </button>
         <h4 className="mb-0">Order {order.orderNumber || `#${orderId}`}</h4>
         <span className={`badge bg-${statusBadge(order.status)}`}>{titleCase(order.status)}</span>
-        {order.paymentStatus && (
-          <span className={`badge ${isPaid ? 'bg-success' : 'bg-warning'}`}>{order.paymentStatus}</span>
+        {shouldShowPaymentBadge(order) && (
+          <span className={`badge ${paymentBadgeClass(order.paymentStatus)}`}>{order.paymentStatus}</span>
         )}
         {order.invoiceId && (
           <button className="btn btn-sm btn-outline-primary" onClick={handleDownloadPdf}>
@@ -1271,7 +1325,7 @@ function OrderDetailView({ orderId, userId, navigate }) {
         </div>
       )}
 
-      {order.requiresPatientConfirmation && (
+      {pendingPatientConfirmation && (
         <div className="alert alert-warning mb-3">
           <i className="bi bi-exclamation-triangle me-2"></i>
           {order.patientConfirmationReason === 'DELIVERY_QUOTE'
@@ -1338,35 +1392,7 @@ function OrderDetailView({ orderId, userId, navigate }) {
         </div>
 
         <div className="col-md-4">
-          {showConfirmButton && (
-            <div className="card shadow-sm mb-3 border-primary">
-              <div className="card-body text-center">
-                <h6 className="fw-semibold mb-3 text-primary">Confirm Order</h6>
-                <p className="small text-muted mb-3">Review the order details. Once confirmed, PayPal payment will be available.</p>
-                <button className="btn btn-primary w-100" onClick={handleConfirmOrder}>
-                  <i className="bi bi-check-circle me-2"></i>Confirm Order
-                </button>
-              </div>
-            </div>
-          )}
-
-          {showPayPal && (
-            <div className="card shadow-sm mb-3">
-              <div className="card-body text-center">
-                <h6 className="fw-semibold mb-3">Payment</h6>
-                <p className="small text-muted mb-3">Pay with PayPal to complete your order.</p>
-                <PharmacyPayPalButton
-                  order={order}
-                  onPaid={handlePaid}
-                  onCancel={handlePayPalCancel}
-                  onError={handlePayPalError}
-                  onFail={handlePayPalFail}
-                />
-              </div>
-            </div>
-          )}
-
-          {order.requiresPatientConfirmation && !isPaid && (
+          {pendingPatientConfirmation && !isPaid && (
             <div className="card shadow-sm mb-3 border-primary">
               <div className="card-body">
                 <h6 className="fw-semibold mb-3 text-primary">Confirm Total</h6>
@@ -1378,9 +1404,43 @@ function OrderDetailView({ orderId, userId, navigate }) {
                 <button className="btn btn-primary w-100 mb-2" onClick={handlePatientConfirmTotal}>
                   <i className="bi bi-check-circle me-2"></i>Confirm Total
                 </button>
-                <button className="btn btn-outline-danger w-100" disabled={cancelling} onClick={handleCancel}>
-                  {cancelling ? 'Cancelling...' : 'Cancel Order'}
-                </button>
+                {canCancel && (
+                  <button className="btn btn-outline-danger w-100" disabled={cancelling} onClick={handleCancelClick}>
+                    {cancelling ? 'Cancelling...' : 'Cancel Order'}
+                  </button>
+                )}
+              </div>
+            </div>
+          )}
+
+          {showPaymentAction && (
+            <div className="card shadow-sm mb-3">
+              <div className="card-body text-center">
+                <h6 className="fw-semibold mb-3">Payment</h6>
+                {showContinueToPayment ? (
+                  <>
+                    <p className="small text-muted mb-3">Review the order details before opening payment.</p>
+                    <button className="btn btn-primary w-100 mb-2" onClick={handleConfirmOrder}>
+                      <i className="bi bi-credit-card me-2"></i>Continue to Payment
+                    </button>
+                  </>
+                ) : (
+                  <>
+                    <p className="small text-muted mb-3">Pay with PayPal to complete your order.</p>
+                    <PharmacyPayPalButton
+                      order={order}
+                      onPaid={handlePaid}
+                      onCancel={handlePayPalCancel}
+                      onError={handlePayPalError}
+                      onFail={handlePayPalFail}
+                    />
+                  </>
+                )}
+                {canCancel && (
+                  <button className="btn btn-outline-danger w-100 mt-2" disabled={cancelling} onClick={handleCancelClick}>
+                    {cancelling ? 'Cancelling...' : 'Cancel Order'}
+                  </button>
+                )}
               </div>
             </div>
           )}
@@ -1540,12 +1600,12 @@ function OrderDetailView({ orderId, userId, navigate }) {
             </div>
           )}
 
-          {canCancel && (
+          {showStandaloneCancel && (
             <div className="card shadow-sm">
               <div className="card-body text-center">
                 <h6 className="fw-semibold mb-3 text-danger">Cancel Order</h6>
                 <p className="small text-muted mb-3">Cancel this order if you no longer need it.</p>
-                <button className="btn btn-outline-danger w-100" disabled={cancelling} onClick={handleCancel}>
+                <button className="btn btn-outline-danger w-100" disabled={cancelling} onClick={handleCancelClick}>
                   {cancelling ? 'Cancelling...' : 'Cancel Order'}
                 </button>
               </div>
@@ -1553,6 +1613,17 @@ function OrderDetailView({ orderId, userId, navigate }) {
           )}
         </div>
       </div>
+      <ConfirmModal
+        isOpen={showCancelConfirm}
+        onClose={handleCloseCancelConfirm}
+        onConfirm={handleConfirmCancel}
+        title="Cancel Order"
+        message="Are you sure you want to cancel this order? This action cannot be undone."
+        confirmText="Yes, Cancel"
+        cancelText="Keep Order"
+        iconClass="bi-exclamation-triangle-fill"
+        variant="danger"
+      />
     </div>
   );
 }

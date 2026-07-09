@@ -245,6 +245,9 @@ class PharmacyOrderServiceImplTest {
         when(orderRepository.existsByConsultationRequest_RequestId(15)).thenReturn(false);
         when(orderRepository.existsByOrderNumber(anyString())).thenReturn(false);
         when(medicineRepository.findById(1)).thenReturn(Optional.of(medicine(1, "Amlodipine 5mg", "tablet")));
+        when(inventoryRepository.findByPharmacy_PharmacyIdAndMedicine_MedicineId("pharmacy-1", 1))
+                .thenReturn(Optional.of(PharmacyInventory.builder()
+                        .inventoryId(1).quantity(100).reservedQuantity(0).active(true).build()));
         when(orderRepository.save(any(PharmacyOrder.class))).thenAnswer(invocation -> {
             PharmacyOrder saved = invocation.getArgument(0);
             saved.setOrderId(88);
@@ -347,6 +350,9 @@ class PharmacyOrderServiceImplTest {
         when(orderRepository.existsByConsultationRequest_RequestId(15)).thenReturn(false);
         when(orderRepository.existsByOrderNumber(anyString())).thenReturn(false);
         when(medicineRepository.findById(1)).thenReturn(Optional.of(medicine(1, "Amlodipine 5mg", "tablet")));
+        when(inventoryRepository.findByPharmacy_PharmacyIdAndMedicine_MedicineId("pharmacy-1", 1))
+                .thenReturn(Optional.of(PharmacyInventory.builder()
+                        .inventoryId(1).quantity(100).reservedQuantity(0).active(true).build()));
         when(orderRepository.save(any(PharmacyOrder.class))).thenAnswer(invocation -> {
             PharmacyOrder saved = invocation.getArgument(0);
             saved.setOrderId(89);
@@ -812,6 +818,9 @@ class PharmacyOrderServiceImplTest {
         when(orderRepository.existsByConsultationRequest_RequestId(15)).thenReturn(false);
         when(orderRepository.existsByOrderNumber(anyString())).thenReturn(false);
         when(medicineRepository.findById(1)).thenReturn(Optional.of(medicine(1, "Amlodipine 5mg", "tablet")));
+        when(inventoryRepository.findByPharmacy_PharmacyIdAndMedicine_MedicineId("pharmacy-1", 1))
+                .thenReturn(Optional.of(PharmacyInventory.builder()
+                        .inventoryId(1).quantity(100).reservedQuantity(0).active(true).build()));
         when(orderRepository.save(any(PharmacyOrder.class))).thenAnswer(invocation -> {
             PharmacyOrder saved = invocation.getArgument(0);
             saved.setOrderId(90);
@@ -1116,6 +1125,9 @@ class PharmacyOrderServiceImplTest {
 
         when(orderRepository.findById(77)).thenReturn(Optional.of(order));
         when(medicineRepository.findById(1)).thenReturn(Optional.of(medicine(1, "Amlodipine 5mg", "tablet")));
+        when(inventoryRepository.findByPharmacy_PharmacyIdAndMedicine_MedicineId("pharmacy-1", 1))
+                .thenReturn(Optional.of(PharmacyInventory.builder()
+                        .inventoryId(1).quantity(100).reservedQuantity(0).active(true).build()));
         when(orderRepository.save(any(PharmacyOrder.class))).thenAnswer(invocation -> invocation.getArgument(0));
         when(deviceTokenRepository.findByUser_IdAndActiveTrue("patient-user-1")).thenReturn(List.of());
 
@@ -1267,6 +1279,9 @@ class PharmacyOrderServiceImplTest {
         when(orderRepository.existsByConsultationRequest_RequestId(15)).thenReturn(false);
         when(orderRepository.existsByOrderNumber(anyString())).thenReturn(false);
         when(medicineRepository.findById(1)).thenReturn(Optional.of(medicine(1, "Amlodipine 5mg", "tablet")));
+        when(inventoryRepository.findByPharmacy_PharmacyIdAndMedicine_MedicineId("pharmacy-1", 1))
+                .thenReturn(Optional.of(PharmacyInventory.builder()
+                        .inventoryId(1).quantity(100).reservedQuantity(0).active(true).build()));
         when(orderRepository.save(any(PharmacyOrder.class))).thenAnswer(invocation -> {
             PharmacyOrder saved = invocation.getArgument(0);
             saved.setOrderId(91);
@@ -2063,5 +2078,80 @@ class PharmacyOrderServiceImplTest {
                 .build();
         header.setPrescriptionItems(List.of(item));
         return header;
+    }
+
+    @Test
+    void cancelOrderByPatient_shouldMarkUnpaidPaymentCancelledAndClearPendingPatientConfirmation() {
+        Patient patient = Patient.builder()
+                .patientId("patient-1")
+                .fullName("Patient One")
+                .build();
+        PharmacyOrder order = PharmacyOrder.builder()
+                .orderId(77)
+                .orderNumber("ORD-20260709-0001")
+                .status("PENDING")
+                .paymentStatus("PENDING")
+                .patient(patient)
+                .pharmacy(Pharmacy.builder()
+                        .pharmacyId("pharmacy-1")
+                        .name("Central Pharmacy")
+                        .build())
+                .patientConfirmationRequestedAt(LocalDateTime.now().minusMinutes(15))
+                .patientConfirmationReason("DELIVERY_QUOTE")
+                .patientConfirmedAt(null)
+                .orderItems(new java.util.ArrayList<>())
+                .build();
+        CancelOrderRequest request = new CancelOrderRequest();
+        request.setCancelReason("No longer needed");
+
+        when(orderRepository.findById(77)).thenReturn(Optional.of(order));
+        when(orderRepository.save(any(PharmacyOrder.class))).thenAnswer(invocation -> invocation.getArgument(0));
+
+        PharmacyOrderResponse response = pharmacyOrderService.cancelOrderByPatient(77, request, "patient-1");
+
+        assertThat(response.getStatus()).isEqualTo("CANCELLED");
+        assertThat(response.getPaymentStatus()).isEqualTo("CANCELLED");
+        assertThat(response.getRequiresPatientConfirmation()).isFalse();
+        assertThat(response.getPatientConfirmationRequestedAt()).isNull();
+        assertThat(response.getPatientConfirmationReason()).isNull();
+        assertThat(response.getPatientConfirmedAt()).isNull();
+    }
+
+    @Test
+    void updateOrderStatus_shouldMarkUnpaidPaymentCancelledWhenPharmacyCancels() {
+        PharmacyOrder order = PharmacyOrder.builder()
+                .orderId(78)
+                .orderNumber("ORD-20260709-0002")
+                .status("CONFIRMED")
+                .paymentStatus("PENDING")
+                .pharmacy(Pharmacy.builder()
+                        .pharmacyId("pharmacy-1")
+                        .name("Central Pharmacy")
+                        .build())
+                .patient(Patient.builder()
+                        .patientId("patient-1")
+                        .fullName("Patient One")
+                        .build())
+                .patientConfirmationRequestedAt(LocalDateTime.now().minusMinutes(15))
+                .patientConfirmationReason("DELIVERY_CONTACT_FEE_CHANGE")
+                .patientConfirmedAt(null)
+                .orderItems(new java.util.ArrayList<>())
+                .build();
+        PharmacyOrderStatusRequest request = new PharmacyOrderStatusRequest();
+        request.setStatus("CANCELLED");
+        request.setCancelReason("Cancelled by pharmacy");
+        request.setCancelledBy("Pharmacy");
+
+        when(orderRepository.findById(78)).thenReturn(Optional.of(order));
+        when(orderRepository.save(any(PharmacyOrder.class))).thenAnswer(invocation -> invocation.getArgument(0));
+
+        PharmacyOrderResponse response = pharmacyOrderService.updateOrderStatus(78, request);
+
+        assertThat(response.getStatus()).isEqualTo("CANCELLED");
+        assertThat(response.getPaymentStatus()).isEqualTo("CANCELLED");
+        assertThat(response.getRequiresPatientConfirmation()).isFalse();
+        assertThat(response.getPatientConfirmationRequestedAt()).isNull();
+        assertThat(response.getPatientConfirmationReason()).isNull();
+        assertThat(response.getPatientConfirmedAt()).isNull();
     }
 }

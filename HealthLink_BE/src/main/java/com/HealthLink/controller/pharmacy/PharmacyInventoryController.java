@@ -34,13 +34,14 @@ public class PharmacyInventoryController {
             @RequestParam(required = false) Boolean lowStock,
             @RequestParam(required = false) Boolean active,
             @RequestParam(required = false) Boolean expiringSoon,
+            @RequestParam(required = false) Boolean availableOnly,
             @RequestParam(required = false) Integer categoryId,
             @RequestParam(defaultValue = "0") int page,
             @RequestParam(defaultValue = "20") int size,
             @AuthenticationPrincipal UserDetails userDetails) {
         String pharmacyId = resolveUserId(userDetails);
         return ResponseEntity.ok(
-                inventoryService.getInventory(pharmacyId, query, dosageForm, lowStock, active, expiringSoon, categoryId, page, size));
+                inventoryService.getInventory(pharmacyId, query, dosageForm, lowStock, active, expiringSoon, availableOnly, categoryId, page, size));
     }
 
     @GetMapping("/{inventoryId}")

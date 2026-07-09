@@ -216,14 +216,14 @@ export function matchesPharmacyWorkflowSearch(item, query) {
 
 export function getPharmacyNotificationTarget(notification) {
   const type = notification?.type;
-  if (type === 'NEW_PHARMACY_REQUEST') return '/pharmacy-page/requests?group=NEW_REQUESTS';
+  if (type === 'NEW_PHARMACY_REQUEST') return '/pharmacy-page/requests';
   if (type === 'NEW_ORDER') return '/pharmacy-page/orders';
   if (type === 'INVOICE_PAID') return '/pharmacy-page/orders';
   if (type === 'CANCEL_ORDER') return '/pharmacy-page/order-list?tab=CANCELLED_REFUNDED';
   if (type === 'LOW_STOCK_WARNING') return '/pharmacy-page/inventory?filter=lowStock';
   if (type === 'MEDICINE_EXPIRY_WARNING') return '/pharmacy-page/inventory?filter=expiringSoon';
   if (type === 'ORDER_STATUS') return '/pharmacy-page/orders';
-  return '/pharmacy-page/requests?group=NEW_REQUESTS';
+  return '/pharmacy-page/requests';
 }
 
 export function getPharmacyAnnouncementCopy(notification) {

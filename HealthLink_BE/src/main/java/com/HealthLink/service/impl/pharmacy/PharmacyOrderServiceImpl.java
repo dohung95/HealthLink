@@ -73,6 +73,7 @@ public class PharmacyOrderServiceImpl implements PharmacyOrderService {
     private static final String REQUEST_STATUS_CANCELLED = "CANCELLED";
     private static final String PAYMENT_STATUS_PENDING = "PENDING";
     private static final String PAYMENT_STATUS_PAID = "PAID";
+    private static final String PAYMENT_STATUS_CANCELLED = "CANCELLED";
     private static final String REQUEST_TYPE_CONSULTATION = "CONSULTATION";
     private static final String REQUEST_TYPE_ORDER_REQUEST = "ORDER_REQUEST";
     private static final String DELIVERY_TYPE_DELIVERY = "Delivery";
@@ -430,6 +431,9 @@ public class PharmacyOrderServiceImpl implements PharmacyOrderService {
                 .build();
         attachOrderItems(order, orderItems);
 
+        // Stock validation before creating order
+        revalidateStockAvailability(order);
+
         // Request patient confirmation for pharmacy-created orders
         requestPatientConfirmation(order, CONFIRMATION_REASON_DELIVERY_QUOTE);
 
@@ -511,6 +515,8 @@ public class PharmacyOrderServiceImpl implements PharmacyOrderService {
                 order.setCancelReason(request.getCancelReason());
                 order.setCancelledBy(request.getCancelledBy() != null
                         ? request.getCancelledBy() : "Pharmacy");
+                discardPatientConfirmationRequest(order);
+                markPaymentCancelledIfUnpaid(order);
                 restoreStock(order);
             }
         }
@@ -572,6 +578,8 @@ public class PharmacyOrderServiceImpl implements PharmacyOrderService {
         order.setCancelledAt(LocalDateTime.now());
         order.setCancelledBy("Patient");
         order.setCancelReason(PharmacyServiceHelper.trimToNull(request.getCancelReason()));
+        discardPatientConfirmationRequest(order);
+        markPaymentCancelledIfUnpaid(order);
         restoreStock(order);
 
         PharmacyOrder updated = orderRepository.save(order);
@@ -690,6 +698,8 @@ public class PharmacyOrderServiceImpl implements PharmacyOrderService {
         order.setStatus(STATUS_PENDING);
         order.setRevisionResolvedAt(LocalDateTime.now());
         order.setPatientConfirmedAt(null);
+
+        revalidateStockAvailability(order);
 
         applyCommission(order, order.getPharmacy(), medicineAmount);
 
@@ -2180,6 +2190,19 @@ public class PharmacyOrderServiceImpl implements PharmacyOrderService {
         order.setPatientConfirmedAt(LocalDateTime.now());
         order.setPatientConfirmationRequestedAt(null);
         order.setPatientConfirmationReason(null);
+    }
+
+    private void discardPatientConfirmationRequest(PharmacyOrder order) {
+        order.setPatientConfirmationRequestedAt(null);
+        order.setPatientConfirmationReason(null);
+    }
+
+    private void markPaymentCancelledIfUnpaid(PharmacyOrder order) {
+        if (order == null) return;
+        if (PAYMENT_STATUS_PAID.equalsIgnoreCase(safeValue(order.getPaymentStatus(), ""))) {
+            return;
+        }
+        order.setPaymentStatus(PAYMENT_STATUS_CANCELLED);
     }
 
     private String trimToEmpty(String value) {

@@ -43,8 +43,7 @@ public final class PharmacyOrderMapper {
                 .patientId(patient != null ? patient.getPatientId() : null)
                 .patientName(patient != null ? patient.getFullName() : null)
                 .patientConfirmedAt(order.getPatientConfirmedAt())
-                .requiresPatientConfirmation(order.getPatientConfirmationRequestedAt() != null
-                        && order.getPatientConfirmedAt() == null)
+                .requiresPatientConfirmation(PharmacyServiceHelper.requiresPatientConfirmation(order))
                 .patientConfirmationRequestedAt(order.getPatientConfirmationRequestedAt())
                 .patientConfirmationReason(order.getPatientConfirmationReason())
                 .status(order.getStatus())

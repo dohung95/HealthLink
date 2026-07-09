@@ -12,15 +12,24 @@ import PharmacyOrderDetailModal from './PharmacyOrderDetailModal';
 
 const PAGE_SIZE = 10;
 
+function resolveOrderListTab(searchParams) {
+  const requested = searchParams.get('tab') || 'ALL';
+  return ORDER_LIST_TABS.some((tab) => tab.key === requested) ? requested : 'ALL';
+}
+
 export default function PharmacyOrderListPage({ workItems, orders }) {
   const [searchParams, setSearchParams] = useSearchParams();
-  const initialTab = searchParams.get('tab') || 'ALL';
-  const [activeTab, setActiveTab] = useState(
-    ORDER_LIST_TABS.some((t) => t.key === initialTab) ? initialTab : 'ALL',
-  );
+  const [activeTab, setActiveTab] = useState(() => resolveOrderListTab(searchParams));
   const [query, setQuery] = useState('');
   const [page, setPage] = useState(1);
   const [detailItem, setDetailItem] = useState(null);
+
+  useEffect(() => {
+    const nextTab = resolveOrderListTab(searchParams);
+    setActiveTab((current) => (current === nextTab ? current : nextTab));
+    setPage(1);
+    setDetailItem(null);
+  }, [searchParams]);
   const allItems = useMemo(() => (
     mergeWorkflowItemsWithOrders(workItems, orders).filter(isOrderListWorkItem)
   ), [orders, workItems]);

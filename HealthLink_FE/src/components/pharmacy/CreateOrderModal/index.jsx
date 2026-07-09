@@ -1,6 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
 import { toast } from 'sonner';
-import { medicineApi } from '../../../api/medicineApi';
 import pharmacyApi from '../../../api/pharmacyApi';
 import { money } from '../../../utils/pharmacy/pharmacyHelpers';
 import OrderItemCard from '../OrderItemCard';
@@ -168,6 +167,7 @@ export default function CreateOrderModal({
 }) {
   const isConsultMode = variant === 'consult';
   const isOrderRequest = request?.requestType === 'ORDER_REQUEST' || request?.sourceType === 'ORDER_REQUEST';
+  const effectiveOrderId = orderId || request?.orderId || null;
   const [leftTab, setLeftTab] = useState(isConsultMode ? 'summary' : 'prescriptions');
   const isSummaryTab = isConsultMode && leftTab === 'summary';
   const isMedicinesTab = !isOrderRequest && leftTab === 'medicine';
@@ -183,9 +183,9 @@ export default function CreateOrderModal({
   const [existingOrder, setExistingOrder] = useState(null);
 
   useEffect(() => {
-    if (mode !== 'updateQuote' || !orderId) return;
+    if (mode !== 'updateQuote' || !effectiveOrderId) return;
     let alive = true;
-    pharmacyApi.getOrderById(orderId)
+    pharmacyApi.getOrderById(effectiveOrderId)
       .then((data) => {
         if (!alive) return;
         setExistingOrder(data);
@@ -195,7 +195,7 @@ export default function CreateOrderModal({
         toast.error('Failed to load order for revision.');
       });
     return () => { alive = false; };
-  }, [mode, orderId]);
+  }, [mode, effectiveOrderId]);
 
   useEffect(() => {
     if (!existingOrder) return;
@@ -282,9 +282,23 @@ export default function CreateOrderModal({
 
   useEffect(() => {
     let alive = true;
-    medicineApi.searchMedicines('')
+    pharmacyApi.getInventory({ availableOnly: true, size: 1000 })
       .then((data) => {
-        if (alive) setMedicineCatalog(Array.isArray(data) ? data : []);
+        if (!alive) return;
+        const items = data?.content || [];
+        const normalized = items.map((inv) => ({
+          medicineId: inv.medicineId,
+          name: inv.medicineName,
+          brandName: inv.medicineName,
+          genericName: inv.genericName,
+          dosageForm: inv.dosageForm,
+          strength: inv.strength,
+          unit: inv.unit,
+          price: inv.price,
+          manufacturer: inv.pharmacyName,
+          availableQuantity: inv.availableQuantity,
+        }));
+        setMedicineCatalog(normalized);
       })
       .catch(() => {
         if (alive) setMedicineCatalog([]);
@@ -375,6 +389,12 @@ export default function CreateOrderModal({
 
   const handleCreateOrder = async (event) => {
     event.preventDefault();
+
+    if (mode === 'updateQuote' && !effectiveOrderId) {
+      toast.error('Cannot update quote because the order id is missing.');
+      return;
+    }
+
     if (!orderItems.length) {
       toast.error('Add at least one medication.');
       return;
@@ -410,7 +430,7 @@ export default function CreateOrderModal({
       payload.deliveryPhoneNumber = request.deliveryPhoneNumber;
       payload.deliveryAddressSource = request.deliveryAddressSource;
       if (mode === 'updateQuote') {
-        await pharmacyApi.updateOrderQuote(orderId, payload);
+        await pharmacyApi.updateOrderQuote(effectiveOrderId, payload);
         toast.success('Quote updated successfully.');
       } else {
         await pharmacyApi.createOrderFromRequest(request.requestId, payload);
@@ -556,6 +576,7 @@ export default function CreateOrderModal({
                 )
               ) : (
                 <MedicineLibraryPanel
+                  inventoryItems={medicineCatalog}
                   selectedMedicineIds={selectedMedicineIds}
                   onAddMedicine={addMedicine}
                 />

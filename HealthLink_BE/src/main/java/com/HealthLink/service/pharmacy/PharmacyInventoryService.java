@@ -9,6 +9,7 @@ public interface PharmacyInventoryService {
     Page<PharmacyInventoryResponse> getInventory(String pharmacyId, String query, String dosageForm,
                                                    Boolean lowStock, Boolean active,
                                                    Boolean expiringSoon,
+                                                   Boolean availableOnly,
                                                    Integer categoryId,
                                                    int page, int size);
 

@@ -235,8 +235,7 @@ public class PharmacyWorkItemServiceImpl implements PharmacyWorkItemService {
                     .orderStatus(order.getStatus())
                     .paymentStatus(order.getPaymentStatus())
                     .patientConfirmedAt(order.getPatientConfirmedAt())
-                    .requiresPatientConfirmation(order.getPatientConfirmationRequestedAt() != null
-                            && order.getPatientConfirmedAt() == null)
+                    .requiresPatientConfirmation(PharmacyServiceHelper.requiresPatientConfirmation(order))
                     .patientConfirmationRequestedAt(order.getPatientConfirmationRequestedAt())
                     .patientConfirmationReason(order.getPatientConfirmationReason())
                     .medicineAmount(order.getMedicineAmount())
@@ -306,8 +305,7 @@ public class PharmacyWorkItemServiceImpl implements PharmacyWorkItemService {
                 .orderStatus(order.getStatus())
                 .paymentStatus(order.getPaymentStatus())
                 .patientConfirmedAt(order.getPatientConfirmedAt())
-                .requiresPatientConfirmation(order.getPatientConfirmationRequestedAt() != null
-                        && order.getPatientConfirmedAt() == null)
+                .requiresPatientConfirmation(PharmacyServiceHelper.requiresPatientConfirmation(order))
                 .patientConfirmationRequestedAt(order.getPatientConfirmationRequestedAt())
                 .patientConfirmationReason(order.getPatientConfirmationReason())
                 .medicineAmount(order.getMedicineAmount())

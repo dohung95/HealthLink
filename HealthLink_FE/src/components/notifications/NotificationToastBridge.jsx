@@ -4,21 +4,14 @@ import { toast } from 'sonner';
 import { useNotifications } from '../../context/NotificationContext';
 import { PHARMACY_WORKFLOW_NOTIFICATION_TYPES, getPharmacyNotificationTarget } from '../pharmacy/workflow/pharmacyWorkflow';
 import { audioService } from '../../utils/audioService';
-
-const WORKFLOW_TYPES = new Set([
-  'NEW_PHARMACY_REQUEST',
-  'PHARMACY_REQUEST_STATUS',
-  'NEW_ORDER',
-  'ORDER_STATUS',
-  'PAYMENT_REQUIRED',
-  'INVOICE_PAID',
-]);
-
-function getNotificationKey(notification) {
-  if (!notification) return null;
-  return notification.notificationId
-    || `${notification.type}-${notification.relatedId}-${notification.createdAt || ''}`;
-}
+import {
+  WORKFLOW_NOTIFICATION_TYPES,
+  getNotificationSurfaceKey,
+  getWorkflowToastId,
+  getWorkflowToastKind,
+  isWorkflowToastSuppressed,
+  shouldShowInAppWorkflowToast,
+} from '../../utils/notificationToastPolicy';
 
 function extractIdFromActionUrl(actionUrl, pattern) {
   const match = String(actionUrl || '').match(pattern);
@@ -32,7 +25,7 @@ function getTargetPath(notification) {
     || extractIdFromActionUrl(actionUrl, /\/payment\/order\/([^/]+)/);
 
   if (notification.type === 'NEW_PHARMACY_REQUEST') {
-    return '/pharmacy-page/orders?group=NEW_REQUESTS';
+    return getPharmacyNotificationTarget(notification);
   }
 
   if (notification.type === 'PHARMACY_REQUEST_STATUS') {
@@ -47,13 +40,6 @@ function getTargetPath(notification) {
   return null;
 }
 
-function getToastKind(type) {
-  if (type === 'PAYMENT_REQUIRED') return 'warning';
-  if (type === 'INVOICE_PAID') return 'success';
-  if (type === 'NEW_PHARMACY_REQUEST' || type === 'NEW_ORDER') return 'info';
-  return 'message';
-}
-
 export default function NotificationToastBridge() {
   const navigate = useNavigate();
   const { latestRealtimeNotification } = useNotifications();
@@ -61,17 +47,21 @@ export default function NotificationToastBridge() {
 
   useEffect(() => {
     const notification = latestRealtimeNotification;
-    const key = getNotificationKey(notification);
-    if (!notification || !key || lastShownKeyRef.current === key) return;
-    if (!WORKFLOW_TYPES.has(notification.type)) return;
+    if (!notification) return;
+    const key = getNotificationSurfaceKey(notification);
+    if (!key || lastShownKeyRef.current === key) return;
+    if (!WORKFLOW_NOTIFICATION_TYPES.has(String(notification.type || '').toUpperCase())) return;
+    if (!shouldShowInAppWorkflowToast(notification, document)) return;
 
     lastShownKeyRef.current = key;
+    const toastId = getWorkflowToastId(notification);
+    if (isWorkflowToastSuppressed(toastId)) return;
 
     if (PHARMACY_WORKFLOW_NOTIFICATION_TYPES.has(notification.type)) {
       const targetPath = getPharmacyNotificationTarget(notification);
       audioService.playNotification();
 
-      const toastId = `pharmacy-workflow-${key}`;
+      const pharmacyToastId = toastId || `pharmacy-workflow-${key}`;
       toast.custom((toastItem) => (
         <button
           className="pharmacy-workflow-toast"
@@ -90,11 +80,11 @@ export default function NotificationToastBridge() {
           </span>
         </button>
       ), {
-        id: toastId,
+        id: pharmacyToastId,
         duration: Infinity,
       });
 
-      const dismissOnScreenClick = () => toast.dismiss(toastId);
+      const dismissOnScreenClick = () => toast.dismiss(pharmacyToastId);
       window.setTimeout(() => {
         document.addEventListener('pointerdown', dismissOnScreenClick, { once: true });
       }, 0);
@@ -103,6 +93,7 @@ export default function NotificationToastBridge() {
 
     const targetPath = getTargetPath(notification);
     const toastPayload = {
+      id: toastId,
       description: notification.message,
       action: targetPath
         ? {
@@ -113,7 +104,7 @@ export default function NotificationToastBridge() {
     };
 
     const title = notification.title || 'Notification';
-    const kind = getToastKind(notification.type);
+    const kind = getWorkflowToastKind(notification);
 
     if (kind === 'success') {
       toast.success(title, toastPayload);
@@ -122,6 +113,11 @@ export default function NotificationToastBridge() {
 
     if (kind === 'warning') {
       toast.warning(title, toastPayload);
+      return;
+    }
+
+    if (kind === 'error') {
+      toast.error(title, toastPayload);
       return;
     }
 

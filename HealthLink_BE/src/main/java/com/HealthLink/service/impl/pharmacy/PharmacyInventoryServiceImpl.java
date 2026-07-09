@@ -66,6 +66,7 @@ public class PharmacyInventoryServiceImpl implements PharmacyInventoryService {
                                                            String dosageForm,
                                                            Boolean lowStock, Boolean active,
                                                            Boolean expiringSoon,
+                                                           Boolean availableOnly,
                                                            Integer categoryId,
                                                            int page, int size) {
         PageRequest pageRequest = PageRequest.of(page, size, Sort.by("createdAt").descending());
@@ -73,6 +74,7 @@ public class PharmacyInventoryServiceImpl implements PharmacyInventoryService {
         String normalizedDosageForm = normalizeFilter(dosageForm);
         boolean lowStockFilter = Boolean.TRUE.equals(lowStock);
         boolean expiringSoonFilter = Boolean.TRUE.equals(expiringSoon);
+        boolean availableOnlyFilter = Boolean.TRUE.equals(availableOnly);
         LocalDate today = LocalDate.now();
         LocalDate expiryLimit = today.plusDays(30);
 
@@ -89,6 +91,7 @@ public class PharmacyInventoryServiceImpl implements PharmacyInventoryService {
                     active,
                     lowStockFilter,
                     expiringSoonFilter,
+                    availableOnlyFilter,
                     categoryIds,
                     today,
                     expiryLimit,
@@ -102,6 +105,7 @@ public class PharmacyInventoryServiceImpl implements PharmacyInventoryService {
                     active,
                     lowStockFilter,
                     expiringSoonFilter,
+                    availableOnlyFilter,
                     today,
                     expiryLimit,
                     LOW_STOCK_THRESHOLD,
@@ -513,6 +517,7 @@ public class PharmacyInventoryServiceImpl implements PharmacyInventoryService {
                 .expiryDate(inv.getExpiryDate())
                 .active(inv.getActive())
                 .minStockLevel(inv.getMinStockLevel())
+                .price(inv.getMedicine().getPrice())
                 .expiringSoon(computeExpiringSoon(inv))
                 .lastImportedAt(inv.getLastImportedAt())
                 .createdAt(inv.getCreatedAt())

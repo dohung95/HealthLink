@@ -38,6 +38,7 @@ public interface PharmacyInventoryRepository extends JpaRepository<PharmacyInven
               AND (:active IS NULL OR i.active = :active)
               AND (:lowStock = false OR (i.quantity - i.reservedQuantity) < COALESCE(i.minStockLevel, :defaultThreshold))
               AND (:expiringSoon = false OR (i.active = true AND i.expiryDate IS NOT NULL AND i.expiryDate BETWEEN :today AND :expiryLimit))
+              AND (:availableOnly = false OR (i.active = true AND (i.quantity - i.reservedQuantity) > 0))
             """)
     Page<PharmacyInventory> findInventoryByFilters(
             @Param("pharmacyId") String pharmacyId,
@@ -46,6 +47,7 @@ public interface PharmacyInventoryRepository extends JpaRepository<PharmacyInven
             @Param("active") Boolean active,
             @Param("lowStock") boolean lowStock,
             @Param("expiringSoon") boolean expiringSoon,
+            @Param("availableOnly") boolean availableOnly,
             @Param("today") LocalDate today,
             @Param("expiryLimit") LocalDate expiryLimit,
             @Param("defaultThreshold") int defaultThreshold,
@@ -62,6 +64,7 @@ public interface PharmacyInventoryRepository extends JpaRepository<PharmacyInven
               AND (:active IS NULL OR i.active = :active)
               AND (:lowStock = false OR (i.quantity - i.reservedQuantity) < COALESCE(i.minStockLevel, :defaultThreshold))
               AND (:expiringSoon = false OR (i.active = true AND i.expiryDate IS NOT NULL AND i.expiryDate BETWEEN :today AND :expiryLimit))
+              AND (:availableOnly = false OR (i.active = true AND (i.quantity - i.reservedQuantity) > 0))
             """)
     Page<PharmacyInventory> findInventoryByFiltersAndCategoryIds(
             @Param("pharmacyId") String pharmacyId,
@@ -70,6 +73,7 @@ public interface PharmacyInventoryRepository extends JpaRepository<PharmacyInven
             @Param("active") Boolean active,
             @Param("lowStock") boolean lowStock,
             @Param("expiringSoon") boolean expiringSoon,
+            @Param("availableOnly") boolean availableOnly,
             @Param("categoryIds") Collection<Integer> categoryIds,
             @Param("today") LocalDate today,
             @Param("expiryLimit") LocalDate expiryLimit,

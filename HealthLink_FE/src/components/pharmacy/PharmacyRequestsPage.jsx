@@ -92,6 +92,10 @@ export default function PharmacyRequestsPage({ workItems, profile, reload, navig
           break;
 
         case 'UPDATE_QUOTE':
+          if (!item?.orderId) {
+            toast.error('Cannot update quote because this revision is missing an order id.');
+            break;
+          }
           needsReload = false;
           setCreateOrderRequest(item);
           setCreateOrderMode('updateQuote');
@@ -544,6 +548,7 @@ export default function PharmacyRequestsPage({ workItems, profile, reload, navig
             request={createOrderRequest}
             profile={profile}
             mode={createOrderMode}
+            orderId={createOrderRequest?.orderId}
             variant={
               createOrderMode === 'updateQuote'
                 || getWorkItemKind(createOrderRequest) === 'deliveryOrderRequest'

@@ -965,4 +965,31 @@ class PharmacyWorkItemServiceImplTest {
         // the service layer guard blocks prescription-based order quote updates
         assertThat(item.getAvailableActions()).contains("UPDATE_QUOTE");
     }
+
+    @Test
+    void getWorkItemsByPharmacy_shouldExcludeCancelledDirectOrder() {
+        Pharmacy p = pharmacy("PH001");
+        Patient pat = patient("P003", "Cancelled Patient");
+        PharmacyOrder directOrder = PharmacyOrder.builder()
+                .orderId(701)
+                .orderNumber("ORD-701")
+                .status("CANCELLED")
+                .paymentStatus("PENDING")
+                .patient(pat)
+                .pharmacy(p)
+                .consultationRequest(null)
+                .patientConfirmationRequestedAt(LocalDateTime.now().minusHours(1))
+                .cancelledAt(LocalDateTime.now())
+                .createdAt(LocalDateTime.now())
+                .build();
+
+        when(requestRepository.findByPharmacy_PharmacyIdOrderByCreatedAtDesc("PH001"))
+                .thenReturn(Collections.emptyList());
+        when(orderRepository.findByPharmacy_PharmacyIdAndConsultationRequestIsNull("PH001"))
+                .thenReturn(List.of(directOrder));
+
+        List<PharmacyWorkItemResponse> items = workItemService.getWorkItemsByPharmacy("PH001");
+
+        assertThat(items).isEmpty();
+    }
 }
