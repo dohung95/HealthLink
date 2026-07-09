@@ -160,6 +160,17 @@ class PatientAppointment {
     required this.status,
     required this.appointmentTime,
     this.consultationEndTime,
+    this.visitAddress = '',
+    this.visitCity = '',
+    this.contactPhone = '',
+    this.reasonForHomeVisit = '',
+    this.specialNotes = '',
+    this.isForSelf,
+    this.receiverName = '',
+    this.receiverAge,
+    this.receiverGender = '',
+    this.receiverRelationship = '',
+    this.receiverPhone = '',
   });
 
   factory PatientAppointment.fromJson(Map<String, dynamic> json) {
@@ -182,6 +193,17 @@ class PatientAppointment {
       consultationEndTime: DateTime.tryParse(
         (json['consultationEndTime'] ?? json['endTime'] ?? '').toString(),
       ),
+      visitAddress: (json['visitAddress'] ?? '').toString(),
+      visitCity: (json['visitCity'] ?? '').toString(),
+      contactPhone: (json['contactPhone'] ?? '').toString(),
+      reasonForHomeVisit: (json['reasonForHomeVisit'] ?? '').toString(),
+      specialNotes: (json['specialNotes'] ?? '').toString(),
+      isForSelf: _toBool(json['isForSelf']),
+      receiverName: (json['receiverName'] ?? '').toString(),
+      receiverAge: _toNullableInt(json['receiverAge']),
+      receiverGender: (json['receiverGender'] ?? '').toString(),
+      receiverRelationship: (json['receiverRelationship'] ?? '').toString(),
+      receiverPhone: (json['receiverPhone'] ?? '').toString(),
     );
   }
 
@@ -195,6 +217,17 @@ class PatientAppointment {
   final String status;
   final DateTime appointmentTime;
   final DateTime? consultationEndTime;
+  final String? visitAddress;
+  final String? visitCity;
+  final String? contactPhone;
+  final String? reasonForHomeVisit;
+  final String? specialNotes;
+  final bool? isForSelf;
+  final String? receiverName;
+  final int? receiverAge;
+  final String? receiverGender;
+  final String? receiverRelationship;
+  final String? receiverPhone;
 
   String get normalizedStatus => status.trim().toLowerCase();
 
@@ -220,6 +253,60 @@ class PatientAppointment {
   bool get isHomeVisit {
     final value = consultationType.trim().toLowerCase();
     return value.contains('home');
+  }
+
+  String get homeVisitReceiverName {
+    final value = (receiverName ?? '').trim();
+    return value.isNotEmpty ? value : patientName;
+  }
+
+  String get homeVisitForText {
+    if (isForSelf == false) {
+      final relation = (receiverRelationship ?? '').trim();
+      return relation.isNotEmpty ? 'For $relation' : 'For someone else';
+    }
+
+    return 'For myself';
+  }
+
+  String get homeVisitAgeGenderText {
+    final parts = <String>[];
+
+    if (receiverAge != null && receiverAge! > 0) {
+      parts.add('$receiverAge years old');
+    }
+
+    final gender = (receiverGender ?? '').trim();
+    if (gender.isNotEmpty) {
+      parts.add(gender);
+    }
+
+    return parts.join(' · ');
+  }
+
+  String get homeVisitPhone {
+    final receiver = (receiverPhone ?? '').trim();
+    if (receiver.isNotEmpty) return receiver;
+
+    return (contactPhone ?? '').trim();
+  }
+
+  String get homeVisitRecipientPhone {
+    return (receiverPhone ?? '').trim();
+  }
+
+  String get homeVisitContactPhone {
+    return (contactPhone ?? '').trim();
+  }
+
+  String get homeVisitFullAddress {
+    final address = (visitAddress ?? '').trim();
+    final city = (visitCity ?? '').trim();
+
+    return [
+      if (address.isNotEmpty) address,
+      if (city.isNotEmpty) city,
+    ].join(', ');
   }
 
   DateTime get effectiveEndTime {
@@ -264,4 +351,23 @@ int _toInt(dynamic value, int fallback) {
   if (value is int) return value;
   if (value is num) return value.toInt();
   return int.tryParse(value?.toString() ?? '') ?? fallback;
+}
+
+int? _toNullableInt(dynamic value) {
+  if (value == null) return null;
+  if (value is int) return value;
+  if (value is num) return value.toInt();
+  return int.tryParse(value.toString());
+}
+
+bool? _toBool(dynamic value) {
+  if (value == null) return null;
+  if (value is bool) return value;
+
+  final text = value.toString().trim().toLowerCase();
+
+  if (text == 'true' || text == '1') return true;
+  if (text == 'false' || text == '0') return false;
+
+  return null;
 }

@@ -43,7 +43,7 @@ class _AppointmentScreenState extends State<AppointmentScreen> {
 
   List<PatientAppointment> _appointments = [];
   Map<int, bool> _reviewableAppointments = {};
-  
+
   int _currentPage = 1;
   int _totalPages = 1;
   int _totalItems = 0;
@@ -53,6 +53,7 @@ class _AppointmentScreenState extends State<AppointmentScreen> {
   StreamSubscription<void>? _systemUpdateSub;
 
   String _statusFilter = 'ALL';
+  int? _expandedHomeVisitId;
 
   Map<String, String> _getStatusOptions(BuildContext context) {
     final l10n = AppLocalizations.of(context)!;
@@ -164,16 +165,23 @@ class _AppointmentScreenState extends State<AppointmentScreen> {
   Future<void> _checkReviewableStatus(List<PatientAppointment> items) async {
     final auth = context.read<AuthProvider>();
     if (auth.accessToken == null) return;
-    
-    final completedApps = items.where((a) => a.status?.toUpperCase() == 'COMPLETED').toList();
+
+    final completedApps = items
+        .where((a) => a.status?.toUpperCase() == 'COMPLETED')
+        .toList();
     if (completedApps.isEmpty) return;
 
     final Map<int, bool> newStatus = {};
-    await Future.wait(completedApps.map((apt) async {
-      final canReview = await PatientReviewService.canReview(auth.accessToken!, apt.appointmentId);
-      newStatus[apt.appointmentId] = canReview;
-    }));
-    
+    await Future.wait(
+      completedApps.map((apt) async {
+        final canReview = await PatientReviewService.canReview(
+          auth.accessToken!,
+          apt.appointmentId,
+        );
+        newStatus[apt.appointmentId] = canReview;
+      }),
+    );
+
     if (mounted) {
       setState(() {
         _reviewableAppointments.addAll(newStatus);
@@ -275,17 +283,20 @@ class _AppointmentScreenState extends State<AppointmentScreen> {
 
   void _handleJoinRoom(PatientAppointment appointment) async {
     final auth = context.read<AuthProvider>();
-    if (!auth.isAuthenticated || auth.accessToken == null || _patientId == null) return;
+    if (!auth.isAuthenticated || auth.accessToken == null || _patientId == null)
+      return;
 
     setState(() => _actionLoading = true);
     try {
       final vitals = await VitalSignService.getLatestAppointmentVitalSign(
-        auth.accessToken!, appointment.appointmentId);
-      
+        auth.accessToken!,
+        appointment.appointmentId,
+      );
+
       if (vitals == null || vitals['vitalSignId'] == null) {
         if (!mounted) return;
         setState(() => _actionLoading = false);
-        
+
         showModalBottomSheet(
           context: context,
           isScrollControlled: true,
@@ -682,7 +693,17 @@ class _AppointmentScreenState extends State<AppointmentScreen> {
               appointment.consultationType.toLocalizedConsultationType(context),
             ),
             const SizedBox(height: 8),
-            _infoRow(colors, Icons.person_outline, appointment.patientName),
+            if (appointment.isHomeVisit)
+              _homeVisitPatientBlock(colors, appointment)
+            else
+              _infoRow(colors, Icons.person_outline, appointment.patientName),
+
+            if (appointment.isHomeVisit &&
+                _expandedHomeVisitId == appointment.appointmentId) ...[
+              const SizedBox(height: 12),
+              _homeVisitDetailsPanel(colors, appointment),
+            ],
+
             const SizedBox(height: 16),
             Wrap(
               spacing: 10,
@@ -694,6 +715,25 @@ class _AppointmentScreenState extends State<AppointmentScreen> {
                     icon: const Icon(Icons.login),
                     label: Text(AppLocalizations.of(context)!.btnJoinRoom),
                   ),
+
+                if (appointment.isHomeVisit)
+                  OutlinedButton.icon(
+                    onPressed: () {
+                      setState(() {
+                        _expandedHomeVisitId =
+                            _expandedHomeVisitId == appointment.appointmentId
+                            ? null
+                            : appointment.appointmentId;
+                      });
+                    },
+                    icon: const Icon(Icons.house_outlined),
+                    label: Text(
+                      _expandedHomeVisitId == appointment.appointmentId
+                          ? 'Hide Details'
+                          : 'View Details',
+                    ),
+                  ),
+
                 if (canReschedule)
                   OutlinedButton.icon(
                     onPressed: () => _handleReschedule(appointment),
@@ -707,16 +747,21 @@ class _AppointmentScreenState extends State<AppointmentScreen> {
                     label: Text(AppLocalizations.of(context)!.btnCancel),
                   ),
                 if (appointment.status?.toUpperCase() == 'COMPLETED')
-                  if (_reviewableAppointments[appointment.appointmentId] == null)
+                  if (_reviewableAppointments[appointment.appointmentId] ==
+                      null)
                     const Padding(
-                      padding: EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                      padding: EdgeInsets.symmetric(
+                        horizontal: 16,
+                        vertical: 8,
+                      ),
                       child: SizedBox(
                         width: 20,
                         height: 20,
                         child: CircularProgressIndicator(strokeWidth: 2),
                       ),
                     )
-                  else if (_reviewableAppointments[appointment.appointmentId] == true)
+                  else if (_reviewableAppointments[appointment.appointmentId] ==
+                      true)
                     FilledButton.icon(
                       onPressed: () => _handleRateClick(appointment),
                       style: FilledButton.styleFrom(
@@ -724,9 +769,13 @@ class _AppointmentScreenState extends State<AppointmentScreen> {
                         foregroundColor: Colors.white,
                       ),
                       icon: const Icon(Icons.star),
-                      label: Text(AppLocalizations.of(context)!.btnRate, style: const TextStyle(fontWeight: FontWeight.bold)),
+                      label: Text(
+                        AppLocalizations.of(context)!.btnRate,
+                        style: const TextStyle(fontWeight: FontWeight.bold),
+                      ),
                     )
-                  else if (_reviewableAppointments[appointment.appointmentId] == false)
+                  else if (_reviewableAppointments[appointment.appointmentId] ==
+                      false)
                     OutlinedButton.icon(
                       onPressed: () => _handleViewRateClick(appointment),
                       style: OutlinedButton.styleFrom(
@@ -740,6 +789,186 @@ class _AppointmentScreenState extends State<AppointmentScreen> {
           ],
         ),
       ),
+    );
+  }
+
+  Widget _homeVisitPatientBlock(
+    ColorScheme colors,
+    PatientAppointment appointment,
+  ) {
+    final recipientPhone = appointment.homeVisitRecipientPhone;
+    final contactPhone = appointment.homeVisitContactPhone;
+
+    String onlyDigits(String value) => value.replaceAll(RegExp(r'\D'), '');
+
+    final showRecipientPhone =
+        recipientPhone.isNotEmpty &&
+        onlyDigits(recipientPhone) != onlyDigits(contactPhone);
+
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(
+        color: colors.primary.withValues(alpha: 0.07),
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: colors.primary.withValues(alpha: 0.22)),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          _homeVisitMiniRow(
+            colors,
+            Icons.person_outline,
+            'Receiver',
+            appointment.homeVisitReceiverName,
+          ),
+          const SizedBox(height: 8),
+          _homeVisitMiniRow(
+            colors,
+            Icons.diversity_1_outlined,
+            'For',
+            appointment.homeVisitForText,
+          ),
+          if (appointment.homeVisitAgeGenderText.isNotEmpty) ...[
+            const SizedBox(height: 8),
+            _homeVisitMiniRow(
+              colors,
+              Icons.badge_outlined,
+              'Info',
+              appointment.homeVisitAgeGenderText,
+            ),
+          ],
+          if (showRecipientPhone) ...[
+            const SizedBox(height: 8),
+            _homeVisitMiniRow(
+              colors,
+              Icons.phone_android_outlined,
+              'Recipient Phone',
+              recipientPhone,
+            ),
+          ],
+          if (contactPhone.isNotEmpty) ...[
+            const SizedBox(height: 8),
+            _homeVisitMiniRow(
+              colors,
+              Icons.phone_outlined,
+              'Phone',
+              contactPhone,
+            ),
+          ],
+        ],
+      ),
+    );
+  }
+
+  Widget _homeVisitDetailsPanel(
+    ColorScheme colors,
+    PatientAppointment appointment,
+  ) {
+    final reason = (appointment.reasonForHomeVisit ?? '').trim();
+    final notes = (appointment.specialNotes ?? '').trim();
+
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(
+        color: colors.surfaceContainerLow,
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: colors.outlineVariant),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          _homeVisitDetailRow(
+            colors,
+            Icons.location_on_outlined,
+            'Visit address',
+            appointment.homeVisitFullAddress.isEmpty
+                ? 'No address provided'
+                : appointment.homeVisitFullAddress,
+          ),
+          const SizedBox(height: 10),
+          _homeVisitDetailRow(
+            colors,
+            Icons.assignment_outlined,
+            'Reason',
+            reason.isEmpty ? 'No reason provided' : reason,
+          ),
+          if (notes.isNotEmpty) ...[
+            const SizedBox(height: 10),
+            _homeVisitDetailRow(
+              colors,
+              Icons.sticky_note_2_outlined,
+              'Special notes',
+              notes,
+            ),
+          ],
+        ],
+      ),
+    );
+  }
+
+  Widget _homeVisitMiniRow(
+    ColorScheme colors,
+    IconData icon,
+    String label,
+    String value,
+  ) {
+    return Row(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Icon(icon, size: 17, color: colors.primary),
+        const SizedBox(width: 8),
+        SizedBox(
+          width: 72,
+          child: Text(
+            label,
+            style: TextStyle(
+              color: colors.onSurfaceVariant,
+              fontSize: 12,
+              fontWeight: FontWeight.w700,
+            ),
+          ),
+        ),
+        Expanded(
+          child: Text(
+            value,
+            style: const TextStyle(fontWeight: FontWeight.w800),
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _homeVisitDetailRow(
+    ColorScheme colors,
+    IconData icon,
+    String label,
+    String value,
+  ) {
+    return Row(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Icon(icon, size: 18, color: colors.primary),
+        const SizedBox(width: 8),
+        Expanded(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                label,
+                style: TextStyle(
+                  color: colors.onSurfaceVariant,
+                  fontSize: 12,
+                  fontWeight: FontWeight.w700,
+                ),
+              ),
+              const SizedBox(height: 2),
+              Text(value, style: const TextStyle(fontWeight: FontWeight.w800)),
+            ],
+          ),
+        ),
+      ],
     );
   }
 

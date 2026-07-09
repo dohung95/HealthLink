@@ -7,23 +7,35 @@ class HomeVisitDoctorOption {
     required this.distanceKm,
     required this.estimatedTravelMinutes,
     required this.homeVisitFee,
+    required this.homeVisitConsultationFee,
     required this.travelFee,
     required this.homeVisitTotal,
     required this.temporaryTotal,
   });
 
   factory HomeVisitDoctorOption.fromJson(Map<String, dynamic> json) {
+    final consultationFee = _toDouble(json['consultationFee'], 0);
+    final homeVisitConsultationFee = _toDouble(
+      json['homeVisitConsultationFee'],
+      consultationFee * 1.5,
+    );
+    final homeVisitTotal = _toDouble(json['homeVisitTotal'] ?? json['totalFee'], 0);
+
     return HomeVisitDoctorOption(
       doctorId: (json['doctorId'] ?? json['doctorID'] ?? '').toString(),
       fullName: (json['fullName'] ?? json['name'] ?? '').toString(),
       specialtyName: (json['specialtyName'] ?? json['specialty'] ?? '').toString(),
-      consultationFee: _toDouble(json['consultationFee'], 0),
+      consultationFee: consultationFee,
+      homeVisitConsultationFee: homeVisitConsultationFee,
       distanceKm: _toDouble(json['distanceKm'], 0),
       estimatedTravelMinutes: _toInt(json['estimatedTravelMinutes'], 0),
       homeVisitFee: _toDouble(json['homeVisitFee'], 0),
       travelFee: _toDouble(json['travelFee'], 0),
-      homeVisitTotal: _toDouble(json['homeVisitTotal'] ?? json['totalFee'], 0),
-      temporaryTotal: _toDouble(json['temporaryTotal'], 0),
+      homeVisitTotal: homeVisitTotal,
+      temporaryTotal: _toDouble(
+        json['temporaryTotal'],
+        homeVisitConsultationFee + homeVisitTotal,
+      ),
     );
   }
 
@@ -37,6 +49,13 @@ class HomeVisitDoctorOption {
   final double travelFee;
   final double homeVisitTotal;
   final double temporaryTotal;
+  final double homeVisitConsultationFee;
+
+  double get displayDoctorFee =>
+      homeVisitConsultationFee > 0 ? homeVisitConsultationFee : consultationFee;
+
+  double get displayTemporaryTotal =>
+      temporaryTotal > 0 ? temporaryTotal : displayDoctorFee + homeVisitTotal;
 }
 
 int _toInt(dynamic value, int fallback) {
