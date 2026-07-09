@@ -13,14 +13,19 @@ import { Avatar, getProfileName, navItems, routeByTab } from '../../components/p
 import PharmacyNotificationDropdown from '../../components/pharmacy/PharmacyNotificationDropdown';
 import PharmacyProfileTab from '../../components/pharmacy/PharmacyProfileTab';
 import PharmacyWalletTab from '../../components/pharmacy/PharmacyWalletTab';
-import PharmacyAnalyticsTab from '../../components/pharmacy/PharmacyAnalyticsTab';
+
 import PharmacyOnlineToggle from '../../components/pharmacy/PharmacyOnlineToggle';
 import ChatPage from '../../components/ChatPage';
 import PharmacyAnnouncementBar from '../../components/pharmacy/PharmacyAnnouncementBar';
-import { isPharmacyAnnouncementType } from '../../components/pharmacy/workflow/pharmacyWorkflow';
+import {
+  getPharmacyNavBadgeCounts,
+  isPharmacyAnnouncementType,
+} from '../../components/pharmacy/workflow/pharmacyWorkflow';
 import PharmacyRequestsPage from '../../components/pharmacy/PharmacyRequestsPage';
 import PharmacyKanbanOrdersPage from '../../components/pharmacy/PharmacyKanbanOrdersPage';
 import PharmacyOrderListPage from '../../components/pharmacy/PharmacyOrderListPage';
+
+const formatNavBadgeCount = (count) => (count > 99 ? '99+' : String(count));
 
 export default function PharmacyDashboardPage() {
   const { token, currentUserId, logout } = useAuth();
@@ -45,7 +50,6 @@ export default function PharmacyDashboardPage() {
   const pharmacyId = profile?.pharmacyId || currentUserId;
 
   const activeTab = useMemo(() => {
-    if (location.pathname.includes('/inventory/analytics')) return 'inventoryAnalytics';
     if (location.pathname.includes('/inventory')) return 'inventory';
     if (location.pathname.includes('/requests')) return 'requests';
     if (location.pathname.includes('/order-list')) return 'orderList';
@@ -142,6 +146,11 @@ export default function PharmacyDashboardPage() {
       : null
   ), [latestRealtimeNotification]);
 
+  const navBadgeCounts = useMemo(
+    () => getPharmacyNavBadgeCounts({ workItems, orders }),
+    [orders, workItems],
+  );
+
   const shellProps = {
     profile,
     orders,
@@ -173,21 +182,34 @@ export default function PharmacyDashboardPage() {
         </div>
 
         <nav className="pharmacy-nav">
-          {navItems.map((item) => (
-            <div className="pharmacy-nav-group" key={item.key}>
-              <NavLink
-                className={({ isActive }) => `pharmacy-nav-link ${isActive ? 'active' : ''}`}
-                end={item.end}
-                onClick={closeMobile}
-                to={item.path}
-              >
-                <span className="material-symbols-outlined">{item.icon}</span>
-                <span>{item.label}</span>
-              </NavLink>
+          {navItems.map((item) => {
+            const badgeCount = navBadgeCounts[item.key] || 0;
 
-              {item.children?.length ? (
-                <div className="pharmacy-nav-children">
-                  {item.children.map((child) => (
+            return (
+              <div className="pharmacy-nav-group" key={item.key}>
+                <NavLink
+                  className={({ isActive }) => `pharmacy-nav-link ${isActive ? 'active' : ''}`}
+                  end={item.end}
+                  onClick={closeMobile}
+                  to={item.path}
+                >
+                  <span className="material-symbols-outlined">{item.icon}</span>
+                  <span className="pharmacy-nav-label">
+                    {item.label}
+                    {badgeCount > 0 ? (
+                      <span
+                        aria-label={`${badgeCount} ${item.label.toLowerCase()} need attention`}
+                        className="pharmacy-nav-badge"
+                      >
+                        {formatNavBadgeCount(badgeCount)}
+                      </span>
+                    ) : null}
+                  </span>
+                </NavLink>
+
+                {item.children?.length ? (
+                  <div className="pharmacy-nav-children">
+                    {item.children.map((child) => (
                     <NavLink
                       className={({ isActive }) => `pharmacy-nav-child ${isActive ? 'active' : ''}`}
                       end={child.end}
@@ -201,7 +223,8 @@ export default function PharmacyDashboardPage() {
                 </div>
               ) : null}
             </div>
-          ))}
+          );
+        })}
         </nav>
       </aside>
 
@@ -279,7 +302,7 @@ export default function PharmacyDashboardPage() {
             <>
               {activeTab === 'overview' && <PharmacyOverviewTab {...shellProps} />}
               {activeTab === 'inventory' && <PharmacyInventoryTab {...shellProps} />}
-              {activeTab === 'inventoryAnalytics' && <PharmacyAnalyticsTab token={token} profile={profile} />}
+
               {activeTab === 'requests' && <PharmacyRequestsPage {...shellProps} />}
               {activeTab === 'orders' && <PharmacyKanbanOrdersPage {...shellProps} />}
               {activeTab === 'orderList' && <PharmacyOrderListPage {...shellProps} />}

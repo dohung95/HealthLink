@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import { money, dateTime } from '../../utils/pharmacy/pharmacyHelpers';
 import {
@@ -10,13 +10,13 @@ import {
 } from './workflow/pharmacyWorkflow';
 import PharmacyOrderDetailModal from './PharmacyOrderDetailModal';
 
-const PAGE_SIZE = 6;
+const PAGE_SIZE = 10;
 
 export default function PharmacyOrderListPage({ workItems, orders }) {
   const [searchParams, setSearchParams] = useSearchParams();
-  const initialTab = searchParams.get('tab') || 'PAYMENT_DUE';
+  const initialTab = searchParams.get('tab') || 'ALL';
   const [activeTab, setActiveTab] = useState(
-    ORDER_LIST_TABS.some((t) => t.key === initialTab) ? initialTab : 'PAYMENT_DUE',
+    ORDER_LIST_TABS.some((t) => t.key === initialTab) ? initialTab : 'ALL',
   );
   const [query, setQuery] = useState('');
   const [page, setPage] = useState(1);
@@ -37,6 +37,12 @@ export default function PharmacyOrderListPage({ workItems, orders }) {
   const pages = Math.max(1, Math.ceil(visibleItems.length / PAGE_SIZE));
   const pagedItems = visibleItems.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE);
 
+  useEffect(() => {
+    if (page > pages) {
+      setPage(pages);
+    }
+  }, [page, pages]);
+
   const tabCounts = useMemo(() => {
     const counts = {};
     ORDER_LIST_TABS.forEach((tab) => {
@@ -53,7 +59,7 @@ export default function PharmacyOrderListPage({ workItems, orders }) {
 
   const switchTab = (key) => {
     setActiveTab(key);
-    setSearchParams(key === 'PAYMENT_DUE' ? {} : { tab: key });
+    setSearchParams(key === 'ALL' ? {} : { tab: key });
     setPage(1);
     setDetailItem(null);
   };

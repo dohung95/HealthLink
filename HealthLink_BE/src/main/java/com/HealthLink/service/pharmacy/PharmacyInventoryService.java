@@ -6,8 +6,9 @@ import org.springframework.web.multipart.MultipartFile;
 
 public interface PharmacyInventoryService {
 
-    Page<PharmacyInventoryResponse> getInventory(String pharmacyId, String query, Boolean lowStock,
-                                                   Boolean active, Boolean expiringSoon,
+    Page<PharmacyInventoryResponse> getInventory(String pharmacyId, String query, String dosageForm,
+                                                   Boolean lowStock, Boolean active,
+                                                   Boolean expiringSoon,
                                                    Integer categoryId,
                                                    int page, int size);
 

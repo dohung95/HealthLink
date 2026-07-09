@@ -85,6 +85,29 @@ export function mapOrderToWorkflowItem(order) {
   };
 }
 
+export function getPharmacyNavBadgeCounts({ workItems, orders } = {}) {
+  const closedRequestStatuses = new Set(['CANCELLED', 'REJECTED']);
+  const terminalOrderStatuses = new Set(['DELIVERED', 'COMPLETED', 'CANCELLED', 'REFUNDED']);
+  const workItemList = Array.isArray(workItems) ? workItems : [];
+
+  const requests = workItemList.filter((item) => {
+    const stage = getWorkflowStage(item);
+    const requestStatus = normalize(item?.requestStatus);
+    const orderStatus = normalize(item?.orderStatus);
+
+    return stage === 'NEW_REQUEST'
+      && !closedRequestStatuses.has(requestStatus)
+      && !terminalOrderStatuses.has(orderStatus);
+  }).length;
+
+  const paidPreparing = mergeWorkflowItemsWithOrders(workItems, orders).filter((item) => (
+    getWorkflowStage(item) === 'PREPARING'
+    && normalize(item?.paymentStatus) === 'PAID'
+  )).length;
+
+  return { requests, orders: paidPreparing };
+}
+
 export function mergeWorkflowItemsWithOrders(workItems, orders) {
   const workItemList = Array.isArray(workItems) ? workItems : [];
   const orderList = Array.isArray(orders) ? orders : [];
@@ -297,8 +320,9 @@ export function paymentStatusLabel(status) {
 
 export function compactCardClass(item) {
   const stage = getWorkflowStage(item);
-  if (['COMPLETED', 'DELIVERED', 'READY'].includes(stage)) return 'is-card-success';
-  if (['PREPARING', 'SHIPPING'].includes(stage)) return 'is-card-processing';
+  if (stage === 'AWAITING_PAYMENT') return 'is-card-payment-due';
+  if (['PREPARING', 'READY', 'SHIPPING'].includes(stage)) return 'is-card-active';
+  if (stage === 'DELIVERED') return 'is-card-success';
   if (['CANCELLED', 'REFUNDED'].includes(stage)) return 'is-card-danger';
   return 'is-card-default';
 }

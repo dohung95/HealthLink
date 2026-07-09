@@ -71,7 +71,7 @@ export default function RetailCheckoutWizard({
           fulfillmentType,
           items: toCartPayload(items),
         });
-        setPharmacies(Array.isArray(result) ? result : []);
+        setPharmacies(Array.isArray(result) ? result.filter((pharmacy) => pharmacy.stockStatus === 'FULL') : []);
       } catch (error) {
         toast.error(error.response?.data?.message || 'Unable to load pharmacies for this cart.');
         setPharmacies([]);
@@ -212,13 +212,6 @@ export default function RetailCheckoutWizard({
   };
 
   const handleSelectPharmacy = (pharmacy) => {
-    if (pharmacy.stockStatus !== 'FULL') {
-      const confirmed = window.confirm('This pharmacy may not have every cart item. Continue?');
-      if (!confirmed) {
-        return;
-      }
-    }
-
     setSelectedPharmacy(pharmacy);
     setStep('review');
   };
@@ -413,7 +406,8 @@ export default function RetailCheckoutWizard({
                 <div className="spinner-border text-primary" role="status"></div>
               </div>
             ) : pharmacies.length === 0 ? (
-              <div className="alert alert-warning mb-0">No pharmacies found for this cart and delivery location.</div>
+              <div className="alert alert-warning mb-0">
+  No pharmacies can fulfill every item in this cart for the selected location.</div>
             ) : (
               <div className="retail-pharmacy-list">
                 {pharmacies.map((pharmacy) => (
@@ -434,13 +428,6 @@ export default function RetailCheckoutWizard({
                       </div>
                     </div>
                     <div className="d-flex flex-wrap gap-2 mt-2 small">
-                      <span className={`badge ${
-                        pharmacy.stockStatus === 'FULL'
-                          ? 'text-bg-success'
-                          : pharmacy.stockStatus === 'PARTIAL'
-                            ? 'text-bg-warning'
-                            : 'text-bg-secondary'
-                      }`}>{pharmacy.stockStatus}</span>
                       <span className="text-muted">Delivery fee: {money(pharmacy.deliveryFee)}</span>
                       {pharmacy.averageRating != null && (
                         <span className="text-muted">
@@ -449,12 +436,6 @@ export default function RetailCheckoutWizard({
                         </span>
                       )}
                     </div>
-                    {pharmacy.missingItems?.length > 0 && (
-                      <div className="small text-danger mt-2">
-                        <i className="bi bi-exclamation-triangle me-1"></i>
-                        Missing: {pharmacy.missingItems.slice(0, 3).map((item) => item.medicineName).join(', ')}
-                      </div>
-                    )}
                   </button>
                 ))}
               </div>
@@ -464,13 +445,6 @@ export default function RetailCheckoutWizard({
 
         {step === 'review' && selectedPharmacy && (
           <div>
-            {selectedPharmacy.stockStatus !== 'FULL' && (
-              <div className="alert alert-warning">
-                <i className="bi bi-exclamation-triangle me-2"></i>
-                This pharmacy may not have every item in your cart. The pharmacy can still confirm, revise, or cancel after review.
-              </div>
-            )}
-
             <div className="row g-3 mb-3">
               <div className="col-md-6">
                 <div className="card h-100">

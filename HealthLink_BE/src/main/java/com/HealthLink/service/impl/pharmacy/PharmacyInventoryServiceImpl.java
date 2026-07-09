@@ -60,38 +60,61 @@ public class PharmacyInventoryServiceImpl implements PharmacyInventoryService {
     private final MedicineRepository medicineRepository;
     private final MedicineCategoryService categoryService;
 
-    @Override
+@Override
     @Transactional(readOnly = true)
     public Page<PharmacyInventoryResponse> getInventory(String pharmacyId, String query,
-                                                          Boolean lowStock, Boolean active,
-                                                          Boolean expiringSoon,
-                                                          Integer categoryId,
-                                                          int page, int size) {
+                                                           String dosageForm,
+                                                           Boolean lowStock, Boolean active,
+                                                           Boolean expiringSoon,
+                                                           Integer categoryId,
+                                                           int page, int size) {
         PageRequest pageRequest = PageRequest.of(page, size, Sort.by("createdAt").descending());
-        Page<PharmacyInventory> inventoryPage;
+        String normalizedQuery = normalizeFilter(query);
+        String normalizedDosageForm = normalizeFilter(dosageForm);
+        boolean lowStockFilter = Boolean.TRUE.equals(lowStock);
+        boolean expiringSoonFilter = Boolean.TRUE.equals(expiringSoon);
+        LocalDate today = LocalDate.now();
+        LocalDate expiryLimit = today.plusDays(30);
 
+        Page<PharmacyInventory> inventoryPage;
         if (categoryId != null) {
             Set<Integer> categoryIds = categoryService.getActiveCategoryAndDescendantIds(categoryId);
             if (categoryIds.isEmpty()) {
                 return Page.empty(pageRequest);
             }
-            inventoryPage = inventoryRepository.findByPharmacyIdAndCategoryIds(pharmacyId, categoryIds, pageRequest);
-        } else if (query != null && !query.isBlank()) {
-            inventoryPage = inventoryRepository.searchByPharmacyId(pharmacyId, query, pageRequest);
-        } else if (Boolean.TRUE.equals(lowStock)) {
-            inventoryPage = inventoryRepository.findLowStockByPharmacyId(pharmacyId, LOW_STOCK_THRESHOLD, pageRequest);
-        } else if (Boolean.TRUE.equals(expiringSoon)) {
-            LocalDate today = LocalDate.now();
-            inventoryPage = inventoryRepository.findExpiringSoon(pharmacyId, today, today.plusDays(30), pageRequest);
-        } else if (Boolean.TRUE.equals(active)) {
-            inventoryPage = inventoryRepository.findByPharmacyIdAndActive(pharmacyId, true, pageRequest);
-        } else if (Boolean.FALSE.equals(active)) {
-            inventoryPage = inventoryRepository.findByPharmacyIdAndActive(pharmacyId, false, pageRequest);
+            inventoryPage = inventoryRepository.findInventoryByFiltersAndCategoryIds(
+                    pharmacyId,
+                    normalizedQuery,
+                    normalizedDosageForm,
+                    active,
+                    lowStockFilter,
+                    expiringSoonFilter,
+                    categoryIds,
+                    today,
+                    expiryLimit,
+                    LOW_STOCK_THRESHOLD,
+                    pageRequest);
         } else {
-            inventoryPage = inventoryRepository.findByPharmacy_PharmacyId(pharmacyId, pageRequest);
+            inventoryPage = inventoryRepository.findInventoryByFilters(
+                    pharmacyId,
+                    normalizedQuery,
+                    normalizedDosageForm,
+                    active,
+                    lowStockFilter,
+                    expiringSoonFilter,
+                    today,
+                    expiryLimit,
+                    LOW_STOCK_THRESHOLD,
+                    pageRequest);
         }
 
         return inventoryPage.map(this::toResponse);
+    }
+
+    private String normalizeFilter(String value) {
+        if (value == null) return null;
+        String trimmed = value.trim();
+        return trimmed.isEmpty() ? null : trimmed;
     }
 
     @Override

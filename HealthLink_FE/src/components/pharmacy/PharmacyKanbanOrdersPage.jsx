@@ -11,6 +11,8 @@ import {
   compactCardSubtitle,
   compactCardMeta,
   mergeWorkflowItemsWithOrders,
+  paymentStatusTone,
+  paymentStatusLabel,
 } from './workflow/pharmacyWorkflow';
 import PharmacyOrderDetailModal from './PharmacyOrderDetailModal';
 
@@ -97,17 +99,19 @@ export default function PharmacyKanbanOrdersPage({ workItems, orders, reload }) 
                         tabIndex={0}
                         onKeyDown={(e) => { if (e.key === 'Enter') setDetailItem(item); }}
                       >
-                        <div className="pharmacy-kanban-card__header">
-                          <span className="pharmacy-kanban-card__stage">{getWorkflowStage(item)}</span>
-                          {item.requiresPatientConfirmation && (
-                            <span className="pharmacy-kanban-card__meta" style={{ fontSize: 10 }}>
-                              Awaiting confirmation
-                            </span>
-                          )}
+                        <div className="pharmacy-kanban-card__identity">
+                          <strong className="pharmacy-kanban-card__id">
+                            {item.orderNumber || `#${item.orderId}`}
+                          </strong>
+                          <span className={`pharmacy-status pharmacy-kanban-card__payment ${paymentStatusTone(item.paymentStatus)}`}>
+                            {paymentStatusLabel(item.paymentStatus)}
+                          </span>
                         </div>
-                        <strong className="pharmacy-kanban-card__id">
-                          {item.orderNumber || `#${item.orderId}`}
-                        </strong>
+                        {item.requiresPatientConfirmation && (
+                          <span className="pharmacy-kanban-card__meta pharmacy-kanban-card__confirmation">
+                            Awaiting confirmation
+                          </span>
+                        )}
                         {subtitle && (
                           <span className="pharmacy-kanban-card__subtitle">{subtitle}</span>
                         )}

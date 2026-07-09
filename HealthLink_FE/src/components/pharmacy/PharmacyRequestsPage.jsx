@@ -21,6 +21,8 @@ export default function PharmacyRequestsPage({ workItems, profile, reload, navig
   const [createOrderRequest, setCreateOrderRequest] = useState(null);
   const [createOrderMode, setCreateOrderMode] = useState(null);
   const [savingId, setSavingId] = useState(null);
+  const [rejectConfirmItem, setRejectConfirmItem] = useState(null);
+  const [rejectConfirmSaving, setRejectConfirmSaving] = useState(false);
 
   const [cardDeliveryFee, setCardDeliveryFee] = useState({});
   const [cardEstimatedMinutes, setCardEstimatedMinutes] = useState({});
@@ -129,8 +131,10 @@ export default function PharmacyRequestsPage({ workItems, profile, reload, navig
           break;
       }
       if (needsReload) await reload();
+      return true;
     } catch (error) {
       toast.error(error.response?.data?.message || `Failed to ${action}.`);
+      return false;
     } finally {
       setSavingId(null);
       setPendingAction(null);
@@ -150,6 +154,26 @@ export default function PharmacyRequestsPage({ workItems, profile, reload, navig
       displayName: item.patientName || 'Patient',
       patientId: item.patientId,
     });
+  };
+
+  const openRejectConfirm = (item) => {
+    setRejectConfirmItem(item);
+  };
+
+  const closeRejectConfirm = () => {
+    if (!rejectConfirmSaving) {
+      setRejectConfirmItem(null);
+    }
+  };
+
+  const confirmRejectRequest = async () => {
+    if (!rejectConfirmItem) return;
+    setRejectConfirmSaving(true);
+    const rejected = await handleAction(rejectConfirmItem, 'REJECT_REQUEST');
+    setRejectConfirmSaving(false);
+    if (rejected) {
+      setRejectConfirmItem(null);
+    }
   };
 
   const openRequestVideoCall = (item) => {
@@ -449,7 +473,7 @@ export default function PharmacyRequestsPage({ workItems, profile, reload, navig
                           {item.description}
                         </small>
                       ) : null}
-                      <div className="pharmacy-case-actions" style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+                      <div className="pharmacy-case-actions pharmacy-case-actions--request-primary">
                         {item.availableActions?.map((action) => {
                           if (!canRenderRequestAction(item, action, kind)) return null;
                           if (action === 'UPDATE_QUOTE' && kind !== 'revision') return null;
@@ -462,7 +486,14 @@ export default function PharmacyRequestsPage({ workItems, profile, reload, navig
                               key={action}
                               className={btn.className}
                               disabled={isSaving}
-                              onClick={(e) => { e.stopPropagation(); handleAction(item, action); }}
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                if (action === 'REJECT_REQUEST') {
+                                  openRejectConfirm(item);
+                                  return;
+                                }
+                                handleAction(item, action);
+                              }}
                               type="button"
                             >
                               {isSavingThis ? `${label}...` : label}
@@ -501,6 +532,13 @@ export default function PharmacyRequestsPage({ workItems, profile, reload, navig
           )}
         </div>
 
+        {rejectConfirmItem && (
+          <PharmacyRequestRejectConfirmModal
+            saving={rejectConfirmSaving}
+            onCancel={closeRejectConfirm}
+            onConfirm={confirmRejectRequest}
+          />
+        )}
         {createOrderRequest && (
           <CreateOrderModal
             request={createOrderRequest}
@@ -528,12 +566,35 @@ export default function PharmacyRequestsPage({ workItems, profile, reload, navig
 
 const ACTION_BUTTONS = {
   ACCEPT_REQUEST: { label: 'Accept', className: 'btn btn-sm btn-primary' },
-  REJECT_REQUEST: { label: 'Reject', className: 'btn btn-sm btn-outline-danger' },
+  REJECT_REQUEST: { label: 'Reject', className: 'btn btn-sm btn-danger' },
   CREATE_ORDER: { label: 'Create Order', className: 'btn btn-sm btn-success' },
   UPDATE_ORDER_STATUS: { label: 'Confirm', className: 'btn btn-sm btn-primary' },
   CANCEL_ORDER: { label: 'Cancel', className: 'btn btn-sm btn-outline-danger' },
   UPDATE_QUOTE: { label: 'Update Quote', className: 'btn btn-sm btn-warning' },
 };
+
+function PharmacyRequestRejectConfirmModal({ saving, onCancel, onConfirm }) {
+  return (
+    <div className="pharmacy-confirm-modal" role="dialog" aria-modal="true" aria-labelledby="pharmacy-reject-request-title">
+      <button className="pharmacy-confirm-backdrop" onClick={onCancel} type="button" aria-label="Cancel" />
+      <div className="pharmacy-confirm-card">
+        <div className="pharmacy-confirm-icon danger">
+          <i className="bi bi-x-circle"></i>
+        </div>
+        <h2 id="pharmacy-reject-request-title">Reject request?</h2>
+        <p>This will move the request out of active requests.</p>
+        <div className="pharmacy-confirm-actions">
+          <button className="btn btn-light" disabled={saving} onClick={onCancel} type="button">
+            Cancel
+          </button>
+          <button className="btn btn-danger" disabled={saving} onClick={onConfirm} type="button">
+            {saving ? 'Rejecting...' : 'Reject Request'}
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
 
 function getActionButtonLabel(action, kind) {
   if (kind === 'deliveryOrderRequest' && action === 'CREATE_ORDER') return 'Create quote';

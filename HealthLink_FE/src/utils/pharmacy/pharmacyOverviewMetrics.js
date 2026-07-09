@@ -1,24 +1,34 @@
+import {
+  getWorkflowStage,
+  mergeWorkflowItemsWithOrders,
+} from '../../components/pharmacy/workflow/pharmacyWorkflow';
+
 export const LOW_STOCK_THRESHOLD = 10;
 export const EXPIRING_SOON_DAYS = 30;
 export const INVENTORY_SUMMARY_PAGE_SIZE = 5000;
 
 export const ACTIVE_ORDER_STAGES = new Set([
   'AWAITING_PAYMENT',
-  'REVISION_REQUESTED',
   'PREPARING',
   'READY',
   'SHIPPING',
-  'DELIVERED',
 ]);
 
+export const TERMINAL_COMPLETED_STAGES = new Set(['COMPLETED']);
+export const TERMINAL_CANCELLED_STAGES = new Set(['CANCELLED', 'REFUNDED']);
+
 export const WORKFLOW_QUEUE_STAGES = [
-  { key: 'NEW_REQUESTS', label: 'New Requests', stages: ['NEW_REQUEST'], tone: 'warning' },
-  { key: 'CONSULTING', label: 'Consulting', stages: ['CONSULTING', 'REVISION_REQUESTED'], tone: 'info' },
-  { key: 'PAYMENT_DUE', label: 'Payment Due', stages: ['AWAITING_PAYMENT'], tone: 'warning' },
-  { key: 'PREPARING', label: 'Preparing', stages: ['PREPARING'], tone: 'info' },
-  { key: 'READY', label: 'Ready', stages: ['READY'], tone: 'success' },
-  { key: 'SHIPPING', label: 'Shipping', stages: ['SHIPPING'], tone: 'info' },
+  { key: 'NEW_REQUESTS', label: 'New Requests', stages: ['NEW_REQUEST'] },
+  { key: 'PAYMENT_DUE', label: 'Payment Due', stages: ['AWAITING_PAYMENT'] },
+  { key: 'PREPARING', label: 'Preparing', stages: ['PREPARING'] },
+  { key: 'READY', label: 'Ready', stages: ['READY'] },
 ];
+
+export const REVENUE_RANGES = {
+  WEEK: { key: 'WEEK', label: 'Week', days: 7, bucket: 'day' },
+  MONTH: { key: 'MONTH', label: 'Month', days: 30, bucket: 'day' },
+  YEAR: { key: 'YEAR', label: 'Year', months: 12, bucket: 'month' },
+};
 
 export function normalizeStage(item) {
   return String(item?.workflowStage || item?.orderStatus || item?.status || '').toUpperCase();
@@ -69,47 +79,206 @@ export function getOrderDate(order) {
   return null;
 }
 
-export function isWithinLastDays(date, days, now = new Date()) {
-  if (!date) return false;
-  const d = new Date(date);
-  if (Number.isNaN(d.getTime())) return false;
-  const ms = days * 24 * 60 * 60 * 1000;
-  return (now.getTime() - d.getTime()) <= ms;
+export function getOverviewItems(workItems, orders) {
+  return mergeWorkflowItemsWithOrders(workItems, orders);
 }
 
-export function buildRevenueTrend(orders, now = new Date()) {
-  const paid = Array.isArray(orders) ? orders.filter(isPaidOrder) : [];
-  const withDates = paid.filter((o) => getOrderDate(o));
-  if (withDates.length === 0) return { hasTrend: false, trend: [], revenue30Days: 0, paidCount30Days: 0 };
+export function getOverviewStage(item) {
+  return getWorkflowStage(item);
+}
 
-  const buckets = {};
-  for (let i = 29; i >= 0; i--) {
-    const d = new Date(now);
-    d.setDate(d.getDate() - i);
-    const label = `${d.getDate()}/${d.getMonth() + 1}`;
-    buckets[label] = { label, revenue: 0 };
-  }
+export function isActiveOverviewOrder(item) {
+  return ACTIVE_ORDER_STAGES.has(getOverviewStage(item));
+}
 
-  let revenue30Days = 0;
-  let paidCount30Days = 0;
+export function isCompletedOverviewOrder(item) {
+  return TERMINAL_COMPLETED_STAGES.has(getOverviewStage(item));
+}
 
-  for (const order of withDates) {
-    const dateVal = getOrderDate(order);
-    if (!isWithinLastDays(dateVal, 30, now)) continue;
-    const d = new Date(dateVal);
-    const label = `${d.getDate()}/${d.getMonth() + 1}`;
-    if (buckets[label]) {
-      buckets[label].revenue += getOrderAmount(order);
-    }
-    revenue30Days += getOrderAmount(order);
-    paidCount30Days++;
-  }
+export function isCancelledOverviewOrder(item) {
+  return TERMINAL_CANCELLED_STAGES.has(getOverviewStage(item));
+}
+
+export function buildOverviewMetricModel({ workItems, orders, balance, inventorySummary }) {
+  const items = getOverviewItems(workItems, orders);
+  const activeOrders = items.filter((item) => item?.hasOrder && isActiveOverviewOrder(item)).length;
+  const completed = items.filter((item) => item?.hasOrder && isCompletedOverviewOrder(item)).length;
+  const cancelledAndRefunded = items.filter((item) => item?.hasOrder && isCancelledOverviewOrder(item)).length;
+  const terminalTotal = completed + cancelledAndRefunded;
+  const completedRate = terminalTotal > 0 ? Math.round((completed / terminalTotal) * 100) : 0;
+  const cancelledRate = terminalTotal > 0 ? Math.round((cancelledAndRefunded / terminalTotal) * 100) : 0;
 
   return {
-    hasTrend: true,
-    trend: Object.values(buckets),
-    revenue30Days,
-    paidCount30Days,
+    activeOrders,
+    inventoryRiskTotal: inventorySummary?.riskTotal ?? 0,
+    revenueValue: Number(balance?.totalEarnings ?? 0),
+    revenueHint: 'Lifetime earnings',
+    completed,
+    cancelledAndRefunded,
+    completedRate,
+    cancelledRate,
+  };
+}
+
+function queueTone(count) {
+  if (count <= 0) return 'neutral';
+  if (count <= 4) return 'success';
+  if (count <= 8) return 'warning';
+  return 'danger';
+}
+
+export function buildWorkflowQueueData({ workItems, orders } = {}) {
+  const items = getOverviewItems(workItems, orders);
+  return WORKFLOW_QUEUE_STAGES.map((group) => {
+    const count = items.filter((item) => group.stages.includes(getOverviewStage(item))).length;
+    return {
+      key: group.key,
+      label: group.label,
+      count,
+      tone: queueTone(count),
+      percent: Math.min(100, Math.round((Math.min(count, 10) / 10) * 100)),
+    };
+  });
+}
+
+function getTransactionAmount(transaction) {
+  return Number(transaction?.netAmount ?? transaction?.amount ?? transaction?.grossAmount ?? 0) || 0;
+}
+
+function getTransactionDate(transaction) {
+  return transaction?.createdAt || transaction?.paidAt || transaction?.paymentDate || transaction?.updatedAt || null;
+}
+
+function getRevenueEntries({ transactions, orders }) {
+  const transactionEntries = (Array.isArray(transactions) ? transactions : [])
+    .map((t) => ({
+      amount: getTransactionAmount(t),
+      date: getTransactionDate(t),
+      source: 'transactions',
+    }))
+    .filter((entry) => entry.amount > 0 && entry.date);
+
+  if (transactionEntries.length > 0) return transactionEntries;
+
+  return (Array.isArray(orders) ? orders : [])
+    .filter(isPaidOrder)
+    .map((order) => ({
+      amount: getOrderAmount(order),
+      date: getOrderDate(order),
+      source: 'orders',
+    }))
+    .filter((entry) => entry.amount > 0 && entry.date);
+}
+
+function startOfDay(date) {
+  const d = new Date(date);
+  d.setHours(0, 0, 0, 0);
+  return d;
+}
+
+function monthKey(date) {
+  return `${date.getFullYear()}-${date.getMonth()}`;
+}
+
+function dayKey(date) {
+  return startOfDay(date).toISOString().slice(0, 10);
+}
+
+function dayLabel(date) {
+  return date.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+}
+
+function monthLabel(date) {
+  return date.toLocaleDateString('en-US', { month: 'short' });
+}
+
+function buildRevenueBuckets(rangeConfig, now) {
+  if (rangeConfig.bucket === 'month') {
+    return Array.from({ length: 12 }, (_, index) => {
+      const date = new Date(now);
+      date.setDate(1);
+      date.setMonth(date.getMonth() - (11 - index));
+      return { key: monthKey(date), label: monthLabel(date), revenue: 0, count: 0 };
+    });
+  }
+
+  return Array.from({ length: rangeConfig.days }, (_, index) => {
+    const date = new Date(now);
+    date.setDate(date.getDate() - (rangeConfig.days - 1 - index));
+    return { key: dayKey(date), label: dayLabel(date), revenue: 0, count: 0 };
+  });
+}
+
+export function formatRevenueAxisTick(value) {
+  const numeric = Number(value) || 0;
+  if (numeric === 0) return '$0';
+  if (Math.abs(numeric) < 1000) return `$${Math.round(numeric)}`;
+  if (Math.abs(numeric) < 1000000) {
+    const formatted = numeric >= 10000 ? Math.round(numeric / 1000) : Number((numeric / 1000).toFixed(1));
+    return `$${formatted}K`;
+  }
+  return `$${Number((numeric / 1000000).toFixed(1))}M`;
+}
+
+function getNiceMax(value) {
+  if (value <= 0) return 0;
+  const magnitude = 10 ** Math.floor(Math.log10(value));
+  const normalized = value / magnitude;
+  const factor = normalized <= 2 ? 2 : normalized <= 5 ? 5 : 10;
+  return factor * magnitude;
+}
+
+function buildRevenueYAxisTicks(maxRevenue) {
+  if (maxRevenue <= 0) return [0];
+  const niceMax = getNiceMax(maxRevenue);
+  const rawTicks = Array.from({ length: 5 }, (_, index) => Math.round((niceMax / 4) * index));
+  const seenLabels = new Set();
+  return rawTicks.filter((tick) => {
+    const label = formatRevenueAxisTick(tick);
+    if (seenLabels.has(label)) return false;
+    seenLabels.add(label);
+    return true;
+  });
+}
+
+export function buildRevenueTrend({ orders, transactions, range = 'MONTH', now = new Date() } = {}) {
+  const rangeConfig = REVENUE_RANGES[range] || REVENUE_RANGES.MONTH;
+  const buckets = buildRevenueBuckets(rangeConfig, now);
+  const bucketMap = new Map(buckets.map((b) => [b.key, b]));
+  const entries = getRevenueEntries({ transactions, orders });
+  const firstBucketKey = buckets[0]?.key;
+  const lastBucketKey = buckets[buckets.length - 1]?.key;
+
+  for (const entry of entries) {
+    const date = new Date(entry.date);
+    if (Number.isNaN(date.getTime())) continue;
+    const key = rangeConfig.bucket === 'month' ? monthKey(date) : dayKey(date);
+    if (!bucketMap.has(key)) continue;
+    const bucket = bucketMap.get(key);
+    bucket.revenue += entry.amount;
+    bucket.count += 1;
+  }
+
+  const trend = buckets.map((bucket) => ({
+    ...bucket,
+    revenue: Math.round(bucket.revenue * 100) / 100,
+  }));
+  const revenueTotal = trend.reduce((sum, bucket) => sum + bucket.revenue, 0);
+  const paidCount = trend.reduce((sum, bucket) => sum + bucket.count, 0);
+  const maxRevenue = Math.max(...trend.map((bucket) => bucket.revenue), 0);
+
+  return {
+    hasTrend: entries.length > 0,
+    range: rangeConfig.key,
+    rangeLabel: rangeConfig.label,
+    sourceLabel: entries[0]?.source === 'transactions' ? 'Net earnings' : 'Paid order revenue',
+    firstBucketKey,
+    lastBucketKey,
+    trend,
+    revenueTotal,
+    paidCount,
+    averageOrderValue: paidCount > 0 ? revenueTotal / paidCount : 0,
+    yTicks: buildRevenueYAxisTicks(maxRevenue),
   };
 }
 
@@ -191,71 +360,98 @@ export function summarizeInventoryRisk(items, now = new Date()) {
   };
 }
 
-export function buildOverviewMetricModel({ workItems, orders, balance, inventorySummary }) {
-  const items = Array.isArray(workItems) ? workItems : [];
-  const newRequests = items.filter((i) => normalizeStage(i) === 'NEW_REQUEST').length;
-  const activeOrders = items.filter((i) => i.hasOrder && ACTIVE_ORDER_STAGES.has(normalizeStage(i))).length;
+export function buildInventoryRiskData(inventorySummary) {
+  if (!inventorySummary) {
+    return {
+      stock: [
+        { key: 'out', label: 'Out of Stock', count: 0, className: 'is-out' },
+        { key: 'low', label: 'Low Stock', count: 0, className: 'is-low' },
+      ],
+      expiring: { key: 'expiring', label: 'Expiring Soon', count: 0, className: 'is-expiring' },
+    };
+  }
 
-  const paymentOrders = Array.isArray(orders) ? orders : [];
-  const paymentDueOrders = paymentOrders.filter((o) => {
-    if (isPaidOrder(o) || isCancelledOrRefunded(o)) return false;
-    return true;
-  });
-  const unpaidValue = paymentDueOrders.reduce((sum, o) => sum + getOrderAmount(o), 0);
-
-  const inventoryRiskTotal = inventorySummary?.riskTotal ?? 0;
-  const revenueValue = Number(balance?.totalEarnings ?? 0);
-  const revenueHint = 'Lifetime earnings';
-  const revenueIsLifetime = true;
-
-  const completed = items.filter((i) => normalizeStage(i) === 'COMPLETED').length;
-  const cancelledAndRefunded = items.filter((i) => isCancelledOrRefunded(i)).length;
-  const hasOrder = items.filter((i) => i.hasOrder).length;
-  const denominator = hasOrder + completed + cancelledAndRefunded;
-  const completedRate = denominator > 0 ? Math.round((completed / denominator) * 100) : 0;
-  const cancelledRate = denominator > 0 ? Math.round((cancelledAndRefunded / denominator) * 100) : 0;
+  const expiringSoonCount = inventorySummary.expiringSoon || 0;
 
   return {
-    newRequests,
-    activeOrders,
-    paymentDueCount: paymentDueOrders.length,
-    unpaidValue,
-    inventoryRiskTotal,
-    revenueValue,
-    revenueHint,
-    revenueIsLifetime,
-    completedRate,
-    cancelledRate,
+    stock: [
+      { key: 'out', label: 'Out of Stock', count: inventorySummary.out || 0, className: 'is-out' },
+      { key: 'low', label: 'Low Stock', count: inventorySummary.lowStock || 0, className: 'is-low' },
+    ],
+    expiring: {
+      key: 'expiring',
+      label: 'Expiring Soon',
+      count: expiringSoonCount,
+      className: expiringSoonCount > 0 ? 'is-warning' : 'is-success',
+    },
   };
 }
 
-export function buildWorkflowQueueData(workItems) {
-  const items = Array.isArray(workItems) ? workItems : [];
-  const total = items.length;
-  return WORKFLOW_QUEUE_STAGES.map((group) => {
-    const count = items.filter((i) => group.stages.includes(normalizeStage(i))).length;
-    return {
-      key: group.key,
-      label: group.label,
-      tone: group.tone,
-      count,
-      percent: total > 0 ? Math.round((count / total) * 100) : 0,
-    };
-  });
-}
+export function buildOverviewRecommendations({ workflowQueueData, inventorySummary, revenueTrend, overviewMetrics }) {
+  const recommendations = [];
+  const queueTotal = (workflowQueueData || []).reduce((sum, row) => sum + row.count, 0);
+  const ready = (workflowQueueData || []).find((row) => row.key === 'READY')?.count || 0;
+  const paymentDue = (workflowQueueData || []).find((row) => row.key === 'PAYMENT_DUE')?.count || 0;
 
-export function buildInventoryRiskData(inventorySummary) {
-  const data = [];
-  if (!inventorySummary) return data;
+  if (ready > 0) {
+    recommendations.push({
+      key: 'ready',
+      icon: 'inventory',
+      title: `${ready} ready order${ready > 1 ? 's' : ''}`,
+      text: 'Prioritize pickup or shipping handoff before the queue grows.',
+      tone: 'success',
+    });
+  }
 
-  if (inventorySummary.out > 0) {
-    data.push({ key: 'out', label: 'Out of Stock', count: inventorySummary.out, className: 'is-out' });
+  if (paymentDue > 0) {
+    recommendations.push({
+      key: 'payment',
+      icon: 'payments',
+      title: `${paymentDue} payment due`,
+      text: 'Watch paid confirmations so newly paid orders move into preparation quickly.',
+      tone: 'warning',
+    });
   }
-  if (inventorySummary.expiringSoon > 0) {
-    data.push({ key: 'expiring', label: 'Expiring Soon', count: inventorySummary.expiringSoon, className: 'is-expiring' });
+
+  if ((inventorySummary?.out || 0) > 0 || (inventorySummary?.lowStock || 0) > 0) {
+    recommendations.push({
+      key: 'stock',
+      icon: 'inventory_2',
+      title: 'Stock needs review',
+      text: `${inventorySummary.out || 0} out of stock and ${inventorySummary.lowStock || 0} low stock items need replenishment.`,
+      tone: 'danger',
+    });
   }
-  if (inventorySummary.lowStock > 0) {
-    data.push({ key: 'low', label: 'Low Stock', count: inventorySummary.lowStock, className: 'is-low' });
+
+  if ((revenueTrend?.revenueTotal || 0) > 0) {
+    recommendations.push({
+      key: 'revenue',
+      icon: 'monitoring',
+      title: `${formatRevenueAxisTick(revenueTrend.revenueTotal)} in ${revenueTrend.rangeLabel.toLowerCase()} view`,
+      text: `${revenueTrend.paidCount} paid transaction${revenueTrend.paidCount === 1 ? '' : 's'} are included in this chart.`,
+      tone: 'info',
+    });
   }
-  return data;
+
+  if (recommendations.length === 0) {
+    recommendations.push({
+      key: 'steady',
+      icon: 'task_alt',
+      title: 'Queue is clear',
+      text: `${overviewMetrics?.activeOrders || 0} active orders are currently in the pharmacy workflow.`,
+      tone: 'success',
+    });
+  }
+
+  if (queueTotal >= 9 && !recommendations.some((r) => r.key === 'queue')) {
+    recommendations.unshift({
+      key: 'queue',
+      icon: 'priority_high',
+      title: 'Queue pressure is high',
+      text: 'Shift attention to the largest workflow lane before new requests arrive.',
+      tone: 'danger',
+    });
+  }
+
+  return recommendations.slice(0, 4);
 }

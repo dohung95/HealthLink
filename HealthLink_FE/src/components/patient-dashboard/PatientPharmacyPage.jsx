@@ -331,7 +331,10 @@ function PharmacySelectionStep({ userId, geolocation, deliveryContact, prescript
       params.lng = refLng;
     }
     pharmacyApi.getRecommendations(params)
-      .then((data) => setPharmacies(Array.isArray(data) ? data : []))
+      .then((data) => {
+        const safeData = Array.isArray(data) ? data : [];
+        setPharmacies(prescriptionHeaderId ? safeData.filter((p) => p.stockStatus === 'FULL') : safeData);
+      })
       .catch(() => toast.error('Unable to load pharmacies.'))
       .finally(() => setLoading(false));
   }, [userId, deliveryOnly, prescriptionHeaderId, refLat, refLng]);
@@ -341,12 +344,6 @@ function PharmacySelectionStep({ userId, geolocation, deliveryContact, prescript
     const q = search.toLowerCase();
     return (p.name || '').toLowerCase().includes(q) || (p.address || '').toLowerCase().includes(q);
   });
-
-  const stockBadge = (status) => {
-    if (status === 'FULL') return { cls: 'bg-success', label: 'Du thuoc' };
-    if (status === 'PARTIAL') return { cls: 'bg-warning text-dark', label: 'Thieu mot phan' };
-    return { cls: 'bg-secondary', label: 'Chua co du lieu kho' };
-  };
 
   return (
     <div>
@@ -369,12 +366,15 @@ function PharmacySelectionStep({ userId, geolocation, deliveryContact, prescript
       ) : filtered.length === 0 ? (
         <div className="text-center py-5 text-muted">
           <i className="bi bi-shop" style={{ fontSize: '3rem' }}></i>
-          <p className="mt-2">No pharmacies found.</p>
+          <p className="mt-2">
+          {prescriptionHeaderId
+            ? 'No pharmacies can fulfill this prescription at the selected location.'
+            : 'No pharmacies found.'}
+          </p>
         </div>
       ) : (
         <div className="row g-3">
           {filtered.map((p) => {
-            const badge = prescriptionHeaderId ? stockBadge(p.stockStatus) : null;
             return (
               <div className="col-md-6 col-lg-4" key={p.pharmacyId}>
                 <div className="card h-100 shadow-sm">
@@ -414,17 +414,7 @@ function PharmacySelectionStep({ userId, geolocation, deliveryContact, prescript
                           )}
                         </>
                       )}
-                      {badge && (
-                        <span className={`badge ${badge.cls} me-1`}>{badge.label}</span>
-                      )}
                     </div>
-                    {prescriptionHeaderId && p.missingItems?.length > 0 && (
-                      <div className="small text-danger mb-2">
-                        <i className="bi bi-exclamation-triangle me-1"></i>
-                        Missing: {p.missingItems.slice(0, 3).map((m) => m.medicationName).join(', ')}
-                        {p.missingItems.length > 3 && ` +${p.missingItems.length - 3} more`}
-                      </div>
-                    )}
                     <button className="btn btn-sm btn-outline-primary w-100" onClick={() => onSelect(p)}>
                       <i className="bi bi-send me-1"></i>Send Order
                     </button>
