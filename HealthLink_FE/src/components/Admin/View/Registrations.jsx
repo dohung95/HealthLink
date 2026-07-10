@@ -650,6 +650,22 @@ export default function Registrations() {
                         <span className="label">Ward:</span>
                         <span className="value">{selectedRequest.ward || 'N/A'}</span>
                       </div>
+                      <div className="detail-row">
+                        <span className="label">Location Pin:</span>
+                        <span className="value">
+                          {selectedRequest.latitude != null && selectedRequest.longitude != null ? (
+                            <a
+                              href={`https://www.google.com/maps?q=${selectedRequest.latitude},${selectedRequest.longitude}`}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                            >
+                              {selectedRequest.latitude.toFixed(6)}, {selectedRequest.longitude.toFixed(6)} <i className="bi bi-box-arrow-up-right"></i>
+                            </a>
+                          ) : (
+                            <span className="text-warning fst-italic">Not provided</span>
+                          )}
+                        </span>
+                      </div>
                     </div>
                     <div className="detail-section">
                       <h4><i className="bi bi-clock"></i> Business Hours</h4>

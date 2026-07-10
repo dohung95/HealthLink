@@ -2346,7 +2346,389 @@ GO
 PRINT 'Analytics home visit appointments seed completed successfully!';
 
 -- =====================================================
+-- 60. REAL DOCTOR (d01-d20) FINANCE & REVIEW-COUNT RECONCILIATION
+-- totalEarnings/pendingSettlement recomputed from every actual Completed
+-- appointment for that doctor (Online $50 fee -> 15% commission -> $42.50 net;
+-- HomeVisit $75 fee -> 10% commission -> $67.50 net; appt #14 HomeVisit $103
+-- keeps its already-invoiced $94.20 net). pendingSettlement = 20% of total.
+-- totalReviews synced to the live Reviews row count per doctor.
+-- =====================================================
+UPDATE Doctors SET totalEarnings = 704.20, pendingSettlement = 140.84, totalReviews = 3 WHERE DoctorID = 'user-d01';
+UPDATE Doctors SET totalEarnings = 780.00, pendingSettlement = 156.00, totalReviews = 6 WHERE DoctorID = 'user-d02';
+UPDATE Doctors SET totalEarnings = 780.00, pendingSettlement = 156.00, totalReviews = 1 WHERE DoctorID = 'user-d03';
+UPDATE Doctors SET totalEarnings = 645.00, pendingSettlement = 129.00, totalReviews = 5 WHERE DoctorID = 'user-d04';
+UPDATE Doctors SET totalEarnings = 610.00, pendingSettlement = 122.00, totalReviews = 1 WHERE DoctorID = 'user-d05';
+UPDATE Doctors SET totalEarnings = 737.50, pendingSettlement = 147.50, totalReviews = 2 WHERE DoctorID = 'user-d06';
+UPDATE Doctors SET totalEarnings = 737.50, pendingSettlement = 147.50, totalReviews = 5 WHERE DoctorID = 'user-d07';
+UPDATE Doctors SET totalEarnings = 602.50, pendingSettlement = 120.50, totalReviews = 2 WHERE DoctorID = 'user-d08';
+UPDATE Doctors SET totalEarnings = 525.00, pendingSettlement = 105.00, totalReviews = 2 WHERE DoctorID = 'user-d09';
+UPDATE Doctors SET totalEarnings = 737.50, pendingSettlement = 147.50, totalReviews = 4 WHERE DoctorID = 'user-d10';
+UPDATE Doctors SET totalEarnings = 652.50, pendingSettlement = 130.50, totalReviews = 2 WHERE DoctorID = 'user-d11';
+UPDATE Doctors SET totalEarnings = 517.50, pendingSettlement = 103.50, totalReviews = 2 WHERE DoctorID = 'user-d12';
+UPDATE Doctors SET totalEarnings = 415.00, pendingSettlement = 83.00, totalReviews = 5 WHERE DoctorID = 'user-d13';
+UPDATE Doctors SET totalEarnings = 585.00, pendingSettlement = 117.00, totalReviews = 2 WHERE DoctorID = 'user-d14';
+UPDATE Doctors SET totalEarnings = 585.00, pendingSettlement = 117.00, totalReviews = 2 WHERE DoctorID = 'user-d15';
+UPDATE Doctors SET totalEarnings = 407.50, pendingSettlement = 81.50, totalReviews = 4 WHERE DoctorID = 'user-d16';
+UPDATE Doctors SET totalEarnings = 372.50, pendingSettlement = 74.50, totalReviews = 2 WHERE DoctorID = 'user-d17';
+UPDATE Doctors SET totalEarnings = 542.50, pendingSettlement = 108.50, totalReviews = 2 WHERE DoctorID = 'user-d18';
+UPDATE Doctors SET totalEarnings = 542.50, pendingSettlement = 108.50, totalReviews = 4 WHERE DoctorID = 'user-d19';
+UPDATE Doctors SET totalEarnings = 475.00, pendingSettlement = 95.00, totalReviews = 2 WHERE DoctorID = 'user-d20';
+GO
+
+-- =====================================================
+-- 61. REAL PHARMACY (ph01-ph10) FINANCE RECONCILIATION
+-- ph01/02/04/06/07 already have real PharmacyOrders; totalEarnings recomputed
+-- as the sum of pharmacyEarning across their non-cancelled/non-refunded orders.
+-- ph03/05/08/09/10 had ZERO orders -> one real DELIVERED order added below (62)
+-- so their Financial Summary is backed by an actual order too.
+-- =====================================================
+UPDATE Pharmacies SET totalEarnings = 154.53, pendingSettlement = 30.91 WHERE PharmacyID = 'user-ph01';
+UPDATE Pharmacies SET totalEarnings = 186.72, pendingSettlement = 37.34 WHERE PharmacyID = 'user-ph02';
+UPDATE Pharmacies SET totalEarnings = 136.15, pendingSettlement = 27.23 WHERE PharmacyID = 'user-ph04';
+UPDATE Pharmacies SET totalEarnings = 73.60, pendingSettlement = 14.72 WHERE PharmacyID = 'user-ph06';
+UPDATE Pharmacies SET totalEarnings = 99.34, pendingSettlement = 19.87 WHERE PharmacyID = 'user-ph07';
+GO
+
+-- =====================================================
+-- 62. NEW PHARMACY ORDERS for pharmacies that previously had ZERO orders
+-- (5 real: ph03/05/08/09/10; 35 analytics: pha001-035). One simple DELIVERED/PAID
+-- retail order each (no prescription link) so Financial Summary reflects a real order.
+-- Idempotent: delete-then-insert by OrderID range.
+-- =====================================================
+DELETE FROM PharmacyOrderItems WHERE OrderID BETWEEN 16 AND 55;
+DELETE FROM PharmacyOrders WHERE OrderID BETWEEN 16 AND 55;
+GO
+
+SET IDENTITY_INSERT PharmacyOrders ON;
+INSERT INTO PharmacyOrders (OrderID, orderNumber, PrescriptionHeaderId, RequestID, PharmacyId, PatientId, status, deliveryType, deliveryAddress, deliveryLatitude, deliveryLongitude, deliveryPhoneNumber, deliveryAddressSource, deliveryFee, medicineAmount, totalAmount, paymentStatus, paymentMethod, notes, pharmacistNotes, estimatedDeliveryTime, actualDeliveryTime, confirmedAt, patientConfirmedAt, preparingAt, shippedAt, deliveredAt, cancelledAt, cancelReason, cancelledBy, revisionRequestedAt, revisionRequestNotes, revisionResolvedAt, createdAt, doctorCompletionPaidNotified, platformFee, pharmacyEarning, commissionRate) VALUES
+(16, 'ORD-2024-0016', NULL, NULL, 'user-ph03', N'user-pa001', 'DELIVERED', 'Delivery', N'1 Analytics Street', 10.7769, 106.7009, '0940000000', 'PROFILE', 5.99, 40.00, 45.99, 'PAID', 'Card', N'Standard retail order', N'Completed', '2024-06-01 14:00:00', '2024-06-01 15:00:00', '2024-06-01 09:05:00', '2024-06-01 09:05:00', '2024-06-01 09:30:00', '2024-06-01 12:00:00', '2024-06-01 15:00:00', NULL, NULL, NULL, NULL, NULL, NULL, '2024-06-01 09:00:00', 0, 3.68, 42.31, 0.0800),
+(17, 'ORD-2024-0017', NULL, NULL, 'user-ph05', N'user-pa002', 'DELIVERED', 'Delivery', N'1 Analytics Street', 10.7769, 106.7009, '0940000000', 'PROFILE', 5.99, 40.00, 45.99, 'PAID', 'Card', N'Standard retail order', N'Completed', '2024-06-04 14:00:00', '2024-06-04 15:00:00', '2024-06-04 09:05:00', '2024-06-04 09:05:00', '2024-06-04 09:30:00', '2024-06-04 12:00:00', '2024-06-04 15:00:00', NULL, NULL, NULL, NULL, NULL, NULL, '2024-06-04 09:00:00', 0, 3.68, 42.31, 0.0800),
+(18, 'ORD-2024-0018', NULL, NULL, 'user-ph08', N'user-pa003', 'DELIVERED', 'Delivery', N'1 Analytics Street', 10.7769, 106.7009, '0940000000', 'PROFILE', 5.99, 40.00, 45.99, 'PAID', 'Card', N'Standard retail order', N'Completed', '2024-06-07 14:00:00', '2024-06-07 15:00:00', '2024-06-07 09:05:00', '2024-06-07 09:05:00', '2024-06-07 09:30:00', '2024-06-07 12:00:00', '2024-06-07 15:00:00', NULL, NULL, NULL, NULL, NULL, NULL, '2024-06-07 09:00:00', 0, 3.68, 42.31, 0.0800),
+(19, 'ORD-2024-0019', NULL, NULL, 'user-ph09', N'user-pa004', 'DELIVERED', 'Delivery', N'1 Analytics Street', 10.7769, 106.7009, '0940000000', 'PROFILE', 5.99, 40.00, 45.99, 'PAID', 'Card', N'Standard retail order', N'Completed', '2024-06-10 14:00:00', '2024-06-10 15:00:00', '2024-06-10 09:05:00', '2024-06-10 09:05:00', '2024-06-10 09:30:00', '2024-06-10 12:00:00', '2024-06-10 15:00:00', NULL, NULL, NULL, NULL, NULL, NULL, '2024-06-10 09:00:00', 0, 3.68, 42.31, 0.0800),
+(20, 'ORD-2024-0020', NULL, NULL, 'user-ph10', N'user-pa005', 'DELIVERED', 'Delivery', N'1 Analytics Street', 10.7769, 106.7009, '0940000000', 'PROFILE', 5.99, 40.00, 45.99, 'PAID', 'Card', N'Standard retail order', N'Completed', '2024-06-13 14:00:00', '2024-06-13 15:00:00', '2024-06-13 09:05:00', '2024-06-13 09:05:00', '2024-06-13 09:30:00', '2024-06-13 12:00:00', '2024-06-13 15:00:00', NULL, NULL, NULL, NULL, NULL, NULL, '2024-06-13 09:00:00', 0, 3.68, 42.31, 0.0800),
+(21, 'ORD-2024-0021', NULL, NULL, 'user-pha001', N'user-pa006', 'DELIVERED', 'Delivery', N'1 Analytics Street', 10.7769, 106.7009, '0940000000', 'PROFILE', 5.99, 40.00, 45.99, 'PAID', 'Card', N'Standard retail order', N'Completed', '2024-06-16 14:00:00', '2024-06-16 15:00:00', '2024-06-16 09:05:00', '2024-06-16 09:05:00', '2024-06-16 09:30:00', '2024-06-16 12:00:00', '2024-06-16 15:00:00', NULL, NULL, NULL, NULL, NULL, NULL, '2024-06-16 09:00:00', 0, 3.68, 42.31, 0.0800),
+(22, 'ORD-2024-0022', NULL, NULL, 'user-pha002', N'user-pa007', 'DELIVERED', 'Delivery', N'1 Analytics Street', 10.7769, 106.7009, '0940000000', 'PROFILE', 5.99, 40.00, 45.99, 'PAID', 'Card', N'Standard retail order', N'Completed', '2024-06-19 14:00:00', '2024-06-19 15:00:00', '2024-06-19 09:05:00', '2024-06-19 09:05:00', '2024-06-19 09:30:00', '2024-06-19 12:00:00', '2024-06-19 15:00:00', NULL, NULL, NULL, NULL, NULL, NULL, '2024-06-19 09:00:00', 0, 3.68, 42.31, 0.0800),
+(23, 'ORD-2024-0023', NULL, NULL, 'user-pha003', N'user-pa008', 'DELIVERED', 'Delivery', N'1 Analytics Street', 10.7769, 106.7009, '0940000000', 'PROFILE', 5.99, 40.00, 45.99, 'PAID', 'Card', N'Standard retail order', N'Completed', '2024-06-22 14:00:00', '2024-06-22 15:00:00', '2024-06-22 09:05:00', '2024-06-22 09:05:00', '2024-06-22 09:30:00', '2024-06-22 12:00:00', '2024-06-22 15:00:00', NULL, NULL, NULL, NULL, NULL, NULL, '2024-06-22 09:00:00', 0, 3.68, 42.31, 0.0800),
+(24, 'ORD-2024-0024', NULL, NULL, 'user-pha004', N'user-pa009', 'DELIVERED', 'Delivery', N'1 Analytics Street', 10.7769, 106.7009, '0940000000', 'PROFILE', 5.99, 40.00, 45.99, 'PAID', 'Card', N'Standard retail order', N'Completed', '2024-06-25 14:00:00', '2024-06-25 15:00:00', '2024-06-25 09:05:00', '2024-06-25 09:05:00', '2024-06-25 09:30:00', '2024-06-25 12:00:00', '2024-06-25 15:00:00', NULL, NULL, NULL, NULL, NULL, NULL, '2024-06-25 09:00:00', 0, 3.68, 42.31, 0.0800),
+(25, 'ORD-2024-0025', NULL, NULL, 'user-pha005', N'user-pa010', 'DELIVERED', 'Delivery', N'1 Analytics Street', 10.7769, 106.7009, '0940000000', 'PROFILE', 5.99, 40.00, 45.99, 'PAID', 'Card', N'Standard retail order', N'Completed', '2024-06-28 14:00:00', '2024-06-28 15:00:00', '2024-06-28 09:05:00', '2024-06-28 09:05:00', '2024-06-28 09:30:00', '2024-06-28 12:00:00', '2024-06-28 15:00:00', NULL, NULL, NULL, NULL, NULL, NULL, '2024-06-28 09:00:00', 0, 3.68, 42.31, 0.0800),
+(26, 'ORD-2024-0026', NULL, NULL, 'user-pha006', N'user-pa011', 'DELIVERED', 'Delivery', N'1 Analytics Street', 10.7769, 106.7009, '0940000000', 'PROFILE', 5.99, 40.00, 45.99, 'PAID', 'Card', N'Standard retail order', N'Completed', '2024-07-01 14:00:00', '2024-07-01 15:00:00', '2024-07-01 09:05:00', '2024-07-01 09:05:00', '2024-07-01 09:30:00', '2024-07-01 12:00:00', '2024-07-01 15:00:00', NULL, NULL, NULL, NULL, NULL, NULL, '2024-07-01 09:00:00', 0, 3.68, 42.31, 0.0800),
+(27, 'ORD-2024-0027', NULL, NULL, 'user-pha007', N'user-pa012', 'DELIVERED', 'Delivery', N'1 Analytics Street', 10.7769, 106.7009, '0940000000', 'PROFILE', 5.99, 40.00, 45.99, 'PAID', 'Card', N'Standard retail order', N'Completed', '2024-07-04 14:00:00', '2024-07-04 15:00:00', '2024-07-04 09:05:00', '2024-07-04 09:05:00', '2024-07-04 09:30:00', '2024-07-04 12:00:00', '2024-07-04 15:00:00', NULL, NULL, NULL, NULL, NULL, NULL, '2024-07-04 09:00:00', 0, 3.68, 42.31, 0.0800),
+(28, 'ORD-2024-0028', NULL, NULL, 'user-pha008', N'user-pa013', 'DELIVERED', 'Delivery', N'1 Analytics Street', 10.7769, 106.7009, '0940000000', 'PROFILE', 5.99, 40.00, 45.99, 'PAID', 'Card', N'Standard retail order', N'Completed', '2024-07-07 14:00:00', '2024-07-07 15:00:00', '2024-07-07 09:05:00', '2024-07-07 09:05:00', '2024-07-07 09:30:00', '2024-07-07 12:00:00', '2024-07-07 15:00:00', NULL, NULL, NULL, NULL, NULL, NULL, '2024-07-07 09:00:00', 0, 3.68, 42.31, 0.0800),
+(29, 'ORD-2024-0029', NULL, NULL, 'user-pha009', N'user-pa014', 'DELIVERED', 'Delivery', N'1 Analytics Street', 10.7769, 106.7009, '0940000000', 'PROFILE', 5.99, 40.00, 45.99, 'PAID', 'Card', N'Standard retail order', N'Completed', '2024-07-10 14:00:00', '2024-07-10 15:00:00', '2024-07-10 09:05:00', '2024-07-10 09:05:00', '2024-07-10 09:30:00', '2024-07-10 12:00:00', '2024-07-10 15:00:00', NULL, NULL, NULL, NULL, NULL, NULL, '2024-07-10 09:00:00', 0, 3.68, 42.31, 0.0800),
+(30, 'ORD-2024-0030', NULL, NULL, 'user-pha010', N'user-pa015', 'DELIVERED', 'Delivery', N'1 Analytics Street', 10.7769, 106.7009, '0940000000', 'PROFILE', 5.99, 40.00, 45.99, 'PAID', 'Card', N'Standard retail order', N'Completed', '2024-07-13 14:00:00', '2024-07-13 15:00:00', '2024-07-13 09:05:00', '2024-07-13 09:05:00', '2024-07-13 09:30:00', '2024-07-13 12:00:00', '2024-07-13 15:00:00', NULL, NULL, NULL, NULL, NULL, NULL, '2024-07-13 09:00:00', 0, 3.68, 42.31, 0.0800),
+(31, 'ORD-2024-0031', NULL, NULL, 'user-pha011', N'user-pa016', 'DELIVERED', 'Delivery', N'1 Analytics Street', 10.7769, 106.7009, '0940000000', 'PROFILE', 5.99, 40.00, 45.99, 'PAID', 'Card', N'Standard retail order', N'Completed', '2024-07-16 14:00:00', '2024-07-16 15:00:00', '2024-07-16 09:05:00', '2024-07-16 09:05:00', '2024-07-16 09:30:00', '2024-07-16 12:00:00', '2024-07-16 15:00:00', NULL, NULL, NULL, NULL, NULL, NULL, '2024-07-16 09:00:00', 0, 3.68, 42.31, 0.0800),
+(32, 'ORD-2024-0032', NULL, NULL, 'user-pha012', N'user-pa017', 'DELIVERED', 'Delivery', N'1 Analytics Street', 10.7769, 106.7009, '0940000000', 'PROFILE', 5.99, 40.00, 45.99, 'PAID', 'Card', N'Standard retail order', N'Completed', '2024-07-19 14:00:00', '2024-07-19 15:00:00', '2024-07-19 09:05:00', '2024-07-19 09:05:00', '2024-07-19 09:30:00', '2024-07-19 12:00:00', '2024-07-19 15:00:00', NULL, NULL, NULL, NULL, NULL, NULL, '2024-07-19 09:00:00', 0, 3.68, 42.31, 0.0800),
+(33, 'ORD-2024-0033', NULL, NULL, 'user-pha013', N'user-pa018', 'DELIVERED', 'Delivery', N'1 Analytics Street', 10.7769, 106.7009, '0940000000', 'PROFILE', 5.99, 40.00, 45.99, 'PAID', 'Card', N'Standard retail order', N'Completed', '2024-07-22 14:00:00', '2024-07-22 15:00:00', '2024-07-22 09:05:00', '2024-07-22 09:05:00', '2024-07-22 09:30:00', '2024-07-22 12:00:00', '2024-07-22 15:00:00', NULL, NULL, NULL, NULL, NULL, NULL, '2024-07-22 09:00:00', 0, 3.68, 42.31, 0.0800),
+(34, 'ORD-2024-0034', NULL, NULL, 'user-pha014', N'user-pa019', 'DELIVERED', 'Delivery', N'1 Analytics Street', 10.7769, 106.7009, '0940000000', 'PROFILE', 5.99, 40.00, 45.99, 'PAID', 'Card', N'Standard retail order', N'Completed', '2024-07-25 14:00:00', '2024-07-25 15:00:00', '2024-07-25 09:05:00', '2024-07-25 09:05:00', '2024-07-25 09:30:00', '2024-07-25 12:00:00', '2024-07-25 15:00:00', NULL, NULL, NULL, NULL, NULL, NULL, '2024-07-25 09:00:00', 0, 3.68, 42.31, 0.0800),
+(35, 'ORD-2024-0035', NULL, NULL, 'user-pha015', N'user-pa020', 'DELIVERED', 'Delivery', N'1 Analytics Street', 10.7769, 106.7009, '0940000000', 'PROFILE', 5.99, 40.00, 45.99, 'PAID', 'Card', N'Standard retail order', N'Completed', '2024-07-28 14:00:00', '2024-07-28 15:00:00', '2024-07-28 09:05:00', '2024-07-28 09:05:00', '2024-07-28 09:30:00', '2024-07-28 12:00:00', '2024-07-28 15:00:00', NULL, NULL, NULL, NULL, NULL, NULL, '2024-07-28 09:00:00', 0, 3.68, 42.31, 0.0800),
+(36, 'ORD-2024-0036', NULL, NULL, 'user-pha016', N'user-pa021', 'DELIVERED', 'Delivery', N'1 Analytics Street', 10.7769, 106.7009, '0940000000', 'PROFILE', 5.99, 40.00, 45.99, 'PAID', 'Card', N'Standard retail order', N'Completed', '2024-07-31 14:00:00', '2024-07-31 15:00:00', '2024-07-31 09:05:00', '2024-07-31 09:05:00', '2024-07-31 09:30:00', '2024-07-31 12:00:00', '2024-07-31 15:00:00', NULL, NULL, NULL, NULL, NULL, NULL, '2024-07-31 09:00:00', 0, 3.68, 42.31, 0.0800),
+(37, 'ORD-2024-0037', NULL, NULL, 'user-pha017', N'user-pa022', 'DELIVERED', 'Delivery', N'1 Analytics Street', 10.7769, 106.7009, '0940000000', 'PROFILE', 5.99, 40.00, 45.99, 'PAID', 'Card', N'Standard retail order', N'Completed', '2024-08-03 14:00:00', '2024-08-03 15:00:00', '2024-08-03 09:05:00', '2024-08-03 09:05:00', '2024-08-03 09:30:00', '2024-08-03 12:00:00', '2024-08-03 15:00:00', NULL, NULL, NULL, NULL, NULL, NULL, '2024-08-03 09:00:00', 0, 3.68, 42.31, 0.0800),
+(38, 'ORD-2024-0038', NULL, NULL, 'user-pha018', N'user-pa023', 'DELIVERED', 'Delivery', N'1 Analytics Street', 10.7769, 106.7009, '0940000000', 'PROFILE', 5.99, 40.00, 45.99, 'PAID', 'Card', N'Standard retail order', N'Completed', '2024-08-06 14:00:00', '2024-08-06 15:00:00', '2024-08-06 09:05:00', '2024-08-06 09:05:00', '2024-08-06 09:30:00', '2024-08-06 12:00:00', '2024-08-06 15:00:00', NULL, NULL, NULL, NULL, NULL, NULL, '2024-08-06 09:00:00', 0, 3.68, 42.31, 0.0800),
+(39, 'ORD-2024-0039', NULL, NULL, 'user-pha019', N'user-pa024', 'DELIVERED', 'Delivery', N'1 Analytics Street', 10.7769, 106.7009, '0940000000', 'PROFILE', 5.99, 40.00, 45.99, 'PAID', 'Card', N'Standard retail order', N'Completed', '2024-08-09 14:00:00', '2024-08-09 15:00:00', '2024-08-09 09:05:00', '2024-08-09 09:05:00', '2024-08-09 09:30:00', '2024-08-09 12:00:00', '2024-08-09 15:00:00', NULL, NULL, NULL, NULL, NULL, NULL, '2024-08-09 09:00:00', 0, 3.68, 42.31, 0.0800),
+(40, 'ORD-2024-0040', NULL, NULL, 'user-pha020', N'user-pa025', 'DELIVERED', 'Delivery', N'1 Analytics Street', 10.7769, 106.7009, '0940000000', 'PROFILE', 5.99, 40.00, 45.99, 'PAID', 'Card', N'Standard retail order', N'Completed', '2024-08-12 14:00:00', '2024-08-12 15:00:00', '2024-08-12 09:05:00', '2024-08-12 09:05:00', '2024-08-12 09:30:00', '2024-08-12 12:00:00', '2024-08-12 15:00:00', NULL, NULL, NULL, NULL, NULL, NULL, '2024-08-12 09:00:00', 0, 3.68, 42.31, 0.0800),
+(41, 'ORD-2024-0041', NULL, NULL, 'user-pha021', N'user-pa026', 'DELIVERED', 'Delivery', N'1 Analytics Street', 10.7769, 106.7009, '0940000000', 'PROFILE', 5.99, 40.00, 45.99, 'PAID', 'Card', N'Standard retail order', N'Completed', '2024-08-15 14:00:00', '2024-08-15 15:00:00', '2024-08-15 09:05:00', '2024-08-15 09:05:00', '2024-08-15 09:30:00', '2024-08-15 12:00:00', '2024-08-15 15:00:00', NULL, NULL, NULL, NULL, NULL, NULL, '2024-08-15 09:00:00', 0, 3.68, 42.31, 0.0800),
+(42, 'ORD-2024-0042', NULL, NULL, 'user-pha022', N'user-pa027', 'DELIVERED', 'Delivery', N'1 Analytics Street', 10.7769, 106.7009, '0940000000', 'PROFILE', 5.99, 40.00, 45.99, 'PAID', 'Card', N'Standard retail order', N'Completed', '2024-08-18 14:00:00', '2024-08-18 15:00:00', '2024-08-18 09:05:00', '2024-08-18 09:05:00', '2024-08-18 09:30:00', '2024-08-18 12:00:00', '2024-08-18 15:00:00', NULL, NULL, NULL, NULL, NULL, NULL, '2024-08-18 09:00:00', 0, 3.68, 42.31, 0.0800),
+(43, 'ORD-2024-0043', NULL, NULL, 'user-pha023', N'user-pa028', 'DELIVERED', 'Delivery', N'1 Analytics Street', 10.7769, 106.7009, '0940000000', 'PROFILE', 5.99, 40.00, 45.99, 'PAID', 'Card', N'Standard retail order', N'Completed', '2024-08-21 14:00:00', '2024-08-21 15:00:00', '2024-08-21 09:05:00', '2024-08-21 09:05:00', '2024-08-21 09:30:00', '2024-08-21 12:00:00', '2024-08-21 15:00:00', NULL, NULL, NULL, NULL, NULL, NULL, '2024-08-21 09:00:00', 0, 3.68, 42.31, 0.0800),
+(44, 'ORD-2024-0044', NULL, NULL, 'user-pha024', N'user-pa029', 'DELIVERED', 'Delivery', N'1 Analytics Street', 10.7769, 106.7009, '0940000000', 'PROFILE', 5.99, 40.00, 45.99, 'PAID', 'Card', N'Standard retail order', N'Completed', '2024-08-24 14:00:00', '2024-08-24 15:00:00', '2024-08-24 09:05:00', '2024-08-24 09:05:00', '2024-08-24 09:30:00', '2024-08-24 12:00:00', '2024-08-24 15:00:00', NULL, NULL, NULL, NULL, NULL, NULL, '2024-08-24 09:00:00', 0, 3.68, 42.31, 0.0800),
+(45, 'ORD-2024-0045', NULL, NULL, 'user-pha025', N'user-pa030', 'DELIVERED', 'Delivery', N'1 Analytics Street', 10.7769, 106.7009, '0940000000', 'PROFILE', 5.99, 40.00, 45.99, 'PAID', 'Card', N'Standard retail order', N'Completed', '2024-08-27 14:00:00', '2024-08-27 15:00:00', '2024-08-27 09:05:00', '2024-08-27 09:05:00', '2024-08-27 09:30:00', '2024-08-27 12:00:00', '2024-08-27 15:00:00', NULL, NULL, NULL, NULL, NULL, NULL, '2024-08-27 09:00:00', 0, 3.68, 42.31, 0.0800),
+(46, 'ORD-2024-0046', NULL, NULL, 'user-pha026', N'user-pa031', 'DELIVERED', 'Delivery', N'1 Analytics Street', 10.7769, 106.7009, '0940000000', 'PROFILE', 5.99, 40.00, 45.99, 'PAID', 'Card', N'Standard retail order', N'Completed', '2024-08-30 14:00:00', '2024-08-30 15:00:00', '2024-08-30 09:05:00', '2024-08-30 09:05:00', '2024-08-30 09:30:00', '2024-08-30 12:00:00', '2024-08-30 15:00:00', NULL, NULL, NULL, NULL, NULL, NULL, '2024-08-30 09:00:00', 0, 3.68, 42.31, 0.0800),
+(47, 'ORD-2024-0047', NULL, NULL, 'user-pha027', N'user-pa032', 'DELIVERED', 'Delivery', N'1 Analytics Street', 10.7769, 106.7009, '0940000000', 'PROFILE', 5.99, 40.00, 45.99, 'PAID', 'Card', N'Standard retail order', N'Completed', '2024-09-02 14:00:00', '2024-09-02 15:00:00', '2024-09-02 09:05:00', '2024-09-02 09:05:00', '2024-09-02 09:30:00', '2024-09-02 12:00:00', '2024-09-02 15:00:00', NULL, NULL, NULL, NULL, NULL, NULL, '2024-09-02 09:00:00', 0, 3.68, 42.31, 0.0800),
+(48, 'ORD-2024-0048', NULL, NULL, 'user-pha028', N'user-pa033', 'DELIVERED', 'Delivery', N'1 Analytics Street', 10.7769, 106.7009, '0940000000', 'PROFILE', 5.99, 40.00, 45.99, 'PAID', 'Card', N'Standard retail order', N'Completed', '2024-09-05 14:00:00', '2024-09-05 15:00:00', '2024-09-05 09:05:00', '2024-09-05 09:05:00', '2024-09-05 09:30:00', '2024-09-05 12:00:00', '2024-09-05 15:00:00', NULL, NULL, NULL, NULL, NULL, NULL, '2024-09-05 09:00:00', 0, 3.68, 42.31, 0.0800),
+(49, 'ORD-2024-0049', NULL, NULL, 'user-pha029', N'user-pa034', 'DELIVERED', 'Delivery', N'1 Analytics Street', 10.7769, 106.7009, '0940000000', 'PROFILE', 5.99, 40.00, 45.99, 'PAID', 'Card', N'Standard retail order', N'Completed', '2024-09-08 14:00:00', '2024-09-08 15:00:00', '2024-09-08 09:05:00', '2024-09-08 09:05:00', '2024-09-08 09:30:00', '2024-09-08 12:00:00', '2024-09-08 15:00:00', NULL, NULL, NULL, NULL, NULL, NULL, '2024-09-08 09:00:00', 0, 3.68, 42.31, 0.0800),
+(50, 'ORD-2024-0050', NULL, NULL, 'user-pha030', N'user-pa035', 'DELIVERED', 'Delivery', N'1 Analytics Street', 10.7769, 106.7009, '0940000000', 'PROFILE', 5.99, 40.00, 45.99, 'PAID', 'Card', N'Standard retail order', N'Completed', '2024-09-11 14:00:00', '2024-09-11 15:00:00', '2024-09-11 09:05:00', '2024-09-11 09:05:00', '2024-09-11 09:30:00', '2024-09-11 12:00:00', '2024-09-11 15:00:00', NULL, NULL, NULL, NULL, NULL, NULL, '2024-09-11 09:00:00', 0, 3.68, 42.31, 0.0800),
+(51, 'ORD-2024-0051', NULL, NULL, 'user-pha031', N'user-pa036', 'DELIVERED', 'Delivery', N'1 Analytics Street', 10.7769, 106.7009, '0940000000', 'PROFILE', 5.99, 40.00, 45.99, 'PAID', 'Card', N'Standard retail order', N'Completed', '2024-09-14 14:00:00', '2024-09-14 15:00:00', '2024-09-14 09:05:00', '2024-09-14 09:05:00', '2024-09-14 09:30:00', '2024-09-14 12:00:00', '2024-09-14 15:00:00', NULL, NULL, NULL, NULL, NULL, NULL, '2024-09-14 09:00:00', 0, 3.68, 42.31, 0.0800),
+(52, 'ORD-2024-0052', NULL, NULL, 'user-pha032', N'user-pa037', 'DELIVERED', 'Delivery', N'1 Analytics Street', 10.7769, 106.7009, '0940000000', 'PROFILE', 5.99, 40.00, 45.99, 'PAID', 'Card', N'Standard retail order', N'Completed', '2024-09-17 14:00:00', '2024-09-17 15:00:00', '2024-09-17 09:05:00', '2024-09-17 09:05:00', '2024-09-17 09:30:00', '2024-09-17 12:00:00', '2024-09-17 15:00:00', NULL, NULL, NULL, NULL, NULL, NULL, '2024-09-17 09:00:00', 0, 3.68, 42.31, 0.0800),
+(53, 'ORD-2024-0053', NULL, NULL, 'user-pha033', N'user-pa038', 'DELIVERED', 'Delivery', N'1 Analytics Street', 10.7769, 106.7009, '0940000000', 'PROFILE', 5.99, 40.00, 45.99, 'PAID', 'Card', N'Standard retail order', N'Completed', '2024-09-20 14:00:00', '2024-09-20 15:00:00', '2024-09-20 09:05:00', '2024-09-20 09:05:00', '2024-09-20 09:30:00', '2024-09-20 12:00:00', '2024-09-20 15:00:00', NULL, NULL, NULL, NULL, NULL, NULL, '2024-09-20 09:00:00', 0, 3.68, 42.31, 0.0800),
+(54, 'ORD-2024-0054', NULL, NULL, 'user-pha034', N'user-pa039', 'DELIVERED', 'Delivery', N'1 Analytics Street', 10.7769, 106.7009, '0940000000', 'PROFILE', 5.99, 40.00, 45.99, 'PAID', 'Card', N'Standard retail order', N'Completed', '2024-09-23 14:00:00', '2024-09-23 15:00:00', '2024-09-23 09:05:00', '2024-09-23 09:05:00', '2024-09-23 09:30:00', '2024-09-23 12:00:00', '2024-09-23 15:00:00', NULL, NULL, NULL, NULL, NULL, NULL, '2024-09-23 09:00:00', 0, 3.68, 42.31, 0.0800),
+(55, 'ORD-2024-0055', NULL, NULL, 'user-pha035', N'user-pa040', 'DELIVERED', 'Delivery', N'1 Analytics Street', 10.7769, 106.7009, '0940000000', 'PROFILE', 5.99, 40.00, 45.99, 'PAID', 'Card', N'Standard retail order', N'Completed', '2024-09-26 14:00:00', '2024-09-26 15:00:00', '2024-09-26 09:05:00', '2024-09-26 09:05:00', '2024-09-26 09:30:00', '2024-09-26 12:00:00', '2024-09-26 15:00:00', NULL, NULL, NULL, NULL, NULL, NULL, '2024-09-26 09:00:00', 0, 3.68, 42.31, 0.0800);
+SET IDENTITY_INSERT PharmacyOrders OFF;
+
+SET IDENTITY_INSERT PharmacyOrderItems ON;
+INSERT INTO PharmacyOrderItems (OrderItemID, OrderID, MedicineID, SourcePrescriptionHeaderID, SourcePrescriptionItemID, medicationName, totalSupplyDays, quantity, unit, frequency, timing, route, totalPrice, notes) VALUES
+(22, 16, NULL, NULL, NULL, N'Assorted OTC medicine bundle', 7, 1, 'Pack', 'As directed', 'As needed', 'Oral', 40.00, N'Filler retail order item for financial-summary seed'),
+(23, 17, NULL, NULL, NULL, N'Assorted OTC medicine bundle', 7, 1, 'Pack', 'As directed', 'As needed', 'Oral', 40.00, N'Filler retail order item for financial-summary seed'),
+(24, 18, NULL, NULL, NULL, N'Assorted OTC medicine bundle', 7, 1, 'Pack', 'As directed', 'As needed', 'Oral', 40.00, N'Filler retail order item for financial-summary seed'),
+(25, 19, NULL, NULL, NULL, N'Assorted OTC medicine bundle', 7, 1, 'Pack', 'As directed', 'As needed', 'Oral', 40.00, N'Filler retail order item for financial-summary seed'),
+(26, 20, NULL, NULL, NULL, N'Assorted OTC medicine bundle', 7, 1, 'Pack', 'As directed', 'As needed', 'Oral', 40.00, N'Filler retail order item for financial-summary seed'),
+(27, 21, NULL, NULL, NULL, N'Assorted OTC medicine bundle', 7, 1, 'Pack', 'As directed', 'As needed', 'Oral', 40.00, N'Filler retail order item for financial-summary seed'),
+(28, 22, NULL, NULL, NULL, N'Assorted OTC medicine bundle', 7, 1, 'Pack', 'As directed', 'As needed', 'Oral', 40.00, N'Filler retail order item for financial-summary seed'),
+(29, 23, NULL, NULL, NULL, N'Assorted OTC medicine bundle', 7, 1, 'Pack', 'As directed', 'As needed', 'Oral', 40.00, N'Filler retail order item for financial-summary seed'),
+(30, 24, NULL, NULL, NULL, N'Assorted OTC medicine bundle', 7, 1, 'Pack', 'As directed', 'As needed', 'Oral', 40.00, N'Filler retail order item for financial-summary seed'),
+(31, 25, NULL, NULL, NULL, N'Assorted OTC medicine bundle', 7, 1, 'Pack', 'As directed', 'As needed', 'Oral', 40.00, N'Filler retail order item for financial-summary seed'),
+(32, 26, NULL, NULL, NULL, N'Assorted OTC medicine bundle', 7, 1, 'Pack', 'As directed', 'As needed', 'Oral', 40.00, N'Filler retail order item for financial-summary seed'),
+(33, 27, NULL, NULL, NULL, N'Assorted OTC medicine bundle', 7, 1, 'Pack', 'As directed', 'As needed', 'Oral', 40.00, N'Filler retail order item for financial-summary seed'),
+(34, 28, NULL, NULL, NULL, N'Assorted OTC medicine bundle', 7, 1, 'Pack', 'As directed', 'As needed', 'Oral', 40.00, N'Filler retail order item for financial-summary seed'),
+(35, 29, NULL, NULL, NULL, N'Assorted OTC medicine bundle', 7, 1, 'Pack', 'As directed', 'As needed', 'Oral', 40.00, N'Filler retail order item for financial-summary seed'),
+(36, 30, NULL, NULL, NULL, N'Assorted OTC medicine bundle', 7, 1, 'Pack', 'As directed', 'As needed', 'Oral', 40.00, N'Filler retail order item for financial-summary seed'),
+(37, 31, NULL, NULL, NULL, N'Assorted OTC medicine bundle', 7, 1, 'Pack', 'As directed', 'As needed', 'Oral', 40.00, N'Filler retail order item for financial-summary seed'),
+(38, 32, NULL, NULL, NULL, N'Assorted OTC medicine bundle', 7, 1, 'Pack', 'As directed', 'As needed', 'Oral', 40.00, N'Filler retail order item for financial-summary seed'),
+(39, 33, NULL, NULL, NULL, N'Assorted OTC medicine bundle', 7, 1, 'Pack', 'As directed', 'As needed', 'Oral', 40.00, N'Filler retail order item for financial-summary seed'),
+(40, 34, NULL, NULL, NULL, N'Assorted OTC medicine bundle', 7, 1, 'Pack', 'As directed', 'As needed', 'Oral', 40.00, N'Filler retail order item for financial-summary seed'),
+(41, 35, NULL, NULL, NULL, N'Assorted OTC medicine bundle', 7, 1, 'Pack', 'As directed', 'As needed', 'Oral', 40.00, N'Filler retail order item for financial-summary seed'),
+(42, 36, NULL, NULL, NULL, N'Assorted OTC medicine bundle', 7, 1, 'Pack', 'As directed', 'As needed', 'Oral', 40.00, N'Filler retail order item for financial-summary seed'),
+(43, 37, NULL, NULL, NULL, N'Assorted OTC medicine bundle', 7, 1, 'Pack', 'As directed', 'As needed', 'Oral', 40.00, N'Filler retail order item for financial-summary seed'),
+(44, 38, NULL, NULL, NULL, N'Assorted OTC medicine bundle', 7, 1, 'Pack', 'As directed', 'As needed', 'Oral', 40.00, N'Filler retail order item for financial-summary seed'),
+(45, 39, NULL, NULL, NULL, N'Assorted OTC medicine bundle', 7, 1, 'Pack', 'As directed', 'As needed', 'Oral', 40.00, N'Filler retail order item for financial-summary seed'),
+(46, 40, NULL, NULL, NULL, N'Assorted OTC medicine bundle', 7, 1, 'Pack', 'As directed', 'As needed', 'Oral', 40.00, N'Filler retail order item for financial-summary seed'),
+(47, 41, NULL, NULL, NULL, N'Assorted OTC medicine bundle', 7, 1, 'Pack', 'As directed', 'As needed', 'Oral', 40.00, N'Filler retail order item for financial-summary seed'),
+(48, 42, NULL, NULL, NULL, N'Assorted OTC medicine bundle', 7, 1, 'Pack', 'As directed', 'As needed', 'Oral', 40.00, N'Filler retail order item for financial-summary seed'),
+(49, 43, NULL, NULL, NULL, N'Assorted OTC medicine bundle', 7, 1, 'Pack', 'As directed', 'As needed', 'Oral', 40.00, N'Filler retail order item for financial-summary seed'),
+(50, 44, NULL, NULL, NULL, N'Assorted OTC medicine bundle', 7, 1, 'Pack', 'As directed', 'As needed', 'Oral', 40.00, N'Filler retail order item for financial-summary seed'),
+(51, 45, NULL, NULL, NULL, N'Assorted OTC medicine bundle', 7, 1, 'Pack', 'As directed', 'As needed', 'Oral', 40.00, N'Filler retail order item for financial-summary seed'),
+(52, 46, NULL, NULL, NULL, N'Assorted OTC medicine bundle', 7, 1, 'Pack', 'As directed', 'As needed', 'Oral', 40.00, N'Filler retail order item for financial-summary seed'),
+(53, 47, NULL, NULL, NULL, N'Assorted OTC medicine bundle', 7, 1, 'Pack', 'As directed', 'As needed', 'Oral', 40.00, N'Filler retail order item for financial-summary seed'),
+(54, 48, NULL, NULL, NULL, N'Assorted OTC medicine bundle', 7, 1, 'Pack', 'As directed', 'As needed', 'Oral', 40.00, N'Filler retail order item for financial-summary seed'),
+(55, 49, NULL, NULL, NULL, N'Assorted OTC medicine bundle', 7, 1, 'Pack', 'As directed', 'As needed', 'Oral', 40.00, N'Filler retail order item for financial-summary seed'),
+(56, 50, NULL, NULL, NULL, N'Assorted OTC medicine bundle', 7, 1, 'Pack', 'As directed', 'As needed', 'Oral', 40.00, N'Filler retail order item for financial-summary seed'),
+(57, 51, NULL, NULL, NULL, N'Assorted OTC medicine bundle', 7, 1, 'Pack', 'As directed', 'As needed', 'Oral', 40.00, N'Filler retail order item for financial-summary seed'),
+(58, 52, NULL, NULL, NULL, N'Assorted OTC medicine bundle', 7, 1, 'Pack', 'As directed', 'As needed', 'Oral', 40.00, N'Filler retail order item for financial-summary seed'),
+(59, 53, NULL, NULL, NULL, N'Assorted OTC medicine bundle', 7, 1, 'Pack', 'As directed', 'As needed', 'Oral', 40.00, N'Filler retail order item for financial-summary seed'),
+(60, 54, NULL, NULL, NULL, N'Assorted OTC medicine bundle', 7, 1, 'Pack', 'As directed', 'As needed', 'Oral', 40.00, N'Filler retail order item for financial-summary seed'),
+(61, 55, NULL, NULL, NULL, N'Assorted OTC medicine bundle', 7, 1, 'Pack', 'As directed', 'As needed', 'Oral', 40.00, N'Filler retail order item for financial-summary seed');
+SET IDENTITY_INSERT PharmacyOrderItems OFF;
+GO
+
+-- Set totalEarnings/pendingSettlement for pharmacies whose only earning source is the order above
+UPDATE Pharmacies SET totalEarnings = 42.31, pendingSettlement = 8.46 WHERE PharmacyID = 'user-ph03';
+UPDATE Pharmacies SET totalEarnings = 42.31, pendingSettlement = 8.46 WHERE PharmacyID = 'user-ph05';
+UPDATE Pharmacies SET totalEarnings = 42.31, pendingSettlement = 8.46 WHERE PharmacyID = 'user-ph08';
+UPDATE Pharmacies SET totalEarnings = 42.31, pendingSettlement = 8.46 WHERE PharmacyID = 'user-ph09';
+UPDATE Pharmacies SET totalEarnings = 42.31, pendingSettlement = 8.46 WHERE PharmacyID = 'user-ph10';
+UPDATE Pharmacies SET totalEarnings = 42.31, pendingSettlement = 8.46 WHERE PharmacyID = 'user-pha001';
+UPDATE Pharmacies SET totalEarnings = 42.31, pendingSettlement = 8.46 WHERE PharmacyID = 'user-pha002';
+UPDATE Pharmacies SET totalEarnings = 42.31, pendingSettlement = 8.46 WHERE PharmacyID = 'user-pha003';
+UPDATE Pharmacies SET totalEarnings = 42.31, pendingSettlement = 8.46 WHERE PharmacyID = 'user-pha004';
+UPDATE Pharmacies SET totalEarnings = 42.31, pendingSettlement = 8.46 WHERE PharmacyID = 'user-pha005';
+UPDATE Pharmacies SET totalEarnings = 42.31, pendingSettlement = 8.46 WHERE PharmacyID = 'user-pha006';
+UPDATE Pharmacies SET totalEarnings = 42.31, pendingSettlement = 8.46 WHERE PharmacyID = 'user-pha007';
+UPDATE Pharmacies SET totalEarnings = 42.31, pendingSettlement = 8.46 WHERE PharmacyID = 'user-pha008';
+UPDATE Pharmacies SET totalEarnings = 42.31, pendingSettlement = 8.46 WHERE PharmacyID = 'user-pha009';
+UPDATE Pharmacies SET totalEarnings = 42.31, pendingSettlement = 8.46 WHERE PharmacyID = 'user-pha010';
+UPDATE Pharmacies SET totalEarnings = 42.31, pendingSettlement = 8.46 WHERE PharmacyID = 'user-pha011';
+UPDATE Pharmacies SET totalEarnings = 42.31, pendingSettlement = 8.46 WHERE PharmacyID = 'user-pha012';
+UPDATE Pharmacies SET totalEarnings = 42.31, pendingSettlement = 8.46 WHERE PharmacyID = 'user-pha013';
+UPDATE Pharmacies SET totalEarnings = 42.31, pendingSettlement = 8.46 WHERE PharmacyID = 'user-pha014';
+UPDATE Pharmacies SET totalEarnings = 42.31, pendingSettlement = 8.46 WHERE PharmacyID = 'user-pha015';
+UPDATE Pharmacies SET totalEarnings = 42.31, pendingSettlement = 8.46 WHERE PharmacyID = 'user-pha016';
+UPDATE Pharmacies SET totalEarnings = 42.31, pendingSettlement = 8.46 WHERE PharmacyID = 'user-pha017';
+UPDATE Pharmacies SET totalEarnings = 42.31, pendingSettlement = 8.46 WHERE PharmacyID = 'user-pha018';
+UPDATE Pharmacies SET totalEarnings = 42.31, pendingSettlement = 8.46 WHERE PharmacyID = 'user-pha019';
+UPDATE Pharmacies SET totalEarnings = 42.31, pendingSettlement = 8.46 WHERE PharmacyID = 'user-pha020';
+UPDATE Pharmacies SET totalEarnings = 42.31, pendingSettlement = 8.46 WHERE PharmacyID = 'user-pha021';
+UPDATE Pharmacies SET totalEarnings = 42.31, pendingSettlement = 8.46 WHERE PharmacyID = 'user-pha022';
+UPDATE Pharmacies SET totalEarnings = 42.31, pendingSettlement = 8.46 WHERE PharmacyID = 'user-pha023';
+UPDATE Pharmacies SET totalEarnings = 42.31, pendingSettlement = 8.46 WHERE PharmacyID = 'user-pha024';
+UPDATE Pharmacies SET totalEarnings = 42.31, pendingSettlement = 8.46 WHERE PharmacyID = 'user-pha025';
+UPDATE Pharmacies SET totalEarnings = 42.31, pendingSettlement = 8.46 WHERE PharmacyID = 'user-pha026';
+UPDATE Pharmacies SET totalEarnings = 42.31, pendingSettlement = 8.46 WHERE PharmacyID = 'user-pha027';
+UPDATE Pharmacies SET totalEarnings = 42.31, pendingSettlement = 8.46 WHERE PharmacyID = 'user-pha028';
+UPDATE Pharmacies SET totalEarnings = 42.31, pendingSettlement = 8.46 WHERE PharmacyID = 'user-pha029';
+UPDATE Pharmacies SET totalEarnings = 42.31, pendingSettlement = 8.46 WHERE PharmacyID = 'user-pha030';
+UPDATE Pharmacies SET totalEarnings = 42.31, pendingSettlement = 8.46 WHERE PharmacyID = 'user-pha031';
+UPDATE Pharmacies SET totalEarnings = 42.31, pendingSettlement = 8.46 WHERE PharmacyID = 'user-pha032';
+UPDATE Pharmacies SET totalEarnings = 42.31, pendingSettlement = 8.46 WHERE PharmacyID = 'user-pha033';
+UPDATE Pharmacies SET totalEarnings = 42.31, pendingSettlement = 8.46 WHERE PharmacyID = 'user-pha034';
+UPDATE Pharmacies SET totalEarnings = 42.31, pendingSettlement = 8.46 WHERE PharmacyID = 'user-pha035';
+GO
+
+-- =====================================================
+-- 63. ANALYTICS DOCTOR (da001-035) APPOINTMENTS -- link the two pre-existing
+-- orphan Reviews (IDs 1051-1120, previously AppointmentId=NULL) to two brand-new
+-- real Completed Online appointments per doctor (same patient/date as the review),
+-- then set totalEarnings/pendingSettlement from those two appointments.
+-- Idempotent: delete-then-insert by AppointmentID range.
+-- =====================================================
+DELETE FROM Appointments WHERE AppointmentID BETWEEN 3000 AND 3069;
+GO
+
+SET IDENTITY_INSERT Appointments ON;
+INSERT INTO Appointments (AppointmentID, AppointmentTime, ConsultationType, Status, symptoms, notes, fee, endTime, doctorReminderSent, reminderSent, confirmedAt, PatientID, DoctorID) VALUES
+(3000, '2024-03-08 09:00:00', N'Online', N'Completed', N'Analytics seed consultation', N'Completed consultation (analytics doctor finance seed)', 50.00, '2024-03-08 09:30:00', 0, 1, '2024-03-07 09:00:00', N'user-pa021', N'user-da001'),
+(3001, '2024-03-11 09:00:00', N'Online', N'Completed', N'Analytics seed consultation', N'Completed consultation (analytics doctor finance seed)', 50.00, '2024-03-11 09:30:00', 0, 1, '2024-03-10 09:00:00', N'user-pa022', N'user-da001'),
+(3002, '2024-03-14 09:00:00', N'Online', N'Completed', N'Analytics seed consultation', N'Completed consultation (analytics doctor finance seed)', 50.00, '2024-03-14 09:30:00', 0, 1, '2024-03-13 09:00:00', N'user-pa023', N'user-da002'),
+(3003, '2024-03-17 09:00:00', N'Online', N'Completed', N'Analytics seed consultation', N'Completed consultation (analytics doctor finance seed)', 50.00, '2024-03-17 09:30:00', 0, 1, '2024-03-16 09:00:00', N'user-pa024', N'user-da002'),
+(3004, '2024-03-20 09:00:00', N'Online', N'Completed', N'Analytics seed consultation', N'Completed consultation (analytics doctor finance seed)', 50.00, '2024-03-20 09:30:00', 0, 1, '2024-03-19 09:00:00', N'user-pa025', N'user-da003'),
+(3005, '2024-03-23 09:00:00', N'Online', N'Completed', N'Analytics seed consultation', N'Completed consultation (analytics doctor finance seed)', 50.00, '2024-03-23 09:30:00', 0, 1, '2024-03-22 09:00:00', N'user-pa026', N'user-da003'),
+(3006, '2024-03-26 09:00:00', N'Online', N'Completed', N'Analytics seed consultation', N'Completed consultation (analytics doctor finance seed)', 50.00, '2024-03-26 09:30:00', 0, 1, '2024-03-25 09:00:00', N'user-pa027', N'user-da004'),
+(3007, '2024-03-29 09:00:00', N'Online', N'Completed', N'Analytics seed consultation', N'Completed consultation (analytics doctor finance seed)', 50.00, '2024-03-29 09:30:00', 0, 1, '2024-03-28 09:00:00', N'user-pa028', N'user-da004'),
+(3008, '2024-04-01 09:00:00', N'Online', N'Completed', N'Analytics seed consultation', N'Completed consultation (analytics doctor finance seed)', 50.00, '2024-04-01 09:30:00', 0, 1, '2024-03-31 09:00:00', N'user-pa029', N'user-da005'),
+(3009, '2024-04-04 09:00:00', N'Online', N'Completed', N'Analytics seed consultation', N'Completed consultation (analytics doctor finance seed)', 50.00, '2024-04-04 09:30:00', 0, 1, '2024-04-03 09:00:00', N'user-pa030', N'user-da005'),
+(3010, '2024-04-07 09:00:00', N'Online', N'Completed', N'Analytics seed consultation', N'Completed consultation (analytics doctor finance seed)', 50.00, '2024-04-07 09:30:00', 0, 1, '2024-04-06 09:00:00', N'user-pa031', N'user-da006'),
+(3011, '2024-04-10 09:00:00', N'Online', N'Completed', N'Analytics seed consultation', N'Completed consultation (analytics doctor finance seed)', 50.00, '2024-04-10 09:30:00', 0, 1, '2024-04-09 09:00:00', N'user-pa032', N'user-da006'),
+(3012, '2024-04-13 09:00:00', N'Online', N'Completed', N'Analytics seed consultation', N'Completed consultation (analytics doctor finance seed)', 50.00, '2024-04-13 09:30:00', 0, 1, '2024-04-12 09:00:00', N'user-pa033', N'user-da007'),
+(3013, '2024-04-16 09:00:00', N'Online', N'Completed', N'Analytics seed consultation', N'Completed consultation (analytics doctor finance seed)', 50.00, '2024-04-16 09:30:00', 0, 1, '2024-04-15 09:00:00', N'user-pa034', N'user-da007'),
+(3014, '2024-04-19 09:00:00', N'Online', N'Completed', N'Analytics seed consultation', N'Completed consultation (analytics doctor finance seed)', 50.00, '2024-04-19 09:30:00', 0, 1, '2024-04-18 09:00:00', N'user-pa035', N'user-da008'),
+(3015, '2024-04-22 09:00:00', N'Online', N'Completed', N'Analytics seed consultation', N'Completed consultation (analytics doctor finance seed)', 50.00, '2024-04-22 09:30:00', 0, 1, '2024-04-21 09:00:00', N'user-pa036', N'user-da008'),
+(3016, '2024-04-25 09:00:00', N'Online', N'Completed', N'Analytics seed consultation', N'Completed consultation (analytics doctor finance seed)', 50.00, '2024-04-25 09:30:00', 0, 1, '2024-04-24 09:00:00', N'user-pa037', N'user-da009'),
+(3017, '2024-04-28 09:00:00', N'Online', N'Completed', N'Analytics seed consultation', N'Completed consultation (analytics doctor finance seed)', 50.00, '2024-04-28 09:30:00', 0, 1, '2024-04-27 09:00:00', N'user-pa038', N'user-da009'),
+(3018, '2024-05-01 09:00:00', N'Online', N'Completed', N'Analytics seed consultation', N'Completed consultation (analytics doctor finance seed)', 50.00, '2024-05-01 09:30:00', 0, 1, '2024-04-30 09:00:00', N'user-pa039', N'user-da010'),
+(3019, '2024-05-04 09:00:00', N'Online', N'Completed', N'Analytics seed consultation', N'Completed consultation (analytics doctor finance seed)', 50.00, '2024-05-04 09:30:00', 0, 1, '2024-05-03 09:00:00', N'user-pa040', N'user-da010'),
+(3020, '2024-05-07 09:00:00', N'Online', N'Completed', N'Analytics seed consultation', N'Completed consultation (analytics doctor finance seed)', 50.00, '2024-05-07 09:30:00', 0, 1, '2024-05-06 09:00:00', N'user-pa041', N'user-da011'),
+(3021, '2024-05-10 09:00:00', N'Online', N'Completed', N'Analytics seed consultation', N'Completed consultation (analytics doctor finance seed)', 50.00, '2024-05-10 09:30:00', 0, 1, '2024-05-09 09:00:00', N'user-pa042', N'user-da011'),
+(3022, '2024-05-13 09:00:00', N'Online', N'Completed', N'Analytics seed consultation', N'Completed consultation (analytics doctor finance seed)', 50.00, '2024-05-13 09:30:00', 0, 1, '2024-05-12 09:00:00', N'user-pa043', N'user-da012'),
+(3023, '2024-05-16 09:00:00', N'Online', N'Completed', N'Analytics seed consultation', N'Completed consultation (analytics doctor finance seed)', 50.00, '2024-05-16 09:30:00', 0, 1, '2024-05-15 09:00:00', N'user-pa044', N'user-da012'),
+(3024, '2024-05-19 09:00:00', N'Online', N'Completed', N'Analytics seed consultation', N'Completed consultation (analytics doctor finance seed)', 50.00, '2024-05-19 09:30:00', 0, 1, '2024-05-18 09:00:00', N'user-pa045', N'user-da013'),
+(3025, '2024-05-22 09:00:00', N'Online', N'Completed', N'Analytics seed consultation', N'Completed consultation (analytics doctor finance seed)', 50.00, '2024-05-22 09:30:00', 0, 1, '2024-05-21 09:00:00', N'user-pa046', N'user-da013'),
+(3026, '2024-05-25 09:00:00', N'Online', N'Completed', N'Analytics seed consultation', N'Completed consultation (analytics doctor finance seed)', 50.00, '2024-05-25 09:30:00', 0, 1, '2024-05-24 09:00:00', N'user-pa047', N'user-da014'),
+(3027, '2024-05-28 09:00:00', N'Online', N'Completed', N'Analytics seed consultation', N'Completed consultation (analytics doctor finance seed)', 50.00, '2024-05-28 09:30:00', 0, 1, '2024-05-27 09:00:00', N'user-pa048', N'user-da014'),
+(3028, '2024-05-31 09:00:00', N'Online', N'Completed', N'Analytics seed consultation', N'Completed consultation (analytics doctor finance seed)', 50.00, '2024-05-31 09:30:00', 0, 1, '2024-05-30 09:00:00', N'user-pa049', N'user-da015'),
+(3029, '2024-06-03 09:00:00', N'Online', N'Completed', N'Analytics seed consultation', N'Completed consultation (analytics doctor finance seed)', 50.00, '2024-06-03 09:30:00', 0, 1, '2024-06-02 09:00:00', N'user-pa050', N'user-da015'),
+(3030, '2024-06-06 09:00:00', N'Online', N'Completed', N'Analytics seed consultation', N'Completed consultation (analytics doctor finance seed)', 50.00, '2024-06-06 09:30:00', 0, 1, '2024-06-05 09:00:00', N'user-pa051', N'user-da016'),
+(3031, '2024-06-09 09:00:00', N'Online', N'Completed', N'Analytics seed consultation', N'Completed consultation (analytics doctor finance seed)', 50.00, '2024-06-09 09:30:00', 0, 1, '2024-06-08 09:00:00', N'user-pa052', N'user-da016'),
+(3032, '2024-06-12 09:00:00', N'Online', N'Completed', N'Analytics seed consultation', N'Completed consultation (analytics doctor finance seed)', 50.00, '2024-06-12 09:30:00', 0, 1, '2024-06-11 09:00:00', N'user-pa053', N'user-da017'),
+(3033, '2024-06-15 09:00:00', N'Online', N'Completed', N'Analytics seed consultation', N'Completed consultation (analytics doctor finance seed)', 50.00, '2024-06-15 09:30:00', 0, 1, '2024-06-14 09:00:00', N'user-pa054', N'user-da017'),
+(3034, '2024-06-18 09:00:00', N'Online', N'Completed', N'Analytics seed consultation', N'Completed consultation (analytics doctor finance seed)', 50.00, '2024-06-18 09:30:00', 0, 1, '2024-06-17 09:00:00', N'user-pa055', N'user-da018'),
+(3035, '2024-06-21 09:00:00', N'Online', N'Completed', N'Analytics seed consultation', N'Completed consultation (analytics doctor finance seed)', 50.00, '2024-06-21 09:30:00', 0, 1, '2024-06-20 09:00:00', N'user-pa056', N'user-da018'),
+(3036, '2024-06-24 09:00:00', N'Online', N'Completed', N'Analytics seed consultation', N'Completed consultation (analytics doctor finance seed)', 50.00, '2024-06-24 09:30:00', 0, 1, '2024-06-23 09:00:00', N'user-pa057', N'user-da019'),
+(3037, '2024-06-27 09:00:00', N'Online', N'Completed', N'Analytics seed consultation', N'Completed consultation (analytics doctor finance seed)', 50.00, '2024-06-27 09:30:00', 0, 1, '2024-06-26 09:00:00', N'user-pa058', N'user-da019'),
+(3038, '2024-06-30 09:00:00', N'Online', N'Completed', N'Analytics seed consultation', N'Completed consultation (analytics doctor finance seed)', 50.00, '2024-06-30 09:30:00', 0, 1, '2024-06-29 09:00:00', N'user-pa059', N'user-da020'),
+(3039, '2024-07-03 09:00:00', N'Online', N'Completed', N'Analytics seed consultation', N'Completed consultation (analytics doctor finance seed)', 50.00, '2024-07-03 09:30:00', 0, 1, '2024-07-02 09:00:00', N'user-pa060', N'user-da020'),
+(3040, '2024-07-06 09:00:00', N'Online', N'Completed', N'Analytics seed consultation', N'Completed consultation (analytics doctor finance seed)', 50.00, '2024-07-06 09:30:00', 0, 1, '2024-07-05 09:00:00', N'user-pa061', N'user-da021'),
+(3041, '2024-07-09 09:00:00', N'Online', N'Completed', N'Analytics seed consultation', N'Completed consultation (analytics doctor finance seed)', 50.00, '2024-07-09 09:30:00', 0, 1, '2024-07-08 09:00:00', N'user-pa062', N'user-da021'),
+(3042, '2024-07-12 09:00:00', N'Online', N'Completed', N'Analytics seed consultation', N'Completed consultation (analytics doctor finance seed)', 50.00, '2024-07-12 09:30:00', 0, 1, '2024-07-11 09:00:00', N'user-pa063', N'user-da022'),
+(3043, '2024-07-15 09:00:00', N'Online', N'Completed', N'Analytics seed consultation', N'Completed consultation (analytics doctor finance seed)', 50.00, '2024-07-15 09:30:00', 0, 1, '2024-07-14 09:00:00', N'user-pa064', N'user-da022'),
+(3044, '2024-07-18 09:00:00', N'Online', N'Completed', N'Analytics seed consultation', N'Completed consultation (analytics doctor finance seed)', 50.00, '2024-07-18 09:30:00', 0, 1, '2024-07-17 09:00:00', N'user-pa065', N'user-da023'),
+(3045, '2024-07-21 09:00:00', N'Online', N'Completed', N'Analytics seed consultation', N'Completed consultation (analytics doctor finance seed)', 50.00, '2024-07-21 09:30:00', 0, 1, '2024-07-20 09:00:00', N'user-pa066', N'user-da023'),
+(3046, '2024-07-24 09:00:00', N'Online', N'Completed', N'Analytics seed consultation', N'Completed consultation (analytics doctor finance seed)', 50.00, '2024-07-24 09:30:00', 0, 1, '2024-07-23 09:00:00', N'user-pa067', N'user-da024'),
+(3047, '2024-07-27 09:00:00', N'Online', N'Completed', N'Analytics seed consultation', N'Completed consultation (analytics doctor finance seed)', 50.00, '2024-07-27 09:30:00', 0, 1, '2024-07-26 09:00:00', N'user-pa068', N'user-da024'),
+(3048, '2024-07-30 09:00:00', N'Online', N'Completed', N'Analytics seed consultation', N'Completed consultation (analytics doctor finance seed)', 50.00, '2024-07-30 09:30:00', 0, 1, '2024-07-29 09:00:00', N'user-pa069', N'user-da025'),
+(3049, '2024-08-02 09:00:00', N'Online', N'Completed', N'Analytics seed consultation', N'Completed consultation (analytics doctor finance seed)', 50.00, '2024-08-02 09:30:00', 0, 1, '2024-08-01 09:00:00', N'user-pa070', N'user-da025'),
+(3050, '2024-08-05 09:00:00', N'Online', N'Completed', N'Analytics seed consultation', N'Completed consultation (analytics doctor finance seed)', 50.00, '2024-08-05 09:30:00', 0, 1, '2024-08-04 09:00:00', N'user-pa071', N'user-da026'),
+(3051, '2024-08-08 09:00:00', N'Online', N'Completed', N'Analytics seed consultation', N'Completed consultation (analytics doctor finance seed)', 50.00, '2024-08-08 09:30:00', 0, 1, '2024-08-07 09:00:00', N'user-pa072', N'user-da026'),
+(3052, '2024-08-11 09:00:00', N'Online', N'Completed', N'Analytics seed consultation', N'Completed consultation (analytics doctor finance seed)', 50.00, '2024-08-11 09:30:00', 0, 1, '2024-08-10 09:00:00', N'user-pa073', N'user-da027'),
+(3053, '2024-08-14 09:00:00', N'Online', N'Completed', N'Analytics seed consultation', N'Completed consultation (analytics doctor finance seed)', 50.00, '2024-08-14 09:30:00', 0, 1, '2024-08-13 09:00:00', N'user-pa074', N'user-da027'),
+(3054, '2024-08-17 09:00:00', N'Online', N'Completed', N'Analytics seed consultation', N'Completed consultation (analytics doctor finance seed)', 50.00, '2024-08-17 09:30:00', 0, 1, '2024-08-16 09:00:00', N'user-pa075', N'user-da028'),
+(3055, '2024-08-20 09:00:00', N'Online', N'Completed', N'Analytics seed consultation', N'Completed consultation (analytics doctor finance seed)', 50.00, '2024-08-20 09:30:00', 0, 1, '2024-08-19 09:00:00', N'user-pa076', N'user-da028'),
+(3056, '2024-08-23 09:00:00', N'Online', N'Completed', N'Analytics seed consultation', N'Completed consultation (analytics doctor finance seed)', 50.00, '2024-08-23 09:30:00', 0, 1, '2024-08-22 09:00:00', N'user-pa077', N'user-da029'),
+(3057, '2024-08-26 09:00:00', N'Online', N'Completed', N'Analytics seed consultation', N'Completed consultation (analytics doctor finance seed)', 50.00, '2024-08-26 09:30:00', 0, 1, '2024-08-25 09:00:00', N'user-pa078', N'user-da029'),
+(3058, '2024-08-29 09:00:00', N'Online', N'Completed', N'Analytics seed consultation', N'Completed consultation (analytics doctor finance seed)', 50.00, '2024-08-29 09:30:00', 0, 1, '2024-08-28 09:00:00', N'user-pa079', N'user-da030'),
+(3059, '2024-09-01 09:00:00', N'Online', N'Completed', N'Analytics seed consultation', N'Completed consultation (analytics doctor finance seed)', 50.00, '2024-09-01 09:30:00', 0, 1, '2024-08-31 09:00:00', N'user-pa080', N'user-da030'),
+(3060, '2024-09-04 09:00:00', N'Online', N'Completed', N'Analytics seed consultation', N'Completed consultation (analytics doctor finance seed)', 50.00, '2024-09-04 09:30:00', 0, 1, '2024-09-03 09:00:00', N'user-pa081', N'user-da031'),
+(3061, '2024-09-07 09:00:00', N'Online', N'Completed', N'Analytics seed consultation', N'Completed consultation (analytics doctor finance seed)', 50.00, '2024-09-07 09:30:00', 0, 1, '2024-09-06 09:00:00', N'user-pa082', N'user-da031'),
+(3062, '2024-09-10 09:00:00', N'Online', N'Completed', N'Analytics seed consultation', N'Completed consultation (analytics doctor finance seed)', 50.00, '2024-09-10 09:30:00', 0, 1, '2024-09-09 09:00:00', N'user-pa083', N'user-da032'),
+(3063, '2024-09-13 09:00:00', N'Online', N'Completed', N'Analytics seed consultation', N'Completed consultation (analytics doctor finance seed)', 50.00, '2024-09-13 09:30:00', 0, 1, '2024-09-12 09:00:00', N'user-pa084', N'user-da032'),
+(3064, '2024-09-16 09:00:00', N'Online', N'Completed', N'Analytics seed consultation', N'Completed consultation (analytics doctor finance seed)', 50.00, '2024-09-16 09:30:00', 0, 1, '2024-09-15 09:00:00', N'user-pa085', N'user-da033'),
+(3065, '2024-09-19 09:00:00', N'Online', N'Completed', N'Analytics seed consultation', N'Completed consultation (analytics doctor finance seed)', 50.00, '2024-09-19 09:30:00', 0, 1, '2024-09-18 09:00:00', N'user-pa086', N'user-da033'),
+(3066, '2024-09-22 09:00:00', N'Online', N'Completed', N'Analytics seed consultation', N'Completed consultation (analytics doctor finance seed)', 50.00, '2024-09-22 09:30:00', 0, 1, '2024-09-21 09:00:00', N'user-pa087', N'user-da034'),
+(3067, '2024-09-25 09:00:00', N'Online', N'Completed', N'Analytics seed consultation', N'Completed consultation (analytics doctor finance seed)', 50.00, '2024-09-25 09:30:00', 0, 1, '2024-09-24 09:00:00', N'user-pa088', N'user-da034'),
+(3068, '2024-09-28 09:00:00', N'Online', N'Completed', N'Analytics seed consultation', N'Completed consultation (analytics doctor finance seed)', 50.00, '2024-09-28 09:30:00', 0, 1, '2024-09-27 09:00:00', N'user-pa089', N'user-da035'),
+(3069, '2024-10-01 09:00:00', N'Online', N'Completed', N'Analytics seed consultation', N'Completed consultation (analytics doctor finance seed)', 50.00, '2024-10-01 09:30:00', 0, 1, '2024-09-30 09:00:00', N'user-pa090', N'user-da035');
+SET IDENTITY_INSERT Appointments OFF;
+GO
+
+-- Link the pre-existing orphan reviews to their matching new appointment
+UPDATE Reviews SET AppointmentId = 3000 WHERE ReviewID = 1051;
+UPDATE Reviews SET AppointmentId = 3001 WHERE ReviewID = 1052;
+UPDATE Reviews SET AppointmentId = 3002 WHERE ReviewID = 1053;
+UPDATE Reviews SET AppointmentId = 3003 WHERE ReviewID = 1054;
+UPDATE Reviews SET AppointmentId = 3004 WHERE ReviewID = 1055;
+UPDATE Reviews SET AppointmentId = 3005 WHERE ReviewID = 1056;
+UPDATE Reviews SET AppointmentId = 3006 WHERE ReviewID = 1057;
+UPDATE Reviews SET AppointmentId = 3007 WHERE ReviewID = 1058;
+UPDATE Reviews SET AppointmentId = 3008 WHERE ReviewID = 1059;
+UPDATE Reviews SET AppointmentId = 3009 WHERE ReviewID = 1060;
+UPDATE Reviews SET AppointmentId = 3010 WHERE ReviewID = 1061;
+UPDATE Reviews SET AppointmentId = 3011 WHERE ReviewID = 1062;
+UPDATE Reviews SET AppointmentId = 3012 WHERE ReviewID = 1063;
+UPDATE Reviews SET AppointmentId = 3013 WHERE ReviewID = 1064;
+UPDATE Reviews SET AppointmentId = 3014 WHERE ReviewID = 1065;
+UPDATE Reviews SET AppointmentId = 3015 WHERE ReviewID = 1066;
+UPDATE Reviews SET AppointmentId = 3016 WHERE ReviewID = 1067;
+UPDATE Reviews SET AppointmentId = 3017 WHERE ReviewID = 1068;
+UPDATE Reviews SET AppointmentId = 3018 WHERE ReviewID = 1069;
+UPDATE Reviews SET AppointmentId = 3019 WHERE ReviewID = 1070;
+UPDATE Reviews SET AppointmentId = 3020 WHERE ReviewID = 1071;
+UPDATE Reviews SET AppointmentId = 3021 WHERE ReviewID = 1072;
+UPDATE Reviews SET AppointmentId = 3022 WHERE ReviewID = 1073;
+UPDATE Reviews SET AppointmentId = 3023 WHERE ReviewID = 1074;
+UPDATE Reviews SET AppointmentId = 3024 WHERE ReviewID = 1075;
+UPDATE Reviews SET AppointmentId = 3025 WHERE ReviewID = 1076;
+UPDATE Reviews SET AppointmentId = 3026 WHERE ReviewID = 1077;
+UPDATE Reviews SET AppointmentId = 3027 WHERE ReviewID = 1078;
+UPDATE Reviews SET AppointmentId = 3028 WHERE ReviewID = 1079;
+UPDATE Reviews SET AppointmentId = 3029 WHERE ReviewID = 1080;
+UPDATE Reviews SET AppointmentId = 3030 WHERE ReviewID = 1081;
+UPDATE Reviews SET AppointmentId = 3031 WHERE ReviewID = 1082;
+UPDATE Reviews SET AppointmentId = 3032 WHERE ReviewID = 1083;
+UPDATE Reviews SET AppointmentId = 3033 WHERE ReviewID = 1084;
+UPDATE Reviews SET AppointmentId = 3034 WHERE ReviewID = 1085;
+UPDATE Reviews SET AppointmentId = 3035 WHERE ReviewID = 1086;
+UPDATE Reviews SET AppointmentId = 3036 WHERE ReviewID = 1087;
+UPDATE Reviews SET AppointmentId = 3037 WHERE ReviewID = 1088;
+UPDATE Reviews SET AppointmentId = 3038 WHERE ReviewID = 1089;
+UPDATE Reviews SET AppointmentId = 3039 WHERE ReviewID = 1090;
+UPDATE Reviews SET AppointmentId = 3040 WHERE ReviewID = 1091;
+UPDATE Reviews SET AppointmentId = 3041 WHERE ReviewID = 1092;
+UPDATE Reviews SET AppointmentId = 3042 WHERE ReviewID = 1093;
+UPDATE Reviews SET AppointmentId = 3043 WHERE ReviewID = 1094;
+UPDATE Reviews SET AppointmentId = 3044 WHERE ReviewID = 1095;
+UPDATE Reviews SET AppointmentId = 3045 WHERE ReviewID = 1096;
+UPDATE Reviews SET AppointmentId = 3046 WHERE ReviewID = 1097;
+UPDATE Reviews SET AppointmentId = 3047 WHERE ReviewID = 1098;
+UPDATE Reviews SET AppointmentId = 3048 WHERE ReviewID = 1099;
+UPDATE Reviews SET AppointmentId = 3049 WHERE ReviewID = 1100;
+UPDATE Reviews SET AppointmentId = 3050 WHERE ReviewID = 1101;
+UPDATE Reviews SET AppointmentId = 3051 WHERE ReviewID = 1102;
+UPDATE Reviews SET AppointmentId = 3052 WHERE ReviewID = 1103;
+UPDATE Reviews SET AppointmentId = 3053 WHERE ReviewID = 1104;
+UPDATE Reviews SET AppointmentId = 3054 WHERE ReviewID = 1105;
+UPDATE Reviews SET AppointmentId = 3055 WHERE ReviewID = 1106;
+UPDATE Reviews SET AppointmentId = 3056 WHERE ReviewID = 1107;
+UPDATE Reviews SET AppointmentId = 3057 WHERE ReviewID = 1108;
+UPDATE Reviews SET AppointmentId = 3058 WHERE ReviewID = 1109;
+UPDATE Reviews SET AppointmentId = 3059 WHERE ReviewID = 1110;
+UPDATE Reviews SET AppointmentId = 3060 WHERE ReviewID = 1111;
+UPDATE Reviews SET AppointmentId = 3061 WHERE ReviewID = 1112;
+UPDATE Reviews SET AppointmentId = 3062 WHERE ReviewID = 1113;
+UPDATE Reviews SET AppointmentId = 3063 WHERE ReviewID = 1114;
+UPDATE Reviews SET AppointmentId = 3064 WHERE ReviewID = 1115;
+UPDATE Reviews SET AppointmentId = 3065 WHERE ReviewID = 1116;
+UPDATE Reviews SET AppointmentId = 3066 WHERE ReviewID = 1117;
+UPDATE Reviews SET AppointmentId = 3067 WHERE ReviewID = 1118;
+UPDATE Reviews SET AppointmentId = 3068 WHERE ReviewID = 1119;
+UPDATE Reviews SET AppointmentId = 3069 WHERE ReviewID = 1120;
+GO
+
+-- Set totalEarnings/pendingSettlement: 2 completed Online appts x $42.50 net = $85.00
+UPDATE Doctors SET totalEarnings = 85.00, pendingSettlement = 17.00 WHERE DoctorID = 'user-da001';
+UPDATE Doctors SET totalEarnings = 85.00, pendingSettlement = 17.00 WHERE DoctorID = 'user-da002';
+UPDATE Doctors SET totalEarnings = 85.00, pendingSettlement = 17.00 WHERE DoctorID = 'user-da003';
+UPDATE Doctors SET totalEarnings = 85.00, pendingSettlement = 17.00 WHERE DoctorID = 'user-da004';
+UPDATE Doctors SET totalEarnings = 85.00, pendingSettlement = 17.00 WHERE DoctorID = 'user-da005';
+UPDATE Doctors SET totalEarnings = 85.00, pendingSettlement = 17.00 WHERE DoctorID = 'user-da006';
+UPDATE Doctors SET totalEarnings = 85.00, pendingSettlement = 17.00 WHERE DoctorID = 'user-da007';
+UPDATE Doctors SET totalEarnings = 85.00, pendingSettlement = 17.00 WHERE DoctorID = 'user-da008';
+UPDATE Doctors SET totalEarnings = 85.00, pendingSettlement = 17.00 WHERE DoctorID = 'user-da009';
+UPDATE Doctors SET totalEarnings = 85.00, pendingSettlement = 17.00 WHERE DoctorID = 'user-da010';
+UPDATE Doctors SET totalEarnings = 85.00, pendingSettlement = 17.00 WHERE DoctorID = 'user-da011';
+UPDATE Doctors SET totalEarnings = 85.00, pendingSettlement = 17.00 WHERE DoctorID = 'user-da012';
+UPDATE Doctors SET totalEarnings = 85.00, pendingSettlement = 17.00 WHERE DoctorID = 'user-da013';
+UPDATE Doctors SET totalEarnings = 85.00, pendingSettlement = 17.00 WHERE DoctorID = 'user-da014';
+UPDATE Doctors SET totalEarnings = 85.00, pendingSettlement = 17.00 WHERE DoctorID = 'user-da015';
+UPDATE Doctors SET totalEarnings = 85.00, pendingSettlement = 17.00 WHERE DoctorID = 'user-da016';
+UPDATE Doctors SET totalEarnings = 85.00, pendingSettlement = 17.00 WHERE DoctorID = 'user-da017';
+UPDATE Doctors SET totalEarnings = 85.00, pendingSettlement = 17.00 WHERE DoctorID = 'user-da018';
+UPDATE Doctors SET totalEarnings = 85.00, pendingSettlement = 17.00 WHERE DoctorID = 'user-da019';
+UPDATE Doctors SET totalEarnings = 85.00, pendingSettlement = 17.00 WHERE DoctorID = 'user-da020';
+UPDATE Doctors SET totalEarnings = 85.00, pendingSettlement = 17.00 WHERE DoctorID = 'user-da021';
+UPDATE Doctors SET totalEarnings = 85.00, pendingSettlement = 17.00 WHERE DoctorID = 'user-da022';
+UPDATE Doctors SET totalEarnings = 85.00, pendingSettlement = 17.00 WHERE DoctorID = 'user-da023';
+UPDATE Doctors SET totalEarnings = 85.00, pendingSettlement = 17.00 WHERE DoctorID = 'user-da024';
+UPDATE Doctors SET totalEarnings = 85.00, pendingSettlement = 17.00 WHERE DoctorID = 'user-da025';
+UPDATE Doctors SET totalEarnings = 85.00, pendingSettlement = 17.00 WHERE DoctorID = 'user-da026';
+UPDATE Doctors SET totalEarnings = 85.00, pendingSettlement = 17.00 WHERE DoctorID = 'user-da027';
+UPDATE Doctors SET totalEarnings = 85.00, pendingSettlement = 17.00 WHERE DoctorID = 'user-da028';
+UPDATE Doctors SET totalEarnings = 85.00, pendingSettlement = 17.00 WHERE DoctorID = 'user-da029';
+UPDATE Doctors SET totalEarnings = 85.00, pendingSettlement = 17.00 WHERE DoctorID = 'user-da030';
+UPDATE Doctors SET totalEarnings = 85.00, pendingSettlement = 17.00 WHERE DoctorID = 'user-da031';
+UPDATE Doctors SET totalEarnings = 85.00, pendingSettlement = 17.00 WHERE DoctorID = 'user-da032';
+UPDATE Doctors SET totalEarnings = 85.00, pendingSettlement = 17.00 WHERE DoctorID = 'user-da033';
+UPDATE Doctors SET totalEarnings = 85.00, pendingSettlement = 17.00 WHERE DoctorID = 'user-da034';
+UPDATE Doctors SET totalEarnings = 85.00, pendingSettlement = 17.00 WHERE DoctorID = 'user-da035';
+GO
+
+-- =====================================================
 -- END SEED DATA
--- Total: 59 seed sections, mixed sample sizes
+-- Total: 63 seed sections, mixed sample sizes
 -- =====================================================
 PRINT 'Seed data completed successfully!';

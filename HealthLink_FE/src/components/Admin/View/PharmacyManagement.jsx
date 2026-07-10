@@ -380,7 +380,7 @@ export default function PharmacyManagement() {
                     {pharmacy.deliveryAvailable && (
                       <div className="card-detail-item">
                         <i className="bi bi-truck text-success"></i>
-                        <span>Delivery Available</span>
+                        <span>Delivery Available &middot; {formatCurrency(pharmacy.deliveryFee)}</span>
                       </div>
                     )}
                   </div>
@@ -623,6 +623,24 @@ export default function PharmacyManagement() {
                         <div style={{ fontSize: '12px', color: '#64748b' }}>Ward</div>
                         <div style={{ fontSize: '14px', fontWeight: '500' }}>{selectedPharmacy.ward || 'N/A'}</div>
                       </div>
+                      <div className="col-12">
+                        <div style={{ fontSize: '12px', color: '#64748b' }}>Location Pin</div>
+                        <div style={{ fontSize: '14px', fontWeight: '500' }}>
+                          {selectedPharmacy.latitude != null && selectedPharmacy.longitude != null ? (
+                            <a
+                              href={`https://www.google.com/maps?q=${selectedPharmacy.latitude},${selectedPharmacy.longitude}`}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                            >
+                              {selectedPharmacy.latitude.toFixed(6)}, {selectedPharmacy.longitude.toFixed(6)} <i className="bi bi-box-arrow-up-right"></i>
+                            </a>
+                          ) : (
+                            <span className="text-warning fst-italic">
+                              <i className="bi bi-exclamation-triangle-fill me-1"></i>Not set — delivery orders will fail
+                            </span>
+                          )}
+                        </div>
+                      </div>
                     </div>
                   </div>
 
@@ -660,6 +678,14 @@ export default function PharmacyManagement() {
                             {selectedPharmacy.deliveryAvailable ? `Available (${selectedPharmacy.deliveryRadius || 0} km)` : 'Not Available'}
                           </div>
                         </div>
+                        {selectedPharmacy.deliveryAvailable && (
+                          <div className="mt-2">
+                            <div style={{ fontSize: '12px', color: '#64748b' }}>Delivery Fee</div>
+                            <div style={{ fontSize: '14px', fontWeight: '500' }}>
+                              {formatCurrency(selectedPharmacy.deliveryFee)}
+                            </div>
+                          </div>
+                        )}
                       </div>
                     </div>
                   </div>

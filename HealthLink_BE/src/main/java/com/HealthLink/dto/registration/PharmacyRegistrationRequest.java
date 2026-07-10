@@ -30,6 +30,12 @@ public class PharmacyRegistrationRequest {
     private String district;
     private String ward;
 
+    @NotNull(message = "Pharmacy location pin is required")
+    private Double latitude;
+
+    @NotNull(message = "Pharmacy location pin is required")
+    private Double longitude;
+
     private LocalTime openTime;
     private LocalTime closeTime;
 
@@ -42,9 +48,11 @@ public class PharmacyRegistrationRequest {
     private boolean deliveryAvailable = false;
 
     @DecimalMin(value = "0.0", message = "Delivery radius must be non-negative")
+    @DecimalMax(value = "50.0", message = "Delivery radius cannot exceed 50 km")
     private Double deliveryRadius;
 
     @DecimalMin(value = "0.0", message = "Delivery fee must be non-negative")
+    @DecimalMax(value = "20.0", message = "Delivery fee cannot exceed $20.00")
     private BigDecimal deliveryFee;
 
     private String description;

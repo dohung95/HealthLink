@@ -1,16 +1,55 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import { Modal, Button } from 'react-bootstrap';
+import L from 'leaflet';
+import { MapContainer, Marker, TileLayer, useMapEvents, useMap } from 'react-leaflet';
 import Loading from '../Loading';
 import registrationService from '../../api/registrationApi';
 import CVImportModal from './CVImportModal';
 import { quickContentCheck } from '../../utils/documentModeration';
 import './Css/PharmacyRegistration.css';
 
+import markerIcon2x from 'leaflet/dist/images/marker-icon-2x.png';
+import markerIcon from 'leaflet/dist/images/marker-icon.png';
+import markerShadow from 'leaflet/dist/images/marker-shadow.png';
+
+delete L.Icon.Default.prototype._getIconUrl;
+
+L.Icon.Default.mergeOptions({
+    iconRetinaUrl: markerIcon2x,
+    iconUrl: markerIcon,
+    shadowUrl: markerShadow,
+});
+
+const LocationPicker = ({ location, onPick }) => {
+    useMapEvents({
+        click(e) {
+            onPick(e.latlng.lat, e.latlng.lng);
+        },
+    });
+
+    if (!location?.lat || !location?.lng) return null;
+
+    return <Marker position={[location.lat, location.lng]} />;
+};
+
+const MapRecenter = ({ location }) => {
+    const map = useMap();
+
+    useEffect(() => {
+        if (location?.lat && location?.lng) {
+            map.setView([location.lat, location.lng], 16);
+        }
+    }, [location, map]);
+
+    return null;
+};
+
 export function PharmacyRegistration() {
     const navigate = useNavigate();
     const [loading, setLoading] = useState(true);
     const [submitting, setSubmitting] = useState(false);
+    const [locatingPharmacy, setLocatingPharmacy] = useState(false);
     const [error, setError] = useState('');
     const [fieldErrors, setFieldErrors] = useState({});
     const [showSuccessModal, setShowSuccessModal] = useState(false);
@@ -35,9 +74,15 @@ export function PharmacyRegistration() {
         phoneNumber: 'input[name="phoneNumber"]',
         avatar: '#avatarUpload',
         address: 'input[name="address"]',
+        locationMap: '#pharmacyMapGroup',
         businessLicense: '#businessLicense',
         pharmacyLicense: '#pharmacyLicense',
         ownerIdCard: '#ownerIdCard',
+        openTime: 'input[name="openTime"]',
+        closeTime: 'input[name="closeTime"]',
+        workingDays: 'select[name="workingDays"]',
+        deliveryRadius: 'input[name="deliveryRadius"]',
+        deliveryFee: 'input[name="deliveryFee"]',
         acceptedTerms: '#acceptedTermsCheckbox',
     };
 
@@ -60,6 +105,8 @@ export function PharmacyRegistration() {
         city: '',
         district: '',
         ward: '',
+        latitude: null,
+        longitude: null,
         openTime: '08:00',
         closeTime: '22:00',
         open24Hours: false,
@@ -133,6 +180,40 @@ export function PharmacyRegistration() {
             ...prev,
             [name]: type === 'checkbox' ? checked : value
         }));
+    };
+
+    const handlePickLocation = (lat, lng) => {
+        setFormData(prev => ({
+            ...prev,
+            latitude: lat,
+            longitude: lng
+        }));
+        clearFieldError('locationMap');
+    };
+
+    const handleUseCurrentLocation = () => {
+        if (!navigator.geolocation) {
+            setError('Your browser does not support location detection.');
+            return;
+        }
+
+        setError('');
+        setLocatingPharmacy(true);
+
+        navigator.geolocation.getCurrentPosition(
+            (position) => {
+                handlePickLocation(position.coords.latitude, position.coords.longitude);
+                setLocatingPharmacy(false);
+            },
+            () => {
+                setError('Unable to access your location.');
+                setLocatingPharmacy(false);
+            },
+            {
+                enableHighAccuracy: true,
+                timeout: 10000,
+            }
+        );
     };
 
     const handleAvatarChange = async (e) => {
@@ -353,6 +434,10 @@ export function PharmacyRegistration() {
             errors.address = 'Address is required';
         }
 
+        if (!formData.latitude || !formData.longitude) {
+            errors.locationMap = 'Please pin your pharmacy location on the map';
+        }
+
         if (!documents.businessLicense) {
             errors.businessLicense = 'Business License is required';
         }
@@ -365,6 +450,43 @@ export function PharmacyRegistration() {
             errors.ownerIdCard = 'Owner ID Card / Passport is required';
         }
 
+        if (!formData.open24Hours) {
+            if (!formData.openTime) {
+                errors.openTime = 'Open time is required';
+            }
+            if (!formData.closeTime) {
+                errors.closeTime = 'Close time is required';
+            }
+        }
+
+        if (!formData.workingDays) {
+            errors.workingDays = 'Working days is required';
+        }
+
+        if (formData.deliveryAvailable) {
+            if (formData.deliveryRadius === '' || formData.deliveryRadius === null) {
+                errors.deliveryRadius = 'Delivery radius is required';
+            } else {
+                const radiusValue = parseFloat(formData.deliveryRadius);
+                if (Number.isNaN(radiusValue) || radiusValue < 0) {
+                    errors.deliveryRadius = 'Please enter a valid delivery radius';
+                } else if (radiusValue > 50) {
+                    errors.deliveryRadius = 'Delivery radius cannot exceed 50 km';
+                }
+            }
+
+            if (formData.deliveryFee === '' || formData.deliveryFee === null) {
+                errors.deliveryFee = 'Delivery fee is required';
+            } else {
+                const feeValue = parseFloat(formData.deliveryFee);
+                if (Number.isNaN(feeValue) || feeValue < 0) {
+                    errors.deliveryFee = 'Please enter a valid delivery fee';
+                } else if (feeValue > 20) {
+                    errors.deliveryFee = 'Delivery fee cannot exceed $20.00';
+                }
+            }
+        }
+
         if (!acceptedTerms) {
             errors.acceptedTerms = 'You must accept the Terms and Conditions to proceed';
         }
@@ -372,8 +494,9 @@ export function PharmacyRegistration() {
         if (Object.keys(errors).length > 0) {
             setFieldErrors(prev => ({ ...prev, ...errors }));
             const fieldOrder = [
-                'name', 'licenseNumber', 'email', 'phoneNumber', 'avatar', 'address',
-                'businessLicense', 'pharmacyLicense', 'ownerIdCard', 'acceptedTerms',
+                'name', 'licenseNumber', 'email', 'phoneNumber', 'avatar', 'address', 'locationMap',
+                'businessLicense', 'pharmacyLicense', 'ownerIdCard',
+                'openTime', 'closeTime', 'workingDays', 'deliveryRadius', 'deliveryFee', 'acceptedTerms',
             ];
             const firstField = fieldOrder.find(f => errors[f]);
             focusAndScrollToField(firstField);
@@ -686,6 +809,67 @@ export function PharmacyRegistration() {
                                     />
                                 </div>
                             </div>
+                            <div className="form-row">
+                                <div className="form-group pharmacy-map-group" id="pharmacyMapGroup">
+                                    <label>Pin Pharmacy Location on Map <span className="required">*</span></label>
+                                    <small className="form-text text-muted">
+                                        Click on the map to mark the exact location of your pharmacy. This pin determines whether patients can order delivery from you and how delivery distance is calculated.
+                                    </small>
+                                    <FieldError field="locationMap" />
+                                    <div className="pharmacy-map-actions">
+                                        <button
+                                            type="button"
+                                            className="pharmacy-map-location-btn"
+                                            onClick={handleUseCurrentLocation}
+                                            disabled={submitting || locatingPharmacy}
+                                        >
+                                            {locatingPharmacy ? (
+                                                <>
+                                                    <span className="pharmacy-map-location-spinner"></span>
+                                                    Detecting your location...
+                                                </>
+                                            ) : (
+                                                'Use my current location'
+                                            )}
+                                        </button>
+                                        {locatingPharmacy && (
+                                            <small className="pharmacy-map-location-status">
+                                                Please wait, requesting your current location from the browser...
+                                            </small>
+                                        )}
+                                    </div>
+                                    <MapContainer
+                                        center={[
+                                            formData.latitude || 13.5,
+                                            formData.longitude || 106.0,
+                                        ]}
+                                        zoom={formData.latitude && formData.longitude ? 15 : 4}
+                                        style={{ height: '300px', width: '100%' }}
+                                    >
+                                        <TileLayer
+                                            attribution="&copy; OpenStreetMap contributors"
+                                            url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
+                                        />
+
+                                        <MapRecenter
+                                            location={
+                                                formData.latitude && formData.longitude
+                                                    ? { lat: formData.latitude, lng: formData.longitude }
+                                                    : null
+                                            }
+                                        />
+
+                                        <LocationPicker
+                                            location={
+                                                formData.latitude && formData.longitude
+                                                    ? { lat: formData.latitude, lng: formData.longitude }
+                                                    : null
+                                            }
+                                            onPick={handlePickLocation}
+                                        />
+                                    </MapContainer>
+                                </div>
+                            </div>
                         </div>
 
                         {/* Business Hours */}
@@ -707,39 +891,45 @@ export function PharmacyRegistration() {
                             {!formData.open24Hours && (
                                 <div className="form-row">
                                     <div className="form-group">
-                                        <label>Open Time</label>
+                                        <label>Open Time <span className="required">*</span></label>
                                         <input
                                             type="time"
                                             name="openTime"
                                             value={formData.openTime}
                                             onChange={handleChange}
                                             disabled={submitting}
+                                            className={fieldErrors.openTime ? 'input-error' : undefined}
                                         />
+                                        <FieldError field="openTime" />
                                     </div>
                                     <div className="form-group">
-                                        <label>Close Time</label>
+                                        <label>Close Time <span className="required">*</span></label>
                                         <input
                                             type="time"
                                             name="closeTime"
                                             value={formData.closeTime}
                                             onChange={handleChange}
                                             disabled={submitting}
+                                            className={fieldErrors.closeTime ? 'input-error' : undefined}
                                         />
+                                        <FieldError field="closeTime" />
                                     </div>
                                 </div>
                             )}
                             <div className="form-group">
-                                <label>Working Days</label>
+                                <label>Working Days <span className="required">*</span></label>
                                 <select
                                     name="workingDays"
                                     value={formData.workingDays}
                                     onChange={handleChange}
                                     disabled={submitting}
+                                    className={fieldErrors.workingDays ? 'input-error' : undefined}
                                 >
                                     <option value="Mon-Sun">Monday - Sunday (7 days)</option>
                                     <option value="Mon-Sat">Monday - Saturday (6 days)</option>
                                     <option value="Mon-Fri">Monday - Friday (5 days)</option>
                                 </select>
+                                <FieldError field="workingDays" />
                             </div>
                         </div>
 
@@ -762,7 +952,7 @@ export function PharmacyRegistration() {
                             {formData.deliveryAvailable && (
                                 <div className="form-row">
                                     <div className="form-group">
-                                        <label>Delivery Radius (km)</label>
+                                        <label>Delivery Radius (km) <span className="required">*</span></label>
                                         <input
                                             type="number"
                                             name="deliveryRadius"
@@ -770,21 +960,29 @@ export function PharmacyRegistration() {
                                             onChange={handleChange}
                                             placeholder="5"
                                             min="0"
+                                            max="50"
                                             step="0.5"
                                             disabled={submitting}
+                                            className={fieldErrors.deliveryRadius ? 'input-error' : undefined}
                                         />
+                                        <small className="form-text text-muted">Maximum 50 km</small>
+                                        <FieldError field="deliveryRadius" />
                                     </div>
                                     <div className="form-group">
-                                        <label>Delivery Fee (USD)</label>
+                                        <label>Delivery Fee (USD) <span className="required">*</span></label>
                                         <input
                                             type="number"
                                             name="deliveryFee"
                                             value={formData.deliveryFee}
                                             onChange={handleChange}
-                                            placeholder="20000"
+                                            placeholder="10"
                                             min="0"
+                                            max="20"
+                                            step="0.5"
                                             disabled={submitting}
+                                            className={fieldErrors.deliveryFee ? 'input-error' : undefined}
                                         />
+                                        <FieldError field="deliveryFee" />
                                     </div>
                                 </div>
                             )}

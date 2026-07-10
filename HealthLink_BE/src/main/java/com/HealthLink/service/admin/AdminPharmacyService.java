@@ -3,12 +3,14 @@ package com.HealthLink.service.admin;
 import com.HealthLink.dto.admin.AdminPharmacyDto;
 import com.HealthLink.dto.admin.AdminPharmacyPageResponse;
 import com.HealthLink.dto.admin.AdminPharmacyUpdateDto;
+import com.HealthLink.dto.geocoding.GeocodeResponse;
 import com.HealthLink.entity.AdminAuditLog;
 import com.HealthLink.entity.Pharmacy;
 import com.HealthLink.entity.User;
 import com.HealthLink.exception.BadRequestException;
 import com.HealthLink.exception.ResourceNotFoundException;
 import com.HealthLink.repository.admin.AdminPharmacyRepository;
+import com.HealthLink.service.homevisit.HomeVisitLocationService;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
@@ -23,6 +25,7 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Objects;
 import java.util.stream.Collectors;
+import java.util.stream.Stream;
 
 @Service
 @Transactional
@@ -30,10 +33,13 @@ public class AdminPharmacyService {
 
     private final AdminPharmacyRepository pharmacyRepository;
     private final AdminAuditLogService auditLogService;
+    private final HomeVisitLocationService homeVisitLocationService;
 
-    public AdminPharmacyService(AdminPharmacyRepository pharmacyRepository, AdminAuditLogService auditLogService) {
+    public AdminPharmacyService(AdminPharmacyRepository pharmacyRepository, AdminAuditLogService auditLogService,
+            HomeVisitLocationService homeVisitLocationService) {
         this.pharmacyRepository = pharmacyRepository;
         this.auditLogService = auditLogService;
+        this.homeVisitLocationService = homeVisitLocationService;
     }
 
     public AdminPharmacyPageResponse getPharmacies(int pageNumber, int pageSize, String searchTerm,
@@ -72,17 +78,35 @@ public class AdminPharmacyService {
         if (StringUtils.hasText(updateDto.getLicenseNumber())) {
             pharmacy.setLicenseNumber(updateDto.getLicenseNumber());
         }
+        boolean locationChanged = false;
         if (StringUtils.hasText(updateDto.getAddress())) {
             pharmacy.setAddress(updateDto.getAddress());
+            locationChanged = true;
         }
         if (StringUtils.hasText(updateDto.getCity())) {
             pharmacy.setCity(updateDto.getCity());
+            locationChanged = true;
         }
         if (StringUtils.hasText(updateDto.getDistrict())) {
             pharmacy.setDistrict(updateDto.getDistrict());
+            locationChanged = true;
         }
         if (StringUtils.hasText(updateDto.getWard())) {
             pharmacy.setWard(updateDto.getWard());
+            locationChanged = true;
+        }
+        if (locationChanged) {
+            String fullAddress = Stream.of(pharmacy.getAddress(), pharmacy.getWard(), pharmacy.getDistrict(), pharmacy.getCity())
+                .filter(part -> part != null && !part.isBlank())
+                .collect(Collectors.joining(", "));
+            try {
+                GeocodeResponse geo = homeVisitLocationService.geocodeClinicAddressWithFallback(fullAddress);
+                pharmacy.setLatitude(geo.getLatitude());
+                pharmacy.setLongitude(geo.getLongitude());
+            } catch (Exception e) {
+                pharmacy.setLatitude(null);
+                pharmacy.setLongitude(null);
+            }
         }
         if (StringUtils.hasText(updateDto.getPhoneNumber())) {
             pharmacy.setPhoneNumber(updateDto.getPhoneNumber());
@@ -261,6 +285,8 @@ public class AdminPharmacyService {
             .city(pharmacy.getCity())
             .district(pharmacy.getDistrict())
             .ward(pharmacy.getWard())
+            .latitude(pharmacy.getLatitude())
+            .longitude(pharmacy.getLongitude())
             .phoneNumber(phone)
             .email(email)
             .description(pharmacy.getDescription())

@@ -43,6 +43,7 @@ import java.nio.file.StandardCopyOption;
 import java.time.LocalDateTime;
 import java.util.*;
 import java.util.stream.Collectors;
+import java.util.stream.Stream;
 
 @Service
 @RequiredArgsConstructor
@@ -122,6 +123,7 @@ public class RegistrationServiceImpl implements RegistrationService {
     @Override
     public RegistrationRequestResponse submitPharmacyRegistration(PharmacyRegistrationRequest request) {
         validateEmailNotRegistered(request.getEmail());
+        validatePharmacyBusinessHoursAndDelivery(request);
 
         RegistrationRequest entity = RegistrationRequest.builder()
                 .registrationType(TYPE_PHARMACY)
@@ -134,6 +136,8 @@ public class RegistrationServiceImpl implements RegistrationService {
                 .city(request.getCity())
                 .district(request.getDistrict())
                 .ward(request.getWard())
+                .latitude(request.getLatitude())
+                .longitude(request.getLongitude())
                 .openTime(request.getOpenTime())
                 .closeTime(request.getCloseTime())
                 .open24Hours(request.getOpen24Hours())
@@ -227,6 +231,30 @@ public class RegistrationServiceImpl implements RegistrationService {
         }
 
         return specialties;
+    }
+
+    private void validatePharmacyBusinessHoursAndDelivery(PharmacyRegistrationRequest request) {
+        if (!Boolean.TRUE.equals(request.getOpen24Hours())) {
+            if (request.getOpenTime() == null) {
+                throw new BadRequestException("Open time is required unless the pharmacy is open 24 hours");
+            }
+            if (request.getCloseTime() == null) {
+                throw new BadRequestException("Close time is required unless the pharmacy is open 24 hours");
+            }
+        }
+
+        if (request.getWorkingDays() == null || request.getWorkingDays().isBlank()) {
+            throw new BadRequestException("Working days is required");
+        }
+
+        if (request.isDeliveryAvailable()) {
+            if (request.getDeliveryRadius() == null) {
+                throw new BadRequestException("Delivery radius is required when delivery is available");
+            }
+            if (request.getDeliveryFee() == null) {
+                throw new BadRequestException("Delivery fee is required when delivery is available");
+            }
+        }
     }
 
     private void validateEmailNotRegistered(String email) {
@@ -401,13 +429,34 @@ public class RegistrationServiceImpl implements RegistrationService {
         pharmacy.setDeliveryFee(request.getDeliveryFee());
         pharmacy.setDescription(request.getDescription());
         pharmacy.setAvatarUrl(avatarUrl);
-        pharmacy.setVerified(false);
+        pharmacy.setVerified(true);
         pharmacy.setActive(true);
         pharmacy.setAverageRating(0.0);
         pharmacy.setTotalReviews(0);
         pharmacy.setCreatedAt(LocalDateTime.now());
 
+        if (request.getLatitude() != null && request.getLongitude() != null) {
+            pharmacy.setLatitude(request.getLatitude());
+            pharmacy.setLongitude(request.getLongitude());
+        } else {
+            // Fallback for registration requests submitted before the map-pin field existed
+            try {
+                String fullAddress = buildFullAddress(address, request.getWard(), request.getDistrict(), request.getCity());
+                GeocodeResponse geo = homeVisitLocationService.geocodeClinicAddressWithFallback(fullAddress);
+                pharmacy.setLatitude(geo.getLatitude());
+                pharmacy.setLongitude(geo.getLongitude());
+            } catch (Exception e) {
+                log.warn("Geocode failed for pharmacy {}: {}", pharmacyName, e.getMessage());
+            }
+        }
+
         pharmacyRepository.save(pharmacy);
+    }
+
+    private String buildFullAddress(String address, String ward, String district, String city) {
+        return Stream.of(address, ward, district, city)
+                .filter(part -> part != null && !part.isBlank())
+                .collect(Collectors.joining(", "));
     }
 
     private String copyRegistrationAvatarToPublicFolder(String sourceFilePath, String partnerType) {
