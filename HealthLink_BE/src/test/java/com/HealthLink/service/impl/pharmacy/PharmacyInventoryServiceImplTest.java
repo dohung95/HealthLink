@@ -245,8 +245,20 @@ class PharmacyInventoryServiceImplTest {
 
         assertThat(response.getQuantity()).isEqualTo(80);
         assertThat(response.getReservedQuantity()).isEqualTo(5);
-        assertThat(response.getUnit()).isEqualTo("bottle");
+        assertThat(response.getUnit()).isEqualTo("tablet");
         assertThat(response.getActive()).isFalse();
+    }
+
+    @Test
+    void getInventoryItem_shouldExposeMedicineUnitInsteadOfInventoryUnit() {
+        PharmacyInventory inventory = createInventory(10, "Amoxicillin 500mg", 20);
+        inventory.setUnit("box");
+        inventory.getMedicine().setUnit("capsule");
+        when(inventoryRepository.findById(10)).thenReturn(Optional.of(inventory));
+
+        var response = inventoryService.getInventoryItem("pharmacy-1", 10);
+
+        assertThat(response.getUnit()).isEqualTo("capsule");
     }
 
     @Test
@@ -706,6 +718,7 @@ class PharmacyInventoryServiceImplTest {
         Medicine medicine = Medicine.builder()
                 .medicineId(id)
                 .name(medName)
+                .unit("tablet")
                 .active(true)
                 .build();
         return PharmacyInventory.builder()

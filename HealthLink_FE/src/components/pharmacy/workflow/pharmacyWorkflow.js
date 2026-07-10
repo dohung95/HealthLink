@@ -1,4 +1,4 @@
-import { normalize, money } from '../../../utils/pharmacy/pharmacyHelpers';
+import { normalize, money } from '../../../utils/pharmacy/pharmacyHelpers.js';
 
 export const REQUEST_STAGE_GROUPS = [
   { key: 'NEW_REQUESTS', label: 'New Requests', stages: ['NEW_REQUEST'] },
@@ -147,7 +147,7 @@ export function isDeliveryOrderRequest(item) {
 export function getNextOrderStatus(item) {
   const status = getWorkflowStage(item);
   if (status === 'PREPARING') return 'READY';
-  if (status === 'READY') return isDeliveryOrder(item) ? 'SHIPPING' : 'DELIVERED';
+  if (status === 'READY') return isDeliveryOrder(item) ? 'SHIPPING' : 'COMPLETED';
   if (status === 'SHIPPING') return 'DELIVERED';
   if (status === 'DELIVERED') return 'COMPLETED';
   return null;
@@ -173,6 +173,7 @@ export function getItemDisplayId(item) {
 
 export function getWorkItemKind(item) {
   if (!item) return 'order';
+  if (item.workflowStage === 'REVISION_REQUESTED' || item.availableActions?.includes('UPDATE_QUOTE')) return 'revision';
   if (item.sourceType === 'CONSULTATION_REQUEST' && item.requestType === 'CONSULTATION') return 'consultation';
   if (isDeliveryOrderRequest(item)) return 'deliveryOrderRequest';
   if (item.sourceType === 'ORDER_REQUEST' || item.requestType === 'ORDER_REQUEST') return 'orderRequest';
@@ -180,7 +181,6 @@ export function getWorkItemKind(item) {
   if (item.sourceType === 'DELIVERY_QUOTE_REQUEST') return 'deliveryQuote';
   if (item.sourceType === 'PICKUP_ORDER_REVIEW') return 'pickupReview';
   if (item.sourceType === 'DELIVERY_CONTACT_CHANGE_REQUEST') return 'deliveryContactChange';
-  if (item.workflowStage === 'REVISION_REQUESTED' || item.availableActions?.includes('UPDATE_QUOTE')) return 'revision';
   return 'order';
 }
 

@@ -2,6 +2,7 @@ import { useState, useEffect, useCallback, useRef } from 'react';
 import { useNavigate, useLocation, Link } from 'react-router-dom';
 import { toast } from 'sonner';
 import { useAuth } from '../../context/AuthContext';
+import { useNotifications } from '../../context/NotificationContext';
 import { useChat } from '../../context/ChatContext';
 import pharmacyApi from '../../api/pharmacyApi';
 import { getProfile } from '../../api/account';
@@ -101,6 +102,7 @@ export default function PatientPharmacyPage() {
 }
 
 function PharmacyWizard({ userId, navigate, location }) {
+  const { latestRealtimeNotification } = useNotifications();
   const autoSelectId = location?.state?.autoSelectPrescriptionId;
   const [flowType, setFlowType] = useState('ORDER_REQUEST');
   const [step, setStep] = useState(autoSelectId ? 'fulfillment' : 'prescription');
@@ -203,12 +205,28 @@ function PharmacyWizard({ userId, navigate, location }) {
     if (idx > 0) setStep(steps[idx - 1]);
   };
 
-  const handleRequestUpdated = (updatedRequest) => {
+  const handleRequestUpdated = (updatedRequest, { source } = {}) => {
     setRequest(updatedRequest);
-    if (updatedRequest.status === 'ORDER_CREATED' && updatedRequest.pharmacyOrderId) {
-      navigate(`/patient-dashboard/pharmacy/orders/${updatedRequest.pharmacyOrderId}`);
+    if (source === 'poll' && updatedRequest.status === 'ORDER_CREATED' && updatedRequest.pharmacyOrderId) {
+      toast.info('Pharmacy order created', {
+        id: getWorkflowToastId({ type: 'NEW_ORDER', relatedId: updatedRequest.pharmacyOrderId }),
+        description: 'Your pharmacy has prepared an order for review.',
+        action: {
+          label: 'Open',
+          onClick: () => navigate(`/patient-dashboard/pharmacy/orders/${updatedRequest.pharmacyOrderId}`),
+        },
+      });
     }
   };
+
+  useEffect(() => {
+    if (request?.status !== 'IN_REVIEW' || String(latestRealtimeNotification?.type || '').toUpperCase() !== 'NEW_ORDER') {
+      return;
+    }
+    pharmacyApi.getConsultationRequestById(request.requestId)
+      .then((updated) => handleRequestUpdated(updated, { source: 'realtime' }))
+      .catch(() => undefined);
+  }, [latestRealtimeNotification, request?.requestId, request?.status]);
 
   if (stepIndex === -1) return null;
 
@@ -661,13 +679,15 @@ function ConnectStep({ request, pharmacy, geolocation, userId, onRequestUpdated,
   const startTime = useRef(Date.now());
 
   useEffect(() => {
-    if (!request || request.status !== 'PENDING') return;
+    if (!request || !['PENDING', 'IN_REVIEW'].includes(request.status)) return;
 
     const poll = setInterval(async () => {
       try {
         const updated = await pharmacyApi.getConsultationRequestById(request.requestId);
-        if (updated.status !== 'PENDING') {
-          onRequestUpdated(updated);
+        if (updated.status !== request.status || updated.pharmacyOrderId !== request.pharmacyOrderId) {
+          onRequestUpdated(updated, { source: 'poll' });
+        }
+        if (['ORDER_CREATED', 'CANCELLED'].includes(updated.status)) {
           setPolling(null);
           clearInterval(poll);
         }
@@ -676,7 +696,7 @@ function ConnectStep({ request, pharmacy, geolocation, userId, onRequestUpdated,
 
     setPolling(poll);
     return () => { if (poll) clearInterval(poll); };
-  }, [request?.requestId, request?.status, onRequestUpdated]);
+  }, [request?.pharmacyOrderId, request?.requestId, request?.status, onRequestUpdated]);
 
   useEffect(() => {
     return () => { if (polling) clearInterval(polling); };
@@ -1139,11 +1159,12 @@ function OrderDetailView({ orderId, navigate }) {
     }
     setRequestingRevision(true);
     try {
-      await pharmacyApi.requestOrderRevision(order.orderId, { reason: revisionReason });
+      const updatedOrder = await pharmacyApi.requestOrderRevision(order.orderId, { reason: revisionReason.trim() });
+      setOrder(updatedOrder);
+      setConfirmedForPayment(false);
       toast.success('Change request sent. Waiting for pharmacy update.');
       setShowRevisionForm(false);
       setRevisionReason('');
-      await loadOrder();
     } catch (err) {
       toast.error(err.response?.data?.message || 'Unable to request changes.');
     } finally {
@@ -1284,7 +1305,10 @@ function OrderDetailView({ orderId, navigate }) {
     && !retailAwaitingConfirmation
     && !pendingPatientConfirmation;
   const canCancel = ['PENDING', 'CONFIRMED'].includes(status) && !isPaid;
-  const canRequestRevision = needsPayment && !isRevisionRequested;
+  const canRequestRevision = !isPrescriptionBasedOrder(order)
+    && status === 'PENDING'
+    && !isPaid
+    && pendingPatientConfirmation;
   const showPaymentAction = needsPayment;
   const showContinueToPayment = showPaymentAction && !confirmedForPayment;
   const showStandaloneCancel = canCancel
@@ -1401,13 +1425,40 @@ function OrderDetailView({ orderId, navigate }) {
                   <div className="d-flex justify-content-between small"><span>Delivery Fee</span><strong>${Number(order.deliveryFee || 0).toFixed(2)}</strong></div>
                   <div className="d-flex justify-content-between fw-bold mt-1"><span>Total</span><span>${Number(order.totalAmount || 0).toFixed(2)}</span></div>
                 </div>
-                <button className="btn btn-primary w-100 mb-2" onClick={handlePatientConfirmTotal}>
-                  <i className="bi bi-check-circle me-2"></i>Confirm Total
-                </button>
-                {canCancel && (
-                  <button className="btn btn-outline-danger w-100" disabled={cancelling} onClick={handleCancelClick}>
-                    {cancelling ? 'Cancelling...' : 'Cancel Order'}
-                  </button>
+                {!showRevisionForm ? (
+                  <>
+                    <button className="btn btn-primary w-100 mb-2" onClick={handlePatientConfirmTotal}>
+                      <i className="bi bi-check-circle me-2"></i>Confirm Total
+                    </button>
+                    {canRequestRevision && (
+                      <button className="btn btn-outline-warning w-100 mb-2" onClick={() => setShowRevisionForm(true)}>
+                        <i className="bi bi-pencil me-2"></i>Request Changes
+                      </button>
+                    )}
+                    {canCancel && (
+                      <button className="btn btn-outline-danger w-100" disabled={cancelling} onClick={handleCancelClick}>
+                        {cancelling ? 'Cancelling...' : 'Cancel Order'}
+                      </button>
+                    )}
+                  </>
+                ) : (
+                  <div className="text-start">
+                    <label className="form-label small">Describe the changes you need:</label>
+                    <textarea
+                      className="form-control mb-2"
+                      rows="3"
+                      value={revisionReason}
+                      onChange={(event) => setRevisionReason(event.target.value)}
+                    />
+                    <div className="d-flex gap-2">
+                      <button className="btn btn-warning flex-grow-1" disabled={requestingRevision} onClick={handleRequestRevision}>
+                        {requestingRevision ? 'Sending...' : 'Send Request'}
+                      </button>
+                      <button className="btn btn-outline-secondary" onClick={() => { setShowRevisionForm(false); setRevisionReason(''); }}>
+                        Back
+                      </button>
+                    </div>
+                  </div>
                 )}
               </div>
             </div>
@@ -1560,44 +1611,6 @@ function OrderDetailView({ orderId, navigate }) {
                 </div>
               )}
             </>
-          )}
-
-          {!isPrescriptionBasedOrder(order) && canRequestRevision && !showRevisionForm && (
-            <div className="card shadow-sm mb-3">
-              <div className="card-body text-center">
-                <h6 className="fw-semibold mb-3">Request Changes</h6>
-                <p className="small text-muted mb-3">Need to modify medications, prices, or delivery?</p>
-                <button className="btn btn-outline-warning w-100" onClick={() => setShowRevisionForm(true)}>
-                  <i className="bi bi-pencil me-2"></i>Request Changes
-                </button>
-              </div>
-            </div>
-          )}
-
-          {!isPrescriptionBasedOrder(order) && canRequestRevision && showRevisionForm && (
-            <div className="card shadow-sm mb-3 border-warning">
-              <div className="card-body">
-                <h6 className="fw-semibold mb-3">Request Changes</h6>
-                <div className="mb-3">
-                  <label className="form-label small">Describe the changes you need:</label>
-                  <textarea
-                    className="form-control"
-                    rows="3"
-                    placeholder="e.g., Please remove Vitamin C and update delivery time."
-                    value={revisionReason}
-                    onChange={(e) => setRevisionReason(e.target.value)}
-                  />
-                </div>
-                <div className="d-flex gap-2">
-                  <button className="btn btn-warning flex-grow-1" disabled={requestingRevision} onClick={handleRequestRevision}>
-                    {requestingRevision ? 'Sending...' : 'Send Request'}
-                  </button>
-                  <button className="btn btn-outline-secondary" onClick={() => { setShowRevisionForm(false); setRevisionReason(''); }}>
-                    Cancel
-                  </button>
-                </div>
-              </div>
-            </div>
           )}
 
           {showStandaloneCancel && (

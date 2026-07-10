@@ -144,9 +144,6 @@ public class PharmacyInventoryServiceImpl implements PharmacyInventoryService {
             }
             inventory.setReservedQuantity(request.getReservedQuantity());
         }
-        if (request.getUnit() != null) {
-            inventory.setUnit(request.getUnit());
-        }
         if (request.getExpiryDate() != null) {
             inventory.setExpiryDate(request.getExpiryDate());
         }
@@ -386,9 +383,6 @@ public class PharmacyInventoryServiceImpl implements PharmacyInventoryService {
                 if (row.getReservedQuantity() != null) {
                     existing.setReservedQuantity(row.getReservedQuantity());
                 }
-                if (row.getUnit() != null) {
-                    existing.setUnit(row.getUnit());
-                }
                 existing.setExpiryDate(row.getExpiryDate());
                 existing.setActive(row.isActive());
                 existing.setLastImportedAt(now);
@@ -401,7 +395,7 @@ public class PharmacyInventoryServiceImpl implements PharmacyInventoryService {
                         .medicine(medicine)
                         .quantity(row.getQuantity())
                         .reservedQuantity(row.getReservedQuantity() != null ? row.getReservedQuantity() : 0)
-                        .unit(row.getUnit() != null ? row.getUnit() : medicine.getUnit())
+                        .unit(medicine.getUnit())
                         .expiryDate(row.getExpiryDate())
                         .active(row.isActive())
                         .lastImportedAt(now)
@@ -510,7 +504,7 @@ public class PharmacyInventoryServiceImpl implements PharmacyInventoryService {
                 .genericName(inv.getMedicine().getGenericName())
                 .dosageForm(inv.getMedicine().getDosageForm())
                 .strength(inv.getMedicine().getStrength())
-                .unit(inv.getUnit())
+                .unit(inv.getMedicine() != null ? PharmacyServiceHelper.trimToNull(inv.getMedicine().getUnit()) : null)
                 .quantity(inv.getQuantity())
                 .reservedQuantity(inv.getReservedQuantity())
                 .availableQuantity(inv.getAvailableQuantity())

@@ -3,14 +3,21 @@ package com.HealthLink.repository.pharmacy;
 import com.HealthLink.entity.PharmacyOrder;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
+import org.springframework.data.jpa.repository.Lock;
 import org.springframework.data.repository.query.Param;
 import org.springframework.stereotype.Repository;
+import jakarta.persistence.LockModeType;
 
 import java.math.BigDecimal;
 import java.util.List;
+import java.util.Optional;
 
 @Repository
 public interface PharmacyOrderRepository extends JpaRepository<PharmacyOrder, Integer> {
+
+    @Lock(LockModeType.PESSIMISTIC_WRITE)
+    @Query("SELECT o FROM PharmacyOrder o WHERE o.orderId = :orderId")
+    Optional<PharmacyOrder> findByIdForStatusUpdate(@Param("orderId") Integer orderId);
 
     // Tìm đơn hàng theo pharmacyId
     List<PharmacyOrder> findByPharmacy_PharmacyId(String pharmacyId);

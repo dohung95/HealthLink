@@ -7,7 +7,7 @@ const TIMING_OPTIONS = [
   { value: 'EVENING', label: 'Evening' },
 ];
 
-const UNIT_OPTIONS = ['Tablet', 'Capsule', 'Vial', 'Ampoule', 'Sachet', 'Bottle', 'Tube'];
+const ROUTE_OPTIONS = ['Oral', 'Topical', 'Injection', 'Inhalation'];
 
 const FREQUENCY_OPTIONS = [
   '3 times daily',
@@ -74,14 +74,25 @@ export default function OrderItemCard({ item, onUpdate, onRemove, index, expande
             </div>
             <div className="col-6 col-md-3">
               <label className="form-label">ROUTE</label>
-              <input className="form-control form-control-sm" disabled value={item.route || 'Oral'} />
+              {lockedMedication ? (
+                <input className="form-control form-control-sm" disabled value={item.route || 'Oral'} />
+              ) : (
+                <select
+                  className="form-select form-select-sm"
+                  onChange={(event) => onUpdate(item.localId, 'route', event.target.value)}
+                  value={item.route || 'Oral'}
+                >
+                  {ROUTE_OPTIONS.map((route) => (
+                    <option key={route} value={route}>{route}</option>
+                  ))}
+                </select>
+              )}
             </div>
             <div className="col-4">
               <label className="form-label">UNIT</label>
-              <select className="form-select form-select-sm" disabled={lockedMedication} onChange={(e) => onUpdate(item.localId, 'unit', e.target.value)} value={item.unit}>
-                <option value="">Select unit</option>
-                {UNIT_OPTIONS.map((u) => <option key={u} value={u}>{u}</option>)}
-              </select>
+              <div className="form-control form-control-sm order-item-readonly-field" aria-label="Medicine unit">
+                {item.unit || 'Missing unit'}
+              </div>
             </div>
             <div className="col-4">
               <label className="form-label">FREQUENCY</label>

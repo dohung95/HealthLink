@@ -464,7 +464,7 @@ function ImportModal({ onClose, onImported }) {
               <input type="file" className="form-control" accept=".csv"
                 onChange={(e) => setFile(e.target.files[0])} />
               <div className="form-text">
-                Columns: medicineId, medicineName, strength, dosageForm, quantity, unit, expiryDate, active.
+                Columns: medicineId, medicineName, strength, dosageForm, quantity, unit, expiryDate, active. Unit is read from the medicine master.
                 Max 5MB, 5000 rows.
               </div>
             </div>
@@ -523,7 +523,6 @@ function ImportModal({ onClose, onImported }) {
 function EditInventoryModal({ item, onClose, onSaved }) {
   const [form, setForm] = useState({
     quantity: item.quantity ?? '',
-    unit: item.unit ?? '',
     expiryDate: item.expiryDate ? item.expiryDate.substring(0, 10) : '',
     active: item.active ?? true,
     minStockLevel: item.minStockLevel ?? '',
@@ -535,7 +534,6 @@ function EditInventoryModal({ item, onClose, onSaved }) {
     try {
       const payload = {};
       if (form.quantity !== '') payload.quantity = Number(form.quantity);
-      if (form.unit) payload.unit = form.unit;
       if (form.expiryDate) payload.expiryDate = form.expiryDate;
       if (form.minStockLevel !== '') payload.minStockLevel = Number(form.minStockLevel);
       payload.active = form.active;
@@ -560,8 +558,7 @@ function EditInventoryModal({ item, onClose, onSaved }) {
           </div>
           <div className="col-sm-6">
             <label className="form-label">Unit</label>
-            <input type="text" className="form-control"
-              value={form.unit} onChange={(e) => setForm({ ...form, unit: e.target.value })} />
+            <div className="form-control-plaintext">{item.unit || 'Missing unit'}</div>
           </div>
           <div className="col-sm-6">
             <label className="form-label">Expiry Date</label>

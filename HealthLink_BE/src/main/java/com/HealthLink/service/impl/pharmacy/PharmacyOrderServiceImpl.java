@@ -101,7 +101,7 @@ public class PharmacyOrderServiceImpl implements PharmacyOrderService {
             STATUS_PENDING,   Set.of(STATUS_CONFIRMED, STATUS_CANCELLED),
             STATUS_CONFIRMED, Set.of(STATUS_PREPARING, STATUS_CANCELLED),
             STATUS_PREPARING, Set.of(STATUS_READY,     STATUS_CANCELLED),
-            STATUS_READY,     Set.of(STATUS_SHIPPING,  STATUS_DELIVERED, STATUS_CANCELLED),
+            STATUS_READY,     Set.of(),
             STATUS_SHIPPING,  Set.of(STATUS_DELIVERED),
             STATUS_DELIVERED, Set.of(STATUS_COMPLETED),
             STATUS_COMPLETED, Set.of(),
@@ -460,7 +460,8 @@ public class PharmacyOrderServiceImpl implements PharmacyOrderService {
     @Transactional
     public PharmacyOrderResponse updateOrderStatus(Integer orderId, PharmacyOrderStatusRequest request) {
 
-        PharmacyOrder order = orderRepository.findById(orderId)
+        PharmacyOrder order = orderRepository.findByIdForStatusUpdate(orderId)
+                .or(() -> orderRepository.findById(orderId))
                 .orElseThrow(() -> new ResourceNotFoundException("PharmacyOrder", "id", orderId));
 
         String currentStatus = normalizeStatus(order.getStatus());
@@ -473,7 +474,7 @@ public class PharmacyOrderServiceImpl implements PharmacyOrderService {
         }
 
         // Kiểm tra luồng trạng thái hợp lệ
-        Set<String> allowed = ALLOWED_TRANSITIONS.getOrDefault(currentStatus, Set.of());
+        Set<String> allowed = allowedTransitionsFor(order, currentStatus);
         if (!allowed.contains(targetStatus)) {
             throw new InvalidStatusException(currentStatus, targetStatus);
         }
@@ -486,6 +487,11 @@ public class PharmacyOrderServiceImpl implements PharmacyOrderService {
         if (requiresPatientConfirmation(order)
                 && Set.of(STATUS_CONFIRMED, STATUS_PREPARING, STATUS_READY, STATUS_SHIPPING).contains(targetStatus)) {
             throw new BadRequestException("Patient must confirm the updated total before status can progress");
+        }
+
+        if (STATUS_PREPARING.equals(targetStatus)
+                && !PAYMENT_STATUS_PAID.equalsIgnoreCase(safeValue(order.getPaymentStatus(), ""))) {
+            throw new BadRequestException("Order must be paid before preparation can begin");
         }
 
         // Ghi nhận thời điểm tương ứng
@@ -510,6 +516,12 @@ public class PharmacyOrderServiceImpl implements PharmacyOrderService {
                 order.setActualDeliveryTime(now);
                 releaseReservedStock(order);
             }
+            case STATUS_COMPLETED -> {
+                order.setCompletedAt(now);
+                if (isPickupOrder(order)) {
+                    releaseReservedStock(order);
+                }
+            }
             case STATUS_CANCELLED -> {
                 order.setCancelledAt(now);
                 order.setCancelReason(request.getCancelReason());
@@ -533,9 +545,9 @@ public class PharmacyOrderServiceImpl implements PharmacyOrderService {
         }
         PharmacyOrder updated = orderRepository.save(order);
 
-        if (STATUS_DELIVERED.equals(targetStatus)) {
-            try { commissionService.vestPharmacyCommission(orderId); }
-            catch (Exception ex) { log.error("Vest failed for order {}: {}", orderId, ex.getMessage()); }
+        if (STATUS_DELIVERED.equals(targetStatus)
+                || (STATUS_COMPLETED.equals(targetStatus) && isPickupOrder(order))) {
+            commissionService.vestPharmacyCommission(orderId);
         }
 
         audit.log("ORDER_STATUS_CHANGED", String.valueOf(orderId), null,
@@ -611,8 +623,9 @@ public class PharmacyOrderServiceImpl implements PharmacyOrderService {
         }
 
         String currentStatus = normalizeStatus(order.getStatus());
-        if (!Set.of(STATUS_PENDING, STATUS_CONFIRMED).contains(currentStatus)) {
-            throw new BadRequestException("Order can only be revised when status is PENDING or CONFIRMED");
+        if (!STATUS_PENDING.equals(currentStatus) || !requiresPatientConfirmation(order)) {
+            throw new BadRequestException(
+                    "Order revision is only available while patient confirmation is pending");
         }
 
         if (PAYMENT_STATUS_PAID.equalsIgnoreCase(safeValue(order.getPaymentStatus(), ""))) {
@@ -623,6 +636,7 @@ public class PharmacyOrderServiceImpl implements PharmacyOrderService {
         order.setRevisionRequestNotes(PharmacyServiceHelper.trimToNull(request.getReason()));
         order.setRevisionRequestedAt(LocalDateTime.now());
         order.setRevisionResolvedAt(null);
+        discardPatientConfirmationRequest(order);
         order.setPatientConfirmedAt(null);
 
         PharmacyOrder updated = orderRepository.save(order);
@@ -654,13 +668,15 @@ public class PharmacyOrderServiceImpl implements PharmacyOrderService {
         }
 
         String currentStatus = normalizeStatus(order.getStatus());
-        if (!Set.of(STATUS_PENDING, STATUS_CONFIRMED, STATUS_REVISION_REQUESTED).contains(currentStatus)) {
+        if (!Set.of(STATUS_PENDING, STATUS_REVISION_REQUESTED).contains(currentStatus)) {
             throw new BadRequestException("Cannot update quote for order with status " + currentStatus);
         }
 
         if (PAYMENT_STATUS_PAID.equalsIgnoreCase(safeValue(order.getPaymentStatus(), ""))) {
             throw new BadRequestException("Cannot update quote for a paid order");
         }
+
+        validateQuoteMedicineIdentity(order, request.getItems());
 
         List<PharmacyOrderItem> orderItems = buildOrderItemsFromRequest(request.getItems(),
                 order.getConsultationRequest());
@@ -697,7 +713,7 @@ public class PharmacyOrderServiceImpl implements PharmacyOrderService {
 
         order.setStatus(STATUS_PENDING);
         order.setRevisionResolvedAt(LocalDateTime.now());
-        order.setPatientConfirmedAt(null);
+        requestPatientConfirmation(order, CONFIRMATION_REASON_DELIVERY_QUOTE);
 
         revalidateStockAvailability(order);
 
@@ -1164,7 +1180,7 @@ public class PharmacyOrderServiceImpl implements PharmacyOrderService {
                     .medicationName(medicine.getName())
                     .totalSupplyDays(totalSupplyDays)
                     .quantity(quantity)
-                    .unit(PharmacyServiceHelper.firstNonBlank(itemRequest.getUnit(), medicine.getUnit()))
+                    .unit(requireMedicineUnit(medicine))
                     .frequency(PharmacyServiceHelper.trimToNull(itemRequest.getFrequency()))
                     .timing(normalizeOptionalTiming(itemRequest.getTimings(), itemRequest.getTiming()))
                     .route(PharmacyServiceHelper.trimToNull(itemRequest.getRoute()))
@@ -1312,7 +1328,7 @@ public class PharmacyOrderServiceImpl implements PharmacyOrderService {
                     .medicationName(safeValue(medicine.getName(), "Medication"))
                     .totalSupplyDays(1)
                     .quantity(quantity)
-                    .unit(PharmacyServiceHelper.firstNonBlank(medicine.getUnit(), "unit"))
+                    .unit(requireMedicineUnit(medicine))
                     .frequency("As directed")
                     .timing(null)
                     .route(null)
@@ -1322,6 +1338,34 @@ public class PharmacyOrderServiceImpl implements PharmacyOrderService {
         }
 
         return items;
+    }
+
+    private String requireMedicineUnit(Medicine medicine) {
+        String unit = PharmacyServiceHelper.trimToNull(medicine.getUnit());
+        if (unit == null) {
+            throw new BadRequestException("Unit is missing for medicine: "
+                    + safeValue(medicine.getName(), String.valueOf(medicine.getMedicineId())));
+        }
+        return unit;
+    }
+
+    private void validateQuoteMedicineIdentity(
+            PharmacyOrder order,
+            List<PharmacyOrderItemRequest> requestedItems
+    ) {
+        List<Integer> existingMedicineIds = order.getOrderItems().stream()
+                .map(PharmacyOrderItem::getMedicine)
+                .filter(Objects::nonNull)
+                .map(Medicine::getMedicineId)
+                .sorted()
+                .toList();
+        List<Integer> requestedMedicineIds = requestedItems.stream()
+                .map(PharmacyOrderItemRequest::getMedicineId)
+                .sorted()
+                .toList();
+        if (!existingMedicineIds.isEmpty() && !existingMedicineIds.equals(requestedMedicineIds)) {
+            throw new BadRequestException("Medicines cannot be changed while updating a quote");
+        }
     }
 
     private PrescriptionHeader resolveSourcePrescriptionHeader(
@@ -1467,6 +1511,20 @@ public class PharmacyOrderServiceImpl implements PharmacyOrderService {
         return status.trim().toUpperCase();
     }
 
+    private Set<String> allowedTransitionsFor(PharmacyOrder order, String currentStatus) {
+        if (STATUS_READY.equals(currentStatus)) {
+            return isPickupOrder(order)
+                    ? Set.of(STATUS_COMPLETED, STATUS_CANCELLED)
+                    : Set.of(STATUS_SHIPPING, STATUS_CANCELLED);
+        }
+        return ALLOWED_TRANSITIONS.getOrDefault(currentStatus, Set.of());
+    }
+
+    private boolean isPickupOrder(PharmacyOrder order) {
+        return order != null
+                && DELIVERY_TYPE_PICKUP.equalsIgnoreCase(safeValue(order.getDeliveryType(), ""));
+    }
+
     private void validateDeliveryRadius(Pharmacy pharmacy, Double deliveryLat, Double deliveryLon) {
         if (pharmacy.getDeliveryRadius() == null) {
             throw new BadRequestException("Pharmacy has no delivery radius configured");
@@ -1560,7 +1618,7 @@ public class PharmacyOrderServiceImpl implements PharmacyOrderService {
                 ? safeValue(order.getPatient().getFullName(), "Unknown patient")
                 : "Unknown patient";
         Integer orderId = order.getOrderId();
-        String actionUrl = "/pharmacy-orders/" + orderId;
+        String actionUrl = "/pharmacy-page/requests?orderId=" + orderId;
         String title = "Revision requested";
         String message = String.format(
                 "Patient %s requested changes for order %s.",

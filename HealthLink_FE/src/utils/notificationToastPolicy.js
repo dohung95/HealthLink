@@ -29,6 +29,39 @@ function extractIdFromActionUrl(actionUrl, pattern) {
   return match ? match[1] : null;
 }
 
+function orderTarget(notification) {
+  const orderId = getNotificationEntityId(notification);
+  return orderId
+    ? `/patient-dashboard/pharmacy/orders/${orderId}`
+    : '/patient-dashboard/pharmacy/orders';
+}
+
+export function getWorkflowNotificationTarget(notification = {}, role = '') {
+  const normalizedRole = String(role || '').trim().toLowerCase();
+  const actionUrl = String(notification.actionUrl || '');
+  const type = String(notification.type || '').toUpperCase();
+
+  if (normalizedRole === 'pharmacy') {
+    if (actionUrl.startsWith('/pharmacy-page/')) return actionUrl;
+    if (type === 'NEW_PHARMACY_REQUEST' || type === 'ORDER_STATUS') return '/pharmacy-page/requests';
+    if (['NEW_ORDER', 'INVOICE_PAID'].includes(type)) return '/pharmacy-page/orders';
+    if (type === 'CANCEL_ORDER') return '/pharmacy-page/order-list?tab=CANCELLED_REFUNDED';
+    return '/pharmacy-page/requests';
+  }
+
+  if (normalizedRole === 'patient') {
+    if (actionUrl.startsWith('/patient-dashboard/')) return actionUrl;
+    if (type === 'NEW_PHARMACY_REQUEST' || type === 'PHARMACY_REQUEST_STATUS') {
+      return '/patient-dashboard/pharmacy/requests';
+    }
+    if (['NEW_ORDER', 'ORDER_STATUS', 'PAYMENT_REQUIRED', 'INVOICE_PAID', 'CANCEL_ORDER'].includes(type)) {
+      return orderTarget(notification);
+    }
+  }
+
+  return null;
+}
+
 export function getNotificationEntityId(notification = {}) {
   return notification.relatedId
     || notification.orderId

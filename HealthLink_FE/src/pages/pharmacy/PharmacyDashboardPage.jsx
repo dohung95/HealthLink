@@ -97,7 +97,9 @@ export default function PharmacyDashboardPage() {
 
   useEffect(() => {
     const latest = notifications?.[0];
-    if (!latest || !isPharmacyAnnouncementType(latest.type)) return;
+    if (!latest) return;
+    const isOrderStatus = latest.type === 'ORDER_STATUS';
+    if (!isPharmacyAnnouncementType(latest.type) && !isOrderStatus) return;
 
     const notificationKey = latest.notificationId || `${latest.type}-${latest.relatedId}-${latest.createdAt || latest.timestamp || ''}`;
     if (!notificationKey || notificationKey === lastHandledWorkflowNotificationId) return;

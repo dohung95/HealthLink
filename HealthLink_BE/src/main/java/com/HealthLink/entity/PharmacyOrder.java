@@ -91,6 +91,7 @@ public class PharmacyOrder {
     private LocalDateTime preparingAt;
     private LocalDateTime shippedAt;
     private LocalDateTime deliveredAt;
+    private LocalDateTime completedAt;
     private LocalDateTime cancelledAt;
     private String cancelReason;
     private String cancelledBy;

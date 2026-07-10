@@ -69,6 +69,7 @@ public final class PharmacyOrderMapper {
                 .preparingAt(order.getPreparingAt())
                 .shippedAt(order.getShippedAt())
                 .deliveredAt(order.getDeliveredAt())
+                .completedAt(order.getCompletedAt())
                 .cancelledAt(order.getCancelledAt())
                 .cancelReason(order.getCancelReason())
                 .cancelledBy(order.getCancelledBy())

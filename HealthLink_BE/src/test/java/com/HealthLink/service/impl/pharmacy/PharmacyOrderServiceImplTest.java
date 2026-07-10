@@ -48,6 +48,7 @@ import org.mockito.junit.jupiter.MockitoExtension;
 
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
 
@@ -229,7 +230,9 @@ class PharmacyOrderServiceImplTest {
                 .build();
 
         PharmacyConsultationOrderCreateRequest request = new PharmacyConsultationOrderCreateRequest();
-        request.setItems(List.of(orderItemRequest(1, 2)));
+        PharmacyOrderItemRequest requestedItem = orderItemRequest(1, 2);
+        requestedItem.setUnit("box");
+        request.setItems(List.of(requestedItem));
         // Explicitly set delivery fields on request (overrides consultation request defaults)
         request.setDeliveryAddress("12 Nguyen Trai, Hanoi");
         request.setDeliveryLatitude(40.7130);
@@ -282,6 +285,7 @@ class PharmacyOrderServiceImplTest {
         assertThat(response.getMedicineAmount()).isEqualByComparingTo("30.00");
         assertThat(response.getItems()).hasSize(1);
         assertThat(response.getItems().get(0).getTotalPrice()).isEqualByComparingTo("30.00");
+        assertThat(response.getItems().get(0).getUnit()).isEqualTo("tablet");
 
         assertThat(response.getDeliveryAddress()).isEqualTo("12 Nguyen Trai, Hanoi");
         assertThat(response.getDeliveryLatitude()).isEqualTo(40.7130);
@@ -1001,10 +1005,11 @@ class PharmacyOrderServiceImplTest {
     void requestOrderRevision_shouldMarkRevisionRequestedAndClearPatientConfirmation() {
         User pharmacyUser = User.builder().id("pharmacy-user-1").build();
         User patientUser = User.builder().id("patient-user-1").build();
+        LocalDateTime confirmationRequestedAt = LocalDateTime.now().minusMinutes(10);
         PharmacyOrder order = PharmacyOrder.builder()
                 .orderId(77)
                 .orderNumber("ORD-20260520-0001")
-                .status("CONFIRMED")
+                .status("PENDING")
                 .paymentStatus("PENDING")
                 .patient(Patient.builder()
                         .patientId("patient-1")
@@ -1016,7 +1021,9 @@ class PharmacyOrderServiceImplTest {
                         .name("Central Pharmacy")
                         .user(pharmacyUser)
                         .build())
-                .patientConfirmedAt(LocalDateTime.now().minusHours(2))
+                .patientConfirmationRequestedAt(confirmationRequestedAt)
+                .patientConfirmationReason("DELIVERY_QUOTE")
+                .patientConfirmedAt(null)
                 .build();
         PharmacyOrderRevisionRequest request = new PharmacyOrderRevisionRequest();
         request.setReason("Please adjust delivery time");
@@ -1031,8 +1038,50 @@ class PharmacyOrderServiceImplTest {
         assertThat(order.getRevisionRequestNotes()).isEqualTo("Please adjust delivery time");
         assertThat(order.getRevisionRequestedAt()).isNotNull();
         assertThat(order.getRevisionResolvedAt()).isNull();
+        assertThat(order.getPatientConfirmationRequestedAt()).isNull();
+        assertThat(order.getPatientConfirmationReason()).isNull();
         assertThat(order.getPatientConfirmedAt()).isNull();
+        assertThat(order.getPaymentStatus()).isEqualTo("PENDING");
         verify(orderRepository).save(order);
+    }
+
+    @Test
+    void requestOrderRevision_shouldRejectPendingOrderWithoutConfirmationRequest() {
+        PharmacyOrder order = PharmacyOrder.builder()
+                .orderId(77)
+                .status("PENDING")
+                .paymentStatus("PENDING")
+                .patient(Patient.builder().patientId("patient-1").build())
+                .build();
+        when(orderRepository.findById(77)).thenReturn(Optional.of(order));
+
+        PharmacyOrderRevisionRequest request = new PharmacyOrderRevisionRequest();
+        request.setReason("Please change quantity");
+
+        assertThatThrownBy(() -> pharmacyOrderService.requestOrderRevision(77, request, "patient-1"))
+                .isInstanceOf(BadRequestException.class)
+                .hasMessage("Order revision is only available while patient confirmation is pending");
+        verify(orderRepository, never()).save(any(PharmacyOrder.class));
+    }
+
+    @Test
+    void requestOrderRevision_shouldRejectConfirmedOrder() {
+        PharmacyOrder order = PharmacyOrder.builder()
+                .orderId(77)
+                .status("CONFIRMED")
+                .paymentStatus("PENDING")
+                .patient(Patient.builder().patientId("patient-1").build())
+                .patientConfirmedAt(LocalDateTime.now())
+                .build();
+        when(orderRepository.findById(77)).thenReturn(Optional.of(order));
+
+        PharmacyOrderRevisionRequest request = new PharmacyOrderRevisionRequest();
+        request.setReason("Please change quantity");
+
+        assertThatThrownBy(() -> pharmacyOrderService.requestOrderRevision(77, request, "patient-1"))
+                .isInstanceOf(BadRequestException.class)
+                .hasMessage("Order revision is only available while patient confirmation is pending");
+        verify(orderRepository, never()).save(any(PharmacyOrder.class));
     }
 
     @Test
@@ -1059,9 +1108,11 @@ class PharmacyOrderServiceImplTest {
     void requestOrderRevision_shouldRejectPaidOrder() {
         PharmacyOrder order = PharmacyOrder.builder()
                 .orderId(77)
-                .status("CONFIRMED")
+                .status("PENDING")
                 .paymentStatus("PAID")
                 .patient(Patient.builder().patientId("patient-1").build())
+                .patientConfirmationRequestedAt(LocalDateTime.now().minusMinutes(5))
+                .patientConfirmationReason("DELIVERY_QUOTE")
                 .build();
         PharmacyOrderRevisionRequest request = new PharmacyOrderRevisionRequest();
         request.setReason("Wrong quote");
@@ -1070,7 +1121,7 @@ class PharmacyOrderServiceImplTest {
 
         assertThatThrownBy(() -> pharmacyOrderService.requestOrderRevision(77, request, "patient-1"))
                 .isInstanceOf(BadRequestException.class)
-                .hasMessage("Cannot request revision for a paid order");
+                .hasMessage("Order revision is only available while patient confirmation is pending");
 
         verify(orderRepository, never()).save(any(PharmacyOrder.class));
     }
@@ -1141,8 +1192,31 @@ class PharmacyOrderServiceImplTest {
         assertThat(response.getPharmacistNotes()).isEqualTo("Updated quote");
         assertThat(order.getPatientConfirmedAt()).isNull();
         assertThat(order.getRevisionResolvedAt()).isNotNull();
+        assertThat(order.getPatientConfirmationRequestedAt()).isNotNull();
+        assertThat(order.getPatientConfirmationReason()).isEqualTo("DELIVERY_QUOTE");
         assertThat(order.getOrderItems()).hasSize(1);
         verify(orderRepository).save(order);
+    }
+
+    @Test
+    void updateOrderQuote_shouldRejectConfirmedOrder() {
+        Pharmacy pharmacy = Pharmacy.builder().pharmacyId("pharmacy-1").build();
+        PharmacyOrder order = PharmacyOrder.builder()
+                .orderId(77)
+                .pharmacy(pharmacy)
+                .status("CONFIRMED")
+                .paymentStatus("PENDING")
+                .orderItems(new ArrayList<>())
+                .build();
+        when(orderRepository.findById(77)).thenReturn(Optional.of(order));
+
+        PharmacyConsultationOrderCreateRequest request = new PharmacyConsultationOrderCreateRequest();
+        request.setItems(List.of());
+
+        assertThatThrownBy(() -> pharmacyOrderService.updateOrderQuote(77, request, "pharmacy-1"))
+                .isInstanceOf(BadRequestException.class)
+                .hasMessage("Cannot update quote for order with status CONFIRMED");
+        verify(orderRepository, never()).save(any(PharmacyOrder.class));
     }
 
     @Test

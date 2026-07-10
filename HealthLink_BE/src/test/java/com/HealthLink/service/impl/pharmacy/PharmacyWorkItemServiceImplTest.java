@@ -732,7 +732,7 @@ class PharmacyWorkItemServiceImplTest {
                 .orderId(600)
                 .orderNumber("ORD-600")
                 .status("REVISION_REQUESTED")
-                .paymentStatus("PAID")
+                .paymentStatus("PENDING")
                 .createdAt(LocalDateTime.now())
                 .revisionRequestedAt(LocalDateTime.now())
                 .revisionRequestNotes("Please adjust quantity")
@@ -760,6 +760,7 @@ class PharmacyWorkItemServiceImplTest {
         assertThat(item.getWorkflowStage()).isEqualTo("REVISION_REQUESTED");
         assertThat(item.getRequestId()).isEqualTo(40);
         assertThat(item.getOrderId()).isEqualTo(600);
+        assertThat(item.getRevisionRequestNotes()).isEqualTo(order.getRevisionRequestNotes());
         assertThat(item.getAvailableActions()).containsExactly("UPDATE_QUOTE");
     }
 
@@ -771,9 +772,10 @@ class PharmacyWorkItemServiceImplTest {
                 .orderId(601)
                 .orderNumber("ORD-601")
                 .status("REVISION_REQUESTED")
-                .paymentStatus("PAID")
+                .paymentStatus("PENDING")
                 .createdAt(LocalDateTime.now())
                 .revisionRequestedAt(LocalDateTime.now())
+                .revisionRequestNotes("Please change the delivery time")
                 .build();
         PharmacyConsultationRequest req = PharmacyConsultationRequest.builder()
                 .requestId(41)
@@ -798,6 +800,7 @@ class PharmacyWorkItemServiceImplTest {
         assertThat(item.getWorkflowStage()).isEqualTo("REVISION_REQUESTED");
         assertThat(item.getRequestId()).isEqualTo(41);
         assertThat(item.getOrderId()).isEqualTo(601);
+        assertThat(item.getRevisionRequestNotes()).isEqualTo(order.getRevisionRequestNotes());
         assertThat(item.getAvailableActions()).containsExactly("UPDATE_QUOTE");
         assertThat(item.getAvailableActions()).doesNotContain("CHAT", "VIDEO_CALL", "CREATE_ORDER");
     }
@@ -810,12 +813,13 @@ class PharmacyWorkItemServiceImplTest {
                 .orderId(602)
                 .orderNumber("ORD-602")
                 .status("REVISION_REQUESTED")
-                .paymentStatus("PAID")
+                .paymentStatus("PENDING")
                 .patient(pat)
                 .pharmacy(p)
                 .consultationRequest(null)
                 .createdAt(LocalDateTime.now())
                 .revisionRequestedAt(LocalDateTime.now())
+                .revisionRequestNotes("Please adjust quantity")
                 .build();
 
         when(requestRepository.findByPharmacy_PharmacyIdOrderByCreatedAtDesc("PH001"))
@@ -831,6 +835,7 @@ class PharmacyWorkItemServiceImplTest {
         assertThat(item.getWorkflowStage()).isEqualTo("REVISION_REQUESTED");
         assertThat(item.getOrderId()).isEqualTo(602);
         assertThat(item.getRequestId()).isNull();
+        assertThat(item.getRevisionRequestNotes()).isEqualTo(order.getRevisionRequestNotes());
         assertThat(item.getAvailableActions()).containsExactly("UPDATE_QUOTE");
     }
 

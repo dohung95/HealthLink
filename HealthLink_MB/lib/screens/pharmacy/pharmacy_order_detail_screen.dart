@@ -168,13 +168,16 @@ class _PharmacyOrderDetailScreenState
     final provider = context.watch<PharmacyOrderProvider>();
 
     final order = provider.currentOrder;
-    final canEdit = order != null &&
+    final canEditQuote = order != null &&
+        (order.status == 'PENDING' || order.status == 'REVISION_REQUESTED');
+    final canUpdateStatus = order != null &&
         (order.status == 'PENDING' || order.status == 'CONFIRMED');
+    final hasOrderActions = canEditQuote || canUpdateStatus;
     return Scaffold(
       appBar: AppBar(
         title: const Text('Order Detail'),
         actions: [
-          if (canEdit)
+          if (hasOrderActions)
             PopupMenuButton<String>(
               icon: const Icon(Icons.more_vert),
               onSelected: (value) {
@@ -185,14 +188,16 @@ class _PharmacyOrderDetailScreenState
                 }
               },
               itemBuilder: (_) => [
-                const PopupMenuItem(
-                    value: 'status',
-                    child:
-                        ListTile(leading: Icon(Icons.update), title: Text('Update Status'))),
-                const PopupMenuItem(
-                    value: 'quote',
-                    child: ListTile(
-                        leading: Icon(Icons.edit), title: Text('Edit Quote'))),
+                if (canUpdateStatus)
+                  const PopupMenuItem(
+                      value: 'status',
+                      child:
+                          ListTile(leading: Icon(Icons.update), title: Text('Update Status'))),
+                if (canEditQuote)
+                  const PopupMenuItem(
+                      value: 'quote',
+                      child: ListTile(
+                          leading: Icon(Icons.edit), title: Text('Edit Quote'))),
               ],
             ),
         ],

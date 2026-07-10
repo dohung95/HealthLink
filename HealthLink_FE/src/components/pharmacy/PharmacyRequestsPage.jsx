@@ -9,11 +9,11 @@ import {
   canUseRequestChat,
   matchesPharmacyWorkflowSearch,
 } from './workflow/pharmacyWorkflow';
-import { useChat } from '../../context/ChatContext';
+import { createPortal } from 'react-dom';
 import CreateOrderModal from './CreateOrderModal/index';
+import MiniChatBox from '../chat/MiniChatBox';
 
 export default function PharmacyRequestsPage({ workItems, profile, reload, navigate: nav }) {
-  const { openChatWith } = useChat();
   const hookNavigate = useNavigate();
   const navigate = nav || hookNavigate;
   const [query, setQuery] = useState('');
@@ -23,6 +23,7 @@ export default function PharmacyRequestsPage({ workItems, profile, reload, navig
   const [savingId, setSavingId] = useState(null);
   const [rejectConfirmItem, setRejectConfirmItem] = useState(null);
   const [rejectConfirmSaving, setRejectConfirmSaving] = useState(false);
+  const [activeChatRequest, setActiveChatRequest] = useState(null);
 
   const [cardDeliveryFee, setCardDeliveryFee] = useState({});
   const [cardEstimatedMinutes, setCardEstimatedMinutes] = useState({});
@@ -149,15 +150,11 @@ export default function PharmacyRequestsPage({ workItems, profile, reload, navig
     item?.caseId || item?.workItemId || item?.requestId || item?.orderId || item?.deliveryContactChangeRequestId;
 
   const openRequestChat = (item) => {
-    if (!item?.chatRoomId) {
+    if (!canUseRequestChat(item)) {
       toast.info('Chat is not available for this request yet.');
       return;
     }
-    openChatWith({
-      chatRoomId: item.chatRoomId,
-      displayName: item.patientName || 'Patient',
-      patientId: item.patientId,
-    });
+    setActiveChatRequest(item);
   };
 
   const openRejectConfirm = (item) => {
@@ -178,14 +175,6 @@ export default function PharmacyRequestsPage({ workItems, profile, reload, navig
     if (rejected) {
       setRejectConfirmItem(null);
     }
-  };
-
-  const openRequestVideoCall = (item) => {
-    if (!item?.availableActions?.includes('VIDEO_CALL') || !item?.chatRoomId) {
-      toast.info('Video call is not available for this request yet.');
-      return;
-    }
-    toast.info('Open chat to start a video call for this request.');
   };
 
   const cardValue = (dict, itemId, fallback = '') => (dict[itemId] ?? fallback);
@@ -223,7 +212,7 @@ export default function PharmacyRequestsPage({ workItems, profile, reload, navig
               const itemId = getItemId(item);
               const isSaving = savingId === itemId;
               const canChat = canUseRequestChat(item);
-              const showChatVideo = canChat && !noChatVideoKinds.includes(kind);
+              const showChatAction = canChat && !noChatVideoKinds.includes(kind);
 
               let badgeLabel = stage;
               if (kind === 'deliveryOrderRequest') badgeLabel = 'Delivery quote';
@@ -458,6 +447,13 @@ export default function PharmacyRequestsPage({ workItems, profile, reload, navig
 
                   {(kind === 'consultation' || kind === 'deliveryOrderRequest' || kind === 'orderRequest' || kind === 'order' || kind === 'retailReview' || kind === 'revision') && (
                     <>
+                      {kind === 'revision' && (
+                        <div className="pharmacy-revision-request" style={{ marginTop: 8, padding: 10, borderLeft: '3px solid var(--pharmacy-warning)', background: 'var(--pharmacy-surface-alt, #fff8e1)', fontSize: 13 }}>
+                          <strong>Change requested</strong>
+                          <div>{item.revisionRequestNotes || 'Patient requested an order update.'}</div>
+                          {item.revisionRequestedAt && <small className="text-muted">{dateTime(item.revisionRequestedAt)}</small>}
+                        </div>
+                      )}
                       {item.deliveryPhoneNumber && (
                         <div style={{ fontSize: 13, color: 'var(--pharmacy-muted)' }}>
                           {item.deliveryPhoneNumber}
@@ -481,6 +477,7 @@ export default function PharmacyRequestsPage({ workItems, profile, reload, navig
                         {item.availableActions?.map((action) => {
                           if (!canRenderRequestAction(item, action, kind)) return null;
                           if (action === 'UPDATE_QUOTE' && kind !== 'revision') return null;
+                          if (action === 'CHAT' || action === 'VIDEO_CALL') return null;
                           const btn = ACTION_BUTTONS[action];
                           if (!btn) return null;
                           const isSavingThis = isSaving && pendingAction === action;
@@ -504,30 +501,21 @@ export default function PharmacyRequestsPage({ workItems, profile, reload, navig
                             </button>
                           );
                         })}
+                        {showChatAction && item.availableActions?.includes('CHAT') && (
+                          <button
+                            aria-label={`Chat with ${item.patientName || 'patient'}`}
+                            className="btn btn-sm btn-outline-secondary pharmacy-request-chat-button"
+                            onClick={(event) => {
+                              event.stopPropagation();
+                              openRequestChat(item);
+                            }}
+                            title="Chat with patient"
+                            type="button"
+                          >
+                            <i className="bi bi-chat-dots" aria-hidden="true"></i>
+                          </button>
+                        )}
                       </div>
-
-                      {showChatVideo && (
-                        <div className="pharmacy-case-actions" style={{ display: 'flex', gap: 8, flexWrap: 'wrap', marginTop: 4 }}>
-                          {item.availableActions?.includes('CHAT') && (
-                            <button
-                              className="btn btn-sm btn-outline-secondary"
-                              onClick={(e) => { e.stopPropagation(); openRequestChat(item); }}
-                              type="button"
-                            >
-                              Chat
-                            </button>
-                          )}
-                          {item.availableActions?.includes('VIDEO_CALL') && (
-                            <button
-                              className="btn btn-sm btn-outline-primary"
-                              onClick={(e) => { e.stopPropagation(); openRequestVideoCall(item); }}
-                              type="button"
-                            >
-                              Video Call
-                            </button>
-                          )}
-                        </div>
-                      )}
                     </>
                   )}
                 </div>
@@ -563,6 +551,16 @@ export default function PharmacyRequestsPage({ workItems, profile, reload, navig
               navigate('/pharmacy-page/orders');
             }}
           />
+        )}
+        {activeChatRequest && createPortal(
+          <MiniChatBox
+            chatRoomId={activeChatRequest.chatRoomId}
+            partnerUserId={activeChatRequest.patientId}
+            partnerName={activeChatRequest.patientName || 'Patient'}
+            isFullTab={false}
+            onClose={() => setActiveChatRequest(null)}
+          />,
+          document.body
         )}
       </div>
     </>

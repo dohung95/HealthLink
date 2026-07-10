@@ -1,115 +1,143 @@
-import { useMemo } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
+import pharmacyApi from '../../api/pharmacyApi';
 import {
   paymentStatusTone,
   paymentStatusLabel,
-  getWorkflowStage,
   getNextOrderStatus,
   getItemDisplayId,
+  isDeliveryOrder,
 } from './workflow/pharmacyWorkflow';
 import { money, dateTime, titleCase } from '../../utils/pharmacy/pharmacyHelpers';
 
-export default function PharmacyOrderDetailModal({ item, onClose, onStatusUpdate, onChat, savingId }) {
-  const nextStatus = useMemo(() => getNextOrderStatus(item), [item]);
-  const stage = getWorkflowStage(item);
-  const isSaving = savingId === (item?.orderId || item?.caseId);
-  const paymentTone = paymentStatusTone(item?.paymentStatus);
+const PICKUP_STEPS = [
+  ['CONFIRMED', 'Confirmed', 'confirmedAt'],
+  ['PREPARING', 'Preparing', 'preparingAt'],
+  ['READY', 'Ready', null],
+  ['COMPLETED', 'Picked up', 'completedAt'],
+];
 
-  if (!item) return null;
+const DELIVERY_STEPS = [
+  ['CONFIRMED', 'Confirmed', 'confirmedAt'],
+  ['PREPARING', 'Preparing', 'preparingAt'],
+  ['READY', 'Ready', null],
+  ['SHIPPING', 'Shipping', 'shippedAt'],
+  ['DELIVERED', 'Delivered', 'deliveredAt'],
+  ['COMPLETED', 'Completed', 'completedAt'],
+];
+
+function actionLabel(nextStatus, pickup) {
+  if (pickup && nextStatus === 'COMPLETED') return 'Mark as picked up';
+  return `Mark ${titleCase(nextStatus)}`;
+}
+
+function OrderProgress({ order }) {
+  const status = String(order.status || '').toUpperCase();
+  const steps = isDeliveryOrder(order) ? DELIVERY_STEPS : PICKUP_STEPS;
+  const currentIndex = steps.findIndex(([value]) => value === status);
 
   return (
-    <div className="pharmacy-order-detail-modal" role="dialog" aria-modal="true">
-      <button className="pharmacy-order-detail-backdrop" onClick={onClose} type="button" aria-label="Close" />
-      <div className="pharmacy-order-detail-sheet">
-        <div className="pharmacy-order-detail-header">
-          <div>
-            <h2>{getItemDisplayId(item)}</h2>
-            <span className={`pharmacy-status ${paymentTone}`}>{paymentStatusLabel(item?.paymentStatus)}</span>
-          </div>
-          <button className="pharmacy-order-detail-close" onClick={onClose} type="button" aria-label="Close">
-            <span className="material-symbols-outlined">close</span>
-          </button>
+    <div className="pharmacy-order-progress" aria-label="Order fulfillment progress">
+      {steps.map(([value, label], index) => (
+        <div className={`pharmacy-order-progress__step ${index < currentIndex ? 'is-complete' : ''} ${index === currentIndex ? 'is-current' : ''}`} key={value}>
+          <span>{index < currentIndex ? 'check' : index + 1}</span>
+          <small>{label}</small>
         </div>
+      ))}
+    </div>
+  );
+}
+
+export default function PharmacyOrderDetailModal({ item, profile, onClose, onStatusUpdate, savingId }) {
+  const [order, setOrder] = useState(null);
+  const [error, setError] = useState('');
+  const [loading, setLoading] = useState(true);
+  const [confirmPickup, setConfirmPickup] = useState(false);
+  const headingRef = useRef(null);
+  const originRef = useRef(document.activeElement);
+
+  const loadOrder = async () => {
+    if (!item?.orderId) return;
+    setLoading(true);
+    setError('');
+    try {
+      setOrder(await pharmacyApi.getOrderById(item.orderId));
+    } catch (loadError) {
+      setError(loadError.response?.data?.message || 'Unable to load order details.');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    loadOrder();
+    window.setTimeout(() => headingRef.current?.focus(), 0);
+    const onKeyDown = (event) => { if (event.key === 'Escape') onClose(); };
+    window.addEventListener('keydown', onKeyDown);
+    return () => {
+      window.removeEventListener('keydown', onKeyDown);
+      originRef.current?.focus?.();
+    };
+  }, [item?.orderId]);
+
+  const nextStatus = useMemo(() => order ? getNextOrderStatus(order) : null, [order]);
+  const pickup = order && !isDeliveryOrder(order);
+  const isSaving = savingId === (order?.orderId || item?.orderId);
+
+  const submitStatus = async () => {
+    setConfirmPickup(false);
+    await onStatusUpdate({ ...item, ...order, workflowStage: order.status, orderStatus: order.status });
+  };
+
+  const activity = order ? [
+    ['Order created', order.createdAt],
+    ['Order confirmed', order.confirmedAt],
+    ['Preparing', order.preparingAt],
+    ['Shipped', order.shippedAt],
+    ['Delivered', order.deliveredAt],
+    ['Completed', order.completedAt],
+    ['Cancelled', order.cancelledAt],
+  ].filter(([, timestamp]) => timestamp) : [];
+
+  return (
+    <div className="pharmacy-order-detail-modal" role="dialog" aria-modal="true" aria-labelledby="pharmacy-order-detail-title">
+      <button className="pharmacy-order-detail-backdrop" onClick={onClose} type="button" aria-label="Close" />
+      <section className="pharmacy-order-detail-sheet">
+        <header className="pharmacy-order-detail-header">
+          <div>
+            <h2 id="pharmacy-order-detail-title" ref={headingRef} tabIndex="-1">{getItemDisplayId(order || item)}</h2>
+            {order && <small>{dateTime(order.createdAt)}</small>}
+            <div className="pharmacy-order-detail-badges">
+              {order && <span className={`pharmacy-status ${paymentStatusTone(order.status)}`}>{titleCase(order.status)}</span>}
+              {order && <span className={`pharmacy-status ${paymentStatusTone(order.paymentStatus)}`}>{paymentStatusLabel(order.paymentStatus)}</span>}
+              {order && <span className="pharmacy-status tone-neutral">{titleCase(order.deliveryType || 'Pickup')}</span>}
+            </div>
+          </div>
+          <button className="pharmacy-order-detail-close" onClick={onClose} type="button" aria-label="Close"><span className="material-symbols-outlined">close</span></button>
+        </header>
 
         <div className="pharmacy-order-detail-body">
-          <div className="pharmacy-detail-grid">
-            <div className="pharmacy-detail">
-              <span>Patient</span>
-              <strong>{item.patientName || 'Unknown'}</strong>
-            </div>
-            <div className="pharmacy-detail">
-              <span>Phone</span>
-              <strong>{item.deliveryPhoneNumber || '-'}</strong>
-            </div>
-            <div className="pharmacy-detail">
-              <span>Status</span>
-              <span className={`pharmacy-status ${paymentStatusTone(stage)}`}>{titleCase(stage)}</span>
-            </div>
-            <div className="pharmacy-detail">
-              <span>Total</span>
-              <strong style={{ color: 'var(--pharmacy-primary)' }}>{money(item.totalAmount || item.totalPrice || 0)}</strong>
-            </div>
-          </div>
-
-          {item.deliveryAddress && (
-            <div className="pharmacy-detail is-block">
-              <span>Delivery Address</span>
-              <strong>{item.deliveryAddress}</strong>
-              {item.deliveryType && <div style={{ marginTop: 4, fontSize: 12, color: 'var(--pharmacy-muted)' }}>{item.deliveryType}</div>}
-            </div>
-          )}
-
-          {item.items?.length > 0 && (
-            <div className="pharmacy-order-items" style={{ marginTop: 12 }}>
-              <h3>Items ({item.items.length})</h3>
-              {item.items.map((orderItem, idx) => (
-                <div className="pharmacy-order-item-row" key={idx}>
-                  <div>
-                    <strong>{orderItem.medicationName || orderItem.name || `Item #${idx + 1}`}</strong>
-                    <small>{orderItem.quantity} {orderItem.unit} - {orderItem.frequency || ''}</small>
-                  </div>
-                  <small>{money(orderItem.totalPrice || orderItem.price || 0)}</small>
-                </div>
-              ))}
-            </div>
-          )}
-
-          {item.timeline?.length > 0 && (
-            <div className="pharmacy-timeline">
-              <h3>Timeline</h3>
-              {item.timeline.map((entry, idx) => (
-                <div key={idx} className={idx === 0 ? 'is-current' : ''}>
-                  <span />
-                  <small>{dateTime(entry.timestamp)}</small>
-                  <small>{entry.label || entry.status || '-'}</small>
-                </div>
-              ))}
-            </div>
+          {loading && <div className="pharmacy-loading"><span className="spinner-border spinner-border-sm" /> Loading order details...</div>}
+          {error && <div className="pharmacy-detail-error"><p>{error}</p><button className="btn btn-outline-primary btn-sm" onClick={loadOrder} type="button">Retry</button></div>}
+          {order && !loading && (
+            <>
+              <OrderProgress order={order} />
+              <div className="pharmacy-order-detail-banner">{pickup ? 'Waiting for patient pickup' : order.status === 'SHIPPING' ? 'Out for delivery' : 'Order fulfillment in progress'}</div>
+              <section className="pharmacy-detail-section"><h3>Patient</h3><strong>{order.patientName || 'Unknown patient'}</strong><span>{order.deliveryPhoneNumber || '-'}</span></section>
+              <section className="pharmacy-detail-section"><h3>{pickup ? 'Pickup' : 'Delivery'}</h3>{pickup ? <><strong>{profile?.name || order.pharmacyName || 'Pharmacy'}</strong><span>{profile?.address || 'Pharmacy address unavailable'}</span><span>{profile?.phoneNumber || order.pharmacyPhone || '-'}</span></> : <><strong>{order.deliveryAddress || '-'}</strong><span>{order.deliveryPhoneNumber || '-'}</span></>}</section>
+              <section className="pharmacy-detail-section"><h3>Medicines</h3><div className="pharmacy-order-items">{order.items?.map((orderItem, index) => <div className="pharmacy-order-item-row" key={`${orderItem.medicineId || orderItem.medicationName}-${index}`}><div><strong>{orderItem.medicationName || orderItem.name}</strong><small>{orderItem.quantity} {orderItem.unit} {orderItem.route ? `- ${orderItem.route}` : ''} {orderItem.frequency ? `- ${orderItem.frequency}` : ''}</small></div><small>{money(orderItem.totalPrice || 0)}</small></div>)}</div></section>
+              <section className="pharmacy-detail-section pharmacy-payment-summary"><h3>Payment summary</h3><div><span>Medicine subtotal</span><strong>{money(order.medicineAmount || 0)}</strong></div><div><span>Delivery fee</span><strong>{money(order.deliveryFee || 0)}</strong></div><div><span>Platform fee</span><strong>{money(order.platformFee || 0)}</strong></div><div><span>Pharmacy earning</span><strong>{money(order.pharmacyEarning || 0)}</strong></div><div className="is-total"><span>Total</span><strong>{money(order.totalAmount || 0)}</strong></div></section>
+              {(order.notes || order.pharmacistNotes) && <details className="pharmacy-detail-section"><summary>Order notes</summary><p>{order.pharmacistNotes || order.notes}</p></details>}
+              {activity.length > 0 && <section className="pharmacy-detail-section"><h3>Activity</h3><div className="pharmacy-timeline">{activity.map(([label, timestamp]) => <div key={label}><span /><small>{dateTime(timestamp)}</small><small>{label}</small></div>)}</div></section>}
+            </>
           )}
         </div>
 
-        <div className="pharmacy-order-detail-footer">
-          {item.requiresPatientConfirmation ? (
-            <span className="btn btn-secondary" style={{ fontSize: 12 }} disabled>
-              Awaiting patient confirmation
-            </span>
-          ) : nextStatus && onStatusUpdate ? (
-            <button
-              className="btn btn-primary"
-              disabled={isSaving}
-              onClick={() => onStatusUpdate(item)}
-              type="button"
-            >
-              {isSaving ? 'Updating...' : `Mark ${titleCase(nextStatus)}`}
-            </button>
-          ) : null}
-          {item.availableActions?.includes('CHAT') && onChat && (
-            <button className="btn btn-outline-secondary" onClick={() => onChat(item)} type="button">
-              <i className="bi bi-chat-dots" /> Chat
-            </button>
-          )}
+        <footer className="pharmacy-order-detail-footer">
           <button className="btn btn-light" onClick={onClose} type="button">Close</button>
-        </div>
-      </div>
+          {nextStatus && !order?.requiresPatientConfirmation && <button className="btn btn-primary" disabled={isSaving || loading} onClick={() => pickup && nextStatus === 'COMPLETED' ? setConfirmPickup(true) : submitStatus()} type="button">{isSaving ? 'Updating...' : actionLabel(nextStatus, pickup)}</button>}
+        </footer>
+        {confirmPickup && <div className="pharmacy-order-pickup-confirm"><div role="alertdialog" aria-modal="true"><h3>Confirm patient pickup?</h3><p>Confirm that the medicines have been handed to the patient. This will complete the order.</p><button className="btn btn-light" onClick={() => setConfirmPickup(false)} type="button">Back</button><button className="btn btn-primary" onClick={submitStatus} type="button">Confirm pickup</button></div></div>}
+      </section>
     </div>
   );
 }

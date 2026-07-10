@@ -99,6 +99,20 @@ export async function searchRoomMessages(chatRoomId, query) {
 }
 
 /**
+ * Get a specific chat room by its ID.
+ * @param {string} chatRoomId - The chat room ID
+ * @returns {Promise<ChatRoomDTO>}
+ */
+export async function getRoomById(chatRoomId) {
+    const token = getToken();
+    const res = await fetch(`${BASE}/rooms/${encodeURIComponent(chatRoomId)}`, {
+        headers: { Authorization: `Bearer ${token}` },
+    });
+    if (!res.ok) throw new Error(`getRoomById failed: ${res.status}`);
+    return res.json();
+}
+
+/**
  * Gửi tin nhắn mới.
  * senderId được lấy tự động từ JWT ở backend — không cần truyền.
  *

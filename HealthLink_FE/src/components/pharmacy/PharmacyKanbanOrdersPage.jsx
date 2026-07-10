@@ -16,7 +16,7 @@ import {
 } from './workflow/pharmacyWorkflow';
 import PharmacyOrderDetailModal from './PharmacyOrderDetailModal';
 
-export default function PharmacyKanbanOrdersPage({ workItems, orders, reload }) {
+export default function PharmacyKanbanOrdersPage({ workItems, orders, profile, reload }) {
   const [query, setQuery] = useState('');
   const [detailItem, setDetailItem] = useState(null);
   const [savingId, setSavingId] = useState(null);
@@ -60,7 +60,7 @@ export default function PharmacyKanbanOrdersPage({ workItems, orders, reload }) 
       <div className="pharmacy-workflow-header">
         <div className="pharmacy-workflow-title">
           <span className="material-symbols-outlined">view_column</span>
-          <h1>Kanban Orders</h1>
+          <h1>Orders flow</h1>
         </div>
         <div className="pharmacy-workflow-search">
           <span className="material-symbols-outlined">search</span>
@@ -134,6 +134,7 @@ export default function PharmacyKanbanOrdersPage({ workItems, orders, reload }) 
         {detailItem && (
           <PharmacyOrderDetailModal
             item={detailItem}
+            profile={profile}
             onClose={() => setDetailItem(null)}
             onStatusUpdate={handleQuickStatus}
             savingId={savingId}

@@ -156,6 +156,10 @@ function normalizeDelivery(value) {
   return String(value || '').trim().toUpperCase() === 'DELIVERY';
 }
 
+function isPrescriptionSourcedItem(item) {
+  return Boolean(item?.sourcePrescriptionItemId || item?.sourcePrescriptionHeaderId);
+}
+
 export default function CreateOrderModal({
   request,
   profile,
@@ -166,11 +170,12 @@ export default function CreateOrderModal({
   orderId,
 }) {
   const isConsultMode = variant === 'consult';
+  const isQuoteRevision = mode === 'updateQuote';
   const isOrderRequest = request?.requestType === 'ORDER_REQUEST' || request?.sourceType === 'ORDER_REQUEST';
   const effectiveOrderId = orderId || request?.orderId || null;
   const [leftTab, setLeftTab] = useState(isConsultMode ? 'summary' : 'prescriptions');
   const isSummaryTab = isConsultMode && leftTab === 'summary';
-  const isMedicinesTab = !isOrderRequest && leftTab === 'medicine';
+  const isMedicinesTab = !isOrderRequest && !isQuoteRevision && leftTab === 'medicine';
   const [orderItems, setOrderItems] = useState([]);
   const [prescriptions, setPrescriptions] = useState([]);
   const [loadingPrescriptions, setLoadingPrescriptions] = useState(false);
@@ -206,10 +211,10 @@ export default function CreateOrderModal({
         medicationName: item.medicationName,
         totalSupplyDays: Number(item.totalSupplyDays || 1),
         quantity: Number(item.quantity || 1),
-        unit: item.unit || 'unit',
+        unit: item.unit || '',
         frequency: item.frequency || '',
         timing: item.timing || '',
-        route: item.route || '',
+        route: item.route || (isPrescriptionSourcedItem(item) ? '' : 'Oral'),
         totalPrice: Number(item.totalPrice || 0),
         notes: item.notes || '',
         sourcePrescriptionHeaderId: item.sourcePrescriptionHeaderId,
@@ -340,7 +345,7 @@ export default function CreateOrderModal({
   };
 
   const addMedicine = (medicine) => {
-    if (isOrderRequest) return;
+    if (isOrderRequest || isQuoteRevision) return;
     const medicineId = medicine?.medicineId || medicine?.id;
     if (!medicineId) {
       toast.error('Selected medicine is missing an ID.');
@@ -358,10 +363,10 @@ export default function CreateOrderModal({
           medicationName: getMedicineDisplayName(medicine),
           totalSupplyDays: 1,
           quantity: 1,
-          unit: medicine.unit || 'unit',
+          unit: medicine.unit || '',
           frequency: 'As directed',
           timing: '',
-          route: '',
+          route: 'Oral',
           totalPrice: Number(medicine.price || 0),
           notes: '',
         },
@@ -397,6 +402,11 @@ export default function CreateOrderModal({
 
     if (!orderItems.length) {
       toast.error('Add at least one medication.');
+      return;
+    }
+    const missingUnitItem = orderItems.find((item) => !String(item.unit || '').trim());
+    if (missingUnitItem) {
+      toast.error(`Unit is missing for medicine: ${missingUnitItem.medicationName || 'selected medicine'}`);
       return;
     }
     if (isOrderRequest && !orderItems.every((item) => item.sourcePrescriptionItemId)) {
@@ -499,7 +509,7 @@ export default function CreateOrderModal({
                 <i className="bi bi-prescription me-1"></i>
                 Prescriptions
               </button>
-              {!isOrderRequest && (
+              {!isOrderRequest && !isQuoteRevision && (
                 <button
                   className={`pharmacy-tab-btn ${leftTab === 'medicine' ? 'is-active' : ''}`}
                   onClick={() => setLeftTab('medicine')}
@@ -607,7 +617,7 @@ export default function CreateOrderModal({
                     key={orderItem.localId}
                     index={index + 1}
                     expanded={expandedItemId === orderItem.localId}
-                    lockedMedication={isOrderRequest}
+                    lockedMedication={isPrescriptionSourcedItem(orderItem) || isQuoteRevision}
                     onToggle={() => setExpandedItemId(
                       (prev) => prev === orderItem.localId ? null : orderItem.localId,
                     )}
