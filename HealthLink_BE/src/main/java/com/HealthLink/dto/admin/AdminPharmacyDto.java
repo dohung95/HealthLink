@@ -21,6 +21,8 @@ public class AdminPharmacyDto {
     private String city;
     private String district;
     private String ward;
+    private Double latitude;
+    private Double longitude;
     private String phoneNumber;
     private String email;
     private String description;

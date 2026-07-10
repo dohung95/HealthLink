@@ -2,7 +2,6 @@ package com.HealthLink.dto.registration;
 
 import jakarta.validation.constraints.*;
 import lombok.*;
-import java.math.BigDecimal;
 
 @Data
 @NoArgsConstructor
@@ -18,6 +17,10 @@ public class DoctorRegistrationRequest {
 
     @NotBlank(message = "Phone number is required")
     private String phoneNumber;
+
+    @NotBlank(message = "PayPal email is required")
+    @Email(message = "Invalid PayPal email format")
+    private String paypalEmail;
 
     @NotBlank(message = "Qualifications are required")
     private String qualifications;
@@ -39,14 +42,20 @@ public class DoctorRegistrationRequest {
 
     private String bio;
 
-    @NotNull(message = "Consultation fee is required")
-    @DecimalMin(value = "1.0", message = "Consultation fee must be at least 1.0")
-    private BigDecimal consultationFee;
-
     @NotBlank(message = "Clinic/Hospital name is required")
     private String clinicName;
 
     @NotBlank(message = "Clinic/Hospital address is required")
     private String clinicAddress;
+
+    @NotNull(message = "Clinic location pin is required")
+    private Double latitude;
+
+    @NotNull(message = "Clinic location pin is required")
+    private Double longitude;
+
+    @DecimalMin(value = "1.0", message = "Home visit service radius must be at least 1km")
+    @DecimalMax(value = "25.0", message = "Home visit service radius cannot exceed 25km")
+    private Double homeVisitRadiusKm;
 
 }

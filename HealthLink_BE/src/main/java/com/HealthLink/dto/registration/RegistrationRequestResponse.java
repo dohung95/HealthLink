@@ -33,6 +33,9 @@ public class RegistrationRequestResponse {
     private BigDecimal consultationFee;
     private String clinicName;
     private String clinicAddress;
+    private Double latitude;
+    private Double longitude;
+    private Double homeVisitRadiusKm;
     // Pharmacy fields
     private String pharmacyName;
     private String licenseNumber;

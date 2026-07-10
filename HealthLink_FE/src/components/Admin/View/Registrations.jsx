@@ -30,6 +30,7 @@ export default function Registrations() {
 
   // Modal states
   const [showViewModal, setShowViewModal] = useState(false);
+  const [showApproveModal, setShowApproveModal] = useState(false);
   const [showRejectModal, setShowRejectModal] = useState(false);
   const [showPreviewModal, setShowPreviewModal] = useState(false);
   const [selectedRequest, setSelectedRequest] = useState(null);
@@ -99,20 +100,24 @@ export default function Registrations() {
   };
 
   // Handle approve
-  const handleApprove = async (request) => {
-    if (!window.confirm(`Are you sure you want to approve this ${request.registrationType.toLowerCase()} registration?`)) {
-      return;
-    }
+  const handleApproveClick = (request) => {
+    setSelectedRequest(request);
+    setShowApproveModal(true);
+  };
+
+  const handleApproveConfirm = async () => {
+    if (!selectedRequest) return;
 
     setProcessing(true);
     try {
-      await registrationsApi.review(request.requestId, 'APPROVE');
+      await registrationsApi.review(selectedRequest.requestId, 'APPROVE');
       showToast({
         title: 'Success',
-        message: `${request.registrationType} registration approved successfully!`,
+        message: `${selectedRequest.registrationType} registration approved successfully!`,
         type: 'success'
       });
       fetchRegistrations();
+      setShowApproveModal(false);
       setShowViewModal(false);
     } catch (err) {
       showToast({
@@ -423,7 +428,7 @@ export default function Registrations() {
                               <>
                                 <button
                                   className="btn-icon approve"
-                                  onClick={() => handleApprove(request)}
+                                  onClick={() => handleApproveClick(request)}
                                   disabled={processing}
                                   title="Approve"
                                 >
@@ -574,6 +579,28 @@ export default function Registrations() {
                           {selectedRequest.clinicAddress ? selectedRequest.clinicAddress : <span className="text-warning fst-italic">Not provided</span>}
                         </span>
                       </div>
+                      <div className="detail-row">
+                        <span className="label">Clinic Location Pin:</span>
+                        <span className="value">
+                          {selectedRequest.latitude != null && selectedRequest.longitude != null ? (
+                            <a
+                              href={`https://www.google.com/maps?q=${selectedRequest.latitude},${selectedRequest.longitude}`}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                            >
+                              {selectedRequest.latitude.toFixed(6)}, {selectedRequest.longitude.toFixed(6)} <i className="bi bi-box-arrow-up-right"></i>
+                            </a>
+                          ) : (
+                            <span className="text-warning fst-italic">Not provided</span>
+                          )}
+                        </span>
+                      </div>
+                      <div className="detail-row">
+                        <span className="label">Home Visit Radius:</span>
+                        <span className="value">
+                          {selectedRequest.homeVisitRadiusKm != null ? `${selectedRequest.homeVisitRadiusKm} km` : <span className="text-warning fst-italic">Not provided</span>}
+                        </span>
+                      </div>
                     </div>
                     <div className="detail-section">
                       <h4><i className="bi bi-calendar-check"></i> Availability</h4>
@@ -622,6 +649,22 @@ export default function Registrations() {
                       <div className="detail-row">
                         <span className="label">Ward:</span>
                         <span className="value">{selectedRequest.ward || 'N/A'}</span>
+                      </div>
+                      <div className="detail-row">
+                        <span className="label">Location Pin:</span>
+                        <span className="value">
+                          {selectedRequest.latitude != null && selectedRequest.longitude != null ? (
+                            <a
+                              href={`https://www.google.com/maps?q=${selectedRequest.latitude},${selectedRequest.longitude}`}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                            >
+                              {selectedRequest.latitude.toFixed(6)}, {selectedRequest.longitude.toFixed(6)} <i className="bi bi-box-arrow-up-right"></i>
+                            </a>
+                          ) : (
+                            <span className="text-warning fst-italic">Not provided</span>
+                          )}
+                        </span>
                       </div>
                     </div>
                     <div className="detail-section">
@@ -766,7 +809,7 @@ export default function Registrations() {
                 <>
                   <button
                     className="btn btn-success"
-                    onClick={() => handleApprove(selectedRequest)}
+                    onClick={() => handleApproveClick(selectedRequest)}
                     disabled={processing}
                   >
                     <i className="bi bi-check-lg"></i> Approve
@@ -787,6 +830,42 @@ export default function Registrations() {
               )}
               <button className="btn btn-secondary" onClick={() => setShowViewModal(false)}>
                 Close
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Approve Modal */}
+      {showApproveModal && selectedRequest && (
+        <div className="modal-overlay" onClick={() => !processing && setShowApproveModal(false)}>
+          <div className="modal-content small" onClick={(e) => e.stopPropagation()}>
+            <div className="modal-header success">
+              <h3><i className="bi bi-check-circle"></i> Approve Registration</h3>
+              <button className="close-btn" onClick={() => setShowApproveModal(false)} disabled={processing}>
+                <i className="bi bi-x-lg"></i>
+              </button>
+            </div>
+            <div className="modal-body">
+              <p className="confirm-text">
+                Are you sure you want to approve this {selectedRequest.registrationType.toLowerCase()} registration for:
+                <strong>
+                  {selectedRequest.registrationType === 'DOCTOR'
+                    ? selectedRequest.fullName
+                    : selectedRequest.pharmacyName}
+                </strong>
+              </p>
+            </div>
+            <div className="modal-footer">
+              <button
+                className="btn btn-success"
+                onClick={handleApproveConfirm}
+                disabled={processing}
+              >
+                {processing ? 'Processing...' : 'Confirm Approval'}
+              </button>
+              <button className="btn btn-secondary" onClick={() => setShowApproveModal(false)} disabled={processing}>
+                Cancel
               </button>
             </div>
           </div>

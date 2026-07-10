@@ -3,13 +3,18 @@ package com.HealthLink.controller.admin;
 import com.HealthLink.dto.admin.AdminPharmacyDto;
 import com.HealthLink.dto.admin.AdminPharmacyPageResponse;
 import com.HealthLink.dto.admin.AdminPharmacyUpdateDto;
+import com.HealthLink.dto.admin.PaypalEmailChangeRequest;
+import com.HealthLink.dto.admin.PaypalEmailOtpRequest;
 import com.HealthLink.dto.admin.StatusUpdateRequest;
 import com.HealthLink.dto.admin.VerificationUpdateRequest;
 import com.HealthLink.service.admin.AdminPharmacyService;
+import jakarta.validation.Valid;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.core.Authentication;
 import org.springframework.web.bind.annotation.*;
+
+import java.util.Map;
 
 @CrossOrigin(origins = "http://localhost:63527")
 @RestController
@@ -83,5 +88,27 @@ public class AdminPharmacyController {
     public ResponseEntity<Void> deletePharmacy(@PathVariable String pharmacyId) {
         adminPharmacyService.deletePharmacy(pharmacyId);
         return ResponseEntity.noContent().build();
+    }
+
+    @PutMapping("/{pharmacyId}/paypal-email/request")
+    public ResponseEntity<Map<String, String>> requestPharmacyPaypalEmailChange(
+            @PathVariable String pharmacyId,
+            @Valid @RequestBody PaypalEmailChangeRequest request
+    ) {
+        adminPharmacyService.requestPharmacyPaypalEmailChange(pharmacyId, request.getNewPaypalEmail());
+        return ResponseEntity.ok(Map.of("message", "OTP sent to " + request.getNewPaypalEmail()));
+    }
+
+    @PutMapping("/{pharmacyId}/paypal-email/verify")
+    public ResponseEntity<AdminPharmacyDto> verifyPharmacyPaypalEmailChange(
+            @PathVariable String pharmacyId,
+            @Valid @RequestBody PaypalEmailOtpRequest request,
+            Authentication authentication
+    ) {
+        String adminUserId = authentication != null ? authentication.getName() : null;
+        AdminPharmacyDto updated = adminPharmacyService.verifyPharmacyPaypalEmailChange(
+                pharmacyId, request.getOtp(), request.getReason(), adminUserId
+        );
+        return ResponseEntity.ok(updated);
     }
 }

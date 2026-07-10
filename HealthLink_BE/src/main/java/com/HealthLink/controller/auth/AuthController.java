@@ -115,4 +115,15 @@ public class AuthController {
         authService.confirmEmail(token);
         return ResponseEntity.ok(Map.of("message", "Email confirmed successfully! You can now log in."));
     }
+
+    /**
+     * GET /api/auth/confirm-paypal-email?token=xxx
+     * Xác nhận PayPal email sau khi đăng ký được duyệt — người dùng click vào link trong email.
+     * Endpoint PUBLIC, không cần JWT.
+     */
+    @GetMapping("/confirm-paypal-email")
+    public ResponseEntity<Map<String, String>> confirmPaypalEmail(@RequestParam String token) {
+        authService.confirmPaypalEmail(token);
+        return ResponseEntity.ok(Map.of("message", "PayPal email confirmed successfully!"));
+    }
 }

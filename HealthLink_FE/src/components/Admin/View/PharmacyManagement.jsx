@@ -3,6 +3,7 @@ import NavbarAdmin from "./NavbarAdmin";
 import { pharmaciesApi } from "../../../api/adminApi";
 import Toast from "./Toast";
 import useToast from "../useToast";
+import PaypalEmailChangeModal from "../PaypalEmailChangeModal";
 import { getAvatarUrl } from "../../../utils/avatarHelper";
 import "bootstrap/dist/css/bootstrap.min.css";
 import "bootstrap-icons/font/bootstrap-icons.css";
@@ -36,6 +37,7 @@ export default function PharmacyManagement() {
   const [selectedPharmacy, setSelectedPharmacy] = useState(null);
   const [showViewModal, setShowViewModal] = useState(false);
   const [showStatusModal, setShowStatusModal] = useState(false);
+  const [showPaypalModal, setShowPaypalModal] = useState(false);
   const [newStatus, setNewStatus] = useState('');
   const [statusReason, setStatusReason] = useState('');
   const [showActionLoading, setShowActionLoading] = useState(false);
@@ -114,6 +116,18 @@ export default function PharmacyManagement() {
     setNewStatus(pharmacy.status || 'ACTIVE');
     setStatusReason('');
     setShowStatusModal(true);
+  };
+
+  const handleOpenPaypalModal = (pharmacy) => {
+    setSelectedPharmacy(pharmacy);
+    setShowPaypalModal(true);
+  };
+
+  const handlePaypalEmailUpdated = (updated) => {
+    const id = getPharmacyId(selectedPharmacy);
+    setPharmacies((prev) => prev.map((item) =>
+      getPharmacyId(item) === id ? { ...item, paypalEmail: updated?.paypalEmail ?? item.paypalEmail } : item
+    ));
   };
 
   const handleUpdateStatus = async () => {
@@ -380,7 +394,7 @@ export default function PharmacyManagement() {
                     {pharmacy.deliveryAvailable && (
                       <div className="card-detail-item">
                         <i className="bi bi-truck text-success"></i>
-                        <span>Delivery Available</span>
+                        <span>Delivery Available &middot; {formatCurrency(pharmacy.deliveryFee)}</span>
                       </div>
                     )}
                   </div>
@@ -409,6 +423,13 @@ export default function PharmacyManagement() {
                       title="Change Status"
                     >
                       <i className="bi bi-toggle-on"></i>
+                    </button>
+                    <button
+                      className="card-action-btn"
+                      onClick={(e) => { e.stopPropagation(); handleOpenPaypalModal(pharmacy); }}
+                      title="Change PayPal Email"
+                    >
+                      <i className="bi bi-paypal"></i>
                     </button>
                   </div>
                 </div>
@@ -509,6 +530,9 @@ export default function PharmacyManagement() {
                               </button>
                               <button className="btn btn-outline-info btn-sm" title="Change Status" onClick={() => handleChangeStatus(pharmacy)}>
                                 <i className="bi bi-toggle-on"></i>
+                              </button>
+                              <button className="btn btn-outline-primary btn-sm" title="Change PayPal Email" onClick={() => handleOpenPaypalModal(pharmacy)}>
+                                <i className="bi bi-paypal"></i>
                               </button>
                             </div>
                           </td>
@@ -623,6 +647,24 @@ export default function PharmacyManagement() {
                         <div style={{ fontSize: '12px', color: '#64748b' }}>Ward</div>
                         <div style={{ fontSize: '14px', fontWeight: '500' }}>{selectedPharmacy.ward || 'N/A'}</div>
                       </div>
+                      <div className="col-12">
+                        <div style={{ fontSize: '12px', color: '#64748b' }}>Location Pin</div>
+                        <div style={{ fontSize: '14px', fontWeight: '500' }}>
+                          {selectedPharmacy.latitude != null && selectedPharmacy.longitude != null ? (
+                            <a
+                              href={`https://www.google.com/maps?q=${selectedPharmacy.latitude},${selectedPharmacy.longitude}`}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                            >
+                              {selectedPharmacy.latitude.toFixed(6)}, {selectedPharmacy.longitude.toFixed(6)} <i className="bi bi-box-arrow-up-right"></i>
+                            </a>
+                          ) : (
+                            <span className="text-warning fst-italic">
+                              <i className="bi bi-exclamation-triangle-fill me-1"></i>Not set — delivery orders will fail
+                            </span>
+                          )}
+                        </div>
+                      </div>
                     </div>
                   </div>
 
@@ -660,6 +702,14 @@ export default function PharmacyManagement() {
                             {selectedPharmacy.deliveryAvailable ? `Available (${selectedPharmacy.deliveryRadius || 0} km)` : 'Not Available'}
                           </div>
                         </div>
+                        {selectedPharmacy.deliveryAvailable && (
+                          <div className="mt-2">
+                            <div style={{ fontSize: '12px', color: '#64748b' }}>Delivery Fee</div>
+                            <div style={{ fontSize: '14px', fontWeight: '500' }}>
+                              {formatCurrency(selectedPharmacy.deliveryFee)}
+                            </div>
+                          </div>
+                        )}
                       </div>
                     </div>
                   </div>
@@ -791,6 +841,20 @@ export default function PharmacyManagement() {
               </div>
             </div>
           </div>
+        )}
+
+        {selectedPharmacy && (
+          <PaypalEmailChangeModal
+            show={showPaypalModal}
+            onHide={() => setShowPaypalModal(false)}
+            entityLabel="Pharmacy"
+            entityName={selectedPharmacy.name}
+            currentPaypalEmail={selectedPharmacy.paypalEmail}
+            requestFn={(newPaypalEmail, reason) => pharmaciesApi.requestPaypalEmailChange(getPharmacyId(selectedPharmacy), newPaypalEmail, reason)}
+            verifyFn={(otp, reason) => pharmaciesApi.verifyPaypalEmailChange(getPharmacyId(selectedPharmacy), otp, reason)}
+            onSuccess={handlePaypalEmailUpdated}
+            showToast={showToast}
+          />
         )}
 
         <Toast show={toast.show} onClose={hideToast} title={toast.title} message={toast.message} type={toast.type} duration={toast.duration} />

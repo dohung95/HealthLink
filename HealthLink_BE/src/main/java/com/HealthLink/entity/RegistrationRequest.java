@@ -47,6 +47,9 @@ public class RegistrationRequest {
     @Column(name = "RejectionReason", length = 1000)
     private String rejectionReason;
 
+    @Column(name = "PaypalEmail", length = 255)
+    private String paypalEmail;
+
     // ============ Doctor Fields ============
     @Nationalized
     @Column(name = "FullName", length = 200)
@@ -88,6 +91,15 @@ public class RegistrationRequest {
     @Nationalized
     @Column(name = "ClinicAddress", length = 500)
     private String clinicAddress;
+
+    @Column(name = "Latitude")
+    private Double latitude;
+
+    @Column(name = "Longitude")
+    private Double longitude;
+
+    @Column(name = "HomeVisitRadiusKm")
+    private Double homeVisitRadiusKm;
 
     // ============ Pharmacy Fields ============
     @Nationalized

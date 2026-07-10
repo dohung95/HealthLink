@@ -13,6 +13,7 @@ import com.HealthLink.repository.pharmacy.PharmacyRepository;
 import com.HealthLink.entity.enums.ServiceType;
 import com.HealthLink.repository.registration.RegistrationDocumentRepository;
 import com.HealthLink.repository.registration.RegistrationRequestRepository;
+import com.HealthLink.repository.auth.EmailVerificationTokenRepository;
 
 import java.util.List;
 
@@ -35,6 +36,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.io.IOException;
+import java.math.BigDecimal;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
@@ -42,6 +44,7 @@ import java.nio.file.StandardCopyOption;
 import java.time.LocalDateTime;
 import java.util.*;
 import java.util.stream.Collectors;
+import java.util.stream.Stream;
 
 @Service
 @RequiredArgsConstructor
@@ -66,7 +69,9 @@ public class RegistrationServiceImpl implements RegistrationService {
     private final AdminNotificationHelper adminNotificationHelper;
     private final AdminAuditLogService auditLogService;
     private final HomeVisitLocationService homeVisitLocationService;
+    private final EmailVerificationTokenRepository emailVerificationTokenRepository;
     private static final String DEFAULT_PASSWORD = "HealthLink@123";
+    private static final BigDecimal FIXED_DOCTOR_CONSULTATION_FEE = new BigDecimal("50.00");
     private static final String TYPE_DOCTOR = "DOCTOR";
     private static final String TYPE_PHARMACY = "PHARMACY";
     private static final String STATUS_PENDING = "Pending";
@@ -83,6 +88,7 @@ public class RegistrationServiceImpl implements RegistrationService {
                 .registrationType(TYPE_DOCTOR)
                 .email(request.getEmail())
                 .phoneNumber(request.getPhoneNumber())
+                .paypalEmail(request.getPaypalEmail())
                 .status(STATUS_PENDING)
                 .fullName(request.getFullName())
                 .qualifications(request.getQualifications())
@@ -92,9 +98,12 @@ public class RegistrationServiceImpl implements RegistrationService {
                 .languageSpoken(request.getLanguageSpoken())
                 .location(request.getLocation())
                 .bio(request.getBio())
-                .consultationFee(request.getConsultationFee())
+                .consultationFee(FIXED_DOCTOR_CONSULTATION_FEE)
                 .clinicName(request.getClinicName())
                 .clinicAddress(request.getClinicAddress())
+                .latitude(request.getLatitude())
+                .longitude(request.getLongitude())
+                .homeVisitRadiusKm(request.getHomeVisitRadiusKm())
                 .build();
 
         entity = registrationRequestRepository.save(entity);
@@ -117,11 +126,13 @@ public class RegistrationServiceImpl implements RegistrationService {
     @Override
     public RegistrationRequestResponse submitPharmacyRegistration(PharmacyRegistrationRequest request) {
         validateEmailNotRegistered(request.getEmail());
+        validatePharmacyBusinessHoursAndDelivery(request);
 
         RegistrationRequest entity = RegistrationRequest.builder()
                 .registrationType(TYPE_PHARMACY)
                 .email(request.getEmail())
                 .phoneNumber(request.getPhoneNumber())
+                .paypalEmail(request.getPaypalEmail())
                 .status(STATUS_PENDING)
                 .pharmacyName(request.getPharmacyName())
                 .licenseNumber(request.getLicenseNumber())
@@ -129,6 +140,8 @@ public class RegistrationServiceImpl implements RegistrationService {
                 .city(request.getCity())
                 .district(request.getDistrict())
                 .ward(request.getWard())
+                .latitude(request.getLatitude())
+                .longitude(request.getLongitude())
                 .openTime(request.getOpenTime())
                 .closeTime(request.getCloseTime())
                 .open24Hours(request.getOpen24Hours())
@@ -224,6 +237,31 @@ public class RegistrationServiceImpl implements RegistrationService {
         return specialties;
     }
 
+    private void validatePharmacyBusinessHoursAndDelivery(PharmacyRegistrationRequest request) {
+        if (!Boolean.TRUE.equals(request.getOpen24Hours())) {
+            if (request.getOpenTime() == null) {
+                throw new BadRequestException("Open time is required unless the pharmacy is open 24 hours");
+            }
+            if (request.getCloseTime() == null) {
+                throw new BadRequestException("Close time is required unless the pharmacy is open 24 hours");
+            }
+        }
+
+        if (request.getWorkingDays() == null || request.getWorkingDays().isBlank()) {
+            throw new BadRequestException("Working days is required");
+        }
+
+        if (!request.isDeliveryAvailable()) {
+            throw new BadRequestException("Delivery service is required to register as a HealthLink pharmacy partner");
+        }
+        if (request.getDeliveryRadius() == null) {
+            throw new BadRequestException("Delivery radius is required when delivery is available");
+        }
+        if (request.getDeliveryFee() == null) {
+            throw new BadRequestException("Delivery fee is required when delivery is available");
+        }
+    }
+
     private void validateEmailNotRegistered(String email) {
         if (userRepository.existsByEmail(email)) {
             throw new BadRequestException("Email is already registered as a user");
@@ -298,6 +336,27 @@ public class RegistrationServiceImpl implements RegistrationService {
             System.err.println("Failed to send approval email: " + e.getMessage());
             e.printStackTrace();
         }
+
+        // If a PayPal email was submitted, email a confirmation link to it.
+        // paypalEmail on the Doctor/Pharmacy entity stays null until this link is confirmed.
+        if (request.getPaypalEmail() != null && !request.getPaypalEmail().isBlank()) {
+            try {
+                String paypalToken = UUID.randomUUID().toString();
+                EmailVerificationToken token = EmailVerificationToken.builder()
+                        .token(paypalToken)
+                        .user(user)
+                        .newEmail(request.getPaypalEmail())
+                        .type(TokenType.PAYPAL_EMAIL_CONFIRM)
+                        .expiryDate(LocalDateTime.now().plusHours(24))
+                        .used(false)
+                        .build();
+                emailVerificationTokenRepository.save(token);
+                emailService.sendPaypalEmailConfirmation(request.getPaypalEmail(), recipientName, paypalToken);
+            } catch (Exception e) {
+                System.err.println("Failed to send PayPal email confirmation: " + e.getMessage());
+                e.printStackTrace();
+            }
+        }
     }
 
     private void createDoctor(User user, RegistrationRequest request) {
@@ -328,6 +387,8 @@ public class RegistrationServiceImpl implements RegistrationService {
                 .clinicAddress(request.getClinicAddress())
                 .avatarUrl(avatarUrl)
                 .verified(false)
+                .availableForHomeVisit(true)
+                .homeVisitRadiusKm(request.getHomeVisitRadiusKm() != null ? request.getHomeVisitRadiusKm() : 10.0)
                 .averageRating(0.0)
                 .totalReviews(0)
                 .build();
@@ -335,12 +396,18 @@ public class RegistrationServiceImpl implements RegistrationService {
         doctor.getServices().add(new DoctorService(doctor, ServiceType.ONLINE, true));
         doctor.getServices().add(new DoctorService(doctor, ServiceType.HOME_VISIT, true));
 
-        try {
-            GeocodeResponse geo = homeVisitLocationService.geocodeClinicAddressWithFallback(request.getClinicAddress());
-            doctor.setLatitude(geo.getLatitude());
-            doctor.setLongitude(geo.getLongitude());
-        } catch (Exception e) {
-            log.warn("Geocode failed for doctor {}: {}", request.getFullName(), e.getMessage());
+        if (request.getLatitude() != null && request.getLongitude() != null) {
+            doctor.setLatitude(request.getLatitude());
+            doctor.setLongitude(request.getLongitude());
+        } else {
+            // Fallback for registration requests submitted before the map-pin field existed
+            try {
+                GeocodeResponse geo = homeVisitLocationService.geocodeClinicAddressWithFallback(request.getClinicAddress());
+                doctor.setLatitude(geo.getLatitude());
+                doctor.setLongitude(geo.getLongitude());
+            } catch (Exception e) {
+                log.warn("Geocode failed for doctor {}: {}", request.getFullName(), e.getMessage());
+            }
         }
 
         doctor = doctorRepository.save(doctor);
@@ -388,13 +455,34 @@ public class RegistrationServiceImpl implements RegistrationService {
         pharmacy.setDeliveryFee(request.getDeliveryFee());
         pharmacy.setDescription(request.getDescription());
         pharmacy.setAvatarUrl(avatarUrl);
-        pharmacy.setVerified(false);
+        pharmacy.setVerified(true);
         pharmacy.setActive(true);
         pharmacy.setAverageRating(0.0);
         pharmacy.setTotalReviews(0);
         pharmacy.setCreatedAt(LocalDateTime.now());
 
+        if (request.getLatitude() != null && request.getLongitude() != null) {
+            pharmacy.setLatitude(request.getLatitude());
+            pharmacy.setLongitude(request.getLongitude());
+        } else {
+            // Fallback for registration requests submitted before the map-pin field existed
+            try {
+                String fullAddress = buildFullAddress(address, request.getWard(), request.getDistrict(), request.getCity());
+                GeocodeResponse geo = homeVisitLocationService.geocodeClinicAddressWithFallback(fullAddress);
+                pharmacy.setLatitude(geo.getLatitude());
+                pharmacy.setLongitude(geo.getLongitude());
+            } catch (Exception e) {
+                log.warn("Geocode failed for pharmacy {}: {}", pharmacyName, e.getMessage());
+            }
+        }
+
         pharmacyRepository.save(pharmacy);
+    }
+
+    private String buildFullAddress(String address, String ward, String district, String city) {
+        return Stream.of(address, ward, district, city)
+                .filter(part -> part != null && !part.isBlank())
+                .collect(Collectors.joining(", "));
     }
 
     private String copyRegistrationAvatarToPublicFolder(String sourceFilePath, String partnerType) {
@@ -530,6 +618,9 @@ public class RegistrationServiceImpl implements RegistrationService {
                 .consultationFee(entity.getConsultationFee())
                 .clinicName(entity.getClinicName())
                 .clinicAddress(entity.getClinicAddress())
+                .latitude(entity.getLatitude())
+                .longitude(entity.getLongitude())
+                .homeVisitRadiusKm(entity.getHomeVisitRadiusKm())
                 .pharmacyName(entity.getPharmacyName())
                 .licenseNumber(entity.getLicenseNumber())
                 .address(entity.getAddress())

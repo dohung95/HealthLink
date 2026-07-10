@@ -51,5 +51,7 @@ public enum NotificationType {
     FOLLOW_UP_PAYMENT_REQUEST,  // → Patient: doctor sent a payment request
     FOLLOW_UP_PAID,             // → Doctor: patient paid
     FOLLOW_UP_CONFIRMED,        // → Doctor: patient confirmed follow-up
-    FOLLOW_UP_DENIED            // → Doctor: patient denied
+    FOLLOW_UP_DENIED,           // → Doctor: patient denied
+
+    PAYPAL_EMAIL_CHANGED       // → Doctor/Pharmacy: admin changed their PayPal payout email
 }
