@@ -18,6 +18,10 @@ public class DoctorRegistrationRequest {
     @NotBlank(message = "Phone number is required")
     private String phoneNumber;
 
+    @NotBlank(message = "PayPal email is required")
+    @Email(message = "Invalid PayPal email format")
+    private String paypalEmail;
+
     @NotBlank(message = "Qualifications are required")
     private String qualifications;
 

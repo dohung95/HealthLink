@@ -3,6 +3,7 @@ import NavbarAdmin from "./NavbarAdmin";
 import { pharmaciesApi } from "../../../api/adminApi";
 import Toast from "./Toast";
 import useToast from "../useToast";
+import PaypalEmailChangeModal from "../PaypalEmailChangeModal";
 import { getAvatarUrl } from "../../../utils/avatarHelper";
 import "bootstrap/dist/css/bootstrap.min.css";
 import "bootstrap-icons/font/bootstrap-icons.css";
@@ -36,6 +37,7 @@ export default function PharmacyManagement() {
   const [selectedPharmacy, setSelectedPharmacy] = useState(null);
   const [showViewModal, setShowViewModal] = useState(false);
   const [showStatusModal, setShowStatusModal] = useState(false);
+  const [showPaypalModal, setShowPaypalModal] = useState(false);
   const [newStatus, setNewStatus] = useState('');
   const [statusReason, setStatusReason] = useState('');
   const [showActionLoading, setShowActionLoading] = useState(false);
@@ -114,6 +116,18 @@ export default function PharmacyManagement() {
     setNewStatus(pharmacy.status || 'ACTIVE');
     setStatusReason('');
     setShowStatusModal(true);
+  };
+
+  const handleOpenPaypalModal = (pharmacy) => {
+    setSelectedPharmacy(pharmacy);
+    setShowPaypalModal(true);
+  };
+
+  const handlePaypalEmailUpdated = (updated) => {
+    const id = getPharmacyId(selectedPharmacy);
+    setPharmacies((prev) => prev.map((item) =>
+      getPharmacyId(item) === id ? { ...item, paypalEmail: updated?.paypalEmail ?? item.paypalEmail } : item
+    ));
   };
 
   const handleUpdateStatus = async () => {
@@ -410,6 +424,13 @@ export default function PharmacyManagement() {
                     >
                       <i className="bi bi-toggle-on"></i>
                     </button>
+                    <button
+                      className="card-action-btn"
+                      onClick={(e) => { e.stopPropagation(); handleOpenPaypalModal(pharmacy); }}
+                      title="Change PayPal Email"
+                    >
+                      <i className="bi bi-paypal"></i>
+                    </button>
                   </div>
                 </div>
               ))}
@@ -509,6 +530,9 @@ export default function PharmacyManagement() {
                               </button>
                               <button className="btn btn-outline-info btn-sm" title="Change Status" onClick={() => handleChangeStatus(pharmacy)}>
                                 <i className="bi bi-toggle-on"></i>
+                              </button>
+                              <button className="btn btn-outline-primary btn-sm" title="Change PayPal Email" onClick={() => handleOpenPaypalModal(pharmacy)}>
+                                <i className="bi bi-paypal"></i>
                               </button>
                             </div>
                           </td>
@@ -817,6 +841,20 @@ export default function PharmacyManagement() {
               </div>
             </div>
           </div>
+        )}
+
+        {selectedPharmacy && (
+          <PaypalEmailChangeModal
+            show={showPaypalModal}
+            onHide={() => setShowPaypalModal(false)}
+            entityLabel="Pharmacy"
+            entityName={selectedPharmacy.name}
+            currentPaypalEmail={selectedPharmacy.paypalEmail}
+            requestFn={(newPaypalEmail, reason) => pharmaciesApi.requestPaypalEmailChange(getPharmacyId(selectedPharmacy), newPaypalEmail, reason)}
+            verifyFn={(otp, reason) => pharmaciesApi.verifyPaypalEmailChange(getPharmacyId(selectedPharmacy), otp, reason)}
+            onSuccess={handlePaypalEmailUpdated}
+            showToast={showToast}
+          />
         )}
 
         <Toast show={toast.show} onClose={hideToast} title={toast.title} message={toast.message} type={toast.type} duration={toast.duration} />

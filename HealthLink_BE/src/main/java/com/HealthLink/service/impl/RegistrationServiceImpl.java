@@ -13,6 +13,7 @@ import com.HealthLink.repository.pharmacy.PharmacyRepository;
 import com.HealthLink.entity.enums.ServiceType;
 import com.HealthLink.repository.registration.RegistrationDocumentRepository;
 import com.HealthLink.repository.registration.RegistrationRequestRepository;
+import com.HealthLink.repository.auth.EmailVerificationTokenRepository;
 
 import java.util.List;
 
@@ -68,6 +69,7 @@ public class RegistrationServiceImpl implements RegistrationService {
     private final AdminNotificationHelper adminNotificationHelper;
     private final AdminAuditLogService auditLogService;
     private final HomeVisitLocationService homeVisitLocationService;
+    private final EmailVerificationTokenRepository emailVerificationTokenRepository;
     private static final String DEFAULT_PASSWORD = "HealthLink@123";
     private static final BigDecimal FIXED_DOCTOR_CONSULTATION_FEE = new BigDecimal("50.00");
     private static final String TYPE_DOCTOR = "DOCTOR";
@@ -86,6 +88,7 @@ public class RegistrationServiceImpl implements RegistrationService {
                 .registrationType(TYPE_DOCTOR)
                 .email(request.getEmail())
                 .phoneNumber(request.getPhoneNumber())
+                .paypalEmail(request.getPaypalEmail())
                 .status(STATUS_PENDING)
                 .fullName(request.getFullName())
                 .qualifications(request.getQualifications())
@@ -129,6 +132,7 @@ public class RegistrationServiceImpl implements RegistrationService {
                 .registrationType(TYPE_PHARMACY)
                 .email(request.getEmail())
                 .phoneNumber(request.getPhoneNumber())
+                .paypalEmail(request.getPaypalEmail())
                 .status(STATUS_PENDING)
                 .pharmacyName(request.getPharmacyName())
                 .licenseNumber(request.getLicenseNumber())
@@ -247,13 +251,14 @@ public class RegistrationServiceImpl implements RegistrationService {
             throw new BadRequestException("Working days is required");
         }
 
-        if (request.isDeliveryAvailable()) {
-            if (request.getDeliveryRadius() == null) {
-                throw new BadRequestException("Delivery radius is required when delivery is available");
-            }
-            if (request.getDeliveryFee() == null) {
-                throw new BadRequestException("Delivery fee is required when delivery is available");
-            }
+        if (!request.isDeliveryAvailable()) {
+            throw new BadRequestException("Delivery service is required to register as a HealthLink pharmacy partner");
+        }
+        if (request.getDeliveryRadius() == null) {
+            throw new BadRequestException("Delivery radius is required when delivery is available");
+        }
+        if (request.getDeliveryFee() == null) {
+            throw new BadRequestException("Delivery fee is required when delivery is available");
         }
     }
 
@@ -330,6 +335,27 @@ public class RegistrationServiceImpl implements RegistrationService {
             // Log but don't fail the approval
             System.err.println("Failed to send approval email: " + e.getMessage());
             e.printStackTrace();
+        }
+
+        // If a PayPal email was submitted, email a confirmation link to it.
+        // paypalEmail on the Doctor/Pharmacy entity stays null until this link is confirmed.
+        if (request.getPaypalEmail() != null && !request.getPaypalEmail().isBlank()) {
+            try {
+                String paypalToken = UUID.randomUUID().toString();
+                EmailVerificationToken token = EmailVerificationToken.builder()
+                        .token(paypalToken)
+                        .user(user)
+                        .newEmail(request.getPaypalEmail())
+                        .type(TokenType.PAYPAL_EMAIL_CONFIRM)
+                        .expiryDate(LocalDateTime.now().plusHours(24))
+                        .used(false)
+                        .build();
+                emailVerificationTokenRepository.save(token);
+                emailService.sendPaypalEmailConfirmation(request.getPaypalEmail(), recipientName, paypalToken);
+            } catch (Exception e) {
+                System.err.println("Failed to send PayPal email confirmation: " + e.getMessage());
+                e.printStackTrace();
+            }
         }
     }
 

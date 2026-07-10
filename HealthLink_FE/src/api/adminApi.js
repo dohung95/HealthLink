@@ -98,6 +98,16 @@ export const doctorsApi = {
     return response.data;
   },
 
+  requestPaypalEmailChange: async (id, newPaypalEmail, reason) => {
+    const response = await adminApi.put(`/admindoctors/${id}/paypal-email/request`, { newPaypalEmail, reason });
+    return response.data;
+  },
+
+  verifyPaypalEmailChange: async (id, otp, reason) => {
+    const response = await adminApi.put(`/admindoctors/${id}/paypal-email/verify`, { otp, reason });
+    return response.data;
+  },
+
   /**
    * Lấy danh sách bác sĩ có lịch làm việc vào ngày cụ thể.
    * @param {string} date - Ngày cần kiểm tra (format: yyyy-MM-dd)
@@ -152,6 +162,16 @@ export const pharmaciesApi = {
 
   updateVerification: async (id, verified) => {
     const response = await adminApi.put(`/adminpharmacies/${id}/verify`, { verified });
+    return response.data;
+  },
+
+  requestPaypalEmailChange: async (id, newPaypalEmail, reason) => {
+    const response = await adminApi.put(`/adminpharmacies/${id}/paypal-email/request`, { newPaypalEmail, reason });
+    return response.data;
+  },
+
+  verifyPaypalEmailChange: async (id, otp, reason) => {
+    const response = await adminApi.put(`/adminpharmacies/${id}/paypal-email/verify`, { otp, reason });
     return response.data;
   },
 

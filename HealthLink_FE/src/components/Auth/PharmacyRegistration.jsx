@@ -72,6 +72,7 @@ export function PharmacyRegistration() {
         licenseNumber: 'input[name="licenseNumber"]',
         email: 'input[name="email"]',
         phoneNumber: 'input[name="phoneNumber"]',
+        paypalEmail: 'input[name="paypalEmail"]',
         avatar: '#avatarUpload',
         address: 'input[name="address"]',
         locationMap: '#pharmacyMapGroup',
@@ -81,6 +82,7 @@ export function PharmacyRegistration() {
         openTime: 'input[name="openTime"]',
         closeTime: 'input[name="closeTime"]',
         workingDays: 'select[name="workingDays"]',
+        deliveryAvailable: 'input[name="deliveryAvailable"]',
         deliveryRadius: 'input[name="deliveryRadius"]',
         deliveryFee: 'input[name="deliveryFee"]',
         acceptedTerms: '#acceptedTermsCheckbox',
@@ -100,6 +102,7 @@ export function PharmacyRegistration() {
         name: '',  // Pharmacy name - consistent with Pharmacy entity
         email: '',
         phoneNumber: '',
+        paypalEmail: '',
         licenseNumber: '',
         address: '',
         city: '',
@@ -111,7 +114,7 @@ export function PharmacyRegistration() {
         closeTime: '22:00',
         open24Hours: false,
         workingDays: 'Mon-Sun',
-        deliveryAvailable: false,
+        deliveryAvailable: true,
         deliveryRadius: '',
         deliveryFee: '',
         description: ''
@@ -426,6 +429,12 @@ export function PharmacyRegistration() {
             errors.phoneNumber = 'Phone number is required';
         }
 
+        if (!formData.paypalEmail?.trim()) {
+            errors.paypalEmail = 'PayPal email is required';
+        } else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(formData.paypalEmail)) {
+            errors.paypalEmail = 'Please enter a valid PayPal email address';
+        }
+
         if (!avatar) {
             errors.avatar = 'Profile photo is required';
         }
@@ -463,6 +472,10 @@ export function PharmacyRegistration() {
             errors.workingDays = 'Working days is required';
         }
 
+        if (!formData.deliveryAvailable) {
+            errors.deliveryAvailable = 'HealthLink pharmacy partners must offer delivery';
+        }
+
         if (formData.deliveryAvailable) {
             if (formData.deliveryRadius === '' || formData.deliveryRadius === null) {
                 errors.deliveryRadius = 'Delivery radius is required';
@@ -494,9 +507,9 @@ export function PharmacyRegistration() {
         if (Object.keys(errors).length > 0) {
             setFieldErrors(prev => ({ ...prev, ...errors }));
             const fieldOrder = [
-                'name', 'licenseNumber', 'email', 'phoneNumber', 'avatar', 'address', 'locationMap',
+                'name', 'licenseNumber', 'email', 'phoneNumber', 'paypalEmail', 'avatar', 'address', 'locationMap',
                 'businessLicense', 'pharmacyLicense', 'ownerIdCard',
-                'openTime', 'closeTime', 'workingDays', 'deliveryRadius', 'deliveryFee', 'acceptedTerms',
+                'openTime', 'closeTime', 'workingDays', 'deliveryAvailable', 'deliveryRadius', 'deliveryFee', 'acceptedTerms',
             ];
             const firstField = fieldOrder.find(f => errors[f]);
             focusAndScrollToField(firstField);
@@ -714,6 +727,24 @@ export function PharmacyRegistration() {
                                         <FieldError field="phoneNumber" />
                                     </div>
                                 </div>
+                                <div className="form-row">
+                                    <div className="form-group full-width">
+                                        <label>PayPal Email <span className="required">*</span></label>
+                                        <input
+                                            type="email"
+                                            name="paypalEmail"
+                                            value={formData.paypalEmail}
+                                            onChange={handleChange}
+                                            placeholder="pharmacy-payout@example.com"
+                                            disabled={submitting}
+                                            className={fieldErrors.paypalEmail ? 'input-error' : undefined}
+                                        />
+                                        <small className="form-text text-muted">
+                                            We'll email a confirmation link to this address once your registration is approved. Payouts won't work until you confirm it.
+                                        </small>
+                                        <FieldError field="paypalEmail" />
+                                    </div>
+                                </div>
                             </div>
                             <div className="profile-photo-col">
                                 <h3><i className="bi bi-image"></i> Profile Photo <span className="required">*</span></h3>
@@ -872,7 +903,8 @@ export function PharmacyRegistration() {
                             </div>
                         </div>
 
-                        {/* Business Hours */}
+                        {/* Business Hours + Delivery Services */}
+                        <div className="form-section-row">
                         <div className="form-section">
                             <h3><i className="bi bi-clock"></i> Business Hours</h3>
                             <div className="checkbox-single">
@@ -935,7 +967,7 @@ export function PharmacyRegistration() {
 
                         {/* Delivery */}
                         <div className="form-section">
-                            <h3><i className="bi bi-truck"></i> Delivery Services</h3>
+                            <h3><i className="bi bi-truck"></i> Delivery Services <span className="required">*</span></h3>
                             <div className="checkbox-single">
                                 <label className="checkbox-label">
                                     <input
@@ -948,6 +980,10 @@ export function PharmacyRegistration() {
                                     <span className="checkmark"></span>
                                     <i className="bi bi-box-seam"></i> Delivery Available
                                 </label>
+                                <small className="form-text text-muted">
+                                    All HealthLink pharmacy partners must offer delivery so patients can order medicine remotely.
+                                </small>
+                                <FieldError field="deliveryAvailable" />
                             </div>
                             {formData.deliveryAvailable && (
                                 <div className="form-row">
@@ -986,6 +1022,7 @@ export function PharmacyRegistration() {
                                     </div>
                                 </div>
                             )}
+                        </div>
                         </div>
 
                         {/* Required Documents */}

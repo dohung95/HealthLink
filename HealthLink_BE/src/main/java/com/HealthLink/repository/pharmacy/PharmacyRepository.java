@@ -25,4 +25,6 @@ public interface PharmacyRepository extends JpaRepository<Pharmacy, String> {
 
     // Tìm nhà thuốc theo tên (case-insensitive search)
     Page<Pharmacy> findByNameContainingIgnoreCase(String name, Pageable pageable);
+
+    boolean existsByPaypalEmailIgnoreCase(String paypalEmail);
 }

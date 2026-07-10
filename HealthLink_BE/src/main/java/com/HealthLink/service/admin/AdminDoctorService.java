@@ -6,17 +6,25 @@ import com.HealthLink.entity.AdminAuditLog;
 import com.HealthLink.entity.Doctor;
 import com.HealthLink.entity.DoctorSchedule;
 import com.HealthLink.entity.DoctorScheduleException;
+import com.HealthLink.entity.EmailVerificationToken;
 import com.HealthLink.entity.Specialty;
+import com.HealthLink.entity.TokenType;
 import com.HealthLink.entity.User;
+import com.HealthLink.entity.enums.NotificationType;
 import com.HealthLink.entity.enums.ScheduleExceptionType;
 import com.HealthLink.exception.BadRequestException;
 import com.HealthLink.exception.ResourceNotFoundException;
 import com.HealthLink.repository.admin.AdminDoctorRepository;
 import com.HealthLink.repository.admin.AdminAuditLogRepository;
+import com.HealthLink.repository.auth.EmailVerificationTokenRepository;
+import com.HealthLink.repository.doctor.DoctorRepository;
 import com.HealthLink.repository.doctor.DoctorScheduleRepository;
 import com.HealthLink.repository.admin.DoctorScheduleExceptionRepository;
 import com.HealthLink.repository.doctor.SpecialtyRepository;
+import com.HealthLink.repository.pharmacy.PharmacyRepository;
+import com.HealthLink.service.email.EmailService;
 import com.HealthLink.service.homevisit.HomeVisitLocationService;
+import com.HealthLink.service.notification.NotificationService;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
@@ -45,19 +53,34 @@ public class AdminDoctorService {
     private final DoctorScheduleExceptionRepository exceptionRepository;
     private final SpecialtyRepository specialtyRepository;
     private final HomeVisitLocationService homeVisitLocationService;
+    private final EmailVerificationTokenRepository emailVerificationTokenRepository;
+    private final EmailService emailService;
+    private final NotificationService notificationService;
+    private final DoctorRepository doctorPaypalRepository;
+    private final PharmacyRepository pharmacyPaypalRepository;
 
     public AdminDoctorService(AdminDoctorRepository doctorRepository,
                               AdminAuditLogService auditLogService,
                               DoctorScheduleRepository scheduleRepository,
                               DoctorScheduleExceptionRepository exceptionRepository,
                               SpecialtyRepository specialtyRepository,
-                              HomeVisitLocationService homeVisitLocationService) {
+                              HomeVisitLocationService homeVisitLocationService,
+                              EmailVerificationTokenRepository emailVerificationTokenRepository,
+                              EmailService emailService,
+                              NotificationService notificationService,
+                              DoctorRepository doctorPaypalRepository,
+                              PharmacyRepository pharmacyPaypalRepository) {
         this.doctorRepository = doctorRepository;
         this.auditLogService = auditLogService;
         this.scheduleRepository = scheduleRepository;
         this.exceptionRepository = exceptionRepository;
         this.specialtyRepository = specialtyRepository;
         this.homeVisitLocationService = homeVisitLocationService;
+        this.emailVerificationTokenRepository = emailVerificationTokenRepository;
+        this.emailService = emailService;
+        this.notificationService = notificationService;
+        this.doctorPaypalRepository = doctorPaypalRepository;
+        this.pharmacyPaypalRepository = pharmacyPaypalRepository;
     }
 
     public AdminDoctorPageResponse getDoctors(int pageNumber, int pageSize, String searchTerm,
@@ -157,6 +180,86 @@ public class AdminDoctorService {
         }
 
         Doctor savedDoctor = doctorRepository.save(doctor);
+        return mapToDto(savedDoctor);
+    }
+
+    /**
+     * Step 1: admin submits a new PayPal payout email for a doctor.
+     * An OTP is emailed to the NEW address to prove ownership before it's applied.
+     */
+    public void requestDoctorPaypalEmailChange(String doctorId, String newPaypalEmail) {
+        Doctor doctor = doctorRepository.findById(doctorId)
+            .orElseThrow(() -> new ResourceNotFoundException("Doctor", "id", doctorId));
+        User user = doctor.getUser();
+        if (user == null) {
+            throw new BadRequestException("Doctor account not found");
+        }
+
+        if (newPaypalEmail.equalsIgnoreCase(doctor.getPaypalEmail())) {
+            throw new BadRequestException("New PayPal email must be different from the current PayPal email");
+        }
+        if (doctorPaypalRepository.existsByPaypalEmailIgnoreCase(newPaypalEmail)
+                || pharmacyPaypalRepository.existsByPaypalEmailIgnoreCase(newPaypalEmail)) {
+            throw new BadRequestException("This PayPal email is already used by another account");
+        }
+
+        emailVerificationTokenRepository.findByUserAndType(user, TokenType.PAYPAL_EMAIL_OTP)
+            .ifPresent(emailVerificationTokenRepository::delete);
+
+        String otp = String.format("%06d", (int) (Math.random() * 1000000));
+        EmailVerificationToken token = EmailVerificationToken.builder()
+            .token(otp)
+            .user(user)
+            .newEmail(newPaypalEmail)
+            .type(TokenType.PAYPAL_EMAIL_OTP)
+            .expiryDate(LocalDateTime.now().plusMinutes(30))
+            .used(false)
+            .build();
+        emailVerificationTokenRepository.save(token);
+
+        emailService.sendVerificationEmail(newPaypalEmail, doctor.getFullName(), otp);
+    }
+
+    /**
+     * Step 2: admin enters the OTP (relayed by the doctor) to confirm the PayPal email change.
+     */
+    public AdminDoctorDto verifyDoctorPaypalEmailChange(String doctorId, String otp, String reason, String adminUserId) {
+        Doctor doctor = doctorRepository.findById(doctorId)
+            .orElseThrow(() -> new ResourceNotFoundException("Doctor", "id", doctorId));
+        User user = doctor.getUser();
+        if (user == null) {
+            throw new BadRequestException("Doctor account not found");
+        }
+
+        EmailVerificationToken token = emailVerificationTokenRepository
+            .findByTokenAndUserAndType(otp, user, TokenType.PAYPAL_EMAIL_OTP)
+            .orElseThrow(() -> new BadRequestException("Invalid OTP"));
+
+        if (token.isUsed()) {
+            throw new BadRequestException("OTP has already been used");
+        }
+        if (token.isExpired()) {
+            emailVerificationTokenRepository.delete(token);
+            throw new BadRequestException("OTP has expired. Please request a new one.");
+        }
+
+        String oldEmail = doctor.getPaypalEmail();
+        String newEmail = token.getNewEmail();
+        doctor.setPaypalEmail(newEmail);
+        Doctor savedDoctor = doctorRepository.save(doctor);
+
+        token.setUsed(true);
+        emailVerificationTokenRepository.save(token);
+
+        auditLogService.logPaypalEmailChanged(adminUserId, "DOCTOR", doctorId, doctor.getFullName(), oldEmail, newEmail, reason);
+
+        notificationService.sendWebSocketNotification(
+            user, NotificationType.PAYPAL_EMAIL_CHANGED,
+            "PayPal Email Updated",
+            "Your PayPal payout email has been updated by an administrator.",
+            null, "/doctor/wallet"
+        );
+
         return mapToDto(savedDoctor);
     }
 
@@ -383,6 +486,7 @@ public class AdminDoctorService {
                 : Set.of())
             .totalEarnings(doctor.getTotalEarnings())
             .pendingSettlement(doctor.getPendingSettlement())
+            .paypalEmail(doctor.getPaypalEmail())
             .createdAt(createdAt)
             .build();
     }

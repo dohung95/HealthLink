@@ -5,12 +5,20 @@ import com.HealthLink.dto.admin.AdminPharmacyPageResponse;
 import com.HealthLink.dto.admin.AdminPharmacyUpdateDto;
 import com.HealthLink.dto.geocoding.GeocodeResponse;
 import com.HealthLink.entity.AdminAuditLog;
+import com.HealthLink.entity.EmailVerificationToken;
 import com.HealthLink.entity.Pharmacy;
+import com.HealthLink.entity.TokenType;
 import com.HealthLink.entity.User;
+import com.HealthLink.entity.enums.NotificationType;
 import com.HealthLink.exception.BadRequestException;
 import com.HealthLink.exception.ResourceNotFoundException;
 import com.HealthLink.repository.admin.AdminPharmacyRepository;
+import com.HealthLink.repository.auth.EmailVerificationTokenRepository;
+import com.HealthLink.repository.doctor.DoctorRepository;
+import com.HealthLink.repository.pharmacy.PharmacyRepository;
+import com.HealthLink.service.email.EmailService;
 import com.HealthLink.service.homevisit.HomeVisitLocationService;
+import com.HealthLink.service.notification.NotificationService;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
@@ -34,12 +42,27 @@ public class AdminPharmacyService {
     private final AdminPharmacyRepository pharmacyRepository;
     private final AdminAuditLogService auditLogService;
     private final HomeVisitLocationService homeVisitLocationService;
+    private final EmailVerificationTokenRepository emailVerificationTokenRepository;
+    private final EmailService emailService;
+    private final NotificationService notificationService;
+    private final PharmacyRepository pharmacyPaypalRepository;
+    private final DoctorRepository doctorPaypalRepository;
 
     public AdminPharmacyService(AdminPharmacyRepository pharmacyRepository, AdminAuditLogService auditLogService,
-            HomeVisitLocationService homeVisitLocationService) {
+            HomeVisitLocationService homeVisitLocationService,
+            EmailVerificationTokenRepository emailVerificationTokenRepository,
+            EmailService emailService,
+            NotificationService notificationService,
+            PharmacyRepository pharmacyPaypalRepository,
+            DoctorRepository doctorPaypalRepository) {
         this.pharmacyRepository = pharmacyRepository;
         this.auditLogService = auditLogService;
         this.homeVisitLocationService = homeVisitLocationService;
+        this.emailVerificationTokenRepository = emailVerificationTokenRepository;
+        this.pharmacyPaypalRepository = pharmacyPaypalRepository;
+        this.doctorPaypalRepository = doctorPaypalRepository;
+        this.emailService = emailService;
+        this.notificationService = notificationService;
     }
 
     public AdminPharmacyPageResponse getPharmacies(int pageNumber, int pageSize, String searchTerm,
@@ -153,9 +176,8 @@ public class AdminPharmacyService {
         if (StringUtils.hasText(updateDto.getBankName())) {
             pharmacy.setBankName(updateDto.getBankName());
         }
-        if (StringUtils.hasText(updateDto.getPaypalEmail())) {
-            pharmacy.setPaypalEmail(updateDto.getPaypalEmail());
-        }
+        // paypalEmail is intentionally NOT settable here — it can only be changed through the
+        // OTP-gated requestPaypalEmailChange/verifyPaypalEmailChange flow below.
 
         if (pharmacy.getUser() != null && StringUtils.hasText(updateDto.getStatus())) {
             pharmacy.getUser().setStatus(updateDto.getStatus());
@@ -163,6 +185,87 @@ public class AdminPharmacyService {
 
         pharmacy.setUpdatedAt(LocalDateTime.now());
         Pharmacy saved = pharmacyRepository.save(pharmacy);
+        return mapToDto(saved);
+    }
+
+    /**
+     * Step 1: admin submits a new PayPal payout email for a pharmacy.
+     * An OTP is emailed to the NEW address to prove ownership before it's applied.
+     */
+    public void requestPharmacyPaypalEmailChange(String pharmacyId, String newPaypalEmail) {
+        Pharmacy pharmacy = pharmacyRepository.findById(pharmacyId)
+            .orElseThrow(() -> new ResourceNotFoundException("Pharmacy", "id", pharmacyId));
+        User user = pharmacy.getUser();
+        if (user == null) {
+            throw new BadRequestException("Pharmacy account not found");
+        }
+
+        if (newPaypalEmail.equalsIgnoreCase(pharmacy.getPaypalEmail())) {
+            throw new BadRequestException("New PayPal email must be different from the current PayPal email");
+        }
+        if (pharmacyPaypalRepository.existsByPaypalEmailIgnoreCase(newPaypalEmail)
+                || doctorPaypalRepository.existsByPaypalEmailIgnoreCase(newPaypalEmail)) {
+            throw new BadRequestException("This PayPal email is already used by another account");
+        }
+
+        emailVerificationTokenRepository.findByUserAndType(user, TokenType.PAYPAL_EMAIL_OTP)
+            .ifPresent(emailVerificationTokenRepository::delete);
+
+        String otp = String.format("%06d", (int) (Math.random() * 1000000));
+        EmailVerificationToken token = EmailVerificationToken.builder()
+            .token(otp)
+            .user(user)
+            .newEmail(newPaypalEmail)
+            .type(TokenType.PAYPAL_EMAIL_OTP)
+            .expiryDate(LocalDateTime.now().plusMinutes(30))
+            .used(false)
+            .build();
+        emailVerificationTokenRepository.save(token);
+
+        emailService.sendVerificationEmail(newPaypalEmail, pharmacy.getName(), otp);
+    }
+
+    /**
+     * Step 2: admin enters the OTP (relayed by the pharmacy) to confirm the PayPal email change.
+     */
+    public AdminPharmacyDto verifyPharmacyPaypalEmailChange(String pharmacyId, String otp, String reason, String adminUserId) {
+        Pharmacy pharmacy = pharmacyRepository.findById(pharmacyId)
+            .orElseThrow(() -> new ResourceNotFoundException("Pharmacy", "id", pharmacyId));
+        User user = pharmacy.getUser();
+        if (user == null) {
+            throw new BadRequestException("Pharmacy account not found");
+        }
+
+        EmailVerificationToken token = emailVerificationTokenRepository
+            .findByTokenAndUserAndType(otp, user, TokenType.PAYPAL_EMAIL_OTP)
+            .orElseThrow(() -> new BadRequestException("Invalid OTP"));
+
+        if (token.isUsed()) {
+            throw new BadRequestException("OTP has already been used");
+        }
+        if (token.isExpired()) {
+            emailVerificationTokenRepository.delete(token);
+            throw new BadRequestException("OTP has expired. Please request a new one.");
+        }
+
+        String oldEmail = pharmacy.getPaypalEmail();
+        String newEmail = token.getNewEmail();
+        pharmacy.setPaypalEmail(newEmail);
+        pharmacy.setUpdatedAt(LocalDateTime.now());
+        Pharmacy saved = pharmacyRepository.save(pharmacy);
+
+        token.setUsed(true);
+        emailVerificationTokenRepository.save(token);
+
+        auditLogService.logPaypalEmailChanged(adminUserId, "PHARMACY", pharmacyId, pharmacy.getName(), oldEmail, newEmail, reason);
+
+        notificationService.sendWebSocketNotification(
+            user, NotificationType.PAYPAL_EMAIL_CHANGED,
+            "PayPal Email Updated",
+            "Your PayPal payout email has been updated by an administrator.",
+            null, "/pharmacy-page"
+        );
+
         return mapToDto(saved);
     }
 

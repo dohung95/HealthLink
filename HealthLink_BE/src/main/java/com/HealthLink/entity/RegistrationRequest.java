@@ -47,6 +47,9 @@ public class RegistrationRequest {
     @Column(name = "RejectionReason", length = 1000)
     private String rejectionReason;
 
+    @Column(name = "PaypalEmail", length = 255)
+    private String paypalEmail;
+
     // ============ Doctor Fields ============
     @Nationalized
     @Column(name = "FullName", length = 200)

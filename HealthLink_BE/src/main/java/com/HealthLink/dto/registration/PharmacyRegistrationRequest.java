@@ -20,6 +20,10 @@ public class PharmacyRegistrationRequest {
     @NotBlank(message = "Phone number is required")
     private String phoneNumber;
 
+    @NotBlank(message = "PayPal email is required")
+    @Email(message = "Invalid PayPal email format")
+    private String paypalEmail;
+
     @NotBlank(message = "License number is required")
     private String licenseNumber;
 

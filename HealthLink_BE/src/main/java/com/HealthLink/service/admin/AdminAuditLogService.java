@@ -367,6 +367,51 @@ public class AdminAuditLogService {
     }
 
     /**
+     * Log admin-initiated PayPal payout email change for a doctor or pharmacy.
+     * @param adminUserIdentifier - Can be userId or email (from authentication.getName())
+     */
+    public void logPaypalEmailChanged(
+            String adminUserIdentifier,
+            String partnerType,
+            String targetId,
+            String targetName,
+            String oldEmail,
+            String newEmail,
+            String reason
+    ) {
+        User adminUser = findAdminUser(adminUserIdentifier);
+        if (adminUser == null) {
+            log.warn("Admin user not found: {}", adminUserIdentifier);
+            return;
+        }
+
+        String targetType = "DOCTOR".equalsIgnoreCase(partnerType)
+                ? AdminAuditLog.TARGET_DOCTOR
+                : AdminAuditLog.TARGET_PHARMACY;
+
+        String description = String.format("Changed PayPal payout email for %s '%s'",
+                partnerType.toLowerCase(), targetName);
+
+        AdminAuditLog auditLog = AdminAuditLog.builder()
+                .category(AdminAuditLog.CATEGORY_USER)
+                .actionType(AdminAuditLog.ACTION_PAYPAL_EMAIL_CHANGED)
+                .targetType(targetType)
+                .targetId(targetId)
+                .targetName(targetName)
+                .adminUser(adminUser)
+                .description(description)
+                .oldValue(toJson(Map.of("paypalEmail", oldEmail != null ? oldEmail : "")))
+                .newValue(toJson(Map.of("paypalEmail", newEmail)))
+                .reason(reason)
+                .ipAddress(getClientIpAddress())
+                .createdAt(LocalDateTime.now())
+                .build();
+
+        auditLogRepository.save(auditLog);
+        log.info("Audit log created: {} - {} - {}:{}", adminUserIdentifier, AdminAuditLog.ACTION_PAYPAL_EMAIL_CHANGED, partnerType, targetId);
+    }
+
+    /**
      * Log partner commission reset (remove custom rate)
      * @param adminUserIdentifier - Can be userId or email (from authentication.getName())
      */

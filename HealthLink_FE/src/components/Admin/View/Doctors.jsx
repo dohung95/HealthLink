@@ -3,6 +3,7 @@ import NavbarAdmin from "./NavbarAdmin";
 import { doctorsApi } from "../../../api/adminApi";
 import Toast from "./Toast";
 import useToast from "../useToast";
+import PaypalEmailChangeModal from "../PaypalEmailChangeModal";
 import { getAvatarUrl } from "../../../utils/avatarHelper";
 import "bootstrap/dist/css/bootstrap.min.css";
 import "bootstrap-icons/font/bootstrap-icons.css";
@@ -33,6 +34,7 @@ export default function Doctors() {
   const [showViewModal, setShowViewModal] = useState(false);
   const [showEditModal, setShowEditModal] = useState(false);
   const [showStatusModal, setShowStatusModal] = useState(false);
+  const [showPaypalModal, setShowPaypalModal] = useState(false);
   const [selectedDoctor, setSelectedDoctor] = useState(null);
   const [newStatus, setNewStatus] = useState('');
   const [statusReason, setStatusReason] = useState('');
@@ -191,6 +193,21 @@ export default function Doctors() {
     setNewStatus(doctor.status);
     setStatusReason('');
     setShowStatusModal(true);
+  };
+
+  const handleOpenPaypalModal = (doctor) => {
+    setSelectedDoctor(doctor);
+    setShowPaypalModal(true);
+  };
+
+  const handlePaypalEmailUpdated = (updated) => {
+    setDoctors(prevDoctors =>
+      prevDoctors.map(doctor =>
+        doctor.doctorId === selectedDoctor.doctorId
+          ? { ...doctor, paypalEmail: updated?.paypalEmail ?? doctor.paypalEmail }
+          : doctor
+      )
+    );
   };
 
   // Handle update status
@@ -566,6 +583,16 @@ export default function Doctors() {
                     >
                       <i className="bi bi-toggle-on"></i>
                     </button>
+                    <button
+                      className="card-action-btn"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        handleOpenPaypalModal(doctor);
+                      }}
+                      title="Change PayPal Email"
+                    >
+                      <i className="bi bi-paypal"></i>
+                    </button>
                   </div>
                 </div>
               ))}
@@ -671,6 +698,13 @@ export default function Doctors() {
                                 onClick={() => handleChangeStatus(doctor)}
                               >
                                 <i className="bi bi-toggle-on"></i>
+                              </button>
+                              <button
+                                className="btn btn-outline-primary btn-sm"
+                                title="Change PayPal Email"
+                                onClick={() => handleOpenPaypalModal(doctor)}
+                              >
+                                <i className="bi bi-paypal"></i>
                               </button>
                             </div>
                           </td>
@@ -1314,6 +1348,19 @@ export default function Doctors() {
           </div>
         )}
       </main>
+      {selectedDoctor && (
+        <PaypalEmailChangeModal
+          show={showPaypalModal}
+          onHide={() => setShowPaypalModal(false)}
+          entityLabel="Doctor"
+          entityName={selectedDoctor.fullName}
+          currentPaypalEmail={selectedDoctor.paypalEmail}
+          requestFn={(newPaypalEmail, reason) => doctorsApi.requestPaypalEmailChange(selectedDoctor.doctorId, newPaypalEmail, reason)}
+          verifyFn={(otp, reason) => doctorsApi.verifyPaypalEmailChange(selectedDoctor.doctorId, otp, reason)}
+          onSuccess={handlePaypalEmailUpdated}
+          showToast={showToast}
+        />
+      )}
       <Toast
         show={toast.show}
         onClose={hideToast}

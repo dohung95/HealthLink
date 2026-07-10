@@ -158,6 +158,50 @@
     border-bottom: none;
 }
 
+/* Business Hours + Delivery Services side by side */
+.pharmacy-registration-container .form-section-row {
+    display: flex;
+    align-items: stretch;
+    margin-bottom: 30px;
+    padding-bottom: 25px;
+    border-bottom: 1px solid #e2e8f0;
+}
+
+.pharmacy-registration-container .form-section-row .form-section {
+    flex: 1 1 0;
+    min-width: 0;
+    margin-bottom: 0;
+    padding-bottom: 0;
+    border-bottom: none;
+}
+
+.pharmacy-registration-container .form-section-row .form-section:first-child {
+    padding-right: 30px;
+    border-right: 1px solid #e2e8f0;
+}
+
+.pharmacy-registration-container .form-section-row .form-section:last-child {
+    padding-left: 30px;
+}
+
+@media (max-width: 768px) {
+    .pharmacy-registration-container .form-section-row {
+        flex-direction: column;
+    }
+
+    .pharmacy-registration-container .form-section-row .form-section:first-child {
+        padding-right: 0;
+        padding-bottom: 20px;
+        margin-bottom: 20px;
+        border-right: none;
+        border-bottom: 1px solid #e2e8f0;
+    }
+
+    .pharmacy-registration-container .form-section-row .form-section:last-child {
+        padding-left: 0;
+    }
+}
+
 .pharmacy-registration-container .form-section h3 {
     color: #1e293b;
     font-size: 18px;
@@ -893,6 +937,11 @@
 .pharmacy-registration-container .basic-info-col {
     flex: 1 1 0;
     min-width: 0;
+}
+
+/* Basic Information fields stack one per row instead of two per row */
+.pharmacy-registration-container .basic-info-col .form-row {
+    grid-template-columns: 1fr;
 }
 
 .pharmacy-registration-container .profile-photo-col {

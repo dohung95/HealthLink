@@ -73,6 +73,7 @@ public class AdminAuditLog {
     public static final String ACTION_COMMISSION_CONFIG_CHANGED = "COMMISSION_CONFIG_CHANGED";
     public static final String ACTION_COMMISSION_PARTNER_CHANGED = "COMMISSION_PARTNER_CHANGED";
     public static final String ACTION_COMMISSION_PARTNER_RESET = "COMMISSION_PARTNER_RESET";
+    public static final String ACTION_PAYPAL_EMAIL_CHANGED = "PAYPAL_EMAIL_CHANGED";
 
     // Target type constants
     public static final String TARGET_PATIENT = "PATIENT";

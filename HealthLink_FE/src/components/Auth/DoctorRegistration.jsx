@@ -72,6 +72,7 @@ export function DoctorRegistration() {
         fullName: 'input[name="fullName"]',
         email: 'input[name="email"]',
         phoneNumber: 'input[name="phoneNumber"]',
+        paypalEmail: 'input[name="paypalEmail"]',
         location: 'input[name="location"]',
         avatar: '#avatarUpload',
         qualifications: 'input[name="qualifications"]',
@@ -102,6 +103,7 @@ export function DoctorRegistration() {
         fullName: '',
         email: '',
         phoneNumber: '',
+        paypalEmail: '',
         qualifications: '',
         specialtyId: '',
         specialty: '',
@@ -470,6 +472,12 @@ export function DoctorRegistration() {
             errors.phoneNumber = 'Phone number must be 10-11 digits';
         }
 
+        if (!formData.paypalEmail?.trim()) {
+            errors.paypalEmail = 'PayPal email is required';
+        } else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(formData.paypalEmail)) {
+            errors.paypalEmail = 'Please enter a valid PayPal email address';
+        }
+
         if (!formData.location?.trim()) {
             errors.location = 'Location is required';
         }
@@ -532,7 +540,7 @@ export function DoctorRegistration() {
         if (Object.keys(errors).length > 0) {
             setFieldErrors(prev => ({ ...prev, ...errors }));
             const fieldOrder = [
-                'fullName', 'email', 'phoneNumber', 'location', 'avatar',
+                'fullName', 'email', 'phoneNumber', 'paypalEmail', 'location', 'avatar',
                 'qualifications', 'specialtyId', 'yearsOfExperience', 'languageSpoken',
                 'clinicName', 'clinicAddress', 'clinicMap', 'homeVisitRadiusKm',
                 'medicalDegree', 'practiceLicense', 'idCard', 'acceptedTerms',
@@ -766,6 +774,24 @@ export function DoctorRegistration() {
                                         <small className="form-text text-muted">
                                             Main city/province you operate in — shown publicly on your profile and used by patients to filter by area (different from the detailed clinic address below).
                                         </small>
+                                    </div>
+                                </div>
+                                <div className="form-row">
+                                    <div className="form-group full-width">
+                                        <label>PayPal Email <span className="required">*</span></label>
+                                        <input
+                                            type="email"
+                                            name="paypalEmail"
+                                            value={formData.paypalEmail}
+                                            onChange={handleChange}
+                                            placeholder="doctor-payout@example.com"
+                                            disabled={submitting}
+                                            className={fieldErrors.paypalEmail ? 'input-error' : undefined}
+                                        />
+                                        <small className="form-text text-muted">
+                                            We'll email a confirmation link to this address once your registration is approved. Payouts won't work until you confirm it.
+                                        </small>
+                                        <FieldError field="paypalEmail" />
                                     </div>
                                 </div>
                             </div>

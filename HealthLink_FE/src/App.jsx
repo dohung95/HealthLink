@@ -33,6 +33,7 @@ import ReviewManagement from './components/Admin/View/ReviewManagement';
 import Sign_in from './components/Auth/Sign_in';
 import Sign_up from './components/Auth/Sign_up';
 import ConfirmEmail from './components/Auth/ConfirmEmail';
+import ConfirmPaypalEmail from './components/Auth/ConfirmPaypalEmail';
 import RegistrationChoice from './components/Auth/RegistrationChoice';
 import DoctorRegistration from './components/Auth/DoctorRegistration';
 import PharmacyRegistration from './components/Auth/PharmacyRegistration';
@@ -139,6 +140,7 @@ function AppContent() {
   const allValidPaths = [
     ...publicPaths,
     '/confirm-email',
+    '/confirm-paypal-email',
     '/forgot-password',
     '/reset-password',
     '/video-calling',
@@ -167,6 +169,7 @@ function AppContent() {
 
   const isAuthPage = [
     '/confirm-email',
+    '/confirm-paypal-email',
     '/forgot-password',
     '/reset-password'
   ].includes(location.pathname);
@@ -253,6 +256,7 @@ function AppContent() {
             <Route path="/login" element={<Sign_in />} />
             <Route path="/register" element={<Sign_up />} />
             <Route path="/confirm-email" element={<ConfirmEmail />} />
+            <Route path="/confirm-paypal-email" element={<ConfirmPaypalEmail />} />
             <Route path="/forgot-password" element={<ForgotPassword />} />
             <Route path="/reset-password" element={<ResetPassword />} />
             <Route path="/register-as" element={<RegistrationChoice />} />
