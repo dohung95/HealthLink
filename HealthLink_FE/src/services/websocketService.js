@@ -122,4 +122,11 @@ class WebSocketService {
 }
 
 const websocketService = new WebSocketService();
+
+if (import.meta.env.DEV && typeof window !== 'undefined') {
+  window.__healthLinkDispatchNotification = (notification) => {
+    websocketService.dispatchNotificationForTesting(notification);
+  };
+}
+
 export default websocketService;

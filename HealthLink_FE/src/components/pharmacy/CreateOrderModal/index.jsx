@@ -173,9 +173,10 @@ export default function CreateOrderModal({
   const isQuoteRevision = mode === 'updateQuote';
   const isOrderRequest = request?.requestType === 'ORDER_REQUEST' || request?.sourceType === 'ORDER_REQUEST';
   const effectiveOrderId = orderId || request?.orderId || null;
-  const [leftTab, setLeftTab] = useState(isConsultMode ? 'summary' : 'prescriptions');
-  const isSummaryTab = isConsultMode && leftTab === 'summary';
-  const isMedicinesTab = !isOrderRequest && !isQuoteRevision && leftTab === 'medicine';
+  const [leftTab, setLeftTab] = useState(isConsultMode || isQuoteRevision ? 'summary' : 'prescriptions');
+  const showSummaryTab = isConsultMode || isQuoteRevision;
+  const isSummaryTab = showSummaryTab && leftTab === 'summary';
+  const isMedicinesTab = !isOrderRequest && leftTab === 'medicine';
   const [orderItems, setOrderItems] = useState([]);
   const [prescriptions, setPrescriptions] = useState([]);
   const [loadingPrescriptions, setLoadingPrescriptions] = useState(false);
@@ -186,10 +187,24 @@ export default function CreateOrderModal({
   const [creatingOrder, setCreatingOrder] = useState(false);
   const [medicineCatalog, setMedicineCatalog] = useState([]);
   const [existingOrder, setExistingOrder] = useState(null);
+  const [existingOrderLoadError, setExistingOrderLoadError] = useState(false);
+  const [existingOrderReloadKey, setExistingOrderReloadKey] = useState(0);
+
+  const existingOrderItems = useMemo(
+    () => existingOrder?.items ?? existingOrder?.orderItems ?? [],
+    [existingOrder],
+  );
+  const hasPrescriptionSource = existingOrderItems.some(isPrescriptionSourcedItem);
+  const isExistingOrderLoading = isQuoteRevision && !existingOrder && !existingOrderLoadError;
+  const canEditMedicineIdentity = !isOrderRequest
+    && !hasPrescriptionSource
+    && (!isQuoteRevision || Boolean(existingOrder));
 
   useEffect(() => {
     if (mode !== 'updateQuote' || !effectiveOrderId) return;
     let alive = true;
+    setExistingOrder(null);
+    setExistingOrderLoadError(false);
     pharmacyApi.getOrderById(effectiveOrderId)
       .then((data) => {
         if (!alive) return;
@@ -197,15 +212,15 @@ export default function CreateOrderModal({
       })
       .catch(() => {
         if (!alive) return;
-        toast.error('Failed to load order for revision.');
+        setExistingOrderLoadError(true);
       });
     return () => { alive = false; };
-  }, [mode, effectiveOrderId]);
+  }, [mode, effectiveOrderId, existingOrderReloadKey]);
 
   useEffect(() => {
     if (!existingOrder) return;
     setOrderItems(
-      existingOrder.orderItems?.map((item, index) => ({
+      existingOrderItems.map((item, index) => ({
         localId: `existing-${Date.now()}-${index}`,
         medicineId: item.medicineId,
         medicationName: item.medicationName,
@@ -219,7 +234,7 @@ export default function CreateOrderModal({
         notes: item.notes || '',
         sourcePrescriptionHeaderId: item.sourcePrescriptionHeaderId,
         sourcePrescriptionItemId: item.sourcePrescriptionItemId,
-      })) || [],
+      })),
     );
     setDeliveryEnabled(normalizeDelivery(existingOrder.deliveryType));
     setDeliveryFee(existingOrder.deliveryFee != null ? String(existingOrder.deliveryFee) : '');
@@ -227,18 +242,15 @@ export default function CreateOrderModal({
       const str = String(existingOrder.estimatedDeliveryMinutes).padStart(3, '0');
       setDeliveryMinuteDigits(str.split('').map(Number));
     }
-  }, [existingOrder]);
+  }, [existingOrder, existingOrderItems]);
 
   useEffect(() => {
     if (mode !== 'updateQuote' || !existingOrder) return;
-    const hasPrescriptionSource = existingOrder.orderItems?.some(
-      (item) => item.sourcePrescriptionItemId || item.sourcePrescriptionHeaderId,
-    );
     if (hasPrescriptionSource) {
       toast.error('Cannot update quote for prescription-based orders.');
       onClose();
     }
-  }, [mode, existingOrder, onClose]);
+  }, [mode, existingOrder, hasPrescriptionSource, onClose]);
 
   useEffect(() => {
     if (mode === 'updateQuote' && existingOrder) return;
@@ -345,7 +357,7 @@ export default function CreateOrderModal({
   };
 
   const addMedicine = (medicine) => {
-    if (isOrderRequest || isQuoteRevision) return;
+    if (!canEditMedicineIdentity) return;
     const medicineId = medicine?.medicineId || medicine?.id;
     if (!medicineId) {
       toast.error('Selected medicine is missing an ID.');
@@ -402,6 +414,11 @@ export default function CreateOrderModal({
 
     if (!orderItems.length) {
       toast.error('Add at least one medication.');
+      return;
+    }
+
+    if (isQuoteRevision && (isExistingOrderLoading || existingOrderLoadError || !existingOrder)) {
+      toast.error('Load the current quote before updating it.');
       return;
     }
     const missingUnitItem = orderItems.find((item) => !String(item.unit || '').trim());
@@ -491,7 +508,7 @@ export default function CreateOrderModal({
         <div className="pharmacy-create-order-layout">
           <div className="pharmacy-create-order-left">
             <div className="pharmacy-create-order-tabs">
-              {isConsultMode && (
+              {showSummaryTab && (
                 <button
                   className={`pharmacy-tab-btn ${leftTab === 'summary' ? 'is-active' : ''}`}
                   onClick={() => setLeftTab('summary')}
@@ -509,7 +526,7 @@ export default function CreateOrderModal({
                 <i className="bi bi-prescription me-1"></i>
                 Prescriptions
               </button>
-              {!isOrderRequest && !isQuoteRevision && (
+              {canEditMedicineIdentity && (
                 <button
                   className={`pharmacy-tab-btn ${leftTab === 'medicine' ? 'is-active' : ''}`}
                   onClick={() => setLeftTab('medicine')}
@@ -527,7 +544,7 @@ export default function CreateOrderModal({
                 isSummaryTab ? 'is-summary' : '',
                 isMedicinesTab ? 'is-medicines' : '',
               ].filter(Boolean).join(' ')}>
-              {leftTab === 'summary' && isConsultMode ? (
+              {leftTab === 'summary' && showSummaryTab ? (
                 <RequestSummaryPanel request={request} />
               ) : (leftTab === 'prescriptions' || isOrderRequest) ? (
                 loadingPrescriptions ? (
@@ -563,12 +580,12 @@ export default function CreateOrderModal({
                                 </div>
                                 <button
                                   className={`btn btn-sm ${fullyImported ? 'btn-outline-secondary' : 'btn-outline-primary'}`}
-                                  disabled={fullyImported || !items.length}
+                                  disabled={isQuoteRevision || fullyImported || !items.length}
                                   onClick={() => importOrderItems(mapPrescriptionToOrderItems(prescription, medicinePriceLookup))}
                                   type="button"
                                 >
                                   <i className={`bi ${fullyImported ? 'bi-check2' : 'bi-box-arrow-in-down'} me-1`}></i>
-                                  {isOrderRequest ? 'Prescription locked' : fullyImported ? 'Imported' : 'Import'}
+                                  {isQuoteRevision || isOrderRequest ? 'Prescription locked' : fullyImported ? 'Imported' : 'Import'}
                                 </button>
                               </div>
                               {items.slice(0, 2).map((pItem, idx) => (
@@ -604,7 +621,20 @@ export default function CreateOrderModal({
             </div>
 
             <div className="pharmacy-create-order-items">
-              {orderItems.length === 0 ? (
+              {isExistingOrderLoading ? (
+                <div className="pharmacy-bootstrap-loading">
+                  <div className="spinner-border text-primary" role="status"><span className="visually-hidden">Loading...</span></div>
+                  <span>Loading current quote...</span>
+                </div>
+              ) : existingOrderLoadError ? (
+                <div className="pharmacy-empty compact is-error">
+                  <span className="material-symbols-outlined">error</span>
+                  <h3>Unable to load the current quote</h3>
+                  <button className="btn btn-outline-primary btn-sm" onClick={() => setExistingOrderReloadKey((key) => key + 1)} type="button">
+                    Retry
+                  </button>
+                </div>
+              ) : orderItems.length === 0 ? (
                 <div className="pharmacy-empty compact">
                   <span className="material-symbols-outlined">medication</span>
                   <h3>No medications</h3>
@@ -617,7 +647,7 @@ export default function CreateOrderModal({
                     key={orderItem.localId}
                     index={index + 1}
                     expanded={expandedItemId === orderItem.localId}
-                    lockedMedication={isPrescriptionSourcedItem(orderItem) || isQuoteRevision}
+                    lockedMedication={isPrescriptionSourcedItem(orderItem)}
                     onToggle={() => setExpandedItemId(
                       (prev) => prev === orderItem.localId ? null : orderItem.localId,
                     )}
@@ -718,7 +748,7 @@ export default function CreateOrderModal({
 
               <button
                 className="btn btn-primary w-100 mt-3"
-                disabled={creatingOrder || !orderItems.length}
+                disabled={creatingOrder || !orderItems.length || isExistingOrderLoading || existingOrderLoadError}
                 onClick={handleCreateOrder}
                 type="button"
               >

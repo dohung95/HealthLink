@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useRef, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { NavLink, useLocation, useNavigate } from 'react-router-dom';
 
 import '../../components/Css/pharmacy/pharmacy-dashboard/pharmacy-dashboard.css';
@@ -19,7 +19,9 @@ import ChatPage from '../../components/ChatPage';
 import PharmacyAnnouncementBar from '../../components/pharmacy/PharmacyAnnouncementBar';
 import {
   getPharmacyNavBadgeCounts,
+  getWorkflowNotificationOrderId,
   isPharmacyAnnouncementType,
+  isRevisionWorkflowNotification,
 } from '../../components/pharmacy/workflow/pharmacyWorkflow';
 import PharmacyRequestsPage from '../../components/pharmacy/PharmacyRequestsPage';
 import PharmacyKanbanOrdersPage from '../../components/pharmacy/PharmacyKanbanOrdersPage';
@@ -29,7 +31,7 @@ const formatNavBadgeCount = (count) => (count > 99 ? '99+' : String(count));
 
 export default function PharmacyDashboardPage() {
   const { token, currentUserId, logout } = useAuth();
-  const { notifications, latestRealtimeNotification } = useNotifications();
+  const { latestRealtimeNotification } = useNotifications();
   const navigate = useNavigate();
   const location = useLocation();
   const profileDropdownRef = useRef(null);
@@ -45,7 +47,9 @@ export default function PharmacyDashboardPage() {
   const [transactions, setTransactions] = useState([]);
   const [settlements, setSettlements] = useState([]);
   const [loading, setLoading] = useState(true);
-  const [lastHandledWorkflowNotificationId, setLastHandledWorkflowNotificationId] = useState(null);
+  const [workflowAttention, setWorkflowAttention] = useState(null);
+  const handledWorkflowNotificationsRef = useRef(new Set());
+  const workflowAttentionTimerRef = useRef(null);
 
   const pharmacyId = profile?.pharmacyId || currentUserId;
 
@@ -60,7 +64,7 @@ export default function PharmacyDashboardPage() {
     return 'overview';
   }, [location.pathname]);
 
-  const loadDashboardData = async () => {
+  const loadDashboardData = useCallback(async () => {
     if (!token) return;
     setLoading(true);
     try {
@@ -89,32 +93,76 @@ export default function PharmacyDashboardPage() {
     } finally {
       setLoading(false);
     }
-  };
+  }, [currentUserId, token]);
 
   useEffect(() => {
     loadDashboardData();
-  }, [token, currentUserId]);
+  }, [loadDashboardData]);
+
+  const refreshWorkflowData = useCallback(async () => {
+    const resolvedPharmacyId = profile?.pharmacyId || currentUserId;
+    if (!resolvedPharmacyId) return;
+
+    const [orderResult, workItemResult] = await Promise.allSettled([
+      pharmacyApi.getOrdersByPharmacy(resolvedPharmacyId),
+      pharmacyApi.getWorkItemsByPharmacy(resolvedPharmacyId),
+    ]);
+
+    if (orderResult.status === 'fulfilled') {
+      setOrders(Array.isArray(orderResult.value) ? orderResult.value : []);
+    }
+    if (workItemResult.status === 'fulfilled') {
+      setWorkItems(Array.isArray(workItemResult.value) ? workItemResult.value : []);
+    }
+  }, [currentUserId, profile?.pharmacyId]);
 
   useEffect(() => {
-    const latest = notifications?.[0];
+    const latest = latestRealtimeNotification;
     if (!latest) return;
     const isOrderStatus = latest.type === 'ORDER_STATUS';
     if (!isPharmacyAnnouncementType(latest.type) && !isOrderStatus) return;
 
     const notificationKey = latest.notificationId || `${latest.type}-${latest.relatedId}-${latest.createdAt || latest.timestamp || ''}`;
-    if (!notificationKey || notificationKey === lastHandledWorkflowNotificationId) return;
+    if (!notificationKey || handledWorkflowNotificationsRef.current.has(notificationKey)) return;
 
     const actionUrl = latest.actionUrl || '';
+    const isRevision = isRevisionWorkflowNotification(latest);
     const isPharmacyWorkflowEvent =
       latest.type === 'NEW_PHARMACY_REQUEST'
+      || isRevision
       || actionUrl.includes('/pharmacy-orders/')
       || actionUrl.includes('/pharmacy-requests/');
 
     if (!isPharmacyWorkflowEvent) return;
 
-    setLastHandledWorkflowNotificationId(notificationKey);
-    loadDashboardData();
-  }, [notifications, lastHandledWorkflowNotificationId]);
+    handledWorkflowNotificationsRef.current.add(notificationKey);
+    if (handledWorkflowNotificationsRef.current.size > 100) {
+      handledWorkflowNotificationsRef.current.clear();
+      handledWorkflowNotificationsRef.current.add(notificationKey);
+    }
+
+    refreshWorkflowData().then(() => {
+      if (!isRevision) return;
+      const orderId = getWorkflowNotificationOrderId(latest);
+      if (!orderId) return;
+
+      if (workflowAttentionTimerRef.current) {
+        window.clearTimeout(workflowAttentionTimerRef.current);
+      }
+      setWorkflowAttention({ orderId, notificationId: notificationKey });
+      workflowAttentionTimerRef.current = window.setTimeout(() => {
+        setWorkflowAttention(null);
+      }, 4000);
+    }).catch((error) => {
+      console.error('Failed to refresh pharmacy workflow', error);
+    });
+  }, [latestRealtimeNotification, refreshWorkflowData]);
+
+  useEffect(() => () => {
+    if (workflowAttentionTimerRef.current) {
+      window.clearTimeout(workflowAttentionTimerRef.current);
+    }
+  }, []);
 
   useEffect(() => {
     if (!showProfileDropdown) return;
@@ -165,6 +213,7 @@ export default function PharmacyDashboardPage() {
     loading,
     reload: loadDashboardData,
     navigate,
+    workflowAttention,
   };
 
   return (

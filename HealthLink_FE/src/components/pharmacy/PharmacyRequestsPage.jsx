@@ -1,5 +1,5 @@
-import { useMemo, useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useEffect, useMemo, useRef, useState } from 'react';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 import { toast } from 'sonner';
 import pharmacyApi from '../../api/pharmacyApi';
 import { dateTime, statusClass, money } from '../../utils/pharmacy/pharmacyHelpers';
@@ -13,9 +13,18 @@ import { createPortal } from 'react-dom';
 import CreateOrderModal from './CreateOrderModal/index';
 import MiniChatBox from '../chat/MiniChatBox';
 
-export default function PharmacyRequestsPage({ workItems, profile, reload, navigate: nav }) {
+const CLOSED_REQUEST_STATUSES = new Set(['CANCELLED', 'REJECTED']);
+const TERMINAL_ORDER_STATUSES = new Set(['DELIVERED', 'COMPLETED', 'CANCELLED', 'REFUNDED']);
+
+function parseOrderId(value) {
+  const parsed = Number.parseInt(String(value || ''), 10);
+  return Number.isInteger(parsed) && parsed > 0 ? parsed : null;
+}
+
+export default function PharmacyRequestsPage({ workItems, profile, reload, navigate: nav, workflowAttention }) {
   const hookNavigate = useNavigate();
   const navigate = nav || hookNavigate;
+  const [searchParams, setSearchParams] = useSearchParams();
   const [query, setQuery] = useState('');
   const [pendingAction, setPendingAction] = useState(null);
   const [createOrderRequest, setCreateOrderRequest] = useState(null);
@@ -24,13 +33,12 @@ export default function PharmacyRequestsPage({ workItems, profile, reload, navig
   const [rejectConfirmItem, setRejectConfirmItem] = useState(null);
   const [rejectConfirmSaving, setRejectConfirmSaving] = useState(false);
   const [activeChatRequest, setActiveChatRequest] = useState(null);
+  const [queryAttention, setQueryAttention] = useState(null);
+  const queryAttentionTimerRef = useRef(null);
 
   const [cardDeliveryFee, setCardDeliveryFee] = useState({});
   const [cardEstimatedMinutes, setCardEstimatedMinutes] = useState({});
   const [cardPharmacistNotes, setCardPharmacistNotes] = useState({});
-
-  const CLOSED_REQUEST_STATUSES = new Set(['CANCELLED', 'REJECTED']);
-  const TERMINAL_ORDER_STATUSES = new Set(['DELIVERED', 'COMPLETED', 'CANCELLED', 'REFUNDED']);
 
   const normalized = (value) => String(value || '').trim().toUpperCase();
 
@@ -62,6 +70,50 @@ export default function PharmacyRequestsPage({ workItems, profile, reload, navig
         return ta - tb;
       });
   }, [query, requestItems]);
+
+  const orderIdFromQuery = parseOrderId(searchParams.get('orderId'));
+  const activeAttention = workflowAttention || queryAttention;
+
+  useEffect(() => {
+    if (!orderIdFromQuery || workflowAttention?.orderId) return;
+    setQueryAttention({ orderId: orderIdFromQuery, notificationId: `query-${orderIdFromQuery}` });
+  }, [orderIdFromQuery, workflowAttention?.orderId]);
+
+  useEffect(() => {
+    const orderId = activeAttention?.orderId;
+    if (!orderId) return undefined;
+
+    const matchingItem = visibleItems.find((item) => (
+      Number(item?.orderId) === Number(orderId) && getWorkItemKind(item) === 'revision'
+    ));
+    if (!matchingItem) return undefined;
+
+    const card = document.querySelector(`[data-order-id="${orderId}"]`);
+    card?.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+
+    if (orderIdFromQuery && !workflowAttention?.orderId) {
+      const nextSearchParams = new URLSearchParams(searchParams);
+      nextSearchParams.delete('orderId');
+      setSearchParams(nextSearchParams, { replace: true });
+    }
+
+    if (!workflowAttention?.orderId) {
+      if (queryAttentionTimerRef.current) {
+        window.clearTimeout(queryAttentionTimerRef.current);
+      }
+      queryAttentionTimerRef.current = window.setTimeout(() => {
+        setQueryAttention(null);
+      }, 4000);
+    }
+
+    return undefined;
+  }, [activeAttention?.notificationId, activeAttention?.orderId, orderIdFromQuery, searchParams, setSearchParams, visibleItems, workflowAttention?.orderId]);
+
+  useEffect(() => () => {
+    if (queryAttentionTimerRef.current) {
+      window.clearTimeout(queryAttentionTimerRef.current);
+    }
+  }, []);
 
   const handleAction = async (item, action, extraPayload = {}) => {
     const itemId = getItemId(item);
@@ -225,7 +277,8 @@ export default function PharmacyRequestsPage({ workItems, profile, reload, navig
 
               return (
                 <div
-                  className={`pharmacy-request-card ${kind === 'consultation' ? 'is-consulting' : ''}`}
+                  className={`pharmacy-request-card ${kind === 'consultation' ? 'is-consulting' : ''} ${kind === 'revision' && Number(item.orderId) === Number(activeAttention?.orderId) ? 'is-revision-highlight' : ''}`}
+                  data-order-id={item.orderId || undefined}
                   key={itemId}
                 >
                   <span className="pharmacy-fifo-badge">{index + 1}</span>

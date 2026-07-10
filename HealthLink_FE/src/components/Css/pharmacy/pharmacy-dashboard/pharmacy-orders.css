@@ -574,6 +574,17 @@
   box-shadow: 0 6px 24px rgba(15, 82, 186, 0.1);
 }
 
+.pharmacy-request-card.is-revision-highlight {
+  border-color: var(--pharmacy-warning, #d97706);
+  box-shadow: 0 0 0 3px rgba(217, 119, 6, 0.2), 0 8px 26px rgba(217, 119, 6, 0.16);
+  animation: pharmacy-revision-highlight 1.2s ease-in-out 3;
+}
+
+@keyframes pharmacy-revision-highlight {
+  0%, 100% { box-shadow: 0 0 0 3px rgba(217, 119, 6, 0.2), 0 8px 26px rgba(217, 119, 6, 0.16); }
+  50% { box-shadow: 0 0 0 7px rgba(217, 119, 6, 0.08), 0 10px 30px rgba(217, 119, 6, 0.2); }
+}
+
 .pharmacy-request-card.is-consulting {
   cursor: pointer;
   transition: transform 0.18s ease, border-color 0.18s ease, box-shadow 0.18s ease;
@@ -2027,8 +2038,10 @@
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .pharmacy-duration-picker__cell {
+  .pharmacy-duration-picker__cell,
+  .pharmacy-request-card.is-revision-highlight {
     transition: none;
+    animation: none;
   }
   .pharmacy-duration-picker__cell:active {
     box-shadow: 0 0 0 3px var(--pharmacy-primary-soft);

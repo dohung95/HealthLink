@@ -191,6 +191,17 @@ export default function RequestSummaryPanel({ request }) {
           label="Additional note"
           value={request?.additionalNotes || request?.patientFollowUpNotes}
         />
+        <SummaryRow
+          icon="edit_note"
+          label="Requested change"
+          tone="warning"
+          value={request?.revisionRequestNotes}
+        />
+        <SummaryRow
+          icon="schedule"
+          label="Revision requested"
+          value={request?.revisionRequestedAt ? dateTime(request.revisionRequestedAt) : null}
+        />
       </section>
 
       <section className="pharmacy-request-summary-block">

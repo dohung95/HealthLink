@@ -1199,6 +1199,83 @@ class PharmacyOrderServiceImplTest {
     }
 
     @Test
+    void updateOrderQuote_shouldAllowNoPrescriptionRevisionToReplaceMedicines() {
+        User patientUser = User.builder().id("patient-user-1").build();
+        Pharmacy pharmacy = Pharmacy.builder().pharmacyId("pharmacy-1").build();
+        Patient patient = Patient.builder().patientId("patient-1").user(patientUser).build();
+        Medicine originalMedicine = medicine(1, "Original medicine", "tablet");
+        Medicine replacementMedicine = medicine(2, "Replacement medicine", "capsule");
+        PharmacyOrderItem originalItem = PharmacyOrderItem.builder()
+                .medicine(originalMedicine)
+                .medicationName(originalMedicine.getName())
+                .quantity(1)
+                .totalSupplyDays(7)
+                .unit("tablet")
+                .totalPrice(new BigDecimal("15.00"))
+                .build();
+        PharmacyOrder order = PharmacyOrder.builder()
+                .orderId(77)
+                .status("REVISION_REQUESTED")
+                .paymentStatus("PENDING")
+                .patient(patient)
+                .pharmacy(pharmacy)
+                .orderItems(new ArrayList<>(List.of(originalItem)))
+                .build();
+
+        PharmacyOrderItemRequest replacementRequest = orderItemRequest(2, 2);
+        replacementRequest.setUnit("box");
+        PharmacyConsultationOrderCreateRequest request = new PharmacyConsultationOrderCreateRequest();
+        request.setDeliveryType("Pickup");
+        request.setDeliveryFee(BigDecimal.ZERO);
+        request.setItems(List.of(replacementRequest));
+
+        when(orderRepository.findById(77)).thenReturn(Optional.of(order));
+        when(medicineRepository.findById(2)).thenReturn(Optional.of(replacementMedicine));
+        when(inventoryRepository.findByPharmacy_PharmacyIdAndMedicine_MedicineId("pharmacy-1", 2))
+                .thenReturn(Optional.of(PharmacyInventory.builder()
+                        .inventoryId(2).quantity(10).reservedQuantity(0).active(true).build()));
+        when(orderRepository.save(any(PharmacyOrder.class))).thenAnswer(invocation -> invocation.getArgument(0));
+
+        List<PharmacyOrderItem> managedOrderItems = order.getOrderItems();
+
+        PharmacyOrderResponse response = pharmacyOrderService.updateOrderQuote(77, request, "pharmacy-1");
+
+        assertThat(order.getOrderItems()).isSameAs(managedOrderItems);
+        assertThat(order.getOrderItems()).hasSize(1);
+        assertThat(order.getOrderItems().get(0).getMedicine().getMedicineId()).isEqualTo(2);
+        assertThat(order.getOrderItems().get(0).getUnit()).isEqualTo("capsule");
+        assertThat(response.getMedicineAmount()).isEqualByComparingTo("30.00");
+        verify(orderRepository).save(order);
+    }
+
+    @Test
+    void updateOrderQuote_shouldRejectReplacementMedicineWithoutActiveInventory() {
+        Pharmacy pharmacy = Pharmacy.builder().pharmacyId("pharmacy-1").build();
+        PharmacyOrder order = PharmacyOrder.builder()
+                .orderId(77)
+                .status("REVISION_REQUESTED")
+                .paymentStatus("PENDING")
+                .patient(Patient.builder().patientId("patient-1").build())
+                .pharmacy(pharmacy)
+                .orderItems(new ArrayList<>())
+                .build();
+        PharmacyConsultationOrderCreateRequest request = new PharmacyConsultationOrderCreateRequest();
+        request.setDeliveryType("Pickup");
+        request.setDeliveryFee(BigDecimal.ZERO);
+        request.setItems(List.of(orderItemRequest(2, 1)));
+
+        when(orderRepository.findById(77)).thenReturn(Optional.of(order));
+        when(medicineRepository.findById(2)).thenReturn(Optional.of(medicine(2, "Replacement medicine", "capsule")));
+        when(inventoryRepository.findByPharmacy_PharmacyIdAndMedicine_MedicineId("pharmacy-1", 2))
+                .thenReturn(Optional.empty());
+
+        assertThatThrownBy(() -> pharmacyOrderService.updateOrderQuote(77, request, "pharmacy-1"))
+                .isInstanceOf(BadRequestException.class)
+                .hasMessage("Insufficient stock for item: Replacement medicine");
+        verify(orderRepository, never()).save(any(PharmacyOrder.class));
+    }
+
+    @Test
     void updateOrderQuote_shouldRejectConfirmedOrder() {
         Pharmacy pharmacy = Pharmacy.builder().pharmacyId("pharmacy-1").build();
         PharmacyOrder order = PharmacyOrder.builder()

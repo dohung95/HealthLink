@@ -676,8 +676,6 @@ public class PharmacyOrderServiceImpl implements PharmacyOrderService {
             throw new BadRequestException("Cannot update quote for a paid order");
         }
 
-        validateQuoteMedicineIdentity(order, request.getItems());
-
         List<PharmacyOrderItem> orderItems = buildOrderItemsFromRequest(request.getItems(),
                 order.getConsultationRequest());
         BigDecimal medicineAmount = calculateMedicineAmount(orderItems);
@@ -696,8 +694,8 @@ public class PharmacyOrderServiceImpl implements PharmacyOrderService {
         BigDecimal totalAmount = medicineAmount.add(deliveryFee);
 
         order.getOrderItems().clear();
-        order.setOrderItems(orderItems);
         attachOrderItems(order, orderItems);
+        order.getOrderItems().addAll(orderItems);
 
         order.setMedicineAmount(medicineAmount);
         order.setDeliveryFee(deliveryFee);
@@ -1347,25 +1345,6 @@ public class PharmacyOrderServiceImpl implements PharmacyOrderService {
                     + safeValue(medicine.getName(), String.valueOf(medicine.getMedicineId())));
         }
         return unit;
-    }
-
-    private void validateQuoteMedicineIdentity(
-            PharmacyOrder order,
-            List<PharmacyOrderItemRequest> requestedItems
-    ) {
-        List<Integer> existingMedicineIds = order.getOrderItems().stream()
-                .map(PharmacyOrderItem::getMedicine)
-                .filter(Objects::nonNull)
-                .map(Medicine::getMedicineId)
-                .sorted()
-                .toList();
-        List<Integer> requestedMedicineIds = requestedItems.stream()
-                .map(PharmacyOrderItemRequest::getMedicineId)
-                .sorted()
-                .toList();
-        if (!existingMedicineIds.isEmpty() && !existingMedicineIds.equals(requestedMedicineIds)) {
-            throw new BadRequestException("Medicines cannot be changed while updating a quote");
-        }
     }
 
     private PrescriptionHeader resolveSourcePrescriptionHeader(

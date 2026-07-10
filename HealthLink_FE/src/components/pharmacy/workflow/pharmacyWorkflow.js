@@ -128,7 +128,8 @@ export function isActiveOrderWorkItem(item) {
 }
 
 export function isOrderListWorkItem(item) {
-  return ORDER_LIST_TABS.some((tab) => tab.stages.includes(getWorkflowStage(item)));
+  return getWorkflowStage(item) === 'REVISION_REQUESTED'
+    || ORDER_LIST_TABS.some((tab) => tab.stages.includes(getWorkflowStage(item)));
 }
 
 export function isDeliveryOrder(item) {
@@ -214,8 +215,35 @@ export function matchesPharmacyWorkflowSearch(item, query) {
   return text.includes(needle);
 }
 
+function isInternalPharmacyPath(actionUrl) {
+  return String(actionUrl || '').startsWith('/pharmacy-page/');
+}
+
+function parsePositiveInteger(value) {
+  const parsed = Number.parseInt(String(value || ''), 10);
+  return Number.isInteger(parsed) && parsed > 0 ? parsed : null;
+}
+
+export function isRevisionWorkflowNotification(notification = {}) {
+  return String(notification.type || '').toUpperCase() === 'ORDER_STATUS'
+    && String(notification.actionUrl || '').startsWith('/pharmacy-page/requests');
+}
+
+export function getWorkflowNotificationOrderId(notification = {}) {
+  const relatedId = parsePositiveInteger(notification.relatedId || notification.orderId);
+  if (relatedId) return relatedId;
+
+  try {
+    const url = new URL(String(notification.actionUrl || ''), 'https://healthlink.local');
+    return parsePositiveInteger(url.searchParams.get('orderId'));
+  } catch {
+    return null;
+  }
+}
+
 export function getPharmacyNotificationTarget(notification) {
   const type = notification?.type;
+  if (isInternalPharmacyPath(notification?.actionUrl)) return notification.actionUrl;
   if (type === 'NEW_PHARMACY_REQUEST') return '/pharmacy-page/requests';
   if (type === 'NEW_ORDER') return '/pharmacy-page/orders';
   if (type === 'INVOICE_PAID') return '/pharmacy-page/orders';
