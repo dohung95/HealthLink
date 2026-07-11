@@ -68,6 +68,9 @@ public class FollowUpAppointmentServiceImpl implements FollowUpAppointmentServic
     private static final DateTimeFormatter SLOT_TIME_FORMATTER = DateTimeFormatter.ofPattern("HH:mm");
     private static final String TYPE_HOME_VISIT = "HomeVisit";
     private static final String STATUS_CANCELLED = "CANCELLED";
+    private static final String STATUS_PROPOSED = "FOLLOW_UP_PROPOSED";
+    private static final String STATUS_AWAITING_PAYMENT = "AWAITING_PAYMENT";
+    private static final String STATUS_CONFIRMED = "CONFIRMED";
     private static final String STATUS_AVAILABLE = "AVAILABLE";
     private static final String STATUS_BOOKED = "BOOKED";
     private static final int DEFAULT_SLOT_MINUTES = 30;
@@ -230,8 +233,9 @@ public class FollowUpAppointmentServiceImpl implements FollowUpAppointmentServic
             consultation.setConsultationType(request.getConsultationType());
         }
         consultationRepository.save(consultation);
+        ensureFollowUpProposal(sourceAppointment, consultation);
 
-        return toFollowUpResponse(consultation);
+        return toFollowUpResponse(consultationRepository.save(consultation));
     }
 
     private boolean sameConsultationType(String left, String right) {
@@ -309,6 +313,7 @@ public class FollowUpAppointmentServiceImpl implements FollowUpAppointmentServic
         consultation.setFollowUpDate(null);
         consultation.setFollowUpNotes(null);
         consultation.setFollowUpAppointmentId(null);
+        consultation.setFollowUpStatus(FollowUpStatus.NONE);
         consultationRepository.save(consultation);
     }
 
@@ -324,6 +329,9 @@ public class FollowUpAppointmentServiceImpl implements FollowUpAppointmentServic
             throw new BadRequestException("Save follow-up data first via PUT /api/appointments/{id}/follow-up");
         }
 
+        Appointment proposal = ensureFollowUpProposal(sourceAppointment, consultation);
+        proposal.setStatus(STATUS_AWAITING_PAYMENT);
+        appointmentRepository.save(proposal);
         consultation.setFollowUpStatus(FollowUpStatus.PENDING_PAYMENT);
         consultationRepository.save(consultation);
 
@@ -390,6 +398,12 @@ public class FollowUpAppointmentServiceImpl implements FollowUpAppointmentServic
         }
 
         consultation.setFollowUpStatus(FollowUpStatus.CONFIRMED);
+        Appointment followUpAppointment = findExistingFollowUpAppointment(consultation);
+        if (followUpAppointment != null && !STATUS_CANCELLED.equalsIgnoreCase(followUpAppointment.getStatus())) {
+            followUpAppointment.setStatus(STATUS_CONFIRMED);
+            followUpAppointment.setConfirmedAt(LocalDateTime.now());
+            appointmentRepository.save(followUpAppointment);
+        }
         consultationRepository.save(consultation);
 
         User doctorUser = consultation.getAppointment().getDoctor().getUser();
@@ -418,9 +432,17 @@ public class FollowUpAppointmentServiceImpl implements FollowUpAppointmentServic
         }
 
         consultation.setFollowUpStatus(FollowUpStatus.NONE);
+        Appointment followUpAppointment = findExistingFollowUpAppointment(consultation);
+        if (followUpAppointment != null && !STATUS_CANCELLED.equalsIgnoreCase(followUpAppointment.getStatus())) {
+            followUpAppointment.setStatus(STATUS_CANCELLED);
+            followUpAppointment.setCancelReason("Follow-up request declined by patient");
+            followUpAppointment.setCancelledAt(LocalDateTime.now());
+            appointmentRepository.save(followUpAppointment);
+        }
         consultation.setFollowUpDate(null);
         consultation.setFollowUpNotes(null);
         consultation.setConsultationType(null);
+        consultation.setFollowUpAppointmentId(null);
         consultationRepository.save(consultation);
 
         User doctorUser = consultation.getAppointment().getDoctor().getUser();
@@ -555,9 +577,7 @@ public class FollowUpAppointmentServiceImpl implements FollowUpAppointmentServic
         }
 
         if (followUpAppointment == null && consultation != null && consultation.getFollowUpDate() != null) {
-            validateFollowUpSlot(completedAppointment, consultation.getFollowUpDate(), consultation.getConsultationType());
-            followUpAppointment = createFollowUpAppointment(completedAppointment, consultation);
-            consultation.setFollowUpAppointmentId(followUpAppointment.getAppointmentId());
+            followUpAppointment = ensureFollowUpProposal(completedAppointment, consultation);
             consultationRepository.save(consultation);
             if (copyPrescription) {
                 followUpPrescriptionHeaderId = copyLatestPrescription(completedAppointment, followUpAppointment);
@@ -848,7 +868,7 @@ public class FollowUpAppointmentServiceImpl implements FollowUpAppointmentServic
                         consultation.getConsultationType() != null
                                 ? consultation.getConsultationType()
                                 : sourceAppointment.getConsultationType())
-                .status("SCHEDULED")
+                .status(STATUS_PROPOSED)
                 .symptoms(sourceAppointment.getSymptoms())
                 .notes(firstNonBlank(consultation.getFollowUpNotes(), sourceAppointment.getNotes()))
                 .fee(sourceAppointment.getDoctor() != null ? sourceAppointment.getDoctor().getConsultationFee() : sourceAppointment.getFee())
@@ -856,6 +876,18 @@ public class FollowUpAppointmentServiceImpl implements FollowUpAppointmentServic
                 .build();
 
         return appointmentRepository.save(followUpAppointment);
+    }
+
+    private Appointment ensureFollowUpProposal(Appointment sourceAppointment, Consultation consultation) {
+        Appointment existing = findExistingFollowUpAppointment(consultation);
+        if (existing != null && !STATUS_CANCELLED.equalsIgnoreCase(existing.getStatus())) {
+            return existing;
+        }
+        validateFollowUpSlot(sourceAppointment, consultation.getFollowUpDate(), consultation.getConsultationType());
+        Appointment proposal = createFollowUpAppointment(sourceAppointment, consultation);
+        consultation.setFollowUpAppointmentId(proposal.getAppointmentId());
+        consultation.setFollowUpStatus(FollowUpStatus.PROPOSED);
+        return proposal;
     }
 
     private int resolveFollowUpSlotDuration(

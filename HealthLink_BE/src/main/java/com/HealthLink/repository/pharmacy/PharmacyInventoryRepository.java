@@ -5,8 +5,11 @@ import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
+import org.springframework.data.jpa.repository.Lock;
 import org.springframework.data.repository.query.Param;
 import org.springframework.stereotype.Repository;
+
+import jakarta.persistence.LockModeType;
 
 import java.time.LocalDate;
 import java.util.Collection;
@@ -20,6 +23,17 @@ public interface PharmacyInventoryRepository extends JpaRepository<PharmacyInven
     List<PharmacyInventory> findByPharmacy_PharmacyId(String pharmacyId);
 
     Optional<PharmacyInventory> findByPharmacy_PharmacyIdAndMedicine_MedicineId(String pharmacyId, Integer medicineId);
+
+    @Lock(LockModeType.PESSIMISTIC_WRITE)
+    @Query("""
+            SELECT i FROM PharmacyInventory i
+            WHERE i.pharmacy.pharmacyId = :pharmacyId
+              AND i.medicine.medicineId = :medicineId
+            """)
+    Optional<PharmacyInventory> findByPharmacyAndMedicineForUpdate(
+            @Param("pharmacyId") String pharmacyId,
+            @Param("medicineId") Integer medicineId
+    );
 
     List<PharmacyInventory> findByPharmacy_PharmacyIdAndMedicine_MedicineIdIn(
             String pharmacyId,

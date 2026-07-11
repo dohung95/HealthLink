@@ -23,6 +23,7 @@ import {
   isPharmacyAnnouncementType,
   isRevisionWorkflowNotification,
 } from '../../components/pharmacy/workflow/pharmacyWorkflow';
+import { buildFallbackRequestWorkItems } from '../../components/pharmacy/workflow/pharmacyWorkflowFallback';
 import PharmacyRequestsPage from '../../components/pharmacy/PharmacyRequestsPage';
 import PharmacyKanbanOrdersPage from '../../components/pharmacy/PharmacyKanbanOrdersPage';
 import PharmacyOrderListPage from '../../components/pharmacy/PharmacyOrderListPage';
@@ -43,10 +44,13 @@ export default function PharmacyDashboardPage() {
   const [orders, setOrders] = useState([]);
   const [requests, setRequests] = useState([]);
   const [workItems, setWorkItems] = useState([]);
+  const [workItemsError, setWorkItemsError] = useState(null);
+  const [workItemsLoading, setWorkItemsLoading] = useState(false);
   const [balance, setBalance] = useState(null);
   const [transactions, setTransactions] = useState([]);
   const [settlements, setSettlements] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [inventoryRefreshToken, setInventoryRefreshToken] = useState(0);
   const [workflowAttention, setWorkflowAttention] = useState(null);
   const handledWorkflowNotificationsRef = useRef(new Set());
   const workflowAttentionTimerRef = useRef(null);
@@ -64,9 +68,32 @@ export default function PharmacyDashboardPage() {
     return 'overview';
   }, [location.pathname]);
 
+  const applyWorkflowResults = useCallback((requestResult, workItemResult) => {
+    const rawRequests = requestResult.status === 'fulfilled' && Array.isArray(requestResult.value)
+      ? requestResult.value
+      : [];
+
+    if (requestResult.status === 'fulfilled') {
+      setRequests(rawRequests);
+    }
+
+    if (workItemResult.status === 'fulfilled') {
+      setWorkItems(Array.isArray(workItemResult.value) ? workItemResult.value : []);
+      setWorkItemsError(null);
+      return;
+    }
+
+    setWorkItems(buildFallbackRequestWorkItems(rawRequests, []));
+    setWorkItemsError(
+      workItemResult.reason?.response?.data?.message
+      || 'Workflow data is temporarily unavailable. Showing new requests that can still be handled.',
+    );
+  }, []);
+
   const loadDashboardData = useCallback(async () => {
     if (!token) return;
     setLoading(true);
+    setWorkItemsLoading(true);
     try {
       const profileData = await getPharmacyProfile(token);
       const resolvedPharmacyId = profileData?.pharmacyId || currentUserId;
@@ -83,17 +110,18 @@ export default function PharmacyDashboardPage() {
       const [orderResult, requestResult, workItemResult, balanceResult, transactionResult, settlementResult] = results;
 
       if (orderResult.status === 'fulfilled') setOrders(Array.isArray(orderResult.value) ? orderResult.value : []);
-      if (requestResult.status === 'fulfilled') setRequests(Array.isArray(requestResult.value) ? requestResult.value : []);
-      if (workItemResult.status === 'fulfilled') setWorkItems(Array.isArray(workItemResult.value) ? workItemResult.value : []);
+      applyWorkflowResults(requestResult, workItemResult);
       if (balanceResult.status === 'fulfilled') setBalance(balanceResult.value);
       if (transactionResult.status === 'fulfilled') setTransactions(Array.isArray(transactionResult.value) ? transactionResult.value : []);
       if (settlementResult.status === 'fulfilled') setSettlements(Array.isArray(settlementResult.value) ? settlementResult.value : []);
+      setInventoryRefreshToken((value) => value + 1);
     } catch (error) {
       console.error('Failed to load pharmacy dashboard', error);
     } finally {
       setLoading(false);
+      setWorkItemsLoading(false);
     }
-  }, [currentUserId, token]);
+  }, [applyWorkflowResults, currentUserId, token]);
 
   useEffect(() => {
     loadDashboardData();
@@ -102,19 +130,23 @@ export default function PharmacyDashboardPage() {
   const refreshWorkflowData = useCallback(async () => {
     const resolvedPharmacyId = profile?.pharmacyId || currentUserId;
     if (!resolvedPharmacyId) return;
+    setWorkItemsLoading(true);
+    try {
+      const [orderResult, requestResult, workItemResult] = await Promise.allSettled([
+        pharmacyApi.getOrdersByPharmacy(resolvedPharmacyId),
+        pharmacyApi.getConsultationRequestsByPharmacy(resolvedPharmacyId),
+        pharmacyApi.getWorkItemsByPharmacy(resolvedPharmacyId),
+      ]);
 
-    const [orderResult, workItemResult] = await Promise.allSettled([
-      pharmacyApi.getOrdersByPharmacy(resolvedPharmacyId),
-      pharmacyApi.getWorkItemsByPharmacy(resolvedPharmacyId),
-    ]);
-
-    if (orderResult.status === 'fulfilled') {
-      setOrders(Array.isArray(orderResult.value) ? orderResult.value : []);
+      if (orderResult.status === 'fulfilled') {
+        setOrders(Array.isArray(orderResult.value) ? orderResult.value : []);
+      }
+      applyWorkflowResults(requestResult, workItemResult);
+      setInventoryRefreshToken((value) => value + 1);
+    } finally {
+      setWorkItemsLoading(false);
     }
-    if (workItemResult.status === 'fulfilled') {
-      setWorkItems(Array.isArray(workItemResult.value) ? workItemResult.value : []);
-    }
-  }, [currentUserId, profile?.pharmacyId]);
+  }, [applyWorkflowResults, currentUserId, profile?.pharmacyId]);
 
   useEffect(() => {
     const latest = latestRealtimeNotification;
@@ -206,14 +238,18 @@ export default function PharmacyDashboardPage() {
     orders,
     requests,
     workItems,
+    workItemsError,
+    workItemsLoading,
     balance,
     transactions,
     settlements,
     pharmacyId,
     loading,
     reload: loadDashboardData,
+    retryWorkItems: refreshWorkflowData,
     navigate,
     workflowAttention,
+    inventoryRefreshToken,
   };
 
   return (

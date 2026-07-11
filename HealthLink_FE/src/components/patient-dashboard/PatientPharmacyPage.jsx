@@ -1,6 +1,7 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { useNavigate, useLocation, Link } from 'react-router-dom';
 import { toast } from 'sonner';
+import { MapContainer, Marker, TileLayer, useMapEvents } from 'react-leaflet';
 import { useAuth } from '../../context/AuthContext';
 import { useNotifications } from '../../context/NotificationContext';
 import { useChat } from '../../context/ChatContext';
@@ -8,7 +9,6 @@ import pharmacyApi from '../../api/pharmacyApi';
 import { getProfile } from '../../api/account';
 import { paymentApi } from '../../api/paymentApi';
 import { loadPayPalSdk } from '../../utils/paypalSdk';
-import { titleCase } from '../../utils/pharmacy/pharmacyHelpers';
 import {
   clearWorkflowToastSuppression,
   getWorkflowToastId,
@@ -16,6 +16,10 @@ import {
 } from '../../utils/notificationToastPolicy';
 import ConfirmModal from '../ConfirmModal';
 import RetailPharmacyStore from './pharmacy-store/RetailPharmacyStore';
+import DeliveryContactEditor from './pharmacy-store/DeliveryContactEditor';
+import { canEditDeliveryAddress, canEditDeliveryPhone, isDeliveryContactLocked } from './pharmacy-store/deliveryContactPolicy';
+import { getAddressVerificationError } from './pharmacy-store/addressVerification';
+import { getOrderStatusPresentation, getRequestStatusPresentation } from '../pharmacy/workflow/pharmacyStatusPresentation';
 import './PatientPharmacy.css';
 
 function isPrescriptionBasedOrder(order) {
@@ -23,20 +27,23 @@ function isPrescriptionBasedOrder(order) {
     || (order?.items || []).some((item) => item?.sourcePrescriptionItemId);
 }
 
-function shouldShowPaymentBadge(order) {
-  if (!order?.paymentStatus) return false;
-  const status = String(order.status || '').toUpperCase();
-  const paymentStatus = String(order.paymentStatus || '').toUpperCase();
-  if (status === 'CANCELLED' && paymentStatus === 'CANCELLED') return false;
-  if (status === 'REFUNDED' && paymentStatus === 'REFUNDED') return false;
-  return true;
+function FulfillmentPinSelector({ onSelect }) {
+  useMapEvents({
+    click(event) {
+      onSelect(event.latlng.lat, event.latlng.lng);
+    },
+  });
+  return null;
 }
 
-function paymentBadgeClass(paymentStatus) {
-  const normalized = String(paymentStatus || '').toUpperCase();
-  if (normalized === 'PAID') return 'bg-success';
-  if (normalized === 'CANCELLED' || normalized === 'FAILED' || normalized === 'REFUNDED') return 'bg-secondary';
-  return 'bg-warning';
+function statusBadgeClass(tone) {
+  return {
+    success: 'bg-success',
+    danger: 'bg-danger',
+    warning: 'bg-warning text-dark',
+    info: 'bg-info text-dark',
+    neutral: 'bg-secondary',
+  }[tone] || 'bg-secondary';
 }
 
 const TABS = [
@@ -355,14 +362,18 @@ function PrescriptionStep({ mode, userId, onSelect, onSkip, prescriptions, setPr
 function PharmacySelectionStep({ userId, geolocation, deliveryContact, prescriptionHeaderId, fulfillmentType, onSelect, onBack }) {
   const [pharmacies, setPharmacies] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [selectingId, setSelectingId] = useState(null);
   const [search, setSearch] = useState('');
   const deliveryOnly = fulfillmentType === 'Delivery';
   const refLat = deliveryContact?.deliveryLatitude ?? geolocation?.lat ?? null;
   const refLng = deliveryContact?.deliveryLongitude ?? geolocation?.lng ?? null;
 
-  useEffect(() => {
-    if (!userId) { setLoading(false); return; }
-    setLoading(true);
+  const loadPharmacies = useCallback(async ({ silent = false } = {}) => {
+    if (!userId) {
+      setLoading(false);
+      return [];
+    }
+    if (!silent) setLoading(true);
     const params = {};
     if (deliveryOnly) params.deliveryOnly = true;
     if (prescriptionHeaderId) params.prescriptionHeaderId = prescriptionHeaderId;
@@ -370,14 +381,52 @@ function PharmacySelectionStep({ userId, geolocation, deliveryContact, prescript
       params.lat = refLat;
       params.lng = refLng;
     }
-    pharmacyApi.getRecommendations(params)
-      .then((data) => {
-        const safeData = Array.isArray(data) ? data : [];
-        setPharmacies(prescriptionHeaderId ? safeData.filter((p) => p.stockStatus === 'FULL') : safeData);
-      })
-      .catch(() => toast.error('Unable to load pharmacies.'))
-      .finally(() => setLoading(false));
+    try {
+      const data = await pharmacyApi.getRecommendations(params);
+      const safeData = Array.isArray(data) ? data : [];
+      const eligible = prescriptionHeaderId ? safeData.filter((p) => p.stockStatus === 'FULL') : safeData;
+      setPharmacies(eligible);
+      return eligible;
+    } catch {
+      if (!silent) toast.error('Unable to load pharmacies.');
+      return null;
+    } finally {
+      if (!silent) setLoading(false);
+    }
   }, [userId, deliveryOnly, prescriptionHeaderId, refLat, refLng]);
+
+  useEffect(() => {
+    loadPharmacies();
+  }, [loadPharmacies]);
+
+  useEffect(() => {
+    const refreshOnFocus = () => { loadPharmacies({ silent: true }); };
+    window.addEventListener('focus', refreshOnFocus);
+    return () => window.removeEventListener('focus', refreshOnFocus);
+  }, [loadPharmacies]);
+
+  const handleSelect = async (pharmacy) => {
+    setSelectingId(pharmacy.pharmacyId);
+    const current = await loadPharmacies({ silent: true });
+    if (current == null) {
+      toast.error('Unable to recheck pharmacy availability. Please try again.');
+      setSelectingId(null);
+      return;
+    }
+    const eligible = current?.find((candidate) => candidate.pharmacyId === pharmacy.pharmacyId);
+    const unavailableForDelivery = deliveryOnly
+      && (!eligible?.deliveryAvailable || eligible?.withinDeliveryRadius === false);
+    if (!eligible || unavailableForDelivery) {
+      toast.error('This pharmacy is no longer available for the selected fulfillment option.');
+      setSelectingId(null);
+      return;
+    }
+    try {
+      await onSelect(eligible);
+    } finally {
+      setSelectingId(null);
+    }
+  };
 
   const filtered = pharmacies.filter((p) => {
     if (!search) return true;
@@ -455,8 +504,8 @@ function PharmacySelectionStep({ userId, geolocation, deliveryContact, prescript
                         </>
                       )}
                     </div>
-                    <button className="btn btn-sm btn-outline-primary w-100" onClick={() => onSelect(p)}>
-                      <i className="bi bi-send me-1"></i>Send Order
+                    <button className="btn btn-sm btn-outline-primary w-100" disabled={selectingId != null} onClick={() => handleSelect(p)}>
+                      <i className={`bi ${selectingId === p.pharmacyId ? 'bi-arrow-repeat' : 'bi-send'} me-1`}></i>{selectingId === p.pharmacyId ? 'Checking...' : 'Send Order'}
                     </button>
                   </div>
                 </div>
@@ -476,6 +525,7 @@ function FulfillmentStep({ profile, geolocation, geoTried, fulfillmentType, setF
   const [longitude, setLongitude] = useState(null);
   const [source, setSource] = useState('PROFILE');
   const [saving, setSaving] = useState(false);
+  const [showMap, setShowMap] = useState(false);
 
   useEffect(() => {
     const profileAddress = [profile?.address, profile?.city, profile?.country].filter(Boolean).join(', ');
@@ -507,12 +557,7 @@ function FulfillmentStep({ profile, geolocation, geoTried, fulfillmentType, setF
         toast.success('Pickup area updated from current location.');
       }
     } catch (error) {
-      const msg = error.response?.data?.message || '';
-      if (msg.includes('API key is not configured')) {
-        toast.error('Google Maps service is not configured. Please contact support.');
-      } else {
-        toast.error(msg || 'Unable to resolve current location.');
-      }
+      toast.error(getAddressVerificationError(error, 'Unable to resolve current location.'));
     } finally {
       setSaving(false);
     }
@@ -538,12 +583,7 @@ function FulfillmentStep({ profile, geolocation, geoTried, fulfillmentType, setF
         toast.success('Pickup area verified.');
       }
     } catch (error) {
-      const msg = error.response?.data?.message || '';
-      if (msg.includes('API key is not configured')) {
-        toast.error('Google Maps service is not configured. Please contact support.');
-      } else {
-        toast.error(msg || fulfillmentType === 'Delivery' ? 'Unable to verify this address.' : 'Unable to verify this area.');
-      }
+      toast.error(getAddressVerificationError(error, fulfillmentType === 'Delivery' ? 'Unable to verify this address.' : 'Unable to verify this area.'));
     } finally {
       setSaving(false);
     }
@@ -631,6 +671,9 @@ function FulfillmentStep({ profile, geolocation, geoTried, fulfillmentType, setF
             <button className="btn btn-outline-secondary btn-sm" disabled={saving || !address.trim()} onClick={geocodeManual} type="button">
               <i className="bi bi-geo-alt me-1"></i>Verify address
             </button>
+            <button className="btn btn-outline-secondary btn-sm" disabled={saving} onClick={() => setShowMap((visible) => !visible)} type="button">
+              <i className="bi bi-map me-1"></i>{showMap ? 'Hide map' : 'Confirm on map'}
+            </button>
           </div>
 
           {latitude != null && longitude != null && (
@@ -653,6 +696,9 @@ function FulfillmentStep({ profile, geolocation, geoTried, fulfillmentType, setF
             <button className="btn btn-outline-secondary btn-sm" disabled={saving || !pickupArea.address.trim()} onClick={geocodeManual} type="button">
               <i className="bi bi-geo-alt me-1"></i>Verify area
             </button>
+            <button className="btn btn-outline-secondary btn-sm" disabled={saving} onClick={() => setShowMap((visible) => !visible)} type="button">
+              <i className="bi bi-map me-1"></i>{showMap ? 'Hide map' : 'Confirm on map'}
+            </button>
           </div>
 
           {pickupArea.latitude != null && pickupArea.longitude != null && (
@@ -661,6 +707,16 @@ function FulfillmentStep({ profile, geolocation, geoTried, fulfillmentType, setF
             </p>
           )}
         </>
+      )}
+
+      {showMap && (
+        <div className="border rounded overflow-hidden mb-3" style={{ height: 240 }}>
+          <MapContainer center={mapCenter} zoom={13} style={{ height: '100%', width: '100%' }}>
+            <TileLayer attribution="&copy; OpenStreetMap contributors" url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png" />
+            <FulfillmentPinSelector onSelect={selectMapPin} />
+            {Number.isFinite(Number(mapCoordinates.latitude)) && Number.isFinite(Number(mapCoordinates.longitude)) && <Marker position={mapCenter} />}
+          </MapContainer>
+        </div>
       )}
 
       <div className="d-flex gap-2">
@@ -875,9 +931,10 @@ function RequestsView({ userId }) {
           <p className="mb-1 small">{req.symptoms || req.description || 'No description'}</p>
           <div className="d-flex gap-2 align-items-center">
             <span className="badge bg-info">{req.requestType === 'ORDER_REQUEST' ? 'Order Request' : 'Consultation'}</span>
-            <span className={`badge ${req.status === 'CANCELLED' ? 'bg-danger' : req.status === 'ORDER_CREATED' ? 'bg-success' : req.status === 'IN_REVIEW' ? 'bg-info' : 'bg-secondary'}`}>
-              {req.status}
-            </span>
+            {(() => {
+              const status = getRequestStatusPresentation(req);
+              return <span className={`badge ${statusBadgeClass(status.tone)}`}>{status.label}: {status.value}</span>;
+            })()}
             {req.pharmacyOrderId && (
               <Link to={`/patient-dashboard/pharmacy/orders/${req.pharmacyOrderId}`} className="small">
                 <i className="bi bi-box-seam me-1"></i>View Order
@@ -920,11 +977,6 @@ function OrdersView({ userId, navigate }) {
     );
   }
 
-  const statusBadge = (s) => {
-    const map = { PENDING: 'warning', CONFIRMED: 'info', PREPARING: 'primary', READY: 'primary', SHIPPING: 'info', DELIVERED: 'success', COMPLETED: 'success', CANCELLED: 'danger', REFUNDED: 'secondary' };
-    return `bg-${map[s] || 'secondary'}`;
-  };
-
   return (
     <div className="list-group">
       {orders.map((o) => (
@@ -936,11 +988,14 @@ function OrdersView({ userId, navigate }) {
               <h6 className="mb-1">{o.orderNumber || `Order #${o.orderId}`}</h6>
               <p className="mb-1 small text-muted">{o.pharmacyName || 'Pharmacy'}</p>
             </div>
-            <div className="text-end">
-              <span className={`badge ${statusBadge(o.status)} me-1`}>{titleCase(o.status)}</span>
-              {shouldShowPaymentBadge(o) && (
-                <span className={`badge ${paymentBadgeClass(o.paymentStatus)}`}>{o.paymentStatus}</span>
-              )}
+            <div className="text-end d-flex flex-wrap justify-content-end gap-1">
+              {(() => {
+                const presentation = getOrderStatusPresentation(o);
+                return <>
+                  <span className={`badge ${statusBadgeClass(presentation.order.tone)}`}>Order: {presentation.order.value}</span>
+                  {presentation.payment && <span className={`badge ${statusBadgeClass(presentation.payment.tone)}`}>Payment: {presentation.payment.value}</span>}
+                </>;
+              })()}
             </div>
           </div>
           {o.totalAmount != null && (
@@ -1113,6 +1168,22 @@ function OrderDetailView({ orderId, navigate }) {
     }
   };
 
+  const mapCoordinates = fulfillmentType === 'Delivery'
+    ? { latitude, longitude }
+    : { latitude: pickupArea.latitude, longitude: pickupArea.longitude };
+  const mapCenter = Number.isFinite(Number(mapCoordinates.latitude)) && Number.isFinite(Number(mapCoordinates.longitude))
+    ? [Number(mapCoordinates.latitude), Number(mapCoordinates.longitude)]
+    : [10.7769, 106.7009];
+  const selectMapPin = (selectedLatitude, selectedLongitude) => {
+    if (fulfillmentType === 'Delivery') {
+      setLatitude(selectedLatitude);
+      setLongitude(selectedLongitude);
+      setSource('MAP_PIN');
+      return;
+    }
+    setPickupArea((current) => ({ ...current, latitude: selectedLatitude, longitude: selectedLongitude, source: 'MAP_PIN' }));
+  };
+
   const handleConfirmCancel = async () => {
     if (!order?.orderId) return;
     const cancelToastId = getWorkflowToastId({ type: 'CANCEL_ORDER', relatedId: order.orderId });
@@ -1222,6 +1293,29 @@ function OrderDetailView({ orderId, navigate }) {
     }
   };
 
+  const handleDeliveryContactSubmit = async ({ kind, payload }) => {
+    setSavingDeliveryContact(true);
+    try {
+      if (kind === 'PHONE_ONLY') {
+        const updated = await pharmacyApi.updateOrderDeliveryContact(orderId, payload);
+        setOrder(updated);
+        toast.success('Phone number updated.');
+      } else {
+        const pendingChange = await pharmacyApi.requestDeliveryContactChange(orderId, payload);
+        setOrder((current) => ({
+          ...current,
+          deliveryContactChangeStatus: pendingChange.status,
+        }));
+        toast.success('Address change request sent for pharmacy review.');
+      }
+      setShowDeliveryContactEditor(false);
+    } catch (err) {
+      toast.error(err.response?.data?.message || 'Unable to update delivery details.');
+    } finally {
+      setSavingDeliveryContact(false);
+    }
+  };
+
   const handlePaid = useCallback(async (updatedOrder) => {
     if (updatedOrder?.paymentStatus === 'PAID') {
       setOrder(updatedOrder);
@@ -1269,11 +1363,6 @@ function OrderDetailView({ orderId, navigate }) {
     }
   };
 
-  const statusBadge = (s) => {
-    const map = { PENDING: 'warning', CONFIRMED: 'info', PREPARING: 'primary', READY: 'primary', SHIPPING: 'info', DELIVERED: 'success', COMPLETED: 'success', CANCELLED: 'danger', REFUNDED: 'secondary', REVISION_REQUESTED: 'warning' };
-    return map[s] || 'secondary';
-  };
-
   if (loading) {
     return (
       <div className="text-center py-5">
@@ -1316,6 +1405,9 @@ function OrderDetailView({ orderId, navigate }) {
     && !showPaymentAction
     && !showRevisionForm
     && !showDeliveryContactEditor;
+  const deliveryOrder = String(order.deliveryType || '').toUpperCase() === 'DELIVERY';
+  const deliveryContactLocked = isDeliveryContactLocked(order);
+  const canEditAnyDeliveryContact = canEditDeliveryAddress(order) || canEditDeliveryPhone(order);
 
   return (
     <div>
@@ -1324,10 +1416,13 @@ function OrderDetailView({ orderId, navigate }) {
           <i className="bi bi-arrow-left"></i>
         </button>
         <h4 className="mb-0">Order {order.orderNumber || `#${orderId}`}</h4>
-        <span className={`badge bg-${statusBadge(order.status)}`}>{titleCase(order.status)}</span>
-        {shouldShowPaymentBadge(order) && (
-          <span className={`badge ${paymentBadgeClass(order.paymentStatus)}`}>{order.paymentStatus}</span>
-        )}
+        {(() => {
+          const presentation = getOrderStatusPresentation(order);
+          return <>
+            <span className={`badge ${statusBadgeClass(presentation.order.tone)}`}>Order: {presentation.order.value}</span>
+            {presentation.payment && <span className={`badge ${statusBadgeClass(presentation.payment.tone)}`}>Payment: {presentation.payment.value}</span>}
+          </>;
+        })()}
         {order.invoiceId && (
           <button className="btn btn-sm btn-outline-primary" onClick={handleDownloadPdf}>
             <i className="bi bi-file-pdf me-1"></i>PDF
@@ -1496,7 +1591,7 @@ function OrderDetailView({ orderId, navigate }) {
             </div>
           )}
 
-          {isPrescriptionBasedOrder(order) && order.deliveryType !== 'Pickup' && order.deliveryContactChangeStatus === 'PENDING' && (
+          {deliveryOrder && order.deliveryContactChangeStatus === 'PENDING' && (
             <div className="card shadow-sm mb-3">
               <div className="card-body text-center">
                 <i className="bi bi-clock-history text-warning fs-4 mb-2 d-block"></i>
@@ -1505,7 +1600,29 @@ function OrderDetailView({ orderId, navigate }) {
             </div>
           )}
 
-          {isPrescriptionBasedOrder(order) && order.deliveryType !== 'Pickup' && (
+          {deliveryOrder && order.deliveryContactChangeStatus !== 'PENDING' && !showDeliveryContactEditor && canEditAnyDeliveryContact && (
+            <div className="card shadow-sm mb-3">
+              <div className="card-body d-flex justify-content-between align-items-center gap-3">
+                <div><h6 className="fw-semibold mb-1">Delivery details</h6><p className="small text-muted mb-0">{order.deliveryAddress} {order.deliveryPhoneNumber ? `- ${order.deliveryPhoneNumber}` : ''}</p></div>
+                <button className="btn btn-outline-primary btn-sm flex-shrink-0" onClick={() => setShowDeliveryContactEditor(true)} type="button"><i className="bi bi-pencil me-1" />Edit</button>
+              </div>
+            </div>
+          )}
+
+          {deliveryOrder && showDeliveryContactEditor && (
+            <DeliveryContactEditor
+              order={order}
+              onCancel={() => setShowDeliveryContactEditor(false)}
+              onSubmit={handleDeliveryContactSubmit}
+              saving={savingDeliveryContact}
+            />
+          )}
+
+          {deliveryOrder && order.deliveryContactChangeStatus !== 'PENDING' && deliveryContactLocked && (
+            <div className="alert alert-secondary small mb-3"><i className="bi bi-lock me-2" />Delivery details are locked after shipping starts.</div>
+          )}
+
+          {isPrescriptionBasedOrder(order) && order.deliveryType !== 'Pickup' && !deliveryOrder && (
             <>
               {order.deliveryContactChangeStatus !== 'PENDING' && ['SHIPPING', 'DELIVERED', 'COMPLETED', 'CANCELLED', 'REFUNDED'].includes(order.status) && (
                 <div className="card shadow-sm mb-3">

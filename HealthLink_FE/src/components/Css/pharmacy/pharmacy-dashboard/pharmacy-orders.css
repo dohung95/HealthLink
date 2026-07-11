@@ -51,6 +51,11 @@
 .pharmacy-status.is-processing { color: #1d4ed8; background: #eff6ff; border-color: #bfdbfe; }
 .pharmacy-status.is-danger { color: #b91c1c; background: #fef2f2; border-color: #fecaca; }
 .pharmacy-status.is-pending { color: #b45309; background: #fffbeb; border-color: #fde68a; }
+.pharmacy-status.tone-success { color: #047857; background: #ecfdf5; border-color: #a7f3d0; }
+.pharmacy-status.tone-info { color: #1d4ed8; background: #eff6ff; border-color: #bfdbfe; }
+.pharmacy-status.tone-warning { color: #b45309; background: #fffbeb; border-color: #fde68a; }
+.pharmacy-status.tone-danger { color: #b91c1c; background: #fef2f2; border-color: #fecaca; }
+.pharmacy-status.tone-neutral { color: #475569; background: #f8fafc; border-color: #cbd5e1; }
 
 .pharmacy-detail-grid {
   display: grid;
@@ -556,6 +561,31 @@
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
   gap: 12px;
+}
+
+.pharmacy-workflow-degraded {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 12px;
+  padding: 10px 12px;
+  border: 1px solid #f2c46d;
+  border-radius: 8px;
+  background: #fff8e8;
+  color: #6d4b00;
+  font-size: 13px;
+}
+
+.pharmacy-workflow-degraded span {
+  color: inherit;
+}
+
+@media (max-width: 576px) {
+  .pharmacy-workflow-degraded {
+    align-items: flex-start;
+    flex-direction: column;
+  }
 }
 
 .pharmacy-request-card {
@@ -2092,7 +2122,10 @@
   overflow: hidden;
 }
 
-.pharmacy-order-detail-badges { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 8px; }
+.pharmacy-order-detail-statuses { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px; margin-top: 10px; }
+.pharmacy-order-detail-status { display: grid; gap: 3px; min-width: 0; }
+.pharmacy-order-detail-status > small { color: var(--pharmacy-muted); font-size: 11px; font-weight: 700; }
+.pharmacy-order-detail-status .pharmacy-status { width: fit-content; max-width: 100%; white-space: normal; line-height: 1.25; }
 .pharmacy-order-detail-header small { color: var(--pharmacy-muted); font-size: 12px; }
 .pharmacy-detail-section { display: grid; gap: 6px; padding: 14px 0; border-bottom: 1px solid var(--pharmacy-border); }
 .pharmacy-detail-section h3 { margin: 0; font-size: 14px; font-weight: 800; }
@@ -2101,6 +2134,7 @@
 .pharmacy-order-progress { display: grid; grid-template-columns: repeat(auto-fit, minmax(70px, 1fr)); gap: 4px; padding: 8px 0 14px; }
 .pharmacy-order-progress__step { display: grid; gap: 5px; justify-items: center; color: var(--pharmacy-muted); text-align: center; }
 .pharmacy-order-progress__step span { width: 25px; height: 25px; display: grid; place-items: center; border: 2px solid var(--pharmacy-border); border-radius: 50%; font-size: 11px; }
+.pharmacy-order-progress__step span.material-symbols-outlined { font-size: 16px; line-height: 1; }
 .pharmacy-order-progress__step.is-complete span, .pharmacy-order-progress__step.is-current span { border-color: var(--pharmacy-primary); color: var(--pharmacy-primary); }
 .pharmacy-order-progress__step.is-current { color: var(--pharmacy-text); font-weight: 800; }
 .pharmacy-payment-summary > div { display: flex; justify-content: space-between; gap: 12px; font-size: 13px; }

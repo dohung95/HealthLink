@@ -218,7 +218,7 @@ public class PharmacyOrderServiceImpl implements PharmacyOrderService {
         applyCommission(order, pharmacy, medicineAmount);
 
         if (STATUS_CONFIRMED.equals(orderStatus)) {
-            deductStock(order);
+            reserveStock(order);
         }
 
         PharmacyOrder saved;
@@ -313,7 +313,7 @@ public class PharmacyOrderServiceImpl implements PharmacyOrderService {
         applyCommission(order, pharmacy, medicineAmount);
 
         if (STATUS_CONFIRMED.equals(orderStatus)) {
-            deductStock(order);
+            reserveStock(order);
         }
 
         PharmacyOrder saved = orderRepository.save(order);
@@ -502,9 +502,10 @@ public class PharmacyOrderServiceImpl implements PharmacyOrderService {
                     revalidateStockAvailability(order);
                 }
                 order.setConfirmedAt(now);
-                deductStock(order);
+                reserveStock(order);
             }
             case STATUS_PREPARING -> order.setPreparingAt(now);
+            case STATUS_READY -> fulfillReservedStock(order);
             case STATUS_SHIPPING  -> {
                 order.setShippedAt(now);
                 if (request.getEstimatedDeliveryTime() != null) {
@@ -514,14 +515,8 @@ public class PharmacyOrderServiceImpl implements PharmacyOrderService {
             case STATUS_DELIVERED -> {
                 order.setDeliveredAt(now);
                 order.setActualDeliveryTime(now);
-                releaseReservedStock(order);
             }
-            case STATUS_COMPLETED -> {
-                order.setCompletedAt(now);
-                if (isPickupOrder(order)) {
-                    releaseReservedStock(order);
-                }
-            }
+            case STATUS_COMPLETED -> order.setCompletedAt(now);
             case STATUS_CANCELLED -> {
                 order.setCancelledAt(now);
                 order.setCancelReason(request.getCancelReason());
@@ -529,7 +524,11 @@ public class PharmacyOrderServiceImpl implements PharmacyOrderService {
                         ? request.getCancelledBy() : "Pharmacy");
                 discardPatientConfirmationRequest(order);
                 markPaymentCancelledIfUnpaid(order);
-                restoreStock(order);
+                if (STATUS_READY.equals(currentStatus)) {
+                    restoreFulfilledStock(order);
+                } else {
+                    releaseReservedStock(order);
+                }
             }
         }
 
@@ -592,7 +591,7 @@ public class PharmacyOrderServiceImpl implements PharmacyOrderService {
         order.setCancelReason(PharmacyServiceHelper.trimToNull(request.getCancelReason()));
         discardPatientConfirmationRequest(order);
         markPaymentCancelledIfUnpaid(order);
-        restoreStock(order);
+        releaseReservedStock(order);
 
         PharmacyOrder updated = orderRepository.save(order);
 
@@ -807,7 +806,7 @@ public class PharmacyOrderServiceImpl implements PharmacyOrderService {
 
         if (STATUS_PENDING.equals(currentStatus)) {
             revalidateStockAvailability(order);
-            deductStock(order);
+            reserveStock(order);
             order.setConfirmedAt(LocalDateTime.now());
         }
 
@@ -974,7 +973,7 @@ public class PharmacyOrderServiceImpl implements PharmacyOrderService {
         attachOrderItems(order, orderItems);
 
         applyCommission(order, pharmacy, medicineAmount);
-        deductStock(order);
+        reserveStock(order);
 
         PharmacyOrder savedOrder;
         try {
@@ -2006,19 +2005,39 @@ public class PharmacyOrderServiceImpl implements PharmacyOrderService {
     // ── Inventory helpers ───────────────────────────────────────────────────
     // ponytail: skip items without inventory entry — pharmacy may sell OTC outside system
 
-    private void deductStock(PharmacyOrder order) {
+    private void reserveStock(PharmacyOrder order) {
         if (order.getPharmacy() == null || order.getOrderItems() == null) return;
         String pharmacyId = order.getPharmacy().getPharmacyId();
         for (PharmacyOrderItem item : order.getOrderItems()) {
             if (item.getMedicine() == null || item.getQuantity() == null) continue;
-            inventoryRepository
-                .findByPharmacy_PharmacyIdAndMedicine_MedicineId(pharmacyId, item.getMedicine().getMedicineId())
+            findInventoryForMutation(pharmacyId, item.getMedicine().getMedicineId())
                 .ifPresent(inv -> {
                     int qty = item.getQuantity();
-                    inv.setQuantity(Math.max(0, inv.getQuantity() - qty));
-                    inv.setReservedQuantity(inv.getReservedQuantity() + qty);
+                    if (!Boolean.TRUE.equals(inv.getActive()) || inv.getAvailableQuantity() < qty) {
+                        throw new BadRequestException("Insufficient stock for item: " + item.getMedicationName());
+                    }
+                    int reserved = inv.getReservedQuantity() == null ? 0 : inv.getReservedQuantity();
+                    inv.setReservedQuantity(reserved + qty);
                     inventoryRepository.save(inv);
                 });
+        }
+    }
+
+    private void fulfillReservedStock(PharmacyOrder order) {
+        if (order.getPharmacy() == null || order.getOrderItems() == null) return;
+        String pharmacyId = order.getPharmacy().getPharmacyId();
+        for (PharmacyOrderItem item : order.getOrderItems()) {
+            if (item.getMedicine() == null || item.getQuantity() == null) continue;
+            findInventoryForMutation(pharmacyId, item.getMedicine().getMedicineId()).ifPresent(inv -> {
+                int qty = item.getQuantity();
+                int reserved = inv.getReservedQuantity() == null ? 0 : inv.getReservedQuantity();
+                if (reserved < qty || inv.getQuantity() < qty) {
+                    throw new BadRequestException("Insufficient reserved stock for item: " + item.getMedicationName());
+                }
+                inv.setQuantity(inv.getQuantity() - qty);
+                inv.setReservedQuantity(reserved - qty);
+                inventoryRepository.save(inv);
+            });
         }
     }
 
@@ -2027,14 +2046,21 @@ public class PharmacyOrderServiceImpl implements PharmacyOrderService {
         String pharmacyId = order.getPharmacy().getPharmacyId();
         for (PharmacyOrderItem item : order.getOrderItems()) {
             if (item.getMedicine() == null || item.getQuantity() == null) continue;
-            inventoryRepository
-                .findByPharmacy_PharmacyIdAndMedicine_MedicineId(pharmacyId, item.getMedicine().getMedicineId())
+            findInventoryForMutation(pharmacyId, item.getMedicine().getMedicineId())
                 .ifPresent(inv -> {
                     int qty = item.getQuantity();
-                    inv.setReservedQuantity(Math.max(0, inv.getReservedQuantity() - qty));
+                    int reserved = inv.getReservedQuantity() == null ? 0 : inv.getReservedQuantity();
+                    inv.setReservedQuantity(Math.max(0, reserved - qty));
                     inventoryRepository.save(inv);
                 });
         }
+    }
+
+    private Optional<PharmacyInventory> findInventoryForMutation(String pharmacyId, Integer medicineId) {
+        Optional<PharmacyInventory> locked = inventoryRepository.findByPharmacyAndMedicineForUpdate(pharmacyId, medicineId);
+        return locked.isPresent()
+                ? locked
+                : inventoryRepository.findByPharmacy_PharmacyIdAndMedicine_MedicineId(pharmacyId, medicineId);
     }
 
     @Override
@@ -2048,8 +2074,8 @@ public class PharmacyOrderServiceImpl implements PharmacyOrderService {
         }
 
         String currentStatus = normalizeStatus(order.getStatus());
-        if (!Set.of(STATUS_PENDING, STATUS_CONFIRMED, STATUS_PREPARING).contains(currentStatus)) {
-            throw new BadRequestException("Delivery contact can only be updated when status is PENDING, CONFIRMED, or PREPARING");
+        if (!Set.of(STATUS_PENDING, STATUS_CONFIRMED, STATUS_PREPARING, STATUS_READY).contains(currentStatus)) {
+            throw new BadRequestException("Delivery contact can only be updated before shipping");
         }
 
         validateDeliveryOrderCanChangeContact(order);
@@ -2081,13 +2107,20 @@ public class PharmacyOrderServiceImpl implements PharmacyOrderService {
         }
 
         String currentStatus = normalizeStatus(order.getStatus());
-        if (!Set.of(STATUS_PENDING, STATUS_CONFIRMED, STATUS_PREPARING, STATUS_READY).contains(currentStatus)) {
-            throw new BadRequestException("Delivery contact change can be requested when status is PENDING, CONFIRMED, PREPARING, or READY");
+        if (!Set.of(STATUS_PENDING, STATUS_CONFIRMED).contains(currentStatus)) {
+            throw new BadRequestException("Delivery contact change can only be requested when status is PENDING or CONFIRMED");
         }
 
-        if (Set.of(PAYMENT_STATUS_PAID, STATUS_SHIPPING, STATUS_DELIVERED, STATUS_COMPLETED, STATUS_CANCELLED)
-                .contains(currentStatus)) {
-            throw new BadRequestException("Cannot request delivery contact change for this order status");
+        validateDeliveryOrderCanChangeContact(order);
+
+        if (PAYMENT_STATUS_PAID.equalsIgnoreCase(safeValue(order.getPaymentStatus(), ""))) {
+            throw new BadRequestException("Cannot request delivery contact change for a paid order");
+        }
+
+        if (request.getDeliveryLatitude() == null || request.getDeliveryLongitude() == null
+                || request.getDeliveryAddressSource() == null || request.getDeliveryAddressSource().isBlank()
+                || request.getReason() == null || request.getReason().isBlank()) {
+            throw new BadRequestException("Address changes require confirmed coordinates, address source, and reason");
         }
 
         if (!isAddressImpactingDeliveryFee(order, request)) {
@@ -2169,9 +2202,14 @@ public class PharmacyOrderServiceImpl implements PharmacyOrderService {
             BigDecimal newTotal = oldTotal.add(newDeliveryFee);
             order.setTotalAmount(newTotal);
 
-            if (request.getEstimatedDeliveryTime() != null) {
-                order.setEstimatedDeliveryTime(request.getEstimatedDeliveryTime());
+            LocalDateTime estimatedDeliveryTime = request.getEstimatedDeliveryTime();
+            if (estimatedDeliveryTime == null && request.getEstimatedDeliveryMinutes() != null) {
+                estimatedDeliveryTime = LocalDateTime.now().plusMinutes(request.getEstimatedDeliveryMinutes());
             }
+            if (estimatedDeliveryTime == null) {
+                throw new BadRequestException("Estimated delivery time must be provided");
+            }
+            order.setEstimatedDeliveryTime(estimatedDeliveryTime);
 
             applyCommission(order, order.getPharmacy(), order.getMedicineAmount());
 
@@ -2182,9 +2220,7 @@ public class PharmacyOrderServiceImpl implements PharmacyOrderService {
                     ? changeRequest.getOldDeliveryFee() : order.getDeliveryFee();
 
             boolean feeChanged = oldFee.compareTo(newDeliveryFee) != 0;
-            if (feeChanged) {
-                requestPatientConfirmation(order, CONFIRMATION_REASON_DELIVERY_CONTACT_FEE_CHANGE);
-            }
+            requestPatientConfirmation(order, CONFIRMATION_REASON_DELIVERY_CONTACT_FEE_CHANGE);
 
             orderRepository.save(order);
             notifyPatientAboutDeliveryContactChangeReviewAfterCommit(changeRequest, feeChanged);
@@ -2463,17 +2499,15 @@ public class PharmacyOrderServiceImpl implements PharmacyOrderService {
         });
     }
 
-    private void restoreStock(PharmacyOrder order) {
+    private void restoreFulfilledStock(PharmacyOrder order) {
         if (order.getPharmacy() == null || order.getOrderItems() == null) return;
         String pharmacyId = order.getPharmacy().getPharmacyId();
         for (PharmacyOrderItem item : order.getOrderItems()) {
             if (item.getMedicine() == null || item.getQuantity() == null) continue;
-            inventoryRepository
-                .findByPharmacy_PharmacyIdAndMedicine_MedicineId(pharmacyId, item.getMedicine().getMedicineId())
+            findInventoryForMutation(pharmacyId, item.getMedicine().getMedicineId())
                 .ifPresent(inv -> {
                     int qty = item.getQuantity();
                     inv.setQuantity(inv.getQuantity() + qty);
-                    inv.setReservedQuantity(Math.max(0, inv.getReservedQuantity() - qty));
                     inventoryRepository.save(inv);
                 });
         }

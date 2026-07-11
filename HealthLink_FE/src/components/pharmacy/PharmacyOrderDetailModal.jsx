@@ -1,12 +1,11 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import pharmacyApi from '../../api/pharmacyApi';
 import {
-  paymentStatusTone,
-  paymentStatusLabel,
   getNextOrderStatus,
   getItemDisplayId,
   isDeliveryOrder,
 } from './workflow/pharmacyWorkflow';
+import { getOrderStatusPresentation } from './workflow/pharmacyStatusPresentation';
 import { money, dateTime, titleCase } from '../../utils/pharmacy/pharmacyHelpers';
 
 const PICKUP_STEPS = [
@@ -39,7 +38,9 @@ function OrderProgress({ order }) {
     <div className="pharmacy-order-progress" aria-label="Order fulfillment progress">
       {steps.map(([value, label], index) => (
         <div className={`pharmacy-order-progress__step ${index < currentIndex ? 'is-complete' : ''} ${index === currentIndex ? 'is-current' : ''}`} key={value}>
-          <span>{index < currentIndex ? 'check' : index + 1}</span>
+          <span className={index < currentIndex ? 'material-symbols-outlined' : ''} aria-hidden={index < currentIndex ? 'true' : undefined}>
+            {index < currentIndex ? 'check' : index + 1}
+          </span>
           <small>{label}</small>
         </div>
       ))}
@@ -80,6 +81,7 @@ export default function PharmacyOrderDetailModal({ item, profile, onClose, onSta
   }, [item?.orderId]);
 
   const nextStatus = useMemo(() => order ? getNextOrderStatus(order) : null, [order]);
+  const statusPresentation = useMemo(() => order ? getOrderStatusPresentation(order) : null, [order]);
   const pickup = order && !isDeliveryOrder(order);
   const isSaving = savingId === (order?.orderId || item?.orderId);
 
@@ -106,10 +108,13 @@ export default function PharmacyOrderDetailModal({ item, profile, onClose, onSta
           <div>
             <h2 id="pharmacy-order-detail-title" ref={headingRef} tabIndex="-1">{getItemDisplayId(order || item)}</h2>
             {order && <small>{dateTime(order.createdAt)}</small>}
-            <div className="pharmacy-order-detail-badges">
-              {order && <span className={`pharmacy-status ${paymentStatusTone(order.status)}`}>{titleCase(order.status)}</span>}
-              {order && <span className={`pharmacy-status ${paymentStatusTone(order.paymentStatus)}`}>{paymentStatusLabel(order.paymentStatus)}</span>}
-              {order && <span className="pharmacy-status tone-neutral">{titleCase(order.deliveryType || 'Pickup')}</span>}
+            <div className="pharmacy-order-detail-statuses" aria-label="Order status summary">
+              {statusPresentation && Object.values(statusPresentation).filter(Boolean).map((status) => (
+                <div className="pharmacy-order-detail-status" key={status.key}>
+                  <small>{status.label}</small>
+                  <span className={`pharmacy-status tone-${status.tone}`}>{status.value}</span>
+                </div>
+              ))}
             </div>
           </div>
           <button className="pharmacy-order-detail-close" onClick={onClose} type="button" aria-label="Close"><span className="material-symbols-outlined">close</span></button>

@@ -39,6 +39,7 @@ import com.HealthLink.repository.pharmacy.PharmacyOrderRepository;
 import com.HealthLink.repository.pharmacy.PharmacyRepository;
 import com.HealthLink.repository.prescription.PrescriptionHeaderRepository;
 import com.HealthLink.service.notification.NotificationService;
+import org.hibernate.annotations.Nationalized;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.ArgumentCaptor;
@@ -1573,6 +1574,57 @@ class PharmacyOrderServiceImplTest {
     }
 
     @Test
+    void workflowTextFields_shouldUseUnicodeColumnMapping() throws NoSuchFieldException {
+        assertThat(PharmacyOrder.class.getDeclaredField("revisionRequestNotes")
+                .isAnnotationPresent(Nationalized.class)).isTrue();
+        assertThat(PharmacyDeliveryContactChangeRequest.class.getDeclaredField("patientReason")
+                .isAnnotationPresent(Nationalized.class)).isTrue();
+        assertThat(PharmacyDeliveryContactChangeRequest.class.getDeclaredField("pharmacyReviewNotes")
+                .isAnnotationPresent(Nationalized.class)).isTrue();
+    }
+
+    @Test
+    void updateOrderStatus_shouldReserveOnConfirmAndConsumeReservationAtReady() {
+        User patientUser = User.builder().id("patient-user-1").build();
+        User pharmacyUser = User.builder().id("pharmacy-user-1").build();
+        Patient patient = Patient.builder().patientId("patient-1").user(patientUser).build();
+        Pharmacy pharmacy = Pharmacy.builder().pharmacyId("pharmacy-1").user(pharmacyUser).build();
+        Medicine medicine = medicine(1, "Vitamin C", "box");
+        PharmacyOrderItem item = PharmacyOrderItem.builder()
+                .medicine(medicine).medicationName("Vitamin C").quantity(2).build();
+        PharmacyOrder order = PharmacyOrder.builder()
+                .orderId(77).status("PENDING").paymentStatus("PENDING")
+                .patient(patient).pharmacy(pharmacy).orderItems(new ArrayList<>(List.of(item))).build();
+        item.setPharmacyOrder(order);
+        PharmacyInventory inventory = PharmacyInventory.builder()
+                .pharmacy(pharmacy).medicine(medicine).quantity(10).reservedQuantity(0).active(true).build();
+
+        when(orderRepository.findByIdForStatusUpdate(77)).thenReturn(Optional.of(order));
+        when(inventoryRepository.findByPharmacy_PharmacyIdAndMedicine_MedicineId("pharmacy-1", 1))
+                .thenReturn(Optional.of(inventory));
+        when(orderRepository.save(any(PharmacyOrder.class))).thenAnswer(invocation -> invocation.getArgument(0));
+
+        PharmacyOrderStatusRequest confirm = new PharmacyOrderStatusRequest();
+        confirm.setStatus("CONFIRMED");
+        pharmacyOrderService.updateOrderStatus(77, confirm);
+
+        assertThat(inventory.getQuantity()).isEqualTo(10);
+        assertThat(inventory.getReservedQuantity()).isEqualTo(2);
+
+        order.setPaymentStatus("PAID");
+        PharmacyOrderStatusRequest preparing = new PharmacyOrderStatusRequest();
+        preparing.setStatus("PREPARING");
+        pharmacyOrderService.updateOrderStatus(77, preparing);
+
+        PharmacyOrderStatusRequest ready = new PharmacyOrderStatusRequest();
+        ready.setStatus("READY");
+        pharmacyOrderService.updateOrderStatus(77, ready);
+
+        assertThat(inventory.getQuantity()).isEqualTo(8);
+        assertThat(inventory.getReservedQuantity()).isZero();
+    }
+
+    @Test
     void updateOrderStatus_shouldRejectCancellingPaidOrder() {
         PharmacyOrder order = PharmacyOrder.builder()
                 .orderId(77)
@@ -1867,27 +1919,31 @@ class PharmacyOrderServiceImplTest {
     }
 
     @Test
-    void updateDeliveryContact_shouldRejectReadyOrder() {
+    void updateDeliveryContact_shouldAllowPhoneOnlyChangeAtReady() {
         Patient patient = Patient.builder().patientId("patient-1").build();
         PharmacyOrder order = PharmacyOrder.builder()
                 .orderId(77)
                 .patient(patient)
                 .status("READY")
                 .deliveryType("Delivery")
+                .deliveryAddress("123 Main St")
+                .deliveryPhoneNumber("0900000000")
                 .build();
+        PharmacyDeliveryContactUpdateRequest request = new PharmacyDeliveryContactUpdateRequest();
+        request.setDeliveryAddress("123 Main St");
+        request.setDeliveryPhoneNumber("0911111111");
 
         when(orderRepository.findById(77)).thenReturn(Optional.of(order));
+        when(orderRepository.save(any(PharmacyOrder.class))).thenAnswer(invocation -> invocation.getArgument(0));
 
-        assertThatThrownBy(() ->
-                pharmacyOrderService.updateDeliveryContact(77, new PharmacyDeliveryContactUpdateRequest(), "patient-1"))
-                .isInstanceOf(BadRequestException.class)
-                .hasMessage("Delivery contact can only be updated when status is PENDING, CONFIRMED, or PREPARING");
+        PharmacyOrderResponse response = pharmacyOrderService.updateDeliveryContact(77, request, "patient-1");
 
-        verify(orderRepository, never()).save(any(PharmacyOrder.class));
+        assertThat(response.getDeliveryPhoneNumber()).isEqualTo("0911111111");
+        verify(orderRepository).save(order);
     }
 
     @Test
-    void requestDeliveryContactChange_shouldCreatePendingRequestForReadyOrder() {
+    void requestDeliveryContactChange_shouldCreatePendingRequestForUnpaidPendingOrder() {
         User patientUser = User.builder().id("patient-user-1").build();
         User pharmacyUser = User.builder().id("pharmacy-user-1").build();
         Patient patient = Patient.builder()
@@ -1904,7 +1960,8 @@ class PharmacyOrderServiceImplTest {
                 .orderNumber("ORD-20260520-0001")
                 .patient(patient)
                 .pharmacy(pharmacy)
-                .status("READY")
+                .status("PENDING")
+                .paymentStatus("PENDING")
                 .deliveryType("Delivery")
                 .deliveryAddress("123 Main St")
                 .deliveryLatitude(40.7128)
@@ -1954,7 +2011,8 @@ class PharmacyOrderServiceImplTest {
         PharmacyOrder order = PharmacyOrder.builder()
                 .orderId(77)
                 .patient(patient)
-                .status("READY")
+                .status("PENDING")
+                .paymentStatus("PENDING")
                 .deliveryType("Delivery")
                 .deliveryAddress("123 Main St")
                 .deliveryLatitude(40.7128)
@@ -1998,7 +2056,7 @@ class PharmacyOrderServiceImplTest {
             assertThatThrownBy(() ->
                     pharmacyOrderService.requestDeliveryContactChange(77, new PharmacyDeliveryContactUpdateRequest(), "patient-1"))
                     .isInstanceOf(BadRequestException.class)
-                    .hasMessage("Delivery contact change can be requested when status is PENDING, CONFIRMED, PREPARING, or READY");
+                .hasMessage("Delivery contact change can only be requested when status is PENDING or CONFIRMED");
         }
 
         verify(deliveryContactChangeRequestRepository, never()).save(any(PharmacyDeliveryContactChangeRequest.class));
@@ -2048,6 +2106,7 @@ class PharmacyOrderServiceImplTest {
         PharmacyDeliveryContactChangeReviewRequest reviewRequest = new PharmacyDeliveryContactChangeReviewRequest();
         reviewRequest.setStatus("APPROVED");
         reviewRequest.setDeliveryFee(new BigDecimal("6.00"));
+        reviewRequest.setEstimatedDeliveryTime(LocalDateTime.of(2026, 7, 12, 10, 0));
         reviewRequest.setPharmacyReviewNotes("Approved per request");
 
         when(deliveryContactChangeRequestRepository.findById(1)).thenReturn(Optional.of(changeRequest));
@@ -2066,6 +2125,8 @@ class PharmacyOrderServiceImplTest {
         assertThat(order.getDeliveryLongitude()).isEqualTo(-74.0064);
         assertThat(order.getDeliveryPhoneNumber()).isEqualTo("0911111111");
         assertThat(order.getDeliveryAddressSource()).isEqualTo("MANUAL");
+        assertThat(order.getEstimatedDeliveryTime()).isEqualTo(LocalDateTime.of(2026, 7, 12, 10, 0));
+        assertThat(order.getPatientConfirmationRequestedAt()).isNotNull();
         verify(orderRepository).save(order);
     }
 

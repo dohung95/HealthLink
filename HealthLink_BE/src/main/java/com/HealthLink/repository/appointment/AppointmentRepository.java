@@ -30,13 +30,13 @@ public interface AppointmentRepository extends JpaRepository<Appointment, Intege
 
               OR (
                   :status = 'UPCOMING'
-                  AND UPPER(a.status) IN ('SCHEDULED', 'CONFIRMED')
+                  AND UPPER(a.status) IN ('SCHEDULED', 'CONFIRMED', 'FOLLOW_UP_PROPOSED', 'AWAITING_PAYMENT')
                   AND a.appointmentTime >= :expiredBefore
               )
 
               OR (
                   :status = 'EXPIRED'
-                  AND UPPER(a.status) IN ('SCHEDULED', 'CONFIRMED')
+                  AND UPPER(a.status) IN ('SCHEDULED', 'CONFIRMED', 'FOLLOW_UP_PROPOSED', 'AWAITING_PAYMENT')
                   AND a.appointmentTime < :expiredBefore
               )
 

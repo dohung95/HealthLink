@@ -96,6 +96,7 @@ public class PharmacyOrder {
     private String cancelReason;
     private String cancelledBy;
     private LocalDateTime revisionRequestedAt;
+    @Nationalized
     @Column(length = 1000)
     private String revisionRequestNotes;
     private LocalDateTime revisionResolvedAt;

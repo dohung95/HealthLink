@@ -129,48 +129,54 @@ public class PharmacyWorkItemServiceImpl implements PharmacyWorkItemService {
     @Override
     @Transactional(readOnly = true)
     public List<PharmacyWorkItemResponse> getWorkItemsByPharmacy(String pharmacyId) {
-        List<PharmacyConsultationRequest> requests = requestRepository
-                .findByPharmacy_PharmacyIdOrderByCreatedAtDesc(pharmacyId);
+        try {
+            List<PharmacyConsultationRequest> requests = requestRepository
+                    .findByPharmacy_PharmacyIdOrderByCreatedAtDesc(pharmacyId);
 
-        List<PharmacyOrder> directOrders = orderRepository
-                .findByPharmacy_PharmacyIdAndConsultationRequestIsNull(pharmacyId);
+            List<PharmacyOrder> directOrders = orderRepository
+                    .findByPharmacy_PharmacyIdAndConsultationRequestIsNull(pharmacyId);
 
-        Set<String> seenCaseIds = new HashSet<>();
-        List<PharmacyWorkItemResponse> items = new ArrayList<>();
+            List<PharmacyDeliveryContactChangeRequest> deliveryChangeRequests = deliveryContactChangeRequestRepository
+                    .findByOrder_Pharmacy_PharmacyIdAndStatus(pharmacyId, "PENDING");
 
-        for (PharmacyConsultationRequest request : requests) {
-            if (!shouldIncludeRequestWorkItem(request)) {
-                continue;
+            Set<String> seenCaseIds = new HashSet<>();
+            List<PharmacyWorkItemResponse> items = new ArrayList<>();
+
+            for (PharmacyConsultationRequest request : requests) {
+                if (!shouldIncludeRequestWorkItem(request)) {
+                    continue;
+                }
+                PharmacyWorkItemResponse item = toWorkItem(request);
+                if (seenCaseIds.add(item.getCaseId())) {
+                    items.add(item);
+                }
             }
-            PharmacyWorkItemResponse item = toWorkItem(request);
-            if (seenCaseIds.add(item.getCaseId())) {
-                items.add(item);
+
+            for (PharmacyOrder order : directOrders) {
+                if (!shouldIncludeDirectOrderWorkItem(order)) {
+                    continue;
+                }
+                String caseId = "ORD-" + order.getOrderId();
+                if (seenCaseIds.add(caseId)) {
+                    items.add(toDirectOrderWorkItem(order));
+                }
             }
+
+            // Append pending delivery contact change requests
+            for (PharmacyDeliveryContactChangeRequest changeRequest : deliveryChangeRequests) {
+                String caseId = "DELIVERY-CHANGE-" + changeRequest.getRequestId();
+                if (seenCaseIds.add(caseId)) {
+                    items.add(toDeliveryContactChangeWorkItem(changeRequest));
+                }
+            }
+
+            items.sort(Comparator.comparing(PharmacyWorkItemResponse::getSortAt,
+                    Comparator.nullsLast(Comparator.reverseOrder())));
+            return items;
+        } catch (RuntimeException exception) {
+            log.error("Failed to build pharmacy workflow data for pharmacyId={}. Check the current database schema and migration version.", pharmacyId, exception);
+            throw exception;
         }
-
-        for (PharmacyOrder order : directOrders) {
-            if (!shouldIncludeDirectOrderWorkItem(order)) {
-                continue;
-            }
-            String caseId = "ORD-" + order.getOrderId();
-            if (seenCaseIds.add(caseId)) {
-                items.add(toDirectOrderWorkItem(order));
-            }
-        }
-
-        // Append pending delivery contact change requests
-        List<PharmacyDeliveryContactChangeRequest> deliveryChangeRequests = deliveryContactChangeRequestRepository
-                .findByOrder_Pharmacy_PharmacyIdAndStatus(pharmacyId, "PENDING");
-        for (PharmacyDeliveryContactChangeRequest changeRequest : deliveryChangeRequests) {
-            String caseId = "DELIVERY-CHANGE-" + changeRequest.getRequestId();
-            if (seenCaseIds.add(caseId)) {
-                items.add(toDeliveryContactChangeWorkItem(changeRequest));
-            }
-        }
-
-        items.sort(Comparator.comparing(PharmacyWorkItemResponse::getSortAt,
-                Comparator.nullsLast(Comparator.reverseOrder())));
-        return items;
     }
 
     private PharmacyWorkItemResponse toWorkItem(PharmacyConsultationRequest request) {

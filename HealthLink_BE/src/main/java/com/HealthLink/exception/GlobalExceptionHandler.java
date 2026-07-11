@@ -164,6 +164,17 @@ public class GlobalExceptionHandler {
     public ResponseEntity<Map<String, Object>> handleInvalidStatus(InvalidStatusException ex) {
         return buildResponse(HttpStatus.UNPROCESSABLE_ENTITY, ex.getMessage());
     }
+
+    @ExceptionHandler(GeocodingResultNotFoundException.class)
+    public ResponseEntity<Map<String, Object>> handleGeocodingResultNotFound(GeocodingResultNotFoundException ex) {
+        return buildResponse(HttpStatus.UNPROCESSABLE_ENTITY, ex.getMessage());
+    }
+
+    @ExceptionHandler(GeocodingProviderUnavailableException.class)
+    public ResponseEntity<Map<String, Object>> handleGeocodingProviderUnavailable(GeocodingProviderUnavailableException ex) {
+        log.warn("Geocoding provider unavailable: {}", ex.getMessage());
+        return buildResponse(HttpStatus.SERVICE_UNAVAILABLE, ex.getMessage());
+    }
     
     // Xử lý lỗi Validate dữ liệu đầu vào (@Valid)
     @ExceptionHandler(MethodArgumentNotValidException.class)

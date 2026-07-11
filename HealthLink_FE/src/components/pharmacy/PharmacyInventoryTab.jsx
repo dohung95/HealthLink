@@ -61,7 +61,7 @@ function getVisiblePageNumbers(totalPages, currentPage) {
   return Array.from({ length: visibleCount }, (_, index) => start + index);
 }
 
-export default function PharmacyInventoryTab() {
+export default function PharmacyInventoryTab({ inventoryRefreshToken = 0 }) {
   const [inventory, setInventory] = useState({ content: [], totalElements: 0, totalPages: 0 });
   const [lowStockCount, setLowStockCount] = useState(0);
   const [loading, setLoading] = useState(true);
@@ -135,7 +135,7 @@ export default function PharmacyInventoryTab() {
 
   useEffect(() => {
     loadInventory();
-  }, [loadInventory]);
+  }, [inventoryRefreshToken, loadInventory]);
 
   const handleImportClick = () => setShowImportModal(true);
   const handleDownloadTemplate = () => pharmacyApi.downloadInventoryTemplate();
@@ -321,9 +321,9 @@ export default function PharmacyInventoryTab() {
                     <th>Medicine</th>
                     <th>Strength</th>
                     <th>Form</th>
-                    <th className="is-number">Qty</th>
-                    <th className="is-number">Reserved</th>
-                    <th className="is-number">Available</th>
+                    <th className="is-number" title="Physical units currently in the pharmacy">On hand</th>
+                    <th className="is-number" title="Units committed to confirmed orders that are not yet packed">Reserved</th>
+                    <th className="is-number" title="On hand minus reserved units">Available</th>
                     <th className="is-number">Min Stock</th>
                     <th>Expiry</th>
                     <th className="is-center">Active</th>

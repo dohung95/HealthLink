@@ -1,6 +1,7 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
 import {
+  buildDeliveryContactReviewPayload,
   getNextOrderStatus,
   getPharmacyNotificationTarget,
   getWorkItemKind,
@@ -8,6 +9,16 @@ import {
   isOrderListWorkItem,
   isRevisionWorkflowNotification,
 } from './pharmacyWorkflow.js';
+
+test('delivery contact approval requires a non-negative fee and ETA', () => {
+  assert.equal(buildDeliveryContactReviewPayload({ status: 'APPROVED', deliveryFee: '', estimatedDeliveryMinutes: 30 }), null);
+  assert.equal(buildDeliveryContactReviewPayload({ status: 'APPROVED', deliveryFee: -1, estimatedDeliveryMinutes: 30 }), null);
+  assert.equal(buildDeliveryContactReviewPayload({ status: 'APPROVED', deliveryFee: 0, estimatedDeliveryMinutes: '' }), null);
+  assert.deepEqual(
+    buildDeliveryContactReviewPayload({ status: 'APPROVED', deliveryFee: 0, estimatedDeliveryMinutes: 30, pharmacyReviewNotes: 'Confirmed' }),
+    { status: 'APPROVED', deliveryFee: 0, estimatedDeliveryMinutes: 30, pharmacyReviewNotes: 'Confirmed' },
+  );
+});
 
 test('consultation revision is classified as revision before consultation', () => {
   assert.equal(getWorkItemKind({

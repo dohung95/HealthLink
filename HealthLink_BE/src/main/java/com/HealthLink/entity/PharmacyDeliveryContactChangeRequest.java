@@ -60,9 +60,11 @@ public class PharmacyDeliveryContactChangeRequest {
     @Column(name = "NewDeliveryAddressSource", length = 50)
     private String newDeliveryAddressSource;
 
+    @Nationalized
     @Column(name = "PatientReason", length = 500)
     private String patientReason;
 
+    @Nationalized
     @Column(name = "PharmacyReviewNotes", length = 500)
     private String pharmacyReviewNotes;
 

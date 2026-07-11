@@ -1,7 +1,8 @@
 package com.HealthLink.service.impl.geocoding;
 
 import com.HealthLink.dto.geocoding.GeocodeResponse;
-import com.HealthLink.exception.BadRequestException;
+import com.HealthLink.exception.GeocodingProviderUnavailableException;
+import com.HealthLink.exception.GeocodingResultNotFoundException;
 import com.HealthLink.service.geocoding.GeocodingService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -11,6 +12,7 @@ import org.springframework.http.HttpEntity;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpMethod;
 import org.springframework.stereotype.Service;
+import org.springframework.web.client.RestClientException;
 
 import java.util.List;
 import java.util.Map;
@@ -26,16 +28,36 @@ public class GogodukGeocodingServiceImpl implements GeocodingService {
     private String apiKey;
 
     private final RestTemplateBuilder restTemplateBuilder;
+    private final NominatimGeocodingClient nominatimGeocodingClient;
 
     @Override
     public GeocodeResponse geocode(String address) {
         log.debug("geocode called for address: {}", address);
-        if (apiKey == null || apiKey.isBlank()) {
-            log.warn("Gogoduk API key is not configured - geocode request blocked");
-            throw new BadRequestException("Gogoduk API key is not configured");
+        try {
+            return geocodeWithGogoduk(address);
+        } catch (GeocodingResultNotFoundException | GeocodingProviderUnavailableException ex) {
+            log.warn("Gogoduk geocode failed; trying Nominatim: {}", ex.getMessage());
+            return nominatimGeocodingClient.forward(address)
+                    .orElseThrow(() -> new GeocodingResultNotFoundException("Unable to find the delivery address"));
         }
+    }
 
-        Map<String, Object> suggestResponse = restTemplateBuilder.build().exchange(
+    @Override
+    public GeocodeResponse reverseGeocode(Double latitude, Double longitude) {
+        log.debug("reverseGeocode called for lat={}, lng={}", latitude, longitude);
+        try {
+            return reverseGeocodeWithGogoduk(latitude, longitude);
+        } catch (GeocodingResultNotFoundException | GeocodingProviderUnavailableException ex) {
+            log.warn("Gogoduk reverse geocode failed; trying Nominatim: {}", ex.getMessage());
+            return nominatimGeocodingClient.reverse(latitude, longitude)
+                    .orElseThrow(() -> new GeocodingResultNotFoundException("Unable to find the delivery address"));
+        }
+    }
+
+    private GeocodeResponse geocodeWithGogoduk(String address) {
+        requireApiKey();
+        try {
+            Map<String, Object> suggestResponse = restTemplateBuilder.build().exchange(
                 BASE_URL + "/v1/suggest?input={input}",
                 HttpMethod.GET,
                 new HttpEntity<>(buildHeaders()),
@@ -43,8 +65,8 @@ public class GogodukGeocodingServiceImpl implements GeocodingService {
                 address
         ).getBody();
 
-        String placeId = extractPlaceId(suggestResponse);
-        Map<String, Object> resolveResponse = restTemplateBuilder.build().exchange(
+            String placeId = extractPlaceId(suggestResponse);
+            Map<String, Object> resolveResponse = restTemplateBuilder.build().exchange(
                 BASE_URL + "/v1/place/resolve?id={id}",
                 HttpMethod.GET,
                 new HttpEntity<>(buildHeaders()),
@@ -52,18 +74,16 @@ public class GogodukGeocodingServiceImpl implements GeocodingService {
                 placeId
         ).getBody();
 
-        return parseResolveResult(resolveResponse);
+            return parseResolveResult(resolveResponse);
+        } catch (RestClientException ex) {
+            throw new GeocodingProviderUnavailableException("Address verification is temporarily unavailable");
+        }
     }
 
-    @Override
-    public GeocodeResponse reverseGeocode(Double latitude, Double longitude) {
-        log.debug("reverseGeocode called for lat={}, lng={}", latitude, longitude);
-        if (apiKey == null || apiKey.isBlank()) {
-            log.warn("Gogoduk API key is not configured - reverse geocode request blocked");
-            throw new BadRequestException("Gogoduk API key is not configured");
-        }
-
-        Map<String, Object> response = restTemplateBuilder.build().exchange(
+    private GeocodeResponse reverseGeocodeWithGogoduk(Double latitude, Double longitude) {
+        requireApiKey();
+        try {
+            Map<String, Object> response = restTemplateBuilder.build().exchange(
                 BASE_URL + "/v1/reverse?point.lat={lat}&point.lon={lon}",
                 HttpMethod.GET,
                 new HttpEntity<>(buildHeaders()),
@@ -72,7 +92,16 @@ public class GogodukGeocodingServiceImpl implements GeocodingService {
                 longitude
         ).getBody();
 
-        return parseReverseResult(response);
+            return parseReverseResult(response);
+        } catch (RestClientException ex) {
+            throw new GeocodingProviderUnavailableException("Address verification is temporarily unavailable");
+        }
+    }
+
+    private void requireApiKey() {
+        if (apiKey == null || apiKey.isBlank()) {
+            throw new GeocodingProviderUnavailableException("Gogoduk API key is not configured");
+        }
     }
 
     private HttpHeaders buildHeaders() {
@@ -84,15 +113,15 @@ public class GogodukGeocodingServiceImpl implements GeocodingService {
     @SuppressWarnings("unchecked")
     private String extractPlaceId(Map<String, Object> response) {
         if (response == null || !response.containsKey("predictions")) {
-            throw new BadRequestException("Unable to geocode delivery address");
+            throw new GeocodingResultNotFoundException("Unable to geocode delivery address");
         }
         List<Map<String, Object>> predictions = (List<Map<String, Object>>) response.get("predictions");
         if (predictions == null || predictions.isEmpty()) {
-            throw new BadRequestException("Unable to geocode delivery address");
+            throw new GeocodingResultNotFoundException("Unable to geocode delivery address");
         }
         String placeId = (String) predictions.get(0).get("placeId");
         if (placeId == null || placeId.isBlank()) {
-            throw new BadRequestException("Unable to geocode delivery address");
+            throw new GeocodingResultNotFoundException("Unable to geocode delivery address");
         }
         return placeId;
     }
@@ -100,17 +129,17 @@ public class GogodukGeocodingServiceImpl implements GeocodingService {
     @SuppressWarnings("unchecked")
     private GeocodeResponse parseResolveResult(Map<String, Object> response) {
         if (response == null || !response.containsKey("result")) {
-            throw new BadRequestException("Unable to geocode delivery address");
+            throw new GeocodingResultNotFoundException("Unable to geocode delivery address");
         }
         Map<String, Object> result = (Map<String, Object>) response.get("result");
         if (result == null) {
-            throw new BadRequestException("Unable to geocode delivery address");
+            throw new GeocodingResultNotFoundException("Unable to geocode delivery address");
         }
 
         Number lat = (Number) result.get("lat");
         Number lon = (Number) result.get("lon");
         if (lat == null || lon == null) {
-            throw new BadRequestException("Unable to geocode delivery address");
+            throw new GeocodingResultNotFoundException("Unable to geocode delivery address");
         }
 
         return GeocodeResponse.builder()
@@ -124,18 +153,18 @@ public class GogodukGeocodingServiceImpl implements GeocodingService {
     @SuppressWarnings("unchecked")
     private GeocodeResponse parseReverseResult(Map<String, Object> response) {
         if (response == null || !response.containsKey("results")) {
-            throw new BadRequestException("Unable to geocode delivery address");
+            throw new GeocodingResultNotFoundException("Unable to geocode delivery address");
         }
         List<Map<String, Object>> results = (List<Map<String, Object>>) response.get("results");
         if (results == null || results.isEmpty()) {
-            throw new BadRequestException("Unable to geocode delivery address");
+            throw new GeocodingResultNotFoundException("Unable to geocode delivery address");
         }
 
         Map<String, Object> first = results.get(0);
         Number lat = (Number) first.get("lat");
         Number lon = (Number) first.get("lon");
         if (lat == null || lon == null) {
-            throw new BadRequestException("Unable to geocode delivery address");
+            throw new GeocodingResultNotFoundException("Unable to geocode delivery address");
         }
 
         return GeocodeResponse.builder()

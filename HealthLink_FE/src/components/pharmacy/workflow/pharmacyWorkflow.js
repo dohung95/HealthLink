@@ -365,3 +365,34 @@ export function compactCardMeta(item) {
   if (item?.totalAmount != null) parts.push(money(item.totalAmount));
   return parts.join(' | ');
 }
+
+export function buildDeliveryContactReviewPayload({
+  status,
+  deliveryFee,
+  estimatedDeliveryMinutes,
+  pharmacyReviewNotes,
+}) {
+  const normalizedStatus = normalize(status);
+  if (normalizedStatus === 'REJECTED') {
+    return {
+      status: 'REJECTED',
+      pharmacyReviewNotes: pharmacyReviewNotes?.trim() || undefined,
+    };
+  }
+  if (normalizedStatus !== 'APPROVED') return null;
+
+  if (deliveryFee === '' || deliveryFee == null || estimatedDeliveryMinutes === '' || estimatedDeliveryMinutes == null) {
+    return null;
+  }
+  const fee = Number(deliveryFee);
+  const minutes = Number(estimatedDeliveryMinutes);
+  if (!Number.isFinite(fee) || fee < 0 || !Number.isInteger(minutes) || minutes < 1 || minutes > 999) {
+    return null;
+  }
+  return {
+    status: 'APPROVED',
+    deliveryFee: fee,
+    estimatedDeliveryMinutes: minutes,
+    pharmacyReviewNotes: pharmacyReviewNotes?.trim() || undefined,
+  };
+}

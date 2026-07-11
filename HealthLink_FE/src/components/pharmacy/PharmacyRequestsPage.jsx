@@ -7,6 +7,7 @@ import {
   getWorkflowStage,
   getWorkItemKind,
   canUseRequestChat,
+  buildDeliveryContactReviewPayload,
   matchesPharmacyWorkflowSearch,
 } from './workflow/pharmacyWorkflow';
 import { createPortal } from 'react-dom';
@@ -21,7 +22,16 @@ function parseOrderId(value) {
   return Number.isInteger(parsed) && parsed > 0 ? parsed : null;
 }
 
-export default function PharmacyRequestsPage({ workItems, profile, reload, navigate: nav, workflowAttention }) {
+export default function PharmacyRequestsPage({
+  workItems,
+  workItemsError,
+  workItemsLoading,
+  retryWorkItems,
+  profile,
+  reload,
+  navigate: nav,
+  workflowAttention,
+}) {
   const hookNavigate = useNavigate();
   const navigate = nav || hookNavigate;
   const [searchParams, setSearchParams] = useSearchParams();
@@ -250,12 +260,33 @@ export default function PharmacyRequestsPage({ workItems, profile, reload, navig
         </div>
       </div>
       <div className="pharmacy-workflow-page pharmacy-workflow-surface">
+        {workItemsError && (
+          <div className="pharmacy-workflow-degraded" role="status">
+            <div>
+              <strong>Workflow data is temporarily limited.</strong>
+              <span> New requests can still be accepted or rejected.</span>
+            </div>
+            <button
+              className="btn btn-sm btn-outline-secondary"
+              disabled={workItemsLoading}
+              onClick={retryWorkItems}
+              type="button"
+            >
+              {workItemsLoading ? 'Retrying...' : 'Retry'}
+            </button>
+          </div>
+        )}
         <div className="pharmacy-request-grid">
           {visibleItems.length === 0 ? (
             <div className="pharmacy-empty compact" style={{ gridColumn: '1 / -1' }}>
               <span className="material-symbols-outlined">inbox</span>
-              <h3>No requests</h3>
-              <p>No work items match the current filter.</p>
+              <h3>{workItemsError ? 'Workflow data unavailable' : 'No requests'}</h3>
+              <p>{workItemsError ? 'Try again after the workflow service is restored.' : 'No work items match the current filter.'}</p>
+              {workItemsError && (
+                <button className="btn btn-sm btn-outline-secondary" disabled={workItemsLoading} onClick={retryWorkItems} type="button">
+                  {workItemsLoading ? 'Retrying...' : 'Retry'}
+                </button>
+              )}
             </div>
           ) : (
             visibleItems.map((item, index) => {
@@ -453,6 +484,18 @@ export default function PharmacyRequestsPage({ workItems, profile, reload, navig
                           />
                         </div>
                         <div style={{ marginTop: 6 }}>
+                          <label className="form-label" style={{ fontSize: 13, marginBottom: 2 }}>Estimated delivery (minutes)</label>
+                          <input
+                            className="form-control form-control-sm"
+                            min="1"
+                            max="999"
+                            onChange={(e) => setCardEstimatedMinutes((d) => ({ ...d, [itemId]: e.target.value }))}
+                            style={{ maxWidth: 160 }}
+                            type="number"
+                            value={cardValue(cardEstimatedMinutes, itemId)}
+                          />
+                        </div>
+                        <div style={{ marginTop: 6 }}>
                           <label className="form-label" style={{ fontSize: 13, marginBottom: 2 }}>Pharmacist notes</label>
                           <textarea
                             className="form-control form-control-sm"
@@ -466,15 +509,22 @@ export default function PharmacyRequestsPage({ workItems, profile, reload, navig
                       <div className="pharmacy-case-actions" style={{ display: 'flex', gap: 8, flexWrap: 'wrap', marginTop: 8 }}>
                         <button
                           className="btn btn-sm btn-success"
-                          disabled={isSaving || !cardValue(cardDeliveryFee, itemId)}
+                          disabled={isSaving || !buildDeliveryContactReviewPayload({
+                            status: 'APPROVED',
+                            deliveryFee: cardValue(cardDeliveryFee, itemId),
+                            estimatedDeliveryMinutes: cardValue(cardEstimatedMinutes, itemId),
+                            pharmacyReviewNotes: cardValue(cardPharmacistNotes, itemId),
+                          })}
                           onClick={(e) => {
                             e.stopPropagation();
-                            handleAction(item, 'APPROVE_DELIVERY_CONTACT_CHANGE', {
+                            const payload = buildDeliveryContactReviewPayload({
                               status: 'APPROVED',
-                              deliveryFee: Number(cardValue(cardDeliveryFee, itemId, '0') || 0),
-                              estimatedDeliveryMinutes: undefined,
-                              pharmacyReviewNotes: cardValue(cardPharmacistNotes, itemId) || undefined,
+                              deliveryFee: cardValue(cardDeliveryFee, itemId),
+                              estimatedDeliveryMinutes: cardValue(cardEstimatedMinutes, itemId),
+                              pharmacyReviewNotes: cardValue(cardPharmacistNotes, itemId),
                             });
+                            if (!payload || !window.confirm(`Approve updated delivery fee and ETA for ${item.patientName || 'this patient'}?`)) return;
+                            handleAction(item, 'APPROVE_DELIVERY_CONTACT_CHANGE', payload);
                           }}
                           type="button"
                         >
@@ -485,10 +535,11 @@ export default function PharmacyRequestsPage({ workItems, profile, reload, navig
                           disabled={isSaving}
                           onClick={(e) => {
                             e.stopPropagation();
-                            handleAction(item, 'REJECT_DELIVERY_CONTACT_CHANGE', {
+                            if (!window.confirm('Reject this delivery address change?')) return;
+                            handleAction(item, 'REJECT_DELIVERY_CONTACT_CHANGE', buildDeliveryContactReviewPayload({
                               status: 'REJECTED',
-                              pharmacyReviewNotes: cardValue(cardPharmacistNotes, itemId) || undefined,
-                            });
+                              pharmacyReviewNotes: cardValue(cardPharmacistNotes, itemId),
+                            }));
                           }}
                           type="button"
                         >
