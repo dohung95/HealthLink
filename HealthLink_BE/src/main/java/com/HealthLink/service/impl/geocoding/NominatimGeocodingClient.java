@@ -13,6 +13,8 @@ import org.springframework.stereotype.Component;
 import org.springframework.web.client.RestClientException;
 import org.springframework.web.util.UriComponentsBuilder;
 
+import java.net.URI;
+import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
@@ -31,19 +33,19 @@ public class NominatimGeocodingClient {
     }
 
     public List<GeocodeResponse> search(String address, int limit) {
-        String url = UriComponentsBuilder.fromHttpUrl(SEARCH_URL)
+        URI uri = UriComponentsBuilder.fromHttpUrl(SEARCH_URL)
                 .queryParam("q", address)
                 .queryParam("format", "json")
                 .queryParam("limit", Math.max(1, limit))
                 .queryParam("countrycodes", "vn")
                 .queryParam("addressdetails", 1)
                 .build()
-                .encode()
-                .toUriString();
+                .encode(StandardCharsets.UTF_8)
+                .toUri();
 
         try {
             ResponseEntity<JsonNode> response = restTemplateBuilder.build().exchange(
-                    url, HttpMethod.GET, new HttpEntity<>(headers()), JsonNode.class);
+                    uri, HttpMethod.GET, new HttpEntity<>(headers()), JsonNode.class);
             JsonNode body = response.getBody();
             List<GeocodeResponse> results = new ArrayList<>();
             if (body == null || !body.isArray()) {
@@ -62,17 +64,17 @@ public class NominatimGeocodingClient {
     }
 
     public Optional<GeocodeResponse> reverse(Double latitude, Double longitude) {
-        String url = UriComponentsBuilder.fromHttpUrl(REVERSE_URL)
+        URI uri = UriComponentsBuilder.fromHttpUrl(REVERSE_URL)
                 .queryParam("lat", latitude)
                 .queryParam("lon", longitude)
                 .queryParam("format", "json")
                 .queryParam("zoom", 18)
                 .build()
-                .encode()
-                .toUriString();
+                .encode(StandardCharsets.UTF_8)
+                .toUri();
         try {
             ResponseEntity<JsonNode> response = restTemplateBuilder.build().exchange(
-                    url, HttpMethod.GET, new HttpEntity<>(headers()), JsonNode.class);
+                    uri, HttpMethod.GET, new HttpEntity<>(headers()), JsonNode.class);
             return Optional.ofNullable(toResponse(response.getBody()));
         } catch (RestClientException ex) {
             throw new GeocodingProviderUnavailableException("Address verification is temporarily unavailable");

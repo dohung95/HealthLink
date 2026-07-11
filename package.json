@@ -1,5 +1,18 @@
 {
   "dependencies": {
     "@dietrichgebert/ponytail": "^4.8.3"
+  },
+  "devDependencies": {
+    "@playwright/test": "^1.61.1",
+    "@types/node": "^26.1.1",
+    "dotenv": "^17.4.2"
+  },
+  "scripts": {
+    "e2e": "playwright test",
+    "e2e:chromium": "playwright test --project=chromium",
+    "e2e:headed": "playwright test --headed",
+    "e2e:ui": "playwright test --ui",
+    "e2e:debug": "playwright test --debug",
+    "e2e:report": "playwright show-report"
   }
 }

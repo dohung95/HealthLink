@@ -4,6 +4,8 @@ import com.HealthLink.dto.geocoding.GeocodeResponse;
 import com.HealthLink.exception.GeocodingProviderUnavailableException;
 import com.HealthLink.exception.GeocodingResultNotFoundException;
 import com.HealthLink.service.geocoding.GeocodingService;
+import java.net.URI;
+import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
@@ -73,36 +75,38 @@ public class GeoapifyGeocodingServiceImpl implements GeocodingService {
 
     private List<GeocodeResponse> searchWithGeoapify(String address, int limit) {
         requireApiKey();
-        String url = UriComponentsBuilder.fromHttpUrl(SEARCH_URL)
+        URI uri = UriComponentsBuilder.fromHttpUrl(SEARCH_URL)
                 .queryParam("text", address)
                 .queryParam("filter", "countrycode:vn")
                 .queryParam("lang", "vi")
                 .queryParam("limit", Math.max(1, limit))
                 .queryParam("format", "json")
                 .queryParam("apiKey", apiKey)
-                .encode()
-                .toUriString();
-        return parseResults(exchange(url));
+                .build()
+                .encode(StandardCharsets.UTF_8)
+                .toUri();
+        return parseResults(exchange(uri));
     }
 
     private GeocodeResponse reverseWithGeoapify(Double latitude, Double longitude) {
         requireApiKey();
-        String url = UriComponentsBuilder.fromHttpUrl(REVERSE_URL)
+        URI uri = UriComponentsBuilder.fromHttpUrl(REVERSE_URL)
                 .queryParam("lat", latitude)
                 .queryParam("lon", longitude)
                 .queryParam("lang", "vi")
                 .queryParam("limit", 1)
                 .queryParam("format", "json")
                 .queryParam("apiKey", apiKey)
-                .encode()
-                .toUriString();
-        return parseResults(exchange(url)).stream().findFirst().orElse(null);
+                .build()
+                .encode(StandardCharsets.UTF_8)
+                .toUri();
+        return parseResults(exchange(uri)).stream().findFirst().orElse(null);
     }
 
-    private Map<String, Object> exchange(String url) {
+    private Map<String, Object> exchange(URI uri) {
         try {
             Map<String, Object> response = restTemplateBuilder.build()
-                    .exchange(url, HttpMethod.GET, HttpEntity.EMPTY, Map.class)
+                    .exchange(uri, HttpMethod.GET, HttpEntity.EMPTY, Map.class)
                     .getBody();
             if (response == null) {
                 throw new GeocodingProviderUnavailableException("Address verification is temporarily unavailable");

@@ -7,10 +7,7 @@
     "dev": "vite",
     "build": "vite build",
     "lint": "eslint .",
-    "preview": "vite preview",
-    "test:e2e": "playwright test",
-    "test:e2e:ui": "playwright test --ui",
-    "test:e2e:headed": "playwright test --headed"
+    "preview": "vite preview"
   },
   "dependencies": {
     "@ckeditor/ckeditor5-react": "9.2.0",
@@ -46,7 +43,6 @@
   },
   "devDependencies": {
     "@eslint/js": "^9.36.0",
-    "@playwright/test": "^1.61.0",
     "@tailwindcss/vite": "^4.3.0",
     "@types/react": "^19.1.16",
     "@types/react-dom": "^19.1.9",
