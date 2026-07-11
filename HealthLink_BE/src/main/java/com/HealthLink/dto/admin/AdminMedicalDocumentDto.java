@@ -15,6 +15,7 @@ public class AdminMedicalDocumentDto {
     private Integer documentID;
     private String documentName;
     private String documentType;
+    private String fileLocation;
     private String category;
     private String description;
     private String testResults;

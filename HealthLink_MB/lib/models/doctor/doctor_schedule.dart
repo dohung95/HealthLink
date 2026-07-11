@@ -5,10 +5,12 @@ class DoctorScheduleEntry {
   final String endTime;
   final String? consultationType;
   final int slotDuration;
-  final int maxPatientsPerSlot;
+  final int maxPatients;
   final String? location;
   final String? notes;
-  final String? shift; // MORNING / AFTERNOON / EVENING
+  final String? shiftType; // MORNING / AFTERNOON / EVENING
+  final String? scheduleStatus;
+  final bool available;
 
   const DoctorScheduleEntry({
     required this.scheduleId,
@@ -17,10 +19,12 @@ class DoctorScheduleEntry {
     required this.endTime,
     this.consultationType,
     required this.slotDuration,
-    required this.maxPatientsPerSlot,
+    required this.maxPatients,
     this.location,
     this.notes,
-    this.shift,
+    this.shiftType,
+    this.scheduleStatus,
+    this.available = true,
   });
 
   factory DoctorScheduleEntry.fromJson(Map<String, dynamic> j) => DoctorScheduleEntry(
@@ -30,10 +34,12 @@ class DoctorScheduleEntry {
         endTime: _hm(j['endTime']),
         consultationType: j['consultationType'] as String?,
         slotDuration: j['slotDuration'] as int? ?? 30,
-        maxPatientsPerSlot: j['maxPatientsPerSlot'] as int? ?? 1,
+        maxPatients: j['maxPatients'] as int? ?? 1,
         location: j['location'] as String?,
         notes: j['notes'] as String?,
-        shift: j['shift'] as String?,
+        shiftType: j['shiftType'] as String?,
+        scheduleStatus: j['scheduleStatus'] as String?,
+        available: j['available'] as bool? ?? true,
       );
 
   static String _hm(dynamic v) {
@@ -44,12 +50,33 @@ class DoctorScheduleEntry {
 }
 
 class DoctorScheduleData {
+  final String? doctorId;
+  final String? doctorName;
+  final String doctorScheduleStatus; // APPROVED / PENDING / REJECTED
+  final double totalMonthlyHours;
+  final double requiredMonthlyHours;
+  final bool needsScheduleReconfirmation;
   final List<DoctorScheduleEntry> schedules;
   final List<DoctorScheduleException> exceptions;
 
-  const DoctorScheduleData({required this.schedules, required this.exceptions});
+  const DoctorScheduleData({
+    this.doctorId,
+    this.doctorName,
+    required this.doctorScheduleStatus,
+    required this.totalMonthlyHours,
+    required this.requiredMonthlyHours,
+    required this.needsScheduleReconfirmation,
+    required this.schedules,
+    required this.exceptions,
+  });
 
   factory DoctorScheduleData.fromJson(Map<String, dynamic> j) => DoctorScheduleData(
+        doctorId: j['doctorId'] as String?,
+        doctorName: j['doctorName'] as String?,
+        doctorScheduleStatus: j['doctorScheduleStatus'] as String? ?? 'PENDING',
+        totalMonthlyHours: (j['totalMonthlyHours'] as num?)?.toDouble() ?? 0,
+        requiredMonthlyHours: (j['requiredMonthlyHours'] as num?)?.toDouble() ?? 80,
+        needsScheduleReconfirmation: j['needsScheduleReconfirmation'] as bool? ?? false,
         schedules: (j['schedules'] as List<dynamic>? ?? [])
             .map((e) => DoctorScheduleEntry.fromJson(e as Map<String, dynamic>))
             .toList(),
@@ -61,48 +88,142 @@ class DoctorScheduleData {
 
 class DoctorScheduleException {
   final int exceptionId;
-  final String date; // "yyyy-MM-dd"
-  final String status; // WORKING / DAY_OFF / MODIFIED
+  final String exceptionDate; // "yyyy-MM-dd"
+  final String exceptionType; // DayOff / Modified / AddSlot
   final String? startTime;
   final String? endTime;
   final String? reason;
+  final bool recurring;
+  final String? recurringUntil;
   final bool adminCreated;
 
   const DoctorScheduleException({
     required this.exceptionId,
-    required this.date,
-    required this.status,
+    required this.exceptionDate,
+    required this.exceptionType,
     this.startTime,
     this.endTime,
     this.reason,
+    this.recurring = false,
+    this.recurringUntil,
     required this.adminCreated,
   });
 
   factory DoctorScheduleException.fromJson(Map<String, dynamic> j) => DoctorScheduleException(
         exceptionId: j['exceptionId'] as int? ?? 0,
-        date: j['date'] as String? ?? '',
-        status: j['status'] as String? ?? 'WORKING',
+        exceptionDate: j['exceptionDate'] as String? ?? '',
+        exceptionType: j['exceptionType'] as String? ?? 'DayOff',
         startTime: j['startTime'] as String?,
         endTime: j['endTime'] as String?,
         reason: j['reason'] as String?,
+        recurring: j['recurring'] as bool? ?? false,
+        recurringUntil: j['recurringUntil'] as String?,
         adminCreated: j['adminCreated'] as bool? ?? false,
+      );
+}
+
+class ScheduleBlock {
+  final String startTime;
+  final String endTime;
+  final String? consultationType;
+  final String? shiftType;
+
+  const ScheduleBlock({
+    required this.startTime,
+    required this.endTime,
+    this.consultationType,
+    this.shiftType,
+  });
+
+  factory ScheduleBlock.fromJson(Map<String, dynamic> j) => ScheduleBlock(
+        startTime: DoctorScheduleEntry._hm(j['startTime']),
+        endTime: DoctorScheduleEntry._hm(j['endTime']),
+        consultationType: j['consultationType'] as String?,
+        shiftType: j['shiftType'] as String?,
+      );
+}
+
+class SlotInfo {
+  final String startTime;
+  final String endTime;
+  final String status; // AVAILABLE / BOOKED / HELD
+  final String? patientName;
+  final int? appointmentId;
+  final String? consultationType;
+
+  const SlotInfo({
+    required this.startTime,
+    required this.endTime,
+    required this.status,
+    this.patientName,
+    this.appointmentId,
+    this.consultationType,
+  });
+
+  factory SlotInfo.fromJson(Map<String, dynamic> j) => SlotInfo(
+        startTime: DoctorScheduleEntry._hm(j['startTime']),
+        endTime: DoctorScheduleEntry._hm(j['endTime']),
+        status: j['status'] as String? ?? 'AVAILABLE',
+        patientName: j['patientName'] as String?,
+        appointmentId: j['appointmentId'] as int?,
+        consultationType: j['consultationType'] as String?,
       );
 }
 
 class CalendarDay {
   final String date;
-  final String status; // WORKING / DAY_OFF / MODIFIED / no schedule
-  final List<DoctorScheduleEntry> slots;
+  final String? dayName;
+  final String status; // WORKING / DAY_OFF / MODIFIED / NO_SCHEDULE
+  final bool hasOnline;
+  final bool hasHomeVisit;
+  final List<ScheduleBlock> scheduleBlocks;
+  final List<SlotInfo> slots;
 
-  const CalendarDay({required this.date, required this.status, required this.slots});
+  const CalendarDay({
+    required this.date,
+    this.dayName,
+    required this.status,
+    this.hasOnline = false,
+    this.hasHomeVisit = false,
+    this.scheduleBlocks = const [],
+    this.slots = const [],
+  });
 
   factory CalendarDay.fromJson(Map<String, dynamic> j) => CalendarDay(
         date: j['date'] as String? ?? '',
-        status: j['status'] as String? ?? '',
+        dayName: j['dayName'] as String?,
+        status: j['status'] as String? ?? 'NO_SCHEDULE',
+        hasOnline: j['hasOnline'] as bool? ?? false,
+        hasHomeVisit: j['hasHomeVisit'] as bool? ?? false,
+        scheduleBlocks: (j['scheduleBlocks'] as List<dynamic>? ?? [])
+            .map((e) => ScheduleBlock.fromJson(e as Map<String, dynamic>))
+            .toList(),
         slots: (j['slots'] as List<dynamic>? ?? [])
-            .map((e) => DoctorScheduleEntry.fromJson(e as Map<String, dynamic>))
+            .map((e) => SlotInfo.fromJson(e as Map<String, dynamic>))
             .toList(),
       );
+
+  /// 'online' | 'homevisit' | 'mixed' | null — mirrors FE getVisitTypeClass().
+  String? get visitTypeClass {
+    if (status == 'DAY_OFF' || status == 'NO_SCHEDULE') return null;
+    if (hasOnline && hasHomeVisit) return 'mixed';
+    if (hasHomeVisit) return 'homevisit';
+    if (hasOnline) return 'online';
+    return null;
+  }
+
+  String get visitTypeLabel {
+    switch (visitTypeClass) {
+      case 'mixed':
+        return 'Online + Home Visit';
+      case 'homevisit':
+        return 'Home Visit';
+      case 'online':
+        return 'Online';
+      default:
+        return '';
+    }
+  }
 }
 
 class ScheduleChangeRequest {
@@ -112,6 +233,7 @@ class ScheduleChangeRequest {
   final DateTime? appointmentTime;
   final String reason;
   final String status; // PENDING / APPROVED / REJECTED
+  final String? adminReason;
   final DateTime? createdAt;
 
   const ScheduleChangeRequest({
@@ -121,6 +243,7 @@ class ScheduleChangeRequest {
     this.appointmentTime,
     required this.reason,
     required this.status,
+    this.adminReason,
     this.createdAt,
   });
 
@@ -131,6 +254,7 @@ class ScheduleChangeRequest {
         appointmentTime: _parseDate(j['appointmentTime']),
         reason: j['reason'] as String? ?? '',
         status: j['status'] as String? ?? 'PENDING',
+        adminReason: j['adminReason'] as String?,
         createdAt: _parseDate(j['createdAt']),
       );
 

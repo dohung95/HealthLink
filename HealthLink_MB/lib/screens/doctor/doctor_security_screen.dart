@@ -4,7 +4,6 @@ import '../../widgets/doctor/doctor_widgets.dart';
 import 'doctor_change_password_screen.dart';
 import 'doctor_change_email_screen.dart';
 import 'doctor_change_phone_screen.dart';
-import 'doctor_change_paypal_email_screen.dart';
 
 class DoctorSecurityScreen extends StatelessWidget {
   const DoctorSecurityScreen({super.key});
@@ -43,13 +42,6 @@ class DoctorSecurityScreen extends StatelessWidget {
                       label: 'Change Phone Number',
                       subtitle: 'Verified with a code sent to your email',
                       onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const DoctorChangePhoneScreen())),
-                    ),
-                    const Divider(height: 1, color: DS.cardBorder),
-                    DoctorMenuItem(
-                      icon: Icons.account_balance_wallet_outlined,
-                      label: 'Change PayPal Email',
-                      subtitle: 'Update where your earnings are sent',
-                      onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const DoctorChangePaypalEmailScreen())),
                     ),
                   ],
                 ),
