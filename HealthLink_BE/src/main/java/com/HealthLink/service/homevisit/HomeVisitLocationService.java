@@ -7,7 +7,6 @@ import com.HealthLink.entity.Doctor;
 import com.HealthLink.exception.BusinessException;
 import com.HealthLink.repository.doctor.DoctorRepository;
 import com.HealthLink.service.geocoding.GeocodingService;
-import com.HealthLink.service.impl.geocoding.NominatimGeocodingClient;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
@@ -22,7 +21,6 @@ public class HomeVisitLocationService {
 
     private final DoctorRepository doctorRepository;
     private final GeocodingService geocodingService;
-    private final NominatimGeocodingClient nominatimGeocodingClient;
 
     @Value("${home-visit.base-fee:100}")
     private BigDecimal homeVisitBaseFee;
@@ -36,11 +34,9 @@ public class HomeVisitLocationService {
     @Value("${home-visit.average-speed-kmh:25}")
     private double averageSpeedKmh;
 
-    public HomeVisitLocationService(DoctorRepository doctorRepository, GeocodingService geocodingService,
-                                    NominatimGeocodingClient nominatimGeocodingClient) {
+    public HomeVisitLocationService(DoctorRepository doctorRepository, GeocodingService geocodingService) {
         this.doctorRepository = doctorRepository;
         this.geocodingService = geocodingService;
-        this.nominatimGeocodingClient = nominatimGeocodingClient;
     }
 
     public GeocodeResponse geocode(String address) {
@@ -60,7 +56,7 @@ public class HomeVisitLocationService {
             throw new BusinessException("Address is required");
         }
 
-        return nominatimGeocodingClient.search(address, 5).stream()
+        return geocodingService.search(address, 5).stream()
                 .map(result -> HomeVisitGeocodeResponse.builder()
                         .displayName(result.getFormattedAddress())
                         .latitude(result.getLatitude())

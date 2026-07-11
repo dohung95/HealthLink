@@ -81,7 +81,7 @@ public class NominatimGeocodingClient {
 
     private HttpHeaders headers() {
         HttpHeaders headers = new HttpHeaders();
-        headers.set("User-Agent", "HealthLink-EProject/1.0");
+        headers.set("User-Agent", "HealthLink/1.0");
         return headers;
     }
 

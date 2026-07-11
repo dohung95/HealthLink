@@ -198,10 +198,11 @@ public class FollowUpAppointmentServiceImpl implements FollowUpAppointmentServic
     @Override
     @Transactional
     public FollowUpResponse scheduleFollowUpAppointment(Appointment sourceAppointment, FollowUpRequest request) {
-        Consultation consultation = consultationRepository
-                .findByAppointment_AppointmentId(sourceAppointment.getAppointmentId())
+        Integer sourceAppointmentId = sourceAppointment.getAppointmentId();
+        Consultation consultation = findConsultationForUpdate(sourceAppointmentId)
                 .orElseThrow(() -> new ResourceNotFoundException(
-                        "Consultation not found for appointment: " + sourceAppointment.getAppointmentId()));
+                        "Consultation not found for appointment: " + sourceAppointmentId));
+        sourceAppointment = consultation.getAppointment();
 
         String requestedType = request.getConsultationType() != null
                 ? request.getConsultationType()
@@ -320,10 +321,11 @@ public class FollowUpAppointmentServiceImpl implements FollowUpAppointmentServic
     @Override
     @Transactional
     public FollowUpResponse sendPaymentRequest(Appointment sourceAppointment) {
-        Consultation consultation = consultationRepository
-                .findByAppointment_AppointmentId(sourceAppointment.getAppointmentId())
+        Integer sourceAppointmentId = sourceAppointment.getAppointmentId();
+        Consultation consultation = findConsultationForUpdate(sourceAppointmentId)
                 .orElseThrow(() -> new ResourceNotFoundException(
-                        "Consultation not found for appointment: " + sourceAppointment.getAppointmentId()));
+                        "Consultation not found for appointment: " + sourceAppointmentId));
+        sourceAppointment = consultation.getAppointment();
 
         if (consultation.getFollowUpDate() == null) {
             throw new BadRequestException("Save follow-up data first via PUT /api/appointments/{id}/follow-up");
@@ -880,7 +882,13 @@ public class FollowUpAppointmentServiceImpl implements FollowUpAppointmentServic
 
     private Appointment ensureFollowUpProposal(Appointment sourceAppointment, Consultation consultation) {
         Appointment existing = findExistingFollowUpAppointment(consultation);
+        if (existing == null) {
+            existing = appointmentRepository
+                    .findFirstByFollowUpSourceAppointmentIdAndStatusNot(sourceAppointment.getAppointmentId(), STATUS_CANCELLED)
+                    .orElse(null);
+        }
         if (existing != null && !STATUS_CANCELLED.equalsIgnoreCase(existing.getStatus())) {
+            consultation.setFollowUpAppointmentId(existing.getAppointmentId());
             return existing;
         }
         validateFollowUpSlot(sourceAppointment, consultation.getFollowUpDate(), consultation.getConsultationType());
@@ -888,6 +896,15 @@ public class FollowUpAppointmentServiceImpl implements FollowUpAppointmentServic
         consultation.setFollowUpAppointmentId(proposal.getAppointmentId());
         consultation.setFollowUpStatus(FollowUpStatus.PROPOSED);
         return proposal;
+    }
+
+    @Transactional
+    public Appointment materializeLegacyProposal(Consultation consultation) {
+        Appointment source = consultation.getAppointment();
+        if (source == null) {
+            throw new BadRequestException("Legacy follow-up has no source appointment");
+        }
+        return ensureFollowUpProposal(source, consultation);
     }
 
     private int resolveFollowUpSlotDuration(
@@ -913,6 +930,11 @@ public class FollowUpAppointmentServiceImpl implements FollowUpAppointmentServic
             return null;
         }
         return appointmentRepository.findById(consultation.getFollowUpAppointmentId()).orElse(null);
+    }
+
+    private java.util.Optional<Consultation> findConsultationForUpdate(Integer appointmentId) {
+        java.util.Optional<Consultation> locked = consultationRepository.findByAppointmentIdForUpdate(appointmentId);
+        return locked.isPresent() ? locked : consultationRepository.findByAppointment_AppointmentId(appointmentId);
     }
 
     private Integer copyLatestPrescription(Appointment sourceAppointment, Appointment followUpAppointment) {

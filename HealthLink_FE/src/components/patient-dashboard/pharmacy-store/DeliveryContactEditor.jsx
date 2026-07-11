@@ -1,17 +1,9 @@
-import { useMemo, useState } from 'react';
-import { MapContainer, Marker, TileLayer, useMapEvents } from 'react-leaflet';
+import { useState } from 'react';
 import pharmacyApi from '../../../api/pharmacyApi';
 import { canEditDeliveryAddress } from './deliveryContactPolicy';
 import { getAddressVerificationError } from './addressVerification';
-
-function PinSelector({ onSelect }) {
-  useMapEvents({
-    click(event) {
-      onSelect(event.latlng.lat, event.latlng.lng);
-    },
-  });
-  return null;
-}
+import FulfillmentMapPicker from './FulfillmentMapPicker';
+import { applyMapPin, clearAddressVerification } from './mapPinPolicy';
 
 export default function DeliveryContactEditor({ order, onCancel, onSubmit, saving }) {
   const [address, setAddress] = useState(order?.deliveryAddress || '');
@@ -27,11 +19,6 @@ export default function DeliveryContactEditor({ order, onCancel, onSubmit, savin
   const [error, setError] = useState('');
   const addressEditable = canEditDeliveryAddress(order);
   const addressChanged = address.trim() !== String(order?.deliveryAddress || '').trim();
-  const center = useMemo(() => (
-    Number.isFinite(Number(coordinates.latitude)) && Number.isFinite(Number(coordinates.longitude))
-      ? [Number(coordinates.latitude), Number(coordinates.longitude)]
-      : [10.7769, 106.7009]
-  ), [coordinates.latitude, coordinates.longitude]);
 
   const verifyAddress = async () => {
     if (!address.trim()) {
@@ -103,15 +90,11 @@ export default function DeliveryContactEditor({ order, onCancel, onSubmit, savin
           <button aria-label="Close delivery details editor" className="btn btn-sm btn-light" disabled={saving} onClick={onCancel} type="button"><i className="bi bi-x-lg" /></button>
         </div>
         <div className="mb-2"><label className="form-label small">Phone</label><input className="form-control form-control-sm" onChange={(event) => setPhone(event.target.value)} type="tel" value={phone} /></div>
-        <div className="mb-2"><label className="form-label small">Address</label><div className="input-group input-group-sm"><input className="form-control" disabled={!addressEditable} onChange={(event) => { setAddress(event.target.value); setAddressVerified(false); }} value={address} /><button className="btn btn-outline-primary" disabled={!addressEditable || geocoding} onClick={verifyAddress} type="button">{geocoding ? 'Verifying...' : 'Verify'}</button></div></div>
+        <div className="mb-2"><label className="form-label small">Address</label><div className="input-group input-group-sm"><input className="form-control" disabled={!addressEditable} onChange={(event) => { const next = clearAddressVerification({ ...coordinates, address }, event.target.value); setAddress(next.address); setCoordinates(next); setAddressVerified(false); }} value={address} /><button className="btn btn-outline-primary" disabled={!addressEditable || geocoding} onClick={verifyAddress} type="button">{geocoding ? 'Verifying...' : 'Verify'}</button></div></div>
         {addressChanged && addressEditable && <>
           <div className="mb-2"><label className="form-label small">Reason for address change</label><textarea className="form-control form-control-sm" onChange={(event) => setReason(event.target.value)} rows="2" value={reason} /></div>
           <div className="border rounded overflow-hidden mb-3" style={{ height: 220 }}>
-            <MapContainer center={center} zoom={13} style={{ height: '100%', width: '100%' }}>
-              <TileLayer attribution='&copy; OpenStreetMap contributors' url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png" />
-              <PinSelector onSelect={(latitude, longitude) => { setCoordinates({ latitude, longitude, source: 'MAP_PIN' }); setAddressVerified(true); }} />
-              {Number.isFinite(Number(coordinates.latitude)) && Number.isFinite(Number(coordinates.longitude)) && <Marker position={center} />}
-            </MapContainer>
+            <FulfillmentMapPicker {...coordinates} onSelect={(latitude, longitude) => { setCoordinates((current) => applyMapPin({ ...current, address }, latitude, longitude)); setAddressVerified(true); }} />
           </div>
           <small className={addressVerified ? 'text-success d-block mb-2' : 'text-muted d-block mb-2'}>{addressVerified ? 'Location confirmed.' : 'Verify the address or place a pin on the map.'}</small>
         </>}

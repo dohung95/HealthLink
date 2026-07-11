@@ -18,3 +18,16 @@ test('confirmed unpaid order is labelled awaiting payment', () => {
 test('quote-ready request is not rendered as its raw enum', () => {
   assert.equal(getRequestStatusPresentation({ status: 'ORDER_CREATED' }).value, 'Quote ready');
 });
+
+test('terminal orders do not leave ambiguous pending payment badges', () => {
+  const cancelled = getOrderStatusPresentation({ status: 'CANCELLED', paymentStatus: 'PENDING' });
+  const completed = getOrderStatusPresentation({ status: 'COMPLETED', paymentStatus: 'PAID' });
+  const refunded = getOrderStatusPresentation({ status: 'REFUNDED', paymentStatus: 'REFUNDED' });
+
+  assert.equal(cancelled.order.value, 'Cancelled');
+  assert.equal(cancelled.payment.value, 'Not payable');
+  assert.equal(completed.order.value, 'Completed');
+  assert.equal(completed.payment.value, 'Paid');
+  assert.equal(refunded.order.value, 'Refunded');
+  assert.equal(refunded.payment.value, 'Refunded');
+});

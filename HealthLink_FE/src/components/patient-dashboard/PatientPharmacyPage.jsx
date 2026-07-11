@@ -1,7 +1,6 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { useNavigate, useLocation, Link } from 'react-router-dom';
 import { toast } from 'sonner';
-import { MapContainer, Marker, TileLayer, useMapEvents } from 'react-leaflet';
 import { useAuth } from '../../context/AuthContext';
 import { useNotifications } from '../../context/NotificationContext';
 import { useChat } from '../../context/ChatContext';
@@ -20,20 +19,14 @@ import DeliveryContactEditor from './pharmacy-store/DeliveryContactEditor';
 import { canEditDeliveryAddress, canEditDeliveryPhone, isDeliveryContactLocked } from './pharmacy-store/deliveryContactPolicy';
 import { getAddressVerificationError } from './pharmacy-store/addressVerification';
 import { getOrderStatusPresentation, getRequestStatusPresentation } from '../pharmacy/workflow/pharmacyStatusPresentation';
+import FulfillmentMapPicker from './pharmacy-store/FulfillmentMapPicker';
+import { applyMapPin } from './pharmacy-store/mapPinPolicy';
+import { resolvePharmacyRevalidation } from './pharmacy-store/pharmacySelectionPolicy';
 import './PatientPharmacy.css';
 
 function isPrescriptionBasedOrder(order) {
   return Boolean(order?.prescriptionHeaderId)
     || (order?.items || []).some((item) => item?.sourcePrescriptionItemId);
-}
-
-function FulfillmentPinSelector({ onSelect }) {
-  useMapEvents({
-    click(event) {
-      onSelect(event.latlng.lat, event.latlng.lng);
-    },
-  });
-  return null;
 }
 
 function statusBadgeClass(tone) {
@@ -413,16 +406,14 @@ function PharmacySelectionStep({ userId, geolocation, deliveryContact, prescript
       setSelectingId(null);
       return;
     }
-    const eligible = current?.find((candidate) => candidate.pharmacyId === pharmacy.pharmacyId);
-    const unavailableForDelivery = deliveryOnly
-      && (!eligible?.deliveryAvailable || eligible?.withinDeliveryRadius === false);
-    if (!eligible || unavailableForDelivery) {
+    const revalidation = resolvePharmacyRevalidation(current, pharmacy.pharmacyId, deliveryOnly);
+    if (revalidation.state === 'UNAVAILABLE') {
       toast.error('This pharmacy is no longer available for the selected fulfillment option.');
       setSelectingId(null);
       return;
     }
     try {
-      await onSelect(eligible);
+      await onSelect(revalidation.pharmacy);
     } finally {
       setSelectingId(null);
     }
@@ -526,6 +517,19 @@ function FulfillmentStep({ profile, geolocation, geoTried, fulfillmentType, setF
   const [source, setSource] = useState('PROFILE');
   const [saving, setSaving] = useState(false);
   const [showMap, setShowMap] = useState(false);
+  const mapCoordinates = fulfillmentType === 'Delivery'
+    ? { latitude, longitude }
+    : { latitude: pickupArea.latitude, longitude: pickupArea.longitude };
+  const selectMapPin = (selectedLatitude, selectedLongitude) => {
+    if (fulfillmentType === 'Delivery') {
+      const pinned = applyMapPin({ address, source, verified: false }, selectedLatitude, selectedLongitude);
+      setLatitude(pinned.latitude);
+      setLongitude(pinned.longitude);
+      setSource(pinned.source);
+      return;
+    }
+    setPickupArea((current) => applyMapPin(current, selectedLatitude, selectedLongitude));
+  };
 
   useEffect(() => {
     const profileAddress = [profile?.address, profile?.city, profile?.country].filter(Boolean).join(', ');
@@ -711,11 +715,7 @@ function FulfillmentStep({ profile, geolocation, geoTried, fulfillmentType, setF
 
       {showMap && (
         <div className="border rounded overflow-hidden mb-3" style={{ height: 240 }}>
-          <MapContainer center={mapCenter} zoom={13} style={{ height: '100%', width: '100%' }}>
-            <TileLayer attribution="&copy; OpenStreetMap contributors" url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png" />
-            <FulfillmentPinSelector onSelect={selectMapPin} />
-            {Number.isFinite(Number(mapCoordinates.latitude)) && Number.isFinite(Number(mapCoordinates.longitude)) && <Marker position={mapCenter} />}
-          </MapContainer>
+          <FulfillmentMapPicker {...mapCoordinates} onSelect={selectMapPin} />
         </div>
       )}
 
@@ -1168,21 +1168,6 @@ function OrderDetailView({ orderId, navigate }) {
     }
   };
 
-  const mapCoordinates = fulfillmentType === 'Delivery'
-    ? { latitude, longitude }
-    : { latitude: pickupArea.latitude, longitude: pickupArea.longitude };
-  const mapCenter = Number.isFinite(Number(mapCoordinates.latitude)) && Number.isFinite(Number(mapCoordinates.longitude))
-    ? [Number(mapCoordinates.latitude), Number(mapCoordinates.longitude)]
-    : [10.7769, 106.7009];
-  const selectMapPin = (selectedLatitude, selectedLongitude) => {
-    if (fulfillmentType === 'Delivery') {
-      setLatitude(selectedLatitude);
-      setLongitude(selectedLongitude);
-      setSource('MAP_PIN');
-      return;
-    }
-    setPickupArea((current) => ({ ...current, latitude: selectedLatitude, longitude: selectedLongitude, source: 'MAP_PIN' }));
-  };
 
   const handleConfirmCancel = async () => {
     if (!order?.orderId) return;
