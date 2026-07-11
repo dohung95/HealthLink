@@ -133,6 +133,7 @@ class ApiConfig {
   static const String captureAppointmentPayPalPayment = '$baseUrl/payment/appointments/paypal/capture';
   static String cancelAppointment(int appointmentId) => '$appointments/$appointmentId/cancel';
   static String rescheduleAppointment(int appointmentId) => '$appointments/$appointmentId/reschedule';
+  static String onlineRescheduleDates(int appointmentId) => '$appointments/$appointmentId/reschedule-dates';
   static String releaseHold(int holdId) => '$baseUrl/appointments/hold-slot/$holdId';
   static String doctorPublicProfile(String doctorId) => '$baseUrl/account/doctors/public/$doctorId';
   static const String recommendDoctor = '$baseUrl/appointments/doctor-assignment/recommend';
@@ -146,6 +147,9 @@ class ApiConfig {
   static const String captureHomeVisitPayPalPayment = '$baseUrl/payment/home-visit/paypal/capture';
   static const String homeVisitScanInfo = '$baseUrl/home-visit/scan-info';
   static const String homeVisitGeocode = '$baseUrl/home-visit/geocode';
+  static String homeVisitRescheduleSlots(int appointmentId) =>
+      '$baseUrl/home-visit/appointments/'
+          '$appointmentId/reschedule-slots';
 
   //Upload medical records
   static const String healthRecordAutoDocument = '$baseUrl/health-records/documents/auto';

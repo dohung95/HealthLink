@@ -32,6 +32,10 @@ public interface AppointmentService {
             String consultationType
     );
 
+    List<LocalDate> getOnlineRescheduleDates(
+            Integer appointmentId
+    );
+
     HoldSlotResponse holdSlot(HoldSlotRequest request);
 
     void releaseHold(Integer holdId);

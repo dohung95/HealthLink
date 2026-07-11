@@ -22,7 +22,12 @@ import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import com.HealthLink.entity.Appointment;
+import com.HealthLink.entity.HomeVisitDetails;
+import com.HealthLink.exception.ResourceNotFoundException;
+import com.HealthLink.entity.enums.DoctorScheduleStatus;
 
+import java.time.Duration;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.LocalTime;
@@ -280,6 +285,188 @@ public class HomeVisitSessionServiceImpl implements HomeVisitSessionService {
         );
 
         return result;
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public List<HomeVisitSlotResponse> getAvailableRescheduleSlots(
+            Integer appointmentId
+    ) {
+        Appointment appointment = appointmentRepository.findById(appointmentId)
+                .orElseThrow(() -> new ResourceNotFoundException(
+                "Appointment", "id", appointmentId
+        ));
+
+        if (!"HomeVisit".equalsIgnoreCase(appointment.getConsultationType())) {
+            throw new BusinessException(
+                    "This endpoint only supports HomeVisit appointments"
+            );
+        }
+
+        if (appointment.getAppointmentTime() == null
+                || appointment.getEndTime() == null) {
+            throw new BusinessException(
+                    "HomeVisit appointment time range is incomplete"
+            );
+        }
+
+        String doctorId = appointment.getDoctor().getDoctorId();
+
+        long duration = Duration.between(
+                appointment.getAppointmentTime(),
+                appointment.getEndTime()
+        ).toMinutes();
+
+        if (duration <= 0) {
+            throw new BusinessException(
+                    "Invalid HomeVisit appointment duration"
+            );
+        }
+
+        int totalBlockMinutes = Math.toIntExact(duration);
+
+        HomeVisitDetails details = appointment.getHomeVisitDetails();
+
+        int estimatedTravelMinutes
+                = details != null && details.getEstimatedTravelMinutes() != null
+                ? details.getEstimatedTravelMinutes()
+                : 0;
+
+        int visitDurationMinutes
+                = details != null && details.getVisitDurationMinutes() != null
+                ? details.getVisitDurationMinutes()
+                : defaultVisitDurationMinutes;
+
+        List<DoctorSchedule> schedules
+                = scheduleRepository.findByDoctor_DoctorIdAndScheduleStatus(
+                        doctorId,
+                        DoctorScheduleStatus.APPROVED
+                );
+
+        List<HomeVisitSlotResponse> result = new ArrayList<>();
+        LocalDate today = LocalDate.now();
+        LocalDateTime now = LocalDateTime.now();
+
+        for (DoctorSchedule schedule : schedules) {
+            if (!schedule.isAvailable()) {
+                continue;
+            }
+
+            if (!"HomeVisit".equalsIgnoreCase(
+                    schedule.getConsultationType()
+            )) {
+                continue;
+            }
+
+            for (int i = 0; i < slotDaysAhead; i++) {
+                LocalDate candidateDate = today.plusDays(i);
+
+                int candidateDay
+                        = candidateDate.getDayOfWeek().getValue() % 7;
+
+                if (candidateDay != schedule.getDayOfWeek()) {
+                    continue;
+                }
+
+                if (isDoctorDayOff(doctorId, candidateDate)) {
+                    continue;
+                }
+
+                LocalTime candidateStart = schedule.getStartTime();
+
+                while (!candidateStart
+                        .plusMinutes(totalBlockMinutes)
+                        .isAfter(schedule.getEndTime())) {
+
+                    LocalTime candidateEnd
+                            = candidateStart.plusMinutes(totalBlockMinutes);
+
+                    LocalDateTime candidateDateTime
+                            = LocalDateTime.of(candidateDate, candidateStart);
+
+                    if (candidateDateTime.isAfter(now)
+                            && isRescheduleSlotAvailable(
+                                    appointmentId,
+                                    doctorId,
+                                    candidateDate,
+                                    candidateStart,
+                                    candidateEnd
+                            )) {
+
+                        result.add(
+                                HomeVisitSlotResponse.builder()
+                                        .scheduleId(schedule.getScheduleId())
+                                        .bookingDate(candidateDate)
+                                        .sessionType(
+                                                determineSessionType(candidateStart)
+                                        )
+                                        .startTime(candidateStart)
+                                        .endTime(candidateEnd)
+                                        .estimatedTravelMinutes(
+                                                estimatedTravelMinutes
+                                        )
+                                        .visitDurationMinutes(
+                                                visitDurationMinutes
+                                        )
+                                        .servicesDurationMinutes(0)
+                                        .bufferMinutes(0)
+                                        .totalBlockMinutes(totalBlockMinutes)
+                                        .build()
+                        );
+                    }
+
+                    candidateStart
+                            = candidateStart.plusMinutes(slotStepMinutes);
+                }
+            }
+        }
+
+        result.sort(
+                Comparator.comparing(
+                        HomeVisitSlotResponse::getBookingDate
+                ).thenComparing(
+                        HomeVisitSlotResponse::getStartTime
+                )
+        );
+
+        return result;
+    }
+
+    private boolean isRescheduleSlotAvailable(
+            Integer appointmentId,
+            String doctorId,
+            LocalDate bookingDate,
+            LocalTime startTime,
+            LocalTime endTime
+    ) {
+        LocalDateTime slotStart
+                = LocalDateTime.of(bookingDate, startTime);
+
+        LocalDateTime slotEnd
+                = LocalDateTime.of(bookingDate, endTime);
+
+        boolean appointmentConflict
+                = appointmentRepository
+                        .existsDoctorAppointmentOverlapExcludingAppointment(
+                                doctorId,
+                                "CANCELLED",
+                                slotStart,
+                                slotEnd,
+                                appointmentId
+                        );
+
+        if (appointmentConflict) {
+            return false;
+        }
+
+        return !bookingRepository
+                .existsOverlappingBookingExcludingAppointment(
+                        doctorId,
+                        bookingDate,
+                        startTime,
+                        endTime,
+                        appointmentId
+                );
     }
 
     @Override

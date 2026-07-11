@@ -63,6 +63,22 @@ export const appointmentService = {
         );
     },
 
+    getOnlineRescheduleDates: async (appointmentId) => {
+        const response = await axiosInstance.get(
+            `/api/appointments/${appointmentId}/reschedule-dates`
+        );
+
+        return response.data || [];
+    },
+
+    getHomeVisitRescheduleSlots: async (appointmentId) => {
+        const response = await axiosInstance.get(
+            `/api/home-visit/appointments/${appointmentId}/reschedule-slots`
+        );
+
+        return response.data || [];
+    },
+
     getAppointmentById: async (id) => {
         const response = await axios.get(
             `${API_URL}/appointments/${id}`,

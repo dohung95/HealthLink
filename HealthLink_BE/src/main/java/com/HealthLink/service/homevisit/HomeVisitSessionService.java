@@ -25,6 +25,10 @@ public interface HomeVisitSessionService {
             List<Integer> homeVisitServiceIds
     );
 
+    List<HomeVisitSlotResponse> getAvailableRescheduleSlots(
+            Integer appointmentId
+    );
+
     boolean isSlotAvailable(
             String doctorId,
             Integer scheduleId,

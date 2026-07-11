@@ -1,6 +1,7 @@
 import 'dart:async';
 import 'dart:math' as math;
 
+import 'package:HealthLink/models/booking/home_visit_session_slot.dart';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../../../utils/localization_utils.dart';
@@ -1167,8 +1168,19 @@ class _RescheduleAppointmentSheetState
   bool _submitting = false;
 
   DateTime _selectedDate = DateTime.now();
+
+  // State reschedule Online
   List<BookingSlot> _slots = [];
   BookingSlot? _selectedSlot;
+  List<String> _onlineAvailableDates = [];
+  int _onlineDatePage = 0;
+  static const int _onlineDatesPerPage = 7;
+
+  // State reschedule HomeVisit
+  List<HomeVisitSessionSlot> _homeVisitSlots = [];
+  HomeVisitSessionSlot? _selectedHomeVisitSlot;
+
+  bool get _isHomeVisit => widget.appointment.isHomeVisit;
   int _bookingWindowDays = 30;
 
   @override
@@ -1183,7 +1195,11 @@ class _RescheduleAppointmentSheetState
         : DateTime(today.year, today.month, today.day);
 
     WidgetsBinding.instance.addPostFrameCallback((_) {
-      _loadSlots();
+      if (_isHomeVisit) {
+        _loadHomeVisitSlots();
+      } else {
+        _loadOnlineAvailableDates();
+      }
     });
   }
 
@@ -1191,6 +1207,95 @@ class _RescheduleAppointmentSheetState
   void dispose() {
     _releaseHoldSilently();
     super.dispose();
+  }
+
+  Future<void> _loadOnlineAvailableDates() async {
+    setState(() {
+      _loadingSlots = true;
+      _onlineAvailableDates = [];
+      _slots = [];
+      _selectedSlot = null;
+    });
+
+    try {
+      final dates = await widget.appointmentService.getOnlineRescheduleDates(
+        appointmentId: widget.appointment.appointmentId,
+      );
+
+      if (!mounted) return;
+
+      if (dates.isEmpty) {
+        setState(() {
+          _onlineAvailableDates = [];
+          _slots = [];
+          _selectedSlot = null;
+        });
+        return;
+      }
+
+      final parsedDates =
+          dates
+              .map(DateTime.tryParse)
+              .whereType<DateTime>()
+              .map(_dayStart)
+              .toSet()
+              .toList()
+            ..sort();
+
+      if (parsedDates.isEmpty) {
+        setState(() {
+          _onlineAvailableDates = [];
+          _slots = [];
+          _selectedSlot = null;
+        });
+        return;
+      }
+
+      // Đặt đoạn bạn hỏi tại đây
+      setState(() {
+        _onlineAvailableDates = parsedDates.map(_formatDate).toList();
+
+        _onlineDatePage = 0;
+        _selectedDate = parsedDates.first;
+      });
+
+      // Sau khi chọn ngày đầu tiên, tải slot của ngày đó
+      await _loadSlots();
+    } catch (e) {
+      _showSheetMessage(_cleanError(e), isError: true);
+    } finally {
+      if (mounted) {
+        setState(() {
+          _loadingSlots = false;
+        });
+      }
+    }
+  }
+
+  Future<void> _changeOnlineDatePage(int nextPage) async {
+    final pageCount = (_onlineAvailableDates.length / _onlineDatesPerPage)
+        .ceil();
+
+    if (nextPage < 0 || nextPage >= pageCount) {
+      return;
+    }
+
+    await _releaseHoldSilently();
+
+    final firstIndex = nextPage * _onlineDatesPerPage;
+
+    final firstDate = DateTime.tryParse(_onlineAvailableDates[firstIndex]);
+
+    if (firstDate == null) return;
+
+    setState(() {
+      _onlineDatePage = nextPage;
+      _selectedDate = _dayStart(firstDate);
+      _selectedSlot = null;
+      _slots = [];
+    });
+
+    await _loadSlots();
   }
 
   Future<void> _loadSlots() async {
@@ -1212,6 +1317,42 @@ class _RescheduleAppointmentSheetState
       setState(() {
         _bookingWindowDays = result.bookingWindowDays;
         _slots = result.slots;
+      });
+    } catch (e) {
+      _showSheetMessage(_cleanError(e), isError: true);
+    } finally {
+      if (mounted) {
+        setState(() {
+          _loadingSlots = false;
+        });
+      }
+    }
+  }
+
+  Future<void> _loadHomeVisitSlots() async {
+    setState(() {
+      _loadingSlots = true;
+      _homeVisitSlots = [];
+      _selectedHomeVisitSlot = null;
+    });
+
+    try {
+      final slots = await widget.appointmentService.getHomeVisitRescheduleSlots(
+        appointmentId: widget.appointment.appointmentId,
+      );
+
+      if (!mounted) return;
+
+      setState(() {
+        _homeVisitSlots = slots;
+
+        if (slots.isNotEmpty) {
+          final firstDate = DateTime.tryParse(slots.first.bookingDate);
+
+          if (firstDate != null) {
+            _selectedDate = _dayStart(firstDate);
+          }
+        }
       });
     } catch (e) {
       _showSheetMessage(_cleanError(e), isError: true);
@@ -1302,9 +1443,30 @@ class _RescheduleAppointmentSheetState
   }
 
   Future<void> _confirmReschedule() async {
-    if (_selectedSlot == null) {
-      _showSheetMessage('Please select a new time slot.');
+    // dành cho HomeVisit.
+    if (_isHomeVisit && _selectedHomeVisitSlot == null) {
+      _showSheetMessage('Please select a new HomeVisit slot.', isError: true);
       return;
+    }
+
+    // dành cho Online.
+    if (!_isHomeVisit && _selectedSlot == null) {
+      _showSheetMessage('Please select a new time slot.', isError: true);
+      return;
+    }
+
+    // Hai loại slot có cấu trúc khác nhau nên build thời gian riêng.
+    final String newAppointmentTime;
+
+    if (_isHomeVisit) {
+      newAppointmentTime = _homeVisitAppointmentDateTime(
+        _selectedHomeVisitSlot!,
+      );
+    } else {
+      newAppointmentTime = _appointmentDateTime(
+        _selectedDate,
+        _selectedSlot!.startTime,
+      );
     }
 
     setState(() {
@@ -1314,18 +1476,28 @@ class _RescheduleAppointmentSheetState
     try {
       await widget.appointmentService.rescheduleAppointment(
         appointmentId: widget.appointment.appointmentId,
-        newAppointmentTime: _appointmentDateTime(
-          _selectedDate,
-          _selectedSlot!.startTime,
-        ),
+        newAppointmentTime: newAppointmentTime,
       );
 
       if (!mounted) return;
 
+      // Xóa selection trước khi đóng để dispose không release nhầm hold.
       _selectedSlot = null;
+      _selectedHomeVisitSlot = null;
+
       Navigator.of(context).pop(true);
     } catch (e) {
+      if (!mounted) return;
+
       _showSheetMessage(_cleanError(e), isError: true);
+
+      // Backend có thể từ chối vì slot vừa bị người khác lấy.
+      // Tải lại danh sách để loại slot cũ khỏi giao diện.
+      if (_isHomeVisit) {
+        await _loadHomeVisitSlots();
+      } else {
+        await _loadSlots();
+      }
     } finally {
       if (mounted) {
         setState(() {
@@ -1335,13 +1507,63 @@ class _RescheduleAppointmentSheetState
     }
   }
 
+  String _homeVisitAppointmentDateTime(HomeVisitSessionSlot slot) {
+    final rawTime = slot.startTime.trim();
+
+    final normalizedTime = rawTime.length == 5
+        ? '$rawTime:00'
+        : rawTime.split('.').first;
+
+    return '${slot.bookingDate}T$normalizedTime';
+  }
+
   @override
   Widget build(BuildContext context) {
     final colors = Theme.of(context).colorScheme;
-    final days = List.generate(
-      _bookingWindowDays.clamp(7, 30).toInt(),
-      (index) => _dayStart(DateTime.now()).add(Duration(days: index)),
+
+    final canConfirm = _isHomeVisit
+        ? _selectedHomeVisitSlot != null
+        : _selectedSlot != null;
+
+    final days = _isHomeVisit
+        ? (_homeVisitSlots
+              .map((slot) => DateTime.tryParse(slot.bookingDate))
+              .whereType<DateTime>()
+              .map(_dayStart)
+              .toSet()
+              .toList()
+            ..sort())
+        : (_onlineAvailableDates
+              .map(DateTime.tryParse)
+              .whereType<DateTime>()
+              .map(_dayStart)
+              .toSet()
+              .toList()
+            ..sort());
+
+    final onlinePageCount = (_onlineAvailableDates.length / _onlineDatesPerPage)
+        .ceil()
+        .clamp(1, 999);
+
+    final onlinePageStart = _onlineDatePage * _onlineDatesPerPage;
+
+    final onlinePageEnd = (onlinePageStart + _onlineDatesPerPage).clamp(
+      0,
+      _onlineAvailableDates.length,
     );
+
+    final visibleDays = _isHomeVisit
+        ? days
+        : days.sublist(
+            onlinePageStart.clamp(0, days.length),
+            onlinePageEnd.clamp(0, days.length),
+          );
+
+    final selectedDateText = _formatDate(_selectedDate);
+
+    final visibleHomeVisitSlots = _homeVisitSlots
+        .where((slot) => slot.bookingDate == selectedDateText)
+        .toList();
 
     return Padding(
       padding: EdgeInsets.only(
@@ -1378,28 +1600,69 @@ class _RescheduleAppointmentSheetState
           ),
           const SizedBox(height: 18),
 
+          if (!_isHomeVisit && _onlineAvailableDates.isNotEmpty) ...[
+            Row(
+              children: [
+                Expanded(
+                  child: OutlinedButton(
+                    onPressed: _loadingSlots || _onlineDatePage <= 0
+                        ? null
+                        : () => _changeOnlineDatePage(_onlineDatePage - 1),
+                    child: const Text('Previous'),
+                  ),
+                ),
+                const SizedBox(width: 12),
+                Text(
+                  '${_onlineDatePage + 1}'
+                  ' / '
+                  '$onlinePageCount',
+                  style: const TextStyle(fontWeight: FontWeight.w800),
+                ),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: OutlinedButton(
+                    onPressed:
+                        _loadingSlots || _onlineDatePage >= onlinePageCount - 1
+                        ? null
+                        : () => _changeOnlineDatePage(_onlineDatePage + 1),
+                    child: const Text('Next'),
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 12),
+          ],
+
           SizedBox(
             height: 82,
             child: ListView.separated(
               scrollDirection: Axis.horizontal,
-              itemCount: days.length,
+              itemCount: visibleDays.length,
               separatorBuilder: (_, __) => const SizedBox(width: 10),
               itemBuilder: (context, index) {
-                final day = days[index];
+                final day = visibleDays[index];
                 final selected = _sameDay(day, _selectedDate);
 
                 return InkWell(
                   borderRadius: BorderRadius.circular(18),
                   onTap: () async {
-                    await _releaseHoldSilently();
+                    if (!_isHomeVisit) {
+                      await _releaseHoldSilently();
+                    }
 
                     setState(() {
                       _selectedDate = day;
                       _selectedSlot = null;
-                      _slots = [];
+                      _selectedHomeVisitSlot = null;
+
+                      if (!_isHomeVisit) {
+                        _slots = [];
+                      }
                     });
 
-                    await _loadSlots();
+                    if (!_isHomeVisit) {
+                      await _loadSlots();
+                    }
                   },
                   child: Container(
                     width: 96,
@@ -1453,12 +1716,9 @@ class _RescheduleAppointmentSheetState
           const SizedBox(height: 12),
 
           if (_loadingSlots)
-            const Center(
-              child: Padding(
-                padding: EdgeInsets.all(24),
-                child: CircularProgressIndicator(),
-              ),
-            )
+            const Center(child: CircularProgressIndicator())
+          else if (_isHomeVisit)
+            _buildHomeVisitRescheduleSlots(colors, visibleHomeVisitSlots)
           else if (_slots.isEmpty)
             Container(
               width: double.infinity,
@@ -1529,7 +1789,9 @@ class _RescheduleAppointmentSheetState
               const SizedBox(width: 12),
               Expanded(
                 child: FilledButton(
-                  onPressed: _submitting ? null : _confirmReschedule,
+                  onPressed: _submitting || !canConfirm
+                      ? null
+                      : _confirmReschedule,
                   child: _submitting
                       ? const SizedBox(
                           width: 18,
@@ -1604,5 +1866,74 @@ class _RescheduleAppointmentSheetState
       'Sat',
       'Sun',
     ][date.weekday - 1];
+  }
+
+  Widget _buildHomeVisitRescheduleSlots(
+    ColorScheme colors,
+    List<HomeVisitSessionSlot> slots,
+  ) {
+    if (slots.isEmpty) {
+      return Container(
+        width: double.infinity,
+        padding: const EdgeInsets.all(18),
+        decoration: BoxDecoration(
+          color: colors.surfaceContainerLow,
+          borderRadius: BorderRadius.circular(16),
+        ),
+        child: Text(
+          'No available HomeVisit slots.',
+          style: TextStyle(color: colors.onSurfaceVariant),
+        ),
+      );
+    }
+
+    return Column(
+      children: slots.map((slot) {
+        final selected =
+            _selectedHomeVisitSlot?.scheduleId == slot.scheduleId &&
+            _selectedHomeVisitSlot?.bookingDate == slot.bookingDate &&
+            _selectedHomeVisitSlot?.startTime == slot.startTime;
+
+        return Padding(
+          padding: const EdgeInsets.only(bottom: 10),
+          child: InkWell(
+            borderRadius: BorderRadius.circular(16),
+            onTap: () {
+              setState(() {
+                _selectedHomeVisitSlot = slot;
+                _selectedSlot = null;
+              });
+            },
+            child: Container(
+              width: double.infinity,
+              padding: const EdgeInsets.all(16),
+              decoration: BoxDecoration(
+                color: selected
+                    ? colors.primaryContainer
+                    : colors.surfaceContainerLow,
+                borderRadius: BorderRadius.circular(16),
+                border: Border.all(
+                  color: selected ? colors.primary : colors.outlineVariant,
+                ),
+              ),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    '${slot.startTime} - ${slot.endTime}',
+                    style: const TextStyle(fontWeight: FontWeight.w900),
+                  ),
+                  const SizedBox(height: 4),
+                  Text(
+                    '${slot.totalBlockMinutes} min total',
+                    style: TextStyle(color: colors.onSurfaceVariant),
+                  ),
+                ],
+              ),
+            ),
+          ),
+        );
+      }).toList(),
+    );
   }
 }
